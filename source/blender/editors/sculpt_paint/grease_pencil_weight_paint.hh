@@ -18,7 +18,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 
@@ -137,7 +137,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
     this->mouse_position_previous = start_sample.mouse_position;
     this->invert_brush_weight = false;
 
-    BKE_curvemapping_init(brush->curve);
+    BKE_curvemapping_init(brush->curve_distance_falloff);
 
     /* Auto-normalize weights is only applied when the object is deformed by an armature. */
     const ToolSettings *ts = CTX_data_tool_settings(&C);

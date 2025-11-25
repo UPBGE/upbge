@@ -13,23 +13,20 @@
  * we precompute a weight profile texture to be able to support per pixel AND per channel radius.
  */
 
-#include "infos/eevee_subsurface_info.hh"
+#include "infos/eevee_subsurface_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_subsurface_convolve)
 
 #include "draw_view_lib.glsl"
-#include "eevee_gbuffer_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_reverse_z_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
-#include "gpu_shader_math_rotation_lib.glsl"
-#include "gpu_shader_shared_exponent_lib.glsl"
 
-/* Produces NaN tile artifacts on Metal (M1). */
-#ifndef GPU_METAL
-#  define GROUPSHARED_CACHE
-#endif
+#include "gpu_shader_math_angle_lib.glsl"
+#include "gpu_shader_math_matrix_construct_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
+#include "gpu_shader_shared_exponent_lib.glsl"
 
 struct SubSurfaceSample {
   float3 radiance;
@@ -39,11 +36,10 @@ struct SubSurfaceSample {
 
 /* TODO(fclem): These need to be outside the check because of MSL backend glue.
  * This likely will contribute to register usage. Better get rid of if or make it working. */
-shared float3 cached_radiance[SUBSURFACE_GROUP_SIZE][SUBSURFACE_GROUP_SIZE];
-shared uint cached_sss_id[SUBSURFACE_GROUP_SIZE][SUBSURFACE_GROUP_SIZE];
-shared float cached_depth[SUBSURFACE_GROUP_SIZE][SUBSURFACE_GROUP_SIZE];
 
-#ifdef GROUPSHARED_CACHE
+shared float3 cached_radiance[gl_WorkGroupSize.x][gl_WorkGroupSize.y];
+shared uint cached_sss_id[gl_WorkGroupSize.x][gl_WorkGroupSize.y];
+shared float cached_depth[gl_WorkGroupSize.x][gl_WorkGroupSize.y];
 
 void cache_populate(float2 local_uv)
 {
@@ -66,17 +62,14 @@ bool cache_sample(uint2 texel, out SubSurfaceSample samp)
   samp.depth = cached_depth[texel.y][texel.x];
   return true;
 }
-#endif
 
 SubSurfaceSample sample_neighborhood(float2 sample_uv)
 {
   SubSurfaceSample samp;
-#ifdef GROUPSHARED_CACHE
   uint2 sample_texel = uint2(sample_uv * float2(textureSize(depth_tx, 0)));
   if (cache_sample(sample_texel, samp)) {
     return samp;
   }
-#endif
   samp.depth = reverse_z::read(texture(depth_tx, sample_uv).r);
   samp.sss_id = texture(object_id_tx, sample_uv).r;
   samp.radiance = texture(radiance_tx, sample_uv).rgb;
@@ -91,21 +84,20 @@ void main()
 
   float2 center_uv = (float2(texel) + 0.5f) / float2(textureSize(gbuf_header_tx, 0).xy);
 
-#ifdef GROUPSHARED_CACHE
   cache_populate(center_uv);
-#endif
+  barrier();
 
   float depth = reverse_z::read(texelFetch(depth_tx, texel, 0).r);
   float3 vP = drw_point_screen_to_view(float3(center_uv, depth));
 
-  GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
-  if (gbuffer_closure_get(gbuf, 0).type != CLOSURE_BSSRDF_BURLEY_ID) {
+  const gbuffer::Layers gbuf = gbuffer::read_layers(texel);
+  if (gbuf.layer[0].type != CLOSURE_BSSRDF_BURLEY_ID) {
     return;
   }
 
-  uint object_id = texelFetch(gbuf_header_tx, int3(texel, 1), 0).x;
+  const uint object_id = gbuffer::read_object_id(texel);
 
-  ClosureSubsurface closure = to_closure_subsurface(gbuffer_closure_get(gbuf, 0));
+  const ClosureSubsurface closure = to_closure_subsurface(gbuf.layer[0]);
   float max_radius = reduce_max(closure.sss_radius);
 
   float homcoord = drw_view().winmat[2][3] * vP.z + drw_view().winmat[3][3];
@@ -128,9 +120,9 @@ void main()
 
   /* Do not rotate too much to avoid too much cache misses. */
   float golden_angle = M_PI * (3.0f - sqrt(5.0f));
-  float theta = interlieved_gradient_noise(float2(texel), 0, 0.0f) * golden_angle;
+  float theta = interleaved_gradient_noise(float2(texel), 0, 0.0f) * golden_angle;
 
-  float2x2 sample_space = from_scale(sample_scale) * from_rotation(Angle(theta));
+  float2x2 sample_space = from_scale(sample_scale) * from_rotation(AngleRadian(theta));
 
   float3 accum_weight = float3(0.0f);
   float3 accum_radiance = float3(0.0f);

@@ -30,6 +30,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
@@ -39,7 +40,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
@@ -171,7 +171,7 @@ enum eWS_Qual {
   WS_QUAL_RMOUSE = (1 << 18),
 #define WS_QUAL_MOUSE (WS_QUAL_LMOUSE | WS_QUAL_MMOUSE | WS_QUAL_RMOUSE)
 };
-ENUM_OPERATORS(eWS_Qual, WS_QUAL_RMOUSE)
+ENUM_OPERATORS(eWS_Qual)
 
 struct GhostData {
   GHOST_SystemHandle system;
@@ -676,7 +676,9 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
   GHOST_ActivateWindowDrawingContext(ghost_data.window);
   GPU_render_begin();
 
+  GHOST_SwapWindowBufferAcquire(ghost_data.window);
   GPUContext *restore_context = GPU_context_active_get();
+
   GPU_context_active_set(ghost_data.gpu_context);
   GPU_context_begin_frame(ghost_data.gpu_context);
 
@@ -787,7 +789,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
   }
 
   GPU_context_end_frame(ghost_data.gpu_context);
-  GHOST_SwapWindowBuffers(ghost_data.window);
+  GHOST_SwapWindowBufferRelease(ghost_data.window);
   GPU_context_active_set(restore_context);
   GPU_render_end();
 }
@@ -1591,7 +1593,7 @@ static GHOST_WindowHandle playanim_window_open(
     GHOST_SystemHandle ghost_system, const char *title, int posx, int posy, int sizex, int sizey)
 {
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -1860,6 +1862,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
       /* Init GHOST and open window. */
       GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+      GHOST_UseWindowFrame(WM_init_window_frame_get());
 
       ps.ghost_data.system = GHOST_CreateSystem();
       if (UNLIKELY(ps.ghost_data.system == nullptr)) {
@@ -1921,6 +1924,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
   ps.display_ctx.size = ps.ibuf_size;
 
+  GHOST_SwapWindowBufferAcquire(ps.ghost_data.window);
   GPU_render_begin();
   GPU_render_step();
   GPU_clear_color(0.1f, 0.1f, 0.1f, 0.0f);
@@ -1932,7 +1936,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
     playanim_gpu_matrix();
   }
 
-  GHOST_SwapWindowBuffers(ps.ghost_data.window);
+  GHOST_SwapWindowBufferRelease(ps.ghost_data.window);
   GPU_render_end();
 
   /* One of the frames was invalid or not passed in. */

@@ -123,8 +123,11 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
       "material_index", AttrDomain::Face);
   SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
       "sharp_face", AttrDomain::Face);
+  const StringRef uv_name = DATA_("UVMap");
   SpanAttributeWriter<float2> uv_attribute = attributes.lookup_or_add_for_write_span<float2>(
-      DATA_("UVMap"), AttrDomain::Corner);
+      uv_name, AttrDomain::Corner);
+  mesh->uv_maps_active_set(uv_name);
+  mesh->uv_maps_default_set(uv_name);
   MutableSpan<float2> uv_map = uv_attribute.span;
 
   int dst_vert = 0;
@@ -548,11 +551,26 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 
   PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
   pointcloud->totpoint = mesh_eval->verts_num;
-  copy_attributes(mesh_eval->attributes(),
+
+  const AttributeAccessor src_attributes = mesh_eval->attributes();
+  MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
+  copy_attributes(src_attributes,
                   AttrDomain::Point,
                   AttrDomain::Point,
-                  {},
-                  pointcloud->attributes_for_write());
+                  attribute_filter_from_skip_ref({".select_vert", ".select_edge", ".select_poly"}),
+                  dst_attributes);
+
+  if (const GAttributeReader src = src_attributes.lookup(".select_vert")) {
+    const AttrType type = cpp_type_to_attribute_type(src.varray.type());
+    if (src.sharing_info && src.varray.is_span()) {
+      const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                          *src.sharing_info);
+      dst_attributes.add(".selection", AttrDomain::Point, type, init);
+    }
+    else {
+      dst_attributes.add(".selection", AttrDomain::Point, type, AttributeInitVArray(src.varray));
+    }
+  }
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)pointcloud);
 
@@ -575,11 +593,26 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   Mesh *mesh = BKE_mesh_add(bmain, ob->id.name + 2);
   if (const PointCloud *points = geometry.get_pointcloud()) {
     mesh->verts_num = points->totpoint;
-    copy_attributes(points->attributes(),
+    const AttributeAccessor src_attributes = points->attributes();
+    MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
+    copy_attributes(src_attributes,
                     AttrDomain::Point,
                     AttrDomain::Point,
-                    {},
-                    mesh->attributes_for_write());
+                    attribute_filter_from_skip_ref({".selection"}),
+                    dst_attributes);
+
+    if (const GAttributeReader src = src_attributes.lookup(".selection")) {
+      const AttrType type = cpp_type_to_attribute_type(src.varray.type());
+      if (src.sharing_info && src.varray.is_span()) {
+        const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                            *src.sharing_info);
+        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+      }
+      else {
+        const AttributeInitVArray init(src.varray);
+        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+      }
+    }
   }
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)mesh);
@@ -1116,6 +1149,8 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
   /* Make sure attribute names are moved. */
   std::swap(mesh_dst->active_color_attribute, mesh_src->active_color_attribute);
   std::swap(mesh_dst->default_color_attribute, mesh_src->default_color_attribute);
+  std::swap(mesh_dst->active_uv_map_attribute, mesh_src->active_uv_map_attribute);
+  std::swap(mesh_dst->default_uv_map_attribute, mesh_src->default_uv_map_attribute);
   std::swap(mesh_dst->vertex_group_names, mesh_src->vertex_group_names);
 
   BKE_mesh_copy_parameters(mesh_dst, mesh_src);

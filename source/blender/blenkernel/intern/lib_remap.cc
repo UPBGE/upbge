@@ -83,21 +83,21 @@ static void foreach_libblock_remap_callback_skip(const ID * /*id_owner*/,
   BLI_assert(id != nullptr);
 
   if (is_indirect) {
-    id->runtime.remap.skipped_indirect++;
+    id->runtime->remap.skipped_indirect++;
   }
   else if (violates_never_null || is_obj_editmode || is_reference) {
-    id->runtime.remap.skipped_direct++;
+    id->runtime->remap.skipped_direct++;
   }
   else {
     BLI_assert_unreachable();
   }
 
   if (cb_flag & IDWALK_CB_USER) {
-    id->runtime.remap.skipped_refcounted++;
+    id->runtime->remap.skipped_refcounted++;
   }
   else if (cb_flag & IDWALK_CB_USER_ONE) {
     /* No need to count number of times this happens, just a flag is enough. */
-    id->runtime.remap.status |= ID_REMAP_IS_USER_ONE_SKIPPED;
+    id->runtime->remap.status |= ID_REMAP_IS_USER_ONE_SKIPPED;
   }
 }
 
@@ -142,7 +142,7 @@ static void foreach_libblock_remap_callback_apply(ID *id_owner,
   ID *new_id = violates_never_null ? nullptr : *id_ptr;
 
   if (!is_indirect && new_id) {
-    new_id->runtime.remap.status |= ID_REMAP_IS_LINKED_DIRECT;
+    new_id->runtime->remap.status |= ID_REMAP_IS_LINKED_DIRECT;
   }
 
   if (skip_user_refcount) {
@@ -187,13 +187,25 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
   ID **id_p = cb_data->id_pointer;
   IDRemap *id_remap_data = static_cast<IDRemap *>(cb_data->user_data);
 
+  const bool is_self_embedded = (id_self->flag & ID_FLAG_EMBEDDED_DATA) != 0;
+
   /* Those asserts ensure the general sanity of ID tags regarding 'embedded' ID data (root
    * node-trees and co). */
   BLI_assert(id_owner == id_remap_data->id_owner);
-  BLI_assert(id_self == id_owner || (id_self->flag & ID_FLAG_EMBEDDED_DATA) != 0);
+  BLI_assert(id_self == id_owner || is_self_embedded);
 
   /* Early exit when id pointer isn't set. */
   if (*id_p == nullptr) {
+    return IDWALK_RET_NOP;
+  }
+
+  /* Similar to above early-out on `IDWALK_CB_EMBEDDED` calls on ID pointers to embedded data, the
+   * 'loopback' pointers of embedded IDs towards their owner ID should never be remapped here.
+   *
+   * This relation between owner ID and its embedded ID is not the responsibility of ID management,
+   * and should never be affected by ID remapping.
+   */
+  if (is_self_embedded && (cb_flag & IDWALK_CB_LOOPBACK) != 0 && *id_p == id_owner) {
     return IDWALK_RET_NOP;
   }
 
@@ -445,7 +457,7 @@ static void libblock_remap_data_update_tags(ID *old_id, ID *new_id, IDRemap *id_
   }
 
   if (new_id != nullptr && (new_id->tag & ID_TAG_INDIRECT) &&
-      (new_id->runtime.remap.status & ID_REMAP_IS_LINKED_DIRECT))
+      (new_id->runtime->remap.status & ID_REMAP_IS_LINKED_DIRECT))
   {
     new_id->tag &= ~ID_TAG_INDIRECT;
     new_id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
@@ -570,13 +582,13 @@ static void libblock_remap_foreach_idpair(ID *old_id, ID *new_id, Main *bmain, i
      * count has actually been incremented for that, we have to decrease once more its user
      * count... unless we had to skip some 'user_one' cases. */
     if ((old_id->tag & ID_TAG_EXTRAUSER_SET) &&
-        !(old_id->runtime.remap.status & ID_REMAP_IS_USER_ONE_SKIPPED))
+        !(old_id->runtime->remap.status & ID_REMAP_IS_USER_ONE_SKIPPED))
     {
       id_us_clear_real(old_id);
     }
   }
 
-  const int skipped_refcounted = old_id->runtime.remap.skipped_refcounted;
+  const int skipped_refcounted = old_id->runtime->remap.skipped_refcounted;
   if (old_id->us - skipped_refcounted < 0) {
     CLOG_ERROR(&LOG,
                "Error in remapping process from '%s' (%p) to '%s' (%p): "
@@ -588,7 +600,7 @@ static void libblock_remap_foreach_idpair(ID *old_id, ID *new_id, Main *bmain, i
                old_id->us - skipped_refcounted);
   }
 
-  const int skipped_direct = old_id->runtime.remap.skipped_direct;
+  const int skipped_direct = old_id->runtime->remap.skipped_direct;
   if (skipped_direct == 0) {
     /* old_id is assumed to not be used directly anymore... */
     if (old_id->lib && (old_id->tag & ID_TAG_EXTERN)) {

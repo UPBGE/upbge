@@ -381,7 +381,7 @@ static void rna_Particle_uv_on_emitter(ParticleData *particle,
   int num = particle->num_dmcache;
   int from = modifier->psys->part->from;
 
-  if (!CustomData_has_layer(&modifier->mesh_final->corner_data, CD_PROP_FLOAT2)) {
+  if (modifier->mesh_final->uv_map_names().is_empty()) {
     BKE_report(reports, RPT_ERROR, "Mesh has no UV data");
     return;
   }
@@ -673,14 +673,14 @@ static void rna_ParticleSystem_uv_on_emitter(ParticleSystem *particlesystem,
     zero_v2(r_uv);
     return;
   }
-  if (!CustomData_has_layer(&modifier->mesh_final->corner_data, CD_PROP_FLOAT2)) {
+  if (modifier->mesh_final->uv_map_names().is_empty()) {
     BKE_report(reports, RPT_ERROR, "Mesh has no UV data");
     zero_v2(r_uv);
     return;
   }
 
   {
-    float(*fuv)[4];
+    float (*fuv)[4];
     /* Note all sanity checks are done in this helper func. */
     const int num = rna_ParticleSystem_tessfaceidx_on_emitter(
         particlesystem, modifier, particle, particle_no, &fuv);
@@ -716,7 +716,7 @@ static void rna_ParticleSystem_mcol_on_emitter(ParticleSystem *particlesystem,
   }
 
   {
-    float(*fuv)[4];
+    float (*fuv)[4];
     /* Note all sanity checks are done in this helper func. */
     const int num = rna_ParticleSystem_tessfaceidx_on_emitter(
         particlesystem, modifier, particle, particle_no, &fuv);

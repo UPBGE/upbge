@@ -19,6 +19,11 @@
 #include "vk_shader.hh"
 #include "vk_shader_compiler.hh"
 
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+
 namespace blender::gpu {
 
 static std::optional<std::string> cache_dir_get()
@@ -178,6 +183,11 @@ static bool compile_ex(shaderc::Compiler &compiler,
                        shaderc_shader_kind stage,
                        VKShaderModule &shader_module)
 {
+  std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
+
+  Shader::dump_source_to_disk(
+      shader.name_get(), full_name, ".glsl", shader_module.combined_sources);
+
   if (read_spirv_from_disk(shader_module)) {
     return true;
   }
@@ -215,7 +225,6 @@ static bool compile_ex(shaderc::Compiler &compiler,
   /* Removes line directive. */
   std::string sources = patch_line_directives(shader_module.combined_sources);
 
-  std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
   shader_module.compilation_result = compiler.CompileGlslToSpv(
       sources, stage, full_name.c_str(), options);
   bool compilation_succeeded = shader_module.compilation_result.GetCompilationStatus() ==

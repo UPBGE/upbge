@@ -34,7 +34,6 @@
 #  include "BKE_movieclip.h"
 
 #  include "BKE_report.hh"
-#  include "BKE_sound.h"
 
 #  include "IMB_imbuf.hh"
 #  include "IMB_imbuf_types.hh"
@@ -88,15 +87,26 @@ static void rna_Strips_move_strip_to_meta(
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }
 
-static Strip *rna_Strip_split(
-    ID *id, Strip *strip, Main *bmain, ReportList *reports, int frame, int split_method)
+static Strip *rna_Strip_split(ID *id,
+                              Strip *strip,
+                              Main *bmain,
+                              ReportList *reports,
+                              int frame,
+                              int split_method,
+                              bool ignore_connections)
 {
   Scene *scene = (Scene *)id;
   ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   const char *error_msg = nullptr;
-  Strip *r_seq = blender::seq::edit_strip_split(
-      bmain, scene, seqbase, strip, frame, blender::seq::eSplitMethod(split_method), &error_msg);
+  Strip *strip_split = blender::seq::edit_strip_split(bmain,
+                                                      scene,
+                                                      seqbase,
+                                                      strip,
+                                                      frame,
+                                                      blender::seq::eSplitMethod(split_method),
+                                                      ignore_connections,
+                                                      &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
@@ -107,7 +117,7 @@ static Strip *rna_Strip_split(
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return r_seq;
+  return strip_split;
 }
 
 static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
@@ -268,7 +278,7 @@ static Strip *rna_Strips_new_image(ID *id,
   BLI_path_split_dir_file(file, dirpath, sizeof(dirpath), filename, sizeof(filename));
   blender::seq::add_image_set_directory(strip, dirpath);
   blender::seq::add_image_load_file(scene, strip, 0, filename);
-  blender::seq::add_image_init_alpha_mode(strip);
+  blender::seq::add_image_init_alpha_mode(bmain, scene, strip);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -517,7 +527,7 @@ static Strip *rna_Strips_new_effect(ID *id,
   blender::seq::LoadData load_data;
   blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.effect.length = length;
-  load_data.effect.type = type;
+  load_data.effect.type = StripType(type);
   load_data.effect.input1 = input1;
   load_data.effect.input2 = input2;
   strip = blender::seq::add_effect_strip(scene, seqbase, &load_data);
@@ -754,6 +764,8 @@ void RNA_api_strip(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_enum(func, "split_method", strip_split_method_items, 0, "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  parm = RNA_def_boolean(
+      func, "ignore_connections", false, "", "Don't propagate split to connected strips");
   /* Return type. */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "Right side Strip");
   RNA_def_function_return(func, parm);
@@ -826,7 +838,6 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", "Multiply color channels from two videos"},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", "Sweep a transition line across the frame"},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", "Add blur and brightness to light areas"},
-      {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", "Apply scale, rotation, or translation"},
       {STRIP_TYPE_COLOR, "COLOR", 0, "Color", "Add a simple color strip"},
       {STRIP_TYPE_SPEED, "SPEED", 0, "Speed", "Timewarp video strips, modifying playback speed"},
       {STRIP_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", "Control active camera angles"},

@@ -21,12 +21,14 @@ namespace blender::bke {
 std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data_type)
 {
   switch (data_type) {
+    /* These types are not used for actual #CustomData layers. */
     case CD_NUMTYPES:
     case CD_AUTO_FROM_NAME:
     case CD_TANGENT:
-      /* These type is not used for actual #CustomData layers. */
       BLI_assert_unreachable();
       return std::nullopt;
+
+    /* These types are only used for versioning old files. */
     case CD_MVERT:
     case CD_MSTICKY:
     case CD_MEDGE:
@@ -45,29 +47,43 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_TESSLOOPNORMAL:
     case CD_FREESTYLE_EDGE:
     case CD_FREESTYLE_FACE:
-      /* These types are only used for versioning old files. */
       return std::nullopt;
+
+    /* These types are only used for #BMesh. */
     case CD_SHAPEKEY:
     case CD_SHAPE_KEYINDEX:
     case CD_BM_ELEM_PYPTR:
-      /* These types are only used for #BMesh. */
       return std::nullopt;
-    case CD_MDEFORMVERT:
+
+    /* Only used for legacy #MFace data. */
     case CD_MFACE:
-    case CD_MCOL:
-    case CD_ORIGINDEX:
-    case CD_NORMAL:
     case CD_ORIGSPACE:
+    case CD_MCOL:
+      return std::nullopt;
+
+    /* Custom data on vertices. */
+    case CD_MDEFORMVERT:
+    case CD_MVERT_SKIN:
     case CD_ORCO:
-    case CD_MDISPS:
     case CD_CLOTH_ORCO:
+      return std::nullopt;
+
+    /* Custom data on face corners. */
+    case CD_NORMAL:
+    case CD_MDISPS:
     case CD_ORIGSPACE_MLOOP:
     case CD_GRID_PAINT_MASK:
-    case CD_MVERT_SKIN:
-    case CD_MLOOPTANGENT:
-      /* These types are not generic. They will either be moved to some generic data type or
-       * #AttributeStorage will be extended to be able to support a similar format. */
       return std::nullopt;
+
+    /* Use for editing/selecting original data from evaluated mesh (vertices, edges, faces). */
+    case CD_ORIGINDEX:
+      return std::nullopt;
+
+    /* Used as a cache of tangents for current RNA API (face corners). */
+    case CD_MLOOPTANGENT:
+      return std::nullopt;
+
+    /* Attribute types. */
     case CD_PROP_FLOAT:
       return AttrType::Float;
     case CD_PROP_INT32:
@@ -244,22 +260,6 @@ void mesh_convert_storage_to_customdata(Mesh &mesh)
                                  {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
                                  {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
                                  {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
-  if (const char *name = mesh.active_uv_map_attribute) {
-    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
-    if (layer_n != -1) {
-      CustomData_set_layer_active(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
-    }
-    MEM_freeN(mesh.active_uv_map_attribute);
-    mesh.active_uv_map_attribute = nullptr;
-  }
-  if (const char *name = mesh.default_uv_map_attribute) {
-    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
-    if (layer_n != -1) {
-      CustomData_set_layer_render(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
-    }
-    MEM_freeN(mesh.default_uv_map_attribute);
-    mesh.default_uv_map_attribute = nullptr;
-  }
 }
 void mesh_convert_customdata_to_storage(Mesh &mesh)
 {
@@ -298,6 +298,50 @@ void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
         {grease_pencil.layers_data_legacy, int(grease_pencil.layers().size())}}},
       grease_pencil.attribute_storage.wrap());
   CustomData_reset(&grease_pencil.layers_data_legacy);
+}
+
+static const CustomData &get_custom_data(const Mesh &mesh, const AttrDomain domain)
+{
+  switch (domain) {
+    case AttrDomain::Point:
+      return mesh.vert_data;
+    case AttrDomain::Edge:
+      return mesh.edge_data;
+    case AttrDomain::Face:
+      return mesh.face_data;
+    case AttrDomain::Corner:
+      return mesh.corner_data;
+    default:
+      BLI_assert_unreachable();
+      return mesh.vert_data;
+  }
+}
+
+static CustomData &get_custom_data(Mesh &mesh, const AttrDomain domain)
+{
+  return const_cast<CustomData &>(get_custom_data(std::as_const(mesh), domain));
+}
+
+LegacyMeshInterpolator::LegacyMeshInterpolator(const Mesh &src, Mesh &dst, const AttrDomain domain)
+    : cd_src_(get_custom_data(src, domain)), cd_dst_(get_custom_data(dst, domain))
+{
+}
+
+void LegacyMeshInterpolator::copy(const int src_index, const int dst_index, const int count) const
+{
+  CustomData_copy_data(&cd_src_, &cd_dst_, src_index, dst_index, count);
+}
+
+void LegacyMeshInterpolator::mix(Span<int> src_indices,
+                                 const std::optional<Span<float>> weights,
+                                 const int dst_index) const
+{
+  CustomData_interp(&cd_src_,
+                    &cd_dst_,
+                    src_indices.data(),
+                    weights ? weights->data() : nullptr,
+                    src_indices.size(),
+                    dst_index);
 }
 
 }  // namespace blender::bke

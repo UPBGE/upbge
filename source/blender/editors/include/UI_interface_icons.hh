@@ -16,6 +16,7 @@
 struct Collection;
 struct ID;
 struct ImBuf;
+struct Object;
 struct PointerRNA;
 struct PreviewImage;
 struct Scene;
@@ -40,16 +41,18 @@ struct IconTextOverlay {
 
 #define PREVIEW_DRAG_DRAW_SIZE 96.0f
 
-enum eAlertIcon {
-  ALERT_ICON_NONE = -1,
-  ALERT_ICON_WARNING = 0,
-  ALERT_ICON_QUESTION = 1,
-  ALERT_ICON_ERROR = 2,
-  ALERT_ICON_INFO = 3,
-  ALERT_ICON_MAX,
+namespace blender::ui {
+enum class AlertIcon : int8_t {
+  None = -1,
+  Warning = 0,
+  Question = 1,
+  Error = 2,
+  Info = 3,
+  Max,
 };
+}
 
-ImBuf *UI_icon_alert_imbuf_get(eAlertIcon icon, float size);
+ImBuf *UI_icon_alert_imbuf_get(blender::ui::AlertIcon icon, float size);
 
 /**
  * Resizable Icons for Blender
@@ -110,6 +113,7 @@ int UI_icon_from_rnaptr(const bContext *C, PointerRNA *ptr, int rnaicon, bool bi
 int UI_icon_from_idcode(int idcode);
 int UI_icon_from_library(const ID *id);
 int UI_icon_from_object_mode(int mode);
+int UI_icon_from_object_type(const Object *object);
 int UI_icon_color_from_collection(const Collection *collection);
 
 void UI_icon_text_overlay_init_from_count(IconTextOverlay *text_overlay,

@@ -16,6 +16,7 @@
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_path_utils.hh" /* Only for assertions. */
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -91,10 +92,19 @@ static bool blendhandle_load_id_data_and_validate(FileData *fd,
                                                   BHead *bhead,
                                                   bool use_assets_only,
                                                   const char *&r_idname,
+                                                  short &r_idflag,
                                                   AssetMetaData *&r_asset_meta_data)
 {
   r_idname = blo_bhead_id_name(fd, bhead);
   if (!r_idname || r_idname[0] == '\0') {
+    return false;
+  }
+  r_idflag = blo_bhead_id_flag(fd, bhead);
+  /* Do not list (and therefore allow direct linking of) packed data.
+   * While supporting this is conceptually possible, it would require significant changes in
+   * the UI (file browser) and UX (link operation) to convey this concept and handle it
+   * correctly. */
+  if (r_idflag & ID_FLAG_LINKED_AND_PACKED) {
     return false;
   }
   r_asset_meta_data = blo_bhead_id_asset_data_address(fd, bhead);
@@ -117,9 +127,10 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == ofblocktype) {
       const char *idname;
+      short idflag;
       AssetMetaData *asset_meta_data;
       if (!blendhandle_load_id_data_and_validate(
-              fd, bhead, use_assets_only, idname, asset_meta_data))
+              fd, bhead, use_assets_only, idname, idflag, asset_meta_data))
       {
         continue;
       }
@@ -156,9 +167,10 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
       BHead *id_bhead = bhead;
 
       const char *idname;
+      short idflag;
       AssetMetaData *asset_meta_data;
       if (!blendhandle_load_id_data_and_validate(
-              fd, id_bhead, use_assets_only, idname, asset_meta_data))
+              fd, id_bhead, use_assets_only, idname, idflag, asset_meta_data))
       {
         continue;
       }
@@ -287,7 +299,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
 LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
 {
   FileData *fd = (FileData *)bh;
-  GSet *gathered = BLI_gset_ptr_new("linkable_groups gh");
+  blender::Set<const char *> gathered;
   LinkNode *names = nullptr;
   BHead *bhead;
 
@@ -299,14 +311,12 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
       if (BKE_idtype_idcode_is_linkable(bhead->code)) {
         const char *str = BKE_idtype_idcode_to_name(bhead->code);
 
-        if (BLI_gset_add(gathered, (void *)str)) {
+        if (gathered.add(str)) {
           BLI_linklist_prepend(&names, BLI_strdup(str));
         }
       }
     }
   }
-
-  BLI_gset_free(gathered, nullptr);
 
   return names;
 }
@@ -393,8 +403,10 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
     /* Build old ID map for all old IDs. */
     blo_make_old_idmap_from_main(fd, oldmain);
 
-    /* Separate linked data from old main. */
-    blo_split_main(oldmain);
+    /* Separate linked data from old main.
+     * WARNING: Do not split out packed IDs here, as these are handled similarly as local IDs in
+     * undo context. */
+    blo_split_main(oldmain, false);
     fd->old_bmain = oldmain;
 
     /* Removed packed data from this trick - it's internal data that needs saves. */

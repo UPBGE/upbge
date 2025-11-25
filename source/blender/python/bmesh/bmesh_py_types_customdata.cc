@@ -73,73 +73,73 @@ PyDoc_STRVAR(
     bpy_bmlayeraccess_collection__float_doc,
     "Generic float custom-data layer.\n"
     "\n"
-    ":type: :class:`BMLayerCollection` of float\n");
+    ":type: :class:`bmesh.types.BMLayerCollection` of float\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__int_doc,
     "Generic int custom-data layer.\n"
     "\n"
-    ":type: :class:`BMLayerCollection` of int\n");
+    ":type: :class:`bmesh.types.BMLayerCollection` of int\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__bool_doc,
     "Generic boolean custom-data layer.\n"
     "\n"
-    ":type: :class:`BMLayerCollection` of boolean\n");
+    ":type: :class:`bmesh.types.BMLayerCollection` of boolean\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__float_vector_doc,
     "Generic 3D vector with float precision custom-data layer.\n"
     "\n"
     ":type: "
-    ":class:`BMLayerCollection` of :class:`mathutils.Vector`\n");
+    ":class:`bmesh.types.BMLayerCollection` of :class:`mathutils.Vector`\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__float_color_doc,
     "Generic RGBA color with float precision custom-data layer.\n"
     "\n"
     ":type: "
-    ":class:`BMLayerCollection` of :class:`mathutils.Vector`\n");
+    ":class:`bmesh.types.BMLayerCollection` of :class:`mathutils.Vector`\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__color_doc,
     "Generic RGBA color with 8-bit precision custom-data layer.\n"
     "\n"
     ":type: "
-    ":class:`BMLayerCollection` of :class:`mathutils.Vector`\n");
+    ":class:`bmesh.types.BMLayerCollection` of :class:`mathutils.Vector`\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__string_doc,
     "Generic string custom-data layer (exposed as bytes, 255 max length).\n"
     "\n"
     ":type: "
-    ":class:`BMLayerCollection` of bytes\n");
+    ":class:`bmesh.types.BMLayerCollection` of bytes\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__deform_doc,
-    "Vertex deform weight :class:`BMDeformVert` (TODO).\n"
+    "Vertex deform weight :class:`bmesh.types.BMDeformVert` (TODO).\n"
     "\n"
     ":type: "
-    ":class:`BMLayerCollection` of :class:`bmesh.types.BMDeformVert`" /* TYPE DOESN'T EXIST YET */
-);
+    /* TYPE DOESN'T EXIST YET */
+    ":class:`bmesh.types.BMLayerCollection` of :class:`bmesh.types.BMDeformVert`");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__shape_doc,
     "Vertex shape-key absolute location (as a 3D Vector).\n"
     "\n"
-    ":type: :class:`BMLayerCollection` of :class:`mathutils.Vector`\n");
+    ":type: :class:`bmesh.types.BMLayerCollection` of :class:`mathutils.Vector`\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__uv_doc,
-    "Accessor for :class:`BMLoopUV` UV (as a 2D Vector).\n"
+    "Accessor for :class:`bmesh.types.BMLoopUV` UV (as a 2D Vector).\n"
     "\n"
-    ":type: :class:`BMLayerCollection` of :class:`bmesh.types.BMLoopUV`\n");
+    ":type: :class:`bmesh.types.BMLayerCollection` of :class:`bmesh.types.BMLoopUV`\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__skin_doc,
     "Accessor for skin layer.\n"
     "\n"
-    ":type: :class:`BMLayerCollection` of :class:`bmesh.types.BMVertSkin`\n");
+    ":type: :class:`bmesh.types.BMLayerCollection` of :class:`bmesh.types.BMVertSkin`\n");
 
 static PyObject *bpy_bmlayeraccess_collection_get(BPy_BMLayerAccess *self, void *flag)
 {
@@ -155,7 +155,7 @@ PyDoc_STRVAR(
     bpy_bmlayercollection_active_doc,
     "The active layer of this type (read-only).\n"
     "\n"
-    ":type: :class:`BMLayerItem`\n");
+    ":type: :class:`bmesh.types.BMLayerItem`\n");
 static PyObject *bpy_bmlayercollection_active_get(BPy_BMLayerItem *self, void * /*flag*/)
 {
   CustomData *data;
@@ -428,23 +428,25 @@ PyDoc_STRVAR(
     "   Return a copy of the layer\n"
     "\n"
     "   :arg other: Another layer to copy from.\n"
-    "   :type other: :class:`BMLayerItem`\n");
+    "   :type other: :class:`bmesh.types.BMLayerItem`\n");
 static PyObject *bpy_bmlayeritem_copy_from(BPy_BMLayerItem *self, BPy_BMLayerItem *value)
 {
+  const char *error_prefix = "layer.copy_from(...)";
   CustomData *data;
 
   if (!BPy_BMLayerItem_Check(value)) {
     PyErr_Format(PyExc_TypeError,
-                 "layer.copy_from(x): expected BMLayerItem, not '%.200s'",
+                 "%s: expected BMLayerItem, not '%.200s'",
+                 error_prefix,
                  Py_TYPE(value)->tp_name);
     return nullptr;
   }
 
   BPY_BM_CHECK_OBJ(self);
-  BPY_BM_CHECK_SOURCE_OBJ(self->bm, "layer.copy_from()", value);
+  BPY_BM_CHECK_SOURCE_OBJ(self->bm, error_prefix, value);
 
   if ((self->htype != value->htype) || (self->type != value->type)) {
-    PyErr_SetString(PyExc_ValueError, "layer.copy_from(other): layer type mismatch");
+    PyErr_Format(PyExc_ValueError, "%s: layer type mismatch", error_prefix);
   }
 
   else if (self->index == value->index) {
@@ -471,7 +473,7 @@ PyDoc_STRVAR(
     "   Create a new layer or return an existing active layer\n"
     "\n"
     "   :return: The newly verified layer.\n"
-    "   :rtype: :class:`BMLayerItem`\n");
+    "   :rtype: :class:`bmesh.types.BMLayerItem`\n");
 static PyObject *bpy_bmlayercollection_verify(BPy_BMLayerCollection *self)
 {
   int index;
@@ -491,7 +493,7 @@ static PyObject *bpy_bmlayercollection_verify(BPy_BMLayerCollection *self)
     /* Because adding CustomData layers to a bmesh will invalidate any existing pointers
      * in Py objects we can't lazily add the associated bool layers. So add them all right
      * now. */
-    BM_uv_map_attr_select_and_pin_ensure(self->bm);
+    BM_uv_map_attr_pin_ensure_for_all_layers(self->bm);
   }
 
   BLI_assert(index >= 0);
@@ -509,7 +511,7 @@ PyDoc_STRVAR(
     "   :arg name: Optional name argument (will be made unique).\n"
     "   :type name: str\n"
     "   :return: The newly created layer.\n"
-    "   :rtype: :class:`BMLayerItem`\n");
+    "   :rtype: :class:`bmesh.types.BMLayerItem`\n");
 static PyObject *bpy_bmlayercollection_new(BPy_BMLayerCollection *self, PyObject *args)
 {
   const char *name = nullptr;
@@ -542,7 +544,7 @@ static PyObject *bpy_bmlayercollection_new(BPy_BMLayerCollection *self, PyObject
     /* Because adding CustomData layers to a bmesh will invalidate any existing pointers
      * in Py objects we can't lazily add the associated bool layers. So add them all right
      * now. */
-    BM_uv_map_attr_select_and_pin_ensure(self->bm);
+    BM_uv_map_attr_pin_ensure_for_all_layers(self->bm);
   }
 
   index = CustomData_number_of_layers(data, eCustomDataType(self->type)) - 1;
@@ -559,7 +561,7 @@ PyDoc_STRVAR(
     "   Remove a layer\n"
     "\n"
     "   :arg layer: The layer to remove.\n"
-    "   :type layer: :class:`BMLayerItem`\n");
+    "   :type layer: :class:`bmesh.types.BMLayerItem`\n");
 static PyObject *bpy_bmlayercollection_remove(BPy_BMLayerCollection *self, BPy_BMLayerItem *value)
 {
   CustomData *data;
@@ -631,7 +633,7 @@ PyDoc_STRVAR(
     "   (matching Python's dict.items() functionality).\n"
     "\n"
     "   :return: (key, value) pairs for each member of this collection.\n"
-    "   :rtype: list[tuple[str, :class:`BMLayerItem`]]\n");
+    "   :rtype: list[tuple[str, :class:`bmesh.types.BMLayerItem`]]\n");
 static PyObject *bpy_bmlayercollection_items(BPy_BMLayerCollection *self)
 {
   PyObject *ret;
@@ -668,7 +670,7 @@ PyDoc_STRVAR(
     "   (matching Python's dict.values() functionality).\n"
     "\n"
     "   :return: the members of this collection.\n"
-    "   :rtype: list[:class:`BMLayerItem`]\n");
+    "   :rtype: list[:class:`bmesh.types.BMLayerItem`]\n");
 static PyObject *bpy_bmlayercollection_values(BPy_BMLayerCollection *self)
 {
   PyObject *ret;

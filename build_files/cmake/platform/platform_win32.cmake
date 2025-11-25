@@ -27,10 +27,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       "try running from the visual studio developer prompt."
     )
   endif()
-  if(WITH_WINDOWS_STRIPPED_PDB)
-    message(WARNING "stripped pdb not supported with clang, disabling..")
-    set(WITH_WINDOWS_STRIPPED_PDB OFF)
-  endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.28.29921) # MSVC 2019 16.9.16
@@ -295,9 +291,13 @@ endif()
 string(APPEND PLATFORM_LINKFLAGS " /SUBSYSTEM:CONSOLE /STACK:2097152")
 set(PLATFORM_LINKFLAGS_RELEASE "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrtd.lib")
 
-if(NOT WITH_COMPILER_ASAN)
-  # ASAN is incompatible with `fastlink`, it will appear to work,
-  # but will not resolve symbols which makes it somewhat useless.
+if(
+    (NOT WITH_COMPILER_ASAN) AND
+    # ASAN is incompatible with `fastlink`, it will appear to work,
+    # but will not resolve symbols which makes it somewhat useless.
+    MSVC_VERSION LESS 1950
+    # /debug:fastlink is no longer supported in vs2026
+  )
   string(APPEND PLATFORM_LINKFLAGS_DEBUG "/debug:fastlink ")
 endif()
 string(APPEND PLATFORM_LINKFLAGS_DEBUG " /IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcmtd.lib")
@@ -336,6 +336,9 @@ if(NOT DEFINED LIBDIR)
     message(STATUS
       "Clang version ${CMAKE_CXX_COMPILER_VERSION} detected, masquerading as MSVC ${MSVC_VERSION}"
     )
+    set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
+  elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.50.0)
+    message(STATUS "Visual Studio 2026 detected.")
     set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
   elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     message(STATUS "Visual Studio 2022 detected.")
@@ -897,6 +900,15 @@ if(WITH_OPENSUBDIV)
   endif()
 endif()
 
+if(WITH_RUBBERBAND)
+  set(RUBBERBAND_FOUND TRUE)
+  set(RUBBERBAND_INCLUDE_DIRS ${LIBDIR}/rubberband/include)
+  set(RUBBERBAND_LIBRARIES
+    optimized ${LIBDIR}/rubberband/lib/rubberband-static.lib
+    debug ${LIBDIR}/rubberband/lib/rubberband-static_d.lib
+  )
+endif()
+
 if(WITH_SDL)
   set(SDL ${LIBDIR}/sdl)
   set(SDL_INCLUDE_DIR ${SDL}/include)
@@ -1249,7 +1261,11 @@ if(WITH_HARU)
   set(HARU_FOUND ON)
   set(HARU_ROOT_DIR ${LIBDIR}/haru)
   set(HARU_INCLUDE_DIRS ${HARU_ROOT_DIR}/include)
-  set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  if(EXISTS ${HARU_ROOT_DIR}/lib/hpdf.lib) # blender 5.0+
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/hpdf.lib)
+  else()
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  endif()
 endif()
 
 if(WITH_VULKAN_BACKEND)
@@ -1350,6 +1366,8 @@ set(PLATFORM_ENV_BUILD_DIRS "${_msvc_path}\;${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/b
 set(PLATFORM_ENV_BUILD "PATH=${PLATFORM_ENV_BUILD_DIRS}")
 # Install needs the additional folders from PLATFORM_ENV_BUILD_DIRS as well, as tools like:
 # `idiff` and `abcls` use the release mode dlls.
-set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;$ENV{PATH}")
+# Escape semicolons, since in cmake they denote elements in a list if surrounded by square brackets
+string(REPLACE ";" "\\;" ESCAPED_PATH "$ENV{PATH}")
+set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;${ESCAPED_PATH}")
 unset(_library_paths)
 unset(_msvc_path)

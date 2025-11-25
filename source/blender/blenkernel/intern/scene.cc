@@ -42,6 +42,7 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
+#include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
@@ -85,7 +86,7 @@
 #include "BKE_scene.hh"
 #include "BKE_scene_runtime.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_unit.hh"
 #include "BKE_workspace.hh"
 
@@ -114,12 +115,18 @@
 
 using blender::bke::CompositorRuntime;
 using blender::bke::SceneRuntime;
+using blender::bke::SequencerRuntime;
 
 CompositorRuntime::~CompositorRuntime()
 {
   if (preview_depsgraph) {
     DEG_graph_free(preview_depsgraph);
   }
+}
+
+SequencerRuntime::~SequencerRuntime()
+{
+  DEG_graph_free(depsgraph);
 }
 
 CurveMapping *BKE_sculpt_default_cavity_curve()
@@ -130,7 +137,7 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
   cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
   cumap->preset = CURVE_PRESET_LINE;
 
-  BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);
   BKE_curvemapping_changed(cumap, false);
   BKE_curvemapping_init(cumap);
 
@@ -140,7 +147,7 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
 CurveMapping *BKE_paint_default_curve()
 {
   CurveMapping *cumap = BKE_curvemapping_add(1, 0, 0, 1, 1);
-  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CurveMapSlopeType::Positive);
   BKE_curvemapping_init(cumap);
 
   return cumap;
@@ -165,7 +172,7 @@ static void scene_init_data(ID *id)
   BKE_curvemap_reset(mblur_shutter_curve->cm,
                      &mblur_shutter_curve->clipr,
                      CURVE_PRESET_MAX,
-                     CURVEMAP_SLOPE_POS_NEG);
+                     CurveMapSlopeType::PositiveNegative);
 
   scene->toolsettings = DNA_struct_default_alloc(ToolSettings);
 
@@ -179,8 +186,10 @@ static void scene_init_data(ID *id)
   scene->toolsettings->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
   CurveMapping *gp_falloff_curve = scene->toolsettings->gp_sculpt.cur_falloff;
   BKE_curvemapping_init(gp_falloff_curve);
-  BKE_curvemap_reset(
-      gp_falloff_curve->cm, &gp_falloff_curve->clipr, CURVE_PRESET_GAUSS, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(gp_falloff_curve->cm,
+                     &gp_falloff_curve->clipr,
+                     CURVE_PRESET_GAUSS,
+                     CurveMapSlopeType::Positive);
 
   scene->toolsettings->gp_sculpt.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
   CurveMapping *gp_primitive_curve = scene->toolsettings->gp_sculpt.cur_primitive;
@@ -188,7 +197,7 @@ static void scene_init_data(ID *id)
   BKE_curvemap_reset(gp_primitive_curve->cm,
                      &gp_primitive_curve->clipr,
                      CURVE_PRESET_BELL,
-                     CURVEMAP_SLOPE_POSITIVE);
+                     CurveMapSlopeType::Positive);
 
   scene->unit.system = USER_UNIT_METRIC;
   scene->unit.scale_length = 1.0f;
@@ -223,18 +232,15 @@ static void scene_init_data(ID *id)
   srv = static_cast<SceneRenderView *>(scene->r.views.last);
   STRNCPY(srv->suffix, STEREO_RIGHT_SUFFIX);
 
-  BKE_sound_reset_scene_runtime(scene);
-
   /* color management */
   colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_SEQUENCER);
 
   BKE_color_managed_display_settings_init(&scene->display_settings);
-  BKE_color_managed_view_settings_init_render(
-      &scene->view_settings, &scene->display_settings, "AgX");
+  BKE_color_managed_view_settings_init(&scene->view_settings, &scene->display_settings, "AgX");
   STRNCPY_UTF8(scene->sequencer_colorspace_settings.name, colorspace_name);
 
-  BKE_image_format_init(&scene->r.im_format, true);
-  BKE_image_format_init(&scene->r.bake.im_format, true);
+  BKE_image_format_init(&scene->r.im_format);
+  BKE_image_format_init(&scene->r.bake.im_format);
 
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);
@@ -318,13 +324,11 @@ static void scene_copy_data(Main *bmain,
   BKE_curvemapping_copy_data(&scene_dst->r.mblur_shutter_curve, &scene_src->r.mblur_shutter_curve);
 
   /* tool settings */
-  scene_dst->toolsettings = BKE_toolsettings_copy(scene_dst->toolsettings, flag_subdata);
+  scene_dst->toolsettings = BKE_toolsettings_copy(scene_src->toolsettings, flag_subdata);
 
   if (scene_src->display.shading.prop) {
     scene_dst->display.shading.prop = IDP_CopyProperty(scene_src->display.shading.prop);
   }
-
-  BKE_sound_reset_scene_runtime(scene_dst);
 
   /* Copy sequencer, this is local data! */
   if (scene_src->ed) {
@@ -333,13 +337,16 @@ static void scene_copy_data(Main *bmain,
     scene_dst->ed->show_missing_media_flag = scene_src->ed->show_missing_media_flag;
     scene_dst->ed->proxy_storage = scene_src->ed->proxy_storage;
     STRNCPY(scene_dst->ed->proxy_dir, scene_src->ed->proxy_dir);
-    blender::seq::seqbase_duplicate_recursive(bmain,
-                                              scene_src,
-                                              scene_dst,
-                                              &scene_dst->ed->seqbase,
-                                              &scene_src->ed->seqbase,
-                                              blender::seq::StripDuplicate::All,
-                                              flag_subdata);
+    blender::seq::seqbase_duplicate_recursive(
+        bmain,
+        scene_src,
+        scene_dst,
+        &scene_dst->ed->seqbase,
+        &scene_src->ed->seqbase,
+        /* NOTE: Never use #StripDuplicate::Data here (would generate recursive ID duplication not,
+         * supported at all here). */
+        blender::seq::StripDuplicate::All,
+        flag_subdata);
     BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
   }
 
@@ -806,8 +813,14 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  /* TODO: This could use `seq::foreach_strip_modifier_id`, but because `FOREACHID_PROCESS_IDSUPER`
+   * doesn't take IDs but "ID supers", it makes it a bit more cumbersome. */
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
+    if (smd->type == eSeqModifierType_Compositor) {
+      auto *modifier_data = reinterpret_cast<SequencerCompositorModifierData *>(smd);
+      FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IDWALK_CB_USER);
+    }
   }
 
   if (strip->type == STRIP_TYPE_TEXT && strip->effectdata) {
@@ -841,8 +854,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
   if (scene->ed) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-        data,
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
+        data, blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
   }
 
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
@@ -869,8 +881,23 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
               BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
             }));
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+    /* FIXME: Although ideally this should always have access to synced data, this is not always
+     * the case (FOREACH_ID can be called in context where re-syncing is blocked, while effectively
+     * modifying the view-layer or collections data, see e.g. #id_delete code which remaps all
+     * deleted ID usages to null).
+     *
+     * There is no obvious solution to this problem, so for now working around with some 'band-aid'
+     * special code and asserts.
+     *
+     * In the future, there may be need for a new `IDWALK_CB` flag to mark existing pointer values
+     * as unsafe to access in such cases. */
+    const bool is_synced = BKE_view_layer_synced_ensure(scene, view_layer);
+    if (!is_synced) {
+      BLI_assert_msg((flag & IDWALK_RECURSE) == 0,
+                     "foreach_id should never recurse in case it cannot ensure that all "
+                     "view-layers are in synced with their collections");
+    }
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_unsynced_get(view_layer)) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(
           data,
           base->object,
@@ -973,7 +1000,7 @@ static void scene_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Scene *scene = (Scene *)id;
   if (scene->ed != nullptr) {
-    blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
+    blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
   }
 }
 
@@ -1071,8 +1098,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
     BKE_paint_blend_write(writer, &ts->sculpt->paint);
   }
-  if (ts->uvsculpt.strength_curve) {
-    BKE_curvemapping_blend_write(writer, ts->uvsculpt.strength_curve);
+  if (ts->uvsculpt.curve_distance_falloff) {
+    BKE_curvemapping_blend_write(writer, ts->uvsculpt.curve_distance_falloff);
   }
   if (ts->gp_paint) {
     BLO_write_struct(writer, GpPaint, ts->gp_paint);
@@ -1232,8 +1259,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   sce->customdata_mask = CustomData_MeshMasks{};
   sce->customdata_mask_modal = CustomData_MeshMasks{};
 
-  BKE_sound_reset_scene_runtime(sce);
-
   /* set users to one by default, not in lib-link, this will increase it for compo nodes */
   id_us_ensure_real(&sce->id);
 
@@ -1283,10 +1308,10 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     sce->toolsettings->particle.scene = nullptr;
     sce->toolsettings->particle.object = nullptr;
     sce->toolsettings->gp_sculpt.paintcursor = nullptr;
-    if (sce->toolsettings->uvsculpt.strength_curve) {
-      BLO_read_struct(reader, CurveMapping, &sce->toolsettings->uvsculpt.strength_curve);
-      BKE_curvemapping_blend_read(reader, sce->toolsettings->uvsculpt.strength_curve);
-      BKE_curvemapping_init(sce->toolsettings->uvsculpt.strength_curve);
+    if (sce->toolsettings->uvsculpt.curve_distance_falloff) {
+      BLO_read_struct(reader, CurveMapping, &sce->toolsettings->uvsculpt.curve_distance_falloff);
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->uvsculpt.curve_distance_falloff);
+      BKE_curvemapping_init(sce->toolsettings->uvsculpt.curve_distance_falloff);
     }
 
     if (sce->toolsettings->sculpt) {
@@ -1599,77 +1624,80 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
     return nullptr;
   }
   ToolSettings *ts = static_cast<ToolSettings *>(MEM_dupallocN(toolsettings));
-  if (ts->vpaint) {
-    ts->vpaint = static_cast<VPaint *>(MEM_dupallocN(ts->vpaint));
-    BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint, flag);
+  if (toolsettings->vpaint) {
+    ts->vpaint = static_cast<VPaint *>(MEM_dupallocN(toolsettings->vpaint));
+    BKE_paint_copy(&toolsettings->vpaint->paint, &ts->vpaint->paint, flag);
   }
-  if (ts->wpaint) {
-    ts->wpaint = static_cast<VPaint *>(MEM_dupallocN(ts->wpaint));
-    BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint, flag);
+  if (toolsettings->wpaint) {
+    ts->wpaint = static_cast<VPaint *>(MEM_dupallocN(toolsettings->wpaint));
+    BKE_paint_copy(&toolsettings->wpaint->paint, &ts->wpaint->paint, flag);
   }
-  if (ts->sculpt) {
-    ts->sculpt = static_cast<Sculpt *>(MEM_dupallocN(ts->sculpt));
-    BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint, flag);
+  if (toolsettings->sculpt) {
+    ts->sculpt = static_cast<Sculpt *>(MEM_dupallocN(toolsettings->sculpt));
+    BKE_paint_copy(&toolsettings->sculpt->paint, &ts->sculpt->paint, flag);
 
-    if (ts->sculpt->automasking_cavity_curve) {
+    if (toolsettings->sculpt->automasking_cavity_curve) {
       ts->sculpt->automasking_cavity_curve = BKE_curvemapping_copy(
-          ts->sculpt->automasking_cavity_curve);
+          toolsettings->sculpt->automasking_cavity_curve);
       BKE_curvemapping_init(ts->sculpt->automasking_cavity_curve);
     }
 
-    if (ts->sculpt->automasking_cavity_curve_op) {
+    if (toolsettings->sculpt->automasking_cavity_curve_op) {
       ts->sculpt->automasking_cavity_curve_op = BKE_curvemapping_copy(
-          ts->sculpt->automasking_cavity_curve_op);
+          toolsettings->sculpt->automasking_cavity_curve_op);
       BKE_curvemapping_init(ts->sculpt->automasking_cavity_curve_op);
     }
   }
-  if (ts->uvsculpt.strength_curve) {
-    ts->uvsculpt.strength_curve = BKE_curvemapping_copy(ts->uvsculpt.strength_curve);
-    BKE_curvemapping_init(ts->uvsculpt.strength_curve);
+  if (toolsettings->uvsculpt.curve_distance_falloff) {
+    ts->uvsculpt.curve_distance_falloff = BKE_curvemapping_copy(
+        toolsettings->uvsculpt.curve_distance_falloff);
+    BKE_curvemapping_init(ts->uvsculpt.curve_distance_falloff);
   }
-  if (ts->gp_paint) {
-    ts->gp_paint = static_cast<GpPaint *>(MEM_dupallocN(ts->gp_paint));
-    BKE_paint_copy(&ts->gp_paint->paint, &ts->gp_paint->paint, flag);
+  if (toolsettings->gp_paint) {
+    ts->gp_paint = static_cast<GpPaint *>(MEM_dupallocN(toolsettings->gp_paint));
+    BKE_paint_copy(&toolsettings->gp_paint->paint, &ts->gp_paint->paint, flag);
   }
-  if (ts->gp_vertexpaint) {
-    ts->gp_vertexpaint = static_cast<GpVertexPaint *>(MEM_dupallocN(ts->gp_vertexpaint));
-    BKE_paint_copy(&ts->gp_vertexpaint->paint, &ts->gp_vertexpaint->paint, flag);
+  if (toolsettings->gp_vertexpaint) {
+    ts->gp_vertexpaint = static_cast<GpVertexPaint *>(MEM_dupallocN(toolsettings->gp_vertexpaint));
+    BKE_paint_copy(&toolsettings->gp_vertexpaint->paint, &ts->gp_vertexpaint->paint, flag);
   }
-  if (ts->gp_sculptpaint) {
-    ts->gp_sculptpaint = static_cast<GpSculptPaint *>(MEM_dupallocN(ts->gp_sculptpaint));
-    BKE_paint_copy(&ts->gp_sculptpaint->paint, &ts->gp_sculptpaint->paint, flag);
+  if (toolsettings->gp_sculptpaint) {
+    ts->gp_sculptpaint = static_cast<GpSculptPaint *>(MEM_dupallocN(toolsettings->gp_sculptpaint));
+    BKE_paint_copy(&toolsettings->gp_sculptpaint->paint, &ts->gp_sculptpaint->paint, flag);
   }
-  if (ts->gp_weightpaint) {
-    ts->gp_weightpaint = static_cast<GpWeightPaint *>(MEM_dupallocN(ts->gp_weightpaint));
-    BKE_paint_copy(&ts->gp_weightpaint->paint, &ts->gp_weightpaint->paint, flag);
+  if (toolsettings->gp_weightpaint) {
+    ts->gp_weightpaint = static_cast<GpWeightPaint *>(MEM_dupallocN(toolsettings->gp_weightpaint));
+    BKE_paint_copy(&toolsettings->gp_weightpaint->paint, &ts->gp_weightpaint->paint, flag);
   }
-  if (ts->curves_sculpt) {
-    ts->curves_sculpt = static_cast<CurvesSculpt *>(MEM_dupallocN(ts->curves_sculpt));
-    BKE_paint_copy(&ts->curves_sculpt->paint, &ts->curves_sculpt->paint, flag);
+  if (toolsettings->curves_sculpt) {
+    ts->curves_sculpt = static_cast<CurvesSculpt *>(MEM_dupallocN(toolsettings->curves_sculpt));
+    BKE_paint_copy(&toolsettings->curves_sculpt->paint, &ts->curves_sculpt->paint, flag);
   }
 
   /* Color jitter curves in unified paint settings. */
   ts->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
-      ts->unified_paint_settings.curve_rand_hue);
+      toolsettings->unified_paint_settings.curve_rand_hue);
   ts->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(
-      ts->unified_paint_settings.curve_rand_saturation);
+      toolsettings->unified_paint_settings.curve_rand_saturation);
   ts->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(
-      ts->unified_paint_settings.curve_rand_value);
+      toolsettings->unified_paint_settings.curve_rand_value);
 
-  BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag);
+  BKE_paint_copy(&toolsettings->imapaint.paint, &ts->imapaint.paint, flag);
   ts->particle.paintcursor = nullptr;
   ts->particle.scene = nullptr;
   ts->particle.object = nullptr;
 
   /* duplicate Grease Pencil interpolation curve */
-  ts->gp_interpolate.custom_ipo = BKE_curvemapping_copy(ts->gp_interpolate.custom_ipo);
+  ts->gp_interpolate.custom_ipo = BKE_curvemapping_copy(toolsettings->gp_interpolate.custom_ipo);
   /* Duplicate Grease Pencil multi-frame falloff. */
-  ts->gp_sculpt.cur_falloff = BKE_curvemapping_copy(ts->gp_sculpt.cur_falloff);
-  ts->gp_sculpt.cur_primitive = BKE_curvemapping_copy(ts->gp_sculpt.cur_primitive);
+  ts->gp_sculpt.cur_falloff = BKE_curvemapping_copy(toolsettings->gp_sculpt.cur_falloff);
+  ts->gp_sculpt.cur_primitive = BKE_curvemapping_copy(toolsettings->gp_sculpt.cur_primitive);
 
-  ts->custom_bevel_profile_preset = BKE_curveprofile_copy(ts->custom_bevel_profile_preset);
+  ts->custom_bevel_profile_preset = BKE_curveprofile_copy(
+      toolsettings->custom_bevel_profile_preset);
 
-  ts->sequencer_tool_settings = blender::seq::tool_settings_copy(ts->sequencer_tool_settings);
+  ts->sequencer_tool_settings = blender::seq::tool_settings_copy(
+      toolsettings->sequencer_tool_settings);
   return ts;
 }
 
@@ -1697,8 +1725,8 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
     BKE_paint_free(&toolsettings->sculpt->paint);
     MEM_freeN(toolsettings->sculpt);
   }
-  if (toolsettings->uvsculpt.strength_curve) {
-    BKE_curvemapping_free(toolsettings->uvsculpt.strength_curve);
+  if (toolsettings->uvsculpt.curve_distance_falloff) {
+    BKE_curvemapping_free(toolsettings->uvsculpt.curve_distance_falloff);
   }
   if (toolsettings->gp_paint) {
     BKE_paint_free(&toolsettings->gp_paint->paint);
@@ -1762,7 +1790,11 @@ void BKE_scene_copy_data_eevee(Scene *sce_dst, const Scene *sce_src)
   sce_dst->eevee = sce_src->eevee;
 }
 
-Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
+Scene *BKE_scene_duplicate(Main *bmain,
+                           Scene *sce,
+                           eSceneCopyMethod type,
+                           eDupli_ID_Flags duplicate_flags,
+                           /*eLibIDDuplicateFlags*/ uint duplicate_options)
 {
   Scene *sce_copy;
 
@@ -1809,8 +1841,6 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
     BKE_toolsettings_free(sce_copy->toolsettings);
     sce_copy->toolsettings = BKE_toolsettings_copy(sce->toolsettings, 0);
 
-    BKE_sound_reset_scene_runtime(sce_copy);
-
     /* grease pencil */
     sce_copy->gpd = nullptr;
 
@@ -1819,33 +1849,59 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
     return sce_copy;
   }
 
-  eDupli_ID_Flags duplicate_flags = (eDupli_ID_Flags)(U.dupflag | USER_DUP_OBJECT);
+  /* Scene duplication is always root of duplication currently, and so `is_root_id` is always true.
+   *
+   * Keep `is_root_id` around though, as this allows the rest of the duplication code to stay in
+   * sync with the layout and behavior as the other duplicate functions (see e.g.
+   * #BKE_collection_duplicate or #BKE_object_duplicate).
+   *
+   * TODO: At some point it would be nice to deduplicate this logic and move common behavior into
+   * generic ID management code, with IDType callbacks for specific duplication behavior only. */
+  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
+  const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
+  const int copy_flags = LIB_ID_COPY_DEFAULT;
 
-  sce_copy = (Scene *)BKE_id_copy(bmain, (ID *)sce);
-  id_us_min(&sce_copy->id);
+  if (!is_subprocess) {
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
+
+  if (is_root_id) {
+    /* In case root duplicated ID is linked, assume we want to get a local copy of it and
+     * duplicate all expected linked data. */
+    if (ID_IS_LINKED(sce)) {
+      duplicate_flags = (duplicate_flags | USER_DUP_LINKED_ID);
+    }
+  }
+
+  if (is_subprocess) {
+    if (sce->id.newid != nullptr) {
+      return blender::id_cast<Scene *>(sce->id.newid);
+    }
+    sce_copy = blender::id_cast<Scene *>(
+        BKE_id_copy_for_duplicate(bmain, (ID *)sce, duplicate_flags, copy_flags));
+  }
+  else {
+    BLI_assert(sce->id.newid == nullptr);
+    sce_copy = blender::id_cast<Scene *>(BKE_id_copy(bmain, (ID *)sce));
+    id_us_min(&sce_copy->id);
+    /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
+    ID_NEW_SET(sce, sce_copy);
+
+    /* In subprocesses, action data is duplicated in `BKE_id_copy_for_duplicate`, match that: */
+    BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
+  }
   id_us_ensure_real(&sce_copy->id);
-
-  BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
 
   /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
 
+  /* Exception for the compositor; Before 5.0, creating a linked copy of the scene created a new
+   * compositing node tree with a Render Layers node that referred to the new scene.
+   * To preserve this behavior, we make a full copy when creating a linked copy as well as a full
+   * copy of the scene.*/
+  BKE_id_copy_for_duplicate(
+      bmain, reinterpret_cast<ID *>(sce->compositing_node_group), duplicate_flags, copy_flags);
+
   if (type == SCE_COPY_FULL) {
-    /* Scene duplication is always root of duplication currently. */
-    const bool is_subprocess = false;
-    const bool is_root_id = true;
-    const int copy_flags = LIB_ID_COPY_DEFAULT;
-
-    if (!is_subprocess) {
-      BKE_main_id_newptr_and_tag_clear(bmain);
-    }
-    if (is_root_id) {
-      /* In case root duplicated ID is linked, assume we want to get a local copy of it and
-       * duplicate all expected linked data. */
-      if (ID_IS_LINKED(sce)) {
-        duplicate_flags = (duplicate_flags | USER_DUP_LINKED_ID);
-      }
-    }
-
     /* Copy Freestyle LineStyle datablocks. */
     LISTBASE_FOREACH (ViewLayer *, view_layer_dst, &sce_copy->view_layers) {
       LISTBASE_FOREACH (FreestyleLineSet *, lineset, &view_layer_dst->freestyle_config.linesets) {
@@ -1858,10 +1914,6 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 
     /* Full copy of GreasePencil. */
     BKE_id_copy_for_duplicate(bmain, (ID *)sce->gpd, duplicate_flags, copy_flags);
-
-    /* Full copy of the compositing node tree. */
-    BKE_id_copy_for_duplicate(
-        bmain, reinterpret_cast<ID *>(sce->compositing_node_group), duplicate_flags, copy_flags);
 
     /* Deep-duplicate collections and objects (using preferences' settings for which sub-data to
      * duplicate along the object itself). */
@@ -1892,39 +1944,41 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
                                  LIB_ID_DUPLICATE_IS_SUBPROCESS);
       }
     }
-
-    if (!is_subprocess) {
-      /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-      /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if
-       * its obdata contains edit mode runtime data. This can be the case of all newly duplicated
-       * objects, as even though duplicate code move the object back in Object mode, they are still
-       * using the original obdata ID, leading to them being falsely detected as being in Edit
-       * mode, and therefore not remapping their obdata to the newly duplicated one. See #139715.
-       */
-      BKE_libblock_relink_to_newid(
-          bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
-
-#ifndef NDEBUG
-      /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
-       * flags. */
-      ID *id_iter;
-      FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-        BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
-      }
-      FOREACH_MAIN_ID_END;
-#endif
-
-      /* Cleanup. */
-      BKE_main_id_newptr_and_tag_clear(bmain);
-
-      BKE_main_collection_sync(bmain);
-    }
   }
   else {
     /* Remove sequencer if not full copy */
     /* XXX Why in Hell? :/ */
     remove_sequencer_fcurves(sce_copy);
     blender::seq::editing_free(sce_copy, true);
+  }
+
+  /* The final step is to ensure that all of the newly duplicated IDs are used by other newly
+   * duplicated IDs, and some standard cleanup & updates. */
+  if (!is_subprocess) {
+    /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
+    /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if
+     * its obdata contains edit mode runtime data. This can be the case of all newly duplicated
+     * objects, as even though duplicate code move the object back in Object mode, they are still
+     * using the original obdata ID, leading to them being falsely detected as being in Edit
+     * mode, and therefore not remapping their obdata to the newly duplicated one. See #139715.
+     */
+    BKE_libblock_relink_to_newid(
+        bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
+
+#ifndef NDEBUG
+    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
+     * flags. */
+    ID *id_iter;
+    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+      BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
+    }
+    FOREACH_MAIN_ID_END;
+#endif
+
+    /* Cleanup. */
+    BKE_main_id_newptr_and_tag_clear(bmain);
+
+    BKE_main_collection_sync(bmain);
   }
 
   return sce_copy;
@@ -1945,11 +1999,46 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene)
   }
   /* Local scenes can only be removed, when there is at least one local scene left. */
   LISTBASE_FOREACH (Scene *, other_scene, &bmain->scenes) {
-    if (other_scene != scene && !ID_IS_LINKED(other_scene)) {
+    if (ID_IS_LINKED(other_scene)) {
+      /* Once the first linked scene is reached, there is no more local ones to check, so at this
+       * point there is no other local scene and the given one cannot be deleted. */
+      break;
+    }
+    if (other_scene != scene) {
       return true;
     }
   }
   return false;
+}
+
+Scene *BKE_scene_find_replacement(const Main &bmain,
+                                  const Scene &scene,
+                                  blender::FunctionRef<bool(const Scene &scene)> scene_validate_cb)
+{
+  UNUSED_VARS_NDEBUG(bmain);
+  BLI_assert(BLI_findindex(&bmain.scenes, &scene) >= 0);
+
+  /* Simply return a closest neighbor scene, unless a validate callback is provided and it rejects
+   * the iterated scene. */
+  for (Scene *scene_iter = static_cast<Scene *>(scene.id.prev); scene_iter != nullptr;
+       scene_iter = static_cast<Scene *>(scene_iter->id.prev))
+  {
+    if (scene_validate_cb && !scene_validate_cb(*scene_iter)) {
+      continue;
+    }
+    return scene_iter;
+  }
+
+  for (Scene *scene_iter = static_cast<Scene *>(scene.id.next); scene_iter != nullptr;
+       scene_iter = static_cast<Scene *>(scene_iter->id.next))
+  {
+    if (scene_validate_cb && !scene_validate_cb(*scene_iter)) {
+      continue;
+    }
+    return scene_iter;
+  }
+
+  return nullptr;
 }
 
 Scene *BKE_scene_add(Main *bmain, const char *name)
@@ -2272,14 +2361,19 @@ const char *BKE_scene_find_last_marker_name(const Scene *scene, int frame)
   return best_marker ? best_marker->name : nullptr;
 }
 
-int BKE_scene_frame_snap_by_seconds(Scene *scene, double interval_in_seconds, int frame)
+float BKE_scene_frame_snap_by_seconds(const Scene *scene,
+                                      const double interval_in_seconds,
+                                      const float frame)
 {
-  const int fps = round_db_to_int(scene->frames_per_second() * interval_in_seconds);
-  const int second_prev = frame - mod_i(frame, fps);
-  const int second_next = second_prev + fps;
-  const int delta_prev = frame - second_prev;
-  const int delta_next = second_next - frame;
-  return (delta_prev < delta_next) ? second_prev : second_next;
+  BLI_assert(interval_in_seconds > 0);
+  BLI_assert(scene->frames_per_second() > 0);
+
+  const double interval_in_frames = scene->frames_per_second() * interval_in_seconds;
+  const double second_prev = interval_in_frames * floor(frame / interval_in_frames);
+  const double second_next = second_prev + ceil(interval_in_frames);
+  const double delta_prev = frame - second_prev;
+  const double delta_next = second_next - frame;
+  return float((delta_prev < delta_next) ? second_prev : second_next);
 }
 
 void BKE_scene_remove_rigidbody_object(Main *bmain, Scene *scene, Object *ob, const bool free_us)
@@ -2796,20 +2890,6 @@ enum eCyclesFeatureSet {
   CYCLES_FEATURES_EXPERIMENTAL = 1,
 };
 
-bool BKE_scene_uses_cycles_experimental_features(Scene *scene)
-{
-  BLI_assert(BKE_scene_uses_cycles(scene));
-  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-  PointerRNA cycles_ptr = RNA_pointer_get(&scene_ptr, "cycles");
-
-  if (RNA_pointer_is_null(&cycles_ptr)) {
-    /* The pointer only exists if Cycles is enabled. */
-    return false;
-  }
-
-  return RNA_enum_get(&cycles_ptr, "feature_set") == CYCLES_FEATURES_EXPERIMENTAL;
-}
-
 void BKE_scene_base_flag_to_objects(const Scene *scene, ViewLayer *view_layer)
 {
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -3228,29 +3308,14 @@ struct DepsgraphKey {
   /* TODO(sergey): Need to include window somehow (same layer might be in a
    * different states in different windows).
    */
+
+  uint64_t hash() const
+  {
+    return blender::get_default_hash(this->view_layer);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_1(DepsgraphKey, view_layer)
 };
-
-static uint depsgraph_key_hash(const void *key_v)
-{
-  const DepsgraphKey *key = static_cast<const DepsgraphKey *>(key_v);
-  uint hash = BLI_ghashutil_ptrhash(key->view_layer);
-  /* TODO(sergey): Include hash from other fields in the key. */
-  return hash;
-}
-
-static bool depsgraph_key_compare(const void *key_a_v, const void *key_b_v)
-{
-  const DepsgraphKey *key_a = static_cast<const DepsgraphKey *>(key_a_v);
-  const DepsgraphKey *key_b = static_cast<const DepsgraphKey *>(key_b_v);
-  /* TODO(sergey): Compare rest of. */
-  return !(key_a->view_layer == key_b->view_layer);
-}
-
-static void depsgraph_key_free(void *key_v)
-{
-  DepsgraphKey *key = static_cast<DepsgraphKey *>(key_v);
-  MEM_freeN(key);
-}
 
 static void depsgraph_key_value_free(void *value)
 {
@@ -3260,8 +3325,7 @@ static void depsgraph_key_value_free(void *value)
 
 void BKE_scene_allocate_depsgraph_hash(Scene *scene)
 {
-  scene->depsgraph_hash = BLI_ghash_new(
-      depsgraph_key_hash, depsgraph_key_compare, "Scene Depsgraph Hash");
+  scene->depsgraph_hash = MEM_new<SceneDepsgraphsMap>("Scene Depsgraph Hash");
 }
 
 void BKE_scene_ensure_depsgraph_hash(Scene *scene)
@@ -3276,7 +3340,10 @@ void BKE_scene_free_depsgraph_hash(Scene *scene)
   if (scene->depsgraph_hash == nullptr) {
     return;
   }
-  BLI_ghash_free(scene->depsgraph_hash, depsgraph_key_free, depsgraph_key_value_free);
+  for (Depsgraph *depsgraph : scene->depsgraph_hash->values()) {
+    DEG_graph_free(depsgraph);
+  }
+  MEM_delete(scene->depsgraph_hash);
   scene->depsgraph_hash = nullptr;
 }
 
@@ -3284,7 +3351,9 @@ void BKE_scene_free_view_layer_depsgraph(Scene *scene, ViewLayer *view_layer)
 {
   if (scene->depsgraph_hash != nullptr) {
     DepsgraphKey key = {view_layer};
-    BLI_ghash_remove(scene->depsgraph_hash, &key, depsgraph_key_free, depsgraph_key_value_free);
+    if (Depsgraph *depsgraph = scene->depsgraph_hash->pop_default(key, nullptr)) {
+      DEG_graph_free(depsgraph);
+    }
   }
 }
 
@@ -3310,25 +3379,11 @@ static Depsgraph **scene_get_depsgraph_p(Scene *scene,
   DepsgraphKey key;
   key.view_layer = view_layer;
 
-  Depsgraph **depsgraph_ptr;
   if (!allocate_ghash_entry) {
-    depsgraph_ptr = (Depsgraph **)BLI_ghash_lookup_p(scene->depsgraph_hash, &key);
-    return depsgraph_ptr;
+    return scene->depsgraph_hash->lookup_ptr(key);
   }
 
-  DepsgraphKey **key_ptr;
-  if (BLI_ghash_ensure_p_ex(
-          scene->depsgraph_hash, &key, (void ***)&key_ptr, (void ***)&depsgraph_ptr))
-  {
-    return depsgraph_ptr;
-  }
-
-  /* Depsgraph was not found in the ghash, but the key still needs allocating. */
-  *key_ptr = MEM_callocN<DepsgraphKey>(__func__);
-  **key_ptr = key;
-
-  *depsgraph_ptr = nullptr;
-  return depsgraph_ptr;
+  return &scene->depsgraph_hash->lookup_or_add(key, nullptr);
 }
 
 static Depsgraph **scene_ensure_depsgraph_p(Main *bmain, Scene *scene, ViewLayer *view_layer)
@@ -3373,7 +3428,7 @@ Depsgraph *BKE_scene_get_depsgraph(const Scene *scene, const ViewLayer *view_lay
 
   DepsgraphKey key;
   key.view_layer = view_layer;
-  return static_cast<Depsgraph *>(BLI_ghash_lookup(scene->depsgraph_hash, &key));
+  return scene->depsgraph_hash->lookup_default(key, nullptr);
 }
 
 Depsgraph *BKE_scene_ensure_depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer)
@@ -3413,7 +3468,7 @@ GHash *BKE_scene_undo_depsgraphs_extract(Main *bmain)
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
       DepsgraphKey key;
       key.view_layer = view_layer;
-      Depsgraph **depsgraph = (Depsgraph **)BLI_ghash_lookup_p(scene->depsgraph_hash, &key);
+      Depsgraph **depsgraph = scene->depsgraph_hash->lookup_ptr(key);
 
       if (depsgraph != nullptr && *depsgraph != nullptr) {
         char *key_full = scene_undo_depsgraph_gen_key(scene, view_layer, nullptr);

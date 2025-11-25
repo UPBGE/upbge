@@ -31,7 +31,8 @@
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_sound.h"
+#include "BKE_scene_runtime.hh"
+#include "BKE_sound.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -245,7 +246,7 @@ static void sound_update_animation_flags(Scene *scene)
   scene->id.tag |= ID_TAG_DOIT;
 
   if (scene->ed != nullptr) {
-    blender::seq::for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
+    blender::seq::foreach_strip(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
   }
 
   fcu = id_data_find_fcurve(&scene->id, scene, &RNA_Scene, "audio_volume", 0, &driven);
@@ -365,7 +366,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
   const int end_frame = scene_eval->r.efra;
 
   if (split) {
-    result = AUD_mixdown_per_channel(scene_eval->sound_scene,
+    result = AUD_mixdown_per_channel(scene_eval->runtime->audio.sound_scene,
                                      start_frame * specs.rate / fps,
                                      (end_frame - start_frame + 1) * specs.rate / fps,
                                      accuracy,
@@ -381,7 +382,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
                                      sizeof(error_message));
   }
   else {
-    result = AUD_mixdown(scene_eval->sound_scene,
+    result = AUD_mixdown(scene_eval->runtime->audio.sound_scene,
                          start_frame * specs.rate / fps,
                          (end_frame - start_frame + 1) * specs.rate / fps,
                          accuracy,
@@ -556,14 +557,14 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
   PropertyRNA *prop_format;
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   AUD_Container container = AUD_Container(RNA_enum_get(op->ptr, "container"));
   AUD_Codec codec = AUD_Codec(RNA_enum_get(op->ptr, "codec"));
@@ -663,7 +664,7 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
   /* main draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    &ptr,
                    sound_mixdown_draw_check_prop,
                    nullptr,

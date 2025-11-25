@@ -1360,7 +1360,6 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
 
   /* tag the region for redraw */
   ED_region_tag_redraw_editor_overlays(CTX_wm_region(C));
-  WM_event_add_mousemove(CTX_wm_window(C));
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1389,14 +1388,16 @@ static void gizmo_cage2d_exit(bContext *C, wmGizmo *gz, const bool cancel)
     data->dial = nullptr;
   }
 
+  wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, "matrix");
+
   if (!cancel) {
+    if (WM_gizmo_target_property_is_valid(gz_prop)) {
+      WM_gizmo_target_property_anim_autokey(C, gz, gz_prop);
+    }
     return;
   }
 
-  wmGizmoProperty *gz_prop;
-
   /* reset properties */
-  gz_prop = WM_gizmo_target_property_find(gz, "matrix");
   if (gz_prop->type != nullptr) {
     WM_gizmo_target_property_float_set_array(C, gz, gz_prop, &data->orig_matrix_offset[0][0]);
   }

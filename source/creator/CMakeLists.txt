@@ -1152,9 +1152,35 @@ elseif(WIN32)
   )
 
   if(WITH_WINDOWS_RELEASE_PDB)
-    # Skip install of stripped PDB if compiling with clang since there doesn't seem
-    # to be a PDB-stripped version for `clang-cl`.
-    if(WITH_WINDOWS_RELEASE_STRIPPED_PDB AND NOT MSVC_CLANG)
+    if(MSVC_CLANG AND WITH_WINDOWS_RELEASE_STRIPPED_PDB)
+      # clang-cl doesn't support stripped pdbs yet, it takes the /PDBSTRIPPED argument 
+      # without errors, but will just proceed to not do anything with it. So for now 
+      # just call pdbcopy manually to create the stripped pdb. 
+      if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+        set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/arm64)
+      else()
+        set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/x64)
+      endif()
+      find_program(PDBCOPY_EXECUTABLE 
+        NAMES 
+          pdbcopy
+        HINTS
+          ${SDK_SEARCH_DIR}
+      )  
+      if(PDBCOPY_EXECUTABLE)
+        add_custom_command(
+          TARGET blender POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb
+          COMMAND ${PDBCOPY_EXECUTABLE} $<TARGET_PDB_FILE:blender> ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb -p
+          COMMENT "Stripping PDB file..."        
+        )
+      else()
+        message(WARNING "pdbcopy not found in ${SDK_SEARCH_DIR}. PDB stripping will be skipped.")
+        set(WITH_WINDOWS_RELEASE_STRIPPED_PDB off)
+      endif()
+    endif()
+      
+    if(WITH_WINDOWS_RELEASE_STRIPPED_PDB)
       # Icky hack for older CMAKE from https://stackoverflow.com/a/21198501
       # `$<CONFIG>` will work in newer CMAKE but the version currently (3.12)
       # on the build-bot does not support this endeavor.
@@ -1454,6 +1480,13 @@ elseif(WIN32)
 
   # Filenames change slightly between FFMPEG versions check both 6.0 and fallback to 5.0
   # to ease the transition between versions.
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avfilter-10.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avfilter-10.dll
+      ALL
+    )
+  endif()
   if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
     windows_install_shared_manifest(
       FILES
@@ -1664,6 +1697,12 @@ elseif(APPLE)
     MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH}"
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
+  )
+
+  # Xcode Archiving support for distributing the application (Testflight, App Store Connect, etc...)
+  set_target_properties(blender PROPERTIES
+    XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
+    XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
   )
 
   if(WITH_BLENDER_THUMBNAILER)
@@ -2049,7 +2088,7 @@ if(WIN32)
   )
   # If compiling with clang-cl we skip PDBSTRIPPED.
   # There's doesn't seem to be a switch for it currently
-  if(WITH_WINDOWS_RELEASE_PDB AND WITH_WINDOWS_RELEASE_STRIPPED_PDB AND NOT MSVC_CLANG)
+  if(WITH_WINDOWS_RELEASE_PDB AND WITH_WINDOWS_RELEASE_STRIPPED_PDB)
     # This is slightly messy, but single target generators like ninja will not have the
     # `CMAKE_CFG_INTDIR` variable and multi-target generators like `msbuild` will not have
     # `CMAKE_BUILD_TYPE`. This can be simplified by `target_link_options` and the `$<CONFIG>`

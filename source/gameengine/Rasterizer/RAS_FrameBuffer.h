@@ -29,15 +29,14 @@
 #include "RAS_Rasterizer.h"
 
 namespace blender::gpu {
+class FrameBuffer;
 class Texture;
 }  // namespace blender::gpu
-
-struct GPUFrameBuffer;
 
 class RAS_FrameBuffer {
  private:
   /// All the off screens used.
-  GPUFrameBuffer *m_frameBuffer;
+  blender::gpu::FrameBuffer *m_frameBuffer;
   /// The off screen type, render, final, filter ect...
   RAS_Rasterizer::FrameBufferType m_frameBufferType;
 
@@ -53,7 +52,7 @@ class RAS_FrameBuffer {
                   RAS_Rasterizer::FrameBufferType framebufferType);
   ~RAS_FrameBuffer();
 
-  GPUFrameBuffer *GetFrameBuffer();
+  blender::gpu::FrameBuffer *GetFrameBuffer();
   /// NOTE: This function has the side effect to leave the destination off screen bound.
   RAS_FrameBuffer *Blit(RAS_FrameBuffer *dstFrameBuffer, bool color, bool depth);
 

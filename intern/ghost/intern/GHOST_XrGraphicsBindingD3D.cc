@@ -139,13 +139,13 @@ std::optional<int64_t> GHOST_XrGraphicsBindingD3D::chooseSwapchainFormat(
         DXGI_FORMAT_R10G10B10A2_UNORM,
         DXGI_FORMAT_R16G16B16A16_UNORM,
 #endif
-    DXGI_FORMAT_R16G16B16A16_FLOAT,
+      DXGI_FORMAT_R16G16B16A16_FLOAT,
 #if 1
-    DXGI_FORMAT_R10G10B10A2_UNORM,
-    DXGI_FORMAT_R16G16B16A16_UNORM,
+      DXGI_FORMAT_R10G10B10A2_UNORM,
+      DXGI_FORMAT_R16G16B16A16_UNORM,
 #endif
-    DXGI_FORMAT_R8G8B8A8_UNORM,
-    DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+      DXGI_FORMAT_R8G8B8A8_UNORM,
+      DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
   };
 
   std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
@@ -200,7 +200,7 @@ bool GHOST_XrGraphicsBindingD3D::needsUpsideDownDrawing(GHOST_Context &) const
   return ghost_d3d_ctx_->isUpsideDown();
 }
 
-/* \} */
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name OpenGL-Direct3D bridge
@@ -260,7 +260,7 @@ void GHOST_XrGraphicsBindingOpenGLD3D::submitToSwapchainImage(
 #endif
 }
 
-/* \} */
+/** \} */
 
 #ifdef WITH_VULKAN_BACKEND
 
@@ -331,6 +331,6 @@ void GHOST_XrGraphicsBindingVulkanD3D::submitToSwapchainImage(
   ghost_ctx_.openxr_release_framebuffer_image_callback_(&openxr_data);
 }
 
-/* \} */
+/** \} */
 
 #endif

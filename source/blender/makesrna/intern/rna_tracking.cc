@@ -1293,6 +1293,18 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "K2", "Second coefficient of second order Nuke distortion");
   RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
 
+  prop = RNA_def_property(srna, "nuke_p1", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
+  RNA_def_property_ui_text(prop, "P1", "First coefficient of tangential Nuke distortion");
+  RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
+
+  prop = RNA_def_property(srna, "nuke_p2", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
+  RNA_def_property_ui_text(prop, "P2", "Second coefficient of tangential Nuke distortion");
+  RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
+
   /* Brown-Conrady distortion parameters */
   prop = RNA_def_property(srna, "brown_k1", PROP_FLOAT, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -1600,6 +1612,7 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "MovieTrackingMarker");
   RNA_def_property_collection_sdna(prop, nullptr, "markers", "markersnr");
   RNA_def_property_ui_text(prop, "Markers", "Collection of markers in track");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MOVIECLIP);
   rna_def_trackingMarkers(brna, prop);
 
   /* ** channels ** */
@@ -1653,6 +1666,7 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "bundle_pos");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Bundle", "Position of bundle reconstructed from this track");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MOVIECLIP);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, RNA_TRANSLATION_PREC_DEFAULT);
 
   /* hide */
@@ -1873,6 +1887,7 @@ static void rna_def_trackingPlaneTrack(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "MovieTrackingPlaneMarker");
   RNA_def_property_collection_sdna(prop, nullptr, "markers", "markersnr");
   RNA_def_property_ui_text(prop, "Markers", "Collection of markers in track");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MOVIECLIP);
   rna_def_trackingPlaneMarkers(brna, prop);
 
   /* select */

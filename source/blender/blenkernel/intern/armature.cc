@@ -1023,7 +1023,7 @@ static void equalize_cubic_bezier(const float control[4][3],
                                   const float *segment_scales,
                                   float *r_t_points)
 {
-  float(*coords)[3] = static_cast<float(*)[3]>(BLI_array_alloca(coords, temp_segments + 1));
+  float (*coords)[3] = static_cast<float (*)[3]>(BLI_array_alloca(coords, temp_segments + 1));
   float *pdist = static_cast<float *>(BLI_array_alloca(pdist, temp_segments + 1));
 
   /* Compute the first pass of bezier point coordinates. */
@@ -1861,7 +1861,7 @@ static void find_bbone_segment_index_straight(const bPoseChannel *pchan,
                                               float *r_blend_next)
 {
   const Mat4 *mats = pchan->runtime.bbone_deform_mats;
-  const float(*mat)[4] = mats[0].mat;
+  const float (*mat)[4] = mats[0].mat;
 
   /* Transform co to bone space and get its y component. */
   const float y = mat[0][1] * co[0] + mat[1][1] * co[1] + mat[2][1] * co[2] + mat[3][1];
@@ -2910,8 +2910,8 @@ void BKE_pose_rebuild(Main *bmain, Object *ob, bArmature *arm, const bool do_id_
     /* Find the custom B-Bone handles. */
     BKE_pchan_rebuild_bbone_handles(pose, pchan);
     /* Re-validate that we are still using a valid pchan form custom transform. */
-    /* Note that we could store pointers of freed pchan in a GSet to speed this up, however this is
-     * supposed to be a rarely used feature, so for now assuming that always building that GSet
+    /* Note that we could store pointers of freed pchan in a set to speed this up, however this is
+     * supposed to be a rarely used feature, so for now assuming that always building that set
      * would be less optimal. */
     if (pchan->custom_tx != nullptr && BLI_findindex(&pose->chanbase, pchan->custom_tx) == -1) {
       pchan->custom_tx = nullptr;

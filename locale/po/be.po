@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'61dd8a1435fb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-01 09:40+0000\n"
+"POT-Creation-Date: 2025-11-24 08:35+0000\n"
 "PO-Revision-Date: 2025-07-23 14:55+0000\n"
 "Last-Translator: Maksim <casual.sir.fish@gmail.com>\n"
 "Language-Team: Belarusian <https://translate.blender.org/projects/blender-ui/ui/be/>\n"
@@ -57,10 +57,6 @@ msgstr "Спіс АВП"
 
 msgid "Collection of AOVs"
 msgstr "Калекцыя АВП"
-
-
-msgid "Action F-Curves"
-msgstr "Ф-крывыя дзеянняў"
 
 
 msgid "Action Group"
@@ -229,14 +225,6 @@ msgstr "Група дзеянняў разгорнута ў рэдактары �
 
 msgid "Pin in Graph Editor"
 msgstr "Прышпіліць у рэдактары графаў"
-
-
-msgid "Action Groups"
-msgstr "Групы дзеянняў"
-
-
-msgid "Collection of action groups"
-msgstr "Калекцыя груп дзеянняў"
 
 
 msgid "Action Pose Markers"

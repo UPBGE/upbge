@@ -651,7 +651,7 @@ void ElementRotation_ex(const TransInfo *t,
     /* Extract and invert armature object matrix. */
 
     if ((td->flag & TD_NO_LOC) == 0) {
-      sub_v3_v3v3(vec, td->center, center);
+      sub_v3_v3v3(vec, td_ext->center_no_override, center);
 
       mul_m3_v3(tc->mat3, vec);  /* To Global space. */
       mul_m3_v3(mat, vec);       /* Applying rotation. */
@@ -660,7 +660,8 @@ void ElementRotation_ex(const TransInfo *t,
       add_v3_v3(vec, center);
       /* `vec` now is the location where the object has to be. */
 
-      sub_v3_v3v3(vec, vec, td->center); /* Translation needed from the initial location. */
+      /* Translation needed from the initial location. */
+      sub_v3_v3v3(vec, vec, td_ext->center_no_override);
 
       /* Special exception, see TD_PBONE_LOCAL_MTX definition comments. */
       if (td->flag & TD_PBONE_LOCAL_MTX_P) {
@@ -1273,6 +1274,11 @@ void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis)
   }
   else {
     r_axis = t->spacemtx[t->orient_axis];
+    /* For unconstrained rotation, flip the axis so the rotation direction
+     * matches the mouse movement in view space. */
+    if (t->mode == TFM_ROTATION && (t->con.mode & CON_APPLY) == 0) {
+      r_axis = -r_axis;
+    }
   }
 }
 

@@ -64,6 +64,16 @@ static void brush_init_data(ID *id)
 
   /* the default alpha falloff curve */
   BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
+
+  brush->automasking_cavity_curve = BKE_paint_default_curve();
+
+  brush->curve_rand_hue = BKE_paint_default_curve();
+  brush->curve_rand_saturation = BKE_paint_default_curve();
+  brush->curve_rand_value = BKE_paint_default_curve();
+
+  brush->curve_size = BKE_paint_default_curve();
+  brush->curve_strength = BKE_paint_default_curve();
+  brush->curve_jitter = BKE_paint_default_curve();
 }
 
 static void brush_copy_data(Main * /*bmain*/,
@@ -82,7 +92,7 @@ static void brush_copy_data(Main * /*bmain*/,
     brush_dst->preview = nullptr;
   }
 
-  brush_dst->curve = BKE_curvemapping_copy(brush_src->curve);
+  brush_dst->curve_distance_falloff = BKE_curvemapping_copy(brush_src->curve_distance_falloff);
   brush_dst->automasking_cavity_curve = BKE_curvemapping_copy(brush_src->automasking_cavity_curve);
 
   brush_dst->curve_rand_hue = BKE_curvemapping_copy(brush_src->curve_rand_hue);
@@ -130,7 +140,7 @@ static void brush_copy_data(Main * /*bmain*/,
 static void brush_free_data(ID *id)
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
-  BKE_curvemapping_free(brush->curve);
+  BKE_curvemapping_free(brush->curve_distance_falloff);
   BKE_curvemapping_free(brush->automasking_cavity_curve);
 
   BKE_curvemapping_free(brush->curve_rand_hue);
@@ -236,8 +246,8 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BLO_write_id_struct(writer, Brush, id_address, &brush->id);
   BKE_id_blend_write(writer, &brush->id);
 
-  if (brush->curve) {
-    BKE_curvemapping_blend_write(writer, brush->curve);
+  if (brush->curve_distance_falloff) {
+    BKE_curvemapping_blend_write(writer, brush->curve_distance_falloff);
   }
 
   if (brush->automasking_cavity_curve) {
@@ -311,12 +321,12 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   Brush *brush = reinterpret_cast<Brush *>(id);
 
   /* Falloff curve. */
-  BLO_read_struct(reader, CurveMapping, &brush->curve);
+  BLO_read_struct(reader, CurveMapping, &brush->curve_distance_falloff);
 
   BLO_read_struct(reader, ColorBand, &brush->gradient);
 
-  if (brush->curve) {
-    BKE_curvemapping_blend_read(reader, brush->curve);
+  if (brush->curve_distance_falloff) {
+    BKE_curvemapping_blend_read(reader, brush->curve_distance_falloff);
   }
   else {
     BKE_brush_curve_preset(brush, CURVE_PRESET_SHARP);
@@ -878,15 +888,15 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   CurveMapping *cumap = nullptr;
   CurveMap *cuma = nullptr;
 
-  if (!b->curve) {
-    b->curve = BKE_curvemapping_add(1, 0, 0, 1, 1);
+  if (!b->curve_distance_falloff) {
+    b->curve_distance_falloff = BKE_curvemapping_add(1, 0, 0, 1, 1);
   }
-  cumap = b->curve;
+  cumap = b->curve_distance_falloff;
   cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
   cumap->preset = preset;
 
-  cuma = b->curve->cm;
-  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_NEGATIVE);
+  cuma = b->curve_distance_falloff->cm;
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Negative);
   BKE_curvemapping_changed(cumap, false);
   BKE_brush_tag_unsaved_changes(b);
 }
@@ -1144,20 +1154,9 @@ float BKE_brush_sample_masktex(
   return intensity;
 }
 
-/* Unified Size / Strength / Color */
-
-/* XXX: be careful about setting size and unprojected radius
- * because they depend on one another
- * these functions do not set the other corresponding value
- * this can lead to odd behavior if size and unprojected
- * radius become inconsistent.
- * the biggest problem is that it isn't possible to change
- * unprojected radius because a view context is not
- * available.  my usual solution to this is to use the
- * ratio of change of the size to change the unprojected
- * radius.  Not completely convinced that is correct.
- * In any case, a better solution is needed to prevent
- * inconsistency. */
+/* -------------------------------------------------------------------- */
+/** \name Unified Settings
+ * \{ */
 
 const float *BKE_brush_color_get(const Paint *paint, const Brush *brush)
 {
@@ -1239,6 +1238,13 @@ void BKE_brush_color_sync_legacy(UnifiedPaintSettings *ups)
   linearrgb_to_srgb_v3_v3(ups->secondary_rgb, ups->secondary_color);
 }
 
+/* Be careful about setting size and unprojected size because they depend on one another these
+ * functions do not set the other corresponding value this can lead to odd behavior if size and
+ * unprojected radius become inconsistent. The biggest problem is that it isn't possible to change
+ * unprojected radius because a view context is not available. My usual solution to this is to use
+ * the ratio of change of the size to change the unprojected radius. Not completely convinced that
+ * is correct. In any case, a better solution is needed to prevent inconsistency. */
+
 void BKE_brush_size_set(Paint *paint, Brush *brush, int size)
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
@@ -1311,6 +1317,30 @@ float BKE_brush_unprojected_radius_get(const Paint *paint, const Brush *brush)
   return BKE_brush_unprojected_size_get(paint, brush) / 2.0f;
 }
 
+void BKE_brush_scale_unprojected_size(float *unprojected_size,
+                                      int new_brush_size,
+                                      int old_brush_size)
+{
+  float scale = new_brush_size;
+  /* avoid division by zero */
+  if (old_brush_size != 0) {
+    scale /= float(old_brush_size);
+  }
+  (*unprojected_size) *= scale;
+}
+
+void BKE_brush_scale_size(int *r_brush_size,
+                          float new_unprojected_size,
+                          float old_unprojected_size)
+{
+  float scale = new_unprojected_size;
+  /* avoid division by zero */
+  if (old_unprojected_size != 0) {
+    scale /= new_unprojected_size;
+  }
+  (*r_brush_size) = int(float(*r_brush_size) * scale);
+}
+
 void BKE_brush_alpha_set(Paint *paint, Brush *brush, float alpha)
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
@@ -1371,29 +1401,7 @@ void BKE_brush_input_samples_set(Paint *paint, Brush *brush, int value)
   }
 }
 
-void BKE_brush_scale_unprojected_size(float *unprojected_size,
-                                      int new_brush_size,
-                                      int old_brush_size)
-{
-  float scale = new_brush_size;
-  /* avoid division by zero */
-  if (old_brush_size != 0) {
-    scale /= float(old_brush_size);
-  }
-  (*unprojected_size) *= scale;
-}
-
-void BKE_brush_scale_size(int *r_brush_size,
-                          float new_unprojected_size,
-                          float old_unprojected_size)
-{
-  float scale = new_unprojected_size;
-  /* avoid division by zero */
-  if (old_unprojected_size != 0) {
-    scale /= new_unprojected_size;
-  }
-  (*r_brush_size) = int(float(*r_brush_size) * scale);
-}
+/** \} */
 
 void BKE_brush_jitter_pos(const Paint &paint,
                           const Brush &brush,
@@ -1571,6 +1579,9 @@ float BKE_brush_curve_strength(const eBrushCurvePreset preset,
                                const float distance,
                                const float brush_radius)
 {
+  BLI_assert(distance >= 0.0f);
+  BLI_assert(brush_radius >= 0.0f);
+
   float p = distance;
   float strength = 1.0f;
 
@@ -1619,7 +1630,8 @@ float BKE_brush_curve_strength(const eBrushCurvePreset preset,
 
 float BKE_brush_curve_strength(const Brush *br, float p, const float len)
 {
-  return BKE_brush_curve_strength(eBrushCurvePreset(br->curve_preset), br->curve, p, len);
+  return BKE_brush_curve_strength(
+      eBrushCurvePreset(br->curve_distance_falloff_preset), br->curve_distance_falloff, p, len);
 }
 
 float BKE_brush_curve_strength_clamped(const Brush *br, float p, const float len)
@@ -1668,7 +1680,7 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
   int side = 512;
   int half = side / 2;
 
-  BKE_curvemapping_init(br->curve);
+  BKE_curvemapping_init(br->curve_distance_falloff);
 
   float *rect_float = MEM_calloc_arrayN<float>(size_t(side) * size_t(side), "radial control rect");
   IMB_assign_float_buffer(im, rect_float, IB_DO_NOT_TAKE_OWNERSHIP);
@@ -1773,7 +1785,7 @@ bool supports_topology_rake(const Brush &brush)
 }
 bool supports_auto_smooth(const Brush &brush)
 {
-  /* TODO: Should this support Face Sets...? */
+  /* TODO: Should this support face sets...? */
   return !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_MASK,
                SCULPT_BRUSH_TYPE_SMOOTH,
@@ -1886,9 +1898,41 @@ bool supports_space_attenuation(const Brush &brush)
                SCULPT_BRUSH_TYPE_SMOOTH,
                SCULPT_BRUSH_TYPE_SNAKE_HOOK);
 }
+
+/**
+ * A helper method for classifying a certain subset of brush types.
+ *
+ * Certain sculpt deformations are 'grab-like' in that they behave as if they have an anchored
+ * start point.
+ */
+static bool is_grab_tool(const Brush &brush)
+{
+  return (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH &&
+          brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) ||
+         ELEM(brush.sculpt_brush_type,
+              SCULPT_BRUSH_TYPE_GRAB,
+              SCULPT_BRUSH_TYPE_SNAKE_HOOK,
+              SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+              SCULPT_BRUSH_TYPE_POSE,
+              SCULPT_BRUSH_TYPE_BOUNDARY,
+              SCULPT_BRUSH_TYPE_THUMB,
+              SCULPT_BRUSH_TYPE_ROTATE);
+}
 bool supports_strength_pressure(const Brush &brush)
 {
-  return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_SNAKE_HOOK);
+  return !is_grab_tool(brush);
+}
+bool supports_size_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
+bool supports_auto_smooth_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
+bool supports_hardness_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
 }
 bool supports_inverted_direction(const Brush &brush)
 {

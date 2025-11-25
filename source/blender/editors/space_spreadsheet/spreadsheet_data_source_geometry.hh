@@ -10,6 +10,11 @@
 
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
+#include "BKE_volume_grid_fwd.hh"
+
+#include "NOD_geometry_nodes_bundle_fwd.hh"
+#include "NOD_geometry_nodes_closure_fwd.hh"
+#include "NOD_geometry_nodes_list_fwd.hh"
 
 #include "spreadsheet_data_source.hh"
 
@@ -79,6 +84,92 @@ class VolumeDataSource : public DataSource {
         component_(geometry_set_.get_component<bke::VolumeComponent>())
   {
   }
+
+  void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
+
+  std::unique_ptr<ColumnValues> get_column_values(
+      const SpreadsheetColumnID &column_id) const override;
+
+  int tot_rows() const override;
+};
+
+#ifdef WITH_OPENVDB
+
+class VolumeGridDataSource : public DataSource {
+  /** Using #unique_ptr so that `BKE_volume_grid_fwd.hh` can be used. */
+  std::unique_ptr<bke::GVolumeGrid> grid_;
+
+ public:
+  VolumeGridDataSource(const bke::GVolumeGrid &grid);
+
+  void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
+
+  std::unique_ptr<ColumnValues> get_column_values(
+      const SpreadsheetColumnID &column_id) const override;
+
+  int tot_rows() const override;
+};
+
+#endif
+
+class ListDataSource : public DataSource {
+  nodes::ListPtr list_;
+
+ public:
+  ListDataSource(nodes::ListPtr list);
+
+  void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
+
+  std::unique_ptr<ColumnValues> get_column_values(
+      const SpreadsheetColumnID &column_id) const override;
+
+  int tot_rows() const override;
+};
+
+class BundleDataSource : public DataSource {
+  nodes::BundlePtr bundle_;
+  Vector<std::string> flat_item_keys_;
+  Vector<const nodes::BundleItemValue *> flat_items_;
+
+ public:
+  BundleDataSource(nodes::BundlePtr bundle);
+
+  void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
+
+  std::unique_ptr<ColumnValues> get_column_values(
+      const SpreadsheetColumnID &column_id) const override;
+
+  int tot_rows() const override;
+
+ private:
+  void collect_flat_items(const nodes::Bundle &bundle, StringRef parent_path);
+};
+
+class ClosureSignatureDataSource : public DataSource {
+  nodes::ClosurePtr closure_;
+  SpreadsheetClosureInputOutput in_out_;
+
+ public:
+  ClosureSignatureDataSource(nodes::ClosurePtr closure, SpreadsheetClosureInputOutput in_out);
+
+  void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
+
+  std::unique_ptr<ColumnValues> get_column_values(
+      const SpreadsheetColumnID &column_id) const override;
+
+  int tot_rows() const override;
+};
+
+class SingleValueDataSource : public DataSource {
+  GVArray value_gvarray_;
+
+ public:
+  SingleValueDataSource(const GPointer value);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;

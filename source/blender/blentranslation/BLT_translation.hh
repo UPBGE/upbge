@@ -90,6 +90,18 @@ blender::StringRef BLT_translate_do_new_dataname(blender::StringRef msgctxt,
  * (needed in some cases, as English adjectives have no plural mark :( ). */
 #define BLT_I18NCONTEXT_PLURAL "Plural"
 
+/* Some words can be either countable or uncountable in English, but translate to different words
+ * in other languages. An exemple is "Amount", which can refer to "a number of things", countable,
+ * or "a quantity or volume", uncountable. */
+#define BLT_I18NCONTEXT_COUNTABLE "Countable"
+
+/* Special cases when translation cannot be avoided, for example in an interface where some props
+ * are built-in (translatable) and others are user-defined (non-translatable), but we don't know
+ * which ones in advance.
+ * It allows specifying explicitly that translation should not occur for user data when building
+ * the UI. */
+#define BLT_I18NCONTEXT_NO_TRANSLATION "Do not translate"
+
 /* ID-types contexts. */
 /* WARNING! Keep it in sync with ID-types in `blenkernel/intern/idtype.cc`. */
 #define BLT_I18NCONTEXT_ID_ACTION "Action"
@@ -159,10 +171,7 @@ struct BLT_i18n_contexts_descriptor {
   const char *value;
 };
 
-#define BLT_I18NCONTEXTS_ITEM(ctxt_id, py_id) \
-  { \
-    #ctxt_id, py_id, ctxt_id \
-  }
+#define BLT_I18NCONTEXTS_ITEM(ctxt_id, py_id) {#ctxt_id, py_id, ctxt_id}
 
 #define BLT_I18NCONTEXTS_DESC \
   { \
@@ -171,8 +180,10 @@ struct BLT_i18n_contexts_descriptor {
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "operator_default"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_UI_EVENTS, "ui_events_keymaps"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_PLURAL, "plural"), \
+        BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_COUNTABLE, "countable"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_ACTION, "id_action"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_ARMATURE, "id_armature"), \
+        BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_NO_TRANSLATION, "no_translation"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_BRUSH, "id_brush"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_CACHEFILE, "id_cachefile"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_CAMERA, "id_camera"), \

@@ -14,7 +14,7 @@ from bpy.app.translations import (
     pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
-from bl_ui import anim
+from bl_ui import anim, node_add_menu
 from bl_ui.utils import PresetPanel
 from bl_ui.properties_grease_pencil_common import (
     AnnotationDataPanel,
@@ -65,16 +65,17 @@ class NODE_HT_header(Header):
                 ob_type = ob.type
 
                 NODE_MT_editor_menus.draw_collapsible(context, layout)
-
-                if snode_id:
-                    row = layout.row()
-                    row.prop(snode_id, "use_nodes")
-
-                layout.separator_spacer()
-
                 types_that_support_material = {
                     'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'GPENCIL', 'VOLUME', 'CURVES', 'POINTCLOUD',
                 }
+
+                if snode_id:
+                    row = layout.row()
+                    if ob_type not in types_that_support_material:
+                        row.prop(snode_id, "use_nodes")
+
+                layout.separator_spacer()
+
                 # disable material slot buttons when pinned, cannot find correct slot within id_from (#36589)
                 # disable also when the selected object does not support materials
                 has_material_slots = not snode.pin and ob_type in types_that_support_material
@@ -144,13 +145,31 @@ class NODE_HT_header(Header):
                     layout.template_ID(id_from, "active_texture", new="texture.new")
 
         elif snode.tree_type == 'CompositorNodeTree':
-
+            layout.prop(snode, "node_tree_sub_type", text="")
             NODE_MT_editor_menus.draw_collapsible(context, layout)
-
             layout.separator_spacer()
-            row = layout.row()
-            row.enabled = not snode.pin
-            row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
+
+            if snode.node_tree_sub_type == 'SCENE':
+                row = layout.row()
+                row.enabled = not snode.pin
+                if scene.compositing_node_group:
+                    row.template_ID(scene, "compositing_node_group", new="node.duplicate_compositing_node_group")
+                else:
+                    row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
+            elif snode.node_tree_sub_type == 'SEQUENCER':
+                row = layout.row()
+                sequencer_scene = context.workspace.sequencer_scene
+                sequencer_editor = sequencer_scene.sequence_editor if sequencer_scene else None
+                active_strip = sequencer_editor.active_strip if sequencer_editor else None
+                active_modifier = active_strip.modifiers.active if active_strip else None
+                is_compositor_modifier_active = active_modifier and active_modifier.type == 'COMPOSITOR'
+                if is_compositor_modifier_active and not snode.pin:
+                    row.template_ID(
+                        active_modifier,
+                        "node_group",
+                        new="node.new_compositor_sequencer_node_group")
+                elif active_strip and active_strip.type != 'SOUND':
+                    row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_node_group")
 
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "node_tree_sub_type", text="")
@@ -199,7 +218,7 @@ class NODE_HT_header(Header):
             op.parent_tree_index = len(snode.path) - 2
 
         # Backdrop
-        if is_compositor:
+        if is_compositor and snode.node_tree_sub_type == 'SCENE':
             row = layout.row(align=True)
             row.prop(snode, "show_backdrop", toggle=True)
             row.active = snode.node_tree is not None
@@ -232,7 +251,7 @@ class NODE_HT_header(Header):
 class NODE_PT_gizmo_display(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'HEADER'
-    bl_label = 'Gizmos'
+    bl_label = "Gizmos"
     bl_ui_units_x = 8
 
     def draw(self, context):
@@ -265,7 +284,7 @@ class NODE_MT_editor_menus(Menu):
         layout.menu("NODE_MT_node")
 
 
-class NODE_MT_add(Menu):
+class NODE_MT_add(node_add_menu.AddNodeMenu):
     bl_space_type = 'NODE_EDITOR'
     bl_label = "Add"
     bl_translation_context = i18n_contexts.operator_default
@@ -297,6 +316,33 @@ class NODE_MT_add(Menu):
             nodeitems_utils.draw_node_categories_menu(self, context)
 
 
+class NODE_MT_swap(node_add_menu.SwapNodeMenu):
+    bl_space_type = 'NODE_EDITOR'
+    bl_label = "Swap"
+    bl_translation_context = i18n_contexts.operator_default
+    bl_options = {'SEARCH_ON_KEY_PRESS'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        if layout.operator_context == 'EXEC_REGION_WIN':
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("WM_OT_search_single_menu", text="Search...", icon='VIEWZOOM').menu_idname = "NODE_MT_swap"
+            layout.separator()
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+
+        snode = context.space_data
+        if snode.tree_type == 'GeometryNodeTree':
+            layout.menu_contents("NODE_MT_geometry_node_swap_all")
+        elif snode.tree_type == 'CompositorNodeTree':
+            layout.menu_contents("NODE_MT_compositor_node_swap_all")
+        elif snode.tree_type == 'ShaderNodeTree':
+            layout.menu_contents("NODE_MT_shader_node_swap_all")
+        elif snode.tree_type == 'TextureNodeTree':
+            layout.menu_contents("NODE_MT_texture_node_swap_all")
+
+
 class NODE_MT_view(Menu):
     bl_label = "View"
 
@@ -304,9 +350,13 @@ class NODE_MT_view(Menu):
         layout = self.layout
 
         snode = context.space_data
+        is_compositor = snode.tree_type == 'CompositorNodeTree'
 
         layout.prop(snode, "show_region_toolbar")
         layout.prop(snode, "show_region_ui")
+
+        if is_compositor:
+            layout.prop(snode, "show_region_asset_shelf")
 
         layout.separator()
 
@@ -395,6 +445,8 @@ class NODE_MT_node(Menu):
         layout.separator()
         layout.operator("node.join", text="Join in New Frame")
         layout.operator("node.detach", text="Remove from Frame")
+        layout.operator("node.join_nodes", text="Join Group Inputs")
+        layout.operator("node.join_named")
 
         layout.separator()
         props = layout.operator("wm.call_panel", text="Rename...")
@@ -416,6 +468,7 @@ class NODE_MT_node(Menu):
             layout.operator("node.group_ungroup")
 
         layout.separator()
+        layout.menu("NODE_MT_swap")
         layout.menu("NODE_MT_context_menu_show_hide_menu")
 
         if is_compositor:
@@ -967,116 +1020,17 @@ class NODE_MT_node_tree_interface_context_menu(Menu):
             layout.operator("node.interface_item_unlink_panel_toggle")
 
 
-class NODE_PT_node_tree_interface(Panel):
-    bl_space_type = 'NODE_EDITOR'
-    bl_region_type = 'UI'
-    bl_category = "Group"
-    bl_label = "Group Sockets"
-
-    @classmethod
-    def poll(cls, context):
-        snode = context.space_data
-        if snode is None:
-            return False
-        tree = snode.edit_tree
-        if tree is None:
-            return False
-        if tree.is_embedded_data:
-            return False
-        if not tree.bl_use_group_interface:
-            return False
-        return True
+class NODE_MT_node_tree_interface_new_item(Menu):
+    bl_label = "New Item"
 
     def draw(self, context):
         layout = self.layout
-        snode = context.space_data
-        tree = snode.edit_tree
+        layout.operator_enum("node.interface_item_new", "item_type")
 
-        split = layout.row()
+        active_item = context.space_data.edit_tree.interface.active
 
-        split.template_node_tree_interface(tree.interface)
-
-        ops_col = split.column(align=True)
-        ops_col.enabled = tree.library is None
-        ops_col.operator_menu_enum("node.interface_item_new", "item_type", icon='ADD', text="")
-        ops_col.operator("node.interface_item_remove", icon='REMOVE', text="")
-        ops_col.separator()
-        ops_col.menu("NODE_MT_node_tree_interface_context_menu", icon='DOWNARROW_HLT', text="")
-
-        ops_col.separator()
-
-        active_item = tree.interface.active
-        if active_item is not None:
-            layout.use_property_split = True
-            layout.use_property_decorate = False
-
-            if active_item.item_type == 'SOCKET':
-                layout.prop(active_item, "socket_type", text="Type")
-                layout.prop(active_item, "description")
-                # Display descriptions only for Geometry Nodes, since it's only used in the modifier panel.
-                if tree.type == 'GEOMETRY':
-                    field_socket_types = {
-                        "NodeSocketInt",
-                        "NodeSocketColor",
-                        "NodeSocketVector",
-                        "NodeSocketBool",
-                        "NodeSocketFloat",
-                    }
-                    if active_item.socket_type in field_socket_types:
-                        if 'OUTPUT' in active_item.in_out:
-                            layout.prop(active_item, "attribute_domain")
-                        layout.prop(active_item, "default_attribute_name")
-                if hasattr(active_item, "draw"):
-                    active_item.draw(context, layout)
-
-            if active_item.item_type == 'PANEL':
-                layout.prop(active_item, "description")
-                layout.prop(active_item, "default_closed", text="Closed by Default")
-
-            layout.use_property_split = False
-
-
-class NODE_PT_node_tree_interface_panel_toggle(Panel):
-    bl_space_type = 'NODE_EDITOR'
-    bl_region_type = 'UI'
-    bl_category = "Group"
-    bl_parent_id = "NODE_PT_node_tree_interface"
-    bl_label = "Panel Toggle"
-
-    @classmethod
-    def poll(cls, context):
-        snode = context.space_data
-        if snode is None:
-            return False
-        tree = snode.edit_tree
-        if tree is None:
-            return False
-        active_item = tree.interface.active
-        if not active_item or active_item.item_type != 'PANEL':
-            return False
-        if not active_item.interface_items:
-            return False
-        first_item = active_item.interface_items[0]
-        return getattr(first_item, "is_panel_toggle", False)
-
-    def draw(self, context):
-        layout = self.layout
-        snode = context.space_data
-        tree = snode.edit_tree
-
-        active_item = tree.interface.active
-        panel_toggle_item = active_item.interface_items[0]
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        layout.prop(panel_toggle_item, "default_value", text="Default")
-
-        col = layout.column()
-        col.prop(panel_toggle_item, "hide_in_modifier")
-        col.prop(panel_toggle_item, "force_non_field")
-
-        layout.use_property_split = False
+        if active_item.item_type == 'PANEL':
+            layout.operator("node.interface_item_new_panel_toggle", text="Panel Toggle")
 
 
 class NODE_PT_node_tree_properties(Panel):
@@ -1084,6 +1038,7 @@ class NODE_PT_node_tree_properties(Panel):
     bl_region_type = 'UI'
     bl_category = "Group"
     bl_label = "Group"
+    bl_order = 0
 
     @classmethod
     def poll(cls, context):
@@ -1120,6 +1075,10 @@ class NODE_PT_node_tree_properties(Panel):
         row.operator("node.default_group_width_set", text="", icon='NODE')
 
         if group.bl_idname == "GeometryNodeTree":
+            row = layout.row()
+            row.active = group.is_modifier
+            row.prop(group, "show_modifier_manage_panel")
+
             header, body = layout.panel("group_usage")
             header.label(text="Usage")
             if body:
@@ -1134,6 +1093,7 @@ class NODE_PT_node_tree_animation(Panel):
     bl_category = "Group"
     bl_label = "Animation"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 20
 
     @classmethod
     def poll(cls, context):
@@ -1196,6 +1156,8 @@ def node_panel(cls):
 class NODE_AST_compositor(bpy.types.AssetShelf):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
+    bl_options = {'DEFAULT_VISIBLE', 'STORE_ENABLED_CATALOGS_IN_PREFERENCES'}
+    filter_node_tree = True
 
     @classmethod
     def poll(cls, context):
@@ -1203,21 +1165,48 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
 
     @classmethod
     def asset_poll(cls, asset):
+        import os
+        from pathlib import Path
+
         compositing_type = bpy.types.NodeTree.bl_rna.properties["type"].enum_items["COMPOSITING"]
-        return asset.id_type == 'NODETREE' and asset.metadata.get("type") == compositing_type.value
+        if asset.id_type != 'NODETREE' or asset.metadata.get("type") != compositing_type.value:
+            return False
+
+        # Don't display these node groups from the essentials. They will be displayed in the "Add" menu, but are a bit
+        # too low level for the Asset Shelf. The fact that they are assets is more of an implementation detail.
+        # Could use a nicer solution, like a flag or tag on the asset. Not worth if it's just these few assets though.
+        ignored_essentials = {
+            "Combine Cylindrical",
+            "Combine Spherical",
+            "Separate Cylindrical",
+            "Separate Spherical",
+        }
+
+        compositor_essentials_path = Path(os.path.join(
+            bpy.utils.system_resource('DATAFILES'),
+            "assets",
+            "nodes",
+            "compositing_nodes_essentials.blend"
+        ))
+        if Path(asset.full_library_path) == compositor_essentials_path:
+            if asset.name in ignored_essentials:
+                return False
+
+        return True
 
 
 classes = (
     NODE_HT_header,
     NODE_MT_editor_menus,
     NODE_MT_add,
-    NODE_MT_view,
+    NODE_MT_swap,
     NODE_MT_select,
     NODE_MT_node,
     NODE_MT_node_color_context_menu,
     NODE_MT_context_menu_show_hide_menu,
     NODE_MT_context_menu_select_menu,
     NODE_MT_context_menu,
+    NODE_MT_view,
     NODE_MT_view_pie,
     NODE_PT_material_slots,
     NODE_PT_geometry_node_tool_object_types,
@@ -1225,9 +1214,8 @@ classes = (
     NODE_PT_geometry_node_tool_options,
     NODE_PT_node_color_presets,
     NODE_PT_node_tree_properties,
+    NODE_MT_node_tree_interface_new_item,
     NODE_MT_node_tree_interface_context_menu,
-    NODE_PT_node_tree_interface,
-    NODE_PT_node_tree_interface_panel_toggle,
     NODE_PT_node_tree_animation,
     NODE_PT_active_node_generic,
     NODE_PT_active_node_color,

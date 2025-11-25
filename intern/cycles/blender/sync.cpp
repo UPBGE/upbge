@@ -337,8 +337,7 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 
   /* No adaptive subdivision for baking, mesh needs to match Blender exactly. */
-  use_adaptive_subdivision = (get_enum(cscene, "feature_set") != 0) && !b_bake_target;
-  use_experimental_procedural = (get_enum(cscene, "feature_set") != 0);
+  use_adaptive_subdivision = !b_bake_target;
 
   Integrator *integrator = scene->integrator;
 
@@ -349,9 +348,14 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
   integrator->set_max_glossy_bounce(get_int(cscene, "glossy_bounces"));
   integrator->set_max_transmission_bounce(get_int(cscene, "transmission_bounces"));
   integrator->set_max_volume_bounce(get_int(cscene, "volume_bounces"));
-  integrator->set_volume_unbiased(get_boolean(cscene, "volume_unbiased"));
   integrator->set_transparent_min_bounce(get_int(cscene, "min_transparent_bounces"));
   integrator->set_transparent_max_bounce(get_int(cscene, "transparent_max_bounces"));
+
+  integrator->set_volume_ray_marching(get_boolean(cscene, "volume_biased"));
+  integrator->set_volume_max_steps(get_int(cscene, "volume_max_steps"));
+  const float volume_step_rate = (preview) ? get_float(cscene, "volume_preview_step_rate") :
+                                             get_float(cscene, "volume_step_rate");
+  integrator->set_volume_step_rate(volume_step_rate);
 
   integrator->set_caustics_reflective(get_boolean(cscene, "caustics_reflective"));
   integrator->set_caustics_refractive(get_boolean(cscene, "caustics_refractive"));
@@ -672,31 +676,31 @@ static bool get_known_pass_type(BL::RenderPass &b_pass, PassType &type, PassMode
   MAP_PASS("Mist", PASS_MIST, false);
   MAP_PASS("Position", PASS_POSITION, false);
   MAP_PASS("Normal", PASS_NORMAL, false);
-  MAP_PASS("IndexOB", PASS_OBJECT_ID, false);
+  MAP_PASS("Object Index", PASS_OBJECT_ID, false);
   MAP_PASS("UV", PASS_UV, false);
   MAP_PASS("Vector", PASS_MOTION, false);
-  MAP_PASS("IndexMA", PASS_MATERIAL_ID, false);
+  MAP_PASS("Material Index", PASS_MATERIAL_ID, false);
 
-  MAP_PASS("DiffDir", PASS_DIFFUSE_DIRECT, false);
-  MAP_PASS("GlossDir", PASS_GLOSSY_DIRECT, false);
-  MAP_PASS("TransDir", PASS_TRANSMISSION_DIRECT, false);
-  MAP_PASS("VolumeDir", PASS_VOLUME_DIRECT, false);
+  MAP_PASS("Diffuse Direct", PASS_DIFFUSE_DIRECT, false);
+  MAP_PASS("Glossy Direct", PASS_GLOSSY_DIRECT, false);
+  MAP_PASS("Transmission Direct", PASS_TRANSMISSION_DIRECT, false);
+  MAP_PASS("Volume Direct", PASS_VOLUME_DIRECT, false);
 
-  MAP_PASS("DiffInd", PASS_DIFFUSE_INDIRECT, false);
-  MAP_PASS("GlossInd", PASS_GLOSSY_INDIRECT, false);
-  MAP_PASS("TransInd", PASS_TRANSMISSION_INDIRECT, false);
-  MAP_PASS("VolumeInd", PASS_VOLUME_INDIRECT, false);
+  MAP_PASS("Diffuse Indirect", PASS_DIFFUSE_INDIRECT, false);
+  MAP_PASS("Glossy Indirect", PASS_GLOSSY_INDIRECT, false);
+  MAP_PASS("Transmission Indirect", PASS_TRANSMISSION_INDIRECT, false);
+  MAP_PASS("Volume Indirect", PASS_VOLUME_INDIRECT, false);
   MAP_PASS("Volume Scatter", PASS_VOLUME_SCATTER, false);
   MAP_PASS("Volume Transmit", PASS_VOLUME_TRANSMIT, false);
   MAP_PASS("Volume Majorant", PASS_VOLUME_MAJORANT, false);
 
-  MAP_PASS("DiffCol", PASS_DIFFUSE_COLOR, false);
-  MAP_PASS("GlossCol", PASS_GLOSSY_COLOR, false);
-  MAP_PASS("TransCol", PASS_TRANSMISSION_COLOR, false);
+  MAP_PASS("Diffuse Color", PASS_DIFFUSE_COLOR, false);
+  MAP_PASS("Glossy Color", PASS_GLOSSY_COLOR, false);
+  MAP_PASS("Transmission Color", PASS_TRANSMISSION_COLOR, false);
 
-  MAP_PASS("Emit", PASS_EMISSION, false);
-  MAP_PASS("Env", PASS_BACKGROUND, false);
-  MAP_PASS("AO", PASS_AO, false);
+  MAP_PASS("Emission", PASS_EMISSION, false);
+  MAP_PASS("Environment", PASS_BACKGROUND, false);
+  MAP_PASS("Ambient Occlusion", PASS_AO, false);
 
   MAP_PASS("BakePrimitive", PASS_BAKE_PRIMITIVE, false);
   MAP_PASS("BakeSeed", PASS_BAKE_SEED, false);
@@ -711,6 +715,7 @@ static bool get_known_pass_type(BL::RenderPass &b_pass, PassType &type, PassMode
 
   MAP_PASS("AdaptiveAuxBuffer", PASS_ADAPTIVE_AUX_BUFFER, false);
   MAP_PASS("Debug Sample Count", PASS_SAMPLE_COUNT, false);
+  MAP_PASS("Render Time", PASS_RENDER_TIME, false);
 
   MAP_PASS("Guiding Color", PASS_GUIDING_COLOR, false);
   MAP_PASS("Guiding Probability", PASS_GUIDING_PROBABILITY, false);
@@ -935,9 +940,6 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
     params.temp_dir = b_engine.temporary_directory();
   }
 
-  /* feature set */
-  params.experimental = (get_enum(cscene, "feature_set") != 0);
-
   /* Headless and background rendering. */
   params.headless = BlenderSession::headless;
   params.background = background;
@@ -1005,7 +1007,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
                          BlenderSession::print_render_stats;
 
   if (background) {
-    params.use_auto_tile = RNA_boolean_get(&cscene, "use_auto_tile");
+    params.use_auto_tile = true;
     params.tile_size = max(get_int(cscene, "tile_size"), 8);
   }
   else {

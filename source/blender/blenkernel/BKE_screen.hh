@@ -11,6 +11,7 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -29,6 +30,10 @@ class IDRemapper;
 namespace blender::asset_system {
 class AssetRepresentation;
 }
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
 
 struct ARegion;
 struct AssetShelfType;
@@ -54,7 +59,6 @@ struct WorkSpace;
 struct bContext;
 struct bScreen;
 struct uiBlock;
-struct uiLayout;
 struct uiList;
 struct wmDrawBuffer;
 struct wmGizmoMap;
@@ -409,8 +413,8 @@ struct LayoutPanelBody {
 };
 
 /**
- * "Layout Panels" are panels which are defined as part of the #uiLayout. As such they have a
- * specific place in the layout and can not be freely dragged around like top level panels.
+ * "Layout Panels" are panels which are defined as part of the #blender::ui::Layout. As such they
+ * have a specific place in the layout and can not be freely dragged around like top level panels.
  *
  * This struct gathers information about the layout panels created by layout code. This is then
  * used for example drawing the backdrop of nested panels and to support opening and closing
@@ -522,7 +526,7 @@ struct ARegionRuntime {
 /** Draw an item in the `ui_list`. */
 using uiListDrawItemFunc = void (*)(uiList *ui_list,
                                     const bContext *C,
-                                    uiLayout *layout,
+                                    blender::ui::Layout *layout,
                                     PointerRNA *dataptr,
                                     PointerRNA *itemptr,
                                     int icon,
@@ -532,7 +536,9 @@ using uiListDrawItemFunc = void (*)(uiList *ui_list,
                                     int flt_flag);
 
 /** Draw the filtering part of an uiList. */
-using uiListDrawFilterFunc = void (*)(uiList *ui_list, const bContext *C, uiLayout *layout);
+using uiListDrawFilterFunc = void (*)(uiList *ui_list,
+                                      const bContext *C,
+                                      blender::ui::Layout *layout);
 
 /** Filter items of an uiList. */
 using uiListFilterItemsFunc = void (*)(uiList *ui_list,
@@ -581,7 +587,7 @@ struct Header {
   /** Runtime. */
   HeaderType *type;
   /** Runtime for drawing. */
-  uiLayout *layout;
+  blender::ui::Layout *layout;
 };
 
 /* Menu types. */
@@ -597,7 +603,7 @@ enum class MenuTypeFlag {
    */
   SearchOnKeyPress = (1 << 1),
 };
-ENUM_OPERATORS(MenuTypeFlag, MenuTypeFlag::ContextDependent)
+ENUM_OPERATORS(MenuTypeFlag)
 
 struct MenuType {
   MenuType *next, *prev;
@@ -627,7 +633,7 @@ struct Menu {
   /** Runtime. */
   MenuType *type;
   /** Runtime for drawing. */
-  uiLayout *layout;
+  blender::ui::Layout *layout;
 };
 
 /* Asset shelf types. */
@@ -647,18 +653,27 @@ enum AssetShelfTypeFlag {
    * highlighting the asset as active.
    */
   ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU = (1 << 3),
-
-  ASSET_SHELF_TYPE_FLAG_MAX
 };
-ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
+ENUM_OPERATORS(AssetShelfTypeFlag);
 
-#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
+#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 48
 
 struct AssetShelfType {
   /** Unique name. */
   char idname[BKE_ST_MAXNAME];
 
   int space_type;
+
+  /**
+   * `FILTER_ID_` bit-flags to pre-filter ID types to include in the asset shelf, as if
+   * #asset_poll() returned false for non-matching IDs. If this isn't set (== 0), no pre-filtering
+   * will be done.
+   *
+   * For bigger asset libraries, many assets can usually be excluded cheaply this way. Calling
+   * #asset_poll() on many assets isn't cheap, so doing the ID type check only in there can cause
+   * performance issues.
+   */
+  uint64_t id_types_prefilter; /* rna_enum_id_type_filter_items */
 
   /** Operator to call when activating a grid view item. */
   std::string activate_operator;
@@ -673,8 +688,9 @@ struct AssetShelfType {
   bool (*poll)(const bContext *C, const AssetShelfType *shelf_type);
 
   /**
-   * Determine if an individual asset should be visible or not. May be a temporary design,
-   * visibility should first and foremost be controlled by asset traits.
+   * Determine if an individual asset should be visible or not.
+   * Don't use directly, use #blender::ed::asset::shelf::type_asset_poll() (does additional
+   * pre-filtering based on the ID-type).
    */
   bool (*asset_poll)(const AssetShelfType *shelf_type,
                      const blender::asset_system::AssetRepresentation *asset);
@@ -683,7 +699,7 @@ struct AssetShelfType {
   void (*draw_context_menu)(const bContext *C,
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
-                            uiLayout *layout);
+                            blender::ui::Layout *layout);
 
   const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 

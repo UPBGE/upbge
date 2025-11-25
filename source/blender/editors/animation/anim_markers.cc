@@ -371,6 +371,53 @@ TimeMarker *ED_markers_get_first_selected(ListBase *markers)
   return nullptr;
 }
 
+bool ED_markers_region_visible(const ScrArea *area, const ARegion *region)
+{
+  if (region->winy <= (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
+    return false;
+  }
+
+  switch (area->spacetype) {
+    case SPACE_ACTION: {
+      const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
+      if ((saction->flag & SACTION_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_GRAPH: {
+      const SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+      if (sgraph->mode == SIPO_MODE_DRIVERS) {
+        return false;
+      }
+      if ((sgraph->flag & SIPO_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_NLA: {
+      const SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
+      if ((snla->flag & SNLA_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_SEQ: {
+      const SpaceSeq *seq = static_cast<SpaceSeq *>(area->spacedata.first);
+      if ((seq->flag & SEQ_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    default:
+      /* Unexpected editor type that shows no markers. */
+      BLI_assert_unreachable();
+      return false;
+  }
+
+  return true;
+}
+
 /* --------------------------------- */
 
 void debug_markers_print_list(ListBase *markers)
@@ -401,11 +448,11 @@ void debug_markers_print_list(ListBase *markers)
 static void marker_color_get(const TimeMarker *marker, uchar *r_text_color, uchar *r_line_color)
 {
   if (marker->flag & SELECT) {
-    UI_GetThemeColor4ubv(TH_TEXT_HI, r_text_color);
+    UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, r_text_color);
     UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, r_line_color);
   }
   else {
-    UI_GetThemeColor4ubv(TH_TEXT, r_text_color);
+    UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE, r_text_color);
     UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE, r_line_color);
   }
 }
@@ -502,7 +549,7 @@ static void draw_marker(const uiFontStyle *fstyle,
     UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, marker_color);
   }
   else {
-    UI_GetThemeColor4ubv(TH_TEXT, marker_color);
+    UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE, marker_color);
   }
 
   UI_icon_draw_ex(xpos - (0.5f * UI_ICON_SIZE) - (0.5f * U.pixelsize),
@@ -525,7 +572,7 @@ static void draw_marker(const uiFontStyle *fstyle,
   draw_marker_name(text_color, fstyle, marker, xpos, xmax, name_y);
 }
 
-static void draw_markers_background(const rctf *rect, const float alpha)
+static void draw_markers_background(const rctf *rect)
 {
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
@@ -533,7 +580,6 @@ static void draw_markers_background(const rctf *rect, const float alpha)
 
   uchar shade[4];
   UI_GetThemeColor4ubv(TH_TIME_SCRUB_BACKGROUND, shade);
-  shade[3] *= alpha;
 
   immUniformColor4ubv(shade);
 
@@ -598,10 +644,7 @@ void ED_markers_draw(const bContext *C, int flag)
   rctf markers_region_rect;
   get_marker_region_rect(v2d, &markers_region_rect);
 
-  const float fade = BLI_rctf_size_y(&markers_region_rect) + UI_ANIM_MINY;
-  const float dist = std::min(region->winy - fade, fade);
-  const float alpha = std::min(dist / fade, 1.0f);
-  draw_markers_background(&markers_region_rect, alpha);
+  draw_markers_background(&markers_region_rect);
 
   /* no time correction for framelen! space is drawn with old values */
   float xscale, dummy;
@@ -1318,8 +1361,10 @@ static void select_marker_camera_switch(
   using namespace blender::ed;
   if (camera) {
     BLI_assert(CTX_data_mode_enum(C) == CTX_MODE_OBJECT);
+
     const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
     Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Base *base;
     int sel = 0;
@@ -1329,20 +1374,21 @@ static void select_marker_camera_switch(
     }
 
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      if (marker->frame == cfra) {
+      if (marker->frame == cfra && marker->camera) {
         sel = (marker->flag & SELECT);
         break;
       }
     }
 
     BKE_view_layer_synced_ensure(scene, view_layer);
+
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
       if (marker->camera) {
         if (marker->frame == cfra) {
           base = BKE_view_layer_base_find(view_layer, marker->camera);
           if (base) {
             object::base_select(base, object::eObjectSelect_Mode(sel));
-            if (sel) {
+            if (!extend) {
               object::base_activate(C, base);
             }
           }
@@ -1373,6 +1419,7 @@ static wmOperatorStatus ed_marker_select(bContext *C,
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   ListBase *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
                                      ED_context_get_markers(C);
+
   const View2D *v2d = UI_view2d_fromcontext(C);
   wmOperatorStatus ret_val = OPERATOR_FINISHED;
   TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, mval[0]);
@@ -1394,8 +1441,6 @@ static wmOperatorStatus ed_marker_select(bContext *C,
     else {
       /* Deselect all markers. */
       deselect_markers(markers);
-
-      select_marker_camera_switch(C, camera, extend, markers, cfra);
     }
   }
 
@@ -1403,7 +1448,7 @@ static wmOperatorStatus ed_marker_select(bContext *C,
     TimeMarker *marker, *marker_cycle_selected = nullptr;
     TimeMarker *marker_found = nullptr;
 
-    /* support for selection cycling */
+    /* Support for selection cycling. */
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
       if (marker->frame == cfra) {
         if (marker->flag & SELECT) {
@@ -1414,9 +1459,9 @@ static wmOperatorStatus ed_marker_select(bContext *C,
       }
     }
 
-    /* if extend is not set, then deselect markers */
+    /* If extend is not set, then deselect markers. */
     LISTBASE_CIRCULAR_FORWARD_BEGIN (TimeMarker *, markers, marker, marker_cycle_selected) {
-      /* this way a not-extend select will always give 1 selected marker */
+      /* This way a not-extend select will always give 1 selected marker. */
       if (marker->frame == cfra) {
         marker_found = marker;
         break;
@@ -1433,11 +1478,15 @@ static wmOperatorStatus ed_marker_select(bContext *C,
       }
     }
   }
+  /* If extend is set (by holding Shift), then add the camera to the selection too. */
+  if (found && camera) {
+    select_marker_camera_switch(C, true, extend, markers, nearest_marker->frame);
+  }
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
-  /* allowing tweaks, but needs OPERATOR_FINISHED, otherwise renaming fails, see #25987. */
+  /* Allowing tweaks, but needs OPERATOR_FINISHED, otherwise renaming fails, see #25987. */
   return ret_val;
 }
 
@@ -1770,7 +1819,7 @@ static wmOperatorStatus ed_marker_delete_invoke(bContext *C,
                                   IFACE_("Delete selected markers?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return ed_marker_delete_exec(C, op);

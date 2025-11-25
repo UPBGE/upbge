@@ -336,23 +336,6 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   mesh->totface_legacy = 0;
   mesh->fdata_legacy = CustomData{};
 
-  /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
-   * reserved for future runtime use (names stored on #Mesh). */
-  if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    mesh->active_uv_map_attribute = const_cast<char *>(
-        scope.allocator().copy_string(name).c_str());
-  }
-  else {
-    mesh->active_uv_map_attribute = nullptr;
-  }
-  if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    mesh->default_uv_map_attribute = const_cast<char *>(
-        scope.allocator().copy_string(name).c_str());
-  }
-  else {
-    mesh->default_uv_map_attribute = nullptr;
-  }
-
   /* Do not store actual geometry data in case this is a library override ID. */
   if (ID_IS_OVERRIDE_LIBRARY(mesh) && !is_undo) {
     mesh->verts_num = 0;
@@ -394,6 +377,8 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
 
   const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;
+
+  BLO_write_shared_tag(writer, mesh->face_offset_indices);
 
   BLO_write_id_struct(writer, Mesh, id_address, &mesh->id);
   BKE_id_blend_write(writer, &mesh->id);
@@ -583,15 +568,30 @@ void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
   if (bke::attribute_name_is_anonymous(id)) {
     return;
   }
-  if (!(CD_TYPE_AS_MASK(*attr_type_to_custom_data_type(data_type)) & CD_MASK_COLOR_ALL) ||
-      !(ATTR_DOMAIN_AS_MASK(domain) & ATTR_DOMAIN_MASK_COLOR))
-  {
+  if (!mesh::is_color_attribute({domain, data_type})) {
     return;
   }
   if (mesh.default_color_attribute) {
     return;
   }
   mesh.default_color_attribute = BLI_strdupn(id.data(), id.size());
+}
+
+void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
+                                             const StringRef id,
+                                             AttrDomain domain,
+                                             bke::AttrType data_type)
+{
+  if (bke::attribute_name_is_anonymous(id)) {
+    return;
+  }
+  if (!mesh::is_uv_map({domain, data_type})) {
+    return;
+  }
+  if (!mesh.default_uv_map_name().is_empty()) {
+    return;
+  }
+  mesh.uv_maps_default_set(id);
 }
 
 void mesh_ensure_required_data_layers(Mesh &mesh)
@@ -606,36 +606,20 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
 }
 
-static bool meta_data_matches(const std::optional<bke::AttributeMetaData> meta_data,
-                              const AttrDomainMask domains,
-                              const eCustomDataMask types)
-{
-  if (!meta_data) {
-    return false;
-  }
-  if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & domains)) {
-    return false;
-  }
-  if (!(CD_TYPE_AS_MASK(*attr_type_to_custom_data_type(meta_data->data_type)) & types)) {
-    return false;
-  }
-  return true;
-}
-
 void mesh_remove_invalid_attribute_strings(Mesh &mesh)
 {
   bke::AttributeAccessor attributes = mesh.attributes();
-  if (!meta_data_matches(attributes.lookup_meta_data(mesh.active_color_attribute),
-                         ATTR_DOMAIN_MASK_COLOR,
-                         CD_MASK_COLOR_ALL))
-  {
+  if (!mesh::is_color_attribute(attributes.lookup_meta_data(mesh.active_color_attribute))) {
     MEM_SAFE_FREE(mesh.active_color_attribute);
   }
-  if (!meta_data_matches(attributes.lookup_meta_data(mesh.default_color_attribute),
-                         ATTR_DOMAIN_MASK_COLOR,
-                         CD_MASK_COLOR_ALL))
-  {
+  if (!mesh::is_color_attribute(attributes.lookup_meta_data(mesh.default_color_attribute))) {
     MEM_SAFE_FREE(mesh.default_color_attribute);
+  }
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.active_uv_map_name()))) {
+    MEM_SAFE_FREE(mesh.active_uv_map_attribute);
+  }
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.default_uv_map_name()))) {
+    MEM_SAFE_FREE(mesh.default_uv_map_attribute);
   }
 }
 
@@ -1046,6 +1030,8 @@ static void clear_attribute_names(Mesh &mesh)
   BLI_freelistN(&mesh.vertex_group_names);
   MEM_SAFE_FREE(mesh.active_color_attribute);
   MEM_SAFE_FREE(mesh.default_color_attribute);
+  MEM_SAFE_FREE(mesh.active_uv_map_attribute);
+  MEM_SAFE_FREE(mesh.default_uv_map_attribute);
 }
 
 void BKE_mesh_clear_geometry(Mesh *mesh)
@@ -1213,6 +1199,65 @@ blender::bke::MutableAttributeAccessor Mesh::attributes_for_write()
                                                 blender::bke::mesh_attribute_accessor_functions());
 }
 
+blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
+{
+  blender::VectorSet<blender::StringRefNull> names;
+  this->attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
+    if (blender::bke::mesh::is_uv_map({iter.domain, iter.data_type})) {
+      names.add_new(iter.name);
+    }
+  });
+  return names;
+}
+
+blender::StringRefNull Mesh::active_uv_map_name() const
+{
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    const char *name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    return name ? name : "";
+  }
+  return this->active_uv_map_attribute ? this->active_uv_map_attribute : "";
+}
+
+blender::StringRefNull Mesh::default_uv_map_name() const
+{
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    const char *name = CustomData_get_render_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    return name ? name : "";
+  }
+  return this->default_uv_map_attribute ? this->default_uv_map_attribute : "";
+}
+
+void Mesh::uv_maps_active_set(const StringRef name)
+{
+  MEM_SAFE_FREE(this->active_uv_map_attribute);
+  if (!name.is_empty()) {
+    this->active_uv_map_attribute = BLI_strdupn(name.data(), name.size());
+  }
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&em->bm->ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_active_index(&em->bm->ldata, CD_PROP_FLOAT2, index);
+  }
+}
+
+void Mesh::uv_maps_default_set(const StringRef name)
+{
+  MEM_SAFE_FREE(this->default_uv_map_attribute);
+  if (!name.is_empty()) {
+    this->default_uv_map_attribute = BLI_strdupn(name.data(), name.size());
+  }
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&em->bm->ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_render_index(&em->bm->ldata, CD_PROP_FLOAT2, index);
+  }
+}
+
 Mesh *BKE_mesh_new_nomain(const int verts_num,
                           const int edges_num,
                           const int faces_num,
@@ -1234,6 +1279,35 @@ Mesh *BKE_mesh_new_nomain(const int verts_num,
 }
 
 namespace blender::bke {
+
+namespace mesh {
+
+bool is_uv_map(const AttributeMetaData &meta_data)
+{
+  return meta_data.domain == AttrDomain::Corner && meta_data.data_type == AttrType::Float2;
+}
+
+bool is_uv_map(const std::optional<AttributeMetaData> &meta_data)
+{
+  return meta_data && is_uv_map(*meta_data);
+}
+
+bool is_color_attribute(const blender::bke::AttributeMetaData &meta_data)
+{
+  return ELEM(meta_data.domain,
+              blender::bke::AttrDomain::Point,
+              blender::bke::AttrDomain::Corner) &&
+         ELEM(meta_data.data_type,
+              blender::bke::AttrType::ColorByte,
+              blender::bke::AttrType::ColorFloat);
+}
+
+bool is_color_attribute(const std::optional<blender::bke::AttributeMetaData> &meta_data)
+{
+  return meta_data && is_color_attribute(*meta_data);
+}
+
+}  // namespace mesh
 
 Mesh *mesh_new_no_attributes(const int verts_num,
                              const int edges_num,
@@ -1262,6 +1336,14 @@ static void copy_attribute_names(const Mesh &mesh_src, Mesh &mesh_dst)
   if (mesh_src.default_color_attribute) {
     MEM_SAFE_FREE(mesh_dst.default_color_attribute);
     mesh_dst.default_color_attribute = BLI_strdup(mesh_src.default_color_attribute);
+  }
+  if (mesh_src.active_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.active_uv_map_attribute);
+    mesh_dst.active_uv_map_attribute = BLI_strdup(mesh_src.active_uv_map_attribute);
+  }
+  if (mesh_src.default_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.default_uv_map_attribute);
+    mesh_dst.default_uv_map_attribute = BLI_strdup(mesh_src.default_uv_map_attribute);
   }
 }
 

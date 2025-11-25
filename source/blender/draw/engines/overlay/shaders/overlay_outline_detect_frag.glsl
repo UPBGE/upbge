@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_outline_info.hh"
+#include "infos/overlay_outline_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_outline_detect)
 
@@ -166,6 +166,7 @@ void diag_dir(bool4 edges1, bool4 edges2, out float2 line_start, out float2 line
 
 void main()
 {
+  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(outline_id_tx, 0).xy);
   uint ref = textureLod(outline_id_tx, screen_uv, 0.0f).r;
   uint ref_col = ref;
 

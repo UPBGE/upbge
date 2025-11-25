@@ -446,8 +446,7 @@ void COLLECTION_OT_create(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(
-      ot->srna, "name", "Collection", MAX_ID_NAME - 2, "Name", "Name of the new collection");
+  RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Name of the new collection");
 }
 
 static bool collection_exporter_common_check(const Collection *collection)
@@ -549,7 +548,7 @@ static wmOperatorStatus collection_exporter_remove_invoke(bContext *C,
                                                           const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ALERT_ICON_NONE, false);
+      C, op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
 }
 
 static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
@@ -850,21 +849,20 @@ static void WM_OT_collection_export_all(wmOperatorType *ot)
 
 static void collection_exporter_menu_draw(const bContext * /*C*/, Menu *menu)
 {
-  using namespace blender;
-  uiLayout *layout = menu->layout;
+  ui::Layout &layout = *menu->layout;
 
   /* Add all file handlers capable of being exported to the menu. */
   bool at_least_one = false;
   for (const auto &fh : bke::file_handlers()) {
     if (WM_operatortype_find(fh->export_operator, true)) {
-      PointerRNA op_ptr = layout->op("COLLECTION_OT_exporter_add", fh->label, ICON_NONE);
+      PointerRNA op_ptr = layout.op("COLLECTION_OT_exporter_add", fh->label, ICON_NONE);
       RNA_string_set(&op_ptr, "name", fh->idname);
       at_least_one = true;
     }
   }
 
   if (!at_least_one) {
-    layout->label(IFACE_("No file handlers available"), ICON_NONE);
+    layout.label(IFACE_("No file handlers available"), ICON_NONE);
   }
 }
 

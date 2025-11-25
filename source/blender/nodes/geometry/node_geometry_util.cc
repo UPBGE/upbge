@@ -40,11 +40,12 @@ void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params)
   }
 }
 
-void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params)
+void node_geo_sdf_grid_error_not_levelset(GeoNodeExecParams &params)
 {
-  if (USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
-    nodes::search_link_ops_for_basic_node(params);
-  }
+  params.error_message_add(
+      NodeWarningType::Error,
+      "Input grid is not a valid level set. Use a signed distance field grid as input");
+  params.set_default_remaining_outputs();
 }
 
 namespace enums {
@@ -108,6 +109,12 @@ void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params)
   params.set_default_remaining_outputs();
   params.error_message_add(NodeWarningType::Error,
                            TIP_("Disabled, Blender was compiled without OpenVDB"));
+}
+
+void node_geo_exec_with_too_old_openvdb(GeoNodeExecParams &params)
+{
+  params.set_default_remaining_outputs();
+  params.error_message_add(NodeWarningType::Error, TIP_("Disabled, OpenVDB version is too old"));
 }
 
 }  // namespace blender::nodes

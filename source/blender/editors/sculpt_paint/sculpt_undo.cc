@@ -31,6 +31,8 @@
 
 #include "BLI_array.hh"
 #include "BLI_bit_group_vector.hh"
+#include "BLI_compression.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_memory_counter.hh"
@@ -101,7 +103,7 @@ namespace blender::ed::sculpt_paint::undo {
  * Node type used for undo depends on specific operation and active sculpt mode ("regular" or
  * dynamic topology).
  *
- * Regular sculpt brushes will use Position, HideVert, HideFace, Mask, Face Set * nodes. These
+ * Regular sculpt brushes will use Position, HideVert, HideFace, Mask, FaceSet nodes. These
  * nodes are created for every BVH node which is affected by the brush. The undo push for the node
  * happens BEFORE modifications. This makes the operation undo to work in the following way: for
  * every node in the undo step swap happens between node in the undo stack and the corresponding
@@ -283,41 +285,71 @@ struct StepData {
     applied_ = false;
   }
 };
-namespace zstd {
 
-template<typename T> Array<std::byte> compress(const Span<T> src)
+namespace compression {
+
+/**
+ * Compress a span, using a prefiltering step that can improve compression speed and ratios for
+ * certain float data types.
+ */
+template<typename T>
+void filter_compress(const Span<T> src,
+                     Vector<std::byte> &filter_buffer,
+                     Vector<std::byte> &compress_buffer)
 {
-  Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
-  const size_t dst_size = ZSTD_compress(
-      dst.data(), dst.size(), src.data(), src.size_in_bytes(), 12);
+  filter_buffer.resize(src.size_in_bytes());
+  filter_transpose_delta(reinterpret_cast<const uint8_t *>(src.data()),
+                         reinterpret_cast<uint8_t *>(filter_buffer.data()),
+                         src.size(),
+                         sizeof(T));
 
+  /* Level 3 gives a good balance of compression performance and ratio, and is also used elsewhere
+   * across Blender for calls to #ZSTD_compress. */
+  constexpr int zstd_level = 3;
+  compress_buffer.resize(ZSTD_compressBound(src.size_in_bytes()));
+  const size_t dst_size = ZSTD_compress(compress_buffer.data(),
+                                        compress_buffer.size(),
+                                        filter_buffer.data(),
+                                        filter_buffer.size(),
+                                        zstd_level);
   if (ZSTD_isError(dst_size)) {
-    return Array<std::byte>(0, NoInitialization());
+    compress_buffer.clear();
+    return;
   }
 
-  return dst.as_span().take_front(dst_size);
+  compress_buffer.resize(dst_size);
 }
 
-template<typename T> Array<T> decompress(const Span<std::byte> src)
+template<typename T>
+void filter_decompress(const Span<std::byte> src, Vector<std::byte> &buffer, Vector<T> &dst)
 {
   const unsigned long long dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
-
   if (ELEM(dst_size_in_bytes, ZSTD_CONTENTSIZE_ERROR, ZSTD_CONTENTSIZE_UNKNOWN)) {
-    return Array<T>(0, NoInitialization());
+    dst.clear();
+    return;
   }
 
-  const int64_t dst_size = dst_size_in_bytes / sizeof(T);
-  Array<T> dst(dst_size, NoInitialization());
-  const size_t result = ZSTD_decompress(
-      dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
-
+  buffer.resize(dst_size_in_bytes);
+  const size_t result = ZSTD_decompress(buffer.data(), buffer.size(), src.data(), src.size());
   if (ZSTD_isError(result)) {
-    return Array<T>(0, NoInitialization());
+    dst.clear();
+    return;
   }
-  return dst;
+
+  dst.resize(buffer.size() / sizeof(T));
+  unfilter_transpose_delta(reinterpret_cast<const uint8_t *>(buffer.data()),
+                           reinterpret_cast<uint8_t *>(dst.data()),
+                           dst.size(),
+                           sizeof(T));
 }
 
-}  // namespace zstd
+template void filter_compress<float3>(Span<float3>, Vector<std::byte> &, Vector<std::byte> &);
+template void filter_compress<int>(Span<int>, Vector<std::byte> &, Vector<std::byte> &);
+
+template void filter_decompress<float3>(Span<std::byte>, Vector<std::byte> &, Vector<float3> &);
+template void filter_decompress<int>(Span<std::byte>, Vector<std::byte> &, Vector<int> &);
+
+}  // namespace compression
 
 struct PositionUndoStorage : NonMovable {
   Vector<std::unique_ptr<Node>> nodes_to_compress;
@@ -371,7 +403,7 @@ struct PositionUndoStorage : NonMovable {
   static void compress_fn(TaskPool * /*pool*/, void *task_data)
   {
 #ifdef DEBUG_TIME
-    SCOPED_TIMER(__func__);
+    SCOPED_TIMER_AVERAGED(__func__);
 #endif
     auto *data = static_cast<PositionUndoStorage *>(task_data);
     MutableSpan<std::unique_ptr<Node>> nodes = data->nodes_to_compress;
@@ -379,13 +411,23 @@ struct PositionUndoStorage : NonMovable {
 
     Array<Array<std::byte>> compressed_indices(nodes.size(), NoInitialization());
     Array<Array<std::byte>> compressed_data(nodes.size(), NoInitialization());
+    struct CompressLocalData {
+      Vector<std::byte> filtered;
+      Vector<std::byte> compressed;
+    };
     threading::isolate_task([&]() {
+      threading::EnumerableThreadSpecific<CompressLocalData> all_tls;
       threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
+        CompressLocalData &local_data = all_tls.local();
         for (const int i : range) {
           const Span<int> indices = data->multires_undo ? nodes[i]->grids : nodes[i]->vert_indices;
-          const Span<float3> positions = nodes[i]->position;
-          new (&compressed_indices[i]) Array<std::byte>(zstd::compress(indices));
-          new (&compressed_data[i]) Array<std::byte>(zstd::compress(positions));
+          const Span<float3> positions = !nodes[i]->orig_position.is_empty() ?
+                                             nodes[i]->orig_position :
+                                             nodes[i]->position;
+          compression::filter_compress(indices, local_data.filtered, local_data.compressed);
+          new (&compressed_indices[i]) Array<std::byte>(local_data.compressed.as_span());
+          compression::filter_compress(positions, local_data.filtered, local_data.compressed);
+          new (&compressed_data[i]) Array<std::byte>(local_data.compressed.as_span());
           nodes[i].reset();
         }
       });
@@ -512,7 +554,7 @@ static void restore_position_mesh(Object &object,
                                   const MutableSpan<bool> modified_verts)
 {
 #ifdef DEBUG_TIME
-  SCOPED_TIMER(__func__);
+  SCOPED_TIMER_AVERAGED(__func__);
 #endif
   SculptSession &ss = *object.sculpt;
   Mesh &mesh = *static_cast<Mesh *>(object.data);
@@ -523,26 +565,35 @@ static void restore_position_mesh(Object &object,
 
   const int nodes_num = undo_data.unique_verts_nums.size();
 
+  struct LocalData {
+    Vector<std::byte> compress_buffer;
+    Vector<std::byte> filter_buffer;
+    Vector<int> indices;
+    Vector<float3> positions;
+  };
+  threading::EnumerableThreadSpecific<LocalData> all_tls;
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
+    LocalData &tls = all_tls.local();
     for (const int i : range) {
-      Array<int> indices = zstd::decompress<int>(undo_data.compressed_indices[i]);
-      Array<float3> node_positions = zstd::decompress<float3>(undo_data.compressed_positions[i]);
+      compression::filter_decompress<int>(
+          undo_data.compressed_indices[i], tls.compress_buffer, tls.indices);
       const int unique_verts_num = undo_data.unique_verts_nums[i];
-      const Span<int> verts = indices.as_span().take_front(unique_verts_num);
+      const Span<int> verts = tls.indices.as_span().take_front(unique_verts_num);
+
+      compression::filter_decompress<float3>(
+          undo_data.compressed_positions[i], tls.compress_buffer, tls.positions);
+      MutableSpan undo_positions = tls.positions.as_mutable_span();
 
       if (!ss.deform_modifiers_active) {
         /* When original positions aren't written separately in the undo step, there are no
          * deform modifiers. Therefore the original and evaluated deform positions will be the
          * same, and modifying the positions from the original mesh is enough. */
-        swap_indexed_data(
-            node_positions.as_mutable_span().take_front(unique_verts_num), verts, positions);
+        swap_indexed_data(undo_positions.take_front(unique_verts_num), verts, positions);
       }
       else {
         /* When original positions are stored in the undo step, undo/redo will cause a reevaluation
          * of the object. The evaluation will recompute the evaluated positions, so dealing with
          * them here is unnecessary. */
-        MutableSpan<float3> undo_positions = node_positions;
-
         if (shape_key_data) {
           MutableSpan<float3> active_data = shape_key_data->active_key_data;
 
@@ -569,7 +620,8 @@ static void restore_position_mesh(Object &object,
 
       modified_verts.fill_indices(verts, true);
 
-      undo_data.compressed_positions[i] = zstd::compress<float3>(node_positions);
+      compression::filter_compress<float3>(undo_positions, tls.filter_buffer, tls.compress_buffer);
+      undo_data.compressed_positions[i] = tls.compress_buffer.as_span();
     }
   });
 }
@@ -581,23 +633,36 @@ static void restore_position_grids(const MutableSpan<float3> positions,
 {
   const int nodes_num = undo_data.compressed_indices.size();
 
+  struct LocalData {
+    Vector<std::byte> compress_buffer;
+    Vector<std::byte> filter_buffer;
+    Vector<int> indices;
+    Vector<float3> positions;
+  };
+  threading::EnumerableThreadSpecific<LocalData> all_tls;
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
+    LocalData &tls = all_tls.local();
     for (const int i : range) {
-      Array<int> grids = zstd::decompress<int>(undo_data.compressed_indices[i]);
-      Array<float3> node_positions = zstd::decompress<float3>(undo_data.compressed_positions[i]);
+      compression::filter_decompress<int>(
+          undo_data.compressed_indices[i], tls.compress_buffer, tls.indices);
+      const Span<int> grids = tls.indices.as_span();
+
+      compression::filter_decompress<float3>(
+          undo_data.compressed_positions[i], tls.compress_buffer, tls.positions);
+      MutableSpan node_positions = tls.positions.as_mutable_span();
 
       for (const int i : grids.index_range()) {
         MutableSpan data = positions.slice(bke::ccg::grid_range(key, grids[i]));
-        MutableSpan undo_data = node_positions.as_mutable_span().slice(
-            bke::ccg::grid_range(key, i));
+        MutableSpan undo_data = node_positions.slice(bke::ccg::grid_range(key, i));
         for (const int offset : data.index_range()) {
           std::swap(data[offset], undo_data[offset]);
         }
       }
 
-      modified_grids.fill_indices(grids.as_span(), true);
+      modified_grids.fill_indices(grids, true);
 
-      undo_data.compressed_positions[i] = zstd::compress<float3>(node_positions);
+      compression::filter_compress<float3>(node_positions, tls.filter_buffer, tls.compress_buffer);
+      undo_data.compressed_positions[i] = tls.compress_buffer.as_span();
     }
   });
 }
@@ -995,7 +1060,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
     return;
   }
   SculptSession &ss = *object.sculpt;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(*depsgraph, object);
 
   /* Restore pivot. */
   ss.pivot_pos = step_data.pivot_pos;
@@ -1836,12 +1901,7 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
   const char *name = mesh->active_color_attribute;
   const bke::AttributeAccessor attributes = mesh->attributes();
   const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
-  if (!meta_data) {
-    return;
-  }
-  if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & ATTR_DOMAIN_MASK_COLOR) ||
-      !ELEM(meta_data->data_type, bke::AttrType::ColorFloat, bke::AttrType::ColorByte))
-  {
+  if (!bke::mesh::is_color_attribute(meta_data)) {
     return;
   }
   attr->domain = meta_data->domain;
@@ -2023,9 +2083,9 @@ void push_end(Object &ob)
 /** \name Implements ED Undo System
  * \{ */
 
-static void set_active_layer(bContext *C, const SculptAttrRef *attr)
+static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
 {
-  if (attr->domain == bke::AttrDomain::Auto) {
+  if (attr_ref->domain == bke::AttrDomain::Auto) {
     return;
   }
 
@@ -2035,8 +2095,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
   SculptAttrRef existing;
   save_active_attribute(*ob, &existing);
 
-  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  CustomDataLayer *layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
 
   /* Temporary fix for #97408. This is a fundamental
    * bug in the undo stack; the operator code needs to push
@@ -2046,34 +2105,33 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
    * For now, detect if the layer does exist but with a different
    * domain and just unconvert it.
    */
-  if (!layer) {
-    layer = BKE_attribute_search_for_write(
-        owner, attr->name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-    if (layer) {
+  if (const bke::GAttributeReader attr = attributes.lookup(attr_ref->name)) {
+    if (attr.domain != attr_ref->domain ||
+        bke::cpp_type_to_custom_data_type(attr.varray.type()) != attr_ref->type)
+    {
+      AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
       if (ed::geometry::convert_attribute(owner,
                                           mesh->attributes_for_write(),
-                                          attr->name,
-                                          attr->domain,
-                                          *bke::custom_data_type_to_attr_type(attr->type),
+                                          attr_ref->name,
+                                          attr_ref->domain,
+                                          *bke::custom_data_type_to_attr_type(attr_ref->type),
                                           nullptr))
       {
-        layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
       }
     }
   }
 
-  if (!layer) {
+  if (!attributes.contains(attr_ref->name)) {
     /* Memfile undo killed the layer; re-create it. */
-    mesh->attributes_for_write().add(attr->name,
-                                     attr->domain,
-                                     *bke::custom_data_type_to_attr_type(attr->type),
+    mesh->attributes_for_write().add(attr_ref->name,
+                                     attr_ref->domain,
+                                     *bke::custom_data_type_to_attr_type(attr_ref->type),
                                      bke::AttributeInitDefaultValue());
-    layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
-  if (layer) {
-    BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+  if (attributes.contains(attr_ref->name)) {
+    BKE_id_attributes_active_color_set(&mesh->id, attr_ref->name);
   }
 }
 
@@ -2188,7 +2246,7 @@ static void step_decode(
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
     if (ob && (ob->type == OB_MESH)) {
-      if (ob->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT)) {
+      if (ob->mode & (OB_MODE_SCULPT)) {
         /* Pass. */
       }
       else {

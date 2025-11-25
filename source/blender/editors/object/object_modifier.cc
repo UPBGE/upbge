@@ -28,6 +28,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -183,28 +184,7 @@ ModifierData *modifier_add(
     /* get new modifier data to add */
     new_md = BKE_modifier_new(type);
 
-    ModifierData *next_md = nullptr;
-    LISTBASE_FOREACH_BACKWARD (ModifierData *, md, &ob->modifiers) {
-      if (md->flag & eModifierFlag_PinLast) {
-        next_md = md;
-      }
-      else {
-        break;
-      }
-    }
-    if (mti->flags & eModifierTypeFlag_RequiresOriginalData) {
-      next_md = static_cast<ModifierData *>(ob->modifiers.first);
-
-      while (next_md && BKE_modifier_get_info((ModifierType)next_md->type)->type ==
-                            ModifierTypeType::OnlyDeform)
-      {
-        if (next_md->next && (next_md->next->flag & eModifierFlag_PinLast) != 0) {
-          break;
-        }
-        next_md = next_md->next;
-      }
-    }
-    BLI_insertlinkbefore(&ob->modifiers, next_md, new_md);
+    BKE_modifiers_add_at_end_if_possible(ob, new_md);
     BKE_modifiers_persistent_uid_init(*ob, *new_md);
 
     if (name) {
@@ -212,7 +192,6 @@ ModifierData *modifier_add(
     }
 
     /* make sure modifier data has unique name */
-
     BKE_modifier_unique_name(&ob->modifiers, new_md);
 
     /* special cases */
@@ -627,7 +606,7 @@ bool modifier_copy_to_object(Main *bmain,
     return false;
   }
 
-  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob_dst);
+  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_ADDED, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   DEG_relations_tag_update(bmain);
   return true;
@@ -1427,7 +1406,7 @@ static wmOperatorStatus modifier_add_exec(bContext *C, wmOperator *op)
       continue;
     }
     changed = true;
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
   if (!changed) {
     return OPERATOR_CANCELLED;
@@ -1647,7 +1626,10 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
 
   PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
   if (panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr)) {
-    *r_retval = OPERATOR_CANCELLED;
+    /* The operators using this function can typically be called from UIs that aren't related to
+     * the modifiers UI at all. So include #OPERATOR_PASS_THROUGH to not block events from reaching
+     * other operators/handlers. */
+    *r_retval = (OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED);
     return false;
   }
 
@@ -1708,7 +1690,7 @@ static wmOperatorStatus modifier_remove_exec(bContext *C, wmOperator *op)
 
     changed = true;
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
 
     /* if cloth/softbody was removed, particle mode could be cleared */
     if (mode_orig & OB_MODE_PARTICLE_EDIT) {
@@ -2092,7 +2074,7 @@ static wmOperatorStatus modifier_apply_invoke(bContext *C, wmOperator *op, const
             IFACE_("Apply Modifier"),
             IFACE_("Make data single-user, apply modifier, and remove it from the list."),
             IFACE_("Apply"),
-            ALERT_ICON_WARNING,
+            ui::AlertIcon::Warning,
             false);
       }
     }
@@ -2279,7 +2261,7 @@ static wmOperatorStatus modifier_copy_exec(bContext *C, wmOperator *op)
     changed = true;
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     DEG_relations_tag_update(bmain);
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
 
   if (!changed) {
@@ -2569,7 +2551,7 @@ static bool skin_edit_poll(bContext *C)
           !ID_IS_OVERRIDE_LIBRARY(ob) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
-static void skin_root_clear(BMVert *bm_vert, GSet *visited, const int cd_vert_skin_offset)
+static void skin_root_clear(BMVert *bm_vert, Set<BMVert *> &visited, const int cd_vert_skin_offset)
 {
   BMEdge *bm_edge;
   BMIter bm_iter;
@@ -2577,7 +2559,7 @@ static void skin_root_clear(BMVert *bm_vert, GSet *visited, const int cd_vert_sk
   BM_ITER_ELEM (bm_edge, &bm_iter, bm_vert, BM_EDGES_OF_VERT) {
     BMVert *v2 = BM_edge_other_vert(bm_edge, bm_vert);
 
-    if (BLI_gset_add(visited, v2)) {
+    if (visited.add(v2)) {
       MVertSkin *vs = static_cast<MVertSkin *>(BM_ELEM_CD_GET_VOID_P(v2, cd_vert_skin_offset));
 
       /* clear vertex root flag and add to visited set */
@@ -2594,7 +2576,7 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
-  GSet *visited = BLI_gset_ptr_new(__func__);
+  Set<BMVert *> visited;
 
   BKE_mesh_ensure_skin_customdata(static_cast<Mesh *>(ob->data));
 
@@ -2603,7 +2585,7 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
   BMVert *bm_vert;
   BMIter bm_iter;
   BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
-    if (BM_elem_flag_test(bm_vert, BM_ELEM_SELECT) && BLI_gset_add(visited, bm_vert)) {
+    if (BM_elem_flag_test(bm_vert, BM_ELEM_SELECT) && visited.add(bm_vert)) {
       MVertSkin *vs = static_cast<MVertSkin *>(
           BM_ELEM_CD_GET_VOID_P(bm_vert, cd_vert_skin_offset));
 
@@ -2614,8 +2596,6 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
       skin_root_clear(bm_vert, visited, cd_vert_skin_offset);
     }
   }
-
-  BLI_gset_free(visited, nullptr);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
@@ -2941,7 +2921,7 @@ static wmOperatorStatus correctivesmooth_bind_exec(bContext *C, wmOperator *op)
 
   const bool is_bind = (csmd->bind_coords != nullptr);
 
-  MEM_SAFE_FREE(csmd->bind_coords);
+  implicit_sharing::free_shared_data(&csmd->bind_coords, &csmd->bind_coords_sharing_info);
   MEM_SAFE_FREE(csmd->delta_cache.deltas);
 
   if (is_bind) {
@@ -3005,6 +2985,7 @@ static bool meshdeform_poll(bContext *C)
 
 static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob = context_active_object(C);
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)edit_modifier_property_get(
@@ -3015,12 +2996,12 @@ static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
   }
 
   if (mmd->bindcagecos != nullptr) {
-    MEM_SAFE_FREE(mmd->bindcagecos);
-    MEM_SAFE_FREE(mmd->dyngrid);
-    MEM_SAFE_FREE(mmd->dyninfluences);
-    MEM_SAFE_FREE(mmd->bindinfluences);
-    MEM_SAFE_FREE(mmd->bindoffsets);
-    MEM_SAFE_FREE(mmd->dynverts);
+    implicit_sharing::free_shared_data(&mmd->bindcagecos, &mmd->bindcagecos_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dyngrid, &mmd->dyngrid_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dyninfluences, &mmd->dyninfluences_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->bindinfluences, &mmd->bindinfluences_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->bindoffsets, &mmd->bindoffsets_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dynverts, &mmd->dynverts_sharing_info);
     MEM_SAFE_FREE(mmd->bindweights); /* Deprecated */
     MEM_SAFE_FREE(mmd->bindcos);     /* Deprecated */
     mmd->verts_num = 0;
@@ -3367,10 +3348,13 @@ static wmOperatorStatus laplaciandeform_bind_exec(bContext *C, wmOperator *op)
    * happening for binding or not. So we copy all the required data here. */
   lmd->verts_num = lmd_eval->verts_num;
   if (lmd_eval->vertexco == nullptr) {
-    MEM_SAFE_FREE(lmd->vertexco);
+    implicit_sharing::free_shared_data(&lmd->vertexco, &lmd->vertexco_sharing_info);
   }
   else {
-    lmd->vertexco = static_cast<float *>(MEM_dupallocN(lmd_eval->vertexco));
+    implicit_sharing::copy_shared_pointer(lmd_eval->vertexco,
+                                          lmd_eval->vertexco_sharing_info,
+                                          &lmd->vertexco,
+                                          &lmd->vertexco_sharing_info);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -3505,10 +3489,10 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   }
 
   if (use_attribute->type == IDP_INT) {
-    IDP_Int(use_attribute) = !IDP_Int(use_attribute);
+    IDP_int_set(use_attribute, !IDP_int_get(use_attribute));
   }
   else if (use_attribute->type == IDP_BOOLEAN) {
-    IDP_Bool(use_attribute) = !IDP_Bool(use_attribute);
+    IDP_bool_set(use_attribute, !IDP_bool_get(use_attribute));
   }
   else {
     return OPERATOR_CANCELLED;
@@ -3577,8 +3561,9 @@ static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext *C, wmOpera
 
 void OBJECT_OT_geometry_node_tree_copy_assign(wmOperatorType *ot)
 {
-  ot->name = "Copy Geometry Node Group";
-  ot->description = "Copy the active geometry node group and assign it to the active modifier";
+  ot->name = "New Geometry Node Group";
+  ot->description =
+      "Duplicate the active geometry node group and assign it to the active modifier";
   ot->idname = "OBJECT_OT_geometry_node_tree_copy_assign";
 
   ot->exec = geometry_node_tree_copy_assign_exec;

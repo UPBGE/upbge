@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'61dd8a1435fb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-01 09:40+0000\n"
+"POT-Creation-Date: 2025-11-24 08:35+0000\n"
 "PO-Revision-Date: 2025-07-23 15:13+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Basque <https://translate.blender.org/projects/blender-ui/ui/eu/>\n"
@@ -427,10 +427,6 @@ msgid "Tools"
 msgstr "Tresnak"
 
 
-msgid "Groups"
-msgstr "Taldeak"
-
-
 msgid "Local"
 msgstr "Lokala"
 
@@ -438,10 +434,6 @@ msgstr "Lokala"
 msgctxt "Curve"
 msgid "Sphere"
 msgstr "Esfera"
-
-
-msgid "Direction"
-msgstr "Norabidea"
 
 
 msgid "Sequence"
@@ -532,6 +524,10 @@ msgid "Owner"
 msgstr "Jabea"
 
 
+msgid "Direction"
+msgstr "Norabidea"
+
+
 msgctxt "UI_Events_KeyMaps"
 msgid "Delete"
 msgstr "Ezabatu"
@@ -539,6 +535,10 @@ msgstr "Ezabatu"
 
 msgid "Mouse"
 msgstr "Sagua"
+
+
+msgid "Groups"
+msgstr "Taldeak"
 
 
 msgid "Selected Objects"
@@ -553,10 +553,6 @@ msgid "Min Angle"
 msgstr "Angelu Minimoa"
 
 
-msgid "Relations"
-msgstr "Loturak"
-
-
 msgid "Show/Hide"
 msgstr "Erakutsi/Ezkutatu"
 
@@ -565,16 +561,20 @@ msgid "Text"
 msgstr "Testua"
 
 
+msgid "Import"
+msgstr "Inportatu"
+
+
 msgid "UV"
 msgstr "UV"
 
 
+msgid "Relations"
+msgstr "Loturak"
+
+
 msgid "Show/Hide Faces"
 msgstr "Aurpegiak erakutsi/ezkutatu"
-
-
-msgid "Import"
-msgstr "Inportatu"
 
 
 msgid "Physics"
@@ -884,6 +884,18 @@ msgid "Reset Original Length"
 msgstr "Jatorrizko Luzera Berrasieratu"
 
 
+msgid "Remove from selection"
+msgstr "Hautaketatik ezabatu"
+
+
+msgid "Toggle Selection"
+msgstr "Hautaketa txandakatu"
+
+
+msgid "Toggle the selection"
+msgstr "Hautaketa txandakatu"
+
+
 msgctxt "Operator"
 msgid "(De)select First"
 msgstr "(Ez)hautatu Lehena"
@@ -902,18 +914,6 @@ msgstr "Kurba Bikoiztu"
 msgctxt "Operator"
 msgid "Add Duplicate"
 msgstr "Bikoizketa Gehitu"
-
-
-msgid "Remove from selection"
-msgstr "Hautaketatik ezabatu"
-
-
-msgid "Toggle Selection"
-msgstr "Hautaketa txandakatu"
-
-
-msgid "Toggle the selection"
-msgstr "Hautaketa txandakatu"
 
 
 msgid "Object Types"
@@ -1852,11 +1852,6 @@ msgstr "Kolorea"
 msgctxt "Operator"
 msgid "Text"
 msgstr "Testua"
-
-
-msgctxt "Operator"
-msgid "Scene..."
-msgstr "Eszena"
 
 
 msgctxt "Text"

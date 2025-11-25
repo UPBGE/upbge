@@ -12,8 +12,10 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
@@ -31,6 +33,7 @@
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframes_keylist.hh"
+#include "ED_sequencer.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -40,6 +43,10 @@
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
+
+#include "SEQ_time.hh"
+
+#include <utility>
 
 /* *************************************************** */
 /* CURRENT FRAME DRAWING */
@@ -101,6 +108,61 @@ void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width
 
     GPU_blend(GPU_BLEND_NONE);
   }
+}
+
+void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
+{
+  using namespace blender;
+  SpaceAction *space_action = CTX_wm_space_action(C);
+  if (!space_action || (space_action->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) == 0 ||
+      (space_action->overlays.flag & ADS_SHOW_SCENE_STRIP_FRAME_RANGE) == 0)
+  {
+    return;
+  }
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  if (!workspace) {
+    return;
+  }
+  if ((workspace->flags & WORKSPACE_SYNC_SCENE_TIME) == 0) {
+    return;
+  }
+  const Scene *sequencer_scene = workspace->sequencer_scene;
+  if (!sequencer_scene) {
+    return;
+  }
+  const Strip *scene_strip = blender::ed::vse::get_scene_strip_for_time_sync(sequencer_scene);
+  if (!scene_strip || !scene_strip->scene) {
+    return;
+  }
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immUniformThemeColorShadeAlpha(TH_ANIM_SCENE_STRIP_RANGE, -25, -30);
+
+  /* ..._handle are frames in "sequencer logic", meaning that on the right_handle point in time,
+   * the strip is not visible any more. The last visible frame of the strip is actually on
+   * (right_handle-1), hence the -1 when computing the end_frame. */
+  const float left_handle = seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
+  const float right_handle = seq::time_right_handle_frame_get(sequencer_scene, scene_strip);
+  float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
+                      scene_strip->scene->r.sfra;
+  float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
+                    scene_strip->scene->r.sfra;
+
+  /* This can happen when the strip time is reversed. */
+  if (start_frame > end_frame) {
+    std::swap(start_frame, end_frame);
+  }
+
+  immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, start_frame, v2d->cur.ymax);
+  immRectf(pos, end_frame, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+
+  immUnbindProgram();
+
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 /* *************************************************** */
@@ -546,7 +608,7 @@ static float normalization_factor_get(Scene *scene, FCurve *fcu, short flag, flo
   else {
     /* Skip normalization. */
     factor = 1.0f;
-    offset = -min_coord;
+    offset = 0.0f;
   }
 
   BLI_assert(factor != 0.0f);
@@ -705,8 +767,13 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
 
 void ANIM_center_frame(bContext *C, int smooth_viewtx)
 {
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return;
+  }
+
   ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
   float w = BLI_rctf_size_x(&region->v2d.cur);
   rctf newrct;
   int nextfra, prevfra;

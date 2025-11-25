@@ -28,7 +28,6 @@ class NODE_OT_GLTF_SETTINGS(bpy.types.Operator):
             space is not None
             and space.type == "NODE_EDITOR"
             and context.object and context.object.active_material
-            and context.object.active_material.use_nodes is True
             and bpy.context.preferences.addons['io_scene_gltf2'].preferences.settings_node_ui is True
         )
 
@@ -70,7 +69,7 @@ class SCENE_PT_gltf2_variants(bpy.types.Panel):
     bl_category = "glTF Variants"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return bpy.context.preferences.addons['io_scene_gltf2'].preferences.KHR_materials_variants_ui is True
 
     def draw(self, context):
@@ -110,7 +109,7 @@ class SCENE_OT_gltf2_variant_add(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return True
 
     def execute(self, context):
@@ -128,7 +127,7 @@ class SCENE_OT_gltf2_variant_remove(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return len(bpy.data.scenes[0].gltf2_KHR_materials_variants_variants) > 0
 
     def execute(self, context):
@@ -167,7 +166,7 @@ class SCENE_OT_gltf2_display_variant(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return len(bpy.data.scenes[0].gltf2_KHR_materials_variants_variants) > 0
 
     def execute(self, context):
@@ -195,12 +194,11 @@ class SCENE_OT_gltf2_assign_to_variant(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return len(bpy.data.scenes[0].gltf2_KHR_materials_variants_variants) > 0 \
             and bpy.context.object and bpy.context.object.type == "MESH"
 
     def execute(self, context):
-        gltf2_active_variant = bpy.data.scenes[0].gltf2_active_variant
         obj = bpy.context.object
 
         # loop on material slots ( primitives )
@@ -240,7 +238,7 @@ class SCENE_OT_gltf2_reset_to_original(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return bpy.context.object and bpy.context.object.type == "MESH" and len(
             context.object.data.gltf2_variant_default_materials) > 0
 
@@ -250,7 +248,6 @@ class SCENE_OT_gltf2_reset_to_original(bpy.types.Operator):
         # loop on material slots ( primitives )
         for mat_slot_idx, s in enumerate(obj.material_slots):
             # Check if there is a default material for this slot
-            found = False
             for i in obj.data.gltf2_variant_default_materials:
                 if i.material_slot_index == mat_slot_idx:
                     s.material = i.default_material
@@ -267,7 +264,7 @@ class SCENE_OT_gltf2_assign_as_original(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return bpy.context.object and bpy.context.object.type == "MESH"
 
     def execute(self, context):
@@ -326,7 +323,7 @@ class MESH_PT_gltf2_mesh_variants(bpy.types.Panel):
     bl_context = "material"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         if not bpy.context.object:
             return False
         return bpy.context.preferences.addons['io_scene_gltf2'].preferences.KHR_materials_variants_ui is True \
@@ -378,7 +375,7 @@ class SCENE_OT_gltf2_variant_slot_add(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         if not bpy.context.object:
             return False
         return len(bpy.context.object.material_slots) > 0
@@ -412,7 +409,7 @@ class SCENE_OT_gltf2_material_to_variant(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         if not bpy.context.object:
             return False
         return len(bpy.context.object.material_slots) > 0 and context.object.data.gltf2_variant_pointer != ""
@@ -454,7 +451,7 @@ class SCENE_OT_gltf2_remove_material_variant(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         if not bpy.context.object:
             return False
         return len(bpy.context.object.material_slots) > 0 and len(bpy.context.object.data.gltf2_variant_mesh_data) > 0
@@ -506,7 +503,7 @@ class SCENE_OT_gltf2_animation_apply(bpy.types.Operator):
     index: bpy.props.IntProperty()
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return True
 
     def execute(self, context):
@@ -569,7 +566,7 @@ class SCENE_PT_gltf2_animation(bpy.types.Panel):
     bl_category = "glTF"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return bpy.context.preferences.addons['io_scene_gltf2'].preferences.animation_ui is True
 
     def draw(self, context):
@@ -601,7 +598,7 @@ class SCENE_OT_gltf2_action_filter_refresh(bpy.types.Operator):
     bl_options = {'REGISTER'}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         return True
 
     def execute(self, context):

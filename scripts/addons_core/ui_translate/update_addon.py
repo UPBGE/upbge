@@ -16,10 +16,10 @@ else:
         StringProperty,
     )
     from . import settings
-    from bl_i18n_utils import utils as utils_i18n
-    from bl_i18n_utils import bl_extract_messages
+    from _bl_i18n_utils import utils as utils_i18n
+    from _bl_i18n_utils import bl_extract_messages
 
-from bpy.app.translations import pgettext_iface as iface_
+from bpy.app.translations import pgettext_rpt as rpt_
 import addon_utils
 
 import io
@@ -43,7 +43,8 @@ def validate_module(op, context):
 
     mod = utils_i18n.enable_addons(addons={module_name}, check_only=True)
     if not mod:
-        op.report({'ERROR'}, "Add-on '{}' not found!".format(module_name))
+        message = rpt_("Add-on '{}' not found!").format(module_name)
+        op.report({'ERROR'}, message)
         return None, None
     return module_name, mod[0]
 
@@ -68,7 +69,8 @@ def enum_addons(self, context):
             has_translation, _ = utils_i18n.I18n.check_py_module_has_translations(src, setts)
             name = mod_info["name"]
             if has_translation:
-                name = name + " *"
+                # Show "*" to the left for consistency with unsaved files in the title bar.
+                name = "* " + name
             _cached_enum_addons.append((mod.__name__, name, mod_info["description"]))
         _cached_enum_addons.sort(key=lambda i: i[1])
     return _cached_enum_addons

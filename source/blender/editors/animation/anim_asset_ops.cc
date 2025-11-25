@@ -9,7 +9,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
 #include "BKE_report.hh"
@@ -29,6 +29,7 @@
 #include "ED_asset_shelf.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
@@ -427,6 +428,7 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
   ot->name = "Create Pose Asset...";
   ot->description = "Create a new asset from the selected bones in the scene";
   ot->idname = "POSELIB_OT_create_pose_asset";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   ot->exec = pose_asset_create_exec;
   ot->invoke = pose_asset_create_invoke;
@@ -665,6 +667,10 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
     /* Not needed for local assets. */
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
+  else {
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
+  }
 
   asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
@@ -707,7 +713,7 @@ static std::string pose_asset_modify_description(bContext * /* C */,
                                                  PointerRNA *ptr)
 {
   const int mode = RNA_enum_get(ptr, "mode");
-  return std::string(prop_asset_overwrite_modes[mode].description);
+  return TIP_(std::string(prop_asset_overwrite_modes[mode].description));
 }
 
 /* Calling it overwrite instead of save because we aren't actually saving an opened asset. */
@@ -772,6 +778,8 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
   }
   else {
     asset::clear_id(&action->id);
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
   }
 
   asset::refresh_asset_library(C, library_ref.value());
@@ -795,7 +803,7 @@ static wmOperatorStatus pose_asset_delete_invoke(bContext *C,
           IFACE_("Permanently delete pose asset blend file? This cannot be undone.") :
           IFACE_("The asset is local to the file. Deleting it will just clear the asset status."),
       IFACE_("Delete"),
-      ALERT_ICON_WARNING,
+      ui::AlertIcon::Warning,
       false);
 }
 

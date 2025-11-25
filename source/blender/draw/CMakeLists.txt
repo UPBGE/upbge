@@ -313,6 +313,84 @@ set(LIB
 )
 
 set(GLSL_SRC
+  intern/shaders/draw_curves_infos.hh
+  intern/shaders/draw_debug_infos.hh
+  intern/shaders/draw_object_infos_infos.hh
+  intern/shaders/draw_view_infos.hh
+  intern/shaders/subdiv_infos.hh
+  intern/shaders/subdiv_patch_eval_infos.hh
+
+  engines/eevee/shaders/infos/eevee_ambient_occlusion_infos.hh
+  engines/eevee/shaders/infos/eevee_common_infos.hh
+  engines/eevee/shaders/infos/eevee_deferred_infos.hh
+  engines/eevee/shaders/infos/eevee_depth_of_field_infos.hh
+  engines/eevee/shaders/infos/eevee_film_infos.hh
+  engines/eevee/shaders/infos/eevee_fullscreen_infos.hh
+  engines/eevee/shaders/infos/eevee_geom_infos.hh
+  engines/eevee/shaders/infos/eevee_hiz_infos.hh
+  engines/eevee/shaders/infos/eevee_light_culling_infos.hh
+  engines/eevee/shaders/infos/eevee_light_infos.hh
+  engines/eevee/shaders/infos/eevee_lightprobe_infos.hh
+  engines/eevee/shaders/infos/eevee_lightprobe_sphere_infos.hh
+  engines/eevee/shaders/infos/eevee_lightprobe_volume_infos.hh
+  engines/eevee/shaders/infos/eevee_lookdev_infos.hh
+  engines/eevee/shaders/infos/eevee_lut_infos.hh
+  engines/eevee/shaders/infos/eevee_material_infos.hh
+  engines/eevee/shaders/infos/eevee_motion_blur_infos.hh
+  engines/eevee/shaders/infos/eevee_nodetree_infos.hh
+  engines/eevee/shaders/infos/eevee_sampling_infos.hh
+  engines/eevee/shaders/infos/eevee_shadow_infos.hh
+  engines/eevee/shaders/infos/eevee_shadow_pipeline_infos.hh
+  engines/eevee/shaders/infos/eevee_subsurface_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_capture_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_deferred_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_depth_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_forward_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_hybrid_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_shadow_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_volume_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_world_infos.hh
+  engines/eevee/shaders/infos/eevee_tests_infos.hh
+  engines/eevee/shaders/infos/eevee_tracing_infos.hh
+  engines/eevee/shaders/infos/eevee_uniform_infos.hh
+  engines/eevee/shaders/infos/eevee_velocity_infos.hh
+  engines/eevee/shaders/infos/eevee_volume_infos.hh
+  engines/eevee/shaders/infos/eevee_volume_resolved_infos.hh
+
+  engines/image/shaders/infos/engine_image_infos.hh
+
+  engines/gpencil/shaders/infos/gpencil_infos.hh
+  engines/gpencil/shaders/infos/gpencil_vfx_infos.hh
+
+  engines/overlay/shaders/infos/overlay_antialiasing_infos.hh
+  engines/overlay/shaders/infos/overlay_armature_infos.hh
+  engines/overlay/shaders/infos/overlay_background_infos.hh
+  engines/overlay/shaders/infos/overlay_common_infos.hh
+  engines/overlay/shaders/infos/overlay_edit_mode_infos.hh
+  engines/overlay/shaders/infos/overlay_extra_infos.hh
+  engines/overlay/shaders/infos/overlay_facing_infos.hh
+  engines/overlay/shaders/infos/overlay_fullscreen_infos.hh
+  engines/overlay/shaders/infos/overlay_grid_infos.hh
+  engines/overlay/shaders/infos/overlay_outline_infos.hh
+  engines/overlay/shaders/infos/overlay_paint_infos.hh
+  engines/overlay/shaders/infos/overlay_sculpt_curves_infos.hh
+  engines/overlay/shaders/infos/overlay_sculpt_infos.hh
+  engines/overlay/shaders/infos/overlay_viewer_attribute_infos.hh
+  engines/overlay/shaders/infos/overlay_volume_infos.hh
+  engines/overlay/shaders/infos/overlay_wireframe_infos.hh
+
+  engines/select/shaders/infos/select_id_infos.hh
+
+  engines/workbench/shaders/infos/workbench_composite_infos.hh
+  engines/workbench/shaders/infos/workbench_depth_infos.hh
+  engines/workbench/shaders/infos/workbench_effect_antialiasing_infos.hh
+  engines/workbench/shaders/infos/workbench_effect_dof_infos.hh
+  engines/workbench/shaders/infos/workbench_effect_outline_infos.hh
+  engines/workbench/shaders/infos/workbench_prepass_infos.hh
+  engines/workbench/shaders/infos/workbench_shadow_infos.hh
+  engines/workbench/shaders/infos/workbench_transparent_resolve_infos.hh
+  engines/workbench/shaders/infos/workbench_volume_infos.hh
+
   engines/eevee/shaders/eevee_ambient_occlusion_lib.glsl
   engines/eevee/shaders/eevee_ambient_occlusion_pass_comp.glsl
   engines/eevee/shaders/eevee_attributes_curves_lib.glsl
@@ -333,6 +411,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_debug_surfels_frag.glsl
   engines/eevee/shaders/eevee_debug_irradiance_grid_vert.glsl
   engines/eevee/shaders/eevee_debug_irradiance_grid_frag.glsl
+  engines/eevee/shaders/eevee_deferred_aov_clear_frag.glsl
   engines/eevee/shaders/eevee_deferred_capture_frag.glsl
   engines/eevee/shaders/eevee_deferred_combine_frag.glsl
   engines/eevee/shaders/eevee_deferred_thickness_amend_frag.glsl
@@ -368,12 +447,16 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_film_pass_convert_comp.glsl
   engines/eevee/shaders/eevee_filter_lib.glsl
   engines/eevee/shaders/eevee_forward_lib.glsl
-  engines/eevee/shaders/eevee_gbuffer_lib.glsl
+  engines/eevee/shaders/eevee_fullscreen_vert.glsl
   engines/eevee/shaders/eevee_gbuffer_closure_test.glsl
+  engines/eevee/shaders/eevee_gbuffer_lib.glsl
   engines/eevee/shaders/eevee_gbuffer_normal_test.glsl
+  engines/eevee/shaders/eevee_gbuffer_read_lib.glsl
+  engines/eevee/shaders/eevee_gbuffer_write_lib.glsl
   engines/eevee/shaders/eevee_geom_curves_vert.glsl
   engines/eevee/shaders/eevee_geom_mesh_vert.glsl
   engines/eevee/shaders/eevee_geom_pointcloud_vert.glsl
+  engines/eevee/shaders/eevee_geom_types_lib.glsl
   engines/eevee/shaders/eevee_geom_volume_vert.glsl
   engines/eevee/shaders/eevee_geom_world_vert.glsl
   engines/eevee/shaders/eevee_hiz_debug_frag.glsl
@@ -402,6 +485,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_lightprobe_volume_world_comp.glsl
   engines/eevee/shaders/eevee_lightprobe_lib.glsl
   engines/eevee/shaders/eevee_lightprobe_volume_eval_lib.glsl
+  engines/eevee/shaders/eevee_lookdev_copy_world_comp.glsl
   engines/eevee/shaders/eevee_lookdev_display_frag.glsl
   engines/eevee/shaders/eevee_lookdev_display_vert.glsl
   engines/eevee/shaders/eevee_ltc_lib.glsl
@@ -410,8 +494,10 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_motion_blur_flatten_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_gather_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_lib.glsl
+  engines/eevee/shaders/eevee_nodetree_closures_lib.glsl
   engines/eevee/shaders/eevee_nodetree_frag_lib.glsl
   engines/eevee/shaders/eevee_nodetree_lib.glsl
+  engines/eevee/shaders/eevee_nodetree_type_lib.glsl
   engines/eevee/shaders/eevee_nodetree_vert_lib.glsl
   engines/eevee/shaders/eevee_occupancy_convert_frag.glsl
   engines/eevee/shaders/eevee_occupancy_lib.glsl
@@ -485,11 +571,15 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surfel_cluster_build_comp.glsl
   engines/eevee/shaders/eevee_surfel_light_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_build_comp.glsl
+  engines/eevee/shaders/eevee_surfel_list_flatten_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_lib.glsl
+  engines/eevee/shaders/eevee_surfel_list_prefix_comp.glsl
+  engines/eevee/shaders/eevee_surfel_list_prepare_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_sort_comp.glsl
   engines/eevee/shaders/eevee_surfel_ray_comp.glsl
   engines/eevee/shaders/eevee_thickness_lib.glsl
   engines/eevee/shaders/eevee_transparency_lib.glsl
+  engines/eevee/shaders/eevee_utility_tx_lib.glsl
   engines/eevee/shaders/eevee_velocity_lib.glsl
   engines/eevee/shaders/eevee_vertex_copy_comp.glsl
   engines/eevee/shaders/eevee_volume_integration_comp.glsl
@@ -497,8 +587,25 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_volume_resolve_frag.glsl
   engines/eevee/shaders/eevee_volume_scatter_comp.glsl
 
+  engines/eevee/eevee_camera_shared.hh
+  engines/eevee/eevee_debug_shared.hh
   engines/eevee/eevee_defines.hh
-  engines/eevee/eevee_shader_shared.hh
+  engines/eevee/eevee_depth_of_field_shared.hh
+  engines/eevee/eevee_film_shared.hh
+  engines/eevee/eevee_hizbuffer_shared.hh
+  engines/eevee/eevee_light_shared.hh
+  engines/eevee/eevee_lightprobe_shared.hh
+  engines/eevee/eevee_motion_blur_shared.hh
+  engines/eevee/eevee_precompute_shared.hh
+  engines/eevee/eevee_raytrace_shared.hh
+  engines/eevee/eevee_renderbuffers_shared.hh
+  engines/eevee/eevee_sampling_shared.hh
+  engines/eevee/eevee_shadow_shared.hh
+  engines/eevee/eevee_subsurface_shared.hh
+  engines/eevee/eevee_transform.hh
+  engines/eevee/eevee_uniform_shared.hh
+  engines/eevee/eevee_velocity_shared.hh
+  engines/eevee/eevee_volume_shared.hh
 
   engines/workbench/shaders/workbench_cavity_lib.glsl
   engines/workbench/shaders/workbench_common_lib.glsl
@@ -514,6 +621,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_effect_smaa_frag.glsl
   engines/workbench/shaders/workbench_effect_smaa_vert.glsl
   engines/workbench/shaders/workbench_effect_taa_frag.glsl
+  engines/workbench/shaders/workbench_fullscreen_vert.glsl
   engines/workbench/shaders/workbench_image_lib.glsl
   engines/workbench/shaders/workbench_matcap_lib.glsl
   engines/workbench/shaders/workbench_material_lib.glsl
@@ -525,6 +633,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_prepass_vert.glsl
   engines/workbench/shaders/workbench_shadow_caps_vert.glsl
   engines/workbench/shaders/workbench_shadow_debug_frag.glsl
+  engines/workbench/shaders/workbench_shadow_frag.glsl
   engines/workbench/shaders/workbench_shadow_lib.glsl
   engines/workbench/shaders/workbench_shadow_vert.glsl
   engines/workbench/shaders/workbench_shadow_visibility_comp.glsl
@@ -534,8 +643,10 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_volume_vert.glsl
   engines/workbench/shaders/workbench_world_light_lib.glsl
 
+  engines/workbench/workbench_defines.hh
   engines/workbench/workbench_shader_shared.hh
 
+  intern/shaders/osd_patch_basis.glsl
   intern/shaders/subdiv_custom_data_interp_comp.glsl
   intern/shaders/subdiv_ibo_lines_comp.glsl
   intern/shaders/subdiv_ibo_tris_comp.glsl
@@ -590,6 +701,7 @@ set(GLSL_SRC
   engines/gpencil/shaders/gpencil_antialiasing_frag.glsl
   engines/gpencil/shaders/gpencil_antialiasing_vert.glsl
   engines/gpencil/shaders/gpencil_common_lib.glsl
+  engines/gpencil/shaders/gpencil_fullscreen_vert.glsl
   engines/gpencil/shaders/gpencil_layer_blend_frag.glsl
   engines/gpencil/shaders/gpencil_mask_invert_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_frag.glsl
@@ -604,6 +716,7 @@ set(GLSL_SRC
   engines/select/shaders/select_lib.glsl
   engines/select/shaders/select_debug_frag.glsl
 
+  engines/select/select_defines.hh
   engines/select/select_shader_shared.hh
 
   engines/overlay/shaders/overlay_antialiasing_frag.glsl
@@ -677,6 +790,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_extra_wire_vert.glsl
   engines/overlay/shaders/overlay_facing_frag.glsl
   engines/overlay/shaders/overlay_facing_vert.glsl
+  engines/overlay/shaders/overlay_fullscreen_vert.glsl
   engines/overlay/shaders/overlay_grid_background_frag.glsl
   engines/overlay/shaders/overlay_grid_frag.glsl
   engines/overlay/shaders/overlay_grid_vert.glsl
@@ -749,11 +863,13 @@ list(APPEND LIB
 
 set(GLSL_SOURCE_CONTENT "")
 set(GLSL_METADATA_CONTENT "")
+set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
+  string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
 endforeach()
 
 set(glsl_source_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_draw_source_list.h")
@@ -762,6 +878,9 @@ list(APPEND SRC ${glsl_source_list_file})
 set(glsl_metadata_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_draw_metadata_list.hh")
 file(GENERATE OUTPUT ${glsl_metadata_list_file} CONTENT "${GLSL_METADATA_CONTENT}")
 list(APPEND SRC ${glsl_metadata_list_file})
+set(glsl_infos_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_draw_infos_list.hh")
+file(GENERATE OUTPUT ${glsl_infos_list_file} CONTENT "${GLSL_INFOS_CONTENT}")
+list(APPEND SRC ${glsl_infos_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_include_directories(bf_draw_shaders PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

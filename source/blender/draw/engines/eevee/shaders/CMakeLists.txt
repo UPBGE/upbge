@@ -29,6 +29,7 @@ set(SRC_GLSL_VERT
   eevee_display_lightprobe_planar_vert.glsl
   eevee_display_lightprobe_sphere_vert.glsl
   eevee_display_lightprobe_volume_vert.glsl
+  eevee_fullscreen_vert.glsl
   eevee_geom_curves_vert.glsl
   eevee_geom_mesh_vert.glsl
   eevee_geom_pointcloud_vert.glsl
@@ -43,6 +44,7 @@ set(SRC_GLSL_FRAG
   eevee_debug_gbuffer_frag.glsl
   eevee_debug_irradiance_grid_frag.glsl
   eevee_debug_surfels_frag.glsl
+  eevee_deferred_aov_clear_frag.glsl
   eevee_deferred_capture_frag.glsl
   eevee_deferred_combine_frag.glsl
   eevee_deferred_light_frag.glsl
@@ -111,6 +113,7 @@ set(SRC_GLSL_COMP
   eevee_lightprobe_volume_offset_comp.glsl
   eevee_lightprobe_volume_ray_comp.glsl
   eevee_lightprobe_volume_world_comp.glsl
+  eevee_lookdev_copy_world_comp.glsl
   eevee_lut_comp.glsl
   eevee_motion_blur_dilate_comp.glsl
   eevee_motion_blur_flatten_comp.glsl
@@ -145,6 +148,9 @@ set(SRC_GLSL_COMP
   eevee_surfel_cluster_build_comp.glsl
   eevee_surfel_light_comp.glsl
   eevee_surfel_list_build_comp.glsl
+  eevee_surfel_list_flatten_comp.glsl
+  eevee_surfel_list_prefix_comp.glsl
+  eevee_surfel_list_prepare_comp.glsl
   eevee_surfel_list_sort_comp.glsl
   eevee_surfel_ray_comp.glsl
   eevee_vertex_copy_comp.glsl

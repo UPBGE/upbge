@@ -6,6 +6,7 @@
  * \ingroup ply
  */
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
@@ -99,6 +100,8 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
       uv_map.span[i] = data.uv_coordinates[data.face_vertices[i]];
     }
     uv_map.finish();
+    mesh->uv_maps_active_set("UVMap");
+    mesh->uv_maps_default_set("UVMap");
   }
 
   /* If we have custom vertex normals, set them
@@ -141,7 +144,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
 #ifndef NDEBUG
     verbose_validate = true;
 #endif
-    BKE_mesh_validate(mesh, verbose_validate, false);
+    bke::mesh_validate(*mesh, verbose_validate);
   }
 
   if (set_custom_normals_for_verts) {

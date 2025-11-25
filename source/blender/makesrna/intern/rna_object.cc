@@ -166,14 +166,10 @@ static const EnumPropertyItem parent_type_items[] = {
 #define INSTANCE_ITEMS_SHARED \
   {0, "NONE", 0, "None", ""}, \
       {OB_DUPLIVERTS, "VERTS", 0, "Vertices", "Instantiate child objects on all vertices"}, \
-  { \
-    OB_DUPLIFACES, "FACES", 0, "Faces", "Instantiate child objects on all faces" \
-  }
+      {OB_DUPLIFACES, "FACES", 0, "Faces", "Instantiate child objects on all faces"}
 
 #define INSTANCE_ITEM_COLLECTION \
-  { \
-    OB_DUPLICOLLECTION, "COLLECTION", 0, "Collection", "Enable collection instancing" \
-  }
+  {OB_DUPLICOLLECTION, "COLLECTION", 0, "Collection", "Enable collection instancing"}
 static const EnumPropertyItem instance_items[] = {
     INSTANCE_ITEMS_SHARED,
     INSTANCE_ITEM_COLLECTION,
@@ -230,18 +226,9 @@ const EnumPropertyItem rna_enum_lightprobes_type_items[] = {
 };
 
 /* used for 2 enums */
-#define OBTYPE_CU_CURVE \
-  { \
-    OB_CURVES_LEGACY, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve", "" \
-  }
-#define OBTYPE_CU_SURF \
-  { \
-    OB_SURF, "SURFACE", ICON_OUTLINER_OB_SURFACE, "Surface", "" \
-  }
-#define OBTYPE_CU_FONT \
-  { \
-    OB_FONT, "FONT", ICON_OUTLINER_OB_FONT, "Text", "" \
-  }
+#define OBTYPE_CU_CURVE {OB_CURVES_LEGACY, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve", ""}
+#define OBTYPE_CU_SURF {OB_SURF, "SURFACE", ICON_OUTLINER_OB_SURFACE, "Surface", ""}
+#define OBTYPE_CU_FONT {OB_FONT, "FONT", ICON_OUTLINER_OB_FONT, "Text", ""}
 
 const EnumPropertyItem rna_enum_object_type_items[] = {
     {OB_MESH, "MESH", ICON_OUTLINER_OB_MESH, "Mesh", ""},
@@ -418,7 +405,7 @@ static void rna_Object_matrix_world_set(PointerRNA *ptr, const float *values)
 static void rna_Object_matrix_local_get(PointerRNA *ptr, float values[16])
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  BKE_object_matrix_local_get(ob, (float(*)[4])values);
+  BKE_object_matrix_local_get(ob, (float (*)[4])values);
 }
 
 static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
@@ -432,10 +419,10 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
   if (ob->parent) {
     float invmat[4][4];
     invert_m4_m4(invmat, ob->parentinv);
-    mul_m4_m4m4(local_mat, invmat, (float(*)[4])values);
+    mul_m4_m4m4(local_mat, invmat, (float (*)[4])values);
   }
   else {
-    copy_m4_m4(local_mat, (float(*)[4])values);
+    copy_m4_m4(local_mat, (float (*)[4])values);
   }
 
   /* Don't use compatible so we get predictable rotation, and do not use parenting either,
@@ -446,13 +433,13 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
 static void rna_Object_matrix_basis_get(PointerRNA *ptr, float values[16])
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  BKE_object_to_mat4(ob, (float(*)[4])values);
+  BKE_object_to_mat4(ob, (float (*)[4])values);
 }
 
 static void rna_Object_matrix_basis_set(PointerRNA *ptr, const float values[16])
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  BKE_object_apply_mat4(ob, (float(*)[4])values, false, false);
+  BKE_object_apply_mat4(ob, (float (*)[4])values, false, false);
 }
 
 void rna_Object_internal_update_data_impl(PointerRNA *ptr)
@@ -504,6 +491,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, Point
     }
   }
 
+  WM_main_add_notifier(NC_OBJECT | ND_TRANSFORM, ob);
   rna_Object_internal_update_data_impl(ptr);
 }
 
@@ -620,7 +608,7 @@ static StructRNA *rna_Object_data_typef(PointerRNA *ptr)
     case OB_GPENCIL_LEGACY:
       return &RNA_Annotation;
     case OB_GREASE_PENCIL:
-      return &RNA_GreasePencilv3;
+      return &RNA_GreasePencil;
     case OB_CURVES:
       return &RNA_Curves;
     case OB_POINTCLOUD:
@@ -2534,6 +2522,85 @@ static std::optional<std::string> rna_ObjectLightLinking_path(const PointerRNA *
   return "light_linking";
 }
 
+bool rna_Object_light_linking_override_apply(Main *bmain,
+                                             RNAPropertyOverrideApplyContext &rnaapply_ctx)
+{
+  /* NOTE: Here:
+   *   - `dst` is the new, being updated liboverride data, which is a clean copy from the linked
+   *     reference data.
+   *   - `src` is the old, stored liboverride data, which is the source to copy overridden data
+   *     from.
+   */
+
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PointerRNA *ptr_storage = &rnaapply_ctx.ptr_storage;
+  const int len_dst = rnaapply_ctx.len_src;
+  const int len_src = rnaapply_ctx.len_src;
+  const int len_storage = rnaapply_ctx.len_storage;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
+  BLI_assert(len_dst == len_src && (!ptr_storage || len_dst == len_storage) && len_dst == 0);
+  BLI_assert_msg(opop->operation == LIBOVERRIDE_OP_REPLACE,
+                 "Unsupported RNA override operation on object light linking pointer");
+  UNUSED_VARS_NDEBUG(ptr_storage, len_dst, len_src, len_storage, opop);
+
+  /* LightLinking is a special case, since you cannot edit/replace it, it's either existent or not.
+   * Further more, when a lightlinking is added to the linked reference later on, the one created
+   * for the liboverride needs to be 'merged', such that its overridable data is kept. */
+  Object *ob_dst = blender::id_cast<Object *>(ptr_dst->owner_id);
+  Object *ob_src = blender::id_cast<Object *>(ptr_src->owner_id);
+
+  if (ob_dst->light_linking == nullptr && ob_src->light_linking == nullptr) {
+    /* Nothing to do. */
+    return false;
+  }
+
+  if (ob_dst->light_linking == nullptr && ob_src->light_linking != nullptr) {
+    /* Copy light linking data from previous liboverride data into final liboverride one. */
+    BKE_light_linking_copy(ob_dst, ob_src, 0);
+    return true;
+  }
+  else if (ob_dst->light_linking != nullptr && ob_src->light_linking == nullptr) {
+    /* Override has cleared/removed light linking data from its reference. */
+    BKE_light_linking_delete(ob_dst, 0);
+    return true;
+  }
+  else {
+    BLI_assert(ob_dst->light_linking != nullptr && ob_src->light_linking != nullptr);
+    /* Override had to create a light linking data, but now its reference also has one, need to
+     * merge them by keeping the overridable data from the liboverride, while using the light
+     * linking of the reference.
+     *
+     * Note that this case will not be encountered when the linked reference data already had
+     * light linking data, since there will be no operation for the light linking pointer itself
+     * then, only potentially for its internal overridable data (collections...). */
+
+    /* For these collections, only replace linked data with previously defined liboverride data if
+     * the latter is non-null. Otherwise, assume that the previously defined liboverride data
+     * property was 'unset', and can be replaced by the linked reference value. */
+    if (ob_src->light_linking->receiver_collection != nullptr) {
+      id_us_min(blender::id_cast<ID *>(ob_dst->light_linking->receiver_collection));
+      ob_dst->light_linking->receiver_collection = ob_src->light_linking->receiver_collection;
+      id_us_plus(blender::id_cast<ID *>(ob_dst->light_linking->receiver_collection));
+    }
+    if (ob_src->light_linking->blocker_collection != nullptr) {
+      id_us_min(blender::id_cast<ID *>(ob_dst->light_linking->blocker_collection));
+      ob_dst->light_linking->blocker_collection = ob_src->light_linking->blocker_collection;
+      id_us_plus(blender::id_cast<ID *>(ob_dst->light_linking->blocker_collection));
+    }
+
+    /* Note: LightLinking runtime data is currently set by depsgraph evaluation, so no need to
+     * handle them here. */
+  }
+
+  DEG_id_tag_update(&ob_dst->id, ID_RECALC_SHADING);
+
+  DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_dst->id);
+  return true;
+}
+
 static PointerRNA rna_LightLinking_receiver_collection_get(PointerRNA *ptr)
 {
   Object *object = reinterpret_cast<Object *>(ptr->owner_id);
@@ -3673,6 +3740,15 @@ static void rna_def_object_visibility(StructRNA *srna)
       prop, "Disable in Planar Light Probes", "Globally disable in planar light probes");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 
+  prop = RNA_def_property(srna, "hide_surface_pick", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "visibility_flag", OB_HIDE_SURFACE_PICK);
+  RNA_def_property_ui_text(
+      prop,
+      "Disable in Surface Picking",
+      "Disable surface influence during selection, snapping and depth-picking operators. "
+      "Usually used to avoid semi-transparent objects to affect scene navigation");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
+
   /* Instancer options. */
   prop = RNA_def_property(srna, "show_instancer_for_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "duplicator_visibility_flag", OB_DUPLI_FLAG_RENDER);
@@ -4595,6 +4671,9 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_struct_type(prop, "ObjectLightLinking");
   RNA_def_property_pointer_funcs(prop, "rna_Object_light_linking_get", nullptr, nullptr, nullptr);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_override_funcs(
+      prop, nullptr, nullptr, "rna_Object_light_linking_override_apply");
   RNA_def_property_ui_text(prop, "Light Linking", "Light linking settings");
 
   /* Shadow terminator. */
@@ -4649,6 +4728,8 @@ static void rna_def_object_light_linking(BlenderRNA *brna)
   RNA_def_struct_nested(brna, srna, "Object");
   RNA_def_struct_path_func(srna, "rna_ObjectLightLinking_path");
 
+  RNA_define_lib_overridable(true);
+
   prop = RNA_def_property(srna, "receiver_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Collection");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
@@ -4674,6 +4755,8 @@ static void rna_def_object_light_linking(BlenderRNA *brna)
                            "Blocker Collection",
                            "Collection which defines objects which block light from this emitter");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_LightLinking_collection_update");
+
+  RNA_define_lib_overridable(false);
 }
 
 void RNA_def_object(BlenderRNA *brna)

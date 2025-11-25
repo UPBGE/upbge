@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include <cstring>
@@ -39,8 +39,7 @@ static bool strip_for_each_recursive(ListBase *seqbase, ForEachFunc callback, vo
   return true;
 }
 
-static bool strip_for_each_recursive(ListBase *seqbase,
-                                     blender::FunctionRef<bool(Strip *)> callback)
+static bool strip_for_each_recursive(ListBase *seqbase, FunctionRef<bool(Strip *)> callback)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
     if (!callback(strip)) {
@@ -56,12 +55,12 @@ static bool strip_for_each_recursive(ListBase *seqbase,
   return true;
 }
 
-void for_each_callback(ListBase *seqbase, ForEachFunc callback, void *user_data)
+void foreach_strip(ListBase *seqbase, ForEachFunc callback, void *user_data)
 {
   strip_for_each_recursive(seqbase, callback, user_data);
 }
 
-void for_each_callback(ListBase *seqbase, blender::FunctionRef<bool(Strip *)> callback)
+void foreach_strip(ListBase *seqbase, FunctionRef<bool(Strip *)> callback)
 {
   strip_for_each_recursive(seqbase, callback);
 }
@@ -181,7 +180,7 @@ static void collection_filter_channel_up_to_incl(VectorSet<Strip *> &strips, con
 
 /* Check if strip must be rendered. This depends on whole stack in some cases, not only strip
  * itself. Order of applying these conditions is important. */
-static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
+bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
 {
   bool strip_have_effect_in_stack = false;
   for (Strip *strip_iter : strips) {
@@ -286,7 +285,7 @@ void query_strip_connected_and_effect_chain(const Scene *scene,
                                             VectorSet<Strip *> &r_strips)
 {
 
-  blender::Vector<Strip *> pending;
+  Vector<Strip *> pending;
   pending.append(reference_strip);
 
   while (!pending.is_empty()) {

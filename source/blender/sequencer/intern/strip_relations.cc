@@ -5,13 +5,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_session_uid.h"
@@ -46,13 +45,21 @@ bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
   return ELEM(input, effect->input1, effect->input2);
 }
 
-void cache_cleanup(Scene *scene)
+void cache_cleanup(Scene *scene, CacheCleanup mode)
 {
-  thumbnail_cache_clear(scene);
-  source_image_cache_clear(scene);
-  final_image_cache_clear(scene);
-  intra_frame_cache_invalidate(scene);
-  preview_cache_invalidate(scene);
+  if (flag_is_set(mode, CacheCleanup::Thumbnails)) {
+    thumbnail_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::SourceImage)) {
+    source_image_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::FinalImage)) {
+    final_image_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::IntraFrame)) {
+    intra_frame_cache_invalidate(scene);
+    preview_cache_invalidate(scene);
+  }
 }
 
 void cache_settings_changed(Scene *scene)
@@ -140,6 +147,7 @@ static void invalidate_raw_cache_of_parent_meta(Scene *scene, Strip *strip)
 void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 {
   source_image_cache_invalidate_strip(scene, strip);
+  media_presence_invalidate_strip(scene, strip);
   relations_invalidate_cache(scene, strip);
 }
 
@@ -148,8 +156,6 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
   if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
     strip_effect_speed_rebuild_map(scene, strip);
   }
-
-  media_presence_invalidate_strip(scene, strip);
 
   invalidate_final_cache_strip_range(scene, strip);
   intra_frame_cache_invalidate(scene, strip);
@@ -167,6 +173,17 @@ void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_tar
     if (scene->ed != nullptr) {
       for (Strip *strip : lookup_strips_by_scene(editing_get(scene), scene_target)) {
         relations_invalidate_cache_raw(scene, strip);
+      }
+    }
+  }
+}
+
+void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      for (Strip *strip : lookup_strips_by_compositor_node_group(editing_get(scene), node_tree)) {
+        relations_invalidate_cache(scene, strip);
       }
     }
   }
@@ -203,7 +220,6 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
     return;
   }
 
-  cache_cleanup(scene);
   prefetch_stop(scene);
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
@@ -213,7 +229,7 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
 
     if (strip->data) {
       if (strip->type == STRIP_TYPE_MOVIE) {
-        relations_strip_free_anim(strip);
+        strip_free_movie_readers(strip);
       }
       if (strip->type == STRIP_TYPE_SPEED) {
         strip_effect_speed_rebuild_map(scene, strip);
@@ -240,7 +256,7 @@ static void sequencer_all_free_anim_ibufs(const Scene *scene,
     if (!time_strip_intersects_frame(scene, strip, timeline_frame) ||
         !((frame_range[0] <= timeline_frame) && (frame_range[1] > timeline_frame)))
     {
-      relations_strip_free_anim(strip);
+      strip_free_movie_readers(strip);
     }
     if (strip->type == STRIP_TYPE_META) {
       int meta_range[2];
@@ -350,41 +366,33 @@ bool relations_render_loop_check(Strip *strip_main, Strip *strip)
   return false;
 }
 
-void relations_strip_free_anim(Strip *strip)
+void strip_free_movie_readers(Strip *strip)
 {
-  while (strip->anims.last) {
-    StripAnim *sanim = static_cast<StripAnim *>(strip->anims.last);
-
-    if (sanim->anim) {
-      MOV_close(sanim->anim);
-      sanim->anim = nullptr;
-    }
-
-    BLI_freelinkN(&strip->anims, sanim);
+  for (MovieReader *anim : strip->runtime->movie_readers) {
+    MOV_close(anim);
   }
-  BLI_listbase_clear(&strip->anims);
+  strip->runtime->movie_readers.clear();
 }
 
 void relations_session_uid_generate(Strip *strip)
 {
-  strip->runtime.session_uid = BLI_session_uid_generate();
+  strip->runtime->session_uid = BLI_session_uid_generate();
 }
 
 static bool get_uids_cb(Strip *strip, void *user_data)
 {
-  GSet *used_uids = (GSet *)user_data;
-  const SessionUID *session_uid = &strip->runtime.session_uid;
-  if (!BLI_session_uid_is_generated(session_uid)) {
+  Set<SessionUID> &used_uids = *static_cast<Set<SessionUID> *>(user_data);
+  const SessionUID &session_uid = strip->runtime->session_uid;
+  if (!BLI_session_uid_is_generated(&session_uid)) {
     printf("Sequence %s does not have UID generated.\n", strip->name);
     return true;
   }
 
-  if (BLI_gset_lookup(used_uids, session_uid) != nullptr) {
+  if (used_uids.contains(session_uid)) {
     printf("Sequence %s has duplicate UID generated.\n", strip->name);
     return true;
   }
-
-  BLI_gset_insert(used_uids, (void *)session_uid);
+  used_uids.add(session_uid);
   return true;
 }
 
@@ -394,12 +402,8 @@ void relations_check_uids_unique_and_report(const Scene *scene)
     return;
   }
 
-  GSet *used_uids = BLI_gset_new(
-      BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
-
-  for_each_callback(&scene->ed->seqbase, get_uids_cb, used_uids);
-
-  BLI_gset_free(used_uids, nullptr);
+  Set<SessionUID> used_uids;
+  foreach_strip(&scene->ed->seqbase, get_uids_cb, &used_uids);
 }
 
 bool exists_in_seqbase(const Strip *strip, const ListBase *seqbase)

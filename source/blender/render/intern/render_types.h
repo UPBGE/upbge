@@ -12,6 +12,8 @@
 /* exposed internal in render module only! */
 /* ------------------------------------------------------------------------- */
 
+#include <memory>
+
 #include "DNA_scene_types.h"
 
 #include "BLI_mutex.hh"
@@ -32,6 +34,7 @@ struct bNodeTree;
 struct Depsgraph;
 struct Main;
 struct Object;
+struct RenderDisplay;
 struct RenderEngine;
 struct ReportList;
 struct Scene;
@@ -54,21 +57,6 @@ struct BaseRender {
                                   blender::compositor::OutputTypes needed_outputs) = 0;
   virtual void compositor_free() = 0;
 
-  virtual void display_init(RenderResult *render_result) = 0;
-  virtual void display_clear(RenderResult *render_result) = 0;
-  virtual void display_update(RenderResult *render_result, rcti *rect) = 0;
-  virtual void current_scene_update(struct Scene *scene) = 0;
-
-  virtual void stats_draw(RenderStats *render_stats) = 0;
-  virtual void progress(float progress) = 0;
-
-  virtual void draw_lock() = 0;
-  virtual void draw_unlock() = 0;
-
-  /* Test whether render is to be stopped: if the function returns true rendering will be stopped
-   * as soon as the render pipeline allows it. */
-  virtual bool test_break() = 0;
-
   /**
    * Executed right before the initialization of the depsgraph, in order to modify some stuff in
    * the viewlayer. The modified ids must be tagged in the depsgraph.
@@ -90,6 +78,13 @@ struct BaseRender {
 
   /* Guard for drawing render result using engine's `draw()` callback. */
   ThreadMutex engine_draw_mutex = BLI_MUTEX_INITIALIZER;
+
+  /**
+   * GPU context and callbacks. This can be shared for recursive compositor and
+   * sequencer renders that we want to display in the same place.
+   */
+  std::shared_ptr<RenderDisplay> display;
+  bool display_shared = false;
 };
 
 struct ViewRender : public BaseRender {
@@ -109,22 +104,6 @@ struct ViewRender : public BaseRender {
   }
   void compositor_free() override {}
 
-  void display_init(RenderResult * /*render_result*/) override {}
-  void display_clear(RenderResult * /*render_result*/) override {}
-  void display_update(RenderResult * /*render_result*/, rcti * /*rect*/) override {}
-  void current_scene_update(struct Scene * /*scene*/) override {}
-
-  void stats_draw(RenderStats * /*render_stats*/) override {}
-  void progress(const float /*progress*/) override {}
-
-  void draw_lock() override {}
-  void draw_unlock() override {}
-
-  bool test_break() override
-  {
-    return false;
-  }
-
   bool prepare_viewlayer(struct ViewLayer * /*view_layer*/,
                          struct Depsgraph * /*depsgraph*/) override
   {
@@ -134,9 +113,7 @@ struct ViewRender : public BaseRender {
 
 /** Controls state of render, everything that's read-only during render stage. */
 struct Render : public BaseRender {
-  /* NOTE: Currently unused, provision for the future.
-   * Add these now to allow the guarded memory allocator to catch C-specific function calls. */
-  Render() = default;
+  Render();
   ~Render() override;
 
   blender::render::TilesHighlight *get_tile_highlight() override
@@ -153,22 +130,10 @@ struct Render : public BaseRender {
                           blender::compositor::OutputTypes needed_outputs) override;
   void compositor_free() override;
 
-  void display_init(RenderResult *render_result) override;
-  void display_clear(RenderResult *render_result) override;
-  void display_update(RenderResult *render_result, rcti *rect) override;
-  void current_scene_update(struct Scene *scene) override;
-
-  void stats_draw(RenderStats *render_stats) override;
-  void progress(float progress) override;
-
-  void draw_lock() override;
-  void draw_unlock() override;
-
-  bool test_break() override;
-
   bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) override;
 
-  char name[RE_MAXNAME] = "";
+  /* Owner pointer that uniquely identifiers the owner of this scene. */
+  const void *owner = nullptr;
 
   /* state settings */
   short flag = 0;
@@ -218,10 +183,41 @@ struct Render : public BaseRender {
   blender::Mutex compositor_mutex;
 
   /* Callbacks for the corresponding base class method implementation. */
-  void (*display_init_cb)(void *handle, RenderResult *rr) = nullptr;
-  void *dih = nullptr;
-  void (*display_clear_cb)(void *handle, RenderResult *rr) = nullptr;
-  void *dch = nullptr;
+  bool (*prepare_viewlayer_cb)(void *handle,
+                               struct ViewLayer *vl,
+                               struct Depsgraph *depsgraph) = nullptr;
+  void *prepare_vl_handle = nullptr;
+
+  RenderStats i = {};
+
+  /**
+   * Optional report list which may be null (borrowed memory).
+   * Callers to rendering functions are responsible for setting can clearing, see: #RE_SetReports.
+   */
+  struct ReportList *reports = nullptr;
+
+  blender::Vector<MovieWriter *> movie_writers;
+  char viewname[MAX_NAME] = "";
+};
+
+struct RenderDisplay {
+  ~RenderDisplay();
+
+  void ensure_system_gpu_context();
+  void *ensure_blender_gpu_context();
+
+  void display_update(RenderResult *render_result, rcti *rect);
+  void current_scene_update(struct Scene *scene);
+
+  void stats_draw(RenderStats *render_stats);
+  void progress(float progress);
+
+  void draw_lock();
+  void draw_unlock();
+
+  bool test_break();
+
+  /* Callbacks */
   void (*display_update_cb)(void *handle, RenderResult *rr, rcti *rect) = nullptr;
   void *duh = nullptr;
   void (*current_scene_update_cb)(void *handle, struct Scene *scene) = nullptr;
@@ -237,21 +233,8 @@ struct Render : public BaseRender {
   bool (*test_break_cb)(void *handle) = nullptr;
   void *tbh = nullptr;
 
-  bool (*prepare_viewlayer_cb)(void *handle, struct ViewLayer *vl, struct Depsgraph *depsgraph);
-  void *prepare_vl_handle;
-
-  RenderStats i = {};
-
-  /**
-   * Optional report list which may be null (borrowed memory).
-   * Callers to rendering functions are responsible for setting can clearing, see: #RE_SetReports.
-   */
-  struct ReportList *reports = nullptr;
-
-  blender::Vector<MovieWriter *> movie_writers;
-  char viewname[MAX_NAME] = "";
-
-  /* TODO: replace by a whole draw manager. */
+  /* GPU contexts.
+   * TODO: replace by a whole draw manager. */
   void *system_gpu_context = nullptr;
   void *blender_gpu_context = nullptr;
 };

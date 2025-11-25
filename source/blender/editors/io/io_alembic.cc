@@ -119,7 +119,6 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
   params.apply_subdiv = RNA_boolean_get(op->ptr, "apply_subdiv");
   params.curves_as_mesh = RNA_boolean_get(op->ptr, "curves_as_mesh");
   params.flatten_hierarchy = RNA_boolean_get(op->ptr, "flatten");
-  params.visible_objects_only = RNA_boolean_get(op->ptr, "visible_objects_only");
   params.face_sets = RNA_boolean_get(op->ptr, "face_sets");
   params.use_subdiv_schema = RNA_boolean_get(op->ptr, "subdiv_schema");
   params.export_hair = RNA_boolean_get(op->ptr, "export_hair");
@@ -151,28 +150,30 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
+static void ui_alembic_export_settings(const bContext *C,
+                                       blender::ui::Layout &layout,
+                                       PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  if (uiLayout *panel = layout->panel(C, "ABC_export_general", false, IFACE_("General"))) {
-    uiLayout *col = &panel->column(false);
+  if (blender::ui::Layout *panel = layout.panel(C, "ABC_export_general", false, IFACE_("General")))
+  {
+    blender::ui::Layout *col = &panel->column(false);
     col->prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     col = &panel->column(false);
     if (CTX_wm_space_file(C)) {
-      uiLayout *sub = &col->column(true, IFACE_("Include"));
-      sub->prop(ptr, "selected", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
-      sub->prop(ptr, "visible_objects_only", UI_ITEM_NONE, IFACE_("Visible Only"), ICON_NONE);
+      blender::ui::Layout &sub = col->column(true, IFACE_("Include"));
+      sub.prop(ptr, "selected", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
     }
   }
 
   /* Scene Options */
-  if (uiLayout *panel = layout->panel(C, "ABC_export_scene", false, IFACE_("Scene"))) {
-    uiLayout *col = &panel->column(false);
+  if (blender::ui::Layout *panel = layout.panel(C, "ABC_export_scene", false, IFACE_("Scene"))) {
+    blender::ui::Layout *col = &panel->column(false);
 
-    uiLayout *sub = &col->column(true);
+    blender::ui::Layout *sub = &col->column(true);
     sub->prop(ptr, "start", UI_ITEM_NONE, IFACE_("Frame Start"), ICON_NONE);
     sub->prop(ptr, "end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 
@@ -200,13 +201,15 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
   }
 
   /* Object Data */
-  if (uiLayout *panel = layout->panel(C, "ABC_export_geometry", false, IFACE_("Geometry"))) {
-    uiLayout *col = &panel->column(true);
+  if (blender::ui::Layout *panel = layout.panel(
+          C, "ABC_export_geometry", false, IFACE_("Geometry")))
+  {
+    blender::ui::Layout *col = &panel->column(true);
     col->prop(ptr, "uvs", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiLayout *row = &col->row(false);
-    row->active_set(RNA_boolean_get(ptr, "uvs"));
-    row->prop(ptr, "packuv", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    blender::ui::Layout &row = col->row(false);
+    row.active_set(RNA_boolean_get(ptr, "uvs"));
+    row.prop(ptr, "packuv", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     col->prop(ptr, "normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->prop(ptr, "vcolors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -216,7 +219,7 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
 
     col->separator();
 
-    uiLayout *sub = &col->column(true, IFACE_("Subdivision"));
+    blender::ui::Layout *sub = &col->column(true, IFACE_("Subdivision"));
     sub->prop(ptr, "apply_subdiv", UI_ITEM_NONE, IFACE_("Apply"), ICON_NONE);
     sub->prop(ptr, "subdiv_schema", UI_ITEM_NONE, IFACE_("Use Schema"), ICON_NONE);
 
@@ -229,12 +232,12 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
   }
 
   /* Particle Data */
-  if (uiLayout *panel = layout->panel(
+  if (blender::ui::Layout *panel = layout.panel(
           C, "ABC_export_particles", false, IFACE_("Particle Systems")))
   {
-    uiLayout *col = &panel->column(true);
-    col->prop(ptr, "export_hair", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(ptr, "export_particles", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    blender::ui::Layout &col = panel->column(true);
+    col.prop(ptr, "export_hair", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "export_particles", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -250,7 +253,7 @@ static void wm_alembic_export_draw(bContext *C, wmOperator *op)
     RNA_boolean_set(op->ptr, "init_scene_frame_range", false);
   }
 
-  ui_alembic_export_settings(C, op->layout, op->ptr);
+  ui_alembic_export_settings(C, *op->layout, op->ptr);
 }
 
 static bool wm_alembic_export_check(bContext * /*C*/, wmOperator *op)
@@ -355,12 +358,6 @@ void WM_OT_alembic_export(wmOperatorType *ot)
 
   RNA_def_boolean(
       ot->srna, "selected", false, "Selected Objects Only", "Export only selected objects");
-
-  RNA_def_boolean(ot->srna,
-                  "visible_objects_only",
-                  false,
-                  "Visible Objects Only",
-                  "Export only objects that are visible");
 
   RNA_def_boolean(ot->srna,
                   "flatten",
@@ -568,23 +565,29 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
 /* ************************************************************************** */
 
-static void ui_alembic_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
+static void ui_alembic_import_settings(const bContext *C,
+                                       blender::ui::Layout *layout,
+                                       PointerRNA *ptr)
 {
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
-  if (uiLayout *panel = layout->panel(C, "ABC_import_general", false, IFACE_("General"))) {
-    uiLayout *col = &panel->column(false);
-    col->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (blender::ui::Layout *panel = layout->panel(
+          C, "ABC_import_general", false, IFACE_("General")))
+  {
+    blender::ui::Layout &col = panel->column(false);
+    col.prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (uiLayout *panel = layout->panel(C, "ABC_import_options", false, IFACE_("Options"))) {
-    uiLayout *col = &panel->column(false);
-    col->prop(ptr, "relative_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(ptr, "set_frame_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(ptr, "is_sequence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(ptr, "always_add_cache_reader", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (blender::ui::Layout *panel = layout->panel(
+          C, "ABC_import_options", false, IFACE_("Options")))
+  {
+    blender::ui::Layout &col = panel->column(false);
+    col.prop(ptr, "relative_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "set_frame_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "is_sequence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "always_add_cache_reader", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

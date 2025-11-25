@@ -34,13 +34,15 @@ namespace blender::nodes::node_composite_cornerpin_cc {
 static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Plane").structure_type(StructureType::Dynamic);
+  b.allow_any_socket_order();
 
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+  b.add_output<decl::Float>("Plane").structure_type(StructureType::Dynamic);
+
   b.add_input<decl::Vector>("Upper Left")
       .subtype(PROP_FACTOR)
       .dimensions(2)
@@ -70,15 +72,18 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
-      .description("Interpolation method");
+      .description("Interpolation method")
+      .optional_label();
   sampling_panel.add_input<decl::Menu>("Extension X")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
-      .description("The extension mode applied to the X axis");
+      .description("The extension mode applied to the X axis")
+      .optional_label();
   sampling_panel.add_input<decl::Menu>("Extension Y")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
-      .description("The extension mode applied to the Y axis");
+      .description("The extension mode applied to the Y axis")
+      .optional_label();
 }
 
 static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
@@ -180,7 +185,7 @@ class CornerPinOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     if (plane_mask) {
@@ -202,14 +207,14 @@ class CornerPinOperation : public NodeOperation {
     const ExtensionMode extension_mode_x = this->get_extension_mode_x();
     const ExtensionMode extension_mode_y = this->get_extension_mode_y();
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     parallel_for(size, [&](const int2 texel) {
       float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
 
       float3 transformed_coordinates = float3x3(homography_matrix) * float3(coordinates, 1.0f);
       /* Point is at infinity and will be zero when sampled, so early exit. */
       if (transformed_coordinates.z == 0.0f) {
-        output.store_pixel(texel, float4(0.0f));
+        output.store_pixel(texel, Color(float4(0.0f)));
         return;
       }
 
@@ -217,8 +222,8 @@ class CornerPinOperation : public NodeOperation {
       float4 sampled_color;
 
       if (interpolation != Interpolation::Anisotropic) {
-        sampled_color = input.sample(
-            projected_coordinates, interpolation, extension_mode_x, extension_mode_y);
+        sampled_color = float4(input.sample<Color>(
+            projected_coordinates, interpolation, extension_mode_x, extension_mode_y));
       }
       else {
         /* The derivatives of the projected coordinates with respect to x and y are the first and
@@ -233,7 +238,7 @@ class CornerPinOperation : public NodeOperation {
       float4 plane_color = plane_mask ? sampled_color * plane_mask->load_pixel<float>(texel) :
                                         sampled_color;
 
-      output.store_pixel(texel, plane_color);
+      output.store_pixel(texel, Color(plane_color));
     });
   }
 
@@ -263,7 +268,7 @@ class CornerPinOperation : public NodeOperation {
     plane_mask.allocate_texture(domain);
     plane_mask.bind_as_image(shader, "mask_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     plane_mask.unbind_as_image();
     GPU_shader_unbind();
@@ -279,7 +284,7 @@ class CornerPinOperation : public NodeOperation {
     Result plane_mask = context().create_result(ResultType::Float);
     plane_mask.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     parallel_for(size, [&](const int2 texel) {
       float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
 

@@ -97,12 +97,12 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     return;
   }
 
-  /* UPBGE shadows artifacts GPU skinning fix */
+  /* UPBGE shadows artifacts GPU deform fix */
   if (ob->type == OB_MESH) {
     Mesh *me_eval = (Mesh *)ob->data;
-    if (me_eval->is_running_skinning) {
+    if (me_eval->is_running_gpu_deform) {
       // Clear to avoid shadow artifacts.
-      inst_.shadows.mark_gpu_skinning_clear_needed();
+      inst_.shadows.mark_gpu_deform_clear_needed();
     }
   }
 
@@ -441,7 +441,12 @@ void SyncModule::sync_curves(Object *ob,
     }
     else {
       PassMain::Sub &sub_pass = matpass.sub_pass->sub("Curves SubPass");
-      gpu::Batch *geometry = curves_sub_pass_setup(sub_pass, inst_.scene, ob, matpass.gpumat);
+      const char *error = nullptr;
+      gpu::Batch *geometry = curves_sub_pass_setup(
+          sub_pass, inst_.scene, ob, error, matpass.gpumat);
+      if (error) {
+        inst_.info_append(error);
+      }
       sub_pass.draw(geometry, res_handle);
     }
   };

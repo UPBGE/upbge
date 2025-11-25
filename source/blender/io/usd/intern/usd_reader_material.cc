@@ -179,8 +179,20 @@ static void add_udim_tiles(Image *image, const blender::Vector<int> &indices)
 {
   image->source = IMA_SRC_TILED;
 
+  /* All images are created with a default, 1001, first tile. If this tile does not end up being
+   * used, it should be removed. */
+  ImageTile *first_tile = BKE_image_get_tile(image, 0);
+  bool remove_first = true;
+
   for (int tile_number : indices) {
     BKE_image_add_tile(image, tile_number, nullptr);
+    if (tile_number == first_tile->tile_number) {
+      remove_first = false;
+    }
+  }
+
+  if (remove_first) {
+    BKE_image_remove_tile(image, first_tile);
   }
 }
 
@@ -330,6 +342,8 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
         diffuse_color_input.GetAttr().Get(&val) && val.IsHolding<pxr::GfVec3f>())
     {
       pxr::GfVec3f color = val.UncheckedGet<pxr::GfVec3f>();
+      /* Note: The material is expected to be rendered by the Workbench render engine (Viewport
+       * Display), so no need to define a material node tree. */
       mtl->r = color[0];
       mtl->g = color[1];
       mtl->b = color[2];
@@ -454,6 +468,8 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
 
   /* Create the material. */
   Material *mtl = BKE_material_add(&bmain_, mtl_name.c_str());
+  mtl->nodetree = blender::bke::node_tree_add_tree_embedded(
+      &bmain_, &mtl->id, "USD Material Node Tree", "ShaderNodeTree");
   id_us_min(&mtl->id);
 
   if (read_usd_preview) {
@@ -495,9 +511,11 @@ void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
    * and output shaders. */
 
   /* Add the node tree. */
-  bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
-      nullptr, &mtl->id, "Shader Nodetree", "ShaderNodeTree");
-  mtl->use_nodes = true;
+  bNodeTree *ntree = mtl->nodetree;
+  if (mtl->nodetree == nullptr) {
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        nullptr, &mtl->id, "Shader Nodetree", "ShaderNodeTree");
+  }
 
   /* Create the Principled BSDF shader node. */
   bNode *principled = add_node(ntree, SH_NODE_BSDF_PRINCIPLED, {0.0f, 300.0f});
@@ -1544,8 +1562,7 @@ void build_material_map(const Main *bmain, blender::Map<std::string, Material *>
   BLI_assert_msg(r_mat_map.is_empty(), "The incoming material map should be empty");
 
   LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-    std::string usd_name = make_safe_name(material->id.name + 2, true);
-    r_mat_map.add_new(usd_name, material);
+    r_mat_map.add_new(material->id.name + 2, material);
   }
 }
 

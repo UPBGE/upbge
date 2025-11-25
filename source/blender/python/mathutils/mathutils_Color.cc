@@ -61,34 +61,54 @@ static PyObject *Color_to_tuple_ex(ColorObject *self, int ndigits)
 /** \name Color Type: `__new__` / `mathutils.Color()`
  * \{ */
 
-static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+static PyObject *Color_vectorcall(PyObject *type,
+                                  PyObject *const *args,
+                                  const size_t nargsf,
+                                  PyObject *kwnames)
 {
-  float col[3] = {0.0f, 0.0f, 0.0f};
-
-  if (kwds && PyDict_Size(kwds)) {
+  if (UNLIKELY(kwnames && PyTuple_GET_SIZE(kwnames))) {
     PyErr_SetString(PyExc_TypeError,
                     "mathutils.Color(): "
                     "takes no keyword args");
     return nullptr;
   }
 
-  switch (PyTuple_GET_SIZE(args)) {
-    case 0:
+  float col[3] = {0.0f, 0.0f, 0.0f};
+
+  const size_t nargs = PyVectorcall_NARGS(nargsf);
+  switch (nargs) {
+    case 0: {
       break;
-    case 1:
-      if (mathutils_array_parse(
-              col, COLOR_SIZE, COLOR_SIZE, PyTuple_GET_ITEM(args, 0), "mathutils.Color()") == -1)
-      {
+    }
+    case 1: {
+      if (mathutils_array_parse(col, COLOR_SIZE, COLOR_SIZE, args[0], "mathutils.Color()") == -1) {
         return nullptr;
       }
       break;
-    default:
-      PyErr_SetString(PyExc_TypeError,
-                      "mathutils.Color(): "
-                      "more than a single arg given");
+    }
+    default: {
+      PyErr_Format(PyExc_TypeError,
+                   "mathutils.Color(): "
+                   "takes at most 1 argument (%zd given)",
+                   nargs);
       return nullptr;
+    }
   }
-  return Color_CreatePyObject(col, type);
+  return Color_CreatePyObject(col, (PyTypeObject *)type);
+}
+
+static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  /* Only called on sub-classes. */
+  if (UNLIKELY(kwds && PyDict_GET_SIZE(kwds))) {
+    PyErr_SetString(PyExc_TypeError,
+                    "mathutils.Color(): "
+                    "takes no keyword args");
+    return nullptr;
+  }
+  PyObject *const *args_array = &PyTuple_GET_ITEM(args, 0);
+  const size_t args_array_num = PyTuple_GET_SIZE(args);
+  return Color_vectorcall(reinterpret_cast<PyObject *>(type), args_array, args_array_num, nullptr);
 }
 
 /** \} */
@@ -443,22 +463,25 @@ static PyObject *Color_richcmpr(PyObject *a, PyObject *b, int op)
   }
 
   switch (op) {
-    case Py_NE:
+    case Py_NE: {
       ok = !ok;
       ATTR_FALLTHROUGH;
-    case Py_EQ:
+    }
+    case Py_EQ: {
       res = ok ? Py_False : Py_True;
       break;
-
+    }
     case Py_LT:
     case Py_LE:
     case Py_GT:
-    case Py_GE:
+    case Py_GE: {
       res = Py_NotImplemented;
       break;
-    default:
+    }
+    default: {
       PyErr_BadArgument();
       return nullptr;
+    }
   }
 
   return Py_NewRef(res);
@@ -1393,7 +1416,7 @@ PyTypeObject color_Type = {
     /*tp_del*/ nullptr,
     /*tp_version_tag*/ 0,
     /*tp_finalize*/ nullptr,
-    /*tp_vectorcall*/ nullptr,
+    /*tp_vectorcall*/ Color_vectorcall,
 };
 
 #ifdef MATH_STANDALONE

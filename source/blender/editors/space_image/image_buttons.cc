@@ -102,14 +102,14 @@ static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
       icon = ICON_DOT;
     }
     uiBut *but = uiDefIconTextBut(
-        block, ButType::ButMenu, B_NOP, icon, str, 0, 0, UI_UNIT_X * 5, UI_UNIT_X, nullptr, "");
+        block, ButType::ButMenu, icon, str, 0, 0, UI_UNIT_X * 5, UI_UNIT_X, nullptr, "");
+    UI_but_retval_set(but, B_NOP);
     UI_but_func_set(but, [image, slot_id](bContext & /*C*/) { image->render_slot = slot_id; });
   }
 
   layout->separator();
   uiDefBut(block,
            ButType::Label,
-           0,
            IFACE_("Slot"),
            0,
            0,
@@ -183,40 +183,39 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
 
   const char *fake_name = ui_imageuser_layer_fake_name(rr);
   if (fake_name) {
-    uiDefButS(block,
-              ButType::ButMenu,
-              B_NOP,
-              fake_name,
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &iuser->layer,
-              0.0,
-              0.0,
-              "");
+    uiBut *but = uiDefButS(block,
+                           ButType::ButMenu,
+                           fake_name,
+                           0,
+                           0,
+                           UI_UNIT_X * 5,
+                           UI_UNIT_X,
+                           &iuser->layer,
+                           0.0,
+                           0.0,
+                           "");
+    UI_but_retval_set(but, B_NOP);
   }
 
   int nr = fake_name ? 1 : 0;
   for (RenderLayer *rl = static_cast<RenderLayer *>(rr->layers.first); rl; rl = rl->next, nr++) {
-    uiDefButS(block,
-              ButType::ButMenu,
-              B_NOP,
-              rl->name,
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &iuser->layer,
-              float(nr),
-              0.0,
-              "");
+    uiBut *but = uiDefButS(block,
+                           ButType::ButMenu,
+                           rl->name,
+                           0,
+                           0,
+                           UI_UNIT_X * 5,
+                           UI_UNIT_X,
+                           &iuser->layer,
+                           float(nr),
+                           0.0,
+                           "");
+    UI_but_retval_set(but, B_NOP);
   }
 
   layout->separator();
   uiDefBut(block,
            ButType::Label,
-           0,
            IFACE_("Layer"),
            0,
            0,
@@ -272,24 +271,23 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
     }
     BLI_addtail(&added_passes, BLI_genericNodeN(rpass->name));
 
-    uiDefButS(block,
-              ButType::ButMenu,
-              B_NOP,
-              IFACE_(rpass->name),
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &iuser->pass,
-              float(nr),
-              0.0,
-              "");
+    uiBut *but = uiDefButS(block,
+                           ButType::ButMenu,
+                           IFACE_(rpass->name),
+                           0,
+                           0,
+                           UI_UNIT_X * 5,
+                           UI_UNIT_X,
+                           &iuser->pass,
+                           float(nr),
+                           0.0,
+                           "");
+    UI_but_retval_set(but, B_NOP);
   }
 
   layout->separator();
   uiDefBut(block,
            ButType::Label,
-           0,
            IFACE_("Pass"),
            0,
            0,
@@ -329,7 +327,6 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
 
   uiDefBut(block,
            ButType::Label,
-           0,
            IFACE_("View"),
            0,
            0,
@@ -346,18 +343,18 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
   for (rview = static_cast<RenderView *>(rr ? rr->views.last : nullptr); rview;
        rview = rview->prev, nr--)
   {
-    uiDefButS(block,
-              ButType::ButMenu,
-              B_NOP,
-              IFACE_(rview->name),
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &iuser->view,
-              float(nr),
-              0.0,
-              "");
+    uiBut *but = uiDefButS(block,
+                           ButType::ButMenu,
+                           IFACE_(rview->name),
+                           0,
+                           0,
+                           UI_UNIT_X * 5,
+                           UI_UNIT_X,
+                           &iuser->view,
+                           float(nr),
+                           0.0,
+                           "");
+    UI_but_retval_set(but, B_NOP);
   }
 
   BKE_image_release_renderresult(scene, image, rr);
@@ -377,7 +374,6 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
 
   uiDefBut(block,
            ButType::Label,
-           0,
            IFACE_("View"),
            0,
            0,
@@ -392,18 +388,18 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
 
   nr = BLI_listbase_count(&image->views) - 1;
   for (iv = static_cast<ImageView *>(image->views.last); iv; iv = iv->prev, nr--) {
-    uiDefButS(block,
-              ButType::ButMenu,
-              B_NOP,
-              IFACE_(iv->name),
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &iuser->view,
-              float(nr),
-              0.0,
-              "");
+    uiBut *but = uiDefButS(block,
+                           ButType::ButMenu,
+                           IFACE_(iv->name),
+                           0,
+                           0,
+                           UI_UNIT_X * 5,
+                           UI_UNIT_X,
+                           &iuser->view,
+                           float(nr),
+                           0.0,
+                           "");
+    UI_but_retval_set(but, B_NOP);
   }
 }
 
@@ -867,8 +863,8 @@ void uiTemplateImage(uiLayout *layout,
     col->use_property_split_set(true);
 
     uiLayout *sub = &col->column(true);
-    sub->prop(&imaptr, "generated_width", UI_ITEM_NONE, "X", ICON_NONE);
-    sub->prop(&imaptr, "generated_height", UI_ITEM_NONE, "Y", ICON_NONE);
+    sub->prop(&imaptr, "generated_width", UI_ITEM_NONE, IFACE_("X"), ICON_NONE);
+    sub->prop(&imaptr, "generated_height", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
     col->prop(&imaptr, "use_generated_float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -1030,6 +1026,9 @@ void uiTemplateImageSettings(uiLayout *layout,
     if (ELEM(imf->exr_codec & OPENEXR_CODEC_MASK, R_IMF_EXR_CODEC_DWAA, R_IMF_EXR_CODEC_DWAB)) {
       col->prop(imfptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
+  }
+  if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
+    col->prop(imfptr, "use_exr_interleave", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (is_render_out && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
@@ -1247,8 +1246,14 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
       }
     }
 
-    blender::gpu::TextureFormat texture_format = IMB_gpu_get_texture_format(
-        ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->planes >= 8);
+    blender::gpu::TextureFormat texture_format = blender::gpu::TextureFormat::Invalid;
+
+    /* Try to see if this texture is a compressed format, if not, get the generic format. */
+    if (!IMB_gpu_get_compressed_format(ibuf, &texture_format)) {
+      texture_format = IMB_gpu_get_texture_format(
+          ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->planes >= 8);
+    }
+
     const char *texture_format_description = GPU_texture_format_name(texture_format);
     ofs += BLI_snprintf_utf8_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);
 

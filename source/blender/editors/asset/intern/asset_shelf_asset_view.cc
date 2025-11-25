@@ -63,8 +63,8 @@ class AssetViewItem : public ui::PreviewGridItem {
   AssetViewItem(asset_system::AssetRepresentation &asset_, StringRef identifier, StringRef label);
 
   void disable_asset_drag();
-  void build_grid_tile(const bContext &C, uiLayout &layout) const override;
-  void build_context_menu(bContext &C, uiLayout &column) const override;
+  void build_grid_tile(const bContext &C, ui::Layout &layout) const override;
+  void build_context_menu(bContext &C, ui::Layout &column) const override;
   std::optional<bool> should_be_active() const override;
   void on_activate(bContext &C) override;
   bool should_be_filtered_visible(StringRefNull filter_string) const override;
@@ -104,7 +104,8 @@ void AssetView::build_items()
   }
 
   list::iterate(library_ref_, [&](asset_system::AssetRepresentation &asset) {
-    if (shelf_.type->asset_poll && !shelf_.type->asset_poll(shelf_.type, &asset)) {
+    if (!shelf::type_asset_poll(*shelf_.type, asset)) {
+      /* Skip this asset. */
       return true;
     }
 
@@ -123,6 +124,12 @@ void AssetView::build_items()
     }
     if (shelf_.type->flag & ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG) {
       item.disable_asset_drag();
+    }
+    if (!shelf_.type->drag_operator.empty()) {
+      /* For now always select/activate items on click instead of press when there's a drag
+       * operator set. Important for pose library blending. Maybe we want to make this an explicit
+       * option of the asset shelf instead. */
+      item.select_on_click_set();
     }
     /* Make sure every click calls the #bl_activate_operator. We might want to add a flag to
      * enable/disable this. Or we only call #bl_activate_operator when an item becomes active, and
@@ -211,7 +218,7 @@ static std::optional<wmOperatorCallParams> create_asset_operator_params(
   return wmOperatorCallParams{ot, op_props, wm::OpCallContext::InvokeRegionWin};
 }
 
-void AssetViewItem::build_grid_tile(const bContext & /*C*/, uiLayout &layout) const
+void AssetViewItem::build_grid_tile(const bContext & /*C*/, ui::Layout &layout) const
 {
   const AssetView &asset_view = reinterpret_cast<const AssetView &>(this->get_view());
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
@@ -266,7 +273,7 @@ void AssetViewItem::build_grid_tile(const bContext & /*C*/, uiLayout &layout) co
   ui::PreviewGridItem::build_grid_tile_button(layout, preview_id);
 }
 
-void AssetViewItem::build_context_menu(bContext &C, uiLayout &column) const
+void AssetViewItem::build_context_menu(bContext &C, ui::Layout &column) const
 {
   const AssetView &asset_view = dynamic_cast<const AssetView &>(this->get_view());
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
@@ -334,7 +341,7 @@ static std::string filter_string_get(const AssetShelf &shelf)
   return search_string;
 }
 
-void build_asset_view(uiLayout &layout,
+void build_asset_view(ui::Layout &layout,
                       const AssetLibraryReference &library_ref,
                       const AssetShelf &shelf,
                       const bContext &C)
@@ -406,8 +413,11 @@ void *AssetDragController::create_drag_data() const
     return static_cast<void *>(local_id);
   }
 
-  const eAssetImportMethod import_method = asset_.get_import_method().value_or(
-      ASSET_IMPORT_APPEND_REUSE);
+  eAssetImportMethod import_method = asset_.get_import_method().value_or(ASSET_IMPORT_PACK);
+  if (U.experimental.no_data_block_packing && import_method == ASSET_IMPORT_PACK) {
+    import_method = ASSET_IMPORT_APPEND_REUSE;
+  }
+
   AssetImportSettings import_settings{};
   import_settings.method = import_method;
   import_settings.use_instance_collections = false;

@@ -57,7 +57,7 @@ struct ResourceIndex {
   uint32_t raw;
 
   ResourceIndex() = default;
-  ResourceIndex(uint raw_) : raw(raw_){};
+  ResourceIndex(uint raw_) : raw(raw_) {};
   ResourceIndex(uint index, bool inverted_handedness)
   {
     raw = index;
@@ -446,6 +446,15 @@ class ObjectKey {
       sub_key_ = sub_key;
       hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
     }
+  }
+
+  /* Special handles that will have nullptr object.
+   * Used for inserting helper items inside the hash-maps without creating a dummy #Object. */
+  explicit ObjectKey(int key)
+  {
+    sub_key_ = key;
+    hash_value_ = get_default_hash(ob_);
+    hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
   }
 
   uint64_t hash() const

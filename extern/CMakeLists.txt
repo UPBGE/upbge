@@ -64,15 +64,6 @@ endif()
 if(WITH_GAMEENGINE)
 	add_subdirectory(recastnavigation)
 endif()
-
-if(WITH_LZO AND NOT WITH_SYSTEM_LZO)
-  add_subdirectory(lzo)
-endif()
-
-if(WITH_LZMA)
-  add_subdirectory(lzma)
-endif()
-
 if(WITH_CYCLES OR WITH_OPENSUBDIV)
   if((WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX) AND WITH_CUDA_DYNLOAD)
     add_subdirectory(cuew)

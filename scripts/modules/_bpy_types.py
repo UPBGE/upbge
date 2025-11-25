@@ -135,17 +135,19 @@ class Library(_types.ID):
         # we could make this an attribute in rna.
         attr_links = (
             "actions", "armatures", "brushes", "cameras",
-            "curves", "grease_pencils_v3", "collections", "images",
+            "curves", "grease_pencils", "collections", "images",
             "lights", "lattices", "materials", "metaballs",
             "meshes", "node_groups", "objects", "scenes",
             "sounds", "speakers", "textures", "texts",
             "fonts", "worlds",
         )
 
-        return tuple(id_block
-                     for attr in attr_links
-                     for id_block in getattr(bpy.data, attr)
-                     if id_block.library == self)
+        return tuple(
+            id_block
+            for attr in attr_links
+            for id_block in getattr(bpy.data, attr)
+            if id_block.library == self
+        )
 
 
 class Texture(_types.ID):
@@ -979,7 +981,7 @@ class Gizmo(_StructRNA):
 
         with gpu.matrix.push_pop():
             gpu.matrix.multiply_matrix(matrix)
-            batch.draw()
+            batch.draw(shader)
 
         if use_blend:
             gpu.state.blend_set('NONE')
@@ -1011,7 +1013,6 @@ class Gizmo(_StructRNA):
         vbo.attr_fill(id=pos_id, data=verts)
         batch = GPUBatch(type=type, buf=vbo)
         shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-        batch.program_set(shader)
         return (batch, shader)
 
 
@@ -1207,10 +1208,18 @@ class Header(_StructRNA, _GenericUI, metaclass=_RNAMeta):
 class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
     __slots__ = ()
 
-    def path_menu(self, searchpaths, operator, *,
-                  props_default=None, prop_filepath="filepath",
-                  filter_ext=None, filter_path=None, display_name=None,
-                  add_operator=None, add_operator_props=None):
+    def path_menu(
+        self, searchpaths, operator,
+        *,
+        props_default=None,
+        prop_filepath="filepath",
+        filter_ext=None,
+        filter_path=None,
+        display_name=None,
+        add_operator=None,
+        add_operator_props=None,
+        translate=True,
+    ):
         """
         Populate a menu from a list of paths.
 
@@ -1271,7 +1280,7 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             name = display_name(filepath) if display_name else bpy.path.display_name(f)
             props = row.operator(
                 operator,
-                text=iface_(name),
+                text=(iface_(name) if translate else name),
                 translate=False,
             )
 
@@ -1380,14 +1389,16 @@ class NodeSocket(_StructRNA, metaclass=_RNAMetaPropGroup):
 
         .. note:: Takes ``O(len(nodetree.links))`` time.
         """
-        links = (link for link in self.id_data.links
-                 if self in (link.from_socket, link.to_socket))
-
+        links = (
+            link for link in self.id_data.links
+            if self in (link.from_socket, link.to_socket)
+        )
         if not self.is_output:
-            links = sorted(links,
-                           key=lambda link: link.multi_input_sort_id,
-                           reverse=True)
-
+            links = sorted(
+                links,
+                key=lambda link: link.multi_input_sort_id,
+                reverse=True,
+            )
         return tuple(links)
 
 
@@ -1526,3 +1537,48 @@ class GreasePencilDrawing(_StructRNA):
         from _bpy_internal.grease_pencil.stroke import GreasePencilStrokeSlice
         num_strokes = self.attributes.domain_size('CURVE')
         return GreasePencilStrokeSlice(self, 0, num_strokes)
+
+
+class Material(_types.ID):
+    __slots__ = ()
+
+    def inline_shader_nodes(self):
+        """
+        Get the inlined shader nodes of this material. This preprocesses the node tree
+        to remove nested groups, repeat zones and more.
+
+        :return: The inlined shader nodes.
+        :rtype: :class:`bpy.types.InlineShaderNodes`
+        """
+        from bpy.types import InlineShaderNodes
+        return InlineShaderNodes.from_material(self)
+
+
+class Light(_types.ID):
+    __slots__ = ()
+
+    def inline_shader_nodes(self):
+        """
+        Get the inlined shader nodes of this light. This preprocesses the node tree
+        to remove nested groups, repeat zones and more.
+
+        :return: The inlined shader nodes.
+        :rtype: :class:`bpy.types.InlineShaderNodes`
+        """
+        from bpy.types import InlineShaderNodes
+        return InlineShaderNodes.from_light(self)
+
+
+class World(_types.ID):
+    __slots__ = ()
+
+    def inline_shader_nodes(self):
+        """
+        Get the inlined shader nodes of this world. This preprocesses the node tree
+        to remove nested groups, repeat zones and more.
+
+        :return: The inlined shader nodes.
+        :rtype: :class:`bpy.types.InlineShaderNodes`
+        """
+        from bpy.types import InlineShaderNodes
+        return InlineShaderNodes.from_world(self)

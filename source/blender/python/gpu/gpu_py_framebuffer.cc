@@ -30,7 +30,7 @@
 #include "gpu_py_texture.hh"
 
 /* -------------------------------------------------------------------- */
-/** \name GPUFrameBuffer Common Utilities
+/** \name gpu::FrameBuffer Common Utilities
  * \{ */
 
 static int pygpu_framebuffer_valid_check(BPyGPUFrameBuffer *bpygpu_fb)
@@ -50,7 +50,7 @@ static int pygpu_framebuffer_valid_check(BPyGPUFrameBuffer *bpygpu_fb)
   } \
   ((void)0)
 
-static void pygpu_framebuffer_free_if_possible(GPUFrameBuffer *fb)
+static void pygpu_framebuffer_free_if_possible(blender::gpu::FrameBuffer *fb)
 {
   if (GPU_is_init()) {
     GPU_framebuffer_free(fb);
@@ -78,7 +78,7 @@ static void pygpu_framebuffer_free_safe(BPyGPUFrameBuffer *self)
 /* Keep less than or equal to #FRAMEBUFFER_STACK_DEPTH */
 #define GPU_PY_FRAMEBUFFER_STACK_LEN 16
 
-static bool pygpu_framebuffer_stack_push_and_bind_or_error(GPUFrameBuffer *fb)
+static bool pygpu_framebuffer_stack_push_and_bind_or_error(blender::gpu::FrameBuffer *fb)
 {
   if (GPU_framebuffer_stack_level_get() >= GPU_PY_FRAMEBUFFER_STACK_LEN) {
     PyErr_SetString(
@@ -91,7 +91,7 @@ static bool pygpu_framebuffer_stack_push_and_bind_or_error(GPUFrameBuffer *fb)
   return true;
 }
 
-static bool pygpu_framebuffer_stack_pop_and_restore_or_error(GPUFrameBuffer *fb)
+static bool pygpu_framebuffer_stack_pop_and_restore_or_error(blender::gpu::FrameBuffer *fb)
 {
   if (GPU_framebuffer_stack_level_get() == 0) {
     PyErr_SetString(PyExc_RuntimeError, "Minimum framebuffer stack depth reached");
@@ -103,7 +103,7 @@ static bool pygpu_framebuffer_stack_pop_and_restore_or_error(GPUFrameBuffer *fb)
     return false;
   }
 
-  GPUFrameBuffer *fb_prev = GPU_framebuffer_pop();
+  blender::gpu::FrameBuffer *fb_prev = GPU_framebuffer_pop();
   GPU_framebuffer_bind(fb_prev);
   return true;
 }
@@ -398,7 +398,7 @@ static PyObject *pygpu_framebuffer__tp_new(PyTypeObject * /*self*/, PyObject *ar
     }
   }
 
-  GPUFrameBuffer *fb_python = GPU_framebuffer_create("fb_python");
+  blender::gpu::FrameBuffer *fb_python = GPU_framebuffer_create("fb_python");
   GPU_framebuffer_config_array(fb_python, config, color_attachements_len + 1);
 
   return BPyGPUFrameBuffer_CreatePyObject(fb_python, false);
@@ -455,14 +455,14 @@ static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args
     return nullptr;
   }
 
-  eGPUFrameBufferBits buffers = eGPUFrameBufferBits(0);
+  GPUFrameBufferBits buffers = GPUFrameBufferBits(0);
   float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
   float depth = 1.0f;
   uint stencil = 0;
 
   if (py_col && py_col != Py_None) {
-    if (mathutils_array_parse(col, 3, 4, py_col, "GPUFrameBuffer.clear(), invalid 'color' arg") ==
-        -1)
+    if (mathutils_array_parse(
+            col, 3, 4, py_col, "gpu::FrameBuffer.clear(), invalid 'color' arg") == -1)
     {
       return nullptr;
     }
@@ -879,7 +879,7 @@ PyTypeObject BPyGPUFrameBuffer_Type = {
 /** \name Public API
  * \{ */
 
-PyObject *BPyGPUFrameBuffer_CreatePyObject(GPUFrameBuffer *fb, bool shared_reference)
+PyObject *BPyGPUFrameBuffer_CreatePyObject(blender::gpu::FrameBuffer *fb, bool shared_reference)
 {
   BPyGPUFrameBuffer *self;
 

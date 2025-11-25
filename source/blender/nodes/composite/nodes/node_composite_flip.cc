@@ -21,13 +21,16 @@ namespace blender::nodes::node_composite_flip_cc {
 
 static void cmp_node_flip_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Bool>("Flip X").default_value(false);
   b.add_input<decl::Bool>("Flip Y").default_value(false);
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -69,7 +72,7 @@ class FlipOperation : public NodeOperation {
     result.allocate_texture(domain);
     result.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input.unbind_as_texture();
     result.unbind_as_image();
@@ -87,8 +90,8 @@ class FlipOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
-    parallel_for(domain.size, [&](const int2 texel) {
+    const int2 size = domain.data_size;
+    parallel_for(domain.data_size, [&](const int2 texel) {
       int2 flipped_texel = texel;
       if (flip_x) {
         flipped_texel.x = size.x - texel.x - 1;
@@ -96,7 +99,7 @@ class FlipOperation : public NodeOperation {
       if (flip_y) {
         flipped_texel.y = size.y - texel.y - 1;
       }
-      output.store_pixel(texel, input.load_pixel<float4>(flipped_texel));
+      output.store_pixel(texel, input.load_pixel<Color>(flipped_texel));
     });
   }
 

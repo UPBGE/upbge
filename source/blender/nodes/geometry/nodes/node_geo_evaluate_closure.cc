@@ -17,6 +17,7 @@
 #include "BLO_read_write.hh"
 
 #include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
 namespace blender::nodes::node_geo_evaluate_closure_cc {
 
@@ -38,8 +39,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier =
           EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      panel.add_output(socket_type, item.name, identifier)
-          .structure_type(StructureType(item.structure_type));
+      auto &decl = panel.add_output(socket_type, item.name, identifier);
+      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+        decl.structure_type(StructureType(item.structure_type));
+      }
+      else {
+        decl.structure_type(StructureType::Dynamic);
+      }
     }
     panel.add_output<decl::Extend>("", "__extend__");
     for (const int i : IndexRange(storage.input_items.items_num)) {
@@ -47,8 +53,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier = EvaluateClosureInputItemsAccessor::socket_identifier_for_item(
           item);
-      panel.add_input(socket_type, item.name, identifier)
-          .structure_type(StructureType(item.structure_type));
+      auto &decl = panel.add_input(socket_type, item.name, identifier);
+      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+        decl.structure_type(StructureType(item.structure_type));
+      }
+      else {
+        decl.structure_type(StructureType::Dynamic);
+      }
     }
     panel.add_input<decl::Extend>("", "__extend__");
   }
@@ -107,15 +118,21 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
-  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+  layout->op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
+  layout->prop(ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
+          const auto &item = *item_ptr->data_as<NodeEvaluateClosureInputItem>();
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
+            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
+          }
         });
   }
   if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
@@ -123,8 +140,13 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
+          const auto &item = *item_ptr->data_as<NodeEvaluateClosureOutputItem>();
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
+            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
+          }
         });
   }
 }
@@ -140,7 +162,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_IN) {
-    params.add_item("Item", [](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("NodeEvaluateClosure");
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<EvaluateClosureOutputItemsAccessor>(
@@ -150,7 +172,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   if (other_socket.type == SOCK_CLOSURE) {
-    params.add_item("Closure", [](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Closure"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("NodeEvaluateClosure");
       params.connect_available_socket(node, "Closure");
 
@@ -162,7 +184,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
                                                               params.node_tree().type))
   {
     params.add_item(
-        "Item",
+        IFACE_("Item"),
         [](LinkSearchOpParams &params) {
           bNode &node = params.add_node("NodeEvaluateClosure");
           const auto *item =
@@ -198,8 +220,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "NodeEvaluateClosure", NODE_EVALUATE_CLOSURE);
+  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure", NODE_EVALUATE_CLOSURE);
   ntype.ui_name = "Evaluate Closure";
+  ntype.ui_description = "Execute a given closure";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

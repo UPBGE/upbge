@@ -23,6 +23,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_memory_cache.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
@@ -37,7 +38,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
@@ -48,7 +49,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 
 #include "BKE_addon.h"
@@ -175,11 +176,6 @@ void WM_init_gpu()
   DRW_gpu_context_disable_ex(true);
 
   gpu_is_init = true;
-}
-
-bool WM_gpu_is_initialized()
-{
-  return gpu_is_init;
 }
 
 static void sound_jack_sync_callback(Main *bmain, int mode, double time)
@@ -495,8 +491,6 @@ bool WM_init_game(bContext *C)
     WM_operator_name_call(
         C, "VIEW3D_OT_game_start", blender::wm::OpCallContext::ExecDefault, NULL, NULL);
 
-    BKE_sound_exit();
-
     return true;
   }
   else {
@@ -566,12 +560,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 {
   using namespace blender;
   wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
-
-  if (gpu_is_init) {
-    /* We need a context bound even when dealing with non context dependent GPU resources,
-     * since GL functions may be null otherwise (See #141233, #144526). */
-    DRW_gpu_context_enable();
-  }
 
   /* While nothing technically prevents saving user data in background mode,
    * don't do this as not typically useful and more likely to cause problems
@@ -681,6 +669,10 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   BKE_mball_cubeTable_free();
 
+  /* Clear the cache which may (indirectly) contain e.g. GPU resources which need to be freed
+   * before the GPU backend is destroyed. */
+  memory_cache::clear();
+
   /* Render code might still access databases. */
   RE_FreeAllRender();
   RE_engines_exit();
@@ -762,6 +754,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* Delete GPU resources and context. The UI also uses GPU resources and so
    * is also deleted with the context active. */
   if (gpu_is_init) {
+    DRW_gpu_context_enable_ex(false);
     UI_exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();

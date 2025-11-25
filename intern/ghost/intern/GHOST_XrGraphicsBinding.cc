@@ -32,6 +32,9 @@
 #ifdef WITH_VULKAN_BACKEND
 #  include "GHOST_XrGraphicsBindingVulkan.hh"
 #endif
+#ifdef WITH_METAL_BACKEND
+#  include "GHOST_XrGraphicsBindingMetal.hh"
+#endif
 
 #include "GHOST_C-api.h"
 #include "GHOST_XrException.hh"
@@ -219,13 +222,13 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
         GL_RGB10_A2,
         GL_RGBA16,
 #  endif
-      GL_RGBA16F,
+        GL_RGBA16F,
 #  if 1
-      GL_RGB10_A2,
-      GL_RGBA16,
+        GL_RGB10_A2,
+        GL_RGBA16,
 #  endif
-      GL_RGBA8,
-      GL_SRGB8_ALPHA8,
+        GL_RGBA8,
+        GL_SRGB8_ALPHA8,
     };
 
     std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
@@ -323,6 +326,10 @@ std::unique_ptr<GHOST_IXrGraphicsBinding> GHOST_XrGraphicsBindingCreateFromType(
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kXrGraphicsVulkan:
       return std::make_unique<GHOST_XrGraphicsBindingVulkan>(context);
+#endif
+#ifdef WITH_METAL_BACKEND
+    case GHOST_kXrGraphicsMetal:
+      return std::make_unique<GHOST_XrGraphicsBindingMetal>(context);
 #endif
 #ifdef WIN32
 #  ifdef WITH_OPENGL_BACKEND

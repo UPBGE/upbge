@@ -499,7 +499,7 @@ static void select_pchan_for_action_group(bAnimContext *ac,
   /* Armatures-Specific Feature:
    * See mouse_anim_channels() -> ANIMTYPE_GROUP case for more details (#38737)
    */
-  if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) == 0) {
+  if ((ac->filters.flag & ADS_FILTER_ONLYSEL) == 0) {
     if ((ale->id) && (GS(ale->id->name) == ID_OB)) {
       Object *ob = reinterpret_cast<Object *>(ale->id);
       if (ob->type == OB_ARMATURE) {
@@ -2905,6 +2905,55 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
   return has_skipped_group;
 }
 
+void ED_anim_ale_fcurve_delete(bAnimContext &ac, bAnimListElem &ale)
+{
+  UNUSED_VARS_NDEBUG(ac);
+  BLI_assert(ELEM(ale.type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE));
+
+  switch (ale.type) {
+    case ANIMTYPE_FCURVE: {
+      AnimData *adt = ale.adt;
+      FCurve *fcu = static_cast<FCurve *>(ale.data);
+
+      BLI_assert_msg((fcu->driver != nullptr) == (ac.datatype == ANIMCONT_DRIVERS),
+                     "Expecting only driver F-Curves in the drivers editor");
+
+      if (ale.fcurve_owner_id && GS(ale.fcurve_owner_id->name) == ID_AC) {
+        /* F-Curves can be owned by Actions assigned to NLA strips, which
+         * `animrig::animdata_fcurve_delete()` (below) cannot handle. */
+        BLI_assert_msg(!fcu->driver, "Drivers are not expected to be owned by Actions");
+        blender::animrig::Action &action =
+            reinterpret_cast<bAction *>(ale.fcurve_owner_id)->wrap();
+        BLI_assert(!action.is_action_legacy());
+        action_fcurve_remove(action, *fcu);
+      }
+      else if (fcu->driver || adt->action) {
+        /* This function only works for drivers & directly-assigned Actions: */
+        blender::animrig::animdata_fcurve_delete(adt, fcu);
+      }
+      else {
+        BLI_assert_unreachable();
+      }
+      break;
+    }
+    case ANIMTYPE_NLACURVE: {
+      /* NLA Control Curve. */
+      NlaStrip *strip = static_cast<NlaStrip *>(ale.owner);
+      FCurve *fcu = static_cast<FCurve *>(ale.data);
+      if (!BKE_nlastrip_controlcurve_remove(strip, fcu)) {
+        printf("ERROR: Trying to delete NLA Control Curve for unknown property '%s'\n",
+               fcu->rna_path);
+      }
+      break;
+    }
+
+    default:
+      BLI_assert_unreachable();
+  }
+
+  tag_update_animation_element(&ale);
+}
+
 static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
@@ -2941,55 +2990,11 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
   /* delete selected data channels */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     switch (ale->type) {
-      case ANIMTYPE_FCURVE: {
-        /* F-Curves if we can identify its parent */
-        AnimData *adt = ale->adt;
-        FCurve *fcu = static_cast<FCurve *>(ale->data);
-
-        /* try to free F-Curve */
-        BLI_assert_msg((fcu->driver != nullptr) == (ac.datatype == ANIMCONT_DRIVERS),
-                       "Expecting only driver F-Curves in the drivers editor");
-        if (ale->fcurve_owner_id && GS(ale->fcurve_owner_id->name) == ID_AC) {
-          /* F-Curves can be owned by Actions assigned to NLA strips, which
-           * `animrig::animdata_fcurve_delete()` (below) cannot handle. */
-          BLI_assert_msg(!fcu->driver, "Drivers are not expected to be owned by Actions");
-          blender::animrig::Action &action =
-              reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
-          BLI_assert(!action.is_action_legacy());
-          action_fcurve_remove(action, *fcu);
-        }
-        else if (fcu->driver || adt->action) {
-          /* This function only works for drivers & directly-assigned Actions: */
-          blender::animrig::animdata_fcurve_delete(adt, fcu);
-        }
-        else {
-          BLI_assert_unreachable();
-        }
-        tag_update_animation_element(ale);
+      case ANIMTYPE_FCURVE:
+      case ANIMTYPE_NLACURVE:
+        ED_anim_ale_fcurve_delete(ac, *ale);
         break;
-      }
-      case ANIMTYPE_NLACURVE: {
-        /* NLA Control Curve - Deleting it should disable the corresponding setting... */
-        NlaStrip *strip = static_cast<NlaStrip *>(ale->owner);
-        FCurve *fcu = static_cast<FCurve *>(ale->data);
 
-        if (STREQ(fcu->rna_path, "strip_time")) {
-          strip->flag &= ~NLASTRIP_FLAG_USR_TIME;
-        }
-        else if (STREQ(fcu->rna_path, "influence")) {
-          strip->flag &= ~NLASTRIP_FLAG_USR_INFLUENCE;
-        }
-        else {
-          printf("ERROR: Trying to delete NLA Control Curve for unknown property '%s'\n",
-                 fcu->rna_path);
-        }
-
-        /* unlink and free the F-Curve */
-        BLI_remlink(&strip->fcurves, fcu);
-        BKE_fcurve_free(fcu);
-        tag_update_animation_element(ale);
-        break;
-      }
       case ANIMTYPE_GPLAYER: {
         /* Grease Pencil layer */
         bGPdata *gpd = reinterpret_cast<bGPdata *>(ale->id);
@@ -4347,7 +4352,7 @@ static int click_select_channel_group(bAnimContext *ac,
    * Only do this if "Only Selected" dope-sheet filter is not active, or else it
    * becomes too unpredictable/tricky to manage
    */
-  if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) == 0) {
+  if ((ac->filters.flag & ADS_FILTER_ONLYSEL) == 0) {
     if ((ale->id) && (GS(ale->id->name) == ID_OB)) {
       ob = reinterpret_cast<Object *>(ale->id);
 
@@ -5262,22 +5267,27 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
 
   Scene *scene = CTX_data_scene(C);
 
-  /* The range will default to the scene or preview range, but only if it hasn't been set before.
-   * If a range is set here, the redo panel wouldn't work properly because the range would
-   * constantly be overridden. */
   blender::int2 frame_range;
-  RNA_int_get_array(op->ptr, "range", frame_range);
-  frame_range[1] = std::max(frame_range[1], frame_range[0]);
-  const float step = RNA_float_get(op->ptr, "step");
-  if (frame_range[0] == 0 && frame_range[1] == 0) {
-    if (scene->r.flag & SCER_PRV_RANGE) {
-      frame_range = {scene->r.psfra, scene->r.pefra};
-    }
-    else {
-      frame_range = {scene->r.sfra, scene->r.efra};
-    }
+  if (scene->r.flag & SCER_PRV_RANGE) {
+    frame_range = {scene->r.psfra, scene->r.pefra};
+  }
+  else {
+    frame_range = {scene->r.sfra, scene->r.efra};
+  }
+
+  /* The range property will default to the scene or preview range, but only if it hasn't been set
+   * before. */
+  blender::int2 rna_range;
+  RNA_int_get_array(op->ptr, "range", rna_range);
+  if (rna_range[0] == 0 && rna_range[1] == 0) {
     RNA_int_set_array(op->ptr, "range", frame_range);
   }
+
+  if (!RNA_boolean_get(op->ptr, "use_scene_range")) {
+    frame_range = rna_range;
+  }
+
+  frame_range[1] = std::max(frame_range[1], frame_range[0]);
 
   const bool remove_outside_range = RNA_boolean_get(op->ptr, "remove_outside_range");
   const BakeCurveRemove remove_existing = remove_outside_range ? BakeCurveRemove::ALL :
@@ -5312,6 +5322,7 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
      * changed. */
     const char segment_end_interpolation = fcu->bezt[min_ii(last_index, fcu->totvert - 1)].ipo;
 
+    const float step = RNA_float_get(op->ptr, "step");
     bake_fcurve(fcu, nla_mapped_range, step, remove_existing);
 
     if (bake_modifiers) {
@@ -5344,6 +5355,17 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool channels_bake_poll_property(const bContext * /* C */,
+                                        wmOperator *op,
+                                        const PropertyRNA *prop)
+{
+  const char *prop_id = RNA_property_identifier(prop);
+  if (STREQ(prop_id, "range")) {
+    return !RNA_boolean_get(op->ptr, "use_scene_range");
+  }
+  return true;
+}
+
 static void ANIM_OT_channels_bake(wmOperatorType *ot)
 {
   /* Identifiers */
@@ -5355,18 +5377,27 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
   /* API callbacks */
   ot->exec = channels_bake_exec;
   ot->poll = channel_view_poll;
+  ot->poll_property = channels_bake_poll_property;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  RNA_def_int_array(ot->srna,
-                    "range",
-                    2,
-                    nullptr,
-                    INT_MIN,
-                    INT_MAX,
-                    "Frame Range",
-                    "The range in which to create new keys",
-                    0,
-                    INT_MAX);
+  RNA_def_boolean(
+      ot->srna,
+      "use_scene_range",
+      true,
+      "Use Scene Range",
+      "If enabled, the scene start and end frame will be used to determine the bake range");
+
+  RNA_def_int_array(
+      ot->srna,
+      "range",
+      2,
+      nullptr,
+      INT_MIN,
+      INT_MAX,
+      "Frame Range",
+      "The custom range in which to create new keys. Only used when not using the scene range",
+      0,
+      INT_MAX);
 
   RNA_def_float(ot->srna,
                 "step",

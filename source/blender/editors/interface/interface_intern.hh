@@ -11,6 +11,7 @@
 #include <functional>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -41,7 +42,6 @@ struct LayoutPanelHeader;
 struct Main;
 struct Scene;
 struct uiHandleButtonData;
-struct uiLayout;
 struct uiListType;
 struct uiStyle;
 struct uiUndoStack_Text;
@@ -51,6 +51,10 @@ struct wmEvent;
 struct wmKeyConfig;
 struct wmOperatorType;
 struct wmTimer;
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
 
 /* ****************** general defines ************** */
 
@@ -148,9 +152,6 @@ extern const short ui_radial_dir_to_angle[8];
 /** Split number-buttons by ':' and align left/right. */
 #define USE_NUMBUTS_LR_ALIGN
 
-/** Use new 'align' computation code. */
-#define USE_UIBUT_SPATIAL_ALIGN
-
 /** #PieMenuData.flags */
 enum {
   /** Use initial center of pie menu to calculate direction. */
@@ -192,7 +193,7 @@ typedef struct {
 struct uiBut {
 
   /** Pointer back to the layout item holding this button. */
-  uiLayout *layout = nullptr;
+  blender::ui::Layout *layout = nullptr;
   int flag = 0;
   int drawflag = 0;
   char flag2 = 0;
@@ -529,16 +530,16 @@ struct ColorPicker {
   bool is_init;
 
   /**
-   * HSV or HSL in color picker space used for number sliders. This is the same
-   * colorspace as the rgb slider for a clear correspondence.
+   * HSV or HSL in color picker space used for number sliders.
    */
-  float hsv_slider[3];
+  float hsv_perceptual_slider[3];
+  float hsv_linear_slider[3];
 
   /*
    * RGB in color picker used for number sliders, when the space is not scene linear.
    * When it is linear, the RNA property is used directly so that keyframing works.
    */
-  float rgb_slider[3];
+  float rgb_perceptual_slider[3];
 
   /* Hex Color string */
   char hexcol[128];
@@ -589,7 +590,7 @@ enum uiButtonGroupFlag {
   /** The buttons in this group are inside a panel header. */
   UI_BUTTON_GROUP_PANEL_HEADER = (1 << 1),
 };
-ENUM_OPERATORS(uiButtonGroupFlag, UI_BUTTON_GROUP_PANEL_HEADER);
+ENUM_OPERATORS(uiButtonGroupFlag);
 
 /**
  * A group of button references, used by property search to keep track of sets of buttons that
@@ -623,7 +624,7 @@ struct uiBlock {
   blender::Vector<uiButtonGroup> button_groups;
 
   ListBase layouts;
-  uiLayout *curlayout;
+  blender::ui::Layout *curlayout;
 
   blender::Vector<std::unique_ptr<bContextStore>> contexts;
 
@@ -783,6 +784,8 @@ void ui_window_to_region(const ARegion *region, int *x, int *y);
 void ui_window_to_region_rcti(const ARegion *region, rcti *rect_dst, const rcti *rct_src);
 void ui_window_to_region_rctf(const ARegion *region, rctf *rect_dst, const rctf *rct_src);
 void ui_region_to_window(const ARegion *region, int *x, int *y);
+void ui_region_to_window(
+    const ARegion *region, int region_x, int region_y, int *r_window_x, int *r_window_y);
 /**
  * Popups will add a margin to #ARegion.winrct for shadow,
  * for interactivity (point-inside tests for eg), we want the winrct without the margin added.
@@ -936,7 +939,7 @@ struct uiKeyNavLock {
   blender::int2 event_xy = blender::int2(0);
 };
 
-using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
+using uiBlockHandleCreateFunc = uiBlock *(*)(bContext * C, uiPopupBlockHandle *handle, void *arg1);
 
 struct uiPopupBlockCreate {
   uiBlockCreateFunc create_func = nullptr;
@@ -1106,7 +1109,7 @@ uiPopupBlockHandle *ui_popup_menu_create(
 
 /* `interface_region_popover.cc` */
 
-using uiPopoverCreateFunc = std::function<void(bContext *, uiLayout *, PanelType *)>;
+using uiPopoverCreateFunc = std::function<void(bContext *, blender::ui::Layout *, PanelType *)>;
 
 uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
                                             ARegion *butregion,
@@ -1454,12 +1457,14 @@ void ui_resources_free();
 
 /* `interface_layout.cc` */
 
-void ui_layout_add_but(uiLayout *layout, uiBut *but);
-void ui_layout_remove_but(uiLayout *layout, const uiBut *but);
+void ui_layout_add_but(blender::ui::Layout *layout, uiBut *but);
+void ui_layout_remove_but(blender::ui::Layout *layout, const uiBut *but);
 /**
  * \return true if the button was successfully replaced.
  */
-bool ui_layout_replace_but_ptr(uiLayout *layout, const void *old_but_ptr, uiBut *new_but);
+bool ui_layout_replace_but_ptr(blender::ui::Layout *layout,
+                               const void *old_but_ptr,
+                               uiBut *new_but);
 /**
  * \note May reallocate \a but, so the possibly new address is returned. May also override the
  *       #UI_BUT_DISABLED flag depending on if a search pointer-property pair was provided/found.
@@ -1469,16 +1474,17 @@ uiBut *ui_but_add_search(uiBut *but,
                          PropertyRNA *prop,
                          PointerRNA *searchptr,
                          PropertyRNA *searchprop,
+                         PropertyRNA *item_searchprop,
                          bool results_are_suggestions);
 /**
  * Check all buttons defined in this layout,
  * and set any button flagged as UI_BUT_LIST_ITEM as active/selected.
  * Needed to handle correctly text colors of active (selected) list item.
  */
-void ui_layout_list_set_labels_active(uiLayout *layout);
+void ui_layout_list_set_labels_active(blender::ui::Layout *layout);
 /* menu callback */
-void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt);
-void ui_item_paneltype_func(bContext *C, uiLayout *layout, void *arg_pt);
+void ui_item_menutype_func(bContext *C, blender::ui::Layout *layout, void *arg_mt);
+void ui_item_paneltype_func(bContext *C, blender::ui::Layout *layout, void *arg_pt);
 
 /* `interface_button_group.cc` */
 
@@ -1578,7 +1584,6 @@ uiBut *ui_but_find_mouse_over_ex(const ARegion *region,
                                  const uiButFindPollFn find_poll,
                                  const void *find_custom_data)
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
-uiBut *ui_but_find_mouse_over(const ARegion *region, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_but_find_rect_over(const ARegion *region, const rcti *rect_px) ATTR_WARN_UNUSED_RESULT;
 
 uiBut *ui_list_find_mouse_over_ex(const ARegion *region, const int xy[2])
@@ -1672,6 +1677,7 @@ struct uiRNACollectionSearch {
 
   PointerRNA search_ptr;
   PropertyRNA *search_prop;
+  PropertyRNA *item_search_prop;
 
   uiBut *search_but;
   /** Let `UI_butstore_*` API update search_but pointer above over redraws. */

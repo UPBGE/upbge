@@ -31,6 +31,7 @@
 #include "DNA_vfont_types.h"
 
 #include "BLI_array_utils.hh"
+#include "BLI_bounds.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
@@ -50,6 +51,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_armature.hh"
+#include "BKE_attribute.h"
 #include "BKE_camera.h"
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
@@ -92,7 +94,6 @@
 #include "BKE_report.hh"
 #include "BKE_sca.hh"
 #include "BKE_scene.hh"
-#include "BKE_speaker.h"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
@@ -107,6 +108,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "UI_interface_icons.hh"
 #include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
@@ -700,6 +702,18 @@ Object *add_type(bContext *C,
   return add_type_with_obdata(C, type, name, loc, rot, enter_editmode, local_view_bits, nullptr);
 }
 
+static bool object_can_have_lattice_modifier(const Object *ob)
+{
+  return ELEM(ob->type,
+              OB_MESH,
+              OB_CURVES_LEGACY,
+              OB_SURF,
+              OB_FONT,
+              OB_CURVES,
+              OB_GREASE_PENCIL,
+              OB_LATTICE);
+}
+
 /* for object add operator */
 static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
 {
@@ -744,6 +758,237 @@ void OBJECT_OT_add(wmOperatorType *ot)
   PropertyRNA *prop = RNA_def_enum(ot->srna, "type", rna_enum_object_type_items, 0, "Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
 
+  add_generic_props(ot, true);
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Add Lattice Deformation to Selected Operator
+ * \{ */
+
+static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and_calc_bounds(
+    bContext *C, const float orientation_matrix[3][3], Vector<Object *> &r_targets)
+{
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+
+  Bounds<float3> local_bounds;
+  local_bounds.min = float3(FLT_MAX);
+  local_bounds.max = float3(-FLT_MAX);
+  bool has_bounds = false;
+
+  float inverse_orientation_matrix[3][3];
+  invert_m3_m3_safe_ortho(inverse_orientation_matrix, orientation_matrix);
+
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+    if (!BASE_SELECTED_EDITABLE(v3d, base) || !object_can_have_lattice_modifier(base->object)) {
+      continue;
+    }
+
+    r_targets.append(base->object);
+    const Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
+    if (object_eval && DEG_object_transform_is_evaluated(*object_eval)) {
+      if (std::optional<Bounds<float3>> object_bounds = BKE_object_boundbox_get(object_eval)) {
+        const float (*object_to_world_matrix)[4] = object_eval->object_to_world().ptr();
+        /* Generate all 8 corners of the bounding box. */
+        std::array<float3, 8> corners = bounds::corners(*object_bounds);
+        for (float3 &corner : corners) {
+          mul_m4_v3(object_to_world_matrix, corner);
+          mul_m3_v3(inverse_orientation_matrix, corner);
+          local_bounds.min = math::min(local_bounds.min, corner);
+          local_bounds.max = math::max(local_bounds.max, corner);
+        }
+        has_bounds = true;
+      }
+    }
+  }
+
+  if (has_bounds) {
+    return local_bounds;
+  }
+  return std::nullopt;
+}
+
+static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob_active = CTX_data_active_object(C);
+  ushort local_view_bits;
+  bool enter_editmode;
+  float location[3], rotation_euler[3];
+  WM_operator_view3d_unit_defaults(C, op);
+  add_generic_get_opts(
+      C, op, 'Z', location, rotation_euler, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
+  const float margin = RNA_float_get(op->ptr, "margin");
+  const bool add_modifiers = RNA_boolean_get(op->ptr, "add_modifiers");
+  const int resolution_u = RNA_int_get(op->ptr, "resolution_u");
+  const int resolution_v = RNA_int_get(op->ptr, "resolution_v");
+  const int resolution_w = RNA_int_get(op->ptr, "resolution_w");
+  CTX_data_ensure_evaluated_depsgraph(C);
+  float orientation_matrix[3][3];
+
+  if (ob_active) {
+    copy_m3_m4(orientation_matrix, ob_active->object_to_world().ptr());
+    normalize_m3(orientation_matrix);
+  }
+  else {
+    unit_m3(orientation_matrix);
+  }
+
+  Vector<Object *> targets;
+  std::optional<Bounds<float3>> bounds_opt =
+      lattice_add_to_selected_collect_targets_and_calc_bounds(C, orientation_matrix, targets);
+
+  /* Disable fit to selected when there are no valid targets
+   * (either nothing is selected or meshes with no geometry). */
+  if (targets.is_empty() || !bounds_opt.has_value()) {
+    RNA_boolean_set(op->ptr, "fit_to_selected", false);
+  }
+  const bool fit_to_selected = RNA_boolean_get(op->ptr, "fit_to_selected");
+
+  Object *ob_lattice = add_type(
+      C, OB_LATTICE, nullptr, location, rotation_euler, enter_editmode, local_view_bits);
+  Lattice *lt = (Lattice *)ob_lattice->data;
+
+  if (fit_to_selected && bounds_opt.has_value()) {
+    /* Calculate the center and size of this combined bounding box. */
+    const float3 center_local = bounds_opt->center();
+    const float3 size_local = bounds_opt->size() + float3(margin * 2);
+
+    /* Orient lattice center and apply rotation. */
+    float3 center_world = center_local;
+    mul_m3_v3(orientation_matrix, center_world);
+    BKE_object_mat3_to_rot(ob_lattice, orientation_matrix, false);
+
+    copy_v3_v3(ob_lattice->loc, center_world);
+    copy_v3_v3(ob_lattice->scale, size_local);
+
+    /* Prevent invalid or zero lattice size, fallback to 1.0f. */
+    for (int i = 0; i < 3; i++) {
+      if (!isfinite(ob_lattice->scale[i]) || ob_lattice->scale[i] <= FLT_EPSILON) {
+        ob_lattice->scale[i] = 1.0f;
+      }
+    }
+  }
+  else {
+    /* Fallback when fit to selected is off. */
+    copy_v3_fl(ob_lattice->scale, RNA_float_get(op->ptr, "radius"));
+
+    /* Apply user specified Euler rotation instead of cached quat. */
+    ob_lattice->rotmode = ROT_MODE_EUL;
+    copy_v3_v3(ob_lattice->rot, rotation_euler);
+  }
+
+  if (add_modifiers) {
+    for (Object *ob : targets) {
+      BLI_assert(ob != ob_lattice);
+      BLI_assert(object_can_have_lattice_modifier(ob));
+
+      LatticeModifierData *lmd = (LatticeModifierData *)modifier_add(
+          op->reports, bmain, scene, ob, nullptr, eModifierType_Lattice);
+      if (UNLIKELY(lmd == nullptr)) {
+        continue;
+      }
+
+      lmd->object = ob_lattice;
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+    }
+  }
+
+  BKE_lattice_resize(
+      lt, max_ii(1, resolution_u), max_ii(1, resolution_v), max_ii(1, resolution_w), ob_lattice);
+
+  DEG_id_tag_update(&ob_lattice->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+  return OPERATOR_FINISHED;
+}
+
+static bool object_add_to_selected_poll_property(const bContext * /*C*/,
+                                                 wmOperator *op,
+                                                 const PropertyRNA *prop)
+{
+  const char *prop_id = RNA_property_identifier(prop);
+
+  /* Shows only relevant redo properties.
+   * If `fit_to_selected` is:
+   * - true: location & rotation are ignored.
+   * - false: margin is ignored since it only applies to the "fit".
+   */
+  if (RNA_boolean_get(op->ptr, "fit_to_selected")) {
+    if (STR_ELEM(prop_id, "radius", "align", "location", "rotation")) {
+      return false;
+    }
+  }
+  else {
+    if (STREQ(prop_id, "margin")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Lattice Deformer";
+  ot->description = "Add a lattice and use it to deform selected objects";
+  ot->idname = "OBJECT_OT_lattice_add_to_selected";
+
+  /* API callbacks. */
+  ot->exec = lattice_add_to_selected_exec;
+  ot->poll = ED_operator_objectmode;
+  ot->poll_property = object_add_to_selected_poll_property;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  PropertyRNA *prop;
+
+  prop = RNA_def_boolean(ot->srna,
+                         "fit_to_selected",
+                         true,
+                         "Fit to Selected",
+                         "Resize lattice to fit selected deformable objects");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  add_unit_props_radius(ot);
+  prop = RNA_def_float(ot->srna,
+                       "margin",
+                       0.0f,
+                       0.0f,
+                       FLT_MAX,
+                       "Margin",
+                       "Add margin to lattice dimensions",
+                       0.0f,
+                       10.0f);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "add_modifiers",
+                         true,
+                         "Add Modifiers",
+                         "Automatically add lattice modifiers to selected objects");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_int(ot->srna,
+                     "resolution_u",
+                     2,
+                     1,
+                     64,
+                     "Resolution U",
+                     "Lattice resolution in U direction",
+                     1,
+                     64);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_int(
+      ot->srna, "resolution_v", 2, 1, 64, "V", "Lattice resolution in V direction", 1, 64);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_int(
+      ot->srna, "resolution_w", 2, 1, 64, "W", "Lattice resolution in W direction", 1, 64);
   add_generic_props(ot, true);
 }
 
@@ -2086,10 +2331,9 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
 
   /* Decide which UV map to use for attachment. */
   Mesh *surface_mesh = static_cast<Mesh *>(surface_ob->data);
-  const char *uv_name = CustomData_get_active_layer_name(&surface_mesh->corner_data,
-                                                         CD_PROP_FLOAT2);
-  if (uv_name != nullptr) {
-    curves_id->surface_uv_map = BLI_strdup(uv_name);
+  const StringRef uv_name = surface_mesh->active_uv_map_name();
+  if (!uv_name.is_empty()) {
+    curves_id->surface_uv_map = BLI_strdupn(uv_name.data(), uv_name.size());
   }
 
   /* Add deformation modifier. */
@@ -2312,7 +2556,7 @@ static wmOperatorStatus object_delete_invoke(bContext *C,
                                   IFACE_("Delete selected objects?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  ui::AlertIcon::None,
                                   false);
   }
   return object_delete_exec(C, op);
@@ -2400,21 +2644,22 @@ static void copy_object_set_idnew(bContext *C)
  * In other words, we consider each group of objects from a same item as being
  * the 'local group' where to check for parents.
  */
-static uint dupliobject_hash(const void *ptr)
-{
-  const DupliObject *dob = static_cast<const DupliObject *>(ptr);
-  uint hash = BLI_ghashutil_ptrhash(dob->ob);
+struct DupliObjectHash {
+  uint64_t operator()(const DupliObject *dob) const
+  {
+    uint hash = BLI_ghashutil_ptrhash(dob->ob);
 
-  if (dob->type == OB_DUPLICOLLECTION) {
-    for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
-      hash ^= (dob->persistent_id[i] ^ i);
+    if (dob->type == OB_DUPLICOLLECTION) {
+      for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
+        hash ^= (dob->persistent_id[i] ^ i);
+      }
     }
+    else {
+      hash ^= (dob->persistent_id[0] ^ 0);
+    }
+    return hash;
   }
-  else {
-    hash ^= (dob->persistent_id[0] ^ 0);
-  }
-  return hash;
-}
+};
 
 /**
  * \note regarding hashing dupli-objects when using OB_DUPLICOLLECTION,
@@ -2422,70 +2667,69 @@ static uint dupliobject_hash(const void *ptr)
  * since its a unique index and we only want to know if the group objects are from the same
  * dupli-group instance.
  */
-static uint dupliobject_instancer_hash(const void *ptr)
-{
-  const DupliObject *dob = static_cast<const DupliObject *>(ptr);
-  uint hash = BLI_ghashutil_inthash(dob->persistent_id[0]);
-  for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
-    hash ^= (dob->persistent_id[i] ^ i);
+struct DupliObjectInstancerHash {
+  uint64_t operator()(const DupliObject *dob) const
+  {
+    uint hash = BLI_ghashutil_inthash(dob->persistent_id[0]);
+    for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
+      hash ^= (dob->persistent_id[i] ^ i);
+    }
+    return hash;
   }
-  return hash;
-}
+};
 
 /**
- * Compare function that matches #dupliobject_hash.
+ * Compare function that matches #DupliObjectHash.
  */
-static bool dupliobject_cmp(const void *a_, const void *b_)
-{
-  const DupliObject *a = static_cast<const DupliObject *>(a_);
-  const DupliObject *b = static_cast<const DupliObject *>(b_);
+struct DupliObjectEq {
+  bool operator()(const DupliObject *a, const DupliObject *b) const
+  {
+    if (a->ob != b->ob) {
+      return false;
+    }
 
-  if (a->ob != b->ob) {
+    if (a->type != b->type) {
+      return false;
+    }
+
+    if (a->type == OB_DUPLICOLLECTION) {
+      for (int i = 1; (i < MAX_DUPLI_RECUR); i++) {
+        if (a->persistent_id[i] != b->persistent_id[i]) {
+          return false;
+        }
+        if (a->persistent_id[i] == INT_MAX) {
+          break;
+        }
+      }
+    }
+    else {
+      if (a->persistent_id[0] != b->persistent_id[0]) {
+        return false;
+      }
+    }
+
+    /* matching */
     return true;
   }
+};
 
-  if (a->type != b->type) {
-    return true;
-  }
-
-  if (a->type == OB_DUPLICOLLECTION) {
-    for (int i = 1; (i < MAX_DUPLI_RECUR); i++) {
+/* Compare function that matches DupliObjectInstancerHash. */
+struct DupliObjectInstancerEq {
+  bool operator()(const DupliObject *a, const DupliObject *b) const
+  {
+    for (int i = 0; (i < MAX_DUPLI_RECUR); i++) {
       if (a->persistent_id[i] != b->persistent_id[i]) {
-        return true;
+        return false;
       }
       if (a->persistent_id[i] == INT_MAX) {
         break;
       }
     }
+
+    /* matching */
+    return true;
   }
-  else {
-    if (a->persistent_id[0] != b->persistent_id[0]) {
-      return true;
-    }
-  }
-
-  /* matching */
-  return false;
-}
-
-/* Compare function that matches dupliobject_instancer_hash. */
-static bool dupliobject_instancer_cmp(const void *a_, const void *b_)
-{
-  const DupliObject *a = static_cast<const DupliObject *>(a_);
-  const DupliObject *b = static_cast<const DupliObject *>(b_);
-
-  for (int i = 0; (i < MAX_DUPLI_RECUR); i++) {
-    if (a->persistent_id[i] != b->persistent_id[i]) {
-      return true;
-    }
-    if (a->persistent_id[i] == INT_MAX) {
-      break;
-    }
-  }
-
-  /* matching */
-  return false;
-}
+};
 
 static void make_object_duplilist_real(bContext *C,
                                        Depsgraph *depsgraph,
@@ -2496,7 +2740,16 @@ static void make_object_duplilist_real(bContext *C,
 {
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  GHash *parent_gh = nullptr, *instancer_gh = nullptr;
+  using ParentMap =
+      Map<DupliObject *, Object *, 4, DefaultProbingStrategy, DupliObjectHash, DupliObjectEq>;
+  using InstancerMap = Map<DupliObject *,
+                           Object *,
+                           4,
+                           DefaultProbingStrategy,
+                           DupliObjectInstancerHash,
+                           DupliObjectInstancerEq>;
+  ParentMap *parent_gh = nullptr;
+  InstancerMap *instancer_gh = nullptr;
 
   Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
 
@@ -2515,11 +2768,10 @@ static void make_object_duplilist_real(bContext *C,
 
   blender::Map<const DupliObject *, Object *> dupli_map;
   if (use_hierarchy) {
-    parent_gh = BLI_ghash_new(dupliobject_hash, dupliobject_cmp, __func__);
+    parent_gh = MEM_new<ParentMap>(__func__);
 
     if (use_base_parent) {
-      instancer_gh = BLI_ghash_new(
-          dupliobject_instancer_hash, dupliobject_instancer_cmp, __func__);
+      instancer_gh = MEM_new<InstancerMap>(__func__);
     }
   }
 
@@ -2565,19 +2817,14 @@ static void make_object_duplilist_real(bContext *C,
     dupli_map.add(&dob, ob_dst);
 
     if (parent_gh) {
-      void **val;
       /* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
        * 'the same', this avoids trying to insert same key several time and
        * raise asserts in debug builds... */
-      if (!BLI_ghash_ensure_p(parent_gh, &dob, &val)) {
-        *val = ob_dst;
-      }
+      parent_gh->add(&dob, ob_dst);
 
       if (is_dupli_instancer && instancer_gh) {
         /* Same as above, we may have several 'hits'. */
-        if (!BLI_ghash_ensure_p(instancer_gh, &dob, &val)) {
-          *val = ob_dst;
-        }
+        instancer_gh->add(&dob, ob_dst);
       }
     }
   }
@@ -2613,7 +2860,7 @@ static void make_object_duplilist_real(bContext *C,
         else {
           dob_key.persistent_id[0] = dob.persistent_id[0];
         }
-        ob_dst_par = static_cast<Object *>(BLI_ghash_lookup(parent_gh, &dob_key));
+        ob_dst_par = parent_gh->lookup_default(&dob_key, nullptr);
       }
 
       if (ob_dst_par) {
@@ -2642,7 +2889,7 @@ static void make_object_duplilist_real(bContext *C,
         memcpy(&dob_key.persistent_id[0],
                &dob.persistent_id[1],
                sizeof(dob_key.persistent_id[0]) * (MAX_DUPLI_RECUR - 1));
-        ob_dst_par = static_cast<Object *>(BLI_ghash_lookup(instancer_gh, &dob_key));
+        ob_dst_par = instancer_gh->lookup_default(&dob_key, nullptr);
       }
 
       if (ob_dst_par == nullptr) {
@@ -2672,12 +2919,8 @@ static void make_object_duplilist_real(bContext *C,
   base_select(base, BA_DESELECT);
   DEG_id_tag_update(&base->object->id, ID_RECALC_SELECT);
 
-  if (parent_gh) {
-    BLI_ghash_free(parent_gh, nullptr, nullptr);
-  }
-  if (instancer_gh) {
-    BLI_ghash_free(instancer_gh, nullptr, nullptr);
-  }
+  MEM_delete(parent_gh);
+  MEM_delete(instancer_gh);
 
   BKE_main_id_newptr_and_tag_clear(bmain);
 
@@ -3777,6 +4020,11 @@ static Object *convert_font_to_grease_pencil(Base &base,
   /* We don't need the intermediate font/curve data ID any more. */
   BKE_id_delete(info.bmain, legacy_curve_id);
 
+  /* For some reason this must be called, otherwise evaluated id_cow will still be the original
+   * curves id (and that seems to only happen if "Keep Original" is enabled, and only with this
+   * specific conversion combination), not sure why. Ref: #138793 / #146252 */
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+
   BKE_id_free(nullptr, curves_nomain);
 
   return curve_ob;
@@ -3884,7 +4132,7 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
 
   /* For some reason this must be called, otherwise evaluated id_cow will still be the original
    * curves id (and that seems to only happen if "Keep Original" is enabled, and only with this
-   * specific conversion combination), not sure why. Ref: #138793 */
+   * specific conversion combination), not sure why. Ref: #138793 / #146252 */
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
 
   BKE_id_free(nullptr, curves_nomain);
@@ -4020,6 +4268,18 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   if (selected_editable_bases.is_empty()) {
     BKE_report(op->reports, RPT_INFO, "No editable objects to convert");
     return OPERATOR_CANCELLED;
+  }
+
+  /* Disallow conversion if any selected editable object is in Edit Mode.
+   * This could be supported in the future, but it's a rare corner case
+   * typically triggered only by Python scripts, see #147387. */
+  for (const PointerRNA &ptr : selected_editable_bases) {
+    const Object *ob = ((const Base *)ptr.data)->object;
+    if (ob->mode & OB_MODE_EDIT) {
+      BKE_report(
+          op->reports, RPT_ERROR, "Cannot convert selected objects while they are in edit mode");
+      return OPERATOR_CANCELLED;
+    }
   }
 
   /* don't forget multiple users! */
@@ -4254,21 +4514,21 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 
 static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const int target = RNA_enum_get(op->ptr, "target");
   if (target == OB_MESH) {
-    layout->prop(op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (target == OB_GREASE_PENCIL) {
-    layout->prop(op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(op->ptr, "faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -4874,7 +5134,7 @@ static wmOperatorStatus object_join_exec(bContext *C, wmOperator *op)
 
   wmOperatorStatus ret = OPERATOR_CANCELLED;
   if (ob->type == OB_MESH) {
-    ret = ED_mesh_join_objects_exec(C, op);
+    ret = mesh::join_objects_exec(C, op);
   }
   else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
     ret = ED_curve_join_objects_exec(C, op);
@@ -4968,7 +5228,8 @@ static bool active_shape_key_editable_poll(bContext *C)
 
 static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 {
-  return ED_mesh_shapes_join_objects_exec(C, true, op->reports);
+  return ED_mesh_shapes_join_objects_exec(
+      C, true, RNA_boolean_get(op->ptr, "use_mirror"), op->reports);
 }
 
 void OBJECT_OT_join_shapes(wmOperatorType *ot)
@@ -4983,11 +5244,16 @@ void OBJECT_OT_join_shapes(wmOperatorType *ot)
   ot->poll = active_shape_key_editable_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "use_mirror", false, "Mirror", "Mirror the new shape key values");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
 {
-  return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
+  return ED_mesh_shapes_join_objects_exec(
+      C, false, RNA_boolean_get(op->ptr, "use_mirror"), op->reports);
 }
 
 static bool object_update_shapes_poll(bContext *C)
@@ -5016,6 +5282,10 @@ void OBJECT_OT_update_shapes(wmOperatorType *ot)
   ot->poll = object_update_shapes_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "use_mirror", false, "Mirror", "Mirror the new shape key values");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */

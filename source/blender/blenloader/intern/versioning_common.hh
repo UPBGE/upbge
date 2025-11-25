@@ -104,6 +104,13 @@ blender::StringRef legacy_socket_idname_to_socket_type(blender::StringRef idname
  * code generally expects to get the sockets that the node had at the time of writing the
  * versioning code. Changing the declaration later can break the versioning code in ways that are
  * hard to detect.
+ *
+ * When adding new nodes in versioning code that replace or belong to existing nodes, they should
+ * be positioned so that it overlaps the existing node with just a slight offset. This is better
+ * than putting them next to each other they way one would do it manually, because it messes up
+ * more complex node trees significantly. In simple tests, putting the nodes next to each other
+ * looks better, but in actual user-files it looks way worse and makes it less obvious what was
+ * changed by versioning code.
  */
 bNode &version_node_add_empty(bNodeTree &ntree, const char *idname);
 
@@ -165,6 +172,8 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
                                                   const char *identifier,
                                                   const char *name);
 
+void version_node_tree_clear_interface(bNodeTree &ntree);
+
 /**
  * The versioning code generally expects `SOCK_IS_LINKED` to be set correctly. This function
  * updates the flag on all sockets after changes to the node tree.
@@ -211,6 +220,7 @@ bNode *version_eevee_output_node_get(bNodeTree *ntree, int16_t node_type);
  */
 void version_system_idprops_generate(Main *bmain);
 void version_system_idprops_nodes_generate(Main *bmain);
+void version_system_idprops_children_bones_generate(Main *bmain);
 
 bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines);
 
@@ -257,7 +267,7 @@ static void adjust_fcurve_key_frame_values(FCurve *fcurve,
   BKE_fcurve_handles_recalc(fcurve);
 }
 
-/* Gets the compositing node tree of the given scene. The deprecated nodetree member is returned
+/* Gets the compositing node tree of the given scene. The deprecated node-tree member is returned
  * for older versions before reusable node trees were introduced in bd61e69be5, while the new
  * compositing_node_group is returned otherwise. */
 bNodeTree *version_get_scene_compositor_node_tree(Main *bmain, Scene *scene);

@@ -42,9 +42,17 @@
   "``IMAGE``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image\n" \
+  "``IMAGE_SCENE_LINEAR_TO_REC709_SRGB``\n" \
+  "   :Attributes: vec3 pos, vec2 texCoord\n" \
+  "   :Uniforms: sampler2D image\n" \
+  "   :Note: Expect texture to be in scene linear color space\n" \
   "``IMAGE_COLOR``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image, vec4 color\n" \
+  "``IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRGB``\n" \
+  "   :Attributes: vec3 pos, vec2 texCoord\n" \
+  "   :Uniforms: sampler2D image, vec4 color\n" \
+  "   :Note: Expect texture to be in scene linear color space\n" \
   "``SMOOTH_COLOR``\n" \
   "   :Attributes: vec3 pos, vec4 color\n" \
   "   :Uniforms: none\n" \
@@ -70,7 +78,10 @@
 static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_FLAT_COLOR, "FLAT_COLOR"},
     {GPU_SHADER_3D_IMAGE, "IMAGE"},
+    {GPU_SHADER_3D_IMAGE_SCENE_LINEAR_TO_REC709_SRGB, "IMAGE_SCENE_LINEAR_TO_REC709_SRGB"},
     {GPU_SHADER_3D_IMAGE_COLOR, "IMAGE_COLOR"},
+    {GPU_SHADER_3D_IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRGB,
+     "IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRGB"},
     {GPU_SHADER_3D_SMOOTH_COLOR, "SMOOTH_COLOR"},
     {GPU_SHADER_3D_UNIFORM_COLOR, "UNIFORM_COLOR"},
     {GPU_SHADER_3D_POLYLINE_FLAT_COLOR, "POLYLINE_FLAT_COLOR"},
@@ -961,8 +972,7 @@ static PyObject *pygpu_shader_from_builtin(PyObject * /*self*/, PyObject *args, 
   }
 
   blender::gpu::Shader *shader = GPU_shader_get_builtin_shader_with_config(
-      eGPUBuiltinShader(pygpu_bultinshader.value_found),
-      eGPUShaderConfig(pygpu_config.value_found));
+      GPUBuiltinShader(pygpu_bultinshader.value_found), GPUShaderConfig(pygpu_config.value_found));
 
   if (shader == nullptr) {
     PyErr_SetString(PyExc_ValueError, "Builtin shader doesn't exist in the requested config");
@@ -1050,6 +1060,11 @@ PyDoc_STRVAR(
     "All built-in shaders have the ``mat4 ModelViewProjectionMatrix`` uniform.\n"
     "\n"
     "Its value must be modified using the :class:`gpu.matrix` module.\n"
+    "\n"
+    ".. important::\n"
+    "\n"
+    "   Shader uniforms must be explicitly initialized to avoid retaining values from previous "
+    "executions.\n"
     "\n" PYDOC_BUILTIN_SHADER_DESCRIPTION);
 static PyModuleDef pygpu_shader_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,

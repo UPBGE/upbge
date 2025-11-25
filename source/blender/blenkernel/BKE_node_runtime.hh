@@ -173,23 +173,16 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
   /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */
   Array<FieldSocketState> field_states;
-  /**
-   * Inferred structure type for every socket, accessed with #bNodeSocket::index_in_tree().
-   * This is not necessarily the structure type that is displayed in the node editor. E.g. it may
-   * be Single for an unconnected field input.
-   */
-  Array<nodes::StructureType> inferred_structure_types;
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
   std::unique_ptr<nodes::StructureTypeInterface> structure_type_interface;
 
   /**
-   * A bool for each input socket (indexed by `index_in_all_inputs()`) that indicates whether this
-   * socket is used by the node it belongs to. Sockets for which this is false may e.g. be grayed
-   * out.
+   * Indexed by #bNodeSocket::index_in_tree(). Contains information about whether the socket is
+   * used or visible.
    */
-  blender::Array<nodes::socket_usage_inference::SocketUsage> inferenced_input_socket_usage;
+  blender::Array<nodes::socket_usage_inference::SocketUsage> inferenced_socket_usage;
   CacheMutex inferenced_input_socket_usage_mutex;
 
   /**
@@ -197,7 +190,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * evaluate the node group. Caching it here allows us to reuse the preprocessed node tree in case
    * its used multiple times.
    */
-  Mutex geometry_nodes_lazy_function_graph_info_mutex;
+  CacheMutex geometry_nodes_lazy_function_graph_info_mutex;
   std::unique_ptr<nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 
@@ -206,6 +199,13 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * is updated in #update_link_validation and is valid during drawing code.
    */
   MultiValueMap<NodeLinkKey, NodeLinkError> link_errors;
+
+  /**
+   * Error messages for shading nodes. Those don't have more contextual information yet. Maps
+   * #bNode::identifier to error messages.
+   */
+  Map<int32_t, VectorSet<std::string>> shader_node_errors;
+  Mutex shader_node_errors_mutex;
 
   /**
    * Protects access to all topology cache variables below. This is necessary so that the cache can
@@ -286,6 +286,17 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    * including dragged node links that aren't actually in the tree.
    */
   short total_inputs = 0;
+
+  /**
+   * Inferred structure type of the socket. This is not necessarily the same as the structure type
+   * that is displayed in the UI. For example, it would be #StructureType::Single for an unlinked
+   * input of the Math node, but the socket is displayed as #StructureType::Dynamic.
+   *
+   * This is stored on the socket instead of as array in #bNodeTreeRuntime because the data needs
+   * to stay attached to the socket even when the node tree changes. This is used when e.g. syncing
+   * a newly created Separate Bundle node to an existing Combine Bundle node.
+   */
+  nodes::StructureType inferred_structure_type = nodes::StructureType::Dynamic;
 
   /**
    * The location of the socket in the tree, calculated while drawing the nodes and invalid if the
@@ -431,6 +442,10 @@ class AllowUsingOutdatedInfo : NonCopyable, NonMovable {
   }
 };
 
+/* If result is not true then this means that the last node tree editing operation was not covered
+ * by the topology cache update ensure call. All derivative information about topology is not
+ * available. You should call "tree.ensure_topology_cache();" first.
+ */
 inline bool topology_cache_is_available(const bNodeTree &tree)
 {
   if (!tree.runtime->topology_cache_exists) {
@@ -1015,8 +1030,7 @@ inline bool bNodeSocket::is_panel_collapsed() const
 
 inline bool bNodeSocket::is_visible() const
 {
-  return !this->is_user_hidden() && this->is_available() &&
-         (this->is_output() || this->inferred_input_socket_visibility());
+  return !this->is_user_hidden() && this->is_available() && this->inferred_socket_visibility();
 }
 
 inline bool bNodeSocket::is_icon_visible() const
@@ -1027,7 +1041,7 @@ inline bool bNodeSocket::is_icon_visible() const
 
 inline bool bNodeSocket::may_be_field() const
 {
-  return ELEM(this->owner_tree().runtime->inferred_structure_types[this->index_in_tree()],
+  return ELEM(this->runtime->inferred_structure_type,
               blender::nodes::StructureType::Field,
               blender::nodes::StructureType::Dynamic);
 }

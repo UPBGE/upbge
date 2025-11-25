@@ -233,11 +233,19 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 
   UI_view2d_view_ortho(v2d);
 
+  /* In driver mode, both X and Y axes are in the same units as the driven property, and so the
+   * grid size should be independent of the scene's frame rate. */
+  constexpr int driver_step = 10;
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
   if (region->winy > min_height) {
-    UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
-    UI_view2d_draw_lines_y__values(v2d);
+    if (sipo->mode == SIPO_MODE_DRIVERS) {
+      UI_view2d_draw_lines_x__values(v2d, driver_step);
+    }
+    else {
+      UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+    }
+    UI_view2d_draw_lines_y__values(v2d, 10);
   }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
@@ -317,7 +325,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     UI_view2d_view_orthoSpecial(region, v2d, true);
     int marker_draw_flag = DRAW_MARKERS_MARGIN;
-    if (sipo->flag & SIPO_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
+    if (ED_markers_region_visible(CTX_wm_area(C), region)) {
       ED_markers_draw(C, marker_draw_flag);
     }
   }
@@ -336,7 +344,11 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(region, scene, display_seconds, false);
+  int base = round_db_to_int(scene->frames_per_second());
+  if (sipo->mode == SIPO_MODE_DRIVERS) {
+    base = driver_step;
+  }
+  ED_time_scrub_draw(region, scene, display_seconds, false, base);
 }
 
 static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
@@ -366,7 +378,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
       rcti rect;
       BLI_rcti_init(
           &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-      UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
+      UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT, 10);
     }
   }
   else {
@@ -923,6 +935,13 @@ static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   sipo->runtime.ghost_curves = tmpGhosts;
 }
 
+static bool action_region_poll_hide_in_driver_mode(const RegionPollParams *params)
+{
+  BLI_assert(params->area->spacetype == SPACE_GRAPH);
+  const SpaceGraph *sipo = static_cast<const SpaceGraph *>(params->area->spacedata.first);
+  return sipo->mode != SIPO_MODE_DRIVERS;
+}
+
 void ED_spacetype_ipo()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -980,6 +999,7 @@ void ED_spacetype_ipo()
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
   art->init = graph_header_region_init;
   art->draw = graph_header_region_draw;
+  art->poll = action_region_poll_hide_in_driver_mode;
 
   BLI_addhead(&st->regiontypes, art);
 

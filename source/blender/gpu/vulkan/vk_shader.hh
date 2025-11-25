@@ -41,15 +41,21 @@ class VKShader : public Shader {
 
   bool is_compute_shader_ = false;
   bool is_static_shader_ = false;
-  bool use_batch_compilation_ = false;
+
+  /**
+   * \brief Were there pipelines states precompiled during shader creation.
+   *
+   * Used to detect pipeline states that are missing and could be added. As the mechanism
+   * isn't fool-proof we only show the warning in debug builds and raise an assert when run
+   * using `context.debug_pipeline_creation == true`.
+   */
+  bool has_precompiled_pipelines_ = false;
 
  public:
   VKShaderModule vertex_module;
   VKShaderModule geometry_module;
   VKShaderModule fragment_module;
   VKShaderModule compute_module;
-  bool compilation_finished = false;
-  bool compilation_failed = false;
 
   VkPipelineLayout vk_pipeline_layout = VK_NULL_HANDLE;
   VKPushConstants push_constants;
@@ -57,23 +63,25 @@ class VKShader : public Shader {
   VKShader(const char *name);
   virtual ~VKShader();
 
-  void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
+  void init(const shader::ShaderCreateInfo &info, bool is_codegen_only) override;
 
-  void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
-  void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
-  void fragment_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
-  void compute_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
+  const shader::ShaderCreateInfo &patch_create_info(
+      const shader::ShaderCreateInfo &original_info) override
+  {
+    return original_info;
+  }
+
+  void vertex_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                               MutableSpan<StringRefNull> sources) override;
+  void geometry_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                 MutableSpan<StringRefNull> sources) override;
+  void fragment_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                 MutableSpan<StringRefNull> sources) override;
+  void compute_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                MutableSpan<StringRefNull> sources) override;
   bool finalize(const shader::ShaderCreateInfo *info = nullptr) override;
-  bool finalize_post();
+  bool finalize_post(Span<shader::PipelineState> pipeline_states);
 
-  /**
-   * Check if needed compilation steps have been finished.
-   *
-   * Returns `true` when all modules that needed compilation have finished their compilation steps.
-   *     Compilations with errors are still considered finished.
-   * Returns `false` when compilation is still needed for one of the shader modules.
-   */
-  bool is_ready() const;
   void warm_cache(int limit) override;
 
   void bind(const shader::SpecializationConstants *constants_state) override;
@@ -91,6 +99,7 @@ class VKShader : public Shader {
 
   VkPipeline ensure_and_get_compute_pipeline(
       const shader::SpecializationConstants &constants_state);
+  bool ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_states);
   VkPipeline ensure_and_get_graphics_pipeline(GPUPrimType primitive,
                                               VKVertexAttributeObject &vao,
                                               VKStateManager &state_manager,

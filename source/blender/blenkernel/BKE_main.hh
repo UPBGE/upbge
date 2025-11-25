@@ -25,7 +25,9 @@
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector_set.hh"
@@ -35,7 +37,6 @@
 struct BLI_mempool;
 struct BlendThumbnail;
 struct GHash;
-struct GSet;
 struct ID;
 struct IDNameLib_Map;
 struct ImBuf;
@@ -127,7 +128,7 @@ struct MainIDRelations {
    * Mapping from an ID pointer to all of its parents (IDs using it) and children (IDs it uses).
    * Values are `MainIDRelationsEntry` pointers.
    */
-  GHash *relations_from_pointers;
+  blender::Map<const ID *, MainIDRelationsEntry *> *relations_from_pointers;
   /* NOTE: we could add more mappings when needed (e.g. from session uid?). */
 
   short flag;
@@ -442,12 +443,12 @@ void BKE_main_relations_free(Main *bmain);
 void BKE_main_relations_tag_set(Main *bmain, eMainIDRelationsEntryTags tag, bool value);
 
 /**
- * Create a #GSet storing all IDs present in given \a bmain, by their pointers.
+ * Create a #Set storing all IDs present in given \a bmain, by their pointers.
  *
- * \param gset: If not NULL, given GSet will be extended with IDs from given \a bmain,
+ * \param set: If not NULL, given Set will be extended with IDs from given \a bmain,
  * instead of creating a new one.
  */
-GSet *BKE_main_gset_create(Main *bmain, GSet *gset);
+blender::Set<const ID *> *BKE_main_set_create(Main *bmain, blender::Set<const ID *> *set);
 
 /* Temporary runtime API to allow re-using local (already appended)
  * IDs instead of appending a new copy again. */
@@ -634,6 +635,10 @@ const char *BKE_main_blendfile_path(const Main *bmain) ATTR_NONNULL();
  * you should always try to get a valid Main pointer from context.
  */
 const char *BKE_main_blendfile_path_from_global();
+/**
+ * Return the absolute file-path of a library.
+ */
+const char *BKE_main_blendfile_path_from_library(const Library &library);
 
 /**
  * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
@@ -670,8 +675,12 @@ MainListsArray BKE_main_lists_get(Main &bmain);
   ((main)->upbgeversionfile > (ver) || \
    (main->upbgeversionfile == (ver) && (main)->upbgesubversionfile >= (subver)))
 
+
+/* NOTE: in case versionfile is 0, this check is invalid, always return false then. This happens
+ * typically when a library is missing, by definition its data (placeholder IDs) does not need
+ * versionning anyway then. */
 #define LIBRARY_VERSION_FILE_ATLEAST(lib, ver, subver) \
-  ((lib)->runtime->versionfile > (ver) || \
+  ((lib)->runtime->versionfile == 0 || (lib)->runtime->versionfile > (ver) || \
    ((lib)->runtime->versionfile == (ver) && (lib)->runtime->subversionfile >= (subver)))
 
 /**

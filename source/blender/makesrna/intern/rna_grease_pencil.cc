@@ -12,6 +12,7 @@
 
 #include "DNA_grease_pencil_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_userdef_defaults.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -396,6 +397,17 @@ static PointerRNA rna_GreasePencilTreeNode_parent_layer_group_get(PointerRNA *pt
   }
   return RNA_pointer_create_with_parent(
       *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(node->parent));
+}
+
+static int rna_GreasePencilTreeNode_channel_color_editable(const PointerRNA * /*ptr*/,
+                                                           const char **r_info)
+{
+  if (U.animation_flag & USER_ANIM_SHOW_CHANNEL_GROUP_COLORS) {
+    return PROP_EDITABLE;
+  }
+
+  *r_info = TIP_("Channel colors are disabled in Animation Preferences");
+  return 0;
 }
 
 static void rna_iterator_grease_pencil_layers_begin(CollectionPropertyIterator *iter,
@@ -972,6 +984,7 @@ static void rna_def_grease_pencil_tree_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "channel_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "color");
   RNA_def_property_array(prop, 3);
+  RNA_def_property_editable_func(prop, "rna_GreasePencilTreeNode_channel_color_editable");
   RNA_def_property_ui_text(prop, "Channel Color", "Color of the channel in the dope sheet");
   RNA_def_property_update(prop, NC_GPENCIL | NA_EDITED, nullptr);
 
@@ -1426,7 +1439,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "GreasePencilv3", "ID");
+  srna = RNA_def_struct(brna, "GreasePencil", "ID");
   RNA_def_struct_sdna(srna, "GreasePencil");
   RNA_def_struct_ui_text(srna, "Grease Pencil", "Grease Pencil data-block");
   RNA_def_struct_ui_icon(srna, ICON_OUTLINER_DATA_GREASEPENCIL);

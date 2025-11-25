@@ -16,6 +16,7 @@ struct BlendDataReader;
 struct BlendLibReader;
 struct BlendWriter;
 struct bArmature;
+struct BoneParentTransform;
 
 /* The following structures are defined in DNA_action_types.h, and DNA_anim_types.h */
 struct AnimationEvalContext;
@@ -308,6 +309,21 @@ void BKE_pose_itasc_init(bItasc *itasc);
  */
 bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan);
 
+/**
+ * Get the transform location, accounting for POSE_TRANSFORM_AT_CUSTOM_TX.
+ */
+void BKE_pose_channel_transform_location(const bArmature *arm,
+                                         const bPoseChannel *pose_bone,
+                                         float r_pose_space_pivot[3]);
+
+/**
+ * Get the transform pose orientation, accounting for
+ * POSE_TRANSFORM_AT_CUSTOM_TX.
+ */
+void BKE_pose_channel_transform_orientation(const bArmature *arm,
+                                            const bPoseChannel *pose_bone,
+                                            float r_pose_orientation[3][3]);
+
 /* Bone Groups API --------------------- */
 
 /**
@@ -358,7 +374,7 @@ void extract_pose_from_pose(struct bPose *pose, const struct bPose *src);
  */
 void BKE_pose_tag_recalc(Main *bmain, bPose *pose) ATTR_NONNULL(1, 2);
 
-void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm) ATTR_NONNULL(1, 2, 3);
+void BKE_pose_blend_write(BlendWriter *writer, bPose *pose) ATTR_NONNULL(1, 2);
 void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose)
     ATTR_NONNULL(1, 2);
 void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose *pose)

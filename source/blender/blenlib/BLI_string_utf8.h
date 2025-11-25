@@ -59,7 +59,7 @@ int BLI_str_utf8_invalid_substitute(char *str, size_t str_len, const char substi
  * \note This is intended for situations when the string is expected to be valid,
  * where copying and substituting values is typically not needed.
  */
-[[nodiscard]] const char *BLI_str_utf8_invalid_substitute_as_needed(
+[[nodiscard]] const char *BLI_str_utf8_invalid_substitute_if_needed(
     const char *str, size_t str_len, const char substitute, char *buf, const size_t buf_maxncpy)
     ATTR_NONNULL(1, 4);
 
@@ -257,6 +257,7 @@ char32_t BLI_str_utf32_char_to_lower(char32_t wc);
 bool BLI_str_utf32_char_is_breaking_space(char32_t codepoint);
 bool BLI_str_utf32_char_is_optional_break_after(char32_t codepoint, char32_t codepoint_prev);
 bool BLI_str_utf32_char_is_optional_break_before(char32_t codepoint, char32_t codepoint_prev);
+bool BLI_str_utf32_char_is_terminal_punctuation(char32_t codepoint);
 
 /**
  * \warning can return -1 on bad chars.

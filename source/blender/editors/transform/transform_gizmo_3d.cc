@@ -22,10 +22,12 @@
 #include "DNA_meta_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curve.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
@@ -555,7 +557,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
     invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr()); \
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode( \
         scene, view_layer, CTX_wm_view3d(C)); \
-    for (Object * ob_iter : objects) { \
+    for (Object *ob_iter : objects) { \
       const bool use_mat_local = (ob_iter != obedit);
 
 #define FOREACH_EDIT_OBJECT_END() \
@@ -749,12 +751,25 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         }
 
         IndexMaskMemory memory;
-        const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
-        const Span<float3> positions = deformation.positions;
-        totsel += selected_points.size();
-        selected_points.foreach_index([&](const int point_i) {
-          run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
-        });
+        const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+            curves, CURVE_TYPE_BEZIER, memory);
+
+        auto run_points = [&](const Span<float3> positions, const StringRef selection_name) {
+          const IndexMask selected_points = ed::curves::retrieve_selected_points(
+              curves, selection_name, bezier_points, memory);
+
+          totsel += selected_points.size();
+          selected_points.foreach_index([&](const int point_i) {
+            run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
+          });
+        };
+
+        run_points(deformation.positions, ".selection");
+
+        if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+          run_points(*curves.handle_positions_left(), ".selection_handle_left");
+          run_points(*curves.handle_positions_right(), ".selection_handle_right");
+        }
       }
       FOREACH_EDIT_OBJECT_END();
     }
@@ -804,13 +819,29 @@ static int gizmo_3d_foreach_selected(const bContext *C,
                   mat_local * grease_pencil.layer(info.layer_index).to_object_space(*ob_iter);
 
               IndexMaskMemory memory;
-              const IndexMask selected_points = ed::curves::retrieve_selected_points(curves,
-                                                                                     memory);
-              const Span<float3> positions = deformation.positions;
-              totsel += selected_points.size();
-              selected_points.foreach_index([&](const int point_i) {
-                run_coord_with_matrix(positions[point_i], true, layer_transform.ptr());
-              });
+              const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+                  *ob, info.drawing, info.layer_index, memory);
+              const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+                  curves, CURVE_TYPE_BEZIER, memory);
+
+              auto run_points = [&](const Span<float3> positions, const StringRef selection_name) {
+                const IndexMask selected_points = ed::curves::retrieve_selected_points(
+                    curves, selection_name, bezier_points, memory);
+                const IndexMask selected_editable_points = IndexMask::from_intersection(
+                    editable_points, selected_points, memory);
+
+                totsel += selected_editable_points.size();
+                selected_editable_points.foreach_index([&](const int point_i) {
+                  run_coord_with_matrix(positions[point_i], true, layer_transform.ptr());
+                });
+              };
+
+              run_points(deformation.positions, ".selection");
+
+              if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+                run_points(*curves.handle_positions_left(), ".selection_handle_left");
+                run_points(*curves.handle_positions_right(), ".selection_handle_right");
+              }
             });
       }
       FOREACH_EDIT_OBJECT_END();
@@ -836,12 +867,16 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         mul_m4_m4m4(mat_local, ob->world_to_object().ptr(), ob_iter->object_to_world().ptr());
       }
 
+      bArmature *arm = static_cast<bArmature *>(ob_iter->data);
       /* Use channels to get stats. */
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
-        if (!(pchan->bone->flag & BONE_TRANSFORM)) {
+        if (!(pchan->runtime.flag & POSE_RUNTIME_TRANSFORM)) {
           continue;
         }
-        run_coord_with_matrix(pchan->pose_head, use_mat_local, mat_local);
+
+        float pchan_pivot[3];
+        BKE_pose_channel_transform_location(arm, pchan, pchan_pivot);
+        run_coord_with_matrix(pchan_pivot, use_mat_local, mat_local);
         totsel++;
 
         if (r_drawflags) {
@@ -1093,7 +1128,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
 
       float co_sum[3] = {0.0f, 0.0f, 0.0f};
       const auto gizmo_3d_calc_center_fn = [&](const float3 &co) { add_v3_v3(co_sum, co); };
-      const float(*r_mat)[4] = nullptr;
+      const float (*r_mat)[4] = nullptr;
       int totsel;
       totsel = gizmo_3d_foreach_selected(C,
                                          0,
@@ -2395,7 +2430,7 @@ void transform_gizmo_3d_model_from_constraint_and_mode_set(TransInfo *t)
   wmGizmo *gizmo_modal_current = WM_gizmomap_get_modal(t->region->runtime->gizmo_map);
   if (axis_idx != -1) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
-    float(*mat_cmp)[3] = t->orient[t->orient_curr != O_DEFAULT ? t->orient_curr : O_SCENE].matrix;
+    float (*mat_cmp)[3] = t->orient[t->orient_curr != O_DEFAULT ? t->orient_curr : O_SCENE].matrix;
 
     bool update_orientation = !(equals_v3v3(rv3d->twmat[0], mat_cmp[0]) &&
                                 equals_v3v3(rv3d->twmat[1], mat_cmp[1]) &&

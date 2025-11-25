@@ -2,8 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_geom_infos.hh"
+#include "infos/eevee_nodetree_infos.hh"
+#include "infos/eevee_surf_shadow_infos.hh"
 
+VERTEX_SHADER_CREATE_INFO(eevee_nodetree)
 VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 VERTEX_SHADER_CREATE_INFO(eevee_geom_pointcloud)
 
@@ -14,7 +17,6 @@ VERTEX_SHADER_CREATE_INFO(eevee_geom_pointcloud)
 #include "eevee_reverse_z_lib.glsl"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"
-#include "gpu_shader_math_rotation_lib.glsl"
 
 void main()
 {

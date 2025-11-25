@@ -25,6 +25,8 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "ED_node.hh"
+
 #include "node_intern.hh"
 
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -110,7 +112,7 @@ class SocketTooltipBuilder {
     if (socket_.type == SOCK_MENU) {
       return true;
     }
-    if (socket_.flag & SOCK_HIDE_LABEL) {
+    if (socket_.runtime->declaration && socket_.runtime->declaration->optional_label) {
       return true;
     }
     return false;
@@ -226,6 +228,11 @@ class SocketTooltipBuilder {
     if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
       this->start_block(TooltipBlockType::Value);
       build_tooltip_value_implicit_default(socket_decl->default_input_type);
+      return;
+    }
+    if (socket_decl && socket_decl->structure_type == nodes::StructureType::Grid) {
+      this->start_block(TooltipBlockType::Value);
+      this->build_tooltip_value_and_type_oneline(TIP_("Empty Grid"), TIP_("Volume Grid"));
       return;
     }
     if (socket_.typeinfo->base_cpp_type == nullptr) {
@@ -376,10 +383,10 @@ class SocketTooltipBuilder {
       return;
     }
     if (!enum_item->description.empty()) {
-      this->add_text_field(enum_item->description, UI_TIP_LC_VALUE);
+      this->add_text_field(TIP_(enum_item->description), UI_TIP_LC_VALUE);
       this->add_space();
     }
-    this->build_tooltip_value_and_type_oneline(enum_item->name, TIP_("Menu"));
+    this->build_tooltip_value_and_type_oneline(TIP_(enum_item->name), TIP_("Menu"));
   }
 
   void build_tooltip_value_int(const int value)
@@ -638,7 +645,7 @@ class SocketTooltipBuilder {
         case bke::GeometryComponent::Type::Volume: {
           const geo_log::GeometryInfoLog::VolumeInfo &info = *geometry_log.volume_info;
           component_str = fmt::format(fmt::runtime(TIP_("Volume: {} grids")),
-                                      this->count_to_string(info.grids_num));
+                                      this->count_to_string(info.grids.size()));
           break;
         }
         case bke::GeometryComponent::Type::Curve: {

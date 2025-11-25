@@ -177,8 +177,8 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
   uchar col_summary[4];
 
   /* get theme colors */
-  UI_GetThemeColor4ubv(TH_SHADE2, col2);
-  UI_GetThemeColor4ubv(TH_HILITE, col1);
+  UI_GetThemeColor4ubv(TH_CHANNEL, col2);
+  UI_GetThemeColor4ubv(TH_CHANNEL_SELECT, col1);
   UI_GetThemeColor4ubv(TH_ANIM_ACTIVE, col_summary);
 
   UI_GetThemeColor4ubv(TH_GROUP, col2a);
@@ -216,7 +216,12 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
     if (ELEM(ac->datatype, ANIMCONT_ACTION, ANIMCONT_DOPESHEET, ANIMCONT_SHAPEKEY)) {
       switch (ale->type) {
         case ANIMTYPE_SUMMARY: {
-          /* reddish color from NLA */
+          if (!ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND)) {
+            /* Only draw the summary line backdrop when it is expanded. If the entire dope sheet is
+             * just one line, there is no need for any distinction between lines, and the red-ish
+             * color is only going to be a distraction. */
+            continue;
+          }
           immUniformThemeColor(TH_ANIM_ACTIVE);
           break;
         }
@@ -320,7 +325,7 @@ static void draw_keyframes(bAnimContext *ac,
   bDopeSheet *ads = &saction->ads;
 
   if (saction->mode == SACTCONT_TIMELINE) {
-    action_flag &= ~(SACTION_SHOW_INTERPOLATION | SACTION_SHOW_EXTREMES);
+    action_flag &= ~SACTION_SHOW_INTERPOLATION;
   }
 
   const float channel_step = ANIM_UI_get_channel_step();

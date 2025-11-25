@@ -44,6 +44,7 @@
 
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_ccg.hh"
@@ -284,7 +285,7 @@ void BKE_paint_invalidate_cursor_overlay(Scene *scene, ViewLayer *view_layer, Cu
   }
 
   Brush *br = BKE_paint_brush(paint);
-  if (br && br->curve == curve) {
+  if (br && br->curve_distance_falloff == curve) {
     overlay_flags |= PAINT_OVERLAY_INVALID_CURVE;
   }
 }
@@ -720,6 +721,8 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush)
   if (brush != nullptr) {
     paint->brush_asset_reference = asset_reference_create_from_brush(brush);
   }
+
+  BKE_paint_invalidate_overlay_all();
 
   return true;
 }
@@ -1685,7 +1688,7 @@ void BKE_paint_cavity_curve_preset(Paint *paint, int preset)
   cumap->preset = preset;
 
   cuma = cumap->cm;
-  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);
   BKE_curvemapping_changed(cumap, false);
 }
 
@@ -1911,6 +1914,11 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   }
 
   dst->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+  if (src->runtime) {
+    dst->runtime->paint_mode = src->runtime->paint_mode;
+    dst->runtime->ob_mode = src->runtime->ob_mode;
+    dst->runtime->initialized = true;
+  }
 }
 
 void BKE_paint_settings_foreach_mode(ToolSettings *ts, blender::FunctionRef<void(Paint *paint)> fn)
@@ -1978,15 +1986,15 @@ blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_
                                    distance * noise_scale, initial_hsv_jitter[2] * 100));
 
   float hue_jitter_scale = color_jitter.hue;
-  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS)) {
+  if (color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS) {
     hue_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_hue_jitter, 0, pressure);
   }
   float sat_jitter_scale = color_jitter.saturation;
-  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS)) {
+  if (color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS) {
     sat_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_sat_jitter, 0, pressure);
   }
   float val_jitter_scale = color_jitter.value;
-  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS)) {
+  if (color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS) {
     val_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_val_jitter, 0, pressure);
   }
 
@@ -2293,7 +2301,7 @@ void BKE_sculptsession_free_pbvh(Object &object)
 
   ss->preview_verts = {};
 
-  ss->vertex_info.boundary.clear_and_shrink();
+  ss->boundary_info_cache.reset();
   ss->fake_neighbors.fake_neighbor_index = {};
   ss->topology_island_cache.reset();
 
@@ -2506,6 +2514,22 @@ static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
 {
   return sculpt_multires_modifier_get(scene, ob, false);
+}
+
+int BKE_sculpt_get_grid_num_verts(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids_num * key.grid_area;
+}
+
+int BKE_sculpt_get_grid_num_faces(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids_num * square_i(key.grid_size - 1);
 }
 
 /* Checks if there are any supported deformation modifiers active */
@@ -2769,7 +2793,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
   using namespace blender::bke;
   Mesh *orig_me = BKE_object_get_original_mesh(object);
 
-  if (BKE_color_attribute_supported(*orig_me, orig_me->active_color_attribute)) {
+  if (BKE_id_attributes_color_find(&orig_me->id, orig_me->active_color_attribute)) {
     return;
   }
 
@@ -3080,7 +3104,7 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
   return true;
 }
 
-/* Returns the Face Set random color for rendering in the overlay given its ID and a color seed. */
+/* Returns the face set random color for rendering in the overlay given its ID and a color seed. */
 #define GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 void BKE_paint_face_set_overlay_color_get(const int face_set, const int seed, uchar r_color[4])
 {

@@ -2068,26 +2068,20 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   m_polygonIndexArray.clear();
 
   if (polytope) {
-    // --- POLYTOPE: Build a convex hull from collider faces, no UVs, no triangles ---
-    // Map to ensure each vertex is added only once and to provide compact indices.
+    // --- POLYTOPE: Build a convex hull from all mesh vertices ---
+    const blender::Span<blender::float3> positions = me->vert_positions();
+
+    // Remap to ensure each vertex is added only once and to provide compact indices.
+    // Not really needed, but keep the logic similar
     std::map<int, int> vert_remap;
     int next_vert = 0;
 
-    // Tag and remap used vertices from collider polygons.
-    for (int p = 0; p < meshobj->NumPolygons(); ++p) {
-      RAS_Polygon *poly = meshobj->GetPolygon(p);
-      if (poly && poly->IsCollider()) {
-        for (int i = 0; i < poly->VertexCount(); ++i) {
-          int v_orig = poly->GetVertexInfo(i).getOrigIndex();
-          // Add vertex to the map if not already present.
-          if (vert_remap.find(v_orig) == vert_remap.end()) {
-            vert_remap[v_orig] = next_vert++;
-          }
-        }
-      }
+    // Tag and remap all vertices.
+    for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
+      vert_remap[vert_idx] = next_vert++;
     }
 
-    // If no vertices were found, the mesh is empty or has no collider polygons.
+    // If no vertices were found, the mesh is empty.
     if (next_vert == 0) {
       m_shapeType = PHY_SHAPE_NONE;
       m_meshObject = nullptr;
@@ -2260,43 +2254,39 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   if (me && meshobj) {
 
     if (m_shapeType == PHY_SHAPE_POLYTOPE) {
-      // Map to remap original vertex indices to compacted indices (no duplicates).
+      // --- POLYTOPE: Build a convex hull from all mesh vertices ---
+      const blender::Span<blender::float3> positions = me->vert_positions();
+
+      // Remap to ensure each vertex is added only once and to provide compact indices.
       std::map<int, int> vert_remap;
       int next_vert = 0;
 
-      // Iterate over all polygons in the mesh.
-      for (int p = 0; p < meshobj->NumPolygons(); ++p) {
-        RAS_Polygon *poly = meshobj->GetPolygon(p);
-        // Only consider polygons marked as collider.
-        if (poly && poly->IsCollider()) {
-          // For each vertex in the polygon.
-          for (int i = 0; i < poly->VertexCount(); ++i) {
-            int v_orig = poly->GetVertexInfo(i).getOrigIndex();
-            // If this vertex hasn't been added yet, add it to the remap.
-            if (vert_remap.find(v_orig) == vert_remap.end()) {
-              vert_remap[v_orig] = next_vert++;
-            }
-          }
-        }
+      // Tag and remap all vertices. Not really needed, but keep the logic similar
+      for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
+        vert_remap[vert_idx] = next_vert++;
       }
 
-      // If no vertices were found, the mesh is empty or has no collider polygons.
+      // If no vertices were found, the mesh is empty.
       if (next_vert == 0) {
         m_shapeType = PHY_SHAPE_NONE;
         m_meshObject = nullptr;
         m_vertexArray.clear();
+        m_polygonIndexArray.clear();
+        m_triFaceArray.clear();
+        m_triFaceUVcoArray.clear();
         return false;
       }
 
       // Fill the compacted vertex array using the remapped indices.
       m_vertexArray.resize(next_vert * 3);
       for (const auto &pair : vert_remap) {
-        const float *vtx = &me->vert_positions()[pair.first][0];
+        const float *vtx = &positions[pair.first][0];
         int idx = pair.second;
         m_vertexArray[idx * 3 + 0] = vtx[0];
         m_vertexArray[idx * 3 + 1] = vtx[1];
         m_vertexArray[idx * 3 + 2] = vtx[2];
       }
+      // No triangle, UV, or polygon index arrays needed for polytope (convex hull).
     }
     else {
       // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---

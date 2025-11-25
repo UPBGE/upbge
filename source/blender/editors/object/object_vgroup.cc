@@ -1151,13 +1151,11 @@ static void vgroup_select_verts(const ToolSettings &tool_settings,
           }
         }
 
-        /* this has to be called, because this function operates on vertices only */
-        if (select) {
-          EDBM_select_flush(em); /* vertices to edges/faces */
-        }
-        else {
-          EDBM_deselect_flush(em);
-        }
+        /* This has to be called, because this function operates on vertices only.
+         * Vertices to edges/faces. */
+        EDBM_select_flush_from_verts(em, select);
+
+        EDBM_uvselect_clear(em);
       }
     }
     else {
@@ -1434,7 +1432,7 @@ static bool vgroup_normalize_all(Object *ob,
     soft_lock_flags[def_nr] = true;
   }
 
-  const bool all_locked = !lock_flags.contains(false);
+  const bool all_locked = !lock_flags.is_empty() && !lock_flags.contains(false);
   if (all_locked) {
     BKE_report(reports, RPT_ERROR, "All groups are locked");
   }
@@ -1468,8 +1466,8 @@ static void vgroup_normalize_all_deform_if_active_is_deform(Object *ob,
                                                             ReportList *reports,
                                                             std::optional<int> current_frame = {})
 {
-  int r_defgroup_tot = BKE_object_defgroup_count(ob);
-  bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
+  const int defgroup_tot = BKE_object_defgroup_count(ob);
+  bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, defgroup_tot);
   const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
 
   /* Only auto-normalize if the active group is bone-deforming. */

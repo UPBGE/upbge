@@ -13,9 +13,7 @@
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #ifdef __cplusplus
 #  include "BLI_span.hh"
@@ -468,10 +466,8 @@ typedef enum eBone_Flag {
   BONE_MULT_VG_ENV = (1 << 11),
   /** bone doesn't deform geometry */
   BONE_NO_DEFORM = (1 << 12),
-#ifdef DNA_DEPRECATED_ALLOW
   /** set to prevent destruction of its unkeyframed pose (after transform) */
   BONE_UNKEYED = (1 << 13),
-#endif
   /** set to prevent hinge child bones from influencing the transform center */
   BONE_HINGE_CHILD_TRANSFORM = (1 << 14),
 //#ifdef DNA_DEPRECATED_ALLOW
@@ -484,8 +480,10 @@ typedef enum eBone_Flag {
   BONE_NO_CYCLICOFFSET = (1 << 18),
   /** bone transforms are locked in EditMode */
   BONE_EDITMODE_LOCKED = (1 << 19),
+#ifdef DNA_DEPRECATED_ALLOW
   /** Indicates that a parent is also being transformed */
   BONE_TRANSFORM_CHILD = (1 << 20),
+#endif
   /** bone cannot be selected */
   BONE_UNSELECTABLE = (1 << 21),
   /** bone location is in armature space */
@@ -501,7 +499,7 @@ typedef enum eBone_Flag {
   /** this bone is associated with a locked vertex group, ONLY USE FOR DRAWING */
   BONE_DRAW_LOCKED_WEIGHT = (1 << 26),
 } eBone_Flag;
-ENUM_OPERATORS(eBone_Flag, BONE_DRAW_LOCKED_WEIGHT)
+ENUM_OPERATORS(eBone_Flag)
 
 /* bone->inherit_scale_mode */
 typedef enum eBone_InheritScaleMode {
@@ -587,7 +585,7 @@ typedef enum eBoneCollection_Flag {
 
   BONE_COLLECTION_EXPANDED = (1 << 5), /* Expanded in the tree view. */
 } eBoneCollection_Flag;
-ENUM_OPERATORS(eBoneCollection_Flag, BONE_COLLECTION_EXPANDED)
+ENUM_OPERATORS(eBoneCollection_Flag)
 
 #ifdef __cplusplus
 

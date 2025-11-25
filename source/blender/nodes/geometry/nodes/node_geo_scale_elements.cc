@@ -30,13 +30,13 @@ static const EnumPropertyItem scale_mode_items[] = {
     {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
      "UNIFORM",
      ICON_NONE,
-     "Uniform",
-     "Scale elements by the same factor in every direction"},
+     N_("Uniform"),
+     N_("Scale elements by the same factor in every direction")},
     {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
      "SINGLE_AXIS",
      ICON_NONE,
-     "Single Axis",
-     "Scale elements in a single direction"},
+     N_("Single Axis"),
+     N_("Scale elements in a single direction")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -60,7 +60,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "center is averaged");
   b.add_input<decl::Menu>("Scale Mode")
       .static_items(scale_mode_items)
-      .default_value(GEO_NODE_SCALE_ELEMENTS_UNIFORM);
+      .default_value(GEO_NODE_SCALE_ELEMENTS_UNIFORM)
+      .optional_label();
   b.add_input<decl::Vector>("Axis")
       .default_value({1.0f, 0.0f, 0.0f})
       .field_on_all()

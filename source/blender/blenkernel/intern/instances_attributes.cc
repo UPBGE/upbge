@@ -4,7 +4,6 @@
 
 #include "BKE_instances.hh"
 
-#include "attribute_access_intern.hh"
 #include "attribute_storage_access.hh"
 
 namespace blender::bke {
@@ -27,15 +26,6 @@ static const auto &builtin_attributes()
 {
   static auto attributes = []() {
     Map<StringRef, AttrBuiltinInfo> map;
-
-    /**
-     * IDs of the instances. They are used for consistency over multiple frames for things like
-     * motion blur. Proper stable ID data that actually helps when rendering can only be generated
-     * in some situations, so this vector is allowed to be empty, in which case the index of each
-     * instance will be used for the final ID.
-     */
-    AttrBuiltinInfo id(bke::AttrDomain::Instance, bke::AttrType::Int32);
-    map.add_new("id", std::move(id));
 
     AttrBuiltinInfo instance_transform(bke::AttrDomain::Instance, bke::AttrType::Float4x4);
     instance_transform.deletable = false;

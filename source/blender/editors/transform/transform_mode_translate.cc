@@ -164,7 +164,7 @@ static void translate_dist_to_str(char *r_str,
                                   const UnitSettings *unit)
 {
   if (unit && (unit->system != USER_UNIT_NONE)) {
-    BKE_unit_value_as_string_scaled(r_str, r_str_maxncpy, val, 4, B_UNIT_LENGTH, *unit, false);
+    BKE_unit_value_as_string_scaled(r_str, r_str_maxncpy, val, -4, B_UNIT_LENGTH, *unit, false);
   }
   else {
     /* Check range to prevent string buffer overflow. */
@@ -600,10 +600,8 @@ static void initTranslation(TransInfo *t, wmOperator * /*op*/)
   if (t->spacetype == SPACE_GRAPH) {
     View2D *v2d = &t->region->v2d;
     Scene *scene = t->scene;
-    SpaceGraph *sipo = static_cast<SpaceGraph *>(t->area->spacedata.first);
-    aspect[0] = UI_view2d_grid_resolution_x__frames_or_seconds(
-        v2d, scene, sipo->flag & SIPO_DRAWTIME);
-    aspect[1] = UI_view2d_grid_resolution_y__values(v2d);
+    aspect[0] = UI_view2d_grid_resolution_x__frames_or_seconds(v2d, scene);
+    aspect[1] = UI_view2d_grid_resolution_y__values(v2d, 10);
   }
 
   t->increment = t->snap_spatial * aspect;

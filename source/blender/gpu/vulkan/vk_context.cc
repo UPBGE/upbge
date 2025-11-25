@@ -178,6 +178,7 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       signal_semaphore,
       signal_fence);
   render_graph_.reset();
+  streaming_buffers_.clear();
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
@@ -285,21 +286,42 @@ void VKContext::rendering_end()
 
 void VKContext::update_pipeline_data(GPUPrimType primitive,
                                      VKVertexAttributeObject &vao,
-                                     render_graph::VKPipelineData &r_pipeline_data)
+                                     render_graph::VKPipelineDataGraphics &r_pipeline_data)
 {
   VKShader &vk_shader = unwrap(*shader);
   VKFrameBuffer &framebuffer = *active_framebuffer_get();
 
+  VKStateManager &state_manager = state_manager_get();
+  /* Disable non-vulkan state flags to reduce unneeded pipeline compilation. */
+  state_manager.state.clip_control = 0;
+
   /* Override size of point shader when GPU_point size < 0 */
-  const float point_size = state_manager_get().mutable_state.point_size;
+  const float point_size = state_manager.mutable_state.point_size;
   if (primitive == GPU_PRIM_POINTS && point_size < 0.0) {
     GPU_shader_uniform_1f(shader, "size", -point_size);
   }
 
+  /* Dynamic state line width */
+  const bool is_line_primitive = ELEM(primitive,
+                                      GPU_PRIM_LINES,
+                                      GPU_PRIM_LINE_LOOP,
+                                      GPU_PRIM_LINE_STRIP,
+                                      GPU_PRIM_LINES_ADJ,
+                                      GPU_PRIM_LINE_STRIP_ADJ);
+
+  if (is_line_primitive) {
+    const bool supports_wide_lines = VKBackend::get().device.extensions_get().wide_lines;
+    r_pipeline_data.line_width = supports_wide_lines ? state_manager.mutable_state.line_width :
+                                                       1.0f;
+  }
+  else {
+    r_pipeline_data.line_width.reset();
+  }
+
   update_pipeline_data(vk_shader,
                        vk_shader.ensure_and_get_graphics_pipeline(
-                           primitive, vao, state_manager_get(), framebuffer, constants_state_),
-                       r_pipeline_data);
+                           primitive, vao, state_manager, framebuffer, constants_state_),
+                       r_pipeline_data.pipeline_data);
 }
 
 void VKContext::update_pipeline_data(render_graph::VKPipelineData &r_pipeline_data)
@@ -328,8 +350,6 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
 
   /* Update descriptor set. */
   r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
-  r_pipeline_data.descriptor_buffer_device_address = 0;
-  r_pipeline_data.descriptor_buffer_offset = 0;
   if (vk_shader.has_descriptor_set()) {
     VKDescriptorSetTracker &descriptor_set = descriptor_set_get();
     descriptor_set.update_descriptor_set(*this, access_info_, r_pipeline_data);
@@ -348,21 +368,26 @@ render_graph::VKResourceAccessInfo &VKContext::reset_and_get_access_info()
 /** \name Graphics pipeline
  * \{ */
 
-void VKContext::swap_buffers_pre_callback(const GHOST_VulkanSwapChainData *swap_chain_data)
+void VKContext::swap_buffer_acquired_callback()
 {
   VKContext *context = VKContext::get();
   BLI_assert(context);
-  context->swap_buffers_pre_handler(*swap_chain_data);
+  context->swap_buffer_acquired_handler();
 }
 
-void VKContext::swap_buffers_post_callback()
+void VKContext::swap_buffer_draw_callback(const GHOST_VulkanSwapChainData *swap_chain_data)
 {
   VKContext *context = VKContext::get();
   BLI_assert(context);
-  context->swap_buffers_post_handler();
+  context->swap_buffer_draw_handler(*swap_chain_data);
 }
 
-void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_chain_data)
+void VKContext::swap_buffer_acquired_handler()
+{
+  sync_backbuffer();
+}
+
+void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_chain_data)
 {
   const bool do_blit_to_swapchain = swap_chain_data.image != VK_NULL_HANDLE;
   const bool use_shader = swap_chain_data.surface_format.colorSpace ==
@@ -379,7 +404,7 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   VKFrameBuffer &framebuffer = *unwrap(active_fb);
   framebuffer.rendering_end(*this);
   VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
-  device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
+  device.resources.add_swapchain_image(swap_chain_data.image, "SwapchainImage");
 
   GPU_debug_group_begin("BackBuffer.Blit");
   if (use_shader) {
@@ -389,12 +414,6 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
     Shader *shader = device.vk_backbuffer_blit_sh_get();
     GPU_shader_bind(shader);
     GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);
-    /* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
-#if defined(_WIN32) || defined(__APPLE__)
-    GPU_shader_uniform_1b(shader, "use_gamma22", false);
-#else
-    GPU_shader_uniform_1b(shader, "use_gamma22", true);
-#endif
     VKStateManager &state_manager = state_manager_get();
     state_manager.image_bind(color_attachment, 0);
     state_manager.image_bind(&swap_chain_texture, 1);
@@ -445,16 +464,24 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
 #endif
 }
 
-void VKContext::swap_buffers_post_handler()
-{
-  sync_backbuffer();
-}
-
 void VKContext::specialization_constants_set(
     const shader::SpecializationConstants *constants_state)
 {
   constants_state_ = (constants_state != nullptr) ? *constants_state :
                                                     shader::SpecializationConstants{};
+}
+
+std::unique_ptr<VKStreamingBuffer> &VKContext::get_or_create_streaming_buffer(
+    VKBuffer &buffer, VkDeviceSize min_offset_alignment)
+{
+  for (std::unique_ptr<VKStreamingBuffer> &streaming_buffer : streaming_buffers_) {
+    if (streaming_buffer->vk_buffer_dst() == buffer.vk_handle()) {
+      return streaming_buffer;
+    }
+  }
+
+  streaming_buffers_.append(std::make_unique<VKStreamingBuffer>(buffer, min_offset_alignment));
+  return streaming_buffers_.last();
 }
 
 /** \} */

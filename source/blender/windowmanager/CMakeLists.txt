@@ -8,6 +8,7 @@ set(INC
   gizmo/intern
   ../compositor
   ../editors/include
+  ../gpu
   ../makesrna
   ../../gameengine/Launcher
   ../../../intern/memutil
@@ -26,8 +27,8 @@ set(SRC
   intern/wm_event_query.cc
   intern/wm_event_system.cc
   intern/wm_files.cc
-  intern/wm_files_link.cc
   intern/wm_files_colorspace.cc
+  intern/wm_files_link.cc
   intern/wm_gesture.cc
   intern/wm_gesture_ops.cc
   intern/wm_init_exit.cc

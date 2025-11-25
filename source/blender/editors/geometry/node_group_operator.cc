@@ -573,7 +573,7 @@ static Map<StringRef, ID *> gather_input_ids(const Main &bmain,
         if (!id_type) {
           return;
         }
-        const char *id_name = IDP_String(prop);
+        const char *id_name = IDP_string_get(prop);
         ID *id = BKE_libblock_find_name(&const_cast<Main &>(bmain), *id_type, id_name);
         if (!id) {
           return;
@@ -613,7 +613,7 @@ static void replace_inputs_evaluated_data_blocks(
     IDProperty &properties, const nodes::GeoNodesOperatorDepsgraphs &depsgraphs)
 {
   IDP_foreach_property(&properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-    if (ID *id = IDP_Id(property)) {
+    if (ID *id = IDP_ID_get(property)) {
       if (ID_TYPE_USE_COPY_ON_EVAL(GS(id->name))) {
         property->data.pointer = const_cast<ID *>(depsgraphs.get_evaluated_id(*id));
       }
@@ -778,11 +778,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
         *depsgraph_active, *object, operator_eval_data, orig_mesh_states);
 
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
-        *node_tree,
-        nodes::build_properties_vector_set(properties),
-        compute_context,
-        call_data,
-        std::move(geometry_orig));
+        *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
 
     store_result_geometry(
         *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
@@ -879,9 +875,9 @@ static std::string run_node_group_get_description(bContext *C,
 
 static void run_node_group_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
 
@@ -945,7 +941,7 @@ static bool run_node_group_depends_on_cursor(bContext &C, wmOperatorType & /*ot*
   }
   const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
       &asset->get_metadata(), "geometry_node_asset_traits_flag");
-  if (traits_flag == nullptr || !(IDP_Int(traits_flag) & GEO_NODE_ASSET_WAIT_FOR_CURSOR)) {
+  if (traits_flag == nullptr || !(IDP_int_get(traits_flag) & GEO_NODE_ASSET_WAIT_FOR_CURSOR)) {
     return false;
   }
   return true;
@@ -1223,12 +1219,12 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C, const Object &
   const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(active_object);
   auto meta_data_filter = [&](const AssetMetaData &meta_data) {
     const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
-    if (tree_type == nullptr || IDP_Int(tree_type) != NTREE_GEOMETRY) {
+    if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
       return false;
     }
     const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
         &meta_data, "geometry_node_asset_traits_flag");
-    if (traits_flag == nullptr || (IDP_Int(traits_flag) & flag) != flag) {
+    if (traits_flag == nullptr || (IDP_int_get(traits_flag) & flag) != flag) {
       return false;
     }
     return true;
@@ -1361,20 +1357,20 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       menu_path->data());
   BLI_assert(catalog_item != nullptr);
 
-  uiLayout *layout = menu->layout;
+  ui::Layout &layout = *menu->layout;
   bool add_separator = true;
 
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     if (add_separator) {
-      layout->separator();
+      layout.separator();
       add_separator = false;
     }
-    PointerRNA props_ptr = layout->op(ot,
-                                      IFACE_(asset->get_name()),
-                                      ICON_NONE,
-                                      wm::OpCallContext::InvokeRegionWin,
-                                      UI_ITEM_NONE);
+    PointerRNA props_ptr = layout.op(ot,
+                                     IFACE_(asset->get_name()),
+                                     ICON_NONE,
+                                     wm::OpCallContext::InvokeRegionWin,
+                                     UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1392,10 +1388,10 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       return;
     }
     if (add_separator) {
-      layout->separator();
+      layout.separator();
       add_separator = false;
     }
-    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", *layout);
+    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", layout);
   });
 }
 
@@ -1443,14 +1439,14 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   if (!tree) {
     return;
   }
-  uiLayout *layout = menu->layout;
+  ui::Layout &layout = *menu->layout;
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    PointerRNA props_ptr = layout->op(ot,
-                                      IFACE_(asset->get_name()),
-                                      ICON_NONE,
-                                      wm::OpCallContext::InvokeRegionWin,
-                                      UI_ITEM_NONE);
+    PointerRNA props_ptr = layout.op(ot,
+                                     IFACE_(asset->get_name()),
+                                     ICON_NONE,
+                                     wm::OpCallContext::InvokeRegionWin,
+                                     UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1471,15 +1467,15 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
 
     if (add_separator) {
-      layout->separator();
+      layout.separator();
       add_separator = false;
     }
     if (first) {
-      layout->label(IFACE_("Non-Assets"), ICON_NONE);
+      layout.label(IFACE_("Non-Assets"), ICON_NONE);
       first = false;
     }
 
-    PointerRNA props_ptr = layout->op(
+    PointerRNA props_ptr = layout.op(
         ot, group->id.name + 2, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
     /* Also set the name so it can be used for #run_node_group_get_name. */
@@ -1490,7 +1486,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 MenuType node_group_operator_assets_menu_unassigned()
 {
   MenuType type{};
-  STRNCPY_UTF8(type.label, "Unassigned Node Tools");
+  STRNCPY_UTF8(type.label, N_("Unassigned Node Tools"));
   STRNCPY_UTF8(type.idname, "GEO_MT_node_operator_unassigned");
   type.poll = asset_menu_poll;
   type.draw = catalog_assets_draw_unassigned;
@@ -1502,7 +1498,7 @@ MenuType node_group_operator_assets_menu_unassigned()
   return type;
 }
 
-void ui_template_node_operator_asset_menu_items(uiLayout &layout,
+void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
                                                 const bContext &C,
                                                 const StringRef catalog_path)
 {
@@ -1523,12 +1519,12 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
   if (!all_library) {
     return;
   }
-  uiLayout *col = &layout.column(false);
-  col->context_string_set("asset_catalog_path", item->catalog_path().str());
-  col->menu_contents("GEO_MT_node_operator_catalog_assets");
+  ui::Layout &col = layout.column(false);
+  col.context_string_set("asset_catalog_path", item->catalog_path().str());
+  col.menu_contents("GEO_MT_node_operator_catalog_assets");
 }
 
-void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext &C)
+void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bContext &C)
 {
   const Object *active_object = CTX_data_active_object(&C);
   if (!active_object) {

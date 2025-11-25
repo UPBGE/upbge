@@ -104,32 +104,32 @@ static PyObject *Quaternion_to_tuple_ext(QuaternionObject *self, int ndigits)
 /** \name Quaternion Type: `__new__` / `mathutils.Quaternion()`
  * \{ */
 
-static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+static PyObject *Quaternion_vectorcall(PyObject *type,
+                                       PyObject *const *args,
+                                       const size_t nargsf,
+                                       PyObject *kwnames)
 {
-  PyObject *seq = nullptr;
-  double angle = 0.0f;
-  float quat[QUAT_SIZE];
-  unit_qt(quat);
-
-  if (kwds && PyDict_Size(kwds)) {
+  if (UNLIKELY(kwnames && PyTuple_GET_SIZE(kwnames))) {
     PyErr_SetString(PyExc_TypeError,
                     "mathutils.Quaternion(): "
                     "takes no keyword args");
     return nullptr;
   }
 
-  if (!PyArg_ParseTuple(args, "|Od:mathutils.Quaternion", &seq, &angle)) {
-    return nullptr;
-  }
+  double angle = 0.0f;
+  float quat[QUAT_SIZE];
+  unit_qt(quat);
 
-  switch (PyTuple_GET_SIZE(args)) {
-    case 0:
+  const size_t nargs = PyVectorcall_NARGS(nargsf);
+  switch (nargs) {
+    case 0: {
       break;
+    }
     case 1: {
-      int size;
+      const int size = mathutils_array_parse(
+          quat, 3, QUAT_SIZE, args[0], "mathutils.Quaternion()");
 
-      if ((size = mathutils_array_parse(quat, 3, QUAT_SIZE, seq, "mathutils.Quaternion()")) == -1)
-      {
+      if (UNLIKELY(size == -1)) {
         return nullptr;
       }
 
@@ -146,16 +146,45 @@ static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kw
     }
     case 2: {
       float axis[3];
-      if (mathutils_array_parse(axis, 3, 3, seq, "mathutils.Quaternion()") == -1) {
+      if (mathutils_array_parse(axis, 3, 3, args[0], "mathutils.Quaternion()") == -1) {
+        return nullptr;
+      }
+      angle = PyFloat_AsDouble(args[1]);
+      if (UNLIKELY(angle == -1.0 && PyErr_Occurred())) {
+        PyErr_Format(PyExc_TypeError,
+                     "mathutils.Quaternion(): "
+                     "angle must be a real number, not '%.200s'",
+                     Py_TYPE(args[1])->tp_name);
         return nullptr;
       }
       angle = angle_wrap_rad(angle); /* clamp because of precision issues */
       axis_angle_to_quat(quat, axis, angle);
       break;
-      /* PyArg_ParseTuple assures no more than 2 */
+    }
+    default: {
+      PyErr_Format(PyExc_TypeError,
+                   "mathutils.Quaternion() "
+                   "takes at most 2 arguments (%zd given)",
+                   nargs);
+      return nullptr;
     }
   }
-  return Quaternion_CreatePyObject(quat, type);
+  return Quaternion_CreatePyObject(quat, (PyTypeObject *)type);
+}
+
+static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  /* Only called on sub-classes. */
+  if (UNLIKELY(kwds && PyDict_GET_SIZE(kwds))) {
+    PyErr_SetString(PyExc_TypeError,
+                    "mathutils.Quaternion(): "
+                    "takes no keyword args");
+    return nullptr;
+  }
+  PyObject *const *args_array = &PyTuple_GET_ITEM(args, 0);
+  const size_t args_array_num = PyTuple_GET_SIZE(args);
+  return Quaternion_vectorcall(
+      reinterpret_cast<PyObject *>(type), args_array, args_array_num, nullptr);
 }
 
 /** \} */
@@ -252,7 +281,7 @@ static PyObject *Quaternion_to_matrix(QuaternionObject *self)
     return nullptr;
   }
 
-  quat_to_mat3((float(*)[3])mat, self->quat);
+  quat_to_mat3((float (*)[3])mat, self->quat);
   return Matrix_CreatePyObject(mat, 3, 3, nullptr);
 }
 
@@ -937,22 +966,25 @@ static PyObject *Quaternion_richcmpr(PyObject *a, PyObject *b, int op)
   }
 
   switch (op) {
-    case Py_NE:
+    case Py_NE: {
       ok = !ok;
       ATTR_FALLTHROUGH;
-    case Py_EQ:
+    }
+    case Py_EQ: {
       res = ok ? Py_False : Py_True;
       break;
-
+    }
     case Py_LT:
     case Py_LE:
     case Py_GT:
-    case Py_GE:
+    case Py_GE: {
       res = Py_NotImplemented;
       break;
-    default:
+    }
+    default: {
       PyErr_BadArgument();
       return nullptr;
+    }
   }
 
   return Py_NewRef(res);
@@ -1884,7 +1916,7 @@ PyTypeObject quaternion_Type = {
     /*tp_del*/ nullptr,
     /*tp_version_tag*/ 0,
     /*tp_finalize*/ nullptr,
-    /*tp_vectorcall*/ nullptr,
+    /*tp_vectorcall*/ Quaternion_vectorcall,
 };
 
 #ifdef MATH_STANDALONE

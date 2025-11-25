@@ -13,9 +13,9 @@
 #include <optional>
 #include <string>
 
+#include "../blenlib/BLI_enum_flags.hh"
 #include "../blenlib/BLI_function_ref.hh"
 #include "../blenlib/BLI_sys_types.h"
-#include "../blenlib/BLI_utildefines.h"
 #include "../blenlib/BLI_vector.hh"
 
 struct BlenderRNA;
@@ -187,7 +187,7 @@ enum PropertyUnit {
   PROP_UNIT_COLOR_TEMPERATURE = (14 << 16), /* K */
   PROP_UNIT_FREQUENCY = (15 << 16),         /* Hz */
 };
-ENUM_OPERATORS(PropertyUnit, PROP_UNIT_TEMPERATURE)
+ENUM_OPERATORS(PropertyUnit)
 
 /**
  * Use values besides #PROP_SCALE_LINEAR
@@ -472,7 +472,7 @@ enum PropertyFlag {
   /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
 };
-ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
+ENUM_OPERATORS(PropertyFlag)
 
 /**
  * For properties that support path templates, this indicates which
@@ -535,7 +535,7 @@ enum PropertyOverrideFlag {
    */
   PROPOVERRIDE_NO_PROP_NAME = (1 << 11),
 };
-ENUM_OPERATORS(PropertyOverrideFlag, PROPOVERRIDE_NO_PROP_NAME);
+ENUM_OPERATORS(PropertyOverrideFlag);
 
 /**
  * Function parameters flags.
@@ -556,7 +556,7 @@ enum ParameterFlag {
    */
   PARM_PYFUNC_REGISTER_OPTIONAL = (1 << 3),
 };
-ENUM_OPERATORS(ParameterFlag, PARM_PYFUNC_REGISTER_OPTIONAL)
+ENUM_OPERATORS(ParameterFlag)
 
 struct CollectionPropertyIterator;
 struct Link;
@@ -670,16 +670,10 @@ struct EnumPropertyItem {
  * By convention the value should be a non-empty string or NULL when there is no description
  * (never an empty string).
  */
-#define RNA_ENUM_ITEM_HEADING(name, description) \
-  { \
-    0, "", 0, name, description \
-  }
+#define RNA_ENUM_ITEM_HEADING(name, description) {0, "", 0, name, description}
 
 /** Separator for RNA enum items (shown in the UI). */
-#define RNA_ENUM_ITEM_SEPR \
-  { \
-    0, "", 0, NULL, NULL \
-  }
+#define RNA_ENUM_ITEM_SEPR {0, "", 0, NULL, NULL}
 
 /** Separator for RNA enum that begins a new column in menus (shown in the UI). */
 #define RNA_ENUM_ITEM_SEPR_COLUMN RNA_ENUM_ITEM_HEADING("", NULL)
@@ -797,7 +791,7 @@ enum eStringPropertySearchFlag {
    */
   PROP_STRING_SEARCH_SUGGESTION = (1 << 2),
 };
-ENUM_OPERATORS(eStringPropertySearchFlag, PROP_STRING_SEARCH_SUGGESTION)
+ENUM_OPERATORS(eStringPropertySearchFlag)
 
 /**
  * \param C: context, may be NULL (in this case all available items should be shown).
@@ -833,7 +827,7 @@ using EnumPropertyGetTransformFunc = int (*)(PointerRNA *ptr,
 using EnumPropertySetTransformFunc =
     int (*)(PointerRNA *ptr, PropertyRNA *prop, int new_value, int curr_value, bool is_set);
 /* same as PropEnumItemFunc */
-using EnumPropertyItemFunc = const EnumPropertyItem *(*)(bContext *C,
+using EnumPropertyItemFunc = const EnumPropertyItem *(*)(bContext * C,
                                                          PointerRNA *ptr,
                                                          PropertyRNA *prop,
                                                          bool *r_free);
@@ -994,7 +988,7 @@ using StructCallbackFunc = int (*)(bContext *C,
                                    FunctionRNA *func,
                                    ParameterList *list);
 using StructFreeFunc = void (*)(void *data);
-using StructRegisterFunc = StructRNA *(*)(Main *bmain,
+using StructRegisterFunc = StructRNA *(*)(Main * bmain,
                                           ReportList *reports,
                                           void *data,
                                           const char *identifier,
@@ -1003,7 +997,7 @@ using StructRegisterFunc = StructRNA *(*)(Main *bmain,
                                           StructFreeFunc free);
 /** Return true when `type` was successfully unregistered & freed. */
 using StructUnregisterFunc = bool (*)(Main *bmain, StructRNA *type);
-using StructInstanceFunc = void **(*)(PointerRNA *ptr);
+using StructInstanceFunc = void **(*)(PointerRNA * ptr);
 
 struct StructRNA;
 

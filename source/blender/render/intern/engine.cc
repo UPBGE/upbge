@@ -67,10 +67,13 @@ void RE_engines_exit()
 {
   RenderEngineType *type, *next;
 
-  if (WM_gpu_is_initialized()) {
-    /* Clean resources if the DRW context exists. */
+  if (DRW_gpu_context_try_enable()) {
+    /* Clean resources if the DRW context exists.
+     * We need a context bound even when dealing with non context dependent GPU resources,
+     * since GL functions may be null otherwise (See #141233). */
     DRW_engines_free();
     DRW_module_exit();
+    DRW_gpu_context_disable();
   }
 
   for (type = static_cast<RenderEngineType *>(R_engines.first); type; type = next) {
@@ -108,19 +111,6 @@ RenderEngineType *RE_engines_find(const char *idname)
 bool RE_engine_is_external(const Render *re)
 {
   return (re->engine && re->engine->type && re->engine->type->render);
-}
-
-bool RE_engine_supports_alembic_procedural(const RenderEngineType *render_type, Scene *scene)
-{
-  if ((render_type->flag & RE_USE_ALEMBIC_PROCEDURAL) == 0) {
-    return false;
-  }
-
-  if (BKE_scene_uses_cycles(scene) && !BKE_scene_uses_cycles_experimental_features(scene)) {
-    return false;
-  }
-
-  return true;
 }
 
 /* Create, Free */
@@ -400,7 +390,7 @@ void RE_engine_update_result(RenderEngine *engine, RenderResult *result)
     render_result_merge(re->result, result);
     result->renlay = static_cast<RenderLayer *>(
         result->layers.first); /* weak, draws first layer always */
-    re->display_update(result, nullptr);
+    re->display->display_update(result, nullptr);
   }
 }
 
@@ -451,16 +441,16 @@ void RE_engine_end_result(
   }
 
   if (!cancel || merge_results) {
-    if (!(re->test_break() && (re->r.scemode & R_BUTS_PREVIEW))) {
+    if (!(re->display->test_break() && (re->r.scemode & R_BUTS_PREVIEW))) {
       re_ensure_passes_allocated_thread_safe(re);
       render_result_merge(re->result, result);
     }
 
     /* draw */
-    if (!re->test_break()) {
+    if (!re->display->test_break()) {
       result->renlay = static_cast<RenderLayer *>(
           result->layers.first); /* weak, draws first layer always */
-      re->display_update(result, nullptr);
+      re->display->display_update(result, nullptr);
     }
   }
 
@@ -481,7 +471,7 @@ bool RE_engine_test_break(RenderEngine *engine)
   Render *re = engine->re;
 
   if (re) {
-    return re->test_break();
+    return re->display->test_break();
   }
 
   return false;
@@ -497,7 +487,7 @@ void RE_engine_update_stats(RenderEngine *engine, const char *stats, const char 
   if (re) {
     re->i.statstr = stats;
     re->i.infostr = info;
-    re->stats_draw(&re->i);
+    re->display->stats_draw(&re->i);
     re->i.infostr = nullptr;
     re->i.statstr = nullptr;
   }
@@ -522,7 +512,7 @@ void RE_engine_update_progress(RenderEngine *engine, float progress)
 
   if (re) {
     CLAMP(progress, 0.0f, 1.0f);
-    re->progress(progress);
+    re->display->progress(progress);
   }
 }
 
@@ -617,10 +607,10 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine,
    * leaving stereo to be handled by the engine. */
   Render *re = engine->re;
   if (use_spherical_stereo || re == nullptr) {
-    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float (*)[4])r_modelmat);
   }
   else {
-    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float (*)[4])r_modelmat);
   }
 }
 
@@ -873,13 +863,13 @@ static void engine_render_view_layer(Render *re,
                                      const bool use_grease_pencil)
 {
   /* Lock UI so scene can't be edited while we read from it in this render thread. */
-  re->draw_lock();
+  re->display->draw_lock();
 
   /* Create depsgraph with scene evaluated at render resolution. */
   ViewLayer *view_layer = static_cast<ViewLayer *>(
       BLI_findstring(&re->scene->view_layers, view_layer_iter->name, offsetof(ViewLayer, name)));
   if (!re->prepare_viewlayer(view_layer, engine->depsgraph)) {
-    re->draw_unlock();
+    re->display->draw_unlock();
     return;
   }
   engine_depsgraph_init(engine, view_layer);
@@ -922,7 +912,7 @@ static void engine_render_view_layer(Render *re,
     }
   }
 
-  re->draw_unlock();
+  re->display->draw_unlock();
 
   /* Perform render with engine. */
   if (use_engine) {
@@ -1016,11 +1006,11 @@ bool RE_engine_render(Render *re, bool do_all)
   }
 
   /* Lock drawing in UI during data phase. */
-  re->draw_lock();
+  re->display->draw_lock();
 
   if ((type->flag & RE_USE_GPU_CONTEXT) && !GPU_backend_supported()) {
     /* Clear UI drawing locks. */
-    re->draw_unlock();
+    re->display->draw_unlock();
     BKE_report(re->reports, RPT_ERROR, "Cannot initialize the GPU");
     G.is_break = true;
     return true;
@@ -1052,7 +1042,7 @@ bool RE_engine_render(Render *re, bool do_all)
 
   if (re->result == nullptr) {
     /* Clear UI drawing locks. */
-    re->draw_unlock();
+    re->display->draw_unlock();
     /* Free engine. */
     RE_engine_free(engine);
     re->engine = nullptr;
@@ -1085,7 +1075,7 @@ bool RE_engine_render(Render *re, bool do_all)
   engine->resolution_y = re->winy;
 
   /* Clear UI drawing locks. */
-  re->draw_unlock();
+  re->display->draw_unlock();
 
   /* Render view layers. */
   bool delay_grease_pencil = false;

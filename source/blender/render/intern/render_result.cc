@@ -249,16 +249,6 @@ RenderPass *render_layer_add_pass(RenderResult *rr,
   RE_render_result_full_channel_name(
       rpass->fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, -1);
 
-  if (rl->exrhandle) {
-    int a;
-    for (a = 0; a < channels; a++) {
-      char passname[EXR_PASS_MAXNAME];
-      RE_render_result_full_channel_name(
-          passname, nullptr, rpass->name, nullptr, rpass->chan_id, a);
-      IMB_exr_add_channel(rl->exrhandle, rl->name, passname, viewname, 0, 0, nullptr, false);
-    }
-  }
-
   BLI_addtail(&rl->passes, rpass);
 
   if (allocate) {
@@ -366,11 +356,6 @@ RenderResult *render_result_new(Render *re,
     re->single_view_layer[0] = '\0';
   }
 
-  /* Border render; calculate offset for use in compositor. compo is centralized coords. */
-  /* XXX(ton): obsolete? I now use it for drawing border render offset. */
-  rr->xof = re->disprect.xmin + BLI_rcti_cent_x(&re->disprect) - (re->winx / 2);
-  rr->yof = re->disprect.ymin + BLI_rcti_cent_y(&re->disprect) - (re->winy / 2);
-
   return rr;
 }
 
@@ -384,10 +369,6 @@ void render_result_passes_allocated_ensure(RenderResult *rr)
 
   LISTBASE_FOREACH (RenderLayer *, rl, &rr->layers) {
     LISTBASE_FOREACH (RenderPass *, rp, &rl->passes) {
-      if (rl->exrhandle != nullptr && !STREQ(rp->name, RE_PASSNAME_COMBINED)) {
-        continue;
-      }
-
       render_layer_allocate_pass(rr, rp);
     }
   }
@@ -710,7 +691,7 @@ static int order_render_passes(const void *a, const void *b)
 }
 
 RenderResult *render_result_new_from_exr(
-    void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
+    ExrHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
   RenderResult *rr = MEM_callocN<RenderResult>(__func__);
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -721,6 +702,11 @@ RenderResult *render_result_new_from_exr(
   rr->recty = recty;
 
   IMB_exr_get_ppm(exrhandle, rr->ppm);
+
+  int display_size[2];
+  int display_offset[2];
+  int data_offset[2];
+  IMB_exr_get_display_window(exrhandle, display_size, display_offset, data_offset);
 
   IMB_exr_multilayer_convert(exrhandle, rr, ml_addview_cb, ml_addlayer_cb, ml_addpass_cb);
 
@@ -735,6 +721,10 @@ RenderResult *render_result_new_from_exr(
       rpass->recty = recty;
 
       copy_v2_v2_db(rpass->ibuf->ppm, rr->ppm);
+      rpass->ibuf->flags |= IB_has_display_window;
+      copy_v2_v2_int(rpass->ibuf->display_size, display_size);
+      copy_v2_v2_int(rpass->ibuf->display_offset, display_offset);
+      copy_v2_v2_int(rpass->ibuf->data_offset, data_offset);
 
       if (RE_RenderPassIsColor(rpass)) {
         IMB_colormanagement_transform_float(rpass->ibuf->float_buffer.data,
@@ -910,7 +900,7 @@ bool render_result_exr_file_read_path(RenderResult *rr,
                                       ReportList *reports,
                                       const char *filepath)
 {
-  void *exrhandle = IMB_exr_get_handle();
+  ExrHandle *exrhandle = IMB_exr_get_handle();
   int rectx, recty;
 
   if (!IMB_exr_begin_read(exrhandle, filepath, &rectx, &recty, false)) {
@@ -946,25 +936,20 @@ bool render_result_exr_file_read_path(RenderResult *rr,
       char fullname[EXR_PASS_MAXNAME];
 
       for (a = 0; a < xstride; a++) {
+        /* First try with layer included. */
         RE_render_result_full_channel_name(
-            fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, a);
-
-        if (IMB_exr_set_channel(exrhandle,
-                                rl->name,
-                                fullname,
-                                xstride,
-                                ystride,
-                                rpass->ibuf->float_buffer.data + a))
+            fullname, rl->name, rpass->name, rpass->view, rpass->chan_id, a);
+        if (IMB_exr_set_channel(
+                exrhandle, fullname, xstride, ystride, rpass->ibuf->float_buffer.data + a))
         {
           found_channels = true;
         }
         else if (rl_single) {
-          if (IMB_exr_set_channel(exrhandle,
-                                  nullptr,
-                                  fullname,
-                                  xstride,
-                                  ystride,
-                                  rpass->ibuf->float_buffer.data + a))
+          /* Then try without layer name. */
+          RE_render_result_full_channel_name(
+              fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, a);
+          if (IMB_exr_set_channel(
+                  exrhandle, fullname, xstride, ystride, rpass->ibuf->float_buffer.data + a))
           {
             found_channels = true;
           }
@@ -1070,7 +1055,7 @@ bool render_result_exr_file_cache_read(Render *re)
   printf("read exr cache file: %s\n", filepath);
 
   /* Try opening the file. */
-  void *exrhandle = IMB_exr_get_handle();
+  ExrHandle *exrhandle = IMB_exr_get_handle();
   int rectx, recty;
 
   if (!IMB_exr_begin_read(exrhandle, filepath, &rectx, &recty, true)) {
@@ -1325,7 +1310,6 @@ static RenderLayer *duplicate_render_layer(RenderLayer *rl)
   RenderLayer *new_rl = MEM_dupallocN<RenderLayer>("new render layer", *rl);
   new_rl->next = new_rl->prev = nullptr;
   new_rl->passes.first = new_rl->passes.last = nullptr;
-  new_rl->exrhandle = nullptr;
   LISTBASE_FOREACH (RenderPass *, rpass, &rl->passes) {
     RenderPass *new_rpass = duplicate_render_pass(rpass);
     BLI_addtail(&new_rl->passes, new_rpass);

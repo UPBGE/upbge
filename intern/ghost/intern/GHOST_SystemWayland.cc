@@ -235,6 +235,8 @@ static bool use_gnome_confine_hack = false;
 
 #define WL_NAME_UNSET uint32_t(-1)
 
+#define WL_SERIAL_NONE uint32_t(0)
+
 /**
  * Initializer for GHOST integer coordinates from `wl_fixed_t`,
  * taking window scale into account.
@@ -567,6 +569,8 @@ struct GWL_TabletTool {
     GWL_TabletTool_EventTypes frame_types[GWL_TabletTool_FrameTypes_NUM] = {
         GWL_TabletTool_EventTypes::Motion, /* Dummy, never used. */
     };
+    uint32_t frame_serial[GWL_TabletTool_FrameTypes_NUM] = {WL_SERIAL_NONE};
+
     int frame_types_num = 0;
     int frame_types_mask = 0;
 
@@ -577,7 +581,8 @@ struct GWL_TabletTool {
 };
 
 static void gwl_tablet_tool_frame_event_add(GWL_TabletTool *tablet_tool,
-                                            const GWL_TabletTool_EventTypes ty)
+                                            const GWL_TabletTool_EventTypes ty,
+                                            const uint32_t serial)
 {
   const int ty_mask = 1 << int(ty);
   /* Motion callback may run multiple times. */
@@ -587,6 +592,7 @@ static void gwl_tablet_tool_frame_event_add(GWL_TabletTool *tablet_tool,
   tablet_tool->frame_pending.frame_types_mask |= ty_mask;
   int i = tablet_tool->frame_pending.frame_types_num++;
   tablet_tool->frame_pending.frame_types[i] = ty;
+  tablet_tool->frame_pending.frame_serial[i] = serial;
 }
 
 static void gwl_tablet_tool_frame_event_reset(GWL_TabletTool *tablet_tool)
@@ -785,6 +791,7 @@ struct GWL_SeatStatePointer_Events {
         GWL_Pointer_EventTypes::Motion, /* Dummy, never used. */
     };
     uint64_t frame_event_ms[GWL_TabletTool_FrameTypes_NUM] = {0};
+    uint32_t frame_serial[GWL_TabletTool_FrameTypes_NUM] = {WL_SERIAL_NONE};
     int frame_types_num = 0;
     int frame_types_mask = 0;
   } frame_pending;
@@ -792,6 +799,7 @@ struct GWL_SeatStatePointer_Events {
 
 static void gwl_pointer_handle_frame_event_add(GWL_SeatStatePointer_Events *pointer_events,
                                                const GWL_Pointer_EventTypes ty,
+                                               const uint32_t serial,
                                                const uint64_t event_ms)
 {
   /* It's a quirk of WAYLAND that most scroll events don't have a time-stamp.
@@ -812,6 +820,7 @@ static void gwl_pointer_handle_frame_event_add(GWL_SeatStatePointer_Events *poin
   pointer_events->frame_pending.frame_types_mask |= ty_mask;
   int i = pointer_events->frame_pending.frame_types_num++;
   pointer_events->frame_pending.frame_types[i] = ty;
+  pointer_events->frame_pending.frame_serial[i] = serial;
   pointer_events->frame_pending.frame_event_ms[i] = event_ms;
 }
 
@@ -1548,6 +1557,11 @@ struct GWL_Display {
    */
   bool background = false;
 
+  /**
+   * Show window decorations, otherwise all windows are frame-less.
+   */
+  bool use_window_frame = false;
+
   /* Threaded event handling. */
 #ifdef USE_EVENT_BACKGROUND_THREAD
   /**
@@ -1719,7 +1733,7 @@ struct GWL_RegisteryAdd_Params {
  * \note Any operations that depend on other interfaces being registered must be performed in the
  * #GWL_RegistryHandler_UpdateFn callback as the order interfaces are added is out of our control.
  *
- * \param display: The display which holes a reference to the global object.
+ * \param display: The display which holds a reference to the global object.
  * \param params: Various arguments needed for registration.
  */
 using GWL_RegistryHandler_AddFn = void (*)(GWL_Display *display,
@@ -1738,7 +1752,7 @@ struct GWL_RegisteryUpdate_Params {
 /**
  * Optional update callback to refresh internal data when another interface has been added/removed.
  *
- * \param display: The display which holes a reference to the global object.
+ * \param display: The display which holds a reference to the global object.
  * \param params: Various arguments needed for updating.
  */
 using GWL_RegistryHandler_UpdateFn = void (*)(GWL_Display *display,
@@ -1746,7 +1760,7 @@ using GWL_RegistryHandler_UpdateFn = void (*)(GWL_Display *display,
 
 /**
  * Remove callback for object registry.
- * \param display: The display which holes a reference to the global object.
+ * \param display: The display which holds a reference to the global object.
  * \param user_data: Optional reference to a sub element of `display`,
  * use for outputs or seats, for example when the display may hold multiple references.
  * \param on_exit: Enabled when freeing on exit.
@@ -3928,7 +3942,8 @@ static void pointer_handle_leave(void *data,
                                  wl_surface *wl_surface)
 {
   /* First clear the `pointer.wl_surface`, since the window won't exist when closing the window. */
-  static_cast<GWL_Seat *>(data)->pointer.wl.surface_window = nullptr;
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  seat->pointer.wl.surface_window = nullptr;
   if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
     CLOG_DEBUG(LOG, "leave (skipped)");
     return;
@@ -3951,7 +3966,7 @@ static void pointer_handle_motion(void *data,
   CLOG_DEBUG(LOG, "motion");
 
   gwl_pointer_handle_frame_event_add(
-      &seat->pointer_events, GWL_Pointer_EventTypes::Motion, event_ms);
+      &seat->pointer_events, GWL_Pointer_EventTypes::Motion, WL_SERIAL_NONE, event_ms);
 }
 
 static void pointer_handle_button(void *data,
@@ -3992,7 +4007,7 @@ static void pointer_handle_button(void *data,
       int(GWL_Pointer_EventTypes::Button0_Down) + ((button_index * 2) + button_release));
 
   const uint64_t event_ms = seat->system->ms_from_input_time(time);
-  gwl_pointer_handle_frame_event_add(&seat->pointer_events, ty, event_ms);
+  gwl_pointer_handle_frame_event_add(&seat->pointer_events, ty, serial, event_ms);
 }
 
 static void pointer_handle_axis(void *data,
@@ -4014,7 +4029,8 @@ static void pointer_handle_axis(void *data,
   }
   seat->pointer_scroll.smooth_xy[index] = value;
 
-  gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Scroll, 0);
+  gwl_pointer_handle_frame_event_add(
+      &seat->pointer_events, GWL_Pointer_EventTypes::Scroll, WL_SERIAL_NONE, 0);
 }
 
 static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
@@ -4030,6 +4046,8 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
     {
       const GWL_Pointer_EventTypes ty = seat->pointer_events.frame_pending.frame_types[ty_index];
       const uint64_t event_ms = seat->pointer_events.frame_pending.frame_event_ms[ty_index];
+      const uint32_t serial = seat->pointer_events.frame_pending.frame_serial[ty_index];
+      (void)serial; /* Currently unused. */
       switch (ty) {
         /* Use motion for pressure and tilt as there are no explicit event types for these. */
         case GWL_Pointer_EventTypes::Motion: {
@@ -4243,7 +4261,8 @@ static void pointer_handle_axis_discrete(void *data,
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->pointer_scroll.discrete_xy[index] = discrete;
 
-  gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Scroll, 0);
+  gwl_pointer_handle_frame_event_add(
+      &seat->pointer_events, GWL_Pointer_EventTypes::Scroll, WL_SERIAL_NONE, 0);
 }
 static void pointer_handle_axis_value120(void *data,
                                          wl_pointer * /*wl_pointer*/,
@@ -4259,7 +4278,8 @@ static void pointer_handle_axis_value120(void *data,
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->pointer_scroll.discrete120_xy[index] = value120;
 
-  gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Scroll, 0);
+  gwl_pointer_handle_frame_event_add(
+      &seat->pointer_events, GWL_Pointer_EventTypes::Scroll, WL_SERIAL_NONE, 0);
 }
 #ifdef WL_POINTER_AXIS_RELATIVE_DIRECTION_ENUM /* Requires WAYLAND 1.22 or newer. */
 static void pointer_handle_axis_relative_direction(void *data,
@@ -4706,8 +4726,7 @@ static void touch_seat_handle_frame(void *data, wl_touch * /*touch*/)
       seat->touch.wl.surface_window = nullptr;
     }
 
-    GHOST_ASSERT(touch_events_num <= sizeof(touch_events) / sizeof(touch_events[0]),
-                 "Buffer overflow");
+    GHOST_ASSERT(touch_events_num <= ARRAY_SIZE(touch_events), "Buffer overflow");
 
     /* Ensure events are ordered in time. */
     if (UNLIKELY(touch_events_num > 1)) {
@@ -4887,7 +4906,7 @@ static void tablet_tool_handle_down(void *data,
 
   seat->data_source_serial = serial;
 
-  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Stylus0_Down);
+  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Stylus0_Down, serial);
 }
 
 static void tablet_tool_handle_up(void *data, zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/)
@@ -4896,7 +4915,8 @@ static void tablet_tool_handle_up(void *data, zwp_tablet_tool_v2 * /*zwp_tablet_
 
   CLOG_DEBUG(LOG, "up");
 
-  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Stylus0_Up);
+  gwl_tablet_tool_frame_event_add(
+      tablet_tool, GWL_TabletTool_EventTypes::Stylus0_Up, WL_SERIAL_NONE);
 }
 
 static void tablet_tool_handle_motion(void *data,
@@ -4912,7 +4932,7 @@ static void tablet_tool_handle_motion(void *data,
   tablet_tool->xy[1] = y;
   tablet_tool->has_xy = true;
 
-  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Motion);
+  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Motion, WL_SERIAL_NONE);
 }
 
 static void tablet_tool_handle_pressure(void *data,
@@ -4926,7 +4946,8 @@ static void tablet_tool_handle_pressure(void *data,
   GHOST_TabletData &td = tablet_tool->data;
   td.Pressure = pressure_unit;
 
-  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Pressure);
+  gwl_tablet_tool_frame_event_add(
+      tablet_tool, GWL_TabletTool_EventTypes::Pressure, WL_SERIAL_NONE);
 }
 
 static void tablet_tool_handle_distance(void * /*data*/,
@@ -4953,7 +4974,7 @@ static void tablet_tool_handle_tilt(void *data,
   td.Xtilt = std::clamp(tilt_unit[0], -1.0f, 1.0f);
   td.Ytilt = std::clamp(tilt_unit[1], -1.0f, 1.0f);
 
-  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Tilt);
+  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Tilt, WL_SERIAL_NONE);
 }
 
 static void tablet_tool_handle_rotation(void * /*data*/,
@@ -4984,7 +5005,7 @@ static void tablet_tool_handle_wheel(void *data,
 
   tablet_tool->frame_pending.wheel.clicks = clicks;
 
-  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Wheel);
+  gwl_tablet_tool_frame_event_add(tablet_tool, GWL_TabletTool_EventTypes::Wheel, WL_SERIAL_NONE);
 }
 
 static void tablet_tool_handle_button(void *data,
@@ -5032,7 +5053,7 @@ static void tablet_tool_handle_button(void *data,
   }
 
   if (ty != GWL_TabletTool_EventTypes::Motion) {
-    gwl_tablet_tool_frame_event_add(tablet_tool, ty);
+    gwl_tablet_tool_frame_event_add(tablet_tool, ty, serial);
   }
 }
 static void tablet_tool_handle_frame(void *data,
@@ -5052,6 +5073,8 @@ static void tablet_tool_handle_frame(void *data,
 
     for (int ty_index = 0; ty_index < tablet_tool->frame_pending.frame_types_num; ty_index++) {
       const GWL_TabletTool_EventTypes ty = tablet_tool->frame_pending.frame_types[ty_index];
+      const uint32_t serial = tablet_tool->frame_pending.frame_serial[ty_index];
+      (void)serial; /* Currently unused. */
       switch (ty) {
         /* Use motion for pressure and tilt as there are no explicit event types for these. */
         case GWL_TabletTool_EventTypes::Motion:
@@ -5536,7 +5559,7 @@ static bool xkb_compose_state_feed_and_get_utf8(
  */
 static void keyboard_handle_key_repeat_cancel(GWL_Seat *seat)
 {
-  GHOST_ASSERT(seat->key_repeat.timer != nullptr, "Caller much check for timer");
+  GHOST_ASSERT(seat->key_repeat.timer != nullptr, "Caller must check for timer");
   delete static_cast<GWL_KeyRepeatPlayload *>(seat->key_repeat.timer->getUserData());
 
   gwl_seat_key_repeat_timer_remove(seat);
@@ -5551,7 +5574,7 @@ static void keyboard_handle_key_repeat_cancel(GWL_Seat *seat)
  */
 static void keyboard_handle_key_repeat_reset(GWL_Seat *seat, const bool use_delay)
 {
-  GHOST_ASSERT(seat->key_repeat.timer != nullptr, "Caller much check for timer");
+  GHOST_ASSERT(seat->key_repeat.timer != nullptr, "Caller must check for timer");
   GHOST_TimerProcPtr key_repeat_fn = seat->key_repeat.timer->getTimerProc();
   GHOST_TUserDataPtr payload = seat->key_repeat.timer->getUserData();
 
@@ -6761,7 +6784,10 @@ static void gwl_registry_xdg_decoration_manager_remove(GWL_Display *display,
 static void gwl_registry_xdg_output_manager_add(GWL_Display *display,
                                                 const GWL_RegisteryAdd_Params &params)
 {
-  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 2u, 3u);
+  /* NOTE(@ideasman42): only version 3 and over is well supported.
+   * Support version 1 so GNOME-32 (on the build-bots Rocky8) can be used.
+   * Use `zxdg_output_v1_get_version` to ensure feature support at runtime. */
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 3u);
 
   display->xdg.output_manager = static_cast<zxdg_output_manager_v1 *>(wl_registry_bind(
       display->wl.registry, params.name, &zxdg_output_manager_v1_interface, version));
@@ -6986,10 +7012,6 @@ static void gwl_registry_wl_seat_remove(GWL_Display *display, void *user_data, c
     zwp_tablet_seat_v2_destroy(seat->wp.tablet_seat);
   }
 
-  if (seat->cursor.custom_data) {
-    munmap(seat->cursor.custom_data, seat->cursor.custom_data_size);
-  }
-
   /* Disable all capabilities as a way to free:
    * - `seat.wl_pointer` (and related cursor variables).
    * - `seat.wl_touch`.
@@ -6998,6 +7020,20 @@ static void gwl_registry_wl_seat_remove(GWL_Display *display, void *user_data, c
   gwl_seat_capability_pointer_disable(seat);
   gwl_seat_capability_keyboard_disable(seat);
   gwl_seat_capability_touch_disable(seat);
+
+  /* Run after tablet & input devices have been disabled
+   * to ensure the buffer from a *visible* cursor never destroyed.
+   *
+   * Note that most compositors will have already released the buffer,
+   * in that case this will have been set to null.
+   * However this isn't guaranteed, see: #145557. */
+  if (seat->cursor.wl.buffer) {
+    wl_buffer_destroy(seat->cursor.wl.buffer);
+  }
+
+  if (seat->cursor.custom_data) {
+    munmap(seat->cursor.custom_data, seat->cursor.custom_data_size);
+  }
 
   /* Un-referencing checks for nullptr case. */
   xkb_state_unref(seat->xkb.state);
@@ -7597,8 +7633,12 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
   wl_log_set_handler_client(background ? ghost_wayland_log_handler_background :
                                          ghost_wayland_log_handler);
 
+  const bool use_window_frame = GHOST_ISystem::getUseWindowFrame();
+
   display_->system = this;
   display_->background = background;
+  display_->use_window_frame = use_window_frame;
+
   /* Connect to the Wayland server. */
 
   display_->wl.display = wl_display_connect(nullptr);
@@ -7629,7 +7669,7 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   bool libdecor_required = false;
-  {
+  if (use_window_frame) {
     const char *xdg_current_desktop = [] {
       /* Account for VSCode overriding this value (TSK!), see: #133921. */
       const char *key = "ORIGINAL_XDG_CURRENT_DESKTOP";
@@ -8427,9 +8467,31 @@ static GHOST_TSuccess setCursorPositionClientRelative_impl(GWL_Seat *seat,
                                                            const int32_t x,
                                                            const int32_t y)
 {
-  /* NOTE: WAYLAND doesn't support warping the cursor.
-   * However when grab is enabled, we already simulate a cursor location
-   * so that can be set to a new location. */
+  /* NOTE(@ideasman42): Regarding Cursor Warp Support:
+   *
+   * Before Wayland Protocols 1.45, (`wp_pointer_warp_v1`) cursor warping wasn't supported,
+   * although at time of writing (2025) no mainstream compositors support it.
+   * As an alternative, a software cursor is used which can be warped while "grabbed"
+   * (see `relative_pointer` & `pointer_constraints`).
+   * Other backends use warping to implement grabbing,
+   * however this is error-prone with issues such as:
+   *
+   * - Fast motion can exit the window.
+   * - Absolute input devices don't work with warping, causing erratic cursor motion glitches.
+   * - Motion events may be in the queue which need to be handled before the warp is handled.
+   *
+   * These issues can be mitigated but avoiding problems gets involved and isn't foolproof:
+   * Input may be clamped, tablets can be assumed absolute & motion event timestamps
+   * can be used to detect events that were in the queue before the artificial warp motion.
+   *
+   * Given the trouble cursor warping has caused on other platforms over the years
+   * I believe we're better off avoiding cursor warping (`wp_pointer_warp_v1`)
+   * and accept limited support for warping.
+   *
+   * See: #134818, #113511, #102346, #89399, #82870, #49498. */
+
+  /* When grab is enabled, we already simulate a cursor location,
+   * so cursor warping can be supported in this case. */
   if (!seat->wp.relative_pointer) {
     return GHOST_kFailure;
   }
@@ -8505,6 +8567,9 @@ GHOST_TSuccess GHOST_SystemWayland::getCursorPosition(int32_t &x, int32_t &y) co
 
 GHOST_TSuccess GHOST_SystemWayland::setCursorPosition(const int32_t x, const int32_t y)
 {
+  /* See comments in the body of #setCursorPositionClientRelative_impl
+   * for an explanation of the state of this functionality. */
+
 #ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_server_guard{*server_mutex};
 #endif
@@ -9077,7 +9142,8 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           /* WAYLAND cannot precisely place windows among multiple monitors. */
           GHOST_kCapabilityMultiMonitorPlacement |
           /* WAYLAND doesn't support setting the cursor position directly,
-           * this is an intentional choice, forcing us to use a software cursor in this case. */
+           * this is an intentional choice, forcing us to use a software cursor in this case.
+           * For details see comments in: #setCursorPositionClientRelative_impl. */
           GHOST_kCapabilityCursorWarp |
           /* Some drivers don't support front-buffer reading, see: #98462 & #106264.
            *
@@ -9101,7 +9167,9 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           /* This WAYLAND back-end doesn't have support for window decoration styles.
            * In all likelihood, this back-end will eventually need to support client-side
            * decorations, see #113795. */
-          GHOST_kCapabilityWindowDecorationStyles));
+          GHOST_kCapabilityWindowDecorationStyles |
+          /* No support for window path meta-data. */
+          GHOST_kCapabilityWindowPath));
 }
 
 bool GHOST_SystemWayland::cursor_grab_use_software_display_get(const GHOST_TGrabCursorMode mode)
@@ -9346,6 +9414,11 @@ GHOST_TimerManager *GHOST_SystemWayland::ghost_timer_manager()
   return display_->ghost_timer_manager;
 }
 #endif
+
+bool GHOST_SystemWayland::use_window_frame_get() const
+{
+  return display_->use_window_frame;
+}
 
 /** \} */
 
@@ -9858,7 +9931,7 @@ bool GHOST_SystemWayland::use_libdecor_runtime()
 #endif
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
-bool ghost_wl_dynload_libraries_init()
+bool ghost_wl_dynload_libraries_init(const bool use_window_frame)
 {
 #  ifdef WITH_GHOST_X11
   /* When running in WAYLAND, let the user know when a missing library is the only reason
@@ -9879,7 +9952,11 @@ bool ghost_wl_dynload_libraries_init()
   )
   {
 #  ifdef WITH_GHOST_WAYLAND_LIBDECOR
-    has_libdecor = wayland_dynload_libdecor_init(verbose); /* `libdecor-0`. */
+    if (use_window_frame) {
+      has_libdecor = wayland_dynload_libdecor_init(verbose); /* `libdecor-0`. */
+    }
+#  else
+    (void)use_window_frame;
 #  endif
     return true;
   }

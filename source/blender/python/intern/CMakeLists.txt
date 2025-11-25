@@ -32,11 +32,13 @@ set(SRC
   bpy_app_timers.cc
   bpy_app_translations.cc
   bpy_app_usd.cc
+  bpy_audaspace.cc
   bpy_capi_utils.cc
   bpy_cli_command.cc
   bpy_driver.cc
   bpy_geometry_set.cc
   bpy_gizmo_wrap.cc
+  bpy_inline_shader_nodes.cc
   bpy_interface.cc
   bpy_interface_atexit.cc
   bpy_interface_run.cc
@@ -45,6 +47,7 @@ set(SRC
   bpy_library_write.cc
   bpy_msgbus.cc
   bpy_operator.cc
+  bpy_operator_function.cc
   bpy_operator_wrap.cc
   bpy_path.cc
   bpy_props.cc
@@ -80,11 +83,13 @@ set(SRC
   bpy_app_timers.hh
   bpy_app_translations.hh
   bpy_app_usd.hh
+  bpy_audaspace.hh
   bpy_capi_utils.hh
   bpy_cli_command.hh
   bpy_driver.hh
   bpy_geometry_set.hh
   bpy_gizmo_wrap.hh
+  bpy_inline_shader_nodes.hh
   bpy_intern_string.hh
   bpy_library.hh
   bpy_msgbus.hh
@@ -130,6 +135,7 @@ set(LIB
   PRIVATE bf::animrig
   bf_python_gpu
   PRIVATE bf::imbuf::opencolorio
+  PRIVATE bf::nodes
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
@@ -180,6 +186,15 @@ if(WITH_AUDASPACE)
   add_definitions(-DWITH_AUDASPACE)
   if(WITH_PYTHON_NUMPY)
     add_definitions(-DWITH_AUDASPACE_PY)
+    list(APPEND INC_SYS
+      ${AUDASPACE_C_INCLUDE_DIRS}
+      ${AUDASPACE_PY_INCLUDE_DIRS}
+    )
+    if(NOT WITH_SYSTEM_AUDASPACE)
+      list(APPEND LIB audaspace audaspace-py)
+    else()
+      list(APPEND LIB ${AUDASPACE_C_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
+    endif()
   endif()
 endif()
 

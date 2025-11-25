@@ -93,8 +93,10 @@ static std::array<float, 4> iteration_strengths(const float strength, const int 
     return {strength, strength, strength, strength};
   }
 
-  /* This operations needs a strength tweak as the relax deformation is too weak by default. */
-  const float modified_strength = strength * 1.5f;
+  /* This operation needs a strength tweak as the relax deformation is too weak by default.
+   * We cap the strength at 1.0 to avoid ripping the mesh in cases where this modified value is
+   * too strong. */
+  const float modified_strength = std::min(strength * 1.5f, 1.0f);
   return {modified_strength, modified_strength, strength, strength};
 }
 
@@ -191,7 +193,8 @@ static void do_relax_face_sets_brush_mesh(const Depsgraph &depsgraph,
         faces,
         corner_verts,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         attribute_data.face_sets,
         attribute_data.hide_poly,
         relax_face_sets,
@@ -321,7 +324,8 @@ static void do_relax_face_sets_brush_grids(const Depsgraph &depsgraph,
         corner_verts,
         face_sets,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         nodes[i].grids(),
         relax_face_sets,
         factors.as_span().slice(node_vert_offsets[pos]),
@@ -524,7 +528,8 @@ static void do_topology_relax_brush_mesh(const Depsgraph &depsgraph,
         faces,
         corner_verts,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         attribute_data.face_sets,
         attribute_data.hide_poly,
         false,
@@ -637,7 +642,8 @@ static void do_topology_relax_brush_grids(const Depsgraph &depsgraph,
         corner_verts,
         face_sets,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         nodes[i].grids(),
         false,
         factors.as_span().slice(node_vert_offsets[pos]),

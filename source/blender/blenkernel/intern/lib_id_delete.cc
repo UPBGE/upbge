@@ -71,9 +71,9 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->library_weak_reference);
   }
 
-  BKE_libblock_free_runtime_data(id);
-
   BKE_animdata_free(id, do_id_user);
+
+  BKE_libblock_free_runtime_data(id);
 }
 
 void BKE_libblock_free_datablock(ID *id, const int /*flag*/)
@@ -92,11 +92,15 @@ void BKE_libblock_free_datablock(ID *id, const int /*flag*/)
 
 void BKE_libblock_free_runtime_data(ID *id)
 {
-  /* During "normal" file loading this data is released when versioning ends. Some versioning code
-   * also deletes IDs, though. For example, in the startup blend file, brushes that were replaced
-   * by assets are deleted. This means that the regular "delete this ID" flow (aka this code here)
-   * also needs to free this data. */
-  BLO_readfile_id_runtime_data_free(*id);
+  if (id->runtime) {
+    /* During "normal" file loading this data is released when versioning ends. Some versioning
+     * code also deletes IDs, though. For example, in the startup blend file, brushes that were
+     * replaced by assets are deleted. This means that the regular "delete this ID" flow (aka this
+     * code here) also needs to free this data. */
+    BLO_readfile_id_runtime_data_free(*id);
+
+    MEM_SAFE_DELETE(id->runtime);
+  }
 }
 
 static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
@@ -334,6 +338,10 @@ static size_t id_delete(Main *bmain,
     }
     id_remapper.clear();
   }
+
+  /* Remapping above may have left some Library::runtime::archived_libraries items to nullptr,
+   * clean this up and shrink the vector accordingly. */
+  blender::bke::library::main_cleanup_parent_archives(*bmain);
 
   /* Since we removed IDs from Main, their own other IDs usages need to be removed 'manually'. */
   blender::Vector<ID *> cleanup_ids{ids_to_delete.begin(), ids_to_delete.end()};

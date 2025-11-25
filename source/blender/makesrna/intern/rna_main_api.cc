@@ -29,11 +29,12 @@
 #  include "BKE_displist.h"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_grease_pencil.hh"
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_idtype.hh"
 #  include "BKE_image.hh"
 #  include "BKE_lattice.hh"
 #  include "BKE_lib_remap.hh"
+#  include "BKE_library.hh"
 #  include "BKE_light.h"
 #  include "BKE_lightprobe.h"
 #  include "BKE_linestyle.h"
@@ -49,8 +50,8 @@
 #  include "BKE_particle.h"
 #  include "BKE_pointcloud.hh"
 #  include "BKE_scene.hh"
-#  include "BKE_sound.h"
-#  include "BKE_speaker.h"
+#  include "BKE_sound.hh"
+#  include "BKE_speaker.hh"
 #  include "BKE_text.h"
 #  include "BKE_texture.h"
 #  include "BKE_vfont.hh"
@@ -89,6 +90,7 @@
 #  include "DNA_world_types.h"
 
 #  include "ED_node.hh"
+#  include "ED_scene.hh"
 #  include "ED_screen.hh"
 
 #  include "BLT_translation.hh"
@@ -146,6 +148,28 @@ static void rna_Main_ID_remove(Main *bmain,
   }
 }
 
+static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
+                                              ReportList *reports,
+                                              ID *root_id)
+{
+  if (!ID_IS_LINKED(root_id)) {
+    BKE_reportf(reports, RPT_ERROR, "Only linked IDs can be packed");
+    return nullptr;
+  }
+  if (ID_IS_PACKED(root_id)) {
+    /* Nothing to do. */
+    return root_id;
+  }
+
+  Main *bmain = reinterpret_cast<Main *>(blenddata);
+  blender::bke::library::pack_linked_id_hierarchy(*bmain, *root_id);
+
+  ID *packed_root_id = root_id->newid;
+  BKE_main_id_newptr_and_tag_clear(bmain);
+
+  return packed_root_id;
+}
+
 static Camera *rna_Main_cameras_new(Main *bmain, const char *name)
 {
   char safe_name[MAX_ID_NAME - 2];
@@ -177,44 +201,23 @@ static void rna_Main_scenes_remove(
   Scene *scene = static_cast<Scene *>(scene_ptr->data);
 
   if (BKE_scene_can_be_removed(bmain, scene)) {
-    Scene *scene_new = static_cast<Scene *>(scene->id.prev ? scene->id.prev : scene->id.next);
     if (do_unlink) {
-      /* Don't rely on `CTX_wm_window(C)` as it may have been cleared,
-       * yet windows may still be open that reference this scene. */
-      wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-      LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-        if (WM_window_get_active_scene(win) == scene) {
-#  ifdef WITH_PYTHON
-          BPy_BEGIN_ALLOW_THREADS;
-#  endif
-
-          WM_window_set_active_scene(bmain, C, win, scene_new);
-
-#  ifdef WITH_PYTHON
-          BPy_END_ALLOW_THREADS;
-#  endif
-        }
-      }
-      if (CTX_data_scene(C) == scene) {
-#  ifdef WITH_PYTHON
-        BPy_BEGIN_ALLOW_THREADS;
-#  endif
-
-        CTX_data_scene_set(C, scene_new);
-
-#  ifdef WITH_PYTHON
-        BPy_END_ALLOW_THREADS;
-#  endif
+      Scene *scene_new = BKE_scene_find_replacement(*bmain, *scene);
+      if (scene_new && ED_scene_replace_active_for_deletion(*C, *bmain, *scene, scene_new)) {
+        rna_Main_ID_remove(bmain, reports, scene_ptr, do_unlink, true, true);
+        return;
       }
     }
-    rna_Main_ID_remove(bmain, reports, scene_ptr, do_unlink, true, true);
+    else {
+      rna_Main_ID_remove(bmain, reports, scene_ptr, do_unlink, true, true);
+      return;
+    }
   }
-  else {
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Scene '%s' is the last local one, cannot be removed",
-                scene->id.name + 2);
-  }
+
+  BKE_reportf(reports,
+              RPT_ERROR,
+              "Scene '%s' is the last local one, cannot be removed",
+              scene->id.name + 2);
 }
 
 static Object *rna_Main_objects_new(Main *bmain, ReportList *reports, const char *name, ID *data)
@@ -262,12 +265,14 @@ static Material *rna_Main_materials_new(Main *bmain, const char *name)
   char safe_name[MAX_ID_NAME - 2];
   rna_idname_validate(name, safe_name);
 
-  ID *id = (ID *)BKE_material_add(bmain, safe_name);
-  id_us_min(id);
+  Material *material = BKE_material_add(bmain, safe_name);
+  id_us_min(&material->id);
+
+  ED_node_shader_default(nullptr, bmain, &material->id);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
-  return (Material *)id;
+  return material;
 }
 
 static void rna_Main_materials_gpencil_data(Main * /*bmain*/, PointerRNA *id_ptr)
@@ -535,8 +540,7 @@ static World *rna_Main_worlds_new(Main *bmain, const char *name)
   World *world = BKE_world_add(bmain, safe_name);
   id_us_min(&world->id);
 
-  world->nodetree = blender::bke::node_tree_add_tree_embedded(
-      bmain, &world->id, "World Node Tree", "ShaderNodeTree");
+  ED_node_shader_default(nullptr, bmain, &world->id);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -866,12 +870,12 @@ RNA_MAIN_ID_TAG_FUNCS_DEF(volumes, volumes, ID_VO)
 
 #else
 
-void RNA_api_main(StructRNA * /*srna*/)
+void RNA_api_main(StructRNA *srna)
 {
-#  if 0
   FunctionRNA *func;
   PropertyRNA *parm;
 
+#  if 0
   /* maybe we want to add functions in 'bpy.data' still?
    * for now they are all in collections bpy.data.images.new(...) */
   func = RNA_def_function(srna, "add_image", "rna_Main_add_image");
@@ -882,6 +886,15 @@ void RNA_api_main(StructRNA * /*srna*/)
   parm = RNA_def_pointer(func, "image", "Image", "", "New image");
   RNA_def_function_return(func, parm);
 #  endif
+
+  func = RNA_def_function(srna, "pack_linked_ids_hierarchy", "rna_Main_pack_linked_ids_hierarchy");
+  RNA_def_function_ui_description(
+      func, "Pack the given linked ID and its dependencies into current blendfile");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "root_id", "ID", "", "Root linked ID to pack");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "packed_id", "ID", "", "The packed ID matching the given root ID");
+  RNA_def_function_return(func, parm);
 }
 
 void RNA_def_main_cameras(BlenderRNA *brna, PropertyRNA *cprop)
@@ -2096,14 +2109,14 @@ void RNA_def_main_grease_pencil(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
   parm = RNA_def_pointer(
-      func, "grease_pencil", "GreasePencilv3", "", "New Grease Pencil data-block");
+      func, "grease_pencil", "GreasePencil", "", "New Grease Pencil data-block");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "remove", "rna_Main_ID_remove");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func,
                                   "Remove a Grease Pencil instance from the current blendfile");
-  parm = RNA_def_pointer(func, "grease_pencil", "GreasePencilv3", "", "Grease Pencil to remove");
+  parm = RNA_def_pointer(func, "grease_pencil", "GreasePencil", "", "Grease Pencil to remove");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
   RNA_def_boolean(

@@ -36,7 +36,7 @@
 
 #include "LA_PlayerLauncher.h"
 
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BLI_fileops.h"
 
 #include "CM_Message.h"
@@ -144,7 +144,6 @@ void LA_PlayerLauncher::InitEngine()
 void LA_PlayerLauncher::ExitEngine()
 {
   LA_Launcher::ExitEngine();
-  BKE_sound_exit();
 }
 
 bool LA_PlayerLauncher::EngineNextFrame()

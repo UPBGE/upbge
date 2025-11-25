@@ -44,7 +44,7 @@ struct CameraInstanceData : public ExtraInstanceData {
   }
 
   CameraInstanceData(const float4x4 &p_matrix, const float4 &color)
-      : ExtraInstanceData(p_matrix, color, 1.0f){};
+      : ExtraInstanceData(p_matrix, color, 1.0f) {};
 };
 
 /**
@@ -240,7 +240,7 @@ class Cameras : Overlay {
     manager.submit(ps_, view);
   }
 
-  void draw_scene_background_images(GPUFrameBuffer *framebuffer, Manager &manager, View &view)
+  void draw_scene_background_images(gpu::FrameBuffer *framebuffer, Manager &manager, View &view)
   {
     if (!images_enabled_) {
       return;

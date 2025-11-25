@@ -501,47 +501,42 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
   const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
 
   if (*id_pointer) {
-    MainIDRelationsEntry **entry_p;
 
     /* Add `id_pointer` as child of `self_id`. */
     {
-      if (!BLI_ghash_ensure_p(
-              bmain_relations->relations_from_pointers, self_id, (void ***)&entry_p))
-      {
-        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
-        (*entry_p)->session_uid = self_id->session_uid;
-      }
-      else {
-        BLI_assert((*entry_p)->session_uid == self_id->session_uid);
-      }
+      MainIDRelationsEntry *entry = bmain_relations->relations_from_pointers->lookup_or_add_cb(
+          self_id, [&]() {
+            auto *entry = MEM_callocN<MainIDRelationsEntry>(__func__);
+            entry->session_uid = self_id->session_uid;
+            return entry;
+          });
+      BLI_assert(entry->session_uid == self_id->session_uid);
       MainIDRelationsEntryItem *to_id_entry = static_cast<MainIDRelationsEntryItem *>(
           BLI_mempool_alloc(bmain_relations->entry_items_pool));
-      to_id_entry->next = (*entry_p)->to_ids;
+      to_id_entry->next = entry->to_ids;
       to_id_entry->id_pointer.to = id_pointer;
       to_id_entry->session_uid = (*id_pointer != nullptr) ? (*id_pointer)->session_uid :
                                                             MAIN_ID_SESSION_UID_UNSET;
       to_id_entry->usage_flag = cb_flag;
-      (*entry_p)->to_ids = to_id_entry;
+      entry->to_ids = to_id_entry;
     }
 
     /* Add `self_id` as parent of `id_pointer`. */
     if (*id_pointer != nullptr) {
-      if (!BLI_ghash_ensure_p(
-              bmain_relations->relations_from_pointers, *id_pointer, (void ***)&entry_p))
-      {
-        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
-        (*entry_p)->session_uid = (*id_pointer)->session_uid;
-      }
-      else {
-        BLI_assert((*entry_p)->session_uid == (*id_pointer)->session_uid);
-      }
+      MainIDRelationsEntry *entry = bmain_relations->relations_from_pointers->lookup_or_add_cb(
+          *id_pointer, [&]() {
+            auto *entry = MEM_callocN<MainIDRelationsEntry>(__func__);
+            entry->session_uid = (*id_pointer)->session_uid;
+            return entry;
+          });
+      BLI_assert(entry->session_uid == (*id_pointer)->session_uid);
       MainIDRelationsEntryItem *from_id_entry = static_cast<MainIDRelationsEntryItem *>(
           BLI_mempool_alloc(bmain_relations->entry_items_pool));
-      from_id_entry->next = (*entry_p)->from_ids;
+      from_id_entry->next = entry->from_ids;
       from_id_entry->id_pointer.from = self_id;
       from_id_entry->session_uid = self_id->session_uid;
       from_id_entry->usage_flag = cb_flag;
-      (*entry_p)->from_ids = from_id_entry;
+      entry->from_ids = from_id_entry;
     }
   }
 
@@ -555,8 +550,8 @@ void BKE_main_relations_create(Main *bmain, const short flag)
   }
 
   bmain->relations = MEM_mallocN<MainIDRelations>(__func__);
-  bmain->relations->relations_from_pointers = BLI_ghash_new(
-      BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+  bmain->relations->relations_from_pointers =
+      MEM_new<blender::Map<const ID *, MainIDRelationsEntry *>>(__func__);
   bmain->relations->entry_items_pool = BLI_mempool_create(
       sizeof(MainIDRelationsEntryItem), 128, 128, BLI_MEMPOOL_NOP);
 
@@ -570,14 +565,14 @@ void BKE_main_relations_create(Main *bmain, const short flag)
                                                   IDWALK_NOP);
 
     /* Ensure all IDs do have an entry, even if they are not connected to any other. */
-    MainIDRelationsEntry **entry_p;
-    if (!BLI_ghash_ensure_p(bmain->relations->relations_from_pointers, id, (void ***)&entry_p)) {
-      *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
-      (*entry_p)->session_uid = id->session_uid;
-    }
-    else {
-      BLI_assert((*entry_p)->session_uid == id->session_uid);
-    }
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup_or_add_cb(
+        id, [&]() {
+          auto *entry = MEM_callocN<MainIDRelationsEntry>(__func__);
+          entry->session_uid = id->session_uid;
+          return entry;
+        });
+    BLI_assert(entry->session_uid == id->session_uid);
+    UNUSED_VARS_NDEBUG(entry);
 
     BKE_library_foreach_ID_link(
         nullptr, id, main_relations_create_idlink_cb, bmain->relations, idwalk_flag);
@@ -588,9 +583,10 @@ void BKE_main_relations_create(Main *bmain, const short flag)
 void BKE_main_relations_free(Main *bmain)
 {
   if (bmain->relations != nullptr) {
-    if (bmain->relations->relations_from_pointers != nullptr) {
-      BLI_ghash_free(bmain->relations->relations_from_pointers, nullptr, MEM_freeN);
+    for (MainIDRelationsEntry *entry : bmain->relations->relations_from_pointers->values()) {
+      MEM_freeN(entry);
     }
+    MEM_delete(bmain->relations->relations_from_pointers);
     BLI_mempool_destroy(bmain->relations->entry_items_pool);
     MEM_freeN(bmain->relations);
     bmain->relations = nullptr;
@@ -602,14 +598,7 @@ void BKE_main_relations_tag_set(Main *bmain, const eMainIDRelationsEntryTags tag
   if (bmain->relations == nullptr) {
     return;
   }
-
-  GHashIterator *gh_iter;
-  for (gh_iter = BLI_ghashIterator_new(bmain->relations->relations_from_pointers);
-       !BLI_ghashIterator_done(gh_iter);
-       BLI_ghashIterator_step(gh_iter))
-  {
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghashIterator_getValue(gh_iter));
+  for (MainIDRelationsEntry *entry : bmain->relations->relations_from_pointers->values()) {
     if (value) {
       entry->tags |= tag;
     }
@@ -617,21 +606,20 @@ void BKE_main_relations_tag_set(Main *bmain, const eMainIDRelationsEntryTags tag
       entry->tags &= ~tag;
     }
   }
-  BLI_ghashIterator_free(gh_iter);
 }
 
-GSet *BKE_main_gset_create(Main *bmain, GSet *gset)
+blender::Set<const ID *> *BKE_main_set_create(Main *bmain, blender::Set<const ID *> *set)
 {
-  if (gset == nullptr) {
-    gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+  if (set == nullptr) {
+    set = MEM_new<blender::Set<const ID *>>(__func__);
   }
 
   ID *id;
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    BLI_gset_add(gset, id);
+    set->add(id);
   }
   FOREACH_MAIN_ID_END;
-  return gset;
+  return set;
 }
 
 /* Utils for ID's library weak reference API. */
@@ -717,7 +705,15 @@ void BKE_main_library_weak_reference_add_item(
   BLI_assert(BKE_idtype_idcode_append_is_reusable(GS(new_id->name)));
 
   const LibWeakRefKey key{library_filepath, library_id_name};
-  library_weak_reference_mapping->map.add_new(key, new_id);
+  /* With packed IDs and archive libraries, it is now possible to have several instances of the
+   * (originally) same linked ID made local at the same time in an append opeeration, so it is
+   * possible to get the same key several time here. And `Map::add_new` cannot be used safely
+   * anymore.
+   *
+   * Simply consider the first added one as valid, there is no good way to determine the 'best' one
+   * to keep around for append-or-reuse operations anyway - and the whole append-and-reuse may be
+   * depracted soon too. */
+  library_weak_reference_mapping->map.add(key, new_id);
 
   BKE_main_library_weak_reference_add(new_id, library_filepath, library_id_name);
 }
@@ -884,6 +880,11 @@ const char *BKE_main_blendfile_path(const Main *bmain)
 const char *BKE_main_blendfile_path_from_global()
 {
   return BKE_main_blendfile_path(G_MAIN);
+}
+
+const char *BKE_main_blendfile_path_from_library(const Library &library)
+{
+  return library.runtime->filepath_abs;
 }
 
 ListBase *which_libbase(Main *bmain, short type)

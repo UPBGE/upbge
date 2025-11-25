@@ -23,7 +23,8 @@ struct Tex;
 struct Image;
 struct Material;
 
-BLI_CPP_TYPE_MAKE(blender::bke::GeometrySet, CPPTypeFlags::Printable);
+BLI_CPP_TYPE_MAKE(blender::bke::GeometrySet,
+                  CPPTypeFlags::Printable | CPPTypeFlags::EqualityComparable);
 BLI_CPP_TYPE_MAKE(blender::bke::InstanceReference, CPPTypeFlags::None)
 
 BLI_VECTOR_CPP_TYPE_MAKE(blender::bke::GeometrySet);
@@ -35,16 +36,18 @@ BLI_CPP_TYPE_MAKE(Image *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(Material *, CPPTypeFlags::BasicType)
 
 BLI_CPP_TYPE_MAKE(MStringProperty, CPPTypeFlags::None);
-BLI_CPP_TYPE_MAKE(blender::nodes::MenuValue, CPPTypeFlags::None);
-BLI_CPP_TYPE_MAKE(blender::nodes::BundlePtr, CPPTypeFlags::None);
-BLI_CPP_TYPE_MAKE(blender::nodes::ClosurePtr, CPPTypeFlags::None);
-BLI_CPP_TYPE_MAKE(blender::nodes::ListPtr, CPPTypeFlags::None);
+BLI_CPP_TYPE_MAKE(blender::nodes::MenuValue,
+                  CPPTypeFlags::Hashable | CPPTypeFlags::EqualityComparable);
+BLI_CPP_TYPE_MAKE(blender::nodes::BundlePtr, CPPTypeFlags::EqualityComparable);
+BLI_CPP_TYPE_MAKE(blender::nodes::ClosurePtr, CPPTypeFlags::EqualityComparable);
+BLI_CPP_TYPE_MAKE(blender::nodes::ListPtr, CPPTypeFlags::EqualityComparable);
 
 BLI_CPP_TYPE_MAKE(blender::bke::GeometryNodesReferenceSet, CPPTypeFlags::None);
 BLI_CPP_TYPE_MAKE(blender::bke::SocketValueVariant, CPPTypeFlags::Printable);
 BLI_VECTOR_CPP_TYPE_MAKE(blender::bke::SocketValueVariant);
 BLI_CPP_TYPE_MAKE(blender::nodes::GeoNodesMultiInput<blender::bke::SocketValueVariant>,
                   CPPTypeFlags::None);
+BLI_CPP_TYPE_MAKE(blender::nodes::BundleItemValue, CPPTypeFlags::None);
 
 void BKE_cpp_types_init()
 {
@@ -71,4 +74,5 @@ void BKE_cpp_types_init()
   BLI_CPP_TYPE_REGISTER(blender::bke::SocketValueVariant);
   BLI_VECTOR_CPP_TYPE_REGISTER(blender::bke::SocketValueVariant);
   BLI_CPP_TYPE_REGISTER(blender::nodes::GeoNodesMultiInput<blender::bke::SocketValueVariant>);
+  BLI_CPP_TYPE_REGISTER(blender::nodes::BundleItemValue);
 }

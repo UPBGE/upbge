@@ -132,12 +132,6 @@ if(WITH_AUDASPACE)
   list(APPEND INC_SYS
     ${AUDASPACE_C_INCLUDE_DIRS}
   )
-  list(APPEND LIB
-    bf_intern_audaspace
-
-    ${AUDASPACE_C_LIBRARIES}
-    ${AUDASPACE_PY_LIBRARIES}
-  )
   add_definitions(-DWITH_AUDASPACE)
 endif()
 

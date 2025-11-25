@@ -429,7 +429,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
   int size;
   const bool refresh = !cursor_snap.overlay_texture ||
                        (overlay_flags & PAINT_OVERLAY_INVALID_CURVE) || cursor_snap.zoom != zoom ||
-                       cursor_snap.curve_preset != br->curve_preset;
+                       cursor_snap.curve_preset != br->curve_distance_falloff_preset;
 
   init = (cursor_snap.overlay_texture != nullptr);
 
@@ -463,7 +463,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     }
     buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
 
-    BKE_curvemapping_init(br->curve);
+    BKE_curvemapping_init(br->curve_distance_falloff);
 
     LoadTexData data{};
     data.br = br;
@@ -500,7 +500,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     size = cursor_snap.size;
   }
 
-  cursor_snap.curve_preset = br->curve_preset;
+  cursor_snap.curve_preset = br->curve_distance_falloff_preset;
   BKE_paint_reset_overlay_invalid(PAINT_OVERLAY_INVALID_CURVE);
 
   return 1;
@@ -831,8 +831,8 @@ static bool paint_draw_alpha_overlay(
   bool alpha_overlay_active = false;
 
   ePaintOverlayControlFlags flags = BKE_paint_get_overlay_flags();
-  eGPUBlend blend_state = GPU_blend_get();
-  eGPUDepthTest depth_test = GPU_depth_test_get();
+  GPUBlend blend_state = GPU_blend_get();
+  GPUDepthTest depth_test = GPU_depth_test_get();
 
   /* Translate to region. */
   GPU_matrix_push();
@@ -986,8 +986,8 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
 
     float selec_col[4], handle_col[4], pivot_col[4];
     UI_GetThemeColorType4fv(TH_VERTEX_SELECT, SPACE_VIEW3D, selec_col);
-    UI_GetThemeColorType4fv(TH_PAINT_CURVE_HANDLE, SPACE_VIEW3D, handle_col);
-    UI_GetThemeColorType4fv(TH_PAINT_CURVE_PIVOT, SPACE_VIEW3D, pivot_col);
+    UI_GetThemeColorType4fv(TH_GIZMO_PRIMARY, SPACE_VIEW3D, handle_col);
+    UI_GetThemeColorType4fv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, pivot_col);
 
     for (int i = 0; i < pc->tot_points - 1; i++, cp++) {
       int j;
@@ -1011,7 +1011,7 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
                                       sizeof(float[2]));
       }
 
-      float(*v)[2] = (float(*)[2])data;
+      float (*v)[2] = (float (*)[2])data;
 
       immUniformColor4f(0.0f, 0.0f, 0.0f, 0.5f);
       GPU_line_width(3.0f);
@@ -1071,15 +1071,15 @@ static void paint_cursor_update_unprojected_size(Paint &paint,
     }
 
     /* Convert brush radius from 2D to 3D. */
-    float unprojected_size = paint_calc_object_space_radius(vc, location, projected_radius);
+    float unprojected_radius = paint_calc_object_space_radius(vc, location, projected_radius);
 
     /* Scale 3D brush radius by pressure. */
     if (paint_runtime.stroke_active && BKE_brush_use_size_pressure(&brush)) {
-      unprojected_size *= paint_runtime.size_pressure_value;
+      unprojected_radius *= paint_runtime.size_pressure_value;
     }
 
     /* Set cached value in either Brush or UnifiedPaintSettings. */
-    BKE_brush_unprojected_size_set(&paint, &brush, unprojected_size);
+    BKE_brush_unprojected_size_set(&paint, &brush, unprojected_radius * 2.0f);
   }
 }
 
@@ -1209,7 +1209,7 @@ static void sculpt_geometry_preview_lines_draw(const Depsgraph &depsgraph,
   immUniformColor4f(1.0f, 1.0f, 1.0f, 0.6f);
 
   /* Cursor normally draws on top, but for this part we need depth tests. */
-  const eGPUDepthTest depth_test = GPU_depth_test_get();
+  const GPUDepthTest depth_test = GPU_depth_test_get();
   if (!depth_test) {
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   }
@@ -1476,7 +1476,7 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   paint_cursor_update_pixel_radius(pcontext);
 
   if (BKE_brush_use_locked_size(pcontext.paint, &brush)) {
-    BKE_brush_size_set(pcontext.paint, &brush, pcontext.pixel_radius);
+    BKE_brush_size_set(pcontext.paint, &brush, pcontext.pixel_radius * 2.0f);
   }
 
   if (pcontext.is_cursor_over_mesh) {

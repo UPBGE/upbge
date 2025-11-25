@@ -12,7 +12,7 @@ namespace blender::nodes::node_shader_invert_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Amount of influence the node exerts on the image");
   b.add_input<decl::Color>("Color")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
-      .description("Color input on which invertion will be applied");
+      .description("Color input on which inversion will be applied");
   b.add_output<decl::Color>("Color");
 }
 

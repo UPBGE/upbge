@@ -111,7 +111,7 @@ void draw_layer_filter_settings(const bContext * /*C*/, uiLayout *layout, Pointe
                      "tree_node_filter",
                      &obj_data_ptr,
                      "layer_groups",
-                     "Group",
+                     IFACE_("Group"),
                      ICON_GREASEPENCIL_LAYER_GROUP);
   }
   else {
@@ -191,7 +191,7 @@ void draw_custom_curve_settings(const bContext * /*C*/, uiLayout *layout, Pointe
   row->use_property_decorate_set(false);
   row->prop(ptr, "use_custom_curve", UI_ITEM_NONE, IFACE_("Custom Curve"), ICON_NONE);
   if (use_custom_curve) {
-    uiTemplateCurveMapping(layout, ptr, "custom_curve", 0, false, false, false, false);
+    uiTemplateCurveMapping(layout, ptr, "custom_curve", 0, false, false, false, false, false);
   }
 }
 

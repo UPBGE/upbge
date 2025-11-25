@@ -60,7 +60,11 @@ static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
       ED_editors_flush_edits(bmain);
     }
 
-    scene_new = BKE_scene_duplicate(bmain, scene_old, method);
+    scene_new = BKE_scene_duplicate(bmain,
+                                    scene_old,
+                                    method,
+                                    static_cast<eDupli_ID_Flags>(U.dupflag | USER_DUP_OBJECT),
+                                    LIB_ID_DUPLICATE_IS_ROOT_ID);
   }
 
   return scene_new;
@@ -86,44 +90,88 @@ Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod me
   return scene_new;
 }
 
-bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
+bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene, Scene *scene_new)
 {
-  Scene *scene_new;
-
-  /* kill running jobs */
-  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  WM_jobs_kill_all_from_owner(wm, scene);
-
-  if (scene->id.prev) {
-    scene_new = static_cast<Scene *>(scene->id.prev);
-  }
-  else if (scene->id.next) {
-    scene_new = static_cast<Scene *>(scene->id.next);
-  }
-  else {
+  BLI_assert(!scene_new || &scene != scene_new);
+  if (!BKE_scene_can_be_removed(&bmain, &scene)) {
     return false;
   }
+
+  if (!scene_new) {
+    scene_new = BKE_scene_find_replacement(bmain, scene);
+  }
+  if (!scene_new) {
+    return false;
+  }
+
+  /* NOTE: Usages of BPy_..._ALLOW_THREADS macros below are necessary because this code is also
+   * called from RNA (and therefore BPY). */
+
+  /* Cancel animation playback. */
+  if (bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(&C))) {
+    ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
+    if (sad->scene == &scene) {
+#ifdef WITH_PYTHON
+      BPy_BEGIN_ALLOW_THREADS;
+#endif
+      ED_screen_animation_play(&C, 0, 0);
+#ifdef WITH_PYTHON
+      BPy_END_ALLOW_THREADS;
+#endif
+    }
+  }
+
+  /* Kill running jobs. */
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain.wm.first);
+  WM_jobs_kill_all_from_owner(wm, &scene);
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     if (win->parent != nullptr) { /* We only care about main windows here... */
       continue;
     }
-    if (win->scene == scene) {
-      WM_window_set_active_scene(bmain, C, win, scene_new);
+    if (win->scene == &scene) {
+#ifdef WITH_PYTHON
+      BPy_BEGIN_ALLOW_THREADS;
+#endif
+      WM_window_set_active_scene(&bmain, &C, win, scene_new);
+#ifdef WITH_PYTHON
+      BPy_END_ALLOW_THREADS;
+#endif
     }
   }
 
   /* Update scenes used by the sequencer. */
-  LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
-    if (workspace->sequencer_scene == scene) {
+  LISTBASE_FOREACH (WorkSpace *, workspace, &bmain.workspaces) {
+    if (workspace->sequencer_scene == &scene) {
       workspace->sequencer_scene = scene_new;
-      WM_event_add_notifier(C, NC_WINDOW, nullptr);
+      WM_event_add_notifier(&C, NC_WINDOW, nullptr);
     }
   }
 
-  BKE_id_delete(bmain, scene);
+  /* In theory, the call to #WM_window_set_active_scene above should have handled this through
+   * calls to #ED_screen_scene_change. But there can be unusual cases (e.g. on file opening in
+   * brackground mode) where the state of available Windows may prevent this from happening. */
+  if (CTX_data_scene(&C) == &scene) {
+#ifdef WITH_PYTHON
+    BPy_BEGIN_ALLOW_THREADS;
+#endif
+    CTX_data_scene_set(&C, scene_new);
+#ifdef WITH_PYTHON
+    BPy_END_ALLOW_THREADS;
+#endif
+  }
 
   return true;
+}
+
+bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
+{
+  if (ED_scene_replace_active_for_deletion(*C, *bmain, *scene)) {
+    BKE_id_delete(bmain, scene);
+    return true;
+  }
+
+  return false;
 }
 
 void ED_scene_change_update(Main *bmain, Scene *scene, ViewLayer *layer)
@@ -368,17 +416,39 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   wmWindow *win = CTX_wm_window(C);
-  Scene *scene_old = WM_window_get_active_scene(win);
-  int type = RNA_enum_get(op->ptr, "type");
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  Scene *scene_old = CTX_data_sequencer_scene(C);
+  const int type = RNA_enum_get(op->ptr, "type");
 
   Scene *new_scene = scene_add(bmain, scene_old, eSceneCopyMethod(type));
   blender::seq::editing_ensure(new_scene);
 
-  WorkSpace *workspace = CTX_wm_workspace(C);
   workspace->sequencer_scene = new_scene;
+
+  /* Switching the active scene to the newly created sequencer scene should prevent confusion among
+   * new users to the VSE. For example, this prevents the case where attempting to change
+   * resolution properties would have no effect.
+   *
+   * FIXME: This logic is meant to address a temporary papercut and may be removed later in 5.1+
+   * when properties for scenes and sequencer scenes can be more properly separated. */
+  WM_window_set_active_scene(bmain, C, win, new_scene);
+  BKE_reportf(
+      op->reports, RPT_WARNING, TIP_("Active scene changed to '%s'"), new_scene->id.name + 2);
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus new_sequencer_scene_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
+{
+  if (CTX_data_sequencer_scene(C) == nullptr) {
+    /* When there is no sequencer scene set, create a blank new one. */
+    RNA_enum_set(op->ptr, "type", SCE_COPY_NEW);
+    return new_sequencer_scene_exec(C, op);
+  }
+  return WM_menu_invoke(C, op, event);
 }
 
 static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
@@ -390,7 +460,7 @@ static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = new_sequencer_scene_exec;
-  ot->invoke = WM_menu_invoke;
+  ot->invoke = new_sequencer_scene_invoke;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -398,6 +468,7 @@ static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", scene_new_items, SCE_COPY_NEW, "Type", "");
   RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_SCENE);
+  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 }
 
 /** \} */

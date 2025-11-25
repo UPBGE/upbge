@@ -13,6 +13,7 @@
 
 #ifdef WITH_VULKAN_BACKEND
 #  include <vulkan/vulkan_core.h>
+VK_DEFINE_HANDLE(VmaAllocator)
 #endif
 
 /* This is used by `GHOST_C-api.h` too, cannot use C++ conventions. */
@@ -182,7 +183,12 @@ typedef enum {
    * Support accurately placing windows on multiple monitors.
    */
   GHOST_kCapabilityMultiMonitorPlacement = (1 << 12),
-
+  /**
+   * A "path" for a window is supported.
+   * This indicates that #GHOST_IWindow::setPath can be used
+   * without the need to include the windows file-path in its title.
+   */
+  GHOST_kCapabilityWindowPath = (1 << 13),
 } GHOST_TCapabilityFlag;
 
 /**
@@ -195,7 +201,8 @@ typedef enum {
    GHOST_kCapabilityClipboardImage | GHOST_kCapabilityDesktopSample | GHOST_kCapabilityInputIME | \
    GHOST_kCapabilityTrackpadPhysicalDirection | GHOST_kCapabilityWindowDecorationStyles | \
    GHOST_kCapabilityKeyboardHyperKey | GHOST_kCapabilityCursorRGBA | \
-   GHOST_kCapabilityCursorGenerator | GHOST_kCapabilityMultiMonitorPlacement)
+   GHOST_kCapabilityCursorGenerator | GHOST_kCapabilityMultiMonitorPlacement | \
+   GHOST_kCapabilityWindowPath)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -592,7 +599,7 @@ typedef enum {
 } GHOST_TKey;
 
 #define GHOST_KEY_MODIFIER_NUM ((_GHOST_KEY_MODIFIER_MAX - _GHOST_KEY_MODIFIER_MIN) + 1)
-#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key)-_GHOST_KEY_MODIFIER_MIN)
+#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key) - _GHOST_KEY_MODIFIER_MIN)
 #define GHOST_KEY_MODIFIER_FROM_INDEX(key) \
   (GHOST_TKey)(((unsigned int)(key) + _GHOST_KEY_MODIFIER_MIN))
 #define GHOST_KEY_MODIFIER_CHECK(key) (GHOST_KEY_MODIFIER_TO_INDEX(key) < GHOST_KEY_MODIFIER_NUM)
@@ -824,22 +831,24 @@ typedef struct {
 
 #define GHOST_CONTEXT_PARAMS_NONE \
   { \
-    /*is_stereo_visual*/ false, /*is_debug*/ false, /*vsync*/ GHOST_kVSyncModeUnset, \
+      /*is_stereo_visual*/ false, \
+      /*is_debug*/ false, \
+      /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
 #define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpu_settings) \
   { \
-    /*is_stereo_visual*/ false, \
-        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
-        /*vsync*/ GHOST_kVSyncModeUnset, \
+      /*is_stereo_visual*/ false, \
+      /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
+      /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
 #define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpu_settings) \
   { \
-    /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
-        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
-        (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
-                                                               GHOST_kVSyncModeUnset), \
+      /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
+      /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
+      (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
+                                                             GHOST_kVSyncModeUnset), \
   }
 
 typedef struct {
@@ -867,13 +876,17 @@ typedef struct {
 typedef struct {
   /* Is HDR enabled for this Window? */
   bool hdr_enabled;
+  /* Is wide gamut enabled for this Window? */
+  bool wide_gamut_enabled;
   /* Scale factor to display SDR content in HDR. */
   float sdr_white_level;
 } GHOST_WindowHDRInfo;
 
 #define GHOST_WINDOW_HDR_INFO_NONE \
   { \
-    /*hdr_enabled*/ false, /*sdr_white_level*/ 1.0f, \
+      /*hdr_enabled*/ false, \
+      /*wide_gamut_enabled*/ false, \
+      /*sdr_white_level*/ 1.0f, \
   }
 
 #ifdef WITH_VULKAN_BACKEND
@@ -997,6 +1010,8 @@ typedef struct {
   VkQueue queue;
   /** The #std::mutex mutex. */
   void *queue_mutex;
+  /** Vulkan memory allocator of the device. */
+  VmaAllocator vma_allocator;
 } GHOST_VulkanHandles;
 
 #endif
@@ -1049,6 +1064,7 @@ typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
   GHOST_kXrGraphicsOpenGL,
   GHOST_kXrGraphicsVulkan,
+  GHOST_kXrGraphicsMetal,
 #  ifdef WIN32
   GHOST_kXrGraphicsOpenGLD3D11,
   GHOST_kXrGraphicsVulkanD3D11,

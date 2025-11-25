@@ -15,6 +15,7 @@
 namespace blender::gpu {
 class Texture;
 }
+struct ExrHandle;
 struct ImBuf;
 struct Image;
 struct ImageFormatData;
@@ -90,9 +91,6 @@ struct RenderLayer {
 
   int rectx, recty;
 
-  /** Optional saved end-result on disk. */
-  void *exrhandle;
-
   ListBase passes;
 };
 
@@ -120,8 +118,6 @@ struct RenderResult {
 
   /* coordinates within final image (after cropping) */
   rcti tilerect;
-  /* offset to apply to get a border render in full image */
-  int xof, yof;
 
   /* the main buffers */
   ListBase layers;
@@ -167,11 +163,11 @@ struct RenderStats {
 /* *********************** API ******************** */
 
 /**
- * The name is used as identifier, so elsewhere in blender the result can retrieved.
- * Calling a new render with same name, frees automatic existing render.
- */
-struct Render *RE_NewRender(const char *name);
-struct Render *RE_GetRender(const char *name);
+ * The owner is a unique identifier for the render, either an original scene
+ * datablock for regular renders, or an area for preview renders.
+ * Calling a new render with an existing owner frees the existing render. */
+struct Render *RE_NewRender(const void *owner);
+struct Render *RE_GetRender(const void *owner);
 
 struct Scene;
 struct Render *RE_NewSceneRender(const struct Scene *scene);
@@ -186,12 +182,6 @@ struct ViewRender *RE_NewViewRender(struct RenderEngineType *engine_type);
 struct Render *RE_NewInteractiveCompositorRender(const struct Scene *scene);
 
 /* Assign default dummy callbacks. */
-
-/**
- * Called for new renders and when finishing rendering
- * so we always have valid callbacks on a render.
- */
-void RE_InitRenderCB(struct Render *re);
 
 /**
  * Use free render as signal to do everything over (previews).
@@ -416,19 +406,17 @@ void RE_PreviewRender(struct Render *re, struct Main *bmain, struct Scene *scene
 bool RE_ReadRenderResult(struct Scene *scene, struct Scene *scenode);
 
 struct RenderResult *RE_MultilayerConvert(
-    void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty);
-
-/* Display and event callbacks. */
+    ExrHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty);
 
 /**
- * Image and movie output has to move to either #ImBuf or kernel.
- */
-void RE_display_init_cb(struct Render *re,
-                        void *handle,
-                        void (*f)(void *handle, RenderResult *rr));
-void RE_display_clear_cb(struct Render *re,
-                         void *handle,
-                         void (*f)(void *handle, RenderResult *rr));
+ * Display, event callbacks and GPU contexts
+ * */
+
+void RE_display_init(Render *re);
+void RE_display_ensure_gpu_context(Render *re);
+void RE_display_share(Render *re, const Render *parent_re);
+void RE_display_free(Render *re);
+
 void RE_display_update_cb(struct Render *re,
                           void *handle,
                           void (*f)(void *handle, RenderResult *rr, struct rcti *rect));
@@ -443,12 +431,8 @@ void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));
 
-void RE_system_gpu_context_ensure(Render *re);
-void RE_system_gpu_context_free(Render *re);
 void *RE_system_gpu_context_get(Render *re);
-
 void *RE_blender_gpu_context_ensure(Render *re);
-void RE_blender_gpu_context_free(Render *re);
 
 /**
  * \param x: ranges from -1 to 1.
@@ -467,12 +451,6 @@ bool RE_passes_have_name(struct RenderLayer *rl);
 
 struct RenderPass *RE_pass_find_by_name(struct RenderLayer *rl,
                                         const char *name,
-                                        const char *viewname);
-/**
- * Only provided for API compatibility, don't use this in new code!
- */
-struct RenderPass *RE_pass_find_by_type(struct RenderLayer *rl,
-                                        int passtype,
                                         const char *viewname);
 
 /**

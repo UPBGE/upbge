@@ -584,13 +584,13 @@ bool WM_region_use_viewport(ScrArea *area, ARegion *region)
   return wm_region_use_viewport_by_type(area->spacetype, region->regiontype);
 }
 
-static const char *wm_area_name(ScrArea *area)
+static const char *wm_area_name(const ScrArea *area)
 {
 #define SPACE_NAME(space) \
-  case space: \
-    return #space;
-
-  switch (area->spacetype) {
+  case space: { \
+    return #space; \
+  }
+  switch (eSpace_Type(area->spacetype)) {
     SPACE_NAME(SPACE_EMPTY);
     SPACE_NAME(SPACE_VIEW3D);
     SPACE_NAME(SPACE_GRAPH);
@@ -604,15 +604,18 @@ static const char *wm_area_name(ScrArea *area)
     SPACE_NAME(SPACE_ACTION);
     SPACE_NAME(SPACE_NLA);
     SPACE_NAME(SPACE_SCRIPT);
+    SPACE_NAME(SPACE_LOGIC);
     SPACE_NAME(SPACE_NODE);
     SPACE_NAME(SPACE_CONSOLE);
     SPACE_NAME(SPACE_USERPREF);
     SPACE_NAME(SPACE_CLIP);
     SPACE_NAME(SPACE_TOPBAR);
     SPACE_NAME(SPACE_STATUSBAR);
-    default:
-      return "Unknown Space";
+    SPACE_NAME(SPACE_SPREADSHEET);
   }
+#undef SPACE_NAME
+
+  return "Unknown Space";
 }
 
 /** \} */
@@ -701,8 +704,8 @@ static blender::gpu::TextureFormat get_hdr_framebuffer_format(const Scene *scene
 {
   bool use_float = false;
 
-  if (scene && ((IMB_colormanagement_display_is_hdr(&scene->display_settings,
-                                                    scene->view_settings.view_transform)) ||
+  if (scene && (IMB_colormanagement_display_is_hdr(&scene->display_settings,
+                                                   scene->view_settings.view_transform) ||
                 IMB_colormanagement_display_is_wide_gamut(&scene->display_settings,
                                                           scene->view_settings.view_transform)))
   {
@@ -1645,6 +1648,7 @@ void wm_draw_update(bContext *C)
     if (wm_draw_update_test_window(bmain, C, win)) {
       /* Sets context window+screen. */
       wm_window_make_drawable(wm, win);
+      wm_window_swap_buffer_acquire(win);
 
       /* Notifiers for screen redraw. */
       ED_screen_ensure_updated(C, wm, win);
@@ -1652,7 +1656,7 @@ void wm_draw_update(bContext *C)
       wm_draw_window(C, win);
       wm_draw_update_clear_window(C, win);
 
-      wm_window_swap_buffers(win);
+      wm_window_swap_buffer_release(win);
     }
   }
 

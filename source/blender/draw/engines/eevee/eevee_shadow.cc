@@ -846,23 +846,27 @@ void ShadowModule::end_sync()
 
   curr_casters_.push_update();
 
-  /* UPBGE GPU skinning shadow artifacts fix:
+  /* UPBGE GPU deform shadow artifacts fix:
    *
-   * Root cause: GPU skinning changes mesh geometry on GPU but CPU-side object bounds
+   * Root cause: GPU deform changes mesh geometry on GPU but CPU-side object bounds
    * remain based on the rest pose. EEVEE's shadow system uses these incorrect bounds
    * to calculate directional shadow clip ranges (tilemaps_clip), leading to shadow
    * artifacts for skinned meshes.
    *
-   * Solution: Clear tilemaps_clip data when GPU skinning objects are detected,
+   * Solution: Clear tilemaps_clip data when GPU deformed objects are detected,
    * forcing EEVEE to recalculate clip ranges with current frame data. This ensures
-   * shadows consistency between CPU and GPU skinning pipelines.
+   * shadows consistency between CPU and GPU deform pipelines.
    *
-   * Alternative approaches (expanding object bounds) cause visual discrepancies
-   * between CPU/GPU skinning modes, making this targeted fix the preferred solution.
+   * Alternative approaches:
+   *   a) Expanding object bounds cause visual discrepancies
+   *      between CPU/GPU deform modes.
+   *   b) Compute exact bounds from gpu deformed positions
+   *      with a dedicate compute pass costs too much performances, at
+   *      least with the tested method.
    */
-  if (need_gpu_skinning_clear_) {
+  if (need_gpu_deform_clear_) {
     tilemap_pool.tilemaps_clip.clear_to_zero();
-    need_gpu_skinning_clear_ = false;
+    need_gpu_deform_clear_ = false;
   }
 
   if (do_full_update_) {
@@ -1301,7 +1305,7 @@ void ShadowModule::set_view(View &view, int2 extent)
 
   input_depth_extent_ = extent;
 
-  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
   dispatch_depth_scan_size_ = int3(math::divide_ceil(extent, int2(SHADOW_DEPTH_SCAN_GROUP_SIZE)),
                                    1);
@@ -1397,7 +1401,7 @@ void ShadowModule::set_view(View &view, int2 extent)
       }
 
       GPU_framebuffer_multi_viewports_set(render_fb_,
-                                          reinterpret_cast<int(*)[4]>(multi_viewports_.data()));
+                                          reinterpret_cast<int (*)[4]>(multi_viewports_.data()));
 
       inst_.pipelines.shadow.render(shadow_multi_view_);
 
@@ -1418,7 +1422,7 @@ void ShadowModule::set_view(View &view, int2 extent)
   }
 }
 
-void ShadowModule::debug_draw(View &view, GPUFrameBuffer *view_fb)
+void ShadowModule::debug_draw(View &view, gpu::FrameBuffer *view_fb)
 {
   if (!ELEM(inst_.debug_mode,
             eDebugMode::DEBUG_SHADOW_TILEMAPS,

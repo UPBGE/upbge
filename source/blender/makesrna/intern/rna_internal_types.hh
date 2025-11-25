@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 
+#include "BLI_map.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_listBase.h"
@@ -53,9 +54,12 @@ using ContextUpdateFunc = void (*)(bContext *C, PointerRNA *ptr);
 
 using EditableFunc = int (*)(const PointerRNA *ptr, const char **r_info);
 using ItemEditableFunc = int (*)(const PointerRNA *ptr, int index);
-using IDPropertiesFunc = IDProperty **(*)(PointerRNA *ptr);
-using StructRefineFunc = StructRNA *(*)(PointerRNA *ptr);
+using IDPropertiesFunc = IDProperty **(*)(PointerRNA * ptr);
+using StructRefineFunc = StructRNA *(*)(PointerRNA * ptr);
 using StructPathFunc = std::optional<std::string> (*)(const PointerRNA *ptr);
+using PropUINameFunc = const char *(*)(const PointerRNA *ptr,
+                                       const PropertyRNA *prop,
+                                       bool do_translate);
 
 using PropArrayLengthGetFunc = int (*)(const PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION]);
 using PropBooleanGetFunc = bool (*)(PointerRNA *ptr);
@@ -78,12 +82,12 @@ using PropStringLengthFunc = int (*)(PointerRNA *ptr);
 using PropStringSetFunc = void (*)(PointerRNA *ptr, const char *value);
 using PropEnumGetFunc = int (*)(PointerRNA *ptr);
 using PropEnumSetFunc = void (*)(PointerRNA *ptr, int value);
-using PropEnumItemFunc = const EnumPropertyItem *(*)(bContext *C,
+using PropEnumItemFunc = const EnumPropertyItem *(*)(bContext * C,
                                                      PointerRNA *ptr,
                                                      PropertyRNA *prop,
                                                      bool *r_free);
 using PropPointerGetFunc = PointerRNA (*)(PointerRNA *ptr);
-using PropPointerTypeFunc = StructRNA *(*)(PointerRNA *ptr);
+using PropPointerTypeFunc = StructRNA *(*)(PointerRNA * ptr);
 using PropPointerSetFunc = void (*)(PointerRNA *ptr, const PointerRNA value, ReportList *reports);
 using PropPointerPollFunc = bool (*)(PointerRNA *ptr, const PointerRNA value);
 using PropPointerPollFuncPy = bool (*)(PointerRNA *ptr,
@@ -422,6 +426,9 @@ struct PropertyRNA {
   /** Callback for testing if array-item editable (if applicable). */
   ItemEditableFunc itemeditable;
 
+  /** Optional function to dynamically override the user-readable #name. */
+  PropUINameFunc ui_name_func;
+
   /** Override handling callbacks (diff is also used for comparison). */
   RNAPropOverrideDiff override_diff;
   RNAPropOverrideStore override_store;
@@ -579,6 +586,8 @@ struct StringPropertyRNA {
 
   PropStringGetTransformFunc get_transform;
   PropStringSetTransformFunc set_transform;
+
+  PropStringGetFuncEx get_default;
 
   /**
    * Optional callback to list candidates for a string.
@@ -747,7 +756,8 @@ struct BlenderRNA {
    * A map of structs: `{StructRNA.identifier -> StructRNA}`
    * These are ensured to have unique names (with #STRUCT_PUBLIC_NAMESPACE enabled).
    */
-  GHash *structs_map;
+  using StructsMap = blender::Map<blender::StringRef, StructRNA *>;
+  StructsMap *structs_map;
   /** Needed because types with an empty identifier aren't included in `structs_map`. */
   unsigned int structs_len;
 };

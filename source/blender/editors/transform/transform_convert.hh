@@ -11,6 +11,8 @@
 
 #include "BLI_index_mask.hh"
 
+#include "ED_grease_pencil.hh"
+
 #include "transform.hh"
 
 struct BMEditMesh;
@@ -93,6 +95,8 @@ struct TransDataVertSlideVert {
  * Used for both curves and grease pencil objects.
  */
 struct CurvesTransformData {
+  Vector<ed::greasepencil::MutableDrawingInfo> drawings;
+
   IndexMaskMemory memory;
   Vector<IndexMask> selection_by_layer;
 
@@ -238,7 +242,6 @@ extern TransConvertTypeInfo TransConvertType_Pose;
 
 /**
  * Sets transform flags in the bones.
- * Returns total number of bones with #BONE_TRANSFORM.
  */
 void transform_convert_pose_transflags_update(Object *ob, int mode, short around);
 

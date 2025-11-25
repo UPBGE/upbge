@@ -34,7 +34,7 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
@@ -1716,14 +1716,14 @@ void psys_interpolate_face(Mesh *mesh,
       else {
         interp_v3_v3v3v3(orco, o1, o2, o3, w);
       }
-      BKE_mesh_orco_verts_transform(mesh, (float(*)[3])orco, 1, true);
+      BKE_mesh_orco_verts_transform(mesh, (float (*)[3])orco, 1, true);
     }
     else {
       copy_v3_v3(orco, vec);
     }
   }
 }
-void psys_interpolate_uvs(const MTFace *tface, int quad, const float w[4], float uvco[2])
+void psys_interpolate_uvs(const MTFace *tface, int quad, const float w[4], float r_uv[2])
 {
   float v10 = tface->uv[0][0];
   float v11 = tface->uv[0][1];
@@ -1737,12 +1737,12 @@ void psys_interpolate_uvs(const MTFace *tface, int quad, const float w[4], float
     v40 = tface->uv[3][0];
     v41 = tface->uv[3][1];
 
-    uvco[0] = w[0] * v10 + w[1] * v20 + w[2] * v30 + w[3] * v40;
-    uvco[1] = w[0] * v11 + w[1] * v21 + w[2] * v31 + w[3] * v41;
+    r_uv[0] = w[0] * v10 + w[1] * v20 + w[2] * v30 + w[3] * v40;
+    r_uv[1] = w[0] * v11 + w[1] * v21 + w[2] * v31 + w[3] * v41;
   }
   else {
-    uvco[0] = w[0] * v10 + w[1] * v20 + w[2] * v30;
-    uvco[1] = w[0] * v11 + w[1] * v21 + w[2] * v31;
+    r_uv[0] = w[0] * v10 + w[1] * v20 + w[2] * v30;
+    r_uv[1] = w[0] * v11 + w[1] * v21 + w[2] * v31;
   }
 }
 
@@ -1841,7 +1841,7 @@ int psys_particle_dm_face_lookup(Mesh *mesh_final,
   const OrigSpaceFace *osface_final;
   int pindex_orig;
   float uv[2];
-  const float(*faceuv)[2];
+  const float (*faceuv)[2];
 
   const int *index_mf_to_mpoly_deformed = nullptr;
   const int *index_mf_to_mpoly = nullptr;
@@ -2031,7 +2031,7 @@ void psys_particle_on_dm(Mesh *mesh_final,
                          float orco[3])
 {
   float tmpnor[3], mapfw[4];
-  const float(*orcodata)[3];
+  const float (*orcodata)[3];
   int mapindex;
 
   if (!psys_map_index_on_dm(mesh_final, from, index, index_dmcache, fw, foffset, &mapindex, mapfw))
@@ -2056,7 +2056,8 @@ void psys_particle_on_dm(Mesh *mesh_final,
     return;
   }
 
-  orcodata = static_cast<const float(*)[3]>(CustomData_get_layer(&mesh_final->vert_data, CD_ORCO));
+  orcodata = static_cast<const float (*)[3]>(
+      CustomData_get_layer(&mesh_final->vert_data, CD_ORCO));
   const blender::Span<blender::float3> vert_normals = mesh_final->vert_normals();
 
   if (from == PART_FROM_VERT) {
@@ -2070,7 +2071,7 @@ void psys_particle_on_dm(Mesh *mesh_final,
     if (orco) {
       if (orcodata) {
         copy_v3_v3(orco, orcodata[mapindex]);
-        BKE_mesh_orco_verts_transform(mesh_final, (float(*)[3])orco, 1, true);
+        BKE_mesh_orco_verts_transform(mesh_final, (float (*)[3])orco, 1, true);
       }
       else {
         copy_v3_v3(orco, vec);
@@ -2099,8 +2100,8 @@ void psys_particle_on_dm(Mesh *mesh_final,
 
     if (from == PART_FROM_VOLUME) {
       psys_interpolate_face(mesh_final,
-                            reinterpret_cast<const float(*)[3]>(vert_positions.data()),
-                            reinterpret_cast<const float(*)[3]>(vert_normals.data()),
+                            reinterpret_cast<const float (*)[3]>(vert_positions.data()),
+                            reinterpret_cast<const float (*)[3]>(vert_normals.data()),
                             mface,
                             mtface,
                             orcodata,
@@ -2122,8 +2123,8 @@ void psys_particle_on_dm(Mesh *mesh_final,
     }
     else {
       psys_interpolate_face(mesh_final,
-                            reinterpret_cast<const float(*)[3]>(vert_positions.data()),
-                            reinterpret_cast<const float(*)[3]>(vert_normals.data()),
+                            reinterpret_cast<const float (*)[3]>(vert_positions.data()),
+                            reinterpret_cast<const float (*)[3]>(vert_normals.data()),
                             mface,
                             mtface,
                             orcodata,
@@ -3803,7 +3804,7 @@ static void psys_face_mat(Object *ob, Mesh *mesh, ParticleData *pa, float mat[4]
 {
   float v[3][3];
   MFace *mface;
-  const float(*orcodata)[3];
+  const float (*orcodata)[3];
 
   int i = ELEM(pa->num_dmcache, DMCACHE_ISCHILD, DMCACHE_NOTFOUND) ? pa->num : pa->num_dmcache;
   if (i == -1 || i >= mesh->totface_legacy) {
@@ -3817,8 +3818,8 @@ static void psys_face_mat(Object *ob, Mesh *mesh, ParticleData *pa, float mat[4]
   const OrigSpaceFace *osface = static_cast<const OrigSpaceFace *>(
       CustomData_get_for_write(&mesh->fdata_legacy, i, CD_ORIGSPACE, mesh->totface_legacy));
 
-  if (orco &&
-      (orcodata = static_cast<const float(*)[3]>(CustomData_get_layer(&mesh->vert_data, CD_ORCO))))
+  if (orco && (orcodata = static_cast<const float (*)[3]>(
+                   CustomData_get_layer(&mesh->vert_data, CD_ORCO))))
   {
     copy_v3_v3(v[0], orcodata[mface->v1]);
     copy_v3_v3(v[1], orcodata[mface->v2]);
@@ -3948,7 +3949,8 @@ static ModifierData *object_add_or_copy_particle_system(
 
   psmd = (ParticleSystemModifierData *)md;
   psmd->psys = psys;
-  BLI_addtail(&ob->modifiers, md);
+
+  BKE_modifiers_add_at_end_if_possible(ob, md);
   BKE_object_modifier_set_active(ob, md);
   BKE_modifiers_persistent_uid_init(*ob, *md);
 

@@ -10,8 +10,11 @@
 
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
+#include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
+#include "DNA_collection_types.h"
 #include "DNA_listBase.h"
 #include "DNA_userdef_enums.h"
 
@@ -48,6 +51,8 @@ enum {
   COLLECTION_TAG_COLLECTION_OBJECT_DIRTY = (1 << 1),
 };
 
+using CollectionObjectMap = blender::Map<const Object *, CollectionObject *>;
+
 namespace blender::bke {
 
 struct CollectionRuntime {
@@ -65,7 +70,7 @@ struct CollectionRuntime {
   ListBase parents = {};
 
   /** An optional map for faster lookups on #Collection.gobject */
-  GHash *gobject_hash = nullptr;
+  CollectionObjectMap *gobject_hash = nullptr;
 
   uint8_t tag = 0;
 };
@@ -481,13 +486,14 @@ void BKE_scene_objects_iterator_next_ex(BLI_Iterator *iter);
 void BKE_scene_objects_iterator_end_ex(BLI_Iterator *iter);
 
 /**
- * Generate a new #GSet (or extend given `objects_gset` if not NULL) with all objects referenced by
+ * Generate a new #Set (or extend given `objects_set` if not NULL) with all objects referenced by
  * all collections of given `scene`.
  *
  * \note This will include objects without a base currently
  * (because they would belong to excluded collections only e.g.).
  */
-GSet *BKE_scene_objects_as_gset(Scene *scene, GSet *objects_gset);
+blender::Set<Object *> *BKE_scene_objects_as_set(Scene *scene,
+                                                 blender::Set<Object *> *objects_set);
 
 #define FOREACH_SCENE_COLLECTION_BEGIN(scene, _instance) \
   ITER_BEGIN (BKE_scene_collections_iterator_begin, \

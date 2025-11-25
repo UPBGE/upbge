@@ -24,7 +24,11 @@
 
 #include "BKE_global.hh"
 
+#include "CLG_log.h"
+
 #include <fmt/format.h>
+
+static CLG_LogRef LOG = {"gpu.vulkan"};
 
 using namespace blender::gpu::shader;
 
@@ -335,13 +339,13 @@ static void print_image_type(std::ostream &os,
 
 static std::ostream &print_qualifier(std::ostream &os, const Qualifier &qualifiers)
 {
-  if (bool(qualifiers & Qualifier::no_restrict) == false) {
+  if (!flag_is_set(qualifiers, Qualifier::no_restrict)) {
     os << "restrict ";
   }
-  if (bool(qualifiers & Qualifier::read) == false) {
+  if (!flag_is_set(qualifiers, Qualifier::read)) {
     os << "writeonly ";
   }
-  if (bool(qualifiers & Qualifier::write) == false) {
+  if (!flag_is_set(qualifiers, Qualifier::write)) {
     os << "readonly ";
   }
   return os;
@@ -363,36 +367,26 @@ static void print_resource(std::ostream &os,
   }
   os << ") ";
 
-  int64_t array_offset;
-  StringRef name_no_array;
-
   switch (res.bind_type) {
     case ShaderCreateInfo::Resource::BindType::SAMPLER:
       os << "uniform ";
       print_image_type(os, res.sampler.type, res.bind_type);
-      os << res.sampler.name << ";\n";
+      os << res.sampler.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::IMAGE:
       os << "uniform ";
       print_qualifier(os, res.image.qualifiers);
       print_image_type(os, res.image.type, res.bind_type);
-      os << res.image.name << ";\n";
+      os << res.image.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
-      array_offset = res.uniformbuf.name.find_first_of("[");
-      name_no_array = (array_offset == -1) ? res.uniformbuf.name :
-                                             StringRef(res.uniformbuf.name.data(), array_offset);
-      os << "uniform _" << name_no_array << " { " << res.uniformbuf.type_name << " "
-         << res.uniformbuf.name << "; };\n";
+      os << "uniform _" << res.uniformbuf.name.str_no_array() << " { " << res.uniformbuf.type_name
+         << " " << res.uniformbuf.name << "; };";
       break;
     case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
-      array_offset = res.storagebuf.name.find_first_of("[");
-      name_no_array = (array_offset == -1) ? res.storagebuf.name :
-                                             StringRef(res.storagebuf.name.data(), array_offset);
       print_qualifier(os, res.storagebuf.qualifiers);
-      os << "buffer _";
-      os << name_no_array << " { " << res.storagebuf.type_name << " " << res.storagebuf.name
-         << "; };\n";
+      os << "buffer _" << res.storagebuf.name.str_no_array() << " { " << res.storagebuf.type_name
+         << " " << res.storagebuf.name << "; };";
       break;
   }
 }
@@ -405,12 +399,25 @@ static void print_resource(std::ostream &os,
   print_resource(os, location, res);
 }
 
+static void print_resource(std::ostream &os,
+                           const VKShaderInterface &shader_interface,
+                           const ShaderCreateInfo::Resource &res,
+                           StringRefNull res_frequency,
+                           StringRefNull &active_info_name)
+{
+  if (assign_if_different(active_info_name, res.info_name)) {
+    os << "\n#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
+  }
+  print_resource(os, shader_interface, res);
+  os << " \\\n";
+}
+
 inline int get_location_count(const Type &type)
 {
   if (type == shader::Type::float4x4_t) {
     return 4;
   }
-  else if (type == shader::Type::float3x3_t) {
+  if (type == shader::Type::float3x3_t) {
     return 3;
   }
   return 1;
@@ -493,14 +500,13 @@ VKShader::VKShader(const char *name) : Shader(name)
   context_ = VKContext::get();
 }
 
-void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
+void VKShader::init(const shader::ShaderCreateInfo &info, bool /*is_codegen_only*/)
 {
   VKShaderInterface *vk_interface = new VKShaderInterface();
   vk_interface->init(info);
   interface = vk_interface;
   is_static_shader_ = info.do_static_compilation_;
   is_compute_shader_ = !info.compute_source_.is_empty() || !info.compute_source_generated.empty();
-  use_batch_compilation_ = is_batch_compilation;
 }
 
 VKShader::~VKShader()
@@ -523,7 +529,7 @@ void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
 {
   r_shader_module.is_ready = false;
   const VKDevice &device = VKBackend::get().device;
-  const char *source_patch = nullptr;
+  std::string source_patch;
 
   switch (stage) {
     case shaderc_vertex_shader:
@@ -545,28 +551,30 @@ void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
 
   sources[SOURCES_INDEX_VERSION] = source_patch;
   r_shader_module.combined_sources = combine_sources(sources);
-  if (!use_batch_compilation_) {
-    VKShaderCompiler::compile_module(*this, stage, r_shader_module);
-    r_shader_module.is_ready = true;
-  }
+  VKShaderCompiler::compile_module(*this, stage, r_shader_module);
+  r_shader_module.is_ready = true;
 }
 
-void VKShader::vertex_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::vertex_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                       MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_vertex_shader, vertex_module);
 }
 
-void VKShader::geometry_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::geometry_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                         MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_geometry_shader, geometry_module);
 }
 
-void VKShader::fragment_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::fragment_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                         MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_fragment_shader, fragment_module);
 }
 
-void VKShader::compute_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::compute_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                        MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_compute_shader, compute_module);
 }
@@ -578,12 +586,6 @@ void VKShader::warm_cache(int /*limit*/)
 
 bool VKShader::finalize(const shader::ShaderCreateInfo *info)
 {
-  if (!use_batch_compilation_) {
-    compilation_finished = true;
-  }
-  if (compilation_failed) {
-    return false;
-  }
   /* Add-ons that still use old API will crash as the shader create info isn't available.
    * See #130555 */
   if (info == nullptr) {
@@ -595,7 +597,7 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
     Vector<StringRefNull> sources;
     sources.append("version");
     sources.append(source);
-    geometry_shader_from_glsl(sources);
+    geometry_shader_from_glsl(*info, sources);
   }
 
   const VKShaderInterface &vk_interface = interface_get();
@@ -608,33 +610,30 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   }
 
   push_constants = VKPushConstants(&vk_interface.push_constants_layout_get());
-  if (use_batch_compilation_) {
-    return true;
-  }
-  return finalize_post();
+  return finalize_post(info->pipelines_.as_span());
 }
 
-bool VKShader::finalize_post()
+bool VKShader::finalize_post(Span<PipelineState> pipelines)
 {
   bool result = finalize_shader_module(vertex_module, "vertex") &&
                 finalize_shader_module(geometry_module, "geometry") &&
                 finalize_shader_module(fragment_module, "fragment") &&
                 finalize_shader_module(compute_module, "compute");
 
-  /* Ensure that pipeline of compute shaders are already build. This can improve performance as it
-   * can triggers a back-end compilation step. In this step the Shader module SPIR-V is
-   * compiled to a shader program that can be executed by the device. Depending on the driver this
-   * can take some time as well. If this is done inside the main thread it will stall user
-   * interactivity.
-   *
-   * TODO: We should check if VK_EXT_graphics_pipeline_library can improve the pipeline creation
-   * step for graphical shaders.
-   */
-  if (result && is_compute_shader_) {
+  if (!result) {
+    return result;
+  }
+  /* Ensure that pipelines are already built. For compute shaders only the default state is
+   * compiled. For graphics shaders the pipeline state is read from the shader create info. */
+  if (is_compute_shader_) {
     /* This is only done for the first shader compilation (not specialization).
      * Give the default constants. */
     ensure_and_get_compute_pipeline(*constants);
   }
+  else {
+    result &= ensure_graphics_pipelines(pipelines);
+  }
+
   return result;
 }
 
@@ -661,11 +660,6 @@ bool VKShader::finalize_shader_module(VKShaderModule &shader_module, const char 
   shader_module.compilation_result = {};
   shader_module.spirv_binary.clear();
   return compilation_succeeded;
-}
-
-bool VKShader::is_ready() const
-{
-  return compilation_finished;
 }
 
 bool VKShader::finalize_pipeline_layout(VKDevice &device,
@@ -747,6 +741,8 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
   const VKShaderInterface &vk_interface = interface_get();
   std::stringstream ss;
 
+  ss << "\n#line " << __LINE__ << " \"" << __FILE__ << "\"\n";
+
   ss << "\n/* Specialization Constants (pass-through). */\n";
   uint constant_id = 0;
   for (const SpecializationConstant &sc : info.specialization_constants_) {
@@ -792,26 +788,38 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     }
   }
 
-  ss << "\n/* Shared Variables. */\n";
-  for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
-    ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
+      if (assign_if_different(active_info, sv.info_name)) {
+        ss << "\n#define CREATE_INFO_RES_SHARED_VARS_" << sv.info_name << " \\\n";
+      }
+      ss << "shared " << to_string(sv.type) << " " << sv.name << ";";
+      ss << " \\\n";
+    }
+    ss << "\n";
   }
-
-  ss << "\n/* Pass Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    print_resource(ss, vk_interface, res);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
+      print_resource(ss, vk_interface, res, "PASS", active_info);
+    }
+    ss << "\n";
   }
-
-  ss << "\n/* Batch Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-    print_resource(ss, vk_interface, res);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+      print_resource(ss, vk_interface, res, "BATCH", active_info);
+    }
+    ss << "\n";
   }
-
-  ss << "\n/* Geometry Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-    print_resource(ss, vk_interface, res);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+      print_resource(ss, vk_interface, res, "GEOMETRY", active_info);
+    }
+    ss << "\n";
   }
-
   /* Push constants. */
   const VKPushConstants::Layout &push_constants_layout = vk_interface.push_constants_layout_get();
   const VKPushConstants::StorageType push_constants_storage =
@@ -827,16 +835,13 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     }
     ss << "{\n";
     for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-      ss << "  " << to_string(uniform.type) << " pc_" << uniform.name;
+      ss << "  " << to_string(uniform.type) << " " << uniform.name;
       if (uniform.array_size > 0) {
         ss << "[" << uniform.array_size << "]";
       }
       ss << ";\n";
     }
-    ss << "} PushConstants;\n";
-    for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-      ss << "#define " << uniform.name << " (PushConstants.pc_" << uniform.name << ")\n";
-    }
+    ss << "};\n";
   }
 
   ss << "\n";
@@ -861,8 +866,8 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
 
   const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
                                   !info.geometry_source_.is_empty();
-  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
-  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  const bool do_layer_output = flag_is_set(info.builtins_, BuiltinBits::LAYER);
+  const bool do_viewport_output = flag_is_set(info.builtins_, BuiltinBits::VIEWPORT_INDEX);
   if (has_geometry_stage) {
     if (do_layer_output) {
       ss << "layout(location=" << (location++) << ") out int gpu_Layer;\n ";
@@ -956,15 +961,15 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   for (const StageInterfaceInfo *iface : in_interfaces) {
     print_interface(ss, "in", *iface, location);
   }
-  if (bool(info.builtins_ & BuiltinBits::LAYER)) {
+  if (flag_is_set(info.builtins_, BuiltinBits::LAYER)) {
     ss << "#define gpu_Layer gl_Layer\n";
   }
-  if (bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX)) {
+  if (flag_is_set(info.builtins_, BuiltinBits::VIEWPORT_INDEX)) {
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
 
   if (!extensions.fragment_shader_barycentric &&
-      bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD))
+      flag_is_set(info.builtins_, BuiltinBits::BARYCENTRIC_COORD))
   {
     ss << "layout(location=" << (location++) << ") smooth in vec3 gpu_BaryCoord;\n";
     ss << "layout(location=" << (location++) << ") noperspective in vec3 gpu_BaryCoordNoPersp;\n";
@@ -1029,14 +1034,14 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 
       /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
        * built-in flag. */
-      bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
+      bool is_layered_fb = flag_is_set(info.builtins_, BuiltinBits::LAYER);
       bool is_layered_input = ELEM(
           input.img_type, ImageType::Uint2DArray, ImageType::Int2DArray, ImageType::Float2DArray);
       /* Declare image. */
       using Resource = ShaderCreateInfo::Resource;
       /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
        * collide with other resources. */
-      Resource res(Resource::BindType::SAMPLER, input.index);
+      Resource res(info, Resource::BindType::SAMPLER, input.index);
       res.sampler.type = input.img_type;
       res.sampler.sampler = GPUSamplerState::default_sampler();
       res.sampler.name = image_name;
@@ -1178,10 +1183,11 @@ std::string VKShader::workaround_geometry_shader_source_create(
   std::stringstream ss;
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
 
-  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
-  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  const bool do_layer_output = flag_is_set(info.builtins_, BuiltinBits::LAYER);
+  const bool do_viewport_output = flag_is_set(info.builtins_, BuiltinBits::VIEWPORT_INDEX);
   const bool do_barycentric_workaround = !extensions.fragment_shader_barycentric &&
-                                         bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
+                                         flag_is_set(info.builtins_,
+                                                     BuiltinBits::BARYCENTRIC_COORD);
 
   shader::ShaderCreateInfo info_modified = info;
   info_modified.geometry_out_interfaces_ = info_modified.vertex_out_interfaces_;
@@ -1245,13 +1251,17 @@ bool VKShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info
 {
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   BuiltinBits builtins = info->builtins_;
-  if (!extensions.fragment_shader_barycentric && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
+  if (!extensions.fragment_shader_barycentric &&
+      flag_is_set(builtins, BuiltinBits::BARYCENTRIC_COORD))
+  {
     return true;
   }
-  if (!extensions.shader_output_layer && bool(builtins & BuiltinBits::LAYER)) {
+  if (!extensions.shader_output_layer && flag_is_set(builtins, BuiltinBits::LAYER)) {
     return true;
   }
-  if (!extensions.shader_output_viewport_index && bool(builtins & BuiltinBits::VIEWPORT_INDEX)) {
+  if (!extensions.shader_output_viewport_index &&
+      flag_is_set(builtins, BuiltinBits::VIEWPORT_INDEX))
+  {
     return true;
   }
   return false;
@@ -1280,12 +1290,90 @@ VkPipeline VKShader::ensure_and_get_compute_pipeline(
   VKDevice &device = VKBackend::get().device;
   /* Store result in local variable to ensure thread safety. */
   VkPipeline vk_pipeline = device.pipelines.get_or_create_compute_pipeline(
-      compute_info, is_static_shader_, vk_pipeline_base_);
+      compute_info, is_static_shader_, vk_pipeline_base_, name_get());
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
-    debug::object_label(vk_pipeline, name_get());
     vk_pipeline_base_ = vk_pipeline;
   }
   return vk_pipeline;
+}
+
+bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_states)
+{
+  BLI_assert(!is_compute_shader_);
+  has_precompiled_pipelines_ = !pipeline_states.is_empty();
+  for (const shader::PipelineState &pipeline_state : pipeline_states) {
+    const VkPrimitiveTopology vk_topology = to_vk_primitive_topology(pipeline_state.primitive_);
+
+    VKGraphicsInfo graphics_info = {};
+    graphics_info.vertex_in.vk_topology = vk_topology;
+    graphics_info.vertex_in.attributes.reserve(pipeline_state.vertex_inputs_.size());
+    graphics_info.vertex_in.bindings.reserve(pipeline_state.vertex_inputs_.size());
+    uint32_t binding = 0;
+    for (const shader::PipelineState::AttributeBinding &attribute_binding :
+         pipeline_state.vertex_inputs_)
+    {
+      const GPUVertAttr::Type attribute_type = {attribute_binding.type};
+      int location_len = ceil_division(attribute_type.comp_len(), 4);
+      for (const uint32_t location_offset : IndexRange(location_len)) {
+        graphics_info.vertex_in.attributes.append({
+            attribute_binding.location + location_offset,
+            binding,
+            to_vk_format(
+                attribute_type.comp_type(), attribute_type.size(), attribute_type.fetch_mode()),
+            attribute_binding.offset + location_offset * uint32_t(sizeof(float4)),
+        });
+        graphics_info.vertex_in.bindings.append(
+            {attribute_binding.binding, attribute_binding.stride, VK_VERTEX_INPUT_RATE_VERTEX});
+        binding++;
+      }
+    }
+
+    graphics_info.shaders.vk_vertex_module = vertex_module.vk_shader_module;
+    graphics_info.shaders.vk_geometry_module = geometry_module.vk_shader_module;
+    graphics_info.shaders.vk_fragment_module = fragment_module.vk_shader_module;
+    graphics_info.shaders.vk_pipeline_layout = vk_pipeline_layout;
+    graphics_info.shaders.vk_topology = vk_topology;
+    graphics_info.shaders.state = pipeline_state.state_;
+    graphics_info.shaders.mutable_state.point_size = 1.0f;
+    graphics_info.shaders.mutable_state.line_width = 1.0f;
+    graphics_info.shaders.mutable_state.stencil_write_mask = 0u;
+    graphics_info.shaders.mutable_state.stencil_compare_mask = 0u;
+    graphics_info.shaders.mutable_state.stencil_reference = 0u;
+    graphics_info.shaders.viewport_count = pipeline_state.viewport_count_;
+    graphics_info.shaders.specialization_constants.extend(
+        pipeline_state.specialization_constants_);
+    graphics_info.shaders.has_depth = pipeline_state.depth_format_ != TextureTargetFormat::Invalid;
+    graphics_info.shaders.has_stencil = pipeline_state.stencil_format_ !=
+                                        TextureTargetFormat::Invalid;
+
+    graphics_info.fragment_out.depth_attachment_format = to_vk_format(
+        pipeline_state.depth_format_);
+    graphics_info.fragment_out.stencil_attachment_format = to_vk_format(
+        pipeline_state.stencil_format_);
+    for (const TextureTargetFormat color_format : pipeline_state.color_formats_) {
+      graphics_info.fragment_out.color_attachment_formats.append(to_vk_format(color_format));
+    }
+    graphics_info.fragment_out.state = pipeline_state.state_;
+
+    VKDevice &device = VKBackend::get().device;
+    bool pipeline_created = false;
+    VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
+        graphics_info, is_static_shader_, vk_pipeline_base_, name_get(), pipeline_created);
+    UNUSED_VARS_NDEBUG(pipeline_created);
+    if (vk_pipeline == VK_NULL_HANDLE) {
+      return false;
+    }
+    BLI_assert_msg(pipeline_created,
+                   "Sanity check: Pipeline state is precompiled during shader creation, but "
+                   "resulting pipeline was "
+                   "already present in VKPipelinePool. This should not happen and might indicate "
+                   "that the same pipeline state is added multiple times.");
+    if (vk_pipeline_base_ == VK_NULL_HANDLE) {
+      vk_pipeline_base_ = vk_pipeline;
+    }
+  }
+
+  return true;
 }
 
 VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
@@ -1301,39 +1389,67 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
       "drawing fragments. Calling code should be adapted to use a shader that sets the "
       "gl_PointSize before entering the fragment stage. For example `GPU_SHADER_3D_POINT_*`.");
 
-  /* TODO: Graphics info should be cached in VKContext and only the changes should be applied. */
-  VKGraphicsInfo graphics_info = {};
-  graphics_info.specialization_constants.extend(constants_state.values);
-  graphics_info.vk_pipeline_layout = vk_pipeline_layout;
+  const VkPrimitiveTopology vk_topology = to_vk_primitive_topology(primitive);
+  const VkFormat depth_attachment_format = framebuffer.depth_attachment_format_get();
+  const VkFormat stencil_attachment_format = framebuffer.stencil_attachment_format_get();
 
-  graphics_info.vertex_in.vk_topology = to_vk_primitive_topology(primitive);
+  VKGraphicsInfo graphics_info = {};
+  graphics_info.vertex_in.vk_topology = vk_topology;
   graphics_info.vertex_in.attributes = vao.attributes;
   graphics_info.vertex_in.bindings = vao.bindings;
 
-  graphics_info.pre_rasterization.vk_vertex_module = vertex_module.vk_shader_module;
-  graphics_info.pre_rasterization.vk_geometry_module = geometry_module.vk_shader_module;
+  graphics_info.shaders.vk_vertex_module = vertex_module.vk_shader_module;
+  graphics_info.shaders.vk_geometry_module = geometry_module.vk_shader_module;
+  graphics_info.shaders.vk_fragment_module = fragment_module.vk_shader_module;
+  graphics_info.shaders.vk_pipeline_layout = vk_pipeline_layout;
+  graphics_info.shaders.vk_topology = vk_topology;
+  graphics_info.shaders.state = state_manager.state;
+  graphics_info.shaders.mutable_state = state_manager.mutable_state;
+  graphics_info.shaders.viewport_count = framebuffer.viewport_size();
+  graphics_info.shaders.specialization_constants.extend(constants_state.values);
+  graphics_info.shaders.has_depth = depth_attachment_format != VK_FORMAT_UNDEFINED;
+  graphics_info.shaders.has_stencil = stencil_attachment_format != VK_FORMAT_UNDEFINED;
+  /* Cleanup mutable state to increase cache hits. */
+  /* NOTE: Refactor stencils to use dynamic state. #149452 */
+  if (!graphics_info.shaders.has_stencil || state_manager.state.stencil_test == GPU_STENCIL_NONE) {
+    graphics_info.shaders.mutable_state.stencil_write_mask = 0u;
+    graphics_info.shaders.mutable_state.stencil_compare_mask = 0u;
+    graphics_info.shaders.mutable_state.stencil_reference = 0u;
+  }
+  if (primitive != GPU_PRIM_POINTS) {
+    graphics_info.shaders.mutable_state.point_size = 1.0f;
+  }
+  graphics_info.shaders.mutable_state.line_width = 1.0f;
 
-  graphics_info.fragment_shader.vk_fragment_module = fragment_module.vk_shader_module;
-  graphics_info.state = state_manager.state;
-  graphics_info.mutable_state = state_manager.mutable_state;
-  graphics_info.fragment_shader.viewports.clear();
-  framebuffer.vk_viewports_append(graphics_info.fragment_shader.viewports);
-  graphics_info.fragment_shader.scissors.clear();
-  framebuffer.vk_render_areas_append(graphics_info.fragment_shader.scissors);
-
-  graphics_info.fragment_out.depth_attachment_format = framebuffer.depth_attachment_format_get();
-  graphics_info.fragment_out.stencil_attachment_format =
-      framebuffer.stencil_attachment_format_get();
+  graphics_info.fragment_out.depth_attachment_format = depth_attachment_format;
+  graphics_info.fragment_out.stencil_attachment_format = stencil_attachment_format;
   graphics_info.fragment_out.color_attachment_formats.extend(
       framebuffer.color_attachment_formats_get());
-  graphics_info.fragment_out.color_attachment_size = framebuffer.color_attachment_size;
+  graphics_info.fragment_out.state = state_manager.state;
 
   VKDevice &device = VKBackend::get().device;
-  /* Store result in local variable to ensure thread safety. */
+  bool pipeline_created = false;
   VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
-      graphics_info, is_static_shader_, vk_pipeline_base_);
+      graphics_info, is_static_shader_, vk_pipeline_base_, name_get(), pipeline_created);
+
+  UNUSED_VARS_NDEBUG(pipeline_created);
+#ifndef NDEBUG
+  if (has_precompiled_pipelines_ && pipeline_created) {
+    /* Sanity check: Used to detect mismatches between shader create info states and actual used
+     * pipeline states.
+     *
+     * NOTE: This could trigger false positives where input attributes are just different between
+     * objects that require a new pipeline state. */
+    CLOG_INFO(&LOG,
+              "Pipeline states were compiled for `%s`, however a pipeline state triggered a new "
+              "pipeline compilation.",
+              name_get().c_str());
+    const VKContext &context = *VKContext::get();
+    BLI_assert(!context.debug_pipeline_creation);
+  }
+#endif
+
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
-    debug::object_label(vk_pipeline, name_get());
     vk_pipeline_base_ = vk_pipeline;
   }
   return vk_pipeline;

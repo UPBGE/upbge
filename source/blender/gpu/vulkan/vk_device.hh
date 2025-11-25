@@ -22,6 +22,7 @@
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
+#include "vk_memory_pool.hh"
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
@@ -41,6 +42,12 @@ struct VKExtensions {
   bool fragment_shader_barycentric = false;
 
   /**
+   * Does the device support wide line rendering
+   * VkPhysicalDeviceFeatures::wideLines
+   */
+  bool wide_lines = false;
+
+  /**
    * Does the device support VK_KHR_dynamic_rendering_local_read enabled.
    */
   bool dynamic_rendering_local_read = false;
@@ -57,11 +64,6 @@ struct VKExtensions {
 
   /** VK_KHR_maintenance4 */
   bool maintenance4 = false;
-
-  /**
-   * Does the device support VK_EXT_descriptor_buffer.
-   */
-  bool descriptor_buffer = false;
 
   /**
    * Does the device support logic ops.
@@ -100,6 +102,9 @@ struct VKWorkarounds {
      */
     bool r8g8b8 = false;
   } vertex_formats;
+
+  /** Log enabled workarounds. */
+  void log() const;
 };
 
 /**
@@ -183,8 +188,6 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
   VkPhysicalDeviceMaintenance4Properties vk_physical_device_maintenance4_properties_ = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES};
-  VkPhysicalDeviceDescriptorBufferPropertiesEXT vk_physical_device_descriptor_buffer_properties_ =
-      {};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
@@ -238,22 +241,9 @@ class VKDevice : public NonCopyable {
     PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
 #endif
 
-    /* Extension: VK_EXT_descriptor_buffer */
-    PFN_vkGetDescriptorSetLayoutSizeEXT vkGetDescriptorSetLayoutSize = nullptr;
-    PFN_vkGetDescriptorSetLayoutBindingOffsetEXT vkGetDescriptorSetLayoutBindingOffset = nullptr;
-    PFN_vkGetDescriptorEXT vkGetDescriptor = nullptr;
-    PFN_vkCmdBindDescriptorBuffersEXT vkCmdBindDescriptorBuffers = nullptr;
-    PFN_vkCmdSetDescriptorBufferOffsetsEXT vkCmdSetDescriptorBufferOffsets = nullptr;
-
   } functions;
 
-  struct {
-    /* NOTE: This attribute needs to be kept alive as it will be read by VMA when allocating from
-     * `external_memory` pool. */
-    VkExportMemoryAllocateInfoKHR external_memory_info = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    VmaPool external_memory = VK_NULL_HANDLE;
-  } vma_pools;
+  VKMemoryPools vma_pools;
 
   const char *extension_name_get(int index) const
   {
@@ -279,12 +269,6 @@ class VKDevice : public NonCopyable {
   const VkPhysicalDeviceIDProperties &physical_device_id_properties_get() const
   {
     return vk_physical_device_id_properties_;
-  }
-
-  inline const VkPhysicalDeviceDescriptorBufferPropertiesEXT &
-  physical_device_descriptor_buffer_properties_get() const
-  {
-    return vk_physical_device_descriptor_buffer_properties_;
   }
 
   const VkPhysicalDeviceFeatures &physical_device_features_get() const
@@ -317,7 +301,7 @@ class VKDevice : public NonCopyable {
     return vk_queue_family_;
   }
 
-  VmaAllocator mem_allocator_get() const
+  inline VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
   }
@@ -350,8 +334,8 @@ class VKDevice : public NonCopyable {
     return is_initialized_;
   }
 
-  eGPUDeviceType device_type() const;
-  eGPUDriverType driver_type() const;
+  GPUDeviceType device_type() const;
+  GPUDriverType driver_type() const;
   std::string vendor_name() const;
   std::string driver_version() const;
 
@@ -372,11 +356,11 @@ class VKDevice : public NonCopyable {
     return extensions_;
   }
 
-  const char *glsl_vertex_patch_get() const;
-  const char *glsl_geometry_patch_get() const;
-  const char *glsl_fragment_patch_get() const;
-  const char *glsl_compute_patch_get() const;
-  void init_glsl_patch();
+  std::string glsl_vertex_patch_get() const;
+  std::string glsl_geometry_patch_get() const;
+  std::string glsl_fragment_patch_get() const;
+  std::string glsl_compute_patch_get() const;
+  shader::GeneratedSource extensions_define(StringRefNull stage_define) const;
 
   /* -------------------------------------------------------------------- */
   /** \name Render graph
@@ -426,24 +410,6 @@ class VKDevice : public NonCopyable {
    */
   VKThreadData &current_thread_data();
 
-#if 0
-  /**
-   * Get the discard pool for the current thread.
-   *
-   * When the active thread has a context a discard pool associated to the thread is returned.
-   * When there is no context the orphan discard pool is returned.
-   *
-   * A thread with a context can have multiple discard pools. One for each swap-chain image.
-   * A thread without a context is most likely a discarded resource triggered during dependency
-   * graph update. A dependency graph update from the viewport during playback or editing;
-   * or a dependency graph update when rendering.
-   * These can happen from a different thread which will don't have a context at all.
-   * \param thread_safe: Caller thread already owns the resources mutex and is safe to run this
-   * function without trying to reacquire resources mutex making a deadlock.
-   */
-  VKDiscardPool &discard_pool_for_current_thread(bool thread_safe = false);
-#endif
-
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);
   Span<std::reference_wrapper<VKContext>> contexts_get() const;
@@ -457,7 +423,13 @@ class VKDevice : public NonCopyable {
   Shader *vk_backbuffer_blit_sh_get()
   {
     if (vk_backbuffer_blit_sh_ == nullptr) {
+      /* See #system_extended_srgb_transfer_function in libocio_display_processor.cc for
+       * details on this choice. */
+#if defined(_WIN32) || defined(__APPLE__)
       vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+#else
+      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit_gamma22");
+#endif
     }
     return vk_backbuffer_blit_sh_;
   }
@@ -468,7 +440,6 @@ class VKDevice : public NonCopyable {
   void init_physical_device_features();
   void init_physical_device_extensions();
   void init_debug_callbacks();
-  void init_memory_allocator();
   void init_submission_pool();
   void deinit_submission_pool();
   /**

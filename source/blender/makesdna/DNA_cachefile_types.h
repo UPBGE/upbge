@@ -10,7 +10,9 @@
 
 #include "DNA_ID.h"
 
-struct GSet;
+#ifdef __cplusplus
+#  include "BLI_set.hh"
+#endif
 
 /* CacheFile::type */
 typedef enum {
@@ -58,6 +60,13 @@ enum {
   CACHEFILE_VELOCITY_UNIT_SECOND,
 };
 
+#ifdef __cplusplus
+struct CacheReader;
+using CacheFileHandleReaderSet = blender::Set<CacheReader **>;
+#else
+typedef struct CacheFileHandleReaderSet CacheFileHandleReaderSet;
+#endif
+
 typedef struct CacheFile {
 #ifdef __cplusplus
   /** See #ID_Type comment for why this is here. */
@@ -85,28 +94,13 @@ typedef struct CacheFile {
   /** The frame offset to subtract. */
   float frame_offset;
 
-  char _pad[4];
-
   /** Animation flag. */
   short flag;
 
   /* eCacheFileType enum. */
   char type;
 
-  /**
-   * Do not load data from the cache file and display objects in the scene as boxes, Cycles will
-   * load objects directly from the CacheFile. Other render engines which can load Alembic data
-   * directly can take care of rendering it themselves.
-   */
-  char use_render_procedural;
-
-  char _pad1[3];
-
-  /** Enable data prefetching when using the Cycles Procedural. */
-  char use_prefetch;
-
-  /** Size in megabytes for the prefetch cache used by the Cycles Procedural. */
-  int prefetch_cache_size;
+  char _pad1[1];
 
   /** Index of the currently selected layer in the UI, starts at 1. */
   int active_layer;
@@ -117,8 +111,10 @@ typedef struct CacheFile {
   /* Name of the velocity property in the archive. */
   char velocity_name[64];
 
+  char _pad3[4];
+
   /* Runtime */
   struct CacheArchiveHandle *handle;
   char handle_filepath[/*FILE_MAX*/ 1024];
-  struct GSet *handle_readers;
+  CacheFileHandleReaderSet *handle_readers;
 } CacheFile;

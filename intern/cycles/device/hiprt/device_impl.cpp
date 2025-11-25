@@ -114,6 +114,7 @@ HIPRTDevice::HIPRTDevice(const DeviceInfo &info,
 HIPRTDevice::~HIPRTDevice()
 {
   HIPContextScope scope(this);
+  free_bvh_memory_delayed();
   user_instance_id.free();
   prim_visibility.free();
   hiprt_blas_ptr.free();
@@ -222,25 +223,25 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
 
   const char *const kernel_ext = "genco";
   string options;
-  options.append(
-      "-Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17 -D __HIPRT__");
+  options.append("-Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17");
   options.append(" --offload-arch=").append(arch.c_str());
-#  ifdef WITH_NANOVDB
-  options.append(" -D WITH_NANOVDB");
-#  endif
 
   LOG_INFO_IMPORTANT << "Compiling " << source_path << " and caching to " << fatbin;
 
   double starttime = time_dt();
 
-  string compile_command = string_printf("%s %s -I %s -I %s --%s %s -o \"%s\"",
+  string compile_command = string_printf("%s %s -I %s -I %s --%s %s -o \"%s\" %s",
                                          hipcc,
                                          options.c_str(),
                                          include_path.c_str(),
                                          hiprt_include_path.c_str(),
                                          kernel_ext,
                                          source_path.c_str(),
-                                         fatbin.c_str());
+                                         fatbin.c_str(),
+                                         common_cflags.c_str());
+
+  LOG_INFO_IMPORTANT << "Compiling " << ((use_adaptive_compilation()) ? "adaptive " : "")
+                     << "HIP-RT kernel ... " << compile_command;
 
 #  ifdef _WIN32
   compile_command = "call " + compile_command;
@@ -1150,12 +1151,33 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
   return scene;
 }
 
+void HIPRTDevice::free_bvh_memory_delayed()
+{
+  thread_scoped_lock lock(hiprt_mutex);
+  if (stale_bvh.size()) {
+    for (int bvh_index = 0; bvh_index < stale_bvh.size(); bvh_index++) {
+      hiprtGeometry hiprt_geom = stale_bvh[bvh_index];
+      hiprtDestroyGeometry(hiprt_context, hiprt_geom);
+      hiprt_geom = nullptr;
+    }
+    stale_bvh.clear();
+  }
+}
+
+void HIPRTDevice::release_bvh(BVH *bvh)
+{
+  BVHHIPRT *current_bvh = static_cast<BVHHIPRT *>(bvh);
+  thread_scoped_lock lock(hiprt_mutex);
+  /* Tracks BLAS pointers whose BVH destructors have been called. */
+  stale_bvh.push_back(current_bvh->hiprt_geom);
+}
+
 void HIPRTDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 {
   if (have_error()) {
     return;
   }
-
+  free_bvh_memory_delayed();
   progress.set_substatus("Building HIPRT acceleration structure");
 
   hiprtBuildOptions options;
@@ -1173,6 +1195,7 @@ void HIPRTDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
     if (scene) {
       hiprtDestroyScene(hiprt_context, scene);
+      scene = nullptr;
     }
     scene = build_tlas(bvh_rt, bvh_rt->objects, options, refit);
   }

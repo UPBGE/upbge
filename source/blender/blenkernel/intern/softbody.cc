@@ -42,7 +42,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -100,9 +99,11 @@ struct ReferenceState {
   ReferenceVert *ivert; /* List of initial values. */
 };
 
+using ColliderMeshMap = blender::Map<Object *, struct ccd_Mesh *>;
+
 /* Private scratch pad for caching and other data only needed when alive. */
 struct SBScratch {
-  GHash *colliderhash;
+  ColliderMeshMap *colliderhash;
   short needstobuildcollider;
   short flag;
   BodyFace *bodyface;
@@ -298,7 +299,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
   hull = max_ff(ob->pd->pdef_sbift, ob->pd->pdef_sboft);
 
   /* Allocate and copy verts. */
-  pccd_M->vert_positions = static_cast<const float(*)[3]>(MEM_dupallocN(cmd->xnew));
+  pccd_M->vert_positions = static_cast<const float (*)[3]>(MEM_dupallocN(cmd->xnew));
   /* note that xnew coords are already in global space, */
   /* determine the ortho BB */
   for (i = 0; i < pccd_M->mvert_num; i++) {
@@ -387,7 +388,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
   }
   pccd_M->vert_positions_prev = pccd_M->vert_positions;
   /* Allocate and copy verts. */
-  pccd_M->vert_positions = static_cast<const float(*)[3]>(MEM_dupallocN(cmd->xnew));
+  pccd_M->vert_positions = static_cast<const float (*)[3]>(MEM_dupallocN(cmd->xnew));
   /* note that xnew coords are already in global space, */
   /* determine the ortho BB */
   for (i = 0; i < pccd_M->mvert_num; i++) {
@@ -487,15 +488,11 @@ static void ccd_mesh_free(ccd_Mesh *ccdm)
   }
 }
 
-static void ccd_build_deflector_hash_single(GHash *hash, Object *ob)
+static void ccd_build_deflector_hash_single(ColliderMeshMap *hash, Object *ob)
 {
   /* only with deflecting set */
   if (ob->pd && ob->pd->deflect) {
-    void **val_p;
-    if (!BLI_ghash_ensure_p(hash, ob, &val_p)) {
-      ccd_Mesh *ccdmesh = ccd_mesh_make(ob);
-      *val_p = ccdmesh;
-    }
+    hash->lookup_or_add_cb(ob, [&]() { return ccd_mesh_make(ob); });
   }
 }
 
@@ -505,7 +502,7 @@ static void ccd_build_deflector_hash_single(GHash *hash, Object *ob)
 static void ccd_build_deflector_hash(Depsgraph *depsgraph,
                                      Collection *collection,
                                      Object *vertexowner,
-                                     GHash *hash)
+                                     ColliderMeshMap *hash)
 {
   if (!hash) {
     return;
@@ -526,10 +523,10 @@ static void ccd_build_deflector_hash(Depsgraph *depsgraph,
   BKE_collision_objects_free(objects);
 }
 
-static void ccd_update_deflector_hash_single(GHash *hash, Object *ob)
+static void ccd_update_deflector_hash_single(ColliderMeshMap *hash, Object *ob)
 {
   if (ob->pd && ob->pd->deflect) {
-    ccd_Mesh *ccdmesh = static_cast<ccd_Mesh *>(BLI_ghash_lookup(hash, ob));
+    ccd_Mesh *ccdmesh = hash->lookup_default(ob, nullptr);
     if (ccdmesh) {
       ccd_mesh_update(ob, ccdmesh);
     }
@@ -542,7 +539,7 @@ static void ccd_update_deflector_hash_single(GHash *hash, Object *ob)
 static void ccd_update_deflector_hash(Depsgraph *depsgraph,
                                       Collection *collection,
                                       Object *vertexowner,
-                                      GHash *hash)
+                                      ColliderMeshMap *hash)
 {
   if ((!hash) || (!vertexowner)) {
     return;
@@ -754,7 +751,7 @@ static void build_bps_springlist(Object *ob)
         add_bp_springlist(bp, sb->totspring - b);
       }
     } /* For springs. */
-  }   /* For bp. */
+  } /* For bp. */
 }
 
 static void calculate_collision_balls(Object *ob)
@@ -880,9 +877,10 @@ static void free_scratch(SoftBody *sb)
   if (sb->scratch) {
     /* TODO: make sure everything is cleaned up nicely. */
     if (sb->scratch->colliderhash) {
-      BLI_ghash_free(sb->scratch->colliderhash,
-                     nullptr,
-                     (GHashValFreeFP)ccd_mesh_free); /* This hopefully will free all caches. */
+      for (ccd_Mesh *ccdm : sb->scratch->colliderhash->values()) {
+        ccd_mesh_free(ccdm);
+      }
+      MEM_delete(sb->scratch->colliderhash);
       sb->scratch->colliderhash = nullptr;
     }
     if (sb->scratch->bodyface) {
@@ -972,10 +970,7 @@ static int query_external_colliders(Depsgraph *depsgraph, Collection *collection
 /* +++ the aabb "force" section. */
 static int sb_detect_aabb_collisionCached(float /*force*/[3], Object *vertexowner, float /*time*/)
 {
-  Object *ob;
   SoftBody *sb = vertexowner->soft;
-  GHash *hash;
-  GHashIterator *ihash;
   float aabbmin[3], aabbmax[3];
   int deflected = 0;
 #if 0
@@ -988,12 +983,9 @@ static int sb_detect_aabb_collisionCached(float /*force*/[3], Object *vertexowne
   copy_v3_v3(aabbmin, sb->scratch->aabbmin);
   copy_v3_v3(aabbmax, sb->scratch->aabbmax);
 
-  hash = vertexowner->soft->scratch->colliderhash;
-  ihash = BLI_ghashIterator_new(hash);
-  while (!BLI_ghashIterator_done(ihash)) {
-
-    ccd_Mesh *ccdm = static_cast<ccd_Mesh *>(BLI_ghashIterator_getValue(ihash));
-    ob = static_cast<Object *>(BLI_ghashIterator_getKey(ihash));
+  for (const auto &item : vertexowner->soft->scratch->colliderhash->items()) {
+    Object *ob = item.key;
+    ccd_Mesh *ccdm = item.value;
     {
       /* only with deflecting set */
       if (ob->pd && ob->pd->deflect) {
@@ -1003,7 +995,6 @@ static int sb_detect_aabb_collisionCached(float /*force*/[3], Object *vertexowne
               (aabbmin[1] > ccdm->bbmax[1]) || (aabbmin[2] > ccdm->bbmax[2]))
           {
             /* boxes don't intersect */
-            BLI_ghashIterator_step(ihash);
             continue;
           }
 
@@ -1014,14 +1005,11 @@ static int sb_detect_aabb_collisionCached(float /*force*/[3], Object *vertexowne
         else {
           /* Aye that should be cached. */
           CLOG_ERROR(&LOG, "missing cache error");
-          BLI_ghashIterator_step(ihash);
           continue;
         }
       } /* if (ob->pd && ob->pd->deflect) */
-      BLI_ghashIterator_step(ihash);
     }
   } /* while () */
-  BLI_ghashIterator_free(ihash);
   return deflected;
 }
 /* --- the aabb section. */
@@ -1035,9 +1023,6 @@ static int sb_detect_face_pointCached(const float face_v1[3],
                                       Object *vertexowner,
                                       float time)
 {
-  Object *ob;
-  GHash *hash;
-  GHashIterator *ihash;
   float nv1[3], edge1[3], edge2[3], d_nvect[3], aabbmin[3], aabbmax[3];
   float facedist, outerfacethickness, tune = 10.0f;
   int a, deflected = 0;
@@ -1055,17 +1040,14 @@ static int sb_detect_face_pointCached(const float face_v1[3],
   cross_v3_v3v3(d_nvect, edge2, edge1);
   normalize_v3(d_nvect);
 
-  hash = vertexowner->soft->scratch->colliderhash;
-  ihash = BLI_ghashIterator_new(hash);
-  while (!BLI_ghashIterator_done(ihash)) {
-
-    ccd_Mesh *ccdm = static_cast<ccd_Mesh *>(BLI_ghashIterator_getValue(ihash));
-    ob = static_cast<Object *>(BLI_ghashIterator_getKey(ihash));
+  for (const auto &item : vertexowner->soft->scratch->colliderhash->items()) {
+    Object *ob = item.key;
+    ccd_Mesh *ccdm = item.value;
     {
       /* only with deflecting set */
       if (ob->pd && ob->pd->deflect) {
-        const float(*vert_positions)[3] = nullptr;
-        const float(*vert_positions_prev)[3] = nullptr;
+        const float (*vert_positions)[3] = nullptr;
+        const float (*vert_positions_prev)[3] = nullptr;
         if (ccdm) {
           vert_positions = ccdm->vert_positions;
           a = ccdm->mvert_num;
@@ -1076,14 +1058,12 @@ static int sb_detect_face_pointCached(const float face_v1[3],
               (aabbmin[1] > ccdm->bbmax[1]) || (aabbmin[2] > ccdm->bbmax[2]))
           {
             /* boxes don't intersect */
-            BLI_ghashIterator_step(ihash);
             continue;
           }
         }
         else {
           /* Aye that should be cached. */
           CLOG_ERROR(&LOG, "missing cache error");
-          BLI_ghashIterator_step(ihash);
           continue;
         }
 
@@ -1117,12 +1097,10 @@ static int sb_detect_face_pointCached(const float face_v1[3],
             }
             a--;
           } /* while (a) */
-        }   /* if (vert_positions) */
-      }     /* if (ob->pd && ob->pd->deflect) */
-      BLI_ghashIterator_step(ihash);
+        } /* if (vert_positions) */
+      } /* if (ob->pd && ob->pd->deflect) */
     }
   } /* while () */
-  BLI_ghashIterator_free(ihash);
   return deflected;
 }
 
@@ -1134,9 +1112,6 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
                                           Object *vertexowner,
                                           float time)
 {
-  Object *ob;
-  GHash *hash;
-  GHashIterator *ihash;
   float nv1[3], nv2[3], nv3[3], edge1[3], edge2[3], d_nvect[3], aabbmin[3], aabbmax[3];
   float t, tune = 10.0f;
   int a, deflected = 0;
@@ -1148,17 +1123,14 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
   aabbmax[1] = max_fff(face_v1[1], face_v2[1], face_v3[1]);
   aabbmax[2] = max_fff(face_v1[2], face_v2[2], face_v3[2]);
 
-  hash = vertexowner->soft->scratch->colliderhash;
-  ihash = BLI_ghashIterator_new(hash);
-  while (!BLI_ghashIterator_done(ihash)) {
-
-    ccd_Mesh *ccdm = static_cast<ccd_Mesh *>(BLI_ghashIterator_getValue(ihash));
-    ob = static_cast<Object *>(BLI_ghashIterator_getKey(ihash));
+  for (const auto &item : vertexowner->soft->scratch->colliderhash->items()) {
+    Object *ob = item.key;
+    ccd_Mesh *ccdm = item.value;
     {
       /* only with deflecting set */
       if (ob->pd && ob->pd->deflect) {
-        const float(*vert_positions)[3] = nullptr;
-        const float(*vert_positions_prev)[3] = nullptr;
+        const float (*vert_positions)[3] = nullptr;
+        const float (*vert_positions_prev)[3] = nullptr;
         const blender::int3 *vt = nullptr;
         const CCDF_MinMax *mima = nullptr;
 
@@ -1174,14 +1146,12 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
               (aabbmin[1] > ccdm->bbmax[1]) || (aabbmin[2] > ccdm->bbmax[2]))
           {
             /* boxes don't intersect */
-            BLI_ghashIterator_step(ihash);
             continue;
           }
         }
         else {
           /* Aye that should be cached. */
           CLOG_ERROR(&LOG, "missing cache error");
-          BLI_ghashIterator_step(ihash);
           continue;
         }
 
@@ -1230,11 +1200,9 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
           mima++;
           vt++;
         } /* while a */
-      }   /* if (ob->pd && ob->pd->deflect) */
-      BLI_ghashIterator_step(ihash);
+      } /* if (ob->pd && ob->pd->deflect) */
     }
   } /* while () */
-  BLI_ghashIterator_free(ihash);
   return deflected;
 }
 
@@ -1317,9 +1285,6 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
                                           Object *vertexowner,
                                           float time)
 {
-  Object *ob;
-  GHash *hash;
-  GHashIterator *ihash;
   float nv1[3], nv2[3], nv3[3], edge1[3], edge2[3], d_nvect[3], aabbmin[3], aabbmax[3];
   float t, el;
   int a, deflected = 0;
@@ -1329,17 +1294,14 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
 
   el = len_v3v3(edge_v1, edge_v2);
 
-  hash = vertexowner->soft->scratch->colliderhash;
-  ihash = BLI_ghashIterator_new(hash);
-  while (!BLI_ghashIterator_done(ihash)) {
-
-    ccd_Mesh *ccdm = static_cast<ccd_Mesh *>(BLI_ghashIterator_getValue(ihash));
-    ob = static_cast<Object *>(BLI_ghashIterator_getKey(ihash));
+  for (const auto &item : vertexowner->soft->scratch->colliderhash->items()) {
+    Object *ob = item.key;
+    ccd_Mesh *ccdm = item.value;
     {
       /* only with deflecting set */
       if (ob->pd && ob->pd->deflect) {
-        const float(*vert_positions)[3] = nullptr;
-        const float(*vert_positions_prev)[3] = nullptr;
+        const float (*vert_positions)[3] = nullptr;
+        const float (*vert_positions_prev)[3] = nullptr;
         const blender::int3 *vt = nullptr;
         const CCDF_MinMax *mima = nullptr;
 
@@ -1355,14 +1317,12 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
               (aabbmin[1] > ccdm->bbmax[1]) || (aabbmin[2] > ccdm->bbmax[2]))
           {
             /* boxes don't intersect */
-            BLI_ghashIterator_step(ihash);
             continue;
           }
         }
         else {
           /* Aye that should be cached. */
           CLOG_ERROR(&LOG, "missing cache error");
-          BLI_ghashIterator_step(ihash);
           continue;
         }
 
@@ -1417,11 +1377,9 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
           mima++;
           vt++;
         } /* while a */
-      }   /* if (ob->pd && ob->pd->deflect) */
-      BLI_ghashIterator_step(ihash);
+      } /* if (ob->pd && ob->pd->deflect) */
     }
   } /* while () */
-  BLI_ghashIterator_free(ihash);
   return deflected;
 }
 
@@ -1617,9 +1575,6 @@ static int sb_detect_vertex_collisionCached(float opco[3],
                                             float vel[3],
                                             float *intrusion)
 {
-  Object *ob = nullptr;
-  GHash *hash;
-  GHashIterator *ihash;
   float nv1[3], nv2[3], nv3[3], edge1[3], edge2[3], d_nvect[3], dv1[3], ve[3],
       avel[3] = {0.0, 0.0, 0.0}, vv1[3], vv2[3], vv3[3], coledge[3] = {0.0f, 0.0f, 0.0f},
       mindistedge = 1000.0f, outerforceaccu[3], innerforceaccu[3], facedist,
@@ -1628,20 +1583,18 @@ static int sb_detect_vertex_collisionCached(float opco[3],
   int a, deflected = 0, cavel = 0, ci = 0;
   /* init */
   *intrusion = 0.0f;
-  hash = vertexowner->soft->scratch->colliderhash;
-  ihash = BLI_ghashIterator_new(hash);
   outerforceaccu[0] = outerforceaccu[1] = outerforceaccu[2] = 0.0f;
   innerforceaccu[0] = innerforceaccu[1] = innerforceaccu[2] = 0.0f;
   /* go */
-  while (!BLI_ghashIterator_done(ihash)) {
-
-    ccd_Mesh *ccdm = static_cast<ccd_Mesh *>(BLI_ghashIterator_getValue(ihash));
-    ob = static_cast<Object *>(BLI_ghashIterator_getKey(ihash));
+  Object *ob = nullptr;
+  for (const auto &item : vertexowner->soft->scratch->colliderhash->items()) {
+    ob = item.key;
+    ccd_Mesh *ccdm = item.value;
     {
       /* only with deflecting set */
       if (ob->pd && ob->pd->deflect) {
-        const float(*vert_positions)[3] = nullptr;
-        const float(*vert_positions_prev)[3] = nullptr;
+        const float (*vert_positions)[3] = nullptr;
+        const float (*vert_positions_prev)[3] = nullptr;
         const blender::int3 *vt = nullptr;
         const CCDF_MinMax *mima = nullptr;
 
@@ -1664,14 +1617,12 @@ static int sb_detect_vertex_collisionCached(float opco[3],
               (opco[1] > maxy) || (opco[2] > maxz))
           {
             /* Outside the padded bound-box -> collision object is too far away. */
-            BLI_ghashIterator_step(ihash);
             continue;
           }
         }
         else {
           /* Aye that should be cached. */
           CLOG_ERROR(&LOG, "missing cache error");
-          BLI_ghashIterator_step(ihash);
           continue;
         }
 
@@ -1761,8 +1712,7 @@ static int sb_detect_vertex_collisionCached(float opco[3],
           mima++;
           vt++;
         } /* while a */
-      }   /* if (ob->pd && ob->pd->deflect) */
-      BLI_ghashIterator_step(ihash);
+      } /* if (ob->pd && ob->pd->deflect) */
     }
   } /* while () */
 
@@ -1785,7 +1735,6 @@ static int sb_detect_vertex_collisionCached(float opco[3],
     add_v3_v3(force, outerforceaccu);
   }
 
-  BLI_ghashIterator_free(ihash);
   if (cavel) {
     mul_v3_fl(avel, 1.0f / float(cavel));
   }
@@ -2160,11 +2109,11 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene,
             // sb_spring_force(Object *ob, int bpi, BodySpring *bs, float iks, float forcetime)
             sb_spring_force(ob, ilast - bb, bs, iks, forcetime);
           } /* loop springs. */
-        }   /* existing spring list. */
-      }     /* Any edges. */
+        } /* existing spring list. */
+      } /* Any edges. */
       /* ---springs */
-    }       /* Omit on snap. */
-  }         /* Loop all bp's. */
+    } /* Omit on snap. */
+  } /* Loop all bp's. */
   return 0; /* Done fine. */
 }
 
@@ -3093,7 +3042,7 @@ static void sb_new_scratch(SoftBody *sb)
     return;
   }
   sb->scratch = MEM_callocN<SBScratch>("SBScratch");
-  sb->scratch->colliderhash = BLI_ghash_ptr_new("sb_new_scratch gh");
+  sb->scratch->colliderhash = MEM_new<ColliderMeshMap>(__func__);
   sb->scratch->bodyface = nullptr;
   sb->scratch->bodyface_num = 0;
   sb->scratch->aabbmax[0] = sb->scratch->aabbmax[1] = sb->scratch->aabbmax[2] = 1.0e30f;
@@ -3240,8 +3189,8 @@ void SB_estimate_transform(Object *ob, float lloc[3], float lrot[3][3], float ls
   BodyPoint *bp;
   ReferenceVert *rp;
   SoftBody *sb = nullptr;
-  float(*opos)[3];
-  float(*rpos)[3];
+  float (*opos)[3];
+  float (*rpos)[3];
   float com[3], rcom[3];
   int a;
 

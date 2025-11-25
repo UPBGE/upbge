@@ -15,7 +15,7 @@ from bpy.types import (
     UILayout,
     UIList,
 )
-from bl_ui_utils.layout import operator_context
+from _bl_ui_utils.layout import operator_context
 
 
 class VIEW3D_MT_pose_modify(Menu):
@@ -27,6 +27,7 @@ class VIEW3D_MT_pose_modify(Menu):
         layout.operator("poselib.asset_modify", text="Replace").mode = "REPLACE"
         layout.operator("poselib.asset_modify", text="Add Selected Bones").mode = "ADD"
         layout.operator("poselib.asset_modify", text="Remove Selected Bones").mode = "REMOVE"
+
 
 class PoseLibraryPanel:
     @classmethod
@@ -42,6 +43,8 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
     bl_space_type = "VIEW_3D"
     bl_activate_operator = "POSELIB_OT_apply_pose_asset"
     bl_drag_operator = "POSELIB_OT_blend_pose_asset"
+    bl_default_preview_size = 64
+    filter_action = True
 
     @classmethod
     def poll(cls, context: Context) -> bool:
@@ -131,8 +134,6 @@ class DOPESHEET_PT_asset_panel(PoseLibraryPanel, Panel):
         if bpy.types.POSELIB_OT_restore_previous_action.poll(context):
             row.operator("poselib.restore_previous_action", text="", icon='LOOP_BACK')
         col.operator("poselib.copy_as_asset", icon="COPYDOWN")
-
-        layout.operator("poselib.convert_old_poselib")
 
 
 def pose_library_list_item_asset_menu(self: UIList, context: Context) -> None:

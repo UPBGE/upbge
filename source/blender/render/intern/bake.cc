@@ -52,6 +52,7 @@
 #include <climits>
 #include <cstring>
 
+#include "BLI_string_ref.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_index_range.hh"
@@ -142,7 +143,7 @@ void RE_bake_margin(ImBuf *ibuf,
                     const int margin,
                     const char margin_type,
                     const Mesh *mesh,
-                    char const *uv_layer,
+                    const blender::StringRef uv_layer,
                     const float uv_offset[2])
 {
   /* margin */
@@ -480,8 +481,7 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
   Array<float4> tspace;
   blender::Span<blender::float3> corner_normals;
   if (tangent) {
-    const StringRef active_uv_map = CustomData_get_active_layer_name(&mesh_eval->corner_data,
-                                                                     CD_PROP_FLOAT2);
+    const StringRef active_uv_map = mesh_eval->active_uv_map_name();
     const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_map, bke::AttrDomain::Corner);
     Array<Array<float4>> result = bke::mesh::calc_uv_tangents(positions,
                                                               faces,
@@ -711,14 +711,13 @@ void RE_bake_pixels_populate(Mesh *mesh,
                              BakePixel pixel_array[],
                              const size_t pixels_num,
                              const BakeTargets *targets,
-                             const char *uv_layer)
+                             const blender::StringRef uv_layer)
 {
   using namespace blender;
   const bke::AttributeAccessor attributes = mesh->attributes();
   VArraySpan<float2> uv_map;
-  if ((uv_layer == nullptr) || (uv_layer[0] == '\0')) {
-    const StringRef active_layer_name = CustomData_get_active_layer_name(&mesh->corner_data,
-                                                                         CD_PROP_FLOAT2);
+  if (uv_layer.is_empty()) {
+    const StringRef active_layer_name = mesh->active_uv_map_name();
     uv_map = *attributes.lookup<float2>(active_layer_name, bke::AttrDomain::Corner);
   }
   else {

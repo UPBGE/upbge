@@ -1254,10 +1254,11 @@ class PackageInstaller:
             if package.is_mandatory:
                 self.settings.logger.critical(
                     f"\tFailed to find a matching mandatory {package_distro_name} "
-                    f"(withing versions range [{package.version_min}, {package.version_mex}[).")
+                    f"(within versions range [{package.version_min}, {package.version_mex}[).")
                 exit(1)
-            self.settings.logger.warning(f"\tFailed to find a matching {package_distro_name} "
-                                         f"(withing versions range [{package.version_min}, {package.version_mex}[).")
+            self.settings.logger.warning(
+                f"\tFailed to find a matching {package_distro_name} "
+                f"(within versions range [{package.version_min}, {package.version_mex}[).")
             return False
 
         if self._install_command is ...:
@@ -1441,7 +1442,7 @@ class PackageInstallerFedora(PackageInstaller):
         return self.package_version_get([MAYSUDO, "dnf", "info", "--installed", package_distro_name])
 
     def package_query_version_get_impl(self, package_distro_name):
-        return self.package_version_get([MAYSUDO, "dnf", "info", "--all", package_distro_name])
+        return self.package_version_get([MAYSUDO, "dnf", "info", package_distro_name])
 
     def package_name_version_gen(
             self,

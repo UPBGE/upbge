@@ -220,7 +220,7 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
 
   id->lib = nullptr;
   id->tag &= ~(ID_TAG_INDIRECT | ID_TAG_EXTERN);
-  id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
+  id->flag &= ~(ID_FLAG_INDIRECT_WEAK_LINK | ID_FLAG_LINKED_AND_PACKED);
   if (id_in_mainlist) {
     IDNewNameResult result = BKE_id_new_name_validate(*bmain,
                                                       *which_libbase(bmain, GS(id->name)),
@@ -257,6 +257,11 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
       id_fake_user_set(id);
     }
   }
+
+  /* Ensure that the deephash is reset when making an ID local (in case it was previously a packed
+   * linked ID), as this is by definition not a valid deephash anymore (that ID is now a fully
+   * independent copy living in another blendfile). */
+  id->deep_hash = {};
 
   /* We need to tag this IDs and all of its users, conceptually new local ID and original linked
    * ones are two completely different data-blocks that were virtually remapped, even though in
@@ -482,6 +487,13 @@ void BKE_lib_id_expand_local(Main *bmain, ID *id, const int flags)
 void lib_id_copy_ensure_local(Main *bmain, const ID *old_id, ID *new_id, const int flags)
 {
   if (ID_IS_LINKED(old_id)) {
+    /* For packed linked data copied into local IDs in Main, assume that they are no more related
+     * to their original library source, and clear their deephash.
+     *
+     * NOTE: In case more control is needed over that behavior in the future, a new flag can be
+     * added instead. */
+    new_id->deep_hash = {};
+
     BKE_lib_id_expand_local(bmain, new_id, flags);
     lib_id_library_local_paths(bmain, nullptr, old_id->lib, new_id);
   }
@@ -680,9 +692,6 @@ ID *BKE_id_copy_in_lib(Main *bmain,
       /* Invalid case, already caught by the assert above. */
       return nullptr;
     }
-    /* Allow some garbage non-initialized memory to go in, and clean it up here. */
-    const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);
-    memset(newid, 0, size);
   }
 
   /* Early output if source is nullptr. */
@@ -730,11 +739,6 @@ ID *BKE_id_copy_in_lib(Main *bmain,
    * XXX TODO: is this behavior OK, or should we need a separate flag to control that? */
   if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     BLI_assert(!owner_library || newid->lib == *owner_library);
-    /* Expanding local linked ID usages should never be needed with embedded IDs - this will be
-     * handled together with their owner ID copying code. */
-    if (!ID_IS_LINKED(newid) && (newid->flag & ID_FLAG_EMBEDDED_DATA) == 0) {
-      lib_id_copy_ensure_local(bmain, id, newid, 0);
-    }
     /* If the ID was copied into a library, ensure paths are properly remapped, and that it has a
      * 'linked' tag set. */
     if (ID_IS_LINKED(newid)) {
@@ -745,7 +749,13 @@ ID *BKE_id_copy_in_lib(Main *bmain,
         newid->tag |= ID_TAG_EXTERN;
       }
     }
+    /* Expanding local linked ID usages should never be needed with embedded IDs - this will be
+     * handled together with their owner ID copying code. */
+    else if ((newid->flag & ID_FLAG_EMBEDDED_DATA) == 0) {
+      lib_id_copy_ensure_local(bmain, id, newid, 0);
+    }
   }
+
   else {
     /* NOTE: Do not call `ensure_local` for IDs copied outside of Main, even if they do become
      * local.
@@ -1259,7 +1269,7 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBase *lb)
 
   /* Fill an array because renaming sorts. */
   ID **id_array = MEM_malloc_arrayN<ID *>(size_t(lb_len), __func__);
-  GSet *gset = BLI_gset_str_new_ex(__func__, lb_len);
+  blender::Set<blender::StringRef> name_set;
   int i = 0;
   LISTBASE_FOREACH (ID *, id, lb) {
     if (!ID_IS_LINKED(id)) {
@@ -1268,12 +1278,11 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBase *lb)
     }
   }
   for (i = 0; i < lb_len; i++) {
-    if (!BLI_gset_add(gset, BKE_id_name(*id_array[i]))) {
+    if (!name_set.add(BKE_id_name(*id_array[i]))) {
       BKE_id_new_name_validate(
           *bmain, *lb, *id_array[i], nullptr, IDNewNameMode::RenameExistingNever, false);
     }
   }
-  BLI_gset_free(gset, nullptr);
   MEM_freeN(id_array);
 }
 
@@ -1303,6 +1312,13 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
  *
  * **************************** */
 
+void BKE_libblock_runtime_ensure(ID &id)
+{
+  if (!id.runtime) {
+    id.runtime = MEM_new<blender::bke::id::ID_Runtime>(__func__);
+  }
+}
+
 size_t BKE_libblock_get_alloc_info(short type, const char **r_name)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(type);
@@ -1325,7 +1341,8 @@ ID *BKE_libblock_alloc_notest(short type)
   const char *name;
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
-    return static_cast<ID *>(MEM_callocN(size, name));
+    ID *id = static_cast<ID *>(MEM_callocN(size, name));
+    return id;
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
   return nullptr;
@@ -1342,6 +1359,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
   ID *id = BKE_libblock_alloc_notest(type);
+  BKE_libblock_runtime_ensure(*id);
 
   if (id) {
     if ((flag & LIB_ID_CREATE_NO_MAIN) != 0) {
@@ -1446,10 +1464,10 @@ void BKE_libblock_init_empty(ID *id)
 
 void BKE_libblock_runtime_reset_remapping_status(ID *id)
 {
-  id->runtime.remap.status = 0;
-  id->runtime.remap.skipped_refcounted = 0;
-  id->runtime.remap.skipped_direct = 0;
-  id->runtime.remap.skipped_indirect = 0;
+  id->runtime->remap.status = 0;
+  id->runtime->remap.skipped_refcounted = 0;
+  id->runtime->remap.skipped_direct = 0;
+  id->runtime->remap.skipped_indirect = 0;
 }
 
 /* ********** ID session-wise UID management. ********** */
@@ -1549,13 +1567,17 @@ void BKE_libblock_copy_in_lib(Main *bmain,
       ((owner_library && *owner_library) ? (ID_TAG_EXTERN | ID_TAG_INDIRECT) : 0);
 
   if ((flag & LIB_ID_CREATE_NO_ALLOCATE) != 0) {
-    /* `new_id_p` already contains pointer to allocated memory. */
-    /* TODO: do we want to memset(0) whole mem before filling it? */
+    /* `new_id_p` already contains pointer to allocated memory.
+     * Clear and initialize it similar to BKE_libblock_alloc_in_lib. */
+    const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);
+    memset(new_id, 0, size);
+    BKE_libblock_runtime_ensure(*new_id);
     STRNCPY(new_id->name, id->name);
     new_id->us = 0;
     new_id->tag |= ID_TAG_NOT_ALLOCATED | ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT;
     new_id->lib = owner_library ? *owner_library : id->lib;
-    /* TODO: Do we want/need to copy more from ID struct itself? */
+    /* TODO: Is this entirely consistent with BKE_libblock_alloc_in_lib, and can we
+     * deduplicate the initialization code? */
   }
   else {
     new_id = static_cast<ID *>(
@@ -1655,6 +1677,14 @@ void BKE_libblock_copy_in_lib(Main *bmain,
 
   if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     DEG_id_type_tag(bmain, GS(new_id->name));
+  }
+
+  if (owner_library && *owner_library && ((*owner_library)->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0) {
+    new_id->flag |= ID_FLAG_LINKED_AND_PACKED;
+  }
+
+  if (flag & LIB_ID_COPY_ID_NEW_SET) {
+    ID_NEW_SET(id, new_id);
   }
 
   *new_id_p = new_id;
@@ -2034,17 +2064,16 @@ void BKE_main_id_refcount_recompute(Main *bmain, const bool do_linked_only)
 }
 
 static void library_make_local_copying_check(ID *id,
-                                             GSet *loop_tags,
+                                             blender::Set<ID *> &loop_tags,
                                              MainIDRelations *id_relations,
-                                             GSet *done_ids)
+                                             blender::Set<ID *> &done_ids)
 {
-  if (BLI_gset_haskey(done_ids, id)) {
+  if (done_ids.contains(id)) {
     return; /* Already checked, nothing else to do. */
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(id_relations->relations_from_pointers, id));
-  BLI_gset_insert(loop_tags, id);
+  MainIDRelationsEntry *entry = id_relations->relations_from_pointers->lookup(id);
+  loop_tags.add(id);
   for (MainIDRelationsEntryItem *from_id_entry = entry->from_ids; from_id_entry != nullptr;
        from_id_entry = from_id_entry->next)
   {
@@ -2067,8 +2096,8 @@ static void library_make_local_copying_check(ID *id,
       /* Local user, early out to avoid some gset querying... */
       continue;
     }
-    if (!BLI_gset_haskey(done_ids, from_id)) {
-      if (BLI_gset_haskey(loop_tags, from_id)) {
+    if (!done_ids.contains(from_id)) {
+      if (loop_tags.contains(from_id)) {
         /* We are in a 'dependency loop' of IDs, this does not say us anything, skip it.
          * Note that this is the situation that can lead to archipelagos of linked data-blocks
          * (since all of them have non-local users, they would all be duplicated,
@@ -2091,8 +2120,8 @@ static void library_make_local_copying_check(ID *id,
       break;
     }
   }
-  BLI_gset_add(done_ids, id);
-  BLI_gset_remove(loop_tags, id, nullptr);
+  done_ids.add(id);
+  loop_tags.remove(id);
 }
 
 void BKE_library_make_local(Main *bmain,
@@ -2116,7 +2145,7 @@ void BKE_library_make_local(Main *bmain,
   LinkNode *copied_ids = nullptr;
   MemArena *linklist_mem = BLI_memarena_new(512 * sizeof(*todo_ids), __func__);
 
-  GSet *done_ids = BLI_gset_ptr_new(__func__);
+  blender::Set<ID *> done_ids;
 
 #ifdef DEBUG_TIME
   TIMEIT_START(make_local);
@@ -2185,7 +2214,7 @@ void BKE_library_make_local(Main *bmain,
       }
       else {
         /* Linked ID that we won't be making local (needed info for step 2, see below). */
-        BLI_gset_add(done_ids, id);
+        done_ids.add(id);
       }
     }
   }
@@ -2198,14 +2227,12 @@ void BKE_library_make_local(Main *bmain,
   /* Step 2: Check which data-blocks we can directly make local
    * (because they are only used by already, or future, local data),
    * others will need to be duplicated. */
-  GSet *loop_tags = BLI_gset_ptr_new(__func__);
+  blender::Set<ID *> loop_tags;
   for (LinkNode *it = todo_ids; it; it = it->next) {
     library_make_local_copying_check(
         static_cast<ID *>(it->link), loop_tags, bmain->relations, done_ids);
-    BLI_assert(BLI_gset_len(loop_tags) == 0);
+    BLI_assert(loop_tags.is_empty());
   }
-  BLI_gset_free(loop_tags, nullptr);
-  BLI_gset_free(done_ids, nullptr);
 
   /* Next step will most likely add new IDs, better to get rid of this mapping now. */
   BKE_main_relations_free(bmain);

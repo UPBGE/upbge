@@ -19,7 +19,12 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "ED_node_c.hh"
 #include "ED_screen.hh"
+
+#include "SEQ_modifier.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
 
@@ -86,13 +91,28 @@ static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
     if (skip_base && path_item == snode.treepath.first) {
       continue;
     }
+    if (path_item->nodetree == nullptr) {
+      continue;
+    }
+
+    int icon = ICON_NODETREE;
+    if (ID_IS_PACKED(&path_item->nodetree->id)) {
+      icon = ICON_PACKAGE;
+    }
+    else if (ID_IS_LINKED(&path_item->nodetree->id)) {
+      icon = ICON_LINKED;
+    }
+    else if (ID_IS_ASSET(&path_item->nodetree->id)) {
+      icon = ICON_ASSET_MANAGER;
+    }
+
     if (path_item != snode.treepath.last) {
       // We don't need to add handle function to last nodetree
       ui::context_path_add_generic(
-          path, RNA_NodeTree, path_item->nodetree, ICON_NODETREE, tree_path_handle_func(i));
+          path, RNA_NodeTree, path_item->nodetree, icon, tree_path_handle_func(i));
     }
     else {
-      ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, ICON_NODETREE);
+      ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, icon);
     }
   }
 }
@@ -153,9 +173,47 @@ static void get_context_path_node_compositor(const bContext &C,
     context_path_add_node_tree_and_node_groups(snode, path);
   }
   else {
-    Scene *scene = CTX_data_scene(&C);
-    ui::context_path_add_generic(path, RNA_Scene, scene);
-    context_path_add_node_tree_and_node_groups(snode, path);
+    if (snode.node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
+      Scene *sequencer_scene = CTX_data_sequencer_scene(&C);
+      if (!sequencer_scene) {
+        context_path_add_node_tree_and_node_groups(snode, path);
+        return;
+      }
+      ui::context_path_add_generic(path, RNA_Scene, sequencer_scene, ICON_SCENE);
+      Editing *ed = seq::editing_get(sequencer_scene);
+      if (!ed) {
+        context_path_add_node_tree_and_node_groups(snode, path);
+        return;
+      }
+      Strip *strip = seq::select_active_get(sequencer_scene);
+      if (!strip) {
+        context_path_add_node_tree_and_node_groups(snode, path);
+        return;
+      }
+      ui::context_path_add_generic(path, RNA_Strip, strip, ICON_SEQ_STRIP_DUPLICATE);
+      StripModifierData *smd = seq::modifier_get_active(strip);
+      if (!smd) {
+        context_path_add_node_tree_and_node_groups(snode, path);
+        return;
+      }
+      if (smd->type != eSeqModifierType_Compositor) {
+        context_path_add_node_tree_and_node_groups(snode, path);
+        return;
+      }
+      SequencerCompositorModifierData *scmd = reinterpret_cast<SequencerCompositorModifierData *>(
+          smd);
+      if (scmd->node_group == nullptr) {
+        context_path_add_node_tree_and_node_groups(snode, path);
+        return;
+      }
+      ui::context_path_add_generic(path, RNA_NodeTree, scmd->node_group);
+      context_path_add_node_tree_and_node_groups(snode, path, true);
+    }
+    else {
+      Scene *scene = CTX_data_scene(&C);
+      ui::context_path_add_generic(path, RNA_Scene, scene);
+      context_path_add_node_tree_and_node_groups(snode, path);
+    }
   }
 }
 
@@ -168,8 +226,16 @@ static void get_context_path_node_geometry(const bContext &C,
   }
   else {
     Object *object = CTX_data_active_object(&C);
+    if (!object) {
+      context_path_add_node_tree_and_node_groups(snode, path);
+      return;
+    }
     ui::context_path_add_generic(path, RNA_Object, object);
     ModifierData *modifier = BKE_object_active_modifier(object);
+    if (!modifier) {
+      context_path_add_node_tree_and_node_groups(snode, path);
+      return;
+    }
     ui::context_path_add_generic(path, RNA_Modifier, modifier, ICON_GEOMETRY_NODES);
     context_path_add_node_tree_and_node_groups(snode, path);
   }
@@ -184,13 +250,13 @@ Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
 
   Vector<ui::ContextPathItem> context_path;
 
-  if (snode->edittree->type == NTREE_GEOMETRY) {
+  if (ED_node_is_geometry(snode)) {
     get_context_path_node_geometry(C, *snode, context_path);
   }
-  else if (snode->edittree->type == NTREE_SHADER) {
+  else if (ED_node_is_shader(snode)) {
     get_context_path_node_shader(C, *snode, context_path);
   }
-  else if (snode->edittree->type == NTREE_COMPOSIT) {
+  else if (ED_node_is_compositor(snode)) {
     get_context_path_node_compositor(C, *snode, context_path);
   }
 

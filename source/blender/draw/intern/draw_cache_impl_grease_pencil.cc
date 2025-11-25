@@ -223,11 +223,18 @@ static GreasePencilBatchCache *grease_pencil_batch_cache_get(GreasePencil &greas
 /** \name Vertex Buffers
  * \{ */
 
-BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float softness)
+BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(const float rot,
+                                                       const float asp,
+                                                       const float softness,
+                                                       const float miter_angle)
 {
   int32_t packed = 0;
   /* Aspect uses 9 bits */
   float asp_normalized = (asp > 1.0f) ? (1.0f / asp) : asp;
+  /* Use the default aspect ratio of 1 when the value is outside of the valid range. */
+  if (asp_normalized <= 0.0f) {
+    asp_normalized = 1.0f;
+  }
   packed |= int32_t(unit_float_to_uchar_clamp(asp_normalized));
   /* Store if inverted in the 9th bit. */
   if (asp > 1.0f) {
@@ -243,6 +250,21 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float sof
   }
   /* Hardness uses 8 bits */
   packed |= int32_t(unit_float_to_uchar_clamp(1.0f - softness)) << 18;
+
+  /* Miter Angle uses the last 6 bits */
+  if (miter_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
+    packed |= GP_CORNER_TYPE_ROUND_BITS << 26;
+  }
+  else if (miter_angle >= GP_STROKE_MITER_ANGLE_BEVEL) {
+    packed |= GP_CORNER_TYPE_BEVEL_BITS << 26;
+  }
+  else {
+    const float miter_norm = (miter_angle / M_PI);
+    packed |= int32_t(clamp_i(
+                  int(miter_norm * GP_CORNER_TYPE_MITER_NUMBER), 1, GP_CORNER_TYPE_MITER_NUMBER))
+              << 26;
+  }
+
   return packed;
 }
 
@@ -851,15 +873,22 @@ static void grease_pencil_edit_batch_ensure(Object &object,
       MutableSpan<float> selection_slice = edit_points_selection.slice(points);
       index_mask::masked_fill(selection_slice, 1.0f, selected_editable_points);
 
+      const IndexMask selected_editable_points_with_bezier =
+          ed::greasepencil::retrieve_editable_and_all_selected_points(
+              object, info.drawing, info.layer_index, CURVE_HANDLE_ALL, memory);
+
       MutableSpan<float> line_selection_slice = edit_line_selection.slice(points_eval);
 
       /* Poly curves evaluated points match the curve points, no need to interpolate. */
       if (curves.is_single_type(CURVE_TYPE_POLY)) {
-        array_utils::copy(selection_slice.as_span(), line_selection_slice);
+        index_mask::masked_fill(line_selection_slice, 1.0f, selected_editable_points_with_bezier);
       }
       else {
         curves.ensure_can_interpolate_to_evaluated();
-        curves.interpolate_to_evaluated(selection_slice.as_span(), line_selection_slice);
+        Array<float> selected_points(curves.points_num(), 0.0f);
+        index_mask::masked_fill(
+            selected_points.as_mutable_span(), 1.0f, selected_editable_points_with_bezier);
+        curves.interpolate_to_evaluated(selected_points.as_span(), line_selection_slice);
       }
     }
 
@@ -1054,6 +1083,59 @@ static VArray<T> attribute_interpolate(const VArray<T> &input, const bke::Curves
   return VArray<T>::from_container(std::move(out));
 };
 
+static VArray<float> interpolate_corners(const bke::CurvesGeometry &curves)
+{
+  const VArray<float> miter_angles = *curves.attributes().lookup_or_default<float>(
+      "miter_angle", bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
+
+  if (curves.is_single_type(CURVE_TYPE_POLY)) {
+    return miter_angles;
+  }
+
+  if (miter_angles.is_single() &&
+      miter_angles.get_internal_single() == GP_STROKE_MITER_ANGLE_ROUND)
+  {
+    return VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.evaluated_points_num());
+  }
+
+  /* Default all the evaluated points to be round.
+   * This is done so that the added points look as smooth as possible. */
+  Array<float> eval_corners(curves.evaluated_points_num(), GP_STROKE_MITER_ANGLE_ROUND);
+
+  const VArray<int8_t> types = curves.curve_types();
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
+
+  threading::parallel_for(curves.curves_range(), 128, [&](IndexRange range) {
+    for (const int curve_i : range) {
+      const IndexRange eval_points = evaluated_points_by_curve[curve_i];
+      const IndexRange points = points_by_curve[curve_i];
+      MutableSpan<float> eval_corners_range = eval_corners.as_mutable_span().slice(eval_points);
+
+      switch (types[curve_i]) {
+        case CURVE_TYPE_POLY:
+          for (const int i : points.index_range()) {
+            eval_corners_range[i] = miter_angles[points[i]];
+          }
+          break;
+        case CURVE_TYPE_BEZIER: {
+          const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
+          for (const int i : points.index_range()) {
+            eval_corners_range[offsets[i]] = miter_angles[points[i]];
+          }
+          break;
+        }
+        case CURVE_TYPE_NURBS:
+        case CURVE_TYPE_CATMULL_ROM: {
+          /* NUBRS and Catmull-Rom are continuous and don't have corners. */
+          break;
+        }
+      }
+    }
+  });
+  return VArray<float>::from_container(std::move(eval_corners));
+}
+
 static void grease_pencil_geom_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
@@ -1179,6 +1261,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         *attributes.lookup_or_default<ColorGeometry4f>(
             "vertex_color", bke::AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f)),
         curves);
+    const VArray<float> miter_angles = interpolate_corners(curves);
 
     /* Assumes that if the ".selection" attribute does not exist, all points are selected. */
     const VArray<float> selection_float = *attributes.lookup_or_default<float>(
@@ -1239,8 +1322,11 @@ static void grease_pencil_geom_batch_ensure(Object &object,
        * ensure the material used by the shader is valid this needs to be clamped to zero. */
       s_vert.mat = std::max(materials[curve_i], 0) % GPENCIL_MATERIAL_BUFFER_LEN;
 
-      s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness(
-          rotations[point_i], stroke_point_aspect_ratios[curve_i], stroke_softness[curve_i]);
+      s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness_miter(
+          rotations[point_i],
+          stroke_point_aspect_ratios[curve_i],
+          stroke_softness[curve_i],
+          miter_angles[point_i]);
       s_vert.u_stroke = u_stroke;
       copy_v2_v2(s_vert.uv_fill, texture_matrix * float4(pos, 1.0f));
 

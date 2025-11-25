@@ -104,9 +104,6 @@ static void uilist_draw_item_default(uiList *ui_list,
 
   /* Simplest one! */
   switch (ui_list->layout_type) {
-    case UILST_LAYOUT_GRID:
-      layout->label("", icon);
-      break;
     case UILST_LAYOUT_DEFAULT:
     case UILST_LAYOUT_COMPACT:
     default:
@@ -127,7 +124,14 @@ static void uilist_draw_filter_default(uiList *ui_list, const bContext * /*C*/, 
   uiLayout *row = &layout->row(false);
 
   uiLayout *subrow = &row->row(true);
-  subrow->prop(&listptr, "filter_name", UI_ITEM_NONE, "", ICON_NONE);
+  subrow->prop(&listptr,
+               RNA_struct_find_property(&listptr, "filter_name"),
+               -1,
+               0,
+               UI_ITEM_NONE,
+               "",
+               ICON_VIEWZOOM,
+               IFACE_("Search"));
   subrow->prop(&listptr,
                "use_filter_invert",
                UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
@@ -703,7 +707,7 @@ static void ui_template_list_layout_draw(const bContext *C,
   uiListDyn *dyn_data = ui_list->dyn_data;
   const char *active_propname = RNA_property_identifier(input_data->activeprop);
 
-  uiLayout *glob = nullptr, *box, *row, *col, *subrow, *sub, *overlap;
+  uiLayout *glob = nullptr, *box, *row, *col, *sub, *overlap;
   char numstr[32];
   int rnaicon = ICON_NONE, icon = ICON_NONE;
   uiBut *but;
@@ -752,7 +756,6 @@ static void ui_template_list_layout_draw(const bContext *C,
 
           but = uiDefButR_prop(subblock,
                                ButType::ListRow,
-                               0,
                                "",
                                0,
                                0,
@@ -817,7 +820,6 @@ static void ui_template_list_layout_draw(const bContext *C,
         row->column(false);
         but = uiDefButI(block,
                         ButType::Scroll,
-                        0,
                         "",
                         0,
                         0,
@@ -865,7 +867,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       SNPRINTF_UTF8(numstr, "%d :", dyn_data->items_shown);
       but = uiDefIconTextButR_prop(block,
                                    ButType::Num,
-                                   0,
                                    ICON_NONE,
                                    numstr,
                                    0,
@@ -882,103 +883,6 @@ static void ui_template_list_layout_draw(const bContext *C,
         UI_but_flag_enable(but, UI_BUT_DISABLED);
       }
       break;
-    case UILST_LAYOUT_GRID: {
-      box = &layout->list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
-      glob = &box->column(true);
-      row = &glob->row(false);
-      col = &row->column(true);
-      subrow = nullptr; /* Quite gcc warning! */
-
-      uilist_prepare(ui_list, items, layout_data, &visual_info);
-
-      int i = 0;
-      if (input_data->dataptr.data && input_data->prop) {
-        /* create list items */
-        for (i = visual_info.start_idx; i < visual_info.end_idx; i++) {
-          PointerRNA *itemptr = &items->item_vec[i].item;
-          const int org_i = items->item_vec[i].org_idx;
-          const int flt_flag = items->item_vec[i].flt_flag;
-
-          /* create button */
-          if (!(i % layout_data->columns)) {
-            subrow = &col->row(false);
-          }
-
-          uiBlock *subblock = subrow->block();
-          overlap = &subrow->overlap();
-
-          UI_block_flag_enable(subblock, UI_BLOCK_LIST_ITEM);
-
-          /* list item behind label & other buttons */
-          overlap->row(false);
-
-          but = uiDefButR_prop(subblock,
-                               ButType::ListRow,
-                               0,
-                               "",
-                               0,
-                               0,
-                               UI_UNIT_X * 10,
-                               UI_UNIT_Y,
-                               &input_data->active_dataptr,
-                               input_data->activeprop,
-                               0,
-                               0,
-                               org_i,
-                               std::nullopt);
-          UI_but_drawflag_enable(but, UI_BUT_NO_TOOLTIP);
-
-          sub = &overlap->row(false);
-
-          icon = UI_icon_from_rnaptr(C, itemptr, rnaicon, false);
-          layout_data->draw_item(ui_list,
-                                 C,
-                                 sub,
-                                 &input_data->dataptr,
-                                 itemptr,
-                                 icon,
-                                 &input_data->active_dataptr,
-                                 active_propname,
-                                 org_i,
-                                 flt_flag);
-
-          /* If we are "drawing" active item, set all labels as active. */
-          if (i == items->active_item_idx) {
-            ui_layout_list_set_labels_active(sub);
-          }
-
-          UI_block_flag_disable(subblock, UI_BLOCK_LIST_ITEM);
-        }
-      }
-
-      /* add dummy buttons to fill space */
-      for (; i < visual_info.start_idx + visual_info.visual_items; i++) {
-        if (!(i % layout_data->columns)) {
-          subrow = &col->row(false);
-        }
-        subrow->label("", ICON_NONE);
-      }
-
-      /* Add scroll-bar. */
-      if (items->item_vec.size() > visual_info.visual_items) {
-        /* col = */ row->column(false);
-        but = uiDefButI(block,
-                        ButType::Scroll,
-                        0,
-                        "",
-                        0,
-                        0,
-                        V2D_SCROLL_WIDTH,
-                        UI_UNIT_Y * dyn_data->visual_height,
-                        &ui_list->list_scroll,
-                        0,
-                        dyn_data->height - dyn_data->visual_height,
-                        "");
-        uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
-        but_scroll->visual_height = dyn_data->visual_height;
-      }
-      break;
-    }
     case UILST_LAYOUT_BIG_PREVIEW_GRID:
       box = &layout->list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
       /* For grip button. */
@@ -1013,7 +917,6 @@ static void ui_template_list_layout_draw(const bContext *C,
 
           but = uiDefButR_prop(subblock,
                                ButType::ListRow,
-                               0,
                                "",
                                0,
                                0,
@@ -1058,7 +961,6 @@ static void ui_template_list_layout_draw(const bContext *C,
         /* col = */ row->column(false);
         but = uiDefButI(block,
                         ButType::Scroll,
-                        0,
                         "",
                         0,
                         0,
@@ -1102,7 +1004,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       but = uiDefIconButBitI(subblock,
                              ButType::Toggle,
                              UILST_FLT_SHOW,
-                             0,
                              ICON_DISCLOSURE_TRI_DOWN,
                              0,
                              0,
@@ -1117,7 +1018,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       if (add_grip_but) {
         but = uiDefIconButI(subblock,
                             ButType::Grip,
-                            0,
                             ICON_GRIP,
                             0,
                             0,
@@ -1134,18 +1034,8 @@ static void ui_template_list_layout_draw(const bContext *C,
 
       col = &glob->column(false);
       subblock = col->block();
-      uiDefBut(subblock,
-               ButType::Sepr,
-               0,
-               "",
-               0,
-               0,
-               UI_UNIT_X,
-               UI_UNIT_Y * 0.05f,
-               nullptr,
-               0.0,
-               0.0,
-               "");
+      uiDefBut(
+          subblock, ButType::Sepr, "", 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.05f, nullptr, 0.0, 0.0, "");
 
       layout_data->draw_filter(ui_list, C, col);
     }
@@ -1153,7 +1043,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       but = uiDefIconButBitI(subblock,
                              ButType::Toggle,
                              UILST_FLT_SHOW,
-                             0,
                              ICON_DISCLOSURE_TRI_RIGHT,
                              0,
                              0,
@@ -1168,7 +1057,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       if (add_grip_but) {
         but = uiDefIconButI(subblock,
                             ButType::Grip,
-                            0,
                             ICON_GRIP,
                             0,
                             0,

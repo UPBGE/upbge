@@ -16,7 +16,7 @@
 #include "BKE_material.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "BKE_camera.h"
 
@@ -738,7 +738,7 @@ void Instance::draw_object(View &view, tObject *ob)
 
   GPU_debug_group_begin("GPencil Object");
 
-  GPUFrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
+  gpu::FrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
 
   GPU_framebuffer_bind(fb_object);
   GPU_framebuffer_clear_depth_stencil(fb_object, ob->is_drawmode3d ? 1.0f : 0.0f, 0x00);

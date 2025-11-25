@@ -46,7 +46,8 @@ namespace blender::nodes {
 
 bool check_tool_context_and_error(GeoNodeExecParams &params);
 void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
-void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
+
+void node_geo_sdf_grid_error_not_levelset(GeoNodeExecParams &params);
 
 void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
@@ -82,6 +83,8 @@ const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext *C,
 
 void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
 
-void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna);
+void node_geo_exec_with_too_old_openvdb(GeoNodeExecParams &params);
+
+void draw_data_blocks(const bContext *C, ui::Layout *layout, PointerRNA &bake_rna);
 
 }  // namespace blender::nodes

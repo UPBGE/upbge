@@ -33,21 +33,6 @@ static const EnumPropertyItem prop_direction_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#ifdef RNA_RUNTIME
-
-#  include "DNA_material_types.h"
-
-static const EnumPropertyItem prop_smooth_direction_items[] = {
-    {0, "SMOOTH", ICON_ADD, "Smooth", "Smooth the surface"},
-    {BRUSH_DIR_IN,
-     "ENHANCE_DETAILS",
-     ICON_REMOVE,
-     "Enhance Details",
-     "Enhance the surface detail"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-#endif
-
 static const EnumPropertyItem sculpt_stroke_method_items[] = {
     {0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
     {BRUSH_DRAG_DOT, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
@@ -81,17 +66,6 @@ static const EnumPropertyItem rna_enum_brush_texture_slot_map_all_mode_items[] =
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#ifdef RNA_RUNTIME
-static const EnumPropertyItem rna_enum_brush_texture_slot_map_texture_mode_items[] = {
-    {MTEX_MAP_MODE_VIEW, "VIEW_PLANE", 0, "View Plane", ""},
-    {MTEX_MAP_MODE_TILED, "TILED", 0, "Tiled", ""},
-    {MTEX_MAP_MODE_3D, "3D", 0, "3D", ""},
-    {MTEX_MAP_MODE_RANDOM, "RANDOM", 0, "Random", ""},
-    {MTEX_MAP_MODE_STENCIL, "STENCIL", 0, "Stencil", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-#endif
-
 const EnumPropertyItem rna_enum_brush_curve_preset_items[] = {
     {BRUSH_CURVE_CUSTOM, "CUSTOM", ICON_RNDCURVE, "Custom", ""},
     {BRUSH_CURVE_SMOOTH, "SMOOTH", ICON_SMOOTHCURVE, "Smooth", ""},
@@ -118,7 +92,7 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
      "use_automasking_face_sets",
      0,
      "Face Sets",
-     "Affect only vertices that share Face Sets with the active vertex"},
+     "Affect only vertices that share face sets with the active vertex"},
     {BRUSH_AUTOMASKING_BOUNDARY_EDGES,
      "use_automasking_boundary_edges",
      0,
@@ -128,7 +102,7 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
      "use_automasking_boundary_face_sets",
      0,
      "Face Sets Boundary Automasking",
-     "Do not affect vertices that belong to a Face Set boundary"},
+     "Do not affect vertices that belong to a face set boundary"},
     {BRUSH_AUTOMASKING_CAVITY_NORMAL,
      "use_automasking_cavity",
      0,
@@ -379,13 +353,15 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "DNA_material_types.h"
+
 #  include "RNA_access.hh"
 
 #  include "BKE_brush.hh"
 #  include "BKE_colorband.hh"
 #  include "BKE_context.hh"
 #  include "BKE_gpencil_legacy.h"
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_layer.hh"
 #  include "BKE_material.hh"
 #  include "BKE_paint.hh"
@@ -550,6 +526,24 @@ static bool rna_BrushCapabilitiesSculpt_has_strength_pressure_get(PointerRNA *pt
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
   return blender::bke::brush::supports_strength_pressure(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_size_pressure_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_size_pressure(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_pressure_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_auto_smooth_pressure(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_hardness_pressure_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_hardness_pressure(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_direction_get(PointerRNA *ptr)
@@ -766,34 +760,84 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
   /* sculpt mode */
+  static const EnumPropertyItem prop_smooth_direction_items[] = {
+      {0,
+       "SMOOTH",
+       ICON_ADD,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Smooth"),
+       N_("Smooth the surface")},
+      {BRUSH_DIR_IN,
+       "ENHANCE_DETAILS",
+       ICON_REMOVE,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Enhance Details"),
+       N_("Enhance the surface detail")},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem prop_pinch_magnify_items[] = {
-      {BRUSH_DIR_IN, "MAGNIFY", ICON_ADD, "Magnify", "Subtract effect of brush"},
-      {0, "PINCH", ICON_REMOVE, "Pinch", "Add effect of brush"},
+      {BRUSH_DIR_IN,
+       "MAGNIFY",
+       ICON_ADD,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Magnify"),
+       N_("Subtract effect of brush")},
+      {0,
+       "PINCH",
+       ICON_REMOVE,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Pinch"),
+       N_("Add effect of brush")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem prop_inflate_deflate_items[] = {
-      {0, "INFLATE", ICON_ADD, "Inflate", "Add effect of brush"},
-      {BRUSH_DIR_IN, "DEFLATE", ICON_REMOVE, "Deflate", "Subtract effect of brush"},
+      {0,
+       "INFLATE",
+       ICON_ADD,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Inflate"),
+       N_("Add effect of brush")},
+      {BRUSH_DIR_IN,
+       "DEFLATE",
+       ICON_REMOVE,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Deflate"),
+       N_("Subtract effect of brush")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* texture paint mode */
   static const EnumPropertyItem prop_soften_sharpen_items[] = {
-      {BRUSH_DIR_IN, "SHARPEN", ICON_ADD, "Sharpen", "Sharpen effect of brush"},
-      {0, "SOFTEN", ICON_REMOVE, "Soften", "Blur effect of brush"},
+      {BRUSH_DIR_IN,
+       "SHARPEN",
+       ICON_ADD,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Sharpen"),
+       N_("Sharpen effect of brush")},
+      {0,
+       "SOFTEN",
+       ICON_REMOVE,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Soften"),
+       N_("Blur effect of brush")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* gpencil sculpt */
   static const EnumPropertyItem prop_pinch_items[] = {
-      {0, "ADD", ICON_ADD, "Pinch", "Add effect of brush"},
-      {BRUSH_DIR_IN, "SUBTRACT", ICON_REMOVE, "Inflate", "Subtract effect of brush"},
+      {0, "ADD", ICON_ADD, CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Pinch"), N_("Add effect of brush")},
+      {BRUSH_DIR_IN,
+       "SUBTRACT",
+       ICON_REMOVE,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Inflate"),
+       N_("Subtract effect of brush")},
       {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem prop_twist_items[] = {
-      {0, "ADD", ICON_ADD, "Counter-Clockwise", "Add effect of brush"},
-      {BRUSH_DIR_IN, "SUBTRACT", ICON_REMOVE, "Clockwise", "Subtract effect of brush"},
+      {0,
+       "ADD",
+       ICON_ADD,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Counter-Clockwise"),
+       N_("Add effect of brush")},
+      {BRUSH_DIR_IN,
+       "SUBTRACT",
+       ICON_REMOVE,
+       CTX_N_(BLT_I18NCONTEXT_ID_BRUSH, "Clockwise"),
+       N_("Subtract effect of brush")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1009,6 +1053,14 @@ static const EnumPropertyItem *rna_BrushTextureSlot_map_mode_itemf(bContext *C,
                                                                    PropertyRNA * /*prop*/,
                                                                    bool * /*r_free*/)
 {
+  static const EnumPropertyItem rna_enum_brush_texture_slot_map_texture_mode_items[] = {
+      {MTEX_MAP_MODE_VIEW, "VIEW_PLANE", 0, "View Plane", ""},
+      {MTEX_MAP_MODE_TILED, "TILED", 0, "Tiled", ""},
+      {MTEX_MAP_MODE_3D, "3D", 0, "3D", ""},
+      {MTEX_MAP_MODE_RANDOM, "RANDOM", 0, "Random", ""},
+      {MTEX_MAP_MODE_STENCIL, "STENCIL", 0, "Stencil", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
   if (C == nullptr) {
     return rna_enum_brush_texture_slot_map_all_mode_items;
@@ -1169,6 +1221,9 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_smooth_stroke, "Has Smooth Stroke");
   SCULPT_BRUSH_CAPABILITY(has_space_attenuation, "Has Space Attenuation");
   SCULPT_BRUSH_CAPABILITY(has_strength_pressure, "Has Strength Pressure");
+  SCULPT_BRUSH_CAPABILITY(has_size_pressure, "Has Size Pressure");
+  SCULPT_BRUSH_CAPABILITY(has_auto_smooth_pressure, "Has Auto-Smooth Pressure");
+  SCULPT_BRUSH_CAPABILITY(has_hardness_pressure, "Has Hardness Pressure");
   SCULPT_BRUSH_CAPABILITY(has_direction, "Has Direction");
   SCULPT_BRUSH_CAPABILITY(has_gravity, "Has Gravity");
   SCULPT_BRUSH_CAPABILITY(has_tilt, "Has Tilt");
@@ -2399,7 +2454,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
   static const EnumPropertyItem brush_pose_deform_type_items[] = {
       {BRUSH_POSE_DEFORM_ROTATE_TWIST, "ROTATE_TWIST", 0, "Rotate/Twist", ""},
-      {BRUSH_POSE_DEFORM_SCALE_TRASLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
+      {BRUSH_POSE_DEFORM_SCALE_TRANSLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
       {BRUSH_POSE_DEFORM_SQUASH_STRETCH, "SQUASH_STRETCH", 0, "Squash & Stretch", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -2415,12 +2470,12 @@ static void rna_def_brush(BlenderRNA *brna)
        "FACE_SETS",
        0,
        "Face Sets",
-       "Creates a pose segment per face sets, starting from the active face set"},
+       "Creates a pose segment per face set, starting from the active face set"},
       {BRUSH_POSE_ORIGIN_FACE_SETS_FK,
        "FACE_SETS_FK",
        0,
        "Face Sets FK",
-       "Simulates an FK deformation using the Face Set under the cursor as control"},
+       "Simulates an FK deformation using the face set under the cursor as control"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2542,6 +2597,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, prop_direction_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Brush_direction_itemf");
   RNA_def_property_ui_text(prop, "Direction", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "stroke_method", PROP_ENUM, PROP_NONE);
@@ -2563,9 +2619,9 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MASK);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "curve_preset", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "curve_distance_falloff_preset", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_brush_curve_preset_items);
-  RNA_def_property_ui_text(prop, "Curve Preset", "");
+  RNA_def_property_ui_text(prop, "Falloff Curve Preset", "");
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
   RNA_def_property_update(prop, 0, "rna_Brush_update");
@@ -3749,9 +3805,9 @@ static void rna_def_brush(BlenderRNA *brna)
       prop, "Affect Alpha", "When this is disabled, lock alpha while painting");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "curve", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "curve_distance_falloff", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_ui_text(prop, "Curve", "Editable falloff curve");
+  RNA_def_property_ui_text(prop, "Falloff Curve", "Editable falloff curve");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "paint_curve", PROP_POINTER, PROP_NONE);

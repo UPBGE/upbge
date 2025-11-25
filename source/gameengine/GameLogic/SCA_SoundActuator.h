@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "SCA_IActuator.h"
 

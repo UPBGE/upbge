@@ -934,6 +934,7 @@ def render_output(scene, bounds, filepath):
     scene.render.filepath = filepath
 
     world = bpy.data.worlds.new(name_gen)
+    world.node_tree.nodes.clear()
     output = world.node_tree.nodes.new("ShaderNodeOutputWorld")
     background = world.node_tree.nodes.new("ShaderNodeBackground")
     world.node_tree.links.new(output.outputs["Surface"], background.outputs["Surface"])
@@ -1080,15 +1081,14 @@ def main():
 
     # Setup materials.
     material = bpy.data.materials.new("Flat Black")
-    material.use_nodes = False
-    material.specular_intensity = 0.0
-    material.diffuse_color = (0.0, 0.0, 0.0, 1.0)
     MATERIAL_FROM_COLOR["black"] = material
     del material
     material = bpy.data.materials.new("Flat Grey")
-    material.use_nodes = False
-    material.specular_intensity = 0.0
-    material.diffuse_color = (0.4, 0.4, 0.4, 1.0)
+    nodes = material.node_tree.nodes
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    output = nodes.new("ShaderNodeOutputMaterial")
+    material.node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    bsdf.inputs['Base Color'].default_value = (0.4, 0.4, 0.4, 1.0)
     MATERIAL_FROM_COLOR["grey"] = material
     del material
 

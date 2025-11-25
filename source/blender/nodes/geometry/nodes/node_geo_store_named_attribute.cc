@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Geometry to store a new attribute with the given name on");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
+  b.add_input<decl::String>("Name").is_attribute_name().optional_label();
 
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
@@ -159,6 +159,7 @@ static void node_geo_exec(GeoNodeExecParams params)
             if (component.type() == GeometryComponent::Type::Mesh) {
               Mesh &mesh = *geometry_set.get_mesh_for_write();
               bke::mesh_ensure_default_color_attribute_on_add(mesh, name, domain, data_type);
+              bke::mesh_ensure_default_uv_attribute_on_add(mesh, name, domain, data_type);
             }
           }
           else if (component.attribute_domain_size(domain) != 0) {

@@ -8,17 +8,17 @@
 
 #include <algorithm>
 
-#include "BKE_idprop.hh"
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
-
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
+#include "BKE_idprop.hh"
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 #include "DNA_actuator_types.h"
+
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
@@ -351,7 +351,7 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
     }
   }
   else {
-    BKE_image_format_init(&sockdata->format, false);
+    BKE_image_format_init(&sockdata->format);
   }
   BKE_image_format_update_color_space_for_type(&sockdata->format);
 
@@ -1992,8 +1992,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 263, 18)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_colorbalance_update_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_colorbalance_update_cb, nullptr);
       }
     }
   }
@@ -2232,7 +2231,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 265, 5)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
     }
 
@@ -2906,7 +2905,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         if (scene->ed) {
-          blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_wipe_angle_cb, nullptr);
+          blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_wipe_angle_cb, nullptr);
         }
       }
 

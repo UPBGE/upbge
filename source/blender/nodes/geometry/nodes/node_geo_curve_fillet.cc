@@ -19,13 +19,13 @@ static EnumPropertyItem mode_items[] = {
     {GEO_NODE_CURVE_FILLET_BEZIER,
      "BEZIER",
      0,
-     "Bézier",
-     "Align Bézier handles to create circular arcs at each control point"},
+     N_("Bézier"),
+     N_("Align Bézier handles to create circular arcs at each control point")},
     {GEO_NODE_CURVE_FILLET_POLY,
      "POLY",
      0,
-     "Poly",
-     "Add control points along a circular arc (handle type is vector if Bézier Spline)"},
+     N_("Poly"),
+     N_("Add control points along a circular arc (handle type is vector if Bézier Spline)")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -47,6 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Limit the maximum value of the radius in order to avoid overlapping fillets");
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)
+      .optional_label()
       .description("How to choose number of vertices on fillet");
   b.add_input<decl::Int>("Count")
       .default_value(1)

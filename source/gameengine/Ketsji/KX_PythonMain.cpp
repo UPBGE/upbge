@@ -38,7 +38,7 @@ std::string KX_GetPythonMain(Scene *scene)
   if (scene->id.properties) {
     IDProperty *item = IDP_GetPropertyTypeFromGroup(scene->id.properties, "__main__", IDP_STRING);
     if (item) {
-      return IDP_String(item);
+      return IDP_string_get(item);
     }
   }
 

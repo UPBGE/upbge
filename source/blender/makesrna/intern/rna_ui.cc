@@ -50,7 +50,6 @@ const EnumPropertyItem rna_enum_operator_context_items[] = {
 const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
     {UILST_LAYOUT_DEFAULT, "DEFAULT", 0, "Default Layout", "Use the default, multi-rows layout"},
     {UILST_LAYOUT_COMPACT, "COMPACT", 0, "Compact Layout", "Use the compact, single-row layout"},
-    {UILST_LAYOUT_GRID, "GRID", 0, "Grid Layout", "Use the grid-based layout"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1692,11 +1691,7 @@ static void rna_def_ui_layout(BlenderRNA *brna)
        0,
        "Pull-down Menu",
        "Draw pull-down menu style"},
-      {int(blender::ui::EmbossType::PieMenu),
-       "RADIAL_MENU",
-       0,
-       "Pie Menu",
-       "Draw radial menu style"},
+      {int(blender::ui::EmbossType::PieMenu), "PIE_MENU", 0, "Pie Menu", "Draw radial menu style"},
       {int(blender::ui::EmbossType::NoneOrStatus),
        "NONE_OR_STATUS",
        0,
@@ -1708,7 +1703,7 @@ static void rna_def_ui_layout(BlenderRNA *brna)
   /* layout */
 
   srna = RNA_def_struct(brna, "UILayout", nullptr);
-  RNA_def_struct_sdna(srna, "uiLayout");
+  RNA_def_struct_sdna(srna, "blender::ui::Layout");
   RNA_def_struct_ui_text(srna, "UI Layout", "User interface layout in a panel or header");
 
   prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
@@ -2371,8 +2366,10 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "type->space_type");
   RNA_def_property_enum_items(prop, rna_enum_space_type_items);
   RNA_def_property_flag(prop, PROP_REGISTER);
-  RNA_def_property_ui_text(
-      prop, "Space Type", "The space where the asset shelf is going to be used in");
+  RNA_def_property_ui_text(prop,
+                           "Space Type",
+                           "The space where the asset shelf will show up in. Ignored for popup "
+                           "asset shelves which can be displayed in any space.");
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
@@ -2408,6 +2405,16 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(
       prop, "Default Preview Size", "Default size of the asset preview thumbnails in pixels");
+
+  for (uint i = 0; rna_enum_id_type_filter_items[i].identifier; i++) {
+    const IDFilterEnumPropertyItem *item = &rna_enum_id_type_filter_items[i];
+
+    PropertyRNA *prop = RNA_def_property(srna, item->identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "type->id_types_prefilter", item->flag);
+    RNA_def_property_ui_text(prop, item->name, item->description);
+    RNA_def_property_ui_icon(prop, item->icon, 0);
+    RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  }
 
   PropertyRNA *parm;
   FunctionRNA *func;

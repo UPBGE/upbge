@@ -441,23 +441,25 @@ static bool ui_tooltip_data_append_from_keymap(bContext *C, uiTooltipData &data,
 
 #endif /* WITH_PYTHON */
 
-static bool ui_tooltip_period_needed(blender::StringRef tip)
+static std::string ui_tooltip_with_period(blender::StringRef tip)
 {
   if (tip.is_empty()) {
-    return false;
+    return tip;
   }
 
   /* Already ends with punctuation. */
-  if (ELEM(tip.back(), '.', '!', '?')) {
-    return false;
+  const uint charcode = BLI_str_utf8_as_unicode_safe(
+      BLI_str_find_prev_char_utf8(tip.data() + tip.size(), tip.data()));
+  if (BLI_str_utf32_char_is_terminal_punctuation(charcode)) {
+    return tip;
   }
 
   /* Contains a bullet Unicode character. */
   if (tip.find("\xe2\x80\xa2") != blender::StringRef::not_found) {
-    return false;
+    return tip;
   }
 
-  return true;
+  return fmt::format("{}{}", tip, ".");
 }
 
 /**
@@ -601,9 +603,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
     }
 
     if (expr_result != nullptr) {
-      const bool add_period = ui_tooltip_period_needed(expr_result);
+      const std::string but_tip = ui_tooltip_with_period(expr_result);
       UI_tooltip_text_field_add(*data,
-                                fmt::format("{}{}", expr_result, add_period ? "." : ""),
+                                but_tip,
                                 {},
                                 UI_TIP_STYLE_NORMAL,
                                 (is_error) ? UI_TIP_LC_ALERT : UI_TIP_LC_MAIN,
@@ -1039,7 +1041,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
    * Otherwise fallback to the regular label. */
   if (!but_tip_label.empty()) {
     UI_tooltip_text_field_add(*data, but_tip_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
-    UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+    if (!is_quick_tip) {
+      UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+    }
   }
   /* Regular (non-custom) label. Only show when the button doesn't already show the label. Check
    * prefix instead of comparing because the button may include the shortcut. Buttons with dynamic
@@ -1069,12 +1073,8 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     }
     else {
-      const bool add_period = ui_tooltip_period_needed(but_tip);
-      UI_tooltip_text_field_add(*data,
-                                fmt::format("{}{}", but_tip, add_period ? "." : ""),
-                                {},
-                                UI_TIP_STYLE_HEADER,
-                                UI_TIP_LC_NORMAL);
+      but_tip = ui_tooltip_with_period(but_tip);
+      UI_tooltip_text_field_add(*data, but_tip, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
       if (but_label.empty()) {
         UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
       }
@@ -1509,10 +1509,10 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
       init_rect.ymin = init_rect_overlap->ymin - pad;
       init_rect.ymax = init_rect_overlap->ymax + pad;
       rcti rect_clamp;
-      rect_clamp.xmin = 0;
-      rect_clamp.xmax = win_size[0];
-      rect_clamp.ymin = 0;
-      rect_clamp.ymax = win_size[1];
+      rect_clamp.xmin = pad_x + pad;
+      rect_clamp.xmax = win_size[0] - pad_x - pad;
+      rect_clamp.ymin = pad_y + pad;
+      rect_clamp.ymax = win_size[1] - pad_y - pad;
       /* try right. */
       const int size_x = BLI_rcti_size_x(&rect_i);
       const int size_y = BLI_rcti_size_y(&rect_i);
@@ -1606,7 +1606,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 #undef USE_ALIGN_Y_CENTER
 
   /* add padding */
-  BLI_rcti_resize(&rect_i, BLI_rcti_size_x(&rect_i) + pad_x, BLI_rcti_size_y(&rect_i) + pad_y);
+  BLI_rcti_pad(&rect_i, int(round(pad_x * 0.5f)), int(round(pad_y * 0.5f)));
 
   /* widget rect, in region coords */
   {

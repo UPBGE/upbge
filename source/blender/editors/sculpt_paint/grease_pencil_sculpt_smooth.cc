@@ -76,7 +76,7 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 
   const int current_brush_size = BKE_brush_size_get(paint, current_brush);
   BKE_brush_size_set(paint, smooth_brush, current_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 
 void SmoothOperation::toggle_smooth_brush_off(const bContext &C)
@@ -127,7 +127,9 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
 
   this->foreach_editable_drawing_with_automask(
       C, [&](const GreasePencilStrokeParams &params, const IndexMask &point_mask) {
-        Array<float2> view_positions = calculate_view_positions(params, point_mask);
+        /* Note: smoothing requires full range of view positions regardless of point selection. */
+        const Array<float2> view_positions = view_positions_from_point_mask(
+            params, params.drawing.strokes().points_range());
         bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         const OffsetIndices points_by_curve = curves.points_by_curve();

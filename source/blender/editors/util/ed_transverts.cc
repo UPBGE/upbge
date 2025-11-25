@@ -166,9 +166,8 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
   }
   else if (obedit->type == OB_CURVES) {
     Curves *curves_id = static_cast<Curves *>(obedit->data);
-    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    curves.tag_positions_changed();
-    curves.calculate_bezier_auto_handles();
+    blender::ed::curves::transverts_update_curves(
+        curves_id->geometry.wrap(), tvs, (mode & TM_SKIP_HANDLES) != 0);
   }
   else if (obedit->type == OB_POINTCLOUD) {
     PointCloud *pointcloud = static_cast<PointCloud *>(obedit->data);
@@ -218,6 +217,7 @@ bool ED_transverts_check_obedit(const Object *obedit)
 void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit, const int mode)
 {
   using namespace blender;
+  BLI_assert(DEG_is_evaluated(obedit));
 
   Nurb *nu;
   BezTriple *bezt;

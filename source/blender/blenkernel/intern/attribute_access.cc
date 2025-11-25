@@ -219,12 +219,6 @@ bool allow_procedural_attribute_access(StringRef attribute_name)
   if (attribute_name == ".reference_index") {
     return false;
   }
-  if (attribute_name.startswith("." UV_VERTSEL_NAME ".")) {
-    return false;
-  }
-  if (attribute_name.startswith("." UV_EDGESEL_NAME ".")) {
-    return false;
-  }
   if (attribute_name.startswith("." UV_PINNED_NAME ".")) {
     return false;
   }
@@ -939,12 +933,12 @@ fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &fie
 Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes,
-    const AttrDomainMask domain_mask,
+    Span<AttrDomain> domains,
     const bke::AttributeFilter &attribute_filter)
 {
   Vector<AttributeTransferData> attributes;
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (!(ATTR_DOMAIN_AS_MASK(iter.domain) & domain_mask)) {
+    if (!domains.contains(iter.domain)) {
       return;
     }
     if (iter.data_type == AttrType::String) {
@@ -956,6 +950,10 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     GVArray src = *iter.get();
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
+    /* Skip unsupported attributes. */
+    if (!dst) {
+      return;
+    }
     attributes.append({std::move(src), iter.name, {iter.domain, iter.data_type}, std::move(dst)});
   });
   return attributes;
@@ -1137,10 +1135,29 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
       return;
     }
     const GVArraySpan src = *iter.get(src_domain);
+    const bool dst_already_exists = dst_attributes.contains(iter.name);
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, dst_domain, iter.data_type);
     if (!dst) {
       return;
+    }
+    if (!dst_already_exists) {
+      /* Skip filling with the default value if all of the data is going to be filled. */
+      if (!(dst_offsets.total_size() == dst.span.size() && selection.size() == dst_offsets.size()))
+      {
+        const CPPType &type = dst.span.type();
+        if (dst_attributes.is_builtin(iter.name)) {
+          if (const GPointer value = dst_attributes.get_builtin_default(iter.name)) {
+            type.fill_construct_n(value.get(), dst.span.data(), dst.span.size());
+          }
+          else {
+            type.fill_construct_n(type.default_value(), dst.span.data(), dst.span.size());
+          }
+        }
+        else {
+          type.fill_construct_n(type.default_value(), dst.span.data(), dst.span.size());
+        }
+      }
     }
     array_utils::copy_group_to_group(src_offsets, dst_offsets, selection, src, dst.span);
     dst.finish();
@@ -1172,7 +1189,17 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     const CPPType &type = attribute.span.type();
     GMutableSpan data = attribute.span.slice(range);
-    type.fill_assign_n(type.default_value(), data.data(), data.size());
+    if (attributes.is_builtin(iter.name)) {
+      if (const GPointer value = attributes.get_builtin_default(iter.name)) {
+        type.fill_assign_n(value.get(), data.data(), data.size());
+      }
+      else {
+        type.fill_assign_n(type.default_value(), data.data(), data.size());
+      }
+    }
+    else {
+      type.fill_assign_n(type.default_value(), data.data(), data.size());
+    }
     attribute.finish();
   });
 }

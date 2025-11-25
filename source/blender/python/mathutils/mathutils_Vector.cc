@@ -135,23 +135,27 @@ static PyObject *Vector_to_tuple_ex(VectorObject *self, int ndigits)
  * \{ */
 
 /**
- * Supports 2D, 3D, and 4D vector objects both int and float values
- * accepted. Mixed float and int values accepted. Ints are parsed to float
+ * Supports 2D, 3D, and 4D vector objects both int and float values accepted.
+ * Mixed float and integer values accepted. Integers are converted to float.
  */
-static PyObject *Vector_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+static PyObject *Vector_vectorcall(PyObject *type,
+                                   PyObject *const *args,
+                                   const size_t nargsf,
+                                   PyObject *kwnames)
 {
-  float *vec = nullptr;
-  int vec_num = 3; /* default to a 3D vector */
-
-  if (kwds && PyDict_Size(kwds)) {
+  if (UNLIKELY(kwnames && PyTuple_GET_SIZE(kwnames))) {
     PyErr_SetString(PyExc_TypeError,
                     "Vector(): "
                     "takes no keyword args");
     return nullptr;
   }
 
-  switch (PyTuple_GET_SIZE(args)) {
-    case 0:
+  float *vec = nullptr;
+  int vec_num = 3; /* Default to a 3D vector. */
+
+  const size_t nargs = PyVectorcall_NARGS(nargsf);
+  switch (nargs) {
+    case 0: {
       vec = static_cast<float *>(PyMem_Malloc(vec_num * sizeof(float)));
 
       if (vec == nullptr) {
@@ -163,20 +167,36 @@ static PyObject *Vector_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
       copy_vn_fl(vec, vec_num, 0.0f);
       break;
-    case 1:
-      if ((vec_num = mathutils_array_parse_alloc(
-               &vec, 2, PyTuple_GET_ITEM(args, 0), "mathutils.Vector()")) == -1)
-      {
+    }
+    case 1: {
+      if ((vec_num = mathutils_array_parse_alloc(&vec, 2, args[0], "mathutils.Vector()")) == -1) {
         return nullptr;
       }
       break;
-    default:
-      PyErr_SetString(PyExc_TypeError,
-                      "mathutils.Vector(): "
-                      "more than a single arg given");
+    }
+    default: {
+      PyErr_Format(PyExc_TypeError,
+                   "mathutils.Vector(): "
+                   "takes at most 1 argument (%zd given)",
+                   nargs);
       return nullptr;
+    }
   }
-  return Vector_CreatePyObject_alloc(vec, vec_num, type);
+  return Vector_CreatePyObject_alloc(vec, vec_num, (PyTypeObject *)type);
+}
+
+static PyObject *Vector_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  if (UNLIKELY(kwds && PyDict_GET_SIZE(kwds))) {
+    PyErr_SetString(PyExc_TypeError,
+                    "Vector(): "
+                    "takes no keyword args");
+    return nullptr;
+  }
+  PyObject *const *args_array = &PyTuple_GET_ITEM(args, 0);
+  const size_t args_array_num = PyTuple_GET_SIZE(args);
+  return Vector_vectorcall(
+      reinterpret_cast<PyObject *>(type), args_array, args_array_num, nullptr);
 }
 
 /** \} */
@@ -253,11 +273,12 @@ static PyObject *C_Vector_Range(PyObject *cls, PyObject *args)
   }
 
   switch (PyTuple_GET_SIZE(args)) {
-    case 1:
+    case 1: {
       vec_num = start;
       start = 0;
       break;
-    case 2:
+    }
+    case 2: {
       if (start >= stop) {
         PyErr_SetString(PyExc_RuntimeError,
                         "Start value is larger "
@@ -267,7 +288,8 @@ static PyObject *C_Vector_Range(PyObject *cls, PyObject *args)
 
       vec_num = stop - start;
       break;
-    default:
+    }
+    default: {
       if (start >= stop) {
         PyErr_SetString(PyExc_RuntimeError,
                         "Start value is larger "
@@ -284,6 +306,7 @@ static PyObject *C_Vector_Range(PyObject *cls, PyObject *args)
       vec_num /= step;
 
       break;
+    }
   }
 
   if (vec_num < 2) {
@@ -806,18 +829,22 @@ static PyObject *Vector_to_track_quat(VectorObject *self, PyObject *args)
     if (strlen(strack) == 2) {
       if (strack[0] == '-') {
         switch (strack[1]) {
-          case 'X':
+          case 'X': {
             track = 3;
             break;
-          case 'Y':
+          }
+          case 'Y': {
             track = 4;
             break;
-          case 'Z':
+          }
+          case 'Z': {
             track = 5;
             break;
-          default:
+          }
+          default: {
             PyErr_SetString(PyExc_ValueError, axis_err_msg);
             return nullptr;
+          }
         }
       }
       else {
@@ -828,18 +855,22 @@ static PyObject *Vector_to_track_quat(VectorObject *self, PyObject *args)
     else if (strlen(strack) == 1) {
       switch (strack[0]) {
         case '-':
-        case 'X':
+        case 'X': {
           track = 0;
           break;
-        case 'Y':
+        }
+        case 'Y': {
           track = 1;
           break;
-        case 'Z':
+        }
+        case 'Z': {
           track = 2;
           break;
-        default:
+        }
+        default: {
           PyErr_SetString(PyExc_ValueError, axis_err_msg);
           return nullptr;
+        }
       }
     }
     else {
@@ -852,18 +883,22 @@ static PyObject *Vector_to_track_quat(VectorObject *self, PyObject *args)
     const char *axis_err_msg = "only X, Y or Z for up axis";
     if (strlen(sup) == 1) {
       switch (*sup) {
-        case 'X':
+        case 'X': {
           up = 0;
           break;
-        case 'Y':
+        }
+        case 'Y': {
           up = 1;
           break;
-        case 'Z':
+        }
+        case 'Z': {
           up = 2;
           break;
-        default:
+        }
+        default: {
           PyErr_SetString(PyExc_ValueError, axis_err_msg);
           return nullptr;
+        }
       }
     }
     else {
@@ -1473,7 +1508,7 @@ static PyObject *Vector_rotate(VectorObject *self, PyObject *value)
     if (!Matrix_Parse2x2(value, &pymat)) {
       return nullptr;
     }
-    normalize_m2_m2(other_rmat, (const float(*)[2])pymat->matrix);
+    normalize_m2_m2(other_rmat, (const float (*)[2])pymat->matrix);
     /* Equivalent to a rotation along the Z axis. */
     mul_m2_v2(other_rmat, self->vec);
   }
@@ -1683,14 +1718,15 @@ static PyObject *Vector_richcmpr(PyObject *objectA, PyObject *objectB, int compa
   }
 
   switch (comparison_type) {
-    case Py_LT:
+    case Py_LT: {
       lenA = len_squared_vn(vecA->vec, vecA->vec_num);
       lenB = len_squared_vn(vecB->vec, vecB->vec_num);
       if (lenA < lenB) {
         result = 1;
       }
       break;
-    case Py_LE:
+    }
+    case Py_LE: {
       lenA = len_squared_vn(vecA->vec, vecA->vec_num);
       lenB = len_squared_vn(vecB->vec, vecB->vec_num);
       if (lenA < lenB) {
@@ -1700,20 +1736,24 @@ static PyObject *Vector_richcmpr(PyObject *objectA, PyObject *objectB, int compa
         result = (((lenA + epsilon) > lenB) && ((lenA - epsilon) < lenB));
       }
       break;
-    case Py_EQ:
+    }
+    case Py_EQ: {
       result = EXPP_VectorsAreEqual(vecA->vec, vecB->vec, vecA->vec_num, 1);
       break;
-    case Py_NE:
+    }
+    case Py_NE: {
       result = !EXPP_VectorsAreEqual(vecA->vec, vecB->vec, vecA->vec_num, 1);
       break;
-    case Py_GT:
+    }
+    case Py_GT: {
       lenA = len_squared_vn(vecA->vec, vecA->vec_num);
       lenB = len_squared_vn(vecB->vec, vecB->vec_num);
       if (lenA > lenB) {
         result = 1;
       }
       break;
-    case Py_GE:
+    }
+    case Py_GE: {
       lenA = len_squared_vn(vecA->vec, vecA->vec_num);
       lenB = len_squared_vn(vecB->vec, vecB->vec_num);
       if (lenA > lenB) {
@@ -1723,9 +1763,11 @@ static PyObject *Vector_richcmpr(PyObject *objectA, PyObject *objectB, int compa
         result = (((lenA + epsilon) > lenB) && ((lenA - epsilon) < lenB));
       }
       break;
-    default:
+    }
+    default: {
       printf("The result of the comparison could not be evaluated");
       break;
+    }
   }
   if (result == 1) {
     Py_RETURN_TRUE;
@@ -2886,31 +2928,46 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
 
 #define VECTOR_SWIZZLE2_RW_DEF(attr, a, b) \
   { \
-    attr, (getter)Vector_swizzle_get, (setter)Vector_swizzle_set, Vector_swizzle_doc, \
-        SWIZZLE2(a, b), \
+      attr, \
+      (getter)Vector_swizzle_get, \
+      (setter)Vector_swizzle_set, \
+      Vector_swizzle_doc, \
+      SWIZZLE2(a, b), \
   }
 #define VECTOR_SWIZZLE2_RO_DEF(attr, a, b) \
   { \
-    attr, (getter)Vector_swizzle_get, (setter) nullptr, Vector_swizzle_doc, SWIZZLE2(a, b), \
+      attr, \
+      (getter)Vector_swizzle_get, \
+      (setter) nullptr, \
+      Vector_swizzle_doc, \
+      SWIZZLE2(a, b), \
   }
 #define VECTOR_SWIZZLE3_RW_DEF(attr, a, b, c) \
   { \
-    attr, (getter)Vector_swizzle_get, (setter)Vector_swizzle_set, Vector_swizzle_doc, \
-        SWIZZLE3(a, b, c), \
+      attr, \
+      (getter)Vector_swizzle_get, \
+      (setter)Vector_swizzle_set, \
+      Vector_swizzle_doc, \
+      SWIZZLE3(a, b, c), \
   }
 #define VECTOR_SWIZZLE3_RO_DEF(attr, a, b, c) \
   { \
-    attr, (getter)Vector_swizzle_get, (setter) nullptr, Vector_swizzle_doc, SWIZZLE3(a, b, c), \
+      attr, \
+      (getter)Vector_swizzle_get, \
+      (setter) nullptr, \
+      Vector_swizzle_doc, \
+      SWIZZLE3(a, b, c), \
   }
 #define VECTOR_SWIZZLE4_RW_DEF(attr, a, b, c, d) \
   { \
-    attr, (getter)Vector_swizzle_get, (setter)Vector_swizzle_set, Vector_swizzle_doc, \
-        SWIZZLE4(a, b, c, d), \
+      attr, \
+      (getter)Vector_swizzle_get, \
+      (setter)Vector_swizzle_set, \
+      Vector_swizzle_doc, \
+      SWIZZLE4(a, b, c, d), \
   }
 #define VECTOR_SWIZZLE4_RO_DEF(attr, a, b, c, d) \
-  { \
-    attr, (getter)Vector_swizzle_get, (setter) nullptr, Vector_swizzle_doc, SWIZZLE4(a, b, c, d) \
-  }
+  {attr, (getter)Vector_swizzle_get, (setter) nullptr, Vector_swizzle_doc, SWIZZLE4(a, b, c, d)}
 
 /** \} */
 
@@ -3494,7 +3551,7 @@ PyTypeObject vector_Type = {
     /*tp_del*/ nullptr,
     /*tp_version_tag*/ 0,
     /*tp_finalize*/ nullptr,
-    /*tp_vectorcall*/ nullptr,
+    /*tp_vectorcall*/ Vector_vectorcall,
 };
 
 #ifdef MATH_STANDALONE

@@ -53,7 +53,6 @@ struct bNodeSocket;
 struct bNodeStack;
 struct bNodeTree;
 struct bNodeTreeExec;
-struct uiLayout;
 
 namespace blender {
 class CPPType;
@@ -78,6 +77,10 @@ namespace compositor {
 class Context;
 class NodeOperation;
 }  // namespace compositor
+
+namespace ui {
+struct Layout;
+}  // namespace ui
 }  // namespace blender
 
 namespace blender::bke {
@@ -135,7 +138,7 @@ using NodeGatherAddOperationsFunction =
     void (*)(blender::nodes::GatherAddNodeSearchParams &params);
 
 using NodeGetCompositorOperationFunction =
-    blender::compositor::NodeOperation *(*)(blender::compositor::Context &context,
+    blender::compositor::NodeOperation *(*)(blender::compositor::Context & context,
                                             blender::nodes::DNode node);
 using NodeExtraInfoFunction = void (*)(blender::nodes::NodeExtraInfoParams &params);
 using NodeInverseElemEvalFunction =
@@ -164,17 +167,17 @@ struct bNodeSocketType {
   std::string subtype_label;
 
   void (*draw)(bContext *C,
-               uiLayout *layout,
+               ui::Layout *layout,
                PointerRNA *ptr,
                PointerRNA *node_ptr,
-               StringRefNull text) = nullptr;
+               StringRef text) = nullptr;
   void (*draw_color)(bContext *C, PointerRNA *ptr, PointerRNA *node_ptr, float *r_color) = nullptr;
   void (*draw_color_simple)(const bNodeSocketType *socket_type, float *r_color) = nullptr;
 
   void (*interface_draw)(ID *id,
                          bNodeTreeInterfaceSocket *socket,
                          bContext *C,
-                         uiLayout *layout) = nullptr;
+                         ui::Layout *layout) = nullptr;
   void (*interface_init_socket)(ID *id,
                                 const bNodeTreeInterfaceSocket *interface_socket,
                                 bNode *node,
@@ -211,7 +214,7 @@ struct bNodeSocketType {
   const SocketValueVariant *geometry_nodes_default_value = nullptr;
 };
 
-using NodeInitExecFunction = void *(*)(bNodeExecContext *context,
+using NodeInitExecFunction = void *(*)(bNodeExecContext * context,
                                        bNode *node,
                                        bNodeInstanceKey key);
 using NodeFreeExecFunction = void (*)(void *nodedata);
@@ -256,9 +259,9 @@ struct bNodeType {
   std::string storagename; /* struct name for DNA */
 
   /* Draw the option buttons on the node */
-  void (*draw_buttons)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
+  void (*draw_buttons)(ui::Layout *, bContext *C, PointerRNA *ptr) = nullptr;
   /* Additional parameters in the side panel */
-  void (*draw_buttons_ex)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
+  void (*draw_buttons_ex)(ui::Layout *, bContext *C, PointerRNA *ptr) = nullptr;
 
   /* Additional drawing on backdrop */
   void (*draw_backdrop)(SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y) = nullptr;
@@ -592,8 +595,6 @@ bNodeTree **node_tree_ptr_from_id(ID *id);
  */
 bNodeTree *node_tree_from_id(ID *id);
 
-void node_tree_free_local_tree(bNodeTree *ntree);
-
 /**
  * Check recursively if a node tree contains another.
  */
@@ -678,7 +679,10 @@ void node_remove_socket(bNodeTree &ntree, bNode &node, bNodeSocket &sock);
 void node_modify_socket_type_static(
     bNodeTree *ntree, bNode *node, bNodeSocket *sock, int type, int subtype);
 
-bNode *node_add_node(const bContext *C, bNodeTree &ntree, StringRef idname);
+bNode *node_add_node(const bContext *C,
+                     bNodeTree &ntree,
+                     StringRef idname,
+                     std::optional<int> unique_identifier = std::nullopt);
 bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, int type);
 
 /**
@@ -694,7 +698,8 @@ void node_unique_id(bNodeTree &ntree, bNode &node);
 /**
  * Delete node, associated animation data and ID user count.
  */
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user);
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user, bool remove_animation = true);
 
 float2 node_dimensions_get(const bNode &node);
 void node_tag_update_id(bNode &node);
@@ -1047,7 +1052,7 @@ void node_chain_iterator(const bNodeTree *ntree,
  * \note Recursive
  */
 void node_chain_iterator_backwards(const bNodeTree *ntree,
-                                   const bNode *node_start,
+                                   bNode *node_start,
                                    bool (*callback)(bNode *, bNode *, void *),
                                    void *userdata,
                                    int recursion_lvl);
@@ -1135,6 +1140,11 @@ StringRefNull node_socket_label(const bNodeSocket &sock);
  * It is used when grouping sockets under panels, to avoid redundancy in the label.
  */
 std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock);
+
+/**
+ * Get node socket translation context if it is set.
+ */
+const char *node_socket_translation_context(const bNodeSocket &sock);
 
 NodeColorTag node_color_tag(const bNode &node);
 

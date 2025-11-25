@@ -714,7 +714,7 @@ static float3 corner_space_custom_data_to_normal(const CornerNormalSpace &lnor_s
     return lnor_space.vec_lnor;
   }
 
-  float3 r_custom_lnor;
+  float3 custom_lnor;
 
   /* TODO: Check whether using #sincosf() gives any noticeable benefit
    * (could not even get it working under linux though)! */
@@ -724,20 +724,20 @@ static float3 corner_space_custom_data_to_normal(const CornerNormalSpace &lnor_s
                       alphafac;
   const float betafac = unit_short_to_float(clnor_data[1]);
 
-  mul_v3_v3fl(r_custom_lnor, lnor_space.vec_lnor, cosf(alpha));
+  mul_v3_v3fl(custom_lnor, lnor_space.vec_lnor, cosf(alpha));
 
   if (betafac == 0.0f) {
-    madd_v3_v3fl(r_custom_lnor, lnor_space.vec_ref, sinf(alpha));
+    madd_v3_v3fl(custom_lnor, lnor_space.vec_ref, sinf(alpha));
   }
   else {
     const float sinalpha = sinf(alpha);
     const float beta = (betafac > 0.0f ? lnor_space.ref_beta : pi2 - lnor_space.ref_beta) *
                        betafac;
-    madd_v3_v3fl(r_custom_lnor, lnor_space.vec_ref, sinalpha * cosf(beta));
-    madd_v3_v3fl(r_custom_lnor, lnor_space.vec_ortho, sinalpha * sinf(beta));
+    madd_v3_v3fl(custom_lnor, lnor_space.vec_ref, sinalpha * cosf(beta));
+    madd_v3_v3fl(custom_lnor, lnor_space.vec_ortho, sinalpha * sinf(beta));
   }
 
-  return r_custom_lnor;
+  return custom_lnor;
 }
 
 }  // namespace blender::bke::mesh
@@ -766,7 +766,7 @@ short2 corner_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
     return short2(0);
   }
 
-  short2 r_clnor_data;
+  short2 clnor_data;
 
   const float pi2 = float(M_PI * 2.0);
   const float cos_alpha = math::dot(lnor_space.vec_lnor, custom_lnor);
@@ -775,10 +775,10 @@ short2 corner_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
   if (alpha > lnor_space.ref_alpha) {
     /* Note we could stick to [0, pi] range here,
      * but makes decoding more complex, not worth it. */
-    r_clnor_data[0] = unit_float_to_short(-(pi2 - alpha) / (pi2 - lnor_space.ref_alpha));
+    clnor_data[0] = unit_float_to_short(-(pi2 - alpha) / (pi2 - lnor_space.ref_alpha));
   }
   else {
-    r_clnor_data[0] = unit_float_to_short(alpha / lnor_space.ref_alpha);
+    clnor_data[0] = unit_float_to_short(alpha / lnor_space.ref_alpha);
   }
 
   /* Project custom lnor on (vec_ref, vec_ortho) plane. */
@@ -793,17 +793,17 @@ short2 corner_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
     }
 
     if (beta > lnor_space.ref_beta) {
-      r_clnor_data[1] = unit_float_to_short(-(pi2 - beta) / (pi2 - lnor_space.ref_beta));
+      clnor_data[1] = unit_float_to_short(-(pi2 - beta) / (pi2 - lnor_space.ref_beta));
     }
     else {
-      r_clnor_data[1] = unit_float_to_short(beta / lnor_space.ref_beta);
+      clnor_data[1] = unit_float_to_short(beta / lnor_space.ref_beta);
     }
   }
   else {
-    r_clnor_data[1] = 0;
+    clnor_data[1] = 0;
   }
 
-  return r_clnor_data;
+  return clnor_data;
 }
 
 }  // namespace blender::bke::mesh
@@ -1362,9 +1362,12 @@ void normals_calc_corners(const Span<float3> vert_positions,
     r_fan_spaces->corners_by_space.reinitialize(space_offsets.total_size());
   }
 
-  const int64_t mean_size = space_offsets.total_size() / space_offsets.size();
-  const int64_t grain_size = math::clamp<int64_t>(
-      math::safe_divide<int64_t>(1024 * 512, mean_size), 256, 1024 * 16);
+  /* Copy the data from each local data vector to the final array. it's expected that
+   * multi-threading has some benefit here, even though the work is largely just copying memory,
+   * but choose a large grain size to err on the size of less parallelization. */
+  const int64_t mean_size = std::max<int64_t>(1,
+                                              space_offsets.total_size() / space_offsets.size());
+  const int64_t grain_size = std::max<int64_t>(1, 1024 * 16 / mean_size);
   threading::parallel_for(all_space_groups.index_range(), grain_size, [&](const IndexRange range) {
     for (const int thread_i : range) {
       Vector<CornerSpaceGroup, 0> &local_space_groups = all_space_groups[thread_i];
@@ -1706,6 +1709,85 @@ void mesh_set_custom_normals_from_verts_normalized(Mesh &mesh, MutableSpan<float
 {
   mesh::mesh_set_custom_normals(mesh, vert_normals, true);
 }
+
+namespace mesh {
+
+constexpr AttributeMetaData CORNER_FAN_META_DATA{AttrDomain::Corner, AttrType::Int16_2D};
+
+bool is_corner_fan_normals(const AttributeMetaData &meta_data)
+{
+  return meta_data == CORNER_FAN_META_DATA;
+}
+
+static bke::AttrDomain normal_domain_to_domain(bke::MeshNormalDomain domain)
+{
+  switch (domain) {
+    case bke::MeshNormalDomain::Point:
+      return bke::AttrDomain::Point;
+    case bke::MeshNormalDomain::Face:
+      return bke::AttrDomain::Face;
+    case bke::MeshNormalDomain::Corner:
+      return bke::AttrDomain::Corner;
+  }
+  BLI_assert_unreachable();
+  return bke::AttrDomain::Point;
+}
+
+void NormalJoinInfo::add_no_custom_normals(const bke::MeshNormalDomain domain)
+{
+  this->add_domain(normal_domain_to_domain(domain));
+}
+
+void NormalJoinInfo::add_corner_fan_normals()
+{
+  this->add_domain(bke::AttrDomain::Corner);
+  if (this->result_type == Output::None) {
+    this->result_type = Output::CornerFan;
+  }
+}
+
+void NormalJoinInfo::add_domain(const bke::AttrDomain domain)
+{
+  if (this->result_domain) {
+    /* Any combination of point/face domains puts the result normals on the corner domain. */
+    if (this->result_domain != domain) {
+      this->result_domain = bke::AttrDomain::Corner;
+    }
+  }
+  else {
+    this->result_domain = domain;
+  }
+}
+
+void NormalJoinInfo::add_free_normals(const bke::AttrDomain domain)
+{
+  this->add_domain(domain);
+  this->result_type = Output::Free;
+}
+
+void NormalJoinInfo::add_mesh(const Mesh &mesh)
+{
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  const std::optional<bke::AttributeMetaData> custom_normal = attributes.lookup_meta_data(
+      "custom_normal");
+  if (!custom_normal) {
+    this->add_no_custom_normals(mesh.normals_domain());
+    return;
+  }
+  if (custom_normal->data_type == bke::AttrType::Float3) {
+    if (custom_normal->domain == bke::AttrDomain::Edge) {
+      /* Skip invalid storage on the edge domain. */
+      this->add_no_custom_normals(mesh.normals_domain());
+      return;
+    }
+    this->add_free_normals(custom_normal->domain);
+  }
+  else if (*custom_normal == CORNER_FAN_META_DATA) {
+    this->add_corner_fan_normals();
+  }
+}
+
+}  // namespace mesh
 
 }  // namespace blender::bke
 

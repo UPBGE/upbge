@@ -57,7 +57,7 @@ MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(Context &contex
 void MultiFunctionProcedureOperation::execute()
 {
   const Domain domain = compute_domain();
-  const int64_t size = int64_t(domain.size.x) * domain.size.y;
+  const int64_t size = int64_t(domain.data_size.x) * domain.data_size.y;
   const IndexMask mask = IndexMask(size);
   mf::ParamsBuilder parameter_builder{*procedure_executor_, &mask};
 
@@ -191,20 +191,6 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
       }
     }
 
-    /* We allow multi-functions to use float4 as opposed to ColorSceneLinear4f in their signature
-     * for easier development. Float4 and ColorSceneLinear4f will be implicitly converted to one
-     * another without information loss, so this flexibility is fine. However, float4 conversion to
-     * other types is different than ColorSceneLinear4f conversion to other types, and vice versa.
-     * So we need to manually convert to ColorSceneLinear4f if either the input or the origin are
-     * color sockets for proper implicit conversion later on. */
-    if (get_node_socket_result_type(origin.bsocket()) == ResultType::Color ||
-        get_node_socket_result_type(input.bsocket()) == ResultType::Color)
-    {
-      const mf::DataType expected_type = mf::DataType::ForSingle(
-          CPPType::get<ColorSceneLinear4f<eAlpha::Premultiplied>>());
-      input_variables.last() = this->convert_variable(input_variables.last(), expected_type);
-    }
-
     /* Implicitly convert the variable type to the expected parameter type if needed. */
     const mf::ParamType parameter_type = multi_function.param_type(available_inputs_index);
     input_variables.last() = this->convert_variable(input_variables.last(),
@@ -259,7 +245,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
       break;
     }
     case SOCK_RGBA: {
-      const float4 value = float4(input->default_value_typed<bNodeSocketValueRGBA>()->value);
+      const Color value = Color(input->default_value_typed<bNodeSocketValueRGBA>()->value);
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
       break;
     }
@@ -444,6 +430,7 @@ void MultiFunctionProcedureOperation::populate_operation_result(DOutputSocket ou
 mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *variable,
                                                                 const mf::DataType expected_type)
 {
+  /* Conversion not needed. */
   const mf::DataType variable_type = variable->data_type();
   if (variable_type == expected_type) {
     return variable;
@@ -452,6 +439,16 @@ mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *va
   const bke::DataTypeConversions &conversion_table = bke::get_implicit_type_conversions();
   const mf::MultiFunction *function = conversion_table.get_conversion_multi_function(
       variable_type, expected_type);
+
+  /* Conversion is not possible, return a default variable instead. */
+  if (!function) {
+    const mf::MultiFunction &constant_function =
+        procedure_.construct_function<mf::CustomMF_GenericConstant>(
+            expected_type.single_type(), expected_type.single_type().default_value(), false);
+    mf::Variable *constant_variable = procedure_builder_.add_call<1>(constant_function)[0];
+    implicit_variables_.append(constant_variable);
+    return constant_variable;
+  }
 
   mf::Variable *converted_variable = procedure_builder_.add_call<1>(*function, {variable})[0];
   implicit_variables_.append(converted_variable);

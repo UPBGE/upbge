@@ -425,24 +425,6 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
-  void begin_render_pass(const VkRenderPassBeginInfo *p_render_pass_begin_info) override
-  {
-    EXPECT_TRUE(is_recording_);
-    std::stringstream ss;
-    ss << "begin_render_pass(";
-    ss << "p_render_pass_begin_info=" << to_string(*p_render_pass_begin_info);
-    ss << ")";
-    log_.append(ss.str());
-  }
-
-  void end_render_pass() override
-  {
-    EXPECT_TRUE(is_recording_);
-    std::stringstream ss;
-    ss << "end_render_pass()";
-    log_.append(ss.str());
-  }
-
   void begin_query(VkQueryPool /*vk_query_pool*/,
                    uint32_t /*query_index*/,
                    VkQueryControlFlags /*vk_query_control_flags*/) override
@@ -471,23 +453,16 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
+  void set_line_width(const float line_width) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "set_line_width(line_width=" << line_width << ")";
+    log_.append(ss.str());
+  }
+
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT * /*vk_debug_utils_label*/) override {}
   void end_debug_utils_label() override {}
-
-  /* VK_EXT_descriptor_buffer */
-  void bind_descriptor_buffers(
-      uint32_t /*buffer_count*/,
-      const VkDescriptorBufferBindingInfoEXT * /*p_binding_infos*/) override
-  {
-  }
-  void set_descriptor_buffer_offsets(VkPipelineBindPoint /*pipeline_bind_point*/,
-                                     VkPipelineLayout /*layout*/,
-                                     uint32_t /*first_set*/,
-                                     uint32_t /*set_count*/,
-                                     const uint32_t * /*p_buffer_indices*/,
-                                     const VkDeviceSize * /*p_offsets*/) override
-  {
-  }
 };
 
 class VKRenderGraphTest : public ::testing::Test {
@@ -533,7 +508,6 @@ class VKRenderGraphTest_P : public ::testing::TestWithParam<std::tuple<bool>> {
   VKResourceStateTracker resources;
   std::unique_ptr<VKRenderGraph> render_graph;
   std::unique_ptr<CommandBufferLog> command_buffer;
-  bool use_dynamic_rendering = true;
   bool use_dynamic_rendering_local_read = true;
 };
 

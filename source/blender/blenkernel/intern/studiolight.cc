@@ -9,7 +9,7 @@
 #include "BKE_studiolight.h"
 
 #include "BKE_appdir.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 
 #include "BLI_dynstr.h"
 #include "BLI_fileops.h"
@@ -356,13 +356,13 @@ static void studiolight_load_equirect_image(StudioLight *sl)
     const bool failed = (ibuf == nullptr);
 
     if (ibuf) {
-      if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->userdata) {
-        /* the read file is a multilayered openexr file (userdata != nullptr)
+      if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->exrhandle) {
+        /* the read file is a multilayered openexr file (exrhandle != nullptr)
          * This file is currently only supported for MATCAPS where
          * the first found 'diffuse' pass will be used for diffuse lighting
          * and the first found 'specular' pass will be used for specular lighting */
         MultilayerConvertContext ctx = {0};
-        IMB_exr_multilayer_convert(ibuf->userdata,
+        IMB_exr_multilayer_convert(ibuf->exrhandle,
                                    &ctx,
                                    &studiolight_multilayer_addview,
                                    &studiolight_multilayer_addlayer,
@@ -388,8 +388,8 @@ static void studiolight_load_equirect_image(StudioLight *sl)
               nullptr, converted_pass, ibuf->x, ibuf->y, ctx.num_specular_channels);
         }
 
-        IMB_exr_close(ibuf->userdata);
-        ibuf->userdata = nullptr;
+        IMB_exr_close(ibuf->exrhandle);
+        ibuf->exrhandle = nullptr;
         IMB_freeImBuf(ibuf);
         ibuf = nullptr;
       }
@@ -457,8 +457,8 @@ static void studiolight_create_matcap_gputexture(StudioLightImage *sli)
   const size_t ibuf_pixel_count = IMB_get_pixel_count(ibuf);
   float *gpu_matcap_3components = MEM_calloc_arrayN<float>(3 * ibuf_pixel_count, __func__);
 
-  const float(*offset4)[4] = (const float(*)[4])ibuf->float_buffer.data;
-  float(*offset3)[3] = (float(*)[3])gpu_matcap_3components;
+  const float (*offset4)[4] = (const float (*)[4])ibuf->float_buffer.data;
+  float (*offset3)[3] = (float (*)[3])gpu_matcap_3components;
   for (size_t i = 0; i < ibuf_pixel_count; i++, offset4++, offset3++) {
     copy_v3_v3(*offset3, *offset4);
   }

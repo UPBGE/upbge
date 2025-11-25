@@ -6,6 +6,7 @@
 
 #include "DNA_attribute_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_storage.hh"
 
@@ -18,6 +19,9 @@ struct GreasePencil;
 struct Mesh;
 
 namespace blender::bke {
+
+const CPPType *custom_data_type_to_cpp_type(eCustomDataType type);
+eCustomDataType cpp_type_to_custom_data_type(const CPPType &type);
 
 /**
  * Convert a custom data type to an attribute type. May return `std::nullopt` if the custom data
@@ -52,5 +56,18 @@ void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud);
 
 /** See #mesh_convert_customdata_to_storage. */
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil);
+
+/** Abstraction for copying #CustomData layers and #AttributeStorage attributes. */
+class LegacyMeshInterpolator {
+
+  const CustomData &cd_src_;
+  CustomData &cd_dst_;
+
+ public:
+  LegacyMeshInterpolator(const Mesh &src, Mesh &dst, AttrDomain domain);
+
+  void copy(int src_index, int dst_index, int count) const;
+  void mix(Span<int> src_indices, std::optional<Span<float>> weights, int dst_index) const;
+};
 
 }  // namespace blender::bke

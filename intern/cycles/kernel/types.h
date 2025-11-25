@@ -297,6 +297,8 @@ enum PathTraceDimension {
   PRNG_VOLUME_SHADE_OFFSET = 7,
   PRNG_VOLUME_PHASE_GUIDING_DISTANCE = 8,
   PRNG_VOLUME_PHASE_GUIDING_EQUIANGULAR = 9,
+  PRNG_VOLUME_COLOR_CHANNEL = 4,
+  PRNG_VOLUME_OFFSET = 6,
 
   /* Subsurface random walk bounces */
   PRNG_SUBSURFACE_BSDF = 0,
@@ -540,6 +542,7 @@ enum PassType {
   PASS_DENOISING_ALBEDO,
   PASS_DENOISING_DEPTH,
   PASS_DENOISING_PREVIOUS,
+  PASS_RENDER_TIME,
 
   /* PASS_SHADOW_CATCHER accumulates contribution of shadow catcher object which is not affected by
    * any other object. The pass accessor will divide the combined pass by the shadow catcher. The
@@ -997,8 +1000,7 @@ struct AttributeMap {
   ClosureType type; \
   float sample_weight
 
-struct ccl_align(16) ShaderClosure
-{
+struct ccl_align(16) ShaderClosure {
   SHADER_CLOSURE_BASE;
 
   /* Extra space for closures to store data, somewhat arbitrary but closures
@@ -1129,8 +1131,7 @@ enum ShaderDataObjectFlag {
                      SD_OBJECT_HAS_VOLUME_MOTION)
 };
 
-struct ccl_align(16) ShaderData
-{
+struct ccl_align(16) ShaderData {
   /* position */
   float3 P;
   /* smooth normal for shading */
@@ -1212,15 +1213,13 @@ struct ccl_align(16) ShaderData
 #ifdef __KERNEL_GPU__
 /* ShaderDataTinyStorage needs the same alignment as ShaderData, or else
  * the pointer cast in AS_SHADER_DATA invokes undefined behavior. */
-struct ccl_align(16) ShaderDataTinyStorage
-{
+struct ccl_align(16) ShaderDataTinyStorage {
   char pad[sizeof(ShaderData) - sizeof(ShaderClosure) * MAX_CLOSURE];
 };
 
 /* ShaderDataCausticsStorage needs the same alignment as ShaderData, or else
  * the pointer cast in AS_SHADER_DATA invokes undefined behavior. */
-struct ccl_align(16) ShaderDataCausticsStorage
-{
+struct ccl_align(16) ShaderDataCausticsStorage {
   char pad[sizeof(ShaderData) - sizeof(ShaderClosure) * (MAX_CLOSURE - CAUSTICS_MAX_CLOSURE)];
 };
 #else
@@ -1429,9 +1428,7 @@ enum KernelBVHLayout {
 };
 
 /* Specialized struct that can become constants in dynamic compilation. */
-#define KERNEL_STRUCT_BEGIN(name, parent) \
-  struct ccl_align(16) name \
-  {
+#define KERNEL_STRUCT_BEGIN(name, parent) struct ccl_align(16) name {
 #define KERNEL_STRUCT_END(name) \
   } \
   ; \
@@ -1473,8 +1470,7 @@ struct KernelLightLinkSet {
   uint light_tree_root;
 };
 
-struct ccl_align(16) KernelData
-{
+struct ccl_align(16) KernelData {
   /* Features and limits. */
   uint kernel_features;
   uint max_closures;
@@ -1852,6 +1848,7 @@ enum DeviceKernel : int {
   DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE,
   DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE,
   DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME,
+  DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING,
   DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW,
   DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT,
   DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL,

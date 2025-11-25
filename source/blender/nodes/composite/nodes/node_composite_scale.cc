@@ -31,31 +31,33 @@
 namespace blender::nodes::node_composite_scale_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_SCALE_RELATIVE, "RELATIVE", 0, "Relative", ""},
-    {CMP_NODE_SCALE_ABSOLUTE, "ABSOLUTE", 0, "Absolute", ""},
-    {CMP_NODE_SCALE_RENDER_PERCENT, "SCENE_SIZE", 0, "Scene Size", ""},
-    {CMP_NODE_SCALE_RENDER_SIZE, "RENDER_SIZE", 0, "Render Size", ""},
+    {CMP_NODE_SCALE_RELATIVE, "RELATIVE", 0, N_("Relative"), ""},
+    {CMP_NODE_SCALE_ABSOLUTE, "ABSOLUTE", 0, N_("Absolute"), ""},
+    {CMP_NODE_SCALE_RENDER_PERCENT, "SCENE_SIZE", 0, N_("Scene Size"), ""},
+    {CMP_NODE_SCALE_RENDER_SIZE, "RENDER_SIZE", 0, N_("Render Size"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 /* Matches bgpic_camera_frame_items[]. */
 static const EnumPropertyItem frame_type_items[] = {
-    {CMP_NODE_SCALE_RENDER_SIZE_STRETCH, "STRETCH", 0, "Stretch", ""},
-    {CMP_NODE_SCALE_RENDER_SIZE_FIT, "FIT", 0, "Fit", ""},
-    {CMP_NODE_SCALE_RENDER_SIZE_CROP, "CROP", 0, "Crop", ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_STRETCH, "STRETCH", 0, N_("Stretch"), ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_FIT, "FIT", 0, N_("Fit"), ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_CROP, "CROP", 0, N_("Crop"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.allow_any_socket_order();
 
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .compositor_realization_mode(CompositorInputRealizationMode::None)
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Menu>("Type").default_value(CMP_NODE_SCALE_RELATIVE).static_items(type_items);
   b.add_input<decl::Float>("X")
       .default_value(1.0f)
@@ -73,20 +75,24 @@ static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
       .default_value(CMP_NODE_SCALE_RENDER_SIZE_STRETCH)
       .static_items(frame_type_items)
       .usage_by_menu("Type", CMP_NODE_SCALE_RENDER_SIZE)
+      .optional_label()
       .description("How the image fits in the camera frame");
 
   PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
+      .optional_label()
       .description("Interpolation method");
   sampling_panel.add_input<decl::Menu>("Extension X")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the X axis");
   sampling_panel.add_input<decl::Menu>("Extension Y")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the Y axis");
 }
 
@@ -130,6 +136,13 @@ class ScaleOperation : public NodeOperation {
 
   void execute_variable_size()
   {
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value()) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
+      return;
+    }
+
     if (this->context().use_gpu()) {
       execute_variable_size_gpu();
     }
@@ -169,7 +182,7 @@ class ScaleOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input.unbind_as_texture();
     x_scale.unbind_as_texture();
@@ -189,7 +202,7 @@ class ScaleOperation : public NodeOperation {
     const ExtensionMode extension_mode_x = this->get_extension_mode_x();
     const ExtensionMode extension_mode_y = this->get_extension_mode_y();
     const Domain domain = compute_domain();
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     output.allocate_texture(domain);
 
     parallel_for(size, [&](const int2 texel) {
@@ -203,7 +216,8 @@ class ScaleOperation : public NodeOperation {
 
       output.store_pixel(
           texel,
-          input.sample(scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
+          input.sample<Color>(
+              scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
     });
   }
 
@@ -296,7 +310,7 @@ class ScaleOperation : public NodeOperation {
   /* Scale such that the new size matches the input absolute size. */
   float2 get_scale_absolute()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
+    const float2 input_size = float2(get_input("Image").domain().display_size);
     const float2 absolute_size = float2(get_input("X").get_single_value_default(1.0f),
                                         get_input("Y").get_single_value_default(1.0f));
     return absolute_size / input_size;
@@ -310,10 +324,6 @@ class ScaleOperation : public NodeOperation {
 
   float2 get_scale_render_size()
   {
-    if (!context().is_valid_compositing_region()) {
-      return float2(1.0f);
-    }
-
     switch (get_frame_type()) {
       case CMP_NODE_SCALE_RENDER_SIZE_STRETCH:
         return get_scale_render_size_stretch();
@@ -330,8 +340,8 @@ class ScaleOperation : public NodeOperation {
    * potentially stretched, hence the name. */
   float2 get_scale_render_size_stretch()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_compositing_region_size());
+    const float2 input_size = float2(get_input("Image").domain().display_size);
+    const float2 render_size = float2(context().get_compositing_domain().display_size);
     return render_size / input_size;
   }
 
@@ -341,8 +351,8 @@ class ScaleOperation : public NodeOperation {
    * inside that region, hence the name. */
   float2 get_scale_render_size_fit()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_compositing_region_size());
+    const float2 input_size = float2(get_input("Image").domain().display_size);
+    const float2 render_size = float2(context().get_compositing_domain().display_size);
     const float2 scale = render_size / input_size;
     return float2(math::min(scale.x, scale.y));
   }
@@ -353,8 +363,8 @@ class ScaleOperation : public NodeOperation {
    * region, hence the name. */
   float2 get_scale_render_size_crop()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_compositing_region_size());
+    const float2 input_size = float2(get_input("Image").domain().display_size);
+    const float2 render_size = float2(context().get_compositing_domain().display_size);
     const float2 scale = render_size / input_size;
     return float2(math::max(scale.x, scale.y));
   }

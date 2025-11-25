@@ -161,10 +161,11 @@ static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
 
 static float calc_strength(const UvSculptData *sculptdata, float p, const float len)
 {
-  float strength = BKE_brush_curve_strength(eBrushCurvePreset(sculptdata->uvsculpt->curve_preset),
-                                            sculptdata->uvsculpt->strength_curve,
-                                            p,
-                                            len);
+  float strength = BKE_brush_curve_strength(
+      eBrushCurvePreset(sculptdata->uvsculpt->curve_distance_falloff_preset),
+      sculptdata->uvsculpt->curve_distance_falloff,
+      p,
+      len);
 
   CLAMP(strength, 0.0f, 1.0f);
 
@@ -250,7 +251,7 @@ static void HC_relaxation_iteration_uv(UvSculptData *sculptdata,
         if (element->separate && element != sculptdata->uv[i].element) {
           break;
         }
-        float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+        float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
         copy_v2_v2(*luv, sculptdata->uv[i].uv);
       }
     }
@@ -327,7 +328,7 @@ static void laplacian_relaxation_iteration_uv(UvSculptData *sculptdata,
           break;
         }
 
-        float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+        float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
         copy_v2_v2(*luv, sculptdata->uv[i].uv);
       }
     }
@@ -399,7 +400,7 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
   UvElement **head_table = BM_uv_element_map_ensure_head_table(sculptdata->elementMap);
 
   const int total_uvs = sculptdata->elementMap->total_uvs;
-  float(*delta_buf)[3] = (float(*)[3])MEM_callocN(total_uvs * sizeof(float[3]), __func__);
+  float (*delta_buf)[3] = (float (*)[3])MEM_callocN(total_uvs * sizeof(float[3]), __func__);
 
   const UvElement *storage = sculptdata->elementMap->storage;
   for (int j = 0; j < total_uvs; j++) {
@@ -411,9 +412,9 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
     const float *v_prev_co = ele_prev->l->v->co;
     const float *v_next_co = ele_next->l->v->co;
 
-    const float(*luv_curr)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_curr->l, cd_loop_uv_offset);
-    const float(*luv_next)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_next->l, cd_loop_uv_offset);
-    const float(*luv_prev)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_prev->l, cd_loop_uv_offset);
+    const float (*luv_curr)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_curr->l, cd_loop_uv_offset);
+    const float (*luv_next)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_next->l, cd_loop_uv_offset);
+    const float (*luv_prev)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_prev->l, cd_loop_uv_offset);
 
     const UvElement *head_curr = head_table[ele_curr - sculptdata->elementMap->storage];
     const UvElement *head_next = head_table[ele_next - sculptdata->elementMap->storage];
@@ -456,7 +457,7 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
     const float *delta_sum = delta_buf[adj_el->element - storage];
 
     {
-      const float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(adj_el->element->l, cd_loop_uv_offset);
+      const float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(adj_el->element->l, cd_loop_uv_offset);
       BLI_assert(adj_el->uv == (float *)luv); /* Only true for head. */
       adj_el->uv[0] = (*luv)[0] + strength * safe_divide(delta_sum[0], delta_sum[2]);
       adj_el->uv[1] = (*luv)[1] + strength * safe_divide(delta_sum[1], delta_sum[2]);
@@ -466,7 +467,7 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
     /* Copy UV co-ordinates to all UvElements. */
     UvElement *tail = adj_el->element;
     while (tail) {
-      float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(tail->l, cd_loop_uv_offset);
+      float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(tail->l, cd_loop_uv_offset);
       copy_v2_v2(*luv, adj_el->uv);
       tail = tail->next;
       if (tail && tail->separate) {
@@ -537,7 +538,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
             if (element->separate && element != sculptdata->uv[i].element) {
               break;
             }
-            float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+            float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
             copy_v2_v2(*luv, sculptdata->uv[i].uv);
           }
         }
@@ -574,7 +575,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
           if (element->separate && element != sculptdata->uv[uvindex].element) {
             break;
           }
-          float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+          float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
           copy_v2_v2(*luv, sculptdata->uv[uvindex].uv);
         }
       }
@@ -660,7 +661,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
   op->customdata = data;
 
-  BKE_curvemapping_init(ts->uvsculpt.strength_curve);
+  BKE_curvemapping_init(ts->uvsculpt.curve_distance_falloff);
 
   if (!data) {
     return nullptr;
@@ -669,7 +670,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   ARegion *region = CTX_wm_region(C);
   float co[2];
   BMFace *efa;
-  float(*luv)[2];
+  float (*luv)[2];
   BMLoop *l;
   BMIter iter, liter;
 
@@ -1023,7 +1024,7 @@ void SCULPT_OT_uv_sculpt_relax(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "relax_method",
                relax_method_items,
-               CURVE_PRESET_SMOOTH,
+               UV_SCULPT_BRUSH_TYPE_RELAX_LAPLACIAN,
                "Relax Method",
                "Algorithm used for UV relaxation");
 }

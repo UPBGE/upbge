@@ -9,6 +9,7 @@
 #include <string>
 
 #include "BLI_assert.h"
+#include "BLI_math_half.hh"
 #include "BLI_string.h"
 
 #include "DNA_userdef_types.h"
@@ -40,7 +41,7 @@ GLTexture::GLTexture(const char *name) : Texture(name)
 GLTexture::~GLTexture()
 {
   if (framebuffer_) {
-    GPU_framebuffer_free(wrap(framebuffer_));
+    GPU_framebuffer_free(framebuffer_);
   }
   GLContext *ctx = GLContext::get();
   if (ctx != nullptr && is_bound_) {
@@ -48,7 +49,7 @@ GLTexture::~GLTexture()
     ctx->state_manager->texture_unbind(this);
     ctx->state_manager->image_unbind(this);
   }
-  GLContext::tex_free(tex_id_);
+  GLContext::texture_free(tex_id_);
 }
 
 bool GLTexture::init_internal()
@@ -197,6 +198,76 @@ void GLTexture::update_sub(
     return;
   }
 
+  /* If `texture_unpack_row_length` is 0, rows are sequentially stored. Otherwise we unpack data
+   * into a staging block, so the half conversion below doesn't happen on the full input. */
+  const uint texture_unpack_row_length =
+      GLContext::state_manager_active_get()->texture_unpack_row_length_get();
+  const bool do_texture_unpack = !ELEM(texture_unpack_row_length, 0, extent[0]);
+
+  /* Unpack `data` if `texture_unpack_row_length` is set. */
+  std::unique_ptr<uint8_t, MEM_freeN_smart_ptr_deleter> unpack_buffer = nullptr;
+  if (do_texture_unpack) {
+    BLI_assert_msg(!(format_flag_ & GPU_FORMAT_COMPRESSED),
+                   "Compressed data with texture_unpack_row_length != 0 is not supported.");
+    BLI_assert_msg(extent[2] <= 1,
+                   "3D texture data with texture_unpack_row_length != 0 is not supported.");
+
+    size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, type);
+    size_t dst_row_stride = max_ii(extent[0], 1) * to_bytesize(format_, type);
+    size_t dst_total_count = dst_row_stride * max_ii(extent[1], 1) * max_ii(extent[2], 1);
+
+    /* Allocate buffer to size necessary for gather */
+    unpack_buffer.reset((uint8_t *)MEM_mallocN_aligned(dst_total_count, 128, __func__));
+
+    /* Strided loop; we advance source and destination pointers separately during a gather. */
+    const uint8_t *src_ptr = static_cast<const uint8_t *>(data);
+    uint8_t *dst_ptr = unpack_buffer.get();
+    for (int y = 0; y < max_ii(extent[1], 1); ++y) {
+      std::memcpy(dst_ptr, src_ptr, dst_row_stride);
+      src_ptr += src_row_stride;
+      dst_ptr += dst_row_stride;
+    }
+
+    /* Replace the 'data' ptr with `unpack_buffer`,
+     * which has lifetime in the function scope. */
+    data = unpack_buffer.get();
+  }
+
+  /* If `data` is float and target storage is half, convert to half */
+  std::unique_ptr<uint16_t, MEM_freeN_smart_ptr_deleter> clamped_half_buffer = nullptr;
+  if (type == GPU_DATA_FLOAT && is_half_float(format_)) {
+    size_t dst_pixel_count = max_ii(extent[0], 1) * max_ii(extent[1], 1) * max_ii(extent[2], 1);
+    size_t dst_total_count = to_component_len(format_) * dst_pixel_count;
+
+    /* Allocate buffer to size necessary for conversion.. */
+    clamped_half_buffer.reset(
+        (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * dst_total_count, 128, __func__));
+
+    Span<float> src(static_cast<const float *>(data), dst_total_count);
+    MutableSpan<uint16_t> dst(static_cast<uint16_t *>(clamped_half_buffer.get()), dst_total_count);
+
+    constexpr int64_t chunk_size = 4 * 1024 * 1024;
+    threading::parallel_for(IndexRange(dst_total_count), chunk_size, [&](const IndexRange range) {
+      /* Doing float to half conversion manually to avoid implementation specific behavior
+       * regarding Inf and NaNs. Use make finite version to avoid unexpected black pixels on
+       * certain implementation. For platform parity we clamp these infinite values to finite
+       * values. */
+      blender::math::float_to_half_make_finite_array(
+          src.slice(range).data(), dst.slice(range).data(), range.size());
+    });
+
+    /* Replace the 'data' ptr with `clamped_half_buffer`,
+     * which has lifetime in the function scope. */
+    data = clamped_half_buffer.get();
+    type = GPU_DATA_HALF_FLOAT;
+
+    /* If the `data` ptr was previously replaced by `unpack_buffer`,
+     * clear `unpack_buffer` as it is no longer necessary. */
+    if (do_texture_unpack) {
+      unpack_buffer.reset(nullptr);
+    }
+  }
+
   const int dimensions = this->dimensions_count();
   GLenum gl_format = to_gl_data_format(format_);
   GLenum gl_type = to_gl(type);
@@ -331,7 +402,7 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
    * "pixel data" to exist which is then uploaded CPU -> GPU at bind
    * time. */
 
-  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
   FrameBuffer *fb = this->framebuffer_get();
   fb->bind(true);
@@ -456,7 +527,7 @@ FrameBuffer *GLTexture::framebuffer_get()
     return framebuffer_;
   }
   BLI_assert(!(type_ & GPU_TEXTURE_1D));
-  framebuffer_ = unwrap(GPU_framebuffer_create(name_));
+  framebuffer_ = GPU_framebuffer_create(name_);
   framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(this));
   has_pixels_ = true;
   return framebuffer_;
@@ -745,13 +816,6 @@ void GLTexture::check_feedback_loop()
       return;
     }
   }
-}
-
-uint GLTexture::gl_bindcode_get() const
-{
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-
-  return tex_id_;
 }
 
 /* -------------------------------------------------------------------- */

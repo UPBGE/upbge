@@ -136,8 +136,13 @@ void EDBM_select_less(BMEditMesh *em, bool use_face_step);
 void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);
 
-void EDBM_deselect_flush(BMEditMesh *em);
-void EDBM_select_flush(BMEditMesh *em);
+/**
+ * Mode independent selection/de-selection flush from vertices.
+ *
+ * \param select: When true, flush the selection state to de-selected elements,
+ * otherwise perform the opposite, flushing de-selection.
+ */
+void EDBM_select_flush_from_verts(BMEditMesh *em, bool select);
 
 bool EDBM_vert_color_check(BMEditMesh *em);
 
@@ -202,10 +207,13 @@ UvMapVert *BM_uv_vert_map_at_index(UvVertMap *vmap, unsigned int v);
 /**
  * Return a new #UvVertMap from the edit-mesh.
  */
-UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select);
+UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, bool respect_hide);
 
 void EDBM_flag_enable_all(BMEditMesh *em, char hflag);
 void EDBM_flag_disable_all(BMEditMesh *em, char hflag);
+
+/** \copydoc #BM_uvselect_clear */
+bool EDBM_uvselect_clear(BMEditMesh *em);
 
 bool BMBVH_EdgeVisible(const BMBVHTree *tree,
                        const BMEdge *e,
@@ -238,6 +246,7 @@ void ED_mesh_undosys_type(UndoType *ut);
 void EDBM_select_mirrored(
     BMEditMesh *em, const Mesh *mesh, int axis, bool extend, int *r_totmirr, int *r_totfail);
 
+#if 0 /* Unused but seems useful to keep. */
 /**
  * Select mirrored elements on all enabled axis.
  * Does nothing if selection symmetry isn't enabled.
@@ -245,6 +254,7 @@ void EDBM_select_mirrored(
  * \return true if the selection changed.
  */
 bool EDBM_select_mirrored_extend_all(Object *obedit, BMEditMesh *em);
+#endif
 
 /**
  * Nearest vertex under the cursor.
@@ -512,13 +522,7 @@ void ED_mesh_faces_remove(Mesh *mesh, ReportList *reports, int count);
 
 void ED_mesh_geometry_clear(Mesh *mesh);
 
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_vert_select_layer_ensure(Mesh *mesh,
-                                                                            int uv_index);
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_edge_select_layer_ensure(Mesh *mesh,
-                                                                            int uv_index);
 blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, int uv_index);
-blender::VArray<bool> ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh, int uv_index);
-blender::VArray<bool> ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh, int uv_index);
 blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, int uv_index);
 
 void ED_mesh_uv_ensure(Mesh *mesh, const char *name);
@@ -526,12 +530,8 @@ int ED_mesh_uv_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh);
-/**
- * Without a #bContext, called when UV-editing.
- */
-void ED_mesh_uv_loop_reset_ex(Mesh *mesh, int layernum);
 bool ED_mesh_color_ensure(Mesh *mesh, const char *name);
-int ED_mesh_color_add(
+std::string ED_mesh_color_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
 void ED_mesh_report_mirror(ReportList &reports, int totmirr, int totfail);
@@ -571,11 +571,17 @@ void EDBM_redo_state_restore_and_free(BMBackup *backup, BMEditMesh *em, bool rec
     ATTR_NONNULL(1, 2);
 void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
+namespace blender::ed::mesh {
+
+wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
+
+}
+
 /* `meshtools.cc` */
 
-wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
 wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   bool ensure_keys_exist,
+                                                  bool mirror,
                                                   ReportList *reports);
 
 /* Mirror lookup API. */

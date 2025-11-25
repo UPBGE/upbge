@@ -167,6 +167,14 @@ typedef struct WalkNavigation {
   char _pad0[6];
 } WalkNavigation;
 
+typedef struct XrNavigation {
+  float vignette_intensity;
+  float turn_speed;
+  float turn_amount;
+  short flag;
+  char _pad0[2];
+} XrNavigation;
+
 typedef struct UserDef_Runtime {
   /** Mark as changed so the preferences are saved on exit. */
   char is_dirty;
@@ -208,8 +216,8 @@ typedef struct UserDef_TempWinBounds {
 } UserDef_TempWinBounds;
 
 /**
- * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
- * unless the #USER_DEVELOPER_UI is known to be enabled.
+ * Checking experimental members must use either the #USER_EXPERIMENTAL_TEST() macro
+ * or the #USER_DEVELOPER_TOOL_TEST() macro.
  */
 typedef struct UserDef_Experimental {
   /* Debug options, always available. */
@@ -224,19 +232,21 @@ typedef struct UserDef_Experimental {
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
   char write_legacy_blend_file_format;
+  char no_data_block_packing;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
   char use_new_curves_tools;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
-  char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
   char _pad[6];
 } UserDef_Experimental;
 
-#define USER_EXPERIMENTAL_TEST(userdef, member) \
+#define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
+
+#define USER_DEVELOPER_TOOL_TEST(userdef, member) \
   (((userdef)->flag & USER_DEVELOPER_UI) && ((userdef)->experimental).member)
 
 /**
@@ -500,7 +510,7 @@ typedef struct UserDef {
 
   char _pad16[2];
 
-  /** #eGPUBackendType */
+  /** #GPUBackendType */
   short gpu_backend;
 
   /** Number of samples for FPS display calculations. */
@@ -616,6 +626,7 @@ typedef struct UserDef {
   char statusbar_flag;    /* eUserpref_StatusBar_Flag */
 
   struct WalkNavigation walk_navigation;
+  struct XrNavigation xr_navigation;
 
   /** The UI for the user preferences. */
   UserDef_SpaceData space_data;
@@ -663,6 +674,7 @@ typedef enum eUserPref_Section {
   USER_SECTION_FILE_PATHS = 15,
   USER_SECTION_EXPERIMENTAL = 16,
   USER_SECTION_EXTENSIONS = 17,
+  USER_SECTION_DEVELOPER_TOOLS = 18,
 } eUserPref_Section;
 
 /** #UserDef_SpaceData.flag (State of the user preferences UI). */
@@ -677,7 +689,7 @@ typedef enum eUserPref_Flag {
   USER_AUTOSAVE = (1 << 0),
   USER_FLAG_NUMINPUT_ADVANCED = (1 << 1),
   USER_FLAG_RECENT_SEARCHES_DISABLE = (1 << 2),
-  USER_FLAG_UNUSED_3 = (1 << 3), /* cleared */
+  USER_MENU_CLOSE_LEAVE = (1 << 3),
   USER_FLAG_UNUSED_4 = (1 << 4), /* cleared */
   USER_TRACKBALL = (1 << 5),
   USER_FLAG_UNUSED_6 = (1 << 6), /* cleared */
@@ -828,7 +840,7 @@ typedef enum eUserpref_GPU_Flag {
 } eUserpref_GPU_Flag;
 
 /** #UserDef.gpu_backend
- * NOTE: Keep in sync with eGPUBackendType. */
+ * NOTE: Keep in sync with GPUBackendType. */
 enum eUserPref_GPUBackendType {
   USER_GPU_BACKEND_OPENGL = 1 << 0,
   USER_GPU_BACKEND_METAL = 1 << 1,
@@ -932,6 +944,12 @@ typedef enum eUserpref_Anim_Flags {
   USER_ANIM_HIGH_QUALITY_DRAWING = (1 << 2),
 } eUserpref_Anim_Flags;
 
+typedef enum eFixToCam_Flags {
+  FIX_TO_CAM_FLAG_USE_LOC = (1 << 0),
+  FIX_TO_CAM_FLAG_USE_ROT = (1 << 1),
+  FIX_TO_CAM_FLAG_USE_SCALE = (1 << 2),
+} eFixToCam_Flags;
+
 /** #UserDef.transopts */
 typedef enum eUserpref_Translation_Flags {
   USER_TR_TOOLTIPS = (1 << 0),
@@ -1020,10 +1038,15 @@ typedef enum eTimecodeStyles {
 typedef enum eNdof_Flag {
   NDOF_SHOW_GUIDE_ORBIT_AXIS = (1 << 0),
   NDOF_FLY_HELICOPTER = (1 << 1),
+  /**
+   * \note In most cases this flag shouldn't be checked directly.
+   * Use #NDOF_IS_HORIZON_LOCKED instead.
+   */
   NDOF_LOCK_HORIZON = (1 << 2),
 
   /* The following might not need to be saved between sessions,
    * but they do need to live somewhere accessible. */
+
   NDOF_SHOULD_PAN = (1 << 3),
   NDOF_SHOULD_ZOOM = (1 << 4),
   NDOF_SHOULD_ROTATE = (1 << 5),
@@ -1046,6 +1069,8 @@ typedef enum eNdof_Flag {
   NDOF_ORBIT_CENTER_AUTO = (1 << 17),
   NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
   NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
+  /** Must only be used when `!NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U)`. */
+  NDOF_FLY_SPEED_AUTO = (1 << 20),
 } eNdof_Flag;
 
 /**
@@ -1066,7 +1091,12 @@ typedef enum eNdof_Navigation_Mode {
    * since it's confusing for users when 2D/3D navigation is inverted, see: #144751.
    */
   NDOF_NAVIGATION_MODE_FLY = 1,
-  /* TODO: implement "Target Camera Mode" and "Drone Mode" */
+  /**
+   * A "Fly Mode" style navigation but pushing the cap forward
+   * while looking down will not change the altitude of the camera.
+   */
+  NDOF_NAVIGATION_MODE_DRONE = 2,
+  /* TODO: implement "Target Camera Mode" */
 } eNdof_Navigation_Mode;
 
 /**
@@ -1077,6 +1107,10 @@ typedef enum eNdof_Navigation_Mode {
  */
 #define NDOF_IS_ORBIT_AROUND_CENTER_MODE(userdef) \
   ((userdef)->ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT)
+
+#define NDOF_IS_HORIZON_LOCKED(userdef) \
+  ((userdef)->ndof_navigation_mode == NDOF_NAVIGATION_MODE_DRONE) || \
+      ((userdef)->ndof_flag & NDOF_LOCK_HORIZON)
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
 
@@ -1107,6 +1141,12 @@ typedef enum eUserpref_FactorDisplay {
   USER_FACTOR_AS_FACTOR = 0,
   USER_FACTOR_AS_PERCENTAGE = 1,
 } eUserpref_FactorDisplay;
+
+/** #UserDef.xr_navigation_flag */
+typedef enum eUserpref_XrNavigationFlags {
+  USER_XR_NAV_SNAP_TURN = (1 << 0),
+  USER_XR_NAV_INVERT_ROTATION = (1 << 1),
+} eUserpref_XrNavigationFlags;
 
 typedef enum eUserpref_RenderDisplayType {
   USER_RENDER_DISPLAY_NONE = 0,

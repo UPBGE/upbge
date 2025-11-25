@@ -228,8 +228,7 @@ extern GHOST_TSuccess GHOST_DisposeWindow(GHOST_SystemHandle systemhandle,
  */
 extern bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windowhandle);
 
-/*
- **
+/**
  * Returns high dynamic range color information about this window.
  * \return HDR info.
  */
@@ -615,7 +614,7 @@ extern char *GHOST_GetTitle(GHOST_WindowHandle windowhandle);
  * \param filepath: The file directory.
  * \return Indication if the backend implements file associated with window.
  */
-extern GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath);
+extern void GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath);
 
 /**
  * Return the current window decoration style flags.
@@ -748,11 +747,18 @@ extern GHOST_TSuccess GHOST_SetWindowOrder(GHOST_WindowHandle windowhandle,
                                            GHOST_TWindowOrder order);
 
 /**
+ * Acquire a swap chain buffer.
+ * \param windowhandle: The handle to the window.
+ * \return A success indicator.
+ */
+extern GHOST_TSuccess GHOST_SwapWindowBufferAcquire(GHOST_WindowHandle windowhandle);
+
+/**
  * Swaps front and back buffers of a window.
  * \param windowhandle: The handle to the window.
  * \return A success indicator.
  */
-extern GHOST_TSuccess GHOST_SwapWindowBuffers(GHOST_WindowHandle windowhandle);
+extern GHOST_TSuccess GHOST_SwapWindowBufferRelease(GHOST_WindowHandle windowhandle);
 
 /**
  * Sets the swap interval for #swapBuffers.
@@ -1025,6 +1031,13 @@ extern GHOST_TCapabilityFlag GHOST_GetCapabilities(void);
  * Assign the callback which generates a back-trace (may be nullptr).
  */
 extern void GHOST_SetBacktraceHandler(GHOST_TBacktraceFn backtrace_fn);
+
+/**
+ * When `use_window_frame` is false, don't show window frames.
+ *
+ * \note This must run before the system is created.
+ */
+extern void GHOST_UseWindowFrame(bool use_window_frame);
 
 /**
  * Focus window after opening, or put them in the background.
@@ -1325,20 +1338,20 @@ void GHOST_GetVulkanHandles(GHOST_ContextHandle context, GHOST_VulkanHandles *r_
  *
  * \param context: GHOST context handle of a vulkan context to
  *     get the Vulkan handles from.
- * \param swap_buffers_pre_callback: Function pointer to be called at the beginning of swapBuffers.
- *     Inside this callback the next swap-chain image needs to be acquired and filled.
- * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers. swapBuffers
- *     can recreate the swap-chain. When this is done the application should be informed by those
- *     changes.
+ * \param swap_buffer_draw_callback: Function pointer to be called when acquired swap buffer is
+ *     released, allowing Vulkan backend to update the swap chain.
+ * \param swap_buffer_acquired_callback: Function to be called at when swap buffer is acquired.
+ *     Allowing Vulkan backend to update the framebuffer. It is also called when no swap chain
+ *     exists indicating that the window was minimuzed.
  * \param openxr_acquire_image_callback: Function to be called when an image needs to be acquired
  *     to be drawn to an OpenXR swap-chain.
- * \param openxr_release_image_callback: Function to be called after an image has been drawn to the
- *     OpenXR swap-chain.
+ * \param openxr_release_image_callback: Function to be called after an image has been drawn to
+ *     the OpenXR swap-chain.
  */
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle context,
-    void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
-    void (*swap_buffers_post_callback)(void),
+    void (*swap_buffer_draw_callback)(const GHOST_VulkanSwapChainData *),
+    void (*swap_buffer_acquired_callback)(void),
     void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
     void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *));
 

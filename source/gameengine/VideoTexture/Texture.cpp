@@ -108,7 +108,7 @@ void Texture::Close()
     m_orgSaved = false;
   }
   if (m_origGpuTex) {
-    m_imgTexture->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
+    m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
   }
   if (m_imgBuf) {
     IMB_freeImBuf(m_imgBuf);
@@ -143,14 +143,15 @@ void Texture::loadTexture(unsigned int *texture,
   if (imr && !m_origGpuTex) {
     // For ImageRender, directly use the GPU texture from the active framebuffer
     KX_Camera *cam = imr->GetCamera();
-    if (cam && m_imgTexture && m_imgTexture->gputexture[TEXTARGET_2D][0]) {
+    if (cam && m_imgTexture && m_imgTexture->runtime->gputexture[TEXTARGET_2D][0]) {
       GPUViewport *viewport = cam->GetGPUViewport();
       // Get the color texture from the viewport's framebuffer
       blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
       // Assign the GPU texture to the Blender image slot
-      m_origGpuTex = m_imgTexture->gputexture[TEXTARGET_2D][0];
-      m_imgTexture->gputexture[TEXTARGET_2D][0] = gpuTex;
-      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->gputexture[TEXTARGET_2D][0], false);
+      m_origGpuTex = m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
+      m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = gpuTex;
+      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->runtime->gputexture[TEXTARGET_2D][0],
+                                                false);
       Py_INCREF(m_py_color);
     }
     // No need to upload a CPU buffer, return early
@@ -158,7 +159,7 @@ void Texture::loadTexture(unsigned int *texture,
   }
 
   // For video/image sources: upload the CPU buffer to a GPU texture
-  if (m_imgTexture && m_imgTexture->gputexture[TEXTARGET_2D][0]) {
+  if (m_imgTexture && m_imgTexture->runtime->gputexture[TEXTARGET_2D][0]) {
     if (m_modifiedGPUTexture && (size[0] != GPU_texture_width(m_modifiedGPUTexture) ||
                                  size[1] != GPU_texture_height(m_modifiedGPUTexture)))
     {
@@ -186,12 +187,13 @@ void Texture::loadTexture(unsigned int *texture,
     }
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     if (!m_origGpuTex) {
-      m_origGpuTex = m_imgTexture->gputexture[TEXTARGET_2D][0];
+      m_origGpuTex = m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
     }
     // Integrate the new GPU texture into the Blender pipeline
-    m_imgTexture->gputexture[TEXTARGET_2D][0] = m_modifiedGPUTexture;
+    m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_modifiedGPUTexture;
     if (!m_py_color) {
-      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->gputexture[TEXTARGET_2D][0], false);
+      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->runtime->gputexture[TEXTARGET_2D][0],
+                                                false);
       Py_INCREF(m_py_color);
     }
   }
@@ -459,7 +461,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 PyObject *Texture::pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = static_cast<Texture *>(self_v);
-  blender::gpu::Texture *gputex = self->m_imgTexture->gputexture[TEXTARGET_2D][0];
+  blender::gpu::Texture *gputex = self->m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
   if (gputex) {
     return BPyGPUTexture_CreatePyObject(gputex, true);
   }

@@ -25,7 +25,7 @@
 #include "BLI_color.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
@@ -1198,27 +1198,27 @@ static VArray<bool> get_fill_boundary_layers(const GreasePencil &grease_pencil,
 
   switch (fill_layer_mode) {
     case GP_FILL_GPLMODE_ACTIVE:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index;
       });
     case GP_FILL_GPLMODE_ABOVE:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index + 1;
       });
     case GP_FILL_GPLMODE_BELOW:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index - 1;
       });
     case GP_FILL_GPLMODE_ALL_ABOVE:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index <= active_layer_index;
       });
     case GP_FILL_GPLMODE_ALL_BELOW:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index >= active_layer_index;
       });
     case GP_FILL_GPLMODE_VISIBLE:
-      return VArray<bool>::from_func(all_layers.size(), [grease_pencil](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [grease_pencil](const int index) {
         return !grease_pencil.layers()[index]->is_visible();
       });
   }
@@ -1860,7 +1860,7 @@ static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 
 static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 point)
 {
   return isect_point_poly_v2_int(
-      point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
+      point, reinterpret_cast<const int (*)[2]>(lasso.data()), uint(lasso.size()));
 }
 
 static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)

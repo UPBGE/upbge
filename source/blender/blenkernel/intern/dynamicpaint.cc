@@ -13,7 +13,7 @@
 #include <cstdio>
 
 #include "BLI_fileops.h"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_geom.h"
@@ -1639,15 +1639,14 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     const blender::Span<int> corner_verts = mesh->corner_verts();
     const blender::Span<int3> corner_tris = mesh->corner_tris();
 
-    char uvname[MAX_CUSTOMDATA_LAYER_NAME];
-
     if (!tex) {
       return;
     }
 
     /* get uv map */
-    CustomData_validate_layer_name(
-        &mesh->corner_data, CD_PROP_FLOAT2, surface->init_layername, uvname);
+    const StringRef uvname = mesh->uv_map_names().contains(surface->init_layername) ?
+                                 surface->init_layername :
+                                 mesh->active_uv_map_name();
     const VArraySpan uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
 
     if (uv_map.is_empty()) {
@@ -1861,7 +1860,7 @@ static void dynamic_paint_apply_surface_vpaint_blend_cb(void *__restrict userdat
       userdata);
 
   PaintPoint *pPoint = (PaintPoint *)data->surface->data->type_data;
-  float(*fcolor)[4] = data->fcolor;
+  float (*fcolor)[4] = data->fcolor;
 
   /* blend dry and wet layer */
   blendColors(
@@ -1879,7 +1878,7 @@ static void dynamic_paint_apply_surface_vpaint_cb(void *__restrict userdata,
 
   const DynamicPaintSurface *surface = data->surface;
   PaintPoint *pPoint = (PaintPoint *)surface->data->type_data;
-  float(*fcolor)[4] = data->fcolor;
+  float (*fcolor)[4] = data->fcolor;
 
   blender::MutableSpan<blender::ColorGeometry4b> mloopcol = data->mloopcol;
   blender::MutableSpan<blender::ColorGeometry4b> mloopcol_wet = data->mloopcol_wet;
@@ -1950,8 +1949,8 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
             const blender::Span<int> corner_verts = result->corner_verts();
 
             /* paint is stored on dry and wet layers, so mix final color first */
-            float(*fcolor)[4] = MEM_calloc_arrayN<float[4]>(sData->total_points,
-                                                            "Temp paint color");
+            float (*fcolor)[4] = MEM_calloc_arrayN<float[4]>(sData->total_points,
+                                                             "Temp paint color");
 
             DynamicPaintModifierApplyData data{};
             data.surface = surface;
@@ -2219,7 +2218,16 @@ Mesh *dynamicPaint_Modifier_do(
 /* Create a surface for uv image sequence format. */
 #define JITTER_SAMPLES \
   { \
-    0.0f, 0.0f, -0.2f, -0.4f, 0.2f, 0.4f, 0.4f, -0.2f, -0.4f, 0.3f, \
+      0.0f, \
+      0.0f, \
+      -0.2f, \
+      -0.4f, \
+      0.2f, \
+      0.4f, \
+      0.4f, \
+      -0.2f, \
+      -0.4f, \
+      0.3f, \
   }
 
 struct DynamicPaintCreateUVSurfaceData {
@@ -2840,7 +2848,6 @@ int dynamicPaint_createUVSurface(Scene *scene,
   using namespace blender;
   /* Anti-alias jitter point relative coords. */
   const int aa_samples = (surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
-  char uvname[MAX_CUSTOMDATA_LAYER_NAME];
   uint32_t active_points = 0;
   bool error = false;
 
@@ -2869,9 +2876,11 @@ int dynamicPaint_createUVSurface(Scene *scene,
   const blender::Span<int3> corner_tris = mesh->corner_tris();
 
   /* get uv map */
-  if (CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    CustomData_validate_layer_name(
-        &mesh->corner_data, CD_PROP_FLOAT2, surface->uvlayer_name, uvname);
+  const VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+  if (!uv_map_names.is_empty()) {
+    const StringRef uvname = uv_map_names.contains(surface->uvlayer_name) ?
+                                 surface->uvlayer_name :
+                                 mesh->active_uv_map_name();
     const bke::AttributeAccessor attributes = mesh->attributes();
     uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
   }
@@ -3784,11 +3793,11 @@ static void dynamic_paint_brush_velocity_compute_cb(void *__restrict userdata,
 
   Vec3f *brush_vel = data->brush_vel;
 
-  const float(*positions_p)[3] = data->positions_p;
-  const float(*positions_c)[3] = data->positions_c;
+  const float (*positions_p)[3] = data->positions_p;
+  const float (*positions_c)[3] = data->positions_c;
 
-  const float(*obmat)[4] = data->obmat;
-  float(*prev_obmat)[4] = data->prev_obmat;
+  const float (*obmat)[4] = data->obmat;
+  float (*prev_obmat)[4] = data->prev_obmat;
 
   const float timescale = data->timescale;
 
@@ -3847,7 +3856,7 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
   }
   numOfVerts_p = mesh_p->verts_num;
 
-  float(*positions_p)[3] = reinterpret_cast<float(*)[3]>(
+  float (*positions_p)[3] = reinterpret_cast<float (*)[3]>(
       mesh_p->vert_positions_for_write().data());
   copy_m4_m4(prev_obmat, ob->object_to_world().ptr());
 
@@ -3870,7 +3879,7 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
   mesh_c = runtime_data->brush_mesh;
 
   numOfVerts_c = mesh_c->verts_num;
-  float(*positions_c)[3] = reinterpret_cast<float(*)[3]>(
+  float (*positions_c)[3] = reinterpret_cast<float (*)[3]>(
       mesh_c->vert_positions_for_write().data());
 
   (*brushVel) = MEM_malloc_arrayN<Vec3f>(size_t(numOfVerts_c), "Dynamic Paint brush velocity");

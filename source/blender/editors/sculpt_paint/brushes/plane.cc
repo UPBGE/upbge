@@ -225,8 +225,11 @@ static void calc_faces(const Depsgraph &depsgraph,
   filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -271,7 +274,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   const MutableSpan<float3> local_positions = tls.local_positions;
-  math::transform_points(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
@@ -279,8 +282,11 @@ static void calc_grids(const Depsgraph &depsgraph,
   filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -323,7 +329,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   const MutableSpan<float3> local_positions = tls.local_positions;
-  math::transform_points(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
@@ -331,8 +337,11 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 

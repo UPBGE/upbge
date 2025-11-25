@@ -183,7 +183,7 @@ static void draw_spline_points(const bContext *C,
   bool undistort = false;
 
   int tot_feather_point;
-  float(*feather_points)[2], (*fp)[2];
+  float (*feather_points)[2], (*fp)[2];
   float min[2], max[2];
 
   if (!spline->tot_point) {
@@ -386,7 +386,7 @@ static void mask_draw_curve_type(const bContext *C,
   const uchar rgb_black[4] = {0x00, 0x00, 0x00, 0xff};
   uchar rgb_tmp[4];
   SpaceClip *sc = CTX_wm_space_clip(C);
-  float(*points)[2] = orig_points;
+  float (*points)[2] = orig_points;
 
   if (sc) {
     const bool undistort = sc->clip && (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT);
@@ -513,10 +513,10 @@ static void draw_spline_curve(const bContext *C,
   const bool is_fill = (spline->flag & MASK_SPLINE_NOFILL) == 0;
 
   uint tot_diff_point;
-  float(*diff_points)[2];
+  float (*diff_points)[2];
 
   uint tot_feather_point;
-  float(*feather_points)[2];
+  float (*feather_points)[2];
 
   diff_points = BKE_mask_spline_differentiate_with_resolution(spline, resol, &tot_diff_point);
 
@@ -642,6 +642,7 @@ void ED_mask_draw_region(
     Depsgraph *depsgraph,
     Mask *mask_,
     ARegion *region,
+    const bool show_overlays,
     const char draw_flag,
     const char draw_type,
     const eMaskOverlayMode overlay_mode,
@@ -703,7 +704,7 @@ void ED_mask_draw_region(
     yofs = ((width - height) / -2.0f) * zoomy;
   }
 
-  if (draw_flag & MASK_DRAWFLAG_OVERLAY) {
+  if (show_overlays && draw_flag & MASK_DRAWFLAG_OVERLAY) {
     float buf_col[4] = {1.0f, 0.0f, 0.0f, 0.0f};
     const float *buffer = mask_rasterize(mask_eval, width, height);
 
@@ -776,7 +777,7 @@ void ED_mask_draw_region(
   }
 
   /* draw! */
-  if (draw_flag & MASK_DRAWFLAG_SPLINE) {
+  if (show_overlays && draw_flag & MASK_DRAWFLAG_SPLINE) {
     draw_mask_layers(C, mask_eval, draw_type, width, height);
   }
 

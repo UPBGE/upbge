@@ -10,24 +10,32 @@
 #include <cstdlib>
 #include <fmt/format.h>
 
+#include "DNA_collection_types.h"
+#include "DNA_image_types.h"
+#include "DNA_material_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_lasso_2d.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_resource_scope.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
 #include "BKE_workspace.hh"
 
@@ -48,6 +56,8 @@
 #include "UI_view2d.hh"
 
 #include "DEG_depsgraph.hh"
+
+#include "BLT_translation.hh"
 
 #include "node_intern.hh" /* own include */
 
@@ -126,7 +136,7 @@ static bool node_frame_select_isect_mouse(const SpaceNode &snode,
   return false;
 }
 
-static bNode *node_under_mouse_select(const SpaceNode &snode, const float2 mouse)
+bNode *node_under_mouse_get(const SpaceNode &snode, const float2 mouse)
 {
   for (bNode *node : tree_draw_order_calc_nodes_reversed(*snode.edittree)) {
     switch (node->type_legacy) {
@@ -149,7 +159,7 @@ static bNode *node_under_mouse_select(const SpaceNode &snode, const float2 mouse
 
 static bool is_position_over_node_or_socket(SpaceNode &snode, ARegion &region, const float2 &mouse)
 {
-  if (node_under_mouse_select(snode, mouse)) {
+  if (node_under_mouse_get(snode, mouse)) {
     return true;
   }
   if (node_find_indicated_socket(snode, region, mouse, SOCK_IN | SOCK_OUT)) {
@@ -512,6 +522,71 @@ void node_select_single(bContext &C, bNode &node)
   WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
 }
 
+static const bNodeSocket *find_socket_at_mouse_y(const Span<const bNodeSocket *> sockets,
+                                                 const float view_y)
+{
+  const bNodeSocket *best_socket = nullptr;
+  float best_distance = FLT_MAX;
+  for (const bNodeSocket *socket : sockets) {
+    if (!socket->is_icon_visible()) {
+      continue;
+    }
+    const float socket_y = socket->runtime->location.y;
+    const float distance = math::distance(socket_y, view_y);
+    if (distance < best_distance) {
+      best_distance = distance;
+      best_socket = socket;
+    }
+  }
+  return best_socket;
+}
+
+static void activate_interface_socket(bNodeTree &tree, bNodeTreeInterfaceSocket &io_socket)
+{
+  bNodeTreeInterfacePanel &io_panel = *tree.tree_interface.find_item_parent(io_socket.item, true);
+  bNodeTreeInterfaceItem *item_to_activate = nullptr;
+  if (io_panel.header_toggle_socket() == &io_socket) {
+    item_to_activate = &io_panel.item;
+  }
+  else {
+    item_to_activate = &io_socket.item;
+  }
+  tree.tree_interface.active_item_set(item_to_activate);
+}
+
+static void handle_group_input_node_selection(bNodeTree &tree,
+                                              const bNode &group_input_node,
+                                              const float2 &cursor)
+{
+
+  tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
+  const bNodeSocket *indicated_socket = find_socket_at_mouse_y(
+      group_input_node.output_sockets().drop_back(1), cursor.y);
+  if (!indicated_socket) {
+    return;
+  }
+  const int group_input_i = indicated_socket->index();
+  bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[group_input_i];
+  activate_interface_socket(tree, io_socket);
+}
+
+static void handle_group_output_node_selection(bNodeTree &tree,
+                                               const bNode &group_output_node,
+                                               const float2 &cursor)
+{
+  tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
+  const bNodeSocket *indicated_socket = find_socket_at_mouse_y(
+      group_output_node.input_sockets().drop_back(1), cursor.y);
+  if (!indicated_socket) {
+    return;
+  }
+  const int group_output_i = indicated_socket->index();
+  bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[group_output_i];
+  activate_interface_socket(tree, io_socket);
+}
+
 static bool node_mouse_select(bContext *C,
                               wmOperator *op,
                               const int2 mval,
@@ -597,7 +672,7 @@ static bool node_mouse_select(bContext *C,
   if (!sock) {
 
     /* Find the closest visible node. */
-    node = node_under_mouse_select(snode, cursor);
+    node = node_under_mouse_get(snode, cursor);
     found = (node != nullptr);
     node_was_selected = node && (node->flag & SELECT);
 
@@ -632,6 +707,13 @@ static bool node_mouse_select(bContext *C,
           /* Doesn't make sense for picking. */
           BLI_assert_unreachable();
           break;
+      }
+
+      if (node->is_group_input()) {
+        handle_group_input_node_selection(node_tree, *node, cursor);
+      }
+      if (node->is_group_output()) {
+        handle_group_output_node_selection(node_tree, *node, cursor);
       }
 
       changed = true;
@@ -1316,13 +1398,34 @@ void NODE_OT_select_same_type_step(wmOperatorType *ot)
 /** \name Find Node by Name Operator
  * \{ */
 
-static std::string node_find_create_label(const bNodeTree &ntree, const bNode &node)
+static std::string node_find_create_node_label(const bNodeTree &ntree, const bNode &node)
 {
   std::string label = bke::node_label(ntree, node);
   if (label == node.name) {
     return label;
   }
   return fmt::format("{} ({})", label, node.name);
+}
+
+static std::string node_find_create_group_input_label(const bNode &node, const bNodeSocket &socket)
+{
+  return fmt::format("{}: \"{}\" ({})", TIP_("Input"), socket.name, node.name);
+}
+
+static std::string node_find_create_string_value(const bNode &node, const StringRef str)
+{
+  return fmt::format("{}: \"{}\" ({})", TIP_("String"), str, node.name);
+}
+
+static std::string node_find_create_data_block_value(const bNode &node, const ID &id)
+{
+  const IDTypeInfo *type = BKE_idtype_get_info_from_id(&id);
+  BLI_assert(type);
+  StringRef type_name = TIP_(type->name);
+  if (GS(id.name) == ID_NT) {
+    type_name = TIP_("Node Group");
+  }
+  return fmt::format("{}: \"{}\" ({})", type_name, BKE_id_name(id), node.name);
 }
 
 /* Generic search invoke. */
@@ -1334,19 +1437,103 @@ static void node_find_update_fn(const bContext *C,
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  ui::string_search::StringSearch<bNode> search;
+  struct Item {
+    bNode *node;
+    std::string search_str;
+  };
+
+  ui::string_search::StringSearch<Item> search;
+  blender::ResourceScope scope;
+
+  auto add_data_block_item = [&](bNode &node, const ID *id) {
+    if (!id) {
+      return;
+    }
+    const StringRef search_str = scope.add_value(node_find_create_data_block_value(node, *id));
+    search.add(search_str, &scope.construct<Item>(Item{&node, search_str}));
+  };
 
   const bNodeTree &ntree = *snode->edittree;
+  ntree.ensure_topology_cache();
   for (bNode *node : snode->edittree->all_nodes()) {
-    const std::string name = node_find_create_label(ntree, *node);
-    search.add(name, node);
+    const StringRef name = scope.add_value(node_find_create_node_label(ntree, *node));
+    search.add(name, &scope.construct<Item>(Item{node, name}));
+
+    if (node->is_type("FunctionNodeInputString")) {
+      const auto *storage = static_cast<const NodeInputString *>(node->storage);
+      const StringRef value_str = storage->string;
+      if (!value_str.is_empty()) {
+        const StringRef search_str = scope.add_value(
+            node_find_create_string_value(*node, value_str));
+        search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+      }
+    }
+    if (node->is_group_input()) {
+      for (const bNodeSocket *socket : node->output_sockets().drop_back(1)) {
+        if (!socket->is_directly_linked()) {
+          continue;
+        }
+        const StringRef search_str = scope.add_value(
+            node_find_create_group_input_label(*node, *socket));
+        search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+      }
+    }
+    if (node->id) {
+      /* Avoid showing referenced node group data-blocks twice. */
+      const bool skip_data_block =
+          node->is_group() &&
+          StringRef(bke::node_label(ntree, *node)).find(BKE_id_name(*node->id)) !=
+              StringRef::not_found;
+      if (!skip_data_block) {
+        add_data_block_item(*node, node->id);
+      }
+    }
+
+    for (const bNodeSocket *socket : node->input_sockets()) {
+      switch (socket->type) {
+        case SOCK_STRING: {
+          if (socket->is_logically_linked()) {
+            continue;
+          }
+          const bNodeSocketValueString *value =
+              socket->default_value_typed<bNodeSocketValueString>();
+          const StringRef value_str = value->value;
+          if (!value_str.is_empty()) {
+            const StringRef search_str = scope.add_value(
+                node_find_create_string_value(*node, value_str));
+            search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+          }
+          break;
+        }
+        case SOCK_OBJECT: {
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueObject>()->value));
+          break;
+        }
+        case SOCK_MATERIAL: {
+          add_data_block_item(
+              *node,
+              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueMaterial>()->value));
+          break;
+        }
+        case SOCK_COLLECTION: {
+          add_data_block_item(
+              *node,
+              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueCollection>()->value));
+          break;
+        }
+        case SOCK_IMAGE: {
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueImage>()->value));
+          break;
+        }
+      }
+    }
   }
 
-  const Vector<bNode *> filtered_nodes = search.query(str);
-
-  for (bNode *node : filtered_nodes) {
-    const std::string name = node_find_create_label(ntree, *node);
-    if (!UI_search_item_add(items, name, node, ICON_NONE, 0, 0)) {
+  const Vector<Item *> filtered_items = search.query(str);
+  for (const Item *item : filtered_items) {
+    if (!UI_search_item_add(items, item->search_str, item->node, ICON_NONE, 0, 0)) {
       break;
     }
   }
@@ -1381,15 +1568,14 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn, nullptr);
 
   but = uiDefSearchBut(
-      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
+      block, search, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
   UI_but_func_search_set(
       but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
   const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(
-      block, ButType::Label, 0, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block, ButType::Label, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};

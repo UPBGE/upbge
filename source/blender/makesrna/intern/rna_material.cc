@@ -65,13 +65,17 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
+#  include "BKE_attribute.h"
 #  include "BKE_attribute.hh"
 #  include "BKE_colorband.hh"
 #  include "BKE_context.hh"
+#  include "BKE_editmesh.hh"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_grease_pencil.hh"
 #  include "BKE_main.hh"
 #  include "BKE_material.hh"
+#  include "BKE_mesh.hh"
+#  include "BKE_mesh_types.hh"
 #  include "BKE_node.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_scene.hh"
@@ -149,10 +153,11 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
 
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
 {
+  using namespace blender;
   Main *bmain = CTX_data_main(C);
   Material *ma = (Material *)ptr->owner_id;
 
-  if (ma->use_nodes && ma->nodetree) {
+  if (ma->nodetree) {
     bNode *node = BKE_texpaint_slot_material_find_node(ma, ma->paint_active_slot);
 
     if (node) {
@@ -168,14 +173,22 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
     }
 
     /* For compatibility reasons with vertex paint we activate the color attribute. */
-    if (slot->attribute_name) {
+    if (const char *name = slot->attribute_name) {
       Object *ob = CTX_data_active_object(C);
       if (ob != nullptr && ob->type == OB_MESH) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
-        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id,
-                                                                    slot->attribute_name);
-        if (layer != nullptr) {
-          BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+        if (mesh->runtime->edit_mesh) {
+          if (const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
+                                                                  name))
+          {
+            BKE_id_attributes_active_color_set(&mesh->id, name);
+          }
+        }
+        else {
+          const bke::AttributeAccessor attributes = mesh->attributes();
+          if (bke::mesh::is_color_attribute(attributes.lookup_meta_data(name))) {
+            BKE_id_attributes_active_color_set(&mesh->id, name);
+          }
         }
         DEG_id_tag_update(&ob->id, 0);
         WM_main_add_notifier(NC_GEOM | ND_DATA, &ob->id);
@@ -237,18 +250,18 @@ static void rna_Material_transparent_shadow_set(PointerRNA *ptr, bool new_value)
   material->blend_shadow = new_value ? MA_BS_HASHED : MA_BS_SOLID;
 }
 
-static void rna_Material_use_nodes_update(bContext *C, PointerRNA *ptr)
+static bool rna_Material_use_nodes_get(PointerRNA * /*ptr*/)
 {
-  Material *ma = (Material *)ptr->data;
-  Main *bmain = CTX_data_main(C);
+  /* #use_nodes is deprecated. All materials now use nodes. */
+  return true;
+}
 
-  if (ma->use_nodes && ma->nodetree == nullptr) {
-    ED_node_shader_default(C, &ma->id);
-  }
-
-  DEG_id_tag_update(&ma->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(bmain);
-  rna_Material_draw_update(bmain, CTX_data_scene(C), ptr);
+static void rna_Material_use_nodes_set(PointerRNA * /*ptr*/, bool /*new_value*/)
+{
+  /* #use_nodes is deprecated. Setting the property has no effect.
+   * Note: Users will get a warning through the RNA deprecation warning, so no need to log a
+   * warning here. */
+  return;
 }
 
 MTex *rna_mtex_texture_slots_add(ID *self_id, bContext *C, ReportList *reports)
@@ -1108,9 +1121,13 @@ void RNA_def_material(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the material");
-  RNA_def_property_update(prop, 0, "rna_Material_use_nodes_update");
+  RNA_def_property_boolean_funcs(prop, "rna_Material_use_nodes_get", "rna_Material_use_nodes_set");
+  RNA_def_property_deprecated(prop,
+                              "Unused but kept for compatibility reasons. Setting the property "
+                              "has no effect, and getting it always returns True.",
+                              500,
+                              600);
 
   /* common */
   rna_def_animdata_common(srna);
@@ -1210,7 +1227,7 @@ void rna_def_mtex_common(BlenderRNA *brna,
 
   prop = RNA_def_property(srna, "active_texture", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Texture");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   if (activeeditable) {
     RNA_def_property_editable_func(prop, activeeditable);
   }

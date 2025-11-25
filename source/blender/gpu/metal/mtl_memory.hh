@@ -56,7 +56,7 @@
  *
  *  Usage:
  *
- *    MTLContext::get_scratchbuffer_manager() - to fetch active manager.
+ *    MTLContext::get_scratch_buffer_manager() - to fetch active manager.
  *
  *    MTLTemporaryBuffer scratch_buffer_allocate_range(size)
  *    MTLTemporaryBuffer scratch_buffer_allocate_range_aligned(size, align)
@@ -495,7 +495,7 @@ class MTLScratchBufferManager {
   MTLCircularBuffer *scratch_buffers_[mtl_max_scratch_buffers_];
 
  public:
-  MTLScratchBufferManager(MTLContext &context) : context_(context){};
+  MTLScratchBufferManager(MTLContext &context) : context_(context) {};
   ~MTLScratchBufferManager();
 
   /* Explicit initialization and freeing of resources.

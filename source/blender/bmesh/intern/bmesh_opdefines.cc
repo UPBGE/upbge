@@ -623,6 +623,9 @@ static BMOpDefine bmo_weld_verts_def = {
     {
         /* Maps welded vertices to verts they should weld to. */
         {"targetmap", BMO_OP_SLOT_MAPPING, {eBMOpSlotSubType_Elem(BMO_OP_SLOT_SUBTYPE_MAP_ELEM)}},
+        /* Merged vertices to their centroid position,
+         * otherwise the position of the target vertex is used. */
+        {"use_centroid", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/
@@ -1357,6 +1360,8 @@ static BMOpDefine bmo_extrude_face_region_def = {
         {"use_dissolve_ortho_edges", BMO_OP_SLOT_BOOL},
         /* Pass to duplicate. */
         {"use_select_history", BMO_OP_SLOT_BOOL},
+        /* Skip flipping of input faces to preserve original orientation. */
+        {"skip_input_flip", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/

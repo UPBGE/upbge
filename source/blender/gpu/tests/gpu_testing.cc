@@ -27,7 +27,7 @@ GPUContext *GPUTest::context_;
 int32_t GPUTest::prev_g_debug_;
 
 void GPUTest::SetUpTestSuite(GHOST_TDrawingContextType draw_context_type,
-                             eGPUBackendType gpu_backend_type,
+                             GPUBackendType gpu_backend_type,
                              int32_t g_debug_flags)
 {
   prev_g_debug_ = G.debug;
@@ -70,6 +70,20 @@ void GPUTest::TearDownTestSuite()
   CLG_exit();
 
   G.debug = prev_g_debug_;
+}
+
+void GPUTest::SetUp()
+{
+  const ::testing::TestInfo *info = ::testing::UnitTest::GetInstance()->current_test_info();
+  std::stringstream ss;
+  ss << info->test_suite_name() << "." << info->name();
+  debug_group_name_ = ss.str();
+  GPU_debug_group_begin(debug_group_name_.c_str());
+}
+
+void GPUTest::TearDown()
+{
+  GPU_debug_group_end();
 }
 
 }  // namespace blender::gpu

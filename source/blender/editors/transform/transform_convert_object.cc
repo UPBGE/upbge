@@ -311,7 +311,18 @@ static void trans_object_base_deps_flag_prepare(const TransInfo *t,
   }
 }
 
-static void set_trans_object_base_deps_flag_cb(ID *id, eDepsObjectComponentType component)
+static void tag_trans_objects_with_geometry_dep_only_fn(ID *id, eDepsObjectComponentType component)
+{
+  /* Here we only handle object IDs. */
+  if (GS(id->name) != ID_OB) {
+    return;
+  }
+  if (component == DEG_OB_COMP_GEOMETRY) {
+    id->tag |= ID_TAG_DOIT;
+  }
+}
+
+static void tag_trans_objects_dep_fn(ID *id, eDepsObjectComponentType component)
 {
   /* Here we only handle object IDs. */
   if (GS(id->name) != ID_OB) {
@@ -329,11 +340,21 @@ static void flush_trans_object_base_deps_flag(const TransInfo *t, Object *object
     return;
   }
   object->id.tag |= ID_TAG_DOIT;
-  DEG_foreach_dependent_ID_component(t->depsgraph,
-                                     &object->id,
-                                     DEG_OB_COMP_TRANSFORM,
-                                     DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
-                                     set_trans_object_base_deps_flag_cb);
+
+  DEG_foreach_dependent_ID_component(
+      t->depsgraph,
+      &object->id,
+      DEG_OB_COMP_TRANSFORM,
+      DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
+
+      /* When we transform parents while skipping children, we only traverse the GEOMETRY-dependent
+       * components. This avoids marking children as not participating in snapping but still marks
+       * objects with modifier dependencies.
+       * Unfortunately, some transform-dependent objects that are not children may also be skipped,
+       * such as constrained ones.
+       * See #121378 for details. */
+      (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ? tag_trans_objects_with_geometry_dep_only_fn :
+                                                      tag_trans_objects_dep_fn);
 }
 
 static void trans_object_base_deps_flag_finish(const TransInfo *t,
@@ -655,7 +676,8 @@ static void createTransObject(bContext *C, TransInfo *t)
   ((base->flag_legacy & BA_WAS_SEL) && (base->flag & BASE_SELECTED) == 0)
 
     Set<Object *> objects_in_transdata;
-    GHash *objects_parent_root = BLI_ghash_ptr_new_ex(__func__, tc->data_len);
+    Map<Object *, Object *> objects_parent_root;
+    objects_parent_root.reserve(tc->data_len);
     td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       if ((td->flag & TD_SKIP) == 0) {
@@ -688,8 +710,9 @@ static void createTransObject(bContext *C, TransInfo *t)
                 if (ob_parent_recurse) {
                   object::object_xform_skip_child_container_item_ensure(
                       tdo->xcs, ob, ob_parent_recurse, object::XFORM_OB_SKIP_CHILD_PARENT_APPLY);
-                  BLI_ghash_insert(objects_parent_root, ob, ob_parent_recurse);
+                  objects_parent_root.add(ob, ob_parent_recurse);
                   base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+                  base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
                 }
               }
             }
@@ -711,10 +734,10 @@ static void createTransObject(bContext *C, TransInfo *t)
             object::object_xform_skip_child_container_item_ensure(
                 tdo->xcs, ob, nullptr, object::XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM);
             base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+            base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
           }
           else {
-            Object *ob_parent_recurse = static_cast<Object *>(
-                BLI_ghash_lookup(objects_parent_root, ob->parent));
+            Object *ob_parent_recurse = objects_parent_root.lookup_default(ob->parent, nullptr);
             if (ob_parent_recurse) {
               object::object_xform_skip_child_container_item_ensure(
                   tdo->xcs,
@@ -726,7 +749,6 @@ static void createTransObject(bContext *C, TransInfo *t)
         }
       }
     }
-    BLI_ghash_free(objects_parent_root, nullptr, nullptr);
 
 #undef BASE_XFORM_INDIRECT
   }

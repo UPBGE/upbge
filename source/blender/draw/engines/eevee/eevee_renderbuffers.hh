@@ -14,7 +14,7 @@
 
 #include "DRW_render.hh"
 
-#include "eevee_shader_shared.hh"
+#include "eevee_renderbuffers_shared.hh"
 
 namespace blender::eevee {
 
@@ -43,7 +43,7 @@ class RenderBuffers {
   int2 extent_;
 
  public:
-  RenderBuffers(Instance &inst, RenderBuffersInfoData &data) : data(data), inst_(inst){};
+  RenderBuffers(Instance &inst, RenderBuffersInfoData &data) : data(data), inst_(inst) {};
 
   /** WARNING: RenderBuffers and Film use different storage types for AO and Shadow. */
   static ePassStorageType pass_storage_type(eViewLayerEEVEEPassType pass_type)

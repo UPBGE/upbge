@@ -26,13 +26,15 @@ namespace blender::nodes::node_composite_transform_cc {
 static void cmp_node_transform_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.allow_any_socket_order();
 
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .hide_value()
       .compositor_realization_mode(CompositorInputRealizationMode::None)
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Float>("X").default_value(0.0f).min(-10000.0f).max(10000.0f);
   b.add_input<decl::Float>("Y").default_value(0.0f).min(-10000.0f).max(10000.0f);
   b.add_input<decl::Float>("Angle").default_value(0.0f).min(-10000.0f).max(10000.0f).subtype(
@@ -43,14 +45,17 @@ static void cmp_node_transform_declare(NodeDeclarationBuilder &b)
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
+      .optional_label()
       .description("Interpolation method");
   sampling_panel.add_input<decl::Menu>("Extension X")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the X axis");
   sampling_panel.add_input<decl::Menu>("Extension Y")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the Y axis");
 }
 

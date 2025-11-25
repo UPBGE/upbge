@@ -187,7 +187,8 @@ static ft_pix blf_unscaled_F26Dot6_to_pixels(FontBLF *font, const FT_Pos value)
  */
 static void blf_batch_draw_init()
 {
-  g_batch.glyph_buf = GPU_storagebuf_create(sizeof(g_batch.glyph_data));
+  g_batch.glyph_buf = GPU_storagebuf_create_ex(
+      sizeof(g_batch.glyph_data), nullptr, GPU_USAGE_STREAM, __func__);
   g_batch.glyph_len = 0;
   /* We render a quad as a triangle strip and instance it for each glyph. */
   g_batch.batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, 4);
@@ -315,6 +316,7 @@ void blf_batch_draw()
   }
 
   blender::gpu::Texture *texture = blf_batch_cache_texture_load();
+  GPU_storagebuf_usage_size_set(g_batch.glyph_buf, size_t(g_batch.glyph_len) * sizeof(GlyphQuad));
   GPU_storagebuf_update(g_batch.glyph_buf, g_batch.glyph_data);
   GPU_storagebuf_bind(g_batch.glyph_buf, 0);
 
@@ -338,6 +340,15 @@ static void blf_batch_draw_end()
 {
   if (!g_batch.active) {
     blf_batch_draw();
+  }
+}
+
+void BLF_batch_discard()
+{
+  if (g_batch.glyph_buf) {
+    GPU_storagebuf_free(g_batch.glyph_buf);
+    g_batch.glyph_buf = GPU_storagebuf_create_ex(
+        sizeof(g_batch.glyph_data), nullptr, GPU_USAGE_STREAM, __func__);
   }
 }
 
@@ -1301,12 +1312,13 @@ static void blf_font_wrap_apply(FontBLF *font,
      * This is _only_ done when we know for sure the character is ASCII (newline or a space).
      */
     pen_x_next = pen_x + advance_x;
+    /* Ensure at least one character in the wrapped line. */
+    const bool overflows = pen_x_next >= wrap.wrap_width && pen_x != 0;
 
-    if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last[0]))) {
+    if (UNLIKELY(overflows && (wrap.start != wrap.last[0]))) {
       do_draw = true;
     }
-    else if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) &&
-                      (pen_x_next >= wrap.wrap_width) && (advance_x != 0)))
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) && overflows && (advance_x != 0)))
     {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
@@ -1382,8 +1394,12 @@ static void blf_font_wrap_apply(FontBLF *font,
              &str[wrap.start]);
 #endif
 
-      callback(
-          font, gc, &str[wrap.start], (wrap.last[0] - wrap.start) - clip_bytes, pen_y, userdata);
+      callback(font,
+               gc,
+               &str[wrap.start],
+               std::min(wrap.last[0] - wrap.start - clip_bytes, str_len - wrap.start),
+               pen_y,
+               userdata);
       wrap.start = wrap.last[0];
       i = wrap.last[1];
       pen_x = 0;

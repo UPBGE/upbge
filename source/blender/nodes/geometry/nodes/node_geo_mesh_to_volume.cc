@@ -25,13 +25,13 @@ static EnumPropertyItem resolution_mode_items[] = {
     {MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT,
      "VOXEL_AMOUNT",
      0,
-     "Amount",
-     "Desired number of voxels along one axis"},
+     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
+     N_("Desired number of voxels along one axis")},
     {MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_SIZE,
      "VOXEL_SIZE",
      0,
-     "Size",
-     "Desired voxel side length"},
+     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
+     N_("Desired voxel side length")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -43,7 +43,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Density").default_value(1.0f).min(0.01f).max(FLT_MAX);
   b.add_input<decl::Menu>("Resolution Mode")
       .static_items(resolution_mode_items)
-      .description("How the voxel size is specified");
+      .optional_label()
+      .description("How the voxel size is specified")
+      .translation_context(BLT_I18NCONTEXT_COUNTABLE);
   b.add_input<decl::Float>("Voxel Size")
       .default_value(0.3f)
       .min(0.01f)

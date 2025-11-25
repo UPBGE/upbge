@@ -613,6 +613,11 @@ static const char *wm_context_member_from_ptr(const bContext *C,
               TEST_PTR_DATA_TYPE("space_data.overlay", RNA_SpaceNodeOverlay, ptr, snode);
               break;
             }
+            case SPACE_CLIP: {
+              const SpaceClip *sclip = (SpaceClip *)space_data;
+              TEST_PTR_DATA_TYPE("space_data.overlay", RNA_SpaceClipOverlay, ptr, sclip);
+              break;
+            }
             case SPACE_SEQ: {
               const SpaceSeq *sseq = (SpaceSeq *)space_data;
               TEST_PTR_DATA_TYPE(
@@ -977,19 +982,27 @@ wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEv
 {
   PropertyRNA *wait_to_deselect_prop = RNA_struct_find_property(op->ptr,
                                                                 "wait_to_deselect_others");
+  const bool use_select_on_click = RNA_struct_property_is_set(op->ptr, "use_select_on_click");
   const short init_event_type = short(POINTER_AS_INT(op->customdata));
 
   /* Get settings from RNA properties for operator. */
   const int mval[2] = {RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y")};
 
   if (init_event_type == 0) {
+    op->customdata = POINTER_FROM_INT(int(event->type));
+
+    if (use_select_on_click) {
+      /* Don't do any selection yet. Wait to see if there's a drag or click (release) event. */
+      WM_event_add_modal_handler(C, op);
+      return OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH;
+    }
+
     if (event->val == KM_PRESS) {
       RNA_property_boolean_set(op->ptr, wait_to_deselect_prop, true);
 
       wmOperatorStatus retval = op->type->exec(C, op);
       OPERATOR_RETVAL_CHECK(retval);
 
-      op->customdata = POINTER_FROM_INT(int(event->type));
       if (retval & OPERATOR_RUNNING_MODAL) {
         WM_event_add_modal_handler(C, op);
       }
@@ -1147,25 +1160,10 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   search[0] = '\0';
-#if 0 /* Ok, this isn't so easy. */
-  uiDefBut(block,
-           ButType::Label,
-           0,
-           WM_operatortype_name(op->type, op->ptr),
-           0,
-           0,
-           UI_searchbox_size_x(),
-           UI_UNIT_Y,
-           nullptr,
-           0.0,
-           0.0,
-           "");
-#endif
   uiBut *but = uiDefSearchButO_ptr(block,
                                    op->type,
                                    static_cast<IDProperty *>(op->ptr->data),
                                    search,
-                                   0,
                                    ICON_VIEWZOOM,
                                    sizeof(search),
                                    0,
@@ -1175,7 +1173,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
                                    "");
 
   /* Fake button, it holds space for search items. */
-  uiDefBut(block, ButType::Label, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block, ButType::Label, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
@@ -1202,22 +1200,22 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
                                                 const char *message,
                                                 const blender::wm::OpCallContext /*opcontext*/)
 {
-  int alert_icon = ALERT_ICON_QUESTION;
+  blender::ui::AlertIcon alert_icon = blender::ui::AlertIcon::Question;
   switch (icon) {
     case ICON_NONE:
-      alert_icon = ALERT_ICON_NONE;
+      alert_icon = blender::ui::AlertIcon::None;
       break;
     case ICON_ERROR:
-      alert_icon = ALERT_ICON_WARNING;
+      alert_icon = blender::ui::AlertIcon::Warning;
       break;
     case ICON_QUESTION:
-      alert_icon = ALERT_ICON_QUESTION;
+      alert_icon = blender::ui::AlertIcon::Question;
       break;
     case ICON_CANCEL:
-      alert_icon = ALERT_ICON_ERROR;
+      alert_icon = blender::ui::AlertIcon::Error;
       break;
     case ICON_INFO:
-      alert_icon = ALERT_ICON_INFO;
+      alert_icon = blender::ui::AlertIcon::Info;
       break;
   }
   return WM_operator_confirm_ex(C, op, IFACE_(title), nullptr, IFACE_(message), alert_icon, false);
@@ -1226,13 +1224,13 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
 wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_(message), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
+      C, op, IFACE_(message), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
 }
 
 wmOperatorStatus WM_operator_confirm(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
+      C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
 }
 
 wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
@@ -1242,7 +1240,7 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
   const bool confirm = RNA_boolean_get(op->ptr, "confirm");
   if (confirm) {
     return WM_operator_confirm_ex(
-        C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
+        C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
   }
   return op->type->exec(C, op);
 }
@@ -1468,7 +1466,7 @@ struct wmOpPopUp {
   std::string title;
   std::string message;
   std::string confirm_text;
-  eAlertIcon icon;
+  blender::ui::AlertIcon icon;
   wmPopupSize size;
   wmPopupPosition position;
   bool cancel_default;
@@ -1533,8 +1531,8 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   if (data->mouse_move_quit) {
     UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
   }
-  if (data->icon < ALERT_ICON_NONE || data->icon >= ALERT_ICON_MAX) {
-    data->icon = ALERT_ICON_QUESTION;
+  if (data->icon < blender::ui::AlertIcon::None || data->icon >= blender::ui::AlertIcon::Max) {
+    data->icon = blender::ui::AlertIcon::Question;
   }
 
   UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NUMSELECT);
@@ -1565,9 +1563,8 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   dialog_width = std::max(dialog_width, 3 * longest_button_text);
 
   uiLayout *layout;
-  if (data->icon != ALERT_ICON_NONE) {
-    layout = uiItemsAlertBox(
-        block, style, dialog_width + icon_size, eAlertIcon(data->icon), icon_size);
+  if (data->icon != blender::ui::AlertIcon::None) {
+    layout = uiItemsAlertBox(block, style, dialog_width + icon_size, data->icon, icon_size);
   }
   else {
     layout = &blender::ui::block_layout(block,
@@ -1632,7 +1629,6 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
     if (windows_layout) {
       confirm_but = uiDefBut(col_block,
                              ButType::But,
-                             0,
                              data->confirm_text.c_str(),
                              0,
                              0,
@@ -1646,13 +1642,12 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
     }
 
     cancel_but = uiDefBut(
-        col_block, ButType::But, 0, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+        col_block, ButType::But, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
 
     if (!windows_layout) {
       col->column(false);
       confirm_but = uiDefBut(col_block,
                              ButType::But,
-                             0,
                              data->confirm_text.c_str(),
                              0,
                              0,
@@ -1753,7 +1748,7 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
                                         const char *title,
                                         const char *message,
                                         const char *confirm_text,
-                                        int icon,
+                                        blender::ui::AlertIcon icon,
                                         bool cancel_default)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
@@ -1768,7 +1763,7 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
   data->title = (title == nullptr) ? WM_operatortype_name(op->type, op->ptr) : title;
   data->message = (message == nullptr) ? std::string() : message;
   data->confirm_text = (confirm_text == nullptr) ? IFACE_("OK") : confirm_text;
-  data->icon = eAlertIcon(icon);
+  data->icon = icon;
   data->size = (message == nullptr) ? WM_POPUP_SIZE_SMALL : WM_POPUP_SIZE_LARGE;
   data->position = (message == nullptr) ? WM_POPUP_POSITION_MOUSE : WM_POPUP_POSITION_CENTER;
   data->cancel_default = cancel_default;
@@ -1887,7 +1882,7 @@ wmOperatorStatus WM_operator_props_dialog_popup(bContext *C,
   data->title = title ? std::move(*title) : WM_operatortype_name(op->type, op->ptr);
   data->confirm_text = confirm_text ? std::move(*confirm_text) : IFACE_("OK");
   data->message = message ? std::move(*message) : std::string();
-  data->icon = ALERT_ICON_NONE;
+  data->icon = blender::ui::AlertIcon::None;
   data->size = WM_POPUP_SIZE_SMALL;
   data->position = (message) ? WM_POPUP_POSITION_CENTER : WM_POPUP_POSITION_MOUSE;
   data->cancel_default = cancel_default;
@@ -2024,7 +2019,6 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
 
   uiBut *but = uiDefSearchBut(block,
                               g_search_text,
-                              0,
                               ICON_VIEWZOOM,
                               sizeof(g_search_text),
                               0,
@@ -2053,7 +2047,6 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
   const int height = init_data->size[1] - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
            ButType::Label,
-           0,
            "",
            0,
            -height,
@@ -2778,7 +2771,7 @@ static void radial_control_paint_curve(uint pos, Brush *br, float radius, int li
   GPU_line_width(2.0f);
   immUniformColor4f(0.8f, 0.8f, 0.8f, 0.85f);
   float step = (radius * 2.0f) / float(line_segments);
-  BKE_curvemapping_init(br->curve);
+  BKE_curvemapping_init(br->curve_distance_falloff);
   immBegin(GPU_PRIM_LINES, line_segments * 2);
   for (int i = 0; i < line_segments; i++) {
     float h1 = BKE_brush_curve_strength_clamped(br, fabsf((i * step) - radius), radius);
@@ -4364,6 +4357,7 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_select_box");
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_view_ghost_border");
   WM_modalkeymap_assign(keymap, "UV_OT_select_box");
+  WM_modalkeymap_assign(keymap, "UV_OT_custom_region_set");
   WM_modalkeymap_assign(keymap, "CLIP_OT_select_box");
   WM_modalkeymap_assign(keymap, "CLIP_OT_graph_select_box");
   WM_modalkeymap_assign(keymap, "MASK_OT_select_box");
@@ -4497,6 +4491,17 @@ static bool rna_id_enum_filter_single(const ID *id, void *user_data)
   return (id != user_data);
 }
 
+static bool rna_id_enum_filter_single_and_assets(const ID *id, void *user_data)
+{
+  if (!rna_id_enum_filter_single(id, user_data)) {
+    return false;
+  }
+  if (id->asset_data != nullptr) {
+    return false;
+  }
+  return true;
+}
+
 /* Generic itemf's for operators that take library args. */
 static const EnumPropertyItem *rna_id_itemf(bool *r_free,
                                             ID *id,
@@ -4615,7 +4620,7 @@ const EnumPropertyItem *RNA_scene_without_sequencer_scene_itemf(bContext *C,
   return rna_id_itemf(r_free,
                       C ? (ID *)CTX_data_main(C)->scenes.first : nullptr,
                       false,
-                      rna_id_enum_filter_single,
+                      rna_id_enum_filter_single_and_assets,
                       sequencer_scene);
 }
 const EnumPropertyItem *RNA_movieclip_itemf(bContext *C,

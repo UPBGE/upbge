@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
+#include <fmt/format.h>
+#include <sstream>
 
 #include "BLI_listbase.h"
 #include "BLI_string_ref.hh"
@@ -29,8 +31,6 @@
 
 #include "spreadsheet_intern.hh"
 #include "spreadsheet_row_filter_ui.hh"
-
-#include <sstream>
 
 namespace blender::ed::spreadsheet {
 
@@ -65,6 +65,7 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
   switch (data_type) {
     case SPREADSHEET_VALUE_TYPE_INT8:
     case SPREADSHEET_VALUE_TYPE_INT32:
+    case SPREADSHEET_VALUE_TYPE_INT64:
       return std::to_string(row_filter.value_int);
     case SPREADSHEET_VALUE_TYPE_FLOAT: {
       std::ostringstream result;
@@ -76,6 +77,13 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
       std::ostringstream result;
       result << "(" << row_filter.value_int2[0] << ", " << row_filter.value_int2[1] << ")";
       return result.str();
+    }
+    case SPREADSHEET_VALUE_TYPE_INT32_3D: {
+      std::ostringstream result;
+      return fmt::format("({}, {}, {})",
+                         row_filter.value_int3[0],
+                         row_filter.value_int3[1],
+                         row_filter.value_int3[2]);
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT2: {
       std::ostringstream result;
@@ -111,6 +119,7 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
       return row_filter.value_string;
     case SPREADSHEET_VALUE_TYPE_QUATERNION:
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM:
     case SPREADSHEET_VALUE_TYPE_UNKNOWN:
       return "";
   }
@@ -212,12 +221,17 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
       layout->prop(filter_ptr, "value_int8", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_INT32:
+    case SPREADSHEET_VALUE_TYPE_INT64:
       layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       layout->prop(filter_ptr, "value_int", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_INT32_2D:
       layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       layout->prop(filter_ptr, "value_int2", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
+      break;
+    case SPREADSHEET_VALUE_TYPE_INT32_3D:
+      layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(filter_ptr, "value_int3", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_FLOAT:
       layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -260,6 +274,7 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
     case SPREADSHEET_VALUE_TYPE_UNKNOWN:
     case SPREADSHEET_VALUE_TYPE_QUATERNION:
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM:
       layout->label(IFACE_("Unsupported column type"), ICON_ERROR);
       break;
   }

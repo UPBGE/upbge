@@ -10,6 +10,8 @@
 
 #include "DNA_defs.h"
 
+#include "BLI_enum_flags.hh"
+
 /**
  * Check for cyclic set-scene.
  * Libraries can cause this case which is normally prevented, see (#42009).
@@ -25,6 +27,10 @@
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
+#ifdef __cplusplus
+#  include "BLI_map.hh"
+#endif
+
 struct AnimData;
 struct Brush;
 struct Collection;
@@ -39,6 +45,7 @@ struct Scene;
 struct World;
 struct bGPdata;
 struct bNodeTree;
+struct Depsgraph;
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
@@ -54,10 +61,12 @@ class ColorSpace;
 using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
+using SceneDepsgraphsMap = blender::Map<struct DepsgraphKey, Depsgraph *, 4>;
 #else   // __cplusplus
 typedef struct PaintRuntimeHandle PaintRuntimeHandle;
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
+typedef struct SceneDepsgraphsMap SceneDepsgraphsMap;
 #endif  // __cplusplus
 
 /* -------------------------------------------------------------------- */
@@ -330,39 +339,38 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_POSITION "Position"
 #define RE_PASSNAME_NORMAL "Normal"
 #define RE_PASSNAME_UV "UV"
-#define RE_PASSNAME_EMIT "Emit"
+#define RE_PASSNAME_EMIT "Emission"
 #define RE_PASSNAME_SHADOW "Shadow"
 
-#define RE_PASSNAME_AO "AO"
-#define RE_PASSNAME_ENVIRONMENT "Env"
-#define RE_PASSNAME_INDEXOB "IndexOB"
-#define RE_PASSNAME_INDEXMA "IndexMA"
+#define RE_PASSNAME_AO "Ambient Occlusion"
+#define RE_PASSNAME_ENVIRONMENT "Environment"
+#define RE_PASSNAME_INDEXOB "Object Index"
+#define RE_PASSNAME_INDEXMA "Material Index"
 #define RE_PASSNAME_MIST "Mist"
 
-#define RE_PASSNAME_DIFFUSE_DIRECT "DiffDir"
-#define RE_PASSNAME_DIFFUSE_INDIRECT "DiffInd"
-#define RE_PASSNAME_DIFFUSE_COLOR "DiffCol"
-#define RE_PASSNAME_GLOSSY_DIRECT "GlossDir"
-#define RE_PASSNAME_GLOSSY_INDIRECT "GlossInd"
-#define RE_PASSNAME_GLOSSY_COLOR "GlossCol"
-#define RE_PASSNAME_TRANSM_DIRECT "TransDir"
-#define RE_PASSNAME_TRANSM_INDIRECT "TransInd"
-#define RE_PASSNAME_TRANSM_COLOR "TransCol"
+#define RE_PASSNAME_DIFFUSE_DIRECT "Diffuse Direct"
+#define RE_PASSNAME_DIFFUSE_INDIRECT "Diffuse Indirect"
+#define RE_PASSNAME_DIFFUSE_COLOR "Diffuse Color"
+#define RE_PASSNAME_GLOSSY_DIRECT "Glossy Direct"
+#define RE_PASSNAME_GLOSSY_INDIRECT "Glossy Indirect"
+#define RE_PASSNAME_GLOSSY_COLOR "Glossy Color"
+#define RE_PASSNAME_TRANSM_DIRECT "Transmission Direct"
+#define RE_PASSNAME_TRANSM_INDIRECT "Transmission Indirect"
+#define RE_PASSNAME_TRANSM_COLOR "Transmission Color"
 
-#define RE_PASSNAME_SUBSURFACE_DIRECT "SubsurfaceDir"
-#define RE_PASSNAME_SUBSURFACE_INDIRECT "SubsurfaceInd"
-#define RE_PASSNAME_SUBSURFACE_COLOR "SubsurfaceCol"
+#define RE_PASSNAME_SUBSURFACE_DIRECT "Subsurface Direct"
+#define RE_PASSNAME_SUBSURFACE_INDIRECT "Subsurface Indirect"
+#define RE_PASSNAME_SUBSURFACE_COLOR "Subsurface Color"
 
 #define RE_PASSNAME_FREESTYLE "Freestyle"
-#define RE_PASSNAME_BLOOM "BloomCol"
-#define RE_PASSNAME_VOLUME_LIGHT "VolumeDir"
-#define RE_PASSNAME_TRANSPARENT "Transp"
+#define RE_PASSNAME_VOLUME_LIGHT "Volume Direct"
+#define RE_PASSNAME_TRANSPARENT "Transparent"
 
 #define RE_PASSNAME_CRYPTOMATTE_OBJECT "CryptoObject"
 #define RE_PASSNAME_CRYPTOMATTE_ASSET "CryptoAsset"
 #define RE_PASSNAME_CRYPTOMATTE_MATERIAL "CryptoMaterial"
 
-#define RE_PASSNAME_GREASE_PENCIL "GreasePencil"
+#define RE_PASSNAME_GREASE_PENCIL "Grease Pencil"
 
 /** \} */
 
@@ -482,6 +490,7 @@ typedef struct ImageFormatData {
 
   /** OpenEXR: R_IMF_EXR_CODEC_* values in low OPENEXR_CODEC_MASK bits. */
   char exr_codec;
+  char exr_flag;
 
   /** Jpeg2000. */
   char jp2_flag;
@@ -492,19 +501,18 @@ typedef struct ImageFormatData {
 
   /** CINEON. */
   char cineon_flag;
+  char _pad[3];
   short cineon_white, cineon_black;
   float cineon_gamma;
 
-  char _pad[3];
-
   /** Multi-view. */
-  char views_format;
   Stereo3dFormat stereo3d_format;
+  char views_format;
 
   /* Color management members. */
 
   char color_management;
-  char _pad1[7];
+  char _pad1[6];
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
   ColorManagedColorspaceSettings linear_colorspace_settings;
@@ -601,6 +609,11 @@ enum {
   R_IMF_EXR_CODEC_DWAA = 8,
   R_IMF_EXR_CODEC_DWAB = 9,
   R_IMF_EXR_CODEC_MAX = 10,
+};
+
+/** #ImageFormatData::exr_flag */
+enum {
+  R_IMF_EXR_FLAG_MULTIPART = 1 << 0,
 };
 
 /** #ImageFormatData::jp2_flag */
@@ -906,11 +919,9 @@ typedef struct RenderData {
 
   /** Sequencer options. */
   char seq_prev_type;
-  /** UNUSED. */
-  char seq_rend_type;
   /** Flag use for sequence render/draw. */
   char seq_flag;
-  char _pad5[3];
+  char _pad5[4];
 
   /* Render simplify. */
   short simplify_subsurf;
@@ -967,7 +978,10 @@ typedef struct RenderData {
   int compositor_denoise_preview_quality; /* eCompositorDenoiseQaulity */
   int compositor_denoise_final_quality;   /* eCompositorDenoiseQaulity */
 
-  char _pad6[4];
+  /** Frames to jump manually. */
+  float time_jump_delta;
+  int time_jump_unit;
+  char _pad10[4];
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -1015,6 +1029,12 @@ typedef enum eCompositorDenoiseQaulity {
   SCE_COMPOSITOR_DENOISE_BALANCED = 1,
   SCE_COMPOSITOR_DENOISE_FAST = 2,
 } eCompositorDenoiseQaulity;
+
+/** #RenderData::time_jump_unit */
+enum {
+  SCE_TIME_JUMP_FRAME = 0,
+  SCE_TIME_JUMP_SECOND = 1,
+};
 
 /** \} */
 
@@ -1368,6 +1388,12 @@ typedef struct Paint {
 
   /** Flags used for symmetry. */
   int symmetry_flags;
+  /**
+   * Collapsed state of a given pressure curve
+   * See #PaintCurveVisibilityFlags
+   */
+  int curve_visibility_flags;
+  char _pad[4];
 
   float tile_offset[3];
   struct UnifiedPaintSettings unified_paint_settings;
@@ -1528,10 +1554,10 @@ typedef struct CurvesSculpt {
 } CurvesSculpt;
 
 typedef struct UvSculpt {
-  struct CurveMapping *strength_curve;
+  struct CurveMapping *curve_distance_falloff;
   int size;
   float strength;
-  int8_t curve_preset; /* #eBrushCurvePreset. */
+  int8_t curve_distance_falloff_preset; /* #eBrushCurvePreset. */
   char _pad[7];
 } UvSculpt;
 
@@ -1863,6 +1889,8 @@ typedef struct ToolSettings {
   char uv_selectmode;
   char uv_sticky;
 
+  rctf uv_custom_region;
+
   float uvcalc_margin;
 
   int uvcalc_iterations;
@@ -2055,6 +2083,15 @@ typedef struct ToolSettings {
   int16_t snap_step_frames;
   /* Pixel threshold that needs to be crossed before the playhead is snapped to a point. */
   int playhead_snap_distance;
+
+  /* Animation settings, used by "Paste Global Transform" operator. */
+  struct Object *anim_mirror_object;
+  struct Object *anim_relative_object;
+  char anim_mirror_bone[64];
+
+  /* Flags for "Fix to Camera" operator. */
+  uint8_t fix_to_cam_flag; /* eFixToCam_Flags */
+  char _pad8[7];
 
 } ToolSettings;
 
@@ -2287,7 +2324,6 @@ typedef struct Scene {
   ListBase base DNA_DEPRECATED;
   /** Active base. */
   struct Base *basact DNA_DEPRECATED;
-  void *_pad1;
 
   /** 3d cursor location. */
   View3DCursor cursor;
@@ -2312,7 +2348,6 @@ typedef struct Scene {
 
   /** Default allocated now. */
   struct ToolSettings *toolsettings;
-  void *_pad4;
   struct DisplaySafeAreas safe_areas;
 
   /* Migrate or replace? depends on some internal things... */
@@ -2326,16 +2361,11 @@ typedef struct Scene {
   /** First is the [scene, translate, rotate, scale]. */
   TransformOrientationSlot orientation_slots[4];
 
-  void *sound_scene;
-  void *playback_handle;
-  void *sound_scrub_handle;
-  void *speaker_handles;
-
   /** (runtime) info/cache used for presenting playback frame-rate info to the user. */
   void *fps_info;
 
   /** None of the dependency graph vars is mean to be saved. */
-  struct GHash *depsgraph_hash;
+  SceneDepsgraphsMap *depsgraph_hash;
   char _pad7[4];
 
   /* User-Defined KeyingSets. */
@@ -2363,7 +2393,6 @@ typedef struct Scene {
   /** Physics simulation settings. */
   struct PhysicsSettings physics_settings;
 
-  void *_pad8;
   /**
    * XXX: runtime flag for drawing, actually belongs in the window,
    * only used by #BKE_object_handle_update()
@@ -2555,8 +2584,6 @@ enum {
   R_LINE_THICKNESS_RELATIVE = 2,
 };
 
-/* Sequencer seq_prev_type seq_rend_type. */
-
 /** #RenderData::engine (scene.cc) */
 extern const char *RE_engine_id_BLENDER_EEVEE;
 extern const char *RE_engine_id_BLENDER_WORKBENCH;
@@ -2664,7 +2691,7 @@ typedef enum eSnapFlag {
   SCE_SNAP_TO_ONLY_SELECTABLE = (1 << 10),
 } eSnapFlag;
 
-ENUM_OPERATORS(eSnapFlag, SCE_SNAP_TO_ONLY_SELECTABLE)
+ENUM_OPERATORS(eSnapFlag)
 
 /** See #ToolSettings::snap_target (to be renamed `snap_source`) and #TransSnap.source_operation */
 typedef enum eSnapSourceOP {
@@ -2674,7 +2701,7 @@ typedef enum eSnapSourceOP {
   SCE_SNAP_SOURCE_ACTIVE = 3,
 } eSnapSourceOP;
 
-ENUM_OPERATORS(eSnapSourceOP, SCE_SNAP_SOURCE_ACTIVE)
+ENUM_OPERATORS(eSnapSourceOP)
 
 /**
  * #TransSnap::target_operation and #ToolSettings::snap_flag
@@ -2689,7 +2716,7 @@ typedef enum eSnapTargetOP {
   SCE_SNAP_TARGET_ONLY_SELECTABLE = (1 << 3),
   SCE_SNAP_TARGET_NOT_NONEDITED = (1 << 4),
 } eSnapTargetOP;
-ENUM_OPERATORS(eSnapTargetOP, SCE_SNAP_TARGET_NOT_NONEDITED)
+ENUM_OPERATORS(eSnapTargetOP)
 
 /** #ToolSettings::snap_mode */
 typedef enum eSnapMode {
@@ -2717,12 +2744,7 @@ typedef enum eSnapMode {
   SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
   SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
 } eSnapMode;
-
-/* Due to dependency conflicts with Cycles, header cannot directly include `BLI_utildefines.h`. */
-/* TODO: move this macro to a more general place. */
-#ifdef ENUM_OPERATORS
-ENUM_OPERATORS(eSnapMode, SCE_SNAP_INDIVIDUAL_PROJECT)
-#endif
+ENUM_OPERATORS(eSnapMode)
 
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
@@ -2984,27 +3006,61 @@ enum {
 
 /** #ToolSettings::uv_flag */
 enum {
-  UV_FLAG_SYNC_SELECT = 1 << 0,
+  UV_FLAG_SELECT_SYNC = 1 << 0,
   UV_FLAG_SHOW_SAME_IMAGE = 1 << 1,
   /**
    * \note In most cases #ED_uvedit_select_island_check should be used to check if island
    * selection should be used - since not all combinations of options support it.
    */
-  UV_FLAG_ISLAND_SELECT = 1 << 2,
+  UV_FLAG_SELECT_ISLAND = 1 << 2,
+  UV_FLAG_CUSTOM_REGION = 1 << 3,
 };
 
 /** #ToolSettings::uv_selectmode */
 enum {
-  UV_SELECT_VERTEX = 1 << 0,
+  UV_SELECT_VERT = 1 << 0,
   UV_SELECT_EDGE = 1 << 1,
   UV_SELECT_FACE = 1 << 2,
 };
 
-/** #ToolSettings::uv_sticky */
+/**
+ * #ToolSettings::uv_sticky
+ *
+ * Control the behavior of selecting UV's in the UV editor.
+ *
+ * Internally UV's store selection for every face-corner,
+ * however for the purpose of conveniently selecting & editing UV's it's often
+ * preferable to use sticky selection (#UV_STICKY_LOCATION),
+ * where selecting a UV also selects other UV's at the same location.
+ *
+ * \note This setting only affects subsequent selection operations.
+ * It does not alter the current selection state.
+ */
 enum {
-  SI_STICKY_LOC = 0,
-  SI_STICKY_DISABLE = 1,
-  SI_STICKY_VERTEX = 2,
+  /**
+   * Treat all other UV's sharing the vertex at that location as a single UV.
+   * This is the default behavior.
+   *
+   * \note Ripping UV's apart is still possible with "Split" & "Rip" operators.
+   */
+  UV_STICKY_LOCATION = 0,
+  /**
+   * Treat all UV's as individual face-corners, no matter where they are located.
+   * This can be useful if the intention with UV editing is to manipulate each faces
+   * UV's independently of one another.
+   *
+   * \note This is impractical for typical usage as it's impractical
+   * to select and move a single UV connected to other UV chordates.
+   */
+  UV_STICKY_DISABLE = 1,
+  /**
+   * Selecting applies to all UV's sharing a vertex.
+   * This can be useful to weld UV's that share a vertex but have become separated.
+   *
+   * \note This is impractical for typical usage since selecting UV's at island-boundaries
+   * selects UV's of any other UV island-boundaries which share that vertex.
+   */
+  UV_STICKY_VERT = 2,
 };
 
 /** #ToolSettings::gpencil_flags */

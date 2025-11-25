@@ -192,7 +192,11 @@ bool ED_image_save_all_modified(const bContext *C, ReportList *reports);
 struct ImageFrameRange {
   ImageFrameRange *next, *prev;
 
-  /** Absolute file path of the first file in the range. */
+  /**
+   * File path of the first file in the range.
+   * May be relative to `G_MAIN->filepath` or the `root_path`
+   * passed in by #ED_image_filesel_detect_sequences.
+   */
   char filepath[FILE_MAX];
   /* Sequence parameters. */
   int length; /* Does not include placeholders, stops at gaps in sequence. */
@@ -214,8 +218,15 @@ struct ImageFrame {
 
 /**
  * Used for both images and volume file loading.
+ *
+ * \param blendfile_path: For relative paths, the operator paths will be relative to this.
+ * \param root_path: When `op` references a relative path, #ImageFrameRange::filepath
+ * will be made relative to this path if possible, otherwise it will be made absolute.
+ * Note that `blendfile_path` may equal `root_path`, otherwise `root_path` may be set
+ * to a libraries absolute file-path.
  */
-ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
+ListBase ED_image_filesel_detect_sequences(blender::StringRefNull blendfile_path,
+                                           blender::StringRefNull root_path,
                                            wmOperator *op,
                                            bool detect_udim);
 

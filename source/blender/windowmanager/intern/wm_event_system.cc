@@ -28,13 +28,13 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timer.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -49,8 +49,6 @@
 #include "BKE_screen.hh"
 #include "BKE_undo_system.hh"
 #include "BKE_workspace.hh"
-
-#include "BKE_sound.h"
 
 #include "BLT_translation.hh"
 
@@ -120,7 +118,7 @@ enum eHandlerActionFlag {
   /** `WM_HANDLER_MODAL | WM_HANDLER_BREAK` means unhandled. */
   WM_HANDLER_MODAL = 1 << 2,
 };
-ENUM_OPERATORS(eHandlerActionFlag, WM_HANDLER_MODAL);
+ENUM_OPERATORS(eHandlerActionFlag);
 /** Comparison, for readability. */
 #define WM_HANDLER_CONTINUE ((eHandlerActionFlag)0)
 
@@ -322,29 +320,27 @@ void wm_event_init_from_window(wmWindow *win, wmEvent *event)
 /** \name Notifiers & Listeners
  * \{ */
 
+namespace blender::bke {
 /**
  * Hash for #wmWindowManager.notifier_queue_set, ignores `window`.
  */
-static uint note_hash_for_queue_fn(const void *ptr)
+uint64_t wmNotifierHashForQueue::operator()(const wmNotifier *note) const
 {
-  const wmNotifier *note = static_cast<const wmNotifier *>(ptr);
-  return (BLI_ghashutil_ptrhash(note->reference) ^
-          (note->category | note->data | note->subtype | note->action));
+  return get_default_hash(
+      note->reference, note->category, note->data, note->subtype, note->action);
 }
-
 /**
  * Comparison for #wmWindowManager.notifier_queue_set
  *
  * \note This is not an exact equality function as the `window` is ignored.
  */
-static bool note_cmp_for_queue_fn(const void *a, const void *b)
+bool wmNotifierEqForQueue::operator()(const wmNotifier *a, const wmNotifier *b) const
 {
-  const wmNotifier *note_a = static_cast<const wmNotifier *>(a);
-  const wmNotifier *note_b = static_cast<const wmNotifier *>(b);
-  return !(((note_a->category | note_a->data | note_a->subtype | note_a->action) ==
-            (note_b->category | note_b->data | note_b->subtype | note_b->action)) &&
-           (note_a->reference == note_b->reference));
+  return ((a->category | a->data | a->subtype | a->action) ==
+          (b->category | b->data | b->subtype | b->action)) &&
+         (a->reference == b->reference);
 }
+}  // namespace blender::bke
 
 static void wm_event_add_notifier_intern(wmWindowManager *wm,
                                          const wmWindow *win,
@@ -365,19 +361,12 @@ static void wm_event_add_notifier_intern(wmWindowManager *wm,
 
   BLI_assert(!wm_notifier_is_clear(&note_test));
 
-  if (wm->runtime->notifier_queue_set == nullptr) {
-    wm->runtime->notifier_queue_set = BLI_gset_new_ex(
-        note_hash_for_queue_fn, note_cmp_for_queue_fn, __func__, 1024);
-  }
-
-  void **note_p;
-  if (BLI_gset_ensure_p_ex(wm->runtime->notifier_queue_set, &note_test, &note_p)) {
-    return;
-  }
-  wmNotifier *note = MEM_callocN<wmNotifier>(__func__);
-  *note = note_test;
-  *note_p = note;
-  BLI_addtail(&wm->runtime->notifier_queue, note);
+  wm->runtime->notifier_queue_set.lookup_key_or_add_cb(&note_test, [&]() {
+    wmNotifier *note = MEM_callocN<wmNotifier>(__func__);
+    *note = note_test;
+    BLI_addtail(&wm->runtime->notifier_queue, note);
+    return note;
+  });
 }
 
 void WM_event_add_notifier_ex(wmWindowManager *wm, const wmWindow *win, uint type, void *reference)
@@ -417,9 +406,7 @@ void WM_main_remove_notifier_reference(const void *reference)
   if (wm) {
     LISTBASE_FOREACH_MUTABLE (wmNotifier *, note, &wm->runtime->notifier_queue) {
       if (note->reference == reference) {
-        const bool removed = BLI_gset_remove(wm->runtime->notifier_queue_set, note, nullptr);
-        BLI_assert(removed);
-        UNUSED_VARS_NDEBUG(removed);
+        wm->runtime->notifier_queue_set.remove_contained(note);
 
         /* Remove unless this is being iterated over by the caller.
          * This is done to prevent `wm->runtime->notifier_queue` accumulating notifiers
@@ -521,6 +508,7 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
         DEG_graph_relations_update(depsgraph);
         DEG_tag_on_visible_update(bmain, depsgraph);
       }
+      DEG_make_active(depsgraph);
       BKE_scene_graph_update_tagged(depsgraph, bmain);
     }
 
@@ -622,10 +610,10 @@ void wm_event_do_notifiers(bContext *C)
       if (note->category == NC_WM) {
         if (ELEM(note->data, ND_FILEREAD, ND_FILESAVE)) {
           wm->file_saved = 1;
-          WM_window_title(wm, win);
+          WM_window_title_refresh(wm, win);
         }
         else if (note->data == ND_DATACHANGED) {
-          WM_window_title(wm, win);
+          WM_window_title_refresh(wm, win);
         }
         else if (note->data == ND_UNDO) {
           ED_preview_restart_queue_work(C);
@@ -731,9 +719,7 @@ void wm_event_do_notifiers(bContext *C)
     /* NOTE: no need to set `wm->runtime->notifier_current` since it's been removed from the queue.
      */
 
-    const bool removed = BLI_gset_remove(wm->runtime->notifier_queue_set, note, nullptr);
-    BLI_assert(removed);
-    UNUSED_VARS_NDEBUG(removed);
+    wm->runtime->notifier_queue_set.remove_contained(note);
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       Scene *scene = WM_window_get_active_scene(win);
       bScreen *screen = WM_window_get_active_screen(win);
@@ -746,7 +732,7 @@ void wm_event_do_notifiers(bContext *C)
         /* Pass. */
       }
       else if (note->category == NC_SCENE && note->reference &&
-               (note->reference != scene && note->reference != workspace->sequencer_scene))
+               !ELEM(note->reference, scene, workspace->sequencer_scene))
       {
         /* Pass. */
       }
@@ -1111,6 +1097,26 @@ bool WM_operator_poll(bContext *C, wmOperatorType *ot)
   }
 
   return true;
+}
+
+bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportList *reports)
+{
+  CTX_wm_operator_poll_msg_clear(C);
+  if (WM_operator_poll(C, ot)) {
+    return true;
+  }
+  bool msg_free = false;
+  const char *msg = CTX_wm_operator_poll_msg_get(C, &msg_free);
+  CTX_wm_operator_poll_msg_clear(C);
+  BKE_reportf(reports,
+              RPT_ERROR,
+              "Invalid context: \"%s\", %s",
+              CTX_IFACE_(ot->translation_context, ot->name),
+              msg ? msg : IFACE_("poll failed"));
+  if (msg_free) {
+    MEM_freeN(msg);
+  }
+  return false;
 }
 
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context)
@@ -3504,9 +3510,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
             /* Other drop custom types allowed. */
             if (event->custom == EVT_DATA_DRAGDROP) {
-              /* Drop handlers can perform multiple operations (e.g., collection drag-and-drop),
-               * but we want to treat it as a single operation. */
-              ED_undo_group_begin(C);
               ListBase *lb = (ListBase *)event->customdata;
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
                 if (drop->poll(C, drag, event)) {
@@ -3550,7 +3553,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               }
               /* Always exit all drags on a drop event, even if poll didn't succeed. */
               wm_drags_exit(wm, win);
-              ED_undo_group_end(C);
             }
           }
         }
@@ -4947,41 +4949,25 @@ bool WM_event_handler_region_marker_poll(const wmWindow *win,
                                          const ARegion *region,
                                          const wmEvent *event)
 {
-  switch (area->spacetype) {
-    case SPACE_ACTION: {
-      const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
-      if ((saction->flag & SACTION_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
+  if (!ED_markers_region_visible(area, region)) {
+    return false;
+  }
+
+  /* Check for markers in the current scene, noting that the VSE uses a special sequencer scene. */
+  Scene *scene = WM_window_get_active_scene(win);
+
+  if (area->spacetype == SPACE_SEQ) {
+    WorkSpace *workspace = WM_window_get_active_workspace(win);
+    if (workspace && workspace->sequencer_scene) {
+      scene = workspace->sequencer_scene;
     }
-    case SPACE_GRAPH: {
-      const SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
-      if ((sgraph->flag & SIPO_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
+    else {
+      return false;
     }
-    case SPACE_NLA: {
-      const SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
-      if ((snla->flag & SNLA_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
-    }
-    case SPACE_SEQ: {
-      const SpaceSeq *seq = static_cast<SpaceSeq *>(area->spacedata.first);
-      if ((seq->flag & SEQ_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
-    }
-    default:
-      break;
   }
 
   const ListBase *markers = ED_scene_markers_get_from_area(
-      WM_window_get_active_scene(win), WM_window_get_active_view_layer(win), area);
+      scene, WM_window_get_active_view_layer(win), area);
   if (BLI_listbase_is_empty(markers)) {
     return false;
   }
@@ -5588,8 +5574,7 @@ constexpr wmTabletData wm_event_tablet_data_default()
   wmTabletData tablet_data{};
   tablet_data.active = EVT_TABLET_NONE;
   tablet_data.pressure = 1.0f;
-  tablet_data.tilt.x = 0.0f;
-  tablet_data.tilt.y = 0.0f;
+  tablet_data.tilt = blender::float2(0.0f, 0.0f);
   tablet_data.is_motion_absolute = false;
   return tablet_data;
 }
@@ -6850,7 +6835,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *la
       continue;
     }
 
-    const int num_items_used = uiTemplateStatusBarModalItem(row, keymap, items + i);
+    const int num_items_used = uiTemplateStatusBarModalItem(row, op, keymap, items + i);
     if (num_items_used > 0) {
       /* Skip items in case consecutive items were merged. */
       i += num_items_used - 1;

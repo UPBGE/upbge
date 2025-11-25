@@ -89,9 +89,7 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
     return nullptr;
   }
 
-  imb_mmap_lock();
   BLI_mmap_file *mmap_file = BLI_mmap_open(file);
-  imb_mmap_unlock();
   close(file);
   if (mmap_file == nullptr) {
     return nullptr;
@@ -102,12 +100,11 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
 
   WebPDecoderConfig config;
   if (!data || !WebPInitDecoderConfig(&config) ||
-      WebPGetFeatures(data, data_size, &config.input) != VP8_STATUS_OK)
+      WebPGetFeatures(data, data_size, &config.input) != VP8_STATUS_OK ||
+      BLI_mmap_any_io_error(mmap_file))
   {
     CLOG_ERROR(&LOG, "Invalid file");
-    imb_mmap_lock();
     BLI_mmap_free(mmap_file);
-    imb_mmap_unlock();
     return nullptr;
   }
 
@@ -122,9 +119,7 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
   ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_byte_data);
   if (ibuf == nullptr) {
     CLOG_ERROR(&LOG, "Failed to allocate image memory");
-    imb_mmap_lock();
     BLI_mmap_free(mmap_file);
-    imb_mmap_unlock();
     return nullptr;
   }
 
@@ -141,22 +136,17 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
   config.output.u.RGBA.stride = 4 * ibuf->x;
   config.output.u.RGBA.size = size_t(config.output.u.RGBA.stride) * size_t(ibuf->y);
 
-  if (WebPDecode(data, data_size, &config) != VP8_STATUS_OK) {
+  if (WebPDecode(data, data_size, &config) != VP8_STATUS_OK || BLI_mmap_any_io_error(mmap_file)) {
     CLOG_ERROR(&LOG, "Failed to decode image");
     IMB_freeImBuf(ibuf);
-
-    imb_mmap_lock();
     BLI_mmap_free(mmap_file);
-    imb_mmap_unlock();
     return nullptr;
   }
 
   /* Free the output buffer. */
   WebPFreeDecBuffer(&config.output);
 
-  imb_mmap_lock();
   BLI_mmap_free(mmap_file);
-  imb_mmap_unlock();
 
   return ibuf;
 }
@@ -186,7 +176,7 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
 
     last_row = (uchar *)(rgb_rect + (size_t(ibuf->y - 1) * size_t(ibuf->x) * 3));
 
-    if (ibuf->foptions.quality == 100.0f) {
+    if (ibuf->foptions.quality == 100) {
       encoded_data_size = WebPEncodeLosslessRGB(
           last_row, ibuf->x, ibuf->y, -3 * ibuf->x, &encoded_data);
     }
@@ -199,7 +189,7 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
   else if (bytesperpixel == 4) {
     last_row = ibuf->byte_buffer.data + 4 * size_t(ibuf->y - 1) * size_t(ibuf->x);
 
-    if (ibuf->foptions.quality == 100.0f) {
+    if (ibuf->foptions.quality == 100) {
       encoded_data_size = WebPEncodeLosslessRGBA(
           last_row, ibuf->x, ibuf->y, -4 * ibuf->x, &encoded_data);
     }
@@ -224,7 +214,7 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
   /* Write ICC profile if there is one associated with the colorspace. */
   const ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
   if (colorspace) {
-    blender::Vector<char> icc_profile = IMB_colormanagement_space_icc_profile(colorspace);
+    blender::Vector<char> icc_profile = IMB_colormanagement_space_to_icc_profile(colorspace);
     if (!icc_profile.is_empty()) {
       WebPData icc_chunk = {reinterpret_cast<const uint8_t *>(icc_profile.data()),
                             size_t(icc_profile.size())};

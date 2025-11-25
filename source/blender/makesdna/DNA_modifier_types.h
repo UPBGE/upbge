@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
+#include "BLI_implicit_sharing.h"
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -146,7 +147,7 @@ typedef enum ModifierMode {
   eModifierMode_ApplyOnSpline = (1 << 6),
   eModifierMode_DisableTemporary = (1u << 31),
 } ModifierMode;
-ENUM_OPERATORS(ModifierMode, eModifierMode_DisableTemporary);
+ENUM_OPERATORS(ModifierMode);
 
 typedef struct ModifierData {
   struct ModifierData *next, *prev;
@@ -234,7 +235,13 @@ typedef enum {
   eSubsurfModifierFlag_UseCrease = (1 << 4),
   eSubsurfModifierFlag_UseCustomNormals = (1 << 5),
   eSubsurfModifierFlag_UseRecursiveSubdivision = (1 << 6),
+  eSubsurfModifierFlag_UseAdaptiveSubdivision = (1 << 7),
 } SubsurfModifierFlag;
+
+typedef enum {
+  SUBSURF_ADAPTIVE_SPACE_PIXEL = 0,
+  SUBSURF_ADAPTIVE_SPACE_OBJECT = 1,
+} eSubsurfAdaptiveSpace;
 
 typedef enum {
   SUBSURF_TYPE_CATMULL_CLARK = 0,
@@ -268,7 +275,11 @@ typedef struct SubsurfModifierData {
   short quality;
   /** #eSubsurfBoundarySmooth. */
   short boundary_smooth;
-  char _pad[2];
+  /* Adaptive subdivision. */
+  /** #eSubsurfAdaptiveSpace */
+  short adaptive_space;
+  float adaptive_pixel_size;
+  float adaptive_object_edge_length;
 } SubsurfModifierData;
 
 typedef struct LatticeModifierData {
@@ -1071,20 +1082,26 @@ typedef struct MeshDeformModifierData {
   /* result of static binding */
   /** Influences. */
   MDefInfluence *bindinfluences;
+  const ImplicitSharingInfoHandle *bindinfluences_sharing_info;
   /** Offsets into influences array. */
   int *bindoffsets;
+  const ImplicitSharingInfoHandle *bindoffsets_sharing_info;
   /** Coordinates that cage was bound with. */
   float *bindcagecos;
+  const ImplicitSharingInfoHandle *bindcagecos_sharing_info;
   /** Total vertices in mesh and cage. */
   int verts_num, cage_verts_num;
 
   /* result of dynamic binding */
   /** Grid with dynamic binding cell points. */
   MDefCell *dyngrid;
+  const ImplicitSharingInfoHandle *dyngrid_sharing_info;
   /** Dynamic binding vertex influences. */
   MDefInfluence *dyninfluences;
+  const ImplicitSharingInfoHandle *dyninfluences_sharing_info;
   /** Is this vertex bound or not? */
   int *dynverts;
+  const ImplicitSharingInfoHandle *dynverts_sharing_info;
   /** Size of the dynamic bind grid. */
   int dyngridsize;
   /** Total number of vertex influences. */
@@ -1976,6 +1993,7 @@ typedef struct CorrectiveSmoothModifierData {
   /* positions set during 'bind' operator
    * use for MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND */
   float (*bind_coords)[3];
+  const ImplicitSharingInfoHandle *bind_coords_sharing_info;
 
   /* NOTE: -1 is used to bind. */
   unsigned int bind_coords_num;
@@ -2130,6 +2148,7 @@ typedef struct LaplacianDeformModifierData {
   char anchor_grp_name[/*MAX_VGROUP_NAME*/ 64];
   int verts_num, repeat;
   float *vertexco;
+  const ImplicitSharingInfoHandle *vertexco_sharing_info;
   /** Runtime only. */
   void *cache_system;
   /** #LaplacianDeformModifierFlag. */
@@ -2342,7 +2361,7 @@ typedef struct SurfaceDeformModifierData {
   struct Object *target;
   /** Vertex bind data. */
   SDefVert *verts;
-  void *_pad1;
+  const ImplicitSharingInfoHandle *verts_sharing_info;
   float falloff;
   /* Number of vertices on the deformed mesh upon the bind process. */
   unsigned int mesh_verts_num;
@@ -2569,6 +2588,7 @@ typedef struct NodesModifierData {
 
 typedef enum NodesModifierFlag {
   NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR = (1 << 0),
+  NODES_MODIFIER_HIDE_MANAGE_PANEL = (1 << 1),
 } NodesModifierFlag;
 
 typedef struct MeshToVolumeModifierData {

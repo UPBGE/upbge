@@ -142,7 +142,7 @@ static eContextResult screen_ctx_visible_objects(const bContext *C, bContextData
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_selectable_objects(const bContext *C, bContextDataResult *result)
@@ -158,7 +158,7 @@ static eContextResult screen_ctx_selectable_objects(const bContext *C, bContextD
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_selected_objects(const bContext *C, bContextDataResult *result)
@@ -174,7 +174,7 @@ static eContextResult screen_ctx_selected_objects(const bContext *C, bContextDat
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_selected_editable_objects(const bContext *C,
@@ -191,7 +191,7 @@ static eContextResult screen_ctx_selected_editable_objects(const bContext *C,
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_editable_objects(const bContext *C, bContextDataResult *result)
@@ -208,7 +208,7 @@ static eContextResult screen_ctx_editable_objects(const bContext *C, bContextDat
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_objects_in_mode(const bContext *C, bContextDataResult *result)
@@ -226,7 +226,7 @@ static eContextResult screen_ctx_objects_in_mode(const bContext *C, bContextData
     }
     FOREACH_OBJECT_IN_MODE_END;
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_objects_in_mode_unique_data(const bContext *C,
@@ -252,7 +252,7 @@ static eContextResult screen_ctx_objects_in_mode_unique_data(const bContext *C,
     }
     FOREACH_OBJECT_IN_MODE_END;
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
@@ -313,7 +313,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
       }
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -383,7 +383,7 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
       }
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -422,7 +422,7 @@ static eContextResult screen_ctx_visible_pose_bones(const bContext *C, bContextD
       }
       FOREACH_OBJECT_IN_MODE_END;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -436,6 +436,10 @@ static eContextResult screen_ctx_selected_pose_bones(const bContext *C, bContext
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   Object *obpose = BKE_object_pose_armature_get(obact);
   if (obpose && obpose->pose && obpose->data) {
+    if (obpose->pose->flag & POSE_RECALC) {
+      /* Can happen with undo-redo, see #150451. */
+      BKE_pose_rebuild(CTX_data_main(C), obpose, (bArmature *)obpose->data, false);
+    }
     if (obpose != obact) {
       FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obpose, pchan) {
         CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
@@ -451,7 +455,7 @@ static eContextResult screen_ctx_selected_pose_bones(const bContext *C, bContext
       }
       FOREACH_OBJECT_IN_MODE_END;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -478,7 +482,7 @@ static eContextResult screen_ctx_selected_pose_bones_from_active_object(const bC
       }
       FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -552,7 +556,7 @@ static eContextResult screen_ctx_property(const bContext *C, bContextDataResult 
       index = -1;
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_PROPERTY);
+    CTX_data_type_set(result, ContextDataType::Property);
     CTX_data_pointer_set_ptr(result, &ptr);
     CTX_data_prop_set(result, prop, index);
   }
@@ -708,7 +712,7 @@ static eContextResult screen_ctx_selected_nla_strips(const bContext *C, bContext
     }
     ANIM_animdata_freelist(&anim_data);
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -733,7 +737,7 @@ static eContextResult screen_ctx_selected_movieclip_tracks(const bContext *C,
     CTX_data_list_add(result, &clip->id, &RNA_MovieTrackingTrack, track);
   }
 
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 
@@ -851,7 +855,7 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
           CTX_data_id_list_add(result, active_action_id);
         }
 
-        CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+        CTX_data_type_set(result, ContextDataType::Collection);
       }
 
       return CTX_RESULT_OK;
@@ -913,7 +917,7 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
   ANIM_animdata_freelist(&anim_data);
 
   if (!active_only) {
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
   }
 
   return CTX_RESULT_OK;
@@ -957,7 +961,7 @@ static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
 
     ANIM_animdata_freelist(&anim_data);
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -1047,7 +1051,7 @@ static eContextResult screen_ctx_selected_editable_keyframes(const bContext *C,
 
     ANIM_animdata_freelist(&anim_data);
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -1099,7 +1103,7 @@ static eContextResult screen_ctx_strips(const bContext *C, bContextDataResult *r
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -1117,7 +1121,7 @@ static eContextResult screen_ctx_selected_strips(const bContext *C, bContextData
         CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
       }
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -1140,7 +1144,7 @@ static eContextResult screen_ctx_selected_editable_strips(const bContext *C,
       CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_sequencer_scene(const bContext *C, bContextDataResult *result)

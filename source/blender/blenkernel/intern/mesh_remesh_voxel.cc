@@ -21,9 +21,11 @@
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.hh"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_remesh_voxel.hh" /* own include */
 #include "BKE_mesh_sample.hh"
@@ -572,6 +574,10 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
       Array<int> map(dst.verts_num);
       find_nearest_verts(
           src_positions, src_corner_verts, src_corner_tris, dst_positions, vert_nearest_tris, map);
+      /* Copy vertex group names (otherwise `MeshVertexGroupsAttributeProvider` wont find them -
+       * and these would show up as regular attributes afterwards). "vertex_group_active_index" is
+       * taken care of via #BKE_mesh_copy_parameters(). */
+      BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
       gather_attributes(point_ids, src_attributes, AttrDomain::Point, map, dst_attributes);
     }
 
@@ -620,6 +626,12 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   }
   if (src.default_color_attribute) {
     BKE_id_attributes_default_color_set(&dst.id, src.default_color_attribute);
+  }
+  if (!src.active_uv_map_name().is_empty()) {
+    dst.uv_maps_active_set(src.active_uv_map_name());
+  }
+  if (!src.default_uv_map_name().is_empty()) {
+    dst.uv_maps_default_set(src.default_uv_map_name());
   }
 }
 

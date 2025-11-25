@@ -777,7 +777,7 @@ def fbx_data_mesh_shapes_elements(root, me_obj, me, scene_data, fbx_me_tmpl, fbx
     channels = []
 
     vertices = me.vertices
-    for shape, (channel_key, geom_key, shape_verts_co, shape_verts_idx) in shapes.items():
+    for shape, (channel_key, geom_key, shape_verts_co, shape_verts_nors, shape_verts_idx) in shapes.items():
         # Use vgroups as weights, if defined.
         if shape.vertex_group and shape.vertex_group in me_obj.bdata.vertex_groups:
             shape_verts_weights = np.zeros(len(shape_verts_idx), dtype=np.float64)
@@ -808,7 +808,16 @@ def fbx_data_mesh_shapes_elements(root, me_obj, me, scene_data, fbx_me_tmpl, fbx
         elem_data_single_int32_array(geom, b"Indexes", shape_verts_idx)
         elem_data_single_float64_array(geom, b"Vertices", shape_verts_co)
         if write_normals:
-            elem_data_single_float64_array(geom, b"Normals", np.zeros(len(shape_verts_idx) * 3, dtype=np.float64))
+            # In some Unity versions (2020-2023), when all normals are 0 for
+            # a particular shape, it'll recalculate instead of importing,
+            # causing really broken normals. This works around it as per
+            # discussion in !126491
+            eps = 1.1e-6
+            requires_unity_workaround = (np.abs(shape_verts_nors) < eps).all()
+            if requires_unity_workaround:
+                shape_verts_nors[0][0] = eps
+
+            elem_data_single_float64_array(geom, b"Normals", shape_verts_nors)
 
     # Yiha! BindPose for shapekeys too! Dodecasigh...
     # XXX Not sure yet whether several bindposes on same mesh are allowed, or not... :/
@@ -1205,7 +1214,12 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
 
         # Workaround for Unity FBX import issue where the normals are considered invalid if any normals are
         # deduplicated. See #123088.
-        if normal_mapping == b"ByVertice":
+        # Unity FBX also has issues with importing blend shape normals with deduplicated normals, so skip
+        # deduplication if the mesh has shape keys. See !126491.
+        skip_normal_deduplication = (normal_mapping == b"ByVertice") or \
+                                    (me in scene_data.data_deformers_shape)
+
+        if skip_normal_deduplication:
             # Write every normal without any deduplication, so the indices array will be [0, 1, 2, ..., n].
             t_normal_idx = np.arange(len(t_normal.reshape(-1, 3)), dtype=normal_idx_fbx_dtype)
         else:
@@ -1642,10 +1656,21 @@ def fbx_data_material_elements(root, ma, scene_data):
     if scene_data.settings.use_custom_props:
         fbx_data_element_custom_properties(props, ma)
 
+def _get_image_filepath(img):
+    if len(img.filepath) > 0:
+        return img.filepath
+
+    # It's possible to have a packed image without a filepath. Pick a filepath
+    # that is unlikely to conflict.
+    filepath = os.path.join("textures", "packed")
+    if img.library:
+        filepath = os.path.join(filepath, bpy.path.clean_name(img.library.name))
+    return "//" + os.path.join(filepath, bpy.path.clean_name(img.name))
 
 def _gen_vid_path(img, scene_data):
     msetts = scene_data.settings.media_settings
-    fname_rel = bpy_extras.io_utils.path_reference(img.filepath, msetts.base_src, msetts.base_dst, msetts.path_mode,
+    img_filepath = _get_image_filepath(img)
+    fname_rel = bpy_extras.io_utils.path_reference(img_filepath, msetts.base_src, msetts.base_dst, msetts.path_mode,
                                                    msetts.subdir, msetts.copy_set, img.library)
     fname_abs = os.path.normpath(os.path.abspath(os.path.join(msetts.base_dst, fname_rel)))
     return fname_abs, fname_rel
@@ -2269,7 +2294,7 @@ def fbx_animations_do(scene_data, ref_id, f_start, f_end, start_zero, objects=No
         # Ignore absolute shape keys for now!
         if not me.shape_keys.use_relative:
             continue
-        for shape, (channel_key, geom_key, _shape_verts_co, _shape_verts_idx) in shapes.items():
+        for shape, (channel_key, geom_key, _shape_verts_co, _shape_verts_nors, _shape_verts_idx) in shapes.items():
             acnode = AnimationCurveNodeWrapper(channel_key, 'SHAPE_KEY', force_key, force_sek, (0.0,))
             # Sooooo happy to have to twist again like a mad snake... Yes, we need to write those curves twice. :/
             acnode.add_group(me_key, shape.name, shape.name, (shape.name,))
@@ -2491,16 +2516,25 @@ def fbx_animations(scene_data):
 
     # All actions.
     if scene_data.settings.bake_anim_use_all_actions:
-        def validate_actions(act, path_resolve):
-            for fc in act.fcurves:
-                data_path = fc.data_path
-                if fc.array_index:
-                    data_path = data_path + "[%d]" % fc.array_index
-                try:
-                    path_resolve(data_path)
-                except ValueError:
-                    return False  # Invalid.
-            return True  # Valid.
+        def find_validate_action_slot(act, path_resolve) -> bpy.types.ActionSlot | None:
+            for layer in act.layers:
+                for strip in layer.strips:
+                    for channelbag in strip.channelbags:
+                        if not channelbag.fcurves:
+                            # Do not export empty Channelbags.
+                            continue
+                        for fc in channelbag.fcurves:
+                            data_path = fc.data_path
+                            if fc.array_index:
+                                data_path = data_path + "[%d]" % fc.array_index
+                            try:
+                                path_resolve(data_path)
+                            except ValueError:
+                                break  # Invalid, go to next strip.
+                        else:
+                            # Did not 'break', so all F-Curves are valid.
+                            return channelbag.slot
+            return None  # Found nothing to return.
 
         def restore_object(ob_to, ob_from):
             # Restore org state of object (ugh :/ ).
@@ -2540,14 +2574,20 @@ def fbx_animations(scene_data):
             pbones_matrices = [pbo.matrix_basis.copy() for pbo in ob.pose.bones] if ob.type == 'ARMATURE' else ...
 
             org_act = ob.animation_data.action
+            org_act_slot = ob.animation_data.action_slot
             path_resolve = ob.path_resolve
 
             for act in bpy.data.actions:
                 # For now, *all* paths in the action must be valid for the object, to validate the action.
                 # Unless that action was already assigned to the object!
-                if act != org_act and not validate_actions(act, path_resolve):
+                if act == org_act:
+                    act_slot = org_act_slot
+                else:
+                    act_slot = find_validate_action_slot(act, path_resolve)
+                if not act_slot:
                     continue
                 ob.animation_data.action = act
+                ob.animation_data.action_slot = act_slot
                 frame_start, frame_end = act.frame_range  # sic!
                 add_anim(animations, animated,
                          fbx_animations_do(scene_data, (ob, act), frame_start, frame_end, True,
@@ -2557,6 +2597,8 @@ def fbx_animations(scene_data):
                     for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                         pbo.matrix_basis = mat.copy()
                 ob.animation_data.action = org_act
+                if org_act:
+                    ob.animation_data.action_slot = org_act_slot
                 restore_object(ob, ob_copy)
                 scene.frame_set(scene.frame_current, subframe=0.0)
 
@@ -2564,6 +2606,8 @@ def fbx_animations(scene_data):
                 for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                     pbo.matrix_basis = mat.copy()
             ob.animation_data.action = org_act
+            if org_act:
+                ob.animation_data.action_slot = org_act_slot
 
             bpy.data.objects.remove(ob_copy)
             scene.frame_set(scene.frame_current, subframe=0.0)
@@ -2761,14 +2805,22 @@ def fbx_data_from_scene(scene, depsgraph, settings):
     co_bl_dtype = np.single
     co_fbx_dtype = np.float64
     idx_fbx_dtype = np.int32
+    normal_bl_dtype = np.single
+    normal_fbx_dtype = np.float64
+    geom_mat_no = Matrix(settings.global_matrix_inv_transposed) if settings.bake_space_transform else None
+    if geom_mat_no is not None:
+        # Remove translation & scaling!
+        geom_mat_no.translation = Vector()
+        geom_mat_no.normalize()
 
     def empty_verts_fallbacks():
         """Create fallback arrays for when there are no verts"""
         # FBX does not like empty shapes (makes Unity crash e.g.).
         # To prevent this, we add a vertex that does nothing, but it keeps the shape key intact
         single_vert_co = np.zeros((1, 3), dtype=co_fbx_dtype)
+        single_vert_nor = np.zeros((1, 3), dtype=co_fbx_dtype)
         single_vert_idx = np.zeros(1, dtype=idx_fbx_dtype)
-        return single_vert_co, single_vert_idx
+        return single_vert_co, single_vert_nor, single_vert_idx
 
     for me_key, me, _free in data_meshes.values():
         if not (me.shape_keys and len(me.shape_keys.key_blocks) > 1):  # We do not want basis-only relative skeys...
@@ -2782,38 +2834,43 @@ def fbx_data_from_scene(scene, depsgraph, settings):
 
         # Get and cache only the cos that we need
         @cache
-        def sk_cos(shape_key):
+        def sk_cos_nors(shape_key):
             if shape_key == sk_base:
                 _cos = MESH_ATTRIBUTE_POSITION.to_ndarray(me.attributes)
             else:
                 _cos = np.empty(len(me.vertices) * 3, dtype=co_bl_dtype)
                 shape_key.points.foreach_get("co", _cos)
-            return vcos_transformed(_cos, geom_mat_co, co_fbx_dtype)
+            _nors = np.array(shape_key.normals_vertex_get(), dtype=normal_bl_dtype)
+            return (
+                vcos_transformed(_cos, geom_mat_co, co_fbx_dtype),
+                nors_transformed(_nors, geom_mat_no, normal_fbx_dtype)
+            )
 
         for shape in me.shape_keys.key_blocks[1:]:
             # Only write vertices really different from base coordinates!
             relative_key = shape.relative_key
             if shape == relative_key:
                 # Shape is its own relative key, so it does nothing
-                shape_verts_co, shape_verts_idx = empty_verts_fallbacks()
+                shape_verts_co, shape_verts_nors, shape_verts_idx = empty_verts_fallbacks()
             else:
-                sv_cos = sk_cos(shape)
-                ref_cos = sk_cos(shape.relative_key)
+                sv_cos_nors = sk_cos_nors(shape)
+                ref_cos_nors = sk_cos_nors(shape.relative_key)
 
                 # Exclude cos similar to ref_cos and get the indices of the cos that remain
-                shape_verts_co, shape_verts_idx = shape_difference_exclude_similar(sv_cos, ref_cos)
+                shape_verts_co, shape_verts_nors, shape_verts_idx = shape_difference_exclude_similar(
+                    sv_cos_nors, ref_cos_nors)
 
                 if not shape_verts_co.size:
-                    shape_verts_co, shape_verts_idx = empty_verts_fallbacks()
+                    shape_verts_co, shape_verts_nors, shape_verts_idx = empty_verts_fallbacks()
                 else:
                     # Ensure the indices are of the correct type
                     shape_verts_idx = astype_view_signedness(shape_verts_idx, idx_fbx_dtype)
 
             channel_key, geom_key = get_blender_mesh_shape_channel_key(me, shape)
-            data = (channel_key, geom_key, shape_verts_co, shape_verts_idx)
+            data = (channel_key, geom_key, shape_verts_co, shape_verts_nors, shape_verts_idx)
             data_deformers_shape.setdefault(me, (me_key, shapes_key, {}))[2][shape] = data
 
-        del sk_cos
+        del sk_cos_nors
 
     perfmon.step("FBX export prepare: Wrapping Armatures...")
 
@@ -3031,7 +3088,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
     for me_key, shapes_key, shapes in data_deformers_shape.values():
         # shape -> geometry
         connections.append((b"OO", get_fbx_uuid_from_key(shapes_key), get_fbx_uuid_from_key(me_key), None))
-        for channel_key, geom_key, _shape_verts_co, _shape_verts_idx in shapes.values():
+        for channel_key, geom_key, _shape_verts_co, _shape_verts_nors, _shape_verts_idx in shapes.values():
             # shape channel -> shape
             connections.append((b"OO", get_fbx_uuid_from_key(channel_key), get_fbx_uuid_from_key(shapes_key), None))
             # geometry (keys) -> shape channel
@@ -3052,9 +3109,22 @@ def fbx_data_from_scene(scene, depsgraph, settings):
 
     # Materials
     mesh_material_indices = {}
-    _objs_indices = {}
-    for ma, (ma_key, ob_objs) in data_materials.items():
-        for ob_obj in ob_objs:
+    for ob_obj in objects:
+        ob_mat_idx = 0
+        me = None
+        if ob_obj.type in BLENDER_OBJECT_TYPES_MESHLIKE:
+            _mesh_key, me, _free = data_meshes[ob_obj]
+        # NOTE: If a mesh has multiple material slots with the same material, they are combined into one
+        # single connexion (slot).
+        # Even if duplicate materials were exported without combining them into one slot, keeping duplicate
+        # materials separated does not appear to be common behavior of external software when importing FBX.
+        # Also, None (empty slots, no material) are always skipped/ignored.
+        done_materials_for_object = {None}
+        for ma in ob_obj.materials:
+            if ma in done_materials_for_object:
+                continue
+            done_materials_for_object.add(ma)
+            ma_key, _ob_objs = data_materials[ma]
             connections.append((b"OO", get_fbx_uuid_from_key(ma_key), ob_obj.fbx_uuid, None))
             # Get index of this material for this object (or dupliobject).
             # Material indices for mesh faces are determined by their order in 'ma to ob' connections.
@@ -3063,13 +3133,13 @@ def fbx_data_from_scene(scene, depsgraph, settings):
             # Should not be an issue in practice, and it's needed in case we export duplis but not the original!
             if ob_obj.type not in BLENDER_OBJECT_TYPES_MESHLIKE:
                 continue
-            _mesh_key, me, _free = data_meshes[ob_obj]
-            idx = _objs_indices[ob_obj] = _objs_indices.get(ob_obj, -1) + 1
-            # XXX If a mesh has multiple material slots with the same material, they are combined into one slot.
-            # Even if duplicate materials were exported without combining them into one slot, keeping duplicate
-            # materials separated does not appear to be common behavior of external software when importing FBX.
-            mesh_material_indices.setdefault(me, {})[ma] = idx
-    del _objs_indices
+            if ma not in mesh_material_indices.setdefault(me, {}):
+                mesh_material_indices[me][ma] = ob_mat_idx
+            else:
+                print("WARNING: Cannot register a valid material index for '{}' from '{}' mesh, '{}' object. "
+                      "Most likely, different objects using the same mesh, but different material slots layouts."
+                      "".format(ma.name, me.name, ob_obj.name))
+            ob_mat_idx += 1
 
     # Textures
     for (ma, sock_name), (tex_key, fbx_prop) in data_textures.items():

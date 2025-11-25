@@ -264,15 +264,9 @@ void VKCommandBufferWrapper::set_scissor(const Vector<VkRect2D> scissors)
 {
   vkCmdSetScissor(vk_command_buffer_, 0, scissors.size(), scissors.data());
 }
-
-void VKCommandBufferWrapper::begin_render_pass(const VkRenderPassBeginInfo *render_pass_begin_info)
+void VKCommandBufferWrapper::set_line_width(const float line_width)
 {
-  vkCmdBeginRenderPass(vk_command_buffer_, render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-}
-
-void VKCommandBufferWrapper::end_render_pass()
-{
-  vkCmdEndRenderPass(vk_command_buffer_);
+  vkCmdSetLineWidth(vk_command_buffer_, line_width);
 }
 
 void VKCommandBufferWrapper::begin_rendering(const VkRenderingInfo *p_rendering_info)
@@ -323,30 +317,6 @@ void VKCommandBufferWrapper::end_debug_utils_label()
   if (device.functions.vkCmdEndDebugUtilsLabel) {
     device.functions.vkCmdEndDebugUtilsLabel(vk_command_buffer_);
   }
-}
-
-/* VK_EXT_descriptor_buffer */
-void VKCommandBufferWrapper::bind_descriptor_buffers(
-    uint32_t buffer_count, const VkDescriptorBufferBindingInfoEXT *p_binding_infos)
-{
-  const VKDevice &device = VKBackend::get().device;
-  device.functions.vkCmdBindDescriptorBuffers(vk_command_buffer_, buffer_count, p_binding_infos);
-}
-void VKCommandBufferWrapper::set_descriptor_buffer_offsets(VkPipelineBindPoint pipeline_bind_point,
-                                                           VkPipelineLayout layout,
-                                                           uint32_t first_set,
-                                                           uint32_t set_count,
-                                                           const uint32_t *p_buffer_indices,
-                                                           const VkDeviceSize *p_offsets)
-{
-  const VKDevice &device = VKBackend::get().device;
-  device.functions.vkCmdSetDescriptorBufferOffsets(vk_command_buffer_,
-                                                   pipeline_bind_point,
-                                                   layout,
-                                                   first_set,
-                                                   set_count,
-                                                   p_buffer_indices,
-                                                   p_offsets);
 }
 
 }  // namespace blender::gpu::render_graph

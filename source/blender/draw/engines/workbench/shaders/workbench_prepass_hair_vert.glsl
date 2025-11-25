@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/workbench_prepass_info.hh"
+#include "infos/workbench_prepass_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(workbench_prepass)
 VERTEX_SHADER_CREATE_INFO(workbench_lighting_flat)
@@ -51,6 +51,11 @@ void workbench_hair_random_material(float rand,
   /* Modulate by color intensity to reduce very high contrast when color is dark. */
   color = saturate(color + rand * (color + 0.05f));
 }
+
+#if defined(GPU_NVIDIA) && defined(GPU_OPENGL)
+/* WORKAROUND: Fix legacy driver compiler issue (see #148472). */
+#  define const
+#endif
 
 void main()
 {

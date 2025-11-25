@@ -72,7 +72,7 @@ template<
     /* Alignment in bytes. Do not align matrices whose size is not a multiple of 4 component.
      * This is in order to avoid padding when using arrays of matrices. */
     int Alignment = (((NumCol * NumRow) % 4 == 0) ? 4 : 1) * sizeof(T)>
-struct alignas(Alignment) MatBase : public vec_struct_base<VecBase<T, NumRow>, NumCol> {
+struct alignas(Alignment) MatBase : public vec_struct_base<VecBase<T, NumRow>, NumCol, false> {
 
   using base_type = T;
   using vec3_type = VecBase<T, 3>;
@@ -525,7 +525,7 @@ struct MatView : NonCopyable, NonMovable {
 
   /** Allow wrapping C-style matrices using view. IMPORTANT: Alignment of src needs to match. */
   explicit MatView(const float (*src)[SrcNumRow])
-      : MatView(*reinterpret_cast<const SrcMatT *>(&src[0][0])){};
+      : MatView(*reinterpret_cast<const SrcMatT *>(&src[0][0])) {};
 
   /** Array access. */
 
@@ -720,11 +720,11 @@ struct MutableMatView
  public:
   MutableMatView() = delete;
 
-  MutableMatView(SrcMatT &src) : MatViewT(const_cast<const SrcMatT &>(src)){};
+  MutableMatView(SrcMatT &src) : MatViewT(const_cast<const SrcMatT &>(src)) {};
 
   /** Allow wrapping C-style matrices using view. IMPORTANT: Alignment of src needs to match. */
   explicit MutableMatView(float src[SrcNumCol][SrcNumRow])
-      : MutableMatView(*reinterpret_cast<SrcMatT *>(&src[0][0])){};
+      : MutableMatView(*reinterpret_cast<SrcMatT *>(&src[0][0])) {};
 
   /** Array access. */
 

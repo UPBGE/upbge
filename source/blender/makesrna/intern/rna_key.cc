@@ -16,6 +16,8 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "WM_types.hh"
+
 #include "rna_internal.hh"
 
 const EnumPropertyItem rna_enum_keyblock_type_items[] = {
@@ -218,7 +220,7 @@ static void rna_KeyBlock_normals_vert_calc(ID *id,
 
   *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
-  BKE_keyblock_mesh_calc_normals(data, mesh, (float(*)[3])(*normals), nullptr, nullptr);
+  BKE_keyblock_mesh_calc_normals(data, mesh, (float (*)[3])(*normals), nullptr, nullptr);
 }
 
 static int rna_KeyBlock_normals_poly_len(const PointerRNA *ptr,
@@ -248,7 +250,7 @@ static void rna_KeyBlock_normals_poly_calc(ID *id,
 
   *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
-  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, (float(*)[3])(*normals), nullptr);
+  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, (float (*)[3])(*normals), nullptr);
 }
 
 static int rna_KeyBlock_normals_loop_len(const PointerRNA *ptr,
@@ -278,7 +280,7 @@ static void rna_KeyBlock_normals_loop_calc(ID *id,
 
   *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
-  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, nullptr, (float(*)[3])(*normals));
+  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, nullptr, (float (*)[3])(*normals));
 }
 
 PointerRNA rna_object_shapekey_index_get(ID *id, int value)
@@ -969,7 +971,7 @@ static void rna_def_keyblock(BlenderRNA *brna)
       prop, nullptr, "rna_ShapeKey_value_set", "rna_ShapeKey_value_range");
   RNA_def_property_ui_range(prop, -10.0f, 10.0f, 10, 3);
   RNA_def_property_ui_text(prop, "Value", "Value of shape key at the current frame");
-  RNA_def_property_update(prop, 0, "rna_Key_update_data");
+  RNA_def_property_update(prop, ND_KEYS, "rna_Key_update_data");
 
   prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "type");

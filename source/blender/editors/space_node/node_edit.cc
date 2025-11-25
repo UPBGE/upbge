@@ -47,6 +47,7 @@
 #include "DEG_depsgraph_debug.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "NOD_shader_nodes_inline.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
@@ -211,7 +212,7 @@ static void compo_initjob(void *cjv)
 
   cj->re = RE_NewInteractiveCompositorRender(scene);
   if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
-    RE_system_gpu_context_ensure(cj->re);
+    RE_display_ensure_gpu_context(cj->re);
   }
 }
 
@@ -309,12 +310,7 @@ static bool is_compositing_possible(const bContext *C)
 
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);
-  const int max_texture_size = GPU_max_texture_size();
-
-  /* There is no way to know if the render size is too large except if we actually allocate a test
-   * texture, which we want to avoid due its cost. So we employ a heuristic that so far has worked
-   * with all known GPU drivers. */
-  if (size_t(width) * height > (size_t(max_texture_size) * max_texture_size) / 4) {
+  if (!GPU_is_safe_texture_size(width, height)) {
     WM_global_report(RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
   }
@@ -503,7 +499,7 @@ bool ED_node_is_texture(SpaceNode *snode)
   return snode->tree_idname == ntreeType_Texture->idname;
 }
 
-bool ED_node_is_geometry(SpaceNode *snode)
+bool ED_node_is_geometry(const SpaceNode *snode)
 {
   return snode->tree_idname == ntreeType_Geometry->idname;
 }
@@ -514,10 +510,8 @@ bool ED_node_supports_preview(SpaceNode *snode)
          (USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && ED_node_is_shader(snode));
 }
 
-void ED_node_shader_default(const bContext *C, ID *id)
+void ED_node_shader_default(const bContext *C, Main *bmain, ID *id)
 {
-  Main *bmain = CTX_data_main(C);
-
   if (GS(id->name) == ID_MA) {
     /* Materials */
     Object *ob = CTX_data_active_object(C);
@@ -784,9 +778,7 @@ void ED_node_set_active(
     if (node->flag & NODE_ACTIVE_TEXTURE) {
       /* If active texture changed, free GLSL materials. */
       LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
-        if (ma->nodetree && ma->use_nodes &&
-            blender::bke::node_tree_contains_tree(*ma->nodetree, *ntree))
-        {
+        if (ma->nodetree && blender::bke::node_tree_contains_tree(*ma->nodetree, *ntree)) {
           GPU_material_free(&ma->gpumaterial);
 
           /* Sync to active texpaint slot, otherwise we can end up painting on a different slot
@@ -1294,6 +1286,15 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
           }
         }
         if (distance < max_distance) {
+          if (node_collapsed) {
+            if ((cursor.x - location.x > NODE_SOCKSIZE) ||
+                ((location.x < cursor.x) && (cursor.x - location.x <= padded_socket_size) &&
+                 (abs(location.y - cursor.y) > NODE_SOCKSIZE)))
+            {
+              /* Needed to be able to resize collapsed nodes. */
+              continue;
+            }
+          }
           update_best_socket(sock, distance);
         }
       }
@@ -1307,7 +1308,10 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
         const float distance = math::distance(location, cursor);
         if (distance < max_distance) {
           if (node_collapsed) {
-            if (location.x - cursor.x > padded_socket_size) {
+            if ((location.x - cursor.x > NODE_SOCKSIZE) ||
+                ((location.x > cursor.x) && (location.x - cursor.x <= padded_socket_size) &&
+                 (abs(location.y - cursor.y) > NODE_SOCKSIZE)))
+            {
               /* Needed to be able to resize collapsed nodes. */
               continue;
             }
@@ -1433,7 +1437,7 @@ static wmOperatorStatus node_duplicate_exec(bContext *C, wmOperator *op)
         ntree, *node, LIB_ID_COPY_DEFAULT, std::nullopt, std::nullopt, socket_map);
     node_map.add_new(node, new_node);
 
-    if (node->id && dupli_node_tree) {
+    if (node->id && dupli_node_tree && !ID_IS_LINKED(node->id)) {
       ID *new_group = duplicated_node_groups.lookup_or_add_cb(node->id, [&]() {
         ID *new_group = BKE_id_copy(bmain, node->id);
         /* Remove user added by copying. */
@@ -1852,6 +1856,41 @@ void NODE_OT_activate_viewer(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  bNodeTree &ntree = *snode.edittree;
+  Main &bmain = *CTX_data_main(C);
+
+  bNodeTree *new_tree = bke::node_tree_add_tree(
+      &bmain, (StringRef(ntree.id.name) + " Inlined").c_str(), ntree.idname);
+
+  nodes::InlineShaderNodeTreeParams params;
+  params.allow_preserving_repeat_zones = false;
+  nodes::inline_shader_node_tree(ntree, *new_tree, params);
+  bNode *group_node = bke::node_add_node(C, ntree, ntree.typeinfo->group_idname);
+  group_node->id = &new_tree->id;
+  node_deselect_all(ntree);
+  bke::node_set_selected(*group_node, true);
+  bke::node_set_active(ntree, *group_node);
+
+  BKE_main_ensure_invariants(bmain);
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_test_inlining_shader_nodes(wmOperatorType *ot)
+{
+  ot->name = "Test Inlining Shader Nodes";
+  ot->description = "Create a new inlined shader node tree as is consumed by renderers";
+  ot->idname = "NODE_OT_test_inlining_shader_nodes";
+
+  ot->exec = test_inline_shader_nodes_exec;
+  ot->poll = ED_operator_node_active;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 static wmOperatorStatus node_deactivate_viewer_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -1888,6 +1927,53 @@ void NODE_OT_deactivate_viewer(wmOperatorType *ot)
   ot->poll = ED_operator_node_active;
 
   /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus node_toggle_viewer_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  PointerRNA ptr = CTX_data_pointer_get(C, "node");
+  bNode *node = nullptr;
+  bNodeTree *ntree = nullptr;
+  wmOperatorStatus ret = OPERATOR_FINISHED;
+
+  if (ptr.data) {
+    node = static_cast<bNode *>(ptr.data);
+    ntree = reinterpret_cast<bNodeTree *>(ptr.owner_id);
+  }
+  else if (snode && snode->edittree) {
+    ntree = snode->edittree;
+    node = bke::node_get_active(*ntree);
+  }
+
+  if (!node) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bNode *active_viewer = viewer_path::find_geometry_nodes_viewer(workspace->viewer_path, *snode);
+  if (node == active_viewer) {
+    ret = WM_operator_name_call(
+        C, "NODE_OT_deactivate_viewer", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+  }
+  else {
+    ret = WM_operator_name_call(
+        C, "NODE_OT_activate_viewer", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+  }
+
+  return ret;
+}
+
+void NODE_OT_toggle_viewer(wmOperatorType *ot)
+{
+  ot->name = "Toggle Viewer Node";
+  ot->description = "Toggle selected viewer node in compositor and geometry nodes";
+  ot->idname = "NODE_OT_toggle_viewer";
+
+  ot->exec = node_toggle_viewer_exec;
+  ot->poll = ED_operator_node_active;
+
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 

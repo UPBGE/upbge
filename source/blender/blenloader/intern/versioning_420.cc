@@ -894,8 +894,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_hue_correct_set_wrapping, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_hue_correct_set_wrapping, nullptr);
       }
     }
   }
@@ -960,18 +959,6 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
         scene->ed->show_missing_media_flag |= SEQ_EDIT_SHOW_MISSING_MEDIA;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 23)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-      if (!ts->uvsculpt.strength_curve) {
-        ts->uvsculpt.size = 50;
-        ts->uvsculpt.strength = 1.0f;
-        ts->uvsculpt.curve_preset = BRUSH_CURVE_SMOOTH;
-        ts->uvsculpt.strength_curve = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
       }
     }
   }
@@ -1054,8 +1041,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 28)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_proxies_timecode_update, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_proxies_timecode_update, nullptr);
       }
     }
 
@@ -1068,7 +1054,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 29)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_text_data_update, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_text_data_update, nullptr);
       }
     }
   }
@@ -1396,5 +1382,30 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
                                          MA_SURFACE_METHOD_DEFERRED;
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 65)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_DENOISE) {
+          if (node->storage == nullptr) {
+            /* Some known files were saved without a valid storage. These are likely corrupt files
+             * that have been produced by a non official blender release. The node type will be set
+             * to Undefined during linking, see #ntree_set_typeinfo. However, a valid storage might
+             * be needed for future versioning (before linking), see
+             * #do_version_denoise_menus_to_inputs so we set a valid storage at this stage such
+             * that the node becomes well defined. */
+            NodeDenoise *ndg = MEM_callocN<NodeDenoise>(__func__);
+            ndg->hdr = true;
+            ndg->prefilter = CMP_NODE_DENOISE_PREFILTER_ACCURATE;
+            node->storage = ndg;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 }

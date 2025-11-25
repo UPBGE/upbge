@@ -46,6 +46,9 @@ bool sh_node_poll_default(const blender::bke::bNodeType *ntype,
 void sh_node_type_base(blender::bke::bNodeType *ntype,
                        std::string idname,
                        std::optional<int16_t> legacy_type = std::nullopt);
+void sh_geo_node_type_base(blender::bke::bNodeType *ntype,
+                           std::string idname,
+                           std::optional<int16_t> legacy_type = std::nullopt);
 void common_node_type_base(blender::bke::bNodeType *ntype,
                            std::string idname,
                            std::optional<int16_t> legacy_type = std::nullopt);
@@ -62,7 +65,7 @@ struct XYZ_to_RGB /* Transposed #imbuf_xyz_to_rgb, passed as 3x vec3. */
   float r[3], g[3], b[3];
 };
 
-void node_gpu_stack_from_data(GPUNodeStack *gs, int type, bNodeStack *ns);
+void node_gpu_stack_from_data(GPUNodeStack *gs, bNodeSocket *socket, bNodeStack *ns);
 void node_data_from_gpu_stack(bNodeStack *ns, GPUNodeStack *gs);
 void node_shader_gpu_bump_tex_coord(GPUMaterial *mat, bNode *node, GPUNodeLink **link);
 void node_shader_gpu_default_tex_coord(GPUMaterial *mat, bNode *node, GPUNodeLink **link);

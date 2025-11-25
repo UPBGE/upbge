@@ -31,7 +31,7 @@
 #include "LA_Launcher.h"
 
 #include "BKE_main.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "DNA_scene_types.h"
 #include "wm_event_types.hh"
 
@@ -54,6 +54,11 @@
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
 #endif                  // WITH_PYTHON
+
+#ifdef WITH_AUDASPACE
+#  include "AUD_Device.h"
+#endif
+
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system,
                          Main *maggie,

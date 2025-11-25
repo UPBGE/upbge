@@ -108,6 +108,8 @@ Methods:
 
 - ``get_stage()``: returns the USD stage to be saved
 - ``get_depsgraph()``: returns the Blender scene dependency graph
+- ``get_prim_map()`` returns a ``dict`` where the key is an exported USD Prim path and the value a ``list``
+  of the IDs associated with that prim.
 
 
 USDMaterialExportContext
@@ -245,8 +247,28 @@ class USDHookExample(bpy.types.USDHook):
 
     @staticmethod
     def on_import(import_context):
-        """ Create a text object to display the stage's custom data.
+        """Inspect the imported stage & objects to set some custom data
         """
+
+        ###########################################################
+        # Store some USD metadata on each imported data block.
+        ###########################################################
+        prim_map = import_context.get_prim_map()
+
+        # Store prim path as a string on each data block created.
+        for prim_path, data_blocks in prim_map.items():
+
+            # Type hints for prim map.
+            prim_path: Sdf.Path
+            data_blocks: list[bpy.types.ID]
+
+            # Loop over mapped data blocks to store some metadata.
+            for data_block in data_blocks:
+                data_block["prim_path"] = str(prim_path)
+
+        ###########################################################
+        # Create a text object to display the stage's custom data.
+        ###########################################################
         stage = import_context.get_stage()
 
         if stage is None:
@@ -320,11 +342,11 @@ class USDHookExample(bpy.types.USDHook):
             return False
 
         # Create the node tree
-        bl_material.use_nodes = True
-        node_tree = bl_material.node_tree
-        nodes = node_tree.nodes
-        bsdf = nodes.get("Principled BSDF")
-        assert bsdf
+        nodes = bl_material.node_tree.nodes
+        output = nodes.new(type="ShaderNodeOutputMaterial")
+        bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
+        bsdf.location[0] -= 1.5 * bsdf.width
+        bl_material.node_tree.links.new(output.inputs["Surface"], bsdf.outputs["BSDF"])
         bsdf_base_color_input = bsdf.inputs['Base Color']
 
         # Try to set the default color value.

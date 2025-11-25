@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'61dd8a1435fb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-01 09:40+0000\n"
+"POT-Creation-Date: 2025-11-24 08:35+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -183,6 +183,10 @@ msgid "Gamma"
 msgstr "Γάμμα"
 
 
+msgid "View"
+msgstr "View"
+
+
 msgid "Mix"
 msgstr "Μείξη"
 
@@ -257,10 +261,6 @@ msgstr "Χωρισμός"
 
 msgid "Plane"
 msgstr "Επίπεδο"
-
-
-msgid "View"
-msgstr "View"
 
 
 msgid "Segments"
@@ -515,30 +515,6 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Snap"
-msgstr "Προσκόλληση"
-
-
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
-
-
-msgid "Select Linked"
-msgstr "Επιλογή Συνδεδεμένων"
-
-
-msgid "Metaball"
-msgstr "Μετα-σφαίρα"
-
-
-msgid "Light"
-msgstr "Φως"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
-
-
 msgid "Apply"
 msgstr "Εφαρμογή"
 
@@ -555,8 +531,36 @@ msgid "Merge"
 msgstr "Συγχώνευση"
 
 
+msgid "Snap"
+msgstr "Προσκόλληση"
+
+
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
+
+
 msgid "Text"
 msgstr "Κείμενο"
+
+
+msgid "Metaball"
+msgstr "Μετα-σφαίρα"
+
+
+msgid "Select Linked"
+msgstr "Επιλογή Συνδεδεμένων"
+
+
+msgid "Import"
+msgstr "Εισαγωγή"
+
+
+msgid "Light"
+msgstr "Φως"
+
+
+msgid "Rigid Body"
+msgstr "Rigid Body"
 
 
 msgid "Cache"
@@ -570,10 +574,6 @@ msgstr "Κλειδί"
 msgctxt "Operator"
 msgid "Mirror"
 msgstr "Καθρέφτισμα"
-
-
-msgid "Import"
-msgstr "Εισαγωγή"
 
 
 msgid "System"
@@ -634,10 +634,6 @@ msgstr "Γραμμές"
 
 msgid "Sensor"
 msgstr "Ανιχνευτής"
-
-
-msgid "Meta"
-msgstr "Μετα"
 
 
 msgid "Alpha Over"
@@ -977,12 +973,8 @@ msgid "Lens"
 msgstr "Φακός"
 
 
-msgid "Alpha Under"
-msgstr "Υποκάλυψη βάσει διαφάνειας"
-
-
-msgid "Gamma Cross"
-msgstr "Μετάβαση Γάμμα"
+msgid "Meta"
+msgstr "Μετα"
 
 
 msgid "Stencil"

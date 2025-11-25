@@ -85,6 +85,12 @@ bool wm_xr_init(wmWindowManager *wm)
         break;
 #endif
 
+#ifdef WITH_METAL_BACKEND
+      case GPU_BACKEND_METAL:
+        gpu_bindings_candidates.append(GHOST_kXrGraphicsMetal);
+        break;
+#endif
+
       default:
         break;
     }
@@ -184,6 +190,8 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     if ((*runtime)->area) {
       wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
       wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+
+      WM_event_remove_handlers_by_area(&win->handlers, (*runtime)->area);
       ED_area_offscreen_free(wm, win, (*runtime)->area);
       (*runtime)->area = nullptr;
     }

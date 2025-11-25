@@ -132,6 +132,7 @@ set(SRC
   intern/polyfill_2d.cc
   intern/polyfill_2d_beautify.cc
   intern/quadric.cc
+  intern/radial_tiling_shared.cc
   intern/rand.cc
   intern/rct.cc
   intern/resource_scope.cc
@@ -174,9 +175,9 @@ set(SRC
   ../../../extern/wcwidth/wcwidth.c
 
   # Header as source (included in C files above).
-  intern/kdtree_impl.h
+  intern/kdtree_impl.hh
   intern/list_sort_impl.h
-
+  intern/radial_tiling_shared.hh
 
   BLI_alloca.h
   BLI_allocator.hh
@@ -234,6 +235,7 @@ set(SRC
   BLI_endian_defines.h
   BLI_endian_switch.h
   BLI_endian_switch_inline.h
+  BLI_enum_flags.hh
   BLI_enumerable_thread_specific.hh
   BLI_expr_pylike_eval.h
   BLI_fftw.hh
@@ -278,8 +280,8 @@ set(SRC
   BLI_iterator.h
   BLI_jitter_2d.h
   BLI_kdopbvh.hh
-  BLI_kdtree.h
-  BLI_kdtree_impl.h
+  BLI_kdtree.hh
+  BLI_kdtree_impl.hh
   BLI_lasso_2d.hh
   BLI_lazy_threading.hh
   BLI_length_parameterize.hh
@@ -358,6 +360,7 @@ set(SRC
   BLI_pool.hh
   BLI_probing_strategies.hh
   BLI_quadric.h
+  BLI_radial_tiling.hh
   BLI_rand.h
   BLI_rand.hh
   BLI_random_access_iterator_mixin.hh

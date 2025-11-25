@@ -189,7 +189,7 @@ static void acf_generic_channel_color(bAnimContext *ac, bAnimListElem *ale, floa
   /* FIXME: what happens when the indentation is 1 greater than what it should be
    * (due to grouping)? */
   const int colorOffset = 10 - 10 * indent;
-  UI_GetThemeColorShade3fv(TH_SHADE2, colorOffset, r_color);
+  UI_GetThemeColorShade3fv(TH_CHANNEL, colorOffset, r_color);
 }
 
 /* backdrop for generic channels */
@@ -419,10 +419,13 @@ static bool acf_generic_dataexpand_setting_valid(bAnimContext *ac,
 /* Animation Summary ----------------------------------- */
 
 /* get backdrop color for summary widget */
-static void acf_summary_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
+static void acf_summary_color(bAnimContext *ac, bAnimListElem *ale, float r_color[3])
 {
-  /* reddish color - same as the 'action' line in NLA */
-  UI_GetThemeColor3fv(TH_ANIM_ACTIVE, r_color);
+  /* Only draw the summary line backdrop when it is expanded. If the entire dope sheet is
+   * just one line, there is no need for any distinction between lines, and the red-ish
+   * color is only going to be a distraction. */
+  const bool is_expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND);
+  UI_GetThemeColor3fv(is_expanded ? TH_ANIM_ACTIVE : TH_HEADER, r_color);
 }
 
 /* backdrop for summary widget */
@@ -5891,7 +5894,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitI(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5907,7 +5909,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitS(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5923,7 +5924,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitC(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -6169,7 +6169,6 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
       but = uiDefButR(block,
                       ButType::Text,
-                      1,
                       "",
                       offset + margin_x,
                       rect->ymin,
@@ -6181,6 +6180,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                       0,
                       0,
                       std::nullopt);
+      UI_but_retval_set(but, 1);
 
       /* copy what outliner does here, see outliner_buttons */
       if (UI_but_active_only(C, ac->region, block, but) == false) {

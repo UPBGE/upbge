@@ -47,6 +47,8 @@
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_scene_types.h"
+#include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
@@ -212,20 +214,24 @@ BL_ArmatureObject::~BL_ArmatureObject()
    * to extract positions on float3 next time mesh will be reconstructed */
   if (m_deformedObj && !m_isReplica) {
     Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
-    orig_mesh->is_using_skinning = 0;
+    orig_mesh->is_using_gpu_deform = 0;
   }
   m_deformedObj = nullptr;
 
   if (m_skinStatic) {
     if (--m_skinStatic->ref_count == 0) {
-      if (m_skinStatic->shader) {
-        GPU_shader_free(m_skinStatic->shader);
+      if (m_skinStatic->shader_skin_vertices) {
+        GPU_shader_free(m_skinStatic->shader_skin_vertices);
+      }
+      if (m_skinStatic->shader_scatter_to_corners) {
+        GPU_shader_free(m_skinStatic->shader_scatter_to_corners);
       }
       if (m_skinStatic->ssbo_in_idx) {
         GPU_storagebuf_free(m_skinStatic->ssbo_in_idx);
         GPU_storagebuf_free(m_skinStatic->ssbo_in_wgt);
         GPU_storagebuf_free(m_skinStatic->ssbo_topology);
         GPU_storagebuf_free(m_skinStatic->ssbo_rest_positions);
+        GPU_storagebuf_free(m_skinStatic->ssbo_skinned_vert_positions);
       }
       delete m_skinStatic;
     }
@@ -485,7 +491,6 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
 
     blender::Span<MDeformVert> dverts = mesh->deform_verts();
     const auto corner_verts = mesh->corner_verts();
-    const int num_corners = mesh->corners_num;
     const int verts_num = mesh->verts_num;
 
     // 1) Build the ordered list of deforming bones and a name->index map.
@@ -513,15 +518,14 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     }
 
     // 3) Fill index and weight buffers (max 4 influences per corner) in parallel.
-    m_skinStatic->in_indices.resize(num_corners * 4, 0);
-    m_skinStatic->in_weights.resize(num_corners * 4, 0.0f);
+    m_skinStatic->in_indices.resize(verts_num * 4, 0);
+    m_skinStatic->in_weights.resize(verts_num * 4, 0.0f);
     constexpr float kContribThreshold = 1e-4f;
 
     blender::threading::parallel_for(
-        blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
           for (int v : range) {
-            const int vert_idx = corner_verts[v];
-            const MDeformVert &dvert = dverts[vert_idx];
+            const MDeformVert &dvert = dverts[v];
 
             struct Influence {
               int bone_idx;
@@ -584,49 +588,21 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
 
     // 4) Upload SSBOs for influences.
     if (!m_skinStatic->ssbo_in_idx) {
-      m_skinStatic->ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * num_corners * 4);
+      m_skinStatic->ssbo_in_idx = GPU_storagebuf_create(sizeof(int) * verts_num * 4);
+      GPU_storagebuf_update(m_skinStatic->ssbo_in_idx, m_skinStatic->in_indices.data());
     }
     if (!m_skinStatic->ssbo_in_wgt) {
-      m_skinStatic->ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * num_corners * 4);
+      m_skinStatic->ssbo_in_wgt = GPU_storagebuf_create(sizeof(float) * verts_num * 4);
+      GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
     }
-    GPU_storagebuf_update(m_skinStatic->ssbo_in_idx, m_skinStatic->in_indices.data());
-    GPU_storagebuf_update(m_skinStatic->ssbo_in_wgt, m_skinStatic->in_weights.data());
 
     // 5) Pack topology into a single buffer.
-    const auto faces = mesh->faces();
-    const int faces_num = faces.size();
 
     // face_offsets
-    std::vector<int> face_sizes(faces_num, 0);
-    blender::threading::parallel_for(
-        blender::IndexRange(faces_num), 4096, [&](const blender::IndexRange range) {
-          for (int f : range) {
-            face_sizes[f] = (int)faces[f].size();
-          }
-        });
-
-    std::vector<int> face_offsets(faces_num + 1, 0);
-    {
-      int ofs = 0;
-      for (int f = 0; f < faces_num; ++f) {
-        face_offsets[f] = ofs;
-        ofs += face_sizes[f];
-      }
-      face_offsets[faces_num] = ofs;
-    }
+    auto face_offsets = mesh->face_offsets();
 
     // corner_to_face
-    std::vector<int> corner_to_face(num_corners, 0);
-    blender::threading::parallel_for(
-        blender::IndexRange(faces_num), 4096, [&](const blender::IndexRange range) {
-          for (int f : range) {
-            const int beg = face_offsets[f];
-            const int cnt = face_sizes[f];
-            for (int i = 0; i < cnt; ++i) {
-              corner_to_face[beg + i] = f;
-            }
-          }
-        });
+    auto corner_to_face = mesh->corner_to_face_map();
 
     // corner_verts
     std::vector<int> corner_verts_vec(corner_verts.begin(), corner_verts.end());
@@ -635,19 +611,21 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     const blender::OffsetIndices<int> v2f_off = mesh->vert_to_face_map_offsets();
     const blender::GroupedSpan<int> v2f = mesh->vert_to_face_map();
 
-    std::vector<int> v2f_offsets(verts_num + 1, 0);
-    for (int v = 0; v < verts_num + 1; ++v) {
-      v2f_offsets[v] = v2f_off[v].start();
+    const int v2f_offsets_size = v2f_off.size();
+    std::vector<int> v2f_offsets(v2f_offsets_size, 0);
+
+    for (int v = 0; v < v2f_offsets_size; ++v) {
+      v2f_offsets[v] = v2f_off.data()[v];
     }
-    const int total_v2f = v2f_offsets[verts_num];
+    const int total_v2f = v2f_offsets.back();
 
     std::vector<int> v2f_indices;
     v2f_indices.resize(std::max(total_v2f, 0));
     blender::threading::parallel_for(
-        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
+        blender::IndexRange(v2f_offsets_size - 1), 4096, [&](const blender::IndexRange range) {
           for (int v : range) {
             const blender::Span<int> faces_v = v2f[v];
-            const int dst = v2f_offsets[v];
+            const int dst = v2f_off.data()[v];
             if (!faces_v.is_empty()) {
               std::copy(faces_v.begin(), faces_v.end(), v2f_indices.begin() + dst);
             }
@@ -664,7 +642,7 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
                                                 int(corner_verts_vec.size());
     m_skinStatic->vert_to_face_offset = m_skinStatic->vert_to_face_offsets_offset +
                                         int(v2f_offsets.size());
-    int topo_total_size = m_skinStatic->vert_to_face_offset + int(v2f_indices.size());
+    int topo_total_size = m_skinStatic->vert_to_face_offset + v2f_indices.size();
 
     // Final packing.
     std::vector<int> topo;
@@ -678,25 +656,28 @@ void BL_ArmatureObject::InitStaticSkinningBuffers()
     // Create and upload the unique SSBO.
     if (!m_skinStatic->ssbo_topology) {
       m_skinStatic->ssbo_topology = GPU_storagebuf_create(sizeof(int) * topo_total_size);
+      GPU_storagebuf_update(m_skinStatic->ssbo_topology, topo.data());
     }
-    GPU_storagebuf_update(m_skinStatic->ssbo_topology, topo.data());
 
     blender::Span<blender::float3> vert_positions = mesh->vert_positions();
-    blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(num_corners);
+    blender::Array<blender::float4> rest_positions = blender::Array<blender::float4>(verts_num);
     blender::threading::parallel_for(
-        blender::IndexRange(num_corners), 4096, [&](const blender::IndexRange range) {
+        blender::IndexRange(verts_num), 4096, [&](const blender::IndexRange range) {
           for (int i : range) {
-            int vert_idx = corner_verts[i];
-            const blender::float3 &pos = vert_positions[vert_idx];
+            const blender::float3 &pos = vert_positions[i];
             rest_positions[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
           }
         });
 
     if (!m_skinStatic->ssbo_rest_positions) {
       m_skinStatic->ssbo_rest_positions = GPU_storagebuf_create(sizeof(blender::float4) *
-                                                                num_corners);
+                                                                verts_num);
+      GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
     }
-    GPU_storagebuf_update(m_skinStatic->ssbo_rest_positions, rest_positions.data());
+    if (!m_skinStatic->ssbo_skinned_vert_positions) {
+      m_skinStatic->ssbo_skinned_vert_positions = GPU_storagebuf_create(sizeof(blender::float4) *
+                                                                        verts_num);
+    }
   }
 }
 
@@ -791,11 +772,11 @@ void BL_ArmatureObject::DoGpuSkinning()
   Mesh *orig_mesh = (Mesh *)m_deformedObj->data;
 
   /* Set this variable to extract vbo_pos with float4 */
-  orig_mesh->is_using_skinning = 1;
+  orig_mesh->is_using_gpu_deform = 1;
   /* Set this variable to indicate that the action is currently played.
    * Will be reset just after render.
    * Place this flag on runtime/evaluated mesh (the one used for rendering) */
-  mesh_eval->is_running_skinning = 1;
+  mesh_eval->is_running_gpu_deform = 1;
 
   if (m_modifiersListbackup.empty()) {
     disable_armature_modifiers(m_deformedObj, m_modifiersListbackup);
@@ -899,71 +880,48 @@ void BL_ArmatureObject::DoGpuSkinning()
   }
   GPU_storagebuf_update(m_ssbo_postmat, &postmat[0][0]);
 
-  // 5. Compile skinning shader
-  if (!m_skinStatic->shader) {
-    ShaderCreateInfo info("BGE_Armature_Skinning_CPU_Logic");
-    info.local_group_size(256, 1, 1);
-    info.compute_source("draw_colormanagement_lib.glsl");
-    info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
-    info.storage_buf(1, Qualifier::write, "uint", "normals[]");
-    info.storage_buf(2, Qualifier::read, "ivec4", "in_idx[]");
-    info.storage_buf(3, Qualifier::read, "vec4", "in_wgt[]");
-    info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
-    info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
-    info.storage_buf(6, Qualifier::read, "mat4", "postmat[]");
-    info.storage_buf(7, Qualifier::read, "int", "topo[]");
-    info.storage_buf(8, Qualifier::read, "vec4", "rest_positions[]");
-    info.push_constant(Type::int_t, "face_offsets_offset");
-    info.push_constant(Type::int_t, "corner_to_face_offset");
-    info.push_constant(Type::int_t, "corner_verts_offset");
-    info.push_constant(Type::int_t, "vert_to_face_offsets_offset");
-    info.push_constant(Type::int_t, "vert_to_face_offset");
-    info.push_constant(Type::int_t, "normals_domain");
+  const int verts_num = mesh_eval->verts_num;
 
-    info.compute_source_generated = R"GLSL(
+  /* We can test different group sizes if it has an influence on some hardwares */
+  const int group_size = 256;
+
+  // 5. Compile skinning shaders.
+  /* Note: While it is possible to perform all skinning operations in a single shader,
+   * here the process is intentionally split into two separate passes:
+   * - First pass: skinning is applied to vertices only,
+   *   using SSBOs sized to the number of vertices, for efficient bone deformation computation.
+   * - Second pass: the skinned positions are scattered to all corners,
+   *   and normals are computed from these positions. This approach produces
+   *   shading results very similar to the CPU pipeline.
+   */
+  // === SHADER 1: Skin Vertices ===
+  if (!m_skinStatic->shader_skin_vertices) {
+    ShaderCreateInfo info("pyGPU_Shader");
+
+    // Local group size
+    info.local_group_size(group_size, 1, 1);
+
+    // Storage buffers (ressources)
+    info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
+    info.storage_buf(1, Qualifier::read, "ivec4", "in_idx[]");
+    info.storage_buf(2, Qualifier::read, "vec4", "in_wgt[]");
+    info.storage_buf(3, Qualifier::read, "mat4", "bone_pose_mat[]");
+    info.storage_buf(4, Qualifier::read, "mat4", "premat[]");
+    info.storage_buf(5, Qualifier::read, "vec4", "rest_positions[]");
+
+    // Source GLSL brute
+    std::string compute_src = R"GLSL(
 #ifndef CONTRIB_THRESHOLD
 #define CONTRIB_THRESHOLD 1e-4
 #endif
-#ifndef NORMAL_EPSILON
-#define NORMAL_EPSILON 1e-4
-#endif
 
-// Utility accessors for the packed buffer.
-int face_offsets(int i) { return topo[face_offsets_offset + i]; }
-int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
-int corner_verts(int i) { return topo[corner_verts_offset + i]; }
-int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
-int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
-
-// 10_10_10_2 packing utility (W is ignored).
-int pack_i10_trunc(float x)
-{
-  const int signed_int_10_max = 511;
-  const int signed_int_10_min = -512;
-  float s = x * float(signed_int_10_max);
-  int q = int(s); // truncate towards zero
-  q = clamp(q, signed_int_10_min, signed_int_10_max);
-  return q & 0x3FF;
-}
-
-uint pack_norm(vec3 n)
-{
-  int nx = pack_i10_trunc(n.x);
-  int ny = pack_i10_trunc(n.y);
-  int nz = pack_i10_trunc(n.z);
-  // W=0 to match the C++ PackedNormal.
-  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
-}
-
-// Reskin a corner in armature-object space for local reuse.
-vec4 skin_corner_pos_object(int corner) {
-  // Replace rest_positions[corner] with positions[corner] if you use the positions VBO as input.
-  vec4 rest_pos_object = premat[0] * rest_positions[corner];
+vec4 skin_pos_object(int v_idx) {
+  vec4 rest_pos_object = premat[0] * rest_positions[v_idx];
   vec4 acc = vec4(0.0);
   float tw = 0.0;
   for (int i = 0; i < 4; ++i) {
-    int   b = in_idx[corner][i];
-    float w = in_wgt[corner][i];
+    int   b = in_idx[v_idx][i];
+    float w = in_wgt[v_idx][i];
     if (w > 0.0) {
       acc += (bone_pose_mat[b] * rest_pos_object) * w;
       tw  += w;
@@ -972,30 +930,102 @@ vec4 skin_corner_pos_object(int corner) {
   return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
 }
 
-// Face normal (Newell) calculated on skinned positions (final space).
-vec3 newell_face_normal_skinned(int f){
+void main() {
+  uint v = gl_GlobalInvocationID.x;
+  if (v >= skinned_vert_positions.length()) {
+    return;
+  }
+  skinned_vert_positions[v] = skin_pos_object(int(v));
+}
+)GLSL";
+    info.compute_source_generated = compute_src;
+
+    m_skinStatic->shader_skin_vertices = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
+  }
+
+  // === SHADER 2: Scatter to Corners ===
+  if (!m_skinStatic->shader_scatter_to_corners) {
+    ShaderCreateInfo info("pyGPU_Shader");
+
+    info.local_group_size(group_size, 1, 1);
+
+    // Storage buffers
+    info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
+    info.storage_buf(1, Qualifier::write, "uint", "normals[]");
+    info.storage_buf(2, Qualifier::read, "vec4", "skinned_vert_positions[]");
+    info.storage_buf(3, Qualifier::read, "mat4", "postmat[]");
+    info.storage_buf(4, Qualifier::read, "int", "topo[]");
+
+    // Specialization constants
+    info.specialization_constant(
+        Type::int_t, "face_offsets_offset", m_skinStatic->face_offsets_offset);
+    info.specialization_constant(
+        Type::int_t, "corner_to_face_offset", m_skinStatic->corner_to_face_offset);
+    info.specialization_constant(
+        Type::int_t, "corner_verts_offset", m_skinStatic->corner_verts_offset);
+    info.specialization_constant(
+        Type::int_t, "vert_to_face_offsets_offset", m_skinStatic->vert_to_face_offsets_offset);
+    info.specialization_constant(
+        Type::int_t, "vert_to_face_offset", m_skinStatic->vert_to_face_offset);
+    info.specialization_constant(
+        Type::int_t,
+        "normals_domain",
+        mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0);
+    info.specialization_constant(
+        Type::int_t,
+        "normals_hq",
+        int(bool(GetScene()->GetBlenderScene()->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
+            GPU_use_hq_normals_workaround()));
+
+    std::string compute_src = R"GLSL(
+// Utility accessors
+int face_offsets(int i) { return topo[face_offsets_offset + i]; }
+int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
+int corner_verts(int i) { return topo[corner_verts_offset + i]; }
+int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
+int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
+
+// 10_10_10_2 packing utility
+int pack_i10_trunc(float x) {
+  const int signed_int_10_max = 511;
+  const int signed_int_10_min = -512;
+  float s = x * float(signed_int_10_max);
+  int q = int(s);
+  q = clamp(q, signed_int_10_min, signed_int_10_max);
+  return q & 0x3FF;
+}
+
+uint pack_norm(vec3 n) {
+  int nx = pack_i10_trunc(n.x);
+  int ny = pack_i10_trunc(n.y);
+  int nz = pack_i10_trunc(n.z);
+  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
+}
+
+int pack_i16_trunc(float x) {
+  return clamp(int(round(x * 32767.0)), -32768, 32767);
+}
+uint pack_i16_pair(float a, float b) {
+  return (uint(pack_i16_trunc(a)) & 0xFFFFu) | ((uint(pack_i16_trunc(b)) & 0xFFFFu) << 16);
+}
+
+vec3 newell_face_normal_object(int f) {
   int beg = face_offsets(f);
   int end = face_offsets(f + 1);
   vec3 n = vec3(0.0);
-  vec3 v_prev = (postmat[0] * skin_corner_pos_object(end - 1)).xyz;
+  int v_prev_idx = corner_verts(end - 1);
+  vec3 v_prev = skinned_vert_positions[v_prev_idx].xyz;
   for (int i = beg; i < end; ++i) {
-    vec3 v_curr = (postmat[0] * skin_corner_pos_object(i)).xyz;
+    int v_curr_idx = corner_verts(i);
+    vec3 v_curr = skinned_vert_positions[v_curr_idx].xyz;
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }
   return normalize(n);
 }
 
-vec3 smooth_point_normal_skinned(int corner) {
-  int v = corner_verts(corner);
-  int beg = vert_to_face_offsets(v);
-  int end = vert_to_face_offsets(v + 1);
-  vec3 n = vec3(0.0);
-  for (int i = beg; i < end; ++i) {
-    int f = vert_to_face(i);
-    n += newell_face_normal_skinned(f);
-  }
-  return normalize(n);
+vec3 transform_normal(vec3 n, mat4 m) {
+  return transpose(inverse(mat3(m))) * n;
 }
 
 void main() {
@@ -1004,67 +1034,78 @@ void main() {
     return;
   }
 
-  // 1) Skinned position (write to VBO).
-  vec4 p_obj = skin_corner_pos_object(int(c));
-  vec3 p     = (postmat[0] * p_obj).xyz;
-  positions[c] = vec4(p, 1.0);
+  int v = corner_verts(int(c));
 
-  // 2) Normal calculation.
-  vec3 n;
-  if (normals_domain == 1) {
-    // Face: flat normal for all corners of the face.
+  // 1) Scatter position
+  vec4 p_obj = skinned_vert_positions[v];
+  positions[c] = postmat[0] * p_obj;
+
+  // 2) Calculate and scatter normal
+  vec3 n_obj;
+  if (normals_domain == 1) { // Face
     int f = corner_to_face(int(c));
-    n = newell_face_normal_skinned(f);
+    n_obj = newell_face_normal_object(f);
+  }
+  else { // Point
+    int beg = vert_to_face_offsets(v);
+    int end = vert_to_face_offsets(v + 1);
+    vec3 n_accum = vec3(0.0);
+    for (int i = beg; i < end; ++i) {
+      int f = vert_to_face(i);
+      n_accum += newell_face_normal_object(f);
+    }
+    n_obj = n_accum;
+  }
+
+  vec3 n_world = transform_normal(n_obj, postmat[0]);
+  n_world = normalize(n_world);
+
+  if (normals_hq == 0) {
+    normals[c] = pack_norm(n_world);
   }
   else {
-    // Point: average all incident faces' normals (true smooth, Blender style).
-    n = smooth_point_normal_skinned(int(c));
+    int base = int(c) * 2;
+    normals[base + 0] = pack_i16_pair(n_world.x, n_world.y);
+    normals[base + 1] = pack_i16_pair(n_world.z, 0.0);
   }
-
-  normals[c] = pack_norm(n);
 }
 )GLSL";
-    m_skinStatic->shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+    info.compute_source_generated = compute_src;
+
+    m_skinStatic->shader_scatter_to_corners = GPU_shader_create_from_info_python(
+        (GPUShaderCreateInfo *)&info, false);
   }
 
-  // 6. Dispatch compute shader
-  GPU_shader_bind(m_skinStatic->shader);
+  // 6. Pass 1: Skin vertices
+  const blender::gpu::shader::SpecializationConstants *constants_state1 =
+      &GPU_shader_get_default_constant_state(m_skinStatic->shader_skin_vertices);
+  GPU_shader_bind(m_skinStatic->shader_skin_vertices, constants_state1);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 0);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_in_idx, 1);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_in_wgt, 2);
+  GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 3);
+  GPU_storagebuf_bind(m_ssbo_premat, 4);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 5);
+
+  const int num_groups_verts = (verts_num + group_size - 1) / group_size;
+  GPU_compute_dispatch(m_skinStatic->shader_skin_vertices, num_groups_verts, 1, 1, constants_state1);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+
+  // 7. Pass 2: Scatter to corners and calculate normals
+  const blender::gpu::shader::SpecializationConstants *constants_state2 =
+      &GPU_shader_get_default_constant_state(m_skinStatic->shader_scatter_to_corners);
+  GPU_shader_bind(m_skinStatic->shader_scatter_to_corners, constants_state2);
   vbo_pos->bind_as_ssbo(0);
   vbo_nor->bind_as_ssbo(1);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_in_idx, 2);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_in_wgt, 3);
-  GPU_storagebuf_bind(m_ssbo_bone_pose_mat, 4);
-  GPU_storagebuf_bind(m_ssbo_premat, 5);
-  GPU_storagebuf_bind(m_ssbo_postmat, 6);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 7);
-  GPU_storagebuf_bind(m_skinStatic->ssbo_rest_positions, 8);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "face_offsets_offset", m_skinStatic->face_offsets_offset);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "corner_to_face_offset", m_skinStatic->corner_to_face_offset);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "corner_verts_offset", m_skinStatic->corner_verts_offset);
-  GPU_shader_uniform_1i(m_skinStatic->shader,
-                        "vert_to_face_offsets_offset",
-                        m_skinStatic->vert_to_face_offsets_offset);
-  GPU_shader_uniform_1i(
-      m_skinStatic->shader, "vert_to_face_offset", m_skinStatic->vert_to_face_offset);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_skinned_vert_positions, 2);
+  GPU_storagebuf_bind(m_ssbo_postmat, 3);
+  GPU_storagebuf_bind(m_skinStatic->ssbo_topology, 4);
 
-  int domain = mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
-  GPU_shader_uniform_1i(m_skinStatic->shader, "normals_domain", domain);
-
-  const int group_size = 256;
-  const int num_groups = (num_corners + group_size - 1) / group_size;
-  GPU_compute_dispatch(m_skinStatic->shader, num_groups, 1, 1);
+  const int num_groups_corners = (num_corners + group_size - 1) / group_size;
+  GPU_compute_dispatch(
+      m_skinStatic->shader_scatter_to_corners, num_groups_corners, 1, 1, constants_state2);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
 
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_in_idx);
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_in_wgt);
-  GPU_storagebuf_unbind(m_ssbo_bone_pose_mat);
-  GPU_storagebuf_unbind(m_ssbo_premat);
-  GPU_storagebuf_unbind(m_ssbo_postmat);
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_topology);
-  GPU_storagebuf_unbind(m_skinStatic->ssbo_rest_positions);
   GPU_shader_unbind();
 
   // Notify the dependency graph that the deformed mesh's transform has changed.

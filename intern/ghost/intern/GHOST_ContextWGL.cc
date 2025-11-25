@@ -83,7 +83,7 @@ GHOST_ContextWGL::~GHOST_ContextWGL()
 #endif
 }
 
-GHOST_TSuccess GHOST_ContextWGL::swapBuffers()
+GHOST_TSuccess GHOST_ContextWGL::swapBufferRelease()
 {
   return WIN32_CHK(::SwapBuffers(h_DC_)) ? GHOST_kSuccess : GHOST_kFailure;
 }
@@ -616,13 +616,6 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
     }
   }
 
-  {
-    const GHOST_TVSyncModes vsync = getVSync();
-    if (vsync != GHOST_kVSyncModeUnset) {
-      setSwapInterval(int(vsync));
-    }
-  }
-
   s_sharedCount++;
 
   if (s_sharedHGLRC == nullptr) {
@@ -631,6 +624,13 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 
   if (!WIN32_CHK(::wglMakeCurrent(h_DC_, h_GLRC_))) {
     goto error;
+  }
+
+  {
+    const GHOST_TVSyncModes vsync = getVSync();
+    if (vsync != GHOST_kVSyncModeUnset) {
+      setSwapInterval(int(vsync));
+    }
   }
 
   if (is_crappy_intel_card()) {

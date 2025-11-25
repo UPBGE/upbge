@@ -30,36 +30,42 @@
 namespace blender::nodes::node_composite_blur_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {R_FILTER_BOX, "FLAT", 0, "Flat", ""},
-    {R_FILTER_TENT, "TENT", 0, "Tent", ""},
-    {R_FILTER_QUAD, "QUAD", 0, "Quadratic", ""},
-    {R_FILTER_CUBIC, "CUBIC", 0, "Cubic", ""},
-    {R_FILTER_GAUSS, "GAUSS", 0, "Gaussian", ""},
-    {R_FILTER_FAST_GAUSS, "FAST_GAUSS", 0, "Fast Gaussian", ""},
-    {R_FILTER_CATROM, "CATROM", 0, "Catrom", ""},
-    {R_FILTER_MITCH, "MITCH", 0, "Mitch", ""},
+    {R_FILTER_BOX, "FLAT", 0, N_("Flat"), ""},
+    {R_FILTER_TENT, "TENT", 0, N_("Tent"), ""},
+    {R_FILTER_QUAD, "QUAD", 0, N_("Quadratic"), ""},
+    {R_FILTER_CUBIC, "CUBIC", 0, N_("Cubic"), ""},
+    {R_FILTER_GAUSS, "GAUSS", 0, N_("Gaussian"), ""},
+    {R_FILTER_FAST_GAUSS, "FAST_GAUSS", 0, N_("Fast Gaussian"), ""},
+    {R_FILTER_CATROM, "CATROM", 0, N_("Catrom"), ""},
+    {R_FILTER_MITCH, "MITCH", 0, N_("Mitch"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void cmp_node_blur_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Vector>("Size")
       .dimensions(2)
       .default_value({0.0f, 0.0f})
       .min(0.0f)
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Menu>("Type").default_value(R_FILTER_GAUSS).static_items(type_items);
+  b.add_input<decl::Menu>("Type")
+      .default_value(R_FILTER_GAUSS)
+      .static_items(type_items)
+      .optional_label();
   b.add_input<decl::Bool>("Extend Bounds").default_value(false);
   b.add_input<decl::Bool>("Separable")
       .default_value(true)
       .description(
           "Use faster approximation by blurring along the horizontal and vertical directions "
           "independently");
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_blur(bNodeTree * /*ntree*/, bNode *node)
@@ -163,7 +169,7 @@ class BlurOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output.unbind_as_image();
@@ -180,14 +186,14 @@ class BlurOperation : public NodeOperation {
     const Domain domain = input.domain();
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float4 accumulated_color = float4(0.0f);
 
       /* First, compute the contribution of the center pixel. */
-      float4 center_color = input.load_pixel_extended<float4>(texel);
+      float4 center_color = float4(input.load_pixel_extended<Color>(texel));
       accumulated_color += center_color * weights.load_pixel<float>(int2(0));
 
-      int2 weights_size = weights.domain().size;
+      int2 weights_size = weights.domain().data_size;
 
       /* Then, compute the contributions of the pixels along the x axis of the filter, noting that
        * the weights texture only stores the weights for the positive half, but since the filter is
@@ -195,8 +201,9 @@ class BlurOperation : public NodeOperation {
        * contributions. */
       for (int x = 1; x < weights_size.x; x++) {
         float weight = weights.load_pixel<float>(int2(x, 0));
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, 0)) * weight;
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(-x, 0)) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, 0))) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(-x, 0))) *
+                             weight;
       }
 
       /* Then, compute the contributions of the pixels along the y axis of the filter, noting that
@@ -205,8 +212,9 @@ class BlurOperation : public NodeOperation {
        * contributions. */
       for (int y = 1; y < weights_size.y; y++) {
         float weight = weights.load_pixel<float>(int2(0, y));
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(0, y)) * weight;
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(0, -y)) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(0, y))) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(0, -y))) *
+                             weight;
       }
 
       /* Finally, compute the contributions of the pixels in the four quadrants of the filter,
@@ -216,14 +224,18 @@ class BlurOperation : public NodeOperation {
       for (int y = 1; y < weights_size.y; y++) {
         for (int x = 1; x < weights_size.x; x++) {
           float weight = weights.load_pixel<float>(int2(x, y));
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, y)) * weight;
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(-x, y)) * weight;
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, -y)) * weight;
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(-x, -y)) * weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y))) *
+                               weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(-x, y))) *
+                               weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, -y))) *
+                               weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(-x, -y))) *
+                               weight;
         }
       }
 
-      output.store_pixel(texel, accumulated_color);
+      output.store_pixel(texel, Color(accumulated_color));
     });
   }
 
@@ -254,7 +266,7 @@ class BlurOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output.unbind_as_image();
@@ -272,7 +284,7 @@ class BlurOperation : public NodeOperation {
     const Domain domain = input.domain();
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float4 accumulated_color = float4(0.0f);
       float4 accumulated_weight = float4(0.0f);
 
@@ -281,7 +293,7 @@ class BlurOperation : public NodeOperation {
       float2 coordinates_scale = float2(1.0f) / (size + float2(1.0f));
 
       /* First, compute the contribution of the center pixel. */
-      float4 center_color = input.load_pixel_extended<float4>(texel);
+      float4 center_color = float4(input.load_pixel_extended<Color>(texel));
       float center_weight = weights.load_pixel<float>(int2(0));
       accumulated_color += center_color * center_weight;
       accumulated_weight += center_weight;
@@ -293,8 +305,9 @@ class BlurOperation : public NodeOperation {
       for (int x = 1; x <= radius.x; x++) {
         float weight_coordinates = (x + 0.5f) * coordinates_scale.x;
         float weight = weights.sample_bilinear_extended(float2(weight_coordinates, 0.0f)).x;
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, 0)) * weight;
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(-x, 0)) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, 0))) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(-x, 0))) *
+                             weight;
         accumulated_weight += weight * 2.0f;
       }
 
@@ -305,8 +318,9 @@ class BlurOperation : public NodeOperation {
       for (int y = 1; y <= radius.y; y++) {
         float weight_coordinates = (y + 0.5f) * coordinates_scale.y;
         float weight = weights.sample_bilinear_extended(float2(0.0f, weight_coordinates)).x;
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(0, y)) * weight;
-        accumulated_color += input.load_pixel_extended<float4>(texel + int2(0, -y)) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(0, y))) * weight;
+        accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(0, -y))) *
+                             weight;
         accumulated_weight += weight * 2.0f;
       }
 
@@ -318,17 +332,21 @@ class BlurOperation : public NodeOperation {
         for (int x = 1; x <= radius.x; x++) {
           float2 weight_coordinates = (float2(x, y) + float2(0.5f)) * coordinates_scale;
           float weight = weights.sample_bilinear_extended(weight_coordinates).x;
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, y)) * weight;
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(-x, y)) * weight;
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, -y)) * weight;
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(-x, -y)) * weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y))) *
+                               weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(-x, y))) *
+                               weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, -y))) *
+                               weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(-x, -y))) *
+                               weight;
           accumulated_weight += weight * 4.0f;
         }
       }
 
       accumulated_color = math::safe_divide(accumulated_color, accumulated_weight);
 
-      output.store_pixel(texel, accumulated_color);
+      output.store_pixel(texel, Color(accumulated_color));
     });
   }
 

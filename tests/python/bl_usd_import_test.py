@@ -128,9 +128,11 @@ class USDImportTest(AbstractUSDTest):
         # Test topology counts.
         self.assertIn("m_degenerate", objects, "Scene does not contain object m_degenerate")
         mesh = objects["m_degenerate"].data
-        self.assertEqual(len(mesh.polygons), 0)
-        self.assertEqual(len(mesh.edges), 0)
-        self.assertEqual(len(mesh.vertices), 6)
+        self.assertEqual(len(mesh.polygons), 2)
+        self.assertEqual(len(mesh.edges), 10)
+        self.assertEqual(len(mesh.vertices), 20)
+        self.assertEqual(len(mesh.polygons[0].vertices), 5)
+        self.assertEqual(len(mesh.polygons[1].vertices), 5)
 
         self.assertIn("m_triangles", objects, "Scene does not contain object m_triangles")
         mesh = objects["m_triangles"].data
@@ -594,6 +596,75 @@ class USDImportTest(AbstractUSDTest):
         mat = bpy.data.materials["Material"]
         self.assert_all_nodes_present(mat, ["Principled BSDF", "Image Texture", "UV Map", "Material Output"])
 
+    def check_mat_data(self, mat_name, expected_users, expected_color, ob_names):
+        if expected_users < 0:
+            self.assertEqual(bpy.data.materials.find(mat_name), -1)
+            return
+
+        mat = bpy.data.materials[mat_name]
+        self.assertEqual(mat.users, expected_users)
+        self.assertEqual(mat.diffuse_color[0:3], expected_color)
+        for ob_name in ob_names:
+            mat_slot = bpy.data.objects[ob_name].material_slots[0]
+            self.assertEqual(mat_slot.name, mat_name, f"Object {ob_name} has incorrect material")
+
+    def test_import_material_collisions(self):
+        """Validate that material name collisions are properly handled"""
+
+        # Variation with multiple objects referencing the same common materials
+        testfile = str(self.testdir / "usd_materials_collision.usda")
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        bpy.data.materials.new(name="Material").diffuse_color = (1, 0, 1, 1)
+        res = bpy.ops.wm.usd_import(filepath=testfile, mtl_name_collision_mode='MAKE_UNIQUE')
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        self.assertEqual(len(bpy.data.materials), 3)
+        self.check_mat_data("Material", 0, (1, 0, 1), [])
+        self.check_mat_data("Material.001", 3, (1, 0, 0), ["o1", "o3", "o5"])
+        self.check_mat_data("Material_001", 3, (0, 0, 1), ["o2", "o4", "o6"])
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        bpy.data.materials.new(name="Material").diffuse_color = (1, 0, 1, 1)
+        res = bpy.ops.wm.usd_import(filepath=testfile, mtl_name_collision_mode='REFERENCE_EXISTING')
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        self.assertEqual(len(bpy.data.materials), 2)
+        self.check_mat_data("Material", 3, (1, 0, 1), ["o1", "o3", "o5"])
+        self.check_mat_data("Material.001", -1, (), [])
+        self.check_mat_data("Material_001", 3, (0, 0, 1), ["o2", "o4", "o6"])
+
+    def test_import_material_collisions2(self):
+        """Validate that material name collisions are properly handled"""
+
+        # Variation with multiple materials with the same name but under different paths
+        testfile = str(self.testdir / "usd_materials_collision2.usda")
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        res = bpy.ops.wm.usd_import(filepath=testfile, mtl_name_collision_mode='MAKE_UNIQUE')
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        # Due to out of order reading, we know that there should be 3 materials, but we don't know
+        # which material(name) ended up on each object. The viewport color of the material should
+        # match what we expect though
+        self.assertEqual(len(bpy.data.materials), 3)
+        o1_mat_name = bpy.data.objects["o1"].material_slots[0].name
+        o2_mat_name = bpy.data.objects["o2"].material_slots[0].name
+        o3_mat_name = bpy.data.objects["o3"].material_slots[0].name
+        self.check_mat_data(o1_mat_name, 1, (1, 0, 0), ["o1"])
+        self.check_mat_data(o2_mat_name, 1, (0, 1, 0), ["o2"])
+        self.check_mat_data(o3_mat_name, 1, (0, 0, 1), ["o3"])
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        res = bpy.ops.wm.usd_import(filepath=testfile, mtl_name_collision_mode='REFERENCE_EXISTING')
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        # Due to out of order reading, we know that there should be 1 material, but we don't know
+        # which color ended up "winning" during the Import process
+        self.assertEqual(len(bpy.data.materials), 1)
+        expected_color = bpy.data.materials["MaterialA"].diffuse_color[0:3]
+        self.check_mat_data("MaterialA", 3, expected_color, ["o1", "o2", "o3"])
+
     def test_import_shader_varname_with_connection(self):
         """Test importing USD shader where uv primvar is a connection"""
 
@@ -874,37 +945,38 @@ class USDImportTest(AbstractUSDTest):
                 8 + i), 1.0, 2, "Unexpected weight for Elbow deform vert")
 
         action = bpy.data.actions['Anim1']
+        channelbag = action.layers[0].strips[0].channelbags[0]
 
         # Verify the Elbow joint rotation animation.
         curve_path = 'pose.bones["Elbow"].rotation_quaternion'
 
         # Quat W
-        f = action.fcurves.find(curve_path, index=0)
+        f = channelbag.fcurves.find(curve_path, index=0)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion W curve")
         self.assertAlmostEqual(f.evaluate(0), 1.0, 2, "Unexpected value for rotation quaternion W curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.707, 2, "Unexpected value for rotation quaternion W curve at frame 10")
 
         # Quat X
-        f = action.fcurves.find(curve_path, index=1)
+        f = channelbag.fcurves.find(curve_path, index=1)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion X curve")
         self.assertAlmostEqual(f.evaluate(0), 0.0, 2, "Unexpected value for rotation quaternion X curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.707, 2, "Unexpected value for rotation quaternion X curve at frame 10")
 
         # Quat Y
-        f = action.fcurves.find(curve_path, index=2)
+        f = channelbag.fcurves.find(curve_path, index=2)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion Y curve")
         self.assertAlmostEqual(f.evaluate(0), 0.0, 2, "Unexpected value for rotation quaternion Y curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.0, 2, "Unexpected value for rotation quaternion Y curve at frame 10")
 
         # Quat Z
-        f = action.fcurves.find(curve_path, index=3)
+        f = channelbag.fcurves.find(curve_path, index=3)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion Z curve")
         self.assertAlmostEqual(f.evaluate(0), 0.0, 2, "Unexpected value for rotation quaternion Z curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.0, 2, "Unexpected value for rotation quaternion Z curve at frame 10")
 
     def check_curve(self, blender_curve, usd_curve):
-        curve_type_map = {"linear": 1, "cubic-bezier": 2, "cubic-bspline": 3}
-        cyclic_map = {"nonperiodic": False, "periodic": True}
+        curve_type_map = {"linear-bezier": 1, "linear-catmullRom": 1, "cubic-bezier": 2, "cubic-bspline": 3}
+        cyclic_map = {"pinned": False, "nonperiodic": False, "periodic": True}
 
         # Check correct spline count.
         blender_spline_count = len(blender_curve.attributes["curve_type"].data)
@@ -912,10 +984,7 @@ class USDImportTest(AbstractUSDTest):
         self.assertEqual(blender_spline_count, usd_spline_count)
 
         # Check correct type of curve. All splines should have the same type and periodicity.
-        usd_curve_type = usd_curve.GetTypeAttr().Get()
-        usd_curve_type_basis = usd_curve_type
-        if usd_curve_type != "linear":
-            usd_curve_type_basis = usd_curve_type + "-" + usd_curve.GetBasisAttr().Get()
+        usd_curve_type_basis = usd_curve.GetTypeAttr().Get() + "-" + usd_curve.GetBasisAttr().Get()
         usd_cyclic = usd_curve.GetWrapAttr().Get()
         expected_curve_type = curve_type_map[usd_curve_type_basis]
         expected_cyclic = cyclic_map[usd_cyclic]
@@ -934,7 +1003,7 @@ class USDImportTest(AbstractUSDTest):
         blender_positions = blender_curve.attributes["position"].data
 
         point_count = 0
-        if usd_curve_type_basis == "linear":
+        if usd_curve_type_basis in ("linear-bezier", "linear-catmullRom"):
             point_count = len(usd_positions)
             self.assertEqual(len(blender_positions), point_count)
         elif usd_curve_type_basis == "cubic-bezier":
@@ -956,10 +1025,13 @@ class USDImportTest(AbstractUSDTest):
         if usd_curve_type_basis == "cubic-bspline":
             return
 
+        if not usd_curve.GetWidthsAttr().IsAuthored():
+            return
+
         usd_width_interpolation = usd_curve.GetWidthsInterpolation()
         usd_radius = [w / 2 for w in usd_curve.GetWidthsAttr().Get()]
         blender_radius = [r.value for r in blender_curve.attributes["radius"].data]
-        if usd_curve_type_basis == "linear":
+        if usd_curve_type_basis == "linear-bezier":
             if usd_width_interpolation == "constant":
                 usd_radius = usd_radius * point_count
 
@@ -1622,6 +1694,50 @@ class USDImportTest(AbstractUSDTest):
                     usd_test_data,
                     f"Frame {frame}: {name} test attributes do not match")
 
+    def test_import_point_ids(self):
+        """Validate we can import animated PointCloud IDs"""
+
+        # Use the existing IDs test file to create the USD file for import.
+        # It is validated as part of the bl_usd_export test.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_point_ids.blend"))
+        for frame in range(1, 7):
+            bpy.context.scene.frame_set(frame)
+        bpy.context.scene.frame_set(1)
+
+        testfile = str(self.tempdir / "usd_point_ids.usda")
+        res = bpy.ops.wm.usd_export(filepath=testfile, export_animation=True, evaluation_mode="RENDER")
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
+
+        # Reload the empty file and import back in
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        res = bpy.ops.wm.usd_import(filepath=testfile)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        stage = Usd.Stage.Open(testfile)
+
+        #
+        # Validate Point Cloud data
+        #
+        blender_pointcloud = bpy.data.objects["PointCloud"]
+        usd_points = UsdGeom.Points(stage.GetPrimAtPath("/root/pointcloud1/PointCloud"))
+
+        # A MeshSequenceCache modifier should be present
+        self.assertTrue(len(blender_pointcloud.modifiers) == 1 and blender_pointcloud.modifiers[0].type ==
+                        'MESH_SEQUENCE_CACHE', f"{blender_pointcloud.name} has incorrect modifiers")
+
+        # Compare Blender and USD data against each other for every frame
+        for frame in range(1, 7):
+            bpy.context.scene.frame_set(frame)
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            blender_pointcloud = blender_pointcloud.evaluated_get(depsgraph)
+
+            # Check IDs
+            blender_id_data = [d.value for d in blender_pointcloud.data.attributes["id"].data]
+            usd_id_data = [d for d in usd_points.GetIdsAttr().Get(frame)]
+
+            name = usd_points.GetPath().GetParentPath().name
+            self.assertEqual(blender_id_data, usd_id_data, f"Frame {frame}: {name} IDs do not match")
+
     def test_import_shapes(self):
         """Test importing USD Shape prims with time-varying attributes."""
 
@@ -1937,7 +2053,6 @@ class USDImportTest(AbstractUSDTest):
 
     def test_material_import_usd_hook(self):
         """Test importing color from an mtlx shader."""
-
         bpy.utils.register_class(ImportMtlxColorUSDHook)
         bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_simple_mtlx.usda"))
         bpy.utils.unregister_class(ImportMtlxColorUSDHook)
@@ -1949,7 +2064,6 @@ class USDImportTest(AbstractUSDTest):
         # Check that a Principled BSDF shader with the expected Base Color input.
         # was created.
         mtl = bpy.data.materials["Material"]
-        self.assertTrue(mtl.use_nodes)
         bsdf = mtl.node_tree.nodes.get("Principled BSDF")
         self.assertIsNotNone(bsdf)
         base_color_input = bsdf.inputs['Base Color']
@@ -2112,11 +2226,12 @@ class ImportMtlxColorUSDHook(bpy.types.USDHook):
 
         # Add a Principled BSDF shader and set its 'Base Color' input to
         # the color we read from mtlx.
-        bl_material.use_nodes = True
         node_tree = bl_material.node_tree
+        assert node_tree
         nodes = node_tree.nodes
-        bsdf = nodes.get("Principled BSDF")
-        assert bsdf
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+        output = nodes.new("ShaderNodeOutputMaterial")
+        node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
         color4 = [color[0], color[1], color[2], 1]
         ImportMtlxColorUSDHook.imported_color = color4
         bsdf.inputs['Base Color'].default_value = color4

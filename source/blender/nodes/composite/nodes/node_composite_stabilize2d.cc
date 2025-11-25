@@ -33,17 +33,19 @@ namespace blender::nodes::node_composite_stabilize2d_cc {
 static void cmp_node_stabilize2d_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_input<decl::Color>("Image")
+      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .hide_value()
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 
   b.add_layout([](uiLayout *layout, bContext *context, PointerRNA *node_pointer) {
     uiTemplateID(layout, context, node_pointer, "clip", nullptr, "CLIP_OT_open", nullptr);
   });
 
-  b.add_input<decl::Color>("Image")
-      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
-      .compositor_realization_mode(CompositorInputRealizationMode::None)
-      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Bool>("Invert").default_value(false).description(
       "Invert stabilization to reintroduce motion to the image");
 
@@ -51,14 +53,17 @@ static void cmp_node_stabilize2d_declare(NodeDeclarationBuilder &b)
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
+      .optional_label()
       .description("Interpolation method");
   sampling_panel.add_input<decl::Menu>("Extension X")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the X axis");
   sampling_panel.add_input<decl::Menu>("Extension Y")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the Y axis");
 }
 
@@ -88,8 +93,8 @@ class Stabilize2DOperation : public NodeOperation {
       return;
     }
 
-    const int width = input.domain().size.x;
-    const int height = input.domain().size.y;
+    const int width = input.domain().data_size.x;
+    const int height = input.domain().data_size.y;
     const int frame_number = BKE_movieclip_remap_scene_to_clip_frame(movie_clip,
                                                                      context().get_frame_number());
 

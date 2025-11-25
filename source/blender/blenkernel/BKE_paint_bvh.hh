@@ -15,6 +15,7 @@
 #include "BLI_bit_group_vector.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector.hh"
@@ -23,7 +24,6 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -115,7 +115,7 @@ class Node : NonCopyable {
   const Bounds<float3> &bounds_orig() const;
 };
 
-ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
+ENUM_OPERATORS(Node::Flags);
 
 struct MeshNode : public Node {
   /**
@@ -472,14 +472,11 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
 
 }  // namespace blender::bke::pbvh
 
-int BKE_pbvh_get_grid_num_verts(const Object &object);
-int BKE_pbvh_get_grid_num_faces(const Object &object);
-
 enum PBVHTopologyUpdateMode {
   PBVH_Subdivide = 1,
   PBVH_Collapse = 2,
 };
-ENUM_OPERATORS(PBVHTopologyUpdateMode, PBVH_Collapse);
+ENUM_OPERATORS(PBVHTopologyUpdateMode);
 
 namespace blender::bke::pbvh {
 

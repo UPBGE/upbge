@@ -36,6 +36,11 @@
 #  endif /* __alpha__ */
 #endif   /* __linux__ */
 
+#if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG)
+#  pragma comment(lib, "tbbmalloc_proxy.lib")
+#  pragma comment(linker, "/include:__TBB_malloc_proxy")
+#endif
+
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
@@ -45,7 +50,7 @@
 #include "BKE_callbacks.hh"
 #include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_keyconfig.h"
@@ -58,8 +63,8 @@
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
-#include "BKE_sound.h"
+#include "BKE_shader_fx.hh"
+#include "BKE_sound.hh"
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
 #include "BKE_tracking.h"
@@ -69,6 +74,7 @@
 #include "BLF_api.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_memory_cache.hh"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_system.h"
@@ -100,6 +106,7 @@
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
 #include "IMB_imbuf.hh"
+#include "IMB_colormanagement.hh"
 #include "MEM_CacheLimiterC-Api.h"
 #include "MOV_util.hh"
 #include "RE_engine.h"
@@ -282,7 +289,7 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
     int windowHeight = rc.bottom - rc.top;
     const char *title = "";
     GHOST_GPUSettings gpu_settings = {0};
-    const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+    const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
     gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
     gpu_settings.preferred_device.index = U.gpu_preferred_index;
     gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -355,7 +362,7 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   settings.yPixels = (useDesktop) ? sysHeight : height;
 
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -408,7 +415,7 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
                                   const int alphaBackground)
 {
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -448,7 +455,7 @@ static GHOST_IWindow *startEmbeddedWindow(GHOST_ISystem *system,
 {
   GHOST_TWindowState state = GHOST_kWindowStateNormal;
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -1062,7 +1069,7 @@ int main(int argc,
   BKE_blender_userdef_data_set_and_free(userdef);
   userdef = nullptr;
 
-  GPU_backend_type_selection_set(eGPUBackendType(U.gpu_backend));
+  GPU_backend_type_selection_set(GPUBackendType(U.gpu_backend));
 
   /* Call again to set from userpreferences... */
   BLT_lang_set("");
@@ -1515,6 +1522,8 @@ int main(int argc,
             CTX_data_scene_set(C, scene);
             G.main = maggie;
             G_MAIN = G.main;
+            IMB_colormanagement_working_space_check(bfd->main, false, false);
+
 
             if (firstTimeRunning) {
               G.fileflags = bfd->fileflags;
@@ -1879,6 +1888,10 @@ int main(int argc,
   }
 
   BKE_mball_cubeTable_free();
+
+  /* Clear the cache which may (indirectly) contain e.g. GPU resources which need to be freed
+   * before the GPU backend is destroyed. */
+  blender::memory_cache::clear();
 
   /* render code might still access databases */
   RE_FreeAllRender();

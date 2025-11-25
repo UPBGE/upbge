@@ -150,7 +150,7 @@ class AssetLibrary {
                                                         int id_type,
                                                         std::unique_ptr<AssetMetaData> metadata);
   /** See #AssetLibrary::add_external_asset(). */
-  std::weak_ptr<AssetRepresentation> add_local_id_asset(StringRef relative_asset_path, ID &id);
+  std::weak_ptr<AssetRepresentation> add_local_id_asset(ID &id);
   /**
    * Remove an asset from the library that was added using #add_external_asset() or
    * #add_local_id_asset(). Can usually be expected to be constant time complexity (worst case may
@@ -303,3 +303,15 @@ void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_re
                                               char **r_dir,
                                               char **r_group,
                                               char **r_name);
+
+/**
+ * Updates the default import method for asset libraries based on
+ * #U.experimental.no_data_block_packing.
+ */
+void AS_asset_library_import_method_ensure_valid(Main &bmain);
+/**
+ * This is not done as part of #AS_asset_library_import_method_ensure_valid because it changes
+ * run-time data only and does not need to happen during versioning (also it appears to break tests
+ * when run during versioning).
+ */
+void AS_asset_library_essential_import_method_update();

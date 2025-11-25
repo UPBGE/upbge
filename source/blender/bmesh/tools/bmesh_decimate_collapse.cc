@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_heap.h"
 #include "BLI_linklist.h"
 #include "BLI_math_geom.h"
@@ -32,7 +33,7 @@
 
 #define USE_SYMMETRY
 #ifdef USE_SYMMETRY
-#  include "BLI_kdtree.h"
+#  include "BLI_kdtree.hh"
 #endif
 
 /* defines for testing */
@@ -61,7 +62,7 @@ enum CD_UseFlag {
   CD_DO_EDGE = (1 << 1),
   CD_DO_LOOP = (1 << 2),
 };
-ENUM_OPERATORS(CD_UseFlag, CD_DO_LOOP)
+ENUM_OPERATORS(CD_UseFlag)
 
 /* BMesh Helper Functions
  * ********************** */
@@ -1053,7 +1054,7 @@ static bool bm_edge_collapse(BMesh *bm,
     }
 #endif
 
-    // BM_mesh_validate(bm);
+    // BM_mesh_is_valid(bm);
 
     return true;
   }
@@ -1109,7 +1110,7 @@ static bool bm_edge_collapse(BMesh *bm,
     }
 #endif
 
-    // BM_mesh_validate(bm);
+    // BM_mesh_is_valid(bm);
 
     return true;
   }
@@ -1523,7 +1524,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
   BLI_heap_free(eheap, nullptr);
 
   /* testing only */
-  // BM_mesh_validate(bm);
+  // BM_mesh_is_valid(bm);
 
   /* quiet release build warning */
   (void)tot_edge_orig;

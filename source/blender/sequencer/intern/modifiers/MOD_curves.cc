@@ -48,27 +48,28 @@ static void curves_copy_data(StripModifierData *target, StripModifierData *smd)
 struct CurvesApplyOp {
   const CurveMapping *curve_mapping;
 
-  template<typename ImageT, typename MaskT>
-  void apply(ImageT *image, const MaskT *mask, IndexRange size)
+  template<typename ImageT, typename MaskSampler>
+  void apply(ImageT *image, MaskSampler &mask, int image_x, IndexRange y_range)
   {
-    for ([[maybe_unused]] int64_t i : size) {
-      float4 input = load_pixel_premul(image);
+    image += y_range.first() * image_x * 4;
+    for (int64_t y : y_range) {
+      mask.begin_row(y);
+      for ([[maybe_unused]] int64_t x : IndexRange(image_x)) {
+        float4 input = load_pixel_premul(image);
 
-      float4 result;
-      BKE_curvemapping_evaluate_premulRGBF(this->curve_mapping, result, input);
-      result.w = input.w;
+        float4 result;
+        BKE_curvemapping_evaluate_premulRGBF(this->curve_mapping, result, input);
+        result.w = input.w;
 
-      apply_and_advance_mask(input, result, mask);
-      store_pixel_premul(result, image);
-      image += 4;
+        mask.apply_mask(input, result);
+        store_pixel_premul(result, image);
+        image += 4;
+      }
     }
   }
 };
 
-static void curves_apply(const StripScreenQuad & /*quad*/,
-                         StripModifierData *smd,
-                         ImBuf *ibuf,
-                         ImBuf *mask)
+static void curves_apply(ModifierApplyContext &context, StripModifierData *smd, ImBuf *mask)
 {
   CurvesModifierData *cmd = (CurvesModifierData *)smd;
 
@@ -82,7 +83,7 @@ static void curves_apply(const StripScreenQuad & /*quad*/,
 
   CurvesApplyOp op;
   op.curve_mapping = &cmd->curve_mapping;
-  apply_modifier_op(op, ibuf, mask);
+  apply_modifier_op(op, context.image, mask, context.transform);
 
   BKE_curvemapping_premultiply(&cmd->curve_mapping, true);
 }
@@ -92,7 +93,7 @@ static void curves_panel_draw(const bContext *C, Panel *panel)
   uiLayout *layout = panel->layout;
   PointerRNA *ptr = UI_panel_custom_data_get(panel);
 
-  uiTemplateCurveMapping(layout, ptr, "curve_mapping", 'c', false, false, false, true);
+  uiTemplateCurveMapping(layout, ptr, "curve_mapping", 'c', false, false, false, true, false);
 
   if (uiLayout *mask_input_layout = layout->panel_prop(
           C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))

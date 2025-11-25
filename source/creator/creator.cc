@@ -30,6 +30,7 @@
 
 #include "BLI_endian_defines.h"
 #include "BLI_fftw.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
@@ -49,8 +50,8 @@
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_particle.h"
-#include "BKE_shader_fx.h"
-#include "BKE_sound.h"
+#include "BKE_shader_fx.hh"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
@@ -284,6 +285,16 @@ void gmp_blender_init_allocator()
 }
 #endif
 
+static void restore_ld_preload()
+{
+  /* LD_PRELOAD may have been modified on startup for Blender. However
+   * we don't want it for other executables launched from Blender. */
+  const char *restore_ld_preload = BLI_getenv("BLENDER_RESTORE_LD_PRELOAD");
+  if (restore_ld_preload) {
+    BLI_setenv("LD_PRELOAD", restore_ld_preload);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -330,6 +341,8 @@ int main(int argc,
 #ifndef NDEBUG
   setvbuf(stdout, nullptr, _IONBF, 0);
 #endif
+
+  restore_ld_preload();
 
 #ifdef WIN32
 #  ifdef USE_WIN32_UNICODE_ARGS
@@ -568,9 +581,11 @@ int main(int argc,
   WM_init(C, argc, argv);
 
 #ifndef WITH_PYTHON
-  printf(
-      "\n* WARNING * - Blender compiled without Python!\n"
-      "this is not intended for typical usage\n\n");
+  fprintf(stderr,
+          "\n"
+          "WARNING: Blender compiled without Python!\n"
+          "This is not intended for typical usage.\n"
+          "\n");
 #endif
 
 #ifdef WITH_FREESTYLE

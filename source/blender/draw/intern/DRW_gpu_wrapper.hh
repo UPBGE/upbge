@@ -350,7 +350,9 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
     if (new_size != this->len_) {
       /* Manual realloc since MEM_reallocN_aligned does not exists. */
       T *new_data_ = (T *)MEM_mallocN_aligned(new_size * sizeof(T), 16, this->name_);
-      memcpy(new_data_, this->data_, min_uu(this->len_, new_size) * sizeof(T));
+      memcpy(reinterpret_cast<void *>(new_data_),
+             this->data_,
+             min_uu(this->len_, new_size) * sizeof(T));
       MEM_freeN(static_cast<void *>(this->data_));
       this->data_ = new_data_;
       GPU_storagebuf_free(this->ssbo_);
@@ -416,7 +418,7 @@ class StorageVectorBuffer : public StorageArrayBuffer<T, len, false> {
   int64_t item_len_ = 0;
 
  public:
-  StorageVectorBuffer(const char *name = nullptr) : StorageArrayBuffer<T, len, false>(name){};
+  StorageVectorBuffer(const char *name = nullptr) : StorageArrayBuffer<T, len, false>(name) {};
   ~StorageVectorBuffer() = default;
 
   /**
@@ -1065,7 +1067,7 @@ class Texture : NonCopyable {
 
 class TextureFromPool : public Texture, NonMovable {
  public:
-  TextureFromPool(const char *name = "gpu::Texture") : Texture(name){};
+  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
 
   /* Always use `release()` after rendering. */
   void acquire(int2 extent,
@@ -1201,12 +1203,12 @@ static inline gpu::Texture **as_texture(Image **img)
 
 class Framebuffer : NonCopyable {
  private:
-  GPUFrameBuffer *fb_ = nullptr;
+  gpu::FrameBuffer *fb_ = nullptr;
   const char *name_;
 
  public:
-  Framebuffer() : name_(""){};
-  Framebuffer(const char *name) : name_(name){};
+  Framebuffer() : name_("") {};
+  Framebuffer(const char *name) : name_(name) {};
 
   ~Framebuffer()
   {
@@ -1262,12 +1264,12 @@ class Framebuffer : NonCopyable {
     return *this;
   }
 
-  operator GPUFrameBuffer *() const
+  operator gpu::FrameBuffer *() const
   {
     return fb_;
   }
 
-  GPUFrameBuffer **operator&()
+  gpu::FrameBuffer **operator&()
   {
     return &fb_;
   }

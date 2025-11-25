@@ -17,6 +17,7 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_enums.h"
 #include "DNA_windowmanager_types.h"
@@ -24,13 +25,14 @@
 #include "BLF_api.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -60,7 +62,7 @@
 
 #include "GPU_capabilities.hh"
 
-ENUM_OPERATORS(eUserpref_StatusBar_Flag, STATUSBAR_SHOW_VERSION)
+ENUM_OPERATORS(eUserpref_StatusBar_Flag)
 
 struct SceneStats {
   uint64_t totvert, totvertsel, totvertsculpt;
@@ -150,7 +152,7 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
 static void stats_object(Object *ob,
                          const View3D *v3d_local,
                          SceneStats *stats,
-                         GSet *objects_gset)
+                         blender::Set<const Mesh *> &objects_gset)
 {
   if ((ob->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
     return;
@@ -171,7 +173,7 @@ static void stats_object(Object *ob,
     case OB_MESH: {
       /* we assume evaluated mesh is already built, this strictly does stats now. */
       const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob);
-      if (!BLI_gset_add(objects_gset, (void *)mesh_eval)) {
+      if (!objects_gset.add(mesh_eval)) {
         break;
       }
       stats_mesheval(mesh_eval, is_selected, stats);
@@ -345,6 +347,14 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     stats->totvertsel += array_utils::count_booleans(selection);
     stats->totpoints += curves.points_num();
   }
+  else if (obedit->type == OB_POINTCLOUD) {
+    using namespace blender;
+    PointCloud &pointcloud = *static_cast<PointCloud *>(obedit->data);
+    const VArray<bool> selection = *pointcloud.attributes().lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Point, true);
+    stats->totvertsel = array_utils::count_booleans(selection);
+    stats->totpoints = pointcloud.totpoint;
+  }
 }
 
 static void stats_object_pose(const Object *ob, SceneStats *stats)
@@ -354,7 +364,7 @@ static void stats_object_pose(const Object *ob, SceneStats *stats)
 
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       stats->totbone++;
-      if (pchan->bone && (pchan->bone->flag & BONE_SELECTED)) {
+      if ((pchan->flag & POSE_SELECTED)) {
         if (BKE_pose_is_bonecoll_visible(arm, pchan)) {
           stats->totbonesel++;
         }
@@ -391,8 +401,8 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
           stats->tottri = ob->sculpt->bm->totface;
           break;
         case blender::bke::pbvh::Type::Grids:
-          stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
-          stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+          stats->totvertsculpt = BKE_sculpt_get_grid_num_verts(*ob);
+          stats->totfacesculpt = BKE_sculpt_get_grid_num_faces(*ob);
           break;
       }
       break;
@@ -466,7 +476,7 @@ static void stats_update(Depsgraph *depsgraph,
   }
   else {
     /* Objects. */
-    GSet *objects_gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+    blender::Set<const Mesh *> objects_gset;
     DEGObjectIterSettings deg_iter_settings{};
     deg_iter_settings.depsgraph = depsgraph;
     deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
@@ -474,7 +484,6 @@ static void stats_update(Depsgraph *depsgraph,
       stats_object(ob_iter, v3d_local, stats, objects_gset);
     }
     DEG_OBJECT_ITER_END;
-    BLI_gset_free(objects_gset, nullptr);
   }
 }
 
@@ -622,6 +631,13 @@ static void get_stats_string(char *info,
                                      stats_fmt->totbone);
     }
     else if (ob->type == OB_CURVES) {
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
+                                     IFACE_("Points:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totpoints);
+    }
+    else if (ob->type == OB_POINTCLOUD) {
       *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
                                      len - *ofs,
                                      IFACE_("Points:%s/%s"),
@@ -898,6 +914,9 @@ void ED_info_draw_stats(
     }
     else if (ob->type == OB_CURVES) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
+    }
+    else if (ob->type == OB_POINTCLOUD) {
+      stats_row(col1, labels[POINTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
     }
     else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);

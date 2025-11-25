@@ -8,13 +8,14 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 /**
  * Describes the load operation of a frame-buffer attachment at the start of a render pass.
  */
-enum eGPULoadOp {
+enum GPULoadOp {
   /**
    * Clear the frame-buffer attachment using the clear value.
    */
@@ -36,7 +37,7 @@ enum eGPULoadOp {
 /**
  * Describes the store operation of a frame-buffer attachment at the end of a render pass.
  */
-enum eGPUStoreOp {
+enum GPUStoreOp {
   /**
    * Do not care about the content of the attachment when the render pass ends.
    * Useful if only the values being written are important.
@@ -69,10 +70,22 @@ enum GPUAttachmentState {
   GPU_ATTACHMENT_READ,
 };
 
-enum eGPUFrontFace {
+enum GPUFrontFace {
   GPU_CLOCKWISE,
   GPU_COUNTERCLOCKWISE,
 };
+
+namespace blender::gpu {
+
+enum class ShaderStage : uint8_t {
+  VERTEX = 1 << 0,
+  FRAGMENT = 1 << 1,
+  COMPUTE = 2 << 1,
+  ANY = (ShaderStage::VERTEX | ShaderStage::FRAGMENT | ShaderStage::COMPUTE),
+};
+ENUM_OPERATORS(ShaderStage);
+
+}  // namespace blender::gpu
 
 namespace blender::gpu::shader {
 

@@ -16,9 +16,9 @@ static EnumPropertyItem mode_items[] = {
     {GEO_NODE_TRANSFORM_MODE_COMPONENTS,
      "COMPONENTS",
      0,
-     "Components",
-     "Provide separate location, rotation and scale"},
-    {GEO_NODE_TRANSFORM_MODE_MATRIX, "MATRIX", 0, "Matrix", "Use a transformation matrix"},
+     N_("Components"),
+     N_("Provide separate location, rotation and scale")},
+    {GEO_NODE_TRANSFORM_MODE_MATRIX, "MATRIX", 0, N_("Matrix"), N_("Use a transformation matrix")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -33,6 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)
+      .optional_label()
       .description("How the transformation is specified");
   b.add_input<decl::Vector>("Translation")
       .subtype(PROP_TRANSLATION)
@@ -47,7 +48,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static bool use_translate(const math::Quaternion &rotation, const float3 scale)
 {
-  if (math::angle_of(rotation).radian() > 1e-7f) {
+  if (math::length_squared(rotation.imaginary_part()) > 1e-10f) {
     return false;
   }
   if (compare_ff(scale.x, 1.0f, 1e-9f) != 1 || compare_ff(scale.y, 1.0f, 1e-9f) != 1 ||

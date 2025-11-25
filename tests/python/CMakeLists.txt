@@ -121,6 +121,10 @@ if(WITH_UI_TESTS)
       # while this could be investigated, use windowed mode instead.
       # Use a window size that balances software GPU rendering with enough room to use the UI.
       --factory-startup
+      # Used so GHOST/Wayland doesn't attempt to load LIBDECOR
+      # which can fail on some systems, causing tests to fail.
+      # On other systems this is harmless.
+      --no-window-frame
       -p 0 0 800 600
       "${EXE_PARAMS}"
       "${ARGN}"
@@ -318,7 +322,7 @@ add_blender_test(
 # Generate BLENDFILE_VERSIONING_SPLIT_RANGE instances of the test,
 # each processing their own subset of the whole set of blendfiles.
 if(TEST_SRC_DIR_EXISTS)
-  set(BLENDFILE_VERSIONING_SPLIT_RANGE 32)
+  set(BLENDFILE_VERSIONING_SPLIT_RANGE 128)
   math(EXPR BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE "${BLENDFILE_VERSIONING_SPLIT_RANGE} - 1")
   foreach(idx RANGE ${BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE})
     add_blender_test(
@@ -403,6 +407,23 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${TEST_PYTHON_DIR}/curves_extrude.py
     --
     --run-all-tests
+  )
+
+  add_blender_test(
+    mesh_join
+    --python ${TEST_PYTHON_DIR}/mesh_join.py
+  )
+
+  add_blender_test_allow_error(
+    mesh_validate
+    --python ${TEST_PYTHON_DIR}/mesh_validate.py
+    --
+    --testdir "${TEST_SRC_DIR}"
+  )
+
+  add_blender_test(
+    object_edit
+    --python ${TEST_PYTHON_DIR}/object_edit.py
   )
 
   add_blender_test(
@@ -599,6 +620,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
+
+  add_blender_test(
+    vertex_group_painting
+    --python ${CMAKE_CURRENT_LIST_DIR}/vertex_group_painting.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -681,9 +709,11 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     light_group
     light_linking
     mesh
+    node_inlining
     pointcloud
     principled_bsdf
     shader
+    shadow
     shadow_catcher
     sss
     texture
@@ -945,8 +975,10 @@ if(TEST_SRC_DIR_EXISTS)
     output
     color
     filter
+    texture
     utilities
     vector
+    group
 
     pixel_nodes
     multiple_node_setups
@@ -980,8 +1012,10 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     output
     color
     filter
+    texture
     utilities
     vector
+    group
 
     pixel_nodes
     multiple_node_setups
@@ -1092,7 +1126,7 @@ if(TEST_SRC_DIR_EXISTS)
   endif()
 
   if(WITH_OPENSUBDIV)
-    list(APPEND geo_node_tests mesh/subdivision_tests)
+    list(APPEND geo_node_tests mesh/subdivision)
   endif()
 
   foreach(geo_node_test ${geo_node_tests})
@@ -1170,6 +1204,7 @@ if(WITH_ALEMBIC AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_alembic_io_test.py
     --
     --testdir "${TEST_SRC_DIR}/alembic"
+    --outdir "${TEST_OUT_DIR}/io_alembic"
   )
 endif()
 
@@ -1196,6 +1231,36 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/io_tests/fbx"
     --outdir "${TEST_OUT_DIR}/io_fbx"
+  )
+endif()
+
+if(TEST_SRC_DIR_EXISTS)
+  add_blender_test_allow_error(
+    io_gltf_import
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_import_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/gltf/import"
+    --outdir "${TEST_OUT_DIR}/io_gltf"
+  )
+endif()
+
+if(TEST_SRC_DIR_EXISTS)
+  add_blender_test_allow_error(
+    io_gltf_roundtrip
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_roundtrip_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/gltf/roundtrip"
+    --outdir "${TEST_OUT_DIR}/io_gltf"
+  )
+endif()
+
+if(TEST_SRC_DIR_EXISTS)
+  add_blender_test_allow_error(
+    io_gltf_export
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_export_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/gltf/export"
+    --outdir "${TEST_OUT_DIR}/io_gltf"
   )
 endif()
 
@@ -1377,6 +1442,7 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
+    test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple
@@ -1397,6 +1463,7 @@ if(WITH_UI_TESTS)
     test_workspace.sanity_check_general
     test_workspace.sanity_check_2d_animation
     test_workspace.sanity_check_sculpting
+    test_workspace.sanity_check_storyboarding
     test_workspace.sanity_check_vfx
     test_workspace.sanity_check_video_editing
   )

@@ -289,6 +289,10 @@ typedef struct View3D_Runtime {
 
   /* Only used for overlay stats while in local-view. */
   struct SceneStats *local_stats;
+
+  /* Times recorded for performance overlay. */
+  float last_sync_time;
+  float last_submission_time;
 } View3D_Runtime;
 
 /** 3D ViewPort Struct. */
@@ -350,7 +354,8 @@ typedef struct View3D {
 
   float lens, grid;
   float clip_start, clip_end;
-  float ofs[3] DNA_DEPRECATED;
+  float vignette_aperture;
+  float ofs[2] DNA_DEPRECATED;
 
   char _pad[1];
 
@@ -445,12 +450,12 @@ enum {
   RV3D_NAVIGATING = 1 << 3,
   RV3D_GPULIGHT_UPDATE = 1 << 4,
   RV3D_PAINTING = 1 << 5,
-  // RV3D_IS_GAME_ENGINE = 1 << 5, /* UNUSED */
   /**
    * Disable Z-buffer offset, skip calls to #ED_view3d_polygon_offset.
    * Use when precise surface depth is needed and picking bias isn't, see #45434).
    */
   RV3D_ZOFFSET_DISABLED = 1 << 6,
+  RV3D_WAS_CAMOB = 1 << 7,
 };
 
 /** #RegionView3D.viewlock */
@@ -647,6 +652,7 @@ enum {
   V3D_OVERLAY_SCULPT_CURVES_CAGE = (1 << 16),
   V3D_OVERLAY_SHOW_LIGHT_COLORS = (1 << 17),
   V3D_OVERLAY_VIEWER_ATTRIBUTE_TEXT = (1 << 18),
+  V3D_OVERLAY_PERFORMANCE = (1 << 19),
 };
 
 /** #View3DOverlay.edit_flag */

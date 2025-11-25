@@ -1398,6 +1398,46 @@ bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
   return pose_channel_in_IK_chain(ob, pchan, 0);
 }
 
+static bool transform_follows_custom_tx(const bArmature *arm, const bPoseChannel *pchan)
+{
+  if (arm->flag & ARM_NO_CUSTOM) {
+    return false;
+  }
+
+  if (!pchan->custom || !pchan->custom_tx) {
+    return false;
+  }
+
+  return pchan->flag & POSE_TRANSFORM_AT_CUSTOM_TX;
+}
+
+void BKE_pose_channel_transform_orientation(const bArmature *arm,
+                                            const bPoseChannel *pose_bone,
+                                            float r_pose_orientation[3][3])
+{
+  if (!transform_follows_custom_tx(arm, pose_bone)) {
+    copy_m3_m4(r_pose_orientation, pose_bone->pose_mat);
+    return;
+  }
+
+  BLI_assert(pose_bone->custom_tx);
+
+  const bPoseChannel *custom_tx_bone = pose_bone->custom_tx;
+  copy_m3_m4(r_pose_orientation, custom_tx_bone->pose_mat);
+}
+
+void BKE_pose_channel_transform_location(const bArmature *arm,
+                                         const bPoseChannel *pose_bone,
+                                         float r_pose_space_pivot[3])
+{
+  if (!transform_follows_custom_tx(arm, pose_bone)) {
+    copy_v3_v3(r_pose_space_pivot, pose_bone->pose_mat[3]);
+    return;
+  }
+
+  copy_v3_v3(r_pose_space_pivot, pose_bone->custom_tx->pose_mat[3]);
+}
+
 void BKE_pose_channels_hash_ensure(bPose *pose)
 {
   if (!pose->chanhash) {
@@ -1906,8 +1946,7 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
   memset(pose->cyclic_offset, 0, sizeof(pose->cyclic_offset));
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
-    if (selected_bones_only && pchan->bone != nullptr && (pchan->bone->flag & BONE_SELECTED) == 0)
-    {
+    if (selected_bones_only && pchan->bone != nullptr && (pchan->flag & POSE_SELECTED) == 0) {
       continue;
     }
     zero_v3(pchan->loc);
@@ -2095,8 +2134,7 @@ void BKE_pose_check_uids_unique_and_report(const bPose *pose)
     return;
   }
 
-  GSet *used_uids = BLI_gset_new(
-      BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
+  blender::Set<SessionUID> used_uids;
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
     const SessionUID *session_uid = &pchan->runtime.session_uid;
@@ -2105,21 +2143,17 @@ void BKE_pose_check_uids_unique_and_report(const bPose *pose)
       continue;
     }
 
-    if (BLI_gset_lookup(used_uids, session_uid) != nullptr) {
+    if (!used_uids.add(*session_uid)) {
       printf("Pose channel %s has duplicate UID generated.\n", pchan->name);
       continue;
     }
-
-    BLI_gset_insert(used_uids, (void *)session_uid);
   }
-
-  BLI_gset_free(used_uids, nullptr);
 }
 
-void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm)
+void BKE_pose_blend_write(BlendWriter *writer, bPose *pose)
 {
 #ifndef __GNUC__
-  BLI_assert(pose != nullptr && arm != nullptr);
+  BLI_assert(pose != nullptr);
 #endif
 
   /* Write channels */
@@ -2136,17 +2170,6 @@ void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm)
     BKE_constraint_blend_write(writer, &chan->constraints);
 
     animviz_motionpath_blend_write(writer, chan->mpath);
-
-    /* Prevent crashes with auto-save,
-     * when a bone duplicated in edit-mode has not yet been assigned to its pose-channel.
-     * Also needed with memundo, in some cases we can store a step before pose has been
-     * properly rebuilt from previous undo step. */
-    Bone *bone = (pose->flag & POSE_RECALC) ? BKE_armature_find_bone_name(arm, chan->name) :
-                                              chan->bone;
-    if (bone != nullptr) {
-      /* gets restored on read, for library armatures */
-      chan->selectflag = bone->flag & BONE_SELECTED;
-    }
 
     BLO_write_struct(writer, bPoseChannel, chan);
   }
@@ -2246,11 +2269,6 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
 
     if (UNLIKELY(pchan->bone == nullptr)) {
       rebuild = true;
-    }
-    else if (!ID_IS_LINKED(ob) && ID_IS_LINKED(arm)) {
-      /* local pose selection copied to armature, bit hackish */
-      pchan->bone->flag &= ~BONE_SELECTED;
-      pchan->bone->flag |= pchan->selectflag;
     }
 
     /* At some point in history, bones could have an armature object as custom shape, which caused

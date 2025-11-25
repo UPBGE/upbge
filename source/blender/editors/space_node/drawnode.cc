@@ -83,7 +83,7 @@ static void node_socket_button_label(bContext * /*C*/,
                                      uiLayout *layout,
                                      PointerRNA * /*ptr*/,
                                      PointerRNA * /*node_ptr*/,
-                                     const StringRefNull text)
+                                     const StringRef text)
 {
   layout->label(text, ICON_NONE);
 }
@@ -106,7 +106,7 @@ static void node_buts_mix_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *pt
 
 static void node_buts_time(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiTemplateCurveMapping(layout, ptr, "curve", 's', false, false, false, false);
+  uiTemplateCurveMapping(layout, ptr, "curve", 's', false, false, false, false, false);
 }
 
 static void node_buts_colorramp(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -116,12 +116,12 @@ static void node_buts_colorramp(uiLayout *layout, bContext * /*C*/, PointerRNA *
 
 static void node_buts_curvevec(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiTemplateCurveMapping(layout, ptr, "mapping", 'v', false, false, false, false);
+  uiTemplateCurveMapping(layout, ptr, "mapping", 'v', false, false, false, false, false);
 }
 
 static void node_buts_curvefloat(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiTemplateCurveMapping(layout, ptr, "mapping", 0, false, false, false, false);
+  uiTemplateCurveMapping(layout, ptr, "mapping", 0, false, false, false, false, false);
 }
 
 }  // namespace blender::ed::space_node
@@ -157,7 +157,7 @@ static void node_buts_curvecol(uiLayout *layout, bContext * /*C*/, PointerRNA *p
   /* "Tone" (Standard/Film-like) only used in the Compositor. */
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
   uiTemplateCurveMapping(
-      layout, ptr, "mapping", 'c', false, false, false, (ntree->type == NTREE_COMPOSIT));
+      layout, ptr, "mapping", 'c', false, false, false, (ntree->type == NTREE_COMPOSIT), false);
 }
 
 static void node_buts_normal(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -201,7 +201,9 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                                               const int x,
                                               const int y)
 {
-  const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f);
+  const bool node_is_collapsed = node->flag & NODE_COLLAPSED;
+  const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f) *
+                     (node_is_collapsed ? 3.0f : 1.0f);
 
   if (node->is_frame()) {
     NodeFrame *data = (NodeFrame *)node->storage;
@@ -231,17 +233,6 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
     return dir;
   }
 
-  if (node->flag & NODE_COLLAPSED) {
-    /* right part of node */
-    rctf bounds = node->runtime->draw_bounds;
-    bounds.xmin = node->runtime->draw_bounds.xmax - 1.0f * U.widget_unit;
-    if (BLI_rctf_isect_pt(&bounds, x, y)) {
-      return NODE_RESIZE_RIGHT;
-    }
-
-    return NODE_RESIZE_NONE;
-  }
-
   const rctf &bounds = node->runtime->draw_bounds;
   NodeResizeDirection dir = NODE_RESIZE_NONE;
 
@@ -250,6 +241,15 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
   }
   if (x >= bounds.xmin && x < bounds.xmin + size && y >= bounds.ymin && y < bounds.ymax) {
     dir |= NODE_RESIZE_LEFT;
+
+    if (node_is_collapsed) {
+      /* Prevent conflict with the collapse/expand icon. */
+      if ((abs(y - BLI_rctf_cent_y(&bounds)) < 0.4f * U.widget_unit) &&
+          (x > (bounds.xmin + 0.4f * U.widget_unit)))
+      {
+        dir = NODE_RESIZE_NONE;
+      }
+    }
   }
   return dir;
 }
@@ -542,7 +542,7 @@ static void node_composit_buts_huecorrect(uiLayout *layout, bContext * /*C*/, Po
     cumap->flag &= ~CUMA_DRAW_SAMPLE;
   }
 
-  uiTemplateCurveMapping(layout, ptr, "mapping", 'h', false, false, false, false);
+  uiTemplateCurveMapping(layout, ptr, "mapping", 'h', false, false, false, false, false);
 }
 
 static void node_composit_buts_combsep_color(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -868,7 +868,7 @@ static void node_socket_undefined_draw(bContext * /*C*/,
                                        uiLayout *layout,
                                        PointerRNA * /*ptr*/,
                                        PointerRNA * /*node_ptr*/,
-                                       StringRefNull /*text*/)
+                                       StringRef /*text*/)
 {
   layout->label(IFACE_("Undefined Socket Type"), ICON_ERROR);
 }
@@ -1020,8 +1020,7 @@ static bool socket_needs_attribute_search(bNode &node, bNodeSocket &socket)
   if (socket.in_out == SOCK_OUT) {
     return false;
   }
-  const int socket_index = BLI_findindex(&node.inputs, &socket);
-  return node_decl->inputs[socket_index]->is_attribute_name;
+  return socket.runtime->declaration->is_attribute_name;
 }
 
 static bool socket_needs_layer_search(const bNode &node, const bNodeSocket &socket)
@@ -1036,8 +1035,22 @@ static bool socket_needs_layer_search(const bNode &node, const bNodeSocket &sock
   if (socket.in_out == SOCK_OUT) {
     return false;
   }
-  const int socket_index = BLI_findindex(&node.inputs, &socket);
-  return node_decl->inputs[socket_index]->is_layer_name;
+  return socket.runtime->declaration->is_layer_name;
+}
+
+static bool socket_needs_volume_grid_search(const bNode &node, const bNodeSocket &socket)
+{
+  const nodes::NodeDeclaration *node_decl = node.declaration();
+  if (node_decl == nullptr) {
+    return false;
+  }
+  if (node_decl->skip_updating_sockets) {
+    return false;
+  }
+  if (socket.in_out == SOCK_OUT) {
+    return false;
+  }
+  return socket.runtime->declaration->is_volume_grid_name;
 }
 
 static void draw_gizmo_pin_icon(uiLayout *layout, PointerRNA *socket_ptr)
@@ -1051,6 +1064,7 @@ static void draw_node_socket_name_editable(uiLayout *layout,
 {
   if (sock->runtime->declaration) {
     if (sock->runtime->declaration->socket_name_rna) {
+      layout->alignment_set(ui::LayoutAlign::Expand);
       layout->emboss_set(ui::EmbossType::None);
       layout->prop((&sock->runtime->declaration->socket_name_rna->owner),
                    sock->runtime->declaration->socket_name_rna->property_name,
@@ -1070,22 +1084,8 @@ static void draw_node_socket_without_value(uiLayout *layout,
   draw_node_socket_name_editable(layout, sock, text);
 }
 
-/* Menu sockets hide the socket name by default to save space. Some nodes have multiple menu
- * sockets which requires showing the name anyway to avoid ambiguity. */
-static bool show_menu_socket_name(const bNode *node, const bNodeSocket *sock)
-{
-  BLI_assert(sock->type == SOCK_MENU);
-  if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
-    return true;
-  }
-  if (node->is_type("GeometryNodeSwitch")) {
-    return true;
-  }
-  return false;
-}
-
 static void std_node_socket_draw(
-    bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, StringRefNull text)
+    bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, StringRef label)
 {
   bNode *node = (bNode *)node_ptr->data;
   bNodeSocket *sock = (bNodeSocket *)ptr->data;
@@ -1094,17 +1094,13 @@ static void std_node_socket_draw(
   // int subtype = sock->typeinfo->subtype;
 
   const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
-  if (socket_decl) {
-    if (socket_decl->custom_draw_fn) {
-      nodes::CustomSocketDrawParams params{*C, *layout, *tree, *node, *sock, *node_ptr, *ptr};
-      (*socket_decl->custom_draw_fn)(params);
-      return;
-    }
-  }
 
   if (sock->is_inactive()) {
     layout->active_set(false);
   }
+
+  const bool optional_label = (socket_decl && socket_decl->optional_label) || label.is_empty();
+  const StringRef label_or_empty = optional_label ? "" : label;
 
   const bool has_gizmo = tree->runtime->gizmo_propagation ?
                              tree->runtime->gizmo_propagation->gizmo_endpoint_sockets.contains(
@@ -1115,7 +1111,7 @@ static void std_node_socket_draw(
     if (sock->in_out == SOCK_OUT && node->is_group_input()) {
       uiLayout *row = &layout->row(false);
       row->alignment_set(ui::LayoutAlign::Right);
-      node_socket_button_label(C, row, ptr, node_ptr, text);
+      node_socket_button_label(C, row, ptr, node_ptr, label);
       row->label("", ICON_GIZMO);
       return;
     }
@@ -1123,7 +1119,7 @@ static void std_node_socket_draw(
         nodes::gizmos::is_builtin_gizmo_node(*node))
     {
       uiLayout *row = &layout->row(false);
-      node_socket_button_label(C, row, ptr, node_ptr, text);
+      node_socket_button_label(C, row, ptr, node_ptr, label);
       draw_gizmo_pin_icon(row, ptr);
       return;
     }
@@ -1131,12 +1127,15 @@ static void std_node_socket_draw(
 
   if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_HIDE_VALUE) || sock->is_logically_linked())
   {
-    draw_node_socket_without_value(layout, sock, text);
+    draw_node_socket_without_value(layout, sock, label);
     return;
   }
-
-  const StringRefNull label = text;
-  text = (sock->flag & SOCK_HIDE_LABEL) ? "" : text;
+  if (tree->type == NTREE_GEOMETRY &&
+      ELEM(sock->display_shape, SOCK_DISPLAY_SHAPE_LIST, SOCK_DISPLAY_SHAPE_VOLUME_GRID))
+  {
+    draw_node_socket_without_value(layout, sock, label);
+    return;
+  }
 
   /* Some socket types draw the gizmo icon in a special way to look better. All others use a
    * fallback default code path. */
@@ -1146,11 +1145,11 @@ static void std_node_socket_draw(
     case SOCK_FLOAT:
     case SOCK_INT:
     case SOCK_BOOLEAN:
-      layout->prop(ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
+      layout->prop(ptr, "default_value", DEFAULT_FLAGS, label_or_empty, ICON_NONE);
       break;
     case SOCK_VECTOR:
-      if (sock->flag & SOCK_COMPACT) {
-        uiTemplateComponentMenu(layout, ptr, "default_value", text);
+      if (socket_decl && socket_decl->compact) {
+        uiTemplateComponentMenu(layout, ptr, "default_value", label_or_empty);
       }
       else {
         if (sock->typeinfo->subtype == PROP_DIRECTION) {
@@ -1160,7 +1159,7 @@ static void std_node_socket_draw(
           uiLayout *column = &layout->column(false);
           {
             uiLayout *row = &column->row(true);
-            draw_node_socket_name_editable(row, sock, text);
+            draw_node_socket_name_editable(row, sock, label_or_empty);
             if (has_gizmo) {
               draw_gizmo_pin_icon(row, ptr);
               gizmo_handled = true;
@@ -1174,7 +1173,7 @@ static void std_node_socket_draw(
       uiLayout *column = &layout->column(false);
       {
         uiLayout *row = &column->row(true);
-        draw_node_socket_name_editable(row, sock, text);
+        draw_node_socket_name_editable(row, sock, label_or_empty);
         if (has_gizmo) {
           draw_gizmo_pin_icon(row, ptr);
           gizmo_handled = true;
@@ -1184,43 +1183,61 @@ static void std_node_socket_draw(
       break;
     }
     case SOCK_MATRIX: {
-      draw_node_socket_name_editable(layout, sock, text);
+      draw_node_socket_name_editable(layout, sock, label);
       break;
     }
     case SOCK_RGBA: {
-      if (text.is_empty()) {
+      if (optional_label) {
         layout->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
       }
       else {
         uiLayout *row = &layout->split(0.4f, false);
-        row->label(text, ICON_NONE);
-        row->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+        uiLayout *label_layout = &row->column(true);
+        label_layout->label(label, ICON_NONE);
+        uiLayout *color_layout = &row->column(true);
+        color_layout->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+        /* Keep color layout active to avoid darkened color appearance when inactive. */
+        if (sock->is_inactive()) {
+          layout->active_set(true);
+          label_layout->active_set(false);
+          color_layout->active_set(true);
+        }
       }
       break;
     }
     case SOCK_STRING: {
       if (socket_needs_attribute_search(*node, *sock)) {
-        if (text.is_empty()) {
+        if (optional_label) {
           node_geometry_add_attribute_search_button(*C, *node, *ptr, *layout, label);
         }
         else {
           uiLayout *row = &layout->split(0.4f, false);
-          row->label(text, ICON_NONE);
+          row->label(label, ICON_NONE);
           node_geometry_add_attribute_search_button(*C, *node, *ptr, *row);
         }
       }
       else if (socket_needs_layer_search(*node, *sock)) {
-        if (text.is_empty()) {
+        if (optional_label) {
           node_geometry_add_layer_search_button(*C, *node, *ptr, *layout, label);
         }
         else {
           uiLayout *row = &layout->split(0.4f, false);
-          row->label(text, ICON_NONE);
+          row->label(label, ICON_NONE);
           node_geometry_add_layer_search_button(*C, *node, *ptr, *row);
         }
       }
+      else if (socket_needs_volume_grid_search(*node, *sock)) {
+        if (optional_label) {
+          node_geometry_add_volume_grid_search_button(*C, *node, *ptr, *layout, label);
+        }
+        else {
+          uiLayout *row = &layout->split(0.4f, false);
+          row->label(label, ICON_NONE);
+          node_geometry_add_volume_grid_search_button(*C, *node, *ptr, *row);
+        }
+      }
       else {
-        if (text.is_empty()) {
+        if (optional_label) {
           layout->prop(ptr,
                        RNA_struct_find_property(ptr, "default_value"),
                        -1,
@@ -1232,7 +1249,7 @@ static void std_node_socket_draw(
         }
         else {
           uiLayout *row = &layout->split(0.4f, false);
-          row->label(text, ICON_NONE);
+          row->label(label, ICON_NONE);
           row->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
         }
       }
@@ -1244,18 +1261,36 @@ static void std_node_socket_draw(
       if (default_value->enum_items) {
         if (default_value->enum_items->items.is_empty()) {
           uiLayout *row = &layout->split(0.4f, false);
-          row->label(text, ICON_NONE);
+          row->label(label, ICON_NONE);
           row->label(IFACE_("No Items"), ICON_NONE);
         }
         else {
+          bool expanded = false;
           if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(socket_decl)) {
-            if (menu_decl->is_expanded) {
-              layout->prop(ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-              break;
+            expanded = menu_decl->is_expanded;
+          }
+          if (optional_label) {
+            if (expanded) {
+              /* Use a single space for the name to work around a bug. Also see
+               * #ui_item_enum_expand_exec. */
+              layout->prop(ptr, "default_value", UI_ITEM_R_EXPAND, " ", ICON_NONE);
+            }
+            else {
+              layout->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
             }
           }
-          const char *name = show_menu_socket_name(node, sock) ? sock->name : "";
-          layout->prop(ptr, "default_value", DEFAULT_FLAGS, name, ICON_NONE);
+          else {
+            uiLayout &row = layout->split(0.4f, false);
+            row.label(label, ICON_NONE);
+            if (expanded) {
+              /* Use a single space for the name to work around a bug. Also see
+               * #ui_item_enum_expand_exec. */
+              row.row(true).prop(ptr, "default_value", UI_ITEM_R_EXPAND, " ", ICON_NONE);
+            }
+            else {
+              row.prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+            }
+          }
         }
       }
       else if (default_value->has_conflict()) {
@@ -1269,49 +1304,61 @@ static void std_node_socket_draw(
     case SOCK_COLLECTION:
     case SOCK_OBJECT:
     case SOCK_MATERIAL: {
-      layout->prop(ptr,
-                   RNA_struct_find_property(ptr, "default_value"),
-                   -1,
-                   0,
-                   DEFAULT_FLAGS,
-                   text,
-                   ICON_NONE,
-                   text.is_empty() ? std::optional(label) : std::nullopt);
+      if (optional_label) {
+        layout->prop(ptr,
+                     RNA_struct_find_property(ptr, "default_value"),
+                     -1,
+                     0,
+                     DEFAULT_FLAGS,
+                     "",
+                     ICON_NONE,
+                     std::optional(label));
+      }
+      else {
+        layout->prop(ptr,
+                     RNA_struct_find_property(ptr, "default_value"),
+                     -1,
+                     0,
+                     DEFAULT_FLAGS,
+                     label,
+                     ICON_NONE);
+      }
+
       break;
     }
     case SOCK_IMAGE: {
       const bNodeTree *node_tree = (const bNodeTree *)node_ptr->owner_id;
       if (node_tree->type == NTREE_GEOMETRY) {
-        if (text.is_empty()) {
+        if (optional_label) {
           uiTemplateID(layout, C, ptr, "default_value", "image.new", "image.open", nullptr);
         }
         else {
           /* 0.3 split ratio is inconsistent, but use it here because the "New" button is large. */
           uiLayout *row = &layout->split(0.3f, false);
-          row->label(text, ICON_NONE);
+          row->label(label, ICON_NONE);
           uiTemplateID(row, C, ptr, "default_value", "image.new", "image.open", nullptr);
         }
       }
       else {
-        layout->prop(ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
+        layout->prop(ptr, "default_value", DEFAULT_FLAGS, label_or_empty, ICON_NONE);
       }
       break;
     }
     case SOCK_TEXTURE: {
-      if (text.is_empty()) {
+      if (optional_label) {
         uiTemplateID(layout, C, ptr, "default_value", "texture.new", nullptr, nullptr);
       }
       else {
         /* 0.3 split ratio is inconsistent, but use it here because the "New" button is large. */
         uiLayout *row = &layout->split(0.3f, false);
-        row->label(text, ICON_NONE);
+        row->label(label, ICON_NONE);
         uiTemplateID(row, C, ptr, "default_value", "texture.new", nullptr, nullptr);
       }
 
       break;
     }
     default:
-      draw_node_socket_without_value(layout, sock, text);
+      draw_node_socket_without_value(layout, sock, label_or_empty);
       break;
   }
 
@@ -1405,6 +1452,9 @@ static void std_node_socket_interface_draw(ID *id,
     }
   }
 
+  if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
+    col->prop(&ptr, "optional_label", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+  }
   {
     uiLayout *sub = &col->column(false);
     sub->active_set(interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE);
@@ -1419,7 +1469,7 @@ static void std_node_socket_interface_draw(ID *id,
     sub->active_set(!is_layer_selection_field(*interface_socket));
     sub->prop(&ptr, "hide_in_modifier", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     if (nodes::socket_type_supports_fields(type) || nodes::socket_type_supports_grids(type)) {
-      sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, "Shape", ICON_NONE);
+      sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, IFACE_("Shape"), ICON_NONE);
     }
   }
 }
@@ -1452,7 +1502,7 @@ void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype)
 void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype)
 {
   using namespace blender::ed::space_node;
-  stype->draw = node_socket_button_label;
+  stype->draw = std_node_socket_draw;
   stype->draw_color = node_socket_virtual_draw_color;
   stype->draw_color_simple = node_socket_virtual_draw_color_simple;
 }
@@ -1494,7 +1544,9 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_pop_projection();
   GPU_matrix_pop();
 
-  if (!(snode.flag & SNODE_BACKDRAW) || !ED_node_is_compositor(&snode)) {
+  if (!(snode.flag & SNODE_BACKDRAW) || !ED_node_is_compositor(&snode) ||
+      snode.node_tree_sub_type != SNODE_COMPOSITOR_SCENE)
+  {
     return;
   }
 
@@ -1506,7 +1558,7 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_push();
 
   /* The draw manager is used to draw the backdrop image. */
-  GPUFrameBuffer *old_fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
   GPU_framebuffer_restore();
   BLI_thread_lock(LOCK_DRAW_IMAGE);
   DRW_draw_view(&C);
@@ -1700,7 +1752,7 @@ static void nodesocket_cache_flush()
         batch,
         "parameters",
         4,
-        reinterpret_cast<const float(*)[4]>(g_batch_nodesocket().params.data()));
+        reinterpret_cast<const float (*)[4]>(g_batch_nodesocket().params.data()));
     GPU_batch_draw(batch);
   }
   else {
@@ -1709,7 +1761,7 @@ static void nodesocket_cache_flush()
         batch,
         "parameters",
         MAX_SOCKET_PARAMETERS * MAX_SOCKET_INSTANCE,
-        reinterpret_cast<const float(*)[4]>(g_batch_nodesocket().params.data()));
+        reinterpret_cast<const float (*)[4]>(g_batch_nodesocket().params.data()));
     GPU_batch_draw_instance_range(batch, 0, g_batch_nodesocket().params.size());
   }
   g_batch_nodesocket().params.clear();
@@ -1745,7 +1797,7 @@ static void draw_node_socket_batch(const NodeSocketShaderParameters &socket_para
     gpu::Batch *batch = nodesocket_batch_init();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_NODE_SOCKET);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_SOCKET_PARAMETERS, (const float(*)[4])(&socket_params));
+        batch, "parameters", MAX_SOCKET_PARAMETERS, (const float (*)[4])(&socket_params));
     GPU_batch_draw(batch);
   }
 }
@@ -1914,6 +1966,7 @@ static void nodelink_batch_init()
 
   /* Instances data */
   g_batch_link.link_buf = GPU_storagebuf_create(sizeof(NodeLinkData) * NODELINK_GROUP_SIZE);
+  gpu_batch_storage_buffer_register(g_batch_link.link_buf);
 
   nodelink_batch_reset();
 }
@@ -2292,7 +2345,7 @@ void node_draw_link_dragged(const bContext &C,
   const std::array<float2, 4> points = node_link_bezier_points_dragged(snode, link);
 
   const NodeLinkDrawConfig draw_config = nodelink_get_draw_config(
-      C, v2d, snode, link, TH_ACTIVE, TH_ACTIVE, TH_WIRE, true);
+      C, v2d, snode, link, TH_WIRE_INNER, TH_WIRE_INNER, TH_WIRE, true);
   /* End marker outline. */
   node_draw_link_end_markers(link, draw_config, points, true);
   /* Link. */

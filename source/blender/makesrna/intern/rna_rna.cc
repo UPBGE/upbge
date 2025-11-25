@@ -1379,7 +1379,7 @@ static bool rna_BlenderRNA_structs_lookup_string(PointerRNA *ptr,
                                                  PointerRNA *r_ptr)
 {
   BlenderRNA *brna = static_cast<BlenderRNA *>(ptr->data);
-  StructRNA *srna = static_cast<StructRNA *>(BLI_ghash_lookup(brna->structs_map, (void *)key));
+  StructRNA *srna = brna->structs_map->lookup_default(key, nullptr);
   if (srna != nullptr) {
     *r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, srna);
     return true;
@@ -1842,9 +1842,17 @@ static void rna_property_override_diff_propptr(Main *bmain,
     }
   }
   else {
-    /* We could also use is_diff_pointer, but then we potentially lose the greater-than/less-than
-     * info - and don't think performances are critical here for now anyway. */
-    ptrdiff_ctx.rnadiff_ctx.comparison = !RNA_struct_equals(bmain, propptr_a, propptr_b, mode);
+    if (no_ownership || is_null || is_type_diff || !is_valid_for_diffing) {
+      /* In case this pointer prop does not own its data (or one is nullptr), do not compare
+       * structs! This is a quite safe path to infinite loop, among other nasty issues. Instead,
+       * just compare pointers themselves. */
+      ptrdiff_ctx.rnadiff_ctx.comparison = (propptr_a->data != propptr_b->data);
+    }
+    else {
+      /* We could also use is_diff_pointer, but then we potentially lose the greater-than/less-than
+       * info - and don't think performances are critical here for now anyway. */
+      ptrdiff_ctx.rnadiff_ctx.comparison = !RNA_struct_equals(bmain, propptr_a, propptr_b, mode);
+    }
   }
 }
 
@@ -2197,8 +2205,11 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
         RNACompareOverrideDiffPropPtrContext ptrdiff_ctx(rnadiff_ctx);
         ptrdiff_ctx.owner_id_a = ptr_a->owner_id;
         ptrdiff_ctx.owner_id_b = ptr_b->owner_id;
-        ptrdiff_ctx.propptr_a = RNA_property_pointer_get(ptr_a, rawprop_a);
-        ptrdiff_ctx.propptr_b = RNA_property_pointer_get(ptr_b, rawprop_b);
+        /* Do not create empty IDPGroup properties here. This is not only a totally useless
+         * overhead, but it also remains unsafe in parallelized context, despite the usage of a
+         * mutex in #property_pointer_get(). See also #146221. */
+        ptrdiff_ctx.propptr_a = RNA_property_pointer_get_never_create(ptr_a, rawprop_a);
+        ptrdiff_ctx.propptr_b = RNA_property_pointer_get_never_create(ptr_b, rawprop_b);
         ptrdiff_ctx.no_prop_name = true;
         ptrdiff_ctx.no_ownership = no_ownership;
         ptrdiff_ctx.property_type = PROP_POINTER;
@@ -2207,7 +2218,7 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
         if (prop_a->is_idprop || prop_a->is_rna_storage_idprop || prop_a->rnaprop->override_apply)
         {
           BLI_assert(prop_a->is_idprop == prop_b->is_idprop);
-          BLI_assert(prop_a->rnaprop->override_apply == prop_b->rnaprop->override_apply);
+          BLI_assert(prop_a->is_rna_storage_idprop == prop_b->is_rna_storage_idprop);
           BLI_assert(prop_a->rnaprop->override_apply == prop_b->rnaprop->override_apply);
           ptrdiff_ctx.has_liboverride_apply_cb = true;
         }

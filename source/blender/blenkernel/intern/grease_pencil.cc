@@ -358,7 +358,7 @@ IDTypeInfo IDType_ID_GP = {
     /*main_listbase_index*/ INDEX_ID_GP,
     /*struct_size*/ sizeof(GreasePencil),
     /*name*/ "GreasePencil",
-    /*name_plural*/ N_("grease_pencils_v3"),
+    /*name_plural*/ N_("grease_pencils"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_GPENCIL,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -499,7 +499,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
       MutableSpan<int3> r_tris = triangles.slice(triangle_offsets[curve_i]);
 
-      float(*projverts)[2] = static_cast<float(*)[2]>(
+      float (*projverts)[2] = static_cast<float (*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(points.size())));
 
       float3x3 axis_mat;
@@ -510,7 +510,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
 
       BLI_polyfill_calc_arena(
-          projverts, points.size(), 0, reinterpret_cast<uint32_t(*)[3]>(r_tris.data()), pf_arena);
+          projverts, points.size(), 0, reinterpret_cast<uint32_t (*)[3]>(r_tris.data()), pf_arena);
       BLI_memarena_clear(pf_arena);
     }
   });
@@ -4415,6 +4415,9 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         bke::CurvesGeometry::BlendWriteData write_data(scope);
         curves.blend_write_prepare(write_data);
         drawing_copy.runtime = nullptr;
+
+        BLO_write_shared_tag(writer, curves.curve_offsets);
+        BLO_write_shared_tag(writer, curves.custom_knots);
 
         BLO_write_struct_at_address(writer, GreasePencilDrawing, drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);

@@ -104,19 +104,16 @@ static bool uvedit_ensure_uvs(Object *obedit)
     return false;
   }
 
-  const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
-  BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
-  BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
-
-  /* select new UVs (ignore UV_FLAG_SYNC_SELECT in this case) */
+  /* select new UVs (ignore UV_FLAG_SELECT_SYNC in this case) */
+  em->bm->uv_select_sync_valid = false;
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     BMIter liter;
     BMLoop *l;
 
+    BM_elem_flag_enable(efa, BM_ELEM_SELECT_UV);
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-      BM_ELEM_CD_SET_BOOL(l, offsets.select_vert, true);
-      BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, true);
+      BM_elem_flag_enable(l, BM_ELEM_SELECT_UV);
+      BM_elem_flag_enable(l, BM_ELEM_SELECT_UV_EDGE);
     }
   }
 
@@ -454,7 +451,7 @@ static bool uvedit_have_selection(const Scene *scene, BMEditMesh *em, const Unwr
   /* verify if we have any selected uv's before unwrapping,
    * so we can cancel the operator early */
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-    if (scene->toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
         continue;
       }
@@ -464,7 +461,7 @@ static bool uvedit_have_selection(const Scene *scene, BMEditMesh *em, const Unwr
     }
 
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-      if (uvedit_uv_select_test(scene, l, offsets)) {
+      if (uvedit_uv_select_test(scene, em->bm, l, offsets)) {
         break;
       }
     }
@@ -533,6 +530,7 @@ float ED_uvedit_get_aspect_y(Object *ob)
 }
 
 static bool uvedit_is_face_affected(const Scene *scene,
+                                    const BMesh *bm,
                                     BMFace *efa,
                                     const UnwrapOptions *options,
                                     const BMUVOffsets &offsets)
@@ -549,7 +547,7 @@ static bool uvedit_is_face_affected(const Scene *scene,
     BMLoop *l;
     BMIter iter;
     BM_ITER_ELEM (l, &iter, efa, BM_LOOPS_OF_FACE) {
-      if (uvedit_uv_select_test(scene, l, offsets)) {
+      if (uvedit_uv_select_test(scene, bm, l, offsets)) {
         return true;
       }
     }
@@ -563,6 +561,7 @@ static bool uvedit_is_face_affected(const Scene *scene,
  */
 static void uvedit_prepare_pinned_indices(ParamHandle *handle,
                                           const Scene *scene,
+                                          const BMesh *bm,
                                           BMFace *efa,
                                           const UnwrapOptions *options,
                                           const BMUVOffsets &offsets)
@@ -572,7 +571,7 @@ static void uvedit_prepare_pinned_indices(ParamHandle *handle,
   BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
     bool pin = BM_ELEM_CD_GET_BOOL(l, offsets.pin);
     if (options->pin_unselected && !pin) {
-      pin = !uvedit_uv_select_test(scene, l, offsets);
+      pin = !uvedit_uv_select_test(scene, bm, l, offsets);
     }
     if (pin) {
       int bmvertindex = BM_elem_index_get(l->v);
@@ -584,6 +583,7 @@ static void uvedit_prepare_pinned_indices(ParamHandle *handle,
 
 static void construct_param_handle_face_add(ParamHandle *handle,
                                             const Scene *scene,
+                                            const BMesh *bm,
                                             BMFace *efa,
                                             blender::geometry::ParamKey face_index,
                                             const UnwrapOptions *options,
@@ -612,7 +612,7 @@ static void construct_param_handle_face_add(ParamHandle *handle,
     co[i] = l->v->co;
     uv[i] = luv;
     pin[i] = BM_ELEM_CD_GET_BOOL(l, offsets.pin);
-    select[i] = uvedit_uv_select_test(scene, l, offsets);
+    select[i] = uvedit_uv_select_test(scene, bm, l, offsets);
     if (options->pin_unselected && !select[i]) {
       pin[i] = true;
     }
@@ -705,15 +705,15 @@ static ParamHandle *construct_param_handle(const Scene *scene,
   const int cd_weight_index = BKE_object_defgroup_name_index(ob, options->weight_group);
 
   BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, i) {
-    if (uvedit_is_face_affected(scene, efa, options, offsets)) {
-      uvedit_prepare_pinned_indices(handle, scene, efa, options, offsets);
+    if (uvedit_is_face_affected(scene, bm, efa, options, offsets)) {
+      uvedit_prepare_pinned_indices(handle, scene, bm, efa, options, offsets);
     }
   }
 
   BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, i) {
-    if (uvedit_is_face_affected(scene, efa, options, offsets)) {
+    if (uvedit_is_face_affected(scene, bm, efa, options, offsets)) {
       construct_param_handle_face_add(
-          handle, scene, efa, i, options, offsets, cd_weight_offset, cd_weight_index);
+          handle, scene, bm, efa, i, options, offsets, cd_weight_offset, cd_weight_index);
     }
   }
 
@@ -762,15 +762,22 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
     const int cd_weight_index = BKE_object_defgroup_name_index(obedit, options->weight_group);
 
     BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, i) {
-      if (uvedit_is_face_affected(scene, efa, options, offsets)) {
-        uvedit_prepare_pinned_indices(handle, scene, efa, options, offsets);
+      if (uvedit_is_face_affected(scene, bm, efa, options, offsets)) {
+        uvedit_prepare_pinned_indices(handle, scene, bm, efa, options, offsets);
       }
     }
 
     BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, i) {
-      if (uvedit_is_face_affected(scene, efa, options, offsets)) {
-        construct_param_handle_face_add(
-            handle, scene, efa, i + offset, options, offsets, cd_weight_offset, cd_weight_index);
+      if (uvedit_is_face_affected(scene, bm, efa, options, offsets)) {
+        construct_param_handle_face_add(handle,
+                                        scene,
+                                        bm,
+                                        efa,
+                                        i + offset,
+                                        options,
+                                        offsets,
+                                        cd_weight_offset,
+                                        cd_weight_index);
       }
     }
 
@@ -786,6 +793,7 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
 }
 
 static void texface_from_original_index(const Scene *scene,
+                                        const BMesh *bm,
                                         const BMUVOffsets &offsets,
                                         BMFace *efa,
                                         int index,
@@ -809,7 +817,7 @@ static void texface_from_original_index(const Scene *scene,
       float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
       *r_uv = luv;
       *r_pin = BM_ELEM_CD_GET_BOOL(l, offsets.pin);
-      *r_select = uvedit_uv_select_test(scene, l, offsets);
+      *r_select = uvedit_uv_select_test(scene, bm, l, offsets);
       break;
     }
   }
@@ -932,7 +940,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     float weight[4];
     BMFace *origFace = faceMap[i];
 
-    if (scene->toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (BM_elem_flag_test(origFace, BM_ELEM_HIDDEN)) {
         continue;
       }
@@ -982,6 +990,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
      * If the vertex exists in the, we pass the original uv pointer to the solver, thus
      * flushing the solution to the edit mesh. */
     texface_from_original_index(scene,
+                                em->bm,
                                 offsets,
                                 origFace,
                                 origVertIndices[poly_corner_verts[0]],
@@ -989,6 +998,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
                                 &pin[0],
                                 &select[0]);
     texface_from_original_index(scene,
+                                em->bm,
                                 offsets,
                                 origFace,
                                 origVertIndices[poly_corner_verts[1]],
@@ -996,6 +1006,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
                                 &pin[1],
                                 &select[1]);
     texface_from_original_index(scene,
+                                em->bm,
                                 offsets,
                                 origFace,
                                 origVertIndices[poly_corner_verts[2]],
@@ -1003,6 +1014,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
                                 &pin[2],
                                 &select[2]);
     texface_from_original_index(scene,
+                                em->bm,
                                 offsets,
                                 origFace,
                                 origVertIndices[poly_corner_verts[3]],
@@ -1096,7 +1108,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
   ScrArea *area = CTX_wm_area(C);
   const Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   blender::geometry::uv_parametrizer_stretch_blend(ms->handle, ms->blend);
   blender::geometry::uv_parametrizer_stretch_iter(ms->handle);
@@ -1136,7 +1148,7 @@ static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
   ScrArea *area = CTX_wm_area(C);
   const Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   ED_area_status_text(area, nullptr);
   ED_workspace_status_text(C, nullptr);
@@ -1319,7 +1331,7 @@ static void island_uv_transform(FaceIsland *island,
   /* Use a pre-transform to compute `A * (x+b)`
    *
    * \note Ordinarily, we'd use a post_transform like `A * x + b`
-   * In general, post-transforms are easier to work with when using homogenous co-ordinates.
+   * In general, post-transforms are easier to work with when using homogeneous coordinates.
    *
    * When UV mapping into the unit square, post-transforms can lose precision on small islands.
    * Instead we're using a pre-transform to maintain precision.
@@ -1393,6 +1405,7 @@ static float uv_nearest_grid_tile_distance(const int udim_grid[2],
 }
 
 static bool island_has_pins(const Scene *scene,
+                            const BMesh *bm,
                             FaceIsland *island,
                             const blender::geometry::UVPackIsland_Params *params)
 {
@@ -1410,7 +1423,7 @@ static bool island_has_pins(const Scene *scene,
       if (BM_ELEM_CD_GET_BOOL(l, pin_offset)) {
         return true;
       }
-      if (pin_unselected && !uvedit_uv_select_test(scene, l, island->offsets)) {
+      if (pin_unselected && !uvedit_uv_select_test(scene, bm, l, island->offsets)) {
         return true;
       }
     }
@@ -1438,6 +1451,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                                       const SpaceImage *udim_source_closest,
                                       const bool original_selection,
                                       const bool notify_wm,
+                                      const rctf *custom_region,
                                       blender::geometry::UVPackIsland_Params *params)
 {
   blender::Vector<FaceIsland *> island_vector;
@@ -1483,7 +1497,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
     /* Remove from linked list and append to blender::Vector. */
     LISTBASE_FOREACH_MUTABLE (FaceIsland *, island, &island_list) {
       BLI_remlink(&island_list, island);
-      const bool pinned = island_has_pins(scene, island, params);
+      const bool pinned = island_has_pins(scene, bm, island, params);
       if (ignore_pinned && pinned) {
         MEM_freeN(island->faces);
         MEM_freeN(island);
@@ -1524,6 +1538,17 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       params->target_extent = selection_max_co[1] - selection_min_co[1];
       params->target_aspect_y = (selection_max_co[0] - selection_min_co[0]) /
                                 (selection_max_co[1] - selection_min_co[1]);
+    }
+  }
+  else if (custom_region) {
+    if (!BLI_rctf_is_empty(custom_region)) {
+      const blender::float2 custom_region_size = {
+          BLI_rctf_size_x(custom_region),
+          BLI_rctf_size_y(custom_region),
+      };
+      ARRAY_SET_ITEMS(params->udim_base_offset, custom_region->xmin, custom_region->ymin);
+      params->target_extent = custom_region_size.y;
+      params->target_aspect_y = custom_region_size.x / custom_region_size.y;
     }
   }
 
@@ -1656,6 +1681,7 @@ enum {
   PACK_UDIM_SRC_CLOSEST = 0,
   PACK_UDIM_SRC_ACTIVE,
   PACK_ORIGINAL_AABB,
+  PACK_CUSTOM_REGION,
 };
 
 struct UVPackIslandsData {
@@ -1672,6 +1698,7 @@ struct UVPackIslandsData {
   bool use_job;
 
   blender::geometry::UVPackIsland_Params pack_island_params;
+  rctf custom_region;
 };
 
 static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
@@ -1690,6 +1717,8 @@ static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
                             (pid->udim_source == PACK_UDIM_SRC_CLOSEST) ? pid->sima : nullptr,
                             (pid->udim_source == PACK_ORIGINAL_AABB),
                             !pid->use_job,
+                            (pid->udim_source == PACK_CUSTOM_REGION) ? &pid->custom_region :
+                                                                       nullptr,
                             &pid->pack_island_params);
 
   worker_status->progress = 0.99f;
@@ -1723,6 +1752,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
   const SpaceImage *sima = CTX_wm_space_image(C);
+  const ToolSettings *ts = scene->toolsettings;
 
   UnwrapOptions options = unwrap_options_get(op, nullptr, scene->toolsettings);
   options.topology_from_uvs = true;
@@ -1755,6 +1785,19 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   pid->sima = sima;
   pid->udim_source = udim_source;
   pid->wm = CTX_wm_manager(C);
+
+  if (udim_source == PACK_CUSTOM_REGION) {
+    if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
+      pid->custom_region = ts->uv_custom_region;
+    }
+    else {
+      pid->custom_region.xmin = pid->custom_region.ymin = 0.0f;
+      pid->custom_region.xmax = pid->custom_region.ymax = 1.0f;
+    }
+  }
+  else {
+    pid->custom_region = {0.0f};
+  }
 
   blender::geometry::UVPackIsland_Params &pack_island_params = pid->pack_island_params;
   {
@@ -1791,6 +1834,9 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
     pack_island_params.setUDIMOffsetFromSpaceImage(sima);
   }
 
+  /* Needed even when jobs aren't used, see: #146195. */
+  G.is_break = false;
+
   if (pid->use_job) {
     /* Setup job. */
     if (pid->wm->op_undo_depth == 0) {
@@ -1807,7 +1853,6 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
     WM_jobs_callbacks(wm_job, pack_islands_startjob, nullptr, nullptr, pack_islands_endjob);
 
     WM_cursor_wait(true);
-    G.is_break = false;
     WM_jobs_start(CTX_wm_manager(C), wm_job);
     return OPERATOR_FINISHED;
   }
@@ -1937,6 +1982,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
        0,
        "Original bounding box",
        "Pack to starting bounding box of islands"},
+      {PACK_CUSTOM_REGION, "CUSTOM_REGION", 0, "Custom Region", "Pack islands to custom region"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
@@ -2013,7 +2059,7 @@ static wmOperatorStatus average_islands_scale_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   UnwrapOptions options = unwrap_options_get(nullptr, nullptr, ts);
   options.topology_from_uvs = true;
@@ -2618,7 +2664,7 @@ static void uv_map_clip_correct(const Scene *scene,
           continue;
         }
 
-        if (only_selected_uvs && !uvedit_face_select_test(scene, efa, offsets)) {
+        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
           continue;
         }
 
@@ -2635,7 +2681,7 @@ static void uv_map_clip_correct(const Scene *scene,
           continue;
         }
 
-        if (only_selected_uvs && !uvedit_face_select_test(scene, efa, offsets)) {
+        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
           continue;
         }
 
@@ -2673,7 +2719,7 @@ static void uv_map_clip_correct(const Scene *scene,
           continue;
         }
 
-        if (only_selected_uvs && !uvedit_face_select_test(scene, efa, offsets)) {
+        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
           continue;
         }
 
@@ -2763,7 +2809,8 @@ void ED_uvedit_live_unwrap(const Scene *scene, const Span<Object *> objects)
     pack_island_params.margin_method = ED_UVPACK_MARGIN_SCALED;
     pack_island_params.margin = scene->toolsettings->uvcalc_margin;
 
-    uvedit_pack_islands_multi(scene, objects, nullptr, nullptr, false, true, &pack_island_params);
+    uvedit_pack_islands_multi(
+        scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
   }
 }
 
@@ -2776,6 +2823,8 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
+  const bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
+
   int reported_errors = 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -2794,6 +2843,12 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
   if (CTX_wm_space_image(C)) {
     /* Inside the UV Editor, only unwrap selected UVs. */
+    if (sync_selection) {
+      /* It's important to include unselected faces so they are taken into account
+       * when unwrapping adjacent UV's, so it's possible to select part of an island
+       * without it becoming disconnected from the unselected region, see: #148536. */
+      options.only_selected_faces = false;
+    }
     options.only_selected_uvs = true;
     options.pin_unselected = true;
   }
@@ -2864,7 +2919,8 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
       RNA_enum_get(op->ptr, "margin_method"));
   pack_island_params.margin = RNA_float_get(op->ptr, "margin");
 
-  uvedit_pack_islands_multi(scene, objects, nullptr, nullptr, false, true, &pack_island_params);
+  uvedit_pack_islands_multi(
+      scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
 
   if (count_failed == 0 && count_changed == 0) {
     BKE_report(op->reports,
@@ -3207,8 +3263,8 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
       }
 
       if (only_selected_uvs) {
-        if (!uvedit_face_select_test(scene, efa, offsets)) {
-          uvedit_face_select_disable(scene, em->bm, efa, offsets);
+        if (!uvedit_face_select_test(scene, em->bm, efa)) {
+          uvedit_face_select_disable(scene, em->bm, efa);
           continue;
         }
       }
@@ -3323,7 +3379,8 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
     params.margin_method = eUVPackIsland_MarginMethod(RNA_enum_get(op->ptr, "margin_method"));
     params.margin = RNA_float_get(op->ptr, "island_margin");
 
-    uvedit_pack_islands_multi(scene, objects_changed, nullptr, nullptr, false, true, &params);
+    uvedit_pack_islands_multi(
+        scene, objects_changed, nullptr, nullptr, false, true, nullptr, &params);
 
     /* #uvedit_pack_islands_multi only supports `per_face_aspect = false`. */
     const bool per_face_aspect = false;
@@ -3799,8 +3856,8 @@ static float uv_sphere_project(const Scene *scene,
     }
 
     if (only_selected_uvs) {
-      if (!uvedit_face_select_test(scene, efa, offsets)) {
-        uvedit_face_select_disable(scene, bm, efa, offsets);
+      if (!uvedit_face_select_test(scene, bm, efa)) {
+        uvedit_face_select_disable(scene, bm, efa);
         continue; /* Unselected UV, ignore. */
       }
     }
@@ -3975,8 +4032,8 @@ static float uv_cylinder_project(const Scene *scene,
     }
 
     if (only_selected_uvs) {
-      if (!uvedit_face_select_test(scene, efa, offsets)) {
-        uvedit_face_select_disable(scene, bm, efa, offsets);
+      if (!uvedit_face_select_test(scene, bm, efa)) {
+        uvedit_face_select_disable(scene, bm, efa);
         continue; /* Unselected UV, ignore. */
       }
     }
@@ -4071,8 +4128,8 @@ static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      if (only_selected_uvs && !uvedit_face_select_test(scene, efa, offsets)) {
-        uvedit_face_select_disable(scene, em->bm, efa, offsets);
+      if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
+        uvedit_face_select_disable(scene, em->bm, efa);
         continue;
       }
 
@@ -4156,8 +4213,8 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
     if (use_select && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
       continue;
     }
-    if (only_selected_uvs && !uvedit_face_select_test(scene, efa, offsets)) {
-      uvedit_face_select_disable(scene, bm, efa, offsets);
+    if (only_selected_uvs && !uvedit_face_select_test(scene, bm, efa)) {
+      uvedit_face_select_disable(scene, bm, efa);
       continue;
     }
 
@@ -4202,7 +4259,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float(*bounds_buf)[3] = nullptr;
+    float (*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
@@ -4270,7 +4327,7 @@ void UV_OT_cube_project(wmOperatorType *ot)
 void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   BMeshCreateParams create_params{};
   create_params.use_toolflags = false;
@@ -4278,7 +4335,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
 
   /* turn sync selection off,
    * since we are not in edit mode we need to ensure only the uv flags are tested */
-  scene->toolsettings->uv_flag &= ~UV_FLAG_SYNC_SELECT;
+  scene->toolsettings->uv_flag &= ~UV_FLAG_SELECT_SYNC;
 
   ED_mesh_uv_ensure(mesh, nullptr);
 
@@ -4288,7 +4345,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   BM_mesh_bm_from_me(bm, mesh, &bm_from_me_params);
 
   /* Select all UVs for cube_project. */
-  ED_uvedit_select_all(bm);
+  ED_uvedit_select_all(scene->toolsettings, bm);
   /* A cube size of 2.0 maps [-1..1] vertex coords to [0.0..1.0] in UV coords. */
   uvedit_unwrap_cube_project(scene, bm, 2.0, false, false, nullptr);
 
@@ -4302,7 +4359,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   params.margin_method = ED_UVPACK_MARGIN_SCALED;
   params.margin = 0.001f;
 
-  uvedit_pack_islands_multi(scene, {ob}, &bm, nullptr, false, true, &params);
+  uvedit_pack_islands_multi(scene, {ob}, &bm, nullptr, false, true, nullptr, &params);
 
   /* Write back from BMesh to Mesh. */
   BMeshToMeshParams bm_to_me_params{};
@@ -4310,7 +4367,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   BM_mesh_free(bm);
 
   if (sync_selection) {
-    scene->toolsettings->uv_flag |= UV_FLAG_SYNC_SELECT;
+    scene->toolsettings->uv_flag |= UV_FLAG_SELECT_SYNC;
   }
 }
 

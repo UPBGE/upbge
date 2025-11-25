@@ -25,6 +25,7 @@
 #include "BLI_linklist.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
+#include "BLI_math_bits.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -1542,6 +1543,8 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint failed_selection_order_len = 0;
   uint failed_connect_len = 0;
+  bool has_select_history_mixed = false;
+  bool has_select_history_face = false;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
@@ -1560,6 +1563,20 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
       if (!edbm_connect_vert_pair(em, static_cast<Mesh *>(obedit->data), op)) {
         failed_connect_len++;
       }
+      continue;
+    }
+
+    /* Skip mixed selections since path handling only supports uniform types, see #147150. */
+    const char htype_selected = BM_select_history_htype_all(bm);
+    if (count_bits_i(htype_selected) > 1) {
+      has_select_history_mixed = true;
+      failed_selection_order_len++;
+      continue;
+    }
+    /* Faces are not supported, this check is only done to show a more useful error. */
+    if (htype_selected & BM_FACE) {
+      has_select_history_face = true;
+      failed_selection_order_len++;
       continue;
     }
 
@@ -1596,7 +1613,15 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
   }
 
   if (failed_selection_order_len == objects.size()) {
-    BKE_report(op->reports, RPT_ERROR, "Invalid selection order");
+    if (has_select_history_mixed) {
+      BKE_report(op->reports, RPT_ERROR, "Could not connect mixed selection types");
+    }
+    else if (has_select_history_face) {
+      BKE_report(op->reports, RPT_ERROR, "Could not connect a face selection");
+    }
+    else {
+      BKE_report(op->reports, RPT_ERROR, "Invalid selection order");
+    }
     return OPERATOR_CANCELLED;
   }
   if (failed_connect_len == objects.size()) {
@@ -1832,7 +1857,7 @@ static bool edbm_edge_split_selected_edges(wmOperator *op, Object *obedit, BMEdi
 
   BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
-  EDBM_select_flush(em);
+  EDBM_select_flush_from_verts(em, true);
   EDBMUpdate_Params params{};
   params.calc_looptris = true;
   params.calc_normals = false;
@@ -1907,7 +1932,7 @@ static bool edbm_edge_split_selected_verts(wmOperator *op, Object *obedit, BMEdi
 
   BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
-  EDBM_select_flush(em);
+  EDBM_select_flush_from_verts(em, true);
   EDBMUpdate_Params params{};
   params.calc_looptris = true;
   params.calc_normals = false;
@@ -2079,7 +2104,11 @@ static BMLoopNorEditDataArray *flip_custom_normals_init_data(BMesh *bm)
      * Otherwise they will be left in a mangled state.
      */
     BM_lnorspace_update(bm);
-    lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, true);
+    lnors_ed_arr = BM_loop_normal_editdata_array_init_with_htype(
+        bm,
+        true,
+        /* Force #BM_FACE because the loop below operates on all selected faces. */
+        BM_FACE);
   }
 
   return lnors_ed_arr;
@@ -2101,7 +2130,11 @@ static bool flip_custom_normals(BMesh *bm, BMLoopNorEditDataArray *lnors_ed_arr)
 
   /* We need to recreate the custom normal array because the clnors_data will
    * be mangled because we swapped the loops around when we flipped the faces. */
-  BMLoopNorEditDataArray *lnors_ed_arr_new_full = BM_loop_normal_editdata_array_init(bm, true);
+  BMLoopNorEditDataArray *lnors_ed_arr_new_full = BM_loop_normal_editdata_array_init_with_htype(
+      bm,
+      true,
+      /* Force #BM_FACE because the loop below operates on all selected faces. */
+      BM_FACE);
 
   {
     /* We need to recalculate all loop normals in the affected area. Even the ones that are not
@@ -2470,8 +2503,13 @@ static wmOperatorStatus edbm_hide_exec(bContext *C, wmOperator *op)
       }
     }
 
+    /* Disable as this causes the following problem:
+     * Selecting an area of interest (on one side of the mesh), "Invert" then "Hide"
+     * will hide the area of interest too. */
+#if 0
     /* Only if symmetry is enabled. */
     EDBM_select_mirrored_extend_all(obedit, em);
+#endif
 
     if (EDBM_mesh_hide(em, unselected)) {
       EDBMUpdate_Params params{};
@@ -3106,7 +3144,7 @@ static wmOperatorStatus edbm_rotate_colors_exec(bContext *C, wmOperator *op)
     }
 
     int color_index = BKE_attribute_to_index(
-        owner, layer, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
     EDBM_op_init(em,
                  &bmop,
                  op,
@@ -3157,7 +3195,7 @@ static wmOperatorStatus edbm_reverse_colors_exec(bContext *C, wmOperator *op)
     BMOperator bmop;
 
     int color_index = BKE_attribute_to_index(
-        owner, layer, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
     EDBM_op_init(
         em, &bmop, op, "reverse_colors faces=%hf color_index=%i", BM_ELEM_SELECT, color_index);
 
@@ -3581,7 +3619,13 @@ static wmOperatorStatus edbm_remove_doubles_exec(bContext *C, wmOperator *op)
 
       BMO_op_exec(em->bm, &bmop);
 
-      if (!EDBM_op_callf(em, op, "weld_verts targetmap=%S", &bmop, "targetmap.out")) {
+      if (!EDBM_op_callf(em,
+                         op,
+                         "weld_verts targetmap=%S use_centroid=%b",
+                         &bmop,
+                         "targetmap.out",
+                         RNA_boolean_get(op->ptr, "use_centroid")))
+      {
         BMO_op_finish(em->bm, &bmop);
         continue;
       }
@@ -3640,6 +3684,13 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
                          "Maximum distance between elements to merge",
                          1e-5f,
                          10.0f);
+  RNA_def_boolean(ot->srna,
+                  "use_centroid",
+                  true,
+                  "Centroid Merge",
+                  "Move vertices to the centroid of the duplicate cluster, "
+                  "otherwise the vertex closest to the centroid is used.");
+
   RNA_def_boolean(ot->srna,
                   "use_unselected",
                   false,
@@ -3929,18 +3980,18 @@ static const EnumPropertyItem *shape_itemf(bContext *C,
 
 static void edbm_blend_from_shape_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   Object *obedit = CTX_data_edit_object(C);
   Mesh *mesh = static_cast<Mesh *>(obedit->data);
 
   PointerRNA ptr_key = RNA_id_pointer_create((ID *)mesh->key);
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->prop_search(op->ptr, "shape", &ptr_key, "key_blocks", std::nullopt, ICON_SHAPEKEY_DATA);
-  layout->prop(op->ptr, "blend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "add", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop_search(op->ptr, "shape", &ptr_key, "key_blocks", std::nullopt, ICON_SHAPEKEY_DATA);
+  layout.prop(op->ptr, "blend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "add", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void MESH_OT_blend_from_shape(wmOperatorType *ot)
@@ -4316,7 +4367,7 @@ static bool mesh_separate_loose(
   blender::Array<BMEdge *> edge_groups(bm_old->totedge);
   blender::Array<BMFace *> face_groups(bm_old->totface);
 
-  int(*groups)[3] = nullptr;
+  int (*groups)[3] = nullptr;
   int groups_len = BM_mesh_calc_edge_groups_as_arrays(
       bm_old, vert_groups.data(), edge_groups.data(), face_groups.data(), &groups);
   if (groups_len <= 1) {
@@ -5489,6 +5540,7 @@ static wmOperatorStatus edbm_tris_convert_to_quads_exec(bContext *C, wmOperator 
         EDBM_selectmode_flush_ex(em, em->selectmode);
       }
     }
+    EDBM_uvselect_clear(em);
 
     BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
@@ -5719,6 +5771,7 @@ static wmOperatorStatus edbm_decimate_exec(bContext *C, wmOperator *op)
         selectmode |= SCE_SELECT_EDGE;
       }
       EDBM_selectmode_flush_ex(em, selectmode);
+      EDBM_uvselect_clear(em);
     }
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -5737,23 +5790,23 @@ static bool edbm_decimate_check(bContext * /*C*/, wmOperator * /*op*/)
 
 static void edbm_decimate_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout, *row, *col, *sub;
+  blender::ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(op->ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(op->ptr, "use_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col = &layout->column(false);
-  col->active_set(RNA_boolean_get(op->ptr, "use_vertex_group"));
-  col->prop(op->ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "invert_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "use_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.active_set(RNA_boolean_get(op->ptr, "use_vertex_group"));
+  col.prop(op->ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "invert_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = &layout->row(true, IFACE_("Symmetry"));
-  row->prop(op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
-  sub = &row->row(true);
-  sub->active_set(RNA_boolean_get(op->ptr, "use_symmetry"));
-  sub->prop(op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  blender::ui::Layout &row = layout.row(true, IFACE_("Symmetry"));
+  row.prop(op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
+  blender::ui::Layout &sub = row.row(true);
+  sub.active_set(RNA_boolean_get(op->ptr, "use_symmetry"));
+  sub.prop(op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void MESH_OT_decimate(wmOperatorType *ot)
@@ -6276,7 +6329,7 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
     }
 
     /* tricky to maintain correct selection here, so just flush up from verts */
-    EDBM_select_flush(em);
+    EDBM_select_flush_from_verts(em, true);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -6373,6 +6426,7 @@ static wmOperatorStatus edbm_delete_edgeloop_exec(bContext *C, wmOperator *op)
     BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
     EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
+    EDBM_uvselect_clear(em);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -7680,7 +7734,9 @@ static wmOperatorStatus edbm_convex_hull_exec(bContext *C, wmOperator *op)
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
     EDBM_selectmode_flush(em);
+    EDBM_uvselect_clear(em);
   }
 
   return OPERATOR_FINISHED;
@@ -7777,7 +7833,9 @@ static wmOperatorStatus mesh_symmetrize_exec(bContext *C, wmOperator *op)
     params.calc_normals = calc_normals;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
     EDBM_selectmode_flush(em);
+    EDBM_uvselect_clear(em);
   }
 
   return OPERATOR_FINISHED;
@@ -8609,14 +8667,10 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
     point_normals_cancel(C, op);
   }
 
-  /* If we allow other tools to run, we can't be sure if they will re-allocate
-   * the data this operator uses, see: #68159.
-   * Free the data here, then use #point_normals_ensure to add it back on demand. */
-  if (ret == OPERATOR_PASS_THROUGH) {
-    /* Don't free on mouse-move, causes creation/freeing of the loop data in an inefficient way. */
-    if (!ISMOUSE_MOTION(event->type)) {
-      point_normals_free(op);
-    }
+  /* Keep the normal data active while the operator is running,
+   * and only free it when the operation ends or is canceled. */
+  if (ELEM(ret, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    point_normals_free(op);
   }
   return ret;
 }
@@ -8681,15 +8735,15 @@ static bool point_normals_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
 
 static void edbm_point_normals_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
   /* Main auto-draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    &ptr,
                    point_normals_draw_check_prop,
                    nullptr,
@@ -9173,15 +9227,15 @@ static bool average_normals_draw_check_prop(PointerRNA *ptr,
 
 static void edbm_average_normals_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
   /* Main auto-draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    &ptr,
                    average_normals_draw_check_prop,
                    nullptr,
@@ -9427,13 +9481,13 @@ static bool normals_tools_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
 
 static void edbm_normals_tools_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
   /* Main auto-draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    &ptr,
                    normals_tools_draw_check_prop,
                    nullptr,
@@ -9502,7 +9556,7 @@ static wmOperatorStatus edbm_set_normals_from_faces_exec(bContext *C, wmOperator
 
     BKE_editmesh_lnorspace_update(em);
 
-    float(*vert_normals)[3] = static_cast<float(*)[3]>(
+    float (*vert_normals)[3] = static_cast<float (*)[3]>(
         MEM_mallocN(sizeof(*vert_normals) * bm->totvert, __func__));
     {
       int v_index;
@@ -9610,7 +9664,7 @@ static wmOperatorStatus edbm_smooth_normals_exec(bContext *C, wmOperator *op)
     BKE_editmesh_lnorspace_update(em);
     BMLoopNorEditDataArray *lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, false);
 
-    float(*smooth_normal)[3] = static_cast<float(*)[3]>(
+    float (*smooth_normal)[3] = static_cast<float (*)[3]>(
         MEM_callocN(sizeof(*smooth_normal) * lnors_ed_arr->totloop, __func__));
 
     /* NOTE(@mont29): This is weird choice of operation, taking all loops of faces of current

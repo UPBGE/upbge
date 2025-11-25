@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/workbench_composite_info.hh"
+#include "infos/workbench_composite_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(workbench_composite)
 FRAGMENT_SHADER_CREATE_INFO(workbench_resolve_opaque_matcap)
@@ -18,7 +18,7 @@ FRAGMENT_SHADER_CREATE_INFO(workbench_resolve_shadow)
 
 void main()
 {
-  float2 uv = screen_uv;
+  float2 uv = gl_FragCoord.xy / float2(textureSize(depth_tx, 0).xy);
 
   float depth = texture(depth_tx, uv).r;
   if (depth == 1.0f) {

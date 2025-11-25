@@ -9,7 +9,7 @@
  * cheaper.
  */
 
-#include "infos/eevee_depth_of_field_info.hh"
+#include "infos/eevee_depth_of_field_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_filter)
 
@@ -23,9 +23,10 @@ struct FilterSample {
 /* -------------------------------------------------------------------- */
 /** \name Pixel cache.
  * \{ */
+
+shared float4 color_cache[gl_WorkGroupSize.x + 2][gl_WorkGroupSize.x + 2];
+shared float weight_cache[gl_WorkGroupSize.x + 2][gl_WorkGroupSize.x + 2];
 #define cache_size (gl_WorkGroupSize.x + 2)
-shared float4 color_cache[cache_size][cache_size];
-shared float weight_cache[cache_size][cache_size];
 
 void cache_init()
 {

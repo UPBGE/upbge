@@ -15,13 +15,17 @@ enum class PatternMode {
 };
 
 static const EnumPropertyItem pattern_mode_items[] = {
-    {int(PatternMode::Exact), "EXACT", 0, "Exact", "Remove the one attribute with the given name"},
+    {int(PatternMode::Exact),
+     "EXACT",
+     0,
+     N_("Exact"),
+     N_("Remove the one attribute with the given name")},
     {int(PatternMode::Wildcard),
      "WILDCARD",
      0,
-     "Wildcard",
-     "Remove all attributes that match the pattern which is allowed to contain a single "
-     "wildcard (*)"},
+     N_("Wildcard"),
+     N_("Remove all attributes that match the pattern which is allowed to contain a single "
+        "wildcard (*)")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -33,8 +37,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Menu>("Pattern Mode")
       .static_items(pattern_mode_items)
+      .optional_label()
       .description("How the attributes to remove are chosen");
-  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
+  b.add_input<decl::String>("Name").is_attribute_name().optional_label();
 }
 
 struct RemoveAttributeParams {

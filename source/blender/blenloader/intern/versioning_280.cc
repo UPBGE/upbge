@@ -13,12 +13,12 @@
 #include <cfloat>
 #include <cstring>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
@@ -838,8 +838,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
   FOREACH_NODETREE_END;
 
   LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-    if (brush->curve) {
-      callback(brush->curve);
+    if (brush->curve_distance_falloff) {
+      callback(brush->curve_distance_falloff);
     }
     if (brush->gpencil_settings) {
       if (brush->gpencil_settings->curve_sensitivity) {
@@ -2488,7 +2488,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         block->data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
-        float(*newptr)[3] = static_cast<float(*)[3]>(block->data);
+        float (*newptr)[3] = static_cast<float (*)[3]>(block->data);
 
         LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
           if (nu->bezt) {
@@ -3036,7 +3036,7 @@ enum class eNTreeDoVersionErrors : int8_t {
   NTREE_DOVERSION_NEED_OUTPUT = (1 << 0),
   NTREE_DOVERSION_TRANSPARENCY_EMISSION = (1 << 1),
 };
-ENUM_OPERATORS(eNTreeDoVersionErrors, ~int8_t{});
+ENUM_OPERATORS(eNTreeDoVersionErrors);
 
 /* NOLINTNEXTLINE: readability-function-size */
 void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
@@ -3129,9 +3129,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -3141,9 +3139,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           "nodes.\n");
     }
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -3180,7 +3176,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             BKE_curvemap_reset(gset.cur_falloff->cm,
                                &gset.cur_falloff->clipr,
                                CURVE_PRESET_GAUSS,
-                               CURVEMAP_SLOPE_POSITIVE);
+                               CurveMapSlopeType::Positive);
           }
         }
       }
@@ -3462,7 +3458,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      const int _value = IDP_Int(_idprop); \
+      const int _value = IDP_int_get(_idprop); \
       if (_value) { \
         scene->eevee.flag |= _flag; \
       } \
@@ -3477,7 +3473,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      scene->eevee._name = IDP_Int(_idprop); \
+      scene->eevee._name = IDP_int_get(_idprop); \
     } \
   } \
   ((void)0)
@@ -3486,7 +3482,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      scene->eevee._name = IDP_Float(_idprop); \
+      scene->eevee._name = IDP_float_get(_idprop); \
     } \
   } \
   ((void)0)
@@ -4554,7 +4550,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           BKE_curvemap_reset(gset.cur_primitive->cm,
                              &gset.cur_primitive->clipr,
                              CURVE_PRESET_BELL,
-                             CURVEMAP_SLOPE_POSITIVE);
+                             CurveMapSlopeType::Positive);
         }
       }
     }
@@ -4640,7 +4636,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       }
 
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_update_flags_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_update_flags_cb, nullptr);
       }
     }
 
@@ -4662,8 +4658,9 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UNUSED_3 | ME_FLAG_UNUSED_4 |
-                    ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 | ME_REMESH_REPROJECT_ATTRIBUTES);
+      me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UV_SELECT_SYNC_VALID |
+                    ME_FLAG_UNUSED_4 | ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 |
+                    ME_REMESH_REPROJECT_ATTRIBUTES);
     }
 
     LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
@@ -4847,15 +4844,15 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
        * properly initialized previously. This is mere copy of #scene_init_data code. */
       if (scene->r.im_format.view_settings.look[0] == '\0') {
         BKE_color_managed_display_settings_init(&scene->r.im_format.display_settings);
-        BKE_color_managed_view_settings_init_render(
+        BKE_color_managed_view_settings_init(
             &scene->r.im_format.view_settings, &scene->r.im_format.display_settings, "Filmic");
       }
 
       if (scene->r.bake.im_format.view_settings.look[0] == '\0') {
         BKE_color_managed_display_settings_init(&scene->r.bake.im_format.display_settings);
-        BKE_color_managed_view_settings_init_render(&scene->r.bake.im_format.view_settings,
-                                                    &scene->r.bake.im_format.display_settings,
-                                                    "Filmic");
+        BKE_color_managed_view_settings_init(&scene->r.bake.im_format.view_settings,
+                                             &scene->r.bake.im_format.display_settings,
+                                             "Filmic");
       }
     }
   }

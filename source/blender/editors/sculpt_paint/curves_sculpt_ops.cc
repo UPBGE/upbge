@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
@@ -127,7 +127,12 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   const Scene &scene = *CTX_data_scene(&C);
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
-  switch (brush.curves_sculpt_brush_type) {
+  const eBrushCurvesSculptType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
+                                                CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
+                                                eBrushCurvesSculptType(
+                                                    brush.curves_sculpt_brush_type);
+
+  switch (brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
       return new_comb_operation();
     case CURVES_SCULPT_BRUSH_TYPE_DELETE:
@@ -466,17 +471,17 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
 
 static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "constant_per_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "constant_per_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "partial")) {
-    layout->prop(op->ptr, "min", UI_ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
+    layout.prop(op->ptr, "min", UI_ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
   }
   else {
-    layout->prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+    layout.prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
   }
 }
 

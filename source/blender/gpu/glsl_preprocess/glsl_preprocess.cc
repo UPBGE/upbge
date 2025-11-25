@@ -16,8 +16,9 @@
 
 int main(int argc, char **argv)
 {
-  if (argc != 4) {
-    std::cerr << "Usage: glsl_preprocess <data_file_from> <data_file_to> <metadata_file_to>"
+  if (argc != 5) {
+    std::cerr << "Usage: glsl_preprocess <data_file_from> <data_file_to> <metadata_file_to> "
+                 "<infos_file_to>"
               << std::endl;
     exit(1);
   }
@@ -25,6 +26,7 @@ int main(int argc, char **argv)
   const char *input_file_name = argv[1];
   const char *output_file_name = argv[2];
   const char *metadata_file_name = argv[3];
+  const char *infos_file_name = argv[4];
 
   /* Open the input file for reading */
   std::ifstream input_file(input_file_name);
@@ -62,6 +64,14 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  /* Open the output file for writing */
+  std::ofstream infos_file(infos_file_name, std::ofstream::out | std::ofstream::binary);
+  if (!output_file) {
+    std::cerr << "Error: Could not open output file " << infos_file_name << std::endl;
+    input_file.close();
+    exit(1);
+  }
+
   std::stringstream buffer;
   buffer << input_file.rdbuf();
 
@@ -78,19 +88,13 @@ int main(int argc, char **argv)
         error++;
       };
   std::string filename(output_file_name);
-  const bool is_info = filename.find("info.hh") != std::string::npos;
+  const bool is_info = filename.find("infos.hh") != std::string::npos;
   const bool is_glsl = filename.find(".glsl") != std::string::npos;
   const bool is_shared = filename.find("shared.h") != std::string::npos;
   const bool is_library = is_glsl &&
                           (filename.find("gpu_shader_material_") != std::string::npos ||
                            filename.find("gpu_shader_common_") != std::string::npos ||
                            filename.find("gpu_shader_compositor_") != std::string::npos);
-
-  if (is_info) {
-    std::cerr << "File " << output_file_name
-              << " is a create info file and should not be processed as glsl" << std::endl;
-    return 1;
-  }
 
   using Preprocessor = blender::gpu::shader::Preprocessor;
   Preprocessor processor;
@@ -113,10 +117,14 @@ int main(int argc, char **argv)
   std::replace(metadata_function_name.begin(), metadata_function_name.end(), '.', '_');
 
   metadata_file << metadata.serialize(metadata_function_name);
+  if (is_info) {
+    infos_file << metadata.serialize_infos();
+  }
 
   input_file.close();
   output_file.close();
   metadata_file.close();
+  infos_file.close();
 
   return error;
 }

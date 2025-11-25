@@ -71,8 +71,6 @@ class NodeGroupInterfaceTests:
             return (0.3, 5.0, -42)
         elif (socket_type == "NodeSocketString"):
             return "Hello World!"
-        elif (socket_type == "NodeSocketTexture"):
-            return bpy.data.textures.new("test", 'MAGIC')
         elif (socket_type == "NodeSocketVector"):
             return (4.0, -1.0, 0.0)
 
@@ -93,8 +91,7 @@ class NodeGroupInterfaceTests:
                             "NodeSocketMaterial",
                             "NodeSocketObject",
                             "NodeSocketRotation",
-                            "NodeSocketString",
-                            "NodeSocketTexture"}):
+                            "NodeSocketString"}):
             return cmp_default
         elif (socket_type in {"NodeSocketColor",
                               "NodeSocketVector"}):
@@ -360,7 +357,7 @@ class GeometryNodeGroupInterfaceTest(AbstractNodeGroupInterfaceTest, NodeGroupIn
         self.do_test_socket_type("NodeSocketRotation")
         self.do_test_invalid_socket_type("NodeSocketShader")
         self.do_test_socket_type("NodeSocketString")
-        self.do_test_socket_type("NodeSocketTexture")
+        self.do_test_invalid_socket_type("NodeSocketTexture")
         self.do_test_socket_type("NodeSocketVector")
         self.do_test_invalid_socket_type("NodeSocketVirtual")
 
@@ -384,7 +381,6 @@ class ShaderNodeGroupInterfaceTest(AbstractNodeGroupInterfaceTest, NodeGroupInte
     def setUp(self):
         super().setUp()
         self.material = bpy.data.materials.new("test")
-        self.material.use_nodes = True
         self.main_tree = self.material.node_tree
 
     def test_invalid_socket_type(self):
@@ -476,7 +472,6 @@ class NodeTreeItemsIteratorTest(AbstractNodeGroupInterfaceTest, NodeGroupInterfa
     def setUp(self):
         super().setUp()
         self.material = bpy.data.materials.new("test")
-        self.material.use_nodes = True
         self.main_tree = self.material.node_tree
 
     # Regression test for changes while iterating over tree interface items (#143551).

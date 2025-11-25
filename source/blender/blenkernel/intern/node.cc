@@ -38,6 +38,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
+#include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -396,7 +397,7 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 
   if (ntree->runtime->geometry_nodes_eval_dependencies) {
     for (ID *&id_ref : ntree->runtime->geometry_nodes_eval_dependencies->ids.values()) {
-      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_HASH_IGNORE);
     }
   }
 }
@@ -492,8 +493,10 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       else if (socket->type == SOCK_VECTOR && socket->default_value &&
                (STREQ(socket->name, "Subsurface Radius") ||
                 STREQ(socket->name, "Subsurface Radius Scale") ||
-                (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING &&
-                 STREQ(socket->name, "Radius"))))
+                (STREQ(node->idname, "ShaderNodeSubsurfaceScattering") &&
+                 STREQ(socket->name, "Radius")) ||
+                (STREQ(node->idname, "ShaderNodeBsdfMetallic") &&
+                 (STREQ(socket->name, "IOR") || STREQ(socket->name, "Extinction")))))
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
@@ -516,7 +519,7 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       NodeInputColor *input_color_storage = static_cast<NodeInputColor *>(node->storage);
       fn.single(input_color_storage->color);
     }
-    else if (node->type_legacy == TEX_NODE_VALTORGB || node->type_legacy == SH_NODE_VALTORGB) {
+    else if (ELEM(node->type_legacy, TEX_NODE_VALTORGB, SH_NODE_VALTORGB)) {
       ColorBand *coba = static_cast<ColorBand *>(node->storage);
       BKE_colorband_foreach_working_space_color(coba, fn);
     }
@@ -844,6 +847,112 @@ static void write_legacy_properties(bNodeTree &ntree)
           bNodeSocket *quality_socket = node_find_socket(*node, SOCK_IN, "Quality");
           storage.quality = quality_socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (node->type_legacy == CMP_NODE_SETALPHA) {
+          auto &storage = *static_cast<NodeSetAlpha *>(node->storage);
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
+          storage.mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
+          auto &storage = *static_cast<NodeChroma *>(node->storage);
+          bNodeSocket *color_space_socket = node_find_socket(*node, SOCK_IN, "Color Space");
+          node->custom1 = color_space_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                          1;
+
+          switch (CMPNodeChannelMatteColorSpace(node->custom1 - 1)) {
+            case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_HSV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YCC: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YCbCr Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+              break;
+            }
+          }
+
+          bNodeSocket *limit_method_socket = node_find_socket(*node, SOCK_IN, "Limit Method");
+          storage.algorithm =
+              limit_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+
+          switch (CMPNodeChannelMatteColorSpace(node->custom1 - 1)) {
+            case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Limit Channel");
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_HSV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Limit Channel");
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Limit Channel");
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YCC: {
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "YCbCr Limit Channel");
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+              break;
+            }
+          }
+        }
+        else if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == CMP_NODE_PREMULKEY) {
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == CMP_NODE_DIST_MATTE) {
+          auto &storage = *static_cast<NodeChroma *>(node->storage);
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Color Space");
+          storage.channel = socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+        }
+        else if (node->type_legacy == CMP_NODE_COLOR_SPILL) {
+          bNodeSocket *spill_channel_socket = node_find_socket(*node, SOCK_IN, "Spill Channel");
+          node->custom1 =
+              spill_channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+
+          bNodeSocket *limit_method_socket = node_find_socket(*node, SOCK_IN, "Limit Method");
+          node->custom2 = limit_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+
+          auto &storage = *static_cast<NodeColorspill *>(node->storage);
+          bNodeSocket *limit_channel_socket = node_find_socket(*node, SOCK_IN, "Limit Channel");
+          storage.limchan =
+              limit_channel_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == CMP_NODE_DOUBLEEDGEMASK) {
+          bNodeSocket *image_edges_socket = node_find_socket(*node, SOCK_IN, "Image Edges");
+          node->custom2 = bool(
+              image_edges_socket->default_value_typed<bNodeSocketValueBoolean>()->value);
+
+          bNodeSocket *only_inside_outer_socket = node_find_socket(
+              *node, SOCK_IN, "Only Inside Outer");
+          node->custom1 = bool(
+              only_inside_outer_socket->default_value_typed<bNodeSocketValueBoolean>()->value);
+        }
       }
     }
     default:
@@ -963,6 +1072,26 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
         /* The sockets of this item have the same identifiers that have been used by older
          * Blender versions before the node supported capturing multiple attributes. */
         storage.data_type_legacy = item.data_type;
+        break;
+      }
+    }
+  }
+  else if (node->type_legacy == GEO_NODE_VIEWER) {
+    /* Forward compatibility for older Blender versionins where the viewer node only had a geometry
+     * and field input. */
+    auto &storage = *static_cast<NodeGeometryViewer *>(node->storage);
+    for (const NodeGeometryViewerItem &item : Span{storage.items, storage.items_num}) {
+      if (ELEM(item.socket_type,
+               SOCK_FLOAT,
+               SOCK_INT,
+               SOCK_VECTOR,
+               SOCK_RGBA,
+               SOCK_BOOLEAN,
+               SOCK_ROTATION,
+               SOCK_MATRIX))
+      {
+        storage.data_type_legacy = *socket_type_to_custom_data_type(
+            eNodeSocketDatatype(item.socket_type));
         break;
       }
     }
@@ -3243,35 +3372,56 @@ void node_chain_iterator(const bNodeTree *ntree,
 }
 
 static void iter_backwards_ex(const bNodeTree *ntree,
-                              const bNode *node_start,
+                              bNode *node_start,
                               bool (*callback)(bNode *, bNode *, void *),
                               void *userdata,
                               const char recursion_mask)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node_start->inputs) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
-      continue;
-    }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
-      continue;
-    }
-    if (link->fromnode->runtime->iter_flag & recursion_mask) {
-      continue;
-    }
+  blender::Stack<bNode *> stack;
+  blender::Stack<bNode *> zone_stack;
+  stack.push(node_start);
 
-    link->fromnode->runtime->iter_flag |= recursion_mask;
+  while (!stack.is_empty() || !zone_stack.is_empty()) {
+    bNode *node = !stack.is_empty() ? stack.pop() : zone_stack.pop();
 
-    if (!callback(link->fromnode, link->tonode, userdata)) {
-      return;
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      if (link->fromnode->runtime->iter_flag & recursion_mask) {
+        continue;
+      }
+
+      link->fromnode->runtime->iter_flag |= recursion_mask;
+
+      if (!callback(link->fromnode, link->tonode, userdata)) {
+        break;
+      }
+      stack.push(link->fromnode);
     }
-    iter_backwards_ex(ntree, link->fromnode, callback, userdata, recursion_mask);
+    /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
+     * even if there is no bNodeLink between them. */
+    if (const bNodeZoneType *zone_type = zone_type_by_node_type(node->type_legacy)) {
+      if (zone_type->output_type == node->type_legacy) {
+        if (bNode *zone_input_node = const_cast<bNode *>(
+                zone_type->get_corresponding_input(*ntree, *node)))
+        {
+          if (callback(zone_input_node, node, userdata)) {
+            zone_stack.push(zone_input_node);
+          }
+        }
+      }
+    }
   }
 }
 
 void node_chain_iterator_backwards(const bNodeTree *ntree,
-                                   const bNode *node_start,
+                                   bNode *node_start,
                                    bool (*callback)(bNode *, bNode *, void *),
                                    void *userdata,
                                    const int recursion_lvl)
@@ -3326,19 +3476,26 @@ void node_unique_id(bNodeTree &ntree, bNode &node)
   BLI_assert(node.runtime->index_in_tree == ntree.runtime->nodes_by_id.index_of(&node));
 }
 
-bNode *node_add_node(const bContext *C, bNodeTree &ntree, const StringRef idname)
+bNode *node_add_node(const bContext *C,
+                     bNodeTree &ntree,
+                     const StringRef idname,
+                     std::optional<int> unique_identifier)
 {
   bNode *node = MEM_callocN<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
-  node_unique_id(ntree, *node);
+  if (unique_identifier) {
+    node->identifier = *unique_identifier;
+    ntree.runtime->nodes_by_id.add_new(node);
+  }
+  else {
+    node_unique_id(ntree, *node);
+  }
   node->ui_order = ntree.all_nodes().size();
-
   idname.copy_utf8_truncated(node->idname);
-  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
 
   BKE_ntree_update_tag_node_new(&ntree, node);
-
+  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
   return node;
 }
 
@@ -3576,9 +3733,6 @@ void node_socket_move_default_value(Main & /*bmain*/,
   bNode &dst_node = dst.owner_node();
   bNode &src_node = src.owner_node();
 
-  const CPPType &src_type = *src.typeinfo->base_cpp_type;
-  const CPPType &dst_type = *dst.typeinfo->base_cpp_type;
-
   const bke::DataTypeConversions &convert = bke::get_implicit_type_conversions();
 
   if (src.is_multi_input()) {
@@ -3589,6 +3743,9 @@ void node_socket_move_default_value(Main & /*bmain*/,
     /* Reroute node can't have ownership of socket value directly. */
     return;
   }
+
+  const CPPType &src_type = *src.typeinfo->base_cpp_type;
+  const CPPType &dst_type = *dst.typeinfo->base_cpp_type;
   if (&src_type != &dst_type) {
     if (!convert.is_convertible(src_type, dst_type)) {
       return;
@@ -3607,12 +3764,27 @@ void node_socket_move_default_value(Main & /*bmain*/,
   }
 
   void *src_value = socket_value_storage(src);
-  void *dst_value = node_static_value_storage_for(dst_node, dst);
-  if (!dst_value || !src_value) {
+  if (!src_value) {
     return;
   }
 
-  convert.convert_to_uninitialized(src_type, dst_type, src_value, dst_value);
+  BUFFER_FOR_CPP_TYPE_VALUE(dst_type, dst_buffer);
+  convert.convert_to_uninitialized(src_type, dst_type, src_value, dst_buffer);
+
+  if (dst_node.is_type("ShaderNodeCombineXYZ")) {
+    const float3 &src_value = *static_cast<float3 *>(dst_buffer);
+    dst_node.input_socket(0).default_value_typed<bNodeSocketValueFloat>()->value = src_value.x;
+    dst_node.input_socket(1).default_value_typed<bNodeSocketValueFloat>()->value = src_value.y;
+    dst_node.input_socket(2).default_value_typed<bNodeSocketValueFloat>()->value = src_value.z;
+    return;
+  }
+
+  void *dst_value = node_static_value_storage_for(dst_node, dst);
+  if (!dst_value) {
+    return;
+  }
+
+  dst_type.move_assign(dst_buffer, dst_value);
 
   src_type.destruct(src_value);
   if (ELEM(eNodeSocketDatatype(src.type),
@@ -3887,7 +4059,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
    */
   int flag = 0;
   if (is_embedded || bmain == nullptr) {
-    flag |= LIB_ID_CREATE_NO_MAIN;
+    flag |= LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT;
   }
   BLI_assert_msg(!owner_library || !owner_id,
                  "Embedded NTrees should never have a defined owner library here");
@@ -4213,7 +4385,8 @@ void node_tree_free_local_node(bNodeTree &ntree, bNode &node)
   node_rebuild_id_vector(ntree);
 }
 
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user)
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user, const bool remove_animation)
 {
   /* This function is not for localized node trees, we do not want
    * do to ID user reference-counting and removal of animation data then. */
@@ -4240,16 +4413,17 @@ void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_
     }
   }
 
-  /* Remove animation data. */
-  char propname_esc[MAX_IDPROP_NAME * 2];
-  char prefix[MAX_IDPROP_NAME * 2];
+  if (remove_animation) {
+    char propname_esc[MAX_IDPROP_NAME * 2];
+    char prefix[MAX_IDPROP_NAME * 2];
 
-  BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
-  SNPRINTF_UTF8(prefix, "nodes[\"%s\"]", propname_esc);
+    BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
+    SNPRINTF_UTF8(prefix, "nodes[\"%s\"]", propname_esc);
 
-  if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
-    if (bmain != nullptr) {
-      DEG_relations_tag_update(bmain);
+    if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
+      if (bmain != nullptr) {
+        DEG_relations_tag_update(bmain);
+      }
     }
   }
 
@@ -4284,6 +4458,7 @@ void node_tree_free_tree(bNodeTree &ntree)
 {
   ntree_free_data(&ntree.id);
   BKE_animdata_free(&ntree.id, false);
+  BKE_libblock_free_runtime_data(&ntree.id);
 }
 
 void node_tree_free_embedded_tree(bNodeTree *ntree)
@@ -4291,17 +4466,6 @@ void node_tree_free_embedded_tree(bNodeTree *ntree)
   node_tree_free_tree(*ntree);
   BKE_libblock_free_data(&ntree->id, true);
   BKE_libblock_free_data_py(&ntree->id);
-}
-
-void node_tree_free_local_tree(bNodeTree *ntree)
-{
-  if (ntree->id.tag & ID_TAG_LOCALIZED) {
-    node_tree_free_tree(*ntree);
-  }
-  else {
-    node_tree_free_tree(*ntree);
-    BKE_libblock_free_data(&ntree->id, true);
-  }
 }
 
 void node_tree_set_output(bNodeTree &ntree)
@@ -4833,7 +4997,32 @@ std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
 
 StringRefNull node_socket_label(const bNodeSocket &sock)
 {
-  return (sock.label[0] != '\0') ? sock.label : sock.name;
+  /* The node is not explicitly defined. */
+  if (sock.runtime->declaration == nullptr) {
+    return (sock.label[0] != '\0') ? sock.label : sock.name;
+  }
+  if (sock.runtime->declaration->label_fn) {
+    return (*sock.runtime->declaration->label_fn)(sock.owner_node());
+  }
+  return sock.name;
+}
+
+const char *node_socket_translation_context(const bNodeSocket &sock)
+{
+  /* The node is not explicitly defined. */
+  if (sock.runtime->declaration == nullptr) {
+    return nullptr;
+  }
+
+  const std::optional<std::string> &translation_context =
+      sock.runtime->declaration->translation_context;
+
+  /* Default context. */
+  if (!translation_context.has_value()) {
+    return nullptr;
+  }
+
+  return translation_context->c_str();
 }
 
 NodeColorTag node_color_tag(const bNode &node)

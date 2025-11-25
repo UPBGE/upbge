@@ -17,6 +17,8 @@
 
 #include "BKE_attribute.h"
 
+#include "BLT_translation.hh"
+
 #include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_curves_type_items[] = {
@@ -55,19 +57,20 @@ const EnumPropertyItem rna_enum_curve_normal_mode_items[] = {
     {NORMAL_MODE_MINIMUM_TWIST,
      "MINIMUM_TWIST",
      ICON_NONE,
-     "Minimum Twist",
-     "Calculate normals with the smallest twist around the curve tangent across the whole curve"},
+     N_("Minimum Twist"),
+     N_("Calculate normals with the smallest twist around the curve tangent across the whole "
+        "curve")},
     {NORMAL_MODE_Z_UP,
      "Z_UP",
      ICON_NONE,
-     "Z Up",
-     "Calculate normals perpendicular to the Z axis and the curve tangent. If a series of points "
-     "is vertical, the X axis is used."},
+     N_("Z Up"),
+     N_("Calculate normals perpendicular to the Z axis and the curve tangent. If a series of "
+        "points is vertical, the X axis is used.")},
     {NORMAL_MODE_FREE,
      "FREE",
      ICON_NONE,
-     "Free",
-     "Use the stored custom normal attribute as the final normals"},
+     N_("Free"),
+     N_("Use the stored custom normal attribute as the final normals")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -125,19 +128,19 @@ static bool rna_Curves_curve_offset_data_lookup_int(PointerRNA *ptr, int index, 
 
 static float (*get_curves_positions_for_write(Curves &curves))[3]
 {
-  return reinterpret_cast<float(*)[3]>(curves.geometry.wrap().positions_for_write().data());
+  return reinterpret_cast<float (*)[3]>(curves.geometry.wrap().positions_for_write().data());
 }
 
 static const float (*get_curves_positions(const Curves &curves))[3]
 {
-  return reinterpret_cast<const float(*)[3]>(curves.geometry.wrap().positions().data());
+  return reinterpret_cast<const float (*)[3]>(curves.geometry.wrap().positions().data());
 }
 
 static int rna_CurvePoint_index_get_const(const PointerRNA *ptr)
 {
   const Curves *curves = rna_curves(ptr);
-  const float(*co)[3] = static_cast<float(*)[3]>(ptr->data);
-  const float(*positions)[3] = get_curves_positions(*curves);
+  const float (*co)[3] = static_cast<float (*)[3]>(ptr->data);
+  const float (*positions)[3] = get_curves_positions(*curves);
   return int(co - positions);
 }
 
@@ -289,15 +292,15 @@ static void rna_CurveSlice_points_begin(CollectionPropertyIterator *iter, Pointe
   Curves *curves = rna_curves(ptr);
   const int offset = rna_CurveSlice_first_point_index_get(ptr);
   const int size = rna_CurveSlice_points_length_get(ptr);
-  float(*positions)[3] = get_curves_positions_for_write(*curves);
-  float(*co)[3] = positions + offset;
+  float (*positions)[3] = get_curves_positions_for_write(*curves);
+  float (*co)[3] = positions + offset;
   rna_iterator_array_begin(iter, ptr, co, sizeof(float[3]), size, 0, nullptr);
 }
 
 static void rna_Curves_normals_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Curves *curves = rna_curves(ptr);
-  float(*positions)[3] = blender::ed::curves::point_normals_array_create(curves);
+  float (*positions)[3] = blender::ed::curves::point_normals_array_create(curves);
   const int size = curves->geometry.point_num;
   rna_iterator_array_begin(iter, ptr, positions, sizeof(float[3]), size, true, nullptr);
 }

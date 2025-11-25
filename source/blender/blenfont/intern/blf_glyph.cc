@@ -830,7 +830,9 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
   }
 
 #ifndef NDEBUG
-  printf("Unicode character U+%04X not found in loaded fonts. \n", charcode);
+  /* Disable this print even in debug mode as it floods the console
+   * when browsing a file-system containing unknown characters. */
+  // printf("Unicode character U+%04X not found in loaded fonts. \n", charcode);
 #endif
 
   return 0;
@@ -1363,7 +1365,11 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode
 
   if (!glyph_index) {
     /* 1 = id of ICON_CHAR_NOTDEF */
+#ifndef WITH_HEADLESS
     return blf_glyph_ensure_icon(gc, 1, false, nullptr);
+#else
+    return nullptr;
+#endif
   }
 
   if (!blf_ensure_face(font_with_glyph)) {

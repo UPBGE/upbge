@@ -172,8 +172,7 @@ typedef struct Brush {
 
   ID id;
 
-  /** Falloff curve. */
-  struct CurveMapping *curve;
+  struct CurveMapping *curve_distance_falloff;
   struct MTex mtex;
   struct MTex mask_mtex;
 
@@ -331,7 +330,12 @@ typedef struct Brush {
 
   float texture_sample_bias;
 
-  int curve_preset;
+  /**
+   * This preset is used to specify an exact function used for the distance falloff instead
+   * of doing a Bezier spline evaluation via CurveMapping for performance reasons.
+   * \see #eBrushCurvePreset and #eCurveMappingPreset
+   */
+  int curve_distance_falloff_preset;
 
   /* Maximum distance to search fake neighbors from a vertex. */
   float disconnected_distance_max;

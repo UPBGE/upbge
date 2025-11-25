@@ -524,13 +524,13 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
     return;
   }
 #ifdef WITH_IMAGE_OPENEXR
-  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->userdata == nullptr) {
+  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->exrhandle == nullptr) {
     return;
   }
   MultilayerConvertContext ctx;
   ctx.combined_pass = nullptr;
   ctx.num_combined_channels = 0;
-  IMB_exr_multilayer_convert(ibuf->userdata,
+  IMB_exr_multilayer_convert(ibuf->exrhandle,
                              &ctx,
                              movieclip_convert_multilayer_add_view,
                              movieclip_convert_multilayer_add_layer,
@@ -540,8 +540,8 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
     IMB_assign_float_buffer(ibuf, ctx.combined_pass, IB_TAKE_OWNERSHIP);
     ibuf->channels = ctx.num_combined_channels;
   }
-  IMB_exr_close(ibuf->userdata);
-  ibuf->userdata = nullptr;
+  IMB_exr_close(ibuf->exrhandle);
+  ibuf->exrhandle = nullptr;
 #endif
 }
 
@@ -682,6 +682,7 @@ struct MovieClipCache {
     float polynomial_k[3];
     float division_k[2];
     float nuke_k[2];
+    float nuke_p[2];
     float brown_k[4];
     float brown_p[2];
     short distortion_model;
@@ -940,7 +941,7 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   char filepath[FILE_MAX];
 
   STRNCPY(filepath, clip->filepath);
-  BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+  BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &clip->id));
 
   ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer | IB_test);
   if (ibuf) {
@@ -1114,6 +1115,9 @@ static bool check_undistortion_cache_flags(const MovieClip *clip)
   if (!equals_v2v2(&camera->nuke_k1, cache->postprocessed.nuke_k)) {
     return false;
   }
+  if (!equals_v2v2(&camera->nuke_p1, cache->postprocessed.nuke_p)) {
+    return false;
+  }
 
   if (!equals_v4v4(&camera->brown_k1, cache->postprocessed.brown_k)) {
     return false;
@@ -1224,6 +1228,7 @@ static void put_postprocessed_frame_to_cache(
     copy_v3_v3(cache->postprocessed.polynomial_k, &camera->k1);
     copy_v2_v2(cache->postprocessed.division_k, &camera->division_k1);
     copy_v2_v2(cache->postprocessed.nuke_k, &camera->nuke_k1);
+    copy_v2_v2(cache->postprocessed.nuke_p, &camera->nuke_p1);
     copy_v4_v4(cache->postprocessed.brown_k, &camera->brown_k1);
     copy_v2_v2(cache->postprocessed.brown_p, &camera->brown_p1);
     cache->postprocessed.undistortion_used = true;

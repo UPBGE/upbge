@@ -1146,7 +1146,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
     md = BKE_modifier_new(eModifierType_ParticleSystem);
     psmd = (ParticleSystemModifierData *)md;
     /* push on top of the stack, no use trying to reproduce old stack order */
-    BLI_addtail(&ob_to->modifiers, md);
+    BKE_modifiers_add_at_end_if_possible(ob_to, md);
     BKE_modifiers_persistent_uid_init(*ob_to, *md);
 
     SNPRINTF_UTF8(md->name, "ParticleSystem %i", i);
@@ -1171,7 +1171,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
   for (psys = psys_start, psys_from = PSYS_FROM_FIRST, i = 0; psys;
        psys = psys->next, psys_from = PSYS_FROM_NEXT(psys_from), i++)
   {
-    const float(*from_mat)[4], (*to_mat)[4];
+    const float (*from_mat)[4], (*to_mat)[4];
 
     switch (space) {
       case PAR_COPY_SPACE_OBJECT:

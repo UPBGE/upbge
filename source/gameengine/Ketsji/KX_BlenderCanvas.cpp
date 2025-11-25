@@ -71,8 +71,7 @@ void KX_BlenderCanvas::SwapBuffers()
     GPU_context_main_unlock();
     G.is_rendering = false;
   }
-
-  wm_window_swap_buffers(m_win);
+  wm_window_swap_buffer_release(m_win);
 }
 
 void KX_BlenderCanvas::SetSwapInterval(int interval)
@@ -120,10 +119,10 @@ void KX_BlenderCanvas::BeginDraw()
   wm_window_make_drawable(m_wm, m_win);
 
   if (!m_useViewportRender) {
-    G.is_rendering = true;
+    wm_window_swap_buffer_acquire(m_win);
     GPU_context_main_lock();
     GPU_render_begin();
-    GPU_render_step();
+    GPU_render_step(true);
 
     BKE_image_free_unused_gpu_textures();
     /* See wm_draw_update for "chronology" */
@@ -218,7 +217,7 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
     *im_format = scene->r.im_format;
   }
   else {
-    BKE_image_format_init(im_format, false);
+    BKE_image_format_init(im_format);
   }
 
   // create file path

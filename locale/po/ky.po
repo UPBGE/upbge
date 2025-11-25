@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'61dd8a1435fb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-01 09:40+0000\n"
+"POT-Creation-Date: 2025-11-24 08:35+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -160,6 +160,58 @@ msgid "Description"
 msgstr "Баяндама"
 
 
+msgid "Actions"
+msgstr "Аракеттер"
+
+
+msgid "Armatures"
+msgstr "Скелеттер"
+
+
+msgid "Brushes"
+msgstr "Чачылар"
+
+
+msgid "Fonts"
+msgstr "Ариптер"
+
+
+msgid "Grease Pencil"
+msgstr "Эскиз карандашы"
+
+
+msgid "Images"
+msgstr "Сүрөттөр"
+
+
+msgid "Masks"
+msgstr "Маскалар"
+
+
+msgid "Scenes"
+msgstr "Сахналар"
+
+
+msgid "Sounds"
+msgstr "Үндөр"
+
+
+msgid "Speakers"
+msgstr "Үн булактары"
+
+
+msgid "Texts"
+msgstr "Тексттер"
+
+
+msgid "Textures"
+msgstr "Текстуралар"
+
+
+msgid "Worlds"
+msgstr "Дүйнөлөр"
+
+
 msgid "Data Type"
 msgstr "Маалыматтар түрү"
 
@@ -174,10 +226,6 @@ msgstr "Каптал"
 
 msgid "Layer"
 msgstr "Кат"
-
-
-msgid "Array"
-msgstr "Массив"
 
 
 msgid "Object"
@@ -240,64 +288,16 @@ msgid "Weight"
 msgstr "Салмак"
 
 
-msgid "Actions"
-msgstr "Аракеттер"
-
-
-msgid "Armatures"
-msgstr "Скелеттер"
-
-
-msgid "Brushes"
-msgstr "Чачылар"
-
-
 msgid "Filename"
 msgstr "Файл аты"
-
-
-msgid "Grease Pencil"
-msgstr "Эскиз карандашы"
-
-
-msgid "Images"
-msgstr "Сүрөттөр"
-
-
-msgid "Masks"
-msgstr "Маскалар"
 
 
 msgid "Particles"
 msgstr "Бөлүкчөлөр"
 
 
-msgid "Scenes"
-msgstr "Сахналар"
-
-
-msgid "Sounds"
-msgstr "Үндөр"
-
-
-msgid "Speakers"
-msgstr "Үн булактары"
-
-
-msgid "Texts"
-msgstr "Тексттер"
-
-
-msgid "Textures"
-msgstr "Текстуралар"
-
-
 msgid "Window Managers"
 msgstr "Терезе менеджерлери"
-
-
-msgid "Worlds"
-msgstr "Дүйнөлөр"
 
 
 msgid "Speed"
@@ -438,6 +438,10 @@ msgid "Use Curves"
 msgstr "Ийрилерди колдонуу"
 
 
+msgid "View"
+msgstr "Көрүнүш"
+
+
 msgid "Mix"
 msgstr "Аралаш"
 
@@ -561,10 +565,6 @@ msgstr "Метод"
 
 msgid "Plane"
 msgstr "Тегиздик"
-
-
-msgid "View"
-msgstr "Көрүнүш"
 
 
 msgid "Render"
@@ -766,10 +766,6 @@ msgstr "Ок"
 
 msgid "Size"
 msgstr "Өлчөмү"
-
-
-msgid "Fonts"
-msgstr "Ариптер"
 
 
 msgid "Save"
@@ -1290,16 +1286,28 @@ msgid "Mask"
 msgstr "Маска"
 
 
-msgid "Mirror"
-msgstr "Чагылтуу"
-
-
 msgid "Apply"
 msgstr "Колдонуу"
 
 
+msgid "Tracking"
+msgstr "Трекинг"
+
+
+msgid "Mirror"
+msgstr "Чагылтуу"
+
+
 msgid "Text"
 msgstr "Текст"
+
+
+msgid "Import"
+msgstr "Импорттоо"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgctxt "MovieClip"
@@ -1348,16 +1356,8 @@ msgid "Smooth"
 msgstr "Тегиз"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Align"
 msgstr "Түздөө"
-
-
-msgid "Import"
-msgstr "Импорттоо"
 
 
 msgid "Node"
@@ -1396,6 +1396,11 @@ msgid "Help"
 msgstr "Жардам"
 
 
+msgctxt "Operator"
+msgid "Lattice"
+msgstr "Решётка"
+
+
 msgid "Smooth"
 msgstr "Тегиз"
 
@@ -1406,6 +1411,10 @@ msgstr "Активдүү элемент"
 
 msgid "Ellipsoid"
 msgstr "Эллипсоид"
+
+
+msgid "Array"
+msgstr "Массив"
 
 
 msgid "Build"
@@ -1494,10 +1503,6 @@ msgstr "Ченөө бирдиктери"
 
 msgid "Starting"
 msgstr "Башталууда"
-
-
-msgid "Meta"
-msgstr "Мета"
 
 
 msgid "YCbCr"
@@ -1631,11 +1636,6 @@ msgstr "Тандалганын жашыруу"
 msgctxt "Operator"
 msgid "Subdivide"
 msgstr "Бөлүү"
-
-
-msgctxt "Curve"
-msgid "Mode"
-msgstr "Режим"
 
 
 msgctxt "Operator"
@@ -2191,8 +2191,9 @@ msgid "Render"
 msgstr "Визуалдаштыруу"
 
 
-msgid "Render active scene"
-msgstr "Активдүү сахнаны визуалдаштыруу"
+msgctxt "Curve"
+msgid "Mode"
+msgstr "Режим"
 
 
 msgctxt "Operator"
@@ -2312,11 +2313,6 @@ msgstr "Түрү"
 msgctxt "Sequence"
 msgid "Add"
 msgstr "Кошуу"
-
-
-msgctxt "Sequence"
-msgid "Transform"
-msgstr "Өзгөртүү"
 
 
 msgctxt "Sequence"
@@ -2801,6 +2797,10 @@ msgid "Lens"
 msgstr "Объектив"
 
 
+msgid "Meta"
+msgstr "Мета"
+
+
 msgid "Speaker"
 msgstr "Үн булагы"
 
@@ -3051,10 +3051,6 @@ msgid "Statistics"
 msgstr "Статистика"
 
 
-msgid "Tracking"
-msgstr "Трекинг"
-
-
 msgid "3D View"
 msgstr "3D-көрүнүш"
 
@@ -3135,10 +3131,6 @@ msgid "Face"
 msgstr "Каптал"
 
 
-msgid "Image*"
-msgstr "Сүрөт*"
-
-
 msgctxt "Operator"
 msgid "Sound"
 msgstr "Үн"
@@ -3167,11 +3159,6 @@ msgstr "Түс"
 msgctxt "Operator"
 msgid "Text"
 msgstr "Текст"
-
-
-msgctxt "Operator"
-msgid "Scene..."
-msgstr "Сахна..."
 
 
 msgctxt "Text"
@@ -3313,11 +3300,6 @@ msgstr "Жалпак"
 msgctxt "Operator"
 msgid "Calculate"
 msgstr "Эсептөө"
-
-
-msgctxt "Operator"
-msgid "Lattice"
-msgstr "Решётка"
 
 
 msgctxt "Operator"
@@ -3577,6 +3559,10 @@ msgstr "Болот"
 
 msgid "Stone"
 msgstr "Таш"
+
+
+msgid "Render active scene"
+msgstr "Активдүү сахнаны визуалдаштыруу"
 
 
 msgid "X:"

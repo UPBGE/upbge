@@ -71,11 +71,11 @@ void GPG_Canvas::EndFrame()
 void GPG_Canvas::BeginDraw()
 {
   if (!m_useViewportRender) {
+    m_window->swapBufferAcquire();
     wmWindow *win = CTX_wm_window(m_context);
-    G.is_rendering = true;
     GPU_context_main_lock();
     GPU_render_begin();
-    GPU_render_step();
+    GPU_render_step(true);
 
     BKE_image_free_unused_gpu_textures();
     /* See wm_draw_update for "chronology" */
@@ -110,7 +110,7 @@ void GPG_Canvas::MakeScreenShot(const std::string &filename)
   // initialize image file format data
   ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
                                                               "im_format");
-  BKE_image_format_init(im_format, false);
+  BKE_image_format_init(im_format);
 
   // create file path
   char path[FILE_MAX];
@@ -176,7 +176,7 @@ void GPG_Canvas::SwapBuffers()
       GPU_context_main_unlock();
       G.is_rendering = false;
     }
-    m_window->swapBuffers();
+    m_window->swapBufferRelease();
   }
 }
 

@@ -221,7 +221,7 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   reshape_context->top.grid_size = subdiv::grid_size_from_level(reshape_context->top.level);
 
   const bke::AttributeAccessor attributes = base_mesh->attributes();
-  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
+  reshape_context->cd_vert_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
   reshape_context->cd_edge_crease = *attributes.lookup<float>("crease_edge", AttrDomain::Edge);
 
   context_init_common(reshape_context);
@@ -295,7 +295,7 @@ bool multires_reshape_context_create_from_subdiv(MultiresReshapeContext *reshape
   reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   const bke::AttributeAccessor attributes = base_mesh->attributes();
-  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
+  reshape_context->cd_vert_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
 
   reshape_context->subdiv = subdiv;
   reshape_context->need_free_subdiv = false;
@@ -561,7 +561,7 @@ static void allocate_displacement_grid(MDisps *displacement_grid, const int leve
 {
   const int grid_size = blender::bke::subdiv::grid_size_from_level(level);
   const int grid_area = grid_size * grid_size;
-  float(*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
+  float (*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
   if (displacement_grid->disps != nullptr) {
     MEM_freeN(displacement_grid->disps);
   }
@@ -644,7 +644,7 @@ void multires_reshape_store_original_grids(MultiresReshapeContext *reshape_conte
      * Reshape process will ensure all grids are on top level, but that happens on separate set of
      * grids which eventually replaces original one. */
     if (orig_grid->disps != nullptr) {
-      orig_grid->disps = static_cast<float(*)[3]>(MEM_dupallocN(orig_grid->disps));
+      orig_grid->disps = static_cast<float (*)[3]>(MEM_dupallocN(orig_grid->disps));
     }
     if (orig_grid_paint_masks != nullptr) {
       GridPaintMask *orig_paint_mask_grid = &orig_grid_paint_masks[grid_index];

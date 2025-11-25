@@ -301,9 +301,9 @@ static blender::int2 convexhull_2d_sorted(const float2 *points,
                                           int r_points[])
 {
   const int top = convexhull_2d_sorted_impl(points, points_num, r_points);
-  blender::int2 r_points_range = {0, top};
-  convexhull_2d_stack_finalize(points, r_points, r_points_range);
-  return r_points_range;
+  blender::int2 points_range = {0, top};
+  convexhull_2d_stack_finalize(points, r_points, points_range);
+  return points_range;
 }
 
 int BLI_convexhull_2d(blender::Span<float2> points, int r_points[])
@@ -796,7 +796,7 @@ float BLI_convexhull_aabb_fit_points_2d(blender::Span<float2> points)
   int points_hull_num = BLI_convexhull_2d(points, index_map);
 
   if (points_hull_num > 1) {
-    float(*points_hull)[2] = MEM_malloc_arrayN<float[2]>(size_t(points_hull_num), __func__);
+    float (*points_hull)[2] = MEM_malloc_arrayN<float[2]>(size_t(points_hull_num), __func__);
     for (int j = 0; j < points_hull_num; j++) {
       copy_v2_v2(points_hull[j], points[index_map[j]]);
     }

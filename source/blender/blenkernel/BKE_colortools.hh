@@ -6,6 +6,7 @@
 /** \file
  * \ingroup bke
  */
+#include <cstdint>
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -39,17 +40,17 @@ void BKE_curvemapping_set_black_white(CurveMapping *cumap,
                                       const float black[3],
                                       const float white[3]);
 
-enum {
-  CURVEMAP_SLOPE_NEGATIVE = 0,
-  CURVEMAP_SLOPE_POSITIVE = 1,
-  CURVEMAP_SLOPE_POS_NEG = 2,
+enum class CurveMapSlopeType : int8_t {
+  Negative = 0,
+  Positive = 1,
+  PositiveNegative = 2,
 };
 
 /**
  * Reset the view for current curve.
  */
 void BKE_curvemapping_reset_view(CurveMapping *cumap);
-void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope);
+void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapSlopeType slope);
 /**
  * Removes with flag set.
  */
@@ -190,21 +191,11 @@ void BKE_color_managed_display_settings_copy(ColorManagedDisplaySettings *new_se
                                              const ColorManagedDisplaySettings *settings);
 
 /**
- * Initialize view settings to be best suitable for render type of viewing.
- * This will use default view transform from the OCIO configuration if none
- * is specified.
+ * Initialize view settings to the default.
  */
-void BKE_color_managed_view_settings_init_render(
-    ColorManagedViewSettings *view_settings,
-    const ColorManagedDisplaySettings *display_settings,
-    const char *view_transform);
-
-/**
- * Initialize view settings which are best suitable for viewing non-render images.
- * For example,s movie clips while tracking.
- */
-void BKE_color_managed_view_settings_init_untonemapped(
-    ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings);
+void BKE_color_managed_view_settings_init(ColorManagedViewSettings *view_settings,
+                                          const ColorManagedDisplaySettings *display_settings,
+                                          const char *view_transform);
 
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,
                                           const ColorManagedViewSettings *settings);

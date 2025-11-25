@@ -3,7 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from bpy.types import Menu, UIList, Operator
+from bpy.types import (
+    Menu,
+    UIList,
+)
 from bpy.app.translations import (
     contexts as i18n_contexts,
     pgettext_iface as iface_,
@@ -176,22 +179,17 @@ class GreasePencilBrushFalloff:
 
             col = layout.column(align=True)
             if context.region.type == 'TOOL_HEADER':
-                col.prop(brush, "curve_preset", expand=True)
+                col.prop(brush, "curve_distance_falloff_preset", expand=True)
             else:
-                row = col.row(align=True)
-                col.prop(brush, "curve_preset", text="")
+                col.prop(brush, "curve_distance_falloff_preset", text="")
 
-            if brush.curve_preset == 'CUSTOM':
-                layout.template_curve_mapping(brush, "curve", brush=True)
-
-                col = layout.column(align=True)
-                row = col.row(align=True)
-                row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
-                row.operator("brush.curve_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
-                row.operator("brush.curve_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
-                row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
-                row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
-                row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
+            if brush.curve_distance_falloff_preset == 'CUSTOM':
+                layout.template_curve_mapping(
+                    brush, "curve_distance_falloff",
+                    brush=True,
+                    use_negative_slope=True,
+                    show_presets=True,
+                )
 
 
 class GREASE_PENCIL_MT_move_to_layer(Menu):
@@ -355,7 +353,7 @@ class AnnotationDataPanel:
                 lock_label = iface_("Frame: {:d} ({:s})").format(gpl.active_frame.frame_number, lock_status)
             else:
                 lock_label = iface_("Lock Frame")
-            row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
+            row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED', translate=False)
             row.operator("gpencil.annotation_active_frame_delete", text="", icon='X')
 
 

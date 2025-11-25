@@ -256,7 +256,7 @@ const char *CTX_wm_operator_poll_msg_get(bContext *C, bool *r_free);
  *
  * \note even though the function name suggests this is limited to situations
  * when the poll function returns false, this is not the case. Even when the
- * operator is disabled because it is added to a disabled uiLayout, this message
+ * operator is disabled because it is added to a disabled blender::ui::Layout, this message
  * will show.
  */
 void CTX_wm_operator_poll_msg_set(bContext *C, const char *msg);
@@ -268,13 +268,13 @@ void CTX_wm_operator_poll_msg_clear(bContext *C);
  * - The dir #ListBase consists of #LinkData items.
  */
 
-/* data type, needed so we can tell between a NULL pointer and an empty list */
-enum {
-  CTX_DATA_TYPE_POINTER = 0,
-  CTX_DATA_TYPE_COLLECTION,
-  CTX_DATA_TYPE_PROPERTY,
-  CTX_DATA_TYPE_STRING,
-  CTX_DATA_TYPE_INT64,
+/** Data type, needed so we can tell between a NULL pointer and an empty list. */
+enum class ContextDataType : uint8_t {
+  Pointer = 0,
+  Collection,
+  Property,
+  String,
+  Int64,
 };
 
 PointerRNA CTX_data_pointer_get(const bContext *C, const char *member);
@@ -314,7 +314,7 @@ int /*eContextResult*/ CTX_data_get(const bContext *C,
                                     int *r_index,
                                     blender::StringRef *r_str,
                                     std::optional<int64_t> *r_int_value,
-                                    short *r_type);
+                                    ContextDataType *r_type);
 
 void CTX_data_id_pointer_set(bContextDataResult *result, ID *id);
 void CTX_data_pointer_set_ptr(bContextDataResult *result, const PointerRNA *ptr);
@@ -326,7 +326,7 @@ void CTX_data_list_add(bContextDataResult *result, ID *id, StructRNA *type, void
 
 /**
  * Stores a property in a result. Make sure to also call
- * `CTX_data_type_set(result, CTX_DATA_TYPE_PROPERTY)`.
+ * `CTX_data_type_set(result, ContextDataType::Property)`.
  * \param result: The result to store the property in.
  * \param prop: The property to store.
  * \param index: The particular index in the property to store.
@@ -335,8 +335,8 @@ void CTX_data_prop_set(bContextDataResult *result, PropertyRNA *prop, int index)
 
 void CTX_data_dir_set(bContextDataResult *result, const char **dir);
 
-void CTX_data_type_set(bContextDataResult *result, short type);
-short CTX_data_type_get(bContextDataResult *result);
+void CTX_data_type_set(bContextDataResult *result, ContextDataType type);
+ContextDataType CTX_data_type_get(bContextDataResult *result);
 
 bool CTX_data_equals(const char *member, const char *str);
 bool CTX_data_dir(const char *member);
@@ -345,7 +345,7 @@ bool CTX_data_dir(const char *member);
   { \
     blender::Vector<PointerRNA> ctx_data_list; \
     CTX_data_##member(C, &ctx_data_list); \
-    for (PointerRNA & ctx_link : ctx_data_list) { \
+    for (PointerRNA &ctx_link : ctx_data_list) { \
       Type instance = (Type)ctx_link.data;
 
 #define CTX_DATA_END \
@@ -473,3 +473,13 @@ Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C);
  * Only used by handful of operators which are run on file load.
  */
 Depsgraph *CTX_data_depsgraph_on_load(const bContext *C);
+
+/**
+ * Enable or disable logging of context members.
+ */
+void CTX_member_logging_set(bContext *C, bool enable);
+
+/**
+ * Check if logging is enabled of context members.
+ */
+bool CTX_member_logging_get(const bContext *C);

@@ -258,7 +258,7 @@ static void applyarmature_process_selected_recursive(bArmature *arm,
                                                    &old_bpt);
 
       /* Applied parent effects that have to be kept, if any. */
-      float(*new_parent_pose)[4] = pstate ? pstate->new_rest_mat : bone->parent->arm_mat;
+      float (*new_parent_pose)[4] = pstate ? pstate->new_rest_mat : bone->parent->arm_mat;
       BKE_bone_parent_transform_calc_from_matrices(bone->flag,
                                                    bone->inherit_scale_mode,
                                                    offs_bone,
@@ -380,7 +380,7 @@ static void applyarmature_reset_constraints(bPose *pose, const bool use_selected
 {
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
     BLI_assert(pchan->bone != nullptr);
-    if (use_selected && (pchan->bone->flag & BONE_SELECTED) == 0) {
+    if (use_selected && (pchan->flag & POSE_SELECTED) == 0) {
       continue;
     }
     applyarmature_reset_bone_constraints(pchan);
@@ -475,12 +475,12 @@ static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *
 
 static void apply_armature_pose2bones_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  layout->prop(&ptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&ptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void POSE_OT_armature_apply(wmOperatorType *ot)
@@ -599,26 +599,6 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
 /** \name Copy/Paste Utilities
  * \{ */
 
-/* This function is used to indicate that a bone is selected
- * and needs to be included in copy buffer (used to be for inserting keys)
- */
-static void set_pose_keys(Object *ob)
-{
-  bArmature *arm = static_cast<bArmature *>(ob->data);
-
-  if (ob->pose) {
-    LISTBASE_FOREACH (bPoseChannel *, chan, &ob->pose->chanbase) {
-      Bone *bone = chan->bone;
-      if ((bone) && (bone->flag & BONE_SELECTED) && ANIM_bone_in_visible_collection(arm, bone)) {
-        chan->flag |= POSE_KEY;
-      }
-      else {
-        chan->flag &= ~POSE_KEY;
-      }
-    }
-  }
-}
-
 /**
  * Perform paste pose, for a single bone.
  *
@@ -652,7 +632,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   if (pchan == nullptr) {
     return nullptr;
   }
-  if (selOnly && (pchan->bone->flag & BONE_SELECTED) == 0) {
+  if (selOnly && (pchan->flag & POSE_SELECTED) == 0) {
     return nullptr;
   }
 
@@ -661,7 +641,6 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
    */
   copy_v3_v3(pchan->loc, chan->loc);
   copy_v3_v3(pchan->scale, chan->scale);
-  pchan->flag = chan->flag;
 
   /* check if rotation modes are compatible (i.e. do they need any conversions) */
   if (pchan->rotmode == chan->rotmode) {
@@ -797,10 +776,24 @@ static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No pose to copy");
     return OPERATOR_CANCELLED;
   }
-  /* Sets chan->flag to POSE_KEY if bone selected. */
-  set_pose_keys(ob);
+  if (ID_IS_PACKED(&ob->id)) {
+    /* Direct link/append of packed IDs is not supported currently, so neither is their
+     * copy/pasting. */
+    BKE_report(op->reports, RPT_ERROR, "Cannot copy/paste packed data");
+    return OPERATOR_CANCELLED;
+  }
 
-  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+  bArmature *armature = static_cast<bArmature *>(ob->data);
+  BLI_assert_msg(armature, "If an armature object has a pose, it should have armature data");
+  /* Taking off the selection flag in case bones are hidden so they are not
+   * applied when pasting.  */
+  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob->pose->chanbase) {
+    if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
+      pose_bone->flag &= ~POSE_SELECTED;
+    }
+  }
+
+  PartialWriteContext copybuffer{*bmain};
   copybuffer.id_add(
       &ob->id,
       PartialWriteContext::IDAddOptions{
@@ -903,7 +896,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
    * existing pose.
    */
   LISTBASE_FOREACH (bPoseChannel *, chan, &pose_from->chanbase) {
-    if (chan->flag & POSE_KEY) {
+    if (chan->flag & POSE_SELECTED) {
       /* Try to perform paste on this bone. */
       bPoseChannel *pchan = pose_bone_do_paste(ob, chan, selOnly, flip);
       if (pchan != nullptr) {

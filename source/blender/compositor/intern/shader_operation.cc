@@ -67,7 +67,7 @@ void ShaderOperation::execute()
   bind_inputs(shader);
   bind_outputs(shader);
 
-  compute_dispatch_threads_at_least(shader, domain.size);
+  compute_dispatch_threads_at_least(shader, domain.data_size);
 
   GPU_texture_unbind_all();
   GPU_texture_image_unbind_all();
@@ -182,7 +182,7 @@ void ShaderOperation::link_node_input_unavailable(const DInputSocket input)
   zero_v4(stack.vec);
   GPUNodeLink *link = GPU_constant(stack.vec);
 
-  GPU_link(material_, "set_value", link, &stack.link);
+  GPU_link(material_, "set_float", link, &stack.link);
 }
 
 /* Initializes the vector value of the given GPU node stack from the default value of the given
@@ -213,7 +213,7 @@ static void initialize_input_stack_value(const DInputSocket input, GPUNodeStack 
       break;
     }
     case SOCK_RGBA: {
-      const float4 value = float4(input->default_value_typed<bNodeSocketValueRGBA>()->value);
+      const Color value = Color(input->default_value_typed<bNodeSocketValueRGBA>()->value);
       copy_v4_v4(stack.vec, value);
       break;
     }
@@ -238,28 +238,27 @@ static const char *get_set_function_name(const ResultType type)
 {
   switch (type) {
     case ResultType::Float:
-      return "set_value";
+      return "set_float";
+    case ResultType::Float2:
+      return "set_float2";
+    case ResultType::Float3:
+      return "set_float3";
+    case ResultType::Float4:
+      return "set_float4";
+    case ResultType::Color:
+      return "set_color";
     case ResultType::Int:
       /* GPUMaterial doesn't support int, so it is passed as a float. */
-      return "set_value";
+      return "set_float";
+    case ResultType::Int2:
+      /* GPUMaterial doesn't support int2, so it is passed as a float2. */
+      return "set_float2";
     case ResultType::Bool:
       /* GPUMaterial doesn't support bool, so it is passed as a float. */
-      return "set_value";
-    case ResultType::Float3:
-      return "set_rgb";
-    case ResultType::Color:
-      return "set_rgba";
-    case ResultType::Float4:
-      return "set_rgba";
-    case ResultType::Float2:
-      /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
-      return "set_rgb";
-    case ResultType::Int2:
-      /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
-      return "set_rgb";
+      return "set_float";
     case ResultType::Menu:
       /* GPUMaterial doesn't support int, so it is passed as a float. */
-      return "set_value";
+      return "set_float";
     case ResultType::String:
       /* Single only types do not support GPU code path. */
       BLI_assert(Result::is_single_value_only_type(type));
@@ -460,20 +459,20 @@ static const char *get_store_function_name(ResultType type)
   switch (type) {
     case ResultType::Float:
       return "node_compositor_store_output_float";
-    case ResultType::Int:
-      return "node_compositor_store_output_int";
-    case ResultType::Bool:
-      return "node_compositor_store_output_bool";
-    case ResultType::Float3:
-      return "node_compositor_store_output_float3";
-    case ResultType::Color:
-      return "node_compositor_store_output_color";
-    case ResultType::Float4:
-      return "node_compositor_store_output_float4";
     case ResultType::Float2:
       return "node_compositor_store_output_float2";
+    case ResultType::Float3:
+      return "node_compositor_store_output_float3";
+    case ResultType::Float4:
+      return "node_compositor_store_output_float4";
+    case ResultType::Color:
+      return "node_compositor_store_output_color";
+    case ResultType::Int:
+      return "node_compositor_store_output_int";
     case ResultType::Int2:
       return "node_compositor_store_output_int2";
+    case ResultType::Bool:
+      return "node_compositor_store_output_bool";
     case ResultType::Menu:
       return "node_compositor_store_output_menu";
     case ResultType::String:
@@ -530,9 +529,8 @@ void ShaderOperation::generate_code(void *thunk,
 
   shader_create_info.local_group_size(16, 16);
 
-  /* Add implementation for implicit conversion operations inserted by the code generator. This
-   * file should include the functions [float|vec3|vec4]_from_[float|vec3|vec4]. */
-  shader_create_info.typedef_source("gpu_shader_compositor_type_conversion.glsl");
+  /* Add implementation for the functions inserted by the code generator.. */
+  shader_create_info.typedef_source("gpu_shader_compositor_code_generation.glsl");
 
   /* The source shader is a compute shader with a main function that calls the dynamically
    * generated evaluate function. The evaluate function includes the serialized GPU material graph
@@ -540,22 +538,55 @@ void ShaderOperation::generate_code(void *thunk,
    * functions that writes the outputs are defined outside the evaluate function. */
   shader_create_info.compute_source("gpu_shader_compositor_main.glsl");
 
-  /* The main function is emitted in the shader before the evaluate function, so the evaluate
-   * function needs to be forward declared here.
-   * NOTE(Metal): Metal does not require forward declarations. */
-  if (GPU_backend_get_type() != GPU_BACKEND_METAL) {
-    shader_create_info.typedef_source_generated += "void evaluate();\n";
+  std::string generated_resource_header = shader_create_info.typedef_source_generated;
+  /* Insert resource declaration after types declaration. */
+  generated_resource_header += "#ifdef CREATE_INFO_RES_PASS_compositor_nodetrees\n";
+  generated_resource_header += "CREATE_INFO_RES_PASS_compositor_nodetrees\n";
+  generated_resource_header += "#endif\n";
+  generated_resource_header += "#ifdef CREATE_INFO_RES_BATCH_compositor_nodetrees\n";
+  generated_resource_header += "CREATE_INFO_RES_BATCH_compositor_nodetrees\n";
+  generated_resource_header += "#endif\n";
+  generated_resource_header += "#ifdef CREATE_INFO_RES_GEOMETRY_compositor_nodetrees\n";
+  generated_resource_header += "CREATE_INFO_RES_GEOMETRY_compositor_nodetrees\n";
+  generated_resource_header += "#endif\n";
+  generated_resource_header += "\n";
+
+  shader_create_info.generated_sources.append(
+      {"gpu_shader_compositor_nodetree_type.glsl", {}, generated_resource_header});
+
+  std::string store_code = operation->generate_code_for_outputs(shader_create_info);
+  shader_create_info.generated_sources.append(
+      {"gpu_shader_compositor_store.glsl", {}, store_code});
+
+  std::string eval_code;
+  eval_code += "void evaluate()\n{\n";
+
+  eval_code += operation->generate_code_for_inputs(material, shader_create_info);
+
+  eval_code += code_generator_output->composite.serialized;
+
+  eval_code += "}\n";
+
+  /* Bit of a workaround. Make sure that the nodetree UBO is part of the compositor_nodetrees
+   * interface and not the interface with the shader name. */
+  for (auto &res : shader_create_info.batch_resources_) {
+    res.info_name = "compositor_nodetrees";
+  }
+  for (auto &res : shader_create_info.pass_resources_) {
+    res.info_name = "compositor_nodetrees";
+  }
+  for (auto &res : shader_create_info.geometry_resources_) {
+    res.info_name = "compositor_nodetrees";
   }
 
-  operation->generate_code_for_outputs(shader_create_info);
+  blender::Vector<blender::StringRefNull> dependencies =
+      code_generator_output->composite.dependencies;
+  dependencies.prepend("compositor_node_tree_infos.hh");
+  dependencies.prepend("gpu_shader_compositor_texture_utilities.glsl");
+  dependencies.prepend("gpu_shader_compositor_code_generation.glsl");
 
-  shader_create_info.compute_source_generated += "void evaluate()\n{\n";
-
-  operation->generate_code_for_inputs(material, shader_create_info);
-
-  shader_create_info.compute_source_generated += code_generator_output->composite;
-
-  shader_create_info.compute_source_generated += "}\n";
+  shader_create_info.generated_sources.append(
+      {"gpu_shader_compositor_eval.glsl", dependencies, eval_code});
 }
 
 /* Texture storers in the shader always take a [i]vec4 as an argument, so encode each type in an
@@ -565,28 +596,26 @@ static const char *glsl_store_expression_from_result_type(ResultType type)
   switch (type) {
     case ResultType::Float:
       return "vec4(value)";
+    case ResultType::Float2:
+      return "vec4(value, 0.0f, 0.0f)";
+    case ResultType::Float3:
+      return "vec4(value, 0.0f)";
+    case ResultType::Float4:
+      return "value";
+    case ResultType::Color:
+      return "value";
     case ResultType::Int:
       /* GPUMaterial doesn't support int, so it is passed as a float, and we need to convert it
        * back to int before writing it. */
       return "ivec4(int(value))";
+    case ResultType::Int2:
+      /* GPUMaterial doesn't support int2, so it is passed as a float2, and we need to convert it
+       * back to int2 before writing it. */
+      return "ivec4(ivec2(value), 0, 0)";
     case ResultType::Bool:
       /* GPUMaterial doesn't support bool, so it is passed as a float and stored as an int, and we
        * need to convert it back to bool and then to an int before writing it. */
       return "ivec4(bool(value))";
-    case ResultType::Float3:
-      return "vec4(value, 0.0)";
-    case ResultType::Color:
-      return "value";
-    case ResultType::Float4:
-      return "value";
-    case ResultType::Float2:
-      /* GPUMaterial doesn't support float2, so it is passed as a float3, and we need to convert it
-       * back to float2 before writing it. */
-      return "vec4(value.xy, 0.0, 0.0)";
-    case ResultType::Int2:
-      /* GPUMaterial doesn't support int2, so it is passed as a float3, and we need to convert it
-       * back to int2 before writing it. */
-      return "ivec4(ivec2(value.xy), 0, 0)";
     case ResultType::Menu:
       /* GPUMaterial doesn't support int, so it is passed as a float, and we need to convert it
        * back to int before writing it. */
@@ -627,60 +656,46 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
   return ImageType::Float2D;
 }
 
-void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_info)
+std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_info)
 {
   const std::string store_float_function_header = "void store_float(const uint id, float value)";
+  const std::string store_float2_function_header = "void store_float2(const uint id, vec2 value)";
+  const std::string store_float3_function_header = "void store_float3(const uint id, vec3 value)";
+  const std::string store_float4_function_header = "void store_float4(const uint id, vec4 value)";
+  const std::string store_color_function_header = "void store_color(const uint id, vec4 value)";
   /* GPUMaterial doesn't support int, so it is passed as a float. */
   const std::string store_int_function_header = "void store_int(const uint id, float value)";
+  /* GPUMaterial doesn't support int2, so it is passed as a float2. */
+  const std::string store_int2_function_header = "void store_int2(const uint id, vec2 value)";
   /* GPUMaterial doesn't support bool, so it is passed as a float. */
   const std::string store_bool_function_header = "void store_bool(const uint id, float value)";
-  const std::string store_float3_function_header = "void store_float3(const uint id, vec3 value)";
-  const std::string store_color_function_header = "void store_color(const uint id, vec4 value)";
-  const std::string store_float4_function_header = "void store_float4(const uint id, vec4 value)";
-  /* GPUMaterial doesn't support float2, so it is passed as a float3. */
-  const std::string store_float2_function_header = "void store_float2(const uint id, vec3 value)";
-  /* GPUMaterial doesn't support int2, so it is passed as a float3. */
-  const std::string store_int2_function_header = "void store_int2(const uint id, vec3 value)";
   /* GPUMaterial doesn't support int, so it is passed as a float. */
   const std::string store_menu_function_header = "void store_menu(const uint id, float value)";
-
-  /* The store functions are used by the node_compositor_store_output_[type] functions but are only
-   * defined later as part of the compute source, so they need to be forward declared. NOTE(Metal):
-   * Metal does not require forward declarations. */
-  if (GPU_backend_get_type() != GPU_BACKEND_METAL) {
-    shader_create_info.typedef_source_generated += store_float_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_int_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_bool_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_float3_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_color_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_float4_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_float2_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_int2_function_header + ";\n";
-    shader_create_info.typedef_source_generated += store_menu_function_header + ";\n";
-  }
 
   /* Each of the store functions is essentially a single switch case on the given ID, so start by
    * opening the function with a curly bracket followed by opening a switch statement in each of
    * the functions. */
   std::stringstream store_float_function;
-  std::stringstream store_int_function;
-  std::stringstream store_bool_function;
-  std::stringstream store_float3_function;
-  std::stringstream store_color_function;
-  std::stringstream store_float4_function;
   std::stringstream store_float2_function;
+  std::stringstream store_float3_function;
+  std::stringstream store_float4_function;
+  std::stringstream store_color_function;
+  std::stringstream store_int_function;
   std::stringstream store_int2_function;
+  std::stringstream store_bool_function;
   std::stringstream store_menu_function;
   const std::string store_function_start = "\n{\n  switch (id) {\n";
   store_float_function << store_float_function_header << store_function_start;
-  store_int_function << store_int_function_header << store_function_start;
-  store_bool_function << store_bool_function_header << store_function_start;
-  store_float3_function << store_float3_function_header << store_function_start;
-  store_color_function << store_color_function_header << store_function_start;
-  store_float4_function << store_float4_function_header << store_function_start;
   store_float2_function << store_float2_function_header << store_function_start;
+  store_float3_function << store_float3_function_header << store_function_start;
+  store_float4_function << store_float4_function_header << store_function_start;
+  store_color_function << store_color_function_header << store_function_start;
+  store_int_function << store_int_function_header << store_function_start;
   store_int2_function << store_int2_function_header << store_function_start;
+  store_bool_function << store_bool_function_header << store_function_start;
   store_menu_function << store_menu_function_header << store_function_start;
+
+  shader_create_info.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
 
   int output_index = 0;
   for (StringRefNull output_identifier : output_sockets_to_output_identifiers_map_.values()) {
@@ -708,26 +723,26 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
       case ResultType::Float:
         store_float_function << case_code.str();
         break;
-      case ResultType::Int:
-        store_int_function << case_code.str();
-        break;
-      case ResultType::Bool:
-        store_bool_function << case_code.str();
+      case ResultType::Float2:
+        store_float2_function << case_code.str();
         break;
       case ResultType::Float3:
         store_float3_function << case_code.str();
         break;
-      case ResultType::Color:
-        store_color_function << case_code.str();
-        break;
       case ResultType::Float4:
         store_float4_function << case_code.str();
         break;
-      case ResultType::Float2:
-        store_float2_function << case_code.str();
+      case ResultType::Color:
+        store_color_function << case_code.str();
+        break;
+      case ResultType::Int:
+        store_int_function << case_code.str();
         break;
       case ResultType::Int2:
         store_int2_function << case_code.str();
+        break;
+      case ResultType::Bool:
+        store_bool_function << case_code.str();
         break;
       case ResultType::Menu:
         store_menu_function << case_code.str();
@@ -743,19 +758,18 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   /* Close the previously opened switch statement as well as the function itself. */
   const std::string store_function_end = "  }\n}\n\n";
   store_float_function << store_function_end;
-  store_int_function << store_function_end;
-  store_bool_function << store_function_end;
-  store_float3_function << store_function_end;
-  store_color_function << store_function_end;
-  store_float4_function << store_function_end;
   store_float2_function << store_function_end;
+  store_float3_function << store_function_end;
+  store_float4_function << store_function_end;
+  store_color_function << store_function_end;
+  store_int_function << store_function_end;
   store_int2_function << store_function_end;
+  store_bool_function << store_function_end;
   store_menu_function << store_function_end;
 
-  shader_create_info.compute_source_generated +=
-      store_float_function.str() + store_int_function.str() + store_bool_function.str() +
-      store_float3_function.str() + store_color_function.str() + store_float4_function.str() +
-      store_float2_function.str() + store_int2_function.str() + store_menu_function.str();
+  return store_float_function.str() + store_float2_function.str() + store_float3_function.str() +
+         store_float4_function.str() + store_color_function.str() + store_int_function.str() +
+         store_int2_function.str() + store_bool_function.str() + store_menu_function.str();
 }
 
 static const char *glsl_type_from_result_type(ResultType type)
@@ -763,23 +777,23 @@ static const char *glsl_type_from_result_type(ResultType type)
   switch (type) {
     case ResultType::Float:
       return "float";
+    case ResultType::Float2:
+      return "vec2";
+    case ResultType::Float3:
+      return "vec3";
+    case ResultType::Float4:
+      return "vec4";
+    case ResultType::Color:
+      return "vec4";
     case ResultType::Int:
       /* GPUMaterial doesn't support int, so it is passed as a float. */
       return "float";
+    case ResultType::Int2:
+      /* GPUMaterial doesn't support int2, so it is passed as a float2. */
+      return "vec2";
     case ResultType::Bool:
       /* GPUMaterial doesn't support bool, so it is passed as a float. */
       return "float";
-    case ResultType::Float3:
-      return "vec3";
-    case ResultType::Color:
-    case ResultType::Float4:
-      return "vec4";
-    case ResultType::Float2:
-      /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
-      return "vec3";
-    case ResultType::Int2:
-      /* GPUMaterial doesn't support int2, so it is passed as a float3 with z ignored. */
-      return "vec3";
     case ResultType::Menu:
       /* GPUMaterial doesn't support int, so it is passed as a float. */
       return "float";
@@ -800,22 +814,24 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
 {
   switch (type) {
     case ResultType::Float:
-    case ResultType::Int:
-    case ResultType::Bool:
-    case ResultType::Menu:
       return "x";
+    case ResultType::Float2:
+      return "xy";
     case ResultType::Float3:
       return "xyz";
-    case ResultType::Color:
-      return "rgba";
     case ResultType::Float4:
       return "xyzw";
-    case ResultType::Float2:
-      /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
-      return "xyz";
+    case ResultType::Color:
+      return "rgba";
+    case ResultType::Int:
+      return "x";
     case ResultType::Int2:
-      /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
-      return "xyz";
+      /* GPUMaterial doesn't support float2, so it is passed as a float2. */
+      return "xy";
+    case ResultType::Bool:
+      return "x";
+    case ResultType::Menu:
+      return "x";
     case ResultType::String:
       /* Single only types do not support GPU code path. */
       BLI_assert(Result::is_single_value_only_type(type));
@@ -827,15 +843,17 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
   return nullptr;
 }
 
-void ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
-                                               ShaderCreateInfo &shader_create_info)
+std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
+                                                      ShaderCreateInfo &shader_create_info)
 {
   /* The attributes of the GPU material represents the inputs of the operation. */
   ListBase attributes = GPU_material_attributes(material);
 
   if (BLI_listbase_is_empty(&attributes)) {
-    return;
+    return "";
   }
+
+  std::string code;
 
   /* Add a texture sampler for each of the inputs with the same name as the attribute, we start
    * counting the sampler slot location from the number of textures in the material, since some
@@ -863,7 +881,7 @@ void ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
   }
   declare_attributes << "} var_attrs;\n\n";
 
-  shader_create_info.compute_source_generated += declare_attributes.str();
+  code += declare_attributes.str();
 
   /* The texture loader utilities are needed to sample the input textures and initialize the
    * attributes. */
@@ -883,7 +901,9 @@ void ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
   }
   initialize_attributes << "\n";
 
-  shader_create_info.compute_source_generated += initialize_attributes.str();
+  code += initialize_attributes.str();
+
+  return code;
 }
 
 }  // namespace blender::compositor

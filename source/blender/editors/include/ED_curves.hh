@@ -91,6 +91,8 @@ class PenToolOperation {
 
   bool point_added;
   bool point_removed;
+  /* Used to go back to `aligned` after `move_handle` becomes `false` */
+  bool handle_moved;
 
   float4x4 projection;
   float2 mouse_co;
@@ -103,6 +105,8 @@ class PenToolOperation {
   Vector<float4x4> layer_to_world_per_curves;
   /* Only used for Grease Pencil. */
   Vector<float4x4> layer_to_object_per_curves;
+
+  virtual ~PenToolOperation() = default;
 
   virtual float3 project(const float2 &screen_co) const = 0;
   virtual IndexMask all_selected_points(int curves_index, IndexMaskMemory &memory) const = 0;
@@ -225,6 +229,13 @@ void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob);
 void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
                                              TransVertStore *tvs,
                                              const bool skip_handles);
+
+/**
+ * Update original curve positions with transform changes.
+ */
+void transverts_update_curves(bke::CurvesGeometry &curves,
+                              const TransVertStore *tvs,
+                              bool skip_handles);
 
 /* -------------------------------------------------------------------- */
 /** \name Poll Functions

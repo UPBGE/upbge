@@ -35,7 +35,7 @@ class ID {
   uint32_t value;
 
   /* Add type safety to selection ID. Only the select types should provide them. */
-  ID(uint32_t value) : value(value){};
+  ID(uint32_t value) : value(value) {};
 
   friend struct SelectBuf;
   friend struct SelectMap;
@@ -56,7 +56,7 @@ struct SelectBuf {
 
   StorageVectorBuffer<uint32_t> select_buf = {"select_buf"};
 
-  SelectBuf(const SelectionType selection_type) : selection_type(selection_type){};
+  SelectBuf(const SelectionType selection_type) : selection_type(selection_type) {};
 
   void select_clear()
   {
@@ -105,7 +105,7 @@ struct SelectMap {
   /** If clipping is enabled, this is the number of clip planes to enable. */
   int clipping_plane_count = 0;
 
-  SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
+  SelectMap(const SelectionType selection_type) : selection_type(selection_type) {};
 
   /* TODO(fclem): The sub_object_id id should eventually become some enum or take a sub-object
    * reference directly. This would isolate the selection logic to this class. */
@@ -312,10 +312,10 @@ struct SelectMap {
             hit_result.depth = select_output_buf[i];
             if (in_front_map[i]) {
               /* Divide "In Front" objects depth so they go first. */
-              const uint32_t depth_mask = 0x00FFFFFFu;
-              uint32_t offset_depth = (hit_result.depth & depth_mask) / 100;
+              const uint32_t depth_mask = 0x00FFFFFFu << 8u;
+              uint32_t offset_depth = ((hit_result.depth & depth_mask) >> 8u) / 100;
               hit_result.depth &= ~depth_mask;
-              hit_result.depth |= offset_depth;
+              hit_result.depth |= offset_depth << 8u;
             }
             if (hit_results.is_empty() || hit_result.depth < hit_results[0].depth) {
               hit_results = {hit_result};

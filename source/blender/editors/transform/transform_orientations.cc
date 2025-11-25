@@ -571,33 +571,47 @@ void applyTransformOrientation(const TransformOrientation *ts, float r_mat[3][3]
   copy_m3_m3(r_mat, ts->mat);
 }
 
-/* Updates all `BONE_TRANSFORM` flags.
- * Returns total number of bones with `BONE_TRANSFORM`.
- * NOTE: `transform_convert_pose_transflags_update` has a similar logic. */
-static int armature_bone_transflags_update_recursive(bArmature *arm,
-                                                     ListBase *lb,
-                                                     const bool do_it)
+static int bone_children_clear_transflag(bPose &pose, bPoseChannel &pose_bone)
 {
-  bool do_next;
+  int cleared = 0;
+  animrig::pose_bone_descendent_iterator(pose, pose_bone, [&](bPoseChannel &child) {
+    if (&child == &pose_bone) {
+      return;
+    }
+    if (child.runtime.flag & POSE_RUNTIME_TRANSFORM) {
+      child.runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
+      cleared++;
+    }
+  });
+  return cleared;
+}
+
+/* Updates all `POSE_RUNTIME_TRANSFORM` flags.
+ * Returns total number of bones with `POSE_RUNTIME_TRANSFORM`.
+ * NOTE: `transform_convert_pose_transflags_update` has a similar logic. */
+static int armature_bone_transflags_update(Object &ob,
+                                           bArmature *arm,
+                                           ListBase /* bPoseChannel */ *lb)
+{
   int total = 0;
 
-  LISTBASE_FOREACH (Bone *, bone, lb) {
-    bone->flag &= ~BONE_TRANSFORM;
-    do_next = do_it;
-    if (do_it) {
-      if (ANIM_bone_in_visible_collection(arm, bone)) {
-        if (bone->flag & BONE_SELECTED) {
-          bone->flag |= BONE_TRANSFORM;
-          total++;
-
-          /* No transform on children if one parent bone is selected. */
-          do_next = false;
-        }
-      }
+  LISTBASE_FOREACH (bPoseChannel *, pchan, lb) {
+    pchan->runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
+    if (!ANIM_bone_in_visible_collection(arm, pchan->bone)) {
+      continue;
     }
-    total += armature_bone_transflags_update_recursive(arm, &bone->childbase, do_next);
+    if (pchan->flag & POSE_SELECTED) {
+      pchan->runtime.flag |= POSE_RUNTIME_TRANSFORM;
+      total++;
+    }
   }
 
+  /* No transform on children if any parent bone is selected. */
+  LISTBASE_FOREACH (bPoseChannel *, pchan, lb) {
+    if (pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) {
+      total -= bone_children_clear_transflag(*ob.pose, *pchan);
+    }
+  }
   return total;
 }
 
@@ -665,6 +679,7 @@ short calc_orientation_from_type_ex(const Scene *scene,
       if (ob) {
         if (ob->mode & OB_MODE_POSE) {
           const bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
+
           if (pchan && gimbal_axis_pose(ob, pchan, r_mat)) {
             break;
           }
@@ -792,12 +807,12 @@ short transform_orientation_matrix_get(bContext *C,
     }
   }
 
-  short r_orient_index = calc_orientation_from_type_ex(
+  const short orient_index_result = calc_orientation_from_type_ex(
       scene, t->view_layer, v3d, rv3d, ob, obedit, orient_index, t->around, r_spacemtx);
 
   if (rv3d && (t->options & CTX_PAINT_CURVE)) {
     /* Screen space in the 3d region. */
-    if (r_orient_index == V3D_ORIENT_VIEW) {
+    if (orient_index_result == V3D_ORIENT_VIEW) {
       unit_m3(r_spacemtx);
     }
     else {
@@ -806,7 +821,7 @@ short transform_orientation_matrix_get(bContext *C,
     }
   }
 
-  return r_orient_index;
+  return orient_index_result;
 }
 
 const char *transform_orientations_spacename_get(TransInfo *t, const short orient_type)
@@ -1428,19 +1443,24 @@ int getTransformOrientation_ex(const Scene *scene,
     bool ok = false;
 
     if (activeOnly && (pchan = BKE_pose_channel_active_if_bonecoll_visible(ob))) {
-      add_v3_v3(r_normal, pchan->pose_mat[2]);
-      add_v3_v3(r_plane, pchan->pose_mat[1]);
+      float pose_mat[3][3];
+      BKE_pose_channel_transform_orientation(arm, pchan, pose_mat);
+
+      add_v3_v3(r_normal, pose_mat[2]);
+      add_v3_v3(r_plane, pose_mat[1]);
       ok = true;
     }
     else {
-      int transformed_len;
-      transformed_len = armature_bone_transflags_update_recursive(arm, &arm->bonebase, true);
+      const int transformed_len = armature_bone_transflags_update(*ob, arm, &ob->pose->chanbase);
       if (transformed_len) {
         /* Use channels to get stats. */
         LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-          if (pchan->bone && pchan->bone->flag & BONE_TRANSFORM) {
-            add_v3_v3(r_normal, pchan->pose_mat[2]);
-            add_v3_v3(r_plane, pchan->pose_mat[1]);
+          if (pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) {
+            float pose_mat[3][3];
+            BKE_pose_channel_transform_orientation(arm, pchan, pose_mat);
+
+            add_v3_v3(r_normal, pose_mat[2]);
+            add_v3_v3(r_plane, pose_mat[1]);
           }
         }
         ok = true;

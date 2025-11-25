@@ -86,7 +86,7 @@ namespace blender::bke::liboverride {
 
 bool is_auto_resync_enabled()
 {
-  return !USER_EXPERIMENTAL_TEST(&U, no_override_auto_resync) &&
+  return !USER_DEVELOPER_TOOL_TEST(&U, no_override_auto_resync) &&
          (G.fileflags & G_LIBOVERRIDE_NO_AUTO_RESYNC) == 0;
 }
 
@@ -968,8 +968,7 @@ static void lib_override_hierarchy_dependencies_recursive_tag_from(LibOverrideGr
     return;
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id);
   BLI_assert(entry != nullptr);
 
   if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED_FROM) {
@@ -1011,8 +1010,7 @@ static bool lib_override_hierarchy_dependencies_recursive_tag(LibOverrideGroupTa
   const bool is_override = data->is_override;
   const bool is_resync = data->is_resync;
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id);
   BLI_assert(entry != nullptr);
 
   if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED_TO) {
@@ -1060,8 +1058,7 @@ static void lib_override_linked_group_tag_recursive(LibOverrideGroupTagData *dat
   BLI_assert(ID_IS_LINKED(id_owner));
   BLI_assert(!data->is_override);
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_owner));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_owner);
   BLI_assert(entry != nullptr);
 
   if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) {
@@ -1329,8 +1326,7 @@ static void lib_override_overrides_group_tag_recursive(LibOverrideGroupTagData *
     return;
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_owner));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_owner);
   BLI_assert(entry != nullptr);
 
   if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) {
@@ -1491,7 +1487,7 @@ static void lib_override_library_create_post_process(Main *bmain,
   /* We create a set of all objects referenced into the scene by its hierarchy of collections.
    * NOTE: This is different that the list of bases, since objects in excluded collections etc.
    * won't have a base, but are still considered as instanced from our point of view. */
-  GSet *all_objects_in_scene = BKE_scene_objects_as_gset(scene, nullptr);
+  blender::Set<Object *> *all_objects_in_scene = BKE_scene_objects_as_set(scene, nullptr);
 
   if (is_resync || id_root == nullptr || id_root->newid == nullptr) {
     /* Instantiating the root collection or object should never be needed in resync case, since the
@@ -1536,15 +1532,15 @@ static void lib_override_library_create_post_process(Main *bmain,
 
         BLI_assert(BKE_collection_is_in_scene(collection_new));
 
-        all_objects_in_scene = BKE_scene_objects_as_gset(scene, all_objects_in_scene);
+        all_objects_in_scene = BKE_scene_objects_as_set(scene, all_objects_in_scene);
         break;
       }
       case ID_OB: {
         Object *ob_new = reinterpret_cast<Object *>(id_root->newid);
-        if (BLI_gset_lookup(all_objects_in_scene, ob_new) == nullptr) {
+        if (!all_objects_in_scene->contains(ob_new)) {
           BKE_collection_object_add_from(
               bmain, scene, reinterpret_cast<Object *>(id_root), ob_new);
-          all_objects_in_scene = BKE_scene_objects_as_gset(scene, all_objects_in_scene);
+          all_objects_in_scene = BKE_scene_objects_as_set(scene, all_objects_in_scene);
         }
         break;
       }
@@ -1583,7 +1579,7 @@ static void lib_override_library_create_post_process(Main *bmain,
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
     }
 
-    if (BLI_gset_lookup(all_objects_in_scene, ob_new) == nullptr) {
+    if (!all_objects_in_scene->contains(ob_new)) {
       if (id_root != nullptr && default_instantiating_collection == nullptr) {
         ID *id_ref = id_root->newid != nullptr ? id_root->newid : id_root;
         switch (GS(id_ref->name)) {
@@ -1653,7 +1649,7 @@ static void lib_override_library_create_post_process(Main *bmain,
     }
   }
 
-  BLI_gset_free(all_objects_in_scene, nullptr);
+  MEM_delete(all_objects_in_scene);
 }
 
 bool BKE_lib_override_library_create(Main *bmain,
@@ -1732,8 +1728,7 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
     return nullptr;
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id);
   BLI_assert(entry != nullptr);
 
   if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) {
@@ -1828,8 +1823,7 @@ static bool lib_override_root_is_valid(Main *bmain, ID *id)
   for (int64_t i = 0; i < ancestors.size(); i++) {
     ID *id_iter = ancestors[i];
 
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
     BLI_assert(entry != nullptr);
 
     for (MainIDRelationsEntryItem *from_id_entry = entry->from_ids; from_id_entry != nullptr;
@@ -1890,8 +1884,8 @@ static void lib_override_root_hierarchy_set(
       }
 
       ID *id_from_ref = id_from->override_library->reference;
-      MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(BLI_ghash_lookup(
-          bmain->relations->relations_from_pointers, id->override_library->reference));
+      MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(
+          id->override_library->reference);
       BLI_assert(entry != nullptr);
 
       /* Enforce replacing hierarchy root if the current one is invalid. */
@@ -1944,8 +1938,7 @@ static void lib_override_root_hierarchy_set(
     id->override_library->hierarchy_root = id_root;
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id);
   BLI_assert(entry != nullptr);
 
   for (MainIDRelationsEntryItem *to_id_entry = entry->to_ids; to_id_entry != nullptr;
@@ -2988,8 +2981,7 @@ static void lib_override_resync_tagging_finalize_recurse(Main *bmain,
     return;
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_root));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_root);
   BLI_assert(entry != nullptr);
 
   bool is_reprocessing_current_entry = false;
@@ -3201,8 +3193,7 @@ static bool lib_override_resync_tagging_finalize_recursive_check_from(
     return true;
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(bmain->relations->relations_from_pointers, id));
+  MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id);
   BLI_assert(entry != nullptr);
 
   if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED_TO) {
@@ -3239,7 +3230,7 @@ static bool lib_override_resync_tagging_finalize_recursive_check_from(
 /* Once all IDs needing resync have been tagged, partial ID roots can be found by processing each
  * tagged-for-resync IDs' ancestors within their liboverride hierarchy. */
 static void lib_override_resync_tagging_finalize(Main *bmain,
-                                                 GHash *id_roots,
+                                                 blender::Map<ID *, LinkNodePair *> &id_roots,
                                                  const int library_indirect_level)
 {
   ID *id_iter;
@@ -3286,8 +3277,7 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
       continue;
     }
 
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
     BLI_assert(entry != nullptr);
     BLI_assert((entry->tags & MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS) == 0);
 
@@ -3360,8 +3350,7 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
       continue;
     }
 
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
     BLI_assert(entry != nullptr);
 
     if ((entry->tags & MAINIDRELATIONS_ENTRY_TAGS_DOIT) == 0) {
@@ -3383,13 +3372,9 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
                   LIBOVERRIDE_TAG_RESYNC_ISOLATED_FROM_ROOT) == 0);
     }
 
-    LinkNodePair **id_resync_roots_p;
-    if (!BLI_ghash_ensure_p(
-            id_roots, hierarchy_root, reinterpret_cast<void ***>(&id_resync_roots_p)))
-    {
-      *id_resync_roots_p = MEM_callocN<LinkNodePair>(__func__);
-    }
-    BLI_linklist_append(*id_resync_roots_p, id_iter);
+    LinkNodePair *id_resync_roots = id_roots.lookup_or_add_cb(
+        hierarchy_root, []() { return MEM_callocN<LinkNodePair>(__func__); });
+    BLI_linklist_append(id_resync_roots, id_iter);
   }
   FOREACH_MAIN_ID_END;
 
@@ -3455,7 +3440,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
   FOREACH_MAIN_ID_END;
   data.clear();
 
-  GHash *id_roots = BLI_ghash_ptr_new(__func__);
+  blender::Map<ID *, LinkNodePair *> id_roots;
 
   /* Now check existing overrides, those needing resync will be the one either already tagged as
    * such, or the one using linked data that is now tagged as needing override. */
@@ -3474,8 +3459,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
       continue;
     }
 
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id);
     BLI_assert(entry != nullptr);
 
     for (MainIDRelationsEntryItem *entry_item = entry->to_ids; entry_item != nullptr;
@@ -3512,11 +3496,9 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
    * by their resync root IDs. */
   {
     BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
-    GHashIterator *id_roots_iter = BLI_ghashIterator_new(id_roots);
-    while (!BLI_ghashIterator_done(id_roots_iter)) {
-      ID *id_root = static_cast<ID *>(BLI_ghashIterator_getKey(id_roots_iter));
-      LinkNodePair *id_resync_roots = static_cast<LinkNodePair *>(
-          BLI_ghashIterator_getValue(id_roots_iter));
+    for (const auto &item : id_roots.items()) {
+      ID *id_root = item.key;
+      LinkNodePair *id_resync_roots = item.value;
       CLOG_DEBUG(&LOG_RESYNC,
                  "Checking validity of computed TODO data for root '%s'... \n",
                  id_root->name);
@@ -3541,7 +3523,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
            id_resync_root_iter = id_resync_root_iter->next)
       {
         ID *id_resync_root = static_cast<ID *>(id_resync_root_iter->link);
-        BLI_assert(id_resync_root == id_root || !BLI_ghash_haskey(id_roots, id_resync_root));
+        BLI_assert(id_resync_root == id_root || !id_roots.contains(id_resync_root));
         if (id_resync_root == id_root) {
           if (id_resync_root_iter != id_resync_roots->list ||
               id_resync_root_iter != id_resync_roots->last_node)
@@ -3558,9 +3540,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
           }
         }
       }
-      BLI_ghashIterator_step(id_roots_iter);
     }
-    BLI_ghashIterator_free(id_roots_iter);
   }
 #endif
 
@@ -3569,12 +3549,10 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
 
   ListBase no_main_ids_list = {nullptr};
 
-  GHashIterator *id_roots_iter = BLI_ghashIterator_new(id_roots);
-  while (!BLI_ghashIterator_done(id_roots_iter)) {
-    ID *id_root = static_cast<ID *>(BLI_ghashIterator_getKey(id_roots_iter));
+  for (const auto &item : id_roots.items()) {
+    ID *id_root = item.key;
     Library *library = id_root->lib;
-    LinkNodePair *id_resync_roots = static_cast<LinkNodePair *>(
-        BLI_ghashIterator_getValue(id_roots_iter));
+    LinkNodePair *id_resync_roots = item.value;
 
     if (ID_IS_LINKED(id_root)) {
       id_root->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
@@ -3608,9 +3586,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
     }
 
     BLI_linklist_free(id_resync_roots->list, nullptr);
-    BLI_ghashIterator_step(id_roots_iter);
   }
-  BLI_ghashIterator_free(id_roots_iter);
 
   LISTBASE_FOREACH_MUTABLE (ID *, id_iter, &no_main_ids_list) {
     BKE_id_free(bmain, id_iter);
@@ -3711,7 +3687,9 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
   BKE_id_multi_tagged_delete(bmain);
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
-  BLI_ghash_free(id_roots, nullptr, MEM_freeN);
+  for (LinkNodePair *pair : id_roots.values()) {
+    MEM_freeN(pair);
+  }
 
   /* In some fairly rare (and degenerate) cases, some root ID from other liboverrides may have been
    * freed, and therefore set to nullptr. Attempt to fix this as best as possible. */
@@ -4787,6 +4765,22 @@ void BKE_lib_override_library_main_operations_create(Main *bmain,
       BKE_pose_ensure(bmain, ob, static_cast<bArmature *>(ob->data), true);
     }
   }
+  /* Similar issue with view layers, some may not be up-to-date, and re-syncing them from a
+   * multi-threaded process is utterly unsafe. Some RNA property access may cause this, see e.g.
+   * #147565 and the `node_warnings` property of the Geometry Nodes. */
+  const bool resync_success = BKE_main_view_layers_synced_ensure(bmain);
+  /* Layer resync should never fail here.
+   *
+   * This call is fairly high-level and should never happen within a callpath which has already
+   * forbidden resync (using #BKE_layer_collection_resync_forbid).
+   *
+   * Other unlikely reasons for failure (like very old blendfile data before versioning, where
+   * scenes have no master collection yet) are also never expected to be met in this code.
+   */
+  BLI_assert_msg(resync_success,
+                 "Ensuring that all view-layers in Main are synced with their collections failed");
+  UNUSED_VARS_NDEBUG(resync_success);
+  BKE_layer_collection_resync_forbid();
 
   LibOverrideOpCreateData create_pool_data{};
   create_pool_data.bmain = bmain;
@@ -4854,6 +4848,8 @@ void BKE_lib_override_library_main_operations_create(Main *bmain,
   BLI_task_pool_work_and_wait(task_pool);
 
   BLI_task_pool_free(task_pool);
+
+  BKE_layer_collection_resync_allow();
 
   if (create_pool_data.report_flags & RNA_OVERRIDE_MATCH_RESULT_RESTORE_TAGGED) {
     BKE_lib_override_library_main_operations_restore(
@@ -4987,14 +4983,14 @@ static void lib_override_library_id_hierarchy_recursive_reset(Main *bmain,
     return;
   }
 
-  void **entry_vp = BLI_ghash_lookup_p(bmain->relations->relations_from_pointers, id_root);
+  MainIDRelationsEntry **entry_vp = bmain->relations->relations_from_pointers->lookup_ptr(id_root);
   if (entry_vp == nullptr) {
     /* This ID is not used by nor using any other ID. */
     lib_override_library_id_reset_do(bmain, id_root, do_reset_system_override);
     return;
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(*entry_vp);
+  MainIDRelationsEntry *entry = *entry_vp;
   if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) {
     /* This ID has already been processed. */
     return;

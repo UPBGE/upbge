@@ -75,7 +75,8 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
 
   if (source.evaluated_points_num() == 0) {
     /* Nothing to draw. Just return an empty drawcall that will be skipped. */
-    return cache.batch_get(0, 0, face_per_segment, false);
+    bool unused_error;
+    return cache.batch_get(0, 0, face_per_segment, false, unused_error);
   }
 
   /* TODO(fclem): Remove Global access. */
@@ -89,14 +90,14 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
   {
     ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)source.md;
     Mesh &mesh = *psmd->mesh_final;
-    const StringRef active_uv = CustomData_get_active_layer_name(&mesh.corner_data,
-                                                                 CD_PROP_FLOAT2);
+    const StringRef active_uv = mesh.active_uv_map_name();
     curves_bind_resources(
         sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv);
   }
 
+  bool unused_error;
   return cache.batch_get(
-      source.evaluated_points_num(), source.curves_num(), face_per_segment, false);
+      source.evaluated_points_num(), source.curves_num(), face_per_segment, false, unused_error);
 }
 
 blender::gpu::Batch *hair_sub_pass_setup(PassMain::Sub &sub_ps,

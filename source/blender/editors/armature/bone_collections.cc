@@ -752,6 +752,17 @@ static bool armature_bone_select_poll(bContext *C)
     return false;
   }
 
+  const bool is_editmode = armature->edbo != nullptr;
+  if (!is_editmode) {
+    Object *active_object = blender::ed::object::context_active_object(C);
+    if (!active_object || active_object->type != OB_ARMATURE || active_object->data != armature) {
+      /* There has to be an active object in order to hide a pose bone that points to the correct
+       * armature. With pinning, the active object may not be an armature. */
+      CTX_wm_operator_poll_msg_set(C, "The active object does not match the armature");
+      return false;
+    }
+  }
+
   if (armature->runtime.active_collection == nullptr) {
     CTX_wm_operator_poll_msg_set(C, "No active bone collection");
     return false;
@@ -778,9 +789,17 @@ static void bone_collection_select(bContext *C,
     }
   }
   else {
+    Object *active_object = blender::ed::object::context_active_object(C);
+    if (!active_object || active_object->type != OB_ARMATURE || active_object->data != armature) {
+      /* This is covered by the poll function. */
+      BLI_assert_unreachable();
+      return;
+    }
     LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
       Bone *bone = member->bone;
-      if (!blender::animrig::bone_is_visible(armature, bone)) {
+      bPoseChannel *pose_bone = BKE_pose_channel_find_name(active_object->pose, bone->name);
+      BLI_assert_msg(pose_bone != nullptr, "The pose bones and armature bones are out of sync");
+      if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
         continue;
       }
       if (bone->flag & BONE_UNSELECTABLE) {
@@ -788,12 +807,13 @@ static void bone_collection_select(bContext *C,
       }
 
       if (select) {
-        bone->flag |= BONE_SELECTED;
+        pose_bone->flag |= POSE_SELECTED;
       }
       else {
-        bone->flag &= ~BONE_SELECTED;
+        pose_bone->flag &= ~POSE_SELECTED;
       }
     }
+    DEG_id_tag_update(&active_object->id, ID_RECALC_SELECT);
   }
 
   DEG_id_tag_update(&armature->id, ID_RECALC_SELECT);
@@ -1018,10 +1038,10 @@ static bool move_to_collection_poll(bContext *C)
  * Encode the parameters into an integer, and return as void*.
  *
  * NOTE(@sybren): This makes it possible to use these values and pass them directly as
- * 'custom data' pointer to `uiLayout::menu_fn()`. This makes it possible to give every menu a
- * unique bone collection index for which it should show the child collections, without having to
- * allocate memory or use static variables.  See `move_to_collection_invoke()` in `object_edit.cc`
- * for the alternative that I wanted to avoid.
+ * 'custom data' pointer to `blender::ui::Layout::menu_fn()`. This makes it possible to give every
+ * menu a unique bone collection index for which it should show the child collections, without
+ * having to allocate memory or use static variables.  See `move_to_collection_invoke()` in
+ * `object_edit.cc` for the alternative that I wanted to avoid.
  */
 static void *menu_custom_data_encode(const int bcoll_index, const bool is_move_operation)
 {
@@ -1048,14 +1068,14 @@ static int icon_for_bone_collection(const bool collection_contains_active_bone)
   return collection_contains_active_bone ? ICON_REMOVE : ICON_ADD;
 }
 
-static void menu_add_item_for_move_assign_unassign(uiLayout *layout,
+static void menu_add_item_for_move_assign_unassign(blender::ui::Layout &layout,
                                                    const bArmature *arm,
                                                    const BoneCollection *bcoll,
                                                    const int bcoll_index,
                                                    const bool is_move_operation)
 {
   if (is_move_operation) {
-    PointerRNA op_ptr = layout->op("ARMATURE_OT_move_to_collection", bcoll->name, ICON_NONE);
+    PointerRNA op_ptr = layout.op("ARMATURE_OT_move_to_collection", bcoll->name, ICON_NONE);
     RNA_int_set(&op_ptr, "collection_index", bcoll_index);
     return;
   }
@@ -1064,11 +1084,11 @@ static void menu_add_item_for_move_assign_unassign(uiLayout *layout,
   const int icon = icon_for_bone_collection(contains_active_bone);
 
   if (contains_active_bone) {
-    PointerRNA op_ptr = layout->op("ARMATURE_OT_collection_unassign", bcoll->name, icon);
+    PointerRNA op_ptr = layout.op("ARMATURE_OT_collection_unassign", bcoll->name, icon);
     RNA_string_set(&op_ptr, "name", bcoll->name);
   }
   else {
-    PointerRNA op_ptr = layout->op("ARMATURE_OT_collection_assign", bcoll->name, icon);
+    PointerRNA op_ptr = layout.op("ARMATURE_OT_collection_assign", bcoll->name, icon);
     RNA_string_set(&op_ptr, "name", bcoll->name);
   }
 }
@@ -1077,14 +1097,16 @@ static void menu_add_item_for_move_assign_unassign(uiLayout *layout,
  * Add menu items to the layout, for a set of bone collections.
  *
  * \param menu_custom_data: Contains two values, encoded as void* to match the signature required
- * by `uiLayout::menu_fn`. It contains the parent bone collection index (either -1 to show all
- * roots, or another value to show the children of that collection), as well as a boolean that
- * indicates whether the menu is created for the "move to collection" or "assign to collection"
- * operator.
+ * by `blender::ui::Layout::menu_fn`. It contains the parent bone collection index (either -1 to
+ * show all roots, or another value to show the children of that collection), as well as a boolean
+ * that indicates whether the menu is created for the "move to collection" or "assign to
+ * collection" operator.
  *
  * \see menu_custom_data_encode
  */
-static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *menu_custom_data)
+static void move_to_collection_menu_create(bContext *C,
+                                           blender::ui::Layout *layout,
+                                           void *menu_custom_data)
 {
   int parent_bcoll_index;
   bool is_move_operation;
@@ -1119,7 +1141,7 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
      * have been disabled already one recursion level higher. */
     const BoneCollection *parent = arm->collection_array[parent_bcoll_index];
     menu_add_item_for_move_assign_unassign(
-        layout, arm, parent, parent_bcoll_index, is_move_operation);
+        *layout, arm, parent, parent_bcoll_index, is_move_operation);
     layout->separator();
 
     child_index = parent->child_index;
@@ -1133,8 +1155,8 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
 
     /* Avoid assigning/moving to a linked bone collection. */
     if (!ANIM_armature_bonecoll_is_editable(arm, bcoll)) {
-      uiLayout *sub = &layout->row(false);
-      sub->enabled_set(false);
+      blender::ui::Layout &sub = layout->row(false);
+      sub.enabled_set(false);
 
       menu_add_item_for_move_assign_unassign(sub, arm, bcoll, index, is_move_operation);
       continue;
@@ -1147,7 +1169,7 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
                       menu_custom_data_encode(index, is_move_operation));
     }
     else {
-      menu_add_item_for_move_assign_unassign(layout, arm, bcoll, index, is_move_operation);
+      menu_add_item_for_move_assign_unassign(*layout, arm, bcoll, index, is_move_operation);
     }
   }
 }
@@ -1156,7 +1178,7 @@ static wmOperatorStatus move_to_collection_regular_invoke(bContext *C, wmOperato
 {
   const char *title = CTX_IFACE_(op->type->translation_context, op->type->name);
   uiPopupMenu *pup = UI_popup_menu_begin(C, title, ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::Layout *layout = UI_popup_menu_layout(pup);
 
   const bool is_move_operation = STREQ(op->type->idname, "ARMATURE_OT_move_to_collection");
   move_to_collection_menu_create(C, layout, menu_custom_data_encode(-1, is_move_operation));

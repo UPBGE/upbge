@@ -1556,7 +1556,7 @@ def pkg_manifest_validate_terse_description_or_error(value: str) -> str | None:
     elif value[-1] in {")", "]", "}"}:
         pass  # Allow closing brackets (sometimes used to mention formats).
     else:
-        return "alpha-numeric suffix expected, the string must not end with punctuation"
+        return "alphanumeric suffix expected, the string must not end with punctuation"
     return None
 
 
@@ -3970,7 +3970,7 @@ class subcmd_client:
             return False
 
         if isinstance((repo_gen_dict := pkg_repo_data_from_json_or_error(result_dict)), str):
-            msglog.fatal_error("unexpected contants in JSON {:s}".format(repo_gen_dict))
+            msglog.fatal_error("unexpected contents in JSON {:s}".format(repo_gen_dict))
             return False
         del result_dict
 
@@ -4684,7 +4684,13 @@ class subcmd_author:
 
         # Manifest & wheels.
         if build_paths_extra:
-            build_paths.extend(build_paths_expand_iter(pkg_source_dir, build_paths_extra))
+            build_paths.extend(build_paths_expand_iter(
+                pkg_source_dir,
+                # When "paths" is set, paths after `build_paths_extra_skip_index` have been added,
+                # see: `PkgManifest_Build.from_dict_all_errors`.
+                build_paths_extra if manifest_build.paths is None else
+                build_paths_extra[:build_paths_extra_skip_index],
+            ))
 
         if manifest_build.paths is not None:
             build_paths.extend(build_paths_expand_iter(pkg_source_dir, manifest_build.paths))

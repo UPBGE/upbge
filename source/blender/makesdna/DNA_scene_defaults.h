@@ -23,6 +23,7 @@
     .depth = R_IMF_CHAN_DEPTH_8, \
     .quality = 90, \
     .compress = 15, \
+    .exr_flag = R_IMF_EXR_FLAG_MULTIPART, \
   }
 
 #define _DNA_DEFAULT_BakeData \
@@ -64,6 +65,8 @@
     .sfra = 1, \
     .efra = 250, \
     .frame_step = 1, \
+    .time_jump_delta = 1.0, \
+    .time_jump_unit = 1, \
     .xsch = 1920, \
     .ysch = 1080, \
     .xasp = 1, \
@@ -106,7 +109,6 @@
     .bg_stamp = {0.0f, 0.0f, 0.0f, 0.25f}, \
  \
     .seq_prev_type = OB_SOLID, \
-    .seq_rend_type = OB_SOLID, \
     .seq_flag = 0, \
  \
     .threads = 1, \
@@ -412,6 +414,13 @@
     .sharp_max = DEG2RADF(180.0f), \
   }
 
+#define _DNA_DEFAULTS_UvSculpt \
+  { \
+    .size = 100, \
+    .strength = 1.0f, \
+    .curve_distance_falloff_preset = BRUSH_CURVE_SMOOTH, \
+  }
+
 #define _DNA_DEFAULT_ToolSettings \
   { \
     .object_flag = SCE_OBJECT_MODE_LOCK, \
@@ -429,7 +438,8 @@
     .select_thresh = 0.01f, \
  \
     .selectmode = SCE_SELECT_VERTEX, \
-    .uv_selectmode = UV_SELECT_VERTEX, \
+    .uv_flag = UV_FLAG_SELECT_SYNC, \
+    .uv_selectmode = UV_SELECT_VERT, \
     .autokey_mode = AUTOKEY_MODE_NORMAL, \
  \
     .transform_pivot_point = V3D_AROUND_CENTER_MEDIAN, \
@@ -478,11 +488,15 @@
     .gpencil_v2d_align = GP_PROJECT_VIEWSPACE, \
  \
     /* UV painting */ \
+    .uvsculpt = _DNA_DEFAULTS_UvSculpt, \
     .uv_sculpt_settings = 0, \
  \
     /* Placement */ \
     .snap_mode_tools = SCE_SNAP_TO_GEOM,\
     .plane_axis = 2,\
+\
+    /* Animation */ \
+    .fix_to_cam_flag = FIX_TO_CAM_FLAG_USE_LOC | FIX_TO_CAM_FLAG_USE_ROT | FIX_TO_CAM_FLAG_USE_SCALE, \
   }
 
 #define _DNA_DEFAULT_Sculpt \

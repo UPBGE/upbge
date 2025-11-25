@@ -121,51 +121,14 @@ static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_
   }
 
 #ifdef WITH_FFMPEG
-  const AVColorTransferCharacteristic color_trc = anim->pCodecCtx->color_trc;
-  const AVColorPrimaries color_primaries = anim->pCodecCtx->color_primaries;
+  /* Note that the ffmpeg enums are documented to match CICP codes. */
+  const int cicp[4] = {anim->pCodecCtx->color_primaries,
+                       anim->pCodecCtx->color_trc,
+                       anim->pCodecCtx->colorspace,
+                       anim->pCodecCtx->color_range};
+  const ColorSpace *colorspace = IMB_colormanagement_space_from_cicp(
+      cicp, ColorManagedFileOutput::Video);
 
-  /* ASWF Color Interop Forum defined display spaces. The CICP codes there match the enum
-   * values defined by ffmpeg. Keep in sync with movie_write.cc.
-   *
-   * Note that pCodecCtx->color_space is ignored because it is only about choice of YUV
-   * encoding for best compression, and ffmpeg will decode to RGB for us. */
-  blender::StringRefNull interop_id;
-
-  if (color_primaries == AVCOL_PRI_BT2020 && color_trc == AVCOL_TRC_SMPTEST2084) {
-    interop_id = "pq_rec2020_display";
-  }
-  else if (color_primaries == AVCOL_PRI_BT2020 && color_trc == AVCOL_TRC_ARIB_STD_B67) {
-    interop_id = "hlg_rec2020_display";
-  }
-  else if ((color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_IEC61966_2_1) ||
-           (color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_BT709))
-  {
-    interop_id = "srgb_p3d65_display";
-  }
-  else if (color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_SMPTEST2084) {
-    interop_id = "pq_p3d65_display";
-  }
-  else if (color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_SMPTE428) {
-    interop_id = "g26_p3d65_display";
-  }
-  else if (color_primaries == AVCOL_PRI_BT709 && color_trc == AVCOL_TRC_GAMMA22) {
-    interop_id = "g22_rec709_display";
-  }
-  else if (color_primaries == AVCOL_PRI_BT2020 && color_trc == AVCOL_TRC_BT709) {
-    interop_id = "g24_rec2020_display";
-  }
-  else if (color_primaries == AVCOL_PRI_BT709 && color_trc == AVCOL_TRC_IEC61966_2_1) {
-    interop_id = "srgb_rec709_display";
-  }
-  else if (color_primaries == AVCOL_PRI_BT709 && color_trc == AVCOL_TRC_BT709) {
-    /* Arguably this should be g24_rec709_display, but we write sRGB like this. */
-    interop_id = "srgb_rec709_display";
-  }
-
-  if (interop_id.is_empty()) {
-    return;
-  }
-  const ColorSpace *colorspace = IMB_colormanagement_space_from_interop_id(interop_id);
   if (colorspace == nullptr) {
     return;
   }
@@ -1081,10 +1044,10 @@ static int ffmpeg_generic_seek_workaround(MovieReader *anim,
                                           int64_t *requested_pts,
                                           int64_t pts_to_search)
 {
+  AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
+  int64_t start_pts = v_st->start_time;
   int64_t current_pts = *requested_pts;
   int64_t offset = 0;
-
-  int64_t cur_pts, prev_pts = -1;
 
   /* Step backward frame by frame until we find the key frame we are looking for. */
   while (current_pts != 0) {
@@ -1107,11 +1070,11 @@ static int ffmpeg_generic_seek_workaround(MovieReader *anim,
     }
 
     /* If this packet contains an I-frame, this could be the frame that we need. */
-    bool is_key_frame = read_packet->flags & AV_PKT_FLAG_KEY;
+    const bool is_key_frame = read_packet->flags & AV_PKT_FLAG_KEY;
     /* We need to check the packet timestamp as the key frame could be for a GOP forward in the
      * video stream. So if it has a larger timestamp than the frame we want, ignore it.
      */
-    cur_pts = timestamp_from_pts_or_dts(read_packet->pts, read_packet->dts);
+    const int64_t cur_pts = timestamp_from_pts_or_dts(read_packet->pts, read_packet->dts);
     av_packet_free(&read_packet);
 
     if (is_key_frame) {
@@ -1121,13 +1084,11 @@ static int ffmpeg_generic_seek_workaround(MovieReader *anim,
       }
     }
 
-    if (cur_pts == prev_pts) {
-      /* We got the same key frame packet twice.
-       * This probably means that we have hit the beginning of the stream. */
+    /* We have hit the beginning of the stream. */
+    if (cur_pts <= start_pts) {
       break;
     }
 
-    prev_pts = cur_pts;
     offset++;
   }
 
@@ -1366,7 +1327,8 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
        * It might not be the most optimal thing to do from the playback performance in the
        * sequencer perspective, but it ensures that other areas in Blender do not run into obscure
        * color space mismatches. */
-      colormanage_imbuf_make_linear(cur_frame_final, anim->colorspace);
+      colormanage_imbuf_make_linear(
+          cur_frame_final, anim->colorspace, ColorManagedFileOutput::Video);
     }
   }
   else {

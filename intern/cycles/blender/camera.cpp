@@ -234,7 +234,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       float fstop = b_camera.dof().aperture_fstop();
       fstop = max(fstop, 1e-5f);
 
-      if (bcam->type == CAMERA_ORTHOGRAPHIC) {
+      if (bcam->type == CAMERA_ORTHOGRAPHIC || bcam->type == CAMERA_CUSTOM) {
         bcam->aperturesize = 1.0f / (2.0f * fstop);
       }
       else {
@@ -433,6 +433,16 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
       }
       else {
         data.push_back(RNA_property_boolean_get(&custom_props, prop));
+      }
+    }
+    else if (RNA_property_type(prop) == PROP_ENUM) {
+      const char *identifier = "";
+      const int value = RNA_property_enum_get(&custom_props, prop);
+      if (RNA_property_enum_identifier(nullptr, &custom_props, prop, value, &identifier)) {
+        data.push_back(atoi(identifier));
+      }
+      else {
+        data.push_back(value);
       }
     }
     else {

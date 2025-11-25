@@ -15,7 +15,7 @@ set(INC_SYS
 
 set(SRC
   sequencer_add.cc
-  sequencer_add_menu_scene_assets.cc
+  sequencer_add_menu_scene.cc
   sequencer_buttons.cc
   sequencer_channels_draw.cc
   sequencer_channels_edit.cc
@@ -62,6 +62,7 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::animrig
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager

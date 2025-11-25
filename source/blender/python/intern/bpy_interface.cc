@@ -12,6 +12,7 @@
 
 #include <Python.h>
 #include <frameobject.h>
+#include <optional>
 
 #ifdef WITH_PYTHON_MODULE
 #  include "pylifecycle.h" /* For `Py_Version`. */
@@ -21,6 +22,7 @@
 #include "CLG_log.h"
 
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -33,6 +35,7 @@
 #include "RNA_types.hh"
 
 #include "bpy.hh"
+#include "bpy_audaspace.hh"
 #include "bpy_capi_utils.hh"
 #include "bpy_intern_string.hh"
 #include "bpy_path.hh"
@@ -70,9 +73,10 @@
 
 /* Logging types to use anywhere in the Python modules. */
 
-CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_CONTEXT, "bpy.context");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_RNA, "bpy.rna");
+
+extern CLG_LogRef *BKE_LOG_CONTEXT;
 
 /* For internal use, when starting and ending Python scripts. */
 
@@ -267,11 +271,6 @@ void BPY_context_set(bContext *C)
 extern "C" PyObject *Manta_initPython();
 #endif
 
-#ifdef WITH_AUDASPACE_PY
-/* Defined in `AUD_C-API.cpp`. */
-extern "C" PyObject *AUD_initPython();
-#endif
-
 #ifdef WITH_CYCLES
 /* Defined in `cycles` module. */
 static PyObject *CCL_initPython()
@@ -306,7 +305,7 @@ static _inittab bpy_internal_modules[] = {
     {"manta", Manta_initPython},
 #endif
 #ifdef WITH_AUDASPACE_PY
-    {"aud", AUD_initPython},
+    {"aud", BPyInit_audaspace},
 #endif
 #ifdef WITH_CYCLES
     {"_cycles", CCL_initPython},
@@ -774,6 +773,29 @@ void BPY_modules_load_user(bContext *C)
   bpy_context_clear(C, &gilstate);
 }
 
+/** Helper function for logging context member access errors with both CLI and Python support */
+static void bpy_context_log_member_error(const bContext *C, const char *message)
+{
+  const bool use_logging_info = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_INFO);
+  const bool use_logging_member = C && CTX_member_logging_get(C);
+  if (!(use_logging_info || use_logging_member)) {
+    return;
+  }
+
+  std::optional<std::string> python_location = BPY_python_current_file_and_line();
+  const char *location = python_location ? python_location->c_str() : "unknown:0";
+
+  if (use_logging_info) {
+    CLOG_INFO(BKE_LOG_CONTEXT, "%s: %s", location, message);
+  }
+  else if (use_logging_member) {
+    CLOG_AT_LEVEL_NOCHECK(BKE_LOG_CONTEXT, CLG_LEVEL_INFO, "%s: %s", location, message);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
 bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result)
 {
   PyGILState_STATE gilstate;
@@ -801,7 +823,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
 
     // result->ptr = ((BPy_StructRNA *)item)->ptr;
     CTX_data_pointer_set_ptr(result, ptr);
-    CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
+    CTX_data_type_set(result, ContextDataType::Pointer);
     done = true;
   }
   else if (PySequence_Check(item)) {
@@ -822,28 +844,25 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
           CTX_data_list_add_ptr(result, ptr);
         }
         else {
-          CLOG_INFO(BPY_LOG_CONTEXT,
-                    "'%s' list item not a valid type in sequence type '%s'",
-                    member,
-                    Py_TYPE(item)->tp_name);
+          /* Log invalid list item type */
+          std::string message = std::string("'") + member +
+                                "' list item not a valid type in sequence type '" +
+                                Py_TYPE(list_item)->tp_name + "'";
+          bpy_context_log_member_error(C, message.c_str());
         }
       }
       Py_DECREF(seq_fast);
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+      CTX_data_type_set(result, ContextDataType::Collection);
       done = true;
     }
   }
 
   if (done == false) {
     if (item) {
-      CLOG_INFO(BPY_LOG_CONTEXT, "'%s' not a valid type", member);
+      /* Log invalid member type */
+      std::string message = std::string("'") + member + "' not a valid type";
+      bpy_context_log_member_error(C, message.c_str());
     }
-    else {
-      CLOG_INFO(BPY_LOG_CONTEXT, "'%s' not found", member);
-    }
-  }
-  else {
-    CLOG_DEBUG(BPY_LOG_CONTEXT, "'%s' found", member);
   }
 
   if (use_gil) {
@@ -853,7 +872,85 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   return done;
 }
 
+std::optional<std::string> BPY_python_current_file_and_line()
+{
+  /* Early return if Python is not initialized, usually during startup.
+   * This function shouldn't operate if Python isn't initialized yet.
+   *
+   * In most cases this shouldn't be done, make an exception as it's needed for logging. */
+  if (!Py_IsInitialized()) {
+    return std::nullopt;
+  }
+
+  PyGILState_STATE gilstate;
+  const bool use_gil = !PyC_IsInterpreterActive();
+  std::optional<std::string> result = std::nullopt;
+  if (use_gil) {
+    gilstate = PyGILState_Ensure();
+  }
+
+  const char *filename = nullptr;
+  int lineno = -1;
+  PyC_FileAndNum_Safe(&filename, &lineno);
+
+  if (filename) {
+    result = std::string(filename) + ":" + std::to_string(lineno);
+  }
+
+  if (use_gil) {
+    PyGILState_Release(gilstate);
+  }
+  return result;
+}
+
 #ifdef WITH_PYTHON_MODULE
+
+/* -------------------------------------------------------------------- */
+/** \name Detect Exit Singleton
+ *
+ * Python does not reliably free all modules on exit.
+ * This means we can't rely on #PyModuleDef::m_free running to clean-up
+ * Blender data when Python exits.
+ *
+ * However Python *does* reliably clear the modules name-space.
+ * Store a singleton in modules which may reference Blender owned memory,
+ * calling #main_python_exit once the singleton has been cleared from the
+ * name-space of all modules.
+ * \{ */
+
+static void main_python_exit_ensure();
+
+static void bpy_detect_exit_singleton_cleanup(PyObject * /*capsule*/)
+{
+  main_python_exit_ensure();
+}
+
+static void bpy_detect_exit_singleton_add_to_module(PyObject *mod)
+{
+  static PyObject *singleton = nullptr;
+
+  /* Note that Python's API docs state that:
+   * - If this capsule will be stored as an attribute of a module,
+   *   the name should be specified as `modulename.attributename`.
+   * This is ignored here because the capsule is not intended for script author access.
+   * It also wouldn't make sense as it is stored in multiple modules. */
+  const char *bpy_detect_exit_singleton_id = "_bpy_detect_exit_singleton";
+  if (singleton == nullptr) {
+    /* This is ignored, but must be non-null,
+     * set an address that is non-null and easily identifiable. */
+    void *pointer = reinterpret_cast<void *>(uintptr_t(-1));
+    singleton = PyCapsule_New(
+        pointer, bpy_detect_exit_singleton_id, bpy_detect_exit_singleton_cleanup);
+    BLI_assert(singleton);
+  }
+  else {
+    Py_INCREF(singleton);
+  }
+  PyModule_AddObject(mod, bpy_detect_exit_singleton_id, singleton);
+}
+
+/** \} */
+
 /* TODO: reloading the module isn't functional at the moment. */
 
 static void bpy_module_free(void *mod);
@@ -861,6 +958,16 @@ static void bpy_module_free(void *mod);
 /* Defined in 'creator.c' when building as a Python module. */
 extern int main_python_enter(int argc, const char **argv);
 extern void main_python_exit();
+
+static void main_python_exit_ensure()
+{
+  static bool exit = false;
+  if (exit) {
+    return;
+  }
+  exit = true;
+  main_python_exit();
+}
 
 static struct PyModuleDef bpy_proxy_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
@@ -904,6 +1011,28 @@ static void bpy_module_delay_init(PyObject *bpy_proxy)
 
   /* Initialized in #BPy_init_modules(). */
   PyDict_Update(PyModule_GetDict(bpy_proxy), PyModule_GetDict(bpy_package_py));
+
+  {
+    /* Modules which themselves require access to Blender
+     * allocated resources to be freed should be included in this list.
+     * Once the last module has been cleared, the singleton will be de-allocated
+     * which calls #main_python_exit.
+     *
+     * Note that, other modules can be here as needed. */
+    const char *bpy_modules_array[] = {
+        "bpy.types",
+        /* Not technically required however as this is created early on
+         * in Blender's module initialization, it's likely to be cleared later,
+         * since module cleanup runs in the reverse of the order added to `sys.modules`. */
+        "_bpy",
+    };
+    PyObject *sys_modules = PyImport_GetModuleDict();
+    for (int i = 0; i < ARRAY_SIZE(bpy_modules_array); i++) {
+      PyObject *mod = PyDict_GetItemString(sys_modules, bpy_modules_array[i]);
+      BLI_assert(mod);
+      bpy_detect_exit_singleton_add_to_module(mod);
+    }
+  }
 }
 
 /**
@@ -997,7 +1126,7 @@ PyMODINIT_FUNC PyInit_bpy()
 
 static void bpy_module_free(void * /*mod*/)
 {
-  main_python_exit();
+  main_python_exit_ensure();
 }
 
 #endif

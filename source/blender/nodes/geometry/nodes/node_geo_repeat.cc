@@ -24,6 +24,7 @@
 #include "UI_interface_layout.hh"
 
 #include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
 namespace blender::nodes::node_geo_repeat_cc {
 
@@ -131,10 +132,20 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
       params.ntree, params.node, *output_node, params.link);
 }
 
+static int node_shader_fn(GPUMaterial *mat,
+                          bNode *node,
+                          bNodeExecData * /*execdata*/,
+                          GPUNodeStack *in,
+                          GPUNodeStack *out)
+{
+  int zone_id = node_storage(*node).output_node_id;
+  return GPU_stack_link_zone(mat, node, "REPEAT_BEGIN", in, out, zone_id, false, 1, 1);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeRepeatInput", GEO_NODE_REPEAT_INPUT);
+  sh_geo_node_type_base(&ntype, "GeometryNodeRepeatInput", GEO_NODE_REPEAT_INPUT);
   ntype.ui_name = "Repeat Input";
   ntype.enum_name_legacy = "REPEAT_INPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
@@ -145,6 +156,7 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.gpu_fn = node_shader_fn;
   blender::bke::node_type_storage(
       ntype, "NodeGeometryRepeatInput", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_register_type(ntype);
@@ -188,17 +200,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
+static void node_init(bNodeTree *tree, bNode *node)
 {
   NodeGeometryRepeatOutput *data = MEM_callocN<NodeGeometryRepeatOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_calloc_arrayN<NodeRepeatItem>(1, __func__);
-  data->items[0].name = BLI_strdup(DATA_("Geometry"));
-  data->items[0].socket_type = SOCK_GEOMETRY;
-  data->items[0].identifier = data->next_identifier++;
-  data->items_num = 1;
+  if (tree->type == NTREE_GEOMETRY) {
+    data->items = MEM_calloc_arrayN<NodeRepeatItem>(1, __func__);
+    data->items[0].name = BLI_strdup(DATA_("Geometry"));
+    data->items[0].socket_type = SOCK_GEOMETRY;
+    data->items[0].identifier = data->next_identifier++;
+    data->items_num = 1;
+  }
 
   node->storage = data;
 }
@@ -278,10 +292,20 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<RepeatItemsAccessor>(&reader, node);
 }
 
+static int node_shader_fn(GPUMaterial *mat,
+                          bNode *node,
+                          bNodeExecData * /*execdata*/,
+                          GPUNodeStack *in,
+                          GPUNodeStack *out)
+{
+  int zone_id = node->identifier;
+  return GPU_stack_link_zone(mat, node, "REPEAT_END", in, out, zone_id, true, 0, 0);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeRepeatOutput", GEO_NODE_REPEAT_OUTPUT);
+  sh_geo_node_type_base(&ntype, "GeometryNodeRepeatOutput", GEO_NODE_REPEAT_OUTPUT);
   ntype.ui_name = "Repeat Output";
   ntype.enum_name_legacy = "REPEAT_OUTPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
@@ -295,6 +319,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.gpu_fn = node_shader_fn;
   blender::bke::node_type_storage(
       ntype, "NodeGeometryRepeatOutput", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);

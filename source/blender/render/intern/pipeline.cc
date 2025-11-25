@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <forward_list>
+#include <memory>
 
 #include "DNA_anim_types.h"
 #include "DNA_image_types.h"
@@ -37,8 +38,6 @@
 #include "BLI_timecode.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.hh"
-
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.hh"
@@ -59,7 +58,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "NOD_composite.hh"
 
@@ -144,7 +143,7 @@ static struct {
    * bound for compositing and rendering at the same time, so those renders are essentially used to
    * get a persistent dedicated GPU context to interactive compositor execution.
    */
-  blender::Map<std::string, Render *> interactive_compositor_renders;
+  blender::Map<const void *, Render *> interactive_compositor_renders;
 } RenderGlobal;
 
 /** \} */
@@ -179,15 +178,8 @@ static bool do_write_image_or_movie(
     Render *re, Main *bmain, Scene *scene, const int totvideos, const char *filepath_override);
 
 /* default callbacks, set in each new render */
-static void result_nothing(void * /*arg*/, RenderResult * /*rr*/) {}
 static void result_rcti_nothing(void * /*arg*/, RenderResult * /*rr*/, rcti * /*rect*/) {}
 static void current_scene_nothing(void * /*arg*/, Scene * /*scene*/) {}
-static bool prepare_viewlayer_nothing(void * /*arg*/,
-                                      ViewLayer * /*vl*/,
-                                      Depsgraph * /*depsgraph*/)
-{
-  return true;
-}
 static void stats_nothing(void * /*arg*/, RenderStats * /*rs*/) {}
 static void float_nothing(void * /*arg*/, float /*val*/) {}
 static bool default_break(void * /*arg*/)
@@ -208,7 +200,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
 
   const bool show_info = CLOG_CHECK(&LOG, CLG_LEVEL_INFO);
   if (show_info) {
-    CLOG_STR_INFO(&LOG, rs->infostr);
+    CLOG_INFO(&LOG, "Fra: %d | %s", rs->cfra, rs->infostr);
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
     fflush(stdout);
   }
@@ -262,7 +254,7 @@ bool RE_HasSingleLayer(Render *re)
 }
 
 RenderResult *RE_MultilayerConvert(
-    void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
+    ExrHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
   return render_result_new_from_exr(exrhandle, colorspace, predivide, rectx, recty);
 }
@@ -300,11 +292,11 @@ static bool render_scene_has_layers_to_render(Scene *scene, ViewLayer *single_la
 /** \name Public Render API
  * \{ */
 
-Render *RE_GetRender(const char *name)
+Render *RE_GetRender(const void *owner)
 {
   /* search for existing renders */
   for (Render *re : RenderGlobal.render_list) {
-    if (STREQLEN(re->name, name, RE_MAXNAME)) {
+    if (re->owner == owner) {
       return re;
     }
   }
@@ -406,8 +398,6 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
       }
 
       rr->layers = re->result->layers;
-      rr->xof = re->disprect.xmin;
-      rr->yof = re->disprect.ymin;
       rr->stamp_data = re->result->stamp_data;
     }
   }
@@ -460,10 +450,6 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 
       rr->layers = re->result->layers;
       rr->views = re->result->views;
-
-      rr->xof = re->disprect.xmin;
-      rr->yof = re->disprect.ymin;
-
       rr->stamp_data = re->result->stamp_data;
     }
   }
@@ -503,21 +489,21 @@ RenderStats *RE_GetStats(Render *re)
   return &re->i;
 }
 
-Render *RE_NewRender(const char *name)
+Render *RE_NewRender(const void *owner)
 {
   Render *re;
 
   /* only one render per name exists */
-  re = RE_GetRender(name);
+  re = RE_GetRender(owner);
   if (re == nullptr) {
 
     /* new render data struct */
     re = MEM_new<Render>("new render");
     RenderGlobal.render_list.push_front(re);
-    STRNCPY_UTF8(re->name, name);
+    re->owner = owner;
   }
 
-  RE_InitRenderCB(re);
+  RE_display_init(re);
 
   return re;
 }
@@ -529,68 +515,25 @@ ViewRender *RE_NewViewRender(RenderEngineType *engine_type)
   return view_render;
 }
 
-/* MAX_ID_NAME + sizeof(Library->name) + space + null-terminator. */
-#define MAX_SCENE_RENDER_NAME (MAX_ID_NAME + 1024 + 2)
-
-static void scene_render_name_get(const Scene *scene,
-                                  char *render_name,
-                                  const size_t render_name_maxncpy)
-{
-  if (ID_IS_LINKED(scene)) {
-    BLI_snprintf_utf8(
-        render_name, render_name_maxncpy, "%s %s", scene->id.lib->id.name, scene->id.name);
-  }
-  else {
-    BLI_strncpy_utf8(render_name, scene->id.name, render_name_maxncpy);
-  }
-}
-
 Render *RE_GetSceneRender(const Scene *scene)
 {
-  char render_name[MAX_SCENE_RENDER_NAME];
-  scene_render_name_get(scene, render_name, sizeof(render_name));
-  return RE_GetRender(render_name);
+  return RE_GetRender(DEG_get_original_id(&scene->id));
 }
 
 Render *RE_NewSceneRender(const Scene *scene)
 {
-  char render_name[MAX_SCENE_RENDER_NAME];
-  scene_render_name_get(scene, render_name, sizeof(render_name));
-  return RE_NewRender(render_name);
+  return RE_NewRender(DEG_get_original_id(&scene->id));
 }
 
 Render *RE_NewInteractiveCompositorRender(const Scene *scene)
 {
-  char render_name[MAX_SCENE_RENDER_NAME];
-  scene_render_name_get(scene, render_name, sizeof(render_name));
+  const void *owner = DEG_get_original_id(&scene->id);
 
-  return RenderGlobal.interactive_compositor_renders.lookup_or_add_cb(render_name, [&]() {
+  return RenderGlobal.interactive_compositor_renders.lookup_or_add_cb(owner, [&]() {
     Render *render = MEM_new<Render>("New Interactive Compositor Render");
-    STRNCPY_UTF8(render->name, render_name);
-    RE_InitRenderCB(render);
+    render->owner = owner;
     return render;
   });
-}
-
-void RE_InitRenderCB(Render *re)
-{
-  /* set default empty callbacks */
-  re->display_init_cb = result_nothing;
-  re->display_clear_cb = result_nothing;
-  re->display_update_cb = result_rcti_nothing;
-  re->current_scene_update_cb = current_scene_nothing;
-  re->prepare_viewlayer_cb = prepare_viewlayer_nothing;
-  re->progress_cb = float_nothing;
-  re->test_break_cb = default_break;
-  if (G.background) {
-    re->stats_draw_cb = stats_background;
-  }
-  else {
-    re->stats_draw_cb = stats_nothing;
-  }
-  re->draw_lock_cb = nullptr;
-  /* clear callback handles */
-  re->dih = re->dch = re->duh = re->sdh = re->prh = re->tbh = re->dlh = nullptr;
 }
 
 void RE_FreeRender(Render *re)
@@ -684,20 +627,24 @@ void RE_FreeUnusedGPUResources()
   for (Render *re : RenderGlobal.render_list) {
     bool do_free = true;
 
+    /* Don't free scenes being rendered or composited. Note there is no
+     * race condition here because we are on the main thread and new jobs can only
+     * be started from the main thread. */
+    if (WM_jobs_test(wm, re->owner, WM_JOB_TYPE_RENDER) ||
+        WM_jobs_test(wm, re->owner, WM_JOB_TYPE_COMPOSITE))
+    {
+      do_free = false;
+    }
+
     LISTBASE_FOREACH (const wmWindow *, win, &wm->windows) {
-      const Scene *scene = WM_window_get_active_scene(win);
-      if (re != RE_GetSceneRender(scene)) {
-        continue;
+      if (!do_free) {
+        /* No need to do further checks. */
+        break;
       }
 
-      /* Don't free if this scene is being rendered or composited. Note there is no
-       * race condition here because we are on the main thread and new jobs can only
-       * be started from the main thread. */
-      if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER) ||
-          WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE))
-      {
-        do_free = false;
-        break;
+      const Scene *scene = WM_window_get_active_scene(win);
+      if (scene != re->owner) {
+        continue;
       }
 
       /* Detect if scene is using GPU compositing, and if either a node editor is
@@ -729,17 +676,19 @@ void RE_FreeUnusedGPUResources()
 
     if (do_free) {
       re_gpu_texture_caches_free(re);
-      RE_blender_gpu_context_free(re);
-      RE_system_gpu_context_free(re);
+      if (!re->display_shared) {
+        RE_display_free(re);
+      }
 
       /* We also free the resources from the interactive compositor render of the scene if one
        * exists. */
       Render *interactive_compositor_render =
-          RenderGlobal.interactive_compositor_renders.lookup_default(re->name, nullptr);
+          RenderGlobal.interactive_compositor_renders.lookup_default(re->owner, nullptr);
       if (interactive_compositor_render) {
         re_gpu_texture_caches_free(interactive_compositor_render);
-        RE_blender_gpu_context_free(interactive_compositor_render);
-        RE_system_gpu_context_free(interactive_compositor_render);
+        if (!interactive_compositor_render->display_shared) {
+          RE_display_free(interactive_compositor_render);
+        }
       }
     }
   }
@@ -928,49 +877,39 @@ void RE_InitState(Render *re,
   RE_init_threadcount(re);
 }
 
-void RE_display_init_cb(Render *re, void *handle, void (*f)(void *handle, RenderResult *rr))
-{
-  re->display_init_cb = f;
-  re->dih = handle;
-}
-void RE_display_clear_cb(Render *re, void *handle, void (*f)(void *handle, RenderResult *rr))
-{
-  re->display_clear_cb = f;
-  re->dch = handle;
-}
 void RE_display_update_cb(Render *re,
                           void *handle,
                           void (*f)(void *handle, RenderResult *rr, rcti *rect))
 {
-  re->display_update_cb = f;
-  re->duh = handle;
+  re->display->display_update_cb = f;
+  re->display->duh = handle;
 }
 void RE_current_scene_update_cb(Render *re, void *handle, void (*f)(void *handle, Scene *scene))
 {
-  re->current_scene_update_cb = f;
-  re->suh = handle;
+  re->display->current_scene_update_cb = f;
+  re->display->suh = handle;
 }
 void RE_stats_draw_cb(Render *re, void *handle, void (*f)(void *handle, RenderStats *rs))
 {
-  re->stats_draw_cb = f;
-  re->sdh = handle;
+  re->display->stats_draw_cb = f;
+  re->display->sdh = handle;
 }
 void RE_progress_cb(Render *re, void *handle, void (*f)(void *handle, float))
 {
-  re->progress_cb = f;
-  re->prh = handle;
+  re->display->progress_cb = f;
+  re->display->prh = handle;
 }
 
 void RE_draw_lock_cb(Render *re, void *handle, void (*f)(void *handle, bool lock))
 {
-  re->draw_lock_cb = f;
-  re->dlh = handle;
+  re->display->draw_lock_cb = f;
+  re->display->dlh = handle;
 }
 
 void RE_test_break_cb(Render *re, void *handle, bool (*f)(void *handle))
 {
-  re->test_break_cb = f;
-  re->tbh = handle;
+  re->display->test_break_cb = f;
+  re->display->tbh = handle;
 }
 
 void RE_prepare_viewlayer_cb(Render *re,
@@ -984,66 +923,59 @@ void RE_prepare_viewlayer_cb(Render *re,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name GPU Context
+/** \name Display and GPU context
  * \{ */
 
-void RE_system_gpu_context_ensure(Render *re)
+void RE_display_init(Render *re)
 {
-  BLI_assert(BLI_thread_is_main());
+  re->display_shared = false;
+  re->display = std::make_shared<RenderDisplay>();
 
-  if (re->system_gpu_context == nullptr) {
-    /* Needs to be created in the main thread. */
-    re->system_gpu_context = WM_system_gpu_context_create();
-    /* The context is activated during creation, so release it here since the function should not
-     * have context activation as a side effect. Then activate the drawable's context below. */
-    if (re->system_gpu_context) {
-      WM_system_gpu_context_release(re->system_gpu_context);
-    }
-    wm_window_reset_drawable();
+  re->display->display_update_cb = result_rcti_nothing;
+  re->display->current_scene_update_cb = current_scene_nothing;
+  re->display->progress_cb = float_nothing;
+  re->display->test_break_cb = default_break;
+  if (G.background) {
+    re->display->stats_draw_cb = stats_background;
+  }
+  else {
+    re->display->stats_draw_cb = stats_nothing;
   }
 }
 
-void RE_system_gpu_context_free(Render *re)
+void RE_display_ensure_gpu_context(Render *re)
 {
-  if (re->system_gpu_context) {
-    if (re->blender_gpu_context) {
-      WM_system_gpu_context_activate(re->system_gpu_context);
-      GPU_context_active_set(static_cast<GPUContext *>(re->blender_gpu_context));
-      GPU_context_discard(static_cast<GPUContext *>(re->blender_gpu_context));
-      re->blender_gpu_context = nullptr;
-    }
+  re->display->ensure_system_gpu_context();
+}
 
-    WM_system_gpu_context_dispose(re->system_gpu_context);
-    re->system_gpu_context = nullptr;
-
-    /* If in main thread, reset window context. */
-    if (BLI_thread_is_main()) {
-      wm_window_reset_drawable();
-    }
+void RE_display_share(Render *re, const Render *parent_re)
+{
+  /* Use for compositor and sequencer, which can render scenes recursively.
+   * It more efficient, and we can only create this context on the main thread. */
+  if (ELEM(parent_re, nullptr, re)) {
+    return;
   }
+
+  re->display_shared = true;
+  re->display = parent_re->display;
+}
+
+void RE_display_free(Render *re)
+{
+  /* Re-initializing with a new RenderDisplay will free the GPU contexts. */
+  RE_display_init(re);
 }
 
 void *RE_system_gpu_context_get(Render *re)
 {
-  return re->system_gpu_context;
+  RenderDisplay *display = re->display.get();
+  return display->system_gpu_context;
 }
 
 void *RE_blender_gpu_context_ensure(Render *re)
 {
-  if (re->blender_gpu_context == nullptr) {
-    re->blender_gpu_context = GPU_context_create(nullptr, re->system_gpu_context);
-  }
-  return re->blender_gpu_context;
-}
-
-void RE_blender_gpu_context_free(Render *re)
-{
-  if (re->blender_gpu_context) {
-    WM_system_gpu_context_activate(re->system_gpu_context);
-    GPU_context_active_set(static_cast<GPUContext *>(re->blender_gpu_context));
-    GPU_context_discard(static_cast<GPUContext *>(re->blender_gpu_context));
-    re->blender_gpu_context = nullptr;
-  }
+  RenderDisplay *display = re->display.get();
+  return display->ensure_blender_gpu_context();
 }
 
 /** \} */
@@ -1103,18 +1035,12 @@ static void render_result_uncrop(Render *re)
 
       BLI_rw_mutex_unlock(&re->resultmutex);
 
-      re->display_init(re->result);
-      re->display_update(re->result, nullptr);
+      re->display->display_update(re->result, nullptr);
 
       /* restore the disprect from border */
       re->disprect = orig_disprect;
       re->rectx = orig_rectx;
       re->recty = orig_recty;
-    }
-    else {
-      /* set offset (again) for use in compositor, disprect was manipulated. */
-      re->result->xof = 0;
-      re->result->yof = 0;
     }
   }
 }
@@ -1133,7 +1059,7 @@ static void do_render_engine(Render *re)
   /* now use renderdata and camera to set viewplane */
   RE_SetCamera(re, camera);
 
-  re->current_scene_update(re->scene);
+  re->display->current_scene_update(re->scene);
   RE_engine_render(re, false);
 
   /* when border render, check if we have to insert it in black */
@@ -1166,17 +1092,11 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
   resc->main = re->main;
   resc->scene = sce;
 
-  /* copy callbacks */
-  resc->display_update_cb = re->display_update_cb;
-  resc->duh = re->duh;
-  resc->test_break_cb = re->test_break_cb;
-  resc->tbh = re->tbh;
-  resc->stats_draw_cb = re->stats_draw_cb;
-  resc->sdh = re->sdh;
-  resc->current_scene_update_cb = re->current_scene_update_cb;
-  resc->suh = re->suh;
+  RE_display_share(resc, re);
 
   do_render_engine(resc);
+
+  RE_display_free(resc);
 }
 
 /* Get the scene referenced by the given node if the node uses its render. Returns nullptr
@@ -1277,7 +1197,7 @@ static void do_render_compositor_scenes(Render *re)
 
   /* If another scene was rendered, switch back to the current scene. */
   if (!scenes_rendered.is_empty()) {
-    re->current_scene_update(re->scene);
+    re->display->current_scene_update(re->scene);
   }
 }
 
@@ -1289,7 +1209,7 @@ static void render_compositor_stats(void *arg, const char *str)
   RenderStats i;
   memcpy(&i, &re->i, sizeof(i));
   i.infostr = str;
-  re->stats_draw(&i);
+  re->display->stats_draw(&i);
 }
 
 /* Render compositor nodes, along with any scenes required for them.
@@ -1337,20 +1257,20 @@ static void do_render_compositor(Render *re)
     BLI_rw_mutex_unlock(&re->resultmutex);
   }
 
-  if (!re->test_break()) {
+  if (!re->display->test_break()) {
     if (ntree && re->r.scemode & R_DOCOMP) {
       /* checks if there are render-result nodes that need scene */
       if ((re->r.scemode & R_SINGLE_LAYER) == 0) {
         do_render_compositor_scenes(re);
       }
 
-      if (!re->test_break()) {
+      if (!re->display->test_break()) {
         ntree->runtime->stats_draw = render_compositor_stats;
-        ntree->runtime->test_break = re->test_break_cb;
-        ntree->runtime->progress = re->progress_cb;
+        ntree->runtime->test_break = re->display->test_break_cb;
+        ntree->runtime->progress = re->display->progress_cb;
         ntree->runtime->sdh = re;
-        ntree->runtime->tbh = re->tbh;
-        ntree->runtime->prh = re->prh;
+        ntree->runtime->tbh = re->display->tbh;
+        ntree->runtime->prh = re->display->prh;
 
         if (update_newframe) {
           /* If we have consistent depsgraph now would be a time to update them. */
@@ -1366,6 +1286,7 @@ static void do_render_compositor(Render *re)
 
         CLOG_STR_INFO(&LOG, "Executing compositor");
         blender::compositor::RenderContext compositor_render_context;
+        compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
                       &re->r,
@@ -1389,7 +1310,7 @@ static void do_render_compositor(Render *re)
   /* Weak: the display callback wants an active render-layer pointer. */
   if (re->result != nullptr) {
     re->result->renlay = render_get_single_layer(re, re->result);
-    re->display_update(re->result, nullptr);
+    re->display->display_update(re->result, nullptr);
   }
 }
 
@@ -1530,7 +1451,7 @@ static void do_render_sequencer(Render *re)
                          re_x,
                          re_y,
                          SEQ_RENDER_SIZE_SCENE,
-                         true,
+                         re,
                          &context);
 
   /* The render-result gets destroyed during the rendering, so we first collect all ibufs
@@ -1566,6 +1487,8 @@ static void do_render_sequencer(Render *re)
         Editing *ed = re->pipeline_scene_eval->ed;
         if (ed) {
           blender::seq::relations_free_imbuf(re->pipeline_scene_eval, &ed->seqbase, true);
+          blender::seq::cache_cleanup(re->pipeline_scene_eval,
+                                      blender::seq::CacheCleanup::FinalAndIntra);
         }
       }
       IMB_freeImBuf(ibuf_arr[view_id]);
@@ -1579,7 +1502,7 @@ static void do_render_sequencer(Render *re)
 
     /* would mark display buffers as invalid */
     RE_SetActiveRenderView(re, rv->name);
-    re->display_update(re->result, nullptr);
+    re->display->display_update(re->result, nullptr);
   }
 
   recurs_depth--;
@@ -1589,10 +1512,10 @@ static void do_render_sequencer(Render *re)
 
   /* set overall progress of sequence rendering */
   if (re->r.efra != re->r.sfra) {
-    re->progress(float(cfra - re->r.sfra) / (re->r.efra - re->r.sfra));
+    re->display->progress(float(cfra - re->r.sfra) / (re->r.efra - re->r.sfra));
   }
   else {
-    re->progress(1.0f);
+    re->display->progress(1.0f);
   }
 }
 
@@ -1603,28 +1526,28 @@ static void do_render_full_pipeline(Render *re)
 {
   bool render_seq = false;
 
-  re->current_scene_update_cb(re->suh, re->scene);
+  re->display->current_scene_update_cb(re->display->suh, re->scene);
 
   BKE_scene_camera_switch_update(re->scene);
 
   re->i.starttime = BLI_time_now_seconds();
 
-  /* ensure no images are in memory from previous animated sequences */
+  /* ensure no rendered results are cached from previous animated sequences */
   BKE_image_all_free_anim_ibufs(re->main, re->r.cfra);
-  blender::seq::cache_cleanup(re->scene);
+  blender::seq::cache_cleanup(re->scene, blender::seq::CacheCleanup::FinalAndIntra);
 
   if (RE_engine_render(re, true)) {
     /* in this case external render overrides all */
   }
   else if (RE_seq_render_active(re->scene, &re->r)) {
     /* NOTE: do_render_sequencer() frees rect32 when sequencer returns float images. */
-    if (!re->test_break()) {
+    if (!re->display->test_break()) {
       do_render_sequencer(re);
       render_seq = true;
     }
 
-    re->stats_draw(&re->i);
-    re->display_update(re->result, nullptr);
+    re->display->stats_draw(&re->i);
+    re->display->display_update(re->result, nullptr);
   }
   else {
     do_render_compositor(re);
@@ -1632,7 +1555,7 @@ static void do_render_full_pipeline(Render *re)
 
   re->i.lastframetime = BLI_time_now_seconds() - re->i.starttime;
 
-  re->stats_draw(&re->i);
+  re->display->stats_draw(&re->i);
 
   /* save render result stamp if needed */
   if (re->result != nullptr) {
@@ -1647,7 +1570,7 @@ static void do_render_full_pipeline(Render *re)
     /* stamp image info here */
     if ((re->scene->r.stamp & R_STAMP_ALL) && (re->scene->r.stamp & R_STAMP_DRAW)) {
       renderresult_stampinfo(re);
-      re->display_update(re->result, nullptr);
+      re->display->display_update(re->result, nullptr);
     }
   }
 }
@@ -1808,12 +1731,7 @@ static bool is_compositing_possible_on_gpu(Scene *scene, ReportList *reports)
 
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);
-  const int max_texture_size = GPU_max_texture_size();
-
-  /* There is no way to know if the render size is too large except if we actually allocate a test
-   * texture, which we want to avoid due its cost. So we employ a heuristic that so far has worked
-   * with all known GPU drivers. */
-  if (size_t(width) * height > (size_t(max_texture_size) * max_texture_size) / 4) {
+  if (!GPU_is_safe_texture_size(width, height)) {
     BKE_report(reports, RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
   }
@@ -1974,9 +1892,6 @@ static bool render_init_from_main(Render *re,
     return false;
   }
 
-  re->display_init(re->result);
-  re->display_clear(re->result);
-
   return true;
 }
 
@@ -2028,8 +1943,7 @@ static void render_pipeline_free(Render *re)
   }
 
   /* Destroy the opengl context in the correct thread. */
-  RE_blender_gpu_context_free(re);
-  RE_system_gpu_context_free(re);
+  RE_display_free(re);
 }
 
 void RE_RenderFrame(Render *re,
@@ -2041,6 +1955,8 @@ void RE_RenderFrame(Render *re,
                     const float subframe,
                     const bool write_still)
 {
+  CLOG_INFO(&LOG, "Rendering frame %d", frame);
+
   render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
   /* Ugly global still...
@@ -2156,7 +2072,7 @@ void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, const bool
 
 void RE_RenderFreestyleExternal(Render *re)
 {
-  if (re->test_break()) {
+  if (re->display->test_break()) {
     return;
   }
 
@@ -2233,7 +2149,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       /* imbuf knows which rects are not part of ibuf */
       IMB_freeImBuf(ibuf);
     }
-    CLOG_INFO(&LOG, "Video append frame %d", scene->r.cfra);
+    CLOG_INFO_NOCHECK(&LOG, "Video append frame %d", scene->r.cfra);
   }
   else { /* R_IMF_VIEWS_STEREO_3D */
     const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
@@ -2429,7 +2345,7 @@ void RE_RenderAnim(Render *re,
                    int tfra)
 {
   if (sfra == efra) {
-    CLOG_INFO(&LOG, "Rendering single frame (frame %d)", sfra);
+    CLOG_INFO(&LOG, "Rendering single frame");
   }
   else {
     CLOG_INFO(&LOG, "Rendering animation (frames %d..%d)", sfra, efra);
@@ -2507,6 +2423,8 @@ void RE_RenderAnim(Render *re,
 
   scene->r.subframe = 0.0f;
   for (nfra = sfra, scene->r.cfra = sfra; scene->r.cfra <= efra; scene->r.cfra++) {
+    CLOG_INFO(&LOG, "Rendering frame %d", nfra);
+
     char filepath[FILE_MAX];
 
     /* Reduce GPU memory usage so renderer has more space. */
@@ -2634,7 +2552,7 @@ void RE_RenderAnim(Render *re,
     totrendered++;
 
     const bool should_write = !(re->flag & R_SKIP_WRITE);
-    if (re->test_break_cb(re->tbh) == 0) {
+    if (re->display->test_break() == 0) {
       if (!G.is_break && should_write) {
         if (!do_write_image_or_movie(re, bmain, scene, totvideos, nullptr)) {
           G.is_break = true;
@@ -2912,44 +2830,6 @@ RenderPass *RE_pass_find_by_name(RenderLayer *rl, const char *name, const char *
       }
     }
   }
-  return nullptr;
-}
-
-RenderPass *RE_pass_find_by_type(RenderLayer *rl, int passtype, const char *viewname)
-{
-#define CHECK_PASS(NAME) \
-  if (passtype == SCE_PASS_##NAME) { \
-    return RE_pass_find_by_name(rl, RE_PASSNAME_##NAME, viewname); \
-  } \
-  ((void)0)
-
-  CHECK_PASS(COMBINED);
-  CHECK_PASS(DEPTH);
-  CHECK_PASS(VECTOR);
-  CHECK_PASS(NORMAL);
-  CHECK_PASS(UV);
-  CHECK_PASS(EMIT);
-  CHECK_PASS(SHADOW);
-  CHECK_PASS(AO);
-  CHECK_PASS(ENVIRONMENT);
-  CHECK_PASS(INDEXOB);
-  CHECK_PASS(INDEXMA);
-  CHECK_PASS(MIST);
-  CHECK_PASS(DIFFUSE_DIRECT);
-  CHECK_PASS(DIFFUSE_INDIRECT);
-  CHECK_PASS(DIFFUSE_COLOR);
-  CHECK_PASS(GLOSSY_DIRECT);
-  CHECK_PASS(GLOSSY_INDIRECT);
-  CHECK_PASS(GLOSSY_COLOR);
-  CHECK_PASS(TRANSM_DIRECT);
-  CHECK_PASS(TRANSM_INDIRECT);
-  CHECK_PASS(TRANSM_COLOR);
-  CHECK_PASS(SUBSURFACE_DIRECT);
-  CHECK_PASS(SUBSURFACE_INDIRECT);
-  CHECK_PASS(SUBSURFACE_COLOR);
-
-#undef CHECK_PASS
-
   return nullptr;
 }
 

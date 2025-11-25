@@ -230,7 +230,7 @@ class VKStateManager : public StateManager {
   void apply_state() override;
   void force_state() override;
 
-  void issue_barrier(eGPUBarrier barrier_bits) override;
+  void issue_barrier(GPUBarrier barrier_bits) override;
 
   void texture_bind(Texture *tex, GPUSamplerState sampler, int unit) override;
   void texture_unbind(Texture *tex) override;
@@ -251,7 +251,7 @@ class VKStateManager : public StateManager {
                            void *resource,
                            int binding)
   {
-    storage_buffer_bind(resource_type, resource, binding, 0u);
+    storage_buffer_bind(resource_type, resource, binding, 0);
   }
   void storage_buffer_bind(BindSpaceStorageBuffers::Type resource_type,
                            void *resource,
@@ -260,14 +260,12 @@ class VKStateManager : public StateManager {
   void storage_buffer_unbind(void *resource);
   void storage_buffer_unbind_all();
 
-  void unbind_from_all_namespaces(void *resource);
-
   void texture_unpack_row_length_set(uint len) override;
 
   /**
    * Row length for unpacking host data when uploading texture data.
    *
-   * When set to zero (0) host data can be assumed to be stored sequential.
+   * When set to zero (0) host data can be assumed to be stored sequentially.
    */
   uint texture_unpack_row_length_get() const;
 };

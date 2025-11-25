@@ -20,6 +20,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_huecorrect_cc {
@@ -27,15 +29,12 @@ namespace blender::nodes::node_composite_huecorrect_cc {
 static void cmp_node_huecorrect_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
-      .subtype(PROP_FACTOR)
-      .compositor_domain_priority(1);
-  b.add_input<decl::Color>("Image")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .subtype(PROP_FACTOR);
   b.add_output<decl::Color>("Image");
 }
 
@@ -49,7 +48,7 @@ static void node_composit_init_huecorrect(bNodeTree * /*ntree*/, bNode *node)
 
   for (int c = 0; c < 3; c++) {
     CurveMap *cuma = &cumapping->cm[c];
-    BKE_curvemap_reset(cuma, &cumapping->clipr, cumapping->preset, CURVEMAP_SLOPE_POSITIVE);
+    BKE_curvemap_reset(cuma, &cumapping->clipr, cumapping->preset, CurveMapSlopeType::Positive);
   }
   /* use wrapping for all hue correct nodes */
   cumapping->flag |= CUMA_USE_WRAPPING;
@@ -95,7 +94,7 @@ static int node_gpu_material(GPUMaterial *material,
                         GPU_uniform(range_dividers));
 }
 
-static float4 hue_correct(const float factor, const float4 &color, const CurveMapping *curve_map)
+static float4 hue_correct(const float4 &color, const float factor, const CurveMapping *curve_map)
 {
   float3 hsv;
   rgb_to_hsv_v(color, hsv);
@@ -123,18 +122,20 @@ static float4 hue_correct(const float factor, const float4 &color, const CurveMa
   return math::interpolate(color, result, factor);
 }
 
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
   CurveMapping *curve_mapping = get_curve_mapping(builder.node());
   BKE_curvemapping_init(curve_mapping);
 
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI2_SO<float, float4, float4>(
+    return mf::build::SI2_SO<Color, float, Color>(
         "Hue Correct",
-        [=](const float factor, const float4 &color) -> float4 {
-          return hue_correct(factor, color, curve_mapping);
+        [=](const Color &color, const float factor) -> Color {
+          return Color(hue_correct(float4(color), factor, curve_mapping));
         },
-        mf::build::exec_presets::SomeSpanOrSingle<1>());
+        mf::build::exec_presets::SomeSpanOrSingle<0>());
   });
 }
 

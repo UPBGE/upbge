@@ -339,12 +339,12 @@ using UVVertMap = Map<BMVert *, Vector<UVVertBucket>>;
 
 /** Bevel parameters and state. */
 struct BevelParams {
-  /** Records BevVerts made: key BMVert*, value BevVert* */
-  GHash *vert_hash;
-  /** Records new faces: key BMFace*, value one of {VERT/EDGE/RECON}_POLY. */
-  GHash *face_hash;
-  /** Records `UVFace` made: key `BMFace*`, value `UVFace*`. */
-  GHash *uv_face_hash;
+  /** Records BevVerts made. */
+  blender::Map<BMVert *, BevVert *> vert_hash;
+  /** Records new faces. */
+  std::optional<blender::Map<BMFace *, FKind>> face_hash;
+  /** Records `UVFace` made. */
+  blender::Map<BMFace *, UVFace *> uv_face_hash;
   /** Container which keeps track of UV vert connectivity in different UV maps. */
   Vector<UVVertMap> uv_vert_maps;
   /**
@@ -450,14 +450,13 @@ static void disable_flag_out_edge(BMesh *bm, BMEdge *bme)
 static void record_face_kind(BevelParams *bp, BMFace *f, FKind fkind)
 {
   if (bp->face_hash) {
-    BLI_ghash_insert(bp->face_hash, f, POINTER_FROM_INT(fkind));
+    bp->face_hash->add(f, fkind);
   }
 }
 
 static FKind get_face_kind(BevelParams *bp, BMFace *f)
 {
-  void *val = BLI_ghash_lookup(bp->face_hash, f);
-  return val ? (FKind)POINTER_AS_INT(val) : F_ORIG;
+  return bp->face_hash->lookup_default(f, F_ORIG);
 }
 
 /* Are d1 and d2 parallel or nearly so? */
@@ -560,13 +559,13 @@ static EdgeHalf *find_edge_half(BevVert *bv, BMEdge *bme)
 /* Find the BevVert corresponding to BMVert bmv. */
 static BevVert *find_bevvert(BevelParams *bp, BMVert *bmv)
 {
-  return static_cast<BevVert *>(BLI_ghash_lookup(bp->vert_hash, bmv));
+  return bp->vert_hash.lookup_default(bmv, nullptr);
 }
 
 /* Find the `UVFace` corresponding to `bmf` face. */
 static UVFace *find_uv_face(BevelParams *bp, BMFace *bmf)
 {
-  return static_cast<UVFace *>(BLI_ghash_lookup(bp->uv_face_hash, bmf));
+  return bp->uv_face_hash.lookup_default(bmf, nullptr);
 }
 
 /**
@@ -664,7 +663,7 @@ static UVFace *register_uv_face(BevelParams *bp, BMFace *fnew, BMFace *frep, BMF
     uv_face->attached_frep = frep;
   }
 
-  BLI_ghash_insert(bp->uv_face_hash, fnew, uv_face);
+  bp->uv_face_hash.add(fnew, uv_face);
   return uv_face;
 }
 
@@ -823,7 +822,7 @@ static void bevel_merge_uvs(BevelParams *bp, BMesh *bm)
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
           add_v2_v2(uv, luv);
         }
-        mul_v2_fl(uv, 1.0f / (float)num_uv_verts);
+        mul_v2_fl(uv, 1.0f / float(num_uv_verts));
         for (BMLoop *l : uv_vert_bucket) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
           copy_v2_v2(luv, uv);
@@ -921,7 +920,7 @@ static BMFace *bev_create_ngon(BevelParams *bp,
     return nullptr;
   }
 
-  if ((facerep || (face_arr && face_arr[0]))) {
+  if (facerep || (face_arr && face_arr[0])) {
     BM_elem_attrs_copy(bm, facerep ? facerep : face_arr[0], f);
     if (do_interp) {
       int i = 0;
@@ -1211,7 +1210,7 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
 static BMFace *choose_rep_face(BevelParams *bp, BMFace **face, int nfaces)
 {
 #define VEC_VALUE_LEN 6
-  float(*value_vecs)[VEC_VALUE_LEN] = nullptr;
+  float (*value_vecs)[VEC_VALUE_LEN] = nullptr;
   int num_viable = 0;
 
   value_vecs = BLI_array_alloca(value_vecs, nfaces);
@@ -2083,7 +2082,7 @@ static void move_weld_profile_planes(BevVert *bv, BoundVert *bndv1, BoundVert *b
   float l2 = normalize_v3(no2);
   cross_v3_v3v3(no3, d2, bndv2->profile.proj_dir);
   float l3 = normalize_v3(no3);
-  if (l1 > BEVEL_EPSILON && (l2 > BEVEL_EPSILON || l3 > BEVEL_EPSILON)) {
+  if (l1 != 0.0f && (l2 != 0.0f || l3 != 0.0f)) {
     float dot1 = fabsf(dot_v3v3(no, no2));
     float dot2 = fabsf(dot_v3v3(no, no3));
     if (fabsf(dot1 - 1.0f) > BEVEL_EPSILON) {
@@ -2536,7 +2535,7 @@ static void check_edge_data_seam_sharp_edges(BevVert *bv, int flag)
 
 static void bevel_extend_edge_data_ex(BevVert *bv, int flag)
 {
-  BLI_assert(flag == BM_ELEM_SEAM || flag == BM_ELEM_SMOOTH);
+  BLI_assert(ELEM(flag, BM_ELEM_SEAM, BM_ELEM_SMOOTH));
   VMesh *vm = bv->vmesh;
 
   BoundVert *bcur = bv->vmesh->boundstart, *start = bcur;
@@ -4969,7 +4968,7 @@ static float projected_boundary_area(BevVert *bv, BMFace *f)
 {
   BMEdge *e1, *e2;
   VMesh *vm = bv->vmesh;
-  float(*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
+  float (*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, f->no);
   get_incident_edges(f, bv->v, &e1, &e2);
@@ -6524,7 +6523,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
   bv->vmesh = (VMesh *)BLI_memarena_alloc(bp->mem_arena, sizeof(VMesh));
   bv->vmesh->seg = bp->seg;
 
-  BLI_ghash_insert(bp->vert_hash, v, bv);
+  bp->vert_hash.add(v, bv);
 
   find_bevel_edge_order(bm, bv, first_bme);
 
@@ -7906,7 +7905,6 @@ void BM_mesh_bevel(BMesh *bm,
   bp.miter_outer = miter_outer;
   bp.miter_inner = miter_inner;
   bp.spread = spread;
-  bp.face_hash = nullptr;
   bp.profile_type = profile_type;
   bp.custom_profile = custom_profile;
   bp.vmesh_method = vmesh_method;
@@ -7939,7 +7937,6 @@ void BM_mesh_bevel(BMesh *bm,
   }
 
   /* Primary alloc. */
-  bp.vert_hash = BLI_ghash_ptr_new(__func__);
   bp.mem_arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), __func__);
   BLI_memarena_use_calloc(bp.mem_arena);
 
@@ -7958,9 +7955,7 @@ void BM_mesh_bevel(BMesh *bm,
     set_profile_spacing(&bp, &bp.pro_spacing_miter, false);
   }
 
-  bp.face_hash = BLI_ghash_ptr_new(__func__);
-  BLI_ghash_flag_set(bp.face_hash, GHASH_FLAG_ALLOW_DUPES);
-  bp.uv_face_hash = BLI_ghash_ptr_new(__func__);
+  bp.face_hash.emplace();
 
   math_layer_info_init(&bp, bm);
   uv_vert_map_init(&bp, bm);
@@ -8091,9 +8086,6 @@ void BM_mesh_bevel(BMesh *bm,
   }
 
   /* Primary free. */
-  BLI_ghash_free(bp.vert_hash, nullptr, nullptr);
-  BLI_ghash_free(bp.face_hash, nullptr, nullptr);
-  BLI_ghash_free(bp.uv_face_hash, nullptr, nullptr);
   BLI_memarena_free(bp.mem_arena);
 
 #ifdef BEVEL_DEBUG_TIME

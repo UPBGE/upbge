@@ -118,7 +118,8 @@ static void rna_Camera_custom_mode_set(PointerRNA *ptr, int value)
 
       if (value == CAM_CUSTOM_SHADER_EXTERNAL && text->filepath) {
         STRNCPY(camera->custom_filepath, text->filepath);
-        BLI_path_rel(camera->custom_filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(camera->custom_filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(camera->custom_filepath, ID_BLEND_PATH_FROM_GLOBAL(&camera->id));
       }
 
       id_us_min(&camera->custom_shader->id);
@@ -939,6 +940,11 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Lens Unit", "Unit to edit lens in for the user interface");
 
   /* dtx */
+  prop = RNA_def_property(srna, "composition_guide_color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_ui_text(
+      prop, "Composition Guide Color", "Color and alpha for compositional guide overlays");
+  RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
+
   prop = RNA_def_property(srna, "show_composition_center", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "dtx", CAM_DTX_CENTER);
   RNA_def_property_ui_text(

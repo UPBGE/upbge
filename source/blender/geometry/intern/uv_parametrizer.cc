@@ -3855,7 +3855,7 @@ static void p_add_ngon(ParamHandle *handle,
   uint nfilltri = nverts - 2;
   uint(*tris)[3] = static_cast<uint(*)[3]>(
       BLI_memarena_alloc(arena, sizeof(*tris) * size_t(nfilltri)));
-  float(*projverts)[2] = static_cast<float(*)[2]>(
+  float (*projverts)[2] = static_cast<float (*)[2]>(
       BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(nverts)));
 
   /* Calc normal, flipped: to get a positive 2d cross product. */
@@ -4219,6 +4219,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
     for (PVert *v = chart->verts; v; v = v->nextlink) {
       geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island->pre_translate);
     }
+    geometry::p_chart_uv_translate(chart, params.udim_base_offset);
 
     pack_island_vector[i] = nullptr;
     delete pack_island;

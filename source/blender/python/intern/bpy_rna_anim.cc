@@ -314,9 +314,6 @@ char pyrna_struct_keyframe_insert_doc[] =
     "      - ``INSERTKEY_NEEDED`` Only insert keyframes where they're needed in the relevant "
     "F-Curves.\n"
     "      - ``INSERTKEY_VISUAL`` Insert keyframes based on 'visual transforms'.\n"
-    "      - ``INSERTKEY_XYZ_TO_RGB`` This flag is no longer in use, and is here so that code "
-    "that uses it doesn't break. The XYZ=RGB coloring is determined by the animation "
-    "preferences.\n"
     "      - ``INSERTKEY_REPLACE`` Only replace already existing keyframes.\n"
     "      - ``INSERTKEY_AVAILABLE`` Only insert into already existing F-Curves.\n"
     "      - ``INSERTKEY_CYCLE_AWARE`` Take cyclic extrapolation into account "
@@ -358,7 +355,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
   ReportList reports;
   bool result = false;
 
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
 
   /* This assumes that keyframes are only added on original data & using the active depsgraph. If
    * it turns out to be necessary for some reason to insert keyframes on evaluated objects, we can
@@ -497,7 +494,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
   ReportList reports;
   bool result = false;
 
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
 
   if (self->ptr->type == &RNA_NlaStrip) {
     /* Handle special properties for NLA Strips, whose F-Curves are stored on the
@@ -605,14 +602,9 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
   ReportList reports;
   int result;
 
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
 
-  result = ANIM_add_driver(&reports,
-                           self->ptr->owner_id,
-                           path_full,
-                           index,
-                           CREATEDRIVER_WITH_FMODIFIER,
-                           DRIVER_TYPE_PYTHON);
+  result = ANIM_add_driver(&reports, self->ptr->owner_id, path_full, index, 0, DRIVER_TYPE_PYTHON);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
     /* Pass. */
@@ -686,7 +678,7 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
   short result;
   ReportList reports;
 
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
 
   result = ANIM_remove_driver(self->ptr->owner_id, path_full, index);
 

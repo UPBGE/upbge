@@ -16,6 +16,7 @@
 #include "NOD_sync_sockets.hh"
 
 #include "BLO_read_write.hh"
+#include "shader/node_shader_util.hh"
 
 namespace blender::nodes::node_geo_closure_cc {
 
@@ -41,25 +42,39 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
-  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+  PointerRNA output_node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &output_node);
+
+  layout->op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
+  layout->prop(&output_node_ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (current_node->type_legacy == NODE_CLOSURE_INPUT) {
-    if (uiLayout *panel = layout->panel(C, "input_items", false, TIP_("Input Items"))) {
+    if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
+            const auto &item = *item_ptr->data_as<NodeClosureInputItem>();
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
+              panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
+            }
           });
     }
   }
   else {
-    if (uiLayout *panel = layout->panel(C, "output_items", false, TIP_("Output Items"))) {
+    if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureOutputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
+            const auto &item = *item_ptr->data_as<NodeClosureOutputItem>();
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
+              panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
+            }
           });
     }
   }
@@ -82,7 +97,13 @@ static void node_declare(NodeDeclarationBuilder &b)
         const NodeClosureInputItem &item = output_storage.input_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
         const std::string identifier = ClosureInputItemsAccessor::socket_identifier_for_item(item);
-        b.add_output(socket_type, item.name, identifier);
+        auto &decl = b.add_output(socket_type, item.name, identifier);
+        if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+          decl.structure_type(StructureType(item.structure_type));
+        }
+        else {
+          decl.structure_type(StructureType::Dynamic);
+        }
       }
     }
   }
@@ -116,7 +137,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "NodeClosureInput", NODE_CLOSURE_INPUT);
+  sh_geo_node_type_base(&ntype, "NodeClosureInput", NODE_CLOSURE_INPUT);
   ntype.ui_name = "Closure Input";
   ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.declare = node_declare;
@@ -148,7 +169,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       const NodeClosureOutputItem &item = storage.output_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier = ClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      b.add_input(socket_type, item.name, identifier).supports_field();
+      auto &decl = b.add_input(socket_type, item.name, identifier).supports_field();
+      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+        decl.structure_type(StructureType(item.structure_type));
+      }
+      else {
+        decl.structure_type(StructureType::Dynamic);
+      }
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
@@ -244,7 +271,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "NodeClosureOutput", NODE_CLOSURE_OUTPUT);
+  sh_geo_node_type_base(&ntype, "NodeClosureOutput", NODE_CLOSURE_OUTPUT);
   ntype.ui_name = "Closure Output";
   ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.declare = node_declare;

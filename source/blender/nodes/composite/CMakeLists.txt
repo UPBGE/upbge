@@ -14,6 +14,7 @@ set(INC
   ../../compositor/cached_resources
   ../../compositor/derived_resources
   ../../compositor/utilities
+  ../../sequencer
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -88,6 +89,7 @@ set(SRC
   nodes/node_composite_posterize.cc
   nodes/node_composite_premulkey.cc
   nodes/node_composite_relative_to_pixel.cc
+  nodes/node_composite_render_layers.cc
   nodes/node_composite_rgb.cc
   nodes/node_composite_rotate.cc
   nodes/node_composite_scale.cc
@@ -96,6 +98,7 @@ set(SRC
   nodes/node_composite_setalpha.cc
   nodes/node_composite_split.cc
   nodes/node_composite_stabilize2d.cc
+  nodes/node_composite_strip_info.cc
   nodes/node_composite_switch.cc
   nodes/node_composite_switchview.cc
   nodes/node_composite_tonemap.cc
@@ -129,6 +132,7 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::sequencer
 )
 
 add_node_discovery(
