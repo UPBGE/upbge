@@ -1154,7 +1154,7 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
 
   d.key_requests_gpu = (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
 
-  bool need_gpu_process = d.modifier_requests_gpu || d.key_requests_gpu;
+  bool need_gpu_process = d.modifier_requests_gpu || d.key_requests_gpu || d.python_requests_gpu;
 
   /* --------------- TOPOLOGY / STABILITY SAFEGUARDS -----------------
    * Keep a conservative policy:
@@ -1228,7 +1228,7 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
   /* Only register actual GPU work when allowed by the decision. */
   const bool need_gpu_process = decision.allow_gpu &&
                                 (has_gpu_shapekey || has_gpu_armature_modifier ||
-                                 arm_ob);
+                                 arm_ob || decision.python_requests_gpu);
 
   if (need_gpu_process) {
     if (dd->meshes_to_process == nullptr) {
