@@ -920,6 +920,7 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
     return nullptr;
   }
   blender::gpu::StorageBuf *buf = GPU_storagebuf_create(size);
+  GPU_storagebuf_clear_to_zero(buf);
   if (!buf) {
     return nullptr;
   }
