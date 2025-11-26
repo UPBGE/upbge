@@ -1239,14 +1239,6 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
     if (entry.eval_obj_for_skinning == nullptr) {
       entry.eval_obj_for_skinning = &ob;
     }
-    if (has_gpu_shapekey) {
-      entry.key_owner = orig_mesh->key;
-    }
-    if (has_gpu_armature_modifier) {
-      if (arm_ob) {
-        entry.armature_owner = DEG_get_original(arm_ob);
-      }
-    }
     /* clear previous refusal info; adapt assignment to your header field type. */
     entry.playback_refused =
         std::nullopt; /* if your field is std::optional<PlaybackRefuseReason> */

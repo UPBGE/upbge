@@ -67,10 +67,6 @@ struct GPUPlaybackDecision {
 struct MeshProcessEntry {
   struct Object *eval_obj_for_skinning = nullptr;
   bool scheduled_free = false;
-
-  /* Optional direct pointers recorded at extraction time. */
-  struct Key *key_owner = nullptr;
-  struct Object *armature_owner = nullptr;
   std::optional<PlaybackRefuseReason> playback_refused = std::nullopt;
 };
 

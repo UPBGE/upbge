@@ -1153,11 +1153,11 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     }
 
     /* Decide from recorded pointers whether to run shapekeys / armature on GPU. */
-    const bool has_shapekeys = (entry.key_owner != nullptr);
-    const bool has_armature = (entry.armature_owner != nullptr);
+    const bool has_shapekeys = (mesh_owner->key != nullptr);
+    const bool has_armature = (BKE_modifiers_is_deformed_by_armature(eval_obj) != nullptr);
 
     /* Obtain original armature and its evaluated instance (for transforms). */
-    Object *orig_armature = entry.armature_owner;
+    Object *orig_armature = BKE_modifiers_is_deformed_by_armature(DEG_get_original(eval_obj));
     Object *arm_ob_eval = static_cast<Object *>(DEG_get_evaluated(depsgraph, orig_armature));
 
     /* Prepare an intermediate SSBO to chain deformers when needed. */
