@@ -394,7 +394,7 @@ static bool seq_input_have_to_preprocess(const RenderData *context,
     return false;
   }
 
-  if ((strip->flag & (SEQ_FILTERY | SEQ_FLIPX | SEQ_FLIPY | SEQ_MAKE_FLOAT)) ||
+  if ((strip->flag & (SEQ_DEINTERLACE | SEQ_FLIPX | SEQ_FLIPY | SEQ_MAKE_FLOAT)) ||
       sequencer_use_crop(strip) || sequencer_use_transform(strip))
   {
     return true;
@@ -629,7 +629,9 @@ static ImBuf *input_preprocess(const RenderData *context,
   Scene *scene = context->scene;
 
   /* Deinterlace. */
-  if ((strip->flag & SEQ_FILTERY) && !ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_MOVIECLIP)) {
+  if ((strip->flag & SEQ_DEINTERLACE) &&
+      !ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_MOVIECLIP))
+  {
     ibuf = IMB_makeSingleUser(ibuf);
     IMB_filtery(ibuf);
   }
@@ -2040,7 +2042,8 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   Scene *orig_scene = prefetch_get_original_scene(context);
   ImBuf *out = nullptr;
   if (!context->skip_cache && !context->is_proxy_render) {
-    out = final_image_cache_get(orig_scene, timeline_frame, context->view_id, chanshown);
+    out = final_image_cache_get(
+        orig_scene, timeline_frame, context->view_id, chanshown, {context->rectx, context->recty});
   }
 
   Vector<Strip *> strips = seq_shown_strips_get(
@@ -2062,7 +2065,12 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     if (out && (orig_scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT) && !context->skip_cache &&
         !context->is_proxy_render)
     {
-      final_image_cache_put(orig_scene, timeline_frame, context->view_id, chanshown, out);
+      final_image_cache_put(orig_scene,
+                            timeline_frame,
+                            context->view_id,
+                            chanshown,
+                            {context->rectx, context->recty},
+                            out);
     }
   }
 
