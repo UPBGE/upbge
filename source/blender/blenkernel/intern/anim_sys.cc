@@ -570,7 +570,7 @@ static void animsys_evaluate_fcurves_sequential(PointerRNA *ptr,
                                                 const AnimationEvalContext *anim_eval_context,
                                                 bool flush_to_original)
 {
-  // Code original inchangé
+  // Original code unchanged
   for (FCurve *fcu : fcurves) {
     if (!is_fcurve_evaluatable(fcu)) {
       continue;
