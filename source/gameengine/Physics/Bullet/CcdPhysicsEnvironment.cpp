@@ -2488,6 +2488,69 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 
       break;
     }
+    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+      btGeneric6DofSpring2Constraint *spring2Constraint = nullptr;
+
+      if (rb1) {
+        btTransform frameInA;
+        btTransform frameInB;
+
+        btVector3 axis1(axis1X, axis1Y, axis1Z), axis2(axis2X, axis2Y, axis2Z);
+        if (axis1.length() == 0.0) {
+          btPlaneSpace1(axisInA, axis1, axis2);
+        }
+
+        frameInA.getBasis().setValue(axisInA.x(),
+                                     axis1.x(),
+                                     axis2.x(),
+                                     axisInA.y(),
+                                     axis1.y(),
+                                     axis2.y(),
+                                     axisInA.z(),
+                                     axis1.z(),
+                                     axis2.z());
+        frameInA.setOrigin(pivotInA);
+
+        btTransform inv = rb1->getCenterOfMassTransform().inverse();
+
+        btTransform globalFrameA = rb0->getCenterOfMassTransform() * frameInA;
+
+        frameInB = inv * globalFrameA;
+
+        spring2Constraint = new btGeneric6DofSpring2Constraint(
+            *rb0, *rb1, frameInA, frameInB);
+      }
+      else {
+        static btRigidBody s_fixedObject2(0.0f, nullptr, nullptr);
+        btTransform frameInA;
+        btTransform frameInB;
+
+        btVector3 axis1, axis2;
+        btPlaneSpace1(axisInA, axis1, axis2);
+
+        frameInA.getBasis().setValue(axisInA.x(),
+                                     axis1.x(),
+                                     axis2.x(),
+                                     axisInA.y(),
+                                     axis1.y(),
+                                     axis2.y(),
+                                     axisInA.z(),
+                                     axis1.z(),
+                                     axis2.z());
+
+        frameInA.setOrigin(pivotInA);
+
+        /// frameInB in worldspace
+        frameInB = rb0->getCenterOfMassTransform() * frameInA;
+
+        spring2Constraint = new btGeneric6DofSpring2Constraint(
+            *rb0, s_fixedObject2, frameInA, frameInB);
+      }
+
+      con = spring2Constraint;
+
+      break;
+    }
     case PHY_CONE_TWIST_CONSTRAINT: {
       btConeTwistConstraint *coneTwistContraint = nullptr;
 
