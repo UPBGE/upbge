@@ -30,6 +30,8 @@ class CcdConstraint : public PHY_IConstraint {
   virtual float GetBreakingThreshold() const;
   virtual void SetBreakingThreshold(float threshold);
 
+  virtual void SetSolverIterations(int iterations);
+
   virtual int GetIdentifier() const;
   virtual PHY_ConstraintType GetType() const;
 };
