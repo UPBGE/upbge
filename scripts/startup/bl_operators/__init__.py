@@ -34,6 +34,7 @@ _modules = [
     "presets",
     "render",
     "rigidbody",
+    "rigidbody_game",
     "screen_play_rendered_anim",
     "sequencer",
     "spreadsheet",
