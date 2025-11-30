@@ -39,12 +39,18 @@ DEFINE("MAT_FORWARD")
 /* Early fragment test is needed for render passes support for forward surfaces. */
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 EARLY_FRAGMENT_TEST(true)
-FRAGMENT_OUT_DUAL(0, float4, out_radiance, SRC_0)
-FRAGMENT_OUT_DUAL(0, float4, out_transmittance, SRC_1)
+/* Spliting RGB components into different target to overcome the lack of dual source blending with
+ * multiple render targets. */
+FRAGMENT_OUT(0, float4, out_combined_r)
+FRAGMENT_OUT(1, float4, out_combined_g)
+FRAGMENT_OUT(2, float4, out_combined_b)
+FRAGMENT_OUT(3, float4, out_combined_a)
 FRAGMENT_SOURCE("eevee_surf_forward_frag.glsl")
 /* Optionally added depending on the material. */
 //  ADDITIONAL_INFO(eevee_render_pass_out)
 //  ADDITIONAL_INFO(eevee_cryptomatte_out)
+//  ADDITIONAL_INFO(eevee_hiz_prev_data)
+//  ADDITIONAL_INFO(eevee_previous_layer_radiance)
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(eevee_light_data)
 ADDITIONAL_INFO(eevee_lightprobe_data)

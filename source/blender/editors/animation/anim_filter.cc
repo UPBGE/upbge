@@ -1100,7 +1100,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
           return true;
         }
 
-        if ((strip->flag & SELECT) == 0) {
+        if ((strip->flag & SEQ_SELECT) == 0) {
           return true;
         }
       }

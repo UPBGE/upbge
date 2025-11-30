@@ -174,7 +174,7 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define buffer_get(create_info, _res) _res
 #define sampler_get(create_info, _res) _res
 #define image_get(create_info, _res) _res
-#define srt_access(create_info, _res) _res
+#define srt_access(create_info, _res) access_##create_info##_##_res()
 
 /* Incompatible keywords. */
 #define static
@@ -183,6 +183,12 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define device
 #define thread
 #define threadgroup
+
+float4 texelFetchExtend(sampler2D samp, int2 texel, int lvl)
+{
+  texel = clamp(texel, int2(0), textureSize(samp, lvl).xy - 1);
+  return texelFetch(samp, texel, lvl);
+}
 
 /* Stage agnostic builtin function.
  * GLSL doesn't allow mixing shader stages inside the same source file.

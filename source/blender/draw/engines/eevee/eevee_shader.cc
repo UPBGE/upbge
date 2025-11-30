@@ -552,6 +552,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_surfel_list_sort";
     case SURFEL_RAY:
       return "eevee_surfel_ray";
+    case TRANSPARENCY_RESOLVE:
+      return "eevee_transparency_resolve";
     case VERTEX_COPY:
       return "eevee_vertex_copy";
     case VOLUME_INTEGRATION:
@@ -853,6 +855,17 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   if (pipeline_type == MAT_PIPE_DEFERRED) {
     info.additional_info("eevee_render_pass_out");
     info.additional_info("eevee_cryptomatte_out");
+  }
+
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
+    info.define("MAT_SHADER_TO_RGBA");
+  }
+
+  if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA))
+  {
+    info.additional_info("eevee_hiz_prev_data");
+    info.additional_info("eevee_previous_layer_radiance");
   }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_DIFFUSE)) {

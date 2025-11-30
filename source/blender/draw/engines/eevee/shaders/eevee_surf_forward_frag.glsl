@@ -38,6 +38,22 @@ float4 closure_to_rgba(Closure cl_unused)
   float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
   closure_weights_reset(closure_rand);
 
+#if defined(MAT_TRANSPARENT) && defined(MAT_SHADER_TO_RGBA)
+  float3 V = -drw_world_incident_vector(g_data.P);
+  LightProbeSample samp = lightprobe_load(g_data.P, g_data.Ng, V);
+  float3 radiance_behind = lightprobe_spherical_sample_normalized_with_parallax(
+      samp, g_data.P, V, 0.0);
+
+#  ifndef MAT_FIRST_LAYER
+  int2 texel = int2(gl_FragCoord.xy);
+  if (texelFetchExtend(hiz_prev_tx, texel, 0).x != 1.0f) {
+    radiance_behind = texelFetch(previous_layer_radiance_tx, texel, 0).xyz;
+  }
+#  endif
+
+  radiance += radiance_behind * saturate(transmittance);
+#endif
+
   return float4(radiance, saturate(1.0f - average(transmittance)));
 }
 
@@ -75,8 +91,18 @@ void main()
 
   g_holdout = saturate(g_holdout);
 
-  radiance *= 1.0f - saturate(g_holdout);
+  radiance *= 1.0f - g_holdout;
 
-  out_radiance = float4(radiance, g_holdout);
-  out_transmittance = float4(transmittance, saturate(average(transmittance)));
+  /* There can be 2 framebuffer layout for forward transparency:
+   * - Combined RGB radiance with Monochromatic transmittance.
+   * - Channel split RGB radiance & RGB transmittance + Dedicated average alpha with holdout. */
+  if (uniform_buf.pipeline.use_monochromatic_transmittance) {
+    out_combined_r = float4(radiance.rgb, transmittance.r);
+  }
+  else {
+    out_combined_r = float4(radiance.r, 0.0f, 0.0f, transmittance.r);
+    out_combined_g = float4(radiance.g, 0.0f, 0.0f, transmittance.g);
+    out_combined_b = float4(radiance.b, 0.0f, 0.0f, transmittance.b);
+    out_combined_a = float4(g_holdout, 0.0f, 0.0f, average(transmittance));
+  }
 }

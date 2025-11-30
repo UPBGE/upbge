@@ -1248,7 +1248,10 @@ const char *RNA_property_description(PropertyRNA *prop)
 
 const DeprecatedRNA *RNA_property_deprecated(const PropertyRNA *prop)
 {
-  return prop->deprecated;
+  if (prop->magic == RNA_MAGIC) {
+    return prop->deprecated;
+  }
+  return nullptr;
 }
 
 PropertyType RNA_property_type(PropertyRNA *prop)
@@ -2235,13 +2238,23 @@ const char *RNA_property_ui_name_raw(const PropertyRNA *prop, const PointerRNA *
   return rna_ensure_property_name(prop);
 }
 
-const char *RNA_property_ui_description(const PropertyRNA *prop)
+const char *RNA_property_ui_description(const PropertyRNA *prop, const PointerRNA *ptr)
 {
-  return TIP_(rna_ensure_property_description(prop));
+  if (ptr && prop->magic == RNA_MAGIC && prop->ui_description_func) {
+    if (const char *description = prop->ui_description_func(ptr, prop, true)) {
+      return description;
+    }
+  }
+  return CTX_IFACE_(RNA_property_translation_context(prop), rna_ensure_property_description(prop));
 }
 
-const char *RNA_property_ui_description_raw(const PropertyRNA *prop)
+const char *RNA_property_ui_description_raw(const PropertyRNA *prop, const PointerRNA *ptr)
 {
+  if (ptr && prop->magic == RNA_MAGIC && prop->ui_description_func) {
+    if (const char *description = prop->ui_description_func(ptr, prop, false)) {
+      return description;
+    }
+  }
   return rna_ensure_property_description(prop);
 }
 
@@ -4199,8 +4212,8 @@ void RNA_property_string_set_bytes(PointerRNA *ptr, PropertyRNA *prop, const cha
   }
 
   if (idprop) {
-    IDP_ResizeArray(idprop, value_set.size() + 1);
-    memcpy(idprop->data.pointer, value, value_set.size() + 1);
+    IDP_ResizeArray(idprop, value_set.size());
+    memcpy(idprop->data.pointer, value, value_set.size());
     rna_idproperty_touch(idprop);
   }
   else if (sprop->set) {
@@ -4213,7 +4226,7 @@ void RNA_property_string_set_bytes(PointerRNA *ptr, PropertyRNA *prop, const cha
     if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
       IDPropertyTemplate val = {0};
       val.string.str = value_set.c_str();
-      val.string.len = value_set.size() + 1;
+      val.string.len = value_set.size();
       val.string.subtype = IDP_STRING_SUB_BYTE;
       IDP_AddToGroup(group,
                      IDP_New(IDP_STRING, &val, prop_rna_or_id.identifier, IDP_FLAG_STATIC_TYPE));
