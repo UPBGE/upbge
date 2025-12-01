@@ -47,6 +47,13 @@ class ShapeKeySkinningManager {
   /* Free all CPU-side resources. */
   void free_all();
 
+  /**
+   * Compute a hash of the ShapeKey state to detect changes.
+   * Includes: vertex count, keyblock count, Basis, Relative To, Edit Mode changes.
+   * Returns 0 if mesh has no ShapeKeys.
+   */
+  static uint32_t compute_shapekey_hash(const Mesh *mesh);
+
  private:
   struct Impl;
   std::unique_ptr<Impl> impl_;

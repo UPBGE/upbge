@@ -91,7 +91,7 @@ ShapeKeySkinningManager::ShapeKeySkinningManager() : impl_(new Impl()) {}
 ShapeKeySkinningManager::~ShapeKeySkinningManager() {}
 
 /* Compute a hash of the ShapeKey state to detect changes */
-static uint32_t compute_shapekey_state_hash(const Mesh *mesh)
+uint32_t ShapeKeySkinningManager::compute_shapekey_hash(const Mesh *mesh)
 {
   if (!mesh || !mesh->key) {
     return 0;
@@ -135,7 +135,7 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
   }
 
   /* Compute hash of current ShapeKey state */
-  const uint32_t new_hash = compute_shapekey_state_hash(orig_mesh);
+  const uint32_t new_hash = compute_shapekey_hash(orig_mesh);
 
   Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(orig_mesh);
 
