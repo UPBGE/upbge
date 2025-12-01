@@ -65,20 +65,6 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, int vertex_count)
   
   if (!buffer_a_) {
     buffer_a_ = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_buffer_a, buffer_size);
-    
-    /* Upload rest positions to buffer_a_ (only once at creation) */
-    if (buffer_a_) {
-      blender::Span<blender::float3> vert_positions = mesh_owner->vert_positions();
-      std::vector<float> rest_data(size_t(vertex_count) * 4);
-      for (int i = 0; i < vertex_count; ++i) {
-        const blender::float3 &p = vert_positions[i];
-        rest_data[i * 4 + 0] = p.x;
-        rest_data[i * 4 + 1] = p.y;
-        rest_data[i * 4 + 2] = p.z;
-        rest_data[i * 4 + 3] = 1.0f;
-      }
-      GPU_storagebuf_update(buffer_a_, rest_data.data());
-    }
   }
 }
 
