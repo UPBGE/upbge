@@ -1156,6 +1156,11 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
 
   bool need_gpu_process = d.modifier_requests_gpu || d.key_requests_gpu || d.python_requests_gpu;
 
+  if (!need_gpu_process) {
+    d.allow_gpu = false;
+    return d;
+  }
+
   /* --------------- TOPOLOGY / STABILITY SAFEGUARDS -----------------
    * Keep a conservative policy:
    *  - refuse automatic GPU path when evaluated topology differs from original
@@ -1234,13 +1239,24 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
                          decision.key_requests_gpu);
     }
 
+    /* Clean up: free pipeline and remove entry if GPU processing is refused */
     if (dd->meshes_to_process) {
       auto &map = *dd->meshes_to_process;
       auto it = map.find(orig_mesh);
       if (it != map.end()) {
+        /* Free the pipeline before erasing the entry */
+        if (it->second.gpu_pipeline) {
+          if (0) {
+            printf("Freeing pipeline for mesh '%s' (GPU refused)\n",
+                   (orig_mesh->id.name + 2));
+          }
+          it->second.gpu_pipeline.reset();
+        }
+        /* Erase the entry from the map */
         map.erase(it);
       }
     }
+    /* Clear GPU playback flags */
     orig_mesh->is_running_gpu_animation_playback = 0;
     orig_mesh->is_python_request_gpu = 0;
     mesh.is_running_gpu_animation_playback = 0;

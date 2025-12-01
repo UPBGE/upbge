@@ -447,27 +447,51 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
   if (data == nullptr) {
     return;
   }
-
   /* Prefer the new unified container if present. */
   if (data->meshes_to_process) {
     auto *map = data->meshes_to_process;
-    /* Detach so new requests create a fresh container. */
-    data->meshes_to_process = nullptr;
-
-    for (auto &it : *map) {
-      Mesh *mesh = it.first;
-      auto &entry = it.second;
-      if (!entry.scheduled_free) {
-        continue;
+    /* Don't detach the map! We want to keep the GPU pipelines across frames. */
+    /* Step 1: Free GPU resources for meshes marked as scheduled_free */
+    for (auto it = map->begin(); it != map->end(); ) {
+      Mesh *mesh = it->first;
+      auto &entry = it->second;
+      if (entry.scheduled_free) {
+        if (mesh && mesh->is_running_gpu_animation_playback == 0) {
+          /* Free armature skinning static data first, then mesh GPU resources. */
+          blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+          blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
+          BKE_mesh_gpu_free_for_mesh(mesh);
+        }
+        /* Free the pipeline and remove entry */
+        entry.gpu_pipeline.reset();
+        it = map->erase(it);
       }
-      if (mesh && mesh->is_running_gpu_animation_playback == 0) {
-        /* Free armature skinning static data first, then mesh GPU resources. */
-        blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
-        BKE_mesh_gpu_free_for_mesh(mesh);
+      else {
+        ++it;
       }
     }
-
-    delete map;
+    /* Step 2: Garbage collect unused entries (optional, for safety)
+     * Remove entries for meshes that no longer have eval_obj_for_skinning
+     * and haven't been used for a while. */
+    static int gc_counter = 0;
+    if (++gc_counter > 120) {  // GC every ~2 seconds at 60 FPS
+      gc_counter = 0;
+      for (auto it = map->begin(); it != map->end(); ) {
+        auto &entry = it->second;
+        if (!entry.eval_obj_for_skinning && entry.gpu_pipeline) {
+          /* Entry not used this frame, free pipeline */
+          if (G.debug & G_DEBUG) {
+            printf("GC: Freeing unused pipeline for mesh '%s'\n", (it->first->id.name + 2));
+          }
+          entry.gpu_pipeline.reset();
+          it = map->erase(it);
+        }
+        else {
+          ++it;
+        }
+      }
+    }
+    /* Don't delete the map! Keep it for next frame. */
     return;
   }
 }
@@ -1148,7 +1172,6 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
         vbo_nor = ptr->get();
       }
     }
-
     if (vbo_pos == nullptr) {
       if (G.debug & G_DEBUG) {
         printf("skip GPU skinning for mesh owner '%s' (no position VBO)\n",
@@ -1156,14 +1179,26 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       }
       continue;
     }
-
     /* Build GPU modifier pipeline from object's modifier stack */
-    GPUModifierPipeline pipeline;
+    /* Use persistent pipeline from cache to preserve pipeline_hash_ across frames */
+    if (!entry.gpu_pipeline) {
+      if (G.debug & G_DEBUG) {
+        printf("CREATING NEW PIPELINE for mesh '%s'\n", (mesh_owner->id.name + 2));
+      }
+      entry.gpu_pipeline = std::make_unique<GPUModifierPipeline>();
+    }
+    else {
+      if (G.debug & G_DEBUG) {
+        printf("REUSING PIPELINE (hash=%u) for mesh '%s'\n",
+               entry.gpu_pipeline->get_pipeline_hash(),
+               (mesh_owner->id.name + 2));
+      }
+    }
+    GPUModifierPipeline &pipeline = *entry.gpu_pipeline;
     if (!build_gpu_modifier_pipeline(*eval_obj, *mesh_owner, pipeline)) {
       /* No GPU modifiers to execute */
       continue;
     }
-
     /* Execute the pipeline (chained ShapeKeys → Armature → ...) */
     blender::gpu::StorageBuf *ssbo_final = pipeline.execute(mesh_owner, eval_obj, cache);
     if (!ssbo_final) {
@@ -1213,7 +1248,6 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     BKE_mesh_gpu_scatter_to_corners(
         depsgraph, eval_obj, caller_bindings, config_fn, post_bind_fn, mesh_eval->corners_num);
   }
-
   /* Clear skinning entries for next frame but keep allocation for reuse. */
   for (auto &it : map) {
     it.second.eval_obj_for_skinning = nullptr;

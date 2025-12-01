@@ -174,8 +174,16 @@ void GPUModifierPipeline::clear()
   stages_.clear();
   /* Buffer is managed by mesh_gpu_cache, just reset pointer */
   buffer_a_ = nullptr;
-  pipeline_hash_ = 0;
+  /* Note: Do NOT reset pipeline_hash_ here! It's used to detect pipeline changes
+   * across frames. Resetting it would cause unnecessary invalidations every frame. */
   needs_recompile_ = false;
+}
+
+void GPUModifierPipeline::clear_stages()
+{
+  /* Clear only the stages list, preserve pipeline_hash_ for change detection */
+  stages_.clear();
+  /* Don't touch buffer_a_, pipeline_hash_, or needs_recompile_ */
 }
 
 void GPUModifierPipeline::invalidate_shaders()
@@ -254,7 +262,10 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
 
 bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
 {
-  pipeline.clear();
+  /* Don't clear the pipeline here! Let execute() handle hash-based invalidation.
+   * This preserves pipeline_hash_ across frames for stable change detection. */
+  /* Clear stages list to rebuild from scratch (but keep pipeline_hash_ intact) */
+  pipeline.clear_stages();
   
   int execution_order = 0;
   

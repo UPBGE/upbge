@@ -88,7 +88,13 @@ public:
    * Clear all stages (called when modifier stack changes).
    */
   void clear();
-  
+
+  /**
+   * Clear only the stages list (preserves pipeline_hash_ for change detection).
+   * Used by build_gpu_modifier_pipeline to rebuild the stages without losing hash state.
+   */
+  void clear_stages();
+
   /**
    * Check if pipeline needs shader recompilation.
    */
@@ -104,6 +110,10 @@ public:
    */
   int stage_count() const { return stages_.size(); }
   
+  /**
+   * Get the current pipeline hash (for debugging).
+   */
+  uint32_t get_pipeline_hash() const { return pipeline_hash_; }
  private:
   void sort_stages();
   void allocate_buffers(Mesh *mesh_owner, int vertex_count);

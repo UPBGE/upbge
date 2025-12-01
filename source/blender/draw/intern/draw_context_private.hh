@@ -25,6 +25,8 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_viewport.hh"
 
+#include "draw_modifier_gpu_pipeline.hh"
+
 struct DRWDebugModule;
 struct DRWUniformChunk;
 struct DRWViewData;
@@ -68,6 +70,8 @@ struct MeshProcessEntry {
   struct Object *eval_obj_for_skinning = nullptr;
   bool scheduled_free = false;
   std::optional<PlaybackRefuseReason> playback_refused = std::nullopt;
+  /* GPU modifier pipeline (persistent across frames to preserve pipeline_hash_) */
+  std::unique_ptr<blender::draw::GPUModifierPipeline> gpu_pipeline = nullptr;
 };
 
 /** Contains memory pools information. */
