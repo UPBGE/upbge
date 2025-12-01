@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "BLI_hash.h"
 #include "BLI_map.hh"
 #include "BLI_threads.h"
 #include "BLI_vector.hh"
@@ -19,7 +20,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.hh"  /* For BKE_scene_ctime_get */
+#include "BKE_scene.hh" /* For BKE_scene_ctime_get */
 
 #include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
@@ -49,6 +50,8 @@ struct blender::draw::ShapeKeySkinningManager::Impl {
     /* Cache last uploaded weights to avoid redundant GPU updates. */
     std::vector<float> prev_weights;
     bool prev_weights_valid = false;
+    /* Hash of ShapeKey state to detect changes (topology, Basis, relative, etc.) */
+    uint32_t shapekey_state_hash = 0;
   };
 
   Map<Mesh *, MeshStaticData> static_map;
@@ -87,15 +90,71 @@ ShapeKeySkinningManager &ShapeKeySkinningManager::instance()
 ShapeKeySkinningManager::ShapeKeySkinningManager() : impl_(new Impl()) {}
 ShapeKeySkinningManager::~ShapeKeySkinningManager() {}
 
+/* Compute a hash of the ShapeKey state to detect changes */
+static uint32_t compute_shapekey_state_hash(const Mesh *mesh)
+{
+  if (!mesh || !mesh->key) {
+    return 0;
+  }
+
+  uint32_t hash = 0;
+  const Key *key = mesh->key;
+
+  /* Hash number of vertices */
+  hash = BLI_hash_int_2d(hash, mesh->verts_num);
+
+  /* Hash number of keyblocks */
+  int kb_count = 0;
+  for (const KeyBlock *kb = static_cast<const KeyBlock *>(key->block.first); kb; kb = kb->next) {
+    kb_count++;
+  }
+  hash = BLI_hash_int_2d(hash, kb_count);
+
+  /* Hash refkey pointer (detects Basis change) */
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(key->refkey)));
+
+  /* Hash each KeyBlock state */
+  for (const KeyBlock *kb = static_cast<const KeyBlock *>(key->block.first); kb; kb = kb->next) {
+    /* Hash relative target (detects "Relative To" changes) */
+    hash = BLI_hash_int_2d(hash, uint32_t(kb->relative));
+
+    /* Hash totelem (detects geometry changes) */
+    hash = BLI_hash_int_2d(hash, uint32_t(kb->totelem));
+
+    /* Hash data pointer (detects Edit Mode changes in ShapeKey geometry) */
+    hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(kb->data)));
+  }
+
+  return hash;
+}
+
 void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
 {
   if (!orig_mesh) {
     return;
   }
+
+  /* Compute hash of current ShapeKey state */
+  const uint32_t new_hash = compute_shapekey_state_hash(orig_mesh);
+
   Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(orig_mesh);
-  if (msd.verts_num == orig_mesh->verts_num) {
-    return;
+
+  /* Check if recalculation is needed (hash changed) */
+  if (msd.shapekey_state_hash == new_hash && msd.verts_num == orig_mesh->verts_num) {
+    return;  // ← No changes detected, reuse cached deltas
   }
+
+  /* Hash changed or first time: recalculate deltas */
+  if (0) {
+    if (msd.shapekey_state_hash != 0 && msd.shapekey_state_hash != new_hash) {
+      printf("ShapeKey state changed for mesh '%s' (hash %u → %u)\n",
+             (orig_mesh->id.name + 2),
+             msd.shapekey_state_hash,
+             new_hash);
+    }
+  }
+
+  msd.shapekey_state_hash = new_hash;
 
   const int verts = orig_mesh->verts_num;
   msd.verts_num = verts;
@@ -222,9 +281,8 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
 }
 
 /* Dispatch shapekey compute + scatter. Returns true on GPU success. */
-blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cache,
-                                                                     Object *ob_eval,
-                                                                     blender::gpu::StorageBuf *ssbo_out)
+blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
+    MeshBatchCache *cache, Object *ob_eval, blender::gpu::StorageBuf *ssbo_out)
 {
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
