@@ -1186,12 +1186,16 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     }
 
     /* Compute postmat if evaluated armature present so scatter can apply transform. */
-    Object *orig_armature = BKE_modifiers_is_deformed_by_armature(eval_obj);
-    bool need_postmat = (orig_armature != nullptr);
+    Object *orig_armature = BKE_modifiers_is_deformed_by_armature(DEG_get_original(eval_obj));
+    Object *arm_ob_eval = nullptr;
+    if (orig_armature) {
+      arm_ob_eval = static_cast<Object *>(DEG_get_evaluated(depsgraph, orig_armature));
+    }
+    bool need_postmat = (arm_ob_eval != nullptr);
     if (need_postmat) {
       float postmat[4][4], obinv[4][4];
       invert_m4_m4(obinv, eval_obj->object_to_world().ptr());
-      mul_m4_m4m4(postmat, obinv, orig_armature->object_to_world().ptr());
+      mul_m4_m4m4(postmat, obinv, arm_ob_eval->object_to_world().ptr());
       GPU_storagebuf_update(ssbo_transform_mat, &postmat[0][0]);
     }
 

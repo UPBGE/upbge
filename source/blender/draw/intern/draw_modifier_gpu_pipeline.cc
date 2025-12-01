@@ -202,13 +202,17 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
   
   /* Call existing Armature manager with simplified signature */
   ArmatureSkinningManager &arm_mgr = ArmatureSkinningManager::instance();
-  /* amd->object is the armature object, ob_eval is the deformed object, mesh_orig is the mesh */
-  arm_mgr.ensure_static_resources(amd->object, ob_eval, mesh_orig);
+
+  Object *orig_arma = BKE_modifiers_is_deformed_by_armature(DEG_get_original(ob_eval));
+  Object *eval_arma = static_cast<Object *>(
+      DEG_get_evaluated(DRW_context_get()->depsgraph, orig_arma));
+  /* amd->object is the original armature (from modifier data) */
+  arm_mgr.ensure_static_resources(orig_arma, ob_eval, mesh_orig);
   
   /* dispatch_skinning now only takes SSBO input/output (no VBO) */
   return arm_mgr.dispatch_skinning(
       DRW_context_get()->depsgraph,
-      amd->object,  // orig armature
+      eval_arma,    // evaluated armature (with animations)
       ob_eval,      // deformed_eval
       cache,
       input);       // ssbo_in (input from previous stage or nullptr)

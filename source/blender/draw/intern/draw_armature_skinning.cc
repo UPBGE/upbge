@@ -455,7 +455,7 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
 }
 
 blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph * /*depsgraph*/,
-                                                                     Object *orig_armature,
+                                                                     Object *eval_armature,
                                                                      Object *deformed_eval,
                                                                      MeshBatchCache *cache,
                                                                      blender::gpu::StorageBuf *ssbo_in)
@@ -514,7 +514,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
   float premat[4][4], postmat[4][4], obinv[4][4];
   invert_m4_m4(obinv, deformed_eval->object_to_world().ptr());
   copy_m4_m4(premat, deformed_eval->object_to_world().ptr());
-  mul_m4_m4m4(postmat, obinv, orig_armature->object_to_world().ptr());
+  mul_m4_m4m4(postmat, obinv, eval_armature->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
   /* ensure/upload per-mesh SSBOs (use GPU_storagebuf_update directly) */

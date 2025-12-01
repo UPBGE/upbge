@@ -37,7 +37,7 @@ class ArmatureSkinningManager {
    * or an internal SSBO). Returns nullptr on failure. The caller should perform the final
    * scatter-to-corners when chaining multiple deformers. */
   blender::gpu::StorageBuf *dispatch_skinning(Depsgraph *depsgraph,
-                                              Object *armature,
+                                              Object *eval_armature,
                                               Object *deformed_eval,
                                               MeshBatchCache *cache,
                                               blender::gpu::StorageBuf *ssbo_in = nullptr);
