@@ -86,6 +86,7 @@
 #include "DNA_key_types.h"            // UPBGE
 #include "draw_armature_skinning.hh" // UPBGE
 #include "draw_shapekeys_skinning.hh"  // UPBGE
+#include "draw_modifier_gpu_pipeline.hh"  // UPBGE
 #include <unordered_set>
 
 #include "draw_cache.hh"
@@ -1129,7 +1130,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       continue;
     }
 
-    MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+    blender::draw::MeshBatchCache *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
     if (!cache) {
       continue;
     }
@@ -1138,10 +1139,14 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     blender::gpu::VertBuf *vbo_pos = nullptr;
     blender::gpu::VertBuf *vbo_nor = nullptr;
     if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::Position)) {
-      vbo_pos = ptr->get();
+      if (ptr) {
+        vbo_pos = ptr->get();
+      }
     }
     if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal)) {
-      vbo_nor = ptr->get();
+      if (ptr) {
+        vbo_nor = ptr->get();
+      }
     }
 
     if (vbo_pos == nullptr) {
@@ -1152,58 +1157,24 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       continue;
     }
 
-    /* Decide from recorded pointers whether to run shapekeys / armature on GPU. */
-    const bool has_shapekeys = (mesh_owner->key != nullptr);
-    const bool has_armature = (BKE_modifiers_is_deformed_by_armature(eval_obj) != nullptr);
-
-    /* Obtain original armature and its evaluated instance (for transforms). */
-    Object *orig_armature = BKE_modifiers_is_deformed_by_armature(DEG_get_original(eval_obj));
-    Object *arm_ob_eval = static_cast<Object *>(DEG_get_evaluated(depsgraph, orig_armature));
-
-    /* Prepare an intermediate SSBO to chain deformers when needed. */
-    const std::string key_chain = "deform_chain_pos";
-    blender::gpu::StorageBuf *ssbo_chain = nullptr;
-    ssbo_chain = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_chain);
-    if (!ssbo_chain) {
-      ssbo_chain = BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, key_chain, sizeof(float) * size_t(mesh_owner->verts_num) * 4u);
-      /* If ensure failed and returned nullptr, we'll fallback to per-deformer scatter. */
-    }
-
-    /* Step 1: Shape Keys (morph base geometry). */
-    blender::gpu::StorageBuf *ssbo_shapekey_out = nullptr;
-    if (has_shapekeys) {
-      ShapeKeySkinningManager::instance().ensure_static_resources(mesh_owner);
-      /* Dispatch shapekeys compute. Returns SSBO with positions (may be internal or provided).
-       * The manager no longer performs scatter; draw_context will handle final scatter. */
-      ssbo_shapekey_out = ShapeKeySkinningManager::instance().dispatch_shapekeys(cache, ssbo_chain);
-      if (ssbo_shapekey_out) {
-        ssbo_chain = ssbo_shapekey_out;
-      }
-    }
-
-    /* Step 2: Armature (deform morphed geometry). */
-    blender::gpu::StorageBuf *ssbo_armature_out = nullptr;
-    if (has_armature) {
-      Object *orig_arma = orig_armature;
-      ArmatureSkinningManager::instance().ensure_static_resources(orig_arma, eval_obj, mesh_owner);
-
-      /* Provide previous chain SSBO as input to armature compute when chaining. */
-      blender::gpu::StorageBuf *ssbo_armature_in = (ssbo_shapekey_out) ?
-                                                      ssbo_chain :
-                                                      nullptr;
-      ssbo_armature_out = ArmatureSkinningManager::instance().dispatch_skinning(
-          depsgraph, orig_arma, eval_obj, cache, vbo_pos, vbo_nor, ssbo_armature_in);
-      if (ssbo_armature_out) {
-        ssbo_chain = ssbo_armature_out;
-      }
-    }
-
-    if (!ssbo_armature_out && !ssbo_shapekey_out) {
-      /* Nothing was done. */
+    /* Build GPU modifier pipeline from object's modifier stack */
+    GPUModifierPipeline pipeline;
+    if (!build_gpu_modifier_pipeline(*eval_obj, *mesh_owner, pipeline)) {
+      /* No GPU modifiers to execute */
       continue;
     }
 
+    /* Execute the pipeline (chained ShapeKeys → Armature → ...) */
+    blender::gpu::StorageBuf *ssbo_final = pipeline.execute(mesh_owner, eval_obj, cache);
+    if (!ssbo_final) {
+      if (G.debug & G_DEBUG) {
+        printf("GPU modifier pipeline failed for mesh owner '%s'\n",
+               (eval_obj->id.name + 2));
+      }
+      continue;
+    }
+
+    /* Prepare transformation matrix for scatter */
     blender::gpu::StorageBuf *ssbo_transform_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
                                                                                   "transform_mat");
     if (!ssbo_transform_mat) {
@@ -1215,20 +1186,20 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     }
 
     /* Compute postmat if evaluated armature present so scatter can apply transform. */
-    bool need_postmat = ssbo_armature_out != nullptr;
-    float premat[4][4], postmat[4][4], obinv[4][4];
+    Object *orig_armature = BKE_modifiers_is_deformed_by_armature(eval_obj);
+    bool need_postmat = (orig_armature != nullptr);
     if (need_postmat) {
-      copy_m4_m4(premat, eval_obj->object_to_world().ptr());
+      float postmat[4][4], obinv[4][4];
       invert_m4_m4(obinv, eval_obj->object_to_world().ptr());
-      mul_m4_m4m4(postmat, obinv, arm_ob_eval->object_to_world().ptr());
-      invert_m4_m4(premat, postmat);
+      mul_m4_m4m4(postmat, obinv, orig_armature->object_to_world().ptr());
       GPU_storagebuf_update(ssbo_transform_mat, &postmat[0][0]);
     }
 
+    /* Final scatter: SSBO → VBO (corners) */
     std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings = {
       {0, vbo_pos, blender::gpu::shader::Qualifier::write, "vec4", "positions_out[]"},
       {1, vbo_nor, blender::gpu::shader::Qualifier::write, "uint", "normals_out[]"},
-      {2, ssbo_chain, blender::gpu::shader::Qualifier::read, "vec4", "positions_in[]"},
+      {2, ssbo_final, blender::gpu::shader::Qualifier::read, "vec4", "positions_in[]"},
       {3, ssbo_transform_mat, blender::gpu::shader::Qualifier::read, "mat4", "transform_mat[]"},
     };
 
@@ -1236,13 +1207,9 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
 
     BKE_mesh_gpu_scatter_to_corners(
-        depsgraph,
-        eval_obj,
-        caller_bindings,
-        config_fn,
-        post_bind_fn,
-        mesh_eval->corners_num);
-    }
+        depsgraph, eval_obj, caller_bindings, config_fn, post_bind_fn, mesh_eval->corners_num);
+  }
+
   /* Clear skinning entries for next frame but keep allocation for reuse. */
   for (auto &it : map) {
     it.second.eval_obj_for_skinning = nullptr;

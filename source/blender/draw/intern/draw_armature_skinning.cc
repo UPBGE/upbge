@@ -454,19 +454,13 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
    */
 }
 
-blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *depsgraph,
-                                                                     Object *armature,
+blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph * /*depsgraph*/,
+                                                                     Object *orig_armature,
                                                                      Object *deformed_eval,
                                                                      MeshBatchCache *cache,
-                                                                     blender::gpu::VertBuf *vbo_pos,
-                                                                     blender::gpu::VertBuf *vbo_nor,
                                                                      blender::gpu::StorageBuf *ssbo_in)
- {
-   (void)vbo_pos;
-   (void)vbo_nor;
-   (void)deformed_eval;
-
-   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
+{
+  Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
    if (!mesh_owner) {
      return nullptr;
    }
@@ -515,12 +509,12 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
   const std::string key_rest_pos = "armature_rest_pos";
   const std::string key_skinned_pos = "armature_skinned_pos";
   const std::string key_premat = "armature_premat";
-  const std::string key_postmat = "armature_postmat";
 
+  /* Compute premat and postmat for coordinate space conversion */
   float premat[4][4], postmat[4][4], obinv[4][4];
-  copy_m4_m4(premat, deformed_eval->object_to_world().ptr());
   invert_m4_m4(obinv, deformed_eval->object_to_world().ptr());
-  mul_m4_m4m4(postmat, obinv, armature->object_to_world().ptr());
+  copy_m4_m4(premat, deformed_eval->object_to_world().ptr());
+  mul_m4_m4m4(postmat, obinv, orig_armature->object_to_world().ptr());
   invert_m4_m4(premat, postmat);
 
   /* ensure/upload per-mesh SSBOs (use GPU_storagebuf_update directly) */

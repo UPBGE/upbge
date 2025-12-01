@@ -40,8 +40,6 @@ class ArmatureSkinningManager {
                                               Object *armature,
                                               Object *deformed_eval,
                                               MeshBatchCache *cache,
-                                              blender::gpu::VertBuf *vbo_pos,
-                                              blender::gpu::VertBuf *vbo_nor,
                                               blender::gpu::StorageBuf *ssbo_in = nullptr);
 
   /* Free resources associated to a specific mesh. */
