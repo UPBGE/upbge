@@ -61,8 +61,8 @@ private:
  /* Working buffer for pipeline (pre-filled with rest positions) */
  gpu::StorageBuf *buffer_a_ = nullptr;
   
- /* Shader cache invalidation */
- uint32_t modifier_stack_hash_ = 0;
+ /* Shader cache invalidation - hybrid hash system */
+ uint32_t pipeline_hash_ = 0;
  bool needs_recompile_ = false;
   
 public:
@@ -107,7 +107,18 @@ public:
  private:
   void sort_stages();
   void allocate_buffers(Mesh *mesh_owner, int vertex_count);
-  uint32_t compute_stack_hash() const;
+  /**
+   * Compute fast hash to detect pipeline structure changes.
+   * Includes:
+   * - ShapeKeys: Key pointer, deform_method, totkey, type, execution_order
+   * - Modifiers: persistent_uid, type, mode, execution_order
+   */
+  uint32_t compute_fast_hash() const;
+  /**
+   * Invalidate all GPU resources (shaders + SSBOs) for a specific stage.
+   * This triggers full recreation on next frame.
+   */
+  void invalidate_stage(ModifierGPUStageType type, Mesh *mesh_owner);
 };
 
 /**

@@ -68,14 +68,54 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, int vertex_count)
   }
 }
 
-uint32_t GPUModifierPipeline::compute_stack_hash() const
+uint32_t GPUModifierPipeline::compute_fast_hash() const
 {
   uint32_t hash = 0;
+
   for (const ModifierGPUStage &stage : stages_) {
-    hash = BLI_hash_int_2d(hash, uint32_t(stage.type));
+    /* Hash execution order (detects reordering) */
     hash = BLI_hash_int_2d(hash, uint32_t(stage.execution_order));
+
+    switch (stage.type) {
+      case ModifierGPUStageType::SHAPEKEYS: {
+        /* ShapeKeys: Hash Key pointer + deform_method + totkey + type */
+        Key *key = static_cast<Key *>(stage.modifier_data);
+        hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(key)));
+        hash = BLI_hash_int_2d(hash, uint32_t(key->deform_method));
+        hash = BLI_hash_int_2d(hash, uint32_t(key->totkey));
+        hash = BLI_hash_int_2d(hash, uint32_t(key->type));
+        break;
+      }
+      case ModifierGPUStageType::ARMATURE: {
+        /* Modifiers: Hash persistent_uid + type + mode */
+        ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+        hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        hash = BLI_hash_int_2d(hash, uint32_t(md->type));
+        hash = BLI_hash_int_2d(hash, uint32_t(md->mode));
+        break;
+      }
+      default:
+        /* Unsupported type: just hash the pointer */
+        hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(stage.modifier_data)));
+        break;
+    }
   }
   return hash;
+}
+
+void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh_owner)
+{
+  /* Notify the corresponding Manager to free ALL GPU resources (shaders + SSBOs) */
+  switch (type) {
+    case ModifierGPUStageType::SHAPEKEYS:
+      ShapeKeySkinningManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::ARMATURE:
+      ArmatureSkinningManager::instance().invalidate_all(mesh_owner);
+      break;
+    default:
+      break;
+  }
 }
 
 gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchCache *cache)
@@ -93,10 +133,16 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
   /* Allocate buffer (pre-filled with rest positions on first allocation) */
   allocate_buffers(mesh_owner, vertex_count);
   
-  /* Check if shader recompilation is needed */
-  const uint32_t new_hash = compute_stack_hash();
-  if (new_hash != modifier_stack_hash_) {
-    modifier_stack_hash_ = new_hash;
+  /* Check if pipeline structure changed (order, add/remove, enable/disable) */
+  const uint32_t new_hash = compute_fast_hash();
+  if (new_hash != pipeline_hash_) {
+    pipeline_hash_ = new_hash;
+
+    /* Pipeline changed → Invalidate ALL stages (shaders + SSBOs) */
+    for (const ModifierGPUStage &stage : stages_) {
+      invalidate_stage(stage.type, mesh_owner);
+    }
+
     needs_recompile_ = true;
   }
   
@@ -128,7 +174,7 @@ void GPUModifierPipeline::clear()
   stages_.clear();
   /* Buffer is managed by mesh_gpu_cache, just reset pointer */
   buffer_a_ = nullptr;
-  modifier_stack_hash_ = 0;
+  pipeline_hash_ = 0;
   needs_recompile_ = false;
 }
 
@@ -166,7 +212,7 @@ static gpu::StorageBuf *dispatch_shapekeys_stage(Mesh *mesh_orig,
   ShapeKeySkinningManager &sk_mgr = ShapeKeySkinningManager::instance();
   sk_mgr.ensure_static_resources(mesh_orig);
   
-  return sk_mgr.dispatch_shapekeys(cache, output);
+  return sk_mgr.dispatch_shapekeys(cache, ob_eval, output);
 }
 
 static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,

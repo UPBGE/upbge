@@ -19,6 +19,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 #include "BKE_object.hh"
+#include "BKE_scene.hh"  /* For BKE_scene_ctime_get */
 
 #include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
@@ -104,16 +105,37 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
 
   msd.rest_positions.resize(size_t(verts) * 4);
 
-  blender::Span<blender::float3> pos_span = orig_mesh->vert_positions();
-  for (int i = 0; i < verts; ++i) {
-    msd.rest_positions[size_t(i) * 4 + 0] = pos_span[i].x;
-    msd.rest_positions[size_t(i) * 4 + 1] = pos_span[i].y;
-    msd.rest_positions[size_t(i) * 4 + 2] = pos_span[i].z;
-    msd.rest_positions[size_t(i) * 4 + 3] = 1.0f;
+  /* Get base positions: if we have an active shape key, use it as the base,
+   * otherwise use the mesh's rest positions */
+  Key *key = orig_mesh->key;
+  KeyBlock *base_kb = key ? key->refkey : nullptr;  // Default to Basis
+
+  /* Note: We can't access ob->shapenr here (no Object available in ensure_static_resources),
+   * but that's OK: the active key only matters for Edit Mode (BMesh), which doesn't apply
+   * to GPU deformation. For GPU, we always use Basis as the base for deltas. */
+
+  if (base_kb && base_kb->data && base_kb->totelem == verts) {
+    /* Use Basis shape key data as rest positions */
+    const float *basis_data = static_cast<const float *>(base_kb->data);
+    for (int i = 0; i < verts; ++i) {
+      msd.rest_positions[size_t(i) * 4 + 0] = basis_data[i * 3 + 0];
+      msd.rest_positions[size_t(i) * 4 + 1] = basis_data[i * 3 + 1];
+      msd.rest_positions[size_t(i) * 4 + 2] = basis_data[i * 3 + 2];
+      msd.rest_positions[size_t(i) * 4 + 3] = 1.0f;
+    }
+  }
+  else {
+    /* Fallback: use mesh rest positions */
+    blender::Span<blender::float3> pos_span = orig_mesh->vert_positions();
+    for (int i = 0; i < verts; ++i) {
+      msd.rest_positions[size_t(i) * 4 + 0] = pos_span[i].x;
+      msd.rest_positions[size_t(i) * 4 + 1] = pos_span[i].y;
+      msd.rest_positions[size_t(i) * 4 + 2] = pos_span[i].z;
+      msd.rest_positions[size_t(i) * 4 + 3] = 1.0f;
+    }
   }
 
   /* Build deltas from Key blocks (skip basis / refkey). */
-  Key *key = orig_mesh->key;
   if (!key) {
     msd.key_count = 0;
     return;
@@ -141,7 +163,31 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
       continue;
     }
     float *kbdata = static_cast<float *>(kb->data);
-    if (!kbdata || !refdata) {
+
+    /* Find the correct reference key (Basis or another key via kb->relative) */
+    KeyBlock *ref_kb = nullptr;
+    if (kb->relative == 0) {
+      /* Relative to Basis (refkey) */
+      ref_kb = key->refkey;
+    }
+    else {
+      /* Relative to another key at index kb->relative */
+      int ref_idx = 0;
+      for (KeyBlock *kb_search = static_cast<KeyBlock *>(key->block.first); kb_search;
+           kb_search = kb_search->next, ref_idx++)
+      {
+        if (ref_idx == kb->relative) {
+          ref_kb = kb_search;
+          break;
+        }
+      }
+      /* Fallback to refkey if not found */
+      if (!ref_kb) {
+        ref_kb = key->refkey;
+      }
+    }
+    float *ref_data = ref_kb ? static_cast<float *>(ref_kb->data) : nullptr;
+    if (!kbdata || !ref_data) {
       /* zero delta */
       for (int v = 0; v < verts; ++v) {
         size_t base = (size_t(kidx) * size_t(verts) + size_t(v)) * 4u;
@@ -153,11 +199,12 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
       kidx++;
       continue;
     }
+    /* Compute delta from the correct reference key */
     for (int v = 0; v < verts; ++v) {
       size_t base = (size_t(kidx) * size_t(verts) + size_t(v)) * 4u;
-      float rx = refdata[size_t(v) * 3 + 0];
-      float ry = refdata[size_t(v) * 3 + 1];
-      float rz = refdata[size_t(v) * 3 + 2];
+      float rx = ref_data[size_t(v) * 3 + 0];
+      float ry = ref_data[size_t(v) * 3 + 1];
+      float rz = ref_data[size_t(v) * 3 + 2];
       float kx = kbdata[size_t(v) * 3 + 0];
       float ky = kbdata[size_t(v) * 3 + 1];
       float kz = kbdata[size_t(v) * 3 + 2];
@@ -176,6 +223,7 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
 
 /* Dispatch shapekey compute + scatter. Returns true on GPU success. */
 blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cache,
+                                                                     Object *ob_eval,
                                                                      blender::gpu::StorageBuf *ssbo_out)
 {
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
@@ -245,29 +293,63 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchC
   if (!key) {
     return nullptr;
   }
+
   std::vector<float> weights;
   weights.reserve(kcount);
   if (key->type & KEY_RELATIVE) {
+    /* Find active shape key (the base for relative shapes) from Object->shapenr */
+    KeyBlock *active_kb = nullptr;
+
+    /* Use ob_eval to access shapenr (active shape index) */
+    if (ob_eval && ob_eval->data == mesh_owner && ob_eval->shapenr > 0) {
+      int active_index = ob_eval->shapenr - 1;  // shapenr is 1-indexed (0 = no shape)
+      int idx = 0;
+      for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next, idx++) {
+        if (idx == active_index) {
+          active_kb = kb;
+          break;
+        }
+      }
+    }
     for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next) {
       if (kb == key->refkey)
         continue;
-      weights.push_back(kb->curval);
+
+      /* Skip active shape key (it's the base, not a deformation) */
+      if (active_kb && kb == active_kb) {
+        weights.push_back(0.0f);
+        continue;
+      }
+
+      /* Skip muted keys */
+      if (kb->flag & KEYBLOCK_MUTE) {
+        weights.push_back(0.0f);
+        continue;
+      }
+
+      /* Clamp curval with slidermin/max */
+      float w = kb->curval;
+      w = std::clamp(w, kb->slidermin, kb->slidermax);
+      weights.push_back(w);
     }
   }
   else {
-    // mode absolu — conversion unités :
-    const float t = mesh_owner->key->ctime;  // eval_time en frames
+    // mode absolu
+    const float t = key->ctime / 100.0f;
+
     // construire liste keyframes en frames
     std::vector<float> kpos;
+    std::vector<KeyBlock *> kblocks;
     for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next) {
       if (kb == key->refkey)
         continue;
       kpos.push_back(kb->pos * 100.0f);  // kb->pos -> frame
+      kblocks.push_back(kb);
     }
     // interpolation LINÉAIRE (simple implémentation)
     weights.assign(kpos.size(), 0.0f);
     if (kpos.size() == 1) {
-      weights[0] = 1.0f;
+      weights[0] = (kblocks[0]->flag & KEYBLOCK_MUTE) ? 0.0f : 1.0f;
     }
     else {
       // trouver intervalle
@@ -275,13 +357,13 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchC
       while (i + 1 < (int)kpos.size() && t >= kpos[i + 1])
         ++i;
       if (i + 1 >= (int)kpos.size()) {
-        weights.back() = 1.0f;
+        weights.back() = (kblocks.back()->flag & KEYBLOCK_MUTE) ? 0.0f : 1.0f;
       }
       else {
         float p0 = kpos[i], p1 = kpos[i + 1];
         float u = (p1 == p0) ? 0.0f : (t - p0) / (p1 - p0);
-        weights[i] = 1.0f - u;
-        weights[i + 1] = u;
+        weights[i] = (kblocks[i]->flag & KEYBLOCK_MUTE) ? 0.0f : (1.0f - u);
+        weights[i + 1] = (kblocks[i + 1]->flag & KEYBLOCK_MUTE) ? 0.0f : u;
       }
     }
   }
@@ -368,6 +450,24 @@ void ShapeKeySkinningManager::free_resources_for_mesh(Mesh *mesh)
     return;
   if (auto *it = impl_->static_map.lookup_ptr(mesh)) {
     impl_->static_map.remove(mesh);
+  }
+}
+
+void ShapeKeySkinningManager::invalidate_all(Mesh *mesh)
+{
+  if (!mesh) {
+    return;
+  }
+
+  /* 1. Free all GPU resources (SSBOs + shaders) for this mesh */
+  BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
+
+  /* 2. Mark CPU data as "GPU not initialized" to trigger recreation */
+  if (auto *msd_ptr = impl_->static_map.lookup_ptr(mesh)) {
+    Impl::MeshStaticData &msd = *msd_ptr;
+    msd.pending_gpu_setup = true;
+    msd.gpu_setup_attempts = 0;
+    /* Keep CPU data (deltas, rest_positions, etc.) for fast recreation */
   }
 }
 

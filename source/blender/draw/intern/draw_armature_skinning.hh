@@ -45,6 +45,10 @@ class ArmatureSkinningManager {
   /* Free resources associated to a specific mesh. */
   void free_resources_for_mesh(Mesh *mesh);
 
+  /* Invalidate all GPU resources (shaders + SSBOs) for a specific mesh.
+   * This marks the mesh for full GPU resource recreation on next dispatch. */
+  void invalidate_all(Mesh *mesh);
+
   /* Free all resources. */
   void free_all();
 

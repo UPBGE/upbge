@@ -845,6 +845,24 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
   }
 }
 
+void ArmatureSkinningManager::invalidate_all(Mesh *mesh)
+{
+  if (!mesh) {
+    return;
+  }
+
+  /* 1. Free all GPU resources (SSBOs + shaders) for this mesh */
+  BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
+
+  /* 2. Mark CPU data as "GPU not initialized" to trigger recreation */
+  if (auto *msd_ptr = impl_->static_map.lookup_ptr(mesh)) {
+    Impl::MeshStaticData &msd = *msd_ptr;
+    msd.pending_gpu_setup = true;
+    msd.gpu_setup_attempts = 0;
+    /* Keep CPU data (influences, rest_positions, etc.) for fast recreation */
+  }
+}
+
 void ArmatureSkinningManager::free_all()
 {
   /* Clear CPU-side maps. Per-mesh GPU resources are freed by BKE_mesh_gpu_free_all_caches()
