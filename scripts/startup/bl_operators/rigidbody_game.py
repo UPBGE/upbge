@@ -63,7 +63,7 @@ class ConnectRigidBodiesGame(Operator):
 
         ob = bpy.data.objects.new("Constraint", object_data=None)
         ob.location = loc
-        context.scene.collection.objects.link(ob)
+        context.collection.objects.link(ob)
         context.view_layer.objects.active = ob
         ob.select_set(True)
 
