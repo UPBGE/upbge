@@ -183,7 +183,7 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
   }
 
   /* Chain stages: output of stage N becomes input of stage N+1 */
-  gpu::StorageBuf *current_buffer = buffer_a_;  // Start with rest positions
+  gpu::StorageBuf *current_buffer = buffer_a_;
 
   for (int stage_idx : stages_.index_range()) {
     const ModifierGPUStage &stage = stages_[stage_idx];

@@ -308,17 +308,6 @@ uint32_t ArmatureSkinningManager::compute_armature_hash(const Mesh *mesh, const 
   /* Hash number of vertices */
   hash = BLI_hash_int_2d(hash, mesh->verts_num);
 
-  /* Hash DQS mode (detects Preserve Volume toggle) */
-  bool use_dqs = false;
-  for (ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
-    if (md->type == eModifierType_Armature) {
-      ArmatureModifierData *amd = (ArmatureModifierData *)md;
-      use_dqs = (amd->deformflag & ARM_DEF_QUATERNION) != 0;
-      break;
-    }
-  }
-  hash = BLI_hash_int_2d(hash, use_dqs ? 1 : 0);
-
   return hash;
 }
 
