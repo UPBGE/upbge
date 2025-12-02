@@ -16,7 +16,7 @@ namespace blender::draw {
 
 /**
  * Manager for GPU-accelerated Lattice deformation.
- * 
+ *
  * Handles:
  * - CPU calculation of lattice control point influences
  * - GPU upload of control points and deformation parameters

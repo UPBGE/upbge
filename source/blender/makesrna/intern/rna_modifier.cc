@@ -2789,7 +2789,7 @@ static void rna_def_modifier_lattice(BlenderRNA *brna)
 
   /* UPBGE */
   prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", ARM_DEFORM_METHOD_CPU);
+  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", LAT_DEFORM_METHOD_CPU);
   RNA_def_property_ui_text(prop,
                            "Enable GPU Deform",
                            "Deform mesh vertices using the GPU instead of the CPU");

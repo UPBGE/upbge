@@ -83,8 +83,8 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
       case ModifierGPUStageType::SHAPEKEYS: {
         /* ShapeKeys: Delegate to ShapeKeySkinningManager for complete hash
          * (detects
-         * Basis change, Relative To, Edit Mode changes, etc.) 
-         * 
+         * Basis change, Relative To, Edit Mode changes, etc.)
+         *
          * Note:
          * mesh_orig_ is always set by execute() before calling compute_fast_hash(),
          * so
@@ -116,6 +116,23 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
         if (mesh_orig_ && ob_eval_) {
           hash = BLI_hash_int_2d(
               hash, ArmatureSkinningManager::compute_armature_hash(mesh_orig_, ob_eval_));
+        }
+        else {
+          /* Defensive fallback: Should never happen in normal execution */
+          BLI_assert_unreachable();
+
+          /* Hash basic modifier properties as emergency fallback */
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
+      case ModifierGPUStageType::LATTICE: {
+        /* Lattice: Delegate to LatticeSkinningManager for complete hash
+         * (detects lattice change, dimensions, interpolation types, vertex groups, etc.) */
+        if (mesh_orig_ && ob_eval_) {
+          hash = BLI_hash_int_2d(
+              hash, LatticeSkinningManager::compute_lattice_hash(mesh_orig_, ob_eval_));
         }
         else {
           /* Defensive fallback: Should never happen in normal execution */
@@ -302,11 +319,11 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
 }
 
 static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
-                                              Object *ob_eval,
-                                              void *modifier_data,
-                                              gpu::StorageBuf *input,
-                                              gpu::StorageBuf * /*output*/,
-                                              uint32_t pipeline_hash)
+                                               Object *ob_eval,
+                                               void *modifier_data,
+                                               gpu::StorageBuf *input,
+                                               gpu::StorageBuf * /*output*/,
+                                               uint32_t pipeline_hash)
 {
   LatticeModifierData *lmd = static_cast<LatticeModifierData *>(modifier_data);
   if (!lmd || !lmd->object) {
@@ -327,11 +344,8 @@ static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
 
   lat_mgr.ensure_static_resources(orig_lattice, ob_eval, mesh_orig, pipeline_hash);
 
-  return lat_mgr.dispatch_deform(DRW_context_get()->depsgraph,
-                                 eval_lattice,
-                                 ob_eval,
-                                 cache,
-                                 input);
+  return lat_mgr.dispatch_deform(
+      DRW_context_get()->depsgraph, eval_lattice, ob_eval, cache, input);
 }
 
 /** \} */
