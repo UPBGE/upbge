@@ -8,6 +8,8 @@
 
 #include "draw_cache_extract.hh"
 
+#include "BKE_modifier.hh"
+
 struct Depsgraph;
 struct Mesh;
 struct Object;
@@ -39,8 +41,15 @@ class LatticeSkinningManager {
   /**
    * Prepare CPU-side static resources (lattice control points, grid dimensions).
    * Can be called from extraction phase (non-GL thread).
+   * 
+   * @param lmd The specific LatticeModifierData to extract settings from
+   * @param lattice_ob The lattice object
+   * @param deformed_ob The object being deformed
+   * @param orig_mesh The original mesh data
+   * @param pipeline_hash Hash for change detection
    */
-  void ensure_static_resources(Object *lattice_ob,
+  void ensure_static_resources(const LatticeModifierData *lmd,
+                               Object *lattice_ob,
                                Object *deformed_ob,
                                Mesh *orig_mesh,
                                uint32_t pipeline_hash);
@@ -49,8 +58,11 @@ class LatticeSkinningManager {
    * Execute lattice deformation compute shader.
    * Reads from ssbo_in (previous stage output), writes to internal SSBO.
    * Returns SSBO containing deformed positions.
+   * 
+   * @param lmd The specific LatticeModifierData to extract settings from
    */
-  blender::gpu::StorageBuf *dispatch_deform(Depsgraph *depsgraph,
+  blender::gpu::StorageBuf *dispatch_deform(const LatticeModifierData *lmd,
+                                            Depsgraph *depsgraph,
                                             Object *eval_lattice,
                                             Object *deformed_eval,
                                             MeshBatchCache *cache,

@@ -20,7 +20,6 @@
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
-#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 
 #include "DNA_armature_types.h"
@@ -311,13 +310,14 @@ uint32_t ArmatureSkinningManager::compute_armature_hash(const Mesh *mesh, const 
   return hash;
 }
 
-void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
+void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData *amd,
+                                                      Object *arm_ob,
                                                       Object *deformed_ob,
                                                       Mesh *orig_mesh,
                                                       uint32_t pipeline_hash)
 {
   (void)deformed_ob;
-  if (!orig_mesh) {
+  if (!orig_mesh || !amd) {
     return;
   }
 
@@ -328,7 +328,7 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
    * GPUModifierPipeline and includes ALL Armature state
    * (vertex count, armature pointer, DQS
    * mode, vertex groups, bone count).
-   * 
+   *
    * We recalculate CPU influences when:
    * 1. First
    * time (last_verified_hash == 0)
@@ -503,12 +503,17 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
 }
 
 blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
+    const ArmatureModifierData *amd,
     Depsgraph * /*depsgraph*/,
     Object *eval_armature,
     Object *deformed_eval,
     MeshBatchCache *cache,
     blender::gpu::StorageBuf *ssbo_in)
 {
+  if (!amd) {
+    return nullptr;
+  }
+
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
     return nullptr;
@@ -519,17 +524,8 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
-  /* Check if dual quaternion skinning is enabled (check every frame for UI changes) */
-  bool use_dual_quaternions = false;
-  if (msd.deformed && msd.deformed->modifiers.first) {
-    LISTBASE_FOREACH (ModifierData *, md, &msd.deformed->modifiers) {
-      if (md->type == eModifierType_Armature) {
-        ArmatureModifierData *amd = (ArmatureModifierData *)md;
-        use_dual_quaternions = (amd->deformflag & ARM_DEF_QUATERNION) != 0;
-        break;
-      }
-    }
-  }
+  /* Check if dual quaternion skinning is enabled (now using amd directly!) */
+  const bool use_dual_quaternions = (amd->deformflag & ARM_DEF_QUATERNION) != 0;
 
   const int MAX_ATTEMPTS = 3;
   if (msd.pending_gpu_setup) {

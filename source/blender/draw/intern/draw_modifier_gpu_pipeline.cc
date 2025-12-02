@@ -301,21 +301,20 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  /* Call existing Armature manager with simplified signature, passing pipeline hash */
   ArmatureSkinningManager &arm_mgr = ArmatureSkinningManager::instance();
 
-  Object *orig_arma = BKE_modifiers_is_deformed_by_armature(DEG_get_original(ob_eval));
+  /* IMPORTANT: amd comes from ORIGINAL object (build_gpu_modifier_pipeline uses orig_ob),
+   * so
+   * amd->object is the ORIGINAL armature. We just need to get the evaluated version. */
+  Object *orig_arma = amd->object;
   Object *eval_arma = static_cast<Object *>(
       DEG_get_evaluated(DRW_context_get()->depsgraph, orig_arma));
-  /* amd->object is the original armature (from modifier data) */
-  arm_mgr.ensure_static_resources(orig_arma, ob_eval, mesh_orig, pipeline_hash);
 
-  /* dispatch_skinning now only takes SSBO input/output (no VBO) */
-  return arm_mgr.dispatch_skinning(DRW_context_get()->depsgraph,
-                                   eval_arma,  // evaluated armature (with animations)
-                                   ob_eval,    // deformed_eval
-                                   cache,
-                                   input);  // ssbo_in (input from previous stage or nullptr)
+  /* Pass amd (original) for settings extraction */
+  arm_mgr.ensure_static_resources(amd, orig_arma, ob_eval, mesh_orig, pipeline_hash);
+
+  return arm_mgr.dispatch_skinning(
+      amd, DRW_context_get()->depsgraph, eval_arma, ob_eval, cache, input);
 }
 
 static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
@@ -338,14 +337,18 @@ static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
 
   LatticeSkinningManager &lat_mgr = LatticeSkinningManager::instance();
 
-  Object *orig_lattice = lmd->object;  // Original lattice from modifier data
+  /* IMPORTANT: lmd comes from ORIGINAL object (build_gpu_modifier_pipeline uses orig_ob),
+   * so
+   * lmd->object is the ORIGINAL lattice. We just need to get the evaluated version. */
+  Object *orig_lattice = lmd->object;
   Object *eval_lattice = static_cast<Object *>(
       DEG_get_evaluated(DRW_context_get()->depsgraph, orig_lattice));
 
-  lat_mgr.ensure_static_resources(orig_lattice, ob_eval, mesh_orig, pipeline_hash);
+  /* Pass lmd (original) for settings extraction */
+  lat_mgr.ensure_static_resources(lmd, orig_lattice, ob_eval, mesh_orig, pipeline_hash);
 
   return lat_mgr.dispatch_deform(
-      DRW_context_get()->depsgraph, eval_lattice, ob_eval, cache, input);
+      lmd, DRW_context_get()->depsgraph, eval_lattice, ob_eval, cache, input);
 }
 
 /** \} */
@@ -353,7 +356,8 @@ static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
 bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
 {
   /* Don't clear the pipeline here! Let execute() handle hash-based invalidation.
-   * This preserves pipeline_hash_ across frames for stable change detection. */
+   * This
+   * preserves pipeline_hash_ across frames for stable change detection. */
   /* Clear stages list to rebuild from scratch (but keep pipeline_hash_ intact) */
   pipeline.clear_stages();
 
@@ -368,10 +372,14 @@ bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPi
   }
 
   /* 2. Modifiers in stack order
-   * NOTE: Pre-filtering is already done in draw_cache_impl_mesh.cc when registering
-   * meshes to process (via compute_gpu_playback_decision). We only need to check
-   * if the modifier is enabled and dispatch the appropriate stage. */
-  for (ModifierData *md = static_cast<ModifierData *>(ob_eval.modifiers.first); md; md = md->next)
+   * IMPORTANT: Use ORIGINAL object modifiers, not evaluated
+   * ones!
+   * This ensures modifier data pointers match what BKE_modifiers_is_deformed_by_*
+   * expects.
+   * The evaluated object is passed separately to dispatch functions for runtime
+   * data. */
+  Object *orig_ob = DEG_get_original(&ob_eval);
+  for (ModifierData *md = static_cast<ModifierData *>(orig_ob->modifiers.first); md; md = md->next)
   {
     /* Basic validity checks */
     if (!md || !(md->mode & eModifierMode_Realtime)) {

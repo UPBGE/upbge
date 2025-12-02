@@ -10,13 +10,15 @@
 #include "BLI_vector.hh"
 
 #include "BKE_curve.hh"
+#include "BKE_deform.hh"  // For BKE_defvert_find_weight, BKE_id_defgroup_name_index
 #include "BKE_lattice.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
-#include "BKE_modifier.hh"
+#include "BKE_modifier.hh"  // For BKE_modifiers_is_deformed_by_lattice
 #include "BKE_object.hh"
 
 #include "DNA_lattice_types.h"
+#include "DNA_mesh_types.h"  // For MDeformVert
 #include "DNA_modifier_types.h"
 
 #include "GPU_compute.hh"
@@ -33,6 +35,7 @@ using namespace blender::draw;
 struct blender::draw::LatticeSkinningManager::Impl {
   struct MeshStaticData {
     std::vector<float> control_points; /* float3 per control point */
+    std::vector<float> vgroup_weights; /* per-vertex weight (0.0-1.0) */
     int verts_num = 0;
     int lattice_u = 0, lattice_v = 0, lattice_w = 0;
 
@@ -75,6 +78,21 @@ void main() {
 
   vec4 co = input_positions[v];
   vec3 co_orig = co.xyz;
+
+  /* Get per-vertex weight from vertex group (defaults to 1.0 if no vgroup) */
+  float vgroup_weight = 1.0;
+  if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
+    vgroup_weight = vgroup_weights[v];
+  }
+
+  /* Global modifier strength */
+  float modifier_weight = strength * vgroup_weight;
+
+  /* Early exit if weight is negligible */
+  if (modifier_weight < 1e-6) {
+    deformed_positions[v] = co;
+    return;
+  }
 
   /* Transform to lattice space (same as CPU: mul_v3_m4v3(vec, latmat, co)) */
   vec3 vec = (latmat[0] * co).xyz;
@@ -129,7 +147,6 @@ void main() {
 
   /* 4x4x4 interpolation (64 control points) */
   vec3 deformed = vec3(0.0);
-  float modifier_weight = 1.0; /* TODO: Support vertex groups */
 
   for (int ww = wi - 1; ww <= wi + 2; ww++) {
     float ww_weight = modifier_weight * tw[ww - wi + 1];
@@ -205,8 +222,7 @@ uint32_t LatticeSkinningManager::compute_lattice_hash(const Mesh *mesh, const Ob
         hash = BLI_hash_string(lmd->name);
       }
 
-      /* Hash strength parameter */
-      hash = BLI_hash_int_2d(hash, *(int *)&lmd->strength);
+      /* NOTE: strength is NOT hashed (it's a runtime uniform, changes every frame) */
 
       break; /* Only first lattice modifier */
     }
@@ -215,12 +231,13 @@ uint32_t LatticeSkinningManager::compute_lattice_hash(const Mesh *mesh, const Ob
   return hash;
 }
 
-void LatticeSkinningManager::ensure_static_resources(Object *lattice_ob,
+void LatticeSkinningManager::ensure_static_resources(const LatticeModifierData *lmd,
+                                                     Object *lattice_ob,
                                                      Object *deformed_ob,
                                                      Mesh *orig_mesh,
                                                      uint32_t pipeline_hash)
 {
-  if (!orig_mesh || !lattice_ob) {
+  if (!orig_mesh || !lattice_ob || !lmd) {
     return;
   }
 
@@ -286,15 +303,38 @@ void LatticeSkinningManager::ensure_static_resources(Object *lattice_ob,
     msd.pending_gpu_setup = true;
     msd.gpu_setup_attempts = 0;
   }
+
+  /* Extract vertex group weights from mesh (now using lmd directly!) */
+  msd.vgroup_weights.clear();
+  if (lmd->name[0] != '\0') {
+    /* Find vertex group index in mesh */
+    const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, lmd->name);
+    if (defgrp_index != -1) {
+      /* Extract per-vertex weights */
+      blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
+      if (!dverts.is_empty()) {
+        msd.vgroup_weights.resize(orig_mesh->verts_num, 0.0f);
+        for (int v = 0; v < orig_mesh->verts_num; ++v) {
+          const MDeformVert &dvert = dverts[v];
+          msd.vgroup_weights[v] = BKE_defvert_find_weight(&dvert, defgrp_index);
+        }
+      }
+    }
+  }
 }
 
 blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
+    const LatticeModifierData *lmd,
     Depsgraph * /*depsgraph*/,
     Object *eval_lattice,
     Object *deformed_eval,
     MeshBatchCache *cache,
     blender::gpu::StorageBuf *ssbo_in)
 {
+  if (!lmd) {
+    return nullptr;
+  }
+
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner || !eval_lattice) {
     return nullptr;
@@ -440,12 +480,14 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
   info.storage_buf(2, Qualifier::read, "float", "control_points[]");
   info.storage_buf(3, Qualifier::read, "mat4", "latmat[]");
+  info.storage_buf(4, Qualifier::read, "float", "vgroup_weights[]");  // Optional vertex group
 
   /* Push constants (uniforms) - correct enum types */
   info.push_constant(Type::float3_t, "lattice_dims");     // vec3 (float3_t)
   info.push_constant(Type::float3_t, "lattice_origin");   // vec3 (float3_t)
   info.push_constant(Type::float3_t, "lattice_spacing");  // vec3 (float3_t)
   info.push_constant(Type::int3_t, "lattice_types");      // ivec3 (int3_t)
+  info.push_constant(Type::float_t, "strength");          // float (modifier strength)
 
   /* Specialization constants */
   Lattice *lt = BKE_object_get_lattice(eval_lattice);
@@ -469,6 +511,35 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   GPU_storagebuf_bind(ssbo_cp, 2);
   GPU_storagebuf_bind(ssbo_mat, 3);
 
+  /* Bind vertex group weights SSBO at binding=4 */
+  const std::string key_vgroup = "lattice_vgroup_weights";
+  blender::gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
+
+  /* Only create/upload if vertex group weights exist */
+  if (!msd.vgroup_weights.empty()) {
+    if (!ssbo_vgroup) {
+      const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, size_vgroup);
+      if (ssbo_vgroup) {
+        GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
+      }
+    }
+  }
+  else {
+    /* No vertex group: create empty dummy buffer so shader doesn't crash */
+    if (!ssbo_vgroup) {
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
+      if (ssbo_vgroup) {
+        float dummy = 0.0f;
+        GPU_storagebuf_update(ssbo_vgroup, &dummy);
+      }
+    }
+  }
+
+  if (ssbo_vgroup) {
+    GPU_storagebuf_bind(ssbo_vgroup, 4);
+  }
+
   /* Set push constants (correct types!) */
   GPU_shader_uniform_3f(
       shader, "lattice_dims", float(lt->pntsu), float(lt->pntsv), float(lt->pntsw));
@@ -478,6 +549,10 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   /* Set lattice_types as ivec3 using GPU_shader_uniform_3iv */
   const int types[3] = {int(lt->typeu), int(lt->typev), int(lt->typew)};
   GPU_shader_uniform_3iv(shader, "lattice_types", types);
+
+  /* Extract strength from LatticeModifierData (runtime uniform, not hashed) */
+  const float strength = lmd->strength;
+  GPU_shader_uniform_1f(shader, "strength", strength);
 
   const int group_size = 256;
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;

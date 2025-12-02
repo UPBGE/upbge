@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "BKE_modifier.hh"
+
 /* Forward declarations to keep header lightweight. */
 struct Object;
 struct Mesh;
@@ -39,19 +41,26 @@ class ArmatureSkinningManager {
    * Prepare CPU-only static resources (indices/weights/rest positions).
    * Can be called from extraction phase (non-GL thread).
    *
-   * NEW: Takes pipeline_hash parameter to avoid redundant hash recalculation.
-   * The hash is computed once by GPUModifierPipeline and passed to all managers.
+   * @param amd The specific ArmatureModifierData to extract settings from
+   * @param arm_ob The armature object (original)
+   * @param deformed_ob The object being deformed
+   * @param orig_mesh The original mesh data
+   * @param pipeline_hash Hash for change detection (computed by GPUModifierPipeline)
    */
-  void ensure_static_resources(Object *arm_ob,
+  void ensure_static_resources(const ArmatureModifierData *amd,
+                               Object *arm_ob,
                                Object *deformed_ob,
                                Mesh *orig_mesh,
                                uint32_t pipeline_hash);
 
-  /* Execute the skinning compute. Must be called from GL context.
-   * Returns an SSBO containing the skinned positions on success (either the provided `ssbo_in`
-   * or an internal SSBO). Returns nullptr on failure. The caller should perform the final
-   * scatter-to-corners when chaining multiple deformers. */
-  blender::gpu::StorageBuf *dispatch_skinning(Depsgraph *depsgraph,
+  /**
+   * Execute the skinning compute. Must be called from GL context.
+   * Returns an SSBO containing the skinned positions on success.
+   * 
+   * @param amd The specific ArmatureModifierData to extract settings from
+   */
+  blender::gpu::StorageBuf *dispatch_skinning(const ArmatureModifierData *amd,
+                                              Depsgraph *depsgraph,
                                               Object *eval_armature,
                                               Object *deformed_eval,
                                               MeshBatchCache *cache,
