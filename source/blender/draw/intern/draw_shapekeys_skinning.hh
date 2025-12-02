@@ -25,8 +25,11 @@ class ShapeKeySkinningManager {
   ~ShapeKeySkinningManager();
 
   /* Prepare CPU-only static resources (deltas, rest positions). Safe to call from extraction
-   * thread. */
-  void ensure_static_resources(Mesh *orig_mesh);
+   * thread. 
+   * 
+   * NEW: Takes pipeline_hash parameter to avoid redundant hash recalculation.
+   * The hash is computed once by GPUModifierPipeline and passed to all managers. */
+  void ensure_static_resources(Mesh *orig_mesh, uint32_t pipeline_hash);
 
   /* Execute shape-key blending compute. Must be called from GL context (draw pass).
    * Returns an SSBO containing the skinned positions on success (either the provided `ssbo_out`

@@ -50,8 +50,8 @@ struct blender::draw::ShapeKeySkinningManager::Impl {
     /* Cache last uploaded weights to avoid redundant GPU updates. */
     std::vector<float> prev_weights;
     bool prev_weights_valid = false;
-    /* Hash of ShapeKey state to detect changes (topology, Basis, relative, etc.) */
-    uint32_t shapekey_state_hash = 0;
+    /* Cache last computed hash to detect ShapeKey changes */
+    uint32_t last_verified_hash = 0;
   };
 
   Map<Mesh *, MeshStaticData> static_map;
@@ -128,33 +128,45 @@ uint32_t ShapeKeySkinningManager::compute_shapekey_hash(const Mesh *mesh)
   return hash;
 }
 
-void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
+void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t pipeline_hash)
 {
   if (!orig_mesh) {
     return;
   }
 
-  /* Compute hash of current ShapeKey state */
-  const uint32_t new_hash = compute_shapekey_hash(orig_mesh);
-
   Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(orig_mesh);
 
-  /* Check if recalculation is needed (hash changed) */
-  if (msd.shapekey_state_hash == new_hash && msd.verts_num == orig_mesh->verts_num) {
-    return;  // ← No changes detected, reuse cached deltas
+  /* Check if recalculation is needed by comparing pipeline hash.
+   * The hash is computed by
+   * GPUModifierPipeline and includes ALL ShapeKey state
+   * (vertex count, Basis, Relative To,
+   * Edit Mode changes, etc.)
+   * 
+   * We recalculate CPU deltas when:
+   * 1. First time
+   * (last_verified_hash == 0)
+   * 2. Hash changed (pipeline_hash != last_verified_hash)
+   * 3.
+   * GPU resources were invalidated (pending_gpu_setup == true) */
+  const bool first_time = (msd.last_verified_hash == 0);
+  const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
+  const bool gpu_invalidated = msd.pending_gpu_setup;
+
+  if (!first_time && !hash_changed && !gpu_invalidated) {
+    return;  // No changes detected, reuse cached deltas
   }
 
-  /* Hash changed or first time: recalculate deltas */
+  /* Recalculate deltas (triggered by hash change or GPU invalidation) */
   if (0) {
-    if (msd.shapekey_state_hash != 0 && msd.shapekey_state_hash != new_hash) {
-      printf("ShapeKey state changed for mesh '%s' (hash %u → %u)\n",
-             (orig_mesh->id.name + 2),
-             msd.shapekey_state_hash,
-             new_hash);
-    }
+    printf("Recalculating ShapeKey deltas for mesh '%s' (first=%d, hash_changed=%d, gpu_inv=%d)\n",
+           (orig_mesh->id.name + 2),
+           first_time,
+           hash_changed,
+           gpu_invalidated);
   }
 
-  msd.shapekey_state_hash = new_hash;
+  /* Update hash cache */
+  msd.last_verified_hash = pipeline_hash;
 
   const int verts = orig_mesh->verts_num;
   msd.verts_num = verts;
@@ -275,9 +287,12 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh)
     kidx++;
   }
 
-  /* Mark pending GPU setup so the GL pass will create SSBOs. */
-  msd.pending_gpu_setup = true;
-  msd.gpu_setup_attempts = 0;
+  /* Mark as pending GPU setup if this is a new calculation (not just a GPU invalidation retry).
+   * If gpu_invalidated was true, pending_gpu_setup is already true, so no need to reset it. */
+  if (first_time || hash_changed) {
+    msd.pending_gpu_setup = true;
+    msd.gpu_setup_attempts = 0;
+  }
 }
 
 /* Dispatch shapekey compute + scatter. Returns true on GPU success. */
@@ -301,6 +316,22 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     return nullptr;
   }
 
+  /* Handle pending GPU setup (similar to Armature) */
+  const int MAX_ATTEMPTS = 3;
+  if (msd.pending_gpu_setup) {
+    if (msd.gpu_setup_attempts == 0) {
+      msd.gpu_setup_attempts = 1;
+      return nullptr;
+    }
+    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
+      msd.pending_gpu_setup = false;
+      msd.gpu_setup_attempts = 0;
+      return nullptr;
+    }
+    /* Increment and continue to attempt GPU setup */
+    msd.gpu_setup_attempts++;
+  }
+
   const std::string key_rest = "shapekey_rest_pos";
   const std::string key_deltas = "shapekey_deltas";
   const std::string key_weights = "shapekey_weights";
@@ -310,6 +341,12 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
   MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
   if (!ires) {
     return nullptr;
+  }
+
+  /* GPU setup successful! Clear pending flag. */
+  if (msd.pending_gpu_setup) {
+    msd.pending_gpu_setup = false;
+    msd.gpu_setup_attempts = 0;
   }
 
   /* Ensure SSBOs and upload if missing. */

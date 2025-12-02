@@ -25,10 +25,11 @@
 
 namespace blender::draw {
 
-GPUModifierPipeline::~GPUModifierPipeline()
-{
-  /* Buffers are now managed by mesh_gpu_cache, no manual cleanup needed */
-}
+int GPUModifierPipeline::instance_counter = 0;
+
+GPUModifierPipeline::GPUModifierPipeline() : instance_id(++instance_counter) {}
+
+GPUModifierPipeline::~GPUModifierPipeline() {}
 
 void GPUModifierPipeline::add_stage(ModifierGPUStageType type,
                                     void *modifier_data,
@@ -81,42 +82,48 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
       case ModifierGPUStageType::SHAPEKEYS: {
         /* ShapeKeys: Delegate to ShapeKeySkinningManager for complete hash
          * (detects
-         * Basis change, Relative To, Edit Mode changes, etc.) */
+         * Basis change, Relative To, Edit Mode changes, etc.) 
+         * 
+         * Note:
+         * mesh_orig_ is always set by execute() before calling compute_fast_hash(),
+         * so
+         * the else branch should never be reached. We assert this invariant. */
+        if (mesh_orig_) {
+          hash = BLI_hash_int_2d(hash, ShapeKeySkinningManager::compute_shapekey_hash(mesh_orig_));
+        }
+        else {
+          /* Defensive fallback: Should never happen in normal execution.
+           * If
+           * mesh_orig_ is not set, it means compute_fast_hash() was called
+           * outside of
+           * execute(), which is a programming error. */
+          BLI_assert_unreachable();
 
-        /* Note: We need the Mesh* to compute the hash, but stage.modifier_data is Key*.
-         *
-         * The Key* is always attached to a Mesh, but we don't have direct access here.
-         *
-         * As a workaround, we still hash the Key* pointer + basic properties,
-         * and rely
-         * on ShapeKeySkinningManager::ensure_static_resources() to detect
-         * detailed
-         * changes and invalidate GPU resources when needed. */
-
-        Key *key = static_cast<Key *>(stage.modifier_data);
-        hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(key)));
-        hash = BLI_hash_int_2d(hash, uint32_t(key->deform_method));
-        hash = BLI_hash_int_2d(hash, uint32_t(key->totkey));
-        hash = BLI_hash_int_2d(hash, uint32_t(key->type));
-
-        /* TODO: To fully detect ShapeKey changes in the pipeline hash,
-         * we would need
-         * access to the Mesh* here to call:
-         * hash = BLI_hash_int_2d(hash,
-         * ShapeKeySkinningManager::compute_shapekey_hash(mesh));
-         *
-         * For now,
-         * ShapeKeySkinningManager handles invalidation internally
-         * when
-         * ensure_static_resources() detects changes. */
+          /* Hash basic Key properties as emergency fallback */
+          Key *key = static_cast<Key *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(key)));
+        }
         break;
       }
       case ModifierGPUStageType::ARMATURE: {
-        /* Modifiers: Hash persistent_uid + type + mode */
-        ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
-        hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
-        hash = BLI_hash_int_2d(hash, uint32_t(md->type));
-        hash = BLI_hash_int_2d(hash, uint32_t(md->mode));
+        /* Armature: Delegate to ArmatureSkinningManager for complete hash
+         * (detects armature change, DQS mode, vertex groups, bone count, etc.)
+         *
+         * Note: mesh_orig_ and ob_eval_ are always set by execute() before calling
+         * compute_fast_hash(), so the else branch should never be reached. We assert this
+         * invariant. */
+        if (mesh_orig_ && ob_eval_) {
+          hash = BLI_hash_int_2d(
+              hash, ArmatureSkinningManager::compute_armature_hash(mesh_orig_, ob_eval_));
+        }
+        else {
+          /* Defensive fallback: Should never happen in normal execution */
+          BLI_assert_unreachable();
+
+          /* Hash basic modifier properties as emergency fallback */
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
         break;
       }
       default:
@@ -155,6 +162,10 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
   Mesh *mesh_owner = cache->mesh_owner ? cache->mesh_owner : mesh;
   const int vertex_count = mesh_owner->verts_num;
 
+  /* Store references for hash computation */
+  mesh_orig_ = mesh_owner;
+  ob_eval_ = ob;
+
   /* Allocate buffer (pre-filled with rest positions on first allocation) */
   allocate_buffers(mesh_owner, vertex_count);
 
@@ -177,9 +188,10 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
   for (int stage_idx : stages_.index_range()) {
     const ModifierGPUStage &stage = stages_[stage_idx];
 
-    /* Dispatch stage: manager reads from current_buffer and returns its output buffer */
+    /* Dispatch stage: manager reads from current_buffer and returns its output buffer.
+     * Pass pipeline_hash_ to allow manager to detect changes without recomputing hash. */
     gpu::StorageBuf *result = stage.dispatch_fn(
-        mesh, ob, stage.modifier_data, current_buffer, nullptr);
+        mesh, ob, stage.modifier_data, current_buffer, nullptr, pipeline_hash_);
 
     if (!result) {
       /* Stage failed, abort pipeline */
@@ -230,10 +242,12 @@ static gpu::StorageBuf *dispatch_shapekeys_stage(Mesh *mesh_orig,
                                                  Object *ob_eval,
                                                  void * /*modifier_data*/,
                                                  gpu::StorageBuf * /*input*/,
-                                                 gpu::StorageBuf *output)
+                                                 gpu::StorageBuf *output,
+                                                 uint32_t pipeline_hash)
 {
   /* ShapeKeys are always first, so they don't need input buffer.
-   * They compute: output = rest + sum(delta_k * weight_k) */
+   * They compute: output = rest
+   * + sum(delta_k * weight_k) */
 
   Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
@@ -241,9 +255,9 @@ static gpu::StorageBuf *dispatch_shapekeys_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  /* Call existing ShapeKey manager */
+  /* Call existing ShapeKey manager, passing the pipeline hash */
   ShapeKeySkinningManager &sk_mgr = ShapeKeySkinningManager::instance();
-  sk_mgr.ensure_static_resources(mesh_orig);
+  sk_mgr.ensure_static_resources(mesh_orig, pipeline_hash);
 
   return sk_mgr.dispatch_shapekeys(cache, ob_eval, output);
 }
@@ -252,7 +266,8 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
                                                 Object *ob_eval,
                                                 void *modifier_data,
                                                 gpu::StorageBuf *input,
-                                                gpu::StorageBuf * /*output*/)
+                                                gpu::StorageBuf * /*output*/,
+                                                uint32_t pipeline_hash)
 {
   ArmatureModifierData *amd = static_cast<ArmatureModifierData *>(modifier_data);
   if (!amd || !amd->object) {
@@ -265,14 +280,14 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  /* Call existing Armature manager with simplified signature */
+  /* Call existing Armature manager with simplified signature, passing pipeline hash */
   ArmatureSkinningManager &arm_mgr = ArmatureSkinningManager::instance();
 
   Object *orig_arma = BKE_modifiers_is_deformed_by_armature(DEG_get_original(ob_eval));
   Object *eval_arma = static_cast<Object *>(
       DEG_get_evaluated(DRW_context_get()->depsgraph, orig_arma));
   /* amd->object is the original armature (from modifier data) */
-  arm_mgr.ensure_static_resources(orig_arma, ob_eval, mesh_orig);
+  arm_mgr.ensure_static_resources(orig_arma, ob_eval, mesh_orig, pipeline_hash);
 
   /* dispatch_skinning now only takes SSBO input/output (no VBO) */
   return arm_mgr.dispatch_skinning(DRW_context_get()->depsgraph,

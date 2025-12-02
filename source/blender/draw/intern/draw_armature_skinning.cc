@@ -7,6 +7,7 @@
 #include <cstring>
 #include <map>
 
+#include "BLI_hash.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
@@ -19,6 +20,7 @@
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 
 #include "DNA_armature_types.h"
@@ -45,9 +47,9 @@ using namespace blender::draw;
 
 /* Dual Quaternion structure matching Blender's CPU format */
 struct GPUDualQuat {
-  float quat[4];    /* Rotation quaternion [w,x,y,z] */
-  float trans[4];   /* Translation dual part [w,x,y,z] */
-  float scale[4][4]; /* Scale matrix */
+  float quat[4];      /* Rotation quaternion [w,x,y,z] */
+  float trans[4];     /* Translation dual part [w,x,y,z] */
+  float scale[4][4];  /* Scale matrix */
   float scale_weight; /* Weight for scale blending */
   float _pad[3];
 };
@@ -70,7 +72,8 @@ struct blender::draw::ArmatureSkinningManager::Impl {
 
     bool pending_gpu_setup = false;
     int gpu_setup_attempts = 0;
-    /* Note: use_dual_quaternions is checked dynamically each frame, not cached here */
+    /* Cache last computed hash to detect Armature changes */
+    uint32_t last_verified_hash = 0;
   };
 
   Map<Mesh *, MeshStaticData> static_map;
@@ -293,9 +296,36 @@ ArmatureSkinningManager &ArmatureSkinningManager::instance()
 ArmatureSkinningManager::ArmatureSkinningManager() : impl_(new Impl()) {}
 ArmatureSkinningManager::~ArmatureSkinningManager() {}
 
+/* Compute a hash of the Armature deformation state to detect changes */
+uint32_t ArmatureSkinningManager::compute_armature_hash(const Mesh *mesh, const Object *ob)
+{
+  if (!mesh || !ob) {
+    return 0;
+  }
+
+  uint32_t hash = 0;
+
+  /* Hash number of vertices */
+  hash = BLI_hash_int_2d(hash, mesh->verts_num);
+
+  /* Hash DQS mode (detects Preserve Volume toggle) */
+  bool use_dqs = false;
+  for (ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
+    if (md->type == eModifierType_Armature) {
+      ArmatureModifierData *amd = (ArmatureModifierData *)md;
+      use_dqs = (amd->deformflag & ARM_DEF_QUATERNION) != 0;
+      break;
+    }
+  }
+  hash = BLI_hash_int_2d(hash, use_dqs ? 1 : 0);
+
+  return hash;
+}
+
 void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
                                                       Object *deformed_ob,
-                                                      Mesh *orig_mesh)
+                                                      Mesh *orig_mesh,
+                                                      uint32_t pipeline_hash)
 {
   (void)deformed_ob;
   if (!orig_mesh) {
@@ -304,10 +334,39 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
 
   Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(orig_mesh);
 
-  if (msd.verts_num == orig_mesh->verts_num) {
-    /* Already prepared */
-    return;
+  /* Check if recalculation is needed by comparing pipeline hash.
+   * The hash is computed by
+   * GPUModifierPipeline and includes ALL Armature state
+   * (vertex count, armature pointer, DQS
+   * mode, vertex groups, bone count).
+   * 
+   * We recalculate CPU influences when:
+   * 1. First
+   * time (last_verified_hash == 0)
+   * 2. Hash changed (pipeline_hash != last_verified_hash)
+
+   * * 3. GPU resources were invalidated (pending_gpu_setup == true) */
+  const bool first_time = (msd.last_verified_hash == 0);
+  const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
+  const bool gpu_invalidated = msd.pending_gpu_setup;
+
+  if (!first_time && !hash_changed && !gpu_invalidated) {
+    return;  // No changes detected, reuse cached influences
   }
+
+  /* Recalculate influences (triggered by hash change or GPU invalidation) */
+  if (0) {
+    printf(
+        "Recalculating Armature influences for mesh '%s' (first=%d, hash_changed=%d, "
+        "gpu_inv=%d)\n",
+        (orig_mesh->id.name + 2),
+        first_time,
+        hash_changed,
+        gpu_invalidated);
+  }
+
+  /* Update hash cache */
+  msd.last_verified_hash = pipeline_hash;
 
   const int verts_num = orig_mesh->verts_num;
   msd.verts_num = verts_num;
@@ -317,7 +376,7 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
   msd.rest_positions.clear();
 
   msd.in_influence_offsets.resize(verts_num + 1, 0); /* +1 for end offset */
-  msd.rest_positions.resize(verts_num * 4, 0.0f); /* float4 */
+  msd.rest_positions.resize(verts_num * 4, 0.0f);    /* float4 */
 
   /* Build group name -> bone index map from armature pose. */
   Map<std::string, int> bone_name_to_index;
@@ -443,32 +502,33 @@ void ArmatureSkinningManager::ensure_static_resources(Object *arm_ob,
   msd.arm = arm_ob;
   msd.deformed = deformed_ob;
 
-  /* Mark as pending GPU setup: the draw cache must be populated while `is_using_gpu_deform==1` to
-   * produce float4 vertex positions. We cannot call `draw_cache_populate` here (no DrwContext),
-   * so we set a pending flag and the first GL pass will set `is_using_gpu_deform` and return,
-   * allowing the draw manager to populate the cache on the next frame. */
-  msd.pending_gpu_setup = true;
-  msd.gpu_setup_attempts = 0;
+  /* Mark as pending GPU setup if this is a new calculation (not just a GPU invalidation retry).
+   * If gpu_invalidated was true, pending_gpu_setup is already true, so no need to reset it. */
+  if (first_time || hash_changed) {
+    msd.pending_gpu_setup = true;
+    msd.gpu_setup_attempts = 0;
+  }
 
   /* GPU SSBO creation/upload will be deferred until in GL context (update_per_frame or dispatch).
    */
 }
 
-blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph * /*depsgraph*/,
-                                                                     Object *eval_armature,
-                                                                     Object *deformed_eval,
-                                                                     MeshBatchCache *cache,
-                                                                     blender::gpu::StorageBuf *ssbo_in)
+blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
+    Depsgraph * /*depsgraph*/,
+    Object *eval_armature,
+    Object *deformed_eval,
+    MeshBatchCache *cache,
+    blender::gpu::StorageBuf *ssbo_in)
 {
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
-   if (!mesh_owner) {
-     return nullptr;
-   }
-   Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
-   if (!msd_ptr) {
-     return nullptr;
-   }
-   Impl::MeshStaticData &msd = *msd_ptr;
+  if (!mesh_owner) {
+    return nullptr;
+  }
+  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
+  if (!msd_ptr) {
+    return nullptr;
+  }
+  Impl::MeshStaticData &msd = *msd_ptr;
 
   /* Check if dual quaternion skinning is enabled (check every frame for UI changes) */
   bool use_dual_quaternions = false;
@@ -485,21 +545,28 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
   const int MAX_ATTEMPTS = 3;
   if (msd.pending_gpu_setup) {
     if (msd.gpu_setup_attempts == 0) {
-      mesh_owner->is_running_gpu_animation_playback = 1;
       msd.gpu_setup_attempts = 1;
       return nullptr;
     }
     if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      mesh_owner->is_running_gpu_animation_playback = 0;
       msd.pending_gpu_setup = false;
       msd.gpu_setup_attempts = 0;
       return nullptr;
     }
+    /* If we reach here, gpu_setup_attempts is between 1 and MAX_ATTEMPTS-1.
+     * Increment and continue to attempt GPU setup. */
+    msd.gpu_setup_attempts++;
   }
 
   MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
   if (!ires) {
     return nullptr;
+  }
+
+  /* GPU setup successful! Clear pending flag. */
+  if (msd.pending_gpu_setup) {
+    msd.pending_gpu_setup = false;
+    msd.gpu_setup_attempts = 0;
   }
 
   const std::string key_in_idx = "armature_in_idx";
@@ -518,7 +585,8 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
   invert_m4_m4(premat, postmat);
 
   /* ensure/upload per-mesh SSBOs (use GPU_storagebuf_update directly) */
-  blender::gpu::StorageBuf *ssbo_in_offsets = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_in_offsets);
+  blender::gpu::StorageBuf *ssbo_in_offsets = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
+                                                                             key_in_offsets);
   if (!ssbo_in_offsets) {
     ssbo_in_offsets = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, key_in_offsets, sizeof(int) * (msd.verts_num + 1));
@@ -628,14 +696,17 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
               msd.arm, key_dq_scale, sizeof(float) * 16 * ad_ref.bones);
         }
 
-        ssbo_bone_dq_scale_weight = BKE_armature_gpu_internal_ssbo_get(msd.arm, key_dq_scale_weight);
+        ssbo_bone_dq_scale_weight = BKE_armature_gpu_internal_ssbo_get(msd.arm,
+                                                                       key_dq_scale_weight);
         if (!ssbo_bone_dq_scale_weight) {
           ssbo_bone_dq_scale_weight = BKE_armature_gpu_internal_ssbo_ensure(
               msd.arm, key_dq_scale_weight, sizeof(float) * ad_ref.bones);
         }
 
         /* ALWAYS update dual quaternions every frame (not just on creation) */
-        if (ssbo_bone_dq_quat && ssbo_bone_dq_trans && ssbo_bone_dq_scale && ssbo_bone_dq_scale_weight) {
+        if (ssbo_bone_dq_quat && ssbo_bone_dq_trans && ssbo_bone_dq_scale &&
+            ssbo_bone_dq_scale_weight)
+        {
           std::vector<float> quats(size_t(ad_ref.bones) * 4);
           std::vector<float> trans(size_t(ad_ref.bones) * 4);
           std::vector<float> scales(size_t(ad_ref.bones) * 16);
@@ -654,7 +725,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
               invert_m4_m4(imat, pchan->bone->arm_mat);
               mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
               mat4_to_dquat(
-                   &pchan->runtime.deform_dual_quat, pchan->bone->arm_mat, pchan->chan_mat);
+                  &pchan->runtime.deform_dual_quat, pchan->bone->arm_mat, pchan->chan_mat);
             }
 
             /* Use the pre-computed dual quaternion from runtime (same as CPU skinning) */
@@ -747,8 +818,8 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
     info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
   }
 
-  const std::string shader_key = use_dual_quaternions ?
-      "armature_skinning_dqs" : "armature_skinning_lbs";
+  const std::string shader_key = use_dual_quaternions ? "armature_skinning_dqs" :
+                                                        "armature_skinning_lbs";
 
   blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_ensure(
       mesh_owner, shader_key, info);
@@ -802,9 +873,9 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(Depsgraph *
 
   /* Return the SSBO containing the skinned positions. Caller will perform scatter if needed. */
   return pos_to_bind;
- }
+}
 
- void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
+void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
 {
   if (!mesh) {
     return;

@@ -28,9 +28,24 @@ class ArmatureSkinningManager {
   ArmatureSkinningManager();
   ~ArmatureSkinningManager();
 
-  /* Prepare CPU-only static resources (indices/weights/rest positions).
-   * Can be called from extraction phase (non-GL thread). */
-  void ensure_static_resources(Object *arm_ob, Object *deformed_ob, Mesh *orig_mesh);
+  /**
+   * Compute a hash of the Armature deformation state to detect changes.
+   * Includes: vertex count, armature pointer, DQS mode, vertex group samples.
+   * Returns 0 if no armature deformation is present.
+   */
+  static uint32_t compute_armature_hash(const Mesh *mesh, const Object *ob);
+
+  /**
+   * Prepare CPU-only static resources (indices/weights/rest positions).
+   * Can be called from extraction phase (non-GL thread).
+   *
+   * NEW: Takes pipeline_hash parameter to avoid redundant hash recalculation.
+   * The hash is computed once by GPUModifierPipeline and passed to all managers.
+   */
+  void ensure_static_resources(Object *arm_ob,
+                               Object *deformed_ob,
+                               Mesh *orig_mesh,
+                               uint32_t pipeline_hash);
 
   /* Execute the skinning compute. Must be called from GL context.
    * Returns an SSBO containing the skinned positions on success (either the provided `ssbo_in`

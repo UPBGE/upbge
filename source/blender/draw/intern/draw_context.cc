@@ -451,8 +451,9 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
   if (data->meshes_to_process) {
     auto *map = data->meshes_to_process;
     /* Don't detach the map! We want to keep the GPU pipelines across frames. */
+
     /* Step 1: Free GPU resources for meshes marked as scheduled_free */
-    for (auto it = map->begin(); it != map->end(); ) {
+    for (auto it = map->begin(); it != map->end();) {
       Mesh *mesh = it->first;
       auto &entry = it->second;
       if (entry.scheduled_free) {
@@ -470,27 +471,7 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
         ++it;
       }
     }
-    /* Step 2: Garbage collect unused entries (optional, for safety)
-     * Remove entries for meshes that no longer have eval_obj_for_skinning
-     * and haven't been used for a while. */
-    static int gc_counter = 0;
-    if (++gc_counter > 120) {  // GC every ~2 seconds at 60 FPS
-      gc_counter = 0;
-      for (auto it = map->begin(); it != map->end(); ) {
-        auto &entry = it->second;
-        if (!entry.eval_obj_for_skinning && entry.gpu_pipeline) {
-          /* Entry not used this frame, free pipeline */
-          if (G.debug & G_DEBUG) {
-            printf("GC: Freeing unused pipeline for mesh '%s'\n", (it->first->id.name + 2));
-          }
-          entry.gpu_pipeline.reset();
-          it = map->erase(it);
-        }
-        else {
-          ++it;
-        }
-      }
-    }
+
     /* Don't delete the map! Keep it for next frame. */
     return;
   }

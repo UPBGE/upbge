@@ -18,7 +18,7 @@ namespace blender::draw {
 
 /**
  * GPU Modifier Pipeline - Chains deform modifiers on GPU
- * 
+ *
  * Design goals:
  * - Maintain CPU execution order (shapekeys → armature → lattice → ...)
  * - Ping-pong buffers between stages to avoid redundant copies
@@ -42,33 +42,43 @@ typedef struct ModifierGPUStage {
   ModifierGPUStageType type;
   void *modifier_data; /* ModifierData* or Key* */
   int execution_order; /* Lower = earlier execution */
-  
-  /* Stage-specific dispatch function */
-  using DispatchFunc = gpu::StorageBuf *(*)(
-      Mesh *mesh,
-      Object *ob,
-      void *modifier_data,
-      gpu::StorageBuf *input_positions,
-      gpu::StorageBuf *output_positions);
-  
+
+  /* Stage-specific dispatch function.
+   * NEW: Added pipeline_hash parameter to allow managers to detect changes
+   * without recomputing the hash themselves. */
+  using DispatchFunc = gpu::StorageBuf *(*)(Mesh *mesh,
+                                            Object *ob,
+                                            void *modifier_data,
+                                            gpu::StorageBuf *input_positions,
+                                            gpu::StorageBuf *output_positions,
+                                            uint32_t pipeline_hash);  // ← NEW: Hash from pipeline
+
   DispatchFunc dispatch_fn;
 } ModifierGPUStage;
 
 class GPUModifierPipeline {
-private:
- Vector<ModifierGPUStage> stages_;
-  
- /* Working buffer for pipeline (pre-filled with rest positions) */
- gpu::StorageBuf *buffer_a_ = nullptr;
-  
- /* Shader cache invalidation - hybrid hash system */
- uint32_t pipeline_hash_ = 0;
- bool needs_recompile_ = false;
-  
-public:
- GPUModifierPipeline() = default;
- ~GPUModifierPipeline();
-  
+ private:
+  Vector<ModifierGPUStage> stages_;
+
+  /* Working buffer for pipeline (pre-filled with rest positions) */
+  gpu::StorageBuf *buffer_a_ = nullptr;
+
+  /* Shader cache invalidation - hybrid hash system */
+  uint32_t pipeline_hash_ = 0;
+  bool needs_recompile_ = false;
+
+  /* References to mesh and object for hash computation */
+  Mesh *mesh_orig_ = nullptr;
+  Object *ob_eval_ = nullptr;
+
+ public:
+  GPUModifierPipeline();
+  ~GPUModifierPipeline();
+
+  /* DEBUG: Track pipeline creation */
+  static int instance_counter;
+  const int instance_id;
+
   /**
    * Add a modifier stage to the pipeline.
    * Stages are automatically sorted by execution_order.
@@ -77,13 +87,13 @@ public:
                  void *modifier_data,
                  int execution_order,
                  ModifierGPUStage::DispatchFunc dispatch_fn);
-  
+
   /**
    * Execute the full modifier pipeline.
    * Returns the final output buffer (positions).
    */
   gpu::StorageBuf *execute(Mesh *mesh, Object *ob, MeshBatchCache *cache);
-  
+
   /**
    * Clear all stages (called when modifier stack changes).
    */
@@ -98,22 +108,32 @@ public:
   /**
    * Check if pipeline needs shader recompilation.
    */
-  bool needs_shader_recompile() const { return needs_recompile_; }
-  
+  bool needs_shader_recompile() const
+  {
+    return needs_recompile_;
+  }
+
   /**
    * Mark shaders as dirty (e.g., when modifier settings change).
    */
   void invalidate_shaders();
-  
+
   /**
    * Get the number of stages in the pipeline.
    */
-  int stage_count() const { return stages_.size(); }
-  
+  int stage_count() const
+  {
+    return stages_.size();
+  }
+
   /**
    * Get the current pipeline hash (for debugging).
    */
-  uint32_t get_pipeline_hash() const { return pipeline_hash_; }
+  uint32_t get_pipeline_hash() const
+  {
+    return pipeline_hash_;
+  }
+
  private:
   void sort_stages();
   void allocate_buffers(Mesh *mesh_owner, int vertex_count);
@@ -137,7 +157,7 @@ public:
  * - Are enabled and visible in viewport
  * - Request GPU execution (ARM_DEFORM_METHOD_GPU, KEY_DEFORM_METHOD_GPU, etc.)
  * - Are deform-only (no topology changes)
- * 
+ *
  * Returns true if at least one modifier was added.
  */
 bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline);
