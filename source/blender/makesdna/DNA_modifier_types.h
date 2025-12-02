@@ -291,9 +291,15 @@ typedef struct LatticeModifierData {
   float strength;
   /** #LatticeModifierFlag. */
   short flag;
-  char _pad[2];
+  short deform_method;
   void *_pad1;
 } LatticeModifierData;
+
+/** LatticeModifierData.deform_method */
+typedef enum {
+  LAT_DEFORM_METHOD_CPU = 0,
+  LAT_DEFORM_METHOD_GPU = 1,
+} LatticeModifierDeformMethod;
 
 /** #LatticeModifierData.flag */
 typedef enum {

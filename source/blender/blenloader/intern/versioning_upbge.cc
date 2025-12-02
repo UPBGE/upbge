@@ -458,4 +458,14 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       }
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 2)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        if (md->type == eModifierType_Lattice) {
+          LatticeModifierData *lmd = (LatticeModifierData *)md;
+          lmd->deform_method |= LAT_DEFORM_METHOD_CPU;
+        }
+      }
+    }
+  }
 }

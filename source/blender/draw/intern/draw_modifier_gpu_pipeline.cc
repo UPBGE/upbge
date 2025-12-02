@@ -19,6 +19,7 @@
 
 #include "draw_armature_skinning.hh"
 #include "draw_cache_impl.hh"
+#include "draw_lattice_deform.hh"
 #include "draw_shapekeys_skinning.hh"
 
 #include "BKE_mesh_gpu.hh"
@@ -144,6 +145,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::ARMATURE:
       ArmatureSkinningManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::LATTICE:
+      LatticeSkinningManager::instance().invalidate_all(mesh_owner);
       break;
     default:
       break;
@@ -297,6 +301,39 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
                                    input);  // ssbo_in (input from previous stage or nullptr)
 }
 
+static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
+                                              Object *ob_eval,
+                                              void *modifier_data,
+                                              gpu::StorageBuf *input,
+                                              gpu::StorageBuf * /*output*/,
+                                              uint32_t pipeline_hash)
+{
+  LatticeModifierData *lmd = static_cast<LatticeModifierData *>(modifier_data);
+  if (!lmd || !lmd->object) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  LatticeSkinningManager &lat_mgr = LatticeSkinningManager::instance();
+
+  Object *orig_lattice = lmd->object;  // Original lattice from modifier data
+  Object *eval_lattice = static_cast<Object *>(
+      DEG_get_evaluated(DRW_context_get()->depsgraph, orig_lattice));
+
+  lat_mgr.ensure_static_resources(orig_lattice, ob_eval, mesh_orig, pipeline_hash);
+
+  return lat_mgr.dispatch_deform(DRW_context_get()->depsgraph,
+                                 eval_lattice,
+                                 ob_eval,
+                                 cache,
+                                 input);
+}
+
 /** \} */
 
 bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
@@ -332,6 +369,11 @@ bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPi
       case eModifierType_Armature: {
         pipeline.add_stage(
             ModifierGPUStageType::ARMATURE, md, execution_order++, dispatch_armature_stage);
+        break;
+      }
+      case eModifierType_Lattice: {
+        pipeline.add_stage(
+            ModifierGPUStageType::LATTICE, md, execution_order++, dispatch_lattice_stage);
         break;
       }
 

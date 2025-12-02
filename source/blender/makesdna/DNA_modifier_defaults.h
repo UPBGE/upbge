@@ -344,6 +344,7 @@
     .name = "", \
     .strength = 1.0f, \
     .flag = 0, \
+    .deform_method = LAT_DEFORM_METHOD_CPU, \
   }
 
 #define _DNA_DEFAULT_MaskModifierData \

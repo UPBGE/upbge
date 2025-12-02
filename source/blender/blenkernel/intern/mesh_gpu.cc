@@ -246,10 +246,6 @@ vec3 newell_face_normal_object(int f) {
   return normalize(n);
 }
 
-vec3 transform_normal(vec3 n, mat4 m) {
-  return transpose(inverse(mat3(m))) * n;
-}
-
 void main() {
   uint c = gl_GlobalInvocationID.x;
   if (c >= positions_out.length()) {
@@ -258,15 +254,15 @@ void main() {
 
   int v = corner_verts(int(c));
 
-  // 1) Scatter position
-  vec4 p_obj = positions_in[v];
-  positions_out[c] = transform_mat[0] * p_obj;
+  // 1) Scatter position (already in mesh space from skinning)
+  vec4 p_mesh = positions_in[v];
+  positions_out[c] = p_mesh;
 
   // 2) Calculate and scatter normal
-  vec3 n_obj;
+  vec3 n_mesh;
   if (normals_domain == 1) { // Face
     int f = corner_to_face(int(c));
-    n_obj = newell_face_normal_object(f);
+    n_mesh = newell_face_normal_object(f);
   }
   else { // Point
     int beg = vert_to_face_offsets(v);
@@ -276,19 +272,19 @@ void main() {
       int f = vert_to_face(i);
       n_accum += newell_face_normal_object(f);
     }
-    n_obj = n_accum;
+    n_mesh = n_accum;
   }
 
-  vec3 n_world = transform_normal(n_obj, transform_mat[0]);
-  n_world = normalize(n_world);
+  // Normal already in mesh space (no transformation needed)
+  n_mesh = normalize(n_mesh);
 
   if (normals_hq == 0) {
-    normals_out[c] = pack_norm(n_world);
+    normals_out[c] = pack_norm(n_mesh);
   }
   else {
     int base = int(c) * 2;
-    normals_out[base + 0] = pack_i16_pair(n_world.x, n_world.y);
-    normals_out[base + 1] = pack_i16_pair(n_world.z, 0.0);
+    normals_out[base + 0] = pack_i16_pair(n_mesh.x, n_mesh.y);
+    normals_out[base + 1] = pack_i16_pair(n_mesh.z, 0.0);
   }
 }
 )GLSL";

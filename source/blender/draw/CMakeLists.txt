@@ -76,6 +76,7 @@ set(SRC
   intern/draw_fluid.cc
   intern/draw_gpu_context.cc
   intern/draw_hair.cc
+  intern/draw_lattice_deform.cc
   intern/draw_manager.cc
   intern/draw_manager_text.cc
   intern/draw_modifier_gpu_pipeline.cc
@@ -174,6 +175,7 @@ set(SRC
   intern/draw_debug.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
+  intern/draw_lattice_deform.hh
   intern/draw_manager.hh
   intern/draw_manager_text.hh
   intern/draw_modifier_gpu_pipeline.hh

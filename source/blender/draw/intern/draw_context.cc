@@ -85,6 +85,7 @@
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 #include "DNA_key_types.h"            // UPBGE
 #include "draw_armature_skinning.hh" // UPBGE
+#include "draw_lattice_deform.hh"
 #include "draw_shapekeys_skinning.hh"  // UPBGE
 #include "draw_modifier_gpu_pipeline.hh"  // UPBGE
 #include <unordered_set>
@@ -460,6 +461,7 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
         if (mesh && mesh->is_running_gpu_animation_playback == 0) {
           /* Free armature skinning static data first, then mesh GPU resources. */
           blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+          blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
           blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
           BKE_mesh_gpu_free_for_mesh(mesh);
         }
@@ -486,7 +488,9 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
 
   /* If we have a GL context now, free armature resources then mesh GPU resources immediately. */
   if (GPU_context_active_get() != nullptr) {
+    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
     BKE_mesh_gpu_free_for_mesh(mesh);
     return;
   }
@@ -505,7 +509,9 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
 
   /* Fallback: best-effort immediate free if GL becomes available right away. */
   if (GPU_context_active_get() != nullptr) {
+    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
     BKE_mesh_gpu_free_for_mesh(mesh);
   }
 }
@@ -1199,20 +1205,6 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       float identity[4][4];
       unit_m4(identity);
       GPU_storagebuf_update(ssbo_transform_mat, &identity[0][0]);
-    }
-
-    /* Compute postmat if evaluated armature present so scatter can apply transform. */
-    Object *orig_armature = BKE_modifiers_is_deformed_by_armature(DEG_get_original(eval_obj));
-    Object *arm_ob_eval = nullptr;
-    if (orig_armature) {
-      arm_ob_eval = static_cast<Object *>(DEG_get_evaluated(depsgraph, orig_armature));
-    }
-    bool need_postmat = (arm_ob_eval != nullptr);
-    if (need_postmat) {
-      float postmat[4][4], obinv[4][4];
-      invert_m4_m4(obinv, eval_obj->object_to_world().ptr());
-      mul_m4_m4m4(postmat, obinv, arm_ob_eval->object_to_world().ptr());
-      GPU_storagebuf_update(ssbo_transform_mat, &postmat[0][0]);
     }
 
     /* Final scatter: SSBO → VBO (corners) */
@@ -2555,6 +2547,7 @@ void DRW_module_exit()
 
   /* Clear manager CPU-side bookkeeping (no SSBO release here to avoid double-free). */
   blender::draw::ArmatureSkinningManager::instance().free_all();
+  blender::draw::LatticeSkinningManager::instance().free_all();
   blender::draw::ShapeKeySkinningManager::instance().free_all();
 
   GPU_render_end();

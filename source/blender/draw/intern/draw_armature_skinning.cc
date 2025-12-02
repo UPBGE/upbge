@@ -129,7 +129,7 @@ void main() {
   if (v >= skinned_vert_positions.length()) {
     return;
   }
-  skinned_vert_positions[v] = skin_pos_object(int(v));
+  skinned_vert_positions[v] = postmat[0] * skin_pos_object(int(v));
 }
 )GLSL";
 
@@ -283,7 +283,7 @@ void main() {
   if (v >= skinned_vert_positions.length()) {
     return;
   }
-  skinned_vert_positions[v] = skin_pos_object(int(v));
+  skinned_vert_positions[v] = postmat[0] * skin_pos_object(int(v));
 }
 )GLSL";
 
@@ -565,6 +565,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   const std::string key_rest_pos = "armature_rest_pos";
   const std::string key_skinned_pos = "armature_skinned_pos";
   const std::string key_premat = "armature_premat";
+  const std::string key_postmat = "armature_postmat";
 
   /* Compute premat and postmat for coordinate space conversion */
   float premat[4][4], postmat[4][4], obinv[4][4];
@@ -634,6 +635,15 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
   }
   GPU_storagebuf_update(ssbo_premat, &premat[0][0]);
+
+  blender::gpu::StorageBuf *ssbo_postmat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_postmat);
+  if (!ssbo_postmat) {
+    ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_postmat, sizeof(float) * 16);
+    if (!ssbo_postmat) {
+      return nullptr;
+    }
+  }
+  GPU_storagebuf_update(ssbo_postmat, &postmat[0][0]);
 
   /* armature bone matrices or dual quaternions */
   blender::gpu::StorageBuf *ssbo_bone_mat = nullptr;
@@ -795,6 +805,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     info.storage_buf(7, Qualifier::read, "float", "bone_dq_scale_weight[]");
     info.storage_buf(8, Qualifier::read, "mat4", "premat[]");
     info.storage_buf(9, Qualifier::read, "vec4", "rest_positions[]");
+    info.storage_buf(10, Qualifier::read, "mat4", "postmat[]");
   }
   else {
     info.compute_source_generated = skin_compute_lbs_src;
@@ -805,6 +816,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
     info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
     info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
+    info.storage_buf(7, Qualifier::read, "mat4", "postmat[]");
   }
 
   const std::string shader_key = use_dual_quaternions ? "armature_skinning_dqs" :
@@ -840,6 +852,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
     GPU_storagebuf_bind(ssbo_premat, 8);
     GPU_storagebuf_bind(ssbo_rest_pos, 9);
+    GPU_storagebuf_bind(ssbo_postmat, 10);
   }
   else {
     /* Bind LBS buffers */
@@ -852,6 +865,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
     GPU_storagebuf_bind(ssbo_premat, 5);
     GPU_storagebuf_bind(ssbo_rest_pos, 6);
+    GPU_storagebuf_bind(ssbo_postmat, 7);
   }
 
   const int group_size = 256;
