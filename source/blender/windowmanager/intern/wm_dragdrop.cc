@@ -40,6 +40,7 @@
 
 #include "BLO_readfile.hh"
 
+#include "ED_asset.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
@@ -426,9 +427,6 @@ void WM_drag_free(wmDrag *drag)
     WM_drag_data_free(drag->type, drag->poin);
   }
   drag->drop_state.ui_context.reset();
-  if (drag->drop_state.free_disabled_info) {
-    MEM_SAFE_FREE(drag->drop_state.disabled_info);
-  }
   BLI_freelistN(&drag->ids);
   LISTBASE_FOREACH_MUTABLE (wmDragAssetListItem *, asset_item, &drag->asset_items) {
     if (asset_item->is_external) {
@@ -462,11 +460,6 @@ static wmDropBox *dropbox_active(bContext *C,
                                  wmDrag *drag,
                                  const wmEvent *event)
 {
-  if (drag->drop_state.free_disabled_info) {
-    MEM_SAFE_FREE(drag->drop_state.disabled_info);
-  }
-  drag->drop_state.disabled_info = nullptr;
-
   LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
     if (handler_base->type == WM_HANDLER_TYPE_DROPBOX) {
       wmEventHandler_Dropbox *handler = (wmEventHandler_Dropbox *)handler_base;
@@ -497,7 +490,9 @@ static wmDropBox *dropbox_active(bContext *C,
           const char *disabled_hint = CTX_wm_operator_poll_msg_get(C, &free_disabled_info);
           if (disabled_hint) {
             drag->drop_state.disabled_info = disabled_hint;
-            drag->drop_state.free_disabled_info = free_disabled_info;
+            if (free_disabled_info) {
+              MEM_SAFE_FREE(disabled_hint);
+            }
           }
         }
       }
@@ -514,6 +509,8 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
   bScreen *screen = WM_window_get_active_screen(win);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
   wmDropBox *drop = nullptr;
+
+  drag->drop_state.disabled_info = std::nullopt;
 
   if (area) {
     ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
@@ -721,73 +718,29 @@ AssetMetaData *WM_drag_get_asset_meta_data(const wmDrag *drag, int idcode)
 
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const int flag_extra)
 {
+  using namespace blender::ed;
+
   /* Only support passing in limited flags. */
   BLI_assert(flag_extra == (flag_extra & FILE_AUTOSELECT));
   /* #eFileSel_Params_Flag + #eBLOLibLinkFlags */
   int flag = flag_extra | FILE_ACTIVE_COLLECTION;
 
-  const char *name = asset_drag->asset->get_name().c_str();
-  const std::string blend_path = asset_drag->asset->full_library_path();
-  const ID_Type idtype = asset_drag->asset->get_id_type();
-  const bool use_relative_path = asset_drag->asset->get_use_relative_path();
-
   if (asset_drag->import_settings.use_instance_collections) {
     flag |= BLO_LIBLINK_COLLECTION_INSTANCE;
   }
 
+  asset::ImportInstantiateContext instantiate_context;
+  instantiate_context.scene = CTX_data_scene(C);
+  instantiate_context.view_layer = CTX_data_view_layer(C);
+  instantiate_context.view3d = CTX_wm_view3d(C);
+
   /* FIXME: Link/Append should happens in the operator called at the end of drop process, not from
    * here. */
-
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *view3d = CTX_wm_view3d(C);
-
-  switch (eAssetImportMethod(asset_drag->import_settings.method)) {
-    case ASSET_IMPORT_LINK:
-      return WM_file_link_datablock(bmain,
-                                    scene,
-                                    view_layer,
-                                    view3d,
-                                    blend_path.c_str(),
-                                    idtype,
-                                    name,
-                                    flag | (use_relative_path ? FILE_RELPATH : 0));
-    case ASSET_IMPORT_PACK:
-      return WM_file_link_datablock(bmain,
-                                    scene,
-                                    view_layer,
-                                    view3d,
-                                    blend_path.c_str(),
-                                    idtype,
-                                    name,
-                                    flag | (use_relative_path ? FILE_RELPATH : 0) |
-                                        BLO_LIBLINK_PACK);
-    case ASSET_IMPORT_APPEND:
-      return WM_file_append_datablock(bmain,
-                                      scene,
-                                      view_layer,
-                                      view3d,
-                                      blend_path.c_str(),
-                                      idtype,
-                                      name,
-                                      flag | BLO_LIBLINK_APPEND_RECURSIVE |
-                                          BLO_LIBLINK_APPEND_ASSET_DATA_CLEAR);
-    case ASSET_IMPORT_APPEND_REUSE:
-      return WM_file_append_datablock(
-          G_MAIN,
-          scene,
-          view_layer,
-          view3d,
-          blend_path.c_str(),
-          idtype,
-          name,
-          flag | BLO_LIBLINK_APPEND_RECURSIVE | BLO_LIBLINK_APPEND_ASSET_DATA_CLEAR |
-              BLO_LIBLINK_APPEND_LOCAL_ID_REUSE | (use_relative_path ? FILE_RELPATH : 0));
-  }
-
-  BLI_assert_unreachable();
-  return nullptr;
+  return asset::asset_local_id_ensure_imported(*CTX_data_main(C),
+                                               *asset_drag->asset,
+                                               flag,
+                                               asset_drag->import_settings.method,
+                                               instantiate_context);
 }
 
 bool WM_drag_asset_will_import_linked(const wmDrag *drag)
@@ -1164,7 +1117,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
   int padding = 4 * UI_SCALE_FAC;
   blender::StringRef tooltip = drag->drop_state.tooltip;
   const bool has_disabled_info = drag->drop_state.disabled_info &&
-                                 drag->drop_state.disabled_info[0];
+                                 drag->drop_state.disabled_info.value()[0];
   if (tooltip.is_empty() && !has_disabled_info) {
     return;
   }
@@ -1221,7 +1174,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
     wm_drop_operator_draw(tooltip, x, y);
   }
   else if (has_disabled_info) {
-    wm_drop_redalert_draw(drag->drop_state.disabled_info, x, y);
+    wm_drop_redalert_draw(*drag->drop_state.disabled_info, x, y);
   }
 }
 
