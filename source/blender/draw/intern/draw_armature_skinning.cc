@@ -688,11 +688,27 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
   }
   else {
-    /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
+    /* No vertex group selected: Create a minimal 1-float dummy buffer.
+     * 
+     * CRITICAL: The dummy value MUST be 1.0f (not 0.0f)!
+     * 
+     * Explanation:
+     * - GPU requires minimum buffer size (can't create 0-byte buffer)
+     * - Buffer of 1 float → shader sees vgroup_weights.length() == 1
+     * - Vertex 0 reads vgroup_weights[0] in the shader check:
+     *     if (vgroup_weights.length() > 0 && v < vgroup_weights.length())
+     * - With dummy=0.0f → vertex 0 gets modifier_weight=0.0 → stays in rest pose (BUG!)
+     * - With dummy=1.0f → vertex 0 gets modifier_weight=1.0 → full deformation (CORRECT!)
+     * - Vertices 1+ skip the read (v >= length()) → use default modifier_weight=1.0 (CORRECT!)
+     * 
+     * The shader uses: mix(rest, skinned, modifier_weight)
+     * - modifier_weight=0.0 → rest pose (no skinning applied)
+     * - modifier_weight=1.0 → full skinning (expected behavior when no vertex group filter)
+     */
     if (!ssbo_vgroup) {
       ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
-        float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
+        float dummy = 1.0f;  /* MUST be 1.0f - see explanation above */
         GPU_storagebuf_update(ssbo_vgroup, &dummy);
       }
     }
