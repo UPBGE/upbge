@@ -98,6 +98,7 @@
 #include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PythonComponent.h"
+#include "CM_Message.h"
 #include "PHY_IConstraint.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
@@ -1605,273 +1606,66 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
     /* Handle Rigid Body Constraints (Blender 2.66+ system) */
     if (blenderobject->rigidbody_constraint) {
-      if (!libloading && !convertedlist->FindValue(gameobj->GetName())) {
-        RigidBodyCon *rbc = blenderobject->rigidbody_constraint;
+      RigidBodyCon *rbc = blenderobject->rigidbody_constraint;
 
-        // Skip disabled constraints
-        if (!(rbc->flag & RBC_FLAG_ENABLED)) {
+      // Skip disabled constraints
+      if (!(rbc->flag & RBC_FLAG_ENABLED)) {
+        continue;
+      }
+
+      Object *ob1 = rbc->ob1;
+      Object *ob2 = rbc->ob2;
+
+      if (ob1 || ob2) {
+        // If ob1 is null (world), swap so ob1 is the object and ob2 is null (world)
+        if (!ob1) {
+          std::swap(ob1, ob2);
+        }
+
+        KX_GameObject *gameobj1 = (KX_GameObject *)sumolist->FindValue(ob1->id.name + 2);
+        KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) :
+                                        nullptr;
+
+        // Store constraint for replication (like rigid body joints do)
+        // This MUST happen before validation so spawned collections work
+        if (gameobj1 && (!ob2 || gameobj2)) {
+          gameobj->AddRigidBodyConstraint(rbc, ob1, ob2);
+        }
+
+        // During libloading, only store constraint, don't create it
+        // Constraint will be replicated later in scene->MergeScene
+        if (libloading) {
           continue;
         }
 
-        Object *ob1 = rbc->ob1;
-        Object *ob2 = rbc->ob2;
+        // Skip already converted constraints
+        if (convertedlist->FindValue(gameobj->GetName())) {
+          continue;
+        }
 
-        if (ob1 || ob2) {
-          // If ob1 is null (world), swap so ob1 is the object and ob2 is null (world)
-          if (!ob1) {
-            std::swap(ob1, ob2);
+        // Validate before creating: check layer, SG_Node, and physics controller
+        // This matches the validation used by rigid body joints
+        bool validConstraint = gameobj->GetSGNode() && (gameobj->GetLayer() & activeLayerBitInfo);
+        bool valid1 = gameobj1 && (gameobj1->GetLayer() & activeLayerBitInfo) &&
+                      gameobj1->GetSGNode() && gameobj1->GetPhysicsController();
+        bool valid2 = !ob2 || (gameobj2 && (gameobj2->GetLayer() & activeLayerBitInfo) &&
+                               gameobj2->GetSGNode() && gameobj2->GetPhysicsController());
+
+        CM_Debug("BL_DataConversion: " << gameobj->GetName() << " validConstraint=" << validConstraint
+                 << " valid1=" << valid1 << " valid2=" << valid2
+                 << " (gameobj1=" << (gameobj1 ? gameobj1->GetName() : "null")
+                 << ", gameobj2=" << (gameobj2 ? gameobj2->GetName() : "null") << ")");
+
+        if (validConstraint && valid1 && valid2) {
+          int constraintId = physEnv->CreateRigidBodyConstraint(gameobj, gameobj1, gameobj2, rbc);
+          CM_Debug("BL_DataConversion: " << gameobj->GetName() << " created constraint ID=" << constraintId);
+          // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
+          if (constraintId != -1) {
+            gameobj->SetRigidBodyConstraintId(rbc, constraintId);
           }
-
-          KX_GameObject *gameobj1 = (KX_GameObject *)sumolist->FindValue(ob1->id.name + 2);
-          KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) :
-                                          nullptr;
-
-          if (gameobj1 && (!ob2 || gameobj2)) {
-            PHY_IPhysicsController *ctrl1 = gameobj1->GetPhysicsController();
-            PHY_IPhysicsController *ctrl2 = gameobj2 ? gameobj2->GetPhysicsController() : nullptr;
-
-            if (ctrl1) {
-              // Calculate transform relative to ob1
-              // Constraint object transform (World)
-              const MT_Transform &worldTrans = gameobj->NodeGetWorldTransform();
-              MT_Vector3 pivotWorld = worldTrans.getOrigin();
-              MT_Matrix3x3 basisWorld = worldTrans.getBasis();
-
-              // Ob1 transform (World)
-              const MT_Transform &ob1Trans = gameobj1->NodeGetWorldTransform();
-              MT_Transform ob1Inv;
-              ob1Inv.invert(ob1Trans);
-
-              MT_Vector3 pivotLocal = ob1Inv * pivotWorld;
-              MT_Matrix3x3 basisLocal = ob1Inv.getBasis() * basisWorld;
-
-              MT_Vector3 axis0 = basisLocal.getColumn(0);
-              MT_Vector3 axis1 = basisLocal.getColumn(1);
-              MT_Vector3 axis2 = basisLocal.getColumn(2);
-
-              PHY_ConstraintType type = PHY_GENERIC_6DOF_CONSTRAINT;
-              bool use_springs = false;
-              bool is_fixed = false;
-              bool is_slider = false;
-              bool is_piston = false;
-              bool is_motor = false;
-
-              switch (rbc->type) {
-                case RBC_TYPE_POINT:
-                  type = PHY_POINT2POINT_CONSTRAINT;
-                  break;
-                case RBC_TYPE_HINGE:
-                  type = PHY_LINEHINGE_CONSTRAINT;
-                  break;
-                case RBC_TYPE_SLIDER:
-                  type = PHY_GENERIC_6DOF_CONSTRAINT;
-                  is_slider = true;
-                  break;
-                case RBC_TYPE_6DOF:
-                  type = PHY_GENERIC_6DOF_CONSTRAINT;
-                  break;
-                case RBC_TYPE_6DOF_SPRING:
-                  // Use Spring2 constraint for Blender 2.8 style (RBC_SPRING_TYPE2)
-                  if (rbc->spring_type == RBC_SPRING_TYPE2) {
-                    type = PHY_GENERIC_6DOF_SPRING2_CONSTRAINT;
-                  }
-                  else {
-                    type = PHY_GENERIC_6DOF_CONSTRAINT;
-                  }
-                  use_springs = true;
-                  break;
-                case RBC_TYPE_FIXED:
-                  type = PHY_GENERIC_6DOF_CONSTRAINT;
-                  is_fixed = true;
-                  break;
-                case RBC_TYPE_PISTON:
-                  type = PHY_GENERIC_6DOF_CONSTRAINT;
-                  is_piston = true;
-                  break;
-                case RBC_TYPE_MOTOR:
-                  type = PHY_GENERIC_6DOF_CONSTRAINT;
-                  is_motor = true;
-                  break;
-                default:
-                  break;
-              }
-
-              int flag = 0;
-              if (rbc->flag & RBC_FLAG_DISABLE_COLLISIONS) {
-                flag |= 0x80;  // CCD_CONSTRAINT_DISABLE_LINKED_COLLISION
-              }
-
-              PHY_IConstraint *phyCon = physEnv->CreateConstraint(
-                  ctrl1,
-                  ctrl2,
-                  type,
-                  pivotLocal.x(),
-                  pivotLocal.y(),
-                  pivotLocal.z(),
-                  axis0.x(),
-                  axis0.y(),
-                  axis0.z(),
-                  axis1.x(),
-                  axis1.y(),
-                  axis1.z(),
-                  axis2.x(),
-                  axis2.y(),
-                  axis2.z(),
-                  flag);
-
-              if (phyCon) {
-                // Set limits and springs
-                if (rbc->flag & RBC_FLAG_USE_BREAKING) {
-                  phyCon->SetBreakingThreshold(rbc->breaking_threshold);
-                }
-
-                // Set custom solver iterations
-                if (rbc->flag & RBC_FLAG_OVERRIDE_SOLVER_ITERATIONS) {
-                  phyCon->SetSolverIterations(rbc->num_solver_iterations);
-                }
-
-                if (type == PHY_GENERIC_6DOF_CONSTRAINT ||
-                    type == PHY_GENERIC_6DOF_SPRING2_CONSTRAINT) {
-                  if (is_fixed) {
-                    // Fixed constraint: Lock all 6 DOF (lower == upper == 0 means locked)
-                    phyCon->SetParam(0, 0.0f, 0.0f);  // Lock linear X
-                    phyCon->SetParam(1, 0.0f, 0.0f);  // Lock linear Y
-                    phyCon->SetParam(2, 0.0f, 0.0f);  // Lock linear Z
-                    phyCon->SetParam(3, 0.0f, 0.0f);  // Lock angular X
-                    phyCon->SetParam(4, 0.0f, 0.0f);  // Lock angular Y
-                    phyCon->SetParam(5, 0.0f, 0.0f);  // Lock angular Z
-                  }
-                  else if (is_slider) {
-                    // Slider constraint: Allow only linear X movement
-                    phyCon->SetParam(0,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X) ?
-                                         rbc->limit_lin_x_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X) ?
-                                         rbc->limit_lin_x_upper :
-                                         -1.0f);
-                    phyCon->SetParam(1, 0.0f, 0.0f);  // Lock linear Y
-                    phyCon->SetParam(2, 0.0f, 0.0f);  // Lock linear Z
-                    phyCon->SetParam(3, 0.0f, 0.0f);  // Lock angular X
-                    phyCon->SetParam(4, 0.0f, 0.0f);  // Lock angular Y
-                    phyCon->SetParam(5, 0.0f, 0.0f);  // Lock angular Z
-                  }
-                  else if (is_piston) {
-                    // Piston constraint: Allow linear X and angular X movement
-                    phyCon->SetParam(0,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X) ?
-                                         rbc->limit_lin_x_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X) ?
-                                         rbc->limit_lin_x_upper :
-                                         -1.0f);
-                    phyCon->SetParam(1, 0.0f, 0.0f);  // Lock linear Y
-                    phyCon->SetParam(2, 0.0f, 0.0f);  // Lock linear Z
-                    phyCon->SetParam(3,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X) ?
-                                         rbc->limit_ang_x_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X) ?
-                                         rbc->limit_ang_x_upper :
-                                         -1.0f);
-                    phyCon->SetParam(4, 0.0f, 0.0f);  // Lock angular Y
-                    phyCon->SetParam(5, 0.0f, 0.0f);  // Lock angular Z
-                  }
-                  else if (is_motor) {
-                    // Motor constraint: All DOF free, with motors configured
-                    phyCon->SetParam(0, 1.0f, -1.0f);  // Free linear X
-                    phyCon->SetParam(1, 1.0f, -1.0f);  // Free linear Y
-                    phyCon->SetParam(2, 1.0f, -1.0f);  // Free linear Z
-                    phyCon->SetParam(3, 1.0f, -1.0f);  // Free angular X
-                    phyCon->SetParam(4, 1.0f, -1.0f);  // Free angular Y
-                    phyCon->SetParam(5, 1.0f, -1.0f);  // Free angular Z
-
-                    // Configure linear motor on X axis (param 6)
-                    if (rbc->flag & RBC_FLAG_USE_MOTOR_LIN) {
-                      phyCon->SetParam(
-                          6, rbc->motor_lin_target_velocity, rbc->motor_lin_max_impulse);
-                    }
-                    // Configure angular motor on X axis (param 9)
-                    if (rbc->flag & RBC_FLAG_USE_MOTOR_ANG) {
-                      phyCon->SetParam(
-                          9, rbc->motor_ang_target_velocity, rbc->motor_ang_max_impulse);
-                    }
-                  }
-                  else {
-                    // Standard 6DOF or 6DOF Spring constraint
-                    // Linear limits
-                    phyCon->SetParam(0,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X) ?
-                                         rbc->limit_lin_x_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X) ?
-                                         rbc->limit_lin_x_upper :
-                                         -1.0f);
-                    phyCon->SetParam(1,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Y) ?
-                                         rbc->limit_lin_y_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Y) ?
-                                         rbc->limit_lin_y_upper :
-                                         -1.0f);
-                    phyCon->SetParam(2,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Z) ?
-                                         rbc->limit_lin_z_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Z) ?
-                                         rbc->limit_lin_z_upper :
-                                         -1.0f);
-
-                    // Angular limits (radians)
-                    phyCon->SetParam(3,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X) ?
-                                         rbc->limit_ang_x_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X) ?
-                                         rbc->limit_ang_x_upper :
-                                         -1.0f);
-                    phyCon->SetParam(4,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Y) ?
-                                         rbc->limit_ang_y_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Y) ?
-                                         rbc->limit_ang_y_upper :
-                                         -1.0f);
-                    phyCon->SetParam(5,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z) ?
-                                         rbc->limit_ang_z_lower :
-                                         1.0f,
-                                     (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z) ?
-                                         rbc->limit_ang_z_upper :
-                                         -1.0f);
-
-                    if (use_springs) {
-                      if (rbc->flag & RBC_FLAG_USE_SPRING_X)
-                        phyCon->SetParam(12, rbc->spring_stiffness_x, rbc->spring_damping_x);
-                      if (rbc->flag & RBC_FLAG_USE_SPRING_Y)
-                        phyCon->SetParam(13, rbc->spring_stiffness_y, rbc->spring_damping_y);
-                      if (rbc->flag & RBC_FLAG_USE_SPRING_Z)
-                        phyCon->SetParam(14, rbc->spring_stiffness_z, rbc->spring_damping_z);
-                      if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_X)
-                        phyCon->SetParam(
-                            15, rbc->spring_stiffness_ang_x, rbc->spring_damping_ang_x);
-                      if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Y)
-                        phyCon->SetParam(
-                            16, rbc->spring_stiffness_ang_y, rbc->spring_damping_ang_y);
-                      if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Z)
-                        phyCon->SetParam(
-                            17, rbc->spring_stiffness_ang_z, rbc->spring_damping_ang_z);
-                    }
-                  }
-                }
-                else if (type == PHY_LINEHINGE_CONSTRAINT) {
-                  if (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z) {
-                    phyCon->SetParam(3, rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
-                  }
-                }
-              }
-            }
-          }
+        }
+        else {
+          CM_Debug("BL_DataConversion: " << gameobj->GetName() << " SKIPPED - validation failed");
         }
       }
     }
