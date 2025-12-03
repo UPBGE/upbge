@@ -40,6 +40,14 @@
 
 #include <stddef.h>
 
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "DNA_constraint_types.h" /* for constraint replication */
+#include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
+
 #include "EXP_ListValue.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_Scene.h"
@@ -150,6 +158,14 @@ class KX_GameObject : public SCA_IObject {
 #endif
 
   std::vector<blender::bRigidBodyJointConstraint *> m_constraints;
+  struct RigidBodyConstraintData {
+    blender::RigidBodyCon *m_constraint;
+    std::string m_object1Name;
+    std::string m_object2Name;
+    bool m_hasObject2;
+    int m_constraintId;  // Physics constraint ID for cleanup when Empty is deleted
+  };
+  std::vector<RigidBodyConstraintData> m_rigidbodyConstraints;
 
  public:
   /* EEVEE INTEGRATION */
@@ -246,6 +262,14 @@ class KX_GameObject : public SCA_IObject {
   void AddConstraint(blender::bRigidBodyJointConstraint *cons);
   std::vector < blender::bRigidBodyJointConstraint * > GetConstraints();
   void ClearConstraints();
+  void AddRigidBodyConstraint(blender::RigidBodyCon *cons, blender::Object *ob1, blender::Object *ob2);
+  void SetRigidBodyConstraintId(blender::RigidBodyCon *cons, int constraintId);
+  const std::vector<RigidBodyConstraintData> &GetRigidBodyConstraints() const;
+  void ClearRigidBodyConstraints();
+  void RemoveRigidBodyConstraints();  // Remove constraints from physics environment
+  bool HasRigidBodyConstraints() const;
+  void ReplicateRigidBodyConstraints(
+      const std::unordered_map<std::string, KX_GameObject *> &objectLookup);
 
   /**
    * Get a pointer to the game object that is the parent of
