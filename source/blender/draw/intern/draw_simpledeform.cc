@@ -503,15 +503,16 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
       }
     }
   }
-  else {
-    if (!ssbo_vgroup) {
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
-      if (ssbo_vgroup) {
-        float dummy = 0.0f;
-        GPU_storagebuf_update(ssbo_vgroup, &dummy);
+    else {
+      /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
+      if (!ssbo_vgroup) {
+        ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
+        if (ssbo_vgroup) {
+          float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
+          GPU_storagebuf_update(ssbo_vgroup, &dummy);
+        }
       }
     }
-  }
 
   /* Create output SSBO */
   const std::string key_out = "simpledeform_output";

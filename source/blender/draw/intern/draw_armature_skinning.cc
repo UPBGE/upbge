@@ -688,11 +688,11 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
   }
   else {
-    /* No vertex group: create empty dummy buffer so shader doesn't crash */
+    /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
     if (!ssbo_vgroup) {
       ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
-        float dummy = 0.0f;
+        float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
         GPU_storagebuf_update(ssbo_vgroup, &dummy);
       }
     }

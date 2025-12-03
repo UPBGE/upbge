@@ -363,10 +363,11 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
     }
   }
   else {
+    /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
     if (!ssbo_vgroup) {
       ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
-        float dummy = 0.0f;
+        float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
         GPU_storagebuf_update(ssbo_vgroup, &dummy);
       }
     }
@@ -386,10 +387,11 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
     }
   }
   else {
+    /* No curve falloff: create empty dummy buffer (length=0 triggers default passthrough in shader) */
     if (!ssbo_curve) {
       ssbo_curve = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_curve, sizeof(float));
       if (ssbo_curve) {
-        float dummy = 0.0f;
+        float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
         GPU_storagebuf_update(ssbo_curve, &dummy);
       }
     }
