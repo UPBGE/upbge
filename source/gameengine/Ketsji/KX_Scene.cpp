@@ -63,6 +63,8 @@
 #include "wm_event_system.hh"
 #include "xr/wm_xr.hh"
 
+#include <unordered_map>
+
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
 #include "BL_SceneConverter.h"
@@ -2107,6 +2109,13 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     ReplicateLogic(gameobj);
   }
 
+  // Build lookup map for fast name resolution during constraint replication.
+  std::unordered_map<std::string, KX_GameObject *> hierarchyLookup;
+  hierarchyLookup.reserve(m_logicHierarchicalGameObjects.size());
+  for (KX_GameObject *obj : m_logicHierarchicalGameObjects) {
+    hierarchyLookup.emplace(obj->GetName(), obj);
+  }
+
   // now look if object in the hierarchy have dupli group and recurse
   for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
     /* Replicate all constraints. */
@@ -2114,6 +2123,11 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       gameobj->GetPhysicsController()->ReplicateConstraints(gameobj,
                                                             m_logicHierarchicalGameObjects);
       gameobj->ClearConstraints();
+    }
+
+    if (gameobj->HasRigidBodyConstraints()) {
+      gameobj->ReplicateRigidBodyConstraints(hierarchyLookup);
+      // Don't clear - keep constraint IDs for cleanup when object is deleted
     }
 
     if (gameobj != groupobj && gameobj->IsDupliGroup())
@@ -2842,6 +2856,21 @@ bool KX_Scene::MergeScene(KX_Scene *other)
       // Replicate all constraints in the right physics environment.
       gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, physicsObjects);
       gameobj->ClearConstraints();
+    }
+
+    // Build lookup map for fast name resolution during rigid body constraint replication.
+    std::unordered_map<std::string, KX_GameObject *> objectLookup;
+    objectLookup.reserve(otherObjects->GetCount());
+    for (KX_GameObject *gameobj : *otherObjects) {
+      objectLookup.emplace(gameobj->GetName(), gameobj);
+    }
+
+    for (KX_GameObject *gameobj : *otherObjects) {
+      if (!gameobj->HasRigidBodyConstraints()) {
+        continue;
+      }
+      gameobj->ReplicateRigidBodyConstraints(objectLookup);
+      // Don't clear - keep constraint IDs for cleanup when object is deleted
     }
   }
 

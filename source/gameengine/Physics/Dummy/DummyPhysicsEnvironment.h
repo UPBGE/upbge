@@ -157,4 +157,19 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     // All we need to do is handle the motionstate (we're supposed to own it)
     delete motionstate;
   }
+
+  virtual void SetupObjectConstraints(KX_GameObject *obj_src,
+                                      KX_GameObject *obj_dest,
+                                      bRigidBodyJointConstraint *dat,
+                                      bool replicate_dupli) override
+  {
+  }
+
+  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
+                                        KX_GameObject *gameobj1,
+                                        KX_GameObject *gameobj2,
+                                        RigidBodyCon *rbc) override
+  {
+    return -1;
+  }
 };

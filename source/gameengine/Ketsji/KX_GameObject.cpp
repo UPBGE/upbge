@@ -55,6 +55,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <string>
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
@@ -182,6 +183,16 @@ KX_GameObject::~KX_GameObject()
   // if (m_sumoObj)
   //	delete m_sumoObj;
   delete m_pClient_info;
+
+  // Remove rigid body constraints from physics environment while GetScene() still works
+  // Must be called before m_pSGNode is invalidated
+  if (m_pSGNode) {
+    CM_Debug("~KX_GameObject: " << GetName() << " - calling RemoveRigidBodyConstraints (m_pSGNode valid)");
+    RemoveRigidBodyConstraints();
+  }
+  else {
+    CM_Debug("~KX_GameObject: " << GetName() << " - m_pSGNode is null, skipping RemoveRigidBodyConstraints");
+  }
 
   // if (m_pSGNode)
   //	delete m_pSGNode;
@@ -769,6 +780,128 @@ std::vector<bRigidBodyJointConstraint *> KX_GameObject::GetConstraints()
 void KX_GameObject::ClearConstraints()
 {
   m_constraints.clear();
+}
+
+void KX_GameObject::AddRigidBodyConstraint(RigidBodyCon *cons, Object *ob1, Object *ob2)
+{
+  for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (data.m_constraint == cons) {
+      return;
+    }
+  }
+  RigidBodyConstraintData data;
+  data.m_constraint = cons;
+  data.m_object1Name = ob1 ? ob1->id.name + 2 : "";
+  data.m_object2Name = ob2 ? ob2->id.name + 2 : "";
+  data.m_hasObject2 = (ob2 != nullptr);
+  data.m_constraintId = -1;  // Will be set after constraint is created
+  m_rigidbodyConstraints.push_back(data);
+}
+
+void KX_GameObject::SetRigidBodyConstraintId(RigidBodyCon *cons, int constraintId)
+{
+  for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (data.m_constraint == cons) {
+      data.m_constraintId = constraintId;
+      return;
+    }
+  }
+}
+
+const std::vector<KX_GameObject::RigidBodyConstraintData> &
+KX_GameObject::GetRigidBodyConstraints() const
+{
+  return m_rigidbodyConstraints;
+}
+
+void KX_GameObject::ClearRigidBodyConstraints()
+{
+  m_rigidbodyConstraints.clear();
+}
+
+void KX_GameObject::RemoveRigidBodyConstraints()
+{
+  if (m_rigidbodyConstraints.empty()) {
+    return;
+  }
+
+  KX_Scene *scene = GetScene();
+  if (!scene) {
+    CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - scene is null!");
+    return;
+  }
+
+  PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
+  if (!physEnv) {
+    CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - physEnv is null!");
+    return;
+  }
+
+  for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - checking constraint ID=" << data.m_constraintId);
+    // Only skip -1 (our sentinel for "no constraint"), other values including negative are valid IDs
+    if (data.m_constraintId != -1) {
+      CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - removing constraint ID=" << data.m_constraintId);
+      physEnv->RemoveConstraintById(data.m_constraintId, true);
+    }
+  }
+  m_rigidbodyConstraints.clear();
+}
+
+bool KX_GameObject::HasRigidBodyConstraints() const
+{
+  return !m_rigidbodyConstraints.empty();
+}
+
+void KX_GameObject::ReplicateRigidBodyConstraints(
+    const std::unordered_map<std::string, KX_GameObject *> &objectLookup)
+{
+  if (!HasRigidBodyConstraints()) {
+    return;
+  }
+
+  KX_Scene *scene = GetScene();
+  if (!scene) {
+    return;
+  }
+
+  PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
+  if (!physEnv) {
+    return;
+  }
+
+  for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (!data.m_constraint || data.m_object1Name.empty()) {
+      continue;
+    }
+
+    // O(1) hash map lookup instead of O(n) linear search
+    auto it1 = objectLookup.find(data.m_object1Name);
+    if (it1 == objectLookup.end()) {
+      CM_Debug("ReplicateRigidBodyConstraints: target1 '" << data.m_object1Name << "' not found for " << GetName());
+      continue;
+    }
+    KX_GameObject *target1 = it1->second;
+
+    KX_GameObject *target2 = nullptr;
+    if (data.m_hasObject2) {
+      auto it2 = objectLookup.find(data.m_object2Name);
+      if (it2 != objectLookup.end()) {
+        target2 = it2->second;
+      }
+      else {
+        CM_Debug("ReplicateRigidBodyConstraints: target2 '" << data.m_object2Name << "' not found for " << GetName());
+      }
+    }
+
+    int constraintId = physEnv->CreateRigidBodyConstraint(this, target1, target2, data.m_constraint);
+    CM_Debug("ReplicateRigidBodyConstraints: " << GetName() << " created constraint ID=" << constraintId
+             << " (target1=" << target1->GetName() << ", target2=" << (target2 ? target2->GetName() : "null") << ")");
+    // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
+    if (constraintId != -1) {
+      data.m_constraintId = constraintId;
+    }
+  }
 }
 
 KX_GameObject *KX_GameObject::GetParent()

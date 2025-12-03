@@ -298,6 +298,10 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                       KX_GameObject *obj_dest,
                                       bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli);
+  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
+                                        KX_GameObject *gameobj1,
+                                        KX_GameObject *gameobj2,
+                                        RigidBodyCon *rbc) override;
 
  protected:
   std::set<CcdPhysicsController *> m_controllers;
