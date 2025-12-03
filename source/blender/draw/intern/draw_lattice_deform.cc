@@ -33,6 +33,22 @@
 using namespace blender::draw;
 
 struct blender::draw::LatticeSkinningManager::Impl {
+  /* Composite key: (Mesh*, modifier UID) to support multiple Lattice modifiers per mesh */
+  struct MeshModifierKey {
+    Mesh *mesh;
+    uint32_t modifier_uid;
+
+    uint64_t hash() const
+    {
+      return (uint64_t(reinterpret_cast<uintptr_t>(mesh)) << 32) | uint64_t(modifier_uid);
+    }
+
+    bool operator==(const MeshModifierKey &other) const
+    {
+      return mesh == other.mesh && modifier_uid == other.modifier_uid;
+    }
+  };
+
   struct MeshStaticData {
     std::vector<float> control_points; /* float3 per control point */
     std::vector<float> vgroup_weights; /* per-vertex weight (0.0-1.0) */
@@ -47,7 +63,7 @@ struct blender::draw::LatticeSkinningManager::Impl {
     uint32_t last_verified_hash = 0;
   };
 
-  Map<Mesh *, MeshStaticData> static_map;
+  Map<MeshModifierKey, MeshStaticData> static_map;
 };
 
 /* Lattice deformation compute shader (GPU port of BKE_lattice_deform_data_eval_co) */
@@ -233,7 +249,9 @@ void LatticeSkinningManager::ensure_static_resources(const LatticeModifierData *
     return;
   }
 
-  Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(orig_mesh);
+  /* Use composite key (mesh, modifier_uid) to support multiple Lattice modifiers per mesh */
+  Impl::MeshModifierKey key{orig_mesh, uint32_t(lmd->modifier.persistent_uid)};
+  Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(key);
 
   const bool first_time = (msd.last_verified_hash == 0);
   const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
@@ -332,7 +350,9 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     return nullptr;
   }
 
-  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
+  /* Use composite key (mesh, modifier_uid) to support multiple Lattice modifiers per mesh */
+  Impl::MeshModifierKey key{mesh_owner, uint32_t(lmd->modifier.persistent_uid)};
+  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(key);
   if (!msd_ptr) {
     return nullptr;
   }
@@ -357,10 +377,19 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     return nullptr;
   }
 
+  /* Create unique buffer keys per modifier instance using persistent_uid
+   * to avoid collisions when multiple Lattice modifiers are on the same mesh */
+  char uid_str[16];
+  snprintf(uid_str, sizeof(uid_str), "%u", lmd->modifier.persistent_uid);
+  const std::string key_prefix = std::string("lattice_") + uid_str + "_";
+  const std::string key_cp = key_prefix + "control_points";
+  const std::string key_mat = key_prefix + "latmat";
+  const std::string key_vgroup = key_prefix + "vgroup_weights";
+  const std::string key_out = key_prefix + "output";
+
   /* Create/update SSBOs if needed */
   if (msd.pending_gpu_setup) {
     /* Control points SSBO */
-    const std::string key_cp = "lattice_control_points";
     blender::gpu::StorageBuf *ssbo_cp = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_cp);
     if (!ssbo_cp && !msd.control_points.empty()) {
       const size_t size_cp = msd.control_points.size() * sizeof(float);
@@ -371,7 +400,6 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     }
 
     /* Transformation matrix SSBO */
-    const std::string key_mat = "lattice_latmat";
     blender::gpu::StorageBuf *ssbo_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_mat);
     if (!ssbo_mat) {
       float latmat[4][4];
@@ -453,7 +481,6 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   }
 
   /* Create output SSBO */
-  const std::string key_out = "lattice_output";
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, key_out, size_out);
@@ -504,7 +531,6 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   GPU_storagebuf_bind(ssbo_mat, 3);
 
   /* Bind vertex group weights SSBO at binding=4 */
-  const std::string key_vgroup = "lattice_vgroup_weights";
   blender::gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
 
   /* Only create/upload if vertex group weights exist */
@@ -561,7 +587,18 @@ void LatticeSkinningManager::free_resources_for_mesh(Mesh *mesh)
   if (!mesh) {
     return;
   }
-  impl_->static_map.remove(mesh);
+  
+  /* Remove all entries for this mesh (may be multiple Lattice modifiers) */
+  Vector<Impl::MeshModifierKey> keys_to_remove;
+  for (const auto &item : impl_->static_map.items()) {
+    if (item.key.mesh == mesh) {
+      keys_to_remove.append(item.key);
+    }
+  }
+  
+  for (const Impl::MeshModifierKey &key : keys_to_remove) {
+    impl_->static_map.remove(key);
+  }
 }
 
 void LatticeSkinningManager::invalidate_all(Mesh *mesh)
@@ -572,10 +609,16 @@ void LatticeSkinningManager::invalidate_all(Mesh *mesh)
 
   BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
 
-  if (auto *msd_ptr = impl_->static_map.lookup_ptr(mesh)) {
-    Impl::MeshStaticData &msd = *msd_ptr;
-    msd.pending_gpu_setup = true;
-    msd.gpu_setup_attempts = 0;
+  /* Invalidate all Lattice modifiers for this mesh */
+  for (auto item : impl_->static_map.items()) {
+    if (item.key.mesh == mesh) {
+      /* Lookup again to get mutable reference */
+      Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(item.key);
+      if (msd) {
+        msd->pending_gpu_setup = true;
+        msd->gpu_setup_attempts = 0;
+      }
+    }
   }
 }
 

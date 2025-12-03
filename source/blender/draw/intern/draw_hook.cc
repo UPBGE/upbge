@@ -40,6 +40,22 @@ using namespace blender::draw;
  * \{ */
 
 struct blender::draw::HookManager::Impl {
+  /* Composite key: (Mesh*, modifier UID) to support multiple Hook modifiers per mesh */
+  struct MeshModifierKey {
+    Mesh *mesh;
+    uint32_t modifier_uid;
+
+    uint64_t hash() const
+    {
+      return (uint64_t(reinterpret_cast<uintptr_t>(mesh)) << 32) | uint64_t(modifier_uid);
+    }
+
+    bool operator==(const MeshModifierKey &other) const
+    {
+      return mesh == other.mesh && modifier_uid == other.modifier_uid;
+    }
+  };
+
   struct MeshStaticData {
     std::vector<float> vgroup_weights;      /* per-vertex weight (0.0-1.0) */
     std::vector<float> falloff_curve_lut;   /* curve falloff lookup table (256 samples) */
@@ -53,7 +69,7 @@ struct blender::draw::HookManager::Impl {
     uint32_t last_verified_hash = 0;
   };
 
-  Map<Mesh *, MeshStaticData> static_map;
+  Map<MeshModifierKey, MeshStaticData> static_map;
 };
 
 /** \} */
@@ -254,7 +270,9 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
     return;
   }
 
-  Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(orig_mesh);
+  /* Use composite key (mesh, modifier_uid) to support multiple Hook modifiers per mesh */
+  Impl::MeshModifierKey key{orig_mesh, uint32_t(hmd->modifier.persistent_uid)};
+  Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(key);
 
   const bool first_time = (msd.last_verified_hash == 0);
   const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
@@ -323,7 +341,9 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
     return nullptr;
   }
 
-  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(mesh_owner);
+  /* Use composite key (mesh, modifier_uid) to support multiple Hook modifiers per mesh */
+  Impl::MeshModifierKey key{mesh_owner, uint32_t(hmd->modifier.persistent_uid)};
+  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(key);
   if (!msd_ptr) {
     return nullptr;
   }
@@ -349,8 +369,16 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
     return nullptr;
   }
 
+  /* Create unique buffer keys per modifier instance using persistent_uid
+   * to avoid collisions when multiple Hook modifiers are on the same mesh */
+  char uid_str[16];
+  snprintf(uid_str, sizeof(uid_str), "%u", hmd->modifier.persistent_uid);
+  const std::string key_prefix = std::string("hook_") + uid_str + "_";
+  const std::string key_vgroup = key_prefix + "vgroup_weights";
+  const std::string key_curve = key_prefix + "falloff_curve_lut";
+  const std::string key_out = key_prefix + "output";
+
   /* Upload vertex group weights SSBO */
-  const std::string key_vgroup = "hook_vgroup_weights";
   blender::gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
 
   if (!msd.vgroup_weights.empty()) {
@@ -374,7 +402,6 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   }
 
   /* Upload falloff curve LUT SSBO (if using curve falloff) */
-  const std::string key_curve = "hook_falloff_curve_lut";
   blender::gpu::StorageBuf *ssbo_curve = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_curve);
 
   if (!msd.falloff_curve_lut.empty()) {
@@ -398,7 +425,6 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   }
 
   /* Create output SSBO */
-  const std::string key_out = "hook_output";
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, key_out, size_out);
@@ -521,7 +547,18 @@ void HookManager::free_resources_for_mesh(Mesh *mesh)
   if (!mesh) {
     return;
   }
-  impl_->static_map.remove(mesh);
+  
+  /* Remove all entries for this mesh (may be multiple Hook modifiers) */
+  Vector<Impl::MeshModifierKey> keys_to_remove;
+  for (const auto &item : impl_->static_map.items()) {
+    if (item.key.mesh == mesh) {
+      keys_to_remove.append(item.key);
+    }
+  }
+  
+  for (const Impl::MeshModifierKey &key : keys_to_remove) {
+    impl_->static_map.remove(key);
+  }
 }
 
 void HookManager::invalidate_all(Mesh *mesh)
@@ -532,10 +569,16 @@ void HookManager::invalidate_all(Mesh *mesh)
 
   BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
 
-  if (auto *msd_ptr = impl_->static_map.lookup_ptr(mesh)) {
-    Impl::MeshStaticData &msd = *msd_ptr;
-    msd.pending_gpu_setup = true;
-    msd.gpu_setup_attempts = 0;
+  /* Invalidate all Hook modifiers for this mesh */
+  for (auto item : impl_->static_map.items()) {
+    if (item.key.mesh == mesh) {
+      /* Lookup again to get mutable reference */
+      Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(item.key);
+      if (msd) {
+        msd->pending_gpu_setup = true;
+        msd->gpu_setup_attempts = 0;
+      }
+    }
   }
 }
 
