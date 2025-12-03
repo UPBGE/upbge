@@ -21,6 +21,7 @@
 #include "draw_cache_impl.hh"
 #include "draw_lattice_deform.hh"
 #include "draw_shapekeys_skinning.hh"
+#include "draw_simpledeform.hh"
 
 #include "BKE_mesh_gpu.hh"
 
@@ -68,6 +69,25 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, int vertex_count)
 
   if (!buffer_a_) {
     buffer_a_ = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_buffer_a, buffer_size);
+
+    /* CRITICAL: Initialize with REST positions!
+     * This ensures the first modifier in the
+     * pipeline (e.g., SimpleDeform without ShapeKeys)
+     * reads valid input data instead of
+     * garbage. */
+    if (buffer_a_) {
+      blender::Span<blender::float3> rest_positions = mesh_owner->vert_positions();
+      std::vector<float> rest_data(vertex_count * 4);
+
+      for (int v = 0; v < vertex_count; v++) {
+        rest_data[v * 4 + 0] = rest_positions[v].x;
+        rest_data[v * 4 + 1] = rest_positions[v].y;
+        rest_data[v * 4 + 2] = rest_positions[v].z;
+        rest_data[v * 4 + 3] = 1.0f; /* Homogeneous coordinate */
+      }
+
+      GPU_storagebuf_update(buffer_a_, rest_data.data());
+    }
   }
 }
 
@@ -111,8 +131,8 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
          * (detects armature change, DQS mode, vertex groups, bone count, etc.) */
         if (mesh_orig_) {
           ArmatureModifierData *amd = static_cast<ArmatureModifierData *>(stage.modifier_data);
-          hash = BLI_hash_int_2d(
-              hash, ArmatureSkinningManager::compute_armature_hash(mesh_orig_, amd));
+          hash = BLI_hash_int_2d(hash,
+                                 ArmatureSkinningManager::compute_armature_hash(mesh_orig_, amd));
         }
         else {
           /* Defensive fallback: Should never happen in normal execution */
@@ -129,14 +149,31 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
          * (detects lattice change, dimensions, interpolation types, vertex groups, etc.) */
         if (mesh_orig_) {
           LatticeModifierData *lmd = static_cast<LatticeModifierData *>(stage.modifier_data);
-          hash = BLI_hash_int_2d(
-              hash, LatticeSkinningManager::compute_lattice_hash(mesh_orig_, lmd));
+          hash = BLI_hash_int_2d(hash,
+                                 LatticeSkinningManager::compute_lattice_hash(mesh_orig_, lmd));
         }
         else {
           /* Defensive fallback: Should never happen in normal execution */
           BLI_assert_unreachable();
 
           /* Hash basic modifier properties as emergency fallback */
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
+      case ModifierGPUStageType::SIMPLEDEFORM: {
+        /* Simple Deform: Delegate to SimpleDeformManager for complete hash
+         * (detects mode, axis, origin, vertex groups) */
+        if (mesh_orig_) {
+          SimpleDeformModifierData *smd = static_cast<SimpleDeformModifierData *>(
+              stage.modifier_data);
+          hash = BLI_hash_int_2d(hash,
+                                 SimpleDeformManager::compute_simpledeform_hash(mesh_orig_, smd));
+        }
+        else {
+          /* Defensive fallback */
+          BLI_assert_unreachable();
           ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
           hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
         }
@@ -163,6 +200,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::LATTICE:
       LatticeSkinningManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::SIMPLEDEFORM:
+      SimpleDeformManager::instance().invalidate_all(mesh_owner);
       break;
     default:
       break;
@@ -349,6 +389,32 @@ static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
       lmd, DRW_context_get()->depsgraph, eval_lattice, ob_eval, cache, input);
 }
 
+static gpu::StorageBuf *dispatch_simpledeform_stage(Mesh *mesh_orig,
+                                                    Object *ob_eval,
+                                                    void *modifier_data,
+                                                    gpu::StorageBuf *input,
+                                                    gpu::StorageBuf * /*output*/,
+                                                    uint32_t pipeline_hash)
+{
+  SimpleDeformModifierData *smd = static_cast<SimpleDeformModifierData *>(modifier_data);
+  if (!smd) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  SimpleDeformManager &sd_mgr = SimpleDeformManager::instance();
+
+  /* Pass smd (original) for settings extraction */
+  sd_mgr.ensure_static_resources(smd, ob_eval, mesh_orig, pipeline_hash);
+
+  return sd_mgr.dispatch_deform(smd, DRW_context_get()->depsgraph, ob_eval, cache, input);
+}
+
 /** \} */
 
 bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
@@ -394,6 +460,13 @@ bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPi
       case eModifierType_Lattice: {
         pipeline.add_stage(
             ModifierGPUStageType::LATTICE, md, execution_order++, dispatch_lattice_stage);
+        break;
+      }
+      case eModifierType_SimpleDeform: {
+        pipeline.add_stage(ModifierGPUStageType::SIMPLEDEFORM,
+                           md,
+                           execution_order++,
+                           dispatch_simpledeform_stage);
         break;
       }
 

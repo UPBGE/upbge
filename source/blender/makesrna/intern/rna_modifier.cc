@@ -5325,6 +5325,13 @@ static void rna_def_modifier_simpledeform(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  /* UPBGE */
+  prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", SIM_DEFORM_METHOD_CPU);
+  RNA_def_property_ui_text(
+      prop, "Enable GPU Deform", "Deform mesh vertices using the GPU instead of the CPU");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "vgroup_name");
   RNA_def_property_ui_text(prop, "Vertex Group", "Vertex group name");

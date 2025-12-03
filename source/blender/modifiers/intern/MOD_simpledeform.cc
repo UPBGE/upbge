@@ -445,6 +445,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int deform_method = RNA_enum_get(ptr, "deform_method");
 
+  /* UPBGE */
+  layout->prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
+
   row = &layout->row(false);
   row->prop(ptr, "deform_method", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 

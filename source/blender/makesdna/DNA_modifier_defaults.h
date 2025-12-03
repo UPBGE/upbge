@@ -555,6 +555,7 @@
 #define _DNA_DEFAULT_SimpleDeformModifierData \
   { \
     .origin = NULL, \
+    .deform_method = SIM_DEFORM_METHOD_CPU, \
     .vgroup_name = "", \
     .factor = DEG2RADF(45.0f), \
     .limit = {0.0f, 1.0f}, \

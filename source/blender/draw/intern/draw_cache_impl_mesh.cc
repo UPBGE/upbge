@@ -1176,6 +1176,10 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
       LatticeModifierData *lmd = (LatticeModifierData *)md;
       requests_gpu = (lmd && (lmd->deform_method & LAT_DEFORM_METHOD_GPU));
     }
+    else if (md->type == eModifierType_SimpleDeform) {
+      SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
+      requests_gpu = (smd && (smd->deform_method & SIM_DEFORM_METHOD_GPU));
+    }
     /* Add more modifiers here as they are implemented */
 
     if (requests_gpu) {

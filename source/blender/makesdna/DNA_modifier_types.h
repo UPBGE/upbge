@@ -1331,8 +1331,17 @@ typedef struct SimpleDeformModifierData {
   /** #SimpleDeformModifierFlag. */
   char flag;
 
+  short deform_method;
+  char _pad[6];
+
   void *_pad1;
 } SimpleDeformModifierData;
+
+/** SimpleDeformModifierData.deform_method */
+typedef enum {
+  SIM_DEFORM_METHOD_CPU = 0,
+  SIM_DEFORM_METHOD_GPU = 1,
+} SimpleDeformModifierDeformMethod;
 
 /** #SimpleDeformModifierData.flag */
 typedef enum {

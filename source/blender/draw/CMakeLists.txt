@@ -87,6 +87,7 @@ set(SRC
   intern/draw_select_buffer.cc
   intern/draw_shader.cc
   intern/draw_shapekeys_skinning.cc
+  intern/draw_simpledeform.cc
   intern/draw_view.cc
   intern/draw_view_c.cc
   intern/draw_view_data.cc
@@ -185,6 +186,7 @@ set(SRC
   intern/draw_shader.hh
   intern/draw_shader_shared.hh
   intern/draw_shapekeys_skinning.hh
+  intern/draw_simpledeform.hh
   intern/draw_state.hh
   intern/draw_subdiv_defines.hh
   intern/draw_subdiv_shader_shared.hh
