@@ -55,7 +55,7 @@
 #include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_material.hh"
 #include "BKE_mball_tessellate.hh"
 #include "BKE_modifier.hh"
