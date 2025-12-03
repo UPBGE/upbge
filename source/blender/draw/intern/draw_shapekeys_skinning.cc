@@ -226,8 +226,6 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
 
   msd.deltas.resize(size_t(kcount) * size_t(verts) * 4);
 
-  float *refdata = static_cast<float *>(key->refkey ? key->refkey->data : nullptr);
-
   int kidx = 0;
   for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
     if (kb == key->refkey) {

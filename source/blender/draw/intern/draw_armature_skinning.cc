@@ -63,6 +63,7 @@ struct blender::draw::ArmatureSkinningManager::Impl {
     std::vector<int> in_indices;           /* size = total_influences (variable per vertex) */
     std::vector<float> in_weights;         /* size = total_influences (variable per vertex) */
     std::vector<float> rest_positions;     /* float4 per vert (flattened) */
+    std::vector<float> vgroup_weights;     /* per-vertex weight (0.0-1.0) for modifier filter */
     int verts_num = 0;
 
     /* DO NOT store GPU pointers here; resources are owned by BKE_mesh_gpu. */
@@ -128,7 +129,24 @@ void main() {
   if (v >= skinned_vert_positions.length()) {
     return;
   }
-  skinned_vert_positions[v] = postmat[0] * skin_pos_object(int(v));
+
+  /* Get modifier vertex group weight (filter - like Lattice) */
+  float modifier_weight = 1.0;
+  if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
+    modifier_weight = vgroup_weights[v];
+  }
+
+  /* Early exit if weight is negligible */
+  if (modifier_weight < 1e-6) {
+    skinned_vert_positions[v] = postmat[0] * (premat[0] * rest_positions[v]);
+    return;
+  }
+
+  vec4 skinned = skin_pos_object(int(v));
+  vec4 rest = premat[0] * rest_positions[v];
+
+  /* Blend between rest and skinned based on modifier weight */
+  skinned_vert_positions[v] = postmat[0] * mix(rest, skinned, modifier_weight);
 }
 )GLSL";
 
@@ -282,7 +300,24 @@ void main() {
   if (v >= skinned_vert_positions.length()) {
     return;
   }
-  skinned_vert_positions[v] = postmat[0] * skin_pos_object(int(v));
+
+  /* Get modifier vertex group weight (filter - like Lattice) */
+  float modifier_weight = 1.0;
+  if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
+    modifier_weight = vgroup_weights[v];
+  }
+
+  /* Early exit if weight is negligible */
+  if (modifier_weight < 1e-6) {
+    skinned_vert_positions[v] = postmat[0] * (premat[0] * rest_positions[v]);
+    return;
+  }
+
+  vec4 skinned = skin_pos_object(int(v));
+  vec4 rest = premat[0] * rest_positions[v];
+
+  /* Blend between rest and skinned based on modifier weight */
+  skinned_vert_positions[v] = postmat[0] * mix(rest, skinned, modifier_weight);
 }
 )GLSL";
 
@@ -296,16 +331,34 @@ ArmatureSkinningManager::ArmatureSkinningManager() : impl_(new Impl()) {}
 ArmatureSkinningManager::~ArmatureSkinningManager() {}
 
 /* Compute a hash of the Armature deformation state to detect changes */
-uint32_t ArmatureSkinningManager::compute_armature_hash(const Mesh *mesh, const Object *ob)
+uint32_t ArmatureSkinningManager::compute_armature_hash(const Mesh *mesh_orig,
+                                                        const ArmatureModifierData *amd)
 {
-  if (!mesh || !ob) {
+  if (!mesh_orig || !amd) {
     return 0;
   }
 
   uint32_t hash = 0;
 
   /* Hash number of vertices */
-  hash = BLI_hash_int_2d(hash, mesh->verts_num);
+  hash = BLI_hash_int_2d(hash, mesh_orig->verts_num);
+
+  /* Hash armature object pointer */
+  if (amd->object) {
+    hash = BLI_hash_int_2d(hash, (int)(intptr_t)amd->object);
+  }
+
+  /* Hash DQS mode (affects shader variant) */
+  /* Don't hash use_dqs - we want to keep the possibility
+   * to switch fast between dqs and lbs shaders without invalidating
+   * all armature/mesh resources. */
+  //const bool use_dqs = (amd->deformflag & ARM_DEF_QUATERNION) != 0;
+  //hash = BLI_hash_int_2d(hash, use_dqs ? 1 : 0);
+
+  /* Hash vertex group name (if specified) - like Lattice modifier */
+  if (amd->defgrp_name[0] != '\0') {
+    hash = BLI_hash_string(amd->defgrp_name);
+  }
 
   return hash;
 }
@@ -498,6 +551,24 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
     msd.gpu_setup_attempts = 0;
   }
 
+  /* Extract vertex group weights from mesh (modifier vertex group filter - like Lattice) */
+  msd.vgroup_weights.clear();
+  if (amd->defgrp_name[0] != '\0') {
+    /* Find vertex group index in mesh */
+    const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, amd->defgrp_name);
+    if (defgrp_index != -1) {
+      /* Extract per-vertex weights */
+      blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
+      if (!dverts.is_empty()) {
+        msd.vgroup_weights.resize(orig_mesh->verts_num, 0.0f);
+        for (int v = 0; v < orig_mesh->verts_num; ++v) {
+          const MDeformVert &dvert = dverts[v];
+          msd.vgroup_weights[v] = BKE_defvert_find_weight(&dvert, defgrp_index);
+        }
+      }
+    }
+  }
+
   /* GPU SSBO creation/upload will be deferred until in GL context (update_per_frame or dispatch).
    */
 }
@@ -601,6 +672,32 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
     GPU_storagebuf_update(ssbo_in_wgt, msd.in_weights.data());
   }
+
+  /* Vertex group weights SSBO (modifier filter - like Lattice) */
+  const std::string key_vgroup = "armature_vgroup_weights";
+  blender::gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
+  
+  /* Only create/upload if vertex group weights exist */
+  if (!msd.vgroup_weights.empty()) {
+    if (!ssbo_vgroup) {
+      const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, size_vgroup);
+      if (ssbo_vgroup) {
+        GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
+      }
+    }
+  }
+  else {
+    /* No vertex group: create empty dummy buffer so shader doesn't crash */
+    if (!ssbo_vgroup) {
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
+      if (ssbo_vgroup) {
+        float dummy = 0.0f;
+        GPU_storagebuf_update(ssbo_vgroup, &dummy);
+      }
+    }
+  }
+
 
   blender::gpu::StorageBuf *ssbo_rest_pos = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
                                                                            key_rest_pos);
@@ -802,6 +899,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     info.storage_buf(8, Qualifier::read, "mat4", "premat[]");
     info.storage_buf(9, Qualifier::read, "vec4", "rest_positions[]");
     info.storage_buf(10, Qualifier::read, "mat4", "postmat[]");
+    info.storage_buf(11, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
   }
   else {
     info.compute_source_generated = skin_compute_lbs_src;
@@ -813,6 +911,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
     info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
     info.storage_buf(7, Qualifier::read, "mat4", "postmat[]");
+    info.storage_buf(8, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
   }
 
   const std::string shader_key = use_dual_quaternions ? "armature_skinning_dqs" :
@@ -849,6 +948,9 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     GPU_storagebuf_bind(ssbo_premat, 8);
     GPU_storagebuf_bind(ssbo_rest_pos, 9);
     GPU_storagebuf_bind(ssbo_postmat, 10);
+    if (ssbo_vgroup) {
+      GPU_storagebuf_bind(ssbo_vgroup, 11);
+    }
   }
   else {
     /* Bind LBS buffers */
@@ -862,6 +964,9 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     GPU_storagebuf_bind(ssbo_premat, 5);
     GPU_storagebuf_bind(ssbo_rest_pos, 6);
     GPU_storagebuf_bind(ssbo_postmat, 7);
+    if (ssbo_vgroup) {
+      GPU_storagebuf_bind(ssbo_vgroup, 8);
+    }
   }
 
   const int group_size = 256;

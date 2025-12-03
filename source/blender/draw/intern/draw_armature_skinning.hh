@@ -33,9 +33,12 @@ class ArmatureSkinningManager {
   /**
    * Compute a hash of the Armature deformation state to detect changes.
    * Includes: vertex count, armature pointer, DQS mode, vertex group samples.
-   * Returns 0 if no armature deformation is present.
+   * 
+   * @param mesh_orig The original mesh (for vertex count)
+   * @param amd The armature modifier data (contains armature pointer, DQS flag, etc.)
+   * @return Hash value, or 0 if inputs are invalid
    */
-  static uint32_t compute_armature_hash(const Mesh *mesh, const Object *ob);
+  static uint32_t compute_armature_hash(const Mesh *mesh_orig, const ArmatureModifierData *amd);
 
   /**
    * Prepare CPU-only static resources (indices/weights/rest positions).

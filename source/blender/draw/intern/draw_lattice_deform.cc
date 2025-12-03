@@ -185,48 +185,40 @@ LatticeSkinningManager &LatticeSkinningManager::instance()
 LatticeSkinningManager::LatticeSkinningManager() : impl_(new Impl()) {}
 LatticeSkinningManager::~LatticeSkinningManager() {}
 
-uint32_t LatticeSkinningManager::compute_lattice_hash(const Mesh *mesh, const Object *ob)
+uint32_t LatticeSkinningManager::compute_lattice_hash(const Mesh *mesh_orig,
+                                                      const LatticeModifierData *lmd)
 {
-  if (!mesh || !ob) {
+  if (!mesh_orig || !lmd) {
     return 0;
   }
 
   uint32_t hash = 0;
-  hash = BLI_hash_int_2d(hash, mesh->verts_num);
+  hash = BLI_hash_int_2d(hash, mesh_orig->verts_num);
 
-  /* Find lattice modifier and hash its configuration */
-  for (ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
-    if (md->type == eModifierType_Lattice) {
-      LatticeModifierData *lmd = (LatticeModifierData *)md;
+  /* Hash lattice object pointer */
+  if (lmd->object) {
+    hash = BLI_hash_int_2d(hash, (int)(intptr_t)lmd->object);
 
-      /* Hash lattice object pointer */
-      if (lmd->object) {
-        hash = BLI_hash_int_2d(hash, (int)(intptr_t)lmd->object);
+    /* Hash lattice dimensions and control point count */
+    if (lmd->object->data) {
+      Lattice *lt = static_cast<Lattice *>(lmd->object->data);
+      hash = BLI_hash_int_2d(hash, lt->pntsu);
+      hash = BLI_hash_int_2d(hash, lt->pntsv);
+      hash = BLI_hash_int_2d(hash, lt->pntsw);
 
-        /* Hash lattice dimensions and control point count */
-        if (lmd->object->data) {
-          Lattice *lt = static_cast<Lattice *>(lmd->object->data);
-          hash = BLI_hash_int_2d(hash, lt->pntsu);
-          hash = BLI_hash_int_2d(hash, lt->pntsv);
-          hash = BLI_hash_int_2d(hash, lt->pntsw);
-
-          /* Hash interpolation types (KEY_LINEAR vs KEY_BSPLINE) */
-          hash = BLI_hash_int_2d(hash, int(lt->typeu));
-          hash = BLI_hash_int_2d(hash, int(lt->typev));
-          hash = BLI_hash_int_2d(hash, int(lt->typew));
-        }
-      }
-
-      /* Hash vertex group name (if specified) */
-      if (lmd->name[0] != '\0') {
-        hash = BLI_hash_string(lmd->name);
-      }
-
-      /* NOTE: strength is NOT hashed (it's a runtime uniform, changes every frame) */
-
-      break; /* Only first lattice modifier */
+      /* Hash interpolation types (KEY_LINEAR vs KEY_BSPLINE) */
+      hash = BLI_hash_int_2d(hash, int(lt->typeu));
+      hash = BLI_hash_int_2d(hash, int(lt->typev));
+      hash = BLI_hash_int_2d(hash, int(lt->typew));
     }
   }
+
+  /* Hash vertex group name (if specified) */
+  if (lmd->name[0] != '\0') {
+    hash = BLI_hash_string(lmd->name);
+  }
+
+  /* NOTE: strength is NOT hashed (it's a runtime uniform, changes every frame) */
 
   return hash;
 }

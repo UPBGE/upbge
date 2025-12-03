@@ -34,9 +34,13 @@ class LatticeSkinningManager {
 
   /**
    * Compute a hash of the Lattice deformation state to detect changes.
-   * Includes: vertex count, lattice dimensions, control point count.
+   * Includes: vertex count, lattice dimensions, interpolation types, vertex groups.
+   * 
+   * @param mesh_orig The original mesh (for vertex count)
+   * @param lmd The lattice modifier data (contains lattice pointer, vertex group, etc.)
+   * @return Hash value, or 0 if inputs are invalid
    */
-  static uint32_t compute_lattice_hash(const Mesh *mesh, const Object *ob);
+  static uint32_t compute_lattice_hash(const Mesh *mesh_orig, const LatticeModifierData *lmd);
 
   /**
    * Prepare CPU-side static resources (lattice control points, grid dimensions).

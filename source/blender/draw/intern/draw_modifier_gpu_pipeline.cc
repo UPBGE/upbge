@@ -108,14 +108,11 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
       }
       case ModifierGPUStageType::ARMATURE: {
         /* Armature: Delegate to ArmatureSkinningManager for complete hash
-         * (detects armature change, DQS mode, vertex groups, bone count, etc.)
-         *
-         * Note: mesh_orig_ and ob_eval_ are always set by execute() before calling
-         * compute_fast_hash(), so the else branch should never be reached. We assert this
-         * invariant. */
-        if (mesh_orig_ && ob_eval_) {
+         * (detects armature change, DQS mode, vertex groups, bone count, etc.) */
+        if (mesh_orig_) {
+          ArmatureModifierData *amd = static_cast<ArmatureModifierData *>(stage.modifier_data);
           hash = BLI_hash_int_2d(
-              hash, ArmatureSkinningManager::compute_armature_hash(mesh_orig_, ob_eval_));
+              hash, ArmatureSkinningManager::compute_armature_hash(mesh_orig_, amd));
         }
         else {
           /* Defensive fallback: Should never happen in normal execution */
@@ -130,9 +127,10 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
       case ModifierGPUStageType::LATTICE: {
         /* Lattice: Delegate to LatticeSkinningManager for complete hash
          * (detects lattice change, dimensions, interpolation types, vertex groups, etc.) */
-        if (mesh_orig_ && ob_eval_) {
+        if (mesh_orig_) {
+          LatticeModifierData *lmd = static_cast<LatticeModifierData *>(stage.modifier_data);
           hash = BLI_hash_int_2d(
-              hash, LatticeSkinningManager::compute_lattice_hash(mesh_orig_, ob_eval_));
+              hash, LatticeSkinningManager::compute_lattice_hash(mesh_orig_, lmd));
         }
         else {
           /* Defensive fallback: Should never happen in normal execution */
