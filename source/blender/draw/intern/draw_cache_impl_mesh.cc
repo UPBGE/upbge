@@ -1074,7 +1074,7 @@ static CLG_LogRef LOG = {"draw"};
 static void report_gpu_refused(Object *ob,
                                bool topology_mismatch,
                                bool topology_modifier_present,
-                               bool mixed_cpu_gpu,  // ← NEW
+                               bool mixed_cpu_gpu,
                                bool modifier_requests_gpu,
                                bool key_requests_gpu)
 {
@@ -1179,6 +1179,10 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
     else if (md->type == eModifierType_SimpleDeform) {
       SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
       requests_gpu = (smd && (smd->deform_method & SIM_DEFORM_METHOD_GPU));
+    }
+    else if (md->type == eModifierType_Hook) {
+      HookModifierData *hmd = (HookModifierData *)md;
+      requests_gpu = (hmd && (hmd->deform_method & HOO_DEFORM_METHOD_GPU));
     }
     /* Add more modifiers here as they are implemented */
 

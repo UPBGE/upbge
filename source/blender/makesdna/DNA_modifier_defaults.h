@@ -306,6 +306,7 @@
 #define _DNA_DEFAULT_HookModifierData \
   { \
     .subtarget = "", \
+    .deform_method = HOO_DEFORM_METHOD_CPU, \
     .flag = 0, \
     .falloff_type = eHook_Falloff_Smooth, \
     .parentinv = _DNA_DEFAULT_UNIT_M4, \

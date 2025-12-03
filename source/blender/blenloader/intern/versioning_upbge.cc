@@ -469,6 +469,10 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
           SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
           smd->deform_method |= SIM_DEFORM_METHOD_CPU;
         }
+        if (md->type == eModifierType_Hook) {
+          HookModifierData *hmd = (HookModifierData *)md;
+          hmd->deform_method |= HOO_DEFORM_METHOD_CPU;
+        }
       }
     }
   }

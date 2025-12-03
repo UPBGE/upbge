@@ -977,6 +977,7 @@ bool BKE_modifier_deform_verts(ModifierData *md,
     if (mesh && mesh->is_running_gpu_animation_playback == 1) {
       if (md->type == eModifierType_Armature ||
           md->type == eModifierType_Lattice ||
+          md->type == eModifierType_Hook ||
           md->type == eModifierType_SimpleDeform) {
         return true;
       }

@@ -83,11 +83,13 @@
 #include "DRW_render.hh"
 
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
-#include "DNA_key_types.h"            // UPBGE
-#include "draw_armature_skinning.hh" // UPBGE
+#include "DNA_key_types.h"               // UPBGE
+#include "draw_armature_skinning.hh"     // UPBGE
+#include "draw_hook.hh"                  // UPBGE
 #include "draw_lattice_deform.hh"
-#include "draw_shapekeys_skinning.hh"  // UPBGE
-#include "draw_modifier_gpu_pipeline.hh"  // UPBGE
+#include "draw_shapekeys_skinning.hh"    // UPBGE
+#include "draw_simpledeform.hh"          // UPBGE
+#include "draw_modifier_gpu_pipeline.hh" // UPBGE
 #include <unordered_set>
 
 #include "draw_cache.hh"
@@ -462,6 +464,8 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
           /* Free armature skinning static data first, then mesh GPU resources. */
           blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
           blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
+          blender::draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
+          blender::draw::HookManager::instance().free_resources_for_mesh(mesh);
           blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
           BKE_mesh_gpu_free_for_mesh(mesh);
         }
@@ -488,9 +492,11 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
 
   /* If we have a GL context now, free armature resources then mesh GPU resources immediately. */
   if (GPU_context_active_get() != nullptr) {
-    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
     blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::HookManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     BKE_mesh_gpu_free_for_mesh(mesh);
     return;
   }
@@ -509,9 +515,11 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
 
   /* Fallback: best-effort immediate free if GL becomes available right away. */
   if (GPU_context_active_get() != nullptr) {
-    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
     blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::HookManager::instance().free_resources_for_mesh(mesh);
+    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     BKE_mesh_gpu_free_for_mesh(mesh);
   }
 }

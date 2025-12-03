@@ -928,8 +928,18 @@ typedef struct HookModifierData {
   float force;
   /** Optional vertex-group name. */
   char name[/*MAX_VGROUP_NAME*/ 64];
+
+  short deform_method;
+  short _pad2[3];
+
   void *_pad1;
 } HookModifierData;
+
+/** HookModifierData.deform_method */
+typedef enum {
+  HOO_DEFORM_METHOD_CPU = 0,
+  HOO_DEFORM_METHOD_GPU = 1,
+} HookModifierDeformMethod;
 
 typedef struct SoftbodyModifierData {
   ModifierData modifier;

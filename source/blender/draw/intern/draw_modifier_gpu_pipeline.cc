@@ -19,6 +19,7 @@
 
 #include "draw_armature_skinning.hh"
 #include "draw_cache_impl.hh"
+#include "draw_hook.hh"
 #include "draw_lattice_deform.hh"
 #include "draw_shapekeys_skinning.hh"
 #include "draw_simpledeform.hh"
@@ -179,6 +180,19 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
         }
         break;
       }
+      case ModifierGPUStageType::HOOK: {
+        /* Hook: Delegate to HookManager for complete hash */
+        if (mesh_orig_) {
+          HookModifierData *hmd = static_cast<HookModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, HookManager::compute_hook_hash(mesh_orig_, hmd));
+        }
+        else {
+          BLI_assert_unreachable();
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
       default:
         /* Unsupported type: just hash the pointer */
         hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(stage.modifier_data)));
@@ -203,6 +217,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::SIMPLEDEFORM:
       SimpleDeformManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::HOOK:
+      HookManager::instance().invalidate_all(mesh_owner);
       break;
     default:
       break;
@@ -415,6 +432,38 @@ static gpu::StorageBuf *dispatch_simpledeform_stage(Mesh *mesh_orig,
   return sd_mgr.dispatch_deform(smd, DRW_context_get()->depsgraph, ob_eval, cache, input);
 }
 
+static gpu::StorageBuf *dispatch_hook_stage(Mesh *mesh_orig,
+                                            Object *ob_eval,
+                                            void *modifier_data,
+                                            gpu::StorageBuf *input,
+                                            gpu::StorageBuf * /*output*/,
+                                            uint32_t pipeline_hash)
+{
+  HookModifierData *hmd = static_cast<HookModifierData *>(modifier_data);
+  if (!hmd || !hmd->object) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  HookManager &hook_mgr = HookManager::instance();
+
+  /* IMPORTANT: hmd comes from ORIGINAL object, so hmd->object is ORIGINAL hook target */
+  Object *orig_hook = hmd->object;
+  Object *eval_hook = static_cast<Object *>(
+      DEG_get_evaluated(DRW_context_get()->depsgraph, orig_hook));
+
+  /* Pass hmd (original) for settings extraction */
+  hook_mgr.ensure_static_resources(hmd, orig_hook, ob_eval, mesh_orig, pipeline_hash);
+
+  return hook_mgr.dispatch_deform(
+      hmd, DRW_context_get()->depsgraph, eval_hook, ob_eval, cache, input);
+}
+
 /** \} */
 
 bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
@@ -467,6 +516,10 @@ bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPi
                            md,
                            execution_order++,
                            dispatch_simpledeform_stage);
+        break;
+      }
+      case eModifierType_Hook: {
+        pipeline.add_stage(ModifierGPUStageType::HOOK, md, execution_order++, dispatch_hook_stage);
         break;
       }
 
