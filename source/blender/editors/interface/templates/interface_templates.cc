@@ -336,14 +336,14 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
   /* see `view3d_header.cc` */
 }
 
-void uiTemplateGameStates(uiLayout *layout,
+void uiTemplateGameStates(blender::ui::Layout *layout,
                           PointerRNA *ptr,
                           const char *propname,
                           PointerRNA *used_ptr,
                           const char *used_propname,
                           int active_state)
 {
-  uiLayout *uRow, *uCol;
+  blender::ui::Layout *uRow, *uCol;
   PropertyRNA *prop, *used_prop = NULL;
   int groups, cols, states;
   int group, col, state, row;
