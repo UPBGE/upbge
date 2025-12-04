@@ -2550,13 +2550,12 @@ void DRW_module_exit()
   /* Free global caches owned by BKE (VBO/SSBO/shaders per-mesh). */
   BKE_mesh_gpu_free_all_caches();
 
-  /* Free global armature caches (SSBOs keyed by armature). */
-  BKE_armature_gpu_internal_free_all_armature_caches();
-
   /* Clear manager CPU-side bookkeeping (no SSBO release here to avoid double-free). */
   blender::draw::ArmatureSkinningManager::instance().free_all();
   blender::draw::LatticeSkinningManager::instance().free_all();
   blender::draw::ShapeKeySkinningManager::instance().free_all();
+  blender::draw::HookManager::instance().free_all();
+  blender::draw::SimpleDeformManager::instance().free_all();
 
   GPU_render_end();
 
