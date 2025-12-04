@@ -683,8 +683,15 @@ typedef struct DisplaceModifierData {
   int space;
   /** #DisplaceModifierFlag. */
   short flag;
-  char _pad2[6];
+  short deform_method;
+  char _pad2[4];
 } DisplaceModifierData;
+
+/** HookModifierData.deform_method */
+typedef enum {
+  DIS_DEFORM_METHOD_CPU = 0,
+  DIS_DEFORM_METHOD_GPU = 1,
+} DisplaceModifierDeformMethod;
 
 /** #DisplaceModifierData.flag */
 typedef enum {

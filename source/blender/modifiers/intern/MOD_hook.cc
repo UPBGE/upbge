@@ -456,6 +456,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.use_property_split_set(true);
 
+  /* UPBGE */
+  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
+
   blender::ui::Layout &col = layout.column(false);
   col.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_pointer_is_null(&hook_object_ptr) &&
@@ -467,9 +470,6 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   layout.prop(ptr, "strength", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-
-  /* UPBGE */
-  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
 
   if (RNA_enum_get(&ob_ptr, "mode") == OB_MODE_EDIT) {
     blender::ui::Layout *row = &layout.row(true);

@@ -444,13 +444,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int deform_method = RNA_enum_get(ptr, "deform_method");
 
-  /* UPBGE */
-  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
-
   blender::ui::Layout &row = layout.row(false);
   row.prop(ptr, "deform_method", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout.use_property_split_set(true);
+
+  /* UPBGE */
+  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
 
   if (ELEM(deform_method, MOD_SIMPLEDEFORM_MODE_TAPER, MOD_SIMPLEDEFORM_MODE_STRETCH)) {
     layout.prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);

@@ -348,6 +348,10 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   layout.use_property_split_set(true);
 
+  /* UPBGE */
+  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
+
+
   uiTemplateID(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
   blender::ui::Layout *col = &layout.column(false);

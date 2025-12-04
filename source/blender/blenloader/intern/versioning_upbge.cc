@@ -473,6 +473,10 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
           HookModifierData *hmd = (HookModifierData *)md;
           hmd->deform_method |= HOO_DEFORM_METHOD_CPU;
         }
+        if (md->type == eModifierType_Displace) {
+          DisplaceModifierData *dmd = (DisplaceModifierData *)md;
+          dmd->deform_method |= DIS_DEFORM_METHOD_CPU;
+        }
       }
     }
   }

@@ -19,6 +19,7 @@
 
 #include "draw_armature_skinning.hh"
 #include "draw_cache_impl.hh"
+#include "draw_displace.hh"
 #include "draw_hook.hh"
 #include "draw_lattice_deform.hh"
 #include "draw_shapekeys_skinning.hh"
@@ -464,6 +465,32 @@ static gpu::StorageBuf *dispatch_hook_stage(Mesh *mesh_orig,
       hmd, DRW_context_get()->depsgraph, eval_hook, ob_eval, cache, input);
 }
 
+static gpu::StorageBuf *dispatch_displace_stage(Mesh *mesh_orig,
+                                                Object *ob_eval,
+                                                void *modifier_data,
+                                                gpu::StorageBuf *input,
+                                                gpu::StorageBuf * /*output*/,
+                                                uint32_t pipeline_hash)
+{
+  DisplaceModifierData *dmd = static_cast<DisplaceModifierData *>(modifier_data);
+  if (!dmd) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  DisplaceManager &displace_mgr = DisplaceManager::instance();
+
+  displace_mgr.ensure_static_resources(dmd, ob_eval, mesh_orig, pipeline_hash);
+
+  return displace_mgr.dispatch_deform(
+      dmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
+}
+
 /** \} */
 
 bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
@@ -520,6 +547,11 @@ bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPi
       }
       case eModifierType_Hook: {
         pipeline.add_stage(ModifierGPUStageType::HOOK, md, execution_order++, dispatch_hook_stage);
+        break;
+      }
+      case eModifierType_Displace: {
+        pipeline.add_stage(
+            ModifierGPUStageType::DISPLACE, md, execution_order++, dispatch_displace_stage);
         break;
       }
 

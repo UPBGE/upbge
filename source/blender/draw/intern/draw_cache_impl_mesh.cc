@@ -1187,6 +1187,10 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
       HookModifierData *hmd = (HookModifierData *)md;
       requests_gpu = (hmd && (hmd->deform_method & HOO_DEFORM_METHOD_GPU));
     }
+    else if (md->type == eModifierType_Displace) {
+      DisplaceModifierData *dmd = (DisplaceModifierData *)md;
+      requests_gpu = (dmd && (dmd->deform_method & DIS_DEFORM_METHOD_GPU));
+    }
     /* Add more modifiers here as they are implemented */
 
     if (requests_gpu) {

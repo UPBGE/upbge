@@ -139,13 +139,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.use_property_split_set(true);
 
+  /* UPBGE */
+  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
+
   layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
-
-  /* UPBGE */
-  layout.prop(
-      ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
 
   layout.prop(ptr, "strength", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 

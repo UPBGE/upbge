@@ -276,6 +276,7 @@
     .midlevel = 0.5f, \
     .space = MOD_DISP_SPACE_LOCAL, \
     .flag = 0, \
+    .deform_method = DIS_DEFORM_METHOD_CPU, \
   }
 
 #define _DNA_DEFAULT_DynamicPaintModifierData \
