@@ -1153,7 +1153,10 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
   int total_deform_modifiers = 0;
   int gpu_deform_modifiers = 0;
 
-  for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
+  Object *ob_orig = DEG_get_original(&ob);
+
+  for (ModifierData *md = static_cast<ModifierData *>(ob_orig->modifiers.first); md; md = md->next)
+  {
     if (!(md->mode & eModifierMode_Realtime)) {
       continue; /* Skip disabled modifiers */
     }
