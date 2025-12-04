@@ -10,6 +10,8 @@ set(INC
   ../editors/space_view3d
   ../gpu/intern
   ../makesrna
+  ../modifiers
+  ../modifiers/intern
   ../render/intern
   ../compositor
   ../compositor/algorithms

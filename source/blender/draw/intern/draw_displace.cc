@@ -17,16 +17,21 @@
 #include "BLI_vector.hh"
 
 #include "BKE_deform.hh"
+#include "BKE_image.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 #include "BKE_object.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_texture_types.h"
+
+#include "../modifiers/intern/MOD_util.hh"
 
 #include "GPU_compute.hh"
 #include "GPU_shader.hh"
 #include "GPU_storage_buffer.hh"
+#include "GPU_texture.hh"
 
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
@@ -34,6 +39,8 @@
 #include "draw_cache_impl.hh"
 
 #include "DEG_depsgraph_query.hh"
+
+#include "MEM_guardedalloc.h"
 
 using namespace blender::draw;
 
@@ -60,6 +67,7 @@ struct blender::draw::DisplaceManager::Impl {
 
   struct MeshStaticData {
     std::vector<float> vgroup_weights; /* per-vertex weight (0.0-1.0) */
+    std::vector<blender::float3> tex_coords; /* per-vertex texture coordinates */
     int verts_num = 0;
 
     Object *deformed = nullptr;
@@ -91,6 +99,8 @@ static const char *displace_compute_src = R"GLSL(
 #define MOD_DISP_SPACE_LOCAL 0
 #define MOD_DISP_SPACE_GLOBAL 1
 
+/* Note: displacement_texture sampler is declared by ShaderCreateInfo, no manual uniform needed */
+
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= deformed_positions.length()) {
@@ -113,8 +123,106 @@ void main() {
   }
 
   /* Compute delta (displacement amount) */
-  /* Note: For now, we use a fixed delta (no texture sampling) */
-  float delta = (1.0 - midlevel) * strength * vgroup_weight;
+  float delta;
+  
+#ifdef HAS_TEXTURE
+  /* Sample texture using texture coordinates from MOD_get_texture_coords() */
+  vec3 tex_coord = texture_coords[v].xyz;
+  
+  /* FLAT mapping: remap from world/local space to [0,1] UV space
+   * This matches CPU behavior in do_2d_mapping() (texture_procedural.cc) */
+  vec2 uv;
+  uv.x = (tex_coord.x + 1.0) * 0.5;
+  uv.y = (tex_coord.y + 1.0) * 0.5;
+  
+  /* Sample texture and get linear RGB values */
+  vec4 tex_color = texture(displacement_texture, uv);
+  vec3 rgb = tex_color.rgb;
+  float alpha = tex_color.a;
+  
+  /* Step 1: De-pre-multiply alpha (texture_image.cc lines 272-279) */
+  if (use_talpha && alpha != 1.0 && alpha > 1e-4) {
+    float inv_alpha = 1.0 / alpha;
+    rgb *= inv_alpha;
+  }
+  
+  /* Step 2: Apply BRICONTRGB (brightness, contrast, RGB factors) */
+  rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
+  rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
+  rgb.b = tex_bfac * ((rgb.b - 0.5) * tex_contrast + tex_bright - 0.5);
+  
+  /* Clamp negative values only if !TEX_NO_CLAMP */
+  if (!tex_no_clamp) {
+    rgb = max(rgb, vec3(0.0));
+  }
+  
+  /* Step 3: Apply saturation (if needed) */
+  if (tex_saturation != 1.0) {
+    /* RGB to HSV */
+    float cmax = max(max(rgb.r, rgb.g), rgb.b);
+    float cmin = min(min(rgb.r, rgb.g), rgb.b);
+    float delta_hsv = cmax - cmin;
+    
+    float h = 0.0, s = 0.0, v = cmax;
+    
+    if (delta_hsv > 1e-20) {
+      s = delta_hsv / (cmax + 1e-20);
+      
+      if (rgb.r >= cmax) {
+        h = (rgb.g - rgb.b) / delta_hsv;
+      } else if (rgb.g >= cmax) {
+        h = 2.0 + (rgb.b - rgb.r) / delta_hsv;
+      } else {
+        h = 4.0 + (rgb.r - rgb.g) / delta_hsv;
+      }
+      
+      h /= 6.0;
+      if (h < 0.0) h += 1.0;
+    }
+    
+    /* Scale saturation */
+    s *= tex_saturation;
+    
+    /* HSV to RGB (Blender's algorithm) */
+    float nr = abs(h * 6.0 - 3.0) - 1.0;
+    float ng = 2.0 - abs(h * 6.0 - 2.0);
+    float nb = 2.0 - abs(h * 6.0 - 4.0);
+    
+    nr = clamp(nr, 0.0, 1.0);
+    ng = clamp(ng, 0.0, 1.0);
+    nb = clamp(nb, 0.0, 1.0);
+    
+    rgb.r = ((nr - 1.0) * s + 1.0) * v;
+    rgb.g = ((ng - 1.0) * s + 1.0) * v;
+    rgb.b = ((nb - 1.0) * s + 1.0) * v;
+    
+    /* Clamp again if saturation > 1.0 and !TEX_NO_CLAMP */
+    if (tex_saturation > 1.0 && !tex_no_clamp) {
+      rgb = max(rgb, vec3(0.0));
+    }
+  }
+  
+  /* Step 4: Convert linear → sRGB (Blender's linearrgb_to_srgb formula)
+   * This is CRITICAL: GPU textures are in linear space, but CPU computes
+   * displacement from sRGB values. Formula from math_color.cc line 649-654:
+   *   if (c < 0.0031308f) return max(c * 12.92f, 0.0f);
+   *   else return 1.055f * pow(c, 1.0f/2.4f) - 0.055f;
+   */
+  vec3 srgb_rgb;
+  srgb_rgb.r = (rgb.r < 0.0031308) ? max(rgb.r * 12.92, 0.0) : (1.055 * pow(rgb.r, 1.0 / 2.4) - 0.055);
+  srgb_rgb.g = (rgb.g < 0.0031308) ? max(rgb.g * 12.92, 0.0) : (1.055 * pow(rgb.g, 1.0 / 2.4) - 0.055);
+  srgb_rgb.b = (rgb.b < 0.0031308) ? max(rgb.b * 12.92, 0.0) : (1.055 * pow(rgb.b, 1.0 / 2.4) - 0.055);
+  
+  /* Step 5: Compute intensity as average of sRGB values
+   * This matches BKE_texture_get_value_ex() (texture.cc line 630) */
+  float tex_value = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
+
+  float s = strength * vgroup_weight;
+  delta = (tex_value - midlevel) * s;
+#else
+  /* Fixed delta (no texture) */
+  delta = (1.0 - midlevel) * strength * vgroup_weight;
+#endif
   
   /* Clamp delta to prevent extreme deformations */
   delta = clamp(delta, -10000.0, 10000.0);
@@ -199,6 +307,14 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
   /* Hash invert flag */
   hash = BLI_hash_int_2d(hash, int(dmd->flag & MOD_DISP_INVERT_VGROUP));
 
+  /* Hash texture mapping mode */
+  hash = BLI_hash_int_2d(hash, int(dmd->texmapping));
+
+  /* Hash texture pointer (if present) */
+  if (dmd->texture && dmd->texture->type == TEX_IMAGE) {
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(dmd->texture)));
+  }
+
   /* Note: strength and midlevel are runtime uniforms, not hashed */
 
   return hash;
@@ -251,6 +367,31 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
         }
       }
     }
+  }
+
+  /* Extract texture coordinates (if texture is present) */
+  msd.tex_coords.clear();
+  if (dmd->texture && dmd->texture->type == TEX_IMAGE) {
+    /* Use the same MOD_get_texture_coords() function as the CPU modifier
+     * to guarantee identical behavior for all mapping modes (LOCAL/GLOBAL/OBJECT/UV) */
+    const int verts_num = orig_mesh->verts_num;
+    float (*tex_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, "displace_tex_coords");
+
+    MOD_get_texture_coords(
+        reinterpret_cast<MappingInfoModifierData *>(const_cast<DisplaceModifierData *>(dmd)),
+        nullptr,  // ctx (not needed for coordinate calculation)
+        deform_ob,
+        orig_mesh,
+        nullptr,  // cos (use original positions)
+        tex_co);
+    
+    /* Copy to msd.tex_coords vector */
+    msd.tex_coords.resize(verts_num);
+    for (int v = 0; v < verts_num; ++v) {
+      msd.tex_coords[v] = blender::float3(tex_co[v]);
+    }
+    
+    MEM_freeN(tex_co);
   }
 }
 
@@ -357,6 +498,44 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     }
   }
 
+  /* Upload texture coordinates SSBO and prepare texture binding */
+  const std::string key_texcoords = key_prefix + "tex_coords";
+  blender::gpu::StorageBuf *ssbo_texcoords = nullptr;
+  blender::gpu::Texture *gpu_texture = nullptr;
+  bool has_texture = false;
+
+  if (dmd->texture && dmd->texture->type == TEX_IMAGE && dmd->texture->ima) {
+    Image *ima = dmd->texture->ima;
+    
+    /* Check if GPU texture is loaded */
+    if (ima && ima->runtime) {
+      ImageUser iuser = {nullptr};
+
+      gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
+      
+      if (gpu_texture && !msd.tex_coords.empty()) {
+        has_texture = true;
+        
+        /* Upload texture coordinates SSBO */
+        ssbo_texcoords = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);
+        
+        if (!ssbo_texcoords) {
+          const size_t size_texcoords = msd.tex_coords.size() * sizeof(blender::float4);
+          ssbo_texcoords = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_texcoords, size_texcoords);
+          if (ssbo_texcoords) {
+            /* Pad float3 to float4 for GPU alignment */
+            std::vector<blender::float4> padded_texcoords(msd.tex_coords.size());
+            for (size_t i = 0; i < msd.tex_coords.size(); ++i) {
+              padded_texcoords[i] = blender::float4(
+                  msd.tex_coords[i].x, msd.tex_coords[i].y, msd.tex_coords[i].z, 1.0f);
+            }
+            GPU_storagebuf_update(ssbo_texcoords, padded_texcoords.data());
+          }
+        }
+      }
+    }
+  }
+
   /* Create output SSBO */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
@@ -379,13 +558,24 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("pyGPU_Shader");
   info.local_group_size(256, 1, 1);
-  info.compute_source_generated = displace_compute_src;
+  
+  /* Build shader source with conditional texture support */
+  std::string shader_src = displace_compute_src;
+  if (has_texture) {
+    shader_src = "#define HAS_TEXTURE\n" + shader_src;
+  }
+  info.compute_source_generated = shader_src;
 
   /* Bindings */
   info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
   info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
   info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
   info.storage_buf(3, Qualifier::read, "vec4", "vert_normals[]");  // Always declare (dummy if unused)
+  
+  if (has_texture) {
+    info.storage_buf(4, Qualifier::read, "vec4", "texture_coords[]");
+    info.sampler(0, ImageType::Float2D, "displacement_texture");
+  }
 
   /* Push constants */
   info.push_constant(Type::float4x4_t, "local_mat");
@@ -393,6 +583,18 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   info.push_constant(Type::float_t, "midlevel");
   info.push_constant(Type::int_t, "direction");
   info.push_constant(Type::bool_t, "use_global");
+  
+  /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
+  if (has_texture) {
+    info.push_constant(Type::bool_t, "use_talpha");      /* Enable de-premultiply */
+    info.push_constant(Type::float_t, "tex_bright");     /* Tex->bright */
+    info.push_constant(Type::float_t, "tex_contrast");   /* Tex->contrast */
+    info.push_constant(Type::float_t, "tex_saturation"); /* Tex->saturation */
+    info.push_constant(Type::float_t, "tex_rfac");       /* Tex->rfac */
+    info.push_constant(Type::float_t, "tex_gfac");       /* Tex->gfac */
+    info.push_constant(Type::float_t, "tex_bfac");       /* Tex->bfac */
+    info.push_constant(Type::bool_t, "tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
+  }
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
       mesh_owner, "displace_compute", info);
@@ -411,6 +613,16 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   if (ssbo_normals) {
     GPU_storagebuf_bind(ssbo_normals, 3);  // Always bind (dummy if unused)
   }
+  
+  /* Bind texture coordinates and texture (if present) */
+  if (has_texture) {
+    if (ssbo_texcoords) {
+      GPU_storagebuf_bind(ssbo_texcoords, 4);
+    }
+    if (gpu_texture) {
+      GPU_texture_bind(gpu_texture, 0);
+    }
+  }
 
   /* Set uniforms (runtime parameters) */
   GPU_shader_uniform_mat4(shader, "local_mat", (const float(*)[4])local_mat);
@@ -418,10 +630,40 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   GPU_shader_uniform_1f(shader, "midlevel", dmd->midlevel);
   GPU_shader_uniform_1i(shader, "direction", int(dmd->direction));
   GPU_shader_uniform_1b(shader, "use_global", use_global);
+  
+  /* Set texture processing parameters (if texture is present) */
+  if (has_texture && dmd->texture) {
+    Tex *tex = dmd->texture;
+    Image *ima = tex->ima;
+    
+    /* Determine if we should use de-premultiply (talpha flag logic from imagewrap)
+     * talpha is set when: TEX_USEALPHA && alpha_mode != IGNORE && !TEX_CALCALPHA */
+    bool use_talpha = false;
+    if ((tex->imaflag & TEX_USEALPHA) && ima && (ima->alpha_mode != IMA_ALPHA_IGNORE)) {
+      if ((tex->imaflag & TEX_CALCALPHA) == 0) {
+        use_talpha = true;
+      }
+    }
+    
+    GPU_shader_uniform_1b(shader, "use_talpha", use_talpha);
+    GPU_shader_uniform_1f(shader, "tex_bright", tex->bright);
+    GPU_shader_uniform_1f(shader, "tex_contrast", tex->contrast);
+    GPU_shader_uniform_1f(shader, "tex_saturation", tex->saturation);
+    GPU_shader_uniform_1f(shader, "tex_rfac", tex->rfac);
+    GPU_shader_uniform_1f(shader, "tex_gfac", tex->gfac);
+    GPU_shader_uniform_1f(shader, "tex_bfac", tex->bfac);
+    GPU_shader_uniform_1b(shader, "tex_no_clamp", (tex->flag & TEX_NO_CLAMP) != 0);
+  }
+
 
   const int group_size = 256;
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;
   GPU_compute_dispatch(shader, num_groups, 1, 1);
+
+  /* Unbind texture */
+  if (gpu_texture) {
+    GPU_texture_unbind(gpu_texture);
+  }
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
