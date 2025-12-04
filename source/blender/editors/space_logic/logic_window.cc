@@ -1092,9 +1092,9 @@ static bool is_sensor_linked(uiBlock *block, bSensor *sens)
 
 /* Sensors code */
 
-static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *logic_ptr)
+static void draw_sensor_header(blender::ui::Layout *layout, PointerRNA *ptr, PointerRNA *logic_ptr)
 {
-  uiLayout *box, *row, *sub;
+  blender::ui::Layout *box, *row, *sub;
   bSensor *sens = (bSensor *)ptr->data;
 
   box = &layout->box();
@@ -1135,9 +1135,9 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *lo
   sub->op("LOGIC_OT_sensor_remove", "", ICON_X);
 }
 
-static void draw_sensor_internal_header(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_internal_header(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *box, *split, *sub, *row;
+  blender::ui::Layout *box, *split, *sub, *row;
 
   box = &layout->box();
   box->active_set(RNA_boolean_get(ptr, "active"));
@@ -1161,7 +1161,7 @@ static void draw_sensor_internal_header(uiLayout *layout, PointerRNA *ptr)
 }
 /* sensors in alphabetical order */
 
-static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_actuator(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
 
@@ -1175,12 +1175,12 @@ static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
                  ICON_ACTION);  // CHOOSE BETTER ICON
 }
 
-static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_armature(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   bSensor *sens = (bSensor *)ptr->data;
   bArmatureSensor *as = (bArmatureSensor *)sens->data;
   Object *ob = (Object *)ptr->owner_id;
-  uiLayout *row;
+  blender::ui::Layout *row;
 
   if (ob->type != OB_ARMATURE) {
     layout->label(IFACE_("Sensor only available for armatures"), ICON_NONE);
@@ -1211,9 +1211,9 @@ static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
     row->prop(ptr, "value", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_collision(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_sensor_collision(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
-  uiLayout *row, *split;
+  blender::ui::Layout *row, *split;
 
   PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
 
@@ -1233,9 +1233,9 @@ static void draw_sensor_collision(uiLayout *layout, PointerRNA *ptr, bContext *C
   }
 }
 
-static void draw_sensor_delay(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_delay(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
 
   row = &layout->row(false);
 
@@ -1244,9 +1244,9 @@ static void draw_sensor_delay(uiLayout *layout, PointerRNA *ptr)
   row->prop(ptr, "use_repeat", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *col, *row, *split;
+  blender::ui::Layout *col, *row, *split;
 
   layout->prop(ptr, "joystick_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   split = &layout->split(0.75f, false);
@@ -1283,9 +1283,9 @@ static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_vibration(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
   row = &layout->row(false);
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, 0);
@@ -1307,10 +1307,10 @@ static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_keyboard(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  uiLayout *row, *col;
+  blender::ui::Layout *row, *col;
 
   row = &layout->row(false);
   row->label(CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Key:"), ICON_NONE);
@@ -1335,14 +1335,14 @@ static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
   layout->prop_search(ptr, "target", &settings_ptr, "properties", std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_message(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_message(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   layout->prop(ptr, "subject", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_mouse(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_sensor_mouse(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
-  uiLayout *split, *split2;
+  blender::ui::Layout *split, *split2;
 
   split = &layout->split(0.8f, false);
   split->prop(ptr, "mouse_event", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1368,9 +1368,9 @@ static void draw_sensor_mouse(uiLayout *layout, PointerRNA *ptr, bContext *C)
   }
 }
 
-static void draw_sensor_near(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_near(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
 
   layout->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -1379,11 +1379,11 @@ static void draw_sensor_near(uiLayout *layout, PointerRNA *ptr)
   row->prop(ptr, "reset_distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_property(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_property(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
 
-  uiLayout *row;
+  blender::ui::Layout *row;
   layout->prop(ptr, "evaluation_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
@@ -1406,9 +1406,9 @@ static void draw_sensor_property(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_sensor_radar(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_radar(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
 
   layout->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1418,14 +1418,14 @@ static void draw_sensor_radar(uiLayout *layout, PointerRNA *ptr)
   row->prop(ptr, "distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_random(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_random(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   layout->prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_sensor_ray(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
-  uiLayout *split, *row;
+  blender::ui::Layout *split, *row;
 
   PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
   split = &layout->split(0.3f, false);
@@ -1448,18 +1448,18 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
   split->prop(ptr, "mask", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_movement(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_movement(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
   layout->prop(ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = &layout->row(false);
   row->prop(ptr, "use_local", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   row->prop(ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_brick_sensor(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
-  uiLayout *box;
+  blender::ui::Layout *box;
 
   if (!RNA_boolean_get(ptr, "show_expanded"))
     return;
@@ -1519,9 +1519,9 @@ static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
 }
 
 /* Controller code */
-static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, int width, int yco)
+static void draw_controller_header(blender::ui::Layout *layout, PointerRNA *ptr, int xco, int width, int yco)
 {
-  uiLayout *box, *row, *sub, *row2, *sub2;
+  blender::ui::Layout *box, *row, *sub, *row2, *sub2;
   bController *cont = (bController *)ptr->data;
 
   char state[9];
@@ -1577,14 +1577,14 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
   sub->op("LOGIC_OT_controller_remove","", ICON_X);
 }
 
-static void draw_controller_expression(uiLayout *layout, PointerRNA *ptr)
+static void draw_controller_expression(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   layout->prop(ptr, "expression", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-static void draw_controller_python(uiLayout *layout, PointerRNA *ptr)
+static void draw_controller_python(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *split, *sub;
+  blender::ui::Layout *split, *sub;
 
   split = &layout->split(0.3, true);
   split->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
@@ -1598,13 +1598,13 @@ static void draw_controller_python(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_controller_state(uiLayout */*layout*/, PointerRNA */*ptr*/)
+static void draw_controller_state(blender::ui::Layout */*layout*/, PointerRNA */*ptr*/)
 {
 }
 
-static void draw_brick_controller(uiLayout *layout, PointerRNA *ptr)
+static void draw_brick_controller(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *box;
+  blender::ui::Layout *box;
 
   if (!RNA_boolean_get(ptr, "show_expanded"))
     return;
@@ -1637,9 +1637,9 @@ static void draw_brick_controller(uiLayout *layout, PointerRNA *ptr)
 }
 
 /* Actuator code */
-static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *logic_ptr)
+static void draw_actuator_header(blender::ui::Layout *layout, PointerRNA *ptr, PointerRNA *logic_ptr)
 {
-  uiLayout *box, *row, *sub;
+  blender::ui::Layout *box, *row, *sub;
   bActuator *act = (bActuator *)ptr->data;
 
   box = &layout->box();
@@ -1680,10 +1680,10 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
   sub->op("LOGIC_OT_actuator_remove","", ICON_X);
 }
 
-static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_action(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  uiLayout *row, *sub;
+  blender::ui::Layout *row, *sub;
 
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
@@ -1730,7 +1730,7 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 #endif
 }
 
-static void draw_actuator_armature(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_armature(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   bActuator *act = (bActuator *)ptr->data;
   bArmatureActuator *aa = (bArmatureActuator *)act->data;
@@ -1810,9 +1810,9 @@ static void draw_actuator_armature(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_camera(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_camera(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
   layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout->row(false);
@@ -1826,9 +1826,9 @@ static void draw_actuator_camera(uiLayout *layout, PointerRNA *ptr)
   layout->prop(ptr, "damping", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
-  uiLayout *row, *col, *sub, *split;
+  blender::ui::Layout *row, *col, *sub, *split;
 
   PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
 
@@ -1925,10 +1925,10 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
   }
 }
 
-static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_edit_object(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  uiLayout *row, *split, *sub;
+  blender::ui::Layout *row, *split, *sub;
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (RNA_enum_get(ptr, "mode")) {
@@ -1995,9 +1995,9 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_filter_2d(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  // uiLayout *row, *split;
+  // blender::ui::Layout *row, *split;
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   switch (RNA_enum_get(ptr, "mode")) {
@@ -2018,17 +2018,17 @@ static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_game(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_game(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ELEM(RNA_enum_get(ptr, "mode"), ACT_GAME_LOAD, ACT_GAME_SCREENSHOT))
     layout->prop(ptr, "filename", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_actuator_message(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
   Object *ob;
-  uiLayout *row;
+  blender::ui::Layout *row;
 
   PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
 
@@ -2047,10 +2047,10 @@ static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr, bContext *C
     row->prop_search(ptr, "body_property", &settings_ptr, "properties", "", ICON_NONE);
 }
 
-static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob;
-  uiLayout *split, *row, *col, *sub;
+  blender::ui::Layout *split, *row, *col, *sub;
   int physics_type;
   bool angular;
 
@@ -2170,9 +2170,9 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_parent(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_parent(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row, *sub;
+  blender::ui::Layout *row, *sub;
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -2187,14 +2187,14 @@ static void draw_actuator_parent(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_property(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
   bActuator *act = (bActuator *)ptr->data;
   bPropertyActuator *pa = (bPropertyActuator *)act->data;
   Object *ob_from = pa->ob;
 
-  uiLayout *row, *sub;
+  blender::ui::Layout *row, *sub;
 
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
@@ -2229,10 +2229,10 @@ static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_random(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_random(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   Object *ob;
-  uiLayout *row;
+  blender::ui::Layout *row;
 
   ob = (Object *)ptr->owner_id;
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
@@ -2293,7 +2293,7 @@ static void draw_actuator_random(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_scene(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -2309,9 +2309,9 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_collection(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_collection(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
   row = &layout->row(false);
   row->prop(ptr, "collection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = &layout->row(false);
@@ -2338,9 +2338,9 @@ static void draw_actuator_collection(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_actuator_sound(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
-  uiLayout *row, *col;
+  blender::ui::Layout *row, *col;
 
   uiTemplateID(layout,
                C,
@@ -2386,9 +2386,9 @@ static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
   row->prop(ptr, "cone_inner_angle_3d", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_state(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *split;
+  blender::ui::Layout *split;
   Object *ob = (Object *)ptr->owner_id;
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
@@ -2398,9 +2398,9 @@ static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
   uiTemplateLayers(split, ptr, "states", &settings_ptr, "used_states", 0);
 }
 
-static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_visibility(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
+  blender::ui::Layout *row;
   row = &layout->row(false);
 
   row->prop(ptr, "use_visible", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2408,10 +2408,10 @@ static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
   row->prop(ptr, "apply_to_children", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_actuator_steering(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_steering(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row;
-  uiLayout *col;
+  blender::ui::Layout *row;
+  blender::ui::Layout *col;
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2455,9 +2455,9 @@ static void draw_actuator_steering(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_actuator_mouse(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_mouse(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  uiLayout *row, *col, *subcol, *split, *subsplit;
+  blender::ui::Layout *row, *col, *subcol, *split, *subsplit;
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, 0);
 
@@ -2517,9 +2517,9 @@ static void draw_actuator_mouse(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
+static void draw_brick_actuator(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
-  uiLayout *box;
+  blender::ui::Layout *box;
 
   if (!RNA_boolean_get(ptr, "show_expanded"))
     return;
@@ -2596,7 +2596,7 @@ void logic_buttons(bContext *C, ARegion *region)
   SpaceLogic *slogic = CTX_wm_space_logic(C);
   Object *ob = CTX_data_active_object(C);
   ID **idar;
-  uiLayout *layout, *row, *box;
+  blender::ui::Layout *layout, *row, *box;
   uiBlock *block;
   uiBut *but;
   char uiblockstr[32];
@@ -2681,7 +2681,7 @@ void logic_buttons(bContext *C, ARegion *region)
                 yco,
                 width,
                 UI_UNIT_Y,
-                ""); /* replace this with uiLayout stuff later */
+                ""); /* replace this with blender::ui::Layout stuff later */
 
   row->prop(&logic_ptr, "show_controllers_selected_objects", UI_ITEM_NONE, IFACE_("Sel"), ICON_NONE);
   row->prop(&logic_ptr, "show_controllers_active_object", UI_ITEM_NONE, IFACE_("Act"), ICON_NONE);
@@ -2689,7 +2689,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
   for (a = 0; a < count; a++) {
     bController *cont;
-    uiLayout *split, *subsplit, *col;
+    blender::ui::Layout *split, *subsplit, *col;
 
     ob = (Object *)idar[a];
 
@@ -2844,7 +2844,7 @@ void logic_buttons(bContext *C, ARegion *region)
                 yco,
                 15 * U.widget_unit,
                 UI_UNIT_Y,
-                ""); /* replace this with uiLayout stuff later */
+                ""); /* replace this with blender::ui::Layout stuff later */
 
   row->prop(&logic_ptr, "show_sensors_selected_objects", UI_ITEM_NONE, IFACE_("Sel"), ICON_NONE);
   row->prop(&logic_ptr, "show_sensors_active_object", UI_ITEM_NONE, IFACE_("Act"), ICON_NONE);
@@ -2894,7 +2894,7 @@ void logic_buttons(bContext *C, ARegion *region)
            slogic->scaflag & BUTS_SENS_STATE) || /* states can hide some sensors, pinned sensors
                                                     ignore the visible state */
           (is_sensor_linked(block, sens))) {  // gotta check if the current state is visible or not
-        uiLayout *split, *col;
+        blender::ui::Layout *split, *col;
 
         /* make as visible, for move operator */
         sens->flag |= SENS_VISIBLE;
@@ -2960,7 +2960,7 @@ void logic_buttons(bContext *C, ARegion *region)
                 yco,
                 15 * U.widget_unit,
                 UI_UNIT_Y,
-                ""); /* replace this with uiLayout stuff later */
+                ""); /* replace this with blender::ui::Layout stuff later */
 
   row->prop(&logic_ptr, "show_actuators_selected_objects", UI_ITEM_NONE, IFACE_("Sel"), ICON_NONE);
   row->prop(&logic_ptr, "show_actuators_active_object", UI_ITEM_NONE, IFACE_("Act"), ICON_NONE);
@@ -3012,7 +3012,7 @@ void logic_buttons(bContext *C, ARegion *region)
            slogic->scaflag & BUTS_ACT_STATE) /* states can hide some sensors, pinned sensors ignore
                                                 the visible state */
       ) {                                    // gotta check if the current state is visible or not
-        uiLayout *split, *col;
+        blender::ui::Layout *split, *col;
 
         /* make as visible, for move operator */
         act->flag |= ACT_VISIBLE;

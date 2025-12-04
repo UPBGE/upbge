@@ -67,7 +67,7 @@
 #include "BKE_sound.hh"
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 #include "BKE_workspace.hh"

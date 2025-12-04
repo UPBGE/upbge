@@ -1615,7 +1615,7 @@ static wmOperatorStatus sequencer_add_sound_strip_invoke(bContext *C,
        !RNA_collection_is_empty(op->ptr, "files")) ||
       RNA_struct_property_is_set(op->ptr, "filepath"))
   {
-    sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_SOUND_RAM, event);
+    sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_SOUND, event);
 
     const char *error_msg;
     if (!have_free_channels(C, op, 1, &error_msg)) {
@@ -1626,7 +1626,7 @@ static wmOperatorStatus sequencer_add_sound_strip_invoke(bContext *C,
     return sequencer_add_sound_strip_exec(C, op);
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_SOUND_RAM, event);
+  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_SOUND, event);
 
   WM_event_add_fileselect(C, op);
   return OPERATOR_RUNNING_MODAL;
@@ -1744,7 +1744,10 @@ static void sequencer_add_image_strip_load_files(wmOperator *op,
                                                  const ImageFrameRange *range)
 {
   int framenr, numdigits;
-  BLI_path_frame_get(load_data->path, &framenr, &numdigits);
+  if (!BLI_path_frame_get(load_data->path, &framenr, &numdigits)) {
+    numdigits = 0;
+  }
+
   char ext[FILE_MAX];
   char filename_stripped[FILE_MAX];
   BLI_path_split_file_part(load_data->path, filename_stripped, sizeof(filename_stripped));
