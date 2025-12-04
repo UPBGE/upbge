@@ -192,10 +192,10 @@ void main() {
   }
 
   /* Apply hook transformation if factor is non-zero */
-  if (fac > 1e-6) {
+  if (fac > 0.0) {  /* Match CPU behavior: if (fac) checks fac != 0.0f */
     fac *= vgroup_weight;
     
-    if (fac > 1e-6) {
+    if (fac > 0.0) {  /* Match CPU behavior: if (fac) after vgroup multiply */
       /* Transform vertex to hook space */
       vec3 co_transformed = (hook_transform * vec4(co, 1.0)).xyz;
       
