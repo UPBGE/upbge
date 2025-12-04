@@ -606,6 +606,123 @@ void func()
 }
 GPU_TEST(preprocess_default_arguments);
 
+static void test_preprocess_srt_template_wrapper()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] srt_t<T> a;
+};
+)";
+    string expect = R"(
+struct SRT {
+                           T  a;
+#line 12
+};
+#line 5
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 3
+}
+#line 5
+#define access_SRT_a() T_new_()
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] T a;
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Members declared with the [[resource_table]] attribute must wrap their type "
+              "with the srt_t<T> template.");
+  }
+  {
+    string input = R"(
+struct SRT {
+  srt_t<T> a;
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "The srt_t<T> template is only to be used with members declared with the "
+              "[[resource_table]] attribute.");
+  }
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] srt_t<T> a[4];
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "[[resource_table]] members cannot be arrays.");
+  }
+}
+GPU_TEST(preprocess_srt_template_wrapper);
+
+static void test_preprocess_srt_method()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] srt_t<T> a;
+
+  void method(int t) {
+    this->a;
+  }
+};
+)";
+    string expect = R"(
+struct SRT {
+                           T  a;
+#line 16
+};
+#line 5
+
+#if defined(CREATE_INFO_SRT)
+#line 5
+  void method(                   inout SRT _inout_sta this_ _inout_end, int t) {
+    srt_access(SRT, a);
+  }
+
+#endif
+#line 9
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 7
+}
+#line 9
+#define access_SRT_a() T_new_()
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_srt_method);
+
 static void test_preprocess_static_branch()
 {
   using namespace shader;
@@ -1009,6 +1126,7 @@ struct S {
     return S(0);
   }
   S other_method(int s) {
+    this->some_method();
     return S(0);
   }
 };
@@ -1018,16 +1136,17 @@ struct S {
     string expect = R"(
 
 struct NS_S {
-#line 10
+#line 11
 int _pad;};
 #line 4
          NS_S NS_S_static_method(NS_S s) {
     return NS_S(0);
   }
   NS_S other_method(inout NS_S _inout_sta this_ _inout_end, int s) {
+    some_method(this_);
     return NS_S(0);
   }
-#line 11
+#line 12
 
 )";
     string error;
@@ -1473,6 +1592,193 @@ float fn(                   inout SRT _inout_sta srt _inout_end) {
   }
 }
 GPU_TEST(preprocess_srt_mutations);
+
+static void test_preprocess_entry_point_resources()
+{
+  using namespace std;
+  using namespace shader::parser;
+
+  ParserData::report_callback no_err_report = [](int, int, string, const char *) {};
+
+  {
+    string input = R"(
+namespace ns {
+
+struct VertOut {
+  [[smooth]] float3 local_pos;
+};
+
+struct FragOut {
+  [[color(0)]] float4 color;
+};
+
+template<typename T>
+struct VertIn {
+  [[attribute(0)]] T pos;
+};
+template struct VertIn<float>;
+
+
+[[vertex]] void vertex_function([[resource_table]] Resources &srt,
+                                [[stage_in]] const VertIn<float> &v_in,
+                                [[stage_out, condition(cond)]] VertOut &v_out,
+                                [[position]] float4 &out_position)
+{
+}
+
+[[fragment]] void fragment_function([[resource_table]] Resources &srt,
+                                    [[stage_in, condition(cond)]] const VertOut &v_out,
+                                    [[stage_out]] FragOut &frag_out,
+                                    [[position]] const float4 out_position)
+{
+}
+
+}
+)";
+    string expect = R"(
+#line 4
+struct ns_VertOut {
+             float3 local_pos;
+};
+
+struct ns_FragOut {
+               float4 color;
+};
+#line 16
+#line 13
+struct ns_VertInTfloat {
+                   float pos;
+};
+#line 17
+#line 19
+                         void ns_vertex_function(
+#line 22
+                                                                 )
+{ Resources srt;
+#if defined(GPU_VERTEX_SHADER)
+#endif
+#line 24
+}
+
+                           void ns_fragment_function(
+#line 29
+                                                                          )
+{ Resources srt;
+#if defined(GPU_FRAGMENT_SHADER)
+#endif
+#line 31
+}
+
+
+)";
+    string expect_infos = R"(#pragma once
+
+
+GPU_SHADER_CREATE_INFO(ns_VertInTfloat)
+VERTEX_IN(0, float, pos)
+GPU_SHADER_CREATE_END()
+
+
+GPU_SHADER_CREATE_INFO(ns_FragOut)
+FRAGMENT_OUT(0, float4, ns_FragOut_color)
+GPU_SHADER_CREATE_END()
+
+
+GPU_SHADER_INTERFACE_INFO(ns_VertOut_t)
+SMOOTH(float3, ns_VertOut_local_pos)
+GPU_SHADER_INTERFACE_END()
+
+
+
+
+GPU_SHADER_CREATE_INFO(ns_vertex_function_infos_)
+ADDITIONAL_INFO(Resources)
+ADDITIONAL_INFO(ns_VertInTfloat)
+VERTEX_OUT(ns_VertOut)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(ns_fragment_function_infos_)
+ADDITIONAL_INFO(Resources)
+ADDITIONAL_INFO(ns_FragOut)
+GPU_SHADER_CREATE_END()
+
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error, &metadata);
+    string infos = metadata.serialize_infos();
+
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(infos, expect_infos);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_entry_point_resources);
+
+static void test_preprocess_pipeline_description()
+{
+  using namespace std;
+  using namespace shader::parser;
+
+  ParserData::report_callback no_err_report = [](int, int, string, const char *) {};
+
+  {
+    string input = R"(
+namespace ns {
+
+PipelineGraphic graphic_pipe(vertex_func, fragment_func, Type{.a = true, .b = 9, .c = 3u});
+PipelineCompute compute_pipe(compute_func, Type{.a = true, .b = 8, .c = 7u});
+
+}
+)";
+    string expect = R"(
+
+
+
+
+
+
+)";
+    string expect_infos = R"(#pragma once
+
+
+
+
+
+
+
+GPU_SHADER_CREATE_INFO(ns_graphic_pipe)
+GRAPHIC_SOURCE("test.glsl")
+VERTEX_FUNCTION("vertex_func")
+FRAGMENT_FUNCTION("fragment_func")
+ADDITIONAL_INFO(vertex_func_infos_)
+ADDITIONAL_INFO(fragment_func_infos_)
+COMPILATION_CONSTANT(bool, a, true)
+COMPILATION_CONSTANT(int, b, 9)
+COMPILATION_CONSTANT(uint, c, 3u)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(ns_compute_pipe)
+COMPUTE_SOURCE("test.glsl")
+COMPUTE_FUNCTION("compute_func")
+ADDITIONAL_INFO(compute_func_infos_)
+COMPILATION_CONSTANT(bool, a, true)
+COMPILATION_CONSTANT(int, b, 8)
+COMPILATION_CONSTANT(uint, c, 7u)
+GPU_SHADER_CREATE_END()
+
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error, &metadata);
+    string infos = metadata.serialize_infos();
+
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(infos, expect_infos);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_pipeline_description);
 
 static void test_preprocess_parser()
 {

@@ -1061,7 +1061,7 @@ typedef struct SpaceClip {
    */
   float stabmat[4][4], unistabmat[4][4];
 
-  /** Movie postprocessing. */
+  /** Movie postprocessing (#MovieClipPostprocFlag). */
   int postproc_flag;
 
   /* grease pencil */
