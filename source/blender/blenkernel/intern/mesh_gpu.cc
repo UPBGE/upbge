@@ -632,7 +632,6 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     using namespace blender::gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
     info.local_group_size(256, 1, 1);
-    info.compute_source("draw_colormanagement_lib.glsl");
     info.compute_source_generated = shader_source;
 
     /* User buffer bindings (use local_bindings which may contain injected defaults). */
