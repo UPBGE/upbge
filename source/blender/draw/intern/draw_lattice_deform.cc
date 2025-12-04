@@ -421,11 +421,9 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     msd.gpu_setup_attempts = 0;
   }
 
-  /* Retrieve/update SSBOs */
-  blender::gpu::StorageBuf *ssbo_cp = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
-                                                                     "lattice_control_points");
-  blender::gpu::StorageBuf *ssbo_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
-                                                                      "lattice_latmat");
+  /* Retrieve/update SSBOs (use unique keys per modifier instance) */
+  blender::gpu::StorageBuf *ssbo_cp = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_cp);
+  blender::gpu::StorageBuf *ssbo_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_mat);
   if (!ssbo_cp || !ssbo_mat || !ssbo_in) {
     return nullptr;
   }
