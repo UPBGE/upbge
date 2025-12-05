@@ -164,11 +164,18 @@ void main() {
 /* Sample texture using texture coordinates from MOD_get_texture_coords() */
 vec3 tex_coord = texture_coords[v].xyz;
   
-/* FLAT mapping: remap from world/local space to [0,1] UV space
- * This matches CPU behavior in do_2d_mapping() (texture_procedural.cc) */
-vec2 uv;
-uv.x = (tex_coord.x + 1.0) * 0.5;
-uv.y = (tex_coord.y + 1.0) * 0.5;
+  /* FLAT mapping: remap from world/local space to [0,1] UV space
+   * This matches CPU behavior in do_2d_mapping() (texture_procedural.cc) */
+  vec2 uv;
+  uv.x = (tex_coord.x + 1.0) * 0.5;
+  uv.y = (tex_coord.y + 1.0) * 0.5;
+  
+  /* Apply flip axis (TEX_IMAROT): swap X and Y coordinates */
+  if (tex_flip_axis) {
+    float temp = uv.x;
+    uv.x = uv.y;
+    uv.y = temp;
+  }
   
   /* Apply crop/recadrage: remap UV to cropped region
    * tex_crop = (xmin, ymin, xmax, ymax) defines the visible region
@@ -711,6 +718,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::bool_t, "tex_checker_odd"); /* TEX_CHECKER_ODD */
     info.push_constant(Type::bool_t, "tex_checker_even");/* TEX_CHECKER_EVEN */
     info.push_constant(Type::bool_t, "tex_flipblend");   /* TEX_FLIPBLEND */
+    info.push_constant(Type::bool_t, "tex_flip_axis");   /* TEX_IMAROT (flip X/Y) */
   }
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
@@ -816,6 +824,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1b(shader, "tex_checker_odd", (tex->flag & TEX_CHECKER_ODD) != 0);
     GPU_shader_uniform_1b(shader, "tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) != 0);
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
+    GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
   }
 
 
