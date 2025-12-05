@@ -349,10 +349,15 @@ float alpha = tex_color.a;
   }
 
   float s = strength * vgroup_weight;
+  
+  /* For RGB_XYZ mode, we need the full RGB vector, not just intensity */
+  vec3 rgb_displacement = (srgb_rgb - vec3(midlevel)) * s;
+  
   delta = (tex_value - midlevel) * s;
 #else
   /* Fixed delta (no texture) */
   delta = (1.0 - midlevel) * strength * vgroup_weight;
+  vec3 rgb_displacement = vec3(0.0);  /* Not used without texture */
 #endif
   
   /* Clamp delta to prevent extreme deformations */
@@ -400,7 +405,28 @@ float alpha = tex_color.a;
     vec3 normal = vert_normals[v].xyz;
     co += delta * normalize(normal);
   }
-  /* Note: MOD_DISP_DIR_RGB_XYZ not supported yet */
+  else if (direction == MOD_DISP_DIR_RGB_XYZ) {
+    /* Displacement using RGB as (X, Y, Z) vector
+     * Each RGB component controls displacement along its respective axis
+     * R → X displacement, G → Y displacement, B → Z displacement */
+#ifdef HAS_TEXTURE
+    if (use_global) {
+      /* Transform local displacement vector to global space */
+      vec3 global_disp = vec3(
+        dot(vec3(local_mat[0][0], local_mat[0][1], local_mat[0][2]), rgb_displacement),
+        dot(vec3(local_mat[1][0], local_mat[1][1], local_mat[1][2]), rgb_displacement),
+        dot(vec3(local_mat[2][0], local_mat[2][1], local_mat[2][2]), rgb_displacement)
+      );
+      co += global_disp;
+    } else {
+      /* Local space: directly apply RGB as (X, Y, Z) */
+      co += rgb_displacement;
+    }
+#else
+    /* No texture: cannot use RGB_XYZ mode, fallback to no displacement */
+    /* (This matches CPU behavior: RGB_XYZ requires texture) */
+#endif
+  }
 
   deformed_positions[v] = vec4(co, 1.0);
 }
