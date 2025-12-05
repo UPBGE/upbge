@@ -557,6 +557,14 @@ void BL_ConvertActuators(const char *maggiename,
           }
           prop = conact->matprop;
         }
+        else if (conact->type == ACT_CONST_TYPE_RB) {
+          if (conact->mode == ACT_CONST_RB_ENABLE) {
+            locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_RB_ENABLE;
+          }
+          else {
+            locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_RB_DISABLE;
+          }
+        }
         else {
           switch (conact->flag) {
             case ACT_CONST_LOCX:

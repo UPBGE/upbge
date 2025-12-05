@@ -1886,9 +1886,6 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
       row->prop(ptr, "damping", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      row = &layout->row(false);
-      row->prop(ptr, "rotation_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
       row = &layout->row(true);
       row->prop(ptr, "angle_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row->prop(ptr, "angle_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1898,29 +1895,19 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
       split = &layout->split(0.75, false);
       row = &split->row(false);
       row->prop(ptr, "fh_damping", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-
-      row->prop(ptr, "fh_height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_fh_paralel_axis", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-
-      row = &layout->row(false);
-      row->prop(ptr, "direction_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split = &row->split(0.9f, false);
-      split->prop(ptr, "fh_force", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_fh_normal", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-
-      split = &layout->split(0.15, false);
-      split->prop(ptr, "use_material_detect", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-      if (RNA_boolean_get(ptr, "use_material_detect"))
-        split->prop_search(ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
-      else
-        split->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
+      split = &split->row(false);
+      split->prop(ptr, "fh_damping_rotation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "fh_height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       split = &layout->split(0.15, false);
       split->prop(ptr, "use_persistent", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &split->row(false);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row->prop(ptr, "damping_rotation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      break;
+
+    case ACT_CONST_TYPE_RB:
+      layout->prop(ptr, "rb_action", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 }
