@@ -25,6 +25,7 @@
 
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 #include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
@@ -91,6 +92,9 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   float m_linearDeactivationThreshold;
   float m_angularDeactivationThreshold;
   float m_contactBreakingThreshold;
+
+  /* Fast lookup to avoid O(n) scans when removing constraints by ID. */
+  std::unordered_map<int, btTypedConstraint *> m_constraintById;
 
   void ProcessFhSprings(double curTime, float timeStep);
 
@@ -298,6 +302,11 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                       KX_GameObject *obj_dest,
                                       bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli);
+  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
+                                        KX_GameObject *gameobj1,
+                                        KX_GameObject *gameobj2,
+                                        RigidBodyCon *rbc) override;
+  virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
 
  protected:
   std::set<CcdPhysicsController *> m_controllers;

@@ -443,6 +443,11 @@ typedef struct bActuator {
 #define ACT_CONST_TYPE_DIST 1
 #define ACT_CONST_TYPE_ORI 2
 #define ACT_CONST_TYPE_FH 3
+#define ACT_CONST_TYPE_RB 4
+
+/* RB constraint action mode */
+#define ACT_CONST_RB_DISABLE 0
+#define ACT_CONST_RB_ENABLE 1
 
 /* editObjectActuator->type */
 #define ACT_EDOB_ADD_OBJECT 0
