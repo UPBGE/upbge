@@ -109,9 +109,10 @@ struct bAnimContext {
   eGraphEdit_Mode grapheditor_mode;
 
   /**
-   * Filters from the dopesheet/graph editor settings. These may reflect the corresponding bits in
-   * ads->filterflag and ads->filterflag2, but can also be overriden by the dopesheet mode to force
-   * certain filters (without having to write to ads->filterflag/flag2).
+   * Filters from the dope-sheet/graph editor settings.
+   * These may reflect the corresponding bits in `ads->filterflag` and `ads->filterflag2`,
+   * but can also be overridden by the dope-sheet mode to force certain filters
+   * (without having to write to `ads->filterflag/flag2`).
    */
   struct {
     eDopeSheet_FilterFlag flag;
@@ -497,7 +498,6 @@ ENUM_OPERATORS(eAnimFilter_Flags);
 #define SEL_GPL(gpl) (gpl->flag & GP_LAYER_SELECT)
 
 /* Mask Only */
-/** Grease Pencil data-block settings. */
 #define EXPANDED_MASK(mask) (mask->flag & MASK_ANIMF_EXPAND)
 /** Grease Pencil Layer settings. */
 #define EDITABLE_MASK(masklay) ((masklay->flag & MASK_LAYERFLAG_LOCKED) == 0)

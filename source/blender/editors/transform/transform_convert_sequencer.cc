@@ -19,6 +19,7 @@
 #include "BKE_context.hh"
 
 #include "ED_markers.hh"
+#include "ED_sequencer.hh"
 
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
@@ -92,7 +93,7 @@ static void SeqTransInfo(TransInfo *t, Strip *strip, int *r_count, int *r_flag)
 {
   Scene *scene = CTX_data_sequencer_scene(t->context);
   Editing *ed = seq::editing_get(scene);
-  ListBase *channels = seq::channels_displayed_get(ed);
+  const ListBase *channels = seq::channels_displayed_get(ed);
 
   /* For extend we need to do some tricks. */
   if (t->mode == TFM_TIME_EXTEND) {
@@ -806,6 +807,7 @@ static void recalcData_sequencer(TransInfo *t)
     strip_prev = strip;
   }
 
+  vse::sync_active_scene_and_time_with_scene_strip(*t->context);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
   flushTransSeq(t);

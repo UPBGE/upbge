@@ -453,7 +453,7 @@ set(SRC
   BKE_main_idmap.hh
   BKE_main_invariants.hh
   BKE_main_namemap.hh
-  BKE_mask.h
+  BKE_mask.hh
   BKE_material.hh
   BKE_mball.hh
   BKE_mball_tessellate.hh
@@ -473,7 +473,7 @@ set(SRC
   BKE_mesh_types.hh
   BKE_mesh_wrapper.hh
   BKE_modifier.hh
-  BKE_movieclip.h
+  BKE_movieclip.hh
   BKE_multires.hh
   BKE_nla.hh
   BKE_node.hh
@@ -529,7 +529,7 @@ set(SRC
   BKE_text.h
   BKE_text_suggestions.h
   BKE_texture.h
-  BKE_tracking.h
+  BKE_tracking.hh
   BKE_type_conversions.hh
   BKE_undo_system.hh
   BKE_unit.hh
@@ -554,7 +554,6 @@ set(SRC
 
   nla_private.h
   particle_private.h
-  tracking_private.h
 
   intern/attribute_access_intern.hh
   intern/attribute_storage_access.hh
@@ -569,6 +568,7 @@ set(SRC
   intern/pbvh_uv_islands.hh
   intern/subdiv_converter.hh
   intern/subdiv_inline.hh
+  intern/tracking_private.hh
 )
 
 set(LIB

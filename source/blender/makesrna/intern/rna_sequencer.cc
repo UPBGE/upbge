@@ -53,7 +53,8 @@ struct EffectInfo {
 
 #define RNA_ENUM_SEQUENCER_AUDIO_MODIFIER_TYPE_ITEMS \
   {eSeqModifierType_SoundEqualizer, "SOUND_EQUALIZER", ICON_NONE, "Sound Equalizer", ""}, \
-  {eSeqModifierType_Pitch, "PITCH", ICON_NONE, "Pitch", ""}
+  {eSeqModifierType_Pitch, "PITCH", ICON_NONE, "Pitch", ""}, \
+  {eSeqModifierType_Echo, "ECHO", ICON_NONE, "Echo", ""}
 /* clang-format on */
 
 const EnumPropertyItem rna_enum_strip_modifier_type_items[] = {
@@ -148,9 +149,6 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_global.hh"
-#  include "BKE_idprop.hh"
-#  include "BKE_lib_id.hh"
-#  include "BKE_movieclip.h"
 #  include "BKE_report.hh"
 
 #  include "WM_api.hh"
@@ -167,7 +165,6 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "SEQ_add.hh"
 #  include "SEQ_channels.hh"
 #  include "SEQ_edit.hh"
-#  include "SEQ_effects.hh"
 #  include "SEQ_iterator.hh"
 #  include "SEQ_modifier.hh"
 #  include "SEQ_prefetch.hh"
@@ -175,9 +172,6 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "SEQ_relations.hh"
 #  include "SEQ_retiming.hh"
 #  include "SEQ_select.hh"
-#  include "SEQ_sequencer.hh"
-#  include "SEQ_sound.hh"
-#  include "SEQ_thumbnail_cache.hh"
 #  include "SEQ_time.hh"
 #  include "SEQ_transform.hh"
 #  include "SEQ_utils.hh"
@@ -499,7 +493,7 @@ static void do_strip_frame_change_update(Scene *scene, Strip *strip)
     blender::seq::transform_seqbase_shuffle(seqbase, strip, scene);
   }
 
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   }
 }
@@ -683,7 +677,7 @@ static bool rna_Strip_lock_get(PointerRNA *ptr)
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
   Strip *strip = static_cast<Strip *>(ptr->data);
   Editing *ed = blender::seq::editing_get(scene);
-  ListBase *channels = blender::seq::get_channels_by_strip(ed, strip);
+  const ListBase *channels = blender::seq::get_channels_by_strip(ed, strip);
   return blender::seq::transform_is_locked(channels, strip);
 }
 
@@ -911,7 +905,7 @@ static StructRNA *rna_Strip_refine(PointerRNA *ptr)
       return &RNA_MovieClipStrip;
     case STRIP_TYPE_MASK:
       return &RNA_MaskStrip;
-    case STRIP_TYPE_SOUND_RAM:
+    case STRIP_TYPE_SOUND:
       return &RNA_SoundStrip;
     case STRIP_TYPE_CROSS:
       return &RNA_CrossStrip;
@@ -1470,6 +1464,8 @@ static StructRNA *rna_StripModifier_refine(PointerRNA *ptr)
       return &RNA_SequencerCompositorModifierData;
     case eSeqModifierType_Pitch:
       return &RNA_PitchModifier;
+    case eSeqModifierType_Echo:
+      return &RNA_EchoModifier;
     default:
       return &RNA_StripModifier;
   }
@@ -1551,7 +1547,7 @@ static void rna_StripModifier_update(Main *bmain, Scene * /*scene*/, PointerRNA 
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_modifier(ed, static_cast<StripModifierData *>(ptr->data));
 
-  if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD)) {
+  if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
     DEG_relations_tag_update(bmain);
   }
@@ -1618,7 +1614,7 @@ static bool rna_StripModifier_otherStrip_poll(PointerRNA *ptr, PointerRNA value)
   Strip *strip = strip_get_by_modifier(ed, static_cast<StripModifierData *>(ptr->data));
   Strip *cur = (Strip *)value.data;
 
-  if ((strip == cur) || (cur->type == STRIP_TYPE_SOUND_RAM)) {
+  if ((strip == cur) || (cur->type == STRIP_TYPE_SOUND)) {
     return false;
   }
 
@@ -2328,7 +2324,7 @@ static void rna_def_strip(BlenderRNA *brna)
       {STRIP_TYPE_MOVIE, "MOVIE", 0, "Movie", ""},
       {STRIP_TYPE_MOVIECLIP, "MOVIECLIP", 0, "Clip", ""},
       {STRIP_TYPE_MASK, "MASK", 0, "Mask", ""},
-      {STRIP_TYPE_SOUND_RAM, "SOUND", 0, "Sound", ""},
+      {STRIP_TYPE_SOUND, "SOUND", 0, "Sound", ""},
       {STRIP_TYPE_CROSS, "CROSS", 0, "Crossfade", ""},
       {STRIP_TYPE_ADD, "ADD", 0, "Add", ""},
       {STRIP_TYPE_SUB, "SUBTRACT", 0, "Subtract", ""},
@@ -3019,6 +3015,19 @@ static void rna_def_strips_meta(BlenderRNA *brna)
   RNA_api_strips(srna, true);
 }
 
+static void rna_def_audio_options(StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "volume", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "volume");
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_ui_text(prop, "Volume", "Playback volume of the sound");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SOUND);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_audio_update");
+}
+
 static void rna_def_meta(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -3047,22 +3056,11 @@ static void rna_def_meta(BlenderRNA *brna)
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
   RNA_def_function_ui_description(func, "Separate meta");
 
+  rna_def_audio_options(srna);
+
   rna_def_filter_video(srna);
   rna_def_proxy(srna);
   rna_def_input(srna);
-}
-
-static void rna_def_audio_options(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "volume", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "volume");
-  RNA_def_property_range(prop, 0.0f, 100.0f);
-  RNA_def_property_float_default(prop, 1.0f);
-  RNA_def_property_ui_text(prop, "Volume", "Playback volume of the sound");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SOUND);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_audio_update");
 }
 
 static void rna_def_scene(BlenderRNA *brna)
@@ -4152,7 +4150,6 @@ static void rna_def_sound_equalizer_modifier(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "SoundEqualizerModifier", "StripModifier");
   RNA_def_struct_sdna(srna, "SoundEqualizerModifierData");
   RNA_def_struct_ui_text(srna, "SoundEqualizerModifier", "Equalize audio");
-
   /* Sound Equalizers. */
   prop = RNA_def_property(srna, "graphics", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "EQCurveMappingData");
@@ -4257,10 +4254,45 @@ static void rna_def_pitch_modifier(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
+static void rna_def_echo_modifier(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "EchoModifier", "StripModifier");
+  RNA_def_struct_sdna(srna, "EchoModifierData");
+  RNA_def_struct_ui_text(srna, "EchoModifier", "Tooltip");
+
+  prop = RNA_def_property(srna, "delay", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "delay");
+  RNA_def_property_range(prop, 0.05, 5.0);
+  RNA_def_property_ui_range(prop, 0.05f, 5.0f, 0.2f, -1);
+  RNA_def_property_ui_text(prop, "Delay", "The delay of the effect in seconds");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "feedback", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "feedback");
+  RNA_def_property_range(prop, 0, 1.0);
+  RNA_def_property_ui_range(prop, 0.0, 1.0f, 0.1f, 2);
+  RNA_def_property_ui_text(prop, "Feedback", "The feedback of the effect");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "mix", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "mix");
+  RNA_def_property_range(prop, 0, 1.0);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1f, 2);
+  RNA_def_property_ui_text(prop, "Mix", "The wet/dry mix of the effect");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
 static void rna_def_sound_modifiers(BlenderRNA *brna)
 {
   rna_def_sound_equalizer_modifier(brna);
   rna_def_pitch_modifier(brna);
+  rna_def_echo_modifier(brna);
 }
 
 void RNA_def_sequencer(BlenderRNA *brna)

@@ -25,7 +25,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_nla.hh"
 
 #include "ED_anim_api.hh"
@@ -239,7 +239,7 @@ static bool grease_pencil_layer_apply_trans_data(GreasePencil &grease_pencil,
 
   if (canceled && duplicate) {
     /* Duplicates were done, so we need to delete the corresponding duplicate drawings. Note that
-     * we just decrement the usercount here. The actual drawings are removed after all the layers
+     * we just decrement the user-count here. The actual drawings are removed after all the layers
      * have been processed. */
     for (const GreasePencilFrame &duplicate_frame : trans_data.duplicated_frames_buffer.values()) {
       GreasePencilDrawingBase *drawing_base = grease_pencil.drawing(duplicate_frame.drawing_index);

@@ -309,12 +309,30 @@ static IndexMask find_duplicate_faces(const Mesh &mesh,
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
 
-  Array<int> sorted_corner_verts(mesh.corners_num);
+  Array<int> ordered_corner_verts(mesh.corners_num);
   mask.foreach_index(GrainSize(1024), [&](const int face_i) {
     const IndexRange face = faces[face_i];
-    MutableSpan<int> sorted_face_verts = sorted_corner_verts.as_mutable_span().slice(face);
-    sorted_face_verts.copy_from(corner_verts.slice(face));
-    std::sort(sorted_face_verts.begin(), sorted_face_verts.end());
+    MutableSpan<int> ordered_face_verts = ordered_corner_verts.as_mutable_span().slice(face);
+    /* Order by the smallest index, then the smallest adjacent index this ensures:
+     * - Faces are only considered duplicates when they share vertices & edges.
+     * - Faces winding in opposite directions are considered duplicates.
+     * See: #150842. */
+    Span<int> face_verts = corner_verts.slice(face);
+    const int face_verts_num = face_verts.size();
+    int i_min = 0;
+    for (int i = 1; i < face_verts_num; i += 1) {
+      if (face_verts[i] < face_verts[i_min]) {
+        i_min = i;
+      }
+    }
+    /* Allow modulo after subtraction within the `face_verts_num` range. */
+    const int i_min_for_modulo = i_min + face_verts_num;
+    const int i_min_prev = (i_min_for_modulo - 1) % face_verts_num;
+    const int i_min_next = (i_min_for_modulo + 1) % face_verts_num;
+    const int sign = face_verts[i_min_next] < face_verts[i_min_prev] ? 1 : -1;
+    for (int i = 0; i < face_verts_num; i += 1) {
+      ordered_face_verts[i] = face_verts[(i_min_for_modulo + (i * sign)) % face_verts_num];
+    }
   });
 
   using FaceMap = VectorSet<Span<int>,
@@ -331,7 +349,7 @@ static IndexMask find_duplicate_faces(const Mesh &mesh,
   ErrorMessages errors(verbose);
   mask.foreach_index([&](int face_i) {
     const IndexRange face = faces[face_i];
-    const Span<int> face_verts = sorted_corner_verts.as_span().slice(face);
+    const Span<int> face_verts = ordered_corner_verts.as_span().slice(face);
     if (!face_hash.add(face_verts)) {
       errors.add("Face {} is a duplicate of {}", face_i, face_hash.index_of(face_verts));
       duplicate_faces[face_i].set();
@@ -461,8 +479,6 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
     }
   }
 
-  mesh.edges_num = valid_edges.size();
-
   Array<int> all_edges_to_valid_edges(mesh.edges_num);
   index_mask::build_reverse_map(valid_edges, all_edges_to_valid_edges.as_mutable_span());
   MutableSpan<int> corner_edges = mesh.corner_edges_for_write();
@@ -471,6 +487,8 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
       corner_edges[i] = all_edges_to_valid_edges[corner_edges[i]];
     }
   });
+
+  mesh.edges_num = valid_edges.size();
 
   mesh.tag_topology_changed();
 }

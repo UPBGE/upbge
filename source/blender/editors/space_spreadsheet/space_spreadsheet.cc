@@ -480,7 +480,9 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     const ColumnValues *values = scope.add(std::move(values_ptr));
     const eSpreadsheetColumnValueType column_type = values->type();
 
-    if (column->width <= 0.0f || column_type != column->data_type) {
+    if (column->width <= 0.0f ||
+        !ELEM(column_type, column->data_type, SPREADSHEET_VALUE_TYPE_UNKNOWN))
+    {
       column->width = values->fit_column_width_px(100) / SPREADSHEET_WIDTH_UNIT;
     }
     const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
@@ -648,15 +650,15 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
 
   uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
   const uiStyle *style = UI_style_get_dpi();
-  uiLayout &layout = ui::block_layout(block,
-                                      ui::LayoutDirection::Horizontal,
-                                      ui::LayoutType::Header,
-                                      UI_HEADER_OFFSET,
-                                      region->winy - (region->winy - UI_UNIT_Y) / 2.0f,
-                                      region->winx,
-                                      1,
-                                      0,
-                                      style);
+  ui::Layout &layout = ui::block_layout(block,
+                                        ui::LayoutDirection::Horizontal,
+                                        ui::LayoutType::Header,
+                                        UI_HEADER_OFFSET,
+                                        region->winy - (region->winy - UI_UNIT_Y) / 2.0f,
+                                        region->winx,
+                                        1,
+                                        0,
+                                        style);
   layout.separator_spacer();
   layout.alignment_set(ui::LayoutAlign::Right);
   layout.label(stats_str, ICON_NONE);

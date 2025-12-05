@@ -641,6 +641,14 @@ typedef struct PitchModifierData {
   int quality; /*ePitchQuality*/
 } PitchModifierData;
 
+typedef struct EchoModifierData {
+  StripModifierData modifier;
+  float delay;
+  float feedback;
+  float mix;
+  char _pad[4];
+} EchoModifierData;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -788,7 +796,7 @@ typedef enum StripType {
   STRIP_TYPE_META = 1,
   STRIP_TYPE_SCENE = 2,
   STRIP_TYPE_MOVIE = 3,
-  STRIP_TYPE_SOUND_RAM = 4,
+  STRIP_TYPE_SOUND = 4,
   STRIP_TYPE_SOUND_HD = 5, /* DEPRECATED */
   STRIP_TYPE_MOVIECLIP = 6,
   STRIP_TYPE_MASK = 7,
@@ -855,11 +863,7 @@ typedef enum StripBlendMode {
 } StripBlendMode;
 
 #define STRIP_HAS_PATH(_strip) \
-  (ELEM((_strip)->type, \
-        STRIP_TYPE_MOVIE, \
-        STRIP_TYPE_IMAGE, \
-        STRIP_TYPE_SOUND_RAM, \
-        STRIP_TYPE_SOUND_HD))
+  (ELEM((_strip)->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD))
 
 /* Modifiers */
 
@@ -876,6 +880,7 @@ typedef enum eStripModifierType {
   eSeqModifierType_SoundEqualizer = 8,
   eSeqModifierType_Compositor = 9,
   eSeqModifierType_Pitch = 10,
+  eSeqModifierType_Echo = 11,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;

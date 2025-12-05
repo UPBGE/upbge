@@ -46,6 +46,7 @@ namespace blender::seq {
 const SoundModifierWorkerInfo workersSoundModifiers[] = {
     {eSeqModifierType_SoundEqualizer, sound_equalizermodifier_recreator},
     {eSeqModifierType_Pitch, pitchmodifier_recreator},
+    {eSeqModifierType_Echo, echomodifier_recreator},
     {0, nullptr}};
 
 #ifdef WITH_CONVOLUTION
@@ -59,7 +60,7 @@ static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, 
         changed = true;
       }
     }
-    else if (strip->type == STRIP_TYPE_SOUND_RAM && strip->sound) {
+    else if (strip->type == STRIP_TYPE_SOUND && strip->sound) {
       SoundInfo info;
       if (!BKE_sound_info_get(bmain, strip->sound, &info)) {
         continue;
@@ -104,7 +105,7 @@ void sound_update_bounds_all(Scene *scene)
       if (strip->type == STRIP_TYPE_META) {
         strip_update_sound_bounds_recursive(scene, strip);
       }
-      else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
+      else if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE)) {
         sound_update_bounds(scene, strip);
       }
     }
@@ -138,7 +139,7 @@ static void strip_update_sound_recursive(Scene *scene, ListBase *seqbasep, bSoun
     if (strip->type == STRIP_TYPE_META) {
       strip_update_sound_recursive(scene, &strip->seqbase, sound);
     }
-    else if (strip->type == STRIP_TYPE_SOUND_RAM) {
+    else if (strip->type == STRIP_TYPE_SOUND) {
       if (strip->runtime->scene_sound && sound == strip->sound) {
         BKE_sound_update_scene_sound(strip->runtime->scene_sound, sound);
       }
@@ -417,6 +418,27 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
   else {
     return sound_in;
   }
+#endif
+}
+
+void *echomodifier_recreator(Strip * /*strip*/,
+                             StripModifierData *smd,
+                             void *sound_in,
+                             bool &needs_update)
+{
+#if defined(WITH_AUDASPACE)
+  if (!needs_update && smd->runtime.last_sound_in == sound_in) {
+    return smd->runtime.last_sound_out;
+  }
+  EchoModifierData *emd = (EchoModifierData *)smd;
+  AUD_Sound *sound_out = AUD_Sound_Echo(sound_in, emd->delay, emd->feedback, emd->mix, true);
+  needs_update = true;
+  smd->runtime.last_sound_in = sound_in;
+  smd->runtime.last_sound_out = sound_out;
+  return sound_out;
+#else
+  UNUSED_VARS(smd, sound_in, needs_update);
+  return nullptr;
 #endif
 }
 

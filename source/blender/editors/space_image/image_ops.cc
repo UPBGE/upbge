@@ -47,7 +47,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -104,22 +104,28 @@ static void sima_zoom_set(
 
   sima->zoom = zoom;
 
-  if (sima->zoom < 0.1f || sima->zoom > 4.0f) {
-    /* check zoom limits */
-    ED_space_image_get_size(sima, &width, &height);
+  ED_space_image_get_size(sima, &width, &height);
 
-    width *= sima->zoom;
-    height *= sima->zoom;
-
-    if ((width < 4) && (height < 4) && sima->zoom < oldzoom) {
-      sima->zoom = oldzoom;
-    }
-    else if (BLI_rcti_size_x(&region->winrct) <= sima->zoom) {
-      sima->zoom = oldzoom;
-    }
-    else if (BLI_rcti_size_y(&region->winrct) <= sima->zoom) {
-      sima->zoom = oldzoom;
-    }
+  /* Preset zoom limits.
+   *   Zoom `min` is based on ratio of apparent image size to largest screen dimension.
+   *   Zoom `max` is based on ratio of apparent pixel size to largest screen dimension.
+   *      (The reason being so the user can still zoom in on very large images.)
+   */
+  const float sima_minzoom_image_over_screen = 1.0f / 100.0f;
+  const float sima_maxzoom_pixel_over_screen = 10.0f / 1.0f;
+  /* Check zoom limits. */
+  /* Get largest dimensions for image and workspace for comparison. */
+  float comp_image = std::max(width, height);
+  float comp_screen = std::max(BLI_rcti_size_x(&region->winrct), BLI_rcti_size_y(&region->winrct));
+  /* Stop when image size is less than minzoom ratio compared to screen size. */
+  if (comp_image * sima->zoom < comp_screen * sima_minzoom_image_over_screen &&
+      sima->zoom < oldzoom)
+  {
+    sima->zoom = oldzoom;
+  }
+  /* Stop when max relative screen bounds is smaller than apparent pixel size. */
+  else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom && sima->zoom > oldzoom) {
+    sima->zoom = oldzoom;
   }
 
   if (zoom_to_pos && location) {
@@ -1550,12 +1556,12 @@ static bool image_open_draw_check_prop(PointerRNA * /*ptr*/,
 
 static void image_open_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ImageFormatData *imf = &iod->im_format;
 
   /* main draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    op->ptr,
                    image_open_draw_check_prop,
                    nullptr,
@@ -1568,7 +1574,7 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
 
   /* multiview template */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+    uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
   }
 }
 
@@ -1697,7 +1703,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
   }
 
   /* The image is typically passed to the operator via layout/button context (e.g.
-   * #uiLayout::context_ptr_set. The File Browser doesn't support
+   * # blender::ui::Layout::context_ptr_set. The File Browser doesn't support
    * restoring this context when calling `exec()` though, so we have to pass it the image via
    * custom data. */
   op->customdata = ima;
@@ -2058,16 +2064,16 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
 
 static void image_save_as_draw(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   /* Operator settings. */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    op->ptr,
                    image_save_as_draw_check_prop,
                    isd,
@@ -2075,23 +2081,23 @@ static void image_save_as_draw(bContext *C, wmOperator *op)
                    UI_BUT_LABEL_ALIGN_NONE,
                    false);
 
-  layout->separator();
+  layout.separator();
 
   /* Image format settings. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(
       nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
-  uiTemplateImageSettings(layout, C, &imf_ptr, save_as_render);
+  uiTemplateImageSettings(&layout, C, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
-    uiLayout *col = &layout->column(true);
-    col->separator();
-    col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+    blender::ui::Layout &col = layout.column(true);
+    col.separator();
+    col.prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
   }
 
   /* Multiview settings. */
   if (is_multiview) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+    uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
   }
 }
 
@@ -2709,34 +2715,22 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void image_new_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *col;
-  uiLayout *layout = op->layout;
-#if 0
-  Scene *scene = CTX_data_scene(C);
-  const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
-#endif
+  blender::ui::Layout &layout = *op->layout;
 
   /* copy of WM_operator_props_dialog_popup() layout */
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  col = &layout->column(false);
-  col->prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-#if 0
-  if (is_multiview) {
-    col[0].label("", ICON_NONE);
-    col[1].prop( op->ptr, "use_stereo_3d", 0, std::nullopt, ICON_NONE);
-  }
-#endif
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void image_new_cancel(bContext * /*C*/, wmOperator *op)
@@ -3313,7 +3307,7 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     ED_image_undo_push_end();
   }
   else {
-    // Ensure that an image buffer can be acquired for all UDIM tiles
+    /* Ensure that an image buffer can be acquired for all UDIM tiles. */
     LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
       iuser.tile = current_tile->tile_number;
 
@@ -4253,18 +4247,18 @@ static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
   return BKE_image_fill_tile(ima, tile);
 }
 
-static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
+static void draw_fill_tile(PointerRNA *ptr, blender::ui::Layout &layout)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  uiLayout *col = &layout->column(false);
-  col->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void tile_fill_init(PointerRNA *ptr, Image *ima, ImageTile *tile)
@@ -4398,17 +4392,16 @@ static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEve
 
 static void tile_add_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *col;
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  col = &layout->column(false);
-  col->prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "fill")) {
     draw_fill_tile(op->ptr, layout);
@@ -4538,7 +4531,7 @@ static wmOperatorStatus tile_fill_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void tile_fill_draw(bContext * /*C*/, wmOperator *op)
 {
-  draw_fill_tile(op->ptr, op->layout);
+  draw_fill_tile(op->ptr, *op->layout);
 }
 
 void IMAGE_OT_tile_fill(wmOperatorType *ot)

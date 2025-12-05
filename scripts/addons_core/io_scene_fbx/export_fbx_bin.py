@@ -204,7 +204,7 @@ def fbx_template_def_light(scene, settings, override_defaults=None, nbr_users=0)
         b"CastLight": (True, "p_bool", False),
         b"Color": ((1.0, 1.0, 1.0), "p_color", True),
         b"Intensity": (100.0, "p_number", True),  # Times 100 compared to Blender values...
-        b"Exposure" : (0.0, "p_number", True ),
+        b"Exposure": (0.0, "p_number", True),
         b"DecayType": (2, "p_enum", False),  # Quadratic.
         b"DecayStart": (30.0 * gscale, "p_double", False),
         b"CastShadows": (True, "p_bool", False),
@@ -266,7 +266,7 @@ def fbx_template_def_camera(scene, settings, override_defaults=None, nbr_users=0
         b"ShowAzimut": (True, "p_bool", False),
         b"ShowTimeCode": (False, "p_bool", False),
         b"ShowAudio": (False, "p_bool", False),
-        b"AudioColor": ((0.0, 1.0, 0.0), "p_vector_3d", False),  # Yep, vector3d, not corlorgb… :cry:
+        b"AudioColor": ((0.0, 1.0, 0.0), "p_vector_3d", False),  # Yep, `vector3d`, not `corlorgb` (cry).
         b"NearPlane": (10.0, "p_double", False),
         b"FarPlane": (4000.0, "p_double", False),
         b"AutoComputeClipPanes": (False, "p_bool", False),
@@ -819,8 +819,8 @@ def fbx_data_mesh_shapes_elements(root, me_obj, me, scene_data, fbx_me_tmpl, fbx
 
             elem_data_single_float64_array(geom, b"Normals", shape_verts_nors)
 
-    # Yiha! BindPose for shapekeys too! Dodecasigh...
-    # XXX Not sure yet whether several bindposes on same mesh are allowed, or not... :/
+    # Yiha! BindPose for shape-keys too! Dodecasigh...
+    # XXX Not sure yet whether several bind-poses on same mesh are allowed, or not... :/
     fbx_data_bindpose_element(root, me_obj, me, scene_data)
 
     # ...and now, the deformers stuff.
@@ -1001,8 +1001,8 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         # Get unsorted edge keys by indexing the edge->vertex-indices array by the loop->edge-index array.
         t_pvi_edge_keys = t_ev_pair_view[t_lei]
 
-        # Sort each [edge_start_n, edge_end_n] pair to get edge keys. Heapsort seems to be the fastest for this specific
-        # use case.
+        # Sort each [edge_start_n, edge_end_n] pair to get edge keys.
+        # Heap-sort seems to be the fastest for this specific use case.
         t_pvi_edge_keys.sort(axis=1, kind='heapsort')
 
         # Note that finding unique edge keys means that if there are multiple edges that share the same vertices (which
@@ -1017,7 +1017,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         # To get the indices of the elements in t_pvi_edge_keys that produce unique values, but in the original order of
         # t_pvi_edge_keys, t_eli must be sorted.
         # Due to loops and their edge keys tending to have a partial ordering within meshes, sorting with kind='stable'
-        # with radix sort tends to be faster than the default of kind='quicksort' with introsort.
+        # with radix sort tends to be faster than the default of `kind='quicksort'` with `introsort`.
         t_eli.sort(kind='stable')
 
         # Edge index of each element in unique t_pvi_edge_keys, used to map per-edge data such as sharp and creases.
@@ -1260,9 +1260,9 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
                     del t_lt
                     num_loops = len(me.loops)
                     t_ln = np.empty(num_loops * 3, dtype=normal_bl_dtype)
-                    # t_lnw = np.zeros(len(me.loops), dtype=np.float64)
+                    # `t_lnw = np.zeros(len(me.loops), dtype=np.float64)`
                     # WARNING: Since tangent layers are recomputed inside the loop, do not directly iterate over the
-                    # uvlayers. Instead, cache their keys (names), and use this cached data inside the loop to compute
+                    # UV-layers. Instead, cache their keys (names), and use this cached data inside the loop to compute
                     # the tangent layers.
                     uvlayer_names = [uvl.name for uvl in me.uv_layers]
                     for idx, name in enumerate(uvlayer_names):
@@ -1360,7 +1360,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         # Fast view for sort-based uniqueness of pairs.
         t_luv_fast_pair_view = fast_first_axis_flat(t_luv.reshape(-1, 2))
         # It must be a view of t_luv otherwise it won't update when t_luv is updated.
-        assert(t_luv_fast_pair_view.base is t_luv)
+        assert t_luv_fast_pair_view.base is t_luv
 
         # Looks like this mapping is also expected to convey UV islands (arg..... :((((( ).
         # So we need to generate unique triplets (uv, vertex_idx) here, not only just based on UV values.
@@ -1376,8 +1376,8 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         # Because the vertex_idx column is the same for every uv layer, the vertex_idx column can be sorted in advance.
         # argsort gets the indices that sort the array, which are needed to be able to sort the array of uv pairs in the
         # same way to create the indices that recreate the full uvs from the unique uvs.
-        # Loops and vertices tend to naturally have a partial ordering, which makes sorting with kind='stable' (radix
-        # sort) faster than the default of kind='quicksort' (introsort) in most cases.
+        # Loops and vertices tend to naturally have a partial ordering, which makes sorting with kind='stable'
+        # (radix sort) faster than the default of `kind='quicksort'` (`introsort`) in most cases.
         perm_vidx = t_lvidx.argsort(kind='stable')
 
         # Mask and uv indices arrays will be modified and re-used by each uv layer.
@@ -1403,7 +1403,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
             # structured array where each element is a triplet of (uv, vertex_idx), except uv and vertex_idx are
             # separate arrays here and vertex_idx has already been sorted in advance.
 
-            # Sort according to the vertex_idx column, using the precalculated indices that sort it.
+            # Sort according to the `vertex_idx` column, using the pre-calculated indices that sort it.
             sorted_t_luv_fast = t_luv_fast_pair_view[perm_vidx]
 
             # Get the indices that would sort the sorted uv pairs. Stable sorting must be used to maintain the sorting
@@ -1656,6 +1656,7 @@ def fbx_data_material_elements(root, ma, scene_data):
     if scene_data.settings.use_custom_props:
         fbx_data_element_custom_properties(props, ma)
 
+
 def _get_image_filepath(img):
     if len(img.filepath) > 0:
         return img.filepath
@@ -1666,6 +1667,7 @@ def _get_image_filepath(img):
     if img.library:
         filepath = os.path.join(filepath, bpy.path.clean_name(img.library.name))
     return "//" + os.path.join(filepath, bpy.path.clean_name(img.name))
+
 
 def _gen_vid_path(img, scene_data):
     msetts = scene_data.settings.media_settings
@@ -1709,7 +1711,7 @@ def fbx_data_texture_file_elements(root, blender_tex_key, scene_data):
         # ~ else:
         # ~ alpha_source = 2  # Black, i.e. alpha channel.
         alpha_source = 2  # Black, i.e. alpha channel.
-    # BlendMode not useful for now, only affects layered textures afaics.
+    # BlendMode not useful for now, only affects layered textures AFAICS.
     mapping = 0  # UV.
     uvset = None
     if tex.texcoords == 'ORCO':  # XXX Others?
@@ -1744,7 +1746,7 @@ def fbx_data_texture_file_elements(root, blender_tex_key, scene_data):
     elem_props_template_set(tmpl, props, "p_vector_3d", b"Rotation", (-r for r in tex.rotation))
     elem_props_template_set(tmpl, props, "p_vector_3d", b"Scaling",
                             (((1.0 / s) if s != 0.0 else 1.0) for s in tex.scale))
-    # UseMaterial should always be ON imho.
+    # UseMaterial should always be ON IMHO.
     elem_props_template_set(tmpl, props, "p_bool", b"UseMaterial", True)
     elem_props_template_set(tmpl, props, "p_bool", b"UseMipMap", False)
     elem_props_template_finalize(tmpl, props)
@@ -1797,7 +1799,7 @@ def fbx_data_video_elements(root, vid, scene_data):
     # Looks like we'd rather not write any 'Content' element in this case (see T44442).
     # Sounds suspect, but let's try it!
     # ~ else:
-        #~ elem_data_single_bytes(fbx_vid, b"Content", b"")
+        # ~ elem_data_single_bytes(fbx_vid, b"Content", b"")
 
     # Blender currently has no UI for editing custom properties on Images, but the importer will import Image custom
     # properties from either a Video Node or a Texture Node, preferring a Video node if one exists. We'll propagate
@@ -1842,7 +1844,9 @@ def fbx_data_armature_elements(root, arm_obj, scene_data):
         # Store Blender bone length - XXX Not much useful actually :/
         # (LimbLength can't be used because it is a scale factor 0-1 for the parent-child distance:
         # http://docs.autodesk.com/FBX/2014/ENU/FBX-SDK-Documentation/cpp_ref/class_fbx_skeleton.html#a9bbe2a70f4ed82cd162620259e649f0f )
-        # elem_props_set(props, "p_double", "BlenderBoneLength".encode(), (bo.tail_local - bo.head_local).length, custom=True)
+        # elem_props_set(
+        #     props, "p_double", "BlenderBoneLength".encode(), (bo.tail_local - bo.head_local).length, custom=True,
+        # )
 
     # Skin deformers and BindPoses.
     # Note: we might also use Deformers for our "parent to vertex" stuff???
@@ -1893,7 +1897,7 @@ def fbx_data_armature_elements(root, arm_obj, scene_data):
                     elem_data_single_int32_array(fbx_clstr, b"Indexes", indices)
                     elem_data_single_float64_array(fbx_clstr, b"Weights", weights)
                 # Transform, TransformLink and TransformAssociateModel matrices...
-                # They seem to be doublons of BindPose ones??? Have armature (associatemodel) in addition, though.
+                # They seem to be duplicates of BindPose ones??? Have armature (associatemodel) in addition, though.
                 # WARNING! Even though official FBX API presents Transform in global space,
                 #          **it is stored in bone space in FBX data!** See:
                 #          http://area.autodesk.com/forum/autodesk-fbx/fbx-sdk/why-the-values-return-
@@ -2199,7 +2203,7 @@ def fbx_skeleton_from_armature(scene, settings, arm_obj, objects, data_meshes,
             continue
 
         # Now we have a mesh using this armature.
-        # Note: bindpose have no relations at all (no connections), so no need for any preprocess for them.
+        # Note: bind-pose have no relations at all (no connections), so no need for any preprocess for them.
         # Create skin & clusters relations (note skins are connected to geometry, *not* model!).
         _key, me, _free = data_meshes[ob_obj]
         clusters = {bo: get_blender_bone_cluster_key(arm_obj.bdata, me, bo.bdata) for bo in bones}
@@ -2215,7 +2219,7 @@ def fbx_skeleton_from_armature(scene, settings, arm_obj, objects, data_meshes,
 
 
 def fbx_generate_leaf_bones(settings, data_bones):
-    # find which bons have no children
+    # Find which bones have no children.
     child_count = {bo: 0 for bo in data_bones.keys()}
     for bo in data_bones.keys():
         if bo.parent and bo.parent.is_bone:
@@ -2483,7 +2487,7 @@ def fbx_animations(scene_data):
             if not ob.animation_data:
                 continue
 
-            # Some actions are read-only, one cause is being in NLA tweakmode
+            # Some actions are read-only, one cause is being in NLA tweak-mode.
             restore_use_tweak_mode = ob.animation_data.use_tweak_mode
             if ob.animation_data.is_property_readonly('action'):
                 ob.animation_data.use_tweak_mode = False
@@ -2669,7 +2673,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
         ob = ob_obj.bdata
         org_ob_obj = None
 
-        # Do not want to systematically recreate a new mesh for dupliobject instances, kind of break purpose of those.
+        # Do not want to systematically recreate a new mesh for dupli-object instances, kind of break purpose of those.
         if ob_obj.is_dupli:
             org_ob_obj = ObjectWrapper(ob)  # We get the "real" object wrapper from that dupli instance.
             if org_ob_obj in data_meshes:
@@ -2823,7 +2827,8 @@ def fbx_data_from_scene(scene, depsgraph, settings):
         return single_vert_co, single_vert_nor, single_vert_idx
 
     for me_key, me, _free in data_meshes.values():
-        if not (me.shape_keys and len(me.shape_keys.key_blocks) > 1):  # We do not want basis-only relative skeys...
+        # We do not want basis-only relative shape-keys.
+        if not (me.shape_keys and len(me.shape_keys.key_blocks) > 1):
             continue
         if me in data_deformers_shape:
             continue
@@ -2997,7 +3002,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
         if data_deformers_shape:
             nbr += len(data_deformers_shape)
             nbr += sum(len(shapes[2]) for shapes in data_deformers_shape.values())
-        assert(nbr != 0)
+        assert nbr != 0
         templates[b"Deformers"] = fbx_template_def_deformer(scene, settings, nbr_users=nbr)
 
     # No world support in FBX...
@@ -3099,7 +3104,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
         for me, (skin_key, ob_obj, clusters) in deformed_meshes.items():
             # skin -> geometry
             mesh_key, _me, _free = data_meshes[ob_obj]
-            assert(me == _me)
+            assert me == _me
             connections.append((b"OO", get_fbx_uuid_from_key(skin_key), get_fbx_uuid_from_key(mesh_key), None))
             for bo_obj, clstr_key in clusters.items():
                 # cluster -> skin
@@ -3115,7 +3120,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
         if ob_obj.type in BLENDER_OBJECT_TYPES_MESHLIKE:
             _mesh_key, me, _free = data_meshes[ob_obj]
         # NOTE: If a mesh has multiple material slots with the same material, they are combined into one
-        # single connexion (slot).
+        # single connection (slot).
         # Even if duplicate materials were exported without combining them into one slot, keeping duplicate
         # materials separated does not appear to be common behavior of external software when importing FBX.
         # Also, None (empty slots, no material) are always skipped/ignored.
@@ -3126,10 +3131,10 @@ def fbx_data_from_scene(scene, depsgraph, settings):
             done_materials_for_object.add(ma)
             ma_key, _ob_objs = data_materials[ma]
             connections.append((b"OO", get_fbx_uuid_from_key(ma_key), ob_obj.fbx_uuid, None))
-            # Get index of this material for this object (or dupliobject).
+            # Get index of this material for this object (or dupli-object).
             # Material indices for mesh faces are determined by their order in 'ma to ob' connections.
             # Only materials for meshes currently...
-            # Note in case of dupliobjects a same me/ma idx will be generated several times...
+            # Note in case of dupli-objects a same me/ma idx will be generated several times...
             # Should not be an issue in practice, and it's needed in case we export duplis but not the original!
             if ob_obj.type not in BLENDER_OBJECT_TYPES_MESHLIKE:
                 continue
@@ -3155,14 +3160,14 @@ def fbx_data_from_scene(scene, depsgraph, settings):
 
     # Animations
     for astack_key, astack, alayer_key, _name, _fstart, _fend in animations:
-        # Animstack itself is linked nowhere!
+        # Anim-stack itself is linked nowhere!
         astack_id = get_fbx_uuid_from_key(astack_key)
         # For now, only one layer!
         alayer_id = get_fbx_uuid_from_key(alayer_key)
         connections.append((b"OO", alayer_id, astack_id, None))
         for elem_key, (alayer_key, acurvenodes) in astack.items():
             elem_id = get_fbx_uuid_from_key(elem_key)
-            # Animlayer -> animstack.
+            # Anim-layer -> animstack.
             # alayer_id = get_fbx_uuid_from_key(alayer_key)
             # connections.append((b"OO", alayer_id, astack_id, None))
             for fbx_prop, (acurvenode_key, acurves, acurvenode_name) in acurvenodes.items():
@@ -3320,7 +3325,7 @@ def fbx_header_elements(root, scene_data, time=None):
 
     # Global timing data.
     r = scene.render
-    _, fbx_fps_mode = FBX_FRAMERATES[0]  # Custom framerate.
+    _, fbx_fps_mode = FBX_FRAMERATES[0]  # Custom frame-rate.
     fbx_fps = fps = r.fps / r.fps_base
     for ref_fps, fps_mode in FBX_FRAMERATES:
         if similar_values(fps, ref_fps):
@@ -3371,7 +3376,7 @@ def fbx_references_elements(root, scene_data):
 
 def fbx_definitions_elements(root, scene_data):
     """
-    Templates definitions. Only used by Objects data afaik (apart from dummy GlobalSettings one).
+    Templates definitions. Only used by Objects data AFAIK (apart from dummy GlobalSettings one).
     """
     definitions = elem_empty(root, b"Definitions")
 
@@ -3672,7 +3677,7 @@ def defaults_unity3d():
         "bake_anim_step": 1.0,
         "bake_anim_use_nla_strips": True,
         "bake_anim_use_all_actions": True,
-        "add_leaf_bones": False,  # Avoid memory/performance cost for something only useful for modelling
+        "add_leaf_bones": False,  # Avoid memory/performance cost for something only useful for modeling.
         "primary_bone_axis": 'Y',  # Doesn't really matter for Unity, so leave unchanged
         "secondary_bone_axis": 'X',
 

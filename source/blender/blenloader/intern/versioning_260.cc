@@ -72,7 +72,7 @@
 #include "BKE_screen.hh"
 #include "BKE_text.h" /* for txt_extended_ascii_as_utf8 */
 #include "BKE_texture.h"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
@@ -445,7 +445,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
     else if (node->type_legacy == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
       NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node->storage);
 
-      /* CMP_NODE_OUTPUT_MULTI_FILE has been redeclared as CMP_NODE_OUTPUT_FILE */
+      /* #CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as #CMP_NODE_OUTPUT_FILE. */
       node->type_legacy = CMP_NODE_OUTPUT_FILE;
 
       /* initialize the node-wide image format from render data, if available */

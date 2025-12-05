@@ -25,7 +25,7 @@
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_modifier.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
@@ -597,7 +597,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
           }
           else if (object_mode == OB_MODE_OBJECT) {
             /* No active object means #TransConvertType_Object [see #convert_type_get()], so use
-             * toolsetting for *object*. */
+             * tool-setting for *object*. */
             use_prop_edit = ts->proportional_objects;
           }
           else {
