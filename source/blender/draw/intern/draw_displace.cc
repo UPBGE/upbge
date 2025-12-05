@@ -10,6 +10,8 @@
 
 #include "draw_displace.hh"
 
+#include <cstring>  /* For strstr() */
+
 #include "BLI_hash.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
@@ -24,6 +26,7 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
 #include "../modifiers/intern/MOD_util.hh"
@@ -100,15 +103,17 @@ static const char *displace_compute_src = R"GLSL(
 #define MOD_DISP_SPACE_LOCAL 0
 #define MOD_DISP_SPACE_GLOBAL 1
 
-/* Texture extend modes (matching DNA_texture_types.h) */
-#define TEX_EXTEND 0
-#define TEX_CLIP 1
-#define TEX_REPEAT 2
+/* Texture extend modes (matching DNA_texture_types.h line 280-286)
+ * CRITICAL: Values start at 1 due to backward compatibility! */
+#define TEX_EXTEND 1
+#define TEX_CLIP 2
+#define TEX_REPEAT 3
 #define TEX_CLIPCUBE 4
-#define TEX_CHECKER 8
+#define TEX_CHECKER 5
 
 /* Apply texture extend mode to UV coordinates
- * Matches Blender's texture wrapping behavior */
+ * Matches Blender's texture wrapping behavior
+ * NOTE: TEX_CLIPCUBE (4) is handled separately as it checks 3D coords! */
 vec2 apply_texture_extend(vec2 uv, int extend_mode) {
   if (extend_mode == TEX_REPEAT) {
     /* Repeat: fract() wraps to [0,1] */
@@ -119,17 +124,19 @@ vec2 apply_texture_extend(vec2 uv, int extend_mode) {
     return clamp(uv, 0.0, 1.0);
   }
   else if (extend_mode == TEX_CLIP) {
-    /* Clip: mark out-of-bounds for black return */
-    return uv;  /* Will be checked after sampling */
+    /* Clip: keep UV as-is, clipping check done later */
+    return uv;
+  }
+  else if (extend_mode == TEX_CLIPCUBE) {
+    /* ClipCube: keep UV as-is, 3D clipping check done later */
+    return uv;
   }
   else if (extend_mode == TEX_CHECKER) {
-    /* Checker: alternate between texture and inverted on grid */
-    vec2 check = floor(uv);
-    float checker = mod(check.x + check.y, 2.0);
-    return fract(uv);  /* Will invert color if checker == 1 */
+    /* Checker: wrap to [0,1] for tiling pattern */
+    return fract(uv);
   }
   else {
-    /* Default: repeat */
+    /* Default/Unknown: repeat */
     return fract(uv);
   }
 }
@@ -161,78 +168,147 @@ void main() {
   float delta;
   
 #ifdef HAS_TEXTURE
+/* GPU port of Blender's texture sampling pipeline (texture_procedural.cc + texture_image.cc)
+ * Flow: MOD_get_texture_coords() → do_2d_mapping() → imagewrap() → BRICONTRGB
+ * This replicates the EXACT CPU path for pixel-perfect GPU/CPU match. */
+
+struct TexResult {
+  vec4 trgba;  /* RGBA color */
+  float tin;   /* Intensity */
+  bool talpha; /* Use alpha channel */
+};
+
+/* GPU port of do_2d_mapping() from texture_procedural.cc
+ * This is called BEFORE imagewrap() to convert texture coordinates.
+ * For FLAT mapping (default for displacement), it converts object-space [-1,1] to [0,1]. */
+
 /* Sample texture using texture coordinates from MOD_get_texture_coords() */
 vec3 tex_coord = texture_coords[v].xyz;
+
+/* do_2d_mapping() - CRITICAL preprocessing step (texture_procedural.cc line 751-752)
+ * For FLAT mapping: fx = (texvec[0] + 1.0) / 2.0
+ * This converts object-space coordinates to [0,1] normalized UV space.
+ * 
+ * MOD_get_texture_coords() with FLAT returns raw object coords (e.g., [-1,1] for a 2×2 plane).
+ * do_2d_mapping() normalizes them BEFORE passing to imagewrap(). */
+float fx = (tex_coord.x + 1.0) / 2.0;
+float fy = (tex_coord.y + 1.0) / 2.0;
+
+/* Now fx, fy are in [0,1] normalized space, ready for imagewrap() */
   
-  /* FLAT mapping: remap from world/local space to [0,1] UV space
-   * This matches CPU behavior in do_2d_mapping() (texture_procedural.cc) */
-  vec2 uv;
-  uv.x = (tex_coord.x + 1.0) * 0.5;
-  uv.y = (tex_coord.y + 1.0) * 0.5;
-  
-  /* Apply flip axis (TEX_IMAROT): swap X and Y coordinates */
+  /* Apply flip axis (TEX_IMAROT): swap X and Y coordinates
+   * (CPU line 122: if (tex->imaflag & TEX_IMAROT) std::swap(fx, fy);) */
   if (tex_flip_axis) {
-    float temp = uv.x;
-    uv.x = uv.y;
-    uv.y = temp;
+    float temp = fx;
+    fx = fy;
+    fy = temp;
   }
   
-  /* Apply crop/recadrage: remap UV to cropped region
-   * tex_crop = (xmin, ymin, xmax, ymax) defines the visible region
-   * Example: crop = (0.25, 0.25, 0.75, 0.75) uses only center 50% of texture */
+  /* Get texture size for pixel-space calculations */
+  ivec2 tex_size = textureSize(displacement_texture, 0);
+  
+  /* Compute integer pixel coordinates (CPU line 157-158)
+   * x = xi = int(floorf(fx * ibuf->x)); */
+  int x = int(floor(fx * float(tex_size.x)));
+  int y = int(floor(fy * float(tex_size.y)));
+  int xi = x;  /* Save original for interpolation fix later */
+  int yi = y;
+  
+  /* EARLY RETURN for CLIP/CLIPCUBE (CPU line 160-175) */
+  if (tex_extend == TEX_CLIP) {
+    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
+      /* Early exit: no displacement */
+      deformed_positions[v] = co_in;
+      return;
+    }
+  }
+  else if (tex_extend == TEX_CLIPCUBE) {
+    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
+        tex_coord.z < -1.0 || tex_coord.z > 1.0) {
+      /* Early exit: no displacement */
+      deformed_positions[v] = co_in;
+      return;
+    }
+  }
+  else if (tex_extend == TEX_CHECKER) {
+    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
+      /* Early exit: no displacement */
+      deformed_positions[v] = co_in;
+      return;
+    }
+  }
+  else {
+    /* EXTEND or REPEAT mode: wrap/clamp coordinates (CPU line 176-202) */
+    if (tex_extend == TEX_EXTEND) {
+      x = (x >= tex_size.x) ? (tex_size.x - 1) : ((x < 0) ? 0 : x);
+    }
+    else {
+      /* REPEAT */
+      x = x % tex_size.x;
+      if (x < 0) x += tex_size.x;
+    }
+    
+    if (tex_extend == TEX_EXTEND) {
+      y = (y >= tex_size.y) ? (tex_size.y - 1) : ((y < 0) ? 0 : y);
+    }
+    else {
+      /* REPEAT */
+      y = y % tex_size.y;
+      if (y < 0) y += tex_size.y;
+    }
+  }
+  
+  /* Now sample texture (CPU line 215-241: interpolate/no filtering)
+   * Normalize pixel coords back to [0,1] for texture() sampling */
+  
+  /* Remap coordinates for interpolation (CPU line 220-223):
+   * "Important that this value is wrapped #27782" */
+  fx -= float(xi - x) / float(tex_size.x);
+  fy -= float(yi - y) / float(tex_size.y);
+  
+  /* Apply crop/recadrage (not in CPU imagewrap, but needed for consistency) */
+  vec2 uv;
+  uv.x = fx;
+  uv.y = fy;
+  
   vec2 crop_min = tex_crop.xy;
   vec2 crop_max = tex_crop.zw;
   vec2 crop_size = crop_max - crop_min;
-  
-  /* Remap UV from [0,1] to [crop_min, crop_max] */
   uv = crop_min + uv * crop_size;
   
-  /* Apply repeat scaling (xrepeat, yrepeat)
-   * Multiplies UV coordinates to repeat the texture */
+  /* Apply repeat scaling */
   uv *= vec2(tex_repeat);
   
-  /* Apply texture extend mode (repeat, clamp, clip, checker) */
-  vec2 uv_wrapped = apply_texture_extend(uv, tex_extend);
-  
-  /* Apply mirror flags (flip on odd tiles) */
+  /* Apply mirror flags */
   if (tex_xmir || tex_ymir) {
-    vec2 tile = floor(uv);  /* Which tile are we in? */
+    vec2 tile = floor(uv);
     if (tex_xmir && mod(tile.x, 2.0) != 0.0) {
-      uv_wrapped.x = 1.0 - fract(uv.x);  /* Mirror X on odd tiles */
+      uv.x = 1.0 - fract(uv.x);
     }
     if (tex_ymir && mod(tile.y, 2.0) != 0.0) {
-      uv_wrapped.y = 1.0 - fract(uv.y);  /* Mirror Y on odd tiles */
+      uv.y = 1.0 - fract(uv.y);
     }
   }
   
-  /* Check if out-of-bounds for CLIP mode */
-  bool is_clipped = false;
-  if (tex_extend == TEX_CLIP || tex_extend == TEX_CLIPCUBE) {
-    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-      is_clipped = true;
-    }
-  }
+  /* Wrap UVs for repeat/extend */
+  vec2 uv_wrapped = apply_texture_extend(uv, tex_extend);
   
-  /* Sample texture with interpolation mode
-   * If tex_interpol is false, use nearest neighbor (texelFetch would be ideal,
-   * but we approximate with texture() since we don't have texel coords) */
-  vec4 tex_color;
+  /* Sample texture (CPU uses boxsample for interpolation) */
+  TexResult texres;
+  texres.talpha = use_talpha;  /* From CPU line 211-213 */
+  
   if (tex_interpol) {
-    /* Bilinear interpolation (standard)
-     * Note: filtersize is used by CPU for other effects, not direct mipmap bias in sampling */
-    tex_color = texture(displacement_texture, uv_wrapped);
+    /* Interpolated sampling (boxsample) */
+    texres.trgba = texture(displacement_texture, uv_wrapped);
   }
   else {
-    /* Nearest neighbor approximation: snap to texel center */
-    ivec2 tex_size = textureSize(displacement_texture, 0);
-    vec2 uv_snapped = (floor(uv_wrapped * vec2(tex_size)) + 0.5) / vec2(tex_size);
-    tex_color = texture(displacement_texture, uv_snapped);
+    /* No filtering (CPU line 242: ibuf_get_color) */
+    ivec2 px_coord = ivec2(x, y);
+    px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
+    vec2 uv_texel = (vec2(px_coord) + 0.5) / vec2(tex_size);
+    texres.trgba = texture(displacement_texture, uv_texel);
   }
   
-  /* Apply CLIP mode (return black if out of bounds) */
-  if (is_clipped) {
-    tex_color = vec4(0.0);
-  }
   
   /* Apply CHECKER mode (invert color on alternating tiles) */
   if (tex_extend == TEX_CHECKER) {
@@ -255,35 +331,48 @@ vec3 tex_coord = texture_coords[v].xyz;
     }
     
     if (!show_tile) {
-      tex_color = vec4(0.0);  /* Hide this tile */
+      texres.trgba = vec4(0.0);  /* Hide this tile */
     }
     else if (checker > 0.5) {
-      tex_color.rgb = vec3(1.0) - tex_color.rgb;  /* Invert odd tiles */
+      texres.trgba.rgb = vec3(1.0) - texres.trgba.rgb;  /* Invert odd tiles */
     }
   }
   
-vec3 rgb = tex_color.rgb;
-float alpha = tex_color.a;
-  
-  /* Step 1: De-pre-multiply alpha (texture_image.cc lines 272-279) */
-  if (use_talpha && alpha != 1.0 && alpha > 1e-4) {
-    float inv_alpha = 1.0 / alpha;
-    rgb *= inv_alpha;
+  /* Compute intensity (CPU line 244-253) */
+  if (texres.talpha) {
+    texres.tin = texres.trgba.a;
+  }
+  else if (tex_calcalpha) {
+    texres.tin = max(max(texres.trgba.r, texres.trgba.g), texres.trgba.b);
+    texres.trgba.a = texres.tin;
+  }
+  else {
+    texres.tin = 1.0;
+    texres.trgba.a = 1.0;
   }
   
-  /* Step 2: Apply BRICONTRGB (brightness, contrast, RGB factors) */
+  if (tex_negalpha) {
+    texres.trgba.a = 1.0 - texres.trgba.a;
+  }
+  
+  /* De-pre-multiply (CPU line 260-264) */
+  if (texres.trgba.a != 1.0 && texres.trgba.a > 1e-4 && !tex_calcalpha) {
+    float inv_alpha = 1.0 / texres.trgba.a;
+    texres.trgba.rgb *= inv_alpha;
+  }
+  
+  /* BRICONTRGB macro (texture_common.h) - CPU line 270 */
+  vec3 rgb = texres.trgba.rgb;
   rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
   rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
   rgb.b = tex_bfac * ((rgb.b - 0.5) * tex_contrast + tex_bright - 0.5);
   
-  /* Clamp negative values only if !TEX_NO_CLAMP */
   if (!tex_no_clamp) {
     rgb = max(rgb, vec3(0.0));
   }
   
-  /* Step 3: Apply saturation (if needed) */
+  /* Apply saturation */
   if (tex_saturation != 1.0) {
-    /* RGB to HSV */
     float cmax = max(max(rgb.r, rgb.g), rgb.b);
     float cmin = min(min(rgb.r, rgb.g), rgb.b);
     float delta_hsv = cmax - cmin;
@@ -305,10 +394,8 @@ float alpha = tex_color.a;
       if (h < 0.0) h += 1.0;
     }
     
-    /* Scale saturation */
     s *= tex_saturation;
     
-    /* HSV to RGB (Blender's algorithm) */
     float nr = abs(h * 6.0 - 3.0) - 1.0;
     float ng = 2.0 - abs(h * 6.0 - 2.0);
     float nb = 2.0 - abs(h * 6.0 - 4.0);
@@ -321,38 +408,35 @@ float alpha = tex_color.a;
     rgb.g = ((ng - 1.0) * s + 1.0) * v;
     rgb.b = ((nb - 1.0) * s + 1.0) * v;
     
-    /* Clamp again if saturation > 1.0 and !TEX_NO_CLAMP */
     if (tex_saturation > 1.0 && !tex_no_clamp) {
       rgb = max(rgb, vec3(0.0));
     }
   }
   
-  /* Step 4: Convert linear → sRGB (Blender's linearrgb_to_srgb formula)
-   * This is CRITICAL: GPU textures are in linear space, but CPU computes
-   * displacement from sRGB values. Formula from math_color.cc line 649-654:
-   *   if (c < 0.0031308f) return max(c * 12.92f, 0.0f);
-   *   else return 1.055f * pow(c, 1.0f/2.4f) - 0.055f;
-   */
+  /* Linear → sRGB conversion (for intensity calculation)
+   * CRITICAL: GPU textures are ALWAYS loaded as LINEAR!
+   * If source image was sRGB, GPU auto-converted to linear.
+   * We only apply linear→sRGB if image was ORIGINALLY linear. */
   vec3 srgb_rgb;
-  srgb_rgb.r = (rgb.r < 0.0031308) ? max(rgb.r * 12.92, 0.0) : (1.055 * pow(rgb.r, 1.0 / 2.4) - 0.055);
-  srgb_rgb.g = (rgb.g < 0.0031308) ? max(rgb.g * 12.92, 0.0) : (1.055 * pow(rgb.g, 1.0 / 2.4) - 0.055);
-  srgb_rgb.b = (rgb.b < 0.0031308) ? max(rgb.b * 12.92, 0.0) : (1.055 * pow(rgb.b, 1.0 / 2.4) - 0.055);
+  if (tex_skip_srgb_conversion) {
+    /* Image was sRGB, GPU converted to linear, use as-is (already correct for displacement) */
+    srgb_rgb = rgb;
+  }
+  else {
+    /* Image was linear, apply linear→sRGB conversion */
+    srgb_rgb.r = (rgb.r < 0.0031308) ? max(rgb.r * 12.92, 0.0) : (1.055 * pow(rgb.r, 1.0 / 2.4) - 0.055);
+    srgb_rgb.g = (rgb.g < 0.0031308) ? max(rgb.g * 12.92, 0.0) : (1.055 * pow(rgb.g, 1.0 / 2.4) - 0.055);
+    srgb_rgb.b = (rgb.b < 0.0031308) ? max(rgb.b * 12.92, 0.0) : (1.055 * pow(rgb.b, 1.0 / 2.4) - 0.055);
+  }
   
-  /* Step 5: Compute intensity as average of sRGB values
-   * This matches BKE_texture_get_value_ex() (texture.cc line 630) */
   float tex_value = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
   
-  /* Apply TEX_FLIPBLEND: invert gradient (1.0 - value)
-   * Used for reversing blend/gradient textures */
   if (tex_flipblend) {
     tex_value = 1.0 - tex_value;
   }
 
   float s = strength * vgroup_weight;
-  
-  /* For RGB_XYZ mode, we need the full RGB vector, not just intensity */
   vec3 rgb_displacement = (srgb_rgb - vec3(midlevel)) * s;
-  
   delta = (tex_value - midlevel) * s;
 #else
   /* Fixed delta (no texture) */
@@ -562,7 +646,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
 }
 
 blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dmd,
-                                                           Depsgraph * /*depsgraph*/,
+                                                           Depsgraph *depsgraph,
                                                            Object *deformed_eval,
                                                            MeshBatchCache *cache,
                                                            blender::gpu::StorageBuf *ssbo_in)
@@ -644,11 +728,28 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
   if (dmd->texture && dmd->texture->type == TEX_IMAGE && dmd->texture->ima) {
     Image *ima = dmd->texture->ima;
+    Tex *tex = dmd->texture;
     
-    /* Check if GPU texture is loaded */
-    if (ima && ima->runtime) {
-      ImageUser iuser = {nullptr};
-
+    /* Setup ImageUser with correct frame for ImageSequence/Movies
+     * CRITICAL: ImageUser.framenr must be updated from scene frame for animation!
+     * The CPU path (MOD_init_texture) calls BKE_texture_fetch_images_for_pool() which
+     * updates iuser.framenr. We must replicate this for GPU. */
+    if (ima && ima->runtime && tex) {
+      ImageUser iuser = tex->iuser;  /* Start with texture's ImageUser */
+      
+      /* For animated textures, update frame number from current scene
+       * This is CRITICAL for ImageSequence/Movie playback! */
+      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+        /* Get scene from depsgraph (same as CPU modifier evaluator) */
+        Scene *scene = DEG_get_evaluated_scene(depsgraph);
+        if (scene) {
+          /* Update framenr from scene frame + offset
+           * BKE_image_get_gpu_texture() will handle clamping/cyclic internally */
+          iuser.framenr = int(scene->r.cfra) + iuser.offset;
+        }
+      }
+      
+      /* Ensure GPU texture is loaded for this frame */
       gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
       
       if (gpu_texture && !msd.tex_coords.empty()) {
@@ -728,6 +829,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
   if (has_texture) {
     info.push_constant(Type::bool_t, "use_talpha");      /* Enable de-premultiply */
+    info.push_constant(Type::bool_t, "tex_calcalpha");   /* TEX_CALCALPHA */
+    info.push_constant(Type::bool_t, "tex_negalpha");    /* TEX_NEGALPHA */
     info.push_constant(Type::float_t, "tex_bright");     /* Tex->bright */
     info.push_constant(Type::float_t, "tex_contrast");   /* Tex->contrast */
     info.push_constant(Type::float_t, "tex_saturation"); /* Tex->saturation */
@@ -745,6 +848,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::bool_t, "tex_checker_even");/* TEX_CHECKER_EVEN */
     info.push_constant(Type::bool_t, "tex_flipblend");   /* TEX_FLIPBLEND */
     info.push_constant(Type::bool_t, "tex_flip_axis");   /* TEX_IMAROT (flip X/Y) */
+    info.push_constant(Type::bool_t, "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
   }
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
@@ -829,6 +933,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     }
     
     GPU_shader_uniform_1b(shader, "use_talpha", use_talpha);
+    GPU_shader_uniform_1b(shader, "tex_calcalpha", (tex->imaflag & TEX_CALCALPHA) != 0);
+    GPU_shader_uniform_1b(shader, "tex_negalpha", (tex->flag & TEX_NEGALPHA) != 0);
     GPU_shader_uniform_1f(shader, "tex_bright", tex->bright);
     GPU_shader_uniform_1f(shader, "tex_contrast", tex->contrast);
     GPU_shader_uniform_1f(shader, "tex_saturation", tex->saturation);
@@ -851,6 +957,19 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1b(shader, "tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) != 0);
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
+    
+    /* Determine if we should skip linear→sRGB conversion in shader
+     * SIMPLE HEURISTIC: Check if source image is Movies/ImageSequence
+     * These are ALWAYS auto-converted to linear by GPU, so skip shader conversion.
+     * For static images, we apply conversion (safest default). */
+    bool skip_srgb_conversion = false;
+    if (ima) {
+      /* Movies and image sequences are always linear after GPU load */
+      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+        skip_srgb_conversion = true;
+      }
+    }
+    GPU_shader_uniform_1b(shader, "tex_skip_srgb_conversion", skip_srgb_conversion);
   }
 
 
