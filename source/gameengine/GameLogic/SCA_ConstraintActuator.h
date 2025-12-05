@@ -100,6 +100,8 @@ class SCA_ConstraintActuator : public SCA_IActuator {
     KX_ACT_CONSTRAINT_FHNX,
     KX_ACT_CONSTRAINT_FHNY,
     KX_ACT_CONSTRAINT_FHNZ,
+    KX_ACT_CONSTRAINT_RB_DISABLE,
+    KX_ACT_CONSTRAINT_RB_ENABLE,
     KX_ACT_CONSTRAINT_MAX
   };
   // match ACT_CONST_... values from BIF_interface.h

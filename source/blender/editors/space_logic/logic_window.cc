@@ -1888,9 +1888,6 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       row->prop(ptr, "damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      row = &layout->row(false);
-      row->prop(ptr, "rotation_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
       row = &layout->row(true);
       row->prop(ptr, "angle_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row->prop(ptr, "angle_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1900,8 +1897,9 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       split = &layout->split(0.75, false);
       row = &split->row(false);
       row->prop(ptr, "fh_damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-
-      row->prop(ptr, "fh_height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      split = &split->row(false);
+      split->prop(ptr, "fh_damping_rotation", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "fh_height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       split->prop(ptr, "use_fh_paralel_axis", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &layout->row(false);
@@ -1923,6 +1921,10 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       row = &split->row(false);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row->prop(ptr, "damping_rotation", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      break;
+
+    case ACT_CONST_TYPE_RB:
+      layout->prop(ptr, "rb_action", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 }

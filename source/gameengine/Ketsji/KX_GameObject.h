@@ -262,6 +262,7 @@ class KX_GameObject : public SCA_IObject {
   void ClearConstraints();
   void AddRigidBodyConstraint(RigidBodyCon *cons, Object *ob1, Object *ob2);
   void SetRigidBodyConstraintId(RigidBodyCon *cons, int constraintId);
+  bool SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName = "");
   const std::vector<RigidBodyConstraintData> &GetRigidBodyConstraints() const;
   void ClearRigidBodyConstraints();
   void RemoveRigidBodyConstraints();  // Remove constraints from physics environment

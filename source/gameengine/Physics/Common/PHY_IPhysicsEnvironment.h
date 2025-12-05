@@ -292,4 +292,5 @@ class PHY_IPhysicsEnvironment {
                                         KX_GameObject *gameobj1,
                                         KX_GameObject *gameobj2,
                                         RigidBodyCon *rbc) = 0;
+  virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) = 0;
 };

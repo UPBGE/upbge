@@ -187,11 +187,7 @@ KX_GameObject::~KX_GameObject()
   // Remove rigid body constraints from physics environment while GetScene() still works
   // Must be called before m_pSGNode is invalidated
   if (m_pSGNode) {
-    CM_Debug("~KX_GameObject: " << GetName() << " - calling RemoveRigidBodyConstraints (m_pSGNode valid)");
     RemoveRigidBodyConstraints();
-  }
-  else {
-    CM_Debug("~KX_GameObject: " << GetName() << " - m_pSGNode is null, skipping RemoveRigidBodyConstraints");
   }
 
   // if (m_pSGNode)
@@ -827,21 +823,17 @@ void KX_GameObject::RemoveRigidBodyConstraints()
 
   KX_Scene *scene = GetScene();
   if (!scene) {
-    CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - scene is null!");
     return;
   }
 
   PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
   if (!physEnv) {
-    CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - physEnv is null!");
     return;
   }
 
   for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
-    CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - checking constraint ID=" << data.m_constraintId);
     // Only skip -1 (our sentinel for "no constraint"), other values including negative are valid IDs
     if (data.m_constraintId != -1) {
-      CM_Debug("RemoveRigidBodyConstraints: " << GetName() << " - removing constraint ID=" << data.m_constraintId);
       physEnv->RemoveConstraintById(data.m_constraintId, true);
     }
   }
@@ -851,6 +843,38 @@ void KX_GameObject::RemoveRigidBodyConstraints()
 bool KX_GameObject::HasRigidBodyConstraints() const
 {
   return !m_rigidbodyConstraints.empty();
+}
+
+bool KX_GameObject::SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName)
+{
+  if (m_rigidbodyConstraints.empty()) {
+    return false;
+  }
+
+  KX_Scene *scene = GetScene();
+  if (!scene) {
+    return false;
+  }
+
+  PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
+  if (!physEnv) {
+    return false;
+  }
+
+  bool changed = false;
+  for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (data.m_constraintId == -1) {
+      continue;
+    }
+
+    if (!filterObjectName.empty() && data.m_object1Name != filterObjectName) {
+      continue;
+    }
+
+    physEnv->SetRigidBodyConstraintEnabled(data.m_constraintId, enabled);
+    changed = true;
+  }
+  return changed;
 }
 
 void KX_GameObject::ReplicateRigidBodyConstraints(
@@ -895,8 +919,6 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
     }
 
     int constraintId = physEnv->CreateRigidBodyConstraint(this, target1, target2, data.m_constraint);
-    CM_Debug("ReplicateRigidBodyConstraints: " << GetName() << " created constraint ID=" << constraintId
-             << " (target1=" << target1->GetName() << ", target2=" << (target2 ? target2->GetName() : "null") << ")");
     // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
     if (constraintId != -1) {
       data.m_constraintId = constraintId;

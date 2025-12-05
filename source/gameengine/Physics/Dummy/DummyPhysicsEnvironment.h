@@ -172,4 +172,8 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   {
     return -1;
   }
+
+  virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override
+  {
+  }
 };
