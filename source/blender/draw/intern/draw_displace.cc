@@ -100,6 +100,40 @@ static const char *displace_compute_src = R"GLSL(
 #define MOD_DISP_SPACE_LOCAL 0
 #define MOD_DISP_SPACE_GLOBAL 1
 
+/* Texture extend modes (matching DNA_texture_types.h) */
+#define TEX_EXTEND 0
+#define TEX_CLIP 1
+#define TEX_REPEAT 2
+#define TEX_CLIPCUBE 4
+#define TEX_CHECKER 8
+
+/* Apply texture extend mode to UV coordinates
+ * Matches Blender's texture wrapping behavior */
+vec2 apply_texture_extend(vec2 uv, int extend_mode) {
+  if (extend_mode == TEX_REPEAT) {
+    /* Repeat: fract() wraps to [0,1] */
+    return fract(uv);
+  }
+  else if (extend_mode == TEX_EXTEND) {
+    /* Extend: clamp to [0,1] edges */
+    return clamp(uv, 0.0, 1.0);
+  }
+  else if (extend_mode == TEX_CLIP) {
+    /* Clip: mark out-of-bounds for black return */
+    return uv;  /* Will be checked after sampling */
+  }
+  else if (extend_mode == TEX_CHECKER) {
+    /* Checker: alternate between texture and inverted on grid */
+    vec2 check = floor(uv);
+    float checker = mod(check.x + check.y, 2.0);
+    return fract(uv);  /* Will invert color if checker == 1 */
+  }
+  else {
+    /* Default: repeat */
+    return fract(uv);
+  }
+}
+
 /* Note: displacement_texture sampler is declared by ShaderCreateInfo, no manual uniform needed */
 
 void main() {
@@ -127,19 +161,102 @@ void main() {
   float delta;
   
 #ifdef HAS_TEXTURE
-  /* Sample texture using texture coordinates from MOD_get_texture_coords() */
-  vec3 tex_coord = texture_coords[v].xyz;
+/* Sample texture using texture coordinates from MOD_get_texture_coords() */
+vec3 tex_coord = texture_coords[v].xyz;
   
-  /* FLAT mapping: remap from world/local space to [0,1] UV space
-   * This matches CPU behavior in do_2d_mapping() (texture_procedural.cc) */
-  vec2 uv;
-  uv.x = (tex_coord.x + 1.0) * 0.5;
-  uv.y = (tex_coord.y + 1.0) * 0.5;
+/* FLAT mapping: remap from world/local space to [0,1] UV space
+ * This matches CPU behavior in do_2d_mapping() (texture_procedural.cc) */
+vec2 uv;
+uv.x = (tex_coord.x + 1.0) * 0.5;
+uv.y = (tex_coord.y + 1.0) * 0.5;
   
-  /* Sample texture and get linear RGB values */
-  vec4 tex_color = texture(displacement_texture, uv);
-  vec3 rgb = tex_color.rgb;
-  float alpha = tex_color.a;
+  /* Apply crop/recadrage: remap UV to cropped region
+   * tex_crop = (xmin, ymin, xmax, ymax) defines the visible region
+   * Example: crop = (0.25, 0.25, 0.75, 0.75) uses only center 50% of texture */
+  vec2 crop_min = tex_crop.xy;
+  vec2 crop_max = tex_crop.zw;
+  vec2 crop_size = crop_max - crop_min;
+  
+  /* Remap UV from [0,1] to [crop_min, crop_max] */
+  uv = crop_min + uv * crop_size;
+  
+  /* Apply repeat scaling (xrepeat, yrepeat)
+   * Multiplies UV coordinates to repeat the texture */
+  uv *= vec2(tex_repeat);
+  
+  /* Apply texture extend mode (repeat, clamp, clip, checker) */
+  vec2 uv_wrapped = apply_texture_extend(uv, tex_extend);
+  
+  /* Apply mirror flags (flip on odd tiles) */
+  if (tex_xmir || tex_ymir) {
+    vec2 tile = floor(uv);  /* Which tile are we in? */
+    if (tex_xmir && mod(tile.x, 2.0) != 0.0) {
+      uv_wrapped.x = 1.0 - fract(uv.x);  /* Mirror X on odd tiles */
+    }
+    if (tex_ymir && mod(tile.y, 2.0) != 0.0) {
+      uv_wrapped.y = 1.0 - fract(uv.y);  /* Mirror Y on odd tiles */
+    }
+  }
+  
+  /* Check if out-of-bounds for CLIP mode */
+  bool is_clipped = false;
+  if (tex_extend == TEX_CLIP || tex_extend == TEX_CLIPCUBE) {
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+      is_clipped = true;
+    }
+  }
+  
+  /* Sample texture with interpolation mode
+   * If tex_interpol is false, use nearest neighbor (texelFetch would be ideal,
+   * but we approximate with texture() since we don't have texel coords) */
+  vec4 tex_color;
+  if (tex_interpol) {
+    /* Bilinear interpolation (standard)
+     * Note: filtersize is used by CPU for other effects, not direct mipmap bias in sampling */
+    tex_color = texture(displacement_texture, uv_wrapped);
+  }
+  else {
+    /* Nearest neighbor approximation: snap to texel center */
+    ivec2 tex_size = textureSize(displacement_texture, 0);
+    vec2 uv_snapped = (floor(uv_wrapped * vec2(tex_size)) + 0.5) / vec2(tex_size);
+    tex_color = texture(displacement_texture, uv_snapped);
+  }
+  
+  /* Apply CLIP mode (return black if out of bounds) */
+  if (is_clipped) {
+    tex_color = vec4(0.0);
+  }
+  
+  /* Apply CHECKER mode (invert color on alternating tiles) */
+  if (tex_extend == TEX_CHECKER) {
+    vec2 check = floor(uv);
+    float checker = mod(check.x + check.y, 2.0);
+    
+    /* Apply checker odd/even filter */
+    bool show_tile = true;
+    if (tex_checker_odd && tex_checker_even) {
+      show_tile = true;  /* Both enabled = show all */
+    }
+    else if (tex_checker_odd && !tex_checker_even) {
+      show_tile = (checker > 0.5);  /* Only odd tiles */
+    }
+    else if (!tex_checker_odd && tex_checker_even) {
+      show_tile = (checker < 0.5);  /* Only even tiles */
+    }
+    else {
+      show_tile = false;  /* Neither enabled = show none */
+    }
+    
+    if (!show_tile) {
+      tex_color = vec4(0.0);  /* Hide this tile */
+    }
+    else if (checker > 0.5) {
+      tex_color.rgb = vec3(1.0) - tex_color.rgb;  /* Invert odd tiles */
+    }
+  }
+  
+vec3 rgb = tex_color.rgb;
+float alpha = tex_color.a;
   
   /* Step 1: De-pre-multiply alpha (texture_image.cc lines 272-279) */
   if (use_talpha && alpha != 1.0 && alpha > 1e-4) {
@@ -217,6 +334,12 @@ void main() {
   /* Step 5: Compute intensity as average of sRGB values
    * This matches BKE_texture_get_value_ex() (texture.cc line 630) */
   float tex_value = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
+  
+  /* Apply TEX_FLIPBLEND: invert gradient (1.0 - value)
+   * Used for reversing blend/gradient textures */
+  if (tex_flipblend) {
+    tex_value = 1.0 - tex_value;
+  }
 
   float s = strength * vgroup_weight;
   delta = (tex_value - midlevel) * s;
@@ -579,6 +702,15 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::float_t, "tex_gfac");       /* Tex->gfac */
     info.push_constant(Type::float_t, "tex_bfac");       /* Tex->bfac */
     info.push_constant(Type::bool_t, "tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
+    info.push_constant(Type::int_t, "tex_extend");       /* Tex->extend (wrap mode) */
+    info.push_constant(Type::float4_t, "tex_crop");      /* (cropxmin, cropymin, cropxmax, cropymax) */
+    info.push_constant(Type::float2_t, "tex_repeat");    /* (xrepeat, yrepeat) */
+    info.push_constant(Type::bool_t, "tex_xmir");        /* TEX_REPEAT_XMIR */
+    info.push_constant(Type::bool_t, "tex_ymir");        /* TEX_REPEAT_YMIR */
+    info.push_constant(Type::bool_t, "tex_interpol");    /* TEX_INTERPOL */
+    info.push_constant(Type::bool_t, "tex_checker_odd"); /* TEX_CHECKER_ODD */
+    info.push_constant(Type::bool_t, "tex_checker_even");/* TEX_CHECKER_EVEN */
+    info.push_constant(Type::bool_t, "tex_flipblend");   /* TEX_FLIPBLEND */
   }
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
@@ -670,6 +802,20 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1f(shader, "tex_gfac", tex->gfac);
     GPU_shader_uniform_1f(shader, "tex_bfac", tex->bfac);
     GPU_shader_uniform_1b(shader, "tex_no_clamp", (tex->flag & TEX_NO_CLAMP) != 0);
+    GPU_shader_uniform_1i(shader, "tex_extend", int(tex->extend));
+    
+    /* Upload crop parameters (xmin, ymin, xmax, ymax) */
+    float crop[4] = {tex->cropxmin, tex->cropymin, tex->cropxmax, tex->cropymax};
+    GPU_shader_uniform_4f(shader, "tex_crop", crop[0], crop[1], crop[2], crop[3]);
+    
+    /* Upload repeat/mirror flags */
+    GPU_shader_uniform_2f(shader, "tex_repeat", float(tex->xrepeat), float(tex->yrepeat));
+    GPU_shader_uniform_1b(shader, "tex_xmir", (tex->flag & TEX_REPEAT_XMIR) != 0);
+    GPU_shader_uniform_1b(shader, "tex_ymir", (tex->flag & TEX_REPEAT_YMIR) != 0);
+    GPU_shader_uniform_1b(shader, "tex_interpol", (tex->imaflag & TEX_INTERPOL) != 0);
+    GPU_shader_uniform_1b(shader, "tex_checker_odd", (tex->flag & TEX_CHECKER_ODD) != 0);
+    GPU_shader_uniform_1b(shader, "tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) != 0);
+    GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
   }
 
 
