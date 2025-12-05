@@ -488,6 +488,13 @@ void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
   rbB.activate();
 
   userData->SetActive(false);
+
+  /* Keep the lookup map in sync. */
+  const int constraintId = con->getUserConstraintId();
+  if (constraintId != 0) {
+    m_constraintById.erase(constraintId);
+  }
+
   m_dynamicsWorld->removeConstraint(con);
 
   if (free) {
@@ -1084,14 +1091,26 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
   if (constraintId == 0)
     return;
 
-  int i;
-  int numConstraints = m_dynamicsWorld->getNumConstraints();
-  for (i = 0; i < numConstraints; i++) {
-    btTypedConstraint *constraint = m_dynamicsWorld->getConstraint(i);
-    if (constraint->getUserConstraintId() == constraintId) {
-      RemoveConstraint(constraint, free);
-      break;
+  btTypedConstraint *constraint = nullptr;
+
+  auto it = m_constraintById.find(constraintId);
+  if (it != m_constraintById.end()) {
+    constraint = it->second;
+  }
+  else {
+    /* Fallback for constraints created before the lookup map existed. */
+    int numConstraints = m_dynamicsWorld->getNumConstraints();
+    for (int i = 0; i < numConstraints; i++) {
+      btTypedConstraint *candidate = m_dynamicsWorld->getConstraint(i);
+      if (candidate->getUserConstraintId() == constraintId) {
+        constraint = candidate;
+        break;
+      }
     }
+  }
+
+  if (constraint) {
+    RemoveConstraint(constraint, free);
   }
 
   WrapperVehicle *vehicle = static_cast<WrapperVehicle *>(GetVehicleConstraint(constraintId));
@@ -2062,9 +2081,14 @@ btTypedConstraint *CcdPhysicsEnvironment::GetConstraintById(int constraintId)
   if (constraintId == 0)
     return nullptr;
 
+  auto it = m_constraintById.find(constraintId);
+  if (it != m_constraintById.end()) {
+    return it->second;
+  }
+
+  /* Fallback for legacy constraints that might not be in the map. */
   int numConstraints = m_dynamicsWorld->getNumConstraints();
-  int i;
-  for (i = 0; i < numConstraints; i++) {
+  for (int i = 0; i < numConstraints; i++) {
     btTypedConstraint *constraint = m_dynamicsWorld->getConstraint(i);
     if (constraint->getUserConstraintId() == constraintId) {
       return constraint;
@@ -2702,6 +2726,9 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
   CcdConstraint *constraintData = new CcdConstraint(con, disableCollisionBetweenLinkedBodies);
   con->setUserConstraintPtr(constraintData);
   m_dynamicsWorld->addConstraint(con, disableCollisionBetweenLinkedBodies);
+
+  /* Track constraint for O(1) lookup by ID (used on deletion). */
+  m_constraintById[con->getUserConstraintId()] = con;
 
   return constraintData;
 }
@@ -3648,6 +3675,27 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *constraintOb
   }
 
   return constraint->GetIdentifier();
+}
+
+void CcdPhysicsEnvironment::SetRigidBodyConstraintEnabled(int constraintid, bool enabled)
+{
+  if (constraintid == 0) {
+    return;
+  }
+
+  btTypedConstraint *constraint = GetConstraintById(constraintid);
+  if (!constraint) {
+    return;
+  }
+
+  constraint->setEnabled(enabled);
+
+  if (enabled) {
+    btRigidBody &rbA = constraint->getRigidBodyA();
+    btRigidBody &rbB = constraint->getRigidBodyB();
+    rbA.activate(true);
+    rbB.activate(true);
+  }
 }
 
 CcdCollData::CcdCollData(const btPersistentManifold *manifoldPoint)
