@@ -206,6 +206,19 @@ void BKE_mesh_gpu_topology_free(blender::bke::MeshGPUTopology &topology)
   topology.total_size = 0;
 }
 
+blender::bke::MeshGPUTopology *BKE_mesh_gpu_get_topology(Mesh *mesh)
+{
+  if (!mesh) {
+    return nullptr;
+  }
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
+    return nullptr;
+  }
+  return &it->second.topology;
+}
+
 static const char *scatter_to_corners_main_glsl = R"GLSL(
 // 10_10_10_2 packing utility
 int pack_i10_trunc(float x) {

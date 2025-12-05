@@ -87,6 +87,7 @@ struct blender::draw::DisplaceManager::Impl {
  * \{ */
 
 static const char *displace_compute_src = R"GLSL(
+/* GPU Displace Modifier Compute Shader v2.0 */
 /* Displace direction modes (matching DisplaceModifierDirection enum) */
 #define MOD_DISP_DIR_X 0
 #define MOD_DISP_DIR_Y 1
@@ -98,6 +99,189 @@ static const char *displace_compute_src = R"GLSL(
 /* Displace space modes (matching DisplaceModifierSpace enum) */
 #define MOD_DISP_SPACE_LOCAL 0
 #define MOD_DISP_SPACE_GLOBAL 1
+
+/* Triangle normal: direct cross product (CPU-accurate for tris) */
+vec3 displace_tri_normal(vec3 v0, vec3 v1, vec3 v2) {
+  vec3 n = cross(v1 - v0, v2 - v0);
+  float len = length(n);
+  if (len < 1e-6) {
+    return vec3(0.0, 0.0, 1.0);
+  }
+  return n / len;
+}
+
+/* Quad normal: average of two triangles (CPU-accurate for quads)
+ * This matches normal_quad_v3() from BLI_math_geom.h */
+vec3 displace_quad_normal(vec3 v0, vec3 v1, vec3 v2, vec3 v3) {
+  /* Split quad into two triangles and average their normals */
+  vec3 n1 = cross(v1 - v0, v2 - v0);
+  vec3 n2 = cross(v2 - v0, v3 - v0);
+  
+  /* Check if the two triangle normals roughly agree (non-twisted quad)
+   * If they point in opposite directions, the quad is badly twisted */
+  if (dot(n1, n2) < 0.0) {
+    /* Twisted quad! Use the longer normal (more reliable) */
+    float len1 = length(n1);
+    float len2 = length(n2);
+    vec3 n = (len1 > len2) ? n1 : n2;
+    float len = max(len1, len2);
+    if (len < 1e-6) {
+      return vec3(0.0, 0.0, 1.0);
+    }
+    return n / len;
+  }
+  
+  vec3 n = n1 + n2;
+  float len = length(n);
+  if (len < 1e-6) {
+    return vec3(0.0, 0.0, 1.0);
+  }
+  return n / len;
+}
+
+/* Face normal calculation with CPU-accurate tri/quad optimizations
+ * Computes face normal from CURRENT deformed positions (after ShapeKeys/Armature/etc.)
+ * This ensures normals are coherent with the actual geometry state. */
+vec3 displace_newell_face_normal(int f) {
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  int size = end - beg;
+  
+  /* Optimized path for triangles (most common case) */
+  if (size == 3) {
+    vec3 v0 = input_positions[corner_verts(beg)].xyz;
+    vec3 v1 = input_positions[corner_verts(beg + 1)].xyz;
+    vec3 v2 = input_positions[corner_verts(beg + 2)].xyz;
+    return displace_tri_normal(v0, v1, v2);
+  }
+  
+  /* Optimized path for quads (common for subdivided planes) */
+  if (size == 4) {
+    vec3 v0 = input_positions[corner_verts(beg)].xyz;
+    vec3 v1 = input_positions[corner_verts(beg + 1)].xyz;
+    vec3 v2 = input_positions[corner_verts(beg + 2)].xyz;
+    vec3 v3 = input_positions[corner_verts(beg + 3)].xyz;
+    return displace_quad_normal(v0, v1, v2, v3);
+  }
+  
+  /* Newell's method for n-gons (5+ vertices) */
+  vec3 n = vec3(0.0);
+  int v_prev_idx = corner_verts(end - 1);
+  vec3 v_prev = input_positions[v_prev_idx].xyz;
+  for (int i = beg; i < end; ++i) {
+    int v_curr_idx = corner_verts(i);
+    vec3 v_curr = input_positions[v_curr_idx].xyz;
+    n += cross(v_prev, v_curr);
+    v_prev = v_curr;
+  }
+
+  if (length(n) < 1e-4) {
+    /* Other axis are already set to zero. */
+    n[2] = 1.0f;
+  }
+  
+  /* Robust normalization: handle degenerate faces */
+  float len = length(n);
+  if (len < 1e-6) {
+    return vec3(0.0, 0.0, 1.0);  /* Fallback for degenerate/coplanar face */
+  }
+  
+  return normalize(n);
+}
+
+/* Find the corner in face f that uses vertex v */
+int find_corner_from_vert(int f, int v) {
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  for (int i = beg; i < end; ++i) {
+    if (corner_verts(i) == v) {
+      return i;
+    }
+  }
+  /* Should never happen in valid topology, but guard against it */
+  return beg;
+}
+
+/* Get previous corner in the face (circular wrapping) */
+int face_corner_prev(int f, int corner) {
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  return (corner == beg) ? (end - 1) : (corner - 1);
+}
+
+/* Get next corner in the face (circular wrapping) */
+int face_corner_next(int f, int corner) {
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  return (corner == end - 1) ? beg : (corner + 1);
+}
+
+/* Compute vertex normal with angle weighting (CPU-accurate implementation)
+ * Uses CURRENT deformed positions for accurate normal calculation.
+ * This matches the algorithm in mesh_normals.cc::normals_calc_verts() */
+vec3 displace_compute_vertex_normal(int v) {
+  int beg = vert_to_face_offsets(v);
+  int end = vert_to_face_offsets(v + 1);
+  
+  /* Handle isolated vertices: use position-based normal like CPU
+   * This matches: vert_normals[vert] = math::normalize(positions[vert]); */
+  if (beg >= end) {
+    vec3 pos = input_positions[v].xyz;
+    float len = length(pos);
+    return (len > 1e-6) ? (pos / len) : vec3(0.0, 0.0, 1.0);
+  }
+  
+  vec3 n_accum = vec3(0.0);
+  vec3 v_pos = input_positions[v].xyz;
+  
+  /* For each adjacent face, weight its normal by the angle at this vertex's corner */
+  for (int i = beg; i < end; ++i) {
+    int f = vert_to_face(i);
+    
+    /* Find the corner for this vertex in this face */
+    int corner = find_corner_from_vert(f, v);
+    int corner_prev = face_corner_prev(f, corner);
+    int corner_next = face_corner_next(f, corner);
+    
+    int vert_prev = corner_verts(corner_prev);
+    int vert_next = corner_verts(corner_next);
+    
+    /* Compute angle at this corner (angle between the two adjacent edges) */
+    vec3 edge_prev = input_positions[vert_prev].xyz - v_pos;
+    vec3 edge_next = input_positions[vert_next].xyz - v_pos;
+    
+    /* Skip degenerate edges (vertices too close after deformation) */
+    float len_prev = length(edge_prev);
+    float len_next = length(edge_next);
+    if (len_prev < 1e-5 || len_next < 1e-5) {
+      continue;  /* Skip this face, edges collapsed */
+    }
+    
+    vec3 dir_prev = edge_prev / len_prev;
+    vec3 dir_next = edge_next / len_next;
+    
+    /* Safe acos to avoid NaN from floating point errors */
+    float dot_prod = clamp(dot(dir_prev, dir_next), -1.0, 1.0);
+    float angle = acos(dot_prod);
+    
+    /* Skip near-zero angles (colinear edges) */
+    if (angle < 1e-4) {
+      continue;  /* Degenerate corner, skip */
+    }
+    
+    /* Weight face normal by the angle at this corner
+     * This gives more influence to faces with larger angles at this vertex */
+    n_accum += displace_newell_face_normal(f) * angle;
+  }
+  
+  /* Robust normalization: handle zero-length accumulation */
+  float len = length(n_accum);
+  if (len < 1e-6) {
+    return vec3(0.0, 0.0, 1.0);  /* Fallback to Z-up if degenerate */
+  }
+  
+  return n_accum / len;
+}
 
 /* Note: displacement_texture sampler is declared by ShaderCreateInfo, no manual uniform needed */
 
@@ -116,8 +300,8 @@ void main() {
     vgroup_weight = vgroup_weights[v];
   }
 
-  /* Early exit if weight is negligible */
-  if (vgroup_weight < 0.0) {
+  /* Early exit if weight is zero (match CPU behavior) */
+  if (vgroup_weight == 0.0) {
     deformed_positions[v] = co_in;
     return;
   }
@@ -256,11 +440,21 @@ void main() {
     }
   }
   else if (direction == MOD_DISP_DIR_NOR) {
-    /* Displacement along vertex normal */
-    vec3 normal = vert_normals[v].xyz;
+    /* Displacement along vertex normal (recalculated from CURRENT deformed positions)
+     * CRITICAL: We use displace_compute_vertex_normal() which calculates normals from the
+     * CURRENT frame's deformed positions (after ShapeKeys/Armature/etc.), ensuring
+     * coherence with the actual geometry state. This is more accurate than using
+     * cached normals from the previous frame. */
+    vec3 normal = displace_compute_vertex_normal(int(v));
     co += delta * normal;
   }
-  /* Note: MOD_DISP_DIR_RGB_XYZ and MOD_DISP_DIR_CLNOR not supported yet */
+  else if (direction == MOD_DISP_DIR_CLNOR) {
+    /* MOD_DISP_DIR_CLNOR not supported yet on GPU (requires corner normals averaging)
+     * For now, pass-through without displacement to avoid incorrect results. */
+    deformed_positions[v] = co_in;
+    return;
+  }
+  /* Note: MOD_DISP_DIR_RGB_XYZ not supported yet */
 
   deformed_positions[v] = vec4(co, 1.0);
 }
@@ -445,7 +639,6 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   snprintf(uid_str, sizeof(uid_str), "%u", dmd->modifier.persistent_uid);
   const std::string key_prefix = std::string("displace_") + uid_str + "_";
   const std::string key_vgroup = key_prefix + "vgroup_weights";
-  const std::string key_normals = key_prefix + "vert_normals";
   const std::string key_out = key_prefix + "output";
 
   /* Upload vertex group weights SSBO */
@@ -467,33 +660,6 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       if (ssbo_vgroup) {
         float dummy = 1.0f;
         GPU_storagebuf_update(ssbo_vgroup, &dummy);
-      }
-    }
-  }
-
-  /* Upload vertex normals SSBO (only 1 time - See if we can improve later) */
-  /* NOTE: Vertex normals are NOT recalculated after GPU deformation, so MOD_DISP_DIR_NOR
-   * will use ORIGINAL normals (before any deformation). This is a known limitation.
-   * For accurate normal-based displacement after GPU deformation, use CPU fallback.
-   * TODO: Integrate with scatter shader's recalculated normals. */
-  blender::gpu::StorageBuf *ssbo_normals = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_normals);
-  
-  if (!ssbo_normals) {
-    /* Extract vertex normals from mesh_owner (ORIGINAL, not deformed) */
-    const blender::Span<blender::float3> normals = mesh_owner->vert_normals();
-    if (!normals.is_empty()) {
-      const size_t size_normals = normals.size() * sizeof(blender::float3);
-      ssbo_normals = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_normals, size_normals);
-      if (ssbo_normals) {
-        GPU_storagebuf_update(ssbo_normals, normals.data());
-      }
-    }
-    else {
-      /* No normals available: create dummy buffer pointing up (Z axis) */
-      ssbo_normals = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_normals, sizeof(blender::float4));
-      if (ssbo_normals) {
-        blender::float4 dummy(0.0f, 0.0f, 1.0f, 0.0f);  /* Z-up as dummy */
-        GPU_storagebuf_update(ssbo_normals, &dummy);
       }
     }
   }
@@ -559,18 +725,47 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   ShaderCreateInfo info("pyGPU_Shader");
   info.local_group_size(256, 1, 1);
   
-  /* Build shader source with conditional texture support */
-  std::string shader_src = displace_compute_src;
-  if (has_texture) {
-    shader_src = "#define HAS_TEXTURE\n" + shader_src;
+  /* Build shader source with topology accessors + conditional texture support */
+  std::string shader_src;
+  
+  /* Always ensure topology exists and add accessors (needed by shader functions)
+   * Even if MOD_DISP_DIR_NOR is not active, the shader contains helper functions
+   * (displace_newell_face_normal, displace_compute_vertex_normal) that reference topology accessors.
+   * These must be defined to avoid compilation errors, even if unused. */
+  blender::bke::MeshGPUTopology *topology = BKE_mesh_gpu_get_topology(mesh_owner);
+  if (!topology || !topology->ssbo) {
+    /* Create and upload topology for this mesh (only once, then cached) */
+    blender::bke::MeshGPUTopology temp_topo;
+    if (!BKE_mesh_gpu_topology_create(mesh_owner, temp_topo) ||
+        !BKE_mesh_gpu_topology_upload(temp_topo))
+    {
+      return nullptr;
+    }
+    /* Retrieve pointer again after creation */
+    topology = BKE_mesh_gpu_get_topology(mesh_owner);
+    if (!topology) {
+      return nullptr;
+    }
   }
+  
+  /* Inject topology accessors into shader source */
+  shader_src = BKE_mesh_gpu_topology_glsl_accessors_string(*topology);
+  
+  /* Append main shader code */
+  if (has_texture) {
+    shader_src += "#define HAS_TEXTURE\n";
+  }
+  shader_src += displace_compute_src;
+  
   info.compute_source_generated = shader_src;
 
   /* Bindings */
   info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
   info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
   info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-  info.storage_buf(3, Qualifier::read, "vec4", "vert_normals[]");  // Always declare (dummy if unused)
+  
+  /* Topology buffer (binding 15, always declared, only actively used if MOD_DISP_DIR_NOR) */
+  info.storage_buf(15, Qualifier::read, "int", "topo[]");
   
   if (has_texture) {
     info.storage_buf(4, Qualifier::read, "vec4", "texture_coords[]");
@@ -597,7 +792,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   }
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, "displace_compute", info);
+      mesh_owner, "displace_compute_v2", info);
   if (!shader) {
     return nullptr;
   }
@@ -610,8 +805,10 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   if (ssbo_vgroup) {
     GPU_storagebuf_bind(ssbo_vgroup, 2);
   }
-  if (ssbo_normals) {
-    GPU_storagebuf_bind(ssbo_normals, 3);  // Always bind (dummy if unused)
+  
+  /* Bind topology buffer (always, even if only used for MOD_DISP_DIR_NOR) */
+  if (topology && topology->ssbo) {
+    GPU_storagebuf_bind(topology->ssbo, 15);
   }
   
   /* Bind texture coordinates and texture (if present) */

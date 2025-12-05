@@ -114,6 +114,15 @@ bool BKE_mesh_gpu_topology_upload(blender::bke::MeshGPUTopology &topology);
 void BKE_mesh_gpu_topology_free(blender::bke::MeshGPUTopology &topology);
 
 /**
+ * Get cached topology for a mesh (from internal mesh GPU cache).
+ * Returns nullptr if topology is not yet created.
+ *
+ * \param mesh: Mesh to get topology for
+ * \return Pointer to cached topology or nullptr
+ */
+blender::bke::MeshGPUTopology *BKE_mesh_gpu_get_topology(Mesh *mesh);
+
+/**
  * A high-level utility to run a compute shader on a mesh.
  *
  * This function automates:
