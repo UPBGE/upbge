@@ -512,7 +512,9 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
   }
 
   /* Bind and dispatch compute */
-  GPU_shader_bind(compute_sh);
+  const blender::gpu::shader::SpecializationConstants *constants =
+      &GPU_shader_get_default_constant_state(compute_sh);
+  GPU_shader_bind(compute_sh, constants);
   GPU_storagebuf_bind(ssbo_rest, 0);
   GPU_storagebuf_bind(ssbo_deltas, 1);
   GPU_storagebuf_bind(ssbo_w, 2);
@@ -529,7 +531,7 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
 
   const int group_size = 256;
   int groups = (verts + group_size - 1) / group_size;
-  GPU_compute_dispatch(compute_sh, groups, 1, 1);
+  GPU_compute_dispatch(compute_sh, groups, 1, 1, constants);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
 

@@ -862,7 +862,9 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   }
 
   /* Bind and dispatch */
-  GPU_shader_bind(shader);
+  const blender::gpu::shader::SpecializationConstants *constants =
+      &GPU_shader_get_default_constant_state(shader);
+  GPU_shader_bind(shader, constants);
 
   GPU_storagebuf_bind(ssbo_out, 0);
   GPU_storagebuf_bind(ssbo_in, 1);
@@ -979,7 +981,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
   const int group_size = 256;
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;
-  GPU_compute_dispatch(shader, num_groups, 1, 1);
+  GPU_compute_dispatch(shader, num_groups, 1, 1, constants);
 
   /* Unbind texture */
   if (gpu_texture) {

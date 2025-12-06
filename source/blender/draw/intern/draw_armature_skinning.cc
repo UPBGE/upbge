@@ -960,7 +960,9 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
 
   blender::gpu::StorageBuf *pos_to_bind = ssbo_in ? ssbo_in : ssbo_skinned_pos;
 
-  GPU_shader_bind(compute_sh);
+  const blender::gpu::shader::SpecializationConstants *constants =
+      &GPU_shader_get_default_constant_state(compute_sh);
+  GPU_shader_bind(compute_sh, constants);
 
   if (use_dual_quaternions) {
     /* Bind DQS buffers */
@@ -1006,7 +1008,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
 
   const int group_size = 256;
   int num_groups = (msd.verts_num + group_size - 1) / group_size;
-  GPU_compute_dispatch(compute_sh, num_groups, 1, 1);
+  GPU_compute_dispatch(compute_sh, num_groups, 1, 1, constants);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
 
