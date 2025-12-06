@@ -350,7 +350,7 @@ void BKE_mesh_gpu_topology_add_specialization_constants(
 #define MESH_GPU_TOPOLOGY_BINDING 15
 
 /* Helper to check if a bind_name is present (accepts both "name" and "name[]"). */
-static bool has_bind_name(const char *name, const std::vector<blender::bke::GpuMeshComputeBinding> &local_bindings)
+static bool has_bind_name(const char *name, blender::Span<blender::bke::GpuMeshComputeBinding> local_bindings)
 {
   if (!name) {
     return false;
@@ -373,7 +373,7 @@ static bool has_bind_name(const char *name, const std::vector<blender::bke::GpuM
 
 /* Find next free binding index (avoid MESH_GPU_TOPOLOGY_BINDING). */
 static int find_free_binding(
-    const std::vector<blender::bke::GpuMeshComputeBinding> &local_bindings, int start = 0)
+    blender::Span<blender::bke::GpuMeshComputeBinding> local_bindings, int start = 0)
 {
   int candidate = start;
   for (;;) {
@@ -395,13 +395,13 @@ static int find_free_binding(
 }
 
 blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
-    const Depsgraph *depsgraph,
-    const Object *ob_eval,
-    const char *main_glsl,
-    const std::vector<blender::bke::GpuMeshComputeBinding> &caller_bindings,
-    const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
-    const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
-    int dispatch_count)
+const Depsgraph *depsgraph,
+const Object *ob_eval,
+const char *main_glsl,
+blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
+const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
+int dispatch_count)
 {
   if (!GPU_context_active_get() || !depsgraph || !ob_eval || ob_eval->type != OB_MESH) {
     return blender::bke::GpuComputeStatus::Error;
@@ -477,10 +477,10 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   /* --- Prepare bindings vector, inject defaults for scatter shader if needed --- */
-  std::vector<blender::bke::GpuMeshComputeBinding> local_bindings;
+  blender::Vector<blender::bke::GpuMeshComputeBinding> local_bindings;
   local_bindings.reserve(caller_bindings.size() + 4);
   for (const auto &b : caller_bindings) {
-    local_bindings.push_back(b);
+    local_bindings.append(b);
   }
 
   /* Only special-case the scatter shader. If called via scatter_to_corners, ensure we have
@@ -499,9 +499,9 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
       /* Quick check while holding the mutex. */
       if (mesh_data.internal_resources) {
-        auto it_ssbo = mesh_data.internal_resources->ssbo_map.find(key);
-        if (it_ssbo != mesh_data.internal_resources->ssbo_map.end()) {
-          ssbo = it_ssbo->second.first;
+        auto *entry_ptr = mesh_data.internal_resources->ssbo_map.lookup_ptr(key);
+        if (entry_ptr) {
+          ssbo = entry_ptr->buffer;
         }
       }
 
@@ -547,7 +547,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
         gb.qualifiers = blender::gpu::shader::Qualifier::read;
         gb.type_name = "vec4";
         gb.bind_name = "positions_in[]";
-        local_bindings.push_back(gb);
+        local_bindings.append(gb);
       }
     }
 
@@ -569,7 +569,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
             gb.qualifiers = blender::gpu::shader::Qualifier::read;
             gb.type_name = "mat4";
             gb.bind_name = "transform_mat[]";
-            local_bindings.push_back(gb);
+            local_bindings.append(gb);
           }
         }
         catch (...) {
@@ -595,7 +595,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
             gb.qualifiers = blender::gpu::shader::Qualifier::read_write;
             gb.type_name = "vec4";
             gb.bind_name = "positions_out[]";
-            local_bindings.push_back(gb);
+            local_bindings.append(gb);
           }
         }
       }
@@ -611,7 +611,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
             gb.qualifiers = blender::gpu::shader::Qualifier::write;
             gb.type_name = "uint";
             gb.bind_name = "normals_out[]";
-            local_bindings.push_back(gb);
+            local_bindings.append(gb);
           }
         }
       }
@@ -737,12 +737,12 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 }
 
 blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
-    const Depsgraph *depsgraph,
-    const Object *ob_eval,
-    const std::vector<blender::bke::GpuMeshComputeBinding> &caller_bindings,
-    const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
-    const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
-    int dispatch_count)
+const Depsgraph *depsgraph,
+const Object *ob_eval,
+blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
+const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
+int dispatch_count)
 {
   return BKE_mesh_gpu_run_compute(depsgraph,
                                   ob_eval,
@@ -888,10 +888,10 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
   }
-  auto it = d.internal_resources->shader_map.find(key);
-  if (it != d.internal_resources->shader_map.end()) {
-    it->second.second += 1;
-    return it->second.first;
+  auto *entry_ptr = d.internal_resources->shader_map.lookup_ptr(key);
+  if (entry_ptr) {
+    entry_ptr->refcount += 1;
+    return entry_ptr->shader;
   }
   /* Create shader (must be called with GL context active). */
   if (!GPU_context_active_get()) {
@@ -902,7 +902,7 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
   if (!sh) {
     return nullptr;
   }
-  d.internal_resources->shader_map.emplace(key, std::make_pair(sh, 1));
+  d.internal_resources->shader_map.add_new(key, {sh, 1});
   d.internal_resources->shaders.append(sh);
   return sh;
 }
@@ -919,10 +919,10 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
   }
-  auto it = d.internal_resources->ssbo_map.find(key);
-  if (it != d.internal_resources->ssbo_map.end()) {
-    it->second.second += 1;
-    return it->second.first;
+  auto *entry_ptr = d.internal_resources->ssbo_map.lookup_ptr(key);
+  if (entry_ptr) {
+    entry_ptr->refcount += 1;
+    return entry_ptr->buffer;
   }
   if (!GPU_context_active_get()) {
     return nullptr;
@@ -932,7 +932,7 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
   if (!buf) {
     return nullptr;
   }
-  d.internal_resources->ssbo_map.emplace(key, std::make_pair(buf, 1));
+  d.internal_resources->ssbo_map.add_new(key, {buf, 1});
   d.internal_resources->ssbos.append(buf);
   return buf;
 }
@@ -951,24 +951,23 @@ void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key)
   if (!d.internal_resources) {
     return;
   }
-  auto it2 = d.internal_resources->shader_map.find(key);
-  if (it2 == d.internal_resources->shader_map.end()) {
+  auto *entry_ptr = d.internal_resources->shader_map.lookup_ptr(key);
+  if (!entry_ptr) {
     return;
   }
-  auto &entry = it2->second;
-  entry.second -= 1;
-  if (entry.second <= 0) {
-    if (entry.first && GPU_context_active_get()) {
-      GPU_shader_free(entry.first);
+  entry_ptr->refcount -= 1;
+  if (entry_ptr->refcount <= 0) {
+    if (entry_ptr->shader && GPU_context_active_get()) {
+      GPU_shader_free(entry_ptr->shader);
     }
     /* remove from vector if present */
     for (int i = 0; i < d.internal_resources->shaders.size(); ++i) {
-      if (d.internal_resources->shaders[i] == entry.first) {
+      if (d.internal_resources->shaders[i] == entry_ptr->shader) {
         d.internal_resources->shaders.remove(i);
         break;
       }
     }
-    d.internal_resources->shader_map.erase(it2);
+    d.internal_resources->shader_map.remove(key);
   }
 }
 
@@ -986,11 +985,11 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::
   if (!d.internal_resources) {
     return nullptr;
   }
-  auto it2 = d.internal_resources->ssbo_map.find(key);
-  if (it2 == d.internal_resources->ssbo_map.end()) {
+  auto *entry_ptr = d.internal_resources->ssbo_map.lookup_ptr(key);
+  if (!entry_ptr) {
     return nullptr;
   }
-  return it2->second.first;
+  return entry_ptr->buffer;
 }
 
 void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key)
@@ -1007,24 +1006,23 @@ void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key)
   if (!d.internal_resources) {
     return;
   }
-  auto it2 = d.internal_resources->ssbo_map.find(key);
-  if (it2 == d.internal_resources->ssbo_map.end()) {
+  auto *entry_ptr = d.internal_resources->ssbo_map.lookup_ptr(key);
+  if (!entry_ptr) {
     return;
   }
-  auto &entry = it2->second;
-  entry.second -= 1;
-  if (entry.second <= 0) {
-    if (entry.first && GPU_context_active_get()) {
-      GPU_storagebuf_free(entry.first);
+  entry_ptr->refcount -= 1;
+  if (entry_ptr->refcount <= 0) {
+    if (entry_ptr->buffer && GPU_context_active_get()) {
+      GPU_storagebuf_free(entry_ptr->buffer);
     }
     /* remove from vector if present */
     for (int i = 0; i < d.internal_resources->ssbos.size(); ++i) {
-      if (d.internal_resources->ssbos[i] == entry.first) {
+      if (d.internal_resources->ssbos[i] == entry_ptr->buffer) {
         d.internal_resources->ssbos.remove(i);
         break;
       }
     }
-    d.internal_resources->ssbo_map.erase(it2);
+    d.internal_resources->ssbo_map.remove(key);
   }
 }
 /* Armature resource helpers. These are simple wrappers reusing MeshGpuInternalResources so we
@@ -1036,10 +1034,10 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
   std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
   auto &res = arm_res_map[arm];
-  auto it = res.ssbo_map.find(key);
-  if (it != res.ssbo_map.end()) {
-    it->second.second += 1;
-    return it->second.first;
+  auto *entry_ptr = res.ssbo_map.lookup_ptr(key);
+  if (entry_ptr) {
+    entry_ptr->refcount += 1;
+    return entry_ptr->buffer;
   }
   if (!GPU_context_active_get()) {
     return nullptr;
@@ -1048,7 +1046,7 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
   if (!buf) {
     return nullptr;
   }
-  res.ssbo_map.emplace(key, std::make_pair(buf, 1));
+  res.ssbo_map.add_new(key, {buf, 1});
   res.ssbos.append(buf);
   return buf;
 }
@@ -1062,11 +1060,11 @@ blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const 
     return nullptr;
   }
   auto &res = it->second;
-  auto it2 = res.ssbo_map.find(key);
-  if (it2 == res.ssbo_map.end()) {
+  auto *entry_ptr = res.ssbo_map.lookup_ptr(key);
+  if (!entry_ptr) {
     return nullptr;
   }
-  return it2->second.first;
+  return entry_ptr->buffer;
 }
 
 void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
@@ -1078,24 +1076,23 @@ void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
     return;
   }
   auto &res = it->second;
-  auto it2 = res.ssbo_map.find(key);
-  if (it2 == res.ssbo_map.end()) {
+  auto *entry_ptr = res.ssbo_map.lookup_ptr(key);
+  if (!entry_ptr) {
     return;
   }
-  auto &entry = it2->second;
-  entry.second -= 1;
-  if (entry.second <= 0) {
-    if (entry.first && GPU_context_active_get()) {
-      GPU_storagebuf_free(entry.first);
+  entry_ptr->refcount -= 1;
+  if (entry_ptr->refcount <= 0) {
+    if (entry_ptr->buffer && GPU_context_active_get()) {
+      GPU_storagebuf_free(entry_ptr->buffer);
     }
     /* remove from vector if present */
     for (int i = 0; i < res.ssbos.size(); ++i) {
-      if (res.ssbos[i] == entry.first) {
+      if (res.ssbos[i] == entry_ptr->buffer) {
         res.ssbos.remove(i);
         break;
       }
     }
-    res.ssbo_map.erase(it2);
+    res.ssbo_map.remove(key);
   }
 }
 

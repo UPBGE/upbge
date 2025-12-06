@@ -1220,7 +1220,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     }
 
     /* Final scatter: SSBO → VBO (corners) */
-    std::vector<blender::bke::GpuMeshComputeBinding> caller_bindings = {
+    blender::Vector<blender::bke::GpuMeshComputeBinding> caller_bindings = {
       {0, vbo_pos, blender::gpu::shader::Qualifier::write, "vec4", "positions_out[]"},
       {1, vbo_nor, blender::gpu::shader::Qualifier::write, "uint", "normals_out[]"},
       {2, ssbo_final, blender::gpu::shader::Qualifier::read, "vec4", "positions_in[]"},

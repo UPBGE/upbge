@@ -141,7 +141,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
     const char *main_glsl,
-    const std::vector<blender::bke::GpuMeshComputeBinding> &caller_bindings,
+    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
     const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
     const std::function<void(blender::gpu::Shader *)> &post_bind_fn = {},
     int dispatch_count = 0);
@@ -150,7 +150,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
-    const std::vector<blender::bke::GpuMeshComputeBinding> &caller_bindings,
+    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
     const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
     const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
     int dispatch_count);
@@ -205,9 +205,22 @@ struct MeshGpuInternalResources {
   blender::Vector<blender::gpu::IndexBuf *> ibos;
   blender::Vector<blender::gpu::UniformBuf *> ubos;
   blender::Vector<blender::gpu::Shader *> shaders;
-  /* keyed maps to prevent duplicate resources */
-  std::unordered_map<std::string, std::pair<blender::gpu::StorageBuf *, int>> ssbo_map;
-  std::unordered_map<std::string, std::pair<blender::gpu::Shader *, int>> shader_map;
+  
+  /* Entry for cached SSBO with reference counting */
+  struct SsboEntry {
+    blender::gpu::StorageBuf *buffer;
+    int refcount;
+  };
+  
+  /* Entry for cached shader with reference counting */
+  struct ShaderEntry {
+    blender::gpu::Shader *shader;
+    int refcount;
+  };
+  
+  /* Keyed maps to prevent duplicate resources */
+  blender::Map<std::string, SsboEntry> ssbo_map;
+  blender::Map<std::string, ShaderEntry> shader_map;
 
   MeshGpuInternalResources() = default;
 };

@@ -197,7 +197,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
 
   using namespace blender::gpu::shader;
 
-  std::vector<GpuMeshComputeBinding> bindings = {
+  blender::Vector<GpuMeshComputeBinding> bindings = {
       {0, vbo_pos, Qualifier::write, "vec4", "positions_out[]"},
       {1, vbo_nor, Qualifier::write, "uint", "normals_out[]"},
       {2, py_ssbo_skinned_pos->ssbo, Qualifier::read, "vec4", "positions_in[]"},
@@ -794,7 +794,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
       DEG_get_depsgraph_by_id(ob_eval->id),
       ob_eval,
       shader_src,
-      std::vector<GpuMeshComputeBinding>(local_bindings),
+      blender::Span<GpuMeshComputeBinding>(local_bindings.data(), local_bindings.size()),
       config_with_specs,
       post_bind_fn,
       dispatch);
