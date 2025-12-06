@@ -219,6 +219,9 @@ enum {
 
   /** Handle events before modal operators without this flag. */
   OPTYPE_MODAL_PRIORITY = (1 << 12),
+
+  /** Operator is registered from a local node group or a node group asset. */
+  OPTYPE_NODE_TOOL = (1 << 13),
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */
@@ -1041,6 +1044,12 @@ struct wmJobWorkerStatus {
 };
 
 struct wmOperatorType {
+
+  /** Subclassed to store data for additional information for specific operator types. */
+  struct TypeData {
+    virtual ~TypeData() = default;
+  };
+
   /** Text for UI, undo (should not exceed #OP_MAX_TYPENAME). */
   const char *name = nullptr;
   /** Unique identifier (must not exceed #OP_MAX_TYPENAME). */
@@ -1146,7 +1155,7 @@ struct wmOperatorType {
    * menus, enum search... etc. Example: Enum 'type' for a Delete menu.
    *
    * When assigned a string/number property,
-   * immediately edit the value when used in a popup. see: #UI_BUT_ACTIVATE_ON_INIT.
+   * immediately edit the value when used in a popup. see: #BUT_ACTIVATE_ON_INIT.
    */
   PropertyRNA *prop = nullptr;
 
@@ -1158,6 +1167,9 @@ struct wmOperatorType {
 
   /** Python needs the operator type as well. */
   bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT = nullptr;
+
+  /** Extra information used statically for this operator type. */
+  std::unique_ptr<TypeData> custom_data;
 
   /** RNA integration. */
   ExtensionRNA rna_ext = {};
@@ -1404,7 +1416,7 @@ struct wmDropBox {
   /**
    * Called with the draw buffer (#GPUViewport) set up for drawing into the region's view.
    * \note Only setups the drawing buffer for drawing in view, not the GPU transform matrices.
-   * The callback has to do that itself, with for example #UI_view2d_view_ortho.
+   * The callback has to do that itself, with for example #view2d_view_ortho.
    * \param xy: Cursor location in window coordinates (#wmEvent.xy compatible).
    */
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);

@@ -425,7 +425,7 @@ static float seq_snap_threshold_get_view_distance(const TransInfo *t)
 {
   const int snap_distance = seq::tool_settings_snap_distance_get(t->scene);
   const View2D *v2d = &t->region->v2d;
-  return UI_view2d_region_to_view_x(v2d, snap_distance) - UI_view2d_region_to_view_x(v2d, 0);
+  return ui::view2d_region_to_view_x(v2d, snap_distance) - ui::view2d_region_to_view_x(v2d, 0);
 }
 
 static int seq_snap_threshold_get_frame_distance(const TransInfo *t)
@@ -672,8 +672,8 @@ static int snap_sequencer_to_closest_strip_ex(TransInfo *t, const int frame_1, c
 
   BLI_assert(frame_1 <= frame_2);
 
-  snap_data->source_snap_points[0][0] = frame_1;
-  snap_data->source_snap_points[1][0] = frame_2;
+  snap_data->source_snap_points.append(float2(frame_1));
+  snap_data->source_snap_points.append(float2(frame_2));
 
   short snap_mode = t->tsnap.mode;
 

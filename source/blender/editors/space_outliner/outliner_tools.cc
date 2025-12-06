@@ -788,7 +788,7 @@ struct MergedSearchData {
 };
 
 static void merged_element_search_fn_recursive(
-    const ListBase *tree, short tselem_type, short type, const char *str, uiSearchItems *items)
+    const ListBase *tree, short tselem_type, short type, const char *str, ui::SearchItems *items)
 {
   char name[64];
   int iconid;
@@ -803,8 +803,8 @@ static void merged_element_search_fn_recursive(
         iconid = tree_element_get_icon(tselem, te).icon;
 
         /* Don't allow duplicate named items */
-        if (UI_search_items_find_index(items, name) == -1) {
-          if (!UI_search_item_add(items, name, te, iconid, 0, 0)) {
+        if (search_items_find_index(items, name) == -1) {
+          if (!search_item_add(items, name, te, iconid, 0, 0)) {
             break;
           }
         }
@@ -819,7 +819,7 @@ static void merged_element_search_fn_recursive(
 static void merged_element_search_update_fn(const bContext * /*C*/,
                                             void *data,
                                             const char *str,
-                                            uiSearchItems *items,
+                                            ui::SearchItems *items,
                                             const bool /*is_first*/)
 {
   MergedSearchData *search_data = (MergedSearchData *)data;
@@ -846,23 +846,23 @@ static void merged_element_search_exec_fn(bContext *C, void * /*arg1*/, void *el
  * Merged element search menu
  * Created on activation of a merged or aggregated icon-row icon.
  */
-static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *data)
+static ui::Block *merged_element_search_menu(bContext *C, ARegion *region, void *data)
 {
   static char search[64] = "";
-  uiBlock *block;
-  uiBut *but;
+  ui::Block *block;
+  ui::Button *but;
 
   /* Clear search on each menu creation */
   *search = '\0';
 
-  block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
   short menu_width = 10 * UI_UNIT_X;
   but = uiDefSearchBut(
       block, search, ICON_VIEWZOOM, sizeof(search), 0, 0, menu_width, UI_UNIT_Y, "");
-  UI_but_func_search_set(but,
+  button_func_search_set(but,
                          nullptr,
                          merged_element_search_update_fn,
                          data,
@@ -870,15 +870,25 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *d
                          nullptr,
                          merged_element_search_exec_fn,
                          nullptr);
-  UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
+  button_flag_enable(but, ui::BUT_ACTIVATE_ON_INIT);
 
   /* Fake button to hold space for search items */
-  const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(block, ButType::Label, "", 0, -height, menu_width, height, nullptr, 0, 0, std::nullopt);
+  const int height = ui::searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
+  uiDefBut(block,
+           ui::ButtonType::Label,
+           "",
+           0,
+           -height,
+           menu_width,
+           height,
+           nullptr,
+           0,
+           0,
+           std::nullopt);
 
   /* Center the menu on the cursor */
   const int offset[2] = {-(menu_width / 2), 0};
-  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, offset);
+  block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, offset);
 
   return block;
 }
@@ -891,7 +901,7 @@ void merged_element_search_menu_invoke(bContext *C,
   select_data->parent_element = parent_te;
   select_data->select_element = activate_te;
 
-  UI_popup_block_invoke(C, merged_element_search_menu, select_data, MEM_freeN);
+  popup_block_invoke(C, merged_element_search_menu, select_data, MEM_freeN);
 }
 
 static void object_select_fn(bContext *C,
@@ -2106,14 +2116,14 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    pchan->flag |= POSE_SELECTED;
+    pchan->flag |= POSE_SELECTED_ALL;
   }
   else if (event == OL_DOP_DESELECT) {
-    pchan->flag &= ~POSE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED_ALL;
   }
   else if (event == OL_DOP_HIDE) {
     pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-    pchan->flag &= ~POSE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED_ALL;
   }
   else if (event == OL_DOP_UNHIDE) {
     pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
@@ -3635,8 +3645,9 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
 {
   wmOperatorType *ot = WM_operatortype_find(opname, false);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
-  ui::Layout &layout = *UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(
+      C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   /* Set this so the default execution context is the same as sub-menus. */
   layout.operator_context_set(wm::OpCallContext::InvokeRegionWin);
@@ -3649,7 +3660,7 @@ static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
 
   layout.menu_contents("OUTLINER_MT_context_menu");
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -3735,14 +3746,14 @@ static wmOperatorStatus outliner_operation_invoke(bContext *C,
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  uiBut *but = UI_context_active_but_get(C);
+  ui::Button *but = ui::context_active_but_get(C);
   float view_mval[2];
 
   if (but) {
-    UI_but_tooltip_timer_remove(C, but);
+    button_tooltip_timer_remove(C, but);
   }
 
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
 
   TreeElement *hovered_te = outliner_find_item_at_y(

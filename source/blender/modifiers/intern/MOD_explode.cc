@@ -139,7 +139,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   }
 
   /* make tree of emitter locations */
-  tree = blender::BLI_kdtree_3d_new(totpart);
+  tree = blender::kdtree_3d_new(totpart);
   for (p = 0, pa = psys->particles; p < totpart; p++, pa++) {
     psys_particle_on_emitter(psmd,
                              psys->part->from,
@@ -152,9 +152,9 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
                              nullptr,
                              nullptr,
                              nullptr);
-    blender::BLI_kdtree_3d_insert(tree, p, co);
+    blender::kdtree_3d_insert(tree, p, co);
   }
-  blender::BLI_kdtree_3d_balance(tree);
+  blender::kdtree_3d_balance(tree);
 
   /* set face-particle-indexes to nearest particle to face center */
   for (i = 0, fa = mface; i < totface; i++, fa++) {
@@ -168,7 +168,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
       mul_v3_fl(center, 1.0f / 3.0f);
     }
 
-    p = blender::BLI_kdtree_3d_find_nearest(tree, center, nullptr);
+    p = blender::kdtree_3d_find_nearest(tree, center, nullptr);
 
     v1 = vertpa[fa->v1];
     v2 = vertpa[fa->v2];
@@ -198,7 +198,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   if (vertpa) {
     MEM_freeN(vertpa);
   }
-  blender::BLI_kdtree_3d_free(tree);
+  blender::kdtree_3d_free(tree);
 
   BLI_rng_free(rng);
 }
@@ -1166,7 +1166,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
   blender::ui::Layout &layout = *panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);

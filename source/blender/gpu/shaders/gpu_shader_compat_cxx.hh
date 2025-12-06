@@ -31,6 +31,7 @@
 #include "gpu_shader_cxx_image.hh"    // IWYU pragma: export
 #include "gpu_shader_cxx_matrix.hh"   // IWYU pragma: export
 #include "gpu_shader_cxx_sampler.hh"  // IWYU pragma: export
+#include "gpu_shader_cxx_string.hh"   // IWYU pragma: export
 #include "gpu_shader_cxx_vector.hh"   // IWYU pragma: export
 
 #define assert(assertion)
@@ -47,7 +48,7 @@
 /* Pass argument by reference but only write to it. Its initial value is undefined. */
 #define out
 /* Pass argument by copy (default). */
-#define in
+#define in DO_NOT_USE
 
 /* Decorate a variable in global scope that is common to all threads in a thread-group. */
 #define shared
