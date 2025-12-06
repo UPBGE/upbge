@@ -176,7 +176,7 @@ enum {
 
 typedef struct uiLinkLine { /* only for draw/edit */
   struct uiLinkLine *next, *prev;
-  struct uiBut *from, *to;
+  struct Button *from, *to;
   short flag, deactive;
 } uiLinkLine;
 
@@ -749,7 +749,7 @@ struct SafetyRect {
 };
 /* `interface.cc` */
 
-extern void ui_linkline_remove(uiLinkLine *line, uiBut *but);
+extern void ui_linkline_remove(uiLinkLine *line, Button *but);
 
 void fontscale(float *points, float aspect);
 
@@ -1343,7 +1343,7 @@ void draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float 
 void draw_widget_menu_back(const rcti *rect, bool use_shadow);
 void draw_tooltip_background(const uiStyle *style, Block *block, const rcti *rect);
 
-void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
+void ui_draw_search_back(struct uiStyle *style, Block *block, rcti *rect);
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol);
 void ui_draw_link_bezier(const rcti *rect, const float color[4]);
 

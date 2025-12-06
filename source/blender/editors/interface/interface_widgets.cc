@@ -3996,10 +3996,10 @@ static void widget_progress_type_bar(ButtonProgress *but_progress,
   widgetbase_draw(&wtb_bar, wcol);
 }
 
-static void widget_link(uiBut *but,
+static void widget_link(Button *but,
                         uiWidgetColors */*wcol*/,
                         rcti *rect,
-                        const uiWidgetStateInfo */*state*/,
+                        const WidgetStateInfo */*state*/,
                         int /*roundboxalign*/,
                         const float /*zoom*/)
 {
@@ -4007,7 +4007,7 @@ static void widget_link(uiBut *but,
     rcti rectlink;
     float color[4];
 
-    UI_GetThemeColor4fv(TH_TEXT_HI, color);
+    ui::GetThemeColor4fv(TH_TEXT_HI, color);
 
     rectlink.xmin = BLI_rcti_cent_x(rect);
     rectlink.ymin = BLI_rcti_cent_y(rect);

@@ -777,19 +777,19 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
   rect.ymax = BLI_rctf_cent_y(&line->to->rect);
 
   if (dashInactiveLines)
-    UI_GetThemeColor4fv(TH_GRID, color);
+    GetThemeColor4fv(TH_GRID, color);
   else if (line->flag & UI_SELECT)
     rgba_float_args_set_ch(color, 120, 120, 120, 255);
   else if (highlightActiveLines &&
            ((line->from->flag & UI_HOVER) || (line->to->flag & UI_HOVER)))
-    UI_GetThemeColor4fv(TH_TEXT_HI, color);
+    GetThemeColor4fv(TH_TEXT_HI, color);
   else
     rgba_float_args_set_ch(color, 100, 100, 100, 255);
 
   ui_draw_link_bezier(&rect, color);
 }
 
-static void ui_draw_links(uiBlock *block)
+static void ui_draw_links(blender::ui::Block *block)
 {
   uiLinkLine *line;
 
@@ -799,8 +799,8 @@ static void ui_draw_links(uiBlock *block)
   bool found_selectline = false;
   bool found_activeline = false;
 
-  for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but->type == ButType::Link && but->link) {
+  for (const std::unique_ptr<Button> &but : block->buttons) {
+    if (but->type == ButtonType::Link && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (line->deactive)
@@ -816,8 +816,8 @@ static void ui_draw_links(uiBlock *block)
   }
 
   /* Draw the inactive lines (lines with neither button being hovered over) */
-  for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but->type == ButType::Link && but->link) {
+  for (const std::unique_ptr<Button> &but : block->buttons) {
+    if (but->type == ButtonType::Link && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (!line->deactive)
@@ -830,8 +830,8 @@ static void ui_draw_links(uiBlock *block)
   /* Draw any active lines (lines with either button being hovered over).
    * Do this last so they appear on top of inactive and gray out lines. */
   if (found_activeline) {
-    for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (but->type == ButType::Link && but->link) {
+    for (const std::unique_ptr<Button> &but : block->buttons) {
+      if (but->type == ButtonType::Link && but->link) {
         for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
           if ((line->from->flag & UI_HOVER) || (line->to->flag & UI_HOVER))
             ui_draw_linkline(line, !found_selectline, false);
@@ -980,12 +980,12 @@ Button *button_find_new(Block *block_new, const Button *but_old)
 
 /* oldbut is being inserted in new block, so we use the lines from new button, and replace button
  * pointers */
-static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut)
+static void ui_but_update_linklines(blender::ui::Block *block, Button *oldbut, Button *newbut)
 {
   uiLinkLine *line;
 
-  /* if active button is ButType::Link */
-  if (newbut->type == ButType::Link && newbut->link) {
+  /* if active button is ButtonType::Link */
+  if (newbut->type == ButtonType::Link && newbut->link) {
 
     SWAP(uiLink *, oldbut->link, newbut->link);
 
@@ -998,8 +998,8 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
   }
 
   /* check all other button links */
-  for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but.get() != newbut && but->type == ButType::Link && but->link) {
+  for (const std::unique_ptr<Button> &but : block->buttons) {
+    if (but.get() != newbut && but->type == ButtonType::Link && but->link) {
       for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (line->to == newbut)
           line->to = oldbut;
@@ -2573,14 +2573,14 @@ static void ui_but_update_select_flag(Button *but, double *value)
   }
 }
 
-static uiBut *ui_linkline_find_inlink(uiBlock *block, void *poin)
+static Button *ui_linkline_find_inlink(blender::ui::Block *block, void *poin)
 {
-  uiBut *but = nullptr;
+  Button *but = nullptr;
 
   int i = 0;
   while (i < block->buttons.size()) {
     but = block->buttons[i].get();
-    if (but->type == ButType::Inlink) {
+    if (but->type == ButtonType::Inlink) {
       if (but->poin == poin)
         return but;
     }
@@ -2589,7 +2589,7 @@ static uiBut *ui_linkline_find_inlink(uiBlock *block, void *poin)
   return nullptr;
 }
 
-static void ui_linkline_add(ListBase *listb, uiBut *but, uiBut *bt, short deactive)
+static void ui_linkline_add(ListBase *listb, Button *but, Button *bt, short deactive)
 {
   uiLinkLine *line;
 
@@ -2600,14 +2600,14 @@ static void ui_linkline_add(ListBase *listb, uiBut *but, uiBut *bt, short deacti
   line->deactive = deactive;
 }
 
-uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin)
+Button *UI_block_links_find_inlink(Block *block, void *poin)
 {
   return ui_linkline_find_inlink(block, poin);
 }
 
-void UI_block_links_compose(uiBlock *block)
+void UI_block_links_compose(Block *block)
 {
-  uiBut *but = nullptr, *bt = nullptr;
+  Button *but = nullptr, *bt = nullptr;
   uiLink *link;
   void ***ppoin;
   int a;
@@ -2615,7 +2615,7 @@ void UI_block_links_compose(uiBlock *block)
   int i = 0;
   while (i < block->buttons.size()) {
     but = block->buttons[i].get();
-    if (but->type == ButType::Link) {
+    if (but->type == ButtonType::Link) {
       link = but->link;
 
       /* for all pointers in the array */
@@ -2669,7 +2669,7 @@ void block_lock_clear(Block *block)
 
 /* *************************************************************** */
 
-void ui_linkline_remove(uiLinkLine *line, uiBut *but)
+void ui_linkline_remove(uiLinkLine *line, Button *but)
 {
   uiLink *link;
   int a, b;
@@ -6150,7 +6150,7 @@ void button_operator_set_never_call(Button *but)
 
 /* END Button containing both string label and icon */
 
-void UI_but_link_set(uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to)
+void UI_but_link_set(Button *but, void **poin, void ***ppoin, short *tot, int from, int to)
 {
   uiLink *link;
 

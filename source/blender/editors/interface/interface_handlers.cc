@@ -166,8 +166,8 @@ static CLG_LogRef LOG = {"ui.handler"};
 /** \name Local Prototypes
  * \{ */
 
-static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to);
-static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to);
+static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to);
+static void ui_but_link_add(bContext *C, Button *from, Button *to);
 
 struct BlockInteraction_Handle;
 struct TextEdit;
@@ -1045,7 +1045,7 @@ static void ui_apply_but_undo(Button *but)
     str_len_clip = button_tip_len_only_first_line(but);
   }
 
-  if (ELEM(but->type, ButType::Link, ButType::Inlink)) {
+  if (ELEM(but->type, ButtonType::Link, ButtonType::Inlink)) {
     str = "Add button link";
   }
 
@@ -2267,15 +2267,14 @@ static bool ui_but_drag_init(bContext *C,
 /** \name Button Apply
  * \{ */
 
-<<<<<<< HEAD
-static void ui_linkline_remove_active(uiBlock *block)
+static void ui_linkline_remove_active(Block *block)
 {
   uiLink *link;
   uiLinkLine *line, *nline;
   int a, b;
 
-  for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but->type == ButType::Link && but->link) {
+  for (const std::unique_ptr<Button> &but : block->buttons) {
+    if (but->type == ButtonType::Link && but->link) {
       for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
         nline = line->next;
 
@@ -2315,7 +2314,7 @@ static void ui_linkline_remove_active(uiBlock *block)
   }
 }
 
-static uiLinkLine *ui_but_find_link(uiBut *from, uiBut *to)
+static uiLinkLine *ui_but_find_link(Button *from, Button *to)
 {
   uiLinkLine *line;
   uiLink *link;
@@ -2335,14 +2334,14 @@ static uiLinkLine *ui_but_find_link(uiBut *from, uiBut *to)
 /* XXX BAD BAD HACK, fixme later **************** */
 /* Try to add an AND Controller between the sensor and the actuator logic bricks and to connect
  * them all */
-static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
+static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
 {
   Object *ob = NULL;
   bSensor *sens_iter;
   bActuator *act_to, *act_iter;
   bController *cont;
   bController ***sens_from_links;
-  uiBut *tmp_but = nullptr;
+  Button *tmp_but = nullptr;
 
   PointerRNA props_ptr;
 
@@ -2397,7 +2396,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
     cont->type = CONT_LOGIC_AND;
 
     /* (4) link the sensor->controller->actuator */
-    tmp_but = MEM_new<uiBut>("tmp_but");
+    tmp_but = MEM_new<Button>("tmp_but");
     UI_but_link_set(tmp_but,
                     (void **)&cont,
                     (void ***)&(cont->links),
@@ -2407,10 +2406,10 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
     tmp_but->hardmin = from->link->tocode;
     tmp_but->poin = (char *)cont;
 
-    tmp_but->type = ButType::Inlink;
+    tmp_but->type = ButtonType::Inlink;
     ui_but_link_add(C, from, tmp_but);
 
-    tmp_but->type = ButType::Link;
+    tmp_but->type = ButtonType::Link;
     ui_but_link_add(C, tmp_but, to);
 
     /* (5) garbage collection */
@@ -2420,7 +2419,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
   WM_operator_properties_free(&props_ptr);
 }
 
-static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to)
+static void ui_but_link_add(bContext *C, Button *from, Button *to)
 {
   /* in 'from' we have to add a link to 'to' */
   uiLink *link;
@@ -2434,16 +2433,16 @@ static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to)
     return;
   }
 
-  if (from->type == ButType::Inlink && to->type == ButType::Inlink) {
+  if (from->type == ButtonType::Inlink && to->type == ButtonType::Inlink) {
     return;
   }
-  else if (from->type == ButType::Link && to->type == ButType::Inlink) {
+  else if (from->type == ButtonType::Link && to->type == ButtonType::Inlink) {
     if (from->link->tocode != (int)to->hardmin) {
       ui_but_smart_controller_add(C, from, to);
       return;
     }
   }
-  else if (from->type == ButType::Inlink && to->type == ButType::Link) {
+  else if (from->type == ButtonType::Inlink && to->type == ButtonType::Link) {
     if (to->link->tocode == (int)from->hardmin) {
       return;
     }
@@ -2471,24 +2470,24 @@ static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to)
   }
 }
 
-static void ui_apply_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data)
+static void ui_apply_but_LINK(bContext *C, Button *but, HandleButtonData *data)
 {
   ARegion *ar = CTX_wm_region(C);
-  uiBut *bt = nullptr;
+  Button *bt = nullptr;
 
   for (int i = 0; i < but->block->buttons.size(); i++) {
     bt = but->block->buttons[i].get();
     const int ptxy[2] = {(int)(but->linkto[0] + ar->winrct.xmin), (int)(but->linkto[1] + ar->winrct.ymin)};
-    if (ui_but_contains_point_px(bt, ar, ptxy)) {
+    if (button_contains_point_px(bt, ar, ptxy)) {
       break;
     }
   }
   if (bt && bt != but) {
-    if (!ELEM(bt->type, ButType::Link, ButType::Inlink) ||
-        !ELEM(but->type, ButType::Link, ButType::Inlink))
+    if (!ELEM(bt->type, ButtonType::Link, ButtonType::Inlink) ||
+        !ELEM(but->type, ButtonType::Link, ButtonType::Inlink))
       return;
 
-    if (but->type == ButType::Link)
+    if (but->type == ButtonType::Link)
       ui_but_link_add(C, but, bt);
     else
       ui_but_link_add(C, bt, but);
@@ -2499,10 +2498,7 @@ static void ui_apply_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data)
   data->applied = true;
 }
 
-static void ui_apply_but_IMAGE(bContext *C, uiBut *but, uiHandleButtonData *data)
-=======
 static void ui_apply_but_IMAGE(bContext *C, Button *but, HandleButtonData *data)
->>>>>>> b/main
 {
   ui_apply_but_func(C, but);
   data->retval = but->retval;
@@ -8496,7 +8492,7 @@ static int ui_do_but_WAVEFORM(
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static int ui_do_but_LINK(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
+static int ui_do_but_LINK(bContext *C, Button *but, HandleButtonData *data, const wmEvent *event)
 {
   copy_v2_v2_int(but->linkto, event->mval);
 
@@ -8822,8 +8818,8 @@ static int ui_do_button(bContext *C, Block *block, Button *but, const wmEvent *e
     case ButtonType::TrackPreview:
       retval = ui_do_but_TRACKPREVIEW(C, block, but, data, event);
       break;
-    case ButType::Link:
-    case ButType::Inlink:
+    case ButtonType::Link:
+    case ButtonType::Inlink:
       retval = ui_do_but_LINK(C, but, data, event);
       break;
 

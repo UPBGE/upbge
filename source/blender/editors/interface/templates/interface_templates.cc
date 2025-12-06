@@ -315,7 +315,7 @@ void template_file_select_path(Layout *layout, bContext *C, FileSelectParams *pa
 
 static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 {
-  uiBut *but = static_cast<uiBut *>(arg1);
+  Button *but = static_cast<Button *>(arg1);
   const int cur = POINTER_AS_INT(arg2);
   wmWindow *win = CTX_wm_window(C);
   const bool shift = win->eventstate->modifier & KM_SHIFT;
@@ -386,8 +386,8 @@ void uiTemplateGameStates(blender::ui::Layout *layout,
     uCol = &layout->column(true);
 
     for (row = 0; row < 2; row++) {
-      uiBlock *block;
-      uiBut *but;
+      Block *block;
+      Button *but;
 
       uRow = &uCol->row(true);
       block = uRow->block();
@@ -404,7 +404,7 @@ void uiTemplateGameStates(blender::ui::Layout *layout,
           icon = ICON_LAYER_USED;
 
         but = uiDefIconButR_prop(block,
-                                 ButType::IconToggle,
+                                 ButtonType::IconToggle,
                                  icon,
                                  0,
                                  0,
@@ -416,8 +416,8 @@ void uiTemplateGameStates(blender::ui::Layout *layout,
                                  0,
                                  0,
                                  BKE_sca_get_name_state(ob, state));
-        UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
-        but->type = ButType::ButToggle;
+        button_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
+        but->type = ButtonType::ButToggle;
       }
     }
   }

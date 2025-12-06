@@ -781,6 +781,7 @@ static void LOGIC_OT_actuator_move(wmOperatorType *ot)
 
 static wmOperatorStatus logic_view_all_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender::ui;
   ARegion *region = CTX_wm_region(C);
   rctf cur_new = region->v2d.tot;
   float aspect = BLI_rctf_size_y(&region->v2d.cur) / BLI_rctf_size_x(&region->v2d.cur);
@@ -789,7 +790,7 @@ static wmOperatorStatus logic_view_all_exec(bContext *C, wmOperator *op)
   /* force the view2d code to zoom to width, not height */
   cur_new.ymin = cur_new.ymax - BLI_rctf_size_x(&cur_new) * aspect;
 
-  UI_view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
+  view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
 
   return OPERATOR_FINISHED;
 }

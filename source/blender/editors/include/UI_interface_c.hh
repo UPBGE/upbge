@@ -1713,10 +1713,10 @@ AutoPropButsReturn uiDefAutoButsRNA(Layout *layout,
  * UPBGE logic brick links. Non-functional currently in 2.5,
  * code to handle and draw these is disabled internally. */
 
-void UI_but_link_set(struct uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to);
+void UI_but_link_set(Button *but, void **poin, void ***ppoin, short *tot, int from, int to);
 
-void UI_block_links_compose(uiBlock *block);
-uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin);
+void UI_block_links_compose(Block *block);
+Button *UI_block_links_find_inlink(Block *block, void *poin);
 
 /**
  * Callback to compare the identity of two buttons, used to identify buttons over redraws. If the
@@ -2453,6 +2453,13 @@ void template_layers(Layout *layout,
                      const char *used_propname,
                      int active_layer);
 
+void uiTemplateGameStates(blender::ui::Layout *layout,
+                          struct PointerRNA *ptr,
+                          const char *propname,
+                          PointerRNA *used_ptr,
+                          const char *used_propname,
+                          int active_state);
+
 }  // namespace blender::ui
 
 void uiTemplateImage(blender::ui::Layout *layout,
@@ -2462,12 +2469,6 @@ void uiTemplateImage(blender::ui::Layout *layout,
                      PointerRNA *userptr,
                      bool compact,
                      bool multiview);
-void uiTemplateGameStates(blender::ui::Layout *layout,
-                          struct PointerRNA *ptr,
-                          const char *propname,
-                          PointerRNA *used_ptr,
-                          const char *used_propname,
-                          int active_state);
 void uiTemplateImageSettings(blender::ui::Layout *layout,
                              bContext *C,
                              PointerRNA *imfptr,
