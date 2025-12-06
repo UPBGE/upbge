@@ -1815,7 +1815,7 @@ static bool object_mouse_select_menu(bContext *C,
     const char *name = ob->id.name + 2;
 
     BLI_strncpy_utf8(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
-    object_mouse_select_menu_data[i].icon = UI_icon_from_id(&ob->id);
+    object_mouse_select_menu_data[i].icon = blender::ui::icon_from_id(&ob->id);
   }
 
   wmOperatorType *ot = WM_operatortype_find("VIEW3D_OT_select_menu", false);
@@ -5116,10 +5116,10 @@ static bool pchan_circle_doSelectJoint(void *user_data,
 
   if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
     if (data->select) {
-      pchan->flag |= POSE_SELECTED;
+      pchan->flag |= POSE_SELECTED_ALL;
     }
     else {
-      pchan->flag &= ~POSE_SELECTED;
+      pchan->flag &= ~POSE_SELECTED_ALL;
     }
     return true;
   }
@@ -5166,10 +5166,10 @@ static void do_circle_select_pose__doSelectBone(void *user_data,
       edge_inside_circle(data->mval_fl, data->radius, screen_co_a, screen_co_b))
   {
     if (data->select) {
-      pchan->flag |= POSE_SELECTED;
+      pchan->flag |= POSE_SELECTED_ALL;
     }
     else {
-      pchan->flag &= ~POSE_SELECTED;
+      pchan->flag &= ~POSE_SELECTED_ALL;
     }
     data->is_changed = true;
   }

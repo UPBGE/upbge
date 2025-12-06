@@ -40,6 +40,8 @@
 #include "eyedropper_intern.hh"
 #include "interface_intern.hh"
 
+namespace blender::ui {
+
 /**
  * \note #DataDropper is only internal name to avoid confusion with other kinds of eye-droppers.
  */
@@ -79,7 +81,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
 
   DataDropper *ddr = MEM_new<DataDropper>(__func__);
 
-  uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
+  Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
       (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
@@ -90,7 +92,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
   }
   op->customdata = ddr;
 
-  ddr->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+  ddr->is_undo = button_flag_is_set(but, BUT_UNDO);
 
   ddr->cursor_area = CTX_wm_area(C);
   ddr->art = art;
@@ -300,7 +302,7 @@ static wmOperatorStatus datadropper_invoke(bContext *C, wmOperator *op, const wm
   if (datadropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -329,12 +331,12 @@ static bool datadropper_poll(bContext *C)
   PointerRNA ptr;
   PropertyRNA *prop;
   int index_dummy;
-  uiBut *but;
+  Button *but;
 
   /* data dropper only supports object data */
   if ((CTX_wm_window(C) != nullptr) &&
-      (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
-      (but->type == ButType::SearchMenu) && (but->flag & UI_BUT_VALUE_CLEAR))
+      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
+      (but->type == ButtonType::SearchMenu) && (but->flag & BUT_VALUE_CLEAR))
   {
     if (prop && RNA_property_type(prop) == PROP_POINTER) {
       StructRNA *type = RNA_property_pointer_type(&ptr, prop);
@@ -367,3 +369,5 @@ void UI_OT_eyedropper_id(wmOperatorType *ot)
 
   /* properties */
 }
+
+}  // namespace blender::ui

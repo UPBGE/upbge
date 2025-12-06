@@ -73,6 +73,8 @@
 
 #include "logic_intern.hh"
 
+using namespace blender::ui;
+
 #define B_REDR 1
 
 #define B_ADD_SENS 2703
@@ -723,20 +725,20 @@ static void do_sensor_menu(bContext *C, void */*arg*/, int event)
     MEM_freeN(idar);
 }
 
-static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
+static Block *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
 {
-  uiBlock *block;
+  Block *block;
   int yco = 0;
-  uiBut *but;
+  Button *but;
 
-  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
+  block = block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
   /* See
    * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
    * if issue */
   //UI_block_func_butmenu_set(block, do_sensor_menu, nullptr);
 
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Show Objects"),
            0,
            (short)(yco -= 20),
@@ -746,10 +748,10 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 0); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 0); });
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Hide Objects"),
            0,
            (short)(yco -= 20),
@@ -759,12 +761,12 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 1); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, ButType::SeprLine, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButtonType::SeprLine, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Show Sensors"),
            0,
            (short)(yco -= 20),
@@ -774,10 +776,10 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 2); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Hide Sensors"),
            0,
            (short)(yco -= 20),
@@ -787,10 +789,10 @@ static uiBlock *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 3); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_sensor_menu(&C, nullptr, 3); });
 
-  UI_block_direction_set(block, UI_DIR_UP);
+  block_direction_set(block, UI_DIR_UP);
   //UI_block_end(C, block);
 
   return block;
@@ -830,20 +832,20 @@ static void do_controller_menu(bContext *C, void */*arg*/, int event)
     MEM_freeN(idar);
 }
 
-static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
+static Block *controller_menu(bContext *C, ARegion *region, void */*arg*/)
 {
-  uiBlock *block;
-  uiBut *but;
+  Block *block;
+  Button *but;
   int yco = 0;
 
-  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
+  block = block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
   /* See
    * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
    * if issue */
   //UI_block_func_butmenu_set(block, do_controller_menu, nullptr);
 
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Show Objects"),
            0,
            (short)(yco -= 20),
@@ -853,11 +855,11 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 0);
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 0);
   });
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Hide Objects"),
            0,
            (short)(yco -= 20),
@@ -867,12 +869,12 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 1); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, ButType::SeprLine, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButtonType::SeprLine, "", 0, (short)(yco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Show Controllers"),
            0,
            (short)(yco -= 20),
@@ -882,10 +884,10 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 2); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Hide Controllers"),
            0,
            (short)(yco -= 20),
@@ -895,10 +897,10 @@ static uiBlock *controller_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 3); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_controller_menu(&C, nullptr, 3); });
 
-  UI_block_direction_set(block, UI_DIR_UP);
+  block_direction_set(block, UI_DIR_UP);
   //UI_block_end(C, block);
 
   return block;
@@ -938,20 +940,20 @@ static void do_actuator_menu(bContext *C, void */*arg*/, int event)
     MEM_freeN(idar);
 }
 
-static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
+static Block *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
 {
-  uiBlock *block;
+  Block *block;
   int xco = 0;
-  uiBut *but;
+  Button *but;
 
-  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
+  block = block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
   /* See
    * https://projects.blender.org/blender/blender/commit/f4e670af2ccec348378356512980554aec39ee3b
    * if issue */
   //UI_block_func_butmenu_set(block, do_actuator_menu, nullptr);
 
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Show Objects"),
            0,
            (short)(xco -= 20),
@@ -961,10 +963,10 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 0); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 0); });
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Hide Objects"),
            0,
            (short)(xco -= 20),
@@ -974,12 +976,12 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 1); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 1); });
   uiDefBut(
-      block, ButType::SeprLine, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
+      block, ButtonType::SeprLine, "", 0, (short)(xco -= 6), 160, 6, nullptr, 0.0, 0.0, "");
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Show Actuators"),
            0,
            (short)(xco -= 20),
@@ -989,10 +991,10 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 2); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 2); });
   but = uiDefBut(block,
-           ButType::ButMenu,
+           ButtonType::ButMenu,
            IFACE_("Hide Actuators"),
            0,
            (short)(xco -= 20),
@@ -1002,10 +1004,10 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
            0.0,
            0.0,
            "");
-  UI_but_retval_set(but, 1);
-  UI_but_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 3); });
+  button_retval_set(but, 1);
+  button_func_set(but, [](bContext &C) { do_actuator_menu(&C, nullptr, 3); });
 
-  UI_block_direction_set(block, UI_DIR_UP);
+  block_direction_set(block, UI_DIR_UP);
   //UI_block_end(C, block);
 
   return block;
@@ -1014,31 +1016,31 @@ static uiBlock *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
 static void check_controller_state_mask(bContext */*C*/, void *arg1_but, void *arg2_mask)
 {
   unsigned int *cont_mask = (unsigned int *)arg2_mask;
-  uiBut *but = (uiBut *)arg1_but;
+  Button *but = (Button *)arg1_but;
 
   /* a controller is always in a single state */
   *cont_mask = (1 << but->retval);
   but->retval = B_REDR;
 }
 
-static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *arg_cont)
+static Block *controller_state_mask_menu(bContext *C, ARegion *region, void *arg_cont)
 {
-  uiBlock *block;
-  uiBut *but;
+  Block *block;
+  Button *but;
   bController *cont = (bController *)arg_cont;
 
   short yco = 12, xco = 0, stbit, offset;
 
-  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   /* use this for a fake extra empy space around the buttons */
-  uiDefBut(block, ButType::Label, "", -5, -5, 200, 34, nullptr, 0, 0, "");
+  uiDefBut(block, ButtonType::Label, "", -5, -5, 200, 34, nullptr, 0, 0, "");
 
   for (offset = 0; offset < 15; offset += 5) {
-    UI_block_align_begin(block);
+    block_align_begin(block);
     for (stbit = 0; stbit < 5; stbit++) {
       but = uiDefButBitI(block,
-                         ButType::Toggle,
+                         ButtonType::Toggle,
                          (1 << (stbit + offset)),
                          "",
                          (short)(xco + 12 * stbit + 13 * offset),
@@ -1049,12 +1051,12 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
                          0,
                          0,
                          "");
-      UI_but_retval_set(but, (stbit + offset));
-      UI_but_func_set(but, check_controller_state_mask, but, &(cont->state_mask));
+      button_retval_set(but, (stbit + offset));
+      button_func_set(but, check_controller_state_mask, but, &(cont->state_mask));
     }
     for (stbit = 0; stbit < 5; stbit++) {
       but = uiDefButBitI(block,
-                         ButType::Toggle,
+                         ButtonType::Toggle,
                          (1 << (stbit + offset + 15)),
                          "",
                          (short)(xco + 12 * stbit + 13 * offset),
@@ -1065,19 +1067,19 @@ static uiBlock *controller_state_mask_menu(bContext *C, ARegion *region, void *a
                          0,
                          0,
                          "");
-      UI_but_retval_set(but, (stbit + offset + 15));
-      UI_but_func_set(but, check_controller_state_mask, but, &(cont->state_mask));
+      button_retval_set(but, (stbit + offset + 15));
+      button_func_set(but, check_controller_state_mask, but, &(cont->state_mask));
     }
   }
-  UI_block_align_end(block);
+  block_align_end(block);
 
-  UI_block_direction_set(block, UI_DIR_UP);
+  block_direction_set(block, UI_DIR_UP);
   //UI_block_end(C, block);
 
   return block;
 }
 
-static bool is_sensor_linked(uiBlock *block, bSensor *sens)
+static bool is_sensor_linked(Block *block, bSensor *sens)
 {
   bController *cont;
   int i;
@@ -1102,7 +1104,7 @@ static void draw_sensor_header(blender::ui::Layout *layout, PointerRNA *ptr, Poi
 
   sub = &row->row(false);
   sub->active_set(RNA_boolean_get(ptr, "active"));
-  sub->prop(ptr, "show_expanded", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  sub->prop(ptr, "show_expanded", ITEM_R_NO_BG, "", ICON_NONE);
   if (RNA_boolean_get(ptr, "show_expanded")) {
     sub->prop(ptr, "type", UI_ITEM_NONE, "", ICON_NONE);
     sub->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
@@ -1118,7 +1120,7 @@ static void draw_sensor_header(blender::ui::Layout *layout, PointerRNA *ptr, Poi
                        RNA_boolean_get(ptr, "show_expanded")) ||
                       RNA_boolean_get(ptr, "pin")) &&
                      RNA_boolean_get(ptr, "active")));
-  sub->prop(ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  sub->prop(ptr, "pin", ITEM_R_NO_BG, "", ICON_NONE);
 
   sub = &row->row(true);
   sub->active_set(RNA_boolean_get(ptr, "active"));
@@ -1154,10 +1156,10 @@ static void draw_sensor_internal_header(blender::ui::Layout *layout, PointerRNA 
   sub->prop(ptr, "tick_skip", UI_ITEM_NONE, IFACE_("Skip"), ICON_NONE);
 
   row = &split->row(true);
-  row->prop(ptr, "use_level", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-  row->prop(ptr, "use_tap", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_level", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_tap", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
-  split->prop(ptr, "invert", UI_ITEM_R_TOGGLE, IFACE_("Invert"), ICON_NONE);
+  split->prop(ptr, "invert", ITEM_R_TOGGLE, IFACE_("Invert"), ICON_NONE);
 }
 /* sensors in alphabetical order */
 
@@ -1219,8 +1221,8 @@ static void draw_sensor_collision(blender::ui::Layout *layout, PointerRNA *ptr, 
 
   split = &layout->split(0.3f, false);
   row = &split->row(true);
-  row->prop(ptr, "use_pulse", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-  row->prop(ptr, "use_material", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_pulse", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_material", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
   switch (RNA_boolean_get(ptr, "use_material")) {
     case SENS_COLLISION_PROPERTY:
@@ -1316,19 +1318,19 @@ static void draw_sensor_keyboard(blender::ui::Layout *layout, PointerRNA *ptr)
   row->label(CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Key:"), ICON_NONE);
   col = &row->column(false);
   col->active_set(RNA_boolean_get(ptr, "use_all_keys") == false);
-  col->prop(ptr, "key", UI_ITEM_R_EVENT, "", ICON_NONE);
+  col->prop(ptr, "key", ITEM_R_EVENT, "", ICON_NONE);
   col = &row->column(false);
-  col->prop(ptr, "use_all_keys", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_all_keys", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
   col = &layout->column(false);
   col->active_set(RNA_boolean_get(ptr, "use_all_keys") == false);
   row = &col->row(false);
   row->label(IFACE_("First Modifier:"), ICON_NONE);
-  row->prop(ptr, "modifier_key_1", UI_ITEM_R_EVENT, "", ICON_NONE);
+  row->prop(ptr, "modifier_key_1", ITEM_R_EVENT, "", ICON_NONE);
 
   row = &col->row(false);
   row->label(IFACE_("Second Modifier:"), ICON_NONE);
-  row->prop(ptr, "modifier_key_2", UI_ITEM_R_EVENT, "", ICON_NONE);
+  row->prop(ptr, "modifier_key_2", ITEM_R_EVENT, "", ICON_NONE);
 
   PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
   layout->prop_search(ptr, "log", &settings_ptr, "properties", std::nullopt, ICON_NONE);
@@ -1348,7 +1350,7 @@ static void draw_sensor_mouse(blender::ui::Layout *layout, PointerRNA *ptr, bCon
   split->prop(ptr, "mouse_event", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_enum_get(ptr, "mouse_event") == BL_SENS_MOUSE_MOUSEOVER_ANY) {
-    split->prop(ptr, "use_pulse", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+    split->prop(ptr, "use_pulse", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
     split = &layout->split(0.3f, false);
     split->prop(ptr, "use_material", UI_ITEM_NONE, "", ICON_NONE);
@@ -1361,7 +1363,7 @@ static void draw_sensor_mouse(blender::ui::Layout *layout, PointerRNA *ptr, bCon
       PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
       split2->prop_search(ptr, "material", &main_ptr, "materials", "", ICON_MATERIAL_DATA);
     }
-    split2->prop(ptr, "use_x_ray", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+    split2->prop(ptr, "use_x_ray", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
     split = &layout->split(0.3, false);
     split->prop(ptr, "mask", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1443,7 +1445,7 @@ static void draw_sensor_ray(blender::ui::Layout *layout, PointerRNA *ptr, bConte
   split->prop(ptr, "axis", UI_ITEM_NONE, "", ICON_NONE);
   row = &split->row(false);
   row->prop(ptr, "range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  row->prop(ptr, "use_x_ray", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_x_ray", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   split = &layout->split(0.3, false);
   split->prop(ptr, "mask", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -1453,7 +1455,7 @@ static void draw_sensor_movement(blender::ui::Layout *layout, PointerRNA *ptr)
   blender::ui::Layout *row;
   layout->prop(ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = &layout->row(false);
-  row->prop(ptr, "use_local", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_local", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   row->prop(ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
@@ -1534,7 +1536,7 @@ static void draw_controller_header(blender::ui::Layout *layout, PointerRNA *ptr,
 
   sub = &row->row(false);
   sub->active_set(RNA_boolean_get(ptr, "active"));
-  sub->prop(ptr, "show_expanded", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  sub->prop(ptr, "show_expanded", ITEM_R_NO_BG, "", ICON_NONE);
   if (RNA_boolean_get(ptr, "show_expanded")) {
     sub->prop(ptr, "type", UI_ITEM_NONE, "", ICON_NONE);
     sub->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
@@ -1594,7 +1596,7 @@ static void draw_controller_python(blender::ui::Layout *layout, PointerRNA *ptr)
   else {
     sub = &split->split(0.8f, false);
     sub->prop(ptr, "module", UI_ITEM_NONE, "", ICON_NONE);
-    sub->prop(ptr, "use_debug", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+    sub->prop(ptr, "use_debug", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -1647,7 +1649,7 @@ static void draw_actuator_header(blender::ui::Layout *layout, PointerRNA *ptr, P
 
   sub = &row->row(false);
   sub->active_set(RNA_boolean_get(ptr, "active"));
-  sub->prop(ptr, "show_expanded", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  sub->prop(ptr, "show_expanded", ITEM_R_NO_BG, "", ICON_NONE);
   if (RNA_boolean_get(ptr, "show_expanded")) {
     sub->prop(ptr, "type", UI_ITEM_NONE, "", ICON_NONE);
     sub->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
@@ -1663,7 +1665,7 @@ static void draw_actuator_header(blender::ui::Layout *layout, PointerRNA *ptr, P
                        RNA_boolean_get(ptr, "show_expanded")) ||
                       RNA_boolean_get(ptr, "pin")) &&
                      RNA_boolean_get(ptr, "active")));
-  sub->prop(ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  sub->prop(ptr, "pin", ITEM_R_NO_BG, "", ICON_NONE);
 
   sub = &row->row(true);
   sub->active_set(RNA_boolean_get(ptr, "active"));
@@ -1691,13 +1693,13 @@ static void draw_actuator_action(blender::ui::Layout *layout, PointerRNA *ptr)
   row->prop(ptr, "play_mode", UI_ITEM_NONE, "", ICON_NONE);
 
   sub = &row->row(true);
-  sub->prop(ptr, "use_force", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-  sub->prop(ptr, "use_additive", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "use_force", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "use_additive", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
   row = &sub->column(false);
   row->active_set(
                     (RNA_boolean_get(ptr, "use_additive") || RNA_boolean_get(ptr, "use_force")));
-  row->prop(ptr, "use_local", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_local", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
   row = &layout->row(false);
   row->prop(ptr, "action", UI_ITEM_NONE, "", ICON_NONE);
@@ -1841,15 +1843,15 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       row->prop(ptr, "limit_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row->prop(ptr, "limit_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      layout->prop(ptr, "damping", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       break;
 
     case ACT_CONST_TYPE_DIST:
       split = &layout->split(0.8, false);
       split->prop(ptr, "direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row = &split->row(true);
-      row->prop(ptr, "use_local", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-      row->prop(ptr, "use_normal", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_local", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_normal", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &layout->row(false);
       col = &row->column(true);
@@ -1857,33 +1859,33 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       col->prop(ptr, "range", UI_ITEM_NONE, "", ICON_NONE);
 
       col = &row->column(true);
-      col->prop(ptr, "use_force_distance", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_force_distance", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       sub = &col->column(false);
       sub->active_set(RNA_boolean_get(ptr, "use_force_distance") == true);
       sub->prop(ptr, "distance", UI_ITEM_NONE, "", ICON_NONE);
 
-      layout->prop(ptr, "damping", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.15f, false);
-      split->prop(ptr, "use_material_detect", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_material_detect", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       if (RNA_boolean_get(ptr, "use_material_detect"))
         split->prop_search(ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
       else
         split->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.15, false);
-      split->prop(ptr, "use_persistent", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_persistent", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &split->row(true);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      row->prop(ptr, "damping_rotation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      row->prop(ptr, "damping_rotation", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       break;
 
     case ACT_CONST_TYPE_ORI:
       layout->prop(ptr, "direction_axis_pos", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       row = &layout->row(true);
-      row->prop(ptr, "damping", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      row->prop(ptr, "damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       row = &layout->row(false);
@@ -1897,30 +1899,30 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
     case ACT_CONST_TYPE_FH:
       split = &layout->split(0.75, false);
       row = &split->row(false);
-      row->prop(ptr, "fh_damping", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      row->prop(ptr, "fh_damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
       row->prop(ptr, "fh_height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_fh_paralel_axis", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_fh_paralel_axis", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &layout->row(false);
       row->prop(ptr, "direction_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       split = &row->split(0.9f, false);
       split->prop(ptr, "fh_force", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_fh_normal", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_fh_normal", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.15, false);
-      split->prop(ptr, "use_material_detect", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_material_detect", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       if (RNA_boolean_get(ptr, "use_material_detect"))
         split->prop_search(ptr, "material", &main_ptr, "materials", std::nullopt, ICON_MATERIAL_DATA);
       else
         split->prop(ptr, "property", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.15, false);
-      split->prop(ptr, "use_persistent", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_persistent", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &split->row(false);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      row->prop(ptr, "damping_rotation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      row->prop(ptr, "damping_rotation", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       break;
   }
 }
@@ -1940,15 +1942,15 @@ static void draw_actuator_edit_object(blender::ui::Layout *layout, PointerRNA *p
       split = &layout->split(0.9, false);
       row = &split->row(false);
       row->prop(ptr, "linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_local_linear_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.9, false);
       row = &split->row(false);
       row->prop(ptr, "angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_local_angular_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &layout->row(false);
-      row->prop(ptr, "use_object_duplicate", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_object_duplicate", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       break;
     case ACT_EDOB_END_OBJECT:
       break;
@@ -1960,15 +1962,15 @@ static void draw_actuator_edit_object(blender::ui::Layout *layout, PointerRNA *p
       split = &layout->split(0.6, false);
       split->prop(ptr, "mesh", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row = &split->row(false);
-      row->prop(ptr, "use_replace_display_mesh", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-      row->prop(ptr, "use_replace_physics_mesh", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_replace_display_mesh", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_replace_physics_mesh", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       break;
     case ACT_EDOB_TRACK_TO:
       split = &layout->split(0.5, false);
       split->prop(ptr, "track_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       sub = &split->split(0.7f, false);
       sub->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      sub->prop(ptr, "use_3d_tracking", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      sub->prop(ptr, "use_3d_tracking", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &layout->row(false);
       row->prop(ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2010,7 +2012,7 @@ static void draw_actuator_filter_2d(blender::ui::Layout *layout, PointerRNA *ptr
       row = &split->row(false);
       row->active_set(RNA_boolean_get(ptr, "use_motion_blur") == true);
       row->prop(ptr, "motion_blur_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_motion_blur", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_motion_blur", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       break;*/
     default:  // all other 2D Filters
       layout->prop(ptr, "filter_pass", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2067,36 +2069,36 @@ static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
       split = &layout->split(0.9, false);
       row = &split->row(false);
       row->prop(ptr, "offset_location", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_local_location", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_local_location", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.9, false);
       row = &split->row(false);
       row->prop(ptr, "offset_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_local_rotation", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_local_rotation", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       if (ELEM(physics_type, OB_BODY_TYPE_DYNAMIC, OB_BODY_TYPE_RIGID, OB_BODY_TYPE_SOFT)) {
         layout->label(IFACE_("Dynamic Object Settings:"), ICON_NONE);
         split = &layout->split(0.9, false);
         row = &split->row(false);
         row->prop(ptr, "force", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        split->prop(ptr, "use_local_force", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+        split->prop(ptr, "use_local_force", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
         split = &layout->split(0.9, false);
         row = &split->row(false);
         row->prop(ptr, "torque", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        split->prop(ptr, "use_local_torque", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+        split->prop(ptr, "use_local_torque", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
         split = &layout->split(0.9, false);
         row = &split->row(false);
         row->prop(ptr, "linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         row = &split->row(true);
-        row->prop(ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-        row->prop(ptr, "use_add_linear_velocity", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+        row->prop(ptr, "use_local_linear_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+        row->prop(ptr, "use_add_linear_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
         split = &layout->split(0.9, false);
         row = &split->row(false);
         row->prop(ptr, "angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        split->prop(ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+        split->prop(ptr, "use_local_angular_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
         layout->prop(ptr, "damping", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
@@ -2110,30 +2112,30 @@ static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
       row = &split->row(false);
       if (angular) {
         row->prop(ptr, "angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        split->prop(ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+        split->prop(ptr, "use_local_angular_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       }
       else {
         row->prop(ptr, "linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        split->prop(ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+        split->prop(ptr, "use_local_linear_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       }
 
       row = &layout->row(false);
       col = &row->column(false);
-      col->prop(ptr, "use_servo_limit_x", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_servo_limit_x", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       sub = &col->column(true);
       sub->active_set(RNA_boolean_get(ptr, "use_servo_limit_x") == true);
       sub->prop(ptr, "force_max_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       sub->prop(ptr, "force_min_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       col = &row->column(false);
-      col->prop(ptr, "use_servo_limit_y", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_servo_limit_y", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       sub = &col->column(true);
       sub->active_set(RNA_boolean_get(ptr, "use_servo_limit_y") == true);
       sub->prop(ptr, "force_max_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       sub->prop(ptr, "force_min_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       col = &row->column(false);
-      col->prop(ptr, "use_servo_limit_z", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_servo_limit_z", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       sub = &col->column(true);
       sub->active_set(RNA_boolean_get(ptr, "use_servo_limit_z") == true);
       sub->prop(ptr, "force_max_z", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2144,28 +2146,28 @@ static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
       // (since the old code is going to be deleted ... soon)
 
       col = &layout->column(true);
-      col->prop(ptr, "proportional_coefficient", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-      col->prop(ptr, "integral_coefficient", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-      col->prop(ptr, "derivate_coefficient", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      col->prop(ptr, "proportional_coefficient", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      col->prop(ptr, "integral_coefficient", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      col->prop(ptr, "derivate_coefficient", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       break;
     case ACT_OBJECT_CHARACTER:
       split = &layout->split(0.9, false);
       row = &split->row(false);
       row->prop(ptr, "offset_location", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row = &split->row(true);
-      row->prop(ptr, "use_local_location", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
-      row->prop(ptr, "use_add_character_location", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_local_location", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_add_character_location", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.9, false);
       row = &split->row(false);
       row->prop(ptr, "offset_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      split->prop(ptr, "use_local_rotation", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_local_rotation", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       split = &layout->split(0.9, false);
       row = &split->row(false);
       split = &row->split(0.7, false);
       split->label("", ICON_NONE); /*Just use this for some spacing */
-      split->prop(ptr, "use_character_jump", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_character_jump", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       break;
   }
 }
@@ -2249,7 +2251,7 @@ static void draw_actuator_random(blender::ui::Layout *layout, PointerRNA *ptr)
 
   switch (RNA_enum_get(ptr, "distribution")) {
     case ACT_RANDOM_BOOL_CONST:
-      row->prop(ptr, "use_always_true", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_always_true", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       break;
 
     case ACT_RANDOM_BOOL_UNIFORM:
@@ -2342,14 +2344,14 @@ static void draw_actuator_sound(blender::ui::Layout *layout, PointerRNA *ptr, bC
 {
   blender::ui::Layout *row, *col;
 
-  uiTemplateID(layout,
+  template_id(layout,
                C,
                ptr,
                "sound",
                nullptr,
                "SOUND_OT_open",
                nullptr,
-               UI_TEMPLATE_ID_FILTER_ALL,
+               TEMPLATE_ID_FILTER_ALL,
                false,
                "");
   if (!RNA_pointer_get(ptr, "sound").data) {
@@ -2395,7 +2397,7 @@ static void draw_actuator_state(blender::ui::Layout *layout, PointerRNA *ptr)
   split = &layout->split(0.35, false);
   split->prop(ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiTemplateLayers(split, ptr, "states", &settings_ptr, "used_states", 0);
+  template_layers(split, ptr, "states", &settings_ptr, "used_states", 0);
 }
 
 static void draw_actuator_visibility(blender::ui::Layout *layout, PointerRNA *ptr)
@@ -2464,7 +2466,7 @@ static void draw_actuator_mouse(blender::ui::Layout *layout, PointerRNA *ptr)
   switch (RNA_enum_get(ptr, "mode")) {
     case ACT_MOUSE_VISIBILITY:
       row = &layout->row(0);
-      row->prop(ptr, "visible", UI_ITEM_R_TOGGLE, std::nullopt, 0);
+      row->prop(ptr, "visible", ITEM_R_TOGGLE, std::nullopt, 0);
       break;
 
     case ACT_MOUSE_LOOK:
@@ -2472,7 +2474,7 @@ static void draw_actuator_mouse(blender::ui::Layout *layout, PointerRNA *ptr)
       row = &layout->row(0);
       col = &row->column(1);
 
-      col->prop(ptr, "use_axis_x", UI_ITEM_R_TOGGLE, std::nullopt, 0);
+      col->prop(ptr, "use_axis_x", ITEM_R_TOGGLE, std::nullopt, 0);
 
       subcol = &col->column(1);
       subcol->active_set(RNA_boolean_get(ptr, "use_axis_x") == 1);
@@ -2487,7 +2489,7 @@ static void draw_actuator_mouse(blender::ui::Layout *layout, PointerRNA *ptr)
       /* Y Axis */
       col = &row->column(1);
 
-      col->prop(ptr, "use_axis_y", UI_ITEM_R_TOGGLE, std::nullopt, 0);
+      col->prop(ptr, "use_axis_y", ITEM_R_TOGGLE, std::nullopt, 0);
 
       subcol = &col->column(1);
       subcol->active_set(RNA_boolean_get(ptr, "use_axis_y") == 1);
@@ -2505,13 +2507,13 @@ static void draw_actuator_mouse(blender::ui::Layout *layout, PointerRNA *ptr)
 
       subsplit = &split->split(0.5, 1);
       subsplit->active_set(RNA_boolean_get(ptr, "use_axis_x") == 1);
-      subsplit->prop(ptr, "local_x", UI_ITEM_R_TOGGLE, std::nullopt, 0);
-      subsplit->prop(ptr, "reset_x", UI_ITEM_R_TOGGLE, std::nullopt, 0);
+      subsplit->prop(ptr, "local_x", ITEM_R_TOGGLE, std::nullopt, 0);
+      subsplit->prop(ptr, "reset_x", ITEM_R_TOGGLE, std::nullopt, 0);
 
       subsplit = &split->split(0.5, 1);
       subsplit->active_set(RNA_boolean_get(ptr, "use_axis_y") == 1);
-      subsplit->prop(ptr, "local_y", UI_ITEM_R_TOGGLE, std::nullopt, 0);
-      subsplit->prop(ptr, "reset_y", UI_ITEM_R_TOGGLE, std::nullopt, 0);
+      subsplit->prop(ptr, "local_y", ITEM_R_TOGGLE, std::nullopt, 0);
+      subsplit->prop(ptr, "reset_y", ITEM_R_TOGGLE, std::nullopt, 0);
 
       break;
   }
@@ -2597,8 +2599,8 @@ void logic_buttons(bContext *C, ARegion *region)
   Object *ob = CTX_data_active_object(C);
   ID **idar;
   blender::ui::Layout *layout, *row, *box;
-  uiBlock *block;
-  uiBut *but;
+  Block *block;
+  Button *but;
   char uiblockstr[32];
   short a, count;
   int xco, yco, width, height;
@@ -2611,9 +2613,9 @@ void logic_buttons(bContext *C, ARegion *region)
   idar = get_selected_and_linked_obs(C, &count, slogic->scaflag);
 
   BLI_snprintf(uiblockstr, sizeof(uiblockstr), "buttonswin %p", (void *)region);
-  block = UI_block_begin(C, region, uiblockstr, blender::ui::EmbossType::Emboss);
-  UI_block_func_handle_set(block, do_logic_buts, nullptr);
-  UI_block_bounds_set_normal(block, U.widget_unit / 2);
+  block = block_begin(C, region, uiblockstr, blender::ui::EmbossType::Emboss);
+  block_func_handle_set(block, do_logic_buts, nullptr);
+  block_bounds_set_normal(block, U.widget_unit / 2);
 
   /* loop over all objects and set visible/linked flags for the logic bricks */
   for (a = 0; a < count; a++) {
@@ -2670,7 +2672,7 @@ void logic_buttons(bContext *C, ARegion *region)
                                       width,
                                       20,
                                       0,
-                                      UI_style_get());
+                                      style_get());
   row = &layout->row(true);
 
   uiDefBlockBut(block,
@@ -2703,11 +2705,11 @@ void logic_buttons(bContext *C, ARegion *region)
     PointerRNA settings_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_GameObjectSettings, ob);
 
     split = &layout->split(0.05f, false);
-    split->prop(&settings_ptr, "show_state_panel", UI_ITEM_R_NO_BG, "", ICON_DISCLOSURE_TRI_RIGHT);
+    split->prop(&settings_ptr, "show_state_panel", ITEM_R_NO_BG, "", ICON_DISCLOSURE_TRI_RIGHT);
 
     row = &split->row(true);
     but = uiDefButBitS(block,
-                 ButType::Toggle,
+                 ButtonType::Toggle,
                  OB_SHOWCONT,
                  ob->id.name + 2,
                  (short)(xco - U.widget_unit / 2),
@@ -2718,7 +2720,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  0,
                  31,
                  TIP_("Object name, click to show/hide controllers"));
-    UI_but_retval_set(but, B_REDR);
+    button_retval_set(but, B_REDR);
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
@@ -2742,7 +2744,7 @@ void logic_buttons(bContext *C, ARegion *region)
       uiTemplateGameStates(row, &settings_ptr, "states_initial", &settings_ptr, "used_states", 0);
 
       col = &subsplit->column(false);
-      col->prop(&settings_ptr, "use_all_states", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      col->prop(&settings_ptr, "use_all_states", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
       col->prop(&settings_ptr, "show_debug_state", UI_ITEM_NONE, "", ICON_NONE);
     }
 
@@ -2767,7 +2769,7 @@ void logic_buttons(bContext *C, ARegion *region)
       col->active_set(RNA_boolean_get(&ptr, "active"));
       col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
-                         ButType::Inlink,
+                         ButtonType::Inlink,
                          ICON_LINKED,
                          0,
                          0,
@@ -2799,7 +2801,7 @@ void logic_buttons(bContext *C, ARegion *region)
       col->active_set(RNA_boolean_get(&ptr, "active"));
       col->alignment_set(blender::ui::LayoutAlign::Left);
       but = uiDefIconBut(block,
-                         ButType::Link,
+                         ButtonType::Link,
                          ICON_LINKED,
                          0,
                          0,
@@ -2833,7 +2835,7 @@ void logic_buttons(bContext *C, ARegion *region)
                                       width,
                                       20,
                                       0,
-                                      UI_style_get());
+                                      style_get());
   row = &layout->row(true);
 
   uiDefBlockBut(block,
@@ -2862,7 +2864,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     row = &layout->row(true);
     but = uiDefButBitS(block,
-                 ButType::Toggle,
+                 ButtonType::Toggle,
                  OB_SHOWSENS,
                  ob->id.name + 2,
                  (short)(xco - U.widget_unit / 2),
@@ -2873,7 +2875,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  0,
                  31,
                  TIP_("Object name, click to show/hide sensors"));
-    UI_but_retval_set(but, B_REDR);
+    button_retval_set(but, B_REDR);
 
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
@@ -2913,7 +2915,7 @@ void logic_buttons(bContext *C, ARegion *region)
         col = &split->column(false);
         col->active_set(RNA_boolean_get(&ptr, "active"));
         but = uiDefIconBut(block,
-                           ButType::Link,
+                           ButtonType::Link,
                            ICON_LINKED,
                            0,
                            0,
@@ -2949,7 +2951,7 @@ void logic_buttons(bContext *C, ARegion *region)
                                       width,
                                       20,
                                       0,
-                                      UI_style_get());
+                                      style_get());
   row = &layout->row(true);
 
   uiDefBlockBut(block,
@@ -2979,7 +2981,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
     row = &layout->row(true);
     but = uiDefButBitS(block,
-                 ButType::Toggle,
+                 ButtonType::Toggle,
                  OB_SHOWACT,
                  ob->id.name + 2,
                  (short)(xco - U.widget_unit / 2),
@@ -2990,7 +2992,7 @@ void logic_buttons(bContext *C, ARegion *region)
                  0,
                  31,
                  TIP_("Object name, click to show/hide actuators"));
-    UI_but_retval_set(but, B_REDR);
+    button_retval_set(but, B_REDR);
     PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
     row->context_ptr_set("object", &object_ptr);
     row->op_menu_enum(C, "LOGIC_OT_actuator_add", "type", IFACE_("Add Actuator"), ICON_NONE);
@@ -3023,7 +3025,7 @@ void logic_buttons(bContext *C, ARegion *region)
         col = &split->column(false);
         col->active_set(RNA_boolean_get(&ptr, "active"));
         but = uiDefIconBut(block,
-                           ButType::Inlink,
+                           ButtonType::Inlink,
                            ICON_LINKED,
                            0,
                            0,
@@ -3051,18 +3053,18 @@ void logic_buttons(bContext *C, ARegion *region)
   yco = blender::ui::block_layout_resolve(block).y; /* stores final height in yco */
   height = std::min(height, yco);
 
-  UI_view2d_totRect_set(&region->v2d, 57.5f * U.widget_unit, height - U.widget_unit);
+  view2d_totRect_set(&region->v2d, 57.5f * U.widget_unit, height - U.widget_unit);
 
   /* set the view */
-  UI_view2d_view_ortho(&region->v2d);
+  view2d_view_ortho(&region->v2d);
 
   UI_block_links_compose(block);
 
-  UI_block_end(C, block);
-  UI_block_draw(C, block);
+  block_end(C, block);
+  block_draw(C, block);
 
   /* restore view matrix */
-  UI_view2d_view_restore(C);
+  view2d_view_restore(C);
 
   if (idar)
     MEM_freeN(idar);

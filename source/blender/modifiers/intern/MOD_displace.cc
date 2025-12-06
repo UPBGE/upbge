@@ -351,8 +351,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   /* UPBGE */
   layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
 
-
-  uiTemplateID(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
+  template_id(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
   blender::ui::Layout *col = &layout.column(false);
   col->active_set(has_texture);

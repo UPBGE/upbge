@@ -181,7 +181,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
                    sequencer_add_draw_check_fn,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
   /* There is no effect strip add UI, so assume an image is being imported if "length" is found. */
@@ -427,7 +427,7 @@ static void sequencer_file_drop_channel_frame_set(bContext *C,
   }
 
   float frame_start, channel;
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &frame_start, &channel);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &frame_start, &channel);
   RNA_int_set(op->ptr, "channel", int(channel));
   RNA_int_set(op->ptr, "frame_start", int(frame_start));
 }
@@ -621,7 +621,7 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     BLI_rcti_clamp_pt_v(&clamp_bounds, mouse_region);
 
     float2 mouse_view;
-    UI_view2d_region_to_view(
+    ui::view2d_region_to_view(
         &region->v2d, mouse_region.x, mouse_region.y, &mouse_view.x, &mouse_view.y);
 
     load_data->start_frame = std::trunc(mouse_view.x);
@@ -894,7 +894,7 @@ static Scene *sequencer_add_scene_asset(const bContext &C,
   Scene *scene_asset = reinterpret_cast<Scene *>(
       asset::asset_local_id_ensure_imported(bmain, asset, ASSET_IMPORT_APPEND));
 
-  if (asset.is_local_id()) {
+  if (scene_asset && asset.is_local_id()) {
     /* Local scene that needs to be duplicated. */
     Scene *scene_copy = BKE_scene_duplicate(
         &bmain,
@@ -1644,6 +1644,7 @@ void SEQUENCER_OT_sound_strip_add(wmOperatorType *ot)
   ot->invoke = sequencer_add_sound_strip_invoke;
   ot->exec = sequencer_add_sound_strip_exec;
   ot->poll = ED_operator_sequencer_active_editable;
+  ot->cancel = sequencer_add_free;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

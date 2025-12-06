@@ -1710,10 +1710,10 @@ int main(int argc,
               GPU_backend_ghost_system_set(system);
               WM_init_gpu();
 
-              UI_theme_init_default();
-              UI_init();
+              blender::ui::theme_init_default();
+              blender::ui::init();
               /* To have blf_monofont_render available for generated textures checkerboard */
-              UI_reinit_font();
+              blender::ui::reinit_font();
 
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
@@ -1965,7 +1965,7 @@ int main(int argc,
   ED_file_exit(); /* for fsmenu */
 
   DRW_gpu_context_enable_ex(false);
-  UI_exit();
+  blender::ui::ui_exit();
   GPU_shader_cache_dir_clear_old();
   GPU_exit();
   DRW_gpu_context_disable_ex(false);

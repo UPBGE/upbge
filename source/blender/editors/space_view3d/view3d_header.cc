@@ -88,20 +88,20 @@ void uiTemplateEditModeSelection(blender::ui::Layout *layout, bContext *C)
                              "",
                              ICON_VERTEXSEL,
                              blender::wm::OpCallContext::InvokeDefault,
-                             (em->selectmode & SCE_SELECT_VERTEX) ? UI_ITEM_O_DEPRESS :
+                             (em->selectmode & SCE_SELECT_VERTEX) ? blender::ui::ITEM_O_DEPRESS :
                                                                     UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "type", SCE_SELECT_VERTEX);
   op_ptr = row.op(ot,
                   "",
                   ICON_EDGESEL,
                   blender::wm::OpCallContext::InvokeDefault,
-                  (em->selectmode & SCE_SELECT_EDGE) ? UI_ITEM_O_DEPRESS : UI_ITEM_NONE);
+                  (em->selectmode & SCE_SELECT_EDGE) ? blender::ui::ITEM_O_DEPRESS : UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "type", SCE_SELECT_EDGE);
   op_ptr = row.op(ot,
                   "",
                   ICON_FACESEL,
                   blender::wm::OpCallContext::InvokeDefault,
-                  (em->selectmode & SCE_SELECT_FACE) ? UI_ITEM_O_DEPRESS : UI_ITEM_NONE);
+                  (em->selectmode & SCE_SELECT_FACE) ? blender::ui::ITEM_O_DEPRESS : UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "type", SCE_SELECT_FACE);
 }
 
@@ -118,23 +118,24 @@ static void uiTemplatePaintModeSelection(blender::ui::Layout *layout, bContext *
     PointerRNA meshptr = RNA_pointer_create_discrete(
         static_cast<ID *>(ob->data), &RNA_Mesh, ob->data);
     if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-      layout->prop(&meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+      layout->prop(&meshptr, "use_paint_mask", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
     }
     else {
       blender::ui::Layout &row = layout->row(true);
-      row.prop(&meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-      row.prop(&meshptr, "use_paint_mask_vertex", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+      row.prop(&meshptr, "use_paint_mask", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
+      row.prop(&meshptr, "use_paint_mask_vertex", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
 
       /* Show the bone selection mode icon only if there is a pose mode armature */
       Object *ob_armature = BKE_object_pose_armature_get(ob);
       if (ob_armature) {
-        row.prop(&meshptr, "use_paint_bone_selection", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+        row.prop(
+            &meshptr, "use_paint_bone_selection", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
       }
     }
   }
 }
 
-void uiTemplateHeader3D_mode(blender::ui::Layout *layout, bContext *C)
+void template_header3D_mode(blender::ui::Layout *layout, bContext *C)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);

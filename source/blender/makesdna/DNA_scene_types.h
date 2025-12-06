@@ -1370,6 +1370,8 @@ typedef struct Paint {
 
   /** Enum #ePaintFlags. */
   int flags;
+  /** Enum #ePaintDebugFlags. */
+  int debug_flags;
 
   /**
    * Paint stroke can use up to #PAINT_MAX_INPUT_SAMPLES inputs to smooth the stroke.
@@ -1384,7 +1386,6 @@ typedef struct Paint {
    * See #PaintCurveVisibilityFlags
    */
   int curve_visibility_flags;
-  char _pad[4];
 
   float tile_offset[3];
   struct UnifiedPaintSettings unified_paint_settings;
@@ -2880,6 +2881,11 @@ typedef enum ePaintFlags {
   PAINT_USE_CAVITY_MASK = (1 << 3),
   PAINT_SCULPT_DELAY_UPDATES = (1 << 4),
 } ePaintFlags;
+
+/** #Paint::debug_flags */
+typedef enum ePaintDebugFlags {
+  PAINT_DEBUG_SHOW_BVH_NODES = (1 << 0),
+} ePaintDebugFlags;
 
 /**
  * #Sculpt::flags

@@ -835,8 +835,8 @@ static bool select_grouped_collection(bContext *C, Object *ob)
   }
 
   /* build the menu. */
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Select Collection"), ICON_NONE);
-  ui::Layout &layout = *UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Select Collection"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   for (i = 0; i < collection_count; i++) {
     collection = ob_collections[i];
@@ -845,7 +845,7 @@ static bool select_grouped_collection(bContext *C, Object *ob)
     RNA_string_set(&op_ptr, "collection", collection->id.name + 2);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
   return changed; /* The operator already handle this! */
 }
 

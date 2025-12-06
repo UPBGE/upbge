@@ -226,9 +226,11 @@ static int logic_context(const bContext */*C*/,
 /* add handlers, stuff you only do once or on area/region changes */
 static void logic_main_region_init(wmWindowManager *wm, ARegion *region)
 {
+  using namespace blender::ui;
+
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   ///* own keymaps */
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Logic Bricks Editor", SPACE_LOGIC, 0);
@@ -237,22 +239,23 @@ static void logic_main_region_init(wmWindowManager *wm, ARegion *region)
 
 static void logic_main_region_draw(const bContext *C, ARegion *region)
 {
+  using namespace blender::ui;
   /* draw entirely, view changes should be handled here */
   //	SpaceLogic *slogic= CTX_wm_space_logic(C);
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  ThemeClearColor(TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  view2d_view_ortho(v2d);
 
   logic_buttons((bContext *)C, region);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  view2d_view_restore(C);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  view2d_scrollers_draw(v2d, nullptr);
 }
 
 /* *********************** buttons region ************************ */

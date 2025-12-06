@@ -50,6 +50,8 @@
 #include "interface_intern.hh"
 #include "logic_intern.hh"
 
+using namespace blender::ui;
+
 static wmOperatorStatus logic_properties_toggle_exec(bContext *C, wmOperator */*op*/)
 {
   ScrArea *sa = CTX_wm_area(C);
@@ -108,7 +110,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
     float loc[2];
 
     RNA_float_get_array(&itemptr, "loc", loc);
-    UI_view2d_region_to_view(&region->v2d, (int)loc[0], (int)loc[1], &mcoords[i][0], &mcoords[i][1]);
+    view2d_region_to_view(&region->v2d, (int)loc[0], (int)loc[1], &mcoords[i][0], &mcoords[i][1]);
     i++;
     if (i >= 256)
       break;
@@ -116,14 +118,14 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
   RNA_END;
 
   if (i > 1) {
-    uiBlock *block;
+    Block *block;
     uiLinkLine *line, *nline;
-    uiBut *but = nullptr;
-    for (block = static_cast<uiBlock *>(region->runtime->uiblocks.first); block; block = block->next) {
+    Button *but = nullptr;
+    for (block = static_cast<Block *>(region->runtime->uiblocks.first); block; block = block->next) {
       int i = 0;
       while (i < block->buttons.size()) {
         but = block->buttons[i].get();
-        if (but->type == ButType::Link && but->link) {
+        if (but->type == ButtonType::Link && but->link) {
           for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
             nline = line->next;
 

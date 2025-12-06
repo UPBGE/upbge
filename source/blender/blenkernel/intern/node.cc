@@ -231,6 +231,8 @@ static void ntree_copy_data(Main * /*bmain*/,
   if (ntree_src->geometry_node_asset_traits) {
     ntree_dst->geometry_node_asset_traits = MEM_dupallocN<GeometryNodeAssetTraits>(
         __func__, *ntree_src->geometry_node_asset_traits);
+    ntree_dst->geometry_node_asset_traits->node_tool_idname = BLI_strdup_null(
+        ntree_src->geometry_node_asset_traits->node_tool_idname);
   }
 
   if (ntree_src->nested_node_refs) {
@@ -288,6 +290,7 @@ static void ntree_free_data(ID *id)
   }
 
   if (ntree->geometry_node_asset_traits) {
+    MEM_SAFE_FREE(ntree->geometry_node_asset_traits->node_tool_idname);
     MEM_freeN(ntree->geometry_node_asset_traits);
   }
 
@@ -1195,6 +1198,9 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   ntree->tree_interface.write(writer);
 
   BLO_write_struct(writer, GeometryNodeAssetTraits, ntree->geometry_node_asset_traits);
+  if (ntree->geometry_node_asset_traits) {
+    BLO_write_string(writer, ntree->geometry_node_asset_traits->node_tool_idname);
+  }
 
   BLO_write_struct_array(
       writer, bNestedNodeRef, ntree->nested_node_refs_num, ntree->nested_node_refs);
@@ -1917,6 +1923,10 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
   remove_unsupported_sockets(&ntree->outputs_legacy, nullptr);
 
   BLO_read_struct(reader, GeometryNodeAssetTraits, &ntree->geometry_node_asset_traits);
+  if (ntree->geometry_node_asset_traits) {
+    BLO_read_string(reader, &ntree->geometry_node_asset_traits->node_tool_idname);
+  }
+
   BLO_read_struct_array(
       reader, bNestedNodeRef, ntree->nested_node_refs_num, &ntree->nested_node_refs);
 
@@ -1984,6 +1994,12 @@ void node_update_asset_metadata(bNodeTree &node_tree)
     auto property = idprop::create("geometry_node_asset_traits_flag",
                                    node_tree.geometry_node_asset_traits->flag);
     BKE_asset_metadata_idprop_ensure(asset_data, property.release());
+    if (node_tree.geometry_node_asset_traits->node_tool_idname) {
+      auto property = idprop::create(
+          "node_tool_idname",
+          StringRefNull(node_tree.geometry_node_asset_traits->node_tool_idname));
+      BKE_asset_metadata_idprop_ensure(asset_data, property.release());
+    }
   }
 }
 
@@ -3647,7 +3663,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
 
 /**
  * Type of value storage related with socket is the same.
- * \param socket: Node can have multiple sockets & storages pairs.
+ * \param socket: Node can have multiple sockets & storage pairs.
  */
 static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socket)
 {

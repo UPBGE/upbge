@@ -107,14 +107,14 @@ static int bonedropper_init(bContext *C, wmOperator *op)
   int index_dummy;
   PointerRNA button_ptr;
   PropertyRNA *button_prop;
-  uiBut *button = UI_context_active_but_prop_get(C, &button_ptr, &button_prop, &index_dummy);
+  Button *button = context_active_but_prop_get(C, &button_ptr, &button_prop, &index_dummy);
 
-  if (!button || button->type != ButType::SearchMenu) {
+  if (!button || button->type != ButtonType::SearchMenu) {
     return false;
   }
 
   BoneDropper *bone_dropper = MEM_new<BoneDropper>(__func__);
-  uiButSearch *search_button = (uiButSearch *)button;
+  ButtonSearch *search_button = (ButtonSearch *)button;
   bone_dropper->ptr = button_ptr;
   bone_dropper->prop = button_prop;
   bone_dropper->search_ptr = search_button->rnasearchpoin;
@@ -126,7 +126,7 @@ static int bonedropper_init(bContext *C, wmOperator *op)
 
   op->customdata = bone_dropper;
 
-  bone_dropper->is_undo = UI_but_flag_is_set(button, UI_BUT_UNDO);
+  bone_dropper->is_undo = button_flag_is_set(button, BUT_UNDO);
 
   SpaceType *space_type = BKE_spacetype_from_id(SPACE_VIEW3D);
   ARegionType *area_region_type = BKE_regiontype_from_id(space_type, RGN_TYPE_WINDOW);
@@ -491,7 +491,7 @@ static wmOperatorStatus bonedropper_invoke(bContext *C, wmOperator *op, const wm
   if (bonedropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     WM_event_add_modal_handler(C, op);
@@ -532,17 +532,17 @@ static bool bonedropper_poll(bContext *C)
     return false;
   }
 
-  uiBut *but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy);
+  Button *but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy);
 
   if (!but) {
     return false;
   }
 
-  if (but->type != ButType::SearchMenu || !(but->flag & UI_BUT_VALUE_CLEAR)) {
+  if (but->type != ButtonType::SearchMenu || !(but->flag & BUT_VALUE_CLEAR)) {
     return false;
   }
 
-  uiButSearch *search_but = (uiButSearch *)but;
+  ButtonSearch *search_but = (ButtonSearch *)but;
 
   if (!ELEM(RNA_property_type(prop), PROP_STRING, PROP_POINTER)) {
     return false;
