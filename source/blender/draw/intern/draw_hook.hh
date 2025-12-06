@@ -69,15 +69,15 @@ class HookManager {
    * 
    * @param hmd The specific HookModifierData to extract settings from
    * @param depsgraph The dependency graph
-   * @param eval_hook The evaluated hook object
-   * @param deformed_eval The evaluated deformed object
+   * @param ob_target_eval The evaluated hook target object (or armature if using bone)
+   * @param deform_ob_eval The evaluated object being deformed
    * @param cache Mesh batch cache
    * @param ssbo_in Input position buffer from previous stage
    */
   blender::gpu::StorageBuf *dispatch_deform(const HookModifierData *hmd,
                                             Depsgraph *depsgraph,
-                                            Object *eval_hook,
-                                            Object *deformed_eval,
+                                            Object *ob_target_eval,
+                                            Object *deform_ob_eval,
                                             MeshBatchCache *cache,
                                             blender::gpu::StorageBuf *ssbo_in);
 

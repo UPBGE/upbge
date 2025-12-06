@@ -345,12 +345,12 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
 
 blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
                                                        Depsgraph * /*depsgraph*/,
-                                                       Object *hook_ob_eval,
+                                                       Object *ob_target_eval,
                                                        Object *deform_ob_eval,
                                                        MeshBatchCache *cache,
                                                        blender::gpu::StorageBuf *ssbo_in)
 {
-  if (!hmd || !hook_ob_eval) {
+  if (!hmd || !ob_target_eval) {
     return nullptr;
   }
 
@@ -461,20 +461,20 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   float hook_center[3];
 
   /* Get hook target transform (object or bone) */
-  if (hmd->subtarget[0] != '\0' && hook_ob_eval->pose) {
-    bPoseChannel *pchan = BKE_pose_channel_find_name(hook_ob_eval->pose, hmd->subtarget);
+  if (hmd->subtarget[0] != '\0' && ob_target_eval->pose) {
+    bPoseChannel *pchan = BKE_pose_channel_find_name(ob_target_eval->pose, hmd->subtarget);
     if (pchan) {
       /* Bone target */
-      mul_m4_m4m4(dmat, hook_ob_eval->object_to_world().ptr(), pchan->pose_mat);
+      mul_m4_m4m4(dmat, ob_target_eval->object_to_world().ptr(), pchan->pose_mat);
     }
     else {
       /* Bone not found, use object */
-      copy_m4_m4(dmat, hook_ob_eval->object_to_world().ptr());
+      copy_m4_m4(dmat, ob_target_eval->object_to_world().ptr());
     }
   }
   else {
     /* Object target */
-    copy_m4_m4(dmat, hook_ob_eval->object_to_world().ptr());
+    copy_m4_m4(dmat, ob_target_eval->object_to_world().ptr());
   }
 
   /* Compute final transformation: world_to_object * hook_world * parentinv
