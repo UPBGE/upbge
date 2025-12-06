@@ -58,7 +58,7 @@ struct blender::draw::HookManager::Impl {
 
   struct MeshStaticData {
     std::vector<float> vgroup_weights;      /* per-vertex weight (0.0-1.0) */
-    std::vector<float> falloff_curve_lut;   /* curve falloff lookup table (256 samples) */
+    std::vector<float> falloff_curve_lut;   /* curve falloff lookup table (1024 samples) */
     int verts_num = 0;
 
     Object *hook_ob = nullptr;
@@ -90,13 +90,25 @@ static const char *hook_compute_src = R"GLSL(
 #define HOOK_FALLOFF_SPHERE 7
 #define HOOK_FALLOFF_INVSQUARE 8
 
-/* Evaluate falloff curve using precomputed LUT */
+/* Evaluate falloff curve using precomputed LUT with linear interpolation */
 float eval_curve_falloff(float t) {
   if (falloff_curve_lut.length() == 0) {
     return t;
   }
-  int idx = int(clamp(t, 0.0, 1.0) * 255.0);
-  return falloff_curve_lut[idx];
+  
+  t = clamp(t, 0.0, 1.0);
+  int lut_size = int(falloff_curve_lut.length());
+  
+  /* Map t to LUT index with sub-pixel precision */
+  float idx_f = t * float(lut_size - 1);
+  int idx0 = int(floor(idx_f));
+  int idx1 = min(idx0 + 1, lut_size - 1);
+  float frac = idx_f - float(idx0);
+  
+  /* Linear interpolation between two LUT samples for smooth curve */
+  float v0 = falloff_curve_lut[idx0];
+  float v1 = falloff_curve_lut[idx1];
+  return mix(v0, v1, frac);
 }
 
 /* Compute hook falloff factor based on distance */
@@ -162,12 +174,7 @@ void main() {
   if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
     vgroup_weight = vgroup_weights[v];
   }
-
-  /* Early exit if weight is negligible */
-  if (vgroup_weight < 1e-6) {
-    deformed_positions[v] = co_in;
-    return;
-  }
+  /* Else: no vgroup (length==0) or out-of-bounds (dummy buffer) → default weight = 1.0 */
 
   /* Compute falloff factor based on distance */
   float fac;
@@ -176,19 +183,26 @@ void main() {
     float len_sq;
     
     if (use_uniform) {
-      /* Transform to uniform space for distance calculation 
-       * Note: mat_uniform is uploaded as mat4, but we only use upper-left 3x3 */
-      vec3 co_uniform = (mat_uniform * vec4(co, 1.0)).xyz;
+      /* Transform vertex to uniform space for distance calculation.
+       * mat_uniform is a 3x3 matrix (uploaded as mat4 for alignment).
+       * Both hook_center and co must be in the same uniform space.
+       * CPU does: co_uniform = mat_uniform * co; dist = |cent - co_uniform|² */
+      vec3 co_uniform = mat3(mat_uniform) * co;  // Extract 3x3 and apply to co
       len_sq = dot(hook_center - co_uniform, hook_center - co_uniform);
     }
     else {
       len_sq = dot(hook_center - co, hook_center - co);
     }
-    
     fac = hook_falloff_factor(len_sq);
   }
   else {
     fac = force;
+  }
+
+  if (vgroup_weight == 0.0) {
+    /* Early exit if weight is zero (match CPU behavior) */
+    deformed_positions[v] = co_in;
+    return;
   }
 
   /* Apply hook transformation if factor is non-zero */
@@ -255,6 +269,11 @@ uint32_t HookManager::compute_hook_hash(const Mesh *mesh_orig, const HookModifie
     hash = BLI_hash_string(hmd->name);
   }
 
+  /* Hash curve changed_timestamp to detect curve edits */
+  if (hmd->curfalloff) {
+    hash = BLI_hash_int_2d(hash, hmd->curfalloff->changed_timestamp);
+  }
+
   /* Note: force, falloff, cent, parentinv are runtime uniforms, not hashed */
 
   return hash;
@@ -311,13 +330,14 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
     }
   }
 
-  /* Extract falloff curve LUT (256 samples) if using curve falloff */
+  /* Extract falloff curve LUT (1024 samples for better precision) if using curve falloff */
   msd.falloff_curve_lut.clear();
   if (hmd->falloff_type == eHook_Falloff_Curve && hmd->curfalloff) {
     BKE_curvemapping_init(hmd->curfalloff);
-    msd.falloff_curve_lut.resize(256);
-    for (int i = 0; i < 256; i++) {
-      float t = float(i) / 255.0f;
+    const int LUT_SIZE = 1024;
+    msd.falloff_curve_lut.resize(LUT_SIZE);
+    for (int i = 0; i < LUT_SIZE; i++) {
+      float t = float(i) / float(LUT_SIZE - 1);
       msd.falloff_curve_lut[i] = BKE_curvemapping_evaluateF(hmd->curfalloff, 0, t);
     }
   }
@@ -391,11 +411,13 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
     }
   }
   else {
-    /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
+    /* No vertex group: create minimal 1-float dummy buffer.
+     * Value MUST be 1.0f (not 0.0f)! See armature_skinning.cc for detailed explanation.
+     * TL;DR: vertex 0 reads vgroup_weights[0], needs 1.0 for full effect when no vgroup. */
     if (!ssbo_vgroup) {
       ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
-        float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
+        float dummy = 1.0f;
         GPU_storagebuf_update(ssbo_vgroup, &dummy);
       }
     }

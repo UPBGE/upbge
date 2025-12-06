@@ -46,11 +46,15 @@ class HookManager {
    * Prepare CPU-side static resources (vertex group weights, falloff curve LUT).
    * Can be called from extraction phase (non-GL thread).
    * 
+   * Uses simple property comparison to detect changes instead of complex hashing.
+   * Compares: curfalloff pointer, force, falloff, falloff_type, and flags.
+   * This automatically detects curve edits (pointer changes when curve is modified).
+   * 
    * @param hmd The specific HookModifierData to extract settings from
    * @param hook_ob The hook object (or armature if using bone)
    * @param deformed_ob The object being deformed
    * @param orig_mesh The original mesh data
-   * @param pipeline_hash Hash for change detection
+   * @param pipeline_hash Unused (kept for API compatibility - now uses direct property comparison)
    */
   void ensure_static_resources(const HookModifierData *hmd,
                                Object *hook_ob,
