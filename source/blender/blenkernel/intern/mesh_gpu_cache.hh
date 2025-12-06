@@ -32,18 +32,10 @@ class MeshGPUCacheManager {
 
   /* Global frees. */
   void free_all();
-  void free_all_armature_caches();
 
   /* Per-mesh operations. */
   void free_for_mesh(struct Mesh *mesh);
   MeshGpuInternalResources *mesh_internal_resources_ensure(struct Mesh *mesh);
-
-  /* Armature helpers. */
-  blender::gpu::StorageBuf *armature_internal_ssbo_ensure(struct Object *arm,
-                                                          const std::string &key,
-                                                          size_t size);
-  blender::gpu::StorageBuf *armature_internal_ssbo_get(struct Object *arm, const std::string &key);
-  void armature_internal_ssbo_release(struct Object *arm, const std::string &key);
 
   /* Ocean helpers (INTERNAL SSBOs ONLY, not exposed to Python wrappers). */
   blender::gpu::StorageBuf *ocean_internal_ssbo_ensure(struct Ocean *ocean,
@@ -60,7 +52,6 @@ class MeshGPUCacheManager {
   std::unordered_map<const Mesh *, MeshGpuData> &mesh_cache();
   std::vector<MeshGpuData> &orphans();
   std::mutex &mutex();
-  std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources> &armature_resources();
 
   /* Flush orphans while GL context is active. */
   void flush_orphans();
@@ -78,8 +69,6 @@ class MeshGPUCacheManager {
   std::unordered_map<const Mesh *, MeshGpuData> g_mesh_data_cache_;
   std::vector<MeshGpuData> g_mesh_data_orphans_;
   std::mutex g_mesh_cache_mutex_;
-  std::unordered_map<const Object *, blender::bke::MeshGpuInternalResources>
-      g_armature_gpu_resources_;
 
   /* Ocean: map owner -> { key -> (ssbo, capacity_bytes) } */
   struct InternalSSBOEntry {

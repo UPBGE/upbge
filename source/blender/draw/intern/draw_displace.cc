@@ -690,10 +690,14 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     return nullptr;
   }
 
-  /* Create unique buffer keys per modifier instance using persistent_uid */
-  char uid_str[16];
-  snprintf(uid_str, sizeof(uid_str), "%u", dmd->modifier.persistent_uid);
-  const std::string key_prefix = std::string("displace_") + uid_str + "_";
+  /* GPU setup successful! Clear pending flag. */
+  if (msd.pending_gpu_setup) {
+    msd.pending_gpu_setup = false;
+    msd.gpu_setup_attempts = 0;
+  }
+
+  /* Create unique buffer keys per modifier instance using composite key hash */
+  const std::string key_prefix = "displace_" + std::to_string(key.hash()) + "_";
   const std::string key_vgroup = key_prefix + "vgroup_weights";
   const std::string key_out = key_prefix + "output";
 

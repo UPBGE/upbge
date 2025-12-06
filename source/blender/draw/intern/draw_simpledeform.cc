@@ -510,11 +510,9 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
     return nullptr;
   }
 
-  /* Create unique buffer keys per modifier instance using persistent_uid
+  /* Create unique buffer keys per modifier instance using composite key hash
    * to avoid collisions when multiple SimpleDeform modifiers are on the same mesh */
-  char uid_str[16];
-  snprintf(uid_str, sizeof(uid_str), "%u", smd->modifier.persistent_uid);
-  const std::string key_prefix = std::string("simpledeform_") + uid_str + "_";
+  const std::string key_prefix = "simpledeform_" + std::to_string(key.hash()) + "_";
   const std::string key_vgroup = key_prefix + "vgroup_weights";
   const std::string key_out = key_prefix + "output";
 

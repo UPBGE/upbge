@@ -1025,102 +1025,6 @@ void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key)
     d.internal_resources->ssbo_map.remove(key);
   }
 }
-/* Armature resource helpers. These are simple wrappers reusing MeshGpuInternalResources so we
- * can store SSBOs/shaders keyed by armature object pointer. */
-blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_ensure(Object *arm,
-                                                                const std::string &key,
-                                                                size_t size)
-{
-  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
-  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
-  auto &res = arm_res_map[arm];
-  auto *entry_ptr = res.ssbo_map.lookup_ptr(key);
-  if (entry_ptr) {
-    entry_ptr->refcount += 1;
-    return entry_ptr->buffer;
-  }
-  if (!GPU_context_active_get()) {
-    return nullptr;
-  }
-  blender::gpu::StorageBuf *buf = GPU_storagebuf_create(size);
-  if (!buf) {
-    return nullptr;
-  }
-  res.ssbo_map.add_new(key, {buf, 1});
-  res.ssbos.append(buf);
-  return buf;
-}
-
-blender::gpu::StorageBuf *BKE_armature_gpu_internal_ssbo_get(Object *arm, const std::string &key)
-{
-  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
-  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
-  auto it = arm_res_map.find(arm);
-  if (it == arm_res_map.end()) {
-    return nullptr;
-  }
-  auto &res = it->second;
-  auto *entry_ptr = res.ssbo_map.lookup_ptr(key);
-  if (!entry_ptr) {
-    return nullptr;
-  }
-  return entry_ptr->buffer;
-}
-
-void BKE_armature_gpu_internal_ssbo_release(Object *arm, const std::string &key)
-{
-  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
-  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
-  auto it = arm_res_map.find(arm);
-  if (it == arm_res_map.end()) {
-    return;
-  }
-  auto &res = it->second;
-  auto *entry_ptr = res.ssbo_map.lookup_ptr(key);
-  if (!entry_ptr) {
-    return;
-  }
-  entry_ptr->refcount -= 1;
-  if (entry_ptr->refcount <= 0) {
-    if (entry_ptr->buffer && GPU_context_active_get()) {
-      GPU_storagebuf_free(entry_ptr->buffer);
-    }
-    /* remove from vector if present */
-    for (int i = 0; i < res.ssbos.size(); ++i) {
-      if (res.ssbos[i] == entry_ptr->buffer) {
-        res.ssbos.remove(i);
-        break;
-      }
-    }
-    res.ssbo_map.remove(key);
-  }
-}
-
-void BKE_armature_gpu_internal_free_all_armature_caches()
-{
-  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
-  auto &arm_res_map = MeshGPUCacheManager::get().armature_resources();
-  if (GPU_context_active_get()) {
-    for (auto &kv : arm_res_map) {
-      auto &res = kv.second;
-      for (auto *ssbo : res.ssbos) {
-        if (ssbo) {
-          GPU_storagebuf_free(ssbo);
-        }
-      }
-      for (auto *sh : res.shaders) {
-        if (sh) {
-          GPU_shader_free(sh);
-        }
-      }
-    }
-    arm_res_map.clear();
-  }
-  else {
-    /* Move to orphans map? For simplicity, rely on GPU module cleanup. */
-    arm_res_map.clear();
-  }
-}
 
 void BKE_mesh_gpu_free_all_caches()
 {
@@ -1187,19 +1091,12 @@ void BKE_mesh_gpu_free_all_caches()
         MeshGPUCacheManager::get().orphans().push_back(std::move(kv.second));
       }
       MeshGPUCacheManager::get().mesh_cache().clear();
-
-      /* Armature resources: rely on GPU module cleanup or later explicit free. Clear map to drop
-       * references. */
-      MeshGPUCacheManager::get().armature_resources().clear();
     }
   }
 
   /* Call free functions that may lock g_mesh_cache_mutex. Do this outside the previous lock scope
    * to avoid deadlocks. */
   if (has_ctx) {
-    /* free armature scoped resources too */
-    BKE_armature_gpu_internal_free_all_armature_caches();
-
     /* Flush orphans now that context is active. */
     MeshGPUCacheManager::get().flush_orphans();
   }

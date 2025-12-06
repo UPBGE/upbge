@@ -377,11 +377,9 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     return nullptr;
   }
 
-  /* Create unique buffer keys per modifier instance using persistent_uid
+  /* Create unique buffer keys per modifier instance using composite key hash
    * to avoid collisions when multiple Lattice modifiers are on the same mesh */
-  char uid_str[16];
-  snprintf(uid_str, sizeof(uid_str), "%u", lmd->modifier.persistent_uid);
-  const std::string key_prefix = std::string("lattice_") + uid_str + "_";
+  const std::string key_prefix = "lattice_" + std::to_string(key.hash()) + "_";
   const std::string key_cp = key_prefix + "control_points";
   const std::string key_mat = key_prefix + "latmat";
   const std::string key_vgroup = key_prefix + "vgroup_weights";
