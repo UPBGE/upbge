@@ -332,13 +332,20 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
 
   /* Extract falloff curve LUT (1024 samples for better precision) if using curve falloff */
   msd.falloff_curve_lut.clear();
-  if (hmd->falloff_type == eHook_Falloff_Curve && hmd->curfalloff) {
-    BKE_curvemapping_init(hmd->curfalloff);
-    const int LUT_SIZE = 1024;
-    msd.falloff_curve_lut.resize(LUT_SIZE);
-    for (int i = 0; i < LUT_SIZE; i++) {
-      float t = float(i) / float(LUT_SIZE - 1);
-      msd.falloff_curve_lut[i] = BKE_curvemapping_evaluateF(hmd->curfalloff, 0, t);
+  if (hmd->falloff_type == eHook_Falloff_Curve) {
+    if (hmd->curfalloff == nullptr) {
+      /* Should never happen, but bad lib linking could cause it (match CPU behavior) */
+      /* Note: We cannot modify hmd here (const), so just skip curve setup */
+      /* The shader will use linear fallback (curve LUT will be empty) */
+    }
+    else {
+      BKE_curvemapping_init(hmd->curfalloff);
+      const int LUT_SIZE = 1024;
+      msd.falloff_curve_lut.resize(LUT_SIZE);
+      for (int i = 0; i < LUT_SIZE; i++) {
+        float t = float(i) / float(LUT_SIZE - 1);
+        msd.falloff_curve_lut[i] = BKE_curvemapping_evaluateF(hmd->curfalloff, 0, t);
+      }
     }
   }
 }
