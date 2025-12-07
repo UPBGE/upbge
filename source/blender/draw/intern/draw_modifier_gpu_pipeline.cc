@@ -222,6 +222,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
     case ModifierGPUStageType::HOOK:
       HookManager::instance().invalidate_all(mesh_owner);
       break;
+    case ModifierGPUStageType::DISPLACE:
+      DisplaceManager::instance().invalidate_all(mesh_owner);
+      break;
     default:
       break;
   }
