@@ -23,11 +23,15 @@
 
 #include <algorithm>
 
+#include "BKE_context.hh"
+#include "BKE_effect.h"
 #include "BKE_object.hh"
 #include "BLI_bounds.hh"
+#include "BLI_math_vector.h"
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_rigidbody_types.h"
+#include "MEM_guardedalloc.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
@@ -378,6 +382,8 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
       m_linearDeactivationThreshold(0.8f),
       m_angularDeactivationThreshold(1.0f),
       m_contactBreakingThreshold(0.02f),
+      m_blenderScene(nullptr),
+      m_fallbackEffectorWeights(nullptr),
       m_solver(nullptr),
       m_filterCallback(nullptr),
       m_ghostPairCallback(nullptr),
@@ -730,6 +736,114 @@ void CcdPhysicsEnvironment::SimulationSubtickCallback(btScalar timeStep)
   }
 }
 
+Depsgraph *CcdPhysicsEnvironment::GetDepsgraph()
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  if (engine == nullptr) {
+    return nullptr;
+  }
+
+  bContext *C = engine->GetContext();
+  if (C == nullptr) {
+    return nullptr;
+  }
+
+  return CTX_data_ensure_evaluated_depsgraph(C);
+}
+
+EffectorWeights *CcdPhysicsEnvironment::GetEffectorWeights()
+{
+  if (m_blenderScene == nullptr) {
+    return nullptr;
+  }
+
+  RigidBodyWorld *rbw = m_blenderScene->rigidbody_world;
+  EffectorWeights *weights = rbw ? rbw->effector_weights : nullptr;
+
+  if (weights == nullptr) {
+    if (m_fallbackEffectorWeights == nullptr) {
+      m_fallbackEffectorWeights = BKE_effector_add_weights(nullptr);
+    }
+    weights = m_fallbackEffectorWeights;
+  }
+
+  return weights;
+}
+
+void CcdPhysicsEnvironment::ApplyEffectorForces()
+{
+  if (m_blenderScene == nullptr) {
+    return;
+  }
+
+  Depsgraph *depsgraph = GetDepsgraph();
+  if (depsgraph == nullptr) {
+    return;
+  }
+
+  EffectorWeights *effector_weights = GetEffectorWeights();
+  if (effector_weights == nullptr) {
+    return;
+  }
+
+  ListBase *effectors = BKE_effectors_create(depsgraph, nullptr, nullptr, effector_weights, false);
+  if (effectors == nullptr) {
+    return;
+  }
+
+  for (CcdPhysicsController *ctrl : m_controllers) {
+    if (ctrl->GetSoftBody()) {
+      continue;
+    }
+
+    btRigidBody *body = ctrl->GetRigidBody();
+    if (body == nullptr || body->isStaticObject() || body->isKinematicObject() ||
+        btFuzzyZero(body->getInvMass())) {
+      continue;
+    }
+
+    KX_ClientObjectInfo *info = (KX_ClientObjectInfo *)ctrl->GetNewClientInfo();
+    if (info == nullptr) {
+      continue;
+    }
+
+    KX_GameObject *gameobj = KX_GameObject::GetClientObject(info);
+    if (gameobj == nullptr) {
+      continue;
+    }
+
+    Object *blenderobj = gameobj->GetBlenderObject();
+    if (blenderobj == nullptr) {
+      continue;
+    }
+
+    if (blenderobj->pd && blenderobj->pd->forcefield != PFIELD_NULL) {
+      continue;
+    }
+
+    const btTransform &xform = body->getCenterOfMassTransform();
+    const btVector3 &origin = xform.getOrigin();
+    const btVector3 &linvel = body->getLinearVelocity();
+
+    float eff_loc[3] = {origin.getX(), origin.getY(), origin.getZ()};
+    float eff_vel[3] = {linvel.getX(), linvel.getY(), linvel.getZ()};
+
+    EffectedPoint epoint;
+    pd_point_from_loc(m_blenderScene, eff_loc, eff_vel, 0, &epoint);
+
+    float eff_force[3] = {0.0f, 0.0f, 0.0f};
+
+    BKE_effectors_apply(effectors, nullptr, effector_weights, &epoint, eff_force, nullptr, nullptr);
+
+    if (!is_zero_v3(eff_force)) {
+      body->activate(true);
+      body->applyCentralForce(btVector3(eff_force[0], eff_force[1], eff_force[2]));
+    }
+  }
+
+  BKE_effectors_free(effectors);
+}
+
 bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, float interval)
 {
   std::set<CcdPhysicsController *>::iterator it;
@@ -742,6 +856,8 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
   for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
     (*it)->SynchronizeMotionStates(timeStep);
   }
+
+  ApplyEffectorForces();
 
   float subStep = timeStep / float(m_numTimeSubSteps);
   
@@ -2073,6 +2189,10 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 
   if (nullptr != m_cullingCache)
     delete m_cullingCache;
+
+  if (m_fallbackEffectorWeights) {
+    MEM_freeN(m_fallbackEffectorWeights);
+  }
 }
 
 btTypedConstraint *CcdPhysicsEnvironment::GetConstraintById(int constraintId)
@@ -2877,6 +2997,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   };
   CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(
       solverTypeTable[blenderscene->gm.solverType], false);
+  ccdPhysEnv->m_blenderScene = blenderscene;
   ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
   ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
   ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
