@@ -36,6 +36,8 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 
+#include "DNA_object_force_types.h"
+
 #define KX_MAX_IPO_CHANNELS 19  // note- [0] is not used
 
 class KX_IpoController : public SG_Controller {
@@ -82,6 +84,21 @@ class KX_IpoController : public SG_Controller {
   /** A reference to the original game object. */
   class KX_GameObject *m_game_object;
 
+  /* Force field animated channels (RNA: Object.field.*). */
+  float m_field_strength;
+  float m_field_flow;
+  float m_field_noise;
+  float m_field_falloff_power;
+  float m_field_distance_min;
+  float m_field_distance_max;
+
+  bool m_field_strength_active;
+  bool m_field_flow_active;
+  bool m_field_noise_active;
+  bool m_field_falloff_power_active;
+  bool m_field_distance_min_active;
+  bool m_field_distance_max_active;
+
  public:
   KX_IpoController();
 
@@ -103,6 +120,40 @@ class KX_IpoController : public SG_Controller {
   KX_IpoTransform &GetIPOTransform()
   {
     return m_ipo_xform;
+  }
+
+  /* Field channel helpers */
+  void SetFieldInitial(const PartDeflect *pd);
+  void SetFieldStrengthActive(bool value);
+  void SetFieldFlowActive(bool value);
+  void SetFieldNoiseActive(bool value);
+  void SetFieldFalloffPowerActive(bool value);
+  void SetFieldDistanceMinActive(bool value);
+  void SetFieldDistanceMaxActive(bool value);
+
+  float *GetFieldStrengthPtr()
+  {
+    return &m_field_strength;
+  }
+  float *GetFieldFlowPtr()
+  {
+    return &m_field_flow;
+  }
+  float *GetFieldNoisePtr()
+  {
+    return &m_field_noise;
+  }
+  float *GetFieldFalloffPowerPtr()
+  {
+    return &m_field_falloff_power;
+  }
+  float *GetFieldDistanceMinPtr()
+  {
+    return &m_field_distance_min;
+  }
+  float *GetFieldDistanceMaxPtr()
+  {
+    return &m_field_distance_max;
   }
 
   void AddInterpolator(KX_IInterpolator *interp);
