@@ -7,10 +7,6 @@
 
 #include "draw_shapekeys_skinning.hh"
 
-#include <map>
-#include <string>
-#include <vector>
-
 #include "BLI_hash.h"
 #include "BLI_map.hh"
 #include "BLI_threads.h"
@@ -59,12 +55,6 @@ struct blender::draw::ShapeKeySkinningManager::Impl {
 
 static const char *shapekey_compute_src = R"GLSL(
 /* compute shader: out_pos[v] = rest_pos[v] + sum_k weights[k] * deltas[k*V + v] */
-//uniform int u_vert_count;
-//uniform int u_key_count;
-//layout(std430, binding = 0) buffer RestPos { vec4 rest_pos[]; };
-//layout(std430, binding = 1) buffer Deltas { vec4 deltas[]; }; /* flattened: k * V + v */
-//layout(std430, binding = 2) buffer Weights { float weights[]; }; /* per key */
-//layout(std430, binding = 3) buffer OutPos { vec4 out_pos[]; };
 
 void main() {
   uint v = gl_GlobalInvocationID.x;
