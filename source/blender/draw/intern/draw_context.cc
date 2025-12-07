@@ -1126,6 +1126,35 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
   last_sync_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
+static void cleanup_gpu_skinning_entries(
+    std::unordered_map<Mesh *, MeshProcessEntry> &map)
+{
+  /* Cleanup phase: Remove entries for meshes no longer needing GPU processing */
+  for (auto it = map.begin(); it != map.end();) {
+    Mesh *mesh_owner = it->first;
+    auto &entry = it->second;
+
+    /* Check if mesh still needs GPU processing */
+    const bool still_running = (mesh_owner &&
+                               mesh_owner->is_running_gpu_animation_playback != 0);
+
+    if (!still_running) {
+      /* GPU no longer needed - free pipeline and remove entry */
+      if (G.debug & G_DEBUG && entry.gpu_pipeline) {
+        printf("Cleaning up pipeline for mesh '%s' (GPU disabled)\n",
+               (mesh_owner ? mesh_owner->id.name + 2 : "Unknown"));
+      }
+      entry.gpu_pipeline.reset();
+      it = map.erase(it);
+    }
+    else {
+      /* Clear eval_obj for next frame (will be set again in register_meshes_to_skin) */
+      entry.eval_obj_for_skinning = nullptr;
+      ++it;
+    }
+  }
+}
+
 static void do_gpu_skinning(DRWContext &draw_ctx)
 {
   using namespace blender::draw;
@@ -1143,8 +1172,14 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
   for (auto &it : map) {
     Mesh *mesh_owner = it.first;
     auto &entry = it.second;
+
+    /* Skip if mesh no longer needs GPU processing */
+    if (!mesh_owner || mesh_owner->is_running_gpu_animation_playback == 0) {
+      continue;
+    }
+
     Object *eval_obj = entry.eval_obj_for_skinning;
-    if (!mesh_owner || !eval_obj) {
+    if (!eval_obj) {
       continue;
     }
 
@@ -1178,8 +1213,8 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       }
       continue;
     }
+
     /* Build GPU modifier pipeline from object's modifier stack */
-    /* Use persistent pipeline from cache to preserve pipeline_hash_ across frames */
     if (!entry.gpu_pipeline) {
       if (G.debug & G_DEBUG) {
         printf("CREATING NEW PIPELINE for mesh '%s'\n", (mesh_owner->id.name + 2));
@@ -1194,6 +1229,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       }
     }
     GPUModifierPipeline &pipeline = *entry.gpu_pipeline;
+
     if (!build_gpu_modifier_pipeline(*eval_obj, *mesh_owner, pipeline)) {
       /* No GPU modifiers to execute */
       continue;
@@ -1233,10 +1269,8 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     BKE_mesh_gpu_scatter_to_corners(
         depsgraph, eval_obj, caller_bindings, config_fn, post_bind_fn, mesh_eval->corners_num);
   }
-  /* Clear skinning entries for next frame but keep allocation for reuse. */
-  for (auto &it : map) {
-    it.second.eval_obj_for_skinning = nullptr;
-  }
+
+  cleanup_gpu_skinning_entries(map);
 }
 
 void DRWContext::engines_draw_scene()

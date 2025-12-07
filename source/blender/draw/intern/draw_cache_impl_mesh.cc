@@ -1256,29 +1256,34 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
     return;
   }
 
-  /* Only register actual GPU work when allowed by the decision. */
+  /* Compute GPU processing need */
   const bool need_gpu_process = decision.allow_gpu &&
                                 (decision.key_requests_gpu || decision.modifier_requests_gpu ||
                                  decision.python_requests_gpu);
 
   if (need_gpu_process) {
+    /* GPU processing needed: Create entry and mark mesh */
     if (dd->meshes_to_process == nullptr) {
       dd->meshes_to_process = new std::unordered_map<Mesh *, MeshProcessEntry>();
     }
-    auto &map = *dd->meshes_to_process;
-    auto &entry = map[orig_mesh];
-    if (entry.eval_obj_for_skinning == nullptr) {
-      entry.eval_obj_for_skinning = &ob;
-    }
+    auto &entry = (*dd->meshes_to_process)[orig_mesh];
+    entry.eval_obj_for_skinning = &ob;  /* Always update */
     entry.playback_refused = std::nullopt;
 
-    /* Mark mesh as running GPU animation playback since we registered work. */
+    /* Mark mesh as running GPU animation playback */
     orig_mesh->is_running_gpu_animation_playback = 1;
     mesh.is_running_gpu_animation_playback = 1;
   }
   else {
+    /* GPU not needed: just clear the flags
+     * Cleanup will happen in do_gpu_skinning() */
+    orig_mesh->is_running_gpu_animation_playback = 0;
+    orig_mesh->is_python_request_gpu = 0;
+    mesh.is_running_gpu_animation_playback = 0;
+    mesh.is_python_request_gpu = 0;
+
     if (decision.refused_reason) {
-      /* Log refusal immediately for diagnostics. */
+      /* Log refusal for diagnostics */
       bool topology_mismatch = (decision.refused_reason == PlaybackRefuseReason::TopologyMismatch);
       bool topology_modifier_present = (decision.refused_reason ==
                                         PlaybackRefuseReason::TopologyModifier);
@@ -1291,26 +1296,6 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
                          decision.modifier_requests_gpu,
                          decision.key_requests_gpu);
     }
-
-    /* Clean up: free pipeline and remove entry if GPU processing is refused */
-    if (dd->meshes_to_process) {
-      auto &map = *dd->meshes_to_process;
-      auto it = map.find(orig_mesh);
-      if (it != map.end()) {
-        if (it->second.gpu_pipeline) {
-          if (0) {
-            printf("Freeing pipeline for mesh '%s' (GPU refused)\n", (orig_mesh->id.name + 2));
-          }
-          it->second.gpu_pipeline.reset();
-        }
-        map.erase(it);
-      }
-    }
-    /* Clear GPU playback flags */
-    orig_mesh->is_running_gpu_animation_playback = 0;
-    orig_mesh->is_python_request_gpu = 0;
-    mesh.is_running_gpu_animation_playback = 0;
-    mesh.is_python_request_gpu = 0;
   }
 }
 
