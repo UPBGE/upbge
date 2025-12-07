@@ -10,8 +10,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_vector.hh"
 
-#include <algorithm>  // For std::clamp
-
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
@@ -28,8 +26,6 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 using namespace blender::draw;
 

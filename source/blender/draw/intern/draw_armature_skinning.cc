@@ -83,7 +83,6 @@ struct MeshModifierKey {
     int verts_num = 0;
     int bones = 0;  /* Number of deformable bones in armature (cached to avoid recounting) */
 
-    /* DO NOT store GPU pointers here; resources are owned by BKE_mesh_gpu. */
     Object *arm = nullptr;
     Object *deformed = nullptr;
 

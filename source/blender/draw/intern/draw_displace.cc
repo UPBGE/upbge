@@ -10,8 +10,6 @@
 
 #include "draw_displace.hh"
 
-#include <cstring>  /* For strstr() */
-
 #include "BLI_hash.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
