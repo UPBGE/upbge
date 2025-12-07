@@ -57,9 +57,11 @@ struct blender::draw::HookManager::Impl {
   };
 
   struct MeshStaticData {
-    std::vector<float> vgroup_weights;      /* per-vertex weight (0.0-1.0) */
-    std::vector<float> falloff_curve_lut;   /* curve falloff lookup table (1024 samples) */
+    std::vector<float> vgroup_weights;    /* per-vertex weight (0.0-1.0) */
+    std::vector<float> falloff_curve_lut; /* curve falloff lookup table (1024 samples) */
+    std::vector<uint32_t> vertex_bitmap;  /* bitmap for indexar (1 bit per vertex) */
     int verts_num = 0;
+    bool has_indices = false; /* true if using indexar, false if using vgroup */
 
     Object *hook_ob = nullptr;
     Object *deformed = nullptr;
@@ -161,15 +163,42 @@ float hook_falloff_factor(float len_sq) {
 }
 
 void main() {
-  uint v = gl_GlobalInvocationID.x;
-  if (v >= deformed_positions.length()) {
+uint v = gl_GlobalInvocationID.x;
+if (v >= deformed_positions.length()) {
+  return;
+}
+
+vec4 co_in = input_positions[v];
+  
+/* Check if using explicit vertex indices (indexar mode) */
+if (use_indices) {
+  /* O(1) bitmap check: 32 vertices per uint32 (1 bit per vertex)
+   * Bitmap stores bit flags where bit N = 1 means vertex N is in the list */
+  uint word_idx = v / 32u;
+  uint bit_idx = v % 32u;
+  
+  /* Bounds check for bitmap buffer */
+  if (word_idx < vertex_bitmap.length()) {
+    uint word = vertex_bitmap[word_idx];
+    bool vertex_is_in_list = ((word >> bit_idx) & 1u) != 0u;
+    
+    /* If vertex not in list, passthrough unchanged */
+    if (!vertex_is_in_list) {
+      deformed_positions[v] = co_in;
+      return;
+    }
+  }
+  else {
+    /* Out of bitmap range, passthrough */
+    deformed_positions[v] = co_in;
     return;
   }
+}
+  
+/* Rest of the shader: Apply hook to this vertex */
+vec3 co = co_in.xyz;
 
-  vec4 co_in = input_positions[v];
-  vec3 co = co_in.xyz;
-
-  /* Get vertex group weight */
+/* Get vertex group weight */
   float vgroup_weight = 1.0;
   if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
     vgroup_weight = vgroup_weights[v];
@@ -244,7 +273,7 @@ uint32_t HookManager::compute_hook_hash(const Mesh *mesh_orig, const HookModifie
   }
 
   uint32_t hash = 0;
-  
+
   /* Hash vertex count */
   hash = BLI_hash_int_2d(hash, mesh_orig->verts_num);
 
@@ -280,10 +309,10 @@ uint32_t HookManager::compute_hook_hash(const Mesh *mesh_orig, const HookModifie
 }
 
 void HookManager::ensure_static_resources(const HookModifierData *hmd,
-                                         Object *hook_ob,
-                                         Object *deform_ob,
-                                         Mesh *orig_mesh,
-                                         uint32_t pipeline_hash)
+                                          Object *hook_ob,
+                                          Object *deform_ob,
+                                          Mesh *orig_mesh,
+                                          uint32_t pipeline_hash)
 {
   if (!orig_mesh || !hmd) {
     return;
@@ -311,20 +340,44 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
     msd.gpu_setup_attempts = 0;
   }
 
-  /* Extract vertex group weights */
-  msd.vgroup_weights.clear();
-  if (hmd->name[0] != '\0') {
-    const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, hmd->name);
-    if (defgrp_index != -1) {
-      blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
-      if (!dverts.is_empty()) {
-        msd.vgroup_weights.resize(orig_mesh->verts_num, 0.0f);
-        const bool invert_vgroup = (hmd->flag & MOD_HOOK_INVERT_VGROUP) != 0;
-        
-        for (int v = 0; v < orig_mesh->verts_num; ++v) {
-          const MDeformVert &dvert = dverts[v];
-          float weight = BKE_defvert_find_weight(&dvert, defgrp_index);
-          msd.vgroup_weights[v] = invert_vgroup ? 1.0f - weight : weight;
+  /* Check if using explicit vertex indices (indexar) or vertex group */
+  msd.has_indices = (hmd->indexar != nullptr && hmd->indexar_num > 0);
+
+  if (msd.has_indices) {
+    /* Build vertex bitmap from explicit indices (O(1) lookup on GPU)
+     * Bitmap stores 32 vertices per uint32 (1 bit per vertex) */
+    msd.vertex_bitmap.clear();
+    const int bitmap_size = (orig_mesh->verts_num + 31) / 32;
+    msd.vertex_bitmap.resize(bitmap_size, 0);
+
+    for (int i = 0; i < hmd->indexar_num; i++) {
+      const int idx = hmd->indexar[i];
+      if (idx >= 0 && idx < orig_mesh->verts_num) {
+        const int word = idx / 32;
+        const int bit = idx % 32;
+        msd.vertex_bitmap[word] |= (1u << bit);
+      }
+    }
+    /* Clear vgroup weights (indexar takes priority) */
+    msd.vgroup_weights.clear();
+  }
+  else {
+    /* Extract vertex group weights */
+    msd.vertex_bitmap.clear();
+    msd.vgroup_weights.clear();
+    if (hmd->name[0] != '\0') {
+      const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, hmd->name);
+      if (defgrp_index != -1) {
+        blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
+        if (!dverts.is_empty()) {
+          msd.vgroup_weights.resize(orig_mesh->verts_num, 0.0f);
+          const bool invert_vgroup = (hmd->flag & MOD_HOOK_INVERT_VGROUP) != 0;
+
+          for (int v = 0; v < orig_mesh->verts_num; ++v) {
+            const MDeformVert &dvert = dverts[v];
+            float weight = BKE_defvert_find_weight(&dvert, defgrp_index);
+            msd.vgroup_weights[v] = invert_vgroup ? 1.0f - weight : weight;
+          }
         }
       }
     }
@@ -441,12 +494,37 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
     }
   }
   else {
-    /* No curve falloff: create empty dummy buffer (length=0 triggers default passthrough in shader) */
+    /* No curve falloff: create empty dummy buffer (length=0 triggers default passthrough in
+     * shader) */
     if (!ssbo_curve) {
       ssbo_curve = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_curve, sizeof(float));
       if (ssbo_curve) {
-        float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
+        float dummy = 1.0f; /* Unused, but set to 1.0 for safety */
         GPU_storagebuf_update(ssbo_curve, &dummy);
+      }
+    }
+  }
+
+  /* Upload vertex bitmap SSBO (if using indexar) */
+  const std::string key_bitmap = key_prefix + "vertex_bitmap";
+  blender::gpu::StorageBuf *ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_bitmap);
+
+  if (msd.has_indices && !msd.vertex_bitmap.empty()) {
+    if (!ssbo_bitmap) {
+      const size_t size_bitmap = msd.vertex_bitmap.size() * sizeof(uint32_t);
+      ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_bitmap, size_bitmap);
+      if (ssbo_bitmap) {
+        GPU_storagebuf_update(ssbo_bitmap, msd.vertex_bitmap.data());
+      }
+    }
+  }
+  else {
+    /* No indices: create dummy buffer */
+    if (!ssbo_bitmap) {
+      ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_bitmap, sizeof(uint32_t));
+      if (ssbo_bitmap) {
+        uint32_t dummy = 0;
+        GPU_storagebuf_update(ssbo_bitmap, &dummy);
       }
     }
   }
@@ -515,10 +593,11 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
   info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
   info.storage_buf(3, Qualifier::read, "float", "falloff_curve_lut[]");
+  info.storage_buf(4, Qualifier::read, "uint", "vertex_bitmap[]"); /* bitmap for O(1) check */
 
   /* Push constants */
   info.push_constant(Type::float4x4_t, "hook_transform");
-  info.push_constant(Type::float4x4_t, "mat_uniform");  /* mat3 uploaded as mat4 */
+  info.push_constant(Type::float4x4_t, "mat_uniform"); /* mat3 uploaded as mat4 */
   info.push_constant(Type::float3_t, "hook_center");
   info.push_constant(Type::float_t, "falloff_radius");
   info.push_constant(Type::float_t, "falloff_sq");
@@ -526,6 +605,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   info.push_constant(Type::int_t, "falloff_type");
   info.push_constant(Type::bool_t, "use_falloff");
   info.push_constant(Type::bool_t, "use_uniform");
+  info.push_constant(Type::bool_t, "use_indices"); /* true if using indexar */
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
       mesh_owner, "hook_compute", info);
@@ -546,6 +626,9 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   if (ssbo_curve) {
     GPU_storagebuf_bind(ssbo_curve, 3);
   }
+  if (ssbo_bitmap) {
+    GPU_storagebuf_bind(ssbo_bitmap, 4);
+  }
 
   /* Set uniforms */
   GPU_shader_uniform_mat4(shader, "hook_transform", (const float(*)[4])hook_transform);
@@ -557,6 +640,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   GPU_shader_uniform_1i(shader, "falloff_type", int(hmd->falloff_type));
   GPU_shader_uniform_1b(shader, "use_falloff", use_falloff);
   GPU_shader_uniform_1b(shader, "use_uniform", use_uniform);
+  GPU_shader_uniform_1b(shader, "use_indices", msd.has_indices); /* indexar mode */
 
   const int group_size = 256;
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;
@@ -576,7 +660,7 @@ void HookManager::free_resources_for_mesh(Mesh *mesh)
   if (!mesh) {
     return;
   }
-  
+
   /* Remove all entries for this mesh (may be multiple Hook modifiers) */
   Vector<Impl::MeshModifierKey> keys_to_remove;
   for (const auto &item : impl_->static_map.items()) {
@@ -584,7 +668,7 @@ void HookManager::free_resources_for_mesh(Mesh *mesh)
       keys_to_remove.append(item.key);
     }
   }
-  
+
   for (const Impl::MeshModifierKey &key : keys_to_remove) {
     impl_->static_map.remove(key);
   }
