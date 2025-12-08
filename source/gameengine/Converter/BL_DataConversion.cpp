@@ -1690,6 +1690,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
 
+  converter->FlushPendingSuspendDynamics();
+
   if (!single_object) {
     KX_SetActiveScene(kxscene);
   }

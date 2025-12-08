@@ -3508,8 +3508,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     }
   }
 
-  if (parentRoot) {
-    physicscontroller->SuspendDynamics(false);
+  if (parentRoot && converter) {
+    converter->AddPendingSuspendDynamics(physicscontroller);
   }
 
   CcdPhysicsController *parentCtrl = parentRoot ? static_cast<CcdPhysicsController *>(
