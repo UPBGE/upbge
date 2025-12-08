@@ -362,19 +362,25 @@ KX_Scene::~KX_Scene()
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     if (!m_isPythonMainLoop) {
-      /* This will free m_currentGPUViewport */
-      GPU_viewport_free(m_currentGPUViewport);
+      if (m_currentGPUViewport) {
+        /* This will free m_currentGPUViewport */
+        GPU_viewport_free(m_currentGPUViewport);
+      }
     }
     else {
       /* If we are in python loop and we called render code */
       if (!m_initMaterialsGPUViewport) {
-        GPU_viewport_free(m_currentGPUViewport);
+        if (m_currentGPUViewport) {
+          GPU_viewport_free(m_currentGPUViewport);
+        }
       }
       else {
         /* It has not been freed before because the main Render loop
          * is not executed then we free it now.
          */
-        GPU_viewport_free(m_initMaterialsGPUViewport);
+        if (m_initMaterialsGPUViewport) {
+          GPU_viewport_free(m_initMaterialsGPUViewport);
+        }
         //DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
     }
