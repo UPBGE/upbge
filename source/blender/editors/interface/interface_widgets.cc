@@ -4007,7 +4007,7 @@ static void widget_link(Button *but,
     rcti rectlink;
     float color[4];
 
-    ui::GetThemeColor4fv(TH_TEXT_HI, color);
+    ui::theme::get_color_4fv(TH_TEXT_HI, color);
 
     rectlink.xmin = BLI_rcti_cent_x(rect);
     rectlink.ymin = BLI_rcti_cent_y(rect);
