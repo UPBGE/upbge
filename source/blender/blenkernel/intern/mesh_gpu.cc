@@ -826,6 +826,12 @@ MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh)
   }
   std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   auto &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
+
+  /* Initialize session UID on first access (for validation) */
+  if (d.session_uid == 0) {
+    d.session_uid = mesh->id.session_uid;
+  }
+
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
   }
@@ -885,6 +891,12 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
   }
   std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
   MeshGpuData &d = MeshGPUCacheManager::get().mesh_cache()[mesh];
+
+  /* Initialize session UID on first access (for validation) */
+  if (d.session_uid == 0) {
+    d.session_uid = mesh->id.session_uid;
+  }
+
   if (!d.internal_resources) {
     d.internal_resources = new blender::bke::MeshGpuInternalResources();
   }

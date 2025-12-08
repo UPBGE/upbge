@@ -170,6 +170,16 @@ void MeshGPUCacheManager::free_all_ocean_caches()
 
 std::unordered_map<const Mesh *, MeshGpuData> &MeshGPUCacheManager::mesh_cache()
 {
+#if defined(_DEBUG) || defined(DEBUG)
+  /* Validate cache integrity: each entry should match its owner's session UID */
+  for (const auto &[mesh, data] : g_mesh_data_cache_) {
+    if (mesh != nullptr && data.session_uid != 0) {
+      /* Assert fails if Mesh* pointer was reused for a different mesh */
+      BLI_assert_msg(mesh->id.session_uid == data.session_uid,
+                     "GPU cache pointer mismatch: Mesh* reused or dangling!");
+    }
+  }
+#endif
   return g_mesh_data_cache_;
 }
 

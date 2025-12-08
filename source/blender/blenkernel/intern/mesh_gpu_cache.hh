@@ -23,6 +23,9 @@ struct MeshGpuData {
   std::unordered_map<size_t, blender::gpu::Shader *> compute_shaders;
   /* Optional internal resources container (owned here). */
   blender::bke::MeshGpuInternalResources *internal_resources = nullptr;
+
+  /* Debug: session UUID of the owning Mesh for validation (0 = uninitialized) */
+  uint32_t session_uid = 0;
 };
 
 /* Manager owning mesh/armature GPU caches. */
