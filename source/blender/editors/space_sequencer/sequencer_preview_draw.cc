@@ -64,7 +64,6 @@
 #include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
@@ -307,7 +306,7 @@ static void sequencer_stop_running_jobs(const bContext *C, Scene *scene)
 
 static void sequencer_preview_clear()
 {
-  blender::ui::ThemeClearColor(TH_SEQ_PREVIEW);
+  blender::ui::theme::frame_buffer_clear(TH_SEQ_PREVIEW);
 }
 
 /* Semantic utility to get a rectangle with positions that correspond to a full frame drawn in the
@@ -967,6 +966,12 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
 
 static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Scene &scene)
 {
+  if ((scene.ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) &&
+      (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW))
+  {
+    return true;
+  }
+
   Strip *last_seq = seq::select_active_get(&scene);
   if (last_seq == nullptr) {
     return false;
@@ -979,16 +984,22 @@ static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Sce
 
 static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
 {
+  int preview_frame;
+
+  if (scene->ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) {
+    preview_frame = scene->ed->runtime.transform_preview_frame;
+    return preview_frame;
+  }
+
   Strip *last_seq = seq::select_active_get(scene);
   /* #sequencer_draw_get_transform_preview must already have been called. */
   BLI_assert(last_seq != nullptr);
-  int preview_frame;
 
   if (last_seq->flag & SEQ_RIGHTSEL) {
-    preview_frame = seq::time_right_handle_frame_get(scene, last_seq) - 1;
+    preview_frame = last_seq->right_handle(scene) - 1;
   }
   else {
-    preview_frame = seq::time_left_handle_frame_get(scene, last_seq);
+    preview_frame = last_seq->left_handle();
   }
 
   return preview_frame;
@@ -1030,10 +1041,10 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
 
   float col[3];
   if (is_active_seq) {
-    ui::GetThemeColor3fv(TH_SEQ_ACTIVE, col);
+    ui::theme::get_color_3fv(TH_SEQ_ACTIVE, col);
   }
   else {
-    ui::GetThemeColor3fv(TH_SEQ_SELECTED, col);
+    ui::theme::get_color_3fv(TH_SEQ_SELECTED, col);
   }
   immUniformColor3fv(col);
   immBegin(GPU_PRIM_LINE_LOOP, 4);
@@ -1437,7 +1448,7 @@ static void draw_cursor_2d(const ARegion *region, const float2 &cursor)
   immEnd();
 
   float crosshair_color[3];
-  ui::GetThemeColor3fv(TH_VIEW_OVERLAY, crosshair_color);
+  ui::theme::get_color_3fv(TH_VIEW_OVERLAY, crosshair_color);
 
   immBegin(GPU_PRIM_LINES, 8);
   immAttr3fv(attr_id.col, crosshair_color);

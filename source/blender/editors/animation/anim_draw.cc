@@ -145,8 +145,8 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
   /* ..._handle are frames in "sequencer logic", meaning that on the right_handle point in time,
    * the strip is not visible any more. The last visible frame of the strip is actually on
    * (right_handle-1), hence the -1 when computing the end_frame. */
-  const float left_handle = seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
-  const float right_handle = seq::time_right_handle_frame_get(sequencer_scene, scene_strip);
+  const float left_handle = scene_strip->left_handle();
+  const float right_handle = scene_strip->right_handle(sequencer_scene);
   float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
                       scene_strip->scene->r.sfra;
   float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
@@ -231,7 +231,7 @@ void ANIM_draw_action_framerange(
   immBindBuiltinProgram(GPU_SHADER_2D_DIAG_STRIPES);
 
   float color[4];
-  blender::ui::GetThemeColorShadeAlpha4fv(TH_BACK, -40, -50, color);
+  blender::ui::theme::get_color_shade_alpha_4fv(TH_BACK, -40, -50, color);
 
   immUniform4f("color1", color[0], color[1], color[2], color[3]);
   immUniform4f("color2", 0.0f, 0.0f, 0.0f, 0.0f);
