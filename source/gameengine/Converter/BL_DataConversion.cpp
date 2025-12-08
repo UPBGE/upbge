@@ -1709,6 +1709,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
 
+  converter->FlushPendingSuspendDynamics();
+
   if (!single_object) {
     KX_SetActiveScene(kxscene);
   }
