@@ -1662,6 +1662,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
           // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
           if (constraintId != -1) {
             gameobj->SetRigidBodyConstraintId(rbc, constraintId);
+
+            // Automatically parent the constraint object to the first rigid body
+            // so it visually moves with it.
+            gameobj->SetParent(gameobj1, false, false);
           }
         }
         else {

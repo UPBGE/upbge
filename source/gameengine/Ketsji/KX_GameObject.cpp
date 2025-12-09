@@ -922,6 +922,9 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
     // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
     if (constraintId != -1) {
       data.m_constraintId = constraintId;
+
+      // Automatically parent the constraint object to the first rigid body so it follows it.
+      SetParent(target1, false, false);
     }
   }
 }
