@@ -4,7 +4,7 @@
 
 import bpy
 from bpy.types import Operator
-from bpy.props import EnumProperty
+from bpy.props import BoolProperty, EnumProperty, FloatProperty
 
 
 class ConnectRigidBodiesGame(Operator):
@@ -40,21 +40,70 @@ class ConnectRigidBodiesGame(Operator):
             ('SELECTED_TO_ACTIVE', "Selected to Active", "Connect selected objects to the active object"),
             ('CHAIN_DISTANCE', "Chain by Distance", "Connect objects as a chain based on distance, "
              "starting at the active object"),
+            ('CUSTOM_DISTANCE', "Custom Distance", "Connect objects that are within a custom distance"),
         ),
         default='SELECTED_TO_ACTIVE',
     )
+    use_cursor: BoolProperty(
+        name="Place on 3D Cursor",
+        description="Place the generated constraint at the 3D cursor location",
+        default=False,
+    )
+    connect_distance: FloatProperty(
+        name="Connect Distance",
+        description="Maximum distance within which rigid bodies are connected (Custom Distance)",
+        default=2.0,
+        min=0.0,
+        soft_max=20.0,
+    )
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        layout.prop(self, "con_type")
+
+        row = layout.row()
+        row.enabled = not self.use_cursor
+        row.use_property_split = True
+        row.prop(self, "pivot_type")
+
+        row = layout.row()
+        row.enabled = not self.use_cursor
+        row.use_property_split = True
+        row.prop(self, "connection_pattern")
+
+        row = layout.row()
+        row.enabled = (self.connection_pattern != 'CUSTOM_DISTANCE')
+        row.use_property_split = True
+        row.prop(self, "use_cursor")
+
+        if self.connection_pattern == 'CUSTOM_DISTANCE':
+            layout.prop(self, "connect_distance")
 
     @classmethod
     def poll(cls, context):
-        obj = context.object
-        # Game engine allows connecting objects that are not yet rigid bodies
-        return (obj is not None)
+        # Game engine allows connecting objects that are not yet rigid bodies.
+        # Allow running as long as there is at least one selected object.
+        return bool(context.selected_objects)
+
+    @staticmethod
+    def _is_no_collision(obj):
+        game = getattr(obj, "game", None)
+        return (game is not None and game.physics_type == 'NO_COLLISION')
 
     def _add_constraint(self, context, object1, object2):
         if object1 == object2:
             return
+        if self._is_no_collision(object1) or self._is_no_collision(object2):
+            return
 
-        if self.pivot_type == 'ACTIVE':
+        use_cursor = self.use_cursor and (self.connection_pattern != 'CUSTOM_DISTANCE')
+
+        if use_cursor:
+            loc = context.scene.cursor.location.copy()
+        elif self.pivot_type == 'ACTIVE':
             loc = object1.location
         elif self.pivot_type == 'SELECTED':
             loc = object2.location
@@ -70,6 +119,7 @@ class ConnectRigidBodiesGame(Operator):
         bpy.ops.rigidbody.constraint_add()
         con_obj = context.active_object
         con_obj.empty_display_type = 'ARROWS'
+        con_obj.game.physics_type = 'NO_COLLISION'
         con = con_obj.rigid_body_constraint
         con.type = self.con_type
 
@@ -78,13 +128,23 @@ class ConnectRigidBodiesGame(Operator):
 
     def execute(self, context):
         view_layer = context.view_layer
-        objects = context.selected_objects
+        selected_all = list(context.selected_objects)
+        objects = [obj for obj in selected_all if not self._is_no_collision(obj)]
         obj_act = context.active_object
         change = False
 
+        if not objects:
+            self.report({'WARNING'}, "No eligible objects (No Collision objects are skipped)")
+            return {'CANCELLED'}
+
+        # If no active object, promote the first selected one to active.
+        if obj_act is None or self._is_no_collision(obj_act):
+            obj_act = objects[0]
+            view_layer.objects.active = obj_act
+
         if self.connection_pattern == 'CHAIN_DISTANCE':
             objs_sorted = [obj_act]
-            objects_tmp = context.selected_objects
+            objects_tmp = list(objects)
             try:
                 objects_tmp.remove(obj_act)
             except ValueError:
@@ -101,6 +161,20 @@ class ConnectRigidBodiesGame(Operator):
                 self._add_constraint(context, objs_sorted[i - 1], objs_sorted[i])
                 change = True
 
+        elif self.connection_pattern == 'CUSTOM_DISTANCE':
+            if len(objects) < 2:
+                self.report({'WARNING'}, "Need at least two selected objects for Custom Distance")
+                return {'CANCELLED'}
+
+            dist_max = self.connect_distance
+            for i in range(len(objects)):
+                obj_a = objects[i]
+                for j in range(i + 1, len(objects)):
+                    obj_b = objects[j]
+                    if (obj_a.location - obj_b.location).length <= dist_max:
+                        self._add_constraint(context, obj_a, obj_b)
+                        change = True
+
         else:  # SELECTED_TO_ACTIVE
             for obj in objects:
                 self._add_constraint(context, obj_act, obj)
@@ -109,12 +183,15 @@ class ConnectRigidBodiesGame(Operator):
         if change:
             # restore selection
             bpy.ops.object.select_all(action='DESELECT')
-            for obj in objects:
+            for obj in selected_all:
                 obj.select_set(True)
             view_layer.objects.active = obj_act
             return {'FINISHED'}
         else:
-            self.report({'WARNING'}, "No other objects selected")
+            if self.connection_pattern == 'CUSTOM_DISTANCE':
+                self.report({'WARNING'}, "No object pairs found within the connect distance")
+            else:
+                self.report({'WARNING'}, "No other objects selected")
             return {'CANCELLED'}
 
 
