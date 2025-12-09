@@ -2343,8 +2343,6 @@ static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
   bController ***sens_from_links;
   Button *tmp_but = nullptr;
 
-  PointerRNA props_ptr;
-
   uiLink *link = from->link;
 
   if (link->ppoin)
@@ -2382,8 +2380,8 @@ static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
 
   /* in case the linked controller is not the active one */
   PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
-
-  WM_operator_properties_create(&props_ptr, "LOGIC_OT_controller_add");
+  wmOperatorType *ot = WM_operatortype_find("LOGIC_OT_controller_add", false);
+  PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "object", ob->id.name + 2);
 
   /* (3) add a new controller */
@@ -10999,8 +10997,7 @@ static int ui_handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEv
     wmOperatorType *ot = WM_operatortype_find("WM_OT_search_single_menu", false);
     after->optype = ot;
     after->opcontext = wm::OpCallContext::InvokeDefault;
-    after->opptr = MEM_new<PointerRNA>(__func__);
-    WM_operator_properties_create_ptr(after->opptr, ot);
+    after->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);
     if (event->type != EVT_SPACEKEY) {
       /* Forward all keys except space-bar to the search. */

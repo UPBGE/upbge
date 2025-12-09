@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_offset_indices.hh"
+#include "BLI_span.hh"
 #include "BLI_sys_types.h"
 
 struct Mesh;
@@ -24,7 +25,7 @@ using ForeachTopologyInformationCb = bool (*)(const ForeachContext *context,
                                               int num_edges,
                                               int num_loops,
                                               int num_faces,
-                                              const int *subdiv_face_offset);
+                                              Span<int> subdiv_face_offset);
 
 using ForeachVertFromCornerCb = void (*)(const ForeachContext *context,
                                          void *tls,
@@ -81,7 +82,7 @@ using ForeachLoopCb = void (*)(const ForeachContext *context,
  * information, see #OffsetIndices.
  */
 using FacesCb = void (*)(const ForeachContext *context,
-                         blender::OffsetIndices<int> subdiv_faces_by_base_face);
+                         OffsetIndices<int> subdiv_faces_by_base_face);
 
 using ForeachLooseCb = void (*)(const ForeachContext *context,
                                 void *tls,

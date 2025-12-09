@@ -725,7 +725,8 @@ void WM_event_free_ui_handler_all(bContext *C,
 /**
  * Add a modal handler to `win`, `area` and `region` may optionally be NULL.
  */
-wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
+wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
+                                                 wmWindow *win,
                                                  ScrArea *area,
                                                  ARegion *region,
                                                  wmOperator *op) ATTR_NONNULL(1, 4);
@@ -1109,8 +1110,8 @@ bool WM_operator_properties_default(PointerRNA *ptr, bool do_update);
  * Remove all props without #PROP_SKIP_SAVE or #PROP_SKIP_PRESET.
  */
 void WM_operator_properties_reset(wmOperator *op);
-void WM_operator_properties_create(PointerRNA *ptr, const char *opstring);
-void WM_operator_properties_create_ptr(PointerRNA *ptr, wmOperatorType *ot);
+PointerRNA WM_operator_properties_create(const char *opstring);
+PointerRNA WM_operator_properties_create_ptr(wmOperatorType *ot);
 void WM_operator_properties_clear(PointerRNA *ptr);
 void WM_operator_properties_free(PointerRNA *ptr);
 

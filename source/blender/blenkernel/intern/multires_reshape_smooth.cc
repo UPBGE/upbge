@@ -400,7 +400,7 @@ static void foreach_toplevel_grid_coord(
   const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
   threading::parallel_for(faces.index_range(), 1, [&](const IndexRange range) {
     for (const int face_index : range) {
-      const blender::IndexRange face = faces[face_index];
+      const IndexRange face = faces[face_index];
       std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
           reshape_smooth_context, face);
 
@@ -415,7 +415,7 @@ static void foreach_toplevel_grid_coord(
           ptex_coord.v = ptex_v;
 
           const GridCoord grid_coord = interpolate_grid_coord(
-              blender::Span(face_grid_coords), ptex_u, ptex_v);
+              Span(face_grid_coords), ptex_u, ptex_v);
 
           callback(&ptex_coord, &grid_coord);
         }
@@ -473,7 +473,7 @@ static bool foreach_topology_info(const blender::bke::subdiv::ForeachContext *fo
                                   const int num_edges,
                                   const int num_loops,
                                   const int num_faces,
-                                  const int * /*subdiv_face_offset*/)
+                                  const blender::Span<int> /*subdiv_face_offset*/)
 {
   using namespace blender;
   MultiresReshapeSmoothContext *reshape_smooth_context =

@@ -777,12 +777,12 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
   rect.ymax = BLI_rctf_cent_y(&line->to->rect);
 
   if (dashInactiveLines)
-    GetThemeColor4fv(TH_GRID, color);
+    ui::theme::get_color_4fv(TH_GRID, color);
   else if (line->flag & UI_SELECT)
     rgba_float_args_set_ch(color, 120, 120, 120, 255);
   else if (highlightActiveLines &&
            ((line->from->flag & UI_HOVER) || (line->to->flag & UI_HOVER)))
-    GetThemeColor4fv(TH_TEXT_HI, color);
+    ui::theme::get_color_4fv(TH_TEXT_HI, color);
   else
     rgba_float_args_set_ch(color, 100, 100, 100, 255);
 
@@ -1878,9 +1878,8 @@ static PointerRNA *ui_but_extra_operator_icon_add_ptr(Button *but,
   extra_op_icon->icon = icon;
   extra_op_icon->optype_params = MEM_callocN<wmOperatorCallParams>(__func__);
   extra_op_icon->optype_params->optype = optype;
-  extra_op_icon->optype_params->opptr = MEM_new<PointerRNA>(__func__);
-  WM_operator_properties_create_ptr(extra_op_icon->optype_params->opptr,
-                                    extra_op_icon->optype_params->optype);
+  extra_op_icon->optype_params->opptr = MEM_new<PointerRNA>(
+      __func__, WM_operator_properties_create_ptr(extra_op_icon->optype_params->optype));
   extra_op_icon->optype_params->opcontext = opcontext;
   extra_op_icon->highlighted = false;
   extra_op_icon->disabled = false;
@@ -2385,7 +2384,7 @@ void block_draw(const bContext *C, Block *block)
   if (block->panel && ELEM(region->regiontype, RGN_TYPE_HUD, RGN_TYPE_TEMPORARY)) {
     /* TODO: Add as theme color. */
     float subpanel_backcolor[4]{0.2f, 0.3f, 0.33f, 0.05f};
-    const bTheme *btheme = GetTheme();
+    const bTheme *btheme = theme::theme_get();
     const float aspect = block->panel->runtime->block->aspect;
     const float radius = btheme->tui.panel_roundness * U.widget_unit * 0.5f / aspect;
     draw_layout_panels_backdrop(region, block->panel, radius, subpanel_backcolor);
@@ -5341,10 +5340,10 @@ Button *uiDefButAlert(Block *block, AlertIcon icon, int x, int y, short width, s
   if (ibuf) {
     if (icon == AlertIcon::Error) {
       uchar color[4];
-      GetThemeColor4ubv(TH_ERROR, color);
+      theme::get_color_4ubv(TH_ERROR, color);
       return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, color);
     }
-    bTheme *btheme = GetTheme();
+    bTheme *btheme = theme::theme_get();
     return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, btheme->tui.wcol_menu_back.text);
   }
   return nullptr;
@@ -6311,8 +6310,7 @@ int button_return_value_get(Button *but)
 PointerRNA *button_operator_ptr_ensure(Button *but)
 {
   if (but->optype && !but->opptr) {
-    but->opptr = MEM_new<PointerRNA>(__func__);
-    WM_operator_properties_create_ptr(but->opptr, but->optype);
+    but->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(but->optype));
   }
 
   return but->opptr;

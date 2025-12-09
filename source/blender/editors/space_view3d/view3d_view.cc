@@ -565,7 +565,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
                          eV3DSelectObjectFilter select_filter,
                          const bool do_material_slot_selection)
 {
-  blender::ui::bThemeState theme_state;
+  blender::ui::theme::bThemeState theme_state;
   const wmWindowManager *wm = CTX_wm_manager(vc->C);
   Depsgraph *depsgraph = vc->depsgraph;
   Scene *scene = vc->scene;
@@ -658,8 +658,8 @@ int view3d_gpu_select_ex(const ViewContext *vc,
   }
 
   /* Tools may request depth outside of regular drawing code. */
-  blender::ui::Theme_Store(&theme_state);
-  blender::ui::UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_store(&theme_state);
+  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   /* All of the queries need to be perform on the drawing context. */
   DRW_gpu_context_enable();
@@ -742,7 +742,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
 
   DRW_gpu_context_disable();
 
-  Theme_Restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
 
   return hits;
 }

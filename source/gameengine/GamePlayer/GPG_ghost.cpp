@@ -1710,7 +1710,7 @@ int main(int argc,
               GPU_backend_ghost_system_set(system);
               WM_init_gpu();
 
-              blender::ui::theme_init_default();
+              blender::ui::theme::init_default();
               blender::ui::init();
               /* To have blf_monofont_render available for generated textures checkerboard */
               blender::ui::reinit_font();
