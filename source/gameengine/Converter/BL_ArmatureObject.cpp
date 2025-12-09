@@ -39,7 +39,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_gpu.hh"
 #include "BKE_scene.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -153,9 +152,6 @@ BL_ArmatureObject::~BL_ArmatureObject()
     for (auto &item : m_replicaMeshes) {
       Mesh *replica = item.second;
       if (replica) {
-        /* Free GPU cache before deleting */
-        BKE_mesh_gpu_free_for_mesh(replica);
-
         /* Delete the mesh from Main database */
         BKE_id_delete(bmain, (ID *)replica);
       }
@@ -213,8 +209,6 @@ void BL_ArmatureObject::RemapParentChildren()
               }
               DEG_id_tag_update(&child_ob->id, ID_RECALC_GEOMETRY);
               DEG_relations_tag_update(bmain);
-
-              replica->is_running_gpu_animation_playback = 1;
 
               m_replicaMeshes[child_ob] = replica;
             }

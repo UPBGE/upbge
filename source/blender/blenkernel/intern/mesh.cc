@@ -62,6 +62,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
@@ -249,6 +250,16 @@ static void mesh_copy_data(Main *bmain,
 static void mesh_free_data(ID *id)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
+
+  /* ============================================================
+   * Free gpu cache before freeing cpu data.
+   * ============================================================
+   * This ensures GPU resources are freed for all mesh deletion
+   * paths (BKE_id_delete, BKE_id_free etc.)
+   * BKE_mesh_gpu_free_for_mesh handles the case where no GPU
+   * context is active (defers to orphans list).
+   */
+  BKE_mesh_gpu_free_for_mesh(mesh);
 
   CustomData_free(&mesh->vert_data);
   CustomData_free(&mesh->edge_data);

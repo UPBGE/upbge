@@ -288,7 +288,6 @@ static PyObject *pygpu_mesh_compute_free(PyObject * /*self*/, PyObject *args, Py
   /* Free GPU resources associated with this mesh (thread-safe internally). */
   BKE_mesh_gpu_free_for_mesh(mesh_orig);
   if (mesh_orig) {
-    mesh_orig->is_running_gpu_animation_playback = 0;
     mesh_orig->is_python_request_gpu = 0;
   }
   Py_RETURN_NONE;

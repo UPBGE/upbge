@@ -152,12 +152,6 @@ KX_GameObject::~KX_GameObject()
   }
 
   if (m_pSGNode) {
-      /* Disable is_running_gpu_animation_playback
-       * state to allow freeing mesh gpu resources */
-    if (ob && ob->type == OB_MESH) {
-      Mesh *mesh = static_cast<Mesh *>(ob->data);
-      mesh->is_running_gpu_animation_playback = 0;
-    }
     /* Discard rendered Object */
     DiscardRenderedObject();
 
