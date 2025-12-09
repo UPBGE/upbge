@@ -3639,9 +3639,12 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *constraintOb
   MT_Vector3 pivotLocal = ob1Inv * pivotWorld;
   MT_Matrix3x3 basisLocal = ob1Inv.getBasis() * basisWorld;
 
-  MT_Vector3 axis0 = basisLocal.getColumn(0);
-  MT_Vector3 axis1 = basisLocal.getColumn(1);
-  MT_Vector3 axis2 = basisLocal.getColumn(2);
+  // Normalize axes to handle scaled constraint empties, scaled rigid bodies,
+  // and parented empties inheriting scale. Bullet physics expects unit vectors
+  // for constraint axes; non-unit axes cause instability and incorrect behavior.
+  MT_Vector3 axis0 = basisLocal.getColumn(0).safe_normalized();
+  MT_Vector3 axis1 = basisLocal.getColumn(1).safe_normalized();
+  MT_Vector3 axis2 = basisLocal.getColumn(2).safe_normalized();
 
   PHY_ConstraintType type = PHY_GENERIC_6DOF_CONSTRAINT;
   bool use_springs = false;
