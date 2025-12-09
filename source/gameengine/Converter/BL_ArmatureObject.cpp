@@ -39,6 +39,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
 #include "BKE_scene.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -139,28 +140,32 @@ BL_ArmatureObject::~BL_ArmatureObject()
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = C ? CTX_data_main(C) : nullptr;
 
-    /* Restore original data pointers for children before deleting replica meshes when possible. */
+    /* Restore original data pointers first */
     for (auto &item : m_replacedOriginalData) {
       Object *child_ob = item.first;
       ID *orig_data = item.second;
-      if (!child_ob || !orig_data) {
-        continue;
+      if (child_ob && orig_data) {
+        child_ob->data = orig_data;
       }
-      child_ob->data = orig_data;
     }
+
+    /* Delete replicas meshes */
     for (auto &item : m_replicaMeshes) {
       Mesh *replica = item.second;
       if (replica) {
-        replica->is_running_gpu_animation_playback = 0;
+        /* Free GPU cache before deleting */
+        BKE_mesh_gpu_free_for_mesh(replica);
+
+        /* Delete the mesh from Main database */
         BKE_id_delete(bmain, (ID *)replica);
-        replica = nullptr;
-        DEG_relations_tag_update(bmain);
-        BKE_scene_graph_update_tagged(CTX_data_depsgraph_pointer(C), bmain);
       }
     }
 
     m_replicaMeshes.clear();
     m_replacedOriginalData.clear();
+
+    /* Update depsgraph after cleanup (same logic than in KX_GameObject::DiscardRenderedObject) */
+    DEG_relations_tag_update(bmain);
   }
 }
 
