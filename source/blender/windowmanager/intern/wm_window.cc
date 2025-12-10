@@ -3464,18 +3464,18 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
                                                 void *ghostwin,
                                                 bool first_time_window)
 {
-  win->ghostwin = ghostwin;
+  win->runtime->ghostwin = ghostwin;
   GHOST_RectangleHandle bounds;
 
   wm_window_clear_drawable(wm);
 
   if (first_time_window) {
-    win->gpuctx = GPU_context_create(ghostwin, nullptr);
+    win->runtime->gpuctx = GPU_context_create(ghostwin, nullptr);
     wm->runtime->message_bus = WM_msgbus_create();
     runtime_msgbus = wm->runtime->message_bus;
   }
   else {
-    win->gpuctx = GPU_context_active_get();
+    win->runtime->gpuctx = GPU_context_active_get();
     wm->runtime->message_bus = (wmMsgBus *)runtime_msgbus;
   }
   /* Set window as drawable upon creation. Note this has already been
@@ -3489,9 +3489,9 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   // wm_window_ensure_eventstate(win);
 
   /* store actual window size in blender window */
-  bounds = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));
+  bounds = GHOST_GetClientBounds(GHOST_WindowHandle(win->runtime->ghostwin));
   /* win32: gives undefined window size when minimized */
-  if (GHOST_GetWindowState(GHOST_WindowHandle(win->ghostwin)) != GHOST_kWindowStateMinimized) {
+  if (GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)) != GHOST_kWindowStateMinimized) {
     win->sizex = GHOST_GetWidthRectangle(bounds);
     win->sizey = GHOST_GetHeightRectangle(bounds);
   }
@@ -3500,8 +3500,8 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 #ifndef __APPLE__
   /* set the state here, so minimized state comes up correct on windows */
   if (wm_init_state.window_focus) {
-    GHOST_SetWindowState(GHOST_WindowHandle(win->ghostwin),
-                         GHOST_GetWindowState(GHOST_WindowHandle(win->ghostwin)));
+    GHOST_SetWindowState(GHOST_WindowHandle(win->runtime->ghostwin),
+                         GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)));
   }
 #endif
 
@@ -3525,9 +3525,9 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 
   GHOST_RectangleHandle bounds;
   /* store actual window size in blender window */
-  bounds = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));
+  bounds = GHOST_GetClientBounds(GHOST_WindowHandle(win->runtime->ghostwin));
   /* win32: gives undefined window size when minimized */
-  if (GHOST_GetWindowState(GHOST_WindowHandle(win->ghostwin)) != GHOST_kWindowStateMinimized) {
+  if (GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)) != GHOST_kWindowStateMinimized) {
     win->sizex = GHOST_GetWidthRectangle(bounds);
     win->sizey = GHOST_GetHeightRectangle(bounds);
   }
@@ -3536,8 +3536,8 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 #ifndef __APPLE__
   /* set the state here, so minimized state comes up correct on windows */
   if (wm_init_state.window_focus) {
-    GHOST_SetWindowState(GHOST_WindowHandle(win->ghostwin),
-                         GHOST_GetWindowState(GHOST_WindowHandle(win->ghostwin)));
+    GHOST_SetWindowState(GHOST_WindowHandle(win->runtime->ghostwin),
+                         GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)));
   }
 #endif
 

@@ -213,8 +213,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   wmWindowManager *wm_backup = CTX_wm_manager(C);
   wmWindow *win_backup = CTX_wm_window(C);
   void *msgbus_backup = wm_backup->runtime->message_bus;
-  void *gpuctx_backup = win_backup->gpuctx;
-  void *ghostwin_backup = win_backup->ghostwin;
+  void *gpuctx_backup = win_backup->runtime->gpuctx;
+  void *ghostwin_backup = win_backup->runtime->ghostwin;
 
   /* Set Viewport render mode and shading type for the whole runtime */
   bool useViewportRender = startscene->gm.flag & GAME_USE_VIEWPORT_RENDER;
@@ -237,7 +237,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       if (bfd) {
         /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
          * .blend */
-        CTX_wm_window(C)->ghostwin = nullptr;
+        CTX_wm_window(C)->runtime->ghostwin = nullptr;
         /* Hack to not free wm->message_bus when we restart/load new .blend */
         CTX_wm_manager(C)->runtime->message_bus = nullptr;
         BLO_blendfiledata_free(bfd);
@@ -281,8 +281,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         wmWindow *win = (wmWindow *)wm->windows.first;
         CTX_wm_manager_set(C, wm);
         CTX_wm_window_set(C, win);
-        win->ghostwin = ghostwin_backup;
-        win->gpuctx = gpuctx_backup;
+        win->runtime->ghostwin = ghostwin_backup;
+        win->runtime->gpuctx = gpuctx_backup;
         wm->runtime->message_bus = (wmMsgBus *)msgbus_backup;
 
         wm->runtime->defaultconf = wm_backup->runtime->defaultconf;
@@ -358,8 +358,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       CTX_wm_window_set(C, win); /* needed by operator close callbacks */
-      WM_event_remove_handlers(C, &win->handlers);
-      WM_event_remove_handlers(C, &win->modalhandlers);
+      WM_event_remove_handlers(C, &win->runtime->handlers);
+      WM_event_remove_handlers(C, &win->runtime->modalhandlers);
       ED_screen_exit(C, win, WM_window_get_active_screen(win));
     }
   } while (exitrequested == KX_ExitRequest::RESTART_GAME ||
@@ -368,7 +368,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   if (bfd) {
     /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
      * .blend */
-    CTX_wm_window(C)->ghostwin = nullptr;
+    CTX_wm_window(C)->runtime->ghostwin = nullptr;
     /* Hack to not free wm->message_bus when we restart/load new .blend */
     CTX_wm_manager(C)->runtime->message_bus = nullptr;
     BLO_blendfiledata_free(bfd);
@@ -377,8 +377,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     BKE_blender_globals_main_replace_no_free(maggie1);
     CTX_data_main_set(C, maggie1);
     CTX_wm_manager_set(C, wm_backup);
-    win_backup->ghostwin = ghostwin_backup;
-    win_backup->gpuctx = gpuctx_backup;
+    win_backup->runtime->ghostwin = ghostwin_backup;
+    win_backup->runtime->gpuctx = gpuctx_backup;
     wm_backup->runtime->message_bus = (wmMsgBus *)msgbus_backup;
   }
   CTX_wm_window_set(C, win_backup);  // Fix for crash at exit when we have preferences window open

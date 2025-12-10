@@ -480,7 +480,7 @@ bool WM_init_game(bContext *C)
       }
     }
     else {
-      GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));
+      GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->runtime->ghostwin));
       ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
       ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
       ar->winx = ar->winrct.xmax + 1;

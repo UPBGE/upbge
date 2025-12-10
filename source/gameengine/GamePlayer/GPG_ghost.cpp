@@ -1420,7 +1420,7 @@ int main(int argc,
             if (bfd) {
               /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
                * .blend */
-              CTX_wm_window(C)->ghostwin = nullptr;
+              CTX_wm_window(C)->runtime->ghostwin = nullptr;
               /* Hack to not free wm->message_bus when we restart/load new .blend */
               CTX_wm_manager(C)->runtime->message_bus = nullptr;
 
@@ -1808,8 +1808,8 @@ int main(int argc,
 
           LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
             CTX_wm_window_set(C, win); /* needed by operator close callbacks */
-            WM_event_remove_handlers(C, &win->handlers);
-            WM_event_remove_handlers(C, &win->modalhandlers);
+            WM_event_remove_handlers(C, &win->runtime->handlers);
+            WM_event_remove_handlers(C, &win->runtime->modalhandlers);
             ED_screen_exit(C, win, WM_window_get_active_screen(win));
           }
         } while (!quitGame(exitcode));
