@@ -164,6 +164,27 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
 void BKE_mesh_gpu_free_for_mesh(Mesh *mesh);
 
 /**
+ * Request a GPU geometry recalc for the given mesh.
+ *
+ * Sets flags to:
+ * - Skip CPU modifier stack evaluation (is_running_gpu_skinning = 1)
+ * - Preserve mesh_eval (no free) - Prevents BKE_mesh_batch_cache_dirty_tag (is_running_gpu_skinning = 1)
+ *
+ * Triggers:
+ * - Depsgraph geometry tag
+ * - Viewport redraw notification to reconstruct render cache with right vbos format
+ *
+ * \param mesh_orig: Original mesh
+ * \param mesh_eval: Evaluated mesh
+ * \param ob_orig: Original object
+ *
+ * \note Designed to be called from BKE_mesh_gpu_run_compute when stride check fails.
+ */
+void BKE_mesh_request_gpu_render_cache_update(Mesh *mesh_orig,
+                                              Mesh *mesh_eval,
+                                              Object *ob_orig);
+
+/**
  * Cleanup function to be called on Blender exit to free all cached compute resources,
  * including all compiled shaders and mesh data.
  */

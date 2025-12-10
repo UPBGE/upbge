@@ -4328,19 +4328,8 @@ void main() {
   /* Explicitely request animation playback status when calling from python.
    * Keep flags set: we require position extraction as vec4 (stride == 16). */
   Mesh *orig_me = BKE_object_get_original_mesh(ob_eval);
-  if (orig_me) {
-    orig_me->is_python_request_gpu = 1;
-  }
+  orig_me->is_python_request_gpu = 1;
   me->is_python_request_gpu = 1;
-
-  const GPUVertFormat *fmt = GPU_vertbuf_get_format(vbo_pos);
-  if (!fmt || fmt->stride != 16) {
-    /* Request geometry recalc so evaluated mesh provides a vec4 position VBO.
-     * Do NOT clear the playback flags: extraction expects float4 layout. */
-    DEG_id_tag_update(&DEG_get_original(ob_eval)->id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_WINDOW, nullptr);
-    return GpuComputeStatus::NotReady;
-  }
 
   int M_val = ocean->_M;
   int N_val = ocean->_N;

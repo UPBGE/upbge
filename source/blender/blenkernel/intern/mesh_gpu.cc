@@ -455,11 +455,11 @@ int dispatch_count)
   }
 
   if (format->stride != 16) {
+    /* Position VBO has wrong stride (expected vec4 = 16 bytes).
+     * Request geometry recalc to force correct extraction format. */
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    mesh_orig->is_running_gpu_animation_playback = 1;
-    mesh_eval->is_running_gpu_animation_playback = 1;
-    DEG_id_tag_update(const_cast<ID *>(&DEG_get_original(ob_eval)->id), ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_WINDOW, nullptr);
+    /* Skip BKE_mesh_batch_cache_dirty_tag but recontruct mesh runtime draw cache on next frame */
+    BKE_mesh_request_gpu_render_cache_update(mesh_orig, mesh_eval, ob_orig);
     return blender::bke::GpuComputeStatus::NotReady;
   }
 
@@ -817,6 +817,36 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
   }
 
   mesh->is_running_gpu_animation_playback = 0;
+}
+
+void BKE_mesh_request_gpu_render_cache_update(Mesh *mesh_orig,
+                                              Mesh *mesh_eval,
+                                              Object *ob_orig)
+{
+  /* Set playback flag to skip CPU modifier stack and preserve mesh_eval.
+   *
+   * When this flag is set:
+   * - BKE_object_handle_data_update() skips mesh_data_update()
+   * - BKE_object_batch_cache_dirty_tag() skips batch_cache invalidation
+   * - Mesh_eval is NOT freed (unlike normal ID_RECALC_GEOMETRY)
+   * - VBO extraction will use vec4 positions (stride = 16)
+   */
+  mesh_orig->is_running_gpu_animation_playback = 1;
+
+  if (mesh_eval) {
+    mesh_eval->is_running_gpu_animation_playback = 1;
+  }
+
+  /* Tag depsgraph to trigger geometry update.
+   *
+   * This will:
+   * - Trigger VBO extraction with correct stride
+   * - Update draw cache (but NOT invalidate batch_cache due to flag above)
+   */
+  DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+
+  /* Notify viewport to redraw (will be done on next frame). */
+  WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
 MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh)
