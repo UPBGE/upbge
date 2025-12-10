@@ -3,8 +3,83 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
+import gpu
+from gpu_extras.batch import batch_for_shader
+import math
+import mathutils
+import time
 from bpy.types import Operator
 from bpy.props import BoolProperty, EnumProperty, FloatProperty
+
+
+_draw_handler = None
+_visualize_distance = 2.0
+_visualize_start_time = 0.0
+
+def remove_visualization():
+    global _draw_handler
+    if _draw_handler is not None:
+        bpy.types.SpaceView3D.draw_handler_remove(_draw_handler, 'WINDOW')
+        _draw_handler = None
+        # Force redraw to clear immediately
+        for window in bpy.context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+
+def visualization_timer():
+    global _visualize_start_time, _draw_handler
+    
+    if _draw_handler is None:
+        return None
+        
+    if time.time() - _visualize_start_time > 3.0:
+        remove_visualization()
+        return None
+        
+    return 0.1
+
+
+def draw_distance_visualization():
+    if not bpy.context.selected_objects:
+        return
+
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    gpu.state.blend_set('ALPHA')
+    gpu.state.line_width_set(2.0)
+
+    radius = _visualize_distance
+    segments = 64
+
+    # Calculate circle points in local space (XY plane)
+    circle_points = []
+    for i in range(segments):
+        angle = 2 * math.pi * i / segments
+        circle_points.append((math.cos(angle) * radius, math.sin(angle) * radius, 0.0))
+    # Close the loop
+    circle_points.append(circle_points[0])
+
+    batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": circle_points})
+    shader.bind()
+    shader.uniform_float("color", (1.0, 1.0, 1.0, 1.0))  # White
+
+    view_matrix = bpy.context.region_data.view_matrix
+    view_inv = view_matrix.inverted()
+    rot_mat = view_inv.to_3x3().to_4x4()
+
+    for obj in bpy.context.selected_objects:
+        if obj.type == 'EMPTY':
+            continue
+        # We want to place the circle at obj.location, oriented to camera
+        trans_mat = mathutils.Matrix.Translation(obj.matrix_world.translation)
+        model_matrix = trans_mat @ rot_mat
+
+        gpu.matrix.push()
+        gpu.matrix.multiply_matrix(model_matrix)
+        batch.draw(shader)
+        gpu.matrix.pop()
+
+    gpu.state.blend_set('NONE')
 
 
 class ConnectRigidBodiesGame(Operator):
@@ -127,6 +202,20 @@ class ConnectRigidBodiesGame(Operator):
         con.object2 = object2
 
     def execute(self, context):
+        global _draw_handler, _visualize_distance, _visualize_start_time
+        
+        # Handle visualization
+        _visualize_distance = self.connect_distance
+        
+        if self.connection_pattern == 'CUSTOM_DISTANCE':
+            # Reset timer on every interaction
+            _visualize_start_time = time.time()
+            if _draw_handler is None:
+                _draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_distance_visualization, (), 'WINDOW', 'POST_VIEW')
+                bpy.app.timers.register(visualization_timer)
+        else:
+            remove_visualization()
+
         view_layer = context.view_layer
         selected_all = list(context.selected_objects)
         objects = [obj for obj in selected_all if not self._is_no_collision(obj)]
@@ -173,7 +262,7 @@ class ConnectRigidBodiesGame(Operator):
                     obj_b = objects[j]
                     if (obj_a.location - obj_b.location).length <= dist_max:
                         self._add_constraint(context, obj_a, obj_b)
-                        change = True
+                change = True
 
         else:  # SELECTED_TO_ACTIVE
             for obj in objects:
