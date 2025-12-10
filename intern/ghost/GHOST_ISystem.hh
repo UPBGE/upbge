@@ -522,6 +522,12 @@ class GHOST_ISystem {
   virtual GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const = 0;
 
   /***************************************************************************************
+   * Window "Client Side Decorations" (CSD)
+   ***************************************************************************************/
+
+  virtual void setWindowCSD(const GHOST_CSD_Params &params) = 0;
+
+  /***************************************************************************************
    * System Message Box.
    ***************************************************************************************/
 
@@ -579,10 +585,6 @@ class GHOST_ISystem {
 
   /**
    * When false, don't use window frame.
-   *
-   * \note This needs to be set before system initialization
-   * to avoid loading LIBDECOR libraries (which can crash).
-   * If LIBDECOR is removed, this could be set on window creation instead.
    */
   static bool use_window_frame_;
 

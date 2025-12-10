@@ -8,7 +8,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
-from pxr import Ar, Gf, Sdf, Usd, UsdGeom, UsdShade
+from pxr import Ar, Gf, Sdf, Usd, UsdGeom, UsdShade, UsdUI
 
 import bpy
 
@@ -788,11 +788,11 @@ class USDImportTest(AbstractUSDTest):
         # Validate some simple aspects of the animated objects which prove that they're animating.
         ob_xform = bpy.data.objects["cube_anim_xform"]
         ob_xform_child = bpy.data.objects["cube_anim_child_mesh"]
-        ob_shapekeys = bpy.data.objects["cube_anim_keys"]
+        ob_shapekeys = bpy.data.objects["cube_anim_keys.001"]
         ob_arm = bpy.data.objects["column_anim_armature"]
         ob_arm2_side_a = bpy.data.objects["side_a"]
         ob_arm2_side_b = bpy.data.objects["side_b"]
-        self.assertEqual(bpy.data.objects["Armature"].animation_data.action.name, "ArmatureAction_001")
+        self.assertEqual(bpy.data.objects["Armature.001"].animation_data.action.name, "ArmatureAction_001")
 
         bpy.context.scene.frame_set(1)
         self.assertEqual(len(ob_xform.constraints), 1)
@@ -877,7 +877,7 @@ class USDImportTest(AbstractUSDTest):
         res = bpy.ops.wm.usd_import(filepath=infile)
         self.assertEqual({'FINISHED'}, res)
 
-        obj = bpy.data.objects["Plane"]
+        obj = bpy.data.objects["Plane.001"]
 
         obj.active_shape_key_index = 1
 
@@ -1970,12 +1970,12 @@ class USDImportTest(AbstractUSDTest):
         bpy.utils.unregister_class(GetPrimMapUsdImportHook)
 
         expected_prim_map = {
-            Sdf.Path('/Cube'): [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            Sdf.Path('/Cube'): [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
             Sdf.Path('/XformThenCube'): [bpy.data.objects["XformThenCube"]],
-            Sdf.Path('/XformThenCube/Cube'): [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
+            Sdf.Path('/XformThenCube/Cube'): [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
             Sdf.Path('/XformThenXformCube'): [bpy.data.objects["XformThenXformCube"]],
             Sdf.Path('/XformThenXformCube/XformIntermediate'): [bpy.data.objects["XformIntermediate"]],
-            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
+            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
             Sdf.Path('/Material'): [bpy.data.materials["Material"]],
         }
 
@@ -1988,12 +1988,12 @@ class USDImportTest(AbstractUSDTest):
         bpy.utils.unregister_class(GetPrimMapUsdImportHook)
 
         expected_prim_map = {
-            Sdf.Path('/Cube'): [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
-            Sdf.Path('/XformThenCube'): [bpy.data.objects["Cube"]],
-            Sdf.Path('/XformThenCube/Cube'): [bpy.data.meshes["Cube"]],
+            Sdf.Path('/Cube'): [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
+            Sdf.Path('/XformThenCube'): [bpy.data.objects["Cube.001"]],
+            Sdf.Path('/XformThenCube/Cube'): [bpy.data.meshes["Cube.001"]],
             Sdf.Path('/XformThenXformCube'): [bpy.data.objects["XformThenXformCube"]],
-            Sdf.Path('/XformThenXformCube/XformIntermediate'): [bpy.data.objects["Cube.001"]],
-            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.meshes["Cube.001"]],
+            Sdf.Path('/XformThenXformCube/XformIntermediate'): [bpy.data.objects["Cube.002"]],
+            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.meshes["Cube.002"]],
             Sdf.Path('/Material'): [bpy.data.materials["Material"]],
         }
 
@@ -2115,6 +2115,62 @@ class USDImportTest(AbstractUSDTest):
                         "Imported texture should be temporary")
 
         bpy.utils.unregister_class(ImportMtlxTextureUSDHook)
+
+    def test_import_accessibility(self):
+        """Test importing accessibility metadata as custom properties."""
+
+        # Create a simple USD file with accessibility metadata
+        usd_path = self.tempdir / "accessibility_test.usda"
+        stage = Usd.Stage.CreateNew(str(usd_path))
+
+        # Create a cube with accessibility metadata
+        prim = stage.DefinePrim("/root", "Xform")
+        stage.SetDefaultPrim(prim)
+
+        # Add default namespace
+        default_api = UsdUI.AccessibilityAPI.Apply(prim, "default")
+        label_attr = default_api.CreateLabelAttr()
+        label_attr.Set("Test Prim")
+        description_attr = default_api.CreateDescriptionAttr()
+        description_attr.Set("A test prim for import")
+        priority_attr = default_api.CreatePriorityAttr()
+        priority_attr.Set(UsdUI.Tokens.high)
+
+        # Add custom namespace
+        custom_api = UsdUI.AccessibilityAPI.Apply(prim, "alternate")
+        alt_label_attr = custom_api.CreateLabelAttr()
+        alt_label_attr.Set("Alternate Label")
+        alt_description_attr = custom_api.CreateDescriptionAttr()
+        alt_description_attr.Set("Alternate description")
+
+        stage.Save()
+
+        # Import the USD file
+        res = bpy.ops.wm.usd_import(filepath=str(usd_path))
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {usd_path}")
+
+        # Verify the imported object has the accessibility custom properties
+        xform = bpy.data.objects.get("root")
+        self.assertIsNotNone(xform, "root prim object should be imported")
+
+        label_key = label_attr.GetName()
+        description_key = description_attr.GetName()
+        priority_key = priority_attr.GetName()
+
+        self.assertIn(label_key, xform, "Default label should be imported")
+        self.assertEqual(xform[label_key], label_attr.Get())
+        self.assertIn(description_key, xform, "Default description should be imported")
+        self.assertEqual(xform[description_key], description_attr.Get())
+        self.assertIn(priority_key, xform, "Default priority should be imported")
+        self.assertEqual(xform[priority_key], priority_attr.Get())
+
+        alt_label_key = alt_label_attr.GetName()
+        alt_description_key = alt_description_attr.GetName()
+
+        self.assertIn(alt_label_key, xform, "Alternate label should be imported")
+        self.assertEqual(xform[alt_label_key], alt_label_attr.Get())
+        self.assertIn(alt_description_key, xform, "Alternate description should be imported")
+        self.assertEqual(xform[alt_description_key], alt_description_attr.Get())
 
 
 class USDImportComparisonTest(unittest.TestCase):

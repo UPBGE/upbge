@@ -398,12 +398,25 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 9)) {
     init_node_tool_operator_idnames(*bmain);
+
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->r.ffcodecdata.custom_constant_rate_factor = 23;
+    }
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 10)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       wm->xr.session_settings.view_scale = 1.0f;
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 12)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        version_node_input_socket_name(node_tree, CMP_NODE_CRYPTOMATTE_LEGACY, "image", "Image");
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
