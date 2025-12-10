@@ -418,6 +418,24 @@ void BL_ArmatureObject::ApplyPose()
   }
 }
 
+static void compute_bendy_bones_matrices(Object *armOb)
+{
+  /* ============================================================
+   * UPDATE BENDY BONES SEGMENTS CACHE FOR BGE
+   * ============================================================
+   * When flush_to_original is false, BKE_pose_where_is() is not called,
+   * so bendy bones segments are not updated. We need to do it manually.
+   */
+  if (armOb->pose) {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &armOb->pose->chanbase) {
+      /* Only update bendy bones (segments > 1) */
+      if (pchan->bone && pchan->bone->segments > 1) {
+        BKE_pchan_bbone_segments_cache_compute(pchan);
+      }
+    }
+  }
+}
+
 void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext &evalCtx)
 {
   if (!m_objArma || !action) {
@@ -426,6 +444,7 @@ void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext 
   PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
+  compute_bendy_bones_matrices(m_objArma);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
