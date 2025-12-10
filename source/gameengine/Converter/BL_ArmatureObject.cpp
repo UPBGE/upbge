@@ -425,6 +425,7 @@ static void compute_bendy_bones_matrices(Object *armOb)
    * ============================================================
    * When flush_to_original is false, BKE_pose_where_is() is not called,
    * so bendy bones segments are not updated. We need to do it manually.
+   * in GPU skinning mode as depsgraph is not tagged.
    */
   if (armOb->pose) {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &armOb->pose->chanbase) {
