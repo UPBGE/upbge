@@ -303,6 +303,10 @@ uint32_t HookManager::compute_hook_hash(const Mesh *mesh_orig, const HookModifie
     hash = BLI_hash_int_2d(hash, hmd->curfalloff->changed_timestamp);
   }
 
+  /* Hash deform_verts pointer (detects vertex group changes) */
+  blender::Span<MDeformVert> dverts = mesh_orig->deform_verts();
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dverts.data())));
+
   /* Note: force, falloff, cent, parentinv are runtime uniforms, not hashed */
 
   return hash;
@@ -369,6 +373,10 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
       const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, hmd->name);
       if (defgrp_index != -1) {
         blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
+
+        /* Check if dverts is empty to prevent crash
+         * When ALL vertex groups are deleted, dverts.data() == nullptr.
+         * Accessing dverts[v] would crash with Access Violation. */
         if (!dverts.is_empty()) {
           msd.vgroup_weights.resize(orig_mesh->verts_num, 0.0f);
           const bool invert_vgroup = (hmd->flag & MOD_HOOK_INVERT_VGROUP) != 0;

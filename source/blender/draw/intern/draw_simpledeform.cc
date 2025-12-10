@@ -411,6 +411,10 @@ uint32_t SimpleDeformManager::compute_simpledeform_hash(const Mesh *mesh_orig,
     hash = BLI_hash_string(smd->vgroup_name);
   }
 
+  /* Hash deform_verts pointer (detects vertex group changes) */
+  blender::Span<MDeformVert> dverts = mesh_orig->deform_verts();
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dverts.data())));
+
   /* NOTE: factor is NOT hashed (it's a runtime uniform) */
 
   return hash;
@@ -452,6 +456,10 @@ void SimpleDeformManager::ensure_static_resources(const SimpleDeformModifierData
     const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, smd->vgroup_name);
     if (defgrp_index != -1) {
       blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
+
+      /* Check if dverts is empty to prevent crash
+       * When ALL vertex groups are deleted, dverts.data() == nullptr.
+       * Accessing dverts[v] would crash with Access Violation. */
       if (!dverts.is_empty()) {
         msd.vgroup_weights.resize(orig_mesh->verts_num, 0.0f);
         for (int v = 0; v < orig_mesh->verts_num; ++v) {

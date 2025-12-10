@@ -816,6 +816,9 @@ uint32_t ArmatureSkinningManager::compute_armature_hash(const Mesh *mesh_orig,
     hash = BLI_hash_string(amd->defgrp_name);
   }
 
+  blender::Span<MDeformVert> dverts = mesh_orig->deform_verts();
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dverts.data())));
+
   return hash;
 }
 
@@ -903,87 +906,101 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
   blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
   constexpr float kContribThreshold = 0.0001f;
 
-  /* First pass: count total influences and build offsets */
-  int total_influences = 0;
-  for (int v = 0; v < verts_num; ++v) {
-    msd.in_influence_offsets[v] = total_influences;
-
-    const MDeformVert &dvert = dverts[v];
-    std::map<int, float> bone_weight_map;
-
-    for (int j = 0; j < dvert.totweight; ++j) {
-      const int def_nr = dvert.dw[j].def_nr;
-      if (def_nr >= 0 && def_nr < (int)group_names.size()) {
-        const std::string &group_name = group_names[def_nr];
-        if (auto *it = bone_name_to_index.lookup_ptr(group_name)) {
-          bone_weight_map[*it] += dvert.dw[j].weight;
-        }
-      }
+  /* Check if dverts is empty before accessing it!
+   * When ALL vertex groups are deleted, dverts.data() == nullptr
+   * Accessing dverts[v] would crash with Access Violation.
+   *
+   * If empty, all vertices get zero influences (rest pose). */
+  if (dverts.is_empty()) {
+    /* No deform verts: all vertices get zero influences (rest pose) */
+    for (int v = 0; v <= verts_num; ++v) {
+      msd.in_influence_offsets[v] = 0;  // All offsets point to start (no influences)
     }
-
-    /* Count significant influences */
-    for (const auto &kv : bone_weight_map) {
-      if (kv.second > kContribThreshold) {
-        total_influences++;
-      }
-    }
+    /* in_indices and in_weights remain empty (no influences) */
   }
-  msd.in_influence_offsets[verts_num] = total_influences; /* End offset */
+  else {
+    /* First pass: count total influences and build offsets */
+    int total_influences = 0;
+    for (int v = 0; v < verts_num; ++v) {
+      msd.in_influence_offsets[v] = total_influences;
 
-  /* Allocate arrays for all influences */
-  msd.in_indices.resize(total_influences);
-  msd.in_weights.resize(total_influences);
+      const MDeformVert &dvert = dverts[v];
+      std::map<int, float> bone_weight_map;
 
-  /* Second pass: fill influences (no limit!) */
-  int influence_idx = 0;
-  for (int v = 0; v < verts_num; ++v) {
-    const MDeformVert &dvert = dverts[v];
-    std::map<int, float> bone_weight_map;
+      for (int j = 0; j < dvert.totweight; ++j) {
+        const int def_nr = dvert.dw[j].def_nr;
+        if (def_nr >= 0 && def_nr < (int)group_names.size()) {
+          const std::string &group_name = group_names[def_nr];
+          if (auto *it = bone_name_to_index.lookup_ptr(group_name)) {
+            bone_weight_map[*it] += dvert.dw[j].weight;
+          }
+        }
+      }
 
-    for (int j = 0; j < dvert.totweight; ++j) {
-      const int def_nr = dvert.dw[j].def_nr;
-      if (def_nr >= 0 && def_nr < (int)group_names.size()) {
-        const std::string &group_name = group_names[def_nr];
-        if (auto *it = bone_name_to_index.lookup_ptr(group_name)) {
-          bone_weight_map[*it] += dvert.dw[j].weight;
+      /* Count significant influences */
+      for (const auto &kv : bone_weight_map) {
+        if (kv.second > kContribThreshold) {
+          total_influences++;
         }
       }
     }
+    msd.in_influence_offsets[verts_num] = total_influences; /* End offset */
 
-    /* Collect and sort influences */
-    struct Influence {
-      int bone_idx;
-      float weight;
-    };
-    std::vector<Influence> influences;
-    influences.reserve(bone_weight_map.size());
+    /* Allocate arrays for all influences */
+    msd.in_indices.resize(total_influences);
+    msd.in_weights.resize(total_influences);
 
-    float total_weight = 0.0f;
-    for (const auto &kv : bone_weight_map) {
-      if (kv.second > kContribThreshold) {
-        influences.push_back({kv.first, kv.second});
-        total_weight += kv.second;
+    /* Second pass: fill influences (no limit!) */
+    int influence_idx = 0;
+    for (int v = 0; v < verts_num; ++v) {
+      const MDeformVert &dvert = dverts[v];
+      std::map<int, float> bone_weight_map;
+
+      for (int j = 0; j < dvert.totweight; ++j) {
+        const int def_nr = dvert.dw[j].def_nr;
+        if (def_nr >= 0 && def_nr < (int)group_names.size()) {
+          const std::string &group_name = group_names[def_nr];
+          if (auto *it = bone_name_to_index.lookup_ptr(group_name)) {
+            bone_weight_map[*it] += dvert.dw[j].weight;
+          }
+        }
       }
-    }
 
-    /* Sort by weight (descending) */
-    std::sort(influences.begin(), influences.end(), [](const Influence &a, const Influence &b) {
-      return a.weight > b.weight;
-    });
+      /* Collect and sort influences */
+      struct Influence {
+        int bone_idx;
+        float weight;
+      };
+      std::vector<Influence> influences;
+      influences.reserve(bone_weight_map.size());
 
-    /* Normalize weights */
-    if (total_weight > kContribThreshold) {
-      const float inv_total = 1.0f / total_weight;
-      for (auto &inf : influences) {
-        inf.weight *= inv_total;
+      float total_weight = 0.0f;
+      for (const auto &kv : bone_weight_map) {
+        if (kv.second > kContribThreshold) {
+          influences.push_back({kv.first, kv.second});
+          total_weight += kv.second;
+        }
       }
-    }
 
-    /* Store all influences (no 16-bone limit!) */
-    for (const auto &inf : influences) {
-      msd.in_indices[influence_idx] = inf.bone_idx;
-      msd.in_weights[influence_idx] = inf.weight;
-      influence_idx++;
+      /* Sort by weight (descending) */
+      std::sort(influences.begin(), influences.end(), [](const Influence &a, const Influence &b) {
+        return a.weight > b.weight;
+      });
+
+      /* Normalize weights */
+      if (total_weight > kContribThreshold) {
+        const float inv_total = 1.0f / total_weight;
+        for (auto &inf : influences) {
+          inf.weight *= inv_total;
+        }
+      }
+
+      /* Store all influences (no 16-bone limit!) */
+      for (const auto &inf : influences) {
+        msd.in_indices[influence_idx] = inf.bone_idx;
+        msd.in_weights[influence_idx] = inf.weight;
+        influence_idx++;
+      }
     }
   }
 
