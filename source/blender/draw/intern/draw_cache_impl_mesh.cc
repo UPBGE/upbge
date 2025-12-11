@@ -1235,7 +1235,7 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
     }
   }
 
-  d.allow_gpu = DRWContext::is_active() &&
+  d.allow_gpu = DRWContext::is_active() && ob.mode == OB_MODE_OBJECT &&
                 (d.python_requests_gpu || (need_gpu_process && DRW_context_get()->is_playback()));
 
   return d;
