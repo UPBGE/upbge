@@ -460,8 +460,10 @@ KX_Scene::~KX_Scene()
   if (m_logicmgr)
     delete m_logicmgr;
 
-  if (m_physicsEnvironment)
+  if (m_physicsEnvironment) {
     delete m_physicsEnvironment;
+    m_physicsEnvironment = nullptr;
+  }
 
   if (m_networkScene)
     delete m_networkScene;

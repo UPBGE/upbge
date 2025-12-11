@@ -104,6 +104,7 @@ set(SRC
   SCA_RandomActuator.cpp
   SCA_RandomNumberGenerator.cpp
   SCA_RandomSensor.cpp
+  SCA_RBConstraintSensor.cpp
   SCA_RaySensor.cpp
   SCA_ReplaceMeshActuator.cpp
   SCA_SceneActuator.cpp
@@ -172,6 +173,7 @@ set(SRC
   SCA_RandomActuator.h
   SCA_RandomNumberGenerator.h
   SCA_RandomSensor.h
+  SCA_RBConstraintSensor.h
   SCA_RaySensor.h
   SCA_ReplaceMeshActuator.h
   SCA_SceneActuator.h

@@ -195,6 +195,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
   virtual void RemoveConstraintById(int constraintid, bool free);
+  virtual bool IsRigidBodyConstraintEnabled(int constraintid);
 
   virtual float getAppliedImpulse(int constraintid);
 

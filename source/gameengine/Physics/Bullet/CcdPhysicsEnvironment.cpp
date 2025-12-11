@@ -1235,6 +1235,19 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
   }
 }
 
+bool CcdPhysicsEnvironment::IsRigidBodyConstraintEnabled(int constraintId)
+{
+  if (!m_dynamicsWorld) {
+    return false;
+  }
+
+  btTypedConstraint *constraint = GetConstraintById(constraintId);
+  if (!constraint) {
+    return false;
+  }
+  return constraint->isEnabled();
+}
+
 struct FilterClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback {
   PHY_IRayCastFilterCallback &m_phyRayFilter;
   const btCollisionShape *m_hitTriangleShape;
@@ -2162,6 +2175,7 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
   // first delete scene, then dispatcher, because pairs have to release manifolds on the dispatcher
   // delete m_dispatcher;
   delete m_dynamicsWorld;
+  m_dynamicsWorld = nullptr;
 
   if (nullptr != m_ownDispatcher)
     delete m_ownDispatcher;

@@ -144,6 +144,11 @@ typedef struct bArmatureSensor {
   float value = 0.0f;
 } bArmatureSensor;
 
+typedef struct bRBConstraintSensor {
+  /** Name of object with RB Constraint to monitor (empty = this object). */
+  char target[64];
+} bRBConstraintSensor;
+
 typedef struct bMessageSensor {
   /**
    * (Possible future use) pointer to a single sender object
@@ -277,6 +282,7 @@ typedef struct bMovementSensor {
 #define SENS_DELAY 13
 #define SENS_ARMATURE 14
 #define SENS_MOVEMENT 15
+#define SENS_RBCONSTRAINT 16
 /* sensor->flag */
 #define SENS_SHOW 1
 #define SENS_DEL 2
