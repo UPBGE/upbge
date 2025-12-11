@@ -3422,7 +3422,7 @@ static void gwl_window_csd_active_elem_button(GWL_Seat *seat,
         break;
       }
       case GHOST_kCSDTypeBorderBottomRight: {
-        if (is_press && (active_type == press_type)) {
+        if (is_press) {
           xdg_toplevel_resize(win->xdg_toplevel_get(),
                               seat->wl.seat,
                               serial,
@@ -3460,8 +3460,7 @@ static void gwl_window_csd_active_elem_button(GWL_Seat *seat,
       }
       case GHOST_kCSDTypeButtonClose: {
         if (is_press == false && (active_type == press_type)) {
-          seat->system->pushEvent_maybe_pending(
-              new GHOST_Event(event_ms, GHOST_kEventQuitRequest, win));
+          win->close();
         }
         break;
       }
@@ -8106,7 +8105,17 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
   use_window_frame_csd = true;
 #  endif
 
+  if (use_window_frame_csd) {
+    GHOST_CSD_Layout csd_layout = {0};
+    if (!GHOST_WindowCSD_LayoutFromSystem(csd_layout)) {
+      GHOST_WindowCSD_LayoutDefault(csd_layout);
+    }
+
+    this->setWindowCSD_Layout(csd_layout);
+  }
+
   display_->use_window_frame_csd = use_window_frame_csd;
+
 #endif /* WITH_GHOST_CSD */
 
   {
@@ -10294,7 +10303,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
 }
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
-bool ghost_wl_dynload_libraries_init(void)
+bool ghost_wl_dynload_libraries_init()
 {
 #  ifdef WITH_GHOST_X11
   /* When running in WAYLAND, let the user know when a missing library is the only reason
