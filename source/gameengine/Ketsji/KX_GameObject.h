@@ -162,6 +162,8 @@ class KX_GameObject : public SCA_IObject {
 #endif
 
   std::vector<blender::bRigidBodyJointConstraint *> m_constraints;
+
+ public:
   struct RigidBodyConstraintData {
     blender::RigidBodyCon *m_constraint;
     std::string m_object1Name;
