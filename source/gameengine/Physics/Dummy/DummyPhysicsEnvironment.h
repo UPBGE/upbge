@@ -78,6 +78,7 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
   virtual void RemoveConstraintById(int constraintid, bool free);
+  virtual bool IsRigidBodyConstraintEnabled(int constraintid) override { return false; }
 
   // complex constraint for vehicles
   virtual PHY_IVehicle *GetVehicleConstraint(int constraintId)
