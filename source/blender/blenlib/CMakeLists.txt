@@ -87,10 +87,7 @@ set(SRC
   intern/index_mask_expression.cc
   intern/index_range.cc
   intern/jitter_2d.cc
-  intern/kdtree_1d.cc
-  intern/kdtree_2d.cc
-  intern/kdtree_3d.cc
-  intern/kdtree_4d.cc
+  intern/kdtree_impl.hh
   intern/lasso_2d.cc
   intern/lazy_threading.cc
   intern/length_parameterize.cc
@@ -132,7 +129,7 @@ set(SRC
   intern/polyfill_2d.cc
   intern/polyfill_2d_beautify.cc
   intern/quadric.cc
-  intern/radial_tiling_shared.cc
+  intern/radial_tiling_wrapper.cc
   intern/rand.cc
   intern/rct.cc
   intern/resource_scope.cc
@@ -175,7 +172,6 @@ set(SRC
   ../../../extern/wcwidth/wcwidth.c
 
   # Header as source (included in C files above).
-  intern/kdtree_impl.hh
   intern/list_sort_impl.h
   intern/radial_tiling_shared.hh
 
@@ -281,7 +277,7 @@ set(SRC
   BLI_jitter_2d.h
   BLI_kdopbvh.hh
   BLI_kdtree.hh
-  BLI_kdtree_impl.hh
+  BLI_kdtree_types.hh
   BLI_lasso_2d.hh
   BLI_lazy_threading.hh
   BLI_length_parameterize.hh

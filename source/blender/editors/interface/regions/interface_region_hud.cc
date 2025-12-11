@@ -36,6 +36,8 @@
 #include "GPU_framebuffer.hh"
 #include "interface_intern.hh"
 
+namespace blender::ui {
+
 /* -------------------------------------------------------------------- */
 /** \name Utilities
  * \{ */
@@ -162,7 +164,7 @@ static void hud_panel_operator_redo_draw_header(const bContext *C, Panel *panel)
 {
   wmOperator *op = WM_operator_last_redo(C);
   const std::string opname = WM_operatortype_name(op->type, op->ptr);
-  UI_panel_drawname_set(panel, opname);
+  panel_drawname_set(panel, opname);
 }
 
 static void hud_panel_operator_redo_draw(const bContext *C, Panel *panel)
@@ -174,8 +176,8 @@ static void hud_panel_operator_redo_draw(const bContext *C, Panel *panel)
   if (!WM_operator_check_ui_enabled(C, op->type->name)) {
     panel->layout->enabled_set(false);
   }
-  blender::ui::Layout &col = panel->layout->column(false);
-  uiTemplateOperatorRedoProperties(&col, C);
+  Layout &col = panel->layout->column(false);
+  template_operator_redo_properties(&col, C);
 }
 
 static void hud_panels_register(ARegionType *art, int space_type, int region_type)
@@ -207,7 +209,7 @@ static void hud_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.maxzoom = 1.0f;
   region->v2d.minzoom = 1.0f;
 
-  UI_region_handlers_add(&region->runtime->handlers);
+  region_handlers_add(&region->runtime->handlers);
   region->flag |= RGN_FLAG_TEMP_REGIONDATA;
 }
 
@@ -250,7 +252,7 @@ static void hud_region_layout(const bContext *C, ARegion *region)
     region->winrct.xmax = (region->winrct.xmin + region->winx) - 1;
     region->winrct.ymax = (region->winrct.ymin + region->winy) - 1;
 
-    UI_view2d_region_reinit(v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+    view2d_region_reinit(v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
     /* Weak, but needed to avoid glitches, especially with hi-dpi
      * (where resizing the view glitches often).
@@ -259,12 +261,12 @@ static void hud_region_layout(const bContext *C, ARegion *region)
   }
 
   /* restore view matrix */
-  UI_view2d_view_restore(C);
+  view2d_view_restore(C);
 }
 
 static void hud_region_draw(const bContext *C, ARegion *region)
 {
-  UI_view2d_view_ortho(&region->v2d);
+  view2d_view_ortho(&region->v2d);
   wmOrtho2_region_pixelspace(region);
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -272,7 +274,7 @@ static void hud_region_draw(const bContext *C, ARegion *region)
     rcti reset_rect = {};
     reset_rect.xmax = region->winx;
     reset_rect.ymax = region->winy;
-    ui_draw_menu_back(nullptr, nullptr, &reset_rect);
+    draw_menu_back(nullptr, nullptr, &reset_rect);
     ED_region_panels_draw(C, region);
   }
 }
@@ -431,7 +433,7 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
   if (region_win) {
     float x, y;
 
-    UI_view2d_scroller_size_get(&region_win->v2d, true, &x, &y);
+    view2d_scroller_size_get(&region_win->v2d, true, &x, &y);
     region->runtime->offset_x = x;
     region->runtime->offset_y = y;
   }
@@ -477,3 +479,5 @@ ARegion *ED_area_type_hud_redo_region_find(const ScrArea *area, const ARegion *h
 }
 
 /** \} */
+
+}  // namespace blender::ui

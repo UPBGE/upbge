@@ -78,7 +78,7 @@ static FileSelection find_file_mouse_rect(SpaceFile *sfile,
   /* Okay, manipulating v2d rects here is hacky... */
   v2d->mask.ymax -= sfile->layout->offset_top;
   v2d->cur.ymax -= sfile->layout->offset_top;
-  UI_view2d_region_to_view_rctf(v2d, &rect_region_fl, &rect_view_fl);
+  blender::ui::view2d_region_to_view_rctf(v2d, &rect_region_fl, &rect_view_fl);
   v2d->mask.ymax += sfile->layout->offset_top;
   v2d->cur.ymax += sfile->layout->offset_top;
 
@@ -308,7 +308,7 @@ static void file_ensure_inside_viewbounds(ARegion *region, SpaceFile *sfile, con
   }
 
   if (changed) {
-    UI_view2d_curRect_validate(&region->v2d);
+    blender::ui::view2d_curRect_validate(&region->v2d);
   }
 }
 
@@ -421,7 +421,8 @@ static int file_box_select_find_last_selected(SpaceFile *sfile,
   int dist_first, dist_last;
   float mouseco_view[2];
 
-  UI_view2d_region_to_view(&region->v2d, UNPACK2(mouse_xy), &mouseco_view[0], &mouseco_view[1]);
+  blender::ui::view2d_region_to_view(
+      &region->v2d, UNPACK2(mouse_xy), &mouseco_view[0], &mouseco_view[1]);
 
   file_tile_boundbox(region, layout, sel->first, &bounds_first);
   file_tile_boundbox(region, layout, sel->last, &bounds_last);
@@ -1440,7 +1441,7 @@ int file_highlight_set(SpaceFile *sfile, ARegion *region, int mx, int my)
     float fx, fy;
     int highlight_file;
 
-    UI_view2d_region_to_view(v2d, mx, my, &fx, &fy);
+    blender::ui::view2d_region_to_view(v2d, mx, my, &fx, &fy);
 
     highlight_file = ED_fileselect_layout_offset(
         sfile->layout, int(v2d->tot.xmin + fx), int(v2d->tot.ymax - fy));
@@ -1886,8 +1887,7 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
   }
 #else
   wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
-  PointerRNA op_props;
-  WM_operator_properties_create_ptr(&op_props, ot);
+  PointerRNA op_props = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&op_props, "filepath", filepath);
   const wmOperatorStatus retval = WM_operator_name_call_ptr(
       C, ot, blender::wm::OpCallContext::InvokeDefault, &op_props, nullptr);
@@ -2531,7 +2531,6 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
   CTX_wm_region_set(C, region);
 
   /* scroll one step in the desired direction */
-  PointerRNA op_ptr;
   int deltax = 0;
   int deltay = 0;
 
@@ -2567,7 +2566,7 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
       deltay = -scroll_delta;
     }
   }
-  WM_operator_properties_create(&op_ptr, "VIEW2D_OT_pan");
+  PointerRNA op_ptr = WM_operator_properties_create("VIEW2D_OT_pan");
   RNA_int_set(&op_ptr, "deltax", deltax);
   RNA_int_set(&op_ptr, "deltay", deltay);
 
@@ -2991,8 +2990,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void * /*ar
     else {
       /* If not, ask to create it and enter if confirmed. */
       wmOperatorType *ot = WM_operatortype_find("FILE_OT_directory_new", false);
-      PointerRNA ptr;
-      WM_operator_properties_create_ptr(&ptr, ot);
+      PointerRNA ptr = WM_operator_properties_create_ptr(ot);
       RNA_string_set(&ptr, "directory", params->dir);
       RNA_boolean_set(&ptr, "open", true);
       /* Enable confirmation prompt, else it's too easy to accidentally create new directories. */
@@ -3019,7 +3017,7 @@ void file_filename_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_bu
   }
 
   const Main *bmain = CTX_data_main(C);
-  uiBut *but = static_cast<uiBut *>(arg_but);
+  blender::ui::Button *but = static_cast<blender::ui::Button *>(arg_but);
 
   file_expand_directory(bmain, params);
 
@@ -3049,7 +3047,7 @@ void file_filename_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_bu
         STRNCPY(params->dir, filepath);
         params->file[0] = '\0';
         ED_file_change_dir(C);
-        UI_textbutton_activate_but(C, but);
+        textbutton_activate_but(C, but);
         WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
       }
     }
@@ -3349,7 +3347,7 @@ static wmOperatorStatus file_start_filter_exec(bContext *C, wmOperator * /*op*/)
 
   if (area) {
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (UI_textbutton_activate_rna(C, region, params, "filter_search")) {
+      if (blender::ui::textbutton_activate_rna(C, region, params, "filter_search")) {
         break;
       }
     }
@@ -3385,7 +3383,7 @@ static wmOperatorStatus file_edit_directory_path_exec(bContext *C, wmOperator * 
 
   if (area) {
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (UI_textbutton_activate_rna(C, region, params, "directory")) {
+      if (blender::ui::textbutton_activate_rna(C, region, params, "directory")) {
         break;
       }
     }

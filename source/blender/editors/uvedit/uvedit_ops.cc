@@ -1097,10 +1097,10 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     uv_maxlen += em->bm->totloop;
   }
 
-  blender::KDTree_2d *tree = blender::BLI_kdtree_2d_new(uv_maxlen);
+  blender::KDTree_2d *tree = blender::kdtree_2d_new(uv_maxlen);
 
-  blender::Vector<int> duplicates;
-  blender::Vector<float *> uv_map_arr;
+  Vector<int> duplicates;
+  Vector<float *> uv_map_arr;
 
   int uv_map_count = 0; /* Also used for *duplicates count. */
 
@@ -1108,7 +1108,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      blender::BLI_kdtree_2d_insert(tree, uv_map_count, luv);
+      blender::kdtree_2d_insert(tree, uv_map_count, luv);
       duplicates.append(-1);
       uv_map_arr.append(luv);
       uv_map_count++;
@@ -1117,8 +1117,8 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     ob_uv_map_max_idx[ob_index] = uv_map_count - 1;
   }
 
-  blender::BLI_kdtree_2d_balance(tree);
-  int found_duplicates = blender::BLI_kdtree_2d_calc_duplicates_fast(
+  blender::kdtree_2d_balance(tree);
+  int found_duplicates = blender::kdtree_2d_calc_duplicates_fast(
       tree, threshold, false, duplicates.data());
 
   if (found_duplicates > 0) {
@@ -1175,7 +1175,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     }
   }
 
-  blender::BLI_kdtree_2d_free(tree);
+  blender::kdtree_2d_free(tree);
   MEM_freeN(changed);
   MEM_freeN(ob_uv_map_max_idx);
 
@@ -1199,20 +1199,20 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     uv_maxlen += em->bm->totloop;
   }
 
-  blender::KDTree_2d *tree = blender::BLI_kdtree_2d_new(uv_maxlen);
+  blender::KDTree_2d *tree = blender::kdtree_2d_new(uv_maxlen);
 
-  blender::Vector<float *> uv_map_arr;
+  Vector<float *> uv_map_arr;
 
   int uv_map_count = 0;
 
   /* Add visible non-selected uvs to tree */
   ED_uvedit_foreach_uv_multi(scene, objects, true, false, [&](float luv[2]) {
-    blender::BLI_kdtree_2d_insert(tree, uv_map_count, luv);
+    blender::kdtree_2d_insert(tree, uv_map_count, luv);
     uv_map_arr.append(luv);
     uv_map_count++;
   });
 
-  blender::BLI_kdtree_2d_balance(tree);
+  blender::kdtree_2d_balance(tree);
 
   /* For each selected uv, find duplicate non selected uv. */
   for (Object *obedit : objects) {
@@ -1220,7 +1220,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
       blender::KDTreeNearest_2d nearest;
-      const int i = blender::BLI_kdtree_2d_find_nearest(tree, luv, &nearest);
+      const int i = blender::kdtree_2d_find_nearest(tree, luv, &nearest);
 
       if (i != -1 && nearest.dist < threshold) {
         copy_v2_v2(luv, uv_map_arr[i]);
@@ -1235,7 +1235,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     }
   }
 
-  blender::BLI_kdtree_2d_free(tree);
+  blender::kdtree_2d_free(tree);
 
   return OPERATOR_FINISHED;
 }
@@ -1262,7 +1262,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
     BMIter viter, liter;
 
     /* The `changed` variable keeps track if any loops from the current object are merged. */
-    blender::Vector<float *> uvs;
+    Vector<float *> uvs;
     uvs.reserve(32);
     bool changed = false;
 
@@ -2279,7 +2279,7 @@ static wmOperatorStatus uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, con
     }
   }
 
-  UI_view2d_region_to_view(
+  blender::ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -2473,8 +2473,8 @@ static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const w
     return uv_mark_seam_exec(C, op);
   }
 
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
-  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
+  blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.operator_context_set(blender::wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout.op(
@@ -2484,7 +2484,7 @@ static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const w
       op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", true);
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -2729,6 +2729,8 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_select_less);
   WM_operatortype_append(UV_OT_select_overlap);
   WM_operatortype_append(UV_OT_select_mode);
+  WM_operatortype_append(UV_OT_select_tile);
+
   WM_operatortype_append(UV_OT_custom_region_set);
 
   WM_operatortype_append(UV_OT_snap_cursor);

@@ -203,10 +203,12 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
          [&asset, socket_property, in_out](nodes::LinkSearchOpParams &params) {
            Main &bmain = *CTX_data_main(&params.C);
 
-           bNode &node = params.add_node(params.node_tree.typeinfo->group_idname);
-
            bNodeTree *group = reinterpret_cast<bNodeTree *>(
                asset::asset_local_id_ensure_imported(bmain, asset));
+           if (!group) {
+             return;
+           }
+           bNode &node = params.add_node(params.node_tree.typeinfo->group_idname);
            node.id = &group->id;
            id_us_plus(node.id);
            BKE_ntree_update_tag_node_property(&params.node_tree, &node);
@@ -321,7 +323,7 @@ static void gather_socket_link_operations(const bContext &C,
 }
 
 static void link_drag_search_update_fn(
-    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
   LinkDragSearchStorage &storage = *static_cast<LinkDragSearchStorage *>(arg);
   if (storage.update_items_tag) {
@@ -344,7 +346,7 @@ static void link_drag_search_update_fn(
   const Vector<SocketLinkOperation *> filtered_items = search.query(string);
 
   for (SocketLinkOperation *item : filtered_items) {
-    if (!UI_search_item_add(items, item->name, item, ICON_NONE, 0, 0)) {
+    if (!search_item_add(items, item->name, item, ICON_NONE, 0, 0)) {
       break;
     }
   }
@@ -413,8 +415,7 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   /* Start translation operator with the new node. */
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_translate_attach_remove_on_cancel", true);
   BLI_assert(ot);
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
@@ -425,26 +426,26 @@ static void link_drag_search_free_fn(void *arg)
   delete storage;
 }
 
-static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *arg_op)
+static ui::Block *create_search_popup_block(bContext *C, ARegion *region, void *arg_op)
 {
   LinkDragSearchStorage &storage = *(LinkDragSearchStorage *)arg_op;
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  ui::Block *block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);
+  block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
-  uiBut *but = uiDefSearchBut(block,
-                              storage.search,
-                              ICON_VIEWZOOM,
-                              sizeof(storage.search),
-                              storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),
-                              0,
-                              UI_searchbox_size_x(),
-                              UI_UNIT_Y,
-                              "");
-  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set_listen(but, link_drag_search_listen_fn);
-  UI_but_func_search_set(but,
+  ui::Button *but = uiDefSearchBut(block,
+                                   storage.search,
+                                   ICON_VIEWZOOM,
+                                   sizeof(storage.search),
+                                   storage.in_out() == SOCK_OUT ? 10 : 10 - ui::searchbox_size_x(),
+                                   0,
+                                   ui::searchbox_size_x(),
+                                   UI_UNIT_Y,
+                                   "");
+  button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  button_func_search_set_listen(but, link_drag_search_listen_fn);
+  button_func_search_set(but,
                          nullptr,
                          link_drag_search_update_fn,
                          &storage,
@@ -452,23 +453,23 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
                          link_drag_search_free_fn,
                          link_drag_search_exec_fn,
                          nullptr);
-  UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
+  button_flag_enable(but, ui::BUT_ACTIVATE_ON_INIT);
 
   /* Fake button to hold space for the search items. */
   uiDefBut(block,
-           ButType::Label,
+           ui::ButtonType::Label,
            "",
-           storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),
-           10 - UI_searchbox_size_y(),
-           UI_searchbox_size_x(),
-           UI_searchbox_size_y(),
+           storage.in_out() == SOCK_OUT ? 10 : 10 - ui::searchbox_size_x(),
+           10 - ui::searchbox_size_y(),
+           ui::searchbox_size_x(),
+           ui::searchbox_size_y(),
            nullptr,
            0,
            0,
            std::nullopt);
 
   const int2 offset = {0, -UI_UNIT_Y};
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, offset);
+  block_bounds_set_popup(block, 0.3f * U.widget_unit, offset);
   return block;
 }
 
@@ -479,7 +480,7 @@ void invoke_node_link_drag_add_menu(bContext &C,
 {
   LinkDragSearchStorage *storage = new LinkDragSearchStorage{node, socket, cursor};
   /* Use the "_ex" variant with `can_refresh` false to avoid a double free when closing Blender. */
-  UI_popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
+  popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
 }
 
 }  // namespace blender::ed::space_node

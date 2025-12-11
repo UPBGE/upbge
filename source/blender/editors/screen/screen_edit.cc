@@ -832,7 +832,7 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
     }
 
     /* Called even when creating the ghost window fails in #WM_window_open. */
-    if (win->ghostwin) {
+    if (win->runtime->ghostwin) {
       /* Header size depends on DPI, let's verify. */
       WM_window_dpi_set_userdef(win);
     }
@@ -886,8 +886,8 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
     }
 
     ED_screen_refresh(C, wm, win);
-    if (win->eventstate) {
-      ED_screen_set_active_region(nullptr, win, win->eventstate->xy);
+    if (win->runtime->eventstate) {
+      ED_screen_set_active_region(nullptr, win, win->runtime->eventstate->xy);
     }
   }
 
@@ -929,7 +929,7 @@ void ED_region_exit(bContext *C, ARegion *region)
 
   /* Stop panel animation in this region if there are any. */
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    UI_panel_stop_animation(C, panel);
+    blender::ui::panel_stop_animation(C, panel);
   }
 
   if (region->regiontype == RGN_TYPE_TEMPORARY) {
@@ -1198,7 +1198,7 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
        * because it can undo setting the right button as active due
        * to delayed notifier handling. */
       if (C) {
-        UI_screen_free_active_but_highlight(C, screen);
+        blender::ui::UI_screen_free_active_but_highlight(C, screen);
       }
     }
   }
@@ -1211,7 +1211,7 @@ int ED_screen_area_active(const bContext *C)
   ScrArea *area = CTX_wm_area(C);
 
   if (win && screen && area) {
-    AZone *az = ED_area_actionzone_find_xy(area, win->eventstate->xy);
+    AZone *az = ED_area_actionzone_find_xy(area, win->runtime->eventstate->xy);
 
     if (az && az->type == AZONE_REGION) {
       return 1;
@@ -1386,11 +1386,11 @@ void screen_change_prepare(
      * On the other hand this is a rare occurrence, script developers will often show errors
      * in a console too, so it's not such a priority to relocate these to the new screen.
      * See: #144958. */
-    UI_popup_handlers_remove_all(C, &win->modalhandlers);
+    blender::ui::popup_handlers_remove_all(C, &win->runtime->modalhandlers);
 
     /* remove handlers referencing areas in old screen */
     LISTBASE_FOREACH (ScrArea *, area, &screen_old->areabase) {
-      WM_event_remove_handlers_by_area(&win->modalhandlers, area);
+      WM_event_remove_handlers_by_area(&win->runtime->modalhandlers, area);
     }
 
     /* we put timer to sleep, so screen_exit has to think there's no timer */
@@ -1768,7 +1768,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
      * switching screens with tooltip open because region and tooltip
      * are no longer in the same screen */
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      UI_blocklist_free(C, region);
+      blender::ui::blocklist_free(C, region);
       if (region->runtime->regiontimer) {
         WM_event_timer_remove(wm, nullptr, region->runtime->regiontimer);
         region->runtime->regiontimer = nullptr;

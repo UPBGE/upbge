@@ -256,8 +256,7 @@ bool mtl_format_supports_blending(MTLPixelFormat format)
 
 id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_update_impl(
     TextureUpdateRoutineSpecialisation specialization_params,
-    blender::Map<TextureUpdateRoutineSpecialisation, id<MTLComputePipelineState>>
-        &specialization_cache,
+    Map<TextureUpdateRoutineSpecialisation, id<MTLComputePipelineState>> &specialization_cache,
     GPUTextureType texture_type)
 {
   /* Check whether the Kernel exists. */
@@ -484,7 +483,7 @@ void gpu::MTLTexture::update_sub_depth_2d(
   GPU_texture_filter_mode(r32_tex_tmp, false);
   GPU_texture_extend_mode(r32_tex_tmp, GPU_SAMPLER_EXTEND_MODE_EXTEND);
   gpu::MTLTexture *mtl_tex = static_cast<gpu::MTLTexture *>(r32_tex_tmp);
-  mtl_tex->update_sub(mip, offset, extent, type, data);
+  mtl_tex->update_sub(mip, offset, extent, type, data, 0);
 
   gpu::FrameBuffer *restore_fb = GPU_framebuffer_active_get();
   gpu::FrameBuffer *depth_fb_temp = GPU_framebuffer_create("depth_intermediate_copy_fb");
@@ -544,8 +543,7 @@ void gpu::MTLTexture::update_sub_depth_2d(
 
 id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_read_impl(
     TextureReadRoutineSpecialisation specialization_params,
-    blender::Map<TextureReadRoutineSpecialisation, id<MTLComputePipelineState>>
-        &specialization_cache,
+    Map<TextureReadRoutineSpecialisation, id<MTLComputePipelineState>> &specialization_cache,
     GPUTextureType texture_type)
 {
   /* Check whether the Kernel exists. */

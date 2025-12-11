@@ -115,6 +115,7 @@ typedef enum eFFMpegCrf {
   FFM_CRF_LOW = 26,
   FFM_CRF_VERYLOW = 29,
   FFM_CRF_LOWEST = 32,
+  FFM_CRF_CUSTOM = 128,
 } eFFMpegCrf;
 
 typedef enum eFFMpegAudioChannels {
@@ -178,6 +179,8 @@ typedef struct FFMpegCodecData {
   int max_b_frames;
   int flags;
   int constant_rate_factor;
+  /** Only used if constant_rate_factor flag is set to FFM_CRF_CUSTOM. */
+  int custom_constant_rate_factor;
   /** See eFFMpegPreset. */
   int ffmpeg_preset;
   int ffmpeg_prores_profile;
@@ -187,7 +190,6 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  int _pad;
 
 #ifdef __cplusplus
   IMB_Ffmpeg_Codec_ID codec_id_get() const
@@ -1379,6 +1381,8 @@ typedef struct Paint {
 
   /** Enum #ePaintFlags. */
   int flags;
+  /** Enum #ePaintDebugFlags. */
+  int debug_flags;
 
   /**
    * Paint stroke can use up to #PAINT_MAX_INPUT_SAMPLES inputs to smooth the stroke.
@@ -1393,7 +1397,6 @@ typedef struct Paint {
    * See #PaintCurveVisibilityFlags
    */
   int curve_visibility_flags;
-  char _pad[4];
 
   float tile_offset[3];
   struct UnifiedPaintSettings unified_paint_settings;
@@ -2743,14 +2746,16 @@ typedef enum eSnapMode {
   /** For snap individual elements. */
   SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
   SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
+
+  SCE_SNAP_TO_FACE_MIDPOINT = (1 << 11)
 } eSnapMode;
 ENUM_OPERATORS(eSnapMode)
 
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
 #define SCE_SNAP_TO_GEOM \
-  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_EDGE_MIDPOINT | \
-   SCE_SNAP_TO_EDGE_PERPENDICULAR)
+  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT | \
+   SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR)
 
 /** #SequencerToolSettings::snap_mode */
 enum {
@@ -2889,6 +2894,11 @@ typedef enum ePaintFlags {
   PAINT_USE_CAVITY_MASK = (1 << 3),
   PAINT_SCULPT_DELAY_UPDATES = (1 << 4),
 } ePaintFlags;
+
+/** #Paint::debug_flags */
+typedef enum ePaintDebugFlags {
+  PAINT_DEBUG_SHOW_BVH_NODES = (1 << 0),
+} ePaintDebugFlags;
 
 /**
  * #Sculpt::flags

@@ -349,15 +349,15 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
   CLAMP(cfra_for_cache, omd->bakestart, omd->bakeend);
   cfra_for_cache -= omd->bakestart; /* shift to 0 based */
 
-  blender::MutableSpan<blender::float3> positions = result->vert_positions_for_write();
-  const blender::OffsetIndices faces = result->faces();
+  MutableSpan<blender::float3> positions = result->vert_positions_for_write();
+  const OffsetIndices faces = result->faces();
 
   /* Add vertex-colors before displacement: allows lookup based on position. */
 
   if (omd->flag & MOD_OCEAN_GENERATE_FOAM) {
     AttributeOwner owner = AttributeOwner::from_id(&result->id);
     bke::MutableAttributeAccessor attributes = result->attributes_for_write();
-    const blender::Span<int> corner_verts = result->corner_verts();
+    const Span<int> corner_verts = result->corner_verts();
     bke::SpanAttributeWriter mloopcols = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
         BKE_attribute_calc_unique_name(owner, omd->foamlayername), bke::AttrDomain::Corner);
 
@@ -370,7 +370,7 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
     if (mloopcols) { /* unlikely to fail */
 
       for (const int i : faces.index_range()) {
-        const blender::IndexRange face = faces[i];
+        const IndexRange face = faces[i];
         const int *corner_vert = &corner_verts[face.start()];
         ColorGeometry4b *mlcol = &mloopcols.span[face.start()];
 
@@ -531,7 +531,7 @@ static void waves_panel_draw(const bContext * /*C*/, Panel *panel)
   layout.separator();
 
   col = &layout.column(false);
-  col->prop(ptr, "wave_alignment", UI_ITEM_R_SLIDER, IFACE_("Alignment"), ICON_NONE);
+  col->prop(ptr, "wave_alignment", blender::ui::ITEM_R_SLIDER, IFACE_("Alignment"), ICON_NONE);
   blender::ui::Layout &sub = col->column(false);
   sub.active_set(RNA_float_get(ptr, "wave_alignment") > 0.0f);
   sub.prop(ptr, "wave_direction", UI_ITEM_NONE, IFACE_("Direction"), ICON_NONE);
@@ -607,7 +607,7 @@ static void spectrum_panel_draw(const bContext * /*C*/, Panel *panel)
   blender::ui::Layout &col = layout.column(false);
   col.prop(ptr, "spectrum", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ELEM(spectrum, MOD_OCEAN_SPECTRUM_TEXEL_MARSEN_ARSLOE, MOD_OCEAN_SPECTRUM_JONSWAP)) {
-    col.prop(ptr, "sharpen_peak_jonswap", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+    col.prop(ptr, "sharpen_peak_jonswap", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
     col.prop(ptr, "fetch_jonswap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }

@@ -123,7 +123,7 @@ static wmOperatorStatus outliner_highlight_update_invoke(bContext *C,
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   float view_mval[2];
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
 
   TreeElement *hovered_te = outliner_find_item_at_y(
@@ -217,7 +217,7 @@ static wmOperatorStatus outliner_item_openclose_modal(bContext *C,
   OpenCloseData *data = (OpenCloseData *)op->customdata;
 
   float view_mval[2];
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
 
   if (event->type == MOUSEMOVE) {
@@ -264,7 +264,7 @@ static wmOperatorStatus outliner_item_openclose_invoke(bContext *C,
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
 
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
 
@@ -411,7 +411,7 @@ static TreeElement *outliner_item_rename_find_hovered(const SpaceOutliner *space
                                                       const wmEvent *event)
 {
   float fmval[2];
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
   TreeElement *hovered = outliner_find_item_at_y(space_outliner, &space_outliner->tree, fmval[1]);
   if (hovered && outliner_item_is_co_over_name(hovered, fmval[0])) {
@@ -561,7 +561,7 @@ static bool id_delete_tag(bContext *C,
       BKE_reportf(reports, RPT_WARNING, "Cannot delete indirectly linked library '%s'", id->name);
       return false;
     }
-    blender::Set<Library *> libraries{lib};
+    Set<Library *> libraries{lib};
     libraries.add_multiple_new(lib->runtime->archived_libraries.as_span());
     BLI_assert(!libraries.contains(nullptr));
     if (libraries.contains(scene_curr->id.lib)) {
@@ -708,7 +708,7 @@ static wmOperatorStatus outliner_id_delete_invoke(bContext *C,
 
   BLI_assert(region && space_outliner);
 
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
   SceneReplaceData scene_replace_data;
 
@@ -836,7 +836,7 @@ static wmOperatorStatus outliner_id_remap_invoke(bContext *C, wmOperator *op, co
   float fmval[2];
 
   if (!RNA_property_is_set(op->ptr, RNA_struct_find_property(op->ptr, "id_type"))) {
-    UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+    ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
     outliner_id_remap_find_tree_element(C, op, &space_outliner->tree, fmval[1]);
   }
@@ -918,11 +918,10 @@ void id_remap_fn(bContext *C,
                  TreeStoreElem *tselem)
 {
   wmOperatorType *ot = WM_operatortype_find("OUTLINER_OT_id_remap", false);
-  PointerRNA op_props;
 
   BLI_assert(tselem->id != nullptr);
 
-  WM_operator_properties_create_ptr(&op_props, ot);
+  PointerRNA op_props = WM_operator_properties_create_ptr(ot);
 
   RNA_enum_set(&op_props, "id_type", GS(tselem->id->name));
   RNA_enum_set_identifier(C, &op_props, "old_id", tselem->id->name + 2);
@@ -1096,9 +1095,7 @@ static wmOperatorStatus outliner_id_relocate_invoke(bContext *C,
   }
 
   wmOperatorType *ot = WM_operatortype_find("WM_OT_id_linked_relocate", false);
-  PointerRNA op_props;
-
-  WM_operator_properties_create_ptr(&op_props, ot);
+  PointerRNA op_props = WM_operator_properties_create_ptr(ot);
   RNA_int_set(&op_props, "id_session_uid", *reinterpret_cast<int *>(&id_linked->session_uid));
 
   const wmOperatorStatus ret = WM_operator_name_call_ptr(
@@ -1136,13 +1133,12 @@ void OUTLINER_OT_id_linked_relocate(wmOperatorType *ot)
 static wmOperatorStatus lib_relocate(
     bContext *C, TreeElement *te, TreeStoreElem *tselem, wmOperatorType *ot, const bool reload)
 {
-  PointerRNA op_props;
   wmOperatorStatus ret = wmOperatorStatus(0);
 
   BLI_assert(te->idcode == ID_LI && tselem->id != nullptr);
   UNUSED_VARS_NDEBUG(te);
 
-  WM_operator_properties_create_ptr(&op_props, ot);
+  PointerRNA op_props = WM_operator_properties_create_ptr(ot);
 
   RNA_string_set(&op_props, "library", tselem->id->name + 2);
 
@@ -1215,7 +1211,7 @@ static wmOperatorStatus outliner_lib_relocate_invoke(bContext *C,
 
   BLI_assert(region && space_outliner);
 
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
   LISTBASE_FOREACH (TreeElement *, te, &space_outliner->tree) {
     wmOperatorStatus ret;
@@ -1267,7 +1263,7 @@ static wmOperatorStatus outliner_lib_reload_invoke(bContext *C,
 
   BLI_assert(region && space_outliner);
 
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
   LISTBASE_FOREACH (TreeElement *, te, &space_outliner->tree) {
     wmOperatorStatus ret;
@@ -1491,7 +1487,7 @@ static wmOperatorStatus outliner_start_filter_exec(bContext *C, wmOperator * /*o
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-  UI_textbutton_activate_rna(C, region, space_outliner, "filter_text");
+  ui::textbutton_activate_rna(C, region, space_outliner, "filter_text");
 
   return OPERATOR_FINISHED;
 }
@@ -2457,7 +2453,7 @@ static int unused_message_popup_width_compute(bContext *C)
   BKE_lib_query_unused_ids_amounts(bmain, data);
 
   std::string unused_message;
-  const uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = ui::style_get_dpi();
   unused_message_gen(unused_message, data.num_local);
   float max_messages_width = BLF_width(
       style->widget.uifont_id, unused_message.c_str(), BLF_DRAW_STR_DUMMY_MAX);

@@ -148,7 +148,7 @@ bool AssetView::begin_filtering(const bContext &C) const
 {
   const ScrArea *area = CTX_wm_area(&C);
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (UI_textbutton_activate_rna(&C, region, &shelf_, "search_filter")) {
+    if (ui::textbutton_activate_rna(&C, region, &shelf_, "search_filter")) {
       return true;
     }
   }
@@ -212,8 +212,7 @@ static std::optional<wmOperatorCallParams> create_asset_operator_params(
     return {};
   }
 
-  PointerRNA *op_props = MEM_new<PointerRNA>(__func__);
-  WM_operator_properties_create_ptr(op_props, ot);
+  PointerRNA *op_props = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
   asset::operator_asset_reference_props_set(asset, *op_props);
   return wmOperatorCallParams{ot, op_props, wm::OpCallContext::InvokeRegionWin};
 }
@@ -224,29 +223,29 @@ void AssetViewItem::build_grid_tile(const bContext & /*C*/, ui::Layout &layout) 
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
 
   PointerRNA asset_ptr = RNA_pointer_create_discrete(nullptr, &RNA_AssetRepresentation, &asset_);
-  UI_but_context_ptr_set(
-      layout.block(), reinterpret_cast<uiBut *>(view_item_but_), "asset", &asset_ptr);
+  button_context_ptr_set(
+      layout.block(), reinterpret_cast<ui::Button *>(view_item_but_), "asset", &asset_ptr);
 
-  uiBut *item_but = reinterpret_cast<uiBut *>(this->view_item_button());
+  ui::Button *item_but = reinterpret_cast<ui::Button *>(this->view_item_button());
   if (std::optional<wmOperatorCallParams> activate_op = create_asset_operator_params(
           shelf_type.activate_operator, asset_))
   {
     /* Attach the operator, but don't call it through the button. We call it using
      * #on_activate(). */
-    UI_but_operator_set(item_but, activate_op->optype, activate_op->opcontext, activate_op->opptr);
-    UI_but_operator_set_never_call(item_but);
+    button_operator_set(item_but, activate_op->optype, activate_op->opcontext, activate_op->opptr);
+    button_operator_set_never_call(item_but);
 
     MEM_delete(activate_op->opptr);
   }
   const ui::GridViewStyle &style = this->get_view().get_style();
   /* Increase background draw size slightly, so highlights are well visible behind previews with an
    * opaque background. */
-  UI_but_view_item_draw_size_set(
+  button_view_item_draw_size_set(
       item_but, style.tile_width + 2 * U.pixelsize, style.tile_height + 2 * U.pixelsize);
 
-  UI_but_func_tooltip_custom_set(
+  button_func_tooltip_custom_set(
       item_but,
-      [](bContext & /*C*/, uiTooltipData &tip, uiBut * /*but*/, void *argN) {
+      [](bContext & /*C*/, ui::TooltipData &tip, ui::Button * /*but*/, void *argN) {
         const asset_system::AssetRepresentation *asset =
             static_cast<const asset_system::AssetRepresentation *>(argN);
         asset_tooltip(*asset, tip);
@@ -362,8 +361,8 @@ void build_asset_view(ui::Layout &layout,
   asset_view->set_catalog_filter(catalog_filter_from_shelf_settings(shelf.settings, *library));
   asset_view->set_tile_size(tile_width, tile_height);
 
-  uiBlock *block = layout.block();
-  ui::AbstractGridView *grid_view = UI_block_add_view(
+  ui::Block *block = layout.block();
+  ui::AbstractGridView *grid_view = block_add_view(
       *block, "asset shelf asset view", std::move(asset_view));
   grid_view->set_context_menu_title("Asset Shelf");
 

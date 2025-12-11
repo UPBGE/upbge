@@ -100,10 +100,6 @@ struct ImportJobData {
 
   USDStageReader *archive;
 
-  bool *stop;
-  bool *do_update;
-  float *progress;
-
   char error_code;
   bool was_canceled;
   bool import_ok;
@@ -124,10 +120,6 @@ static void report_job_duration(const ImportJobData *data)
 static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   ImportJobData *data = static_cast<ImportJobData *>(customdata);
-
-  data->stop = &worker_status->stop;
-  data->do_update = &worker_status->do_update;
-  data->progress = &worker_status->progress;
   data->was_canceled = false;
   data->archive = nullptr;
   data->start_time = timeit::Clock::now();
@@ -155,16 +147,12 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
   BLI_path_abs(data->filepath, BKE_main_blendfile_path_from_global());
 
-  *data->do_update = true;
-  *data->progress = 0.05f;
-
+  worker_status->progress = 0.05f;
+  worker_status->do_update = true;
   if (G.is_break) {
     data->was_canceled = true;
     return;
   }
-
-  *data->do_update = true;
-  *data->progress = 0.1f;
 
   pxr::UsdStagePopulationMask pop_mask;
   for (const std::string &mask_token : pxr::TfStringTokenize(data->params.prim_path_mask, ",;")) {
@@ -188,6 +176,13 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     return;
   }
 
+  worker_status->progress = 0.1f;
+  worker_status->do_update = true;
+  if (G.is_break) {
+    data->was_canceled = true;
+    return;
+  }
+
   double scene_scale = data->params.scale;
   if (data->params.apply_unit_conversion_scale) {
     scene_scale *= pxr::UsdGeomGetStageMetersPerUnit(stage);
@@ -198,9 +193,6 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     data->scene->r.sfra = stage->GetStartTimeCode();
     data->scene->r.efra = stage->GetEndTimeCode();
   }
-
-  *data->do_update = true;
-  *data->progress = 0.15f;
 
   /* Callback function to lazily create a cache file when converting
    * time varying data. */
@@ -225,15 +217,21 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   };
 
   USDStageReader *archive = new USDStageReader(stage, data->params, get_cache_file);
+  data->archive = archive;
 
   /* Ensure Python types for invoking hooks are registered. */
   register_hook_converters();
 
   archive->find_material_import_hook_sources();
 
-  data->archive = archive;
-
   archive->collect_readers();
+
+  worker_status->progress = 0.15f;
+  worker_status->do_update = true;
+  if (G.is_break) {
+    data->was_canceled = true;
+    return;
+  }
 
   if (data->params.import_lights && data->params.create_world_material &&
       !archive->dome_light_readers().is_empty())
@@ -246,37 +244,35 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     archive->import_all_materials(data->bmain);
   }
 
-  *data->do_update = true;
-  *data->progress = 0.2f;
-
-  const float size = float(archive->readers().size());
-  size_t i = 0;
+  worker_status->progress = 0.2f;
+  worker_status->do_update = true;
 
   /* Sort readers by name: when creating a lot of objects in Blender,
    * it is much faster if the order is sorted by name. */
   archive->sort_readers();
-  *data->do_update = true;
-  *data->progress = 0.25f;
+
+  worker_status->progress = 0.25f;
+  worker_status->do_update = true;
+
+  const float size = float(archive->readers().size());
+  size_t i = 0;
 
   /* Create blender objects. */
   for (USDPrimReader *reader : archive->readers()) {
-    if (!reader) {
-      continue;
-    }
     reader->create_object(data->bmain);
-    if ((++i & 1023) == 0) {
-      *data->do_update = true;
-      *data->progress = 0.25f + 0.25f * (i / size);
+
+    worker_status->progress = 0.25f + 0.25f * (++i / size);
+    worker_status->do_update = true;
+
+    if (G.is_break) {
+      data->was_canceled = true;
+      return;
     }
   }
 
   /* Setup parenthood and read actual object data. */
   i = 0;
   for (USDPrimReader *reader : archive->readers()) {
-    if (!reader) {
-      continue;
-    }
-
     Object *ob = reader->object();
     reader->read_object_data(data->bmain, 0.0);
 
@@ -288,8 +284,8 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       ob->parent = parent->object();
     }
 
-    *data->progress = 0.5f + 0.5f * (++i / size);
-    *data->do_update = true;
+    worker_status->progress = 0.5f + 0.5f * (++i / size);
+    worker_status->do_update = true;
 
     if (G.is_break) {
       data->was_canceled = true;
@@ -315,11 +311,6 @@ static void import_endjob(void *customdata)
   if (data->was_canceled && data->archive) {
 
     for (const USDPrimReader *reader : data->archive->readers()) {
-
-      if (!reader) {
-        continue;
-      }
-
       /* It's possible that cancellation occurred between the creation of
        * the reader and the creation of the Blender object. */
       if (Object *ob = reader->object()) {
@@ -342,9 +333,6 @@ static void import_endjob(void *customdata)
 
     /* Add all objects to the collection. */
     for (const USDPrimReader *reader : data->archive->readers()) {
-      if (!reader) {
-        continue;
-      }
       if (reader->is_in_proto()) {
         /* Skip prototype prims, as these are added to prototype collections. */
         continue;
@@ -359,10 +347,6 @@ static void import_endjob(void *customdata)
     /* Sync and do the view layer operations. */
     BKE_view_layer_synced_ensure(scene, view_layer);
     for (const USDPrimReader *reader : data->archive->readers()) {
-      if (!reader) {
-        continue;
-      }
-
       Object *ob = reader->object();
       if (!ob) {
         continue;

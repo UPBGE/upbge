@@ -70,7 +70,7 @@ static wmKeyMapItem *wm_keymap_item_copy(const wmKeyMapItem *kmi)
 
   if (kmin->properties) {
     kmin->ptr = MEM_new<PointerRNA>("UserKeyMapItemPtr");
-    WM_operator_properties_create(kmin->ptr, kmin->idname);
+    *kmin->ptr = WM_operator_properties_create(kmin->idname);
 
     /* Signal for no context, see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
     kmin->ptr->owner_id = nullptr;
@@ -140,7 +140,7 @@ static void wm_keymap_item_properties_update_ot(wmKeyMapItem *kmi, const bool ke
     if (ot) {
       if (ot->srna != kmi->ptr->type) {
         /* Matches #wm_keymap_item_properties_set but doesn't alloc new ptr. */
-        WM_operator_properties_create_ptr(kmi->ptr, ot);
+        *kmi->ptr = WM_operator_properties_create_ptr(ot);
         /* 'kmi->ptr->data' nullptr'd above, keep using existing properties.
          * NOTE: the operators property types may have changed,
          * we will need a more comprehensive sanitize function to support this properly.
@@ -1443,7 +1443,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
     found = wm_keymap_item_find_handlers(C,
                                          wm,
                                          win,
-                                         &win->modalhandlers,
+                                         &win->runtime->modalhandlers,
                                          opname,
                                          opcontext,
                                          properties,
@@ -1451,8 +1451,16 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
                                          params,
                                          r_keymap);
     if (found == nullptr) {
-      found = wm_keymap_item_find_handlers(
-          C, wm, win, &win->handlers, opname, opcontext, properties, is_strict, params, r_keymap);
+      found = wm_keymap_item_find_handlers(C,
+                                           wm,
+                                           win,
+                                           &win->runtime->handlers,
+                                           opname,
+                                           opcontext,
+                                           properties,
+                                           is_strict,
+                                           params,
+                                           r_keymap);
     }
   }
 

@@ -78,12 +78,17 @@ struct SeqDropCoords {
  */
 static SeqDropCoords g_drop_coords{};
 
-static void generic_poll_operations(const wmEvent *event, uint8_t type)
+static void generic_poll_operations(const bContext *C, const wmEvent *event, uint8_t type)
 {
+  const Scene *scene = CTX_data_scene(C);
+  const ToolSettings *ts = scene->toolsettings;
+
   g_drop_coords.type = type;
-  /* We purposely ignore the snapping tool setting here as currently other drag&drop operators only
-   * snaps when holding down Ctrl. */
-  g_drop_coords.use_snapping = event->modifier & KM_CTRL;
+  /* Ideally we would reuse the transform modal keymap for snapping, but drag and drop doesn't have
+   * access to transform engine, so just hard-code the invert key to a sane default. */
+  const bool do_invert = event->modifier & KM_CTRL;
+  g_drop_coords.use_snapping = do_invert ? !(ts->snap_flag_seq & SCE_SNAP) :
+                                           (ts->snap_flag_seq & SCE_SNAP);
 }
 
 /* While drag-and-drop in the sequencer, the internal drop-box implementation allows to have a drop
@@ -105,13 +110,13 @@ static bool image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
     if (file_type == FILE_TYPE_IMAGE &&
         test_single_file_handler_poll(C, drag, "SEQUENCER_FH_image_strip"))
     {
-      generic_poll_operations(event, TH_SEQ_IMAGE);
+      generic_poll_operations(C, event, TH_SEQ_IMAGE);
       return true;
     }
   }
 
   if (WM_drag_is_ID_type(drag, ID_IM)) {
-    generic_poll_operations(event, TH_SEQ_IMAGE);
+    generic_poll_operations(C, event, TH_SEQ_IMAGE);
     return true;
   }
 
@@ -137,7 +142,7 @@ static bool movie_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   if (is_movie(drag) && (drag->type != WM_DRAG_PATH ||
                          test_single_file_handler_poll(C, drag, "SEQUENCER_FH_movie_strip")))
   {
-    generic_poll_operations(event, TH_SEQ_MOVIE);
+    generic_poll_operations(C, event, TH_SEQ_MOVIE);
     return true;
   }
 
@@ -163,7 +168,7 @@ static bool sound_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   if (is_sound(drag) && (drag->type != WM_DRAG_PATH ||
                          test_single_file_handler_poll(C, drag, "SEQUENCER_FH_sound_strip")))
   {
-    generic_poll_operations(event, TH_SEQ_AUDIO);
+    generic_poll_operations(C, event, TH_SEQ_AUDIO);
     return true;
   }
 
@@ -179,7 +184,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
 
   /* Update the position were we would place the strip if we complete the drag and drop action.
    */
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &coords->start_frame, &coords->channel);
+  ui::view2d_region_to_view(v2d, mval[0], mval[1], &coords->start_frame, &coords->channel);
   coords->start_frame = roundf(coords->start_frame);
   if (coords->channel < 1.0f) {
     coords->channel = 1;
@@ -252,8 +257,8 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
       /* We didn't read the mouse position, so we need to do it manually here. */
       int xy[2];
       wmWindow *win = CTX_wm_window(C);
-      xy[0] = win->eventstate->xy[0];
-      xy[1] = win->eventstate->xy[1];
+      xy[0] = win->runtime->eventstate->xy[0];
+      xy[1] = win->runtime->eventstate->xy[1];
 
       ARegion *region = CTX_wm_region(C);
       int mval[2];
@@ -386,9 +391,9 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
 
   /* Sometimes the active theme is not the sequencer theme, e.g. when an operator invokes the
    * file browser. This makes sure we get the right color values for the theme. */
-  bThemeState theme_state;
-  UI_Theme_Store(&theme_state);
-  UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);
+  blender::ui::theme::bThemeState theme_state;
+  blender::ui::theme::theme_store(&theme_state);
+  blender::ui::theme::theme_set(SPACE_SEQ, RGN_TYPE_WINDOW);
 
   if (coords->use_snapping) {
     transform::sequencer_snap_point(region, coords->snap_point_x);
@@ -417,10 +422,10 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
        * One for video and the other for audio.
        * The audio channel is added first.
        */
-      UI_GetThemeColor3ubv(TH_SEQ_AUDIO, strip_color);
+      ui::theme::get_color_3ubv(TH_SEQ_AUDIO, strip_color);
     }
     else {
-      UI_GetThemeColor3ubv(coords->type, strip_color);
+      ui::theme::get_color_3ubv(coords->type, strip_color);
     }
 
     SeqStripDrawData &data = batch.add_strip(x1, x2, y2, y1, y2, x1, x2, 0, true);
@@ -434,12 +439,12 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     else {
       if (coords->channel_len - 1 == i) {
         text_color[0] = text_color[1] = text_color[2] = 255;
-        UI_GetThemeColor3ubv(TH_SEQ_ACTIVE, strip_color);
+        ui::theme::get_color_3ubv(TH_SEQ_ACTIVE, strip_color);
         data.flags |= GPU_SEQ_FLAG_ACTIVE;
       }
       else {
         text_color[0] = text_color[1] = text_color[2] = 10;
-        UI_GetThemeColor3ubv(TH_SEQ_SELECTED, strip_color);
+        ui::theme::get_color_3ubv(TH_SEQ_SELECTED, strip_color);
       }
     }
     strip_color[3] = 204;
@@ -499,17 +504,17 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     const size_t text_display_len = BLI_string_join_array(
         text_display, FILE_MAX, text_array, len_text_arr);
 
-    UI_view2d_text_cache_add_rectf(
+    ui::view2d_text_cache_add_rectf(
         &region->v2d, &rect, text_display, text_display_len, text_color);
   }
   batch.flush_batch();
 
   /* Clean after drawing up. */
-  UI_Theme_Restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
   GPU_matrix_pop();
   GPU_blend(GPU_BLEND_NONE);
 
-  UI_view2d_text_cache_draw(region);
+  ui::view2d_text_cache_draw(region);
 }
 
 static bool generic_drop_draw_handling(wmDropBox *drop)

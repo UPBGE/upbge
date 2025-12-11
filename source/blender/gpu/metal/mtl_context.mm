@@ -736,7 +736,7 @@ template<typename CommandEncoderT>
 static void bind_sampler_argument_buffer(
     CommandEncoderT enc,
     MTLSamplerArray &sampler_array,
-    blender::Map<MTLSamplerArray, gpu::MTLBuffer *> &sampler_buffers_cache,
+    Map<MTLSamplerArray, gpu::MTLBuffer *> &sampler_buffers_cache,
     MTLShaderInterface &shader_interface,
     id<MTLFunction> mtl_function,
     MTLBindingCache<CommandEncoderT> &bindings)
@@ -990,9 +990,6 @@ void MTLContext::pipeline_state_init()
   this->pipeline_state.culling_enabled = false;
   this->pipeline_state.cull_mode = GPU_CULL_NONE;
   this->pipeline_state.front_face = GPU_COUNTERCLOCKWISE;
-
-  /* DATA and IMAGE access state. */
-  this->pipeline_state.unpack_row_length = 0;
 
   /* Depth State. */
   this->pipeline_state.depth_stencil_state.depth_write_enable = false;

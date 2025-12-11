@@ -45,12 +45,11 @@
  */
 static void shaderfx_reorder(bContext *C, Panel *panel, int new_index)
 {
-  PointerRNA *fx_ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *fx_ptr = blender::ui::panel_custom_data_get(panel);
   ShaderFxData *fx = (ShaderFxData *)fx_ptr->data;
 
-  PointerRNA props_ptr;
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_shaderfx_move_to_index", false);
-  WM_operator_properties_create_ptr(&props_ptr, ot);
+  PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "shaderfx", fx->name);
   RNA_int_set(&props_ptr, "index", new_index);
   WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
@@ -62,7 +61,7 @@ static void shaderfx_reorder(bContext *C, Panel *panel, int new_index)
  */
 static short get_shaderfx_expand_flag(const bContext * /*C*/, Panel *panel)
 {
-  PointerRNA *fx_ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *fx_ptr = blender::ui::panel_custom_data_get(panel);
   ShaderFxData *fx = (ShaderFxData *)fx_ptr->data;
   return fx->ui_expand_flag;
 }
@@ -72,7 +71,7 @@ static short get_shaderfx_expand_flag(const bContext * /*C*/, Panel *panel)
  */
 static void set_shaderfx_expand_flag(const bContext * /*C*/, Panel *panel, short expand_flag)
 {
-  PointerRNA *fx_ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *fx_ptr = blender::ui::panel_custom_data_get(panel);
   ShaderFxData *fx = (ShaderFxData *)fx_ptr->data;
   fx->ui_expand_flag = expand_flag;
 }
@@ -94,14 +93,14 @@ void shaderfx_panel_end(blender::ui::Layout &layout, PointerRNA *ptr)
 
 PointerRNA *shaderfx_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_ptr)
 {
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
   BLI_assert(RNA_struct_is_a(ptr->type, &RNA_ShaderFx));
 
   if (r_ob_ptr != nullptr) {
     *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
   }
 
-  UI_panel_context_pointer_set(panel, "shaderfx", ptr);
+  blender::ui::panel_context_pointer_set(panel, "shaderfx", ptr);
 
   return ptr;
 }
@@ -162,7 +161,7 @@ static void shaderfx_panel_header(const bContext * /*C*/, Panel *panel)
 
   const ShaderFxTypeInfo *fxti = BKE_shaderfx_get_info(ShaderFxType(fx->type));
 
-  UI_block_lock_set(layout.block(), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
+  block_lock_set(layout.block(), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
 
   /* Effect type icon. */
   blender::ui::Layout *row = &layout.row(false);

@@ -410,8 +410,8 @@ if(UNIX AND NOT (APPLE OR HAIKU))
   mark_as_advanced(WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    option(WITH_GHOST_WAYLAND_LIBDECOR "Optionally build with LibDecor window decorations" ON)
-    mark_as_advanced(WITH_GHOST_WAYLAND_LIBDECOR)
+    option(WITH_GHOST_CSD "Enable client side decorations with Wayland" ON)
+    mark_as_advanced(WITH_GHOST_CSD)
 
     option(WITH_GHOST_WAYLAND_DYNLOAD "Enable runtime dynamic WAYLAND libraries loading" ON)
     mark_as_advanced(WITH_GHOST_WAYLAND_DYNLOAD)
@@ -422,6 +422,11 @@ this can be used to differentiate Blender instances by version or branch for exa
     )
     mark_as_advanced(WITH_GHOST_WAYLAND_APP_ID)
   endif()
+endif()
+
+# Only used for WAYLAND, avoid having to check for WAYLAND everywhere by setting as disabled.
+if(NOT DEFINED WITH_GHOST_CSD)
+  set(WITH_GHOST_CSD OFF)
 endif()
 
 if(WITH_GHOST_X11)
@@ -654,8 +659,8 @@ Path to python site-packages or dist-packages containing 'zstandard' module"
   mark_as_advanced(PYTHON_ZSTANDARD_PATH)
 endif()
 
-option(WITH_CPU_SIMD "Enable SIMD instruction if they're detected on the host machine" ON)
-mark_as_advanced(WITH_CPU_SIMD)
+option(WITH_COMPILER_SIMD "Add the recommended Blender default SIMD flags to the compiler's C_FLAGS/CXX_FLAGS" ON)
+mark_as_advanced(WITH_COMPILER_SIMD)
 
 # Cycles
 option(WITH_CYCLES "Enable Cycles Render Engine" ON)
@@ -1354,6 +1359,10 @@ if(NOT WITH_BLENDER AND NOT WITH_PLAYER AND NOT WITH_CYCLES_STANDALONE AND NOT W
   )
 endif()
 
+# Doesn't make too much sense to check if the CPU supports our default SIMD options if they are
+# turned off.
+set_and_warn_dependency(WITH_COMPILER_SIMD WITH_CPU_CHECK OFF)
+
 set_and_warn_dependency(WITH_AUDASPACE WITH_OPENAL OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_COREAUDIO OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_JACK OFF)
@@ -1605,17 +1614,6 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
   endif()
 endif()
 
-# Test SIMD support, before platform includes to determine if sse2neon is needed.
-if(WITH_CPU_SIMD)
-  set(COMPILER_SSE42_FLAG)
-
-  # Test Neon first since macOS Arm can compile and run x86-64 SSE binaries.
-  test_neon_support()
-  if(NOT SUPPORT_NEON_BUILD)
-    test_sse_support(COMPILER_SSE42_FLAG)
-  endif()
-endif()
-
 
 # ----------------------------------------------------------------------------
 # Main Platform Checks
@@ -1636,53 +1634,20 @@ endif()
 # -----------------------------------------------------------------------------
 # Common Checks for Compatible Options
 
-# Enable SIMD support if detected by `test_sse_support()` or `test_neon_support()`.
+# Add the default compiler SIMD flags if enabled
 #
-if(WITH_CPU_SIMD)
-  if(SUPPORT_NEON_BUILD)
-    # Neon
-    if(SSE2NEON_FOUND)
-      include_directories(SYSTEM "${SSE2NEON_INCLUDE_DIRS}")
-      add_definitions(-DWITH_SSE2NEON)
-    endif()
-  else()
-    # SSE
-    if(SUPPORT_SSE42_BUILD)
-      string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
-      string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
-      # MSVC doesn't define any of these and only does the AVX and higher flags.
-      # For consistency we define these flags for MSVC.
-      if(WIN32)
-        add_compile_definitions(
-          __MMX__
-          __SSE__
-          __SSE2__
-          __SSE3__
-          __SSE4_1__
-          __SSE4_2__
-        )
-      endif()
-    endif()
-  endif()
+if(WITH_COMPILER_SIMD)
+  set(COMPILER_SSE42_FLAG)
+  get_sse_flags(COMPILER_SSE42_FLAG)
+  string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
+  string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
 endif()
 
-# Print instructions used on first run.
-if(FIRST_RUN)
-  if(WITH_CPU_SIMD)
-    if(SUPPORT_NEON_BUILD)
-      if(SSE2NEON_FOUND)
-        message(STATUS "Neon SIMD instructions enabled")
-      else()
-        message(STATUS "Neon SIMD instructions detected but unused, requires sse2neon")
-      endif()
-    elseif(SUPPORT_SSE42_BUILD)
-      message(STATUS "SSE42 SIMD instructions enabled")
-    else()
-      message(STATUS "No SIMD instructions detected")
-    endif()
-  else()
-    message(STATUS "SIMD instructions disabled")
-  endif()
+# Enable SSE2NEON SIMD support if found.
+#
+if(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
+  include_directories(SYSTEM "${SSE2NEON_INCLUDE_DIRS}")
+  add_definitions(-DWITH_SSE2NEON)
 endif()
 
 # Test endianness and set the endian define.
@@ -2099,6 +2064,14 @@ if(CMAKE_COMPILER_IS_GNUCC)
     # Use `[[fallthrough]]` or `ATTR_FALLTHROUGH` macro to suppress.
     CXX_WARN_IMPLICIT_FALLTHROUGH -Wimplicit-fallthrough=5
   )
+
+  if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+    # Silence warnings about GCC ABI breaking bug fixes on arm64
+    add_check_cxx_compiler_flags(
+      CXX_WARNINGS
+      CXX_WARN_NO_PSABI -Wno-psabi
+    )
+  endif()
 
   # causes too many warnings
   if(NOT APPLE)
@@ -2932,7 +2905,6 @@ if(FIRST_RUN)
     endif()
     if(WITH_GHOST_WAYLAND)
       info_cfg_option(WITH_GHOST_WAYLAND_DYNLOAD)
-      info_cfg_option(WITH_GHOST_WAYLAND_LIBDECOR)
     endif()
   endif()
 

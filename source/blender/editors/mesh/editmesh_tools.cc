@@ -3137,14 +3137,12 @@ static wmOperatorStatus edbm_rotate_colors_exec(bContext *C, wmOperator *op)
 
     Mesh *mesh = BKE_object_get_original_mesh(ob);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
-    if (!layer) {
-      continue;
-    }
 
     int color_index = BKE_attribute_to_index(
-        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+    if (color_index == -1) {
+      continue;
+    }
     EDBM_op_init(em,
                  &bmop,
                  op,
@@ -3186,16 +3184,14 @@ static wmOperatorStatus edbm_reverse_colors_exec(bContext *C, wmOperator *op)
 
     Mesh *mesh = BKE_object_get_original_mesh(obedit);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
-    if (!layer) {
-      continue;
-    }
 
     BMOperator bmop;
 
     int color_index = BKE_attribute_to_index(
-        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+    if (color_index == -1) {
+      continue;
+    }
     EDBM_op_init(
         em, &bmop, op, "reverse_colors faces=%hf color_index=%i", BM_ELEM_SELECT, color_index);
 
@@ -4121,7 +4117,14 @@ static Base *mesh_separate_tagged(
   BMesh *bm_new = BM_mesh_create(&bm_mesh_allocsize_default, &create_params);
   BM_mesh_elem_toolflags_ensure(bm_new); /* Needed for 'duplicate' BMO. */
 
-  BM_mesh_copy_init_customdata(bm_new, bm_old, &bm_mesh_allocsize_default);
+  const bool use_custom_normals = (bm_old->lnor_spacearr != nullptr);
+  if (use_custom_normals) {
+    /* Needed so the temporary normal layer is copied too. */
+    BM_mesh_copy_init_customdata_all_layers(bm_new, bm_old, BM_ALL, &bm_mesh_allocsize_default);
+  }
+  else {
+    BM_mesh_copy_init_customdata(bm_new, bm_old, &bm_mesh_allocsize_default);
+  }
 
   /* Take into account user preferences for duplicating actions. */
   const eDupli_ID_Flags dupflag = eDupli_ID_Flags(USER_DUP_MESH | (U.dupflag & USER_DUP_ACT));
@@ -4155,7 +4158,12 @@ static Base *mesh_separate_tagged(
    * since de-selecting all skips selection flushing logic */
   BM_mesh_elem_hflag_disable_all(bm_old, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
 
-  BM_mesh_normals_update(bm_new);
+  if (use_custom_normals) {
+    BM_custom_loop_normals_from_vector_layer(bm_new, false);
+  }
+  else {
+    BM_mesh_normals_update(bm_new);
+  }
 
   BMeshToMeshParams to_mesh_params{};
   BM_mesh_bm_to_me(bmain, bm_new, static_cast<Mesh *>(base_new->object->data), &to_mesh_params);
@@ -4243,7 +4251,13 @@ static bool mesh_separate_selected(
   BM_mesh_elem_hflag_enable_test(
       bm_old, BM_FACE | BM_EDGE | BM_VERT, BM_ELEM_TAG, true, false, BM_ELEM_SELECT);
 
-  return (mesh_separate_tagged(bmain, scene, view_layer, base_old, bm_old) != nullptr);
+  BM_custom_loop_normals_to_vector_layer(bm_old);
+
+  Base *base_new = mesh_separate_tagged(bmain, scene, view_layer, base_old, bm_old);
+
+  BM_custom_loop_normals_from_vector_layer(bm_old, false);
+
+  return (base_new != nullptr);
 }
 
 /**
@@ -4307,6 +4321,8 @@ static bool mesh_separate_material(
   BMIter iter;
   bool result = false;
 
+  BM_custom_loop_normals_to_vector_layer(bm_old);
+
   while ((f_cmp = static_cast<BMFace *>(BM_iter_at_index(bm_old, BM_FACES_OF_MESH, nullptr, 0)))) {
     Base *base_new;
     const short mat_nr = f_cmp->mat_nr;
@@ -4349,6 +4365,8 @@ static bool mesh_separate_material(
 
     result |= (base_new != nullptr);
   }
+
+  BM_custom_loop_normals_from_vector_layer(bm_old, false);
 
   return result;
 }
@@ -5806,7 +5824,7 @@ static void edbm_decimate_ui(bContext * /*C*/, wmOperator *op)
   row.prop(op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
   blender::ui::Layout &sub = row.row(true);
   sub.active_set(RNA_boolean_get(op->ptr, "use_symmetry"));
-  sub.prop(op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  sub.prop(op->ptr, "symmetry_axis", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void MESH_OT_decimate(wmOperatorType *ot)
@@ -8748,7 +8766,7 @@ static void edbm_point_normals_ui(bContext *C, wmOperator *op)
                    point_normals_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 }
 
@@ -9240,7 +9258,7 @@ static void edbm_average_normals_ui(bContext *C, wmOperator *op)
                    average_normals_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 }
 
@@ -9492,7 +9510,7 @@ static void edbm_normals_tools_ui(bContext *C, wmOperator *op)
                    normals_tools_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 }
 

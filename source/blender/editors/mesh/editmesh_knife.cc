@@ -193,8 +193,9 @@ struct KnifeUndoFrame {
 
 struct KnifeBVH {
   BVHTree *tree; /* Knife Custom BVH Tree. */
+
   /* Used by #knife_bvh_raycast_cb to store the intersecting triangles. */
-  blender::Span<std::array<BMLoop *, 3>> looptris;
+  Span<std::array<BMLoop *, 3>> looptris;
   int ob_index;
 
   /* Use #bm_ray_cast_cb_elem_not_in_face_check. */
@@ -239,16 +240,16 @@ struct KnifeTool_OpData {
   /* Reused for edge-net filling. */
   struct {
     /* Cleared each use. */
-    blender::Set<BMEdge *> *edge_visit;
+    Set<BMEdge *> *edge_visit;
 #ifdef USE_NET_ISLAND_CONNECT
     MemArena *arena;
 #endif
   } edgenet;
 
-  blender::Map<BMVert *, KnifeVert *> *origvertmap;
-  blender::Map<BMEdge *, KnifeEdge *> *origedgemap;
-  blender::Map<BMFace *, ListBase *> *kedgefacemap;
-  blender::Map<BMFace *, int> *facetrimap;
+  Map<BMVert *, KnifeVert *> *origvertmap;
+  Map<BMEdge *, KnifeEdge *> *origedgemap;
+  Map<BMFace *, ListBase *> *kedgefacemap;
+  Map<BMFace *, int> *facetrimap;
 
   KnifeBVH bvh;
 
@@ -405,7 +406,7 @@ static void knife_draw_line(const KnifeTool_OpData *kcd, const uchar color[3])
 static void knifetool_draw_angle_snapping(const KnifeTool_OpData *kcd)
 {
   uchar color[3];
-  UI_GetThemeColor3ubv(TH_TRANSFORM, color);
+  ui::theme::get_color_3ubv(TH_TRANSFORM, color);
   knife_draw_line(kcd, color);
 }
 
@@ -488,7 +489,7 @@ static void knifetool_draw_visible_distances(const KnifeTool_OpData *kcd)
 
   /* Draw text. */
   uchar color_text[3];
-  UI_GetThemeColor3ubv(TH_TEXT, color_text);
+  ui::theme::get_color_3ubv(TH_TEXT, color_text);
 
   BLF_color3ubv(blf_mono_font, color_text);
   BLF_position(blf_mono_font, posit[0], posit[1], 0.0f);
@@ -617,7 +618,7 @@ static void knifetool_draw_angle(const KnifeTool_OpData *kcd,
 
   /* Draw text. */
   uchar color_text[3];
-  UI_GetThemeColor3ubv(TH_TEXT, color_text);
+  ui::theme::get_color_3ubv(TH_TEXT, color_text);
 
   BLF_color3ubv(blf_mono_font, color_text);
   BLF_position(blf_mono_font, posit[0], posit[1], 0.0f);
@@ -1186,7 +1187,7 @@ static void knife_bvh_init(KnifeTool_OpData *kcd)
   const float epsilon = FLT_EPSILON * 2.0f;
   int tottri = 0;
   int ob_tottri = 0;
-  blender::Span<std::array<BMLoop *, 3>> looptris;
+  Span<std::array<BMLoop *, 3>> looptris;
   BMFace *f_test = nullptr, *f_test_prev = nullptr;
   bool test_fn_ret = false;
 
@@ -1932,7 +1933,7 @@ static void prepare_linehits_for_cut(KnifeTool_OpData *kcd)
 
 /* Add hit to list of hits in facehits[f], where facehits is a map, if not already there. */
 static void add_hit_to_facehits(KnifeTool_OpData *kcd,
-                                blender::Map<BMFace *, ListBase *> &facehits,
+                                Map<BMFace *, ListBase *> &facehits,
                                 BMFace *f,
                                 KnifeLineHit *hit)
 {
@@ -2318,7 +2319,7 @@ static void knife_add_cut(KnifeTool_OpData *kcd)
   }
 
   /* Make facehits: map face -> list of linehits touching it. */
-  blender::Map<BMFace *, ListBase *> facehits;
+  Map<BMFace *, ListBase *> facehits;
   for (KnifeLineHit &hit : kcd->linehits) {
     KnifeLineHit *lh = &hit;
     if (lh->f) {
@@ -3881,21 +3882,21 @@ static void knife_init_colors(KnifeColors *colors)
 {
   /* Possible BMESH_TODO: add explicit themes or calculate these by
    * figuring out contrasting colors with grid / edges / verts
-   * a la UI_make_axis_color. */
-  UI_GetThemeColorType3ubv(TH_GIZMO_PRIMARY, SPACE_VIEW3D, colors->line);
-  UI_GetThemeColorType3ubv(TH_GIZMO_A, SPACE_VIEW3D, colors->edge);
-  UI_GetThemeColorType3ubv(TH_GIZMO_B, SPACE_VIEW3D, colors->edge_extra);
-  UI_GetThemeColorType3ubv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, colors->curpoint);
-  UI_GetThemeColorType3ubv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, colors->curpoint_a);
+   * a la theme::make_axis_color. */
+  ui::theme::get_color_type_3ubv(TH_GIZMO_PRIMARY, SPACE_VIEW3D, colors->line);
+  ui::theme::get_color_type_3ubv(TH_GIZMO_A, SPACE_VIEW3D, colors->edge);
+  ui::theme::get_color_type_3ubv(TH_GIZMO_B, SPACE_VIEW3D, colors->edge_extra);
+  ui::theme::get_color_type_3ubv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, colors->curpoint);
+  ui::theme::get_color_type_3ubv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, colors->curpoint_a);
   colors->curpoint_a[3] = 102;
-  UI_GetThemeColorType3ubv(TH_VERTEX, SPACE_VIEW3D, colors->point);
-  UI_GetThemeColorType3ubv(TH_VERTEX, SPACE_VIEW3D, colors->point_a);
+  ui::theme::get_color_type_3ubv(TH_VERTEX, SPACE_VIEW3D, colors->point);
+  ui::theme::get_color_type_3ubv(TH_VERTEX, SPACE_VIEW3D, colors->point_a);
   colors->point_a[3] = 102;
 
-  UI_GetThemeColorType3ubv(TH_AXIS_X, SPACE_VIEW3D, colors->xaxis);
-  UI_GetThemeColorType3ubv(TH_AXIS_Y, SPACE_VIEW3D, colors->yaxis);
-  UI_GetThemeColorType3ubv(TH_AXIS_Z, SPACE_VIEW3D, colors->zaxis);
-  UI_GetThemeColorType3ubv(TH_TRANSFORM, SPACE_VIEW3D, colors->axis_extra);
+  ui::theme::get_color_type_3ubv(TH_AXIS_X, SPACE_VIEW3D, colors->xaxis);
+  ui::theme::get_color_type_3ubv(TH_AXIS_Y, SPACE_VIEW3D, colors->yaxis);
+  ui::theme::get_color_type_3ubv(TH_AXIS_Z, SPACE_VIEW3D, colors->zaxis);
+  ui::theme::get_color_type_3ubv(TH_TRANSFORM, SPACE_VIEW3D, colors->axis_extra);
 }
 
 /* called when modal loop selection gets set up... */
@@ -3952,7 +3953,7 @@ static void knifetool_init(ViewContext *vc,
 #ifdef USE_NET_ISLAND_CONNECT
   kcd->edgenet.arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 15), __func__);
 #endif
-  kcd->edgenet.edge_visit = MEM_new<blender::Set<BMEdge *>>(__func__);
+  kcd->edgenet.edge_visit = MEM_new<Set<BMEdge *>>(__func__);
 
   kcd->vthresh = KMAXDIST - 1;
   kcd->ethresh = KMAXDIST;
@@ -3968,10 +3969,10 @@ static void knifetool_init(ViewContext *vc,
   kcd->undostack = BLI_stack_new(sizeof(KnifeUndoFrame), "knife undostack");
   kcd->splitstack = BLI_stack_new(sizeof(KnifeEdge *), "knife splitstack");
 
-  kcd->origedgemap = MEM_new<blender::Map<BMEdge *, KnifeEdge *>>("knife origedgemap");
-  kcd->origvertmap = MEM_new<blender::Map<BMVert *, KnifeVert *>>("knife origvertmap");
-  kcd->kedgefacemap = MEM_new<blender::Map<BMFace *, ListBase *>>("knife kedgefacemap");
-  kcd->facetrimap = MEM_new<blender::Map<BMFace *, int>>("knife facetrimap");
+  kcd->origedgemap = MEM_new<Map<BMEdge *, KnifeEdge *>>("knife origedgemap");
+  kcd->origvertmap = MEM_new<Map<BMVert *, KnifeVert *>>("knife origvertmap");
+  kcd->kedgefacemap = MEM_new<Map<BMFace *, ListBase *>>("knife kedgefacemap");
+  kcd->facetrimap = MEM_new<Map<BMFace *, int>>("knife facetrimap");
 
   knife_pos_data_clear(&kcd->curr);
   knife_pos_data_clear(&kcd->prev);

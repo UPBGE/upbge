@@ -32,7 +32,6 @@ struct WorkSpaceInstanceHook;
 struct bContext;
 struct bScreen;
 struct rcti;
-struct uiBlock;
 struct wmKeyConfig;
 struct wmMsgSubscribeKey;
 struct wmMsgSubscribeValue;
@@ -46,6 +45,8 @@ struct wmWindowManager;
 
 namespace blender::ui {
 struct Layout;
+struct Block;
+enum class ButtonSectionsAlign : int8_t;
 }  // namespace blender::ui
 
 /* regions */
@@ -58,7 +59,7 @@ void ED_region_do_draw(bContext *C, ARegion *region);
 void ED_region_exit(bContext *C, ARegion *region);
 /**
  * Utility to exit and free an area-region. Screen level regions (menus/popups) need to be treated
- * slightly differently, see #ui_region_temp_remove().
+ * slightly differently, see #ui::region_temp_remove().
  */
 void ED_region_remove(bContext *C, ScrArea *area, ARegion *region);
 void ED_region_pixelspace(const ARegion *region);
@@ -136,16 +137,15 @@ void ED_region_header_init(ARegion *region);
 void ED_region_header(const bContext *C, ARegion *region);
 void ED_region_header_layout(const bContext *C, ARegion *region);
 void ED_region_header_draw(const bContext *C, ARegion *region);
-/* Forward declare enum. */
-enum class uiButtonSectionsAlign : int8_t;
+
 /** Version of #ED_region_header() that draws with button sections. */
 void ED_region_header_with_button_sections(const bContext *C,
                                            ARegion *region,
-                                           uiButtonSectionsAlign align);
+                                           blender::ui::ButtonSectionsAlign align);
 /** Version of #ED_region_header_draw() that draws with button sections. */
 void ED_region_header_draw_with_button_sections(const bContext *C,
                                                 const ARegion *region,
-                                                uiButtonSectionsAlign align);
+                                                blender::ui::ButtonSectionsAlign align);
 
 void ED_region_cursor_set(wmWindow *win, ScrArea *area, ARegion *region);
 /**
@@ -218,7 +218,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf);
 /**
  * Returns offset for next button in header.
  */
-int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco);
+int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, int yco);
 
 /* areas */
 /**
@@ -744,6 +744,7 @@ ARegion *ED_area_find_region_xy_visual(const ScrArea *area, int regiontype, cons
 
 /* `interface_region_hud.cc` */
 
+namespace blender::ui {
 ARegionType *ED_area_type_hud(int space_type);
 void ED_area_type_hud_clear(wmWindowManager *wm, ScrArea *area_keep);
 void ED_area_type_hud_ensure(bContext *C, ScrArea *area);
@@ -753,6 +754,7 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area);
  * same region type is present multiple times.
  */
 ARegion *ED_area_type_hud_redo_region_find(const ScrArea *area, const ARegion *hud_region);
+}  // namespace blender::ui
 
 /**
  * Default key-maps, bit-flags (matches order of evaluation).

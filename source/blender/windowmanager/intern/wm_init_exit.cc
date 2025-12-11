@@ -310,7 +310,7 @@ void WM_init(bContext *C, int argc, const char **argv)
     }
 
     GPU_context_begin_frame(GPU_context_active_get());
-    UI_init();
+    blender::ui::init();
     GPU_context_end_frame(GPU_context_active_get());
     GPU_render_end();
   }
@@ -480,7 +480,7 @@ bool WM_init_game(bContext *C)
       }
     }
     else {
-      GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));
+      GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->runtime->ghostwin));
       ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
       ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
       ar->winx = ar->winrct.xmax + 1;
@@ -550,7 +550,7 @@ void wm_exit_schedule_delayed(const bContext *C)
   /* Use modal UI handler for now.
    * Could add separate WM handlers or so, but probably not worth it. */
   WM_event_add_ui_handler(
-      C, &win->modalhandlers, wm_exit_handler, nullptr, nullptr, eWM_EventHandlerFlag(0));
+      C, &win->runtime->modalhandlers, wm_exit_handler, nullptr, nullptr, eWM_EventHandlerFlag(0));
   WM_event_add_mousemove(win); /* Ensure handler actually gets called. */
 }
 
@@ -592,8 +592,8 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       CTX_wm_window_set(C, win); /* Needed by operator close callbacks. */
-      WM_event_remove_handlers(C, &win->handlers);
-      WM_event_remove_handlers(C, &win->modalhandlers);
+      WM_event_remove_handlers(C, &win->runtime->handlers);
+      WM_event_remove_handlers(C, &win->runtime->modalhandlers);
       ED_screen_exit(C, win, WM_window_get_active_screen(win));
     }
 
@@ -755,14 +755,14 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * is also deleted with the context active. */
   if (gpu_is_init) {
     DRW_gpu_context_enable_ex(false);
-    UI_exit();
+    blender::ui::ui_exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
   }
   else {
-    UI_exit();
+    blender::ui::ui_exit();
   }
 
   BKE_blender_userdef_data_free(&U, false);
@@ -815,7 +815,7 @@ void WM_exit(bContext *C, const int exit_code)
 
 void WM_script_tag_reload()
 {
-  UI_interface_tag_script_reload();
+  blender::ui::interface_tag_script_reload();
 
   /* Any operators referenced by gizmos may now be a dangling pointer.
    *

@@ -25,6 +25,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
 #include "WM_keymap.hh"
@@ -218,6 +219,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_MULTIMONITOR_PLACEMENT = (1 << 12),
   /** Support for the window to show a file-path (otherwise include in the title text). */
   WM_CAPABILITY_WINDOW_PATH = (1 << 13),
+  /** Support for window server side decorations (SSD). */
+  WM_CAPABILITY_WINDOW_DECORATION_SERVER_SIDE = (1 << 14),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -314,6 +317,14 @@ int WM_window_native_pixel_y(const wmWindow *win);
 blender::int2 WM_window_native_pixel_size(const wmWindow *win);
 
 void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y);
+/**
+ * Return non-nil if the CSD is used.
+ */
+bool WM_window_is_csd(const wmWindow *win);
+/**
+ * Calculate the window content sub-region when CSD is used.
+ */
+void WM_window_csd_rect_calc(const wmWindow *win, rcti *r_rect);
 /**
  * Get boundaries usable by all window contents, including global areas.
  */
@@ -431,6 +442,11 @@ void WM_window_title_set(wmWindow *win, const char *title);
  */
 void WM_window_title_refresh(wmWindowManager *wm, wmWindow *win);
 
+/**
+ * Update the parameters for CSD.
+ */
+void WM_window_csd_params_update();
+
 bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
 /* Window Decoration Styles. */
@@ -498,7 +514,8 @@ ID *WM_file_link_datablock(Main *bmain,
                            const char *filepath,
                            short id_code,
                            const char *id_name,
-                           int flag);
+                           int flag,
+                           ReportList *reports = nullptr);
 /**
  * \note `scene` (and related `view_layer` and `v3d`) pointers may be NULL,
  * in which case no instantiation of appended objects, collections etc. will be performed.
@@ -510,7 +527,8 @@ ID *WM_file_append_datablock(Main *bmain,
                              const char *filepath,
                              short id_code,
                              const char *id_name,
-                             int flag);
+                             int flag,
+                             ReportList *reports = nullptr);
 void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 /* Mouse cursors. */
@@ -722,12 +740,13 @@ void WM_event_free_ui_handler_all(bContext *C,
 /**
  * Add a modal handler to `win`, `area` and `region` may optionally be NULL.
  */
-wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
+wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
+                                                 wmWindow *win,
                                                  ScrArea *area,
                                                  ARegion *region,
-                                                 wmOperator *op) ATTR_NONNULL(1, 4);
+                                                 wmOperator *op) ATTR_NONNULL(1, 2, 5);
 wmEventHandler_Op *WM_event_add_modal_handler(bContext *C, wmOperator *op) ATTR_NONNULL(1, 2);
-void WM_event_remove_model_handler(ListBase *handlers, const wmOperator *op, bool postpone)
+void WM_event_remove_modal_handler(ListBase *handlers, const wmOperator *op, bool postpone)
     ATTR_NONNULL(1, 2);
 
 void WM_event_remove_modal_handler_all(const wmOperator *op, bool postpone) ATTR_NONNULL(1);
@@ -980,11 +999,13 @@ void WM_operator_free_all_after(wmWindowManager *wm, wmOperator *op);
  */
 void WM_operator_type_set(wmOperator *op, wmOperatorType *ot);
 void WM_operator_stack_clear(wmWindowManager *wm);
+void WM_operator_stack_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 /**
  * This function is needed in the case when an addon id disabled
  * while a modal operator it defined is running.
  */
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
+void WM_operator_handlers_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
@@ -1104,8 +1125,8 @@ bool WM_operator_properties_default(PointerRNA *ptr, bool do_update);
  * Remove all props without #PROP_SKIP_SAVE or #PROP_SKIP_PRESET.
  */
 void WM_operator_properties_reset(wmOperator *op);
-void WM_operator_properties_create(PointerRNA *ptr, const char *opstring);
-void WM_operator_properties_create_ptr(PointerRNA *ptr, wmOperatorType *ot);
+PointerRNA WM_operator_properties_create(const char *opstring);
+PointerRNA WM_operator_properties_create_ptr(wmOperatorType *ot);
 void WM_operator_properties_clear(PointerRNA *ptr);
 void WM_operator_properties_free(PointerRNA *ptr);
 
@@ -1334,6 +1355,7 @@ size_t WM_operator_py_idname(char *dst, const char *src) ATTR_NONNULL(1, 2);
 bool WM_operator_py_idname_ok_or_report(ReportList *reports,
                                         const char *classname,
                                         const char *idname);
+bool WM_operator_idname_ok_or_report(ReportList *reports, const char *idname);
 /**
  * Return true when an operators name follows the `SOME_OT_op` naming convention.
  */
@@ -1666,6 +1688,9 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
 /* ID drag and drop. */
 
 /**
+ * \note This can return null! Importing can fail if the asset was deleted or moved since the asset
+ * library was loaded.
+ *
  * \param flag_extra: Additional linking flags (from #eFileSel_Params_Flag).
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
@@ -1759,6 +1784,10 @@ void wmViewport(const rcti *winrct);
 void wmPartialViewport(rcti *drawrct, const rcti *winrct, const rcti *partialrct);
 void wmWindowViewport(const wmWindow *win);
 void wmWindowViewport_ex(const wmWindow *win, float offset);
+
+/* Closely related to #wmWindowViewport but for drawing the title-bar. */
+void wmWindowViewportTitle_ex(const rcti &rect, float offset);
+void wmWindowViewportTitle(const rcti &rect);
 
 /* OpenGL utilities with safety check. */
 void wmOrtho2(float x1, float x2, float y1, float y2);

@@ -498,7 +498,7 @@ void ED_clip_point_stable_pos(
   ED_space_clip_get_zoom(sc, region, &zoomx, &zoomy);
   ED_space_clip_get_size(sc, &width, &height);
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
 
   pos[0] = (x - sx) / zoomx;
   pos[1] = (y - sy) / zoomy;
@@ -535,7 +535,7 @@ void ED_clip_point_stable_pos__reverse(const SpaceClip *sc,
   int width, height;
   int sx, sy;
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   ED_space_clip_get_size(sc, &width, &height);
   ED_space_clip_get_zoom(sc, region, &zoomx, &zoomy);
 
@@ -1049,7 +1049,7 @@ static void prefetch_freejob(void *pjv)
   MEM_freeN(pj);
 }
 
-static int prefetch_get_start_frame(const bContext *C)
+static int prefetch_get_content_start(const bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -1094,7 +1094,7 @@ static bool prefetch_check_early_out(const bContext *C)
       clip, sc->user.framenr, end_frame, sc->user.render_size, sc->user.render_flag, 1);
 
   if (first_uncached_frame > end_frame || first_uncached_frame == clip_len) {
-    int start_frame = prefetch_get_start_frame(C);
+    int start_frame = prefetch_get_content_start(C);
 
     first_uncached_frame = prefetch_find_uncached_frame(
         clip, sc->user.framenr, start_frame, sc->user.render_size, sc->user.render_flag, -1);
@@ -1127,7 +1127,7 @@ void clip_start_prefetch_job(const bContext *C)
   /* create new job */
   pj = MEM_callocN<PrefetchJob>("prefetch job");
   pj->clip = ED_space_clip_get_clip(sc);
-  pj->start_frame = prefetch_get_start_frame(C);
+  pj->start_frame = prefetch_get_content_start(C);
   pj->current_frame = sc->user.framenr;
   pj->end_frame = prefetch_get_final_frame(C);
   pj->render_size = sc->user.render_size;

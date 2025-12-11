@@ -57,12 +57,11 @@ static bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
  */
 static void modifier_reorder(bContext *C, Panel *panel, int new_index)
 {
-  PointerRNA *md_ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *md_ptr = blender::ui::panel_custom_data_get(panel);
   ModifierData *md = (ModifierData *)md_ptr->data;
 
-  PointerRNA props_ptr;
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_move_to_index", false);
-  WM_operator_properties_create_ptr(&props_ptr, ot);
+  PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "modifier", md->name);
   RNA_int_set(&props_ptr, "index", new_index);
   WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
@@ -71,14 +70,14 @@ static void modifier_reorder(bContext *C, Panel *panel, int new_index)
 
 static short get_modifier_expand_flag(const bContext * /*C*/, Panel *panel)
 {
-  PointerRNA *md_ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *md_ptr = blender::ui::panel_custom_data_get(panel);
   ModifierData *md = (ModifierData *)md_ptr->data;
   return md->ui_expand_flag;
 }
 
 static void set_modifier_expand_flag(const bContext * /*C*/, Panel *panel, short expand_flag)
 {
-  PointerRNA *md_ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *md_ptr = blender::ui::panel_custom_data_get(panel);
   ModifierData *md = (ModifierData *)md_ptr->data;
   md->ui_expand_flag = expand_flag;
 }
@@ -106,7 +105,7 @@ void modifier_error_message_draw(blender::ui::Layout &layout, PointerRNA *ptr)
 #define ERROR_LIBDATA_MESSAGE N_("External library data")
 PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_ptr)
 {
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
   BLI_assert(!RNA_pointer_is_null(ptr));
   BLI_assert(RNA_struct_is_a(ptr->type, &RNA_Modifier));
 
@@ -114,10 +113,10 @@ PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
     *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
   }
 
-  uiBlock *block = panel->layout->block();
-  UI_block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
+  blender::ui::Block *block = panel->layout->block();
+  block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
 
-  UI_panel_context_pointer_set(panel, "modifier", ptr);
+  blender::ui::panel_context_pointer_set(panel, "modifier", ptr);
 
   return ptr;
 }
@@ -156,7 +155,7 @@ void modifier_grease_pencil_curve_panel_draw(const bContext * /*C*/, Panel *pane
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiTemplateCurveMapping(&layout, ptr, "curve", 0, false, false, false, false, false);
+  template_curve_mapping(&layout, ptr, "curve", 0, false, false, false, false, false);
 }
 
 /**
@@ -311,11 +310,11 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   blender::ui::Layout &layout = *panel->layout;
 
   /* Don't use #modifier_panel_get_property_pointers, we don't want to lock the header. */
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
   ModifierData *md = (ModifierData *)ptr->data;
   Object *ob = (Object *)ptr->owner_id;
 
-  UI_panel_context_pointer_set(panel, "modifier", ptr);
+  blender::ui::panel_context_pointer_set(panel, "modifier", ptr);
 
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
   Scene *scene = CTX_data_scene(C);
@@ -355,21 +354,21 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     if (md->type == eModifierType_Smooth) {
       /* Add button (appearing to be OFF) and add tip why this can't be changed. */
       sub = &row.row(true);
-      uiBlock *block = sub->block();
+      blender::ui::Block *block = sub->block();
       static int apply_on_spline_always_off_hack = 0;
-      uiBut *but = uiDefIconButBitI(block,
-                                    ButType::Toggle,
-                                    eModifierMode_ApplyOnSpline,
-                                    ICON_SURFACE_DATA,
-                                    0,
-                                    0,
-                                    UI_UNIT_X - 2,
-                                    UI_UNIT_Y,
-                                    &apply_on_spline_always_off_hack,
-                                    0.0,
-                                    0.0,
-                                    RPT_("Apply on Spline"));
-      UI_but_disable(but,
+      blender::ui::Button *but = uiDefIconButBitI(block,
+                                                  blender::ui::ButtonType::Toggle,
+                                                  eModifierMode_ApplyOnSpline,
+                                                  ICON_SURFACE_DATA,
+                                                  0,
+                                                  0,
+                                                  UI_UNIT_X - 2,
+                                                  UI_UNIT_Y,
+                                                  &apply_on_spline_always_off_hack,
+                                                  0.0,
+                                                  0.0,
+                                                  RPT_("Apply on Spline"));
+      button_disable(but,
                      "This modifier can only deform filled curve/surface, not the control points");
       buttons_number++;
     }
@@ -378,21 +377,21 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     {
       /* Add button (appearing to be ON) and add tip why this can't be changed. */
       sub = &row.row(true);
-      uiBlock *block = sub->block();
+      blender::ui::Block *block = sub->block();
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
-      uiBut *but = uiDefIconButBitI(block,
-                                    ButType::Toggle,
-                                    eModifierMode_ApplyOnSpline,
-                                    ICON_SURFACE_DATA,
-                                    0,
-                                    0,
-                                    UI_UNIT_X - 2,
-                                    UI_UNIT_Y,
-                                    &apply_on_spline_always_on_hack,
-                                    0.0,
-                                    0.0,
-                                    RPT_("Apply on Spline"));
-      UI_but_disable(but,
+      blender::ui::Button *but = uiDefIconButBitI(block,
+                                                  blender::ui::ButtonType::Toggle,
+                                                  eModifierMode_ApplyOnSpline,
+                                                  ICON_SURFACE_DATA,
+                                                  0,
+                                                  0,
+                                                  UI_UNIT_X - 2,
+                                                  UI_UNIT_Y,
+                                                  &apply_on_spline_always_on_hack,
+                                                  0.0,
+                                                  0.0,
+                                                  RPT_("Apply on Spline"));
+      button_disable(but,
                      "This modifier can only deform control points, not the filled curve/surface");
       buttons_number++;
     }

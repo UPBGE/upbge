@@ -45,6 +45,7 @@ void GeometryNodesEvalDependencies::add_object(Object *object,
   deps.geometry |= object_deps.geometry;
   deps.transform |= object_deps.transform;
   deps.camera_parameters |= object_deps.camera_parameters;
+  deps.pose |= object_deps.pose;
 }
 
 void GeometryNodesEvalDependencies::merge(const GeometryNodesEvalDependencies &other)
@@ -127,8 +128,7 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
   }
 }
 
-static bool has_enabled_nodes_of_type(const bNodeTree &tree,
-                                      const blender::StringRefNull type_idname)
+static bool has_enabled_nodes_of_type(const bNodeTree &tree, const StringRefNull type_idname)
 {
   for (const bNode *node : tree.nodes_by_type(type_idname)) {
     if (!node->is_muted()) {

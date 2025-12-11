@@ -66,7 +66,7 @@ void KX_BlenderCanvas::SwapBuffers()
 {
   /* See wm_draw_update for "chronology" */
   if (!m_useViewportRender) {
-    GPU_context_end_frame((GPUContext *)m_win->gpuctx);
+    GPU_context_end_frame((GPUContext *)m_win->runtime->gpuctx);
     GPU_render_end();
     GPU_context_main_unlock();
     G.is_rendering = false;
@@ -126,7 +126,7 @@ void KX_BlenderCanvas::BeginDraw()
 
     BKE_image_free_unused_gpu_textures();
     /* See wm_draw_update for "chronology" */
-    GPU_context_begin_frame((GPUContext *)m_win->gpuctx);
+    GPU_context_begin_frame((GPUContext *)m_win->runtime->gpuctx);
   }
 }
 
@@ -147,7 +147,7 @@ void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bo
 {
   if (screen) {
     int _x, _y;
-    ((GHOST_IWindow *)m_win->ghostwin)->screenToClient(x, y, _x, _y);
+    ((GHOST_IWindow *)m_win->runtime->ghostwin)->screenToClient(x, y, _x, _y);
     x = _x;
     y = _y;
   }

@@ -32,7 +32,7 @@
 #  include "opensubdiv_evaluator_capi.hh"
 #endif
 
-#include "../glsl_preprocess/glsl_preprocess.hh"
+#include "../shader_tool/shader_tool.hh"
 
 extern "C" {
 #define SHADER_SOURCE(filename_underscore, filename, filepath) \
@@ -50,6 +50,8 @@ extern "C" {
 static CLG_LogRef LOG = {"shader.dependencies"};
 
 namespace blender::gpu::shader {
+
+static bool g_shader_use_printf = false;
 
 shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
 {
@@ -95,6 +97,7 @@ shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
     case Builtin::assert:
     case Builtin::printf:
 #if GPU_SHADER_PRINTF_ENABLE
+      g_shader_use_printf = true;
       return BuiltinBits::USE_PRINTF;
 #else
       return BuiltinBits::NONE;
@@ -231,13 +234,18 @@ struct GPUSource {
 
       shader::PrintfFormat::Block::ArgumentType type =
           shader::PrintfFormat::Block::ArgumentType::NONE;
-      int64_t start = 0, end = 0;
-      while ((end = format.find_first_of('%', start + 1)) != -1) {
-        /* Add the previous block without the newly found % character. */
-        fmt.format_blocks.append({type, format.substr(start, end - start)});
+      int64_t start = 0, end = 0, cursor = -1;
+      while ((end = format.find_first_of('%', cursor + 1)) != -1) {
+        if (end - start > 0) {
+          /* Add the previous block without the newly found % character. */
+          fmt.format_blocks.append({type, format.substr(start, end - start)});
+        }
         /* Format type of the next block. */
         /* TODO(fclem): This doesn't support advance formats like `%3.2f`. */
         switch (format[end + 1]) {
+          case 's':
+            type = shader::PrintfFormat::Block::ArgumentType::STRING;
+            break;
           case 'x':
           case 'u':
             type = shader::PrintfFormat::Block::ArgumentType::UINT;
@@ -254,6 +262,7 @@ struct GPUSource {
         }
         /* Start of the next block. */
         start = end;
+        cursor = end;
       }
       fmt.format_blocks.append({type, format.substr(start, format.size() - start)});
 
@@ -509,7 +518,11 @@ void gpu_shader_dependency_init()
 #undef SHADER_SOURCE
 #ifdef WITH_OPENSUBDIV
   const blender::StringRefNull patch_basis_source = openSubdiv_getGLSLPatchBasisSource();
-  g_sources->add_overwrite(
+  auto source_ptr_opt = g_sources->pop_try("osd_patch_basis.glsl");
+  if (source_ptr_opt) {
+    delete source_ptr_opt.value();
+  }
+  g_sources->add_new(
       "osd_patch_basis.glsl",
       new GPUSource("osd_patch_basis.glsl",
                     "osd_patch_basis.glsl",
@@ -585,7 +598,7 @@ bool gpu_shader_dependency_force_gpu_print_injection()
 
 bool gpu_shader_dependency_has_printf()
 {
-  return (g_formats != nullptr) && !g_formats->is_empty();
+  return (g_formats != nullptr) && g_shader_use_printf;
 }
 
 const PrintfFormat &gpu_shader_dependency_get_printf_format(uint32_t format_hash)

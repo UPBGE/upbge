@@ -70,10 +70,6 @@ namespace blender::io::usd {
 
 static void decref(USDPrimReader *reader)
 {
-  if (!reader) {
-    return;
-  }
-
   reader->decref();
 
   if (reader->refcount() == 0) {
@@ -98,9 +94,8 @@ static Collection *create_collection(Main *bmain, Collection *parent, const char
  * The collection is assigned from the given map based on
  * the prototype prim path.
  */
-static void set_instance_collection(
-    USDInstanceReader *instance_reader,
-    const blender::Map<pxr::SdfPath, Collection *> &proto_collection_map)
+static void set_instance_collection(USDInstanceReader *instance_reader,
+                                    const Map<pxr::SdfPath, Collection *> &proto_collection_map)
 {
   if (!instance_reader) {
     return;
@@ -430,7 +425,7 @@ bool USDStageReader::merge_with_parent(USDPrimReader *reader) const
 USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
                                                const UsdPathSet &pruned_prims,
                                                const bool defined_prims_only,
-                                               blender::Vector<USDPrimReader *> &r_readers)
+                                               Vector<USDPrimReader *> &r_readers)
 {
   if (prim.IsA<pxr::UsdGeomImageable>()) {
     pxr::UsdGeomImageable imageable(prim);
@@ -462,7 +457,7 @@ USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
     filter_predicate = pxr::UsdTraverseInstanceProxies(filter_predicate);
   }
 
-  blender::Vector<USDPrimReader *> child_readers;
+  Vector<USDPrimReader *> child_readers;
 
   pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_predicate);
 
@@ -553,7 +548,7 @@ void USDStageReader::collect_readers()
     std::vector<pxr::UsdPrim> protos = stage_->GetPrototypes();
 
     for (const pxr::UsdPrim &proto_prim : protos) {
-      blender::Vector<USDPrimReader *> proto_readers;
+      Vector<USDPrimReader *> proto_readers;
       collect_readers(proto_prim, instancer_proto_paths, true, proto_readers);
       proto_readers_.add(proto_prim.GetPath(), proto_readers);
 
@@ -574,7 +569,7 @@ void USDStageReader::process_armature_modifiers() const
   /* Iterate over the skeleton readers to create the
    * armature object map, which maps a USD skeleton prim
    * path to the corresponding armature object. */
-  blender::Map<pxr::SdfPath, Object *> usd_path_to_armature;
+  Map<pxr::SdfPath, Object *> usd_path_to_armature;
   for (const USDPrimReader *reader : readers_) {
     if (dynamic_cast<const USDSkeletonReader *>(reader) && reader->object()) {
       usd_path_to_armature.add(reader->prim_path(), reader->object());
@@ -748,9 +743,15 @@ void USDStageReader::sort_readers()
 {
   blender::parallel_sort(
       readers_.begin(), readers_.end(), [](const USDPrimReader *a, const USDPrimReader *b) {
-        const char *na = a ? a->name().c_str() : "";
-        const char *nb = b ? b->name().c_str() : "";
-        return BLI_strcasecmp(na, nb) < 0;
+        int result = BLI_strcasecmp(a->name().c_str(), b->name().c_str());
+
+        /* The sorting should be deterministic and consistent regardless of how the list of readers
+         * was created. Use the original, unique, USD prim path to break ties. */
+        if (result == 0) {
+          return a->prim_path() < b->prim_path();
+        }
+
+        return result < 0;
       });
 }
 
@@ -770,7 +771,7 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
     }
   }
 
-  blender::Map<pxr::SdfPath, Collection *> proto_collection_map;
+  Map<pxr::SdfPath, Collection *> proto_collection_map;
 
   for (const pxr::SdfPath &path : proto_readers_.keys()) {
     Collection *proto_collection = create_collection(bmain, all_protos_collection, "proto");
@@ -848,8 +849,8 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
 
       /* Create the collection and populate it with the prototype objects. */
       Collection *proto_coll = create_collection(bmain, instancer_protos_coll, coll_name.c_str());
-      blender::Vector<USDPrimReader *> proto_readers = instancer_proto_readers_.lookup_default(
-          proto_path, {});
+      Vector<USDPrimReader *> proto_readers = instancer_proto_readers_.lookup_default(proto_path,
+                                                                                      {});
       for (const USDPrimReader *proto : proto_readers) {
         Object *ob = proto->object();
         if (!ob) {

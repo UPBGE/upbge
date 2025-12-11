@@ -1420,7 +1420,7 @@ int main(int argc,
             if (bfd) {
               /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
                * .blend */
-              CTX_wm_window(C)->ghostwin = nullptr;
+              CTX_wm_window(C)->runtime->ghostwin = nullptr;
               /* Hack to not free wm->message_bus when we restart/load new .blend */
               CTX_wm_manager(C)->runtime->message_bus = nullptr;
 
@@ -1710,10 +1710,10 @@ int main(int argc,
               GPU_backend_ghost_system_set(system);
               WM_init_gpu();
 
-              UI_theme_init_default();
-              UI_init();
+              blender::ui::theme::init_default();
+              blender::ui::init();
               /* To have blf_monofont_render available for generated textures checkerboard */
-              UI_reinit_font();
+              blender::ui::reinit_font();
 
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
@@ -1808,8 +1808,8 @@ int main(int argc,
 
           LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
             CTX_wm_window_set(C, win); /* needed by operator close callbacks */
-            WM_event_remove_handlers(C, &win->handlers);
-            WM_event_remove_handlers(C, &win->modalhandlers);
+            WM_event_remove_handlers(C, &win->runtime->handlers);
+            WM_event_remove_handlers(C, &win->runtime->modalhandlers);
             ED_screen_exit(C, win, WM_window_get_active_screen(win));
           }
         } while (!quitGame(exitcode));
@@ -1965,7 +1965,7 @@ int main(int argc,
   ED_file_exit(); /* for fsmenu */
 
   DRW_gpu_context_enable_ex(false);
-  UI_exit();
+  blender::ui::ui_exit();
   GPU_shader_cache_dir_clear_old();
   GPU_exit();
   DRW_gpu_context_disable_ex(false);

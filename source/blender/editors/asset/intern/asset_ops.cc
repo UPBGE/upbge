@@ -1263,19 +1263,19 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   float4 mask_color = {1, 1, 1, 0.25};
   const int2 win_size = WM_window_native_pixel_size(window);
   const rctf mask_rect_bottom = {0, float(win_size.x), 0, screenshot_rect.ymin};
-  UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
+  ui::draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
   const rctf mask_rect_top = {0, float(win_size.x), screenshot_rect.ymax, float(win_size.y)};
-  UI_draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
+  ui::draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
   const rctf mask_rect_left = {
       0, screenshot_rect.xmin, screenshot_rect.ymin, screenshot_rect.ymax};
-  UI_draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
+  ui::draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
   const rctf mask_rect_right = {
       screenshot_rect.xmax, float(win_size.x), screenshot_rect.ymin, screenshot_rect.ymax};
-  UI_draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
+  ui::draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
 
   float4 color;
-  UI_GetThemeColor4fv(TH_EDITOR_BORDER, color);
-  UI_draw_roundbox_aa(&screenshot_rect, false, 0, color);
+  ui::theme::get_color_4fv(TH_EDITOR_BORDER, color);
+  ui::draw_roundbox_aa(&screenshot_rect, false, 0, color);
 }
 
 static void screenshot_preview_exit(bContext *C, wmOperator *op)
@@ -1466,9 +1466,7 @@ static bool screenshot_preview_poll(bContext *C)
   if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
-
-  std::string lib_path = asset_handle->full_library_path();
-  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
+  if (asset_handle->is_potentially_editable_asset_blend()) {
     return true;
   }
 

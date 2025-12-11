@@ -57,6 +57,8 @@
 
 #include "eyedropper_intern.hh"
 
+namespace blender::ui {
+
 struct Eyedropper {
   const ColorManagedDisplay *display = nullptr;
 
@@ -108,9 +110,9 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
     eye->is_undo = true;
   }
   else {
-    uiBut *but = UI_context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
+    Button *but = context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
     if (but != nullptr) {
-      eye->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+      eye->is_undo = button_flag_is_set(but, BUT_UNDO);
     }
   }
 
@@ -195,10 +197,10 @@ static bool eyedropper_cryptomatte_sample_view3d_fl(bContext *C,
   }
 
   const ID *id = nullptr;
-  if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_OBJECT)) {
+  if (StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_OBJECT)) {
     id = &object->id;
   }
-  else if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_MATERIAL)) {
+  else if (StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_MATERIAL)) {
     Material *material = BKE_object_material_get(object, material_slot);
     if (!material) {
       return false;
@@ -658,7 +660,7 @@ static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmE
   if (eyedropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -719,3 +721,5 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
                         "Path of property to be set with the depth");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+}  // namespace blender::ui

@@ -383,7 +383,7 @@ void region_init(wmWindowManager *wm, ARegion *region)
 
   AssetShelf *active_shelf = shelf_regiondata->active_shelf;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
 
   wmKeyMap *keymap = WM_keymap_ensure(
       wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
@@ -399,12 +399,12 @@ void region_init(wmWindowManager *wm, ARegion *region)
                                            asset_shelf_default_tile_height();
 
   /* Ensure the view is snapped to a page still, especially for DPI changes. */
-  UI_view2d_offset_y_snap_to_closest_page(&region->v2d);
+  ui::view2d_offset_y_snap_to_closest_page(&region->v2d);
 }
 
 static int main_region_padding_y()
 {
-  const uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = ui::style_get_dpi();
   return style->buttonspacey / 2;
 }
 
@@ -509,19 +509,19 @@ void region_on_user_resize(const ARegion *region)
 
 int tile_width(const AssetShelfSettings &settings)
 {
-  return UI_preview_tile_size_x(settings.preview_size);
+  return ui::preview_tile_size_x(settings.preview_size);
 }
 
 int tile_height(const AssetShelfSettings &settings)
 {
   return (settings.display_flag & ASSETSHELF_SHOW_NAMES) ?
-             UI_preview_tile_size_y(settings.preview_size) :
-             UI_preview_tile_size_y_no_label(settings.preview_size);
+             ui::preview_tile_size_y(settings.preview_size) :
+             ui::preview_tile_size_y_no_label(settings.preview_size);
 }
 
 static int asset_shelf_default_tile_height()
 {
-  return UI_preview_tile_size_x(ASSET_SHELF_PREVIEW_SIZE_DEFAULT);
+  return ui::preview_tile_size_x(ASSET_SHELF_PREVIEW_SIZE_DEFAULT);
 }
 
 int region_prefsizey()
@@ -542,9 +542,9 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
 
-  const uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = ui::style_get_dpi();
   const int padding_y = main_region_padding_y();
   const int padding_x = main_region_padding_x();
   ui::Layout &layout = ui::block_layout(block,
@@ -561,20 +561,20 @@ void region_layout(const bContext *C, ARegion *region)
 
   int layout_height = ui::block_layout_resolve(block).y;
   BLI_assert(layout_height <= 0);
-  UI_view2d_totRect_set(&region->v2d, region->winx - 1, layout_height - padding_y);
-  UI_view2d_curRect_validate(&region->v2d);
+  ui::view2d_totRect_set(&region->v2d, region->winx - 1, layout_height - padding_y);
+  ui::view2d_curRect_validate(&region->v2d);
 
   region_resize_to_preferred(CTX_wm_area(C), region);
 
   /* View2D matrix might have changed due to dynamic sized regions.
-   * Without this, tooltips jump around, see #129347. Reason is that #UI_but_tooltip_refresh() is
-   * called as part of #UI_block_end(), so the block's window matrix needs to be up-to-date. */
+   * Without this, tooltips jump around, see #129347. Reason is that #button_tooltip_refresh() is
+   * called as part of #block_end(), so the block's window matrix needs to be up-to-date. */
   {
-    UI_view2d_view_ortho(&region->v2d);
-    UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+    ui::view2d_view_ortho(&region->v2d);
+    ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
   }
 
-  UI_block_end(C, block);
+  block_end(C, block);
 }
 
 void region_draw(const bContext *C, ARegion *region)
@@ -582,17 +582,17 @@ void region_draw(const bContext *C, ARegion *region)
   ED_region_clear(C, region, TH_BACK);
 
   /* Set view2d view matrix for scrolling. */
-  UI_view2d_view_ortho(&region->v2d);
+  ui::view2d_view_ortho(&region->v2d);
 
   /* View2D matrix might have changed due to dynamic sized regions. */
-  UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+  ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
-  UI_blocklist_draw(C, &region->runtime->uiblocks);
+  ui::blocklist_draw(C, &region->runtime->uiblocks);
 
   /* Restore view matrix. */
-  UI_view2d_view_restore(C);
+  ui::view2d_view_restore(C);
 
-  UI_view2d_scrollers_draw(&region->v2d, nullptr);
+  ui::view2d_scrollers_draw(&region->v2d, nullptr);
 }
 
 void region_on_poll_success(const bContext *C, ARegion *region)
@@ -651,7 +651,7 @@ void header_region_init(wmWindowManager * /*wm*/, ARegion *region)
 
 void header_region(const bContext *C, ARegion *region)
 {
-  ED_region_header_with_button_sections(C, region, uiButtonSectionsAlign::Bottom);
+  ED_region_header_with_button_sections(C, region, ui::ButtonSectionsAlign::Bottom);
 }
 
 int header_region_size()
@@ -752,12 +752,12 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
 
   if (CTX_data_equals(member, "asset")) {
     const ARegion *region = CTX_wm_region(C);
-    const uiBut *but = UI_region_views_find_active_item_but(region);
+    const ui::Button *but = ui::region_views_find_active_item_but(region);
     if (!but) {
       return CTX_RESULT_NO_DATA;
     }
 
-    const bContextStore *but_context = UI_but_context_get(but);
+    const bContextStore *but_context = button_context_get(but);
     if (!but_context) {
       return CTX_RESULT_NO_DATA;
     }
@@ -792,16 +792,16 @@ AssetShelf *active_shelf_from_context(const bContext *C)
 /** \name Catalog toggle buttons
  * \{ */
 
-static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
+static ui::Button *add_tab_button(ui::Block &block, StringRefNull name)
 {
-  const uiStyle *style = UI_style_get_dpi();
-  const int string_width = UI_fontstyle_string_width(&style->widget, name.c_str());
+  const uiStyle *style = ui::style_get_dpi();
+  const int string_width = ui::fontstyle_string_width(&style->widget, name.c_str());
   const int pad_x = UI_UNIT_X * 0.3f;
   const int but_width = std::min(string_width + 2 * pad_x, UI_UNIT_X * 8);
 
-  uiBut *but = uiDefBut(
+  ui::Button *but = uiDefBut(
       &block,
-      ButType::Tab,
+      ui::ButtonType::Tab,
       name,
       0,
       0,
@@ -812,25 +812,25 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
       0,
       TIP_("Enable catalog, making contained assets visible in the asset shelf"));
 
-  UI_but_drawflag_enable(but, UI_BUT_ALIGN_DOWN);
-  UI_but_flag_disable(but, UI_BUT_UNDO);
+  button_drawflag_enable(but, ui::BUT_ALIGN_DOWN);
+  button_flag_disable(but, ui::BUT_UNDO);
 
   return but;
 }
 
 static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 {
-  uiBlock *block = layout.block();
+  ui::Block *block = layout.block();
   AssetShelfSettings &shelf_settings = shelf.settings;
 
   /* "All" tab. */
   {
-    uiBut *but = add_tab_button(*block, IFACE_("All"));
-    UI_but_func_set(but, [&shelf_settings](bContext &C) {
+    ui::Button *but = add_tab_button(*block, IFACE_("All"));
+    button_func_set(but, [&shelf_settings](bContext &C) {
       settings_set_all_catalog_active(shelf_settings);
       send_redraw_notifier(C);
     });
-    UI_but_func_pushed_state_set(but, [&shelf_settings](const uiBut &) -> bool {
+    button_func_pushed_state_set(but, [&shelf_settings](const ui::Button &) -> bool {
       return settings_is_all_catalog_active(shelf_settings);
     });
   }
@@ -839,13 +839,13 @@ static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 
   /* Regular catalog tabs. */
   settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
-    uiBut *but = add_tab_button(*block, path.name());
+    ui::Button *but = add_tab_button(*block, path.name());
 
-    UI_but_func_set(but, [&shelf_settings, path](bContext &C) {
+    button_func_set(but, [&shelf_settings, path](bContext &C) {
       settings_set_active_catalog(shelf_settings, path);
       send_redraw_notifier(C);
     });
-    UI_but_func_pushed_state_set(but, [&shelf_settings, path](const uiBut &) -> bool {
+    button_func_pushed_state_set(but, [&shelf_settings, path](const ui::Button &) -> bool {
       return settings_is_active_catalog(shelf_settings, path);
     });
   });
@@ -862,14 +862,14 @@ static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 static void asset_shelf_header_draw(const bContext *C, Header *header)
 {
   ui::Layout &layout = *header->layout;
-  uiBlock *block = layout.block();
+  ui::Block *block = layout.block();
   const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
 
   list::storage_fetch(library_ref, C);
 
-  UI_block_emboss_set(block, ui::EmbossType::None);
+  block_emboss_set(block, ui::EmbossType::None);
   layout.popover(C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
-  UI_block_emboss_set(block, ui::EmbossType::Emboss);
+  block_emboss_set(block, ui::EmbossType::Emboss);
 
   layout.separator();
 

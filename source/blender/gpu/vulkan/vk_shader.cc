@@ -1041,7 +1041,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
       using Resource = ShaderCreateInfo::Resource;
       /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
        * collide with other resources. */
-      Resource res(info, Resource::BindType::SAMPLER, input.index);
+      Resource res(info, Resource::BindType::SAMPLER, input.index, nullptr);
       res.sampler.type = input.img_type;
       res.sampler.sampler = GPUSamplerState::default_sampler();
       res.sampler.name = image_name;
@@ -1300,18 +1300,22 @@ VkPipeline VKShader::ensure_and_get_compute_pipeline(
 bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_states)
 {
   BLI_assert(!is_compute_shader_);
-  has_precompiled_pipelines_ = !pipeline_states.is_empty();
+
+  VKDevice &device = VKBackend::get().device;
+  const VKExtensions &extensions = device.extensions_get();
+  if (!extensions.vertex_input_dynamic_state) {
+    return true;
+  }
+
   for (const shader::PipelineState &pipeline_state : pipeline_states) {
     const VkPrimitiveTopology vk_topology = to_vk_primitive_topology(pipeline_state.primitive_);
 
-    VKDevice &device = VKBackend::get().device;
-    const VKExtensions &extensions = device.extensions_get();
-
-    VKVertexInputDescription vertex_input_description(pipeline_state);
     VKGraphicsInfo graphics_info = {};
     graphics_info.vertex_in.vk_topology = vk_topology;
-    graphics_info.vertex_in.vertex_input_key = device.vertex_input_descriptions.get_or_insert(
-        vertex_input_description);
+    /* When vertex input dynamic state is enabled the actual vertex input doesn't matter. We use an
+     * invalid key to ensure that same hash-keys are constructed for compatible graphics infos and
+     * incorrect usages would still assert.*/
+    graphics_info.vertex_in.vertex_input_key = VKVertexInputDescriptionPool::invalid_key;
 
     graphics_info.shaders.vk_vertex_module = vertex_module.vk_shader_module;
     graphics_info.shaders.vk_geometry_module = geometry_module.vk_shader_module;
@@ -1343,6 +1347,7 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
     bool pipeline_created = false;
     VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
         graphics_info, is_static_shader_, vk_pipeline_base_, name_get(), pipeline_created);
+    has_precompiled_pipelines_ = true;
     UNUSED_VARS_NDEBUG(pipeline_created);
     if (vk_pipeline == VK_NULL_HANDLE) {
       return false;
@@ -1378,7 +1383,12 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(
 
   VKGraphicsInfo graphics_info = {};
   graphics_info.vertex_in.vk_topology = vk_topology;
-  graphics_info.vertex_in.vertex_input_key = vertex_input_description_key;
+  /* When vertex input dynamic state is enabled the actual vertex input doesn't matter. We use an
+   * invalid key to ensure that same hash-keys are constructed for compatible graphics infos and
+   * incorrect usages would still assert.*/
+  graphics_info.vertex_in.vertex_input_key = extensions.vertex_input_dynamic_state ?
+                                                 VKVertexInputDescriptionPool::invalid_key :
+                                                 vertex_input_description_key;
 
   graphics_info.shaders.vk_vertex_module = vertex_module.vk_shader_module;
   graphics_info.shaders.vk_geometry_module = geometry_module.vk_shader_module;
@@ -1421,6 +1431,10 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(
               "Pipeline states were compiled for `%s`, however a pipeline state triggered a new "
               "pipeline compilation.",
               name_get().c_str());
+    if (G.debug & G_DEBUG_GPU) {
+      CLOG_DEBUG(
+          &LOG, "Missing pipeline state:\n%s", graphics_info.pipeline_info_source().c_str());
+    }
     const VKContext &context = *VKContext::get();
     BLI_assert(!context.debug_pipeline_creation);
   }

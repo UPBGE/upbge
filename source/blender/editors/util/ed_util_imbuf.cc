@@ -160,7 +160,7 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
   Image *image = ED_space_image(sima);
 
   float uv[2];
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &uv[0], &uv[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &uv[0], &uv[1]);
   int tile = BKE_image_get_tile_from_pos(sima->image, uv, uv, nullptr);
 
   void *lock;
@@ -286,7 +286,7 @@ static void sequencer_sample_apply(bContext *C, wmOperator *op, const wmEvent *e
     return;
   }
 
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fx, &fy);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fx, &fy);
 
   fx /= scene->r.xasp / scene->r.yasp;
 
@@ -405,7 +405,7 @@ void ED_imbuf_sample_draw(const bContext *C, ARegion *region, void *arg_info)
     if (area && area->spacetype == SPACE_IMAGE) {
 
       const wmWindow *win = CTX_wm_window(C);
-      const wmEvent *event = win->eventstate;
+      const wmEvent *event = win->runtime->eventstate;
 
       SpaceImage *sima = CTX_wm_space_image(C);
       GPUVertFormat *format = immVertexFormat();

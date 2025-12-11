@@ -59,6 +59,8 @@
 
 #include "BLO_read_write.hh"
 
+using blender::Set;
+
 /* ****************************************************** */
 
 static void window_manager_free_data(ID *id)
@@ -164,17 +166,6 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     }
 
     BKE_screen_area_map_blend_read_data(reader, &win->global_areas);
-
-    win->ghostwin = nullptr;
-    win->gpuctx = nullptr;
-    win->eventstate = nullptr;
-    win->eventstate_prev_press_time_ms = 0;
-    win->event_last_handled = nullptr;
-    win->cursor_keymap_status = nullptr;
-
-    BLI_listbase_clear(&win->handlers);
-    BLI_listbase_clear(&win->modalhandlers);
-    BLI_listbase_clear(&win->gesture);
 
     win->active = 0;
 
@@ -312,8 +303,7 @@ void WM_operator_type_set(wmOperator *op, wmOperatorType *ot)
 
   /* Ensure compatible properties. */
   if (op->properties) {
-    PointerRNA ptr;
-    WM_operator_properties_create_ptr(&ptr, ot);
+    PointerRNA ptr = WM_operator_properties_create_ptr(ot);
 
     WM_operator_properties_default(&ptr, false);
 
@@ -364,7 +354,23 @@ void WM_operator_stack_clear(wmWindowManager *wm)
   WM_main_add_notifier(NC_WM | ND_HISTORY, nullptr);
 }
 
-void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
+void WM_operator_stack_clear(wmWindowManager *wm, const Set<wmOperatorType *> &types)
+{
+  bool any_removed = false;
+  LISTBASE_FOREACH_MUTABLE (wmOperator *, op, &wm->runtime->operators) {
+    if (types.contains(op->type)) {
+      WM_operator_free(op);
+      BLI_remlink(&wm->runtime->operators, op);
+      any_removed = true;
+    }
+  }
+
+  if (any_removed) {
+    WM_main_add_notifier(NC_WM | ND_HISTORY, nullptr);
+  }
+}
+
+void WM_operator_handlers_clear(wmWindowManager *wm, const Set<wmOperatorType *> &types)
 {
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     bScreen *screen = WM_window_get_active_screen(win);
@@ -372,7 +378,7 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
       switch (area->spacetype) {
         case SPACE_FILE: {
           SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
-          if (sfile->op && sfile->op->type == ot) {
+          if (sfile->op && types.contains(sfile->op->type)) {
             /* Freed as part of the handler. */
             sfile->op = nullptr;
           }
@@ -383,12 +389,12 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
   }
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    ListBase *lb[2] = {&win->handlers, &win->modalhandlers};
+    ListBase *lb[2] = {&win->runtime->handlers, &win->runtime->modalhandlers};
     for (int i = 0; i < ARRAY_SIZE(lb); i++) {
       LISTBASE_FOREACH (wmEventHandler *, handler_base, lb[i]) {
         if (handler_base->type == WM_HANDLER_TYPE_OP) {
           wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
-          if (handler->op && handler->op->type == ot) {
+          if (handler->op && types.contains(handler->op->type)) {
             /* Don't run op->cancel because it needs the context,
              * assume whoever unregisters the operator will cleanup. */
             handler->head.flag |= WM_HANDLER_DO_FREE;
@@ -399,6 +405,11 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
       }
     }
   }
+}
+
+void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
+{
+  WM_operator_handlers_clear(wm, Set<wmOperatorType *>{ot});
 }
 
 /* ****************************************** */

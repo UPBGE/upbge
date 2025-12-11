@@ -202,8 +202,8 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
 
 static void node_layout(ui::Layout &layout, bContext * /*context*/, PointerRNA *node_pointer)
 {
-  layout.prop(node_pointer, "directory", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout.prop(node_pointer, "file_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(node_pointer, "directory", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(node_pointer, "file_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void format_layout(ui::Layout *layout,
@@ -214,8 +214,11 @@ static void format_layout(ui::Layout *layout,
   ui::Layout &col = layout->column(true);
   col.use_property_split_set(true);
   col.use_property_decorate_set(false);
-  col.prop(
-      node_or_item_pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col.prop(node_or_item_pointer,
+           "save_as_render",
+           ui::ITEM_R_SPLIT_EMPTY_NAME,
+           std::nullopt,
+           ICON_NONE);
   const bool save_as_render = RNA_boolean_get(node_or_item_pointer, "save_as_render");
   uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
 
@@ -311,7 +314,7 @@ static void item_layout(ui::Layout &layout,
   }
 
   layout.prop(
-      item_pointer, "override_node_format", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      item_pointer, "override_node_format", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   const bool override_node_format = RNA_boolean_get(item_pointer, "override_node_format");
 
   PointerRNA node_format_pointer = RNA_pointer_get(node_pointer, "format");
@@ -332,7 +335,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *context, PointerRNA *no
   PointerRNA format_pointer = RNA_pointer_get(node_pointer, "format");
   const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
                               R_IMF_IMTYPE_MULTILAYER;
-  layout.prop(&format_pointer, "media_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(&format_pointer, "media_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   if (ui::Layout *panel = layout.panel(context, "node_format", false, IFACE_("Node Format"))) {
     format_layout(panel, context, &format_pointer, node_pointer);
   }
@@ -393,6 +396,35 @@ static void node_extra_info(NodeExtraInfoParams &parameters)
     row.icon = ICON_ERROR;
     parameters.rows.append(std::move(row));
   }
+}
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &origin_socket = params.other_socket();
+  if (origin_socket.in_out != SOCK_OUT) {
+    return;
+  }
+  const eNodeSocketDatatype origin_socket_type = eNodeSocketDatatype(origin_socket.type);
+  if (!FileOutputItemsAccessor::supports_socket_type(origin_socket_type, NTREE_COMPOSIT)) {
+    return;
+  }
+  params.add_item("File Output", [](LinkSearchOpParams &params) {
+    bNode &node = params.add_node("CompositorNodeOutputFile");
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.socket.type);
+    if (socket_type == SOCK_VECTOR) {
+      socket_items::add_item_with_socket_type_and_name<FileOutputItemsAccessor>(
+          params.node_tree,
+          node,
+          socket_type,
+          params.socket.name,
+          params.socket.default_value_typed<bNodeSocketValueVector>()->dimensions);
+    }
+    else {
+      socket_items::add_item_with_socket_type_and_name<FileOutputItemsAccessor>(
+          params.node_tree, node, socket_type, params.socket.name);
+    }
+    params.update_and_connect_available_socket(node, params.socket.name);
+  });
 }
 
 using namespace blender::compositor;
@@ -846,6 +878,7 @@ static void node_register()
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   ntype.get_extra_info = node_extra_info;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.get_compositor_operation = get_compositor_operation;
 
   blender::bke::node_register_type(ntype);

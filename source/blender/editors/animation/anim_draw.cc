@@ -145,8 +145,8 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
   /* ..._handle are frames in "sequencer logic", meaning that on the right_handle point in time,
    * the strip is not visible any more. The last visible frame of the strip is actually on
    * (right_handle-1), hence the -1 when computing the end_frame. */
-  const float left_handle = seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
-  const float right_handle = seq::time_right_handle_frame_get(sequencer_scene, scene_strip);
+  const float left_handle = scene_strip->left_handle();
+  const float right_handle = scene_strip->right_handle(sequencer_scene);
   float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
                       scene_strip->scene->r.sfra;
   float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
@@ -231,7 +231,7 @@ void ANIM_draw_action_framerange(
   immBindBuiltinProgram(GPU_SHADER_2D_DIAG_STRIPES);
 
   float color[4];
-  UI_GetThemeColorShadeAlpha4fv(TH_BACK, -40, -50, color);
+  blender::ui::theme::get_color_shade_alpha_4fv(TH_BACK, -40, -50, color);
 
   immUniform4f("color1", color[0], color[1], color[2], color[3]);
   immUniform4f("color2", 0.0f, 0.0f, 0.0f, 0.0f);
@@ -809,7 +809,7 @@ void ANIM_center_frame(bContext *C, int smooth_viewtx)
       break;
   }
 
-  UI_view2d_smooth_view(C, region, &newrct, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, region, &newrct, smooth_viewtx);
 }
 /* *************************************************** */
 
@@ -819,12 +819,12 @@ rctf ANIM_frame_range_view2d_add_xmargin(const View2D &view_2d, const rctf view_
   const float keyframe_size = 10 * UI_SCALE_FAC;
   const float margin_in_px = 4 * keyframe_size;
 
-  /* This cannot use UI_view2d_scale_get_x(view_2d) because that would use the
+  /* This cannot use view2d_scale_get_x(view_2d) because that would use the
    * current scale of the view, and not the one we'd get once `view_rect` is
    * applied. And this function should not assume that view_2d.cur == view_rect.
    *
    * As an added bonus, the division is inverted (compared to
-   * UI_view2d_scale_get_x()) so that we can multiply with the result instead of
+   * view2d_scale_get_x()) so that we can multiply with the result instead of
    * doing yet another division. */
   const float target_scale = BLI_rctf_size_x(&view_rect) / BLI_rcti_size_x(&view_2d.mask);
   const float margin_in_frames = margin_in_px * target_scale;

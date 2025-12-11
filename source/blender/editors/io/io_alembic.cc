@@ -182,10 +182,10 @@ static void ui_alembic_export_settings(const bContext *C,
     sub->prop(ptr, "gsamples", UI_ITEM_NONE, IFACE_("Geometry"), ICON_NONE);
 
     sub = &col->column(true);
-    sub->prop(ptr, "sh_open", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+    sub->prop(ptr, "sh_open", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
     sub->prop(ptr,
               "sh_close",
-              UI_ITEM_R_SLIDER,
+              blender::ui::ITEM_R_SLIDER,
               CTX_IFACE_(BLT_I18NCONTEXT_ID_CAMERA, "Close"),
               ICON_NONE);
 
@@ -733,7 +733,7 @@ void WM_OT_alembic_import(wmOperatorType *ot)
 namespace blender::ed::io {
 void alembic_file_handler_add()
 {
-  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  auto fh = std::make_unique<bke::FileHandlerType>();
   STRNCPY_UTF8(fh->idname, "IO_FH_alembic");
   STRNCPY_UTF8(fh->import_operator, "WM_OT_alembic_import");
   STRNCPY_UTF8(fh->export_operator, "WM_OT_alembic_export");

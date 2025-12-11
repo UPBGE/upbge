@@ -364,6 +364,9 @@ static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "custom_properties_namespace", params.custom_properties_namespace);
   RNA_string_get(op->ptr, "collection", params.collection);
 
+  params.accessibility_label = RNA_string_get(op->ptr, "accessibility_label");
+  params.accessibility_description = RNA_string_get(op->ptr, "accessibility_description");
+
   bool ok = USD_export(C, filepath, &params, as_background_job, op->reports);
 
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -467,7 +470,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
   }
 
   {
-    PanelLayout panel = layout.panel(C, "USD_export_materials", true);
+    blender::ui::PanelLayout panel = layout.panel(C, "USD_export_materials", true);
     panel.header->use_property_split_set(false);
     panel.header->prop(ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
     panel.header->label(IFACE_("Materials"), ICON_NONE);
@@ -495,6 +498,14 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
         sub_col.prop(ptr, "usdz_downscale_custom_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
     }
+  }
+
+  if (blender::ui::Layout *panel = layout.panel(
+          C, "USD_export_accessibility", true, IFACE_("Accessibility")))
+  {
+    blender::ui::Layout &col = panel->column(false);
+    col.prop(ptr, "accessibility_label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "accessibility_description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (blender::ui::Layout *panel = layout.panel(
@@ -731,6 +742,22 @@ void WM_OT_usd_export(wmOperatorType *ot)
                  "(e.g., it would apply to name 'bar' but not 'foo:bar') and does not apply "
                  "to blender object and data names which are always exported in the "
                  "'userProperties:blender' namespace");
+
+  prop = RNA_def_string(ot->srna,
+                        "accessibility_label",
+                        nullptr,
+                        0,
+                        "Label",
+                        "Set the accessibility label for the exported stage's default prim");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_string(ot->srna,
+                        "accessibility_description",
+                        nullptr,
+                        0,
+                        "Description",
+                        "Set the accessibility description for the exported stage's default prim");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   RNA_def_boolean(ot->srna,
                   "author_blender_name",
@@ -1287,7 +1314,7 @@ void WM_OT_usd_import(wmOperatorType *ot)
 namespace blender::ed::io {
 void usd_file_handler_add()
 {
-  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  auto fh = std::make_unique<bke::FileHandlerType>();
   STRNCPY_UTF8(fh->idname, "IO_FH_usd");
   STRNCPY_UTF8(fh->import_operator, "WM_OT_usd_import");
   STRNCPY_UTF8(fh->export_operator, "WM_OT_usd_export");

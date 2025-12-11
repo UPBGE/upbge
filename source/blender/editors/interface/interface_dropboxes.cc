@@ -25,7 +25,7 @@
 
 #include "UI_interface.hh"
 
-using namespace blender::ui;
+namespace blender::ui {
 
 /* -------------------------------------------------------------------- */
 /** \name View Drag/Drop Callbacks
@@ -44,8 +44,9 @@ static bool ui_view_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   const char *disabled_info = "";
   const bool can_drop = drop_target->can_drop(*drag, &disabled_info);
 
-  drag->drop_state.disabled_info = disabled_info;
-
+  if (disabled_info) {
+    drag->drop_state.disabled_info = disabled_info;
+  }
   return can_drop;
 }
 
@@ -62,7 +63,7 @@ static std::string ui_view_drop_tooltip(bContext *C,
     return {};
   }
 
-  return drop_target_tooltip(*region, *drop_target, *drag, *win->eventstate);
+  return drop_target_tooltip(*region, *drop_target, *drag, *win->runtime->eventstate);
 }
 
 /** \} */
@@ -73,13 +74,15 @@ static std::string ui_view_drop_tooltip(bContext *C,
 
 static bool ui_drop_name_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  return UI_but_active_drop_name(C) && ELEM(drag->type, WM_DRAG_ID, WM_DRAG_ASSET);
+  return button_active_drop_name(C) && ELEM(drag->type, WM_DRAG_ID, WM_DRAG_ASSET);
 }
 
 static void ui_drop_name_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   const ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
-  RNA_string_set(drop->ptr, "string", id->name + 2);
+  if (id) {
+    RNA_string_set(drop->ptr, "string", id->name + 2);
+  }
 }
 
 /** \} */
@@ -108,7 +111,9 @@ static bool ui_drop_material_poll(bContext *C, wmDrag *drag, const wmEvent * /*e
 static void ui_drop_material_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   const ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, ID_MA);
-  RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
+  if (id) {
+    RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
+  }
 }
 
 static std::string ui_drop_material_tooltip(bContext *C,
@@ -154,7 +159,7 @@ static std::string ui_drop_material_tooltip(bContext *C,
 /** \name Add User Interface Drop Boxes
  * \{ */
 
-void ED_dropboxes_ui()
+void dropboxes_ui()
 {
   ListBase *lb = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
@@ -174,3 +179,5 @@ void ED_dropboxes_ui()
 }
 
 /** \} */
+
+}  // namespace blender::ui

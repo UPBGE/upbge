@@ -89,6 +89,8 @@ class GHOST_System : public GHOST_ISystem {
 
   /** \copydoc #GHOST_ISystem::getWindowUnderCursor */
   GHOST_IWindow *getWindowUnderCursor(int32_t x, int32_t y) override;
+  GHOST_CSD_Params window_csd_params_;
+  GHOST_CSD_Layout window_csd_layout_;
 
   /**
    * Begins full screen mode.
@@ -214,6 +216,15 @@ class GHOST_System : public GHOST_ISystem {
   uint *getClipboardImage(int *r_width, int *r_height) const override;
   /** \copydoc #GHOST_ISystem::putClipboardImage */
   GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const override;
+
+  /***************************************************************************************
+   * Window "Client Side Decorations" (CSD)
+   ***************************************************************************************/
+
+  void setWindowCSD(const GHOST_CSD_Params &params) override;
+  const GHOST_CSD_Params &getWindowCSD() const;
+  void setWindowCSD_Layout(const GHOST_CSD_Layout &csd_layout);
+  const GHOST_CSD_Layout &getWindowCSD_Layout() const override;
 
   /** \copydoc #GHOST_ISystem::showMessageBox */
   GHOST_TSuccess showMessageBox(const char * /*title*/,

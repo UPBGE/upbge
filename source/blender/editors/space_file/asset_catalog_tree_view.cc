@@ -288,11 +288,13 @@ void AssetCatalogTreeViewItem::build_row(ui::Layout &row)
     return;
   }
 
-  uiButViewItem *view_item_but = view_item_button();
+  ui::ButtonViewItem *view_item_but = view_item_button();
   PointerRNA *props;
 
-  props = UI_but_extra_operator_icon_add(
-      (uiBut *)view_item_but, "ASSET_OT_catalog_new", wm::OpCallContext::InvokeDefault, ICON_ADD);
+  props = button_extra_operator_icon_add((ui::Button *)view_item_but,
+                                         "ASSET_OT_catalog_new",
+                                         wm::OpCallContext::InvokeDefault,
+                                         ICON_ADD);
   RNA_string_set(props, "parent_path", catalog_item_.catalog_path().c_str());
 }
 
@@ -322,7 +324,7 @@ void AssetCatalogTreeViewItem::build_context_menu(bContext &C, ui::Layout &colum
   if (!mt) {
     return;
   }
-  UI_menutype_draw(&C, mt, &column);
+  ui::menutype_draw(&C, mt, &column);
 }
 
 bool AssetCatalogTreeViewItem::supports_renaming() const
@@ -520,7 +522,6 @@ bool AssetCatalogDropTarget::has_droppable_asset(const wmDrag &drag, const char 
 {
   const ListBase *asset_drags = WM_drag_asset_list_get(&drag);
 
-  *r_disabled_hint = nullptr;
   /* There needs to be at least one asset from the current file. */
   LISTBASE_FOREACH (const wmDragAssetListItem *, asset_item, asset_drags) {
     if (!asset_item->is_external) {
@@ -582,12 +583,12 @@ void AssetCatalogTreeViewAllItem::build_row(ui::Layout &row)
 
   PointerRNA *props;
 
-  UI_but_extra_operator_icon_add(reinterpret_cast<uiBut *>(this->view_item_button()),
+  button_extra_operator_icon_add(reinterpret_cast<ui::Button *>(this->view_item_button()),
                                  "ASSET_OT_catalogs_save",
                                  wm::OpCallContext::InvokeDefault,
                                  ICON_FILE_TICK);
 
-  props = UI_but_extra_operator_icon_add(reinterpret_cast<uiBut *>(this->view_item_button()),
+  props = button_extra_operator_icon_add(reinterpret_cast<ui::Button *>(this->view_item_button()),
                                          "ASSET_OT_catalog_new",
                                          wm::OpCallContext::InvokeDefault,
                                          ICON_ADD);
@@ -767,11 +768,11 @@ void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
                                                    SpaceFile *space_file,
                                                    FileAssetSelectParams *params)
 {
-  uiBlock *block = layout.block();
+  ui::Block *block = layout.block();
 
   ui::block_layout_set_current(block, &layout);
 
-  ui::AbstractTreeView *tree_view = UI_block_add_view(
+  ui::AbstractTreeView *tree_view = block_add_view(
       *block,
       "asset catalog tree view",
       std::make_unique<ed::asset_browser::AssetCatalogTreeView>(

@@ -125,7 +125,7 @@ static void screwvert_iter_step(ScrewVertIter *iter)
 }
 
 static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
-                                         blender::MutableSpan<blender::float3> vert_positions_new,
+                                         MutableSpan<blender::float3> vert_positions_new,
                                          const uint totvert,
                                          const uint step_tot,
                                          const float axis_vec[3],
@@ -399,17 +399,17 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   CustomData_free_layers(&result->edge_data, CD_ORIGINDEX);
   CustomData_free_layers(&result->face_data, CD_ORIGINDEX);
 
-  const blender::Span<float3> vert_positions_orig = mesh->vert_positions();
-  const blender::Span<int2> edges_orig = mesh->edges();
+  const Span<float3> vert_positions_orig = mesh->vert_positions();
+  const Span<int2> edges_orig = mesh->edges();
   const OffsetIndices faces_orig = mesh->faces();
-  const blender::Span<int> corner_verts_orig = mesh->corner_verts();
-  const blender::Span<int> corner_edges_orig = mesh->corner_edges();
+  const Span<int> corner_verts_orig = mesh->corner_verts();
+  const Span<int> corner_edges_orig = mesh->corner_edges();
 
-  blender::MutableSpan<float3> vert_positions_new = result->vert_positions_for_write();
-  blender::MutableSpan<int2> edges_new = result->edges_for_write();
+  MutableSpan<float3> vert_positions_new = result->vert_positions_for_write();
+  MutableSpan<int2> edges_new = result->edges_for_write();
   MutableSpan<int> face_offests_new = result->face_offsets_for_write();
-  blender::MutableSpan<int> corner_verts_new = result->corner_verts_for_write();
-  blender::MutableSpan<int> corner_edges_new = result->corner_edges_for_write();
+  MutableSpan<int> corner_verts_new = result->corner_verts_for_write();
+  MutableSpan<int> corner_edges_new = result->corner_edges_for_write();
   bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
       "sharp_face", bke::AttrDomain::Face);
@@ -1044,9 +1044,10 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  ui::Layout *sub, *row, *col;
-  ui::Layout &layout = *panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  blender::ui::Layout *sub, *row, *col;
+  blender::ui::Layout &layout = *panel->layout;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
@@ -1065,7 +1066,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout.separator();
   col = &layout.column(false);
   row = &col->row(false);
-  row->prop(ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(ptr, "axis", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   col->prop(ptr, "object", UI_ITEM_NONE, IFACE_("Axis Object"), ICON_NONE);
   sub = &col->column(false);
   sub->active_set(!RNA_pointer_is_null(&screw_obj_ptr));
@@ -1096,13 +1097,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void normals_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  ui::Layout &layout = *panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
   layout.use_property_split_set(true);
 
-  ui::Layout &col = layout.column(false);
+  blender::ui::Layout &col = layout.column(false);
   col.prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "use_normal_calculate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "use_normal_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);

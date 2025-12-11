@@ -207,10 +207,10 @@ static void control_point_colors_and_sizes(const PrimitiveToolOperation &ptd,
   ColorGeometry4f color_gizmo_secondary;
   ColorGeometry4f color_gizmo_a;
   ColorGeometry4f color_gizmo_b;
-  UI_GetThemeColor4fv(TH_GIZMO_PRIMARY, color_gizmo_primary);
-  UI_GetThemeColor4fv(TH_GIZMO_SECONDARY, color_gizmo_secondary);
-  UI_GetThemeColor4fv(TH_GIZMO_A, color_gizmo_a);
-  UI_GetThemeColor4fv(TH_GIZMO_B, color_gizmo_b);
+  ui::theme::get_color_4fv(TH_GIZMO_PRIMARY, color_gizmo_primary);
+  ui::theme::get_color_4fv(TH_GIZMO_SECONDARY, color_gizmo_secondary);
+  ui::theme::get_color_4fv(TH_GIZMO_A, color_gizmo_a);
+  ui::theme::get_color_4fv(TH_GIZMO_B, color_gizmo_b);
 
   const float size_primary = ui_primary_point_draw_size_px;
   const float size_secondary = ui_secondary_point_draw_size_px;
@@ -562,7 +562,12 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
                                     bke::attribute_filter_from_skip_ref(point_attributes_to_skip),
                                     curve_points);
 
-  ptd.drawing->tag_topology_changed();
+  if (on_back) {
+    ptd.drawing->tag_topology_changed();
+  }
+  else {
+    ptd.drawing->tag_topology_changed(IndexRange::from_single(target_curve_index));
+  }
   ptd.drawing->set_texture_matrices({ptd.texture_space},
                                     IndexRange::from_single(target_curve_index));
 }
@@ -570,10 +575,9 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
 {
   /* Resize the curves geometry so there is one more curve with a single point. */
-  bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
-
   const bool on_back = ptd.on_back;
-  ed::greasepencil::add_single_curve(curves, on_back == false);
+  ed::greasepencil::add_single_curve(*ptd.drawing, on_back == false);
+  bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
 
   const int target_curve_index = on_back ? 0 : (curves.curves_num() - 1);
 

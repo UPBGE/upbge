@@ -346,7 +346,7 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
 {
   using namespace blender;
 
-  blender::Vector<PointerRNA> selection;
+  Vector<PointerRNA> selection;
   const bool found_selection = get_selection(C, &selection);
   if (!found_selection) {
     BKE_reportf(op->reports, RPT_ERROR, "Unsupported context mode");
@@ -370,7 +370,7 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
       depsgraph, BKE_scene_frame_get(scene));
 
   animrig::CombinedKeyingResult combined_result;
-  blender::Set<ID *> ids;
+  Set<ID *> ids;
   for (PointerRNA &id_ptr : selection) {
     ID *selected_id = id_ptr.owner_id;
     ids.add(selected_id);
@@ -533,9 +533,9 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
    * to assign shortcuts to arbitrarily named keying sets. See #89560.
    * These menu items perform the key-frame insertion (not this operator)
    * hence the #OPERATOR_INTERFACE return. */
-  uiPopupMenu *pup = UI_popup_menu_begin(
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
       C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
-  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   /* Even though `ANIM_OT_keyframe_insert_menu` can show a menu in one line,
    * prefer `ANIM_OT_keyframe_insert_by_name` so users can bind keys to specific
@@ -566,7 +566,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
     MEM_freeN(item_array);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1307,7 +1307,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
   ToolSettings *ts = scene->toolsettings;
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
-  uiBut *but;
+  blender::ui::Button *but;
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       CTX_data_depsgraph_pointer(C), BKE_scene_frame_get(scene));
   bool changed = false;
@@ -1317,7 +1317,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
 
   flag = get_keyframing_flags(scene);
 
-  if (!(but = UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
+  if (!(but = blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index))) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1347,7 +1347,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
                    "This property cannot be animated as it will not get updated correctly");
       }
     }
-    else if (UI_but_flag_is_set(but, UI_BUT_DRIVEN)) {
+    else if (button_flag_is_set(but, blender::ui::BUT_DRIVEN)) {
       /* Driven property - Find driver */
       FCurve *fcu;
       bool driven, special;
@@ -1428,7 +1428,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(id, ID_RECALC_ANIMATION_NO_FLUSH);
 
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
@@ -1472,7 +1472,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  if (!UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1539,7 +1539,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
@@ -1577,7 +1577,7 @@ static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  if (!UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1603,7 +1603,7 @@ static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);

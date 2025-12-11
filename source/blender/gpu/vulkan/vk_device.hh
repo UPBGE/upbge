@@ -96,12 +96,15 @@ struct VKExtensions {
    */
   bool extended_dynamic_state = false;
 
+  /**
+   * Does the device support VK_EXT_vertex_input_dynamic_state
+   */
+  bool vertex_input_dynamic_state = false;
+
   /** Log enabled features and extensions. */
   void log() const;
 };
 
-/* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't
- * supported. */
 struct VKWorkarounds {
   /**
    * Some devices don't support pixel formats that are aligned to 24 and 48 bits.
@@ -110,14 +113,6 @@ struct VKWorkarounds {
    * If set to true we should work around this issue by using a different texture format.
    */
   bool not_aligned_pixel_formats = false;
-
-  struct {
-    /**
-     * Is the workaround enabled for devices that don't support using VK_FORMAT_R8G8B8_* as vertex
-     * buffer.
-     */
-    bool r8g8b8 = false;
-  } vertex_formats;
 
   /** Log enabled workarounds. */
   void log() const;
@@ -256,6 +251,9 @@ class VKDevice : public NonCopyable {
 
     /* Extension: VK_EXT_extended_dynamic_state */
     PFN_vkCmdSetFrontFace vkCmdSetFrontFace = nullptr;
+
+    /* Extension: VK_EXT_vertex_input_dynamic_state */
+    PFN_vkCmdSetVertexInputEXT vkCmdSetVertexInput = nullptr;
 
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;

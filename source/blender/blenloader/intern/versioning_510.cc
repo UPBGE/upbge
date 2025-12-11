@@ -14,13 +14,17 @@
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
 
+#include "BKE_asset.hh"
 #include "BKE_customdata.hh"
+#include "BKE_idprop.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -227,6 +231,42 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   }
 }
 
+static void init_node_tool_operator_idnames(Main &bmain)
+{
+  using namespace blender;
+  LISTBASE_FOREACH (bNodeTree *, group, &bmain.nodetrees) {
+    if (group->type != NTREE_GEOMETRY) {
+      continue;
+    }
+    if (!group->geometry_node_asset_traits) {
+      continue;
+    }
+    if (group->geometry_node_asset_traits->node_tool_idname) {
+      continue;
+    }
+    std::string name_str = "geometry.";
+    for (char c : StringRef(BKE_id_name(group->id))) {
+      c = tolower(c);
+      if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
+        name_str.push_back(c);
+      }
+      else {
+        const bool last_is_underscore = name_str[name_str.size() - 1] == '_';
+        if (!last_is_underscore) {
+          name_str.push_back('_');
+        }
+      }
+    }
+    group->geometry_node_asset_traits->node_tool_idname = BLI_strdupn(name_str.c_str(),
+                                                                      name_str.size());
+    if (group->id.asset_data) {
+      auto property = bke::idprop::create(
+          "node_tool_idname", StringRefNull(group->geometry_node_asset_traits->node_tool_idname));
+      BKE_asset_metadata_idprop_ensure(group->id.asset_data, property.release());
+    }
+  }
+}
+
 static void version_realize_instances_to_curve_domain(Main &bmain)
 {
   LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain.nodetrees) {
@@ -342,6 +382,41 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 7)) {
     version_mesh_uv_map_strings(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 8)) {
+    LISTBASE_FOREACH (Object *, obj, &bmain->objects) {
+      if (!obj->pose) {
+        continue;
+      }
+      LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
+        /* Those flags were previously unused, so to be safe we clear them. */
+        pose_bone->flag &= ~(POSE_SELECTED_ROOT | POSE_SELECTED_TIP);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 9)) {
+    init_node_tool_operator_idnames(*bmain);
+
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->r.ffcodecdata.custom_constant_rate_factor = 23;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 10)) {
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      wm->xr.session_settings.view_scale = 1.0f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 12)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        version_node_input_socket_name(node_tree, CMP_NODE_CRYPTOMATTE_LEGACY, "image", "Image");
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**

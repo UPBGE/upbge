@@ -81,7 +81,7 @@ static ListBase *fmodifier_list_space_specific(const bContext *C)
  */
 static PointerRNA *fmodifier_get_pointers(const bContext *C, const Panel *panel, ID **r_owner_id)
 {
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
 
   if (r_owner_id != nullptr) {
     *r_owner_id = ptr->owner_id;
@@ -302,12 +302,12 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
   const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
 
-  uiBlock *block = layout.block();
+  blender::ui::Block *block = layout.block();
 
   blender::ui::Layout *sub = &layout.row(true);
 
   /* Checkbox for 'active' status (for now). */
-  sub->prop(ptr, "active", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, "active", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* Name. */
   if (fmi) {
@@ -322,27 +322,27 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
   sub->emboss_set(blender::ui::EmbossType::None);
 
   /* 'Mute' button. */
-  sub->prop(ptr, "mute", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, "mute", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* Delete button. */
-  uiBut *but = uiDefIconBut(block,
-                            ButType::But,
-                            ICON_X,
-                            0,
-                            0,
-                            UI_UNIT_X,
-                            UI_UNIT_Y,
-                            nullptr,
-                            0.0,
-                            0.0,
-                            TIP_("Delete Modifier"));
-  UI_but_retval_set(but, B_REDR);
+  blender::ui::Button *but = uiDefIconBut(block,
+                                          blender::ui::ButtonType::But,
+                                          ICON_X,
+                                          0,
+                                          0,
+                                          UI_UNIT_X,
+                                          UI_UNIT_Y,
+                                          nullptr,
+                                          0.0,
+                                          0.0,
+                                          TIP_("Delete Modifier"));
+  button_retval_set(but, B_REDR);
   FModifierDeleteContext *ctx = MEM_mallocN<FModifierDeleteContext>(__func__);
   ctx->owner_id = owner_id;
   ctx->modifiers = fmodifier_list_space_specific(C);
   BLI_assert(ctx->modifiers != nullptr);
 
-  UI_but_funcN_set(but, delete_fmodifier_cb, ctx, fcm);
+  button_funcN_set(but, delete_fmodifier_cb, ctx, fcm);
 
   layout.separator();
 }
@@ -680,21 +680,22 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
   /* Control points list. */
 
   blender::ui::Layout *row = &layout.row(false);
-  uiBlock *block = row->block();
+  blender::ui::Block *block = row->block();
 
-  uiBut *but = uiDefBut(block,
-                        ButType::But,
-                        IFACE_("Add Control Point"),
-                        0,
-                        0,
-                        7.5 * UI_UNIT_X,
-                        UI_UNIT_Y,
-                        nullptr,
-                        0,
-                        0,
-                        TIP_("Add a new control-point to the envelope on the current frame"));
-  UI_but_retval_set(but, B_FMODIFIER_REDRAW);
-  UI_but_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
+  blender::ui::Button *but = uiDefBut(
+      block,
+      blender::ui::ButtonType::But,
+      IFACE_("Add Control Point"),
+      0,
+      0,
+      7.5 * UI_UNIT_X,
+      UI_UNIT_Y,
+      nullptr,
+      0,
+      0,
+      TIP_("Add a new control-point to the envelope on the current frame"));
+  button_retval_set(but, B_FMODIFIER_REDRAW);
+  button_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
 
   col = &layout.column(false);
   col->use_property_split_set(false);
@@ -713,7 +714,7 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
     row->prop(&ctrl_ptr, "max", UI_ITEM_NONE, IFACE_("Max"), ICON_NONE);
 
     but = uiDefIconBut(block,
-                       ButType::But,
+                       blender::ui::ButtonType::But,
                        ICON_X,
                        0,
                        0,
@@ -723,9 +724,9 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
                        0.0,
                        0.0,
                        TIP_("Delete envelope control point"));
-    UI_but_retval_set(but, B_FMODIFIER_REDRAW);
-    UI_but_func_set(but, fmod_envelope_deletepoint_cb, env, POINTER_FROM_INT(i));
-    UI_block_align_begin(block);
+    button_retval_set(but, B_FMODIFIER_REDRAW);
+    button_func_set(but, fmod_envelope_deletepoint_cb, env, POINTER_FROM_INT(i));
+    block_align_begin(block);
   }
 
   fmodifier_influence_draw(layout, ptr);
@@ -872,10 +873,10 @@ void ANIM_fmodifier_panels(const bContext *C,
 {
   ARegion *region = CTX_wm_region(C);
 
-  bool panels_match = UI_panel_list_matches_data(region, fmodifiers, panel_id_fn);
+  bool panels_match = blender::ui::panel_list_matches_data(region, fmodifiers, panel_id_fn);
 
   if (!panels_match) {
-    UI_panels_free_instanced(C, region);
+    blender::ui::panels_free_instanced(C, region);
     LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
       char panel_idname[MAX_NAME];
       panel_id_fn(fcm, panel_idname);
@@ -883,7 +884,7 @@ void ANIM_fmodifier_panels(const bContext *C,
       PointerRNA *fcm_ptr = MEM_new<PointerRNA>("panel customdata");
       *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, fcm);
 
-      UI_panel_add_instanced(C, region, &region->panels, panel_idname, fcm_ptr);
+      blender::ui::panel_add_instanced(C, region, &region->panels, panel_idname, fcm_ptr);
     }
   }
   else {
@@ -900,7 +901,7 @@ void ANIM_fmodifier_panels(const bContext *C,
 
       PointerRNA *fcm_ptr = MEM_new<PointerRNA>("panel customdata");
       *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, fcm);
-      UI_panel_custom_data_set(panel, fcm_ptr);
+      blender::ui::panel_custom_data_set(panel, fcm_ptr);
 
       panel = panel->next;
     }

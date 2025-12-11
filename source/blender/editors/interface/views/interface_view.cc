@@ -6,7 +6,7 @@
  * \ingroup edinterface
  *
  * Code to manage views as part of the regular screen hierarchy. E.g. managing ownership of views
- * inside blocks (#uiBlock.views), looking up items in the region, passing WM notifiers to views,
+ * inside blocks (#Block.views), looking up items in the region, passing WM notifiers to views,
  * etc.
  *
  * Blocks and their contained views are reconstructed on every redraw. This file also contains
@@ -35,8 +35,7 @@
 #include "UI_grid_view.hh"
 #include "UI_tree_view.hh"
 
-using namespace blender;
-using namespace blender::ui;
+namespace blender::ui {
 
 /**
  * Wrapper to store views in a #ListBase, addressable via an identifier.
@@ -45,13 +44,11 @@ struct ViewLink : public Link {
   std::string idname;
   std::unique_ptr<AbstractView> view;
 
-  static void views_bounds_calc(const uiBlock &block);
+  static void views_bounds_calc(const Block &block);
 };
 
 template<class T>
-static T *ui_block_add_view_impl(uiBlock &block,
-                                 StringRef idname,
-                                 std::unique_ptr<AbstractView> view)
+static T *block_add_view_impl(Block &block, StringRef idname, std::unique_ptr<AbstractView> view)
 {
   BLI_assert(idname.size() < int64_t(sizeof(uiViewStateLink::idname)));
 
@@ -64,28 +61,28 @@ static T *ui_block_add_view_impl(uiBlock &block,
   return dynamic_cast<T *>(view_link->view.get());
 }
 
-AbstractGridView *UI_block_add_view(uiBlock &block,
-                                    StringRef idname,
-                                    std::unique_ptr<AbstractGridView> grid_view)
+AbstractGridView *block_add_view(Block &block,
+                                 StringRef idname,
+                                 std::unique_ptr<AbstractGridView> grid_view)
 {
-  return ui_block_add_view_impl<AbstractGridView>(block, idname, std::move(grid_view));
+  return block_add_view_impl<AbstractGridView>(block, idname, std::move(grid_view));
 }
 
-AbstractTreeView *UI_block_add_view(uiBlock &block,
-                                    StringRef idname,
-                                    std::unique_ptr<AbstractTreeView> tree_view)
+AbstractTreeView *block_add_view(Block &block,
+                                 StringRef idname,
+                                 std::unique_ptr<AbstractTreeView> tree_view)
 {
-  return ui_block_add_view_impl<AbstractTreeView>(block, idname, std::move(tree_view));
+  return block_add_view_impl<AbstractTreeView>(block, idname, std::move(tree_view));
 }
 
-void ui_block_free_views(uiBlock *block)
+void block_free_views(Block *block)
 {
   LISTBASE_FOREACH_MUTABLE (ViewLink *, link, &block->views) {
     MEM_delete(link);
   }
 }
 
-void ViewLink::views_bounds_calc(const uiBlock &block)
+void ViewLink::views_bounds_calc(const Block &block)
 {
   Map<AbstractView *, rcti> views_bounds;
 
@@ -95,17 +92,17 @@ void ViewLink::views_bounds_calc(const uiBlock &block)
     views_bounds.add(link->view.get(), minmax);
   }
 
-  for (const std::unique_ptr<uiBut> &but : block.buttons) {
-    if (but->type != ButType::ViewItem) {
+  for (const std::unique_ptr<Button> &but : block.buttons) {
+    if (but->type != ButtonType::ViewItem) {
       continue;
     }
-    uiButViewItem *view_item_but = static_cast<uiButViewItem *>(but.get());
+    auto *view_item_but = static_cast<ButtonViewItem *>(but.get());
     if (!view_item_but->view_item) {
       continue;
     }
 
     /* Get the view from the button. */
-    AbstractViewItem &view_item = reinterpret_cast<AbstractViewItem &>(*view_item_but->view_item);
+    AbstractViewItem &view_item = *view_item_but->view_item;
     AbstractView &view = view_item.get_view();
 
     rcti &bounds = views_bounds.lookup(&view);
@@ -125,9 +122,9 @@ void ViewLink::views_bounds_calc(const uiBlock &block)
   }
 }
 
-void ui_block_view_persistent_state_restore(const ARegion &region,
-                                            const uiBlock &block,
-                                            ui::AbstractView &view)
+void block_view_persistent_state_restore(const ARegion &region,
+                                         const Block &block,
+                                         AbstractView &view)
 {
   StringRef idname = [&]() -> StringRef {
     LISTBASE_FOREACH (ViewLink *, link, &block.views) {
@@ -164,7 +161,7 @@ static uiViewStateLink *ensure_view_state(ARegion &region, const ViewLink &link)
   return new_state;
 }
 
-void ui_block_views_end(ARegion *region, const uiBlock *block)
+void block_views_end(ARegion *region, const Block *block)
 {
   ViewLink::views_bounds_calc(*block);
 
@@ -179,7 +176,7 @@ void ui_block_views_end(ARegion *region, const uiBlock *block)
   }
 }
 
-void ui_block_views_listen(const uiBlock *block, const wmRegionListenerParams *listener_params)
+void block_views_listen(const Block *block, const wmRegionListenerParams *listener_params)
 {
   ARegion *region = listener_params->region;
 
@@ -190,25 +187,23 @@ void ui_block_views_listen(const uiBlock *block, const wmRegionListenerParams *l
   }
 }
 
-void ui_block_views_draw_overlays(const ARegion *region, const uiBlock *block)
+void block_views_draw_overlays(const ARegion *region, const Block *block)
 {
   LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
     view_link->view->draw_overlays(*region, *block);
   }
 }
 
-blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
-                                                  const int xy[2],
-                                                  const int pad)
+AbstractView *region_view_find_at(const ARegion *region, const int xy[2], const int pad)
 {
   /* NOTE: Similar to #ui_but_find_mouse_over_ex(). */
 
-  if (!ui_region_contains_point_px(region, xy)) {
+  if (!region_contains_point_px(region, xy)) {
     return nullptr;
   }
-  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
+  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
-    ui_window_to_block_fl(region, block, &mx, &my);
+    window_to_block_fl(region, block, &mx, &my);
 
     LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
       std::optional<rcti> bounds = view_link->view->get_bounds();
@@ -229,9 +224,9 @@ blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
   return nullptr;
 }
 
-ui::AbstractViewItem *UI_region_views_find_item_at(const ARegion &region, const int xy[2])
+AbstractViewItem *region_views_find_item_at(const ARegion &region, const int xy[2])
 {
-  uiButViewItem *item_but = (uiButViewItem *)ui_view_item_find_mouse_over(&region, xy);
+  auto *item_but = (ButtonViewItem *)view_item_find_mouse_over(&region, xy);
   if (!item_but) {
     return nullptr;
   }
@@ -239,9 +234,9 @@ ui::AbstractViewItem *UI_region_views_find_item_at(const ARegion &region, const 
   return item_but->view_item;
 }
 
-ui::AbstractViewItem *UI_region_views_find_active_item(const ARegion *region)
+AbstractViewItem *region_views_find_active_item(const ARegion *region)
 {
-  uiButViewItem *item_but = (uiButViewItem *)ui_view_item_find_active(region);
+  auto *item_but = (ButtonViewItem *)view_item_find_active(region);
   if (!item_but) {
     return nullptr;
   }
@@ -249,40 +244,38 @@ ui::AbstractViewItem *UI_region_views_find_active_item(const ARegion *region)
   return item_but->view_item;
 }
 
-uiBut *UI_region_views_find_active_item_but(const ARegion *region)
+Button *region_views_find_active_item_but(const ARegion *region)
 {
-  return ui_view_item_find_active(region);
+  return view_item_find_active(region);
 }
 
-void UI_region_views_clear_search_highlight(const ARegion *region)
+void region_views_clear_search_highlight(const ARegion *region)
 {
-  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
+  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
     LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
       view_link->view->clear_search_highlight();
     }
   }
 }
 
-namespace blender::ui {
-
 std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const ARegion *region,
                                                                       const int xy[2])
 {
-  if (ui::AbstractViewItem *item = UI_region_views_find_item_at(*region, xy)) {
+  if (AbstractViewItem *item = region_views_find_item_at(*region, xy)) {
     if (std::unique_ptr<DropTargetInterface> target = item->create_item_drop_target()) {
       return target;
     }
   }
 
   /* Get style for some sensible padding around the view items. */
-  const uiStyle *style = UI_style_get_dpi();
-  if (AbstractView *view = UI_region_view_find_at(region, xy, style->buttonspacex)) {
+  const uiStyle *style = style_get_dpi();
+  if (AbstractView *view = region_view_find_at(region, xy, style->buttonspacex)) {
     if (std::unique_ptr<DropTargetInterface> target = view->create_drop_target()) {
       return target;
     }
   }
 
-  if (AbstractView *view = UI_region_view_find_at(region, xy, 0)) {
+  if (AbstractView *view = region_view_find_at(region, xy, 0)) {
     /* If we are above a tree, but not hovering any specific element, dropping something should
      * insert it after the last item. */
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
@@ -303,9 +296,7 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
   return nullptr;
 }
 
-}  // namespace blender::ui
-
-static StringRef ui_block_view_find_idname(const uiBlock &block, const AbstractView &view)
+static StringRef block_view_find_idname(const Block &block, const AbstractView &view)
 {
   /* First get the `idname` of the view we're looking for. */
   LISTBASE_FOREACH (ViewLink *, view_link, &block.views) {
@@ -318,15 +309,14 @@ static StringRef ui_block_view_find_idname(const uiBlock &block, const AbstractV
 }
 
 template<class T>
-static T *ui_block_view_find_matching_in_old_block_impl(const uiBlock &new_block,
-                                                        const T &new_view)
+static T *block_view_find_matching_in_old_block_impl(const Block &new_block, const T &new_view)
 {
-  uiBlock *old_block = new_block.oldblock;
+  Block *old_block = new_block.oldblock;
   if (!old_block) {
     return nullptr;
   }
 
-  StringRef idname = ui_block_view_find_idname(new_block, new_view);
+  StringRef idname = block_view_find_idname(new_block, new_view);
   if (idname.is_empty()) {
     return nullptr;
   }
@@ -340,44 +330,46 @@ static T *ui_block_view_find_matching_in_old_block_impl(const uiBlock &new_block
   return nullptr;
 }
 
-blender::ui::AbstractView *ui_block_view_find_matching_in_old_block(
-    const uiBlock &new_block, const blender::ui::AbstractView &new_view)
+AbstractView *block_view_find_matching_in_old_block(const Block &new_block,
+                                                    const AbstractView &new_view)
 {
-  return ui_block_view_find_matching_in_old_block_impl(new_block, new_view);
+  return block_view_find_matching_in_old_block_impl(new_block, new_view);
 }
 
-uiButViewItem *ui_block_view_find_matching_view_item_but_in_old_block(
-    const uiBlock &new_block, const ui::AbstractViewItem &new_item)
+ButtonViewItem *block_view_find_matching_view_item_but_in_old_block(
+    const Block &new_block, const AbstractViewItem &new_item)
 {
-  uiBlock *old_block = new_block.oldblock;
+  Block *old_block = new_block.oldblock;
   if (!old_block) {
     return nullptr;
   }
 
-  const AbstractView *old_view = ui_block_view_find_matching_in_old_block_impl(
-      new_block, new_item.get_view());
+  const AbstractView *old_view = block_view_find_matching_in_old_block_impl(new_block,
+                                                                            new_item.get_view());
   if (!old_view) {
     return nullptr;
   }
 
-  for (const std::unique_ptr<uiBut> &old_but : old_block->buttons) {
-    if (old_but->type != ButType::ViewItem) {
+  for (const std::unique_ptr<Button> &old_but : old_block->buttons) {
+    if (old_but->type != ButtonType::ViewItem) {
       continue;
     }
-    uiButViewItem *old_item_but = (uiButViewItem *)old_but.get();
+    ButtonViewItem *old_item_but = (ButtonViewItem *)old_but.get();
     if (!old_item_but->view_item) {
       continue;
     }
-    AbstractViewItem &old_item = *reinterpret_cast<AbstractViewItem *>(old_item_but->view_item);
+    AbstractViewItem &old_item = *old_item_but->view_item;
     /* Check if the item is from the expected view. */
     if (&old_item.get_view() != old_view) {
       continue;
     }
 
-    if (UI_view_item_matches(new_item, old_item)) {
+    if (view_item_matches(new_item, old_item)) {
       return old_item_but;
     }
   }
 
   return nullptr;
 }
+
+}  // namespace blender::ui

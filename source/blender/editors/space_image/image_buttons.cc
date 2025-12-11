@@ -73,7 +73,7 @@ ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 
 static void ui_imageuser_slot_menu(bContext *C, blender::ui::Layout *layout, void *image_p)
 {
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
   Image *image = static_cast<Image *>(image_p);
 
   /* The scene isn't expected to be null, check since it's not a requirement
@@ -101,15 +101,23 @@ static void ui_imageuser_slot_menu(bContext *C, blender::ui::Layout *layout, voi
     else if (slot->render != nullptr) {
       icon = ICON_DOT;
     }
-    uiBut *but = uiDefIconTextBut(
-        block, ButType::ButMenu, icon, str, 0, 0, UI_UNIT_X * 5, UI_UNIT_X, nullptr, "");
-    UI_but_retval_set(but, B_NOP);
-    UI_but_func_set(but, [image, slot_id](bContext & /*C*/) { image->render_slot = slot_id; });
+    blender::ui::Button *but = uiDefIconTextBut(block,
+                                                blender::ui::ButtonType::ButMenu,
+                                                icon,
+                                                str,
+                                                0,
+                                                0,
+                                                UI_UNIT_X * 5,
+                                                UI_UNIT_X,
+                                                nullptr,
+                                                "");
+    button_retval_set(but, B_NOP);
+    button_func_set(but, [image, slot_id](bContext & /*C*/) { image->render_slot = slot_id; });
   }
 
   layout->separator();
   uiDefBut(block,
-           ButType::Label,
+           blender::ui::ButtonType::Label,
            IFACE_("Slot"),
            0,
            0,
@@ -166,7 +174,7 @@ static ImageUI_Data *ui_imageuser_data_copy(const ImageUI_Data *rnd_pt_src)
 static void ui_imageuser_layer_menu(bContext * /*C*/, blender::ui::Layout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   Scene *scene = iuser->scene;
@@ -182,39 +190,39 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, blender::ui::Layout *layou
 
   const char *fake_name = ui_imageuser_layer_fake_name(rr);
   if (fake_name) {
-    uiBut *but = uiDefButS(block,
-                           ButType::ButMenu,
-                           fake_name,
-                           0,
-                           0,
-                           UI_UNIT_X * 5,
-                           UI_UNIT_X,
-                           &iuser->layer,
-                           0.0,
-                           0.0,
-                           "");
-    UI_but_retval_set(but, B_NOP);
+    blender::ui::Button *but = uiDefButS(block,
+                                         blender::ui::ButtonType::ButMenu,
+                                         fake_name,
+                                         0,
+                                         0,
+                                         UI_UNIT_X * 5,
+                                         UI_UNIT_X,
+                                         &iuser->layer,
+                                         0.0,
+                                         0.0,
+                                         "");
+    button_retval_set(but, B_NOP);
   }
 
   int nr = fake_name ? 1 : 0;
   for (RenderLayer *rl = static_cast<RenderLayer *>(rr->layers.first); rl; rl = rl->next, nr++) {
-    uiBut *but = uiDefButS(block,
-                           ButType::ButMenu,
-                           rl->name,
-                           0,
-                           0,
-                           UI_UNIT_X * 5,
-                           UI_UNIT_X,
-                           &iuser->layer,
-                           float(nr),
-                           0.0,
-                           "");
-    UI_but_retval_set(but, B_NOP);
+    blender::ui::Button *but = uiDefButS(block,
+                                         blender::ui::ButtonType::ButMenu,
+                                         rl->name,
+                                         0,
+                                         0,
+                                         UI_UNIT_X * 5,
+                                         UI_UNIT_X,
+                                         &iuser->layer,
+                                         float(nr),
+                                         0.0,
+                                         "");
+    button_retval_set(but, B_NOP);
   }
 
   layout->separator();
   uiDefBut(block,
-           ButType::Label,
+           blender::ui::ButtonType::Label,
            IFACE_("Layer"),
            0,
            0,
@@ -231,7 +239,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, blender::ui::Layout *layou
 static void ui_imageuser_pass_menu(bContext * /*C*/, blender::ui::Layout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   /* (rpass_index == -1) means composite result */
@@ -269,23 +277,23 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, blender::ui::Layout *layout
     }
     BLI_addtail(&added_passes, BLI_genericNodeN(rpass->name));
 
-    uiBut *but = uiDefButS(block,
-                           ButType::ButMenu,
-                           IFACE_(rpass->name),
-                           0,
-                           0,
-                           UI_UNIT_X * 5,
-                           UI_UNIT_X,
-                           &iuser->pass,
-                           float(nr),
-                           0.0,
-                           "");
-    UI_but_retval_set(but, B_NOP);
+    blender::ui::Button *but = uiDefButS(block,
+                                         blender::ui::ButtonType::ButMenu,
+                                         IFACE_(rpass->name),
+                                         0,
+                                         0,
+                                         UI_UNIT_X * 5,
+                                         UI_UNIT_X,
+                                         &iuser->pass,
+                                         float(nr),
+                                         0.0,
+                                         "");
+    button_retval_set(but, B_NOP);
   }
 
   layout->separator();
   uiDefBut(block,
-           ButType::Label,
+           blender::ui::ButtonType::Label,
            IFACE_("Pass"),
            0,
            0,
@@ -305,7 +313,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, blender::ui::Layout *layout
 static void ui_imageuser_view_menu_rr(bContext * /*C*/, blender::ui::Layout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   RenderResult *rr;
@@ -323,7 +331,7 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, blender::ui::Layout *lay
   layout->column(false);
 
   uiDefBut(block,
-           ButType::Label,
+           blender::ui::ButtonType::Label,
            IFACE_("View"),
            0,
            0,
@@ -340,18 +348,18 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, blender::ui::Layout *lay
   for (rview = static_cast<RenderView *>(rr ? rr->views.last : nullptr); rview;
        rview = rview->prev, nr--)
   {
-    uiBut *but = uiDefButS(block,
-                           ButType::ButMenu,
-                           IFACE_(rview->name),
-                           0,
-                           0,
-                           UI_UNIT_X * 5,
-                           UI_UNIT_X,
-                           &iuser->view,
-                           float(nr),
-                           0.0,
-                           "");
-    UI_but_retval_set(but, B_NOP);
+    blender::ui::Button *but = uiDefButS(block,
+                                         blender::ui::ButtonType::ButMenu,
+                                         IFACE_(rview->name),
+                                         0,
+                                         0,
+                                         UI_UNIT_X * 5,
+                                         UI_UNIT_X,
+                                         &iuser->view,
+                                         float(nr),
+                                         0.0,
+                                         "");
+    button_retval_set(but, B_NOP);
   }
 
   BKE_image_release_renderresult(scene, image, rr);
@@ -362,7 +370,7 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/,
                                              void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   int nr;
@@ -371,7 +379,7 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/,
   layout->column(false);
 
   uiDefBut(block,
-           ButType::Label,
+           blender::ui::ButtonType::Label,
            IFACE_("View"),
            0,
            0,
@@ -386,18 +394,18 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/,
 
   nr = BLI_listbase_count(&image->views) - 1;
   for (iv = static_cast<ImageView *>(image->views.last); iv; iv = iv->prev, nr--) {
-    uiBut *but = uiDefButS(block,
-                           ButType::ButMenu,
-                           IFACE_(iv->name),
-                           0,
-                           0,
-                           UI_UNIT_X * 5,
-                           UI_UNIT_X,
-                           &iuser->view,
-                           float(nr),
-                           0.0,
-                           "");
-    UI_but_retval_set(but, B_NOP);
+    blender::ui::Button *but = uiDefButS(block,
+                                         blender::ui::ButtonType::ButMenu,
+                                         IFACE_(iv->name),
+                                         0,
+                                         0,
+                                         UI_UNIT_X * 5,
+                                         UI_UNIT_X,
+                                         &iuser->view,
+                                         float(nr),
+                                         0.0,
+                                         "");
+    button_retval_set(but, B_NOP);
   }
 }
 
@@ -554,8 +562,8 @@ static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
                                        const short *render_slot)
 {
   ImageUI_Data rnd_pt_local, *rnd_pt = nullptr;
-  uiBlock *block = layout.block();
-  uiBut *but;
+  blender::ui::Block *block = layout.block();
+  blender::ui::Button *but;
   RenderLayer *rl = nullptr;
   int wmenu1, wmenu2, wmenu3, wmenu4;
   const char *fake_name;
@@ -592,9 +600,9 @@ static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
     rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
     but = uiDefMenuBut(
         block, ui_imageuser_slot_menu, image, str, 0, 0, wmenu1, UI_UNIT_Y, TIP_("Select Slot"));
-    UI_but_func_menu_step_set(but, ui_imageuser_slot_menu_step);
-    UI_but_funcN_set(but, image_multi_cb, rnd_pt, rr);
-    UI_but_type_set_menu_from_pulldown(but);
+    button_func_menu_step_set(but, ui_imageuser_slot_menu_step);
+    button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+    button_type_set_menu_from_pulldown(but);
     rnd_pt = nullptr;
   }
 
@@ -621,9 +629,9 @@ static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
                          wmenu2,
                          UI_UNIT_Y,
                          TIP_("Select Layer"));
-      UI_but_func_menu_step_set(but, ui_imageuser_layer_menu_step);
-      UI_but_funcN_set(but, image_multi_cb, rnd_pt, rr);
-      UI_but_type_set_menu_from_pulldown(but);
+      button_func_menu_step_set(but, ui_imageuser_layer_menu_step);
+      button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+      button_type_set_menu_from_pulldown(but);
       rnd_pt = nullptr;
     }
 
@@ -642,9 +650,9 @@ static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
                          wmenu3,
                          UI_UNIT_Y,
                          TIP_("Select Pass"));
-      UI_but_func_menu_step_set(but, ui_imageuser_pass_menu_step);
-      UI_but_funcN_set(but, image_multi_cb, rnd_pt, rr);
-      UI_but_type_set_menu_from_pulldown(but);
+      button_func_menu_step_set(but, ui_imageuser_pass_menu_step);
+      button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+      button_type_set_menu_from_pulldown(but);
       rnd_pt = nullptr;
     }
 
@@ -665,8 +673,8 @@ static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
                          wmenu4,
                          UI_UNIT_Y,
                          TIP_("Select View"));
-      UI_but_funcN_set(but, image_multi_cb, rnd_pt, rr);
-      UI_but_type_set_menu_from_pulldown(but);
+      button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+      button_type_set_menu_from_pulldown(but);
       rnd_pt = nullptr;
     }
   }
@@ -694,8 +702,8 @@ static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
                        wmenu1,
                        UI_UNIT_Y,
                        TIP_("Select View"));
-    UI_but_funcN_set(but, image_multiview_cb, rnd_pt, nullptr);
-    UI_but_type_set_menu_from_pulldown(but);
+    button_funcN_set(but, image_multiview_cb, rnd_pt, nullptr);
+    button_type_set_menu_from_pulldown(but);
     rnd_pt = nullptr;
   }
 }
@@ -749,7 +757,7 @@ void uiTemplateImage(blender::ui::Layout *layout,
     return;
   }
 
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
 
   PointerRNA imaptr = RNA_property_pointer_get(ptr, prop);
   Image *ima = static_cast<Image *>(imaptr.data);
@@ -763,7 +771,7 @@ void uiTemplateImage(blender::ui::Layout *layout,
 
   SpaceImage *space_image = CTX_wm_space_image(C);
   if (!compact && (space_image == nullptr || iuser != &space_image->iuser)) {
-    uiTemplateID(
+    template_id(
         layout, C, ptr, propname, ima ? nullptr : "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
 
     if (ima != nullptr) {
@@ -801,12 +809,12 @@ void uiTemplateImage(blender::ui::Layout *layout,
   cb->ptr = *ptr;
   cb->prop = prop;
   cb->iuser = iuser;
-  UI_block_funcN_set(block,
-                     rna_update_cb,
-                     cb,
-                     nullptr,
-                     but_func_argN_free<RNAUpdateCb>,
-                     but_func_argN_copy<RNAUpdateCb>);
+  block_funcN_set(block,
+                  rna_update_cb,
+                  cb,
+                  nullptr,
+                  blender::ui::but_func_argN_free<RNAUpdateCb>,
+                  blender::ui::but_func_argN_copy<RNAUpdateCb>);
 
   /* Disable editing if image was modified, to avoid losing changes. */
   const bool is_dirty = BKE_image_is_dirty(ima);
@@ -868,7 +876,7 @@ void uiTemplateImage(blender::ui::Layout *layout,
 
     col.separator();
 
-    col.prop(&imaptr, "generated_type", UI_ITEM_R_EXPAND, IFACE_("Type"), ICON_NONE);
+    col.prop(&imaptr, "generated_type", blender::ui::ITEM_R_EXPAND, IFACE_("Type"), ICON_NONE);
     ImageTile *base_tile = BKE_image_get_tile(ima, 0);
     if (base_tile->gen_type == IMA_GENTYPE_BLANK) {
       col.prop(&imaptr, "generated_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -928,7 +936,7 @@ void uiTemplateImage(blender::ui::Layout *layout,
 
     blender::ui::Layout &col = layout->column(false);
     col.use_property_split_set(true);
-    uiTemplateColorspaceSettings(&col, &imaptr, "colorspace_settings");
+    template_colorspace_settings(&col, &imaptr, "colorspace_settings");
 
     if (compact == 0) {
       if (ima->source != IMA_SRC_GENERATED) {
@@ -956,7 +964,7 @@ void uiTemplateImage(blender::ui::Layout *layout,
     }
   }
 
-  UI_block_funcN_set(block, nullptr, nullptr, nullptr);
+  block_funcN_set(block, nullptr, nullptr, nullptr);
 }
 
 void uiTemplateImageSettings(blender::ui::Layout *layout,
@@ -993,7 +1001,8 @@ void uiTemplateImageSettings(blender::ui::Layout *layout,
 
   /* Multi-layer always saves raw unmodified channels. */
   if (imf->imtype != R_IMF_IMTYPE_MULTILAYER) {
-    col.row(true).prop(imfptr, "color_mode", UI_ITEM_R_EXPAND, IFACE_("Color"), ICON_NONE);
+    col.row(true).prop(
+        imfptr, "color_mode", blender::ui::ITEM_R_EXPAND, IFACE_("Color"), ICON_NONE);
   }
 
   /* only display depth setting if multiple depths can be used */
@@ -1006,7 +1015,7 @@ void uiTemplateImageSettings(blender::ui::Layout *layout,
            R_IMF_CHAN_DEPTH_24,
            R_IMF_CHAN_DEPTH_32) == 0)
   {
-    col.row(true).prop(imfptr, "color_depth", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    col.row(true).prop(imfptr, "color_depth", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
   if (BKE_imtype_supports_quality(imf->imtype)) {
@@ -1064,7 +1073,8 @@ void uiTemplateImageSettings(blender::ui::Layout *layout,
     blender::StringRef idname = panel_idname ? panel_idname : "settings_color_management";
     if (blender::ui::Layout *panel = col.panel(C, idname, true, IFACE_("Color Management"))) {
       panel->separator();
-      panel->row(true).prop(imfptr, "color_management", UI_ITEM_R_EXPAND, " ", ICON_NONE);
+      panel->row(true).prop(
+          imfptr, "color_management", blender::ui::ITEM_R_EXPAND, " ", ICON_NONE);
 
       blender::ui::Layout &color_settings = panel->column(true);
       if (BKE_imtype_requires_linear_float(imf->imtype)) {
@@ -1078,7 +1088,7 @@ void uiTemplateImageSettings(blender::ui::Layout *layout,
         PointerRNA display_settings_ptr = RNA_pointer_get(imfptr, "display_settings");
         color_settings.prop(
             &display_settings_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        uiTemplateColormanagedViewSettings(&color_settings, nullptr, imfptr, "view_settings");
+        template_colormanaged_view_settings(&color_settings, nullptr, imfptr, "view_settings");
         color_settings.enabled_set(imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE);
       }
     }
@@ -1123,7 +1133,7 @@ static void uiTemplateViewsFormat(blender::ui::Layout *layout,
   col.use_property_split_set(true);
   col.use_property_decorate_set(false);
 
-  col.prop(ptr, "views_format", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  col.prop(ptr, "views_format", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   if (stereo3d_format_ptr && RNA_enum_get(ptr, "views_format") == R_IMF_VIEWS_STEREO_3D) {
     uiTemplateImageStereo3d(&col, stereo3d_format_ptr);

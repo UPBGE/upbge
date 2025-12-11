@@ -192,7 +192,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   /* Material options. */
-  PanelLayout panel = layout.panel(C, "OBJ_export_materials", false);
+  blender::ui::PanelLayout panel = layout.panel(C, "OBJ_export_materials", false);
   panel.header->use_property_split_set(false);
   panel.header->prop(ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
   panel.header->label(IFACE_("Materials"), ICON_NONE);
@@ -608,7 +608,7 @@ void WM_OT_obj_import(wmOperatorType *ot)
 namespace blender::ed::io {
 void obj_file_handler_add()
 {
-  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  auto fh = std::make_unique<bke::FileHandlerType>();
   STRNCPY_UTF8(fh->idname, "IO_FH_obj");
   STRNCPY_UTF8(fh->import_operator, "WM_OT_obj_import");
   STRNCPY_UTF8(fh->export_operator, "WM_OT_obj_export");

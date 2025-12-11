@@ -564,7 +564,7 @@ static void tree_element_posechannel_activate(bContext *C,
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchannel, &ob_iter->pose->chanbase) {
-        pchannel->flag &= ~POSE_SELECTED;
+        pchannel->flag &= ~POSE_SELECTED_ALL;
       }
 
       if (ob != ob_iter) {
@@ -574,11 +574,11 @@ static void tree_element_posechannel_activate(bContext *C,
   }
 
   if ((set == OL_SETSEL_EXTEND) && (pchan->flag & POSE_SELECTED)) {
-    pchan->flag &= ~POSE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED_ALL;
   }
   else {
     if (blender::animrig::bone_is_visible(arm, pchan)) {
-      pchan->flag |= POSE_SELECTED;
+      pchan->flag |= POSE_SELECTED_ALL;
     }
     arm->act_bone = pchan->bone;
   }
@@ -1788,7 +1788,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
   float view_mval[2];
   bool changed = false, rebuild_tree = false;
 
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   if (outliner_is_co_within_restrict_columns(space_outliner, region, view_mval[0])) {
     return OPERATOR_CANCELLED;
@@ -1980,7 +1980,7 @@ static wmOperatorStatus outliner_box_select_exec(bContext *C, wmOperator *op)
   }
 
   WM_operator_properties_border_to_rctf(op, &rectf);
-  UI_view2d_region_to_view_rctf(&region->v2d, &rectf, &rectf);
+  ui::view2d_region_to_view_rctf(&region->v2d, &rectf, &rectf);
 
   outliner_box_select(C, space_outliner, &rectf, select);
 
@@ -2004,7 +2004,7 @@ static wmOperatorStatus outliner_box_select_invoke(bContext *C,
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   /* Find element clicked on */
   TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);

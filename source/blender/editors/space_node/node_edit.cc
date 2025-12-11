@@ -521,145 +521,6 @@ bool ED_node_supports_preview(SpaceNode *snode)
          (USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && ED_node_is_shader(snode));
 }
 
-void ED_node_shader_default(const bContext *C, Main *bmain, ID *id)
-{
-  if (GS(id->name) == ID_MA) {
-    /* Materials */
-    Object *ob = CTX_data_active_object(C);
-    Material *ma = (Material *)id;
-    Material *ma_default;
-
-    if (ob && ob->type == OB_VOLUME) {
-      ma_default = BKE_material_default_volume();
-    }
-    else {
-      ma_default = BKE_material_default_surface();
-    }
-
-    ma->nodetree = blender::bke::node_tree_copy_tree(bmain, *ma_default->nodetree);
-    ma->nodetree->owner_id = &ma->id;
-    for (bNode *node_iter : ma->nodetree->all_nodes()) {
-      STRNCPY_UTF8(node_iter->name, DATA_(node_iter->name));
-      blender::bke::node_unique_name(*ma->nodetree, *node_iter);
-    }
-
-    BKE_ntree_update_after_single_tree_change(*bmain, *ma->nodetree);
-  }
-  else if (ELEM(GS(id->name), ID_WO, ID_LA)) {
-    /* Emission */
-    bNode *shader, *output;
-    bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
-        nullptr, id, "Shader Nodetree", ntreeType_Shader->idname);
-
-    if (GS(id->name) == ID_WO) {
-      World *world = (World *)id;
-      ntree = world->nodetree;
-
-      shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
-      output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
-      blender::bke::node_add_link(*ntree,
-                                  *shader,
-                                  *blender::bke::node_find_socket(*shader, SOCK_OUT, "Background"),
-                                  *output,
-                                  *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
-
-      bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
-      copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &world->horr);
-    }
-    else {
-      shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_EMISSION);
-      output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_LIGHT);
-      blender::bke::node_add_link(*ntree,
-                                  *shader,
-                                  *blender::bke::node_find_socket(*shader, SOCK_OUT, "Emission"),
-                                  *output,
-                                  *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
-    }
-
-    shader->location[0] = -200.0f;
-    shader->location[1] = 100.0f;
-    output->location[0] = 200.0f;
-    output->location[1] = 100.0f;
-    blender::bke::node_set_active(*ntree, *output);
-    BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
-  }
-  else {
-    printf("ED_node_shader_default called on wrong ID type.\n");
-    return;
-  }
-}
-
-void ED_node_composit_default(const bContext *C, Scene *sce)
-{
-  Main *bmain = CTX_data_main(C);
-
-  /* but lets check it anyway */
-  if (sce->compositing_node_group) {
-    if (G.debug & G_DEBUG) {
-      printf("error in composite initialize\n");
-    }
-    return;
-  }
-
-  sce->compositing_node_group = blender::bke::node_tree_add_tree(
-      bmain, DATA_("Compositor Nodes"), ntreeType_Composite->idname);
-
-  ED_node_composit_default_init(C, sce->compositing_node_group);
-
-  BKE_ntree_update_after_single_tree_change(*bmain, *sce->compositing_node_group);
-}
-
-void ED_node_composit_default_init(const bContext *C, bNodeTree *ntree)
-{
-  BLI_assert(ntree != nullptr && ntree->type == NTREE_COMPOSIT);
-  BLI_assert(BLI_listbase_count(&ntree->nodes) == 0);
-
-  ntree->tree_interface.add_socket(
-      DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-  ntree->tree_interface.add_socket(
-      DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
-
-  bNode *composite = blender::bke::node_add_node(C, *ntree, "NodeGroupOutput");
-  composite->location[0] = 200.0f;
-  composite->location[1] = 0.0f;
-
-  bNode *in = blender::bke::node_add_static_node(C, *ntree, CMP_NODE_R_LAYERS);
-  in->location[0] = -150.0f - in->width;
-  in->location[1] = 0.0f;
-  blender::bke::node_set_active(*ntree, *in);
-  in->flag &= ~NODE_PREVIEW;
-
-  bNode *reroute = blender::bke::node_add_static_node(C, *ntree, NODE_REROUTE);
-  reroute->location[0] = 100.0f;
-  reroute->location[1] = -35.0f;
-
-  bNode *viewer = blender::bke::node_add_static_node(C, *ntree, CMP_NODE_VIEWER);
-  viewer->location[0] = 200.0f;
-  viewer->location[1] = -80.0f;
-
-  /* Viewer and Composite nodes are linked to Render Layer's output image socket through a reroute
-   * node. */
-  blender::bke::node_add_link(*ntree,
-                              *in,
-                              *(bNodeSocket *)in->outputs.first,
-                              *reroute,
-                              *(bNodeSocket *)reroute->inputs.first);
-
-  blender::bke::node_add_link(*ntree,
-                              *reroute,
-                              *(bNodeSocket *)reroute->outputs.first,
-                              *composite,
-                              *(bNodeSocket *)composite->inputs.first);
-
-  blender::bke::node_add_link(*ntree,
-                              *reroute,
-                              *(bNodeSocket *)reroute->outputs.first,
-                              *viewer,
-                              *(bNodeSocket *)viewer->inputs.first);
-
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
-}
-
 void ED_node_texture_default(const bContext *C, Tex *tex)
 {
   if (tex->nodetree) {
@@ -1032,7 +893,7 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
       int2 mval;
       WM_event_drag_start_mval(event, region, mval);
       float mx, my;
-      UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
+      ui::view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
       const float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
       const float dy = (my - nsw->mystart) / UI_SCALE_FAC;
 
@@ -1126,7 +987,7 @@ static wmOperatorStatus node_resize_invoke(bContext *C, wmOperator *op, const wm
   float2 cursor;
   int2 mval;
   WM_event_drag_start_mval(event, region, mval);
-  UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &cursor.x, &cursor.y);
+  ui::view2d_region_to_view(&region->v2d, mval.x, mval.y, &cursor.x, &cursor.y);
   const NodeResizeDirection dir = node_get_resize_direction(*snode, node, cursor.x, cursor.y);
   if (dir == NODE_RESIZE_NONE) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1249,7 +1110,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
                                         const float2 &cursor,
                                         const eNodeSocketInOut in_out)
 {
-  const float view2d_scale = UI_view2d_scale_get_x(&region.v2d);
+  const float view2d_scale = ui::view2d_scale_get_x(&region.v2d);
   const float max_distance = NODE_SOCKSIZE + std::clamp(20.0f / view2d_scale, 5.0f, 30.0f);
   const float padded_socket_size = NODE_SOCKSIZE + 4;
 
@@ -1639,9 +1500,7 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
     ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&sce->view_layers, node->custom1);
 
     if (view_layer) {
-      PointerRNA op_ptr;
-
-      WM_operator_properties_create(&op_ptr, "RENDER_OT_render");
+      PointerRNA op_ptr = WM_operator_properties_create("RENDER_OT_render");
       RNA_string_set(&op_ptr, "layer", view_layer->name);
       RNA_string_set(&op_ptr, "scene", sce->id.name + 2);
 
@@ -2479,8 +2338,9 @@ static wmOperatorStatus node_cryptomatte_add_socket_exec(bContext *C, wmOperator
     return OPERATOR_CANCELLED;
   }
 
-  ntreeCompositCryptomatteAddSocket(ntree, node);
+  ntreeCompositCryptomatteAddSocket(node);
 
+  BKE_ntree_update_tag_node_property(ntree, node);
   BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
@@ -2527,10 +2387,11 @@ static wmOperatorStatus node_cryptomatte_remove_socket_exec(bContext *C, wmOpera
     return OPERATOR_CANCELLED;
   }
 
-  if (!ntreeCompositCryptomatteRemoveSocket(ntree, node)) {
+  if (!ntreeCompositCryptomatteRemoveSocket(node)) {
     return OPERATOR_CANCELLED;
   }
 
+  BKE_ntree_update_tag_node_property(ntree, node);
   BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;

@@ -90,7 +90,7 @@ class Context : public compositor::Context {
     const DRWContext *draw_ctx = DRW_context_get();
 
     /* No camera region or is a viewport render, the domain is the entire viewport. */
-    if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render()) {
+    if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render() || (draw_ctx->scene && draw_ctx->scene->flag & SCE_INTERACTIVE)) { // UPBGE: As compositing region is limited to screen center, we need to use viewport size (Canvas size).
       return compositor::Domain(int2(draw_ctx->viewport_size_get()));
     }
 

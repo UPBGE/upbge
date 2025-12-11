@@ -117,7 +117,7 @@ static wmOperatorStatus weight_from_bones_exec(bContext *C, wmOperator *op)
   ED_object_vgroup_calc_from_armature(
       op->reports, depsgraph, scene, ob, armob, type, (mesh->symmetry & ME_SYMMETRY_X));
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
@@ -363,9 +363,9 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  uiPopupMenu *pup = UI_popup_menu_begin(
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
       C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
-  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  blender::ui::Layout &layout = *popup_menu_layout(pup);
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_vertex_group_set_active", false);
   blender::wm::OpCallContext opcontext = blender::wm::OpCallContext::ExecDefault;
   layout.operator_context_set(opcontext);
@@ -378,7 +378,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
         ot, dg->name, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
     RNA_property_enum_set(&op_ptr, ot->prop, i);
   }
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -416,8 +416,8 @@ static bool weight_paint_set(Object *ob, float paintweight)
   /* mutually exclusive, could be made into a */
   const short paint_selmode = ME_EDIT_PAINT_SEL_MODE(mesh);
 
-  const blender::OffsetIndices faces = mesh->faces();
-  const blender::Span<int> corner_verts = mesh->corner_verts();
+  const OffsetIndices faces = mesh->faces();
+  const Span<int> corner_verts = mesh->corner_verts();
   MDeformVert *dvert = mesh->deform_verts_for_write().data();
 
   if (mesh->faces_num == 0 || dvert == nullptr) {
@@ -489,7 +489,7 @@ static bool weight_paint_set(Object *ob, float paintweight)
 
   wpaint_prev_destroy(&wpp);
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
   return true;
 }

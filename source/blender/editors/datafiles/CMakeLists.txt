@@ -918,6 +918,8 @@ if(WITH_BLENDER OR WITH_PLAYER)
       unlocked
       unpinned
       url
+      usb_drive
+      usb_drive_large
       user
       uv
       uv_data

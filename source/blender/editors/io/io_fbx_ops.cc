@@ -137,7 +137,7 @@ static void ui_fbx_import_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   {
-    PanelLayout panel = layout.panel(C, "FBX_import_anim", true);
+    blender::ui::PanelLayout panel = layout.panel(C, "FBX_import_anim", true);
     panel.header->use_property_split_set(false);
     panel.header->prop(ptr, "use_anim", UI_ITEM_NONE, "", ICON_NONE);
     panel.header->label(IFACE_("Animation"), ICON_NONE);
@@ -254,7 +254,7 @@ void WM_OT_fbx_import(wmOperatorType *ot)
 namespace blender::ed::io {
 void fbx_file_handler_add()
 {
-  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  auto fh = std::make_unique<bke::FileHandlerType>();
   STRNCPY_UTF8(fh->idname, "IO_FH_fbx");
   STRNCPY_UTF8(fh->import_operator, "WM_OT_fbx_import");
   STRNCPY_UTF8(fh->export_operator, "export_scene.fbx"); /* Use Python add-on for export. */

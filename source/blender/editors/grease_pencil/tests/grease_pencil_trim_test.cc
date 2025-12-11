@@ -43,8 +43,7 @@ static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
   return curves;
 }
 
-static void expect_near_positions(const blender::Span<float3> actual,
-                                  const blender::Span<float2> expected)
+static void expect_near_positions(const Span<float3> actual, const Span<float2> expected)
 {
   EXPECT_EQ(expected.size(), actual.size());
   if (expected.size() != actual.size()) {
@@ -305,7 +304,7 @@ TEST(grease_pencil_trim, trim_cyclical_corner)
                                             {30.0f, 10.0f},
                                             {30.0f, 0.0f},
                                             {0.0f, 30.0f},
-                                            {10.f, 30.0f}};
+                                            {10.0f, 30.0f}};
   expect_near_positions(dst.positions(), expected_positions);
 }
 

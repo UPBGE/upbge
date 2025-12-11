@@ -1701,7 +1701,14 @@ wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
     BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return OPERATOR_CANCELLED;
   }
+
   if (inserted_keyframe) {
+    for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+      for (auto [frame_number, frame] : layer->frames_for_write().items()) {
+        const bool select_keyframe = (frame_number == scene->r.cfra) && (layer == &active_layer);
+        SET_FLAG_FROM_TEST(frame.flag, select_keyframe, GP_FRAME_SELECTED);
+      }
+    }
     WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
   }
   return OPERATOR_RUNNING_MODAL;
@@ -1761,12 +1768,23 @@ GreasePencil *from_context(bContext &C)
   return grease_pencil;
 }
 
-void add_single_curve(bke::CurvesGeometry &curves, const bool at_end)
+void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
 {
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
   if (at_end) {
     const int num_old_points = curves.points_num();
     curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
     curves.offsets_for_write().last(1) = num_old_points;
+
+    /* Note: The triangle cache doesn't need to be resized here because the new curve has a single
+     * point and can't form a new triangle yet. However, the `curve_plane_normals_cache` and
+     * `curve_texture_matrices` are expected to have the same size as the number of curves in the
+     * drawing. */
+    drawing.runtime->curve_plane_normals_cache.update(
+        [&](Vector<float3> &normals) { normals.append(float3(0, 0, 1)); });
+    drawing.runtime->curve_texture_matrices.update([&](Vector<float4x2> &texture_matrices) {
+      texture_matrices.append(float4x2::identity());
+    });
     return;
   }
 
