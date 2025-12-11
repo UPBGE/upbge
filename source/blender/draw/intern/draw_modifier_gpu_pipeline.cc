@@ -72,7 +72,7 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, int vertex_count)
   if (!buffer_a_) {
     buffer_a_ = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_buffer_a, buffer_size);
 
-    /* CRITICAL: Initialize with REST positions!
+    /* Initialize with REST positions
      * This ensures the first modifier in the
      * pipeline (e.g., SimpleDeform without ShapeKeys)
      * reads valid input data instead of
@@ -254,7 +254,7 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
   if (new_hash != pipeline_hash_) {
     pipeline_hash_ = new_hash;
 
-    /* Pipeline changed → Invalidate ALL stages (shaders + SSBOs) */
+    /* Pipeline changed -> Invalidate ALL stages (shaders + SSBOs) */
     for (const ModifierGPUStage &stage : stages_) {
       invalidate_stage(stage.type, mesh_owner);
     }
@@ -271,7 +271,7 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
     /* Dispatch stage: manager reads from current_buffer and returns its output buffer.
      * Pass pipeline_hash_ to allow manager to detect changes without recomputing hash. */
     gpu::StorageBuf *result = stage.dispatch_fn(
-        mesh, ob, stage.modifier_data, current_buffer, nullptr, pipeline_hash_);
+        mesh, ob, stage.modifier_data, current_buffer, pipeline_hash_);
 
     if (!result) {
       /* Stage failed, abort pipeline */
@@ -322,7 +322,6 @@ static gpu::StorageBuf *dispatch_shapekeys_stage(Mesh *mesh_orig,
                                                  Object *ob_eval,
                                                  void * /*modifier_data*/,
                                                  gpu::StorageBuf * /*input*/,
-                                                 gpu::StorageBuf *output,
                                                  uint32_t pipeline_hash)
 {
   /* ShapeKeys are always first, so they don't need input buffer.
@@ -339,14 +338,13 @@ static gpu::StorageBuf *dispatch_shapekeys_stage(Mesh *mesh_orig,
   ShapeKeySkinningManager &sk_mgr = ShapeKeySkinningManager::instance();
   sk_mgr.ensure_static_resources(mesh_orig, pipeline_hash);
 
-  return sk_mgr.dispatch_shapekeys(cache, ob_eval, output);
+  return sk_mgr.dispatch_shapekeys(cache, ob_eval);
 }
 
 static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
                                                 Object *ob_eval,
                                                 void *modifier_data,
                                                 gpu::StorageBuf *input,
-                                                gpu::StorageBuf * /*output*/,
                                                 uint32_t pipeline_hash)
 {
   ArmatureModifierData *amd = static_cast<ArmatureModifierData *>(modifier_data);
@@ -380,7 +378,6 @@ static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
                                                Object *ob_eval,
                                                void *modifier_data,
                                                gpu::StorageBuf *input,
-                                               gpu::StorageBuf * /*output*/,
                                                uint32_t pipeline_hash)
 {
   LatticeModifierData *lmd = static_cast<LatticeModifierData *>(modifier_data);
@@ -414,7 +411,6 @@ static gpu::StorageBuf *dispatch_simpledeform_stage(Mesh *mesh_orig,
                                                     Object *ob_eval,
                                                     void *modifier_data,
                                                     gpu::StorageBuf *input,
-                                                    gpu::StorageBuf * /*output*/,
                                                     uint32_t pipeline_hash)
 {
   SimpleDeformModifierData *smd = static_cast<SimpleDeformModifierData *>(modifier_data);
@@ -440,7 +436,6 @@ static gpu::StorageBuf *dispatch_hook_stage(Mesh *mesh_orig,
                                             Object *ob_eval,
                                             void *modifier_data,
                                             gpu::StorageBuf *input,
-                                            gpu::StorageBuf * /*output*/,
                                             uint32_t pipeline_hash)
 {
   HookModifierData *hmd = static_cast<HookModifierData *>(modifier_data);
@@ -472,7 +467,6 @@ static gpu::StorageBuf *dispatch_displace_stage(Mesh *mesh_orig,
                                                 Object *ob_eval,
                                                 void *modifier_data,
                                                 gpu::StorageBuf *input,
-                                                gpu::StorageBuf * /*output*/,
                                                 uint32_t pipeline_hash)
 {
   DisplaceModifierData *dmd = static_cast<DisplaceModifierData *>(modifier_data);

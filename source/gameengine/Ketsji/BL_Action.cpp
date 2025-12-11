@@ -529,17 +529,17 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
   obj->ApplyPose();
 
   /* GPU skinning handled on blender side now */
-  ProcessCPUPipeline(obj, ob, scene, animEvalContext);
+  ProcessPipeline(obj, ob, scene, animEvalContext);
 
   obj->UpdateTimestep(curtime);
 }
 
-void BL_Action::ProcessCPUPipeline(BL_ArmatureObject *obj,
+void BL_Action::ProcessPipeline(BL_ArmatureObject *obj,
                                    Object *ob,
                                    KX_Scene *scene,
                                    const AnimationEvalContext &animEvalContext)
 {
-  // === CPU PIPELINE ===
+  // === CPU/GPU PIPELINES ===
   bool is_running_gpu_skinning = false;
   for (KX_GameObject *child : m_obj->GetChildren()) {
     Object *child_ob = child->GetBlenderObject();

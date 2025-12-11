@@ -102,10 +102,10 @@ class BL_Action {
   void UpdateArmatureAnimation(float curtime,
                                Object *ob,
                                const AnimationEvalContext &animEvalContext);
-  void ProcessCPUPipeline(BL_ArmatureObject *armatureObj,
-                          Object *ob,
-                          KX_Scene *scene,
-                          const AnimationEvalContext &animEvalContext);
+  void ProcessPipeline(BL_ArmatureObject *armatureObj,
+                       Object *ob,
+                       KX_Scene *scene,
+                       const AnimationEvalContext &animEvalContext);
   void ProcessArmatureBlending(BL_ArmatureObject *armatureObj, float curtime);
   void UpdateObjectAnimation(Object *ob, const AnimationEvalContext &animEvalContext);
   bool TryUpdateModifierActions(Object *ob,

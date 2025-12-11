@@ -45,14 +45,13 @@ typedef struct ModifierGPUStage {
   int execution_order; /* Lower = earlier execution */
 
   /* Stage-specific dispatch function.
-   * NEW: Added pipeline_hash parameter to allow managers to detect changes
+   * Added pipeline_hash parameter to allow managers to detect changes
    * without recomputing the hash themselves. */
   using DispatchFunc = gpu::StorageBuf *(*)(Mesh *mesh,
                                             Object *ob,
                                             void *modifier_data,
                                             gpu::StorageBuf *input_positions,
-                                            gpu::StorageBuf *output_positions,
-                                            uint32_t pipeline_hash);  // ← NEW: Hash from pipeline
+                                            uint32_t pipeline_hash);  // Hash from pipeline
 
   DispatchFunc dispatch_fn;
 } ModifierGPUStage;
@@ -155,7 +154,6 @@ class GPUModifierPipeline {
 /**
  * Build the GPU modifier pipeline from an Object's modifier stack.
  * Only adds modifiers that:
- * - Are enabled and visible in viewport
  * - Request GPU execution (ARM_DEFORM_METHOD_GPU, KEY_DEFORM_METHOD_GPU, etc.)
  * - Are deform-only (no topology changes)
  *

@@ -19,8 +19,7 @@
 *   → Use CPU fallback for accurate normal-based displacement
 * 
 * NOT supported (for now):
-* - Texture sampling (requires GPU texture binding)
-* - RGB_XYZ direction (requires texture)
+* - Procedural textures (only image textures supported)
 * - Custom normals (requires corner normals)
 */
 

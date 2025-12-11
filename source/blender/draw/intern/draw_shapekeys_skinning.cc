@@ -417,10 +417,10 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     }
   }
   else {
-    // mode absolu
+    // mode absolute
     const float t = key->ctime / 100.0f;
 
-    // construire liste keyframes en frames
+    // build keyframes list in frames
     std::vector<float> kpos;
     std::vector<KeyBlock *> kblocks;
     for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next) {
@@ -429,13 +429,13 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
       kpos.push_back(kb->pos * 100.0f);  // kb->pos -> frame
       kblocks.push_back(kb);
     }
-    // interpolation LINÉAIRE (simple implémentation)
+    // Linear interpolation (simple implementation)
     weights.assign(kpos.size(), 0.0f);
     if (kpos.size() == 1) {
       weights[0] = (kblocks[0]->flag & KEYBLOCK_MUTE) ? 0.0f : 1.0f;
     }
     else {
-      // trouver intervalle
+      // find interval
       int i = 0;
       while (i + 1 < (int)kpos.size() && t >= kpos[i + 1])
         ++i;

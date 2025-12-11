@@ -562,7 +562,7 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     GPU_storagebuf_bind(ssbo_vgroup, 4);
   }
 
-  /* Set push constants (correct types!) */
+  /* Set push constants */
   GPU_shader_uniform_3f(
       shader, "lattice_dims", float(lt->pntsu), float(lt->pntsv), float(lt->pntsw));
   GPU_shader_uniform_3f(shader, "lattice_origin", lt->fu, lt->fv, lt->fw);

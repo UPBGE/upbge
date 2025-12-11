@@ -826,7 +826,6 @@ void BKE_mesh_request_gpu_render_cache_update(Mesh *mesh_orig,
   /* Set playback flag to skip CPU modifier stack and preserve mesh_eval.
    *
    * When this flag is set:
-   * - BKE_object_handle_data_update() skips mesh_data_update()
    * - BKE_object_batch_cache_dirty_tag() skips batch_cache invalidation
    * - Mesh_eval is NOT freed (unlike normal ID_RECALC_GEOMETRY)
    * - VBO extraction will use vec4 positions (stride = 16)
@@ -1123,7 +1122,7 @@ void BKE_mesh_gpu_free_all_caches()
       }
       MeshGPUCacheManager::get().mesh_cache().clear();
 
-      /* NOTE: don't call armature/more complex frees while holding the mutex –
+      /* NOTE: don't call more complex frees while holding the mutex –
        * these functions may take the same mutex internally. They are called after
        * the lock scope below. */
     }

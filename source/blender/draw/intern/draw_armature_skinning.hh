@@ -32,7 +32,7 @@ class ArmatureSkinningManager {
 
   /**
    * Compute a hash of the Armature deformation state to detect changes.
-   * Includes: vertex count, armature pointer, DQS mode, vertex group samples.
+   * Includes: vertex count, armature pointer, vertex group samples.
    * 
    * @param mesh_orig The original mesh (for vertex count)
    * @param amd The armature modifier data (contains armature pointer, DQS flag, etc.)
