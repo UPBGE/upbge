@@ -97,6 +97,7 @@
 #  include "SCA_PythonJoystick.h"
 #  include "SCA_PythonKeyboard.h"
 #  include "SCA_PythonMouse.h"
+#  include "SCA_RBConstraintSensor.h"
 #  include "SCA_RadarSensor.h"
 #  include "SCA_RandomActuator.h"
 #  include "SCA_RandomSensor.h"
@@ -289,6 +290,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, SCA_PythonController, init_getset);
     PyType_Ready_Attr(dict, SCA_RandomActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_RandomSensor, init_getset);
+    PyType_Ready_Attr(dict, SCA_RBConstraintSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_VibrationActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_XNORController, init_getset);
     PyType_Ready_Attr(dict, SCA_XORController, init_getset);

@@ -68,6 +68,7 @@
 #include "SCA_PropertySensor.h"
 #include "SCA_RadarSensor.h"
 #include "SCA_RandomSensor.h"
+#include "SCA_RBConstraintSensor.h"
 #include "SCA_RaySensor.h"
 
 void BL_ConvertSensors(struct Object *blenderobject,
@@ -481,6 +482,23 @@ void BL_ConvertSensors(struct Object *blenderobject,
               }
               gamesensor = new SCA_RandomSensor(eventmgr, gameobj, randomSeed);
             }
+          }
+          break;
+        }
+        case SENS_RBCONSTRAINT: {
+          SCA_EventManager *eventmgr = logicmgr->FindEventManager(
+              SCA_EventManager::BASIC_EVENTMGR);
+          if (eventmgr) {
+            bRBConstraintSensor *rbcs = (bRBConstraintSensor *)sens->data;
+            if (!rbcs) {
+              /* Allocate empty data so the sensor can still function. */
+              sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_convert_fix");
+              rbcs = (bRBConstraintSensor *)sens->data;
+            }
+            /* Target is stored as object name: empty means "self" (this object),
+             * otherwise it's the name of another object to monitor. */
+            std::string targetName = (rbcs && rbcs->target[0]) ? rbcs->target : "";
+            gamesensor = new SCA_RBConstraintSensor(eventmgr, gameobj, targetName);
           }
           break;
         }

@@ -156,6 +156,8 @@ class KX_GameObject : public SCA_IObject {
 #endif
 
   std::vector<bRigidBodyJointConstraint *> m_constraints;
+
+ public:
   struct RigidBodyConstraintData {
     RigidBodyCon *m_constraint;
     std::string m_object1Name;

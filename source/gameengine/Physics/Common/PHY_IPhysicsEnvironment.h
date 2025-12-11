@@ -224,6 +224,7 @@ class PHY_IPhysicsEnvironment {
                                             bool replicate_dupli = false) = 0;
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) = 0;
   virtual void RemoveConstraintById(int constraintid, bool free) = 0;
+  virtual bool IsRigidBodyConstraintEnabled(int constraintid) = 0;
   virtual float GetAppliedImpulse(int constraintid)
   {
     return 0.0f;
