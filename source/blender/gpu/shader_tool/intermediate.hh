@@ -89,6 +89,9 @@ struct IntermediateForm {
   /* Main access operator. Returns the root scope (aka global scope). */
   Scope operator()() const
   {
+    if (data_.scope_types.empty()) {
+      return Scope::invalid();
+    }
     return Scope::from_position(&data_, 0);
   }
 
@@ -184,6 +187,9 @@ struct IntermediateForm {
    * line count and keep the remaining indentation spaces. */
   void erase(Token from, Token to)
   {
+    if (from.is_invalid() && to.is_invalid()) {
+      return;
+    }
     assert(from.index <= to.index);
     erase(from.str_index_start(), to.str_index_last());
   }
@@ -191,6 +197,9 @@ struct IntermediateForm {
    * line count and keep the remaining indentation spaces. */
   void erase(Token tok)
   {
+    if (tok.is_invalid()) {
+      return;
+    }
     erase(tok, tok);
   }
   /* Replace the content of the scope by whitespaces without changing
