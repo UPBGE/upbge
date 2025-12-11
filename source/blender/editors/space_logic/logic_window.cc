@@ -1431,7 +1431,7 @@ static void draw_sensor_rbconstraint(blender::ui::Layout *layout, PointerRNA *pt
 {
   /* Ensure sensor data exists, in case older/corrupted files have nullptr. */
   bSensor *sens = (bSensor *)ptr->data;
-  if (sens && sens->data == nullptr) {
+  if (sens != nullptr && sens->data == nullptr) {
     sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_ui_fix");
   }
 
@@ -1904,6 +1904,9 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       row = &layout->row(true);
       row->prop(ptr, "damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+      row = &layout->row(false);
+      row->prop(ptr, "rotation_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       row = &layout->row(true);
       row->prop(ptr, "angle_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
