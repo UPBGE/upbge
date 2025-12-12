@@ -2831,6 +2831,15 @@ void drw_debug_draw_bge(Scene *scene)
 
 /*--End of UPBGE Viewport Debug Drawing--*/
 
+/* Faster but not totally accurate gpencil test 3156b36d9e8b5e17674b679cbef5e58c65259511 */
+static bool DRW_gpencil_engine_needed_viewport(Depsgraph *depsgraph, View3D *v3d)
+{
+  if (gpencil_object_is_excluded(v3d)) {
+    return false;
+  }
+  return gpencil_any_exists(depsgraph);
+}
+
 void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Depsgraph *depsgraph,
@@ -2856,7 +2865,7 @@ void DRW_game_render_loop(bContext *C,
 
   draw_ctx.acquire_data();
 
-  const bool gpencil_engine_needed = DRW_render_check_grease_pencil(depsgraph, v3d);
+  const bool gpencil_engine_needed = DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
 
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
