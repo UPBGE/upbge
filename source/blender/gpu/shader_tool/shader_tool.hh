@@ -574,14 +574,23 @@ class Preprocessor {
         /* Unroll last to avoid processing more tokens in other phases. */
         lower_loop_unroll(parser, report_error);
 
+        /* GLSL syntax compatibility.
+         * TODO(fclem): Remove. */
+        lower_argument_qualifiers(parser, report_error);
+
         /* Cleanup to make output more human readable and smaller for runtime. */
         cleanup_whitespace(parser, report_error);
         cleanup_empty_lines(parser, report_error);
         cleanup_line_directives(parser, report_error);
         str = parser.result_get();
       }
+
+      str = line_directive_prefix(filename) + str;
+      r_metadata = metadata;
+      return str;
     }
-    else if (language == MSL) {
+
+    if (language == MSL) {
       Parser parser(str, report_error);
       parse_pragma_runtime_generated(parser);
       parse_includes(parser, report_error);
@@ -1450,7 +1459,11 @@ class Preprocessor {
     }
 
     Token before_body = body.start().prev();
-    string test = "constant_" + condition.str_exclusive();
+
+    string test = "SRT_CONSTANT_" + condition[5].str();
+    if (condition[7] != condition.end().prev()) {
+      test += parser.substr_range_inclusive(condition[7], condition.end().prev());
+    }
     string directive = (if_tok.prev() == Else ? "#elif " : "#if ");
 
     parser.insert_directive(before_body, directive + test);
@@ -2300,13 +2313,11 @@ class Preprocessor {
             access_macros += member.var_name + "\n";
           }
         }
-        parser.insert_after(end_of_srt.next().line_end() + 1, access_macros);
+        parser.insert_before(struct_tok, access_macros);
+        parser.insert_before(struct_tok, get_create_info_placeholder(srt.name));
 
-        parser.insert_after(end_of_srt.next().line_end() + 1,
-                            get_create_info_placeholder(srt.name));
-
-        parser.insert_line_number(end_of_srt.next().line_end() + 1,
-                                  end_of_srt.next().line_number() + 2);
+        parser.insert_before(struct_tok, "\n");
+        parser.insert_line_number(struct_tok.str_index_start() - 1, struct_tok.line_number());
 
         /* Insert attribute so that method mutations know that this struct is an SRT. */
         parser.insert_before(struct_tok, "[[resource_table]] ");
@@ -2661,7 +2672,7 @@ class Preprocessor {
           return;
         }
         condition += "defined(CREATE_INFO_" + tokens[7].str() + ")";
-        parser.erase(tokens[0].scope());
+        parser.replace(tokens[0].scope(), "");
       });
 
       if (!condition.empty()) {
@@ -3914,6 +3925,23 @@ class Preprocessor {
       report_error(ERROR_TOK(tokens[4]),
                    "Reference is defined inside a global or unterminated scope.");
     });
+  }
+
+  void lower_argument_qualifiers(Parser &parser, report_callback /*report_error*/)
+  {
+    /* Example: `out float var[2]` > `REF(float, var)[2]` */
+    parser().foreach_match("www", [&](const Tokens &toks) {
+      if (toks[0].scope().type() == parser::ScopeType::Preprocessor) {
+        /* Don't mutate the actual implementation. */
+        return;
+      }
+      if (toks[0].str() == "inout" || toks[0].str() == "out") {
+        parser.replace(toks[0], "_ref(");
+        parser.insert_after(toks[1], ",");
+        parser.insert_after(toks[2], ")");
+      }
+    });
+    parser.apply_mutations();
   }
 
   std::string argument_decorator_macro_injection(const std::string &str)
