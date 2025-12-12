@@ -2563,7 +2563,7 @@ void DRW_game_render_loop(bContext *C,
 
   draw_ctx.acquire_data();
 
-  const bool gpencil_engine_needed = DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
+  const bool gpencil_engine_needed = DRW_render_check_grease_pencil(depsgraph, v3d);
 
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
