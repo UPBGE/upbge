@@ -100,6 +100,9 @@
 #define _out_end )
 #define _inout_sta (&
 #define _inout_end )
+/* References (inout and out).
+ * Less verbose that the above for reading processed code. */
+#define _ref(_type, _var) thread _type(&_var)
 
 #define shared threadgroup
 #define _shared_sta (&
@@ -121,7 +124,6 @@ float4 texelFetchExtend(sampler2D samp, int2 texel, int lvl)
 #define sampler_get(create_info, _res) _res
 #define image_get(create_info, _res) _res
 #define srt_access(create_info, _res) access_##create_info##_##_res()
-#define constant_srt_access(create_info, _res) SRT_CONSTANT_##_res
 
 /* Stage agnostic builtin function.
  * MSL allow mixing shader stages inside the same source file.

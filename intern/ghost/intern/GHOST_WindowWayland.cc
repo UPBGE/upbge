@@ -872,7 +872,7 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 
   if (dpi_changed) {
     GHOST_SystemWayland *system = win->ghost_system;
-    system->pushEvent(new GHOST_Event(
+    system->pushEvent(std::make_unique<GHOST_Event>(
         system->getMilliSeconds(), GHOST_kEventWindowDPIHintChanged, win->ghost_window));
   }
 
@@ -1695,7 +1695,7 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
   }
 
 #ifdef WITH_GHOST_CSD
-  if (window_->xdg_decor) {
+  if (window_->xdg_csd) {
     delete window_->xdg_csd;
     window_->xdg_csd = nullptr;
   }
@@ -2181,7 +2181,7 @@ const std::vector<GWL_Output *> &GHOST_WindowWayland::outputs_get()
 GHOST_TSuccess GHOST_WindowWayland::close()
 {
   return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowClose, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowClose, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::activate()
@@ -2202,7 +2202,7 @@ GHOST_TSuccess GHOST_WindowWayland::activate()
     }
   }
   const GHOST_TSuccess success = system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowActivate, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowActivate, this));
   return success;
 }
 
@@ -2220,23 +2220,23 @@ GHOST_TSuccess GHOST_WindowWayland::deactivate()
       system_->getWindowManager()->setWindowInactive(this);
     }
   }
-  const GHOST_TSuccess success = system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
+  const GHOST_TSuccess success = system_->pushEvent_maybe_pending(std::make_unique<GHOST_Event>(
+      system_->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
   return success;
 }
 
 GHOST_TSuccess GHOST_WindowWayland::notify_size()
 {
   return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowSize, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowSize, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::notify_decor_redraw()
 {
   /* NOTE: we want to `swapBuffers`, however this may run from a thread and
    * when this windows OpenGL context is not active, so send and update event instead. */
-  return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowUpdateDecor, this));
+  return system_->pushEvent_maybe_pending(std::make_unique<GHOST_Event>(
+      system_->getMilliSeconds(), GHOST_kEventWindowUpdateDecor, this));
 }
 
 /** \} */

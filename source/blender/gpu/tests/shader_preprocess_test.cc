@@ -647,19 +647,6 @@ struct SRT {
 };
 )";
     string expect = R"(
-struct SRT {
-                           T  a;
-#line 12
-};
-#line 5
-       SRT SRT_new_()
-{
-  SRT result;
-  result.a = T_new_();
-  return result;
-#line 3
-}
-#line 5
 #define access_SRT_a() T_new_()
 #ifdef CREATE_INFO_RES_PASS_SRT
 CREATE_INFO_RES_PASS_SRT
@@ -673,7 +660,20 @@ CREATE_INFO_RES_GEOMETRY_SRT
 #ifdef CREATE_INFO_RES_SHARED_VARS_SRT
 CREATE_INFO_RES_SHARED_VARS_SRT
 #endif
-#line 6
+#line 2
+struct SRT {
+                           T  a;
+#line 12
+};
+#line 5
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 3
+}
+#line 5
 )";
     string error;
     string output = process_test_string(input, error);
@@ -733,28 +733,6 @@ struct SRT {
 };
 )";
     string expect = R"(
-struct SRT {
-                           T  a;
-#line 16
-};
-#line 5
-
-#if defined(CREATE_INFO_SRT)
-#line 5
-  void method(                   inout SRT _inout_sta this_ _inout_end, int t) {
-    srt_access(SRT, a);
-  }
-
-#endif
-#line 9
-       SRT SRT_new_()
-{
-  SRT result;
-  result.a = T_new_();
-  return result;
-#line 7
-}
-#line 9
 #define access_SRT_a() T_new_()
 #ifdef CREATE_INFO_RES_PASS_SRT
 CREATE_INFO_RES_PASS_SRT
@@ -768,7 +746,29 @@ CREATE_INFO_RES_GEOMETRY_SRT
 #ifdef CREATE_INFO_RES_SHARED_VARS_SRT
 CREATE_INFO_RES_SHARED_VARS_SRT
 #endif
-#line 10
+#line 2
+struct SRT {
+                           T  a;
+#line 16
+};
+#line 5
+
+#if defined(CREATE_INFO_SRT)
+#line 5
+  void method(_ref(SRT ,this_), int t) {
+    srt_access(SRT, a);
+  }
+
+#endif
+#line 9
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 7
+}
+#line 9
 )";
     string error;
     string output = process_test_string(input, error);
@@ -816,17 +816,17 @@ void func([[resource_table]] Resources &srt)
 
 #if defined(CREATE_INFO_Resources)
 #line 2
-void func(                   inout Resources _inout_sta srt _inout_end)
+void func(_ref(Resources ,srt))
 {
 
-#if constant_srt_access(Resources, use_color_band)
+#if SRT_CONSTANT_use_color_band
 #line 4
                                                                {
     test;
   }
 #endif
 
-#if constant_srt_access(Resources, use_color_band)== 1
+#if SRT_CONSTANT_use_color_band== 1
 #line 8
                                                                    {
     test;
@@ -838,24 +838,24 @@ void func(                   inout Resources _inout_sta srt _inout_end)
   }
 #endif
 
-#if constant_srt_access(Resources, use_color_band)
+#if SRT_CONSTANT_use_color_band
 #line 14
                                                                {
     test;
   }
-#elif constant_srt_access(Resources, use_color_band)
+#elif SRT_CONSTANT_use_color_band
 #line 16
                                                                       {
     test;
   }
 #endif
 
-#if constant_srt_access(Resources, use_color_band)
+#if SRT_CONSTANT_use_color_band
 #line 20
                                                                {
     test;
   }
-#elif constant_srt_access(Resources, use_color_band)
+#elif SRT_CONSTANT_use_color_band
 #line 22
                                                                       {
     test;
@@ -1197,7 +1197,7 @@ int _pad;};
          NS_S NS_S_static_method(NS_S s) {
     return NS_S(0);
   }
-  NS_S other_method(inout NS_S _inout_sta this_ _inout_end, int s) {
+  NS_S other_method(_ref(NS_S ,this_), int s) {
     some_method(this_);
     return NS_S(0);
   }
@@ -1531,7 +1531,7 @@ struct S {
     return a;
   }
 #line 18
-  S function(inout S _inout_sta this_ _inout_end, int i)
+  S function(_ref(S ,this_), int i)
   {
     this_.member = i;
     this_member++;
@@ -1599,7 +1599,7 @@ float fn([[resource_table]] SRT &srt) {
 
 #if defined(CREATE_INFO_SRT)
 #line 2
-float fn(                   inout SRT _inout_sta srt _inout_end) {
+float fn(_ref(SRT ,srt)) {
   return srt_access(SRT, member);
 }
 
@@ -1632,7 +1632,7 @@ float fn([[resource_table]] SRT &srt) {
 
 #if defined(CREATE_INFO_SRT)
 #line 2
-float fn(                   inout SRT _inout_sta srt _inout_end) {
+float fn(_ref(SRT ,srt)) {
 
   return srt_access(OtherSRT, member);
 }

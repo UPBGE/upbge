@@ -33,6 +33,10 @@
 #  include "GHOST_NDOFManagerUnix.hh"
 #endif
 
+#ifdef WITH_GHOST_CSD
+#  include "GHOST_WindowWaylandCSD.hh"
+#endif
+
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
 #  include <wayland_dynload_API.h> /* For `ghost_wl_dynload_libraries`. */
 #endif
@@ -1340,7 +1344,7 @@ static void gwl_seat_key_repeat_timer_fn(GHOST_ITimerTask *task, uint64_t time_m
     xkb_state_key_get_utf8(seat->xkb.state, payload->key_code, utf8_buf, sizeof(utf8_buf));
   }
 
-  system->pushEvent_maybe_pending(new GHOST_EventKey(
+  system->pushEvent_maybe_pending(std::make_unique<GHOST_EventKey>(
       event_ms, GHOST_kEventKeyDown, win, payload->key_data.gkey, true, utf8_buf));
 }
 
@@ -1573,7 +1577,7 @@ struct GWL_Display {
    * Events added from the event reading thread.
    * Added into the main event queue when on #GHOST_SystemWayland::processEvents.
    */
-  std::vector<const GHOST_IEvent *> events_pending;
+  std::vector<std::unique_ptr<const GHOST_IEvent>> events_pending;
   /** Guard against multiple threads accessing `events_pending` at once. */
   std::mutex events_pending_mutex;
 
@@ -1641,10 +1645,6 @@ static void gwl_display_destroy(GWL_Display *display)
   if (display->ghost_timer_manager) {
     delete display->ghost_timer_manager;
     display->ghost_timer_manager = nullptr;
-  }
-  /* Pending events may be left unhandled. */
-  for (const GHOST_IEvent *event : display->events_pending) {
-    delete event;
   }
 
 #endif /* USE_EVENT_BACKGROUND_THREAD */
@@ -1965,35 +1965,6 @@ static uint32_t rgba_straight_to_premul_inverted(uint32_t rgba_uint)
   rgba[1] = uint8_t(((alpha * (0xff - rgba[1])) + (0xff / 2)) / 0xff);
   rgba[2] = uint8_t(((alpha * (0xff - rgba[2])) + (0xff / 2)) / 0xff);
   return rgba_uint;
-}
-
-static const char *strchr_or_end(const char *str, const char ch)
-{
-  const char *p = str;
-  while (!ELEM(*p, ch, '\0')) {
-    p++;
-  }
-  return p;
-}
-
-static bool string_elem_split_by_delim(const char *haystack, const char delim, const char *needle)
-{
-  /* Local copy of #BLI_string_elem_split_by_delim (would be a bad level call). */
-
-  /* May be zero, returns true when an empty span exists. */
-  const size_t needle_len = strlen(needle);
-  const char *p = haystack, *p_next;
-  while (true) {
-    p_next = strchr_or_end(p, delim);
-    if ((size_t(p_next - p) == needle_len) && (memcmp(p, needle, needle_len) == 0)) {
-      return true;
-    }
-    if (*p_next == '\0') {
-      break;
-    }
-    p = p_next + 1;
-  }
-  return false;
 }
 
 static uint64_t sub_abs_u64(const uint64_t a, const uint64_t b)
@@ -2363,7 +2334,7 @@ static std::vector<std::string_view> gwl_clipboard_uri_ranges(const char *data_b
       end = data.size();
     }
     /* Account for 'CRLF' case. */
-    if (data[end - 1] == '\r') {
+    if ((end > 0) && (data[end - 1] == '\r')) {
       end -= 1;
     }
 
@@ -3106,7 +3077,7 @@ static void keyboard_depressed_state_push_events_from_change(
     for (int d = seat->key_depressed.mods[i] - key_depressed_prev.mods[i]; d < 0; d++) {
       const GHOST_TKey gkey = GHOST_KEY_MODIFIER_FROM_INDEX(i);
       seat->system->pushEvent_maybe_pending(
-          new GHOST_EventKey(event_ms, GHOST_kEventKeyUp, win, gkey, false));
+          std::make_unique<GHOST_EventKey>(event_ms, GHOST_kEventKeyUp, win, gkey, false));
 
       CLOG_DEBUG(LOG, "modifier (%d) up", i);
     }
@@ -3116,7 +3087,7 @@ static void keyboard_depressed_state_push_events_from_change(
     for (int d = seat->key_depressed.mods[i] - key_depressed_prev.mods[i]; d > 0; d--) {
       const GHOST_TKey gkey = GHOST_KEY_MODIFIER_FROM_INDEX(i);
       seat->system->pushEvent_maybe_pending(
-          new GHOST_EventKey(event_ms, GHOST_kEventKeyDown, win, gkey, false));
+          std::make_unique<GHOST_EventKey>(event_ms, GHOST_kEventKeyDown, win, gkey, false));
       CLOG_DEBUG(LOG, "modifier (%d) down", i);
     }
   }
@@ -3565,7 +3536,7 @@ static void relative_pointer_handle_relative_motion_impl(GWL_Seat *seat,
   }
 #endif
   const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
-  seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
+  seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventCursor>(
       event_ms, GHOST_kEventCursorMove, win, UNPACK2(event_xy), GHOST_TABLET_DATA_NONE));
 }
 
@@ -3622,8 +3593,8 @@ static void dnd_events(const GWL_Seat *const seat,
     const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->data_offer_dnd->dnd.xy)};
     for (size_t i = 0; i < ARRAY_SIZE(ghost_wl_mime_preference_order_type); i++) {
       const GHOST_TDragnDropTypes type = ghost_wl_mime_preference_order_type[i];
-      seat->system->pushEvent_maybe_pending(
-          new GHOST_EventDragnDrop(event_ms, event, type, win, UNPACK2(event_xy), nullptr));
+      seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventDragnDrop>(
+          event_ms, event, type, win, UNPACK2(event_xy), nullptr));
     }
   }
 }
@@ -4058,12 +4029,13 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
         GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_window);
         const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, xy)};
 
-        system->pushEvent_maybe_pending(new GHOST_EventDragnDrop(event_ms,
-                                                                 GHOST_kEventDraggingDropDone,
-                                                                 ghost_dnd_type,
-                                                                 win,
-                                                                 UNPACK2(event_xy),
-                                                                 ghost_dnd_data));
+        system->pushEvent_maybe_pending(
+            std::make_unique<GHOST_EventDragnDrop>(event_ms,
+                                                   GHOST_kEventDraggingDropDone,
+                                                   ghost_dnd_type,
+                                                   win,
+                                                   UNPACK2(event_xy),
+                                                   ghost_dnd_data));
 
         wl_display_roundtrip(system->wl_display_get());
       }
@@ -4316,7 +4288,7 @@ static void pointer_handle_enter(void *data,
   if (cursor_shape_refresh) {
     win->cursor_shape_refresh();
   }
-  seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
+  seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventCursor>(
       event_ms, GHOST_kEventCursorMove, win, UNPACK2(event_xy), GHOST_TABLET_DATA_NONE));
 }
 
@@ -4445,7 +4417,7 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
         /* Use motion for pressure and tilt as there are no explicit event types for these. */
         case GWL_Pointer_EventTypes::Motion: {
           const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
-          seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
+          seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventCursor>(
               event_ms, GHOST_kEventCursorMove, win, UNPACK2(event_xy), GHOST_TABLET_DATA_NONE));
 #ifdef WITH_GHOST_CSD
           if (seat->system->use_window_frame_csd_get()) {
@@ -4534,14 +4506,14 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
           /* Done evaluating scroll input, generate the events. */
           if (ps.discrete_xy[0] || ps.discrete_xy[1]) {
             if (ps.discrete_xy[0]) {
-              seat->system->pushEvent_maybe_pending(new GHOST_EventWheel(
+              seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventWheel>(
                   ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
                   win,
                   GHOST_kEventWheelAxisHorizontal,
                   ps.discrete_xy[0]));
             }
             if (ps.discrete_xy[1]) {
-              seat->system->pushEvent_maybe_pending(new GHOST_EventWheel(
+              seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventWheel>(
                   ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
                   win,
                   GHOST_kEventWheelAxisVertical,
@@ -4553,7 +4525,7 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
 
           if (ps.smooth_xy[0] || ps.smooth_xy[1]) {
             const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
-            seat->system->pushEvent_maybe_pending(new GHOST_EventTrackpad(
+            seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventTrackpad>(
                 ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
                 win,
                 GHOST_kTrackpadEventScroll,
@@ -4607,8 +4579,8 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
           const GHOST_TEventType etype = button_down ? GHOST_kEventButtonDown :
                                                        GHOST_kEventButtonUp;
           seat->pointer.buttons.set(ebutton, button_down);
-          seat->system->pushEvent_maybe_pending(
-              new GHOST_EventButton(event_ms, etype, win, ebutton, GHOST_TABLET_DATA_NONE));
+          seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventButton>(
+              event_ms, etype, win, ebutton, GHOST_TABLET_DATA_NONE));
 
 #ifdef WITH_GHOST_CSD
           if (seat->system->use_window_frame_csd_get()) {
@@ -4865,25 +4837,27 @@ static void gesture_pinch_handle_update(void *data,
   if (win) {
     const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
     if (scale_as_delta_px) {
-      seat->system->pushEvent_maybe_pending(new GHOST_EventTrackpad(event_ms,
-                                                                    win,
-                                                                    GHOST_kTrackpadEventMagnify,
-                                                                    event_xy[0],
-                                                                    event_xy[1],
-                                                                    scale_as_delta_px,
-                                                                    0,
-                                                                    false));
+      seat->system->pushEvent_maybe_pending(
+          std::make_unique<GHOST_EventTrackpad>(event_ms,
+                                                win,
+                                                GHOST_kTrackpadEventMagnify,
+                                                event_xy[0],
+                                                event_xy[1],
+                                                scale_as_delta_px,
+                                                0,
+                                                false));
     }
 
     if (rotation_as_delta_px) {
-      seat->system->pushEvent_maybe_pending(new GHOST_EventTrackpad(event_ms,
-                                                                    win,
-                                                                    GHOST_kTrackpadEventRotate,
-                                                                    event_xy[0],
-                                                                    event_xy[1],
-                                                                    rotation_as_delta_px,
-                                                                    0,
-                                                                    false));
+      seat->system->pushEvent_maybe_pending(
+          std::make_unique<GHOST_EventTrackpad>(event_ms,
+                                                win,
+                                                GHOST_kTrackpadEventRotate,
+                                                event_xy[0],
+                                                event_xy[1],
+                                                rotation_as_delta_px,
+                                                0,
+                                                false));
     }
   }
 }
@@ -5084,13 +5058,13 @@ static void touch_seat_handle_frame(void *data, wl_touch * /*touch*/)
   if (wl_surface *wl_surface_focus = seat->touch.wl.surface_window) {
     GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
 
-    GHOST_Event *touch_events[3];
+    std::unique_ptr<GHOST_Event> touch_events[3];
     int touch_events_num = 0;
 
     /* For a finger move, generate a cursor move. */
     if (seat->touch_state.motion_pending == true) {
       const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->touch.xy)};
-      touch_events[touch_events_num++] = new GHOST_EventCursor(
+      touch_events[touch_events_num++] = std::make_unique<GHOST_EventCursor>(
           seat->touch_state.motion_event_time_ms,
           GHOST_kEventCursorMove,
           win,
@@ -5113,7 +5087,7 @@ static void touch_seat_handle_frame(void *data, wl_touch * /*touch*/)
     if (seat->touch_state.down_pending == true) {
       seat->touch.buttons.set(GHOST_kButtonMaskLeft, true);
 
-      touch_events[touch_events_num++] = new GHOST_EventButton(
+      touch_events[touch_events_num++] = std::make_unique<GHOST_EventButton>(
           seat->touch_state.down_event_time_ms,
           GHOST_kEventButtonDown,
           win,
@@ -5137,11 +5111,12 @@ static void touch_seat_handle_frame(void *data, wl_touch * /*touch*/)
     if (seat->touch_state.up_pending == true) {
       seat->touch.buttons.set(GHOST_kButtonMaskLeft, false);
 
-      touch_events[touch_events_num++] = new GHOST_EventButton(seat->touch_state.up_event_time_ms,
-                                                               GHOST_kEventButtonUp,
-                                                               win,
-                                                               GHOST_kButtonMaskLeft,
-                                                               GHOST_TABLET_DATA_NONE);
+      touch_events[touch_events_num++] = std::make_unique<GHOST_EventButton>(
+          seat->touch_state.up_event_time_ms,
+          GHOST_kEventButtonUp,
+          win,
+          GHOST_kButtonMaskLeft,
+          GHOST_TABLET_DATA_NONE);
 #ifdef WITH_GHOST_CSD
       if (seat->system->use_window_frame_csd_get()) {
         const uint32_t serial = seat->touch_state.up_event_serial;
@@ -5162,13 +5137,12 @@ static void touch_seat_handle_frame(void *data, wl_touch * /*touch*/)
     if (UNLIKELY(touch_events_num > 1)) {
       std::sort(touch_events,
                 touch_events + touch_events_num,
-                [](const GHOST_Event *event_a, const GHOST_Event *event_b) -> bool {
-                  return event_a->getTime() < event_b->getTime();
-                });
+                [](std::unique_ptr<GHOST_Event> &event_a, std::unique_ptr<GHOST_Event> &event_b)
+                    -> bool { return event_a->getTime() < event_b->getTime(); });
     }
 
     for (int i = 0; i < touch_events_num; i++) {
-      seat->system->pushEvent_maybe_pending(touch_events[i]);
+      seat->system->pushEvent_maybe_pending(std::move(touch_events[i]));
     }
   }
 }
@@ -5524,7 +5498,7 @@ static void tablet_tool_handle_frame(void *data,
           seat->tablet.xy[1] = tablet_tool->xy[1];
 
           const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, tablet_tool->xy)};
-          seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
+          seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventCursor>(
               event_ms, GHOST_kEventCursorMove, win, UNPACK2(event_xy), tablet_tool->data));
           has_motion = true;
 
@@ -5557,8 +5531,8 @@ static void tablet_tool_handle_frame(void *data,
           const GHOST_TEventType etype = button_down ? GHOST_kEventButtonDown :
                                                        GHOST_kEventButtonUp;
           seat->tablet.buttons.set(ebutton, button_down);
-          seat->system->pushEvent_maybe_pending(
-              new GHOST_EventButton(event_ms, etype, win, ebutton, tablet_tool->data));
+          seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventButton>(
+              event_ms, etype, win, ebutton, tablet_tool->data));
 
 #ifdef WITH_GHOST_CSD
           GHOST_ASSERT(serial != WL_SERIAL_NONE || !button_down,
@@ -5571,10 +5545,10 @@ static void tablet_tool_handle_frame(void *data,
         }
         case GWL_TabletTool_EventTypes::Wheel: {
           seat->system->pushEvent_maybe_pending(
-              new GHOST_EventWheel(event_ms,
-                                   win,
-                                   GHOST_kEventWheelAxisVertical,
-                                   -tablet_tool->frame_pending.wheel.clicks));
+              std::make_unique<GHOST_EventWheel>(event_ms,
+                                                 win,
+                                                 GHOST_kEventWheelAxisVertical,
+                                                 -tablet_tool->frame_pending.wheel.clicks));
           break;
         }
       }
@@ -6156,7 +6130,7 @@ static void keyboard_handle_key(void *data,
   if (wl_surface *wl_surface_focus = seat->keyboard.wl.surface_window) {
     GHOST_IWindow *win = ghost_wl_surface_user_data(wl_surface_focus);
     seat->system->pushEvent_maybe_pending(
-        new GHOST_EventKey(event_ms, etype, win, gkey, is_repeat, utf8_buf));
+        std::make_unique<GHOST_EventKey>(event_ms, etype, win, gkey, is_repeat, utf8_buf));
   }
 
   /* An existing payload means the key repeat timer is reset and will be added again. */
@@ -6537,24 +6511,24 @@ static void text_input_handle_done(void *data,
       if (is_end) {
         seat->ime.has_preedit = false;
         /* `commit_string` (end). */
-        system->pushEvent_maybe_pending(new GHOST_EventIME(
+        system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
             event_ms, GHOST_kEventImeComposition, win, &seat->ime.event_ime_data));
-        system->pushEvent_maybe_pending(new GHOST_EventIME(
+        system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
             event_ms, GHOST_kEventImeCompositionEnd, win, &seat->ime.event_ime_data));
       }
       else {
         /* `commit_string` (continues). */
-        system->pushEvent_maybe_pending(new GHOST_EventIME(
+        system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
             event_ms, GHOST_kEventImeComposition, win, &seat->ime.event_ime_data));
       }
     }
     else {
       /* `commit_string` ran with no active IME popup, start & end to insert text. */
-      system->pushEvent_maybe_pending(new GHOST_EventIME(
+      system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
           event_ms, GHOST_kEventImeCompositionStart, win, &seat->ime.event_ime_data));
-      system->pushEvent_maybe_pending(new GHOST_EventIME(
+      system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
           event_ms, GHOST_kEventImeComposition, win, &seat->ime.event_ime_data));
-      system->pushEvent_maybe_pending(new GHOST_EventIME(
+      system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
           event_ms, GHOST_kEventImeCompositionEnd, win, &seat->ime.event_ime_data));
     }
 
@@ -6567,14 +6541,14 @@ static void text_input_handle_done(void *data,
     if (is_end) {
       /* `preedit_string` (end). */
       seat->ime.has_preedit = false;
-      system->pushEvent_maybe_pending(new GHOST_EventIME(
+      system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
           event_ms, GHOST_kEventImeCompositionEnd, win, &seat->ime.event_ime_data));
     }
     else {
       const bool is_start = seat->ime.has_preedit == false;
       /* `preedit_string` (start or continue). */
       seat->ime.has_preedit = true;
-      system->pushEvent_maybe_pending(new GHOST_EventIME(
+      system->pushEvent_maybe_pending(std::make_unique<GHOST_EventIME>(
           event_ms,
           is_start ? GHOST_kEventImeCompositionStart : GHOST_kEventImeComposition,
           win,
@@ -8082,30 +8056,14 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
   }
 
 #ifdef WITH_GHOST_CSD
-  bool use_window_frame_csd = false;
   if (use_window_frame) {
-    const char *xdg_current_desktop = [] {
-      /* Account for VSCode overriding this value (TSK!), see: #133921. */
-      const char *key = "ORIGINAL_XDG_CURRENT_DESKTOP";
-      const char *value = getenv(key);
-      return value ? value : getenv(key + 9);
-    }();
-
-    if (xdg_current_desktop) {
-      /* See the free-desktop specifications for details on `XDG_CURRENT_DESKTOP`.
-       * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html
-       */
-      if (string_elem_split_by_delim(xdg_current_desktop, ':', "GNOME")) {
-        use_window_frame_csd = true;
-      }
-    }
-  }
-
 #  ifdef USE_GHOST_CSD_FORCE
-  use_window_frame_csd = true;
+    display_->use_window_frame_csd = true;
+#  else
+    display_->use_window_frame_csd = GHOST_WindowCSD_Check();
 #  endif
-
-  if (use_window_frame_csd) {
+  }
+  if (display_->use_window_frame_csd) {
     GHOST_CSD_Layout csd_layout = {0};
     if (!GHOST_WindowCSD_LayoutFromSystem(csd_layout)) {
       GHOST_WindowCSD_LayoutDefault(csd_layout);
@@ -8113,9 +8071,6 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
 
     this->setWindowCSD_Layout(csd_layout);
   }
-
-  display_->use_window_frame_csd = use_window_frame_csd;
-
 #endif /* WITH_GHOST_CSD */
 
   {
@@ -8193,7 +8148,7 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
 
   if (!display_->background) {
     std::lock_guard lock{display_->events_pending_mutex};
-    for (const GHOST_IEvent *event : display_->events_pending) {
+    for (std::unique_ptr<const GHOST_IEvent> &event : display_->events_pending) {
 
       /* Perform actions that aren't handled in a thread. */
       switch (event->getType()) {
@@ -8210,7 +8165,7 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
         }
       }
 
-      pushEvent(event);
+      pushEvent(std::move(event));
     }
     display_->events_pending.clear();
 
@@ -9188,7 +9143,7 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
       window_manager_->addWindow(window);
       window_manager_->setActiveWindow(window);
       const uint64_t event_ms = getMilliSeconds();
-      pushEvent(new GHOST_Event(event_ms, GHOST_kEventWindowSize, window));
+      pushEvent(std::make_unique<GHOST_Event>(event_ms, GHOST_kEventWindowSize, window));
     }
     else {
       delete window;
@@ -9991,17 +9946,18 @@ uint64_t GHOST_SystemWayland::ms_from_input_time(const uint32_t timestamp_as_uin
   return timestamp;
 }
 
-GHOST_TSuccess GHOST_SystemWayland::pushEvent_maybe_pending(const GHOST_IEvent *event)
+GHOST_TSuccess GHOST_SystemWayland::pushEvent_maybe_pending(
+    std::unique_ptr<const GHOST_IEvent> event)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
   GHOST_ASSERT(!display_->background, "Foreground only");
   if (main_thread_id != std::this_thread::get_id()) {
     std::lock_guard lock{display_->events_pending_mutex};
-    display_->events_pending.push_back(event);
+    display_->events_pending.push_back(std::move(event));
     return GHOST_kSuccess;
   }
 #endif
-  return pushEvent(event);
+  return pushEvent(std::move(event));
 }
 
 void GHOST_SystemWayland::seat_active_set(const GWL_Seat *seat)
@@ -10229,7 +10185,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
       if (xy_motion_create_event) {
         /* Caller has no time-stamp. */
         const uint64_t event_ms = getMilliSeconds();
-        seat->system->pushEvent_maybe_pending(new GHOST_EventCursor(
+        seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventCursor>(
             event_ms,
             GHOST_kEventCursorMove,
             ghost_wl_surface_user_data(wl_surface),
