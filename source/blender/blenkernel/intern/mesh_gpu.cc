@@ -506,6 +506,7 @@ int dispatch_count)
       }
 
       if (!ssbo) {
+        /* positions_in always aligned on verts_num */
         const int verts = mesh_eval->verts_num;
         if (verts > 0 && GPU_context_active_get()) {
           const size_t size_bytes = size_t(verts) * sizeof(float) * 4; /* vec4 per vertex */
@@ -616,13 +617,13 @@ int dispatch_count)
         }
       }
     }
-    /* Calling scatter to corners -> dispatch count set automatically to corner_num */
+    /* Caller is using scatter_to_corners -> dispatch count set automatically to corners_num */
     dispatch_count = mesh_eval->corners_num;
   }
 
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
   const std::string shader_source = glsl_accessors + main_glsl;
-  /* Build shader identifier only from user glsl sources (not 100% fiable) */
+  /* Build shader identifier */
   Scene *scene = DEG_get_input_scene(depsgraph);
   int normals_domain_val = (mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face) ?
                                1 :
@@ -821,6 +822,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
   mesh->is_running_gpu_animation_playback = 0;
 }
 
+/* Always return after! (wait for the next frame) */
 void BKE_mesh_request_gpu_render_cache_update(Mesh *mesh_orig,
                                               Mesh *mesh_eval,
                                               Object *ob_orig)
