@@ -313,17 +313,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
-
-    bool is_vulkan_backend = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
-    if (!is_vulkan_backend) {
-      /* We call Render here in KX_Scene constructor because
-       * 1: It creates a depsgraph and ensure it will be activated.
-       * 2: We need to create an eevee's cache to initialize
-       * KX_BlenderMaterials and BL_Textures.
-       */
-      const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
-      RenderAfterCameraSetup(nullptr, nullptr, viewport, false, true);
-    }
   }
   else {
     scene->flag |= SCE_INTERACTIVE_VIEWPORT;
@@ -369,10 +358,8 @@ KX_Scene::~KX_Scene()
     }
     else {
       /* If we are in python loop and we called render code */
-      if (!m_initMaterialsGPUViewport) {
-        if (m_currentGPUViewport) {
-          GPU_viewport_free(m_currentGPUViewport);
-        }
+      if (!m_initMaterialsGPUViewport && m_currentGPUViewport) {
+        GPU_viewport_free(m_currentGPUViewport);
       }
       else {
         /* It has not been freed before because the main Render loop
