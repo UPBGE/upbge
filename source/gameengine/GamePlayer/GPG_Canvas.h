@@ -99,4 +99,7 @@ class GPG_Canvas : public RAS_ICanvas {
   virtual void EndDraw();
 
   virtual bool IsBlenderPlayer();
+
+ protected:
+  void SetMouseGrabImpl(bool enable, bool force_cursor_visible) override;
 };

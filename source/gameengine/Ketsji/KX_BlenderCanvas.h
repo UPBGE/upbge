@@ -89,6 +89,8 @@ class KX_BlenderCanvas : public RAS_ICanvas {
   virtual void SetMouseState(RAS_MouseState mousestate);
   virtual void SetMousePosition(int x, int y);
 
+  void SetMouseGrabImpl(bool enable, bool force_cursor_visible) override;
+
   virtual void MakeScreenShot(const std::string &filename);
 
   virtual void BeginDraw();
