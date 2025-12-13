@@ -616,6 +616,8 @@ int dispatch_count)
         }
       }
     }
+    /* Calling scatter to corners -> dispatch count set automatically to corner_num */
+    dispatch_count = mesh_eval->corners_num;
   }
 
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
