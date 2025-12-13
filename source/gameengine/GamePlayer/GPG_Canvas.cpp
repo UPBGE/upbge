@@ -57,6 +57,21 @@ GPG_Canvas::GPG_Canvas(bContext *C, RAS_Rasterizer *rasty, GHOST_IWindow *window
   }
 }
 
+void GPG_Canvas::SetMouseGrabImpl(bool enable, bool force_cursor_visible)
+{
+  if (!m_window) {
+    return;
+  }
+
+  if (enable) {
+    const GHOST_TGrabCursorMode mode = force_cursor_visible ? GHOST_kGrabWrap : GHOST_kGrabHide;
+    m_window->setCursorGrab(mode, GHOST_kAxisNone, nullptr, nullptr);
+  }
+  else {
+    m_window->setCursorGrab(GHOST_kGrabDisable, GHOST_kAxisNone, nullptr, nullptr);
+  }
+}
+
 GPG_Canvas::~GPG_Canvas()
 {
 }
@@ -147,7 +162,7 @@ void GPG_Canvas::SetMousePosition(int x, int y)
 
 void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 {
-  m_mousestate = mousestate;
+  CacheMouseState(mousestate);
 
   if (m_window) {
     switch (mousestate) {

@@ -57,6 +57,7 @@ class SCA_MouseActuator : public SCA_IActuator {
 
   float m_oldposition[2];
   float m_angle[2];
+  bool m_mouseGrabbed;
 
  public:
   enum KX_ACT_MOUSE_OBJECT_AXIS {
@@ -97,6 +98,9 @@ class SCA_MouseActuator : public SCA_IActuator {
 
   virtual void getMousePosition(float *);
   virtual void setMousePosition(float, float);
+
+ private:
+  void EnsureMouseGrab(bool enable);
 
 #ifdef WITH_PYTHON
 

@@ -170,7 +170,7 @@ void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bo
 
 void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 {
-  m_mousestate = mousestate;
+  CacheMouseState(mousestate);
 
   switch (mousestate) {
     case MOUSE_INVISIBLE: {
@@ -198,6 +198,21 @@ void KX_BlenderCanvas::SetMousePosition(int x, int y)
   int winH = m_viewportArea.GetHeight();
 
   WM_cursor_warp(m_win, winX + x + 1, winY + (winH - y - 1));
+}
+
+void KX_BlenderCanvas::SetMouseGrabImpl(bool enable, bool force_cursor_visible)
+{
+  if (!m_win) {
+    return;
+  }
+
+  if (enable) {
+    const bool hide_cursor = !force_cursor_visible;
+    WM_cursor_grab_enable(m_win, WM_CURSOR_WRAP_XY, nullptr, hide_cursor);
+  }
+  else {
+    WM_cursor_grab_disable(m_win, nullptr);
+  }
 }
 
 void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
