@@ -709,7 +709,7 @@ void rna_template_list(Layout *layout,
                        const int rows,
                        const int maxrows,
                        const int layout_type,
-                       const int columns,
+                       const int /*columns*/,
                        const bool sort_reverse,
                        const bool sort_lock)
 {
@@ -733,7 +733,6 @@ void rna_template_list(Layout *layout,
                              rows,
                              maxrows,
                              layout_type,
-                             columns,
                              flags);
 }
 
@@ -2119,15 +2118,20 @@ void RNA_api_ui_layout(StructRNA *srna)
                UILST_LAYOUT_DEFAULT,
                "Type",
                "Type of layout to use");
-  RNA_def_int(func,
-              "columns",
-              9,
-              0,
-              INT_MAX,
-              "",
-              "Number of items to display per row, for GRID layout",
-              0,
-              INT_MAX);
+  parm = RNA_def_int(func,
+                     "columns",
+                     9,
+                     0,
+                     INT_MAX,
+                     "",
+                     "Number of items to display per row, for GRID layout",
+                     0,
+                     INT_MAX);
+  RNA_def_property_deprecated(parm,
+                              "Unused but kept for compatibility reasons. Setting the parameter "
+                              "has no effect, there will always be a single column.",
+                              501,
+                              600);
   RNA_def_boolean(func, "sort_reverse", false, "", "Display items in reverse order by default");
   RNA_def_boolean(func, "sort_lock", false, "", "Lock display order to default value");
 

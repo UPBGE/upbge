@@ -283,9 +283,6 @@ typedef struct uiListDyn {
   /** Minimal visual height of the list (in rows). */
   int visual_height_min;
 
-  /** Number of columns drawn for grid layouts. */
-  int columns;
-
   /** Number of items in collection. */
   int items_len;
   /** Number of items actually visible after filtering. */
@@ -661,7 +658,6 @@ enum {
 enum {
   UILST_LAYOUT_DEFAULT = 0,
   UILST_LAYOUT_COMPACT = 1,
-  UILST_LAYOUT_BIG_PREVIEW_GRID = 3,
 };
 
 /** #uiList.flag */
@@ -741,9 +737,6 @@ typedef enum eRegion_Type {
 
 /** Use for function args. */
 #define RGN_TYPE_ANY -1
-
-/** Region supports panel tabs (categories). */
-#define RGN_TYPE_HAS_CATEGORY_MASK (1 << RGN_TYPE_UI)
 
 /** Check for any kind of header region. */
 #define RGN_TYPE_IS_HEADER_ANY(regiontype) \
