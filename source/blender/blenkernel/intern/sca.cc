@@ -108,7 +108,6 @@ void BKE_sca_init_sensor(bSensor *sens)
   bJoystickSensor *js;
   bRaySensor *rs;
   bMovementSensor *movs;
-  bRBConstraintSensor *rbcs;
 
   if (sens->data)
     MEM_freeN(sens->data);
@@ -179,7 +178,7 @@ void BKE_sca_init_sensor(bSensor *sens)
       break;
     case SENS_RBCONSTRAINT:
       sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens");
-      /* target[0] = '\0' by default from MEM_callocN (means "self") */
+      /* mode defaults to SENS_RBC_BROKEN (0) from MEM_callocN */
       break;
     default:; /* this is very severe... I cannot make any memory for this        */
               /* logic brick...                                                    */

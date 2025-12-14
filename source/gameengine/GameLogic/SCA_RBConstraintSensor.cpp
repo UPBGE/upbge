@@ -12,10 +12,8 @@
 #  include "../Physics/Bullet/CcdPhysicsEnvironment.h"
 #endif
 
-SCA_RBConstraintSensor::SCA_RBConstraintSensor(SCA_EventManager *eventmgr,
-                                               SCA_IObject *gameobj,
-                                               const std::string &targetName)
-    : SCA_ISensor(gameobj, eventmgr), m_targetName(targetName), m_lastResult(false)
+SCA_RBConstraintSensor::SCA_RBConstraintSensor(SCA_EventManager *eventmgr, SCA_IObject *gameobj)
+    : SCA_ISensor(gameobj, eventmgr), m_lastResult(false)
 {
   Init();
 }
@@ -48,36 +46,9 @@ bool SCA_RBConstraintSensor::Evaluate()
 
   KX_GameObject *selfObj = static_cast<KX_GameObject *>(parent);
 
-  /* Determine which object's constraints to check:
-   * - If m_targetName is empty, check this object (self)
-   * - If m_targetName is set, find that object and check its constraints
-   */
-  KX_GameObject *targetObj = selfObj;
-
-  if (!m_targetName.empty()) {
-    /* Find the target object by name */
-    KX_Scene *scene = selfObj->GetScene();
-    if (!scene) {
-      bool reset = m_reset && m_level;
-      m_reset = false;
-      return reset;
-    }
-    targetObj = scene->GetObjectList()->FindValue(m_targetName);
-    if (!targetObj) {
-      /* Target object not found - sensor returns false */
-      bool reset = m_reset && m_level;
-      m_reset = false;
-      if (m_lastResult != false) {
-        m_lastResult = false;
-        return true;
-      }
-      return reset;
-    }
-  }
-
-  /* Check if the target object has any rigid body constraints */
-  if (!targetObj->HasRigidBodyConstraints()) {
-    /* No constraints on target object - sensor always returns false */
+  /* Check if this object has any rigid body constraints */
+  if (!selfObj->HasRigidBodyConstraints()) {
+    /* No constraints on this object - sensor always returns false */
     bool reset = m_reset && m_level;
     m_reset = false;
     if (m_lastResult != false) {
@@ -88,7 +59,7 @@ bool SCA_RBConstraintSensor::Evaluate()
   }
 
   /* Get the scene - may be null during shutdown */
-  KX_Scene *scene = targetObj->GetScene();
+  KX_Scene *scene = selfObj->GetScene();
   if (!scene) {
     bool reset = m_reset && m_level;
     m_reset = false;
@@ -114,10 +85,10 @@ bool SCA_RBConstraintSensor::Evaluate()
   }
 #endif
 
-  /* Check if any constraint on the target object is broken (disabled) */
+  /* Check if any constraint on this object is broken (disabled) */
   bool broken = false;
   const std::vector<KX_GameObject::RigidBodyConstraintData> &constraints =
-      targetObj->GetRigidBodyConstraints();
+      selfObj->GetRigidBodyConstraints();
 
   for (const KX_GameObject::RigidBodyConstraintData &data : constraints) {
     /* Skip invalid constraint IDs */
@@ -198,7 +169,6 @@ PyMethodDef SCA_RBConstraintSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_RBConstraintSensor::Attributes[] = {
-    EXP_PYATTRIBUTE_STRING_RW("target", 0, 64, false, SCA_RBConstraintSensor, m_targetName),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

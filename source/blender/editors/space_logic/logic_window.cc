@@ -1427,7 +1427,7 @@ static void draw_sensor_random(blender::ui::Layout *layout, PointerRNA *ptr)
   layout->prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_sensor_rbconstraint(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
+static void draw_sensor_rbconstraint(blender::ui::Layout *layout, PointerRNA *ptr)
 {
   /* Ensure sensor data exists, in case older/corrupted files have nullptr. */
   bSensor *sens = (bSensor *)ptr->data;
@@ -1435,8 +1435,7 @@ static void draw_sensor_rbconstraint(blender::ui::Layout *layout, PointerRNA *pt
     sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_ui_fix");
   }
 
-  PointerRNA main_ptr = RNA_main_pointer_create(CTX_data_main(C));
-  layout->prop_search(ptr, "target", &main_ptr, "objects", IFACE_("Target"), ICON_OBJECT_DATA);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void draw_sensor_ray(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
@@ -1526,7 +1525,7 @@ static void draw_brick_sensor(blender::ui::Layout *layout, PointerRNA *ptr, bCon
       draw_sensor_random(box, ptr);
       break;
     case SENS_RBCONSTRAINT:
-      draw_sensor_rbconstraint(box, ptr, C);
+      draw_sensor_rbconstraint(box, ptr);
       break;
     case SENS_MOVEMENT:
       draw_sensor_movement(box, ptr);

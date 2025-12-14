@@ -7,18 +7,13 @@
 
 #include "SCA_ISensor.h"
 
-#include <string>
-
 class SCA_RBConstraintSensor : public SCA_ISensor {
   Py_Header
 
-  std::string m_targetName;
   bool m_lastResult;
 
  public:
-  SCA_RBConstraintSensor(SCA_EventManager *eventmgr,
-                         SCA_IObject *gameobj,
-                         const std::string &targetName);
+  SCA_RBConstraintSensor(SCA_EventManager *eventmgr, SCA_IObject *gameobj);
   virtual ~SCA_RBConstraintSensor();
 
   virtual EXP_Value *GetReplica();
