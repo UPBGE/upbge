@@ -118,11 +118,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   Object *m_gameDefaultCamera;
   std::vector<struct Collection *> m_overlay_collections;
   struct GPUViewport *m_currentGPUViewport;
-  /* In the current state of the code, we need this
-   * to Initialize KX_BlenderMaterial and BL_Texture.
-   * BL_Texture(s) is/are used for ImageRender.
-   */
-  struct GPUViewport *m_initMaterialsGPUViewport;
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
   BL_SceneConverter *m_sceneConverter;
@@ -342,8 +337,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void RemoveOverlayCollection(struct Collection *collection);
   void SetCurrentGPUViewport(struct GPUViewport *viewport);
   struct GPUViewport *GetCurrentGPUViewport();
-  void SetInitMaterialsGPUViewport(struct GPUViewport *viewport);
-  struct GPUViewport *GetInitMaterialsGPUViewport();
   void SetOverlayCamera(KX_Camera *cam);
   KX_Camera *GetOverlayCamera();
   void AddImageRenderCamera(KX_Camera *cam);

@@ -170,7 +170,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     : KX_PythonProxy(),
       m_gameDefaultCamera(nullptr),           // eevee
       m_currentGPUViewport(nullptr),          // eevee
-      m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
       m_sceneConverter(nullptr),              // eevee
       m_isPythonMainLoop(false),              // eevee
@@ -354,21 +353,6 @@ KX_Scene::~KX_Scene()
       if (m_currentGPUViewport) {
         /* This will free m_currentGPUViewport */
         GPU_viewport_free(m_currentGPUViewport);
-      }
-    }
-    else {
-      /* If we are in python loop and we called render code */
-      if (!m_initMaterialsGPUViewport && m_currentGPUViewport) {
-        GPU_viewport_free(m_currentGPUViewport);
-      }
-      else {
-        /* It has not been freed before because the main Render loop
-         * is not executed then we free it now.
-         */
-        if (m_initMaterialsGPUViewport) {
-          GPU_viewport_free(m_initMaterialsGPUViewport);
-        }
-        //DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
     }
   }
@@ -664,19 +648,6 @@ GPUViewport *KX_Scene::GetCurrentGPUViewport()
   return m_currentGPUViewport;
 }
 
-void KX_Scene::SetInitMaterialsGPUViewport(GPUViewport *viewport)
-{
-  if (!viewport) {
-    GPU_viewport_free(m_initMaterialsGPUViewport);
-  }
-  m_initMaterialsGPUViewport = viewport;
-}
-
-GPUViewport *KX_Scene::GetInitMaterialsGPUViewport()
-{
-  return m_initMaterialsGPUViewport;
-}
-
 void KX_Scene::SetOverlayCamera(KX_Camera *cam)
 {
   m_overlayCamera = cam;
@@ -720,14 +691,7 @@ void KX_Scene::PrepareGPUViewport(KX_Camera *cam)
 {
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
   if (!useViewportRender) {  // Custom bge render loop only
-    bool calledFromConstructor = cam == nullptr;
-    if (calledFromConstructor) {
-      m_currentGPUViewport = GPU_viewport_create();
-      SetInitMaterialsGPUViewport(m_currentGPUViewport);
-    }
-    else {
-      SetCurrentGPUViewport(cam->GetGPUViewport());
-    }
+    SetCurrentGPUViewport(cam->GetGPUViewport());
   }
 }
 
