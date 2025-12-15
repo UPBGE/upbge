@@ -1081,10 +1081,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
 
-  if (scene->GetInitMaterialsGPUViewport()) {
-    scene->SetInitMaterialsGPUViewport(nullptr);
-  }
-
   bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
   if (is_overlay_pass || (rendercam != scene->GetActiveCamera() && rendercam->GetViewport())) {
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
