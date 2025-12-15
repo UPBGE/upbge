@@ -87,7 +87,11 @@ struct blender::draw::DisplaceManager::Impl {
 /** \name Displace Compute Shader (GPU port of MOD_displace.cc)
  * \{ */
 
-static const char *displace_compute_src = R"GLSL(
+/* GPU Displace Compute Shader - Split into 4 parts to avoid 16380 char limit */
+
+/* Part 1: Defines and helper functions */
+static std::string get_displace_shader_part1() {
+  return R"GLSL(
 /* GPU Displace Modifier Compute Shader v2.0 */
 /* Displace direction modes (matching DisplaceModifierDirection enum) */
 #define MOD_DISP_DIR_X 0
@@ -109,38 +113,142 @@ static const char *displace_compute_src = R"GLSL(
 #define TEX_CLIPCUBE 4
 #define TEX_CHECKER 5
 
-/* Apply texture extend mode to UV coordinates
- * Matches Blender's texture wrapping behavior
- * NOTE: TEX_CLIPCUBE (4) is handled separately as it checks 3D coords! */
-vec2 apply_texture_extend(vec2 uv, int extend_mode) {
+/* GPU port of do_2d_mapping() from texture_procedural.cc
+ * Applies FLAT mapping, REPEAT, MIRROR, and CROP */
+void do_2d_mapping_gpu(
+    inout float fx, inout float fy,
+    int mapping_mode,
+    int extend_mode,
+    float xrepeat, float yrepeat,
+    uint xmir_flag, uint ymir_flag,
+    float cropxmin, float cropxmax,
+    float cropymin, float cropymax)
+{
+  if (mapping_mode == 0) { /* MTEX_FLAT */
+    fx = (fx + 1.0) / 2.0;
+    fy = (fy + 1.0) / 2.0;
+  }
+  
   if (extend_mode == TEX_REPEAT) {
-    /* Repeat: fract() wraps to [0,1] */
-    return fract(uv);
+    float origf_x = fx;
+    float origf_y = fy;
+    
+    if (xrepeat > 1.0) {
+      fx *= xrepeat;
+      if (fx > 1.0) {
+        fx -= float(int(fx));
+      }
+      else if (fx < 0.0) {
+        fx += 1.0 - float(int(fx));
+      }
+      
+      if (xmir_flag != 0u) {
+        int orig = int(floor(origf_x * xrepeat));
+        if ((orig & 1) != 0) {
+          fx = 1.0 - fx;
+        }
+      }
+    }
+    
+    if (yrepeat > 1.0) {
+      fy *= yrepeat;
+      if (fy > 1.0) {
+        fy -= float(int(fy));
+      }
+      else if (fy < 0.0) {
+        fy += 1.0 - float(int(fy));
+      }
+      
+      if (ymir_flag != 0u) {
+        int orig = int(floor(origf_y * yrepeat));
+        if ((orig & 1) != 0) {
+          fy = 1.0 - fy;
+        }
+      }
+    }
   }
-  else if (extend_mode == TEX_EXTEND) {
-    /* Extend: clamp to [0,1] edges */
-    return clamp(uv, 0.0, 1.0);
+  
+  if (cropxmin != 0.0 || cropxmax != 1.0) {
+    float fac1 = cropxmax - cropxmin;
+    fx = cropxmin + fx * fac1;
   }
-  else if (extend_mode == TEX_CLIP) {
-    /* Clip: keep UV as-is, clipping check done later */
-    return uv;
-  }
-  else if (extend_mode == TEX_CLIPCUBE) {
-    /* ClipCube: keep UV as-is, 3D clipping check done later */
-    return uv;
-  }
-  else if (extend_mode == TEX_CHECKER) {
-    /* Checker: wrap to [0,1] for tiling pattern */
-    return fract(uv);
-  }
-  else {
-    /* Default/Unknown: repeat */
-    return fract(uv);
+  if (cropymin != 0.0 || cropymax != 1.0) {
+    float fac1 = cropymax - cropymin;
+    fy = cropymin + fy * fac1;
   }
 }
 
-/* Note: displacement_texture sampler is declared by ShaderCreateInfo, no manual uniform needed */
+/* GPU port of imagewrap() from texture_image.cc */
+bool imagewrap_gpu(
+    inout float fx, inout float fy,
+    out int x, out int y,
+    int extend_mode,
+    uint imarot_flag,
+    uint checker_odd, uint checker_even,
+    float checkerdist,
+    int tex_width, int tex_height)
+{
+  if (imarot_flag != 0u) {
+    float temp = fx;
+    fx = fy;
+    fy = temp;
+  }
+  
+  if (extend_mode == TEX_CHECKER) {
+    int xs = int(floor(fx));
+    int ys = int(floor(fy));
+    fx -= float(xs);
+    fy -= float(ys);
+    
+    int tile_parity = (xs + ys) & 1;
+    bool show_tile = true;
+    
+    if (checker_odd != 0u && tile_parity == 0) {
+      show_tile = false;
+    }
+    if (checker_even != 0u && tile_parity == 1) {
+      show_tile = false;
+    }
+    
+    if (!show_tile) {
+      return false;
+    }
+    
+    if (checkerdist < 1.0) {
+      fx = (fx - 0.5) / (1.0 - checkerdist) + 0.5;
+      fy = (fy - 0.5) / (1.0 - checkerdist) + 0.5;
+    }
+  }
+  
+  int xi = int(floor(fx * float(tex_width)));
+  int yi = int(floor(fy * float(tex_height)));
+  x = xi;
+  y = yi;
+  
+  if (extend_mode == TEX_CLIP || extend_mode == TEX_CHECKER) {
+    if (x < 0 || y < 0 || x >= tex_width || y >= tex_height) {
+      return false;
+    }
+  }
+  else if (extend_mode == TEX_EXTEND) {
+    x = (x >= tex_width) ? (tex_width - 1) : ((x < 0) ? 0 : x);
+    y = (y >= tex_height) ? (tex_height - 1) : ((y < 0) ? 0 : y);
+  }
+  else {
+    x = x % tex_width;
+    if (x < 0) x += tex_width;
+    y = y % tex_height;
+    if (y < 0) y += tex_height;
+  }
+  
+  return true;
+}
+)GLSL";
+}
 
+/* Part 2: Main function body (texture sampling + displacement logic) */
+static std::string get_displace_shader_part2() {
+  return R"GLSL(
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= deformed_positions.length()) {
@@ -183,27 +291,118 @@ struct TexResult {
 /* Sample texture using texture coordinates from MOD_get_texture_coords() */
 vec3 tex_coord = texture_coords[v].xyz;
 
-/* do_2d_mapping() - CRITICAL preprocessing step (texture_procedural.cc line 751-752)
- * For FLAT mapping: fx = (texvec[0] + 1.0) / 2.0
- * This converts object-space coordinates to [0,1] normalized UV space.
- * 
- * MOD_get_texture_coords() with FLAT returns raw object coords (e.g., [-1,1] for a 2×2 plane).
- * do_2d_mapping() normalizes them BEFORE passing to imagewrap(). */
+/* Step 1: do_2d_mapping() - FLAT mapping (normalize [-1,1] → [0,1])
+ * This converts object-space coordinates to [0,1] normalized UV space. */
 float fx = (tex_coord.x + 1.0) / 2.0;
 float fy = (tex_coord.y + 1.0) / 2.0;
-
-/* Now fx, fy are in [0,1] normalized space, ready for imagewrap() */
   
-  /* Apply flip axis (TEX_IMAROT): swap X and Y coordinates
-   * (CPU line 122: if (tex->imaflag & TEX_IMAROT) std::swap(fx, fy);) */
-  if (tex_flip_axis) {
-    float temp = fx;
-    fx = fy;
-    fy = temp;
+/* Get texture size for pixel-space calculations */
+ivec2 tex_size = textureSize(displacement_texture, 0);
+  
+/* Step 2: do_2d_mapping() - REPEAT scaling + MIRROR (matching CPU line 501-527) */
+if (tex_extend == TEX_REPEAT) {
+  float origf_x = fx;
+  float origf_y = fy;
+  
+  /* Repeat X */
+  if (tex_repeat.x > 1.0) {
+    fx *= tex_repeat.x;
+    if (fx > 1.0) {
+      fx -= float(int(fx));
+    }
+    else if (fx < 0.0) {
+      fx += 1.0 - float(int(fx));
+    }
+    
+    /* Mirror X if needed */
+    if (tex_xmir) {
+      int orig = int(floor(origf_x * tex_repeat.x));
+      if ((orig & 1) != 0) {
+        fx = 1.0 - fx;
+      }
+    }
   }
   
-  /* Get texture size for pixel-space calculations */
-  ivec2 tex_size = textureSize(displacement_texture, 0);
+  /* Repeat Y */
+  if (tex_repeat.y > 1.0) {
+    fy *= tex_repeat.y;
+    if (fy > 1.0) {
+      fy -= float(int(fy));
+    }
+    else if (fy < 0.0) {
+      fy += 1.0 - float(int(fy));
+    }
+    
+    /* Mirror Y if needed */
+    if (tex_ymir) {
+      int orig = int(floor(origf_y * tex_repeat.y));
+      if ((orig & 1) != 0) {
+        fy = 1.0 - fy;
+      }
+    }
+  }
+}
+
+/* Step 3: do_2d_mapping() - CROP (matching CPU line 528-537) */
+if (tex_crop.x != 0.0 || tex_crop.z != 1.0) {
+  float fac1 = tex_crop.z - tex_crop.x;
+  fx = tex_crop.x + fx * fac1;
+}
+if (tex_crop.y != 0.0 || tex_crop.w != 1.0) {
+  float fac1 = tex_crop.w - tex_crop.y;
+  fy = tex_crop.y + fy * fac1;
+}
+
+/* Step 4: imagewrap() - TEX_IMAROT (swap X/Y) AFTER crop (matching CPU line 120-122)
+ * CRITICAL: This MUST happen AFTER crop and BEFORE TEX_CHECKER! */
+if (tex_flip_axis) {
+  float temp = fx;
+  fx = fy;
+  fy = temp;
+}
+
+/* Step 5: imagewrap() - TEX_CHECKER filtering (matching CPU line 124-153)
+ * Applied AFTER repeat/crop/swap to ensure correct tile detection */
+  if (tex_extend == TEX_CHECKER) {
+    /* Calculate tile coordinates from normalized UV coordinates (after repeat/crop)
+     * xs = int(floor(fx)), ys = int(floor(fy)) */
+    int xs = int(floor(fx));
+    int ys = int(floor(fy));
+    int tile_parity = (xs + ys) & 1;  /* 1 = odd tile, 0 = even tile */
+    
+    /* Apply checker odd/even filter (CPU texture_image.cc line 98-111)
+     * NOTE: CPU logic uses inverted flags!
+     * tex_checker_odd = true means "TEX_CHECKER_ODD flag is NOT SET"
+     *                              → hide EVEN tiles
+     * tex_checker_even = true means "TEX_CHECKER_EVEN flag is NOT SET"  
+     *                               → hide ODD tiles */
+    bool show_tile = true;
+    
+    if (tex_checker_odd && (tile_parity == 0)) {
+      show_tile = false;  /* Hide EVEN tiles when ODD flag not set */
+    }
+    if (tex_checker_even && (tile_parity == 1)) {
+      show_tile = false;  /* Hide ODD tiles when EVEN flag not set */
+    }
+    
+    if (!show_tile) {
+      /* CRITICAL: Early return - no displacement for hidden tiles!
+       * This matches CPU behavior exactly (texture_image.cc line 108-111) */
+      deformed_positions[v] = co_in;
+      return;
+    }
+    
+    /* Normalize to fractional part within the tile */
+    fx -= float(xs);
+    fy -= float(ys);
+    
+    /* Scale checker pattern if needed (CPU line 113-117)
+     * scale around center, (0.5, 0.5) */
+    if (tex_checkerdist < 1.0) {
+      fx = (fx - 0.5) / (1.0 - tex_checkerdist) + 0.5;
+      fy = (fy - 0.5) / (1.0 - tex_checkerdist) + 0.5;
+    }
+  }
   
   /* Compute integer pixel coordinates (CPU line 157-158)
    * x = xi = int(floorf(fx * ibuf->x)); */
@@ -264,40 +463,17 @@ float fy = (tex_coord.y + 1.0) / 2.0;
   fx -= float(xi - x) / float(tex_size.x);
   fy -= float(yi - y) / float(tex_size.y);
   
-  /* Apply crop/recadrage (not in CPU imagewrap, but needed for consistency) */
-  vec2 uv;
-  uv.x = fx;
-  uv.y = fy;
-  
-  vec2 crop_min = tex_crop.xy;
-  vec2 crop_max = tex_crop.zw;
-  vec2 crop_size = crop_max - crop_min;
-  uv = crop_min + uv * crop_size;
-  
-  /* Apply repeat scaling */
-  uv *= vec2(tex_repeat);
-  
-  /* Apply mirror flags */
-  if (tex_xmir || tex_ymir) {
-    vec2 tile = floor(uv);
-    if (tex_xmir && mod(tile.x, 2.0) != 0.0) {
-      uv.x = 1.0 - fract(uv.x);
-    }
-    if (tex_ymir && mod(tile.y, 2.0) != 0.0) {
-      uv.y = 1.0 - fract(uv.y);
-    }
-  }
-  
-  /* Wrap UVs for repeat/extend */
-  vec2 uv_wrapped = apply_texture_extend(uv, tex_extend);
+  /* Normalize UVs to [0,1] for texture sampling */
+  vec2 uv_normalized = vec2(fx, fy);
   
   /* Sample texture (CPU uses boxsample for interpolation) */
   TexResult texres;
   texres.talpha = use_talpha;  /* From CPU line 211-213 */
   
   if (tex_interpol) {
-    /* Interpolated sampling (boxsample) */
-    texres.trgba = texture(displacement_texture, uv_wrapped);
+    /* Interpolated sampling (boxsample) - NOT IMPLEMENTED YET */
+    /* For now, use simple texture lookup */
+    texres.trgba = texture(displacement_texture, uv_normalized);
   }
   else {
     /* No filtering (CPU line 242: ibuf_get_color) */
@@ -305,35 +481,6 @@ float fy = (tex_coord.y + 1.0) / 2.0;
     px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
     vec2 uv_texel = (vec2(px_coord) + 0.5) / vec2(tex_size);
     texres.trgba = texture(displacement_texture, uv_texel);
-  }
-  
-  
-  /* Apply CHECKER mode (invert color on alternating tiles) */
-  if (tex_extend == TEX_CHECKER) {
-    vec2 check = floor(uv);
-    float checker = mod(check.x + check.y, 2.0);
-    
-    /* Apply checker odd/even filter */
-    bool show_tile = true;
-    if (tex_checker_odd && tex_checker_even) {
-      show_tile = true;  /* Both enabled = show all */
-    }
-    else if (tex_checker_odd && !tex_checker_even) {
-      show_tile = (checker > 0.5);  /* Only odd tiles */
-    }
-    else if (!tex_checker_odd && tex_checker_even) {
-      show_tile = (checker < 0.5);  /* Only even tiles */
-    }
-    else {
-      show_tile = false;  /* Neither enabled = show none */
-    }
-    
-    if (!show_tile) {
-      texres.trgba = vec4(0.0);  /* Hide this tile */
-    }
-    else if (checker > 0.5) {
-      texres.trgba.rgb = vec3(1.0) - texres.trgba.rgb;  /* Invert odd tiles */
-    }
   }
   
   /* Compute intensity (CPU line 244-253) */
@@ -513,6 +660,12 @@ float fy = (tex_coord.y + 1.0) / 2.0;
   deformed_positions[v] = vec4(co, 1.0);
 }
 )GLSL";
+}
+
+/* Final assembly function - concatenates both parts */
+static std::string get_displace_compute_src() {
+  return get_displace_shader_part1() + get_displace_shader_part2();
+}
 
 /** \} */
 
@@ -820,7 +973,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   if (has_texture) {
     shader_src += "#define HAS_TEXTURE\n";
   }
-  shader_src += displace_compute_src;
+  shader_src += get_displace_compute_src();
   
   info.compute_source_generated = shader_src;
 
@@ -862,6 +1015,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::bool_t, "tex_interpol");    /* TEX_INTERPOL */
     info.push_constant(Type::bool_t, "tex_checker_odd"); /* TEX_CHECKER_ODD */
     info.push_constant(Type::bool_t, "tex_checker_even");/* TEX_CHECKER_EVEN */
+    info.push_constant(Type::float_t, "tex_checkerdist");/* Tex->checkerdist */
     info.push_constant(Type::bool_t, "tex_flipblend");   /* TEX_FLIPBLEND */
     info.push_constant(Type::bool_t, "tex_flip_axis");   /* TEX_IMAROT (flip X/Y) */
     info.push_constant(Type::bool_t, "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
@@ -969,8 +1123,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1b(shader, "tex_xmir", (tex->flag & TEX_REPEAT_XMIR) != 0);
     GPU_shader_uniform_1b(shader, "tex_ymir", (tex->flag & TEX_REPEAT_YMIR) != 0);
     GPU_shader_uniform_1b(shader, "tex_interpol", (tex->imaflag & TEX_INTERPOL) != 0);
-    GPU_shader_uniform_1b(shader, "tex_checker_odd", (tex->flag & TEX_CHECKER_ODD) != 0);
-    GPU_shader_uniform_1b(shader, "tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) != 0);
+    GPU_shader_uniform_1b(shader, "tex_checker_odd", (tex->flag & TEX_CHECKER_ODD) == 0);
+    GPU_shader_uniform_1b(shader, "tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) == 0);
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
     
@@ -986,6 +1140,9 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       }
     }
     GPU_shader_uniform_1b(shader, "tex_skip_srgb_conversion", skip_srgb_conversion);
+    
+    /* Checker pattern scaling parameter */
+    GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
   }
 
 
