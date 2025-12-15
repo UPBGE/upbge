@@ -558,9 +558,15 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
   /* Hash texture mapping mode */
   hash = BLI_hash_int_2d(hash, int(dmd->texmapping));
 
-  /* Hash texture pointer (if present) */
-  if (dmd->texture && dmd->texture->type == TEX_IMAGE) {
+  const bool has_texture = (dmd->texture && dmd->texture->type == TEX_IMAGE &&
+                            dmd->texture->ima);
+  hash = BLI_hash_int_2d(hash, has_texture ? 1 : 0);
+
+  if (has_texture) {
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(dmd->texture->ima)));
+    hash = BLI_hash_int_2d(hash, int(dmd->texture->ima->source));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(dmd->texture)));
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->iuser)));
   }
 
   /* Hash deform_verts pointer (detects vertex group changes) */
@@ -882,35 +888,33 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
    * WARNING: Normals are computed ONCE from the mesh state before GPU playback starts.
    * They are NOT updated during GPU animation playback (modifier stack is GPU-only).
    * This is acceptable for most use cases (e.g., vertex group deformation with textures). */
-  if (dmd->direction == MOD_DISP_DIR_NOR || dmd->direction == MOD_DISP_DIR_CLNOR) {
-    const std::string key_normals = key_prefix + "vert_normals";
-    blender::gpu::StorageBuf *ssbo_normals = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_normals);
+  const std::string key_normals = key_prefix + "vert_normals";
+  blender::gpu::StorageBuf *ssbo_normals = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_normals);
     
-    if (!ssbo_normals) {
-      /* Get CPU-computed normals and upload them (computed from base mesh state)
-       * Use vert_normals_true() for MOD_DISP_DIR_NOR (face normals, ignore sharp edges)
-       * Use vert_normals() for MOD_DISP_DIR_CLNOR (corner normals averaged, respect sharp edges) */
-      blender::Span<blender::float3> cpu_normals = (dmd->direction == MOD_DISP_DIR_NOR) ?
-                                                      mesh_owner->vert_normals_true() :
-                                                      mesh_owner->vert_normals();
+  if (!ssbo_normals) {
+    /* Get CPU-computed normals and upload them (computed from base mesh state)
+      * Use vert_normals_true() for MOD_DISP_DIR_NOR (face normals, ignore sharp edges)
+      * Use vert_normals() for MOD_DISP_DIR_CLNOR (corner normals averaged, respect sharp edges) */
+    blender::Span<blender::float3> cpu_normals = (dmd->direction == MOD_DISP_DIR_NOR) ?
+                                                    mesh_owner->vert_normals_true() :
+                                                    mesh_owner->vert_normals();
       
-      const size_t size_normals = msd.verts_num * sizeof(blender::float4);
-      ssbo_normals = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_normals, size_normals);
+    const size_t size_normals = msd.verts_num * sizeof(blender::float4);
+    ssbo_normals = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_normals, size_normals);
       
-      if (ssbo_normals && !cpu_normals.is_empty()) {
-        /* Pad float3 to float4 for GPU alignment */
-        std::vector<blender::float4> padded_normals(msd.verts_num);
-        for (int i = 0; i < msd.verts_num; ++i) {
-          padded_normals[i] = blender::float4(
-              cpu_normals[i].x, cpu_normals[i].y, cpu_normals[i].z, 0.0f);
-        }
-        GPU_storagebuf_update(ssbo_normals, padded_normals.data());
+    if (ssbo_normals && !cpu_normals.is_empty()) {
+      /* Pad float3 to float4 for GPU alignment */
+      std::vector<blender::float4> padded_normals(msd.verts_num);
+      for (int i = 0; i < msd.verts_num; ++i) {
+        padded_normals[i] = blender::float4(
+            cpu_normals[i].x, cpu_normals[i].y, cpu_normals[i].z, 0.0f);
       }
+      GPU_storagebuf_update(ssbo_normals, padded_normals.data());
     }
+  }
     
-    if (ssbo_normals) {
-      GPU_storagebuf_bind(ssbo_normals, 3);
-    }
+  if (ssbo_normals) {
+    GPU_storagebuf_bind(ssbo_normals, 3);
   }
   
   /* Bind texture coordinates and texture (if present) */
@@ -931,7 +935,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   GPU_shader_uniform_1b(shader, "use_global", use_global);
   
   /* Set texture processing parameters (if texture is present) */
-  if (has_texture && dmd->texture) {
+  if (has_texture) {
     Tex *tex = dmd->texture;
     Image *ima = tex->ima;
     

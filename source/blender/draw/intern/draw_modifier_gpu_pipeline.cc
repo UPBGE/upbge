@@ -194,6 +194,19 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
         }
         break;
       }
+      case ModifierGPUStageType::DISPLACE: {
+        /* Hook: Delegate to HookManager for complete hash */
+        if (mesh_orig_) {
+          DisplaceModifierData *dmd = static_cast<DisplaceModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, DisplaceManager::compute_displace_hash(mesh_orig_, dmd));
+        }
+        else {
+          BLI_assert_unreachable();
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
       default:
         /* Unsupported type: just hash the pointer */
         hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(stage.modifier_data)));

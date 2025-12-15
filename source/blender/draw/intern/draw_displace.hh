@@ -61,7 +61,7 @@ class DisplaceManager {
    * Compute hash for Displace modifier pipeline.
    * Only hashes static topology/config, NOT runtime uniforms (strength, midlevel).
    */
-  uint32_t compute_displace_hash(const Mesh *mesh_orig, const DisplaceModifierData *dmd);
+  static uint32_t compute_displace_hash(const Mesh *mesh_orig, const DisplaceModifierData *dmd);
 
   /**
    * Ensure static resources (vertex group weights) are up-to-date.
