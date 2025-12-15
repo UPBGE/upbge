@@ -92,4 +92,4 @@ blender::gpu::FrameBuffer *GPU_viewport_framebuffer_render_get(GPUViewport *view
 blender::gpu::FrameBuffer *GPU_viewport_framebuffer_overlay_get(GPUViewport *viewport);
 
 /* UPBGE */
-void GPU_viewport_switch_color_tex(GPUViewport *viewport, GPUTexture *tex);
+void GPU_viewport_switch_color_tex(GPUViewport *viewport, blender::gpu::Texture *tex);
