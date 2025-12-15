@@ -59,9 +59,7 @@ blender::gpu::Shader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_in
 /**
  * Same as GPU_shader_create_from_info but will run preprocessor on source strings.
  */
-blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *info,
-                                                         bool preprocess = true,
-                                                         const char *typedef_source = nullptr);
+blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *info, bool preprocess = true);
 
 /**
  * Create a shader using a named #GPUShaderCreateInfo registered at startup.

@@ -585,7 +585,7 @@ bool RAS_Shader::LinkProgram()
   }
 
   info.fragment_out(0, Type::float4_t, "fragColor");
-
+  info.typedef_source_generated = typedef_header;
   info.vertex_source_generated = vert;
   info.fragment_source_generated = frag;
 
@@ -593,7 +593,7 @@ bool RAS_Shader::LinkProgram()
     goto program_error;
   }
 
-  m_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false, typedef_header);
+  m_shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
 
   if (!m_shader) {
     CM_Error("GPU_shader_create_from_info returned nullptr");
