@@ -87,7 +87,7 @@ struct blender::draw::DisplaceManager::Impl {
 /** \name Displace Compute Shader (GPU port of MOD_displace.cc)
  * \{ */
 
-/* GPU Displace Compute Shader - Split into 4 parts to avoid 16380 char limit */
+/* GPU Displace Compute Shader - Split into several parts to avoid 16380 char limit */
 
 /* Part 1: Defines and helper functions */
 static std::string get_displace_shader_part1() {
@@ -242,6 +242,93 @@ bool imagewrap_gpu(
   }
   
   return true;
+}
+
+/* Box sampling helpers - GPU port of boxsampleclip() and boxsample() from texture_image.cc
+ * Simplified: computes texel coverage weights per-pixel within the box region and
+ * accumulates texel values using texelFetch. Handles REPEAT and EXTEND wrapping.
+ */
+void boxsample_gpu(
+    sampler2D displacement_texture,
+    ivec2 tex_size,
+    float min_tex_x, float min_tex_y,
+    float max_tex_x, float max_tex_y,
+    out vec4 result,
+    bool talpha,
+    bool imaprepeat,
+    bool imapextend)
+{
+  result = vec4(0.0);
+  float tot = 0.0;
+
+  int startx = int(floor(min_tex_x));
+  int endx = int(floor(max_tex_x));
+  int starty = int(floor(min_tex_y));
+  int endy = int(floor(max_tex_y));
+
+  if (imapextend) {
+    startx = max(startx, 0);
+    starty = max(starty, 0);
+    endx = min(endx, tex_size.x - 1);
+    endy = min(endy, tex_size.y - 1);
+  }
+
+  for (int y = starty; y <= endy; ++y) {
+    // compute vertical overlap
+    float y0 = max(min_tex_y, float(y));
+    float y1 = min(max_tex_y, float(y + 1));
+    float h = y1 - y0;
+    if (h <= 0.0) {
+      continue;
+    }
+
+    for (int x = startx; x <= endx; ++x) {
+      // compute horizontal overlap
+      float x0 = max(min_tex_x, float(x));
+      float x1 = min(max_tex_x, float(x + 1));
+      float w = x1 - x0;
+      if (w <= 0.0) {
+        continue;
+      }
+
+      float area = w * h;
+
+      int sx = x;
+      int sy = y;
+
+      if (imaprepeat) {
+        sx %= tex_size.x;
+        sx += (sx < 0) ? tex_size.x : 0;
+        sy %= tex_size.y;
+        sy += (sy < 0) ? tex_size.y : 0;
+      }
+      else if (imapextend) {
+        sx = clamp(sx, 0, tex_size.x - 1);
+        sy = clamp(sy, 0, tex_size.y - 1);
+      }
+      else {
+        // In clip mode coordinates outside are already handled earlier, but clamp to be safe
+        if (sx < 0 || sx >= tex_size.x || sy < 0 || sy >= tex_size.y) {
+          continue;
+        }
+      }
+
+      ivec2 texel = ivec2(sx, sy);
+      vec4 col = texelFetch(displacement_texture, texel, 0);
+
+      result += col * area;
+      tot += area;
+    }
+  }
+
+  if (tot > 0.0) {
+    result /= tot;
+  }
+  else {
+    result = vec4(0.0);
+  }
+
+  /* Leave alpha post-processing to outer shader path to avoid duplication. */
 }
 )GLSL";
 }
@@ -471,16 +558,37 @@ if (tex_flip_axis) {
   texres.talpha = use_talpha;  /* From CPU line 211-213 */
   
   if (tex_interpol) {
-    /* Interpolated sampling (boxsample) - NOT IMPLEMENTED YET */
-    /* For now, use simple texture lookup */
-    texres.trgba = texture(displacement_texture, uv_normalized);
-  }
-  else {
+    /* Interpolated sampling (boxsample) - use GPU boxsample implementation */
+    float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
+    float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
+
+    /* fx,fy already adjusted above (remap for interpolation) */
+    float min_tex_x = (fx - filterx) * float(tex_size.x);
+    float min_tex_y = (fy - filtery) * float(tex_size.y);
+    float max_tex_x = (fx + filterx) * float(tex_size.x);
+    float max_tex_y = (fy + filtery) * float(tex_size.y);
+
+    boxsample_gpu(displacement_texture,
+                  tex_size,
+                  min_tex_x,
+                  min_tex_y,
+                  max_tex_x,
+                  max_tex_y,
+                  texres.trgba,
+                  texres.talpha,
+                  (tex_extend == TEX_REPEAT),
+                  (tex_extend == TEX_EXTEND));
+  } else {
     /* No filtering (CPU line 242: ibuf_get_color) */
     ivec2 px_coord = ivec2(x, y);
     px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
-    vec2 uv_texel = (vec2(px_coord) + 0.5) / vec2(tex_size);
-    texres.trgba = texture(displacement_texture, uv_texel);
+    /* Exact texel fetch to match CPU ibuf_get_color (no filtering). */
+    texres.trgba = texelFetch(displacement_texture, px_coord, 0);
+    /* If texture was uploaded from byte buffer, the CPU path premultiplies bytes
+     * (rgb *= alpha). Reproduce that here. */
+    if (tex_is_byte_buffer) {
+      texres.trgba.rgb *= texres.trgba.a;
+    }
   }
   
   /* Compute intensity (CPU line 244-253) */
@@ -1013,12 +1121,14 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::bool_t, "tex_xmir");        /* TEX_REPEAT_XMIR */
     info.push_constant(Type::bool_t, "tex_ymir");        /* TEX_REPEAT_YMIR */
     info.push_constant(Type::bool_t, "tex_interpol");    /* TEX_INTERPOL */
+    info.push_constant(Type::float_t, "tex_filtersize"); /* Tex->filtersize for boxsample */
     info.push_constant(Type::bool_t, "tex_checker_odd"); /* TEX_CHECKER_ODD */
     info.push_constant(Type::bool_t, "tex_checker_even");/* TEX_CHECKER_EVEN */
     info.push_constant(Type::float_t, "tex_checkerdist");/* Tex->checkerdist */
     info.push_constant(Type::bool_t, "tex_flipblend");   /* TEX_FLIPBLEND */
     info.push_constant(Type::bool_t, "tex_flip_axis");   /* TEX_IMAROT (flip X/Y) */
     info.push_constant(Type::bool_t, "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
+    info.push_constant(Type::bool_t, "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
   }
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
@@ -1127,6 +1237,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1b(shader, "tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) == 0);
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
+    GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
     
     /* Determine if we should skip linear→sRGB conversion in shader
      * SIMPLE HEURISTIC: Check if source image is Movies/ImageSequence
@@ -1143,6 +1254,18 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
+    /* Determine if GPU texture was uploaded from byte buffer data. If so, we need to
+     * premultiply RGB by alpha to match CPU ibuf_get_color behavior for byte images. */
+    /* Determine if texture was originally uploaded from a byte buffer.
+     * Use Image flags rather than inspecting ImBuf to avoid extra cost. */
+    bool tex_is_byte = false;
+    if (ima) {
+      /* If image is NOT high bitdepth and NOT a generated float image, assume byte buffer. */
+      if (!(ima->flag & IMA_HIGH_BITDEPTH) && !(ima->gen_flag & IMA_GEN_FLOAT)) {
+        tex_is_byte = true;
+      }
+    }
+    GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", tex_is_byte);
   }
 
 
