@@ -256,7 +256,8 @@ void boxsample_gpu(
     out vec4 result,
     bool talpha,
     bool imaprepeat,
-    bool imapextend)
+    bool imapextend,
+    bool tex_is_byte_buffer)
 {
   result = vec4(0.0);
   float tot = 0.0;
@@ -316,6 +317,13 @@ void boxsample_gpu(
       ivec2 texel = ivec2(sx, sy);
       vec4 col = texelFetch(displacement_texture, texel, 0);
 
+      /* If the texture was uploaded from a byte buffer the CPU path
+       * premultiplies RGB by alpha before filtering. Reproduce that
+       * behaviour here so box filtering matches exactly. */
+      if (tex_is_byte_buffer) {
+        col.rgb *= col.a;
+      }
+
       result += col * area;
       tot += area;
     }
@@ -336,6 +344,7 @@ void boxsample_gpu(
 /* Part 2: Main function body (texture sampling + displacement logic) */
 static std::string get_displace_shader_part2() {
   return R"GLSL(
+
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= deformed_positions.length()) {
@@ -577,7 +586,8 @@ if (tex_flip_axis) {
                   texres.trgba,
                   texres.talpha,
                   (tex_extend == TEX_REPEAT),
-                  (tex_extend == TEX_EXTEND));
+                  (tex_extend == TEX_EXTEND),
+                  tex_is_byte_buffer);
   } else {
     /* No filtering (CPU line 242: ibuf_get_color) */
     ivec2 px_coord = ivec2(x, y);
@@ -676,10 +686,14 @@ if (tex_flip_axis) {
     srgb_rgb = rgb;
   }
   else {
-    /* Image was linear, apply linear→sRGB conversion */
-    srgb_rgb.r = (rgb.r < 0.0031308) ? max(rgb.r * 12.92, 0.0) : (1.055 * pow(rgb.r, 1.0 / 2.4) - 0.055);
-    srgb_rgb.g = (rgb.g < 0.0031308) ? max(rgb.g * 12.92, 0.0) : (1.055 * pow(rgb.g, 1.0 / 2.4) - 0.055);
-    srgb_rgb.b = (rgb.b < 0.0031308) ? max(rgb.b * 12.92, 0.0) : (1.055 * pow(rgb.b, 1.0 / 2.4) - 0.055);
+    /* Image was linear, apply linear→sRGB conversion.
+     * Clamp to >=0 before pow to avoid NaNs from tiny negative values and
+     * ensure consistent behavior with CPU code that clamps prior to conversion. */
+    vec3 rgb_clamped = max(rgb, vec3(0.0));
+
+    srgb_rgb.r = linearrgb_to_srgb(rgb_clamped.r);
+    srgb_rgb.g = linearrgb_to_srgb(rgb_clamped.g);
+    srgb_rgb.b = linearrgb_to_srgb(rgb_clamped.b);
   }
   
   float tex_value = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
@@ -1239,13 +1253,11 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
     GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
     
-    /* Determine if we should skip linear→sRGB conversion in shader
-     * SIMPLE HEURISTIC: Check if source image is Movies/ImageSequence
-     * These are ALWAYS auto-converted to linear by GPU, so skip shader conversion.
-     * For static images, we apply conversion (safest default). */
+    /* Simple heuristic: skip linear→sRGB conversion on the GPU for movies
+     * and image sequences (they are uploaded as linear by the GPU). For
+     * other images we do not skip the conversion by default. */
     bool skip_srgb_conversion = false;
     if (ima) {
-      /* Movies and image sequences are always linear after GPU load */
       if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
         skip_srgb_conversion = true;
       }
