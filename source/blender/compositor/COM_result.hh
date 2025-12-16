@@ -205,9 +205,6 @@ class Result {
   /* Returns the type of the given GPU texture format. */
   static ResultType type(blender::gpu::TextureFormat format);
 
-  /* Returns the float type of the result given the channels count. */
-  static ResultType float_type(const int channels_count);
-
   /* Returns the CPP type corresponding to the given result type. */
   static const CPPType &cpp_type(const ResultType type);
 
@@ -422,21 +419,9 @@ class Result {
   /* Identical to load_pixel but with zero boundary condition. */
   template<typename T, bool CouldBeSingleValue = false> T load_pixel_zero(const int2 &texel) const;
 
-  /* Similar to load_pixel, but can load a result whose type is not known at compile time. If the
-   * number of channels in the result are less than 4, then the rest of the returned float4 will
-   * have its vales initialized as follows: float4(0, 0, 0, 1). This is similar to how the
-   * texelFetch function in GLSL works. */
-  float4 load_pixel_generic_type(const int2 &texel) const;
-
   /* Stores the given pixel value in the pixel at the given texel coordinates. Assumes the result
    * stores a value of the given template type. */
   template<typename T> void store_pixel(const int2 &texel, const T &pixel_value);
-
-  /* Similar to store_pixel, but can write to a result whose types is not known at compile time.
-   * While a float4 is given, only the number of channels of the result will be written, while the
-   * rest of the float4 will be ignored. This is similar to how the imageStore function in GLSL
-   * works. */
-  void store_pixel_generic_type(const int2 &texel, const float4 &pixel_value);
 
   /* Samples the result at the given normalized coordinates with the given interpolation and
    * boundary conditions. The interpolation is ignored for non float types that do not support
@@ -449,40 +434,29 @@ class Result {
            const ExtensionMode &extend_mode_x,
            const ExtensionMode &extend_mode_y) const;
 
-  /* Equivalent to the GLSL texture() function with nearest interpolation and zero boundary
-   * condition. The coordinates are thus expected to have half-pixels offsets. A float4 is always
-   * returned regardless of the number of channels of the buffer, the remaining channels will be
-   * initialized with the template float4(0, 0, 0, 1). */
-  float4 sample_nearest_zero(const float2 &coordinates) const;
-
-  /* Identical to sample_nearest_zero but with bilinear interpolation. */
-  float4 sample_bilinear_zero(const float2 &coordinates) const;
-
-  /* Identical to sample_nearest_zero but with extended boundary condition. */
+  /* Equivalent to the GLSL texture() function with nearest neighbour interpolation and extended
+   * boundary condition. The coordinates are thus expected to have half-pixels offsets. A float4 is
+   * always returned regardless of the number of channels of the buffer, the remaining channels
+   * will be initialized with the template float4(0, 0, 0, 1). */
   float4 sample_nearest_extended(const float2 &coordinates) const;
+
+  /* Identical to sample_nearest_extended but with bilinear interpolation and zero boundary
+   * condition. */
+  float4 sample_bilinear_zero(const float2 &coordinates) const;
 
   /* Identical to sample_nearest_extended but with bilinear interpolation. */
   float4 sample_bilinear_extended(const float2 &coordinates) const;
 
-  /* Identical to sample_nearest_extended but with cubic interpolation. */
-  float4 sample_cubic_extended(const float2 &coordinates) const;
-
-  float4 sample_nearest_wrap(const float2 &coordinates, bool wrap_x, bool wrap_y) const;
-  float4 sample_bilinear_wrap(const float2 &coordinates, bool wrap_x, bool wrap_y) const;
-  float4 sample_cubic_wrap(const float2 &coordinates, bool wrap_x, bool wrap_y) const;
-
-  /* Equivalent to the GLSL textureGrad() function with EWA filtering and extended boundary
-   * condition. Note that extended boundaries only cover areas touched by the ellipses whose
-   * center is inside the image, other areas will be zero. The coordinates are thus expected to
-   * have half-pixels offsets. Only supports ResultType::Color. */
-  float4 sample_ewa_extended(const float2 &coordinates,
-                             const float2 &x_gradient,
-                             const float2 &y_gradient) const;
-
-  /* Identical to sample_ewa_extended but with zero boundary condition. */
-  float4 sample_ewa_zero(const float2 &coordinates,
-                         const float2 &x_gradient,
-                         const float2 &y_gradient) const;
+  /* Samples the result at the given normalized coordinates using EWA filtering of the given
+   * texel-space gradients using the given boundary condition. Note that boundary conditions only
+   * cover areas touched by the ellipses whose center is inside the image, other areas will be
+   * zero. The coordinates are thus expected to have half-pixels offsets. Only supports
+   * ResultType::Color. */
+  template<bool CouldBeSingleValue = false>
+  Color sample_ewa(const float2 &coordinates,
+                   const float2 &x_gradient,
+                   const float2 &y_gradient,
+                   ExtensionMode extension_mode) const;
 
  private:
   /* Allocates the image data for the given size.
@@ -642,28 +616,10 @@ BLI_INLINE_METHOD T Result::load_pixel_zero(const int2 &texel) const
   return this->load_pixel_fallback<T, CouldBeSingleValue>(texel, T(0));
 }
 
-BLI_INLINE_METHOD float4 Result::load_pixel_generic_type(const int2 &texel) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-  }
-  else {
-    this->get_cpp_type().copy_assign(this->cpu_data()[this->get_pixel_index(texel)], pixel_value);
-  }
-  return pixel_value;
-}
-
 template<typename T>
 BLI_INLINE_METHOD void Result::store_pixel(const int2 &texel, const T &pixel_value)
 {
   this->cpu_data().typed<T>()[this->get_pixel_index(texel)] = pixel_value;
-}
-
-BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
-                                                        const float4 &pixel_value)
-{
-  this->get_cpp_type().copy_assign(pixel_value, this->cpu_data()[this->get_pixel_index(texel)]);
 }
 
 BLI_INLINE int32_t wrap_coordinates(float u, int32_t size, const ExtensionMode extension_mode)
@@ -772,109 +728,6 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
   }
 }
 
-BLI_INLINE_METHOD float4 Result::sample_nearest_zero(const float2 &coordinates) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = coordinates * float2(size);
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_nearest_border_fl(buffer,
-                                      pixel_value,
-                                      size.x,
-                                      size.y,
-                                      this->channels_count(),
-                                      texel_coordinates.x,
-                                      texel_coordinates.y);
-  return pixel_value;
-}
-
-BLI_INLINE_METHOD float4 Result::sample_nearest_wrap(const float2 &coordinates,
-                                                     bool wrap_x,
-                                                     bool wrap_y) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = coordinates * float2(size);
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_nearest_wrapmode_fl(
-      buffer,
-      pixel_value,
-      size.x,
-      size.y,
-      this->channels_count(),
-      texel_coordinates.x,
-      texel_coordinates.y,
-      wrap_x ? math::InterpWrapMode::Repeat : math::InterpWrapMode::Border,
-      wrap_y ? math::InterpWrapMode::Repeat : math::InterpWrapMode::Border);
-  return pixel_value;
-}
-
-BLI_INLINE_METHOD float4 Result::sample_bilinear_wrap(const float2 &coordinates,
-                                                      bool wrap_x,
-                                                      bool wrap_y) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = coordinates * float2(size) - 0.5f;
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_bilinear_wrapmode_fl(
-      buffer,
-      pixel_value,
-      size.x,
-      size.y,
-      this->channels_count(),
-      texel_coordinates.x,
-      texel_coordinates.y,
-      wrap_x ? math::InterpWrapMode::Repeat : math::InterpWrapMode::Border,
-      wrap_y ? math::InterpWrapMode::Repeat : math::InterpWrapMode::Border);
-  return pixel_value;
-}
-
-BLI_INLINE_METHOD float4 Result::sample_cubic_wrap(const float2 &coordinates,
-                                                   bool wrap_x,
-                                                   bool wrap_y) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = coordinates * float2(size) - 0.5f;
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_cubic_bspline_wrapmode_fl(
-      buffer,
-      pixel_value,
-      size.x,
-      size.y,
-      this->channels_count(),
-      texel_coordinates.x,
-      texel_coordinates.y,
-      wrap_x ? math::InterpWrapMode::Repeat : math::InterpWrapMode::Border,
-      wrap_y ? math::InterpWrapMode::Repeat : math::InterpWrapMode::Border);
-  return pixel_value;
-}
-
 BLI_INLINE_METHOD float4 Result::sample_bilinear_zero(const float2 &coordinates) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -941,97 +794,48 @@ BLI_INLINE_METHOD float4 Result::sample_bilinear_extended(const float2 &coordina
   return pixel_value;
 }
 
-BLI_INLINE_METHOD float4 Result::sample_cubic_extended(const float2 &coordinates) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_cubic_bspline_fl(buffer,
-                                     pixel_value,
-                                     size.x,
-                                     size.y,
-                                     this->channels_count(),
-                                     texel_coordinates.x,
-                                     texel_coordinates.y);
-  return pixel_value;
-}
-
-/**
- * Given a Result as the userdata argument, sample it at the given coordinates using extended
- * boundary condition and write the result to the result argument.
- */
-static void sample_ewa_extended_read_callback(void *userdata, int x, int y, float result[4])
+/* Given a Result as the userdata argument, sample it at the given coordinates using extended
+ * boundary condition and write the result to the result argument. */
+static inline void sample_ewa_extended_read_callback(void *userdata, int x, int y, float result[4])
 {
   const Result *input = static_cast<const Result *>(userdata);
   const Color sampled_result = input->load_pixel_extended<Color>(int2(x, y));
   copy_v4_v4(result, sampled_result);
 }
 
-BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
-                                                     const float2 &x_gradient,
-                                                     const float2 &y_gradient) const
-{
-  BLI_assert(type_ == ResultType::Color);
-
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  BLI_ewa_filter(size.x,
-                 size.y,
-                 false,
-                 true,
-                 coordinates,
-                 x_gradient,
-                 y_gradient,
-                 sample_ewa_extended_read_callback,
-                 const_cast<Result *>(this),
-                 pixel_value);
-  return pixel_value;
-}
-
-/**
- * Given a Result as the userdata argument, sample it at the given coordinates using zero boundary
- * condition and write the result to the result argument.
- */
-static void sample_ewa_zero_read_callback(void *userdata, int x, int y, float result[4])
+/* Same as sample_ewa_extended_read_callback but uses zero boundary conditions. */
+static inline void sample_ewa_zero_read_callback(void *userdata, int x, int y, float result[4])
 {
   const Result *input = static_cast<const Result *>(userdata);
   const Color sampled_result = input->load_pixel_zero<Color>(int2(x, y));
   copy_v4_v4(result, sampled_result);
 }
 
-BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
-                                                 const float2 &x_gradient,
-                                                 const float2 &y_gradient) const
+template<bool CouldBeSingleValue>
+BLI_INLINE_METHOD Color Result::sample_ewa(const float2 &coordinates,
+                                           const float2 &x_gradient,
+                                           const float2 &y_gradient,
+                                           ExtensionMode extension_mode) const
 {
   BLI_assert(type_ == ResultType::Color);
+  BLI_assert(extension_mode == ExtensionMode::Clip || extension_mode == ExtensionMode::Extend);
 
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
+  if constexpr (CouldBeSingleValue) {
+    if (is_single_value_) {
+      return this->get_single_value<Color>();
+    }
   }
 
-  const int2 size = domain_.data_size;
-  BLI_ewa_filter(size.x,
-                 size.y,
+  Color pixel_value = Color(0.0f);
+  BLI_ewa_filter(domain_.data_size.x,
+                 domain_.data_size.y,
                  false,
                  true,
                  coordinates,
                  x_gradient,
                  y_gradient,
-                 sample_ewa_zero_read_callback,
+                 extension_mode == ExtensionMode::Clip ? sample_ewa_zero_read_callback :
+                                                         sample_ewa_extended_read_callback,
                  const_cast<Result *>(this),
                  pixel_value);
   return pixel_value;
