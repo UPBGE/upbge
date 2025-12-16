@@ -1017,12 +1017,12 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       /* For animated textures, update frame number from current scene
        * This is CRITICAL for ImageSequence/Movie playback! */
       if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-        /* Get scene from depsgraph (same as CPU modifier evaluator) */
+        /* Get scene from depsgraph (same as CPU modifier evaluator) and compute
+         * the correct image user frame using the shared utility which handles
+         * offsets, cycling and ranges. */
         Scene *scene = DEG_get_evaluated_scene(depsgraph);
         if (scene) {
-          /* Update framenr from scene frame + offset
-           * BKE_image_get_gpu_texture() will handle clamping/cyclic internally */
-          iuser.framenr = int(scene->r.cfra) + iuser.offset;
+          BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
       
