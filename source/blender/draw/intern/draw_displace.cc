@@ -21,6 +21,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 #include "BKE_object.hh"
+#include "BKE_action.hh" /* BKE_pose_channel_find_name for MAP_OBJECT/bone */
 
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -389,6 +390,27 @@ vec3 tex_coord = texture_coords[v].xyz;
 
 /* Step 1: do_2d_mapping() - FLAT mapping (normalize [-1,1] → [0,1])
  * This converts object-space coordinates to [0,1] normalized UV space. */
+/* Sample texture using MOD_get_texture_coords() or input_positions when requested */
+/* Simplified version of MOD_get_texture_coords() for Displace modifier */
+if (mapping_use_input_positions) {
+  vec3 in_pos = input_positions[v].xyz;
+  if (tex_mapping == 0) { //MOD_DISP_MAP_LOCAL
+    tex_coord = in_pos;
+  } else if (tex_mapping == 1) { //MOD_DISP_MAP_GLOBAL
+    vec4 w = object_to_world_mat * vec4(in_pos, 1.0);
+    tex_coord = w.xyz;
+  } else if (tex_mapping == 2) { //MOD_DISP_MAP_OBJECT
+    vec4 w = object_to_world_mat * vec4(in_pos, 1.0);
+    vec4 o = mapref_imat * w;
+    tex_coord = o.xyz;
+  } else {
+  /* Fallback to precomputed coords (covers UV case and others) */
+  tex_coord = texture_coords[v].xyz;
+  }
+}
+else {
+  tex_coord = texture_coords[v].xyz;
+}
 float fx = (tex_coord.x + 1.0) / 2.0;
 float fy = (tex_coord.y + 1.0) / 2.0;
   
@@ -1142,6 +1164,13 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::bool_t, "tex_flipblend");   /* TEX_FLIPBLEND */
     info.push_constant(Type::bool_t, "tex_flip_axis");   /* TEX_IMAROT (flip X/Y) */
     info.push_constant(Type::bool_t, "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
+    /* Mapping controls (when mapping_use_input_positions==true shader will
+     * compute texture coords from input_positions[] instead of using
+     * precomputed texture_coords[]). UV mapping remains CPU-side. */
+    info.push_constant(Type::int_t, "tex_mapping");
+    info.push_constant(Type::bool_t, "mapping_use_input_positions");
+    info.push_constant(Type::float4x4_t, "object_to_world_mat");
+    info.push_constant(Type::float4x4_t, "mapref_imat");
     info.push_constant(Type::bool_t, "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
   }
 
@@ -1278,6 +1307,41 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       }
     }
     GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", tex_is_byte);
+    /* Mapping controls: if UV mapping, keep false; otherwise allow using input_positions. */
+    int tex_mapping = int(dmd->texmapping);
+    bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV);
+    GPU_shader_uniform_1i(shader, "tex_mapping", tex_mapping);
+    GPU_shader_uniform_1b(shader, "mapping_use_input_positions", mapping_use_input_positions);
+
+    /* Pass object->world matrix (fast copy) */
+    float obj2w[4][4];
+    memcpy(obj2w, deformed_eval->object_to_world().ptr(), sizeof(obj2w));
+    GPU_shader_uniform_mat4(shader, "object_to_world_mat", obj2w);
+
+    /* mapref_imat: compute inverse map reference for MOD_DISP_MAP_OBJECT when possible.
+     * Falls back to identity when no map_object is set. This mirrors logic from MOD_get_texture_coords(). */
+    float mapref_imat[4][4];
+    if (dmd->texmapping == MOD_DISP_MAP_OBJECT && dmd->map_object != nullptr) {
+      Object *map_object = dmd->map_object;
+      if (dmd->map_bone[0] != '\0') {
+        bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, dmd->map_bone);
+        if (pchan) {
+          float mat_bone_world[4][4];
+          mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
+          invert_m4_m4(mapref_imat, mat_bone_world);
+        }
+        else {
+          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+        }
+      }
+      else {
+        invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+      }
+    }
+    else {
+      unit_m4(mapref_imat);
+    }
+    GPU_shader_uniform_mat4(shader, "mapref_imat", mapref_imat);
   }
 
 
