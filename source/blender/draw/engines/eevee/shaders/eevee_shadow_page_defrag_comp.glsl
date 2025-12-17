@@ -29,7 +29,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_shadow_page_defrag)
 
 #define max_page uint(SHADOW_MAX_PAGE)
 
-void find_first_valid(inout uint src, uint dst)
+void find_first_valid(uint &src, uint dst)
 {
   for (uint i = src; i < dst; i++) {
     if (pages_cached_buf[i % max_page].x != uint(-1)) {
@@ -143,10 +143,10 @@ void main()
   clear_dispatch_buf.num_groups_z = 0;
 
   /* Reset TBDR command indirect buffer. */
-  DrawCommand cmd;
+  DrawCommandArray cmd;
   cmd.vertex_len = 0u;
   cmd.instance_len = 1u;
   cmd.vertex_first = 0u;
-  cmd.base_index() = 0u;
+  cmd.instance_first = 0u;
   tile_draw_buf = cmd;
 }

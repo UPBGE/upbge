@@ -1566,6 +1566,11 @@ GHOST_TSuccess GHOST_WindowX11::endFullScreen() const
 
 uint16_t GHOST_WindowX11::getDPIHint()
 {
+  /* Early out if use of DPI scale is disabled. */
+  if (!system_->native_pixel_) {
+    return 96;
+  }
+
   /* Try to read DPI setting set using xrdb */
   char *resMan = XResourceManagerString(display_);
   if (resMan) {

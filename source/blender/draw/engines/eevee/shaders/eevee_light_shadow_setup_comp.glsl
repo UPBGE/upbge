@@ -78,7 +78,7 @@ void orthographic_sync(int tilemap_id,
       1.0f);
 }
 
-void cascade_sync(inout LightData light)
+void cascade_sync(LightData &light)
 {
   int level_min = light.sun().clipmap_lod_min;
   int level_max = light.sun().clipmap_lod_max;
@@ -141,7 +141,7 @@ void cascade_sync(inout LightData light)
   light.sun() = sun_data;
 }
 
-void clipmap_sync(inout LightData light)
+void clipmap_sync(LightData &light)
 {
   float3 ws_camera_position = uniform_buf.camera.viewinv[3].xyz;
   float3 ls_camera_position = transform_direction_transposed(light.object_to_world,
@@ -316,13 +316,13 @@ void main()
         position_on_light = float3(point_on_unit_shape * light.area().size, 0.0f);
       }
       else {
-        if (light.local().shadow_radius == 0.0f) {
+        if (light.local().local.shadow_radius == 0.0f) {
           /* The shape is a point. There is nothing to jitter.
            * `shape_radius` is clamped to a minimum for precision reasons, so `shadow_radius` is
            * set to 0 only when the light radius is also 0 to detect this case. */
         }
         else {
-          position_on_light = sample_ball(rand) * light.local().shape_radius;
+          position_on_light = sample_ball(rand) * light.local().local.shape_radius;
         }
       }
     }
@@ -334,7 +334,7 @@ void main()
     }
 
     LightLocalData local_data = light.local();
-    local_data.shadow_position = position_on_light;
+    local_data.local.shadow_position = position_on_light;
     light.local() = local_data;
   }
 

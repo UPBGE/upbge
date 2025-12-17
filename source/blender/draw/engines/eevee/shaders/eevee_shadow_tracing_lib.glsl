@@ -71,7 +71,7 @@ struct ShadowTracingSample {
  * This reverse tracing allows to approximate the geometry behind occluders while minimizing
  * light-leaks.
  */
-void shadow_map_trace_hit_check(inout ShadowMapTracingState state,
+void shadow_map_trace_hit_check(ShadowMapTracingState &state,
                                 ShadowTracingSample samp,
                                 bool is_last_sample)
 {
@@ -157,12 +157,12 @@ ShadowRayDirectional shadow_ray_generate_directional(
   float dist_to_near_plane = -lP.z - clip_near;
   /* Trace in a radius that is covered by low resolution page inflation. */
   float max_tracing_distance = texel_radius * float(SHADOW_PAGE_RES << SHADOW_TILEMAP_LOD);
-  /* TODO(fclem): Remove atan here. We only need the cosine of the angle. */
-  float max_tracing_angle = atan_fast(max_tracing_distance / dist_to_near_plane);
-  float shadow_angle = min(light.sun().shadow_angle, max_tracing_angle);
+  float max_tracing_angle_cos = cos_from_tan(max_tracing_distance / dist_to_near_plane);
+  /* Taking max of cosines to get the minimum of the angles. */
+  float shadow_angle_cos = max(light.sun().shadow_angle_cos, max_tracing_angle_cos);
 
   /* Light shape is 1 unit away from the shading point. */
-  float3 direction = sample_uniform_cone(random_2d, cos(shadow_angle));
+  float3 direction = sample_uniform_cone(random_2d, shadow_angle_cos);
 
   /* It only make sense to trace where there can be occluder. Clamp by distance to near plane. */
   direction *= max(texel_radius, dist_to_near_plane / direction.z);
@@ -177,8 +177,7 @@ ShadowRayDirectional shadow_ray_generate_directional(
   return ray;
 }
 
-ShadowTracingSample shadow_map_trace_sample(ShadowMapTracingState state,
-                                            inout ShadowRayDirectional ray)
+ShadowTracingSample shadow_map_trace_sample(ShadowMapTracingState state, ShadowRayDirectional &ray)
 {
   /* Ray position is ray local position with origin at light origin. */
   float3 ray_pos = ray.origin + ray.direction * state.ray_time;
@@ -232,7 +231,7 @@ ShadowRayPunctual shadow_ray_generate_punctual(LightData light,
   }
 
   float clip_near = intBitsToFloat(light.clip_near);
-  float shape_radius = light.spot().shadow_radius;
+  float shape_radius = light.spot().local.shadow_radius;
   /* Clamp to a minimum value to avoid `local_ray_up` being degenerate. Could be revisited as the
    * issue might reappear at different zoom level. */
   shape_radius = max(0.00002f, shape_radius);
@@ -261,7 +260,7 @@ ShadowRayPunctual shadow_ray_generate_punctual(LightData light,
 
     direction = point_on_light_shape - lP;
   }
-  float3 shadow_position = light.local().shadow_position;
+  float3 shadow_position = light.local().local.shadow_position;
   /* Clip the ray to not cross the near plane.
    * Avoid traces that starts on tiles that have not been queried, creating noise. */
   float clip_distance = length(lP - shadow_position) - clip_near;
@@ -279,8 +278,7 @@ ShadowRayPunctual shadow_ray_generate_punctual(LightData light,
   return ray;
 }
 
-ShadowTracingSample shadow_map_trace_sample(ShadowMapTracingState state,
-                                            inout ShadowRayPunctual ray)
+ShadowTracingSample shadow_map_trace_sample(ShadowMapTracingState state, ShadowRayPunctual &ray)
 {
   float3 receiver_pos = ray.origin + ray.direction * state.ray_time;
   int face_id = shadow_punctual_face_index_get(receiver_pos);
@@ -363,7 +361,7 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
   }
   else {
     float3 lP = light_world_to_local_point(light, P);
-    lP -= light.local().shadow_position;
+    lP -= light.local().local.shadow_position;
     /* Simplification of `exp2(shadow_punctual_level_fractional)`. */
     scale = shadow_punctual_pixel_ratio(light,
                                         lP,
@@ -459,7 +457,7 @@ float shadow_eval(LightData light,
     L = light_z_axis(light);
   }
   else {
-    L = light_position_get(light) + light.local().shadow_position - P;
+    L = light_position_get(light) + light.local().local.shadow_position - P;
     L = normalize_and_get_length(L, distance_to_shadow);
   }
 
