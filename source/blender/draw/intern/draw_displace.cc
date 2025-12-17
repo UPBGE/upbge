@@ -681,8 +681,8 @@ if (tex_flip_axis) {
    * If source image was sRGB, GPU auto-converted to linear.
    * We only apply linear→sRGB if image was ORIGINALLY linear. */
   vec3 srgb_rgb;
-  if (tex_skip_srgb_conversion) {
-    /* Image was sRGB, GPU converted to linear, use as-is (already correct for displacement) */
+  if (tex_skip_srgb_conversion) { // For movies, choose working space colorspace to have same displacement as CPU
+    /* Image was sRGB or ?, use as-is */
     srgb_rgb = rgb;
   }
   else {
