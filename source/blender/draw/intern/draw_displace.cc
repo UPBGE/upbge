@@ -1337,7 +1337,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
      * other images we do not skip the conversion by default. */
     bool skip_srgb_conversion = false;
     if (ima) {
-      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE, IMA_SRC_GENERATED)) {
         skip_srgb_conversion = true;
       }
     }
