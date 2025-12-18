@@ -12,6 +12,7 @@
 
 #include <unordered_set>
 #include <unordered_map>
+#include <vector>
 
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
@@ -34,6 +35,7 @@ struct DRWTextStore;
 struct DupliObject;
 struct Object;
 struct Mesh;
+struct ModifierData;
 namespace blender::draw {
 struct CurvesModule;
 struct VolumeModule;
@@ -57,19 +59,25 @@ enum class PlaybackRefuseReason : uint8_t {
   Unknown,
 };
 
-struct GPUPlaybackDecision {
+/* Refusal info stored in GPUPlaybackDecision. */
+struct PlayBackRefuseInfo {
+  PlaybackRefuseReason reason = PlaybackRefuseReason::None;
   bool python_requests_gpu = false;
-  bool modifier_requests_gpu = false;
   bool key_requests_gpu = false;
+  bool modifier_requests_gpu = false;
   bool allow_gpu = false; /* final decision */
-  std::optional<PlaybackRefuseReason> refused_reason;
+  struct Object *ob =
+      nullptr; /* not optional: object for this modifier */
+  struct ModifierData *refusal_modifier = nullptr; /* optional: specific modifier that caused refusal */
+  std::vector<ModifierData *> modifiers_gpu = {};
+  std::vector<ModifierData *> modifiers_cpu = {};
 };
+
 
 /** Set of Mesh* scheduled to free GPU resources from non-GL contexts. */
 struct MeshProcessEntry {
   struct Object *eval_obj_for_skinning = nullptr;
   bool scheduled_free = false;
-  std::optional<PlaybackRefuseReason> playback_refused = std::nullopt;
   /* GPU modifier pipeline (persistent across frames to preserve pipeline_hash_) */
   std::unique_ptr<blender::draw::GPUModifierPipeline> gpu_pipeline = nullptr;
 };

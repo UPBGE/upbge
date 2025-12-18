@@ -1073,69 +1073,100 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
 static CLG_LogRef LOG = {"draw"};
 
 /* Helper: prints a short diagnostic when GPU playback was refused while requested. */
-static void report_gpu_refused(Object *ob,
-                               bool topology_mismatch,
-                               bool topology_modifier_present,
-                               bool mixed_cpu_gpu,
-                               bool modifier_requests_gpu,
-                               bool key_requests_gpu)
+static void report_gpu_refused(const PlayBackRefuseInfo &info)
 {
-  const char *objname = (ob && ob->id.name[0]) ? ob->id.name + 2 : "Unknown";
+  const char *objname = (info.ob && info.ob->id.name[0]) ? info.ob->id.name + 2 : "Unknown";
 
   std::string reasons;
-  if (topology_mismatch) {
-    reasons += "topology mismatch";
-  }
-  if (topology_modifier_present) {
-    if (!reasons.empty()) {
-      reasons += ", ";
-    }
-    reasons += "topology-changing modifier in stack";
-  }
-  if (mixed_cpu_gpu) {  // ← NEW
-    if (!reasons.empty()) {
-      reasons += ", ";
-    }
-    reasons += "mixed CPU and GPU modifiers (all deform modifiers must use the same method)";
-  }
-  if (reasons.empty()) {
-    reasons = "unknown/other";
+  switch (info.reason) {
+    case PlaybackRefuseReason::TopologyMismatch:
+      reasons = "topology mismatch";
+      break;
+    case PlaybackRefuseReason::TopologyModifier:
+      reasons = "topology-changing modifier in stack";
+      break;
+    case PlaybackRefuseReason::MixedCPUAndGPU:
+      reasons = "mixed CPU and GPU modifiers (all deform modifiers must use the same method)";
+      break;
+    default:
+      reasons = "unknown/other";
+      break;
   }
 
   std::string requested_by;
-  if (modifier_requests_gpu) {
-    requested_by += "modifier(s)";
+
+  if (info.refusal_modifier) {
+    requested_by += info.refusal_modifier->name;
   }
-  if (key_requests_gpu) {
+  if (info.key_requests_gpu) {
     if (!requested_by.empty()) {
       requested_by += ", ";
     }
     requested_by += "shapekeys";
   }
+  if (info.python_requests_gpu) {
+    if (!requested_by.empty()) {
+      requested_by += ", ";
+    }
+    requested_by += "python";
+  }
+
   if (requested_by.empty()) {
     requested_by = "unknown";
   }
 
-  CLOG_WARN(&LOG,
-            "Refusing GPU animation playback for object '%s'. Reasons: %s. Requested by: %s",
-            objname,
-            reasons.c_str(),
-            requested_by.c_str());
+  auto join_names = [](const std::vector<ModifierData *> &mods) {
+    std::string s;
+    for (size_t i = 0; i < mods.size(); ++i) {
+      if (i != 0) {
+        s += ", ";
+      }
+      s += mods[i]->name;
+    }
+    return s;
+  };
+
+  /* Special-case mixed CPU/GPU: provide clearer diagnostic listing which modifiers
+   * request GPU vs which are CPU-only. */
+  if (info.reason == PlaybackRefuseReason::MixedCPUAndGPU) {
+    const std::string gpu_list = join_names(info.modifiers_gpu);
+    const std::string cpu_list = join_names(info.modifiers_cpu);
+    CLOG_WARN(&LOG,
+              "Refusing GPU animation playback for object '%s': mixed CPU/GPU modifiers detected. "
+              "GPU-capable modifiers: [%s]; CPU-only modifiers: [%s]. All deform modifiers must use the same method.",
+              objname,
+              gpu_list.c_str(),
+              cpu_list.c_str());
+  }
+  else {
+    CLOG_WARN(&LOG,
+              "Refusing GPU animation playback for object '%s'. Reasons: %s. Requested by: %s",
+              objname,
+              reasons.c_str(),
+              requested_by.c_str());
+  }
 }
 
-static bool modifier_stack_has_topology_changer(Object *ob)
+static bool modifier_stack_has_topology_changer(Object *ob, PlayBackRefuseInfo &info)
 {
+  if (ob == nullptr) {
+    return false;
+  }
+  info.refusal_modifier = nullptr;
+
   for (ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
     /* Detect modifiers that implement modify_mesh or modify_geometry_set
      * (constructive/destructive). */
     const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
-    if (mti) {
-      if (mti->modify_mesh != nullptr) {
-        return true;
-      }
+    if (mti && mti->modify_mesh != nullptr) {
+      info.refusal_modifier = md;
+      info.reason = PlaybackRefuseReason::TopologyModifier;
+      return true;
     }
     /* Particle systems produce/emit geometry. Treat as topology-changing. */
     if (md->type == eModifierType_ParticleSystem) {
+      info.refusal_modifier = md;
+      info.reason = PlaybackRefuseReason::TopologyModifier;
       return true;
     }
   }
@@ -1143,12 +1174,13 @@ static bool modifier_stack_has_topology_changer(Object *ob)
 }
 
 /* Compute decision without side-effects. */
-static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
+static PlayBackRefuseInfo compute_gpu_playback_decision(Object &ob, Mesh &mesh)
 {
-  GPUPlaybackDecision d;
+  PlayBackRefuseInfo info;
+  info.ob = &ob;
   Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
 
-  d.python_requests_gpu = (mesh.is_python_request_gpu != 0) ||
+  info.python_requests_gpu = (mesh.is_python_request_gpu != 0) ||
                           (orig_mesh && orig_mesh->is_python_request_gpu != 0);
 
   /* Count deform modifiers requesting GPU */
@@ -1171,50 +1203,68 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
 
     total_deform_modifiers++;
 
-    /* Check if GPU-compatible */
+    /* Check if GPU-compatible and also whether it explicitly prefers CPU. */
     bool requests_gpu = false;
-    if (md->type == eModifierType_Armature) {
-      ArmatureModifierData *amd = (ArmatureModifierData *)md;
-      requests_gpu = (amd && (amd->deform_method & ARM_DEFORM_METHOD_GPU));
+    bool explicitly_cpu = false;
+    switch (md->type) {
+      case eModifierType_Armature: {
+        ArmatureModifierData *amd = (ArmatureModifierData *)md;
+        requests_gpu = amd && (amd->deform_method & ARM_DEFORM_METHOD_GPU);
+        explicitly_cpu = amd && !(amd->deform_method & ARM_DEFORM_METHOD_GPU);
+        break;
+      }
+      case eModifierType_Lattice: {
+        LatticeModifierData *lmd = (LatticeModifierData *)md;
+        requests_gpu = lmd && (lmd->deform_method & LAT_DEFORM_METHOD_GPU);
+        explicitly_cpu = lmd && !(lmd->deform_method & LAT_DEFORM_METHOD_GPU);
+        break;
+      }
+      case eModifierType_SimpleDeform: {
+        SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
+        requests_gpu = smd && (smd->deform_method & SIM_DEFORM_METHOD_GPU);
+        explicitly_cpu = smd && !(smd->deform_method & SIM_DEFORM_METHOD_GPU);
+        break;
+      }
+      case eModifierType_Hook: {
+        HookModifierData *hmd = (HookModifierData *)md;
+        requests_gpu = hmd && (hmd->deform_method & HOO_DEFORM_METHOD_GPU);
+        explicitly_cpu = hmd && !(hmd->deform_method & HOO_DEFORM_METHOD_GPU);
+        break;
+      }
+      case eModifierType_Displace: {
+        DisplaceModifierData *dmd = (DisplaceModifierData *)md;
+        requests_gpu = dmd && (dmd->deform_method & DIS_DEFORM_METHOD_GPU);
+        explicitly_cpu = dmd && !(dmd->deform_method & DIS_DEFORM_METHOD_GPU);
+        break;
+      }
+      default:
+        break;
     }
-    else if (md->type == eModifierType_Lattice) {
-      LatticeModifierData *lmd = (LatticeModifierData *)md;
-      requests_gpu = (lmd && (lmd->deform_method & LAT_DEFORM_METHOD_GPU));
-    }
-    else if (md->type == eModifierType_SimpleDeform) {
-      SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
-      requests_gpu = (smd && (smd->deform_method & SIM_DEFORM_METHOD_GPU));
-    }
-    else if (md->type == eModifierType_Hook) {
-      HookModifierData *hmd = (HookModifierData *)md;
-      requests_gpu = (hmd && (hmd->deform_method & HOO_DEFORM_METHOD_GPU));
-    }
-    else if (md->type == eModifierType_Displace) {
-      DisplaceModifierData *dmd = (DisplaceModifierData *)md;
-      requests_gpu = (dmd && (dmd->deform_method & DIS_DEFORM_METHOD_GPU));
-    }
-    /* Add more modifiers here as they are implemented */
 
     if (requests_gpu) {
       gpu_deform_modifiers++;
-      d.modifier_requests_gpu = true;
+      info.modifier_requests_gpu = true;
+      info.modifiers_gpu.push_back(md);
+    }
+    else if (explicitly_cpu) {
+      info.modifiers_cpu.push_back(md);
     }
   }
 
-  d.key_requests_gpu = (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
+  info.key_requests_gpu = (mesh.key && (mesh.key->deform_method & KEY_DEFORM_METHOD_GPU));
 
-  bool need_gpu_process = d.modifier_requests_gpu || d.key_requests_gpu || d.python_requests_gpu;
+  bool need_gpu_process = info.modifier_requests_gpu || info.key_requests_gpu || info.python_requests_gpu;
 
   if (!need_gpu_process) {
-    d.allow_gpu = false;
-    return d;
+    info.allow_gpu = false;
+    return info;
   }
 
   /* ============ DETECT MIXED CPU+GPU ============ */
   /* If ANY deform modifier requests GPU but NOT ALL do, refuse GPU playback */
   if (gpu_deform_modifiers > 0 && gpu_deform_modifiers < total_deform_modifiers) {
     need_gpu_process = false;
-    d.refused_reason = PlaybackRefuseReason::MixedCPUAndGPU;
+    info.reason = PlaybackRefuseReason::MixedCPUAndGPU;
   }
 
   /* ============ TOPOLOGY / STABILITY SAFEGUARDS ============ */
@@ -1224,25 +1274,24 @@ static GPUPlaybackDecision compute_gpu_playback_decision(Object &ob, Mesh &mesh)
                                     (mesh.corners_num != orig_mesh->corners_num));
     if (topology_mismatch) {
       need_gpu_process = false;
-      d.refused_reason = PlaybackRefuseReason::TopologyMismatch;
+      info.reason = PlaybackRefuseReason::TopologyMismatch;
     }
     else {
-      const bool topology_modifier_present = modifier_stack_has_topology_changer(&ob);
+      const bool topology_modifier_present = modifier_stack_has_topology_changer(&ob, info);
       if (topology_modifier_present) {
         need_gpu_process = false;
-        d.refused_reason = PlaybackRefuseReason::TopologyModifier;
       }
     }
   }
 
-  d.allow_gpu = DRWContext::is_active() && ob.mode == OB_MODE_OBJECT &&
-                (d.python_requests_gpu || (need_gpu_process && DRW_context_get()->is_playback()));
+  info.allow_gpu = DRWContext::is_active() && ob.mode == OB_MODE_OBJECT &&
+                (info.python_requests_gpu || (need_gpu_process && DRW_context_get()->is_playback()));
 
-  return d;
+  return info;
 }
 
 /* Note: register_meshes_to_skin now accepts a precomputed decision. */
-static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDecision &decision)
+static void register_meshes_to_skin(Object &ob, Mesh &mesh, const PlayBackRefuseInfo &info)
 {
   if (!DRWContext::is_active()) {
     return;
@@ -1259,9 +1308,9 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
   }
 
   /* Compute GPU processing need */
-  const bool need_gpu_process = decision.allow_gpu &&
-                                (decision.key_requests_gpu || decision.modifier_requests_gpu ||
-                                 decision.python_requests_gpu);
+  const bool need_gpu_process = info.allow_gpu &&
+                                (info.key_requests_gpu || info.modifier_requests_gpu ||
+                                 info.python_requests_gpu);
 
   if (need_gpu_process) {
     /* GPU processing needed: Create entry and mark mesh */
@@ -1270,7 +1319,6 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
     }
     auto &entry = (*dd->meshes_to_process)[orig_mesh];
     entry.eval_obj_for_skinning = &ob;  /* Always update */
-    entry.playback_refused = std::nullopt;
 
     /* Mark mesh as running GPU animation playback */
     orig_mesh->is_running_gpu_animation_playback = 1;
@@ -1284,19 +1332,9 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const GPUPlaybackDec
     mesh.is_running_gpu_animation_playback = 0;
     mesh.is_python_request_gpu = 0;
 
-    if (decision.refused_reason) {
+    if (info.reason != PlaybackRefuseReason::None) {
       /* Log refusal for diagnostics */
-      bool topology_mismatch = (decision.refused_reason == PlaybackRefuseReason::TopologyMismatch);
-      bool topology_modifier_present = (decision.refused_reason ==
-                                        PlaybackRefuseReason::TopologyModifier);
-      bool mixed_cpu_gpu = (decision.refused_reason == PlaybackRefuseReason::MixedCPUAndGPU);
-
-      report_gpu_refused(&ob,
-                         topology_mismatch,
-                         topology_modifier_present,
-                         mixed_cpu_gpu,
-                         decision.modifier_requests_gpu,
-                         decision.key_requests_gpu);
+      report_gpu_refused(info);
     }
   }
 }
@@ -1313,7 +1351,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   bool cd_uv_update = false;
   /* Determine GPU playback decision early (before registering). */
-  const GPUPlaybackDecision gpu_playback_decision = compute_gpu_playback_decision(ob, mesh);
+  const PlayBackRefuseInfo gpu_playback_decision = compute_gpu_playback_decision(ob, mesh);
   /* Register for GPU skinning if needed. */
   register_meshes_to_skin(ob, mesh, gpu_playback_decision);
 
