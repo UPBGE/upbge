@@ -1159,6 +1159,18 @@ static bool modifier_stack_has_topology_changer(Object *ob, PlayBackRefuseInfo &
      * (constructive/destructive). */
     const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
     if (mti && mti->modify_mesh != nullptr) {
+      /* Special-case: ignore Subsurf modifiers that are effectively inactive for
+       * viewport playback (viewport levels <= 1) or only enabled for render. In
+       * those cases the subsurf doesn't change topology for the viewport and
+       * we can still allow GPU playback. */
+      if (md->type == eModifierType_Subsurf) {
+        SubsurfModifierData *smd = (SubsurfModifierData *)md;
+        const bool viewport_active = (md->mode & eModifierMode_Realtime) != 0;
+        const int levels = smd ? smd->levels : 0;
+        if (!viewport_active || levels <= 1) {
+          continue; /* treat as non-topology-changing for playback decision */
+        }
+      }
       info.refusal_modifier = md;
       info.reason = PlaybackRefuseReason::TopologyModifier;
       return true;
