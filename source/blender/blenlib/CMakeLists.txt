@@ -87,7 +87,6 @@ set(SRC
   intern/index_mask_expression.cc
   intern/index_range.cc
   intern/jitter_2d.cc
-  intern/kdtree_impl.hh
   intern/lasso_2d.cc
   intern/lazy_threading.cc
   intern/length_parameterize.cc

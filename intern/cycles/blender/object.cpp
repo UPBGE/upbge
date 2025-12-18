@@ -250,7 +250,10 @@ Object *BlenderSync::sync_object(BL::ViewLayer &b_view_layer,
   }
 
   /* test if we need to sync */
-  bool object_updated = object_map.add_or_update(&object, b_ob, b_parent, key) ||
+  bool object_updated = object_map.add_or_update(&object,
+                                                 &b_ob.ptr.data_as<::Object>()->id,
+                                                 &b_parent.ptr.data_as<::Object>()->id,
+                                                 key) ||
                         (tfm != object->get_tfm());
 
   /* mesh sync */
@@ -439,6 +442,7 @@ bool BlenderSync::sync_object_attributes(BL::DepsgraphObjectInstance &b_instance
 /* Object Loop */
 
 void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
+                               ::bScreen *b_screen,
                                BL::SpaceView3D &b_v3d,
                                const float motion_time)
 {
@@ -471,7 +475,9 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
 
   /* object loop */
   bool cancel = false;
-  const bool show_lights = BlenderViewportParameters(b_v3d, use_developer_ui).use_scene_lights;
+  const bool show_lights = BlenderViewportParameters(
+                               b_screen, b_v3d.ptr.data_as<::View3D>(), use_developer_ui)
+                               .use_scene_lights;
 
   BL::ViewLayer b_view_layer = b_depsgraph.view_layer_eval();
   BL::Depsgraph::object_instances_iterator b_instance_iter;
@@ -495,7 +501,8 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     /* Ensure the object geom supporting the hair is processed before adding
      * the hair processing task to the task pool, calling .to_mesh() on the
      * same object in parallel does not work. */
-    const bool sync_hair = b_instance.show_particles() && object_has_particle_hair(b_ob);
+    const bool sync_hair = b_instance.show_particles() &&
+                           object_has_particle_hair(b_ob.ptr.data_as<::Object>());
 
     /* Object itself. */
     if (b_instance.show_self()) {
@@ -523,7 +530,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
 
   if (!cancel && !motion) {
     /* After object for world_use_portal. */
-    sync_background_light(b_v3d);
+    sync_background_light(b_screen, b_v3d.ptr.data_as<::View3D>());
 
     /* Handle removed data and modified pointers, as this may free memory, delete Nodes in the
      * right order to ensure that dependent data is freed after their users. Objects should be
@@ -541,6 +548,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
 
 void BlenderSync::sync_motion(BL::RenderSettings &b_render,
                               BL::Depsgraph &b_depsgraph,
+                              ::bScreen *b_screen,
                               BL::SpaceView3D &b_v3d,
                               BL::RegionView3D &b_rv3d,
                               const int width,
@@ -579,7 +587,7 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
     if (b_cam) {
       sync_camera_motion(b_render, b_cam, width, height, 0.0f);
     }
-    sync_objects(b_depsgraph, b_v3d);
+    sync_objects(b_depsgraph, b_screen, b_v3d);
   }
 
   /* Insert motion times from camera. Motion times from other objects
@@ -626,7 +634,7 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
     sync_camera_motion(b_render, b_cam, width, height, relative_time);
 
     /* sync object */
-    sync_objects(b_depsgraph, b_v3d, relative_time);
+    sync_objects(b_depsgraph, b_screen, b_v3d, relative_time);
   }
 
   geometry_motion_attribute_synced.clear();

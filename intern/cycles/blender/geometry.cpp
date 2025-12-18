@@ -34,7 +34,7 @@ static Geometry::Type determine_geom_type(BObjectInfo &b_ob_info, bool use_parti
   if (b_ob_info.object_data.is_a(&RNA_Volume) ||
       (b_ob_info.object_data ==
            object_get_data(b_ob_info.real_object, b_ob_info.use_adaptive_subdivision) &&
-       object_fluid_gas_domain_find(b_ob_info.real_object)))
+       object_fluid_gas_domain_find(*b_ob_info.real_object.ptr.data_as<::Object>())))
   {
     return Geometry::VOLUME;
   }
@@ -124,7 +124,7 @@ Geometry *BlenderSync::sync_geometry(BObjectInfo &b_ob_info,
   }
   else {
     /* Test if we need to update existing geometry. */
-    sync = geometry_map.update(geom, b_key_id);
+    sync = geometry_map.update(geom, b_key_id.ptr.data_as<::ID>());
   }
 
   if (!sync) {
@@ -260,7 +260,7 @@ void BlenderSync::sync_geometry_motion(BObjectInfo &b_ob_info,
       sync_hair_motion(b_ob_info, hair, motion_step);
     }
     else if (b_ob_info.object_data.is_a(&RNA_Volume) ||
-             object_fluid_gas_domain_find(b_ob_info.real_object))
+             object_fluid_gas_domain_find(*b_ob_info.real_object.ptr.data_as<::Object>()))
     {
       /* No volume motion blur support yet. */
     }
