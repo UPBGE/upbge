@@ -456,6 +456,7 @@ class Preprocessor {
   static constexpr const char *namespace_separator = "_";
   /* Add a prefix to all member functions so that they are not clashing with local variables. */
   static constexpr const char *method_call_prefix = "_";
+  static constexpr const char *linted_struct_suffix = "_host_shared_";
 
   static SourceLanguage language_from_filename(const std::string &filename)
   {
@@ -532,6 +533,7 @@ class Preprocessor {
         lower_swizzle_methods(parser, report_error);
         lower_classes(parser, report_error);
         lower_noop_keywords(parser, report_error);
+        lower_trailing_comma_in_list(parser, report_error);
 
         parser.apply_mutations();
 
@@ -540,6 +542,8 @@ class Preprocessor {
         lint_reserved_tokens(parser, report_error);
         lint_attributes(parser, report_error);
         lint_global_scope_constants(parser, report_error);
+        lint_constructors(parser, report_error);
+        lint_forward_declared_structs(parser, report_error);
 
         /* Lint and remove C++ accessor templates before lowering template. */
         lower_srt_accessor_templates(parser, report_error);
@@ -555,7 +559,7 @@ class Preprocessor {
         lower_unions(parser, report_error);
         lower_host_shared_structures(parser, report_error);
         /* Lower enums. */
-        lower_enums(parser, language == CPP, report_error);
+        lower_enums(parser, report_error);
         /* Lower SRT and Interfaces. */
         lower_entry_points(parser, report_error);
         lower_pipeline_definition(parser, filename, report_error);
@@ -2541,6 +2545,11 @@ class Preprocessor {
             const Token static_tok = is_static ? fn_type.prev() : Token::invalid();
             const Token const_tok = is_const ? fn_args.back().next() : Token::invalid();
 
+            if (fn_name.str()[0] == '_') {
+              report_error(ERROR_TOK(fn_name),
+                           "function name starting with an underscore are reserved");
+            }
+
             if (is_static) {
               parser.replace(fn_name, struct_name.str() + namespace_separator + fn_name.str());
               /* WORKAROUND: Erase the static keyword as it conflicts with the wrapper class
@@ -2913,7 +2922,7 @@ class Preprocessor {
     parser.insert_directive(scope.back().prev(), guard_else + guard_end);
   };
 
-  void lower_enums(Parser &parser, bool is_shared_file, report_callback report_error)
+  void lower_enums(Parser &parser, report_callback report_error)
   {
     /**
      * Transform C,C++ enum declaration into GLSL compatible defines and constants:
@@ -2941,8 +2950,6 @@ class Preprocessor {
      *
      * IMPORTANT: This has some requirements:
      * - Enums needs to have underlying types set to uint32_t to make them usable in UBO and SSBO.
-     * - All values needs to be specified using constant literals to avoid compiler differences.
-     * - All values needs to have the 'u' suffix to avoid GLSL compiler errors.
      */
     using namespace std;
     using namespace shader::parser;
@@ -2957,47 +2964,82 @@ class Preprocessor {
     parser().foreach_match("Mw{", missing_underlying_type);
     parser().foreach_match("MSw{", missing_underlying_type);
 
-    auto process_enum =
-        [&](Token enum_tok, Token class_tok, Token enum_name, Token enum_type, Scope enum_scope) {
-          string type_str = enum_type.str();
+    const string placeholder_value = "=__auto__";
 
-          if (is_shared_file) {
-            if (type_str != "uint32_t" && type_str != "int32_t") {
-              report_error(
-                  enum_type.line_number(),
-                  enum_type.char_number(),
-                  enum_type.line_str(),
-                  "enum declaration must use uint32_t or int32_t underlying type for interface "
-                  "compatibility");
-              return;
-            }
-          }
+    auto placeholder = [&](Scope enum_scope) {
+      const string &value = placeholder_value;
+      const string start = " = 0" + string(enum_scope.front().prev().str()[0] == 'u' ? "u" : "");
 
-          size_t insert_at = enum_scope.back().line_end();
-          parser.erase(enum_tok.str_index_start(), insert_at);
-          parser.insert_line_number(insert_at + 1, enum_tok.line_number());
-          parser.insert_after(insert_at + 1,
+      auto insert = [&](Token name, const string &replacement) {
+        if (name.next() == ',' || name.next() == '}') {
+          parser.insert_after(name, replacement);
+        }
+      };
+      enum_scope.foreach_match("{w", [&](const Tokens &t) { insert(t[1], start); });
+      enum_scope.foreach_match(",w", [&](const Tokens &t) { insert(t[1], value); });
+    };
+
+    parser().foreach_match("MSw:w{", [&](const Tokens &t) { placeholder(t[5].scope()); });
+    parser().foreach_match("Mw:w{", [&](const Tokens &t) { placeholder(t[4].scope()); });
+    parser().foreach_match("MS[[w]]w:w{", [&](const Tokens &t) { placeholder(t[10].scope()); });
+    parser().foreach_match("M[[w]]w:w{", [&](const Tokens &t) { placeholder(t[9].scope()); });
+
+    parser.apply_mutations();
+
+    auto process_enum = [&](Token enum_tok,
+                            Token class_tok,
+                            Token enum_name,
+                            Token enum_type,
+                            Scope enum_scope,
+                            const bool is_host_shared) {
+      string type_str = enum_type.str();
+
+      string previous_value = "error_invalid_first_value";
+      enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
+        Token name_tok = scope.front().prev();
+        string name = name_tok.str();
+        string value = scope.str();
+        if (value == placeholder_value) {
+          value = "= " + previous_value + " + 1" + (enum_type.str()[0] == 'u' ? "u" : "");
+        }
+        if (class_tok.is_valid()) {
+          name = enum_name.str() + "::" + name;
+        }
+        string decl = "constant static constexpr " + type_str + " " + name + " " + value + ";\n";
+        parser.insert_line_number(enum_tok.prev(), name_tok.line_number());
+        parser.insert_after(enum_tok.prev(), decl);
+
+        previous_value = name;
+      });
+      parser.insert_directive(enum_tok.prev(),
                               "#define " + enum_name.str() + " " + enum_type.str() + "\n");
+      if (is_host_shared) {
+        if (type_str != "uint32_t" && type_str != "int32_t") {
+          report_error(
+              ERROR_TOK(enum_type),
+              "enum declaration must use uint32_t or int32_t underlying type for interface "
+              "compatibility");
+          return;
+        }
 
-          enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
-            string name = scope.front().prev().str();
-            string value = scope.str_with_whitespace();
-            if (class_tok.is_valid()) {
-              name = enum_name.str() + "::" + name;
-            }
-            string decl = "constant static constexpr " + type_str + " " + name + " " + value +
-                          ";\n";
-            parser.insert_line_number(insert_at + 1, scope.front().line_number());
-            parser.insert_after(insert_at + 1, decl);
-          });
-          parser.insert_line_number(insert_at + 1, enum_scope.back().line_number() + 1);
-        };
+        string define = "#define ";
+        define += enum_name.str() + linted_struct_suffix + " " + enum_name.str() + "\n";
+        parser.insert_directive(enum_tok.prev(), define);
+      }
+      parser.erase(enum_tok, enum_scope.back().next());
+    };
 
     parser().foreach_match("MSw:w{", [&](vector<Token> tokens) {
-      process_enum(tokens[0], tokens[1], tokens[2], tokens[4], tokens[5].scope());
+      process_enum(tokens[0], tokens[1], tokens[2], tokens[4], tokens[5].scope(), false);
     });
     parser().foreach_match("Mw:w{", [&](vector<Token> tokens) {
-      process_enum(tokens[0], Token::invalid(), tokens[1], tokens[3], tokens[4].scope());
+      process_enum(tokens[0], Token::invalid(), tokens[1], tokens[3], tokens[4].scope(), false);
+    });
+    parser().foreach_match("MS[[w]]w:w{", [&](vector<Token> tokens) {
+      process_enum(tokens[0], tokens[1], tokens[7], tokens[9], tokens[10].scope(), true);
+    });
+    parser().foreach_match("M[[w]]w:w{", [&](vector<Token> tokens) {
+      process_enum(tokens[0], Token::invalid(), tokens[6], tokens[8], tokens[9].scope(), true);
     });
 
     parser.apply_mutations();
@@ -3029,7 +3071,10 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_struct([&](Token, Scope attributes, Token struct_name, Scope body) {
+    parser().foreach_struct([&](Token struct_keyword,
+                                Scope attributes,
+                                Token struct_name,
+                                Scope body) {
       if (attributes.is_invalid()) {
         return;
       }
@@ -3126,11 +3171,16 @@ class Preprocessor {
           /* Only 4 bytes enums are allowed. */
           type_info = {4, 4};
           parser.erase(type.prev());
+          /* Make sure that linted structs only contain other linted structs. */
+          parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else if (type.prev() == Struct) {
           /* Only 4 bytes enums are allowed. */
           type_info = {16, 16};
+          /* Erase redundant struct keyword. */
           parser.erase(type.prev());
+          /* Make sure that linted structs only contain other linted structs. */
+          parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else {
           report_error(ERROR_TOK(type),
@@ -3150,7 +3200,7 @@ class Preprocessor {
             try {
               array_size = std::stol(array[1].str());
             }
-            catch (std::invalid_argument const &ex) {
+            catch (std::invalid_argument const & /*ex*/) {
               report_error(ERROR_TOK(array.front()),
                            "Invalid array size, expecting integer literal");
             }
@@ -3168,6 +3218,11 @@ class Preprocessor {
                      " padding bytes";
         report_error(ERROR_TOK(struct_name), err.c_str());
       }
+      /* Insert an alias to the type that will get referenced for shaders that enforce usage of
+       * linted types. */
+      parser.insert_directive(struct_keyword.prev(),
+                              "#define " + struct_name.str() + linted_struct_suffix + " " +
+                                  struct_name.str() + "\n");
     });
     parser.apply_mutations();
   }
@@ -3275,9 +3330,12 @@ class Preprocessor {
           }
         }
         else if (attr_str == "host_shared") {
-          if (attributes.front().prev().prev() != Struct) {
-            report_error(ERROR_TOK(attr),
-                         "host_shared attributes must be placed after a struct keyword");
+          if (attributes.front().prev().prev() != Struct &&
+              attributes.front().prev().prev() != Enum)
+          {
+            report_error(
+                ERROR_TOK(attr),
+                "host_shared attributes must be placed after a struct or an enum definition");
             invalid = true;
           }
           /* Placement already checked. */
@@ -3370,6 +3428,14 @@ class Preprocessor {
     };
     parser().foreach_token(Private, process_access);
     parser().foreach_token(Public, process_access);
+  }
+
+  void lower_trailing_comma_in_list(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_match(",}", [&](const Tokens &t) { parser.erase(t[0]); });
   }
 
   void lower_implicit_return_types(Parser &parser, report_callback /*report_error*/)
@@ -4901,6 +4967,38 @@ class Preprocessor {
             ERROR_TOK(tokens[2]),
             "Global scope constant expression found. These get allocated per-thread in MSL. "
             "Use Macro's or uniforms instead.");
+      }
+    });
+  }
+
+  /* Search for constructor definition in active code. These are not supported. */
+  void lint_constructors(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_struct([&](Token, Scope, Token struct_name, Scope struct_scope) {
+      struct_scope.foreach_match("w(..)", [&](const Tokens &t) {
+        if (t[0].scope() != struct_scope) {
+          return;
+        }
+        if (t[0].str() == struct_name.str()) {
+          report_error(ERROR_TOK(t[0]), "Constructors are not supported.");
+        }
+      });
+    });
+  }
+
+  /* Forward declaration of types are not supported and makes no sense in a shader program where
+   * there is no pointers. */
+  void lint_forward_declared_structs(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_match("sw;", [&](const Tokens &t) {
+      if (t[0].scope().type() == ScopeType::Global) {
+        report_error(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
       }
     });
   }

@@ -143,13 +143,19 @@ struct [[host_shared]] T {
     string expect =
         R"(
 #line 3
+
+#define T_union0_host_shared_ T_union0
+#line 3
 struct                 T_union0 {
   float4 data0;
 
 };
 #line 2
+
+#define T_host_shared_ T
+#line 2
 struct                 T {
-         T_union0 union0;
+         T_union0_host_shared_ union0;
 #line 38
 };
 #ifndef GPU_METAL
@@ -213,22 +219,31 @@ struct [[host_shared]] T {
     string expect =
         R"(
 #line 5
+
+#define T_union0_host_shared_ T_union0
+#line 5
 struct                 T_union0 {
   float4 data0;
 
 };
+#line 8
+
+#define T_union1_host_shared_ T_union1
 #line 8
 struct                 T_union1 {
   float4 data0;
 
 };
 #line 2
+
+#define T_host_shared_ T
+#line 2
 struct                 T {
   float2 foo;
   float2 bar;
-         T_union0 union0;
+         T_union0_host_shared_ union0;
 #line 8
-         T_union1 union1;
+         T_union1_host_shared_ union1;
 #line 31
 };
 #ifndef GPU_METAL
@@ -282,22 +297,33 @@ struct [[host_shared]] T {
 };
 )";
     string expect = R"(
+
+#define B_host_shared_ B
+#line 2
 struct                 B {
   packed_float3 a;
   float b;
 };
-
+#line 8
+#define A_host_shared_ A
+#line 7
 struct                 A {
-         B e;
+         B_host_shared_ e;
 };
+#line 12
+
+#define T_union0_host_shared_ T_union0
 #line 12
 struct                 T_union0 {
   float4 data0;
 
 };
 #line 11
+
+#define T_host_shared_ T
+#line 11
 struct                 T {
-         T_union0 union0;
+         T_union0_host_shared_ union0;
 #line 27
 };
 #ifndef GPU_METAL
@@ -333,6 +359,9 @@ struct [[host_shared]] T {
 )";
     string expect = R"(
 #line 3
+
+#define T_union0_host_shared_ T_union0
+#line 3
 struct                 T_union0 {
   float4 data0;
   float4 data1;
@@ -341,8 +370,11 @@ struct                 T_union0 {
 
 };
 #line 2
+
+#define T_host_shared_ T
+#line 2
 struct                 T {
-         T_union0 union0;
+         T_union0_host_shared_ union0;
 #line 22
 };
 #ifndef GPU_METAL
@@ -1562,9 +1594,60 @@ enum class enum_class : int {
 };
 )";
     string expect = R"(
-#define enum_class int
+#line 3
 constant static constexpr int enum_class_VALUE = 0;
-#line 5
+
+#define enum_class int
+#line 2
+
+
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+
+  {
+    string input = R"(
+enum E : int { A, B = 2, C, D = 1, E };
+)";
+    string expect = R"(
+constant static constexpr int A = 0;
+#line 2
+constant static constexpr int B = 2;
+#line 2
+constant static constexpr int C = B + 1;
+#line 2
+constant static constexpr int D = 1;
+#line 2
+constant static constexpr int E = D + 1;
+
+#define E int
+#line 2
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+enum class enum_class : int {
+  VALUE = 0,
+};
+)";
+    string expect = R"(
+#line 3
+constant static constexpr int enum_class_VALUE = 0;
+
+#define enum_class int
+#line 2
+
+
+
 )";
     string error;
     string output = process_test_string(input, error);
@@ -2347,20 +2430,20 @@ void fn() {
 T fn1() { return _ctor(T) 1, 2 _rotc() ; }
 T fn2() { return _ctor(T) 1, 2   _rotc() ; }
 T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return T_tmp;}; }
-T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;     return T_tmp;}; }
+T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return T_tmp;}; }
 T fn5() { return _ctor(T) 1, 2 _rotc() ; }
 T fn6() { return _ctor(T) 1, 2   _rotc() ; }
 T fn7() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }
-T fn8() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;     return _tmp;}; }
+T fn8() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return _tmp;}; }
 void fn() {
   T t1=_ctor(T) 1, 2 _rotc() ;
   T t2=_ctor(T) 1, 2   _rotc() ;
   T t3;   t3.a=1;  t3.b=2;
-  T t4;   t4.a=1;  t4.b=2;
+  T t4;   t4.a=1;  t4.b=2  ;
   T t5=_ctor(T) 1, 2 _rotc() ;
   T t6=_ctor(T) 1, 2   _rotc() ;
   T t7;   t7.a=1;  t7.b=2;
-  T t8;   t8.a=1;  t8.b=2;
+  T t8;   t8.a=1;  t8.b=2  ;
   T t9;   t9.a=1;  t9.b=_ctor(T) 0, 2 _rotc() .x;
   T t10=_ctor(T) 1, _ctor(T) 0, 2 _rotc() .x _rotc() ;
 }

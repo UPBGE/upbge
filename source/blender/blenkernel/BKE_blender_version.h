@@ -35,7 +35,7 @@
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 15
+#define BLENDER_FILE_SUBVERSION 16
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
