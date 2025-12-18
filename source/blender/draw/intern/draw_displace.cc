@@ -1331,13 +1331,26 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
     GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
+
+    /* Determine if GPU texture was uploaded from byte buffer data. If so, we need to
+     * premultiply RGB by alpha to match CPU ibuf_get_color behavior for byte images. */
+    /* Determine if texture was originally uploaded from a byte buffer.
+     * Use Image flags rather than inspecting ImBuf to avoid extra cost. */
+    bool tex_is_byte = false;
+    if (ima) {
+      ImageTile *tile = BKE_image_get_tile(ima, 0);
+      /* If image is NOT high bitdepth and NOT a generated float image, assume byte buffer. */
+      if (!(tile->gen_flag & IMA_GEN_FLOAT)) {
+        tex_is_byte = true;
+      }
+    }
     
     /* Simple heuristic: skip linear→sRGB conversion on the GPU for movies
      * and image sequences (they are uploaded as linear by the GPU). For
      * other images we do not skip the conversion by default. */
     bool skip_srgb_conversion = false;
     if (ima) {
-      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE, IMA_SRC_GENERATED)) {
+      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE) || !tex_is_byte) {
         skip_srgb_conversion = true;
       }
     }
@@ -1345,17 +1358,6 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
-    /* Determine if GPU texture was uploaded from byte buffer data. If so, we need to
-     * premultiply RGB by alpha to match CPU ibuf_get_color behavior for byte images. */
-    /* Determine if texture was originally uploaded from a byte buffer.
-     * Use Image flags rather than inspecting ImBuf to avoid extra cost. */
-    bool tex_is_byte = false;
-    if (ima) {
-      /* If image is NOT high bitdepth and NOT a generated float image, assume byte buffer. */
-      if (!(ima->flag & IMA_HIGH_BITDEPTH) && !(ima->gen_flag & IMA_GEN_FLOAT)) {
-        tex_is_byte = true;
-      }
-    }
     GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", tex_is_byte);
     /* Mapping controls: if UV mapping, keep false; otherwise allow using input_positions. */
     int tex_mapping = int(dmd->texmapping);
