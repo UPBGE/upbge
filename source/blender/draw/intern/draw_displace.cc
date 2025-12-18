@@ -1250,8 +1250,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::float4x4_t, "object_to_world_mat");
     info.push_constant(Type::float4x4_t, "mapref_imat");
     info.push_constant(Type::bool_t, "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
-    BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
   }
+  BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
       mesh_owner, "displace_compute_v2", info);
