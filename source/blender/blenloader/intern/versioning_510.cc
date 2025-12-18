@@ -579,13 +579,23 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 16)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->toolsettings) {
+        scene->toolsettings->anim_mirror_object = nullptr;
+        scene->toolsettings->anim_relative_object = nullptr;
+        scene->toolsettings->anim_mirror_bone[0] = '\0';
+      }
+    }
+  }
+
   /* This has no version check and always runs for all versions because there is forward
    * compatibility code at write time that reallocates the storage, so we need to free it
    * regardless of the version. */
   FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
     if (node_tree->type == NTREE_COMPOSIT) {
       LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-        if (node->type_legacy == CMP_NODE_R_LAYERS) {
+        if (ELEM(node->type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
           LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
             if (socket->storage) {
               MEM_freeN(socket->storage);
