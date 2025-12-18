@@ -1204,13 +1204,11 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
   info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
   info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-  info.storage_buf(3, Qualifier::read, "vec4", "vert_normals[]");  /* Pre-computed normals (NOT updated during GPU playback) */
-  
   if (has_texture) {
-    info.storage_buf(4, Qualifier::read, "vec4", "texture_coords[]");
+    info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
     info.sampler(0, ImageType::Float2D, "displacement_texture");
   }
-  info.storage_buf(5, Qualifier::read, "int", "topo[]");
+  info.storage_buf(4, Qualifier::read, "int", "topo[]");
 
   /* Push constants */
   info.push_constant(Type::float4x4_t, "local_mat");
@@ -1272,50 +1270,19 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_storagebuf_bind(ssbo_vgroup, 2);
   }
   
-  /* Bind vertex normals SSBO (binding 3) if MOD_DISP_DIR_NOR or MOD_DISP_DIR_CLNOR
-   * WARNING: Normals are computed ONCE from the mesh state before GPU playback starts.
-   * They are NOT updated during GPU animation playback (modifier stack is GPU-only).
-   * This is acceptable for most use cases (e.g., vertex group deformation with textures). */
-  const std::string key_normals = key_prefix + "vert_normals";
-  blender::gpu::StorageBuf *ssbo_normals = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_normals);
-    
-  if (!ssbo_normals) {
-    /* Get CPU-computed normals and upload them (computed from base mesh state)
-      * Use vert_normals_true() for MOD_DISP_DIR_NOR (face normals, ignore sharp edges)
-      * Use vert_normals() for MOD_DISP_DIR_CLNOR (corner normals averaged, respect sharp edges) */
-    blender::Span<blender::float3> cpu_normals = (dmd->direction == MOD_DISP_DIR_NOR) ?
-                                                    mesh_owner->vert_normals_true() :
-                                                    mesh_owner->vert_normals();
-      
-    const size_t size_normals = msd.verts_num * sizeof(blender::float4);
-    ssbo_normals = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_normals, size_normals);
-      
-    if (ssbo_normals && !cpu_normals.is_empty()) {
-      /* Pad float3 to float4 for GPU alignment */
-      std::vector<blender::float4> padded_normals(msd.verts_num);
-      for (int i = 0; i < msd.verts_num; ++i) {
-        padded_normals[i] = blender::float4(
-            cpu_normals[i].x, cpu_normals[i].y, cpu_normals[i].z, 0.0f);
-      }
-      GPU_storagebuf_update(ssbo_normals, padded_normals.data());
-    }
-  }
-    
-  if (ssbo_normals) {
-    GPU_storagebuf_bind(ssbo_normals, 3);
-  }
+  /* Note: vertex normals SSBO removed — shader computes vertex normal from topology. */
   
   /* Bind texture coordinates and texture (if present) */
   if (has_texture) {
     if (ssbo_texcoords) {
-      GPU_storagebuf_bind(ssbo_texcoords, 4);
+      GPU_storagebuf_bind(ssbo_texcoords, 3);
     }
     if (gpu_texture) {
       GPU_texture_bind(gpu_texture, 0);
     }
   }
 
-  GPU_storagebuf_bind(mesh_data.topology.ssbo, 5);
+  GPU_storagebuf_bind(mesh_data.topology.ssbo, 4);
 
   /* Set uniforms (runtime parameters) */
   GPU_shader_uniform_mat4(shader, "local_mat", (const float(*)[4])local_mat);
