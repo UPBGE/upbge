@@ -1207,16 +1207,6 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     GPU_storagebuf_update(ssbo_rest_pos, msd.rest_positions.data());
   }
 
-  blender::gpu::StorageBuf *ssbo_skinned_pos = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
-                                                                              key_skinned_pos);
-  if (!ssbo_skinned_pos) {
-    ssbo_skinned_pos = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_skinned_pos, sizeof(float) * msd.verts_num * 4);
-    if (!ssbo_skinned_pos) {
-      return nullptr;
-    }
-  }
-
   blender::gpu::StorageBuf *ssbo_premat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_premat);
   if (!ssbo_premat) {
     ssbo_premat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_premat, sizeof(float) * 16);
@@ -1470,15 +1460,13 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     return nullptr;
   }
 
-  blender::gpu::StorageBuf *pos_to_bind = ssbo_in ? ssbo_in : ssbo_skinned_pos;
-
   const blender::gpu::shader::SpecializationConstants *constants =
       &GPU_shader_get_default_constant_state(compute_sh);
   GPU_shader_bind(compute_sh, constants);
 
   if (use_dual_quaternions) {
     /* Bind DQS buffers */
-    GPU_storagebuf_bind(pos_to_bind, 0);
+    GPU_storagebuf_bind(ssbo_in, 0);
     GPU_storagebuf_bind(ssbo_in_offsets, 1);
     GPU_storagebuf_bind(ssbo_in_idx, 2);
     GPU_storagebuf_bind(ssbo_in_wgt, 3);
@@ -1525,7 +1513,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   }
   else {
     /* Bind LBS buffers (including B-Bone support) */
-    GPU_storagebuf_bind(pos_to_bind, 0);
+    GPU_storagebuf_bind(ssbo_in, 0);
     GPU_storagebuf_bind(ssbo_in_offsets, 1);
     GPU_storagebuf_bind(ssbo_in_idx, 2);
     GPU_storagebuf_bind(ssbo_in_wgt, 3);
@@ -1569,7 +1557,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   GPU_shader_unbind();
 
   /* Return the SSBO containing the skinned positions. Caller will perform scatter if needed. */
-  return pos_to_bind;
+  return ssbo_in;
 }
 
 void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
