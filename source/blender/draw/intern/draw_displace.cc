@@ -40,6 +40,8 @@
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
 
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
+
 #include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
@@ -338,6 +340,75 @@ void boxsample_gpu(
   }
 
   /* Leave alpha post-processing to outer shader path to avoid duplication. */
+}
+)GLSL";
+}
+
+static std::string get_vertex_normals() {
+  return R"GLSL(
+vec3 face_normal_object(int f) {
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  int count = end - beg;
+
+  /* Handle common polygon sizes explicitly to better match CPU behavior. */
+  if (count == 3) {
+    vec3 a = input_positions[corner_verts(beg + 0)].xyz;
+    vec3 b = input_positions[corner_verts(beg + 1)].xyz;
+    vec3 c = input_positions[corner_verts(beg + 2)].xyz;
+    vec3 n = cross(b - a, c - a);
+    float len = length(n);
+    if (len <= 1e-20) {
+      return vec3(0.0, 0.0, 1.0);
+    }
+    return n / len;
+  }
+  else if (count == 4) {
+    vec3 v1 = input_positions[corner_verts(beg + 0)].xyz;
+    vec3 v2 = input_positions[corner_verts(beg + 1)].xyz;
+    vec3 v3 = input_positions[corner_verts(beg + 2)].xyz;
+    vec3 v4 = input_positions[corner_verts(beg + 3)].xyz;
+    /* Use diagonal cross-product method to match CPU `normal_quad_v3`. */
+    vec3 d1 = v1 - v3;
+    vec3 d2 = v2 - v4;
+    vec3 n = cross(d1, d2);
+    float len = length(n);
+    if (len <= 1e-20) {
+      return vec3(0.0, 0.0, 1.0);
+    }
+    return n / len;
+  }
+
+  /* Fallback: Newell's method for ngons */
+  vec3 n = vec3(0.0);
+  int v_prev_idx = corner_verts(end - 1);
+  vec3 v_prev = input_positions[v_prev_idx].xyz;
+  for (int i = beg; i < end; ++i) {
+    int v_curr_idx = corner_verts(i);
+    vec3 v_curr = input_positions[v_curr_idx].xyz;
+    n += cross(v_prev, v_curr);
+    v_prev = v_curr;
+  }
+  float len = length(n);
+  if (len <= 1e-20) {
+    return vec3(0.0, 0.0, 1.0);
+  }
+  return n / len;
+}
+
+vec3 compute_vertex_normal(uint v) {
+  vec3 n_mesh;
+  int beg = vert_to_face_offsets(int(v));
+  int end = vert_to_face_offsets(int(v) + 1);
+  vec3 n_accum = vec3(0.0);
+  for (int i = beg; i < end; ++i) {
+    int f = vert_to_face(i);
+    n_accum += face_normal_object(f);
+  }
+  n_mesh = n_accum;
+
+  n_mesh = normalize(n_mesh);
+  return n_mesh;
 }
 )GLSL";
 }
@@ -765,18 +836,15 @@ if (tex_flip_axis) {
     }
   }
   else if (direction == MOD_DISP_DIR_NOR) {
+    vec3 n_mesh = compute_vertex_normal(v);
     /* Displacement along vertex normal
-     * Use pre-computed normals from cache (NOT updated during GPU playback!)
      * This matches CPU behavior and is acceptable for most use cases. */
-    vec3 normal = vert_normals[v].xyz;
-    co += delta * normalize(normal);
+    co += delta * normalize(n_mesh);
   }
   else if (direction == MOD_DISP_DIR_CLNOR) {
-    /* Displacement along custom loop normals (corner normals averaged to vertices)
-     * Use pre-computed normals from cache (NOT updated during GPU playback!)
-     * Respects sharp edges and custom normals, unlike MOD_DISP_DIR_NOR. */
-    vec3 normal = vert_normals[v].xyz;
-    co += delta * normalize(normal);
+    /* Displacement along custom loop normals (Simplification -> same than DISP_DIR_NOR) */
+    vec3 n_mesh = compute_vertex_normal(v);
+    co += delta * normalize(n_mesh);
   }
   else if (direction == MOD_DISP_DIR_RGB_XYZ) {
     /* Displacement using RGB as (X, Y, Z) vector
@@ -808,7 +876,7 @@ if (tex_flip_axis) {
 
 /* Final assembly function - concatenates both parts */
 static std::string get_displace_compute_src() {
-  return get_displace_shader_part1() + get_displace_shader_part2();
+  return get_displace_shader_part1() + get_vertex_normals() + get_displace_shader_part2();
 }
 
 /** \} */
@@ -1118,8 +1186,19 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     shader_src += "#define HAS_TEXTURE\n";
   }
   shader_src += get_displace_compute_src();
+
+  using namespace blender::bke;
+  auto &mesh_data = MeshGPUCacheManager::get().mesh_cache()[mesh_owner];
+  if (!mesh_data.topology.ssbo) {
+    if (!BKE_mesh_gpu_topology_create(mesh_owner, mesh_data.topology) ||
+        !BKE_mesh_gpu_topology_upload(mesh_data.topology))
+    {
+      return nullptr;
+    }
+  }
+  std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
   
-  info.compute_source_generated = shader_src;
+  info.compute_source_generated = glsl_accessors + shader_src;
 
   /* Bindings */
   info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
@@ -1131,6 +1210,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.storage_buf(4, Qualifier::read, "vec4", "texture_coords[]");
     info.sampler(0, ImageType::Float2D, "displacement_texture");
   }
+  info.storage_buf(5, Qualifier::read, "int", "topo[]");
 
   /* Push constants */
   info.push_constant(Type::float4x4_t, "local_mat");
@@ -1172,6 +1252,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::float4x4_t, "object_to_world_mat");
     info.push_constant(Type::float4x4_t, "mapref_imat");
     info.push_constant(Type::bool_t, "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
+    BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
   }
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
@@ -1233,6 +1314,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       GPU_texture_bind(gpu_texture, 0);
     }
   }
+
+  GPU_storagebuf_bind(mesh_data.topology.ssbo, 5);
 
   /* Set uniforms (runtime parameters) */
   GPU_shader_uniform_mat4(shader, "local_mat", (const float(*)[4])local_mat);
