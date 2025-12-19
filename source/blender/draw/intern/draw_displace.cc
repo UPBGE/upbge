@@ -470,17 +470,15 @@ if (tex_flip_axis) {
   /* EARLY RETURN for CLIP/CLIPCUBE (CPU line 160-175) */
   if (tex_extend == TEX_CLIP) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
-      /* Early exit: no displacement */
-      deformed_positions[v] = co_in;
-      return;
+      texres.trgba = vec4(0.0);
+      should_displace = false;
     }
   }
   else if (tex_extend == TEX_CLIPCUBE) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
         tex_coord.z < -1.0 || tex_coord.z > 1.0) {
-      /* Early exit: no displacement */
-      deformed_positions[v] = co_in;
-      return;
+      texres.trgba = vec4(0.0);
+      should_displace = false;
     }
   }
   else if (tex_extend == TEX_CHECKER) {
