@@ -344,6 +344,12 @@ else {
   tex_coord = texture_coords[v].xyz;
 }
 
+/* Sample texture (CPU uses boxsample for interpolation) */
+TexResult texres;
+texres.trgba = vec4(0.0);
+texres.talpha = use_talpha;  /* From CPU line 211-213 */
+bool should_displace = true;
+
 /* Step 1: FLAT mapping (normalize [-1,1] → [0,1]) */
 float fx = (tex_coord.x + 1.0) / 2.0;
 float fy = (tex_coord.y + 1.0) / 2.0;
@@ -438,10 +444,8 @@ if (tex_flip_axis) {
     }
     
     if (!show_tile) {
-      /* CRITICAL: Early return - no displacement for hidden tiles!
-       * This matches CPU behavior exactly (texture_image.cc line 108-111) */
-      deformed_positions[v] = co_in;
-      return;
+      texres.trgba = vec4(0.0);
+      should_displace = false;
     }
     
     /* Normalize to fractional part within the tile */
@@ -481,9 +485,8 @@ if (tex_flip_axis) {
   }
   else if (tex_extend == TEX_CHECKER) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
-      /* Early exit: no displacement */
-      deformed_positions[v] = co_in;
-      return;
+      texres.trgba = vec4(0.0);
+      should_displace = false;
     }
   }
   else {
@@ -518,10 +521,6 @@ if (tex_flip_axis) {
   /* Normalize UVs to [0,1] for texture sampling */
   vec2 uv_normalized = vec2(fx, fy);
   
-  /* Sample texture (CPU uses boxsample for interpolation) */
-  TexResult texres;
-  texres.talpha = use_talpha;  /* From CPU line 211-213 */
-  
   if (tex_interpol) {
     /* Interpolated sampling (boxsample) - use GPU boxsample implementation */
     float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
@@ -555,6 +554,10 @@ if (tex_flip_axis) {
     if (tex_is_byte_buffer) {
       texres.trgba.rgb *= texres.trgba.a;
     }
+  }
+
+  if (!should_displace) {
+    texres.trgba = vec4(0.0);
   }
   
   /* Compute intensity (CPU line 244-253) */
