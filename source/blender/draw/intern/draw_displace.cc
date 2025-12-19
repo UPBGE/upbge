@@ -116,137 +116,6 @@ static std::string get_displace_shader_part1() {
 #define TEX_CLIPCUBE 4
 #define TEX_CHECKER 5
 
-/* GPU port of do_2d_mapping() from texture_procedural.cc
- * Applies FLAT mapping, REPEAT, MIRROR, and CROP */
-void do_2d_mapping_gpu(
-    inout float fx, inout float fy,
-    int mapping_mode,
-    int extend_mode,
-    float xrepeat, float yrepeat,
-    uint xmir_flag, uint ymir_flag,
-    float cropxmin, float cropxmax,
-    float cropymin, float cropymax)
-{
-  if (mapping_mode == 0) { /* MTEX_FLAT */
-    fx = (fx + 1.0) / 2.0;
-    fy = (fy + 1.0) / 2.0;
-  }
-  
-  if (extend_mode == TEX_REPEAT) {
-    float origf_x = fx;
-    float origf_y = fy;
-    
-    if (xrepeat > 1.0) {
-      fx *= xrepeat;
-      if (fx > 1.0) {
-        fx -= float(int(fx));
-      }
-      else if (fx < 0.0) {
-        fx += 1.0 - float(int(fx));
-      }
-      
-      if (xmir_flag != 0u) {
-        int orig = int(floor(origf_x * xrepeat));
-        if ((orig & 1) != 0) {
-          fx = 1.0 - fx;
-        }
-      }
-    }
-    
-    if (yrepeat > 1.0) {
-      fy *= yrepeat;
-      if (fy > 1.0) {
-        fy -= float(int(fy));
-      }
-      else if (fy < 0.0) {
-        fy += 1.0 - float(int(fy));
-      }
-      
-      if (ymir_flag != 0u) {
-        int orig = int(floor(origf_y * yrepeat));
-        if ((orig & 1) != 0) {
-          fy = 1.0 - fy;
-        }
-      }
-    }
-  }
-  
-  if (cropxmin != 0.0 || cropxmax != 1.0) {
-    float fac1 = cropxmax - cropxmin;
-    fx = cropxmin + fx * fac1;
-  }
-  if (cropymin != 0.0 || cropymax != 1.0) {
-    float fac1 = cropymax - cropymin;
-    fy = cropymin + fy * fac1;
-  }
-}
-
-/* GPU port of imagewrap() from texture_image.cc */
-bool imagewrap_gpu(
-    inout float fx, inout float fy,
-    out int x, out int y,
-    int extend_mode,
-    uint imarot_flag,
-    uint checker_odd, uint checker_even,
-    float checkerdist,
-    int tex_width, int tex_height)
-{
-  if (imarot_flag != 0u) {
-    float temp = fx;
-    fx = fy;
-    fy = temp;
-  }
-  
-  if (extend_mode == TEX_CHECKER) {
-    int xs = int(floor(fx));
-    int ys = int(floor(fy));
-    fx -= float(xs);
-    fy -= float(ys);
-    
-    int tile_parity = (xs + ys) & 1;
-    bool show_tile = true;
-    
-    if (checker_odd != 0u && tile_parity == 0) {
-      show_tile = false;
-    }
-    if (checker_even != 0u && tile_parity == 1) {
-      show_tile = false;
-    }
-    
-    if (!show_tile) {
-      return false;
-    }
-    
-    if (checkerdist < 1.0) {
-      fx = (fx - 0.5) / (1.0 - checkerdist) + 0.5;
-      fy = (fy - 0.5) / (1.0 - checkerdist) + 0.5;
-    }
-  }
-  
-  int xi = int(floor(fx * float(tex_width)));
-  int yi = int(floor(fy * float(tex_height)));
-  x = xi;
-  y = yi;
-  
-  if (extend_mode == TEX_CLIP || extend_mode == TEX_CHECKER) {
-    if (x < 0 || y < 0 || x >= tex_width || y >= tex_height) {
-      return false;
-    }
-  }
-  else if (extend_mode == TEX_EXTEND) {
-    x = (x >= tex_width) ? (tex_width - 1) : ((x < 0) ? 0 : x);
-    y = (y >= tex_height) ? (tex_height - 1) : ((y < 0) ? 0 : y);
-  }
-  else {
-    x = x % tex_width;
-    if (x < 0) x += tex_width;
-    y = y % tex_height;
-    if (y < 0) y += tex_height;
-  }
-  
-  return true;
-}
-
 /* Box sampling helpers - GPU port of boxsampleclip() and boxsample() from texture_image.cc
  * Simplified: computes texel coverage weights per-pixel within the box region and
  * accumulates texel values using texelFetch. Handles REPEAT and EXTEND wrapping.
@@ -452,17 +321,9 @@ struct TexResult {
   bool talpha; /* Use alpha channel */
 };
 
-/* GPU port of do_2d_mapping() from texture_procedural.cc
- * This is called BEFORE imagewrap() to convert texture coordinates.
- * For FLAT mapping (default for displacement), it converts object-space [-1,1] to [0,1]. */
-
-/* Sample texture using texture coordinates from MOD_get_texture_coords() */
+/* Sample texture using MOD_get_texture_coords() or input_positions when requested */
 vec3 tex_coord = texture_coords[v].xyz;
 
-/* Step 1: do_2d_mapping() - FLAT mapping (normalize [-1,1] → [0,1])
- * This converts object-space coordinates to [0,1] normalized UV space. */
-/* Sample texture using MOD_get_texture_coords() or input_positions when requested */
-/* Simplified version of MOD_get_texture_coords() for Displace modifier */
 if (mapping_use_input_positions) {
   vec3 in_pos = input_positions[v].xyz;
   if (tex_mapping == 0) { //MOD_DISP_MAP_LOCAL
@@ -475,13 +336,15 @@ if (mapping_use_input_positions) {
     vec4 o = mapref_imat * w;
     tex_coord = o.xyz;
   } else {
-  /* Fallback to precomputed coords (covers UV case and others) */
-  tex_coord = texture_coords[v].xyz;
+    /* Fallback to precomputed coords (covers UV case and others) */
+    tex_coord = texture_coords[v].xyz;
   }
 }
 else {
   tex_coord = texture_coords[v].xyz;
 }
+
+/* Step 1: FLAT mapping (normalize [-1,1] → [0,1]) */
 float fx = (tex_coord.x + 1.0) / 2.0;
 float fy = (tex_coord.y + 1.0) / 2.0;
   
