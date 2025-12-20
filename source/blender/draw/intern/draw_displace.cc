@@ -16,12 +16,12 @@
 #include "BLI_math_vector.h"
 #include "BLI_vector.hh"
 
+#include "BKE_action.hh" /* BKE_pose_channel_find_name for MAP_OBJECT/bone */
 #include "BKE_deform.hh"
 #include "BKE_image.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 #include "BKE_object.hh"
-#include "BKE_action.hh" /* BKE_pose_channel_find_name for MAP_OBJECT/bone */
 
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -70,7 +70,7 @@ struct blender::draw::DisplaceManager::Impl {
   };
 
   struct MeshStaticData {
-    std::vector<float> vgroup_weights; /* per-vertex weight (0.0-1.0) */
+    std::vector<float> vgroup_weights;       /* per-vertex weight (0.0-1.0) */
     std::vector<blender::float3> tex_coords; /* per-vertex texture coordinates */
     int verts_num = 0;
 
@@ -93,7 +93,8 @@ struct blender::draw::DisplaceManager::Impl {
 /* GPU Displace Compute Shader - Split into several parts to avoid 16380 char limit */
 
 /* Part 1: Defines and helper functions */
-static std::string get_displace_shader_part1() {
+static std::string get_displace_shader_part1()
+{
   return R"GLSL(
 /* GPU Displace Modifier Compute Shader v2.0 */
 /* Displace direction modes (matching DisplaceModifierDirection enum) */
@@ -213,7 +214,8 @@ void boxsample_gpu(
 )GLSL";
 }
 
-static std::string get_vertex_normals() {
+static std::string get_vertex_normals()
+{
   return R"GLSL(
 vec3 face_normal_object(int f) {
   int beg = face_offsets(f);
@@ -283,7 +285,8 @@ vec3 compute_vertex_normal(uint v) {
 }
 
 /* Part 2: Main function body (texture sampling + displacement logic) */
-static std::string get_displace_shader_part2() {
+static std::string get_displace_shader_part2()
+{
   return R"GLSL(
 
 void main() {
@@ -739,7 +742,8 @@ if (tex_flip_axis) {
 }
 
 /* Final assembly function - concatenates both parts */
-static std::string get_displace_compute_src() {
+static std::string get_displace_compute_src()
+{
   return get_displace_shader_part1() + get_vertex_normals() + get_displace_shader_part2();
 }
 
@@ -787,8 +791,7 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
   /* Hash texture mapping mode */
   hash = BLI_hash_int_2d(hash, int(dmd->texmapping));
 
-  const bool has_texture = (dmd->texture && dmd->texture->type == TEX_IMAGE &&
-                            dmd->texture->ima);
+  const bool has_texture = (dmd->texture && dmd->texture->type == TEX_IMAGE && dmd->texture->ima);
   hash = BLI_hash_int_2d(hash, has_texture ? 1 : 0);
 
   if (has_texture) {
@@ -808,9 +811,9 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
 }
 
 void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
-                                             Object *deform_ob,
-                                             Mesh *orig_mesh,
-                                             uint32_t pipeline_hash)
+                                              Object *deform_ob,
+                                              Mesh *orig_mesh,
+                                              uint32_t pipeline_hash)
 {
   if (!orig_mesh || !dmd) {
     return;
@@ -866,7 +869,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
     /* Use the same MOD_get_texture_coords() function as the CPU modifier
      * to guarantee identical behavior for all mapping modes (LOCAL/GLOBAL/OBJECT/UV) */
     const int verts_num = orig_mesh->verts_num;
-    float (*tex_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, "displace_tex_coords");
+    float(*tex_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, "displace_tex_coords");
 
     MOD_get_texture_coords(
         reinterpret_cast<MappingInfoModifierData *>(const_cast<DisplaceModifierData *>(dmd)),
@@ -875,13 +878,13 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
         orig_mesh,
         nullptr,  // cos (use original positions)
         tex_co);
-    
+
     /* Copy to msd.tex_coords vector */
     msd.tex_coords.resize(verts_num);
     for (int v = 0; v < verts_num; ++v) {
       msd.tex_coords[v] = blender::float3(tex_co[v]);
     }
-    
+
     MEM_freeN(tex_co);
   }
 }
@@ -974,14 +977,14 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   if (dmd->texture && dmd->texture->type == TEX_IMAGE && dmd->texture->ima) {
     Image *ima = dmd->texture->ima;
     Tex *tex = dmd->texture;
-    
+
     /* Setup ImageUser with correct frame for ImageSequence/Movies
      * CRITICAL: ImageUser.framenr must be updated from scene frame for animation!
      * The CPU path (MOD_init_texture) calls BKE_texture_fetch_images_for_pool() which
      * updates iuser.framenr. We must replicate this for GPU. */
     if (ima && ima->runtime && tex) {
-      ImageUser iuser = tex->iuser;  /* Start with texture's ImageUser */
-      
+      ImageUser iuser = tex->iuser; /* Start with texture's ImageUser */
+
       /* For animated textures, update frame number from current scene
        * This is CRITICAL for ImageSequence/Movie playback! */
       if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
@@ -993,19 +996,20 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
-      
+
       /* Ensure GPU texture is loaded for this frame */
       gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-      
+
       if (gpu_texture && !msd.tex_coords.empty()) {
         has_texture = true;
-        
+
         /* Upload texture coordinates SSBO */
         ssbo_texcoords = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);
-        
+
         if (!ssbo_texcoords) {
           const size_t size_texcoords = msd.tex_coords.size() * sizeof(blender::float4);
-          ssbo_texcoords = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_texcoords, size_texcoords);
+          ssbo_texcoords = BKE_mesh_gpu_internal_ssbo_ensure(
+              mesh_owner, key_texcoords, size_texcoords);
           if (ssbo_texcoords) {
             /* Pad float3 to float4 for GPU alignment */
             std::vector<blender::float4> padded_texcoords(msd.tex_coords.size());
@@ -1042,10 +1046,10 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("pyGPU_Shader");
   info.local_group_size(256, 1, 1);
-  
+
   /* Build shader source with conditional texture support */
   std::string shader_src;
-  
+
   if (has_texture) {
     shader_src += "#define HAS_TEXTURE\n";
   }
@@ -1061,7 +1065,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     }
   }
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
-  
+
   info.compute_source_generated = glsl_accessors + shader_src;
 
   /* Bindings */
@@ -1080,7 +1084,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   info.push_constant(Type::float_t, "midlevel");
   info.push_constant(Type::int_t, "direction");
   info.push_constant(Type::bool_t, "use_global");
-  
+
   /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
   if (has_texture) {
     info.push_constant(Type::bool_t, "use_talpha");      /* Enable de-premultiply */
@@ -1094,18 +1098,19 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::float_t, "tex_bfac");       /* Tex->bfac */
     info.push_constant(Type::bool_t, "tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
     info.push_constant(Type::int_t, "tex_extend");       /* Tex->extend (wrap mode) */
-    info.push_constant(Type::float4_t, "tex_crop");      /* (cropxmin, cropymin, cropxmax, cropymax) */
-    info.push_constant(Type::float2_t, "tex_repeat");    /* (xrepeat, yrepeat) */
-    info.push_constant(Type::bool_t, "tex_xmir");        /* TEX_REPEAT_XMIR */
-    info.push_constant(Type::bool_t, "tex_ymir");        /* TEX_REPEAT_YMIR */
-    info.push_constant(Type::bool_t, "tex_interpol");    /* TEX_INTERPOL */
-    info.push_constant(Type::float_t, "tex_filtersize"); /* Tex->filtersize for boxsample */
-    info.push_constant(Type::bool_t, "tex_checker_odd"); /* TEX_CHECKER_ODD */
-    info.push_constant(Type::bool_t, "tex_checker_even");/* TEX_CHECKER_EVEN */
-    info.push_constant(Type::float_t, "tex_checkerdist");/* Tex->checkerdist */
-    info.push_constant(Type::bool_t, "tex_flipblend");   /* TEX_FLIPBLEND */
-    info.push_constant(Type::bool_t, "tex_flip_axis");   /* TEX_IMAROT (flip X/Y) */
-    info.push_constant(Type::bool_t, "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
+    info.push_constant(Type::float4_t, "tex_crop"); /* (cropxmin, cropymin, cropxmax, cropymax) */
+    info.push_constant(Type::float2_t, "tex_repeat");     /* (xrepeat, yrepeat) */
+    info.push_constant(Type::bool_t, "tex_xmir");         /* TEX_REPEAT_XMIR */
+    info.push_constant(Type::bool_t, "tex_ymir");         /* TEX_REPEAT_YMIR */
+    info.push_constant(Type::bool_t, "tex_interpol");     /* TEX_INTERPOL */
+    info.push_constant(Type::float_t, "tex_filtersize");  /* Tex->filtersize for boxsample */
+    info.push_constant(Type::bool_t, "tex_checker_odd");  /* TEX_CHECKER_ODD */
+    info.push_constant(Type::bool_t, "tex_checker_even"); /* TEX_CHECKER_EVEN */
+    info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
+    info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
+    info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
+    info.push_constant(Type::bool_t,
+                       "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
     /* Mapping controls (when mapping_use_input_positions==true shader will
      * compute texture coords from input_positions[] instead of using
      * precomputed texture_coords[]). UV mapping remains CPU-side. */
@@ -1113,7 +1118,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.push_constant(Type::bool_t, "mapping_use_input_positions");
     info.push_constant(Type::float4x4_t, "object_to_world_mat");
     info.push_constant(Type::float4x4_t, "mapref_imat");
-    info.push_constant(Type::bool_t, "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
+    info.push_constant(Type::bool_t,
+                       "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
   }
   BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
 
@@ -1133,9 +1139,9 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   if (ssbo_vgroup) {
     GPU_storagebuf_bind(ssbo_vgroup, 2);
   }
-  
+
   /* Note: vertex normals SSBO removed — shader computes vertex normal from topology. */
-  
+
   /* Bind texture coordinates and texture (if present) */
   if (has_texture) {
     if (ssbo_texcoords) {
@@ -1154,12 +1160,12 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   GPU_shader_uniform_1f(shader, "midlevel", dmd->midlevel);
   GPU_shader_uniform_1i(shader, "direction", int(dmd->direction));
   GPU_shader_uniform_1b(shader, "use_global", use_global);
-  
+
   /* Set texture processing parameters (if texture is present) */
   if (has_texture) {
     Tex *tex = dmd->texture;
     Image *ima = tex->ima;
-    
+
     /* Determine if we should use de-premultiply (talpha flag logic from imagewrap)
      * talpha is set when: TEX_USEALPHA && alpha_mode != IGNORE && !TEX_CALCALPHA */
     bool use_talpha = false;
@@ -1168,7 +1174,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
         use_talpha = true;
       }
     }
-    
+
     GPU_shader_uniform_1b(shader, "use_talpha", use_talpha);
     GPU_shader_uniform_1b(shader, "tex_calcalpha", (tex->imaflag & TEX_CALCALPHA) != 0);
     GPU_shader_uniform_1b(shader, "tex_negalpha", (tex->flag & TEX_NEGALPHA) != 0);
@@ -1180,11 +1186,11 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_1f(shader, "tex_bfac", tex->bfac);
     GPU_shader_uniform_1b(shader, "tex_no_clamp", (tex->flag & TEX_NO_CLAMP) != 0);
     GPU_shader_uniform_1i(shader, "tex_extend", int(tex->extend));
-    
+
     /* Upload crop parameters (xmin, ymin, xmax, ymax) */
     float crop[4] = {tex->cropxmin, tex->cropymin, tex->cropxmax, tex->cropymax};
     GPU_shader_uniform_4f(shader, "tex_crop", crop[0], crop[1], crop[2], crop[3]);
-    
+
     /* Upload repeat/mirror flags */
     GPU_shader_uniform_2f(shader, "tex_repeat", float(tex->xrepeat), float(tex->yrepeat));
     GPU_shader_uniform_1b(shader, "tex_xmir", (tex->flag & TEX_REPEAT_XMIR) != 0);
@@ -1208,7 +1214,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
         tex_is_byte = true;
       }
     }
-    
+
     /* Simple heuristic: skip linear→sRGB conversion on the GPU for movies
      * and image sequences (they are uploaded as linear by the GPU). For
      * other images we do not skip the conversion by default. */
@@ -1219,12 +1225,22 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       }
     }
     GPU_shader_uniform_1b(shader, "tex_skip_srgb_conversion", skip_srgb_conversion);
-    
+
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
     GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", tex_is_byte);
-    /* Mapping controls: if UV mapping, keep false; otherwise allow using input_positions. */
+
+    /* Mapping controls: replicate CPU logic from MOD_get_texture_coords()
+     * If MOD_DISP_MAP_OBJECT but no map_object, fallback to LOCAL.
+     * If UV mapping, use precomputed coords (mapping_use_input_positions = false).
+     * Otherwise compute coords from input_positions in shader. */
     int tex_mapping = int(dmd->texmapping);
+
+    /* Replicate CPU fallback: if OBJECT mapping but no map_object, use LOCAL */
+    if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
+      tex_mapping = MOD_DISP_MAP_LOCAL;
+    }
+
     bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV);
     GPU_shader_uniform_1i(shader, "tex_mapping", tex_mapping);
     GPU_shader_uniform_1b(shader, "mapping_use_input_positions", mapping_use_input_positions);
@@ -1235,7 +1251,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     GPU_shader_uniform_mat4(shader, "object_to_world_mat", obj2w);
 
     /* mapref_imat: compute inverse map reference for MOD_DISP_MAP_OBJECT when possible.
-     * Falls back to identity when no map_object is set. This mirrors logic from MOD_get_texture_coords(). */
+     * Falls back to identity when no map_object is set. This mirrors logic from
+     * MOD_get_texture_coords(). */
     float mapref_imat[4][4];
     if (dmd->texmapping == MOD_DISP_MAP_OBJECT && dmd->map_object != nullptr) {
       Object *map_object = dmd->map_object;
@@ -1259,7 +1276,6 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     }
     GPU_shader_uniform_mat4(shader, "mapref_imat", mapref_imat);
   }
-
 
   const int group_size = 256;
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;
