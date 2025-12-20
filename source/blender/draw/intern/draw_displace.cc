@@ -284,6 +284,212 @@ vec3 compute_vertex_normal(uint v) {
 )GLSL";
 }
 
+/* Texture mapping functions - GPU port matching CPU texture_procedural.cc */
+static std::string get_texture_mapping_functions()
+{
+  return R"GLSL(
+/* GPU port of do_2d_mapping() from texture_procedural.cc (line 501-537)
+ * Applies REPEAT scaling + MIRROR, then CROP transformations */
+void do_2d_mapping(inout float fx, inout float fy)
+{
+  /* Step 1: REPEAT scaling + MIRROR (matching CPU line 501-527) */
+  if (tex_extend == TEX_REPEAT) {
+    float origf_x = fx;
+    float origf_y = fy;
+    
+    /* Repeat X */
+    if (tex_repeat.x > 1.0) {
+      fx *= tex_repeat.x;
+      if (fx > 1.0) {
+        fx -= float(int(fx));
+      }
+      else if (fx < 0.0) {
+        fx += 1.0 - float(int(fx));
+      }
+      
+      /* Mirror X if needed */
+      if (tex_xmir) {
+        int orig = int(floor(origf_x * tex_repeat.x));
+        if ((orig & 1) != 0) {
+          fx = 1.0 - fx;
+        }
+      }
+    }
+    
+    /* Repeat Y */
+    if (tex_repeat.y > 1.0) {
+      fy *= tex_repeat.y;
+      if (fy > 1.0) {
+        fy -= float(int(fy));
+      }
+      else if (fy < 0.0) {
+        fy += 1.0 - float(int(fy));
+      }
+      
+      /* Mirror Y if needed */
+      if (tex_ymir) {
+        int orig = int(floor(origf_y * tex_repeat.y));
+        if ((orig & 1) != 0) {
+          fy = 1.0 - fy;
+        }
+      }
+    }
+  }
+
+  /* Step 2: CROP (matching CPU line 528-537) */
+  if (tex_crop.x != 0.0 || tex_crop.z != 1.0) {
+    float fac1 = tex_crop.z - tex_crop.x;
+    fx = tex_crop.x + fx * fac1;
+  }
+  if (tex_crop.y != 0.0 || tex_crop.w != 1.0) {
+    float fac1 = tex_crop.w - tex_crop.y;
+    fy = tex_crop.y + fy * fac1;
+  }
+}
+
+/* GPU port of imagewrap() from texture_image.cc (line 98-256)
+ * Handles TEX_IMAROT, TEX_CHECKER filtering, CLIPCUBE check, coordinate wrapping, and texture sampling
+ * Returns false if pixel should not be rendered (CLIP/CLIPCUBE/CHECKER filtering) */
+bool imagewrap(vec3 tex_coord, inout vec4 result, ivec2 tex_size)
+{
+  float fx = tex_coord.x;
+  float fy = tex_coord.y;
+  
+  /* Step 1: TEX_IMAROT (swap X/Y) AFTER crop (matching CPU line 120-122)
+   * CRITICAL: This MUST happen AFTER crop and BEFORE TEX_CHECKER! */
+  if (tex_flip_axis) {
+    float temp = fx;
+    fx = fy;
+    fy = temp;
+  }
+
+  /* Step 2: TEX_CHECKER filtering (matching CPU line 124-171)
+   * Applied AFTER repeat/crop/swap to ensure correct tile detection */
+  if (tex_extend == TEX_CHECKER) {
+    /* Calculate tile coordinates from normalized UV coordinates (after repeat/crop)
+     * xs = int(floor(fx)), ys = int(floor(fy)) */
+    int xs = int(floor(fx));
+    int ys = int(floor(fy));
+    int tile_parity = (xs + ys) & 1;  /* 1 = odd tile, 0 = even tile */
+    
+    /* Apply checker odd/even filter (CPU texture_image.cc line 98-111)
+     * NOTE: CPU logic uses inverted flags!
+     * tex_checker_odd = true means "TEX_CHECKER_ODD flag is NOT SET"
+     *                              → hide EVEN tiles
+     * tex_checker_even = true means "TEX_CHECKER_EVEN flag is NOT SET"  
+     *                               → hide ODD tiles */
+    bool show_tile = true;
+    
+    if (tex_checker_odd && (tile_parity == 0)) {
+      show_tile = false;  /* Hide EVEN tiles when ODD flag not set */
+    }
+    if (tex_checker_even && (tile_parity == 1)) {
+      show_tile = false;  /* Hide ODD tiles when EVEN flag not set */
+    }
+    
+    if (!show_tile) {
+      return false;  /* Pixel should not be rendered */
+    }
+    
+    /* Normalize to fractional part within the tile */
+    fx -= float(xs);
+    fy -= float(ys);
+    
+    /* Scale checker pattern if needed (CPU line 168-171)
+     * scale around center, (0.5, 0.5) */
+    if (tex_checkerdist < 1.0) {
+      fx = (fx - 0.5) / (1.0 - tex_checkerdist) + 0.5;
+      fy = (fy - 0.5) / (1.0 - tex_checkerdist) + 0.5;
+    }
+  }
+  
+  /* Step 3: Compute integer pixel coordinates (CPU line 174-175)
+   * x = xi = int(floorf(fx * ibuf->x)); */
+  int x = int(floor(fx * float(tex_size.x)));
+  int y = int(floor(fy * float(tex_size.y)));
+  int xi = x;  /* Save original for interpolation remap later */
+  int yi = y;
+  
+  /* Step 4: CLIPCUBE early return (CPU line 177-183)
+   * CRITICAL: This check happens BEFORE coordinate wrapping! */
+  if (tex_extend == TEX_CLIPCUBE) {
+    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
+        tex_coord.z < -1.0 || tex_coord.z > 1.0) {
+      return false;
+    }
+  }
+  /* Step 5: CLIP/CHECKER early return (CPU line 185-191) */
+  else if (tex_extend == TEX_CLIP || tex_extend == TEX_CHECKER) {
+    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
+      return false;
+    }
+  }
+  /* Step 6: EXTEND or REPEAT mode: wrap/clamp coordinates (CPU line 193-222) */
+  else {
+    if (tex_extend == TEX_EXTEND) {
+      x = (x >= tex_size.x) ? (tex_size.x - 1) : ((x < 0) ? 0 : x);
+    }
+    else {
+      /* REPEAT */
+      x = x % tex_size.x;
+      if (x < 0) x += tex_size.x;
+    }
+    
+    if (tex_extend == TEX_EXTEND) {
+      y = (y >= tex_size.y) ? (tex_size.y - 1) : ((y < 0) ? 0 : y);
+    }
+    else {
+      /* REPEAT */
+      y = y % tex_size.y;
+      if (y < 0) y += tex_size.y;
+    }
+  }
+  
+  /* Step 7: Sample texture with or without interpolation (CPU line 233-256) */
+  if (tex_interpol) {
+    /* Interpolated sampling (boxsample) - CPU line 234-252 */
+    float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
+    float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
+
+    /* Remap coordinates for interpolation (CPU line 239-243):
+     * "Important that this value is wrapped #27782" */
+    fx -= float(xi - x) / float(tex_size.x);
+    fy -= float(yi - y) / float(tex_size.y);
+
+    float min_tex_x = (fx - filterx) * float(tex_size.x);
+    float min_tex_y = (fy - filtery) * float(tex_size.y);
+    float max_tex_x = (fx + filterx) * float(tex_size.x);
+    float max_tex_y = (fy + filtery) * float(tex_size.y);
+
+    boxsample_gpu(displacement_texture,
+                  tex_size,
+                  min_tex_x,
+                  min_tex_y,
+                  max_tex_x,
+                  max_tex_y,
+                  result,
+                  use_talpha,
+                  (tex_extend == TEX_REPEAT),
+                  (tex_extend == TEX_EXTEND),
+                  tex_is_byte_buffer);
+  } else {
+    /* No filtering (CPU line 254-255: ibuf_get_color) */
+    ivec2 px_coord = ivec2(x, y);
+    px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
+    /* Exact texel fetch to match CPU ibuf_get_color (no filtering). */
+    result = texelFetch(displacement_texture, px_coord, 0);
+    /* If texture was uploaded from byte buffer, the CPU path premultiplies bytes
+     * (rgb *= alpha). Reproduce that here. */
+    if (tex_is_byte_buffer) {
+      result.rgb *= result.a;
+    }
+  }
+  
+  return true;  /* Pixel successfully sampled */
+}
+)GLSL";
+}
+
 /* Part 2: Main function body (texture sampling + displacement logic) */
 static std::string get_displace_shader_part2()
 {
@@ -351,7 +557,6 @@ else {
 TexResult texres;
 texres.trgba = vec4(0.0);
 texres.talpha = use_talpha;  /* From CPU line 211-213 */
-bool should_displace = true;
 
 /* Step 1: FLAT mapping (normalize [-1,1] → [0,1]) */
 float fx = (tex_coord.x + 1.0) / 2.0;
@@ -360,206 +565,16 @@ float fy = (tex_coord.y + 1.0) / 2.0;
 /* Get texture size for pixel-space calculations */
 ivec2 tex_size = textureSize(displacement_texture, 0);
   
-/* Step 2: do_2d_mapping() - REPEAT scaling + MIRROR (matching CPU line 501-527) */
-if (tex_extend == TEX_REPEAT) {
-  float origf_x = fx;
-  float origf_y = fy;
-  
-  /* Repeat X */
-  if (tex_repeat.x > 1.0) {
-    fx *= tex_repeat.x;
-    if (fx > 1.0) {
-      fx -= float(int(fx));
-    }
-    else if (fx < 0.0) {
-      fx += 1.0 - float(int(fx));
-    }
-    
-    /* Mirror X if needed */
-    if (tex_xmir) {
-      int orig = int(floor(origf_x * tex_repeat.x));
-      if ((orig & 1) != 0) {
-        fx = 1.0 - fx;
-      }
-    }
-  }
-  
-  /* Repeat Y */
-  if (tex_repeat.y > 1.0) {
-    fy *= tex_repeat.y;
-    if (fy > 1.0) {
-      fy -= float(int(fy));
-    }
-    else if (fy < 0.0) {
-      fy += 1.0 - float(int(fy));
-    }
-    
-    /* Mirror Y if needed */
-    if (tex_ymir) {
-      int orig = int(floor(origf_y * tex_repeat.y));
-      if ((orig & 1) != 0) {
-        fy = 1.0 - fy;
-      }
-    }
-  }
+/* Step 2: Apply do_2d_mapping() - REPEAT scaling + MIRROR + CROP */
+do_2d_mapping(fx, fy);
+
+/* Step 3: Apply imagewrap() - handles all wrapping, filtering, and sampling
+ * This now includes CLIPCUBE check, coordinate wrapping, and texture sampling */
+vec3 mapped_coord = vec3(fx, fy, tex_coord.z);
+if (!imagewrap(mapped_coord, texres.trgba, tex_size)) {
+  /* Pixel should not be rendered (CLIP/CLIPCUBE/CHECKER filtering) */
+  texres.trgba = vec4(0.0);
 }
-
-/* Step 3: do_2d_mapping() - CROP (matching CPU line 528-537) */
-if (tex_crop.x != 0.0 || tex_crop.z != 1.0) {
-  float fac1 = tex_crop.z - tex_crop.x;
-  fx = tex_crop.x + fx * fac1;
-}
-if (tex_crop.y != 0.0 || tex_crop.w != 1.0) {
-  float fac1 = tex_crop.w - tex_crop.y;
-  fy = tex_crop.y + fy * fac1;
-}
-
-/* Step 4: imagewrap() - TEX_IMAROT (swap X/Y) AFTER crop (matching CPU line 120-122)
- * CRITICAL: This MUST happen AFTER crop and BEFORE TEX_CHECKER! */
-if (tex_flip_axis) {
-  float temp = fx;
-  fx = fy;
-  fy = temp;
-}
-
-/* Step 5: imagewrap() - TEX_CHECKER filtering (matching CPU line 124-153)
- * Applied AFTER repeat/crop/swap to ensure correct tile detection */
-  if (tex_extend == TEX_CHECKER) {
-    /* Calculate tile coordinates from normalized UV coordinates (after repeat/crop)
-     * xs = int(floor(fx)), ys = int(floor(fy)) */
-    int xs = int(floor(fx));
-    int ys = int(floor(fy));
-    int tile_parity = (xs + ys) & 1;  /* 1 = odd tile, 0 = even tile */
-    
-    /* Apply checker odd/even filter (CPU texture_image.cc line 98-111)
-     * NOTE: CPU logic uses inverted flags!
-     * tex_checker_odd = true means "TEX_CHECKER_ODD flag is NOT SET"
-     *                              → hide EVEN tiles
-     * tex_checker_even = true means "TEX_CHECKER_EVEN flag is NOT SET"  
-     *                               → hide ODD tiles */
-    bool show_tile = true;
-    
-    if (tex_checker_odd && (tile_parity == 0)) {
-      show_tile = false;  /* Hide EVEN tiles when ODD flag not set */
-    }
-    if (tex_checker_even && (tile_parity == 1)) {
-      show_tile = false;  /* Hide ODD tiles when EVEN flag not set */
-    }
-    
-    if (!show_tile) {
-      texres.trgba = vec4(0.0);
-      should_displace = false;
-    }
-    
-    /* Normalize to fractional part within the tile */
-    fx -= float(xs);
-    fy -= float(ys);
-    
-    /* Scale checker pattern if needed (CPU line 113-117)
-     * scale around center, (0.5, 0.5) */
-    if (tex_checkerdist < 1.0) {
-      fx = (fx - 0.5) / (1.0 - tex_checkerdist) + 0.5;
-      fy = (fy - 0.5) / (1.0 - tex_checkerdist) + 0.5;
-    }
-  }
-  
-  /* Compute integer pixel coordinates (CPU line 157-158)
-   * x = xi = int(floorf(fx * ibuf->x)); */
-  int x = int(floor(fx * float(tex_size.x)));
-  int y = int(floor(fy * float(tex_size.y)));
-  int xi = x;  /* Save original for interpolation fix later */
-  int yi = y;
-  
-  /* EARLY RETURN for CLIP/CLIPCUBE (CPU line 160-175) */
-  if (tex_extend == TEX_CLIP) {
-    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
-      texres.trgba = vec4(0.0);
-      should_displace = false;
-    }
-  }
-  else if (tex_extend == TEX_CLIPCUBE) {
-    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
-        tex_coord.z < -1.0 || tex_coord.z > 1.0) {
-      texres.trgba = vec4(0.0);
-      should_displace = false;
-    }
-  }
-  else if (tex_extend == TEX_CHECKER) {
-    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
-      texres.trgba = vec4(0.0);
-      should_displace = false;
-    }
-  }
-  else {
-    /* EXTEND or REPEAT mode: wrap/clamp coordinates (CPU line 176-202) */
-    if (tex_extend == TEX_EXTEND) {
-      x = (x >= tex_size.x) ? (tex_size.x - 1) : ((x < 0) ? 0 : x);
-    }
-    else {
-      /* REPEAT */
-      x = x % tex_size.x;
-      if (x < 0) x += tex_size.x;
-    }
-    
-    if (tex_extend == TEX_EXTEND) {
-      y = (y >= tex_size.y) ? (tex_size.y - 1) : ((y < 0) ? 0 : y);
-    }
-    else {
-      /* REPEAT */
-      y = y % tex_size.y;
-      if (y < 0) y += tex_size.y;
-    }
-  }
-  
-  /* Now sample texture (CPU line 215-241: interpolate/no filtering)
-   * Normalize pixel coords back to [0,1] for texture() sampling */
-  
-  /* Remap coordinates for interpolation (CPU line 220-223):
-   * "Important that this value is wrapped #27782" */
-  fx -= float(xi - x) / float(tex_size.x);
-  fy -= float(yi - y) / float(tex_size.y);
-  
-  /* Normalize UVs to [0,1] for texture sampling */
-  vec2 uv_normalized = vec2(fx, fy);
-  
-  if (tex_interpol) {
-    /* Interpolated sampling (boxsample) - use GPU boxsample implementation */
-    float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
-    float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
-
-    /* fx,fy already adjusted above (remap for interpolation) */
-    float min_tex_x = (fx - filterx) * float(tex_size.x);
-    float min_tex_y = (fy - filtery) * float(tex_size.y);
-    float max_tex_x = (fx + filterx) * float(tex_size.x);
-    float max_tex_y = (fy + filtery) * float(tex_size.y);
-
-    boxsample_gpu(displacement_texture,
-                  tex_size,
-                  min_tex_x,
-                  min_tex_y,
-                  max_tex_x,
-                  max_tex_y,
-                  texres.trgba,
-                  texres.talpha,
-                  (tex_extend == TEX_REPEAT),
-                  (tex_extend == TEX_EXTEND),
-                  tex_is_byte_buffer);
-  } else {
-    /* No filtering (CPU line 242: ibuf_get_color) */
-    ivec2 px_coord = ivec2(x, y);
-    px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
-    /* Exact texel fetch to match CPU ibuf_get_color (no filtering). */
-    texres.trgba = texelFetch(displacement_texture, px_coord, 0);
-    /* If texture was uploaded from byte buffer, the CPU path premultiplies bytes
-     * (rgb *= alpha). Reproduce that here. */
-    if (tex_is_byte_buffer) {
-      texres.trgba.rgb *= texres.trgba.a;
-    }
-  }
-
-  if (!should_displace) {
-    texres.trgba = vec4(0.0);
-  }
   
   /* Compute intensity (CPU line 244-253) */
   if (texres.talpha) {
@@ -744,7 +759,8 @@ if (tex_flip_axis) {
 /* Final assembly function - concatenates both parts */
 static std::string get_displace_compute_src()
 {
-  return get_displace_shader_part1() + get_vertex_normals() + get_displace_shader_part2();
+  return get_displace_shader_part1() + get_vertex_normals() + get_texture_mapping_functions() +
+         get_displace_shader_part2();
 }
 
 /** \} */
