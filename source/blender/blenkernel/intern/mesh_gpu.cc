@@ -59,6 +59,11 @@ void mesh_gpu_orphans_flush_impl()
           GPU_storagebuf_free(ssbo);
         }
       }
+      for (auto *ubo : d.internal_resources->ubos) {
+        if (ubo) {
+          GPU_uniformbuf_free(ubo);
+        }
+      }
       for (auto *sh : d.internal_resources->shaders) {
         if (sh) {
           GPU_shader_free(sh);
@@ -802,9 +807,9 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
           /* Index buffer cleanup handled by GPU module if needed */
         }
       }
-      for (auto *ub : data.internal_resources->ubos) {
-        if (ub) {
-          /* Uniform buffer cleanup handled by GPU module if needed */
+      for (auto *ubo : data.internal_resources->ubos) {
+        if (ubo) {
+          GPU_uniformbuf_free(ubo);
         }
       }
       for (auto *sh : data.internal_resources->shaders) {
@@ -890,6 +895,11 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh)
     for (auto *ssbo : d.internal_resources->ssbos) {
       if (ssbo) {
         GPU_storagebuf_free(ssbo);
+      }
+    }
+    for (auto *ubo : d.internal_resources->ubos) {
+      if (ubo) {
+        GPU_uniformbuf_free(ubo);
       }
     }
     for (auto *vbo : d.internal_resources->vbos) {
@@ -1200,9 +1210,9 @@ void BKE_mesh_gpu_free_all_caches()
               /* Index buffer cleanup handled by GPU module if needed */
             }
           }
-          for (auto *ub : d.internal_resources->ubos) {
-            if (ub) {
-              /* Uniform buffer cleanup handled by GPU module if needed */
+          for (auto *ubo : d.internal_resources->ubos) {
+            if (ubo) {
+              GPU_uniformbuf_free(ubo);
             }
           }
           for (auto *sh : d.internal_resources->shaders) {
