@@ -8,8 +8,8 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
-#include "GPU_shader.hh"
 #include "GPU_index_buffer.hh"
+#include "GPU_shader.hh"
 #include "GPU_storage_buffer.hh"
 #include "GPU_uniform_buffer.hh"
 #include "GPU_vertex_buffer.hh"
@@ -146,7 +146,6 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const std::function<void(blender::gpu::Shader *)> &post_bind_fn = {},
     int dispatch_count = 0);
 
-
 blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
@@ -168,7 +167,8 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh);
  *
  * Sets flags to:
  * - Skip CPU modifier stack evaluation (is_running_gpu_skinning = 1)
- * - Preserve mesh_eval (no free) - Prevents BKE_mesh_batch_cache_dirty_tag (is_running_gpu_skinning = 1)
+ * - Preserve mesh_eval (no free) - Prevents BKE_mesh_batch_cache_dirty_tag
+ * (is_running_gpu_skinning = 1)
  *
  * Triggers:
  * - Depsgraph geometry tag
@@ -180,9 +180,7 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh);
  *
  * \note Designed to be called from BKE_mesh_gpu_run_compute when stride check fails.
  */
-void BKE_mesh_request_gpu_render_cache_update(Mesh *mesh_orig,
-                                              Mesh *mesh_eval,
-                                              Object *ob_orig);
+void BKE_mesh_request_gpu_render_cache_update(Mesh *mesh_orig, Mesh *mesh_eval, Object *ob_orig);
 
 /**
  * Cleanup function to be called on Blender exit to free all cached compute resources,
@@ -226,35 +224,43 @@ struct MeshGpuInternalResources {
   blender::Vector<blender::gpu::IndexBuf *> ibos;
   blender::Vector<blender::gpu::UniformBuf *> ubos;
   blender::Vector<blender::gpu::Shader *> shaders;
-  
+
   /* Entry for cached SSBO with reference counting */
   struct SsboEntry {
     blender::gpu::StorageBuf *buffer;
     int refcount;
   };
-  
+
+  /* Entry for cached UBO with reference counting */
+  struct UboEntry {
+    blender::gpu::UniformBuf *buffer;
+    int refcount;
+  };
+
   /* Entry for cached shader with reference counting */
   struct ShaderEntry {
     blender::gpu::Shader *shader;
     int refcount;
   };
-  
+
   /* Keyed maps to prevent duplicate resources */
   blender::Map<std::string, SsboEntry> ssbo_map;
+  blender::Map<std::string, UboEntry> ubo_map;
   blender::Map<std::string, ShaderEntry> shader_map;
 
   MeshGpuInternalResources() = default;
 };
 
-} // namespace bke
-} // namespace blender
+}  // namespace bke
+}  // namespace blender
 
 /* Backwards-compatible alias in global namespace. */
 using MeshGpuInternalResources = blender::bke::MeshGpuInternalResources;
 
 /**
  * Ensure internal resource container exists for a mesh and return a pointer to it.
- * The returned pointer is owned by the internal mesh GPU cache and must not be freed by the caller.
+ * The returned pointer is owned by the internal mesh GPU cache and must not be freed by the
+ * caller.
  */
 MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh);
 
@@ -265,11 +271,17 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh);
 
 /* Helpers to create or lookup keyed internal resources (avoid duplicates). */
 blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
- Mesh *mesh, const std::string &key, const blender::gpu::shader::ShaderCreateInfo &info);
+    Mesh *mesh, const std::string &key, const blender::gpu::shader::ShaderCreateInfo &info);
 void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key);
 
 blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
- const std::string &key,
- size_t size);
+                                                            const std::string &key,
+                                                            size_t size);
 blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::string &key);
 void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key);
+
+blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh,
+                                                           const std::string &key,
+                                                           size_t size);
+blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_get(Mesh *mesh, const std::string &key);
+void BKE_mesh_gpu_internal_ubo_release(Mesh *mesh, const std::string &key);

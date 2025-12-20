@@ -17,6 +17,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh" /* BKE_pose_channel_find_name for MAP_OBJECT/bone */
+#include "BKE_colorband.hh"
 #include "BKE_deform.hh"
 #include "BKE_image.hh"
 #include "BKE_mesh.hh"
@@ -96,7 +97,7 @@ struct blender::draw::DisplaceManager::Impl {
 static std::string get_displace_shader_part1()
 {
   return R"GLSL(
-/* GPU Displace Modifier Compute Shader v2.0 */
+/* GPU Displace Modifier Compute Shader v2.1 with ColorBand support */
 /* Displace direction modes (matching DisplaceModifierDirection enum) */
 #define MOD_DISP_DIR_X 0
 #define MOD_DISP_DIR_Y 1
@@ -116,6 +117,236 @@ static std::string get_displace_shader_part1()
 #define TEX_REPEAT 3
 #define TEX_CLIPCUBE 4
 #define TEX_CHECKER 5
+
+/* ColorBand interpolation types (matching DNA_color_types.h) */
+#define COLBAND_INTERP_LINEAR 0
+#define COLBAND_INTERP_EASE 1
+#define COLBAND_INTERP_CONSTANT 2
+#define COLBAND_INTERP_B_SPLINE 3
+#define COLBAND_INTERP_CARDINAL 4
+
+/* ColorBand color modes (matching DNA_color_types.h) */
+#define COLBAND_BLEND_RGB 0
+#define COLBAND_BLEND_HSV 1
+#define COLBAND_BLEND_HSL 2
+
+/* ColorBand hue interpolation modes (matching DNA_color_types.h) */
+#define COLBAND_HUE_NEAR 0
+#define COLBAND_HUE_FAR 1
+#define COLBAND_HUE_CW 2
+#define COLBAND_HUE_CCW 3
+
+/* GPU port of colorband_hue_interp() from colorband.cc (line 285-393) */
+float colorband_hue_interp(int ipotype_hue, float mfac, float fac, float h1, float h2)
+{
+  float h_interp;
+  int mode = 0;
+
+  /* HUE_MOD macro */
+  h1 = (h1 < 1.0) ? h1 : h1 - 1.0;
+  h2 = (h2 < 1.0) ? h2 : h2 - 1.0;
+
+  if (ipotype_hue == COLBAND_HUE_NEAR) {
+    if ((h1 < h2) && (h2 - h1) > 0.5) {
+      mode = 1;
+    }
+    else if ((h1 > h2) && (h2 - h1) < -0.5) {
+      mode = 2;
+    }
+    else {
+      mode = 0;
+    }
+  }
+  else if (ipotype_hue == COLBAND_HUE_FAR) {
+    /* Do full loop in Hue space in case both stops are the same... */
+    if (h1 == h2) {
+      mode = 1;
+    }
+    else if ((h1 < h2) && (h2 - h1) < 0.5) {
+      mode = 1;
+    }
+    else if ((h1 > h2) && (h2 - h1) > -0.5) {
+      mode = 2;
+    }
+    else {
+      mode = 0;
+    }
+  }
+  else if (ipotype_hue == COLBAND_HUE_CCW) {
+    if (h1 > h2) {
+      mode = 2;
+    }
+    else {
+      mode = 0;
+    }
+  }
+  else if (ipotype_hue == COLBAND_HUE_CW) {
+    if (h1 < h2) {
+      mode = 1;
+    }
+    else {
+      mode = 0;
+    }
+  }
+
+  /* HUE_INTERP macro: ((mfac * (h_a)) + (fac * (h_b))) */
+  if (mode == 0) {
+    h_interp = (mfac * h1) + (fac * h2);
+  }
+  else if (mode == 1) {
+    h_interp = (mfac * (h1 + 1.0)) + (fac * h2);
+    h_interp = (h_interp < 1.0) ? h_interp : h_interp - 1.0;  /* HUE_MOD */
+  }
+  else {  /* mode == 2 */
+    h_interp = (mfac * h1) + (fac * (h2 + 1.0));
+    h_interp = (h_interp < 1.0) ? h_interp : h_interp - 1.0;  /* HUE_MOD */
+  }
+
+  return h_interp;
+}
+
+/* RGB ↔ HSV/HSL conversion functions (GPU port of BLI_math_color.h) */
+vec3 rgb_to_hsv(vec3 rgb)
+{
+  float cmax = max(max(rgb.r, rgb.g), rgb.b);
+  float cmin = min(min(rgb.r, rgb.g), rgb.b);
+  float delta = cmax - cmin;
+  
+  vec3 hsv;
+  hsv.z = cmax;  /* value */
+  
+  if (cmax != 0.0) {
+    hsv.y = delta / cmax;  /* saturation */
+  }
+  else {
+    hsv.y = 0.0;
+    hsv.x = 0.0;
+    return hsv;
+  }
+  
+  if (delta == 0.0) {
+    hsv.x = 0.0;
+  }
+  else if (rgb.r == cmax) {
+    hsv.x = (rgb.g - rgb.b) / delta;
+  }
+  else if (rgb.g == cmax) {
+    hsv.x = 2.0 + (rgb.b - rgb.r) / delta;
+  }
+  else {
+    hsv.x = 4.0 + (rgb.r - rgb.g) / delta;
+  }
+  
+  hsv.x /= 6.0;
+  if (hsv.x < 0.0) {
+    hsv.x += 1.0;
+  }
+  
+  return hsv;
+}
+
+vec3 hsv_to_rgb(vec3 hsv)
+{
+  float h = hsv.x;
+  float s = hsv.y;
+  float v = hsv.z;
+  
+  if (s == 0.0) {
+    return vec3(v, v, v);
+  }
+  
+  h *= 6.0;
+  float i = floor(h);
+  float f = h - i;
+  float p = v * (1.0 - s);
+  float q = v * (1.0 - s * f);
+  float t = v * (1.0 - s * (1.0 - f));
+  
+  int sector = int(i) % 6;
+  if (sector == 0) return vec3(v, t, p);
+  else if (sector == 1) return vec3(q, v, p);
+  else if (sector == 2) return vec3(p, v, t);
+  else if (sector == 3) return vec3(p, q, v);
+  else if (sector == 4) return vec3(t, p, v);
+  else return vec3(v, p, q);
+}
+
+vec3 rgb_to_hsl(vec3 rgb)
+{
+  float cmax = max(max(rgb.r, rgb.g), rgb.b);
+  float cmin = min(min(rgb.r, rgb.g), rgb.b);
+  float delta = cmax - cmin;
+  
+  vec3 hsl;
+  hsl.z = (cmax + cmin) / 2.0;  /* lightness */
+  
+  if (delta == 0.0) {
+    hsl.x = 0.0;  /* hue */
+    hsl.y = 0.0;  /* saturation */
+  }
+  else {
+    if (hsl.z < 0.5) {
+      hsl.y = delta / (cmax + cmin);
+    }
+    else {
+      hsl.y = delta / (2.0 - cmax - cmin);
+    }
+    
+    if (rgb.r == cmax) {
+      hsl.x = (rgb.g - rgb.b) / delta;
+    }
+    else if (rgb.g == cmax) {
+      hsl.x = 2.0 + (rgb.b - rgb.r) / delta;
+    }
+    else {
+      hsl.x = 4.0 + (rgb.r - rgb.g) / delta;
+    }
+    
+    hsl.x /= 6.0;
+    if (hsl.x < 0.0) {
+      hsl.x += 1.0;
+    }
+  }
+  
+  return hsl;
+}
+
+vec3 hsl_to_rgb(vec3 hsl)
+{
+  float h = hsl.x;
+  float s = hsl.y;
+  float l = hsl.z;
+  
+  if (s == 0.0) {
+    return vec3(l, l, l);
+  }
+  
+  float q = (l < 0.5) ? (l * (1.0 + s)) : (l + s - l * s);
+  float p = 2.0 * l - q;
+  
+  h *= 6.0;
+  vec3 t = vec3(h + 2.0, h, h - 2.0);
+  
+  for (int i = 0; i < 3; i++) {
+    if (t[i] < 0.0) t[i] += 6.0;
+    if (t[i] >= 6.0) t[i] -= 6.0;
+    
+    if (t[i] < 1.0) {
+      t[i] = p + (q - p) * t[i];
+    }
+    else if (t[i] < 3.0) {
+      t[i] = q;
+    }
+    else if (t[i] < 4.0) {
+      t[i] = p + (q - p) * (4.0 - t[i]);
+    }
+    else {
+      t[i] = p;
+    }
+  }
+  
+  return t;
+}
 
 /* Box sampling helpers - GPU port of boxsampleclip() and boxsample() from texture_image.cc
  * Simplified: computes texel coverage weights per-pixel within the box region and
@@ -288,6 +519,168 @@ vec3 compute_vertex_normal(uint v) {
 static std::string get_texture_mapping_functions()
 {
   return R"GLSL(
+/* GPU port of BKE_colorband_evaluate() from colorband.cc (line 395-556)
+ * NOTE: ColorBand struct is vec4-aligned in UBO (std140 layout)
+ * Returns false if colorband is invalid or has no stops */
+bool BKE_colorband_evaluate(ColorBand coba, float in_val, out vec4 out_color)
+{
+  int tot = coba.tot_cur_ipotype_hue.x;
+  int cur = coba.tot_cur_ipotype_hue.y;
+  int ipotype = coba.tot_cur_ipotype_hue.z;
+  int ipotype_hue = coba.tot_cur_ipotype_hue.w;
+  int color_mode = coba.color_mode_pad.x;
+
+  if (tot == 0) {
+    return false;
+  }
+
+  /* Extract first color stop data from vec4-aligned struct */
+  vec4 cbd1_rgba = coba.data[0].rgba;
+  float cbd1_pos = coba.data[0].pos_cur_pad.x;
+
+  /* NOTE: when ipotype >= COLBAND_INTERP_B_SPLINE,
+   * we cannot do early-out with a constant color before first color stop and after last one,
+   * because interpolation starts before and ends after those... */
+  ipotype = (color_mode == COLBAND_BLEND_RGB) ? ipotype : COLBAND_INTERP_LINEAR;
+
+  if (tot == 1) {
+    out_color = cbd1_rgba;
+    return true;
+  }
+  else if ((in_val <= cbd1_pos) &&
+           (ipotype == COLBAND_INTERP_LINEAR || ipotype == COLBAND_INTERP_EASE ||
+            ipotype == COLBAND_INTERP_CONSTANT))
+  {
+    /* We are before first color stop. */
+    out_color = cbd1_rgba;
+    return true;
+  }
+  else {
+    /* we're looking for first pos > in_val */
+    int a = 0;
+    for (a = 0; a < tot; a++) {
+      float pos = coba.data[a].pos_cur_pad.x;
+      if (pos > in_val) {
+        break;
+      }
+    }
+
+    vec4 cbd1_rgba_final, cbd2_rgba;
+    float cbd1_pos_final, cbd2_pos;
+
+    if (a == tot) {
+      cbd2_rgba = coba.data[a - 1].rgba;
+      cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
+      cbd1_rgba_final = cbd2_rgba;
+      cbd1_pos_final = 1.0;
+    }
+    else if (a == 0) {
+      cbd1_rgba_final = coba.data[0].rgba;
+      cbd1_pos_final = coba.data[0].pos_cur_pad.x;
+      cbd2_rgba = cbd1_rgba_final;
+      cbd2_pos = 0.0;
+    }
+    else {
+      cbd1_rgba_final = coba.data[a].rgba;
+      cbd1_pos_final = coba.data[a].pos_cur_pad.x;
+      cbd2_rgba = coba.data[a - 1].rgba;
+      cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
+    }
+
+    if ((a == tot) &&
+        (ipotype == COLBAND_INTERP_LINEAR || ipotype == COLBAND_INTERP_EASE ||
+         ipotype == COLBAND_INTERP_CONSTANT))
+    {
+      /* We are after last color stop. */
+      out_color = cbd2_rgba;
+      return true;
+    }
+    else if (ipotype == COLBAND_INTERP_CONSTANT) {
+      /* constant */
+      out_color = cbd2_rgba;
+      return true;
+    }
+    else {
+      float fac;
+      if (cbd2_pos != cbd1_pos_final) {
+        fac = (in_val - cbd1_pos_final) / (cbd2_pos - cbd1_pos_final);
+      }
+      else {
+        fac = (a != tot) ? 0.0 : 1.0;
+      }
+
+      if (ipotype == COLBAND_INTERP_B_SPLINE || ipotype == COLBAND_INTERP_CARDINAL) {
+        /* B-SPLINE and CARDINAL interpolation (simplified Catmull-Rom) */
+        vec4 cbd0_rgba, cbd3_rgba;
+
+        if (a >= tot - 1) {
+          cbd0_rgba = cbd1_rgba_final;
+        }
+        else {
+          cbd0_rgba = coba.data[a + 1].rgba;
+        }
+        if (a < 2) {
+          cbd3_rgba = cbd2_rgba;
+        }
+        else {
+          cbd3_rgba = coba.data[a - 2].rgba;
+        }
+
+        fac = clamp(fac, 0.0, 1.0);
+
+        /* Catmull-Rom spline weights */
+        float t = fac;
+        float t2 = t * t;
+        float t3 = t2 * t;
+
+        float w0 = -0.5 * t3 + t2 - 0.5 * t;
+        float w1 = 1.5 * t3 - 2.5 * t2 + 1.0;
+        float w2 = -1.5 * t3 + 2.0 * t2 + 0.5 * t;
+        float w3 = 0.5 * t3 - 0.5 * t2;
+
+        out_color = w0 * cbd3_rgba + w1 * cbd2_rgba + w2 * cbd1_rgba_final + w3 * cbd0_rgba;
+        out_color = clamp(out_color, 0.0, 1.0);
+      }
+      else {
+        if (ipotype == COLBAND_INTERP_EASE) {
+          float fac2 = fac * fac;
+          fac = 3.0 * fac2 - 2.0 * fac2 * fac;
+        }
+        float mfac = 1.0 - fac;
+
+        if (color_mode == COLBAND_BLEND_HSV) {
+          vec3 col1 = rgb_to_hsv(cbd1_rgba_final.rgb);
+          vec3 col2 = rgb_to_hsv(cbd2_rgba.rgb);
+
+          out_color.r = colorband_hue_interp(ipotype_hue, mfac, fac, col1.r, col2.r);
+          out_color.g = mfac * col1.g + fac * col2.g;
+          out_color.b = mfac * col1.b + fac * col2.b;
+          out_color.a = mfac * cbd1_rgba_final.a + fac * cbd2_rgba.a;
+
+          out_color.rgb = hsv_to_rgb(out_color.rgb);
+        }
+        else if (color_mode == COLBAND_BLEND_HSL) {
+          vec3 col1 = rgb_to_hsl(cbd1_rgba_final.rgb);
+          vec3 col2 = rgb_to_hsl(cbd2_rgba.rgb);
+
+          out_color.r = colorband_hue_interp(ipotype_hue, mfac, fac, col1.r, col2.r);
+          out_color.g = mfac * col1.g + fac * col2.g;
+          out_color.b = mfac * col1.b + fac * col2.b;
+          out_color.a = mfac * cbd1_rgba_final.a + fac * cbd2_rgba.a;
+
+          out_color.rgb = hsl_to_rgb(out_color.rgb);
+        }
+        else {
+          /* COLBAND_BLEND_RGB */
+          out_color = mfac * cbd1_rgba_final + fac * cbd2_rgba;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 /* GPU port of do_2d_mapping() from texture_procedural.cc (line 501-537)
  * Applies REPEAT scaling + MIRROR, then CROP transformations */
 void do_2d_mapping(inout float fx, inout float fy)
@@ -557,6 +950,7 @@ else {
 TexResult texres;
 texres.trgba = vec4(0.0);
 texres.talpha = use_talpha;  /* From CPU line 211-213 */
+texres.tin = 0.0;
 
 /* Step 1: FLAT mapping (normalize [-1,1] → [0,1]) */
 float fx = (tex_coord.x + 1.0) / 2.0;
@@ -671,15 +1065,31 @@ if (!imagewrap(mapped_coord, texres.trgba, tex_size)) {
     srgb_rgb.b = linearrgb_to_srgb(rgb_clamped.b);
   }
   
-  float tex_value = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
+  /* Use texres.tin for intensity to match CPU naming convention (imagewrap.cc line 244-253) */
+  texres.tin = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
   
   if (tex_flipblend) {
-    tex_value = 1.0 - tex_value;
+    texres.tin = 1.0 - texres.tin;
+  }
+
+  /* Apply ColorBand if enabled (GPU port of texture_procedural.cc line 244-253)
+   * CRITICAL: ColorBand replaces texres.trgba, so we must recalculate texres.tin from it!
+   * Matches CPU: if (tex->flag & TEX_COLORBAND) { ... } */
+  if (use_colorband) {
+    vec4 col_band;
+    if (BKE_colorband_evaluate(tex_colorband, texres.tin, col_band)) {
+      texres.talpha = true;
+      texres.trgba = col_band;
+      /* CRITICAL: Recalculate texres.tin from ColorBand result (CPU behavior)
+       * The CPU uses texres->tin AFTER ColorBand for displacement calculation */
+      srgb_rgb = col_band.rgb;
+      texres.tin = (col_band.r + col_band.g + col_band.b) * (1.0 / 3.0);
+    }
   }
 
   float s = strength * vgroup_weight;
   vec3 rgb_displacement = (srgb_rgb - vec3(midlevel)) * s;
-  delta = (tex_value - midlevel) * s;
+  delta = (texres.tin - midlevel) * s;
 #else
   /* Fixed delta (no texture) */
   delta = (1.0 - midlevel) * strength * vgroup_weight;
@@ -1040,6 +1450,84 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     }
   }
 
+  /* Upload ColorBand UBO if texture has colorband enabled (TEX_COLORBAND flag)
+   * GPU port of: if (tex->flag & TEX_COLORBAND) { ... } */
+  const std::string key_colorband = key_prefix + "colorband";
+  blender::gpu::UniformBuf *ubo_colorband = nullptr;
+  bool use_colorband = false;
+
+  /* ColorBand UBO layout (std140, vec4-aligned):
+   * struct CBData {
+   *   vec4 rgba;         // r, g, b, a packed in vec4 (16 bytes)
+   *   vec4 pos_cur_pad;  // pos, cur (as float), pad[2] (16 bytes)
+   * };  // Total: 32 bytes per stop
+   *
+   * struct ColorBand {
+   *   ivec4 tot_cur_ipotype_hue;  // tot, cur, ipotype, ipotype_hue (16 bytes)
+   *   ivec4 color_mode_pad;       // color_mode, pad[3] (16 bytes)
+   *   CBData data[32];            // 32 * 32 bytes = 1024 bytes
+   * };  // Total: 1056 bytes */
+
+  struct GPUCBData {
+    float rgba[4];        /* r, g, b, a */
+    float pos_cur_pad[4]; /* pos, cur (as float), pad[2] */
+  };
+
+  struct GPUColorBand {
+    int32_t tot_cur_ipotype_hue[4]; /* tot, cur, ipotype, ipotype_hue */
+    int32_t color_mode_pad[4];      /* color_mode, pad[3] */
+    GPUCBData data[32];
+  };
+
+  const size_t size_colorband = sizeof(GPUColorBand);
+
+  /* Check if UBO already exists in cache */
+  ubo_colorband = BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
+
+  if (!ubo_colorband) {
+    /* Create and upload ColorBand data */
+    if (has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND)) {
+      use_colorband = true;
+
+      GPUColorBand gpu_coba = {};
+      ColorBand *coba = dmd->texture->coba;
+
+      gpu_coba.tot_cur_ipotype_hue[0] = coba->tot;
+      gpu_coba.tot_cur_ipotype_hue[1] = coba->cur;
+      gpu_coba.tot_cur_ipotype_hue[2] = coba->ipotype;
+      gpu_coba.tot_cur_ipotype_hue[3] = coba->ipotype_hue;
+      gpu_coba.color_mode_pad[0] = coba->color_mode;
+
+      for (int i = 0; i < 32; i++) {
+        gpu_coba.data[i].rgba[0] = coba->data[i].r;
+        gpu_coba.data[i].rgba[1] = coba->data[i].g;
+        gpu_coba.data[i].rgba[2] = coba->data[i].b;
+        gpu_coba.data[i].rgba[3] = coba->data[i].a;
+        gpu_coba.data[i].pos_cur_pad[0] = coba->data[i].pos;
+        gpu_coba.data[i].pos_cur_pad[1] = float(coba->data[i].cur);
+      }
+
+      ubo_colorband = BKE_mesh_gpu_internal_ubo_ensure(mesh_owner, key_colorband, size_colorband);
+      if (ubo_colorband) {
+        GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
+      }
+    }
+    else {
+      /* No colorband: create dummy UBO to avoid binding errors */
+      GPUColorBand dummy_coba = {};
+      dummy_coba.tot_cur_ipotype_hue[0] = 0; /* 0 stops = disabled */
+
+      ubo_colorband = BKE_mesh_gpu_internal_ubo_ensure(mesh_owner, key_colorband, size_colorband);
+      if (ubo_colorband) {
+        GPU_uniformbuf_update(ubo_colorband, &dummy_coba);
+      }
+    }
+  }
+  else {
+    /* UBO exists, check if we need to enable colorband */
+    use_colorband = (has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND));
+  }
+
   /* Create output SSBO */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
@@ -1082,6 +1570,21 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   }
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
 
+  /* Build typedef header with ColorBand structure (vec4-aligned for UBO std140 layout) */
+  std::string typedef_header = R"GLSL(
+struct CBData {
+  vec4 rgba;         /* r, g, b, a packed in vec4 */
+  vec4 pos_cur_pad;  /* pos, cur (as float), pad[2] */
+};
+
+struct ColorBand {
+  ivec4 tot_cur_ipotype_hue;  /* tot, cur, ipotype, ipotype_hue */
+  ivec4 color_mode_pad;       /* color_mode, pad[3] */
+  CBData data[32];
+};
+)GLSL";
+
+  info.typedef_source_generated = typedef_header;
   info.compute_source_generated = glsl_accessors + shader_src;
 
   /* Bindings */
@@ -1092,7 +1595,10 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
     info.sampler(0, ImageType::Float2D, "displacement_texture");
   }
-  info.storage_buf(4, Qualifier::read, "int", "topo[]");
+  /* ColorBand UBO (binding 5) - added for TEX_COLORBAND support */
+  info.uniform_buf(4, "ColorBand", "tex_colorband");
+  /* Topology SSBO (binding 4) - parser automatically generates declaration before typedef */
+  info.storage_buf(15, Qualifier::read, "int", "topo[]");
 
   /* Push constants */
   info.push_constant(Type::float4x4_t, "local_mat");
@@ -1100,6 +1606,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   info.push_constant(Type::float_t, "midlevel");
   info.push_constant(Type::int_t, "direction");
   info.push_constant(Type::bool_t, "use_global");
+  info.push_constant(Type::bool_t, "use_colorband"); /* ColorBand enable flag */
 
   /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
   if (has_texture) {
@@ -1168,7 +1675,12 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     }
   }
 
-  GPU_storagebuf_bind(mesh_data.topology.ssbo, 4);
+  GPU_storagebuf_bind(mesh_data.topology.ssbo, 15);
+
+  /* Bind ColorBand UBO (binding 4) */
+  if (ubo_colorband) {
+    GPU_uniformbuf_bind(ubo_colorband, 4);
+  }
 
   /* Set uniforms (runtime parameters) */
   GPU_shader_uniform_mat4(shader, "local_mat", (const float(*)[4])local_mat);
@@ -1176,6 +1688,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   GPU_shader_uniform_1f(shader, "midlevel", dmd->midlevel);
   GPU_shader_uniform_1i(shader, "direction", int(dmd->direction));
   GPU_shader_uniform_1b(shader, "use_global", use_global);
+  GPU_shader_uniform_1b(shader, "use_colorband", use_colorband); /* ColorBand enable flag */
 
   /* Set texture processing parameters (if texture is present) */
   if (has_texture) {
@@ -1304,6 +1817,9 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
+
+  /* Note: UBO is now cached and managed by BKE_mesh_gpu_internal_ubo_* functions.
+   * It will be freed automatically when the mesh cache is invalidated. */
 
   msd.pending_gpu_setup = false;
   msd.gpu_setup_attempts = 0;
