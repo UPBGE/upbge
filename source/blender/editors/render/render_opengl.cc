@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include "DNA_defs.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
@@ -187,7 +188,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
     rv = static_cast<RenderView *>(rr->views.first);
 
     if (rv == nullptr) {
-      rv = MEM_callocN<RenderView>("new opengl render view");
+      rv = MEM_new_for_free<RenderView>("new opengl render view");
       BLI_addtail(&rr->views, rv);
     }
 
@@ -235,7 +236,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
           BLI_findstring(&rr->views, srv->name, offsetof(SceneRenderView, name)));
 
       if (rv == nullptr) {
-        rv = MEM_callocN<RenderView>("new opengl render view");
+        rv = MEM_new_for_free<RenderView>("new opengl render view");
         STRNCPY_UTF8(rv->name, srv->name);
         BLI_addtail(&rr->views, rv);
       }
@@ -1009,7 +1010,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
 }
 
 struct WriteTaskData {
-  RenderResult *rr;
+  RenderResult *rr = nullptr;
   Scene tmp_scene;
 };
 
@@ -1121,9 +1122,9 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     return false;
   }
   Scene *scene = oglrender->scene;
-  WriteTaskData *task_data = MEM_callocN<WriteTaskData>("write task data");
+  WriteTaskData *task_data = MEM_new_for_free<WriteTaskData>("write task data");
   task_data->rr = rr;
-  memcpy(&task_data->tmp_scene, scene, sizeof(task_data->tmp_scene));
+  task_data->tmp_scene = blender::dna::shallow_copy(*scene);
   {
     std::unique_lock lock(oglrender->task_mutex);
     oglrender->num_scheduled_frames++;

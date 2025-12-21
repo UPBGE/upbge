@@ -113,22 +113,22 @@ struct PaintTileKey {
 };
 
 struct PaintTile {
-  Image *image;
-  ImBuf *ibuf;
+  Image *image = nullptr;
+  ImBuf *ibuf = nullptr;
   /* For 2D image painting the ImageUser uses most of the values.
    * Even though views and passes are stored they are currently not supported for painting.
    * For 3D projection painting this only uses a tile & frame number.
    * The scene pointer must be cleared (or temporarily set it as needed, but leave cleared). */
   ImageUser iuser;
   union {
-    float *fp;
+    float *fp = nullptr;
     uint8_t *byte_ptr;
     void *pt;
   } rect;
-  uint16_t *mask;
-  bool valid;
-  bool use_float;
-  int x_tile, y_tile;
+  uint16_t *mask = nullptr;
+  bool valid = false;
+  bool use_float = false;
+  int x_tile = 0, y_tile = 0;
 };
 
 static void ptile_free(PaintTile *ptile)
@@ -244,7 +244,7 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
     *tmpibuf = imbuf_alloc_temp_tile();
   }
 
-  PaintTile *ptile = MEM_callocN<PaintTile>("PaintTile");
+  PaintTile *ptile = MEM_new_for_free<PaintTile>("PaintTile");
 
   ptile->image = image;
   ptile->ibuf = ibuf;
@@ -721,7 +721,7 @@ static UndoImageHandle *uhandle_lookup(ListBase *undo_handles, const Image *imag
 static UndoImageHandle *uhandle_add(ListBase *undo_handles, Image *image, ImageUser *iuser)
 {
   BLI_assert(uhandle_lookup(undo_handles, image, iuser->tile) == nullptr);
-  UndoImageHandle *uh = MEM_callocN<UndoImageHandle>(__func__);
+  UndoImageHandle *uh = MEM_new_for_free<UndoImageHandle>(__func__);
   uh->image_ref.ptr = image;
   uh->iuser = *iuser;
   uh->iuser.scene = nullptr;

@@ -37,6 +37,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "SEQ_channels.hh"
+#include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
@@ -417,6 +418,7 @@ static VectorSet<Strip *> query_scene_strips(Editing *ed)
   return scene_strips;
 }
 
+/* Find whether any scene strips are indirectly rendered, e.g. as mask or effect inputs. */
 static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
                                                  ListBase *channels,
                                                  ListBase *seqbase,
@@ -424,7 +426,7 @@ static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
                                                  int timeline_frame,
                                                  SeqRenderState state)
 {
-  Vector<Strip *> rendered_strips = seq_shown_strips_get(
+  Vector<Strip *> rendered_strips = query_rendered_strips_sorted(
       scene, channels, seqbase, timeline_frame, 0);
 
   /* Iterate over rendered strips. */
@@ -464,10 +466,18 @@ static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
                                                   state);
     }
 
-    /* Check if strip is effect of scene strip or uses it as modifier.
-     * This also checks if `strip == seq_scene`. */
-    for (Strip *seq_scene : scene_strips) {
-      if (relations_render_loop_check(strip, seq_scene)) {
+    for (Strip *strip_scene : scene_strips) {
+      /* Check if the strip is an effect of the scene strip or uses it as modifier.
+       * This also checks if `strip == strip_scene`. */
+      if (relations_render_loop_check(strip, strip_scene)) {
+        return true;
+      }
+      /* Adjustment strips with 'replace' blending can use scene strips in channels below it.
+       * See #151629. */
+      if (strip->type == STRIP_TYPE_ADJUSTMENT && strip->blend_mode == STRIP_BLEND_REPLACE &&
+          strip_scene->intersects_frame(scene, timeline_frame) &&
+          strip_scene->channel < strip->channel)
+      {
         return true;
       }
     }
