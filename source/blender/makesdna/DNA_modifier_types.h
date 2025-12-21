@@ -870,7 +870,7 @@ struct ArmatureModifierData {
 
   /** #eArmature_DeformFlag use instead of #bArmature.deformflag. */
   short deformflag = ARM_DEF_VGROUP, multi = 0.0f;
-  short upbge_deformflag = 0;
+  short upbge_deformflag = ARM_DEF_CPU;
   char _pad2[2] = {};
   struct Object *object = nullptr;
   /** Stored input of previous modifier, for vertex-group blending. */

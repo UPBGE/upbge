@@ -12,7 +12,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_object_types.h"
 
 #include "BKE_mesh.hh"
@@ -48,10 +47,7 @@ static void deform_verts(ModifierData *md,
 static void init_data(ModifierData *md)
 {
   SimpleDeformModifierDataBGE *smd = (SimpleDeformModifierDataBGE *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SimpleDeformModifierDataBGE), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 ModifierTypeInfo modifierType_SimpleDeformBGE = {

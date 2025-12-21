@@ -940,22 +940,23 @@ struct bStretchToConstraint {
 };
 
 /* DEPRECATED: Rigid Body constraint */
-struct bRigidBodyJointConstraint {
+typedef struct bRigidBodyJointConstraint {
   struct Object *tar = nullptr;
   struct Object *child = nullptr;
   int type = 0;
-  float pivX = 0;
-  float pivY = 0;
-  float pivZ = 0;
-  float axX = 0;
-  float axY = 0;
-  float axZ = 0;
-  float minLimit[6] = {};
-  float maxLimit[6] = {};
-  float extraFz = 0;
+  float pivX = 0.0f;
+  float pivY = 0.0f;
+  float pivZ = 0.0f;
+  float axX = 0.0f;
+  float axY = 0.0f;
+  float axZ = 0.0f;
+  float minLimit[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  float maxLimit[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  float extraFz = 0.0f;
   short flag = 0;
-  char _pad[6] = {};
-};
+  short _pad = 0;
+  float breaking = 0.0f;
+} bRigidBodyJointConstraint;
 
 /* Clamp-To Constraint */
 struct bClampToConstraint {

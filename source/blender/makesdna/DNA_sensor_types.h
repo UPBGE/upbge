@@ -41,9 +41,9 @@ struct Material;
 /* ****************** SENSORS ********************* */
 
 typedef struct bNearSensor {
-  char name[64]; /* MAX_NAME */
-  float dist, resetdist;
-  int lastval, _pad;
+  char name[64] = ""; /* MAX_NAME */
+  float dist = 0.0f, resetdist = 0.0f;
+  int lastval = 0, _pad = 0;
 } bNearSensor;
 
 /**
@@ -53,152 +53,152 @@ typedef struct bMouseSensor {
   /**
    * The type of key this sensor listens to.
    */
-  short type;
-  short flag;
-  short _pad1;
-  short mode; /* flag to choose material or property */
-  char propname[64];
-  char matname[64];
-  int mask;
+  short type = 0;
+  short flag = 0;
+  short _pad1 = 0;
+  short mode = 0; /* flag to choose material or property */
+  char propname[64] = "";
+  char matname[64] = "";
+  int mask = 0;
 } bMouseSensor;
 
 /* DEPRECATED */
 typedef struct bTouchSensor {
-  char name[64]; /* MAX_NAME */
-  struct Material *ma;
-  float dist, _pad;
+  char name[64] = ""; /* MAX_NAME */
+  struct Material *ma = nullptr;
+  float dist = 0.0f, _pad = 0.0f;
 } bTouchSensor;
 
 typedef struct bKeyboardSensor {
-  short key, qual;
-  short type, qual2;
+  short key = 0, qual = 0;
+  short type = 0, qual2 = 0;
   /**
    * Name of the target property
    */
-  char targetName[64]; /* MAX_NAME */
+  char targetName[64] = ""; /* MAX_NAME */
   /**
    * Name of the toggle property
    */
-  char toggleName[64]; /* MAX_NAME */
+  char toggleName[64] = ""; /* MAX_NAME */
 } bKeyboardSensor;
 
 typedef struct bPropertySensor {
-  int type;
-  int _pad;
-  char name[64]; /* MAX_NAME */
-  char value[64];
-  char maxvalue[64];
+  int type = 0;
+  int _pad = 0;
+  char name[64] = ""; /* MAX_NAME */
+  char value[64] = "";
+  char maxvalue[64] = "";
 } bPropertySensor;
 
 typedef struct bActuatorSensor {
-  int type;
-  int _pad;
-  char name[64]; /* MAX_NAME */
+  int type = 0;
+  int _pad = 0;
+  char name[64] = ""; /* MAX_NAME */
 } bActuatorSensor;
 
 typedef struct bDelaySensor {
-  short delay;
-  short duration;
-  short flag;
-  short _pad;
+  short delay = 0;
+  short duration = 0;
+  short flag = 0;
+  short _pad = 0;
 } bDelaySensor;
 
 typedef struct bCollisionSensor {
-  char name[64];         /* property name. MAX_NAME */
-  char materialName[64]; /* material      */
+  char name[64] = "";         /* property name. MAX_NAME */
+  char materialName[64] = ""; /* material      */
   // struct Material *ma; // XXX remove materialName
-  short damptimer, damp;
-  short mode; /* flag to choose material or property */
-  short _pad2;
+  short damptimer = 0, damp = 0;
+  short mode = 0; /* flag to choose material or property */
+  short _pad2 = 0;
 } bCollisionSensor;
 
 typedef struct bRadarSensor {
-  char name[64]; /* MAX_NAME */
-  float angle;
-  float range;
-  short flag, axis;
+  char name[64] = ""; /* MAX_NAME */
+  float angle = 0.0f;
+  float range = 0.0f;
+  short flag = 0, axis = 0;
 } bRadarSensor;
 
 typedef struct bRandomSensor {
-  char name[64]; /* MAX_NAME */
-  int seed;
-  int delay;
+  char name[64] = ""; /* MAX_NAME */
+  int seed = 0;
+  int delay = 0;
 } bRandomSensor;
 
 typedef struct bRaySensor {
-  char name[64]; /* MAX_NAME */
-  float range;
-  char propname[64];
-  char matname[64];
+  char name[64] = ""; /* MAX_NAME */
+  float range = 0.0f;
+  char propname[64] = "";
+  char matname[64] = "";
   // struct Material *ma; // XXX remove materialName
-  short mode;
-  short _pad1;
-  int axisflag;
-  int mask;
+  short mode = 0;
+  short _pad1 = 0;
+  int axisflag = 0;
+  int mask = 0;
 } bRaySensor;
 
 typedef struct bArmatureSensor {
-  char posechannel[64]; /* MAX_NAME */
-  char constraint[64];  /* MAX_NAME */
-  int type;
-  float value;
+  char posechannel[64] = ""; /* MAX_NAME */
+  char constraint[64] = "";  /* MAX_NAME */
+  int type = 0;
+  float value = 0.0f;
 } bArmatureSensor;
 
 typedef struct bMessageSensor {
   /**
    * (Possible future use) pointer to a single sender object
    */
-  struct Object *fromObject;
+  struct Object *fromObject = nullptr;
 
   /**
    * Can be used to filter on subjects like this
    */
-  char subject[64];
+  char subject[64] = "";
 
   /**
    * (Possible future use) body to filter on
    */
-  char body[64];
+  char body[64] = "";
 } bMessageSensor;
 
 typedef struct bSensor {
-  struct bSensor *next, *prev;
+  struct bSensor *next = nullptr, *prev = nullptr;
   /* pulse and freq are the bool toggle and frame count for pulse mode */
-  short type, otype, flag, pulse;
-  short freq, totlinks, _pad1,
-      _pad2;     /* freq makes reference to skipped ticks between 2 active pulses */
-  char name[64]; /* MAX_NAME */
-  void *data;
+  short type = 0, otype = 0, flag = 0, pulse = 0;
+  short freq = 0, totlinks = 0, _pad1 = 0,
+      _pad2 = 0;     /* freq makes reference to skipped ticks between 2 active pulses */
+  char name[64] = ""; /* MAX_NAME */
+  void *data = nullptr;
 
-  struct bController **links;
+  struct bController **links = nullptr;
 
-  struct Object *ob;
+  struct Object *ob = nullptr;
 
   /* just add here, to avoid align errors... */
-  short invert; /* Whether or not to invert the output. */
-  short level;  /* Whether the sensor is level base (edge by default) */
-  short tap;
-  short _pad;
+  short invert = 0; /* Whether or not to invert the output. */
+  short level = 0;  /* Whether the sensor is level base (edge by default) */
+  short tap = 0;
+  short _pad = 0;
 } bSensor;
 
 typedef struct bJoystickSensor {
-  char name[64]; /* MAX_NAME */
-  char type;
-  char joyindex;
-  short flag;
-  short axis;
-  short axis_single;
-  int axisf;
-  int button;
-  int hat;
-  int hatf;
-  int precision;
+  char name[64] = ""; /* MAX_NAME */
+  char type = 0;
+  char joyindex = 0;
+  short flag = 0;
+  short axis = 0;
+  short axis_single = 0;
+  int axisf = 0;
+  int button = 0;
+  int hat = 0;
+  int hatf = 0;
+  int precision = 0;
 } bJoystickSensor;
 
 typedef struct bMovementSensor {
-  int axisflag;
-  int localflag;
-  float threshold, _pad;
+  int axisflag = 0;
+  int localflag = 0;
+  float threshold = 0.0f, _pad = 0.0f;
 } bMovementSensor;
 
 /* bMouseSensor->type: uses blender event defines */

@@ -43,47 +43,47 @@
 #include "DNA_listBase.h"
 
 typedef struct PythonProxyProperty {
-  struct PythonProxyProperty *next, *prev;
-  char name[128]; /* 128 = MAX_PROPSTRING */
-  short type;
-  short boolval;
-  int intval;
-  float floatval;
-  char strval[128]; /* 128 = MAX_PROPSTRING */
-  int itemval;
-  float vec[4];
-  ListBase enumval;
-  struct bAction *action;
-  struct bArmature *armature;
-  struct Camera *camera;
-  struct Collection *collection;
-  struct Curve *curve;
-  struct Image *image;
-  struct Key *key;
-  struct Library *library;
-  struct Light *light;
-  struct Material *material;
-  struct Mesh *mesh;
-  struct MovieClip *movie_clip;
-  struct bNodeTree *node_tree;
-  struct Object *object;
-  struct ParticleSettings *particle_settings;
-  struct bSound *sound;
-  struct Speaker *speaker;
-  struct Text *text;
-  struct Tex *texture;
-  struct VFont *vector_font;
-  struct Volume *volume;
-  struct World *world;
+  struct PythonProxyProperty *next = nullptr, *prev = nullptr;
+  char name[128] = ""; /* 128 = MAX_PROPSTRING */
+  short type = 0;
+  short boolval = 0;
+  int intval = 0;
+  float floatval = 0.0f;
+  char strval[128] = ""; /* 128 = MAX_PROPSTRING */
+  int itemval = 0;
+  float vec[4] = {};
+  ListBase enumval = {nullptr, nullptr};
+  struct bAction *action = nullptr;
+  struct bArmature *armature = nullptr;
+  struct Camera *camera = nullptr;
+  struct Collection *collection = nullptr;
+  struct Curve *curve = nullptr;
+  struct Image *image = nullptr;
+  struct Key *key = nullptr;
+  struct Library *library = nullptr;
+  struct Light *light = nullptr;
+  struct Material *material = nullptr;
+  struct Mesh *mesh = nullptr;
+  struct MovieClip *movie_clip = nullptr;
+  struct bNodeTree *node_tree = nullptr;
+  struct Object *object = nullptr;
+  struct ParticleSettings *particle_settings = nullptr;
+  struct bSound *sound = nullptr;
+  struct Speaker *speaker = nullptr;
+  struct Text *text = nullptr;
+  struct Tex *texture = nullptr;
+  struct VFont *vector_font = nullptr;
+  struct Volume *volume = nullptr;
+  struct World *world = nullptr;
 } PythonProxyProperty;
 
 typedef struct PythonProxy {
-  struct PythonProxy *next, *prev;
-  ListBase properties;
-  char name[1024];   /* 1024 = FILE_MAX */
-  char module[1024]; /* 1024 = FILE_MAX */
-  int flag;
-  int _pad;
+  struct PythonProxy *next = nullptr, *prev = nullptr;
+  ListBase properties = {nullptr, nullptr};
+  char name[1024] = "";   /* 1024 = FILE_MAX */
+  char module[1024] = ""; /* 1024 = FILE_MAX */
+  int flag = 0;
+  int _pad = 0;
 } PythonProxy;
 
 /* PythonProxyProperty.type */

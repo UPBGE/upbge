@@ -42,6 +42,7 @@ struct ImageUser;
 struct LightgroupMembership;
 struct Material;
 struct Object;
+struct ObjectActivityCulling;
 struct PartDeflect;
 struct Path;
 struct RigidBodyOb;
@@ -499,6 +500,29 @@ struct ObjectLineArt {
   char _pad[7] = {};
 };
 
+typedef struct LodLevel {
+  struct LodLevel *next = nullptr, *prev = nullptr;
+  struct Object *source = nullptr;
+  int flags = 0;
+  float distance = 25.0f, _pad = 0.0f;
+  int obhysteresis = 10.0f;
+} LodLevel;
+
+typedef struct ObjectActivityCulling {
+  /* For game engine, values around active camera where physics or logic are suspended */
+  float physicsRadius = 0.0f;
+  float logicRadius = 0.0f;
+
+  int flags = 0;
+  int _pad = 0;
+} ObjectActivityCulling;
+
+/* object activity flags */
+enum {
+  OB_ACTIVITY_PHYSICS = (1 << 0),
+  OB_ACTIVITY_LOGIC = (1 << 1),
+};
+
 /* Evaluated light linking state needed for the render engines integration. */
 struct LightLinkingRuntime {
 
@@ -666,7 +690,8 @@ struct Object {
   unsigned short base_local_view_bits = 0;
 
   /** Collision mask settings */
-  unsigned short col_group = 0x01, col_mask = 0xffff;
+  int col_group = 0x01, col_mask = 0xffff;
+  int _pad55 = 0;
 
   /** Rotation mode - uses defines set out in DNA_action_types.h for PoseChannel rotations.... */
   short rotmode = ROT_MODE_EUL;
@@ -769,16 +794,16 @@ struct Object {
   /************UPBGE**************/
 
   /** Contains data for levels of detail. */
-  ListBase lodlevels;
-  LodLevel *currentlod;
-  float lodfactor, _pad4[1];
+  ListBase lodlevels = {NULL, NULL};
+  LodLevel *currentlod = NULL;
+  float lodfactor = 1.0f, _pad4[1] = {0.0f};
 
   /* settings for game engine bullet soft body */
-  struct BulletSoftBody *bsoft;
+  struct BulletSoftBody *bsoft = NULL;
 
-  short scaflag;    /* ui state for game logic */
-  short scavisflag; /* more display settings for game logic */
-  short _pad53[2];
+  short scaflag = 0;    /* ui state for game logic */
+  short scavisflag = 0; /* more display settings for game logic */
+  short _pad53[2] = {0, 0};
 
   /* during realtime */
 
@@ -786,7 +811,7 @@ struct Object {
    * and is not changed to avoid DNA surgery. It actually reflects the
    * Size value in the GameButtons (= radius) */
 
-  float mass, damping, inertia;
+  float mass = 1.0f, damping = 0.04f, inertia = 1.0f;
   /* The form factor k is introduced to give the user more control
    * and to fix incompatibility problems.
    * For rotational symmetric objects, the inertia value can be
@@ -795,57 +820,57 @@ struct Object {
    * For a Sphere, the form factor is by default = 0.4
    */
 
-  float formfactor;
-  float rdamping;
-  float margin;
-  float max_vel;    /* clamp the maximum velocity 0.0 is disabled */
-  float min_vel;    /* clamp the minimum velocity 0.0 is disabled */
-  float max_angvel; /* clamp the maximum angular velocity, 0.0 is disabled */
-  float min_angvel; /* clamp the minimum angular velocity, 0.0 is disabled */
-  float obstacleRad;
+  float formfactor = 0.4f;
+  float rdamping = 0.1f;
+  float margin = 0.04f;
+  float max_vel = 0.0f;    /* clamp the maximum velocity 0.0 is disabled */
+  float min_vel = 0.0f;    /* clamp the minimum velocity 0.0 is disabled */
+  float max_angvel = 0.0f; /* clamp the maximum angular velocity, 0.0 is disabled */
+  float min_angvel = 0.0f; /* clamp the minimum angular velocity, 0.0 is disabled */
+  float obstacleRad = 1.0f;
 
   /* "Character" physics properties */
-  float step_height;
-  float jump_speed;
-  float fall_speed;
-  float max_slope;
-  short max_jumps;
+  float step_height = 0.15f;
+  float jump_speed = 10.0f;
+  float fall_speed = 55.0f;
+  float max_slope = M_PI_2;
+  short max_jumps = 1;
 
   /* for now used to temporarily holds the type of collision object */
-  short body_type;
+  short body_type = 0;
 
   /** bit masks of game controllers that are active */
-  unsigned int state;
+  unsigned int state = 1;
   /** bit masks of initial state as recorded by the users */
-  unsigned int init_state;
+  unsigned int init_state = 1;
 
-  struct PythonProxy *custom_object;
+  struct PythonProxy *custom_object = NULL;
 
-  ListBase prop;        /* game logic property list (not to be confused with IDProperties) */
-  ListBase sensors;     /* game logic sensors */
-  ListBase controllers; /* game logic controllers */
-  ListBase actuators;   /* game logic actuators */
-  ListBase components;  /* python components */
+  ListBase prop = {NULL, NULL};        /* game logic property list (not to be confused with IDProperties) */
+  ListBase sensors = {NULL, NULL};     /* game logic sensors */
+  ListBase controllers = {NULL, NULL}; /* game logic controllers */
+  ListBase actuators = {NULL, NULL};   /* game logic actuators */
+  ListBase components = {NULL, NULL};  /* python components */
 
-  struct ObjectActivityCulling activityCulling;
+  struct ObjectActivityCulling activityCulling = {0};
 
-  float sf; /* sf is time-offset */
+  float sf = 0.0f; /* sf is time-offset */
 
-  int gameflag;
-  int gameflag2;
+  int gameflag = 0;
+  int gameflag2 = 0;
 
-  float anisotropicFriction[3];
+  float anisotropicFriction[3] = {1.0f, 1.0f, 1.0f};
 
   /* dynamic properties */
-  float friction, rolling_friction, fh, reflect;
-  float fhdist, xyfrict;
-  short dynamode, _pad51[3];
+  float friction = 0.5f, rolling_friction = 0.0f, fh = 0.0f, reflect = 0.0f;
+  float fhdist = 0.0f, xyfrict = 0.0f;
+  short dynamode = 0, _pad51[3] = {0, 0, 0};
 
   /* rigid body ccd */
-  float ccd_motion_threshold;
-  float ccd_swept_sphere_radius;
+  float ccd_motion_threshold = 1.0f;
+  float ccd_swept_sphere_radius = 0.9f;
 
-  void *_pad54;
+  void *_pad54 = nullptr;
 
   /********End of UPBGE***********/
 };

@@ -75,7 +75,7 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
   if (region == nullptr)
     return nullptr;
 
-  regionnew = MEM_callocN<ARegion>("buttons for image");
+  regionnew = MEM_new<ARegion>("buttons for image");
 
   BLI_insertlinkafter(&sa->regionbase, region, regionnew);
   regionnew->regiontype = RGN_TYPE_UI;

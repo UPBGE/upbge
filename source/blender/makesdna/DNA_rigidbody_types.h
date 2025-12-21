@@ -302,7 +302,7 @@ struct RigidBodyCon {
   int flag = 0;
 
   /** Breaking impulse threshold. */
-  float breaking_threshold = 0;
+  float breaking_threshold = 0.0f;
   /** Spring implementation to use. */
   char spring_type = 0;
   char _pad[3] = {};

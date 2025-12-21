@@ -40,30 +40,30 @@ struct bSensor;
 /* ****************** CONTROLLERS ********************* */
 
 typedef struct bExpressionCont {
-  char str[128];
+  char str[128] = "";
 } bExpressionCont;
 
 typedef struct bPythonCont {
-  struct Text *text;
-  struct Text *module_script;
-  char module[64];
-  int mode;
-  int flag; /* only used for debug now */
+  struct Text *text = nullptr;
+  struct Text *module_script = nullptr;
+  char module[64] = "";
+  int mode = 0;
+  int flag = 0; /* only used for debug now */
 } bPythonCont;
 
 typedef struct bController {
-  struct bController *next, *prev, *mynew;
-  short type, flag, inputs, totlinks;
-  short otype, totslinks, _pad2, _pad3;
+  struct bController *next = nullptr, *prev = nullptr, *mynew = nullptr;
+  short type = 0, flag = 0, inputs = 0, totlinks = 0;
+  short otype = 0, totslinks = 0, _pad2 = 0, _pad3 = 0;
 
-  char name[64];
-  void *data;
+  char name[64] = "";
+  void *data = nullptr;
 
-  struct bActuator **links;
+  struct bActuator **links = nullptr;
 
-  struct bSensor **slinks;
-  short val, valo;
-  unsigned int state_mask;
+  struct bSensor **slinks = nullptr;
+  short val = 0, valo = 0;
+  unsigned int state_mask = 0;
 
 } bController;
 

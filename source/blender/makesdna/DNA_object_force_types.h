@@ -403,48 +403,6 @@ struct SoftBody {
   int last_frame = 0;
 };
 
-typedef struct BulletSoftBody {
-  int flag;       /* various boolean options */
-  float linStiff; /* linear stiffness 0..1 */
-  float angStiff; /* angular stiffness 0..1 */
-  float volume;   /* volume preservation 0..1 */
-
-  int viterations; /* Velocities solver iterations */
-  int piterations; /* Positions solver iterations */
-  int diterations; /* Drift solver iterations */
-  int citerations; /* Cluster solver iterations */
-
-  float kSRHR_CL;    /* Soft vs rigid hardness [0,1] (cluster only) */
-  float kSKHR_CL;    /* Soft vs kinetic hardness [0,1] (cluster only) */
-  float kSSHR_CL;    /* Soft vs soft hardness [0,1] (cluster only) */
-  float kSR_SPLT_CL; /* Soft vs rigid impulse split [0,1] (cluster only) */
-
-  float kSK_SPLT_CL; /* Soft vs rigid impulse split [0,1] (cluster only) */
-  float kSS_SPLT_CL; /* Soft vs rigid impulse split [0,1] (cluster only) */
-  float kVCF;        /* Velocities correction factor (Baumgarte) */
-  float kDP;         /* Damping coefficient [0,1] */
-
-  float kDG; /* Drag coefficient [0,+inf] */
-  float kLF; /* Lift coefficient [0,+inf] */
-  float kPR; /* Pressure coefficient [-inf,+inf] */
-  float kVC; /* Volume conversation coefficient [0,+inf] */
-
-  float kDF;  /* Dynamic friction coefficient [0,1] */
-  float kMT;  /* Pose matching coefficient [0,1] */
-  float kCHR; /* Rigid contacts hardness [0,1] */
-  float kKHR; /* Kinetic contacts hardness [0,1] */
-
-  float kSHR;         /* Soft contacts hardness [0,1] */
-  float kAHR;         /* Anchors hardness [0,1] */
-  int collisionflags; /* Vertex/Face or Signed Distance Field(SDF) or Clusters, Soft versus Soft or
-                         Rigid */
-  int numclusteriterations; /* number of iterations to refine collision clusters*/
-  int bending_dist;         /* Bending constraint distance */
-  float welding;            /* welding limit to remove duplicate/nearby vertices, 0.0..0.01 */
-  float margin;             /* margin specific to softbody */
-  int _pad;
-} BulletSoftBody;
-
 /* BulletSoftBody.flag */
 #define OB_BSB_SHAPE_MATCHING 2
 // #define OB_BSB_UNUSED 4
@@ -457,3 +415,45 @@ typedef struct BulletSoftBody {
 #define OB_BSB_COL_CL_RS 4  /* Cluster based rigid vs soft */
 #define OB_BSB_COL_CL_SS 8  /* Cluster based soft vs soft */
 #define OB_BSB_COL_VF_SS 16 /* Vertex/Face based soft vs soft */
+
+typedef struct BulletSoftBody {
+  DNA_DEFINE_CXX_METHODS(BulletSoftBody)
+  int flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT; /* various boolean options */
+  float linStiff = 0.5f; /* linear stiffness 0..1 */
+  float angStiff = 1.0f; /* angular stiffness 0..1 */
+  float volume = 1.0f;   /* volume preservation 0..1 */
+
+  int viterations = 0; /* Velocities solver iterations */
+  int piterations = 2; /* Positions solver iterations */
+  int diterations = 0; /* Drift solver iterations */
+  int citerations = 4; /* Cluster solver iterations */
+
+  float kSRHR_CL = 0.1f;    /* Soft vs rigid hardness [0,1] (cluster only) */
+  float kSKHR_CL = 1.0f;    /* Soft vs kinetic hardness [0,1] (cluster only) */
+  float kSSHR_CL = 0.5f;    /* Soft vs soft hardness [0,1] (cluster only) */
+  float kSR_SPLT_CL = 0.5f; /* Soft vs rigid impulse split [0,1] (cluster only) */
+
+  float kSK_SPLT_CL = 0.5f; /* Soft vs rigid impulse split [0,1] (cluster only) */
+  float kSS_SPLT_CL = 0.5f; /* Soft vs rigid impulse split [0,1] (cluster only) */
+  float kVCF = 1.0f;        /* Velocities correction factor (Baumgarte) */
+  float kDP = 0.0f;         /* Damping coefficient [0,1] */
+
+  float kDG = 0.0f; /* Drag coefficient [0,+inf] */
+  float kLF = 0.0f; /* Lift coefficient [0,+inf] */
+  float kPR = 0.0f; /* Pressure coefficient [-inf,+inf] */
+  float kVC = 0.0f; /* Volume conversation coefficient [0,+inf] */
+
+  float kDF = 0.2f;  /* Dynamic friction coefficient [0,1] */
+  float kMT = 0.05f;  /* Pose matching coefficient [0,1] */
+  float kCHR = 1.0f; /* Rigid contacts hardness [0,1] */
+  float kKHR = 0.1f; /* Kinetic contacts hardness [0,1] */
+
+  float kSHR = 1.0f;         /* Soft contacts hardness [0,1] */
+  float kAHR = 0.7f;         /* Anchors hardness [0,1] */
+  int collisionflags = 0; /* Vertex/Face or Signed Distance Field(SDF) or Clusters */
+  int numclusteriterations = 64; /* number of iterations to refine collision clusters*/
+  int bending_dist = 2;         /* Bending constraint distance */
+  float welding = 0.0f;            /* welding limit to remove duplicate/nearby vertices */
+  float margin = 0.0f;             /* margin specific to softbody */
+  int _pad = 0;
+} BulletSoftBody;

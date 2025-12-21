@@ -709,8 +709,11 @@ enum {
 /* Game Engine */
 
 typedef struct GameFraming {
-  float col[3];
-  char type, _pad1, _pad2, _pad3;
+  float col[3] = {0.0f, 0.0f, 0.0f};
+  char type = 0;
+  char _pad1 = 0;
+  char _pad2 = 0;
+  char _pad3 = 0;
 } GameFraming;
 
 /* GameFraming.type */
@@ -718,87 +721,36 @@ typedef struct GameFraming {
 #define SCE_GAMEFRAMING_EXTEND 1
 #define SCE_GAMEFRAMING_SCALE 2
 
-typedef struct RecastData {
-  float cellsize;
-  float cellheight;
-  float agentmaxslope;
-  float agentmaxclimb;
-  float agentheight;
-  float agentradius;
-  float edgemaxlen;
-  float edgemaxerror;
-  float regionminsize;
-  float regionmergesize;
-  int vertsperpoly;
-  float detailsampledist;
-  float detailsamplemaxerror;
-  char partitioning;
-  char _pad1;
-  short _pad2[5];
-} RecastData;
-
 /* RecastData.partitioning */
 #define RC_PARTITION_WATERSHED 0
 #define RC_PARTITION_MONOTONE 1
 #define RC_PARTITION_LAYERS 2
 
-typedef struct GameData {
-
-  /* standalone player */
-  struct GameFraming framing;
-  short playerflag, xplay, yplay, freqplay;
-  short depth, attrib, rt1, rt2;
-  short aasamples, samples_per_frame;
-
-  short profileSize;
-  short logLevel;
-
-  /* stereo */
-  short stereoflag, stereomode;
-  float eyeseparation;
-  RecastData recastData;
-
-  /* physics (it was in world)*/
-  float gravity; /*Gravitation constant for the game world*/
-
-  /*
-   * Radius of the activity bubble, in Manhattan length. Objects
-   * outside the box are activity-culled. */
-  float _pad11;
-
-  /*
-   * bit 3: (gameengine): Activity culling is enabled.
-   * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
-   */
-  int flag;
-  short mode;
-  short matmode DNA_DEPRECATED;
-  short occlusionRes; /* resolution of occlusion Z buffer in pixel */
-  short physicsEngine;
-  short solverType, _pad[3];
-  short exitkey;
-  short pythonkeys[4];
-  short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
-  short obstacleSimulation;
-  short raster_storage DNA_DEPRECATED;
-  short ticrate, maxlogicstep, physubstep, maxphystep;
-  float timeScale;
-  float levelHeight;
-  float deactivationtime, lineardeactthreshold, angulardeactthreshold;
-  float erp, erp2, cfm, _pad1;
-
-  /* Scene LoD */
-  short lodflag, _pad3;
-  int scehysteresis;
-  void *_pad10;
-} GameData;
+typedef struct RecastData {
+  float cellsize = 0.3f;
+  float cellheight = 0.2f;
+  float agentmaxslope = M_PI_4;
+  float agentmaxclimb = 0.9f;
+  float agentheight = 2.0f;
+  float agentradius = 0.6f;
+  float edgemaxlen = 12.0f;
+  float edgemaxerror = 1.3f;
+  float regionminsize = 8.0f;
+  float regionmergesize = 20.0f;
+  int vertsperpoly = 6;
+  float detailsampledist = 6.0f;
+  float detailsamplemaxerror = 1.0f;
+  char partitioning = RC_PARTITION_WATERSHED;
+  char _pad1 = 0;
+  short _pad2[5] = {};
+} RecastData;
 
 /* GameData.stereoflag */
 #define STEREO_NOSTEREO 1
 #define STEREO_ENABLED 2
 
 /* GameData.stereomode */
-//#define STEREO_NOSTEREO		 1
+// #define STEREO_NOSTEREO		 1
 #define STEREO_QUADBUFFERED 2
 #define STEREO_ABOVEBELOW 3
 #define STEREO_INTERLACED 4
@@ -810,12 +762,6 @@ typedef struct GameData {
 /* GameData.physicsEngine */
 #define WOPHY_NONE 0
 #define WOPHY_BULLET 5
-
-/* GameData.solverType */
-enum {
-  GAME_SOLVER_SEQUENTIAL = 0,
-  GAME_SOLVER_NNCG,
-};
 
 /* obstacleSimulation */
 #define OBSTSIMULATION_NONE 0
@@ -864,7 +810,7 @@ enum {
 
 /* GameData.profileSize */
 #define GAME_PROFILE_SIZE_NORMAL 0
-#define GAME_PROFILE_SIZE_BIG    1
+#define GAME_PROFILE_SIZE_BIG 1
 #define GAME_PROFILE_SIZE_BIGGER 2
 
 /* GameData.logLevel */
@@ -874,6 +820,65 @@ enum {
 #define GAME_LOG_LEVEL_WARNING 30
 #define GAME_LOG_LEVEL_ERROR 40
 #define GAME_LOG_LEVEL_CRITICAL 50
+
+typedef struct GameData {
+
+  /* standalone player */
+  struct GameFraming framing;
+  short playerflag = 0, xplay = 1280, yplay = 720, freqplay = 60;
+  short depth = 32, attrib = 0, rt1 = 0, rt2 = 0;
+  short aasamples = 0, samples_per_frame = 1;
+
+  short profileSize = 0;
+  short logLevel = 0;
+
+  /* stereo */
+  short stereoflag = STEREO_NOSTEREO, stereomode = STEREO_ANAGLYPH;
+  float eyeseparation = 0.10f;
+  RecastData recastData;
+
+  /* physics (it was in world)*/
+  float gravity = 9.8f; /*Gravitation constant for the game world*/
+
+  /*
+   * Radius of the activity bubble, in Manhattan length. Objects
+   * outside the box are activity-culled. */
+  float _pad11 = 0.0f;
+
+  /*
+   * bit 3: (gameengine): Activity culling is enabled.
+   * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
+   */
+  int flag = GAME_USE_UNDO;
+  short mode = 8;
+  short matmode DNA_DEPRECATED = 0;
+  short occlusionRes = 128; /* resolution of occlusion Z buffer in pixel */
+  short physicsEngine = WOPHY_BULLET;
+  short solverType = 0, _pad[3] = {};
+  short exitkey = 218;
+  short pythonkeys[4] = {212, 217, 213, 116};
+  short vsync = 0; /* Controls vsync: off, on, or adaptive (if supported) */
+  short obstacleSimulation = OBSTSIMULATION_NONE;
+  short raster_storage DNA_DEPRECATED = 0;
+  short ticrate = 60, maxlogicstep = 5, physubstep = 1, maxphystep = 5;
+  float timeScale = 1.0f;
+  float levelHeight = 2.0f;
+  float deactivationtime = 2.0f, lineardeactthreshold = 0.8f, angulardeactthreshold = 1.0f;
+  float erp = 0.2f, erp2 = 0.8f, cfm = 0.0f, _pad1 = 0;
+
+  /* Scene LoD */
+  short lodflag = SCE_LOD_USE_HYST, _pad3 = 0;
+  int scehysteresis = 10;
+  void *_pad10 = nullptr;
+} GameData;
+
+
+
+/* GameData.solverType */
+enum {
+  GAME_SOLVER_SEQUENTIAL = 0,
+  GAME_SOLVER_NNCG,
+};
 
 /** #RenderData::flag. */
 enum {
@@ -2961,6 +2966,8 @@ struct Scene {
 
   /** None of the dependency graph vars is mean to be saved. */
   SceneDepsgraphsMap *depsgraph_hash = nullptr;
+  /* Padding pointer to preserve 32-bit struct layout in mixed builds. */
+  void *_pad_ptr = nullptr;
   char _pad7[4] = {};
 
   /* User-Defined KeyingSets. */

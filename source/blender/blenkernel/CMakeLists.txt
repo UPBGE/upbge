@@ -76,7 +76,7 @@ set(SRC
   intern/boids.cc
   intern/bpath.cc
   intern/brush.cc
-  intern/bullet.c
+  intern/bullet_c.cc
   intern/bvhutils.cc
   intern/cachefile.cc
   intern/callbacks.cc

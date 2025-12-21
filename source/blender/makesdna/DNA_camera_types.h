@@ -222,7 +222,7 @@ struct Camera {
   float sensor_x = DEFAULT_SENSOR_WIDTH, sensor_y = DEFAULT_SENSOR_HEIGHT;
   float shiftx = 0, shifty = 0;
   float lodfactor = 1.0f; /* UPBGE */
-  int gameflag = 0;    /* UPBGE */
+  int gameflag = GAME_CAM_OBJECT_ACTIVITY_CULLING; /* UPBGE */
   DNA_DEPRECATED float dof_distance = 0;
 
   char sensor_fit = 0;

@@ -43,133 +43,133 @@ struct Text;
 
 /* unused now, moved to editobjectactuator in 2.02. Still needed for dna */
 typedef struct bAddObjectActuator {
-  int time, _pad;
-  struct Object *ob;
+  int time = 0, _pad = 0;
+  struct Object *ob = nullptr;
 } bAddObjectActuator;
 
 typedef struct bActionActuator {
-  struct bAction *act;                   /* Pointer to action */
-  short type, flag; /* Playback type */  // not in use
-  float sta, end;                        /* Start & End frames */
-  char name[64];                         /* For property-driven playback, MAX_NAME */
-  char frameProp[64]; /* Set this property to the actions current frame, MAX_NAME */
-  short blendin;      /* Number of frames of blending */
-  short priority;     /* Execution priority */
-  short layer;        /* Animation layer */
-  short end_reset;    /* Ending the actuator (negative pulse) wont reset the action to its starting
+  struct bAction *act = nullptr;                   /* Pointer to action */
+  short type = 0, flag = 0; /* Playback type */  // not in use
+  float sta = 0.0f, end = 0.0f;                        /* Start & End frames */
+  char name[64] = "";                         /* For property-driven playback, MAX_NAME */
+  char frameProp[64] = ""; /* Set this property to the actions current frame, MAX_NAME */
+  short blendin = 0;      /* Number of frames of blending */
+  short priority = 0;     /* Execution priority */
+  short layer = 0;        /* Animation layer */
+  short end_reset = 0;    /* Ending the actuator (negative pulse) wont reset the action to its starting
                          frame */
-  short strideaxis;   /* Displacement axis */
-  short blend_mode;   /* Layer blending mode */
-  float layer_weight; /* How much of the previous layer to use for blending. (<0 = disable, 0 = add
+  short strideaxis = 0;   /* Displacement axis */
+  short blend_mode = 0;   /* Layer blending mode */
+  float layer_weight = 0.0f; /* How much of the previous layer to use for blending. (<0 = disable, 0 = add
                          mode) */
-  int _pad1;
+  int _pad1 = 0;
 } bActionActuator;
 
 typedef struct Sound3D {
-  float min_gain;
-  float max_gain;
-  float reference_distance;
-  float max_distance;
-  float rolloff_factor;
-  float cone_inner_angle;
-  float cone_outer_angle;
-  float cone_outer_gain;
+  float min_gain = 0.0f;
+  float max_gain = 0.0f;
+  float reference_distance = 0.0f;
+  float max_distance = 0.0f;
+  float rolloff_factor = 0.0f;
+  float cone_inner_angle = 0.0f;
+  float cone_outer_angle = 0.0f;
+  float cone_outer_gain = 0.0f;
 } Sound3D;
 
 typedef struct bSoundActuator {
-  short flag, sndnr;
-  int _pad1, _pad2;
-  short _pad3[2];
-  float volume, pitch;
-  struct bSound *sound;
-  struct Sound3D sound3D;
-  short type, _pad4;
-  short _pad5, _pad6[1];
+  short flag = 0, sndnr = 0;
+  int _pad1 = 0, _pad2 = 0;
+  short _pad3[2] = {};
+  float volume = 0.0f, pitch = 0.0f;
+  struct bSound *sound = nullptr;
+  struct Sound3D sound3D = {};
+  short type = 0, _pad4 = 0;
+  short _pad5 = 0, _pad6[1] = {};
 } bSoundActuator;
 
 typedef struct bEditObjectActuator {
-  int time;
-  short type, flag;
-  struct Object *ob;
-  struct Mesh *me;
-  char name[64];        /* MAX_NAME */
-  float linVelocity[3]; /* initial lin. velocity on creation */
-  float angVelocity[3]; /* initial ang. velocity on creation */
-  float mass;
-  short localflag; /* flag for the lin & ang. vel: apply locally   */
-  short dyn_operation;
-  short upflag, trackflag; /* flag for up axis and track axis */
-  short dyn_operation_flag;
-  short _pad;
+  int time = 0;
+  short type = 0, flag = 0;
+  struct Object *ob = nullptr;
+  struct Mesh *me = nullptr;
+  char name[64] = "";        /* MAX_NAME */
+  float linVelocity[3] = {} ; /* initial lin. velocity on creation */
+  float angVelocity[3] = {} ; /* initial ang. velocity on creation */
+  float mass = 0.0f;
+  short localflag = 0; /* flag for the lin & ang. vel: apply locally   */
+  short dyn_operation = 0;
+  short upflag = 0, trackflag = 0; /* flag for up axis and track axis */
+  short dyn_operation_flag = 0;
+  short _pad = 0;
 } bEditObjectActuator;
 
 typedef struct bSceneActuator {
-  short type, _pad1;
-  int _pad;
-  struct Scene *scene;
-  struct Object *camera;
+  short type = 0, _pad1 = 0;
+  int _pad = 0;
+  struct Scene *scene = nullptr;
+  struct Object *camera = nullptr;
 } bSceneActuator;
 
 typedef struct bCollectionActuator {
   /* type = Suspend/Resume/overlayAdd/overlayRemove; flag = use logic/physics/visibility */
-  short type, flag;
-  int _pad;
-  struct Collection *collection;
-  struct Object *camera;
+  short type = 0, flag = 0;
+  int _pad = 0;
+  struct Collection *collection = nullptr;
+  struct Object *camera = nullptr;
 } bCollectionActuator;
 
 typedef struct bPropertyActuator {
-  int _pad, type;
-  char name[64], value[64]; /* MAX_NAME */
-  struct Object *ob;
+  int _pad = 0, type = 0;
+  char name[64] = "", value[64] = ""; /* MAX_NAME */
+  struct Object *ob = nullptr;
 } bPropertyActuator;
 
 typedef struct bObjectActuator {
-  short flag, type, otype;
-  short damping;
-  float forceloc[3], forcerot[3];
-  short servotype, _pad2[1];
-  float _pad[2], _pad1[3];
-  float dloc[3], drot[3]; /* angle in radians */
-  float linearvelocity[3], angularvelocity[3];
-  struct Object *reference;
+  short flag = 0, type = 0, otype = 0;
+  short damping = 0;
+  float forceloc[3] = {}, forcerot[3] = {};
+  short servotype = 0, _pad2[1] = {};
+  float _pad[2] = {}, _pad1[3] = {};
+  float dloc[3] = {}, drot[3] = {}; /* angle in radians */
+  float linearvelocity[3] = {}, angularvelocity[3] = {};
+  struct Object *reference = nullptr;
 } bObjectActuator;
 
 /* deprecated, handled by bActionActuator now */
 typedef struct bIpoActuator {
-  short flag, type;
-  float sta, end;
-  char name[64];      /* MAX_NAME */
-  char frameProp[64]; /* Set this property to the actions current frame, MAX_NAME */
+  short flag = 0, type = 0;
+  float sta = 0.0f, end = 0.0f;
+  char name[64] = "";      /* MAX_NAME */
+  char frameProp[64] = ""; /* Set this property to the actions current frame, MAX_NAME */
 
-  short _pad1, _pad2, _pad3, _pad4;
+  short _pad1 = 0, _pad2 = 0, _pad3 = 0, _pad4 = 0;
 
 } bIpoActuator;
 
 typedef struct bCameraActuator {
-  struct Object *ob;
-  float height, min, max;
-  float damping;
-  short _pad1, axis;
-  float _pad2;
+  struct Object *ob = nullptr;
+  float height = 0.0f, min = 0.0f, max = 0.0f;
+  float damping = 0.0f;
+  short _pad1 = 0, axis = 0;
+  float _pad2 = 0.0f;
 } bCameraActuator;
 
 typedef struct bConstraintActuator {
-  short type, mode;
-  short flag, damp;
-  short time, rotdamp;
-  int _pad;
-  float minloc[3], maxloc[3];
-  float minrot[3], maxrot[3];
-  char matprop[64]; /* MAX_NAME */
+  short type = 0, mode = 0;
+  short flag = 0, damp = 0;
+  short time = 0, rotdamp = 0;
+  int _pad = 0;
+  float minloc[3] = {}, maxloc[3] = {};
+  float minrot[3] = {}, maxrot[3] = {};
+  char matprop[64] = ""; /* MAX_NAME */
 } bConstraintActuator;
 
 typedef struct bGroupActuator {
-  short flag, type;
-  int sta, end;
-  char name[64]; /* property or groupkey, MAX_NAME */
+  short flag = 0, type = 0;
+  int sta = 0, end = 0;
+  char name[64] = ""; /* property or groupkey, MAX_NAME */
 
-  short _pad[3], cur, butsta, butend; /* not referenced, can remove? */
+  short _pad[3] = {}, cur = 0, butsta = 0, butend = 0; /* not referenced, can remove? */
                                       /* struct Group *group;		not used, remove */
 
 } bGroupActuator;
