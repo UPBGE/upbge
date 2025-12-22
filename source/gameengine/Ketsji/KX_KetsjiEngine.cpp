@@ -1905,10 +1905,7 @@ int KX_KetsjiEngine::GetMaxPhysicsFrame()
 void KX_KetsjiEngine::SetMaxPhysicsFrame(int frame)
 {
   if (frame > 0) {
-    // Only affects fixed mode
-    if (m_useFixedPhysicsTimestep) {
-      m_maxPhysicsSteps = frame;
-    }
+    m_maxPhysicsSteps = frame;
   }
 }
 

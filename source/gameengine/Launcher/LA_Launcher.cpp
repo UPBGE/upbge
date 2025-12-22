@@ -227,8 +227,8 @@ void LA_Launcher::InitEngine()
   /* Initialize physics timestep settings from Scene. */
   m_ketsjiEngine->SetTicRate(gm.ticrate);
   m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
-  m_ketsjiEngine->SetMaxPhysicsFrame(gm.maxphystep);
   m_ketsjiEngine->SetUseFixedPhysicsTimestep(gm.use_fixed_physics_timestep != 0);
+  m_ketsjiEngine->SetMaxPhysicsFrame(gm.maxphystep);
   m_ketsjiEngine->SetPhysicsTickRate(gm.physics_tick_rate);
   m_ketsjiEngine->SetUseFixedFPSCap(gm.use_fixed_fps_cap != 0);
   m_ketsjiEngine->SetFixedRenderCapRate(gm.fixed_render_cap_rate);
