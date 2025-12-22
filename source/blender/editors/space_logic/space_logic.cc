@@ -323,7 +323,7 @@ static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
 static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceLogic, sl);
+  writer->write_struct_cast<SpaceLogic>(sl);
 }
 
 /* only called once, from space/spacetypes.c */
