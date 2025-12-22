@@ -1182,8 +1182,6 @@ do_2d_mapping(fx, fy);
     if (BKE_colorband_evaluate(tex_colorband, texres.tin, col_band)) {
       texres.talpha = true;
       texres.trgba = col_band;
-      /* Recalculate intensity from ColorBand result (CPU does this after applying colorband). */
-      texres.tin = (col_band.r + col_band.g + col_band.b) * (1.0 / 3.0);
       /* Update local rgb for further processing */
       rgb = texres.trgba.rgb;
       /* Indicate RGB output flag (as CPU sets retval |= TEX_RGB) */
