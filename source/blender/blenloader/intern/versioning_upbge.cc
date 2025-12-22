@@ -181,6 +181,28 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       collection->flag |= COLLECTION_IS_SPAWNED;
     }
   }
+  if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm") &&
+      !DNA_struct_member_exists(fd->filesdna, "Object", "float", "friction"))
+  {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->type == OB_MESH) {
+        Mesh *me = (Mesh *)blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), ob->data);
+        for (int i = 0; i < me->totcol; ++i) {
+          Material *ma = (Material *)blo_do_versions_newlibadr(
+              fd, &me->id, ID_IS_LINKED(me), me->mat[i]);
+          if (ma) {
+            ob->friction = ma->friction;
+            ob->rolling_friction = 0.0f;
+            ob->fh = ma->fh;
+            ob->reflect = ma->reflect;
+            ob->fhdist = ma->fhdist;
+            ob->xyfrict = ma->xyfrict;
+            break;
+          }
+        }
+      }
+    }
+  }
   /* UPBGE hack to force defaults in files saved in normal blender2.8 END */
 
   /* printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile,

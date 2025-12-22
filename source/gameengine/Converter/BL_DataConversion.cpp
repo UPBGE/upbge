@@ -468,9 +468,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     convertedMats[i] = {ma,
                         meshmat,
-                        false,
-                        false,
-                        false,
+                        ((ma->game.flag & GEMAT_INVISIBLE) == 0),
+                        ((ma->game.flag & GEMAT_BACKCULL) == 0),
+                        ((ma->game.flag & GEMAT_NOPHYSICS) == 0),
                         bucket->IsWire()};
   }
 
