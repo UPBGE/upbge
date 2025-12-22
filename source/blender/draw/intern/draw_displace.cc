@@ -40,6 +40,8 @@
 #include "IMB_imbuf.hh"
 
 #include <cstdio>
+#include <cstring>
+#include <cstdint>
 
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
@@ -53,6 +55,49 @@
 #include "MEM_guardedalloc.h"
 
 using namespace blender::draw;
+
+/* Compute a stable 32-bit hash for a ColorBand to detect changes. Uses FNV-1a. */
+static uint32_t colorband_hash_from_coba(const ColorBand *coba)
+{
+  if (!coba) {
+    return 0;
+  }
+
+  uint32_t hash = 0;
+
+  /* Hash basic integer fields */
+  hash = BLI_hash_int_2d(hash, uint32_t(coba->tot));
+  hash = BLI_hash_int_2d(hash, uint32_t(coba->cur));
+  hash = BLI_hash_int_2d(hash, uint32_t(coba->ipotype));
+  hash = BLI_hash_int_2d(hash, uint32_t(coba->ipotype_hue));
+  hash = BLI_hash_int_2d(hash, uint32_t(coba->color_mode));
+
+  /* Hash each stop. For floats, hash their bit pattern to get stable result. */
+  for (int i = 0; i < 32; ++i) {
+    const auto &stop = coba->data[i];
+
+    uint32_t v;
+    /* r */
+    memcpy(&v, &stop.r, sizeof(v));
+    hash = BLI_hash_int_2d(hash, v);
+    /* g */
+    memcpy(&v, &stop.g, sizeof(v));
+    hash = BLI_hash_int_2d(hash, v);
+    /* b */
+    memcpy(&v, &stop.b, sizeof(v));
+    hash = BLI_hash_int_2d(hash, v);
+    /* a */
+    memcpy(&v, &stop.a, sizeof(v));
+    hash = BLI_hash_int_2d(hash, v);
+    /* pos */
+    memcpy(&v, &stop.pos, sizeof(v));
+    hash = BLI_hash_int_2d(hash, v);
+    /* cur (int) */
+    hash = BLI_hash_int_2d(hash, uint32_t(stop.cur));
+  }
+
+  return hash;
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Implementation Data
@@ -95,6 +140,8 @@ struct blender::draw::DisplaceManager::Impl {
     int tex_float_channels = 0;
     int ibuf_colormanage_flag = 0;
     bool ibuf_is_srgb = false;
+    /* Cached colorband hash to avoid redundant UBO updates. */
+    uint32_t colorband_hash = 0;
   };
 
   Map<MeshModifierKey, MeshStaticData> static_map;
@@ -1769,6 +1816,33 @@ struct ColorBand {
       mesh_owner, "displace_compute_v2", info);
   if (!shader) {
     return nullptr;
+  }
+
+  if (ubo_colorband && use_colorband) {
+    /* Update UBO only when colorband content changed to avoid redundant uploads. */
+    ColorBand *coba = dmd->texture->coba;
+    uint32_t new_hash = colorband_hash_from_coba(coba);
+    if (new_hash != msd.colorband_hash) {
+      GPUColorBand gpu_coba = {};
+
+      gpu_coba.tot_cur_ipotype_hue[0] = coba->tot;
+      gpu_coba.tot_cur_ipotype_hue[1] = coba->cur;
+      gpu_coba.tot_cur_ipotype_hue[2] = coba->ipotype;
+      gpu_coba.tot_cur_ipotype_hue[3] = coba->ipotype_hue;
+      gpu_coba.color_mode_pad[0] = coba->color_mode;
+
+      for (int i = 0; i < 32; i++) {
+        gpu_coba.data[i].rgba[0] = coba->data[i].r;
+        gpu_coba.data[i].rgba[1] = coba->data[i].g;
+        gpu_coba.data[i].rgba[2] = coba->data[i].b;
+        gpu_coba.data[i].rgba[3] = coba->data[i].a;
+        gpu_coba.data[i].pos_cur_pad[0] = coba->data[i].pos;
+        gpu_coba.data[i].pos_cur_pad[1] = float(coba->data[i].cur);
+      }
+
+      GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
+      msd.colorband_hash = new_hash;
+    }
   }
 
   /* Bind and dispatch */
