@@ -305,7 +305,6 @@ static KX_BlenderMaterial *BL_ConvertMaterial(Material *mat,
                                                         scene,
                                                         mat,
                                                         name,
-                                                        (mat ? &mat->game : nullptr),
                                                         lightlayer,
                                                         converting_during_runtime);
 
@@ -469,9 +468,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
     convertedMats[i] = {ma,
                         meshmat,
-                        ((ma->game.flag & GEMAT_INVISIBLE) == 0),
-                        ((ma->game.flag & GEMAT_BACKCULL) == 0),
-                        ((ma->game.flag & GEMAT_NOPHYSICS) == 0),
+                        false,
+                        false,
+                        false,
                         bucket->IsWire()};
   }
 

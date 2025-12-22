@@ -34,7 +34,6 @@ set(INC_SYS
 )
 
 set(SRC
-  ${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default.c
   intern/action.cc
   intern/action_bones.cc
   intern/action_mirror.cc
@@ -77,7 +76,7 @@ set(SRC
   intern/boids.cc
   intern/bpath.cc
   intern/brush.cc
-  intern/bullet.c
+  intern/bullet_c.cc
   intern/bvhutils.cc
   intern/cachefile.cc
   intern/callbacks.cc

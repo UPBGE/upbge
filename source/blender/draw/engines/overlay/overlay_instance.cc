@@ -93,7 +93,7 @@ void Instance::init()
                         (ctx->v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0;
     }
     else {
-      memset(&state.overlay, 0, sizeof(state.overlay));
+      _DNA_internal_memzero(&state.overlay, sizeof(state.overlay));
       state.v3d_flag = 0;
       state.v3d_gridflag = 0;
       state.overlay.flag = V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_MOTION_PATHS |
@@ -922,10 +922,6 @@ void Instance::draw_v3d(Manager &manager, View &view)
     infront.wireframe.copy_depth(resources.depth_target_in_front_tx);
   }
   {
-    /* Grid is drawn before outline; it would clip otherwise due to lack of depth output. */
-    grid.draw_line(resources.overlay_line_fb, manager, view);
-  }
-  {
     /* TODO(fclem): This is really bad for performance as the outline pass will then split the
      * render pass and do a framebuffer switch. This also only fix the issue for non-infront
      * objects.
@@ -939,6 +935,11 @@ void Instance::draw_v3d(Manager &manager, View &view)
     /* Overlay (+Line) pass. */
     draw(regular, resources.overlay_fb);
     draw_line(regular, resources.overlay_line_fb);
+
+    /* Here as it does depth+blending, and should draw after most overlay line passes.. */
+    if (!state.is_depth_only_drawing) {
+      grid.draw_line(resources.overlay_line_fb, manager, view);
+    }
 
     /* Here because of custom order of regular.facing. */
     infront.facing.draw(resources.overlay_fb, manager, view);

@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include "BKE_colorband.hh"
+#include "BKE_colortools.hh"
+#include "BKE_main.hh"
 #include "DNA_fluid_types.h"
+#include "DNA_text_types.h"
+#include "RE_engine.h"
 #include "RNA_access.hh"
 #include "RNA_blender_cpp.hh"
 
@@ -81,8 +86,7 @@ static inline BL::Mesh object_copy_mesh_data(const BObjectInfo &b_ob_info)
   return BL::Mesh(RNA_id_pointer_create(&mesh->id));
 }
 
-using BlenderAttributeType = BL::ShaderNodeAttribute::attribute_type_enum;
-BlenderAttributeType blender_attribute_name_split_type(ustring name, string *r_real_name);
+int blender_attribute_name_split_type(ustring name, string *r_real_name);
 
 void python_thread_state_save(void **python_thread_state);
 void python_thread_state_restore(void **python_thread_state);
@@ -149,7 +153,7 @@ static inline void free_object_to_mesh(BObjectInfo &b_ob_info, ::Mesh &mesh)
   }
 }
 
-static inline void colorramp_to_array(BL::ColorRamp &ramp,
+static inline void colorramp_to_array(const ::ColorBand &ramp,
                                       array<float3> &ramp_color,
                                       array<float> &ramp_alpha,
                                       const int size)
@@ -161,19 +165,20 @@ static inline void colorramp_to_array(BL::ColorRamp &ramp,
   for (int i = 0; i < full_size; i++) {
     float color[4];
 
-    ramp.evaluate(float(i) / float(size), color);
+    BKE_colorband_evaluate(&ramp, float(i) / float(size), color);
     ramp_color[i] = make_float3(color[0], color[1], color[2]);
     ramp_alpha[i] = color[3];
   }
 }
 
-static inline void curvemap_minmax_curve(/*const*/ BL::CurveMap &curve, float *min_x, float *max_x)
+static inline void curvemap_minmax_curve(const ::CurveMap &curve, float *min_x, float *max_x)
 {
-  *min_x = min(*min_x, curve.points[0].location()[0]);
-  *max_x = max(*max_x, curve.points[curve.points.length() - 1].location()[0]);
+  const blender::Span<::CurveMapPoint> points(curve.curve, curve.totpoint);
+  *min_x = min(*min_x, points.first().x);
+  *max_x = max(*max_x, points.last().x);
 }
 
-static inline void curvemapping_minmax(/*const*/ BL::CurveMapping &cumap,
+static inline void curvemapping_minmax(const ::CurveMapping &cumap,
                                        const int num_curves,
                                        float *min_x,
                                        float *max_x)
@@ -182,26 +187,29 @@ static inline void curvemapping_minmax(/*const*/ BL::CurveMapping &cumap,
   *min_x = FLT_MAX;
   *max_x = -FLT_MAX;
   for (int i = 0; i < num_curves; ++i) {
-    BL::CurveMap map(cumap.curves[i]);
+    const ::CurveMap &map(cumap.cm[i]);
     curvemap_minmax_curve(map, min_x, max_x);
   }
 }
 
-static inline void curvemapping_to_array(BL::CurveMapping &cumap,
+static inline void curvemapping_to_array(const ::CurveMapping &cumap,
                                          array<float> &data,
                                          const int size)
 {
-  cumap.update();
-  BL::CurveMap curve = cumap.curves[0];
+  BKE_curvemapping_changed_all(&const_cast<::CurveMapping &>(cumap));
+  const ::CurveMap &curve = cumap.cm[0];
   const int full_size = size + 1;
   data.resize(full_size);
+  if (!curve.table) {
+    BKE_curvemapping_init(&const_cast<::CurveMapping &>(cumap));
+  }
   for (int i = 0; i < full_size; i++) {
     const float t = float(i) / float(size);
-    data[i] = cumap.evaluate(curve, t);
+    data[i] = BKE_curvemap_evaluateF(&cumap, &curve, t);
   }
 }
 
-static inline void curvemapping_float_to_array(BL::CurveMapping &cumap,
+static inline void curvemapping_float_to_array(const ::CurveMapping &cumap,
                                                array<float> &data,
                                                const int size)
 {
@@ -212,20 +220,22 @@ static inline void curvemapping_float_to_array(BL::CurveMapping &cumap,
 
   const float range = max - min;
 
-  cumap.update();
+  BKE_curvemapping_changed_all(&const_cast<::CurveMapping &>(cumap));
 
-  BL::CurveMap map = cumap.curves[0];
+  const ::CurveMap &map = cumap.cm[0];
 
   const int full_size = size + 1;
   data.resize(full_size);
-
+  if (!map.table) {
+    BKE_curvemapping_init(&const_cast<::CurveMapping &>(cumap));
+  }
   for (int i = 0; i < full_size; i++) {
     const float t = min + float(i) / float(size) * range;
-    data[i] = cumap.evaluate(map, t);
+    data[i] = BKE_curvemap_evaluateF(&cumap, &map, t);
   }
 }
 
-static inline void curvemapping_color_to_array(BL::CurveMapping &cumap,
+static inline void curvemapping_color_to_array(const ::CurveMapping &cumap,
                                                array<float3> &data,
                                                const int size,
                                                bool rgb_curve)
@@ -249,29 +259,42 @@ static inline void curvemapping_color_to_array(BL::CurveMapping &cumap,
 
   const float range_x = max_x - min_x;
 
-  cumap.update();
+  BKE_curvemapping_changed_all(&const_cast<::CurveMapping &>(cumap));
 
-  BL::CurveMap mapR = cumap.curves[0];
-  BL::CurveMap mapG = cumap.curves[1];
-  BL::CurveMap mapB = cumap.curves[2];
+  const ::CurveMap &mapR = cumap.cm[0];
+  const ::CurveMap &mapG = cumap.cm[1];
+  const ::CurveMap &mapB = cumap.cm[2];
+  if (!mapR.table || !mapG.table || !mapB.table) {
+    BKE_curvemapping_init(&const_cast<::CurveMapping &>(cumap));
+  }
 
   const int full_size = size + 1;
   data.resize(full_size);
 
   if (rgb_curve) {
-    BL::CurveMap mapI = cumap.curves[3];
-    for (int i = 0; i < full_size; i++) {
-      const float t = min_x + float(i) / float(size) * range_x;
-      data[i] = make_float3(cumap.evaluate(mapR, cumap.evaluate(mapI, t)),
-                            cumap.evaluate(mapG, cumap.evaluate(mapI, t)),
-                            cumap.evaluate(mapB, cumap.evaluate(mapI, t)));
+    const ::CurveMap &mapI = cumap.cm[3];
+    if (!mapR.table || !mapG.table || !mapB.table || !mapI.table) {
+      BKE_curvemapping_init(&const_cast<::CurveMapping &>(cumap));
     }
-  }
-  else {
+
     for (int i = 0; i < full_size; i++) {
       const float t = min_x + float(i) / float(size) * range_x;
       data[i] = make_float3(
-          cumap.evaluate(mapR, t), cumap.evaluate(mapG, t), cumap.evaluate(mapB, t));
+          BKE_curvemap_evaluateF(&cumap, &mapR, BKE_curvemap_evaluateF(&cumap, &mapI, t)),
+          BKE_curvemap_evaluateF(&cumap, &mapG, BKE_curvemap_evaluateF(&cumap, &mapI, t)),
+          BKE_curvemap_evaluateF(&cumap, &mapB, BKE_curvemap_evaluateF(&cumap, &mapI, t)));
+    }
+  }
+  else {
+    if (!mapR.table || !mapG.table || !mapB.table) {
+      BKE_curvemapping_init(&const_cast<::CurveMapping &>(cumap));
+    }
+
+    for (int i = 0; i < full_size; i++) {
+      const float t = min_x + float(i) / float(size) * range_x;
+      data[i] = make_float3(BKE_curvemap_evaluateF(&cumap, &mapR, t),
+                            BKE_curvemap_evaluateF(&cumap, &mapG, t),
+                            BKE_curvemap_evaluateF(&cumap, &mapB, t));
     }
   }
 }
@@ -293,57 +316,49 @@ static inline bool BKE_object_is_deform_modified(BObjectInfo &self, BL::Scene &s
                                                                                        false;
 }
 
-static inline int render_resolution_x(BL::RenderSettings &b_render)
+static inline int render_resolution_x(const ::RenderData &b_render)
 {
-  return b_render.resolution_x() * b_render.resolution_percentage() / 100;
+  return b_render.xsch * b_render.size / 100;
 }
 
-static inline int render_resolution_y(BL::RenderSettings &b_render)
+static inline int render_resolution_y(const ::RenderData &b_render)
 {
-  return b_render.resolution_y() * b_render.resolution_percentage() / 100;
+  return b_render.ysch * b_render.size / 100;
 }
 
-static inline string image_user_file_path(BL::BlendData &data,
-                                          BL::ImageUser &iuser,
-                                          BL::Image &ima,
+static inline string image_user_file_path(::Main &data,
+                                          ::ImageUser &iuser,
+                                          ::Image &ima,
                                           const int cfra)
 {
   char filepath[1024];
-  iuser.tile(0);
-  BKE_image_user_frame_calc(
-      static_cast<Image *>(ima.ptr.data), static_cast<ImageUser *>(iuser.ptr.data), cfra);
-  BKE_image_user_file_path_ex(static_cast<Main *>(data.ptr.data),
-                              static_cast<ImageUser *>(iuser.ptr.data),
-                              static_cast<Image *>(ima.ptr.data),
-                              filepath,
-                              false,
-                              true);
+  BKE_image_user_frame_calc(&ima, &iuser, cfra);
+  BKE_image_user_file_path_ex(&data, &iuser, &ima, filepath, false, true);
 
   return string(filepath);
 }
 
-static inline int image_user_frame_number(BL::ImageUser &iuser, BL::Image &ima, const int cfra)
+static inline int image_user_frame_number(::ImageUser &iuser, ::Image &ima, const int cfra)
 {
-  BKE_image_user_frame_calc(
-      static_cast<Image *>(ima.ptr.data), static_cast<ImageUser *>(iuser.ptr.data), cfra);
-  return iuser.frame_current();
+  BKE_image_user_frame_calc(&ima, &iuser, cfra);
+  return iuser.framenr;
 }
 
-static inline bool image_is_builtin(BL::Image &ima, BL::RenderEngine &engine)
+static inline bool image_is_builtin(::Image &ima, ::RenderEngine &engine)
 {
-  const BL::Image::source_enum image_source = ima.source();
-  if (image_source == BL::Image::source_TILED) {
+  const eImageSource image_source = eImageSource(ima.source);
+  if (image_source == IMA_SRC_TILED) {
     /* If any tile is marked as generated, then treat the entire Image as built-in. */
-    for (BL::UDIMTile &tile : ima.tiles) {
-      if (tile.is_generated_tile()) {
+    LISTBASE_FOREACH (::ImageTile *, tile, &ima.tiles) {
+      if (tile->gen_flag & IMA_GEN_TILE) {
         return true;
       }
     }
   }
 
-  return ima.packed_file() || image_source == BL::Image::source_GENERATED ||
-         image_source == BL::Image::source_MOVIE ||
-         (engine.is_preview() && image_source != BL::Image::source_SEQUENCE);
+  return BKE_image_has_packedfile(&ima) || image_source == IMA_SRC_GENERATED ||
+         image_source == IMA_SRC_MOVIE ||
+         ((engine.flag & RE_ENGINE_PREVIEW) != 0 && image_source != IMA_SRC_SEQUENCE);
 }
 
 static inline void render_add_metadata(BL::RenderResult &b_rr, string name, string value)
@@ -536,17 +551,16 @@ static inline void set_string(PointerRNA &ptr, const char *name, const string &v
 
 /* Relative Paths */
 
-static inline string blender_absolute_path(BL::BlendData &b_data, BL::ID &b_id, const string &path)
+static inline string blender_absolute_path(::Main &b_data, ::ID &b_id, const string &path)
 {
   if (path.size() >= 2 && path[0] == '/' && path[1] == '/') {
     string dirname;
 
-    if (b_id.library()) {
-      BL::ID b_library_id(b_id.library());
-      dirname = blender_absolute_path(b_data, b_library_id, b_id.library().filepath());
+    if (b_id.lib) {
+      dirname = blender_absolute_path(b_data, b_id.lib->id, b_id.lib->filepath);
     }
     else {
-      dirname = b_data.filepath();
+      dirname = b_data.filepath;
     }
 
     return path_join(path_dirname(dirname), path.substr(2));
@@ -555,16 +569,20 @@ static inline string blender_absolute_path(BL::BlendData &b_data, BL::ID &b_id, 
   return path;
 }
 
-static inline string get_text_datablock_content(const PointerRNA &ptr)
+static inline string get_text_datablock_content(const ::ID *id)
 {
-  if (ptr.data == nullptr) {
+  if (id == nullptr) {
     return "";
   }
+  if (GS(id->name) != ID_TXT) {
+    return "";
+  }
+  const auto &text = *blender::id_cast<const ::Text *>(id);
 
   string content;
-  BL::Text::lines_iterator iter;
-  for (iter.begin(ptr); iter; ++iter) {
-    content += iter->body() + "\n";
+  LISTBASE_FOREACH (::TextLine *, line, &text.lines) {
+    content += line->line ? line->line : "";
+    content += "\n";
   }
 
   return content;
@@ -595,12 +613,13 @@ static inline void mesh_texture_space(const ::Mesh &b_mesh, float3 &loc, float3 
 }
 
 /* Object motion steps, returns 0 if no motion blur needed. */
-static inline uint object_motion_steps(BL::Object &b_parent,
-                                       BL::Object &b_ob,
+static inline uint object_motion_steps(::Object &b_parent,
+                                       ::Object &b_ob,
                                        const int max_steps = INT_MAX)
 {
   /* Get motion enabled and steps from object itself. */
-  PointerRNA cobject = RNA_pointer_get(&b_ob.ptr, "cycles");
+  PointerRNA object_rna_ptr = RNA_id_pointer_create(&b_ob.id);
+  PointerRNA cobject = RNA_pointer_get(&object_rna_ptr, "cycles");
   bool use_motion = get_boolean(cobject, "use_motion_blur");
   if (!use_motion) {
     return 0;
@@ -610,8 +629,9 @@ static inline uint object_motion_steps(BL::Object &b_parent,
 
   /* Also check parent object, so motion blur and steps can be
    * controlled by dupli-group duplicator for linked groups. */
-  if (b_parent.ptr.data != b_ob.ptr.data) {
-    PointerRNA parent_cobject = RNA_pointer_get(&b_parent.ptr, "cycles");
+  if (&b_parent != &b_ob) {
+    PointerRNA parent_rna_ptr = RNA_id_pointer_create(&b_parent.id);
+    PointerRNA parent_cobject = RNA_pointer_get(&parent_rna_ptr, "cycles");
     use_motion &= get_boolean(parent_cobject, "use_motion_blur");
 
     if (!use_motion) {

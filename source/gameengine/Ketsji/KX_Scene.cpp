@@ -257,7 +257,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_kxobWithLod = {};
   m_obVisibilityFlag = {};
   m_backupOverlayFlag = -1;
-  m_backupOverlayGameFlag = -1;
 
   /* REMINDER TO SET bContext */
   /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
@@ -605,7 +604,6 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   /* Restore original eevee post process flag in non overlay passes */
   if (!isOverlayPass) {
     scene_eval->eevee.flag = GetBlenderScene()->eevee.flag;
-    scene_eval->eevee.gameflag |= SCE_EEVEE_WORLD_VOLUMES_ENABLED;
     return;
   }
   /* Don't use this if we don't use overlay collection feature */
@@ -625,17 +623,14 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   struct World *wo = scene_eval->world;
   if (wo) {
     if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES) {
-      scene_eval->eevee.gameflag &= ~SCE_EEVEE_WORLD_VOLUMES_ENABLED;
     }
   }
 
-  if ((m_backupOverlayFlag != scene_eval->eevee.flag) ||
-      (m_backupOverlayGameFlag != scene_eval->eevee.gameflag)) {
+  if ((m_backupOverlayFlag != scene_eval->eevee.flag)) {
     /* Only tag if overlay settings changed since previous frame */
     AppendToIdsToUpdate(&obcam->id, ID_RECALC_TRANSFORM, true);
   }
   m_backupOverlayFlag = scene_eval->eevee.flag;
-  m_backupOverlayGameFlag = scene_eval->eevee.gameflag;
 }
 
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)

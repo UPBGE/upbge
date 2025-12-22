@@ -25,7 +25,6 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
                                   KX_Scene *scene,
                                   Material *mat,
                                   const std::string &name,
-                                  GameSettings *game,
                                   int lightlayer,
                                   bool converting_during_runtime);
 

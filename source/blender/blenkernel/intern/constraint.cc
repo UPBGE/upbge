@@ -878,7 +878,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
 /* TODO: cope with getting rotation order... */
 #define SINGLETARGET_GET_TARS(con, datatar, datasubtarget, ct, list) \
   { \
-    ct = MEM_callocN<bConstraintTarget>("tempConstraintTarget"); \
+    ct = MEM_new_for_free<bConstraintTarget>("tempConstraintTarget"); \
 \
     ct->tar = datatar; \
     STRNCPY_UTF8(ct->subtarget, datasubtarget); \
@@ -913,7 +913,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
 /* TODO: cope with getting rotation order... */
 #define SINGLETARGETNS_GET_TARS(con, datatar, ct, list) \
   { \
-    ct = MEM_callocN<bConstraintTarget>("tempConstraintTarget"); \
+    ct = MEM_new_for_free<bConstraintTarget>("tempConstraintTarget"); \
 \
     ct->tar = datatar; \
     ct->space = con->tarspace; \
@@ -6094,7 +6094,7 @@ void BKE_constraint_panel_expand(bConstraint *con)
 /* Creates a new constraint, initializes its data, and returns it */
 static bConstraint *add_new_constraint_internal(const char *name, short type)
 {
-  bConstraint *con = MEM_callocN<bConstraint>("Constraint");
+  bConstraint *con = MEM_new_for_free<bConstraint>("Constraint");
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(type);
   const char *newName;
 
@@ -6791,7 +6791,7 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
     /* Write the specific data */
     if (cti && con->data) {
       /* firstly, just write the plain con->data struct */
-      BLO_write_struct_by_name(writer, cti->struct_name, con->data);
+      writer->write_struct_by_name(cti->struct_name, con->data);
 
       /* do any constraint specific stuff */
       switch (con->type) {

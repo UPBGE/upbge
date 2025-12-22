@@ -43,7 +43,6 @@ class SCA_IScene;
 
 struct Material;
 struct Scene;
-struct GameSettings;
 
 enum MaterialProps {
   RAS_MULTILIGHT = (1 << 1),
@@ -84,7 +83,7 @@ class RAS_IPolyMaterial {
     SHADOW = 2048                   // GEMAT_SHADOW
   };
 
-  RAS_IPolyMaterial(const std::string &name, GameSettings *game);
+  RAS_IPolyMaterial(const std::string &name);
 
   virtual ~RAS_IPolyMaterial();
 
@@ -117,7 +116,7 @@ class RAS_IPolyMaterial {
    * \return the equivalent drawing mode for the material settings (equivalent to old TexFace
    * tface->mode).
    */
-  int ConvertFaceMode(struct GameSettings *game) const;
+  int ConvertFaceMode() const;
 
   /*
    * PreCalculate texture gen
