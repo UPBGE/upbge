@@ -31,8 +31,6 @@ Evaluator::Evaluator(Context &context) : context_(context) {}
 
 void Evaluator::evaluate()
 {
-  context_.cache_manager().reset();
-
   BLI_SCOPED_DEFER([&]() {
     if (context_.profiler()) {
       context_.profiler()->finalize(context_.get_node_tree());
@@ -40,18 +38,7 @@ void Evaluator::evaluate()
   });
 
   derived_node_tree_ = std::make_unique<DerivedNodeTree>(context_.get_node_tree());
-
-  if (!this->validate_node_tree()) {
-    return;
-  }
-
-  if (context_.is_canceled()) {
-    this->cancel_evaluation();
-    return;
-  }
-
   const Schedule schedule = compute_schedule(context_, *derived_node_tree_);
-
   CompileState compile_state(context_, schedule);
 
   for (const DNode &node : schedule) {
@@ -71,16 +58,6 @@ void Evaluator::evaluate()
       this->evaluate_node(node, compile_state);
     }
   }
-}
-
-bool Evaluator::validate_node_tree()
-{
-  if (derived_node_tree_->has_link_cycles()) {
-    context_.set_info_message("Compositor node tree has cyclic links!");
-    return false;
-  }
-
-  return true;
 }
 
 static NodeOperation *get_node_operation(Context &context, DNode node)
@@ -245,7 +222,6 @@ void Evaluator::map_pixel_operation_inputs_to_their_results(PixelOperation *oper
 
 void Evaluator::cancel_evaluation()
 {
-  context_.cache_manager().skip_next_reset();
   for (const std::unique_ptr<Operation> &operation : operations_stream_) {
     operation->free_results();
   }
