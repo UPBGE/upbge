@@ -36,6 +36,11 @@
 #include "GPU_storage_buffer.hh"
 #include "GPU_texture.hh"
 
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+
+#include <cstdio>
+
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
 #include "DRW_render.hh"
@@ -80,6 +85,14 @@ struct blender::draw::DisplaceManager::Impl {
     bool pending_gpu_setup = false;
     int gpu_setup_attempts = 0;
     uint32_t last_verified_hash = 0;
+    /* Once true, we already called BKE_image_acquire_ibuf() for this mesh/modifier. */
+    bool imbuf_called = false;
+    /* Texture/ImBuf derived flags (cached in msd to avoid repeated ImBuf acquisition). */
+    bool tex_is_byte = false;
+    bool tex_has_float = false;
+    int tex_float_channels = 0;
+    int ibuf_colormanage_flag = 0;
+    bool ibuf_is_srgb = false;
   };
 
   Map<MeshModifierKey, MeshStaticData> static_map;
@@ -347,6 +360,51 @@ vec3 hsl_to_rgb(vec3 hsl)
   
   return t;
 }
+ 
+
+/* Helper to emulate CPU `ibuf_get_color()` behavior from texture texelFetch result.
+ * - `has_float` indicates the original ImBuf had float data.
+ * - `channels` is the number of channels in the ImBuf (1,3,4). When 0 treat as 4.
+ * - `is_byte` indicates the original ImBuf was byte-based and needs RGB premultiplication by A.
+ * This keeps the shader path easier to compare with the CPU `ibuf_get_color()` implementation.
+ */
+vec4 shader_ibuf_get_color(vec4 fetched, bool has_float, int channels, bool is_byte)
+{
+  vec4 col = fetched;
+  if (has_float) {
+    if (channels == 4) {
+      return col;
+    }
+    else if (channels == 3) {
+      return vec4(col.rgb, 1.0);
+    }
+    else { /* channels == 1 or other */
+      float v = col.r;
+      return vec4(v, v, v, v);
+    }
+  }
+  else {
+    /* Byte buffer: texelFetch returns normalized [0,1] values for bytes.
+     * CPU path premultiplies RGB by alpha for byte images. Reproduce that. */
+    col.rgb *= col.a;
+    return col;
+  }
+}
+
+/* sRGB -> linear conversion used to emulate IMB_colormanagement_colorspace_to_scene_linear_v3
+ * for typical sRGB byte images. */
+float srgb_to_linearrgb(float c)
+{
+  if (c <= 0.04045) {
+    return c / 12.92;
+  }
+  return pow((c + 0.055) / 1.055, 2.4);
+}
+
+vec3 srgb_to_linearrgb_vec3(vec3 v)
+{
+  return vec3(srgb_to_linearrgb(v.r), srgb_to_linearrgb(v.g), srgb_to_linearrgb(v.b));
+}
 
 /* Box sampling helpers - GPU port of boxsampleclip() and boxsample() from texture_image.cc
  * Simplified: computes texel coverage weights per-pixel within the box region and
@@ -361,7 +419,9 @@ void boxsample_gpu(
     bool talpha,
     bool imaprepeat,
     bool imapextend,
-    bool tex_is_byte_buffer)
+    bool tex_is_byte_buffer,
+    bool tex_has_float_buffer,
+    int tex_float_channels)
 {
   result = vec4(0.0);
   float tot = 0.0;
@@ -742,9 +802,16 @@ void do_2d_mapping(inout float fx, inout float fy)
 
 /* GPU port of imagewrap() from texture_image.cc (line 98-256)
  * Handles TEX_IMAROT, TEX_CHECKER filtering, CLIPCUBE check, coordinate wrapping, and texture sampling
- * Returns false if pixel should not be rendered (CLIP/CLIPCUBE/CHECKER filtering) */
-bool imagewrap(vec3 tex_coord, inout vec4 result, ivec2 tex_size)
+ * Returns 0 if pixel should not be rendered (CLIP/CLIPCUBE/CHECKER filtering),
+ * otherwise returns flags (e.g. TEX_RGB) describing the sampled result.
+ */
+#define TEX_RGB 64
+int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_size)
 {
+  /* Initialize result similar to CPU path */
+  result = vec4(0.0);
+  int retval = TEX_RGB;
+
   float fx = tex_coord.x;
   float fy = tex_coord.y;
   
@@ -781,7 +848,7 @@ bool imagewrap(vec3 tex_coord, inout vec4 result, ivec2 tex_size)
     }
     
     if (!show_tile) {
-      return false;  /* Pixel should not be rendered */
+      return retval;  /* Pixel should not be rendered (CPU returns retval here) */
     }
     
     /* Normalize to fractional part within the tile */
@@ -808,13 +875,13 @@ bool imagewrap(vec3 tex_coord, inout vec4 result, ivec2 tex_size)
   if (tex_extend == TEX_CLIPCUBE) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
         tex_coord.z < -1.0 || tex_coord.z > 1.0) {
-      return false;
+      return retval;
     }
   }
   /* Step 5: CLIP/CHECKER early return (CPU line 185-191) */
   else if (tex_extend == TEX_CLIP || tex_extend == TEX_CHECKER) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
-      return false;
+      return retval;
     }
   }
   /* Step 6: EXTEND or REPEAT mode: wrap/clamp coordinates (CPU line 193-222) */
@@ -864,21 +931,100 @@ bool imagewrap(vec3 tex_coord, inout vec4 result, ivec2 tex_size)
                   use_talpha,
                   (tex_extend == TEX_REPEAT),
                   (tex_extend == TEX_EXTEND),
-                  tex_is_byte_buffer);
+                  tex_is_byte_buffer,
+                  tex_has_float_buffer,
+                  tex_float_channels);
   } else {
     /* No filtering (CPU line 254-255: ibuf_get_color) */
     ivec2 px_coord = ivec2(x, y);
     px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
     /* Exact texel fetch to match CPU ibuf_get_color (no filtering). */
-    result = texelFetch(displacement_texture, px_coord, 0);
-    /* If texture was uploaded from byte buffer, the CPU path premultiplies bytes
-     * (rgb *= alpha). Reproduce that here. */
-    if (tex_is_byte_buffer) {
-      result.rgb *= result.a;
-    }
+    /* Use helper to emulate cpu ibuf_get_color behavior for easier comparison. */
+    result = shader_ibuf_get_color(texelFetch(displacement_texture, px_coord, 0),
+                                  tex_has_float_buffer,
+                                  tex_float_channels,
+                                  tex_is_byte_buffer);
   }
   
-  return true;  /* Pixel successfully sampled */
+  /* Compute intensity (CPU line 244-253) */
+  if (use_talpha) {
+    out_tin = result.a;
+  }
+  else if (tex_calcalpha) {
+    out_tin = max(max(result.r, result.g), result.b);
+    result.a = out_tin;
+  }
+  else {
+    out_tin = 1.0;
+    result.a = 1.0;
+  }
+
+  if (tex_negalpha) {
+    result.a = 1.0 - result.a;
+  }
+
+  /* De-pre-multiply (CPU line 260-264) */
+  if (result.a != 1.0 && result.a > 1e-4 && !tex_calcalpha) {
+    float inv_alpha = 1.0 / result.a;
+    result.rgb *= inv_alpha;
+  }
+
+  /* BRICONTRGB macro (texture_common.h) - CPU line 270 */
+  vec3 rgb = result.rgb;
+  rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
+  rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
+  rgb.b = tex_bfac * ((rgb.b - 0.5) * tex_contrast + tex_bright - 0.5);
+
+  if (!tex_no_clamp) {
+    rgb = max(rgb, vec3(0.0));
+  }
+
+  /* Apply saturation */
+  if (tex_saturation != 1.0) {
+    float cmax = max(max(rgb.r, rgb.g), rgb.b);
+    float cmin = min(min(rgb.r, rgb.g), rgb.b);
+    float delta_hsv = cmax - cmin;
+
+    float h = 0.0, s = 0.0, v = cmax;
+
+    if (delta_hsv > 1e-20) {
+      s = delta_hsv / (cmax + 1e-20);
+
+      if (rgb.r >= cmax) {
+        h = (rgb.g - rgb.b) / delta_hsv;
+      } else if (rgb.g >= cmax) {
+        h = 2.0 + (rgb.b - rgb.r) / delta_hsv;
+      } else {
+        h = 4.0 + (rgb.r - rgb.g) / delta_hsv;
+      }
+
+      h /= 6.0;
+      if (h < 0.0) h += 1.0;
+    }
+
+    s *= tex_saturation;
+
+    float nr = abs(h * 6.0 - 3.0) - 1.0;
+    float ng = 2.0 - abs(h * 6.0 - 2.0);
+    float nb = 2.0 - abs(h * 6.0 - 4.0);
+
+    nr = clamp(nr, 0.0, 1.0);
+    ng = clamp(ng, 0.0, 1.0);
+    nb = clamp(nb, 0.0, 1.0);
+
+    rgb.r = ((nr - 1.0) * s + 1.0) * v;
+    rgb.g = ((ng - 1.0) * s + 1.0) * v;
+    rgb.b = ((nb - 1.0) * s + 1.0) * v;
+
+    if (tex_saturation > 1.0 && !tex_no_clamp) {
+      rgb = max(rgb, vec3(0.0));
+    }
+  }
+
+  result.rgb = rgb;
+
+  /* Indicate success and that we sampled RGB data. */
+  return retval;
 }
 )GLSL";
 }
@@ -964,127 +1110,64 @@ do_2d_mapping(fx, fy);
 
 /* Step 3: Apply imagewrap() - handles all wrapping, filtering, and sampling
  * This now includes CLIPCUBE check, coordinate wrapping, and texture sampling */
-vec3 mapped_coord = vec3(fx, fy, tex_coord.z);
-if (!imagewrap(mapped_coord, texres.trgba, tex_size)) {
-  /* Pixel should not be rendered (CLIP/CLIPCUBE/CHECKER filtering) */
-  texres.trgba = vec4(0.0);
-}
-  
-  /* Compute intensity (CPU line 244-253) */
-  if (texres.talpha) {
-    texres.tin = texres.trgba.a;
-  }
-  else if (tex_calcalpha) {
-    texres.tin = max(max(texres.trgba.r, texres.trgba.g), texres.trgba.b);
-    texres.trgba.a = texres.tin;
-  }
-  else {
-    texres.tin = 1.0;
-    texres.trgba.a = 1.0;
-  }
-  
-  if (tex_negalpha) {
-    texres.trgba.a = 1.0 - texres.trgba.a;
-  }
-  
-  /* De-pre-multiply (CPU line 260-264) */
-  if (texres.trgba.a != 1.0 && texres.trgba.a > 1e-4 && !tex_calcalpha) {
-    float inv_alpha = 1.0 / texres.trgba.a;
-    texres.trgba.rgb *= inv_alpha;
-  }
-  
-  /* BRICONTRGB macro (texture_common.h) - CPU line 270 */
+  vec3 mapped_coord = vec3(fx, fy, tex_coord.z);
+  int retval = imagewrap(mapped_coord, texres.trgba, texres.tin, tex_size);
+  /* texres.trgba and texres.tin are filled/processed by imagewrap() to match CPU pipeline */
   vec3 rgb = texres.trgba.rgb;
-  rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
-  rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
-  rgb.b = tex_bfac * ((rgb.b - 0.5) * tex_contrast + tex_bright - 0.5);
-  
-  if (!tex_no_clamp) {
-    rgb = max(rgb, vec3(0.0));
-  }
-  
-  /* Apply saturation */
-  if (tex_saturation != 1.0) {
-    float cmax = max(max(rgb.r, rgb.g), rgb.b);
-    float cmin = min(min(rgb.r, rgb.g), rgb.b);
-    float delta_hsv = cmax - cmin;
-    
-    float h = 0.0, s = 0.0, v = cmax;
-    
-    if (delta_hsv > 1e-20) {
-      s = delta_hsv / (cmax + 1e-20);
-      
-      if (rgb.r >= cmax) {
-        h = (rgb.g - rgb.b) / delta_hsv;
-      } else if (rgb.g >= cmax) {
-        h = 2.0 + (rgb.b - rgb.r) / delta_hsv;
-      } else {
-        h = 4.0 + (rgb.r - rgb.g) / delta_hsv;
-      }
-      
-      h /= 6.0;
-      if (h < 0.0) h += 1.0;
-    }
-    
-    s *= tex_saturation;
-    
-    float nr = abs(h * 6.0 - 3.0) - 1.0;
-    float ng = 2.0 - abs(h * 6.0 - 2.0);
-    float nb = 2.0 - abs(h * 6.0 - 4.0);
-    
-    nr = clamp(nr, 0.0, 1.0);
-    ng = clamp(ng, 0.0, 1.0);
-    nb = clamp(nb, 0.0, 1.0);
-    
-    rgb.r = ((nr - 1.0) * s + 1.0) * v;
-    rgb.g = ((ng - 1.0) * s + 1.0) * v;
-    rgb.b = ((nb - 1.0) * s + 1.0) * v;
-    
-    if (tex_saturation > 1.0 && !tex_no_clamp) {
-      rgb = max(rgb, vec3(0.0));
-    }
-  }
   
   /* Linear → sRGB conversion (for intensity calculation)
    * CRITICAL: GPU textures are ALWAYS loaded as LINEAR!
    * If source image was sRGB, GPU auto-converted to linear.
    * We only apply linear→sRGB if image was ORIGINALLY linear. */
   vec3 srgb_rgb;
-  if (tex_skip_srgb_conversion) { // For movies, choose working space colorspace to have same displacement as CPU
-    /* Image was sRGB or ?, use as-is */
-    srgb_rgb = rgb;
-  }
-  else {
-    /* Image was linear, apply linear→sRGB conversion.
-     * Clamp to >=0 before pow to avoid NaNs from tiny negative values and
-     * ensure consistent behavior with CPU code that clamps prior to conversion. */
-    vec3 rgb_clamped = max(rgb, vec3(0.0));
 
-    srgb_rgb.r = linearrgb_to_srgb(rgb_clamped.r);
-    srgb_rgb.g = linearrgb_to_srgb(rgb_clamped.g);
-    srgb_rgb.b = linearrgb_to_srgb(rgb_clamped.b);
-  }
-  
-  /* Use texres.tin for intensity to match CPU naming convention (imagewrap.cc line 244-253) */
-  texres.tin = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
-  
-  if (tex_flipblend) {
-    texres.tin = 1.0 - texres.tin;
-  }
-
-  /* Apply ColorBand if enabled (GPU port of texture_procedural.cc line 244-253)
-   * CRITICAL: ColorBand replaces texres.trgba, so we must recalculate texres.tin from it!
-   * Matches CPU: if (tex->flag & TEX_COLORBAND) { ... } */
+  /* Apply ColorBand if enabled (match CPU behavior) */
   if (use_colorband) {
     vec4 col_band;
     if (BKE_colorband_evaluate(tex_colorband, texres.tin, col_band)) {
       texres.talpha = true;
       texres.trgba = col_band;
-      /* CRITICAL: Recalculate texres.tin from ColorBand result (CPU behavior)
-       * The CPU uses texres->tin AFTER ColorBand for displacement calculation */
-      srgb_rgb = col_band.rgb;
+      /* Recalculate intensity from ColorBand result (CPU does this after applying colorband). */
       texres.tin = (col_band.r + col_band.g + col_band.b) * (1.0 / 3.0);
+      /* Update local rgb for further processing */
+      rgb = texres.trgba.rgb;
+      /* Indicate RGB output flag (as CPU sets retval |= TEX_RGB) */
+      retval |= TEX_RGB;
     }
+  }
+  /* Apply scene color management conversion for byte images when requested by MTex (MAP_COL).
+   * CPU does this in multitex_nodes_intern when mtex->mapto & MAP_COL and ibuf is byte.
+   * Replicate same condition: scene_color_manage && (mtex_mapto & MAP_COL) && tex_is_byte_buffer
+   */
+  if (scene_color_manage && ((mtex_mapto & 1) != 0) && tex_is_byte_buffer && !tex_has_float_buffer &&
+      !tex_skip_srgb_conversion && !ibuf_is_srgb) {
+    /* Strict: apply sRGB->linear only when:
+     * - scene color management is enabled,
+     * - MTex requests MAP_COL,
+     * - original image was a byte buffer (not float),
+     * - image is not marked to skip conversion, and
+     * - ImBuf byte colorspace is NOT sRGB (to avoid double-conversion).
+     */
+    texres.trgba.rgb = srgb_to_linearrgb_vec3(texres.trgba.rgb);
+  }
+  else {
+    /* No conversion: keep sampled linear values as provided by GPU texture upload. */
+    srgb_rgb = rgb;
+  }
+  
+  /* Use texres.tin for intensity to match CPU naming convention (imagewrap.cc line 244-253)
+   * If the sampled result contained RGB data (retval & TEX_RGB) compute intensity from RGB.
+   * Otherwise propagate the intensity into the color channels (CPU copies tin to trgba). */
+  if ((retval & TEX_RGB) != 0) {
+    texres.tin = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
+  }
+  else {
+    texres.trgba.rgb = vec3(texres.tin);
+    srgb_rgb = vec3(texres.tin);
+  }
+
+  if (tex_flipblend) {
+    texres.tin = 1.0 - texres.tin;
   }
 
   float s = strength * vgroup_weight;
@@ -1426,6 +1509,52 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       /* Ensure GPU texture is loaded for this frame */
       gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
 
+      /* If GPU resources are pending setup for this modifier instance, acquire
+       * ImBuf once to determine float/byte and channel count. This is done
+       * only during the GPU setup phase to avoid per-frame ImBuf calls. */
+      /* If we haven't cached ImBuf-derived flags for this mesh/modifier, acquire ImBuf once
+       * to populate them. We must avoid doing this per-frame, so store results in msd. */
+      if (!msd.imbuf_called) {
+        ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+        if (ibuf) {
+          msd.tex_has_float = (ibuf->flags & IB_float_data) != 0;
+          msd.tex_is_byte = !msd.tex_has_float;
+          msd.tex_float_channels = (ibuf->channels == 0) ? 4 : ibuf->channels;
+
+          msd.ibuf_colormanage_flag = ibuf->colormanage_flag;
+          const bool ibuf_is_data = (msd.ibuf_colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
+          const ColorSpace *byte_colorspace = (msd.tex_has_float || ibuf_is_data) ? nullptr :
+                                              ibuf->byte_buffer.colorspace;
+          msd.ibuf_is_srgb = (msd.tex_has_float || ibuf_is_data) ? false :
+                         IMB_colormanagement_space_is_srgb(byte_colorspace);
+
+          printf(
+              "[displace] ima=%p ibuf=%p flags=0x%08x is_float=%d is_byte=%d channels=%d "
+              "ibuf_flag=0x%08x ibuf_is_data=%d ibuf_is_srgb=%d byte_colorspace=%p\n",
+              (void *)ima,
+              (void *)ibuf,
+              int(ibuf->flags),
+              int(msd.tex_has_float),
+              int(msd.tex_is_byte),
+              int(msd.tex_float_channels),
+              int(msd.ibuf_colormanage_flag),
+              int(ibuf_is_data),
+              int(msd.ibuf_is_srgb),
+              (const void *)byte_colorspace);
+
+          BKE_image_release_ibuf(ima, ibuf, nullptr);
+        }
+        else {
+          /* Fallback defaults when ImBuf is unavailable. */
+          msd.tex_is_byte = false;
+          msd.tex_has_float = false;
+          msd.tex_float_channels = 4;
+          msd.ibuf_colormanage_flag = 0;
+        }
+        /* Mark that we acquired ImBuf once and cached results. */
+        msd.imbuf_called = true;
+      }
+
       if (gpu_texture && !msd.tex_coords.empty()) {
         has_texture = true;
 
@@ -1634,6 +1763,8 @@ struct ColorBand {
     info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
     info.push_constant(Type::bool_t,
                        "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
+    info.push_constant(Type::bool_t, "ibuf_is_srgb"); /* ImBuf byte colorspace is sRGB */
+    info.push_constant(Type::bool_t, "scene_color_manage"); /* Apply scene color management for byte images */
     /* Mapping controls (when mapping_use_input_positions==true shader will
      * compute texture coords from input_positions[] instead of using
      * precomputed texture_coords[]). UV mapping remains CPU-side. */
@@ -1643,6 +1774,9 @@ struct ColorBand {
     info.push_constant(Type::float4x4_t, "mapref_imat");
     info.push_constant(Type::bool_t,
                        "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
+    info.push_constant(Type::bool_t, "tex_has_float_buffer"); /* ImBuf had float data */
+    info.push_constant(Type::int_t, "tex_float_channels"); /* number of channels in ImBuf (1/3/4) */
+    info.push_constant(Type::int_t, "mtex_mapto"); /* MTex.mapto flags (MAP_COL etc.) */
   }
   BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
 
@@ -1731,33 +1865,36 @@ struct ColorBand {
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
     GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
 
-    /* Determine if GPU texture was uploaded from byte buffer data. If so, we need to
-     * premultiply RGB by alpha to match CPU ibuf_get_color behavior for byte images. */
-    /* Determine if texture was originally uploaded from a byte buffer.
-     * Use Image flags rather than inspecting ImBuf to avoid extra cost. */
-    bool tex_is_byte = false;
-    if (ima) {
-      ImageTile *tile = BKE_image_get_tile(ima, 0);
-      /* If image is NOT high bitdepth and NOT a generated float image, assume byte buffer. */
-      if (!(tile->gen_flag & IMA_GEN_FLOAT)) {
-        tex_is_byte = true;
-      }
-    }
+    /* tex_* and ibuf_colormanage_flag are determined during GPU setup above
+     * when msd.pending_gpu_setup was true. Avoid re-acquiring ImBuf here to
+     * prevent runtime stalls. */
 
-    /* Simple heuristic: skip linear→sRGB conversion on the GPU for movies
-     * and image sequences (they are uploaded as linear by the GPU). For
-     * other images we do not skip the conversion by default. */
-    bool skip_srgb_conversion = false;
-    if (ima) {
-      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE) || !tex_is_byte) {
-        skip_srgb_conversion = true;
-      }
-    }
+    /* Determine whether to skip linear→sRGB conversion on the GPU.
+     * Use ImBuf-derived information where possible: if the image is stored
+     * as float (linear) we skip the conversion. This is more reliable than
+     * heuristics based on Image source. */
+    /* Prefer ImBuf metadata: skip conversion if image is stored as float (linear)
+     * or when image is marked as data (IMB_COLORMANAGE_IS_DATA). */
+    bool skip_srgb_conversion = msd.tex_has_float ||
+                                ((msd.ibuf_colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0);
     GPU_shader_uniform_1b(shader, "tex_skip_srgb_conversion", skip_srgb_conversion);
+
+    /* Pass whether the original ImBuf byte colorspace was sRGB. This allows the
+     * shader to avoid double-conversion when the GPU texture is already in sRGB. */
+    GPU_shader_uniform_1b(shader, "ibuf_is_srgb", msd.ibuf_is_srgb);
 
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
-    GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", tex_is_byte);
+    GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", msd.tex_is_byte);
+    GPU_shader_uniform_1b(shader, "tex_has_float_buffer", msd.tex_has_float);
+    GPU_shader_uniform_1i(shader, "tex_float_channels", msd.tex_float_channels);
+    /* Enable scene color management conversion for byte images (CPU path does this
+     * when mtex->mapto & MAP_COL). We enable by default to match CPU sampling behavior. */
+    GPU_shader_uniform_1b(shader, "scene_color_manage", true);
+    /* Pass mtex->mapto to shader so it can decide whether to apply scene color conversion
+     * (MAP_COL flag). If no mtex is used, this will be 0. */
+    int mtex_mapto = 0; /* default: none */
+    GPU_shader_uniform_1i(shader, "mtex_mapto", mtex_mapto);
 
     /* Mapping controls: replicate CPU logic from MOD_get_texture_coords()
      * If MOD_DISP_MAP_OBJECT but no map_object, fallback to LOCAL.
