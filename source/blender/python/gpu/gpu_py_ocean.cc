@@ -6,7 +6,6 @@
 
 #include "BLI_utildefines.h"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
@@ -672,7 +671,15 @@ static PyObject *pygpu_ocean_create_default_ocean(PyObject * /*self*/,
                            nullptr};
 
   OceanModifierData omd;
-  MEMCPY_STRUCT_AFTER(&omd, DNA_struct_default_get(OceanModifierData), modifier);
+  memset(&omd, 0, sizeof(omd));
+  omd.resolution = 7;
+  omd.size = 1.0f;
+  omd.spatial_size = 1;
+  omd.wave_scale = 1.0f;
+  omd.smallest_wave = 0.01f;
+  omd.chop_amount = 0.0f;
+  omd.wind_velocity = 10.0f;
+  omd.spectrum = 0;
 
   /* initialize defaults from DNA defaults */
   int resolution = omd.resolution;
@@ -808,7 +815,12 @@ static PyObject *pygpu_ocean_generate_object(PyObject * /*self*/, PyObject *args
   }
 
   OceanModifierData omd;
-  MEMCPY_STRUCT_AFTER(&omd, DNA_struct_default_get(OceanModifierData), modifier);
+  /* Minimal initializer for geometry generation: ensure repeat and sizing are sane. */
+  memset(&omd, 0, sizeof(omd));
+  omd.repeat_x = 1;
+  omd.repeat_y = 1;
+  omd.size = 1.0f;
+  omd.spatial_size = 1;
   omd.ocean = ocean;
 
   /* Generate temporary non-main mesh, then copy into persistent mesh. */
