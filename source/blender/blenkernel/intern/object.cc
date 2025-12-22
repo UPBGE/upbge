@@ -671,7 +671,7 @@ static void write_properties(BlendWriter *writer, ListBase *lb)
 
   prop = (bProperty *)lb->first;
   while (prop) {
-    BLO_write_struct(writer, bProperty, prop);
+    writer->write_struct(prop);
 
     if (prop->poin && prop->poin != &prop->data) {
       BLO_write_raw(writer, MEM_allocN_len(prop->poin), prop->poin);
@@ -687,52 +687,52 @@ static void write_sensors(BlendWriter *writer, ListBase *lb)
 
   sens = (bSensor *)lb->first;
   while (sens) {
-    BLO_write_struct(writer, bSensor, sens);
+    writer->write_struct(sens);
 
     BLO_write_pointer_array(writer, sens->totlinks, sens->links);
 
     switch (sens->type) {
       case SENS_NEAR:
-        BLO_write_struct(writer, bNearSensor, sens->data);
+        writer->write_struct_cast<bNearSensor>(sens->data);
         break;
       case SENS_MOUSE:
-        BLO_write_struct(writer, bMouseSensor, sens->data);
+        writer->write_struct_cast<bMouseSensor>(sens->data);
         break;
       case SENS_KEYBOARD:
-        BLO_write_struct(writer, bKeyboardSensor, sens->data);
+        writer->write_struct_cast<bKeyboardSensor>(sens->data);
         break;
       case SENS_PROPERTY:
-        BLO_write_struct(writer, bPropertySensor, sens->data);
+        writer->write_struct_cast<bPropertySensor>(sens->data);
         break;
       case SENS_ARMATURE:
-        BLO_write_struct(writer, bArmatureSensor, sens->data);
+        writer->write_struct_cast<bArmatureSensor>(sens->data);
         break;
       case SENS_ACTUATOR:
-        BLO_write_struct(writer, bActuatorSensor, sens->data);
+        writer->write_struct_cast<bActuatorSensor>(sens->data);
         break;
       case SENS_DELAY:
-        BLO_write_struct(writer, bDelaySensor, sens->data);
+        writer->write_struct_cast<bDelaySensor>(sens->data);
         break;
       case SENS_COLLISION:
-        BLO_write_struct(writer, bCollisionSensor, sens->data);
+        writer->write_struct_cast<bCollisionSensor>(sens->data);
         break;
       case SENS_RADAR:
-        BLO_write_struct(writer, bRadarSensor, sens->data);
+        writer->write_struct_cast<bRadarSensor>(sens->data);
         break;
       case SENS_RANDOM:
-        BLO_write_struct(writer, bRandomSensor, sens->data);
+        writer->write_struct_cast<bRandomSensor>(sens->data);
         break;
       case SENS_RAY:
-        BLO_write_struct(writer, bRaySensor, sens->data);
+        writer->write_struct_cast<bRaySensor>(sens->data);
         break;
       case SENS_MOVEMENT:
-        BLO_write_struct(writer, bMovementSensor, sens->data);
+        writer->write_struct_cast<bMovementSensor>(sens->data);
         break;
       case SENS_MESSAGE:
-        BLO_write_struct(writer, bMessageSensor, sens->data);
+        writer->write_struct_cast<bMessageSensor>(sens->data);
         break;
       case SENS_JOYSTICK:
-        BLO_write_struct(writer, bJoystickSensor, sens->data);
+        writer->write_struct_cast<bJoystickSensor>(sens->data);
         break;
       default:; /* error: don't know how to write this file */
     }
@@ -747,16 +747,16 @@ static void write_controllers(BlendWriter *writer, ListBase *lb)
 
   cont = (bController *)lb->first;
   while (cont) {
-    BLO_write_struct(writer, bController, cont);
+    writer->write_struct(cont);
 
     BLO_write_pointer_array(writer, cont->totlinks, cont->links);
 
     switch (cont->type) {
       case CONT_EXPRESSION:
-        BLO_write_struct(writer, bExpressionCont, cont->data);
+        writer->write_struct_cast<bExpressionCont>(cont->data);
         break;
       case CONT_PYTHON:
-        BLO_write_struct(writer, bPythonCont, cont->data);
+        writer->write_struct_cast<bPythonCont>(cont->data);
         break;
       default:; /* error: don't know how to write this file */
     }
@@ -771,71 +771,71 @@ static void write_actuators(BlendWriter *writer, ListBase *lb)
 
   act = (bActuator *)lb->first;
   while (act) {
-    BLO_write_struct(writer, bActuator, act);
+    writer->write_struct(act);
 
     switch (act->type) {
       case ACT_ACTION:
-        BLO_write_struct(writer, bActionActuator, act->data);
+        writer->write_struct_cast<bActionActuator>(act->data);
         break;
       case ACT_SOUND:
-        BLO_write_struct(writer, bSoundActuator, act->data);
+        writer->write_struct_cast<bSoundActuator>(act->data);
         break;
       case ACT_OBJECT:
-        BLO_write_struct(writer, bObjectActuator, act->data);
+        writer->write_struct_cast<bObjectActuator>(act->data);
         break;
       case ACT_PROPERTY:
-        BLO_write_struct(writer, bPropertyActuator, act->data);
+        writer->write_struct_cast<bPropertyActuator>(act->data);
         break;
       case ACT_CAMERA:
-        BLO_write_struct(writer, bCameraActuator, act->data);
+        writer->write_struct_cast<bCameraActuator>(act->data);
         break;
       case ACT_CONSTRAINT:
-        BLO_write_struct(writer, bConstraintActuator, act->data);
+        writer->write_struct_cast<bConstraintActuator>(act->data);
         break;
       case ACT_EDIT_OBJECT:
-        BLO_write_struct(writer, bEditObjectActuator, act->data);
+        writer->write_struct_cast<bEditObjectActuator>(act->data);
         break;
       case ACT_SCENE:
-        BLO_write_struct(writer, bSceneActuator, act->data);
+        writer->write_struct_cast<bSceneActuator>(act->data);
         break;
       case ACT_COLLECTION:
-        BLO_write_struct(writer, bCollectionActuator, act->data);
+        writer->write_struct_cast<bCollectionActuator>(act->data);
         break;
       case ACT_GROUP:
-        BLO_write_struct(writer, bGroupActuator, act->data);
+        writer->write_struct_cast<bGroupActuator>(act->data);
         break;
       case ACT_RANDOM:
-        BLO_write_struct(writer, bRandomActuator, act->data);
+        writer->write_struct_cast<bRandomActuator>(act->data);
         break;
       case ACT_MESSAGE:
-        BLO_write_struct(writer, bMessageActuator, act->data);
+        writer->write_struct_cast<bMessageActuator>(act->data);
         break;
       case ACT_GAME:
-        BLO_write_struct(writer, bGameActuator, act->data);
+        writer->write_struct_cast<bGameActuator>(act->data);
         break;
       case ACT_VIBRATION:
-        BLO_write_struct(writer, bVibrationActuator, act->data);
+        writer->write_struct_cast<bVibrationActuator>(act->data);
         break;
       case ACT_VISIBILITY:
-        BLO_write_struct(writer, bVisibilityActuator, act->data);
+        writer->write_struct_cast<bVisibilityActuator>(act->data);
         break;
       case ACT_2DFILTER:
-        BLO_write_struct(writer, bTwoDFilterActuator, act->data);
+        writer->write_struct_cast<bTwoDFilterActuator>(act->data);
         break;
       case ACT_PARENT:
-        BLO_write_struct(writer, bParentActuator, act->data);
+        writer->write_struct_cast<bParentActuator>(act->data);
         break;
       case ACT_STATE:
-        BLO_write_struct(writer, bStateActuator, act->data);
+        writer->write_struct_cast<bStateActuator>(act->data);
         break;
       case ACT_ARMATURE:
-        BLO_write_struct(writer, bArmatureActuator, act->data);
+        writer->write_struct_cast<bArmatureActuator>(act->data);
         break;
       case ACT_STEERING:
-        BLO_write_struct(writer, bSteeringActuator, act->data);
+        writer->write_struct_cast<bSteeringActuator>(act->data);
         break;
       case ACT_MOUSE:
-        BLO_write_struct(writer, bMouseActuator, act->data);
+        writer->write_struct_cast<bMouseActuator>(act->data);
         break;
       default:; /* error: don't know how to write this file */
     }
@@ -852,7 +852,7 @@ static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
 
   while (pprop) {
     LinkData *link;
-    BLO_write_struct(writer, PythonProxyProperty, pprop);
+    writer->write_struct(pprop);
     BLO_write_struct_list(writer, LinkData, &pprop->enumval);
     for (link = (LinkData *)pprop->enumval.first; link; link = link->next) {
       BLO_write_string(writer, (const char *)link->data);
@@ -863,7 +863,7 @@ static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
 
 static void write_proxy(BlendWriter *writer, PythonProxy *pp)
 {
-  BLO_write_struct(writer, PythonProxy, pp);
+  writer->write_struct(pp);
   write_proxy_properties(writer, &pp->properties);
 }
 
@@ -960,7 +960,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   if (ob->bsoft) {
-    BLO_write_struct(writer, BulletSoftBody, ob->bsoft);
+    writer->write_struct(ob->bsoft);
   }
   BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
   /***************/
@@ -968,27 +968,27 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_constraint_blend_write(writer, &ob->constraints);
   animviz_motionpath_blend_write(writer, ob->mpath);
 
-  BLO_write_struct(writer, PartDeflect, ob->pd);
+  writer->write_struct(ob->pd);
   if (ob->soft) {
     /* Set deprecated pointers to prevent crashes of older Blenders */
     ob->soft->pointcache = ob->soft->shared->pointcache;
     ob->soft->ptcaches = ob->soft->shared->ptcaches;
-    BLO_write_struct(writer, SoftBody, ob->soft);
-    BLO_write_struct(writer, SoftBody_Shared, ob->soft->shared);
+    writer->write_struct(ob->soft);
+    writer->write_struct(ob->soft->shared);
     BKE_ptcache_blend_write(writer, &(ob->soft->shared->ptcaches));
-    BLO_write_struct(writer, EffectorWeights, ob->soft->effector_weights);
+    writer->write_struct(ob->soft->effector_weights);
   }
 
   if (ob->rigidbody_object) {
     /* TODO: if any extra data is added to handle duplis, will need separate function then */
-    BLO_write_struct(writer, RigidBodyOb, ob->rigidbody_object);
+    writer->write_struct(ob->rigidbody_object);
   }
   if (ob->rigidbody_constraint) {
-    BLO_write_struct(writer, RigidBodyCon, ob->rigidbody_constraint);
+    writer->write_struct(ob->rigidbody_constraint);
   }
 
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
-    BLO_write_struct(writer, ImageUser, ob->iuser);
+    writer->write_struct(ob->iuser);
   }
 
   BKE_particle_system_blend_write(writer, &ob->particlesystem);
@@ -1000,14 +1000,14 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_previewimg_blend_write(writer, ob->preview);
 
   if (ob->lightgroup) {
-    BLO_write_struct(writer, LightgroupMembership, ob->lightgroup);
+    writer->write_struct(ob->lightgroup);
   }
   if (ob->light_linking) {
-    BLO_write_struct(writer, LightLinking, ob->light_linking);
+    writer->write_struct(ob->light_linking);
   }
 
   if (ob->lightprobe_cache) {
-    BLO_write_struct(writer, LightProbeObjectCache, ob->lightprobe_cache);
+    writer->write_struct(ob->lightprobe_cache);
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
   }
 }

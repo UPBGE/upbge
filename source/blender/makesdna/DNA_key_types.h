@@ -133,7 +133,7 @@ struct Key {
   int deform_method = 0;
 
   /** A list of KeyBlock's. */
-  ListBase block = {nullptr, nullptr};
+  ListBaseT<KeyBlock> block = {nullptr, nullptr};
 
   ID *from = nullptr;
 
