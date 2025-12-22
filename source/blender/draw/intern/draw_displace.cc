@@ -87,6 +87,8 @@ struct blender::draw::DisplaceManager::Impl {
     uint32_t last_verified_hash = 0;
     /* Once true, we already called BKE_image_acquire_ibuf() for this mesh/modifier. */
     bool imbuf_called = false;
+    /* True when the Image source is from disk (file/sequence/movie). */
+    bool ima_source_is_disk = false;
     /* Texture/ImBuf derived flags (cached in msd to avoid repeated ImBuf acquisition). */
     bool tex_is_byte = false;
     bool tex_has_float = false;
@@ -405,6 +407,12 @@ vec3 srgb_to_linearrgb_vec3(vec3 v)
 {
   return vec3(srgb_to_linearrgb(v.r), srgb_to_linearrgb(v.g), srgb_to_linearrgb(v.b));
 }
+
+vec3 linearrgb_to_srgb_vec3(vec3 v)
+{
+  return vec3(linearrgb_to_srgb(v.r), linearrgb_to_srgb(v.g), linearrgb_to_srgb(v.b));
+}
+ 
 
 /* Box sampling helpers - GPU port of boxsampleclip() and boxsample() from texture_image.cc
  * Simplified: computes texel coverage weights per-pixel within the box region and
@@ -1135,23 +1143,13 @@ do_2d_mapping(fx, fy);
       retval |= TEX_RGB;
     }
   }
-  /* Apply scene color management conversion for byte images when requested by MTex (MAP_COL).
-   * CPU does this in multitex_nodes_intern when mtex->mapto & MAP_COL and ibuf is byte.
-   * Replicate same condition: scene_color_manage && (mtex_mapto & MAP_COL) && tex_is_byte_buffer
-   */
-  if (scene_color_manage && ((mtex_mapto & 1) != 0) && tex_is_byte_buffer && !tex_has_float_buffer &&
-      !tex_skip_srgb_conversion && !ibuf_is_srgb) {
-    /* Strict: apply sRGB->linear only when:
-     * - scene color management is enabled,
-     * - MTex requests MAP_COL,
-     * - original image was a byte buffer (not float),
-     * - image is not marked to skip conversion, and
-     * - ImBuf byte colorspace is NOT sRGB (to avoid double-conversion).
-     */
+  if (ima_source_is_disk && ibuf_is_srgb) {
+    srgb_rgb = linearrgb_to_srgb_vec3(rgb);
+  }
+  else if (scene_color_manage && ((mtex_mapto & 1) != 0) && tex_is_byte_buffer && !tex_has_float_buffer) {
     texres.trgba.rgb = srgb_to_linearrgb_vec3(texres.trgba.rgb);
   }
   else {
-    /* No conversion: keep sampled linear values as provided by GPU texture upload. */
     srgb_rgb = rgb;
   }
   
@@ -1343,6 +1341,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
   msd.last_verified_hash = pipeline_hash;
   msd.verts_num = orig_mesh->verts_num;
   msd.deformed = deform_ob;
+  msd.imbuf_called = false;
 
   if (first_time || hash_changed) {
     msd.pending_gpu_setup = true;
@@ -1528,20 +1527,6 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           msd.ibuf_is_srgb = (msd.tex_has_float || ibuf_is_data) ? false :
                          IMB_colormanagement_space_is_srgb(byte_colorspace);
 
-          printf(
-              "[displace] ima=%p ibuf=%p flags=0x%08x is_float=%d is_byte=%d channels=%d "
-              "ibuf_flag=0x%08x ibuf_is_data=%d ibuf_is_srgb=%d byte_colorspace=%p\n",
-              (void *)ima,
-              (void *)ibuf,
-              int(ibuf->flags),
-              int(msd.tex_has_float),
-              int(msd.tex_is_byte),
-              int(msd.tex_float_channels),
-              int(msd.ibuf_colormanage_flag),
-              int(ibuf_is_data),
-              int(msd.ibuf_is_srgb),
-              (const void *)byte_colorspace);
-
           BKE_image_release_ibuf(ima, ibuf, nullptr);
         }
         else {
@@ -1551,6 +1536,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           msd.tex_float_channels = 4;
           msd.ibuf_colormanage_flag = 0;
         }
+        msd.ima_source_is_disk = ima->source == IMA_SRC_FILE;
         /* Mark that we acquired ImBuf once and cached results. */
         msd.imbuf_called = true;
       }
@@ -1761,8 +1747,6 @@ struct ColorBand {
     info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
     info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
     info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
-    info.push_constant(Type::bool_t,
-                       "tex_skip_srgb_conversion"); /* Skip linear→sRGB if image already sRGB */
     info.push_constant(Type::bool_t, "ibuf_is_srgb"); /* ImBuf byte colorspace is sRGB */
     info.push_constant(Type::bool_t, "scene_color_manage"); /* Apply scene color management for byte images */
     /* Mapping controls (when mapping_use_input_positions==true shader will
@@ -1774,6 +1758,7 @@ struct ColorBand {
     info.push_constant(Type::float4x4_t, "mapref_imat");
     info.push_constant(Type::bool_t,
                        "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
+    info.push_constant(Type::bool_t, "ima_source_is_disk"); /* ImBuf had float data */
     info.push_constant(Type::bool_t, "tex_has_float_buffer"); /* ImBuf had float data */
     info.push_constant(Type::int_t, "tex_float_channels"); /* number of channels in ImBuf (1/3/4) */
     info.push_constant(Type::int_t, "mtex_mapto"); /* MTex.mapto flags (MAP_COL etc.) */
@@ -1864,21 +1849,6 @@ struct ColorBand {
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
     GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
-
-    /* tex_* and ibuf_colormanage_flag are determined during GPU setup above
-     * when msd.pending_gpu_setup was true. Avoid re-acquiring ImBuf here to
-     * prevent runtime stalls. */
-
-    /* Determine whether to skip linear→sRGB conversion on the GPU.
-     * Use ImBuf-derived information where possible: if the image is stored
-     * as float (linear) we skip the conversion. This is more reliable than
-     * heuristics based on Image source. */
-    /* Prefer ImBuf metadata: skip conversion if image is stored as float (linear)
-     * or when image is marked as data (IMB_COLORMANAGE_IS_DATA). */
-    bool skip_srgb_conversion = msd.tex_has_float ||
-                                ((msd.ibuf_colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0);
-    GPU_shader_uniform_1b(shader, "tex_skip_srgb_conversion", skip_srgb_conversion);
-
     /* Pass whether the original ImBuf byte colorspace was sRGB. This allows the
      * shader to avoid double-conversion when the GPU texture is already in sRGB. */
     GPU_shader_uniform_1b(shader, "ibuf_is_srgb", msd.ibuf_is_srgb);
@@ -1888,6 +1858,9 @@ struct ColorBand {
     GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", msd.tex_is_byte);
     GPU_shader_uniform_1b(shader, "tex_has_float_buffer", msd.tex_has_float);
     GPU_shader_uniform_1i(shader, "tex_float_channels", msd.tex_float_channels);
+    /* Pass whether the image source is disk-backed so shader/CPU logic can decide
+     * to apply linear<->sRGB conversions when metadata may be unreliable. */
+    GPU_shader_uniform_1b(shader, "ima_source_is_disk", msd.ima_source_is_disk);
     /* Enable scene color management conversion for byte images (CPU path does this
      * when mtex->mapto & MAP_COL). We enable by default to match CPU sampling behavior. */
     GPU_shader_uniform_1b(shader, "scene_color_manage", true);
