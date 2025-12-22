@@ -183,9 +183,9 @@ static std::string get_displace_shader_part1()
 /* ColorBand interpolation types (matching DNA_color_types.h) */
 #define COLBAND_INTERP_LINEAR 0
 #define COLBAND_INTERP_EASE 1
-#define COLBAND_INTERP_CONSTANT 2
-#define COLBAND_INTERP_B_SPLINE 3
-#define COLBAND_INTERP_CARDINAL 4
+#define COLBAND_INTERP_B_SPLINE 2
+#define COLBAND_INTERP_CARDINAL 3
+#define COLBAND_INTERP_CONSTANT 4
 
 /* ColorBand color modes (matching DNA_color_types.h) */
 #define COLBAND_BLEND_RGB 0
