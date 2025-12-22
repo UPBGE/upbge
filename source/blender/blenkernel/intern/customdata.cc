@@ -5002,7 +5002,7 @@ void CustomData_blend_write(BlendWriter *writer,
       writer, CustomDataLayer, data->totlayer, data->layers, layers_to_write.data());
 
   if (data->external) {
-    BLO_write_struct(writer, CustomDataExternal, data->external);
+    writer->write_struct(data->external);
   }
 }
 
