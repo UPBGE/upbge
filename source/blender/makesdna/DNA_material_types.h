@@ -239,6 +239,21 @@ enum {
   GP_MATERIAL_FOLLOW_FIXED = 2,
 };
 
+// Game Options - flag
+#define GEMAT_BACKCULL 16 /* KX_BACKCULL */
+//#define GEMAT_SHADED 32   /* KX_LIGHT */
+//#define GEMAT_TEXT 64     /* RAS_RENDER_3DPOLYGON_TEXT */
+#define GEMAT_NOPHYSICS 128
+#define GEMAT_INVISIBLE 256
+
+/* Game Engine Options (old Texface mode, transp and flag) */
+typedef struct GameSettings {
+  int flag = 0;
+  int alpha_blend = 0;
+  int face_orientation = 0;
+  int _pad1 = 0;
+} GameSettings;
+
 struct TexPaintSlot {
   DNA_DEFINE_CXX_METHODS(TexPaintSlot)
 
@@ -373,6 +388,12 @@ struct Material {
 
   struct bNodeTree *nodetree = nullptr;
   struct PreviewImage *preview = nullptr;
+
+  /* dynamic properties */
+  float friction DNA_DEPRECATED = 0.0f, fh DNA_DEPRECATED = 0.0f, reflect DNA_DEPRECATED = 0.0f;
+  float fhdist DNA_DEPRECATED = 0.0f, xyfrict DNA_DEPRECATED = 0.0f;
+  short dynamode DNA_DEPRECATED = 0, _pad50[5] = {};
+  struct GameSettings game;
 
   /* Freestyle line settings. */
   float line_col[4] = {};
