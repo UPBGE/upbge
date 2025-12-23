@@ -1361,6 +1361,8 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_color)));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_depth)));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_type)));
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->colorspace_settings)));
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->alpha_mode)));
     ImageTile *tile = BKE_image_get_tile(dmd->texture->ima, dmd->texture->iuser.tile);
     if (tile) {
       hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(tile->gen_color)));
