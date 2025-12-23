@@ -1,7 +1,6 @@
 /* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-
 /** \file
  * \ingroup draw
  *
@@ -136,8 +135,10 @@ struct blender::draw::DisplaceManager::Impl {
     bool imbuf_called = false;
     /* Texture/ImBuf derived flags (cached in msd to avoid repeated ImBuf acquisition). */
     bool tex_is_byte = false;
-    bool tex_has_float = false;
-    int tex_float_channels = 0;
+    bool tex_is_float = true;
+    int tex_channels = 3;
+    /* Cached GPU texture when we can create it once (for non-animated images). */
+    blender::gpu::Texture *gpu_texture = nullptr;
     /* Cached colorband hash to avoid redundant UBO updates. */
     uint32_t colorband_hash = 0;
   };
@@ -484,9 +485,9 @@ void boxsample_gpu(
     bool talpha,
     bool imaprepeat,
     bool imapextend,
-    bool tex_is_byte_buffer,
-    bool tex_has_float_buffer,
-    int tex_float_channels)
+    bool tex_is_byte,
+    bool tex_is_float,
+    int tex_channels)
 {
   result = vec4(0.0);
   float tot = 0.0;
@@ -549,7 +550,7 @@ void boxsample_gpu(
       /* If the texture was uploaded from a byte buffer the CPU path
        * premultiplies RGB by alpha before filtering. Reproduce that
        * behaviour here so box filtering matches exactly. */
-      if (tex_is_byte_buffer) {
+      if (tex_is_byte) {
         col.rgb *= col.a;
       }
 
@@ -997,9 +998,9 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
                   use_talpha,
                   (tex_extend == TEX_REPEAT),
                   (tex_extend == TEX_EXTEND),
-                  tex_is_byte_buffer,
-                  tex_has_float_buffer,
-                  tex_float_channels);
+                  tex_is_byte,
+                  tex_is_float,
+                  tex_channels);
   } else {
     /* No filtering (CPU line 254-255: ibuf_get_color) */
     ivec2 px_coord = ivec2(x, y);
@@ -1007,9 +1008,9 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     /* Exact texel fetch to match CPU ibuf_get_color (no filtering). */
     /* Use helper to emulate cpu ibuf_get_color behavior for easier comparison. */
     result = shader_ibuf_get_color(texelFetch(displacement_texture, px_coord, 0),
-                                  tex_has_float_buffer,
-                                  tex_float_channels,
-                                  tex_is_byte_buffer);
+                                  tex_is_float,
+                                  tex_channels,
+                                  tex_is_byte);
   }
   
   /* Compute intensity (CPU line 244-253) */
@@ -1356,6 +1357,17 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
     hash = BLI_hash_int_2d(hash, int(dmd->texture->ima->source));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(dmd->texture)));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->iuser)));
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_flag)));
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_color)));
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_depth)));
+    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_type)));
+    ImageTile *tile = BKE_image_get_tile(dmd->texture->ima, dmd->texture->iuser.tile);
+    if (tile) {
+      hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(tile->gen_color)));
+      hash = BLI_hash_int_2d(hash, int(tile->gen_flag));
+      hash = BLI_hash_int_2d(hash, int(tile->gen_type));
+      hash = BLI_hash_int_2d(hash, int(tile->gen_depth));
+    }
   }
 
   /* Hash deform_verts pointer (detects vertex group changes) */
@@ -1396,6 +1408,12 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
   if (first_time || hash_changed) {
     msd.pending_gpu_setup = true;
     msd.gpu_setup_attempts = 0;
+    /* If pipeline assets changed, drop any cached GPU texture so it will be
+     * recreated with the new settings. */
+    if (msd.gpu_texture) {
+      GPU_TEXTURE_FREE_SAFE(msd.gpu_texture);
+      msd.gpu_texture = nullptr;
+    }
   }
 
   /* Extract vertex group weights */
@@ -1554,20 +1572,91 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
-
-      /* Ensure GPU texture is loaded for this frame */
-      gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-      if (!msd.imbuf_called) {
+      if (!msd.imbuf_called && ELEM(ima->source, IMA_SRC_FILE, IMA_SRC_GENERATED)) {
         ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+        ImBuf *upload_ibuf = nullptr;
+
         if (ibuf) {
-          msd.tex_float_channels = (ibuf->channels == 0) ? 4 : ibuf->channels;
+          if (ibuf->float_buffer.data) {
+            msd.tex_is_float = true;
+            upload_ibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, 0);
+            upload_ibuf->flags = ibuf->flags;
+            IMB_assign_float_buffer(upload_ibuf, ibuf->float_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
+            upload_ibuf->channels = ibuf->channels;
+
+            const ColorSpace *cs = ibuf->float_buffer.colorspace;
+            if (cs) {
+              const char *from_name = IMB_colormanagement_role_colorspace_name_get(
+                  COLOR_ROLE_ACES_INTERCHANGE);
+              const char *to_name = ima->colorspace_settings.name;
+              if (from_name && to_name) {
+                IMB_colormanagement_transform_float(upload_ibuf->float_buffer.data,
+                                                   upload_ibuf->x,
+                                                   upload_ibuf->y,
+                                                   upload_ibuf->channels,
+                                                   from_name,
+                                                   to_name, false);
+              }
+            }
+          }
+          else if (ibuf->byte_buffer.data) {
+            msd.tex_is_byte = true;
+            upload_ibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, 0);
+            upload_ibuf->flags = ibuf->flags;
+            IMB_assign_byte_buffer(upload_ibuf, ibuf->byte_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
+            upload_ibuf->channels = ibuf->channels;
+
+            const ColorSpace *cs = ibuf->byte_buffer.colorspace;
+            if (cs) {
+              const char *from_name = IMB_colormanagement_role_colorspace_name_get(
+                  COLOR_ROLE_ACES_INTERCHANGE);
+              const char *to_name = ima->colorspace_settings.name;
+              if (from_name && to_name) {
+                IMB_colormanagement_transform_byte(
+                    upload_ibuf->byte_buffer.data,
+                    upload_ibuf->x,
+                    upload_ibuf->y,
+                    upload_ibuf->channels,
+                    from_name,
+                    to_name);
+              }
+            }
+          }
+
+          if (upload_ibuf) {
+            msd.gpu_texture = IMB_create_gpu_texture(
+                "Displace Image", upload_ibuf, false, false);
+            if (msd.gpu_texture) {
+              msd.tex_channels = upload_ibuf->channels;
+              gpu_texture = msd.gpu_texture;
+            }
+            IMB_freeImBuf(upload_ibuf);
+          }
+
           BKE_image_release_ibuf(ima, ibuf, nullptr);
         }
         else {
           /* Fallback defaults when ImBuf is unavailable. */
           msd.tex_is_byte = false;
-          msd.tex_has_float = false;
-          msd.tex_float_channels = 4;
+          msd.tex_is_float = false;
+          msd.tex_channels = 4;
+        }
+
+      }
+      if (!gpu_texture) {
+        gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
+      }
+      if (!msd.imbuf_called) {
+        ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+        if (ibuf) {
+          msd.tex_channels = (ibuf->channels == 0) ? 4 : ibuf->channels;
+          BKE_image_release_ibuf(ima, ibuf, nullptr);
+        }
+        else {
+          /* Fallback defaults when ImBuf is unavailable. */
+          msd.tex_is_byte = false;
+          msd.tex_is_float = false;
+          msd.tex_channels = 4;
         }
         msd.imbuf_called = true;
       }
@@ -1786,9 +1875,9 @@ struct ColorBand {
     info.push_constant(Type::float4x4_t, "object_to_world_mat");
     info.push_constant(Type::float4x4_t, "mapref_imat");
     info.push_constant(Type::bool_t,
-                       "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
-    info.push_constant(Type::bool_t, "tex_has_float_buffer"); /* ImBuf had float data */
-    info.push_constant(Type::int_t, "tex_float_channels"); /* number of channels in ImBuf (1/3/4) */
+                       "tex_is_byte"); /* Image data originally bytes (needs premultiply) */
+    info.push_constant(Type::bool_t, "tex_is_float"); /* ImBuf had float data */
+    info.push_constant(Type::int_t, "tex_channels"); /* number of channels in ImBuf (1/3/4) */
     info.push_constant(Type::int_t, "mtex_mapto"); /* MTex.mapto flags (MAP_COL etc.) */
   }
   BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
@@ -1904,14 +1993,12 @@ struct ColorBand {
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
     GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
-    msd.tex_has_float = GPU_texture_has_float_format(gpu_texture);
-    msd.tex_is_byte = !msd.tex_has_float;
 
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
-    GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", msd.tex_is_byte);
-    GPU_shader_uniform_1b(shader, "tex_has_float_buffer", msd.tex_has_float);
-    GPU_shader_uniform_1i(shader, "tex_float_channels", msd.tex_float_channels);
+    GPU_shader_uniform_1b(shader, "tex_is_byte", msd.tex_is_byte);
+    GPU_shader_uniform_1b(shader, "tex_is_float", msd.tex_is_float);
+    GPU_shader_uniform_1i(shader, "tex_channels", msd.tex_channels);
     /* Pass mtex->mapto to shader so it can decide whether to apply scene color conversion
      * (MAP_COL flag). If no mtex is used, this will be 0. */
     int mtex_mapto = 0; /* default: none */
@@ -2000,6 +2087,11 @@ void DisplaceManager::free_resources_for_mesh(Mesh *mesh)
   }
 
   for (const Impl::MeshModifierKey &key : keys_to_remove) {
+    /* Free any GPU texture cached for this modifier instance. */
+    Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(key);
+    if (msd) {
+      GPU_TEXTURE_FREE_SAFE(msd->gpu_texture);
+    }
     impl_->static_map.remove(key);
   }
 }
@@ -2020,6 +2112,10 @@ void DisplaceManager::invalidate_all(Mesh *mesh)
       if (msd) {
         msd->pending_gpu_setup = true;
         msd->gpu_setup_attempts = 0;
+        if (msd->gpu_texture) {
+          GPU_TEXTURE_FREE_SAFE(msd->gpu_texture);
+          msd->gpu_texture = nullptr;
+        }
       }
     }
   }
