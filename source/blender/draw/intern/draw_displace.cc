@@ -134,9 +134,9 @@ struct blender::draw::DisplaceManager::Impl {
     /* Once true, we already called BKE_image_acquire_ibuf() for this mesh/modifier. */
     bool imbuf_called = false;
     /* Texture/ImBuf derived flags (cached in msd to avoid repeated ImBuf acquisition). */
-    bool tex_is_byte = false;
-    bool tex_is_float = true;
-    int tex_channels = 3;
+    bool tex_is_byte = true;
+    bool tex_is_float = false;
+    int tex_channels = 4;
     /* Cached GPU texture when we can create it once (for non-animated images). */
     blender::gpu::Texture *gpu_texture = nullptr;
     /* Cached colorband hash to avoid redundant UBO updates. */
@@ -1361,7 +1361,6 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_color)));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_depth)));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_type)));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->colorspace_settings)));
     hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->alpha_mode)));
     ImageTile *tile = BKE_image_get_tile(dmd->texture->ima, dmd->texture->iuser.tile);
     if (tile) {
@@ -1415,7 +1414,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
     if (msd.gpu_texture) {
       GPU_TEXTURE_FREE_SAFE(msd.gpu_texture);
       msd.gpu_texture = nullptr;
-      BKE_image_signal(nullptr, dmd->texture->ima, nullptr, IMA_SIGNAL_COLORMANAGE);
+      BKE_image_signal(nullptr, dmd->texture->ima, nullptr, IMA_SIGNAL_RELOAD);
     }
   }
 
@@ -1575,7 +1574,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
-      if (!msd.imbuf_called) {
+      if (!msd.imbuf_called && ima->source == IMA_SRC_GENERATED) {
         ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
         ImBuf *upload_ibuf = nullptr;
 
@@ -1648,15 +1647,15 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           msd.tex_channels = 4;
         }
         msd.imbuf_called = true;
-        if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-          /* We set uniform from ImBuf settings 1 time but as we don't want to call ImBuf API
-           * each frame, we will use BKE_image_get_gpu_texture(ima, &iuser); : It means that
-           * anything else than non-color ima->color_settings won't be handled properly */
-          msd.gpu_texture = nullptr;
-        }
       }
       if (!gpu_texture) {
-        gpu_texture = msd.gpu_texture ? msd.gpu_texture : BKE_image_get_gpu_texture(ima, &iuser);
+        if (msd.gpu_texture) {
+          /* Color management only available for IMA_SRC_GENRATED */
+          gpu_texture = msd.gpu_texture;
+        }
+        else {
+          gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
+        }
       }
 
       if (gpu_texture && !msd.tex_coords.empty()) {
