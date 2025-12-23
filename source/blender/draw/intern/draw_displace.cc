@@ -72,27 +72,29 @@ static uint32_t colorband_hash_from_coba(const ColorBand *coba)
   hash = BLI_hash_int_2d(hash, uint32_t(coba->ipotype_hue));
   hash = BLI_hash_int_2d(hash, uint32_t(coba->color_mode));
 
-  /* Hash each stop. For floats, hash their bit pattern to get stable result. */
-  for (int i = 0; i < 32; ++i) {
+  /* Hash only the active stops (up to 32). For floats, hash their bit pattern. */
+  int tot = coba->tot;
+  if (tot < 0) {
+    tot = 0;
+  }
+  if (tot > 32) {
+    tot = 32;
+  }
+
+  for (int i = 0; i < tot; ++i) {
     const auto &stop = coba->data[i];
 
     uint32_t v;
-    /* r */
     memcpy(&v, &stop.r, sizeof(v));
     hash = BLI_hash_int_2d(hash, v);
-    /* g */
     memcpy(&v, &stop.g, sizeof(v));
     hash = BLI_hash_int_2d(hash, v);
-    /* b */
     memcpy(&v, &stop.b, sizeof(v));
     hash = BLI_hash_int_2d(hash, v);
-    /* a */
     memcpy(&v, &stop.a, sizeof(v));
     hash = BLI_hash_int_2d(hash, v);
-    /* pos */
     memcpy(&v, &stop.pos, sizeof(v));
     hash = BLI_hash_int_2d(hash, v);
-    /* cur (int) */
     hash = BLI_hash_int_2d(hash, uint32_t(stop.cur));
   }
 
@@ -132,14 +134,10 @@ struct blender::draw::DisplaceManager::Impl {
     uint32_t last_verified_hash = 0;
     /* Once true, we already called BKE_image_acquire_ibuf() for this mesh/modifier. */
     bool imbuf_called = false;
-    /* True when the Image source is from disk (file/sequence/movie). */
-    bool ima_source_is_disk = false;
     /* Texture/ImBuf derived flags (cached in msd to avoid repeated ImBuf acquisition). */
     bool tex_is_byte = false;
     bool tex_has_float = false;
     int tex_float_channels = 0;
-    int ibuf_colormanage_flag = 0;
-    bool ibuf_is_srgb = false;
     /* Cached colorband hash to avoid redundant UBO updates. */
     uint32_t colorband_hash = 0;
   };
@@ -197,6 +195,52 @@ static std::string get_displace_shader_part1()
 #define COLBAND_HUE_FAR 1
 #define COLBAND_HUE_CW 2
 #define COLBAND_HUE_CCW 3
+
+/* GPU port of key_curve_position_weights from key.cc
+ * Maps CPU KeyInterpolationType cases to GLSL int `type`:
+ * 0 = KEY_LINEAR, 1 = KEY_CARDINAL, 2 = KEY_BSPLINE, 3 = KEY_CATMULL_ROM */
+void key_curve_position_weights(float t, out float data[4], int type)
+{
+  float t2 = 0.0;
+  float t3 = 0.0;
+  float fc = 0.0;
+
+  if (type == 0) { /* KEY_LINEAR */
+    data[0] = 0.0;
+    data[1] = -t + 1.0;
+    data[2] = t;
+    data[3] = 0.0;
+    return;
+  }
+
+  /* Precompute powers when needed */
+  t2 = t * t;
+  t3 = t2 * t;
+
+  if (type == 1) { /* KEY_CARDINAL */
+    fc = 0.71;
+    data[0] = -fc * t3 + 2.0 * fc * t2 - fc * t;
+    data[1] = (2.0 - fc) * t3 + (fc - 3.0) * t2 + 1.0;
+    data[2] = (fc - 2.0) * t3 + (3.0 - 2.0 * fc) * t2 + fc * t;
+    data[3] = fc * t3 - fc * t2;
+    return;
+  }
+
+  if (type == 2) { /* KEY_BSPLINE */
+    data[0] = -0.16666666 * t3 + 0.5 * t2 - 0.5 * t + 0.16666666;
+    data[1] = 0.5 * t3 - t2 + 0.66666666;
+    data[2] = -0.5 * t3 + 0.5 * t2 + 0.5 * t + 0.16666666;
+    data[3] = 0.16666666 * t3;
+    return;
+  }
+
+  /* KEY_CATMULL_ROM (fallback) */
+  fc = 0.5;
+  data[0] = -fc * t3 + 2.0 * fc * t2 - fc * t;
+  data[1] = (2.0 - fc) * t3 + (fc - 3.0) * t2 + 1.0;
+  data[2] = (fc - 2.0) * t3 + (3.0 - 2.0 * fc) * t2 + fc * t;
+  data[3] = fc * t3 - fc * t2;
+}
 
 /* GPU port of colorband_hue_interp() from colorband.cc (line 285-393) */
 float colorband_hue_interp(int ipotype_hue, float mfac, float fac, float h1, float h2)
@@ -270,144 +314,110 @@ float colorband_hue_interp(int ipotype_hue, float mfac, float fac, float h1, flo
 /* RGB ↔ HSV/HSL conversion functions (GPU port of BLI_math_color.h) */
 vec3 rgb_to_hsv(vec3 rgb)
 {
-  float cmax = max(max(rgb.r, rgb.g), rgb.b);
-  float cmin = min(min(rgb.r, rgb.g), rgb.b);
-  float delta = cmax - cmin;
-  
-  vec3 hsv;
-  hsv.z = cmax;  /* value */
-  
-  if (cmax != 0.0) {
-    hsv.y = delta / cmax;  /* saturation */
+  /* Match CPU implementation from math_color.cc */
+  float r = rgb.r;
+  float g = rgb.g;
+  float b = rgb.b;
+
+  float k = 0.0;
+  float chroma;
+  float min_gb;
+
+  if (g < b) {
+    float tmp = g; g = b; b = tmp;
+    k = -1.0;
   }
-  else {
-    hsv.y = 0.0;
-    hsv.x = 0.0;
-    return hsv;
+  min_gb = b;
+  if (r < g) {
+    float tmp = r; r = g; g = tmp;
+    k = -2.0 / 6.0 - k;
+    min_gb = min(g, b);
   }
-  
-  if (delta == 0.0) {
-    hsv.x = 0.0;
-  }
-  else if (rgb.r == cmax) {
-    hsv.x = (rgb.g - rgb.b) / delta;
-  }
-  else if (rgb.g == cmax) {
-    hsv.x = 2.0 + (rgb.b - rgb.r) / delta;
-  }
-  else {
-    hsv.x = 4.0 + (rgb.r - rgb.g) / delta;
-  }
-  
-  hsv.x /= 6.0;
-  if (hsv.x < 0.0) {
-    hsv.x += 1.0;
-  }
-  
-  return hsv;
+
+  chroma = r - min_gb;
+
+  float h = abs(k + (g - b) / (6.0 * chroma + 1e-20));
+  float s = chroma / (r + 1e-20);
+  float v = r;
+
+  return vec3(h, s, v);
 }
 
 vec3 hsv_to_rgb(vec3 hsv)
 {
+  /* Match CPU implementation from math_color.cc */
   float h = hsv.x;
   float s = hsv.y;
   float v = hsv.z;
-  
-  if (s == 0.0) {
-    return vec3(v, v, v);
-  }
-  
-  h *= 6.0;
-  float i = floor(h);
-  float f = h - i;
-  float p = v * (1.0 - s);
-  float q = v * (1.0 - s * f);
-  float t = v * (1.0 - s * (1.0 - f));
-  
-  int sector = int(i) % 6;
-  if (sector == 0) return vec3(v, t, p);
-  else if (sector == 1) return vec3(q, v, p);
-  else if (sector == 2) return vec3(p, v, t);
-  else if (sector == 3) return vec3(p, q, v);
-  else if (sector == 4) return vec3(t, p, v);
-  else return vec3(v, p, q);
+
+  float nr = abs(h * 6.0 - 3.0) - 1.0;
+  float ng = 2.0 - abs(h * 6.0 - 2.0);
+  float nb = 2.0 - abs(h * 6.0 - 4.0);
+
+  nr = clamp(nr, 0.0, 1.0);
+  nb = clamp(nb, 0.0, 1.0);
+  ng = clamp(ng, 0.0, 1.0);
+
+  float r = ((nr - 1.0) * s + 1.0) * v;
+  float g = ((ng - 1.0) * s + 1.0) * v;
+  float b = ((nb - 1.0) * s + 1.0) * v;
+
+  return vec3(r, g, b);
 }
 
 vec3 rgb_to_hsl(vec3 rgb)
 {
+  /* Match CPU implementation from math_color.cc */
   float cmax = max(max(rgb.r, rgb.g), rgb.b);
   float cmin = min(min(rgb.r, rgb.g), rgb.b);
-  float delta = cmax - cmin;
-  
-  vec3 hsl;
-  hsl.z = (cmax + cmin) / 2.0;  /* lightness */
-  
-  if (delta == 0.0) {
-    hsl.x = 0.0;  /* hue */
-    hsl.y = 0.0;  /* saturation */
+  float h, s;
+  float l = min(1.0, (cmax + cmin) / 2.0); /* clamp like CPU */
+
+  if (cmax == cmin) {
+    h = 0.0;
+    s = 0.0;
   }
   else {
-    if (hsl.z < 0.5) {
-      hsl.y = delta / (cmax + cmin);
+    float d = cmax - cmin;
+    s = (l > 0.5) ? (d / (2.0 - cmax - cmin)) : (d / (cmax + cmin));
+
+    if (cmax == rgb.r) {
+      h = (rgb.g - rgb.b) / d + (rgb.g < rgb.b ? 6.0 : 0.0);
+    }
+    else if (cmax == rgb.g) {
+      h = (rgb.b - rgb.r) / d + 2.0;
     }
     else {
-      hsl.y = delta / (2.0 - cmax - cmin);
-    }
-    
-    if (rgb.r == cmax) {
-      hsl.x = (rgb.g - rgb.b) / delta;
-    }
-    else if (rgb.g == cmax) {
-      hsl.x = 2.0 + (rgb.b - rgb.r) / delta;
-    }
-    else {
-      hsl.x = 4.0 + (rgb.r - rgb.g) / delta;
-    }
-    
-    hsl.x /= 6.0;
-    if (hsl.x < 0.0) {
-      hsl.x += 1.0;
+      h = (rgb.r - rgb.g) / d + 4.0;
     }
   }
-  
-  return hsl;
+
+  h /= 6.0;
+  return vec3(h, s, l);
 }
 
 vec3 hsl_to_rgb(vec3 hsl)
 {
+  /* Match CPU implementation from math_color.cc */
   float h = hsl.x;
   float s = hsl.y;
   float l = hsl.z;
-  
-  if (s == 0.0) {
-    return vec3(l, l, l);
-  }
-  
-  float q = (l < 0.5) ? (l * (1.0 + s)) : (l + s - l * s);
-  float p = 2.0 * l - q;
-  
-  h *= 6.0;
-  vec3 t = vec3(h + 2.0, h, h - 2.0);
-  
-  for (int i = 0; i < 3; i++) {
-    if (t[i] < 0.0) t[i] += 6.0;
-    if (t[i] >= 6.0) t[i] -= 6.0;
-    
-    if (t[i] < 1.0) {
-      t[i] = p + (q - p) * t[i];
-    }
-    else if (t[i] < 3.0) {
-      t[i] = q;
-    }
-    else if (t[i] < 4.0) {
-      t[i] = p + (q - p) * (4.0 - t[i]);
-    }
-    else {
-      t[i] = p;
-    }
-  }
-  
-  return t;
+
+  float nr = abs(h * 6.0 - 3.0) - 1.0;
+  float ng = 2.0 - abs(h * 6.0 - 2.0);
+  float nb = 2.0 - abs(h * 6.0 - 4.0);
+
+  nr = clamp(nr, 0.0, 1.0);
+  nb = clamp(nb, 0.0, 1.0);
+  ng = clamp(ng, 0.0, 1.0);
+
+  float chroma = (1.0 - abs(2.0 * l - 1.0)) * s;
+
+  float r = (nr - 0.5) * chroma + l;
+  float g = (ng - 0.5) * chroma + l;
+  float b = (nb - 0.5) * chroma + l;
+
+  return vec3(r, g, b);
 }
  
 
@@ -725,7 +735,7 @@ bool BKE_colorband_evaluate(ColorBand coba, float in_val, out vec4 out_color)
       }
 
       if (ipotype == COLBAND_INTERP_B_SPLINE || ipotype == COLBAND_INTERP_CARDINAL) {
-        /* B-SPLINE and CARDINAL interpolation (simplified Catmull-Rom) */
+        /* B-SPLINE and CARDINAL interpolation using key_curve_position_weights to match CPU */
         vec4 cbd0_rgba, cbd3_rgba;
 
         if (a >= tot - 1) {
@@ -743,17 +753,18 @@ bool BKE_colorband_evaluate(ColorBand coba, float in_val, out vec4 out_color)
 
         fac = clamp(fac, 0.0, 1.0);
 
-        /* Catmull-Rom spline weights */
-        float t = fac;
-        float t2 = t * t;
-        float t3 = t2 * t;
+        float t_weights[4];
+        /* Map interpolation type: CARDINAL -> 1, B_SPLINE -> 2 (matches GLSL helper) */
+        if (ipotype == COLBAND_INTERP_CARDINAL) {
+          key_curve_position_weights(fac, t_weights, 1);
+        }
+        else {
+          key_curve_position_weights(fac, t_weights, 2);
+        }
 
-        float w0 = -0.5 * t3 + t2 - 0.5 * t;
-        float w1 = 1.5 * t3 - 2.5 * t2 + 1.0;
-        float w2 = -1.5 * t3 + 2.0 * t2 + 0.5 * t;
-        float w3 = 0.5 * t3 - 0.5 * t2;
-
-        out_color = w0 * cbd3_rgba + w1 * cbd2_rgba + w2 * cbd1_rgba_final + w3 * cbd0_rgba;
+        /* CPU uses out = t[3]*cbd3 + t[2]*cbd2 + t[1]*cbd1 + t[0]*cbd0 */
+        out_color = t_weights[3] * cbd3_rgba + t_weights[2] * cbd2_rgba +
+                    t_weights[1] * cbd1_rgba_final + t_weights[0] * cbd0_rgba;
         out_color = clamp(out_color, 0.0, 1.0);
       }
       else {
@@ -1188,15 +1199,9 @@ do_2d_mapping(fx, fy);
       retval |= TEX_RGB;
     }
   }
-  if (ima_source_is_disk && ibuf_is_srgb) {
-    srgb_rgb = linearrgb_to_srgb_vec3(rgb);
-  }
-  else if (scene_color_manage && ((mtex_mapto & 1) != 0) && tex_is_byte_buffer && !tex_has_float_buffer) {
-    texres.trgba.rgb = srgb_to_linearrgb_vec3(texres.trgba.rgb);
-  }
-  else {
-    srgb_rgb = rgb;
-  }
+
+  // Code limited to non-color ColorSpace
+  srgb_rgb = rgb;
   
   /* Use texres.tin for intensity to match CPU naming convention (imagewrap.cc line 244-253)
    * If the sampled result contained RGB data (retval & TEX_RGB) compute intensity from RGB.
@@ -1552,26 +1557,10 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
       /* Ensure GPU texture is loaded for this frame */
       gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-
-      /* If GPU resources are pending setup for this modifier instance, acquire
-       * ImBuf once to determine float/byte and channel count. This is done
-       * only during the GPU setup phase to avoid per-frame ImBuf calls. */
-      /* If we haven't cached ImBuf-derived flags for this mesh/modifier, acquire ImBuf once
-       * to populate them. We must avoid doing this per-frame, so store results in msd. */
       if (!msd.imbuf_called) {
         ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
         if (ibuf) {
-          msd.tex_has_float = (ibuf->flags & IB_float_data) != 0;
-          msd.tex_is_byte = !msd.tex_has_float;
           msd.tex_float_channels = (ibuf->channels == 0) ? 4 : ibuf->channels;
-
-          msd.ibuf_colormanage_flag = ibuf->colormanage_flag;
-          const bool ibuf_is_data = (msd.ibuf_colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
-          const ColorSpace *byte_colorspace = (msd.tex_has_float || ibuf_is_data) ? nullptr :
-                                              ibuf->byte_buffer.colorspace;
-          msd.ibuf_is_srgb = (msd.tex_has_float || ibuf_is_data) ? false :
-                         IMB_colormanagement_space_is_srgb(byte_colorspace);
-
           BKE_image_release_ibuf(ima, ibuf, nullptr);
         }
         else {
@@ -1579,10 +1568,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           msd.tex_is_byte = false;
           msd.tex_has_float = false;
           msd.tex_float_channels = 4;
-          msd.ibuf_colormanage_flag = 0;
         }
-        msd.ima_source_is_disk = ima->source == IMA_SRC_FILE;
-        /* Mark that we acquired ImBuf once and cached results. */
         msd.imbuf_called = true;
       }
 
@@ -1792,8 +1778,6 @@ struct ColorBand {
     info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
     info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
     info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
-    info.push_constant(Type::bool_t, "ibuf_is_srgb"); /* ImBuf byte colorspace is sRGB */
-    info.push_constant(Type::bool_t, "scene_color_manage"); /* Apply scene color management for byte images */
     /* Mapping controls (when mapping_use_input_positions==true shader will
      * compute texture coords from input_positions[] instead of using
      * precomputed texture_coords[]). UV mapping remains CPU-side. */
@@ -1803,7 +1787,6 @@ struct ColorBand {
     info.push_constant(Type::float4x4_t, "mapref_imat");
     info.push_constant(Type::bool_t,
                        "tex_is_byte_buffer"); /* Image data originally bytes (needs premultiply) */
-    info.push_constant(Type::bool_t, "ima_source_is_disk"); /* ImBuf had float data */
     info.push_constant(Type::bool_t, "tex_has_float_buffer"); /* ImBuf had float data */
     info.push_constant(Type::int_t, "tex_float_channels"); /* number of channels in ImBuf (1/3/4) */
     info.push_constant(Type::int_t, "mtex_mapto"); /* MTex.mapto flags (MAP_COL etc.) */
@@ -1921,21 +1904,14 @@ struct ColorBand {
     GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
     GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
     GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
-    /* Pass whether the original ImBuf byte colorspace was sRGB. This allows the
-     * shader to avoid double-conversion when the GPU texture is already in sRGB. */
-    GPU_shader_uniform_1b(shader, "ibuf_is_srgb", msd.ibuf_is_srgb);
+    msd.tex_has_float = GPU_texture_has_float_format(gpu_texture);
+    msd.tex_is_byte = !msd.tex_has_float;
 
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
     GPU_shader_uniform_1b(shader, "tex_is_byte_buffer", msd.tex_is_byte);
     GPU_shader_uniform_1b(shader, "tex_has_float_buffer", msd.tex_has_float);
     GPU_shader_uniform_1i(shader, "tex_float_channels", msd.tex_float_channels);
-    /* Pass whether the image source is disk-backed so shader/CPU logic can decide
-     * to apply linear<->sRGB conversions when metadata may be unreliable. */
-    GPU_shader_uniform_1b(shader, "ima_source_is_disk", msd.ima_source_is_disk);
-    /* Enable scene color management conversion for byte images (CPU path does this
-     * when mtex->mapto & MAP_COL). We enable by default to match CPU sampling behavior. */
-    GPU_shader_uniform_1b(shader, "scene_color_manage", true);
     /* Pass mtex->mapto to shader so it can decide whether to apply scene color conversion
      * (MAP_COL flag). If no mtex is used, this will be 0. */
     int mtex_mapto = 0; /* default: none */
