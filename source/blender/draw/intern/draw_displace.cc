@@ -1574,7 +1574,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
-      if (!msd.imbuf_called && ELEM(ima->source, IMA_SRC_FILE, IMA_SRC_GENERATED)) {
+      if (!msd.imbuf_called) {
         ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
         ImBuf *upload_ibuf = nullptr;
 
@@ -1643,24 +1643,10 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           msd.tex_is_float = false;
           msd.tex_channels = 4;
         }
-
+        msd.imbuf_called = true;
       }
       if (!gpu_texture) {
         gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-      }
-      if (!msd.imbuf_called) {
-        ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-        if (ibuf) {
-          msd.tex_channels = (ibuf->channels == 0) ? 4 : ibuf->channels;
-          BKE_image_release_ibuf(ima, ibuf, nullptr);
-        }
-        else {
-          /* Fallback defaults when ImBuf is unavailable. */
-          msd.tex_is_byte = false;
-          msd.tex_is_float = false;
-          msd.tex_channels = 4;
-        }
-        msd.imbuf_called = true;
       }
 
       if (gpu_texture && !msd.tex_coords.empty()) {
