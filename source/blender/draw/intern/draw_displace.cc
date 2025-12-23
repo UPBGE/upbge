@@ -1415,6 +1415,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
     if (msd.gpu_texture) {
       GPU_TEXTURE_FREE_SAFE(msd.gpu_texture);
       msd.gpu_texture = nullptr;
+      BKE_image_signal(nullptr, dmd->texture->ima, nullptr, IMA_SIGNAL_COLORMANAGE);
     }
   }
 
@@ -1626,8 +1627,11 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           }
 
           if (upload_ibuf) {
+            const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
+            const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima,
+                                                                                           ibuf);
             msd.gpu_texture = IMB_create_gpu_texture(
-                "Displace Image", upload_ibuf, false, false);
+                "Displace Image", upload_ibuf, use_high_bitdepth, store_premultiplied);
             if (msd.gpu_texture) {
               msd.tex_channels = upload_ibuf->channels;
               gpu_texture = msd.gpu_texture;
@@ -1644,9 +1648,15 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           msd.tex_channels = 4;
         }
         msd.imbuf_called = true;
+        if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+          /* We set uniform from ImBuf settings 1 time but as we don't want to call ImBuf API
+           * each frame, we will use BKE_image_get_gpu_texture(ima, &iuser); : It means that
+           * anything else than non-color ima->color_settings won't be handled properly */
+          msd.gpu_texture = nullptr;
+        }
       }
       if (!gpu_texture) {
-        gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
+        gpu_texture = msd.gpu_texture ? msd.gpu_texture : BKE_image_get_gpu_texture(ima, &iuser);
       }
 
       if (gpu_texture && !msd.tex_coords.empty()) {
