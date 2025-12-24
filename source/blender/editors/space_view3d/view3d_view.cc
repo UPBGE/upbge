@@ -1430,7 +1430,7 @@ bool ED_view3d_is_region_xr_mirror_active(const wmWindowManager *wm,
 
 #ifdef WITH_GAMEENGINE
 
-static ListBase events_queue_back;
+static ListBaseT<wmEvent> events_queue_back;
 
 static void game_engine_save_state(bContext *C, wmWindow *win)
 {
