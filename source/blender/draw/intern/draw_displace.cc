@@ -1338,9 +1338,9 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
   /* Hash space mode */
   hash = BLI_hash_int_2d(hash, int(dmd->space));
 
-  /* Hash vertex group name */
+  /* Hash vertex group name (mix into existing hash) */
   if (dmd->defgrp_name[0] != '\0') {
-    hash = BLI_hash_string(dmd->defgrp_name);
+    hash = BLI_hash_int_2d(hash, BLI_hash_string(dmd->defgrp_name));
   }
 
   /* Hash invert flag */
@@ -1353,21 +1353,35 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
   hash = BLI_hash_int_2d(hash, has_texture ? 1 : 0);
 
   if (has_texture) {
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(dmd->texture->ima)));
-    hash = BLI_hash_int_2d(hash, int(dmd->texture->ima->source));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(dmd->texture)));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->iuser)));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_flag)));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_color)));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_depth)));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->gen_type)));
-    hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(&dmd->texture->ima->alpha_mode)));
+    /* Mix image and texture identifiers into the hash. Use values, not
+     * addresses, so changes to fields are detected. */
+    hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dmd->texture->ima)));
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->source));
+    hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dmd->texture)));
+    /* Mix ImageUser relevant fields (tile/frame) instead of its address. */
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.tile));
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.framenr));
+
+    /* Mix Image generation flags/values (use actual values, not addresses). */
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_flag));
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_depth));
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_type));
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->alpha_mode));
+
+    /* Hash the colorspace name string into the running hash. */
+    if (dmd->texture->ima->colorspace_settings.name[0] != '\0') {
+      hash = BLI_hash_int_2d(hash, BLI_hash_string(dmd->texture->ima->colorspace_settings.name));
+    }
+    else {
+      hash = BLI_hash_int_2d(hash, 0);
+    }
     ImageTile *tile = BKE_image_get_tile(dmd->texture->ima, dmd->texture->iuser.tile);
     if (tile) {
-      hash = BLI_hash_int_2d(hash, int(reinterpret_cast<uintptr_t>(tile->gen_color)));
-      hash = BLI_hash_int_2d(hash, int(tile->gen_flag));
-      hash = BLI_hash_int_2d(hash, int(tile->gen_type));
-      hash = BLI_hash_int_2d(hash, int(tile->gen_depth));
+      /* Tile generation color may be a small array/value; mix the numeric
+       * flags/types/depth which indicate tile changes. */
+      hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_flag));
+      hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_type));
+      hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_depth));
     }
   }
 
@@ -1574,7 +1588,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
-      if (!msd.imbuf_called && ima->source == IMA_SRC_GENERATED) {
+      if (!msd.imbuf_called && ELEM(ima->source, IMA_SRC_GENERATED, IMA_SRC_FILE)) {
         ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
         ImBuf *upload_ibuf = nullptr;
 
@@ -1591,6 +1605,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
               const char *from_name = IMB_colormanagement_role_colorspace_name_get(
                   COLOR_ROLE_ACES_INTERCHANGE);
               const char *to_name = ima->colorspace_settings.name;
+              std::cout << "To Name: " << to_name << std::endl;
               if (from_name && to_name) {
                 IMB_colormanagement_transform_float(upload_ibuf->float_buffer.data,
                                                    upload_ibuf->x,
@@ -1613,6 +1628,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
               const char *from_name = IMB_colormanagement_role_colorspace_name_get(
                   COLOR_ROLE_ACES_INTERCHANGE);
               const char *to_name = ima->colorspace_settings.name;
+              std::cout << "To Name: " << to_name << std::endl;
               if (from_name && to_name) {
                 IMB_colormanagement_transform_byte(
                     upload_ibuf->byte_buffer.data,
