@@ -747,7 +747,7 @@ typedef struct GameData {
   short logLevel = 0;
 
   /* stereo */
-  short stereoflag = STEREO_NOSTEREO, stereomode = STEREO_ANAGLYPH;
+  short stereoflag = 1, stereomode = 5;
   float eyeseparation = 0.10f;
   RecastData recastData;
 
@@ -763,16 +763,16 @@ typedef struct GameData {
    * bit 3: (gameengine): Activity culling is enabled.
    * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
    */
-  int flag = GAME_USE_UNDO;
-  short mode = WO_ACTIVITY_CULLING;
+  int flag = (1 << 19);
+  short mode = 8;
   short matmode DNA_DEPRECATED = 0;
   short occlusionRes = 128; /* resolution of occlusion Z buffer in pixel */
-  short physicsEngine = WOPHY_BULLET;
+  short physicsEngine = 5;
   short solverType = 0, _pad[3] = {};
   short exitkey = 218;
   short pythonkeys[4] = {212, 217, 213, 116};
   short vsync = 0; /* Controls vsync: off, on, or adaptive (if supported) */
-  short obstacleSimulation = OBSTSIMULATION_NONE;
+  short obstacleSimulation = 0;
   short raster_storage DNA_DEPRECATED = 0;
   short ticrate = 60, maxlogicstep = 5, physubstep = 1, maxphystep = 5;
   float timeScale = 1.0f;
@@ -781,7 +781,7 @@ typedef struct GameData {
   float erp = 0.2f, erp2 = 0.8f, cfm = 0.0f, _pad1 = 0;
 
   /* Scene LoD */
-  short lodflag = SCE_LOD_USE_HYST, _pad3 = 0;
+  short lodflag = 1, _pad3 = 0;
   int scehysteresis = 10;
 
   /* Fixed physics timestep settings (UPBGE) */
@@ -946,7 +946,6 @@ typedef struct GameData {
 
   void *_pad10 = nullptr;
 } GameData;
-
 
 
 /* GameData.solverType */
