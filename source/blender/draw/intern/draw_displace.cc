@@ -1602,10 +1602,18 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
             const ColorSpace *cs = ibuf->float_buffer.colorspace;
             if (cs) {
-              const char *from_name = IMB_colormanagement_role_colorspace_name_get(
-                  COLOR_ROLE_ACES_INTERCHANGE);
-              const char *to_name = ima->colorspace_settings.name;
-              std::cout << "To Name: " << to_name << std::endl;
+              const char *from_name = nullptr;
+              const char *to_name = nullptr;
+              if (ima->source == IMA_SRC_GENERATED) {
+                from_name = IMB_colormanagement_role_colorspace_name_get(
+                    COLOR_ROLE_ACES_INTERCHANGE);
+                to_name = ima->colorspace_settings.name;
+
+              }
+              else {
+                from_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
+                to_name = IMB_colormanagement_colorspace_get_name(ibuf->float_buffer.colorspace);
+              }
               if (from_name && to_name) {
                 IMB_colormanagement_transform_float(upload_ibuf->float_buffer.data,
                                                    upload_ibuf->x,
@@ -1625,10 +1633,17 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
             const ColorSpace *cs = ibuf->byte_buffer.colorspace;
             if (cs) {
-              const char *from_name = IMB_colormanagement_role_colorspace_name_get(
-                  COLOR_ROLE_ACES_INTERCHANGE);
-              const char *to_name = ima->colorspace_settings.name;
-              std::cout << "To Name: " << to_name << std::endl;
+              const char *from_name = nullptr;
+              const char *to_name = nullptr;
+              if (ima->source == IMA_SRC_GENERATED) {
+                from_name = IMB_colormanagement_role_colorspace_name_get(
+                    COLOR_ROLE_ACES_INTERCHANGE);
+                to_name = ima->colorspace_settings.name;
+              }
+              else {
+                from_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
+                to_name = IMB_colormanagement_colorspace_get_name(ibuf->byte_buffer.colorspace);
+              }
               if (from_name && to_name) {
                 IMB_colormanagement_transform_byte(
                     upload_ibuf->byte_buffer.data,
