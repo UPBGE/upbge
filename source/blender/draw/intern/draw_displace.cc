@@ -1681,7 +1681,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       }
       if (!gpu_texture) {
         if (msd.gpu_texture) {
-          /* Color management only available for IMA_SRC_GENRATED */
+          /* Color management only available for IMA_SRC_GENERATED, IMA_SRC_FILE */
           gpu_texture = msd.gpu_texture;
         }
         else {
