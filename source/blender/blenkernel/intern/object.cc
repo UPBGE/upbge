@@ -729,7 +729,7 @@ static void write_sensors(BlendWriter *writer, ListBase *lb)
         writer->write_struct_cast<bMovementSensor>(sens->data);
         break;
       case SENS_RBCONSTRAINT:
-        BLO_write_struct(writer, bRBConstraintSensor, sens->data);
+        writer->write_struct_cast<bRBConstraintSensor>(sens->data);
         break;
       case SENS_MESSAGE:
         writer->write_struct_cast<bMessageSensor>(sens->data);
