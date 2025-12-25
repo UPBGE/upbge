@@ -1508,7 +1508,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   Impl::MeshStaticData &msd = *msd_ptr;
 
   /* GPU setup retry logic */
-  if (!draw_gpu_modifier_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
+  if (!draw_modifier_gpu_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
     return nullptr;
   }
 
