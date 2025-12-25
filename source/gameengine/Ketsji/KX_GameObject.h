@@ -40,8 +40,13 @@
 
 #include <stddef.h>
 
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
 
 #include "EXP_ListValue.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
@@ -108,9 +113,14 @@ class KX_GameObject : public SCA_IObject {
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
   bool m_is_dupli_instance;
-  /* END OF EEVEE INTEGRATION */
 
+  /// external client info (game object in this case)
   KX_ClientObjectInfo *m_pClient_info;
+
+  MT_Transform m_cachedRenderTransform;
+  MT_Transform m_cachedInterpolatedTransform;
+  bool m_useRenderInterpolation;
+
   std::string m_name;
   int m_layer;
   std::vector<RAS_MeshObject *> m_meshes;
@@ -146,6 +156,16 @@ class KX_GameObject : public SCA_IObject {
 #endif
 
   std::vector<bRigidBodyJointConstraint *> m_constraints;
+
+ public:
+  struct RigidBodyConstraintData {
+    RigidBodyCon *m_constraint;
+    std::string m_object1Name;
+    std::string m_object2Name;
+    bool m_hasObject2;
+    int m_constraintId;  // Physics constraint ID for cleanup when Empty is deleted
+  };
+  std::vector<RigidBodyConstraintData> m_rigidbodyConstraints;
 
  public:
   /* EEVEE INTEGRATION */
@@ -242,6 +262,15 @@ class KX_GameObject : public SCA_IObject {
   void AddConstraint(bRigidBodyJointConstraint *cons);
   std::vector<bRigidBodyJointConstraint *> GetConstraints();
   void ClearConstraints();
+  void AddRigidBodyConstraint(RigidBodyCon *cons, Object *ob1, Object *ob2);
+  void SetRigidBodyConstraintId(RigidBodyCon *cons, int constraintId);
+  bool SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName = "");
+  const std::vector<RigidBodyConstraintData> &GetRigidBodyConstraints() const;
+  void ClearRigidBodyConstraints();
+  void RemoveRigidBodyConstraints();  // Remove constraints from physics environment
+  bool HasRigidBodyConstraints() const;
+  void ReplicateRigidBodyConstraints(
+      const std::unordered_map<std::string, KX_GameObject *> &objectLookup);
 
   /**
    * Get a pointer to the game object that is the parent of
@@ -490,11 +519,21 @@ class KX_GameObject : public SCA_IObject {
   const MT_Vector3 &NodeGetWorldScaling() const;
   const MT_Vector3 &NodeGetWorldPosition() const;
   MT_Transform NodeGetWorldTransform() const;
+  MT_Transform NodeGetInterpolatedTransform(double alpha) const;
+
+  const MT_Transform &GetCachedInterpolatedTransform() const
+  {
+    return m_cachedInterpolatedTransform;
+  }
 
   const MT_Matrix3x3 &NodeGetLocalOrientation() const;
   const MT_Vector3 &NodeGetLocalScaling() const;
   const MT_Vector3 &NodeGetLocalPosition() const;
   MT_Transform NodeGetLocalTransform() const;
+
+  void StorePhysicsInterpolationState();
+  void ApplyPhysicsInterpolation(double alpha);
+  void ClearPhysicsInterpolationState();
 
   /**
    * \section scene graph node accessor functions.

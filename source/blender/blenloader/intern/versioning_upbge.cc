@@ -44,6 +44,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
@@ -91,6 +92,8 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
       sce->gm.maxlogicstep = 5;
       sce->gm.physubstep = 1;
       sce->gm.maxphystep = 5;
+      sce->gm.use_fixed_physics_timestep = 0;
+      sce->gm.physics_tick_rate = 60;
       sce->gm.lineardeactthreshold = 0.8f;
       sce->gm.angulardeactthreshold = 1.0f;
       sce->gm.deactivationtime = 2.0f;
@@ -131,6 +134,12 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
         sce->master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
         sce->master_collection->flag |= COLLECTION_IS_SPAWNED;
       }
+
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "char", "use_fixed_physics_interpolation")) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->gm.use_fixed_physics_interpolation = 1;
+    }
+  }
 
       sce->gm.erp = 0.2f;
       sce->gm.erp2 = 0.8f;
@@ -449,6 +458,17 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 4)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       BKE_mesh_legacy_recast_to_generic(mesh);
+    }
+  }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 5)) {
+    /* Migrate to mode-specific timing variables (Phase 2 refactoring) */
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "fixed_render_cap_rate")) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        /* Initialize fixed mode render cap rate from legacy ticrate
+         * This ensures old .blend files continue to work with same behavior.
+         * NOTE: fixed_logic_rate and fixed_max_logic_step removed - logic coupled to physics in fixed mode */
+        scene->gm.fixed_render_cap_rate = scene->gm.ticrate;
+      }
     }
   }
 }

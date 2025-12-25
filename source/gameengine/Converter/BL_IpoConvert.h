@@ -96,6 +96,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_S
   ipocontr->GetIPOTransform().SetPosition(MT_Vector3(blenderobject->loc));
   ipocontr->GetIPOTransform().SetEulerAngles(MT_Vector3(blenderobject->rot));
   ipocontr->GetIPOTransform().SetScaling(MT_Vector3(blenderobject->scale));
+  ipocontr->SetFieldInitial(blenderobject->pd);
 
   const char *rotmode, *drotmode;
 
@@ -169,6 +170,38 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_S
       ipocontr->AddInterpolator(interpolator);
       ipocontr->SetIPOChannelActive(OB_DSIZE_X + i, true);
     }
+  }
+
+  /* Force field settings (Object.field.*) */
+  if ((interp = adtList->GetScalarInterpolator("field.strength", 0))) {
+    interpolator = new KX_ScalarInterpolator(ipocontr->GetFieldStrengthPtr(), interp);
+    ipocontr->AddInterpolator(interpolator);
+    ipocontr->SetFieldStrengthActive(true);
+  }
+  if ((interp = adtList->GetScalarInterpolator("field.flow", 0))) {
+    interpolator = new KX_ScalarInterpolator(ipocontr->GetFieldFlowPtr(), interp);
+    ipocontr->AddInterpolator(interpolator);
+    ipocontr->SetFieldFlowActive(true);
+  }
+  if ((interp = adtList->GetScalarInterpolator("field.noise", 0))) {
+    interpolator = new KX_ScalarInterpolator(ipocontr->GetFieldNoisePtr(), interp);
+    ipocontr->AddInterpolator(interpolator);
+    ipocontr->SetFieldNoiseActive(true);
+  }
+  if ((interp = adtList->GetScalarInterpolator("field.falloff_power", 0))) {
+    interpolator = new KX_ScalarInterpolator(ipocontr->GetFieldFalloffPowerPtr(), interp);
+    ipocontr->AddInterpolator(interpolator);
+    ipocontr->SetFieldFalloffPowerActive(true);
+  }
+  if ((interp = adtList->GetScalarInterpolator("field.distance_min", 0))) {
+    interpolator = new KX_ScalarInterpolator(ipocontr->GetFieldDistanceMinPtr(), interp);
+    ipocontr->AddInterpolator(interpolator);
+    ipocontr->SetFieldDistanceMinActive(true);
+  }
+  if ((interp = adtList->GetScalarInterpolator("field.distance_max", 0))) {
+    interpolator = new KX_ScalarInterpolator(ipocontr->GetFieldDistanceMaxPtr(), interp);
+    ipocontr->AddInterpolator(interpolator);
+    ipocontr->SetFieldDistanceMaxActive(true);
   }
 
   return ipocontr;

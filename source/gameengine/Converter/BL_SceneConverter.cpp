@@ -32,6 +32,7 @@
 #include "BL_SceneConverter.h"
 
 #include "KX_GameObject.h"
+#include "PHY_IPhysicsController.h"
 
 BL_SceneConverter::BL_SceneConverter()
 {
@@ -42,6 +43,7 @@ BL_SceneConverter::BL_SceneConverter()
   m_map_mesh_to_polyaterial = {};
   m_map_blender_to_gameactuator = {};
   m_map_blender_to_gamecontroller = {};
+  m_pending_parent_suspends = {};
 }
 
 BL_SceneConverter::~BL_SceneConverter()
@@ -53,6 +55,7 @@ BL_SceneConverter::~BL_SceneConverter()
   m_map_mesh_to_polyaterial.clear();
   m_map_blender_to_gameactuator.clear();
   m_map_blender_to_gamecontroller.clear();
+  m_pending_parent_suspends.clear();
 }
 
 void BL_SceneConverter::RegisterGameObject(KX_GameObject *gameobject,
@@ -139,4 +142,19 @@ void BL_SceneConverter::RegisterGameController(SCA_IController *cont,
 SCA_IController *BL_SceneConverter::FindGameController(bController *for_controller)
 {
   return m_map_blender_to_gamecontroller[for_controller];
+}
+
+void BL_SceneConverter::AddPendingSuspendDynamics(PHY_IPhysicsController *controller)
+{
+  if (controller) {
+    m_pending_parent_suspends.push_back(controller);
+  }
+}
+
+void BL_SceneConverter::FlushPendingSuspendDynamics()
+{
+  for (PHY_IPhysicsController *controller : m_pending_parent_suspends) {
+    controller->SuspendDynamics(false);
+  }
+  m_pending_parent_suspends.clear();
 }

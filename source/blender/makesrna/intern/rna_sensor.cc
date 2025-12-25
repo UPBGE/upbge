@@ -60,6 +60,7 @@ static const EnumPropertyItem sensor_type_items[] = {
     {SENS_PROPERTY, "PROPERTY", 0, "Property", ""},
     {SENS_RADAR, "RADAR", 0, "Radar", ""},
     {SENS_RANDOM, "RANDOM", 0, "Random", ""},
+    {SENS_RBCONSTRAINT, "RBCONSTRAINT", 0, "RB Constraint", ""},
     {SENS_RAY, "RAY", 0, "Ray", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
@@ -91,6 +92,8 @@ static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)
       return &RNA_RadarSensor;
     case SENS_RANDOM:
       return &RNA_RandomSensor;
+    case SENS_RBCONSTRAINT:
+      return &RNA_RBConstraintSensor;
     case SENS_RAY:
       return &RNA_RaySensor;
     case SENS_MOVEMENT:
@@ -177,6 +180,7 @@ const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_PROPERTY);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_RADAR);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_RANDOM);
+  RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_RBCONSTRAINT);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_RAY);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_TOUCH);
 
@@ -269,6 +273,26 @@ static void rna_Sensor_Armature_update(Main */*bmain*/, Scene */*scene*/, Pointe
   /* didn't find any */
   posechannel[0] = 0;
   constraint[0] = 0;
+}
+
+static int rna_RBConstraintSensor_mode_get(PointerRNA *ptr)
+{
+  bSensor *sens = (bSensor *)ptr->data;
+  if (!sens->data) {
+    sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_rna_fix");
+  }
+  bRBConstraintSensor *rbcs = (bRBConstraintSensor *)sens->data;
+  return rbcs->mode;
+}
+
+static void rna_RBConstraintSensor_mode_set(PointerRNA *ptr, int value)
+{
+  bSensor *sens = (bSensor *)ptr->data;
+  if (!sens->data) {
+    sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_rna_fix");
+  }
+  bRBConstraintSensor *rbcs = (bRBConstraintSensor *)sens->data;
+  rbcs->mode = value;
 }
 #else
 
@@ -793,6 +817,33 @@ static void rna_def_random_sensor(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 
+static void rna_def_rbconstraint_sensor(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem prop_mode_items[] = {
+      {SENS_RBC_BROKEN,
+       "BROKEN",
+       0,
+       "Broken/Disabled",
+       "Triggers when a rigid body constraint on this object is broken or disabled"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  srna = RNA_def_struct(brna, "RBConstraintSensor", "Sensor");
+  RNA_def_struct_ui_text(srna,
+                         "RB Constraint Sensor",
+                         "Sensor that triggers when this object's rigid body constraint breaks");
+  RNA_def_struct_sdna_from(srna, "bRBConstraintSensor", "data");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, prop_mode_items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_RBConstraintSensor_mode_get", "rna_RBConstraintSensor_mode_set", nullptr);
+  RNA_def_property_ui_text(prop, "Detection Mode", "What condition to detect on the constraint");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+}
+
 static void rna_def_ray_sensor(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -1068,6 +1119,7 @@ void RNA_def_sensor(BlenderRNA *brna)
   rna_def_collision_sensor(brna);
   rna_def_radar_sensor(brna);
   rna_def_random_sensor(brna);
+  rna_def_rbconstraint_sensor(brna);
   rna_def_ray_sensor(brna);
   rna_def_movement_sensor(brna);
   rna_def_message_sensor(brna);

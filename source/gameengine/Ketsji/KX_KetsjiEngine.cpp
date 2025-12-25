@@ -36,6 +36,9 @@
 
 #include "KX_KetsjiEngine.h"
 
+#include <chrono>
+#include <thread>
+
 #include <fmt/format.h>
 
 #include "BLI_rect.h"
@@ -140,10 +143,21 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_previousRealTime(0.0f),
       m_previous_deltaTime(0.0f),
       m_firstEngineFrame(true),
-      m_maxLogicFrame(5),
-      m_maxPhysicsFrame(5),
-      m_ticrate(DEFAULT_LOGIC_TIC_RATE),
       m_anim_framerate(25.0),
+      m_useFixedPhysicsTimestep(false),
+      m_enablePhysicsInterpolation(false),
+      m_currentInterpolationFraction(0.0),
+      m_ticrate(60.0),
+      m_maxLogicFrame(5),
+      m_physicsAccumulator(0.0),
+      m_fixedPhysicsTimestep(1.0 / 60.0),
+      m_physicsTickRate(60),
+      m_maxPhysicsSteps(5),
+      m_useFixedFPSCap(false),
+      m_fixedRenderCapRate(60),
+      m_previousClockTime(0.0),
+      m_isFirstFixedFrame(true),
+      m_interpolationInitialized(false),
       m_doRender(true),
       m_exitkey(130),
       m_exitcode(KX_ExitRequest::NO_REQUEST),
@@ -152,6 +166,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_overrideCamZoom(1.0f),
       m_logger(KX_TimeCategoryLogger(m_clock, 25)),
       m_average_framerate(0.0),
+      m_forceInterpolationRender(false),
+      m_cameraOverrideActive(false),
       m_showBoundingBox(KX_DebugOption::DISABLE),
       m_showArmature(KX_DebugOption::DISABLE),
       m_showCameraFrustum(KX_DebugOption::DISABLE),
@@ -258,6 +274,9 @@ void KX_KetsjiEngine::StartEngine()
 {
   // Reset the clock to start at 0.0.
   m_clock.Reset();
+  m_clockTime = m_clock.GetTimeSecond();
+  m_previousRealTime = m_clockTime;
+  ResetFixedPhysicsTiming();
 
   m_bInitialized = true;
 }
@@ -359,6 +378,35 @@ void KX_KetsjiEngine::EndFrameViewportRender()
   m_canvas->EndDraw();
 }
 
+/******************************************************************************
+ * PHYSICS TIMESTEP MODE ARCHITECTURE
+ * 
+ * UPBGE supports two physics timestep modes, each with distinct characteristics:
+ * 
+ * 1. FIXED PHYSICS MODE (m_useFixedPhysicsTimestep = true)
+ *    - Uses accumulator pattern ("Fix Your Timestep" by Glenn Fiedler)
+ *    - Physics runs at constant rate regardless of framerate
+ *    - Provides deterministic physics simulation
+ *    - State stored in: FixedPhysicsState struct
+ *    - Key variables: accumulator, fixedTimestep, tickRate
+ *    - Optional FPS cap for rendering
+ * 
+ * 2. VARIABLE PHYSICS MODE (m_useFixedPhysicsTimestep = false)  
+ *    - Physics coupled to framerate (original BGE behavior)
+ *    - Physics timestep varies with frame duration
+ *    - Simpler but less stable at varying framerates
+ *    - State stored in: VariablePhysicsState struct
+ *    - No accumulator needed
+ * 
+ * Mode-specific state is encapsulated in separate structs to prevent
+ * cross-contamination and clearly document ownership of variables.
+ * 
+ * Only one mode's state struct is allocated at any time based on 
+ * m_useFixedPhysicsTimestep flag.
+ ******************************************************************************/
+
+/********** MAIN FRAME TIMING DISPATCHER **********/
+
 KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 {
   /*
@@ -394,166 +442,404 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   // Get elapsed time.
   double dt = m_clockTime - m_previousRealTime;
 
-  // Fix strange behavior of deltaTime and physics.
-  const double averageFrameRate = GetAverageFrameRate();
-  double maxDeltaTime = 1.5f;
+  // Only clamp dt for variable physics mode
+  // Fixed physics mode handles large dt correctly via accumulator + maxPhysicsSteps
+  if (!m_useFixedPhysicsTimestep) {
+    // Fix strange behavior of deltaTime and physics.
+    const double averageFrameRate = GetAverageFrameRate();
+    double maxDeltaTime = 1.5f;
 
-  // Below 1fps, deltaTime tends to be close to 1, there is no need to adjust.
-  if (averageFrameRate >= 1.5f) {
-    maxDeltaTime = (averageFrameRate < 15.0f) ? m_previous_deltaTime + 0.5f :
-                                                m_previous_deltaTime + 0.05f;  // Max dt
-  }
-  m_previous_deltaTime = dt;
+    // Below 1fps, deltaTime tends to be close to 1, there is no need to adjust.
+    if (averageFrameRate >= 1.5f) {
+      maxDeltaTime = (averageFrameRate < 15.0f) ? m_previous_deltaTime + 0.5f :
+                                                  m_previous_deltaTime + 0.05f;  // Max dt
+    }
+    m_previous_deltaTime = dt;
 
-  // If it exceeds the maximum value, adjust it to the maximum value, this prevents objects from
-  // having sudden movements.
-  if (dt > maxDeltaTime) {
-    dt = maxDeltaTime;  // set deltaTime to max value.
-  }
-
-  // Time of a frame (without scale).
-  double timestep;
-  if (m_flags & FIXED_FRAMERATE) {
-    // Normal time step for fixed frame.
-    timestep = 1.0 / m_ticrate;
-  }
-  else {
-    // The frame is the smallest as possible.
-    timestep = dt;
+    // If it exceeds the maximum value, adjust it to the maximum value, this prevents objects from
+    // having sudden movements.
+    if (dt > maxDeltaTime) {
+      dt = maxDeltaTime;  // set deltaTime to max value.
+    }
   }
 
-  // Number of frames to proceed.
-  int frames;
-  if (m_flags & FIXED_FRAMERATE) {
-    // As many as possible for the elapsed time.
-    frames = int(dt * m_ticrate);
-  }
-  else {
-    // Proceed always one frame in non-fixed framerate.
-    frames = 1;
-  }
-
-  // Fix timestep to not exceed max physics and logic frames.
-  int maxFrames = max_ii(m_maxLogicFrame, m_maxPhysicsFrame);
-  if (frames > maxFrames) {
-    timestep = dt / maxFrames;
-    frames = maxFrames;
-  }
-
-  // If the number of frame is non-zero, update previous time.
-  if (frames > 0) {
-    m_previousRealTime = m_clockTime;
-  }
-  //// Else in case of fixed framerate, try to sleep until the next frame.
-  // else if (m_flags & FIXED_FRAMERATE) {
-  //  const double sleeptime = timestep - dt - 1.0e-3;
-  //  /* If the remaining time is greater than 1ms (sleep resolution) sleep this thread.
-  //   * The other 1ms will be busy wait.
-  //   */
-  //  if (sleeptime > 0.0) {
-  //    std::this_thread::sleep_for(std::chrono::nanoseconds((long)(sleeptime * 1.0e9)));
-  //  }
-  //}
-
-  // Frame time with time scale.
-  const double framestep = timestep * m_timescale;
-
+  // Dispatch to appropriate timestep mode
   FrameTimes times;
-  times.frames = frames;
-  times.timestep = timestep;
-  times.framestep = framestep;
+  if (m_useFixedPhysicsTimestep) {
+    times = GetFrameTimesFixed(dt);
+  }
+  else {
+    times = GetFrameTimesVariable(dt);
+  }
+
+  // Update previous time tracking based on mode:
+  // - FIXED MODE: Time tracking is internal to FixedPhysicsState (already updated)
+  // - VARIABLE MODE: Use shared m_previousRealTime (original behavior)
+  if (!m_useFixedPhysicsTimestep) {
+    // Variable mode: Only update when frames were executed (original BGE behavior)
+    if (times.frames > 0 || times.physicsFrames > 0) {
+      m_previousRealTime = m_clockTime;
+    }
+  }
+  // Fixed mode: No action needed here - time already consumed in GetFrameTimesFixed()
 
   return times;
 }
 
-bool KX_KetsjiEngine::NextFrame()
+/********** FIXED PHYSICS MODE IMPLEMENTATION **********/
+
+KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesFixed(double dt)
 {
-  m_logger.StartLog(tc_services);
+  /* Fixed physics timestep mode with proper real-time pacing.
+   * 
+   * KEY PRINCIPLE: Game speed = timescale (independent of FPS and physics tick rate)
+   * - timescale=1.0 → 1 game second = 1 real second
+   * - physics_tick_rate → steps per GAME second (not real second)
+   * - Render FPS → completely independent (only affects visual smoothness)
+   * 
+   * The accumulator tracks scaled real time: dt * timescale
+   * We execute physics steps at the configured tick rate, but the total game time
+   * advancement per real second equals timescale.
+   * 
+   * FIXED MODE TIME TRACKING:
+   * This mode maintains its own independent time tracking (previousClockTime)
+   * separate from variable mode's m_previousRealTime. This ensures dt is
+   * always consumed correctly, even when physicsFrames == 0.
+   */
 
-  const FrameTimes times = GetFrameTimes();
-
-  // Exit if zero frame is scheduled.
-  if (times.frames == 0) {
-    // Start logging time spent outside main loop
-    m_logger.StartLog(tc_outside);
-
-    return false;
+  // Calculate dt internally for fixed mode (independent time tracking)
+  double actualDt;
+  if (m_isFirstFixedFrame) {
+    // First frame: initialize time tracking, no elapsed time yet
+    m_previousClockTime = m_clockTime;
+    m_isFirstFixedFrame = false;
+    actualDt = 0.0;
+  }
+  else {
+    // Calculate elapsed time since last frame
+    actualDt = m_clockTime - m_previousClockTime;
+    // Always update previousClockTime to consume the elapsed time
+    // This prevents time double-counting when physicsFrames == 0
+    m_previousClockTime = m_clockTime;
   }
 
+  // Apply timescale to real elapsed time to get game time delta
+  // This ensures game speed = timescale regardless of physics tick rate or FPS
+  double gameTimeDelta = actualDt * m_timescale;
+  
+  // Clamp to prevent spiral of death (Unity's Maximum Allowed Timestep)
+  const double maxConsume = m_fixedPhysicsTimestep * static_cast<double>(m_maxPhysicsSteps);
+  gameTimeDelta = std::min(gameTimeDelta, maxConsume);
+
+  // Accumulator tracks game time (not real time)
+  m_physicsAccumulator += gameTimeDelta;
+
+  // Execute physics steps at fixed intervals
+  int physicsFrames = 0;
+  while (m_physicsAccumulator >= m_fixedPhysicsTimestep && physicsFrames < m_maxPhysicsSteps) {
+    m_physicsAccumulator -= m_fixedPhysicsTimestep;
+    physicsFrames++;
+  }
+
+  const double leftover = m_physicsAccumulator;
+  const double fraction = std::clamp(leftover / m_fixedPhysicsTimestep, 0.0, 1.0);
+
+  FrameTimes times;
+  times.useFixedPhysicsTimestep = true;
+  times.physicsFrames = physicsFrames;
+  times.physicsTimestep = m_fixedPhysicsTimestep;
+  times.frames = physicsFrames;
+  times.timestep = m_fixedPhysicsTimestep;
+  times.framestep = m_fixedPhysicsTimestep;  // Already scaled via accumulator
+  times.interpolationFraction = fraction;
+  m_currentInterpolationFraction = fraction;
+
+  return times;
+}
+
+/********** VARIABLE PHYSICS MODE IMPLEMENTATION **********/
+
+KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesVariable(double dt)
+{
+  /* Variable timestep mode - physics coupled to framerate (original BGE behavior).
+   * Preserved exactly for backward compatibility.
+   * 
+   * PHYSICS TIMING: Coupled to logic timing (no independent physics steps).
+   * LOGIC TIMING: Delegated to CalculateLogicFrameTiming() - same as fixed mode.
+   */
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOGIC TIMING CALCULATION (Shared - Independent of Physics Mode)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Variable mode uses existing BGE variables (ticrate, maxlogicstep)
+  // These are accessed via existing GetTicRate() and GetMaxLogicFrame() methods
+  // NOTE: Keep variables separate - don't query via polymorphism to avoid coupling
+  auto logicTiming = CalculateLogicFrameTiming(
+      dt, GetTicRate(), GetMaxLogicFrame());
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHYSICS TIMING (Variable Mode - Coupled to Logic)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // In variable mode, physics is tightly coupled to logic:
+  // - Physics frames = Logic frames (no independent physics steps)
+  // - Physics timestep = Logic timestep (varies with framerate)
+  int physicsFrames = logicTiming.frames;
+  double physicsTimestep = logicTiming.timestep;
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ASSEMBLE FRAME TIMING RESULTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  FrameTimes times;
+  times.frames = logicTiming.frames;
+  times.timestep = logicTiming.timestep;
+  times.framestep = logicTiming.timestep * m_timescale;
+  times.useFixedPhysicsTimestep = false;
+  times.physicsFrames = physicsFrames;
+  times.physicsTimestep = physicsTimestep;
+  times.interpolationFraction = 0.0;
+  m_currentInterpolationFraction = 0.0;
+  
+  return times;
+}
+
+void KX_KetsjiEngine::ExecutePhysicsFixed(KX_Scene *scene, 
+                                          const FrameTimes &times, 
+                                          int logicFrameIndex)
+{
+  if (logicFrameIndex >= times.physicsFrames) {
+    return;
+  }
+
+  const double physicsDt = times.physicsTimestep;
+  scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+      m_frameTime, physicsDt, physicsDt);
+
+  if (logicFrameIndex == times.physicsFrames - 1) {
+    scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+  }
+}
+
+void KX_KetsjiEngine::ExecutePhysicsVariable(KX_Scene *scene, 
+                                             const FrameTimes &times, 
+                                             int logicFrameIndex)
+{
+  // Variable timestep mode: physics coupled to framerate (original BGE behavior)
+  scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+      m_frameTime, times.timestep, times.framestep);
+  
+  // No need to call softbody update more than 1 time
+  if (logicFrameIndex == times.frames - 1) {
+    scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+  }
+}
+
+/********** SHARED FRAME HELPERS **********/
+
+void KX_KetsjiEngine::ProcessInputDevices()
+{
+  m_converter->MergeAsyncLoads();
+  m_inputDevice->ReleaseMoveEvent();
+
+#ifdef WITH_SDL
+  // Handle all SDL Joystick events here to share them for all scenes properly.
+  short addrem[JOYINDEX_MAX] = {0};
+  if (DEV_Joystick::HandleEvents(addrem)) {
+#  ifdef WITH_PYTHON
+    updatePythonJoysticks(addrem);
+#  endif  // WITH_PYTHON
+  }
+
+  // Process Joystick force feedback duration
+  for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
+    DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
+    if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
+      joy->ProcessRumbleStatus();
+    }
+  }
+#endif  // WITH_SDL
+}
+
+void KX_KetsjiEngine::ProcessSceneLogic(KX_Scene *scene, const FrameTimes &times, int frameIndex)
+{
+  /* Suspension holds the physics and logic processing for an
+   * entire scene. Objects can be suspended individually, and
+   * the settings for that precede the logic and physics
+   * update. */
+  m_logger.StartLog(tc_logic);
+
+  if (frameIndex == 0) {  // No need to UpdateObjectActivity several times
+    scene->UpdateObjectActivity();
+  }
+
+  m_logger.StartLog(tc_physics);
+
+  // set Python hooks for each scene
+  KX_SetActiveScene(scene);
+
+  // Process sensors, and controllers
+  m_logger.StartLog(tc_logic);
+  scene->LogicBeginFrame(m_frameTime, times.framestep);
+
+  // Scenegraph needs to be updated again, because Logic Controllers
+  // can affect the local matrices.
+  m_logger.StartLog(tc_scenegraph);
+  scene->UpdateParents(m_frameTime);
+
+  // Process actuators
+
+  // Do some cleanup work for this logic frame
+  m_logger.StartLog(tc_logic);
+  scene->LogicUpdateFrame(m_frameTime);
+
+  scene->LogicEndFrame();
+
+  // Actuators can affect the scenegraph
+  m_logger.StartLog(tc_scenegraph);
+  scene->UpdateParents(m_frameTime);
+
+  m_logger.StartLog(tc_physics);
+}
+
+void KX_KetsjiEngine::FinalizeFrame()
+{
+  m_logger.StartLog(tc_network);
+  m_networkMessageManager->ClearMessages();
+
+  // Call the post render functions.
+  if (ShouldForceInterpolationRender()) {
+    ClearForcedInterpolation();
+  }
+
+  // update system devices
+  m_logger.StartLog(tc_logic);
+  m_inputDevice->ClearInputs();
+
+  // scene management
+  ProcessScheduledScenes();
+}
+
+void KX_KetsjiEngine::ResetFixedPhysicsTiming()
+{
+  m_currentInterpolationFraction = 0.0;
+
+  if (!m_useFixedPhysicsTimestep) {
+    return;
+  }
+
+  m_physicsAccumulator = 0.0;
+  m_previousClockTime = m_clockTime;
+  m_isFirstFixedFrame = false;
+  m_interpolationInitialized = false;
+  m_nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  m_frameStartSteady = std::chrono::steady_clock::time_point{};
+  m_previousRealTime = m_clockTime;
+}
+
+/********** LOGIC TIMING CALCULATION (SHARED BY BOTH PHYSICS MODES) **********/
+
+KX_KetsjiEngine::LogicFrameTiming KX_KetsjiEngine::CalculateLogicFrameTiming(
+    double dt, double logicRate, int maxLogicFrames)
+{
+  /* Logic frame timing calculation - independent of physics mode.
+   * 
+   * This function handles the FIXED_FRAMERATE flag, which controls whether
+   * logic updates run at a fixed rate or variable rate (once per frame).
+   * 
+   * IMPORTANT: This is a separate concern from physics timestep mode.
+   * - FIXED_FRAMERATE = flag controlling logic update frequency
+   * - Fixed Physics Mode = using accumulator pattern for physics
+   * 
+   * These are orthogonal concepts:
+   * - You can have Fixed Physics + Variable Logic
+   * - You can have Variable Physics + Fixed Logic
+   * - etc.
+   */
+  
+  LogicFrameTiming result;
+  
+  // Check if logic updates should run at fixed rate or variable rate
+  if (m_flags & FIXED_FRAMERATE) {
+    // Fixed logic rate: Decouple logic from framerate
+    // Run multiple logic updates per frame if needed to maintain target rate
+    result.timestep = 1.0 / logicRate;
+    result.frames = int(dt * logicRate);
+  }
+  else {
+    // Variable logic rate: One update per render frame
+    // Logic timestep varies with frame duration
+    result.timestep = dt;
+    result.frames = 1;
+  }
+  
+  // Limit logic frames to prevent falling too far behind
+  // If we've exceeded the max, increase timestep to "skip" some updates
+  if (result.frames > maxLogicFrames) {
+    result.timestep = dt / maxLogicFrames;
+    result.frames = maxLogicFrames;
+  }
+  
+  return result;
+}
+
+/********** FIXED PHYSICS MODE: COMPLETE FRAME EXECUTION **********/
+
+bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
+{
+  BLI_assert(m_useFixedPhysicsTimestep);
+  
+  /********** FPS CAP INITIALIZATION **********/
+  // Record steady-clock timestamp for precise deadline pacing
+  m_frameStartSteady = std::chrono::steady_clock::now();
+  
+  // Initialize persistent deadline when entering a capped sequence
+  if (m_useFixedFPSCap) {
+    using clock = std::chrono::steady_clock;
+    // Use renderCapRate to control rendering rate in fixed mode
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / (double)m_fixedRenderCapRate));
+    if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+      m_nextFrameDeadline = m_frameStartSteady + period;
+    }
+  } else {
+    // Reset when cap is not active to avoid stale deadlines
+    m_nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  }
+  
+  /********** INTERPOLATION STATE MANAGEMENT **********/
+  const bool useInterpolation = IsPhysicsInterpolationEnabled() && GetUseFixedPhysicsTimestep();
+  const bool hasInterpolationFraction = m_currentInterpolationFraction > 0.0;
+
+  if (useInterpolation) {
+    const bool needsInitialization = !m_interpolationInitialized;
+    const bool physicsAdvanced = times.physicsFrames > 0;
+
+    for (KX_Scene *scene : m_scenes) {
+      scene->ClearPhysicsInterpolationState();
+    }
+
+    if (physicsAdvanced || needsInitialization) {
+      for (KX_Scene *scene : m_scenes) {
+        scene->StorePhysicsInterpolationState();
+      }
+      m_interpolationInitialized = true;
+    }
+  }
+
+  /********** LOGIC AND PHYSICS LOOP **********/
   for (unsigned short i = 0; i < times.frames; ++i) {
     m_frameTime += times.framestep;
 
-    m_converter->MergeAsyncLoads();
-
-    m_inputDevice->ReleaseMoveEvent();
-
-#ifdef WITH_SDL
-    // Handle all SDL Joystick events here to share them for all scenes properly.
-    short addrem[JOYINDEX_MAX] = {0};
-    if (DEV_Joystick::HandleEvents(addrem)) {
-#  ifdef WITH_PYTHON
-      updatePythonJoysticks(addrem);
-#  endif  // WITH_PYTHON
-    }
-
-    // Process Joystick force feedback duration
-    for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
-      DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
-      if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
-        joy->ProcessRumbleStatus();
-      }
-    }
-#endif  // WITH_SDL
+    ProcessInputDevices();
 
     // for each scene, call the proceed functions
     for (KX_Scene *scene : m_scenes) {
-      /* Suspension holds the physics and logic processing for an
-       * entire scene. Objects can be suspended individually, and
-       * the settings for that precede the logic and physics
-       * update. */
-      m_logger.StartLog(tc_logic);
+      ProcessSceneLogic(scene, times, i);
 
-      if (i == 0) {  // No need to UpdateObjectActivity several times
-        scene->UpdateObjectActivity();
-      }
-
-      m_logger.StartLog(tc_physics);
-
-      // set Python hooks for each scene
-      KX_SetActiveScene(scene);
-
-      // Process sensors, and controllers
-      m_logger.StartLog(tc_logic);
-      scene->LogicBeginFrame(m_frameTime, times.framestep);
-
-      // Scenegraph needs to be updated again, because Logic Controllers
-      // can affect the local matrices.
-      m_logger.StartLog(tc_scenegraph);
-      scene->UpdateParents(m_frameTime);
-
-      // Process actuators
-
-      // Do some cleanup work for this logic frame
-      m_logger.StartLog(tc_logic);
-      scene->LogicUpdateFrame(m_frameTime);
-
-      scene->LogicEndFrame();
-
-      // Actuators can affect the scenegraph
-      m_logger.StartLog(tc_scenegraph);
-      scene->UpdateParents(m_frameTime);
-
-      m_logger.StartLog(tc_physics);
-
-      // Perform physics calculations on the scene. This can involve
-      // many iterations of the physics solver.
-      scene->GetPhysicsEnvironment()->ProceedDeltaTime(
-          m_frameTime, times.timestep, times.framestep);  // m_deltatimerealDeltaTime);
-
-      /* No need to call sofbody update more than 1 time */
-      if (i == times.frames - 1) {
-        scene->GetPhysicsEnvironment()->UpdateSoftBodies();
-      }
+      // Perform physics calculations (fixed mode)
+      ExecutePhysicsFixed(scene, times, i);
 
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
@@ -561,21 +847,115 @@ bool KX_KetsjiEngine::NextFrame()
       m_logger.StartLog(tc_services);
     }
 
-    m_logger.StartLog(tc_network);
-    m_networkMessageManager->ClearMessages();
+    FinalizeFrame();
+  }
 
-    // update system devices
-    m_logger.StartLog(tc_logic);
-    m_inputDevice->ClearInputs();
+  const bool forceInterpolationFrame = ShouldForceInterpolationRender();
 
-    // scene management
-    ProcessScheduledScenes();
+  if (forceInterpolationFrame) {
+    ClearForcedInterpolation();
+  }
+
+  /********** APPLY INTERPOLATION AFTER PHYSICS LOOP **********/
+  // Apply interpolation once after all physics steps are complete.
+  // Always apply if we have interpolation fraction, regardless of physics frame count.
+  if (useInterpolation && hasInterpolationFraction) {
+    for (KX_Scene *scene : m_scenes) {
+      scene->ApplyPhysicsInterpolation(m_currentInterpolationFraction);
+    }
+  }
+
+  // Start logging time spent outside main loop
+  m_logger.StartLog(tc_outside);
+
+  /********** FPS CAP ENFORCEMENT **********/
+  // Cap render FPS when enabled (absolute deadline + short spin)
+  if (m_useFixedFPSCap) {
+    using clock = std::chrono::steady_clock;
+    // Use renderCapRate to control rendering rate
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / (double)m_fixedRenderCapRate));
+    // Persistent absolute deadline pacing
+    auto now = clock::now();
+    if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
+      m_nextFrameDeadline = now + period;
+    }
+    // Widened safety window to reduce oversleep
+    constexpr auto safety = std::chrono::microseconds(2000); // ~2.0ms
+    auto remaining = m_nextFrameDeadline - now;
+    if (remaining > safety) {
+      std::this_thread::sleep_until(m_nextFrameDeadline - safety);
+    }
+    // Short spin for precision
+    while (clock::now() < m_nextFrameDeadline) {
+      // busy wait
+    }
+    // Advance the next deadline by exactly one period
+    m_nextFrameDeadline += period;
+  }
+
+  return m_doRender;
+}
+
+/********** VARIABLE PHYSICS MODE: COMPLETE FRAME EXECUTION **********/
+
+bool KX_KetsjiEngine::NextFrameVariable(const FrameTimes &times)
+{
+  BLI_assert(!m_useFixedPhysicsTimestep);
+  
+  // Variable mode has no FPS cap - runs uncapped
+  
+  /********** LOGIC AND PHYSICS LOOP **********/
+  for (unsigned short i = 0; i < times.frames; ++i) {
+    m_frameTime += times.framestep;
+
+    ProcessInputDevices();
+
+    // for each scene, call the proceed functions
+    for (KX_Scene *scene : m_scenes) {
+      ProcessSceneLogic(scene, times, i);
+
+      // Perform physics calculations (variable mode)
+      ExecutePhysicsVariable(scene, times, i);
+
+      m_logger.StartLog(tc_scenegraph);
+      scene->UpdateParents(m_frameTime);
+
+      m_logger.StartLog(tc_services);
+    }
+
+    FinalizeFrame();
   }
 
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
 
   return m_doRender;
+}
+
+/********** MAIN FRAME DISPATCHER **********/
+
+bool KX_KetsjiEngine::NextFrame()
+{
+  m_logger.StartLog(tc_services);
+
+  // Calculate frame timing for current mode
+  const FrameTimes times = GetFrameTimes();
+
+  // Exit if zero frame is scheduled (only for variable mode)
+  // Fixed mode should always render even if no physics steps this frame
+  if (times.frames == 0 && !m_useFixedPhysicsTimestep) {
+    m_logger.StartLog(tc_outside);
+    return false;
+  }
+
+  // Dispatch to mode-specific frame execution
+  if (m_useFixedPhysicsTimestep) {
+    return NextFrameFixed(times);
+  }
+  else {
+    return NextFrameVariable(times);
+  }
 }
 
 KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
@@ -794,11 +1174,19 @@ void KX_KetsjiEngine::Render()
       m_rasterizer->SetAuxilaryClientInfo(scene);
 
       // Draw the scene once for each camera with an enabled viewport or an active camera.
+      // Interpolation has already been applied in NextFrameFixed(), so we just render.
       for (const CameraRenderData &cameraFrameData : sceneFrameData.m_cameraDataList) {
         // do the rendering
         RenderCamera(scene, background_fb, cameraFrameData, pass++);
       }
     }
+  }
+
+  // Interpolation clearing now happens at the START of NextFrameFixed() before state storage.
+  // This ensures we always capture clean physics positions.
+
+  if (ShouldForceInterpolationRender()) {
+    ClearForcedInterpolation();
   }
 
   if (!UseViewportRender()) {
@@ -907,6 +1295,7 @@ void KX_KetsjiEngine::EnableCameraOverride(const std::string &forscene,
   m_overrideCamProjMat = projmat;
   m_overrideCamViewMat = viewmat;
   m_overrideCamData = camdata;
+  m_cameraOverrideActive = true;
 }
 
 void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene,
@@ -1489,6 +1878,10 @@ double KX_KetsjiEngine::GetTimeScale() const
 void KX_KetsjiEngine::SetTimeScale(double timescale)
 {
   m_timescale = timescale;
+
+  if (m_useFixedPhysicsTimestep) {
+    ResetFixedPhysicsTiming();
+  }
 }
 
 int KX_KetsjiEngine::GetMaxLogicFrame()
@@ -1498,22 +1891,101 @@ int KX_KetsjiEngine::GetMaxLogicFrame()
 
 void KX_KetsjiEngine::SetMaxLogicFrame(int frame)
 {
-  m_maxLogicFrame = frame;
+  if (frame > 0) {
+    m_maxLogicFrame = frame;
+  }
 }
 
 int KX_KetsjiEngine::GetMaxPhysicsFrame()
 {
-  return m_maxPhysicsFrame;
+  // In fixed mode, returns maxPhysicsSteps; in variable mode, returns maxLogicFrame
+  return m_useFixedPhysicsTimestep ? m_maxPhysicsSteps : m_maxLogicFrame;
 }
 
 void KX_KetsjiEngine::SetMaxPhysicsFrame(int frame)
 {
-  m_maxPhysicsFrame = frame;
+  if (frame > 0) {
+    m_maxPhysicsSteps = frame;
+  }
+}
+
+/********** PHYSICS MODE SWITCHING **********/
+
+bool KX_KetsjiEngine::GetUseFixedPhysicsTimestep()
+{
+  return m_useFixedPhysicsTimestep;
+}
+
+void KX_KetsjiEngine::SetUseFixedPhysicsTimestep(bool useFixed)
+{
+  if (m_useFixedPhysicsTimestep == useFixed) {
+    return; // No change
+  }
+  
+  m_useFixedPhysicsTimestep = useFixed;
+
+  if (useFixed) {
+    ResetFixedPhysicsTiming();
+  }
+  else {
+    m_previousRealTime = m_clockTime;
+    m_currentInterpolationFraction = 0.0;
+  }
+}
+
+/********** FIXED MODE GETTERS/SETTERS **********/
+
+int KX_KetsjiEngine::GetPhysicsTickRate()
+{
+  return m_physicsTickRate;
+}
+
+void KX_KetsjiEngine::SetPhysicsTickRate(int tickRate)
+{
+  if (tickRate > 0) {
+    m_physicsTickRate = tickRate;
+    m_fixedPhysicsTimestep = 1.0 / static_cast<double>(tickRate);
+    ResetFixedPhysicsTiming();
+  }
+}
+
+bool KX_KetsjiEngine::GetUseFixedFPSCap()
+{
+  return m_useFixedFPSCap;
+}
+
+void KX_KetsjiEngine::SetUseFixedFPSCap(bool useFixed)
+{
+  m_useFixedFPSCap = useFixed;
+  if (!useFixed) {
+    m_nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  }
+}
+
+int KX_KetsjiEngine::GetFixedRenderCapRate()
+{
+  return m_fixedRenderCapRate;
+}
+
+void KX_KetsjiEngine::SetFixedRenderCapRate(int rate)
+{
+  if (rate > 0) {
+    m_fixedRenderCapRate = rate;
+    // Reset deadline when rate changes
+    m_nextFrameDeadline = std::chrono::steady_clock::time_point{};
+  }
 }
 
 double KX_KetsjiEngine::GetAnimFrameRate()
 {
   return m_anim_framerate;
+}
+
+void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
+{
+  if (framerate > 0.0) {
+    m_anim_framerate = framerate;
+  }
 }
 
 bool KX_KetsjiEngine::GetFlag(FlagType flag) const
@@ -1528,7 +2000,20 @@ void KX_KetsjiEngine::SetFlag(FlagType flag, bool enable)
   }
   else {
     m_flags = (FlagType)(m_flags & ~flag);
+    if (flag == CAMERA_OVERRIDE) {
+      m_cameraOverrideActive = false;
+    }
   }
+}
+
+void KX_KetsjiEngine::ForceInterpolationRender()
+{
+  m_forceInterpolationRender = true;
+}
+
+void KX_KetsjiEngine::ClearForcedInterpolation()
+{
+  m_forceInterpolationRender = false;
 }
 
 double KX_KetsjiEngine::GetClockTime(void) const
@@ -1536,29 +2021,40 @@ double KX_KetsjiEngine::GetClockTime(void) const
   return m_clockTime;
 }
 
-void KX_KetsjiEngine::SetClockTime(double externalClockTime)
+void KX_KetsjiEngine::SetPhysicsInterpolationEnabled(bool enable)
 {
-  m_clockTime = externalClockTime;
+  if (m_enablePhysicsInterpolation == enable) {
+    return;
+  }
+
+  m_enablePhysicsInterpolation = enable;
+
+  if (!m_enablePhysicsInterpolation) {
+    m_currentInterpolationFraction = 0.0;
+    for (KX_Scene *scene : m_scenes) {
+      scene->ClearPhysicsInterpolationState();
+    }
+  }
 }
 
-double KX_KetsjiEngine::GetFrameTime(void) const
+double KX_KetsjiEngine::GetCurrentInterpolationFraction() const
 {
-  return m_frameTime;
-}
-
-double KX_KetsjiEngine::GetRealTime(void) const
-{
-  return m_clock.GetTimeSecond();
-}
-
-void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
-{
-  m_anim_framerate = framerate;
+  return m_currentInterpolationFraction;
 }
 
 double KX_KetsjiEngine::GetAverageFrameRate()
 {
   return m_average_framerate;
+}
+
+double KX_KetsjiEngine::GetFrameTime(void) const
+{
+  return m_clockTime;
+}
+
+double KX_KetsjiEngine::GetRealTime(void) const
+{
+  return m_previousRealTime;
 }
 
 void KX_KetsjiEngine::SetExitKey(short key)
@@ -1574,6 +2070,19 @@ short KX_KetsjiEngine::GetExitKey()
 void KX_KetsjiEngine::SetRender(bool render)
 {
   m_doRender = render;
+}
+
+void KX_KetsjiEngine::SetClockTime(double externalClockTime)
+{
+  const double delta = externalClockTime - m_clockTime;
+  m_clockTime = externalClockTime;
+  if (m_useFixedPhysicsTimestep) {
+    ResetFixedPhysicsTiming();
+  }
+  else {
+    m_previousRealTime += delta;
+  }
+  m_currentanimsync += delta;
 }
 
 bool KX_KetsjiEngine::GetRender()
