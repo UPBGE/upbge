@@ -2788,7 +2788,8 @@ BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int /*flag*
 
   if (bsb == nullptr)
     return nullptr;
-  bsbn = (BulletSoftBody *)MEM_dupallocN(bsb);
+  bsbn = (BulletSoftBody *)MEM_mallocN(sizeof(BulletSoftBody), "BulletSoftBody");
+  memcpy(bsbn, bsb, sizeof(BulletSoftBody));
   /* no pointer in this structure yet */
   return bsbn;
 }

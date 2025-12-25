@@ -575,7 +575,7 @@ void BlenderSync::sync_particle_hair(
   if (!b_ob_info.is_real_object_data()) {
     return;
   }
-  const ::Object &b_ob = *b_ob_info.real_object.ptr.data_as<::Object>();
+  const ::Object &b_ob = *b_ob_info.real_object;
 
   /* obtain general settings */
   if (b_ob.mode == OB_MODE_PARTICLE_EDIT || b_ob.mode == OB_MODE_EDIT) {
@@ -1002,14 +1002,13 @@ void BlenderSync::sync_hair(Hair *hair, BObjectInfo &b_ob_info, bool motion, con
 {
   /* Motion blur attribute is relative to seconds, we need it relative to frames. */
   const bool need_motion = object_need_motion_attribute(b_ob_info, scene);
-  const float motion_scale = (need_motion) ?
-                                 scene->motion_shutter_time() /
-                                     (b_scene.render().fps() / b_scene.render().fps_base()) :
-                                 0.0f;
+  const float motion_scale = (need_motion) ? scene->motion_shutter_time() /
+                                                 (b_scene->r.frs_sec / b_scene->r.frs_sec_base) :
+                                             0.0f;
 
   /* Convert Blender hair to Cycles curves. */
   const blender::bke::CurvesGeometry &b_curves(
-      static_cast<const ::Curves *>(b_ob_info.object_data.ptr.data)->geometry.wrap());
+      blender::id_cast<const ::Curves *>(b_ob_info.object_data)->geometry.wrap());
   if (motion) {
     export_hair_curves_motion(hair, b_curves, motion_step);
   }
@@ -1037,13 +1036,13 @@ void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
   new_hair.set_used_shaders(used_shaders);
 
   if (view_layer.use_hair) {
-    if (b_ob_info.object_data.is_a(&RNA_Curves)) {
+    if (GS(b_ob_info.object_data->name) == ID_CV) {
       /* Hair object. */
       sync_hair(&new_hair, b_ob_info, false);
     }
     else {
       /* Particle hair. */
-      ::Mesh *b_mesh = object_to_mesh(b_ob_info).ptr.data_as<::Mesh>();
+      ::Mesh *b_mesh = object_to_mesh(b_ob_info);
 
       if (b_mesh) {
         sync_particle_hair(&new_hair, *b_mesh, b_ob_info, false);
@@ -1083,15 +1082,15 @@ void BlenderSync::sync_hair_motion(BObjectInfo &b_ob_info, Hair *hair, const int
   }
 
   /* Export deformed coordinates. */
-  if (ccl::BKE_object_is_deform_modified(b_ob_info, b_scene, preview)) {
-    if (b_ob_info.object_data.is_a(&RNA_Curves)) {
+  if (ccl::BKE_object_is_deform_modified(b_ob_info, *b_scene, preview)) {
+    if (GS(b_ob_info.object_data->name) == ID_CV) {
       /* Hair object. */
       sync_hair(hair, b_ob_info, true, motion_step);
       return;
     }
 
     /* Particle hair. */
-    ::Mesh *b_mesh = object_to_mesh(b_ob_info).ptr.data_as<::Mesh>();
+    ::Mesh *b_mesh = object_to_mesh(b_ob_info);
     if (b_mesh) {
       sync_particle_hair(hair, *b_mesh, b_ob_info, true, motion_step);
       free_object_to_mesh(b_ob_info, *b_mesh);
