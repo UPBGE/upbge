@@ -30,6 +30,7 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
+#include "draw_modifier_gpu_utils.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -414,7 +415,7 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
 blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
                                                        Depsgraph * /*depsgraph*/,
                                                        Object *ob_target_eval,
-                                                       Object *deform_ob_eval,
+                                                       Object *deformed_eval,
                                                        MeshBatchCache *cache,
                                                        blender::gpu::StorageBuf *ssbo_in)
 {
@@ -438,23 +439,20 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   Impl::MeshStaticData &msd = *msd_ptr;
 
   /* GPU setup retry logic */
-  const int MAX_ATTEMPTS = 3;
-  if (msd.pending_gpu_setup) {
-    if (msd.gpu_setup_attempts == 0) {
-      msd.gpu_setup_attempts = 1;
-      return nullptr;
-    }
-    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      msd.pending_gpu_setup = false;
-      msd.gpu_setup_attempts = 0;
-      return nullptr;
-    }
-    msd.gpu_setup_attempts++;
+  if (!draw_gpu_modifier_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
+    return nullptr;
   }
 
-  MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
-  if (!ires) {
+  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
+                                                                      (Mesh *)deformed_eval->data);
+  if (!mesh_gpu_data) {
     return nullptr;
+  }
+
+  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
+  if (msd.pending_gpu_setup) {
+    msd.pending_gpu_setup = false;
+    msd.gpu_setup_attempts = 0;
   }
 
   /* Create unique buffer keys per modifier instance using composite key hash
@@ -571,7 +569,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   /* Compute final transformation: world_to_object * hook_world * parentinv
    * This transforms vertices from object space to hook space */
   float world_to_object[4][4];
-  invert_m4_m4(world_to_object, deform_ob_eval->object_to_world().ptr());
+  invert_m4_m4(world_to_object, deformed_eval->object_to_world().ptr());
   mul_m4_series(hook_transform, world_to_object, dmat, hmd->parentinv);
 
   /* Compute uniform space matrix and center (for falloff calculation) */
@@ -656,9 +654,6 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
-
-  msd.pending_gpu_setup = false;
-  msd.gpu_setup_attempts = 0;
 
   return ssbo_out;
 }

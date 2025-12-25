@@ -29,6 +29,7 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
+#include "draw_modifier_gpu_utils.hh"
 
 using namespace blender::draw;
 
@@ -366,23 +367,20 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
-  const int MAX_ATTEMPTS = 3;
-  if (msd.pending_gpu_setup) {
-    if (msd.gpu_setup_attempts == 0) {
-      msd.gpu_setup_attempts = 1;
-      return nullptr;
-    }
-    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      msd.pending_gpu_setup = false;
-      msd.gpu_setup_attempts = 0;
-      return nullptr;
-    }
-    msd.gpu_setup_attempts++;
+  /* GPU setup retry logic */
+  if (!draw_gpu_modifier_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
+    return nullptr;
   }
 
-  MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
-  if (!ires) {
+  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
+                                                                      (Mesh *)deformed_eval->data);
+  if (!mesh_gpu_data) {
     return nullptr;
+  }
+  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
+  if (msd.pending_gpu_setup) {
+    msd.pending_gpu_setup = false;
+    msd.gpu_setup_attempts = 0;
   }
 
   /* Create unique buffer keys per modifier instance using composite key hash
@@ -393,43 +391,34 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   const std::string key_vgroup = key_prefix + "vgroup_weights";
   const std::string key_out = key_prefix + "output";
 
-  /* Create/update SSBOs if needed */
-  if (msd.pending_gpu_setup) {
-    /* Control points SSBO */
-    blender::gpu::StorageBuf *ssbo_cp = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_cp);
-    if (!ssbo_cp && !msd.control_points.empty()) {
-      const size_t size_cp = msd.control_points.size() * sizeof(float);
-      ssbo_cp = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_cp, size_cp);
-      if (ssbo_cp) {
-        GPU_storagebuf_update(ssbo_cp, msd.control_points.data());
-      }
+  /* Control points SSBO */
+  blender::gpu::StorageBuf *ssbo_cp = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_cp);
+  if (!ssbo_cp && !msd.control_points.empty()) {
+    const size_t size_cp = msd.control_points.size() * sizeof(float);
+    ssbo_cp = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_cp, size_cp);
+    if (ssbo_cp) {
+      GPU_storagebuf_update(ssbo_cp, msd.control_points.data());
     }
-
-    /* Transformation matrix SSBO */
-    blender::gpu::StorageBuf *ssbo_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_mat);
-    if (!ssbo_mat) {
-      float latmat[4][4];
-      if (deformed_eval) {
-        float imat[4][4];
-        invert_m4_m4(imat, eval_lattice->object_to_world().ptr());
-        mul_m4_m4m4(latmat, imat, deformed_eval->object_to_world().ptr());
-      }
-      else {
-        invert_m4_m4(latmat, eval_lattice->object_to_world().ptr());
-      }
-      ssbo_mat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_mat, sizeof(float) * 16);
-      if (ssbo_mat) {
-        GPU_storagebuf_update(ssbo_mat, &latmat[0][0]);
-      }
-    }
-
-    msd.pending_gpu_setup = false;
-    msd.gpu_setup_attempts = 0;
   }
 
-  /* Retrieve/update SSBOs (use unique keys per modifier instance) */
-  blender::gpu::StorageBuf *ssbo_cp = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_cp);
+  /* Transformation matrix SSBO */
   blender::gpu::StorageBuf *ssbo_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_mat);
+  if (!ssbo_mat) {
+    float latmat[4][4];
+    if (deformed_eval) {
+      float imat[4][4];
+      invert_m4_m4(imat, eval_lattice->object_to_world().ptr());
+      mul_m4_m4m4(latmat, imat, deformed_eval->object_to_world().ptr());
+    }
+    else {
+      invert_m4_m4(latmat, eval_lattice->object_to_world().ptr());
+    }
+    ssbo_mat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_mat, sizeof(float) * 16);
+    if (ssbo_mat) {
+      GPU_storagebuf_update(ssbo_mat, &latmat[0][0]);
+    }
+  }
+
   if (!ssbo_cp || !ssbo_mat || !ssbo_in) {
     return nullptr;
   }

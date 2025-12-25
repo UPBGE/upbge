@@ -19,8 +19,6 @@ namespace bke {
 
 struct MeshGpuData {
   blender::bke::MeshGPUTopology topology;
-  /* Support multiple compute shaders per mesh keyed by hash of generated source. */
-  std::unordered_map<size_t, blender::gpu::Shader *> compute_shaders;
   /* Optional internal resources container (owned here). */
   blender::bke::MeshGpuInternalResources *internal_resources = nullptr;
 

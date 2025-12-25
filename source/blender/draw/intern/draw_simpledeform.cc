@@ -26,6 +26,7 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
+#include "draw_modifier_gpu_utils.hh"
 
 using namespace blender::draw;
 
@@ -495,23 +496,21 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
-  const int MAX_ATTEMPTS = 3;
-  if (msd.pending_gpu_setup) {
-    if (msd.gpu_setup_attempts == 0) {
-      msd.gpu_setup_attempts = 1;
-      return nullptr;
-    }
-    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      msd.pending_gpu_setup = false;
-      msd.gpu_setup_attempts = 0;
-      return nullptr;
-    }
-    msd.gpu_setup_attempts++;
+  /* GPU setup retry logic */
+  if (!draw_gpu_modifier_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
+    return nullptr;
   }
 
-  MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
-  if (!ires) {
+  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
+                                                                      (Mesh *)deformed_eval->data);
+  if (!mesh_gpu_data) {
     return nullptr;
+  }
+
+  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
+  if (msd.pending_gpu_setup) {
+    msd.pending_gpu_setup = false;
+    msd.gpu_setup_attempts = 0;
   }
 
   /* Create unique buffer keys per modifier instance using composite key hash
@@ -701,9 +700,6 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
-
-  msd.pending_gpu_setup = false;
-  msd.gpu_setup_attempts = 0;
 
   return ssbo_out;
 }

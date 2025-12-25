@@ -30,6 +30,8 @@
 #include "draw_cache_extract.hh"
 #include "draw_cache_impl.hh"
 
+#include "draw_modifier_gpu_utils.hh"
+
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 
@@ -275,8 +277,6 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
     kidx++;
   }
 
-  /* Mark as pending GPU setup if this is a new calculation (not just a GPU invalidation retry).
-   * If gpu_invalidated was true, pending_gpu_setup is already true, so no need to reset it. */
   if (first_time || hash_changed) {
     msd.pending_gpu_setup = true;
     msd.gpu_setup_attempts = 0;
@@ -285,7 +285,7 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
 
 /* Dispatch shapekey compute + scatter. Returns true on GPU success. */
 blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
-    MeshBatchCache *cache, Object *ob_eval, blender::gpu::StorageBuf *ssbo_out)
+    MeshBatchCache *cache, Object *deformed_eval)
 {
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
@@ -298,44 +298,33 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
+  /* GPU setup retry logic */
+  if (!draw_gpu_modifier_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
+    return nullptr;
+  }
+
+  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
+                                                                      (Mesh *)deformed_eval->data);
+  if (!mesh_gpu_data) {
+    return nullptr;
+  }
+
+  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
+  if (msd.pending_gpu_setup) {
+    msd.pending_gpu_setup = false;
+    msd.gpu_setup_attempts = 0;
+  }
+
   const int verts = msd.verts_num;
   const int kcount = msd.key_count;
   if (verts == 0 || kcount == 0) {
     return nullptr;
   }
 
-  /* Handle pending GPU setup (similar to Armature) */
-  const int MAX_ATTEMPTS = 3;
-  if (msd.pending_gpu_setup) {
-    if (msd.gpu_setup_attempts == 0) {
-      msd.gpu_setup_attempts = 1;
-      return nullptr;
-    }
-    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      msd.pending_gpu_setup = false;
-      msd.gpu_setup_attempts = 0;
-      return nullptr;
-    }
-    /* Increment and continue to attempt GPU setup */
-    msd.gpu_setup_attempts++;
-  }
-
   const std::string key_rest = "shapekey_rest_pos";
   const std::string key_deltas = "shapekey_deltas";
   const std::string key_weights = "shapekey_weights";
   const std::string key_out = "shapekey_out_pos";
-
-  /* Ensure internal resources container exists. */
-  MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
-  if (!ires) {
-    return nullptr;
-  }
-
-  /* GPU setup successful! Clear pending flag. */
-  if (msd.pending_gpu_setup) {
-    msd.pending_gpu_setup = false;
-    msd.gpu_setup_attempts = 0;
-  }
 
   /* Ensure SSBOs and upload if missing. */
   blender::gpu::StorageBuf *ssbo_rest = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_rest);
@@ -359,7 +348,7 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
   }
 
   /* Ensure out SSBO */
-  blender::gpu::StorageBuf *ssbo_out_local = ssbo_out;
+  blender::gpu::StorageBuf *ssbo_out_local = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_out);
   if (!ssbo_out_local) {
     ssbo_out_local = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_out);
     if (!ssbo_out_local) {
@@ -384,8 +373,8 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     KeyBlock *active_kb = nullptr;
 
     /* Use ob_eval to access shapenr (active shape index) */
-    if (ob_eval && ob_eval->data == mesh_owner && ob_eval->shapenr > 0) {
-      int active_index = ob_eval->shapenr - 1;  // shapenr is 1-indexed (0 = no shape)
+    if (deformed_eval && deformed_eval->data == mesh_owner && deformed_eval->shapenr > 0) {
+      int active_index = deformed_eval->shapenr - 1;  // shapenr is 1-indexed (0 = no shape)
       int idx = 0;
       for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next, idx++) {
         if (idx == active_index) {

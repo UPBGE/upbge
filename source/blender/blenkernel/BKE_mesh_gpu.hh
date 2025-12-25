@@ -211,6 +211,18 @@ std::string BKE_mesh_gpu_topology_glsl_accessors_string(
 void BKE_mesh_gpu_topology_add_specialization_constants(
     blender::gpu::shader::ShaderCreateInfo &info, const blender::bke::MeshGPUTopology &topology);
 
+/* Forward declaration to avoid including mesh_gpu_cache.hh here. */
+namespace blender {
+namespace bke {
+struct MeshGpuData;
+}
+}
+
+/* Ensure mesh GPU data exists: topology SSBO (from evaluated mesh) and internal resources.
+ * Returns pointer to MeshGpuData on success, nullptr on failure. */
+blender::bke::MeshGpuData *BKE_mesh_gpu_ensure_data(struct Mesh *mesh_orig,
+                                                  struct Mesh *mesh_eval);
+
 namespace blender {
 namespace bke {
 

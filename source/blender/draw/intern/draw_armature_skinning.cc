@@ -42,6 +42,7 @@
 #include "DNA_mesh_types.h"
 
 #include "DEG_depsgraph_query.hh"
+#include "draw_modifier_gpu_utils.hh"
 
 using namespace blender::draw;
 
@@ -1018,8 +1019,6 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
   msd.arm = arm_ob;
   msd.deformed = deformed_ob;
 
-  /* Mark as pending GPU setup if this is a new calculation (not just a GPU invalidation retry).
-   * If gpu_invalidated was true, pending_gpu_setup is already true, so no need to reset it. */
   if (first_time || hash_changed) {
     msd.pending_gpu_setup = true;
     msd.gpu_setup_attempts = 0;
@@ -1073,35 +1072,25 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
-  /* Check if dual quaternion skinning is enabled (now using amd directly!) */
-  const bool use_dual_quaternions = (amd->deformflag & ARM_DEF_QUATERNION) != 0;
-
-  const int MAX_ATTEMPTS = 3;
-  if (msd.pending_gpu_setup) {
-    if (msd.gpu_setup_attempts == 0) {
-      msd.gpu_setup_attempts = 1;
-      return nullptr;
-    }
-    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      msd.pending_gpu_setup = false;
-      msd.gpu_setup_attempts = 0;
-      return nullptr;
-    }
-    /* If we reach here, gpu_setup_attempts is between 1 and MAX_ATTEMPTS-1.
-     * Increment and continue to attempt GPU setup. */
-    msd.gpu_setup_attempts++;
-  }
-
-  MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
-  if (!ires) {
+  /* GPU setup retry logic */
+  if (!draw_gpu_modifier_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
     return nullptr;
   }
 
-  /* GPU setup successful! Clear pending flag. */
+  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
+                                                                      (Mesh *)deformed_eval->data);
+  if (!mesh_gpu_data) {
+    return nullptr;
+  }
+
+  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
   if (msd.pending_gpu_setup) {
     msd.pending_gpu_setup = false;
     msd.gpu_setup_attempts = 0;
   }
+
+  /* Check if dual quaternion skinning is enabled (now using amd directly!) */
+  const bool use_dual_quaternions = (amd->deformflag & ARM_DEF_QUATERNION) != 0;
 
   /* Create unique keys per (mesh, armature) using composite key hash.
    * This prevents conflicts when multiple meshes use the same armature.

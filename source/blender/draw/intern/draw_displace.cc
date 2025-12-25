@@ -46,6 +46,7 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
+#include "draw_modifier_gpu_utils.hh"
 
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 
@@ -1507,26 +1508,16 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   Impl::MeshStaticData &msd = *msd_ptr;
 
   /* GPU setup retry logic */
-  const int MAX_ATTEMPTS = 3;
-  if (msd.pending_gpu_setup) {
-    if (msd.gpu_setup_attempts == 0) {
-      msd.gpu_setup_attempts = 1;
-      return nullptr;
-    }
-    if (msd.gpu_setup_attempts >= MAX_ATTEMPTS) {
-      msd.pending_gpu_setup = false;
-      msd.gpu_setup_attempts = 0;
-      return nullptr;
-    }
-    msd.gpu_setup_attempts++;
-  }
-
-  MeshGpuInternalResources *ires = BKE_mesh_gpu_internal_resources_ensure(mesh_owner);
-  if (!ires) {
+  if (!draw_gpu_modifier_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
     return nullptr;
   }
 
-  /* GPU setup successful! Clear pending flag. */
+  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner, (Mesh *)deformed_eval->data);
+  if (!mesh_gpu_data) {
+    return nullptr;
+  }
+
+  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
   if (msd.pending_gpu_setup) {
     msd.pending_gpu_setup = false;
     msd.gpu_setup_attempts = 0;
@@ -1822,16 +1813,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   }
   shader_src += get_displace_compute_src();
 
-  using namespace blender::bke;
-  auto &mesh_data = MeshGPUCacheManager::get().mesh_cache()[mesh_owner];
-  if (!mesh_data.topology.ssbo) {
-    if (!BKE_mesh_gpu_topology_create(mesh_owner, mesh_data.topology) ||
-        !BKE_mesh_gpu_topology_upload(mesh_data.topology))
-    {
-      return nullptr;
-    }
-  }
-  std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
+  std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_gpu_data->topology);
 
   /* Build typedef header with ColorBand structure (vec4-aligned for UBO std140 layout) */
   std::string typedef_header = R"GLSL(
@@ -1908,7 +1890,7 @@ struct ColorBand {
     info.push_constant(Type::int_t, "tex_channels"); /* number of channels in ImBuf (1/3/4) */
     info.push_constant(Type::int_t, "mtex_mapto"); /* MTex.mapto flags (MAP_COL etc.) */
   }
-  BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
+  BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 
   blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
       mesh_owner, "displace_compute_v2", info);
@@ -1966,7 +1948,7 @@ struct ColorBand {
     }
   }
 
-  GPU_storagebuf_bind(mesh_data.topology.ssbo, 15);
+  GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 
   /* Bind ColorBand UBO (binding 4) */
   if (ubo_colorband) {
@@ -2090,12 +2072,6 @@ struct ColorBand {
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
-
-  /* Note: UBO is now cached and managed by BKE_mesh_gpu_internal_ubo_* functions.
-   * It will be freed automatically when the mesh cache is invalidated. */
-
-  msd.pending_gpu_setup = false;
-  msd.gpu_setup_attempts = 0;
 
   return ssbo_out;
 }
