@@ -894,26 +894,35 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
     return;
   }
 
+  /* Helper: try spawned/existing lookup first, then fall back to scene search (once per miss). */
+  auto findTarget = [&](const std::string &name) -> KX_GameObject * {
+    auto it = objectLookup.find(name);
+    if (it != objectLookup.end()) {
+      return it->second;
+    }
+    KX_Scene *lookupScene = GetScene();
+    if (!lookupScene) {
+      return nullptr;
+    }
+    return static_cast<KX_GameObject *>(lookupScene->GetObjectList()->FindValue(name));
+  };
+
   for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
     if (!data.m_constraint || data.m_object1Name.empty()) {
       continue;
     }
 
     // O(1) hash map lookup instead of O(n) linear search
-    auto it1 = objectLookup.find(data.m_object1Name);
-    if (it1 == objectLookup.end()) {
+    KX_GameObject *target1 = findTarget(data.m_object1Name);
+    if (!target1) {
       CM_Debug("ReplicateRigidBodyConstraints: target1 '" << data.m_object1Name << "' not found for " << GetName());
       continue;
     }
-    KX_GameObject *target1 = it1->second;
 
     KX_GameObject *target2 = nullptr;
     if (data.m_hasObject2) {
-      auto it2 = objectLookup.find(data.m_object2Name);
-      if (it2 != objectLookup.end()) {
-        target2 = it2->second;
-      }
-      else {
+      target2 = findTarget(data.m_object2Name);
+      if (!target2) {
         CM_Debug("ReplicateRigidBodyConstraints: target2 '" << data.m_object2Name << "' not found for " << GetName());
       }
     }

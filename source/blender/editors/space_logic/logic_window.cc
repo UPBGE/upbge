@@ -2346,7 +2346,7 @@ static void draw_actuator_scene(blender::ui::Layout *layout, PointerRNA *ptr)
 
 static void draw_actuator_collection(blender::ui::Layout *layout, PointerRNA *ptr)
 {
-  blender::ui::Layout *row;
+  blender::ui::Layout *row, *split;
   row = &layout->row(false);
   row->prop(ptr, "collection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = &layout->row(false);
@@ -2367,6 +2367,20 @@ static void draw_actuator_collection(blender::ui::Layout *layout, PointerRNA *pt
       row->prop(ptr, "camera", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case ACT_COLLECTION_REMOVE_OVERLAY:
+      break;
+    case ACT_COLLECTION_SPAWN:
+      split = &layout->split(0.9, false);
+      row = &split->row(false);
+      row->prop(ptr, "linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_local_linear_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+
+      split = &layout->split(0.9, false);
+      row = &split->row(false);
+      row->prop(ptr, "angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      split->prop(ptr, "use_local_angular_velocity", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+
+      row = &layout->row(false);
+      row->prop(ptr, "use_full_copy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     default:
       break;

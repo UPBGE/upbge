@@ -691,6 +691,9 @@ void BL_ConvertActuators(const char *maggiename,
           case ACT_COLLECTION_REMOVE_OVERLAY:
             mode = SCA_CollectionActuator::KX_COLLECTION_REMOVE_OVERLAY;
             break;
+          case ACT_COLLECTION_SPAWN:
+            mode = SCA_CollectionActuator::KX_COLLECTION_SPAWN;
+            break;
           default:
             mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
             break;
@@ -698,8 +701,22 @@ void BL_ConvertActuators(const char *maggiename,
         bool use_logic = (colact->flag & ACT_COLLECTION_SUSPEND_LOGIC) == 0;
         bool use_physics = (colact->flag & ACT_COLLECTION_SUSPEND_PHYSICS) == 0;
         bool use_visibility = (colact->flag & ACT_COLLECTION_SUSPEND_VISIBILITY) == 0;
-        tmpcolact = new SCA_CollectionActuator(
-            gameobj, scene, cam, colact->collection, mode, use_logic, use_physics, use_visibility);
+        bool full_copy = colact->full_copy != 0;
+        bool linv_local = (colact->localflag & ACT_CLN_LOCAL_LINV) != 0;
+        bool angv_local = (colact->localflag & ACT_CLN_LOCAL_ANGV) != 0;
+        tmpcolact = new SCA_CollectionActuator(gameobj,
+                                               scene,
+                                               cam,
+                                               colact->collection,
+                                               mode,
+                                               use_logic,
+                                               use_physics,
+                                               use_visibility,
+                                               full_copy,
+                                               colact->linVelocity,
+                                               linv_local,
+                                               colact->angVelocity,
+                                               angv_local);
         baseact = tmpcolact;
         break;
       }

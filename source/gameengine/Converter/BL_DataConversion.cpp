@@ -1626,10 +1626,17 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) :
                                         nullptr;
 
-        // Store constraint for replication (like rigid body joints do)
-        // This MUST happen before validation so spawned collections work
-        if (gameobj1 && (!ob2 || gameobj2)) {
+        /* Store constraint for later replication even if target objects are not converted yet.
+         * Full-copy duplication can change names and conversion order, so we must keep the data now
+         * and resolve targets after all objects are spawned/converted.
+         */
+        if (ob1) {
           gameobj->AddRigidBodyConstraint(rbc, ob1, ob2);
+        }
+
+        // If targets aren't available yet, skip immediate creation quietly; it will be replicated later.
+        if (!gameobj1 || (ob2 && !gameobj2)) {
+          continue;
         }
 
         // During libloading, only store constraint, don't create it
