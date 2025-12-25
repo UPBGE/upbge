@@ -1134,6 +1134,10 @@ static void draw_sensor_header(blender::ui::Layout *layout, PointerRNA *ptr, Poi
   RNA_enum_set(&op_ptr, "direction", 2);
 
   sub = &row->row(false);
+  sub->active_set(RNA_boolean_get(ptr, "active"));
+  sub->op("LOGIC_OT_sensor_duplicate", "", ICON_DUPLICATE);
+
+  sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
 
   sub = &row->row(false);
@@ -1590,6 +1594,10 @@ static void draw_controller_header(blender::ui::Layout *layout, PointerRNA *ptr,
   RNA_enum_set(&op_ptr, "direction", 2);
 
   sub = &row->row(false);
+  sub->active_set(RNA_boolean_get(ptr, "active"));
+  sub->op("LOGIC_OT_controller_duplicate", "", ICON_DUPLICATE);
+
+  sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
 
   sub = &row->row(false);
@@ -1691,6 +1699,10 @@ static void draw_actuator_header(blender::ui::Layout *layout, PointerRNA *ptr, P
   RNA_enum_set(&op_ptr, "direction", 1);
   op_ptr = sub->op("LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN);  // down
   RNA_enum_set(&op_ptr, "direction", 2);
+
+  sub = &row->row(false);
+  sub->active_set(RNA_boolean_get(ptr, "active"));
+  sub->op("LOGIC_OT_actuator_duplicate", "", ICON_DUPLICATE);
 
   sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
@@ -2818,6 +2830,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
       /* draw the brick contents */
       draw_brick_controller(col, &ptr);
+      col->separator();
 
       /* put link button to the right */
       col = &subsplit->column(false);
@@ -2933,6 +2946,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
         /* draw the brick contents */
         draw_brick_sensor(col, &ptr, C);
+        col->separator();
 
         /* put link button to the right */
         col = &split->column(false);
@@ -3070,6 +3084,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
         /* draw the brick contents */
         draw_brick_actuator(col, &ptr, C);
+        col->separator();
       }
     }
   }
