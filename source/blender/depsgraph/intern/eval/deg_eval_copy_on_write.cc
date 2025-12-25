@@ -542,6 +542,9 @@ void update_mesh_edit_mode_pointers(const ID *id_orig, ID *id_cow)
   if (mesh_orig->runtime->edit_mesh == nullptr) {
     return;
   }
+  if (mesh_orig->is_running_gpu_animation_playback) {
+    return;
+  }
   mesh_cow->runtime->edit_mesh = mesh_orig->runtime->edit_mesh;
 }
 
@@ -914,6 +917,9 @@ void discard_lattice_edit_mode_pointers(ID *id_cow)
 void discard_mesh_edit_mode_pointers(ID *id_cow)
 {
   Mesh *mesh_cow = (Mesh *)id_cow;
+  if (mesh_cow->is_running_gpu_animation_playback) {
+    return;
+  }
   mesh_cow->runtime->edit_mesh = nullptr;
 }
 
