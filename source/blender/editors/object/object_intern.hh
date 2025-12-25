@@ -99,6 +99,7 @@ void OBJECT_OT_game_property_copy(wmOperatorType *ot);
 void OBJECT_OT_game_property_clear(wmOperatorType *ot);
 void OBJECT_OT_game_property_move(wmOperatorType *ot);
 void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot);
+void OBJECT_OT_logic_bricks_clear(wmOperatorType *ot);
 void OBJECT_OT_game_physics_copy(wmOperatorType *ot);
 
 void OBJECT_OT_move_to_collection(wmOperatorType *ot);
