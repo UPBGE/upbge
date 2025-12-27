@@ -838,7 +838,7 @@ struct Object {
   short max_jumps = 1;
 
   /* for now used to temporarily holds the type of collision object */
-  short body_type = 0;
+  short body_type = OB_BODY_TYPE_STATIC;
 
   /** bit masks of game controllers that are active */
   unsigned int state = 1;
@@ -857,7 +857,7 @@ struct Object {
 
   float sf = 0.0f; /* sf is time-offset */
 
-  int gameflag = 0;
+  int gameflag = OB_PROP | OB_COLLISION;
   int gameflag2 = 0;
 
   float anisotropicFriction[3] = {1.0f, 1.0f, 1.0f};
