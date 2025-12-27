@@ -471,21 +471,23 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     /* If not changed, skip upload (compute still runs, but upload cost avoided). */
   }
 
-  /* Create/ensure compute shader */
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo info("pyGPU_Shader");
-  info.local_group_size(256, 1, 1);
-  info.compute_source_generated = shapekey_compute_src;
-  info.storage_buf(0, Qualifier::read, "vec4", "rest_pos[]");
-  info.storage_buf(1, Qualifier::read, "vec4", "deltas[]");
-  info.storage_buf(2, Qualifier::read, "float", "weights[]");
-  info.storage_buf(3, Qualifier::write, "vec4", "out_pos[]");
-  info.push_constant(Type::int_t, "u_vert_count");
-  info.push_constant(Type::int_t, "u_key_count");
-
   const std::string shader_key = "shapekey_compute";
-  blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, shader_key, info);
+  blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  if (!compute_sh) {
+    /* Create/ensure compute shader */
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
+    info.compute_source_generated = shapekey_compute_src;
+    info.storage_buf(0, Qualifier::read, "vec4", "rest_pos[]");
+    info.storage_buf(1, Qualifier::read, "vec4", "deltas[]");
+    info.storage_buf(2, Qualifier::read, "float", "weights[]");
+    info.storage_buf(3, Qualifier::write, "vec4", "out_pos[]");
+    info.push_constant(Type::int_t, "u_vert_count");
+    info.push_constant(Type::int_t, "u_key_count");
+    compute_sh = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+  }
+
   if (!compute_sh) {
     return nullptr;
   }

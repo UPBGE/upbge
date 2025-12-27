@@ -613,17 +613,22 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
   GPU_storagebuf_update(ssbo_minmax, init_minmax);
   
   /* Create reduction shader */
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo minmax_info("pyGPU_Shader");
-  minmax_info.local_group_size(256, 1, 1);
-  minmax_info.storage_buf(0, Qualifier::read, "vec4", "input_positions[]");
-  minmax_info.storage_buf(1, Qualifier::write, "uint", "minmax_result[]");
-  minmax_info.push_constant(Type::float4x4_t, "transmat");
-  minmax_info.push_constant(Type::int_t, "limit_axis");
-  minmax_info.compute_source_generated = minmax_reduction_src;
-  
-  blender::gpu::Shader *minmax_shader = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, "simpledeform_minmax", minmax_info);
+  const std::string shader_min_max_key = "simpledeform_minmax";
+  blender::gpu::Shader *minmax_shader = BKE_mesh_gpu_internal_shader_get(mesh_owner,
+                                                                         shader_min_max_key);
+  if (!minmax_shader) {
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo minmax_info("pyGPU_Shader");
+    minmax_info.local_group_size(256, 1, 1);
+    minmax_info.storage_buf(0, Qualifier::read, "vec4", "input_positions[]");
+    minmax_info.storage_buf(1, Qualifier::write, "uint", "minmax_result[]");
+    minmax_info.push_constant(Type::float4x4_t, "transmat");
+    minmax_info.push_constant(Type::int_t, "limit_axis");
+    minmax_info.compute_source_generated = minmax_reduction_src;
+
+    minmax_shader = BKE_mesh_gpu_internal_shader_ensure(
+        mesh_owner, shader_min_max_key, minmax_info);
+  }
   if (!minmax_shader) {
     return nullptr;
   }
@@ -643,30 +648,34 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
   /* Note: No CPU readback! The minmax results stay on GPU and are read by the deform shader */
 
   /* Create shader */
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo info("pyGPU_Shader");
-  info.local_group_size(256, 1, 1);
-  info.compute_source_generated = simpledeform_compute_src;
+  const std::string shader_key = "simpledeform";
+  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  if (!shader) {
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
+    info.compute_source_generated = simpledeform_compute_src;
 
-  /* Bindings */
-  info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
-  info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
-  info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-  info.storage_buf(3, Qualifier::read, "uint", "minmax_bounds[]");  /* Computed by reduction pass */
+    /* Bindings */
+    info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
+    info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
+    info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
+    info.storage_buf(
+        3, Qualifier::read, "uint", "minmax_bounds[]"); /* Computed by reduction pass */
 
-  /* Push constants */
-  info.push_constant(Type::float4x4_t, "transmat");
-  info.push_constant(Type::float4x4_t, "transmat_inv");
-  info.push_constant(Type::int_t, "deform_mode");
-  info.push_constant(Type::int_t, "deform_axis");
-  info.push_constant(Type::int_t, "lock_axis");
-  info.push_constant(Type::int_t, "limit_axis");
-  info.push_constant(Type::float_t, "raw_factor");          /* Raw modifier factor */
-  info.push_constant(Type::float_t, "limit_lower_factor");  /* smd->limit[0] */
-  info.push_constant(Type::float_t, "limit_upper_factor");  /* smd->limit[1] */
+    /* Push constants */
+    info.push_constant(Type::float4x4_t, "transmat");
+    info.push_constant(Type::float4x4_t, "transmat_inv");
+    info.push_constant(Type::int_t, "deform_mode");
+    info.push_constant(Type::int_t, "deform_axis");
+    info.push_constant(Type::int_t, "lock_axis");
+    info.push_constant(Type::int_t, "limit_axis");
+    info.push_constant(Type::float_t, "raw_factor");         /* Raw modifier factor */
+    info.push_constant(Type::float_t, "limit_lower_factor"); /* smd->limit[0] */
+    info.push_constant(Type::float_t, "limit_upper_factor"); /* smd->limit[1] */
 
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, "simpledeform", info);
+    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+  }
   if (!shader) {
     return nullptr;
   }

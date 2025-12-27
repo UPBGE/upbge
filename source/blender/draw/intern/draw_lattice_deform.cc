@@ -482,33 +482,31 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   }
 
   /* Create shader */
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo info("pyGPU_Shader");
-  info.local_group_size(256, 1, 1);
-  info.compute_source_generated = lattice_compute_src;
+  const std::string shader_key = "lattice_deform";
+  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  if (!shader) {
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
+    info.compute_source_generated = lattice_compute_src;
 
-  /* Bindings */
-  info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
-  info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
-  info.storage_buf(2, Qualifier::read, "float", "control_points[]");
-  info.storage_buf(3, Qualifier::read, "mat4", "latmat[]");
-  info.storage_buf(4, Qualifier::read, "float", "vgroup_weights[]");  // Optional vertex group
+    /* Bindings */
+    info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
+    info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
+    info.storage_buf(2, Qualifier::read, "float", "control_points[]");
+    info.storage_buf(3, Qualifier::read, "mat4", "latmat[]");
+    info.storage_buf(4, Qualifier::read, "float", "vgroup_weights[]");  // Optional vertex group
 
-  /* Push constants (uniforms) - correct enum types */
-  info.push_constant(Type::float3_t, "lattice_dims");     // vec3 (float3_t)
-  info.push_constant(Type::float3_t, "lattice_origin");   // vec3 (float3_t)
-  info.push_constant(Type::float3_t, "lattice_spacing");  // vec3 (float3_t)
-  info.push_constant(Type::int3_t, "lattice_types");      // ivec3 (int3_t)
-  info.push_constant(Type::float_t, "strength");          // float (modifier strength)
+    /* Push constants (uniforms) - correct enum types */
+    info.push_constant(Type::float3_t, "lattice_dims");     // vec3 (float3_t)
+    info.push_constant(Type::float3_t, "lattice_origin");   // vec3 (float3_t)
+    info.push_constant(Type::float3_t, "lattice_spacing");  // vec3 (float3_t)
+    info.push_constant(Type::int3_t, "lattice_types");      // ivec3 (int3_t)
+    info.push_constant(Type::float_t, "strength");          // float (modifier strength)
 
-  /* Specialization constants */
-  Lattice *lt = BKE_object_get_lattice(eval_lattice);
-  if (!lt) {
-    return nullptr;
+    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
   }
 
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, "lattice_deform", info);
   if (!shader) {
     return nullptr;
   }
@@ -549,6 +547,11 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
 
   if (ssbo_vgroup) {
     GPU_storagebuf_bind(ssbo_vgroup, 4);
+  }
+
+  Lattice *lt = BKE_object_get_lattice(eval_lattice);
+  if (!lt) {
+    return nullptr;
   }
 
   /* Set push constants */

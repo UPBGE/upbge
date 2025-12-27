@@ -1399,52 +1399,54 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
       }
     }
   }
-
-  /* create/ensure compute shader and dispatch */
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo info("pyGPU_Shader");
-  info.local_group_size(256, 1, 1);
-
-  /* Select shader source based on skinning mode */
-  if (use_dual_quaternions) {
-    info.compute_source_generated = skin_compute_dqs_src;
-    info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
-    info.storage_buf(1, Qualifier::read, "int", "in_offsets[]");
-    info.storage_buf(2, Qualifier::read, "int", "in_idx[]");
-    info.storage_buf(3, Qualifier::read, "float", "in_wgt[]");
-    info.storage_buf(4, Qualifier::read, "vec4", "bone_dq_quat[]");
-    info.storage_buf(5, Qualifier::read, "vec4", "bone_dq_trans[]");
-    info.storage_buf(6, Qualifier::read, "mat4", "bone_dq_scale[]");
-    info.storage_buf(7, Qualifier::read, "float", "bone_dq_scale_weight[]");
-    info.storage_buf(8, Qualifier::read, "mat4", "premat[]");
-    info.storage_buf(9, Qualifier::read, "vec4", "rest_positions[]");
-    info.storage_buf(10, Qualifier::read, "mat4", "postmat[]");
-    info.storage_buf(11, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
-    info.storage_buf(12, Qualifier::read, "int", "bone_segments[]");    // B-Bone segments per bone
-    info.storage_buf(13, Qualifier::read, "int", "bone_offsets[]");     // B-Bone DQ offsets
-    info.storage_buf(14, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
-  }
-  else {
-    info.compute_source_generated = skin_compute_lbs_src;
-    info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
-    info.storage_buf(1, Qualifier::read, "int", "in_offsets[]");
-    info.storage_buf(2, Qualifier::read, "int", "in_idx[]");
-    info.storage_buf(3, Qualifier::read, "float", "in_wgt[]");
-    info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
-    info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
-    info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
-    info.storage_buf(7, Qualifier::read, "mat4", "postmat[]");
-    info.storage_buf(8, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
-    info.storage_buf(9, Qualifier::read, "int", "bone_segments[]");     // B-Bone segments per bone
-    info.storage_buf(10, Qualifier::read, "int", "bone_offsets[]");     // B-Bone matrix offsets
-    info.storage_buf(11, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
-  }
-
   const std::string shader_key = use_dual_quaternions ? "armature_skinning_dqs" :
                                                         "armature_skinning_lbs";
+  blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  if (!compute_sh) {
+    /* create/ensure compute shader and dispatch */
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
 
-  blender::gpu::Shader *compute_sh = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, shader_key, info);
+    /* Select shader source based on skinning mode */
+    if (use_dual_quaternions) {
+      info.compute_source_generated = skin_compute_dqs_src;
+      info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
+      info.storage_buf(1, Qualifier::read, "int", "in_offsets[]");
+      info.storage_buf(2, Qualifier::read, "int", "in_idx[]");
+      info.storage_buf(3, Qualifier::read, "float", "in_wgt[]");
+      info.storage_buf(4, Qualifier::read, "vec4", "bone_dq_quat[]");
+      info.storage_buf(5, Qualifier::read, "vec4", "bone_dq_trans[]");
+      info.storage_buf(6, Qualifier::read, "mat4", "bone_dq_scale[]");
+      info.storage_buf(7, Qualifier::read, "float", "bone_dq_scale_weight[]");
+      info.storage_buf(8, Qualifier::read, "mat4", "premat[]");
+      info.storage_buf(9, Qualifier::read, "vec4", "rest_positions[]");
+      info.storage_buf(10, Qualifier::read, "mat4", "postmat[]");
+      info.storage_buf(11, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
+      info.storage_buf(12, Qualifier::read, "int", "bone_segments[]");  // B-Bone segments per bone
+      info.storage_buf(13, Qualifier::read, "int", "bone_offsets[]");   // B-Bone DQ offsets
+      info.storage_buf(
+          14, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
+    }
+    else {
+      info.compute_source_generated = skin_compute_lbs_src;
+      info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
+      info.storage_buf(1, Qualifier::read, "int", "in_offsets[]");
+      info.storage_buf(2, Qualifier::read, "int", "in_idx[]");
+      info.storage_buf(3, Qualifier::read, "float", "in_wgt[]");
+      info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
+      info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
+      info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
+      info.storage_buf(7, Qualifier::read, "mat4", "postmat[]");
+      info.storage_buf(8, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
+      info.storage_buf(9, Qualifier::read, "int", "bone_segments[]");  // B-Bone segments per bone
+      info.storage_buf(10, Qualifier::read, "int", "bone_offsets[]");  // B-Bone matrix offsets
+      info.storage_buf(
+          11, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
+    }
+    compute_sh = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+  }
+
   if (!compute_sh) {
     return nullptr;
   }

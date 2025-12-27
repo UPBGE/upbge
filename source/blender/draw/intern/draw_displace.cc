@@ -1801,22 +1801,26 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   }
 
   /* Create shader */
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo info("pyGPU_Shader");
-  info.local_group_size(256, 1, 1);
+  const std::string shader_key = "displace_compute_v2";
+  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  if (!shader) {
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
 
-  /* Build shader source with conditional texture support */
-  std::string shader_src;
+    /* Build shader source with conditional texture support */
+    std::string shader_src;
 
-  if (has_texture) {
-    shader_src += "#define HAS_TEXTURE\n";
-  }
-  shader_src += get_displace_compute_src();
+    if (has_texture) {
+      shader_src += "#define HAS_TEXTURE\n";
+    }
+    shader_src += get_displace_compute_src();
 
-  std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_gpu_data->topology);
+    std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(
+        mesh_gpu_data->topology);
 
-  /* Build typedef header with ColorBand structure (vec4-aligned for UBO std140 layout) */
-  std::string typedef_header = R"GLSL(
+    /* Build typedef header with ColorBand structure (vec4-aligned for UBO std140 layout) */
+    std::string typedef_header = R"GLSL(
 struct CBData {
   vec4 rgba;         /* r, g, b, a packed in vec4 */
   vec4 pos_cur_pad;  /* pos, cur (as float), pad[2] */
@@ -1829,71 +1833,72 @@ struct ColorBand {
 };
 )GLSL";
 
-  info.typedef_source_generated = typedef_header;
-  info.compute_source_generated = glsl_accessors + shader_src;
+    info.typedef_source_generated = typedef_header;
+    info.compute_source_generated = glsl_accessors + shader_src;
 
-  /* Bindings */
-  info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
-  info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
-  info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-  if (has_texture) {
-    info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
-    info.sampler(0, ImageType::Float2D, "displacement_texture");
+    /* Bindings */
+    info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
+    info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
+    info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
+    if (has_texture) {
+      info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
+      info.sampler(0, ImageType::Float2D, "displacement_texture");
+    }
+    /* ColorBand UBO (binding 5) - added for TEX_COLORBAND support */
+    info.uniform_buf(4, "ColorBand", "tex_colorband");
+    /* Topology SSBO (binding 4) - parser automatically generates declaration before typedef */
+    info.storage_buf(15, Qualifier::read, "int", "topo[]");
+
+    /* Push constants */
+    info.push_constant(Type::float4x4_t, "local_mat");
+    info.push_constant(Type::float_t, "strength");
+    info.push_constant(Type::float_t, "midlevel");
+    info.push_constant(Type::int_t, "direction");
+    info.push_constant(Type::bool_t, "use_global");
+    info.push_constant(Type::bool_t, "use_colorband"); /* ColorBand enable flag */
+
+    /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
+    if (has_texture) {
+      info.push_constant(Type::bool_t, "use_talpha");      /* Enable de-premultiply */
+      info.push_constant(Type::bool_t, "tex_calcalpha");   /* TEX_CALCALPHA */
+      info.push_constant(Type::bool_t, "tex_negalpha");    /* TEX_NEGALPHA */
+      info.push_constant(Type::float_t, "tex_bright");     /* Tex->bright */
+      info.push_constant(Type::float_t, "tex_contrast");   /* Tex->contrast */
+      info.push_constant(Type::float_t, "tex_saturation"); /* Tex->saturation */
+      info.push_constant(Type::float_t, "tex_rfac");       /* Tex->rfac */
+      info.push_constant(Type::float_t, "tex_gfac");       /* Tex->gfac */
+      info.push_constant(Type::float_t, "tex_bfac");       /* Tex->bfac */
+      info.push_constant(Type::bool_t, "tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
+      info.push_constant(Type::int_t, "tex_extend");       /* Tex->extend (wrap mode) */
+      info.push_constant(Type::float4_t,
+                         "tex_crop"); /* (cropxmin, cropymin, cropxmax, cropymax) */
+      info.push_constant(Type::float2_t, "tex_repeat");     /* (xrepeat, yrepeat) */
+      info.push_constant(Type::bool_t, "tex_xmir");         /* TEX_REPEAT_XMIR */
+      info.push_constant(Type::bool_t, "tex_ymir");         /* TEX_REPEAT_YMIR */
+      info.push_constant(Type::bool_t, "tex_interpol");     /* TEX_INTERPOL */
+      info.push_constant(Type::float_t, "tex_filtersize");  /* Tex->filtersize for boxsample */
+      info.push_constant(Type::bool_t, "tex_checker_odd");  /* TEX_CHECKER_ODD */
+      info.push_constant(Type::bool_t, "tex_checker_even"); /* TEX_CHECKER_EVEN */
+      info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
+      info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
+      info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
+      /* Mapping controls (when mapping_use_input_positions==true shader will
+       * compute texture coords from input_positions[] instead of using
+       * precomputed texture_coords[]). UV mapping remains CPU-side. */
+      info.push_constant(Type::int_t, "tex_mapping");
+      info.push_constant(Type::bool_t, "mapping_use_input_positions");
+      info.push_constant(Type::float4x4_t, "object_to_world_mat");
+      info.push_constant(Type::float4x4_t, "mapref_imat");
+      info.push_constant(Type::bool_t,
+                         "tex_is_byte"); /* Image data originally bytes (needs premultiply) */
+      info.push_constant(Type::bool_t, "tex_is_float"); /* ImBuf had float data */
+      info.push_constant(Type::int_t, "tex_channels");  /* number of channels in ImBuf (1/3/4) */
+      info.push_constant(Type::int_t, "mtex_mapto");    /* MTex.mapto flags (MAP_COL etc.) */
+    }
+    BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
+
+    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
   }
-  /* ColorBand UBO (binding 5) - added for TEX_COLORBAND support */
-  info.uniform_buf(4, "ColorBand", "tex_colorband");
-  /* Topology SSBO (binding 4) - parser automatically generates declaration before typedef */
-  info.storage_buf(15, Qualifier::read, "int", "topo[]");
-
-  /* Push constants */
-  info.push_constant(Type::float4x4_t, "local_mat");
-  info.push_constant(Type::float_t, "strength");
-  info.push_constant(Type::float_t, "midlevel");
-  info.push_constant(Type::int_t, "direction");
-  info.push_constant(Type::bool_t, "use_global");
-  info.push_constant(Type::bool_t, "use_colorband"); /* ColorBand enable flag */
-
-  /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
-  if (has_texture) {
-    info.push_constant(Type::bool_t, "use_talpha");      /* Enable de-premultiply */
-    info.push_constant(Type::bool_t, "tex_calcalpha");   /* TEX_CALCALPHA */
-    info.push_constant(Type::bool_t, "tex_negalpha");    /* TEX_NEGALPHA */
-    info.push_constant(Type::float_t, "tex_bright");     /* Tex->bright */
-    info.push_constant(Type::float_t, "tex_contrast");   /* Tex->contrast */
-    info.push_constant(Type::float_t, "tex_saturation"); /* Tex->saturation */
-    info.push_constant(Type::float_t, "tex_rfac");       /* Tex->rfac */
-    info.push_constant(Type::float_t, "tex_gfac");       /* Tex->gfac */
-    info.push_constant(Type::float_t, "tex_bfac");       /* Tex->bfac */
-    info.push_constant(Type::bool_t, "tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
-    info.push_constant(Type::int_t, "tex_extend");       /* Tex->extend (wrap mode) */
-    info.push_constant(Type::float4_t, "tex_crop"); /* (cropxmin, cropymin, cropxmax, cropymax) */
-    info.push_constant(Type::float2_t, "tex_repeat");     /* (xrepeat, yrepeat) */
-    info.push_constant(Type::bool_t, "tex_xmir");         /* TEX_REPEAT_XMIR */
-    info.push_constant(Type::bool_t, "tex_ymir");         /* TEX_REPEAT_YMIR */
-    info.push_constant(Type::bool_t, "tex_interpol");     /* TEX_INTERPOL */
-    info.push_constant(Type::float_t, "tex_filtersize");  /* Tex->filtersize for boxsample */
-    info.push_constant(Type::bool_t, "tex_checker_odd");  /* TEX_CHECKER_ODD */
-    info.push_constant(Type::bool_t, "tex_checker_even"); /* TEX_CHECKER_EVEN */
-    info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
-    info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
-    info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
-    /* Mapping controls (when mapping_use_input_positions==true shader will
-     * compute texture coords from input_positions[] instead of using
-     * precomputed texture_coords[]). UV mapping remains CPU-side. */
-    info.push_constant(Type::int_t, "tex_mapping");
-    info.push_constant(Type::bool_t, "mapping_use_input_positions");
-    info.push_constant(Type::float4x4_t, "object_to_world_mat");
-    info.push_constant(Type::float4x4_t, "mapref_imat");
-    info.push_constant(Type::bool_t,
-                       "tex_is_byte"); /* Image data originally bytes (needs premultiply) */
-    info.push_constant(Type::bool_t, "tex_is_float"); /* ImBuf had float data */
-    info.push_constant(Type::int_t, "tex_channels"); /* number of channels in ImBuf (1/3/4) */
-    info.push_constant(Type::int_t, "mtex_mapto"); /* MTex.mapto flags (MAP_COL etc.) */
-  }
-  BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
-
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, "displace_compute_v2", info);
   if (!shader) {
     return nullptr;
   }

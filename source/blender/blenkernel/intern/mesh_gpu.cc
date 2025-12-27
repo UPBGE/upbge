@@ -653,14 +653,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   const std::string shader_key = std::to_string(shader_hash);
 
   /* Lookup existing shader for this mesh + variant in internal resources. */
-  blender::gpu::Shader *shader = nullptr;
-  if (mesh_data.internal_resources) {
-    auto *shader_entry = mesh_data.internal_resources->shader_map.lookup_ptr(shader_key);
-    if (shader_entry) {
-      shader = shader_entry->shader;
-    }
-  }
-
+  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_orig, shader_key);
   if (!shader) {
     using namespace blender::gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
@@ -694,17 +687,11 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
       config_fn(info);
     }
 
-    /* Cast is needed because ShaderCreateInfo is a C++ wrapper; assume compatible here. */
-    shader = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info, false);
-    if (!shader) {
-      return blender::bke::GpuComputeStatus::Error;
-    }
-    /* Store shader in internal resources (create container if needed). */
-    if (!mesh_data.internal_resources) {
-      mesh_data.internal_resources = new blender::bke::MeshGpuInternalResources();
-    }
-    mesh_data.internal_resources->shader_map.add_new(shader_key, {shader, 1});
-    mesh_data.internal_resources->shaders.append(shader);
+    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_orig, shader_key, info);
+  }
+
+  if (!shader) {
+    return blender::bke::GpuComputeStatus::Error;
   }
 
   /* Bind shader, bind buffers, update uniforms, and compute */
@@ -930,6 +917,27 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh)
     orphan.topology = std::move(d.topology);
     d.internal_resources = nullptr;
   }
+}
+
+blender::gpu::Shader *BKE_mesh_gpu_internal_shader_get(Mesh *mesh, const std::string &key)
+{
+  if (!mesh) {
+    return nullptr;
+  }
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
+    return nullptr;
+  }
+  MeshGpuData &d = it->second;
+  if (!d.internal_resources) {
+    return nullptr;
+  }
+  auto *entry_ptr = d.internal_resources->shader_map.lookup_ptr(key);
+  if (!entry_ptr) {
+    return nullptr;
+  }
+  return entry_ptr->shader;
 }
 
 blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(

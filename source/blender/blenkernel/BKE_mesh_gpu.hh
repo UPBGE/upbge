@@ -285,6 +285,7 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh);
 blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
     Mesh *mesh, const std::string &key, const blender::gpu::shader::ShaderCreateInfo &info);
 void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key);
+blender::gpu::Shader *BKE_mesh_gpu_internal_shader_get(Mesh *mesh, const std::string &key);
 
 blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
                                                             const std::string &key,

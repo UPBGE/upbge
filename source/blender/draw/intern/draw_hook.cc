@@ -589,32 +589,35 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   const bool use_falloff = (falloff_sq != 0.0f);
 
   /* Create shader */
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo info("pyGPU_Shader");
-  info.local_group_size(256, 1, 1);
-  info.compute_source_generated = hook_compute_src;
+  const std::string shader_key = "hook_compute";
+  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  if (!shader) {
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
+    info.compute_source_generated = hook_compute_src;
 
-  /* Bindings */
-  info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
-  info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
-  info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-  info.storage_buf(3, Qualifier::read, "float", "falloff_curve_lut[]");
-  info.storage_buf(4, Qualifier::read, "uint", "vertex_bitmap[]"); /* bitmap for O(1) check */
+    /* Bindings */
+    info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
+    info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
+    info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
+    info.storage_buf(3, Qualifier::read, "float", "falloff_curve_lut[]");
+    info.storage_buf(4, Qualifier::read, "uint", "vertex_bitmap[]"); /* bitmap for O(1) check */
 
-  /* Push constants */
-  info.push_constant(Type::float4x4_t, "hook_transform");
-  info.push_constant(Type::float4x4_t, "mat_uniform"); /* mat3 uploaded as mat4 */
-  info.push_constant(Type::float3_t, "hook_center");
-  info.push_constant(Type::float_t, "falloff_radius");
-  info.push_constant(Type::float_t, "falloff_sq");
-  info.push_constant(Type::float_t, "force");
-  info.push_constant(Type::int_t, "falloff_type");
-  info.push_constant(Type::bool_t, "use_falloff");
-  info.push_constant(Type::bool_t, "use_uniform");
-  info.push_constant(Type::bool_t, "use_indices"); /* true if using indexar */
+    /* Push constants */
+    info.push_constant(Type::float4x4_t, "hook_transform");
+    info.push_constant(Type::float4x4_t, "mat_uniform"); /* mat3 uploaded as mat4 */
+    info.push_constant(Type::float3_t, "hook_center");
+    info.push_constant(Type::float_t, "falloff_radius");
+    info.push_constant(Type::float_t, "falloff_sq");
+    info.push_constant(Type::float_t, "force");
+    info.push_constant(Type::int_t, "falloff_type");
+    info.push_constant(Type::bool_t, "use_falloff");
+    info.push_constant(Type::bool_t, "use_uniform");
+    info.push_constant(Type::bool_t, "use_indices"); /* true if using indexar */
 
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_ensure(
-      mesh_owner, "hook_compute", info);
+    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+  }
   if (!shader) {
     return nullptr;
   }
