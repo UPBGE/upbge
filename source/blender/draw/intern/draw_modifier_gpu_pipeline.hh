@@ -136,7 +136,7 @@ class GPUModifierPipeline {
 
  private:
   void sort_stages();
-  void allocate_buffers(Mesh *mesh_owner, int vertex_count);
+  void allocate_buffers(Mesh *mesh_owner, Object *deformed_eval, int vertex_count);
   /**
    * Compute fast hash to detect pipeline structure changes.
    * Includes:

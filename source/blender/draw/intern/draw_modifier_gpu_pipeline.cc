@@ -58,7 +58,7 @@ void GPUModifierPipeline::sort_stages()
       });
 }
 
-void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, int vertex_count)
+void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, Object *deformed_eval, int vertex_count)
 {
   /* Use stable key attached to the original mesh (mesh_owner) */
   const std::string key_buffer_a = "gpu_pipeline_buffer_a";
@@ -70,7 +70,8 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, int vertex_count)
   const size_t buffer_size = size_t(vertex_count) * sizeof(float) * 4;
 
   if (!buffer_a_) {
-    buffer_a_ = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_buffer_a, buffer_size);
+    buffer_a_ = BKE_mesh_gpu_internal_ssbo_ensure(
+        mesh_owner, deformed_eval, key_buffer_a, buffer_size);
 
     /* Initialize with REST positions
      * This ensures the first modifier in the
@@ -260,7 +261,7 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
   ob_eval_ = ob;
 
   /* Allocate buffer (pre-filled with rest positions on first allocation) */
-  allocate_buffers(mesh_owner, vertex_count);
+  allocate_buffers(mesh_owner, ob, vertex_count);
 
   /* Check if pipeline structure changed (order, add/remove, enable/disable) */
   const uint32_t new_hash = compute_fast_hash();

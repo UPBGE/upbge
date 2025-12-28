@@ -94,7 +94,7 @@ using MeshGPUTopology = blender::bke::MeshGPUTopology;
  * \param topology: Output topology structure with computed offsets and data
  * \return true on success, false on failure
  */
-bool BKE_mesh_gpu_topology_create(const Mesh *mesh, blender::bke::MeshGPUTopology &topology);
+bool BKE_mesh_gpu_topology_create(const Mesh *mesh_eval, blender::bke::MeshGPUTopology &topology);
 
 /**
  * Upload mesh topology data to GPU storage buffer.
@@ -120,7 +120,7 @@ void BKE_mesh_gpu_topology_free(blender::bke::MeshGPUTopology &topology);
  * \param mesh: Mesh to get topology for
  * \return Pointer to cached topology or nullptr
  */
-blender::bke::MeshGPUTopology *BKE_mesh_gpu_get_topology(Mesh *mesh);
+blender::bke::MeshGPUTopology *BKE_mesh_gpu_get_topology(Mesh *mesh_orig);
 
 /**
  * A high-level utility to run a compute shader on a mesh.
@@ -160,7 +160,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
  *
  * \param mesh: The mesh for which to free cached resources.
  */
-void BKE_mesh_gpu_free_for_mesh(Mesh *mesh);
+void BKE_mesh_gpu_free_for_mesh(Mesh *mesh_orig);
 
 /**
  * Request a GPU geometry recalc for the given mesh.
@@ -221,7 +221,7 @@ struct MeshGpuData;
 /* Ensure mesh GPU data exists: topology SSBO (from evaluated mesh) and internal resources.
  * Returns pointer to MeshGpuData on success, nullptr on failure. */
 blender::bke::MeshGpuData *BKE_mesh_gpu_ensure_data(struct Mesh *mesh_orig,
-                                                  struct Mesh *mesh_eval);
+                                                    struct Mesh *mesh_eval);
 
 namespace blender {
 namespace bke {
@@ -231,34 +231,37 @@ namespace bke {
  * (not exposed to Python) and are freed when the mesh batch cache is freed or on invalidation.
  */
 struct MeshGpuInternalResources {
-  blender::Vector<blender::gpu::StorageBuf *> ssbos;
-  blender::Vector<blender::gpu::VertBuf *> vbos;
-  blender::Vector<blender::gpu::IndexBuf *> ibos;
-  blender::Vector<blender::gpu::UniformBuf *> ubos;
-  blender::Vector<blender::gpu::Shader *> shaders;
-
-  /* Entry for cached SSBO with reference counting */
+  /* Entry for cached SSBO */
   struct SsboEntry {
-    blender::gpu::StorageBuf *buffer;
-    int refcount;
+    blender::gpu::StorageBuf *buffer = nullptr;
   };
 
-  /* Entry for cached UBO with reference counting */
+  /* Entry for cached UBO */
   struct UboEntry {
-    blender::gpu::UniformBuf *buffer;
-    int refcount;
+    blender::gpu::UniformBuf *buffer = nullptr;
   };
 
-  /* Entry for cached shader with reference counting */
+  /* Entry for cached shader */
   struct ShaderEntry {
-    blender::gpu::Shader *shader;
-    int refcount;
+    blender::gpu::Shader *shader = nullptr;
+  };
+
+  /* Entry for cached IBO */
+  struct IboEntry {
+    blender::gpu::IndexBuf *buffer = nullptr;
+  };
+
+  /* Entry for cached VBO */
+  struct VboEntry {
+    blender::gpu::VertBuf *buffer = nullptr;
   };
 
   /* Keyed maps to prevent duplicate resources */
   blender::Map<std::string, SsboEntry> ssbo_map;
   blender::Map<std::string, UboEntry> ubo_map;
   blender::Map<std::string, ShaderEntry> shader_map;
+  blender::Map<std::string, IboEntry> ibo_map;
+  blender::Map<std::string, VboEntry> vbo_map;
 
   MeshGpuInternalResources() = default;
 };
@@ -266,35 +269,44 @@ struct MeshGpuInternalResources {
 }  // namespace bke
 }  // namespace blender
 
-/* Backwards-compatible alias in global namespace. */
-using MeshGpuInternalResources = blender::bke::MeshGpuInternalResources;
-
-/**
- * Ensure internal resource container exists for a mesh and return a pointer to it.
- * The returned pointer is owned by the internal mesh GPU cache and must not be freed by the
- * caller.
- */
-MeshGpuInternalResources *BKE_mesh_gpu_internal_resources_ensure(Mesh *mesh);
-
 /**
  * Free internal resources associated with a mesh. Safe to call multiple times.
  */
-void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh);
+void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh_orig);
 
-/* Helpers to create or lookup keyed internal resources (avoid duplicates). */
+/* Helpers for Shaders */
+blender::gpu::Shader *BKE_mesh_gpu_internal_shader_get(Mesh *mesh_orig, const std::string &key);
 blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
-    Mesh *mesh, const std::string &key, const blender::gpu::shader::ShaderCreateInfo &info);
-void BKE_mesh_gpu_internal_shader_release(Mesh *mesh, const std::string &key);
-blender::gpu::Shader *BKE_mesh_gpu_internal_shader_get(Mesh *mesh, const std::string &key);
+    Mesh *mesh_orig,
+    Object *ob_eval,
+    const std::string &key,
+    const blender::gpu::shader::ShaderCreateInfo &info);
 
-blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh,
+
+/* Helpers for storage buffers (SSBO) */
+blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh_orig, const std::string &key);
+blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
+                                                            Object *ob_eval,
                                                             const std::string &key,
                                                             size_t size);
-blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh, const std::string &key);
-void BKE_mesh_gpu_internal_ssbo_release(Mesh *mesh, const std::string &key);
 
-blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh,
+/* Helpers for index buffers (IBO) */
+blender::gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_get(Mesh *mesh_orig, const std::string &key);
+blender::gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_ensure(Mesh *mesh_orig,
+                                                         Object *ob_eval,
+                                                         const std::string &key,
+                                                         size_t size);
+
+/* Helpers for vertex buffers (VBO) */
+blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
+                                                        Object *ob_eval,
+                                                        const std::string &key,
+                                                        size_t size);
+blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_get(Mesh *mesh_orig, const std::string &key);
+
+/* Helpers for uniform buffers (UBO) */
+blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_get(Mesh *mesh_orig, const std::string &key);
+blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh_orig,
+                                                           Object *ob_eval,
                                                            const std::string &key,
                                                            size_t size);
-blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_get(Mesh *mesh, const std::string &key);
-void BKE_mesh_gpu_internal_ubo_release(Mesh *mesh, const std::string &key);

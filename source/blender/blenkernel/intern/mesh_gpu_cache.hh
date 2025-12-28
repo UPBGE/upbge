@@ -36,7 +36,6 @@ class MeshGPUCacheManager {
 
   /* Per-mesh operations. */
   void free_for_mesh(struct Mesh *mesh);
-  MeshGpuInternalResources *mesh_internal_resources_ensure(struct Mesh *mesh);
 
   /* Ocean helpers (INTERNAL SSBOs ONLY, not exposed to Python wrappers). */
   blender::gpu::StorageBuf *ocean_internal_ssbo_ensure(struct Ocean *ocean,

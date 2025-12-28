@@ -30,11 +30,6 @@ void MeshGPUCacheManager::free_for_mesh(struct Mesh *mesh)
   BKE_mesh_gpu_free_for_mesh(mesh);
 }
 
-MeshGpuInternalResources *MeshGPUCacheManager::mesh_internal_resources_ensure(struct Mesh *mesh)
-{
-  return BKE_mesh_gpu_internal_resources_ensure(mesh);
-}
-
 /* ---------------- Ocean internal SSBOs (not exposed to Python) ---------------- */
 
 blender::gpu::StorageBuf *MeshGPUCacheManager::ocean_internal_ssbo_ensure(struct Ocean *ocean,

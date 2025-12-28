@@ -1249,7 +1249,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
                                                                                   "transform_mat");
     if (!ssbo_transform_mat) {
       ssbo_transform_mat = BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, "transform_mat", sizeof(float) * 16);
+          mesh_owner, eval_obj, "transform_mat", sizeof(float) * 16);
       float identity[4][4];
       unit_m4(identity);
       GPU_storagebuf_update(ssbo_transform_mat, &identity[0][0]);

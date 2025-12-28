@@ -372,11 +372,6 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     return nullptr;
   }
 
-  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
-                                                                      (Mesh *)deformed_eval->data);
-  if (!mesh_gpu_data) {
-    return nullptr;
-  }
   /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
   if (msd.pending_gpu_setup) {
     msd.pending_gpu_setup = false;
@@ -395,7 +390,7 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   blender::gpu::StorageBuf *ssbo_cp = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_cp);
   if (!ssbo_cp && !msd.control_points.empty()) {
     const size_t size_cp = msd.control_points.size() * sizeof(float);
-    ssbo_cp = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_cp, size_cp);
+    ssbo_cp = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_cp, size_cp);
     if (ssbo_cp) {
       GPU_storagebuf_update(ssbo_cp, msd.control_points.data());
     }
@@ -413,7 +408,8 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     else {
       invert_m4_m4(latmat, eval_lattice->object_to_world().ptr());
     }
-    ssbo_mat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_mat, sizeof(float) * 16);
+    ssbo_mat = BKE_mesh_gpu_internal_ssbo_ensure(
+        mesh_owner, deformed_eval, key_mat, sizeof(float) * 16);
     if (ssbo_mat) {
       GPU_storagebuf_update(ssbo_mat, &latmat[0][0]);
     }
@@ -476,7 +472,7 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   /* Create output SSBO */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
-      mesh_owner, key_out, size_out);
+      mesh_owner, deformed_eval, key_out, size_out);
   if (!ssbo_out) {
     return nullptr;
   }
@@ -504,7 +500,7 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     info.push_constant(Type::int3_t, "lattice_types");      // ivec3 (int3_t)
     info.push_constant(Type::float_t, "strength");          // float (modifier strength)
 
-    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
 
   if (!shader) {
@@ -528,7 +524,8 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   if (!msd.vgroup_weights.empty()) {
     if (!ssbo_vgroup) {
       const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, size_vgroup);
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
         GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
       }
@@ -537,7 +534,8 @@ blender::gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
   else {
     /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
     if (!ssbo_vgroup) {
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+          mesh_owner, deformed_eval, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
         float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
         GPU_storagebuf_update(ssbo_vgroup, &dummy);

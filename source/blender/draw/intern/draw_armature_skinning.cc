@@ -565,13 +565,14 @@ static void compute_bbone_segment_info(Object *armature,
 static void upload_bone_head_tail(Object *armature,
                                   int bone_count,
                                   Mesh *mesh_owner,
+                                  Object *deformed_eval,
                                   const std::string &key_head_tail)
 {
   blender::gpu::StorageBuf *ssbo_head_tail = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
                                                                             key_head_tail);
   if (!ssbo_head_tail) {
     ssbo_head_tail = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_head_tail, sizeof(float) * 8 * bone_count);
+        mesh_owner, deformed_eval, key_head_tail, sizeof(float) * 8 * bone_count);
   }
 
   if (ssbo_head_tail) {
@@ -613,12 +614,13 @@ static void upload_bone_matrices_lbs(Object *armature,
                                      int total_segments,
                                      const std::vector<int> &segment_counts,
                                      Mesh *mesh_owner,
+                                     Object *deformed_eval,
                                      const std::string &key_matrices)
 {
   blender::gpu::StorageBuf *ssbo_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_matrices);
   if (!ssbo_mat) {
     ssbo_mat = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_matrices, sizeof(float) * 16 * total_segments);
+        mesh_owner, deformed_eval, key_matrices, sizeof(float) * 16 * total_segments);
   }
 
   if (ssbo_mat) {
@@ -662,6 +664,7 @@ static void upload_bone_dual_quats_dqs(Object *armature,
                                        int total_segments,
                                        const std::vector<int> &segment_counts,
                                        Mesh *mesh_owner,
+                                       Object *deformed_eval,
                                        const std::string &key_quat,
                                        const std::string &key_trans,
                                        const std::string &key_scale,
@@ -670,26 +673,26 @@ static void upload_bone_dual_quats_dqs(Object *armature,
   blender::gpu::StorageBuf *ssbo_quat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_quat);
   if (!ssbo_quat) {
     ssbo_quat = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_quat, sizeof(float) * 4 * total_segments);
+        mesh_owner, deformed_eval, key_quat, sizeof(float) * 4 * total_segments);
   }
 
   blender::gpu::StorageBuf *ssbo_trans = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_trans);
   if (!ssbo_trans) {
     ssbo_trans = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_trans, sizeof(float) * 4 * total_segments);
+        mesh_owner, deformed_eval, key_trans, sizeof(float) * 4 * total_segments);
   }
 
   blender::gpu::StorageBuf *ssbo_scale = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_scale);
   if (!ssbo_scale) {
     ssbo_scale = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_scale, sizeof(float) * 16 * total_segments);
+        mesh_owner, deformed_eval, key_scale, sizeof(float) * 16 * total_segments);
   }
 
   blender::gpu::StorageBuf *ssbo_scale_weight = BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
                                                                                key_scale_weight);
   if (!ssbo_scale_weight) {
     ssbo_scale_weight = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_scale_weight, sizeof(float) * total_segments);
+        mesh_owner, deformed_eval, key_scale_weight, sizeof(float) * total_segments);
   }
 
   if (ssbo_quat && ssbo_trans && ssbo_scale && ssbo_scale_weight) {
@@ -1077,12 +1080,6 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     return nullptr;
   }
 
-  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
-                                                                      (Mesh *)deformed_eval->data);
-  if (!mesh_gpu_data) {
-    return nullptr;
-  }
-
   /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
   if (msd.pending_gpu_setup) {
     msd.pending_gpu_setup = false;
@@ -1118,7 +1115,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
                                                                              key_in_offsets);
   if (!ssbo_in_offsets) {
     ssbo_in_offsets = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_in_offsets, sizeof(int) * (msd.verts_num + 1));
+        mesh_owner, deformed_eval, key_in_offsets, sizeof(int) * (msd.verts_num + 1));
     if (!ssbo_in_offsets) {
       return nullptr;
     }
@@ -1128,7 +1125,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   blender::gpu::StorageBuf *ssbo_in_idx = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_in_idx);
   if (!ssbo_in_idx) {
     ssbo_in_idx = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_in_idx, sizeof(int) * msd.in_indices.size());
+        mesh_owner, deformed_eval, key_in_idx, sizeof(int) * msd.in_indices.size());
     if (!ssbo_in_idx) {
       return nullptr;
     }
@@ -1138,7 +1135,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   blender::gpu::StorageBuf *ssbo_in_wgt = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_in_wgt);
   if (!ssbo_in_wgt) {
     ssbo_in_wgt = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_in_wgt, sizeof(float) * msd.in_weights.size());
+        mesh_owner, deformed_eval, key_in_wgt, sizeof(float) * msd.in_weights.size());
     if (!ssbo_in_wgt) {
       return nullptr;
     }
@@ -1152,7 +1149,8 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   if (!msd.vgroup_weights.empty()) {
     if (!ssbo_vgroup) {
       const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, size_vgroup);
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
         GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
       }
@@ -1177,7 +1175,8 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
      * - modifier_weight=1.0 → full skinning (expected behavior when no vertex group filter)
      */
     if (!ssbo_vgroup) {
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_vgroup, sizeof(float));
+      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+          mesh_owner, deformed_eval, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
         float dummy = 1.0f; /* MUST be 1.0f - see explanation above */
         GPU_storagebuf_update(ssbo_vgroup, &dummy);
@@ -1189,7 +1188,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
                                                                            key_rest_pos);
   if (!ssbo_rest_pos) {
     ssbo_rest_pos = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_rest_pos, sizeof(float) * msd.verts_num * 4);
+        mesh_owner, deformed_eval, key_rest_pos, sizeof(float) * msd.verts_num * 4);
     if (!ssbo_rest_pos) {
       return nullptr;
     }
@@ -1198,7 +1197,8 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
 
   blender::gpu::StorageBuf *ssbo_premat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_premat);
   if (!ssbo_premat) {
-    ssbo_premat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_premat, sizeof(float) * 16);
+    ssbo_premat = BKE_mesh_gpu_internal_ssbo_ensure(
+        mesh_owner, deformed_eval, key_premat, sizeof(float) * 16);
     if (!ssbo_premat) {
       return nullptr;
     }
@@ -1207,7 +1207,8 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
 
   blender::gpu::StorageBuf *ssbo_postmat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_postmat);
   if (!ssbo_postmat) {
-    ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, key_postmat, sizeof(float) * 16);
+    ssbo_postmat = BKE_mesh_gpu_internal_ssbo_ensure(
+        mesh_owner, deformed_eval, key_postmat, sizeof(float) * 16);
     if (!ssbo_postmat) {
       return nullptr;
     }
@@ -1303,7 +1304,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
             mesh_owner, key_bone_segments);
         if (!ssbo_bone_segments) {
           ssbo_bone_segments = BKE_mesh_gpu_internal_ssbo_ensure(
-              mesh_owner, key_bone_segments, sizeof(int) * msd.bones);
+              mesh_owner, deformed_eval, key_bone_segments, sizeof(int) * msd.bones);
           if (ssbo_bone_segments) {
             GPU_storagebuf_update(ssbo_bone_segments, msd.bone_segment_counts.data());
           }
@@ -1314,20 +1315,22 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
             mesh_owner, key_bone_offsets_dqs);
         if (!ssbo_bone_offsets) {
           ssbo_bone_offsets = BKE_mesh_gpu_internal_ssbo_ensure(
-              mesh_owner, key_bone_offsets_dqs, sizeof(int) * msd.bones);
+              mesh_owner, deformed_eval, key_bone_offsets_dqs, sizeof(int) * msd.bones);
         }
         if (ssbo_bone_offsets) {
           GPU_storagebuf_update(ssbo_bone_offsets, msd.bone_segment_offsets_dqs.data());
         }
 
         /* Upload bone_head_tail (shared, update every frame) */
-        upload_bone_head_tail(eval_armature, msd.bones, mesh_owner, key_bone_head_tail);
+        upload_bone_head_tail(
+            eval_armature, msd.bones, mesh_owner, deformed_eval, key_bone_head_tail);
 
         /* Upload dual quaternions (DQS-specific, update every frame) */
         upload_bone_dual_quats_dqs(msd.arm,
                                    msd.total_segments_dqs,
                                    msd.bone_segment_counts,
                                    mesh_owner,
+                                   deformed_eval,
                                    key_dq_quat,
                                    key_dq_trans,
                                    key_dq_scale,
@@ -1370,7 +1373,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
             mesh_owner, key_bone_segments);
         if (!ssbo_bone_segments) {
           ssbo_bone_segments = BKE_mesh_gpu_internal_ssbo_ensure(
-              mesh_owner, key_bone_segments, sizeof(int) * msd.bones);
+              mesh_owner, deformed_eval, key_bone_segments, sizeof(int) * msd.bones);
           if (ssbo_bone_segments) {
             GPU_storagebuf_update(ssbo_bone_segments, msd.bone_segment_counts.data());
           }
@@ -1381,18 +1384,23 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
             mesh_owner, key_bone_offsets_lbs);
         if (!ssbo_bone_offsets) {
           ssbo_bone_offsets = BKE_mesh_gpu_internal_ssbo_ensure(
-              mesh_owner, key_bone_offsets_lbs, sizeof(int) * msd.bones);
+              mesh_owner, deformed_eval, key_bone_offsets_lbs, sizeof(int) * msd.bones);
         }
         if (ssbo_bone_offsets) {
           GPU_storagebuf_update(ssbo_bone_offsets, msd.bone_segment_offsets_lbs.data());
         }
 
         /* Upload bone_head_tail (shared, update every frame) */
-        upload_bone_head_tail(eval_armature, msd.bones, mesh_owner, key_bone_head_tail);
+        upload_bone_head_tail(
+            eval_armature, msd.bones, mesh_owner, deformed_eval, key_bone_head_tail);
 
         /* Upload bone matrices (LBS-specific, update every frame) */
-        upload_bone_matrices_lbs(
-            msd.arm, msd.total_segments_lbs, msd.bone_segment_counts, mesh_owner, key_bone_pose);
+        upload_bone_matrices_lbs(msd.arm,
+                                 msd.total_segments_lbs,
+                                 msd.bone_segment_counts,
+                                 mesh_owner,
+                                 deformed_eval,
+                                 key_bone_pose);
 
         /* Get SSBO pointer for binding */
         ssbo_bone_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_bone_pose);
@@ -1444,7 +1452,7 @@ blender::gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
       info.storage_buf(
           11, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
     }
-    compute_sh = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+    compute_sh = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
 
   if (!compute_sh) {

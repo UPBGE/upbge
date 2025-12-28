@@ -303,12 +303,6 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     return nullptr;
   }
 
-  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
-                                                                      (Mesh *)deformed_eval->data);
-  if (!mesh_gpu_data) {
-    return nullptr;
-  }
-
   /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
   if (msd.pending_gpu_setup) {
     msd.pending_gpu_setup = false;
@@ -330,7 +324,7 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
   blender::gpu::StorageBuf *ssbo_rest = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_rest);
   if (!ssbo_rest) {
     ssbo_rest = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_rest, sizeof(float) * size_t(verts) * 4u);
+        mesh_owner, deformed_eval, key_rest, sizeof(float) * size_t(verts) * 4u);
     if (!ssbo_rest) {
       return nullptr;
     }
@@ -339,8 +333,11 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
 
   blender::gpu::StorageBuf *ssbo_deltas = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_deltas);
   if (!ssbo_deltas) {
-    ssbo_deltas = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_deltas, sizeof(float) * size_t(kcount) * size_t(verts) * 4u);
+    ssbo_deltas = BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner,
+                                                    deformed_eval,
+                                                    key_deltas,
+                                                    sizeof(float) * size_t(kcount) *
+                                                        size_t(verts) * 4u);
     if (!ssbo_deltas) {
       return nullptr;
     }
@@ -353,7 +350,7 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     ssbo_out_local = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_out);
     if (!ssbo_out_local) {
       ssbo_out_local = BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, key_out, sizeof(float) * size_t(verts) * 4u);
+          mesh_owner, deformed_eval, key_out, sizeof(float) * size_t(verts) * 4u);
       if (!ssbo_out_local) {
         return nullptr;
       }
@@ -442,7 +439,7 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
   blender::gpu::StorageBuf *ssbo_w = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_weights);
   if (!ssbo_w) {
     ssbo_w = BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, key_weights, sizeof(float) * weights.size());
+        mesh_owner, deformed_eval, key_weights, sizeof(float) * weights.size());
     if (!ssbo_w) {
       return nullptr;
     }
@@ -485,7 +482,7 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     info.storage_buf(3, Qualifier::write, "vec4", "out_pos[]");
     info.push_constant(Type::int_t, "u_vert_count");
     info.push_constant(Type::int_t, "u_key_count");
-    compute_sh = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, shader_key, info);
+    compute_sh = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
 
   if (!compute_sh) {
