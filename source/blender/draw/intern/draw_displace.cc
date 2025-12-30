@@ -129,14 +129,10 @@ struct blender::draw::DisplaceManager::Impl {
     Object *deformed = nullptr;
 
     uint32_t last_verified_hash = 0;
-    /* Once true, we already called BKE_image_acquire_ibuf() for this mesh/modifier. */
-    bool imbuf_called = false;
     /* Texture/ImBuf derived flags (cached in msd to avoid repeated ImBuf acquisition). */
     bool tex_is_byte = true;
     bool tex_is_float = false;
     int tex_channels = 4;
-    /* Cached GPU texture when we can create it once (for non-animated images). */
-    blender::gpu::Texture *gpu_texture = nullptr;
     /* Cached colorband hash to avoid redundant UBO updates. */
     uint32_t colorband_hash = 0;
   };
@@ -1415,17 +1411,6 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
   msd.last_verified_hash = pipeline_hash;
   msd.verts_num = orig_mesh->verts_num;
   msd.deformed = deform_ob;
-  msd.imbuf_called = false;
-
-  if (first_time || hash_changed) {
-    /* If pipeline assets changed, drop any cached GPU texture so it will be
-     * recreated with the new settings. */
-    if (msd.gpu_texture) {
-      GPU_TEXTURE_FREE_SAFE(msd.gpu_texture);
-      msd.gpu_texture = nullptr;
-      BKE_image_signal(nullptr, dmd->texture->ima, nullptr, IMA_SIGNAL_RELOAD);
-    }
-  }
 
   /* Extract vertex group weights */
   msd.vgroup_weights.clear();
@@ -1559,105 +1544,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
-      if (!msd.imbuf_called && ELEM(ima->source, IMA_SRC_GENERATED, IMA_SRC_FILE)) {
-        ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-        ImBuf *upload_ibuf = nullptr;
-
-        if (ibuf) {
-          if (ibuf->float_buffer.data) {
-            msd.tex_is_float = true;
-            upload_ibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, 0);
-            upload_ibuf->flags = ibuf->flags;
-            IMB_assign_float_buffer(upload_ibuf, ibuf->float_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
-            upload_ibuf->channels = ibuf->channels;
-
-            const ColorSpace *cs = ibuf->float_buffer.colorspace;
-            if (cs) {
-              const char *from_name = nullptr;
-              const char *to_name = nullptr;
-              if (ima->source == IMA_SRC_GENERATED) {
-                from_name = IMB_colormanagement_role_colorspace_name_get(
-                    COLOR_ROLE_ACES_INTERCHANGE);
-                to_name = ima->colorspace_settings.name;
-
-              }
-              else {
-                from_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
-                to_name = IMB_colormanagement_colorspace_get_name(ibuf->float_buffer.colorspace);
-              }
-              if (from_name && to_name) {
-                IMB_colormanagement_transform_float(upload_ibuf->float_buffer.data,
-                                                   upload_ibuf->x,
-                                                   upload_ibuf->y,
-                                                   upload_ibuf->channels,
-                                                   from_name,
-                                                   to_name, false);
-              }
-            }
-          }
-          else if (ibuf->byte_buffer.data) {
-            msd.tex_is_byte = true;
-            upload_ibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, 0);
-            upload_ibuf->flags = ibuf->flags;
-            IMB_assign_byte_buffer(upload_ibuf, ibuf->byte_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
-            upload_ibuf->channels = ibuf->channels;
-
-            const ColorSpace *cs = ibuf->byte_buffer.colorspace;
-            if (cs) {
-              const char *from_name = nullptr;
-              const char *to_name = nullptr;
-              if (ima->source == IMA_SRC_GENERATED) {
-                from_name = IMB_colormanagement_role_colorspace_name_get(
-                    COLOR_ROLE_ACES_INTERCHANGE);
-                to_name = ima->colorspace_settings.name;
-              }
-              else {
-                from_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
-                to_name = IMB_colormanagement_colorspace_get_name(ibuf->byte_buffer.colorspace);
-              }
-              if (from_name && to_name) {
-                IMB_colormanagement_transform_byte(
-                    upload_ibuf->byte_buffer.data,
-                    upload_ibuf->x,
-                    upload_ibuf->y,
-                    upload_ibuf->channels,
-                    from_name,
-                    to_name);
-              }
-            }
-          }
-
-          if (upload_ibuf) {
-            const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
-            const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima,
-                                                                                           ibuf);
-            msd.gpu_texture = IMB_create_gpu_texture(
-                "Displace Image", upload_ibuf, use_high_bitdepth, store_premultiplied);
-            if (msd.gpu_texture) {
-              msd.tex_channels = upload_ibuf->channels;
-              gpu_texture = msd.gpu_texture;
-            }
-            IMB_freeImBuf(upload_ibuf);
-          }
-
-          BKE_image_release_ibuf(ima, ibuf, nullptr);
-        }
-        else {
-          /* Fallback defaults when ImBuf is unavailable. */
-          msd.tex_is_byte = false;
-          msd.tex_is_float = false;
-          msd.tex_channels = 4;
-        }
-        msd.imbuf_called = true;
-      }
       if (!gpu_texture) {
-        if (msd.gpu_texture) {
-          /* Color management only available for IMA_SRC_GENERATED, IMA_SRC_FILE */
-          gpu_texture = msd.gpu_texture;
-        }
-        else {
-          gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-        }
+        gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
       }
 
       if (gpu_texture && !msd.tex_coords.empty()) {
@@ -1993,6 +1881,12 @@ struct ColorBand {
 
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
+    msd.tex_is_byte = GPU_texture_has_integer_format(gpu_texture) ||
+                      GPU_texture_has_normalized_format(gpu_texture);
+    blender::gpu::TextureFormat tex_format = GPU_texture_format(gpu_texture);
+    msd.tex_is_float = int(tex_format) == GPU_DATA_FLOAT ? true : false;
+    msd.tex_is_byte = !msd.tex_is_float;
+    msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
     GPU_shader_uniform_1b(shader, "tex_is_byte", msd.tex_is_byte);
     GPU_shader_uniform_1b(shader, "tex_is_float", msd.tex_is_float);
     GPU_shader_uniform_1i(shader, "tex_channels", msd.tex_channels);
@@ -2076,15 +1970,6 @@ void DisplaceManager::free_resources_for_mesh(Mesh *mesh)
       keys_to_remove.append(item.key);
     }
   }
-
-  for (const Impl::MeshModifierKey &key : keys_to_remove) {
-    /* Free any GPU texture cached for this modifier instance. */
-    Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(key);
-    if (msd) {
-      GPU_TEXTURE_FREE_SAFE(msd->gpu_texture);
-    }
-    impl_->static_map.remove(key);
-  }
 }
 
 void DisplaceManager::invalidate_all(Mesh *mesh)
@@ -2098,17 +1983,6 @@ void DisplaceManager::invalidate_all(Mesh *mesh)
 
 void DisplaceManager::free_all()
 {
-  /* Invalidate all Displace modifiers for this mesh */
-  for (auto item : impl_->static_map.items()) {
-    /* Lookup again to get mutable reference */
-    Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(item.key);
-    if (msd) {
-      if (msd->gpu_texture) {
-        GPU_TEXTURE_FREE_SAFE(msd->gpu_texture);
-        msd->gpu_texture = nullptr;
-      }
-    }
-  }
   impl_->static_map.clear();
 }
 
