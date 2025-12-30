@@ -26,7 +26,6 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
-#include "draw_modifier_gpu_utils.hh"
 
 using namespace blender::draw;
 
@@ -52,9 +51,6 @@ struct blender::draw::SimpleDeformManager::Impl {
     int verts_num = 0;
 
     Object *deformed = nullptr;
-
-    bool pending_gpu_setup = false;
-    int gpu_setup_attempts = 0;
     uint32_t last_verified_hash = 0;
   };
 
@@ -436,20 +432,14 @@ void SimpleDeformManager::ensure_static_resources(const SimpleDeformModifierData
 
   const bool first_time = (msd.last_verified_hash == 0);
   const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
-  const bool gpu_invalidated = msd.pending_gpu_setup;
 
-  if (!first_time && !hash_changed && !gpu_invalidated) {
+  if (!first_time && !hash_changed) {
     return;
   }
 
   msd.last_verified_hash = pipeline_hash;
   msd.verts_num = orig_mesh->verts_num;
   msd.deformed = deform_ob;
-
-  if (first_time || hash_changed) {
-    msd.pending_gpu_setup = true;
-    msd.gpu_setup_attempts = 0;
-  }
 
   /* Extract vertex group weights from mesh */
   msd.vgroup_weights.clear();
@@ -479,7 +469,7 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
     MeshBatchCache *cache,
     blender::gpu::StorageBuf *ssbo_in)
 {
-  if (!smd) {
+  if (!smd || !ssbo_in) {
     return nullptr;
   }
 
@@ -495,17 +485,6 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
     return nullptr;
   }
   Impl::MeshStaticData &msd = *msd_ptr;
-
-  /* GPU setup retry logic */
-  if (!draw_modifier_gpu_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
-    return nullptr;
-  }
-
-  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
-  if (msd.pending_gpu_setup) {
-    msd.pending_gpu_setup = false;
-    msd.gpu_setup_attempts = 0;
-  }
 
   /* Create unique buffer keys per modifier instance using composite key hash
    * to avoid collisions when multiple SimpleDeform modifiers are on the same mesh */
@@ -542,7 +521,7 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, deformed_eval, key_out, size_out);
-  if (!ssbo_out || !ssbo_in) {
+  if (!ssbo_out) {
     return nullptr;
   }
 
@@ -733,20 +712,8 @@ void SimpleDeformManager::invalidate_all(Mesh *mesh)
   if (!mesh) {
     return;
   }
-
+  /* Free all GPU resources (SSBOs + shaders) for this mesh */
   BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
-
-  /* Invalidate all SimpleDeform modifiers for this mesh */
-  for (auto item : impl_->static_map.items()) {
-    if (item.key.mesh == mesh) {
-      /* Lookup again to get mutable reference */
-      Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(item.key);
-      if (msd) {
-        msd->pending_gpu_setup = true;
-        msd->gpu_setup_attempts = 0;
-      }
-    }
-  }
 }
 
 void SimpleDeformManager::free_all()

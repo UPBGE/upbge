@@ -186,7 +186,6 @@ set(SRC
   intern/draw_manager.hh
   intern/draw_manager_text.hh
   intern/draw_modifier_gpu_pipeline.hh
-  intern/draw_modifier_gpu_utils.hh
   intern/draw_pass.hh
   intern/draw_resource.hh
   intern/draw_sculpt.hh

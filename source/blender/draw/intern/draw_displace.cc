@@ -46,7 +46,6 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
-#include "draw_modifier_gpu_utils.hh"
 
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 
@@ -129,8 +128,6 @@ struct blender::draw::DisplaceManager::Impl {
 
     Object *deformed = nullptr;
 
-    bool pending_gpu_setup = false;
-    int gpu_setup_attempts = 0;
     uint32_t last_verified_hash = 0;
     /* Once true, we already called BKE_image_acquire_ibuf() for this mesh/modifier. */
     bool imbuf_called = false;
@@ -1410,9 +1407,8 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
 
   const bool first_time = (msd.last_verified_hash == 0);
   const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
-  const bool gpu_invalidated = msd.pending_gpu_setup;
 
-  if (!first_time && !hash_changed && !gpu_invalidated) {
+  if (!first_time && !hash_changed) {
     return;
   }
 
@@ -1422,8 +1418,6 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
   msd.imbuf_called = false;
 
   if (first_time || hash_changed) {
-    msd.pending_gpu_setup = true;
-    msd.gpu_setup_attempts = 0;
     /* If pipeline assets changed, drop any cached GPU texture so it will be
      * recreated with the new settings. */
     if (msd.gpu_texture) {
@@ -1488,7 +1482,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
                                                            MeshBatchCache *cache,
                                                            blender::gpu::StorageBuf *ssbo_in)
 {
-  if (!dmd) {
+  if (!dmd || !ssbo_in) {
     return nullptr;
   }
 
@@ -1506,17 +1500,6 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
     return nullptr;
   }
   Impl::MeshStaticData &msd = *msd_ptr;
-
-  /* GPU setup retry logic */
-  if (!draw_modifier_gpu_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
-    return nullptr;
-  }
-
-  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
-  if (msd.pending_gpu_setup) {
-    msd.pending_gpu_setup = false;
-    msd.gpu_setup_attempts = 0;
-  }
 
   /* Create unique buffer keys per modifier instance using composite key hash */
   const std::string key_prefix = "displace_" + std::to_string(key.hash()) + "_";
@@ -1785,7 +1768,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, deformed_eval, key_out, size_out);
-  if (!ssbo_out || !ssbo_in) {
+  if (!ssbo_out) {
     return nullptr;
   }
 
@@ -2109,24 +2092,8 @@ void DisplaceManager::invalidate_all(Mesh *mesh)
   if (!mesh) {
     return;
   }
-
+  /* Free all GPU resources (SSBOs + shaders) for this mesh */
   BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
-
-  /* Invalidate all Displace modifiers for this mesh */
-  for (auto item : impl_->static_map.items()) {
-    if (item.key.mesh == mesh) {
-      /* Lookup again to get mutable reference */
-      Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(item.key);
-      if (msd) {
-        msd->pending_gpu_setup = true;
-        msd->gpu_setup_attempts = 0;
-        if (msd->gpu_texture) {
-          GPU_TEXTURE_FREE_SAFE(msd->gpu_texture);
-          msd->gpu_texture = nullptr;
-        }
-      }
-    }
-  }
 }
 
 void DisplaceManager::free_all()
@@ -2136,8 +2103,6 @@ void DisplaceManager::free_all()
     /* Lookup again to get mutable reference */
     Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(item.key);
     if (msd) {
-      msd->pending_gpu_setup = true;
-      msd->gpu_setup_attempts = 0;
       if (msd->gpu_texture) {
         GPU_TEXTURE_FREE_SAFE(msd->gpu_texture);
         msd->gpu_texture = nullptr;

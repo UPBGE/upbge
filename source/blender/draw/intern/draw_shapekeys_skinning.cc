@@ -30,8 +30,6 @@
 #include "draw_cache_extract.hh"
 #include "draw_cache_impl.hh"
 
-#include "draw_modifier_gpu_utils.hh"
-
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 
@@ -43,8 +41,6 @@ struct blender::draw::ShapeKeySkinningManager::Impl {
     std::vector<float> deltas;         /* flattened: key_idx * verts * 4 */
     int verts_num = 0;
     int key_count = 0; /* excluding basis */
-    bool pending_gpu_setup = false;
-    int gpu_setup_attempts = 0;
     /* Cache last uploaded weights to avoid redundant GPU updates. */
     std::vector<float> prev_weights;
     bool prev_weights_valid = false;
@@ -138,23 +134,20 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
    * 1. First time
    * (last_verified_hash == 0)
    * 2. Hash changed (pipeline_hash != last_verified_hash)
-   * 3.
-   * GPU resources were invalidated (pending_gpu_setup == true) */
+   */
   const bool first_time = (msd.last_verified_hash == 0);
   const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
-  const bool gpu_invalidated = msd.pending_gpu_setup;
 
-  if (!first_time && !hash_changed && !gpu_invalidated) {
+  if (!first_time && !hash_changed) {
     return;  // No changes detected, reuse cached deltas
   }
 
   /* Recalculate deltas (triggered by hash change or GPU invalidation) */
   if (0) {
-    printf("Recalculating ShapeKey deltas for mesh '%s' (first=%d, hash_changed=%d, gpu_inv=%d)\n",
+    printf("Recalculating ShapeKey deltas for mesh '%s' (first=%d, hash_changed=%d)\n",
            (orig_mesh->id.name + 2),
            first_time,
-           hash_changed,
-           gpu_invalidated);
+           hash_changed);
   }
 
   /* Update hash cache */
@@ -276,11 +269,6 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
     }
     kidx++;
   }
-
-  if (first_time || hash_changed) {
-    msd.pending_gpu_setup = true;
-    msd.gpu_setup_attempts = 0;
-  }
 }
 
 /* Dispatch shapekey compute + scatter. Returns true on GPU success. */
@@ -297,17 +285,6 @@ blender::gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(
     return nullptr;
   }
   Impl::MeshStaticData &msd = *msd_ptr;
-
-  /* GPU setup retry logic */
-  if (!draw_modifier_gpu_setup_retry(msd.pending_gpu_setup, msd.gpu_setup_attempts)) {
-    return nullptr;
-  }
-
-  /* GPU resources ensured successfully: clear pending flag so subsequent calls proceed. */
-  if (msd.pending_gpu_setup) {
-    msd.pending_gpu_setup = false;
-    msd.gpu_setup_attempts = 0;
-  }
 
   const int verts = msd.verts_num;
   const int kcount = msd.key_count;
@@ -532,16 +509,8 @@ void ShapeKeySkinningManager::invalidate_all(Mesh *mesh)
     return;
   }
 
-  /* 1. Free all GPU resources (SSBOs + shaders) for this mesh */
+  /* Free all GPU resources (SSBOs + shaders) for this mesh */
   BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
-
-  /* 2. Mark CPU data as "GPU not initialized" to trigger recreation */
-  if (auto *msd_ptr = impl_->static_map.lookup_ptr(mesh)) {
-    Impl::MeshStaticData &msd = *msd_ptr;
-    msd.pending_gpu_setup = true;
-    msd.gpu_setup_attempts = 0;
-    /* Keep CPU data (deltas, rest_positions, etc.) for fast recreation */
-  }
 }
 
 void ShapeKeySkinningManager::free_all()

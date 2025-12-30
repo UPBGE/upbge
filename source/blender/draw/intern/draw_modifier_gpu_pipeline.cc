@@ -47,7 +47,6 @@ void GPUModifierPipeline::add_stage(ModifierGPUStageType type,
   stage.dispatch_fn = dispatch_fn;
 
   stages_.append(stage);
-  needs_recompile_ = true;
 }
 
 void GPUModifierPipeline::sort_stages()
@@ -64,13 +63,13 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, Object *deformed_ev
   const std::string key_buffer_a = "gpu_pipeline_buffer_a";
 
   /* Try to get existing buffer from mesh GPU cache */
-  buffer_a_ = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_buffer_a);
+  input_pipeline_buffer_ = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_buffer_a);
 
   /* Allocate if not present */
   const size_t buffer_size = size_t(vertex_count) * sizeof(float) * 4;
 
-  if (!buffer_a_) {
-    buffer_a_ = BKE_mesh_gpu_internal_ssbo_ensure(
+  if (!input_pipeline_buffer_) {
+    input_pipeline_buffer_ = BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, deformed_eval, key_buffer_a, buffer_size);
 
     /* Initialize with REST positions
@@ -78,7 +77,7 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, Object *deformed_ev
      * pipeline (e.g., SimpleDeform without ShapeKeys)
      * reads valid input data instead of
      * garbage. */
-    if (buffer_a_) {
+    if (input_pipeline_buffer_) {
       blender::Span<blender::float3> rest_positions = mesh_owner->vert_positions();
       std::vector<float> rest_data(vertex_count * 4);
 
@@ -89,7 +88,7 @@ void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, Object *deformed_ev
         rest_data[v * 4 + 3] = 1.0f; /* Homogeneous coordinate */
       }
 
-      GPU_storagebuf_update(buffer_a_, rest_data.data());
+      GPU_storagebuf_update(input_pipeline_buffer_, rest_data.data());
     }
   }
 }
@@ -242,6 +241,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
     default:
       break;
   }
+  /* Invalidation will free input_pipeline_buffer_ via BKE_mesh_gpu_internal_resources_free_for_mesh,
+   * Reset it to nullptr so it will be recreated on next frame */
+  input_pipeline_buffer_ = nullptr;
 }
 
 gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchCache *cache)
@@ -272,12 +274,10 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
     for (const ModifierGPUStage &stage : stages_) {
       invalidate_stage(stage.type, mesh_owner);
     }
-
-    needs_recompile_ = true;
   }
 
   /* Chain stages: output of stage N becomes input of stage N+1 */
-  gpu::StorageBuf *current_buffer = buffer_a_;
+  gpu::StorageBuf *current_buffer = input_pipeline_buffer_;
 
   for (int stage_idx : stages_.index_range()) {
     const ModifierGPUStage &stage = stages_[stage_idx];
@@ -295,31 +295,14 @@ gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchC
     /* Use the result as input for the next stage */
     current_buffer = result;
   }
-
-  needs_recompile_ = false;
   return current_buffer;
-}
-
-void GPUModifierPipeline::clear()
-{
-  stages_.clear();
-  /* Buffer is managed by mesh_gpu_cache, just reset pointer */
-  buffer_a_ = nullptr;
-  /* Note: Do NOT reset pipeline_hash_ here! It's used to detect pipeline changes
-   * across frames. Resetting it would cause unnecessary invalidations every frame. */
-  needs_recompile_ = false;
 }
 
 void GPUModifierPipeline::clear_stages()
 {
   /* Clear only the stages list, preserve pipeline_hash_ for change detection */
   stages_.clear();
-  /* Don't touch buffer_a_, pipeline_hash_, or needs_recompile_ */
-}
-
-void GPUModifierPipeline::invalidate_shaders()
-{
-  needs_recompile_ = true;
+  /* Don't touch input_pipeline_buffer_, pipeline_hash_ */
 }
 
 /* -------------------------------------------------------------------- */

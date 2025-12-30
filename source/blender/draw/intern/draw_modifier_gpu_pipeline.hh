@@ -61,11 +61,10 @@ class GPUModifierPipeline {
   Vector<ModifierGPUStage> stages_;
 
   /* Working buffer for pipeline (pre-filled with rest positions) */
-  gpu::StorageBuf *buffer_a_ = nullptr;
+  gpu::StorageBuf *input_pipeline_buffer_ = nullptr;
 
   /* Shader cache invalidation - hybrid hash system */
   uint32_t pipeline_hash_ = 0;
-  bool needs_recompile_ = false;
 
   /* References to mesh and object for hash computation */
   Mesh *mesh_orig_ = nullptr;
@@ -95,28 +94,10 @@ class GPUModifierPipeline {
   gpu::StorageBuf *execute(Mesh *mesh, Object *ob, MeshBatchCache *cache);
 
   /**
-   * Clear all stages (called when modifier stack changes).
-   */
-  void clear();
-
-  /**
    * Clear only the stages list (preserves pipeline_hash_ for change detection).
    * Used by build_gpu_modifier_pipeline to rebuild the stages without losing hash state.
    */
   void clear_stages();
-
-  /**
-   * Check if pipeline needs shader recompilation.
-   */
-  bool needs_shader_recompile() const
-  {
-    return needs_recompile_;
-  }
-
-  /**
-   * Mark shaders as dirty (e.g., when modifier settings change).
-   */
-  void invalidate_shaders();
 
   /**
    * Get the number of stages in the pipeline.
