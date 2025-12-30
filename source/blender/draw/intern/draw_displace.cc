@@ -2131,6 +2131,19 @@ void DisplaceManager::invalidate_all(Mesh *mesh)
 
 void DisplaceManager::free_all()
 {
+  /* Invalidate all Displace modifiers for this mesh */
+  for (auto item : impl_->static_map.items()) {
+    /* Lookup again to get mutable reference */
+    Impl::MeshStaticData *msd = impl_->static_map.lookup_ptr(item.key);
+    if (msd) {
+      msd->pending_gpu_setup = true;
+      msd->gpu_setup_attempts = 0;
+      if (msd->gpu_texture) {
+        GPU_TEXTURE_FREE_SAFE(msd->gpu_texture);
+        msd->gpu_texture = nullptr;
+      }
+    }
+  }
   impl_->static_map.clear();
 }
 
