@@ -1884,7 +1884,7 @@ struct ColorBand {
     msd.tex_is_byte = GPU_texture_has_integer_format(gpu_texture) ||
                       GPU_texture_has_normalized_format(gpu_texture);
     blender::gpu::TextureFormat tex_format = GPU_texture_format(gpu_texture);
-    msd.tex_is_float = int(tex_format) == GPU_DATA_FLOAT ? true : false;
+    msd.tex_is_float = GPU_texture_has_float_format(gpu_texture); //TODO: Check
     msd.tex_is_byte = !msd.tex_is_float;
     msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
     GPU_shader_uniform_1b(shader, "tex_is_byte", msd.tex_is_byte);
