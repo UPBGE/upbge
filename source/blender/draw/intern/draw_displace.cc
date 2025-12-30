@@ -1881,9 +1881,6 @@ struct ColorBand {
 
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
-    msd.tex_is_byte = GPU_texture_has_integer_format(gpu_texture) ||
-                      GPU_texture_has_normalized_format(gpu_texture);
-    blender::gpu::TextureFormat tex_format = GPU_texture_format(gpu_texture);
     msd.tex_is_float = GPU_texture_has_float_format(gpu_texture); //TODO: Check
     msd.tex_is_byte = !msd.tex_is_float;
     msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
