@@ -676,7 +676,9 @@ struct Object {
   DNA_DEPRECATED short colbits = 0;
 
   /** Transformation settings and transform locks. */
-  short transflag = 0, protectflag = OB_LOCK_ROT4D;
+  int transflag = 0;  // short -> int in UPBGE
+  short _pad56[3] = {};
+  short protectflag = OB_LOCK_ROT4D;
   short trackflag = 0, upflag = 0;
   /** Used for DopeSheet filtering settings (expanded/collapsed). */
   short nlaflag = 0;
