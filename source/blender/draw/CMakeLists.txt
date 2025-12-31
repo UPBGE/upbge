@@ -398,7 +398,6 @@ set(GLSL_SRC
 
   engines/select/shaders/infos/select_id_infos.hh
 
-  engines/workbench/shaders/infos/workbench_composite_infos.hh
   engines/workbench/shaders/infos/workbench_depth_infos.hh
   engines/workbench/shaders/infos/workbench_effect_antialiasing_infos.hh
   engines/workbench/shaders/infos/workbench_effect_dof_infos.hh
@@ -406,7 +405,6 @@ set(GLSL_SRC
   engines/workbench/shaders/infos/workbench_prepass_infos.hh
   engines/workbench/shaders/infos/workbench_shadow_infos.hh
   engines/workbench/shaders/infos/workbench_transparent_resolve_infos.hh
-  engines/workbench/shaders/infos/workbench_volume_infos.hh
 
   engines/eevee/shaders/eevee_ambient_occlusion_lib.glsl
   engines/eevee/shaders/eevee_ambient_occlusion_pass_comp.glsl
@@ -548,12 +546,12 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_shadow_lib.glsl
   engines/eevee/shaders/eevee_shadow_tracing_lib.glsl
   engines/eevee/shaders/eevee_shadow_clipmap_clear_comp.glsl
-  engines/eevee/shaders/eevee_shadow_page_allocate_comp.glsl
+  engines/eevee/shaders/eevee_shadow_page_allocate.bsl.hh
   engines/eevee/shaders/eevee_shadow_page_clear_comp.glsl
-  engines/eevee/shaders/eevee_shadow_page_defrag_comp.glsl
-  engines/eevee/shaders/eevee_shadow_page_free_comp.glsl
+  engines/eevee/shaders/eevee_shadow_page_defrag.bsl.hh
+  engines/eevee/shaders/eevee_shadow_page_free.bsl.hh
   engines/eevee/shaders/eevee_shadow_page_mask_comp.glsl
-  engines/eevee/shaders/eevee_shadow_page_ops_lib.glsl
+  engines/eevee/shaders/eevee_shadow_page_ops.bsl.hh
   engines/eevee/shaders/eevee_shadow_tag_update_comp.glsl
   engines/eevee/shaders/eevee_shadow_tag_usage_comp.glsl
   engines/eevee/shaders/eevee_shadow_tag_usage_frag.glsl
@@ -625,10 +623,11 @@ set(GLSL_SRC
   engines/eevee/eevee_velocity_shared.hh
   engines/eevee/eevee_volume_shared.hh
 
-  engines/workbench/shaders/workbench_cavity_lib.glsl
+  engines/workbench/shaders/workbench_cavity.bsl.hh
+  engines/workbench/shaders/workbench_common.bsl.hh
   engines/workbench/shaders/workbench_common_lib.glsl
-  engines/workbench/shaders/workbench_composite_frag.glsl
-  engines/workbench/shaders/workbench_curvature_lib.glsl
+  engines/workbench/shaders/workbench_composite.bsl.hh
+  engines/workbench/shaders/workbench_curvature.bsl.hh
   engines/workbench/shaders/workbench_effect_dof_prepare_frag.glsl
   engines/workbench/shaders/workbench_effect_dof_downsample_frag.glsl
   engines/workbench/shaders/workbench_effect_dof_blur1_frag.glsl
@@ -642,6 +641,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_fullscreen_vert.glsl
   engines/workbench/shaders/workbench_image_lib.glsl
   engines/workbench/shaders/workbench_matcap_lib.glsl
+  engines/workbench/shaders/workbench_matcap.bsl.hh
   engines/workbench/shaders/workbench_material_lib.glsl
   engines/workbench/shaders/workbench_merge_depth_frag.glsl
   engines/workbench/shaders/workbench_overlay_depth_frag.glsl
@@ -657,9 +657,9 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_shadow_visibility_comp.glsl
   engines/workbench/shaders/workbench_transparent_accum_frag.glsl
   engines/workbench/shaders/workbench_transparent_resolve_frag.glsl
-  engines/workbench/shaders/workbench_volume_frag.glsl
-  engines/workbench/shaders/workbench_volume_vert.glsl
+  engines/workbench/shaders/workbench_volume.bsl.hh
   engines/workbench/shaders/workbench_world_light_lib.glsl
+  engines/workbench/shaders/workbench_world_light.bsl.hh
 
   engines/workbench/workbench_defines.hh
   engines/workbench/workbench_shader_shared.hh

@@ -30,11 +30,13 @@ set(SRC_GLSL_VERT
   workbench_prepass_vert.glsl
   workbench_shadow_caps_vert.glsl
   workbench_shadow_vert.glsl
-  workbench_volume_vert.glsl
+
+  # Combined stages
+  workbench_volume.bsl.hh
 )
 
 set(SRC_GLSL_FRAG
-  workbench_composite_frag.glsl
+  workbench_composite.bsl.hh
   workbench_effect_dof_prepare_frag.glsl
   workbench_effect_dof_downsample_frag.glsl
   workbench_effect_dof_blur1_frag.glsl
@@ -50,7 +52,6 @@ set(SRC_GLSL_FRAG
   workbench_shadow_debug_frag.glsl
   workbench_transparent_accum_frag.glsl
   workbench_transparent_resolve_frag.glsl
-  workbench_volume_frag.glsl
 )
 
 set(SRC_GLSL_COMP
@@ -59,14 +60,17 @@ set(SRC_GLSL_COMP
 
 set(SRC_GLSL_LIB
   workbench_effect_dof_lib.glsl
-  workbench_cavity_lib.glsl
+  workbench_cavity.bsl.hh
   workbench_common_lib.glsl
-  workbench_curvature_lib.glsl
+  workbench_common.bsl.hh
+  workbench_curvature.bsl.hh
   workbench_image_lib.glsl
   workbench_matcap_lib.glsl
+  workbench_matcap.bsl.hh
   workbench_material_lib.glsl
   workbench_shadow_lib.glsl
   workbench_world_light_lib.glsl
+  workbench_world_light.bsl.hh
 )
 
 # Compile shaders with shader code.
