@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -52,6 +52,11 @@
 #include "DNA_scene_types.h"
 #include "WM_api.hh"
 
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
+#include <string>
+
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
 #include "BL_SceneConverter.h"
@@ -67,6 +72,7 @@
 #include "KX_PyMath.h"
 #include "KX_PythonComponent.h"
 #include "KX_RayCast.h"
+#include "MT_Quaternion.h"
 #include "SCA_ISensor.h"
 #include "SG_Controller.h"
 
@@ -105,6 +111,9 @@ KX_GameObject::KX_GameObject()
       m_pSGNode(nullptr),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
+      m_cachedRenderTransform(MT_Transform::Identity()),
+      m_cachedInterpolatedTransform(MT_Transform::Identity()),
+      m_useRenderInterpolation(false),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
       ,
@@ -174,6 +183,12 @@ KX_GameObject::~KX_GameObject()
   // if (m_sumoObj)
   //	delete m_sumoObj;
   delete m_pClient_info;
+
+  // Remove rigid body constraints from physics environment while GetScene() still works
+  // Must be called before m_pSGNode is invalidated
+  if (m_pSGNode) {
+    RemoveRigidBodyConstraints();
+  }
 
   // if (m_pSGNode)
   //	delete m_pSGNode;
@@ -250,8 +265,14 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     }
     return;
   }
+  MT_Transform syncTransform = NodeGetWorldTransform();
+
+  if (KX_GetActiveEngine()->UseViewportRender() && m_useRenderInterpolation) {
+    syncTransform = m_cachedInterpolatedTransform;
+  }
+
   float object_to_world[4][4];
-  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  syncTransform.getValue(&object_to_world[0][0]);
   bool staticObject = true;
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
@@ -345,9 +366,14 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
   }
 
   if (ob_orig && !skip_transform) {
+    BKE_object_apply_mat4(ob_orig, object_to_world, false, true);
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
-    copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
-    BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
+    if (ob_eval) {
+      BKE_object_apply_mat4(ob_eval, object_to_world, false, true);
+      copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
+    }
   }
 }
 
@@ -750,6 +776,166 @@ std::vector<bRigidBodyJointConstraint *> KX_GameObject::GetConstraints()
 void KX_GameObject::ClearConstraints()
 {
   m_constraints.clear();
+}
+
+void KX_GameObject::AddRigidBodyConstraint(RigidBodyCon *cons, Object *ob1, Object *ob2)
+{
+  for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (data.m_constraint == cons) {
+      return;
+    }
+  }
+  RigidBodyConstraintData data;
+  data.m_constraint = cons;
+  data.m_object1Name = ob1 ? ob1->id.name + 2 : "";
+  data.m_object2Name = ob2 ? ob2->id.name + 2 : "";
+  data.m_hasObject2 = (ob2 != nullptr);
+  data.m_constraintId = -1;  // Will be set after constraint is created
+  m_rigidbodyConstraints.push_back(data);
+}
+
+void KX_GameObject::SetRigidBodyConstraintId(RigidBodyCon *cons, int constraintId)
+{
+  for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (data.m_constraint == cons) {
+      data.m_constraintId = constraintId;
+      return;
+    }
+  }
+}
+
+const std::vector<KX_GameObject::RigidBodyConstraintData> &
+KX_GameObject::GetRigidBodyConstraints() const
+{
+  return m_rigidbodyConstraints;
+}
+
+void KX_GameObject::ClearRigidBodyConstraints()
+{
+  m_rigidbodyConstraints.clear();
+}
+
+void KX_GameObject::RemoveRigidBodyConstraints()
+{
+  if (m_rigidbodyConstraints.empty()) {
+    return;
+  }
+
+  KX_Scene *scene = GetScene();
+  if (!scene) {
+    return;
+  }
+
+  PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
+  if (!physEnv) {
+    return;
+  }
+
+  for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    // Only skip -1 (our sentinel for "no constraint"), other values including negative are valid IDs
+    if (data.m_constraintId != -1) {
+      physEnv->RemoveConstraintById(data.m_constraintId, true);
+    }
+  }
+  m_rigidbodyConstraints.clear();
+}
+
+bool KX_GameObject::HasRigidBodyConstraints() const
+{
+  return !m_rigidbodyConstraints.empty();
+}
+
+bool KX_GameObject::SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName)
+{
+  if (m_rigidbodyConstraints.empty()) {
+    return false;
+  }
+
+  KX_Scene *scene = GetScene();
+  if (!scene) {
+    return false;
+  }
+
+  PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
+  if (!physEnv) {
+    return false;
+  }
+
+  bool changed = false;
+  for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (data.m_constraintId == -1) {
+      continue;
+    }
+
+    if (!filterObjectName.empty() && data.m_object1Name != filterObjectName) {
+      continue;
+    }
+
+    physEnv->SetRigidBodyConstraintEnabled(data.m_constraintId, enabled);
+    changed = true;
+  }
+  return changed;
+}
+
+void KX_GameObject::ReplicateRigidBodyConstraints(
+    const std::unordered_map<std::string, KX_GameObject *> &objectLookup)
+{
+  if (!HasRigidBodyConstraints()) {
+    return;
+  }
+
+  KX_Scene *scene = GetScene();
+  if (!scene) {
+    return;
+  }
+
+  PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
+  if (!physEnv) {
+    return;
+  }
+
+  /* Helper: try spawned/existing lookup first, then fall back to scene search (once per miss). */
+  auto findTarget = [&](const std::string &name) -> KX_GameObject * {
+    auto it = objectLookup.find(name);
+    if (it != objectLookup.end()) {
+      return it->second;
+    }
+    KX_Scene *lookupScene = GetScene();
+    if (!lookupScene) {
+      return nullptr;
+    }
+    return static_cast<KX_GameObject *>(lookupScene->GetObjectList()->FindValue(name));
+  };
+
+  for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+    if (!data.m_constraint || data.m_object1Name.empty()) {
+      continue;
+    }
+
+    // O(1) hash map lookup instead of O(n) linear search
+    KX_GameObject *target1 = findTarget(data.m_object1Name);
+    if (!target1) {
+      CM_Debug("ReplicateRigidBodyConstraints: target1 '" << data.m_object1Name << "' not found for " << GetName());
+      continue;
+    }
+
+    KX_GameObject *target2 = nullptr;
+    if (data.m_hasObject2) {
+      target2 = findTarget(data.m_object2Name);
+      if (!target2) {
+        CM_Debug("ReplicateRigidBodyConstraints: target2 '" << data.m_object2Name << "' not found for " << GetName());
+      }
+    }
+
+    int constraintId = physEnv->CreateRigidBodyConstraint(this, target1, target2, data.m_constraint);
+    // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
+    if (constraintId != -1) {
+      data.m_constraintId = constraintId;
+
+      // Automatically parent the constraint object to the first rigid body so it follows it.
+      SetParent(target1, false, false);
+    }
+  }
 }
 
 KX_GameObject *KX_GameObject::GetParent()
@@ -1786,9 +1972,105 @@ MT_Transform KX_GameObject::NodeGetWorldTransform() const
   return m_pSGNode->GetWorldTransform();
 }
 
+MT_Transform KX_GameObject::NodeGetInterpolatedTransform(double alpha) const
+{
+  if (!m_pSGNode->HasPreviousWorldTransform()) {
+    return m_pSGNode->GetWorldTransform();
+  }
+
+  const double clampedAlpha = std::clamp(alpha, 0.0, 1.0);
+  const MT_Scalar t = MT_Scalar(clampedAlpha);
+  const MT_Scalar oneMinusT = MT_Scalar(1.0f) - t;
+
+  const MT_Vector3 &prevPos = m_pSGNode->GetPrevWorldPosition();
+  const MT_Vector3 &prevScale = m_pSGNode->GetPrevWorldScaling();
+  const MT_Matrix3x3 &prevRot = m_pSGNode->GetPrevWorldOrientation();
+
+  const MT_Vector3 &currPos = m_pSGNode->GetWorldPosition();
+  const MT_Vector3 &currScale = m_pSGNode->GetWorldScaling();
+  const MT_Matrix3x3 &currRot = m_pSGNode->GetWorldOrientation();
+
+  const MT_Vector3 pos = (prevPos * oneMinusT) + (currPos * t);
+  const MT_Vector3 scale = (prevScale * oneMinusT) + (currScale * t);
+
+  MT_Quaternion prevQuat = prevRot.getRotation();
+  MT_Quaternion currQuat = currRot.getRotation();
+  MT_Quaternion interpQuat = prevQuat.slerp(currQuat, t);
+  MT_Matrix3x3 rot(interpQuat);
+
+  return MT_Transform(pos, rot.scaled(scale[0], scale[1], scale[2]));
+}
+
 MT_Transform KX_GameObject::NodeGetLocalTransform() const
 {
   return m_pSGNode->GetLocalTransform();
+}
+
+void KX_GameObject::StorePhysicsInterpolationState()
+{
+  if (m_pSGNode != nullptr) {
+    /* Cache the current physics pose so render interpolation can blend from it later. */
+    m_pSGNode->StorePreviousWorldTransform();
+    m_useRenderInterpolation = false;
+  }
+}
+
+void KX_GameObject::ApplyPhysicsInterpolation(double alpha)
+{
+  if (m_pSGNode == nullptr) {
+    return;
+  }
+
+  if (!m_useRenderInterpolation) {
+    /* First interpolation call caches the physics pose for restoration when interpolation stops. */
+    m_cachedRenderTransform = NodeGetWorldTransform();
+    m_cachedInterpolatedTransform = m_cachedRenderTransform;
+  }
+
+  const MT_Transform interpTransform = NodeGetInterpolatedTransform(alpha);
+  m_cachedInterpolatedTransform = interpTransform;
+  const MT_Vector3 interpPos = interpTransform.getOrigin();
+  MT_Matrix3x3 interpBasis = interpTransform.getBasis();
+
+  MT_Vector3 interpScale;
+  for (int i = 0; i < 3; ++i) {
+    MT_Vector3 column = interpBasis.getColumn(i);
+    interpScale[i] = column.length();
+    const MT_Scalar safeScale = (interpScale[i] > MT_Scalar(FLT_EPSILON)) ? interpScale[i] : MT_Scalar(1.0f);
+    column /= safeScale;
+    interpBasis.setColumn(i, column);
+  }
+
+  m_pSGNode->SetWorldPosition(interpPos);
+  m_pSGNode->SetWorldOrientation(interpBasis);
+  m_pSGNode->SetWorldScale(interpScale);
+  m_useRenderInterpolation = true;
+}
+
+void KX_GameObject::ClearPhysicsInterpolationState()
+{
+  if (m_pSGNode != nullptr) {
+    if (m_useRenderInterpolation) {
+      /* Restore the physics pose captured before interpolation modified the SG node. */
+      const MT_Vector3 originalPos = m_cachedRenderTransform.getOrigin();
+      MT_Matrix3x3 originalBasis = m_cachedRenderTransform.getBasis();
+
+      MT_Vector3 originalScale;
+      for (int i = 0; i < 3; ++i) {
+        MT_Vector3 column = originalBasis.getColumn(i);
+        originalScale[i] = column.length();
+        const MT_Scalar safeScale = (originalScale[i] > MT_Scalar(FLT_EPSILON)) ? originalScale[i] : MT_Scalar(1.0f);
+        column /= safeScale;
+        originalBasis.setColumn(i, column);
+      }
+
+      m_pSGNode->SetWorldPosition(originalPos);
+      m_pSGNode->SetWorldOrientation(originalBasis);
+      m_pSGNode->SetWorldScale(originalScale);
+    }
+    m_useRenderInterpolation = false;
+    m_cachedInterpolatedTransform = MT_Transform::Identity();
+  }
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()

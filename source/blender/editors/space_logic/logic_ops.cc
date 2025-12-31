@@ -618,18 +618,159 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
-  ot->prop = prop = RNA_def_enum(ot->srna,
-                                 "type",
-                                 rna_enum_dummy_NULL_items,
-                                 CONT_LOGIC_AND,
-                                 "Type",
-                                 "Type of actuator to add");
+  prop = RNA_def_enum(ot->srna,
+                      "type",
+                      rna_enum_dummy_NULL_items,
+                      CONT_LOGIC_AND,
+                      "Type",
+                      "Type of actuator to add");
   RNA_def_enum_funcs(prop, rna_Actuator_type_itemf);
+  ot->prop = prop;
   prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the Actuator to add");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(
       ot->srna, "object", nullptr, MAX_NAME, "Object", "Name of the Object to add the Actuator to");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
+/* ************* Duplicate Logic Brick Operators ************* */
+
+static wmOperatorStatus sensor_duplicate_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = nullptr;
+  bSensor *sens = edit_sensor_property_get(C, op, &ob);
+
+  if (!sens) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bSensor *sensn = BKE_sca_copy_sensor(sens, 0);
+  BLI_insertlinkafter(&ob->sensors, sens, sensn);
+  sensn->flag &= ~SENS_NEW;
+
+  BLI_uniquename(
+      &ob->sensors, sensn, DATA_("Sensor"), '.', offsetof(bSensor, name), sizeof(sensn->name));
+
+  ED_undo_push_old(C, "sensor_duplicate_exec");
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus sensor_duplicate_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+{
+  if (edit_sensor_invoke_properties(C, op)) {
+    return sensor_duplicate_exec(C, op);
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static void LOGIC_OT_sensor_duplicate(wmOperatorType *ot)
+{
+  ot->name = "Duplicate Sensor";
+  ot->description = "Duplicate a sensor on the active object";
+  ot->idname = "LOGIC_OT_sensor_duplicate";
+
+  ot->invoke = sensor_duplicate_invoke;
+  ot->exec = sensor_duplicate_exec;
+  ot->poll = edit_sensor_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
+  edit_sensor_properties(ot);
+}
+
+static wmOperatorStatus controller_duplicate_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = nullptr;
+  bController *cont = edit_controller_property_get(C, op, &ob);
+
+  if (!cont) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bController *contn = BKE_sca_copy_controller(cont, 0);
+  contn->mynew = nullptr;
+  contn->flag &= ~CONT_NEW;
+  BLI_insertlinkafter(&ob->controllers, cont, contn);
+
+  BLI_uniquename(&ob->controllers,
+                 contn,
+                 DATA_("Controller"),
+                 '.',
+                 offsetof(bController, name),
+                 sizeof(contn->name));
+
+  ED_undo_push_old(C, "controller_duplicate_exec");
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus controller_duplicate_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+{
+  if (edit_controller_invoke_properties(C, op)) {
+    return controller_duplicate_exec(C, op);
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static void LOGIC_OT_controller_duplicate(wmOperatorType *ot)
+{
+  ot->name = "Duplicate Controller";
+  ot->description = "Duplicate a controller on the active object";
+  ot->idname = "LOGIC_OT_controller_duplicate";
+
+  ot->invoke = controller_duplicate_invoke;
+  ot->exec = controller_duplicate_exec;
+  ot->poll = edit_controller_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
+  edit_controller_properties(ot);
+}
+
+static wmOperatorStatus actuator_duplicate_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = nullptr;
+  bActuator *act = edit_actuator_property_get(C, op, &ob);
+
+  if (!act) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bActuator *actn = BKE_sca_copy_actuator(act);
+  actn->mynew = nullptr;
+  actn->flag &= ~ACT_NEW;
+  BLI_insertlinkafter(&ob->actuators, act, actn);
+
+  BLI_uniquename(
+      &ob->actuators, actn, DATA_("Actuator"), '.', offsetof(bActuator, name), sizeof(actn->name));
+
+  ED_undo_push_old(C, "actuator_duplicate_exec");
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus actuator_duplicate_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+{
+  if (edit_actuator_invoke_properties(C, op)) {
+    return actuator_duplicate_exec(C, op);
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static void LOGIC_OT_actuator_duplicate(wmOperatorType *ot)
+{
+  ot->name = "Duplicate Actuator";
+  ot->description = "Duplicate an actuator on the active object";
+  ot->idname = "LOGIC_OT_actuator_duplicate";
+
+  ot->invoke = actuator_duplicate_invoke;
+  ot->exec = actuator_duplicate_exec;
+  ot->poll = edit_actuator_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
+  edit_actuator_properties(ot);
 }
 
 /* ************* Move Logic Bricks Operator ************* */
@@ -1385,12 +1526,15 @@ void ED_operatortypes_logic()
 {
   WM_operatortype_append(LOGIC_OT_sensor_remove);
   WM_operatortype_append(LOGIC_OT_sensor_add);
+  WM_operatortype_append(LOGIC_OT_sensor_duplicate);
   WM_operatortype_append(LOGIC_OT_sensor_move);
   WM_operatortype_append(LOGIC_OT_controller_remove);
   WM_operatortype_append(LOGIC_OT_controller_add);
+  WM_operatortype_append(LOGIC_OT_controller_duplicate);
   WM_operatortype_append(LOGIC_OT_controller_move);
   WM_operatortype_append(LOGIC_OT_actuator_remove);
   WM_operatortype_append(LOGIC_OT_actuator_add);
+  WM_operatortype_append(LOGIC_OT_actuator_duplicate);
   WM_operatortype_append(LOGIC_OT_actuator_move);
   WM_operatortype_append(LOGIC_OT_custom_object_register);
   WM_operatortype_append(LOGIC_OT_custom_object_reload);

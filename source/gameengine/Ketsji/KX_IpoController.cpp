@@ -47,7 +47,13 @@ typedef unsigned long uint_ptr;
 #include "KX_GameObject.h"
 #include "KX_IpoChannels.h"
 #include "KX_ScalarInterpolator.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Globals.h"
 #include "PHY_IPhysicsController.h"
+
+#include "BKE_context.hh"
+#include "DNA_object_force_types.h"
+#include "DEG_depsgraph_query.hh"
 
 // All objects should start on frame 1! Will we ever need an object to
 // start on another frame, the 1.0 should change.
@@ -59,7 +65,19 @@ KX_IpoController::KX_IpoController()
       m_ipotime(1.0),
       m_ipo_start_initialized(false),
       m_ipo_start_euler(0.0f, 0.0f, 0.0f),
-      m_ipo_euler_initialized(false)
+      m_ipo_euler_initialized(false),
+      m_field_strength(0.0f),
+      m_field_flow(0.0f),
+      m_field_noise(0.0f),
+      m_field_falloff_power(0.0f),
+      m_field_distance_min(0.0f),
+      m_field_distance_max(0.0f),
+      m_field_strength_active(false),
+      m_field_flow_active(false),
+      m_field_noise_active(false),
+      m_field_falloff_power_active(false),
+      m_field_distance_min_active(false),
+      m_field_distance_max_active(false)
 {
   m_game_object = nullptr;
   for (int i = 0; i < KX_MAX_IPO_CHANNELS; i++)
@@ -100,6 +118,51 @@ void KX_IpoController::SetOption(int option, int value)
 void KX_IpoController::SetGameObject(KX_GameObject *go)
 {
   m_game_object = go;
+}
+
+void KX_IpoController::SetFieldInitial(const PartDeflect *pd)
+{
+  if (pd == nullptr) {
+    m_field_strength = 0.0f;
+    m_field_flow = 0.0f;
+    m_field_noise = 0.0f;
+    m_field_falloff_power = 0.0f;
+    m_field_distance_min = 0.0f;
+    m_field_distance_max = 0.0f;
+    return;
+  }
+
+  m_field_strength = pd->f_strength;
+  m_field_flow = pd->f_flow;
+  m_field_noise = pd->f_noise;
+  m_field_falloff_power = pd->f_power;
+  m_field_distance_min = pd->mindist;
+  m_field_distance_max = pd->maxdist;
+}
+
+void KX_IpoController::SetFieldStrengthActive(bool value)
+{
+  m_field_strength_active = value;
+}
+void KX_IpoController::SetFieldFlowActive(bool value)
+{
+  m_field_flow_active = value;
+}
+void KX_IpoController::SetFieldNoiseActive(bool value)
+{
+  m_field_noise_active = value;
+}
+void KX_IpoController::SetFieldFalloffPowerActive(bool value)
+{
+  m_field_falloff_power_active = value;
+}
+void KX_IpoController::SetFieldDistanceMinActive(bool value)
+{
+  m_field_distance_min_active = value;
+}
+void KX_IpoController::SetFieldDistanceMaxActive(bool value)
+{
+  m_field_distance_max_active = value;
 }
 
 bool KX_IpoController::Update(double currentTime)
@@ -342,6 +405,69 @@ bool KX_IpoController::Update(double currentTime)
       if (m_game_object)
         m_game_object->NodeSetLocalScale(newScale);
     }
+
+    /* Apply animated force field settings to the Blender object (and its evaluated copy)
+     * so that effector sampling sees updated values.
+     */
+    if (m_game_object) {
+      Object *blender_object = m_game_object->GetBlenderObject();
+      if (blender_object && blender_object->pd) {
+        PartDeflect *pd = blender_object->pd;
+
+        if (m_field_strength_active) {
+          pd->f_strength = m_field_strength;
+        }
+        if (m_field_flow_active) {
+          pd->f_flow = m_field_flow;
+        }
+        if (m_field_noise_active) {
+          pd->f_noise = m_field_noise;
+        }
+        if (m_field_falloff_power_active) {
+          pd->f_power = m_field_falloff_power;
+        }
+        if (m_field_distance_min_active) {
+          pd->mindist = m_field_distance_min;
+        }
+        if (m_field_distance_max_active) {
+          pd->maxdist = m_field_distance_max;
+        }
+
+        /* Keep evaluated object in sync for depsgraph-based effector sampling. */
+        KX_KetsjiEngine *engine = KX_GetActiveEngine();
+        if (engine) {
+          bContext *C = engine->GetContext();
+          if (C) {
+            Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+            if (depsgraph) {
+              Object *ob_eval = DEG_get_evaluated(depsgraph, blender_object);
+              if (ob_eval && ob_eval->pd) {
+                PartDeflect *pd_eval = ob_eval->pd;
+                if (m_field_strength_active) {
+                  pd_eval->f_strength = m_field_strength;
+                }
+                if (m_field_flow_active) {
+                  pd_eval->f_flow = m_field_flow;
+                }
+                if (m_field_noise_active) {
+                  pd_eval->f_noise = m_field_noise;
+                }
+                if (m_field_falloff_power_active) {
+                  pd_eval->f_power = m_field_falloff_power;
+                }
+                if (m_field_distance_min_active) {
+                  pd_eval->mindist = m_field_distance_min;
+                }
+                if (m_field_distance_max_active) {
+                  pd_eval->maxdist = m_field_distance_max;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     m_modified = false;
   }
   return false;
@@ -371,13 +497,35 @@ SG_Controller *KX_IpoController::GetReplica(SG_Node *destnode)
     iporeplica->AddInterpolator(copyipo);
 
     MT_Scalar *scaal = ((KX_ScalarInterpolator *)*i)->GetTarget();
-    uint_ptr orgbase = (uint_ptr)&m_ipo_xform;
-    uint_ptr orgloc = (uint_ptr)scaal;
-    uint_ptr offset = orgloc - orgbase;
-    uint_ptr newaddrbase = (uint_ptr)&iporeplica->m_ipo_xform;
-    newaddrbase += offset;
-    MT_Scalar *blaptr = (MT_Scalar *)newaddrbase;
-    copyipo->SetTarget((MT_Scalar *)blaptr);
+
+    /* Remap target to replica storage (IPO transform or field channels). */
+    if (scaal == &m_field_strength) {
+      copyipo->SetTarget(&iporeplica->m_field_strength);
+    }
+    else if (scaal == &m_field_flow) {
+      copyipo->SetTarget(&iporeplica->m_field_flow);
+    }
+    else if (scaal == &m_field_noise) {
+      copyipo->SetTarget(&iporeplica->m_field_noise);
+    }
+    else if (scaal == &m_field_falloff_power) {
+      copyipo->SetTarget(&iporeplica->m_field_falloff_power);
+    }
+    else if (scaal == &m_field_distance_min) {
+      copyipo->SetTarget(&iporeplica->m_field_distance_min);
+    }
+    else if (scaal == &m_field_distance_max) {
+      copyipo->SetTarget(&iporeplica->m_field_distance_max);
+    }
+    else {
+      uint_ptr orgbase = (uint_ptr)&m_ipo_xform;
+      uint_ptr orgloc = (uint_ptr)scaal;
+      uint_ptr offset = orgloc - orgbase;
+      uint_ptr newaddrbase = (uint_ptr)&iporeplica->m_ipo_xform;
+      newaddrbase += offset;
+      MT_Scalar *blaptr = (MT_Scalar *)newaddrbase;
+      copyipo->SetTarget((MT_Scalar *)blaptr);
+    }
   }
 
   return iporeplica;

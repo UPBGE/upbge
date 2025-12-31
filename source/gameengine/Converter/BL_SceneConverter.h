@@ -42,6 +42,7 @@ class RAS_MeshObject;
 class KX_BlenderMaterial;
 class BL_Converter;
 class KX_GameObject;
+class PHY_IPhysicsController;
 struct Object;
 struct Mesh;
 struct Material;
@@ -60,6 +61,7 @@ class BL_SceneConverter {
   std::map<Material *, KX_BlenderMaterial *> m_map_mesh_to_polyaterial;
   std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
   std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
+  std::vector<PHY_IPhysicsController *> m_pending_parent_suspends;
 
  public:
   BL_SceneConverter();
@@ -83,4 +85,7 @@ class BL_SceneConverter {
 
   void RegisterGameController(SCA_IController *cont, bController *for_controller);
   SCA_IController *FindGameController(bController *for_controller);
+
+  void AddPendingSuspendDynamics(PHY_IPhysicsController *controller);
+  void FlushPendingSuspendDynamics();
 };

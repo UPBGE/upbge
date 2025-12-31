@@ -25,6 +25,7 @@
 
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 #include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
@@ -35,6 +36,10 @@
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "PHY_IPhysicsEnvironment.h"
+
+struct Depsgraph;
+struct EffectorWeights;
+struct Scene;
 
 class btTypedConstraint;
 class btDispatcher;
@@ -92,7 +97,16 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   float m_angularDeactivationThreshold;
   float m_contactBreakingThreshold;
 
+  /* Fast lookup to avoid O(n) scans when removing constraints by ID. */
+  std::unordered_map<int, btTypedConstraint *> m_constraintById;
+
+  Scene *m_blenderScene;
+  EffectorWeights *m_fallbackEffectorWeights;
+
   void ProcessFhSprings(double curTime, float timeStep);
+  void ApplyEffectorForces();
+  EffectorWeights *GetEffectorWeights();
+  Depsgraph *GetDepsgraph();
 
  public:
   CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling);
@@ -181,6 +195,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
   virtual void RemoveConstraintById(int constraintid, bool free);
+  virtual bool IsRigidBodyConstraintEnabled(int constraintid);
 
   virtual float getAppliedImpulse(int constraintid);
 
@@ -298,6 +313,11 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                       KX_GameObject *obj_dest,
                                       bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli);
+  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
+                                        KX_GameObject *gameobj1,
+                                        KX_GameObject *gameobj2,
+                                        RigidBodyCon *rbc) override;
+  virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
 
  protected:
   std::set<CcdPhysicsController *> m_controllers;

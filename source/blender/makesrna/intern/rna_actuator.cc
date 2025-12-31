@@ -123,6 +123,20 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
   }
 }
 
+static int rna_ConstraintActuator_rb_action_get(struct PointerRNA *ptr)
+{
+  bActuator *act = (bActuator *)ptr->data;
+  bConstraintActuator *ca = (bConstraintActuator *)act->data;
+  return ca->mode;
+}
+
+static void rna_ConstraintActuator_rb_action_set(struct PointerRNA *ptr, int value)
+{
+  bActuator *act = (bActuator *)ptr->data;
+  bConstraintActuator *ca = (bConstraintActuator *)act->data;
+  ca->mode = value;
+}
+
 static void rna_Actuator_name_set(PointerRNA *ptr, const char *value)
 {
   Object *ob = (Object *)ptr->owner_id;
@@ -147,22 +161,24 @@ static void rna_ConstraintActuator_type_set(struct PointerRNA *ptr, int value)
   bActuator *act = (bActuator *)ptr->data;
   bConstraintActuator *ca = (bConstraintActuator *)act->data;
 
-  if (value != ca->type) {
-    ca->type = value;
-    switch (ca->type) {
+  if (ca->type != value) {
+    switch (value) {
       case ACT_CONST_TYPE_ORI:
         /* negative axis not supported in the orientation mode */
-        if (ELEM(ca->mode, ACT_CONST_DIRNX, ACT_CONST_DIRNY, ACT_CONST_DIRNZ))
+        if (ELEM(ca->mode, ACT_CONST_DIRNX, ACT_CONST_DIRNY, ACT_CONST_DIRNZ)) {
           ca->mode = ACT_CONST_NONE;
+        }
         break;
-
-      case ACT_CONST_TYPE_LOC:
-      case ACT_CONST_TYPE_DIST:
-      case ACT_CONST_TYPE_FH:
+      case ACT_CONST_TYPE_RB:
+        /* default to disabling constraints when switching to RB mode. */
+        ca->mode = ACT_CONST_RB_DISABLE;
+        break;
       default:
         break;
     }
   }
+
+  ca->type = value;
 }
 
 static float rna_ConstraintActuator_limitmin_get(struct PointerRNA *ptr)
@@ -1233,6 +1249,12 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
       {ACT_CONST_TYPE_DIST, "DIST", 0, "Distance Constraint", ""},
       {ACT_CONST_TYPE_ORI, "ORI", 0, "Orientation Constraint", ""},
       {ACT_CONST_TYPE_FH, "FH", 0, "Force Field Constraint", ""},
+      {ACT_CONST_TYPE_RB, "RB", 0, "RB Constraints", ""},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  static const EnumPropertyItem prop_rb_action_items[] = {
+      {ACT_CONST_RB_DISABLE, "DISABLE", 0, "Disable RB Constraint", ""},
+      {ACT_CONST_RB_ENABLE, "ENABLE", 0, "Enable RB Constraint", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   static const EnumPropertyItem prop_limit_items[] = {{ACT_CONST_NONE, "NONE", 0, "None", ""},
@@ -1252,10 +1274,10 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr}};
 
   static const EnumPropertyItem prop_direction_pos_items[] = {
-      {ACT_CONST_NONE, "NONE", 0, "None", ""},
-      {ACT_CONST_DIRPX, "DIRPX", 0, "X axis", ""},
-      {ACT_CONST_DIRPY, "DIRPY", 0, "Y axis", ""},
-      {ACT_CONST_DIRPZ, "DIRPZ", 0, "Z axis", ""},
+      {ACT_CONST_DIRPZ, "DIRPZ", 0, "Direction +Z Axis", ""},
+      {ACT_CONST_DIRNX, "DIRNX", 0, "Direction -X Axis", ""},
+      {ACT_CONST_DIRNY, "DIRNY", 0, "Direction -Y Axis", ""},
+      {ACT_CONST_DIRNZ, "DIRNZ", 0, "Direction -Z Axis", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   srna = RNA_def_struct(brna, "ConstraintActuator", "Actuator");
@@ -1286,6 +1308,13 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, prop_direction_items);
   RNA_def_property_ui_text(
       prop, "Direction", "Select the axis to be aligned along the reference direction");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "rb_action", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, prop_rb_action_items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_ConstraintActuator_rb_action_get", "rna_ConstraintActuator_rb_action_set", nullptr);
+  RNA_def_property_ui_text(prop, "RB Constraint Action", "Enable or disable rigid body constraints");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* ACT_CONST_TYPE_LOC */
@@ -1388,8 +1417,8 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "fh_height", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_funcs(
       prop, "rna_ConstraintActuator_fhheight_get", "rna_ConstraintActuator_fhheight_set", nullptr);
-  RNA_def_property_ui_range(prop, 0.01, 2000.0, 10, 2);
-  RNA_def_property_ui_text(prop, "Distance", "Height of the force field area");
+  RNA_def_property_ui_range(prop, 0.0f, 2000.0f, 1, 2);
+  RNA_def_property_ui_text(prop, "Height", "Height of the force field axis");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
@@ -1673,6 +1702,7 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
       {ACT_COLLECTION_RESUME, "RESUME", 0, "Resume Collection", ""},
       {ACT_COLLECTION_ADD_OVERLAY, "ADD_OVERLAY", 0, "Add Overlay Collection", ""},
       {ACT_COLLECTION_REMOVE_OVERLAY, "REMOVE_OVERLAY", 0, "Remove Overlay Collection", ""},
+      {ACT_COLLECTION_SPAWN, "SPAWN", 0, "Spawn Collection", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   srna = RNA_def_struct(brna, "CollectionActuator", "Actuator");
@@ -1711,6 +1741,36 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", ACT_COLLECTION_SUSPEND_VISIBILITY);
   RNA_def_property_ui_text(prop, "Visibility", "Suspend/Resume Visibility");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  /* velocities */
+  prop = RNA_def_property(srna, "linear_velocity", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "linVelocity");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_range(prop, -100.0, 100.0, 10, 2);
+  RNA_def_property_ui_text(prop, "Linear Velocity", "Velocity upon creation");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "angular_velocity", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "angVelocity");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_range(prop, -10000.0, 10000.0, 10, 2);
+  RNA_def_property_ui_text(prop, "Angular Velocity", "Angular velocity upon creation");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_local_linear_velocity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "localflag", ACT_CLN_LOCAL_LINV);
+  RNA_def_property_ui_text(prop, "L", "Use local axis for linear velocity");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_local_angular_velocity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "localflag", ACT_CLN_LOCAL_ANGV);
+  RNA_def_property_ui_text(prop, "L", "Use local axis for angular velocity");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_full_copy", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "full_copy", 1);
+  RNA_def_property_ui_text(prop, "Full Duplication", "Spawn unique object data for each object");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 

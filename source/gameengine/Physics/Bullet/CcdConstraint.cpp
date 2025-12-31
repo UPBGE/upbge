@@ -114,6 +114,72 @@ void CcdConstraint::SetParam(int param, float value0, float value1)
       };
       break;
     };
+    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+      switch (param) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5: {
+          // param = 0..5 are constraint limits, with low/high limit value
+          btGeneric6DofSpring2Constraint *genCons = (btGeneric6DofSpring2Constraint *)m_constraint;
+          genCons->setLimit(param, value0, value1);
+          break;
+        }
+        case 6:
+        case 7:
+        case 8: {
+          // param = 6,7,8 are translational motors, with value0=target velocity, value1 = max
+          // motor force
+          btGeneric6DofSpring2Constraint *genCons = (btGeneric6DofSpring2Constraint *)m_constraint;
+          int transMotorIndex = param - 6;
+          btTranslationalLimitMotor2 *transMotor = genCons->getTranslationalLimitMotor();
+          transMotor->m_targetVelocity[transMotorIndex] = value0;
+          transMotor->m_maxMotorForce[transMotorIndex] = value1;
+          transMotor->m_enableMotor[transMotorIndex] = (value1 > 0.0f);
+          break;
+        }
+        case 9:
+        case 10:
+        case 11: {
+          // param = 9,10,11 are rotational motors, with value0=target velocity, value1 = max motor
+          // force
+          btGeneric6DofSpring2Constraint *genCons = (btGeneric6DofSpring2Constraint *)m_constraint;
+          int angMotorIndex = param - 9;
+          btRotationalLimitMotor2 *rotMotor = genCons->getRotationalLimitMotor(angMotorIndex);
+          rotMotor->m_enableMotor = (value1 > 0.0f);
+          rotMotor->m_targetVelocity = value0;
+          rotMotor->m_maxMotorForce = value1;
+          break;
+        }
+
+        case 12:
+        case 13:
+        case 14:
+        case 15:
+        case 16:
+        case 17: {
+          // param 12-17 are for motorized springs on each of the degrees of freedom
+          btGeneric6DofSpring2Constraint *genCons = (btGeneric6DofSpring2Constraint *)m_constraint;
+          int springIndex = param - 12;
+          if (value0 != 0.0f) {
+            genCons->setStiffness(springIndex, value0);
+            genCons->setDamping(springIndex, value1);
+            genCons->enableSpring(springIndex, true);
+            genCons->setEquilibriumPoint(springIndex);
+          }
+          else {
+            genCons->enableSpring(springIndex, false);
+          }
+          break;
+        }
+
+        default: {
+        }
+      };
+      break;
+    };
     case PHY_CONE_TWIST_CONSTRAINT: {
       switch (param) {
         case 3:
@@ -176,6 +242,31 @@ float CcdConstraint::GetParam(int param)
       }
       break;
     };
+    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+      switch (param) {
+        case 0:
+        case 1:
+        case 2: {
+          // param = 0..2 are linear constraint values
+          btGeneric6DofSpring2Constraint *genCons = (btGeneric6DofSpring2Constraint *)m_constraint;
+          genCons->calculateTransforms();
+          return genCons->getRelativePivotPosition(param);
+          break;
+        }
+        case 3:
+        case 4:
+        case 5: {
+          // param = 3..5 are relative constraint (Euler) angles
+          btGeneric6DofSpring2Constraint *genCons = (btGeneric6DofSpring2Constraint *)m_constraint;
+          genCons->calculateTransforms();
+          return genCons->getAngle(param - 3);
+          break;
+        }
+        default: {
+        }
+      }
+      break;
+    };
     default: {
     };
   };
@@ -190,6 +281,11 @@ float CcdConstraint::GetBreakingThreshold() const
 void CcdConstraint::SetBreakingThreshold(float threshold)
 {
   m_constraint->setBreakingImpulseThreshold(threshold);
+}
+
+void CcdConstraint::SetSolverIterations(int iterations)
+{
+  m_constraint->setOverrideNumSolverIterations(iterations);
 }
 
 int CcdConstraint::GetIdentifier() const

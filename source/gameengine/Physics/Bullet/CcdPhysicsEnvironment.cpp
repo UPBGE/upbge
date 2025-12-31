@@ -21,10 +21,17 @@
 
 #include "CcdPhysicsEnvironment.h"
 
+#include <algorithm>
+
+#include "BKE_context.hh"
+#include "BKE_effect.h"
 #include "BKE_object.hh"
 #include "BLI_bounds.hh"
+#include "BLI_math_vector.h"
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_rigidbody_types.h"
+#include "MEM_guardedalloc.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
@@ -375,6 +382,8 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
       m_linearDeactivationThreshold(0.8f),
       m_angularDeactivationThreshold(1.0f),
       m_contactBreakingThreshold(0.02f),
+      m_blenderScene(nullptr),
+      m_fallbackEffectorWeights(nullptr),
       m_solver(nullptr),
       m_filterCallback(nullptr),
       m_ghostPairCallback(nullptr),
@@ -485,6 +494,13 @@ void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
   rbB.activate();
 
   userData->SetActive(false);
+
+  /* Keep the lookup map in sync. */
+  const int constraintId = con->getUserConstraintId();
+  if (constraintId != 0) {
+    m_constraintById.erase(constraintId);
+  }
+
   m_dynamicsWorld->removeConstraint(con);
 
   if (free) {
@@ -720,6 +736,114 @@ void CcdPhysicsEnvironment::SimulationSubtickCallback(btScalar timeStep)
   }
 }
 
+Depsgraph *CcdPhysicsEnvironment::GetDepsgraph()
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  if (engine == nullptr) {
+    return nullptr;
+  }
+
+  bContext *C = engine->GetContext();
+  if (C == nullptr) {
+    return nullptr;
+  }
+
+  return CTX_data_ensure_evaluated_depsgraph(C);
+}
+
+EffectorWeights *CcdPhysicsEnvironment::GetEffectorWeights()
+{
+  if (m_blenderScene == nullptr) {
+    return nullptr;
+  }
+
+  RigidBodyWorld *rbw = m_blenderScene->rigidbody_world;
+  EffectorWeights *weights = rbw ? rbw->effector_weights : nullptr;
+
+  if (weights == nullptr) {
+    if (m_fallbackEffectorWeights == nullptr) {
+      m_fallbackEffectorWeights = BKE_effector_add_weights(nullptr);
+    }
+    weights = m_fallbackEffectorWeights;
+  }
+
+  return weights;
+}
+
+void CcdPhysicsEnvironment::ApplyEffectorForces()
+{
+  if (m_blenderScene == nullptr) {
+    return;
+  }
+
+  Depsgraph *depsgraph = GetDepsgraph();
+  if (depsgraph == nullptr) {
+    return;
+  }
+
+  EffectorWeights *effector_weights = GetEffectorWeights();
+  if (effector_weights == nullptr) {
+    return;
+  }
+
+  ListBase *effectors = BKE_effectors_create(depsgraph, nullptr, nullptr, effector_weights, false);
+  if (effectors == nullptr) {
+    return;
+  }
+
+  for (CcdPhysicsController *ctrl : m_controllers) {
+    if (ctrl->GetSoftBody()) {
+      continue;
+    }
+
+    btRigidBody *body = ctrl->GetRigidBody();
+    if (body == nullptr || body->isStaticObject() || body->isKinematicObject() ||
+        btFuzzyZero(body->getInvMass())) {
+      continue;
+    }
+
+    KX_ClientObjectInfo *info = (KX_ClientObjectInfo *)ctrl->GetNewClientInfo();
+    if (info == nullptr) {
+      continue;
+    }
+
+    KX_GameObject *gameobj = KX_GameObject::GetClientObject(info);
+    if (gameobj == nullptr) {
+      continue;
+    }
+
+    Object *blenderobj = gameobj->GetBlenderObject();
+    if (blenderobj == nullptr) {
+      continue;
+    }
+
+    if (blenderobj->pd && blenderobj->pd->forcefield != PFIELD_NULL) {
+      continue;
+    }
+
+    const btTransform &xform = body->getCenterOfMassTransform();
+    const btVector3 &origin = xform.getOrigin();
+    const btVector3 &linvel = body->getLinearVelocity();
+
+    float eff_loc[3] = {origin.getX(), origin.getY(), origin.getZ()};
+    float eff_vel[3] = {linvel.getX(), linvel.getY(), linvel.getZ()};
+
+    EffectedPoint epoint;
+    pd_point_from_loc(m_blenderScene, eff_loc, eff_vel, 0, &epoint);
+
+    float eff_force[3] = {0.0f, 0.0f, 0.0f};
+
+    BKE_effectors_apply(effectors, nullptr, effector_weights, &epoint, eff_force, nullptr, nullptr);
+
+    if (!is_zero_v3(eff_force)) {
+      body->activate(true);
+      body->applyCentralForce(btVector3(eff_force[0], eff_force[1], eff_force[2]));
+    }
+  }
+
+  BKE_effectors_free(effectors);
+}
+
 bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, float interval)
 {
   std::set<CcdPhysicsController *>::iterator it;
@@ -733,9 +857,21 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
     (*it)->SynchronizeMotionStates(timeStep);
   }
 
+  ApplyEffectorForces();
+
   float subStep = timeStep / float(m_numTimeSubSteps);
-  i = m_dynamicsWorld->stepSimulation(
-      interval, 25, subStep);  // perform always a full simulation step
+  
+  // When using engine-level fixed timestep, disable Bullet's internal substepping
+  // by setting maxSubSteps to 0, since we're already providing fixed timesteps
+  if (timeStep == interval && timeStep > 0.0f) {
+    // This indicates we're being called from fixed timestep mode
+    // Use single step with no internal substepping
+    i = m_dynamicsWorld->stepSimulation(timeStep, 0, timeStep);
+  }
+  else {
+    // Original variable timestep mode with Bullet substepping
+    i = m_dynamicsWorld->stepSimulation(interval, 25, subStep);
+  }
   // uncomment next line to see where Bullet spend its time (printf in console)
   // CProfileManager::dumpAll();
 
@@ -1071,20 +1207,45 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
   if (constraintId == 0)
     return;
 
-  int i;
-  int numConstraints = m_dynamicsWorld->getNumConstraints();
-  for (i = 0; i < numConstraints; i++) {
-    btTypedConstraint *constraint = m_dynamicsWorld->getConstraint(i);
-    if (constraint->getUserConstraintId() == constraintId) {
-      RemoveConstraint(constraint, free);
-      break;
+  btTypedConstraint *constraint = nullptr;
+
+  auto it = m_constraintById.find(constraintId);
+  if (it != m_constraintById.end()) {
+    constraint = it->second;
+  }
+  else {
+    /* Fallback for constraints created before the lookup map existed. */
+    int numConstraints = m_dynamicsWorld->getNumConstraints();
+    for (int i = 0; i < numConstraints; i++) {
+      btTypedConstraint *candidate = m_dynamicsWorld->getConstraint(i);
+      if (candidate->getUserConstraintId() == constraintId) {
+        constraint = candidate;
+        break;
+      }
     }
+  }
+
+  if (constraint) {
+    RemoveConstraint(constraint, free);
   }
 
   WrapperVehicle *vehicle = static_cast<WrapperVehicle *>(GetVehicleConstraint(constraintId));
   if (vehicle) {
     RemoveVehicle(vehicle, free);
   }
+}
+
+bool CcdPhysicsEnvironment::IsRigidBodyConstraintEnabled(int constraintId)
+{
+  if (!m_dynamicsWorld) {
+    return false;
+  }
+
+  btTypedConstraint *constraint = GetConstraintById(constraintId);
+  if (!constraint) {
+    return false;
+  }
+  return constraint->isEnabled();
 }
 
 struct FilterClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback {
@@ -2014,6 +2175,7 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
   // first delete scene, then dispatcher, because pairs have to release manifolds on the dispatcher
   // delete m_dispatcher;
   delete m_dynamicsWorld;
+  m_dynamicsWorld = nullptr;
 
   if (nullptr != m_ownDispatcher)
     delete m_ownDispatcher;
@@ -2041,6 +2203,10 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 
   if (nullptr != m_cullingCache)
     delete m_cullingCache;
+
+  if (m_fallbackEffectorWeights) {
+    MEM_freeN(m_fallbackEffectorWeights);
+  }
 }
 
 btTypedConstraint *CcdPhysicsEnvironment::GetConstraintById(int constraintId)
@@ -2049,9 +2215,14 @@ btTypedConstraint *CcdPhysicsEnvironment::GetConstraintById(int constraintId)
   if (constraintId == 0)
     return nullptr;
 
+  auto it = m_constraintById.find(constraintId);
+  if (it != m_constraintById.end()) {
+    return it->second;
+  }
+
+  /* Fallback for legacy constraints that might not be in the map. */
   int numConstraints = m_dynamicsWorld->getNumConstraints();
-  int i;
-  for (i = 0; i < numConstraints; i++) {
+  for (int i = 0; i < numConstraints; i++) {
     btTypedConstraint *constraint = m_dynamicsWorld->getConstraint(i);
     if (constraint->getUserConstraintId() == constraintId) {
       return constraint;
@@ -2443,7 +2614,8 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
         frameInB = inv * globalFrameA;
         bool useReferenceFrameA = true;
 
-        genericConstraint = new btGeneric6DofSpringConstraint(
+        // Use non-spring 6DOF constraint for better performance
+        genericConstraint = new btGeneric6DofConstraint(
             *rb0, *rb1, frameInA, frameInB, useReferenceFrameA);
       }
       else {
@@ -2470,11 +2642,75 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
         frameInB = rb0->getCenterOfMassTransform() * frameInA;
 
         bool useReferenceFrameA = true;
-        genericConstraint = new btGeneric6DofSpringConstraint(
+        // Use non-spring 6DOF constraint for better performance
+        genericConstraint = new btGeneric6DofConstraint(
             *rb0, s_fixedObject2, frameInA, frameInB, useReferenceFrameA);
       }
 
       con = genericConstraint;
+
+      break;
+    }
+    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+      btGeneric6DofSpring2Constraint *spring2Constraint = nullptr;
+
+      if (rb1) {
+        btTransform frameInA;
+        btTransform frameInB;
+
+        btVector3 axis1(axis1X, axis1Y, axis1Z), axis2(axis2X, axis2Y, axis2Z);
+        if (axis1.length() == 0.0) {
+          btPlaneSpace1(axisInA, axis1, axis2);
+        }
+
+        frameInA.getBasis().setValue(axisInA.x(),
+                                     axis1.x(),
+                                     axis2.x(),
+                                     axisInA.y(),
+                                     axis1.y(),
+                                     axis2.y(),
+                                     axisInA.z(),
+                                     axis1.z(),
+                                     axis2.z());
+        frameInA.setOrigin(pivotInA);
+
+        btTransform inv = rb1->getCenterOfMassTransform().inverse();
+
+        btTransform globalFrameA = rb0->getCenterOfMassTransform() * frameInA;
+
+        frameInB = inv * globalFrameA;
+
+        spring2Constraint = new btGeneric6DofSpring2Constraint(
+            *rb0, *rb1, frameInA, frameInB);
+      }
+      else {
+        static btRigidBody s_fixedObject2(0.0f, nullptr, nullptr);
+        btTransform frameInA;
+        btTransform frameInB;
+
+        btVector3 axis1, axis2;
+        btPlaneSpace1(axisInA, axis1, axis2);
+
+        frameInA.getBasis().setValue(axisInA.x(),
+                                     axis1.x(),
+                                     axis2.x(),
+                                     axisInA.y(),
+                                     axis1.y(),
+                                     axis2.y(),
+                                     axisInA.z(),
+                                     axis1.z(),
+                                     axis2.z());
+
+        frameInA.setOrigin(pivotInA);
+
+        /// frameInB in worldspace
+        frameInB = rb0->getCenterOfMassTransform() * frameInA;
+
+        spring2Constraint = new btGeneric6DofSpring2Constraint(
+            *rb0, s_fixedObject2, frameInA, frameInB);
+      }
+
+      con = spring2Constraint;
 
       break;
     }
@@ -2625,6 +2861,9 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
   con->setUserConstraintPtr(constraintData);
   m_dynamicsWorld->addConstraint(con, disableCollisionBetweenLinkedBodies);
 
+  /* Track constraint for O(1) lookup by ID (used on deletion). */
+  m_constraintById[con->getUserConstraintId()] = con;
+
   return constraintData;
 }
 
@@ -2772,6 +3011,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   };
   CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(
       solverTypeTable[blenderscene->gm.solverType], false);
+  ccdPhysEnv->m_blenderScene = blenderscene;
   ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
   ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
   ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
@@ -3281,8 +3521,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     }
   }
 
-  if (parentRoot) {
-    physicscontroller->SuspendDynamics(false);
+  if (parentRoot && converter) {
+    converter->AddPendingSuspendDynamics(physicscontroller);
   }
 
   CcdPhysicsController *parentCtrl = parentRoot ? static_cast<CcdPhysicsController *>(
@@ -3378,6 +3618,221 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src,
 
   if (dat->flag & CONSTRAINT_USE_BREAKING) {
     constraint->SetBreakingThreshold(dat->breaking);
+  }
+}
+
+int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *constraintObject,
+                                                     KX_GameObject *gameobj1,
+                                                     KX_GameObject *gameobj2,
+                                                     RigidBodyCon *rbc)
+{
+  if (!constraintObject || !gameobj1 || !rbc) {
+    return -1;
+  }
+
+  // Safety check: ensure objects have valid scene graph nodes
+  if (!constraintObject->GetSGNode() || !gameobj1->GetSGNode()) {
+    return -1;
+  }
+
+  PHY_IPhysicsController *ctrl1 = gameobj1->GetPhysicsController();
+  PHY_IPhysicsController *ctrl2 = gameobj2 ? gameobj2->GetPhysicsController() : nullptr;
+
+  if (!ctrl1) {
+    return -1;
+  }
+
+  const MT_Transform &worldTrans = constraintObject->NodeGetWorldTransform();
+  const MT_Vector3 pivotWorld = worldTrans.getOrigin();
+  const MT_Matrix3x3 basisWorld = worldTrans.getBasis();
+
+  const MT_Transform &ob1Trans = gameobj1->NodeGetWorldTransform();
+  MT_Transform ob1Inv;
+  ob1Inv.invert(ob1Trans);
+
+  MT_Vector3 pivotLocal = ob1Inv * pivotWorld;
+  MT_Matrix3x3 basisLocal = ob1Inv.getBasis() * basisWorld;
+
+  // Normalize axes to handle scaled constraint empties, scaled rigid bodies,
+  // and parented empties inheriting scale. Bullet physics expects unit vectors
+  // for constraint axes; non-unit axes cause instability and incorrect behavior.
+  MT_Vector3 axis0 = basisLocal.getColumn(0).safe_normalized();
+  MT_Vector3 axis1 = basisLocal.getColumn(1).safe_normalized();
+  MT_Vector3 axis2 = basisLocal.getColumn(2).safe_normalized();
+
+  PHY_ConstraintType type = PHY_GENERIC_6DOF_CONSTRAINT;
+  bool use_springs = false;
+  bool is_fixed = false;
+  bool is_slider = false;
+  bool is_piston = false;
+  bool is_motor = false;
+
+  switch (rbc->type) {
+    case RBC_TYPE_POINT:
+      type = PHY_POINT2POINT_CONSTRAINT;
+      break;
+    case RBC_TYPE_HINGE:
+      type = PHY_LINEHINGE_CONSTRAINT;
+      // btHingeConstraint uses the first axis parameter as hinge axis.
+      // Blender's Hinge constraint uses local Z axis as hinge axis.
+      // Swap so axis0 (passed as hinge axis) contains the original Z axis.
+      std::swap(axis0, axis2);  // axis0=Z, axis2=X
+      std::swap(axis1, axis2);  // axis1=X, axis2=Y
+      break;
+    case RBC_TYPE_SLIDER:
+      type = PHY_GENERIC_6DOF_CONSTRAINT;
+      is_slider = true;
+      break;
+    case RBC_TYPE_6DOF:
+      type = PHY_GENERIC_6DOF_CONSTRAINT;
+      break;
+    case RBC_TYPE_6DOF_SPRING:
+      type = (rbc->spring_type == RBC_SPRING_TYPE2) ? PHY_GENERIC_6DOF_SPRING2_CONSTRAINT :
+                                                      PHY_GENERIC_6DOF_CONSTRAINT;
+      use_springs = true;
+      break;
+    case RBC_TYPE_FIXED:
+      type = PHY_GENERIC_6DOF_CONSTRAINT;
+      is_fixed = true;
+      break;
+    case RBC_TYPE_PISTON:
+      type = PHY_GENERIC_6DOF_CONSTRAINT;
+      is_piston = true;
+      break;
+    case RBC_TYPE_MOTOR:
+      type = PHY_GENERIC_6DOF_CONSTRAINT;
+      is_motor = true;
+      break;
+    default:
+      break;
+  }
+
+  int flag = 0;
+  if (rbc->flag & RBC_FLAG_DISABLE_COLLISIONS) {
+    flag |= CCD_CONSTRAINT_DISABLE_LINKED_COLLISION;
+  }
+
+  PHY_IConstraint *constraint = CreateConstraint(ctrl1,
+                                                 ctrl2,
+                                                 type,
+                                                 pivotLocal.x(),
+                                                 pivotLocal.y(),
+                                                 pivotLocal.z(),
+                                                 axis0.x(),
+                                                 axis0.y(),
+                                                 axis0.z(),
+                                                 axis1.x(),
+                                                 axis1.y(),
+                                                 axis1.z(),
+                                                 axis2.x(),
+                                                 axis2.y(),
+                                                 axis2.z(),
+                                                 flag);
+
+  if (!constraint) {
+    return -1;
+  }
+
+  if (rbc->flag & RBC_FLAG_USE_BREAKING) {
+    constraint->SetBreakingThreshold(rbc->breaking_threshold);
+  }
+
+  if (rbc->flag & RBC_FLAG_OVERRIDE_SOLVER_ITERATIONS) {
+    constraint->SetSolverIterations(rbc->num_solver_iterations);
+  }
+
+  auto set_limit = [&](int axis, bool use_flag, float lower, float upper) {
+    constraint->SetParam(axis, use_flag ? lower : 1.0f, use_flag ? upper : -1.0f);
+  };
+
+  if (type == PHY_GENERIC_6DOF_CONSTRAINT || type == PHY_GENERIC_6DOF_SPRING2_CONSTRAINT) {
+    if (is_fixed) {
+      for (int i = 0; i < 6; ++i) {
+        constraint->SetParam(i, 0.0f, 0.0f);
+      }
+    }
+    else if (is_slider) {
+      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
+      constraint->SetParam(1, 0.0f, 0.0f);
+      constraint->SetParam(2, 0.0f, 0.0f);
+      constraint->SetParam(3, 0.0f, 0.0f);
+      constraint->SetParam(4, 0.0f, 0.0f);
+      constraint->SetParam(5, 0.0f, 0.0f);
+    }
+    else if (is_piston) {
+      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
+      constraint->SetParam(1, 0.0f, 0.0f);
+      constraint->SetParam(2, 0.0f, 0.0f);
+      set_limit(3, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X), rbc->limit_ang_x_lower, rbc->limit_ang_x_upper);
+      constraint->SetParam(4, 0.0f, 0.0f);
+      constraint->SetParam(5, 0.0f, 0.0f);
+    }
+    else if (is_motor) {
+      for (int i = 0; i < 6; ++i) {
+        constraint->SetParam(i, 1.0f, -1.0f);
+      }
+      if (rbc->flag & RBC_FLAG_USE_MOTOR_LIN) {
+        constraint->SetParam(6, rbc->motor_lin_target_velocity, rbc->motor_lin_max_impulse);
+      }
+      if (rbc->flag & RBC_FLAG_USE_MOTOR_ANG) {
+        constraint->SetParam(9, rbc->motor_ang_target_velocity, rbc->motor_ang_max_impulse);
+      }
+    }
+    else {
+      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
+      set_limit(1, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Y), rbc->limit_lin_y_lower, rbc->limit_lin_y_upper);
+      set_limit(2, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Z), rbc->limit_lin_z_lower, rbc->limit_lin_z_upper);
+      set_limit(3, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X), rbc->limit_ang_x_lower, rbc->limit_ang_x_upper);
+      set_limit(4, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Y), rbc->limit_ang_y_lower, rbc->limit_ang_y_upper);
+      set_limit(5, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z), rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
+
+      if (use_springs) {
+        if (rbc->flag & RBC_FLAG_USE_SPRING_X) {
+          constraint->SetParam(12, rbc->spring_stiffness_x, rbc->spring_damping_x);
+        }
+        if (rbc->flag & RBC_FLAG_USE_SPRING_Y) {
+          constraint->SetParam(13, rbc->spring_stiffness_y, rbc->spring_damping_y);
+        }
+        if (rbc->flag & RBC_FLAG_USE_SPRING_Z) {
+          constraint->SetParam(14, rbc->spring_stiffness_z, rbc->spring_damping_z);
+        }
+        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_X) {
+          constraint->SetParam(15, rbc->spring_stiffness_ang_x, rbc->spring_damping_ang_x);
+        }
+        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Y) {
+          constraint->SetParam(16, rbc->spring_stiffness_ang_y, rbc->spring_damping_ang_y);
+        }
+        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Z) {
+          constraint->SetParam(17, rbc->spring_stiffness_ang_z, rbc->spring_damping_ang_z);
+        }
+      }
+    }
+  }
+  else if (type == PHY_LINEHINGE_CONSTRAINT && (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z)) {
+    constraint->SetParam(3, rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
+  }
+
+  return constraint->GetIdentifier();
+}
+
+void CcdPhysicsEnvironment::SetRigidBodyConstraintEnabled(int constraintid, bool enabled)
+{
+  if (constraintid == 0) {
+    return;
+  }
+
+  btTypedConstraint *constraint = GetConstraintById(constraintid);
+  if (!constraint) {
+    return;
+  }
+
+  constraint->setEnabled(enabled);
+
+  if (enabled) {
+    btRigidBody &rbA = constraint->getRigidBodyA();
+    btRigidBody &rbB = constraint->getRigidBodyB();
+    rbA.activate(true);
+    rbB.activate(true);
   }
 }
 

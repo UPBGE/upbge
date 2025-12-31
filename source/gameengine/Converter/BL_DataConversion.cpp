@@ -74,6 +74,7 @@
 #include "DNA_actuator_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_python_proxy_types.h"
+#include "DNA_rigidbody_types.h"
 #include "wm_event_types.hh"
 
 /* end of blender include block */
@@ -97,6 +98,8 @@
 #include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PythonComponent.h"
+#include "CM_Message.h"
+#include "PHY_IConstraint.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
 #ifdef WITH_BULLET
@@ -1601,6 +1604,83 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     ListBase *conlist = BL_GetActiveConstraint(blenderobject);
     bConstraint *curcon;
 
+    /* Handle Rigid Body Constraints (Blender 2.66+ system) */
+    if (blenderobject->rigidbody_constraint) {
+      RigidBodyCon *rbc = blenderobject->rigidbody_constraint;
+
+      // Skip disabled constraints
+      if (!(rbc->flag & RBC_FLAG_ENABLED)) {
+        continue;
+      }
+
+      Object *ob1 = rbc->ob1;
+      Object *ob2 = rbc->ob2;
+
+      if (ob1 || ob2) {
+        // If ob1 is null (world), swap so ob1 is the object and ob2 is null (world)
+        if (!ob1) {
+          std::swap(ob1, ob2);
+        }
+
+        KX_GameObject *gameobj1 = (KX_GameObject *)sumolist->FindValue(ob1->id.name + 2);
+        KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) :
+                                        nullptr;
+
+        /* Store constraint for later replication even if target objects are not converted yet.
+         * Full-copy duplication can change names and conversion order, so we must keep the data now
+         * and resolve targets after all objects are spawned/converted.
+         */
+        if (ob1) {
+          gameobj->AddRigidBodyConstraint(rbc, ob1, ob2);
+        }
+
+        // If targets aren't available yet, skip immediate creation quietly; it will be replicated later.
+        if (!gameobj1 || (ob2 && !gameobj2)) {
+          continue;
+        }
+
+        // During libloading, only store constraint, don't create it
+        // Constraint will be replicated later in scene->MergeScene
+        if (libloading) {
+          continue;
+        }
+
+        // Skip already converted constraints
+        if (convertedlist->FindValue(gameobj->GetName())) {
+          continue;
+        }
+
+        // Validate before creating: check layer, SG_Node, and physics controller
+        // This matches the validation used by rigid body joints
+        bool validConstraint = gameobj->GetSGNode() && (gameobj->GetLayer() & activeLayerBitInfo);
+        bool valid1 = gameobj1 && (gameobj1->GetLayer() & activeLayerBitInfo) &&
+                      gameobj1->GetSGNode() && gameobj1->GetPhysicsController();
+        bool valid2 = !ob2 || (gameobj2 && (gameobj2->GetLayer() & activeLayerBitInfo) &&
+                               gameobj2->GetSGNode() && gameobj2->GetPhysicsController());
+
+        CM_Debug("BL_DataConversion: " << gameobj->GetName() << " validConstraint=" << validConstraint
+                 << " valid1=" << valid1 << " valid2=" << valid2
+                 << " (gameobj1=" << (gameobj1 ? gameobj1->GetName() : "null")
+                 << ", gameobj2=" << (gameobj2 ? gameobj2->GetName() : "null") << ")");
+
+        if (validConstraint && valid1 && valid2) {
+          int constraintId = physEnv->CreateRigidBodyConstraint(gameobj, gameobj1, gameobj2, rbc);
+          CM_Debug("BL_DataConversion: " << gameobj->GetName() << " created constraint ID=" << constraintId);
+          // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
+          if (constraintId != -1) {
+            gameobj->SetRigidBodyConstraintId(rbc, constraintId);
+
+            // Automatically parent the constraint object to the first rigid body
+            // so it visually moves with it.
+            gameobj->SetParent(gameobj1, false, false);
+          }
+        }
+        else {
+          CM_Debug("BL_DataConversion: " << gameobj->GetName() << " SKIPPED - validation failed");
+        }
+      }
+    }
+
     if (!conlist)
       continue;
 
@@ -1638,6 +1718,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
     }
   }
+
+  converter->FlushPendingSuspendDynamics();
 
   if (!single_object) {
     KX_SetActiveScene(kxscene);

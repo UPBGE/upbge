@@ -745,6 +745,79 @@ typedef struct RecastData {
   short _pad2[5] = {};
 } RecastData;
 
+typedef struct GameData {
+
+  /* standalone player */
+  struct GameFraming framing;
+  short playerflag = 0, xplay = 1280, yplay = 720, freqplay = 60;
+  short depth = 32, attrib = 0, rt1 = 0, rt2 = 0;
+  short aasamples = 0, samples_per_frame = 1;
+
+  short profileSize = 0;
+  short logLevel = 0;
+
+  /* stereo */
+  short stereoflag = 1, stereomode = 5;
+  float eyeseparation = 0.10f;
+  RecastData recastData;
+
+  /* physics (it was in world)*/
+  float gravity = 9.8f; /*Gravitation constant for the game world*/
+
+  /*
+   * Radius of the activity bubble, in Manhattan length. Objects
+   * outside the box are activity-culled. */
+  float _pad11 = 0.0f;
+
+  /*
+   * bit 3: (gameengine): Activity culling is enabled.
+   * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
+   */
+  int flag = (1 << 19);
+  short mode = 8;
+  short matmode DNA_DEPRECATED = 0;
+  short occlusionRes = 128; /* resolution of occlusion Z buffer in pixel */
+  short physicsEngine = 5;
+  short solverType = 0, _pad[3] = {};
+  short exitkey = 218;
+  short pythonkeys[4] = {212, 217, 213, 116};
+  short vsync = 0; /* Controls vsync: off, on, or adaptive (if supported) */
+  short obstacleSimulation = 0;
+  short raster_storage DNA_DEPRECATED = 0;
+  short ticrate = 60, maxlogicstep = 5, physubstep = 1, maxphystep = 5;
+  float timeScale = 1.0f;
+  float levelHeight = 2.0f;
+  float deactivationtime = 2.0f, lineardeactthreshold = 0.8f, angulardeactthreshold = 1.0f;
+  float erp = 0.2f, erp2 = 0.8f, cfm = 0.0f, _pad1 = 0;
+
+  /* Scene LoD */
+  short lodflag = 1, _pad3 = 0;
+  int scehysteresis = 10;
+
+  /* Fixed physics timestep settings (UPBGE) */
+  char use_fixed_physics_timestep = 0;
+  char _pad_fixed[3] = {};
+  short physics_tick_rate = 60;
+  short _pad_physics = 0;
+
+  /* Fixed physics interpolation (global) */
+  char use_fixed_physics_interpolation = 1;
+  char _pad_fixed_interpolation[7] = {};
+
+  /* Fixed physics render FPS cap (only in fixed physics mode) */
+  char use_fixed_fps_cap = 1;
+  char _pad_fixedfps[3] = {};
+  int fixed_fps_cap = 60;
+
+  /* Fixed physics mode specific rates */
+  short fixed_logic_rate = 60;      /* Logic update rate (Hz) for fixed physics mode */
+  short fixed_render_cap_rate = 60; /* Render FPS cap rate (Hz) for fixed physics mode */
+  short fixed_max_logic_step = 5;   /* Max logic frames per render for fixed physics mode */
+  short _pad_fixed_rates = 0;
+
+  void *_pad10 = nullptr;
+} GameData;
+
 /* GameData.stereoflag */
 #define STEREO_NOSTEREO 1
 #define STEREO_ENABLED 2
@@ -820,59 +893,6 @@ typedef struct RecastData {
 #define GAME_LOG_LEVEL_WARNING 30
 #define GAME_LOG_LEVEL_ERROR 40
 #define GAME_LOG_LEVEL_CRITICAL 50
-
-typedef struct GameData {
-
-  /* standalone player */
-  struct GameFraming framing;
-  short playerflag = 0, xplay = 1280, yplay = 720, freqplay = 60;
-  short depth = 32, attrib = 0, rt1 = 0, rt2 = 0;
-  short aasamples = 0, samples_per_frame = 1;
-
-  short profileSize = 0;
-  short logLevel = 0;
-
-  /* stereo */
-  short stereoflag = STEREO_NOSTEREO, stereomode = STEREO_ANAGLYPH;
-  float eyeseparation = 0.10f;
-  RecastData recastData;
-
-  /* physics (it was in world)*/
-  float gravity = 9.8f; /*Gravitation constant for the game world*/
-
-  /*
-   * Radius of the activity bubble, in Manhattan length. Objects
-   * outside the box are activity-culled. */
-  float _pad11 = 0.0f;
-
-  /*
-   * bit 3: (gameengine): Activity culling is enabled.
-   * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
-   */
-  int flag = GAME_USE_UNDO;
-  short mode = 8;
-  short matmode DNA_DEPRECATED = 0;
-  short occlusionRes = 128; /* resolution of occlusion Z buffer in pixel */
-  short physicsEngine = WOPHY_BULLET;
-  short solverType = 0, _pad[3] = {};
-  short exitkey = 218;
-  short pythonkeys[4] = {212, 217, 213, 116};
-  short vsync = 0; /* Controls vsync: off, on, or adaptive (if supported) */
-  short obstacleSimulation = OBSTSIMULATION_NONE;
-  short raster_storage DNA_DEPRECATED = 0;
-  short ticrate = 60, maxlogicstep = 5, physubstep = 1, maxphystep = 5;
-  float timeScale = 1.0f;
-  float levelHeight = 2.0f;
-  float deactivationtime = 2.0f, lineardeactthreshold = 0.8f, angulardeactthreshold = 1.0f;
-  float erp = 0.2f, erp2 = 0.8f, cfm = 0.0f, _pad1 = 0;
-
-  /* Scene LoD */
-  short lodflag = SCE_LOD_USE_HYST, _pad3 = 0;
-  int scehysteresis = 10;
-  void *_pad10 = nullptr;
-} GameData;
-
-
 
 /* GameData.solverType */
 enum {

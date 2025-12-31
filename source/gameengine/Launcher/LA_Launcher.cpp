@@ -224,14 +224,24 @@ void LA_Launcher::InitEngine()
   m_ketsjiEngine->SetFlag(flags, true);
   m_ketsjiEngine->SetRender(true);
 
+  /* Initialize physics timestep settings from Scene. */
   m_ketsjiEngine->SetTicRate(gm.ticrate);
   m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
+  m_ketsjiEngine->SetUseFixedPhysicsTimestep(gm.use_fixed_physics_timestep != 0);
   m_ketsjiEngine->SetMaxPhysicsFrame(gm.maxphystep);
+  m_ketsjiEngine->SetPhysicsTickRate(gm.physics_tick_rate);
+  m_ketsjiEngine->SetUseFixedFPSCap(gm.use_fixed_fps_cap != 0);
+  m_ketsjiEngine->SetFixedRenderCapRate(gm.fixed_render_cap_rate);
+  m_ketsjiEngine->SetPhysicsInterpolationEnabled(gm.use_fixed_physics_interpolation != 0);
+  
+  /* Time scale is independent of physics mode - applies to both modes
+   * uniformly. It affects both logic and physics timing by scaling the
+   * timestep (values: <1.0 = slow motion, 1.0 = realtime, >1.0 = fast forward).
+   */
   m_ketsjiEngine->SetTimeScale(gm.timeScale);
 
   // Set the global settings (carried over if restart/load new files).
   m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
-
   m_rasterizer->Init(m_canvas);
   InitCamera();
 

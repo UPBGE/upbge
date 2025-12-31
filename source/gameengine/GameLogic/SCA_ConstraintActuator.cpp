@@ -186,6 +186,25 @@ bool SCA_ConstraintActuator::Update(double curtime)
       filter = 0.0f;
     }
     switch (m_locrot) {
+      case KX_ACT_CONSTRAINT_RB_DISABLE:
+      case KX_ACT_CONSTRAINT_RB_ENABLE: {
+        KX_GameObject *owner = (KX_GameObject *)GetParent();
+        if (!owner) {
+          goto CHECK_TIME;
+        }
+
+        const bool enable = (m_locrot == KX_ACT_CONSTRAINT_RB_ENABLE);
+        const std::string targetName = m_property;
+        if (owner->SetRigidBodyConstraintsEnabled(enable, targetName)) {
+          result = true;
+        }
+        else {
+          CM_LogicBrickWarning(this,
+                               "failed to find rigid body constraint"
+                               << (targetName.empty() ? "" : " for object '" + targetName + "'"));
+        }
+        goto CHECK_TIME;
+      }
       case KX_ACT_CONSTRAINT_ORIX:
       case KX_ACT_CONSTRAINT_ORIY:
       case KX_ACT_CONSTRAINT_ORIZ:

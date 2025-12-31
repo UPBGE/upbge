@@ -63,6 +63,8 @@
 #include "wm_event_system.hh"
 #include "xr/wm_xr.hh"
 
+#include <unordered_map>
+
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
 #include "BL_SceneConverter.h"
@@ -127,6 +129,43 @@ void bge_dupli_provider(DEGObjectIterData *data)
   }
 }
 
+void KX_Scene::StorePhysicsInterpolationState()
+{
+  for (KX_GameObject *gameobj : *GetObjectList()) {
+    gameobj->StorePhysicsInterpolationState();
+  }
+}
+
+void KX_Scene::ApplyPhysicsInterpolation(double alpha)
+{
+  const bool skipInvisible = m_skipInvisibleInterpolation;
+
+  for (KX_GameObject *gameobj : *GetObjectList()) {
+    /* Optional fast path: invisible objects keep physics pose until they become visible again. */
+    if (skipInvisible && !gameobj->GetVisible()) {
+      continue;
+    }
+    gameobj->ApplyPhysicsInterpolation(alpha);
+  }
+}
+
+void KX_Scene::ClearPhysicsInterpolationState()
+{
+  if (!m_interpolatedObjects.empty()) {
+    for (KX_GameObject *gameobj : m_interpolatedObjects) {
+      if (gameobj != nullptr) {
+        gameobj->ClearPhysicsInterpolationState();
+      }
+    }
+    m_interpolatedObjects.clear();
+  }
+  else {
+    for (KX_GameObject *gameobj : *GetObjectList()) {
+      gameobj->ClearPhysicsInterpolationState();
+    }
+  }
+}
+
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
   KX_GameObject *replica =
@@ -183,7 +222,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_blenderScene(scene),
       m_isActivedHysteresis(false),
       m_lodHysteresisValue(0),
-      m_isRuntime(true)  // eevee
+      m_isRuntime(true),  // eevee
+      /* Default to skipping culled objects to avoid unnecessary SG updates. */
+      m_skipInvisibleInterpolation(true)
 {
 
   m_dbvt_culling = false;
@@ -419,8 +460,10 @@ KX_Scene::~KX_Scene()
   if (m_logicmgr)
     delete m_logicmgr;
 
-  if (m_physicsEnvironment)
+  if (m_physicsEnvironment) {
     delete m_physicsEnvironment;
+    m_physicsEnvironment = nullptr;
+  }
 
   if (m_networkScene)
     delete m_networkScene;
@@ -487,6 +530,56 @@ void KX_Scene::RemoveDupliObjectFromList(KX_GameObject *gameobj)
   if (it != m_duplilist.end()) {
     m_duplilist.erase(it);
   }
+}
+
+/**
+ * Registers an object for interpolation.
+ * 
+ * This is used for visibility gating, where objects are only rendered when they are visible.
+ * The object is added to the list of interpolated objects, which is cleared each frame in ClearPhysicsInterpolationState().
+ * 
+ * @param gameobj The object to register for interpolation.
+ */
+void KX_Scene::RegisterInterpolatedObject(KX_GameObject *gameobj)
+{
+  if (std::find(m_interpolatedObjects.begin(), m_interpolatedObjects.end(), gameobj) ==
+      m_interpolatedObjects.end()) {
+    /* Stored objects are cleared in ClearPhysicsInterpolationState() each frame. */
+    m_interpolatedObjects.push_back(gameobj);
+  }
+}
+
+/**
+ * Unregisters an object for interpolation.
+ * 
+ * This is used for visibility gating, where objects are only rendered when they are visible.
+ * The object is removed from the list of interpolated objects.
+ * 
+ * @param gameobj The object to unregister for interpolation.
+ */
+void KX_Scene::UnregisterInterpolatedObject(KX_GameObject *gameobj)
+{
+  m_interpolatedObjects.erase(
+      std::remove(m_interpolatedObjects.begin(), m_interpolatedObjects.end(), gameobj),
+      m_interpolatedObjects.end());
+}
+
+/**
+ * Sets whether to skip invisible interpolation.
+ * 
+ * This is used for visibility gating, where objects are only rendered when they are visible.
+ * If set to true, invisible objects will not be interpolated.
+ * 
+ * @param skip Whether to skip invisible interpolation.
+ */
+void KX_Scene::SetSkipInvisibleInterpolation(bool skip)
+{
+  m_skipInvisibleInterpolation = skip;
+}
+
+bool KX_Scene::GetSkipInvisibleInterpolation() const
+{
+  return m_skipInvisibleInterpolation;
 }
 
 void KX_Scene::ReinitBlenderContextVariables()
@@ -882,6 +975,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   short samples_per_frame = min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples);
   samples_per_frame = max_ii(samples_per_frame, 1);
+
+  if (KX_GetActiveEngine()->UseViewportRender() &&
+      KX_GetActiveEngine()->IsPhysicsInterpolationEnabled())
+  {
+    samples_per_frame = 1;
+  }
 
   for (short i = 0; i < samples_per_frame; i++) {
     if (background_fb) {
@@ -1964,6 +2063,13 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     ReplicateLogic(gameobj);
   }
 
+  // Build lookup map for fast name resolution during constraint replication.
+  std::unordered_map<std::string, KX_GameObject *> hierarchyLookup;
+  hierarchyLookup.reserve(m_logicHierarchicalGameObjects.size());
+  for (KX_GameObject *obj : m_logicHierarchicalGameObjects) {
+    hierarchyLookup.emplace(obj->GetName(), obj);
+  }
+
   // now look if object in the hierarchy have dupli group and recurse
   for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
     /* Replicate all constraints. */
@@ -1971,6 +2077,11 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       gameobj->GetPhysicsController()->ReplicateConstraints(gameobj,
                                                             m_logicHierarchicalGameObjects);
       gameobj->ClearConstraints();
+    }
+
+    if (gameobj->HasRigidBodyConstraints()) {
+      gameobj->ReplicateRigidBodyConstraints(hierarchyLookup);
+      // Don't clear - keep constraint IDs for cleanup when object is deleted
     }
 
     if (gameobj != groupobj && gameobj->IsDupliGroup())
@@ -2699,6 +2810,21 @@ bool KX_Scene::MergeScene(KX_Scene *other)
       // Replicate all constraints in the right physics environment.
       gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, physicsObjects);
       gameobj->ClearConstraints();
+    }
+
+    // Build lookup map for fast name resolution during rigid body constraint replication.
+    std::unordered_map<std::string, KX_GameObject *> objectLookup;
+    objectLookup.reserve(otherObjects->GetCount());
+    for (KX_GameObject *gameobj : *otherObjects) {
+      objectLookup.emplace(gameobj->GetName(), gameobj);
+    }
+
+    for (KX_GameObject *gameobj : *otherObjects) {
+      if (!gameobj->HasRigidBodyConstraints()) {
+        continue;
+      }
+      gameobj->ReplicateRigidBodyConstraints(objectLookup);
+      // Don't clear - keep constraint IDs for cleanup when object is deleted
     }
   }
 

@@ -3487,6 +3487,10 @@ class VIEW3D_MT_object_game(Menu):
 
         layout.operator("object.game_property_clear")
 
+        layout.separator()
+
+        layout.operator("rigidbody.connect_game", text="Connect Rigid Bodies")
+
 
 class VIEW3D_MT_paint_vertex(Menu):
     bl_label = "Paint"
