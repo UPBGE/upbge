@@ -640,7 +640,7 @@ void *WM_draw_cb_activate(wmWindow *win,
 {
   WindowDrawCB *wdc = MEM_callocN<WindowDrawCB>("WindowDrawCB");
 
-  BLI_addtail(&win->drawcalls, wdc);
+  BLI_addtail(&win->runtime->drawcalls, wdc);
   wdc->draw = draw;
   wdc->customdata = customdata;
 
@@ -649,9 +649,9 @@ void *WM_draw_cb_activate(wmWindow *win,
 
 void WM_draw_cb_exit(wmWindow *win, void *handle)
 {
-  LISTBASE_FOREACH (WindowDrawCB *, wdc, &win->drawcalls) {
+  LISTBASE_FOREACH (WindowDrawCB *, wdc, &win->runtime->drawcalls) {
     if (wdc == (WindowDrawCB *)handle) {
-      BLI_remlink(&win->drawcalls, wdc);
+      BLI_remlink(&win->runtime->drawcalls, wdc);
       MEM_freeN(wdc);
       return;
     }
@@ -661,7 +661,7 @@ void WM_draw_cb_exit(wmWindow *win, void *handle)
 static void wm_draw_callbacks(wmWindow *win)
 {
   /* Allow callbacks to remove themselves. */
-  LISTBASE_FOREACH_MUTABLE (WindowDrawCB *, wdc, &win->drawcalls) {
+  LISTBASE_FOREACH_MUTABLE (WindowDrawCB *, wdc, &win->runtime->drawcalls) {
     wdc->draw(win, wdc->customdata);
   }
 }

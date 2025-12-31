@@ -625,6 +625,12 @@ void DepsgraphRelationBuilder::build_idproperties(IDProperty *id_property)
 void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_collection,
                                                 Collection *collection)
 {
+  if (!built_map_.check_is_built_and_tag(collection, BuilderMap::TAG_COLLECTION_PROPERTIES)) {
+    build_idproperties(collection->id.properties);
+    build_idproperties(collection->id.system_properties);
+    build_parameters(&collection->id);
+  }
+
   if (from_layer_collection != nullptr) {
     /* If we came from layer collection we don't go deeper, view layer builder takes care of going
      * deeper.
@@ -645,6 +651,13 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
         /* Check whether the object hierarchy node exists, because the view layer builder can skip
          * bases if they are constantly excluded from the collections. */
         if (Node *object_hierarchy_node = this->find_node(object_hierarchy_key)) {
+          /* Note that while view layer builder ensures objects are built first and only then layer
+           * collections are built, it is not possible to assert() here: the object might be pulled
+           * into the dependency graph via different indirections, and it might not have been
+           * traversed into at this point.
+           * This build_object() is more of a safety measure, which follows the common rule in the
+           * dependency graph builder: ensure the entity is built when you encounter it. */
+          build_object(object);
           this->add_operation_relation(collection_hierarchy_exit,
                                        object_hierarchy_node->get_entry_operation(),
                                        "Collection -> Object hierarchy");
@@ -658,10 +671,6 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
   if (built_map_.check_is_built_and_tag(collection)) {
     return;
   }
-
-  build_idproperties(collection->id.properties);
-  build_idproperties(collection->id.system_properties);
-  build_parameters(&collection->id);
 
   const BuilderStack::ScopedEntry stack_entry = stack_.trace(collection->id);
 
@@ -3067,17 +3076,17 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
     }
     ID_Type id_type = GS(id->name);
     if (id_type == ID_MA) {
-      build_material((Material *)bnode->id);
+      build_material((Material *)id);
       ComponentKey material_key(id, NodeType::SHADING);
       add_relation(material_key, ntree_output_key, "Material -> Node");
     }
     else if (id_type == ID_TE) {
-      build_texture((Tex *)bnode->id);
+      build_texture((Tex *)id);
       ComponentKey texture_key(id, NodeType::GENERIC_DATABLOCK);
       add_relation(texture_key, ntree_output_key, "Texture -> Node");
     }
     else if (id_type == ID_IM) {
-      build_image((Image *)bnode->id);
+      build_image((Image *)id);
       ComponentKey image_key(id, NodeType::GENERIC_DATABLOCK);
       add_relation(image_key, ntree_output_key, "Image -> Node");
     }
@@ -3758,6 +3767,11 @@ void DepsgraphRelationBuilder::constraint_walk(bConstraint * /*con*/,
     return;
   }
   data->builder->build_id(id);
+}
+
+Set<const ID *> DepsgraphRelationBuilder::get_built_ids() const
+{
+  return built_map_.get_ids();
 }
 
 }  // namespace blender::deg
