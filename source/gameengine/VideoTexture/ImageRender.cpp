@@ -255,6 +255,11 @@ bool ImageRender::Render()
   // matrix calculation, don't apply any of the stereo mode
   m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 
+  /* Ensure animations are up-to-date before computing projection/modelview matrices.
+   * Animations may modify camera parameters (lens, shift, orthographic) or transform.
+   */
+  m_engine->UpdateAnimations(m_scene);
+
   if (m_mirror) {
     // frustum was computed above
     // get frustum matrix and set projection matrix
@@ -330,8 +335,6 @@ bool ImageRender::Render()
 
   // restore the stereo mode now that the matrix is computed
   m_rasterizer->SetStereoMode(stereomode);
-
-  m_engine->UpdateAnimations(m_scene);
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);

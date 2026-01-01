@@ -769,6 +769,15 @@ void KX_KetsjiEngine::Render()
   background_fb->UpdateSize(width + 1, height + 1);
 
   std::vector<FrameRenderData> frameDataList;
+  /* Ensure animations (including camera IPOs that modify lens/clip)
+   * are up-to-date before computing camera projection matrices.
+   * This avoids a race where GetFrameRenderData computes projection
+   * using stale camera data and later animation updates change the
+   * lens, causing flickering depending on actuator execution order. */
+  for (KX_Scene *scene : m_scenes) {
+    UpdateAnimations(scene);
+  }
+
   GetFrameRenderData(frameDataList);
 
   KX_Scene *firstscene = m_scenes->GetFront();
