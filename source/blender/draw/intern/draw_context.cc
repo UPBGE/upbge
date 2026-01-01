@@ -2621,6 +2621,9 @@ void DRW_game_render_loop(bContext *C,
 
 void DRW_game_viewport_render_loop_end()
 {
+  if (!debug_bge) {
+    return;
+  }
   while (debug_bge->lines) {
     void *next = debug_bge->lines->next;
 
