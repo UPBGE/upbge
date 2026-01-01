@@ -576,22 +576,21 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
                                      bool flush_to_original)
 {
   /* Calculate then execute each curve. */
-  threading::parallel_for(fcurves.index_range(), 256, [&](const IndexRange range) {
-    for (const int i : range) {
-      FCurve *fcu = fcurves[i];
-      if (!is_fcurve_evaluatable(fcu)) {
-        continue;
-      }
-      PathResolvedRNA anim_rna;
-      if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
-        const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
-        BKE_animsys_write_to_rna_path(&anim_rna, curval);
-        if (flush_to_original) {
-          animsys_write_orig_anim_rna(ptr, fcu->rna_path, fcu->array_index, curval);
-        }
+  for (FCurve *fcu : fcurves) {
+
+    if (!is_fcurve_evaluatable(fcu)) {
+      continue;
+    }
+
+    PathResolvedRNA anim_rna;
+    if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+      const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
+      BKE_animsys_write_to_rna_path(&anim_rna, curval);
+      if (flush_to_original) {
+        animsys_write_orig_anim_rna(ptr, fcu->rna_path, fcu->array_index, curval);
       }
     }
-  });
+  }
 }
 
 /**
