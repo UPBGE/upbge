@@ -719,6 +719,9 @@ void BL_ArmatureObject::GetGpuDeformedObj()
             m_deformedObj = child->GetBlenderObject();
             m_useGPUDeform = (amd->upbge_deformflag & ARM_DEF_GPU) != 0 &&
                              !child->IsDupliInstance() && !m_is_dupli_instance;
+            /* We should break here in gpu deform case, but I leave it like that for 0.50 release
+            /* even if it can cause weird behaviour if multiple children have armature modifier,
+            /* waiting the other branch to be merged. */
           }
         }
       }
