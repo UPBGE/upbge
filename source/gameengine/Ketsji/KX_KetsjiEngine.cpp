@@ -774,9 +774,11 @@ void KX_KetsjiEngine::Render()
    * This avoids a race where GetFrameRenderData computes projection
    * using stale camera data and later animation updates change the
    * lens, causing flickering depending on actuator execution order. */
+  m_logger.StartLog(tc_animations);
   for (KX_Scene *scene : m_scenes) {
     UpdateAnimations(scene);
   }
+  m_logger.StartLog(tc_rasterizer);
 
   GetFrameRenderData(frameDataList);
 
@@ -1077,11 +1079,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   KX_SetActiveScene(scene);
 
   m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE /*cameraFrameData.m_eye*/);
-
-  m_logger.StartLog(tc_scenegraph);
-
-  m_logger.StartLog(tc_animations);
-  UpdateAnimations(scene);
 
   m_logger.StartLog(tc_rasterizer);
 
