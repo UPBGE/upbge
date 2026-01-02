@@ -324,16 +324,7 @@ vec3 newell_face_normal_object(int f) {
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }
-  float len = length(n);
-  if (len <= 1e-20) {
-    return vec3(0.0, 0.0, 1.0);
-  }
-  n = n / len;
-  /* Safeguard against NaN/Inf after normalization (match CPU behavior) */
-  if (any(isnan(n)) || any(isinf(n))) {
-    return vec3(0.0, 0.0, 1.0);
-  }
-  return n;
+  return normalize(n);
 }
 
 void main() {
