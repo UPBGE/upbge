@@ -327,6 +327,66 @@ vec3 newell_face_normal_object(int f) {
   return normalize(n);
 }
 
+/* Helper: Find the two adjacent vertices in a face for a given vertex.
+ * Returns int2(prev_vert, next_vert) indices.
+ * Matches CPU face_find_adjacent_verts() from mesh_normals.cc
+ * Optimized for common polygon sizes (tri/quad). */
+int2 face_find_adjacent_verts(int f, int v) {
+  int beg = face_offsets(f);
+  int end = face_offsets(f + 1);
+  int count = end - beg;
+  
+  /* Fast path for triangles (no search needed) */
+  if (count == 3) {
+    int v0 = corner_verts(beg);
+    int v1 = corner_verts(beg + 1);
+    int v2 = corner_verts(beg + 2);
+    if (v == v0) return int2(v2, v1);
+    if (v == v1) return int2(v0, v2);
+    return int2(v1, v0);  /* v == v2 */
+  }
+  
+  /* Fast path for quads (common case) */
+  if (count == 4) {
+    int v0 = corner_verts(beg);
+    int v1 = corner_verts(beg + 1);
+    int v2 = corner_verts(beg + 2);
+    int v3 = corner_verts(beg + 3);
+    if (v == v0) return int2(v3, v1);
+    if (v == v1) return int2(v0, v2);
+    if (v == v2) return int2(v1, v3);
+    return int2(v2, v0);  /* v == v3 */
+  }
+  
+  /* General case: linear search for ngons */
+  int pos = -1;
+  for (int i = beg; i < end; ++i) {
+    if (corner_verts(i) == v) {
+      pos = i;
+      break;
+    }
+  }
+  
+  if (pos == -1) {
+    /* Vertex not found in face (should not happen) - return dummy */
+    return int2(v, v);
+  }
+  
+  /* Get previous and next corners (wrap around) */
+  int prev_corner = (pos == beg) ? (end - 1) : (pos - 1);
+  int next_corner = (pos == end - 1) ? beg : (pos + 1);
+  
+  return int2(corner_verts(prev_corner), corner_verts(next_corner));
+}
+
+/* GPU port of math::safe_acos_approx from BLI_math_base.hh
+ * Fast approximation of acos for angle calculation */
+float safe_acos_approx(float x) {
+  x = clamp(x, -1.0, 1.0);
+  /* Simple acos approximation (exact on GPU) */
+  return acos(x);
+}
+
 void main() {
   uint c = gl_GlobalInvocationID.x;
   if (c >= positions_out.length()) {
@@ -345,15 +405,51 @@ void main() {
     int f = corner_to_face(int(c));
     n_mesh = newell_face_normal_object(f);
   }
-  else { // Point
+  else { // Point (smooth) - angle-weighted like CPU
     int beg = vert_to_face_offsets(v);
     int end = vert_to_face_offsets(v + 1);
-    vec3 n_accum = vec3(0.0);
-    for (int i = beg; i < end; ++i) {
-      int f = vert_to_face(i);
-      n_accum += newell_face_normal_object(f);
+    int face_count = end - beg;
+    
+    /* Early-out: single face vertex uses face normal directly */
+    if (face_count == 1) {
+      int f = vert_to_face(beg);
+      n_mesh = newell_face_normal_object(f);
     }
-    n_mesh = n_accum;
+    else {
+      vec3 n_accum = vec3(0.0);
+      
+      /* Angle-weighted normal accumulation (matches CPU mesh_normals.cc) */
+      for (int i = beg; i < end; ++i) {
+        int f = vert_to_face(i);
+        vec3 face_normal = newell_face_normal_object(f);
+        
+        /* Find adjacent vertices in this face */
+        int2 adj = face_find_adjacent_verts(f, v);
+        
+        /* Compute angle at vertex (same as CPU) */
+        vec3 v_pos = positions_in[v].xyz;
+        vec3 dir_prev = positions_in[adj.x].xyz - v_pos;
+        vec3 dir_next = positions_in[adj.y].xyz - v_pos;
+        
+        /* Normalize only if length is sufficient (avoid division by zero) */
+        float len_prev = length(dir_prev);
+        float len_next = length(dir_next);
+        if (len_prev > 1e-6 && len_next > 1e-6) {
+          dir_prev /= len_prev;
+          dir_next /= len_next;
+          float angle = safe_acos_approx(dot(dir_prev, dir_next));
+          
+          /* Weight face normal by angle */
+          n_accum += face_normal * angle;
+        }
+        else {
+          /* Degenerate edge: use unweighted face normal */
+          n_accum += face_normal;
+        }
+      }
+      
+      n_mesh = n_accum;
+    }
   }
 
   // Normal already in mesh space (no transformation needed)
