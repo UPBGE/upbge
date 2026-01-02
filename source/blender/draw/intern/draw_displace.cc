@@ -825,102 +825,107 @@ vec3 compute_vertex_normal(uint v) {
 static std::string get_texture_mapping_functions()
 {
   return R"GLSL(
-/* GPU port of BKE_colorband_evaluate() from colorband.cc (line 395-556)
+/* GPU port of BKE_colorband_evaluate() from colorband.cc (line 285-410)
  * NOTE: ColorBand struct is vec4-aligned in UBO (std140 layout)
  * Returns false if colorband is invalid or has no stops */
-bool BKE_colorband_evaluate(ColorBand coba, float in_val, out vec4 out_color)
+bool BKE_colorband_evaluate(ColorBand coba, float in_intensity, out vec4 out_color)
 {
-  int tot = coba.tot_cur_ipotype_hue.x;
-  int cur = coba.tot_cur_ipotype_hue.y;
-  int ipotype = coba.tot_cur_ipotype_hue.z;
-  int ipotype_hue = coba.tot_cur_ipotype_hue.w;
-  int color_mode = coba.color_mode_pad.x;
-
-  if (tot == 0) {
+  vec4 cbd1_rgba, cbd2_rgba, cbd0_rgba, cbd3_rgba;
+  float fac;
+  int ipotype;
+  int a;
+  
+  if (coba.tot_cur_ipotype_hue.x == 0) {
     return false;
   }
-
-  /* Extract first color stop data from vec4-aligned struct */
-  vec4 cbd1_rgba = coba.data[0].rgba;
-  float cbd1_pos = coba.data[0].pos_cur_pad.x;
-
+  
+  cbd1_rgba = coba.data[0].rgba;
+  
   /* NOTE: when ipotype >= COLBAND_INTERP_B_SPLINE,
    * we cannot do early-out with a constant color before first color stop and after last one,
    * because interpolation starts before and ends after those... */
-  ipotype = (color_mode == COLBAND_BLEND_RGB) ? ipotype : COLBAND_INTERP_LINEAR;
-
-  if (tot == 1) {
+  ipotype = (coba.color_mode_pad.x == COLBAND_BLEND_RGB) ? coba.tot_cur_ipotype_hue.z : COLBAND_INTERP_LINEAR;
+  
+  if (coba.tot_cur_ipotype_hue.x == 1) {
     out_color = cbd1_rgba;
-    return true;
   }
-  else if ((in_val <= cbd1_pos) &&
+  else if ((in_intensity <= coba.data[0].pos_cur_pad.x) &&
            (ipotype == COLBAND_INTERP_LINEAR || ipotype == COLBAND_INTERP_EASE ||
             ipotype == COLBAND_INTERP_CONSTANT))
   {
     /* We are before first color stop. */
     out_color = cbd1_rgba;
-    return true;
   }
   else {
-    /* we're looking for first pos > in_val */
-    int a = 0;
-    for (a = 0; a < tot; a++) {
-      float pos = coba.data[a].pos_cur_pad.x;
-      if (pos > in_val) {
+    /* GPU adaptation of CBData left, right (CPU line 357-363) */
+    vec4 left_rgba, right_rgba;
+    float left_pos, right_pos;
+    
+    /* we're looking for first pos > in_intensity */
+    for (a = 0; a < coba.tot_cur_ipotype_hue.x; a++) {
+      cbd1_rgba = coba.data[a].rgba;
+      if (coba.data[a].pos_cur_pad.x > in_intensity) {
         break;
       }
     }
-
-    vec4 cbd1_rgba_final, cbd2_rgba;
-    float cbd1_pos_final, cbd2_pos;
-
-    if (a == tot) {
-      cbd2_rgba = coba.data[a - 1].rgba;
-      cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
-      cbd1_rgba_final = cbd2_rgba;
-      cbd1_pos_final = 1.0;
+    
+    if (a == coba.tot_cur_ipotype_hue.x) {
+      cbd2_rgba = cbd1_rgba;
+      right_rgba = cbd2_rgba;
+      right_pos = 1.0;
+      cbd1_rgba = right_rgba;
     }
     else if (a == 0) {
-      cbd1_rgba_final = coba.data[0].rgba;
-      cbd1_pos_final = coba.data[0].pos_cur_pad.x;
-      cbd2_rgba = cbd1_rgba_final;
-      cbd2_pos = 0.0;
+      left_rgba = cbd1_rgba;
+      left_pos = 0.0;
+      cbd2_rgba = left_rgba;
     }
     else {
-      cbd1_rgba_final = coba.data[a].rgba;
-      cbd1_pos_final = coba.data[a].pos_cur_pad.x;
       cbd2_rgba = coba.data[a - 1].rgba;
-      cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
     }
-
-    if ((a == tot) &&
+    
+    if ((a == coba.tot_cur_ipotype_hue.x) &&
         (ipotype == COLBAND_INTERP_LINEAR || ipotype == COLBAND_INTERP_EASE ||
          ipotype == COLBAND_INTERP_CONSTANT))
     {
       /* We are after last color stop. */
       out_color = cbd2_rgba;
-      return true;
     }
     else if (ipotype == COLBAND_INTERP_CONSTANT) {
       /* constant */
       out_color = cbd2_rgba;
-      return true;
     }
     else {
-      float fac;
-      if (cbd2_pos != cbd1_pos_final) {
-        fac = (in_val - cbd1_pos_final) / (cbd2_pos - cbd1_pos_final);
+      float cbd1_pos, cbd2_pos;
+      
+      if (a == coba.tot_cur_ipotype_hue.x) {
+        cbd1_pos = right_pos;
+        cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
+      }
+      else if (a == 0) {
+        cbd1_pos = coba.data[0].pos_cur_pad.x;
+        cbd2_pos = left_pos;
       }
       else {
-        fac = (a != tot) ? 0.0 : 1.0;
+        cbd1_pos = coba.data[a].pos_cur_pad.x;
+        cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
       }
-
+      
+      if (cbd2_pos != cbd1_pos) {
+        fac = (in_intensity - cbd1_pos) / (cbd2_pos - cbd1_pos);
+      }
+      else {
+        /* was setting to 0.0 in 2.56 & previous, but this
+         * is incorrect for the last element, see #26732. */
+        fac = (a != coba.tot_cur_ipotype_hue.x) ? 0.0 : 1.0;
+      }
+      
       if (ipotype == COLBAND_INTERP_B_SPLINE || ipotype == COLBAND_INTERP_CARDINAL) {
-        /* B-SPLINE and CARDINAL interpolation using key_curve_position_weights to match CPU */
-        vec4 cbd0_rgba, cbd3_rgba;
-
-        if (a >= tot - 1) {
-          cbd0_rgba = cbd1_rgba_final;
+        /* Interpolate from right to left: `3 2 1 0`. */
+        float t[4];
+        
+        if (a >= coba.tot_cur_ipotype_hue.x - 1) {
+          cbd0_rgba = cbd1_rgba;
         }
         else {
           cbd0_rgba = coba.data[a + 1].rgba;
@@ -931,21 +936,21 @@ bool BKE_colorband_evaluate(ColorBand coba, float in_val, out vec4 out_color)
         else {
           cbd3_rgba = coba.data[a - 2].rgba;
         }
-
+        
         fac = clamp(fac, 0.0, 1.0);
-
-        float t_weights[4];
-        /* Map interpolation type: CARDINAL -> 1, B_SPLINE -> 2 (matches GLSL helper) */
+        
         if (ipotype == COLBAND_INTERP_CARDINAL) {
-          key_curve_position_weights(fac, t_weights, 1);
+          key_curve_position_weights(fac, t, 1);
         }
         else {
-          key_curve_position_weights(fac, t_weights, 2);
+          key_curve_position_weights(fac, t, 2);
         }
-
-        /* CPU uses out = t[3]*cbd3 + t[2]*cbd2 + t[1]*cbd1 + t[0]*cbd0 */
-        out_color = t_weights[3] * cbd3_rgba + t_weights[2] * cbd2_rgba +
-                    t_weights[1] * cbd1_rgba_final + t_weights[0] * cbd0_rgba;
+        
+        out_color = vec4(
+            t[3] * cbd3_rgba.r + t[2] * cbd2_rgba.r + t[1] * cbd1_rgba.r + t[0] * cbd0_rgba.r,
+            t[3] * cbd3_rgba.g + t[2] * cbd2_rgba.g + t[1] * cbd1_rgba.g + t[0] * cbd0_rgba.g,
+            t[3] * cbd3_rgba.b + t[2] * cbd2_rgba.b + t[1] * cbd1_rgba.b + t[0] * cbd0_rgba.b,
+            t[3] * cbd3_rgba.a + t[2] * cbd2_rgba.a + t[1] * cbd1_rgba.a + t[0] * cbd0_rgba.a);
         out_color = clamp(out_color, 0.0, 1.0);
       }
       else {
@@ -954,38 +959,51 @@ bool BKE_colorband_evaluate(ColorBand coba, float in_val, out vec4 out_color)
           fac = 3.0 * fac2 - 2.0 * fac2 * fac;
         }
         float mfac = 1.0 - fac;
+        
+        if (coba.color_mode_pad.x == COLBAND_BLEND_HSV) {
+          vec3 col1, col2;
+          
+          col1 = rgb_to_hsv(vec3(cbd1_rgba.r, cbd1_rgba.g, cbd1_rgba.b));
+          col2 = rgb_to_hsv(vec3(cbd2_rgba.r, cbd2_rgba.g, cbd2_rgba.b));
+          
+          out_color.r = colorband_hue_interp(coba.tot_cur_ipotype_hue.w, mfac, fac, col1[0], col2[0]);
+          out_color.g = mfac * col1[1] + fac * col2[1];
+          out_color.b = mfac * col1[2] + fac * col2[2];
+          out_color.a = mfac * cbd1_rgba.a + fac * cbd2_rgba.a;
 
-        if (color_mode == COLBAND_BLEND_HSV) {
-          vec3 col1 = rgb_to_hsv(cbd1_rgba_final.rgb);
-          vec3 col2 = rgb_to_hsv(cbd2_rgba.rgb);
-
-          out_color.r = colorband_hue_interp(ipotype_hue, mfac, fac, col1.r, col2.r);
-          out_color.g = mfac * col1.g + fac * col2.g;
-          out_color.b = mfac * col1.b + fac * col2.b;
-          out_color.a = mfac * cbd1_rgba_final.a + fac * cbd2_rgba.a;
-
-          out_color.rgb = hsv_to_rgb(out_color.rgb);
+          vec3 out_rgb = hsv_to_rgb(vec3(out_color.r, out_color.g, out_color.b));
+          out_color.r = out_rgb.r;
+          out_color.g = out_rgb.g;
+          out_color.b = out_rgb.b;
         }
-        else if (color_mode == COLBAND_BLEND_HSL) {
-          vec3 col1 = rgb_to_hsl(cbd1_rgba_final.rgb);
-          vec3 col2 = rgb_to_hsl(cbd2_rgba.rgb);
+        else if (coba.color_mode_pad.x == COLBAND_BLEND_HSL) {
+          vec3 col1, col2;
+          
+          col1 = rgb_to_hsl(vec3(cbd1_rgba.r, cbd1_rgba.g, cbd1_rgba.b));
+          col2 = rgb_to_hsl(vec3(cbd2_rgba.r, cbd2_rgba.g, cbd2_rgba.b));
+          
+          out_color.r = colorband_hue_interp(coba.tot_cur_ipotype_hue.w, mfac, fac, col1[0], col2[0]);
+          out_color.g = mfac * col1[1] + fac * col2[1];
+          out_color.b = mfac * col1[2] + fac * col2[2];
+          out_color.a = mfac * cbd1_rgba.a + fac * cbd2_rgba.a;
 
-          out_color.r = colorband_hue_interp(ipotype_hue, mfac, fac, col1.r, col2.r);
-          out_color.g = mfac * col1.g + fac * col2.g;
-          out_color.b = mfac * col1.b + fac * col2.b;
-          out_color.a = mfac * cbd1_rgba_final.a + fac * cbd2_rgba.a;
-
-          out_color.rgb = hsl_to_rgb(out_color.rgb);
+          vec3 out_rgb = hsl_to_rgb(vec3(out_color.r, out_color.g, out_color.b));
+          out_color.r = out_rgb.r;
+          out_color.g = out_rgb.g;
+          out_color.b = out_rgb.b;
         }
         else {
           /* COLBAND_BLEND_RGB */
-          out_color = mfac * cbd1_rgba_final + fac * cbd2_rgba;
+          out_color = vec4(mfac * cbd1_rgba.r + fac * cbd2_rgba.r,
+                           mfac * cbd1_rgba.g + fac * cbd2_rgba.g,
+                           mfac * cbd1_rgba.b + fac * cbd2_rgba.b,
+                           mfac * cbd1_rgba.a + fac * cbd2_rgba.a);
         }
       }
     }
   }
-
-  return true;
+  
+  return true; /* OK */
 }
 
 /* GPU port of do_2d_mapping() from texture_procedural.cc (line 501-537)
@@ -1375,10 +1393,10 @@ do_2d_mapping(fx, fy);
 
   /* Apply ColorBand if enabled (match CPU behavior) */
   if (use_colorband) {
-    vec4 col_band;
-    if (BKE_colorband_evaluate(tex_colorband, texres.tin, col_band)) {
+    vec4 col;
+    if (BKE_colorband_evaluate(tex_colorband, texres.tin, col)) {
       texres.talpha = true;
-      texres.trgba = col_band;
+      texres.trgba = col;
       /* Update local rgb for further processing */
       rgb = texres.trgba.rgb;
       /* Indicate RGB output flag (as CPU sets retval |= TEX_RGB) */
