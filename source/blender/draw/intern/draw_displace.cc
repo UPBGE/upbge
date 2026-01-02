@@ -466,101 +466,287 @@ vec3 linearrgb_to_srgb_vec3(vec3 v)
 }
  
 
-/* Box sampling helpers - GPU port of boxsampleclip() and boxsample() from texture_image.cc
- * Simplified: computes texel coverage weights per-pixel within the box region and
- * accumulates texel values using texelFetch. Handles REPEAT and EXTEND wrapping.
- */
-void boxsample_gpu(
-    sampler2D displacement_texture,
-    ivec2 tex_size,
-    float min_tex_x, float min_tex_y,
-    float max_tex_x, float max_tex_y,
-    out vec4 result,
-    bool talpha,
-    bool imaprepeat,
-    bool imapextend,
-    bool tex_is_byte,
-    bool tex_is_float,
-    int tex_channels)
+/* GPU port of rctf structure from BLI_rect.h */
+struct rctf {
+  float xmin;
+  float xmax;
+  float ymin;
+  float ymax;
+};
+
+/* GPU port of TexResult structure from texture_image.cc */
+struct TexResult_boxsample {
+  vec4 trgba;
+  bool talpha;
+};
+
+/* Helper to get color from texture with ibuf_get_color behavior */
+void ibuf_get_color_boxsample(out vec4 col, sampler2D displacement_texture, ivec2 tex_size, int x, int y, bool tex_is_byte, bool tex_is_float, int tex_channels)
 {
-  result = vec4(0.0);
-  float tot = 0.0;
+  ivec2 texel = ivec2(x, y);
+  col = texelFetch(displacement_texture, texel, 0);
+  col = shader_ibuf_get_color(col, tex_is_float, tex_channels, tex_is_byte);
+}
 
-  int startx = int(floor(min_tex_x));
-  int endx = int(floor(max_tex_x));
-  int starty = int(floor(min_tex_y));
-  int endy = int(floor(max_tex_y));
+/* GPU port of square_rctf() from texture_image.cc */
+float square_rctf(rctf rf)
+{
+  float x, y;
+  x = rf.xmax - rf.xmin;
+  y = rf.ymax - rf.ymin;
+  return x * y;
+}
 
-  if (imapextend) {
-    startx = max(startx, 0);
-    starty = max(starty, 0);
-    endx = min(endx, tex_size.x - 1);
-    endy = min(endy, tex_size.y - 1);
+/* GPU port of clipx_rctf() from texture_image.cc */
+float clipx_rctf(inout rctf rf, float x1, float x2)
+{
+  float size;
+  
+  size = rf.xmax - rf.xmin;
+  
+  rf.xmin = max(rf.xmin, x1);
+  rf.xmax = min(rf.xmax, x2);
+  if (rf.xmin > rf.xmax) {
+    rf.xmin = rf.xmax;
+    return 0.0;
   }
-
-  for (int y = starty; y <= endy; ++y) {
-    // compute vertical overlap
-    float y0 = max(min_tex_y, float(y));
-    float y1 = min(max_tex_y, float(y + 1));
-    float h = y1 - y0;
-    if (h <= 0.0) {
-      continue;
-    }
-
-    for (int x = startx; x <= endx; ++x) {
-      // compute horizontal overlap
-      float x0 = max(min_tex_x, float(x));
-      float x1 = min(max_tex_x, float(x + 1));
-      float w = x1 - x0;
-      if (w <= 0.0) {
-        continue;
-      }
-
-      float area = w * h;
-
-      int sx = x;
-      int sy = y;
-
-      if (imaprepeat) {
-        sx %= tex_size.x;
-        sx += (sx < 0) ? tex_size.x : 0;
-        sy %= tex_size.y;
-        sy += (sy < 0) ? tex_size.y : 0;
-      }
-      else if (imapextend) {
-        sx = clamp(sx, 0, tex_size.x - 1);
-        sy = clamp(sy, 0, tex_size.y - 1);
-      }
-      else {
-        // In clip mode coordinates outside are already handled earlier, but clamp to be safe
-        if (sx < 0 || sx >= tex_size.x || sy < 0 || sy >= tex_size.y) {
-          continue;
-        }
-      }
-
-      ivec2 texel = ivec2(sx, sy);
-      vec4 col = texelFetch(displacement_texture, texel, 0);
-
-      /* If the texture was uploaded from a byte buffer the CPU path
-       * premultiplies RGB by alpha before filtering. Reproduce that
-       * behaviour here so box filtering matches exactly. */
-      if (tex_is_byte) {
-        col.rgb *= col.a;
-      }
-
-      result += col * area;
-      tot += area;
-    }
+  if (size != 0.0) {
+    return (rf.xmax - rf.xmin) / size;
   }
+  return 1.0;
+}
 
-  if (tot > 0.0) {
-    result /= tot;
+/* GPU port of clipy_rctf() from texture_image.cc */
+float clipy_rctf(inout rctf rf, float y1, float y2)
+{
+  float size;
+  
+  size = rf.ymax - rf.ymin;
+  
+  rf.ymin = max(rf.ymin, y1);
+  rf.ymax = min(rf.ymax, y2);
+  
+  if (rf.ymin > rf.ymax) {
+    rf.ymin = rf.ymax;
+    return 0.0;
+  }
+  if (size != 0.0) {
+    return (rf.ymax - rf.ymin) / size;
+  }
+  return 1.0;
+}
+
+/* GPU port of boxsampleclip() from texture_image.cc - follows CPU structure exactly */
+void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inout TexResult_boxsample texres, bool tex_is_byte, bool tex_is_float, int tex_channels)
+{
+  /* Sample box, is clipped already, and minx etc. have been set at ibuf size.
+   * Enlarge with anti-aliased edges of the pixels. */
+  
+  float muly, mulx, div;
+  vec4 col;
+  int x, y, startx, endx, starty, endy;
+  
+  startx = int(floor(rf.xmin));
+  endx = int(floor(rf.xmax));
+  starty = int(floor(rf.ymin));
+  endy = int(floor(rf.ymax));
+  
+  startx = max(startx, 0);
+  starty = max(starty, 0);
+  if (endx >= tex_size.x) {
+    endx = tex_size.x - 1;
+  }
+  if (endy >= tex_size.y) {
+    endy = tex_size.y - 1;
+  }
+  
+  if (starty == endy && startx == endx) {
+    ibuf_get_color_boxsample(texres.trgba, displacement_texture, tex_size, startx, starty, tex_is_byte, tex_is_float, tex_channels);
   }
   else {
-    result = vec4(0.0);
+    div = texres.trgba[0] = texres.trgba[1] = texres.trgba[2] = texres.trgba[3] = 0.0;
+    for (y = starty; y <= endy; y++) {
+      
+      muly = 1.0;
+      
+      if (starty == endy) {
+        /* pass */
+      }
+      else {
+        if (y == starty) {
+          muly = 1.0 - (rf.ymin - float(y));
+        }
+        if (y == endy) {
+          muly = (rf.ymax - float(y));
+        }
+      }
+      
+      if (startx == endx) {
+        mulx = muly;
+        
+        ibuf_get_color_boxsample(col, displacement_texture, tex_size, startx, y, tex_is_byte, tex_is_float, tex_channels);
+        texres.trgba += col * mulx;
+        div += mulx;
+      }
+      else {
+        for (x = startx; x <= endx; x++) {
+          mulx = muly;
+          if (x == startx) {
+            mulx *= 1.0 - (rf.xmin - float(x));
+          }
+          if (x == endx) {
+            mulx *= (rf.xmax - float(x));
+          }
+          
+          ibuf_get_color_boxsample(col, displacement_texture, tex_size, x, y, tex_is_byte, tex_is_float, tex_channels);
+          /* TODO(jbakker): No need to do manual optimization. Branching is slower than multiplying
+           * with 1. */
+          if (mulx == 1.0) {
+            texres.trgba += col;
+            div += 1.0;
+          }
+          else {
+            texres.trgba += col * mulx;
+            div += mulx;
+          }
+        }
+      }
+    }
+    
+    if (div != 0.0) {
+      div = 1.0 / div;
+      texres.trgba *= div;
+    }
+    else {
+      texres.trgba = vec4(0.0);
+    }
   }
+}
 
-  /* Leave alpha post-processing to outer shader path to avoid duplication. */
+/* GPU port of boxsample() from texture_image.cc - follows CPU structure exactly */
+void boxsample(sampler2D displacement_texture,
+              ivec2 tex_size,
+              float minx,
+              float miny,
+              float maxx,
+              float maxy,
+              inout TexResult_boxsample texres,
+              bool imaprepeat,
+              bool imapextend,
+              bool tex_is_byte,
+              bool tex_is_float,
+              int tex_channels)
+{
+  /* Sample box, performs clip. minx etc are in range 0.0 - 1.0 .
+   * Enlarge with anti-aliased edges of pixels.
+   * If variable 'imaprepeat' has been set, the
+   * clipped-away parts are sampled as well.
+   */
+  /* NOTE: actually minx etc isn't in the proper range...
+   *       this due to filter size and offset vectors for bump. */
+  /* NOTE: talpha must be initialized. */
+  /* NOTE: even when 'imaprepeat' is set, this can only repeat once in any direction.
+   * the point which min/max is derived from is assumed to be wrapped. */
+  TexResult_boxsample texr;
+  rctf rf, stack[8];
+  float opp, tot, alphaclip = 1.0;
+  int count = 1;
+  
+  rf = stack[0];
+  rf.xmin = minx * float(tex_size.x);
+  rf.xmax = maxx * float(tex_size.x);
+  rf.ymin = miny * float(tex_size.y);
+  rf.ymax = maxy * float(tex_size.y);
+  
+  texr.talpha = texres.talpha; /* is read by boxsample_clip */
+  
+  if (imapextend) {
+    rf.xmin = clamp(rf.xmin, 0.0, float(tex_size.x - 1));
+    rf.xmax = clamp(rf.xmax, 0.0, float(tex_size.x - 1));
+  }
+  else if (imaprepeat) {
+    /* Note: clipx_rctf_swap and clipy_rctf_swap not implemented in shader (complex) */
+    /* Fallback to simple clipping for now */
+    alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
+    
+    if (alphaclip <= 0.0) {
+      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
+      return;
+    }
+  }
+  else {
+    alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
+    
+    if (alphaclip <= 0.0) {
+      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
+      return;
+    }
+  }
+  
+  if (imapextend) {
+    rf.ymin = clamp(rf.ymin, 0.0, float(tex_size.y - 1));
+    rf.ymax = clamp(rf.ymax, 0.0, float(tex_size.y - 1));
+  }
+  else if (imaprepeat) {
+    /* Note: clipy_rctf_swap not implemented in shader (complex) */
+    /* Fallback to simple clipping for now */
+    alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
+    
+    if (alphaclip <= 0.0) {
+      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
+      return;
+    }
+  }
+  else {
+    alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
+    
+    if (alphaclip <= 0.0) {
+      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
+      return;
+    }
+  }
+  
+  if (count > 1) {
+    tot = texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
+    while (count > 0) {
+      count--;
+      boxsampleclip(displacement_texture, tex_size, rf, texr, tex_is_byte, tex_is_float, tex_channels);
+      
+      opp = square_rctf(rf);
+      tot += opp;
+      
+      texres.trgba[0] += opp * texr.trgba[0];
+      texres.trgba[1] += opp * texr.trgba[1];
+      texres.trgba[2] += opp * texr.trgba[2];
+      if (texres.talpha) {
+        texres.trgba[3] += opp * texr.trgba[3];
+      }
+      /* rf++; - not applicable in shader, using stack[0] only */
+    }
+    if (tot != 0.0) {
+      texres.trgba[0] /= tot;
+      texres.trgba[1] /= tot;
+      texres.trgba[2] /= tot;
+      if (texres.talpha) {
+        texres.trgba[3] /= tot;
+      }
+    }
+  }
+  else {
+    boxsampleclip(displacement_texture, tex_size, rf, texres, tex_is_byte, tex_is_float, tex_channels);
+  }
+  
+  if (!texres.talpha) {
+    texres.trgba[3] = 1.0;
+  }
+  
+  if (alphaclip != 1.0) {
+    /* Pre-multiply it all. */
+    texres.trgba[0] *= alphaclip;
+    texres.trgba[1] *= alphaclip;
+    texres.trgba[2] *= alphaclip;
+    texres.trgba[3] *= alphaclip;
+  }
 }
 )GLSL";
 }
@@ -977,24 +1163,29 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     fx -= float(xi - x) / float(tex_size.x);
     fy -= float(yi - y) / float(tex_size.y);
 
-    float min_tex_x = (fx - filterx) * float(tex_size.x);
-    float min_tex_y = (fy - filtery) * float(tex_size.y);
-    float max_tex_x = (fx + filterx) * float(tex_size.x);
-    float max_tex_y = (fy + filtery) * float(tex_size.y);
+    float min_tex_x = fx - filterx;
+    float min_tex_y = fy - filtery;
+    float max_tex_x = fx + filterx;
+    float max_tex_y = fy + filtery;
 
-    boxsample_gpu(displacement_texture,
-                  tex_size,
-                  min_tex_x,
-                  min_tex_y,
-                  max_tex_x,
-                  max_tex_y,
-                  result,
-                  use_talpha,
-                  (tex_extend == TEX_REPEAT),
-                  (tex_extend == TEX_EXTEND),
-                  tex_is_byte,
-                  tex_is_float,
-                  tex_channels);
+    TexResult_boxsample texres_box;
+    texres_box.trgba = vec4(0.0);
+    texres_box.talpha = use_talpha;
+    
+    boxsample(displacement_texture,
+              tex_size,
+              min_tex_x,
+              min_tex_y,
+              max_tex_x,
+              max_tex_y,
+              texres_box,
+              (tex_extend == TEX_REPEAT),
+              (tex_extend == TEX_EXTEND),
+              tex_is_byte,
+              tex_is_float,
+              tex_channels);
+    
+    result = texres_box.trgba;
   } else {
     /* No filtering (CPU line 254-255: ibuf_get_color) */
     ivec2 px_coord = ivec2(x, y);
