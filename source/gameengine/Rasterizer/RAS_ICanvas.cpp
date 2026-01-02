@@ -49,7 +49,15 @@ struct ScreenshotTaskData {
  */
 void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int threadid);
 
-RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty) : m_rasterizer(rasty), m_samples(0)
+RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
+    : m_rasterizer(rasty),
+      m_samples(0),
+      m_mousestate(MOUSE_INVISIBLE),
+      m_frame(0),
+      m_taskpool(nullptr),
+      m_mouseGrabUsers(0),
+      m_forceCursorVisible(false),
+      m_mouseGrabEnabled(false)
 {
   m_taskpool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
 }
@@ -174,4 +182,39 @@ void RAS_ICanvas::SaveScreeshot(const Screenshot &screenshot)
                      task,
                      true,  // free task data
                      NULL);
+}
+
+void RAS_ICanvas::AcquireMouseGrab()
+{
+  if (m_mouseGrabUsers++ == 0) {
+    SetMouseGrabImpl(true, m_forceCursorVisible);
+    m_mouseGrabEnabled = true;
+  }
+}
+
+void RAS_ICanvas::ReleaseMouseGrab()
+{
+  if (m_mouseGrabUsers == 0) {
+    return;
+  }
+
+  if (--m_mouseGrabUsers == 0) {
+    SetMouseGrabImpl(false, m_forceCursorVisible);
+    m_mouseGrabEnabled = false;
+  }
+}
+
+bool RAS_ICanvas::IsMouseGrabEnabled() const
+{
+  return m_mouseGrabEnabled;
+}
+
+void RAS_ICanvas::CacheMouseState(RAS_MouseState mousestate)
+{
+  m_mousestate = mousestate;
+  m_forceCursorVisible = (mousestate == MOUSE_NORMAL);
+
+  if (m_mouseGrabEnabled) {
+    SetMouseGrabImpl(true, m_forceCursorVisible);
+  }
 }

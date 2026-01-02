@@ -106,6 +106,15 @@ class RAS_ICanvas {
   virtual void SetMouseState(RAS_MouseState mousestate) = 0;
   virtual void SetMousePosition(int x, int y) = 0;
 
+  /**
+   * Acquire or release an OS-level mouse grab. Multiple callers can acquire the grab and the
+   * underlying backend will only toggle the grab state when the reference count transitions
+   * between zero and one.
+   */
+  void AcquireMouseGrab();
+  void ReleaseMouseGrab();
+  bool IsMouseGrabEnabled() const;
+
   virtual RAS_MouseState GetMouseState()
   {
     return m_mousestate;
@@ -149,7 +158,20 @@ class RAS_ICanvas {
   RAS_Rect m_windowArea;
   RAS_Rect m_viewportArea;
 
-  /** Delay the screenshot to the frame end to use a valid buffer and avoid copy from an invalid
+  /**
+   * Backend-specific implementation that toggles the grab state in the windowing system. Derived
+   * canvases must implement this to translate grab requests into WM/GHOST calls.
+   */
+  virtual void SetMouseGrabImpl(bool enable, bool force_cursor_visible) = 0;
+
+  int m_mouseGrabUsers = 0;
+  bool m_forceCursorVisible = false;
+  bool m_mouseGrabEnabled = false;
+
+  void CacheMouseState(RAS_MouseState mousestate);
+
+  /**
+   * Delay the screenshot to the frame end to use a valid buffer and avoid copy from an invalid
    * buffer at the frame begin after the buffer swap. The screenshot are proceeded in \see
    * FlushScreenshots.
    */
