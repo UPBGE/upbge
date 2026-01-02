@@ -769,6 +769,17 @@ void KX_KetsjiEngine::Render()
   background_fb->UpdateSize(width + 1, height + 1);
 
   std::vector<FrameRenderData> frameDataList;
+  /* Ensure animations (including camera IPOs that modify lens/clip)
+   * are up-to-date before computing camera projection matrices.
+   * This avoids a race where GetFrameRenderData computes projection
+   * using stale camera data and later animation updates change the
+   * lens, causing flickering depending on actuator execution order. */
+  m_logger.StartLog(tc_animations);
+  for (KX_Scene *scene : m_scenes) {
+    UpdateAnimations(scene);
+  }
+  m_logger.StartLog(tc_rasterizer);
+
   GetFrameRenderData(frameDataList);
 
   KX_Scene *firstscene = m_scenes->GetFront();
@@ -1068,11 +1079,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   KX_SetActiveScene(scene);
 
   m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE /*cameraFrameData.m_eye*/);
-
-  m_logger.StartLog(tc_scenegraph);
-
-  m_logger.StartLog(tc_animations);
-  UpdateAnimations(scene);
 
   m_logger.StartLog(tc_rasterizer);
 
