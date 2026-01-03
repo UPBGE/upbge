@@ -301,8 +301,8 @@ bool Instance::is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pen
       continue;
     }
 
-    LISTBASE_FOREACH (GreasePencilLayerMask *, mask, &layer->masks) {
-      if (STREQ(mask->layer_name, mask_layer.name().c_str())) {
+    for (GreasePencilLayerMask &mask : layer->masks) {
+      if (STREQ(mask.layer_name, mask_layer.name().c_str())) {
         return true;
       }
     }
@@ -747,7 +747,7 @@ void Instance::draw_object(View &view, tObject *ob)
     GPU_framebuffer_multi_clear(fb_object, clear_cols);
   }
 
-  LISTBASE_FOREACH (tLayer *, layer, &ob->layers) {
+  for (tLayer *layer = ob->layers.first; layer; layer = layer->next) {
     if (layer->mask_bits) {
       draw_mask(view, ob, layer);
     }
@@ -768,7 +768,7 @@ void Instance::draw_object(View &view, tObject *ob)
     }
   }
 
-  LISTBASE_FOREACH (tVfx *, vfx, &ob->vfx) {
+  for (tVfx *vfx = ob->vfx.first; vfx; vfx = vfx->next) {
     GPU_framebuffer_bind(*(vfx->target_fb));
     manager->submit(*vfx->vfx_ps);
   }
@@ -833,7 +833,7 @@ void Instance::draw(Manager &manager)
 
   View &view = View::default_get();
 
-  LISTBASE_FOREACH (tObject *, ob, &this->tobjects) {
+  for (tObject *ob = this->tobjects.first; ob; ob = ob->next) {
     draw_object(view, ob);
   }
 

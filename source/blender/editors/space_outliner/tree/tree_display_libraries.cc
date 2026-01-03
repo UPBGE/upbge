@@ -31,9 +31,9 @@ TreeDisplayLibraries::TreeDisplayLibraries(SpaceOutliner &space_outliner)
 {
 }
 
-ListBase TreeDisplayLibraries::build_tree(const TreeSourceData &source_data)
+ListBaseT<TreeElement> TreeDisplayLibraries::build_tree(const TreeSourceData &source_data)
 {
-  ListBase tree = {nullptr};
+  ListBaseT<TreeElement> tree = {nullptr};
 
   {
     /* current file first - mainvar provides tselem with unique pointer - not used */
@@ -59,9 +59,8 @@ ListBase TreeDisplayLibraries::build_tree(const TreeSourceData &source_data)
 
   /* Make hierarchy.
    *
-   * Note: `List<T>` template is similar to `LISTBASE_FOREACH`, _not_ `LISTBASE_FOREACH_MUTABLE`,
-   * so we need to iterate over an actual copy of the original list here, to avoid missing some
-   * items. */
+   * Note: `List<T>` template is similar to non-mutable ListBaseT iteration so we need to
+   * iterate over an actual copy of the original list here, to avoid missing some items. */
   for (TreeElement *ten : listbase_to_vector<TreeElement>(tree)) {
     if (ten == tree.first) {
       /* First item is main, skip. */
@@ -91,11 +90,13 @@ ListBase TreeDisplayLibraries::build_tree(const TreeSourceData &source_data)
   return tree;
 }
 
-TreeElement *TreeDisplayLibraries::add_library_contents(Main &mainvar, ListBase &lb, Library *lib)
+TreeElement *TreeDisplayLibraries::add_library_contents(Main &mainvar,
+                                                        ListBaseT<TreeElement> &lb,
+                                                        Library *lib)
 {
   const short filter_id_type = id_filter_get();
 
-  Vector<ListBase *> lbarray;
+  Vector<ListBaseT<ID> *> lbarray;
   if (filter_id_type) {
     lbarray.append(which_libbase(&mainvar, space_outliner_.filter_id_type));
   }

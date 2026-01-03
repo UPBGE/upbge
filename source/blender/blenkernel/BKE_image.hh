@@ -7,6 +7,8 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_mutex.hh"
 
@@ -17,7 +19,6 @@
 namespace blender::gpu {
 class Texture;
 }  // namespace blender::gpu
-using GPUTexture = blender::gpu::Texture;
 
 namespace blender::ocio {
 class ColorSpace;
@@ -35,7 +36,6 @@ struct ImagePool;
 struct ImageTile;
 struct ImbFormatOptions;
 struct Library;
-struct ListBase;
 struct Main;
 struct MovieCache;
 struct Object;
@@ -66,7 +66,7 @@ struct ImageRuntime {
   MovieCache *cache = nullptr;
 
   /* The 2 is for the left/right stereo eyes. */
-  GPUTexture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
+  blender::gpu::Texture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
 
   /* GPU texture flag. */
   int gpuframenr = IMAGE_GPU_FRAME_NONE;
@@ -79,7 +79,7 @@ struct ImageRuntime {
 
   /** Register containing partial updates. */
   PartialUpdateRegister *partial_update_register = nullptr;
-  /** Partial update user for GPUTextures stored inside the Image. */
+  /** Partial update user for blender::gpu::Textures stored inside the Image. */
   PartialUpdateUser *partial_update_user = nullptr;
 
   /* The image's current update count. See deg::set_id_update_count for more information. */
@@ -462,7 +462,7 @@ int BKE_image_get_tile_label(const Image *ima,
  * \param tiles: may be filled even if the result ultimately is false!
  */
 bool BKE_image_get_tile_info(char *filepath,
-                             ListBase *tiles,
+                             ListBaseT<LinkData> *tiles,
                              int *r_tile_start,
                              int *r_tile_range);
 

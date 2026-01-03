@@ -6,19 +6,98 @@
  * \ingroup shader_tool
  */
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <regex>
 #include <string>
 
-#include "shader_tool.hh"
+#include "processor.hh"
+
+using namespace blender::gpu::shader;
+
+static std::vector<std::string> list_files(const std::string &dir)
+{
+  std::vector<std::string> files;
+  for (const auto &entry : std::filesystem::directory_iterator(std::filesystem::path(dir))) {
+    if (entry.is_regular_file()) {
+      std::string filename(entry.path().string());
+      /* We only allow including header files or shader files. */
+      if (filename.find(".hh") != std::string::npos ||
+          filename.find(".msl") != std::string::npos ||
+          filename.find(".glsl") != std::string::npos)
+      {
+        files.push_back(filename);
+      }
+    }
+  }
+  return files;
+}
+
+static std::vector<metadata::Symbol> scan_external_symbols(
+    const std::vector<std::string> &file_list,
+    std::vector<std::string> &visited_files,
+    const std::string &file_buffer,
+    const std::string &file_name)
+{
+  Language language = language_from_filename(file_name);
+  SourceProcessor processor(file_buffer, file_name, language);
+
+  metadata::Source include_data = processor.parse_include_and_symbols();
+
+  bool errors = false;
+
+  for (const auto &dep : include_data.dependencies) {
+    std::string file;
+    for (const auto &filename : file_list) {
+      if (filename.find(dep) != std::string::npos) {
+        file = filename;
+      }
+    }
+
+    if (file.empty()) {
+      std::cout << "Error: Included file not found " << dep << std::endl;
+      errors = true;
+    }
+    else if (std::find(visited_files.begin(), visited_files.end(), file) == visited_files.end()) {
+      visited_files.emplace_back(file);
+
+      std::ifstream input_file(file);
+      if (!input_file) {
+        std::cerr << "Error: Could not open file " << file << std::endl;
+        errors = true;
+      }
+      else {
+        std::stringstream buffer;
+        buffer << input_file.rdbuf();
+
+        std::vector<blender::gpu::shader::metadata::Symbol> symbols = scan_external_symbols(
+            file_list, visited_files, buffer.str(), file);
+
+        /* Set line number for each symbol to 0 as they are defined outside of the target file. */
+        for (auto &symbol : include_data.symbol_table) {
+          symbol.definition_line = 0;
+        }
+
+        /* Extend list. */
+        include_data.symbol_table.insert(
+            include_data.symbol_table.end(), symbols.begin(), symbols.end());
+      }
+    }
+  }
+
+  if (errors) {
+    exit(1);
+  }
+  return include_data.symbol_table;
+}
 
 int main(int argc, char **argv)
 {
-  if (argc != 5) {
+  if (argc < 5) {
     std::cerr << "Usage: shader_tool <data_file_from> <data_file_to> <metadata_file_to> "
-                 "<infos_file_to>"
+                 "<infos_file_to> <include_dir1> <include_dir2> ..."
               << std::endl;
     exit(1);
   }
@@ -72,6 +151,14 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  /* List of files available for include. */
+  std::vector<std::string> file_list;
+  for (int i = 5; i < argc; i++) {
+    auto list = list_files(std::string(argv[i]));
+    /* Extend list. */
+    file_list.insert(file_list.end(), list.begin(), list.end());
+  }
+
   std::stringstream buffer;
   buffer << input_file.rdbuf();
 
@@ -87,28 +174,31 @@ int main(int argc, char **argv)
 
         error++;
       };
+
   std::string filename(output_file_name);
   const bool is_info = filename.find("infos.hh") != std::string::npos ||
                        buffer.str().find("#pragma create_info") != std::string::npos;
-  const bool is_glsl = filename.find(".glsl") != std::string::npos;
-  const bool is_library = is_glsl &&
-                          (filename.find("gpu_shader_material_") != std::string::npos ||
-                           filename.find("gpu_shader_common_") != std::string::npos ||
-                           filename.find("gpu_shader_compositor_") != std::string::npos);
 
-  using Preprocessor = blender::gpu::shader::Preprocessor;
-  Preprocessor processor;
+  using namespace blender::gpu::shader;
 
-  Preprocessor::SourceLanguage language = Preprocessor::language_from_filename(filename);
+  Language language = language_from_filename(filename);
 
-  if (language == Preprocessor::SourceLanguage::GLSL) {
+  if (language == Language::GLSL) {
     /* All build-time GLSL files should be considered blender-GLSL. */
-    language = Preprocessor::SourceLanguage::BLENDER_GLSL;
+    language = Language::BLENDER_GLSL;
   }
 
-  blender::gpu::shader::metadata::Source metadata;
-  output_file << processor.process(
-      language, buffer.str(), input_file_name, is_library, report_error, metadata);
+  std::vector<metadata::Symbol> external_symbols;
+  if (language == Language::BLENDER_GLSL) {
+    std::vector<std::string> visited_files{input_file_name};
+    external_symbols = scan_external_symbols(file_list, visited_files, buffer.str(), filename);
+  }
+
+  SourceProcessor processor(buffer.str(), input_file_name, language, report_error);
+
+  auto [result, metadata] = processor.convert(external_symbols);
+
+  output_file << result;
 
   /* TODO(fclem): Don't use regex for that. */
   std::string metadata_function_name = "metadata_" +

@@ -36,17 +36,17 @@
 #include <cfloat>
 
 #define FOREACH_SELECTED_BEZT_BEGIN(bezt, nurbs) \
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) { \
-    if (nu->type == CU_BEZIER) { \
-      for (int i = 0; i < nu->pntsu; i++) { \
-        BezTriple *bezt = nu->bezt + i; \
+  for (Nurb &nu : nurbs) { \
+    if (nu.type == CU_BEZIER) { \
+      for (int i = 0; i < nu.pntsu; i++) { \
+        BezTriple *bezt = nu.bezt + i; \
         if (BEZT_ISSEL_ANY(bezt) && !bezt->hide) {
 
 #define FOREACH_SELECTED_BEZT_END \
   } \
   } \
   } \
-  BKE_nurb_handles_calc(nu); \
+  BKE_nurb_handles_calc(&nu); \
   } \
   ((void)0)
 
@@ -310,17 +310,17 @@ static void move_bp_to_location(const ViewContext *vc, BPoint *bp, const float m
  * \param mid_only: Use only the middle point of the three points on a #BezTriple.
  * \param bezt_only: Use only points of Bezier splines.
  */
-static bool get_selected_center(const ListBase *nurbs,
+static bool get_selected_center(const ListBaseT<Nurb> *nurbs,
                                 const bool mid_only,
                                 const bool bezt_only,
                                 float r_center[3])
 {
   int end_count = 0;
   zero_v3(r_center);
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    if (nu->type == CU_BEZIER) {
-      for (int i = 0; i < nu->pntsu; i++) {
-        BezTriple *bezt = nu->bezt + i;
+  for (Nurb &nu : *nurbs) {
+    if (nu.type == CU_BEZIER) {
+      for (int i = 0; i < nu.pntsu; i++) {
+        BezTriple *bezt = nu.bezt + i;
         if (bezt->hide) {
           continue;
         }
@@ -347,9 +347,9 @@ static bool get_selected_center(const ListBase *nurbs,
       }
     }
     else if (!bezt_only) {
-      for (int i = 0; i < nu->pntsu; i++) {
-        if (!nu->bp->hide && (nu->bp + i)->f1 & SELECT) {
-          add_v3_v3(r_center, (nu->bp + i)->vec);
+      for (int i = 0; i < nu.pntsu; i++) {
+        if (!nu.bp->hide && (nu.bp + i)->f1 & SELECT) {
+          add_v3_v3(r_center, (nu.bp + i)->vec);
           end_count++;
         }
       }
@@ -368,7 +368,7 @@ static bool get_selected_center(const ListBase *nurbs,
 static void move_all_selected_points(const ViewContext *vc,
                                      const wmEvent *event,
                                      CurvePenData *cpd,
-                                     ListBase *nurbs,
+                                     ListBaseT<Nurb> *nurbs,
                                      const bool bezt_only)
 {
   const float mval[2] = {float(event->xy[0]), float(event->xy[1])};
@@ -388,10 +388,10 @@ static void move_all_selected_points(const ViewContext *vc,
     distance = len_v3v3(center_mid, mval_3d);
   }
 
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    if (nu->type == CU_BEZIER) {
-      for (int i = 0; i < nu->pntsu; i++) {
-        BezTriple *bezt = nu->bezt + i;
+  for (Nurb &nu : *nurbs) {
+    if (nu.type == CU_BEZIER) {
+      for (int i = 0; i < nu.pntsu; i++) {
+        BezTriple *bezt = nu.bezt + i;
         if (bezt->hide) {
           continue;
         }
@@ -411,11 +411,11 @@ static void move_all_selected_points(const ViewContext *vc,
           }
         }
       }
-      BKE_nurb_handles_calc(nu);
+      BKE_nurb_handles_calc(&nu);
     }
     else if (!bezt_only) {
-      for (int i = 0; i < nu->pntsu; i++) {
-        BPoint *bp = nu->bp + i;
+      for (int i = 0; i < nu.pntsu; i++) {
+        BPoint *bp = nu.bp + i;
         if (!bp->hide && (bp->f1 & SELECT)) {
           float pos[2], dst[2];
           worldspace_to_screenspace(vc, bp->vec, pos);
@@ -427,7 +427,7 @@ static void move_all_selected_points(const ViewContext *vc,
   }
 }
 
-static int get_nurb_index(const ListBase *nurbs, const Nurb *nurb)
+static int get_nurb_index(const ListBaseT<Nurb> *nurbs, const Nurb *nurb)
 {
   return BLI_findindex(nurbs, nurb);
 }
@@ -435,7 +435,7 @@ static int get_nurb_index(const ListBase *nurbs, const Nurb *nurb)
 static void delete_nurb(Curve *cu, Nurb *nu)
 {
   EditNurb *editnurb = cu->editnurb;
-  ListBase *nurbs = &editnurb->nurbs;
+  ListBaseT<Nurb> *nurbs = &editnurb->nurbs;
   const int nu_index = get_nurb_index(nurbs, nu);
   if (cu->actnu == nu_index) {
     BKE_curve_nurb_vert_active_set(cu, nullptr, nullptr);
@@ -464,11 +464,11 @@ static void delete_bp_from_nurb(const BPoint *bp, Nurb *nu, EditNurb *editnurb)
 }
 
 /**
- * Get closest vertex in all nurbs in given #ListBase to a given point.
+ * Get closest vertex in all nurbs in given #ListBaseT to a given point.
  * Returns true if point is found.
  */
 static bool get_closest_vertex_to_point_in_nurbs(const ViewContext *vc,
-                                                 const ListBase *nurbs,
+                                                 const ListBaseT<Nurb> *nurbs,
                                                  const float point[2],
                                                  Nurb **r_nu,
                                                  BezTriple **r_bezt,
@@ -488,10 +488,10 @@ static bool get_closest_vertex_to_point_in_nurbs(const ViewContext *vc,
   BPoint *closest_bp = nullptr;
   Nurb *closest_bp_nu = nullptr;
 
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    if (nu->type == CU_BEZIER) {
-      for (int i = 0; i < nu->pntsu; i++) {
-        BezTriple *bezt = &nu->bezt[i];
+  for (Nurb &nu : *nurbs) {
+    if (nu.type == CU_BEZIER) {
+      for (int i = 0; i < nu.pntsu; i++) {
+        BezTriple *bezt = &nu.bezt[i];
         float bezt_vec[2];
         int start = 0, end = 3;
 
@@ -511,7 +511,7 @@ static bool get_closest_vertex_to_point_in_nurbs(const ViewContext *vc,
             if (dist < min_dist_bezt) {
               min_dist_bezt = dist;
               closest_bezt = bezt;
-              closest_bezt_nu = nu;
+              closest_bezt_nu = &nu;
               closest_handle = j;
             }
           }
@@ -519,8 +519,8 @@ static bool get_closest_vertex_to_point_in_nurbs(const ViewContext *vc,
       }
     }
     else {
-      for (int i = 0; i < nu->pntsu; i++) {
-        BPoint *bp = &nu->bp[i];
+      for (int i = 0; i < nu.pntsu; i++) {
+        BPoint *bp = &nu.bp[i];
         float bp_vec[2];
 
         /* Update data of closest #BPoint. */
@@ -529,7 +529,7 @@ static bool get_closest_vertex_to_point_in_nurbs(const ViewContext *vc,
           if (dist < min_dist_bp) {
             min_dist_bp = dist;
             closest_bp = bp;
-            closest_bp_nu = nu;
+            closest_bp_nu = &nu;
           }
         }
       }
@@ -816,14 +816,14 @@ static void update_cut_data_for_nurb(
 
 /* Update #CutData for all the Nurbs in the curve. */
 static bool update_cut_data_for_all_nurbs(const ViewContext *vc,
-                                          const ListBase *nurbs,
+                                          const ListBaseT<Nurb> *nurbs,
                                           const float point[2],
                                           const float sel_dist,
                                           CutData *cd)
 {
   cd->min_dist = FLT_MAX;
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    update_cut_data_for_nurb(vc, cd, nu, nu->resolu, point);
+  for (Nurb &nu : *nurbs) {
+    update_cut_data_for_nurb(vc, cd, &nu, nu.resolu, point);
   }
 
   return cd->min_dist < sel_dist;
@@ -886,7 +886,7 @@ static bool insert_point_to_segment(const ViewContext *vc, const wmEvent *event)
 static void get_first_selected_point(
     Curve *cu, View3D *v3d, Nurb **r_nu, BezTriple **r_bezt, BPoint **r_bp)
 {
-  ListBase *nurbs = &cu->editnurb->nurbs;
+  ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;
   BezTriple *bezt;
   BPoint *bp;
   int a;
@@ -895,10 +895,10 @@ static void get_first_selected_point(
   *r_bezt = nullptr;
   *r_bp = nullptr;
 
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    if (nu->type == CU_BEZIER) {
-      bezt = nu->bezt;
-      a = nu->pntsu;
+  for (Nurb &nu : *nurbs) {
+    if (nu.type == CU_BEZIER) {
+      bezt = nu.bezt;
+      a = nu.pntsu;
       while (a--) {
         if (BEZT_ISSEL_ANY_HIDDENHANDLES(v3d, bezt)) {
           if (*r_bezt || *r_bp) {
@@ -907,14 +907,14 @@ static void get_first_selected_point(
             return;
           }
           *r_bezt = bezt;
-          *r_nu = nu;
+          *r_nu = &nu;
         }
         bezt++;
       }
     }
     else {
-      bp = nu->bp;
-      a = nu->pntsu * nu->pntsv;
+      bp = nu.bp;
+      a = nu.pntsu * nu.pntsv;
       while (a--) {
         if (bp->f1 & SELECT) {
           if (*r_bezt || *r_bp) {
@@ -923,7 +923,7 @@ static void get_first_selected_point(
             return;
           }
           *r_bp = bp;
-          *r_nu = nu;
+          *r_nu = &nu;
         }
         bp++;
       }
@@ -932,47 +932,47 @@ static void get_first_selected_point(
 }
 
 static void extrude_vertices_from_selected_endpoints(EditNurb *editnurb,
-                                                     ListBase *nurbs,
+                                                     ListBaseT<Nurb> *nurbs,
                                                      Curve *cu,
                                                      const float disp_3d[3])
 {
   int nu_index = 0;
-  LISTBASE_FOREACH (Nurb *, nu1, nurbs) {
-    if (nu1->type == CU_BEZIER) {
-      BezTriple *last_bezt = nu1->bezt + nu1->pntsu - 1;
-      const bool first_sel = BEZT_ISSEL_ANY(nu1->bezt);
-      const bool last_sel = BEZT_ISSEL_ANY(last_bezt) && nu1->pntsu > 1;
+  for (Nurb &nu1 : *nurbs) {
+    if (nu1.type == CU_BEZIER) {
+      BezTriple *last_bezt = nu1.bezt + nu1.pntsu - 1;
+      const bool first_sel = BEZT_ISSEL_ANY(nu1.bezt);
+      const bool last_sel = BEZT_ISSEL_ANY(last_bezt) && nu1.pntsu > 1;
       if (first_sel) {
         if (last_sel) {
-          BezTriple *new_bezt = MEM_malloc_arrayN<BezTriple>((nu1->pntsu + 2), __func__);
-          ED_curve_beztcpy(editnurb, new_bezt, nu1->bezt, 1);
-          ED_curve_beztcpy(editnurb, new_bezt + nu1->pntsu + 1, last_bezt, 1);
-          BEZT_DESEL_ALL(nu1->bezt);
+          BezTriple *new_bezt = MEM_malloc_arrayN<BezTriple>((nu1.pntsu + 2), __func__);
+          ED_curve_beztcpy(editnurb, new_bezt, nu1.bezt, 1);
+          ED_curve_beztcpy(editnurb, new_bezt + nu1.pntsu + 1, last_bezt, 1);
+          BEZT_DESEL_ALL(nu1.bezt);
           BEZT_DESEL_ALL(last_bezt);
-          ED_curve_beztcpy(editnurb, new_bezt + 1, nu1->bezt, nu1->pntsu);
+          ED_curve_beztcpy(editnurb, new_bezt + 1, nu1.bezt, nu1.pntsu);
 
           move_bezt_by_displacement(new_bezt, disp_3d);
-          move_bezt_by_displacement(new_bezt + nu1->pntsu + 1, disp_3d);
-          MEM_freeN(nu1->bezt);
-          nu1->bezt = new_bezt;
-          nu1->pntsu += 2;
+          move_bezt_by_displacement(new_bezt + nu1.pntsu + 1, disp_3d);
+          MEM_freeN(nu1.bezt);
+          nu1.bezt = new_bezt;
+          nu1.pntsu += 2;
 
           /* Set the new points selection. */
           BEZT_DESEL_ALL(new_bezt);
           BEZT_SEL_IDX(new_bezt, 0);
 
-          BEZT_DESEL_ALL(new_bezt + (nu1->pntsu - 1));
-          BEZT_SEL_IDX(new_bezt + (nu1->pntsu - 1), 2);
+          BEZT_DESEL_ALL(new_bezt + (nu1.pntsu - 1));
+          BEZT_SEL_IDX(new_bezt + (nu1.pntsu - 1), 2);
         }
         else {
-          BezTriple *new_bezt = MEM_malloc_arrayN<BezTriple>((nu1->pntsu + 1), __func__);
-          ED_curve_beztcpy(editnurb, new_bezt, nu1->bezt, 1);
-          BEZT_DESEL_ALL(nu1->bezt);
-          ED_curve_beztcpy(editnurb, new_bezt + 1, nu1->bezt, nu1->pntsu);
+          BezTriple *new_bezt = MEM_malloc_arrayN<BezTriple>((nu1.pntsu + 1), __func__);
+          ED_curve_beztcpy(editnurb, new_bezt, nu1.bezt, 1);
+          BEZT_DESEL_ALL(nu1.bezt);
+          ED_curve_beztcpy(editnurb, new_bezt + 1, nu1.bezt, nu1.pntsu);
           move_bezt_by_displacement(new_bezt, disp_3d);
-          MEM_freeN(nu1->bezt);
-          nu1->bezt = new_bezt;
-          nu1->pntsu++;
+          MEM_freeN(nu1.bezt);
+          nu1.bezt = new_bezt;
+          nu1.pntsu++;
 
           /* Set the new points selection. */
           BEZT_DESEL_ALL(new_bezt);
@@ -982,67 +982,67 @@ static void extrude_vertices_from_selected_endpoints(EditNurb *editnurb,
         cu->actvert = 0;
       }
       else if (last_sel) {
-        BezTriple *new_bezt = MEM_malloc_arrayN<BezTriple>((nu1->pntsu + 1), __func__);
-        ED_curve_beztcpy(editnurb, new_bezt + nu1->pntsu, last_bezt, 1);
+        BezTriple *new_bezt = MEM_malloc_arrayN<BezTriple>((nu1.pntsu + 1), __func__);
+        ED_curve_beztcpy(editnurb, new_bezt + nu1.pntsu, last_bezt, 1);
         BEZT_DESEL_ALL(last_bezt);
-        ED_curve_beztcpy(editnurb, new_bezt, nu1->bezt, nu1->pntsu);
-        move_bezt_by_displacement(new_bezt + nu1->pntsu, disp_3d);
-        MEM_freeN(nu1->bezt);
-        nu1->bezt = new_bezt;
-        nu1->pntsu++;
+        ED_curve_beztcpy(editnurb, new_bezt, nu1.bezt, nu1.pntsu);
+        move_bezt_by_displacement(new_bezt + nu1.pntsu, disp_3d);
+        MEM_freeN(nu1.bezt);
+        nu1.bezt = new_bezt;
+        nu1.pntsu++;
         cu->actnu = nu_index;
-        cu->actvert = nu1->pntsu - 1;
+        cu->actvert = nu1.pntsu - 1;
 
         /* Set the new points selection. */
-        BEZT_DESEL_ALL(new_bezt + (nu1->pntsu - 1));
-        BEZT_SEL_IDX(new_bezt + (nu1->pntsu - 1), 2);
+        BEZT_DESEL_ALL(new_bezt + (nu1.pntsu - 1));
+        BEZT_SEL_IDX(new_bezt + (nu1.pntsu - 1), 2);
       }
     }
     else {
-      BPoint *last_bp = nu1->bp + nu1->pntsu - 1;
-      const bool first_sel = nu1->bp->f1 & SELECT;
-      const bool last_sel = last_bp->f1 & SELECT && nu1->pntsu > 1;
+      BPoint *last_bp = nu1.bp + nu1.pntsu - 1;
+      const bool first_sel = nu1.bp->f1 & SELECT;
+      const bool last_sel = last_bp->f1 & SELECT && nu1.pntsu > 1;
       if (first_sel) {
         if (last_sel) {
-          BPoint *new_bp = MEM_malloc_arrayN<BPoint>((nu1->pntsu + 2), __func__);
-          ED_curve_bpcpy(editnurb, new_bp, nu1->bp, 1);
-          ED_curve_bpcpy(editnurb, new_bp + nu1->pntsu + 1, last_bp, 1);
-          nu1->bp->f1 &= ~SELECT;
+          BPoint *new_bp = MEM_malloc_arrayN<BPoint>((nu1.pntsu + 2), __func__);
+          ED_curve_bpcpy(editnurb, new_bp, nu1.bp, 1);
+          ED_curve_bpcpy(editnurb, new_bp + nu1.pntsu + 1, last_bp, 1);
+          nu1.bp->f1 &= ~SELECT;
           last_bp->f1 &= ~SELECT;
-          ED_curve_bpcpy(editnurb, new_bp + 1, nu1->bp, nu1->pntsu);
+          ED_curve_bpcpy(editnurb, new_bp + 1, nu1.bp, nu1.pntsu);
           add_v3_v3(new_bp->vec, disp_3d);
-          add_v3_v3((new_bp + nu1->pntsu + 1)->vec, disp_3d);
-          MEM_freeN(nu1->bp);
-          nu1->bp = new_bp;
-          nu1->pntsu += 2;
+          add_v3_v3((new_bp + nu1.pntsu + 1)->vec, disp_3d);
+          MEM_freeN(nu1.bp);
+          nu1.bp = new_bp;
+          nu1.pntsu += 2;
         }
         else {
-          BPoint *new_bp = MEM_malloc_arrayN<BPoint>((nu1->pntsu + 1), __func__);
-          ED_curve_bpcpy(editnurb, new_bp, nu1->bp, 1);
-          nu1->bp->f1 &= ~SELECT;
-          ED_curve_bpcpy(editnurb, new_bp + 1, nu1->bp, nu1->pntsu);
+          BPoint *new_bp = MEM_malloc_arrayN<BPoint>((nu1.pntsu + 1), __func__);
+          ED_curve_bpcpy(editnurb, new_bp, nu1.bp, 1);
+          nu1.bp->f1 &= ~SELECT;
+          ED_curve_bpcpy(editnurb, new_bp + 1, nu1.bp, nu1.pntsu);
           add_v3_v3(new_bp->vec, disp_3d);
-          MEM_freeN(nu1->bp);
-          nu1->bp = new_bp;
-          nu1->pntsu++;
+          MEM_freeN(nu1.bp);
+          nu1.bp = new_bp;
+          nu1.pntsu++;
         }
-        BKE_nurb_knot_calc_u(nu1);
+        BKE_nurb_knot_calc_u(&nu1);
         cu->actnu = nu_index;
         cu->actvert = 0;
       }
       else if (last_sel) {
-        BPoint *new_bp = MEM_malloc_arrayN<BPoint>((nu1->pntsu + 1), __func__);
-        ED_curve_bpcpy(editnurb, new_bp, nu1->bp, nu1->pntsu);
-        ED_curve_bpcpy(editnurb, new_bp + nu1->pntsu, last_bp, 1);
+        BPoint *new_bp = MEM_malloc_arrayN<BPoint>((nu1.pntsu + 1), __func__);
+        ED_curve_bpcpy(editnurb, new_bp, nu1.bp, nu1.pntsu);
+        ED_curve_bpcpy(editnurb, new_bp + nu1.pntsu, last_bp, 1);
         last_bp->f1 &= ~SELECT;
-        ED_curve_bpcpy(editnurb, new_bp, nu1->bp, nu1->pntsu);
-        add_v3_v3((new_bp + nu1->pntsu)->vec, disp_3d);
-        MEM_freeN(nu1->bp);
-        nu1->bp = new_bp;
-        nu1->pntsu++;
-        BKE_nurb_knot_calc_u(nu1);
+        ED_curve_bpcpy(editnurb, new_bp, nu1.bp, nu1.pntsu);
+        add_v3_v3((new_bp + nu1.pntsu)->vec, disp_3d);
+        MEM_freeN(nu1.bp);
+        nu1.bp = new_bp;
+        nu1.pntsu++;
+        BKE_nurb_knot_calc_u(&nu1);
         cu->actnu = nu_index;
-        cu->actvert = nu1->pntsu - 1;
+        cu->actvert = nu1.pntsu - 1;
       }
       BKE_curve_nurb_vert_active_validate(cu);
     }
@@ -1053,25 +1053,25 @@ static void extrude_vertices_from_selected_endpoints(EditNurb *editnurb,
 /**
  * Deselect all vertices that are not endpoints.
  */
-static void deselect_all_center_vertices(ListBase *nurbs)
+static void deselect_all_center_vertices(ListBaseT<Nurb> *nurbs)
 {
-  LISTBASE_FOREACH (Nurb *, nu1, nurbs) {
-    if (nu1->pntsu > 1) {
+  for (Nurb &nu1 : *nurbs) {
+    if (nu1.pntsu > 1) {
       int start, end;
-      if (is_cyclic(nu1)) {
+      if (is_cyclic(&nu1)) {
         start = 0;
-        end = nu1->pntsu;
+        end = nu1.pntsu;
       }
       else {
         start = 1;
-        end = nu1->pntsu - 1;
+        end = nu1.pntsu - 1;
       }
       for (int i = start; i < end; i++) {
-        if (nu1->type == CU_BEZIER) {
-          BEZT_DESEL_ALL(nu1->bezt + i);
+        if (nu1.type == CU_BEZIER) {
+          BEZT_DESEL_ALL(nu1.bezt + i);
         }
         else {
-          (nu1->bp + i)->f1 &= ~SELECT;
+          (nu1.bp + i)->f1 &= ~SELECT;
         }
       }
     }
@@ -1091,7 +1091,7 @@ static void extrude_points_from_selected_vertices(const ViewContext *vc,
                                                   const int extrude_handle)
 {
   Curve *cu = static_cast<Curve *>(vc->obedit->data);
-  ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
   float center[3] = {0.0f, 0.0f, 0.0f};
   deselect_all_center_vertices(nurbs);
   bool sel_exists = get_selected_center(nurbs, true, false, center);
@@ -1129,7 +1129,7 @@ static void extrude_points_from_selected_vertices(const ViewContext *vc,
     }
   }
 
-  FOREACH_SELECTED_BEZT_BEGIN (bezt, &cu->editnurb->nurbs) {
+  FOREACH_SELECTED_BEZT_BEGIN (bezt, cu->editnurb->nurbs) {
     if (bezt) {
       bezt->h1 = extrude_handle;
       bezt->h2 = extrude_handle;
@@ -1147,7 +1147,7 @@ static bool is_spline_nearby(ViewContext *vc,
                              const float sel_dist)
 {
   Curve *cu = static_cast<Curve *>(vc->obedit->data);
-  ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
   CutData cd = init_cut_data(event);
 
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
@@ -1274,9 +1274,9 @@ static void toggle_bezt_free_align_handles(BezTriple *bezt)
 /**
  * Toggle between #HD_FREE and #HD_ALIGN handles of the all selected #BezTriple
  */
-static void toggle_sel_bezt_free_align_handles(ListBase *nurbs)
+static void toggle_sel_bezt_free_align_handles(ListBaseT<Nurb> *nurbs)
 {
-  FOREACH_SELECTED_BEZT_BEGIN (bezt, nurbs) {
+  FOREACH_SELECTED_BEZT_BEGIN (bezt, *nurbs) {
     toggle_bezt_free_align_handles(bezt);
   }
   FOREACH_SELECTED_BEZT_END;
@@ -1293,7 +1293,7 @@ static bool delete_point_under_mouse(const ViewContext *vc, const wmEvent *event
   int temp = 0;
   Curve *cu = static_cast<Curve *>(vc->obedit->data);
   EditNurb *editnurb = cu->editnurb;
-  ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
   const float mouse_point[2] = {float(event->mval[0]), float(event->mval[1])};
 
   get_closest_vertex_to_point_in_nurbs(vc, nurbs, mouse_point, &nu, &bezt, &bp, &temp);
@@ -1333,29 +1333,31 @@ static bool delete_point_under_mouse(const ViewContext *vc, const wmEvent *event
   return deleted;
 }
 
-static void move_adjacent_handle(const ViewContext *vc, const wmEvent *event, ListBase *nurbs)
+static void move_adjacent_handle(const ViewContext *vc,
+                                 const wmEvent *event,
+                                 ListBaseT<Nurb> *nurbs)
 {
-  FOREACH_SELECTED_BEZT_BEGIN (bezt, nurbs) {
+  FOREACH_SELECTED_BEZT_BEGIN (bezt, *nurbs) {
     BezTriple *adj_bezt;
     int bezt_idx;
-    if (nu->pntsu == 1) {
+    if (nu.pntsu == 1) {
       continue;
     }
-    if (nu->bezt == bezt) {
-      adj_bezt = BKE_nurb_bezt_get_next(nu, bezt);
+    if (nu.bezt == bezt) {
+      adj_bezt = BKE_nurb_bezt_get_next(&nu, bezt);
       bezt_idx = 0;
     }
-    else if (nu->bezt + nu->pntsu - 1 == bezt) {
-      adj_bezt = BKE_nurb_bezt_get_prev(nu, bezt);
+    else if (nu.bezt + nu.pntsu - 1 == bezt) {
+      adj_bezt = BKE_nurb_bezt_get_prev(&nu, bezt);
       bezt_idx = 2;
     }
     else {
       if (BEZT_ISSEL_IDX(bezt, 0)) {
-        adj_bezt = BKE_nurb_bezt_get_prev(nu, bezt);
+        adj_bezt = BKE_nurb_bezt_get_prev(&nu, bezt);
         bezt_idx = 2;
       }
       else if (BEZT_ISSEL_IDX(bezt, 2)) {
-        adj_bezt = BKE_nurb_bezt_get_next(nu, bezt);
+        adj_bezt = BKE_nurb_bezt_get_next(&nu, bezt);
         bezt_idx = 0;
       }
       else {
@@ -1368,7 +1370,7 @@ static void move_adjacent_handle(const ViewContext *vc, const wmEvent *event, Li
     const float disp_fl[2] = {float(displacement[0]), float(displacement[1])};
     move_bezt_handle_or_vertex_by_displacement(
         vc, adj_bezt, bezt_idx, disp_fl, 0.0f, false, false);
-    BKE_nurb_handles_calc(nu);
+    BKE_nurb_handles_calc(&nu);
   }
   FOREACH_SELECTED_BEZT_END;
 }
@@ -1406,7 +1408,7 @@ static bool make_cyclic_if_endpoints(const ViewContext *vc,
          (nu->type != CU_BEZIER && bp != sel_bp && ELEM(bp, nu->bp, nu->bp + nu->pntsu - 1))))
     {
       View3D *v3d = vc->v3d;
-      ListBase *nurbs = object_editcurve_get(vc->obedit);
+      ListBaseT<Nurb> *nurbs = object_editcurve_get(vc->obedit);
       curve_toggle_cyclic(v3d, nurbs, 0);
       return true;
     }
@@ -1414,14 +1416,14 @@ static bool make_cyclic_if_endpoints(const ViewContext *vc,
   return false;
 }
 
-static void init_selected_bezt_handles(ListBase *nurbs)
+static void init_selected_bezt_handles(ListBaseT<Nurb> *nurbs)
 {
-  FOREACH_SELECTED_BEZT_BEGIN (bezt, nurbs) {
+  FOREACH_SELECTED_BEZT_BEGIN (bezt, *nurbs) {
     bezt->h1 = bezt->h2 = HD_ALIGN;
     copy_v3_v3(bezt->vec[0], bezt->vec[1]);
     copy_v3_v3(bezt->vec[2], bezt->vec[1]);
     BEZT_DESEL_ALL(bezt);
-    BEZT_SEL_IDX(bezt, is_last_bezt(nu, bezt) ? 2 : 0);
+    BEZT_SEL_IDX(bezt, is_last_bezt(&nu, bezt) ? 2 : 0);
   }
   FOREACH_SELECTED_BEZT_END;
 }
@@ -1555,7 +1557,7 @@ static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEve
 
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
-  ListBase *nurbs = &cu->editnurb->nurbs;
+  ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;
   const float threshold_dist_px = ED_view3d_select_dist_px() * SEL_DIST_FACTOR;
 
   BezTriple *bezt = nullptr;
@@ -1743,7 +1745,7 @@ static wmOperatorStatus curve_pen_invoke(bContext *C, wmOperator *op, const wmEv
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
-  ListBase *nurbs = &cu->editnurb->nurbs;
+  ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;
 
   BezTriple *bezt = nullptr;
   BPoint *bp = nullptr;

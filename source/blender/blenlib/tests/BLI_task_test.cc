@@ -144,7 +144,7 @@ TEST(task, MempoolIter)
 /* *** Parallel iterations over mempool items with TLS. *** */
 
 struct TaskMemPool_Chunk {
-  ListBase *accumulate_items;
+  ListBaseT<LinkData> *accumulate_items;
 };
 
 static void task_mempool_iter_tls_func(void * /*userdata*/,
@@ -156,7 +156,7 @@ static void task_mempool_iter_tls_func(void * /*userdata*/,
 
   EXPECT_TRUE(data != nullptr);
   if (task_data->accumulate_items == nullptr) {
-    task_data->accumulate_items = MEM_callocN<ListBase>(__func__);
+    task_data->accumulate_items = MEM_callocN<ListBaseT<LinkData>>(__func__);
   }
 
   /* Flip to prove this has been touched. */
@@ -174,7 +174,7 @@ static void task_mempool_iter_tls_reduce(const void *__restrict /*userdata*/,
 
   if (data_chunk->accumulate_items != nullptr) {
     if (join_chunk->accumulate_items == nullptr) {
-      join_chunk->accumulate_items = MEM_callocN<ListBase>(__func__);
+      join_chunk->accumulate_items = MEM_callocN<ListBaseT<LinkData>>(__func__);
     }
     BLI_movelisttolist(join_chunk->accumulate_items, data_chunk->accumulate_items);
   }
@@ -219,8 +219,8 @@ TEST(task, MempoolIterTLS)
 
   /* Check that all elements are added into the list once. */
   int number_accum = 0;
-  LISTBASE_FOREACH (LinkData *, link, tls_data.accumulate_items) {
-    int *data = (int *)link->data;
+  for (LinkData &link : *tls_data.accumulate_items) {
+    int *data = (int *)link.data;
     number_accum += *data;
   }
   EXPECT_EQ(number_accum, (ITEMS_NUM * (ITEMS_NUM + 1)) / 2);

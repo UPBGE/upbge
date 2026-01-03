@@ -116,7 +116,7 @@ static void nla_action_draw_keyframes(
   immUnbindProgram();
 
   /* Count keys before drawing. */
-  const ListBase *keys = ED_keylist_listbase(keylist);
+  const ListBaseT<ActKeyColumn> *keys = ED_keylist_listbase(keylist);
   uint key_len = BLI_listbase_count(keys);
 
   if (key_len > 0) {
@@ -142,12 +142,12 @@ static void nla_action_draw_keyframes(
     /* - disregard the selection status of keyframes so they draw a certain way
      * - size is 6.0f which is smaller than the editable keyframes, so that there is a distinction
      */
-    LISTBASE_FOREACH (const ActKeyColumn *, ak, keys) {
-      draw_keyframe_shape(ak->cfra,
+    for (const ActKeyColumn &ak : *keys) {
+      draw_keyframe_shape(ak.cfra,
                           y,
                           6.0f,
                           false,
-                          ak->key_type,
+                          ak.key_type,
                           KEYFRAME_SHAPE_FRAME,
                           1.0f,
                           &sh_bindings,
@@ -196,9 +196,9 @@ static void nla_actionclip_draw_markers(
   immUniformThemeColorShade(TH_STRIP_SELECT, shade);
 
   immBeginAtMost(GPU_PRIM_LINES, BLI_listbase_count(&act->markers) * 2);
-  LISTBASE_FOREACH (TimeMarker *, marker, &act->markers) {
-    if ((marker->frame > strip->actstart) && (marker->frame < strip->actend)) {
-      float frame = nlastrip_get_frame(strip, marker->frame, NLATIME_CONVERT_MAP);
+  for (TimeMarker &marker : act->markers) {
+    if ((marker.frame > strip->actstart) && (marker.frame < strip->actend)) {
+      float frame = nlastrip_get_frame(strip, marker.frame, NLATIME_CONVERT_MAP);
 
       /* just a simple line for now */
       /* XXX: draw a triangle instead... */
@@ -227,9 +227,9 @@ static void nla_strip_draw_markers(NlaStrip *strip, float yminc, float ymaxc)
     /* just a solid color, so that it is very easy to spot */
     int shade = 20;
     /* draw the markers in the first level of strips only (if they are actions) */
-    LISTBASE_FOREACH (NlaStrip *, nls, &strip->strips) {
-      if (nls->type == NLASTRIP_TYPE_CLIP) {
-        nla_actionclip_draw_markers(nls, yminc, ymaxc, shade, false);
+    for (NlaStrip &nls : strip->strips) {
+      if (nls.type == NLASTRIP_TYPE_CLIP) {
+        nla_actionclip_draw_markers(&nls, yminc, ymaxc, shade, false);
       }
     }
   }
@@ -591,21 +591,21 @@ static void nla_draw_strip(SpaceNla *snla,
     immBeginAtMost(GPU_PRIM_LINES, 4 * BLI_listbase_count(&strip->strips));
 
     /* only draw first-level of child-strips, but don't draw any lines on the endpoints */
-    LISTBASE_FOREACH (NlaStrip *, cs, &strip->strips) {
+    for (NlaStrip &cs : strip->strips) {
       /* draw start-line if not same as end of previous (and only if not the first strip)
        * - on upper half of strip
        */
-      if ((cs->prev) && IS_EQF(cs->prev->end, cs->start) == 0) {
-        immVertex2f(shdr_pos, cs->start, y);
-        immVertex2f(shdr_pos, cs->start, ymaxc);
+      if ((cs.prev) && IS_EQF(cs.prev->end, cs.start) == 0) {
+        immVertex2f(shdr_pos, cs.start, y);
+        immVertex2f(shdr_pos, cs.start, ymaxc);
       }
 
       /* draw end-line if not the last strip
        * - on lower half of strip
        */
-      if (cs->next) {
-        immVertex2f(shdr_pos, cs->end, yminc);
-        immVertex2f(shdr_pos, cs->end, y);
+      if (cs.next) {
+        immVertex2f(shdr_pos, cs.end, yminc);
+        immVertex2f(shdr_pos, cs.end, y);
       }
     }
 
@@ -705,10 +705,10 @@ static void nla_draw_strip_frames_text(
  * Note that this also includes tracks that might only be
  * visible because of their extendmode.
  */
-static ListBase get_visible_nla_strips(NlaTrack *nlt, View2D *v2d)
+static ListBaseT<NlaStrip> get_visible_nla_strips(NlaTrack *nlt, View2D *v2d)
 {
   if (BLI_listbase_is_empty(&nlt->strips)) {
-    ListBase empty = {nullptr, nullptr};
+    ListBaseT<NlaStrip> empty = {nullptr, nullptr};
     return empty;
   }
 
@@ -716,9 +716,9 @@ static ListBase get_visible_nla_strips(NlaTrack *nlt, View2D *v2d)
   NlaStrip *last = nullptr;
 
   /* Find the first strip that is within the bounds of the view. */
-  LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
-    if (BKE_nlastrip_within_bounds(strip, v2d->cur.xmin, v2d->cur.xmax)) {
-      first = last = strip;
+  for (NlaStrip &strip : nlt->strips) {
+    if (BKE_nlastrip_within_bounds(&strip, v2d->cur.xmin, v2d->cur.xmax)) {
+      first = last = &strip;
       break;
     }
   }
@@ -768,12 +768,12 @@ static ListBase get_visible_nla_strips(NlaTrack *nlt, View2D *v2d)
     }
     else {
       /* The view is in the middle of two strips. */
-      LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
+      for (NlaStrip &strip : nlt->strips) {
         /* Find the strip to the left by finding the strip to the right and getting its prev. */
-        if (v2d->cur.xmax < strip->start) {
+        if (v2d->cur.xmax < strip.start) {
           /* If the strip to the left has an extendmode, set that as the only visible strip. */
-          if (strip->prev && strip->prev->extendmode != NLASTRIP_EXTEND_NOTHING) {
-            first = last = strip->prev;
+          if (strip.prev && strip.prev->extendmode != NLASTRIP_EXTEND_NOTHING) {
+            first = last = strip.prev;
           }
           break;
         }
@@ -781,7 +781,7 @@ static ListBase get_visible_nla_strips(NlaTrack *nlt, View2D *v2d)
     }
   }
 
-  ListBase visible_strips = {first, last};
+  ListBaseT<NlaStrip> visible_strips = {first, last};
   return visible_strips;
 }
 
@@ -792,7 +792,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
   const float text_margin_x = (8 * UI_SCALE_FAC) * pixelx;
 
   /* build list of tracks to draw */
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                               ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
   size_t items = ANIM_animdata_filter(
@@ -825,26 +825,26 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
         case ANIMTYPE_NLATRACK: {
           AnimData *adt = ale->adt;
           NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
-          ListBase visible_nla_strips = get_visible_nla_strips(nlt, v2d);
+          ListBaseT<NlaStrip> visible_nla_strips = get_visible_nla_strips(nlt, v2d);
 
           /* Draw each visible strip in the track. */
-          LISTBASE_FOREACH (NlaStrip *, strip, &visible_nla_strips) {
-            const float xminc = strip->start + text_margin_x;
-            const float xmaxc = strip->end - text_margin_x;
+          for (NlaStrip &strip : visible_nla_strips) {
+            const float xminc = strip.start + text_margin_x;
+            const float xmaxc = strip.end - text_margin_x;
 
             /* draw the visualization of the strip */
-            nla_draw_strip(snla, adt, nlt, strip, v2d, ymin, ymax);
+            nla_draw_strip(snla, adt, nlt, &strip, v2d, ymin, ymax);
 
             /* add the text for this strip to the cache */
             if (xminc < xmaxc) {
-              nla_draw_strip_text(adt, nlt, strip, v2d, xminc, xmaxc, ymin, ymax);
+              nla_draw_strip_text(adt, nlt, &strip, v2d, xminc, xmaxc, ymin, ymax);
             }
 
             /* if transforming strips (only real reason for temp-metas currently),
              * add to the cache the frame numbers of the strip's extents
              */
-            if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
-              nla_draw_strip_frames_text(nlt, strip, v2d, ymin, ymax);
+            if (strip.flag & NLASTRIP_FLAG_TEMP_META) {
+              nla_draw_strip_frames_text(nlt, &strip, v2d, ymin, ymax);
             }
           }
           break;
@@ -975,7 +975,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
 void draw_nla_track_list(const bContext *C,
                          bAnimContext *ac,
                          ARegion *region,
-                         const ListBase /*bAnimListElem*/ &anim_data)
+                         const ListBaseT<bAnimListElem> &anim_data)
 {
 
   SpaceNla *snla = reinterpret_cast<SpaceNla *>(ac->sl);

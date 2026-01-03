@@ -79,7 +79,7 @@ static void wm_xr_session_create_cb()
 
 static void wm_xr_session_controller_data_free(wmXrSessionState *state)
 {
-  ListBase *lb = &state->controllers;
+  ListBaseT<wmXrController> *lb = &state->controllers;
   while (wmXrController *c = static_cast<wmXrController *>(BLI_pophead(lb))) {
     if (c->model) {
       GPU_batch_discard(c->model);
@@ -720,7 +720,6 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
   BLI_assert(grip_action->count_subaction_paths == aim_action->count_subaction_paths);
   BLI_assert(grip_action->count_subaction_paths == BLI_listbase_count(&state->controllers));
 
-  uint subaction_idx = 0;
   float view_ofs[3], base_mat[4][4], nav_mat[4][4];
 
   if ((settings->flag & XR_SESSION_USE_POSITION_TRACKING) == 0) {
@@ -736,32 +735,32 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
   wm_xr_pose_scale_to_mat(&state->prev_base_pose, state->prev_base_scale, base_mat);
   wm_xr_pose_scale_to_mat(&state->nav_pose, state->nav_scale, nav_mat);
 
-  LISTBASE_FOREACH_INDEX (wmXrController *, controller, &state->controllers, subaction_idx) {
-    controller->grip_active = ((GHOST_XrPose *)grip_action->states)[subaction_idx].is_active;
+  for (auto [subaction_idx, controller] : state->controllers.enumerate()) {
+    controller.grip_active = ((GHOST_XrPose *)grip_action->states)[subaction_idx].is_active;
     wm_xr_session_controller_pose_calc(&((GHOST_XrPose *)grip_action->states)[subaction_idx],
                                        view_ofs,
                                        base_mat,
                                        nav_mat,
-                                       &controller->grip_pose,
-                                       controller->grip_mat,
-                                       controller->grip_mat_base);
-    controller->aim_active = ((GHOST_XrPose *)aim_action->states)[subaction_idx].is_active;
+                                       &controller.grip_pose,
+                                       controller.grip_mat,
+                                       controller.grip_mat_base);
+    controller.aim_active = ((GHOST_XrPose *)aim_action->states)[subaction_idx].is_active;
     wm_xr_session_controller_pose_calc(&((GHOST_XrPose *)aim_action->states)[subaction_idx],
                                        view_ofs,
                                        base_mat,
                                        nav_mat,
-                                       &controller->aim_pose,
-                                       controller->aim_mat,
-                                       controller->aim_mat_base);
+                                       &controller.aim_pose,
+                                       controller.aim_mat,
+                                       controller.aim_mat_base);
 
-    if (!controller->model) {
+    if (!controller.model) {
       /* Notify GHOST to load/continue loading the controller model data. This can be called more
        * than once since the model may not be available from the runtime yet. The batch itself will
        * be created in wm_xr_draw_controllers(). */
-      GHOST_XrLoadControllerModel(xr_context, controller->subaction_path);
+      GHOST_XrLoadControllerModel(xr_context, controller.subaction_path);
     }
     else {
-      GHOST_XrUpdateControllerModelComponents(xr_context, controller->subaction_path);
+      GHOST_XrUpdateControllerModelComponents(xr_context, controller.subaction_path);
     }
   }
 }
@@ -819,7 +818,7 @@ BLI_INLINE bool test_vec2f_state(const float state[2], float threshold, eXrAxisF
   return (len_v2(state) > threshold);
 }
 
-static bool wm_xr_session_modal_action_test(const ListBase *active_modal_actions,
+static bool wm_xr_session_modal_action_test(const ListBaseT<LinkData> *active_modal_actions,
                                             const wmXrAction *action,
                                             bool *r_found)
 {
@@ -827,8 +826,8 @@ static bool wm_xr_session_modal_action_test(const ListBase *active_modal_actions
     *r_found = false;
   }
 
-  LISTBASE_FOREACH (LinkData *, ld, active_modal_actions) {
-    wmXrAction *active_modal_action = static_cast<wmXrAction *>(ld->data);
+  for (LinkData &ld : *active_modal_actions) {
+    wmXrAction *active_modal_action = static_cast<wmXrAction *>(ld.data);
     if (action == active_modal_action) {
       if (r_found) {
         *r_found = true;
@@ -847,7 +846,7 @@ static bool wm_xr_session_modal_action_test(const ListBase *active_modal_actions
   return true;
 }
 
-static void wm_xr_session_modal_action_test_add(ListBase *active_modal_actions,
+static void wm_xr_session_modal_action_test_add(ListBaseT<LinkData> *active_modal_actions,
                                                 const wmXrAction *action)
 {
   bool found;
@@ -858,30 +857,31 @@ static void wm_xr_session_modal_action_test_add(ListBase *active_modal_actions,
   }
 }
 
-static void wm_xr_session_modal_action_remove(ListBase *active_modal_actions,
+static void wm_xr_session_modal_action_remove(ListBaseT<LinkData> *active_modal_actions,
                                               const wmXrAction *action)
 {
-  LISTBASE_FOREACH (LinkData *, ld, active_modal_actions) {
-    if (action == ld->data) {
-      BLI_freelinkN(active_modal_actions, ld);
+  for (LinkData &ld : *active_modal_actions) {
+    if (action == ld.data) {
+      BLI_freelinkN(active_modal_actions, &ld);
       return;
     }
   }
 }
 
-static wmXrHapticAction *wm_xr_session_haptic_action_find(ListBase *active_haptic_actions,
-                                                          const wmXrAction *action,
-                                                          const char *subaction_path)
+static wmXrHapticAction *wm_xr_session_haptic_action_find(
+    ListBaseT<wmXrHapticAction> *active_haptic_actions,
+    const wmXrAction *action,
+    const char *subaction_path)
 {
-  LISTBASE_FOREACH (wmXrHapticAction *, ha, active_haptic_actions) {
-    if ((action == ha->action) && (subaction_path == ha->subaction_path)) {
-      return ha;
+  for (wmXrHapticAction &ha : *active_haptic_actions) {
+    if ((action == ha.action) && (subaction_path == ha.subaction_path)) {
+      return &ha;
     }
   }
   return nullptr;
 }
 
-static void wm_xr_session_haptic_action_add(ListBase *active_haptic_actions,
+static void wm_xr_session_haptic_action_add(ListBaseT<wmXrHapticAction> *active_haptic_actions,
                                             const wmXrAction *action,
                                             const char *subaction_path,
                                             int64_t time_now)
@@ -901,36 +901,38 @@ static void wm_xr_session_haptic_action_add(ListBase *active_haptic_actions,
   }
 }
 
-static void wm_xr_session_haptic_action_remove(ListBase *active_haptic_actions,
+static void wm_xr_session_haptic_action_remove(ListBaseT<wmXrHapticAction> *active_haptic_actions,
                                                const wmXrAction *action)
 {
-  LISTBASE_FOREACH (wmXrHapticAction *, ha, active_haptic_actions) {
-    if (action == ha->action) {
-      BLI_freelinkN(active_haptic_actions, ha);
+  for (wmXrHapticAction &ha : *active_haptic_actions) {
+    if (action == ha.action) {
+      BLI_freelinkN(active_haptic_actions, &ha);
       return;
     }
   }
 }
 
-static void wm_xr_session_haptic_timers_check(ListBase *active_haptic_actions, int64_t time_now)
+static void wm_xr_session_haptic_timers_check(ListBaseT<wmXrHapticAction> *active_haptic_actions,
+                                              int64_t time_now)
 {
-  LISTBASE_FOREACH_MUTABLE (wmXrHapticAction *, ha, active_haptic_actions) {
-    if (time_now - ha->time_start >= ha->action->haptic_duration) {
-      BLI_freelinkN(active_haptic_actions, ha);
+  for (wmXrHapticAction &ha : active_haptic_actions->items_mutable()) {
+    if (time_now - ha.time_start >= ha.action->haptic_duration) {
+      BLI_freelinkN(active_haptic_actions, &ha);
     }
   }
 }
 
-static void wm_xr_session_action_states_interpret(wmXrData *xr,
-                                                  const char *action_set_name,
-                                                  wmXrAction *action,
-                                                  uint subaction_idx,
-                                                  ListBase *active_modal_actions,
-                                                  ListBase *active_haptic_actions,
-                                                  int64_t time_now,
-                                                  bool modal,
-                                                  bool haptic,
-                                                  short *r_val)
+static void wm_xr_session_action_states_interpret(
+    wmXrData *xr,
+    const char *action_set_name,
+    wmXrAction *action,
+    uint subaction_idx,
+    ListBaseT<LinkData> *active_modal_actions,
+    ListBaseT<wmXrHapticAction> *active_haptic_actions,
+    int64_t time_now,
+    bool modal,
+    bool haptic,
+    short *r_val)
 {
   const char *haptic_subaction_path = ((action->haptic_flag & XR_HAPTIC_MATCHUSERPATHS) != 0) ?
                                           action->subaction_paths[subaction_idx] :
@@ -1215,8 +1217,8 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
 
   const int64_t time_now = int64_t(BLI_time_now_seconds() * 1000);
 
-  ListBase *active_modal_actions = &action_set->active_modal_actions;
-  ListBase *active_haptic_actions = &action_set->active_haptic_actions;
+  ListBaseT<LinkData> *active_modal_actions = &action_set->active_modal_actions;
+  ListBaseT<wmXrHapticAction> *active_haptic_actions = &action_set->active_haptic_actions;
 
   wmXrAction **actions = MEM_calloc_arrayN<wmXrAction *>(count, __func__);
 
@@ -1356,7 +1358,7 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
   UNUSED_VARS(aim_action); /* Only used for asserts. */
 
   wmXrSessionState *state = &xr->runtime->session_state;
-  ListBase *controllers = &state->controllers;
+  ListBaseT<wmXrController> *controllers = &state->controllers;
 
   BLI_assert(grip_action->count_subaction_paths == aim_action->count_subaction_paths);
   const uint count = grip_action->count_subaction_paths;
@@ -1537,7 +1539,7 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
 static void wm_xr_session_surface_free_data(wmSurface *surface)
 {
   wmXrSurfaceData *data = static_cast<wmXrSurfaceData *>(surface->customdata);
-  ListBase *lb = &data->viewports;
+  ListBaseT<wmXrViewportPair> *lb = &data->viewports;
 
   while (wmXrViewportPair *vp = static_cast<wmXrViewportPair *>(BLI_pophead(lb))) {
     if (vp->viewport) {

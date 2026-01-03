@@ -1476,15 +1476,16 @@ static bool bm_vert_connect_select_history(BMesh *bm)
  * Convert an edge selection to a temp vertex selection
  * (which must be cleared after use as a path to connect).
  */
-static bool bm_vert_connect_select_history_edge_to_vert_path(BMesh *bm, ListBase *r_selected)
+static bool bm_vert_connect_select_history_edge_to_vert_path(
+    BMesh *bm, ListBaseT<BMEditSelection> *r_selected)
 {
-  ListBase selected_orig = {nullptr, nullptr};
+  ListBaseT<BMEditSelection> selected_orig = {nullptr, nullptr};
   int edges_len = 0;
   bool side = false;
 
   /* first check all edges are OK */
-  LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-    if (ese->htype == BM_EDGE) {
+  for (BMEditSelection &ese : bm->selected) {
+    if (ese.htype == BM_EDGE) {
       edges_len += 1;
     }
     else {
@@ -1499,9 +1500,9 @@ static bool bm_vert_connect_select_history_edge_to_vert_path(BMesh *bm, ListBase
   std::swap(bm->selected, selected_orig);
 
   /* convert edge selection into 2 ordered loops (where the first edge ends up in the middle) */
-  LISTBASE_FOREACH (BMEditSelection *, ese, &selected_orig) {
-    BMEdge *e_curr = (BMEdge *)ese->ele;
-    BMEdge *e_prev = ese->prev ? (BMEdge *)ese->prev->ele : nullptr;
+  for (BMEditSelection &ese : selected_orig) {
+    BMEdge *e_curr = (BMEdge *)ese.ele;
+    BMEdge *e_prev = ese.prev ? (BMEdge *)ese.prev->ele : nullptr;
     BMLoop *l_curr;
     BMLoop *l_prev;
     BMVert *v;
@@ -1552,7 +1553,7 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
     const bool is_pair = (em->bm->totvertsel == 2);
-    ListBase selected_orig = {nullptr, nullptr};
+    ListBaseT<BMEditSelection> selected_orig = {nullptr, nullptr};
 
     if (bm->totvertsel == 0) {
       continue;
@@ -2710,9 +2711,9 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     /* if there is a mirror modifier with clipping, flag the verts that
      * are within tolerance of the plane(s) of reflection
      */
-    LISTBASE_FOREACH (ModifierData *, md, &obedit->modifiers) {
-      if (md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
-        MirrorModifierData *mmd = (MirrorModifierData *)md;
+    for (ModifierData &md : obedit->modifiers) {
+      if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
+        MirrorModifierData *mmd = (MirrorModifierData *)&md;
 
         if (mmd->flag & MOD_MIR_CLIPPING) {
           if (mmd->flag & MOD_MIR_AXIS_X) {
@@ -4707,7 +4708,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   int count;
   int span = *span_p;
 
-  ListBase eloops = {nullptr};
+  ListBaseT<BMEdgeLoopStore> eloops = {nullptr};
   BMEdgeLoopStore *el_store;
   // LinkData *el_store;
 
@@ -4744,7 +4745,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   if ((count == 1) && ((verts_len & 1) == 0) && (verts_len == edges_len)) {
 
     /* be clever! detect 2 edge loops from one closed edge loop */
-    ListBase *verts = BM_edgeloop_verts_get(el_store);
+    ListBaseT<LinkData> *verts = BM_edgeloop_verts_get(el_store);
     BMVert *v_act = BM_mesh_active_vert_get(bm);
     LinkData *v_act_link;
     int i;
@@ -4758,11 +4759,11 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
       /* find the vertex with the best angle (a corner vertex) */
       LinkData *v_link_best = nullptr;
       float angle_best = -1.0f;
-      LISTBASE_FOREACH (LinkData *, v_link, verts) {
-        const float angle = edbm_fill_grid_vert_tag_angle(static_cast<BMVert *>(v_link->data));
+      for (LinkData &v_link : *verts) {
+        const float angle = edbm_fill_grid_vert_tag_angle(static_cast<BMVert *>(v_link.data));
         if ((angle > angle_best) || (v_link_best == nullptr)) {
           angle_best = angle;
-          v_link_best = v_link;
+          v_link_best = &v_link;
         }
       }
 

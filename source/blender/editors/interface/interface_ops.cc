@@ -1010,9 +1010,9 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
   r_lb->clear();
   for (const PointerRNA &ptr : fcurve_links) {
     const FCurve *fcu = static_cast<const FCurve *>(ptr.data);
-    LISTBASE_FOREACH (FModifier *, mod, &fcu->modifiers) {
-      if (STREQ(mod->name, source->name) && mod->type == source->type) {
-        r_lb->append(RNA_pointer_create_discrete(ptr.owner_id, &RNA_FModifier, mod));
+    for (FModifier &mod : fcu->modifiers) {
+      if (STREQ(mod.name, source->name) && mod.type == source->type) {
+        r_lb->append(RNA_pointer_create_discrete(ptr.owner_id, &RNA_FModifier, &mod));
         /* Since names are unique it is safe to break here. */
         break;
       }
@@ -1027,11 +1027,11 @@ static void ui_context_selected_key_blocks(ID *owner_id_key, Vector<PointerRNA> 
    * (christoph) think that the first case is more useful which is why the function works as it
    * does. */
   Key *containing_key = reinterpret_cast<Key *>(owner_id_key);
-  LISTBASE_FOREACH (KeyBlock *, key_block, &containing_key->block) {
+  for (KeyBlock &key_block : containing_key->block) {
     /* This does not use the function `shape_key_is_selected` since that would include the active
      * shapekey which is not required for this function to work. */
-    if (key_block->flag & KEYBLOCK_SEL) {
-      r_lb->append(RNA_pointer_create_discrete(owner_id_key, &RNA_ShapeKey, key_block));
+    if (key_block.flag & KEYBLOCK_SEL) {
+      r_lb->append(RNA_pointer_create_discrete(owner_id_key, &RNA_ShapeKey, &key_block));
     }
   }
 }
@@ -1257,10 +1257,10 @@ bool context_copy_to_selected_list(bContext *C,
       return false;
     }
 
-    ListBase selected_objects = {nullptr};
+    ListBaseT<LinkData> selected_objects = {nullptr};
     ED_outliner_selected_objects_get(C, &selected_objects);
-    LISTBASE_FOREACH (LinkData *, link, &selected_objects) {
-      Object *ob = static_cast<Object *>(link->data);
+    for (LinkData &link : selected_objects) {
+      Object *ob = static_cast<Object *>(link.data);
       r_lb->append(RNA_id_pointer_create(&ob->id));
     }
   }
@@ -2131,8 +2131,8 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
     /* It's possible the key button referenced in `ui_editsource_info` has been freed.
      * This typically happens with popovers but could happen in other situations, see: #140439. */
     Set<const Button *> valid_buttons_in_region;
-    LISTBASE_FOREACH (Block *, block_base, &region->runtime->uiblocks) {
-      Block *block_pair[2] = {block_base, block_base->oldblock};
+    for (Block &block_base : region->runtime->uiblocks) {
+      Block *block_pair[2] = {&block_base, block_base.oldblock};
       for (Block *block : Span(block_pair, block_pair[1] ? 2 : 1)) {
         for (int i = 0; i < block->buttons.size(); i++) {
           const Button *but = block->buttons[i].get();
@@ -2608,8 +2608,11 @@ static wmOperatorStatus ui_view_drop_invoke(bContext *C, wmOperator * /*op*/, co
   std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region,
                                                                                       event->xy);
 
-  if (!drop_target_apply_drop(
-          *C, *region, *event, *drop_target, *static_cast<const ListBase *>(event->customdata)))
+  if (!drop_target_apply_drop(*C,
+                              *region,
+                              *event,
+                              *drop_target,
+                              *static_cast<const ListBaseT<wmDrag> *>(event->customdata)))
   {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }

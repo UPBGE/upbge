@@ -840,7 +840,7 @@ static void ui_color_snap_hue(const enum eSnapType snap, float *r_hue)
 /** \name Button Apply/Revert
  * \{ */
 
-static ListBase UIAfterFuncs = {nullptr, nullptr};
+static ListBaseT<AfterFunc> UIAfterFuncs = {nullptr, nullptr};
 
 static AfterFunc *ui_afterfunc_new()
 {
@@ -1115,13 +1115,13 @@ static void ui_apply_but_autokey(bContext *C, Button *but)
 static void ui_apply_but_funcs_after(bContext *C)
 {
   /* Copy to avoid recursive calls. */
-  ListBase funcs = UIAfterFuncs;
+  ListBaseT<AfterFunc> funcs = UIAfterFuncs;
   BLI_listbase_clear(&UIAfterFuncs);
 
-  LISTBASE_FOREACH_MUTABLE (AfterFunc *, afterf, &funcs) {
-    AfterFunc after = *afterf; /* Copy to avoid memory leak on exit(). */
-    BLI_remlink(&funcs, afterf);
-    MEM_delete(afterf);
+  for (AfterFunc &afterf : funcs.items_mutable()) {
+    AfterFunc after = afterf; /* Copy to avoid memory leak on exit(). */
+    BLI_remlink(&funcs, &afterf);
+    MEM_delete(&afterf);
 
     if (after.context) {
       CTX_store_set(C, &after.context.value());
@@ -1724,14 +1724,14 @@ static bool ui_drag_toggle_set_xy_xy(
   const bool do_check = (region->regiontype == RGN_TYPE_TEMPORARY);
   bool changed = false;
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
+  for (Block &block : region->runtime->uiblocks) {
     float xy_a_block[2] = {float(xy_src[0]), float(xy_src[1])};
     float xy_b_block[2] = {float(xy_dst[0]), float(xy_dst[1])};
 
-    window_to_block_fl(region, block, &xy_a_block[0], &xy_a_block[1]);
-    window_to_block_fl(region, block, &xy_b_block[0], &xy_b_block[1]);
+    window_to_block_fl(region, &block, &xy_a_block[0], &xy_a_block[1]);
+    window_to_block_fl(region, &block, &xy_b_block[0], &xy_b_block[1]);
 
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       /* NOTE: ctrl is always true here because (at least for now)
        * we always want to consider text control in this case, even when not embossed. */
 
@@ -4861,9 +4861,9 @@ static ButtonExtraOpIcon *ui_but_extra_operator_icon_mouse_over_get(Button *but,
   }
 
   /* Inverse order, from right to left. */
-  LISTBASE_FOREACH_BACKWARD (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
+  for (ButtonExtraOpIcon &op_icon : but->extra_op_icons.items_reversed()) {
     if ((x > (xmax - icon_size)) && x <= xmax) {
-      return op_icon;
+      return &op_icon;
     }
     xmax -= icon_size;
   }
@@ -4911,11 +4911,11 @@ static void ui_do_but_extra_operator_icons_mousemove(Button *but,
   ButtonExtraOpIcon *old_highlighted = nullptr;
 
   /* Unset highlighting of all first. */
-  LISTBASE_FOREACH (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
-    if (op_icon->highlighted) {
-      old_highlighted = op_icon;
+  for (ButtonExtraOpIcon &op_icon : but->extra_op_icons) {
+    if (op_icon.highlighted) {
+      old_highlighted = &op_icon;
     }
-    op_icon->highlighted = false;
+    op_icon.highlighted = false;
   }
 
   ButtonExtraOpIcon *hovered = ui_but_extra_operator_icon_mouse_over_get(but, data->region, event);
@@ -8906,8 +8906,8 @@ static void ui_blocks_set_tooltips(ARegion *region, const bool enable)
   }
 
   /* We disabled buttons when they were already shown, and re-enable them on mouse move. */
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    block->tooltipdisabled = !enable;
+  for (Block &block : region->runtime->uiblocks) {
+    block.tooltipdisabled = !enable;
   }
 }
 
@@ -9382,12 +9382,12 @@ static void button_activate_exit(
   }
 
   /* Disable tool-tips until mouse-move + last active flag. */
-  LISTBASE_FOREACH (Block *, block_iter, &data->region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &bt : block_iter->buttons) {
+  for (Block &block_iter : data->region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &bt : block_iter.buttons) {
       bt->flag &= ~BUT_LAST_ACTIVE;
     }
 
-    block_iter->tooltipdisabled = true;
+    block_iter.tooltipdisabled = true;
   }
 
   ui_blocks_set_tooltips(data->region, false);
@@ -9487,8 +9487,8 @@ static Button *ui_context_button_active(const ARegion *region,
     Button *active_but_last = nullptr;
 
     /* find active button */
-    LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-      for (const std::unique_ptr<Button> &but : block->buttons) {
+    for (Block &block : region->runtime->uiblocks) {
+      for (const std::unique_ptr<Button> &but : block.buttons) {
         if (but->flag & BUT_ACTIVE_OVERRIDE) {
           active_but_override = but.get();
         }
@@ -9632,9 +9632,9 @@ wmOperator *context_active_operator_get(const bContext *C)
   }
 
   /* scan active regions ui */
-  LISTBASE_FOREACH (Block *, block, &region_ctx->runtime->uiblocks) {
-    if (block->ui_operator) {
-      return block->ui_operator;
+  for (Block &block : region_ctx->runtime->uiblocks) {
+    if (block.ui_operator) {
+      return block.ui_operator;
     }
   }
 
@@ -9642,13 +9642,13 @@ wmOperator *context_active_operator_get(const bContext *C)
   {
     bScreen *screen = CTX_wm_screen(C);
 
-    LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
-      if (region == region_ctx) {
+    for (ARegion &region : screen->regionbase) {
+      if (&region == region_ctx) {
         continue;
       }
-      LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-        if (block->ui_operator) {
-          return block->ui_operator;
+      for (Block &block : region.runtime->uiblocks) {
+        if (block.ui_operator) {
+          return block.ui_operator;
         }
       }
     }
@@ -9675,8 +9675,8 @@ void context_update_anim_flag(const bContext *C)
     /* find active button */
     Button *activebut = nullptr;
 
-    LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-      for (const std::unique_ptr<Button> &but : block->buttons) {
+    for (Block &block : region->runtime->uiblocks) {
+      for (const std::unique_ptr<Button> &but : block.buttons) {
         button_anim_flag(but.get(), &anim_eval_context);
         button_override_flag(CTX_data_main(C), but.get());
         if (button_is_decorator(but)) {
@@ -9735,8 +9735,8 @@ void button_update_view_for_active(const bContext *C, const Block *block)
 
 static Button *ui_but_find_open_event(ARegion *region, const wmEvent *event)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but.get() == event->customdata) {
         return but.get();
       }
@@ -9922,8 +9922,8 @@ static void foreach_semi_modal_but_as_active(bContext *C,
   /* Might want to have some way to define which order these should be handled in - if there's
    * every actually a use-case for multiple semi-active buttons at the same time. */
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if ((but->flag2 & BUT2_FORCE_SEMI_MODAL_ACTIVE) || but->semi_modal_state) {
         with_but_active_as_semi_modal(C, region, but.get(), [&]() { fn(but.get()); });
       }
@@ -10420,8 +10420,8 @@ static int ui_handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
 {
   const bool has_list = !BLI_listbase_is_empty(&region->ui_lists);
   const bool has_view = [&]() {
-    LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-      if (!BLI_listbase_is_empty(&block->views)) {
+    for (Block &block : region->runtime->uiblocks) {
+      if (!BLI_listbase_is_empty(&block.views)) {
         return true;
       }
     }
@@ -10454,8 +10454,8 @@ static int ui_handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
     changed = true;
   }
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but.get() == highlight_row_but) {
         continue;
       }
@@ -10862,8 +10862,8 @@ static bool ui_menu_scroll_step(ARegion *region, Block *block, const int scroll_
 
 static void region_auto_open_clear(ARegion *region)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    block->auto_open = false;
+  for (Block &block : region->runtime->uiblocks) {
+    block.auto_open = false;
   }
 }
 
@@ -12132,15 +12132,15 @@ static int ui_handle_menus_recursive(bContext *C,
     }
   }
   else if (!but && event->val == KM_PRESS && event->type == LEFTMOUSE) {
-    LISTBASE_FOREACH (Block *, block, &menu->region->runtime->uiblocks) {
-      if (block->panel) {
+    for (Block &block : menu->region->runtime->uiblocks) {
+      if (block.panel) {
         int mx = event->xy[0];
         int my = event->xy[1];
-        window_to_block(menu->region, block, &mx, &my);
-        if (!IN_RANGE(float(mx), block->rect.xmin, block->rect.xmax)) {
+        window_to_block(menu->region, &block, &mx, &my);
+        if (!IN_RANGE(float(mx), block.rect.xmin, block.rect.xmax)) {
           break;
         }
-        LayoutPanelHeader *header = layout_panel_header_under_mouse(*block->panel, my);
+        LayoutPanelHeader *header = layout_panel_header_under_mouse(*block.panel, my);
         if (header) {
           ED_region_tag_redraw(menu->region);
           ED_region_tag_refresh_ui(menu->region);
@@ -12611,24 +12611,27 @@ static void ui_popup_handler_remove(bContext *C, void *userdata)
   ui_apply_but_funcs_after(C);
 }
 
-void region_handlers_add(ListBase *handlers)
+void region_handlers_add(ListBaseT<wmEventHandler> *handlers)
 {
   WM_event_remove_ui_handler(handlers, region_handler, region_handler_remove, nullptr, false);
   WM_event_add_ui_handler(
       nullptr, handlers, region_handler, region_handler_remove, nullptr, eWM_EventHandlerFlag(0));
 }
 
-void popup_handlers_add(bContext *C, ListBase *handlers, PopupBlockHandle *popup, const char flag)
+void popup_handlers_add(bContext *C,
+                        ListBaseT<wmEventHandler> *handlers,
+                        PopupBlockHandle *popup,
+                        const char flag)
 {
   WM_event_add_ui_handler(
       C, handlers, ui_popup_handler, ui_popup_handler_remove, popup, eWM_EventHandlerFlag(flag));
 }
 
-void popup_handlers_remove(ListBase *handlers, PopupBlockHandle *popup)
+void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle *popup)
 {
-  LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
-    if (handler_base->type == WM_HANDLER_TYPE_UI) {
-      wmEventHandler_UI *handler = (wmEventHandler_UI *)handler_base;
+  for (wmEventHandler &handler_base : *handlers) {
+    if (handler_base.type == WM_HANDLER_TYPE_UI) {
+      wmEventHandler_UI *handler = (wmEventHandler_UI *)&handler_base;
 
       if (handler->handle_fn == ui_popup_handler &&
           handler->remove_fn == ui_popup_handler_remove && handler->user_data == popup)
@@ -12651,7 +12654,7 @@ void popup_handlers_remove(ListBase *handlers, PopupBlockHandle *popup)
   WM_event_remove_ui_handler(handlers, ui_popup_handler, ui_popup_handler_remove, popup, false);
 }
 
-void popup_handlers_remove_all(bContext *C, ListBase *handlers)
+void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers)
 {
   WM_event_free_ui_handler_all(C, handlers, ui_popup_handler, ui_popup_handler_remove);
 }
@@ -12664,12 +12667,12 @@ bool textbutton_activate_rna(const bContext *C,
   Block *block_text = nullptr;
   Button *but_text = nullptr;
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but->type == ButtonType::Text) {
         if (but->rnaprop && but->rnapoin.data == rna_poin_data) {
           if (STREQ(RNA_property_identifier(but->rnaprop), rna_prop_id)) {
-            block_text = block;
+            block_text = &block;
             but_text = but.get();
             break;
           }
@@ -12699,10 +12702,10 @@ bool textbutton_activate_but(const bContext *C, Button *actbut)
   Block *block_text = nullptr;
   Button *but_text = nullptr;
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but.get() == actbut && but->type == ButtonType::Text) {
-        block_text = block;
+        block_text = &block;
         but_text = but.get();
         break;
       }
@@ -12728,8 +12731,8 @@ bool textbutton_activate_but(const bContext *C, Button *actbut)
 
 void UI_region_free_active_but_all(bContext *C, ARegion *region)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but->active == nullptr) {
         continue;
       }
@@ -12743,8 +12746,8 @@ void UI_screen_free_active_but_highlight(const bContext *C, bScreen *screen)
   wmWindow *win = CTX_wm_window(C);
 
   ED_screen_areas_iter (win, screen, area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      Button *but = region_find_active_but(region);
+    for (ARegion &region : area->regionbase) {
+      Button *but = region_find_active_but(&region);
       if (but) {
         HandleButtonData *data = but->active;
 

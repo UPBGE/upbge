@@ -13,14 +13,11 @@
 #include "DNA_customdata_types.h"
 #include "DNA_defs.h"
 
-/** Workaround to forward-declare C++ type in C header. */
-#ifdef __cplusplus
+#include <optional>
 
-#  include <optional>
-
-#  include "BLI_math_vector_types.hh"
-#  include "BLI_memory_counter_fwd.hh"
-#  include "BLI_vector_set.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_memory_counter_fwd.hh"
+#include "BLI_vector_set.hh"
 
 namespace blender {
 template<typename T> struct Bounds;
@@ -42,12 +39,10 @@ struct LooseEdgeCache;
 enum class MeshNormalDomain : int8_t;
 }  // namespace bke
 }  // namespace blender
-using MeshRuntimeHandle = blender::bke::MeshRuntime;
-#else
-struct MeshRuntimeHandle;
-#endif
 
 struct AnimData;
+struct bDeformGroup;
+struct Ipo;
 struct Key;
 struct MCol;
 struct MEdge;
@@ -192,7 +187,7 @@ struct Mesh {
    * List of vertex group (#bDeformGroup) names and flags only. Actual weights are stored in dvert.
    * \note This pointer is for convenient access to the #CD_MDEFORMVERT layer in #vert_data.
    */
-  ListBaseT<struct bDeformGroup> vertex_group_names = {nullptr, nullptr};
+  ListBaseT<bDeformGroup> vertex_group_names = {nullptr, nullptr};
   /** The active index in the #vertex_group_names list. */
   int vertex_group_active_index = 0;
 
@@ -344,7 +339,7 @@ struct Mesh {
    * without null checks, with the exception of some temporary meshes which should allocate and
    * free the data if they are passed to functions that expect run-time data.
    */
-  MeshRuntimeHandle *runtime = nullptr;
+  blender::bke::MeshRuntime *runtime = nullptr;
 #ifdef __cplusplus
   /**
    * Array of vertex positions. Edges and face corners are defined by indices into this array.

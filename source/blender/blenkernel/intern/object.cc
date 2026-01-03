@@ -227,10 +227,10 @@ static void object_copy_data(Main *bmain,
   }
 
   BLI_listbase_clear(&ob_dst->shader_fx);
-  LISTBASE_FOREACH (ShaderFxData *, fx, &ob_src->shader_fx) {
-    ShaderFxData *nfx = BKE_shaderfx_new(fx->type);
-    STRNCPY(nfx->name, fx->name);
-    BKE_shaderfx_copydata_ex(fx, nfx, flag_subdata);
+  for (ShaderFxData &fx : ob_src->shader_fx) {
+    ShaderFxData *nfx = BKE_shaderfx_new(fx.type);
+    STRNCPY(nfx->name, fx.name);
+    BKE_shaderfx_copydata_ex(&fx, nfx, flag_subdata);
     BLI_addtail(&ob_dst->shader_fx, nfx);
   }
 
@@ -497,23 +497,22 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   if (object->pose) {
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+    for (bPoseChannel &pchan : object->pose->chanbase) {
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-          data, IDP_foreach_property(pchan->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+          data, IDP_foreach_property(pchan.prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
             BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
           }));
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
           data,
-          IDP_foreach_property(
-              pchan->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
-                BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
-              }));
+          IDP_foreach_property(pchan.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+            BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+          }));
 
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pchan->custom, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pchan.custom, IDWALK_CB_USER);
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
           data,
           BKE_constraints_id_loop(
-              &pchan->constraints, library_foreach_constraintObjectLooper, flag, data));
+              &pchan.constraints, library_foreach_constraintObjectLooper, flag, data));
     }
   }
 
@@ -537,6 +536,12 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
       data, BKE_shaderfx_foreach_ID_link(object, library_foreach_shaderfxForeachIDLink, data));
 
+  for (ParticleSystem &psys : object->particlesystem) {
+    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+        data,
+        BKE_particlesystem_id_loop(&psys, library_foreach_particlesystemsObjectLooper, data));
+  }
+
   /* UPBGE */
   BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, data);
   BKE_sca_controllers_id_loop(&object->controllers, library_foreach_controllersObjectLooper, data);
@@ -553,11 +558,6 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     }
   }
   /****************/
-
-  LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
-    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-        data, BKE_particlesystem_id_loop(psys, library_foreach_particlesystemsObjectLooper, data));
-  }
 
   if (object->soft) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->soft->collision_group, IDWALK_CB_NOP);
@@ -580,11 +580,11 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     /* Note: This is technically _not_ needed currently, because readcode (see
      * #object_blend_read_data) directly converts and removes these deprecated ObHook data.
      * However, for sake of consistency, better have this ID pointer handled here nonetheless. */
-    LISTBASE_FOREACH (ObHook *, hook, &object->hooks) {
+    for (ObHook &hook : object->hooks) {
       /* No `ObHook` data should ever exist currently at a point where 'foreach_id' code is
        * executed. */
       BLI_assert_unreachable();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, hook->parent, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, hook.parent, IDWALK_CB_NOP);
     }
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->gpd, IDWALK_CB_USER);
@@ -601,7 +601,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void object_foreach_path_pointcache(ListBase *ptcache_list,
+static void object_foreach_path_pointcache(ListBaseT<PointCache> *ptcache_list,
                                            BPathForeachPathData *bpath_data)
 {
   for (PointCache *cache = (PointCache *)ptcache_list->first; cache != nullptr;
@@ -617,11 +617,11 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Object *ob = reinterpret_cast<Object *>(id);
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+  for (ModifierData &md : ob->modifiers) {
     /* TODO: Move that to #ModifierTypeInfo. */
-    switch (md->type) {
+    switch (md.type) {
       case eModifierType_Fluidsim: {
-        FluidsimModifierData *fluidmd = reinterpret_cast<FluidsimModifierData *>(md);
+        FluidsimModifierData *fluidmd = reinterpret_cast<FluidsimModifierData *>(&md);
         if (fluidmd->fss) {
           BKE_bpath_foreach_path_fixed_process(
               bpath_data, fluidmd->fss->surfdataPath, sizeof(fluidmd->fss->surfdataPath));
@@ -629,7 +629,7 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
         break;
       }
       case eModifierType_Fluid: {
-        FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
+        FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(&md);
         if (fmd->type & MOD_FLUID_TYPE_DOMAIN && fmd->domain) {
           BKE_bpath_foreach_path_fixed_process(
               bpath_data, fmd->domain->cache_directory, sizeof(fmd->domain->cache_directory));
@@ -637,17 +637,17 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
         break;
       }
       case eModifierType_Cloth: {
-        ClothModifierData *clmd = reinterpret_cast<ClothModifierData *>(md);
+        ClothModifierData *clmd = reinterpret_cast<ClothModifierData *>(&md);
         object_foreach_path_pointcache(&clmd->ptcaches, bpath_data);
         break;
       }
       case eModifierType_Ocean: {
-        OceanModifierData *omd = reinterpret_cast<OceanModifierData *>(md);
+        OceanModifierData *omd = reinterpret_cast<OceanModifierData *>(&md);
         BKE_bpath_foreach_path_fixed_process(bpath_data, omd->cachepath, sizeof(omd->cachepath));
         break;
       }
       case eModifierType_MeshCache: {
-        MeshCacheModifierData *mcmd = reinterpret_cast<MeshCacheModifierData *>(md);
+        MeshCacheModifierData *mcmd = reinterpret_cast<MeshCacheModifierData *>(&md);
         BKE_bpath_foreach_path_fixed_process(bpath_data, mcmd->filepath, sizeof(mcmd->filepath));
         break;
       }
@@ -660,8 +660,8 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
     object_foreach_path_pointcache(&ob->soft->shared->ptcaches, bpath_data);
   }
 
-  LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-    object_foreach_path_pointcache(&psys->ptcaches, bpath_data);
+  for (ParticleSystem &psys : ob->particlesystem) {
+    object_foreach_path_pointcache(&psys.ptcaches, bpath_data);
   }
 }
 
@@ -885,10 +885,10 @@ static void object_foreach_cache(ID *id,
                                  void *user_data)
 {
   Object *ob = reinterpret_cast<Object *>(id);
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (const ModifierTypeInfo *info = BKE_modifier_get_info(ModifierType(md->type))) {
+  for (ModifierData &md : ob->modifiers) {
+    if (const ModifierTypeInfo *info = BKE_modifier_get_info(ModifierType(md.type))) {
       if (info->foreach_cache) {
-        info->foreach_cache(ob, md, [&](const IDCacheKey &cache_key, void **cache_p, uint flags) {
+        info->foreach_cache(ob, &md, [&](const IDCacheKey &cache_key, void **cache_p, uint flags) {
           function_callback(id, &cache_key, cache_p, flags, user_data);
         });
       }
@@ -903,17 +903,17 @@ static void object_foreach_working_space_color(ID *id,
 
   fn.single(ob->color);
 
-  LISTBASE_FOREACH (ShaderFxData *, fx, &ob->shader_fx) {
-    const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx->type));
+  for (ShaderFxData &fx : ob->shader_fx) {
+    const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx.type));
     if (fxi && fxi->foreach_working_space_color) {
-      fxi->foreach_working_space_color(fx, fn);
+      fxi->foreach_working_space_color(&fx, fn);
     }
   }
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+  for (ModifierData &md : ob->modifiers) {
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md.type));
     if (mti && mti->foreach_working_space_color) {
-      mti->foreach_working_space_color(md, fn);
+      mti->foreach_working_space_color(&md, fn);
     }
   }
 }
@@ -1406,7 +1406,7 @@ static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
   Object *object_dst = (Object *)id_dst;
   Object *object_src = (Object *)id_src;
 
-  ListBase pidlist_dst, pidlist_src;
+  ListBaseT<PTCacheID> pidlist_dst, pidlist_src;
   BKE_ptcache_ids_from_object(&pidlist_dst, object_dst, nullptr, 0);
   BKE_ptcache_ids_from_object(&pidlist_src, object_src, nullptr, 0);
 
@@ -1435,8 +1435,8 @@ static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
         pid_dst->default_step != pid_src->default_step || pid_dst->max_step != pid_src->max_step ||
         pid_dst->data_types != pid_src->data_types || pid_dst->info_types != pid_src->info_types)
     {
-      LISTBASE_FOREACH (PointCache *, point_cache_src, pid_src->ptcaches) {
-        point_cache_src->flag |= PTCACHE_FLAG_INFO_DIRTY;
+      for (PointCache &point_cache_src : *pid_src->ptcaches) {
+        point_cache_src.flag |= PTCACHE_FLAG_INFO_DIRTY;
       }
       continue;
     }
@@ -1648,8 +1648,8 @@ void BKE_object_modifier_gpencil_hook_reset(Object *ob, HookGpencilModifierData 
 
 void BKE_object_modifier_set_active(Object *ob, ModifierData *md)
 {
-  LISTBASE_FOREACH (ModifierData *, md_iter, &ob->modifiers) {
-    md_iter->flag &= ~eModifierFlag_Active;
+  for (ModifierData &md_iter : ob->modifiers) {
+    md_iter.flag &= ~eModifierFlag_Active;
   }
 
   if (md != nullptr) {
@@ -1663,17 +1663,17 @@ ModifierData *BKE_object_active_modifier(const Object *ob)
   /* In debug mode, check for only one active modifier. */
 #ifndef NDEBUG
   int active_count = 0;
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->flag & eModifierFlag_Active) {
+  for (ModifierData &md : ob->modifiers) {
+    if (md.flag & eModifierFlag_Active) {
       active_count++;
     }
   }
   BLI_assert(ELEM(active_count, 0, 1));
 #endif
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->flag & eModifierFlag_Active) {
-      return md;
+  for (ModifierData &md : ob->modifiers) {
+    if (md.flag & eModifierFlag_Active) {
+      return &md;
     }
   }
 
@@ -1752,9 +1752,9 @@ static ParticleSystem *object_copy_modifier_particle_system_ensure(Main *bmain,
 
   /* Check if a particle system with the same particle settings
    * already exists on the destination object. */
-  LISTBASE_FOREACH (ParticleSystem *, psys, &ob_dst->particlesystem) {
-    if (psys->part == psys_src->part) {
-      psys_dst = psys;
+  for (ParticleSystem &psys : ob_dst->particlesystem) {
+    if (psys.part == psys_src->part) {
+      psys_dst = &psys;
       break;
     }
   }
@@ -1883,15 +1883,15 @@ bool BKE_object_modifier_stack_copy(Object *ob_dst,
     return false;
   }
 
-  LISTBASE_FOREACH (ModifierData *, md_src, &ob_src->modifiers) {
-    if (!do_copy_all && !object_modifier_type_copy_check((ModifierType)md_src->type)) {
+  for (ModifierData &md_src : ob_src->modifiers) {
+    if (!do_copy_all && !object_modifier_type_copy_check((ModifierType)md_src.type)) {
       continue;
     }
-    if (!BKE_object_support_modifier_type_check(ob_dst, md_src->type)) {
+    if (!BKE_object_support_modifier_type_check(ob_dst, md_src.type)) {
       continue;
     }
 
-    ModifierData *md_dst = BKE_modifier_copy_ex(md_src, flag_subdata);
+    ModifierData *md_dst = BKE_modifier_copy_ex(&md_src, flag_subdata);
     BLI_addtail(&ob_dst->modifiers, md_dst);
   }
 
@@ -2092,16 +2092,16 @@ void BKE_object_free_caches(Object *object)
 
   /* Free particle system caches holding paths. */
   if (object->particlesystem.first) {
-    LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
-      psys_free_path_cache(psys, psys->edit);
+    for (ParticleSystem &psys : object->particlesystem) {
+      psys_free_path_cache(&psys, psys.edit);
       update_flag |= ID_RECALC_PSYS_REDO;
     }
   }
 
   /* Free memory used by cached derived meshes in the particle system modifiers. */
-  LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-    if (md->type == eModifierType_ParticleSystem) {
-      ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  for (ModifierData &md : object->modifiers) {
+    if (md.type == eModifierType_ParticleSystem) {
+      ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)&md;
       if (psmd->mesh_final) {
         BKE_id_free(nullptr, psmd->mesh_final);
         psmd->mesh_final = nullptr;
@@ -2337,8 +2337,8 @@ bool BKE_object_exists_check(Main *bmain, const Object *obtest)
     return false;
   }
 
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    if (ob == obtest) {
+  for (Object &ob : bmain->objects) {
+    if (&ob == obtest) {
       return true;
     }
   }
@@ -2848,33 +2848,33 @@ void BKE_object_copy_particlesystems(Object *ob_dst, const Object *ob_src, const
   }
 
   BLI_listbase_clear(&ob_dst->particlesystem);
-  LISTBASE_FOREACH (ParticleSystem *, psys, &ob_src->particlesystem) {
-    ParticleSystem *npsys = BKE_object_copy_particlesystem(psys, flag);
+  for (ParticleSystem &psys : ob_src->particlesystem) {
+    ParticleSystem *npsys = BKE_object_copy_particlesystem(&psys, flag);
 
     BLI_addtail(&ob_dst->particlesystem, npsys);
 
     /* need to update particle modifiers too */
-    LISTBASE_FOREACH (ModifierData *, md, &ob_dst->modifiers) {
-      if (md->type == eModifierType_ParticleSystem) {
-        ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
-        if (psmd->psys == psys) {
+    for (ModifierData &md : ob_dst->modifiers) {
+      if (md.type == eModifierType_ParticleSystem) {
+        ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)&md;
+        if (psmd->psys == &psys) {
           psmd->psys = npsys;
         }
       }
-      else if (md->type == eModifierType_DynamicPaint) {
-        DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
+      else if (md.type == eModifierType_DynamicPaint) {
+        DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)&md;
         if (pmd->brush) {
-          if (pmd->brush->psys == psys) {
+          if (pmd->brush->psys == &psys) {
             pmd->brush->psys = npsys;
           }
         }
       }
-      else if (md->type == eModifierType_Fluid) {
-        FluidModifierData *fmd = (FluidModifierData *)md;
+      else if (md.type == eModifierType_Fluid) {
+        FluidModifierData *fmd = (FluidModifierData *)&md;
 
         if (fmd->type == MOD_FLUID_TYPE_FLOW) {
           if (fmd->flow) {
-            if (fmd->flow->psys == psys) {
+            if (fmd->flow->psys == &psys) {
               fmd->flow->psys = npsys;
             }
           }
@@ -2891,23 +2891,23 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
   obn->pose = nullptr;
   BKE_pose_copy_data_ex(&obn->pose, ob->pose, flag, true); /* true = copy constraints */
 
-  LISTBASE_FOREACH (bPoseChannel *, chan, &obn->pose->chanbase) {
-    chan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE);
+  for (bPoseChannel &chan : obn->pose->chanbase) {
+    chan.flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE);
 
     /* XXX Remapping object pointing onto itself should be handled by generic
      *     BKE_library_remap stuff, but...
      *     the flush_constraint_targets callback am not sure about, so will delay that for now. */
-    LISTBASE_FOREACH (bConstraint *, con, &chan->constraints) {
-      ListBase targets = {nullptr, nullptr};
+    for (bConstraint &con : chan.constraints) {
+      ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
 
-      if (BKE_constraint_targets_get(con, &targets)) {
-        LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
-          if (ct->tar == ob) {
-            ct->tar = obn;
+      if (BKE_constraint_targets_get(&con, &targets)) {
+        for (bConstraintTarget &ct : targets) {
+          if (ct.tar == ob) {
+            ct.tar = obn;
           }
         }
 
-        BKE_constraint_targets_flush(con, &targets, false);
+        BKE_constraint_targets_flush(&con, &targets, false);
       }
     }
   }
@@ -3117,8 +3117,8 @@ Object *BKE_object_duplicate(Main *bmain,
     }
   }
   if (dupflag & USER_DUP_PSYS) {
-    LISTBASE_FOREACH (ParticleSystem *, psys, &obn->particlesystem) {
-      BKE_id_copy_for_duplicate(bmain, (ID *)psys->part, dupflag, copy_flags);
+    for (ParticleSystem &psys : obn->particlesystem) {
+      BKE_id_copy_for_duplicate(bmain, (ID *)psys.part, dupflag, copy_flags);
     }
   }
 
@@ -3708,7 +3708,7 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
     }
   }
   else if (ELEM(par->type, OB_CURVES_LEGACY, OB_SURF)) {
-    ListBase *nurb;
+    ListBaseT<Nurb> *nurb;
 
     /* It is possible that a cycle in the dependency graph was resolved in a way that caused this
      * object to be evaluated before its dependencies. In this case the curve cache may be null. */
@@ -4424,9 +4424,9 @@ void BKE_object_foreach_display_point(Object *ob,
     }
   }
   else if (ob->runtime->curve_cache && ob->runtime->curve_cache->disp.first) {
-    LISTBASE_FOREACH (DispList *, dl, &ob->runtime->curve_cache->disp) {
-      const float *v3 = dl->verts;
-      int totvert = dl->nr;
+    for (DispList &dl : ob->runtime->curve_cache->disp) {
+      const float *v3 = dl.verts;
+      int totvert = dl.nr;
       int i;
 
       for (i = 0; i < totvert; i++, v3 += 3) {
@@ -4901,7 +4901,7 @@ int BKE_object_insert_ptcache(Object *ob)
   return i;
 }
 
-static int pc_findindex(ListBase *listbase, int index)
+static int pc_findindex(ListBaseT<LinkData> *listbase, int index)
 {
   int number = 0;
 
@@ -5011,7 +5011,7 @@ static KeyBlock *insert_curvekey(Main *bmain, Object *ob, const char *name, cons
   Curve *cu = (Curve *)ob->data;
   Key *key = cu->key;
   KeyBlock *kb;
-  ListBase *lb = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *lb = BKE_curve_nurbs_get(cu);
   int newkey = 0;
 
   if (key == nullptr) {
@@ -5115,14 +5115,14 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   kb_index = BLI_findindex(&key->block, kb);
   BLI_assert(kb_index != -1);
 
-  LISTBASE_FOREACH (KeyBlock *, rkb, &key->block) {
-    if (rkb->relative == kb_index) {
+  for (KeyBlock &rkb : key->block) {
+    if (rkb.relative == kb_index) {
       /* remap to the 'Basis' */
-      rkb->relative = 0;
+      rkb.relative = 0;
     }
-    else if (rkb->relative >= kb_index) {
+    else if (rkb.relative >= kb_index) {
       /* Fix positional shift of the keys when kb is deleted from the list */
-      rkb->relative -= 1;
+      rkb.relative -= 1;
     }
   }
 
@@ -5333,8 +5333,8 @@ static bool modifiers_has_animation_check(const Object *ob)
         }
       }
     }
-    LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
-      if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
+    for (FCurve &fcu : adt->drivers) {
+      if (fcu.rna_path && strstr(fcu.rna_path, "modifiers[")) {
         return true;
       }
     }
@@ -5407,8 +5407,8 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 int BKE_object_scenes_users_get(Main *bmain, Object *ob)
 {
   int num_scenes = 0;
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (BKE_collection_has_object_recursive(scene->master_collection, ob)) {
+  for (Scene &scene : bmain->scenes) {
+    if (BKE_collection_has_object_recursive(scene.master_collection, ob)) {
       num_scenes++;
     }
   }
@@ -5508,9 +5508,9 @@ static Object *obrel_armature_find(Object *ob)
     ob_arm = ob->parent;
   }
   else {
-    LISTBASE_FOREACH (ModifierData *, mod, &ob->modifiers) {
-      if (mod->type == eModifierType_Armature) {
-        ob_arm = ((ArmatureModifierData *)mod)->object;
+    for (ModifierData &mod : ob->modifiers) {
+      if (mod.type == eModifierType_Armature) {
+        ob_arm = ((ArmatureModifierData *)&mod)->object;
       }
     }
   }
@@ -5538,22 +5538,22 @@ LinkNode *BKE_object_relational_superset(const Scene *scene,
 
   /* Remove markers from all objects */
   BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    base->object->id.tag &= ~ID_TAG_DOIT;
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    base.object->id.tag &= ~ID_TAG_DOIT;
   }
 
   /* iterate over all selected and visible objects */
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     if (objectSet == OB_SET_ALL) {
       /* as we get all anyways just add it */
-      Object *ob = base->object;
+      Object *ob = base.object;
       obrel_list_add(&links, ob);
     }
     else {
-      if ((objectSet == OB_SET_SELECTED && BASE_SELECTED_EDITABLE(((View3D *)nullptr), base)) ||
-          (objectSet == OB_SET_VISIBLE && BASE_EDITABLE(((View3D *)nullptr), base)))
+      if ((objectSet == OB_SET_SELECTED && BASE_SELECTED_EDITABLE(((View3D *)nullptr), &base)) ||
+          (objectSet == OB_SET_VISIBLE && BASE_EDITABLE(((View3D *)nullptr), &base)))
       {
-        Object *ob = base->object;
+        Object *ob = base.object;
 
         if (obrel_list_test(ob)) {
           obrel_list_add(&links, ob);
@@ -5580,10 +5580,10 @@ LinkNode *BKE_object_relational_superset(const Scene *scene,
 
         /* child relationship */
         if (includeFilter & (OB_REL_CHILDREN | OB_REL_CHILDREN_RECURSIVE)) {
-          LISTBASE_FOREACH (Base *, local_base, BKE_view_layer_object_bases_get(view_layer)) {
-            if (BASE_EDITABLE(((View3D *)nullptr), local_base)) {
+          for (Base &local_base : *BKE_view_layer_object_bases_get(view_layer)) {
+            if (BASE_EDITABLE(((View3D *)nullptr), &local_base)) {
 
-              Object *child = local_base->object;
+              Object *child = local_base.object;
               if (obrel_list_test(child)) {
                 if ((includeFilter & OB_REL_CHILDREN_RECURSIVE &&
                      BKE_object_is_child_recursive(ob, child)) ||
@@ -5766,16 +5766,16 @@ blender::KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
  */
 static void object_cacheIgnoreClear(Object *ob, const bool state)
 {
-  ListBase pidlist;
+  ListBaseT<PTCacheID> pidlist;
   BKE_ptcache_ids_from_object(&pidlist, ob, nullptr, 0);
 
-  LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
-    if (pid->cache) {
+  for (PTCacheID &pid : pidlist) {
+    if (pid.cache) {
       if (state) {
-        pid->cache->flag |= PTCACHE_IGNORE_CLEAR;
+        pid.cache->flag |= PTCACHE_IGNORE_CLEAR;
       }
       else {
-        pid->cache->flag &= ~PTCACHE_IGNORE_CLEAR;
+        pid.cache->flag &= ~PTCACHE_IGNORE_CLEAR;
       }
     }
   }
@@ -5847,17 +5847,17 @@ static bool object_modifier_recurse_for_update_subframe(const ObjectModifierUpda
     }
 
     /* also update constraint targets */
-    LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-      ListBase targets = {nullptr, nullptr};
+    for (bConstraint &con : ob->constraints) {
+      ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
 
-      if (BKE_constraint_targets_get(con, &targets)) {
-        LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
-          if (ct->tar) {
-            object_modifier_recurse_for_update_subframe(ctx, ct->tar, false, recursion);
+      if (BKE_constraint_targets_get(&con, &targets)) {
+        for (bConstraintTarget &ct : targets) {
+          if (ct.tar) {
+            object_modifier_recurse_for_update_subframe(ctx, ct.tar, false, recursion);
           }
         }
         /* free temp targets */
-        BKE_constraint_targets_flush(con, &targets, false);
+        BKE_constraint_targets_flush(&con, &targets, false);
       }
     }
   }

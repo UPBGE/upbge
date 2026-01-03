@@ -18,7 +18,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_platform.hh"
 
-#include "shader_tool/shader_tool.hh"
+#include "shader_tool/processor.hh"
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
@@ -234,9 +234,9 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
   if (original.is_empty()) {
     return original;
   }
-  gpu::shader::Preprocessor processor;
-  gpu::shader::metadata::Source metadata;
-  std::string processed_str = processor.process(original, metadata);
+  gpu::shader::SourceProcessor processor(original, "python_shader.glsl", shader::Language::GLSL);
+  auto [processed_str, metadata] = processor.convert();
+
   for (auto builtin : metadata.builtins) {
     info.builtins(gpu::shader::convert_builtin_bit(builtin));
   }
@@ -839,6 +839,16 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   std::string resources = shader->resources_declare(info);
 
   defines += info.resource_guard_defines(info.compilation_constants_);
+
+  if (!info.compute_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.compute_entry_fn_ + "\n";
+  }
+  if (!info.fragment_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.fragment_entry_fn_ + "\n";
+  }
+  if (!info.vertex_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.vertex_entry_fn_ + "\n";
+  }
 
   /* Compilation constants declaration for static branches evaluation.
    * In the future, these can be compiled using function constants on metal to reduce compilation

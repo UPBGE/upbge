@@ -66,7 +66,7 @@ BLI_STATIC_ASSERT(ARRAY_SIZE(rna_enum_collection_color_items) - 2 == COLLECTION_
 static void rna_Collection_all_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Collection *collection = (Collection *)ptr->data;
-  ListBase collection_objects = BKE_collection_object_cache_get(collection);
+  ListBaseT<Base> collection_objects = BKE_collection_object_cache_get(collection);
   rna_iterator_listbase_begin(iter, ptr, &collection_objects, nullptr);
 }
 
@@ -424,16 +424,16 @@ static std::optional<std::string> rna_CollectionLightLinking_path(const PointerR
   int counter;
 
   counter = 0;
-  LISTBASE_FOREACH (CollectionObject *, collection_object, &collection->gobject) {
-    if (&collection_object->light_linking == collection_light_linking) {
+  for (CollectionObject &collection_object : collection->gobject) {
+    if (&collection_object.light_linking == collection_light_linking) {
       return fmt::format("collection_objects[{}].light_linking", counter);
     }
     ++counter;
   }
 
   counter = 0;
-  LISTBASE_FOREACH (CollectionChild *, collection_child, &collection->children) {
-    if (&collection_child->light_linking == collection_light_linking) {
+  for (CollectionChild &collection_child : collection->children) {
+    if (&collection_child.light_linking == collection_light_linking) {
       return fmt::format("collection_children[{}].light_linking", counter);
     }
     ++counter;

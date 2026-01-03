@@ -66,8 +66,8 @@ static TreeElement *outliner_dropzone_element(TreeElement *te,
   }
   /* Not it.  Let's look at its children. */
   if (children && (TREESTORE(te)->flag & TSE_CLOSED) == 0 && (te->subtree.first)) {
-    LISTBASE_FOREACH (TreeElement *, te_sub, &te->subtree) {
-      TreeElement *te_valid = outliner_dropzone_element(te_sub, fmval, children);
+    for (TreeElement &te_sub : te->subtree) {
+      TreeElement *te_valid = outliner_dropzone_element(&te_sub, fmval, children);
       if (te_valid) {
         return te_valid;
       }
@@ -81,8 +81,8 @@ static TreeElement *outliner_dropzone_find(const SpaceOutliner *space_outliner,
                                            const float fmval[2],
                                            const bool children)
 {
-  LISTBASE_FOREACH (TreeElement *, te, &space_outliner->tree) {
-    TreeElement *te_valid = outliner_dropzone_element(te, fmval, children);
+  for (TreeElement &te : space_outliner->tree) {
+    TreeElement *te_valid = outliner_dropzone_element(&te, fmval, children);
     if (te_valid) {
       return te_valid;
     }
@@ -245,10 +245,11 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
   return collection_te;
 }
 
+template<typename T>
 static int outliner_get_insert_index(TreeElement *drag_te,
                                      TreeElement *drop_te,
                                      TreeElementInsertType insert_type,
-                                     ListBase *listbase)
+                                     ListBaseT<T> *listbase)
 {
   /* Find the element to insert after. Null is the start of the list. */
   if (drag_te->index < drop_te->index) {
@@ -301,9 +302,9 @@ static bool parent_drop_allowed(TreeElement *te, Object *potential_child)
    * element for object it means that all displayed objects belong to
    * active scene and parenting them is allowed (sergey) */
   if (scene) {
-    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-      BKE_view_layer_synced_ensure(scene, view_layer);
-      if (BKE_view_layer_base_find(view_layer, potential_child)) {
+    for (ViewLayer &view_layer : scene->view_layers) {
+      BKE_view_layer_synced_ensure(scene, &view_layer);
+      if (BKE_view_layer_base_find(&view_layer, potential_child)) {
         return true;
       }
     }
@@ -436,7 +437,7 @@ static wmOperatorStatus parent_drop_invoke(bContext *C, wmOperator *op, const wm
     return OPERATOR_CANCELLED;
   }
 
-  ListBase *lb = static_cast<ListBase *>(event->customdata);
+  ListBaseT<wmDrag> *lb = static_cast<ListBaseT<wmDrag> *>(event->customdata);
   wmDrag *drag = static_cast<wmDrag *>(lb->first);
 
   parent_drop_set_parents(C,
@@ -519,12 +520,12 @@ static wmOperatorStatus parent_clear_invoke(bContext *C, wmOperator * /*op*/, co
     return OPERATOR_CANCELLED;
   }
 
-  ListBase *lb = static_cast<ListBase *>(event->customdata);
+  ListBaseT<wmDrag> *lb = static_cast<ListBaseT<wmDrag> *>(event->customdata);
   wmDrag *drag = static_cast<wmDrag *>(lb->first);
 
-  LISTBASE_FOREACH (wmDragID *, drag_id, &drag->ids) {
-    if (GS(drag_id->id->name) == ID_OB) {
-      Object *object = (Object *)drag_id->id;
+  for (wmDragID &drag_id : drag->ids) {
+    if (GS(drag_id.id->name) == ID_OB) {
+      Object *object = (Object *)drag_id.id;
 
       object::parent_clear(object,
                            (event->modifier & KM_ALT) ? object::CLEAR_PARENT_ALL :
@@ -592,9 +593,9 @@ static wmOperatorStatus scene_drop_invoke(bContext *C, wmOperator * /*op*/, cons
 
   BKE_collection_object_add(bmain, collection, ob);
 
-  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    Base *base = BKE_view_layer_base_find(view_layer, ob);
+  for (ViewLayer &view_layer : scene->view_layers) {
+    BKE_view_layer_synced_ensure(scene, &view_layer);
+    Base *base = BKE_view_layer_base_find(&view_layer, ob);
     if (base) {
       object::base_select(base, object::BA_SELECT);
     }
@@ -941,7 +942,7 @@ static void datastack_drop_link(bContext *C, StackDropData *drop_data)
       object::modifier_link(C, ob_dst, drop_data->ob_parent);
       break;
     case TSE_CONSTRAINT_BASE: {
-      ListBase *src;
+      ListBaseT<bConstraint> *src;
 
       if (drop_data->pchan_parent) {
         src = &drop_data->pchan_parent->constraints;
@@ -950,7 +951,7 @@ static void datastack_drop_link(bContext *C, StackDropData *drop_data)
         src = &drop_data->ob_parent->constraints;
       }
 
-      ListBase *dst;
+      ListBaseT<bConstraint> *dst;
       if (tselem->type == TSE_POSE_CHANNEL) {
         bPoseChannel *pchan = (bPoseChannel *)drop_data->drop_te->directdata;
         dst = &pchan->constraints;
@@ -1063,7 +1064,7 @@ static wmOperatorStatus datastack_drop_invoke(bContext *C, wmOperator *op, const
     return OPERATOR_CANCELLED;
   }
 
-  ListBase *lb = static_cast<ListBase *>(event->customdata);
+  ListBaseT<wmDrag> *lb = static_cast<ListBaseT<wmDrag> *>(event->customdata);
   wmDrag *drag = static_cast<wmDrag *>(lb->first);
   StackDropData *drop_data = static_cast<StackDropData *>(drag->poin);
 
@@ -1245,8 +1246,8 @@ static std::string collection_drop_tooltip(bContext *C,
 
     /* Test if we are moving within same parent collection. */
     bool same_level = false;
-    LISTBASE_FOREACH (CollectionParent *, parent, &data.to->runtime->parents) {
-      if (data.from == parent->collection) {
+    for (CollectionParent &parent : data.to->runtime->parents) {
+      if (data.from == parent.collection) {
         same_level = true;
       }
     }
@@ -1304,7 +1305,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  ListBase *lb = static_cast<ListBase *>(event->customdata);
+  ListBaseT<wmDrag> *lb = static_cast<ListBaseT<wmDrag> *>(event->customdata);
   wmDrag *drag = static_cast<wmDrag *>(lb->first);
 
   CollectionDrop data;
@@ -1338,15 +1339,15 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     BLI_listbase_reverse(&drag->ids);
   }
 
-  LISTBASE_FOREACH (wmDragID *, drag_id, &drag->ids) {
+  for (wmDragID &drag_id : drag->ids) {
     /* Ctrl enables linking, so we don't need a from collection then. */
     Collection *from = (event->modifier & KM_CTRL) ?
                            nullptr :
-                           collection_parent_from_ID(drag_id->from_parent);
+                           collection_parent_from_ID(drag_id.from_parent);
 
-    if (GS(drag_id->id->name) == ID_OB) {
+    if (GS(drag_id.id->name) == ID_OB) {
       /* Move/link object into collection. */
-      Object *object = (Object *)drag_id->id;
+      Object *object = (Object *)drag_id.id;
 
       if (from) {
         BKE_collection_object_move(bmain, scene, data.to, from, object);
@@ -1355,9 +1356,9 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
         BKE_collection_object_add(bmain, data.to, object);
       }
     }
-    else if (GS(drag_id->id->name) == ID_GR) {
+    else if (GS(drag_id.id->name) == ID_GR) {
       /* Move/link collection into collection. */
-      Collection *collection = (Collection *)drag_id->id;
+      Collection *collection = (Collection *)drag_id.id;
 
       if (collection != from) {
         BKE_collection_move(bmain, data.to, from, relative, relative_after, collection);
@@ -1502,8 +1503,8 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
                              &selected);
     }
 
-    LISTBASE_FOREACH (LinkData *, link, &selected.selected_array) {
-      TreeElement *te_selected = (TreeElement *)link->data;
+    for (LinkData &link : selected.selected_array) {
+      TreeElement *te_selected = (TreeElement *)link.data;
       ID *id;
 
       if (GS(data.drag_id->name) == ID_OB) {
@@ -1589,7 +1590,7 @@ void OUTLINER_OT_item_drag_drop(wmOperatorType *ot)
 
 void outliner_dropboxes()
 {
-  ListBase *lb = WM_dropboxmap_find("Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
 
   WM_dropbox_add(lb, "OUTLINER_OT_parent_drop", parent_drop_poll, nullptr, nullptr, nullptr);
   WM_dropbox_add(lb, "OUTLINER_OT_parent_clear", parent_clear_poll, nullptr, nullptr, nullptr);

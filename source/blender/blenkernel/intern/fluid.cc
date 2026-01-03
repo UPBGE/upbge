@@ -566,16 +566,16 @@ static int get_light(Scene *scene, ViewLayer *view_layer, float *light)
 
   /* Try to find a lamp, preferably local. */
   BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base_tmp, BKE_view_layer_object_bases_get(view_layer)) {
-    if (base_tmp->object->type == OB_LAMP) {
-      Light *la = static_cast<Light *>(base_tmp->object->data);
+  for (Base &base_tmp : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base_tmp.object->type == OB_LAMP) {
+      Light *la = static_cast<Light *>(base_tmp.object->data);
 
       if (la->type == LA_LOCAL) {
-        copy_v3_v3(light, base_tmp->object->object_to_world().location());
+        copy_v3_v3(light, base_tmp.object->object_to_world().location());
         return 1;
       }
       if (!found_light) {
-        copy_v3_v3(light, base_tmp->object->object_to_world().location());
+        copy_v3_v3(light, base_tmp.object->object_to_world().location());
         found_light = 1;
       }
     }
@@ -3062,7 +3062,7 @@ static void update_flowsfluids(Depsgraph *depsgraph,
 struct UpdateEffectorsData {
   Scene *scene;
   FluidDomainSettings *fds;
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
 
   float *density;
   float *fuel;
@@ -3147,7 +3147,7 @@ static void update_effectors_task_cb(void *__restrict userdata,
 static void update_effectors(
     Depsgraph *depsgraph, Scene *scene, Object *ob, FluidDomainSettings *fds, float /*dt*/)
 {
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
   /* make sure smoke flow influence is 0.0f */
   fds->effector_weights->weight[PFIELD_FLUIDFLOW] = 0.0f;
   effectors = BKE_effectors_create(depsgraph, ob, nullptr, fds->effector_weights, false);

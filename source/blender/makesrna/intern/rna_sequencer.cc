@@ -275,13 +275,14 @@ static void rna_Strip_use_strip(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   DEG_relations_tag_update(bmain);
 }
 
-static void add_strips_from_seqbase(const ListBase *seqbase, blender::Vector<Strip *> &strips)
+static void add_strips_from_seqbase(const ListBaseT<Strip> *seqbase,
+                                    blender::Vector<Strip *> &strips)
 {
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    strips.append(strip);
+  for (Strip &strip : *seqbase) {
+    strips.append(&strip);
 
-    if (strip->type == STRIP_TYPE_META) {
-      add_strips_from_seqbase(&strip->seqbase, strips);
+    if (strip.type == STRIP_TYPE_META) {
+      add_strips_from_seqbase(&strip.seqbase, strips);
     }
   }
 }
@@ -486,7 +487,7 @@ static void rna_Strip_views_format_update(Main *bmain, Scene *scene, PointerRNA 
 
 static void do_strip_frame_change_update(Scene *scene, Strip *strip)
 {
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
+  ListBaseT<Strip> *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   if (blender::seq::transform_test_overlap(scene, seqbase, strip)) {
     blender::seq::transform_seqbase_shuffle(seqbase, strip, scene);
@@ -656,7 +657,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
 {
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
+  ListBaseT<Strip> *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   /* check channel increment or decrement */
   const int channel_delta = (value >= strip->channel) ? 1 : -1;
@@ -673,7 +674,7 @@ static bool rna_Strip_lock_get(PointerRNA *ptr)
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
   Strip *strip = static_cast<Strip *>(ptr->data);
   Editing *ed = blender::seq::editing_get(scene);
-  const ListBase *channels = blender::seq::get_channels_by_strip(ed, strip);
+  const ListBaseT<SeqTimelineChannel> *channels = blender::seq::get_channels_by_strip(ed, strip);
   return blender::seq::transform_is_locked(channels, strip);
 }
 
@@ -1698,10 +1699,10 @@ static void rna_Strip_separate(ID *id, Strip *strip_meta, Main *bmain)
   Scene *scene = (Scene *)id;
 
   /* Find the appropriate seqbase */
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip_meta);
+  ListBaseT<Strip> *seqbase = blender::seq::get_seqbase_by_strip(scene, strip_meta);
 
-  LISTBASE_FOREACH_MUTABLE (Strip *, strip, &strip_meta->seqbase) {
-    blender::seq::edit_move_strip_to_seqbase(scene, &strip_meta->seqbase, strip, seqbase);
+  for (Strip &strip : strip_meta->seqbase.items_mutable()) {
+    blender::seq::edit_move_strip_to_seqbase(scene, &strip_meta->seqbase, &strip, seqbase);
   }
 
   blender::seq::edit_flag_for_removal(scene, seqbase, strip_meta);
@@ -1721,7 +1722,7 @@ static void rna_SequenceTimelineChannel_name_set(PointerRNA *ptr, const char *va
   Editing *ed = blender::seq::editing_get(scene);
 
   Strip *channel_owner = blender::seq::lookup_strip_by_channel_owner(ed, channel);
-  ListBase *channels_base = &ed->channels;
+  ListBaseT<SeqTimelineChannel> *channels_base = &ed->channels;
 
   if (channel_owner != nullptr) {
     channels_base = &channel_owner->channels;
@@ -1744,7 +1745,7 @@ static void rna_SequenceTimelineChannel_mute_update(bContext *C, PointerRNA *ptr
   SeqTimelineChannel *channel = (SeqTimelineChannel *)ptr;
 
   Strip *channel_owner = blender::seq::lookup_strip_by_channel_owner(ed, channel);
-  ListBase *seqbase;
+  ListBaseT<Strip> *seqbase;
   if (channel_owner == nullptr) {
     seqbase = &ed->seqbase;
   }
@@ -1753,8 +1754,8 @@ static void rna_SequenceTimelineChannel_mute_update(bContext *C, PointerRNA *ptr
   }
 
   blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    blender::seq::relations_invalidate_cache(scene, strip);
+  for (Strip &strip : *seqbase) {
+    blender::seq::relations_invalidate_cache(scene, &strip);
   }
 
   rna_Strip_sound_update(bmain, scene, ptr);
