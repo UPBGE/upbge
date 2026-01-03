@@ -185,7 +185,7 @@ void BL_ArmatureObject::RemapParentChildren()
     if (!child_ob) {
       continue;
     }
-    LISTBASE_FOREACH (ModifierData *, md, &child_ob->modifiers) {
+    for (ModifierData *md = (ModifierData *)child_ob->modifiers.first; md; md = md->next) {
       if (md->type == eModifierType_Armature) {
         ArmatureModifierData *amd = (ArmatureModifierData *)md;
         if (amd && amd->object == m_previousArmature) {
@@ -428,10 +428,10 @@ static void compute_bendy_bones_matrices(Object *armOb)
    * in GPU skinning mode as depsgraph is not tagged.
    */
   if (armOb->pose) {
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &armOb->pose->chanbase) {
+    for (bPoseChannel &pchan : armOb->pose->chanbase) {
       /* Only update bendy bones (segments > 1) */
-      if (pchan->bone && pchan->bone->segments > 1) {
-        BKE_pchan_bbone_segments_cache_compute(pchan);
+      if (pchan.bone && pchan.bone->segments > 1) {
+        BKE_pchan_bbone_segments_cache_compute(&pchan);
       }
     }
   }

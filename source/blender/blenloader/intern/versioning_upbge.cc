@@ -453,15 +453,15 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 1)) {
-    LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      if (me->key) {
-        me->key->deform_method |= KEY_DEFORM_METHOD_CPU;
+    for (Mesh &mesh : bmain->meshes) {
+      if (mesh.key) {
+        mesh.key->deform_method |= KEY_DEFORM_METHOD_CPU;
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 2)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+    for (Object &ob : bmain->objects) {
+      for (ModifierData *md = (ModifierData *)ob.modifiers.first; md; md = md->next) {
         if (md->type == eModifierType_Lattice) {
           LatticeModifierData *lmd = (LatticeModifierData *)md;
           lmd->deform_method |= LAT_DEFORM_METHOD_CPU;
