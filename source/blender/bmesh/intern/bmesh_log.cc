@@ -89,7 +89,7 @@ struct BMLog {
   blender::Map<BMElem *, uint, 0> elem_to_id;
 
   /** All #BMLogEntrys, ordered from earliest to most recent. */
-  ListBase entries;
+  ListBaseT<BMLogEntry> entries;
 
   /**
    * The current log entry from entries list
@@ -502,8 +502,8 @@ void BM_log_free(BMLog *log)
 
   /* Clear the BMLog references within each entry, but do not free
    * the entries themselves */
-  LISTBASE_FOREACH (BMLogEntry *, entry, &log->entries) {
-    entry->log = nullptr;
+  for (BMLogEntry &entry : log->entries) {
+    entry.log = nullptr;
   }
 
   MEM_delete(log);

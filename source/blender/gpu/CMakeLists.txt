@@ -106,7 +106,9 @@ set(SRC
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
 
-  shader_tool/parser.cc
+  shader_tool/intermediate.cc
+  shader_tool/metadata.cc
+  shader_tool/processor.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
@@ -804,9 +806,21 @@ if(WITH_VULKAN_BACKEND)
   list(APPEND GLSL_SRC ${VULKAN_BACKEND_GLSL_SRC})
 endif()
 
+set(GLSL_INC
+  .
+
+  intern
+  shaders
+  shaders/common
+  shaders/material
+  shaders/infos
+
+  vulkan/shaders
+)
+
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 set(SHADER_C)

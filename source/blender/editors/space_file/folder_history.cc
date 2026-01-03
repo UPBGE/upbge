@@ -31,7 +31,7 @@ struct FolderList {
   char *foldername;
 };
 
-void folderlist_popdir(ListBase *folderlist, char *dir)
+void folderlist_popdir(ListBaseT<FolderList> *folderlist, char *dir)
 {
   const char *prev_dir;
   FolderList *folder;
@@ -51,7 +51,7 @@ void folderlist_popdir(ListBase *folderlist, char *dir)
   /* Delete the folder next or use set-directory directly before PREVIOUS OP. */
 }
 
-void folderlist_pushdir(ListBase *folderlist, const char *dir)
+void folderlist_pushdir(ListBaseT<FolderList> *folderlist, const char *dir)
 {
   if (!dir[0]) {
     return;
@@ -75,7 +75,7 @@ void folderlist_pushdir(ListBase *folderlist, const char *dir)
   BLI_addtail(folderlist, folder);
 }
 
-const char *folderlist_peeklastdir(ListBase *folderlist)
+const char *folderlist_peeklastdir(ListBaseT<FolderList> *folderlist)
 {
   FolderList *folder;
 
@@ -108,12 +108,12 @@ bool folderlist_clear_next(SpaceFile *sfile)
   return true;
 }
 
-void folderlist_free(ListBase *folderlist)
+void folderlist_free(ListBaseT<FolderList> *folderlist)
 {
   if (folderlist) {
-    LISTBASE_FOREACH_MUTABLE (FolderList *, folder, folderlist) {
-      MEM_freeN(folder->foldername);
-      MEM_delete(folder);
+    for (FolderList &folder : folderlist->items_mutable()) {
+      MEM_freeN(folder.foldername);
+      MEM_delete(&folder);
     }
     BLI_listbase_clear(folderlist);
   }
@@ -125,8 +125,8 @@ static ListBaseT<FolderList> folderlist_duplicate(ListBaseT<FolderList> *folderl
 
   BLI_duplicatelist(&folderlistn, folderlist);
 
-  LISTBASE_FOREACH (FolderList *, folder, &folderlistn) {
-    folder->foldername = (char *)MEM_dupallocN(folder->foldername);
+  for (FolderList &folder : folderlistn) {
+    folder.foldername = (char *)MEM_dupallocN(folder.foldername);
   }
   return folderlistn;
 }
@@ -139,9 +139,9 @@ static ListBaseT<FolderList> folderlist_duplicate(ListBaseT<FolderList> *folderl
 
 static FileFolderHistory *folder_history_find(const SpaceFile *sfile, eFileBrowse_Mode browse_mode)
 {
-  LISTBASE_FOREACH (FileFolderHistory *, history, &sfile->folder_histories) {
-    if (history->browse_mode == browse_mode) {
-      return history;
+  for (FileFolderHistory &history : sfile->folder_histories) {
+    if (history.browse_mode == browse_mode) {
+      return &history;
     }
   }
 
@@ -177,8 +177,8 @@ static void folder_history_entry_free(SpaceFile *sfile, FileFolderHistory *histo
 
 void folder_history_list_free(SpaceFile *sfile)
 {
-  LISTBASE_FOREACH_MUTABLE (FileFolderHistory *, history, &sfile->folder_histories) {
-    folder_history_entry_free(sfile, history);
+  for (FileFolderHistory &history : sfile->folder_histories.items_mutable()) {
+    folder_history_entry_free(sfile, &history);
   }
 }
 
@@ -186,10 +186,10 @@ ListBaseT<FileFolderHistory> folder_history_list_duplicate(ListBaseT<FileFolderH
 {
   ListBaseT<FileFolderHistory> histories = {nullptr};
 
-  LISTBASE_FOREACH (FileFolderHistory *, history, listbase) {
-    FileFolderHistory *history_new = static_cast<FileFolderHistory *>(MEM_dupallocN(history));
-    history_new->folders_prev = folderlist_duplicate(&history->folders_prev);
-    history_new->folders_next = folderlist_duplicate(&history->folders_next);
+  for (FileFolderHistory &history : *listbase) {
+    FileFolderHistory *history_new = static_cast<FileFolderHistory *>(MEM_dupallocN(&history));
+    history_new->folders_prev = folderlist_duplicate(&history.folders_prev);
+    history_new->folders_next = folderlist_duplicate(&history.folders_next);
     BLI_addtail(&histories, history_new);
   }
 

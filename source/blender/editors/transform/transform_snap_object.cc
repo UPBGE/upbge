@@ -501,13 +501,13 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
   DupliList duplilist;
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    if (!snap_object_is_snappable(sctx, snap_target_select, base_act, base)) {
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (!snap_object_is_snappable(sctx, snap_target_select, base_act, &base)) {
       continue;
     }
 
-    const bool is_object_active = (base == base_act);
-    Object *obj_eval = DEG_get_evaluated(sctx->runtime.depsgraph, base->object);
+    const bool is_object_active = (&base == base_act);
+    Object *obj_eval = DEG_get_evaluated(sctx->runtime.depsgraph, base.object);
     if (obj_eval->transflag & OB_DUPLI ||
         blender::bke::object_has_geometry_set_instances(*obj_eval))
     {
@@ -1124,7 +1124,7 @@ static bool snap_object_context_runtime_init(SnapObjectContext *sctx,
                                              const float init_co[3],
                                              const float prev_co[3],
                                              const float dist_px_sq,
-                                             ListBase *hit_list)
+                                             ListBaseT<SnapObjectHitDepth> *hit_list)
 {
   if (snap_to_flag &
       (SCE_SNAP_TO_GRID | SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_INDIVIDUAL_NEAREST))
@@ -1291,7 +1291,7 @@ bool snap_object_project_ray_all(SnapObjectContext *sctx,
                                  const float ray_normal[3],
                                  float ray_depth,
                                  bool sort,
-                                 ListBase *r_hit_list)
+                                 ListBaseT<SnapObjectHitDepth> *r_hit_list)
 {
   if (!snap_object_context_runtime_init(sctx,
                                         depsgraph,
@@ -1608,7 +1608,7 @@ bool object_project_all_view3d_ex(SnapObjectContext *sctx,
                                   const float mval[2],
                                   float ray_depth,
                                   bool sort,
-                                  ListBase *r_hit_list)
+                                  ListBaseT<SnapObjectHitDepth> *r_hit_list)
 {
   float3 ray_start, ray_normal, ray_end;
   const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);

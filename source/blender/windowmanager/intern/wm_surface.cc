@@ -25,14 +25,14 @@
 
 #include "wm_surface.hh"
 
-static ListBase global_surface_list = {nullptr, nullptr};
+static ListBaseT<wmSurface> global_surface_list = {nullptr, nullptr};
 static wmSurface *g_drawable = nullptr;
 
 void wm_surfaces_iter(bContext *C, void (*cb)(bContext *C, wmSurface *))
 {
   /* Mutable iterator in case a surface is freed. */
-  LISTBASE_FOREACH_MUTABLE (wmSurface *, surf, &global_surface_list) {
-    cb(C, surf);
+  for (wmSurface &surf : global_surface_list.items_mutable()) {
+    cb(C, &surf);
   }
 }
 
@@ -132,8 +132,8 @@ void wm_surface_remove(wmSurface *surface, bContext *C)
 
 void wm_surfaces_free()
 {
-  LISTBASE_FOREACH_MUTABLE (wmSurface *, surf, &global_surface_list) {
-    wm_surface_remove(surf, nullptr);
+  for (wmSurface &surf : global_surface_list.items_mutable()) {
+    wm_surface_remove(&surf, nullptr);
   }
 
   BLI_assert(BLI_listbase_is_empty(&global_surface_list));

@@ -60,7 +60,7 @@ static VectorSet<Strip *> query_snap_sources_timeline(
 {
   VectorSet<Strip *> snap_sources;
 
-  ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
   snap_sources = seq::query_selected_strips(seqbase);
 
   /* Add strips owned by retiming keys to exclude these from targets */
@@ -76,7 +76,7 @@ static VectorSet<Strip *> query_snap_sources_preview(const Scene *scene)
   VectorSet<Strip *> snap_sources;
 
   Editing *ed = seq::editing_get(scene);
-  ListBase *channels = seq::channels_displayed_get(ed);
+  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
   snap_sources = seq::query_rendered_strips(
       scene, channels, ed->current_strips(), scene->r.cfra, 0);
@@ -184,7 +184,7 @@ static void points_build_sources_preview_origin(const Scene *scene,
 /* Add effect strips directly or indirectly connected to `strip_reference` to `collection`. */
 static void query_strip_effects_fn(const Scene *scene,
                                    Strip *strip_reference,
-                                   ListBase *seqbase,
+                                   ListBaseT<Strip> *seqbase,
                                    VectorSet<Strip *> &strips)
 {
   if (strips.contains(strip_reference)) {
@@ -193,9 +193,9 @@ static void query_strip_effects_fn(const Scene *scene,
   strips.add(strip_reference);
 
   /* Find all strips connected to `strip_reference`. */
-  LISTBASE_FOREACH (Strip *, strip_test, seqbase) {
-    if (seq::relation_is_effect_of_strip(strip_test, strip_reference)) {
-      query_strip_effects_fn(scene, strip_test, seqbase, strips);
+  for (Strip &strip_test : *seqbase) {
+    if (seq::relation_is_effect_of_strip(&strip_test, strip_reference)) {
+      query_strip_effects_fn(scene, &strip_test, seqbase, strips);
     }
   }
 }
@@ -205,8 +205,8 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
                                                       const bool exclude_selected)
 {
   Editing *ed = seq::editing_get(scene);
-  ListBase *seqbase = seq::active_seqbase_get(ed);
-  ListBase *channels = seq::channels_displayed_get(ed);
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   const short snap_flag = seq::tool_settings_snap_flag_get(scene);
 
   /* Effects will always change position with strip to which they are connected and they don't
@@ -218,21 +218,21 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
   });
 
   VectorSet<Strip *> snap_targets;
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (exclude_selected && strip->flag & SEQ_SELECT) {
+  for (Strip &strip : *seqbase) {
+    if (exclude_selected && strip.flag & SEQ_SELECT) {
       continue; /* Selected are being transformed if there is no drag and drop. */
     }
-    if (seq::render_is_muted(channels, strip) && (snap_flag & SEQ_SNAP_IGNORE_MUTED)) {
+    if (seq::render_is_muted(channels, &strip) && (snap_flag & SEQ_SNAP_IGNORE_MUTED)) {
       continue;
     }
-    if (strip->type == STRIP_TYPE_SOUND && (snap_flag & SEQ_SNAP_IGNORE_SOUND)) {
+    if (strip.type == STRIP_TYPE_SOUND && (snap_flag & SEQ_SNAP_IGNORE_SOUND)) {
       continue;
     }
-    if (effects_of_snap_sources.contains(strip)) {
+    if (effects_of_snap_sources.contains(&strip)) {
       continue;
     }
 
-    snap_targets.add(strip);
+    snap_targets.add(&strip);
   }
 
   return snap_targets;
@@ -251,7 +251,7 @@ static VectorSet<Strip *> query_snap_targets_preview(const TransInfo *t)
   }
 
   Editing *ed = seq::editing_get(scene);
-  ListBase *channels = seq::channels_displayed_get(ed);
+  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
   snap_targets = seq::query_rendered_strips(
       scene, channels, ed->current_strips(), scene->r.cfra, 0);
@@ -291,8 +291,8 @@ static void points_build_targets_timeline(const Scene *scene,
   }
 
   if (snap_mode & SEQ_SNAP_TO_MARKERS) {
-    LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
-      snap_data->target_snap_points.append(float2(marker->frame));
+    for (TimeMarker &marker : scene->markers) {
+      snap_data->target_snap_points.append(float2(marker.frame));
     }
   }
 

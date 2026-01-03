@@ -156,7 +156,7 @@ void register_node_tree_type_tex()
 
 bNodeThreadStack *ntreeGetThreadStack(bNodeTreeExec *exec, int thread)
 {
-  ListBase *lb = &exec->threadstack[thread];
+  ListBaseT<bNodeThreadStack> *lb = &exec->threadstack[thread];
   bNodeThreadStack *nts;
 
   for (nts = (bNodeThreadStack *)lb->first; nts; nts = nts->next) {
@@ -219,10 +219,11 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context,
   exec = ntree_exec_begin(context, ntree, parent_key);
 
   /* allocate the thread stack listbase array */
-  exec->threadstack = MEM_calloc_arrayN<ListBase>(BLENDER_MAX_THREADS, "thread stack array");
+  exec->threadstack = MEM_calloc_arrayN<ListBaseT<bNodeThreadStack>>(BLENDER_MAX_THREADS,
+                                                                     "thread stack array");
 
-  LISTBASE_FOREACH (bNode *, node, &exec->nodetree->nodes) {
-    node->runtime->need_exec = 1;
+  for (bNode &node : exec->nodetree->nodes) {
+    node.runtime->need_exec = 1;
   }
 
   return exec;
@@ -257,8 +258,8 @@ static void tex_free_delegates(bNodeTreeExec *exec)
   int th, a;
 
   for (th = 0; th < BLENDER_MAX_THREADS; th++) {
-    LISTBASE_FOREACH (bNodeThreadStack *, nts, &exec->threadstack[th]) {
-      for (ns = nts->stack, a = 0; a < exec->stacksize; a++, ns++) {
+    for (bNodeThreadStack &nts : exec->threadstack[th]) {
+      for (ns = nts.stack, a = 0; a < exec->stacksize; a++, ns++) {
         if (ns->data && !ns->is_copy) {
           MEM_freeN(ns->data);
         }
@@ -275,9 +276,9 @@ void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
     tex_free_delegates(exec);
 
     for (a = 0; a < BLENDER_MAX_THREADS; a++) {
-      LISTBASE_FOREACH (bNodeThreadStack *, nts, &exec->threadstack[a]) {
-        if (nts->stack) {
-          MEM_freeN(nts->stack);
+      for (bNodeThreadStack &nts : exec->threadstack[a]) {
+        if (nts.stack) {
+          MEM_freeN(nts.stack);
         }
       }
       BLI_freelistN(&exec->threadstack[a]);

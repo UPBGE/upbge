@@ -12,6 +12,8 @@
 
 #include "BLI_compiler_attrs.h"
 
+#include "DNA_listBase.h"
+
 #include "rna_internal_types.hh"
 
 #include "UI_resources.hh" /* IWYU pragma: export */
@@ -30,6 +32,7 @@ struct FreestyleModuleConfig;
 struct Main;
 struct MTex;
 struct Object;
+struct PropertyDefRNA;
 struct ReportList;
 struct SDNA;
 struct ViewLayer;
@@ -40,7 +43,7 @@ struct ContainerDefRNA {
   void *next, *prev;
 
   ContainerRNA *cont;
-  ListBase properties;
+  ListBaseT<PropertyDefRNA> properties;
 };
 
 struct FunctionDefRNA {
@@ -99,7 +102,7 @@ struct StructDefRNA {
   const char *dnafromname;
   const char *dnafromprop;
 
-  ListBase functions;
+  ListBaseT<FunctionDefRNA> functions;
 };
 
 struct AllocDefRNA {
@@ -109,8 +112,8 @@ struct AllocDefRNA {
 
 struct BlenderDefRNA {
   struct SDNA *sdna;
-  ListBase structs;
-  ListBase allocs;
+  ListBaseT<StructDefRNA> structs;
+  ListBaseT<AllocDefRNA> allocs;
   struct StructRNA *laststruct;
   bool error;
   bool silent;
@@ -635,7 +638,6 @@ void *rna_calloc(int buffer_size);
 void rna_addtail(ListBase *listbase, void *vlink);
 void rna_freelinkN(ListBase *listbase, void *vlink);
 void rna_freelistN(ListBase *listbase);
-PropertyDefRNA *rna_findlink(ListBase *listbase, const char *identifier);
 
 StructDefRNA *rna_find_struct_def(StructRNA *srna);
 FunctionDefRNA *rna_find_function_def(FunctionRNA *func);

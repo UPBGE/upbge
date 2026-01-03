@@ -1055,7 +1055,7 @@ static std::vector<Object *> lod_level_object_list(ViewLayer *view_layer)
   while (base) {
     Object *ob = base->object;
     if (ob) {
-      LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
+      for (LodLevel *level = (LodLevel *)ob->lodlevels.first; level; level = level->next) {
         if (level->source) {
           lod_objs.push_back(level->source);
         }
@@ -1298,7 +1298,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
   else {
-    LISTBASE_FOREACH (bActuator *, actu, &single_object->actuators) {
+    for (bActuator *actu = (bActuator *)single_object->actuators.first; actu; actu = actu->next) {
       if (actu->type == ACT_ACTION) {
         bActionActuator *actionActu = (bActionActuator *)actu->data;
         if (actionActu->act != nullptr) {

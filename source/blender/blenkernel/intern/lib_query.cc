@@ -375,11 +375,11 @@ static bool library_foreach_ID_link(Main *bmain,
                          IDWALK_CB_USER | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
 
       CALLBACK_INVOKE_ID(id->override_library->hierarchy_root, IDWALK_CB_LOOPBACK);
-      LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &id->override_library->properties) {
-        LISTBASE_FOREACH (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
-          CALLBACK_INVOKE_ID(opop->subitem_reference_id,
+      for (IDOverrideLibraryProperty &op : id->override_library->properties) {
+        for (IDOverrideLibraryPropertyOperation &opop : op.operations) {
+          CALLBACK_INVOKE_ID(opop.subitem_reference_id,
                              IDWALK_CB_DIRECT_WEAK_LINK | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
-          CALLBACK_INVOKE_ID(opop->subitem_local_id,
+          CALLBACK_INVOKE_ID(opop.subitem_local_id,
                              IDWALK_CB_DIRECT_WEAK_LINK | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE);
         }
       }
@@ -526,7 +526,7 @@ bool BKE_library_id_can_use_idtype(ID *owner_id, const short id_type_used)
 struct IDUsersIter {
   ID *id;
 
-  // ListBase *lb_array[INDEX_ID_MAX]; /* UNUSED. */
+  // ListBaseT<ID> *lb_array[INDEX_ID_MAX]; /* UNUSED. */
   // int lb_idx; /* UNUSED. */
 
   ID *curr_id;
@@ -1147,13 +1147,13 @@ void BKE_library_indirectly_used_data_tag_clear(Main *bmain)
     do_loop = false;
 
     while (i--) {
-      LISTBASE_FOREACH (ID *, id, lb_array[i]) {
-        if (!ID_IS_LINKED(id) || id->tag & ID_TAG_DOIT) {
+      for (ID &id : *lb_array[i]) {
+        if (!ID_IS_LINKED(&id) || id.tag & ID_TAG_DOIT) {
           /* Local or non-indirectly-used ID (so far), no need to check it further. */
           continue;
         }
         BKE_library_foreach_ID_link(
-            bmain, id, foreach_libblock_used_linked_data_tag_clear_cb, &do_loop, IDWALK_READONLY);
+            bmain, &id, foreach_libblock_used_linked_data_tag_clear_cb, &do_loop, IDWALK_READONLY);
       }
     }
   }

@@ -640,15 +640,13 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_effect_taa_frag.glsl
   engines/workbench/shaders/workbench_fullscreen_vert.glsl
   engines/workbench/shaders/workbench_image_lib.glsl
+  engines/workbench/shaders/workbench_image.bsl.hh
   engines/workbench/shaders/workbench_matcap_lib.glsl
   engines/workbench/shaders/workbench_matcap.bsl.hh
-  engines/workbench/shaders/workbench_material_lib.glsl
+  engines/workbench/shaders/workbench_material.bsl.hh
   engines/workbench/shaders/workbench_merge_depth_frag.glsl
   engines/workbench/shaders/workbench_overlay_depth_frag.glsl
-  engines/workbench/shaders/workbench_prepass_frag.glsl
-  engines/workbench/shaders/workbench_prepass_hair_vert.glsl
-  engines/workbench/shaders/workbench_prepass_pointcloud_vert.glsl
-  engines/workbench/shaders/workbench_prepass_vert.glsl
+  engines/workbench/shaders/workbench_prepass.bsl.hh
   engines/workbench/shaders/workbench_shadow_caps_vert.glsl
   engines/workbench/shaders/workbench_shadow_debug_frag.glsl
   engines/workbench/shaders/workbench_shadow_frag.glsl
@@ -863,10 +861,49 @@ set(GLSL_SRC
   engines/image/shaders/image_engine_depth_vert.glsl
 )
 
-set(GLSL_C)
+function(make_include_list
+  include_list
+  )
+  foreach(path ${_inc_list})
+    message(WARNING ${path})
+  endforeach()
+endfunction()
 
+set(GLSL_INC
+  ../gpu
+  ../gpu/intern
+  ../gpu/shaders
+  ../gpu/shaders/infos
+  ../gpu/shaders/common
+
+  engines/gpencil
+  engines/gpencil/shaders
+  engines/gpencil/shaders/infos
+  engines/workbench
+  engines/workbench/shaders
+  engines/workbench/shaders/infos
+  engines/eevee
+  engines/eevee/shaders
+  engines/eevee/shaders/infos
+  engines/overlay
+  engines/overlay/shaders
+  engines/overlay/shaders/infos
+  engines/select
+  engines/select/shaders
+  engines/select/shaders/infos
+  engines/image
+  engines/image/shaders
+  engines/image/shaders/infos
+
+  intern
+  intern/shaders
+)
+
+make_include_list(GLSL_INC)
+
+set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 blender_add_lib(bf_draw_shaders "${GLSL_C}" "" "" "")

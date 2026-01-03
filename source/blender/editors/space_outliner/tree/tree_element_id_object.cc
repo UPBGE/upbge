@@ -78,9 +78,8 @@ void TreeElementIDObject::expand_constraints() const
   TreeElement *tenla = add_element(
       &legacy_te_.subtree, &object_.id, nullptr, &legacy_te_, TSE_CONSTRAINT_BASE, 0);
 
-  int index;
-  LISTBASE_FOREACH_INDEX (bConstraint *, con, &object_.constraints, index) {
-    add_element(&tenla->subtree, &object_.id, con, tenla, TSE_CONSTRAINT, index);
+  for (const auto [index, con] : object_.constraints.enumerate()) {
+    add_element(&tenla->subtree, &object_.id, &con, tenla, TSE_CONSTRAINT, index);
     /* possible add all other types links? */
   }
 }
@@ -114,7 +113,7 @@ void TreeElementIDObject::expand_vertex_groups() const
   if (!ELEM(object_.type, OB_MESH, OB_LATTICE, OB_GREASE_PENCIL)) {
     return;
   }
-  const ListBase *defbase = BKE_object_defgroup_list(&object_);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(&object_);
   if (BLI_listbase_is_empty(defbase)) {
     return;
   }

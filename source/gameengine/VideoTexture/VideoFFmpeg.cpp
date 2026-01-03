@@ -489,8 +489,8 @@ bool VideoFFmpeg::startCache()
       CachePacket *packet = new CachePacket();
       BLI_addtail(&m_packetCacheFree, packet);
     }
-    BLI_threadpool_init(&m_thread, cacheThread, 1);
-    BLI_threadpool_insert(&m_thread, this);
+    BLI_threadpool_init(reinterpret_cast<ListBaseT<ThreadSlot> *>(&m_thread), cacheThread, 1);
+    BLI_threadpool_insert(reinterpret_cast<ListBaseT<ThreadSlot> *>(&m_thread), this);
     m_cacheStarted = true;
   }
   return m_cacheStarted;
@@ -500,7 +500,7 @@ void VideoFFmpeg::stopCache()
 {
   if (m_cacheStarted) {
     m_stopThread = true;
-    BLI_threadpool_end(&m_thread);
+    BLI_threadpool_end(reinterpret_cast<ListBaseT<ThreadSlot> *>(&m_thread));
     // now delete the cache
     CacheFrame *frame;
     CachePacket *packet;

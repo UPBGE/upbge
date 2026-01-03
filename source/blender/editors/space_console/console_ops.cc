@@ -56,8 +56,8 @@ static char *console_select_to_buffer(SpaceConsole *sc)
   console_scrollback_prompt_begin(sc, &cl_dummy);
 
   int offset = 0;
-  LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
-    offset += cl->len + 1;
+  for (ConsoleLine &cl : sc->scrollback) {
+    offset += cl.len + 1;
   }
 
   char *buf_str = nullptr;
@@ -65,20 +65,20 @@ static char *console_select_to_buffer(SpaceConsole *sc)
     offset -= 1;
     int sel[2] = {offset - sc->sel_end, offset - sc->sel_start};
     DynStr *buf_dyn = BLI_dynstr_new();
-    LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
-      if (sel[0] <= cl->len && sel[1] >= 0) {
+    for (ConsoleLine &cl : sc->scrollback) {
+      if (sel[0] <= cl.len && sel[1] >= 0) {
         int sta = max_ii(sel[0], 0);
-        int end = min_ii(sel[1], cl->len);
+        int end = min_ii(sel[1], cl.len);
 
         if (BLI_dynstr_get_len(buf_dyn)) {
           BLI_dynstr_append(buf_dyn, "\n");
         }
 
-        BLI_dynstr_nappend(buf_dyn, cl->line + sta, end - sta);
+        BLI_dynstr_nappend(buf_dyn, cl.line + sta, end - sta);
       }
 
-      sel[0] -= cl->len + 1;
-      sel[1] -= cl->len + 1;
+      sel[0] -= cl.len + 1;
+      sel[1] -= cl.len + 1;
     }
 
     buf_str = BLI_dynstr_get_cstring(buf_dyn);
@@ -205,7 +205,7 @@ static bool console_line_cursor_set(ConsoleLine *cl, int cursor)
 }
 
 #if 0 /* XXX unused */
-static void console_lb_debug__internal(ListBase *lb)
+static void console_lb_debug__internal(ListBaseT<ConsoleLine> *lb)
 {
   ConsoleLine *cl;
 
@@ -224,7 +224,7 @@ static void console_history_debug(const bContext *C)
 }
 #endif
 
-static ConsoleLine *console_lb_add__internal(ListBase *lb, ConsoleLine *from)
+static ConsoleLine *console_lb_add__internal(ListBaseT<ConsoleLine> *lb, ConsoleLine *from)
 {
   ConsoleLine *ci = MEM_new_for_free<ConsoleLine>("ConsoleLine Add");
 
@@ -259,7 +259,7 @@ static ConsoleLine *console_scrollback_add(const bContext *C, ConsoleLine *from)
 }
 #endif
 
-static ConsoleLine *console_lb_add_str__internal(ListBase *lb, char *str, bool own)
+static ConsoleLine *console_lb_add_str__internal(ListBaseT<ConsoleLine> *lb, char *str, bool own)
 {
   ConsoleLine *ci = MEM_new_for_free<ConsoleLine>("ConsoleLine Add");
   const int str_len = strlen(str);
@@ -1418,8 +1418,8 @@ static wmOperatorStatus console_modal_select_all_invoke(bContext *C,
 
   int offset = strlen(sc->prompt);
 
-  LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
-    offset += cl->len + 1;
+  for (ConsoleLine &cl : sc->scrollback) {
+    offset += cl.len + 1;
   }
 
   ConsoleLine *cl = static_cast<ConsoleLine *>(sc->history.last);

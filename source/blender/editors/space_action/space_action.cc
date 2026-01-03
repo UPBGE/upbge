@@ -221,7 +221,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
   }
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   const bool has_anim_context = ANIM_animdata_get_context(C, &ac);
   if (has_anim_context) {
     /* Build list of channels to draw. */
@@ -354,7 +354,7 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
 
   View2D *v2d = &region->v2d;
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   /* Build list of channels to draw. */
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                     ANIMFILTER_LIST_CHANNELS);
@@ -634,11 +634,11 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
           ED_area_tag_redraw(area);
           break;
         case ND_FRAME_RANGE:
-          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-            if (region->regiontype == RGN_TYPE_WINDOW) {
+          for (ARegion &region : area->regionbase) {
+            if (region.regiontype == RGN_TYPE_WINDOW) {
               Scene *scene = static_cast<Scene *>(wmn->reference);
-              region->v2d.tot.xmin = float(scene->r.sfra - 4);
-              region->v2d.tot.xmax = float(scene->r.efra + 4);
+              region.v2d.tot.xmin = float(scene->r.sfra - 4);
+              region.v2d.tot.xmax = float(scene->r.efra + 4);
               break;
             }
           }
@@ -859,8 +859,8 @@ static void action_refresh(const bContext *C, ScrArea *area)
      *   or else they don't update #28962.
      */
     ED_area_tag_redraw(area);
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      ED_region_tag_redraw(region);
+    for (ARegion &region : area->regionbase) {
+      ED_region_tag_redraw(&region);
     }
   }
 

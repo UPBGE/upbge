@@ -423,7 +423,7 @@ std::string AssetCatalogDropTarget::drop_tooltip_asset_list(const wmDrag &drag) 
 {
   BLI_assert(drag.type == WM_DRAG_ASSET_LIST);
 
-  const ListBase *asset_drags = WM_drag_asset_list_get(&drag);
+  const ListBaseT<wmDragAssetListItem> *asset_drags = WM_drag_asset_list_get(&drag);
   const bool is_multiple_assets = !BLI_listbase_is_single(asset_drags);
 
   /* Don't try to be smart by dynamically adding the 's' for the plural. Just makes translation
@@ -477,21 +477,21 @@ bool AssetCatalogDropTarget::drop_assets_into_catalog(bContext *C,
                                                       StringRefNull simple_name)
 {
   BLI_assert(drag.type == WM_DRAG_ASSET_LIST);
-  const ListBase *asset_drags = WM_drag_asset_list_get(&drag);
+  const ListBaseT<wmDragAssetListItem> *asset_drags = WM_drag_asset_list_get(&drag);
   if (!asset_drags) {
     return false;
   }
 
   bool did_update = false;
-  LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
-    if (asset_item->is_external) {
+  for (wmDragAssetListItem &asset_item : *asset_drags) {
+    if (asset_item.is_external) {
       /* Only internal assets can be modified! */
       continue;
     }
 
     did_update = true;
     BKE_asset_metadata_catalog_id_set(
-        asset_item->asset_data.local_id->asset_data, catalog_id, simple_name.c_str());
+        asset_item.asset_data.local_id->asset_data, catalog_id, simple_name.c_str());
 
     /* Trigger re-run of filtering to update visible assets. */
     filelist_tag_needs_filtering(tree_view.space_file_.files);
@@ -520,11 +520,11 @@ AssetCatalog *AssetCatalogDropTarget::get_drag_catalog(
 
 bool AssetCatalogDropTarget::has_droppable_asset(const wmDrag &drag, const char **r_disabled_hint)
 {
-  const ListBase *asset_drags = WM_drag_asset_list_get(&drag);
+  const ListBaseT<wmDragAssetListItem> *asset_drags = WM_drag_asset_list_get(&drag);
 
   /* There needs to be at least one asset from the current file. */
-  LISTBASE_FOREACH (const wmDragAssetListItem *, asset_item, asset_drags) {
-    if (!asset_item->is_external) {
+  for (const wmDragAssetListItem &asset_item : *asset_drags) {
+    if (!asset_item.is_external) {
       return true;
     }
   }
@@ -674,7 +674,7 @@ bool AssetCatalogTreeViewUnassignedItem::DropTarget::can_drop(const wmDrag &drag
 std::string AssetCatalogTreeViewUnassignedItem::DropTarget::drop_tooltip(
     const ui::DragInfo &drag_info) const
 {
-  const ListBase *asset_drags = WM_drag_asset_list_get(&drag_info.drag_data);
+  const ListBaseT<wmDragAssetListItem> *asset_drags = WM_drag_asset_list_get(&drag_info.drag_data);
   const bool is_multiple_assets = !BLI_listbase_is_single(asset_drags);
 
   return is_multiple_assets ? TIP_("Move assets out of any catalog") :

@@ -74,14 +74,14 @@ struct ElemData_Armature {
   float zwidth;
 };
 
-static ElemData_Armature *armature_coords_and_quats_get_recurse(const ListBase *bone_base,
+static ElemData_Armature *armature_coords_and_quats_get_recurse(const ListBaseT<Bone> *bone_base,
                                                                 ElemData_Armature *elem_array)
 {
   ElemData_Armature *elem = elem_array;
-  LISTBASE_FOREACH (const Bone *, bone, bone_base) {
+  for (const Bone &bone : *bone_base) {
 
-#define COPY_PTR(member) memcpy(elem->member, bone->member, sizeof(bone->member))
-#define COPY_VAL(member) memcpy(&elem->member, &bone->member, sizeof(bone->member))
+#define COPY_PTR(member) memcpy(elem->member, bone.member, sizeof(bone.member))
+#define COPY_VAL(member) memcpy(&elem->member, &bone.member, sizeof(bone.member))
     COPY_PTR(head);
     COPY_PTR(tail);
     COPY_VAL(roll);
@@ -96,7 +96,7 @@ static ElemData_Armature *armature_coords_and_quats_get_recurse(const ListBase *
 #undef COPY_PTR
 #undef COPY_VAL
 
-    elem = armature_coords_and_quats_get_recurse(&bone->childbase, elem + 1);
+    elem = armature_coords_and_quats_get_recurse(&bone.childbase, elem + 1);
   }
   return elem;
 }
@@ -108,13 +108,13 @@ static void armature_coords_and_quats_get(const bArmature *arm,
 }
 
 static const ElemData_Armature *armature_coords_and_quats_apply_with_mat4_recurse(
-    ListBase *bone_base, const ElemData_Armature *elem_array, const float4x4 &transform)
+    ListBaseT<Bone> *bone_base, const ElemData_Armature *elem_array, const float4x4 &transform)
 {
   const ElemData_Armature *elem = elem_array;
-  LISTBASE_FOREACH (Bone *, bone, bone_base) {
+  for (Bone &bone : *bone_base) {
 
-#define COPY_PTR(member) memcpy(bone->member, elem->member, sizeof(bone->member))
-#define COPY_VAL(member) memcpy(&bone->member, &elem->member, sizeof(bone->member))
+#define COPY_PTR(member) memcpy(bone.member, elem->member, sizeof(bone.member))
+#define COPY_VAL(member) memcpy(&bone.member, &elem->member, sizeof(bone.member))
     COPY_PTR(head);
     COPY_PTR(tail);
     COPY_VAL(roll);
@@ -129,8 +129,7 @@ static const ElemData_Armature *armature_coords_and_quats_apply_with_mat4_recurs
 #undef COPY_PTR
 #undef COPY_VAL
 
-    elem = armature_coords_and_quats_apply_with_mat4_recurse(
-        &bone->childbase, elem + 1, transform);
+    elem = armature_coords_and_quats_apply_with_mat4_recurse(&bone.childbase, elem + 1, transform);
   }
   return elem;
 }
@@ -397,7 +396,7 @@ static std::unique_ptr<XFormObjectData> data_xform_create_ex(ID *id, bool is_edi
       }
 
       const int key_index = -1;
-      ListBase *nurbs;
+      ListBaseT<Nurb> *nurbs;
       if (is_edit_mode) {
         EditNurb *editnurb = cu->editnurb;
         nurbs = &editnurb->nurbs;
@@ -575,7 +574,7 @@ void data_xform_by_mat4(XFormObjectData &xod_base, const float4x4 &transform)
 
       Key *key = cu->key;
       const int key_index = -1;
-      ListBase *nurb = nullptr;
+      const ListBaseT<Nurb> *nurb = nullptr;
 
       if (xod.is_edit_mode) {
         EditNurb *editnurb = cu->editnurb;

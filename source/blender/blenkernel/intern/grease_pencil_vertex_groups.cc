@@ -26,8 +26,8 @@ namespace blender::bke::greasepencil {
 void validate_drawing_vertex_groups(GreasePencil &grease_pencil)
 {
   Set<std::string> valid_names;
-  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &grease_pencil.vertex_group_names) {
-    valid_names.add_new(defgroup->name);
+  for (const bDeformGroup &defgroup : grease_pencil.vertex_group_names) {
+    valid_names.add_new(defgroup.name);
   }
 
   for (GreasePencilDrawingBase *base : grease_pencil.drawings()) {
@@ -39,12 +39,11 @@ void validate_drawing_vertex_groups(GreasePencil &grease_pencil)
     /* Remove unknown vertex groups. */
     CurvesGeometry &curves = drawing.strokes_for_write();
     int defgroup_index = 0;
-    LISTBASE_FOREACH_MUTABLE (bDeformGroup *, defgroup, &curves.vertex_group_names) {
-      if (!valid_names.contains(defgroup->name)) {
+    for (bDeformGroup &defgroup : curves.vertex_group_names.items_mutable()) {
+      if (!valid_names.contains(defgroup.name)) {
         remove_defgroup_index(curves.deform_verts_for_write(), defgroup_index);
 
-        BLI_remlink(&curves.vertex_group_names, defgroup);
-        MEM_SAFE_FREE(defgroup);
+        BLI_freelinkN(&curves.vertex_group_names, &defgroup);
       }
 
       ++defgroup_index;
@@ -52,7 +51,7 @@ void validate_drawing_vertex_groups(GreasePencil &grease_pencil)
   }
 }
 
-int ensure_vertex_group(const StringRef name, ListBase &vertex_group_names)
+int ensure_vertex_group(const StringRef name, ListBaseT<bDeformGroup> &vertex_group_names)
 {
   int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
   if (def_nr < 0) {
@@ -74,7 +73,7 @@ void assign_to_vertex_group_from_mask(bke::CurvesGeometry &curves,
     return;
   }
 
-  ListBase &vertex_group_names = curves.vertex_group_names;
+  ListBaseT<bDeformGroup> &vertex_group_names = curves.vertex_group_names;
   /* Look for existing group, otherwise lazy-initialize if any vertex is selected. */
   int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
 
@@ -99,7 +98,7 @@ void assign_to_vertex_group(Drawing &drawing, const StringRef name, const float 
 {
 
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
-  ListBase &vertex_group_names = curves.vertex_group_names;
+  ListBaseT<bDeformGroup> &vertex_group_names = curves.vertex_group_names;
 
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
@@ -133,7 +132,7 @@ bool remove_from_vertex_group(Drawing &drawing, const StringRef name, const bool
 {
   bool changed = false;
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
-  ListBase &vertex_group_names = curves.vertex_group_names;
+  ListBaseT<bDeformGroup> &vertex_group_names = curves.vertex_group_names;
 
   const int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
   if (def_nr < 0) {

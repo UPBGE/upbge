@@ -3740,7 +3740,7 @@ class VIEW3D_MT_sculpt(Menu):
 
         layout.separator()
 
-        layout.operator("sculpt.sample_color", text="Sample Color")
+        layout.operator("paint.sample_color", text="Sample Color")
 
         layout.separator()
 

@@ -253,7 +253,7 @@ void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
           KX_GameObject *gametarget = nullptr;
           KX_GameObject *gamesubtarget = nullptr;
           if (cti && cti->get_constraint_targets) {
-            ListBase listb = {nullptr, nullptr};
+            ListBaseT <bConstraintTarget> listb = {nullptr, nullptr};
             cti->get_constraint_targets(pcon, &listb);
             if (listb.first) {
               bConstraintTarget *target = (bConstraintTarget *)listb.first;

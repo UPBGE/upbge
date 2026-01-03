@@ -56,7 +56,7 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel);
 /**
  * Get the list of FModifiers from the context (either the NLA or graph editor).
  */
-static ListBase *fmodifier_list_space_specific(const bContext *C)
+static ListBaseT<FModifier> *fmodifier_list_space_specific(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
 
@@ -111,7 +111,7 @@ static void fmodifier_reorder(bContext *C, Panel *panel, int new_index)
     return;
   }
 
-  ListBase *modifiers = fmodifier_list_space_specific(C);
+  ListBaseT<FModifier> *modifiers = fmodifier_list_space_specific(C);
 
   /* Again, make sure we don't move a modifier before a cycles modifier. */
   FModifier *fcm_first = static_cast<FModifier *>(modifiers->first);
@@ -232,13 +232,13 @@ static PanelType *fmodifier_subpanel_register(ARegionType *region_type,
 /* Callback to remove the given modifier. */
 struct FModifierDeleteContext {
   ID *owner_id;
-  ListBase *modifiers;
+  ListBaseT<FModifier> *modifiers;
 };
 
 static void delete_fmodifier_cb(bContext *C, void *ctx_v, void *fcm_v)
 {
   FModifierDeleteContext *ctx = static_cast<FModifierDeleteContext *>(ctx_v);
-  ListBase *modifiers = ctx->modifiers;
+  ListBaseT<FModifier> *modifiers = ctx->modifiers;
   FModifier *fcm = static_cast<FModifier *>(fcm_v);
 
   /* remove the given F-Modifier from the active modifier-stack */
@@ -868,7 +868,7 @@ static void panel_register_stepped(ARegionType *region_type,
 
 void ANIM_fmodifier_panels(const bContext *C,
                            ID *owner_id,
-                           ListBase *fmodifiers,
+                           ListBaseT<FModifier> *fmodifiers,
                            uiListPanelIDFromDataFunc panel_id_fn)
 {
   ARegion *region = CTX_wm_region(C);
@@ -877,12 +877,12 @@ void ANIM_fmodifier_panels(const bContext *C,
 
   if (!panels_match) {
     blender::ui::panels_free_instanced(C, region);
-    LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
+    for (FModifier &fcm : *fmodifiers) {
       char panel_idname[MAX_NAME];
-      panel_id_fn(fcm, panel_idname);
+      panel_id_fn(&fcm, panel_idname);
 
       PointerRNA *fcm_ptr = MEM_new<PointerRNA>("panel customdata");
-      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, fcm);
+      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, &fcm);
 
       blender::ui::panel_add_instanced(C, region, &region->panels, panel_idname, fcm_ptr);
     }
@@ -890,7 +890,7 @@ void ANIM_fmodifier_panels(const bContext *C,
   else {
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = static_cast<Panel *>(region->panels.first);
-    LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
+    for (FModifier &fcm : *fmodifiers) {
 
       /* Move to the next instanced panel corresponding to the next modifier. */
       while ((panel->type == nullptr) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
@@ -900,7 +900,7 @@ void ANIM_fmodifier_panels(const bContext *C,
       }
 
       PointerRNA *fcm_ptr = MEM_new<PointerRNA>("panel customdata");
-      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, fcm);
+      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, &fcm);
       blender::ui::panel_custom_data_set(panel, fcm_ptr);
 
       panel = panel->next;
@@ -937,7 +937,7 @@ void ANIM_modifier_panels_register_graph_only(ARegionType *region_type,
  * \{ */
 
 /* Copy/Paste Buffer itself (list of FModifier 's) */
-static ListBase fmodifier_copypaste_buf = {nullptr, nullptr};
+static ListBaseT<FModifier> fmodifier_copypaste_buf = {nullptr, nullptr};
 
 /* ---------- */
 
@@ -947,7 +947,7 @@ void ANIM_fmodifiers_copybuf_free()
   free_fmodifiers(&fmodifier_copypaste_buf);
 }
 
-bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
+bool ANIM_fmodifiers_copy_to_buf(ListBaseT<FModifier> *modifiers, bool active)
 {
   bool ok = true;
 
@@ -976,7 +976,7 @@ bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
   return ok;
 }
 
-bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *curve)
+bool ANIM_fmodifiers_paste_from_buf(ListBaseT<FModifier> *modifiers, bool replace, FCurve *curve)
 {
   bool ok = false;
 
@@ -993,9 +993,9 @@ bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *c
   }
 
   /* now copy over all the modifiers in the buffer to the end of the list */
-  LISTBASE_FOREACH (FModifier *, fcm, &fmodifier_copypaste_buf) {
+  for (FModifier &fcm : fmodifier_copypaste_buf) {
     /* make a copy of it */
-    FModifier *fcmN = copy_fmodifier(fcm);
+    FModifier *fcmN = copy_fmodifier(&fcm);
 
     fcmN->curve = curve;
 

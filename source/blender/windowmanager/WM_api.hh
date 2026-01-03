@@ -52,6 +52,7 @@ struct WorkSpaceLayout;
 struct wmDrag;
 struct wmDropBox;
 struct wmEvent;
+struct wmEventHandler;
 struct wmEventHandler_Dropbox;
 struct wmEventHandler_Keymap;
 struct wmEventHandler_Op;
@@ -348,7 +349,7 @@ bool WM_window_support_hdr_color(const wmWindow *win);
  * This function ensures data is synced for editors
  * in visible work-spaces and their visible layouts.
  */
-void WM_windows_scene_data_sync(const ListBase *win_lb, Scene *scene) ATTR_NONNULL();
+void WM_windows_scene_data_sync(const ListBaseT<wmWindow> *win_lb, Scene *scene) ATTR_NONNULL();
 Scene *WM_windows_scene_get_from_screen(const wmWindowManager *wm, const bScreen *screen)
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 ViewLayer *WM_windows_view_layer_get_from_screen(const wmWindowManager *wm, const bScreen *screen)
@@ -623,8 +624,9 @@ using EventHandlerPoll = bool (*)(const wmWindow *win,
                                   const ScrArea *area,
                                   const ARegion *region,
                                   const wmEvent *event);
-wmEventHandler_Keymap *WM_event_add_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
-wmEventHandler_Keymap *WM_event_add_keymap_handler_poll(ListBase *handlers,
+wmEventHandler_Keymap *WM_event_add_keymap_handler(ListBaseT<wmEventHandler> *handlers,
+                                                   wmKeyMap *keymap);
+wmEventHandler_Keymap *WM_event_add_keymap_handler_poll(ListBaseT<wmEventHandler> *handlers,
                                                         wmKeyMap *keymap,
                                                         EventHandlerPoll poll);
 
@@ -658,11 +660,12 @@ bool WM_event_handler_region_v2d_mask_no_marker_poll(const wmWindow *win,
                                                      const ARegion *region,
                                                      const wmEvent *event);
 
-wmEventHandler_Keymap *WM_event_add_keymap_handler_v2d_mask(ListBase *handlers, wmKeyMap *keymap);
+wmEventHandler_Keymap *WM_event_add_keymap_handler_v2d_mask(ListBaseT<wmEventHandler> *handlers,
+                                                            wmKeyMap *keymap);
 /**
  * \note Priorities not implemented yet, for time being just insert in begin of list.
  */
-wmEventHandler_Keymap *WM_event_add_keymap_handler_priority(ListBase *handlers,
+wmEventHandler_Keymap *WM_event_add_keymap_handler_priority(ListBaseT<wmEventHandler> *handlers,
                                                             wmKeyMap *keymap,
                                                             int priority);
 
@@ -686,9 +689,11 @@ void WM_event_get_keymap_from_toolsystem(wmWindowManager *wm,
                                          wmEventHandler_KeymapResult *km_result);
 
 wmEventHandler_Keymap *WM_event_add_keymap_handler_dynamic(
-    ListBase *handlers, wmEventHandler_KeymapDynamicFn keymap_fn, void *user_data);
+    ListBaseT<wmEventHandler> *handlers,
+    wmEventHandler_KeymapDynamicFn keymap_fn,
+    void *user_data);
 
-void WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
+void WM_event_remove_keymap_handler(ListBaseT<wmEventHandler> *handlers, wmKeyMap *keymap);
 
 void WM_event_set_keymap_handler_post_callback(wmEventHandler_Keymap *handler,
                                                void(keymap_tag)(wmKeyMap *keymap,
@@ -702,8 +707,11 @@ void WM_event_get_keymaps_from_handler(wmWindowManager *wm,
 
 wmKeyMapItem *WM_event_match_keymap_item(bContext *C, wmKeyMap *keymap, const wmEvent *event);
 
-wmKeyMapItem *WM_event_match_keymap_item_from_handlers(
-    bContext *C, wmWindowManager *wm, wmWindow *win, ListBase *handlers, const wmEvent *event);
+wmKeyMapItem *WM_event_match_keymap_item_from_handlers(bContext *C,
+                                                       wmWindowManager *wm,
+                                                       wmWindow *win,
+                                                       ListBaseT<wmEventHandler> *handlers,
+                                                       const wmEvent *event);
 
 bool WM_event_match(const wmEvent *winevent, const wmKeyMapItem *kmi);
 
@@ -711,7 +719,7 @@ using wmUIHandlerFunc = int (*)(bContext *C, const wmEvent *event, void *userdat
 using wmUIHandlerRemoveFunc = void (*)(bContext *C, void *userdata);
 
 wmEventHandler_UI *WM_event_add_ui_handler(const bContext *C,
-                                           ListBase *handlers,
+                                           ListBaseT<wmEventHandler> *handlers,
                                            wmUIHandlerFunc handle_fn,
                                            wmUIHandlerRemoveFunc remove_fn,
                                            void *user_data,
@@ -726,14 +734,14 @@ wmOperator *WM_operator_find_modal_by_type(wmWindow *win, const wmOperatorType *
  * \param postpone: Enable for `win->modalhandlers`,
  * this is in a running for () loop in wm_handlers_do().
  */
-void WM_event_remove_ui_handler(ListBase *handlers,
+void WM_event_remove_ui_handler(ListBaseT<wmEventHandler> *handlers,
                                 wmUIHandlerFunc handle_fn,
                                 wmUIHandlerRemoveFunc remove_fn,
                                 void *user_data,
                                 bool postpone);
-void WM_event_remove_handlers_by_area(ListBase *handlers, const ScrArea *area);
+void WM_event_remove_handlers_by_area(ListBaseT<wmEventHandler> *handlers, const ScrArea *area);
 void WM_event_free_ui_handler_all(bContext *C,
-                                  ListBase *handlers,
+                                  ListBaseT<wmEventHandler> *handlers,
                                   wmUIHandlerFunc handle_fn,
                                   wmUIHandlerRemoveFunc remove_fn);
 
@@ -746,8 +754,9 @@ wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
                                                  ARegion *region,
                                                  wmOperator *op) ATTR_NONNULL(1, 2, 5);
 wmEventHandler_Op *WM_event_add_modal_handler(bContext *C, wmOperator *op) ATTR_NONNULL(1, 2);
-void WM_event_remove_modal_handler(ListBase *handlers, const wmOperator *op, bool postpone)
-    ATTR_NONNULL(1, 2);
+void WM_event_remove_modal_handler(ListBaseT<wmEventHandler> *handlers,
+                                   const wmOperator *op,
+                                   bool postpone) ATTR_NONNULL(1, 2);
 
 void WM_event_remove_modal_handler_all(const wmOperator *op, bool postpone) ATTR_NONNULL(1);
 
@@ -772,9 +781,10 @@ void WM_event_ui_handler_region_popup_replace(wmWindow *win,
 /**
  * Called on exit or remove area, only here call cancel callback.
  */
-void WM_event_remove_handlers(bContext *C, ListBase *handlers);
+void WM_event_remove_handlers(bContext *C, ListBaseT<wmEventHandler> *handlers);
 
-wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBase *handlers, ListBase *dropboxes);
+wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBaseT<wmEventHandler> *handlers,
+                                                     ListBaseT<wmDropBox> *dropboxes);
 
 /* Mouse. */
 void WM_event_add_mousemove(wmWindow *win);
@@ -1666,8 +1676,8 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
 void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
-void WM_drag_free_list(ListBase *lb);
-wmDropBox *WM_dropbox_add(ListBase *lb,
+void WM_drag_free_list(ListBaseT<wmDrag> *lb);
+wmDropBox *WM_dropbox_add(ListBaseT<wmDropBox> *lb,
                           const char *idname,
                           bool (*poll)(bContext *C, wmDrag *drag, const wmEvent *event),
                           void (*copy)(bContext *C, wmDrag *drag, wmDropBox *drop),
@@ -1683,7 +1693,7 @@ void WM_drag_draw_default_fn(bContext *C, wmWindow *win, wmDrag *drag, const int
 /**
  * `spaceid` / `regionid` are zero for window drop maps.
  */
-ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
+ListBaseT<wmDropBox> *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
 
 /* ID drag and drop. */
 
@@ -1739,7 +1749,7 @@ wmDragAssetCatalog *WM_drag_get_asset_catalog_data(const wmDrag *drag);
 void WM_drag_add_asset_list_item(wmDrag *drag,
                                  const blender::asset_system::AssetRepresentation *asset);
 
-const ListBase *WM_drag_asset_list_get(const wmDrag *drag);
+const ListBaseT<wmDragAssetListItem> *WM_drag_asset_list_get(const wmDrag *drag);
 
 const char *WM_drag_get_item_name(wmDrag *drag);
 
@@ -2260,7 +2270,7 @@ bool WM_xr_action_create(wmXrData *xr,
                          const char *action_set_name,
                          const char *action_name,
                          eXrActionType type,
-                         const ListBase *user_paths,
+                         const ListBaseT<XrUserPath> *user_paths,
                          wmOperatorType *ot,
                          IDProperty *op_properties,
                          const char *haptic_name,
@@ -2275,8 +2285,8 @@ bool WM_xr_action_binding_create(wmXrData *xr,
                                  const char *action_set_name,
                                  const char *action_name,
                                  const char *profile_path,
-                                 const ListBase *user_paths,
-                                 const ListBase *component_paths,
+                                 const ListBaseT<XrUserPath> *user_paths,
+                                 const ListBaseT<XrComponentPath> *component_paths,
                                  const float *float_thresholds,
                                  const eXrAxisFlag *axis_flags,
                                  const wmXrPose *poses);
@@ -2329,7 +2339,7 @@ bool WM_xr_actionmap_remove(wmXrRuntimeData *runtime, XrActionMap *actionmap);
 XrActionMap *WM_xr_actionmap_find(wmXrRuntimeData *runtime, const char *name);
 void WM_xr_actionmap_clear(XrActionMap *actionmap);
 void WM_xr_actionmaps_clear(wmXrRuntimeData *runtime);
-ListBase *WM_xr_actionmaps_get(wmXrRuntimeData *runtime);
+ListBaseT<XrActionMap> *WM_xr_actionmaps_get(wmXrRuntimeData *runtime);
 short WM_xr_actionmap_active_index_get(const wmXrRuntimeData *runtime);
 void WM_xr_actionmap_active_index_set(wmXrRuntimeData *runtime, short idx);
 short WM_xr_actionmap_selected_index_get(const wmXrRuntimeData *runtime);
