@@ -553,8 +553,10 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   if (object->lodlevels.first) {
-    LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels) {
+    LodLevel *level = (LodLevel *)object->lodlevels.first;
+    while (level) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, level->source, IDWALK_CB_NEVER_SELF);
+      level = level->next;
     }
   }
   /****************/

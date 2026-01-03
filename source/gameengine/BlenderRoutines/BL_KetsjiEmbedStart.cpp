@@ -91,15 +91,15 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
   wmWindow *win = (wmWindow *)wm->windows.first;
   bScreen *screen = WM_window_get_active_screen(win);
 
-  LISTBASE_FOREACH (ScrArea *, sa, &screen->areabase) {
-    if (sa->spacetype == SPACE_VIEW3D) {
-      ListBase *regionbase = &sa->regionbase;
-      LISTBASE_FOREACH (ARegion *, region, regionbase) {
-        if (region->regiontype == RGN_TYPE_WINDOW) {
-          if (region->regiondata) {
+  for (ScrArea &sa : screen->areabase) {
+    if (sa.spacetype == SPACE_VIEW3D) {
+      const ListBaseT<ARegion>&regionbase = sa.regionbase;
+      for (ARegion &region : regionbase) {
+        if (region.regiontype == RGN_TYPE_WINDOW) {
+          if (region.regiondata) {
             CTX_wm_screen_set(C, screen);
-            CTX_wm_area_set(C, sa);
-            CTX_wm_region_set(C, region);
+            CTX_wm_area_set(C, &sa);
+            CTX_wm_region_set(C, &region);
             CTX_data_scene_set(C, scene);
             win->scene = scene;
             return;
@@ -356,11 +356,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     wmWindowManager *wm = CTX_wm_manager(C);
     WM_jobs_kill_all(wm);
 
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      CTX_wm_window_set(C, win); /* needed by operator close callbacks */
-      WM_event_remove_handlers(C, &win->runtime->handlers);
-      WM_event_remove_handlers(C, &win->runtime->modalhandlers);
-      ED_screen_exit(C, win, WM_window_get_active_screen(win));
+    for (wmWindow &win : wm->windows) {
+      CTX_wm_window_set(C, &win); /* needed by operator close callbacks */
+      WM_event_remove_handlers(C, &win.runtime->handlers);
+      WM_event_remove_handlers(C, &win.runtime->modalhandlers);
+      ED_screen_exit(C, &win, WM_window_get_active_screen(&win));
     }
   } while (exitrequested == KX_ExitRequest::RESTART_GAME ||
            exitrequested == KX_ExitRequest::START_OTHER_GAME);

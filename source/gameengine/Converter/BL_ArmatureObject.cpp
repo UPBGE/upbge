@@ -304,7 +304,7 @@ void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
           KX_GameObject *gametarget = nullptr;
           KX_GameObject *gamesubtarget = nullptr;
           if (cti && cti->get_constraint_targets) {
-            ListBase listb = {nullptr, nullptr};
+            ListBaseT <bConstraintTarget> listb = {nullptr, nullptr};
             cti->get_constraint_targets(pcon, &listb);
             if (listb.first) {
               bConstraintTarget *target = (bConstraintTarget *)listb.first;
@@ -690,7 +690,7 @@ void BL_ArmatureObject::RemapParentChildren()
       if (!child_ob) {
         continue;
       }
-      LISTBASE_FOREACH (ModifierData *, md, &child_ob->modifiers) {
+      for (ModifierData *md = (ModifierData *)child_ob->modifiers.first; md; md = md->next) {
         if (md->type == eModifierType_Armature) {
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           if (amd && amd->object == m_previousArmature) {
@@ -712,7 +712,7 @@ void BL_ArmatureObject::GetGpuDeformedObj()
       if (is_bone_parented || child->GetBlenderObject()->type != OB_MESH) {
         continue;
       }
-      LISTBASE_FOREACH (ModifierData *, md, &child->GetBlenderObject()->modifiers) {
+      for (ModifierData *md = (ModifierData *)child->GetBlenderObject()->modifiers.first; md; md = md->next) {
         if (md->type == eModifierType_Armature) {
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           if (amd && amd->object == this->GetBlenderObject()) {

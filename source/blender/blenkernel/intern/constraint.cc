@@ -3829,7 +3829,7 @@ static void rbj_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdat
   func(con, (ID **)&data->child, false, userdata);
 }
 
-static int rbj_get_tars(bConstraint *con, ListBase *list)
+static int rbj_get_tars(bConstraint *con, ListBaseT<bConstraintTarget> *list)
 {
   if (con && list) {
     bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;
@@ -3844,7 +3844,7 @@ static int rbj_get_tars(bConstraint *con, ListBase *list)
   return 0;
 }
 
-static void rbj_flush_tars(bConstraint *con, ListBase *list, bool no_copy)
+static void rbj_flush_tars(bConstraint *con, ListBaseT<bConstraintTarget> *list, bool no_copy)
 {
   if (con && list) {
     bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;

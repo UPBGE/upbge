@@ -73,129 +73,129 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
 {
   /* UPBGE hack to force defaults in files saved in normal blender2.8 */
   if (!DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm")) {
-    LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
+    for (Scene &sce : bmain->scenes) {
       /* game data */
-      sce->gm.stereoflag = STEREO_NOSTEREO;
-      sce->gm.stereomode = STEREO_ANAGLYPH;
-      sce->gm.eyeseparation = 0.10;
-      sce->gm.xplay = 1280;
-      sce->gm.yplay = 720;
-      sce->gm.samples_per_frame = 1;
-      sce->gm.freqplay = 60;
-      sce->gm.depth = 32;
-      sce->gm.gravity = 9.8f;
-      sce->gm.physicsEngine = WOPHY_BULLET;
-      sce->gm.mode = WO_ACTIVITY_CULLING;
-      sce->gm.occlusionRes = 128;
-      sce->gm.ticrate = 60;
-      sce->gm.maxlogicstep = 5;
-      sce->gm.physubstep = 1;
-      sce->gm.maxphystep = 5;
-      sce->gm.lineardeactthreshold = 0.8f;
-      sce->gm.angulardeactthreshold = 1.0f;
-      sce->gm.deactivationtime = 2.0f;
+      sce.gm.stereoflag = STEREO_NOSTEREO;
+      sce.gm.stereomode = STEREO_ANAGLYPH;
+      sce.gm.eyeseparation = 0.10;
+      sce.gm.xplay = 1280;
+      sce.gm.yplay = 720;
+      sce.gm.samples_per_frame = 1;
+      sce.gm.freqplay = 60;
+      sce.gm.depth = 32;
+      sce.gm.gravity = 9.8f;
+      sce.gm.physicsEngine = WOPHY_BULLET;
+      sce.gm.mode = WO_ACTIVITY_CULLING;
+      sce.gm.occlusionRes = 128;
+      sce.gm.ticrate = 60;
+      sce.gm.maxlogicstep = 5;
+      sce.gm.physubstep = 1;
+      sce.gm.maxphystep = 5;
+      sce.gm.lineardeactthreshold = 0.8f;
+      sce.gm.angulardeactthreshold = 1.0f;
+      sce.gm.deactivationtime = 2.0f;
 
-      sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
-      sce->gm.levelHeight = 2.f;
+      sce.gm.obstacleSimulation = OBSTSIMULATION_NONE;
+      sce.gm.levelHeight = 2.f;
 
-      sce->gm.recastData.cellsize = 0.3f;
-      sce->gm.recastData.cellheight = 0.2f;
-      sce->gm.recastData.agentmaxslope = M_PI_4;
-      sce->gm.recastData.agentmaxclimb = 0.9f;
-      sce->gm.recastData.agentheight = 2.0f;
-      sce->gm.recastData.agentradius = 0.6f;
-      sce->gm.recastData.edgemaxlen = 12.0f;
-      sce->gm.recastData.edgemaxerror = 1.3f;
-      sce->gm.recastData.regionminsize = 8.f;
-      sce->gm.recastData.regionmergesize = 20.f;
-      sce->gm.recastData.vertsperpoly = 6;
-      sce->gm.recastData.detailsampledist = 6.0f;
-      sce->gm.recastData.detailsamplemaxerror = 1.0f;
-      sce->gm.recastData.partitioning = RC_PARTITION_WATERSHED;
+      sce.gm.recastData.cellsize = 0.3f;
+      sce.gm.recastData.cellheight = 0.2f;
+      sce.gm.recastData.agentmaxslope = M_PI_4;
+      sce.gm.recastData.agentmaxclimb = 0.9f;
+      sce.gm.recastData.agentheight = 2.0f;
+      sce.gm.recastData.agentradius = 0.6f;
+      sce.gm.recastData.edgemaxlen = 12.0f;
+      sce.gm.recastData.edgemaxerror = 1.3f;
+      sce.gm.recastData.regionminsize = 8.f;
+      sce.gm.recastData.regionmergesize = 20.f;
+      sce.gm.recastData.vertsperpoly = 6;
+      sce.gm.recastData.detailsampledist = 6.0f;
+      sce.gm.recastData.detailsamplemaxerror = 1.0f;
+      sce.gm.recastData.partitioning = RC_PARTITION_WATERSHED;
 
       /* Blender key code for ESC */
-      sce->gm.exitkey = 218;
+      sce.gm.exitkey = 218;
 
-      sce->gm.flag |= GAME_USE_UNDO;
+      sce.gm.flag |= GAME_USE_UNDO;
 
-      sce->gm.lodflag = SCE_LOD_USE_HYST;
-      sce->gm.scehysteresis = 10;
+      sce.gm.lodflag = SCE_LOD_USE_HYST;
+      sce.gm.scehysteresis = 10;
 
-      sce->gm.timeScale = 1.0f;
-      sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
-      sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
-      sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
-      sce->gm.pythonkeys[3] = EVT_TKEY;
+      sce.gm.timeScale = 1.0f;
+      sce.gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+      sce.gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+      sce.gm.pythonkeys[2] = EVT_LEFTALTKEY;
+      sce.gm.pythonkeys[3] = EVT_TKEY;
 
-      if (sce->master_collection) {
-        sce->master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
-        sce->master_collection->flag |= COLLECTION_IS_SPAWNED;
+      if (sce.master_collection) {
+        sce.master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+        sce.master_collection->flag |= COLLECTION_IS_SPAWNED;
       }
 
-      sce->gm.erp = 0.2f;
-      sce->gm.erp2 = 0.8f;
-      sce->gm.cfm = 0.0f;
+      sce.gm.erp = 0.2f;
+      sce.gm.erp2 = 0.8f;
+      sce.gm.cfm = 0.0f;
 
-      sce->gm.logLevel = GAME_LOG_LEVEL_WARNING;
+      sce.gm.logLevel = GAME_LOG_LEVEL_WARNING;
     }
 
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    for (Object &ob : bmain->objects) {
       /* UPBGE defaults*/
-      ob->mass = ob->inertia = 1.0f;
-      ob->formfactor = 0.4f;
-      ob->damping = 0.04f;
-      ob->rdamping = 0.1f;
-      ob->anisotropicFriction[0] = 1.0f;
-      ob->anisotropicFriction[1] = 1.0f;
-      ob->anisotropicFriction[2] = 1.0f;
-      ob->gameflag = OB_PROP | OB_COLLISION;
-      ob->gameflag2 = 0;
-      ob->margin = 0.04f;
-      ob->friction = 0.5f;
-      ob->init_state = 1;
-      ob->state = 1;
-      ob->obstacleRad = 1.0f;
-      ob->step_height = 0.15f;
-      ob->jump_speed = 10.0f;
-      ob->fall_speed = 55.0f;
-      ob->max_jumps = 1;
-      ob->max_slope = M_PI_2;
-      ob->col_group = 0x01;
-      ob->col_mask = 0xffff;
+      ob.mass = ob.inertia = 1.0f;
+      ob.formfactor = 0.4f;
+      ob.damping = 0.04f;
+      ob.rdamping = 0.1f;
+      ob.anisotropicFriction[0] = 1.0f;
+      ob.anisotropicFriction[1] = 1.0f;
+      ob.anisotropicFriction[2] = 1.0f;
+      ob.gameflag = OB_PROP | OB_COLLISION;
+      ob.gameflag2 = 0;
+      ob.margin = 0.04f;
+      ob.friction = 0.5f;
+      ob.init_state = 1;
+      ob.state = 1;
+      ob.obstacleRad = 1.0f;
+      ob.step_height = 0.15f;
+      ob.jump_speed = 10.0f;
+      ob.fall_speed = 55.0f;
+      ob.max_jumps = 1;
+      ob.max_slope = M_PI_2;
+      ob.col_group = 0x01;
+      ob.col_mask = 0xffff;
 
-      ob->ccd_motion_threshold = 1.0f;
-      ob->ccd_swept_sphere_radius = 0.9f;
+      ob.ccd_motion_threshold = 1.0f;
+      ob.ccd_swept_sphere_radius = 0.9f;
 
-      ob->lodfactor = 1.0f;
+      ob.lodfactor = 1.0f;
     }
-    LISTBASE_FOREACH (Camera *, cam, &bmain->cameras) {
-      cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
-      cam->lodfactor = 1.0f;
+    for (Camera &cam : bmain->cameras) {
+      cam.gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+      cam.lodfactor = 1.0f;
     }
     /*LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       light->mode |= LA_SOFT_SHADOWS;
     }*/
-    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-      collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
-      collection->flag |= COLLECTION_IS_SPAWNED;
+    for (Collection &collection : bmain->collections) {
+      collection.flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+      collection.flag |= COLLECTION_IS_SPAWNED;
     }
   }
   if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm") &&
       !DNA_struct_member_exists(fd->filesdna, "Object", "float", "friction"))
   {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (ob->type == OB_MESH) {
-        Mesh *me = (Mesh *)blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), ob->data);
+    for (Object &ob : bmain->objects) {
+      if (ob.type == OB_MESH) {
+        Mesh *me = (Mesh *)blo_do_versions_newlibadr(fd, &ob.id, ID_IS_LINKED(&ob), ob.data);
         for (int i = 0; i < me->totcol; ++i) {
           Material *ma = (Material *)blo_do_versions_newlibadr(
               fd, &me->id, ID_IS_LINKED(me), me->mat[i]);
           if (ma) {
-            ob->friction = ma->friction;
-            ob->rolling_friction = 0.0f;
-            ob->fh = ma->fh;
-            ob->reflect = ma->reflect;
-            ob->fhdist = ma->fhdist;
-            ob->xyfrict = ma->xyfrict;
+            ob.friction = ma->friction;
+            ob.rolling_friction = 0.0f;
+            ob.fh = ma->fh;
+            ob.reflect = ma->reflect;
+            ob.fhdist = ma->fhdist;
+            ob.xyfrict = ma->xyfrict;
             break;
           }
         }
@@ -210,8 +210,8 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "bRaySensor", "int", "mask")) {
       bRaySensor *raySensor;
 
-      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-        LISTBASE_FOREACH (bSensor *, sensor, &ob->sensors) {
+      for (Object &ob : bmain->objects) {
+        for (bSensor *sensor = (bSensor *)ob.sensors.first; sensor; sensor = sensor->next) {
           if (sensor->type == SENS_RAY) {
             raySensor = (bRaySensor *)sensor->data;
             /* All one, because this was the previous behavior */
@@ -289,8 +289,8 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
         }
 #endif
     if (!DNA_struct_member_exists(fd->filesdna, "bMouseSensor", "int", "mask")) {
-      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-        LISTBASE_FOREACH (bSensor *, sensor, &ob->sensors) {
+      for (Object &ob : bmain->objects) {
+        for (bSensor *sensor = (bSensor *)ob.sensors.first; sensor; sensor = sensor->next) {
           if (sensor->type == SENS_MOUSE) {
             bMouseSensor *mouseSensor = (bMouseSensor *)sensor->data;
             /* All one, because this was the previous behavior */
@@ -304,62 +304,62 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 3, 0)) {
     /* In this case we check against GameData to maintain previous behaviour */
     if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm")) {
-      LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
-        sce->gm.flag |= GAME_USE_UNDO;
+      for (Scene &sce : bmain->scenes) {
+        sce.gm.flag |= GAME_USE_UNDO;
       }
     }
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 0)) {
     if (!DNA_struct_member_exists(fd->filesdna, "GameData", "float", "timeScale")) {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->gm.timeScale = 1.0f;
+      for (Scene &scene : bmain->scenes) {
+        scene.gm.timeScale = 1.0f;
       }
     }
     if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
-        scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
-        scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
-        scene->gm.pythonkeys[3] = EVT_TKEY;
+      for (Scene &scene : bmain->scenes) {
+        scene.gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+        scene.gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+        scene.gm.pythonkeys[2] = EVT_LEFTALTKEY;
+        scene.gm.pythonkeys[3] = EVT_TKEY;
       }
     }
     if (!DNA_struct_member_exists(fd->filesdna, "BulletSoftBody", "int", "bending_dist")) {
-      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-        if (ob->bsoft) {
-          ob->bsoft->margin = 0.1f;
-          ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
-          ob->bsoft->bending_dist = 2;
+      for (Object &ob : bmain->objects) {
+        if (ob.bsoft) {
+          ob.bsoft->margin = 0.1f;
+          ob.bsoft->collisionflags |= OB_BSB_COL_CL_RS;
+          ob.bsoft->bending_dist = 2;
         }
       }
     }
 
-    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-      collection->flag |= COLLECTION_IS_SPAWNED;
+    for (Collection &collection : bmain->collections) {
+      collection.flag |= COLLECTION_IS_SPAWNED;
     }
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    for (Scene &scene : bmain->scenes) {
       /* Old files do not have a master collection, but it will be created by
        * `BKE_collection_master_add()`. */
-      if (scene->master_collection) {
-        scene->master_collection->flag |= COLLECTION_IS_SPAWNED;
+      if (scene.master_collection) {
+        scene.master_collection->flag |= COLLECTION_IS_SPAWNED;
       }
     }
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 1)) {
     if (!DNA_struct_member_exists(fd->filesdna, "Object", "float", "ccd_motion_threshold")) {
-      LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-        ob->ccd_motion_threshold = 1.0f;
-        ob->ccd_swept_sphere_radius = 0.9f;
+      for (Object &ob : bmain->objects) {
+        ob.ccd_motion_threshold = 1.0f;
+        ob.ccd_swept_sphere_radius = 0.9f;
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 2)) {
     if (!DNA_struct_member_exists(fd->filesdna, "GameData", "float", "erp")) {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->gm.erp = 0.2f;
-        scene->gm.erp2 = 0.8f;
-        scene->gm.cfm = 0.0f;
+      for (Scene &scene : bmain->scenes) {
+        scene.gm.erp = 0.2f;
+        scene.gm.erp2 = 0.8f;
+        scene.gm.cfm = 0.0f;
       }
     }
   }
@@ -372,73 +372,73 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 4)) {
     if (!DNA_struct_member_exists(fd->filesdna, "Object", "float", "lodfactor")) {
-      LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-        object->lodfactor = 1.0f;
+      for (Object &ob : bmain->objects) {
+        ob.lodfactor = 1.0f;
       }
     }
     if (!DNA_struct_member_exists(fd->filesdna, "Camera", "float", "lodfactor")) {
-      LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
-        camera->lodfactor = 1.0f;
+      for (Camera &camera : bmain->cameras) {
+        camera.lodfactor = 1.0f;
       }
     }
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 7)) {
-    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-      collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
-      collection->flag |= COLLECTION_IS_SPAWNED;
+    for (Collection &collection : bmain->collections) {
+      collection.flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+      collection.flag |= COLLECTION_IS_SPAWNED;
     }
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    for (Scene &scene : bmain->scenes) {
       /* Old files do not have a master collection, but it will be created by
        * `BKE_collection_master_add()`. */
-      if (scene->master_collection) {
-        scene->master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
-        scene->master_collection->flag |= COLLECTION_IS_SPAWNED;
+      if (scene.master_collection) {
+        scene.master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+        scene.master_collection->flag |= COLLECTION_IS_SPAWNED;
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 8)) {
     if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "samples_per_frame")) {
-      LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
-        sce->gm.samples_per_frame = 1;
+      for (Scene &scene : bmain->scenes) {
+        scene.gm.samples_per_frame = 1;
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 9)) {
     if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "logLevel")) {
-      LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
-        sce->gm.logLevel = GAME_LOG_LEVEL_WARNING;
+      for (Scene &scene : bmain->scenes) {
+        scene.gm.logLevel = GAME_LOG_LEVEL_WARNING;
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 11)) {
-    LISTBASE_FOREACH (Camera *, cam, &bmain->cameras) {
+    for (Camera &cam : bmain->cameras) {
       /* Game overlay mouse control moved from flag to gameflag */
-      if (cam->flag & (1 << 11)) {
-        cam->gameflag |= GAME_CAM_OVERLAY_MOUSE_CONTROL;
-        cam->flag &= ~(1 << 11);
+      if (cam.flag & (1 << 11)) {
+        cam.gameflag |= GAME_CAM_OVERLAY_MOUSE_CONTROL;
+        cam.flag &= ~(1 << 11);
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 45, 1)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    for (Object &ob : bmain->objects) {
       /* OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY moved from 1 << 14 to 1 << 31 */
-      if (ob->transflag & (1 << 14)) {
-        ob->transflag |= (1 << 31);
-        ob->transflag &= ~(1 << 14);
+      if (ob.transflag & (1 << 14)) {
+        ob.transflag |= (1 << 31);
+        ob.transflag &= ~(1 << 14);
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 1)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (ob->body_type == OB_BOUND_EMPTY) {
-        ob->body_type = OB_BOUND_BOX;
+    for (Object &ob : bmain->objects) {
+      if (ob.body_type == OB_BOUND_EMPTY) {
+        ob.body_type = OB_BOUND_BOX;
       }
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 2)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+    for (Object &ob : bmain->objects) {
+      for (ModifierData *md = (ModifierData *)ob.modifiers.first; md; md = md->next) {
         if (md->type == eModifierType_Armature) {
           ArmatureModifierData *amd = (ArmatureModifierData *)md;
           amd->upbge_deformflag |= ARM_DEF_CPU;
@@ -447,8 +447,8 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     }
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 4)) {
-    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-      BKE_mesh_legacy_recast_to_generic(mesh);
+    for (Mesh &mesh : bmain->meshes) {
+      BKE_mesh_legacy_recast_to_generic(&mesh);
     }
   }
 }

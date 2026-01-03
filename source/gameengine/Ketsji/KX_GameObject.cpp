@@ -418,7 +418,7 @@ void KX_GameObject::ReplicateBlenderObject()
     m_pBlenderObject = newob;
     m_isReplica = true;
 
-    LISTBASE_FOREACH (ModifierData *, md, &newob->modifiers) {
+    for (ModifierData *md = (ModifierData *)newob->modifiers.first; md; md = md->next) {
       if (md->type == eModifierType_Armature) {
         ArmatureModifierData *amd = (ArmatureModifierData *)md;
         if (amd && amd->upbge_deformflag & ARM_DEF_GPU) {

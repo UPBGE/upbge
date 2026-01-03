@@ -520,13 +520,13 @@ static void do_version_mdef_250(Main *main)
 static void do_version_constraints_radians_degrees_250(ListBaseT<bConstraint> *lb)
 {
   for (bConstraint &con : *lb) {
-    f (con.type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
+    if (con.type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
       bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con.data;
       data->axX *= (float)(M_PI / 180.0);
       data->axY *= (float)(M_PI / 180.0);
       data->axZ *= (float)(M_PI / 180.0);
     }
-    else (con.type == CONSTRAINT_TYPE_KINEMATIC) {
+    else if (con.type == CONSTRAINT_TYPE_KINEMATIC) {
       bKinematicConstraint *data = static_cast<bKinematicConstraint *>(con.data);
       data->poleangle *= float(M_PI / 180.0);
     }
@@ -682,12 +682,12 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      LISTBASE_FOREACH (bActuator *, act, &ob->actuators) {
+    for (Object &ob : bmain->objects) {
+      for (bActuator *act = (bActuator *)ob.actuators.first; act; act = act->next) {
         if (act->type == ACT_SOUND) {
           bSoundActuator *sAct = (bSoundActuator *)act->data;
           if (sAct->sound) {
-            bSound *sound = (bSound *)blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), sAct->sound);
+            bSound *sound = (bSound *)blo_do_versions_newlibadr(fd, &ob.id, ID_IS_LINKED(&ob), sAct->sound);
             sAct->flag = (sound->flags & SOUND_FLAGS_3D) ? ACT_SND_3D_SOUND : 0;
             sAct->pitch = sound->pitch;
             sAct->volume = sound->volume;

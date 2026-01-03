@@ -2234,7 +2234,7 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
 
     const float substep = timestep / rbw->substeps_per_frame;
 
-    ListBase kinematic_substep_targets = rigidbody_create_substep_data(rbw);
+    ListBaseT<LinkData> kinematic_substep_targets = rigidbody_create_substep_data(rbw);
 
     const float interp_step = 1.0f / rbw->substeps_per_frame;
     float cur_interp_val = interp_step;

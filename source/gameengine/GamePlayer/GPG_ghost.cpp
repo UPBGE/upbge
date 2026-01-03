@@ -707,10 +707,10 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
   wmWindow *win = (wmWindow *)wm->windows.first;
   bScreen *screen = WM_window_get_active_screen(win);
 
-  LISTBASE_FOREACH (ScrArea *, sa, &screen->areabase) {
+  for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
     if (sa->spacetype == SPACE_VIEW3D) {
       ListBase *regionbase = &sa->regionbase;
-      LISTBASE_FOREACH (ARegion *, region, regionbase) {
+      for (ARegion *region = (ARegion *)regionbase->first; region; region = region->next) {
         if (region->regiontype == RGN_TYPE_WINDOW) {
           if (region->regiondata) {
             CTX_wm_screen_set(C, screen);
@@ -1692,7 +1692,7 @@ int main(int argc,
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
             /* Get rid of windows which are not the 3D view windows */
-            LISTBASE_FOREACH (wmWindow *, win_in_list, &wm->windows) {
+            for (wmWindow *win_in_list = (wmWindow *)wm->windows.first; win_in_list; win_in_list = win_in_list->next) {
               if (win_in_list == win) {
                 continue;
               }
@@ -1751,7 +1751,7 @@ int main(int argc,
               area_iter->full = screen;
               /* tag all areas for full redraw at least 1 time to prevent bugs during wm_draw_update */
               ED_area_tag_redraw(area_iter);
-              LISTBASE_FOREACH (ARegion *, region, &area_iter->regionbase) {
+              for (ARegion *region = (ARegion *)area_iter->regionbase.first; region; region = region->next) {
                 region->runtime->visible = 0;
               }
             }
@@ -1806,7 +1806,7 @@ int main(int argc,
           wmWindowManager *wm = CTX_wm_manager(C);
           WM_jobs_kill_all(wm);
 
-          LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+          for (wmWindow *win = (wmWindow *)wm->windows.first; win; win = win->next) {
             CTX_wm_window_set(C, win); /* needed by operator close callbacks */
             WM_event_remove_handlers(C, &win->runtime->handlers);
             WM_event_remove_handlers(C, &win->runtime->modalhandlers);

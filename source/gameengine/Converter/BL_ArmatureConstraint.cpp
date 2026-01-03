@@ -151,7 +151,7 @@ void BL_ArmatureConstraint::CopyBlenderTargets()
 
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(m_constraint);
   if (cti && cti->get_constraint_targets) {
-    ListBase listb = {nullptr, nullptr};
+    ListBaseT<bConstraintTarget> listb = {nullptr, nullptr};
     cti->get_constraint_targets(m_constraint, &listb);
     if (listb.first) {
       bConstraintTarget *target = (bConstraintTarget *)listb.first;
@@ -187,15 +187,13 @@ void BL_ArmatureConstraint::ReParent(BL_ArmatureObject *armature)
 
   // find the corresponding constraint in the new armature object
   // and locate the constraint
-  for (bPoseChannel *pchan = (bPoseChannel *)newpose->chanbase.first; pchan;
-       pchan = (bPoseChannel *)pchan->next) {
-    if (posechannelname == pchan->name) {
+  for (bPoseChannel &pchan : newpose->chanbase) {
+    if (posechannelname == pchan.name) {
       // now locate the constraint
-      for (bConstraint *pcon = (bConstraint *)pchan->constraints.first; pcon;
-           pcon = (bConstraint *)pcon->next) {
-        if (constraintname == pcon->name) {
-          m_constraint = pcon;
-          m_posechannel = pchan;
+      for (bConstraint &pcon : pchan.constraints) {
+        if (constraintname == pcon.name) {
+          m_constraint = &pcon;
+          m_posechannel = &pchan;
           break;
         }
       }

@@ -572,7 +572,7 @@ bool BL_Action::TryUpdateModifierActions(Object *ob,
                                          KX_Scene *scene,
                                          const AnimationEvalContext &animEvalContext)
 {
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
     bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
     // TODO: We need to find the good notifier per action
     if (isRightAction) {
@@ -594,7 +594,7 @@ bool BL_Action::TryUpdateConstraintActions(Object *ob,
                                            KX_Scene *scene,
                                            const AnimationEvalContext &animEvalContext)
 {
-  LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
+  for (bConstraint *con = (bConstraint *)ob->constraints.first; con; con = con->next) {
     if (ActionMatchesName(m_action, con->name, ACT_TYPE_CONSTRAINT)) {
       if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
         return false;
@@ -624,7 +624,7 @@ bool BL_Action::TryUpdateIDPropertyActions(Object *ob,
     return false;
   }
 
-  LISTBASE_FOREACH (IDProperty *, prop, &ob->id.properties->data.group) {
+  for (IDProperty *prop = (IDProperty *)ob->id.properties->data.group.first; prop; prop = prop->next) {
     if (prop->type == IDP_GROUP) {
       continue;
     }
@@ -667,9 +667,9 @@ bool BL_Action::IsNodeTreeActionMatch(bNodeTree *nodetree)
   bool isRightAction = false;
   isRightAction = (nodetree->adt && nodetree->adt->action == m_action);
   if (!isRightAction && nodetree->adt && nodetree->adt->nla_tracks.first) {
-    LISTBASE_FOREACH (NlaTrack *, track, &nodetree->adt->nla_tracks) {
-      LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-        if (strip->act == m_action) {
+    for (NlaTrack &track : nodetree->adt->nla_tracks) {
+      for (NlaStrip &strip : track.strips) {
+        if (strip.act == m_action) {
           isRightAction = true;
           break;
         }
@@ -690,9 +690,9 @@ bool BL_Action::TryUpdateShapeKeyActions(Object *ob,
     bool play_normal_key_action = has_animdata && me->key->adt->action == m_action;
     bool play_nla_key_action = false;
     if (!play_normal_key_action && has_animdata) {
-      LISTBASE_FOREACH (NlaTrack *, track, &me->key->adt->nla_tracks) {
-        LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-          if (strip->act == m_action) {
+      for (NlaTrack &track : me->key->adt->nla_tracks) {
+        for (NlaStrip &strip : track.strips) {
+          if (strip.act == m_action) {
             play_nla_key_action = true;
             break;
           }
@@ -718,9 +718,9 @@ bool BL_Action::TryUpdateShapeKeyActions(Object *ob,
 
 bool BL_Action::IsNLAShapeKeyActionMatch(Key *key)
 {
-  LISTBASE_FOREACH (NlaTrack *, track, &key->adt->nla_tracks) {
-    LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-      if (strip->act == m_action) {
+  for (NlaTrack &track : key->adt->nla_tracks) {
+    for (NlaStrip &strip : track.strips) {
+      if (strip.act == m_action) {
         return true;
       }
     }
