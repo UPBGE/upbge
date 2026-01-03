@@ -770,10 +770,16 @@ float safe_acos_approx(float x)
   return (x < 0.0) ? (3.14159265359 - a) : a;  /* ✅ CORRECTED: pi - a for x < 0 */
 }
 
-/* Safe normalize: returns vec3(1,0,0) if input is zero (matches Blender's safe_normalize_and_get_length) */
+/* Safe normalize: returns vec3(1,0,0) if input is zero (matches Blender's safe_normalize_and_get_length)
+ * Uses length_squared to avoid double sqrt() and match CPU threshold semantics exactly */
 vec3 safe_normalize(vec3 v) {
-  float len = length(v);
-  return (len > 1e-35) ? (v / len) : vec3(1.0, 0.0, 0.0);
+  float length_squared = dot(v, v);
+  const float threshold = 1e-35;
+  if (length_squared > threshold) {
+    float len = sqrt(length_squared);
+    return v / len;
+  }
+  return vec3(1.0, 0.0, 0.0);
 }
 
 /* GPU port of face_normal_object from mesh_normals.cc */
