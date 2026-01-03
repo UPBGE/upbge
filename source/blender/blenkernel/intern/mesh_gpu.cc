@@ -30,6 +30,7 @@
 #include "WM_api.hh"
 
 #include "../draw/intern/draw_cache_extract.hh"
+#include "gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
 
 using blender::bke::MeshGPUCacheManager;
 using blender::bke::MeshGpuData;
@@ -288,119 +289,6 @@ void BKE_mesh_gpu_topology_free(blender::bke::MeshGPUTopology &topology)
 }
 
 static const char *scatter_to_corners_main_glsl = R"GLSL(
-// 10_10_10_2 packing utility
-int pack_i10_trunc(float x) {
-  const int signed_int_10_max = 511;
-  const int signed_int_10_min = -512;
-  float s = x * float(signed_int_10_max);
-  int q = int(s);
-  q = clamp(q, signed_int_10_min, signed_int_10_max);
-  return q & 0x3FF;
-}
-
-uint pack_norm(vec3 n) {
-  int nx = pack_i10_trunc(n.x);
-  int ny = pack_i10_trunc(n.y);
-  int nz = pack_i10_trunc(n.z);
-  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
-}
-
-int pack_i16_trunc(float x) {
-  return clamp(int(round(x * 32767.0)), -32768, 32767);
-}
-uint pack_i16_pair(float a, float b) {
-  return (uint(pack_i16_trunc(a)) & 0xFFFFu) | ((uint(pack_i16_trunc(b)) & 0xFFFFu) << 16);
-}
-
-/* Safe normalize: returns vec3(1,0,0) if input is zero (matches Blender's safe_normalize_and_get_length)
- * Uses length_squared to avoid double sqrt() and match CPU threshold semantics exactly */
-vec3 safe_normalize(vec3 v) {
-  float length_squared = dot(v, v);
-  const float threshold = 1e-35;
-  if (length_squared > threshold) {
-    float len = sqrt(length_squared);
-    return v / len;
-  }
-  return vec3(1.0, 0.0, 0.0);
-}
-
-vec3 newell_face_normal_object(int f) {
-  int beg = face_offsets(f);
-  int end = face_offsets(f + 1);
-  vec3 n = vec3(0.0);
-  int v_prev_idx = corner_verts(end - 1);
-  vec3 v_prev = positions_in[v_prev_idx].xyz;
-  for (int i = beg; i < end; ++i) {
-    int v_curr_idx = corner_verts(i);
-    vec3 v_curr = positions_in[v_curr_idx].xyz;
-    n += cross(v_prev, v_curr);
-    v_prev = v_curr;
-  }
-  return safe_normalize(n);  /* Already returns vec3(1,0,0) for zero vectors */
-}
-
-/* Helper: Find the two adjacent vertices in a face for a given vertex.
- * Returns int2(prev_vert, next_vert) indices.
- * Matches CPU face_find_adjacent_verts() from mesh_normals.cc
- * Optimized for common polygon sizes (tri/quad). */
-int2 face_find_adjacent_verts(int f, int v) {
-  int beg = face_offsets(f);
-  int end = face_offsets(f + 1);
-  int count = end - beg;
-  
-  /* Fast path for triangles (no search needed) */
-  if (count == 3) {
-    int v0 = corner_verts(beg);
-    int v1 = corner_verts(beg + 1);
-    int v2 = corner_verts(beg + 2);
-    if (v == v0) return int2(v2, v1);
-    if (v == v1) return int2(v0, v2);
-    return int2(v1, v0);  /* v == v2 */
-  }
-  
-  /* Fast path for quads (common case) */
-  if (count == 4) {
-    int v0 = corner_verts(beg);
-    int v1 = corner_verts(beg + 1);
-    int v2 = corner_verts(beg + 2);
-    int v3 = corner_verts(beg + 3);
-    if (v == v0) return int2(v3, v1);
-    if (v == v1) return int2(v0, v2);
-    if (v == v2) return int2(v1, v3);
-    return int2(v2, v0);  /* v == v3 */
-  }
-  
-  /* General case: linear search for ngons */
-  int pos = -1;
-  for (int i = beg; i < end; ++i) {
-    if (corner_verts(i) == v) {
-      pos = i;
-      break;
-    }
-  }
-  
-  if (pos == -1) {
-    /* Vertex not found in face (should not happen) - return dummy */
-    return int2(v, v);
-  }
-  
-  /* Get previous and next corners (wrap around) */
-  int prev_corner = (pos == beg) ? (end - 1) : (pos - 1);
-  int next_corner = (pos == end - 1) ? beg : (pos + 1);
-  
-  return int2(corner_verts(prev_corner), corner_verts(next_corner));
-}
-
-/* GPU port of safe_acos_approx from BLI_math_base.hh */
-float safe_acos_approx(float x)
-{
-  const float f = abs(x);
-  const float m = (f < 1.0) ? 1.0 - (1.0 - f) : 1.0;
-  const float a = sqrt(1.0 - m) *
-                  (1.5707963267 + m * (-0.213300989 + m * (0.077980478 + m * -0.02164095)));
-  return (x < 0.0) ? (3.14159265359 - a) : a;
-}
-
 void main() {
   uint c = gl_GlobalInvocationID.x;
   if (c >= positions_out.length()) {
@@ -417,54 +305,10 @@ void main() {
   vec3 n_mesh;
   if (normals_domain == 1) { // Face
     int f = corner_to_face(int(c));
-    n_mesh = newell_face_normal_object(f);
+    n_mesh = face_normal_object(f);
   }
   else { // Point (smooth) - angle-weighted like CPU
-    int beg = vert_to_face_offsets(v);
-    int end = vert_to_face_offsets(v + 1);
-    int face_count = end - beg;
-    
-    /* Early-out: single face vertex uses face normal directly */
-    if (face_count == 1) {
-      int f = vert_to_face(beg);
-      n_mesh = newell_face_normal_object(f);
-    }
-    else if (face_count == 0) {
-      /* Isolated vertex: use intput positions like in cpu */
-      n_mesh = safe_normalize(positions_in[v].xyz);
-    }
-    else {
-      vec3 n_accum = vec3(0.0);
-      
-      /* Angle-weighted normal accumulation (matches CPU mesh_normals.cc) */
-      for (int i = beg; i < end; ++i) {
-        int f = vert_to_face(i);
-        vec3 face_normal = newell_face_normal_object(f);
-        
-        /* Find adjacent vertices in this face */
-        int2 adj = face_find_adjacent_verts(f, v);
-        
-        /* Compute angle at vertex (same as CPU) */
-        vec3 v_pos = positions_in[v].xyz;
-        
-        /* Use safe_normalize for edge directions (protects against degenerate edges) */
-        vec3 dir_prev = safe_normalize(positions_in[adj.x].xyz - v_pos);
-        vec3 dir_next = safe_normalize(positions_in[adj.y].xyz - v_pos);
-        
-        /* Compute angle factor */
-        float angle = safe_acos_approx(dot(dir_prev, dir_next));
-        
-        /* Skip degenerate angles (NaN or near-zero) */
-        if (isnan(angle) || angle < 1e-10) {
-          continue;
-        }
-        
-        /* Weight face normal by angle */
-        n_accum += face_normal * angle;
-      }
-      
-      n_mesh = n_accum;
-    }
+    n_mesh = compute_vertex_normal_smooth(v);
   }
 
   // Normal already in mesh space (no transformation needed)
@@ -487,6 +331,15 @@ void main() {
   }
 }
 )GLSL";
+
+/* Helper: Build complete scatter shader source with common normal lib */
+static std::string get_scatter_shader_source()
+{
+  using namespace blender::gpu;
+  /* Define position buffer macro before including normal lib */
+  return "#define POSITION_BUFFER positions_in\n" + get_common_normal_lib_glsl() +
+         scatter_to_corners_main_glsl;
+}
 
 std::string BKE_mesh_gpu_topology_glsl_accessors_string(
     const blender::bke::MeshGPUTopology &topology)
@@ -666,6 +519,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
   /* Only special-case the scatter shader. If called via scatter_to_corners, ensure we have
    * `positions_in` and `transform_mat` SSBOs available and declared. */
+  const std::string scatter_shader_src = get_scatter_shader_source();
   if (main_glsl && (main_glsl == scatter_to_corners_main_glsl)) {
     const bool has_positions_in = has_bind_name("positions_in", local_bindings);
     const bool has_transform_mat = has_bind_name("transform_mat", local_bindings);
@@ -795,7 +649,10 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
-  const std::string shader_source = glsl_accessors + main_glsl;
+  /* Use concatenated shader source for scatter shader, otherwise use main_glsl as-is */
+  const std::string shader_source = (main_glsl == scatter_to_corners_main_glsl)
+                                         ? glsl_accessors + scatter_shader_src
+                                         : glsl_accessors + main_glsl;
   /* Build shader identifier */
   Scene *scene = DEG_get_input_scene(depsgraph);
   int normals_domain_val = (mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face) ?
