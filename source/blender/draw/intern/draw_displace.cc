@@ -794,11 +794,12 @@ vec3 face_normal_object(int f) {
     vec3 b = input_positions[corner_verts(beg + 1)].xyz;
     vec3 c = input_positions[corner_verts(beg + 2)].xyz;
     vec3 n = cross(b - a, c - a);
-    float len = length(n);
-    if (len <= 1e-20) {
+    float len_sq = dot(n, n);
+    const float threshold = 1e-35;
+    if (len_sq <= threshold) {
       return vec3(1.0, 0.0, 0.0);  /* Match safe_normalize fallback */
     }
-    return n / len;
+    return n / sqrt(len_sq);
   }
   else if (count == 4) {
     vec3 v1 = input_positions[corner_verts(beg + 0)].xyz;
@@ -809,11 +810,12 @@ vec3 face_normal_object(int f) {
     vec3 d1 = v1 - v3;
     vec3 d2 = v2 - v4;
     vec3 n = cross(d1, d2);
-    float len = length(n);
-    if (len <= 1e-20) {
+    float len_sq = dot(n, n);
+    const float threshold = 1e-35;
+    if (len_sq <= threshold) {
       return vec3(1.0, 0.0, 0.0);  /* Match safe_normalize fallback */
     }
-    return n / len;
+    return n / sqrt(len_sq);
   }
 
   /* Fallback: Newell's method for ngons */
@@ -826,11 +828,12 @@ vec3 face_normal_object(int f) {
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }
-  float len = length(n);
-  if (len <= 1e-20) {
+  float len_sq = dot(n, n);
+  const float threshold = 1e-35;
+  if (len_sq <= threshold) {
     return vec3(1.0, 0.0, 0.0);  /* Match safe_normalize fallback */
   }
-  return n / len;
+  return n / sqrt(len_sq);
 }
 
 /* GPU port of normals_calc_verts from mesh_normals.cc (with angle weighting)
