@@ -825,6 +825,8 @@ vec3 compute_vertex_normal(uint v) {
 static std::string get_texture_mapping_functions()
 {
   return R"GLSL(
+#ifdef HAS_TEXTURE
+
 /* GPU port of BKE_colorband_evaluate() from colorband.cc (line 285-410)
  * NOTE: ColorBand struct is vec4-aligned in UBO (std140 layout)
  * Returns false if colorband is invalid or has no stops */
@@ -1296,6 +1298,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
   /* Indicate success and that we sampled RGB data. */
   return retval;
 }
+#endif  // HAS_TEXTURE
 )GLSL";
 }
 
@@ -1552,39 +1555,37 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
   /* Hash texture mapping mode */
   hash = BLI_hash_int_2d(hash, int(dmd->texmapping));
 
-  const bool has_texture = (dmd->texture && dmd->texture->type == TEX_IMAGE && dmd->texture->ima);
-  hash = BLI_hash_int_2d(hash, has_texture ? 1 : 0);
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dmd->texture)));
 
-  if (has_texture) {
-    /* Mix image and texture identifiers into the hash. Use values, not
-     * addresses, so changes to fields are detected. */
-    hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dmd->texture->ima)));
-    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->source));
-    hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dmd->texture)));
-    /* Mix ImageUser relevant fields (tile/frame) instead of its address. */
-    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.tile));
-    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.framenr));
+  if (dmd->texture) {
+    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->type));
+    if (dmd->texture->type == TEX_IMAGE && dmd->texture->ima) {
+      hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dmd->texture->ima)));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->source));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.tile));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.framenr));
 
-    /* Mix Image generation flags/values (use actual values, not addresses). */
-    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_flag));
-    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_depth));
-    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_type));
-    hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->alpha_mode));
+      /* Mix Image generation flags/values (use actual values, not addresses). */
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_flag));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_depth));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_type));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->alpha_mode));
 
-    /* Hash the colorspace name string into the running hash. */
-    if (dmd->texture->ima->colorspace_settings.name[0] != '\0') {
-      hash = BLI_hash_int_2d(hash, BLI_hash_string(dmd->texture->ima->colorspace_settings.name));
-    }
-    else {
-      hash = BLI_hash_int_2d(hash, 0);
-    }
-    ImageTile *tile = BKE_image_get_tile(dmd->texture->ima, dmd->texture->iuser.tile);
-    if (tile) {
-      /* Tile generation color may be a small array/value; mix the numeric
-       * flags/types/depth which indicate tile changes. */
-      hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_flag));
-      hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_type));
-      hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_depth));
+      /* Hash the colorspace name string into the running hash. */
+      if (dmd->texture->ima->colorspace_settings.name[0] != '\0') {
+        hash = BLI_hash_int_2d(hash, BLI_hash_string(dmd->texture->ima->colorspace_settings.name));
+      }
+      else {
+        hash = BLI_hash_int_2d(hash, 0);
+      }
+      ImageTile *tile = BKE_image_get_tile(dmd->texture->ima, dmd->texture->iuser.tile);
+      if (tile) {
+        /* Tile generation color may be a small array/value; mix the numeric
+         * flags/types/depth which indicate tile changes. */
+        hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_flag));
+        hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_type));
+        hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_depth));
+      }
     }
   }
 
