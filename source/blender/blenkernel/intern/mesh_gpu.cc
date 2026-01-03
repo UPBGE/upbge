@@ -312,6 +312,12 @@ uint pack_i16_pair(float a, float b) {
   return (uint(pack_i16_trunc(a)) & 0xFFFFu) | ((uint(pack_i16_trunc(b)) & 0xFFFFu) << 16);
 }
 
+/* Safe normalize: returns vec3(1,0,0) if input is zero (matches Blender's safe_normalize_and_get_length) */
+vec3 safe_normalize(vec3 v) {
+  float len = length(v);
+  return (len > 1e-35) ? (v / len) : vec3(1.0, 0.0, 0.0);
+}
+
 vec3 newell_face_normal_object(int f) {
   int beg = face_offsets(f);
   int end = face_offsets(f + 1);
@@ -324,7 +330,7 @@ vec3 newell_face_normal_object(int f) {
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }
-  return normalize(n);
+  return safe_normalize(n);  /* Already returns vec3(1,0,0) for zero vectors */
 }
 
 /* Helper: Find the two adjacent vertices in a face for a given vertex.
@@ -379,12 +385,14 @@ int2 face_find_adjacent_verts(int f, int v) {
   return int2(corner_verts(prev_corner), corner_verts(next_corner));
 }
 
-/* GPU port of math::safe_acos_approx from BLI_math_base.hh
- * Fast approximation of acos for angle calculation */
-float safe_acos_approx(float x) {
-  x = clamp(x, -1.0, 1.0);
-  /* Simple acos approximation (exact on GPU) */
-  return acos(x);
+/* GPU port of safe_acos_approx from BLI_math_base.hh */
+float safe_acos_approx(float x)
+{
+  const float f = abs(x);
+  const float m = (f < 1.0) ? 1.0 - (1.0 - f) : 1.0;
+  const float a = sqrt(1.0 - m) *
+                  (1.5707963267 + m * (-0.213300989 + m * (0.077980478 + m * -0.02164095)));
+  return (x < 0.0) ? (3.14159265359 - a) : a;
 }
 
 void main() {
@@ -415,6 +423,10 @@ void main() {
       int f = vert_to_face(beg);
       n_mesh = newell_face_normal_object(f);
     }
+    else if (face_count == 0) {
+      /* Isolated vertex: use intput positions like in cpu */
+      n_mesh = safe_normalize(positions_in[v].xyz);
+    }
     else {
       vec3 n_accum = vec3(0.0);
       
@@ -428,24 +440,21 @@ void main() {
         
         /* Compute angle at vertex (same as CPU) */
         vec3 v_pos = positions_in[v].xyz;
-        vec3 dir_prev = positions_in[adj.x].xyz - v_pos;
-        vec3 dir_next = positions_in[adj.y].xyz - v_pos;
         
-        /* Normalize only if length is sufficient (avoid division by zero) */
-        float len_prev = length(dir_prev);
-        float len_next = length(dir_next);
-        if (len_prev > 1e-6 && len_next > 1e-6) {
-          dir_prev /= len_prev;
-          dir_next /= len_next;
-          float angle = safe_acos_approx(dot(dir_prev, dir_next));
-          
-          /* Weight face normal by angle */
-          n_accum += face_normal * angle;
+        /* Use safe_normalize for edge directions (protects against degenerate edges) */
+        vec3 dir_prev = safe_normalize(positions_in[adj.x].xyz - v_pos);
+        vec3 dir_next = safe_normalize(positions_in[adj.y].xyz - v_pos);
+        
+        /* Compute angle factor */
+        float angle = safe_acos_approx(dot(dir_prev, dir_next));
+        
+        /* Skip degenerate angles (NaN or near-zero) */
+        if (isnan(angle) || angle < 1e-10) {
+          continue;
         }
-        else {
-          /* Degenerate edge: use unweighted face normal */
-          n_accum += face_normal;
-        }
+        
+        /* Weight face normal by angle */
+        n_accum += face_normal * angle;
       }
       
       n_mesh = n_accum;
@@ -453,7 +462,14 @@ void main() {
   }
 
   // Normal already in mesh space (no transformation needed)
-  n_mesh = normalize(n_mesh);
+  // Fallback if accumulated normal is zero (fully degenerate topology)
+  float normal_len = length(n_mesh);
+  if (normal_len < 1e-35) {
+    n_mesh = safe_normalize(positions_in[v].xyz);
+  }
+  else {
+    n_mesh = safe_normalize(n_mesh);
+  }
 
   if (normals_hq == 0) {
     normals_out[c] = pack_norm(n_mesh);

@@ -754,6 +754,29 @@ void boxsample(sampler2D displacement_texture,
 static std::string get_vertex_normals()
 {
   return R"GLSL(
+/* GPU port of safe_acos_approx from BLI_math_base.hh (line ~197)
+ * Faster/approximate version of safe_acos. Max error 4.51803e-05 (0.00258 degrees).
+ * Based on http://www.pouet.net/topic.php?which=9132&page=2 */
+float safe_acos_approx(float x)
+{
+  const float f = abs(x);
+  /* Clamp and crush denormals. */
+  const float m = (f < 1.0) ? 1.0 - (1.0 - f) : 1.0;
+  /* 85% accurate (ULP 0)
+   * Examined 2130706434 values of acos:
+   *   15.2007108 avg ULP diff, 4492 max ULP, 4.51803e-05 max error */
+  const float a = sqrt(1.0 - m) *
+                  (1.5707963267 + m * (-0.213300989 + m * (0.077980478 + m * -0.02164095)));
+  return (x < 0.0) ? (3.14159265359 - a) : a;  /* ✅ CORRECTED: pi - a for x < 0 */
+}
+
+/* Safe normalize: returns vec3(1,0,0) if input is zero (matches Blender's safe_normalize_and_get_length) */
+vec3 safe_normalize(vec3 v) {
+  float len = length(v);
+  return (len > 1e-35) ? (v / len) : vec3(1.0, 0.0, 0.0);
+}
+
+/* GPU port of face_normal_object from mesh_normals.cc */
 vec3 face_normal_object(int f) {
   int beg = face_offsets(f);
   int end = face_offsets(f + 1);
@@ -767,7 +790,7 @@ vec3 face_normal_object(int f) {
     vec3 n = cross(b - a, c - a);
     float len = length(n);
     if (len <= 1e-20) {
-      return vec3(0.0, 0.0, 1.0);
+      return vec3(1.0, 0.0, 0.0);  /* Match safe_normalize fallback */
     }
     return n / len;
   }
@@ -782,7 +805,7 @@ vec3 face_normal_object(int f) {
     vec3 n = cross(d1, d2);
     float len = length(n);
     if (len <= 1e-20) {
-      return vec3(0.0, 0.0, 1.0);
+      return vec3(1.0, 0.0, 0.0);  /* Match safe_normalize fallback */
     }
     return n / len;
   }
@@ -799,24 +822,75 @@ vec3 face_normal_object(int f) {
   }
   float len = length(n);
   if (len <= 1e-20) {
-    return vec3(0.0, 0.0, 1.0);
+    return vec3(1.0, 0.0, 0.0);  /* Match safe_normalize fallback */
   }
   return n / len;
 }
 
+/* GPU port of normals_calc_verts from mesh_normals.cc (with angle weighting)
+ * Matches CPU behavior using safe_acos_approx for angle factors
+ * CRITICAL: Reproduces CPU behavior EXACTLY, including normalize(positions[vert]) for isolated verts */
 vec3 compute_vertex_normal(uint v) {
-  vec3 n_mesh;
   int beg = vert_to_face_offsets(int(v));
   int end = vert_to_face_offsets(int(v) + 1);
-  vec3 n_accum = vec3(0.0);
+  
+  if (end - beg == 0) {
+    /* Isolated vertex (no faces) - match CPU: normalize(positions[vert])
+     * This matches mesh_normals.cc line 195: vert_normals[vert] = math::safe_normalize(positions[vert]); */
+    return safe_normalize(input_positions[int(v)].xyz);
+  }
+  
+  vec3 vert_pos = input_positions[v].xyz;
+  vec3 vert_normal = vec3(0.0);
+  
   for (int i = beg; i < end; ++i) {
     int f = vert_to_face(i);
-    n_accum += face_normal_object(f);
+    vec3 face_nor = face_normal_object(f);
+    
+    /* Find adjacent vertices in this face */
+    int face_beg = face_offsets(f);
+    int face_end = face_offsets(f + 1);
+    
+    /* Find corner index for vertex v in face f */
+    int corner = -1;
+    for (int c = face_beg; c < face_end; ++c) {
+      if (corner_verts(c) == int(v)) {
+        corner = c;
+        break;
+      }
+    }
+    
+    if (corner == -1) continue;
+    
+    /* Get previous/next vertices in face */
+    int corner_prev = (corner == face_beg) ? (face_end - 1) : (corner - 1);
+    int corner_next = (corner == face_end - 1) ? face_beg : (corner + 1);
+    
+    int vert_prev = corner_verts(corner_prev);
+    int vert_next = corner_verts(corner_next);
+    
+    /* Compute edge directions with safe normalization (prevents NaN from degenerate edges) */
+    vec3 dir_prev = safe_normalize(input_positions[vert_prev].xyz - vert_pos);
+    vec3 dir_next = safe_normalize(input_positions[vert_next].xyz - vert_pos);
+    
+    /* Compute angle factor using safe_acos_approx (matches CPU) */
+    float factor = safe_acos_approx(dot(dir_prev, dir_next));
+    
+    /* Skip degenerate edges (factor near zero or NaN) */
+    if (isnan(factor) || factor < 1e-10) {
+      continue;
+    }
+    
+    vert_normal += face_nor * factor;
   }
-  n_mesh = n_accum;
-
-  n_mesh = normalize(n_mesh);
-  return n_mesh;
+  
+  /* Fallback if accumulated normal is zero (fully degenerate topology) */
+  float normal_len = length(vert_normal);
+  if (normal_len < 1e-35) {
+    return safe_normalize(input_positions[int(v)].xyz);
+  }
+  
+  return safe_normalize(vert_normal);
 }
 )GLSL";
 }
@@ -1469,12 +1543,12 @@ do_2d_mapping(fx, fy);
     vec3 n_mesh = compute_vertex_normal(v);
     /* Displacement along vertex normal
      * This matches CPU behavior and is acceptable for most use cases. */
-    co += delta * normalize(n_mesh);
+    co += delta * safe_normalize(n_mesh);
   }
   else if (direction == MOD_DISP_DIR_CLNOR) {
     /* Displacement along custom loop normals (Simplification -> same than DISP_DIR_NOR) */
     vec3 n_mesh = compute_vertex_normal(v);
-    co += delta * normalize(n_mesh);
+    co += delta * safe_normalize(n_mesh);
   }
   else if (direction == MOD_DISP_DIR_RGB_XYZ) {
     /* Displacement using RGB as (X, Y, Z) vector
