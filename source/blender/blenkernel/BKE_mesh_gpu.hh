@@ -247,12 +247,18 @@ struct MeshGpuInternalResources {
     blender::gpu::VertBuf *buffer = nullptr;
   };
 
+  /* Entry for cached Texture */
+  struct TextureEntry {
+    blender::gpu::Texture *texture = nullptr;
+  };
+
   /* Keyed maps to prevent duplicate resources */
   blender::Map<std::string, SsboEntry> ssbo_map;
   blender::Map<std::string, UboEntry> ubo_map;
   blender::Map<std::string, ShaderEntry> shader_map;
   blender::Map<std::string, IboEntry> ibo_map;
   blender::Map<std::string, VboEntry> vbo_map;
+  blender::Map<std::string, TextureEntry> texture_map;
 
   MeshGpuInternalResources() = default;
 };
@@ -301,3 +307,10 @@ blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh_orig,
                                                            Object *ob_eval,
                                                            const std::string &key,
                                                            size_t size);
+
+/* Helpers for textures (Texture) */
+blender::gpu::Texture *BKE_mesh_gpu_internal_texture_get(Mesh *mesh_orig, const std::string &key);
+blender::gpu::Texture *BKE_mesh_gpu_internal_texture_ensure(Mesh *mesh_orig,
+                                                            Object *ob_eval,
+                                                            const std::string &key,
+                                                            blender::gpu::Texture *texture);

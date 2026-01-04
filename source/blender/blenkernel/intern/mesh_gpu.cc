@@ -71,6 +71,12 @@ static void mesh_gpu_free_internal_resources_ptr(blender::bke::MeshGpuInternalRe
       GPU_shader_free(entry.shader);
     }
   }
+  for (const auto &kv : ir->texture_map.items()) {
+    auto &entry = kv.value;
+    if (entry.texture) {
+      GPU_texture_free(entry.texture);
+    }
+  }
   delete ir;
 }
 
@@ -1134,6 +1140,64 @@ blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_get(Mesh *mesh_orig, const std:
     return nullptr;
   }
   return entry_ptr->buffer;
+}
+
+/* Texture cache -------------------------------------------------*/
+blender::gpu::Texture *BKE_mesh_gpu_internal_texture_ensure(Mesh *mesh_orig,
+                                                            Object *ob_eval,
+                                                            const std::string &key,
+                                                            blender::gpu::Texture *texture)
+{
+  if (!mesh_orig || !texture) {
+    return nullptr;
+  }
+
+  MeshGpuData *d = BKE_mesh_gpu_ensure_data(mesh_orig, (Mesh *)ob_eval->data);
+  if (!d) {
+    return nullptr;
+  }
+
+  /* Check if texture already exists */
+  auto *entry_ptr = d->internal_resources->texture_map.lookup_ptr(key);
+  if (entry_ptr) {
+    /* Texture already exists: free old one if different */
+    if (entry_ptr->texture != texture) {
+      if (GPU_context_active_get()) {
+        GPU_texture_free(entry_ptr->texture);
+      }
+      entry_ptr->texture = texture;
+    }
+    return texture;
+  }
+
+  /* Add new texture to cache */
+  if (GPU_context_active_get()) {
+    d->internal_resources->texture_map.add_new(key, {texture});
+    return texture;
+  }
+
+  return nullptr;
+}
+
+blender::gpu::Texture *BKE_mesh_gpu_internal_texture_get(Mesh *mesh_orig, const std::string &key)
+{
+  if (!mesh_orig) {
+    return nullptr;
+  }
+  std::unique_lock<std::mutex> lock(MeshGPUCacheManager::get().mutex());
+  auto it = MeshGPUCacheManager::get().mesh_cache().find(mesh_orig);
+  if (it == MeshGPUCacheManager::get().mesh_cache().end()) {
+    return nullptr;
+  }
+  MeshGpuData &d = it->second;
+  if (!d.internal_resources) {
+    return nullptr;
+  }
+  auto *entry_ptr = d.internal_resources->texture_map.lookup_ptr(key);
+  if (!entry_ptr) {
+    return nullptr;
+  }
+  return entry_ptr->texture;
 }
 
 /** \} */

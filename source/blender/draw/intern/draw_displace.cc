@@ -56,6 +56,101 @@
 
 using namespace blender::draw;
 
+/* -------------------------------------------------------------------- */
+/** \name Colorspace Management Helpers
+ * \{ */
+
+/**
+ * Check if we need manual colorspace handling for this image.
+ * Returns true if the image uses a non-"Non-Color" colorspace.
+ */
+static bool displace_needs_manual_colorspace(Image *ima)
+{
+  if (!ima) {
+    return false;
+  }
+
+  /* Check if colorspace is NOT "Non-Color" */
+  if (ima->colorspace_settings.name[0] != '\0') {
+    return !STREQ(ima->colorspace_settings.name, "Non-Color");
+  }
+
+  /* Default: assume sRGB if no colorspace specified */
+  return true;
+}
+
+/**
+ * Upload ImBuf data to GPU texture WITHOUT colorspace conversion.
+ * For displacement, we want raw byte values (matching CPU behavior).
+ * The CPU reads bytes directly without sRGB→linear conversion, so GPU must do the same.
+ */
+static void displace_upload_ibuf_to_texture(blender::gpu::Texture *tex,
+                                            ImBuf *ibuf,
+                                            const char * /*colorspace_name*/)
+{
+  if (!tex || !ibuf) {
+    return;
+  }
+
+  const int width = ibuf->x;
+  const int height = ibuf->y;
+
+  /* For displacement, we want raw values WITHOUT colorspace conversion.
+   * CPU reads bytes directly (no sRGB decode), so GPU must match.
+   * Always upload as RGBA float (converted from bytes if needed). */
+  float *upload_data = MEM_malloc_arrayN<float>(width * height * 4, "displace_tex_upload");
+
+  if (ibuf->float_buffer.data) {
+    /* Float buffer: copy directly */
+    for (int i = 0; i < width * height; i++) {
+      if (ibuf->channels == 4) {
+        upload_data[4 * i + 0] = ibuf->float_buffer.data[4 * i + 0];
+        upload_data[4 * i + 1] = ibuf->float_buffer.data[4 * i + 1];
+        upload_data[4 * i + 2] = ibuf->float_buffer.data[4 * i + 2];
+        upload_data[4 * i + 3] = ibuf->float_buffer.data[4 * i + 3];
+      }
+      else if (ibuf->channels == 3) {
+        upload_data[4 * i + 0] = ibuf->float_buffer.data[3 * i + 0];
+        upload_data[4 * i + 1] = ibuf->float_buffer.data[3 * i + 1];
+        upload_data[4 * i + 2] = ibuf->float_buffer.data[3 * i + 2];
+        upload_data[4 * i + 3] = 1.0f;
+      }
+      else {
+        /* Single channel */
+        float val = ibuf->float_buffer.data[i];
+        upload_data[4 * i + 0] = val;
+        upload_data[4 * i + 1] = val;
+        upload_data[4 * i + 2] = val;
+        upload_data[4 * i + 3] = 1.0f;
+      }
+    }
+  }
+  else if (ibuf->byte_buffer.data) {
+    /* Byte buffer: convert to float WITHOUT sRGB decoding
+     * This matches CPU behavior which reads bytes directly as linear values */
+    for (int i = 0; i < width * height; i++) {
+      const uchar *rect = &ibuf->byte_buffer.data[4 * i];
+      upload_data[4 * i + 0] = float(rect[0]) * (1.0f / 255.0f);
+      upload_data[4 * i + 1] = float(rect[1]) * (1.0f / 255.0f);
+      upload_data[4 * i + 2] = float(rect[2]) * (1.0f / 255.0f);
+      upload_data[4 * i + 3] = float(rect[3]) * (1.0f / 255.0f);
+    }
+  }
+  else {
+    /* No valid buffer */
+    MEM_freeN(upload_data);
+    return;
+  }
+
+  /* Upload to GPU */
+  GPU_texture_update(tex, GPU_DATA_FLOAT, upload_data);
+
+  /* Free temp buffer */
+  MEM_freeN(upload_data);
+}
+
+/** \} */
+
 /* Compute a stable 32-bit hash for a ColorBand to detect changes. Uses FNV-1a. */
 static uint32_t colorband_hash_from_coba(const ColorBand *coba)
 {
@@ -136,6 +231,10 @@ struct blender::draw::DisplaceManager::Impl {
     int tex_channels = 4;
     /* Cached colorband hash to avoid redundant UBO updates. */
     uint32_t colorband_hash = 0;
+    
+    /* OPTIMIZATION: Cache texture metadata to avoid repeated ImBuf queries.
+     * For animated sources (SEQUENCE/MOVIE), format stays constant across frames. */
+    bool tex_metadata_cached = false;
   };
 
   Map<MeshModifierKey, MeshStaticData> static_map;
@@ -1326,12 +1425,6 @@ do_2d_mapping(fx, fy);
   /* texres.trgba and texres.tin are filled/processed by imagewrap() to match CPU pipeline */
   vec3 rgb = texres.trgba.rgb;
   
-  /* Linear → sRGB conversion (for intensity calculation)
-   * CRITICAL: GPU textures are ALWAYS loaded as LINEAR!
-   * If source image was sRGB, GPU auto-converted to linear.
-   * We only apply linear→sRGB if image was ORIGINALLY linear. */
-  vec3 srgb_rgb;
-
   /* Apply ColorBand if enabled (match CPU behavior) */
   if (use_colorband) {
     vec4 col;
@@ -1344,19 +1437,17 @@ do_2d_mapping(fx, fy);
       retval |= TEX_RGB;
     }
   }
-
-  // Code limited to non-color ColorSpace
-  srgb_rgb = rgb;
+  
   
   /* Use texres.tin for intensity to match CPU naming convention (imagewrap.cc line 244-253)
    * If the sampled result contained RGB data (retval & TEX_RGB) compute intensity from RGB.
    * Otherwise propagate the intensity into the color channels (CPU copies tin to trgba). */
   if ((retval & TEX_RGB) != 0) {
-    texres.tin = (srgb_rgb.r + srgb_rgb.g + srgb_rgb.b) * (1.0 / 3.0);
+    texres.tin = (rgb.r + rgb.g + rgb.b) * (1.0 / 3.0);
   }
   else {
     texres.trgba.rgb = vec3(texres.tin);
-    srgb_rgb = vec3(texres.tin);
+    rgb = vec3(texres.tin);
   }
 
   if (tex_flipblend) {
@@ -1364,7 +1455,7 @@ do_2d_mapping(fx, fy);
   }
 
   float s = strength * vgroup_weight;
-  vec3 rgb_displacement = (srgb_rgb - vec3(midlevel)) * s;
+  vec3 rgb_displacement = (rgb - vec3(midlevel)) * s;
   delta = (texres.tin - midlevel) * s;
 #else
   /* Fixed delta (no texture) */
@@ -1692,8 +1783,90 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
           BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
         }
       }
-      if (!gpu_texture) {
+
+      /* CRITICAL: For displacement, we MUST upload textures WITHOUT colorspace auto-decode!
+       * CPU reads bytes directly (no decode), GPU must match.
+       * 
+       * OPTIMIZATION: For "Non-Color" images, BKE_image_get_gpu_texture() already uses
+       * UNORM_8_8_8_8 (no sRGB decode), so we can use it directly (fast path).
+       * For other colorspaces (sRGB, Rec2020, etc.), we need manual upload with UNORM_8_8_8_8.
+       * 
+       * Cache texture persistently for static images (FILE/GENERATED/VIEWER).
+       * Only animated sources (SEQUENCE/MOVIE) need per-frame updates. */
+      
+      const bool is_non_color = STREQ(ima->colorspace_settings.name, "Non-Color");
+      
+      /* Fast path for Non-Color: use GPU cache directly (already UNORM_8_8_8_8) */
+      if (is_non_color) {
         gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
+        
+        if (gpu_texture && !msd.tex_metadata_cached) {
+          /* Cache metadata on first load */
+          msd.tex_is_float = GPU_texture_has_float_format(gpu_texture);
+          msd.tex_is_byte = !msd.tex_is_float;
+          msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
+          msd.tex_metadata_cached = true;
+        }
+      }
+      else {
+        /* Slow path for sRGB/Rec2020/etc: manual upload with UNORM_8_8_8_8 */
+        const std::string key_texture = key_prefix + "texture_" +
+                                       std::to_string(reinterpret_cast<uintptr_t>(ima)) + "_" +
+                                       std::to_string(iuser.framenr);
+
+        /* Check if texture already exists in cache (optimization for static images) */
+        gpu_texture = BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
+
+        /* Only re-upload if texture doesn't exist OR if image source is animated */
+        const bool is_animated = ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
+        
+        if (!gpu_texture || (is_animated && !gpu_texture)) {
+          ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+
+          if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
+            /* Use UNORM_8_8_8_8 for bytes (no sRGB auto-decode), RGBA16F for floats */
+            blender::gpu::TextureFormat format;
+            if (ibuf->float_buffer.data) {
+              format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
+            }
+            else {
+              /* CRITICAL: UNORM_8_8_8_8 = no sRGB decode, bytes stay raw */
+              format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
+            }
+
+            gpu_texture = GPU_texture_create_2d("displace_tex_raw",
+                                               ibuf->x,
+                                               ibuf->y,
+                                               1,
+                                               format,
+                                               GPU_TEXTURE_USAGE_SHADER_READ,
+                                               nullptr);
+
+            if (gpu_texture) {
+              /* Upload WITHOUT colorspace conversion (raw bytes) */
+              displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
+
+              /* Cache texture for reuse (static images will persist across frames) */
+              BKE_mesh_gpu_internal_texture_ensure(
+                  mesh_owner, deformed_eval, key_texture, gpu_texture);
+
+              /* Cache metadata to avoid repeated ImBuf acquisition
+               * OPTIMIZATION: For animated sources, metadata stays constant across frames */
+              if (!msd.tex_metadata_cached) {
+                msd.tex_is_byte = (ibuf->byte_buffer.data != nullptr);
+                msd.tex_is_float = (ibuf->float_buffer.data != nullptr);
+                msd.tex_channels = ibuf->channels;
+                msd.tex_metadata_cached = true;
+              }
+            }
+          }
+
+          if (ibuf) {
+            BKE_image_release_ibuf(ima, ibuf, nullptr);
+          }
+        }
+        /* else: texture already cached, reuse it! (optimization for static images)
+         * Metadata already cached in msd, no need to acquire ImBuf */
       }
 
       if (gpu_texture && !msd.tex_coords.empty()) {
@@ -1908,8 +2081,7 @@ struct ColorBand {
       info.push_constant(Type::bool_t, "mapping_use_input_positions");
       info.push_constant(Type::float4x4_t, "object_to_world_mat");
       info.push_constant(Type::float4x4_t, "mapref_imat");
-      info.push_constant(Type::bool_t,
-                         "tex_is_byte"); /* Image data originally bytes (needs premultiply) */
+      info.push_constant(Type::bool_t, "tex_is_byte"); /* Image data originally bytes (needs premultiply) */
       info.push_constant(Type::bool_t, "tex_is_float"); /* ImBuf had float data */
       info.push_constant(Type::int_t, "tex_channels");  /* number of channels in ImBuf (1/3/4) */
       info.push_constant(Type::int_t, "mtex_mapto");    /* MTex.mapto flags (MAP_COL etc.) */
@@ -2029,12 +2201,12 @@ struct ColorBand {
 
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
-    msd.tex_is_float = GPU_texture_has_float_format(gpu_texture); //TODO: Check
-    msd.tex_is_byte = !msd.tex_is_float;
-    msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
+
+    /* Use metadata from MeshStaticData (filled during texture upload) */
     GPU_shader_uniform_1b(shader, "tex_is_byte", msd.tex_is_byte);
     GPU_shader_uniform_1b(shader, "tex_is_float", msd.tex_is_float);
     GPU_shader_uniform_1i(shader, "tex_channels", msd.tex_channels);
+
     /* Pass mtex->mapto to shader so it can decide whether to apply scene color conversion
      * (MAP_COL flag). If no mtex is used, this will be 0. */
     int mtex_mapto = 0; /* default: none */
