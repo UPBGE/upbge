@@ -138,6 +138,7 @@ set(SRC
   GPU_shader_builtin.hh
   GPU_shader_shared.hh
   gpu_shader_common_normal_lib.hh
+  gpu_shader_common_texture_lib.hh
   GPU_state.hh
   GPU_storage_buffer.hh
   GPU_texture.hh

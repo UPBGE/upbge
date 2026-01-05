@@ -44,6 +44,7 @@
 
 #include "../gpu/intern/gpu_shader_create_info.hh"
 #include "gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
+#include "gpu_shader_common_texture_lib.hh" /* Common texture sampling functions */
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
@@ -291,910 +292,105 @@ static std::string get_displace_shader_part1()
 #define COLBAND_HUE_CW 2
 #define COLBAND_HUE_CCW 3
 
-/* GPU port of key_curve_position_weights from key.cc
- * Maps CPU KeyInterpolationType cases to GLSL int `type`:
- * 0 = KEY_LINEAR, 1 = KEY_CARDINAL, 2 = KEY_BSPLINE, 3 = KEY_CATMULL_ROM */
-void key_curve_position_weights(float t, out float data[4], int type)
-{
-  float t2 = 0.0;
-  float t3 = 0.0;
-  float fc = 0.0;
+/* Note: All texture helper functions (ColorBand, boxsample, rctf, color conversions)
+ * are now in gpu_shader_common_texture_lib.hh and included automatically via
+ * get_vertex_normals() concatenation. Only displacement-specific code remains below. */
 
-  if (type == 0) { /* KEY_LINEAR */
-    data[0] = 0.0;
-    data[1] = -t + 1.0;
-    data[2] = t;
-    data[3] = 0.0;
-    return;
-  }
-
-  /* Precompute powers when needed */
-  t2 = t * t;
-  t3 = t2 * t;
-
-  if (type == 1) { /* KEY_CARDINAL */
-    fc = 0.71;
-    data[0] = -fc * t3 + 2.0 * fc * t2 - fc * t;
-    data[1] = (2.0 - fc) * t3 + (fc - 3.0) * t2 + 1.0;
-    data[2] = (fc - 2.0) * t3 + (3.0 - 2.0 * fc) * t2 + fc * t;
-    data[3] = fc * t3 - fc * t2;
-    return;
-  }
-
-  if (type == 2) { /* KEY_BSPLINE */
-    data[0] = -0.16666666 * t3 + 0.5 * t2 - 0.5 * t + 0.16666666;
-    data[1] = 0.5 * t3 - t2 + 0.66666666;
-    data[2] = -0.5 * t3 + 0.5 * t2 + 0.5 * t + 0.16666666;
-    data[3] = 0.16666666 * t3;
-    return;
-  }
-
-  /* KEY_CATMULL_ROM (fallback) */
-  fc = 0.5;
-  data[0] = -fc * t3 + 2.0 * fc * t2 - fc * t;
-  data[1] = (2.0 - fc) * t3 + (fc - 3.0) * t2 + 1.0;
-  data[2] = (fc - 2.0) * t3 + (3.0 - 2.0 * fc) * t2 + fc * t;
-  data[3] = fc * t3 - fc * t2;
-}
-
-/* GPU port of colorband_hue_interp() from colorband.cc (line 285-393) */
-float colorband_hue_interp(int ipotype_hue, float mfac, float fac, float h1, float h2)
-{
-  float h_interp;
-  int mode = 0;
-
-  /* HUE_MOD macro */
-  h1 = (h1 < 1.0) ? h1 : h1 - 1.0;
-  h2 = (h2 < 1.0) ? h2 : h2 - 1.0;
-
-  if (ipotype_hue == COLBAND_HUE_NEAR) {
-    if ((h1 < h2) && (h2 - h1) > 0.5) {
-      mode = 1;
-    }
-    else if ((h1 > h2) && (h2 - h1) < -0.5) {
-      mode = 2;
-    }
-    else {
-      mode = 0;
-    }
-  }
-  else if (ipotype_hue == COLBAND_HUE_FAR) {
-    /* Do full loop in Hue space in case both stops are the same... */
-    if (h1 == h2) {
-      mode = 1;
-    }
-    else if ((h1 < h2) && (h2 - h1) < 0.5) {
-      mode = 1;
-    }
-    else if ((h1 > h2) && (h2 - h1) > -0.5) {
-      mode = 2;
-    }
-    else {
-      mode = 0;
-    }
-  }
-  else if (ipotype_hue == COLBAND_HUE_CCW) {
-    if (h1 > h2) {
-      mode = 2;
-    }
-    else {
-      mode = 0;
-    }
-  }
-  else if (ipotype_hue == COLBAND_HUE_CW) {
-    if (h1 < h2) {
-      mode = 1;
-    }
-    else {
-      mode = 0;
-    }
-  }
-
-  /* HUE_INTERP macro: ((mfac * (h_a)) + (fac * (h_b))) */
-  if (mode == 0) {
-    h_interp = (mfac * h1) + (fac * h2);
-  }
-  else if (mode == 1) {
-    h_interp = (mfac * (h1 + 1.0)) + (fac * h2);
-    h_interp = (h_interp < 1.0) ? h_interp : h_interp - 1.0;  /* HUE_MOD */
-  }
-  else {  /* mode == 2 */
-    h_interp = (mfac * h1) + (fac * (h2 + 1.0));
-    h_interp = (h_interp < 1.0) ? h_interp : h_interp - 1.0;  /* HUE_MOD */
-  }
-
-  return h_interp;
-}
-
-/* RGB ↔ HSV/HSL conversion functions (GPU port of BLI_math_color.h) */
-vec3 rgb_to_hsv(vec3 rgb)
-{
-  /* Match CPU implementation from math_color.cc */
-  float r = rgb.r;
-  float g = rgb.g;
-  float b = rgb.b;
-
-  float k = 0.0;
-  float chroma;
-  float min_gb;
-
-  if (g < b) {
-    float tmp = g; g = b; b = tmp;
-    k = -1.0;
-  }
-  min_gb = b;
-  if (r < g) {
-    float tmp = r; r = g; g = tmp;
-    k = -2.0 / 6.0 - k;
-    min_gb = min(g, b);
-  }
-
-  chroma = r - min_gb;
-
-  float h = abs(k + (g - b) / (6.0 * chroma + 1e-20));
-  float s = chroma / (r + 1e-20);
-  float v = r;
-
-  return vec3(h, s, v);
-}
-
-vec3 hsv_to_rgb(vec3 hsv)
-{
-  /* Match CPU implementation from math_color.cc */
-  float h = hsv.x;
-  float s = hsv.y;
-  float v = hsv.z;
-
-  float nr = abs(h * 6.0 - 3.0) - 1.0;
-  float ng = 2.0 - abs(h * 6.0 - 2.0);
-  float nb = 2.0 - abs(h * 6.0 - 4.0);
-
-  nr = clamp(nr, 0.0, 1.0);
-  nb = clamp(nb, 0.0, 1.0);
-  ng = clamp(ng, 0.0, 1.0);
-
-  float r = ((nr - 1.0) * s + 1.0) * v;
-  float g = ((ng - 1.0) * s + 1.0) * v;
-  float b = ((nb - 1.0) * s + 1.0) * v;
-
-  return vec3(r, g, b);
-}
-
-vec3 rgb_to_hsl(vec3 rgb)
-{
-  /* Match CPU implementation from math_color.cc */
-  float cmax = max(max(rgb.r, rgb.g), rgb.b);
-  float cmin = min(min(rgb.r, rgb.g), rgb.b);
-  float h, s;
-  float l = min(1.0, (cmax + cmin) / 2.0); /* clamp like CPU */
-
-  if (cmax == cmin) {
-    h = 0.0;
-    s = 0.0;
-  }
-  else {
-    float d = cmax - cmin;
-    s = (l > 0.5) ? (d / (2.0 - cmax - cmin)) : (d / (cmax + cmin));
-
-    if (cmax == rgb.r) {
-      h = (rgb.g - rgb.b) / d + (rgb.g < rgb.b ? 6.0 : 0.0);
-    }
-    else if (cmax == rgb.g) {
-      h = (rgb.b - rgb.r) / d + 2.0;
-    }
-    else {
-      h = (rgb.r - rgb.g) / d + 4.0;
-    }
-  }
-
-  h /= 6.0;
-  return vec3(h, s, l);
-}
-
-vec3 hsl_to_rgb(vec3 hsl)
-{
-  /* Match CPU implementation from math_color.cc */
-  float h = hsl.x;
-  float s = hsl.y;
-  float l = hsl.z;
-
-  float nr = abs(h * 6.0 - 3.0) - 1.0;
-  float ng = 2.0 - abs(h * 6.0 - 2.0);
-  float nb = 2.0 - abs(h * 6.0 - 4.0);
-
-  nr = clamp(nr, 0.0, 1.0);
-  nb = clamp(nb, 0.0, 1.0);
-  ng = clamp(ng, 0.0, 1.0);
-
-  float chroma = (1.0 - abs(2.0 * l - 1.0)) * s;
-
-  float r = (nr - 0.5) * chroma + l;
-  float g = (ng - 0.5) * chroma + l;
-  float b = (nb - 0.5) * chroma + l;
-
-  return vec3(r, g, b);
-}
- 
-
-/* Helper to emulate CPU `ibuf_get_color()` behavior from texture texelFetch result.
- * - `has_float` indicates the original ImBuf had float data.
- * - `channels` is the number of channels in the ImBuf (1,3,4). When 0 treat as 4.
- * - `is_byte` indicates the original ImBuf was byte-based and needs RGB premultiplication by A.
- * This keeps the shader path easier to compare with the CPU `ibuf_get_color()` implementation.
- */
-vec4 shader_ibuf_get_color(vec4 fetched, bool has_float, int channels, bool is_byte)
-{
-  vec4 col = fetched;
-  if (has_float) {
-    if (channels == 4) {
-      return col;
-    }
-    else if (channels == 3) {
-      return vec4(col.rgb, 1.0);
-    }
-    else { /* channels == 1 or other */
-      float v = col.r;
-      return vec4(v, v, v, v);
-    }
-  }
-  else {
-    /* Byte buffer: texelFetch returns normalized [0,1] values for bytes.
-     * CPU path premultiplies RGB by alpha for byte images. Reproduce that. */
-    col.rgb *= col.a;
-    return col;
-  }
-}
-
-/* sRGB -> linear conversion used to emulate IMB_colormanagement_colorspace_to_scene_linear_v3
- * for typical sRGB byte images. */
-float srgb_to_linearrgb(float c)
-{
-  if (c <= 0.04045) {
-    return c / 12.92;
-  }
-  return pow((c + 0.055) / 1.055, 2.4);
-}
-
-vec3 srgb_to_linearrgb_vec3(vec3 v)
-{
-  return vec3(srgb_to_linearrgb(v.r), srgb_to_linearrgb(v.g), srgb_to_linearrgb(v.b));
-}
-
-vec3 linearrgb_to_srgb_vec3(vec3 v)
-{
-  return vec3(linearrgb_to_srgb(v.r), linearrgb_to_srgb(v.g), linearrgb_to_srgb(v.b));
-}
- 
-
-/* GPU port of rctf structure from BLI_rect.h */
-struct rctf {
-  float xmin;
-  float xmax;
-  float ymin;
-  float ymax;
-};
-
-/* GPU port of TexResult structure from texture_image.cc */
-struct TexResult_boxsample {
-  vec4 trgba;
-  bool talpha;
-};
-
-/* Helper to get color from texture with ibuf_get_color behavior */
-void ibuf_get_color_boxsample(out vec4 col, sampler2D displacement_texture, ivec2 tex_size, int x, int y, bool tex_is_byte, bool tex_is_float, int tex_channels)
-{
-  ivec2 texel = ivec2(x, y);
-  col = texelFetch(displacement_texture, texel, 0);
-  col = shader_ibuf_get_color(col, tex_is_float, tex_channels, tex_is_byte);
-}
-
-/* GPU port of square_rctf() from texture_image.cc */
-float square_rctf(rctf rf)
-{
-  float x, y;
-  x = rf.xmax - rf.xmin;
-  y = rf.ymax - rf.ymin;
-  return x * y;
-}
-
-/* GPU port of clipx_rctf() from texture_image.cc */
-float clipx_rctf(inout rctf rf, float x1, float x2)
-{
-  float size;
-  
-  size = rf.xmax - rf.xmin;
-  
-  rf.xmin = max(rf.xmin, x1);
-  rf.xmax = min(rf.xmax, x2);
-  if (rf.xmin > rf.xmax) {
-    rf.xmin = rf.xmax;
-    return 0.0;
-  }
-  if (size != 0.0) {
-    return (rf.xmax - rf.xmin) / size;
-  }
-  return 1.0;
-}
-
-/* GPU port of clipy_rctf() from texture_image.cc */
-float clipy_rctf(inout rctf rf, float y1, float y2)
-{
-  float size;
-  
-  size = rf.ymax - rf.ymin;
-  
-  rf.ymin = max(rf.ymin, y1);
-  rf.ymax = min(rf.ymax, y2);
-  
-  if (rf.ymin > rf.ymax) {
-    rf.ymin = rf.ymax;
-    return 0.0;
-  }
-  if (size != 0.0) {
-    return (rf.ymax - rf.ymin) / size;
-  }
-  return 1.0;
-}
-
-/* GPU port of boxsampleclip() from texture_image.cc - follows CPU structure exactly */
-void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inout TexResult_boxsample texres, bool tex_is_byte, bool tex_is_float, int tex_channels)
-{
-  /* Sample box, is clipped already, and minx etc. have been set at ibuf size.
-   * Enlarge with anti-aliased edges of the pixels. */
-  
-  float muly, mulx, div;
-  vec4 col;
-  int x, y, startx, endx, starty, endy;
-  
-  startx = int(floor(rf.xmin));
-  endx = int(floor(rf.xmax));
-  starty = int(floor(rf.ymin));
-  endy = int(floor(rf.ymax));
-  
-  startx = max(startx, 0);
-  starty = max(starty, 0);
-  if (endx >= tex_size.x) {
-    endx = tex_size.x - 1;
-  }
-  if (endy >= tex_size.y) {
-    endy = tex_size.y - 1;
-  }
-  
-  if (starty == endy && startx == endx) {
-    ibuf_get_color_boxsample(texres.trgba, displacement_texture, tex_size, startx, starty, tex_is_byte, tex_is_float, tex_channels);
-  }
-  else {
-    div = texres.trgba[0] = texres.trgba[1] = texres.trgba[2] = texres.trgba[3] = 0.0;
-    for (y = starty; y <= endy; y++) {
-      
-      muly = 1.0;
-      
-      if (starty == endy) {
-        /* pass */
-      }
-      else {
-        if (y == starty) {
-          muly = 1.0 - (rf.ymin - float(y));
-        }
-        if (y == endy) {
-          muly = (rf.ymax - float(y));
-        }
-      }
-      
-      if (startx == endx) {
-        mulx = muly;
-        
-        ibuf_get_color_boxsample(col, displacement_texture, tex_size, startx, y, tex_is_byte, tex_is_float, tex_channels);
-        texres.trgba += col * mulx;
-        div += mulx;
-      }
-      else {
-        for (x = startx; x <= endx; x++) {
-          mulx = muly;
-          if (x == startx) {
-            mulx *= 1.0 - (rf.xmin - float(x));
-          }
-          if (x == endx) {
-            mulx *= (rf.xmax - float(x));
-          }
-          
-          ibuf_get_color_boxsample(col, displacement_texture, tex_size, x, y, tex_is_byte, tex_is_float, tex_channels);
-          /* TODO(jbakker): No need to do manual optimization. Branching is slower than multiplying
-           * with 1. */
-          if (mulx == 1.0) {
-            texres.trgba += col;
-            div += 1.0;
-          }
-          else {
-            texres.trgba += col * mulx;
-            div += mulx;
-          }
-        }
-      }
-    }
-    
-    if (div != 0.0) {
-      div = 1.0 / div;
-      texres.trgba *= div;
-    }
-    else {
-      texres.trgba = vec4(0.0);
-    }
-  }
-}
-
-/* GPU port of boxsample() from texture_image.cc - follows CPU structure exactly */
-void boxsample(sampler2D displacement_texture,
-              ivec2 tex_size,
-              float minx,
-              float miny,
-              float maxx,
-              float maxy,
-              inout TexResult_boxsample texres,
-              bool imaprepeat,
-              bool imapextend,
-              bool tex_is_byte,
-              bool tex_is_float,
-              int tex_channels)
-{
-  /* Sample box, performs clip. minx etc are in range 0.0 - 1.0 .
-   * Enlarge with anti-aliased edges of pixels.
-   * If variable 'imaprepeat' has been set, the
-   * clipped-away parts are sampled as well.
-   */
-  /* NOTE: actually minx etc isn't in the proper range...
-   *       this due to filter size and offset vectors for bump. */
-  /* NOTE: talpha must be initialized. */
-  /* NOTE: even when 'imaprepeat' is set, this can only repeat once in any direction.
-   * the point which min/max is derived from is assumed to be wrapped. */
-  TexResult_boxsample texr;
-  rctf rf, stack[8];
-  float opp, tot, alphaclip = 1.0;
-  int count = 1;
-  
-  rf = stack[0];
-  rf.xmin = minx * float(tex_size.x);
-  rf.xmax = maxx * float(tex_size.x);
-  rf.ymin = miny * float(tex_size.y);
-  rf.ymax = maxy * float(tex_size.y);
-  
-  texr.talpha = texres.talpha; /* is read by boxsample_clip */
-  
-  if (imapextend) {
-    rf.xmin = clamp(rf.xmin, 0.0, float(tex_size.x - 1));
-    rf.xmax = clamp(rf.xmax, 0.0, float(tex_size.x - 1));
-  }
-  else if (imaprepeat) {
-    /* Note: clipx_rctf_swap and clipy_rctf_swap not implemented in shader (complex) */
-    /* Fallback to simple clipping for now */
-    alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
-    
-    if (alphaclip <= 0.0) {
-      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-      return;
-    }
-  }
-  else {
-    alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
-    
-    if (alphaclip <= 0.0) {
-      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-      return;
-    }
-  }
-  
-  if (imapextend) {
-    rf.ymin = clamp(rf.ymin, 0.0, float(tex_size.y - 1));
-    rf.ymax = clamp(rf.ymax, 0.0, float(tex_size.y - 1));
-  }
-  else if (imaprepeat) {
-    /* Note: clipy_rctf_swap not implemented in shader (complex) */
-    /* Fallback to simple clipping for now */
-    alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
-    
-    if (alphaclip <= 0.0) {
-      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-      return;
-    }
-  }
-  else {
-    alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
-    
-    if (alphaclip <= 0.0) {
-      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-      return;
-    }
-  }
-  
-  if (count > 1) {
-    tot = texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-    while (count > 0) {
-      count--;
-      boxsampleclip(displacement_texture, tex_size, rf, texr, tex_is_byte, tex_is_float, tex_channels);
-      
-      opp = square_rctf(rf);
-      tot += opp;
-      
-      texres.trgba[0] += opp * texr.trgba[0];
-      texres.trgba[1] += opp * texr.trgba[1];
-      texres.trgba[2] += opp * texr.trgba[2];
-      if (texres.talpha) {
-        texres.trgba[3] += opp * texr.trgba[3];
-      }
-      /* rf++; - not applicable in shader, using stack[0] only */
-    }
-    if (tot != 0.0) {
-      texres.trgba[0] /= tot;
-      texres.trgba[1] /= tot;
-      texres.trgba[2] /= tot;
-      if (texres.talpha) {
-        texres.trgba[3] /= tot;
-      }
-    }
-  }
-  else {
-    boxsampleclip(displacement_texture, tex_size, rf, texres, tex_is_byte, tex_is_float, tex_channels);
-  }
-  
-  if (!texres.talpha) {
-    texres.trgba[3] = 1.0;
-  }
-  
-  if (alphaclip != 1.0) {
-    /* Pre-multiply it all. */
-    texres.trgba[0] *= alphaclip;
-    texres.trgba[1] *= alphaclip;
-    texres.trgba[2] *= alphaclip;
-    texres.trgba[3] *= alphaclip;
-  }
-}
 )GLSL";
 }
 
 static std::string get_vertex_normals()
 {
   using namespace blender::gpu;
-  /* Define position buffer macro before including normal lib */
-  return "#define POSITION_BUFFER input_positions\n" + get_common_normal_lib_glsl();
+  /* Define position buffer macro before including libs */
+  return "#define POSITION_BUFFER input_positions\n" + 
+         get_common_texture_lib_glsl() +  /* ColorBand + boxsample + do_2d_mapping() */
+         get_common_normal_lib_glsl();     /* Normal calculation functions */
 }
 
-/* Texture mapping functions - GPU port matching CPU texture_procedural.cc */
-static std::string get_texture_mapping_functions()
+/* Part 2: Main function body (texture sampling + displacement logic)
+ * Note: imagewrap() is displacement-specific and remains here (uses shader uniforms) */
+static std::string get_displace_shader_part2()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
 
-/* GPU port of BKE_colorband_evaluate() from colorband.cc (line 285-410)
- * NOTE: ColorBand struct is vec4-aligned in UBO (std140 layout)
- * Returns false if colorband is invalid or has no stops */
-bool BKE_colorband_evaluate(ColorBand coba, float in_intensity, out vec4 out_color)
-{
-  vec4 cbd1_rgba, cbd2_rgba, cbd0_rgba, cbd3_rgba;
-  float fac;
-  int ipotype;
-  int a;
-  
-  if (coba.tot_cur_ipotype_hue.x == 0) {
-    return false;
-  }
-  
-  cbd1_rgba = coba.data[0].rgba;
-  
-  /* NOTE: when ipotype >= COLBAND_INTERP_B_SPLINE,
-   * we cannot do early-out with a constant color before first color stop and after last one,
-   * because interpolation starts before and ends after those... */
-  ipotype = (coba.color_mode_pad.x == COLBAND_BLEND_RGB) ? coba.tot_cur_ipotype_hue.z : COLBAND_INTERP_LINEAR;
-  
-  if (coba.tot_cur_ipotype_hue.x == 1) {
-    out_color = cbd1_rgba;
-  }
-  else if ((in_intensity <= coba.data[0].pos_cur_pad.x) &&
-           (ipotype == COLBAND_INTERP_LINEAR || ipotype == COLBAND_INTERP_EASE ||
-            ipotype == COLBAND_INTERP_CONSTANT))
-  {
-    /* We are before first color stop. */
-    out_color = cbd1_rgba;
-  }
-  else {
-    /* GPU adaptation of CBData left, right (CPU line 357-363) */
-    vec4 left_rgba, right_rgba;
-    float left_pos, right_pos;
-    
-    /* we're looking for first pos > in_intensity */
-    for (a = 0; a < coba.tot_cur_ipotype_hue.x; a++) {
-      cbd1_rgba = coba.data[a].rgba;
-      if (coba.data[a].pos_cur_pad.x > in_intensity) {
-        break;
-      }
-    }
-    
-    if (a == coba.tot_cur_ipotype_hue.x) {
-      cbd2_rgba = cbd1_rgba;
-      right_rgba = cbd2_rgba;
-      right_pos = 1.0;
-      cbd1_rgba = right_rgba;
-    }
-    else if (a == 0) {
-      left_rgba = cbd1_rgba;
-      left_pos = 0.0;
-      cbd2_rgba = left_rgba;
-    }
-    else {
-      cbd2_rgba = coba.data[a - 1].rgba;
-    }
-    
-    if ((a == coba.tot_cur_ipotype_hue.x) &&
-        (ipotype == COLBAND_INTERP_LINEAR || ipotype == COLBAND_INTERP_EASE ||
-         ipotype == COLBAND_INTERP_CONSTANT))
-    {
-      /* We are after last color stop. */
-      out_color = cbd2_rgba;
-    }
-    else if (ipotype == COLBAND_INTERP_CONSTANT) {
-      /* constant */
-      out_color = cbd2_rgba;
-    }
-    else {
-      float cbd1_pos, cbd2_pos;
-      
-      if (a == coba.tot_cur_ipotype_hue.x) {
-        cbd1_pos = right_pos;
-        cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
-      }
-      else if (a == 0) {
-        cbd1_pos = coba.data[0].pos_cur_pad.x;
-        cbd2_pos = left_pos;
-      }
-      else {
-        cbd1_pos = coba.data[a].pos_cur_pad.x;
-        cbd2_pos = coba.data[a - 1].pos_cur_pad.x;
-      }
-      
-      if (cbd2_pos != cbd1_pos) {
-        fac = (in_intensity - cbd1_pos) / (cbd2_pos - cbd1_pos);
-      }
-      else {
-        /* was setting to 0.0 in 2.56 & previous, but this
-         * is incorrect for the last element, see #26732. */
-        fac = (a != coba.tot_cur_ipotype_hue.x) ? 0.0 : 1.0;
-      }
-      
-      if (ipotype == COLBAND_INTERP_B_SPLINE || ipotype == COLBAND_INTERP_CARDINAL) {
-        /* Interpolate from right to left: `3 2 1 0`. */
-        float t[4];
-        
-        if (a >= coba.tot_cur_ipotype_hue.x - 1) {
-          cbd0_rgba = cbd1_rgba;
-        }
-        else {
-          cbd0_rgba = coba.data[a + 1].rgba;
-        }
-        if (a < 2) {
-          cbd3_rgba = cbd2_rgba;
-        }
-        else {
-          cbd3_rgba = coba.data[a - 2].rgba;
-        }
-        
-        fac = clamp(fac, 0.0, 1.0);
-        
-        if (ipotype == COLBAND_INTERP_CARDINAL) {
-          key_curve_position_weights(fac, t, 1);
-        }
-        else {
-          key_curve_position_weights(fac, t, 2);
-        }
-        
-        out_color = vec4(
-            t[3] * cbd3_rgba.r + t[2] * cbd2_rgba.r + t[1] * cbd1_rgba.r + t[0] * cbd0_rgba.r,
-            t[3] * cbd3_rgba.g + t[2] * cbd2_rgba.g + t[1] * cbd1_rgba.g + t[0] * cbd0_rgba.g,
-            t[3] * cbd3_rgba.b + t[2] * cbd2_rgba.b + t[1] * cbd1_rgba.b + t[0] * cbd0_rgba.b,
-            t[3] * cbd3_rgba.a + t[2] * cbd2_rgba.a + t[1] * cbd1_rgba.a + t[0] * cbd0_rgba.a);
-        out_color = clamp(out_color, 0.0, 1.0);
-      }
-      else {
-        if (ipotype == COLBAND_INTERP_EASE) {
-          float fac2 = fac * fac;
-          fac = 3.0 * fac2 - 2.0 * fac2 * fac;
-        }
-        float mfac = 1.0 - fac;
-        
-        if (coba.color_mode_pad.x == COLBAND_BLEND_HSV) {
-          vec3 col1, col2;
-          
-          col1 = rgb_to_hsv(vec3(cbd1_rgba.r, cbd1_rgba.g, cbd1_rgba.b));
-          col2 = rgb_to_hsv(vec3(cbd2_rgba.r, cbd2_rgba.g, cbd2_rgba.b));
-          
-          out_color.r = colorband_hue_interp(coba.tot_cur_ipotype_hue.w, mfac, fac, col1[0], col2[0]);
-          out_color.g = mfac * col1[1] + fac * col2[1];
-          out_color.b = mfac * col1[2] + fac * col2[2];
-          out_color.a = mfac * cbd1_rgba.a + fac * cbd2_rgba.a;
+/* Displacement-specific imagewrap() function
+ * Note: BKE_colorband_evaluate() and do_2d_mapping() are in gpu_shader_common_texture_lib.hh
+ * imagewrap() uses shader-specific uniforms (tex_flip_axis, tex_checker_*, etc.) */
 
-          vec3 out_rgb = hsv_to_rgb(vec3(out_color.r, out_color.g, out_color.b));
-          out_color.r = out_rgb.r;
-          out_color.g = out_rgb.g;
-          out_color.b = out_rgb.b;
-        }
-        else if (coba.color_mode_pad.x == COLBAND_BLEND_HSL) {
-          vec3 col1, col2;
-          
-          col1 = rgb_to_hsl(vec3(cbd1_rgba.r, cbd1_rgba.g, cbd1_rgba.b));
-          col2 = rgb_to_hsl(vec3(cbd2_rgba.r, cbd2_rgba.g, cbd2_rgba.b));
-          
-          out_color.r = colorband_hue_interp(coba.tot_cur_ipotype_hue.w, mfac, fac, col1[0], col2[0]);
-          out_color.g = mfac * col1[1] + fac * col2[1];
-          out_color.b = mfac * col1[2] + fac * col2[2];
-          out_color.a = mfac * cbd1_rgba.a + fac * cbd2_rgba.a;
-
-          vec3 out_rgb = hsl_to_rgb(vec3(out_color.r, out_color.g, out_color.b));
-          out_color.r = out_rgb.r;
-          out_color.g = out_rgb.g;
-          out_color.b = out_rgb.b;
-        }
-        else {
-          /* COLBAND_BLEND_RGB */
-          out_color = vec4(mfac * cbd1_rgba.r + fac * cbd2_rgba.r,
-                           mfac * cbd1_rgba.g + fac * cbd2_rgba.g,
-                           mfac * cbd1_rgba.b + fac * cbd2_rgba.b,
-                           mfac * cbd1_rgba.a + fac * cbd2_rgba.a);
-        }
-      }
-    }
-  }
-  
-  return true; /* OK */
-}
-
-/* GPU port of do_2d_mapping() from texture_procedural.cc (line 501-537)
- * Applies REPEAT scaling + MIRROR, then CROP transformations */
-void do_2d_mapping(inout float fx, inout float fy)
-{
-  /* Step 1: REPEAT scaling + MIRROR (matching CPU line 501-527) */
-  if (tex_extend == TEX_REPEAT) {
-    float origf_x = fx;
-    float origf_y = fy;
-    
-    /* Repeat X */
-    if (tex_repeat.x > 1.0) {
-      fx *= tex_repeat.x;
-      if (fx > 1.0) {
-        fx -= float(int(fx));
-      }
-      else if (fx < 0.0) {
-        fx += 1.0 - float(int(fx));
-      }
-      
-      /* Mirror X if needed */
-      if (tex_xmir) {
-        int orig = int(floor(origf_x * tex_repeat.x));
-        if ((orig & 1) != 0) {
-          fx = 1.0 - fx;
-        }
-      }
-    }
-    
-    /* Repeat Y */
-    if (tex_repeat.y > 1.0) {
-      fy *= tex_repeat.y;
-      if (fy > 1.0) {
-        fy -= float(int(fy));
-      }
-      else if (fy < 0.0) {
-        fy += 1.0 - float(int(fy));
-      }
-      
-      /* Mirror Y if needed */
-      if (tex_ymir) {
-        int orig = int(floor(origf_y * tex_repeat.y));
-        if ((orig & 1) != 0) {
-          fy = 1.0 - fy;
-        }
-      }
-    }
-  }
-
-  /* Step 2: CROP (matching CPU line 528-537) */
-  if (tex_crop.x != 0.0 || tex_crop.z != 1.0) {
-    float fac1 = tex_crop.z - tex_crop.x;
-    fx = tex_crop.x + fx * fac1;
-  }
-  if (tex_crop.y != 0.0 || tex_crop.w != 1.0) {
-    float fac1 = tex_crop.w - tex_crop.y;
-    fy = tex_crop.y + fy * fac1;
-  }
-}
+#define TEX_RGB 64
 
 /* GPU port of imagewrap() from texture_image.cc (line 98-256)
  * Handles TEX_IMAROT, TEX_CHECKER filtering, CLIPCUBE check, coordinate wrapping, and texture sampling
- * Returns 0 if pixel should not be rendered (CLIP/CLIPCUBE/CHECKER filtering),
- * otherwise returns flags (e.g. TEX_RGB) describing the sampled result.
- */
-#define TEX_RGB 64
+ * Returns TEX_RGB flag if successful */
 int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_size)
 {
-  /* Initialize result similar to CPU path */
   result = vec4(0.0);
   int retval = TEX_RGB;
 
   float fx = tex_coord.x;
   float fy = tex_coord.y;
   
-  /* Step 1: TEX_IMAROT (swap X/Y) AFTER crop (matching CPU line 120-122)
-   * CRITICAL: This MUST happen AFTER crop and BEFORE TEX_CHECKER! */
+  /* Step 1: TEX_IMAROT (swap X/Y) AFTER crop */
   if (tex_flip_axis) {
     float temp = fx;
     fx = fy;
     fy = temp;
   }
 
-  /* Step 2: TEX_CHECKER filtering (matching CPU line 124-171)
-   * Applied AFTER repeat/crop/swap to ensure correct tile detection */
+  /* Step 2: TEX_CHECKER filtering */
   if (tex_extend == TEX_CHECKER) {
-    /* Calculate tile coordinates from normalized UV coordinates (after repeat/crop)
-     * xs = int(floor(fx)), ys = int(floor(fy)) */
     int xs = int(floor(fx));
     int ys = int(floor(fy));
-    int tile_parity = (xs + ys) & 1;  /* 1 = odd tile, 0 = even tile */
+    int tile_parity = (xs + ys) & 1;
     
-    /* Apply checker odd/even filter (CPU texture_image.cc line 98-111)
-     * NOTE: CPU logic uses inverted flags!
-     * tex_checker_odd = true means "TEX_CHECKER_ODD flag is NOT SET"
-     *                              → hide EVEN tiles
-     * tex_checker_even = true means "TEX_CHECKER_EVEN flag is NOT SET"  
-     *                               → hide ODD tiles */
     bool show_tile = true;
-    
     if (tex_checker_odd && (tile_parity == 0)) {
-      show_tile = false;  /* Hide EVEN tiles when ODD flag not set */
+      show_tile = false;
     }
     if (tex_checker_even && (tile_parity == 1)) {
-      show_tile = false;  /* Hide ODD tiles when EVEN flag not set */
+      show_tile = false;
     }
     
     if (!show_tile) {
-      return retval;  /* Pixel should not be rendered (CPU returns retval here) */
+      return retval;
     }
     
-    /* Normalize to fractional part within the tile */
     fx -= float(xs);
     fy -= float(ys);
     
-    /* Scale checker pattern if needed (CPU line 168-171)
-     * scale around center, (0.5, 0.5) */
     if (tex_checkerdist < 1.0) {
       fx = (fx - 0.5) / (1.0 - tex_checkerdist) + 0.5;
       fy = (fy - 0.5) / (1.0 - tex_checkerdist) + 0.5;
     }
   }
   
-  /* Step 3: Compute integer pixel coordinates (CPU line 174-175)
-   * x = xi = int(floorf(fx * ibuf->x)); */
+  /* Step 3: Compute integer pixel coordinates */
   int x = int(floor(fx * float(tex_size.x)));
   int y = int(floor(fy * float(tex_size.y)));
-  int xi = x;  /* Save original for interpolation remap later */
+  int xi = x;
   int yi = y;
   
-  /* Step 4: CLIPCUBE early return (CPU line 177-183)
-   * CRITICAL: This check happens BEFORE coordinate wrapping! */
+  /* Step 4: CLIPCUBE early return */
   if (tex_extend == TEX_CLIPCUBE) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
         tex_coord.z < -1.0 || tex_coord.z > 1.0) {
       return retval;
     }
   }
-  /* Step 5: CLIP/CHECKER early return (CPU line 185-191) */
+  /* Step 5: CLIP/CHECKER early return */
   else if (tex_extend == TEX_CLIP || tex_extend == TEX_CHECKER) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
       return retval;
     }
   }
-  /* Step 6: EXTEND or REPEAT mode: wrap/clamp coordinates (CPU line 193-222) */
+  /* Step 6: EXTEND or REPEAT mode: wrap/clamp coordinates */
   else {
     if (tex_extend == TEX_EXTEND) {
       x = (x >= tex_size.x) ? (tex_size.x - 1) : ((x < 0) ? 0 : x);
     }
     else {
-      /* REPEAT */
       x = x % tex_size.x;
       if (x < 0) x += tex_size.x;
     }
@@ -1203,20 +399,16 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
       y = (y >= tex_size.y) ? (tex_size.y - 1) : ((y < 0) ? 0 : y);
     }
     else {
-      /* REPEAT */
       y = y % tex_size.y;
       if (y < 0) y += tex_size.y;
     }
   }
   
-  /* Step 7: Sample texture with or without interpolation (CPU line 233-256) */
+  /* Step 7: Sample texture with or without interpolation */
   if (tex_interpol) {
-    /* Interpolated sampling (boxsample) - CPU line 234-252 */
     float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
     float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
 
-    /* Remap coordinates for interpolation (CPU line 239-243):
-     * "Important that this value is wrapped #27782" */
     fx -= float(xi - x) / float(tex_size.x);
     fy -= float(yi - y) / float(tex_size.y);
 
@@ -1244,18 +436,15 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     
     result = texres_box.trgba;
   } else {
-    /* No filtering (CPU line 254-255: ibuf_get_color) */
     ivec2 px_coord = ivec2(x, y);
     px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
-    /* Exact texel fetch to match CPU ibuf_get_color (no filtering). */
-    /* Use helper to emulate cpu ibuf_get_color behavior for easier comparison. */
     result = shader_ibuf_get_color(texelFetch(displacement_texture, px_coord, 0),
                                   tex_is_float,
                                   tex_channels,
                                   tex_is_byte);
   }
   
-  /* Compute intensity (CPU line 244-253) */
+  /* Compute intensity */
   if (use_talpha) {
     out_tin = result.a;
   }
@@ -1272,13 +461,13 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     result.a = 1.0 - result.a;
   }
 
-  /* De-pre-multiply (CPU line 260-264) */
+  /* De-pre-multiply */
   if (result.a != 1.0 && result.a > 1e-4 && !tex_calcalpha) {
     float inv_alpha = 1.0 / result.a;
     result.rgb *= inv_alpha;
   }
 
-  /* BRICONTRGB macro (texture_common.h) - CPU line 270 */
+  /* BRICONTRGB (brightness/contrast/RGB factors) */
   vec3 rgb = result.rgb;
   rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
   rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
@@ -1331,18 +520,9 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
   }
 
   result.rgb = rgb;
-
-  /* Indicate success and that we sampled RGB data. */
   return retval;
 }
 #endif  // HAS_TEXTURE
-)GLSL";
-}
-
-/* Part 2: Main function body (texture sampling + displacement logic) */
-static std::string get_displace_shader_part2()
-{
-  return R"GLSL(
 
 void main() {
   uint v = gl_GlobalInvocationID.x;
@@ -1415,8 +595,9 @@ float fy = (tex_coord.y + 1.0) / 2.0;
 /* Get texture size for pixel-space calculations */
 ivec2 tex_size = textureSize(displacement_texture, 0);
   
-/* Step 2: Apply do_2d_mapping() - REPEAT scaling + MIRROR + CROP */
-do_2d_mapping(fx, fy);
+/* Step 2: Apply do_2d_mapping() - SCALE → ROTATION → REPEAT → MIRROR → CROP → OFFSET
+ * Note: do_2d_mapping() now supports full transformation pipeline from gpu_shader_common_texture_lib.hh */
+do_2d_mapping(fx, fy, tex_extend, tex_repeat, tex_xmir, tex_ymir, tex_crop, tex_size_param, tex_ofs, tex_rot);
 
 /* Step 3: Apply imagewrap() - handles all wrapping, filtering, and sampling
  * This now includes CLIPCUBE check, coordinate wrapping, and texture sampling */
@@ -1536,8 +717,7 @@ do_2d_mapping(fx, fy);
 /* Final assembly function - concatenates both parts */
 static std::string get_displace_compute_src()
 {
-  return get_displace_shader_part1() + get_vertex_normals() + get_texture_mapping_functions() +
-         get_displace_shader_part2();
+  return get_displace_shader_part1() + get_vertex_normals() + get_displace_shader_part2();
 }
 
 /** \} */
@@ -1593,6 +773,7 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->source));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.tile));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.framenr));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->imaflag));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_flag));
@@ -2074,6 +1255,10 @@ struct ColorBand {
       info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
       info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
       info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
+      /* NEW: Texture transformation parameters (rotation/scale/offset) */
+      info.push_constant(Type::float3_t, "tex_size_param");  /* Tex->size (scale X/Y/Z) */
+      info.push_constant(Type::float3_t, "tex_ofs");         /* Tex->ofs (offset X/Y/Z) */
+      info.push_constant(Type::float_t, "tex_rot");          /* Tex->rot (rotation Z in radians) */
       /* Mapping controls (when mapping_use_input_positions==true shader will
        * compute texture coords from input_positions[] instead of using
        * precomputed texture_coords[]). UV mapping remains CPU-side. */
@@ -2202,9 +1387,27 @@ struct ColorBand {
     /* Checker pattern scaling parameter */
     GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
 
+    /* NEW: Texture transformation parameters (rotation/scale/offset)
+     * NOTE: These fields (size/ofs/rot) may not exist in all Tex versions.
+     * For now, use default values (no transformation). Future versions can enable these. */
+    float tex_size_default[3] = {1.0f, 1.0f, 1.0f};
+    float tex_ofs_default[3] = {0.0f, 0.0f, 0.0f};
+    float tex_rot_default = 0.0f;
+    
+    /* DEBUG: Print to verify identity transform */
+    printf("DisplaceGPU: tex_size=[%.3f,%.3f,%.3f], tex_ofs=[%.3f,%.3f,%.3f], tex_rot=%.3f\n",
+           tex_size_default[0], tex_size_default[1], tex_size_default[2],
+           tex_ofs_default[0], tex_ofs_default[1], tex_ofs_default[2],
+           tex_rot_default);
+    
+    GPU_shader_uniform_3f(shader, "tex_size_param", tex_size_default[0], tex_size_default[1], tex_size_default[2]);
+    GPU_shader_uniform_3f(shader, "tex_ofs", tex_ofs_default[0], tex_ofs_default[1], tex_ofs_default[2]);
+    GPU_shader_uniform_1f(shader, "tex_rot", tex_rot_default);
+
     /* Use metadata from MeshStaticData (filled during texture upload) */
     GPU_shader_uniform_1b(shader, "tex_is_byte", msd.tex_is_byte);
     GPU_shader_uniform_1b(shader, "tex_is_float", msd.tex_is_float);
+    msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
     GPU_shader_uniform_1i(shader, "tex_channels", msd.tex_channels);
 
     /* Pass mtex->mapto to shader so it can decide whether to apply scene color conversion
