@@ -552,13 +552,19 @@ static bool node_group_separate_selected(
     const std::string new_basepath = node_basepath(ngroup, *newnode);
     anim_basepaths.append({old_basepath, new_basepath});
 
-    /* ensure valid parent pointers, detach if parent stays inside the group */
-    if (newnode->parent && !(newnode->parent->flag & NODE_SELECT)) {
-      bke::node_detach_node(ngroup, *newnode);
-    }
-
     newnode->location[0] += offset.x;
     newnode->location[1] += offset.y;
+  }
+  for (bNode *newnode : node_map.values()) {
+    /* Ensure valid parent pointers. Detach if parent stays inside the group. */
+    if (newnode->parent) {
+      if (newnode->parent->flag & NODE_SELECT) {
+        newnode->parent = node_map.lookup(newnode->parent);
+      }
+      else {
+        bke::node_detach_node(ngroup, *newnode);
+      }
+    }
   }
   if (!make_copy) {
     bke::node_rebuild_id_vector(ngroup);
@@ -1180,11 +1186,7 @@ static void node_group_make_insert_selected(const bContext &C,
 
   update_nested_node_refs_after_moving_nodes_into_group(ntree, group, *gnode, node_identifier_map);
 
-  if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
-    BKE_ntree_update(*bmain, Span<bNodeTree *>{&group});
-  }
-
-  nodes::update_node_declaration_and_sockets(ntree, *gnode);
+  BKE_main_ensure_invariants(*bmain, Span<ID *>{&group.id});
 
   /* Add new links to inputs outside of the group. */
   for (const auto item : input_links.items()) {

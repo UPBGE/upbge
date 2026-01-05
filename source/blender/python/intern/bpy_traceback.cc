@@ -37,6 +37,7 @@ static const char *traceback_filepath(PyTracebackObject *tb, PyObject **r_coerce
 {
   PyCodeObject *code = PyFrame_GetCode(tb->tb_frame);
   *r_coerce = PyUnicode_EncodeFSDefault(code->co_filename);
+  Py_DECREF(code);
   return PyBytes_AS_STRING(*r_coerce);
 }
 
@@ -243,6 +244,9 @@ bool python_script_error_jump(
         {
           success = true;
         }
+        Py_DECREF(message);
+        Py_DECREF(filepath_exc_py);
+        Py_XDECREF(text_py);
       }
     }
   }
