@@ -391,106 +391,6 @@ float clipy_rctf(inout rctf rf, float y1, float y2)
   }
   return 1.0;
 }
-
-int clipx_rctf_swap(inout rctf stack[8], float x1, float x2, float tex_width)
-{
-  float sx = tex_width;
-  float x3 = 0.0, x4 = 0.0;
-  int count = 1;
-  
-  if (x1 > x2) {
-    float tmp = x1;
-    x1 = x2;
-    x2 = tmp;
-  }
-  
-  if (x1 < 0.0) {
-    x3 = 0.0;
-    x4 = -x1;
-  }
-  if (x2 > sx) {
-    x3 += (x2 - sx);
-    x4 += (x2 - sx);
-  }
-  
-  if (x3 == 0.0 && x4 == 0.0) {
-    stack[0].xmin = max(x1, 0.0);
-    stack[0].xmax = min(x2, sx);
-    return 1;
-  }
-  
-  if (x1 < 0.0) {
-    stack[count] = stack[0];
-    stack[count].xmin = sx + x1;
-    stack[count].xmax = sx;
-    count++;
-  }
-  
-  stack[0].xmin = max(x1, 0.0);
-  stack[0].xmax = min(x2, sx);
-  
-  if (x2 > sx) {
-    stack[count] = stack[0];
-    stack[count].xmin = 0.0;
-    stack[count].xmax = x2 - sx;
-    count++;
-  }
-  
-  return count;
-}
-
-int clipy_rctf_swap(inout rctf stack[8], int count_in, float y1, float y2, float tex_height)
-{
-  float sy = tex_height;
-  float y3 = 0.0, y4 = 0.0;
-  int count_out = 0;
-  
-  if (y1 > y2) {
-    float tmp = y1;
-    y1 = y2;
-    y2 = tmp;
-  }
-  
-  if (y1 < 0.0) {
-    y3 = 0.0;
-    y4 = -y1;
-  }
-  if (y2 > sy) {
-    y3 += (y2 - sy);
-    y4 += (y2 - sy);
-  }
-  
-  if (y3 == 0.0 && y4 == 0.0) {
-    for (int i = 0; i < count_in; i++) {
-      stack[i].ymin = max(y1, 0.0);
-      stack[i].ymax = min(y2, sy);
-    }
-    return count_in;
-  }
-  
-  for (int i = 0; i < count_in; i++) {
-    stack[count_out] = stack[i];
-    stack[count_out].ymin = max(y1, 0.0);
-    stack[count_out].ymax = min(y2, sy);
-    count_out++;
-    
-    if (y1 < 0.0 && count_out < 8) {
-      stack[count_out] = stack[i];
-      stack[count_out].ymin = sy + y1;
-      stack[count_out].ymax = sy;
-      count_out++;
-    }
-    
-    if (y2 > sy && count_out < 8) {
-      stack[count_out] = stack[i];
-      stack[count_out].ymin = 0.0;
-      stack[count_out].ymax = y2 - sy;
-      count_out++;
-    }
-  }
-  
-  return count_out;
-}
 )GLSL";
 }
 
@@ -602,11 +502,25 @@ void boxsample(sampler2D displacement_texture,
               int tex_channels)
 {
   TexResult_boxsample texr;
-  rctf rf, stack[8];
+  rctf rf;
+  /* NOTE(GPU divergence): CPU `texture_image.cc::boxsample()` uses a small `stack[8]`
+   * and a `count` value that can grow when `imaprepeat` triggers `clipx_rctf_swap()` /
+   * `clipy_rctf_swap()` splitting. That allows sampling wrapped areas up to one repeat.
+   *
+   * This GPU implementation intentionally does NOT perform the swap/splitting path
+   * (costly and complex in GLSL/compute). As a result, we only ever sample a single
+   * clipped rectangle and do not need a stack here.
+   *
+   * The repeat behavior is instead primarily handled earlier in `imagewrap()` by wrapping
+   * integer pixel coords and applying the #27782 floating-point remap before filtering.
+   * This keeps results close to CPU for Displace while staying performant. */
   float opp, tot, alphaclip = 1.0;
-  int count = 1;
+  /* NOTE(GPU divergence): kept in CPU for repeat-splitting; unused here by design. */
   
-  rf = stack[0];
+  /* NOTE: This is intentionally a simplified GPU port.
+   * We do NOT implement `clipx_rctf_swap` / `clipy_rctf_swap` splitting for repeat mode.
+   * That logic is costly and complex on GPU. For imaprepeat we fall back to simple
+   * clipping via clipx/clipy_rctf. */
   rf.xmin = minx * float(tex_size.x);
   rf.xmax = maxx * float(tex_size.x);
   rf.ymin = miny * float(tex_size.y);
@@ -619,16 +533,14 @@ void boxsample(sampler2D displacement_texture,
     rf.xmax = clamp(rf.xmax, 0.0, float(tex_size.x - 1));
   }
   else if (imaprepeat) {
-    count = clipx_rctf_swap(stack, rf.xmin, rf.xmax, float(tex_size.x));
-    
-    if (count == 0) {
+    alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
+    if (alphaclip <= 0.0) {
       texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
       return;
     }
   }
   else {
     alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
-    
     if (alphaclip <= 0.0) {
       texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
       return;
@@ -640,49 +552,23 @@ void boxsample(sampler2D displacement_texture,
     rf.ymax = clamp(rf.ymax, 0.0, float(tex_size.y - 1));
   }
   else if (imaprepeat) {
-    count = clipy_rctf_swap(stack, count, rf.ymin, rf.ymax, float(tex_size.y));
-    
-    if (count == 0) {
+    alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
+    if (alphaclip <= 0.0) {
       texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
       return;
     }
   }
   else {
     alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
-    
     if (alphaclip <= 0.0) {
       texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
       return;
     }
   }
-  
-  if (count > 1) {
-    tot = texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-    for (int i = 0; i < count; i++) {
-      boxsampleclip(displacement_texture, tex_size, stack[i], texr, tex_is_byte, tex_is_float, tex_channels);
-      
-      opp = square_rctf(stack[i]);
-      tot += opp;
-      
-      texres.trgba[0] += opp * texr.trgba[0];
-      texres.trgba[1] += opp * texr.trgba[1];
-      texres.trgba[2] += opp * texr.trgba[2];
-      if (texres.talpha) {
-        texres.trgba[3] += opp * texr.trgba[3];
-      }
-    }
-    if (tot != 0.0) {
-      texres.trgba[0] /= tot;
-      texres.trgba[1] /= tot;
-      texres.trgba[2] /= tot;
-      if (texres.talpha) {
-        texres.trgba[3] /= tot;
-      }
-    }
-  }
-  else {
-    boxsampleclip(displacement_texture, tex_size, stack[0], texres, tex_is_byte, tex_is_float, tex_channels);
-  }
+
+  /* NOTE(GPU divergence): CPU averages multiple rectangles when repeat-splitting occurs.
+   * Since we do not split, we always sample a single rectangle here. */
+  boxsampleclip(displacement_texture, tex_size, rf, texres, tex_is_byte, tex_is_float, tex_channels);
   
   if (!texres.talpha) {
     texres.trgba[3] = 1.0;
@@ -901,11 +787,6 @@ void do_2d_mapping(inout float fx, inout float fy,
   bool has_scale = (tex_size.x != 1.0 || tex_size.y != 1.0);
   bool has_rotation = (tex_rot != 0.0);
   bool has_offset = (tex_ofs.x != 0.0 || tex_ofs.y != 0.0);
-  
-  /* DEBUG: Force disable all transformations to test if this is the issue */
-  has_scale = false;
-  has_rotation = false;
-  has_offset = false;
   
   /* Step 1: Apply size (scale) FIRST - matches CPU order */
   if (has_scale) {

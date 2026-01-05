@@ -274,6 +274,44 @@ static std::string get_displace_shader_part1()
 #define TEX_CLIPCUBE 4
 #define TEX_CHECKER 5
 
+/* Texture sampling strategy.
+ *
+ * - DISP_TEXSAMPLER_FAST_BILINEAR: Use hardware bilinear sampling (`texture()`).
+ *   This is very fast and matches the pre-refactor GPU performance characteristics.
+ *   It does NOT implement CPU `boxsample()` area filtering controlled by `filtersize`.
+ *
+ * - DISP_TEXSAMPLER_CPU_BOXSAMPLE: Use the CPU-ported `boxsample()` implementation.
+ *   This aims to match `texture_image.cc::boxsample()` behavior more closely but can be
+ *   extremely expensive in a compute shader due to nested loops and many `texelFetch()`.
+ *
+ * Toggle this define when debugging CPU/GPU mismatches.
+ */
+#define DISP_TEXSAMPLER_FAST_BILINEAR 0
+#define DISP_TEXSAMPLER_CPU_BOXSAMPLE 1
+
+#ifndef DISP_TEXSAMPLER_MODE
+#  /* Default to the historical Displace GPU behavior: use the CPU-ported box filter.
+#   * This matches the previous shader more closely, especially for TEX_REPEAT + filtering.
+#   *
+#   * The FAST_BILINEAR mode can be enabled for performance, but it may diverge from the
+#   * CPU `texture_image.cc::boxsample()` result (filtersize becomes an approximation). */
+#  define DISP_TEXSAMPLER_MODE DISP_TEXSAMPLER_CPU_BOXSAMPLE
+#endif
+
+/* NOTE ABOUT REPEAT + FILTERING
+ * The CPU image pipeline wraps integer pixel coordinates (x/y) and then adjusts the
+ * floating coordinates (fx/fy) by the wrapping delta (xi-x, yi-y) before filtering:
+ *   fx -= float(xi - x) / size_x;
+ *   fy -= float(yi - y) / size_y;
+ * This is critical for stable filtering across wrap boundaries (#27782).
+ *
+ * For easy CPU/GPU comparison we preserve this remap in both sampling modes.
+ *
+ * Even in the FAST_BILINEAR mode we do NOT simply do `fract(fx)` because that would
+ * ignore the snapped integer wrap that CPU performs and can change which side of the
+ * boundary gets filtered.
+ */
+
 /* ColorBand interpolation types (matching DNA_color_types.h) */
 #define COLBAND_INTERP_LINEAR 0
 #define COLBAND_INTERP_EASE 1
@@ -403,12 +441,19 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
       if (y < 0) y += tex_size.y;
     }
   }
-  
-  /* Step 7: Sample texture with or without interpolation */
+
+  /* Step 7: Sample texture with or without interpolation.
+   * Keep the FAST and CPU-like paths side-by-side to make comparisons easy.
+   */
   if (tex_interpol) {
+#if DISP_TEXSAMPLER_MODE == DISP_TEXSAMPLER_CPU_BOXSAMPLE
+    /* CPU-like path: area filtered boxsample.
+     * This is closer to `texture_image.cc::boxsample()` but can be very slow on GPU.
+     */
     float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
     float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
 
+    /* Match CPU: wrap back to float coords after integer clamp/wrap. */
     fx -= float(xi - x) / float(tex_size.x);
     fy -= float(yi - y) / float(tex_size.y);
 
@@ -420,7 +465,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     TexResult_boxsample texres_box;
     texres_box.trgba = vec4(0.0);
     texres_box.talpha = use_talpha;
-    
+
     boxsample(displacement_texture,
               tex_size,
               min_tex_x,
@@ -433,9 +478,33 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
               tex_is_byte,
               tex_is_float,
               tex_channels);
-    
+
     result = texres_box.trgba;
-  } else {
+#else
+    /* Fast path: rely on hardware bilinear sampling.
+     * This approximates CPU filtering but avoids the heavy nested loops of boxsample.
+     */
+    /* Match CPU wrap-remap (#27782) even in fast mode. */
+    float u = fx - float(xi - x) / float(tex_size.x);
+    float v = fy - float(yi - y) / float(tex_size.y);
+
+    if (tex_extend == TEX_EXTEND) {
+      u = clamp(u, 0.0, 1.0);
+      v = clamp(v, 0.0, 1.0);
+    }
+    else if (tex_extend == TEX_REPEAT) {
+      /* After CPU-style remap, u/v are expected to already be in wrapped space.
+       * Keep them as-is to mimic CPU x/y wrapping behavior.
+       */
+    }
+
+    result = shader_ibuf_get_color(texture(displacement_texture, vec2(u, v)),
+                                   tex_is_float,
+                                   tex_channels,
+                                   tex_is_byte);
+#endif
+  }
+  else {
     ivec2 px_coord = ivec2(x, y);
     px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
     result = shader_ibuf_get_color(texelFetch(displacement_texture, px_coord, 0),
@@ -1393,12 +1462,6 @@ struct ColorBand {
     float tex_size_default[3] = {1.0f, 1.0f, 1.0f};
     float tex_ofs_default[3] = {0.0f, 0.0f, 0.0f};
     float tex_rot_default = 0.0f;
-    
-    /* DEBUG: Print to verify identity transform */
-    printf("DisplaceGPU: tex_size=[%.3f,%.3f,%.3f], tex_ofs=[%.3f,%.3f,%.3f], tex_rot=%.3f\n",
-           tex_size_default[0], tex_size_default[1], tex_size_default[2],
-           tex_ofs_default[0], tex_ofs_default[1], tex_ofs_default[2],
-           tex_rot_default);
     
     GPU_shader_uniform_3f(shader, "tex_size_param", tex_size_default[0], tex_size_default[1], tex_size_default[2]);
     GPU_shader_uniform_3f(shader, "tex_ofs", tex_ofs_default[0], tex_ofs_default[1], tex_ofs_default[2]);
