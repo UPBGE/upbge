@@ -1192,6 +1192,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
                                                   false,
                                                   nullptr,
                                                   nullptr,
+                                                  false,
                                                   err_out);
 
     /* Convert crop rect into the space relative to the area. */
@@ -1437,7 +1438,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
+  op->customdata = MEM_callocN<ScreenshotOperatorData>(__func__);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
   data->is_mouse_down = false;

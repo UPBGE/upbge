@@ -226,11 +226,15 @@ void AS_asset_library_essential_import_method_update()
 
 namespace blender::asset_system {
 
-AssetLibrary::AssetLibrary(eAssetLibraryType library_type, StringRef name, StringRef root_path)
+AssetLibrary::AssetLibrary(
+    eAssetLibraryType library_type,
+    StringRef name,
+    StringRef root_path,
+    std::optional<AssetCatalogService::read_only_tag> catalogs_read_only_tag)
     : library_type_(library_type),
       name_(name),
       root_path_(std::make_shared<std::string>(utils::normalize_directory_path(root_path))),
-      catalog_service_(std::make_unique<AssetCatalogService>(*root_path_))
+      catalog_service_(std::make_unique<AssetCatalogService>(*root_path_, catalogs_read_only_tag))
 {
 }
 
@@ -384,7 +388,7 @@ void AssetLibrary::on_blend_save_post(Main *bmain,
                                       PointerRNA ** /*pointers*/,
                                       const int /*num_pointers*/)
 {
-  if (save_catalogs_when_file_is_saved) {
+  if (save_catalogs_when_file_is_saved && !this->catalog_service().is_read_only()) {
     this->catalog_service().write_to_disk(bmain->filepath);
   }
 }

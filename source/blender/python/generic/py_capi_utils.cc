@@ -703,6 +703,8 @@ void PyC_FileAndNum(const char **r_filename, int *r_lineno)
   if (r_lineno) {
     *r_lineno = PyFrame_GetLineNumber(frame);
   }
+
+  Py_DECREF(code);
 }
 
 void PyC_FileAndNum_Safe(const char **r_filename, int *r_lineno)
@@ -1340,6 +1342,7 @@ void *PyC_RNA_AsPointer(PyObject *value, const char *type_name)
 
   PyObject *as_pointer = PyObject_GetAttrString(value, "as_pointer");
   if ((as_pointer == nullptr) || !PyCallable_Check(as_pointer)) {
+    Py_XDECREF(as_pointer);
     PyErr_Format(PyExc_TypeError, "Invalid %.200s pointer", type_name);
     return nullptr;
   }

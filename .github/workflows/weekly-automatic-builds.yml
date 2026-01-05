@@ -211,5 +211,5 @@ jobs:
 
             Download the corresponding file for your OS below.
           draft: false
-          prerelease: false
+          prerelease: true
           files: artifacts/**/*
