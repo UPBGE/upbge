@@ -407,84 +407,176 @@ float clipy_rctf(inout rctf rf, float y1, float y2)
 static std::string get_boxsample_core_glsl()
 {
   return R"GLSL(
-void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inout TexResult_boxsample texres, bool tex_is_byte, bool tex_is_float, int tex_channels)
+void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inout TexResult_boxsample texres, bool imaprepeat, bool tex_is_byte, bool tex_is_float, int tex_channels)
 {
-  float muly, mulx, div;
-  vec4 col;
-  int x, y, startx, endx, starty, endy;
-  
-  startx = int(floor(rf.xmin));
-  endx = int(floor(rf.xmax));
-  starty = int(floor(rf.ymin));
-  endy = int(floor(rf.ymax));
-  
-  startx = max(startx, 0);
-  starty = max(starty, 0);
-  if (endx >= tex_size.x) {
-    endx = tex_size.x - 1;
-  }
-  if (endy >= tex_size.y) {
-    endy = tex_size.y - 1;
-  }
-  
-  if (starty == endy && startx == endx) {
-    ibuf_get_color_boxsample(texres.trgba, displacement_texture, tex_size, startx, starty, tex_is_byte, tex_is_float, tex_channels);
-  }
-  else {
-    div = texres.trgba[0] = texres.trgba[1] = texres.trgba[2] = texres.trgba[3] = 0.0;
-    for (y = starty; y <= endy; y++) {
-      
-      muly = 1.0;
-      
-      if (starty == endy) {
-        /* pass */
-      }
-      else {
-        if (y == starty) {
-          muly = 1.0 - (rf.ymin - float(y));
-        }
-        if (y == endy) {
-          muly = (rf.ymax - float(y));
-        }
-      }
-      
-      if (startx == endx) {
-        mulx = muly;
-        
-        ibuf_get_color_boxsample(col, displacement_texture, tex_size, startx, y, tex_is_byte, tex_is_float, tex_channels);
-        texres.trgba += col * mulx;
-        div += mulx;
-      }
-      else {
-        for (x = startx; x <= endx; x++) {
-          mulx = muly;
-          if (x == startx) {
-            mulx *= 1.0 - (rf.xmin - float(x));
-          }
-          if (x == endx) {
-            mulx *= (rf.xmax - float(x));
-          }
-          
-          ibuf_get_color_boxsample(col, displacement_texture, tex_size, x, y, tex_is_byte, tex_is_float, tex_channels);
-          if (mulx == 1.0) {
-            texres.trgba += col;
-            div += 1.0;
-          }
-          else {
-            texres.trgba += col * mulx;
-            div += mulx;
-          }
-        }
-      }
+  /* If repeat is not requested, use the original single-rectangle sampling path. */
+  if (!imaprepeat) {
+    /* Sample box, is clipped already, and minx etc. have been set at tex_size.
+     * Enlarge with anti-aliased edges of the pixels. Mirror CPU `boxsampleclip` order
+     * and variable naming to ease comparison. */
+    float muly, mulx, div;
+    vec4 col;
+    int x, y, startx, endx, starty, endy;
+
+    startx = int(floor(rf.xmin));
+    endx = int(floor(rf.xmax));
+    starty = int(floor(rf.ymin));
+    endy = int(floor(rf.ymax));
+
+    startx = max(startx, 0);
+    starty = max(starty, 0);
+    if (endx >= tex_size.x) {
+      endx = tex_size.x - 1;
     }
-    
-    if (div != 0.0) {
-      div = 1.0 / div;
-      texres.trgba *= div;
+    if (endy >= tex_size.y) {
+      endy = tex_size.y - 1;
+    }
+
+    if (starty == endy && startx == endx) {
+      ibuf_get_color_boxsample(texres.trgba, displacement_texture, tex_size, startx, starty, tex_is_byte, tex_is_float, tex_channels);
     }
     else {
-      texres.trgba = vec4(0.0);
+      div = texres.trgba[0] = texres.trgba[1] = texres.trgba[2] = texres.trgba[3] = 0.0;
+      for (y = starty; y <= endy; y++) {
+
+        muly = 1.0;
+
+        if (starty == endy) {
+          /* pass */
+        }
+        else {
+          if (y == starty) {
+            muly = 1.0 - (rf.ymin - float(y));
+          }
+          if (y == endy) {
+            muly = (rf.ymax - float(y));
+          }
+        }
+
+        if (startx == endx) {
+          mulx = muly;
+
+          ibuf_get_color_boxsample(col, displacement_texture, tex_size, startx, y, tex_is_byte, tex_is_float, tex_channels);
+          texres.trgba += col * mulx;
+          div += mulx;
+        }
+        else {
+          for (x = startx; x <= endx; x++) {
+            mulx = muly;
+            if (x == startx) {
+              mulx *= 1.0 - (rf.xmin - float(x));
+            }
+            if (x == endx) {
+              mulx *= (rf.xmax - float(x));
+            }
+
+            ibuf_get_color_boxsample(col, displacement_texture, tex_size, x, y, tex_is_byte, tex_is_float, tex_channels);
+            if (mulx == 1.0) {
+              texres.trgba += col;
+              div += 1.0;
+            }
+            else {
+              texres.trgba += col * mulx;
+              div += mulx;
+            }
+          }
+        }
+      }
+
+      if (div != 0.0) {
+        div = 1.0 / div;
+        texres.trgba *= div;
+      }
+      else {
+        texres.trgba = vec4(0.0);
+      }
     }
+
+    return;
+  }
+
+  /* imaprepeat == true: split the footprint over neighboring tiles (up to 3x3)
+   * and average results weighted by intersection area. This approximates CPU
+   * split/average behavior without dynamic stacks. */
+  vec3 offsX = vec3(-float(tex_size.x), 0.0, float(tex_size.x));
+  vec3 offsY = vec3(-float(tex_size.y), 0.0, float(tex_size.y));
+
+  vec4 accum = vec4(0.0);
+  float tot_area = 0.0;
+
+  /* iterate neighbor tiles */
+  for (int ix = 0; ix < 3; ix++) {
+    for (int iy = 0; iy < 3; iy++) {
+      /* shifted rectangle into candidate tile space */
+      float sxmin = rf.xmin + offsX[ix];
+      float sxmax = rf.xmax + offsX[ix];
+      float symin = rf.ymin + offsY[iy];
+      float symax = rf.ymax + offsY[iy];
+
+      /* intersect with base tile [0, tex_size] */
+      float cxmin = max(sxmin, 0.0);
+      float cxmax = min(sxmax, float(tex_size.x));
+      float cymin = max(symin, 0.0);
+      float cymax = min(symax, float(tex_size.y));
+
+      if (cxmax <= cxmin || cymax <= cymin) {
+        continue;
+      }
+
+      /* compute area weight */
+      float area = (cxmax - cxmin) * (cymax - cymin);
+
+      /* sample this clipped region similarly to the single-rect path */
+      int startx = int(floor(cxmin));
+      int endx = int(floor(cxmax));
+      int starty = int(floor(cymin));
+      int endy = int(floor(cymax));
+
+      startx = max(startx, 0);
+      starty = max(starty, 0);
+      if (endx >= tex_size.x) {
+        endx = tex_size.x - 1;
+      }
+      if (endy >= tex_size.y) {
+        endy = tex_size.y - 1;
+      }
+
+      vec4 subcol = vec4(0.0);
+      float div = 0.0;
+      vec4 tmpc;
+
+      for (int y = starty; y <= endy; y++) {
+        float y0 = float(y);
+        float wy = min(y0 + 1.0, cymax) - max(y0, cymin);
+        if (wy <= 0.0) continue;
+        for (int x = startx; x <= endx; x++) {
+          float x0 = float(x);
+          float wx = min(x0 + 1.0, cxmax) - max(x0, cxmin);
+          if (wx <= 0.0) continue;
+          float w = wx * wy;
+          ibuf_get_color_boxsample(tmpc, displacement_texture, tex_size, x, y, tex_is_byte, tex_is_float, tex_channels);
+          subcol += tmpc * w;
+          div += w;
+        }
+      }
+
+      if (div != 0.0) {
+        subcol /= div;
+      }
+      else {
+        subcol = vec4(0.0);
+      }
+
+      accum += subcol * area;
+      tot_area += area;
+    }
+  }
+
+  if (tot_area > 0.0) {
+    texres.trgba = accum / tot_area;
+  }
+  else {
+    texres.trgba = vec4(0.0);
   }
 }
 
@@ -532,14 +624,9 @@ void boxsample(sampler2D displacement_texture,
     rf.xmin = clamp(rf.xmin, 0.0, float(tex_size.x - 1));
     rf.xmax = clamp(rf.xmax, 0.0, float(tex_size.x - 1));
   }
-  else if (imaprepeat) {
-    alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
-    if (alphaclip <= 0.0) {
-      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-      return;
-    }
-  }
-  else {
+  else if (!imaprepeat) {
+    /* Only clip for non-repeat modes. For repeat we must keep the original
+     * rect so the split/average logic in boxsampleclip can handle wrapping. */
     alphaclip = clipx_rctf(rf, 0.0, float(tex_size.x));
     if (alphaclip <= 0.0) {
       texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
@@ -551,14 +638,9 @@ void boxsample(sampler2D displacement_texture,
     rf.ymin = clamp(rf.ymin, 0.0, float(tex_size.y - 1));
     rf.ymax = clamp(rf.ymax, 0.0, float(tex_size.y - 1));
   }
-  else if (imaprepeat) {
-    alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
-    if (alphaclip <= 0.0) {
-      texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
-      return;
-    }
-  }
-  else {
+  else if (!imaprepeat) {
+    /* Only clip for non-repeat modes. For repeat we must keep the original
+     * rect so the split/average logic in boxsampleclip can handle wrapping. */
     alphaclip *= clipy_rctf(rf, 0.0, float(tex_size.y));
     if (alphaclip <= 0.0) {
       texres.trgba[0] = texres.trgba[2] = texres.trgba[1] = texres.trgba[3] = 0.0;
@@ -568,7 +650,7 @@ void boxsample(sampler2D displacement_texture,
 
   /* NOTE(GPU divergence): CPU averages multiple rectangles when repeat-splitting occurs.
    * Since we do not split, we always sample a single rectangle here. */
-  boxsampleclip(displacement_texture, tex_size, rf, texres, tex_is_byte, tex_is_float, tex_channels);
+  boxsampleclip(displacement_texture, tex_size, rf, texres, imaprepeat, tex_is_byte, tex_is_float, tex_channels);
   
   if (!texres.talpha) {
     texres.trgba[3] = 1.0;
