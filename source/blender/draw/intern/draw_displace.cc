@@ -843,6 +843,7 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.tile));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.framenr));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->imaflag));
+      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->extend));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_flag));
