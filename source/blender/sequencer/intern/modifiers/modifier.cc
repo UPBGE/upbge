@@ -180,7 +180,7 @@ bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
  */
 static void modifier_reorder(bContext *C, Panel *panel, const int new_index)
 {
-  PointerRNA *smd_ptr = blender::ui::panel_custom_data_get(panel);
+  PointerRNA *smd_ptr = ui::panel_custom_data_get(panel);
   StripModifierData *smd = static_cast<StripModifierData *>(smd_ptr->data);
 
   wmOperatorType *ot = WM_operatortype_find("SEQUENCER_OT_strip_modifier_move_to_index", false);
@@ -193,14 +193,14 @@ static void modifier_reorder(bContext *C, Panel *panel, const int new_index)
 
 static short get_strip_modifier_expand_flag(const bContext * /*C*/, Panel *panel)
 {
-  PointerRNA *smd_ptr = blender::ui::panel_custom_data_get(panel);
+  PointerRNA *smd_ptr = ui::panel_custom_data_get(panel);
   StripModifierData *smd = static_cast<StripModifierData *>(smd_ptr->data);
   return smd->ui_expand_flag;
 }
 
 static void set_strip_modifier_expand_flag(const bContext * /*C*/, Panel *panel, short expand_flag)
 {
-  PointerRNA *smd_ptr = blender::ui::panel_custom_data_get(panel);
+  PointerRNA *smd_ptr = ui::panel_custom_data_get(panel);
   StripModifierData *smd = static_cast<StripModifierData *>(smd_ptr->data);
   smd->ui_expand_flag = expand_flag;
 }
@@ -479,7 +479,7 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
         frame_offset = context.strip.start;
       }
       else /* if (smd->mask_time == STRIP_MASK_TIME_ABSOLUTE) */ {
-        frame_offset = smd.mask_id ? ((Mask *)smd.mask_id)->sfra : 0;
+        frame_offset = smd.mask_id ? (static_cast<Mask *>(smd.mask_id))->sfra : 0;
       }
 
       ImBuf *mask = modifier_render_mask_input(context.render_data,

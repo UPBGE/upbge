@@ -11,9 +11,12 @@
 #include "DNA_listBase.h"
 #include "DNA_space_enums.h"
 
+#include "BLI_function_ref.hh"
 #include "BLI_set.hh"
 
 #include "IMB_imbuf_enums.h"
+
+namespace blender {
 
 struct Depsgraph;
 struct Main;
@@ -23,7 +26,7 @@ struct bContext;
 struct wmJob;
 struct wmJobWorkerStatus;
 
-namespace blender::seq {
+namespace seq {
 
 struct IndexBuildContext;
 struct RenderData;
@@ -35,7 +38,9 @@ bool proxy_rebuild_context(Main *bmain,
                            Set<std::string> *processed_paths,
                            ListBaseT<LinkData> *queue,
                            bool build_only_on_bad_performance);
-void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status);
+void proxy_rebuild(IndexBuildContext *context,
+                   wmJobWorkerStatus *worker_status,
+                   FunctionRef<void(float progress)> set_progress_fn);
 void proxy_rebuild_finish(IndexBuildContext *context, bool stop);
 void proxy_set(Strip *strip, bool value);
 bool can_use_proxy(const RenderData *context, const Strip *strip, IMB_Proxy_Size psize);
@@ -53,4 +58,5 @@ struct ProxyJob {
 wmJob *ED_seq_proxy_wm_job_get(const bContext *C);
 ProxyJob *ED_seq_proxy_job_get(const bContext *C, wmJob *wm_job);
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

@@ -224,7 +224,7 @@ static void create_kite_curve(MutableSpan<float3> positions,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurvePrimitiveQuad &storage = node_storage(params.node());
-  const GeometryNodeCurvePrimitiveQuadMode mode = (GeometryNodeCurvePrimitiveQuadMode)storage.mode;
+  const GeometryNodeCurvePrimitiveQuadMode mode = GeometryNodeCurvePrimitiveQuadMode(storage.mode);
 
   Curves *curves_id = bke::curves_new_nomain_single(4, CURVE_TYPE_POLY);
   bke::CurvesGeometry &curves = curves_id->geometry.wrap();
@@ -311,7 +311,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeCurvePrimitiveQuadrilateral", GEO_NODE_CURVE_PRIMITIVE_QUADRILATERAL);
   ntype.ui_name = "Quadrilateral";
@@ -322,12 +322,12 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryCurvePrimitiveQuad",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCurvePrimitiveQuad",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

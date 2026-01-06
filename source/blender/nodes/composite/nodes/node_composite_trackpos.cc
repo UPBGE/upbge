@@ -29,7 +29,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_trackpos_cc {
+namespace blender {
+
+namespace nodes::node_composite_trackpos_cc {
 
 NODE_STORAGE_FUNCS(NodeTrackPosData)
 
@@ -76,7 +78,7 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 
 static void init(const bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
   NodeTrackPosData *data = MEM_new_for_free<NodeTrackPosData>(__func__);
   node->storage = data;
@@ -100,12 +102,12 @@ static void init(const bContext *C, PointerRNA *ptr)
 
 static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
   template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
-    MovieClip *clip = (MovieClip *)node->id;
+    MovieClip *clip = id_cast<MovieClip *>(node->id);
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object;
     NodeTrackPosData *data = (NodeTrackPosData *)node->storage;
@@ -353,7 +355,7 @@ class TrackPositionOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return (MovieClip *)node().id;
+    return id_cast<MovieClip *>(node().id);
   }
 };
 
@@ -362,13 +364,13 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
   return new TrackPositionOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_trackpos_cc
+}  // namespace nodes::node_composite_trackpos_cc
 
 static void register_node_type_cmp_trackpos()
 {
-  namespace file_ns = blender::nodes::node_composite_trackpos_cc;
+  namespace file_ns = nodes::node_composite_trackpos_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeTrackPos", CMP_NODE_TRACKPOS);
   ntype.ui_name = "Track Position";
@@ -379,10 +381,12 @@ static void register_node_type_cmp_trackpos()
   ntype.declare = file_ns::cmp_node_trackpos_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_trackpos;
   ntype.initfunc_api = file_ns::init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeTrackPosData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_trackpos)
+
+}  // namespace blender

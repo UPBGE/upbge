@@ -12,7 +12,9 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-namespace blender::nodes::node_shader_tex_magic_cc {
+namespace blender {
+
+namespace nodes::node_shader_tex_magic_cc {
 
 static void sh_node_tex_magic_declare(NodeDeclarationBuilder &b)
 {
@@ -50,7 +52,7 @@ static int node_shader_gpu_tex_magic(GPUMaterial *mat,
                                      GPUNodeStack *in,
                                      GPUNodeStack *out)
 {
-  NodeTexMagic *tex = (NodeTexMagic *)node->storage;
+  NodeTexMagic *tex = static_cast<NodeTexMagic *>(node->storage);
   float depth = tex->depth;
 
   node_shader_gpu_default_tex_coord(mat, node, &in[0].link);
@@ -171,17 +173,17 @@ class MagicFunction : public mf::MultiFunction {
 static void sh_node_magic_tex_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &node = builder.node();
-  NodeTexMagic *tex = (NodeTexMagic *)node.storage;
+  NodeTexMagic *tex = static_cast<NodeTexMagic *>(node.storage);
   builder.construct_and_set_matching_fn<MagicFunction>(tex->depth);
 }
 
-}  // namespace blender::nodes::node_shader_tex_magic_cc
+}  // namespace nodes::node_shader_tex_magic_cc
 
 void register_node_type_sh_tex_magic()
 {
-  namespace file_ns = blender::nodes::node_shader_tex_magic_cc;
+  namespace file_ns = nodes::node_shader_tex_magic_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   common_node_type_base(&ntype, "ShaderNodeTexMagic", SH_NODE_TEX_MAGIC);
   ntype.ui_name = "Magic Texture";
@@ -191,10 +193,12 @@ void register_node_type_sh_tex_magic()
   ntype.declare = file_ns::sh_node_tex_magic_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_magic;
   ntype.initfunc = file_ns::node_shader_init_tex_magic;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeTexMagic", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_magic;
   ntype.build_multi_function = file_ns::sh_node_magic_tex_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

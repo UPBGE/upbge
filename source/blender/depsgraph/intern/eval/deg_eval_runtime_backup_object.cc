@@ -120,8 +120,8 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
          * original mesh during update, need to make sure no dead
          * pointers are left behind. */
         if (object->type == OB_MESH) {
-          Mesh *mesh_eval = (Mesh *)data_eval;
-          Mesh *mesh_orig = (Mesh *)data_orig;
+          Mesh *mesh_eval = id_cast<Mesh *>(data_eval);
+          Mesh *mesh_orig = id_cast<Mesh *>(data_orig);
           mesh_eval->runtime->edit_mesh = mesh_orig->runtime->edit_mesh;
         }
       }
@@ -171,7 +171,7 @@ void ObjectRuntimeBackup::restore_modifier_runtime_data(Object *object)
 
     if (backup.type == eModifierType_Subsurf) {
       if (object->type == OB_MESH) {
-        Mesh *mesh = (Mesh *)object->data;
+        Mesh *mesh = id_cast<Mesh *>(object->data);
         if (mesh->runtime->subsurf_runtime_data == backup.runtime) {
           mesh->runtime->subsurf_runtime_data = nullptr;
         }

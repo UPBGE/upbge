@@ -20,6 +20,8 @@
 
 #include "bpy_traceback.hh"
 
+namespace blender {
+
 #define MAKE_PY_IDENTIFIER_EX(varname, value) static _Py_Identifier varname{value, -1};
 #define MAKE_PY_IDENTIFIER(varname) MAKE_PY_IDENTIFIER_EX(PyId_##varname, #varname)
 
@@ -46,7 +48,7 @@ static int traceback_line_number(PyTracebackObject *tb)
 {
   int lineno = tb->tb_lineno;
   if (lineno == -1) {
-    PyObject *lineno_py = _PyObject_GetAttrId((PyObject *)tb, &PyId_tb_lineno);
+    PyObject *lineno_py = _PyObject_GetAttrId(reinterpret_cast<PyObject *>(tb), &PyId_tb_lineno);
     if (lineno_py) {
       if (PyLong_Check(lineno_py)) {
         const int lineno_test = PyLong_AsLongLong(lineno_py);
@@ -134,7 +136,7 @@ static int parse_syntax_error(PyObject *err,
     *offset = int(hold);
   }
 
-  if (Py_TYPE(err) == (PyTypeObject *)PyExc_SyntaxError) {
+  if (Py_TYPE(err) == reinterpret_cast<PyTypeObject *>(PyExc_SyntaxError)) {
     v = _PyObject_GetAttrId(err, &PyId_end_lineno);
     if (!v) {
       PyErr_Clear();
@@ -251,8 +253,8 @@ bool python_script_error_jump(
     }
   }
   else {
-    for (PyTracebackObject *tb_iter = (PyTracebackObject *)tb;
-         tb_iter && (PyObject *)tb_iter != Py_None;
+    for (PyTracebackObject *tb_iter = reinterpret_cast<PyTracebackObject *>(tb);
+         tb_iter && reinterpret_cast<PyObject *>(tb_iter) != Py_None;
          tb_iter = tb_iter->tb_next)
     {
       PyObject *coerce;
@@ -274,3 +276,5 @@ bool python_script_error_jump(
 
   return success;
 }
+
+}  // namespace blender

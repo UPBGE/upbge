@@ -29,6 +29,8 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 static ShaderFxTypeInfo *shader_fx_types[NUM_SHADER_FX_TYPES] = {nullptr};
 
 /* *************************************************** */
@@ -166,8 +168,8 @@ void BKE_shaderfx_copydata_generic(const ShaderFxData *fx_src, ShaderFxData *fx_
   }
 
   const size_t data_size = sizeof(ShaderFxData);
-  const char *fx_src_data = ((const char *)fx_src) + data_size;
-  char *fx_dst_data = ((char *)fx_dst) + data_size;
+  const char *fx_src_data = (reinterpret_cast<const char *>(fx_src)) + data_size;
+  char *fx_dst_data = (reinterpret_cast<char *>(fx_dst)) + data_size;
   BLI_assert(data_size <= size_t(fxi->struct_size));
   memcpy(fx_dst_data, fx_src_data, size_t(fxi->struct_size) - data_size);
 }
@@ -290,3 +292,5 @@ void BKE_shaderfx_blend_read_data(BlendDataReader *reader, ListBaseT<ShaderFxDat
     }
   }
 }
+
+}  // namespace blender

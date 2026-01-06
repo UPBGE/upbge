@@ -54,7 +54,7 @@
 
 #include "uvedit_intern.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* ********************** smart stitch operator *********************** */
 
@@ -80,8 +80,6 @@ struct StitchPreviewer {
   float *static_tris;
   uint num_static_tris;
 };
-
-struct IslandStitchData;
 
 /**
  * This is a straightforward implementation, count the UVs in the island
@@ -997,11 +995,11 @@ static int stitch_process_data(StitchStateContainer *ssc,
 
   for (i = 0; i < state->selection_size; i++) {
     if (ssc->mode == STITCH_VERT) {
-      UvElement *element = (UvElement *)state->selection_stack[i];
+      UvElement *element = static_cast<UvElement *>(state->selection_stack[i]);
       determine_uv_stitchability(cd_loop_uv_offset, element, ssc, state, island_stitch_data);
     }
     else {
-      UvEdge *edge = (UvEdge *)state->selection_stack[i];
+      UvEdge *edge = static_cast<UvEdge *>(state->selection_stack[i]);
       determine_uv_edge_stitchability(cd_loop_uv_offset, edge, ssc, state, island_stitch_data);
     }
   }
@@ -1029,7 +1027,7 @@ static int stitch_process_data(StitchStateContainer *ssc,
 
   for (i = 0; i < state->selection_size; i++) {
     if (ssc->mode == STITCH_VERT) {
-      UvElement *element = (UvElement *)state->selection_stack[i];
+      UvElement *element = static_cast<UvElement *>(state->selection_stack[i]);
       if (element->flag & STITCH_STITCHABLE_CANDIDATE) {
         element->flag &= ~STITCH_STITCHABLE_CANDIDATE;
         stitch_validate_uv_stitchability(
@@ -1041,7 +1039,7 @@ static int stitch_process_data(StitchStateContainer *ssc,
       }
     }
     else {
-      UvEdge *edge = (UvEdge *)state->selection_stack[i];
+      UvEdge *edge = static_cast<UvEdge *>(state->selection_stack[i]);
       if (edge->flag & STITCH_STITCHABLE_CANDIDATE) {
         edge->flag &= ~STITCH_STITCHABLE_CANDIDATE;
         stitch_validate_edge_stitchability(
@@ -1514,7 +1512,7 @@ static bool uv_edge_compare(const void *a, const void *b)
 static void stitch_select_edge(UvEdge *edge, StitchState *state, int always_select)
 {
   UvEdge *eiter;
-  UvEdge **selection_stack = (UvEdge **)state->selection_stack;
+  UvEdge **selection_stack = reinterpret_cast<UvEdge **>(state->selection_stack);
 
   for (eiter = edge->first; eiter; eiter = eiter->next) {
     if (eiter->flag & STITCH_SELECTED) {
@@ -1542,7 +1540,7 @@ static void stitch_select_edge(UvEdge *edge, StitchState *state, int always_sele
 /* Select all common uvs */
 static void stitch_select_uv(UvElement *element, StitchState *state, int always_select)
 {
-  UvElement **selection_stack = (UvElement **)state->selection_stack;
+  UvElement **selection_stack = reinterpret_cast<UvElement **>(state->selection_stack);
   UvElement *element_iter = BM_uv_element_get_head(state->element_map, element);
   /* first deselect all common uvs */
   for (; element_iter; element_iter = element_iter->next) {
@@ -1656,9 +1654,9 @@ static void stitch_calculate_edge_normal(const int cd_loop_uv_offset,
 
 /**
  */
-static void stitch_draw_vbo(blender::gpu::VertBuf *vbo, GPUPrimType prim_type, const float col[4])
+static void stitch_draw_vbo(gpu::VertBuf *vbo, GPUPrimType prim_type, const float col[4])
 {
-  blender::gpu::Batch *batch = GPU_batch_create_ex(prim_type, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  gpu::Batch *batch = GPU_batch_create_ex(prim_type, vbo, nullptr, GPU_BATCH_OWNS_VBO);
   GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(batch, "color", col);
   GPU_batch_draw(batch);
@@ -1670,27 +1668,27 @@ static void stitch_draw_vbo(blender::gpu::VertBuf *vbo, GPUPrimType prim_type, c
 static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
 {
 
-  StitchStateContainer *ssc = (StitchStateContainer *)arg;
+  StitchStateContainer *ssc = static_cast<StitchStateContainer *>(arg);
 
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     int j, index = 0;
     uint num_line = 0, num_tri, tri_idx = 0, line_idx = 0;
     StitchState *state = ssc->states[ob_index];
     StitchPreviewer *stitch_preview = state->stitch_preview;
-    blender::gpu::VertBuf *vbo, *vbo_line;
+    gpu::VertBuf *vbo, *vbo_line;
     float col[4];
 
     static GPUVertFormat format = {0};
     static uint pos_id;
     if (format.attr_len == 0) {
-      pos_id = GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      pos_id = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32);
     }
 
     GPU_blend(GPU_BLEND_ALPHA);
 
     /* Static Triangles. */
     if (stitch_preview->static_tris) {
-      blender::ui::theme::get_color_4fv(TH_STITCH_PREVIEW_ACTIVE, col);
+      ui::theme::get_color_4fv(TH_STITCH_PREVIEW_ACTIVE, col);
       vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_static_tris * 3);
       for (int i = 0; i < stitch_preview->num_static_tris * 3; i++) {
@@ -1744,9 +1742,9 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
         index += stitch_preview->uvs_per_polygon[i] * 2;
       }
 
-      blender::ui::theme::get_color_4fv(TH_STITCH_PREVIEW_FACE, col);
+      ui::theme::get_color_4fv(TH_STITCH_PREVIEW_FACE, col);
       stitch_draw_vbo(vbo, GPU_PRIM_TRIS, col);
-      blender::ui::theme::get_color_4fv(TH_STITCH_PREVIEW_EDGE, col);
+      ui::theme::get_color_4fv(TH_STITCH_PREVIEW_EDGE, col);
       stitch_draw_vbo(vbo_line, GPU_PRIM_LINES, col);
     }
 
@@ -1754,9 +1752,9 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
 
     /* draw stitch vert/lines preview */
     if (ssc->mode == STITCH_VERT) {
-      GPU_point_size(blender::ui::theme::get_value_f(TH_VERTEX_SIZE) * 2.0f);
+      GPU_point_size(ui::theme::get_value_f(TH_VERTEX_SIZE) * 2.0f);
 
-      blender::ui::theme::get_color_4fv(TH_STITCH_PREVIEW_STITCHABLE, col);
+      ui::theme::get_color_4fv(TH_STITCH_PREVIEW_STITCHABLE, col);
       vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_stitchable);
       for (int i = 0; i < stitch_preview->num_stitchable; i++) {
@@ -1764,7 +1762,7 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
       }
       stitch_draw_vbo(vbo, GPU_PRIM_POINTS, col);
 
-      blender::ui::theme::get_color_4fv(TH_STITCH_PREVIEW_UNSTITCHABLE, col);
+      ui::theme::get_color_4fv(TH_STITCH_PREVIEW_UNSTITCHABLE, col);
       vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_unstitchable);
       for (int i = 0; i < stitch_preview->num_unstitchable; i++) {
@@ -1773,7 +1771,7 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
       stitch_draw_vbo(vbo, GPU_PRIM_POINTS, col);
     }
     else {
-      blender::ui::theme::get_color_4fv(TH_STITCH_PREVIEW_STITCHABLE, col);
+      ui::theme::get_color_4fv(TH_STITCH_PREVIEW_STITCHABLE, col);
       vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_stitchable * 2);
       for (int i = 0; i < stitch_preview->num_stitchable * 2; i++) {
@@ -1781,7 +1779,7 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
       }
       stitch_draw_vbo(vbo, GPU_PRIM_LINES, col);
 
-      blender::ui::theme::get_color_4fv(TH_STITCH_PREVIEW_UNSTITCHABLE, col);
+      ui::theme::get_color_4fv(TH_STITCH_PREVIEW_UNSTITCHABLE, col);
       vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_unstitchable * 2);
       for (int i = 0; i < stitch_preview->num_unstitchable * 2; i++) {
@@ -1959,7 +1957,7 @@ static StitchState *stitch_init(bContext *C,
   /* fill the edges with data */
   int i = 0;
   GHASH_ITER (gh_iter, edge_hash) {
-    edges[i++] = *((UvEdge *)BLI_ghashIterator_getKey(&gh_iter));
+    edges[i++] = *(static_cast<UvEdge *>(BLI_ghashIterator_getKey(&gh_iter)));
   }
 
   /* cleanup temporary stuff */
@@ -2331,7 +2329,7 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
-  StitchStateContainer *ssc = (StitchStateContainer *)op->customdata;
+  StitchStateContainer *ssc = static_cast<StitchStateContainer *>(op->customdata);
 
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     StitchState *state = ssc->states[ob_index];
@@ -2354,7 +2352,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
   SpaceImage *sima = CTX_wm_space_image(C);
   ScrArea *area = CTX_wm_area(C);
 
-  StitchStateContainer *ssc = (StitchStateContainer *)op->customdata;
+  StitchStateContainer *ssc = static_cast<StitchStateContainer *>(op->customdata);
 
   if (finished) {
     RNA_float_set(op->ptr, "limit", ssc->limit_dist);
@@ -2387,7 +2385,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
           element = static_cast<UvElement *>(state->selection_stack[i]);
         }
         else {
-          element = ((UvEdge *)state->selection_stack[i])->element;
+          element = (static_cast<UvEdge *>(state->selection_stack[i]))->element;
         }
         RNA_collection_add(op->ptr, "selection", &itemptr);
 
@@ -2444,7 +2442,7 @@ static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
   if (!stitch_init_all(C, op)) {
     return OPERATOR_CANCELLED;
   }
-  if (stitch_process_data_all((StitchStateContainer *)op->customdata, scene, 1)) {
+  if (stitch_process_data_all(static_cast<StitchStateContainer *>(op->customdata), scene, 1)) {
     stitch_exit(C, op, 1);
     return OPERATOR_FINISHED;
   }
@@ -2462,7 +2460,7 @@ static StitchState *stitch_select(bContext *C,
   ARegion *region = CTX_wm_region(C);
   UvNearestHit hit = uv_nearest_hit_init_max(&region->v2d);
 
-  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   if (ssc->mode == STITCH_VERT) {
     if (uv_find_nearest_vert_multi(scene, {ssc->objects, ssc->objects_len}, co, 0.0f, &hit)) {
@@ -2765,3 +2763,5 @@ void UV_OT_stitch(wmOperatorType *ot)
   RNA_def_property_array(prop, 6);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
+
+}  // namespace blender

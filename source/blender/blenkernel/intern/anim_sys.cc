@@ -69,12 +69,12 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG_ANIM_DRIVER = {"anim.driver"};
 static CLG_LogRef LOG_ANIM_FCURVE = {"anim.fcurve"};
 static CLG_LogRef LOG_ANIM_KEYINGSET = {"anim.keyingset"};
 static CLG_LogRef LOG_ANIM_NLA = {"anim.nla"};
-
-using namespace blender;
 
 /* *********************************** */
 /* KeyingSet API */
@@ -539,7 +539,7 @@ static bool animsys_construct_orig_pointer_rna(const PointerRNA *ptr, PointerRNA
     if (ptr->type != &RNA_NlaStrip) {
       return false;
     }
-    NlaStrip *strip = ((NlaStrip *)ptr_orig->data);
+    NlaStrip *strip = (static_cast<NlaStrip *>(ptr_orig->data));
     if (strip->orig_strip == nullptr) {
       return false;
     }
@@ -843,7 +843,7 @@ static void action_idcode_patch_check(ID *id, bAction *act)
     return;
   }
 
-  if (!blender::animrig::legacy::action_treat_as_legacy(*act)) {
+  if (!animrig::legacy::action_treat_as_legacy(*act)) {
     /* Layered Actions can always be assigned to any ID. It's actually the Slot that is limited
      * to an ID type (similar to legacy Actions). Layered Actions are evaluated differently,
      * though, and their evaluation shouldn't end up here. At the moment of writing it can still
@@ -908,7 +908,7 @@ void animsys_evaluate_action_group(PointerRNA *ptr,
     }
   };
 
-  blender::animrig::ChannelGroup channel_group = agrp->wrap();
+  animrig::ChannelGroup channel_group = agrp->wrap();
   if (channel_group.is_legacy()) {
     /* calculate then execute each curve */
     for (fcu = static_cast<FCurve *>(agrp->channels.first); (fcu) && (fcu->grp == agrp);
@@ -3784,7 +3784,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
                                            int index,
                                            const AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,
-                                           blender::BitVector<> &r_values_mask)
+                                           BitVector<> &r_values_mask)
 {
   const int count = values.size();
   r_values_mask.fill(false);
@@ -3793,7 +3793,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
     *r_force_all = false;
   }
 
-  blender::BitVector remap_domain(count, false);
+  BitVector remap_domain(count, false);
   for (int i = 0; i < count; i++) {
     if (!ELEM(index, i, -1)) {
       continue;
@@ -3997,9 +3997,9 @@ void BKE_animsys_evaluate_animdata(ID *id,
     }
 
     if (!did_nla_evaluate_anything && adt->action) {
-      blender::animrig::Action &action = adt->action->wrap();
+      animrig::Action &action = adt->action->wrap();
       if (action.is_action_layered()) {
-        blender::animrig::evaluate_and_apply_action(
+        animrig::evaluate_and_apply_action(
             id_ptr, action, adt->slot_handle, *anim_eval_context, flush_to_original);
       }
       else {
@@ -4351,3 +4351,5 @@ void BKE_copy_time_markers(ListBaseT<TimeMarker> &markers_dst,
     }
   }
 }
+
+}  // namespace blender

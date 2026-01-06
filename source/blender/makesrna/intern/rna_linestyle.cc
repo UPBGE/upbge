@@ -24,6 +24,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 const EnumPropertyItem rna_enum_linestyle_color_modifier_type_items[] = {
     {LS_MODIFIER_ALONG_STROKE, "ALONG_STROKE", ICON_MODIFIER, "Along Stroke", ""},
     {LS_MODIFIER_CREASE_ANGLE, "CREASE_ANGLE", ICON_MODIFIER, "Crease Angle", ""},
@@ -111,6 +113,8 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>
@@ -129,9 +133,11 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
 
 #  include "RNA_access.hh"
 
+namespace blender {
+
 static StructRNA *rna_LineStyle_color_modifier_refine(PointerRNA *ptr)
 {
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   switch (m->type) {
     case LS_MODIFIER_ALONG_STROKE:
@@ -157,7 +163,7 @@ static StructRNA *rna_LineStyle_color_modifier_refine(PointerRNA *ptr)
 
 static StructRNA *rna_LineStyle_alpha_modifier_refine(PointerRNA *ptr)
 {
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   switch (m->type) {
     case LS_MODIFIER_ALONG_STROKE:
@@ -183,7 +189,7 @@ static StructRNA *rna_LineStyle_alpha_modifier_refine(PointerRNA *ptr)
 
 static StructRNA *rna_LineStyle_thickness_modifier_refine(PointerRNA *ptr)
 {
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   switch (m->type) {
     case LS_MODIFIER_ALONG_STROKE:
@@ -211,7 +217,7 @@ static StructRNA *rna_LineStyle_thickness_modifier_refine(PointerRNA *ptr)
 
 static StructRNA *rna_LineStyle_geometry_modifier_refine(PointerRNA *ptr)
 {
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   switch (m->type) {
     case LS_MODIFIER_SAMPLING:
@@ -249,7 +255,7 @@ static StructRNA *rna_LineStyle_geometry_modifier_refine(PointerRNA *ptr)
 
 static std::optional<std::string> rna_LineStyle_color_modifier_path(const PointerRNA *ptr)
 {
-  const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  const LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
   return fmt::format("color_modifiers[\"{}\"]", name_esc);
@@ -257,7 +263,7 @@ static std::optional<std::string> rna_LineStyle_color_modifier_path(const Pointe
 
 static std::optional<std::string> rna_LineStyle_alpha_modifier_path(const PointerRNA *ptr)
 {
-  const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  const LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
   return fmt::format("alpha_modifiers[\"{}\"]", name_esc);
@@ -265,7 +271,7 @@ static std::optional<std::string> rna_LineStyle_alpha_modifier_path(const Pointe
 
 static std::optional<std::string> rna_LineStyle_thickness_modifier_path(const PointerRNA *ptr)
 {
-  const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  const LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
   return fmt::format("thickness_modifiers[\"{}\"]", name_esc);
@@ -273,7 +279,7 @@ static std::optional<std::string> rna_LineStyle_thickness_modifier_path(const Po
 
 static std::optional<std::string> rna_LineStyle_geometry_modifier_path(const PointerRNA *ptr)
 {
-  const LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  const LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
   char name_esc[sizeof(m->name) * 2];
   BLI_str_escape(name_esc, m->name, sizeof(name_esc));
   return fmt::format("geometry_modifiers[\"{}\"]", name_esc);
@@ -281,8 +287,8 @@ static std::optional<std::string> rna_LineStyle_geometry_modifier_path(const Poi
 
 static void rna_LineStyleColorModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
   BLI_uniquename(&linestyle->color_modifiers,
@@ -295,8 +301,8 @@ static void rna_LineStyleColorModifier_name_set(PointerRNA *ptr, const char *val
 
 static void rna_LineStyleAlphaModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
   BLI_uniquename(&linestyle->alpha_modifiers,
@@ -309,8 +315,8 @@ static void rna_LineStyleAlphaModifier_name_set(PointerRNA *ptr, const char *val
 
 static void rna_LineStyleThicknessModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
   BLI_uniquename(&linestyle->thickness_modifiers,
@@ -323,8 +329,8 @@ static void rna_LineStyleThicknessModifier_name_set(PointerRNA *ptr, const char 
 
 static void rna_LineStyleGeometryModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
-  LineStyleModifier *m = (LineStyleModifier *)ptr->data;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
   BLI_uniquename(&linestyle->geometry_modifiers,
@@ -337,14 +343,14 @@ static void rna_LineStyleGeometryModifier_name_set(PointerRNA *ptr, const char *
 
 static void rna_LineStyle_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   rna_iterator_array_begin(
-      iter, ptr, (void *)linestyle->mtex, sizeof(MTex *), MAX_MTEX, 0, nullptr);
+      iter, ptr, static_cast<void *>(linestyle->mtex), sizeof(MTex *), MAX_MTEX, 0, nullptr);
 }
 
 static PointerRNA rna_LineStyle_active_texture_get(PointerRNA *ptr)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   Tex *tex;
 
   tex = give_current_linestyle_texture(linestyle);
@@ -355,14 +361,14 @@ static void rna_LineStyle_active_texture_set(PointerRNA *ptr,
                                              PointerRNA value,
                                              ReportList * /*reports*/)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
 
   set_current_linestyle_texture(linestyle, static_cast<Tex *>(value.data));
 }
 
 static void rna_LineStyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -370,7 +376,7 @@ static void rna_LineStyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA
 
 static void rna_LineStyle_use_nodes_update(bContext *C, PointerRNA *ptr)
 {
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->data;
+  FreestyleLineStyle *linestyle = static_cast<FreestyleLineStyle *>(ptr->data);
 
   if (linestyle->use_nodes && linestyle->nodetree == nullptr) {
     BKE_linestyle_default_shader(C, linestyle);
@@ -520,7 +526,11 @@ static void rna_LineStyle_geometry_modifier_remove(FreestyleLineStyle *linestyle
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_linestyle_mtex(BlenderRNA *brna)
 {
@@ -2218,5 +2228,7 @@ void RNA_def_linestyle(BlenderRNA *brna)
   rna_def_linestyle(brna);
   rna_def_linestyle_mtex(brna);
 }
+
+}  // namespace blender
 
 #endif

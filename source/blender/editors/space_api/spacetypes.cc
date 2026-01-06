@@ -59,6 +59,8 @@
 
 #include "io_ops.hh"
 
+namespace blender {
+
 void ED_spacetypes_init()
 {
   using namespace blender::ed;
@@ -119,12 +121,12 @@ void ED_spacetypes_init()
   ED_operatortypes_io();
   ED_operatortypes_edutils();
 
-  blender::ui::ED_operatortypes_view2d();
-  blender::ui::operatortypes_ui();
+  ui::ED_operatortypes_view2d();
+  ui::operatortypes_ui();
 
   ED_screen_user_menu_register();
 
-  blender::ui::uilisttypes_ui();
+  ui::uilisttypes_ui();
 
   /* Gizmo types. */
   ED_gizmotypes_button_2d();
@@ -175,7 +177,7 @@ void ED_spacemacros_init()
   ED_operatormacros_nla();
 
   /* Register dropboxes (can use macros). */
-  blender::ui::dropboxes_ui();
+  ui::dropboxes_ui();
   for (const std::unique_ptr<SpaceType> &type : BKE_spacetypes_list()) {
     if (type->dropboxes) {
       type->dropboxes();
@@ -206,8 +208,8 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_marker(keyconf);
   sculpt_paint::keymap_sculpt(keyconf);
 
-  blender::ui::ED_keymap_view2d(keyconf);
-  blender::ui::keymap_ui(keyconf);
+  ui::ED_keymap_view2d(keyconf);
+  ui::keymap_ui(keyconf);
 
   transform::keymap_transform(keyconf);
 
@@ -252,7 +254,7 @@ void *ED_region_draw_cb_activate(ARegionType *art,
 bool ED_region_draw_cb_exit(ARegionType *art, void *handle)
 {
   for (RegionDrawCB &rdc : art->drawcalls) {
-    if (&rdc == (RegionDrawCB *)handle) {
+    if (&rdc == static_cast<RegionDrawCB *>(handle)) {
       BLI_remlink(&art->drawcalls, &rdc);
       MEM_freeN(&rdc);
       return true;
@@ -292,3 +294,5 @@ void ED_region_draw_cb_remove_by_type(ARegionType *art, void *draw_fn, void (*fr
     }
   }
 }
+
+}  // namespace blender

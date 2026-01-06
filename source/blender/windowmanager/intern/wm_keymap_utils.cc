@@ -24,6 +24,8 @@
 #include "WM_keymap.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 /* Menu wrapper for #WM_keymap_add_item. */
 
 /* -------------------------------------------------------------------- */
@@ -178,7 +180,7 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
     }
   }
   else if (sl->spacetype == SPACE_IMAGE) {
-    const SpaceImage *sima = (SpaceImage *)sl;
+    const SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
     const eSpaceImage_Mode mode = eSpaceImage_Mode(sima->mode);
     switch (mode) {
       case SI_MODE_VIEW:
@@ -196,7 +198,7 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
     }
   }
   else if (sl->spacetype == SPACE_SEQ) {
-    const SpaceSeq *sseq = (SpaceSeq *)sl;
+    const SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(sl);
     const enum eSpaceSeq_Displays view = eSpaceSeq_Displays(sseq->view);
     space_type = SPACE_SEQ;
     switch (view) {
@@ -297,7 +299,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(wm, "Mesh", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
     /* Some mesh operators are active in object mode too, like add-prim. */
-    if (km && !WM_keymap_poll((bContext *)C, km)) {
+    if (km && !WM_keymap_poll(const_cast<bContext *>(C), km)) {
       km = WM_keymap_find_all(wm, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
   }
@@ -305,7 +307,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(wm, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
     /* Some curve operators are active in object mode too, like add-prim. */
-    if (km && !WM_keymap_poll((bContext *)C, km)) {
+    if (km && !WM_keymap_poll(const_cast<bContext *>(C), km)) {
       km = WM_keymap_find_all(wm, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
   }
@@ -334,7 +336,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(wm, "Metaball", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
     /* Some meta-ball operators are active in object mode too, like add-primitive. */
-    if (km && !WM_keymap_poll((bContext *)C, km)) {
+    if (km && !WM_keymap_poll(const_cast<bContext *>(C), km)) {
       km = WM_keymap_find_all(wm, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
   }
@@ -380,7 +382,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
      * Mesh keymap is probably not ideal, but best place I could find to put those. */
     if (sl->spacetype == SPACE_VIEW3D) {
       km = WM_keymap_find_all(wm, "Mesh", SPACE_EMPTY, RGN_TYPE_WINDOW);
-      if (km && !WM_keymap_poll((bContext *)C, km)) {
+      if (km && !WM_keymap_poll(const_cast<bContext *>(C), km)) {
         km = nullptr;
       }
     }
@@ -417,7 +419,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
           km = WM_keymap_find_all(wm, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
         }
       }
-      if (km && !WM_keymap_poll((bContext *)C, km)) {
+      if (km && !WM_keymap_poll(const_cast<bContext *>(C), km)) {
         km = nullptr;
       }
     }
@@ -583,3 +585,5 @@ bool WM_keymap_uses_event_modifier(const wmKeyMap *keymap, const int event_modif
 void WM_keymap_fix_linking() {}
 
 /** \} */
+
+}  // namespace blender

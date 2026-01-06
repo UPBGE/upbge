@@ -9,6 +9,8 @@
 
 #include "BLI_enum_flags.hh"
 
+namespace blender {
+
 #pragma once
 
 /* -------------------------------------------------------------------- */
@@ -1129,3 +1131,5 @@ enum eSpace_Type {
 #define IMG_SIZE_FALLBACK 256
 
 /** \} */
+
+}  // namespace blender

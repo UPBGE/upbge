@@ -1118,7 +1118,7 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
     }
   }
 
-  return (const uchar *)cp;
+  return static_cast<const uchar *>(cp);
 }
 
 void init_default()
@@ -1609,5 +1609,4 @@ void make_axis_color(const uchar col[3], const char axis, uchar r_col[3])
 /** \} */
 
 }  // namespace theme
-
 }  // namespace blender::ui

@@ -68,7 +68,9 @@
 #include "NOD_socket_declarations.hh"
 #include "node_intern.hh" /* own include */
 
-namespace blender::ed::space_node {
+namespace blender {
+
+namespace ed::space_node {
 
 /* Default flags for Layout::prop(). Name is kept short since this is used a lot in this file. */
 #define DEFAULT_FLAGS ui::ITEM_R_SPLIT_EMPTY_NAME
@@ -88,7 +90,7 @@ static void node_socket_button_label(bContext * /*C*/,
 
 static void node_buts_mix_rgb(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
+  bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
 
   ui::Layout &col = layout.column(false);
   ui::Layout &row = col.row(true);
@@ -120,7 +122,7 @@ static void node_buts_curvefloat(ui::Layout &layout, bContext * /*C*/, PointerRN
   template_curve_mapping(&layout, ptr, "mapping", 0, false, false, false, false, false);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 #define SAMPLE_FLT_ISNONE FLT_MAX
 /* Bad! 2.5 will do better? ... no it won't! */
@@ -135,12 +137,12 @@ void ED_node_sample_set(const float col[4])
   }
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 static void node_buts_curvecol(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  CurveMapping *cumap = (CurveMapping *)node->storage;
+  bNode *node = static_cast<bNode *>(ptr->data);
+  CurveMapping *cumap = static_cast<CurveMapping *>(node->storage);
 
   if (_sample_col[0] != SAMPLE_FLT_ISNONE) {
     cumap->flag |= CUMA_DRAW_SAMPLE;
@@ -151,16 +153,16 @@ static void node_buts_curvecol(ui::Layout &layout, bContext * /*C*/, PointerRNA 
   }
 
   /* "Tone" (Standard/Film-like) only used in the Compositor. */
-  bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
+  bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
   template_curve_mapping(
       &layout, ptr, "mapping", 'c', false, false, false, (ntree->type == NTREE_COMPOSIT), false);
 }
 
 static void node_buts_normal(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
   /* first output stores normal */
-  bNodeSocket *output = (bNodeSocket *)node->outputs.first;
+  bNodeSocket *output = static_cast<bNodeSocket *>(node->outputs.first);
   PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
 
   layout.prop(&sockptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
@@ -168,9 +170,9 @@ static void node_buts_normal(ui::Layout &layout, bContext * /*C*/, PointerRNA *p
 
 static void node_buts_texture(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
-  short multi = (node->id && ((Tex *)node->id)->use_nodes &&
+  short multi = (node->id && (id_cast<Tex *>(node->id))->use_nodes &&
                  (node->type_legacy != TEX_NODE_TEXTURE));
 
   template_id(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
@@ -202,7 +204,7 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                      (node_is_collapsed ? 3.0f : 1.0f);
 
   if (node->is_frame()) {
-    NodeFrame *data = (NodeFrame *)node->storage;
+    NodeFrame *data = static_cast<NodeFrame *>(node->storage);
 
     /* shrinking frame size is determined by child nodes */
     if (!(data->flag & NODE_FRAME_RESIZEABLE)) {
@@ -264,7 +266,7 @@ static void node_buts_frame_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA 
   layout.prop(ptr, "text", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
 }
 
-static void node_common_set_butfunc(blender::bke::bNodeType *ntype)
+static void node_common_set_butfunc(bke::bNodeType *ntype)
 {
   switch (ntype->type_legacy) {
     case NODE_GROUP:
@@ -286,11 +288,11 @@ static void node_buts_image_user(ui::Layout &layout,
                                  const bool show_layer_selection,
                                  const bool show_color_management)
 {
-  Image *image = (Image *)imaptr->data;
+  Image *image = static_cast<Image *>(imaptr->data);
   if (!image) {
     return;
   }
-  ImageUser *iuser = (ImageUser *)iuserptr->data;
+  ImageUser *iuser = static_cast<ImageUser *>(iuserptr->data);
 
   ui::Layout &source_col = layout.column(false);
 
@@ -341,7 +343,7 @@ static void node_buts_image_user(ui::Layout &layout,
     }
 
     /* Avoid losing changes image is painted. */
-    if (BKE_image_is_dirty((Image *)imaptr->data)) {
+    if (BKE_image_is_dirty(static_cast<Image *>(imaptr->data))) {
       split.enabled_set(false);
     }
   }
@@ -419,7 +421,7 @@ static void node_shader_buts_scatter(ui::Layout &layout, bContext * /*C*/, Point
 }
 
 /* only once called */
-static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
+static void node_shader_set_butfunc(bke::bNodeType *ntype)
 {
   switch (ntype->type_legacy) {
     case SH_NODE_NORMAL:
@@ -498,7 +500,7 @@ static void node_buts_image_views(ui::Layout &layout,
 
 static void node_composit_buts_image(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
   PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
   layout.context_ptr_set("image_user", &iuserptr);
@@ -516,7 +518,7 @@ static void node_composit_buts_image(ui::Layout &layout, bContext *C, PointerRNA
 
 static void node_composit_buts_image_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
   PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
   layout.context_ptr_set("image_user", &iuserptr);
@@ -525,8 +527,8 @@ static void node_composit_buts_image_ex(ui::Layout &layout, bContext *C, Pointer
 
 static void node_composit_buts_huecorrect(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  CurveMapping *cumap = (CurveMapping *)node->storage;
+  bNode *node = static_cast<bNode *>(ptr->data);
+  CurveMapping *cumap = static_cast<CurveMapping *>(node->storage);
 
   if (_sample_col[0] != SAMPLE_FLT_ISNONE) {
     cumap->flag |= CUMA_DRAW_SAMPLE;
@@ -541,8 +543,8 @@ static void node_composit_buts_huecorrect(ui::Layout &layout, bContext * /*C*/, 
 
 static void node_composit_buts_combsep_color(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)node->storage;
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeCMPCombSepColor *storage = static_cast<NodeCMPCombSepColor *>(node->storage);
 
   layout.prop(ptr, "mode", DEFAULT_FLAGS, "", ICON_NONE);
   if (storage->mode == CMP_NODE_COMBSEP_COLOR_YCC) {
@@ -575,7 +577,7 @@ static void node_composit_buts_cryptomatte_legacy_ex(ui::Layout &layout,
 
 static void node_composit_buts_cryptomatte(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
   ui::Layout &row = layout.row(true);
   row.prop(ptr, "source", DEFAULT_FLAGS | ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
@@ -587,7 +589,7 @@ static void node_composit_buts_cryptomatte(ui::Layout &layout, bContext *C, Poin
   else {
     template_id(&col, C, ptr, "image", nullptr, "IMAGE_OT_open", nullptr);
 
-    NodeCryptomatte *crypto = (NodeCryptomatte *)node->storage;
+    NodeCryptomatte *crypto = static_cast<NodeCryptomatte *>(node->storage);
     PointerRNA imaptr = RNA_pointer_get(ptr, "image");
     PointerRNA iuserptr = RNA_pointer_create_discrete(
         ptr->owner_id, &RNA_ImageUser, &crypto->iuser);
@@ -608,7 +610,7 @@ static void node_composit_buts_cryptomatte(ui::Layout &layout, bContext *C, Poin
 }
 
 /* only once called */
-static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
+static void node_composit_set_butfunc(bke::bNodeType *ntype)
 {
   switch (ntype->type_legacy) {
     case CMP_NODE_IMAGE:
@@ -659,9 +661,9 @@ static void node_texture_buts_bricks(ui::Layout &layout, bContext * /*C*/, Point
 
 static void node_texture_buts_proc(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
   ID *id = ptr->owner_id;
-  Tex *tex = (Tex *)node->storage;
+  Tex *tex = static_cast<Tex *>(node->storage);
 
   PointerRNA tex_ptr = RNA_pointer_create_discrete(id, &RNA_Texture, tex);
 
@@ -778,7 +780,7 @@ static void node_texture_buts_image(ui::Layout &layout, bContext *C, PointerRNA 
 
 static void node_texture_buts_image_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
   PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
   uiTemplateImage(&layout, C, ptr, "image", &iuserptr, false, false);
 }
@@ -794,7 +796,7 @@ static void node_texture_buts_combsep_color(ui::Layout &layout, bContext * /*C*/
 }
 
 /* only once called */
-static void node_texture_set_butfunc(blender::bke::bNodeType *ntype)
+static void node_texture_set_butfunc(bke::bNodeType *ntype)
 {
   if (ntype->type_legacy >= TEX_NODE_PROC && ntype->type_legacy < TEX_NODE_PROC_MAX) {
     ntype->draw_buttons = node_texture_buts_proc;
@@ -855,14 +857,14 @@ static void node_texture_set_butfunc(blender::bke::bNodeType *ntype)
 
 static void node_property_update_default(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
-  bNode *node = (bNode *)ptr->data;
+  bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
+  bNode *node = static_cast<bNode *>(ptr->data);
   BKE_ntree_update_tag_node_property(ntree, node);
   BKE_main_ensure_invariants(*bmain);
 }
 
-static void node_socket_template_properties_update(blender::bke::bNodeType *ntype,
-                                                   blender::bke::bNodeSocketTemplate *stemp)
+static void node_socket_template_properties_update(bke::bNodeType *ntype,
+                                                   bke::bNodeSocketTemplate *stemp)
 {
   StructRNA *srna = ntype->rna_ext.srna;
   PropertyRNA *prop = RNA_struct_type_find_property(srna, stemp->identifier);
@@ -872,9 +874,9 @@ static void node_socket_template_properties_update(blender::bke::bNodeType *ntyp
   }
 }
 
-static void node_template_properties_update(blender::bke::bNodeType *ntype)
+static void node_template_properties_update(bke::bNodeType *ntype)
 {
-  blender::bke::bNodeSocketTemplate *stemp;
+  bke::bNodeSocketTemplate *stemp;
 
   if (ntype->inputs) {
     for (stemp = ntype->inputs; stemp->type >= 0; stemp++) {
@@ -927,7 +929,7 @@ static void node_socket_undefined_interface_draw(ID * /*id*/,
 
 /** \} */
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 void ED_node_init_butfuncs()
 {
@@ -937,8 +939,8 @@ void ED_node_init_butfuncs()
    * Defined in blenkernel, but not registered in type hashes.
    */
 
-  using blender::bke::NodeSocketTypeUndefined;
-  using blender::bke::NodeTypeUndefined;
+  using bke::NodeSocketTypeUndefined;
+  using bke::NodeTypeUndefined;
 
   NodeTypeUndefined.draw_buttons = nullptr;
   NodeTypeUndefined.draw_buttons_ex = nullptr;
@@ -949,7 +951,7 @@ void ED_node_init_butfuncs()
   NodeSocketTypeUndefined.interface_draw = node_socket_undefined_interface_draw;
 
   /* node type ui functions */
-  for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
+  for (bke::bNodeType *ntype : bke::node_types_get()) {
     node_common_set_butfunc(ntype);
 
     node_composit_set_butfunc(ntype);
@@ -961,14 +963,14 @@ void ED_node_init_butfuncs()
   }
 }
 
-void ED_init_custom_node_type(blender::bke::bNodeType * /*ntype*/) {}
+void ED_init_custom_node_type(bke::bNodeType * /*ntype*/) {}
 
-void ED_init_custom_node_socket_type(blender::bke::bNodeSocketType *stype)
+void ED_init_custom_node_socket_type(bke::bNodeSocketType *stype)
 {
-  stype->draw = blender::ed::space_node::node_socket_button_label;
+  stype->draw = ed::space_node::node_socket_button_label;
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 static const float virtual_node_socket_color[4] = {0.2, 0.2, 0.2, 1.0};
 
@@ -1118,8 +1120,8 @@ static void draw_node_socket_without_value(ui::Layout *layout,
 static void std_node_socket_draw(
     bContext *C, ui::Layout *layout, PointerRNA *ptr, PointerRNA *node_ptr, StringRef label)
 {
-  bNode *node = (bNode *)node_ptr->data;
-  bNodeSocket *sock = (bNodeSocket *)ptr->data;
+  bNode *node = static_cast<bNode *>(node_ptr->data);
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
   bNodeTree *tree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
@@ -1363,7 +1365,7 @@ static void std_node_socket_draw(
       break;
     }
     case SOCK_IMAGE: {
-      const bNodeTree *node_tree = (const bNodeTree *)node_ptr->owner_id;
+      const bNodeTree *node_tree = id_cast<const bNodeTree *>(node_ptr->owner_id);
       if (node_tree->type == NTREE_GEOMETRY) {
         if (optional_label) {
           template_id(layout, C, ptr, "default_value", "image.new", "image.open", nullptr);
@@ -1529,9 +1531,9 @@ static void node_socket_virtual_draw_color_simple(const bke::bNodeSocketType * /
   copy_v4_v4(r_color, virtual_node_socket_color);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
-void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype)
+void ED_init_standard_node_socket_type(bke::bNodeSocketType *stype)
 {
   using namespace blender::ed::space_node;
   stype->draw = std_node_socket_draw;
@@ -1540,7 +1542,7 @@ void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype)
   stype->interface_draw = std_node_socket_interface_draw;
 }
 
-void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype)
+void ED_init_node_socket_type_virtual(bke::bNodeSocketType *stype)
 {
   using namespace blender::ed::space_node;
   stype->draw = std_node_socket_draw;
@@ -1552,7 +1554,7 @@ void ED_node_type_draw_color(const char *idname, float *r_color)
 {
   using namespace blender::ed::space_node;
 
-  const blender::bke::bNodeSocketType *typeinfo = blender::bke::node_socket_type_find(idname);
+  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(idname);
   if (!typeinfo || typeinfo->type == SOCK_CUSTOM) {
     r_color[0] = 0.0f;
     r_color[1] = 0.0f;
@@ -1565,7 +1567,7 @@ void ED_node_type_draw_color(const char *idname, float *r_color)
   copy_v4_v4(r_color, std_node_socket_colors[typeinfo->type]);
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 /* ************** Generic drawing ************** */
 
@@ -1599,7 +1601,7 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_push();
 
   /* The draw manager is used to draw the backdrop image. */
-  blender::gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
   GPU_framebuffer_restore();
   BLI_thread_lock(LOCK_DRAW_IMAGE);
   DRW_draw_view(&C);
@@ -1623,7 +1625,7 @@ void draw_nodespace_back_pix(const bContext &C,
     /** \note draw selected info on backdrop
      */
     if (snode.edittree) {
-      bNode *node = (bNode *)snode.edittree->nodes.first;
+      bNode *node = static_cast<bNode *>(snode.edittree->nodes.first);
       const rctf *viewer_border = &snode.nodetree->viewer_border;
       while (node) {
         if (node->flag & NODE_SELECT) {
@@ -1645,7 +1647,7 @@ void draw_nodespace_back_pix(const bContext &C,
                       y + snode.zoom * viewer_border->ymax * ibuf->y);
 
         uint pos = GPU_vertformat_attr_add(
-            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+            immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         immUniformThemeColor(TH_ACTIVE);
 
@@ -2396,4 +2398,6 @@ void node_draw_link_dragged(const bContext &C,
   node_draw_link_end_markers(link, draw_config, points, false);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

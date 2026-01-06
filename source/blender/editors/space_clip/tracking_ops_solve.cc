@@ -32,6 +32,8 @@
 
 #include "clip_intern.hh"
 
+namespace blender {
+
 /********************** solve camera operator *********************/
 
 struct SolveCameraJob {
@@ -86,7 +88,7 @@ static bool solve_camera_initjob(
 
 static void solve_camera_updatejob(void *scv)
 {
-  SolveCameraJob *scj = (SolveCameraJob *)scv;
+  SolveCameraJob *scj = static_cast<SolveCameraJob *>(scv);
   MovieTracking *tracking = &scj->clip->tracking;
 
   STRNCPY_UTF8(tracking->stats->message, scj->stats_message);
@@ -94,7 +96,7 @@ static void solve_camera_updatejob(void *scv)
 
 static void solve_camera_startjob(void *scv, wmJobWorkerStatus *worker_status)
 {
-  SolveCameraJob *scj = (SolveCameraJob *)scv;
+  SolveCameraJob *scj = static_cast<SolveCameraJob *>(scv);
   BKE_tracking_reconstruction_solve(scj->context,
                                     &worker_status->stop,
                                     &worker_status->do_update,
@@ -105,7 +107,7 @@ static void solve_camera_startjob(void *scv, wmJobWorkerStatus *worker_status)
 
 static void solve_camera_freejob(void *scv)
 {
-  SolveCameraJob *scj = (SolveCameraJob *)scv;
+  SolveCameraJob *scj = static_cast<SolveCameraJob *>(scv);
   MovieTracking *tracking = &scj->clip->tracking;
   Scene *scene = scj->scene;
   MovieClip *clip = scj->clip;
@@ -153,7 +155,7 @@ static void solve_camera_freejob(void *scv)
   if (scene->camera != nullptr && scene->camera->data &&
       GS(((ID *)scene->camera->data)->name) == ID_CA)
   {
-    Camera *camera = (Camera *)scene->camera->data;
+    Camera *camera = id_cast<Camera *>(scene->camera->data);
     int width, height;
     BKE_movieclip_get_size(clip, &scj->user, &width, &height);
     BKE_tracking_camera_to_blender(tracking, scene, camera, width, height);
@@ -323,3 +325,5 @@ void CLIP_OT_clear_solution(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+}  // namespace blender

@@ -42,6 +42,8 @@
 #include "render_result.h"
 #include "render_types.h"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Free
  * \{ */
@@ -444,7 +446,7 @@ void RE_pass_set_buffer_data(RenderPass *pass, float *data)
   IMB_assign_float_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
 }
 
-blender::gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
+gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
 {
   ImBuf *ibuf = rpass->ibuf;
 
@@ -463,11 +465,11 @@ blender::gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *
     return nullptr;
   }
 
-  const blender::gpu::TextureFormat format = (rpass->channels == 1) ?
-                                                 blender::gpu::TextureFormat::SFLOAT_32 :
-                                             (rpass->channels == 3) ?
-                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32 :
-                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
+  const gpu::TextureFormat format = (rpass->channels == 1) ?
+                                        gpu::TextureFormat::SFLOAT_32 :
+                                    (rpass->channels == 3) ?
+                                        gpu::TextureFormat::SFLOAT_32_32_32 :
+                                        gpu::TextureFormat::SFLOAT_32_32_32_32;
 
   /* TODO(sergey): Use utility to assign the texture. */
   ibuf->gpu.texture = GPU_texture_create_2d("RenderBuffer.gpu_texture",
@@ -639,8 +641,8 @@ static void *ml_addview_cb(void *base, const char *str)
 static int order_render_passes(const void *a, const void *b)
 {
   /* 1 if `a` is after `b`. */
-  const RenderPass *rpa = (const RenderPass *)a;
-  const RenderPass *rpb = (const RenderPass *)b;
+  const RenderPass *rpa = static_cast<const RenderPass *>(a);
+  const RenderPass *rpb = static_cast<const RenderPass *>(b);
   uint passtype_a = passtype_from_name(rpa->name);
   uint passtype_b = passtype_from_name(rpb->name);
 
@@ -1217,7 +1219,7 @@ void render_result_rect_get_pixels(RenderResult *rr,
       return;
     }
     if (ibuf->float_buffer.data) {
-      IMB_display_buffer_transform_apply((uchar *)rect,
+      IMB_display_buffer_transform_apply(reinterpret_cast<uchar *>(rect),
                                          ibuf->float_buffer.data,
                                          rr->rectx,
                                          rr->recty,
@@ -1378,3 +1380,5 @@ bool RE_RenderPassIsColor(const RenderPass *render_pass)
 }
 
 /** \} */
+
+}  // namespace blender

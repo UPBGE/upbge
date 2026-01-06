@@ -15,6 +15,8 @@
 #include "DNA_curve_types.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 enum MaskParentType {
   MASK_PARENT_POINT_TRACK = 0, /* parenting happens to point track */
   MASK_PARENT_PLANE_TRACK = 1, /* parenting happens to plane track */
@@ -213,11 +215,11 @@ struct MaskLayerShape {
 #ifdef __cplusplus
   const MaskLayerShapeElem *vertices() const
   {
-    return (const MaskLayerShapeElem *)this->data;
+    return reinterpret_cast<const MaskLayerShapeElem *>(this->data);
   }
   MaskLayerShapeElem *vertices()
   {
-    return (MaskLayerShapeElem *)this->data;
+    return reinterpret_cast<MaskLayerShapeElem *>(this->data);
   }
 #endif
 };
@@ -254,3 +256,5 @@ struct MaskLayer {
    * (#MaskLayerVisibility). */
   char visibility_flag = 0;
 };
+
+}  // namespace blender

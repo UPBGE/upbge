@@ -77,7 +77,9 @@
 #  include "BPY_extern.hh"
 #endif
 
-using namespace blender::bke;
+namespace blender {
+
+using namespace bke;
 
 /* -------------------------------------------------------------------- */
 /** \name Blend/Library Paths
@@ -114,7 +116,7 @@ bool BKE_blendfile_library_path_explode(const char *path,
 
   BLI_strncpy(r_dir, path, FILE_MAX_LIBEXTRA);
 
-  while ((slash = (char *)BLI_path_slash_rfind(r_dir))) {
+  while ((slash = const_cast<char *>(BLI_path_slash_rfind(r_dir)))) {
     char tc = *slash;
     *slash = '\0';
     if (BKE_blendfile_extension_check(r_dir) && BLI_is_file(r_dir)) {
@@ -594,8 +596,8 @@ static void swap_old_bmain_data_for_blendfile(ReuseOldBMainData *reuse_data, con
 
   /* NOTE: Full swapping is only supported for ID types that are assumed to be only local
    * data-blocks (like UI-like ones). Otherwise, the swapping could fail in many funny ways. */
-  BLI_assert(BLI_listbase_is_empty(old_lb) || !ID_IS_LINKED(old_lb->last));
-  BLI_assert(BLI_listbase_is_empty(new_lb) || !ID_IS_LINKED(new_lb->last));
+  BLI_assert(BLI_listbase_is_empty(old_lb) || !ID_IS_LINKED(static_cast<ID *>(old_lb->last)));
+  BLI_assert(BLI_listbase_is_empty(new_lb) || !ID_IS_LINKED(static_cast<ID *>(new_lb->last)));
 
   std::swap(*new_lb, *old_lb);
 
@@ -1770,7 +1772,7 @@ void BKE_blendfile_workspace_config_data_free(WorkspaceConfigFileData *workspace
 
 static CLG_LogRef LOG_PARTIALWRITE = {"blend.partial_write"};
 
-namespace blender::bke::blendfile {
+namespace bke::blendfile {
 
 PartialWriteContext::PartialWriteContext(Main &reference_main)
     : reference_root_filepath_(BKE_main_blendfile_path(&reference_main))
@@ -1942,7 +1944,7 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
      * using the write context's own `id_add_copy` util. Both are doing different and complex
      * things, but for archive libraries the Library code should be mostly usable 'as-is'. */
     bool is_new = false;
-    ctx_lib = blender::bke::library::ensure_archive_library(
+    ctx_lib = bke::library::ensure_archive_library(
         this->bmain, *ctx_id, *ctx_lib, ctx_id->deep_hash, is_new);
     if (is_new) {
       ctx_lib->id.tag |= ID_TAG_TEMP_MAIN;
@@ -2320,6 +2322,8 @@ bool PartialWriteContext::write(const char *write_filepath, ReportList &reports)
   return this->write(write_filepath, 0, BLO_WRITE_PATH_REMAP_RELATIVE, reports);
 }
 
-}  // namespace blender::bke::blendfile
+}  // namespace bke::blendfile
 
 /** \} */
+
+}  // namespace blender

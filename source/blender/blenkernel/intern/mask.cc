@@ -46,6 +46,8 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"mask"};
 
 /** Reset runtime mask fields when data-block is being initialized. */
@@ -60,8 +62,8 @@ static void mask_copy_data(Main * /*bmain*/,
                            const ID *id_src,
                            const int /*flag*/)
 {
-  Mask *mask_dst = (Mask *)id_dst;
-  const Mask *mask_src = (const Mask *)id_src;
+  Mask *mask_dst = id_cast<Mask *>(id_dst);
+  const Mask *mask_src = id_cast<const Mask *>(id_src);
 
   BLI_listbase_clear(&mask_dst->masklayers);
 
@@ -74,7 +76,7 @@ static void mask_copy_data(Main * /*bmain*/,
 
 static void mask_free_data(ID *id)
 {
-  Mask *mask = (Mask *)id;
+  Mask *mask = id_cast<Mask *>(id);
 
   /* free mask data */
   BKE_mask_layer_free_list(&mask->masklayers);
@@ -82,7 +84,7 @@ static void mask_free_data(ID *id)
 
 static void mask_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Mask *mask = (Mask *)id;
+  Mask *mask = id_cast<Mask *>(id);
 
   for (MaskLayer &mask_layer : mask->masklayers) {
     for (MaskSpline &mask_spline : mask_layer.splines) {
@@ -97,7 +99,7 @@ static void mask_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void mask_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  Mask *mask = (Mask *)id;
+  Mask *mask = id_cast<Mask *>(id);
 
   BLO_write_id_struct(writer, Mask, id_address, &mask->id);
   BKE_id_blend_write(writer, &mask->id);
@@ -136,7 +138,7 @@ static void mask_blend_write(BlendWriter *writer, ID *id, const void *id_address
 
 static void mask_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  Mask *mask = (Mask *)id;
+  Mask *mask = id_cast<Mask *>(id);
 
   BLO_read_struct_list(reader, MaskLayer, &mask->masklayers);
 
@@ -215,7 +217,7 @@ IDTypeInfo IDType_ID_MSK = {
 
 struct MaskClipboard {
   ListBaseT<MaskSpline> splines;
-  blender::Map<ID *, std::string> id_hash;
+  Map<ID *, std::string> id_hash;
 };
 
 static MaskClipboard &get_mask_clipboard()
@@ -515,7 +517,7 @@ void BKE_mask_spline_direction_switch(MaskLayer *masklay, MaskSpline *spline)
     const int spline_index = BKE_mask_layer_shape_spline_to_index(masklay, spline);
 
     for (MaskLayerShape &masklay_shape : masklay->splines_shapes) {
-      MaskLayerShapeElem *fp_arr = (MaskLayerShapeElem *)masklay_shape.data;
+      MaskLayerShapeElem *fp_arr = reinterpret_cast<MaskLayerShapeElem *>(masklay_shape.data);
 
       for (i = 0; i < tot_point_half; i++) {
         MaskLayerShapeElem *fp_a = &fp_arr[spline_index + (i)];
@@ -1067,7 +1069,8 @@ MaskLayerShape *BKE_mask_layer_shape_alloc(MaskLayer *masklay, const int frame)
   masklay_shape = MEM_new_for_free<MaskLayerShape>(__func__);
   masklay_shape->frame = frame;
   masklay_shape->tot_vert = tot_vert;
-  masklay_shape->data = (float *)MEM_calloc_arrayN<MaskLayerShapeElem>(tot_vert, __func__);
+  masklay_shape->data = reinterpret_cast<float *>(
+      MEM_calloc_arrayN<MaskLayerShapeElem>(tot_vert, __func__));
 
   return masklay_shape;
 }
@@ -1229,8 +1232,8 @@ void BKE_mask_point_parent_matrix_get(MaskSplinePoint *point,
 
   if (parent->id_type == ID_MC) {
     if (parent->id) {
-      MovieClip *clip = (MovieClip *)parent->id;
-      MovieTracking *tracking = (MovieTracking *)&clip->tracking;
+      MovieClip *clip = id_cast<MovieClip *>(parent->id);
+      MovieTracking *tracking = static_cast<MovieTracking *>(&clip->tracking);
       MovieTrackingObject *ob = BKE_tracking_object_get_named(tracking, parent->parent);
 
       if (ob) {
@@ -1853,7 +1856,8 @@ void BKE_mask_layer_shape_changed_add(MaskLayer *masklay,
         masklay_shape.tot_vert++;
         MaskLayerShapeElem *data_resized = MEM_calloc_arrayN<MaskLayerShapeElem>(
             masklay_shape.tot_vert, __func__);
-        const MaskLayerShapeElem *data_source = (const MaskLayerShapeElem *)masklay_shape.data;
+        const MaskLayerShapeElem *data_source = reinterpret_cast<const MaskLayerShapeElem *>(
+            masklay_shape.data);
         if (index > 0) {
           std::copy_n(data_source, index, data_resized);
         }
@@ -1881,7 +1885,7 @@ void BKE_mask_layer_shape_changed_add(MaskLayer *masklay,
         }
 
         MEM_freeN(masklay_shape.data);
-        masklay_shape.data = (float *)data_resized;
+        masklay_shape.data = reinterpret_cast<float *>(data_resized);
       }
       else {
         CLOG_ERROR(&LOG,
@@ -1904,7 +1908,8 @@ void BKE_mask_layer_shape_changed_remove(MaskLayer *masklay, int index, int coun
       masklay_shape.tot_vert -= count;
       MaskLayerShapeElem *data_resized = MEM_calloc_arrayN<MaskLayerShapeElem>(
           masklay_shape.tot_vert, __func__);
-      const MaskLayerShapeElem *data_source = (const MaskLayerShapeElem *)masklay_shape.data;
+      const MaskLayerShapeElem *data_source = reinterpret_cast<const MaskLayerShapeElem *>(
+          masklay_shape.data);
       if (index > 0) {
         std::copy_n(data_source, index, data_resized);
       }
@@ -1913,7 +1918,7 @@ void BKE_mask_layer_shape_changed_remove(MaskLayer *masklay, int index, int coun
             data_source + (index + count), masklay_shape.tot_vert - index, data_resized + index);
       }
       MEM_freeN(masklay_shape.data);
-      masklay_shape.data = (float *)data_resized;
+      masklay_shape.data = reinterpret_cast<float *>(data_resized);
     }
     else {
       CLOG_ERROR(&LOG,
@@ -1984,7 +1989,7 @@ void BKE_mask_clipboard_paste_to_layer(Main *bmain, MaskLayer *mask_layer)
     for (int i = 0; i < spline_new->tot_point; i++) {
       MaskSplinePoint *point = &spline_new->points[i];
       if (point->parent.id) {
-        const blender::StringRefNull id_name = mask_clipboard.id_hash.lookup(point->parent.id);
+        const StringRefNull id_name = mask_clipboard.id_hash.lookup(point->parent.id);
         ListBaseT<ID> *listbase = which_libbase(bmain, GS(id_name.c_str()));
         point->parent.id = static_cast<ID *>(
             BLI_findstring(listbase, id_name.c_str() + 2, offsetof(ID, name) + 2));
@@ -1994,3 +1999,5 @@ void BKE_mask_clipboard_paste_to_layer(Main *bmain, MaskLayer *mask_layer)
     BLI_addtail(&mask_layer->splines, spline_new);
   }
 }
+
+}  // namespace blender

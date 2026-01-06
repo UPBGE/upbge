@@ -131,7 +131,7 @@ Strip *add_scene_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_d
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_SCENE);
   strip->scene = load_data->scene;
   strip->len = load_data->scene->r.efra - load_data->scene->r.sfra + 1;
-  id_us_ensure_real((ID *)load_data->scene);
+  id_us_ensure_real(id_cast<ID *>(load_data->scene));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
   return strip;
@@ -143,7 +143,7 @@ Strip *add_movieclip_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *lo
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_MOVIECLIP);
   strip->clip = load_data->clip;
   strip->len = BKE_movieclip_get_duration(load_data->clip);
-  id_us_ensure_real((ID *)load_data->clip);
+  id_us_ensure_real(id_cast<ID *>(load_data->clip));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
   return strip;
@@ -154,7 +154,7 @@ Strip *add_mask_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_da
   Strip *strip = strip_alloc(seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_MASK);
   strip->mask = load_data->mask;
   strip->len = BKE_mask_get_duration(load_data->mask);
-  id_us_ensure_real((ID *)load_data->mask);
+  id_us_ensure_real(id_cast<ID *>(load_data->mask));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
   return strip;
@@ -409,6 +409,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   bool is_multiview_loaded = false;
   const int totfiles = seq_num_files(scene, load_data->views_format, load_data->use_multiview);
   Array<MovieReader *> anim_arr(totfiles, nullptr);
+
   int orig_width = 0;
   int orig_height = 0;
 
@@ -481,14 +482,19 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
     *strip->stereo3d_format = *load_data->stereo3d_format;
   }
 
-  for (MovieReader *anim : anim_arr) {
-    if (anim) {
-      strip->runtime->movie_readers.append(anim);
+  BLI_SCOPED_DEFER([&]() {
+    for (MovieReader *mr : anim_arr) {
+      if (!mr) {
+        continue;
+      }
+      if (strip->intersects_frame(scene, scene->r.cfra)) {
+        strip->runtime->movie_readers.append(mr);
+      }
+      else {
+        MOV_close(mr);
+      }
     }
-    else {
-      break;
-    }
-  }
+  });
 
   if (anim_arr[0] != nullptr) {
     strip->len = MOV_get_duration_frames(anim_arr[0], IMB_TC_RECORD_RUN);

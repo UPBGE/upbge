@@ -79,8 +79,8 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   auto *omd = reinterpret_cast<GreasePencilOutlineModifierData *>(md);
   modifier::greasepencil::foreach_influence_ID_link(&omd->influence, ob, walk, user_data);
-  walk(user_data, ob, (ID **)&omd->outline_material, IDWALK_CB_USER);
-  walk(user_data, ob, (ID **)&omd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&omd->outline_material), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&omd->object), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -312,8 +312,6 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   modifier::greasepencil::read_influence_data(reader, &omd->influence);
 }
 
-}  // namespace blender
-
 ModifierTypeInfo modifierType_GreasePencilOutline = {
     /*idname*/ "GreasePencilOutline",
     /*name*/ N_("Outline"),
@@ -325,26 +323,28 @@ ModifierTypeInfo modifierType_GreasePencilOutline = {
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,
     /*icon*/ ICON_MOD_OUTLINE,
 
-    /*copy_data*/ blender::copy_data,
+    /*copy_data*/ copy_data,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
     /*deform_verts_EM*/ nullptr,
     /*deform_matrices_EM*/ nullptr,
     /*modify_mesh*/ nullptr,
-    /*modify_geometry_set*/ blender::modify_geometry_set,
+    /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ blender::init_data,
+    /*init_data*/ init_data,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ blender::free_data,
+    /*free_data*/ free_data,
     /*is_disabled*/ nullptr,
-    /*update_depsgraph*/ blender::update_depsgraph,
+    /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
     /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ blender::foreach_ID_link,
+    /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,
-    /*panel_register*/ blender::panel_register,
-    /*blend_write*/ blender::blend_write,
-    /*blend_read*/ blender::blend_read,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ blend_write,
+    /*blend_read*/ blend_read,
 };
+
+}  // namespace blender

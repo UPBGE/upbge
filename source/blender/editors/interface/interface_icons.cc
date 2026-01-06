@@ -57,9 +57,11 @@
 
 #include <fmt/format.h>
 
+namespace blender {
+
 static CLG_LogRef LOG = {"ui.icon"};
 
-namespace blender::ui {
+namespace ui {
 
 struct IconImage {
   int w;
@@ -220,7 +222,7 @@ static void vicon_rgb_text_draw(
 {
   const int font_id = BLF_default();
   const size_t len = strlen(str);
-  BLF_size(font_id, float(h - 3 * UI_SCALE_FAC));
+  BLF_size(font_id, (h - 3 * UI_SCALE_FAC));
   float width, height;
   BLF_width_and_height(font_id, str, len, &width, &height);
   const float pos_x = x + (w - width) / 2.0f;
@@ -403,13 +405,13 @@ static void icon_node_socket_draw(
   };
 
   float color_inner[4];
-  blender::ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
+  ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
 
   float color_outer[4] = {0};
   theme::get_color_type_4fv(TH_WIRE, SPACE_NODE, color_outer);
   color_outer[3] = 1.0f;
 
-  blender::ed::space_node::node_draw_nodesocket(
+  ed::space_node::node_draw_nodesocket(
       &rect, color_inner, color_outer, U.pixelsize, SOCK_DISPLAY_SHAPE_CIRCLE, 1.0f);
 }
 
@@ -622,7 +624,7 @@ DEF_ICON_NODE_SOCKET_DRAW(closure, eNodeSocketDatatype::SOCK_CLOSURE)
  */
 static void vicon_gplayer_color_draw(Icon *icon, int x, int y, int w, int h)
 {
-  bGPDlayer *gpl = (bGPDlayer *)icon->obj;
+  bGPDlayer *gpl = static_cast<bGPDlayer *>(icon->obj);
 
   /* Just draw a colored rect - Like for vicon_colorset_draw() */
   /* TODO: Make this have rounded corners, and maybe be a bit smaller.
@@ -1145,7 +1147,7 @@ static void ui_id_preview_image_render_size(
 
 static void ui_studiolight_icon_job_exec(void *customdata, wmJobWorkerStatus * /*worker_status*/)
 {
-  Icon **tmp = (Icon **)customdata;
+  Icon **tmp = static_cast<Icon **>(customdata);
   Icon *icon = *tmp;
   DrawInfo *di = icon_ensure_drawinfo(icon);
   StudioLight *sl = static_cast<StudioLight *>(icon->obj);
@@ -1186,7 +1188,7 @@ static void ui_studiolight_free_function(StudioLight *sl, void *data)
 
 static void ui_studiolight_icon_job_end(void *customdata)
 {
-  Icon **tmp = (Icon **)customdata;
+  Icon **tmp = static_cast<Icon **>(customdata);
   Icon *icon = *tmp;
   StudioLight *sl = static_cast<StudioLight *>(icon->obj);
   BKE_studiolight_set_free_function(sl, &ui_studiolight_free_function, nullptr);
@@ -1334,15 +1336,16 @@ PreviewImage *icon_to_preview(int icon_id)
     return nullptr;
   }
 
-  DrawInfo *di = (DrawInfo *)icon->drawinfo;
+  DrawInfo *di = static_cast<DrawInfo *>(icon->drawinfo);
 
   if (di == nullptr) {
     return nullptr;
   }
 
   if (di->type == ICON_TYPE_PREVIEW) {
-    const PreviewImage *prv = (icon->id_type != 0) ? BKE_previewimg_id_ensure((ID *)icon->obj) :
-                                                     static_cast<const PreviewImage *>(icon->obj);
+    const PreviewImage *prv = (icon->id_type != 0) ?
+                                  BKE_previewimg_id_ensure(static_cast<ID *>(icon->obj)) :
+                                  static_cast<const PreviewImage *>(icon->obj);
 
     if (prv) {
       return BKE_previewimg_copy(prv);
@@ -1804,8 +1807,9 @@ static void icon_draw_size(float x,
     icon_draw_rect(x, y, w, h, iimg->w, iimg->h, iimg->rect, alpha, desaturate);
   }
   else if (di->type == ICON_TYPE_PREVIEW) {
-    PreviewImage *pi = (icon->id_type != 0) ? BKE_previewimg_id_ensure((ID *)icon->obj) :
-                                              static_cast<PreviewImage *>(icon->obj);
+    PreviewImage *pi = (icon->id_type != 0) ?
+                           BKE_previewimg_id_ensure(static_cast<ID *>(icon->obj)) :
+                           static_cast<PreviewImage *>(icon->obj);
 
     if (pi) {
       /* no create icon on this level in code */
@@ -1872,9 +1876,9 @@ void icon_render_id(
 
   /* For objects, first try if a preview can created via the object data. */
   if (GS(id->name) == ID_OB) {
-    Object *ob = (Object *)id;
+    Object *ob = id_cast<Object *>(id);
     if (ED_preview_id_is_supported(static_cast<const ID *>(ob->data))) {
-      id_to_render = static_cast<ID *>(ob->data);
+      id_to_render = ob->data;
     }
   }
 
@@ -1926,10 +1930,10 @@ int id_icon_get(const bContext *C, ID *id, const bool big)
       iconid = ui_id_screen_get_icon(C, id);
       break;
     case ID_OB:
-      iconid = icon_from_object_type((Object *)id);
+      iconid = icon_from_object_type(id_cast<Object *>(id));
       break;
     case ID_GR:
-      iconid = icon_color_from_collection((Collection *)id);
+      iconid = icon_color_from_collection(id_cast<Collection *>(id));
       break;
     default:
       break;
@@ -2026,7 +2030,7 @@ int icon_from_rnaptr(const bContext *C, PointerRNA *ptr, int rnaicon, const bool
 
 int icon_from_idcode(const int idcode)
 {
-  switch ((ID_Type)idcode) {
+  switch (ID_Type(idcode)) {
     case ID_AC:
       return ICON_ACTION;
     case ID_AR:
@@ -2111,7 +2115,7 @@ int icon_from_idcode(const int idcode)
 
 int icon_from_object_mode(const int mode)
 {
-  switch ((eObjectMode)mode) {
+  switch (eObjectMode(mode)) {
     case OB_MODE_OBJECT:
       return ICON_OBJECT_DATAMODE;
     case OB_MODE_EDIT:
@@ -2331,4 +2335,5 @@ ImBuf *icon_alert_imbuf_get(AlertIcon icon, float size)
 #endif
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

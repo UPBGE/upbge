@@ -6,6 +6,8 @@
 
 #include <stdbool.h>
 
+namespace blender {
+
 /** \file
  * \ingroup bke
  */
@@ -162,7 +164,6 @@ float BLI_ocean_spectrum_texelmarsenarsloe(const struct Ocean *oc, float kx, flo
  */
 float BLI_ocean_spectrum_jonswap(const struct Ocean *oc, float kx, float kz);
 
-
 /* --------------------------------------------------------------------
  * Export helpers (implemented in ocean.cc)
  *
@@ -195,3 +196,5 @@ bool BKE_ocean_export_normals_xyz(const Ocean *o, float **r_buf, int *r_len_texe
 
 /* Free memory returned by export helpers (caller must call once). */
 void BKE_ocean_free_export(void *ptr);
+
+}  // namespace blender

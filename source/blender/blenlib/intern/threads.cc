@@ -37,6 +37,8 @@
 
 #include "atomic_ops.h"
 
+namespace blender {
+
 /**
  * Basic Thread Control API
  * ========================
@@ -172,7 +174,7 @@ int BLI_threadpool_available_thread_index(ListBaseT<ThreadSlot> *threadbase)
 
 static void *tslot_thread_start(void *tslot_p)
 {
-  ThreadSlot *tslot = (ThreadSlot *)tslot_p;
+  ThreadSlot *tslot = static_cast<ThreadSlot *>(tslot_p);
   return tslot->do_thread(tslot->callerdata);
 }
 
@@ -874,3 +876,5 @@ void BLI_thread_queue_wait_finish(ThreadQueue *queue)
 
   pthread_mutex_unlock(&queue->mutex);
 }
+
+}  // namespace blender

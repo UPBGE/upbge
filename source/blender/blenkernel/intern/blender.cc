@@ -53,6 +53,8 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 Global G;
 UserDef U;
 
@@ -84,10 +86,10 @@ void BKE_blender_free()
   BKE_callback_global_finalize();
 
   IMB_moviecache_destruct();
-  blender::seq::fontmap_clear();
+  seq::fontmap_clear();
   MOV_exit();
 
-  blender::bke::node_system_exit();
+  bke::node_system_exit();
 }
 
 /** \} */
@@ -324,7 +326,7 @@ static void keymap_item_free(wmKeyMapItem *kmi)
 
 void BKE_blender_userdef_data_swap(UserDef *userdef_a, UserDef *userdef_b)
 {
-  blender::dna::shallow_swap(*userdef_a, *userdef_b);
+  dna::shallow_swap(*userdef_a, *userdef_b);
 }
 
 void BKE_blender_userdef_data_set(UserDef *userdef)
@@ -574,3 +576,5 @@ void BKE_blender_atexit()
 }
 
 /** \} */
+
+}  // namespace blender

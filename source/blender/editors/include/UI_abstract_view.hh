@@ -35,10 +35,12 @@
 
 #include "WM_types.hh"
 
+namespace blender {
+
 struct bContext;
 struct wmNotifier;
 
-namespace blender::ui {
+namespace ui {
 
 struct ViewLink;
 struct ButtonViewItem;
@@ -198,7 +200,7 @@ class AbstractViewItem {
    */
   AbstractView *view_ = nullptr;
   /** See #view_item_button() */
-  blender::ui::ButtonViewItem *view_item_but_ = nullptr;
+  ui::ButtonViewItem *view_item_but_ = nullptr;
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
@@ -307,7 +309,7 @@ class AbstractViewItem {
    * visible item gets one during the layout building. Items that are not visible may not have one,
    * so null is a valid return value.
    */
-  blender::ui::ButtonViewItem *view_item_button() const;
+  ui::ButtonViewItem *view_item_button() const;
 
   /** Disable the interacting with this item, meaning the buttons drawn will be disabled and there
    * will be no mouse hover feedback for the view row. */
@@ -429,8 +431,10 @@ class AbstractViewItemDragController {
   /**
    * Called when beginning to drag. Also called when #get_drag_type() doesn't return a value, so an
    * arbitrary action can be executed.
+   * \param item: The item this drag controller was created from. It's passed so it doesn't have to
+   *        be stored (especially as non-const).
    */
-  virtual void on_drag_start(bContext &C);
+  virtual void on_drag_start(bContext &C, ui::AbstractViewItem &item);
 
   /** Request the view the item is registered for as type #ViewType. Throws a `std::bad_cast`
    * exception if the view is not of the requested type. */
@@ -446,4 +450,5 @@ template<class ViewType> ViewType &AbstractViewItemDragController::get_view() co
 
 /** \} */
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

@@ -95,6 +95,8 @@
 #  include "BLI_threads.h"
 #endif
 
+namespace blender {
+
 static void wm_window_csd_title_redraw_tag(wmWindowManager *wm, wmWindow *win);
 
 /* The global to talk to GHOST. */
@@ -132,8 +134,8 @@ static struct WMInitStruct {
    *   instead of the size stored in the factory startup.
    *   Otherwise the window geometry saved in the blend-file is used and these values are ignored.
    */
-  blender::int2 size;
-  blender::int2 start;
+  int2 size;
+  int2 start;
 
   GHOST_TWindowState windowstate = GHOST_WINDOW_STATE_DEFAULT;
   eWinOverrideFlag override_flag;
@@ -209,7 +211,7 @@ bool wm_get_desktopsize(int r_size[2])
 /** Keeps size within monitor bounds. */
 static void wm_window_check_size(rcti *rect)
 {
-  blender::int2 scr_size;
+  int2 scr_size;
   if (wm_get_screensize(scr_size)) {
     if (BLI_rcti_size_x(rect) > scr_size[0]) {
       BLI_rcti_resize_x(rect, scr_size[0]);
@@ -333,7 +335,7 @@ wmWindow *wm_window_new(const Main *bmain, wmWindowManager *wm, wmWindow *parent
   win->parent = (!dialog && parent && parent->parent) ? parent->parent : parent;
   win->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("Stereo 3D Format (window)");
   win->workspace_hook = BKE_workspace_instance_hook_create(bmain, win->winid);
-  win->runtime = MEM_new<blender::bke::WindowRuntime>(__func__);
+  win->runtime = MEM_new<bke::WindowRuntime>(__func__);
 
   return win;
 }
@@ -557,7 +559,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 static std::string wm_window_title_text(
     wmWindowManager *wm,
     wmWindow *win,
-    std::optional<blender::FunctionRef<void(const char *)>> window_filepath_fn)
+    std::optional<FunctionRef<void(const char *)>> window_filepath_fn)
 {
   if (win->parent || WM_window_is_temp_screen(win)) {
     /* Not a main window. */
@@ -795,20 +797,20 @@ static void wm_window_decoration_style_set_from_theme(const wmWindow *win, const
   /* Colored TitleBar Decoration. */
   /* For main windows, use the top-bar color. */
   if (WM_window_is_main_top_level(win)) {
-    blender::ui::theme::theme_set(SPACE_TOPBAR, RGN_TYPE_HEADER);
+    ui::theme::theme_set(SPACE_TOPBAR, RGN_TYPE_HEADER);
   }
   /* For single editor floating windows, use the editor header color. */
   else if (screen && BLI_listbase_is_single(&screen->areabase)) {
     const ScrArea *main_area = static_cast<ScrArea *>(screen->areabase.first);
-    blender::ui::theme::theme_set(main_area->spacetype, RGN_TYPE_HEADER);
+    ui::theme::theme_set(main_area->spacetype, RGN_TYPE_HEADER);
   }
   /* For floating window with multiple editors/areas, use the default space color. */
   else {
-    blender::ui::theme::theme_set(0, RGN_TYPE_WINDOW);
+    ui::theme::theme_set(0, RGN_TYPE_WINDOW);
   }
 
   float titlebar_bg_color[3];
-  blender::ui::theme::get_color_3fv(TH_BACK, titlebar_bg_color);
+  ui::theme::get_color_3fv(TH_BACK, titlebar_bg_color);
   copy_v3_v3(decoration_settings.colored_titlebar_bg_color, titlebar_bg_color);
 
   GHOST_SetWindowDecorationStyleSettings(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin),
@@ -975,7 +977,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
   int posy = 0;
 
   if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_POSITION) {
-    blender::int2 scr_size;
+    int2 scr_size;
     if (wm_get_desktopsize(scr_size)) {
       posx = win->posx;
       posy = (scr_size[1] - win->posy - win->sizey);
@@ -994,7 +996,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       posy,
       win->sizex,
       win->sizey,
-      (GHOST_TWindowState)win->windowstate,
+      GHOST_TWindowState(win->windowstate),
       is_dialog,
       gpu_settings);
 
@@ -1025,15 +1027,15 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 #ifndef __APPLE__
     /* Set the state here, so minimized state comes up correct on windows. */
     if (wm_init_state.window_focus) {
-      GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
+      GHOST_SetWindowState(ghostwin, GHOST_TWindowState(win->windowstate));
     }
 #endif
 
     /* Get the window background color from the current theme. Using the top-bar header
      * background theme color to match with the colored title-bar decoration style. */
     float window_bg_color[3];
-    blender::ui::theme::theme_set(SPACE_TOPBAR, RGN_TYPE_HEADER);
-    blender::ui::theme::get_color_3fv(TH_BACK, window_bg_color);
+    ui::theme::theme_set(SPACE_TOPBAR, RGN_TYPE_HEADER);
+    ui::theme::get_color_3fv(TH_BACK, window_bg_color);
 
     /* Until screens get drawn, draw a default background using the window theme color. */
     wm_window_swap_buffer_acquire(win);
@@ -1161,13 +1163,13 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm)
   if (wm_init_state.size[0] == 0) {
     if (UNLIKELY(!wm_get_screensize(wm_init_state.size))) {
       /* Use fallback values. */
-      wm_init_state.size = blender::int2(0);
+      wm_init_state.size = int2(0);
     }
 
     /* NOTE: this isn't quite correct, active screen maybe offset 1000s if PX,
      * we'd need a #wm_get_screensize like function that gives offset,
      * in practice the window manager will likely move to the correct monitor. */
-    wm_init_state.start = blender::int2(0);
+    wm_init_state.start = int2(0);
   }
 
   for (wmWindow &win : wm->windows) {
@@ -1203,7 +1205,7 @@ bool wm_window_update_size_position(wmWindow *win)
   int posy = 0;
 
   if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_POSITION) {
-    blender::int2 scr_size;
+    int2 scr_size;
     if (wm_get_desktopsize(scr_size)) {
       posx = l;
       posy = scr_size[1] - t - win->sizey;
@@ -1935,8 +1937,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
         PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
         RNA_string_set(&props_ptr, "filepath", path);
         RNA_boolean_set(&props_ptr, "display_file_selector", false);
-        WM_operator_name_call_ptr(
-            C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+        WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
         WM_operator_properties_free(&props_ptr);
 
         CTX_wm_window_set(C, nullptr);
@@ -1993,13 +1994,13 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
 
         if (stra->count) {
           CLOG_INFO(WM_LOG_EVENTS, "Drop %d files:", stra->count);
-          for (const char *path : blender::Span((char **)stra->strings, stra->count)) {
+          for (const char *path : Span(reinterpret_cast<char **>(stra->strings), stra->count)) {
             CLOG_INFO(WM_LOG_EVENTS, "%s", path);
           }
           /* Try to get icon type from extension of the first path. */
-          int icon = ED_file_extension_icon((char *)stra->strings[0]);
+          int icon = ED_file_extension_icon(reinterpret_cast<char *>(stra->strings[0]));
           wmDragPath *path_data = WM_drag_create_path_data(
-              blender::Span((char **)stra->strings, stra->count));
+              Span(reinterpret_cast<char **>(stra->strings), stra->count));
           WM_event_start_drag(C, icon, WM_DRAG_PATH, path_data, WM_DRAG_NOP);
           /* Void pointer should point to string, it makes a copy. */
         }
@@ -2023,7 +2024,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
         /* Close all popups since they are positioned with the pixel
          * size baked in and it's difficult to correct them. */
         CTX_wm_window_set(C, win);
-        blender::ui::popup_handlers_remove_all(C, &win->runtime->modalhandlers);
+        ui::popup_handlers_remove_all(C, &win->runtime->modalhandlers);
         CTX_wm_window_set(C, nullptr);
 
         wm_window_make_drawable(wm, win);
@@ -2228,7 +2229,7 @@ void wm_ghost_init(bContext *C)
 
   consumer = GHOST_CreateEventConsumer(ghost_event_proc, C);
 
-  GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_SetBacktraceHandler(reinterpret_cast<GHOST_TBacktraceFn>(BLI_system_backtrace));
   GHOST_UseWindowFrame(wm_init_state.window_frame);
 
   g_system = GHOST_CreateSystem();
@@ -2279,7 +2280,7 @@ void wm_ghost_init_background()
     return;
   }
 
-  GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_SetBacktraceHandler(reinterpret_cast<GHOST_TBacktraceFn>(BLI_system_backtrace));
 
   g_system = GHOST_CreateSystemBackground();
   GPU_backend_ghost_system_set(g_system);
@@ -2373,7 +2374,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
     alert(C,
           RPT_("Failed to load using Vulkan, using OpenGL instead."),
           message,
-          blender::ui::AlertIcon::Error,
+          ui::AlertIcon::Error,
           false);
     CTX_wm_window_set(C, prevwin);
   }
@@ -2757,7 +2758,7 @@ ImBuf *WM_clipboard_image_get()
 
   int width, height;
 
-  uint8_t *rgba = (uint8_t *)GHOST_getClipboardImage(&width, &height);
+  uint8_t *rgba = reinterpret_cast<uint8_t *>(GHOST_getClipboardImage(&width, &height));
   if (!rgba) {
     return nullptr;
   }
@@ -2777,7 +2778,8 @@ bool WM_clipboard_image_set_byte_buffer(ImBuf *ibuf)
     return false;
   }
 
-  bool success = bool(GHOST_putClipboardImage((uint *)ibuf->byte_buffer.data, ibuf->x, ibuf->y));
+  bool success = bool(
+      GHOST_putClipboardImage(reinterpret_cast<uint *>(ibuf->byte_buffer.data), ibuf->x, ibuf->y));
 
   return success;
 }
@@ -2923,8 +2925,8 @@ wmWindow *WM_window_find_by_area(wmWindowManager *wm, const ScrArea *area)
 
 void WM_init_state_size_set(int stax, int stay, int sizx, int sizy)
 {
-  wm_init_state.start = blender::int2(stax, stay); /* Left hand bottom position. */
-  wm_init_state.size = blender::int2(std::max(sizx, 640), std::max(sizy, 480));
+  wm_init_state.start = int2(stax, stay); /* Left hand bottom position. */
+  wm_init_state.size = int2(std::max(sizx, 640), std::max(sizy, 480));
   wm_init_state.override_flag |= WIN_OVERRIDE_GEOM;
 }
 
@@ -3040,12 +3042,12 @@ int WM_window_native_pixel_y(const wmWindow *win)
   return int(fac * float(win->sizey));
 }
 
-blender::int2 WM_window_native_pixel_size(const wmWindow *win)
+int2 WM_window_native_pixel_size(const wmWindow *win)
 {
   const float fac = GHOST_GetNativePixelSize(
       static_cast<GHOST_WindowHandle>(win->runtime->ghostwin));
 
-  return blender::int2(int(fac * float(win->sizex)), int(fac * float(win->sizey)));
+  return int2(int(fac * float(win->sizex)), int(fac * float(win->sizey)));
 }
 
 void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y)
@@ -3094,7 +3096,7 @@ void WM_window_rect_calc(const wmWindow *win, rcti *r_rect)
   }
 #endif /* WITH_GHOST_CSD */
 
-  const blender::int2 win_size = WM_window_native_pixel_size(win);
+  const int2 win_size = WM_window_native_pixel_size(win);
   BLI_rcti_init(r_rect, 0, win_size[0], 0, win_size[1]);
 }
 void WM_window_screen_rect_calc(const wmWindow *win, rcti *r_rect)
@@ -3255,7 +3257,7 @@ ViewLayer *WM_window_get_active_view_layer(const wmWindow *win)
 
   view_layer = BKE_view_layer_default_view(scene);
   if (view_layer) {
-    WM_window_set_active_view_layer((wmWindow *)win, view_layer);
+    WM_window_set_active_view_layer(const_cast<wmWindow *>(win), view_layer);
   }
 
   return view_layer;
@@ -3427,19 +3429,19 @@ void *WM_system_gpu_context_create()
 void WM_system_gpu_context_dispose(void *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_DisposeGPUContext(g_system, (GHOST_ContextHandle)context);
+  GHOST_DisposeGPUContext(g_system, static_cast<GHOST_ContextHandle>(context));
 }
 
 void WM_system_gpu_context_activate(void *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_ActivateGPUContext((GHOST_ContextHandle)context);
+  GHOST_ActivateGPUContext(static_cast<GHOST_ContextHandle>(context));
 }
 
 void WM_system_gpu_context_release(void *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_ReleaseGPUContext((GHOST_ContextHandle)context);
+  GHOST_ReleaseGPUContext(static_cast<GHOST_ContextHandle>(context));
 }
 
 void WM_ghost_show_message_box(const char *title,
@@ -3555,3 +3557,5 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 }
 /* End of UPBGE */
 /** \} */
+
+}  // namespace blender

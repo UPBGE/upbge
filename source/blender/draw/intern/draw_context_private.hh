@@ -30,20 +30,23 @@
 
 struct DRWDebugModule;
 struct DRWUniformChunk;
+struct ModifierData;
+
+namespace blender {
+
 struct DRWViewData;
 struct DRWTextStore;
 struct DupliObject;
 struct Object;
 struct Mesh;
-struct ModifierData;
-namespace blender::draw {
+namespace draw {
 struct CurvesModule;
 struct VolumeModule;
 struct PointCloudModule;
 struct DRW_MeshCDMask;
 class CurveRefinePass;
 class View;
-}  // namespace blender::draw
+}  // namespace draw
 struct GPUMaterial;
 
 /* -------------------------------------------------------------------- */
@@ -91,11 +94,11 @@ struct DRWData {
   /** Per stereo view data. Contains engine data and default frame-buffers. */
   DRWViewData *view_data[2];
   /** Module storage. */
-  blender::draw::CurvesModule *curves_module;
-  blender::draw::VolumeModule *volume_module;
-  blender::draw::PointCloudModule *pointcloud_module;
+  draw::CurvesModule *curves_module;
+  draw::VolumeModule *volume_module;
+  draw::PointCloudModule *pointcloud_module;
   /** Default view that feeds every engine. */
-  blender::draw::View *default_view;
+  draw::View *default_view;
 
   /** Map of original Mesh* -> processing info. Contains both scheduled free flag and optional
    * evaluated object used for GPU skinning. This replaces the previous two containers. */
@@ -121,7 +124,7 @@ inline DRWContext &drw_get()
   return DRWContext::get_active();
 }
 
-namespace blender::draw {
+namespace draw {
 
 void drw_batch_cache_validate(Object *ob);
 void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph);
@@ -138,6 +141,8 @@ void DRW_mesh_get_attributes(const Object &object,
                              VectorSet<std::string> *r_attrs,
                              DRW_MeshCDMask *r_cd_needed);
 
-}  // namespace blender::draw
+}  // namespace draw
 
 /** \} */
+
+}  // namespace blender

@@ -38,9 +38,11 @@
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
+namespace blender {
+
 static void init_data(ModifierData *md)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
   INIT_DEFAULT_STRUCT_AFTER(amd, modifier);
 }
 
@@ -49,7 +51,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 #if 0
   const ArmatureModifierData *amd = (const ArmatureModifierData *)md;
 #endif
-  ArmatureModifierData *tamd = (ArmatureModifierData *)target;
+  ArmatureModifierData *tamd = reinterpret_cast<ArmatureModifierData *>(target);
 
   BKE_modifier_copydata_generic(md, target, flag);
   tamd->vert_coords_prev = nullptr;
@@ -63,7 +65,7 @@ static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cd
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
 
   /* The object type check is only needed here in case we have a placeholder
    * object assigned (because the library containing the armature is missing).
@@ -75,14 +77,14 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&amd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&amd->object), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
   if (amd->object != nullptr) {
     /* If not using envelopes,
      * create relations to individual bones for more rigging flexibility. */
@@ -115,13 +117,12 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         blender::MutableSpan<blender::float3> positions)
+                         MutableSpan<float3> positions)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
-  std::optional<blender::Span<blender::float3>> vert_coords_prev;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+  std::optional<Span<float3>> vert_coords_prev;
   if (amd->vert_coords_prev) {
-    vert_coords_prev = {reinterpret_cast<blender::float3 *>(amd->vert_coords_prev),
-                        positions.size()};
+    vert_coords_prev = {reinterpret_cast<float3 *>(amd->vert_coords_prev), positions.size()};
   }
 
   /* if next modifier needs original vertices */
@@ -144,18 +145,17 @@ static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
                             const BMEditMesh *em,
                             Mesh *mesh,
-                            blender::MutableSpan<blender::float3> positions)
+                            MutableSpan<float3> positions)
 {
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_MDATA) {
     deform_verts(md, ctx, mesh, positions);
     return;
   }
 
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
-  std::optional<blender::Span<blender::float3>> vert_coords_prev;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+  std::optional<Span<float3>> vert_coords_prev;
   if (amd->vert_coords_prev) {
-    vert_coords_prev = {reinterpret_cast<blender::float3 *>(amd->vert_coords_prev),
-                        positions.size()};
+    vert_coords_prev = {reinterpret_cast<float3 *>(amd->vert_coords_prev), positions.size()};
   }
 
   /* if next modifier needs original vertices */
@@ -178,10 +178,10 @@ static void deform_matrices_EM(ModifierData *md,
                                const ModifierEvalContext *ctx,
                                const BMEditMesh *em,
                                Mesh * /*mesh*/,
-                               blender::MutableSpan<blender::float3> positions,
-                               blender::MutableSpan<blender::float3x3> matrices)
+                               MutableSpan<float3> positions,
+                               MutableSpan<float3x3> matrices)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
   BKE_armature_deform_coords_with_editmesh(*amd->object,
                                            *ctx->object,
                                            positions,
@@ -195,10 +195,10 @@ static void deform_matrices_EM(ModifierData *md,
 static void deform_matrices(ModifierData *md,
                             const ModifierEvalContext *ctx,
                             Mesh *mesh,
-                            blender::MutableSpan<blender::float3> positions,
-                            blender::MutableSpan<blender::float3x3> matrices)
+                            MutableSpan<float3> positions,
+                            MutableSpan<float3x3> matrices)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
   BKE_armature_deform_coords_with_mesh(*amd->object,
                                        *ctx->object,
                                        positions,
@@ -211,7 +211,7 @@ static void deform_matrices(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  blender::ui::Layout &layout = *panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -225,7 +225,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  blender::ui::Layout *col = &layout.column(true);
+  ui::Layout *col = &layout.column(true);
   col->prop(ptr, "use_deform_preserve_volume", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "use_multi_modifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -243,7 +243,7 @@ static void panel_register(ARegionType *region_type)
 
 static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
 
   amd->vert_coords_prev = nullptr;
 }
@@ -284,3 +284,5 @@ ModifierTypeInfo modifierType_Armature = {
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

@@ -33,6 +33,8 @@
 #include "clip_intern.hh" /* own include */
 #include "tracking_ops_intern.hh"
 
+namespace blender {
+
 /********************** Track operator *********************/
 
 struct TrackMarkersJob {
@@ -203,7 +205,7 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
 
 static void track_markers_startjob(void *tmv, wmJobWorkerStatus *worker_status)
 {
-  TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
+  TrackMarkersJob *tmj = static_cast<TrackMarkersJob *>(tmv);
   int framenr = tmj->sfra;
 
   BKE_autotrack_context_start(tmj->context);
@@ -252,13 +254,13 @@ static void track_markers_startjob(void *tmv, wmJobWorkerStatus *worker_status)
 
 static void track_markers_updatejob(void *tmv)
 {
-  TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
+  TrackMarkersJob *tmj = static_cast<TrackMarkersJob *>(tmv);
   BKE_autotrack_context_sync(tmj->context);
 }
 
 static void track_markers_endjob(void *tmv)
 {
-  TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
+  TrackMarkersJob *tmj = static_cast<TrackMarkersJob *>(tmv);
   wmWindowManager *wm = static_cast<wmWindowManager *>(tmj->main->wm.first);
 
   tmj->clip->tracking_context = nullptr;
@@ -277,7 +279,7 @@ static void track_markers_endjob(void *tmv)
 
 static void track_markers_freejob(void *tmv)
 {
-  TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
+  TrackMarkersJob *tmj = static_cast<TrackMarkersJob *>(tmv);
   tmj->clip->tracking_context = nullptr;
   WM_locked_interface_set(tmj->wm, false);
   BKE_autotrack_context_free(tmj->context);
@@ -480,3 +482,5 @@ void CLIP_OT_refine_markers(wmOperatorType *ot)
   /* properties */
   RNA_def_boolean(ot->srna, "backwards", false, "Backwards", "Do backwards tracking");
 }
+
+}  // namespace blender

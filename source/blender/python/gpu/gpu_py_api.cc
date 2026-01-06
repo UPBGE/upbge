@@ -29,6 +29,9 @@
 
 #include "gpu_py_api.hh" /* Own include. */
 
+namespace blender {
+
+
 static void pygpu_module_free(void *m)
 {
   (void)m;
@@ -122,3 +125,5 @@ PyObject *BPyInit_gpu()
 }
 
 /** \} */
+
+}  // namespace blender

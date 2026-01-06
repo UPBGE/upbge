@@ -319,7 +319,7 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       v[0] = vec[0] / t->aspect[0];
       v[1] = vec[1] / t->aspect[1];
 
-      blender::ui::view2d_view_to_region(
+      ui::view2d_view_to_region(
           static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
     }
   }
@@ -331,12 +331,12 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
     if (sact->flag & SACTION_DRAWTIME) {
       // vec[0] = vec[0] / ((t->scene->r.frs_sec / t->scene->r.frs_sec_base));
       /* Same as below. */
-      blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+      ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     }
     else
 #endif
     {
-      blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+      ui::view2d_view_to_region(static_cast<View2D *>(t->view), vec[0], vec[1], &out[0], &out[1]);
     }
 
     adr[0] = out[0];
@@ -345,14 +345,14 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
   else if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_NLA)) {
     int out[2] = {0, 0};
 
-    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+    ui::view2d_view_to_region(static_cast<View2D *>(t->view), vec[0], vec[1], &out[0], &out[1]);
     adr[0] = out[0];
     adr[1] = out[1];
   }
   else if (t->spacetype == SPACE_SEQ) { /* XXX not tested yet, but should work. */
     int out[2] = {0, 0};
 
-    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+    ui::view2d_view_to_region(static_cast<View2D *>(t->view), vec[0], vec[1], &out[0], &out[1]);
     adr[0] = out[0];
     adr[1] = out[1];
   }
@@ -386,7 +386,7 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       v[0] = vec[0] / t->aspect[0];
       v[1] = vec[1] / t->aspect[1];
 
-      blender::ui::view2d_view_to_region(
+      ui::view2d_view_to_region(
           static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
     }
     else {
@@ -394,7 +394,7 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
     }
   }
   else if (t->spacetype == SPACE_NODE) {
-    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &adr[0], &adr[1]);
+    ui::view2d_view_to_region(static_cast<View2D *>(t->view), vec[0], vec[1], &adr[0], &adr[1]);
   }
 }
 void projectIntView(TransInfo *t, const float vec[3], int adr[2])
@@ -547,7 +547,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
     }
     else {
       /* XXX how to deal with lock? */
-      SpaceImage *sima = (SpaceImage *)t->area->spacedata.first;
+      SpaceImage *sima = static_cast<SpaceImage *>(t->area->spacedata.first);
       if (sima->lock) {
         BKE_view_layer_synced_ensure(t->scene, t->view_layer);
         WM_event_add_notifier(
@@ -559,7 +559,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
     }
   }
   else if (t->spacetype == SPACE_CLIP) {
-    SpaceClip *sc = (SpaceClip *)t->area->spacedata.first;
+    SpaceClip *sc = static_cast<SpaceClip *>(t->area->spacedata.first);
 
     if (ED_space_clip_check_show_trackedit(sc)) {
       MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1052,7 +1052,8 @@ static void tool_settings_update_snap_toggle(TransInfo *t)
 
 wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
 {
-  bool is_navigating = t->vod ? ((RegionView3D *)t->region->regiondata)->rflag & RV3D_NAVIGATING :
+  bool is_navigating = t->vod ? (static_cast<RegionView3D *>(t->region->regiondata))->rflag &
+                                    RV3D_NAVIGATING :
                                 false;
 
   /* Handle modal numinput events first, if already activated. */
@@ -1229,7 +1230,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
           float fac = 1.0f + 0.005f * (event->xy[1] - event->prev_xy[1]);
           t->prop_size *= fac;
           if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO) {
-            t->prop_size = max_ff(min_ff(t->prop_size, ((View3D *)t->view)->clip_end),
+            t->prop_size = max_ff(min_ff(t->prop_size, (static_cast<View3D *>(t->view))->clip_end),
                                   T_PROP_SIZE_MIN);
           }
           else {
@@ -1243,7 +1244,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         if (t->flag & T_PROP_EDIT) {
           t->prop_size *= (t->modifiers & MOD_PRECISION) ? 1.01f : 1.1f;
           if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO) {
-            t->prop_size = min_ff(t->prop_size, ((View3D *)t->view)->clip_end);
+            t->prop_size = min_ff(t->prop_size, (static_cast<View3D *>(t->view))->clip_end);
           }
           else {
             t->prop_size = min_ff(t->prop_size, T_PROP_SIZE_MAX);
@@ -1274,7 +1275,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         break;
       case TFM_MODAL_INSERTOFS_TOGGLE_DIR:
         if (t->spacetype == SPACE_NODE) {
-          SpaceNode *snode = (SpaceNode *)t->area->spacedata.first;
+          SpaceNode *snode = static_cast<SpaceNode *>(t->area->spacedata.first);
 
           BLI_assert(t->area->spacetype == t->spacetype);
 
@@ -1419,7 +1420,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         if ((event->modifier & KM_ALT) && (t->flag & T_PROP_EDIT)) {
           t->prop_size *= (t->modifiers & MOD_PRECISION) ? 1.01f : 1.1f;
           if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO) {
-            t->prop_size = min_ff(t->prop_size, ((View3D *)t->view)->clip_end);
+            t->prop_size = min_ff(t->prop_size, (static_cast<View3D *>(t->view))->clip_end);
           }
           calculatePropRatio(t);
           t->redraw = TREDRAW_HARD;
@@ -1642,7 +1643,7 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
   }
   else {
     /* Depending on user MINI_AXIS preference, pad accordingly. */
-    switch ((eUserpref_MiniAxisType)U.mini_axis_type) {
+    switch (eUserpref_MiniAxisType(U.mini_axis_type)) {
       case USER_MINI_AXIS_TYPE_GIZMO:
         offset = U.gizmo_size_navigate_v3d;
         break;
@@ -1682,7 +1683,7 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
   xco -= U.widget_unit;
   yco -= int(printable_size[1]) / 2;
 
-  blender::ui::icon_draw(xco, yco, ICON_REC);
+  ui::icon_draw(xco, yco, ICON_REC);
 
   GPU_blend(GPU_BLEND_NONE);
 }

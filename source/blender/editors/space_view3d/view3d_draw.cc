@@ -89,11 +89,11 @@
 
 #include "view3d_intern.hh" /* own include */
 
-using blender::float4;
+namespace blender {
 
 #define M_GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 
-#define VIEW3D_OVERLAY_LINEHEIGHT (blender::ui::style_get()->widget.points * UI_SCALE_FAC * 1.6f)
+#define VIEW3D_OVERLAY_LINEHEIGHT (ui::style_get()->widget.points * UI_SCALE_FAC * 1.6f)
 
 /* -------------------------------------------------------------------- */
 /** \name General Functions
@@ -279,7 +279,7 @@ static void view3d_stereo3d_setup(
     float viewmat[4][4];
     float shiftx;
 
-    data = (Camera *)v3d->camera->data;
+    data = id_cast<Camera *>(v3d->camera->data);
     data_eval = DEG_get_evaluated(depsgraph, data);
 
     shiftx = data_eval->shiftx;
@@ -547,7 +547,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
     return;
   }
   if (v3d->camera->type == OB_CAMERA) {
-    ca = static_cast<Camera *>(v3d->camera->data);
+    ca = id_cast<Camera *>(v3d->camera->data);
   }
 
   ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
@@ -572,7 +572,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   y2i = int(y2 + (1.0f - 0.0001f));
 
   uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   /* First, solid lines. */
   {
@@ -731,7 +731,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       /* draw */
       immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
 
-      blender::ui::draw_safe_areas(
+      ui::draw_safe_areas(
           shdr_pos, &margins_rect, scene->safe_areas.title, scene->safe_areas.action);
 
       if (ca->flag & CAM_SHOW_SAFE_CENTER) {
@@ -740,10 +740,10 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
         center_rect.xmax = x2;
         center_rect.ymin = y1;
         center_rect.ymax = y2;
-        blender::ui::draw_safe_areas(shdr_pos,
-                                     &center_rect,
-                                     scene->safe_areas.title_center,
-                                     scene->safe_areas.action_center);
+        ui::draw_safe_areas(shdr_pos,
+                            &center_rect,
+                            scene->safe_areas.title_center,
+                            scene->safe_areas.action_center);
       }
     }
 
@@ -796,7 +796,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
   /* camera name - draw in highlighted text color */
   if (ca && ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) && (ca->flag & CAM_SHOWNAME)) {
-    blender::ui::theme::font_theme_color_set(BLF_default(), TH_TEXT_HI);
+    ui::theme::font_theme_color_set(BLF_default(), TH_TEXT_HI);
     BLF_draw_default(x1i,
                      y1i - (0.7f * U.widget_unit),
                      0.0f,
@@ -809,7 +809,7 @@ static void drawrenderborder(ARegion *region, View3D *v3d)
 {
   /* use the same program for everything */
   uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   GPU_line_width(1.0f);
 
@@ -994,8 +994,8 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
     axis_pos[i][1] = starty + vec[1] * k;
 
     /* get color of each axis */
-    blender::ui::theme::get_color_shade_3fv(TH_AXIS_X + i, bright, axis_col[i]); /* rgb */
-    axis_col[i][3] = hypotf(vec[0], vec[1]);                                     /* alpha */
+    ui::theme::get_color_shade_3fv(TH_AXIS_X + i, bright, axis_col[i]); /* rgb */
+    axis_col[i][3] = hypotf(vec[0], vec[1]);                            /* alpha */
   }
 
   /* draw axis lines */
@@ -1004,9 +1004,8 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
   GPU_blend(GPU_BLEND_ALPHA);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  uint col = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  uint col = GPU_vertformat_attr_add(format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
   immBegin(GPU_PRIM_LINES, 6);
@@ -1051,9 +1050,8 @@ static void draw_ndof_guide_orbit_axis(const RegionView3D *rv3d)
   GPU_depth_mask(false); /* Don't overwrite the Z-buffer. */
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-  uint col = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  uint col = GPU_vertformat_attr_add(format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
@@ -1150,8 +1148,8 @@ static void draw_ndof_guide_orbit_center(const RegionView3D *rv3d)
   GPU_depth_mask(false); /* Don't overwrite the Z-buffer. */
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-  uint col = GPU_vertformat_attr_add(format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  uint col = GPU_vertformat_attr_add(format, "color", gpu::VertAttrType::UNORM_8_8_8_8);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
   immUniform1f("size", 7.0f);
@@ -1287,7 +1285,7 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
     default:
       if (rv3d->persp == RV3D_CAMOB) {
         if ((v3d->camera) && (v3d->camera->type == OB_CAMERA)) {
-          const Camera *cam = static_cast<const Camera *>(v3d->camera->data);
+          const Camera *cam = id_cast<const Camera *>(v3d->camera->data);
           if (cam->type == CAM_PERSP) {
             name = IFACE_("Camera Perspective");
           }
@@ -1366,7 +1364,7 @@ static bool is_grease_pencil_with_layer_keyframe(const Object &ob)
   }
 
   using namespace blender::bke::greasepencil;
-  const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
+  const GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob.data);
   for (const Layer *layer : grease_pencil.layers()) {
     if (!layer->frames().is_empty()) {
       return true;
@@ -1438,7 +1436,7 @@ static void draw_selected_name(
 
     /* name(s) to display depends on type of object */
     if (ob->type == OB_ARMATURE) {
-      bArmature *arm = static_cast<bArmature *>(ob->data);
+      bArmature *arm = id_cast<bArmature *>(ob->data);
 
       /* show name of active bone too (if possible) */
       if (arm->edbo) {
@@ -1463,7 +1461,7 @@ static void draw_selected_name(
       if (ob->type == OB_MESH && ob->mode & OB_MODE_WEIGHT_PAINT) {
         Object *armobj = BKE_object_pose_armature_get(ob);
         if (armobj && armobj->mode & OB_MODE_POSE) {
-          bArmature *arm = static_cast<bArmature *>(armobj->data);
+          bArmature *arm = id_cast<bArmature *>(armobj->data);
           if (arm->act_bone) {
             if (ANIM_bonecoll_is_visible_actbone(arm)) {
               info_array[i++] = msg_sep;
@@ -1488,13 +1486,13 @@ static void draw_selected_name(
 
     /* color depends on whether there is a keyframe */
     if (is_grease_pencil_with_layer_keyframe(*ob)) {
-      blender::ui::theme::font_theme_color_set(font_id, TH_TIME_GP_KEYFRAME);
+      ui::theme::font_theme_color_set(font_id, TH_TIME_GP_KEYFRAME);
     }
 
-    if (blender::animrig::id_frame_has_keyframe((ID *)ob,
-                                                /* BKE_scene_ctime_get(scene) */ float(cfra)))
+    if (animrig::id_frame_has_keyframe(id_cast<ID *>(ob),
+                                       /* BKE_scene_ctime_get(scene) */ float(cfra)))
     {
-      blender::ui::theme::font_theme_color_set(font_id, TH_KEYTYPE_KEYFRAME_SELECT);
+      ui::theme::font_theme_color_set(font_id, TH_KEYTYPE_KEYFRAME_SELECT);
     }
   }
 
@@ -1548,7 +1546,7 @@ static float4 get_low_fps_color()
 {
   float alert_rgb[4];
   float alert_hsv[4];
-  blender::ui::theme::get_color_4fv(TH_REDALERT, alert_rgb);
+  ui::theme::get_color_4fv(TH_REDALERT, alert_rgb);
   /* Brighten since we favor dark shadows to increase contrast.
    * This gives similar results to the old hardcoded 225, 36, 36. */
   rgb_to_hsv_v(alert_rgb, alert_hsv);
@@ -1565,7 +1563,6 @@ static void draw_performance_stats(Depsgraph *depsgraph,
                                    int *yoffset,
                                    const int line_height)
 {
-  using namespace blender;
   const float fps_target = float(scene->frames_per_second());
   const float target_time = 1.0f / fps_target;
 
@@ -1664,7 +1661,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     /* pass */
   }
   else {
-    switch ((eUserpref_MiniAxisType)U.mini_axis_type) {
+    switch (eUserpref_MiniAxisType(U.mini_axis_type)) {
       case USER_MINI_AXIS_TYPE_GIZMO:
         /* The gizmo handles its own drawing. */
         break;
@@ -1680,7 +1677,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     int yoffset = rect->ymax - (0.1f * U.widget_unit);
 
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-    blender::ui::fontstyle_set(fstyle);
+    ui::fontstyle_set(fstyle);
     BLF_default_size(fstyle->points);
     BLF_set_default();
 
@@ -1694,8 +1691,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
     /* If in Quadview only draw on the top-left region. */
     bool region_ok = (region->alignment != RGN_ALIGN_QSPLIT ||
-                      region->runtime->quadview_index ==
-                          blender::bke::ARegionQuadviewIndex::TopLeft);
+                      region->runtime->quadview_index == bke::ARegionQuadviewIndex::TopLeft);
 
     if ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) {
       if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(wm) && region_ok) {
@@ -1864,7 +1860,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
 
   /* Store `orig` variables. */
   struct {
-    blender::ui::theme::bThemeState theme_state;
+    ui::theme::bThemeState theme_state;
 
     /* #View3D */
     eDrawType v3d_shading_type;
@@ -1892,8 +1888,8 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   orig.rv3d_persp = rv3d->persp;
   orig.rv3d_mats = ED_view3d_mats_rv3d_backup(static_cast<RegionView3D *>(region->regiondata));
 
-  blender::ui::theme::theme_store(&orig.theme_state);
-  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  ui::theme::theme_store(&orig.theme_state);
+  ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   /* Set temporary new size. */
   region->winx = winx;
@@ -1971,7 +1967,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   MEM_freeN(orig.rv3d_mats);
   rv3d->persp = orig.rv3d_persp;
 
-  blender::ui::theme::theme_restore(&orig.theme_state);
+  ui::theme::theme_restore(&orig.theme_state);
 
   v3d->shading.type = orig.v3d_shading_type;
   v3d->camera = orig.v3d_camera;
@@ -2002,9 +1998,9 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      GPUOffScreen *ofs,
                                      GPUViewport *viewport)
 {
-  View3D v3d = blender::dna::shallow_zero_initialize();
+  View3D v3d = dna::shallow_zero_initialize();
   ARegion ar = {nullptr};
-  blender::bke::ARegionRuntime region_runtime{};
+  bke::ARegionRuntime region_runtime{};
   ar.runtime = &region_runtime;
   RegionView3D rv3d;
 
@@ -2128,9 +2124,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   float winmat[4][4];
 
   /* Guess format based on output buffer. */
-  blender::gpu::TextureFormat desired_format =
-      (imbuf_flag & IB_float_data) ? blender::gpu::TextureFormat::SFLOAT_16_16_16_16 :
-                                     blender::gpu::TextureFormat::UNORM_8_8_8_8;
+  gpu::TextureFormat desired_format = (imbuf_flag & IB_float_data) ?
+                                          gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                                          gpu::TextureFormat::UNORM_8_8_8_8;
 
   if (ofs && ((GPU_offscreen_width(ofs) != sizex) || (GPU_offscreen_height(ofs) != sizey))) {
     /* If offscreen has already been created, recreate with the same format. */
@@ -2139,7 +2135,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
     ofs = nullptr;
   }
 
-  blender::gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
 
   if (old_fb) {
     GPU_framebuffer_restore();
@@ -2282,9 +2278,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
                                              GPUViewport *viewport,
                                              char err_out[256])
 {
-  View3D v3d = blender::dna::shallow_zero_initialize();
+  View3D v3d = dna::shallow_zero_initialize();
   ARegion region = {nullptr};
-  blender::bke::ARegionRuntime region_runtime{};
+  bke::ARegionRuntime region_runtime{};
   region.runtime = &region_runtime;
   RegionView3D rv3d;
 
@@ -2470,9 +2466,9 @@ static void validate_object_select_id(Depsgraph *depsgraph,
  * synchronization (which can be very slow). */
 static void view3d_gpu_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *data)
 {
-  blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
+  gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
 
-  blender::gpu::FrameBuffer *depth_read_fb = nullptr;
+  gpu::FrameBuffer *depth_read_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_read_fb,
                                 {
                                     GPU_ATTACHMENT_TEXTURE(depth_tx),
@@ -2555,7 +2551,7 @@ static ViewDepths *view3d_depths_create(ARegion *region)
   ViewDepths *d = MEM_callocN<ViewDepths>("ViewDepths");
 
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
-  blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
+  gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
   d->w = GPU_texture_width(depth_tx);
   d->h = GPU_texture_height(depth_tx);
   d->depths = static_cast<float *>(GPU_texture_read(depth_tx, GPU_DATA_FLOAT, 0));
@@ -2623,7 +2619,7 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
       return;
     }
   }
-  blender::ui::theme::bThemeState theme_state;
+  ui::theme::bThemeState theme_state;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -2641,8 +2637,8 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   }
 
   /* Tools may request depth outside of regular drawing code. */
-  blender::ui::theme::theme_store(&theme_state);
-  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  ui::theme::theme_store(&theme_state);
+  ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   ED_view3d_draw_setup_view(static_cast<wmWindowManager *>(G_MAIN->wm.first),
                             nullptr,
@@ -2700,7 +2696,7 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   v3d->flag2 = flag2;
   v3d->runtime.flag |= V3D_RUNTIME_DEPTHBUF_OVERRIDDEN;
 
-  blender::ui::theme::theme_restore(&theme_state);
+  ui::theme::theme_restore(&theme_state);
 }
 
 void ED_view3d_depths_free(ViewDepths *depths)
@@ -2971,7 +2967,7 @@ bool ViewportColorSampleSession::init(ARegion *region)
     return false;
   }
 
-  blender::gpu::Texture *color_tex = GPU_viewport_color_texture(viewport, 0);
+  gpu::Texture *color_tex = GPU_viewport_color_texture(viewport, 0);
   if (color_tex == nullptr) {
     return false;
   }
@@ -2990,7 +2986,7 @@ bool ViewportColorSampleSession::init(ARegion *region)
                               tex_w,
                               tex_h,
                               1,
-                              blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+                              gpu::TextureFormat::SFLOAT_16_16_16_16,
                               GPU_TEXTURE_USAGE_HOST_READ,
                               nullptr);
   if (tex == nullptr) {
@@ -2999,7 +2995,7 @@ bool ViewportColorSampleSession::init(ARegion *region)
 
   GPU_texture_copy(tex, color_tex);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-  data = static_cast<blender::ushort4 *>(GPU_texture_read(tex, GPU_DATA_HALF_FLOAT, 0));
+  data = static_cast<ushort4 *>(GPU_texture_read(tex, GPU_DATA_HALF_FLOAT, 0));
 
   return true;
 }
@@ -3014,17 +3010,17 @@ bool ViewportColorSampleSession::sample(const int mval[2], float r_col[3])
     return false;
   }
 
-  blender::ushort4 pixel = data[mval[1] * tex_w + mval[0]];
+  ushort4 pixel = data[mval[1] * tex_w + mval[0]];
 
-  if (blender::math::half_to_float(pixel.w) < 0.5f) {
+  if (math::half_to_float(pixel.w) < 0.5f) {
     /* Background etc. are not rendered to the viewport texture, so fall back to basic color
      * picking for those. */
     return false;
   }
 
-  r_col[0] = blender::math::half_to_float(pixel.x);
-  r_col[1] = blender::math::half_to_float(pixel.y);
-  r_col[2] = blender::math::half_to_float(pixel.z);
+  r_col[0] = math::half_to_float(pixel.x);
+  r_col[1] = math::half_to_float(pixel.y);
+  r_col[2] = math::half_to_float(pixel.z);
 
   return true;
 }
@@ -3040,3 +3036,5 @@ ViewportColorSampleSession::~ViewportColorSampleSession()
 }
 
 /** \} */
+
+}  // namespace blender

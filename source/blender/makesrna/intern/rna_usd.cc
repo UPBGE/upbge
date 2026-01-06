@@ -20,11 +20,13 @@
 
 #  include "usd.hh"
 
-using namespace blender::io::usd;
+namespace blender {
+
+using namespace io::usd;
 
 static StructRNA *rna_USDHook_refine(PointerRNA *ptr)
 {
-  USDHook *hook = (USDHook *)ptr->data;
+  USDHook *hook = static_cast<USDHook *>(ptr->data);
   return (hook->rna_ext.srna) ? hook->rna_ext.srna : &RNA_USDHook;
 }
 
@@ -120,7 +122,11 @@ static StructRNA *rna_USDHook_register(Main *bmain,
   return srna;
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_usd_hook(BlenderRNA *brna)
 {
@@ -161,5 +167,7 @@ void RNA_def_usd(BlenderRNA *brna)
 {
   rna_def_usd_hook(brna);
 }
+
+}  // namespace blender
 
 #endif

@@ -48,8 +48,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-using blender::Set;
-using blender::Vector;
+namespace blender {
 
 /** We only need this locally. */
 static CLG_LogRef LOG = {"undo"};
@@ -642,8 +641,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
     /* If the redo is called from a HUD, this knows about the region type the operator was
      * initially called in, so attempt to restore that. */
     ARegion *redo_region_from_hud = (region_orig->regiontype == RGN_TYPE_HUD) ?
-                                        blender::ui::ED_area_type_hud_redo_region_find(
-                                            area, region_orig) :
+                                        ui::ED_area_type_hud_redo_region_find(area, region_orig) :
                                         nullptr;
     ARegion *region_repeat = redo_region_from_hud ? redo_region_from_hud :
                                                     BKE_area_find_region_active_win(area);
@@ -707,12 +705,12 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
 
 void ED_undo_operator_repeat_cb(bContext *C, void *arg_op, void * /*arg_unused*/)
 {
-  ED_undo_operator_repeat(C, (wmOperator *)arg_op);
+  ED_undo_operator_repeat(C, static_cast<wmOperator *>(arg_op));
 }
 
 void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int /*arg_unused*/)
 {
-  ED_undo_operator_repeat(C, (wmOperator *)arg_op);
+  ED_undo_operator_repeat(C, static_cast<wmOperator *>(arg_op));
 }
 
 /** \} */
@@ -747,7 +745,7 @@ static wmOperatorStatus undo_history_invoke(bContext *C, wmOperator *op, const w
     return undo_history_exec(C, op);
   }
 
-  WM_menu_name_call(C, "TOPBAR_MT_undo_history", blender::wm::OpCallContext::InvokeDefault);
+  WM_menu_name_call(C, "TOPBAR_MT_undo_history", wm::OpCallContext::InvokeDefault);
   return OPERATOR_FINISHED;
 }
 
@@ -820,7 +818,7 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
    * for that to be done on all objects we can't skip ones that share data. */
   Vector<Base *> bases = ED_undo_editmode_bases_from_view_layer(scene, view_layer);
   for (Base *base : bases) {
-    ((ID *)base->object->data)->tag |= ID_TAG_DOIT;
+    (base->object->data)->tag |= ID_TAG_DOIT;
   }
   Object **ob_p = object_array;
   for (uint i = 0; i < object_array_len;
@@ -828,10 +826,10 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
   {
     Object *obedit = *ob_p;
     object::editmode_enter_ex(bmain, scene, obedit, object::EM_NO_CONTEXT);
-    ((ID *)obedit->data)->tag &= ~ID_TAG_DOIT;
+    (obedit->data)->tag &= ~ID_TAG_DOIT;
   }
   for (Base *base : bases) {
-    const ID *id = static_cast<ID *>(base->object->data);
+    const ID *id = base->object->data;
     if (id->tag & ID_TAG_DOIT) {
       object::editmode_exit_ex(bmain, scene, base->object, object::EM_FREEDATA);
       /* Ideally we would know the selection state it was before entering edit-mode,
@@ -919,7 +917,7 @@ size_t ED_undosys_total_memory_calc(UndoStack *ustack)
 
   for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
     if (us->type == BKE_UNDOSYS_TYPE_SCULPT) {
-      total_memory += blender::ed::sculpt_paint::undo::step_memory_size_get(us);
+      total_memory += ed::sculpt_paint::undo::step_memory_size_get(us);
     }
     else if (us->data_size > 0) {
       total_memory += us->data_size;
@@ -939,3 +937,5 @@ void ED_undo_push_old(bContext *C, const char *str)
 /*********/
 
 /** \} */
+
+}  // namespace blender

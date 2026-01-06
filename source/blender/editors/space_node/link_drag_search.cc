@@ -34,9 +34,11 @@
 
 #include "node_intern.hh"
 
-using blender::nodes::SocketLinkOperation;
+namespace blender {
 
-namespace blender::ed::space_node {
+using nodes::SocketLinkOperation;
+
+namespace ed::space_node {
 
 struct LinkDragSearchStorage {
   bNode &from_node;
@@ -428,7 +430,7 @@ static void link_drag_search_free_fn(void *arg)
 
 static ui::Block *create_search_popup_block(bContext *C, ARegion *region, void *arg_op)
 {
-  LinkDragSearchStorage &storage = *(LinkDragSearchStorage *)arg_op;
+  LinkDragSearchStorage &storage = *static_cast<LinkDragSearchStorage *>(arg_op);
 
   ui::Block *block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);
   block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
@@ -483,4 +485,6 @@ void invoke_node_link_drag_add_menu(bContext &C,
   popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

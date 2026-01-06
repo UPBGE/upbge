@@ -26,7 +26,7 @@
 
 #include "MEM_guardedalloc.h"
 
-using namespace blender;
+namespace blender {
 
 AssetMetaData *BKE_asset_metadata_create()
 {
@@ -120,7 +120,8 @@ AssetTagEnsureResult BKE_asset_metadata_tag_ensure(AssetMetaData *asset_data, co
     return result;
   }
 
-  AssetTag *tag = (AssetTag *)BLI_findstring(&asset_data->tags, name, offsetof(AssetTag, name));
+  AssetTag *tag = static_cast<AssetTag *>(
+      BLI_findstring(&asset_data->tags, name, offsetof(AssetTag, name)));
 
   if (tag) {
     result.tag = tag;
@@ -156,7 +157,7 @@ void BKE_asset_metadata_catalog_id_clear(AssetMetaData *asset_data)
 }
 
 void BKE_asset_metadata_catalog_id_set(AssetMetaData *asset_data,
-                                       const ::bUUID catalog_id,
+                                       const bUUID catalog_id,
                                        const char *catalog_simple_name)
 {
   asset_data->catalog_id = catalog_id;
@@ -228,3 +229,5 @@ void BKE_asset_metadata_read(BlendDataReader *reader, AssetMetaData *asset_data)
   BLO_read_struct_list(reader, AssetTag, &asset_data->tags);
   BLI_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
 }
+
+}  // namespace blender

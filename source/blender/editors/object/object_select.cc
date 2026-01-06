@@ -102,7 +102,7 @@ void base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
   WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  wmMsgBus *mbus = ((wmWindowManager *)bmain->wm.first)->runtime->message_bus;
+  wmMsgBus *mbus = (static_cast<wmWindowManager *>(bmain->wm.first))->runtime->message_bus;
   if (mbus != nullptr) {
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
@@ -286,7 +286,7 @@ bool jump_to_bone(bContext *C, Object *ob, const char *bone_name, const bool rev
     return false;
   }
 
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = id_cast<bArmature *>(ob->data);
 
   /* Activate the armature object. */
   if (!jump_to_object(C, ob, reveal_hidden)) {
@@ -570,7 +570,7 @@ static bool object_select_all_by_library_obdata(bContext *C, Library *lib)
 
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
-      if (base->object->data && lib == ((ID *)base->object->data)->lib) {
+      if (base->object->data && lib == (static_cast<ID *>(base->object->data))->lib) {
         base_select(base, BA_SELECT);
         changed = true;
       }
@@ -590,10 +590,10 @@ void select_linked_by_id(bContext *C, ID *id)
     changed = object_select_all_by_obdata(C, id);
   }
   else if (idtype == ID_MA) {
-    changed = object_select_all_by_material(C, (Material *)id);
+    changed = object_select_all_by_material(C, id_cast<Material *>(id));
   }
   else if (idtype == ID_LI) {
-    changed = object_select_all_by_library(C, (Library *)id);
+    changed = object_select_all_by_library(C, id_cast<Library *>(id));
   }
 
   if (changed) {
@@ -671,7 +671,7 @@ static wmOperatorStatus object_select_linked_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    changed = object_select_all_by_library_obdata(C, ((ID *)ob->data)->lib);
+    changed = object_select_all_by_library_obdata(C, (static_cast<ID *>(ob->data))->lib);
   }
   else {
     return OPERATOR_CANCELLED;
@@ -861,7 +861,7 @@ static bool select_grouped_object_hooks(bContext *C, Object *ob)
 
   for (ModifierData &md : ob->modifiers) {
     if (md.type == eModifierType_Hook) {
-      hmd = (HookModifierData *)&md;
+      hmd = reinterpret_cast<HookModifierData *>(&md);
       if (hmd->object) {
         BKE_view_layer_synced_ensure(scene, view_layer);
         base = BKE_view_layer_base_find(view_layer, hmd->object);
@@ -892,13 +892,13 @@ static bool select_grouped_siblings(bContext *C, Object *ob)
 }
 static bool select_grouped_lighttype(bContext *C, Object *ob)
 {
-  Light *la = static_cast<Light *>(ob->data);
+  Light *la = id_cast<Light *>(ob->data);
 
   bool changed = false;
 
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     if (base->object->type == OB_LAMP) {
-      Light *la_test = static_cast<Light *>(base->object->data);
+      Light *la_test = id_cast<Light *>(base->object->data);
       if ((la->type == la_test->type) && ((base->flag & BASE_SELECTED) == 0)) {
         base_select(base, BA_SELECT);
         changed = true;
@@ -981,7 +981,7 @@ static bool select_grouped_gameprops(bContext *C, Object *ob)
 
 static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *reports)
 {
-  KeyingSet *ks = blender::animrig::scene_get_active_keyingset(CTX_data_scene(C));
+  KeyingSet *ks = animrig::scene_get_active_keyingset(CTX_data_scene(C));
   bool changed = false;
 
   /* firstly, validate KeyingSet */
@@ -989,9 +989,7 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
     BKE_report(reports, RPT_ERROR, "No active Keying Set to use");
     return false;
   }
-  if (blender::animrig::validate_keyingset(C, nullptr, ks) !=
-      blender::animrig::ModifyKeyReturn::SUCCESS)
-  {
+  if (animrig::validate_keyingset(C, nullptr, ks) != animrig::ModifyKeyReturn::SUCCESS) {
     if (ks->paths.first == nullptr) {
       if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
         BKE_report(reports,
@@ -1016,7 +1014,7 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
        * with none matching, but end up doing this on 1000 objects. */
       for (KS_Path &ksp : ks->paths) {
         /* if id matches, select then stop looping (match found) */
-        if (ksp.id == (ID *)base->object) {
+        if (ksp.id == id_cast<ID *>(base->object)) {
           base_select(base, BA_SELECT);
           changed = true;
           break;
@@ -1199,7 +1197,7 @@ static wmOperatorStatus object_select_same_collection_exec(bContext *C, wmOperat
 
   RNA_string_get(op->ptr, "collection", collection_name);
 
-  collection = (Collection *)BKE_libblock_find_name(bmain, ID_GR, collection_name);
+  collection = id_cast<Collection *>(BKE_libblock_find_name(bmain, ID_GR, collection_name));
 
   if (!collection) {
     return OPERATOR_PASS_THROUGH;
@@ -1267,7 +1265,7 @@ static wmOperatorStatus object_select_mirror_exec(bContext *C, wmOperator *op)
     BLI_string_flip_side_name(name_flip, primbase->object->id.name + 2, true, sizeof(name_flip));
 
     if (!STREQ(name_flip, primbase->object->id.name + 2)) {
-      Object *ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name_flip);
+      Object *ob = id_cast<Object *>(BKE_libblock_find_name(bmain, ID_OB, name_flip));
       if (ob) {
         BKE_view_layer_synced_ensure(scene, view_layer);
         Base *secbase = BKE_view_layer_base_find(view_layer, ob);
@@ -1348,7 +1346,7 @@ static bool object_select_more_less(bContext *C, const bool select)
   CTX_DATA_END;
 
   for (PointerRNA &ptr : ctx_base_list) {
-    Object *ob = ((Base *)ptr.data)->object;
+    Object *ob = (static_cast<Base *>(ptr.data))->object;
     if (ob->parent) {
       if ((ob->flag & OB_DONE) != (ob->parent->flag & OB_DONE)) {
         ob->id.tag |= ID_TAG_DOIT;

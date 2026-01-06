@@ -13,6 +13,8 @@
 #include "DNA_ID.h"
 #include "DNA_defs.h"
 
+namespace blender {
+
 #ifndef MAX_MTEX
 #  define MAX_MTEX 18
 #endif
@@ -167,3 +169,5 @@ struct Light {
   DNA_DEPRECATED float energy_deprecated = 10.0f;
   float _pad2 = 0.0f;
 };
+
+}  // namespace blender

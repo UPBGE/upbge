@@ -34,6 +34,8 @@
 
 #include "console_intern.hh" /* own include */
 
+namespace blender {
+
 /* ******************** default callbacks for console space ***************** */
 
 static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene*/)
@@ -70,13 +72,13 @@ static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene
   /* for now, aspect ratio should be maintained, and zoom is clamped within sane default limits */
   // region->v2d.keepzoom = (V2D_KEEPASPECT|V2D_LIMITZOOM);
 
-  return (SpaceLink *)sconsole;
+  return reinterpret_cast<SpaceLink *>(sconsole);
 }
 
 /* Doesn't free the space-link itself. */
 static void console_free(SpaceLink *sl)
 {
-  SpaceConsole *sc = (SpaceConsole *)sl;
+  SpaceConsole *sc = reinterpret_cast<SpaceConsole *>(sl);
 
   while (sc->scrollback.first) {
     console_scrollback_free(sc, static_cast<ConsoleLine *>(sc->scrollback.first));
@@ -100,7 +102,7 @@ static SpaceLink *console_duplicate(SpaceLink *sl)
   BLI_listbase_clear(&sconsolen->scrollback);
   BLI_listbase_clear(&sconsolen->history);
 
-  return (SpaceLink *)sconsolen;
+  return reinterpret_cast<SpaceLink *>(sconsolen);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -111,8 +113,7 @@ static void console_main_region_init(wmWindowManager *wm, ARegion *region)
 
   const float prev_y_min = region->v2d.cur.ymin; /* so re-sizing keeps the cursor visible */
 
-  view2d_region_reinit(
-      &region->v2d, blender::ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* always keep the bottom part of the view aligned, less annoying */
   if (prev_y_min != region->v2d.cur.ymin) {
@@ -141,7 +142,7 @@ static void console_cursor(wmWindow *win, ScrArea * /*area*/, ARegion *region)
 {
   int wmcursor = WM_CURSOR_TEXT_EDIT;
   const wmEvent *event = win->runtime->eventstate;
-  if (blender::ui::view2d_mouse_in_scrollers(region, &region->v2d, event->xy)) {
+  if (ui::view2d_mouse_in_scrollers(region, &region->v2d, event->xy)) {
     wmcursor = WM_CURSOR_DEFAULT;
   }
 
@@ -216,18 +217,18 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   if (BLI_listbase_is_empty(&sc->scrollback)) {
-    WM_operator_name_call((bContext *)C,
+    WM_operator_name_call(const_cast<bContext *>(C),
                           "CONSOLE_OT_banner",
-                          blender::wm::OpCallContext::ExecDefault,
+                          wm::OpCallContext::ExecDefault,
                           nullptr,
                           nullptr);
   }
 
   /* clear and setup matrix */
-  blender::ui::theme::frame_buffer_clear(TH_BACK);
+  ui::theme::frame_buffer_clear(TH_BACK);
 
   /* Works best with no view2d matrix set. */
-  blender::ui::view2d_view_ortho(v2d);
+  ui::view2d_view_ortho(v2d);
 
   /* data... */
 
@@ -235,10 +236,10 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   console_textview_main(sc, region);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  ui::view2d_view_restore(C);
 
   /* scrollers */
-  blender::ui::view2d_scrollers_draw(v2d, nullptr);
+  ui::view2d_scrollers_draw(v2d, nullptr);
 }
 
 static void console_operatortypes()
@@ -313,7 +314,7 @@ static void console_main_region_listener(const wmRegionListenerParams *params)
 
 static void console_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
-  SpaceConsole *sconsole = (SpaceConsole *)sl;
+  SpaceConsole *sconsole = reinterpret_cast<SpaceConsole *>(sl);
 
   BLO_read_struct_list(reader, ConsoleLine, &sconsole->scrollback);
   BLO_read_struct_list(reader, ConsoleLine, &sconsole->history);
@@ -336,7 +337,7 @@ static void console_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
 static void console_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  SpaceConsole *con = (SpaceConsole *)sl;
+  SpaceConsole *con = reinterpret_cast<SpaceConsole *>(sl);
 
   for (ConsoleLine &cl : con->history) {
     /* 'len_alloc' is invalid on write, set from 'len' on read */
@@ -390,3 +391,5 @@ void ED_spacetype_console()
 
   BKE_spacetype_register(std::move(st));
 }
+
+}  // namespace blender

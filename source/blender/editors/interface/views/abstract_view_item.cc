@@ -207,7 +207,7 @@ static AbstractViewItem *find_item_from_rename_button(const Button &rename_but)
       continue;
     }
 
-    ButtonViewItem *view_item_but = (ButtonViewItem *)but.get();
+    ButtonViewItem *view_item_but = static_cast<ButtonViewItem *>(but.get());
     AbstractViewItem *item = reinterpret_cast<AbstractViewItem *>(view_item_but->view_item);
     const AbstractView &view = item->get_view();
 
@@ -321,7 +321,7 @@ std::optional<std::string> AbstractViewItem::debug_name() const
 
 AbstractViewItemDragController::AbstractViewItemDragController(AbstractView &view) : view_(view) {}
 
-void AbstractViewItemDragController::on_drag_start(bContext & /*C*/)
+void AbstractViewItemDragController::on_drag_start(bContext & /*C*/, AbstractViewItem & /*item*/)
 {
   /* Do nothing by default. */
 }
@@ -470,7 +470,7 @@ bool view_item_drag_start(bContext &C, AbstractViewItem &item)
     WM_event_start_drag(
         &C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
   }
-  drag_controller->on_drag_start(C);
+  drag_controller->on_drag_start(C, item);
 
   /* Make sure the view item is highlighted as active when dragging from it. This is useful user
    * feedback. */

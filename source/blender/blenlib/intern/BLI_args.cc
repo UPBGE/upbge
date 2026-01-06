@@ -18,6 +18,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+namespace blender {
+
 /**
  * Needed so printing `--help` doesn't cause a naming collision with:
  * The `-a` argument which is used twice.
@@ -100,7 +102,8 @@ static bool keycmp(const void *a, const void *b)
     }
     return !STREQ(ka->arg, kb->arg);
   }
-  return BLI_ghashutil_intcmp((const void *)ka->pass, (const void *)kb->pass);
+  return BLI_ghashutil_intcmp(reinterpret_cast<const void *>(ka->pass),
+                              reinterpret_cast<const void *>(kb->pass));
 }
 
 static bArgument *lookUp(bArgs *ba, const char *arg, int pass, int case_str)
@@ -378,3 +381,5 @@ void BLI_args_parse(bArgs *ba, int pass, BA_ArgCallback default_cb, void *defaul
     }
   }
 }
+
+}  // namespace blender

@@ -25,7 +25,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_moviedistortion_cc {
+namespace blender {
+
+namespace nodes::node_composite_moviedistortion_cc {
 
 static const EnumPropertyItem type_items[] = {
     {int(compositor::DistortionType::Distort), "UNDISTORT", 0, N_("Undistort"), ""},
@@ -48,17 +50,17 @@ static void cmp_node_moviedistortion_declare(NodeDeclarationBuilder &b)
 
 static void init(const bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
   Scene *scene = CTX_data_scene(C);
 
-  node->id = (ID *)scene->clip;
+  node->id = id_cast<ID *>(scene->clip);
   id_us_plus(node->id);
 }
 
 static void storage_free(bNode *node)
 {
   if (node->storage) {
-    BKE_tracking_distortion_free((MovieDistortion *)node->storage);
+    BKE_tracking_distortion_free(static_cast<MovieDistortion *>(node->storage));
   }
 
   node->storage = nullptr;
@@ -67,7 +69,8 @@ static void storage_free(bNode *node)
 static void storage_copy(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNode *src_node)
 {
   if (src_node->storage) {
-    dest_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)src_node->storage);
+    dest_node->storage = BKE_tracking_distortion_copy(
+        static_cast<MovieDistortion *>(src_node->storage));
   }
 }
 
@@ -160,13 +163,13 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
   return new MovieDistortionOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_moviedistortion_cc
+}  // namespace nodes::node_composite_moviedistortion_cc
 
 static void register_node_type_cmp_moviedistortion()
 {
-  namespace file_ns = blender::nodes::node_composite_moviedistortion_cc;
+  namespace file_ns = nodes::node_composite_moviedistortion_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeMovieDistortion", CMP_NODE_MOVIEDISTORTION);
   ntype.ui_name = "Movie Distortion";
@@ -177,10 +180,11 @@ static void register_node_type_cmp_moviedistortion()
   ntype.declare = file_ns::cmp_node_moviedistortion_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_moviedistortion;
   ntype.initfunc_api = file_ns::init;
-  blender::bke::node_type_storage(
-      ntype, std::nullopt, file_ns::storage_free, file_ns::storage_copy);
+  bke::node_type_storage(ntype, std::nullopt, file_ns::storage_free, file_ns::storage_copy);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_moviedistortion)
+
+}  // namespace blender

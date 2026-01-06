@@ -30,15 +30,17 @@
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
+namespace blender {
+
 static void init_data(ModifierData *md)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
   INIT_DEFAULT_STRUCT_AFTER(cmd, modifier);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
   short flag;
 
   flag = cmd->flag & (MOD_CAST_X | MOD_CAST_Y | MOD_CAST_Z);
@@ -52,7 +54,7 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
 
   /* Ask for vertex-groups if we need them. */
   if (cmd->defgrp_name[0] != '\0') {
@@ -62,14 +64,14 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&cmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&cmd->object), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
   if (cmd->object != nullptr) {
     DEG_add_object_relation(ctx->node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
     DEG_add_depends_on_transform_relation(ctx->node, "Cast Modifier");
@@ -80,7 +82,7 @@ static void sphere_do(CastModifierData *cmd,
                       const ModifierEvalContext * /*ctx*/,
                       Object *ob,
                       Mesh *mesh,
-                      blender::MutableSpan<blender::float3> positions)
+                      MutableSpan<float3> positions)
 {
   const MDeformVert *dvert = nullptr;
   const bool invert_vgroup = (cmd->flag & MOD_CAST_INVERT_VGROUP) != 0;
@@ -220,7 +222,7 @@ static void cuboid_do(CastModifierData *cmd,
                       const ModifierEvalContext * /*ctx*/,
                       Object *ob,
                       Mesh *mesh,
-                      blender::MutableSpan<blender::float3> positions)
+                      MutableSpan<float3> positions)
 {
   const MDeformVert *dvert = nullptr;
   int defgrp_index;
@@ -443,9 +445,9 @@ static void cuboid_do(CastModifierData *cmd,
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         blender::MutableSpan<blender::float3> positions)
+                         MutableSpan<float3> positions)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
 
   if (cmd->type == MOD_CAST_TYPE_CUBOID) {
     cuboid_do(cmd, ctx, ctx->object, mesh, positions);
@@ -457,9 +459,8 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  blender::ui::Layout &layout = *panel->layout;
-  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
-                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
+  ui::Layout &layout = *panel->layout;
+  const ui::eUI_Item_Flag toggles_flag = ui::ITEM_R_TOGGLE | ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -470,7 +471,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.prop(ptr, "cast_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  blender::ui::Layout &row = layout.row(true, IFACE_("Axis"));
+  ui::Layout &row = layout.row(true, IFACE_("Axis"));
   row.prop(ptr, "use_x", toggles_flag, std::nullopt, ICON_NONE);
   row.prop(ptr, "use_y", toggles_flag, std::nullopt, ICON_NONE);
   row.prop(ptr, "use_z", toggles_flag, std::nullopt, ICON_NONE);
@@ -531,3 +532,5 @@ ModifierTypeInfo modifierType_Cast = {
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

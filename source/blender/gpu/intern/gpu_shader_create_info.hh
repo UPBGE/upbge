@@ -33,6 +33,10 @@
 #  include "gpu_shader_srd_info.hh"
 #endif
 
+#if !defined(GPU_SHADER)
+namespace blender {
+#endif
+
 /* Force enable `printf` support in release build. */
 #define GPU_FORCE_ENABLE_SHADER_PRINTF 0
 
@@ -173,14 +177,11 @@
     .sampler(slot, ImageType::type, #name, Frequency::freq)
 
 #  define IMAGE(slot, format, qualifiers, type, name) \
-    .image(slot, \
-           blender::gpu::TextureFormat::format, \
-           Qualifier::qualifiers, \
-           ImageReadWriteType::type, \
-           #name)
+    .image( \
+        slot, gpu::TextureFormat::format, Qualifier::qualifiers, ImageReadWriteType::type, #name)
 #  define IMAGE_FREQ(slot, format, qualifiers, type, name, freq) \
     .image(slot, \
-           blender::gpu::TextureFormat::format, \
+           gpu::TextureFormat::format, \
            Qualifier::qualifiers, \
            ImageReadWriteType::type, \
            #name, \
@@ -334,11 +335,11 @@
 
 #if !defined(GLSL_CPP_STUBS)
 
-namespace blender::gpu {
+namespace gpu {
 struct GPUSource;
 }
 
-namespace blender::gpu::shader {
+namespace gpu::shader {
 
 /* All of these functions is a bit out of place */
 static inline Type to_type(const GPUType type)
@@ -717,19 +718,19 @@ struct StageInterfaceInfo {
   Self &smooth(Type type, StringRefNull _name)
   {
     inouts.append({Interpolation::SMOOTH, type, _name});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &flat(Type type, StringRefNull _name)
   {
     inouts.append({Interpolation::FLAT, type, _name});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &no_perspective(Type type, StringRefNull _name)
   {
     inouts.append({Interpolation::NO_PERSPECTIVE, type, _name});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 };
 
@@ -746,7 +747,7 @@ using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
 /**
  * \brief Describe inputs & outputs, stage interfaces, resources and sources of a shader.
  *        If all data is correctly provided, this is all that is needed to create and compile
- *        a #blender::gpu::Shader.
+ *        a #gpu::Shader.
  *
  * IMPORTANT: All strings are references only. Make sure all the strings used by a
  *            #ShaderCreateInfo are not freed until it is consumed or deleted.
@@ -1119,13 +1120,13 @@ struct ShaderCreateInfo {
   {
     vertex_inputs_.append({slot, type, name});
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &vertex_out(StageInterfaceInfo &interface)
   {
     vertex_out_interfaces_.append(&interface);
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &geometry_layout(PrimitiveIn prim_in,
@@ -1137,7 +1138,7 @@ struct ShaderCreateInfo {
     geometry_layout_.primitive_out = prim_out;
     geometry_layout_.max_vertices = max_vertices;
     geometry_layout_.invocations = invocations;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &local_group_size(int local_size_x, int local_size_y = 1, int local_size_z = 1)
@@ -1145,7 +1146,7 @@ struct ShaderCreateInfo {
     compute_layout_.local_size_x = local_size_x;
     compute_layout_.local_size_y = local_size_y;
     compute_layout_.local_size_z = local_size_z;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /**
@@ -1155,7 +1156,7 @@ struct ShaderCreateInfo {
   Self &early_fragment_test(bool enable)
   {
     early_fragment_test_ = enable;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /**
@@ -1167,7 +1168,7 @@ struct ShaderCreateInfo {
   Self &geometry_out(StageInterfaceInfo &interface)
   {
     geometry_out_interfaces_.append(&interface);
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &fragment_out(int slot,
@@ -1177,7 +1178,7 @@ struct ShaderCreateInfo {
                      int raster_order_group = -1)
   {
     fragment_outputs_.append({slot, type, blend, name, raster_order_group});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /**
@@ -1198,13 +1199,13 @@ struct ShaderCreateInfo {
       int slot, Type type, ImageType img_type, StringRefNull name, int raster_order_group = -1)
   {
     subpass_inputs_.append({slot, type, img_type, name, raster_order_group});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &shared_resource_descriptor(void (*fn)(ShaderCreateInfo &))
   {
     fn(*this);
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1236,7 +1237,7 @@ struct ShaderCreateInfo {
     }
     compilation_constants_.append(constant);
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1289,7 +1290,7 @@ struct ShaderCreateInfo {
     }
     specialization_constants_.append(constant);
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /* TODO: Add API to specify unique specialization config permutations in CreateInfo, allowing
@@ -1305,7 +1306,7 @@ struct ShaderCreateInfo {
   Self &shared_variable(Type type, StringRefNull name)
   {
     shared_variables_.append({type, name, this->name_});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1325,7 +1326,7 @@ struct ShaderCreateInfo {
     res.uniformbuf.type_name = type_name;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &storage_buf(int slot,
@@ -1341,7 +1342,7 @@ struct ShaderCreateInfo {
     res.storagebuf.name = name;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &image(int slot,
@@ -1359,7 +1360,7 @@ struct ShaderCreateInfo {
     res.image.name = name;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &sampler(int slot,
@@ -1377,7 +1378,7 @@ struct ShaderCreateInfo {
     UNUSED_VARS(sampler);
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1389,37 +1390,37 @@ struct ShaderCreateInfo {
   Self &vertex_source(StringRefNull filename)
   {
     vertex_source_ = filename;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &fragment_source(StringRefNull filename)
   {
     fragment_source_ = filename;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &compute_source(StringRefNull filename)
   {
     compute_source_ = filename;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &vertex_function(StringRefNull function_name)
   {
     vertex_entry_fn_ = function_name;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &fragment_function(StringRefNull function_name)
   {
     fragment_entry_fn_ = function_name;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &compute_function(StringRefNull function_name)
   {
     compute_entry_fn_ = function_name;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1427,7 +1428,7 @@ struct ShaderCreateInfo {
   /* -------------------------------------------------------------------- */
   /** \name Push constants
    *
-   * Data managed by blender::gpu::Shader. Can be set through uniform functions. Must be less than
+   * Data managed by gpu::Shader. Can be set through uniform functions. Must be less than
    * 128bytes.
    * \{ */
 
@@ -1440,7 +1441,7 @@ struct ShaderCreateInfo {
                    "Use the array_size parameter instead.");
     push_constants_.append({type, name, array_size});
     interface_names_size_ += name.size() + 1;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1452,7 +1453,7 @@ struct ShaderCreateInfo {
   Self &define(StringRefNull name, StringRefNull value = "")
   {
     defines_.append({name, value});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1464,32 +1465,32 @@ struct ShaderCreateInfo {
   Self &do_static_compilation(bool value)
   {
     do_static_compilation_ = value;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &builtins(BuiltinBits builtin)
   {
     builtins_ |= builtin;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /* Defines how the fragment shader will write to gl_FragDepth. */
   Self &depth_write(DepthWrite value)
   {
     depth_write_ = value;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &auto_resource_location(bool value)
   {
     auto_resource_location_ = value;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &metal_backend_only(bool flag)
   {
     metal_backend_only_ = flag;
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1503,20 +1504,20 @@ struct ShaderCreateInfo {
   Self &additional_info(StringRefNull info_name)
   {
     additional_infos_.append({info_name});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   template<typename... Args> Self &additional_info(StringRefNull info_name, Args... args)
   {
     additional_info(info_name);
     additional_info(args...);
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   Self &additional_info_with_condition(StringRefNull info_name, ConditionFn cond)
   {
     additional_infos_.append({info_name, {cond}});
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1532,7 +1533,7 @@ struct ShaderCreateInfo {
   Self &typedef_source(StringRefNull filename)
   {
     typedef_sources_.append(filename);
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1557,7 +1558,7 @@ struct ShaderCreateInfo {
 #  else
     UNUSED_VARS(max_total_threads_per_threadgroup);
 #  endif
-    return *(Self *)this;
+    return *static_cast<Self *>(this);
   }
 
   /** \} */
@@ -1750,19 +1751,21 @@ struct ShaderCreateInfo {
 /* Storage for strings referenced but the patched create info. */
 using ShaderCreateInfoStringCache = Vector<std::unique_ptr<std::string>, 0>;
 
-}  // namespace blender::gpu::shader
+}  // namespace gpu::shader
 
-namespace blender {
-template<> struct DefaultHash<Vector<blender::gpu::shader::SpecializationConstant::Value>> {
-  uint64_t operator()(const Vector<blender::gpu::shader::SpecializationConstant::Value> &key) const
+template<> struct DefaultHash<Vector<gpu::shader::SpecializationConstant::Value>> {
+  uint64_t operator()(const Vector<gpu::shader::SpecializationConstant::Value> &key) const
   {
     uint64_t hash = 0;
-    for (const blender::gpu::shader::SpecializationConstant::Value &value : key) {
+    for (const gpu::shader::SpecializationConstant::Value &value : key) {
       hash = hash * 33 ^ uint64_t(value.u);
     }
     return hash;
   }
 };
-}  // namespace blender
 
+#endif
+
+#if !defined(GPU_SHADER)
+}  // namespace blender
 #endif

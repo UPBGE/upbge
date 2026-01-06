@@ -25,7 +25,9 @@
 
 #include <atomic>
 
-namespace blender::draw {
+namespace blender {
+
+namespace draw {
 
 /* Forward declarations. */
 
@@ -343,7 +345,7 @@ inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float 
 
       ObjectInfos &info = infos_buf.current().get_or_resize(resource_len_);
       info = proto_info;
-      info.random = dupli->random_id * (1.0f / (float)0xFFFFFFFF);
+      info.random = dupli->random_id * (1.0f / float(0xFFFFFFFF));
 
       resource_len_++;
     }
@@ -495,8 +497,10 @@ inline void Manager::register_layer_attributes(GPUMaterial *material)
   }
 }
 
-}  // namespace blender::draw
+}  // namespace draw
 
 /* TODO(@fclem): This is for testing. The manager should be passed to the engine through the
  * callbacks. */
-blender::draw::Manager *DRW_manager_get();
+draw::Manager *DRW_manager_get();
+
+}  // namespace blender

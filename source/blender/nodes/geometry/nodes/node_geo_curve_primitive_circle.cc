@@ -178,8 +178,8 @@ static Curves *create_radius_circle_curve(const int resolution, const float radi
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurvePrimitiveCircle &storage = node_storage(params.node());
-  const GeometryNodeCurvePrimitiveCircleMode mode = (GeometryNodeCurvePrimitiveCircleMode)
-                                                        storage.mode;
+  const GeometryNodeCurvePrimitiveCircleMode mode = GeometryNodeCurvePrimitiveCircleMode(
+      storage.mode);
 
   Curves *curves = nullptr;
   if (mode == GEO_NODE_CURVE_PRIMITIVE_CIRCLE_TYPE_POINTS) {
@@ -231,21 +231,21 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeCurvePrimitiveCircle", GEO_NODE_CURVE_PRIMITIVE_CIRCLE);
   ntype.ui_name = "Curve Circle";
   ntype.ui_description = "Generate a poly spline circle";
   ntype.enum_name_legacy = "CURVE_PRIMITIVE_CIRCLE";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryCurvePrimitiveCircle",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCurvePrimitiveCircle",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

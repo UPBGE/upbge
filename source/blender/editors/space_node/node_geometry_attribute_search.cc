@@ -35,9 +35,11 @@
 
 #include "node_intern.hh"
 
-using blender::nodes::geo_eval_log::GeometryAttributeInfo;
+namespace blender {
 
-namespace blender::ed::space_node {
+using nodes::geo_eval_log::GeometryAttributeInfo;
+
+namespace ed::space_node {
 
 struct AttributeSearchData {
   int32_t node_id;
@@ -176,7 +178,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
   }
-  GeometryAttributeInfo *item = (GeometryAttributeInfo *)item_v;
+  GeometryAttributeInfo *item = static_cast<GeometryAttributeInfo *>(item_v);
   if (item == nullptr) {
     return;
   }
@@ -263,4 +265,6 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
                          nullptr);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

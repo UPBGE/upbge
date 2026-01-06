@@ -22,11 +22,11 @@
 #include "DNA_vec_defaults.h"
 
 namespace blender {
+
 struct NodesModifierRuntime;
 namespace bke {
 struct BVHTreeFromMesh;
 }
-}  // namespace blender
 
 struct LineartModifierRuntime;
 struct Mesh;
@@ -1017,7 +1017,7 @@ struct SurfaceModifierData_Runtime {
   struct Mesh *mesh = nullptr;
 
   /** Bounding volume hierarchy of the mesh faces. */
-  blender::bke::BVHTreeFromMesh *bvhtree = nullptr;
+  bke::BVHTreeFromMesh *bvhtree = nullptr;
 
   int cfra_prev = 0, verts_num = 0;
 };
@@ -2540,11 +2540,11 @@ struct NodesModifierBakeFile {
   PackedFile *packed_file = nullptr;
 
 #ifdef __cplusplus
-  blender::Span<std::byte> data() const
+  Span<std::byte> data() const
   {
     if (this->packed_file) {
-      return blender::Span{static_cast<const std::byte *>(this->packed_file->data),
-                           this->packed_file->size};
+      return Span{static_cast<const std::byte *>(this->packed_file->data),
+                  this->packed_file->size};
     }
     return {};
   }
@@ -2627,7 +2627,7 @@ struct NodesModifierData {
   int panels_num = 0;
   NodesModifierPanel *panels = nullptr;
 
-  blender::NodesModifierRuntime *runtime = nullptr;
+  NodesModifierRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   NodesModifierBake *find_bake(int id);
@@ -2984,8 +2984,8 @@ struct GreasePencilDashModifierData {
   char _pad[4] = {};
 
 #ifdef __cplusplus
-  blender::Span<GreasePencilDashModifierSegment> segments() const;
-  blender::MutableSpan<GreasePencilDashModifierSegment> segments();
+  Span<GreasePencilDashModifierSegment> segments() const;
+  MutableSpan<GreasePencilDashModifierSegment> segments();
 #endif
 };
 
@@ -3377,8 +3377,8 @@ struct GreasePencilTimeModifierData {
   int segment_active_index = 0;
 
 #ifdef __cplusplus
-  blender::Span<GreasePencilTimeModifierSegment> segments() const;
-  blender::MutableSpan<GreasePencilTimeModifierSegment> segments();
+  Span<GreasePencilTimeModifierSegment> segments() const;
+  MutableSpan<GreasePencilTimeModifierSegment> segments();
 #endif
 };
 
@@ -3614,3 +3614,5 @@ struct GreasePencilTextureModifierData {
   float alignment_rotation = 0;
   char _pad[4] = {};
 };
+
+}  // namespace blender

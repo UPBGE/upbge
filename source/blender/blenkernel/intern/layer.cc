@@ -58,6 +58,8 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"object.layer"};
 
 /* Set of flags which are dependent on a collection settings. */
@@ -341,7 +343,7 @@ ViewLayer *BKE_view_layer_find_from_collection(const Scene *scene, LayerCollecti
 
 static void view_layer_bases_hash_create(ViewLayer *view_layer, const bool do_base_duplicates_fix)
 {
-  static blender::Mutex hash_lock;
+  static Mutex hash_lock;
 
   if (view_layer->object_bases_hash == nullptr) {
     std::scoped_lock lock(hash_lock);
@@ -542,7 +544,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
       view_layer_dst, view_layer_src, &view_layer_dst->lightgroups, &view_layer_src->lightgroups);
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-    id_us_plus((ID *)view_layer_dst->mat_override);
+    id_us_plus(id_cast<ID *>(view_layer_dst->mat_override));
   }
 }
 
@@ -1498,14 +1500,15 @@ bool BKE_main_collection_sync_remap(const Main *bmain)
       view_layer_bases_hash_create(&view_layer, true);
     }
 
-    DEG_id_tag_update_ex((Main *)bmain, &scene->master_collection->id, ID_RECALC_SYNC_TO_EVAL);
-    DEG_id_tag_update_ex((Main *)bmain, &scene->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update_ex(
+        const_cast<Main *>(bmain), &scene->master_collection->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update_ex(const_cast<Main *>(bmain), &scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   for (Collection *collection = static_cast<Collection *>(bmain->collections.first); collection;
        collection = static_cast<Collection *>(collection->id.next))
   {
-    DEG_id_tag_update_ex((Main *)bmain, &collection->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update_ex(const_cast<Main *>(bmain), &collection->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   return BKE_main_collection_sync(bmain);
@@ -2122,7 +2125,7 @@ static void objects_iterator_begin(BLI_Iterator *iter, void *data_in, const int 
   object_bases_iterator_begin(iter, data_in, flag);
 
   if (iter->valid) {
-    iter->current = ((Base *)iter->current)->object;
+    iter->current = (static_cast<Base *>(iter->current))->object;
   }
 }
 
@@ -2131,7 +2134,7 @@ static void objects_iterator_next(BLI_Iterator *iter, const int flag)
   object_bases_iterator_next(iter, flag);
 
   if (iter->valid) {
-    iter->current = ((Base *)iter->current)->object;
+    iter->current = (static_cast<Base *>(iter->current))->object;
   }
 }
 
@@ -2195,7 +2198,7 @@ void BKE_view_layer_selected_editable_objects_iterator_begin(BLI_Iterator *iter,
   objects_iterator_begin(
       iter, data_in, BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_SELECTED);
   if (iter->valid) {
-    if (BKE_object_is_libdata((Object *)iter->current) == false) {
+    if (BKE_object_is_libdata(static_cast<Object *>(iter->current)) == false) {
       /* First object is valid (selectable and not libdata) -> all good. */
       return;
     }
@@ -2211,7 +2214,7 @@ void BKE_view_layer_selected_editable_objects_iterator_next(BLI_Iterator *iter)
    */
   do {
     objects_iterator_next(iter, BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_SELECTED);
-  } while (iter->valid && BKE_object_is_libdata((Object *)iter->current) != false);
+  } while (iter->valid && BKE_object_is_libdata(static_cast<Object *>(iter->current)) != false);
 }
 
 void BKE_view_layer_selected_editable_objects_iterator_end(BLI_Iterator *iter)
@@ -2576,7 +2579,7 @@ void BKE_view_layer_set_active_aov(ViewLayer *view_layer, ViewLayerAOV *aov)
   viewlayer_aov_active_set(view_layer, aov);
 }
 
-using ViewLayerAOVNameCountMap = blender::Map<std::string, int>;
+using ViewLayerAOVNameCountMap = Map<std::string, int>;
 
 static void bke_view_layer_verify_aov_cb(void *userdata,
                                          Scene * /*scene*/,
@@ -2772,3 +2775,5 @@ void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name)
 }
 
 /** \} */
+
+}  // namespace blender

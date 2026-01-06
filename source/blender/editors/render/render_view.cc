@@ -34,6 +34,8 @@
 
 #include "render_intern.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Utilities for Finding Areas
  * \{ */
@@ -357,7 +359,7 @@ static wmOperatorStatus render_view_show_invoke(bContext *C, wmOperator *op, con
       const bScreen *screen = WM_window_get_active_screen(&win);
 
       if ((WM_window_is_temp_screen(&win) &&
-           ((ScrArea *)screen->areabase.first)->spacetype == SPACE_IMAGE) ||
+           (static_cast<ScrArea *>(screen->areabase.first))->spacetype == SPACE_IMAGE) ||
           (&win == win_show && win_show != wincur))
       {
         wm_window_raise(&win);
@@ -405,3 +407,5 @@ void RENDER_OT_view_show(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -22,6 +22,8 @@
 
 #include "ED_uvedit.hh" /* Own include. */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name UDIM packing helper functions
  * \{ */
@@ -76,7 +78,8 @@ static bool bm_loop_uv_shared_edge_check(const BMLoop *l_a, const BMLoop *l_b, v
     }
   }
 
-  return BM_loop_uv_share_edge_check((BMLoop *)l_a, (BMLoop *)l_b, data->offsets.uv);
+  return BM_loop_uv_share_edge_check(
+      const_cast<BMLoop *>(l_a), const_cast<BMLoop *>(l_b), data->offsets.uv);
 }
 
 /**
@@ -169,3 +172,5 @@ int bm_mesh_calc_uv_islands(const Scene *scene,
 }
 
 /** \} */
+
+}  // namespace blender

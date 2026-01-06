@@ -1012,7 +1012,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
         "extern const char datatoc_${svg}_svg[]\;\n"
       )
       list(APPEND SVG_CONTENTS_C
-        "case ICON_${svg_name_upper}: return datatoc_${svg}_svg\;\n"
+        "case blender::ICON_${svg_name_upper}: return datatoc_${svg}_svg\;\n"
       )
     endforeach()
     unset(svg_name_upper)

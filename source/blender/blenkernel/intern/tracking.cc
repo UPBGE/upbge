@@ -55,8 +55,7 @@
 #include "libmv-capi.h"
 #include "tracking_private.hh"
 
-using blender::Array;
-using blender::int2;
+namespace blender {
 
 struct MovieDistortion {
   libmv_CameraIntrinsics *intrinsics;
@@ -170,17 +169,16 @@ void BKE_tracking_free(MovieTracking *tracking)
 
 struct TrackingCopyContext {
   /* Map from point and plane track pointer from the source object to the destination object. */
-  blender::Map<MovieTrackingTrack *, MovieTrackingTrack *> *old_to_new_track_map;
-  blender::Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *> *old_to_new_plane_track_map;
+  Map<MovieTrackingTrack *, MovieTrackingTrack *> *old_to_new_track_map;
+  Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *> *old_to_new_plane_track_map;
 };
 
 static TrackingCopyContext tracking_copy_context_new()
 {
   TrackingCopyContext ctx = {};
-  ctx.old_to_new_track_map = MEM_new<blender::Map<MovieTrackingTrack *, MovieTrackingTrack *>>(
-      __func__);
+  ctx.old_to_new_track_map = MEM_new<Map<MovieTrackingTrack *, MovieTrackingTrack *>>(__func__);
   ctx.old_to_new_plane_track_map =
-      MEM_new<blender::Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *>>(__func__);
+      MEM_new<Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *>>(__func__);
   return ctx;
 }
 
@@ -1092,7 +1090,7 @@ struct TrackMaskSetPixelData {
 
 static void track_mask_set_pixel_cb(int x, int x_end, int y, void *user_data)
 {
-  TrackMaskSetPixelData *data = (TrackMaskSetPixelData *)user_data;
+  TrackMaskSetPixelData *data = static_cast<TrackMaskSetPixelData *>(user_data);
   size_t index = size_t(y) * data->mask_width + x;
   size_t index_end = size_t(y) * data->mask_width + x_end;
   do {
@@ -2231,7 +2229,6 @@ bool BKE_tracking_camera_distortion_equal(const MovieTrackingCamera *a,
 
 uint64_t BKE_tracking_camera_distortion_hash(const MovieTrackingCamera *camera)
 {
-  using namespace blender;
   switch (camera->distortion_model) {
     case TRACKING_DISTORTION_MODEL_POLYNOMIAL:
       return get_default_hash(camera->distortion_model,
@@ -2521,7 +2518,6 @@ static Value parallel_reduce(const int range,
                              const Function &function,
                              const Reduction &reduction)
 {
-  using namespace blender;
   return threading::parallel_reduce(
       IndexRange(range),
       32,
@@ -2545,8 +2541,6 @@ void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
                                            int *r_bottom,
                                            int *r_top)
 {
-  using namespace blender;
-
   auto distortion_function = [&](const float2 &position) {
     /* The tracking distortion functions expect the coordinates to be in the space of the image
      * where the tracking camera was calibrated. So we first remap the coordinates into that space,
@@ -3573,3 +3567,5 @@ void BKE_tracking_get_rna_path_prefix_for_plane_track(const MovieTracking *track
         rna_path, rna_path_maxncpy, "tracking.objects[\"%s\"].plane_tracks", object_name_esc);
   }
 }
+
+}  // namespace blender

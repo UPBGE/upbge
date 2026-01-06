@@ -73,6 +73,8 @@
 
 #include "wm_event_types.hh" // UPBGE
 
+namespace blender {
+
 /* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))
 
@@ -104,7 +106,7 @@ static void blo_update_defaults_screen(bScreen *screen,
     /* Set default folder. */
     for (SpaceLink &sl : area.spacedata) {
       if (sl.spacetype == SPACE_FILE) {
-        SpaceFile *sfile = (SpaceFile *)&sl;
+        SpaceFile *sfile = reinterpret_cast<SpaceFile *>(&sl);
         if (sfile->params) {
           const char *dir_default = BKE_appdir_folder_default();
           if (dir_default) {
@@ -360,7 +362,7 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
         for (ScrArea &area : screen->areabase) {
           for (SpaceLink &sl : area.spacedata) {
             if (sl.spacetype == SPACE_SEQ) {
-              if (((SpaceSeq *)&sl)->view == SEQ_VIEW_PREVIEW) {
+              if ((reinterpret_cast<SpaceSeq *>(&sl))->view == SEQ_VIEW_PREVIEW) {
                 continue;
               }
               ListBaseT<ARegion> *regionbase = (&sl == area.spacedata.first) ? &area.regionbase :
@@ -429,7 +431,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
-    blender::bke::node_tree_free_embedded_tree(scene->nodetree);
+    bke::node_tree_free_embedded_tree(scene->nodetree);
     MEM_freeN(scene->nodetree);
     scene->nodetree = nullptr;
     scene->use_nodes = false;
@@ -456,7 +458,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   scene->eevee.motion_blur_shutter_deprecated = 0.5f;
   scene->eevee.flag &= ~SCE_EEVEE_VOLUME_CUSTOM_RANGE;
 
-  copy_v3_v3(scene->display.light_direction, blender::float3(M_SQRT1_3));
+  copy_v3_v3(scene->display.light_direction, float3(M_SQRT1_3));
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
   copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
 
@@ -830,7 +832,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     for (Object &object : bmain->objects) {
       if (object.type == OB_GPENCIL_LEGACY) {
         /* Set grease pencil object in drawing mode */
-        bGPdata *gpd = (bGPdata *)object.data;
+        bGPdata *gpd = id_cast<bGPdata *>(object.data);
         object.mode = OB_MODE_PAINT_GREASE_PENCIL;
         gpd->flag |= GP_DATA_STROKE_PAINTMODE;
         break;
@@ -855,7 +857,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     /* For Sculpting template. */
     if (app_template && STREQ(app_template, "Sculpting")) {
       mesh.remesh_voxel_size = 0.035f;
-      blender::bke::mesh_smooth_set(mesh, false);
+      bke::mesh_smooth_set(mesh, false);
     }
     else {
       /* Remove sculpt-mask data in default mesh objects for all non-sculpt templates. */
@@ -887,15 +889,14 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     if (ma.nodetree) {
       for (bNode *node : ma.nodetree->all_nodes()) {
         if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
-          bNodeSocket *roughness_socket = blender::bke::node_find_socket(
-              *node, SOCK_IN, "Roughness");
+          bNodeSocket *roughness_socket = bke::node_find_socket(*node, SOCK_IN, "Roughness");
           *version_cycles_node_socket_float_value(roughness_socket) = 0.5f;
-          bNodeSocket *emission = blender::bke::node_find_socket(*node, SOCK_IN, "Emission Color");
+          bNodeSocket *emission = bke::node_find_socket(*node, SOCK_IN, "Emission Color");
           copy_v4_fl(version_cycles_node_socket_rgba_value(emission), 1.0f);
-          bNodeSocket *emission_strength = blender::bke::node_find_socket(
+          bNodeSocket *emission_strength = bke::node_find_socket(
               *node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
-          bNodeSocket *ior = blender::bke::node_find_socket(*node, SOCK_IN, "IOR");
+          bNodeSocket *ior = bke::node_find_socket(*node, SOCK_IN, "IOR");
           *version_cycles_node_socket_float_value(ior) = 1.5f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
@@ -976,3 +977,5 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     }
   }
 }
+
+}  // namespace blender

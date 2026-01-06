@@ -35,6 +35,8 @@
 
 #include "clip_intern.hh"
 
+namespace blender {
+
 /********************** set origin operator *********************/
 
 static Object *get_camera_with_movieclip(Scene *scene, const MovieClip *clip)
@@ -126,7 +128,7 @@ static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat
       continue;
     }
     if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
-      bObjectSolverConstraint *data = (bObjectSolverConstraint *)con.data;
+      bObjectSolverConstraint *data = static_cast<bObjectSolverConstraint *>(con.data);
       if (!found) {
         Object *cam = data->camera ? data->camera : scene->camera;
         BKE_object_where_is_calc_mat4(cam, invmat);
@@ -151,7 +153,7 @@ static Object *object_solver_camera(Scene *scene, Object *ob)
       continue;
     }
     if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
-      bObjectSolverConstraint *data = (bObjectSolverConstraint *)con.data;
+      bObjectSolverConstraint *data = static_cast<bObjectSolverConstraint *>(con.data);
       return (data->camera != nullptr) ? data->camera : scene->camera;
     }
   }
@@ -851,3 +853,5 @@ void CLIP_OT_apply_solution_scale(wmOperatorType *ot)
                 -100.0f,
                 100.0f);
 }
+
+}  // namespace blender

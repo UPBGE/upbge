@@ -15,6 +15,8 @@
 
 #include <cstdint>
 
+namespace blender {
+
 /** #wmEvent.customdata type. */
 enum {
   EVT_DATA_TIMER = 2,
@@ -544,3 +546,5 @@ enum {
 };
 
 /** \} */
+
+}  // namespace blender

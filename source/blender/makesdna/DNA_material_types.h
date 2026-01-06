@@ -12,6 +12,8 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 #ifndef MAX_MTEX
 #  define MAX_MTEX 18
 #endif
@@ -439,3 +441,5 @@ struct Material {
   struct MaterialGPencilStyle *gp_style = nullptr;
   struct MaterialLineArt lineart;
 };
+
+}  // namespace blender

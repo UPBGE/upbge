@@ -27,6 +27,8 @@
 
 #include "bmesh.hh"
 
+namespace blender {
+
 const EnumPropertyItem rna_enum_particle_edit_hair_brush_items[] = {
     {PE_BRUSH_COMB, "COMB", 0, "Comb", "Comb hairs"},
     {PE_BRUSH_SMOOTH, "SMOOTH", 0, "Smooth", "Smooth hairs"},
@@ -98,6 +100,8 @@ const EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 #  include "MEM_guardedalloc.h"
 
@@ -121,6 +125,8 @@ const EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
 #  include "ED_paint.hh"
 #  include "ED_particle.hh"
 
+namespace blender {
+
 const EnumPropertyItem rna_enum_particle_edit_disconnected_hair_brush_items[] = {
     {PE_BRUSH_COMB, "COMB", 0, "Comb", "Comb hairs"},
     {PE_BRUSH_SMOOTH, "SMOOTH", 0, "Smooth", "Smooth hairs"},
@@ -139,7 +145,7 @@ static const EnumPropertyItem particle_edit_cache_brush_items[] = {
 
 static PointerRNA rna_ParticleEdit_brush_get(PointerRNA *ptr)
 {
-  ParticleEditSettings *pset = (ParticleEditSettings *)ptr->data;
+  ParticleEditSettings *pset = static_cast<ParticleEditSettings *>(ptr->data);
   ParticleBrushData *brush = nullptr;
 
   brush = &pset->brush[pset->brushtype];
@@ -193,7 +199,7 @@ static void rna_ParticleEdit_update(bContext *C, PointerRNA * /*ptr*/)
 
 static void rna_ParticleEdit_tool_set(PointerRNA *ptr, int value)
 {
-  ParticleEditSettings *pset = (ParticleEditSettings *)ptr->data;
+  ParticleEditSettings *pset = static_cast<ParticleEditSettings *>(ptr->data);
 
   /* redraw hair completely if weight brush is/was used */
   if ((pset->brushtype == PE_BRUSH_WEIGHT || value == PE_BRUSH_WEIGHT) && pset->object) {
@@ -241,13 +247,13 @@ static const EnumPropertyItem *rna_ParticleEdit_tool_itemf(bContext *C,
 
 static bool rna_ParticleEdit_editable_get(PointerRNA *ptr)
 {
-  ParticleEditSettings *pset = (ParticleEditSettings *)ptr->data;
+  ParticleEditSettings *pset = static_cast<ParticleEditSettings *>(ptr->data);
 
   return (pset->object && pset->scene && PE_get_current(nullptr, pset->scene, pset->object));
 }
 static bool rna_ParticleEdit_hair_get(PointerRNA *ptr)
 {
-  ParticleEditSettings *pset = (ParticleEditSettings *)ptr->data;
+  ParticleEditSettings *pset = static_cast<ParticleEditSettings *>(ptr->data);
 
   if (pset->scene) {
     PTCacheEdit *edit = PE_get_current(nullptr, pset->scene, pset->object);
@@ -340,7 +346,7 @@ static std::optional<std::string> rna_Sculpt_path(const PointerRNA * /*ptr*/)
 
 static std::optional<std::string> rna_VertexPaint_path(const PointerRNA *ptr)
 {
-  const Scene *scene = (Scene *)ptr->owner_id;
+  const Scene *scene = id_cast<Scene *>(ptr->owner_id);
   const ToolSettings *ts = scene->toolsettings;
   if (ptr->data == ts->vpaint) {
     return "tool_settings.vertex_paint";
@@ -432,7 +438,7 @@ static void rna_ImaPaint_stencil_update(bContext *C, PointerRNA * /*ptr*/)
 
 static bool rna_ImaPaint_imagetype_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
-  Image *image = (Image *)value.owner_id;
+  Image *image = id_cast<Image *>(value.owner_id);
   return image->type != IMA_TYPE_R_RESULT && image->type != IMA_TYPE_COMPOSITE;
 }
 
@@ -470,7 +476,7 @@ static void rna_UvSculpt_curve_preset_set(PointerRNA *ptr, int value)
 
 static bool rna_PaintModeSettings_canvas_image_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
-  Image *image = (Image *)value.owner_id;
+  Image *image = id_cast<Image *>(value.owner_id);
   return !ELEM(image->type, IMA_TYPE_COMPOSITE, IMA_TYPE_R_RESULT);
 }
 
@@ -506,7 +512,7 @@ static std::optional<std::string> rna_GPencilSculptGuide_path(const PointerRNA *
 
 static void rna_Sculpt_automasking_invert_cavity_set(PointerRNA *ptr, bool val)
 {
-  Sculpt *sd = (Sculpt *)ptr->data;
+  Sculpt *sd = static_cast<Sculpt *>(ptr->data);
 
   if (val) {
     sd->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
@@ -519,7 +525,7 @@ static void rna_Sculpt_automasking_invert_cavity_set(PointerRNA *ptr, bool val)
 
 static void rna_Sculpt_automasking_cavity_set(PointerRNA *ptr, bool val)
 {
-  Sculpt *sd = (Sculpt *)ptr->data;
+  Sculpt *sd = static_cast<Sculpt *>(ptr->data);
 
   if (val) {
     sd->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
@@ -630,7 +636,12 @@ static std::optional<std::string> rna_UnifiedPaintSettings_path(const PointerRNA
   }
   return std::nullopt;
 }
+
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_paint_curve(BlenderRNA *brna)
 {
@@ -2012,5 +2023,7 @@ void RNA_def_sculpt_paint(BlenderRNA *brna)
   rna_def_curves_sculpt(brna);
   RNA_define_animate_sdna(true);
 }
+
+}  // namespace blender
 
 #endif

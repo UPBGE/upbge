@@ -52,6 +52,8 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 #define SMALL -1.0e-10
 #define SELECT 1
 
@@ -166,7 +168,7 @@ void BKE_fcurves_copy(ListBaseT<FCurve> *dst, ListBaseT<FCurve> *src)
   }
 }
 
-void BKE_fcurve_rnapath_set(FCurve &fcu, blender::StringRef rna_path)
+void BKE_fcurve_rnapath_set(FCurve &fcu, StringRef rna_path)
 {
   MEM_SAFE_FREE(fcu.rna_path);
   fcu.rna_path = BLI_strdupn(rna_path.data(), rna_path.size());
@@ -305,7 +307,7 @@ FCurve *BKE_animadata_fcurve_find_by_rna_path(
     *r_action = nullptr;
   }
 
-  FCurve *fcurve = blender::animrig::fcurve_find_in_action_slot(
+  FCurve *fcurve = animrig::fcurve_find_in_action_slot(
       animdata->action, animdata->slot_handle, {rna_path, rna_index});
   if (fcurve) {
     /* Action takes priority over drivers. */
@@ -752,7 +754,7 @@ float *BKE_fcurves_calc_keyed_frames_ex(FCurve **fcurve_array,
   /* Use `1e-3f` as the smallest possible value since these are converted to integers
    * and we can be sure `MAXFRAME / 1e-3f < INT_MAX` as it's around half the size. */
   const double interval_db = max_ff(interval, 1e-3f);
-  blender::VectorSet<int> frames_unique;
+  VectorSet<int> frames_unique;
   for (int fcurve_index = 0; fcurve_index < fcurve_array_len; fcurve_index++) {
     const FCurve *fcu = fcurve_array[fcurve_index];
     for (int i = 0; i < fcu->totvert; i++) {
@@ -882,7 +884,7 @@ bool BKE_fcurve_are_keyframes_usable(const FCurve *fcu)
 
         /* Sometimes harmful - depending on whether they're "additive" or not. */
         case FMODIFIER_TYPE_GENERATOR: {
-          FMod_Generator *data = (FMod_Generator *)fcm.data;
+          FMod_Generator *data = static_cast<FMod_Generator *>(fcm.data);
 
           if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0) {
             return false;
@@ -890,7 +892,7 @@ bool BKE_fcurve_are_keyframes_usable(const FCurve *fcu)
           break;
         }
         case FMODIFIER_TYPE_FN_GENERATOR: {
-          FMod_FunctionGenerator *data = (FMod_FunctionGenerator *)fcm.data;
+          FMod_FunctionGenerator *data = static_cast<FMod_FunctionGenerator *>(fcm.data);
 
           if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0) {
             return false;
@@ -1103,7 +1105,7 @@ eFCU_Cycle_Type BKE_fcurve_get_cycle_type(const FCurve *fcu)
     return FCU_CYCLE_NONE;
   }
 
-  FMod_Cycles *data = (FMod_Cycles *)fcm->data;
+  FMod_Cycles *data = static_cast<FMod_Cycles *>(fcm->data);
 
   if (data && data->after_cycles == 0 && data->before_cycles == 0) {
     if (data->before_mode == FCM_EXTRAPOLATE_CYCLIC && data->after_mode == FCM_EXTRAPOLATE_CYCLIC)
@@ -1151,7 +1153,6 @@ static BezTriple *cycle_offset_triple(
 
 void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag)
 {
-  using namespace blender;
   /* Error checking:
    * - Need at least two points.
    * - Need bezier keys.
@@ -1684,7 +1685,7 @@ void BKE_fcurve_delete_key(FCurve *fcu, int index)
   }
 }
 
-void BKE_fcurve_delete_keys(FCurve *fcu, blender::uint2 index_range)
+void BKE_fcurve_delete_keys(FCurve *fcu, uint2 index_range)
 {
   BLI_assert(fcu != nullptr);
   BLI_assert(fcu->bezt != nullptr);
@@ -2550,12 +2551,12 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader,
     /* do relinking of data for specific types */
     switch (fcm.type) {
       case FMODIFIER_TYPE_GENERATOR: {
-        FMod_Generator *data = (FMod_Generator *)fcm.data;
+        FMod_Generator *data = static_cast<FMod_Generator *>(fcm.data);
         BLO_read_float_array(reader, data->arraysize, &data->coefficients);
         break;
       }
       case FMODIFIER_TYPE_ENVELOPE: {
-        FMod_Envelope *data = (FMod_Envelope *)fcm.data;
+        FMod_Envelope *data = static_cast<FMod_Envelope *>(fcm.data);
 
         BLO_read_struct_array(reader, FCM_EnvelopeData, data->totvert, &data->data);
 
@@ -2671,3 +2672,5 @@ void BKE_fcurve_blend_read_data_listbase(BlendDataReader *reader, ListBaseT<FCur
 }
 
 /** \} */
+
+}  // namespace blender

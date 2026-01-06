@@ -11,6 +11,8 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct BodySpring;
 
 /** #EffectorWeights::flag */
@@ -457,3 +459,5 @@ typedef struct BulletSoftBody {
   float margin = 0.0f;             /* margin specific to softbody */
   int _pad = 0;
 } BulletSoftBody;
+
+}  // namespace blender

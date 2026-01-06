@@ -31,6 +31,8 @@
 
 #include "DEG_depsgraph.hh"
 
+namespace blender {
+
 /* ***************************************** */
 /* NOTE ABOUT THIS FILE:
  * This file contains code for editing Grease Pencil data in the Action Editor
@@ -335,7 +337,7 @@ bool ED_gpencil_anim_copybuf_copy(bAnimContext *ac)
     }
 
     ListBaseT<bGPDframe> copied_frames = {nullptr, nullptr};
-    bGPDlayer *gpl = (bGPDlayer *)ale.data;
+    bGPDlayer *gpl = static_cast<bGPDlayer *>(ale.data);
 
     /* loop over frames, and copy only selected frames */
     for (bGPDframe &gpf : gpl->frames) {
@@ -424,7 +426,7 @@ bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, const short offset_mode)
       continue;
     }
 
-    bGPDlayer *gpld = (bGPDlayer *)ale.data;
+    bGPDlayer *gpld = static_cast<bGPDlayer *>(ale.data);
     bGPDlayer *gpls = nullptr;
     bGPDframe *gpf;
 
@@ -648,3 +650,5 @@ void ED_gpencil_layer_mirror_frames(bGPDlayer *gpl, Scene *scene, short mode)
 }
 
 /* ***************************************** */
+
+}  // namespace blender

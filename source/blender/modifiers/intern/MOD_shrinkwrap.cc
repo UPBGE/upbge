@@ -30,15 +30,17 @@
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
+namespace blender {
+
 static void init_data(ModifierData *md)
 {
-  ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
+  ShrinkwrapModifierData *smd = reinterpret_cast<ShrinkwrapModifierData *>(md);
   INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
+  ShrinkwrapModifierData *smd = reinterpret_cast<ShrinkwrapModifierData *>(md);
 
   /* Ask for vertex-groups if we need them. */
   if (smd->vgroup_name[0] != '\0') {
@@ -48,7 +50,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
+  ShrinkwrapModifierData *smd = reinterpret_cast<ShrinkwrapModifierData *>(md);
 
   /* The object type check is only needed here in case we have a placeholder
    * object assigned (because the library containing the mesh is missing).
@@ -66,18 +68,18 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
+  ShrinkwrapModifierData *smd = reinterpret_cast<ShrinkwrapModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&smd->target, IDWALK_CB_NOP);
-  walk(user_data, ob, (ID **)&smd->auxTarget, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&smd->target), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&smd->auxTarget), IDWALK_CB_NOP);
 }
 
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         blender::MutableSpan<blender::float3> positions)
+                         MutableSpan<float3> positions)
 {
-  ShrinkwrapModifierData *swmd = (ShrinkwrapModifierData *)md;
+  ShrinkwrapModifierData *swmd = reinterpret_cast<ShrinkwrapModifierData *>(md);
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
 
   const MDeformVert *dvert = nullptr;
@@ -97,7 +99,7 @@ static void deform_verts(ModifierData *md,
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
+  ShrinkwrapModifierData *smd = reinterpret_cast<ShrinkwrapModifierData *>(md);
   if (smd->target != nullptr) {
     DEG_add_object_relation(ctx->node, smd->target, DEG_OB_COMP_TRANSFORM, "Shrinkwrap Modifier");
     DEG_add_object_relation(ctx->node, smd->target, DEG_OB_COMP_GEOMETRY, "Shrinkwrap Modifier");
@@ -119,9 +121,8 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  blender::ui::Layout &layout = *panel->layout;
-  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
-                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
+  ui::Layout &layout = *panel->layout;
+  const ui::eUI_Item_Flag toggles_flag = ui::ITEM_R_TOGGLE | ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -144,8 +145,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     layout.prop(ptr, "project_limit", UI_ITEM_NONE, IFACE_("Limit"), ICON_NONE);
     layout.prop(ptr, "subsurf_levels", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    blender::ui::Layout *col = &layout.column(false);
-    blender::ui::Layout &row = col->row(true, IFACE_("Axis"));
+    ui::Layout *col = &layout.column(false);
+    ui::Layout &row = col->row(true, IFACE_("Axis"));
     row.prop(ptr, "use_project_x", toggles_flag, std::nullopt, ICON_NONE);
     row.prop(ptr, "use_project_y", toggles_flag, std::nullopt, ICON_NONE);
     row.prop(ptr, "use_project_z", toggles_flag, std::nullopt, ICON_NONE);
@@ -153,7 +154,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     col->prop(ptr, "use_negative_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->prop(ptr, "use_positive_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    layout.prop(ptr, "cull_face", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "cull_face", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
     col = &layout.column(false);
     col->active_set(RNA_boolean_get(ptr, "use_negative_direction") &&
                     RNA_enum_get(ptr, "cull_face") != 0);
@@ -213,3 +214,5 @@ ModifierTypeInfo modifierType_Shrinkwrap = {
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

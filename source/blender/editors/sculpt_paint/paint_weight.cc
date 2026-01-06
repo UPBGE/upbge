@@ -66,9 +66,10 @@
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
 
-using namespace blender;
+namespace blender {
+
 using namespace blender::ed::sculpt_paint;
-using blender::ed::sculpt_paint::vwpaint::NormalAnglePrecalc;
+using ed::sculpt_paint::vwpaint::NormalAnglePrecalc;
 
 struct WPaintAverageAccum {
   uint len;
@@ -193,7 +194,7 @@ static float wpaint_blend(const VPaint &wp,
                           const bool do_flip)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&wp.paint);
-  IMB_BlendMode blend = (IMB_BlendMode)brush.blend;
+  IMB_BlendMode blend = IMB_BlendMode(brush.blend);
 
   if (do_flip) {
     switch (blend) {
@@ -521,7 +522,7 @@ static void do_weight_paint_vertex_single(const VPaint &wp,
                                           float alpha,
                                           float paintweight)
 {
-  Mesh *mesh = (Mesh *)ob.data;
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
   MDeformVert *dv = &wpi.dvert[index];
   bool topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
@@ -726,7 +727,7 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
                                          float alpha,
                                          float paintweight)
 {
-  Mesh *mesh = (Mesh *)ob.data;
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
   MDeformVert *dv = &wpi.dvert[index];
   bool topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
@@ -898,13 +899,14 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
     /* check if we are attempting to paint onto a locked vertex group,
      * and other options disallow it from doing anything useful */
     bDeformGroup *dg;
-    dg = (bDeformGroup *)BLI_findlink(&mesh.vertex_group_names, vgroup_index.active);
+    dg = static_cast<bDeformGroup *>(BLI_findlink(&mesh.vertex_group_names, vgroup_index.active));
     if (dg->flag & DG_LOCK_WEIGHT) {
       BKE_report(op->reports, RPT_WARNING, "Active group is locked, aborting");
       return false;
     }
     if (vgroup_index.mirror != -1) {
-      dg = (bDeformGroup *)BLI_findlink(&mesh.vertex_group_names, vgroup_index.mirror);
+      dg = static_cast<bDeformGroup *>(
+          BLI_findlink(&mesh.vertex_group_names, vgroup_index.mirror));
       if (dg->flag & DG_LOCK_WEIGHT) {
         BKE_report(op->reports, RPT_WARNING, "Mirror group is locked, aborting");
         return false;
@@ -927,7 +929,7 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
 
     for (i = 0; i < defbase_tot; i++) {
       if (defbase_sel[i]) {
-        dg = (bDeformGroup *)BLI_findlink(&mesh.vertex_group_names, i);
+        dg = static_cast<bDeformGroup *>(BLI_findlink(&mesh.vertex_group_names, i));
         if (dg->flag & DG_LOCK_WEIGHT) {
           BKE_report(op->reports, RPT_WARNING, "Multipaint group is locked, aborting");
           MEM_freeN(defbase_sel);
@@ -973,7 +975,7 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   }
 
   if (wpd->do_lock_relative || (ts.auto_normalize && wpd->lock_flags && !wpd->do_multipaint)) {
-    bool *unlocked = (bool *)MEM_dupallocN(wpd->vgroup_validmap);
+    bool *unlocked = static_cast<bool *>(MEM_dupallocN(wpd->vgroup_validmap));
 
     if (wpd->lock_flags) {
       bool *locked = MEM_malloc_arrayN<bool>(wpd->defbase_tot, __func__);
@@ -999,12 +1001,12 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   else if (ts.auto_normalize) {
     bool *tmpflags;
 
-    tmpflags = wpd->lock_flags ? (bool *)MEM_dupallocN(wpd->lock_flags) :
+    tmpflags = wpd->lock_flags ? static_cast<bool *>(MEM_dupallocN(wpd->lock_flags)) :
                                  MEM_calloc_arrayN<bool>(defbase_tot, __func__);
     tmpflags[wpd->active.index] = true;
     wpd->active.lock = tmpflags;
 
-    tmpflags = wpd->lock_flags ? (bool *)MEM_dupallocN(wpd->lock_flags) :
+    tmpflags = wpd->lock_flags ? static_cast<bool *>(MEM_dupallocN(wpd->lock_flags)) :
                                  MEM_calloc_arrayN<bool>(defbase_tot, __func__);
     tmpflags[(wpd->mirror.index != -1) ? wpd->mirror.index : wpd->active.index] = true;
     wpd->mirror.lock = tmpflags;
@@ -1064,7 +1066,6 @@ static float wpaint_get_active_weight(const MDeformVert &dv, const WeightPaintIn
 static void precompute_weight_values(
     Object &ob, const Brush &brush, WPaintData &wpd, WeightPaintInfo &wpi, Mesh &mesh)
 {
-  using namespace blender;
   if (wpd.precomputed_weight_ready &&
       !vwpaint::brush_use_accumulate_ex(brush, eObjectMode(ob.mode)))
   {
@@ -1121,7 +1122,6 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
                                  Mesh &mesh,
                                  const IndexMask &node_mask)
 {
-  using namespace blender;
   SculptSession &ss = *ob.sculpt;
   MutableSpan<bke::pbvh::MeshNode> nodes = bke::object::pbvh_get(ob)->nodes<bke::pbvh::MeshNode>();
   const StrokeCache &cache = *ss.cache;
@@ -1229,7 +1229,6 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
                                   Mesh &mesh,
                                   const IndexMask &node_mask)
 {
-  using namespace blender;
   SculptSession &ss = *ob.sculpt;
   MutableSpan<bke::pbvh::MeshNode> nodes = bke::object::pbvh_get(ob)->nodes<bke::pbvh::MeshNode>();
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
@@ -1356,7 +1355,6 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
                                  const float strength,
                                  const IndexMask &node_mask)
 {
-  using namespace blender;
   SculptSession &ss = *ob.sculpt;
   MutableSpan<bke::pbvh::MeshNode> nodes = bke::object::pbvh_get(ob)->nodes<bke::pbvh::MeshNode>();
 
@@ -1446,7 +1444,6 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
                                       WeightPaintInfo &wpi,
                                       const IndexMask &node_mask)
 {
-  using namespace blender;
   SculptSession &ss = *ob.sculpt;
   MutableSpan<bke::pbvh::MeshNode> nodes = bke::object::pbvh_get(ob)->nodes<bke::pbvh::MeshNode>();
   const StrokeCache &cache = *ss.cache;
@@ -1530,7 +1527,7 @@ static void wpaint_paint_leaves(bContext *C,
   const Brush &brush = *ob.sculpt->cache->brush;
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
-  switch ((eBrushWeightPaintType)brush.weight_brush_type) {
+  switch (eBrushWeightPaintType(brush.weight_brush_type)) {
     case WPAINT_BRUSH_TYPE_AVERAGE: {
       do_wpaint_brush_draw(
           depsgraph,
@@ -1605,7 +1602,7 @@ bool weight_paint_mode_poll(bContext *C)
 {
   const Object *ob = CTX_data_active_object(C);
 
-  return ob && ob->mode == OB_MODE_WEIGHT_PAINT && ((const Mesh *)ob->data)->faces_num;
+  return ob && ob->mode == OB_MODE_WEIGHT_PAINT && (id_cast<const Mesh *>(ob->data))->faces_num;
 }
 
 bool weight_paint_mode_region_view3d_poll(bContext *C)
@@ -1656,7 +1653,7 @@ static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
   ToolSettings &ts = *scene.toolsettings;
 
   if (!is_mode_set) {
-    if (!blender::ed::object::mode_compat_set(C, &ob, (eObjectMode)mode_flag, op->reports)) {
+    if (!ed::object::mode_compat_set(C, &ob, eObjectMode(mode_flag), op->reports)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -1675,7 +1672,7 @@ static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
     BKE_paint_brushes_validate(&bmain, &ts.wpaint->paint);
   }
 
-  blender::ed::object::posemode_set_for_weight_paint(C, &bmain, &ob, is_mode_set);
+  ed::object::posemode_set_for_weight_paint(C, &bmain, &ob, is_mode_set);
 
   /* Weight-paint works by overriding colors in mesh,
    * so need to make sure we recalculate on enter and
@@ -1755,7 +1752,7 @@ static void wpaint_do_symmetrical_brush_actions(
     bContext *C, Object &ob, VPaint &wp, WPaintData &wpd, WeightPaintInfo &wpi)
 {
   Brush &brush = *BKE_paint_brush(&wp.paint);
-  Mesh &mesh = *(Mesh *)ob.data;
+  Mesh &mesh = *id_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
@@ -1836,7 +1833,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 
   mul_m4_m4m4(mat, vc->rv3d->persmat, ob->object_to_world().ptr());
 
-  Mesh &mesh = *static_cast<Mesh *>(ob->data);
+  Mesh &mesh = *id_cast<Mesh *>(ob->data);
 
   /* *** setup WeightPaintInfo - pass onto do_weight_paint_vertex *** */
   wpi.dvert = mesh.deform_verts_for_write();
@@ -1906,7 +1903,7 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
     }
   }
 
-  DEG_id_tag_update((ID *)ob.data, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob.data), ID_RECALC_GEOMETRY);
 
   WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, &ob);
 
@@ -1986,3 +1983,5 @@ void PAINT_OT_weight_paint(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

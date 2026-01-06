@@ -10,6 +10,8 @@
 
 #include "BLI_compiler_attrs.h"
 
+namespace blender {
+
 struct bContext;
 struct Main;
 struct PointerRNA;
@@ -155,3 +157,5 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win);
 /* End of UPBGE */
+
+}  // namespace blender

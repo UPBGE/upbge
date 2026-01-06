@@ -45,6 +45,8 @@
 
 #include "UI_view2d.hh"
 
+namespace blender {
+
 namespace {
 
 enum eBrushUVSculptTool {
@@ -486,13 +488,13 @@ static void uv_sculpt_stroke_apply(bContext *C,
 {
   ARegion *region = CTX_wm_region(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  UvSculptData *sculptdata = (UvSculptData *)op->customdata;
+  UvSculptData *sculptdata = static_cast<UvSculptData *>(op->customdata);
   eBrushUVSculptTool tool = eBrushUVSculptTool(sculptdata->tool);
   int invert = sculptdata->invert ? -1 : 1;
   float alpha = sculptdata->uvsculpt->strength;
 
   float co[2];
-  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   SpaceImage *sima = CTX_wm_space_image(C);
 
@@ -705,7 +707,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   }
 
   /* Mouse coordinates, useful for some functions like grab and sculpt all islands */
-  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   /* We need to find the active island here. */
   if (do_island_optimization) {
@@ -830,7 +832,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   {
     int i = 0;
     GHASH_ITER (gh_iter, edgeHash) {
-      data->uvedges[i++] = *((UvEdge *)BLI_ghashIterator_getKey(&gh_iter));
+      data->uvedges[i++] = *(static_cast<UvEdge *>(BLI_ghashIterator_getKey(&gh_iter)));
     }
     data->totalUvEdges = BLI_ghash_len(edgeHash);
   }
@@ -938,7 +940,7 @@ static wmOperatorStatus uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, con
 
 static wmOperatorStatus uv_sculpt_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  UvSculptData *data = (UvSculptData *)op->customdata;
+  UvSculptData *data = static_cast<UvSculptData *>(op->customdata);
   Object *obedit = CTX_data_edit_object(C);
 
   switch (event->type) {
@@ -1042,3 +1044,5 @@ void SCULPT_OT_uv_sculpt_pinch(wmOperatorType *ot)
 
   register_common_props(ot);
 }
+
+}  // namespace blender

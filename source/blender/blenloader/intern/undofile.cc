@@ -36,6 +36,8 @@
 
 #include "writefile.hh"
 
+namespace blender {
+
 /* **************** support for memory-write, for undo buffers *************** */
 
 void BLO_memfile_free(MemFile *memfile)
@@ -53,7 +55,7 @@ void BLO_memfile_free(MemFile *memfile)
 
 MemFileSharedStorage::~MemFileSharedStorage()
 {
-  for (const blender::ImplicitSharingInfoAndData &data : sharing_info_by_address_id.values()) {
+  for (const ImplicitSharingInfoAndData &data : sharing_info_by_address_id.values()) {
     /* Removing the user makes sure shared data is freed when the undo step was its last owner. */
     data.sharing_info->remove_user_and_delete_if_last();
   }
@@ -63,7 +65,7 @@ void BLO_memfile_merge(MemFile *first, MemFile *second)
 {
   /* We use this mapping to store the memory buffers from second memfile chunks which are not owned
    * by it (i.e. shared with some previous memory steps). */
-  blender::Map<const char *, MemFileChunk *> buffer_to_second_memchunk;
+  Map<const char *, MemFileChunk *> buffer_to_second_memchunk;
 
   /* First, detect all memchunks in second memfile that are not owned by it. */
   for (MemFileChunk &sc : second->chunks) {
@@ -198,7 +200,7 @@ Main *BLO_memfile_main_get(MemFile *memfile, Main *bmain, Scene **r_scene)
 
 static int64_t undo_read(FileReader *reader, void *buffer, size_t size)
 {
-  UndoReader *undo = (UndoReader *)reader;
+  UndoReader *undo = reinterpret_cast<UndoReader *>(reader);
 
   static size_t seek = SIZE_MAX; /* The current position. */
   static size_t offset = 0;      /* Size of previous chunks. */
@@ -254,7 +256,7 @@ static int64_t undo_read(FileReader *reader, void *buffer, size_t size)
 
       memcpy(POINTER_OFFSET(buffer, totread), chunk->buf + chunkoffset, readsize);
       totread += readsize;
-      undo->reader.offset += (off64_t)readsize;
+      undo->reader.offset += off64_t(readsize);
       seek += readsize;
 
       /* `is_identical` of current chunk represents whether it changed compared to previous undo
@@ -287,5 +289,7 @@ FileReader *BLO_memfile_new_filereader(MemFile *memfile, int undo_direction)
   undo->reader.seek = nullptr;
   undo->reader.close = undo_close;
 
-  return (FileReader *)undo;
+  return reinterpret_cast<FileReader *>(undo);
 }
+
+}  // namespace blender

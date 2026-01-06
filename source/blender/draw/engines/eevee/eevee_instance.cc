@@ -169,7 +169,7 @@ void Instance::init(const int2 &output_res,
     {
       sampling.reset();
     }
-    if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
+    if (assign_if_different(debug_mode, eDebugMode(G.debug_value))) {
       sampling.reset();
     }
     if (output_res != film.display_extent_get()) {
@@ -270,7 +270,7 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   update_eval_members();
 
   is_light_bake = true;
-  debug_mode = (eDebugMode)G.debug_value;
+  debug_mode = eDebugMode(G.debug_value);
   info_ = "";
 
   sampling.init(scene);
@@ -482,7 +482,7 @@ void Instance::render_sync()
   begin_sync();
 
   DRW_render_object_iter(
-      render, depsgraph, [this](blender::draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
+      render, depsgraph, [this](draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
         this->object_sync(ob_ref, *this->manager);
       });
 

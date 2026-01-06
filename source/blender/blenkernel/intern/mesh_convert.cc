@@ -54,17 +54,12 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-using blender::float3;
-using blender::IndexRange;
-using blender::MutableSpan;
-using blender::Span;
-using blender::StringRefNull;
+namespace blender {
 
 static CLG_LogRef LOG = {"geom.mesh.convert"};
 
 static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispList> *dispbase)
 {
-  using namespace blender;
   using namespace blender::bke;
   int a, b, ofs;
   const bool conv_polys = (
@@ -114,7 +109,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
 
   Mesh *mesh = BKE_mesh_new_nomain(totvert, totedge, faces_num, totloop);
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
-  MutableSpan<blender::int2> edges = mesh->edges_for_write();
+  MutableSpan<int2> edges = mesh->edges_for_write();
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
@@ -329,11 +324,11 @@ static void mesh_copy_texture_space_from_curve_type(const Curve *cu, Mesh *mesh)
 Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob,
                                               const ListBaseT<DispList> *dispbase)
 {
-  const Curve *cu = (const Curve *)ob->data;
+  const Curve *cu = id_cast<const Curve *>(ob->data);
 
   Mesh *mesh = mesh_nurbs_displist_to_mesh(cu, dispbase);
   mesh_copy_texture_space_from_curve_type(cu, mesh);
-  mesh->mat = (Material **)MEM_dupallocN(cu->mat);
+  mesh->mat = static_cast<Material **>(MEM_dupallocN(cu->mat));
   mesh->totcol = cu->totcol;
 
   return mesh;
@@ -379,8 +374,8 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh,
                                 const int edge_users_test)
 {
   const Span<float3> positions = mesh->vert_positions();
-  const Span<blender::int2> mesh_edges = mesh->edges();
-  const blender::OffsetIndices polys = mesh->faces();
+  const Span<int2> mesh_edges = mesh->edges();
+  const OffsetIndices polys = mesh->faces();
   const Span<int> corner_edges = mesh->corner_edges();
 
   /* only to detect edge polylines */
@@ -414,7 +409,8 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh,
       ListBaseT<VertLink> polyline = {nullptr, nullptr}; /* store a list of VertLink's */
       bool closed = false;
       int faces_num = 0;
-      blender::int2 &edge_current = *(blender::int2 *)((EdgeLink *)edges.last)->edge;
+      int2 &edge_current = *static_cast<int2 *>(
+          const_cast<void *>((static_cast<EdgeLink *>(edges.last))->edge));
       uint startVert = edge_current[0];
       uint endVert = edge_current[1];
       bool ok = true;
@@ -426,12 +422,12 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh,
       BLI_freelinkN(&edges, edges.last);
 
       while (ok) { /* while connected edges are found... */
-        EdgeLink *edl = (EdgeLink *)edges.last;
+        EdgeLink *edl = static_cast<EdgeLink *>(edges.last);
         ok = false;
         while (edl) {
           EdgeLink *edl_prev = edl->prev;
 
-          const blender::int2 &edge = *(blender::int2 *)edl->edge;
+          const int2 &edge = *static_cast<int2 *>(const_cast<void *>(edl->edge));
 
           if (edge[0] == endVert) {
             endVert = edge[1];
@@ -491,9 +487,11 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh,
         nu->bp = MEM_calloc_arrayN<BPoint>(faces_num, "bpoints");
 
         /* add points */
-        vl = (VertLink *)polyline.first;
+        vl = static_cast<VertLink *>(polyline.first);
         int i;
-        for (i = 0, bp = nu->bp; i < faces_num; i++, bp++, vl = (VertLink *)vl->next) {
+        for (i = 0, bp = nu->bp; i < faces_num;
+             i++, bp++, vl = reinterpret_cast<VertLink *>(vl->next))
+        {
           copy_v3_v3(bp->vec, positions[vl->index]);
           bp->f1 = SELECT;
           bp->radius = bp->weight = 1.0;
@@ -530,8 +528,8 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
 
     cu->nurb = nurblist;
 
-    id_us_min(&((Mesh *)ob->data)->id);
-    ob->data = cu;
+    id_us_min(&(id_cast<Mesh *>(ob->data))->id);
+    ob->data = id_cast<ID *>(cu);
     ob->type = OB_CURVES_LEGACY;
 
     BKE_object_free_derived_caches(ob);
@@ -540,7 +538,6 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
 
 void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
-  using namespace blender;
   using namespace blender::bke;
   BLI_assert(ob->type == OB_MESH);
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
@@ -575,10 +572,10 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
     }
   }
 
-  BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)pointcloud);
+  BKE_id_materials_copy(bmain, ob->data, id_cast<ID *>(pointcloud));
 
-  id_us_min(&((Mesh *)ob->data)->id);
-  ob->data = pointcloud;
+  id_us_min(&(id_cast<Mesh *>(ob->data))->id);
+  ob->data = id_cast<ID *>(pointcloud);
   ob->type = OB_POINTCLOUD;
 
   BKE_object_free_derived_caches(ob);
@@ -586,7 +583,6 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 
 void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
-  using namespace blender;
   using namespace blender::bke;
   BLI_assert(ob->type == OB_POINTCLOUD);
 
@@ -618,10 +614,10 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
     }
   }
 
-  BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)mesh);
+  BKE_id_materials_copy(bmain, ob->data, id_cast<ID *>(mesh));
 
-  id_us_min(&((PointCloud *)ob->data)->id);
-  ob->data = mesh;
+  id_us_min(&(id_cast<PointCloud *>(ob->data))->id);
+  ob->data = id_cast<ID *>(mesh);
   ob->type = OB_MESH;
 
   BKE_object_free_derived_caches(ob);
@@ -630,12 +626,12 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 /* Create a temporary object to be used for nurbs-to-mesh conversion. */
 static Object *object_for_curve_to_mesh_create(const Object *object)
 {
-  const Curve *curve = (const Curve *)object->data;
+  const Curve *curve = id_cast<const Curve *>(object->data);
 
   /* Create a temporary object which can be evaluated and modified by generic
    * curve evaluation (hence the #LIB_ID_COPY_SET_COPIED_ON_WRITE flag). */
-  Object *temp_object = (Object *)BKE_id_copy_ex(
-      nullptr, &object->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_SET_COPIED_ON_WRITE);
+  Object *temp_object = id_cast<Object *>(BKE_id_copy_ex(
+      nullptr, &object->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_SET_COPIED_ON_WRITE));
 
   /* Remove all modifiers, since we don't want them to be applied. */
   BKE_object_free_modifiers(temp_object, LIB_ID_CREATE_NO_USER_REFCOUNT);
@@ -643,10 +639,10 @@ static Object *object_for_curve_to_mesh_create(const Object *object)
   /* Need to create copy of curve itself as well, since it will be changed by the curve evaluation
    * process. NOTE: Copies the data, but not the shape-keys. */
   temp_object->data = BKE_id_copy_ex(nullptr,
-                                     (const ID *)object->data,
+                                     static_cast<const ID *>(object->data),
                                      nullptr,
                                      LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_SET_COPIED_ON_WRITE);
-  Curve *temp_curve = (Curve *)temp_object->data;
+  Curve *temp_curve = id_cast<Curve *>(temp_object->data);
 
   /* Make sure texture space is calculated for a copy of curve, it will be used for the final
    * result. */
@@ -663,7 +659,7 @@ static Object *object_for_curve_to_mesh_create(const Object *object)
 static void object_for_curve_to_mesh_free(Object *temp_object)
 {
   /* Clear edit mode pointers that were explicitly copied to the temporary curve. */
-  ID *final_object_data = static_cast<ID *>(temp_object->data);
+  ID *final_object_data = temp_object->data;
   if (GS(final_object_data->name) == ID_CU_LEGACY) {
     Curve &curve = *reinterpret_cast<Curve *>(final_object_data);
     curve.editfont = nullptr;
@@ -688,7 +684,7 @@ static void object_for_curve_to_mesh_free(Object *temp_object)
 static void curve_to_mesh_eval_ensure(Object &object)
 {
   BLI_assert(GS(static_cast<ID *>(object.data)->name) == ID_CU_LEGACY);
-  Curve &curve = *static_cast<Curve *>(object.data);
+  Curve &curve = *id_cast<Curve *>(object.data);
   /* Clear all modifiers for the bevel object.
    *
    * This is because they can not be reliably evaluated for an original object (at least because
@@ -696,10 +692,10 @@ static void curve_to_mesh_eval_ensure(Object &object)
    *
    * So we create temporary copy of the object which will use same data as the original bevel, but
    * will have no modifiers. */
-  Object bevel_object = blender::dna::shallow_zero_initialize();
-  blender::bke::ObjectRuntime bevel_runtime;
+  Object bevel_object = dna::shallow_zero_initialize();
+  bke::ObjectRuntime bevel_runtime;
   if (curve.bevobj != nullptr) {
-    bevel_object = blender::dna::shallow_copy(*curve.bevobj);
+    bevel_object = dna::shallow_copy(*curve.bevobj);
     bevel_runtime = *curve.bevobj->runtime;
     bevel_object.runtime = &bevel_runtime;
 
@@ -709,10 +705,10 @@ static void curve_to_mesh_eval_ensure(Object &object)
   }
 
   /* Same thing for taper. */
-  Object taper_object = blender::dna::shallow_zero_initialize();
-  blender::bke::ObjectRuntime taper_runtime;
+  Object taper_object = dna::shallow_zero_initialize();
+  bke::ObjectRuntime taper_runtime;
   if (curve.taperobj != nullptr) {
-    taper_object = blender::dna::shallow_copy(*curve.taperobj);
+    taper_object = dna::shallow_copy(*curve.taperobj);
     taper_runtime = *curve.taperobj->runtime;
     taper_object.runtime = &taper_runtime;
 
@@ -739,7 +735,7 @@ static void curve_to_mesh_eval_ensure(Object &object)
 
 static const Curves *get_evaluated_curves_from_object(const Object *object)
 {
-  if (blender::bke::GeometrySet *geometry_set_eval = object->runtime->geometry_set_eval) {
+  if (bke::GeometrySet *geometry_set_eval = object->runtime->geometry_set_eval) {
     return geometry_set_eval->get_curves();
   }
   return nullptr;
@@ -751,7 +747,7 @@ static Mesh *mesh_new_from_evaluated_curve_type_object(const Object *evaluated_o
     return BKE_mesh_copy_for_eval(*mesh);
   }
   if (const Curves *curves = get_evaluated_curves_from_object(evaluated_object)) {
-    return blender::bke::curve_to_wire_mesh(curves->geometry.wrap());
+    return bke::curve_to_wire_mesh(curves->geometry.wrap());
   }
   return nullptr;
 }
@@ -769,7 +765,7 @@ static Mesh *mesh_new_from_curve_type_object(const Object *object)
    * modifiers are cleared. An alternative would be to create a temporary depsgraph only for this
    * object and its dependencies. */
   Object *temp_object = object_for_curve_to_mesh_create(object);
-  ID *temp_data = static_cast<ID *>(temp_object->data);
+  ID *temp_data = temp_object->data;
   curve_to_mesh_eval_ensure(*temp_object);
 
   /* If evaluating the curve replaced object data with different data, free the original data. */
@@ -798,12 +794,12 @@ static Mesh *mesh_new_from_mball_object(Object *object)
    *
    * Create empty mesh so script-authors don't run into None objects. */
   if (!DEG_is_evaluated(object)) {
-    return BKE_id_new_nomain<Mesh>(((ID *)object->data)->name + 2);
+    return BKE_id_new_nomain<Mesh>((object->data)->name + 2);
   }
 
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(object);
   if (mesh_eval == nullptr) {
-    return BKE_id_new_nomain<Mesh>(((ID *)object->data)->name + 2);
+    return BKE_id_new_nomain<Mesh>((object->data)->name + 2);
   }
 
   return BKE_mesh_copy_for_eval(*mesh_eval);
@@ -820,11 +816,11 @@ static Mesh *mesh_new_from_mesh(Object *object, const Mesh *mesh, const bool ens
     mesh = BKE_mesh_wrapper_ensure_subdivision(const_cast<Mesh *>(mesh));
   }
 
-  Mesh *mesh_result = (Mesh *)BKE_id_copy_ex(
-      nullptr, &mesh->id, nullptr, LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT);
+  Mesh *mesh_result = id_cast<Mesh *>(BKE_id_copy_ex(
+      nullptr, &mesh->id, nullptr, LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT));
   /* NOTE: Materials should already be copied. */
   /* Copy original mesh name. This is because edit meshes might not have one properly set name. */
-  STRNCPY(mesh_result->id.name, ((ID *)object->data)->name);
+  STRNCPY(mesh_result->id.name, object->data->name);
   return mesh_result;
 }
 
@@ -834,15 +830,15 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
                                                    const bool ensure_subdivision)
 {
   if (DEG_is_original(object)) {
-    return mesh_new_from_mesh(object, (Mesh *)object->data, ensure_subdivision);
+    return mesh_new_from_mesh(object, id_cast<Mesh *>(object->data), ensure_subdivision);
   }
 
   if (depsgraph == nullptr) {
     return nullptr;
   }
 
-  Object object_for_eval = blender::dna::shallow_copy(*object);
-  blender::bke::ObjectRuntime runtime = *object->runtime;
+  Object object_for_eval = dna::shallow_copy(*object);
+  bke::ObjectRuntime runtime = *object->runtime;
   object_for_eval.runtime = &runtime;
 
   if (object_for_eval.runtime->data_orig != nullptr) {
@@ -858,7 +854,7 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
     mask.pmask |= CD_MASK_ORIGINDEX;
   }
 
-  Mesh *result = blender::bke::mesh_create_eval_final(depsgraph, scene, &object_for_eval, &mask);
+  Mesh *result = bke::mesh_create_eval_final(depsgraph, scene, &object_for_eval, &mask);
 
   if (ensure_subdivision) {
     /* Returns a borrowed reference which is still owned by `result`.
@@ -896,7 +892,7 @@ static Mesh *mesh_new_from_mesh_object(Depsgraph *depsgraph,
     return mesh_new_from_mesh_object_with_layers(
         depsgraph, object, preserve_origindex, use_subdivision);
   }
-  const Mesh *mesh_input = (const Mesh *)object->data;
+  const Mesh *mesh_input = id_cast<const Mesh *>(object->data);
   /* If we are in edit mode, use evaluated mesh from edit structure, matching to what
    * viewport is using for visualization. */
   if (mesh_input->runtime->edit_mesh != nullptr) {
@@ -993,7 +989,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
   Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, preserve_all_data_layers, false, true);
   if (mesh == nullptr) {
     /* Unable to convert the object to a mesh, return an empty one. */
-    Mesh *mesh_in_bmain = BKE_mesh_add(bmain, ((ID *)object->data)->name + 2);
+    Mesh *mesh_in_bmain = BKE_mesh_add(bmain, (object->data)->name + 2);
     id_us_min(&mesh_in_bmain->id);
     return mesh_in_bmain;
   }
@@ -1076,7 +1072,7 @@ static KeyBlock *keyblock_ensure_from_uid(Key &key, const int uid, const StringR
 static int find_object_active_key_uid(const Key &key, const Object &object)
 {
   const int active_kb_index = object.shapenr - 1;
-  const KeyBlock *kb = (const KeyBlock *)BLI_findlink(&key.block, active_kb_index);
+  const KeyBlock *kb = static_cast<const KeyBlock *>(BLI_findlink(&key.block, active_kb_index));
   if (!kb) {
     CLOG_ERROR(&LOG, "Could not find object's active shapekey %d", active_kb_index);
     return -1;
@@ -1123,7 +1119,7 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
   using namespace blender::bke;
   BLI_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
   if (ob) {
-    BLI_assert(mesh_dst == ob->data);
+    BLI_assert(id_cast<ID *>(mesh_dst) == ob->data);
   }
 
   const bool verts_num_changed = mesh_dst->verts_num != mesh_src->verts_num;
@@ -1205,3 +1201,5 @@ void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
   kb->totelem = totvert;
   MutableSpan(static_cast<float3 *>(kb->data), kb->totelem).copy_from(mesh_src->vert_positions());
 }
+
+}  // namespace blender

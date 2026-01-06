@@ -21,7 +21,9 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_defaults.h"
 
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 struct ObjectRuntime;
 }
 
@@ -607,7 +609,7 @@ struct Object {
   /** Pose data, armature objects only. */
   struct bPose *pose = nullptr;
   /** Pointer to objects data - an 'ID' or NULL. */
-  void *data = nullptr;
+  ID *data = nullptr;
 
   /** Grease Pencil data. */
   struct bGPdata *gpd DNA_DEPRECATED =
@@ -787,11 +789,11 @@ struct Object {
   /** Irradiance caches baked for this object (light-probes only). */
   struct LightProbeObjectCache *lightprobe_cache = nullptr;
 
-  blender::bke::ObjectRuntime *runtime = nullptr;
+  bke::ObjectRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
-  const blender::float4x4 &object_to_world() const;
-  const blender::float4x4 &world_to_object() const;
+  const float4x4 &object_to_world() const;
+  const float4x4 &world_to_object() const;
 #endif
 
   /************UPBGE**************/
@@ -987,3 +989,5 @@ struct ObHook {
   case ID_PT: \
   case ID_VO: \
   case ID_GP
+
+}  // namespace blender

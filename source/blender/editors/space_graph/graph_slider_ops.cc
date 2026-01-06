@@ -50,6 +50,8 @@
 
 #include "graph_intern.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Internal Struct & Defines
  * \{ */
@@ -110,7 +112,7 @@ static void apply_fcu_segment_function(bAnimContext *ac,
   ANIM_animdata_filter(
       ac, &anim_data, OPERATOR_DATA_FILTER, ac->data, eAnimCont_Types(ac->datatype));
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : segments) {
@@ -155,7 +157,7 @@ static void store_original_bezt_arrays(tGraphSliderOp *gso)
 
   /* Loop through filtered data and copy the curves. */
   for (bAnimListElem &ale : anim_data) {
-    const FCurve *fcu = (const FCurve *)ale.key_data;
+    const FCurve *fcu = static_cast<const FCurve *>(ale.key_data);
 
     if (fcu->bezt == nullptr) {
       /* This curve is baked, skip it. */
@@ -200,7 +202,7 @@ static void reset_bezts(tGraphSliderOp *gso)
        ale;
        ale = ale->next)
   {
-    FCurve *fcu = (FCurve *)ale->key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
 
     if (fcu->bezt == nullptr) {
       /* This curve is baked, skip it. */
@@ -822,7 +824,7 @@ static void blend_to_default_graph_keys(bAnimContext *ac, const float factor)
       ac, &anim_data, OPERATOR_DATA_FILTER, ac->data, eAnimCont_Types(ac->datatype));
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     /* Check if the curves actually have any points. */
     if (fcu == nullptr || fcu->bezt == nullptr || fcu->totvert == 0) {
@@ -927,7 +929,7 @@ static void ease_graph_keys(bAnimContext *ac, const float factor, const float wi
   ANIM_animdata_filter(
       ac, &anim_data, OPERATOR_DATA_FILTER, ac->data, eAnimCont_Types(ac->datatype));
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : segments) {
@@ -1303,7 +1305,7 @@ static void match_slope_graph_keys(bAnimContext *ac, const float factor)
   ANIM_animdata_filter(
       ac, &anim_data, OPERATOR_DATA_FILTER, ac->data, eAnimCont_Types(ac->datatype));
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : segments) {
@@ -1534,7 +1536,7 @@ static void shear_graph_keys(bAnimContext *ac, const float factor, tShearDirecti
   ANIM_animdata_filter(
       ac, &anim_data, OPERATOR_DATA_FILTER, ac->data, eAnimCont_Types(ac->datatype));
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : segments) {
@@ -1824,7 +1826,7 @@ static void gaussian_smooth_allocate_operator_data(tGraphSliderOp *gso,
 
   ListBaseT<tFCurveSegmentLink> segment_links = {nullptr, nullptr};
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> fcu_segments = find_fcurve_segments(fcu);
     for (FCurveSegment &segment : fcu_segments) {
       tFCurveSegmentLink *segment_link = MEM_callocN<tFCurveSegmentLink>("FCurve Segment Link");
@@ -1836,7 +1838,7 @@ static void gaussian_smooth_allocate_operator_data(tGraphSliderOp *gso,
       const int sample_count = int(right_bezt.vec[1][0] - left_bezt.vec[1][0]) +
                                (filter_width * 2 + 1);
       float *samples = MEM_calloc_arrayN<float>(sample_count, "Smooth FCurve Op Samples");
-      blender::animrig::sample_fcurve_segment(
+      animrig::sample_fcurve_segment(
           fcu, left_bezt.vec[1][0] - filter_width, 1, samples, sample_count);
       segment_link->samples = samples;
       segment_link->sample_count = sample_count;
@@ -1851,7 +1853,7 @@ static void gaussian_smooth_allocate_operator_data(tGraphSliderOp *gso,
 
 static void gaussian_smooth_free_operator_data(void *operator_data)
 {
-  tGaussOperatorData *gauss_data = (tGaussOperatorData *)operator_data;
+  tGaussOperatorData *gauss_data = static_cast<tGaussOperatorData *>(operator_data);
   for (tFCurveSegmentLink &segment_link : gauss_data->segment_links) {
     MEM_freeN(segment_link.samples);
     MEM_freeN(segment_link.segment);
@@ -1876,7 +1878,7 @@ static void gaussian_smooth_modal_update(bContext *C, wmOperator *op)
   common_draw_status_header(C, gso);
 
   const float factor = slider_factor_get_and_remember(op);
-  tGaussOperatorData *operator_data = (tGaussOperatorData *)gso->operator_data;
+  tGaussOperatorData *operator_data = static_cast<tGaussOperatorData *>(gso->operator_data);
   const int filter_width = RNA_int_get(op->ptr, "filter_width");
 
   for (tFCurveSegmentLink &segment : operator_data->segment_links) {
@@ -1933,7 +1935,7 @@ static void gaussian_smooth_graph_keys(bAnimContext *ac,
       ac, &anim_data, OPERATOR_DATA_FILTER, ac->data, eAnimCont_Types(ac->datatype));
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : segments) {
@@ -1943,7 +1945,7 @@ static void gaussian_smooth_graph_keys(bAnimContext *ac,
                                (filter_width * 2 + 1);
       float *samples = MEM_calloc_arrayN<float>(sample_count, "Smooth FCurve Op Samples");
       float *original_y_values = back_up_key_y_values(&segment, fcu);
-      blender::animrig::sample_fcurve_segment(
+      animrig::sample_fcurve_segment(
           fcu, left_bezt.vec[1][0] - filter_width, 1, samples, sample_count);
       smooth_fcurve_segment(
           fcu, &segment, original_y_values, samples, sample_count, factor, filter_width, kernel);
@@ -2068,7 +2070,7 @@ static void btw_smooth_allocate_operator_data(tGraphSliderOp *gso,
 
   ListBaseT<tFCurveSegmentLink> segment_links = {nullptr, nullptr};
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> fcu_segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : fcu_segments) {
@@ -2081,7 +2083,7 @@ static void btw_smooth_allocate_operator_data(tGraphSliderOp *gso,
       const int sample_count = btw_calculate_sample_count(
           &right_bezt, &left_bezt, filter_order, samples_per_frame);
       float *samples = MEM_calloc_arrayN<float>(sample_count, "Btw Smooth FCurve Op Samples");
-      blender::animrig::sample_fcurve_segment(
+      animrig::sample_fcurve_segment(
           fcu, left_bezt.vec[1][0] - filter_order, samples_per_frame, samples, sample_count);
       segment_link->samples = samples;
       segment_link->sample_count = sample_count;
@@ -2096,7 +2098,7 @@ static void btw_smooth_allocate_operator_data(tGraphSliderOp *gso,
 
 static void btw_smooth_free_operator_data(void *operator_data)
 {
-  tBtwOperatorData *btw_data = (tBtwOperatorData *)operator_data;
+  tBtwOperatorData *btw_data = static_cast<tBtwOperatorData *>(operator_data);
   for (tFCurveSegmentLink &segment_link : btw_data->segment_links) {
     MEM_freeN(segment_link.samples);
     MEM_freeN(segment_link.segment);
@@ -2119,7 +2121,7 @@ static void btw_smooth_modal_update(bContext *C, wmOperator *op)
 
   common_draw_status_header(C, gso);
 
-  tBtwOperatorData *operator_data = (tBtwOperatorData *)gso->operator_data;
+  tBtwOperatorData *operator_data = static_cast<tBtwOperatorData *>(gso->operator_data);
 
   const float frame_rate = float(ac.scene->r.frs_sec) / ac.scene->r.frs_sec_base;
   const int samples_per_frame = RNA_int_get(op->ptr, "samples_per_frame");
@@ -2201,7 +2203,7 @@ static void btw_smooth_graph_keys(bAnimContext *ac,
   ED_anim_calculate_butterworth_coefficients(cutoff_frequency, sampling_frequency, bw_coeff);
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : segments) {
@@ -2210,7 +2212,7 @@ static void btw_smooth_graph_keys(bAnimContext *ac,
       const int sample_count = btw_calculate_sample_count(
           &right_bezt, &left_bezt, filter_order, samples_per_frame);
       float *samples = MEM_calloc_arrayN<float>(sample_count, "Smooth FCurve Op Samples");
-      blender::animrig::sample_fcurve_segment(
+      animrig::sample_fcurve_segment(
           fcu, left_bezt.vec[1][0] - filter_order, samples_per_frame, samples, sample_count);
       butterworth_smooth_fcurve_segment(
           fcu, &segment, samples, sample_count, factor, blend_in_out, samples_per_frame, bw_coeff);
@@ -2421,7 +2423,7 @@ static void scale_from_neighbor_graph_keys(bAnimContext *ac,
   ANIM_animdata_filter(
       ac, &anim_data, OPERATOR_DATA_FILTER, ac->data, eAnimCont_Types(ac->datatype));
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ListBaseT<FCurveSegment> segments = find_fcurve_segments(fcu);
 
     for (FCurveSegment &segment : segments) {
@@ -2582,3 +2584,5 @@ void GRAPH_OT_scale_from_neighbor(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

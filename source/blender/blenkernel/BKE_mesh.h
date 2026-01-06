@@ -17,6 +17,8 @@
 #include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 
+namespace blender {
+
 struct BMesh;
 struct BMeshCreateParams;
 struct BMeshFromMeshParams;
@@ -137,12 +139,10 @@ Mesh *BKE_mesh_new_nomain_from_curve(const Object *ob);
 Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob,
                                               const ListBaseT<DispList> *dispbase);
 
-bool BKE_mesh_attribute_required(blender::StringRef name);
+bool BKE_mesh_attribute_required(StringRef name);
 
-blender::Array<blender::float3> BKE_mesh_orco_verts_get(const Object *ob);
-void BKE_mesh_orco_verts_transform(Mesh *mesh,
-                                   blender::MutableSpan<blender::float3> orco,
-                                   bool invert);
+Array<float3> BKE_mesh_orco_verts_get(const Object *ob);
+void BKE_mesh_orco_verts_transform(Mesh *mesh, MutableSpan<float3> orco, bool invert);
 void BKE_mesh_orco_verts_transform(Mesh *mesh, float (*orco)[3], int totvert, bool invert);
 
 /**
@@ -338,7 +338,7 @@ void BKE_lnor_space_define(MLoopNorSpace *lnor_space,
                            const float lnor[3],
                            const float vec_ref[3],
                            const float vec_other[3],
-                           blender::Span<blender::float3> edge_vectors);
+                           Span<float3> edge_vectors);
 
 /**
  * Add a new given loop to given lnor_space.
@@ -390,7 +390,7 @@ bool BKE_mesh_center_of_volume(const Mesh *mesh, float r_cent[3]);
  */
 void BKE_mesh_calc_volume(const float (*vert_positions)[3],
                           int mverts_num,
-                          const blender::int3 *corner_tris,
+                          const int3 *corner_tris,
                           int corner_tris_num,
                           const int *corner_verts,
                           float *r_volume,
@@ -453,7 +453,6 @@ char *BKE_mesh_debug_info(const Mesh *mesh) ATTR_NONNULL(1) ATTR_MALLOC ATTR_WAR
 void BKE_mesh_debug_print(const Mesh *mesh) ATTR_NONNULL(1);
 #endif
 
-
 /* UPBGE: KEEP THIS EVEN AFTER DerivedMesh removal!!!!!!! */
 BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
                                         const int *index_mp_to_orig,
@@ -469,3 +468,4 @@ BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 
 void BKE_mesh_ensure_navmesh(struct Mesh *me);
 
+}  // namespace blender

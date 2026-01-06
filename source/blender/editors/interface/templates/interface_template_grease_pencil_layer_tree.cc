@@ -199,7 +199,7 @@ class LayerViewItemDragController : public AbstractViewItemDragController {
     return drag_data;
   }
 
-  void on_drag_start(bContext & /*C*/) override
+  void on_drag_start(bContext & /*C*/, AbstractViewItem & /*item*/) override
   {
     grease_pencil_.set_active_node(&dragged_node_);
   }
@@ -553,7 +553,7 @@ void LayerTreeView::build_tree()
 
 void template_grease_pencil_layer_tree(Layout *layout, bContext *C)
 {
-  GreasePencil *grease_pencil = blender::ed::greasepencil::from_context(*C);
+  GreasePencil *grease_pencil = ed::greasepencil::from_context(*C);
 
   if (grease_pencil == nullptr) {
     return;

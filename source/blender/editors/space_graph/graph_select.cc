@@ -40,6 +40,8 @@
 
 #include "graph_intern.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Internal Keyframe Utilities
  * \{ */
@@ -108,15 +110,15 @@ static void nearest_fcurve_vert_store(ListBaseT<tNearestVertInfo> *matches,
     /* convert from data-space to screen coordinates
      * NOTE: `hpoint +1` gives us 0,1,2 respectively for each handle,
      * needed to access the relevant vertex coordinates in the 3x3 'vec' matrix */
-    if (blender::ui::view2d_view_to_region_clip(v2d,
-                                                bezt->vec[hpoint + 1][0],
-                                                (bezt->vec[hpoint + 1][1] + offset) * unit_scale,
-                                                &screen_co[0],
-                                                &screen_co[1]) &&
+    if (ui::view2d_view_to_region_clip(v2d,
+                                       bezt->vec[hpoint + 1][0],
+                                       (bezt->vec[hpoint + 1][1] + offset) * unit_scale,
+                                       &screen_co[0],
+                                       &screen_co[1]) &&
         /* check if distance from mouse cursor to vert in screen space is within tolerance */
         ((dist = len_v2v2_int(mval, screen_co)) <= GVERTSEL_TOL))
     {
-      tNearestVertInfo *nvi = (tNearestVertInfo *)matches->last;
+      tNearestVertInfo *nvi = static_cast<tNearestVertInfo *>(matches->last);
       bool replace = false;
 
       /* If there is already a point for the F-Curve,
@@ -164,7 +166,7 @@ static void get_nearest_fcurve_verts_list(bAnimContext *ac,
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
-  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
   View2D *v2d = &ac->region->v2d;
   short mapping_flag = 0;
 
@@ -183,7 +185,7 @@ static void get_nearest_fcurve_verts_list(bAnimContext *ac,
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     float offset;
     float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale.id, fcu, mapping_flag, &offset);
 
@@ -385,7 +387,7 @@ void deselect_graph_keys(bAnimContext *ac, bool test, eEditKeyframes_Select sel,
 
   /* Now set the flags */
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     /* Keyframes First */
     ANIM_fcurve_keyframes_loop(
@@ -456,7 +458,7 @@ static wmOperatorStatus graphkeys_deselectall_exec(bContext *C, wmOperator *op)
 
   /* restore active F-Curve... */
   if (ale_active) {
-    FCurve *fcu = (FCurve *)ale_active->data;
+    FCurve *fcu = static_cast<FCurve *>(ale_active->data);
 
     /* all others should not be disabled, so we should be able to just set this directly...
      * - selection needs to be set too, or else this won't work...
@@ -513,7 +515,7 @@ static rctf initialize_box_select_coords(const bAnimContext *ac, const rctf *rec
 
   /* Convert mouse coordinates to frame ranges and
    * channel coordinates corrected for view pan/zoom. */
-  blender::ui::view2d_region_to_view_rctf(v2d, rectf_view, &rectf);
+  ui::view2d_region_to_view_rctf(v2d, rectf_view, &rectf);
   return rectf;
 }
 
@@ -561,7 +563,7 @@ static void initialize_box_select_key_editing_data(const bool incl_handles,
       r_ked->data = scaled_rectf;
       break;
   }
-  SpaceGraph *sgraph = (SpaceGraph *)ac->sl;
+  SpaceGraph *sgraph = reinterpret_cast<SpaceGraph *>(ac->sl);
 
   if (sgraph->flag & SIPO_NOHANDLES) {
     r_ked->iterflags |= KEYFRAME_ITER_HANDLES_INVISIBLE;
@@ -618,7 +620,7 @@ static bool box_select_graphkeys(bAnimContext *ac,
 
   /* First loop over data, doing box select. try selecting keys only. */
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     float offset;
     const float unit_scale = ANIM_unit_mapping_get_factor(
         ac->scene, ale.id, fcu, mapping_flag, &offset);
@@ -775,7 +777,7 @@ static void box_select_graphcurves(bAnimContext *ac,
    */
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     float offset;
     const float unit_scale = ANIM_unit_mapping_get_factor(
         ac->scene, ale.id, fcu, mapping_flag, &offset);
@@ -1364,7 +1366,7 @@ static wmOperatorStatus graphkeys_select_linked_exec(bContext *C, wmOperator * /
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     /* check if anything selected? */
     if (ANIM_fcurve_keyframes_loop(nullptr, fcu, nullptr, ok_cb, nullptr)) {
@@ -1423,7 +1425,7 @@ static void select_moreless_graph_keys(bAnimContext *ac, short mode)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     /* only continue if F-Curve has keyframes */
     if (fcu->bezt == nullptr) {
@@ -1642,7 +1644,7 @@ static wmOperatorStatus graphkeys_select_leftright_invoke(bContext *C,
     float x;
 
     /* determine which side of the current frame mouse is on */
-    x = blender::ui::view2d_region_to_view_x(v2d, event->mval[0]);
+    x = ui::view2d_region_to_view_x(v2d, event->mval[0]);
     if (x < scene->r.cfra) {
       RNA_enum_set(op->ptr, "mode", GRAPHKEYS_LRSEL_LEFT);
     }
@@ -1703,7 +1705,7 @@ static wmOperatorStatus mouse_graph_keys(bAnimContext *ac,
                                          const bool curves_only,
                                          bool wait_to_deselect_others)
 {
-  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
   tNearestVertInfo *nvi;
   BezTriple *bezt = nullptr;
   bool run_modal = false;
@@ -2093,7 +2095,7 @@ static void graphkeys_select_key_handles(
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
   for (bAnimListElem &ale : anim_data) {
     BLI_assert(ale.type & ANIMTYPE_FCURVE);
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     /* Only continue if F-Curve has keyframes. */
     if (fcu->bezt == nullptr) {
@@ -2208,3 +2210,5 @@ void GRAPH_OT_select_key_handles(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

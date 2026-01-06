@@ -56,6 +56,8 @@
 
 #include "RE_texture.h"
 
+namespace blender {
+
 EffectorWeights *BKE_effector_add_weights(Collection *collection)
 {
   EffectorWeights *weights = MEM_new_for_free<EffectorWeights>("EffectorWeights");
@@ -135,7 +137,7 @@ static void precalculate_effector(Depsgraph *depsgraph, EffectorCache *eff)
   eff->rng = BLI_rng_new(eff->pd->seed + cfra);
 
   if (eff->pd->forcefield == PFIELD_GUIDE && eff->ob->type == OB_CURVES_LEGACY) {
-    Curve *cu = static_cast<Curve *>(eff->ob->data);
+    Curve *cu = id_cast<Curve *>(eff->ob->data);
     if (cu->flag & CU_PATH) {
       if (eff->ob->runtime->curve_cache == nullptr ||
           eff->ob->runtime->curve_cache->anim_path_accum_length == nullptr)
@@ -152,7 +154,8 @@ static void precalculate_effector(Depsgraph *depsgraph, EffectorCache *eff)
     }
   }
   else if (eff->pd->shape == PFIELD_SHAPE_SURFACE) {
-    eff->surmd = (SurfaceModifierData *)BKE_modifiers_findby_type(eff->ob, eModifierType_Surface);
+    eff->surmd = reinterpret_cast<SurfaceModifierData *>(
+        BKE_modifiers_findby_type(eff->ob, eModifierType_Surface));
     if (eff->ob->type == OB_CURVES_LEGACY) {
       eff->flag |= PE_USE_NORMAL_DATA;
     }
@@ -640,7 +643,7 @@ bool closest_point_on_surface(SurfaceModifierData *surmd,
                               float surface_nor[3],
                               float surface_vel[3])
 {
-  blender::bke::BVHTreeFromMesh *bvhtree = surmd->runtime.bvhtree;
+  bke::BVHTreeFromMesh *bvhtree = surmd->runtime.bvhtree;
   BVHTreeNearest nearest;
 
   nearest.index = -1;
@@ -657,7 +660,7 @@ bool closest_point_on_surface(SurfaceModifierData *surmd,
 
     if (surface_vel) {
       const int *corner_verts = bvhtree->corner_verts.data();
-      const blender::int3 &tri = bvhtree->corner_tris[nearest.index];
+      const int3 &tri = bvhtree->corner_tris[nearest.index];
 
       copy_v3_v3(surface_vel, surmd->runtime.vert_velocities[corner_verts[tri[0]]]);
       add_v3_v3(surface_vel, surmd->runtime.vert_velocities[corner_verts[tri[1]]]);
@@ -700,8 +703,8 @@ bool get_effector_data(EffectorCache *eff,
     /* TODO: hair and points object support */
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(eff->ob);
     if (mesh_eval != nullptr) {
-      const blender::Span<blender::float3> positions = mesh_eval->vert_positions();
-      const blender::Span<blender::float3> vert_normals = mesh_eval->vert_normals();
+      const Span<float3> positions = mesh_eval->vert_positions();
+      const Span<float3> vert_normals = mesh_eval->vert_normals();
       copy_v3_v3(efd->loc, positions[*efd->index]);
       copy_v3_v3(efd->nor, vert_normals[*efd->index]);
 
@@ -1393,3 +1396,5 @@ void BKE_sim_debug_data_clear_category(const char *category)
     }
   }
 }
+
+}  // namespace blender

@@ -38,9 +38,11 @@
 
 #include <fmt/format.h>
 
+namespace blender {
+
 using namespace blender::asset_system;
 
-namespace blender::ed::asset_browser {
+namespace ed::asset_browser {
 
 class AssetCatalogTreeViewAllItem;
 
@@ -106,7 +108,7 @@ class AssetCatalogDragController : public ui::AbstractViewItemDragController {
 
   std::optional<eWM_DragDataType> get_drag_type() const override;
   void *create_drag_data() const override;
-  void on_drag_start(bContext &C) override;
+  void on_drag_start(bContext &C, ui::AbstractViewItem &item) override;
 };
 
 class AssetCatalogDropTarget : public ui::TreeViewItemDropTarget {
@@ -291,7 +293,7 @@ void AssetCatalogTreeViewItem::build_row(ui::Layout &row)
   ui::ButtonViewItem *view_item_but = view_item_button();
   PointerRNA *props;
 
-  props = button_extra_operator_icon_add((ui::Button *)view_item_but,
+  props = button_extra_operator_icon_add(reinterpret_cast<ui::Button *>(view_item_but),
                                          "ASSET_OT_catalog_new",
                                          wm::OpCallContext::InvokeDefault,
                                          ICON_ADD);
@@ -568,7 +570,7 @@ void *AssetCatalogDragController::create_drag_data() const
   return drag_catalog;
 }
 
-void AssetCatalogDragController::on_drag_start(bContext & /*C*/)
+void AssetCatalogDragController::on_drag_start(bContext & /*C*/, ui::AbstractViewItem & /*item*/)
 {
   AssetCatalogTreeView &tree_view_ = this->get_view<AssetCatalogTreeView>();
   tree_view_.activate_catalog_by_id(catalog_item_.get_catalog_id());
@@ -712,7 +714,7 @@ void file_delete_asset_catalog_filter_settings(AssetCatalogFilterSettings **filt
 bool file_set_asset_catalog_filter_settings(
     AssetCatalogFilterSettings *filter_settings,
     eFileSel_Params_AssetCatalogVisibility catalog_visibility,
-    const ::bUUID &catalog_id)
+    const bUUID &catalog_id)
 {
   bool needs_update = false;
 
@@ -780,4 +782,6 @@ void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, layout);
 }
 
-}  // namespace blender::ed::asset_browser
+}  // namespace ed::asset_browser
+
+}  // namespace blender

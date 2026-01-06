@@ -26,6 +26,8 @@
 #include "../generic/python_compat.hh"
 #include "../generic/python_utildefines.hh"
 
+namespace blender {
+
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bm_utils_vert_collapse_edge_doc,
@@ -437,7 +439,7 @@ static PyObject *bpy_bm_utils_face_split(PyObject * /*self*/, PyObject *args, Py
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kw,
                                    "O!O!O!|$OO&O!:face_split",
-                                   (char **)kwlist,
+                                   const_cast<char **>(kwlist),
                                    &BPy_BMFace_Type,
                                    &py_face,
                                    &BPy_BMVert_Type,
@@ -561,7 +563,7 @@ static PyObject *bpy_bm_utils_face_split_edgenet(PyObject * /*self*/, PyObject *
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kw,
                                    "O!O:face_split_edgenet",
-                                   (char **)kwlist,
+                                   const_cast<char **>(kwlist),
                                    &BPy_BMFace_Type,
                                    &py_face,
                                    &edge_seq))
@@ -582,7 +584,7 @@ static PyObject *bpy_bm_utils_face_split_edgenet(PyObject * /*self*/, PyObject *
   }
 
   /* --- main function body --- */
-  blender::Vector<BMFace *> face_arr;
+  Vector<BMFace *> face_arr;
   ok = BM_face_split_edgenet(bm, py_face->f, edge_array, edge_array_num, &face_arr);
 
   PyMem_FREE(edge_array);
@@ -910,53 +912,59 @@ static PyObject *bpy_bm_utils_uv_select_check(PyObject * /*self*/, PyObject *arg
 
 static PyMethodDef BPy_BM_utils_methods[] = {
     {"vert_collapse_edge",
-     (PyCFunction)bpy_bm_utils_vert_collapse_edge,
+     static_cast<PyCFunction>(bpy_bm_utils_vert_collapse_edge),
      METH_VARARGS,
      bpy_bm_utils_vert_collapse_edge_doc},
     {"vert_collapse_faces",
-     (PyCFunction)bpy_bm_utils_vert_collapse_faces,
+     static_cast<PyCFunction>(bpy_bm_utils_vert_collapse_faces),
      METH_VARARGS,
      bpy_bm_utils_vert_collapse_faces_doc},
     {"vert_dissolve",
-     (PyCFunction)bpy_bm_utils_vert_dissolve,
+     static_cast<PyCFunction>(bpy_bm_utils_vert_dissolve),
      METH_VARARGS,
      bpy_bm_utils_vert_dissolve_doc}, /* could use METH_O */
     {"vert_splice",
-     (PyCFunction)bpy_bm_utils_vert_splice,
+     static_cast<PyCFunction>(bpy_bm_utils_vert_splice),
      METH_VARARGS,
      bpy_bm_utils_vert_splice_doc},
     {"vert_separate",
-     (PyCFunction)bpy_bm_utils_vert_separate,
+     static_cast<PyCFunction>(bpy_bm_utils_vert_separate),
      METH_VARARGS,
      bpy_bm_utils_vert_separate_doc},
     {"edge_split",
-     (PyCFunction)bpy_bm_utils_edge_split,
+     static_cast<PyCFunction>(bpy_bm_utils_edge_split),
      METH_VARARGS,
      bpy_bm_utils_edge_split_doc},
     {"edge_rotate",
-     (PyCFunction)bpy_bm_utils_edge_rotate,
+     static_cast<PyCFunction>(bpy_bm_utils_edge_rotate),
      METH_VARARGS,
      bpy_bm_utils_edge_rotate_doc},
     {"face_split",
-     (PyCFunction)bpy_bm_utils_face_split,
+     reinterpret_cast<PyCFunction>(bpy_bm_utils_face_split),
      METH_VARARGS | METH_KEYWORDS,
      bpy_bm_utils_face_split_doc},
     {"face_split_edgenet",
-     (PyCFunction)bpy_bm_utils_face_split_edgenet,
+     reinterpret_cast<PyCFunction>(bpy_bm_utils_face_split_edgenet),
      METH_VARARGS | METH_KEYWORDS,
      bpy_bm_utils_face_split_edgenet_doc},
-    {"face_join", (PyCFunction)bpy_bm_utils_face_join, METH_VARARGS, bpy_bm_utils_face_join_doc},
+    {"face_join",
+     static_cast<PyCFunction>(bpy_bm_utils_face_join),
+     METH_VARARGS,
+     bpy_bm_utils_face_join_doc},
     {"face_vert_separate",
-     (PyCFunction)bpy_bm_utils_face_vert_separate,
+     static_cast<PyCFunction>(bpy_bm_utils_face_vert_separate),
      METH_VARARGS,
      bpy_bm_utils_face_vert_separate_doc},
-    {"face_flip", (PyCFunction)bpy_bm_utils_face_flip, METH_O, bpy_bm_utils_face_flip_doc},
+    {"face_flip",
+     reinterpret_cast<PyCFunction>(bpy_bm_utils_face_flip),
+     METH_O,
+     bpy_bm_utils_face_flip_doc},
     {"loop_separate",
-     (PyCFunction)bpy_bm_utils_loop_separate,
+     reinterpret_cast<PyCFunction>(bpy_bm_utils_loop_separate),
      METH_O,
      bpy_bm_utils_loop_separate_doc},
     {"uv_select_check",
-     (PyCFunction)bpy_bm_utils_uv_select_check,
+     reinterpret_cast<PyCFunction>(bpy_bm_utils_uv_select_check),
      METH_VARARGS | METH_KEYWORDS,
      bpy_bm_utils_uv_select_check_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -994,3 +1002,5 @@ PyObject *BPyInit_bmesh_utils()
 
   return submodule;
 }
+
+}  // namespace blender

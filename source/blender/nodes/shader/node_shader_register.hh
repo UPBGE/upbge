@@ -4,6 +4,8 @@
 
 #pragma once
 
+namespace blender {
+
 void register_node_tree_type_sh();
 
 void register_node_type_sh_group();
@@ -111,3 +113,5 @@ void register_node_type_sh_wireframe();
 
 /* UPBGE */
 void register_node_type_sh_sprites_animation();
+
+}  // namespace blender

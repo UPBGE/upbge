@@ -58,18 +58,18 @@ static void particle_batch_cache_clear(ParticleSystem *psys);
 
 struct ParticleHairFinalCache {
   /* Output of the subdivision stage: vertex buff sized to subdiv level. */
-  blender::gpu::VertBuf *proc_buf;
+  gpu::VertBuf *proc_buf;
 
   /* Just contains a huge index buffer used to draw the final hair. */
-  blender::gpu::Batch *proc_hairs[MAX_THICKRES];
+  gpu::Batch *proc_hairs[MAX_THICKRES];
 
   int strands_res; /* points per hair, at least 2 */
 };
 
 struct ParticleHairCache {
-  blender::gpu::VertBuf *pos;
-  blender::gpu::IndexBuf *indices;
-  blender::gpu::Batch *hairs;
+  gpu::VertBuf *pos;
+  gpu::IndexBuf *indices;
+  gpu::Batch *hairs;
   int strands_len;
   int elems_len;
   int point_len;
@@ -738,7 +738,7 @@ static int particle_batch_cache_fill_segments_edit(
       continue;
     }
     for (int j = 0; j <= path->segments; j++) {
-      EditStrandData *seg_data = (EditStrandData *)GPU_vertbuf_raw_step(attr_step);
+      EditStrandData *seg_data = static_cast<EditStrandData *>(GPU_vertbuf_raw_step(attr_step));
       copy_v3_v3(seg_data->pos, path[j].co);
       float strand_t = float(j) / path->segments;
       if (particle) {
@@ -769,7 +769,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   }
 
   int curr_point = 0;
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
 
   GPU_VERTBUF_DISCARD_SAFE(hair_cache->pos);
   GPU_INDEXBUF_DISCARD_SAFE(hair_cache->indices);
@@ -814,7 +814,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
-      uv_id[i] = GPU_vertformat_attr_add(&format, uuid, blender::gpu::VertAttrType::SFLOAT_32_32);
+      uv_id[i] = GPU_vertformat_attr_add(&format, uuid, gpu::VertAttrType::SFLOAT_32_32);
 
       if (name == active_uv) {
         GPU_vertformat_alias_add(&format, "a");
@@ -827,8 +827,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
-      col_id[i] = GPU_vertformat_attr_add(
-          &format, uuid, blender::gpu::VertAttrType::UNORM_16_16_16_16);
+      col_id[i] = GPU_vertformat_attr_add(&format, uuid, gpu::VertAttrType::UNORM_16_16_16_16);
 
       if (name == active_col) {
         GPU_vertformat_alias_add(&format, "c");
@@ -847,15 +846,15 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
     if (num_uv_layers) {
       mtfaces = MEM_malloc_arrayN<const MTFace *>(num_uv_layers, "Faces UV layers");
       for (int i = 0; i < num_uv_layers; i++) {
-        mtfaces[i] = (const MTFace *)CustomData_get_layer_n(
-            &psmd->mesh_final->fdata_legacy, CD_MTFACE, i);
+        mtfaces[i] = static_cast<const MTFace *>(
+            CustomData_get_layer_n(&psmd->mesh_final->fdata_legacy, CD_MTFACE, i));
       }
     }
     if (num_col_layers) {
       mcols = MEM_malloc_arrayN<const MCol *>(num_col_layers, "Color layers");
       for (int i = 0; i < num_col_layers; i++) {
-        mcols[i] = (const MCol *)CustomData_get_layer_n(
-            &psmd->mesh_final->fdata_legacy, CD_MCOL, i);
+        mcols[i] = static_cast<const MCol *>(
+            CustomData_get_layer_n(&psmd->mesh_final->fdata_legacy, CD_MCOL, i));
       }
     }
   }
@@ -1374,7 +1373,7 @@ template<typename InputT, typename OutputT, eCustomDataType data_type>
 static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(ParticleDrawSource &src,
                                                                   const StringRef name)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)src.md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(src.md);
   Mesh &mesh = *psmd->mesh_final;
 
   /* TODO(fclem): Use normalized integer format. */
@@ -1483,7 +1482,7 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
                                         ParticleDrawSource &src,
                                         const GPUMaterial *gpu_material)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)src.md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(src.md);
   if (psmd == nullptr || psmd->mesh_final == nullptr || src.curves_num() == 0) {
     return;
   }

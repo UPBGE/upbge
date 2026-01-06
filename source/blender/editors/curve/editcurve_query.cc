@@ -20,7 +20,7 @@
 
 #include "curve_intern.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Cursor Picking API
@@ -224,11 +224,11 @@ bool ED_curve_active_center(Curve *cu, float center[3])
   }
 
   if (nu->type == CU_BEZIER) {
-    BezTriple *bezt = (BezTriple *)vert;
+    BezTriple *bezt = static_cast<BezTriple *>(vert);
     copy_v3_v3(center, bezt->vec[1]);
   }
   else {
-    BPoint *bp = (BPoint *)vert;
+    BPoint *bp = static_cast<BPoint *>(vert);
     copy_v3_v3(center, bp->vec);
   }
 
@@ -236,3 +236,5 @@ bool ED_curve_active_center(Curve *cu, float center[3])
 }
 
 /** \} */
+
+}  // namespace blender

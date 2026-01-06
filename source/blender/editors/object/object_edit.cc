@@ -190,7 +190,7 @@ Vector<Object *> objects_in_mode_or_selected(bContext *C,
 
   if (id_pin && (GS(id_pin->name) == ID_OB)) {
     /* Pinned data takes priority, in this case ignore selection & other objects in the mode. */
-    ob = (Object *)id_pin;
+    ob = id_cast<Object *>(id_pin);
   }
   else if ((space_type == SPACE_PROPERTIES) && (use_objects_in_mode == false)) {
     /* When using the space-properties, we don't want to use the entire selection
@@ -607,10 +607,12 @@ static bool mesh_needs_keyindex(Main *bmain, const Mesh *mesh)
   }
 
   for (const Object &ob : bmain->objects) {
-    if ((ob.parent) && (ob.parent->data == mesh) && ELEM(ob.partype, PARVERT1, PARVERT3)) {
+    if ((ob.parent) && (ob.parent->data == id_cast<const ID *>(mesh)) &&
+        ELEM(ob.partype, PARVERT1, PARVERT3))
+    {
       return true;
     }
-    if (ob.data == mesh) {
+    if (ob.data == id_cast<const ID *>(mesh)) {
       for (const ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Hook) {
           return true;
@@ -639,7 +641,7 @@ static bool editmode_load_free_ex(Main *bmain,
   }
 
   if (obedit->type == OB_MESH) {
-    Mesh *mesh = static_cast<Mesh *>(obedit->data);
+    Mesh *mesh = id_cast<Mesh *>(obedit->data);
     if (mesh->runtime->edit_mesh == nullptr) {
       return false;
     }
@@ -668,17 +670,17 @@ static bool editmode_load_free_ex(Main *bmain,
     }
   }
   else if (obedit->type == OB_ARMATURE) {
-    const bArmature *arm = static_cast<const bArmature *>(obedit->data);
+    const bArmature *arm = id_cast<const bArmature *>(obedit->data);
     if (arm->edbo == nullptr) {
       return false;
     }
 
     if (load_data) {
-      ED_armature_from_edit(bmain, static_cast<bArmature *>(obedit->data));
+      ED_armature_from_edit(bmain, id_cast<bArmature *>(obedit->data));
     }
 
     if (free_data) {
-      ED_armature_edit_free(static_cast<bArmature *>(obedit->data));
+      ED_armature_edit_free(id_cast<bArmature *>(obedit->data));
 
       if (load_data == false) {
         /* Don't keep unused pose channels created by duplicating bones
@@ -698,7 +700,7 @@ static bool editmode_load_free_ex(Main *bmain,
     DEG_relations_tag_update(bmain);
   }
   else if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
-    const Curve *cu = static_cast<const Curve *>(obedit->data);
+    const Curve *cu = id_cast<const Curve *>(obedit->data);
     if (cu->editnurb == nullptr) {
       return false;
     }
@@ -712,7 +714,7 @@ static bool editmode_load_free_ex(Main *bmain,
     }
   }
   else if (obedit->type == OB_FONT) {
-    const Curve *cu = static_cast<const Curve *>(obedit->data);
+    const Curve *cu = id_cast<const Curve *>(obedit->data);
     if (cu->editfont == nullptr) {
       return false;
     }
@@ -726,7 +728,7 @@ static bool editmode_load_free_ex(Main *bmain,
     }
   }
   else if (obedit->type == OB_LATTICE) {
-    const Lattice *lt = static_cast<const Lattice *>(obedit->data);
+    const Lattice *lt = id_cast<const Lattice *>(obedit->data);
     if (lt->editlatt == nullptr) {
       return false;
     }
@@ -740,7 +742,7 @@ static bool editmode_load_free_ex(Main *bmain,
     }
   }
   else if (obedit->type == OB_MBALL) {
-    const MetaBall *mb = static_cast<const MetaBall *>(obedit->data);
+    const MetaBall *mb = id_cast<const MetaBall *>(obedit->data);
     if (mb->editelems == nullptr) {
       return false;
     }
@@ -761,8 +763,7 @@ static bool editmode_load_free_ex(Main *bmain,
   }
 
   if (load_data) {
-    char *needs_flush_ptr = BKE_object_data_editmode_flush_ptr_get(
-        static_cast<ID *>(obedit->data));
+    char *needs_flush_ptr = BKE_object_data_editmode_flush_ptr_get(obedit->data);
     if (needs_flush_ptr) {
       *needs_flush_ptr = false;
     }
@@ -788,7 +789,7 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
       /* Also happens when mesh is shared across multiple objects. #69834. */
       DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
       /* Leaving edit mode may modify the original object data; tag that as well. */
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(obedit->data, ID_RECALC_GEOMETRY);
     }
     return true;
   }
@@ -812,7 +813,7 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
     /* also flush ob recalc, doesn't take much overhead, but used for particles */
     DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     /* Leaving edit mode may modify the original object data; tag that as well. */
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(obedit->data, ID_RECALC_GEOMETRY);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, scene);
 
@@ -893,7 +894,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   if (ob->type == OB_MESH) {
     ok = true;
 
-    const bool use_key_index = mesh_needs_keyindex(bmain, static_cast<const Mesh *>(ob->data));
+    const bool use_key_index = mesh_needs_keyindex(bmain, id_cast<const Mesh *>(ob->data));
 
     EDBM_mesh_make(ob, scene->toolsettings->selectmode, use_key_index);
 
@@ -912,7 +913,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
       flush_pose_selection_to_bone(*ob);
     }
 
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = id_cast<bArmature *>(ob->data);
     ok = true;
     ED_armature_to_edit(arm);
     /* To ensure all goes in rest-position and without striding. */
@@ -940,7 +941,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_TEXT, scene);
   }
   else if (ob->type == OB_MBALL) {
-    MetaBall *mb = static_cast<MetaBall *>(ob->data);
+    MetaBall *mb = id_cast<MetaBall *>(ob->data);
 
     ok = true;
     ED_mball_editmball_make(ob);
@@ -967,7 +968,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     ok = true;
-    blender::ed::greasepencil::ensure_selection_domain(scene->toolsettings, ob);
+    ed::greasepencil::ensure_selection_domain(scene->toolsettings, ob);
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_GREASE_PENCIL, scene);
   }
   else if (ob->type == OB_POINTCLOUD) {
@@ -1718,7 +1719,7 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
   Set<ID *> object_data;
   for (const PointerRNA &ptr : ctx_objects) {
     Object *ob = static_cast<Object *>(ptr.data);
-    if (ID *data = static_cast<ID *>(ob->data)) {
+    if (ID *data = ob->data) {
       object_data.add(data);
 
       if (ob->type == OB_MESH) {
@@ -1939,7 +1940,7 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
     for (const PointerRNA &ob_ptr : ctx_objects) {
       Object *object = static_cast<Object *>(ob_ptr.data);
       if (object->type == OB_MESH) {
-        Mesh *mesh = static_cast<Mesh *>(object->data);
+        Mesh *mesh = id_cast<Mesh *>(object->data);
         bke::mesh_smooth_set(*mesh, true, true);
         DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
       }
@@ -2697,7 +2698,8 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
   }
 
   Object *single_object = BLI_listbase_is_single(&objects) ?
-                              static_cast<Object *>(((LinkData *)objects.first)->data) :
+                              static_cast<Object *>(
+                                  (static_cast<LinkData *>(objects.first))->data) :
                               nullptr;
 
   if ((single_object != nullptr) && is_link &&

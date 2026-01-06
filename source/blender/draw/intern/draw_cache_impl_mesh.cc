@@ -100,7 +100,7 @@ static void discard_buffers(MeshBatchCache &cache,
   };
 
   for (const int i : IndexRange(MBC_BATCH_LEN)) {
-    gpu::Batch *batch = ((gpu::Batch **)&cache.batch)[i];
+    gpu::Batch *batch = (reinterpret_cast<gpu::Batch **>(&cache.batch))[i];
     if (batch && batch_contains_data(*batch)) {
       GPU_BATCH_DISCARD_SAFE(((gpu::Batch **)&cache.batch)[i]);
       cache.batch_ready &= ~DRWBatchFlag(uint64_t(1u) << i);
@@ -441,8 +441,8 @@ static void mesh_batch_cache_init(Mesh &mesh)
   cache->tris_per_mat.reinitialize(cache->mat_len);
 
   cache->is_dirty = false;
-  cache->batch_ready = (DRWBatchFlag)0;
-  cache->batch_requested = (DRWBatchFlag)0;
+  cache->batch_ready = DRWBatchFlag(0);
+  cache->batch_requested = DRWBatchFlag(0);
 
   drw_mesh_weight_state_clear(&cache->weight_state);
 }
@@ -600,7 +600,7 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   cache.tris_per_mat = {};
 
   for (int i = 0; i < sizeof(cache.batch) / sizeof(void *); i++) {
-    gpu::Batch **batch = (gpu::Batch **)&cache.batch;
+    gpu::Batch **batch = reinterpret_cast<gpu::Batch **>(&cache.batch);
     GPU_BATCH_DISCARD_SAFE(batch[i]);
   }
   for (const int i : cache.surface_per_mat.index_range()) {
@@ -612,7 +612,7 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   cache.surface_per_mat = {};
   cache.mat_len = 0;
 
-  cache.batch_ready = (DRWBatchFlag)0;
+  cache.batch_ready = DRWBatchFlag(0);
   drw_mesh_weight_state_clear(&cache.weight_state);
 
   mesh_batch_cache_free_subdiv_cache(cache);
@@ -1062,7 +1062,7 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
    * creating a vertex buffer shouldn't matter. */
   GPUVertFormat format{};
   GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32);
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, 1);
   /* Avoid the batch being rendered at all. */
   GPU_vertbuf_data_len_set(*vbo, 0);
@@ -1380,7 +1380,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   const bool is_editmode = ob.mode == OB_MODE_EDIT;
 
   DRWBatchFlag batch_requested = cache.batch_requested;
-  cache.batch_requested = (DRWBatchFlag)0;
+  cache.batch_requested = DRWBatchFlag(0);
 
   if (batch_requested & MBC_SURFACE_WEIGHTS) {
     /* Check vertex weights. */

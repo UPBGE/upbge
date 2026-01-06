@@ -29,7 +29,7 @@
 
 #include "WM_types.hh"
 
-using namespace blender;
+namespace blender {
 
 /* Disabled for now, see comment in `rna_def_action_layer()` for more info. */
 #if 0
@@ -84,6 +84,8 @@ const EnumPropertyItem default_ActionSlot_target_id_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -112,6 +114,8 @@ const EnumPropertyItem default_ActionSlot_target_id_type_items[] = {
 #  include "ANIM_keyframing.hh"
 
 #  include <fmt/format.h>
+
+namespace blender {
 
 static animrig::Action &rna_action(const PointerRNA *ptr)
 {
@@ -313,7 +317,7 @@ static std::optional<std::string> rna_ActionSlot_path(const PointerRNA *ptr)
 int rna_ActionSlot_target_id_type_icon_get(PointerRNA *ptr)
 {
   animrig::Slot &slot = rna_data_slot(ptr);
-  return blender::ui::icon_from_idcode(slot.idtype);
+  return ui::icon_from_idcode(slot.idtype);
 }
 
 /* Name functions that ignore the first two ID characters */
@@ -653,7 +657,7 @@ static FCurve *rna_Channelbag_fcurve_new(ActionChannelbag *dna_channelbag,
     return nullptr;
   }
 
-  blender::animrig::FCurveDescriptor descr = {data_path, index};
+  animrig::FCurveDescriptor descr = {data_path, index};
   if (group_name && group_name[0]) {
     descr.channel_group = {group_name};
   }
@@ -714,7 +718,7 @@ static FCurve *rna_Channelbag_fcurve_ensure(ActionChannelbag *dna_channelbag,
     return nullptr;
   }
 
-  blender::animrig::FCurveDescriptor descr = {data_path, index};
+  animrig::FCurveDescriptor descr = {data_path, index};
   if (group_name && group_name[0]) {
     descr.channel_group = {group_name};
   }
@@ -851,7 +855,7 @@ struct ActionGroupChannelsIterator {
 
 static void rna_ActionGroup_channels_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  bActionGroup *group = (bActionGroup *)ptr->data;
+  bActionGroup *group = static_cast<bActionGroup *>(ptr->data);
 
   ActionGroupChannelsIterator *custom_iter = MEM_callocN<ActionGroupChannelsIterator>(__func__);
 
@@ -907,7 +911,7 @@ static void rna_ActionGroup_channels_next(CollectionPropertyIterator *iter)
       break;
     }
     case ActionGroupChannelsIterator::LISTBASE: {
-      FCurve *fcurve = (FCurve *)custom_iter->listbase.link;
+      FCurve *fcurve = reinterpret_cast<FCurve *>(custom_iter->listbase.link);
       bActionGroup *grp = fcurve->grp;
       /* Only continue if the next F-Curve (if existent) belongs in the same
        * group. */
@@ -974,7 +978,7 @@ static void rna_Action_pose_markers_remove(bAction *act,
 
 static PointerRNA rna_Action_active_pose_marker_get(PointerRNA *ptr)
 {
-  bAction *act = (bAction *)ptr->data;
+  bAction *act = static_cast<bAction *>(ptr->data);
   return RNA_pointer_create_with_parent(
       *ptr, &RNA_TimelineMarker, BLI_findlink(&act->markers, act->active_marker - 1));
 }
@@ -983,26 +987,26 @@ static void rna_Action_active_pose_marker_set(PointerRNA *ptr,
                                               PointerRNA value,
                                               ReportList * /*reports*/)
 {
-  bAction *act = (bAction *)ptr->data;
+  bAction *act = static_cast<bAction *>(ptr->data);
   act->active_marker = BLI_findindex(&act->markers, value.data) + 1;
 }
 
 static int rna_Action_active_pose_marker_index_get(PointerRNA *ptr)
 {
-  bAction *act = (bAction *)ptr->data;
+  bAction *act = static_cast<bAction *>(ptr->data);
   return std::max(act->active_marker - 1, 0);
 }
 
 static void rna_Action_active_pose_marker_index_set(PointerRNA *ptr, int value)
 {
-  bAction *act = (bAction *)ptr->data;
+  bAction *act = static_cast<bAction *>(ptr->data);
   act->active_marker = value + 1;
 }
 
 static void rna_Action_active_pose_marker_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
-  bAction *act = (bAction *)ptr->data;
+  bAction *act = static_cast<bAction *>(ptr->data);
 
   *min = 0;
   *max = max_ii(0, BLI_listbase_count(&act->markers) - 1);
@@ -1031,7 +1035,7 @@ static void rna_Action_frame_range_get(PointerRNA *ptr, float *r_values)
 
 static void rna_Action_frame_range_set(PointerRNA *ptr, const float *values)
 {
-  bAction *data = (bAction *)ptr->owner_id;
+  bAction *data = id_cast<bAction *>(ptr->owner_id);
 
   data->flag |= ACT_FRAME_RANGE;
   data->frame_start = values[0];
@@ -1068,7 +1072,7 @@ static void rna_Action_use_frame_range_set(PointerRNA *ptr, bool value)
 
 static void rna_Action_start_frame_set(PointerRNA *ptr, float value)
 {
-  bAction *data = (bAction *)ptr->owner_id;
+  bAction *data = id_cast<bAction *>(ptr->owner_id);
 
   data->frame_start = value;
   CLAMP_MIN(data->frame_end, data->frame_start);
@@ -1076,7 +1080,7 @@ static void rna_Action_start_frame_set(PointerRNA *ptr, float value)
 
 static void rna_Action_end_frame_set(PointerRNA *ptr, float value)
 {
-  bAction *data = (bAction *)ptr->owner_id;
+  bAction *data = id_cast<bAction *>(ptr->owner_id);
 
   data->frame_end = value;
   CLAMP_MAX(data->frame_start, data->frame_end);
@@ -1098,7 +1102,7 @@ static FCurve *rna_Action_fcurve_ensure_for_datablock(bAction *_self,
 {
   /* Precondition checks. */
   {
-    if (blender::animrig::get_action(*datablock) != _self) {
+    if (animrig::get_action(*datablock) != _self) {
       BKE_reportf(reports,
                   RPT_ERROR_INVALID_INPUT,
                   "Assign action \"%s\" to \"%s\" before calling this function",
@@ -1114,12 +1118,12 @@ static FCurve *rna_Action_fcurve_ensure_for_datablock(bAction *_self,
     }
   }
 
-  blender::animrig::FCurveDescriptor descriptor = {data_path, array_index};
+  animrig::FCurveDescriptor descriptor = {data_path, array_index};
   if (group_name && group_name[0]) {
     descriptor.channel_group = group_name;
   }
 
-  FCurve &fcurve = blender::animrig::action_fcurve_ensure(bmain, *_self, *datablock, descriptor);
+  FCurve &fcurve = animrig::action_fcurve_ensure(bmain, *_self, *datablock, descriptor);
 
   WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
   return &fcurve;
@@ -1132,7 +1136,7 @@ static FCurve *rna_Action_fcurve_ensure_for_datablock(bAction *_self,
 bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
 {
   ID *srcId = ptr->owner_id;
-  bAction *dna_action = (bAction *)value.owner_id;
+  bAction *dna_action = id_cast<bAction *>(value.owner_id);
 
   if (!dna_action) {
     return false;
@@ -1174,7 +1178,7 @@ static void reevaluate_fcurve_errors(bAnimContext *ac)
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
   for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = (FCurve *)ale.key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     PointerRNA ptr;
     PropertyRNA *prop;
     PointerRNA id_ptr = RNA_id_pointer_create(ale.id);
@@ -1314,7 +1318,11 @@ static void rna_ActionSlot_target_id_type_set(PointerRNA *ptr, int value)
   action.slot_idtype_define(slot, ID_Type(value));
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_dopesheet(BlenderRNA *brna)
 {
@@ -2615,5 +2623,7 @@ void RNA_def_action(BlenderRNA *brna)
   rna_def_action_strip(brna);
   rna_def_action_channelbag(brna);
 }
+
+}  // namespace blender
 
 #endif

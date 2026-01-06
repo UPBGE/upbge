@@ -10,9 +10,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 
 #include "bmesh.hh"
+
+namespace blender {
 
 static BMVert *bm_vert_copy(BMesh *bm_dst,
                             const std::optional<BMCustomDataCopyMap> &cd_vert_map,
@@ -53,8 +55,8 @@ static BMFace *bm_face_copy_with_arrays(BMesh *bm_dst,
                                         BMEdge **edges_dst)
 {
   BMFace *f_dst;
-  BMVert **vtar = BLI_array_alloca(vtar, f_src->len);
-  BMEdge **edar = BLI_array_alloca(edar, f_src->len);
+  Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> vtar(f_src->len);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edar(f_src->len);
   BMLoop *l_iter_src, *l_iter_dst, *l_first_src;
   int i;
 
@@ -70,7 +72,7 @@ static BMFace *bm_face_copy_with_arrays(BMesh *bm_dst,
   } while ((l_iter_src = l_iter_src->next) != l_first_src);
 
   /* Create new face. */
-  f_dst = BM_face_create(bm_dst, vtar, edar, f_src->len, nullptr, BM_CREATE_SKIP_CD);
+  f_dst = BM_face_create(bm_dst, vtar.data(), edar.data(), f_src->len, nullptr, BM_CREATE_SKIP_CD);
 
   /* Copy attributes. */
   if (cd_face_map.has_value()) {
@@ -160,3 +162,5 @@ void BM_mesh_copy_arrays(BMesh *bm_src,
   MEM_freeN(verts_dst);
   MEM_freeN(edges_dst);
 }
+
+}  // namespace blender

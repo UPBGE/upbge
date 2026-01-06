@@ -27,7 +27,7 @@ void LightData::init()
 {
   ID_LOGN("");
 
-  const Light *light = (const Light *)((const Object *)id)->data;
+  const Light *light = id_cast<const Light *>((id_cast<const Object *>(id))->data);
   data_.clear();
 
   switch (light->type) {
@@ -114,8 +114,8 @@ void LightData::remove()
 
 void LightData::update()
 {
-  const Object *object = (const Object *)id;
-  const Light *light = (const Light *)object->data;
+  const Object *object = id_cast<const Object *>(id);
+  const Light *light = id_cast<const Light *>(object->data);
   pxr::HdDirtyBits bits = pxr::HdLight::Clean;
   if (id->recalc & ID_RECALC_GEOMETRY || light->id.recalc & ID_RECALC_GEOMETRY) {
     if (prim_type(light) != prim_type_) {

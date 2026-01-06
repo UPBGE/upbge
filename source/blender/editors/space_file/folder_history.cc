@@ -22,6 +22,8 @@
 
 #include "file_intern.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name FOLDERLIST (previous/next)
  * \{ */
@@ -126,7 +128,7 @@ static ListBaseT<FolderList> folderlist_duplicate(ListBaseT<FolderList> *folderl
   BLI_duplicatelist(&folderlistn, folderlist);
 
   for (FolderList &folder : folderlistn) {
-    folder.foldername = (char *)MEM_dupallocN(folder.foldername);
+    folder.foldername = static_cast<char *>(MEM_dupallocN(folder.foldername));
   }
   return folderlistn;
 }
@@ -150,7 +152,7 @@ static FileFolderHistory *folder_history_find(const SpaceFile *sfile, eFileBrows
 
 void folder_history_list_ensure_for_active_browse_mode(SpaceFile *sfile)
 {
-  FileFolderHistory *history = folder_history_find(sfile, (eFileBrowse_Mode)sfile->browse_mode);
+  FileFolderHistory *history = folder_history_find(sfile, eFileBrowse_Mode(sfile->browse_mode));
 
   if (!history) {
     history = MEM_new_for_free<FileFolderHistory>(__func__);
@@ -197,3 +199,5 @@ ListBaseT<FileFolderHistory> folder_history_list_duplicate(ListBaseT<FileFolderH
 }
 
 /** \} */
+
+}  // namespace blender

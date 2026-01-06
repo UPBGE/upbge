@@ -22,6 +22,8 @@
 
 #include "rna_internal.hh" /* own include */
 
+namespace blender {
+
 #define MESH_DM_INFO_STR_MAX 16384
 
 static const EnumPropertyItem space_items[] = {
@@ -39,6 +41,8 @@ static const EnumPropertyItem space_items[] = {
     {CONSTRAINT_SPACE_LOCAL, "LOCAL", 0, "Local Space", "The local space of an object/bone"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+}  // namespace blender
 
 #ifdef RNA_RUNTIME
 
@@ -80,13 +84,15 @@ static const EnumPropertyItem space_items[] = {
 
 #  include "WM_api.hh"
 
+namespace blender {
+
 static Base *find_view_layer_base_with_synced_ensure(
     Object *ob, bContext *C, PointerRNA *view_layer_ptr, Scene **r_scene, ViewLayer **r_view_layer)
 {
   Scene *scene;
   ViewLayer *view_layer;
   if (view_layer_ptr->data) {
-    scene = (Scene *)view_layer_ptr->owner_id;
+    scene = id_cast<Scene *>(view_layer_ptr->owner_id);
     view_layer = static_cast<ViewLayer *>(view_layer_ptr->data);
   }
   else {
@@ -122,8 +128,7 @@ static void rna_Object_select_set(
     return;
   }
 
-  blender::ed::object::base_select(
-      base, select ? blender::ed::object::BA_SELECT : blender::ed::object::BA_DESELECT);
+  ed::object::base_select(base, select ? ed::object::BA_SELECT : ed::object::BA_DESELECT);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, scene);
@@ -261,7 +266,7 @@ static void rna_Object_local_view_set(Object *ob,
                                       PointerRNA *v3d_ptr,
                                       bool state)
 {
-  bScreen *screen = (bScreen *)v3d_ptr->owner_id;
+  bScreen *screen = id_cast<bScreen *>(v3d_ptr->owner_id);
   View3D *v3d = static_cast<View3D *>(v3d_ptr->data);
   Scene *scene;
   Base *base = rna_Object_local_view_property_helper(screen, v3d, nullptr, ob, reports, &scene);
@@ -272,7 +277,8 @@ static void rna_Object_local_view_set(Object *ob,
   SET_FLAG_FROM_TEST(base->local_view_bits, state, v3d->local_view_uid);
   if (local_view_bits_prev != base->local_view_bits) {
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-    ScrArea *area = ED_screen_area_find_with_spacedata(screen, (SpaceLink *)v3d, true);
+    ScrArea *area = ED_screen_area_find_with_spacedata(
+        screen, reinterpret_cast<SpaceLink *>(v3d), true);
     if (area) {
       ED_area_tag_redraw(area);
     }
@@ -294,7 +300,8 @@ static void rna_Object_mat_convert_space(Object *ob,
                                          int from,
                                          int to)
 {
-  copy_m4_m4((float (*)[4])mat_ret, (float (*)[4])mat);
+  copy_m4_m4(reinterpret_cast<float (*)[4]>(mat_ret),
+             reinterpret_cast<float (*)[4]>(const_cast<float *>(mat)));
 
   BLI_assert(!ELEM(from, CONSTRAINT_SPACE_OWNLOCAL));
   BLI_assert(!ELEM(to, CONSTRAINT_SPACE_OWNLOCAL));
@@ -340,7 +347,8 @@ static void rna_Object_mat_convert_space(Object *ob,
     return;
   }
 
-  BKE_constraint_mat_convertspace(ob, pchan, nullptr, (float (*)[4])mat_ret, from, to, false);
+  BKE_constraint_mat_convertspace(
+      ob, pchan, nullptr, reinterpret_cast<float (*)[4]>(mat_ret), from, to, false);
 }
 
 static void rna_Object_calc_matrix_camera(Object *ob,
@@ -362,7 +370,7 @@ static void rna_Object_calc_matrix_camera(Object *ob,
   BKE_camera_params_compute_viewplane(&params, width, height, scalex, scaley);
   BKE_camera_params_compute_matrix(&params);
 
-  copy_m4_m4((float (*)[4])mat_ret, params.winmat);
+  copy_m4_m4(reinterpret_cast<float (*)[4]>(mat_ret), params.winmat);
 }
 
 static void rna_Object_camera_fit_coords(Object *ob,
@@ -373,7 +381,7 @@ static void rna_Object_camera_fit_coords(Object *ob,
                                          float *scale_ret)
 {
   BKE_camera_view_frame_fit_to_coords(
-      depsgraph, (const float (*)[3])cos, cos_num / 3, ob, co_ret, scale_ret);
+      depsgraph, reinterpret_cast<const float (*)[3]>(cos), cos_num / 3, ob, co_ret, scale_ret);
 }
 
 static void rna_Object_crazyspace_eval(Object *object,
@@ -472,7 +480,7 @@ static PointerRNA rna_Object_shape_key_add(
     CLAMP(kb->curval, kb->slidermin, kb->slidermax);
 
     PointerRNA keyptr = RNA_pointer_create_discrete(
-        (ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
+        id_cast<ID *>(BKE_key_from_object(ob)), &RNA_ShapeKey, kb);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -559,7 +567,7 @@ static void rna_Mesh_assign_verts_to_group(
 /* don't call inside a loop */
 static int mesh_corner_tri_to_face_index(Mesh *mesh_eval, const int tri_index)
 {
-  const blender::Span<int> tri_faces = mesh_eval->corner_tri_faces();
+  const Span<int> tri_faces = mesh_eval->corner_tri_faces();
   const int face_i = tri_faces[tri_index];
   const int *index_face_to_orig = static_cast<const int *>(
       CustomData_get_layer(&mesh_eval->face_data, CD_ORIGINDEX));
@@ -616,7 +624,7 @@ static void rna_Object_ray_cast(Object *ob,
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
 
   /* Test bounding box first (efficiency) */
-  const std::optional<blender::Bounds<blender::float3>> bounds = mesh_eval->bounds_min_max();
+  const std::optional<Bounds<float3>> bounds = mesh_eval->bounds_min_max();
   if (!bounds) {
     return;
   }
@@ -633,7 +641,7 @@ static void rna_Object_ray_cast(Object *ob,
 
     /* No need to managing allocation or freeing of the BVH data.
      * This is generated and freed as needed. */
-    blender::bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
+    bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
 
     /* may fail if the mesh has no faces, in that case the ray-cast misses */
     if (treeData.tree != nullptr) {
@@ -688,7 +696,7 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
   /* No need to managing allocation or freeing of the BVH data.
    * this is generated and freed as needed. */
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
-  blender::bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
+  bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
 
   if (treeData.tree == nullptr) {
     BKE_reportf(reports,
@@ -755,7 +763,7 @@ void rna_Object_me_eval_info(
   switch (type) {
     case 0:
       if (ob->type == OB_MESH) {
-        mesh_eval = static_cast<Mesh *>(ob->data);
+        mesh_eval = id_cast<Mesh *>(ob->data);
       }
       break;
     case 1:
@@ -788,7 +796,7 @@ void rna_Object_me_eval_info(Object * /*ob*/,
 static bool rna_Object_update_from_editmode(Object *ob, Main *bmain)
 {
   /* fail gracefully if we aren't in edit-mode. */
-  const bool result = blender::ed::object::editmode_load(bmain, ob);
+  const bool result = ed::object::editmode_load(bmain, ob);
   if (result) {
     /* Loading edit mesh to mesh changes geometry, and scripts might expect it to be properly
      * informed about changes. */
@@ -797,7 +805,11 @@ static bool rna_Object_update_from_editmode(Object *ob, Main *bmain)
   return result;
 }
 
+}  // namespace blender
+
 #else /* RNA_RUNTIME */
+
+namespace blender {
 
 void RNA_api_object(StructRNA *srna)
 {
@@ -1329,5 +1341,7 @@ void RNA_api_object(StructRNA *srna)
                                   "Release memory used by caches associated with this object. "
                                   "Intended to be used by render engines only.");
 }
+
+}  // namespace blender
 
 #endif /* RNA_RUNTIME */

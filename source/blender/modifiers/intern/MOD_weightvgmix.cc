@@ -43,6 +43,8 @@
 #include "MOD_util.hh"
 #include "MOD_weightvg_util.hh"
 
+namespace blender {
+
 /**
  * This mixes the old weight with the new weight factor.
  */
@@ -121,13 +123,13 @@ static float mix_weight(float weight, float weight2, char mix_mode)
  **************************************/
 static void init_data(ModifierData *md)
 {
-  WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
+  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
   INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
+  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
 
   /* We need vertex groups! */
   r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
@@ -140,7 +142,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 {
-  WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
+  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
 
   if (wmd->mask_texture) {
     return BKE_texture_dependsOnTime(wmd->mask_texture);
@@ -150,10 +152,10 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
+  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&wmd->mask_texture, IDWALK_CB_USER);
-  walk(user_data, ob, (ID **)&wmd->mask_tex_map_obj, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->mask_texture), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->mask_tex_map_obj), IDWALK_CB_NOP);
 }
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
@@ -165,7 +167,7 @@ static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, voi
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
+  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
   bool need_transform_relation = false;
 
   if (wmd->mask_texture != nullptr) {
@@ -188,7 +190,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
+  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
   /* If no vertex group, bypass. */
   return (wmd->defgrp_name_a[0] == '\0');
 }
@@ -197,7 +199,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 {
   BLI_assert(mesh != nullptr);
 
-  WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
+  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
 
   MDeformWeight **dw1, **tdw1, **dw2, **tdw2;
   float *org_w;
@@ -438,7 +440,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  blender::ui::Layout &layout = *panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -466,7 +468,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void influence_panel_draw(const bContext *C, Panel *panel)
 {
-  blender::ui::Layout &layout = *panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -518,3 +520,5 @@ ModifierTypeInfo modifierType_WeightVGMix = {
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

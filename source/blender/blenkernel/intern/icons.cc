@@ -34,6 +34,8 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
+namespace blender {
+
 /**
  * Only allow non-managed icons to be removed (by Python for eg).
  * Previews & ID's have their own functions to remove icons.
@@ -47,7 +49,7 @@ enum {
 static CLG_LogRef LOG = {"lib.icons"};
 
 /* Protected by gIconMutex. */
-using GlobalIconsMap = blender::Map<int, Icon *>;
+using GlobalIconsMap = Map<int, Icon *>;
 static GlobalIconsMap &get_global_icons_map()
 {
   static GlobalIconsMap gIcons;
@@ -60,7 +62,7 @@ static int gNextIconId = 1;
 /* Protected by gIconMutex. */
 static int gFirstIconId = 1;
 
-static blender::Mutex gIconMutex;
+static Mutex gIconMutex;
 
 /* Queue of icons for deferred deletion. */
 struct DeferredIconDeleteNode {
@@ -72,13 +74,13 @@ static LockfreeLinkList g_icon_delete_queue;
 
 static void icon_free(void *val)
 {
-  Icon *icon = (Icon *)val;
+  Icon *icon = static_cast<Icon *>(val);
   if (!icon) {
     return;
   }
 
   if (icon->obj_type == ICON_DATA_GEOM) {
-    Icon_Geom *obj = (Icon_Geom *)icon->obj;
+    Icon_Geom *obj = static_cast<Icon_Geom *>(icon->obj);
     if (obj->mem) {
       /* coords & colors are part of this memory. */
       MEM_freeN(obj->mem);
@@ -103,26 +105,26 @@ static void icon_free_data(int icon_id, Icon *icon)
 {
   switch (icon->obj_type) {
     case ICON_DATA_ID:
-      ((ID *)(icon->obj))->icon_id = 0;
+      (static_cast<ID *>(icon->obj))->icon_id = 0;
       break;
     case ICON_DATA_IMBUF: {
-      ImBuf *imbuf = (ImBuf *)icon->obj;
+      ImBuf *imbuf = static_cast<ImBuf *>(icon->obj);
       if (imbuf) {
         IMB_freeImBuf(imbuf);
       }
       break;
     }
     case ICON_DATA_PREVIEW:
-      ((PreviewImage *)(icon->obj))->runtime->icon_id = 0;
+      (static_cast<PreviewImage *>(icon->obj))->runtime->icon_id = 0;
       break;
     case ICON_DATA_GPLAYER:
-      ((bGPDlayer *)(icon->obj))->runtime.icon_id = 0;
+      (static_cast<bGPDlayer *>(icon->obj))->runtime.icon_id = 0;
       break;
     case ICON_DATA_GEOM:
-      ((Icon_Geom *)(icon->obj))->icon_id = 0;
+      (static_cast<Icon_Geom *>(icon->obj))->icon_id = 0;
       break;
     case ICON_DATA_STUDIOLIGHT: {
-      StudioLight *sl = (StudioLight *)icon->obj;
+      StudioLight *sl = static_cast<StudioLight *>(icon->obj);
       if (sl != nullptr) {
         BKE_studiolight_unset_icon_id(sl, icon_id);
       }
@@ -197,8 +199,8 @@ void BKE_icons_deferred_free()
   std::scoped_lock lock(gIconMutex);
   GlobalIconsMap &gIcons = get_global_icons_map();
 
-  for (DeferredIconDeleteNode *node =
-           (DeferredIconDeleteNode *)BLI_linklist_lockfree_begin(&g_icon_delete_queue);
+  for (DeferredIconDeleteNode *node = reinterpret_cast<DeferredIconDeleteNode *>(
+           BLI_linklist_lockfree_begin(&g_icon_delete_queue));
        node != nullptr;
        node = node->next)
   {
@@ -229,7 +231,7 @@ void BKE_icon_changed(const int icon_id)
   /* Do not enforce creation of previews for valid ID types using BKE_previewimg_id_ensure()
    * here, we only want to ensure *existing* preview images are properly tagged as
    * changed/invalid, that's all. */
-  PreviewImage **p_prv = BKE_previewimg_id_get_p((ID *)icon->obj);
+  PreviewImage **p_prv = BKE_previewimg_id_get_p(static_cast<ID *>(icon->obj));
 
   /* If we have previews, they all are now invalid changed. */
   if (p_prv && *p_prv) {
@@ -403,7 +405,7 @@ ImBuf *BKE_icon_imbuf_get_buffer(int icon_id)
     return nullptr;
   }
 
-  return (ImBuf *)icon->obj;
+  return static_cast<ImBuf *>(icon->obj);
 }
 
 Icon *BKE_icon_get(const int icon_id)
@@ -436,7 +438,7 @@ static void icon_add_to_deferred_delete_queue(int icon_id)
   DeferredIconDeleteNode *node = MEM_mallocN<DeferredIconDeleteNode>(__func__);
   node->icon_id = icon_id;
   /* Doesn't need lock. */
-  BLI_linklist_lockfree_insert(&g_icon_delete_queue, (LockfreeLinkNode *)node);
+  BLI_linklist_lockfree_insert(&g_icon_delete_queue, reinterpret_cast<LockfreeLinkNode *>(node));
 }
 
 void BKE_icon_id_delete(ID *id)
@@ -566,7 +568,7 @@ Icon_Geom *BKE_icon_geom_from_file(const char *filename)
 {
   BLI_assert(BLI_thread_is_main());
   size_t data_len;
-  uchar *data = (uchar *)BLI_file_read_binary_as_mem(filename, 0, &data_len);
+  uchar *data = static_cast<uchar *>(BLI_file_read_binary_as_mem(filename, 0, &data_len));
   if (data == nullptr) {
     return nullptr;
   }
@@ -588,3 +590,5 @@ int BKE_icon_ensure_studio_light(StudioLight *sl, int id_type)
 }
 
 /** \} */
+
+}  // namespace blender

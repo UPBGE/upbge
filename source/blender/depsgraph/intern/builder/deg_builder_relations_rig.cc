@@ -57,7 +57,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
     return;
   }
 
-  bKinematicConstraint *data = (bKinematicConstraint *)con->data;
+  bKinematicConstraint *data = static_cast<bKinematicConstraint *>(con->data);
   /* Attach owner to IK Solver to. */
   bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
   if (rootchan == nullptr) {
@@ -149,7 +149,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
       add_customdata_mask(data->poletar, DEGCustomDataMeshMasks::MaskVert(CD_MASK_MDEFORMVERT));
     }
   }
-  DEG_DEBUG_PRINTF((::Depsgraph *)graph_,
+  DEG_DEBUG_PRINTF((blender::Depsgraph *)graph_,
                    BUILD,
                    "\nStarting IK Build: pchan = %s, target = (%s, %s), "
                    "segcount = %d\n",
@@ -189,7 +189,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
     parchan->flag |= POSE_DONE;
     root_map->add_bone(parchan->name, rootchan->name);
     /* continue up chain, until we reach target number of items. */
-    DEG_DEBUG_PRINTF((::Depsgraph *)graph_, BUILD, "  %d = %s\n", segcount, parchan->name);
+    DEG_DEBUG_PRINTF((blender::Depsgraph *)graph_, BUILD, "  %d = %s\n", segcount, parchan->name);
     /* TODO(sergey): This is an arbitrary value, which was just following
      * old code convention. */
     segcount++;
@@ -211,7 +211,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *object,
                                                    bConstraint *con,
                                                    RootPChanMap *root_map)
 {
-  bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
+  bSplineIKConstraint *data = static_cast<bSplineIKConstraint *>(con->data);
   bPoseChannel *rootchan = BKE_armature_splineik_solver_find_root(pchan, data);
   OperationKey transforms_key(&object->id, NodeType::BONE, pchan->name, OperationCode::BONE_READY);
   OperationKey init_ik_key(&object->id, NodeType::EVAL_POSE, OperationCode::POSE_INIT_IK);
@@ -289,7 +289,7 @@ void DepsgraphRelationBuilder::build_inter_ik_chains(Object *object,
 void DepsgraphRelationBuilder::build_rig(Object *object)
 {
   /* Armature-Data */
-  bArmature *armature = (bArmature *)object->data;
+  bArmature *armature = id_cast<bArmature *>(object->data);
   /* TODO: selection status? */
   /* Attach links between pose operations. */
   ComponentKey local_transform(&object->id, NodeType::TRANSFORM);

@@ -17,8 +17,10 @@
 
 #include "GPU_capabilities.hh"
 
+namespace blender {
+
 using namespace blender::gpu::shader;
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Binding assignment
@@ -202,7 +204,7 @@ static Type gpu_type_from_gl_type(int gl_type)
 GLShaderInterface::GLShaderInterface(GLuint program)
 {
   GLuint last_program;
-  glGetIntegerv(GL_CURRENT_PROGRAM, (GLint *)&last_program);
+  glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&last_program));
 
   /* Necessary to make #glUniform works. */
   glUseProgram(program);
@@ -374,7 +376,7 @@ GLShaderInterface::GLShaderInterface(GLuint program)
 
   /* Resize name buffer to save some memory. */
   if (name_buffer_offset < name_buffer_len) {
-    name_buffer_ = (char *)MEM_reallocN(name_buffer_, name_buffer_offset);
+    name_buffer_ = static_cast<char *>(MEM_reallocN(name_buffer_, name_buffer_offset));
   }
 
   // this->debug_print();
@@ -424,7 +426,7 @@ GLShaderInterface::GLShaderInterface(GLuint program, const shader::ShaderCreateI
 
   /* Necessary to make #glUniform works. TODO(fclem) Remove. */
   GLuint last_program;
-  glGetIntegerv(GL_CURRENT_PROGRAM, (GLint *)&last_program);
+  glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&last_program));
 
   glUseProgram(program);
 
@@ -589,4 +591,5 @@ void GLShaderInterface::ref_remove(GLVaoCache *ref)
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

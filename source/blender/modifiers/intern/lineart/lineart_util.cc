@@ -21,6 +21,8 @@
 
 #include "lineart_intern.hh"
 
+namespace blender {
+
 /* Line art memory and list helper */
 
 void *lineart_list_append_pointer_pool(ListBase *h, LineartStaticMemPool *smp, void *data)
@@ -87,7 +89,7 @@ void *lineart_list_pop_pointer_no_free(ListBase *h)
 }
 void lineart_list_remove_pointer_item_no_free(ListBase *h, LinkData *lip)
 {
-  BLI_remlink(h, (void *)lip);
+  BLI_remlink(h, static_cast<void *>(lip));
 }
 
 LineartStaticMemPoolNode *lineart_mem_new_static_pool(LineartStaticMemPool *smp, size_t size)
@@ -113,7 +115,7 @@ void *lineart_mem_acquire(LineartStaticMemPool *smp, size_t size)
     smpn = lineart_mem_new_static_pool(smp, size);
   }
 
-  ret = ((uchar *)smpn) + smpn->used_byte;
+  ret = (reinterpret_cast<uchar *>(smpn)) + smpn->used_byte;
 
   smpn->used_byte += size;
 
@@ -131,7 +133,7 @@ void *lineart_mem_acquire_thread(LineartStaticMemPool *smp, size_t size)
     smpn = lineart_mem_new_static_pool(smp, size);
   }
 
-  ret = ((uchar *)smpn) + smpn->used_byte;
+  ret = (reinterpret_cast<uchar *>(smpn)) + smpn->used_byte;
 
   smpn->used_byte += size;
 
@@ -240,3 +242,5 @@ void lineart_count_and_print_render_buffer_memory(LineartData *ld)
 
   (void)total; /* Ignored. */
 }
+
+}  // namespace blender

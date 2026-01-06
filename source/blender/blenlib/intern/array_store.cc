@@ -104,6 +104,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 struct BArrayState;
 struct BChunkList;
 struct BChunkRef;
@@ -1144,7 +1146,7 @@ static const BChunkRef *table_lookup(const BArrayInfo *info,
                                      const hash_key *table_hash_array)
 {
   const hash_key key = table_hash_array[((offset - i_table_start) / info->chunk_stride)];
-  const uint key_index = uint(key % (hash_key)table_len);
+  const uint key_index = uint(key % hash_key(table_len));
   const BTableRef *tref = table[key_index];
   if (tref != nullptr) {
     const size_t size_left = data_len - offset;
@@ -1318,7 +1320,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
 
     if (full_match) {
       if (chunk_list_reference->total_expanded_size == data_len_original) {
-        return (BChunkList *)chunk_list_reference;
+        return const_cast<BChunkList *>(chunk_list_reference);
       }
     }
   }
@@ -1529,7 +1531,7 @@ static BChunkList *bchunk_list_from_data_merge(const BArrayInfo *info,
                                           hash_store_len
 #endif
         );
-        const uint key_index = uint(key % (hash_key)table_len);
+        const uint key_index = uint(key % hash_key(table_len));
         BTableRef *tref_prev = table[key_index];
         BLI_assert(table_ref_stack_n < chunk_list_reference_remaining_len);
 #ifdef USE_HASH_TABLE_DEDUPLICATE
@@ -1865,14 +1867,15 @@ BArrayState *BLI_array_store_state_add(BArrayStore *bs,
   if (state_reference) {
     chunk_list = bchunk_list_from_data_merge(&bs->info,
                                              &bs->memory,
-                                             (const uchar *)data,
+                                             static_cast<const uchar *>(data),
                                              data_len,
                                              /* Re-use reference chunks. */
                                              state_reference->chunk_list);
   }
   else {
     chunk_list = bchunk_list_new(&bs->memory, data_len);
-    bchunk_list_fill_from_array(&bs->info, &bs->memory, chunk_list, (const uchar *)data, data_len);
+    bchunk_list_fill_from_array(
+        &bs->info, &bs->memory, chunk_list, static_cast<const uchar *>(data), data_len);
   }
 
   chunk_list->users += 1;
@@ -1922,7 +1925,7 @@ void BLI_array_store_state_data_get(const BArrayState *state, void *data)
   BLI_assert(data_test_len == state->chunk_list->total_expanded_size);
 #endif
 
-  uchar *data_step = (uchar *)data;
+  uchar *data_step = static_cast<uchar *>(data);
   for (BChunkRef &cref : state->chunk_list->chunk_refs) {
     BLI_assert(cref.link->users > 0);
     memcpy(data_step, cref.link->data, cref.link->data_len);
@@ -1998,8 +2001,8 @@ bool BLI_array_store_is_valid(BArrayStore *bs)
    * ---------------------------------- */
   {
     /* Count chunk_list's. */
-    blender::Map<BChunkList *, int> chunk_list_map;
-    blender::Map<BChunk *, int> chunk_map;
+    Map<BChunkList *, int> chunk_list_map;
+    Map<BChunk *, int> chunk_map;
 
     int totrefs = 0;
     for (BArrayState &state : bs->states) {
@@ -2050,3 +2053,5 @@ user_finally:
 }
 
 /** \} */
+
+}  // namespace blender

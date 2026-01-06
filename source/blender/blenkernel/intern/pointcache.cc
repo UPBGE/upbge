@@ -78,6 +78,8 @@
 
 #include <zstd.h>
 
+namespace blender {
+
 #define PTCACHE_DATA_FROM(data, type, from) \
   if (data[type]) { \
     memcpy(data[type], from, ptcache_data_size[type]); \
@@ -647,13 +649,14 @@ static void ptcache_cloth_error(const ID *owner_id, void *cloth_v, const char *m
   BLI_assert(GS(owner_id->name) == ID_OB);
   if (clmd->hairdata == nullptr) {
     /* If there is hair data, this modifier does not actually exist on the object. */
-    BKE_modifier_set_error((Object *)owner_id, &clmd->modifier, "%s", message);
+    BKE_modifier_set_error(
+        id_cast<Object *>(const_cast<ID *>(owner_id)), &clmd->modifier, "%s", message);
   }
 }
 
 static int ptcache_dynamicpaint_totpoint(void *sd, int /*cfra*/)
 {
-  DynamicPaintSurface *surface = (DynamicPaintSurface *)sd;
+  DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(sd);
 
   if (!surface->data) {
     return 0;
@@ -673,7 +676,7 @@ static void ptcache_dynamicpaint_error(const ID * /*owner_id*/,
 
 static int ptcache_dynamicpaint_write(PTCacheFile *pf, void *dp_v)
 {
-  DynamicPaintSurface *surface = (DynamicPaintSurface *)dp_v;
+  DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(dp_v);
 
   /* version header */
   ptcache_file_write(pf, DPAINT_CACHE_VERSION, 1, sizeof(char[4]));
@@ -704,7 +707,7 @@ static int ptcache_dynamicpaint_write(PTCacheFile *pf, void *dp_v)
 }
 static int ptcache_dynamicpaint_read(PTCacheFile *pf, void *dp_v)
 {
-  DynamicPaintSurface *surface = (DynamicPaintSurface *)dp_v;
+  DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(dp_v);
   char version[4];
 
   /* version header */
@@ -1154,22 +1157,22 @@ static bool foreach_object_modifier_ptcache(Object *object, PointCacheIdFn callb
        md = md->next)
   {
     if (md->type == eModifierType_Cloth) {
-      BKE_ptcache_id_from_cloth(&pid, object, (ClothModifierData *)md);
+      BKE_ptcache_id_from_cloth(&pid, object, reinterpret_cast<ClothModifierData *>(md));
       if (!callback(pid, md)) {
         return false;
       }
     }
     else if (md->type == eModifierType_Fluid) {
-      FluidModifierData *fmd = (FluidModifierData *)md;
+      FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
       if (fmd->type & MOD_FLUID_TYPE_DOMAIN) {
-        BKE_ptcache_id_from_smoke(&pid, object, (FluidModifierData *)md);
+        BKE_ptcache_id_from_smoke(&pid, object, reinterpret_cast<FluidModifierData *>(md));
         if (!callback(pid, md)) {
           return false;
         }
       }
     }
     else if (md->type == eModifierType_DynamicPaint) {
-      DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
+      DynamicPaintModifierData *pmd = reinterpret_cast<DynamicPaintModifierData *>(md);
       if (pmd->canvas) {
         DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(
             pmd->canvas->surfaces.first);
@@ -1354,7 +1357,8 @@ static size_t ptcache_filepath_ext_append(PTCacheID *pid,
   /* PointCaches are inserted in object's list on demand, we need a valid index now. */
   if (pid->cache->index < 0) {
     BLI_assert(GS(pid->owner_id->name) == ID_OB);
-    pid->cache->index = pid->stack_index = BKE_object_insert_ptcache((Object *)pid->owner_id);
+    pid->cache->index = pid->stack_index = BKE_object_insert_ptcache(
+        id_cast<Object *>(pid->owner_id));
   }
 
   const char *ext = ptcache_file_extension(pid);
@@ -1538,7 +1542,7 @@ static int ptcache_file_compressed_read(PTCacheFile *pf,
 
       /* Un-filter the decompressed data, if needed. */
       if (compressed == PTCACHE_COMPRESS_ZSTD_FILTERED) {
-        blender::unfilter_transpose_delta(decomp_result, result, items_num, item_size);
+        unfilter_transpose_delta(decomp_result, result, items_num, item_size);
         MEM_freeN(decomp_result);
       }
     }
@@ -1559,11 +1563,12 @@ static void ptcache_file_compressed_write(PTCacheFile *pf,
   const PointCacheCompression compression = PTCACHE_COMPRESS_ZSTD_FILTERED;
   const uint data_size = items_num * item_size;
   size_t out_len = ZSTD_compressBound(data_size);
-  blender::Array<uchar> out(out_len);
+  Array<uchar> out(out_len);
 
   /* Filter the data: transpose by bytes; delta-encode. */
-  blender::Array<uchar> filtered(data_size);
-  blender::filter_transpose_delta((const uint8_t *)data, filtered.data(), items_num, item_size);
+  Array<uchar> filtered(data_size);
+  filter_transpose_delta(
+      static_cast<const uint8_t *>(data), filtered.data(), items_num, item_size);
 
   /* Do compression: always zstd level 3. */
   const int zstd_level = 3;
@@ -1721,7 +1726,7 @@ void BKE_ptcache_mem_pointers_incr(void *cur[BPHYS_TOT_DATA])
 
   for (i = 0; i < BPHYS_TOT_DATA; i++) {
     if (cur[i]) {
-      cur[i] = (char *)cur[i] + ptcache_data_size[i];
+      cur[i] = static_cast<char *>(cur[i]) + ptcache_data_size[i];
     }
   }
 }
@@ -1740,8 +1745,9 @@ int BKE_ptcache_mem_pointers_seek(int point_index, PTCacheMem *pm, void *cur[BPH
   }
 
   for (i = 0; i < BPHYS_TOT_DATA; i++) {
-    cur[i] = (data_types & (1 << i)) ? (char *)pm->data[i] + index * ptcache_data_size[i] :
-                                       nullptr;
+    cur[i] = (data_types & (1 << i)) ?
+                 static_cast<char *>(pm->data[i]) + index * ptcache_data_size[i] :
+                 nullptr;
   }
 
   return 1;
@@ -2834,7 +2840,7 @@ int BKE_ptcache_id_reset(Scene *scene, PTCacheID *pid, int mode)
       psys_reset(static_cast<ParticleSystem *>(pid->calldata), PSYS_RESET_DEPSGRAPH);
     }
     else if (pid->type == PTCACHE_TYPE_DYNAMICPAINT) {
-      dynamicPaint_clearSurface(scene, (DynamicPaintSurface *)pid->calldata);
+      dynamicPaint_clearSurface(scene, static_cast<DynamicPaintSurface *>(pid->calldata));
     }
   }
   if (clear) {
@@ -2886,11 +2892,11 @@ int BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 
   for (ModifierData &md : ob->modifiers) {
     if (md.type == eModifierType_Cloth) {
-      BKE_ptcache_id_from_cloth(&pid, ob, (ClothModifierData *)&md);
+      BKE_ptcache_id_from_cloth(&pid, ob, reinterpret_cast<ClothModifierData *>(&md));
       reset |= BKE_ptcache_id_reset(scene, &pid, mode);
     }
     if (md.type == eModifierType_DynamicPaint) {
-      DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)&md;
+      DynamicPaintModifierData *pmd = reinterpret_cast<DynamicPaintModifierData *>(&md);
       if (pmd->canvas) {
         DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(
             pmd->canvas->surfaces.first);
@@ -2902,7 +2908,7 @@ int BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
       }
     }
     if (md.type == eModifierType_Fluid) {
-      FluidModifierData *fmd = (FluidModifierData *)&md;
+      FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(&md);
       FluidDomainSettings *fds = fmd->domain;
       if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fds &&
           fds->cache_type == FLUID_DOMAIN_CACHE_REPLAY)
@@ -3111,7 +3117,8 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
         /* get all pids from the object and search for smoke low res */
         ListBaseT<PTCacheID> pidlist2;
         BLI_assert(GS(pid->owner_id->name) == ID_OB);
-        BKE_ptcache_ids_from_object(&pidlist2, (Object *)pid->owner_id, scene, MAX_DUPLI_RECUR);
+        BKE_ptcache_ids_from_object(
+            &pidlist2, id_cast<Object *>(pid->owner_id), scene, MAX_DUPLI_RECUR);
         for (PTCacheID &pid2 : pidlist2) {
           if (pid2.type == PTCACHE_TYPE_SMOKE_DOMAIN) {
             if (pid2.cache && !(pid2.cache->flag & PTCACHE_BAKED)) {
@@ -3154,7 +3161,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
         cache = pid->cache;
         if ((cache->flag & PTCACHE_BAKED) == 0) {
           if (pid->type == PTCACHE_TYPE_PARTICLES) {
-            ParticleSystem *psys = (ParticleSystem *)pid->calldata;
+            ParticleSystem *psys = static_cast<ParticleSystem *>(pid->calldata);
             /* skip hair & keyed particles */
             if (psys->part->type == PART_HAIR || psys->part->phystype == PART_PHYS_KEYED) {
               continue;
@@ -3291,7 +3298,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
       for (PTCacheID &pid : pidlist) {
         /* skip hair particles */
         if (pid.type == PTCACHE_TYPE_PARTICLES &&
-            ((ParticleSystem *)pid.calldata)->part->type == PART_HAIR)
+            (static_cast<ParticleSystem *>(pid.calldata))->part->type == PART_HAIR)
         {
           continue;
         }
@@ -3433,7 +3440,7 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 
   if ((cache->flag & PTCACHE_DISK_CACHE) == 0) {
     if (cache->index) {
-      BKE_object_delete_ptcache((Object *)pid->owner_id, cache->index);
+      BKE_object_delete_ptcache(id_cast<Object *>(pid->owner_id), cache->index);
       cache->index = -1;
     }
   }
@@ -3840,3 +3847,5 @@ void BKE_ptcache_blend_read_data(BlendDataReader *reader,
     ptcaches->first = ptcaches->last = *ocache;
   }
 }
+
+}  // namespace blender

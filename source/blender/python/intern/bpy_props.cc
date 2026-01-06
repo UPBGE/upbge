@@ -42,7 +42,7 @@
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
-using blender::Array;
+namespace blender {
 
 /* Disabled duplicating strings because the array can still be freed and
  * the strings from it referenced, for now we can't support dynamically
@@ -213,7 +213,7 @@ static void bpy_prop_py_data_remove(PropertyRNA *prop)
     return;
   }
 
-  PyObject **py_data = (PyObject **)&prop_store->py_data;
+  PyObject **py_data = reinterpret_cast<PyObject **>(&prop_store->py_data);
   for (int i = 0; i < BPY_PROP_STORE_PY_DATA_SIZE; i++) {
     Py_XDECREF(py_data[i]);
   }
@@ -293,8 +293,16 @@ static PyObject *bpy_prop_deferred_keywords_get(BPy_PropDeferred *self, void * /
 }
 
 static PyGetSetDef bpy_prop_deferred_getset[] = {
-    {"function", (getter)bpy_prop_deferred_function_get, (setter) nullptr, nullptr, nullptr},
-    {"keywords", (getter)bpy_prop_deferred_keywords_get, (setter) nullptr, nullptr, nullptr},
+    {"function",
+     reinterpret_cast<getter>(bpy_prop_deferred_function_get),
+     static_cast<setter>(nullptr),
+     nullptr,
+     nullptr},
+    {"keywords",
+     reinterpret_cast<getter>(bpy_prop_deferred_keywords_get),
+     static_cast<setter>(nullptr),
+     nullptr,
+     nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
 
@@ -311,25 +319,25 @@ PyTypeObject bpy_prop_deferred_Type = {
     /*tp_name*/ "_PropertyDeferred",
     /*tp_basicsize*/ sizeof(BPy_PropDeferred),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)bpy_prop_deferred_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(bpy_prop_deferred_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
-    /*tp_repr*/ (reprfunc)bpy_prop_deferred_repr,
+    /*tp_repr*/ reinterpret_cast<reprfunc>(bpy_prop_deferred_repr),
     /*tp_as_number*/ nullptr,
     /*tp_as_sequence*/ nullptr,
     /*tp_as_mapping*/ nullptr,
     /*tp_hash*/ nullptr,
-    /*tp_call*/ (ternaryfunc)bpy_prop_deferred_call,
+    /*tp_call*/ reinterpret_cast<ternaryfunc>(bpy_prop_deferred_call),
     /*tp_str*/ nullptr,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ bpy_prop_deferred_doc,
-    /*tp_traverse*/ (traverseproc)bpy_prop_deferred_traverse,
-    /*tp_clear*/ (inquiry)bpy_prop_deferred_clear,
+    /*tp_traverse*/ reinterpret_cast<traverseproc>(bpy_prop_deferred_traverse),
+    /*tp_clear*/ reinterpret_cast<inquiry>(bpy_prop_deferred_clear),
     /*tp_richcompare*/ nullptr,
     /*tp_weaklistoffset*/ 0,
     /*tp_iter*/ nullptr,
@@ -371,7 +379,7 @@ static PyObject *bpy_prop_deferred_data_CreatePyObject(PyObject *fn, PyObject *k
   self->kw = kw;
   BLI_assert(!PyObject_GC_IsTracked((PyObject *)self));
   PyObject_GC_Track(self);
-  return (PyObject *)self;
+  return reinterpret_cast<PyObject *>(self);
 }
 
 /** \} */
@@ -2034,9 +2042,7 @@ static std::string bpy_prop_string_set_transform_fn(PointerRNA *ptr,
 }
 
 static bool bpy_prop_string_visit_fn_call(
-    PyObject *py_func,
-    PyObject *item,
-    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+    PyObject *py_func, PyObject *item, FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   const char *text;
   const char *info = nullptr;
@@ -2085,11 +2091,11 @@ static void bpy_prop_string_visit_for_search_fn(
     PointerRNA *ptr,
     PropertyRNA *prop,
     const char *edit_text,
-    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   PyGILState_STATE gilstate;
   if (C) {
-    bpy_context_set((bContext *)C, &gilstate);
+    bpy_context_set(const_cast<bContext *>(C), &gilstate);
   }
   else {
     gilstate = PyGILState_Ensure();
@@ -2178,7 +2184,7 @@ static void bpy_prop_string_visit_for_search_fn(
   }
 
   if (C) {
-    bpy_context_clear((bContext *)C, &gilstate);
+    bpy_context_clear(const_cast<bContext *>(C), &gilstate);
   }
   else {
     PyGILState_Release(gilstate);
@@ -2718,7 +2724,7 @@ static int bpy_prop_callback_check(PyObject *py_func, const char *keyword, int a
       return -1;
     }
 
-    PyCodeObject *f_code = (PyCodeObject *)PyFunction_GET_CODE(py_func);
+    PyCodeObject *f_code = reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(py_func);
     if (f_code->co_argcount != argcount) {
       PyErr_Format(PyExc_TypeError,
                    "%s keyword: expected a function taking %d arguments, not %d",
@@ -3221,7 +3227,7 @@ static StructRNA *bpy_prop_deferred_data_or_srna(PyObject *self,
   BLI_assert(PyCFunction_CheckExact(method_object));
 
   const int args_len = PyTuple_GET_SIZE(args);
-  PyMethodDef *method_def = ((PyCFunctionObject *)method_object)->m_ml;
+  PyMethodDef *method_def = (reinterpret_cast<PyCFunctionObject *>(method_object))->m_ml;
 
   /* Call this function with the first argument set to `self`. */
   if (args_len == 1) {
@@ -3255,7 +3261,7 @@ static StructRNA *bpy_prop_deferred_data_or_srna(PyObject *self,
 
 /* Crash if this is ever used by accident! */
 #ifndef NDEBUG
-  *r_deferred_result = (PyObject *)intptr_t(1);
+  *r_deferred_result = reinterpret_cast<PyObject *>(intptr_t(1));
 #endif
 
   /* No error or deferred result, perform registration immediately. */
@@ -5141,7 +5147,7 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
   /* Items can be a list or a callable.
    * NOTE: Don't use #PyCallable_Check because we need the function code for errors. */
   if (PyFunction_Check(items)) {
-    PyCodeObject *f_code = (PyCodeObject *)PyFunction_GET_CODE(items);
+    PyCodeObject *f_code = reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(items);
     if (f_code->co_argcount != 2) {
       PyErr_Format(PyExc_ValueError,
                    "EnumProperty(...): expected 'items' function to take 2 arguments, not %d",
@@ -5624,48 +5630,48 @@ static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw
 
 static PyMethodDef props_methods[] = {
     {"BoolProperty",
-     (PyCFunction)BPy_BoolProperty,
+     reinterpret_cast<PyCFunction>(BPy_BoolProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_BoolProperty_doc},
     {"BoolVectorProperty",
-     (PyCFunction)BPy_BoolVectorProperty,
+     reinterpret_cast<PyCFunction>(BPy_BoolVectorProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_BoolVectorProperty_doc},
     {"IntProperty",
-     (PyCFunction)BPy_IntProperty,
+     reinterpret_cast<PyCFunction>(BPy_IntProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_IntProperty_doc},
     {"IntVectorProperty",
-     (PyCFunction)BPy_IntVectorProperty,
+     reinterpret_cast<PyCFunction>(BPy_IntVectorProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_IntVectorProperty_doc},
     {"FloatProperty",
-     (PyCFunction)BPy_FloatProperty,
+     reinterpret_cast<PyCFunction>(BPy_FloatProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_FloatProperty_doc},
     {"FloatVectorProperty",
-     (PyCFunction)BPy_FloatVectorProperty,
+     reinterpret_cast<PyCFunction>(BPy_FloatVectorProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_FloatVectorProperty_doc},
     {"StringProperty",
-     (PyCFunction)BPy_StringProperty,
+     reinterpret_cast<PyCFunction>(BPy_StringProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_StringProperty_doc},
     {"EnumProperty",
-     (PyCFunction)BPy_EnumProperty,
+     reinterpret_cast<PyCFunction>(BPy_EnumProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_EnumProperty_doc},
     {"PointerProperty",
-     (PyCFunction)BPy_PointerProperty,
+     reinterpret_cast<PyCFunction>(BPy_PointerProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_PointerProperty_doc},
     {"CollectionProperty",
-     (PyCFunction)BPy_CollectionProperty,
+     reinterpret_cast<PyCFunction>(BPy_CollectionProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_CollectionProperty_doc},
 
     {"RemoveProperty",
-     (PyCFunction)BPy_RemoveProperty,
+     reinterpret_cast<PyCFunction>(BPy_RemoveProperty),
      METH_VARARGS | METH_KEYWORDS,
      BPy_RemoveProperty_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -5682,7 +5688,7 @@ static PyMethodDef props_methods[] = {
 static int props_visit(PyObject * /*self*/, visitproc visit, void *arg)
 {
   for (BPyPropStore &prop_store : g_bpy_prop_store_list) {
-    PyObject **py_data = (PyObject **)&prop_store.py_data;
+    PyObject **py_data = reinterpret_cast<PyObject **>(&prop_store.py_data);
     for (int i = 0; i < BPY_PROP_STORE_PY_DATA_SIZE; i++) {
       Py_VISIT(py_data[i]);
     }
@@ -5693,7 +5699,7 @@ static int props_visit(PyObject * /*self*/, visitproc visit, void *arg)
 static int props_clear(PyObject * /*self*/)
 {
   for (BPyPropStore &prop_store : g_bpy_prop_store_list) {
-    PyObject **py_data = (PyObject **)&prop_store.py_data;
+    PyObject **py_data = reinterpret_cast<PyObject **>(&prop_store.py_data);
     for (int i = 0; i < BPY_PROP_STORE_PY_DATA_SIZE; i++) {
       Py_CLEAR(py_data[i]);
     }
@@ -5771,3 +5777,5 @@ void BPY_rna_props_clear_all()
 }
 
 /** \} */
+
+}  // namespace blender

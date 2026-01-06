@@ -31,13 +31,15 @@
 
 #include "graph_intern.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Set Up Drivers Editor
  * \{ */
 
 void ED_drivers_editor_init(bContext *C, ScrArea *area)
 {
-  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
+  SpaceGraph *sipo = static_cast<SpaceGraph *>(area->spacedata.first);
 
   /* Set mode */
   sipo->mode = SIPO_MODE_DRIVERS;
@@ -45,7 +47,7 @@ void ED_drivers_editor_init(bContext *C, ScrArea *area)
   /* Show Properties Region (or else the settings can't be edited) */
   ARegion *region_props = BKE_area_find_region_type(area, RGN_TYPE_UI);
   if (region_props) {
-    blender::ui::panel_category_active_set(region_props, "Drivers");
+    ui::panel_category_active_set(region_props, "Drivers");
 
     region_props->flag &= ~RGN_FLAG_HIDDEN;
     /* XXX: Adjust width of this too? */
@@ -90,7 +92,7 @@ bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
    * if they were from linked data.
    */
   if (items) {
-    bAnimListElem *ale = (bAnimListElem *)anim_data.first;
+    bAnimListElem *ale = static_cast<bAnimListElem *>(anim_data.first);
 
     /* remove first item from list, then free the rest of the list and return the stored one */
     BLI_remlink(&anim_data, ale);
@@ -140,7 +142,7 @@ bool graphop_visible_keyframes_poll(bContext *C)
   }
 
   for (bAnimListElem &ale : anim_data) {
-    const FCurve *fcu = (const FCurve *)ale.data;
+    const FCurve *fcu = static_cast<const FCurve *>(ale.data);
 
     /* visible curves for selection must fulfill the following criteria:
      * - it has bezier keyframes
@@ -194,7 +196,7 @@ bool graphop_editable_keyframes_poll(bContext *C)
   }
 
   for (bAnimListElem &ale : anim_data) {
-    const FCurve *fcu = (const FCurve *)ale.data;
+    const FCurve *fcu = static_cast<const FCurve *>(ale.data);
 
     /* editable curves must fulfill the following criteria:
      * - it has bezier keyframes
@@ -249,7 +251,7 @@ bool graphop_active_fcurve_poll(bContext *C)
    */
   has_fcurve = ((ale->data) && ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE));
   if (has_fcurve) {
-    const FCurve *fcu = (const FCurve *)ale->data;
+    const FCurve *fcu = static_cast<const FCurve *>(ale->data);
     has_fcurve = (fcu->flag & FCURVE_VISIBLE) != 0;
   }
 
@@ -303,3 +305,5 @@ bool graphop_selected_fcurve_poll(bContext *C)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -189,7 +189,7 @@ static Mesh *create_circle_mesh(const float radius,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryMeshCircle &storage = node_storage(params.node());
-  const GeometryNodeMeshCircleFillType fill = (GeometryNodeMeshCircleFillType)storage.fill_type;
+  const GeometryNodeMeshCircleFillType fill = GeometryNodeMeshCircleFillType(storage.fill_type);
 
   const float radius = params.extract_input<float>("Radius");
   const int verts_num = params.extract_input<int>("Vertices");
@@ -219,7 +219,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMeshCircle", GEO_NODE_MESH_PRIMITIVE_CIRCLE);
   ntype.ui_name = "Mesh Circle";
@@ -227,12 +227,12 @@ static void node_register()
   ntype.enum_name_legacy = "MESH_PRIMITIVE_CIRCLE";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryMeshCircle", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

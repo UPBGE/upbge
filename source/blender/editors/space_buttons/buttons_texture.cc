@@ -56,6 +56,8 @@
 
 #include "buttons_intern.hh" /* own include */
 
+namespace blender {
+
 static ScrArea *find_area_properties(const bContext *C);
 static SpaceProperties *find_space_properties(const bContext *C);
 
@@ -166,18 +168,17 @@ static void buttons_texture_users_find_nodetree(ListBaseT<ButsTextureUser> *user
                                       node->name);
       }
       else if (node->is_group() && node->id) {
-        buttons_texture_users_find_nodetree(users, id, (bNodeTree *)node->id, category);
+        buttons_texture_users_find_nodetree(users, id, id_cast<bNodeTree *>(node->id), category);
       }
     }
   }
 }
 
-static void buttons_texture_modifier_geonodes_users_add(
-    Object *ob,
-    NodesModifierData *nmd,
-    bNodeTree *node_tree,
-    ListBaseT<ButsTextureUser> *users,
-    blender::Set<const bNodeTree *> &handled_groups)
+static void buttons_texture_modifier_geonodes_users_add(Object *ob,
+                                                        NodesModifierData *nmd,
+                                                        bNodeTree *node_tree,
+                                                        ListBaseT<ButsTextureUser> *users,
+                                                        Set<const bNodeTree *> &handled_groups)
 {
   PropertyRNA *prop;
 
@@ -186,7 +187,7 @@ static void buttons_texture_modifier_geonodes_users_add(
       if (handled_groups.add(reinterpret_cast<bNodeTree *>(node->id))) {
         /* Recurse into the node group */
         buttons_texture_modifier_geonodes_users_add(
-            ob, nmd, (bNodeTree *)node->id, users, handled_groups);
+            ob, nmd, id_cast<bNodeTree *>(node->id), users, handled_groups);
       }
     }
     for (bNodeSocket &socket : node->inputs) {
@@ -200,7 +201,8 @@ static void buttons_texture_modifier_geonodes_users_add(
       prop = RNA_struct_find_property(&ptr, "default_value");
 
       PointerRNA texptr = RNA_property_pointer_get(&ptr, prop);
-      Tex *tex = RNA_struct_is_a(texptr.type, &RNA_Texture) ? (Tex *)texptr.data : nullptr;
+      Tex *tex = RNA_struct_is_a(texptr.type, &RNA_Texture) ? static_cast<Tex *>(texptr.data) :
+                                                              nullptr;
       if (tex != nullptr) {
         buttons_texture_user_socket_property_add(users,
                                                  &ob->id,
@@ -226,14 +228,14 @@ static void buttons_texture_modifier_foreach(void *user_data,
   ListBaseT<ButsTextureUser> *users = static_cast<ListBaseT<ButsTextureUser> *>(user_data);
 
   if (md->type == eModifierType_Nodes) {
-    NodesModifierData *nmd = (NodesModifierData *)md;
+    NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
     if (nmd->node_group != nullptr) {
-      blender::Set<const bNodeTree *> handled_groups;
+      Set<const bNodeTree *> handled_groups;
       buttons_texture_modifier_geonodes_users_add(ob, nmd, nmd->node_group, users, handled_groups);
     }
   }
   else {
-    const ModifierTypeInfo *modifier_type = BKE_modifier_get_info((ModifierType)md->type);
+    const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type));
 
     buttons_texture_user_property_add(
         users, &ob->id, *ptr, texture_prop, N_("Modifiers"), modifier_type->icon, md->name);
@@ -254,16 +256,16 @@ static void buttons_texture_users_from_context(ListBaseT<ButsTextureUser> *users
   /* get data from context */
   if (pinid) {
     if (GS(pinid->name) == ID_SCE) {
-      scene = (Scene *)pinid;
+      scene = id_cast<Scene *>(pinid);
     }
     else if (GS(pinid->name) == ID_OB) {
-      ob = (Object *)pinid;
+      ob = id_cast<Object *>(pinid);
     }
     else if (GS(pinid->name) == ID_BR) {
       brush = reinterpret_cast<Brush *>(pinid);
     }
     else if (GS(pinid->name) == ID_LS) {
-      linestyle = (FreestyleLineStyle *)pinid;
+      linestyle = id_cast<FreestyleLineStyle *>(pinid);
     }
   }
 
@@ -386,7 +388,7 @@ void buttons_texture_context_compute(const bContext *C, SpaceProperties *sbuts)
 
   if (pinid && GS(pinid->name) == ID_TE) {
     ct->user = nullptr;
-    ct->texture = (Tex *)pinid;
+    ct->texture = id_cast<Tex *>(pinid);
   }
   else {
     /* set one user as active based on active index */
@@ -433,7 +435,7 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
   /* callback when selecting a texture user in the menu */
   SpaceProperties *sbuts = find_space_properties(C);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
-  ButsTextureUser *user = (ButsTextureUser *)user_p;
+  ButsTextureUser *user = static_cast<ButsTextureUser *>(user_p);
   PointerRNA texptr;
   Tex *tex;
 
@@ -448,9 +450,9 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
 
     /* Not totally sure if we should also change selection? */
     for (bNode *node : user->ntree->all_nodes()) {
-      blender::bke::node_set_selected(*node, false);
+      bke::node_set_selected(*node, false);
     }
-    blender::bke::node_set_selected(*user->node, true);
+    bke::node_set_selected(*user->node, true);
     WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
   }
   if (user->ptr.data) {
@@ -462,7 +464,7 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
     if (user->ptr.type == &RNA_ParticleSettingsTextureSlot) {
       /* stupid exception for particle systems which still uses influence
        * from the old texture system, set the active texture slots as well */
-      ParticleSettings *part = (ParticleSettings *)user->ptr.owner_id;
+      ParticleSettings *part = id_cast<ParticleSettings *>(user->ptr.owner_id);
       int a;
 
       for (a = 0; a < MAX_MTEX; a++) {
@@ -481,23 +483,23 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
   ct->index = user->index;
 }
 
-static void template_texture_user_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
+static void template_texture_user_menu(bContext *C, ui::Layout *layout, void * /*arg*/)
 {
   /* callback when opening texture user selection menu, to create buttons. */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-  blender::ui::Block *block = layout->block();
+  ui::Block *block = layout->block();
   const char *last_category = nullptr;
 
   for (ButsTextureUser &user : ct->users) {
-    blender::ui::Button *but;
+    ui::Button *but;
     char name[UI_MAX_NAME_STR];
 
     /* add label per category */
     if (!last_category || !STREQ(last_category, user.category)) {
       layout->label(IFACE_(user.category), ICON_NONE);
       but = block->buttons.last().get();
-      but->drawflag = blender::ui::BUT_TEXT_LEFT;
+      but->drawflag = ui::BUT_TEXT_LEFT;
     }
 
     /* create button */
@@ -516,36 +518,28 @@ static void template_texture_user_menu(bContext *C, blender::ui::Layout *layout,
       SNPRINTF_UTF8(name, "  %s", user.name);
     }
 
-    but = uiDefIconTextBut(block,
-                           blender::ui::ButtonType::But,
-                           user.icon,
-                           name,
-                           0,
-                           0,
-                           UI_UNIT_X * 4,
-                           UI_UNIT_Y,
-                           nullptr,
-                           "");
+    but = uiDefIconTextBut(
+        block, ui::ButtonType::But, user.icon, name, 0, 0, UI_UNIT_X * 4, UI_UNIT_Y, nullptr, "");
     button_funcN_set(but,
                      template_texture_select,
                      MEM_new<ButsTextureUser>("ButsTextureUser", user),
                      nullptr,
-                     blender::ui::but_func_argN_free<ButsTextureUser>,
-                     blender::ui::but_func_argN_copy<ButsTextureUser>);
+                     ui::but_func_argN_free<ButsTextureUser>,
+                     ui::but_func_argN_copy<ButsTextureUser>);
 
     last_category = user.category;
   }
 }
 
-void uiTemplateTextureUser(blender::ui::Layout *layout, bContext *C)
+void uiTemplateTextureUser(ui::Layout *layout, bContext *C)
 {
   /* Texture user selection drop-down menu. the available users have been
    * gathered before drawing in #ButsContextTexture, we merely need to
    * display the current item. */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
-  blender::ui::Block *block = layout->block();
-  blender::ui::Button *but;
+  ui::Block *block = layout->block();
+  ui::Button *but;
   ButsTextureUser *user;
   char name[UI_MAX_NAME_STR];
 
@@ -584,7 +578,7 @@ void uiTemplateTextureUser(blender::ui::Layout *layout, bContext *C)
   /* some cosmetic tweaks */
   button_type_set_menu_from_pulldown(but);
 
-  but->flag &= ~blender::ui::BUT_ICON_SUBMENU;
+  but->flag &= ~ui::BUT_ICON_SUBMENU;
 }
 
 /************************* Texture Show **************************/
@@ -599,7 +593,7 @@ static ScrArea *find_area_properties(const bContext *C)
       /* Only if unpinned, or if pinned object matches. */
       SpaceProperties *sbuts = static_cast<SpaceProperties *>(area.spacedata.first);
       ID *pinid = sbuts->pinid;
-      if (pinid == nullptr || ((GS(pinid->name) == ID_OB) && (Object *)pinid == ob)) {
+      if (pinid == nullptr || ((GS(pinid->name) == ID_OB) && id_cast<Object *>(pinid) == ob)) {
         return &area;
       }
     }
@@ -629,7 +623,7 @@ static void template_texture_show(bContext *C, void *data_p, void *prop_p)
     return;
   }
 
-  SpaceProperties *sbuts = (SpaceProperties *)area->spacedata.first;
+  SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
   if (!ct) {
     return;
@@ -656,7 +650,7 @@ static void template_texture_show(bContext *C, void *data_p, void *prop_p)
   }
 }
 
-void uiTemplateTextureShow(blender::ui::Layout *layout,
+void uiTemplateTextureShow(ui::Layout *layout,
                            const bContext *C,
                            PointerRNA *ptr,
                            PropertyRNA *prop)
@@ -689,10 +683,10 @@ void uiTemplateTextureShow(blender::ui::Layout *layout,
   }
 
   /* Draw button (disabled if we cannot find a Properties Editor to display this in). */
-  blender::ui::Block *block = layout->block();
-  blender::ui::Button *but;
+  ui::Block *block = layout->block();
+  ui::Button *but;
   but = uiDefIconBut(block,
-                     blender::ui::ButtonType::But,
+                     ui::ButtonType::But,
                      ICON_PROPERTIES,
                      0,
                      0,
@@ -713,3 +707,5 @@ void uiTemplateTextureShow(blender::ui::Layout *layout,
     button_disable(but, "No texture user found");
   }
 }
+
+}  // namespace blender

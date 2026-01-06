@@ -89,6 +89,8 @@
 
 #include "readfile.hh"
 
+namespace blender {
+
 /** Without empty statements, clang-format fails (tested with v12 & v15). */
 #define CLANG_FORMAT_NOP_WORKAROUND ((void)0)
 
@@ -101,7 +103,7 @@ static void do_versions_nodetree_image_default_alpha_output(bNodeTree *ntree)
     if (ELEM(node.type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
       /* default Image output value should have 0 alpha */
       bNodeSocket *sock = static_cast<bNodeSocket *>(node.outputs.first);
-      ((bNodeSocketValueRGBA *)sock->default_value)->value[3] = 0.0f;
+      (static_cast<bNodeSocketValueRGBA *>(sock->default_value))->value[3] = 0.0f;
     }
   }
 }
@@ -112,7 +114,7 @@ static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
     if (node.type_legacy == CMP_NODE_ROTATE) {
       /* Convert degrees to radians. */
       bNodeSocket *sock = static_cast<bNodeSocket *>(node.inputs.first)->next;
-      ((bNodeSocketValueFloat *)sock->default_value)->value = DEG2RADF(
+      (static_cast<bNodeSocketValueFloat *>(sock->default_value))->value = DEG2RADF(
           ((bNodeSocketValueFloat *)sock->default_value)->value);
     }
     else if (node.type_legacy == CMP_NODE_DBLUR) {
@@ -256,11 +258,12 @@ static void do_versions_nodetree_socket_use_flags_2_62(bNodeTree *ntree)
 /* find unique path */
 static bool unique_path_unique_check(ListBaseT<bNodeSocket> *lb,
                                      bNodeSocket *sock,
-                                     const blender::StringRef name)
+                                     const StringRef name)
 {
   for (bNodeSocket &sock_iter : *lb) {
     if (&sock_iter != sock) {
-      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter.storage;
+      NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
+          sock_iter.storage);
       if (sockdata->path == name) {
         return true;
       }
@@ -278,11 +281,9 @@ static void ntreeCompositOutputFileUniquePath(ListBaseT<bNodeSocket> *list,
   if (ELEM(nullptr, sock, defname)) {
     return;
   }
-  NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
+  NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(sock->storage);
   BLI_uniquename_cb(
-      [&](const blender::StringRef check_name) {
-        return unique_path_unique_check(list, sock, check_name);
-      },
+      [&](const StringRef check_name) { return unique_path_unique_check(list, sock, check_name); },
       defname,
       delim,
       sockdata->path,
@@ -292,11 +293,12 @@ static void ntreeCompositOutputFileUniquePath(ListBaseT<bNodeSocket> *list,
 /* find unique EXR layer */
 static bool unique_layer_unique_check(ListBaseT<bNodeSocket> *lb,
                                       bNodeSocket *sock,
-                                      const blender::StringRef name)
+                                      const StringRef name)
 {
   for (bNodeSocket &sock_iter : *lb) {
     if (&sock_iter != sock) {
-      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter.storage;
+      NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
+          sock_iter.storage);
       if (sockdata->layer == name) {
         return true;
       }
@@ -314,9 +316,9 @@ static void ntreeCompositOutputFileUniqueLayer(ListBaseT<bNodeSocket> *list,
   if (ELEM(nullptr, sock, defname)) {
     return;
   }
-  NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
+  NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(sock->storage);
   BLI_uniquename_cb(
-      [&](const blender::StringRef check_name) {
+      [&](const StringRef check_name) {
         return unique_layer_unique_check(list, sock, check_name);
       },
       defname,
@@ -330,8 +332,8 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
                                                      const char *name,
                                                      const ImageFormatData *im_format)
 {
-  NodeCompositorFileOutput *nimf = (NodeCompositorFileOutput *)node->storage;
-  bNodeSocket *sock = blender::bke::node_add_static_socket(
+  NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node->storage);
+  bNodeSocket *sock = bke::node_add_static_socket(
       *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
 
   /* create format data for the input socket */
@@ -438,8 +440,8 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
         }
       }
 
-      blender::bke::node_remove_socket(*ntree, node, *old_image);
-      blender::bke::node_remove_socket(*ntree, node, *old_z);
+      bke::node_remove_socket(*ntree, node, *old_image);
+      bke::node_remove_socket(*ntree, node, *old_z);
       if (old_data) {
         MEM_freeN(old_data);
       }
@@ -979,33 +981,33 @@ static const char *node_get_static_idname(int type, int treetype)
   return "";
 }
 
-static blender::StringRefNull node_socket_get_static_idname(bNodeSocket *sock)
+static StringRefNull node_socket_get_static_idname(bNodeSocket *sock)
 {
   switch (sock->type) {
     case SOCK_FLOAT: {
       bNodeSocketValueFloat *dval = sock->default_value_typed<bNodeSocketValueFloat>();
-      return *blender::bke::node_static_socket_type(SOCK_FLOAT, dval->subtype);
+      return *bke::node_static_socket_type(SOCK_FLOAT, dval->subtype);
     }
     case SOCK_INT: {
       bNodeSocketValueInt *dval = sock->default_value_typed<bNodeSocketValueInt>();
-      return *blender::bke::node_static_socket_type(SOCK_INT, dval->subtype);
+      return *bke::node_static_socket_type(SOCK_INT, dval->subtype);
     }
     case SOCK_BOOLEAN: {
-      return *blender::bke::node_static_socket_type(SOCK_BOOLEAN, PROP_NONE);
+      return *bke::node_static_socket_type(SOCK_BOOLEAN, PROP_NONE);
     }
     case SOCK_VECTOR: {
       bNodeSocketValueVector *dval = sock->default_value_typed<bNodeSocketValueVector>();
-      return *blender::bke::node_static_socket_type(SOCK_VECTOR, dval->subtype);
+      return *bke::node_static_socket_type(SOCK_VECTOR, dval->subtype);
     }
     case SOCK_RGBA: {
-      return *blender::bke::node_static_socket_type(SOCK_RGBA, PROP_NONE);
+      return *bke::node_static_socket_type(SOCK_RGBA, PROP_NONE);
     }
     case SOCK_STRING: {
       bNodeSocketValueString *dval = sock->default_value_typed<bNodeSocketValueString>();
-      return *blender::bke::node_static_socket_type(SOCK_STRING, dval->subtype);
+      return *bke::node_static_socket_type(SOCK_STRING, dval->subtype);
     }
     case SOCK_SHADER: {
-      return *blender::bke::node_static_socket_type(SOCK_SHADER, PROP_NONE);
+      return *bke::node_static_socket_type(SOCK_SHADER, PROP_NONE);
     }
   }
   return "";
@@ -1122,7 +1124,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
  * but this keeps settings comparable. */
 static void color_balance_node_cdl_from_lgg(bNode *node)
 {
-  NodeColorBalance *n = (NodeColorBalance *)node->storage;
+  NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
 
   for (int c = 0; c < 3; c++) {
     n->slope[c] = (2.0f - n->lift[c]) * n->gain[c];
@@ -1133,7 +1135,7 @@ static void color_balance_node_cdl_from_lgg(bNode *node)
 
 static void color_balance_node_lgg_from_cdl(bNode *node)
 {
-  NodeColorBalance *n = (NodeColorBalance *)node->storage;
+  NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
 
   for (int c = 0; c < 3; c++) {
     float d = n->slope[c] + n->offset[c];
@@ -1148,9 +1150,8 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
   StripData *data = strip->data;
 
   if (data && data->color_balance_legacy) {
-    StripModifierData *smd = blender::seq::modifier_new(
-        strip, nullptr, eSeqModifierType_ColorBalance);
-    ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
+    StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_ColorBalance);
+    ColorBalanceModifierData *cbmd = reinterpret_cast<ColorBalanceModifierData *>(smd);
 
     cbmd->color_balance = *data->color_balance_legacy;
 
@@ -1174,7 +1175,7 @@ static bool strip_set_alpha_mode_cb(Strip *strip, void * /*user_data*/)
     strip->alpha_mode = SEQ_ALPHA_STRAIGHT;
   }
   else {
-    blender::seq::alpha_mode_from_file_extension(strip);
+    seq::alpha_mode_from_file_extension(strip);
   }
   return true;
 }
@@ -1198,7 +1199,7 @@ static bNodeSocket *version_make_socket_stub(const char *idname,
                                              const IDProperty *prop)
 {
   bNodeSocket *socket = MEM_new_for_free<bNodeSocket>(__func__);
-  socket->runtime = MEM_new<blender::bke::bNodeSocketRuntime>(__func__);
+  socket->runtime = MEM_new<bke::bNodeSocketRuntime>(__func__);
   STRNCPY_UTF8(socket->idname, idname);
   socket->type = int(type);
   socket->in_out = int(in_out);
@@ -1247,9 +1248,9 @@ static bNode *version_add_group_in_out_node(bNodeTree *ntree, const int type)
       return nullptr;
   }
 
-  node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
+  node->runtime = MEM_new<bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree->nodes, node);
-  blender::bke::node_unique_id(*ntree, *node);
+  bke::node_unique_id(*ntree, *node);
 
   /* Manual initialization of the node,
    * node->typeinfo is only set after versioning. */
@@ -1379,7 +1380,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         for (ScrArea &area : screen.areabase) {
           for (SpaceLink &sl : area.spacedata) {
             if (sl.spacetype == SPACE_VIEW3D) {
-              View3D *v3d = (View3D *)&sl;
+              View3D *v3d = reinterpret_cast<View3D *>(&sl);
               if (v3d->bundle_size == 0.0f) {
                 v3d->bundle_size = 0.2f;
                 v3d->flag2 |= V3D_SHOW_RECONSTRUCTION;
@@ -1390,7 +1391,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
               }
             }
             else if (sl.spacetype == SPACE_CLIP) {
-              SpaceClip *sclip = (SpaceClip *)&sl;
+              SpaceClip *sclip = reinterpret_cast<SpaceClip *>(&sl);
               if (sclip->scopes.track_preview_height == 0) {
                 sclip->scopes.track_preview_height = 120;
               }
@@ -1600,7 +1601,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Object &ob : bmain->objects) {
         for (ModifierData &md : ob.modifiers) {
           if (md.type == eModifierType_DynamicPaint) {
-            DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)&md;
+            DynamicPaintModifierData *pmd = reinterpret_cast<DynamicPaintModifierData *>(&md);
             if (pmd->canvas) {
               DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(
                   pmd->canvas->surfaces.first);
@@ -1621,7 +1622,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Cloth) {
-          ClothModifierData *clmd = (ClothModifierData *)&md;
+          ClothModifierData *clmd = reinterpret_cast<ClothModifierData *>(&md);
           if (clmd->sim_parms) {
             clmd->sim_parms->vel_damping = 1.0f;
           }
@@ -1636,7 +1637,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Fluidsim) {
-          FluidsimModifierData *fmd = (FluidsimModifierData *)&md;
+          FluidsimModifierData *fmd = reinterpret_cast<FluidsimModifierData *>(&md);
           if (fmd->fss->animRate == 0.0f) {
             fmd->fss->animRate = 1.0f;
           }
@@ -1683,7 +1684,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Lattice) {
-          LatticeModifierData *lmd = (LatticeModifierData *)&md;
+          LatticeModifierData *lmd = reinterpret_cast<LatticeModifierData *>(&md);
           lmd->strength = 1.0f;
         }
       }
@@ -1695,7 +1696,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Fluidsim) {
-          FluidsimModifierData *fmd = (FluidsimModifierData *)&md;
+          FluidsimModifierData *fmd = reinterpret_cast<FluidsimModifierData *>(&md);
           if (fmd->fss->viscosityMode == 3) {
             fmd->fss->viscosityValue = 5.0;
             fmd->fss->viscosityExponent = 5;
@@ -1750,7 +1751,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_CLIP) {
-            SpaceClip *sclip = (SpaceClip *)&sl;
+            SpaceClip *sclip = reinterpret_cast<SpaceClip *>(&sl);
             bool hide = false;
 
             for (ARegion &region : area.regionbase) {
@@ -1847,7 +1848,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Fluid) {
-          FluidModifierData *fmd = (FluidModifierData *)&md;
+          FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(&md);
           if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
             int maxres = max_iii(fmd->domain->res[0], fmd->domain->res[1], fmd->domain->res[2]);
             fmd->domain->scale = fmd->domain->dx * maxres;
@@ -1898,7 +1899,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         for (ScrArea &area : screen.areabase) {
           for (SpaceLink &sl : area.spacedata) {
             if (sl.spacetype == SPACE_CLIP) {
-              SpaceClip *sclip = (SpaceClip *)&sl;
+              SpaceClip *sclip = reinterpret_cast<SpaceClip *>(&sl);
 
               if (sclip->around == 0) {
                 sclip->around = V3D_AROUND_CENTER_MEDIAN;
@@ -1994,7 +1995,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 263, 18)) {
     for (Scene &scene : bmain->scenes) {
       if (scene.ed) {
-        blender::seq::foreach_strip(&scene.ed->seqbase, strip_colorbalance_update_cb, nullptr);
+        seq::foreach_strip(&scene.ed->seqbase, strip_colorbalance_update_cb, nullptr);
       }
     }
   }
@@ -2097,7 +2098,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Object &ob : bmain->objects) {
         for (ModifierData &md : ob.modifiers) {
           if (md.type == eModifierType_Fluid) {
-            FluidModifierData *fmd = (FluidModifierData *)&md;
+            FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(&md);
             if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
               /* keep branch saves if possible */
               if (!fmd->domain->flame_max_temp) {
@@ -2134,7 +2135,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         for (ScrArea &area : screen.areabase) {
           for (SpaceLink &sl : area.spacedata) {
             if (sl.spacetype == SPACE_VIEW3D) {
-              View3D *v3d = (View3D *)&sl;
+              View3D *v3d = reinterpret_cast<View3D *>(&sl);
               if (v3d->render_border.xmin == 0.0f && v3d->render_border.ymin == 0.0f &&
                   v3d->render_border.xmax == 0.0f && v3d->render_border.ymax == 0.0f)
               {
@@ -2200,27 +2201,27 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           switch (sl.spacetype) {
             case SPACE_VIEW3D: {
-              View3D *v3d = (View3D *)&sl;
+              View3D *v3d = reinterpret_cast<View3D *>(&sl);
               v3d->flag2 |= V3D_SHOW_ANNOTATION;
               break;
             }
             case SPACE_SEQ: {
-              SpaceSeq *sseq = (SpaceSeq *)&sl;
+              SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
               sseq->flag |= SEQ_PREVIEW_SHOW_GPENCIL;
               break;
             }
             case SPACE_IMAGE: {
-              SpaceImage *sima = (SpaceImage *)&sl;
+              SpaceImage *sima = reinterpret_cast<SpaceImage *>(&sl);
               sima->flag |= SI_SHOW_GPENCIL;
               break;
             }
             case SPACE_NODE: {
-              SpaceNode *snode = (SpaceNode *)&sl;
+              SpaceNode *snode = reinterpret_cast<SpaceNode *>(&sl);
               snode->flag |= SNODE_SHOW_GPENCIL;
               break;
             }
             case SPACE_CLIP: {
-              SpaceClip *sclip = (SpaceClip *)&sl;
+              SpaceClip *sclip = reinterpret_cast<SpaceClip *>(&sl);
               sclip->flag |= SC_SHOW_ANNOTATION;
               break;
             }
@@ -2233,7 +2234,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 265, 5)) {
     for (Scene &scene : bmain->scenes) {
       if (scene.ed) {
-        blender::seq::foreach_strip(&scene.ed->seqbase, strip_set_alpha_mode_cb, nullptr);
+        seq::foreach_strip(&scene.ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
     }
 
@@ -2329,7 +2330,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 266, 2)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      do_versions_nodetree_customnodes(ntree, ((ID *)ntree == id));
+      do_versions_nodetree_customnodes(ntree, (id_cast<ID *>(ntree) == id));
     }
     FOREACH_NODETREE_END;
   }
@@ -2339,7 +2340,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_NODE) {
-            SpaceNode *snode = (SpaceNode *)&sl;
+            SpaceNode *snode = reinterpret_cast<SpaceNode *>(&sl);
 
             /* reset pointers to force tree path update from context */
             snode->nodetree = nullptr;
@@ -2379,7 +2380,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         for (bNode &node : ntree->nodes) {
-          blender::bke::node_unique_name(*ntree, node);
+          bke::node_unique_name(*ntree, node);
         }
       }
       FOREACH_NODETREE_END;
@@ -2468,7 +2469,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         if (free_link) {
-          blender::bke::node_remove_link(ntree, *link);
+          bke::node_remove_link(ntree, *link);
         }
       }
 
@@ -2497,7 +2498,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       {
         next_link = link->next;
         if (link->fromnode == nullptr || link->tonode == nullptr) {
-          blender::bke::node_remove_link(ntree, *link);
+          bke::node_remove_link(ntree, *link);
         }
       }
     }
@@ -2622,7 +2623,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_NODE) {
-            SpaceNode *snode = (SpaceNode *)&sl;
+            SpaceNode *snode = reinterpret_cast<SpaceNode *>(&sl);
             bNodeTreePath *path = static_cast<bNodeTreePath *>(snode->treepath.last);
             if (!path) {
               continue;
@@ -2653,7 +2654,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Fluid) {
-          FluidModifierData *fmd = (FluidModifierData *)&md;
+          FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(&md);
           if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
             if (fmd->domain->flags & FLUID_DOMAIN_USE_HIGH_SMOOTH) {
               fmd->domain->highres_sampling = SM_HRES_LINEAR;
@@ -2713,7 +2714,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Fluid) {
-          FluidModifierData *fmd = (FluidModifierData *)&md;
+          FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(&md);
           if ((fmd->type & MOD_FLUID_TYPE_FLOW) && fmd->flow) {
             if (!fmd->flow->particle_size) {
               fmd->flow->particle_size = 1.0f;
@@ -2732,7 +2733,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_NODE) {
-            SpaceNode *snode = (SpaceNode *)&sl;
+            SpaceNode *snode = reinterpret_cast<SpaceNode *>(&sl);
             if (snode->zoom < 0.02f) {
               snode->zoom = 1.0;
             }
@@ -2822,7 +2823,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_OUTLINER) {
-            SpaceOutliner *space_outliner = (SpaceOutliner *)&sl;
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&sl);
 
             if (!ELEM(
                     space_outliner->outlinevis, SO_SCENES, SO_LIBRARIES, SO_SEQUENCE, SO_DATA_API))
@@ -2853,7 +2854,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Object &ob : bmain->objects) {
         for (ModifierData &md : ob.modifiers) {
           if (md.type == eModifierType_Triangulate) {
-            TriangulateModifierData *tmd = (TriangulateModifierData *)&md;
+            TriangulateModifierData *tmd = reinterpret_cast<TriangulateModifierData *>(&md);
             if (tmd->flag & MOD_TRIANGULATE_BEAUTY) {
               tmd->quad_method = MOD_TRIANGULATE_QUAD_BEAUTY;
               tmd->ngon_method = MOD_TRIANGULATE_NGON_BEAUTY;
@@ -2896,11 +2897,11 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Object &ob : bmain->objects) {
         for (ModifierData &md : ob.modifiers) {
           if (md.type == eModifierType_EdgeSplit) {
-            EdgeSplitModifierData *emd = (EdgeSplitModifierData *)&md;
+            EdgeSplitModifierData *emd = reinterpret_cast<EdgeSplitModifierData *>(&md);
             emd->split_angle = DEG2RADF(emd->split_angle);
           }
           else if (md.type == eModifierType_Bevel) {
-            BevelModifierData *bmd = (BevelModifierData *)&md;
+            BevelModifierData *bmd = reinterpret_cast<BevelModifierData *>(&md);
             bmd->bevel_angle = DEG2RADF(bmd->bevel_angle);
           }
         }
@@ -2908,7 +2909,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
       for (Scene &scene : bmain->scenes) {
         if (scene.ed) {
-          blender::seq::foreach_strip(&scene.ed->seqbase, strip_set_wipe_angle_cb, nullptr);
+          seq::foreach_strip(&scene.ed->seqbase, strip_set_wipe_angle_cb, nullptr);
         }
       }
 
@@ -2985,7 +2986,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Build) {
-          BuildModifierData *bmd = (BuildModifierData *)&md;
+          BuildModifierData *bmd = reinterpret_cast<BuildModifierData *>(&md);
           if (bmd->randomize) {
             bmd->flag |= MOD_BUILD_FLAG_RANDOMIZE;
           }
@@ -3025,3 +3026,5 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 }
 
 void do_versions_after_linking_260(Main * /*bmain*/) {}
+
+}  // namespace blender

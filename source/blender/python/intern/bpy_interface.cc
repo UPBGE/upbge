@@ -71,6 +71,8 @@
 #include "../gpu/gpu_py_api.hh"
 #include "../mathutils/mathutils.hh"
 
+namespace blender {
+
 /* Logging types to use anywhere in the Python modules. */
 
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
@@ -267,7 +269,7 @@ bContext *BPY_context_get()
 
 void BPY_context_set(bContext *C)
 {
-  bpy_context_module->ptr->data = (void *)C;
+  bpy_context_module->ptr->data = static_cast<void *>(C);
 }
 
 #ifdef WITH_FLUID
@@ -454,7 +456,7 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
-    status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+    status = PyConfig_SetBytesArgv(&config, argc, const_cast<char *const *>(argv));
     pystatus_exit_on_error(status);
 
     /* Needed for Python's initialization for portable Python installations.
@@ -814,7 +816,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   PointerRNA *ptr = nullptr;
   bool done = false;
 
-  pyctx = (PyObject *)CTX_py_dict_get(C);
+  pyctx = static_cast<PyObject *>(CTX_py_dict_get(C));
   item = PyDict_GetItemString(pyctx, member);
 
   if (item == nullptr) {
@@ -1186,3 +1188,6 @@ void BPY_python_rna_alloc_types()  // Just to call from blenderplayer
   pyrna_alloc_types();
 }
 /*********** End of UPBGE **************/
+
+
+}  // namespace blender

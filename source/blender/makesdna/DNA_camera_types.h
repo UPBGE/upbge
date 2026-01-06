@@ -16,6 +16,8 @@
 #include "DNA_image_types.h"
 #include "DNA_movieclip_types.h"
 
+namespace blender {
+
 struct AnimData;
 struct Object;
 
@@ -232,7 +234,7 @@ struct Camera {
   /* Fish-eye properties. */
   float fisheye_fov = M_PI;
   float fisheye_lens = 10.5f;
-  float latitude_min = -0.5f * (float)M_PI, latitude_max = 0.5f * (float)M_PI;
+  float latitude_min = -0.5f * float(M_PI), latitude_max = 0.5f * float(M_PI);
   float longitude_min = -M_PI, longitude_max = M_PI;
   float fisheye_polynomial_k0 = -1.1735143712967577e-05f;
   float fisheye_polynomial_k1 = -0.019988736953434998f;
@@ -276,3 +278,5 @@ struct Camera {
 };
 
 /* **************** CAMERA ********************* */
+
+}  // namespace blender

@@ -52,6 +52,8 @@
 #include "render_result.h"
 #include "render_types.h"
 
+namespace blender {
+
 /* Render Engine Types */
 
 ListBaseT<RenderEngineType> R_engines = {nullptr, nullptr};
@@ -434,7 +436,7 @@ void RE_engine_end_result(
   }
 
   if (re->engine && (re->engine->flag & RE_ENGINE_HIGHLIGHT_TILES)) {
-    blender::render::TilesHighlight *tile_highlight = re->get_tile_highlight();
+    render::TilesHighlight *tile_highlight = re->get_tile_highlight();
 
     if (tile_highlight) {
       if (highlight) {
@@ -537,10 +539,10 @@ void RE_engine_report(RenderEngine *engine, int type, const char *msg)
   Render *re = engine->re;
 
   if (re) {
-    BKE_report(engine->re->reports, (eReportType)type, msg);
+    BKE_report(engine->re->reports, eReportType(type), msg);
   }
   else if (engine->reports) {
-    BKE_report(engine->reports, (eReportType)type, msg);
+    BKE_report(engine->reports, eReportType(type), msg);
   }
 }
 
@@ -613,10 +615,12 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine,
    * leaving stereo to be handled by the engine. */
   Render *re = engine->re;
   if (use_spherical_stereo || re == nullptr) {
-    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float (*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(
+        nullptr, camera, nullptr, reinterpret_cast<float (*)[4]>(r_modelmat));
   }
   else {
-    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float (*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(
+        &re->r, camera, re->viewname, reinterpret_cast<float (*)[4]>(r_modelmat));
   }
 }
 
@@ -628,13 +632,13 @@ bool RE_engine_get_spherical_stereo(RenderEngine *engine, Object *camera)
 
 const rcti *RE_engine_get_current_tiles(Render *re, int *r_total_tiles)
 {
-  blender::render::TilesHighlight *tiles_highlight = re->get_tile_highlight();
+  render::TilesHighlight *tiles_highlight = re->get_tile_highlight();
   if (!tiles_highlight) {
     *r_total_tiles = 0;
     return nullptr;
   };
 
-  blender::Span<rcti> highlighted_tiles = tiles_highlight->get_all_highlighted_tiles();
+  Span<rcti> highlighted_tiles = tiles_highlight->get_all_highlighted_tiles();
 
   *r_total_tiles = highlighted_tiles.size();
   return highlighted_tiles.data();
@@ -968,7 +972,7 @@ static void engine_render_add_result_pass_cb(void *user_data,
                                              const char *chanid,
                                              eNodeSocketDatatype /*type*/)
 {
-  RenderResult *rr = (RenderResult *)user_data;
+  RenderResult *rr = static_cast<RenderResult *>(user_data);
   RE_create_render_pass(rr, name, channels, chanid, view_layer->name, RR_ALL_VIEWS, false);
 }
 
@@ -1267,7 +1271,7 @@ void RE_engine_tile_highlight_set(
     return;
   }
 
-  blender::render::TilesHighlight *tile_highlight = engine->re->get_tile_highlight();
+  render::TilesHighlight *tile_highlight = engine->re->get_tile_highlight();
   if (!tile_highlight) {
     /* The renderer itself does not support tiles highlight. */
     return;
@@ -1294,7 +1298,7 @@ void RE_engine_tile_highlight_clear_all(RenderEngine *engine)
     return;
   }
 
-  blender::render::TilesHighlight *tile_highlight = engine->re->get_tile_highlight();
+  render::TilesHighlight *tile_highlight = engine->re->get_tile_highlight();
   if (!tile_highlight) {
     /* The renderer itself does not support tiles highlight. */
     return;
@@ -1438,3 +1442,5 @@ void RE_engine_gpu_context_unlock(RenderEngine *engine)
 }
 
 /** \} */
+
+}  // namespace blender

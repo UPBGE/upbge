@@ -105,13 +105,15 @@
 #include <fmt/format.h>
 #include <sstream>
 
-namespace geo_log = blender::nodes::geo_eval_log;
-using blender::bke::bNodeTreeZone;
-using blender::bke::bNodeTreeZones;
-using blender::ed::space_node::NestedTreePreviews;
-using blender::nodes::NodeExtraInfoRow;
+namespace blender {
 
-namespace blender::ed::space_node {
+namespace geo_log = nodes::geo_eval_log;
+using bke::bNodeTreeZone;
+using bke::bNodeTreeZones;
+using ed::space_node::NestedTreePreviews;
+using nodes::NodeExtraInfoRow;
+
+namespace ed::space_node {
 
 #define NODE_ZONE_PADDING UI_UNIT_X
 #define ZONE_ZONE_PADDING 0.3f * UI_UNIT_X
@@ -388,7 +390,7 @@ static bool node_update_basis_buttons(const bContext &C,
 
   layout.context_ptr_set("node", &nodeptr);
 
-  draw_buttons(layout, (bContext *)&C, &nodeptr);
+  draw_buttons(layout, const_cast<bContext *>(&C), &nodeptr);
 
   block_align_end(&block);
   const int buty = ui::block_layout_resolve(&block).y;
@@ -1524,7 +1526,7 @@ void node_socket_color_get(const bContext &C,
   BLI_assert(RNA_struct_is_a(node_ptr.type, &RNA_Node));
   PointerRNA ptr = RNA_pointer_create_discrete(
       &const_cast<ID &>(ntree.id), &RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
-  sock.typeinfo->draw_color((bContext *)&C, &ptr, &node_ptr, r_color);
+  sock.typeinfo->draw_color(const_cast<bContext *>(&C), &ptr, &node_ptr, r_color);
 }
 
 static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, ui::Layout &layout)
@@ -1611,7 +1613,7 @@ static bool draw_node_details(const SpaceNode &snode)
 static void node_draw_preview_background(rctf *rect)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
@@ -1682,7 +1684,7 @@ static void node_toggle_button_cb(bContext *C, void *node_argv, void *op_argv)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
   bNode &node = *node_tree.node_by_id(POINTER_AS_INT(node_argv));
-  const char *opname = (const char *)op_argv;
+  const char *opname = static_cast<const char *>(op_argv);
 
   /* Select & activate only the button's node. */
   node_select_single(*C, node);
@@ -3045,7 +3047,7 @@ static void node_draw_basis(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_preview_toggle");
+                    (void *)("NODE_OT_preview_toggle"));
     block_emboss_set(&block, ui::EmbossType::Emboss);
   }
   if (ELEM(node.type_legacy, NODE_CUSTOM, NODE_CUSTOM_GROUP) &&
@@ -3085,7 +3087,7 @@ static void node_draw_basis(const bContext &C,
     const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" :
                                               "NODE_OT_activate_viewer";
     button_func_set(
-        but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)operator_idname);
+        but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)(operator_idname));
 
     short shortcut_icon = get_viewer_shortcut_icon(node);
     uiDefIconBut(&block,
@@ -3122,7 +3124,7 @@ static void node_draw_basis(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_activate_viewer");
+                    (void *)("NODE_OT_activate_viewer"));
 
     uiDefIconBut(&block,
                  ui::ButtonType::But,
@@ -3168,7 +3170,7 @@ static void node_draw_basis(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_hide_toggle");
+                    (void *)("NODE_OT_hide_toggle"));
     block_emboss_set(&block, ui::EmbossType::Emboss);
   }
 
@@ -3364,7 +3366,7 @@ static void node_draw_collapsed(const bContext &C,
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_hide_toggle");
+                    (void *)("NODE_OT_hide_toggle"));
     block_emboss_set(&block, ui::EmbossType::Emboss);
   }
 
@@ -3516,7 +3518,7 @@ static FrameNodeLayout frame_node_layout(const bNode &frame_node)
 {
   BLI_assert(frame_node.is_frame());
 
-  const NodeFrame *frame_data = (NodeFrame *)frame_node.storage;
+  const NodeFrame *frame_data = static_cast<NodeFrame *>(frame_node.storage);
 
   FrameNodeLayout frame_layout;
 
@@ -3589,7 +3591,7 @@ static rctf calc_node_frame_dimensions(const bContext &C,
     return node_bounds;
   }
 
-  NodeFrame *data = (NodeFrame *)node.storage;
+  NodeFrame *data = static_cast<NodeFrame *>(node.storage);
 
   const FrameNodeLayout frame_layout = frame_node_layout(node);
 
@@ -3688,13 +3690,54 @@ static void node_update_nodetree(const bContext &C,
   }
 }
 
+static void node_frame_get_color(const bNode &node, float r_color[4])
+{
+  if (node.flag & NODE_CUSTOM_COLOR) {
+    rgba_float_args_set(r_color, node.color[0], node.color[1], node.color[2], 1.0f);
+  }
+  else {
+    /* Checking for nested frames. */
+    int depth = 0;
+    for (const bNode *parent = node.parent; parent; parent = parent->parent) {
+      depth++;
+    }
+    if (depth % 2 == 0) {
+      ui::theme::get_color_4fv(TH_NODE_FRAME, r_color);
+    }
+    else {
+      ui::theme::get_color_shade_4fv(TH_NODE_FRAME, 20, r_color);
+    }
+  }
+}
+
+static void node_frame_get_label_color(const float bgcolor[4], uchar r_color[3])
+{
+  float text_color_rgb[3];
+  ui::theme::get_color_3fv(TH_TEXT, text_color_rgb);
+
+  float text_color_hsl[3];
+  rgb_to_hsl_v(text_color_rgb, text_color_hsl);
+
+  if (srgb_to_grayscale(bgcolor) > 0.5f) {
+    /* Light background -> dark text. */
+    text_color_hsl[2] = 0.05f;
+  }
+  else {
+    /* Dark background -> light text. */
+    text_color_hsl[2] = 0.95f;
+  }
+
+  hsl_to_rgb_v(text_color_hsl, text_color_rgb);
+  rgb_float_to_uchar(r_color, text_color_rgb);
+}
+
 static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
                                   const bNode &node,
                                   const SpaceNode &snode)
 {
   /* XXX font id is crap design */
   const int fontid = ui::style_get()->widget.uifont_id;
-  const NodeFrame *data = (const NodeFrame *)node.storage;
+  const NodeFrame *data = static_cast<const NodeFrame *>(node.storage);
 
   /* Setting BLF_aspect() and then counter-scaling by aspect in BLF_size() has no effect on the
    * rendered text size, because the two adjustments cancel each other out. But, using aspect
@@ -3706,11 +3749,14 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   const FrameNodeLayout frame_layout = frame_node_layout(node);
 
-  /* Title color. */
-  int color_id = node_get_colorid(tree_draw_ctx, node);
-  uchar color[3];
-  ui::theme::get_color_blend_shade_3ubv(TH_TEXT, color_id, 0.4f, 10, color);
-  BLF_color3ubv(fontid, color);
+  /* Calculate frame background color to determine text contrast. */
+  float bgcolor[4];
+  node_frame_get_color(node, bgcolor);
+
+  /* The Text color changes according to background color. */
+  uchar text_color[3];
+  node_frame_get_label_color(bgcolor, text_color);
+  BLF_color3ubv(fontid, text_color);
 
   const float label_width = BLF_width(fontid, node.label, strlen(node.label));
 
@@ -3726,7 +3772,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   /* Draw text body. */
   if (node.id) {
-    const Text *text = (const Text *)node.id;
+    const Text *text = id_cast<const Text *>(node.id);
     const float line_spacing = BLF_height_max(fontid) * aspect;
     const float line_width = (BLI_rctf_size_x(&rct) - 2 * frame_layout.margin) / aspect;
 
@@ -3771,28 +3817,16 @@ static void frame_node_draw_background(const ARegion &region,
     return;
   }
 
+  /* Use opacity from theme, but color from the frame. */
+  float temp_theme_color[4];
+  ui::theme::get_color_4fv(TH_NODE_FRAME, temp_theme_color);
+  const float alpha = temp_theme_color[3];
+
   float color[4];
-  ui::theme::get_color_4fv(TH_NODE_FRAME, color);
-  const float alpha = color[3];
+  node_frame_get_color(node, color);
+  color[3] = alpha;
 
   node_draw_shadow(snode, node, BASIS_RAD, alpha);
-
-  if (node.flag & NODE_CUSTOM_COLOR) {
-    rgba_float_args_set(color, node.color[0], node.color[1], node.color[2], alpha);
-  }
-  else {
-    int depth = 0;
-    for (const bNode *parent = node.parent; parent; parent = parent->parent) {
-      depth++;
-    }
-
-    if (depth % 2 == 0) {
-      ui::theme::get_color_4fv(TH_NODE_FRAME, color);
-    }
-    else {
-      ui::theme::get_color_shade_4fv(TH_NODE_FRAME, 20, color);
-    }
-  }
 
   const rctf &rct = node.runtime->draw_bounds;
   draw_roundbox_corner_set(ui::CNR_ALL);
@@ -4259,7 +4293,7 @@ static void node_draw_zones_and_frames(const ARegion &region,
   };
 
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
   using ZoneOrNode = std::variant<const bNodeTreeZone *, const bNode *>;
   Vector<ZoneOrNode> draw_order;
@@ -4769,7 +4803,7 @@ void node_draw_space(const bContext &C, ARegion &region)
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(&region);
 
-  blender::gpu::FrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
+  gpu::FrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
   GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
 
   ui::view2d_view_ortho(&v2d);
@@ -4800,7 +4834,7 @@ void node_draw_space(const bContext &C, ARegion &region)
 
   /* Draw parent node trees. */
   if (snode.treepath.last) {
-    bNodeTreePath *path = (bNodeTreePath *)snode.treepath.last;
+    bNodeTreePath *path = static_cast<bNodeTreePath *>(snode.treepath.last);
 
     /* Update tree path name (drawn in the bottom left). */
     ID *name_id = (path->nodetree && path->nodetree != snode.nodetree) ? &path->nodetree->id :
@@ -4909,4 +4943,6 @@ void node_draw_space(const bContext &C, ARegion &region)
   ui::view2d_scrollers_draw(&v2d, nullptr);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

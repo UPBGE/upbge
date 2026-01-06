@@ -27,7 +27,7 @@
 
 namespace blender::deg {
 
-void deg_evaluate_object_node_visibility(::Depsgraph *depsgraph, IDNode *id_node)
+void deg_evaluate_object_node_visibility(blender::Depsgraph *depsgraph, IDNode *id_node)
 {
   BLI_assert(GS(id_node->id_cow->name) == ID_OB);
 
@@ -51,7 +51,8 @@ void deg_evaluate_object_node_visibility(::Depsgraph *depsgraph, IDNode *id_node
   }
 }
 
-void deg_evaluate_object_modifiers_mode_node_visibility(::Depsgraph *depsgraph, IDNode *id_node)
+void deg_evaluate_object_modifiers_mode_node_visibility(blender::Depsgraph *depsgraph,
+                                                        IDNode *id_node)
 {
   BLI_assert(GS(id_node->id_cow->name) == ID_OB);
 
@@ -206,7 +207,7 @@ void deg_graph_flush_visibility_flags(Depsgraph *graph)
     /* Schedule parent nodes. */
     for (Relation *rel : op_node->inlinks) {
       if (rel->from->type == NodeType::OPERATION) {
-        OperationNode *op_from = (OperationNode *)rel->from;
+        OperationNode *op_from = static_cast<OperationNode *>(rel->from);
         if ((rel->flag & RELATION_FLAG_CYCLIC) == 0) {
           BLI_assert(op_from->num_links_pending > 0);
           --op_from->num_links_pending;
