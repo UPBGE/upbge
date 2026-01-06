@@ -395,7 +395,7 @@ vec3 compute_vertex_normal_smooth(int v) {
   /* Fallback if accumulated normal is zero (fully degenerate topology) */
   float normal_len = length(n_accum);
   if (normal_len < 1e-35) {
-    return vec3(0.0, 0.0, 1.0);
+    return safe_normalize(POSITION_BUFFER[v].xyz);
   }
   
   return safe_normalize(n_accum);
