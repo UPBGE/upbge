@@ -1188,6 +1188,17 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       continue;
     }
 
+    if (mesh_eval->is_python_request_gpu) {
+      /* Skip GPU skinning when Python requests GPU access.
+       * Don't overrite python custom gpu modifier with the potential
+       * presence of a built-in gpu modifier: Priority to python modifier */
+      if (G.debug & G_DEBUG) {
+        printf("skip GPU skinning for mesh owner '%s' (Python request)\n",
+               (eval_obj->id.name + 2));
+      }
+      continue;
+    }
+
     blender::draw::MeshBatchCache *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
     if (!cache) {
       continue;
