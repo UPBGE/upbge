@@ -1628,6 +1628,23 @@ static wmOperatorStatus area_dupli_invoke(bContext *C, wmOperator *op, const wmE
   return newwin ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
+static bool area_dupli_poll(bContext *C)
+{
+  if (!ED_operator_areaactive(C)) {
+    return false;
+  }
+
+  if (CTX_wm_area(C)->global) {
+    return false;
+  }
+
+  if (CTX_wm_screen(C)->temp) {
+    return false;
+  }
+
+  return true;
+}
+
 static void SCREEN_OT_area_dupli(wmOperatorType *ot)
 {
   ot->name = "Duplicate Area into New Window";
@@ -1635,7 +1652,7 @@ static void SCREEN_OT_area_dupli(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_area_dupli";
 
   ot->invoke = area_dupli_invoke;
-  ot->poll = ED_operator_areaactive;
+  ot->poll = area_dupli_poll;
 }
 
 /** \} */
@@ -5039,6 +5056,20 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
   return OPERATOR_RUNNING_MODAL;
 }
 
+static bool area_join_poll(bContext *C)
+{
+  if (!ED_operator_screenactive(C)) {
+    return false;
+  }
+
+  bScreen *screen = CTX_wm_screen(C);
+  if (screen->state != SCREENNORMAL || screen->temp) {
+    return false;
+  }
+
+  return true;
+}
+
 /* Operator for joining two areas (space types) */
 static void SCREEN_OT_area_join(wmOperatorType *ot)
 {
@@ -5051,7 +5082,7 @@ static void SCREEN_OT_area_join(wmOperatorType *ot)
   ot->exec = area_join_exec;
   ot->invoke = area_join_invoke;
   ot->modal = area_join_modal;
-  ot->poll = screen_active_editable;
+  ot->poll = area_join_poll;
   ot->cancel = area_join_cancel;
 
   /* flags */

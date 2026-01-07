@@ -128,7 +128,9 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
   if (py_call_level == 1) {
     BPY_context_update(C);
 
-    pyrna_context_init(C);
+    if (C != nullptr) {
+      pyrna_context_init(C);
+    }
 
 #ifdef TIME_PY_RUN
     if (bpy_timer_count == 0) {
@@ -161,7 +163,9 @@ void bpy_context_clear(bContext *C, const PyGILState_STATE *gilstate)
     BPY_context_set(nullptr);
 #endif
 
-    pyrna_context_clear(C);
+    if (C != nullptr) {
+      pyrna_context_clear(C);
+    }
 
 #ifdef TIME_PY_RUN
     bpy_timer_run_tot += BLI_time_now_seconds() - bpy_timer_run;
@@ -707,6 +711,9 @@ void BPY_python_backtrace(FILE *fp)
   if (frame == nullptr) {
     return;
   }
+  /* The reference is borrowed, increase since #PyFrame_GetBack is *not* borrowed,
+   * and this simplifies handling reference counts in the loop. */
+  Py_INCREF(frame);
   do {
     PyCodeObject *code = PyFrame_GetCode(frame);
     const int line = PyFrame_GetLineNumber(frame);
@@ -714,7 +721,10 @@ void BPY_python_backtrace(FILE *fp)
     const char *funcname = PyUnicode_AsUTF8(code->co_name);
     fprintf(fp, "  File \"%s\", line %d in %s\n", filepath, line, funcname);
     Py_DECREF(code);
-  } while ((frame = PyFrame_GetBack(frame)));
+    PyFrameObject *frame_next = PyFrame_GetBack(frame);
+    Py_DECREF(frame);
+    frame = frame_next;
+  } while (frame);
 }
 
 void BPY_DECREF(void *pyob_ptr)
