@@ -41,6 +41,8 @@
 
 #include "KX_GameObject.h"
 
+using namespace blender;
+
 SCA_EndObjectActuator::SCA_EndObjectActuator(KX_GameObject *gameobj, KX_Scene *scene)
     : SCA_IActuator(gameobj, KX_ACT_END_OBJECT), m_scene(scene)
 {

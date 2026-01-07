@@ -32,6 +32,8 @@
 
 #include "GPU_framebuffer.hh"
 
+using namespace blender;
+
 RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
                                  unsigned int height,
                                  RAS_Rasterizer::FrameBufferType fbtype)

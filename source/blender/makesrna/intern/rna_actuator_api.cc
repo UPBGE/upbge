@@ -42,6 +42,8 @@
 #  include "DNA_actuator_types.h"
 #  include "DNA_controller_types.h"
 
+namespace blender {
+
 static void rna_Actuator_link(bActuator *act, bController *cont)
 {
   BKE_sca_link_logicbricks(
@@ -53,7 +55,11 @@ static void rna_Actuator_unlink(bActuator *act, bController *cont)
   BKE_sca_unlink_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_actuator(StructRNA *srna)
 {
@@ -72,5 +78,7 @@ void RNA_api_actuator(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_property_update(parm, NC_LOGIC, nullptr);
 }
+
+}  // namespace blender
 
 #endif

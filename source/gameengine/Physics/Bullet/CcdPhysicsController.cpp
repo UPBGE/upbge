@@ -2,7 +2,7 @@
  *  \ingroup physbullet
  */
 /*
-   Bullet Continuous Collision Detection and Physics Library
+   Bullet Continuous Collision Detection and Physics blender::Library
    Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 
    This software is provided 'as-is', without any express or implied warranty.
@@ -46,6 +46,8 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+
+using namespace blender;
 
 
 /// todo: fill all the empty CcdPhysicsController methods, hook them up to the btRigidBody class
@@ -467,7 +469,7 @@ bool CcdPhysicsController::CreateSoftbody()
   psb->m_cfg.kDG = m_cci.m_soft_kDG;  // Drag coefficient [0,+inf]
   psb->m_cfg.kLF = m_cci.m_soft_kLF;  // Lift coefficient [0,+inf]
   psb->m_cfg.kPR = m_cci.m_soft_kPR;  // Pressure coefficient [-inf,+inf]
-  psb->m_cfg.kVC = m_cci.m_soft_kVC;  // Volume conversation coefficient [0,+inf]
+  psb->m_cfg.kVC = m_cci.m_soft_kVC;  // blender::Volume conversation coefficient [0,+inf]
 
   psb->m_cfg.kDF = m_cci.m_soft_kDF;    // Dynamic friction coefficient [0,1]
   psb->m_cfg.kMT = m_cci.m_soft_kMT;    // Pose matching coefficient [0,1]
@@ -854,20 +856,20 @@ void CcdPhysicsController::UpdateSoftBody()
       if (rasMesh) {
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(
             (KX_ClientObjectInfo *)GetNewClientInfo());
-        bContext *C = KX_GetActiveEngine()->GetContext();
+        blender::bContext *C = KX_GetActiveEngine()->GetContext();
         /* We need to ensure the depsgraph is up to date to have right mesh with modifiers polycount
          * When we just added a KX_GameObject with a constructive modifier for example */
-        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-        Object *ob = gameobj->GetBlenderObject();
-        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-        Mesh *me = (Mesh *)ob_eval->data;
+        blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+        blender::Object *ob = gameobj->GetBlenderObject();
+        blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+        blender::Mesh *me = (blender::Mesh *)ob_eval->data;
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
         MT_Transform invtrans(gameobj->NodeGetWorldTransform());
         invtrans.invert(invtrans);
 
-        /* If some Object modifiers are generating new faces/polys/geometry during bge runtime,
+        /* If some blender::Object modifiers are generating new faces/polys/geometry during bge runtime,
          * we skip softbody deformation and raise a warning because softbody shape and mapping
          * are only done once and rely on RAS_MeshObject polycount */
         bool skip_deform = false;
@@ -875,7 +877,7 @@ void CcdPhysicsController::UpdateSoftBody()
           skip_deform = true;
           CM_Debug("BGE SoftBody: Vertices count of object: " << ob->id.name + 2
                     << " was modified during bge runtime.");
-          CM_Debug("It can happen when Object modifiers are changing Object geometry because "
+          CM_Debug("It can happen when blender::Object modifiers are changing blender::Object geometry because "
                        "of SoftBody Deformation or when a constructive modifier has not been evaluated yet.");
           CM_Debug("me->totvert " << me->verts_num);
           CM_Debug("rasMesh->GetConversionTotVerts() " << rasMesh->GetConversionTotVerts());
@@ -883,7 +885,7 @@ void CcdPhysicsController::UpdateSoftBody()
 
         if (!skip_deform) {
           if (m_sbModifier == nullptr) {
-            m_sbModifier = (SimpleDeformModifierDataBGE *)BKE_modifier_new(
+            m_sbModifier = (blender::SimpleDeformModifierDataBGE *)BKE_modifier_new(
                 eModifierType_SimpleDeformBGE);
             STRNCPY(m_sbModifier->modifier.name, "sbModifier");
             BLI_addtail(&ob->modifiers, m_sbModifier);
@@ -923,7 +925,7 @@ void CcdPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_
   }
 }
 
-void CcdPhysicsController::RemoveSoftBodyModifier(Object *ob)
+void CcdPhysicsController::RemoveSoftBodyModifier(blender::Object *ob)
 {
   if (GetSoftBody()) {
     if (m_sbCoords) {
@@ -1866,8 +1868,8 @@ bool CcdPhysicsController::IsPhysicsSuspended()
  *
  * when setting the mesh, the following vars get priority
  * 1) from_meshobj - creates the phys mesh from RAS_MeshObject
- * 2) from_gameobj - creates the phys mesh from the Mesh where possible, else the
- * RAS_MeshObject 3) this - update the phys mesh from Mesh or RAS_MeshObject
+ * 2) from_gameobj - creates the phys mesh from the blender::Mesh where possible, else the
+ * RAS_MeshObject 3) this - update the phys mesh from blender::Mesh or RAS_MeshObject
  *
  * Most of the logic behind this is in m_shapeInfo->UpdateMesh(...)
  */
@@ -1929,14 +1931,14 @@ void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica,
 
   PHY_IPhysicsEnvironment *physEnv = GetPhysicsEnvironment();
 
-  std::vector<bRigidBodyJointConstraint *> constraints = replica->GetConstraints();
-  std::vector<bRigidBodyJointConstraint *>::iterator consit;
+  std::vector<blender::bRigidBodyJointConstraint *> constraints = replica->GetConstraints();
+  std::vector<blender::bRigidBodyJointConstraint *>::iterator consit;
 
-  /* Object could have some constraints, iterate over all of theme to ensure that every constraint
+  /* blender::Object could have some constraints, iterate over all of theme to ensure that every constraint
    * is recreated. */
   for (consit = constraints.begin(); consit != constraints.end(); ++consit) {
     /* Try to find the constraint targets in the list of group objects. */
-    bRigidBodyJointConstraint *dat = (*consit);
+    blender::bRigidBodyJointConstraint *dat = (*consit);
     std::vector<KX_GameObject *>::iterator memit;
     for (memit = constobj.begin(); memit != constobj.end(); ++memit) {
       KX_GameObject *member = (*memit);
@@ -2052,11 +2054,11 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     return false;
   }
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
-  Mesh *me = (Mesh *)ob_eval->data;
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
+  blender::Mesh *me = (blender::Mesh *)ob_eval->data;
 
   const blender::Span<blender::float3> positions = me->vert_positions();
 
@@ -2237,18 +2239,18 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     return false;
   }
 
-  Mesh *me = nullptr;
+  blender::Mesh *me = nullptr;
   if (from_meshobj) {
     me = nullptr;
   }
   else if (evaluatedMesh) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    Object *ob_eval = DEG_get_evaluated(depsgraph, from_gameobj->GetBlenderObject());
-    me = (Mesh *)ob_eval->data;
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, from_gameobj->GetBlenderObject());
+    me = (blender::Mesh *)ob_eval->data;
   }
   else if (from_gameobj && !evaluatedMesh) {
-    me = (Mesh *)from_gameobj->GetBlenderObject()->data;
+    me = (blender::Mesh *)from_gameobj->GetBlenderObject()->data;
   }
 
   if (me && meshobj) {
@@ -2380,7 +2382,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     }
   }
   else { /*
-          * RAS Mesh Update
+          * RAS blender::Mesh Update
           *
           * */
     // Note!, gameobj can be nullptr here

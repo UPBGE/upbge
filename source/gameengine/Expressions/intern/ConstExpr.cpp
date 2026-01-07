@@ -18,6 +18,8 @@
 
 #include "EXP_ConstExpr.h"
 
+using namespace blender;
+
 EXP_ConstExpr::EXP_ConstExpr()
 {
 }

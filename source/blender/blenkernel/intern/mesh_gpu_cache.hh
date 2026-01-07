@@ -14,13 +14,15 @@
 
 #include "DNA_object_types.h"
 
+#include "GPU_storage_buffer.hh"
+
 namespace blender {
 namespace bke {
 
 struct MeshGpuData {
-  blender::bke::MeshGPUTopology topology;
+  MeshGPUTopology topology;
   /* Optional internal resources container (owned here). */
-  blender::bke::MeshGpuInternalResources *internal_resources = nullptr;
+  MeshGpuInternalResources *internal_resources = nullptr;
 
   /* Debug: session UUID of the owning Mesh for validation (0 = uninitialized) */
   uint32_t session_uid = 0;
@@ -38,10 +40,10 @@ class MeshGPUCacheManager {
   void free_for_mesh(struct Mesh *mesh);
 
   /* Ocean helpers (INTERNAL SSBOs ONLY, not exposed to Python wrappers). */
-  blender::gpu::StorageBuf *ocean_internal_ssbo_ensure(struct Ocean *ocean,
+  gpu::StorageBuf *ocean_internal_ssbo_ensure(struct Ocean *ocean,
                                                        const std::string &key,
                                                        size_t size);
-  blender::gpu::StorageBuf *ocean_internal_ssbo_get(struct Ocean *ocean, const std::string &key);
+  gpu::StorageBuf *ocean_internal_ssbo_get(struct Ocean *ocean, const std::string &key);
   void ocean_internal_ssbo_release(struct Ocean *ocean, const std::string &key);
   void ocean_internal_ssbo_detach(struct Ocean *ocean, const std::string &key);
   /* Free all SSBOs cached for a single Ocean owner. */
@@ -72,7 +74,7 @@ class MeshGPUCacheManager {
 
   /* Ocean: map owner -> { key -> (ssbo, capacity_bytes) } */
   struct InternalSSBOEntry {
-    blender::gpu::StorageBuf *ssbo = nullptr;
+    gpu::StorageBuf *ssbo = nullptr;
     size_t capacity = 0;
   };
   std::unordered_map<const Ocean *, std::unordered_map<std::string, InternalSSBOEntry>>

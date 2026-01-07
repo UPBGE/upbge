@@ -31,7 +31,9 @@
 
 #pragma once
 
-void BL_ConvertProperties(struct Object *object,
+#include "makesdna/DNA_object_types.h"
+
+void BL_ConvertProperties(blender::Object *object,
                           class KX_GameObject *gameobj,
                           class SCA_TimeEventManager *timemgr,
                           class SCA_IScene *scene,

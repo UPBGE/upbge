@@ -28,6 +28,8 @@
 
 #include "GHOST_Types.h"
 
+using namespace blender;
+
 DEV_InputDevice::DEV_InputDevice()
 {
   m_reverseKeyTranslateTable[GHOST_kKeyA] = AKEY;

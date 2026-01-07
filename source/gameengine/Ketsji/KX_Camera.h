@@ -27,7 +27,7 @@
 
 /** \file KX_Camera.h
  *  \ingroup ketsji
- *  \brief Camera in the gameengine. Cameras are also used for views.
+ *  \brief blender::Camera in the gameengine. Cameras are also used for views.
  */
 
 #pragma once
@@ -49,14 +49,14 @@ class KX_Camera : public KX_GameObject {
   Py_Header
 
       protected : friend class KX_Scene;
-  /** Camera parameters (clips distances, focal length). These
+  /** blender::Camera parameters (clips distances, focal length). These
    * params are closely tied to Blender. In the gameengine, only the
    * projection and modelview matrices are relevant. There's a
    * conversion being done in the engine class. Why is it stored
    * here? It doesn't really have a function here. */
   RAS_CameraData m_camdata;
 
-  struct GPUViewport *m_gpuViewport;
+  blender::GPUViewport *m_gpuViewport;
 
   // Never used, I think...
 //	void MoveTo(const MT_Vector3& movevec)
@@ -114,7 +114,7 @@ class KX_Camera : public KX_GameObject {
   float m_lodDistanceFactor;
 
   /**
-   * Show Debug Camera Frustum?
+   * Show Debug blender::Camera Frustum?
    */
   bool m_showDebugCameraFrustum;
 
@@ -128,7 +128,7 @@ class KX_Camera : public KX_GameObject {
   KX_Camera();
   virtual ~KX_Camera();
 
-  struct GPUViewport *GetGPUViewport();
+  blender::GPUViewport *GetGPUViewport();
   void RemoveGPUViewport();
 
   virtual KX_PythonProxy *NewInstance();
@@ -156,7 +156,7 @@ class KX_Camera : public KX_GameObject {
   void InvalidateProjectionMatrix(bool valid = false);
 
   /** Gets the modelview matrix that is used by the rasterizer.
-   *  \warning If the Camera is a dynamic object then this method may return garbage.  Use
+   *  \warning If the blender::Camera is a dynamic object then this method may return garbage.  Use
    * GetWorldToCamera() instead.
    */
   const MT_Matrix4x4 &GetModelviewMatrix() const;
@@ -240,7 +240,7 @@ class KX_Camera : public KX_GameObject {
     return OBJ_CAMERA;
   }
 
-  virtual void SetBlenderObject(Object *obj);
+  virtual void SetBlenderObject(blender::Object *obj);
 
   void MarkForDeletion();
 

@@ -40,6 +40,8 @@
 #  include "RAS_IDisplayArray.h"
 #  include "RAS_IVertex.h"
 
+using namespace blender;
+
 PyTypeObject KX_VertexProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_VertexProxy",
                                      sizeof(EXP_PyObjectPlus_Proxy),
                                      0,

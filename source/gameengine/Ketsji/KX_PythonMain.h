@@ -32,9 +32,8 @@
 #pragma once
 
 #include <string>
+namespace blender { struct Scene; }
+namespace blender { struct Main; }
 
-struct Scene;
-struct Main;
-
-std::string KX_GetPythonMain(Scene *scene);
-std::string KX_GetPythonCode(Main *main, const std::string &python_main);
+std::string KX_GetPythonMain(blender::Scene *scene);
+std::string KX_GetPythonCode(blender::Main *main, const std::string &python_main);

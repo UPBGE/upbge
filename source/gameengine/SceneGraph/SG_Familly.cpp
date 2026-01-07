@@ -7,6 +7,8 @@
 
 #include "SG_Familly.h"
 
+using namespace blender;
+
 CM_ThreadSpinLock &SG_Familly::GetMutex()
 {
   return m_mutex;

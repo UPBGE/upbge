@@ -63,6 +63,8 @@ static void rna_Controller_unlink(bController *cont, bSensor *sens, bActuator *a
 
 #else
 
+namespace blender {
+
 void RNA_api_controller(StructRNA *srna)
 {
   FunctionRNA *func;
@@ -83,5 +85,7 @@ void RNA_api_controller(StructRNA *srna)
       func, "actuator", "Actuator", "", "Actuator to unlink the controller from");
   RNA_def_property_update(parm, NC_LOGIC, nullptr);
 }
+
+}  // namespace blender
 
 #endif

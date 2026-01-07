@@ -7,7 +7,7 @@
  *
  * \section SG_ParentRelationSection SG_ParentRelation
  *
- * This is an abstract interface class to the Scene Graph library.
+ * This is an abstract interface class to the blender::Scene Graph library.
  * It allows you to specify how child nodes react to parent nodes.
  * Normally a child will use it's parent's transforms to compute
  * it's own global transforms. How this is performed depends on

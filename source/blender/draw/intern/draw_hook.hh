@@ -10,11 +10,18 @@
 
 #include "BKE_modifier.hh"
 
-struct Depsgraph;
+namespace blender {
 struct Mesh;
 struct Object;
+struct Depsgraph;
+}  // namespace blender
 
 namespace blender::draw {
+
+
+/* Forward declaration for MeshBatchCache */
+struct MeshBatchCache;
+using namespace blender::bke;
 
 /**
  * Manager for GPU-accelerated Hook deformation.
@@ -74,12 +81,12 @@ class HookManager {
    * @param cache Mesh batch cache
    * @param ssbo_in Input position buffer from previous stage
    */
-  blender::gpu::StorageBuf *dispatch_deform(const HookModifierData *hmd,
+  gpu::StorageBuf *dispatch_deform(const HookModifierData *hmd,
                                             Depsgraph *depsgraph,
                                             Object *ob_target_eval,
                                             Object *deform_ob_eval,
                                             MeshBatchCache *cache,
-                                            blender::gpu::StorageBuf *ssbo_in);
+                                            gpu::StorageBuf *ssbo_in);
 
   /**
    * Free all GPU resources associated with a mesh.
@@ -102,3 +109,4 @@ class HookManager {
 };
 
 }  // namespace blender::draw
+

@@ -38,11 +38,13 @@
 
 #ifdef WITH_PYTHON
 #  include "bpy_rna.hh"
+
+using namespace blender;
 #endif
 
 KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                        KX_Scene *scene,
-                                       Material *mat,
+                                       blender::Material *mat,
                                        const std::string &name,
                                        int lightlayer,
                                        bool converting_during_runtime)
@@ -86,12 +88,12 @@ const std::string KX_BlenderMaterial::GetTextureName() const
   return (m_textures[0] ? m_textures[0]->GetName() : "");
 }
 
-Material *KX_BlenderMaterial::GetBlenderMaterial() const
+blender::Material *KX_BlenderMaterial::GetBlenderMaterial() const
 {
   return m_material;
 }
 
-Scene *KX_BlenderMaterial::GetBlenderScene() const
+blender::Scene *KX_BlenderMaterial::GetBlenderScene() const
 {
   return m_scene->GetBlenderScene();
 }
@@ -115,7 +117,7 @@ void KX_BlenderMaterial::InitTextures()
   for (bNode &node : m_nodetree->nodes) {
     if ((node.type_legacy == SH_NODE_TEX_IMAGE) ||
         (node.typeinfo && node.typeinfo->idname == "ShaderNodeTexImage")) {
-      Image *ima = (Image *)node.id;
+      blender::Image *ima = (blender::Image *)node.id;
       if (ima) {
         if (i < RAS_Texture::MaxUnits) {
           BL_Texture *texture = new BL_Texture(ima);

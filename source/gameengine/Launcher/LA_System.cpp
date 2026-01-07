@@ -30,9 +30,11 @@
 
 #include "BLI_time.h"
 
+using namespace blender;
+
 LA_System::LA_System()
 {
-  m_starttime = BLI_time_now_seconds();
+  m_starttime = blender::BLI_time_now_seconds();
 }
 
 LA_System::~LA_System()
@@ -41,5 +43,5 @@ LA_System::~LA_System()
 
 double LA_System::GetTimeInSeconds()
 {
-  return BLI_time_now_seconds() - m_starttime;
+  return blender::BLI_time_now_seconds() - m_starttime;
 }

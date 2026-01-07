@@ -33,20 +33,19 @@
 #pragma once
 
 #include "SG_ParentRelation.h"
-
-struct Bone;
+namespace blender { struct Bone; }
 
 /**
- *  Bone parent relationship parents a child SG_Node frame to a
+ *  blender::Bone parent relationship parents a child SG_Node frame to a
  *  bone in an armature object.
  */
 class KX_BoneParentRelation : public SG_ParentRelation {
 
  private:
-  Bone *m_bone;
+  blender::Bone *m_bone;
 
  public:
-  KX_BoneParentRelation(Bone *bone);
+  KX_BoneParentRelation(blender::Bone *bone);
   virtual ~KX_BoneParentRelation();
 
   /**

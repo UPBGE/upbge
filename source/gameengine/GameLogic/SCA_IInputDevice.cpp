@@ -31,6 +31,8 @@
 
 #include "SCA_IInputDevice.h"
 
+using namespace blender;
+
 /** Initialize conversion table key to char (shifted too), this function is a long function but
  * is easier to maintain than key index conversion way.
  */

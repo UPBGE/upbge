@@ -98,6 +98,8 @@
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #  include "bpy_rna.hh"
+
+using namespace blender;
 #endif
 
 void bge_dupli_provider(DEGObjectIterData *data)
@@ -109,15 +111,15 @@ void bge_dupli_provider(DEGObjectIterData *data)
 
   KX_Scene *kx_scene = engine->CurrentScenes()->GetFront();
   const std::vector<KX_GameObject *> &dupli_list = kx_scene->GetDupliListVector();
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   for (KX_GameObject *game_obj : dupli_list) {
     if (game_obj && game_obj->IsDupliInstance()) {
       if (!game_obj->GetVisible()) {
         continue;
       }
-      Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
+      blender::Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
       float mat[4][4];
       game_obj->NodeGetWorldTransform().getValue(&mat[0][0]);
 
@@ -164,7 +166,7 @@ SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(KX_SceneReplicationFunc,
 
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    const std::string &sceneName,
-                   Scene *scene,
+                   blender::Scene *scene,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
     : KX_PythonProxy(),
@@ -258,17 +260,17 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_obVisibilityFlag = {};
   m_backupOverlayFlag = -1;
 
-  /* REMINDER TO SET bContext */
-  /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
+  /* REMINDER TO SET blender::bContext */
+  /* 1.MAIN, 2.blender::wmWindowManager, 3.blender::wmWindow, 4.blender::bScreen, 5.ScreenArea, 6.blender::ARegion, 7.blender::Scene */
 
   /* In the case of SetScene actuator (not game restart or load .blend)
-   * We might need to Set bContext Variables here to be sure to have
+   * We might need to Set blender::bContext Variables here to be sure to have
    * the good environment.
    */
   ReinitBlenderContextVariables();
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
 
   /* Update 3D view cameras and RV3D->persp state and ensure the ViewLayer is updated */
   ED_screen_scene_change(C, CTX_wm_window(C), scene, true);
@@ -286,7 +288,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * https://github.com/UPBGE/upbge/issues/1829
    * This camera will be added to kxscene.objects list only if needed */
   m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
-  m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
+  m_gameDefaultCamera->data = (blender::ID *)BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
   BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
   /* Fix crash at start with some files: See 68589a31ebfb79165f99a979357d237e5413e904 */
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -336,10 +338,10 @@ KX_Scene::~KX_Scene()
 
   ReinitBlenderContextVariables();
 
-  Scene *scene = GetBlenderScene();
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Scene *scene = GetBlenderScene();
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   /* Restore Objects object_to_world mat */
   if (scene->gm.flag & GAME_USE_UNDO) {
@@ -476,17 +478,17 @@ void KX_Scene::RemoveDupliObjectFromList(KX_GameObject *gameobj)
 
 void KX_Scene::ReinitBlenderContextVariables()
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = (wmWindow *)wm->windows.first;
-  bScreen *screen = WM_window_get_active_screen(win);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::wmWindowManager *wm = CTX_wm_manager(C);
+  blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+  blender::bScreen *screen = WM_window_get_active_screen(win);
 
-  for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
-    /* We choose the biggest ScrArea to match the behaviour in WM_init_game */
+  for (blender::ScrArea *sa = (blender::ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+    /* We choose the biggest blender::ScrArea to match the behaviour in WM_init_game */
     if (sa->spacetype == SPACE_VIEW3D &&
         sa == BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0)) {
-      ListBase *regionbase = &sa->regionbase;
-      for (ARegion *region = (ARegion *)regionbase->first; region; region = region->next) {
+      blender::ListBase *regionbase = &sa->regionbase;
+      for (blender::ARegion *region = (blender::ARegion *)regionbase->first; region; region = region->next) {
         if (region->regiontype == RGN_TYPE_WINDOW) {
           if (region->regiondata) {
             CTX_wm_window_set(C, win);
@@ -510,23 +512,23 @@ void KX_Scene::ReinitBlenderContextVariables()
   }
 }
 
-Object *KX_Scene::GetGameDefaultCamera()
+blender::Object *KX_Scene::GetGameDefaultCamera()
 {
   return m_gameDefaultCamera;
 }
 
-void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
+void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, blender::Collection *collection)
 {
   /* Check if camera is not already in use */
   if (!CameraIsInactive(overlay_cam)) {
-    std::cout << "Camera is already used (active_cam or ImageRender cam, or custom Viewport cam)"
+    std::cout << "blender::Camera is already used (active_cam or ImageRender cam, or custom Viewport cam)"
               << std::endl;
     return;
   }
   /* Check for already added collections */
   if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
       m_overlay_collections.end()) {
-    std::cout << "Collection already added." << std::endl;
+    std::cout << "blender::Collection already added." << std::endl;
     return;
   }
   SetOverlayCamera(overlay_cam);
@@ -544,9 +546,9 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
       KX_GameObject *replica = AddReplicaObject(gameobj, nullptr, 0);
       replica->GetBlenderObject()->gameflag |= OB_OVERLAY_COLLECTION;
       if (replica->IsReplica()) {
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Main *bmain = CTX_data_main(C);
-        const Scene *scene = GetBlenderScene();
+        blender::bContext *C = KX_GetActiveEngine()->GetContext();
+        blender::Main *bmain = CTX_data_main(C);
+        const blender::Scene *scene = GetBlenderScene();
         BKE_collection_object_add(bmain, collection, replica->GetBlenderObject());
         /* If issue see: 68589a31ebfb79165f99a979357d237e5413e904 */
         BKE_view_layer_synced_ensure(scene, BKE_view_layer_default_view(scene));
@@ -558,7 +560,7 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
   }
 }
 
-void KX_Scene::RemoveOverlayCollection(Collection *collection)
+void KX_Scene::RemoveOverlayCollection(blender::Collection *collection)
 {
   /* Check for already removed collections */
   if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
@@ -576,8 +578,8 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
       if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
         if (gameobj->IsReplica() || gameobj->IsDupliInstance()) {
           if (gameobj->IsReplica()) {
-            bContext *C = KX_GetActiveEngine()->GetContext();
-            Main *bmain = CTX_data_main(C);
+            blender::bContext *C = KX_GetActiveEngine()->GetContext();
+            blender::Main *bmain = CTX_data_main(C);
             BKE_collection_object_remove(bmain, collection, gameobj->GetBlenderObject(), false);
           }
           DelayedRemoveObject(gameobj);
@@ -592,14 +594,14 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
   }
 }
 
-void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
+void KX_Scene::OverlayPassDisableEffects(blender::Depsgraph *depsgraph,
                                          KX_Camera *kxcam,
                                          bool isOverlayPass)
 {
   if (!kxcam) {
     return;
   }
-  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  blender::Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   /* Restore original eevee post process flag in non overlay passes */
   if (!isOverlayPass) {
@@ -611,8 +613,8 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
     return;
   }
 
-  Object *obcam = kxcam->GetBlenderObject();
-  Camera *cam = (Camera *)obcam->data;
+  blender::Object *obcam = kxcam->GetBlenderObject();
+  blender::Camera *cam = (blender::Camera *)obcam->data;
 
   if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_AO) {
     scene_eval->eevee.flag &= ~SCE_EEVEE_GTAO_ENABLED;
@@ -620,7 +622,7 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_SSR) {
     scene_eval->eevee.flag &= ~SCE_EEVEE_SSR_ENABLED;
   }
-  struct World *wo = scene_eval->world;
+  blender::World *wo = scene_eval->world;
   if (wo) {
     if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES) {
     }
@@ -633,12 +635,12 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   m_backupOverlayFlag = scene_eval->eevee.flag;
 }
 
-void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
+void KX_Scene::SetCurrentGPUViewport(blender::GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
 }
 
-GPUViewport *KX_Scene::GetCurrentGPUViewport()
+blender::GPUViewport *KX_Scene::GetCurrentGPUViewport()
 {
   return m_currentGPUViewport;
 }
@@ -690,8 +692,8 @@ void KX_Scene::PrepareGPUViewport(KX_Camera *cam)
   }
 }
 
-void KX_Scene::UpdateDepsgraph(Main *bmain,
-                               Scene *scene,
+void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
+                               blender::Scene *scene,
                                bool is_overlay_pass,
                                bool is_last_render_pass,
                                KX_Camera *cam)
@@ -708,7 +710,7 @@ void KX_Scene::UpdateDepsgraph(Main *bmain,
    * for next drawing loop. */
   for (KX_GameObject *gameobj : GetObjectList()) {
     /* Update compatibles blender physics simulations */
-    Object *ob = gameobj->GetBlenderObject();
+    blender::Object *ob = gameobj->GetBlenderObject();
     TagBlenderPhysicsObject(scene, ob);
     gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
   }
@@ -721,7 +723,7 @@ void KX_Scene::UpdateDepsgraph(Main *bmain,
   }
 
   /* We need the changes to be flushed before each draw loop! */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   /* Update evaluated object object_to_world according to SceneGraph. */
@@ -732,10 +734,10 @@ void KX_Scene::UpdateDepsgraph(Main *bmain,
 
 bool KX_Scene::ViewportRender(KX_Camera *cam,
                               const RAS_Rect &viewport,
-                              const rcti &window,
+                              const blender::rcti &window,
                               RAS_ICanvas *canvas,
-                              Scene *scene,
-                              bContext *C)
+                              blender::Scene *scene,
+                              blender::bContext *C)
 {
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
   if (useViewportRender) {
@@ -752,7 +754,7 @@ bool KX_Scene::ViewportRender(KX_Camera *cam,
 
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
-        ARegion *region = CTX_wm_region(C);
+        blender::ARegion *region = CTX_wm_region(C);
         scene->flag |= SCE_IS_BLENDERPLAYER;
         region->winrct = window;
         region->winx = canvas->GetWidth();
@@ -764,7 +766,7 @@ bool KX_Scene::ViewportRender(KX_Camera *cam,
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
 #ifdef WITH_XR_OPENXR
-      wmWindowManager *wm = CTX_wm_manager(C);
+      blender::wmWindowManager *wm = CTX_wm_manager(C);
       if (WM_xr_session_exists(&wm->xr)) {
         if (WM_xr_session_is_ready(&wm->xr)) {
           wm_xr_events_handle(CTX_wm_manager(C));
@@ -802,11 +804,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  bContext *C = engine->GetContext();
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = GetBlenderScene();
+  blender::bContext *C = engine->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
+  blender::Scene *scene = GetBlenderScene();
   /* This ensures a depsgraph is allocated and activates it */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   PrepareGPUViewport(cam);
 
@@ -814,7 +816,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   UpdateDepsgraph(bmain, scene, is_overlay_pass, is_last_render_pass, cam);
   engine->EndCountDepsgraphTime();
 
-  rcti window;
+  blender::rcti window;
   int v[4];
   /* Custom BGE viewports*/
   if (cam && cam->GetViewport() && cam != GetOverlayCamera()) {
@@ -824,7 +826,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     v[3] = viewport.GetHeight() + 1;
     window = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
   }
-  /* Main cam (when it has no custom viewport), overlay cam */
+  /* blender::Main cam (when it has no custom viewport), overlay cam */
   else {
     v[0] = 0;
     v[1] = 0;
@@ -833,7 +835,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
-  /* When we call wm_draw_update, bContext variables are unset,
+  /* When we call wm_draw_update, blender::bContext variables are unset,
    * then we need to set it again correctly to render the next frame.
    * wm_draw_update can also be called when playing dragging or resizing
    * blender window */
@@ -874,7 +876,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       GPU_framebuffer_clear_depth(background_fb->GetFrameBuffer(), 1.0f);
       GPU_framebuffer_restore();
     }
-    /* Draw custom viewport render loop into its own GPUViewport */
+    /* Draw custom viewport render loop into its own blender::GPUViewport */
     DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
   }
 
@@ -919,10 +921,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_blend(GPU_BLEND_NONE);
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const rcti *window)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::rcti *window)
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   if (!depsgraph) {
     return;
@@ -954,15 +956,15 @@ BL_SceneConverter *KX_Scene::GetBlenderSceneConverter()
   return m_sceneConverter;
 }
 
-void KX_Scene::ConvertBlenderObject(Object *ob)
+void KX_Scene::ConvertBlenderObject(blender::Object *ob)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   e_PhysicsEngine physics_engine = UseBullet;
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  bContext *C = engine->GetContext();
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  Main *bmain = CTX_data_main(C);
+  blender::bContext *C = engine->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  blender::Main *bmain = CTX_data_main(C);
   BL_ConvertBlenderObjects(bmain,
                            depsgraph,
                            this,
@@ -976,17 +978,17 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
                            false);
 }
 
-void KX_Scene::convert_blender_objects_list_synchronous(std::vector<Object *> objectslist)
+void KX_Scene::convert_blender_objects_list_synchronous(std::vector<blender::Object *> objectslist)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   e_PhysicsEngine physics_engine = UseBullet;
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  bContext *C = engine->GetContext();
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  Main *bmain = CTX_data_main(C);
+  blender::bContext *C = engine->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  blender::Main *bmain = CTX_data_main(C);
 
-  for (Object *obj : objectslist) {
+  for (blender::Object *obj : objectslist) {
     BL_ConvertBlenderObjects(bmain,
                              depsgraph,
                              this,
@@ -1003,24 +1005,24 @@ void KX_Scene::convert_blender_objects_list_synchronous(std::vector<Object *> ob
 
 // Task data for convertBlenderCollection in a different thread.
 struct ConvertBlenderObjectsListTaskData {
-  std::vector<Object *> objectslist;
+  std::vector<blender::Object *> objectslist;
   KX_KetsjiEngine *engine;
   e_PhysicsEngine physics_engine;
   KX_Scene *kxscene;
   BL_SceneConverter *converter;
   RAS_Rasterizer *rasty;
   RAS_ICanvas *canvas;
-  Depsgraph *depsgraph;
-  Main *bmain;
+  blender::Depsgraph *depsgraph;
+  blender::Main *bmain;
 };
 
-static void convert_blender_objects_list_thread_func(TaskPool *__restrict pool,
+static void convert_blender_objects_list_thread_func(blender::TaskPool *__restrict pool,
                                                      void *taskdata)
 {
   ConvertBlenderObjectsListTaskData *task = static_cast<ConvertBlenderObjectsListTaskData *>(
       taskdata);
 
-  for (Object *obj : task->objectslist) {
+  for (blender::Object *obj : task->objectslist) {
     BL_ConvertBlenderObjects(task->bmain,
                              task->depsgraph,
                              task->kxscene,
@@ -1035,7 +1037,7 @@ static void convert_blender_objects_list_thread_func(TaskPool *__restrict pool,
   }
 }
 
-void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool asynchronous)
+void KX_Scene::ConvertBlenderObjectsList(std::vector<blender::Object *> objectslist, bool asynchronous)
 {
   if (asynchronous) {
     /* Convert the Blender Objects list in a different thread, so that the
@@ -1047,12 +1049,12 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
     task.converter = m_sceneConverter;
     task.rasty = task.engine->GetRasterizer();
     task.canvas = task.engine->GetCanvas();
-    bContext *C = task.engine->GetContext();
+    blender::bContext *C = task.engine->GetContext();
     task.depsgraph = CTX_data_expect_evaluated_depsgraph(C);
     task.bmain = CTX_data_main(C);
     task.objectslist = objectslist;
 
-    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
+    blender::TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
 
     BLI_task_pool_push(
         taskpool,
@@ -1065,7 +1067,7 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
     /* delete the objectslist ourself as it gives error if the work
      * has to do it the BLI_task_pool_work_and_wait function */
     while (!task.objectslist.size() != 0) {
-      Object *temp = task.objectslist.back();
+      blender::Object *temp = task.objectslist.back();
       task.objectslist.pop_back();
       delete temp;
     }
@@ -1078,15 +1080,15 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
   }
 }
 
-void KX_Scene::convert_blender_collection_synchronous(Collection *co)
+void KX_Scene::convert_blender_collection_synchronous(blender::Collection *co)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   e_PhysicsEngine physics_engine = UseBullet;
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  bContext *C = engine->GetContext();
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  Main *bmain = CTX_data_main(C);
+  blender::bContext *C = engine->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  blender::Main *bmain = CTX_data_main(C);
 
   FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (co, obj) {
     BL_ConvertBlenderObjects(bmain,
@@ -1106,18 +1108,18 @@ void KX_Scene::convert_blender_collection_synchronous(Collection *co)
 
 // Task data for convertBlenderCollection in a different thread.
 struct ConvertBlenderCollectionTaskData {
-  Collection *co;
+  blender::Collection *co;
   KX_KetsjiEngine *engine;
   e_PhysicsEngine physics_engine;
   KX_Scene *kxscene;
   BL_SceneConverter *converter;
   RAS_Rasterizer *rasty;
   RAS_ICanvas *canvas;
-  Depsgraph *depsgraph;
-  Main *bmain;
+  blender::Depsgraph *depsgraph;
+  blender::Main *bmain;
 };
 
-static void convert_blender_collection_thread_func(TaskPool *__restrict pool,
+static void convert_blender_collection_thread_func(blender::TaskPool *__restrict pool,
                                                    void *taskdata)
 {
   ConvertBlenderCollectionTaskData *task = static_cast<ConvertBlenderCollectionTaskData *>(
@@ -1139,7 +1141,7 @@ static void convert_blender_collection_thread_func(TaskPool *__restrict pool,
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 }
 
-void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
+void KX_Scene::ConvertBlenderCollection(blender::Collection *co, bool asynchronous)
 {
   if (asynchronous) {
 
@@ -1154,11 +1156,11 @@ void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
     task.converter = m_sceneConverter;
     task.rasty = task.engine->GetRasterizer();
     task.canvas = task.engine->GetCanvas();
-    bContext *C = task.engine->GetContext();
+    blender::bContext *C = task.engine->GetContext();
     task.depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     task.bmain = CTX_data_main(C);
 
-    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
+    blender::TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
 
     BLI_task_pool_push(taskpool, convert_blender_collection_thread_func, &task, false, NULL);
     BLI_task_pool_work_and_wait(taskpool);
@@ -1170,7 +1172,7 @@ void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
   }
 }
 
-void KX_Scene::ConvertBlenderAction(bAction *action)
+void KX_Scene::ConvertBlenderAction(blender::bAction *action)
 {
   SCA_LogicManager *logicMgr = GetLogicManager();
   if (logicMgr) {
@@ -1203,22 +1205,22 @@ void KX_Scene::RemoveObjFromLodObjList(KX_GameObject *gameobj)
   }
 }
 
-void KX_Scene::BackupVisibilityFlag(Object *ob, short visibilityFlag)
+void KX_Scene::BackupVisibilityFlag(blender::Object *ob, short visibilityFlag)
 {
   m_obVisibilityFlag.insert({ob, visibilityFlag});
 }
 
 void KX_Scene::RestoreVisibilityFlag()
 {
-  for (std::map<Object *, short>::iterator it = m_obVisibilityFlag.begin();
+  for (std::map<blender::Object *, short>::iterator it = m_obVisibilityFlag.begin();
        it != m_obVisibilityFlag.end();
        it++) {
-    Object *ob = it->first;
+    blender::Object *ob = it->first;
     ob->visibility_flag = it->second;
     DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
   DEG_relations_tag_update(bmain);
   BKE_main_collection_sync_remap(bmain);
   m_obVisibilityFlag.clear();
@@ -1229,7 +1231,7 @@ void KX_Scene::TagForCollectionRemap()
   m_collectionRemap = true;
 }
 
-KX_GameObject *KX_Scene::GetGameObjectFromObject(Object *ob)
+KX_GameObject *KX_Scene::GetGameObjectFromObject(blender::Object *ob)
 {
   return m_sceneConverter->FindGameObject(ob);
 }
@@ -1246,7 +1248,7 @@ void KX_Scene::RestoreObjectsMatToWorld()
   }
 }
 
-bool KX_Scene::OrigObCanBeTransformedInRealtime(Object *ob)
+bool KX_Scene::OrigObCanBeTransformedInRealtime(blender::Object *ob)
 {
   FluidModifierData *fluidModifierData = (FluidModifierData *)BKE_modifiers_findby_type(
       ob, eModifierType_Fluid);
@@ -1257,21 +1259,21 @@ bool KX_Scene::OrigObCanBeTransformedInRealtime(Object *ob)
 }
 
 /* Look at object_transform for original function */
-void KX_Scene::IgnoreParentTxBGE(Main *bmain,
-                                 Depsgraph *depsgraph,
-                                 Scene *scene,
-                                 Object *ob,
-                                 std::vector<Object *> children)
+void KX_Scene::IgnoreParentTxBGE(blender::Main *bmain,
+                                 blender::Depsgraph *depsgraph,
+                                 blender::Scene *scene,
+                                 blender::Object *ob,
+                                 std::vector<blender::Object *> children)
 {
-  Object *ob_child;
+  blender::Object *ob_child;
 
-  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  blender::Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   /* a change was made, adjust the children to compensate */
-  for (Object *child : children) {
+  for (blender::Object *child : children) {
     if (child->parent == ob) {
       ob_child = child;
-      Object *ob_child_eval = DEG_get_evaluated(depsgraph, ob_child);
+      blender::Object *ob_child_eval = DEG_get_evaluated(depsgraph, ob_child);
       BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world().ptr(), true, false);
       invert_m4_m4(ob_child->parentinv,
                    BKE_object_calc_parent(depsgraph, scene, ob_child_eval).ptr());
@@ -1296,7 +1298,7 @@ void KX_Scene::TagForObjectsMatToWorldRestore()
 {
   for (BackupObj *backup : m_backupObList) {
 
-    Object *ob_orig = backup->ob;
+    blender::Object *ob_orig = backup->ob;
 
     if (ob_orig) {
 
@@ -1332,9 +1334,9 @@ void KX_Scene::TagForObjectsMatToWorldRestore()
   }
 }
 
-void KX_Scene::AppendToIdsToUpdate(ID *id, IDRecalcFlag flag, bool in_overlay_collection_only)
+void KX_Scene::AppendToIdsToUpdate(blender::ID *id, IDRecalcFlag flag, bool in_overlay_collection_only)
 {
-  std::pair<ID *, IDRecalcFlag> it = {id, flag};
+  std::pair<blender::ID *, IDRecalcFlag> it = {id, flag};
   if (in_overlay_collection_only) {
     if (std::find(m_idsToUpdateInOverlayPass.begin(), m_idsToUpdateInOverlayPass.end(), it) ==
         m_idsToUpdateInOverlayPass.end())
@@ -1352,9 +1354,9 @@ void KX_Scene::AppendToIdsToUpdate(ID *id, IDRecalcFlag flag, bool in_overlay_co
   }
 }
 
-void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
+void KX_Scene::TagForExtraIdsUpdate(blender::Main *bmain, KX_Camera *cam)
 {
-  for (std::vector<std::pair<ID *, IDRecalcFlag>>::iterator it =
+  for (std::vector<std::pair<blender::ID *, IDRecalcFlag>>::iterator it =
            m_idsToUpdateInAllRenderPasses.begin();
        it != m_idsToUpdateInAllRenderPasses.end();
        it++) {
@@ -1362,7 +1364,7 @@ void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
   }
 
   if (cam && cam == GetOverlayCamera()) {
-    for (std::vector<std::pair<ID *, IDRecalcFlag>>::iterator it =
+    for (std::vector<std::pair<blender::ID *, IDRecalcFlag>>::iterator it =
              m_idsToUpdateInOverlayPass.begin();
          it != m_idsToUpdateInOverlayPass.end();
          it++) {
@@ -1373,7 +1375,7 @@ void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
   //m_idsToUpdateInAllRenderPasses will be cleared only at last render pass
 }
 
-void KX_Scene::TagBlenderPhysicsObject(Scene *scene, Object *ob)
+void KX_Scene::TagBlenderPhysicsObject(blender::Scene *scene, blender::Object *ob)
 {
   if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
     return;
@@ -1408,7 +1410,7 @@ KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
                                            KX_GameObject *reference,
                                            float lifespan)
 {
-  Object *ob = gameobj->GetBlenderObject();
+  blender::Object *ob = gameobj->GetBlenderObject();
   if (ob && (ob->gameflag & OB_DUPLI_UPBGE)) {
     CM_Warning("Full duplication of an UPBGE dupli base is not supported");
     return nullptr;
@@ -1418,9 +1420,9 @@ KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
       CM_Warning("Full duplication of an instance collection is not supported: " << ob->id.name + 2);
       return nullptr;
     }
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Main *bmain = CTX_data_main(C);
-    Scene *scene = GetBlenderScene();
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Main *bmain = CTX_data_main(C);
+    blender::Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
@@ -1576,7 +1578,7 @@ void KX_Scene::SetActivityCulling(bool b)
 
 void KX_Scene::AddObjectDebugProperties(class KX_GameObject *gameobj)
 {
-  Object *blenderobject = gameobj->GetBlenderObject();
+  blender::Object *blenderobject = gameobj->GetBlenderObject();
   if (!blenderobject) {
     return;
   }
@@ -1826,7 +1828,7 @@ static void remap_parents_recursive(KX_GameObject *parent)
 
 void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 {
-  Object *blgroupobj = groupobj->GetBlenderObject();
+  blender::Object *blgroupobj = groupobj->GetBlenderObject();
   std::vector<KX_GameObject *> duplilist;
 
   if (!groupobj->GetSGNode() || !groupobj->IsDupliGroup() || level > MAX_DUPLI_RECUR)
@@ -1841,7 +1843,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
   // Again, this is match what Blender is doing (it doesn't care of parent relationship)
   m_groupGameObjects.clear();
 
-  Collection *group = blgroupobj->instance_collection;
+  blender::Collection *group = blgroupobj->instance_collection;
   FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobj) {
     if (blgroupobj == blenderobj)
       // this check is also in group_duplilist()
@@ -1862,7 +1864,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     }
     else {
       if ((blenderobj->lay & groupobj->GetLayer()) == 0) {
-        // Object is not visible in the 3D view, will not be instantiated. ??
+        // blender::Object is not visible in the 3D view, will not be instantiated. ??
         /* 3 remarks:
          * - The comment shouldn't be: "if blenderobj not in same layer than groupobj, don't convert
          * it as gameobj"?
@@ -3323,22 +3325,22 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *bl_object = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &bl_object)) {
-    PyErr_SetString(PyExc_TypeError, "convertBlenderObject: Expected a bpy.types.Object.");
+    PyErr_SetString(PyExc_TypeError, "convertBlenderObject: Expected a bpy.types.blender::Object.");
     return nullptr;
   }
 
-  ID *id;
+  blender::ID *id;
   if (!pyrna_id_FromPyObject(bl_object, &id)) {
     PyErr_SetString(PyExc_RuntimeError, "convertBlenderObject: Failed to convert object.");
     return nullptr;
   }
-  Object *ob = (Object *)id;
+  blender::Object *ob = (blender::Object *)id;
   ConvertBlenderObject(ob);
   KX_GameObject *newgameobj = m_sceneConverter->FindGameObject(ob);
   if (!newgameobj) {
     /* It can happen for example if we are trying to convert the same object several times
      * or if we are trying to convert game_default_cam https://github.com/UPBGE/upbge/issues/1847 */
-    PyErr_Format(PyExc_RuntimeError, "convertBlenderObject: Scene converter failed to convert %s: ", ob->id.name + 2);
+    PyErr_Format(PyExc_RuntimeError, "convertBlenderObject: blender::Scene converter failed to convert %s: ", ob->id.name + 2);
     Py_RETURN_NONE;
   }
   return newgameobj->GetProxy();
@@ -3353,23 +3355,23 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   int asynchronous = 0;
 
   if (!PyArg_ParseTuple(args, "O!i:", &PyList_Type, &list, &asynchronous)) {
-    PyErr_SetString(PyExc_TypeError, "convertBlenderObjectsList: Expected a bpy.types.Object list.");
+    PyErr_SetString(PyExc_TypeError, "convertBlenderObjectsList: Expected a bpy.types.blender::Object list.");
     return nullptr;
   }
 
-  std::vector<Object *> objectslist;
+  std::vector<blender::Object *> objectslist;
   Py_ssize_t list_size = PyList_Size(list);
 
   for (Py_ssize_t i = 0; i < list_size; i++) {
     PyObject *bl_object = PyList_GetItem(list, i);
 
-    ID *id;
+    blender::ID *id;
     if (!pyrna_id_FromPyObject(bl_object, &id)) {
       PyErr_SetString(PyExc_RuntimeError, "convertBlenderObjectsList: Failed to convert object.");
       return nullptr;
     }
 
-    Object *ob = (Object *)id;
+    blender::Object *ob = (blender::Object *)id;
     objectslist.push_back(ob);
   }
 
@@ -3386,17 +3388,17 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   int asynchronous;
 
   if (!PyArg_ParseTuple(args, "Oi:", &bl_collection, &asynchronous)) {
-    PyErr_SetString(PyExc_TypeError, "convertBlenderCollection: Expected a bpy.types.Collection.");
+    PyErr_SetString(PyExc_TypeError, "convertBlenderCollection: Expected a bpy.types.blender::Collection.");
     return nullptr;
   }
 
-  ID *id;
+  blender::ID *id;
   if (!pyrna_id_FromPyObject(bl_collection, &id)) {
     PyErr_SetString(PyExc_RuntimeError, "convertBlenderCollection: Failed to convert collection.");
     return nullptr;
   }
 
-  Collection *co = (Collection *)id;
+  blender::Collection *co = (blender::Collection *)id;
   ConvertBlenderCollection(co, asynchronous);
   Py_RETURN_NONE;
 }
@@ -3413,13 +3415,13 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
     return nullptr;
   }
 
-  ID *id;
+  blender::ID *id;
   if (!pyrna_id_FromPyObject(bl_action, &id)) {
     PyErr_SetString(PyExc_RuntimeError, "convertBlenderAction: Failed to convert action.");
     return nullptr;
   }
 
-  bAction *act = (bAction *)id;
+  blender::bAction *act = (blender::bAction *)id;
   ConvertBlenderAction(act);
   Py_RETURN_NONE;
 }
@@ -3436,14 +3438,14 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
     return nullptr;
   }
 
-  ID *id;
+  blender::ID *id;
   if (!pyrna_id_FromPyObject(bl_action, &id)) {
     PyErr_SetString(PyExc_RuntimeError,
                     "unregisterBlenderAction: Failed to find action to unregister.");
     return nullptr;
   }
 
-  bAction *act = (bAction *)id;
+  blender::bAction *act = (blender::bAction *)id;
   // Now unregister actions.
   std::map<std::string, void *>::iterator it = GetLogicManager()->GetActionMap().find(
       act->id.name + 2);
@@ -3456,14 +3458,14 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     addOverlayCollection,
-                    "addOverlayCollection(KX_Camera *cam, Collection *col)\n"
+                    "addOverlayCollection(KX_Camera *cam, blender::Collection *col)\n"
                     "\n")
 {
   PyObject *pyCamera = Py_None;
   PyObject *pyCollection = Py_None;
 
   if (!PyArg_ParseTuple(args, "OO:", &pyCamera, &pyCollection)) {
-    PyErr_SetString(PyExc_TypeError, "addOverlayCollection: Expected a KX_Camera and a bpy.types.Collection.");
+    PyErr_SetString(PyExc_TypeError, "addOverlayCollection: Expected a KX_Camera and a bpy.types.blender::Collection.");
     return nullptr;
   }
 
@@ -3473,61 +3475,61 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
     return nullptr;
   }
 
-  ID *id = nullptr;
+  blender::ID *id = nullptr;
   if (!pyrna_id_FromPyObject(pyCollection, &id)) {
     PyErr_SetString(PyExc_RuntimeError, "addOverlayCollection: Failed to convert collection.");
     return nullptr;
   }
 
-  Collection *co = (Collection *)id;
+  blender::Collection *co = (blender::Collection *)id;
   AddOverlayCollection(kxCam, co);
   Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     removeOverlayCollection,
-                    "removeOverlayCollection(Collection *col)\n"
+                    "removeOverlayCollection(blender::Collection *col)\n"
                     "\n")
 {
   PyObject *pyCollection = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &pyCollection)) {
-    PyErr_SetString(PyExc_TypeError, "removeOverlayCollection: Expected a bpy.types.Collection.");
+    PyErr_SetString(PyExc_TypeError, "removeOverlayCollection: Expected a bpy.types.blender::Collection.");
     return nullptr;
   }
 
-  ID *id = nullptr;
+  blender::ID *id = nullptr;
   if (!pyrna_id_FromPyObject(pyCollection, &id)) {
     PyErr_SetString(PyExc_RuntimeError, "removeOverlayCollection: Failed to convert collection.");
     return nullptr;
   }
 
-  Collection *co = (Collection *)id;
+  blender::Collection *co = (blender::Collection *)id;
   RemoveOverlayCollection(co);
   Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     getGameObjectFromObject,
-                    "getGameObjectFromObject(Object *ob)\n"
+                    "getGameObjectFromObject(blender::Object *ob)\n"
                     "\n")
 {
   PyObject *pyBlenderObject = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &pyBlenderObject)) {
-    PyErr_SetString(PyExc_TypeError, "getGameObjectFromObject: Expected a bpy.types.Object.");
+    PyErr_SetString(PyExc_TypeError, "getGameObjectFromObject: Expected a bpy.types.blender::Object.");
     return nullptr;
   }
 
-  ID *id = nullptr;
+  blender::ID *id = nullptr;
   if (!pyrna_id_FromPyObject(pyBlenderObject, &id)) {
     PyErr_Format(PyExc_RuntimeError,
-                 "getGameObjectFromObject: Failed to convert Object %s: ",
+                 "getGameObjectFromObject: Failed to convert blender::Object %s: ",
                  id->name + 2);
     return nullptr;
   }
 
-  Object *ob = (Object *)id;
+  blender::Object *ob = (blender::Object *)id;
   if (ob) {
     KX_GameObject *gameobj = GetGameObjectFromObject(ob);
     if (gameobj->IsDupliInstance()) {
@@ -3539,7 +3541,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
     if (gameobj) {
       return gameobj->GetProxy();
     }
-    PyErr_Format(PyExc_ValueError, "getGameObjectFromObject: No KX_GameObject found for this Object %s ", ob->id.name + 2);
+    PyErr_Format(PyExc_ValueError, "getGameObjectFromObject: No KX_GameObject found for this blender::Object %s ", ob->id.name + 2);
     Py_RETURN_NONE;
   }
 

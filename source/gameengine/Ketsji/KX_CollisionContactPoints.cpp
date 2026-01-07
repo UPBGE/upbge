@@ -29,6 +29,8 @@
 #include "KX_PyMath.h"
 #include "PHY_DynamicTypes.h"
 
+using namespace blender;
+
 KX_CollisionContactPoint::KX_CollisionContactPoint(const PHY_ICollData *collData,
                                                    unsigned int index,
                                                    bool firstObject)

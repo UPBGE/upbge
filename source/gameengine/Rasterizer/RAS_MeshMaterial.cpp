@@ -25,6 +25,8 @@
 #include "RAS_IDisplayArray.h"
 #include "RAS_MaterialBucket.h"
 
+using namespace blender;
+
 RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh,
                                    RAS_MaterialBucket *bucket,
                                    unsigned int index,

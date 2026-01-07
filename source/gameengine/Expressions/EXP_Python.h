@@ -51,6 +51,7 @@
 
 #ifdef __FreeBSD__
 #  include <osreldate.h>
+
 #  if __FreeBSD_version > 500039
 #    undef isalnum
 #    undef isalpha

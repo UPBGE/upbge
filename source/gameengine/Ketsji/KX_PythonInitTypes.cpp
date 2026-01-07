@@ -113,6 +113,8 @@
 #  include "SCA_XORController.h"
 #  include "../VideoTexture/Texture.h"
 
+using namespace blender;
+
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {
   attr_getset->name = (char *)attr->m_name.c_str();

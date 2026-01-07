@@ -32,6 +32,7 @@
 
 #include "CM_Message.h"
 
+using namespace blender;
 using namespace blender::gpu::shader;
 
 RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)

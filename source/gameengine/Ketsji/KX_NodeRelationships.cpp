@@ -33,6 +33,8 @@
 
 #include "MT_Matrix4x4.h"
 
+using namespace blender;
+
 KX_NormalParentRelation::KX_NormalParentRelation()
 {
 }

@@ -53,8 +53,10 @@
 #include "BL_SceneConverter.h"
 #include "KX_Globals.h"
 
+using namespace blender;
+
 // Only allowed for Poses with identical channels.
-void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode)
+void BL_ArmatureObject::GameBlendPose(blender::bPose *dst, blender::bPose *src, float srcweight, short mode)
 {
   float dstweight;
 
@@ -68,9 +70,9 @@ void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, s
     dstweight = 1.0f;
   }
 
-  bPoseChannel *schan = (bPoseChannel *)src->chanbase.first;
-  for (bPoseChannel *dchan = (bPoseChannel *)dst->chanbase.first; dchan;
-       dchan = (bPoseChannel *)dchan->next, schan = (bPoseChannel *)schan->next)
+  blender::bPoseChannel *schan = (blender::bPoseChannel *)src->chanbase.first;
+  for (blender::bPoseChannel *dchan = (blender::bPoseChannel *)dst->chanbase.first; dchan;
+       dchan = (blender::bPoseChannel *)dchan->next, schan = (blender::bPoseChannel *)schan->next)
   {
     // always blend on all channels since we don't know which one has been set
     /* quat interpolation done separate */
@@ -106,8 +108,8 @@ void BL_ArmatureObject::GameBlendPose(bPose *dst, bPose *src, float srcweight, s
         dchan->eul[i] = (dchan->eul[i] * dstweight) + (schan->eul[i] * srcweight);
       }
     }
-    for (bConstraint *dcon = (bConstraint *)dchan->constraints.first,
-                     *scon = (bConstraint *)schan->constraints.first;
+    for (blender::bConstraint *dcon = (blender::bConstraint *)dchan->constraints.first,
+                     *scon = (blender::bConstraint *)schan->constraints.first;
          dcon && scon;
          dcon = dcon->next, scon = scon->next)
     {
@@ -136,13 +138,13 @@ BL_ArmatureObject::~BL_ArmatureObject()
   m_controlledConstraints->Release();
 
   if (!m_replicaMeshes.empty() && m_isReplica) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Main *bmain = C ? CTX_data_main(C) : nullptr;
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Main *bmain = C ? CTX_data_main(C) : nullptr;
 
     /* Restore original data pointers first */
     for (auto &item : m_replacedOriginalData) {
-      Object *child_ob = item.first;
-      ID *orig_data = item.second;
+      blender::Object *child_ob = item.first;
+      blender::ID *orig_data = item.second;
       if (child_ob && orig_data) {
         child_ob->data = orig_data;
       }
@@ -150,10 +152,10 @@ BL_ArmatureObject::~BL_ArmatureObject()
 
     /* Delete replicas meshes */
     for (auto &item : m_replicaMeshes) {
-      Mesh *replica = item.second;
+      blender::Mesh *replica = item.second;
       if (replica) {
-        /* Delete the mesh from Main database */
-        BKE_id_delete(bmain, (ID *)replica);
+        /* Delete the mesh from blender::Main database */
+        BKE_id_delete(bmain, (blender::ID *)replica);
       }
     }
 
@@ -165,7 +167,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
   }
 }
 
-void BL_ArmatureObject::SetBlenderObject(Object *obj)
+void BL_ArmatureObject::SetBlenderObject(blender::Object *obj)
 {
   KX_GameObject::SetBlenderObject(obj);
   m_objArma = obj;
@@ -181,7 +183,7 @@ void BL_ArmatureObject::RemapParentChildren()
   /* When an armature is replicated, child objects that had an armature modifier
    * pointing to the original armature must be remapped to point to the new replica. */
   for (KX_GameObject *child : GetChildren()) {
-    Object *child_ob = child->GetBlenderObject();
+    blender::Object *child_ob = child->GetBlenderObject();
     if (!child_ob) {
       continue;
     }
@@ -194,18 +196,18 @@ void BL_ArmatureObject::RemapParentChildren()
                                      !child->IsDupliInstance();
           if (child->IsReplica() && is_using_gpu_deform) {
             if (m_replicaMeshes.find(child_ob) == m_replicaMeshes.end()) {
-              bContext *C = KX_GetActiveEngine()->GetContext();
-              Main *bmain = CTX_data_main(C);
+              blender::bContext *C = KX_GetActiveEngine()->GetContext();
+              blender::Main *bmain = CTX_data_main(C);
 
               /* Cache the replica mesh data to avoid multiple lookups. */
-              Mesh *orig = (Mesh *)child_ob->data;
-              Mesh *replica = (Mesh *)BKE_id_copy_ex(bmain, (ID *)orig, nullptr, 0);
+              blender::Mesh *orig = (blender::Mesh *)child_ob->data;
+              blender::Mesh *replica = (blender::Mesh *)BKE_id_copy_ex(bmain, (blender::ID *)orig, nullptr, 0);
 
-              child_ob->data = replica;
+              child_ob->data = id_cast<ID *>(replica);
 
               /* Store original data pointer to restore it later. */
               if (m_replacedOriginalData.find(child_ob) == m_replacedOriginalData.end()) {
-                m_replacedOriginalData[child_ob] = (ID *)orig;
+                m_replacedOriginalData[child_ob] = (blender::ID *)orig;
               }
               DEG_id_tag_update(&child_ob->id, ID_RECALC_GEOMETRY);
               DEG_relations_tag_update(bmain);
@@ -228,9 +230,9 @@ void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
   // get the persistent pose structure
 
   // and locate the constraint
-  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+  for (blender::bPoseChannel *pchan = (blender::bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
        pchan = pchan->next) {
-    for (bConstraint *pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = pcon->next) {
+    for (blender::bConstraint *pcon = (blender::bConstraint *)pchan->constraints.first; pcon; pcon = pcon->next) {
       if (pcon->flag & CONSTRAINT_DISABLE) {
         continue;
       }
@@ -318,8 +320,8 @@ BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(int index)
 void BL_ArmatureObject::LoadChannels()
 {
   m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
-  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
-       pchan = (bPoseChannel *)pchan->next) {
+  for (blender::bPoseChannel *pchan = (blender::bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+       pchan = (blender::bPoseChannel *)pchan->next) {
     BL_ArmatureChannel *channel = new BL_ArmatureChannel(this, pchan);
     m_poseChannels->Add(channel);
   }
@@ -330,7 +332,7 @@ size_t BL_ArmatureObject::GetChannelNumber() const
   return m_poseChannels->GetCount();
 }
 
-BL_ArmatureChannel *BL_ArmatureObject::GetChannel(bPoseChannel *pchan)
+BL_ArmatureChannel *BL_ArmatureObject::GetChannel(blender::bPoseChannel *pchan)
 {
   return m_poseChannels->FindIf(
       [&pchan](BL_ArmatureChannel *channel) { return channel->m_posechannel == pchan; });
@@ -410,15 +412,15 @@ void BL_ArmatureObject::ApplyPose()
     for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
       constraint->UpdateTarget();
     }
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
 
     m_lastapplyframe = m_lastframe;
   }
 }
 
-static void compute_bendy_bones_matrices(Object *armOb)
+static void compute_bendy_bones_matrices(blender::Object *armOb)
 {
   /* ============================================================
    * UPDATE BENDY BONES SEGMENTS CACHE FOR BGE
@@ -428,7 +430,7 @@ static void compute_bendy_bones_matrices(Object *armOb)
    * in GPU skinning mode as depsgraph is not tagged.
    */
   if (armOb->pose) {
-    for (bPoseChannel &pchan : armOb->pose->chanbase) {
+    for (blender::bPoseChannel &pchan : armOb->pose->chanbase) {
       /* Only update bendy bones (segments > 1) */
       if (pchan.bone && pchan.bone->segments > 1) {
         BKE_pchan_bbone_segments_cache_compute(&pchan);
@@ -437,18 +439,18 @@ static void compute_bendy_bones_matrices(Object *armOb)
   }
 }
 
-void BL_ArmatureObject::ApplyAction(bAction *action, const AnimationEvalContext &evalCtx)
+void BL_ArmatureObject::ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx)
 {
   if (!m_objArma || !action) {
     return;
   }
-  PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
+  blender::PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
   compute_bendy_bones_matrices(m_objArma);
 }
 
-void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
+void BL_ArmatureObject::BlendInPose(blender::bPose *blend_pose, float weight, short mode)
 {
   GameBlendPose(m_objArma->pose, blend_pose, weight, mode);
 }
@@ -466,16 +468,16 @@ bool BL_ArmatureObject::UpdateTimestep(double curtime)
   return false;
 }
 
-Object *BL_ArmatureObject::GetArmatureObject()
+blender::Object *BL_ArmatureObject::GetArmatureObject()
 {
   return m_objArma;
 }
-Object *BL_ArmatureObject::GetOrigArmatureObject()
+blender::Object *BL_ArmatureObject::GetOrigArmatureObject()
 {
   return m_objArma;
 }
 
-void BL_ArmatureObject::GetPose(bPose **pose) const
+void BL_ArmatureObject::GetPose(blender::bPose **pose) const
 {
   /* If the caller supplies a null pose, create a new one. */
   /* Otherwise, copy the armature's pose channels into the caller-supplied pose */
@@ -498,7 +500,7 @@ void BL_ArmatureObject::GetPose(bPose **pose) const
   }
 }
 
-bPose *BL_ArmatureObject::GetPose() const
+blender::bPose *BL_ArmatureObject::GetPose() const
 {
   return m_objArma->pose;
 }
@@ -508,10 +510,10 @@ double BL_ArmatureObject::GetLastFrame()
   return m_lastframe;
 }
 
-bool BL_ArmatureObject::GetBoneMatrix(Bone *bone, MT_Matrix4x4 &matrix)
+bool BL_ArmatureObject::GetBoneMatrix(blender::Bone *bone, MT_Matrix4x4 &matrix)
 {
   ApplyPose();
-  bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
+  blender::bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
   if (pchan) {
     matrix.setValue(&pchan->pose_mat[0][0]);
   }
@@ -530,7 +532,7 @@ void BL_ArmatureObject::DrawDebug(RAS_DebugDraw &debugDraw)
   const MT_Matrix3x3 &rot = NodeGetWorldOrientation();
   const MT_Vector3 &pos = NodeGetWorldPosition();
 
-  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+  for (blender::bPoseChannel *pchan = (blender::bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
        pchan = pchan->next)
   {
     MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;
@@ -540,7 +542,7 @@ void BL_ArmatureObject::DrawDebug(RAS_DebugDraw &debugDraw)
   m_drawDebug = false;
 }
 
-float BL_ArmatureObject::GetBoneLength(Bone *bone) const
+float BL_ArmatureObject::GetBoneLength(blender::Bone *bone) const
 {
   return (float)(MT_Vector3(bone->head) - MT_Vector3(bone->tail)).length();
 }

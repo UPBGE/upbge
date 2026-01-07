@@ -9,6 +9,8 @@
 
 #include "MT_Frustum.h"
 
+using namespace blender;
+
 SG_Frustum::SG_Frustum(const MT_Matrix4x4 &matrix) : m_matrix(matrix)
 {
   // Near clip plane

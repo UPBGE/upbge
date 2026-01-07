@@ -40,6 +40,8 @@
 #include "BL_IpoConvert.h"
 #include "CM_Message.h"
 
+using namespace blender;
+
 using namespace blender::animrig;
 
 BL_Action::BL_Action(class KX_GameObject *gameobj)
@@ -64,14 +66,14 @@ BL_Action::BL_Action(class KX_GameObject *gameobj)
       m_calc_localtime(true),
       m_prevUpdate(-1.0f)
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   /* See: 686ab4c9401a90b22fb17e46c992eb513fe4f693
    * This AnimtionEvalContext will not be used directly but
-   * will be used to create other AnimationEvalContext with
+   * will be used to create other blender::AnimationEvalContext with
    * localActionTime (m_localFrame) each frame. We need to
-   * construct a new AnimationEvalContext each frame because
-   * AnimationEvalContext->eval_time is const .
+   * construct a new blender::AnimationEvalContext each frame because
+   * blender::AnimationEvalContext->eval_time is const .
    */
   m_animEvalCtx = BKE_animsys_eval_context_construct(depsgraph, 0.0);
 }
@@ -88,7 +90,7 @@ BL_Action::~BL_Action()
   m_blendshape.clear();
   m_blendinshape.clear();
 
-  Object *ob = m_obj->GetBlenderObject();
+  blender::Object *ob = m_obj->GetBlenderObject();
   if (ob && ob->adt && m_action) {
     ob->adt->action = m_action;
   }
@@ -123,12 +125,12 @@ bool BL_Action::Play(const std::string &name,
   if (!IsDone() && priority > m_priority)
     return false;
   m_priority = priority;
-  bAction *prev_action = m_action;
+  blender::bAction *prev_action = m_action;
 
   KX_Scene *kxscene = m_obj->GetScene();
 
   // First try to load the action
-  m_action = (bAction *)kxscene->GetLogicManager()->GetActionByName(name);
+  m_action = (blender::bAction *)kxscene->GetLogicManager()->GetActionByName(name);
   if (!m_action) {
     CM_Error("failed to load action: " << name);
     m_done = true;
@@ -188,11 +190,11 @@ bool BL_Action::Play(const std::string &name,
     /* Capture a snapshot of current shape key curvals to blend from.
      * Only do this when we actually will blend (blendin > 0 or layer active). */
     if (blendin > 0.0f || layer_weight >= 0.0f) {
-      Object *ob = m_obj->GetBlenderObject();
+      blender::Object *ob = m_obj->GetBlenderObject();
       m_blendinshape.clear();
       m_blendshape.clear();
       if (ob && ob->type == OB_MESH) {
-        Mesh *me = static_cast<Mesh *>(ob->data);
+        blender::Mesh *me = id_cast<blender::Mesh *>(ob->data);
         if (me && me->key) {
           /* Reserve exact size (totkey minus possibly the refkey). */
           int tot = me->key->totkey;
@@ -251,7 +253,7 @@ void BL_Action::InitIPO()
   }
 }
 
-bAction *BL_Action::GetAction()
+blender::bAction *BL_Action::GetAction()
 {
   return (IsDone()) ? nullptr : m_action;
 }
@@ -321,7 +323,7 @@ void BL_Action::IncrementBlending(float curtime)
     m_blendframe = m_blendin;
 }
 
-void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blendshape)
+void BL_Action::BlendShape(blender::Key *key, float srcweight, std::vector<float> &blendshape)
 {
   if (!key) {
     return;
@@ -348,8 +350,8 @@ enum eActionType {
   ACT_TYPE_IDPROP,
 };
 
-/* Ensure name of data (ModifierData, bConstraint...) matches m_action's FCurve rna path */
-static bool ActionMatchesName(bAction *action, char *name, eActionType type)
+/* Ensure name of data (ModifierData, blender::bConstraint...) matches m_action's FCurve rna path */
+static bool ActionMatchesName(blender::bAction *action, char *name, eActionType type)
 {
   // std::cout << "curves listbase len: " << BLI_listbase_count(&action->curves) << std::endl;
   Action &new_action = action->wrap();
@@ -484,11 +486,11 @@ void BL_Action::UpdateControllersAndAnimation(float curtime)
   // Update spatial controllers
   UpdateSpatialControllers();
 
-  Object *ob = m_obj->GetBlenderObject();  // eevee
+  blender::Object *ob = m_obj->GetBlenderObject();  // eevee
 
-  /* Create an AnimationEvalContext based on the current local frame time (See comment in
+  /* Create an blender::AnimationEvalContext based on the current local frame time (See comment in
    * constructor) */
-  AnimationEvalContext animEvalContext = BKE_animsys_eval_context_construct_at(&m_animEvalCtx,
+  blender::AnimationEvalContext animEvalContext = BKE_animsys_eval_context_construct_at(&m_animEvalCtx,
                                                                                m_localframe);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
@@ -510,8 +512,8 @@ void BL_Action::UpdateSpatialControllers()
 }
 
 void BL_Action::UpdateArmatureAnimation(float curtime,
-                                        Object *ob,
-                                        const AnimationEvalContext &animEvalContext)
+                                        blender::Object *ob,
+                                        const blender::AnimationEvalContext &animEvalContext)
 {
   BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
   KX_Scene *scene = m_obj->GetScene();
@@ -535,21 +537,21 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
 }
 
 void BL_Action::ProcessPipeline(BL_ArmatureObject *obj,
-                                   Object *ob,
+                                   blender::Object *ob,
                                    KX_Scene *scene,
-                                   const AnimationEvalContext &animEvalContext)
+                                   const blender::AnimationEvalContext &animEvalContext)
 {
   // === CPU/GPU PIPELINES ===
   bool is_running_gpu_skinning = false;
   for (KX_GameObject *child : m_obj->GetChildren()) {
-    Object *child_ob = child->GetBlenderObject();
+    blender::Object *child_ob = child->GetBlenderObject();
     if (!child_ob) {
       continue;
     }
     if (child_ob->type != OB_MESH) {
       continue;
     }
-    Mesh *me = static_cast<Mesh *>(child_ob->data);
+    blender::Mesh *me = id_cast<blender::Mesh *>(child_ob->data);
     if (me->is_running_gpu_animation_playback) {
       is_running_gpu_skinning = true;
       break;
@@ -580,7 +582,7 @@ void BL_Action::ProcessArmatureBlending(BL_ArmatureObject *obj, float curtime)
   }
 }
 
-void BL_Action::UpdateObjectAnimation(Object *ob, const AnimationEvalContext &animEvalContext)
+void BL_Action::UpdateObjectAnimation(blender::Object *ob, const blender::AnimationEvalContext &animEvalContext)
 {
   KX_Scene *scene = m_obj->GetScene();
   /* To skip some code if not needed */
@@ -618,9 +620,9 @@ void BL_Action::UpdateObjectAnimation(Object *ob, const AnimationEvalContext &an
   }
 }
 
-bool BL_Action::TryUpdateModifierActions(Object *ob,
+bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
                                          KX_Scene *scene,
-                                         const AnimationEvalContext &animEvalContext)
+                                         const blender::AnimationEvalContext &animEvalContext)
 {
   for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
     bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
@@ -630,7 +632,7 @@ bool BL_Action::TryUpdateModifierActions(Object *ob,
                                                                 ID_RECALC_GEOMETRY;
       scene->AppendToIdsToUpdate(&ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
 
-      PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+      blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
@@ -640,11 +642,11 @@ bool BL_Action::TryUpdateModifierActions(Object *ob,
   return false;
 }
 
-bool BL_Action::TryUpdateConstraintActions(Object *ob,
+bool BL_Action::TryUpdateConstraintActions(blender::Object *ob,
                                            KX_Scene *scene,
-                                           const AnimationEvalContext &animEvalContext)
+                                           const blender::AnimationEvalContext &animEvalContext)
 {
-  for (bConstraint *con = (bConstraint *)ob->constraints.first; con; con = con->next) {
+  for (blender::bConstraint *con = (blender::bConstraint *)ob->constraints.first; con; con = con->next) {
     if (ActionMatchesName(m_action, con->name, ACT_TYPE_CONSTRAINT)) {
       if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
         return false;
@@ -652,7 +654,7 @@ bool BL_Action::TryUpdateConstraintActions(Object *ob,
 
       scene->AppendToIdsToUpdate(
           &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
-      PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+      blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
@@ -666,15 +668,15 @@ bool BL_Action::TryUpdateConstraintActions(Object *ob,
   return false;
 }
 
-bool BL_Action::TryUpdateIDPropertyActions(Object *ob,
+bool BL_Action::TryUpdateIDPropertyActions(blender::Object *ob,
                                            KX_Scene *scene,
-                                           const AnimationEvalContext &animEvalContext)
+                                           const blender::AnimationEvalContext &animEvalContext)
 {
   if (!ob->id.properties) {
     return false;
   }
 
-  for (IDProperty *prop = (IDProperty *)ob->id.properties->data.group.first; prop; prop = prop->next) {
+  for (blender::IDProperty *prop = (blender::IDProperty *)ob->id.properties->data.group.first; prop; prop = prop->next) {
     if (prop->type == IDP_GROUP) {
       continue;
     }
@@ -682,7 +684,7 @@ bool BL_Action::TryUpdateIDPropertyActions(Object *ob,
     if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
       scene->AppendToIdsToUpdate(
           &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
-      PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
+      blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
@@ -693,14 +695,14 @@ bool BL_Action::TryUpdateIDPropertyActions(Object *ob,
 }
 
 bool BL_Action::TryUpdateNodeTreeActions(KX_Scene *scene,
-                                         const AnimationEvalContext &animEvalContext)
+                                         const blender::AnimationEvalContext &animEvalContext)
 {
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  blender::Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 
   FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
     if (IsNodeTreeActionMatch(nodetree)) {
       scene->AppendToIdsToUpdate(&nodetree->id, static_cast<IDRecalcFlag>(0), false);
-      PointerRNA ptrrna = RNA_id_pointer_create(&nodetree->id);
+      blender::PointerRNA ptrrna = RNA_id_pointer_create(&nodetree->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
@@ -712,7 +714,7 @@ bool BL_Action::TryUpdateNodeTreeActions(KX_Scene *scene,
   return false;
 }
 
-bool BL_Action::IsNodeTreeActionMatch(bNodeTree *nodetree)
+bool BL_Action::IsNodeTreeActionMatch(blender::bNodeTree *nodetree)
 {
   bool isRightAction = false;
   isRightAction = (nodetree->adt && nodetree->adt->action == m_action);
@@ -729,11 +731,11 @@ bool BL_Action::IsNodeTreeActionMatch(bNodeTree *nodetree)
   return isRightAction;
 }
 
-bool BL_Action::TryUpdateShapeKeyActions(Object *ob,
+bool BL_Action::TryUpdateShapeKeyActions(blender::Object *ob,
                                          KX_Scene *scene,
-                                         const AnimationEvalContext &animEvalContext)
+                                         const blender::AnimationEvalContext &animEvalContext)
 {
-  Mesh *me = (Mesh *)ob->data;
+  blender::Mesh *me = (blender::Mesh *)ob->data;
   if (ob->type == OB_MESH && me) {
     const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
     bool has_animdata = bHasShapeKey && me->key->adt;
@@ -755,9 +757,9 @@ bool BL_Action::TryUpdateShapeKeyActions(Object *ob,
       if (!gpu_deformation) {
         scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
       }
-      Key *key = me->key;
+      blender::Key *key = me->key;
 
-      PointerRNA ptrrna = RNA_id_pointer_create(&key->id);
+      blender::PointerRNA ptrrna = RNA_id_pointer_create(&key->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
@@ -769,7 +771,7 @@ bool BL_Action::TryUpdateShapeKeyActions(Object *ob,
   return false;
 }
 
-bool BL_Action::IsNLAShapeKeyActionMatch(Key *key)
+bool BL_Action::IsNLAShapeKeyActionMatch(blender::Key *key)
 {
   for (NlaTrack &track : key->adt->nla_tracks) {
     for (NlaStrip &strip : track.strips) {
@@ -781,7 +783,7 @@ bool BL_Action::IsNLAShapeKeyActionMatch(Key *key)
   return false;
 }
 
-void BL_Action::ProcessShapeKeyBlending(Key *key)
+void BL_Action::ProcessShapeKeyBlending(blender::Key *key)
 {
   if (!key) {
     return;

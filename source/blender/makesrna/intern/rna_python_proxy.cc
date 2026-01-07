@@ -30,6 +30,8 @@
 
 #include "WM_types.hh"
 
+using namespace blender;
+
 #ifdef RNA_RUNTIME
 
 static StructRNA *rna_PythonProxyProperty_refine(struct PointerRNA *ptr)
@@ -105,6 +107,8 @@ static const EnumPropertyItem *rna_ProxySetProperty_itemf(bContext * /*C*/,
   return items;
 }
 #else
+
+namespace blender {
 
 static void rna_def_py_proxy(BlenderRNA *brna)
 {
@@ -311,5 +315,7 @@ void RNA_def_py_proxy(BlenderRNA *brna)
   rna_def_py_proxy(brna);
   rna_def_py_proxy_property(brna);
 }
+
+}  // namespace blender
 
 #endif /* RNA_RUNTIME */

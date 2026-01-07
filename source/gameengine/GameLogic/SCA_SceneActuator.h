@@ -41,14 +41,14 @@ class SCA_SceneActuator : public SCA_IActuator {
       int m_mode;
   // (restart) has become a toggle internally... not in the interface though
   bool m_restart;
-  // (set Scene) Scene
+  // (set blender::Scene) blender::Scene
   /** The current scene. */
   class KX_Scene *m_scene;
   class KX_KetsjiEngine *m_KetsjiEngine;
   /** The scene to switch to. */
   std::string m_nextSceneName;
 
-  // (Set Camera) Object
+  // (Set blender::Camera) blender::Object
   class KX_Camera *m_camera;
 
  public:

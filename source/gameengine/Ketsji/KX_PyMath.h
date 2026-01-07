@@ -43,6 +43,11 @@
 #ifdef WITH_PYTHON
 #  ifdef USE_MATHUTILS
 #    include "../../blender/python/mathutils/mathutils.hh" /* so we can have mathutils callbacks */
+using blender::BaseMathObject;
+using blender::MatrixObject;
+using blender::VectorObject;
+using blender::QuaternionObject;
+using blender::EulerObject;
 #  endif
 
 inline unsigned int Size(const MT_Matrix4x4 &)
@@ -76,8 +81,8 @@ template<class T> bool PyMatTo(PyObject *pymat, T &mat)
 
 #  ifdef USE_MATHUTILS
 
-  if (MatrixObject_Check(pymat)) {
-    MatrixObject *pymatrix = (MatrixObject *)pymat;
+  if (PyObject_TypeCheck(pymat, &blender::matrix_Type)) {
+    blender::MatrixObject *pymatrix = (blender::MatrixObject *)pymat;
 
     if (BaseMath_ReadCallback(pymatrix) == -1)
       return false;
@@ -138,8 +143,8 @@ template<class T> bool PyVecTo(PyObject *pyval, T &vec)
 #  ifdef USE_MATHUTILS
   /* no need for BaseMath_ReadCallback() here, reading the sequences will do this */
 
-  if (VectorObject_Check(pyval)) {
-    VectorObject *pyvec = (VectorObject *)pyval;
+  if (PyObject_TypeCheck(pyval, &blender::vector_Type)) {
+    blender::VectorObject *pyvec = (blender::VectorObject *)pyval;
     if (BaseMath_ReadCallback(pyvec) == -1) {
       return false; /* exception raised */
     }
@@ -153,8 +158,8 @@ template<class T> bool PyVecTo(PyObject *pyval, T &vec)
     vec.setValue((float *)pyvec->vec);
     return true;
   }
-  else if (QuaternionObject_Check(pyval)) {
-    QuaternionObject *pyquat = (QuaternionObject *)pyval;
+  else if (PyObject_TypeCheck(pyval, &blender::quaternion_Type)) {
+    blender::QuaternionObject *pyquat = (blender::QuaternionObject *)pyval;
     if (BaseMath_ReadCallback(pyquat) == -1) {
       return false; /* exception raised */
     }
@@ -167,8 +172,8 @@ template<class T> bool PyVecTo(PyObject *pyval, T &vec)
     vec.setValue((float *)pyquat->quat);
     return true;
   }
-  else if (EulerObject_Check(pyval)) {
-    EulerObject *pyeul = (EulerObject *)pyval;
+  else if (PyObject_TypeCheck(pyval, &blender::euler_Type)) {
+    blender::EulerObject *pyeul = (blender::EulerObject *)pyval;
     if (BaseMath_ReadCallback(pyeul) == -1) {
       return false; /* exception raised */
     }

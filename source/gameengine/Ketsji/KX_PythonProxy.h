@@ -24,14 +24,14 @@
 
 #include "EXP_Value.h"
 
-struct PythonProxy;
+#include "DNA_python_proxy_types.h"
 
 class KX_PythonProxy : public EXP_Value {
 
  private:
   bool m_init;
 
-  PythonProxy *m_pp;
+  blender::PythonProxy *m_pp;
 
   #ifdef WITH_PYTHON
   PyObject *m_update;
@@ -48,9 +48,9 @@ class KX_PythonProxy : public EXP_Value {
 
   std::string GetName();
 
-  PythonProxy *GetPrototype();
+  blender::PythonProxy *GetPrototype();
 
-  void SetPrototype(PythonProxy *pp);
+  void SetPrototype(blender::PythonProxy *pp);
 
   virtual void Start();
 

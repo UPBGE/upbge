@@ -36,6 +36,8 @@
 // CSG cool things like (IF(LOD==1,CCurvedValue,IF(LOD==2,CCurvedValue2)) etc...
 #include "EXP_IfExpr.h"
 
+using namespace blender;
+
 #if defined(WIN32) || defined(WIN64)
 #  define strcasecmp _stricmp
 

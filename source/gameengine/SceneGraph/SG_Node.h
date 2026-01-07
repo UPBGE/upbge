@@ -134,12 +134,12 @@ class SG_Node : public SG_QList {
   void SetSGParent(SG_Node *parent);
 
   /**
-   * Return the top node in this node's Scene graph hierarchy
+   * Return the top node in this node's blender::Scene graph hierarchy
    */
   const SG_Node *GetRootSGParent() const;
 
   /**
-   * Return the depth of the current node in the Scene graph hierarchy.
+   * Return the depth of the current node in the blender::Scene graph hierarchy.
    */
   short GetDepth();
 

@@ -28,6 +28,8 @@
 
 #include "DEV_Joystick.h"
 
+using namespace blender;
+
 //#include "GHOST_C-api.h"
 
 /* ------------------------------------------------------------------------- */

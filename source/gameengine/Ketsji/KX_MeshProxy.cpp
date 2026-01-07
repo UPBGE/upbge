@@ -46,6 +46,8 @@
 #  include "RAS_MeshObject.h"
 #  include "SCA_LogicManager.h"
 
+using namespace blender;
+
 PyTypeObject KX_MeshProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_MeshProxy",
                                    sizeof(EXP_PyObjectPlus_Proxy),
                                    0,

@@ -32,11 +32,15 @@
 #include "../draw/intern/draw_cache_extract.hh"
 #include "gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
 
-using blender::bke::MeshGPUCacheManager;
-using blender::bke::MeshGpuData;
+namespace blender {
+namespace bke {
+
+
+using bke::MeshGPUCacheManager;
+using bke::MeshGpuData;
 
 /* Helper: free internal resources (must be called without holding cache mutex). */
-static void mesh_gpu_free_internal_resources_ptr(blender::bke::MeshGpuInternalResources *ir)
+static void mesh_gpu_free_internal_resources_ptr(bke::MeshGpuInternalResources *ir)
 {
   if (!ir) {
     return;
@@ -80,7 +84,7 @@ static void mesh_gpu_free_internal_resources_ptr(blender::bke::MeshGpuInternalRe
   delete ir;
 }
 
-blender::bke::MeshGpuData *BKE_mesh_gpu_ensure_data(struct Mesh *mesh_orig, struct Mesh *mesh_eval)
+MeshGpuData *BKE_mesh_gpu_ensure_data(Mesh *mesh_orig, Mesh *mesh_eval)
 {
   if (!mesh_orig || !mesh_eval) {
     return nullptr;
@@ -95,7 +99,7 @@ blender::bke::MeshGpuData *BKE_mesh_gpu_ensure_data(struct Mesh *mesh_orig, stru
       mesh_data.session_uid = mesh_orig->id.session_uid;
     }
     if (!mesh_data.internal_resources) {
-      mesh_data.internal_resources = new blender::bke::MeshGpuInternalResources();
+      mesh_data.internal_resources = new bke::MeshGpuInternalResources();
     }
     /* If topology already uploaded by another thread, return it directly. */
     if (mesh_data.topology.ssbo) {
@@ -104,7 +108,7 @@ blender::bke::MeshGpuData *BKE_mesh_gpu_ensure_data(struct Mesh *mesh_orig, stru
   }
 
   /* Step 2: Build and upload topology outside the mutex. */
-  blender::bke::MeshGPUTopology tmp_topo;
+  bke::MeshGPUTopology tmp_topo;
   if (!BKE_mesh_gpu_topology_create(mesh_eval, tmp_topo)) {
     return nullptr;
   }
@@ -132,7 +136,7 @@ blender::bke::MeshGpuData *BKE_mesh_gpu_ensure_data(struct Mesh *mesh_orig, stru
       mesh_data.session_uid = mesh_orig->id.session_uid;
     }
     if (!mesh_data.internal_resources) {
-      mesh_data.internal_resources = new blender::bke::MeshGpuInternalResources();
+      mesh_data.internal_resources = new bke::MeshGpuInternalResources();
     }
     return &mesh_data;
   }
@@ -162,7 +166,7 @@ void mesh_gpu_orphans_flush_impl()
 
 /* Note: functions now use MeshGPUCacheManager accessors instead of globals. */
 
-bool BKE_mesh_gpu_topology_create(const Mesh *mesh_eval, blender::bke::MeshGPUTopology &topology)
+bool BKE_mesh_gpu_topology_create(const Mesh *mesh_eval, bke::MeshGPUTopology &topology)
 {
   if (!mesh_eval) {
     return false;
@@ -181,43 +185,43 @@ bool BKE_mesh_gpu_topology_create(const Mesh *mesh_eval, blender::bke::MeshGPUTo
   const auto corner_edges_span = mesh_eval->corner_edges();
 
   /* Convert spans to vectors for easier handling */
-  blender::Vector<int> corner_verts_vec(corner_verts_span.begin(), corner_verts_span.end());
-  blender::Vector<int> corner_tris_flat;
+  Vector<int> corner_verts_vec(corner_verts_span.begin(), corner_verts_span.end());
+  Vector<int> corner_tris_flat;
   corner_tris_flat.reserve(corner_tris.size() * 3);
-  for (const blender::int3 &tri : corner_tris) {
+  for (const int3 &tri : corner_tris) {
     corner_tris_flat.append(tri.x);
     corner_tris_flat.append(tri.y);
     corner_tris_flat.append(tri.z);
   }
-  blender::Vector<int> corner_tri_faces_vec(corner_tri_faces.begin(), corner_tri_faces.end());
+  Vector<int> corner_tri_faces_vec(corner_tri_faces.begin(), corner_tri_faces.end());
 
-  blender::Vector<int> edges_flat;
+  Vector<int> edges_flat;
   edges_flat.reserve(edges.size() * 2);
-  for (const blender::int2 &edge : edges) {
+  for (const int2 &edge : edges) {
     edges_flat.append(edge.x);
     edges_flat.append(edge.y);
   }
 
-  blender::Vector<int> corner_edges_vec(corner_edges_span.begin(), corner_edges_span.end());
+  Vector<int> corner_edges_vec(corner_edges_span.begin(), corner_edges_span.end());
 
   /* Get vertex-to-face mapping */
-  const blender::OffsetIndices<int> v2f_off = mesh_eval->vert_to_face_map_offsets();
-  const blender::GroupedSpan<int> v2f = mesh_eval->vert_to_face_map();
+  const OffsetIndices<int> v2f_off = mesh_eval->vert_to_face_map_offsets();
+  const GroupedSpan<int> v2f = mesh_eval->vert_to_face_map();
 
   const int v2f_offsets_size = v2f_off.size();
-  blender::Vector<int> v2f_offsets(v2f_offsets_size);
+  Vector<int> v2f_offsets(v2f_offsets_size);
   for (int v = 0; v < v2f_offsets_size; ++v) {
     v2f_offsets[v] = v2f_off.data()[v];
   }
   const int total_v2f = v2f_offsets.is_empty() ? 0 : v2f_offsets.last();
 
-  blender::Vector<int> v2f_indices;
+  Vector<int> v2f_indices;
   v2f_indices.resize(std::max(total_v2f, 0));
   if (v2f_offsets_size > 0) {
-    blender::threading::parallel_for(
-        blender::IndexRange(v2f_offsets_size - 1), 4096, [&](const blender::IndexRange range) {
+    threading::parallel_for(
+        IndexRange(v2f_offsets_size - 1), 4096, [&](const IndexRange range) {
           for (int v : range) {
-            const blender::Span<int> faces_v = v2f[v];
+            const Span<int> faces_v = v2f[v];
             const int dst = v2f_off.data()[v];
             if (!faces_v.is_empty()) {
               std::copy(faces_v.begin(), faces_v.end(), v2f_indices.begin() + dst);
@@ -255,7 +259,7 @@ bool BKE_mesh_gpu_topology_create(const Mesh *mesh_eval, blender::bke::MeshGPUTo
   return true;
 }
 
-bool BKE_mesh_gpu_topology_upload(blender::bke::MeshGPUTopology &topology)
+bool BKE_mesh_gpu_topology_upload(bke::MeshGPUTopology &topology)
 {
   if (topology.data.is_empty()) {
     return false;
@@ -281,7 +285,7 @@ bool BKE_mesh_gpu_topology_upload(blender::bke::MeshGPUTopology &topology)
   return true;
 }
 
-void BKE_mesh_gpu_topology_free(blender::bke::MeshGPUTopology &topology)
+void BKE_mesh_gpu_topology_free(bke::MeshGPUTopology &topology)
 {
   if (topology.ssbo) {
     if (GPU_context_active_get()) {
@@ -341,14 +345,14 @@ void main() {
 /* Helper: Build complete scatter shader source with common normal lib */
 static std::string get_scatter_shader_source()
 {
-  using namespace blender::gpu;
+  using namespace gpu;
   /* Define position buffer macro before including normal lib */
-  return "#define POSITION_BUFFER positions_in\n" + get_common_normal_lib_glsl() +
+  return "#define POSITION_BUFFER positions_in\n" + blender::gpu::get_common_normal_lib_glsl() +
          scatter_to_corners_main_glsl;
 }
 
 std::string BKE_mesh_gpu_topology_glsl_accessors_string(
-    const blender::bke::MeshGPUTopology &topology)
+    const bke::MeshGPUTopology &topology)
 {
   return fmt::format(R"GLSL(
 // Mesh topology accessors (generated)
@@ -375,9 +379,9 @@ int vert_to_face(int i) {{ return topo[{} + i]; }}
 }
 
 void BKE_mesh_gpu_topology_add_specialization_constants(
-    blender::gpu::shader::ShaderCreateInfo &info, const blender::bke::MeshGPUTopology &topology)
+    gpu::shader::ShaderCreateInfo &info, const bke::MeshGPUTopology &topology)
 {
-  using namespace blender::gpu::shader;
+  using namespace gpu::shader;
   info.specialization_constant(Type::int_t, "face_offsets_offset", topology.face_offsets_offset);
   info.specialization_constant(
       Type::int_t, "corner_to_face_offset", topology.corner_to_face_offset);
@@ -396,7 +400,7 @@ void BKE_mesh_gpu_topology_add_specialization_constants(
 
 /* Helper to check if a bind_name is present (accepts both "name" and "name[]"). */
 static bool has_bind_name(const char *name,
-                          blender::Span<blender::bke::GpuMeshComputeBinding> local_bindings)
+                          Span<bke::GpuMeshComputeBinding> local_bindings)
 {
   if (!name) {
     return false;
@@ -418,7 +422,7 @@ static bool has_bind_name(const char *name,
 }
 
 /* Find next free binding index (avoid MESH_GPU_TOPOLOGY_BINDING). */
-static int find_free_binding(blender::Span<blender::bke::GpuMeshComputeBinding> local_bindings,
+static int find_free_binding(Span<bke::GpuMeshComputeBinding> local_bindings,
                              int start = 0)
 {
   int candidate = start;
@@ -440,17 +444,17 @@ static int find_free_binding(blender::Span<blender::bke::GpuMeshComputeBinding> 
   }
 }
 
-blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
+bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
     const char *main_glsl,
-    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
-    const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
-    const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
+    Span<bke::GpuMeshComputeBinding> caller_bindings,
+    const std::function<void(gpu::shader::ShaderCreateInfo &)> &config_fn,
+    const std::function<void(gpu::Shader *)> &post_bind_fn,
     int dispatch_count)
 {
   if (!GPU_context_active_get() || !depsgraph || !ob_eval || ob_eval->type != OB_MESH) {
-    return blender::bke::GpuComputeStatus::Error;
+    return bke::GpuComputeStatus::Error;
   }
 
   /* Attempt to free any deferred resources now that we are on a GPU context. */
@@ -459,45 +463,45 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   Object *ob_orig = DEG_get_original(const_cast<Object *>(ob_eval));
-  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_orig = (Mesh *)(ob_orig->data);
+  Mesh *mesh_eval = (Mesh *)(ob_eval->data);
   if (!mesh_eval) {
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    return blender::bke::GpuComputeStatus::Error;
+    return bke::GpuComputeStatus::Error;
   }
 
   if (!ob_orig) {
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    return blender::bke::GpuComputeStatus::Error;
+    return bke::GpuComputeStatus::Error;
   }
 
   if (ob_orig->mode != OB_MODE_OBJECT) {
     // early return when not in object mode
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    return blender::bke::GpuComputeStatus::NotReady;
+    return bke::GpuComputeStatus::NotReady;
   }
 
   if (!mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
     // early return
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    return blender::bke::GpuComputeStatus::NotReady;
+    return bke::GpuComputeStatus::NotReady;
   }
 
-  using namespace blender::draw;
+  using namespace draw;
 
-  auto *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
-  auto *vbo_pos_ptr = cache->final.buff.vbos.lookup_ptr(blender::draw::VBOType::Position);
+  auto *cache = static_cast<draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  auto *vbo_pos_ptr = cache->final.buff.vbos.lookup_ptr(draw::VBOType::Position);
   if (!vbo_pos_ptr) {
     // early return
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    return blender::bke::GpuComputeStatus::NotReady;
+    return bke::GpuComputeStatus::NotReady;
   }
   auto *vbo_pos = vbo_pos_ptr->get();
   const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
 
   if (format->stride == 16 && (ob_orig->id.recalc & ID_RECALC_GEOMETRY) != 0) {
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    return blender::bke::GpuComputeStatus::NotReady;
+    return bke::GpuComputeStatus::NotReady;
   }
 
   if (format->stride != 16) {
@@ -506,18 +510,18 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
     /* Skip BKE_mesh_batch_cache_dirty_tag but recontruct mesh runtime draw cache on next frame */
     BKE_mesh_request_gpu_render_cache_update(mesh_orig, mesh_eval, ob_orig);
-    return blender::bke::GpuComputeStatus::NotReady;
+    return bke::GpuComputeStatus::NotReady;
   }
 
-  blender::bke::MeshGpuData *mesh_data_ptr = BKE_mesh_gpu_ensure_data(mesh_orig, mesh_eval);
+  bke::MeshGpuData *mesh_data_ptr = BKE_mesh_gpu_ensure_data(mesh_orig, mesh_eval);
   if (!mesh_data_ptr) {
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    return blender::bke::GpuComputeStatus::Error;
+    return bke::GpuComputeStatus::Error;
   }
   auto &mesh_data = *mesh_data_ptr;
 
   /* --- Prepare bindings vector, inject defaults for scatter shader if needed --- */
-  blender::Vector<blender::bke::GpuMeshComputeBinding> local_bindings;
+  Vector<bke::GpuMeshComputeBinding> local_bindings;
   local_bindings.reserve(caller_bindings.size() + 4);
   for (const auto &b : caller_bindings) {
     local_bindings.append(b);
@@ -536,7 +540,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
      * safely create-or-return the SSBO). */
     if (!has_positions_in) {
       const std::string key = "scatter_positions_in";
-      blender::gpu::StorageBuf *ssbo = nullptr;
+      gpu::StorageBuf *ssbo = nullptr;
 
       /* Quick check while holding the mutex. */
       if (mesh_data.internal_resources) {
@@ -553,19 +557,19 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
           const size_t size_bytes = size_t(verts) * sizeof(float) * 4; /* vec4 per vertex */
 
           /* Build CPU buffer OUTSIDE the mutex to avoid holding the lock during heavy work. */
-          /* No mutex held here: BKE_mesh_gpu_internal_ssbo_ensure acquires it internally. */
-          blender::Vector<blender::float4> pos_data;
+          /* No mutex held here: bke::BKE_mesh_gpu_internal_ssbo_ensure acquires it internally. */
+          Vector<float4> pos_data;
           pos_data.resize(size_t(verts));
-          blender::Span<blender::float3> pos_span = mesh_eval->vert_positions();
-          blender::threading::parallel_for(
-              blender::IndexRange(verts), 4096, [&](blender::IndexRange range) {
+          Span<float3> pos_span = mesh_eval->vert_positions();
+          threading::parallel_for(
+              IndexRange(verts), 4096, [&](IndexRange range) {
                 for (int i : range) {
-                  pos_data[i] = blender::float4(pos_span[i].xyz(), 1.0f);
+                  pos_data[i] = float4(pos_span[i].xyz(), 1.0f);
                 }
               });
 
           /* Ensure (may return existing SSBO if another thread created it meanwhile). */
-          ssbo = BKE_mesh_gpu_internal_ssbo_ensure(mesh_orig, const_cast<Object *>(ob_eval), key, size_bytes);
+          ssbo = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_orig, const_cast<Object *>(ob_eval), key, size_bytes);
           if (ssbo) {
             GPU_storagebuf_update(ssbo, pos_data.data());
           }
@@ -574,10 +578,10 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
       /* If we now have an SSBO (existing or newly created), inject binding. */
       if (ssbo) {
-        blender::bke::GpuMeshComputeBinding gb;
+        bke::GpuMeshComputeBinding gb;
         gb.binding = find_free_binding(local_bindings, 0);
         gb.buffer = ssbo;
-        gb.qualifiers = blender::gpu::shader::Qualifier::read;
+        gb.qualifiers = gpu::shader::Qualifier::read;
         gb.type_name = "vec4";
         gb.bind_name = "positions_in[]";
         local_bindings.append(gb);
@@ -590,16 +594,16 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
         const std::string key = "scatter_transform_mat";
         float mat[4][4];
         unit_m4(mat);
-        /* No mutex held here: BKE_mesh_gpu_internal_ssbo_ensure acquires it internally. */
-        blender::gpu::StorageBuf *ssbo = nullptr;
+        /* No mutex held here: bke::BKE_mesh_gpu_internal_ssbo_ensure acquires it internally. */
+        gpu::StorageBuf *ssbo = nullptr;
         try {
-          ssbo = BKE_mesh_gpu_internal_ssbo_ensure(mesh_orig, const_cast<Object *>(ob_eval), key, sizeof(float) * 16);
+          ssbo = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_orig, const_cast<Object *>(ob_eval), key, sizeof(float) * 16);
           if (ssbo) {
             GPU_storagebuf_update(ssbo, &mat[0][0]);
-            blender::bke::GpuMeshComputeBinding gb;
+            bke::GpuMeshComputeBinding gb;
             gb.binding = find_free_binding(local_bindings, 0);
             gb.buffer = ssbo;
-            gb.qualifiers = blender::gpu::shader::Qualifier::read;
+            gb.qualifiers = gpu::shader::Qualifier::read;
             gb.type_name = "mat4";
             gb.bind_name = "transform_mat[]";
             local_bindings.append(gb);
@@ -618,13 +622,13 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const bool has_normals_out = has_bind_name("normals_out", local_bindings);
     if (!has_positions_out) {
       if (cache) {
-        if (auto *pos_ptr = cache->final.buff.vbos.lookup_ptr(blender::draw::VBOType::Position)) {
-          blender::gpu::VertBuf *vbo = pos_ptr->get();
+        if (auto *pos_ptr = cache->final.buff.vbos.lookup_ptr(draw::VBOType::Position)) {
+          gpu::VertBuf *vbo = pos_ptr->get();
           if (vbo) {
-            blender::bke::GpuMeshComputeBinding gb = {};
+            bke::GpuMeshComputeBinding gb = {};
             gb.binding = find_free_binding(local_bindings, 0);
             gb.buffer = vbo;
-            gb.qualifiers = blender::gpu::shader::Qualifier::read_write;
+            gb.qualifiers = gpu::shader::Qualifier::read_write;
             gb.type_name = "vec4";
             gb.bind_name = "positions_out[]";
             local_bindings.append(gb);
@@ -635,14 +639,14 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     if (!has_normals_out) {
       if (cache) {
         if (auto *nor_ptr = cache->final.buff.vbos.lookup_ptr(
-                blender::draw::VBOType::CornerNormal))
+                draw::VBOType::CornerNormal))
         {
-          blender::gpu::VertBuf *vbo_nor = nor_ptr->get();
+          gpu::VertBuf *vbo_nor = nor_ptr->get();
           if (vbo_nor) {
-            blender::bke::GpuMeshComputeBinding gb = {};
+            bke::GpuMeshComputeBinding gb = {};
             gb.binding = find_free_binding(local_bindings, 0);
             gb.buffer = vbo_nor;
-            gb.qualifiers = blender::gpu::shader::Qualifier::write;
+            gb.qualifiers = gpu::shader::Qualifier::write;
             gb.type_name = "uint";
             gb.bind_name = "normals_out[]";
             local_bindings.append(gb);
@@ -661,7 +665,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
                                          : glsl_accessors + main_glsl;
   /* Build shader identifier */
   Scene *scene = DEG_get_input_scene(depsgraph);
-  int normals_domain_val = (mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face) ?
+  int normals_domain_val = (mesh_eval->normals_domain() == bke::MeshNormalDomain::Face) ?
                                1 :
                                0;
   int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
@@ -676,9 +680,9 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   const std::string shader_key = std::to_string(shader_hash);
 
   /* Lookup existing shader for this mesh + variant in internal resources. */
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_orig, shader_key);
+  gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_orig, shader_key);
   if (!shader) {
-    using namespace blender::gpu::shader;
+    using namespace gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
     info.local_group_size(256, 1, 1);
     info.compute_source_generated = shader_source;
@@ -694,7 +698,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     /* Builtin Specialization constants */
     Scene *scene = DEG_get_input_scene(depsgraph);
     int normals_domain_val = (mesh_eval->normals_domain() ==
-                              blender::bke::MeshNormalDomain::Face) ?
+                              bke::MeshNormalDomain::Face) ?
                                  1 :
                                  0;
     int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
@@ -714,11 +718,11 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   if (!shader) {
-    return blender::bke::GpuComputeStatus::Error;
+    return bke::GpuComputeStatus::Error;
   }
 
   /* Bind shader, bind buffers, update uniforms, and compute */
-  const blender::gpu::shader::SpecializationConstants *constants =
+  const gpu::shader::SpecializationConstants *constants =
       &GPU_shader_get_default_constant_state(shader);
   GPU_shader_bind(shader, constants);
 
@@ -727,22 +731,22 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     std::visit(
         [&](auto &&arg) {
           using T = std::decay_t<decltype(arg)>;
-          if constexpr (std::is_same_v<T, blender::gpu::StorageBuf *>) {
+          if constexpr (std::is_same_v<T, gpu::StorageBuf *>) {
             if (arg) {
               GPU_storagebuf_bind(arg, binding.binding);
             }
           }
-          else if constexpr (std::is_same_v<T, blender::gpu::VertBuf *>) {
+          else if constexpr (std::is_same_v<T, gpu::VertBuf *>) {
             if (arg) {
               arg->bind_as_ssbo(binding.binding);
             }
           }
-          else if constexpr (std::is_same_v<T, blender::gpu::UniformBuf *>) {
+          else if constexpr (std::is_same_v<T, gpu::UniformBuf *>) {
             if (arg) {
               GPU_uniformbuf_bind_as_ssbo(arg, binding.binding);
             }
           }
-          else if constexpr (std::is_same_v<T, blender::gpu::IndexBuf *>) {
+          else if constexpr (std::is_same_v<T, gpu::IndexBuf *>) {
             if (arg) {
               GPU_indexbuf_bind_as_ssbo(arg, binding.binding);
             }
@@ -768,15 +772,15 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
   }
 
-  return blender::bke::GpuComputeStatus::Success;
+  return bke::GpuComputeStatus::Success;
 }
 
-blender::bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
+bke::GpuComputeStatus BKE_mesh_gpu_scatter_to_corners(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
-    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
-    const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
-    const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
+    Span<bke::GpuMeshComputeBinding> caller_bindings,
+    const std::function<void(gpu::shader::ShaderCreateInfo &)> &config_fn,
+    const std::function<void(gpu::Shader *)> &post_bind_fn,
     int dispatch_count)
 {
   return BKE_mesh_gpu_run_compute(depsgraph,
@@ -867,7 +871,7 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh_orig)
   }
   if (GPU_context_active_get()) {
     /* Move internal resources out then free them without holding the mutex. */
-    blender::bke::MeshGpuInternalResources *ir = d.internal_resources;
+    bke::MeshGpuInternalResources *ir = d.internal_resources;
     d.internal_resources = nullptr;
     lock.unlock();
     mesh_gpu_free_internal_resources_ptr(ir);
@@ -883,7 +887,7 @@ void BKE_mesh_gpu_internal_resources_free_for_mesh(Mesh *mesh_orig)
   }
 }
 
-blender::gpu::Shader *BKE_mesh_gpu_internal_shader_get(Mesh *mesh_orig, const std::string &key)
+gpu::Shader *BKE_mesh_gpu_internal_shader_get(Mesh *mesh_orig, const std::string &key)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -904,11 +908,11 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_get(Mesh *mesh_orig, const st
   return entry_ptr->shader;
 }
 
-blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
+gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
     Mesh *mesh_orig,
     Object *ob_eval,
     const std::string &key,
-    const blender::gpu::shader::ShaderCreateInfo &info)
+    const gpu::shader::ShaderCreateInfo &info)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -927,7 +931,7 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
     return nullptr;
   }
   /* Cast is needed because ShaderCreateInfo is a C++ wrapper; assume compatible here. */
-  blender::gpu::Shader *sh = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info,
+  gpu::Shader *sh = GPU_shader_create_from_info_python((GPUShaderCreateInfo *)&info,
                                                                 false);
   if (!sh) {
     return nullptr;
@@ -936,7 +940,7 @@ blender::gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
   return sh;
 }
 
-blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
+gpu::StorageBuf *bke::BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
                                                             Object *ob_eval,
                                                             const std::string &key,
                                                             size_t size)
@@ -956,7 +960,7 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
   if (!GPU_context_active_get()) {
     return nullptr;
   }
-  blender::gpu::StorageBuf *buf = GPU_storagebuf_create(size);
+  gpu::StorageBuf *buf = GPU_storagebuf_create(size);
   if (!buf) {
     return nullptr;
   }
@@ -965,7 +969,7 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
   return buf;
 }
 
-blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh_orig, const std::string &key)
+gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh_orig, const std::string &key)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -990,7 +994,7 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh_orig, const 
 /** \name UBO Cache Management (same pattern as SSBO)
  * \{ */
 
-blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh_orig,
+gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh_orig,
                                                            Object *ob_eval,
                                                            const std::string &key,
                                                            size_t size)
@@ -1010,7 +1014,7 @@ blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh_orig,
   if (!GPU_context_active_get()) {
     return nullptr;
   }
-  blender::gpu::UniformBuf *buf = GPU_uniformbuf_create(size);
+  gpu::UniformBuf *buf = GPU_uniformbuf_create(size);
   if (!buf) {
     return nullptr;
   }
@@ -1018,7 +1022,7 @@ blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_ensure(Mesh *mesh_orig,
   return buf;
 }
 
-blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_get(Mesh *mesh_orig, const std::string &key)
+gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_get(Mesh *mesh_orig, const std::string &key)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1040,7 +1044,7 @@ blender::gpu::UniformBuf *BKE_mesh_gpu_internal_ubo_get(Mesh *mesh_orig, const s
 }
 
 /* IBO (Index Buffer) cache -------------------------------------------------*/
-blender::gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_ensure(Mesh *mesh_orig,
+gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_ensure(Mesh *mesh_orig,
                                                          Object *ob_eval,
                                                          const std::string &key,
                                                          size_t /*size*/)
@@ -1062,7 +1066,7 @@ blender::gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_ensure(Mesh *mesh_orig,
   }
   /* Create an empty index buffer on device (zero length). Callers create/upload actual
    * content via GPU_indexbuf APIs and can keep the pointer returned by this cache. */
-  blender::gpu::IndexBuf *ib = GPU_indexbuf_build_on_device(0);
+  gpu::IndexBuf *ib = GPU_indexbuf_build_on_device(0);
   if (!ib) {
     return nullptr;
   }
@@ -1070,7 +1074,7 @@ blender::gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_ensure(Mesh *mesh_orig,
   return ib;
 }
 
-blender::gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_get(Mesh *mesh_orig, const std::string &key)
+gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_get(Mesh *mesh_orig, const std::string &key)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1092,7 +1096,7 @@ blender::gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_get(Mesh *mesh_orig, const std
 }
 
 /* VBO (Vertex Buffer) cache -------------------------------------------------*/
-blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
+gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
                                                         Object *ob_eval,
                                                         const std::string &key,
                                                         size_t /*size*/)
@@ -1113,7 +1117,7 @@ blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
     return nullptr;
   }
   /* Create an empty vertex buffer. Callers should initialize format/size and upload data. */
-  blender::gpu::VertBuf *vb = GPU_vertbuf_calloc();
+  gpu::VertBuf *vb = GPU_vertbuf_calloc();
   if (!vb) {
     return nullptr;
   }
@@ -1121,7 +1125,7 @@ blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
   return vb;
 }
 
-blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_get(Mesh *mesh_orig, const std::string &key)
+gpu::VertBuf *BKE_mesh_gpu_internal_vbo_get(Mesh *mesh_orig, const std::string &key)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1143,10 +1147,10 @@ blender::gpu::VertBuf *BKE_mesh_gpu_internal_vbo_get(Mesh *mesh_orig, const std:
 }
 
 /* Texture cache -------------------------------------------------*/
-blender::gpu::Texture *BKE_mesh_gpu_internal_texture_ensure(Mesh *mesh_orig,
+gpu::Texture *BKE_mesh_gpu_internal_texture_ensure(Mesh *mesh_orig,
                                                             Object *ob_eval,
                                                             const std::string &key,
-                                                            blender::gpu::Texture *texture)
+                                                            gpu::Texture *texture)
 {
   if (!mesh_orig || !texture) {
     return nullptr;
@@ -1179,7 +1183,7 @@ blender::gpu::Texture *BKE_mesh_gpu_internal_texture_ensure(Mesh *mesh_orig,
   return nullptr;
 }
 
-blender::gpu::Texture *BKE_mesh_gpu_internal_texture_get(Mesh *mesh_orig, const std::string &key)
+gpu::Texture *BKE_mesh_gpu_internal_texture_get(Mesh *mesh_orig, const std::string &key)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1213,7 +1217,7 @@ void BKE_mesh_gpu_free_all_caches()
 
     if (has_ctx) {
       /* Move entries out of the cache, then free resources outside the mutex. */
-      blender::Vector<MeshGpuData> entries;
+      Vector<MeshGpuData> entries;
       entries.reserve(MeshGPUCacheManager::get().mesh_cache().size());
       for (auto &kv : MeshGPUCacheManager::get().mesh_cache()) {
         entries.append(std::move(kv.second));
@@ -1245,3 +1249,6 @@ void BKE_mesh_gpu_free_all_caches()
     MeshGPUCacheManager::get().flush_orphans();
   }
 }
+
+}  // namespace bke
+}  // namespace blender

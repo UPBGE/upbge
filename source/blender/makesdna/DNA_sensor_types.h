@@ -35,8 +35,10 @@
 
 #pragma once
 
-struct Object;
+namespace blender {
+
 struct Material;
+struct Object;
 
 /* ****************** SENSORS ********************* */
 
@@ -148,7 +150,7 @@ typedef struct bMessageSensor {
   /**
    * (Possible future use) pointer to a single sender object
    */
-  struct Object *fromObject = nullptr;
+  Object *fromObject = nullptr;
 
   /**
    * Can be used to filter on subjects like this
@@ -166,13 +168,13 @@ typedef struct bSensor {
   /* pulse and freq are the bool toggle and frame count for pulse mode */
   short type = 0, otype = 0, flag = 0, pulse = 0;
   short freq = 0, totlinks = 0, _pad1 = 0,
-      _pad2 = 0;     /* freq makes reference to skipped ticks between 2 active pulses */
+        _pad2 = 0;    /* freq makes reference to skipped ticks between 2 active pulses */
   char name[64] = ""; /* MAX_NAME */
   void *data = nullptr;
 
   struct bController **links = nullptr;
 
-  struct Object *ob = nullptr;
+  Object *ob = nullptr;
 
   /* just add here, to avoid align errors... */
   short invert = 0; /* Whether or not to invert the output. */
@@ -223,7 +225,7 @@ typedef struct bMovementSensor {
 #define SENS_RAY_NEG_X_AXIS 3
 #define SENS_RAY_NEG_Y_AXIS 4
 #define SENS_RAY_NEG_Z_AXIS 5
-//#define SENS_RAY_NEGATIVE_AXIS     1
+// #define SENS_RAY_NEGATIVE_AXIS     1
 
 /* movementSensor->axisflag */
 /* flip x and y to make y default!!! */
@@ -289,7 +291,7 @@ typedef struct bMovementSensor {
 /* sensor->pulse */
 #define SENS_PULSE_CONT 0
 #define SENS_PULSE_REPEAT 1
-//#define SENS_PULSE_ONCE 	2
+// #define SENS_PULSE_ONCE 	2
 #define SENS_NEG_PULSE_MODE 4
 
 /* sensor->suppress */
@@ -382,3 +384,4 @@ typedef struct bMovementSensor {
 #define SENS_DELAY_REPEAT 1
 // should match JOYINDEX_MAX in SCA_JoystickDefines.h */
 #define SENS_JOY_MAXINDEX 8
+}  // namespace blender

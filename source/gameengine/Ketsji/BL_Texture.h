@@ -37,12 +37,12 @@ class Texture;
 
 class BL_Texture : public EXP_Value, public RAS_Texture {
   Py_Header private : bool m_isCubeMap;
-  Image *m_ima;
+  blender::Image *m_ima;
   blender::gpu::Texture *m_gpuTex;
-  eGPUTextureTarget m_textarget;
+  blender::eGPUTextureTarget m_textarget;
 
  public:
-  BL_Texture(Image *ima);
+  BL_Texture(blender::Image *ima);
   virtual ~BL_Texture();
 
   // stuff for cvalue related things
@@ -51,7 +51,7 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
   virtual bool Ok() const;
   virtual bool IsCubeMap() const;
 
-  virtual Image *GetImage() const;
+  virtual blender::Image *GetImage() const;
   virtual blender::gpu::Texture *GetGPUTexture() const;
 
   virtual unsigned int GetTextureType();

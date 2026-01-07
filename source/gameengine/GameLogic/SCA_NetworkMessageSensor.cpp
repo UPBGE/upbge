@@ -38,6 +38,8 @@
 
 #ifdef NAN_NET_DEBUG
 #  include <iostream>
+
+using namespace blender;
 #endif
 
 SCA_NetworkMessageSensor::SCA_NetworkMessageSensor(

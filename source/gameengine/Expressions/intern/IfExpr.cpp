@@ -20,6 +20,8 @@
 #include "EXP_BoolValue.h"
 #include "EXP_ErrorValue.h"
 
+using namespace blender;
+
 EXP_IfExpr::EXP_IfExpr()
 {
 }

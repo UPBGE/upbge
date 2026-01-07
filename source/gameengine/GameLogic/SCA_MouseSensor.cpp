@@ -37,6 +37,8 @@
 
 #include "SCA_MouseManager.h"
 
+using namespace blender;
+
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

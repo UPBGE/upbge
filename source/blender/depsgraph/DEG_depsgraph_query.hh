@@ -18,11 +18,16 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
+#include "DNA_defs.h"
 /* Needed for the instance iterator. */
 #include "DNA_object_types.h"
 
 #include "BKE_duplilist.hh"
-#include "BKE_object.hh" // UPBGE
+/* UPBGE */
+#include "BKE_object.hh"
+#include "BLI_math_matrix.h"
+#include "DNA_layer_types.h"
+/**************/
 #include "BKE_object_types.hh"
 
 namespace blender {
@@ -249,17 +254,15 @@ struct DEGObjectIterSettings {
   blender::DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY | blender::DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET | \
       blender::DEG_ITER_OBJECT_FLAG_VISIBLE | blender::DEG_ITER_OBJECT_FLAG_DUPLI
 
-/* UPBGE */
-#include "BLI_math_matrix.h"
-#include "DNA_layer_types.h"
+
 // Structure to store temporary BGE objects
 struct BGEObjectData {
   Object temp_object;                        // Stack-allocated object copy
-  blender::bke::ObjectRuntime temp_runtime;  // Stack-allocated runtime copy
+  bke::ObjectRuntime temp_runtime;  // Stack-allocated runtime copy
 
   // Optimized constructor - zero dynamic allocations
   BGEObjectData(Object *source_ob, float source_mat[4][4])
-      : temp_object(blender::dna::shallow_copy(*source_ob)), temp_runtime(*source_ob->runtime)
+      : temp_object(dna::shallow_copy(*source_ob)), temp_runtime(*source_ob->runtime)
   {
     // Connect runtime to object
     temp_object.runtime = &temp_runtime;
@@ -271,7 +274,7 @@ struct BGEObjectData {
 
     // Handle some types which need their data to be "replaced on_shallow_copy"
     if (temp_object.runtime->geometry_set_eval) {
-      blender::bke::GeometrySet *geom_set = (blender::bke::GeometrySet *)
+      bke::GeometrySet *geom_set = (bke::GeometrySet *)
                                                 temp_object.runtime->geometry_set_eval;
       ID *data = (ID *)geom_set->get_mesh();
       if (!data) {

@@ -37,6 +37,8 @@
 
 #pragma once
 
+namespace blender {
+
 /* ********************* PROPERTY ************************ */
 
 typedef struct bProperty {
@@ -60,3 +62,5 @@ typedef struct bProperty {
 #define PROP_DEBUG 1
 
 #define MAX_PROPSTRING 128
+
+}  // namespace blender

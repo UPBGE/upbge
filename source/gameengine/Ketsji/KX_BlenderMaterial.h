@@ -15,7 +15,7 @@ class SCA_IScene;
 class KX_Scene;
 class RAS_Rasterizer;
 class KX_MaterialShader;
-struct Material;
+namespace blender { struct Material; }
 struct GPUMaterial;
 
 class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
@@ -23,7 +23,7 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
 
       public : KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                   KX_Scene *scene,
-                                  Material *mat,
+                                  blender::Material *mat,
                                   const std::string &name,
                                   int lightlayer,
                                   bool converting_during_runtime);
@@ -32,9 +32,9 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
 
   virtual RAS_MaterialShader *GetShader() const;
   virtual const std::string GetTextureName() const;
-  virtual Material *GetBlenderMaterial() const;
+  virtual blender::Material *GetBlenderMaterial() const;
   virtual bool UsesLighting() const;
-  virtual Scene *GetBlenderScene() const;
+  virtual blender::Scene *GetBlenderScene() const;
   virtual SCA_IScene *GetScene() const;
   virtual void ReleaseMaterial();
 
@@ -64,9 +64,9 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   static void EndFrame(RAS_Rasterizer *rasty);
 
  private:
-  struct bNodeTree *m_nodetree;
+  blender::bNodeTree *m_nodetree;
 
-  Material *m_material;
+  blender::Material *m_material;
   std::unique_ptr<KX_MaterialShader> m_shader;
   RAS_Rasterizer *m_rasterizer;
   KX_Scene *m_scene;

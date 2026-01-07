@@ -32,6 +32,8 @@
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
+
+using namespace blender;
 #endif  // WITH_PYTHON
 
 BL_Shader::BL_Shader()

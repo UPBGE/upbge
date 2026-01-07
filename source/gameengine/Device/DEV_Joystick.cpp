@@ -41,6 +41,8 @@
 #include "CM_Message.h"
 #include "DEV_JoystickPrivate.h"
 
+using namespace blender;
+
 DEV_Joystick::DEV_Joystick(short index)
     : m_joyindex(index),
       m_prec(3200),
@@ -76,12 +78,13 @@ void DEV_Joystick::Init()
 
   if (success) {
     /* Game controller data base loading */
-    const std::optional<std::string> path = BKE_appdir_folder_id(BLENDER_DATAFILES,
+    const std::optional<std::string> path = blender::BKE_appdir_folder_id(
+        blender::BLENDER_DATAFILES,
                                                                  "gamecontroller");
 
     if (path.has_value()) {
       char fullpath[FILE_MAX];
-      BLI_path_join(fullpath, sizeof(fullpath), path->c_str(), "gamecontrollerdb.txt");
+      blender::BLI_path_join(fullpath, sizeof(fullpath), path->c_str(), "gamecontrollerdb.txt");
 
       if ((SDL_GameControllerAddMappingsFromFile(fullpath)) == -1) {
         CM_Warning(

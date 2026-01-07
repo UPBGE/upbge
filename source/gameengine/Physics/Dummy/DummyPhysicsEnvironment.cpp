@@ -31,6 +31,8 @@
 
 #include "DummyPhysicsEnvironment.h"
 
+using namespace blender;
+
 DummyPhysicsEnvironment::DummyPhysicsEnvironment()
 {
   // create physicsengine data

@@ -33,6 +33,8 @@
 
 #include "DNA_material_types.h"
 
+using namespace blender;
+
 RAS_IPolyMaterial::RAS_IPolyMaterial(const std::string &name)
     : m_name(name), m_alphablend(0), m_zoffset(0.0f), m_rasMode(0), m_flag(0)
 {

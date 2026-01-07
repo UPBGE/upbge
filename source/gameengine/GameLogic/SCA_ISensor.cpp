@@ -38,6 +38,8 @@
 #include "CM_Message.h"
 #include "SCA_PythonController.h"
 
+using namespace blender;
+
 void SCA_ISensor::ReParent(SCA_IObject *parent)
 {
   SCA_ILogicBrick::ReParent(parent);

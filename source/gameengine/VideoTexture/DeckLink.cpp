@@ -31,6 +31,8 @@
 
 #include <epoxy/gl.h>
 
+using namespace blender;
+
 // macro for exception handling and logging
 #  define CATCH_EXCP \
     catch (Exception & exp) \
@@ -381,9 +383,9 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
   BMDDisplayModeSupport support;
   uint32_t *bytes;
 
-  // material ID
+  // material blender::ID
   short cardIdx = 0;
-  // texture ID
+  // texture blender::ID
   char *format = nullptr;
 
   static const char *kwlist[] = {"cardIdx", "format", nullptr};

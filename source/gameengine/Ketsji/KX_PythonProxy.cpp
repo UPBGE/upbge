@@ -28,6 +28,8 @@
 #include "CM_Message.h"
 #include "DNA_python_proxy_types.h"
 
+using namespace blender;
+
 KX_PythonProxy::KX_PythonProxy()
     : EXP_Value(),
       m_init(false),
@@ -51,12 +53,12 @@ std::string KX_PythonProxy::GetName()
   return m_pp->name;
 }
 
-PythonProxy *KX_PythonProxy::GetPrototype()
+blender::PythonProxy *KX_PythonProxy::GetPrototype()
 {
   return m_pp;
 }
 
-void KX_PythonProxy::SetPrototype(PythonProxy *pp)
+void KX_PythonProxy::SetPrototype(blender::PythonProxy *pp)
 {
   m_pp = pp;
 }

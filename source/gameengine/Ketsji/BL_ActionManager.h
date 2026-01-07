@@ -29,6 +29,8 @@
 #include <iostream>
 #include <map>
 
+#include "DNA_action_types.h"
+
 // Currently, we use the max value of a short.
 // We should switch to unsigned short; doesn't make sense to support negative layers.
 // This will also give us 64k layers instead of 32k.
@@ -87,7 +89,7 @@ class BL_ActionManager {
   /**
    * Gets the currently running action on the given layer
    */
-  struct bAction *GetCurrentAction(short layer);
+  blender::bAction *GetCurrentAction(short layer);
 
   /**
    * Sets play mode of the action on the given layer

@@ -33,7 +33,9 @@
 
 #include "BL_ArmatureObject.h"
 
-KX_BoneParentRelation::KX_BoneParentRelation(Bone *bone) : m_bone(bone)
+using namespace blender;
+
+KX_BoneParentRelation::KX_BoneParentRelation(blender::Bone *bone) : m_bone(bone)
 {
 }
 

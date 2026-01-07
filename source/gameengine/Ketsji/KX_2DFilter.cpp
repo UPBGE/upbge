@@ -26,11 +26,9 @@
 
 #include "KX_2DFilter.h"
 
-#ifdef WITH_PYTHON
-#include "../python/gpu/gpu_py_texture.hh"
-#endif
-
 #include "KX_2DFilterFrameBuffer.h"
+
+using namespace blender;
 
 KX_2DFilter::KX_2DFilter(RAS_2DFilterData &data) : RAS_2DFilter(data)
 {
@@ -47,7 +45,7 @@ bool KX_2DFilter::LinkProgram()
 
 #ifdef WITH_PYTHON
 
-bool KX_2DFilter::SetTextureUniform(BPyGPUTexture *py_texture, const char *samplerName)
+bool KX_2DFilter::SetTextureUniform(blender::BPyGPUTexture *py_texture, const char *samplerName)
 {
   if (GetError()) {
     return false;
@@ -153,7 +151,7 @@ PyObject *KX_2DFilter::pyattr_get_frameBuffer(EXP_PyObjectPlus *self_v,
 
 EXP_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(samplerName, gputexture)")
 {
-  BPyGPUTexture *py_texture;
+  blender::BPyGPUTexture *py_texture;
   char *samplerName = nullptr;
 
   if (!PyArg_ParseTuple(args, "sO!:setTexture", &samplerName, &BPyGPUTexture_Type, &py_texture)) {

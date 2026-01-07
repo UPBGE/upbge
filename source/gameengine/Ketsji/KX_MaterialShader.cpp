@@ -2,6 +2,8 @@
 
 #include "BL_Shader.h"
 
+using namespace blender;
+
 KX_MaterialShader::KX_MaterialShader() : m_shader(new BL_Shader())
 {
 }

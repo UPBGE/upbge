@@ -43,6 +43,8 @@
 #include "KX_GameObject.h"
 #include "KX_MeshProxy.h"
 
+using namespace blender;
+
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */

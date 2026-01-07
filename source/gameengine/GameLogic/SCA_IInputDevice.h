@@ -214,7 +214,7 @@ class SCA_IInputDevice {
   bool m_hookExitKey;
 
   /** Translation table used to get the character from a key number with shift or not.
-   * Key -> (Character, Character shifted)
+   * blender::Key -> (Character, Character shifted)
    */
   static std::map<SCA_EnumInputs, std::pair<char, char>> m_keyToChar;
 

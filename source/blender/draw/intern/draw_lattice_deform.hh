@@ -10,12 +10,18 @@
 
 #include "BKE_modifier.hh"
 
-struct Depsgraph;
+#include "DEG_depsgraph_query.hh"
+
+namespace blender {
 struct Mesh;
 struct Object;
+}  // namespace blender
 
 namespace blender::draw {
 
+
+/* Forward declaration for MeshBatchCache */
+struct MeshBatchCache;
 /**
  * Manager for GPU-accelerated Lattice deformation.
  *
@@ -40,7 +46,8 @@ class LatticeSkinningManager {
    * @param lmd The lattice modifier data (contains lattice pointer, vertex group, etc.)
    * @return Hash value, or 0 if inputs are invalid
    */
-  static uint32_t compute_lattice_hash(const Mesh *mesh_orig, const LatticeModifierData *lmd);
+  static uint32_t compute_lattice_hash(const Mesh *mesh_orig,
+                                       const LatticeModifierData *lmd);
 
   /**
    * Prepare CPU-side static resources (lattice control points, grid dimensions).
@@ -65,12 +72,12 @@ class LatticeSkinningManager {
    * 
    * @param lmd The specific LatticeModifierData to extract settings from
    */
-  blender::gpu::StorageBuf *dispatch_deform(const LatticeModifierData *lmd,
+  gpu::StorageBuf *dispatch_deform(const LatticeModifierData *lmd,
                                             Depsgraph *depsgraph,
                                             Object *eval_lattice,
                                             Object *deformed_eval,
                                             MeshBatchCache *cache,
-                                            blender::gpu::StorageBuf *ssbo_in);
+                                            gpu::StorageBuf *ssbo_in);
 
   /**
    * Free all GPU resources associated with a mesh.

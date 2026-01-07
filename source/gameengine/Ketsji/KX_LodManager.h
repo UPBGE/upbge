@@ -34,7 +34,7 @@ class KX_Scene;
 class RAS_Rasterizer;
 class BL_SceneConverter;
 class KX_LodLevel;
-struct Object;
+namespace blender { struct Object; }
 
 class KX_LodManager : public EXP_Value {
   Py_Header
@@ -68,7 +68,7 @@ class KX_LodManager : public EXP_Value {
   std::vector<KX_LodLevel *> m_levels;
 
   /** Get the hysteresis from the level or the scene.
-   * \param scene Scene used to get default hysteresis.
+   * \param scene blender::Scene used to get default hysteresis.
    * \param level Level index used to get hysteresis.
    */
   float GetHysteresis(KX_Scene *scene, unsigned short level);
@@ -79,13 +79,13 @@ class KX_LodManager : public EXP_Value {
   float m_distanceFactor;
 
  public:
-  KX_LodManager(Object *ob,
+  KX_LodManager(blender::Object *ob,
                 KX_Scene *scene,
                 RAS_Rasterizer *rasty,
                 BL_SceneConverter *converter,
                 bool libloading,
                 bool converting_during_runtime);
-  KX_LodManager(class RAS_MeshObject *meshObj, struct Object *ob);  // just to use for ReplaceMesh
+  KX_LodManager(class RAS_MeshObject *meshObj, blender::Object *ob);  // just to use for ReplaceMesh
   virtual ~KX_LodManager();
 
   virtual std::string GetName();
@@ -99,7 +99,7 @@ class KX_LodManager : public EXP_Value {
   KX_LodLevel *GetLevel(unsigned int index) const;
 
   /** Get lod level corresponding to distance and previous level.
-   * \param scene Scene used to get default hysteresis.
+   * \param scene blender::Scene used to get default hysteresis.
    * \param previouslod Previous lod computed by this function before.
    *   Use -1 to disable the hysteresis when the lod manager has changed.
    * \param distance2 Squared distance object to the camera.

@@ -31,13 +31,15 @@
 
 #include "CM_Message.h"
 
+using namespace blender;
+
 // Task data for saving screenshots in a different thread.
 struct ScreenshotTaskData {
   unsigned int *dumprect;
   int dumpsx;
   int dumpsy;
   char path[FILE_MAX];
-  ImageFormatData *im_format;
+  blender::ImageFormatData *im_format;
 };
 
 /**
@@ -47,7 +49,7 @@ struct ScreenshotTaskData {
  * @param taskdata Must point to a ScreenshotTaskData object. This function takes ownership
  *                 of all pointers in the ScreenshotTaskData, and frees them.
  */
-void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int threadid);
+void save_screenshot_thread_func(blender::TaskPool *__restrict pool, void *taskdata, int threadid);
 
 RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty) : m_rasterizer(rasty), m_samples(0)
 {
@@ -113,7 +115,7 @@ void RAS_ICanvas::FlushScreenshots()
 }
 
 void RAS_ICanvas::AddScreenshot(
-    const std::string &path, int x, int y, int width, int height, ImageFormatData *format)
+    const std::string &path, int x, int y, int width, int height, blender::ImageFormatData *format)
 {
   Screenshot screenshot;
   screenshot.path = path;
@@ -126,7 +128,7 @@ void RAS_ICanvas::AddScreenshot(
   m_screenshots.push_back(screenshot);
 }
 
-void save_screenshot_thread_func(TaskPool *__restrict (pool),
+void save_screenshot_thread_func(blender::TaskPool *__restrict (pool),
                                  void *taskdata,
                                  int /*(threadid)*/)
 {

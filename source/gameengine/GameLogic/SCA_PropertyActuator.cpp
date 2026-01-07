@@ -38,6 +38,8 @@
 #include "EXP_InputParser.h"
 #include "EXP_Operator2Expr.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */

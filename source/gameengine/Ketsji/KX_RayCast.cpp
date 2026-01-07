@@ -34,6 +34,8 @@
 
 #include "CM_Message.h"
 
+using namespace blender;
+
 KX_RayCast::KX_RayCast(PHY_IPhysicsController *ignoreController, bool faceNormal, bool faceUV)
     : PHY_IRayCastFilterCallback(ignoreController, faceNormal, faceUV)
 {

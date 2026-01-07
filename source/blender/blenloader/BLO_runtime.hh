@@ -32,12 +32,10 @@
  *  \ingroup blenloader
  */
 
-struct BlendFileData;
-struct BlendFileReadReport;
-struct Main;
-struct ReportList;
+#include "BKE_main.hh"
+#include "BKE_report.hh"
 
 int BLO_is_a_runtime(const char *file);
-BlendFileData *BLO_read_runtime(const char *file, BlendFileReadReport *reports);
+blender::BlendFileData *BLO_read_runtime(const char *file, blender::BlendFileReadReport *reports);
 
-bool BLO_main_validate_libraries(Main *bmain, ReportList *reports);
+bool BLO_main_validate_libraries(blender::Main *bmain, blender::ReportList *reports);

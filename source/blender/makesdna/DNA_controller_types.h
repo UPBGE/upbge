@@ -33,6 +33,8 @@
 
 #pragma once
 
+namespace blender {
+
 struct bActuator;
 struct Text;
 struct bSensor;
@@ -91,3 +93,5 @@ typedef struct bController {
 /* pyctrl->mode */
 #define CONT_PY_SCRIPT 0
 #define CONT_PY_MODULE 1
+
+}  // namespace blender

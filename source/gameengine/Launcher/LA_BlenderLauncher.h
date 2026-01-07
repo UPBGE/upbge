@@ -26,30 +26,29 @@
 
 #include "LA_Launcher.h"
 #include "RAS_Rect.h"
-
-struct Object;
-struct bContext;
-struct ARegion;
-struct View3D;
-struct rcti;
-struct wmWindowManager;
-struct wmWindow;
+namespace blender { struct Object; }
+namespace blender { struct bContext; }
+namespace blender { struct ARegion; }
+namespace blender { struct View3D; }
+namespace blender { struct rcti; }
+namespace blender { struct wmWindowManager; }
+namespace blender { struct wmWindow; }
 
 class LA_BlenderLauncher : public LA_Launcher {
  protected:
-  bContext *m_context;
-  ARegion *m_ar;
-  rcti *m_camFrame;
-  View3D *m_view3d;
-  wmWindowManager *m_windowManager;
-  wmWindow *m_window;
+  blender::bContext *m_context;
+  blender::ARegion *m_ar;
+  blender::rcti *m_camFrame;
+  blender::View3D *m_view3d;
+  blender::wmWindowManager *m_windowManager;
+  blender::wmWindow *m_window;
   int m_alwaysUseExpandFraming;
   bool m_drawLetterBox;
 
   /// Saved blender data to restore at the game end as m_savedData from LA_Launcher.
   struct SavedBlenderData {
     int sceneLayer;
-    Object *camera;
+    blender::Object *camera;
   } m_savedBlenderData;
 
   virtual RAS_ICanvas *CreateCanvas();
@@ -60,15 +59,15 @@ class LA_BlenderLauncher : public LA_Launcher {
 
  public:
   LA_BlenderLauncher(GHOST_ISystem *system,
-                     Main *maggie,
-                     Scene *scene,
+                     blender::Main *maggie,
+                     blender::Scene *scene,
                      GlobalSettings *gs,
                      RAS_Rasterizer::StereoMode stereoMode,
                      int argc,
                      char **argv,
-                     bContext *context,
-                     rcti *camframe,
-                     ARegion *ar,
+                     blender::bContext *context,
+                     blender::rcti *camframe,
+                     blender::ARegion *ar,
                      int alwaysUseExpandFraming,
                      bool useViewportRender,
                      int shadingTypeRuntime);

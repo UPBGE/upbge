@@ -39,6 +39,8 @@
 
 #include "KX_GameObject.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -158,7 +160,7 @@ static void Kx_VecUpMat3(float vec[3], float mat[3][3], short axis)
   mat[coz][0] = vec[0];
   mat[coz][1] = vec[1];
   mat[coz][2] = vec[2];
-  if (normalize_v3((float *)mat[coz]) == 0.f) {
+  if (blender::normalize_v3((float *)mat[coz]) == 0.f) {
     /* this is a very abnormal situation: the camera has reach the object center exactly
      * We will choose a completely arbitrary direction */
     mat[coz][0] = 1.0f;
@@ -171,14 +173,14 @@ static void Kx_VecUpMat3(float vec[3], float mat[3][3], short axis)
   mat[coy][1] = -inp * mat[coz][1];
   mat[coy][2] = 1.0f - inp * mat[coz][2];
 
-  if (normalize_v3((float *)mat[coy]) == 0.f) {
+  if (blender::normalize_v3((float *)mat[coy]) == 0.f) {
     /* the camera is vertical, chose the y axis arbitrary */
     mat[coy][0] = 0.f;
     mat[coy][1] = 1.f;
     mat[coy][2] = 0.f;
   }
 
-  cross_v3_v3v3(mat[cox], mat[coy], mat[coz]);
+  blender::cross_v3_v3v3(mat[cox], mat[coy], mat[coz]);
 }
 
 bool SCA_CameraActuator::Update(double curtime)
@@ -237,7 +239,7 @@ bool SCA_CameraActuator::Update(double curtime)
 
   /* C4: camera behind actor   */
   switch (m_axis) {
-    case OB_POSX:
+    case blender::OB_POSX:
       /* X */
       fp1[0] = actormat[0][0];
       fp1[1] = actormat[1][0];
@@ -247,7 +249,7 @@ bool SCA_CameraActuator::Update(double curtime)
       fp2[1] = frommat[1][0];
       fp2[2] = frommat[2][0];
       break;
-    case OB_POSY:
+    case blender::OB_POSY:
       /* Y */
       fp1[0] = actormat[0][1];
       fp1[1] = actormat[1][1];
@@ -257,7 +259,7 @@ bool SCA_CameraActuator::Update(double curtime)
       fp2[1] = frommat[1][1];
       fp2[2] = frommat[2][1];
       break;
-    case OB_NEGX:
+    case blender::OB_NEGX:
       /* -X */
       fp1[0] = -actormat[0][0];
       fp1[1] = -actormat[1][0];
@@ -267,7 +269,7 @@ bool SCA_CameraActuator::Update(double curtime)
       fp2[1] = frommat[1][0];
       fp2[2] = frommat[2][0];
       break;
-    case OB_NEGY:
+    case blender::OB_NEGY:
       /* -Y */
       fp1[0] = -actormat[0][1];
       fp1[1] = -actormat[1][1];

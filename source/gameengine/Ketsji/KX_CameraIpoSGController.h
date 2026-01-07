@@ -35,7 +35,6 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 
-
 class KX_CameraIpoSGController : public SG_Controller {
  public:
   MT_Scalar m_lens;

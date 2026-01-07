@@ -34,33 +34,32 @@
 #include <string>
 #include <vector>
 
-#include "KX_IScalarInterpolator.h"
+#include "DNA_action_types.h"
 
-struct bAction;
-struct FCurve;
+#include "KX_IScalarInterpolator.h"
 
 class BL_ScalarInterpolator : public KX_IScalarInterpolator {
  private:
-  FCurve *m_fcu;
+  blender::FCurve *m_fcu;
 
  public:
-  BL_ScalarInterpolator(FCurve *fcu);
+  BL_ScalarInterpolator(blender::FCurve *fcu);
   virtual ~BL_ScalarInterpolator() = default;
 
   virtual float GetValue(float currentTime) const;
-  FCurve *GetFCurve() const;
+  blender::FCurve *GetFCurve() const;
 };
 
 class BL_InterpolatorList {
  private:
-  bAction *m_action;
+  blender::bAction *m_action;
   std::vector<BL_ScalarInterpolator> m_interpolators;
 
  public:
-  BL_InterpolatorList(bAction *action);
+  BL_InterpolatorList(blender::bAction *action);
   ~BL_InterpolatorList();
 
-  bAction *GetAction() const;
+  blender::bAction *GetAction() const;
 
   BL_ScalarInterpolator *GetScalarInterpolator(const std::string& rna_path, int array_index);
 };

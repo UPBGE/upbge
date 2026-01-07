@@ -12,6 +12,8 @@
 
 #include "EXP_PyObjectPlus.h"
 
+using namespace blender;
+
 // exception identificators
 ExceptionID ErrGeneral, ErrNotFound;
 

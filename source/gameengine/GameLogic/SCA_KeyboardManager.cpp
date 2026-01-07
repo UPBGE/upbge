@@ -36,6 +36,8 @@
 
 #include "SCA_KeyboardSensor.h"
 
+using namespace blender;
+
 SCA_KeyboardManager::SCA_KeyboardManager(SCA_LogicManager *logicmgr, SCA_IInputDevice *inputdev)
     : SCA_EventManager(logicmgr, KEYBOARD_EVENTMGR), m_inputDevice(inputdev)
 {

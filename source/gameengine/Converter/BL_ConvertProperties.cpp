@@ -43,14 +43,16 @@
 #include "KX_FontObject.h"
 #include "SCA_TimeEventManager.h"
 
+using namespace blender;
+
 /* prototype */
-void BL_ConvertTextProperty(Object *object,
+void BL_ConvertTextProperty(blender::Object *object,
                             KX_FontObject *fontobj,
                             SCA_TimeEventManager *timemgr,
                             SCA_IScene *scene,
                             bool isInActiveLayer);
 
-void BL_ConvertProperties(Object *object,
+void BL_ConvertProperties(blender::Object *object,
                           KX_GameObject *gameobj,
                           SCA_TimeEventManager *timemgr,
                           SCA_IScene *scene,
@@ -152,26 +154,26 @@ void BL_ConvertProperties(Object *object,
     scene->AddDebugProperty(gameobj, "__state__");
   }
 
-  /* Font Objects need to 'copy' the Font Object data body to ["Text"] */
+  /* Font Objects need to 'copy' the Font blender::Object data body to ["blender::Text"] */
   if (object->type == OB_FONT) {
     BL_ConvertTextProperty(object, (KX_FontObject *)gameobj, timemgr, scene, isInActiveLayer);
   }
 }
 
-void BL_ConvertTextProperty(Object *object,
+void BL_ConvertTextProperty(blender::Object *object,
                             KX_FontObject *fontobj,
                             SCA_TimeEventManager *timemgr,
                             SCA_IScene *scene,
                             bool isInActiveLayer)
 {
-  EXP_Value *tprop = fontobj->GetProperty("Text");
+  EXP_Value *tprop = fontobj->GetProperty("blender::Text");
   if (!tprop)
     return;
-  bProperty *prop = BKE_bproperty_object_get(object, "Text");
+  bProperty *prop = BKE_bproperty_object_get(object, "blender::Text");
   if (!prop)
     return;
 
-  Curve *curve = static_cast<Curve *>(object->data);
+  blender::Curve *curve = id_cast<blender::Curve *>(object->data);
   const std::string str = curve->str;
   std::stringstream stream(str);
   EXP_Value *propval = nullptr;
@@ -224,7 +226,7 @@ void BL_ConvertTextProperty(Object *object,
 
   /* check stream integrity */
   if (stream.bad()) {
-    CM_Error("Failed to convert font property \"Text\"");
+    CM_Error("Failed to convert font property \"blender::Text\"");
   }
 
   if (propval) {

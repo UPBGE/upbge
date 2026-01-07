@@ -46,6 +46,8 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
+using namespace blender;
+
 RAS_Rasterizer::FrameBuffers::FrameBuffers() : m_width(0), m_height(0), m_samples(0)
 {
   for (int i = 0; i < RAS_FRAMEBUFFER_MAX; i++) {
@@ -238,7 +240,7 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 
   /* Here we set RAS_FrameBuffers width and height very early in ge launching process
    * Note that if we want to resize RAS_FrameBuffers, this method must be called
-   * But other things would need to be resized too with eevee (GPUViewport and
+   * But other things would need to be resized too with eevee (blender::GPUViewport and
    * its GPUOffScreen)
    */
   m_frameBuffers.Update(canvas);

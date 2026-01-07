@@ -27,6 +27,11 @@
 
 #pragma once
 
+namespace blender {
+
+/* Forward declaration */
+struct BulletSoftBody;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,14 +40,14 @@ extern "C" {
  *  \ingroup bke
  */
 
-struct BulletSoftBody;
-
 /* allocates and initializes general main data */
-extern struct BulletSoftBody *bsbNew(void);
+extern BulletSoftBody *bsbNew();
 
 /* frees internal data and softbody itself */
-extern void bsbFree(struct BulletSoftBody *sb);
+extern void bsbFree(BulletSoftBody *sb);
 
 #ifdef __cplusplus
 }
 #endif
+
+}  // namespace blender

@@ -37,12 +37,14 @@
 #include "BL_ArmatureObject.h"
 #include "EXP_FloatValue.h"
 
+using namespace blender;
+
 SCA_ActionActuator::SCA_ActionActuator(SCA_IObject *gameobj,
                                        const std::string &propname,
                                        const std::string &framepropname,
                                        float starttime,
                                        float endtime,
-                                       struct bAction *action,
+                                       blender::bAction *action,
                                        short playtype,
                                        short blend_mode,
                                        short blendin,
@@ -219,7 +221,7 @@ bool SCA_ActionActuator::Update(double curtime)
   }
   else if ((m_flag & ACT_FLAG_ACTIVE) && negativeEvent) {
     m_localtime = obj->GetActionFrame(m_layer);
-    bAction *curr_action = obj->GetCurrentAction(m_layer);
+    blender::bAction *curr_action = obj->GetCurrentAction(m_layer);
     if (curr_action && curr_action != m_action) {
       // Someone changed the action on us, so we wont mess with it
       // Hopefully there wont be too many problems with two actuators using
@@ -373,11 +375,11 @@ int SCA_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v,
     return PY_SET_ATTR_FAIL;
   }
 
-  bAction *action = nullptr;
+  blender::bAction *action = nullptr;
   std::string val = _PyUnicode_AsString(value);
 
   if (val != "") {
-    action = (bAction *)self->GetLogicManager()->GetActionByName(val);
+    action = (blender::bAction *)self->GetLogicManager()->GetActionByName(val);
     if (!action) {
       PyErr_SetString(PyExc_ValueError,
                       "actuator.action = val: Action Actuator, action not found!");

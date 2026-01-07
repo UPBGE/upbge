@@ -31,6 +31,8 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
+
+using namespace blender;
 #endif
 
 /* Global variables to assure that the events are analyzed by all mouse actuators */

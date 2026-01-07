@@ -23,5 +23,9 @@
 
 #pragma once
 
+namespace blender {
+
 /* logic_ops.c */
 void ED_operatortypes_logic();
+
+}  // namespace blender

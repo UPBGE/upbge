@@ -27,6 +27,7 @@
 
 #include "BKE_mesh_gpu.hh"
 
+
 namespace blender::draw {
 
 int GPUModifierPipeline::instance_counter = 0;
@@ -57,19 +58,20 @@ void GPUModifierPipeline::sort_stages()
       });
 }
 
-void GPUModifierPipeline::allocate_buffers(Mesh *mesh_owner, Object *deformed_eval, int vertex_count)
+void GPUModifierPipeline::allocate_buffers(
+    Mesh *mesh_owner, Object *deformed_eval, int vertex_count)
 {
   /* Use stable key attached to the original mesh (mesh_owner) */
   const std::string key_buffer_a = "gpu_pipeline_buffer_a";
 
   /* Try to get existing buffer from mesh GPU cache */
-  input_pipeline_buffer_ = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_buffer_a);
+  input_pipeline_buffer_ = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_buffer_a);
 
   /* Allocate if not present */
   const size_t buffer_size = size_t(vertex_count) * sizeof(float) * 4;
 
   if (!input_pipeline_buffer_) {
-    input_pipeline_buffer_ = BKE_mesh_gpu_internal_ssbo_ensure(
+    input_pipeline_buffer_ = bke::BKE_mesh_gpu_internal_ssbo_ensure(
         mesh_owner, deformed_eval, key_buffer_a, buffer_size);
 
     /* Initialize with REST positions
@@ -241,12 +243,13 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
     default:
       break;
   }
-  /* Invalidation will free input_pipeline_buffer_ via BKE_mesh_gpu_internal_resources_free_for_mesh,
+  /* Invalidation will free input_pipeline_buffer_ via bke::BKE_mesh_gpu_internal_resources_free_for_mesh,
    * Reset it to nullptr so it will be recreated on next frame */
   input_pipeline_buffer_ = nullptr;
 }
 
-gpu::StorageBuf *GPUModifierPipeline::execute(Mesh *mesh, Object *ob, MeshBatchCache *cache)
+gpu::StorageBuf *GPUModifierPipeline::execute(
+    Mesh *mesh, Object *ob, MeshBatchCache *cache)
 {
   if (stages_.is_empty()) {
     return nullptr;
@@ -325,7 +328,7 @@ static gpu::StorageBuf *dispatch_shapekeys_stage(Mesh *mesh_orig,
    * They compute: output = rest
    * + sum(delta_k * weight_k) */
 
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   if (!cache) {
     return nullptr;
@@ -349,7 +352,7 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   if (!cache) {
     return nullptr;
@@ -382,7 +385,7 @@ static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   if (!cache) {
     return nullptr;
@@ -415,7 +418,7 @@ static gpu::StorageBuf *dispatch_simpledeform_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   if (!cache) {
     return nullptr;
@@ -440,7 +443,7 @@ static gpu::StorageBuf *dispatch_hook_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   if (!cache) {
     return nullptr;
@@ -471,7 +474,7 @@ static gpu::StorageBuf *dispatch_displace_stage(Mesh *mesh_orig,
     return nullptr;
   }
 
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   if (!cache) {
     return nullptr;
@@ -485,9 +488,11 @@ static gpu::StorageBuf *dispatch_displace_stage(Mesh *mesh_orig,
       dmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
 }
 
+
 /** \} */
 
-bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
+bool build_gpu_modifier_pipeline(
+    Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline)
 {
   /* Don't clear the pipeline here! Let execute() handle hash-based invalidation.
    * This
@@ -508,7 +513,7 @@ bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPi
   /* 2. Modifiers in stack order
    * IMPORTANT: Use ORIGINAL object modifiers, not evaluated
    * ones!
-   * This ensures modifier data pointers match what BKE_modifiers_is_deformed_by_*
+   * This ensures modifier data pointers match what bke::BKE_modifiers_is_deformed_by_*
    * expects.
    * The evaluated object is passed separately to dispatch functions for runtime
    * data. */

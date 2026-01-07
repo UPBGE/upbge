@@ -72,7 +72,6 @@
 #include "BLI_listbase.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_python_proxy_types.h"
 #include "wm_event_types.hh"
 
@@ -104,142 +103,141 @@
 #endif
 
 using namespace blender;
-using namespace blender::bke;
 
 /* The reverse table. In order to not confuse ourselves, we
  * immediately convert all events that come in to KX codes. */
 static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable = {
-    {LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE},
-    {MIDDLEMOUSE, SCA_IInputDevice::MIDDLEMOUSE},
-    {RIGHTMOUSE, SCA_IInputDevice::RIGHTMOUSE},
-    {BUTTON4MOUSE, SCA_IInputDevice::BUTTON4MOUSE},
-    {BUTTON5MOUSE, SCA_IInputDevice::BUTTON5MOUSE},
-    {BUTTON6MOUSE, SCA_IInputDevice::BUTTON6MOUSE},
-    {BUTTON7MOUSE, SCA_IInputDevice::BUTTON7MOUSE},
-    {WHEELUPMOUSE, SCA_IInputDevice::WHEELUPMOUSE},
-    {WHEELDOWNMOUSE, SCA_IInputDevice::WHEELDOWNMOUSE},
-    {MOUSEMOVE, SCA_IInputDevice::MOUSEX},
-    {ACTIONMOUSE, SCA_IInputDevice::MOUSEY},
+    {blender::LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE},
+    {blender::MIDDLEMOUSE, SCA_IInputDevice::MIDDLEMOUSE},
+    {blender::RIGHTMOUSE, SCA_IInputDevice::RIGHTMOUSE},
+    {blender::BUTTON4MOUSE, SCA_IInputDevice::BUTTON4MOUSE},
+    {blender::BUTTON5MOUSE, SCA_IInputDevice::BUTTON5MOUSE},
+    {blender::BUTTON6MOUSE, SCA_IInputDevice::BUTTON6MOUSE},
+    {blender::BUTTON7MOUSE, SCA_IInputDevice::BUTTON7MOUSE},
+    {blender::WHEELUPMOUSE, SCA_IInputDevice::WHEELUPMOUSE},
+    {blender::WHEELDOWNMOUSE, SCA_IInputDevice::WHEELDOWNMOUSE},
+    {blender::MOUSEMOVE, SCA_IInputDevice::MOUSEX},
+    {blender::ACTIONMOUSE, SCA_IInputDevice::MOUSEY},
     // Standard keyboard.
-    {EVT_AKEY, SCA_IInputDevice::AKEY},
-    {EVT_BKEY, SCA_IInputDevice::BKEY},
-    {EVT_CKEY, SCA_IInputDevice::CKEY},
-    {EVT_DKEY, SCA_IInputDevice::DKEY},
-    {EVT_EKEY, SCA_IInputDevice::EKEY},
-    {EVT_FKEY, SCA_IInputDevice::FKEY},
-    {EVT_GKEY, SCA_IInputDevice::GKEY},
-    {EVT_HKEY, SCA_IInputDevice::HKEY_},
-    {EVT_IKEY, SCA_IInputDevice::IKEY},
-    {EVT_JKEY, SCA_IInputDevice::JKEY},
-    {EVT_KKEY, SCA_IInputDevice::KKEY},
-    {EVT_LKEY, SCA_IInputDevice::LKEY},
-    {EVT_MKEY, SCA_IInputDevice::MKEY},
-    {EVT_NKEY, SCA_IInputDevice::NKEY},
-    {EVT_OKEY, SCA_IInputDevice::OKEY},
-    {EVT_PKEY, SCA_IInputDevice::PKEY},
-    {EVT_QKEY, SCA_IInputDevice::QKEY},
-    {EVT_RKEY, SCA_IInputDevice::RKEY},
-    {EVT_SKEY, SCA_IInputDevice::SKEY},
-    {EVT_TKEY, SCA_IInputDevice::TKEY},
-    {EVT_UKEY, SCA_IInputDevice::UKEY},
-    {EVT_VKEY, SCA_IInputDevice::VKEY},
-    {EVT_WKEY, SCA_IInputDevice::WKEY},
-    {EVT_XKEY, SCA_IInputDevice::XKEY},
-    {EVT_YKEY, SCA_IInputDevice::YKEY},
-    {EVT_ZKEY, SCA_IInputDevice::ZKEY},
+    {blender::EVT_AKEY, SCA_IInputDevice::AKEY},
+    {blender::EVT_BKEY, SCA_IInputDevice::BKEY},
+    {blender::EVT_CKEY, SCA_IInputDevice::CKEY},
+    {blender::EVT_DKEY, SCA_IInputDevice::DKEY},
+    {blender::EVT_EKEY, SCA_IInputDevice::EKEY},
+    {blender::EVT_FKEY, SCA_IInputDevice::FKEY},
+    {blender::EVT_GKEY, SCA_IInputDevice::GKEY},
+    {blender::EVT_HKEY, SCA_IInputDevice::HKEY_},
+    {blender::EVT_IKEY, SCA_IInputDevice::IKEY},
+    {blender::EVT_JKEY, SCA_IInputDevice::JKEY},
+    {blender::EVT_KKEY, SCA_IInputDevice::KKEY},
+    {blender::EVT_LKEY, SCA_IInputDevice::LKEY},
+    {blender::EVT_MKEY, SCA_IInputDevice::MKEY},
+    {blender::EVT_NKEY, SCA_IInputDevice::NKEY},
+    {blender::EVT_OKEY, SCA_IInputDevice::OKEY},
+    {blender::EVT_PKEY, SCA_IInputDevice::PKEY},
+    {blender::EVT_QKEY, SCA_IInputDevice::QKEY},
+    {blender::EVT_RKEY, SCA_IInputDevice::RKEY},
+    {blender::EVT_SKEY, SCA_IInputDevice::SKEY},
+    {blender::EVT_TKEY, SCA_IInputDevice::TKEY},
+    {blender::EVT_UKEY, SCA_IInputDevice::UKEY},
+    {blender::EVT_VKEY, SCA_IInputDevice::VKEY},
+    {blender::EVT_WKEY, SCA_IInputDevice::WKEY},
+    {blender::EVT_XKEY, SCA_IInputDevice::XKEY},
+    {blender::EVT_YKEY, SCA_IInputDevice::YKEY},
+    {blender::EVT_ZKEY, SCA_IInputDevice::ZKEY},
 
-    {EVT_ZEROKEY, SCA_IInputDevice::ZEROKEY},
-    {EVT_ONEKEY, SCA_IInputDevice::ONEKEY},
-    {EVT_TWOKEY, SCA_IInputDevice::TWOKEY},
-    {EVT_THREEKEY, SCA_IInputDevice::THREEKEY},
-    {EVT_FOURKEY, SCA_IInputDevice::FOURKEY},
-    {EVT_FIVEKEY, SCA_IInputDevice::FIVEKEY},
-    {EVT_SIXKEY, SCA_IInputDevice::SIXKEY},
-    {EVT_SEVENKEY, SCA_IInputDevice::SEVENKEY},
-    {EVT_EIGHTKEY, SCA_IInputDevice::EIGHTKEY},
-    {EVT_NINEKEY, SCA_IInputDevice::NINEKEY},
+    {blender::EVT_ZEROKEY, SCA_IInputDevice::ZEROKEY},
+    {blender::EVT_ONEKEY, SCA_IInputDevice::ONEKEY},
+    {blender::EVT_TWOKEY, SCA_IInputDevice::TWOKEY},
+    {blender::EVT_THREEKEY, SCA_IInputDevice::THREEKEY},
+    {blender::EVT_FOURKEY, SCA_IInputDevice::FOURKEY},
+    {blender::EVT_FIVEKEY, SCA_IInputDevice::FIVEKEY},
+    {blender::EVT_SIXKEY, SCA_IInputDevice::SIXKEY},
+    {blender::EVT_SEVENKEY, SCA_IInputDevice::SEVENKEY},
+    {blender::EVT_EIGHTKEY, SCA_IInputDevice::EIGHTKEY},
+    {blender::EVT_NINEKEY, SCA_IInputDevice::NINEKEY},
 
-    {EVT_CAPSLOCKKEY, SCA_IInputDevice::CAPSLOCKKEY},
+    {blender::EVT_CAPSLOCKKEY, SCA_IInputDevice::CAPSLOCKKEY},
 
-    {EVT_LEFTCTRLKEY, SCA_IInputDevice::LEFTCTRLKEY},
-    {EVT_LEFTALTKEY, SCA_IInputDevice::LEFTALTKEY},
-    {EVT_RIGHTALTKEY, SCA_IInputDevice::RIGHTALTKEY},
-    {EVT_RIGHTCTRLKEY, SCA_IInputDevice::RIGHTCTRLKEY},
-    {EVT_RIGHTSHIFTKEY, SCA_IInputDevice::RIGHTSHIFTKEY},
-    {EVT_LEFTSHIFTKEY, SCA_IInputDevice::LEFTSHIFTKEY},
+    {blender::EVT_LEFTCTRLKEY, SCA_IInputDevice::LEFTCTRLKEY},
+    {blender::EVT_LEFTALTKEY, SCA_IInputDevice::LEFTALTKEY},
+    {blender::EVT_RIGHTALTKEY, SCA_IInputDevice::RIGHTALTKEY},
+    {blender::EVT_RIGHTCTRLKEY, SCA_IInputDevice::RIGHTCTRLKEY},
+    {blender::EVT_RIGHTSHIFTKEY, SCA_IInputDevice::RIGHTSHIFTKEY},
+    {blender::EVT_LEFTSHIFTKEY, SCA_IInputDevice::LEFTSHIFTKEY},
 
-    {EVT_ESCKEY, SCA_IInputDevice::ESCKEY},
-    {EVT_TABKEY, SCA_IInputDevice::TABKEY},
-    {EVT_RETKEY, SCA_IInputDevice::RETKEY},
-    {EVT_SPACEKEY, SCA_IInputDevice::SPACEKEY},
-    {EVT_LINEFEEDKEY, SCA_IInputDevice::LINEFEEDKEY},
-    {EVT_BACKSPACEKEY, SCA_IInputDevice::BACKSPACEKEY},
-    {EVT_DELKEY, SCA_IInputDevice::DELKEY},
-    {EVT_SEMICOLONKEY, SCA_IInputDevice::SEMICOLONKEY},
-    {EVT_PERIODKEY, SCA_IInputDevice::PERIODKEY},
-    {EVT_COMMAKEY, SCA_IInputDevice::COMMAKEY},
-    {EVT_QUOTEKEY, SCA_IInputDevice::QUOTEKEY},
-    {EVT_ACCENTGRAVEKEY, SCA_IInputDevice::ACCENTGRAVEKEY},
-    {EVT_MINUSKEY, SCA_IInputDevice::MINUSKEY},
-    {EVT_SLASHKEY, SCA_IInputDevice::SLASHKEY},
-    {EVT_BACKSLASHKEY, SCA_IInputDevice::BACKSLASHKEY},
-    {EVT_EQUALKEY, SCA_IInputDevice::EQUALKEY},
-    {EVT_LEFTBRACKETKEY, SCA_IInputDevice::LEFTBRACKETKEY},
-    {EVT_RIGHTBRACKETKEY, SCA_IInputDevice::RIGHTBRACKETKEY},
+    {blender::EVT_ESCKEY, SCA_IInputDevice::ESCKEY},
+    {blender::EVT_TABKEY, SCA_IInputDevice::TABKEY},
+    {blender::EVT_RETKEY, SCA_IInputDevice::RETKEY},
+    {blender::EVT_SPACEKEY, SCA_IInputDevice::SPACEKEY},
+    {blender::EVT_LINEFEEDKEY, SCA_IInputDevice::LINEFEEDKEY},
+    {blender::EVT_BACKSPACEKEY, SCA_IInputDevice::BACKSPACEKEY},
+    {blender::EVT_DELKEY, SCA_IInputDevice::DELKEY},
+    {blender::EVT_SEMICOLONKEY, SCA_IInputDevice::SEMICOLONKEY},
+    {blender::EVT_PERIODKEY, SCA_IInputDevice::PERIODKEY},
+    {blender::EVT_COMMAKEY, SCA_IInputDevice::COMMAKEY},
+    {blender::EVT_QUOTEKEY, SCA_IInputDevice::QUOTEKEY},
+    {blender::EVT_ACCENTGRAVEKEY, SCA_IInputDevice::ACCENTGRAVEKEY},
+    {blender::EVT_MINUSKEY, SCA_IInputDevice::MINUSKEY},
+    {blender::EVT_SLASHKEY, SCA_IInputDevice::SLASHKEY},
+    {blender::EVT_BACKSLASHKEY, SCA_IInputDevice::BACKSLASHKEY},
+    {blender::EVT_EQUALKEY, SCA_IInputDevice::EQUALKEY},
+    {blender::EVT_LEFTBRACKETKEY, SCA_IInputDevice::LEFTBRACKETKEY},
+    {blender::EVT_RIGHTBRACKETKEY, SCA_IInputDevice::RIGHTBRACKETKEY},
 
-    {EVT_LEFTARROWKEY, SCA_IInputDevice::LEFTARROWKEY},
-    {EVT_DOWNARROWKEY, SCA_IInputDevice::DOWNARROWKEY},
-    {EVT_RIGHTARROWKEY, SCA_IInputDevice::RIGHTARROWKEY},
-    {EVT_UPARROWKEY, SCA_IInputDevice::UPARROWKEY},
+    {blender::EVT_LEFTARROWKEY, SCA_IInputDevice::LEFTARROWKEY},
+    {blender::EVT_DOWNARROWKEY, SCA_IInputDevice::DOWNARROWKEY},
+    {blender::EVT_RIGHTARROWKEY, SCA_IInputDevice::RIGHTARROWKEY},
+    {blender::EVT_UPARROWKEY, SCA_IInputDevice::UPARROWKEY},
 
-    {EVT_PAD2, SCA_IInputDevice::PAD2},
-    {EVT_PAD4, SCA_IInputDevice::PAD4},
-    {EVT_PAD6, SCA_IInputDevice::PAD6},
-    {EVT_PAD8, SCA_IInputDevice::PAD8},
+    {blender::EVT_PAD2, SCA_IInputDevice::PAD2},
+    {blender::EVT_PAD4, SCA_IInputDevice::PAD4},
+    {blender::EVT_PAD6, SCA_IInputDevice::PAD6},
+    {blender::EVT_PAD8, SCA_IInputDevice::PAD8},
 
-    {EVT_PAD1, SCA_IInputDevice::PAD1},
-    {EVT_PAD3, SCA_IInputDevice::PAD3},
-    {EVT_PAD5, SCA_IInputDevice::PAD5},
-    {EVT_PAD7, SCA_IInputDevice::PAD7},
-    {EVT_PAD9, SCA_IInputDevice::PAD9},
+    {blender::EVT_PAD1, SCA_IInputDevice::PAD1},
+    {blender::EVT_PAD3, SCA_IInputDevice::PAD3},
+    {blender::EVT_PAD5, SCA_IInputDevice::PAD5},
+    {blender::EVT_PAD7, SCA_IInputDevice::PAD7},
+    {blender::EVT_PAD9, SCA_IInputDevice::PAD9},
 
-    {EVT_PADPERIOD, SCA_IInputDevice::PADPERIOD},
-    {EVT_PADSLASHKEY, SCA_IInputDevice::PADSLASHKEY},
-    {EVT_PADASTERKEY, SCA_IInputDevice::PADASTERKEY},
+    {blender::EVT_PADPERIOD, SCA_IInputDevice::PADPERIOD},
+    {blender::EVT_PADSLASHKEY, SCA_IInputDevice::PADSLASHKEY},
+    {blender::EVT_PADASTERKEY, SCA_IInputDevice::PADASTERKEY},
 
-    {EVT_PAD0, SCA_IInputDevice::PAD0},
-    {EVT_PADMINUS, SCA_IInputDevice::PADMINUS},
-    {EVT_PADENTER, SCA_IInputDevice::PADENTER},
-    {EVT_PADPLUSKEY, SCA_IInputDevice::PADPLUSKEY},
+    {blender::EVT_PAD0, SCA_IInputDevice::PAD0},
+    {blender::EVT_PADMINUS, SCA_IInputDevice::PADMINUS},
+    {blender::EVT_PADENTER, SCA_IInputDevice::PADENTER},
+    {blender::EVT_PADPLUSKEY, SCA_IInputDevice::PADPLUSKEY},
 
-    {EVT_F1KEY, SCA_IInputDevice::F1KEY},
-    {EVT_F2KEY, SCA_IInputDevice::F2KEY},
-    {EVT_F3KEY, SCA_IInputDevice::F3KEY},
-    {EVT_F4KEY, SCA_IInputDevice::F4KEY},
-    {EVT_F5KEY, SCA_IInputDevice::F5KEY},
-    {EVT_F6KEY, SCA_IInputDevice::F6KEY},
-    {EVT_F7KEY, SCA_IInputDevice::F7KEY},
-    {EVT_F8KEY, SCA_IInputDevice::F8KEY},
-    {EVT_F9KEY, SCA_IInputDevice::F9KEY},
-    {EVT_F10KEY, SCA_IInputDevice::F10KEY},
-    {EVT_F11KEY, SCA_IInputDevice::F11KEY},
-    {EVT_F12KEY, SCA_IInputDevice::F12KEY},
-    {EVT_F13KEY, SCA_IInputDevice::F13KEY},
-    {EVT_F14KEY, SCA_IInputDevice::F14KEY},
-    {EVT_F15KEY, SCA_IInputDevice::F15KEY},
-    {EVT_F16KEY, SCA_IInputDevice::F16KEY},
-    {EVT_F17KEY, SCA_IInputDevice::F17KEY},
-    {EVT_F18KEY, SCA_IInputDevice::F18KEY},
-    {EVT_F19KEY, SCA_IInputDevice::F19KEY},
+    {blender::EVT_F1KEY, SCA_IInputDevice::F1KEY},
+    {blender::EVT_F2KEY, SCA_IInputDevice::F2KEY},
+    {blender::EVT_F3KEY, SCA_IInputDevice::F3KEY},
+    {blender::EVT_F4KEY, SCA_IInputDevice::F4KEY},
+    {blender::EVT_F5KEY, SCA_IInputDevice::F5KEY},
+    {blender::EVT_F6KEY, SCA_IInputDevice::F6KEY},
+    {blender::EVT_F7KEY, SCA_IInputDevice::F7KEY},
+    {blender::EVT_F8KEY, SCA_IInputDevice::F8KEY},
+    {blender::EVT_F9KEY, SCA_IInputDevice::F9KEY},
+    {blender::EVT_F10KEY, SCA_IInputDevice::F10KEY},
+    {blender::EVT_F11KEY, SCA_IInputDevice::F11KEY},
+    {blender::EVT_F12KEY, SCA_IInputDevice::F12KEY},
+    {blender::EVT_F13KEY, SCA_IInputDevice::F13KEY},
+    {blender::EVT_F14KEY, SCA_IInputDevice::F14KEY},
+    {blender::EVT_F15KEY, SCA_IInputDevice::F15KEY},
+    {blender::EVT_F16KEY, SCA_IInputDevice::F16KEY},
+    {blender::EVT_F17KEY, SCA_IInputDevice::F17KEY},
+    {blender::EVT_F18KEY, SCA_IInputDevice::F18KEY},
+    {blender::EVT_F19KEY, SCA_IInputDevice::F19KEY},
 
-    {EVT_OSKEY, SCA_IInputDevice::OSKEY},
+    {blender::EVT_OSKEY, SCA_IInputDevice::OSKEY},
 
-    {EVT_PAUSEKEY, SCA_IInputDevice::PAUSEKEY},
-    {EVT_INSERTKEY, SCA_IInputDevice::INSERTKEY},
-    {EVT_HOMEKEY, SCA_IInputDevice::HOMEKEY},
-    {EVT_PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY},
-    {EVT_PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY},
-    {EVT_ENDKEY, SCA_IInputDevice::ENDKEY}};
+    {blender::EVT_PAUSEKEY, SCA_IInputDevice::PAUSEKEY},
+    {blender::EVT_INSERTKEY, SCA_IInputDevice::INSERTKEY},
+    {blender::EVT_HOMEKEY, SCA_IInputDevice::HOMEKEY},
+    {blender::EVT_PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY},
+    {blender::EVT_PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY},
+    {blender::EVT_ENDKEY, SCA_IInputDevice::ENDKEY}};
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 {
@@ -258,11 +256,11 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
   for (const RAS_MeshObject::Layer &layer : layers) {
     const unsigned short index = layer.index;
     if (layer.color) {
-      const MLoopCol &col = layer.color[loop];
+      const blender::MLoopCol &col = layer.color[loop];
 
       union Convert {
         // Color isn't swapped in MLoopCol.
-        MLoopCol col;
+        blender::MLoopCol col;
         unsigned int val;
       };
       Convert con;
@@ -288,7 +286,7 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
   }
 }
 
-static KX_BlenderMaterial *BL_ConvertMaterial(Material *mat,
+static KX_BlenderMaterial *BL_ConvertMaterial(blender::Material *mat,
                                               int lightlayer,
                                               KX_Scene *scene,
                                               RAS_Rasterizer *rasty,
@@ -311,7 +309,7 @@ static KX_BlenderMaterial *BL_ConvertMaterial(Material *mat,
   return kx_blmat;
 }
 
-static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
+static RAS_MaterialBucket *BL_material_from_mesh(blender::Material *ma,
                                                  int lightlayer,
                                                  KX_Scene *scene,
                                                  RAS_Rasterizer *rasty,
@@ -334,7 +332,7 @@ static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
   return bucket;
 }
 
-static int GetPolygonMaterialIndex(const VArray<int> mat_indices, const Mesh *me, int polyid)
+static int GetPolygonMaterialIndex(const VArray<int> mat_indices, const blender::Mesh *me, int polyid)
 {
   int r = mat_indices[polyid];
 
@@ -347,8 +345,8 @@ static int GetPolygonMaterialIndex(const VArray<int> mat_indices, const Mesh *me
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
-                               Object *blenderobj,
+RAS_MeshObject *BL_ConvertMesh(blender::Mesh *mesh,
+                               blender::Object *blenderobj,
                                KX_Scene *scene,
                                RAS_Rasterizer *rasty,
                                BL_SceneConverter *converter,
@@ -362,17 +360,17 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // problems with material LoDs.
   if (blenderobj && ((meshobj = converter->FindGameMesh(mesh /*, ob->lay*/)) != nullptr)) {
     const std::string bge_name = meshobj->GetName();
-    const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
+    const std::string blender_name = ((blender::ID *)blenderobj->data)->name + 2;
     if (bge_name == blender_name) {
       return meshobj;
     }
   }
 
-  // Get Mesh data
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
-  Mesh *final_me = (Mesh *)ob_eval->data;
+  // Get blender::Mesh data
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
+  blender::Mesh *final_me = (blender::Mesh *)ob_eval->data;
 
   const blender::Span<blender::float3> positions = final_me->vert_positions();
   const int totverts = final_me->verts_num;
@@ -403,7 +401,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   for (unsigned short i = 0; i < colorLayers; ++i) {
     const std::string name = CustomData_get_layer_name(
         &final_me->corner_data, CD_PROP_BYTE_COLOR, i);
-    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(
+    blender::MLoopCol *col = (blender::MLoopCol *)CustomData_get_layer_n(
         &final_me->corner_data, CD_PROP_BYTE_COLOR, i);
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
@@ -437,7 +435,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   vertformat.colorSize = max_ii(1, colorLayers);
 
   struct ConvertedMaterial {
-    Material *ma;
+    blender::Material *ma;
     RAS_MeshMaterial *meshmat;
     bool visible;
     bool twoside;
@@ -450,7 +448,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   // Convert all the materials contained in the mesh.
   for (unsigned short i = 0; i < totmat; ++i) {
-    Material *ma = nullptr;
+    blender::Material *ma = nullptr;
     if (blenderobj) {
       ma = BKE_object_material_get(ob_eval, i + 1);
     }
@@ -475,7 +473,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   }
 
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", AttrDomain::Face, 0);
+      "material_index", bke::AttrDomain::Face, 0);
 
   const bool *sharp_faces = static_cast<const bool *>(
       CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
@@ -556,7 +554,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
 //////////////////////////////////////////////////////
 static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
-                                      Object *blenderobject,
+                                      blender::Object *blenderobject,
                                       RAS_MeshObject *meshobj,
                                       KX_Scene *kxscene,
                                       int activeLayerBitInfo,
@@ -564,12 +562,12 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                       bool processCompoundChildren)
 
 {
-  // Object has physics representation?
+  // blender::Object has physics representation?
   if (!(blenderobject->gameflag & OB_COLLISION)) {
     return;
   }
 
-  Object *parent = blenderobject->parent;
+  blender::Object *parent = blenderobject->parent;
 
   bool isCompoundChild = false;
   bool hasCompoundChildren = false;
@@ -619,7 +617,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                                   KX_ClientObjectInfo::STATIC;
 }
 
-static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
+static KX_LodManager *BL_lodmanager_from_blenderobject(blender::Object *ob,
                                                        KX_Scene *scene,
                                                        RAS_Rasterizer *rasty,
                                                        BL_SceneConverter *converter,
@@ -645,7 +643,7 @@ static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
  * KX_GameObject::ActivityCullingInfo. \param ob The object to convert the activity culling
  * settings from.
  */
-static KX_GameObject::ActivityCullingInfo activityCullingInfoFromBlenderObject(Object *ob)
+static KX_GameObject::ActivityCullingInfo activityCullingInfoFromBlenderObject(blender::Object *ob)
 {
   KX_GameObject::ActivityCullingInfo cullingInfo;
   const ObjectActivityCulling &blenderInfo = ob->activityCulling;
@@ -671,13 +669,13 @@ static KX_GameObject::ActivityCullingInfo activityCullingInfoFromBlenderObject(O
 }
 
 #ifdef WITH_PYTHON
-static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
+static KX_GameObject *BL_gameobject_from_customobject(blender::Object *ob,
                                                       PyTypeObject *type,
                                                       KX_Scene *kxscene)
 {
   KX_GameObject *gameobj = nullptr;
 
-  PythonProxy *pp = ob->custom_object;
+  blender::PythonProxy *pp = ob->custom_object;
 
   if (!pp) {
     return nullptr;
@@ -742,7 +740,7 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
 }
 #endif
 
-static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
+static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
                                                        BL_SceneConverter *converter,
@@ -795,7 +793,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     }
 
     case OB_MESH: {
-      Mesh *mesh = static_cast<Mesh *>(ob->data);
+      blender::Mesh *mesh = id_cast<blender::Mesh *>(ob->data);
       RAS_MeshObject *meshobj = BL_ConvertMesh(
           mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime);
 
@@ -899,9 +897,9 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
 
 #ifdef THREADED_DAG_WORKAROUND
     case OB_CURVES_LEGACY: {
-      /*bContext *C = KX_GetActiveEngine()->GetContext();
+      /*blender::bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+        blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         BKE_displist_make_curveTypes(
             depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }*/
@@ -950,11 +948,11 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
 }
 
 struct BL_parentChildLink {
-  struct Object *m_blenderchild;
+  blender::Object *m_blenderchild;
   SG_Node *m_gamechildnode;
 };
 
-static ListBase *BL_GetActiveConstraint(Object *ob)
+static blender::ListBase *BL_GetActiveConstraint(blender::Object *ob)
 {
   if (!ob)
     return nullptr;
@@ -962,10 +960,10 @@ static ListBase *BL_GetActiveConstraint(Object *ob)
   return &ob->constraints;
 }
 
-static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
+static void BL_ConvertComponentsObject(KX_GameObject *gameobj, blender::Object *blenderobj)
 {
 #ifdef WITH_PYTHON
-  PythonProxy *pp = (PythonProxy *)blenderobj->components.first;
+  blender::PythonProxy *pp = (blender::PythonProxy *)blenderobj->components.first;
   PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
 
   if (!pp) {
@@ -1047,13 +1045,13 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 #endif
 }
 
-static std::vector<Object *> lod_level_object_list(ViewLayer *view_layer)
+static std::vector<blender::Object *> lod_level_object_list(ViewLayer *view_layer)
 {
   Base *base = (Base *)view_layer->object_bases.first;
-  std::vector<Object *> lod_objs = {};
+  std::vector<blender::Object *> lod_objs = {};
 
   while (base) {
-    Object *ob = base->object;
+    blender::Object *ob = base->object;
     if (ob) {
       for (LodLevel *level = (LodLevel *)ob->lodlevels.first; level; level = level->next) {
         if (level->source) {
@@ -1066,7 +1064,7 @@ static std::vector<Object *> lod_level_object_list(ViewLayer *view_layer)
   return lod_objs;
 }
 
-static bool is_lod_level(std::vector<Object *> lod_objs, Object *blenderobject)
+static bool is_lod_level(std::vector<blender::Object *> lod_objs, blender::Object *blenderobject)
 {
   return std::find(lod_objs.begin(), lod_objs.end(), blenderobject) != lod_objs.end();
 }
@@ -1074,7 +1072,7 @@ static bool is_lod_level(std::vector<Object *> lod_objs, Object *blenderobject)
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
-                                           Object *blenderobject,
+                                           blender::Object *blenderobject,
                                            std::vector<BL_parentChildLink> &vec_parent_child,
                                            EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
                                            EXP_ListValue<KX_GameObject> *objectlist,
@@ -1185,15 +1183,15 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
 }
 
 // convert blender objects into ketsji gameobjects
-void BL_ConvertBlenderObjects(struct Main *maggie,
-                              struct Depsgraph *depsgraph,
+void BL_ConvertBlenderObjects(blender::Main *maggie,
+                              blender::Depsgraph *depsgraph,
                               KX_Scene *kxscene,
                               KX_KetsjiEngine *ketsjiEngine,
                               e_PhysicsEngine physics_engine,
                               RAS_Rasterizer *rendertools,
                               RAS_ICanvas *canvas,
                               BL_SceneConverter *converter,
-                              Object *single_object,
+                              blender::Object *single_object,
                               bool alwaysUseExpandFraming,
                               bool libloading)
 {
@@ -1212,8 +1210,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                                  timemgr, \
                                  isInActiveLayer)
 
-  Scene *blenderscene = kxscene->GetBlenderScene();
-  Scene *sce_iter;
+  blender::Scene *blenderscene = kxscene->GetBlenderScene();
+  blender::Scene *sce_iter;
   Base *base;
 
   // Get the frame settings of the canvas.
@@ -1222,8 +1220,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   RAS_FrameSettings::RAS_FrameType frame_type;
   int aspect_width;
   int aspect_height;
-  std::set<Collection *> grouplist;  // list of groups to be converted
-  std::set<Object *> groupobj;       // objects from groups (never in active layer)
+  std::set<blender::Collection *> grouplist;  // list of groups to be converted
+  std::set<blender::Object *> groupobj;       // objects from groups (never in active layer)
 
   /* We have to ensure that group definitions are only converted once
    * push all converted group members to this set.
@@ -1292,13 +1290,13 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   if (!single_object) {
     // Convert actions to actionmap
-    bAction *curAct;
-    for (curAct = (bAction *)maggie->actions.first; curAct; curAct = (bAction *)curAct->id.next) {
+    blender::bAction *curAct;
+    for (curAct = (blender::bAction *)maggie->actions.first; curAct; curAct = (blender::bAction *)curAct->id.next) {
       logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
     }
   }
   else {
-    for (bActuator *actu = (bActuator *)single_object->actuators.first; actu; actu = actu->next) {
+    for (blender::bActuator *actu = (blender::bActuator *)single_object->actuators.first; actu; actu = actu->next) {
       if (actu->type == ACT_ACTION) {
         bActionActuator *actionActu = (bActionActuator *)actu->data;
         if (actionActu->act != nullptr) {
@@ -1313,7 +1311,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   /* Ensure objects base flags are up to date each time we call BL_ConvertObjects */
   BKE_scene_base_flag_to_objects(blenderscene, BKE_view_layer_default_view(blenderscene));
 
-  std::vector<Object *> lod_objects = lod_level_object_list(
+  std::vector<blender::Object *> lod_objects = lod_level_object_list(
       BKE_view_layer_default_view(blenderscene));
 
   bool converting_during_runtime = single_object != nullptr;
@@ -1322,13 +1320,13 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
   // in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
-  // no conflicting name for Object, Object data and Action.
+  // no conflicting name for blender::Object, blender::Object data and Action.
   for (SETLOOPER(blenderscene, sce_iter, base)) {
-    Object *blenderobject = base->object;
+    blender::Object *blenderobject = base->object;
 
     if (converter->FindGameObject(blenderobject) != nullptr) {
       if (single_object && single_object == blenderobject) {
-        CM_Warning("Attempt to convert the same Object several times: " << blenderobject->id.name + 2);
+        CM_Warning("Attempt to convert the same blender::Object several times: " << blenderobject->id.name + 2);
       }
       continue;
     }
@@ -1395,15 +1393,15 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   if (!grouplist.empty()) {  // always empty during single object conversion
     // now convert the group referenced by dupli group object
     // keep track of all groups already converted
-    std::set<Collection *> allgrouplist = grouplist;
-    std::set<Collection *> tempglist;
+    std::set<blender::Collection *> allgrouplist = grouplist;
+    std::set<blender::Collection *> tempglist;
     // recurse
     while (!grouplist.empty()) {
-      std::set<Collection *>::iterator git;
+      std::set<blender::Collection *>::iterator git;
       tempglist.clear();
       tempglist.swap(grouplist);
       for (git = tempglist.begin(); git != tempglist.end(); git++) {
-        Collection *group = *git;
+        blender::Collection *group = *git;
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
           if (converter->FindGameObject(blenderobject) == nullptr) {
             groupobj.insert(blenderobject);
@@ -1456,12 +1454,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
     if (single_object && !converting_instance_col_at_runtime) {
       /* Don't bother with object children during single object conversion */
-      std::cout << "Warning: Object's children are not converted during runtime" << std::endl;
+      std::cout << "Warning: blender::Object's children are not converted during runtime" << std::endl;
       break;
     }
 
-    struct Object *blenderchild = pcit->m_blenderchild;
-    struct Object *blenderparent = blenderchild->parent;
+    blender::Object *blenderchild = pcit->m_blenderchild;
+    blender::Object *blenderparent = blenderchild->parent;
     KX_GameObject *parentobj = converter->FindGameObject(blenderparent);
     KX_GameObject *childobj = converter->FindGameObject(blenderchild);
 
@@ -1525,7 +1523,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
       case PARBONE: {
         // parent this to a bone
-        Bone *parent_bone = BKE_armature_find_bone_name(
+        blender::Bone *parent_bone = BKE_armature_find_bone_name(
             BKE_armature_from_object(blenderchild->parent), blenderchild->parsubstr);
 
         if (parent_bone) {
@@ -1569,7 +1567,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   for (unsigned short i = 0; i < 2; ++i) {
     const bool processCompoundChildren = (i == 1);
     for (KX_GameObject *gameobj : sumolist) {
-      Object *blenderobject = gameobj->GetBlenderObject();
+      blender::Object *blenderobject = gameobj->GetBlenderObject();
 
       if (single_object && !converting_instance_col_at_runtime) {
         if (blenderobject != single_object) {
@@ -1592,23 +1590,23 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // create physics joints
   for (KX_GameObject *gameobj : sumolist) {
     PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
-    struct Object *blenderobject = gameobj->GetBlenderObject();
+    blender::Object *blenderobject = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobject != single_object) {
         continue;
       }
     }
-    ListBase *conlist = BL_GetActiveConstraint(blenderobject);
-    bConstraint *curcon;
+    blender::ListBase *conlist = BL_GetActiveConstraint(blenderobject);
+    blender::bConstraint *curcon;
 
     if (!conlist)
       continue;
 
-    for (curcon = (bConstraint *)conlist->first; curcon; curcon = (bConstraint *)curcon->next) {
+    for (curcon = (blender::bConstraint *)conlist->first; curcon; curcon = (blender::bConstraint *)curcon->next) {
       if (curcon->type != CONSTRAINT_TYPE_RIGIDBODYJOINT)
         continue;
 
-      bRigidBodyJointConstraint *dat = (bRigidBodyJointConstraint *)curcon->data;
+      blender::bRigidBodyJointConstraint *dat = (blender::bRigidBodyJointConstraint *)curcon->data;
 
       /* Skip if no target or a child object is selected or constraints are deactivated */
       if (!dat->tar || dat->child || (curcon->flag & CONSTRAINT_OFF))
@@ -1647,7 +1645,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   KX_ObstacleSimulation *obssimulation = kxscene->GetObstacleSimulation();
   if (obssimulation) {
     for (KX_GameObject *gameobj : objectlist) {
-      struct Object *blenderobject = gameobj->GetBlenderObject();
+      blender::Object *blenderobject = gameobj->GetBlenderObject();
       if (single_object && !converting_instance_col_at_runtime) {
         if (blenderobject != single_object) {
           continue;
@@ -1661,7 +1659,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   // process navigation mesh objects
   for (KX_GameObject *gameobj : objectlist) {
-    struct Object *blenderobject = gameobj->GetBlenderObject();
+    blender::Object *blenderobject = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobject != single_object) {
         continue;
@@ -1676,7 +1674,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
   for (KX_GameObject *gameobj : inactivelist) {
-    struct Object *blenderobject = gameobj->GetBlenderObject();
+    blender::Object *blenderobject = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobject != single_object) {
         continue;
@@ -1690,7 +1688,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   // convert logic bricks, sensors, controllers and actuators
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
-    struct Object *blenderobj = gameobj->GetBlenderObject();
+    blender::Object *blenderobj = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
@@ -1709,7 +1707,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                         converter);
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
-    struct Object *blenderobj = gameobj->GetBlenderObject();
+    blender::Object *blenderobj = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
@@ -1721,7 +1719,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         blenderobj, gameobj, logicmgr, layerMask, isInActiveLayer, converter, libloading);
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
-    struct Object *blenderobj = gameobj->GetBlenderObject();
+    blender::Object *blenderobj = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
@@ -1754,7 +1752,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   // Convert the python components of each object.
   for (KX_GameObject *gameobj : sumolist) {
-    Object *blenderobj = gameobj->GetBlenderObject();
+    blender::Object *blenderobj = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;
@@ -1764,7 +1762,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   for (KX_GameObject *gameobj : objectlist) {
-    Object *blenderobj = gameobj->GetBlenderObject();
+    blender::Object *blenderobj = gameobj->GetBlenderObject();
     if (single_object && !converting_instance_col_at_runtime) {
       if (blenderobj != single_object) {
         continue;

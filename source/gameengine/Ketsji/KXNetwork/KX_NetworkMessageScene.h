@@ -27,7 +27,7 @@
 
 /** \file KX_NetworkMessageScene.h
  *  \ingroup ketsjinet
- *  \brief Ketsji Logic Extension: Network Message Scene class
+ *  \brief Ketsji Logic Extension: Network Message blender::Scene class
  */
 #pragma once
 

@@ -34,6 +34,8 @@
 #include "CM_Message.h"
 #include "SCA_JoystickManager.h"
 
+using namespace blender;
+
 
 SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
                                        SCA_IObject *gameobj,

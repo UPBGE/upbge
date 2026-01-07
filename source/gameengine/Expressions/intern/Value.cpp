@@ -25,6 +25,8 @@
 #include "EXP_IntValue.h"
 #include "EXP_StringValue.h"
 
+using namespace blender;
+
 #ifdef WITH_PYTHON
 
 PyTypeObject EXP_Value::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "EXP_Value",

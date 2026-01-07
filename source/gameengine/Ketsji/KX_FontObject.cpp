@@ -34,6 +34,8 @@
 #include "BLI_string_utf8.h"
 #include "DNA_curve_types.h"
 
+using namespace blender;
+
 static std::vector<std::string> split_string(std::string str)
 {
   std::vector<std::string> text = std::vector<std::string>();
@@ -82,8 +84,8 @@ void KX_FontObject::SetText(const std::string &text)
 
 void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
 {
-  Object *ob = GetBlenderObject();
-  Curve *cu = (Curve *)ob->data;
+  blender::Object *ob = GetBlenderObject();
+  blender::Curve *cu = (blender::Curve *)ob->data;
   if (cu->str)
     MEM_freeN(cu->str);
   if (cu->strinfo)
@@ -105,7 +107,7 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
 void KX_FontObject::UpdateTextFromProperty()
 {
   // Allow for some logic brick control
-  EXP_Value *prop = GetProperty("Text");
+  EXP_Value *prop = GetProperty("blender::Text");
   if (prop && prop->GetText() != m_text) {
     SetText(prop->GetText());
     UpdateCurveText(m_text);  // eevee
@@ -117,12 +119,12 @@ void KX_FontObject::SetRasterizer(RAS_Rasterizer *rasterizer)
   m_rasterizer = rasterizer;
 }
 
-void KX_FontObject::SetBlenderObject(Object *obj)
+void KX_FontObject::SetBlenderObject(blender::Object *obj)
 {
   KX_GameObject::SetBlenderObject(obj);
 
   if (obj) {
-    Curve *text = static_cast<Curve *>(obj->data);
+    blender::Curve *text = id_cast<blender::Curve *>(obj->data);
 
     m_backupText = std::string(text->str);  // eevee
 

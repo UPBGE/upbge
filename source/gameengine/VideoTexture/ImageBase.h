@@ -132,7 +132,7 @@ class ImageBase {
   unsigned int *m_image;
   /// image buffer size
   unsigned int m_imgSize;
-  /// Image internal format type.
+  /// blender::Image internal format type.
   blender::gpu::TextureFormat m_internalFormat;
   /// image size
   short m_size[2];

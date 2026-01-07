@@ -35,6 +35,8 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 
+using namespace blender;
+
 KX_CollisionEventManager::KX_CollisionEventManager(class SCA_LogicManager *logicmgr,
                                                    PHY_IPhysicsEnvironment *physEnv)
     : SCA_EventManager(logicmgr, TOUCH_EVENTMGR), m_physEnv(physEnv)

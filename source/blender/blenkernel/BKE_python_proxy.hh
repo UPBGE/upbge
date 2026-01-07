@@ -26,6 +26,8 @@
 
 #include "DNA_windowmanager_types.h" /* for ReportType */
 
+namespace blender {
+
 typedef void (*BKEPyProxyIDFunc)(struct PythonProxy *pp,
                                  struct ID **idpoin,
                                  void *userdata,
@@ -62,3 +64,5 @@ void BKE_python_proxy_id_loop(struct PythonProxy *pp, BKEPyProxyIDFunc func, voi
 void BKE_python_proxies_id_loop(struct ListBase *complist, BKEPyProxyIDFunc func, void *userdata);
 
 void *BKE_python_proxy_argument_dict_new(struct PythonProxy *pp);
+
+}  // namespace blender

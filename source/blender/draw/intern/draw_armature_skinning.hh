@@ -9,9 +9,11 @@
 #include "BKE_modifier.hh"
 
 /* Forward declarations to keep header lightweight. */
+namespace blender {
 struct Object;
 struct Mesh;
 struct Depsgraph;
+}  // namespace blender
 
 namespace blender {
 namespace gpu {
@@ -38,7 +40,8 @@ class ArmatureSkinningManager {
    * @param amd The armature modifier data (contains armature pointer, DQS flag, etc.)
    * @return Hash value, or 0 if inputs are invalid
    */
-  static uint32_t compute_armature_hash(const Mesh *mesh_orig, const ArmatureModifierData *amd);
+  static uint32_t compute_armature_hash(const Mesh *mesh_orig,
+                                        const ArmatureModifierData *amd);
 
   /**
    * Prepare CPU-only static resources (indices/weights/rest positions).
@@ -62,12 +65,12 @@ class ArmatureSkinningManager {
    * 
    * @param amd The specific ArmatureModifierData to extract settings from
    */
-  blender::gpu::StorageBuf *dispatch_skinning(const ArmatureModifierData *amd,
+  gpu::StorageBuf *dispatch_skinning(const ArmatureModifierData *amd,
                                               Depsgraph *depsgraph,
                                               Object *eval_armature,
                                               Object *deformed_eval,
                                               MeshBatchCache *cache,
-                                              blender::gpu::StorageBuf *ssbo_in = nullptr);
+                                              gpu::StorageBuf *ssbo_in = nullptr);
 
   /* Free resources associated to a specific mesh. */
   void free_resources_for_mesh(Mesh *mesh);

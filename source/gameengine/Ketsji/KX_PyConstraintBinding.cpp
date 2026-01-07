@@ -41,6 +41,8 @@
 
 #ifdef WITH_BULLET
 #  include "LinearMath/btIDebugDraw.h"
+
+using namespace blender;
 #endif
 
 #ifdef WITH_PYTHON

@@ -31,6 +31,8 @@
 
 #include "SCA_JoystickManager.h"
 
+using namespace blender;
+
 SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj,
                                              short mode,
                                              int joyindex,

@@ -1,5 +1,5 @@
 /*
-   Bullet Continuous Collision Detection and Physics Library
+   Bullet Continuous Collision Detection and Physics blender::Library
    Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 
    This software is provided 'as-is', without any express or implied warranty.
@@ -36,6 +36,8 @@
 #include "PHY_ICharacter.h"
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsController.h"
+
+#include "DNA_modifier_types.h"
 
 extern btScalar gDeactivationTime;
 extern float gLinearSleepingTreshold;
@@ -361,7 +363,7 @@ struct CcdConstructionInfo {
   float m_soft_kLF;
   /// Pressure coefficient [-inf,+inf]
   float m_soft_kPR;
-  /// Volume conversation coefficient [0,+inf]
+  /// blender::Volume conversation coefficient [0,+inf]
   float m_soft_kVC;
 
   /// Dynamic friction coefficient [0,1]
@@ -562,7 +564,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   btCollisionObject *m_object;
   CcdCharacter *m_characterController;
 
-  struct SimpleDeformModifierDataBGE *m_sbModifier;
+  blender::SimpleDeformModifierDataBGE *m_sbModifier;
   float (*m_sbCoords)[3];
 
   class PHY_IMotionState *m_MotionState;
@@ -676,7 +678,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   virtual void UpdateSoftBody();
   virtual void SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori);
-  virtual void RemoveSoftBodyModifier(struct Object *ob);
+  virtual void RemoveSoftBodyModifier(blender::Object *ob);
 
   /**
    * Called for every physics simulation step. Use this method for

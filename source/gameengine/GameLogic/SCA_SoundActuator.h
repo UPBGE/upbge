@@ -38,6 +38,7 @@
 #ifdef WITH_AUDASPACE
 #  include <AUD_Handle.h>
 #  include <AUD_Sound.h>
+
 #endif
 
 typedef struct KX_3DSoundSettings {

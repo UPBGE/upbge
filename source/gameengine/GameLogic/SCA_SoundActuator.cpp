@@ -47,6 +47,8 @@ typedef float sample_t;
 #include "KX_Camera.h"
 #include "KX_Globals.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */

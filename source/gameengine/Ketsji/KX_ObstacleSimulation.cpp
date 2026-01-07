@@ -33,6 +33,8 @@
 #include "KX_Globals.h"
 #include "KX_NavMeshObject.h"
 
+using namespace blender;
+
 namespace {
 inline float perp(const MT_Vector2 &a, const MT_Vector2 &b)
 {
@@ -221,7 +223,7 @@ KX_Obstacle *KX_ObstacleSimulation::CreateObstacle(KX_GameObject *gameobj)
 void KX_ObstacleSimulation::AddObstacleForObj(KX_GameObject *gameobj)
 {
   KX_Obstacle *obstacle = CreateObstacle(gameobj);
-  struct Object *blenderobject = gameobj->GetBlenderObject();
+  blender::Object *blenderobject = gameobj->GetBlenderObject();
   obstacle->m_type = KX_OBSTACLE_OBJ;
   obstacle->m_shape = KX_OBSTACLE_CIRCLE;
   obstacle->m_rad = blenderobject->obstacleRad;

@@ -45,6 +45,8 @@
 #  include "MT_Vector3.h"
 #  include "MT_Vector4.h"
 
+using namespace blender;
+
 bool PyOrientationTo(PyObject *pyval, MT_Matrix3x3 &rot, const char *error_prefix)
 {
   int size = PySequence_Size(pyval);

@@ -45,6 +45,8 @@
 
 #include "WM_types.hh"
 
+namespace blender {
+
 /* Always keep in alphabetical order */
 static const EnumPropertyItem actuator_type_items[] = {
     {ACT_ACTION, "ACTION", 0, "Action", ""},
@@ -69,9 +71,13 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_VISIBILITY, "VISIBILITY", 0, "Visibility", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include "BKE_sca.hh"
+
+namespace blender {
 
 static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 {
@@ -595,10 +601,14 @@ static void rna_Actuator_editobject_mesh_set(PointerRNA *ptr,
   bActuator *act = (bActuator *)ptr->data;
   bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
 
-  eoa->me = (Mesh *)value.data;
-}
+    eoa->me = (Mesh *)value.data;
+  }
+
+}  // namespace blender
 
 #else
+  
+namespace blender {
 
 static void rna_def_actuator(BlenderRNA *brna)
 {
@@ -2491,5 +2501,7 @@ void RNA_def_actuator(BlenderRNA *brna)
   rna_def_steering_actuator(brna);
   rna_def_mouse_actuator(brna);
 }
+
+}  // namespace blender
 
 #endif

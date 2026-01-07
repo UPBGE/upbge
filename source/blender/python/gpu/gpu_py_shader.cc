@@ -706,7 +706,7 @@ PyDoc_STRVAR(
     "   :rtype: tuple[tuple[str, str | None], ...]\n");
 static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*arg*/)
 {
-  using namespace blender::gpu::shader;
+  using namespace gpu::shader;
   PyObject *ret;
   int type;
   int location_test = 0, attrs_added = 0;

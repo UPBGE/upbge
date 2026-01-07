@@ -418,7 +418,7 @@ struct SoftBody {
 #define OB_BSB_COL_CL_SS 8  /* Cluster based soft vs soft */
 #define OB_BSB_COL_VF_SS 16 /* Vertex/Face based soft vs soft */
 
-typedef struct BulletSoftBody {
+struct BulletSoftBody {
   DNA_DEFINE_CXX_METHODS(BulletSoftBody)
   int flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT; /* various boolean options */
   float linStiff = 0.5f; /* linear stiffness 0..1 */
@@ -458,6 +458,6 @@ typedef struct BulletSoftBody {
   float welding = 0.0f;            /* welding limit to remove duplicate/nearby vertices */
   float margin = 0.0f;             /* margin specific to softbody */
   int _pad = 0;
-} BulletSoftBody;
+};
 
 }  // namespace blender

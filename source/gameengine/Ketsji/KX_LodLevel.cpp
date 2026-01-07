@@ -28,11 +28,13 @@
 
 #include "KX_MeshProxy.h"
 
+using namespace blender;
+
 KX_LodLevel::KX_LodLevel(float distance,
                          float hysteresis,
                          unsigned short level,
                          RAS_MeshObject *meshobj,
-                         Object *ob,
+                         blender::Object *ob,
                          unsigned short flag)
     : m_distance(distance),
       m_hysteresis(hysteresis),
@@ -72,7 +74,7 @@ RAS_MeshObject *KX_LodLevel::GetMesh() const
   return m_meshobj;
 }
 
-Object *KX_LodLevel::GetObject()
+blender::Object *KX_LodLevel::GetObject()
 {
   return m_object;
 }

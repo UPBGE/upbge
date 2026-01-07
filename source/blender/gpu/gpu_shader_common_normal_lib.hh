@@ -19,6 +19,8 @@
 
 #include <string>
 
+namespace blender {
+
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -30,7 +32,7 @@ namespace blender::gpu {
  * Supports two formats:
  * - 10_10_10_2: Compact format (1x uint, 32 bits total)
  * - 16-bit pairs: High-quality format (2x uint, 64 bits total)
- * 
+ *
  * Used by scatter shader and other systems that need to pack normals into GPU buffers.
  */
 static std::string get_normal_packing_glsl()
@@ -147,7 +149,8 @@ float safe_acos_approx(float x) {
  *
  * Requirements:
  * - Topology accessors: int face_offsets(int i); int corner_verts(int i);
- * - Position buffer macro: POSITION_BUFFER must be defined (e.g., input_positions or positions_in).
+ * - Position buffer macro: POSITION_BUFFER must be defined (e.g., input_positions or
+ * positions_in).
  */
 static std::string get_face_normal_object_glsl()
 {
@@ -218,12 +221,13 @@ vec3 face_normal_object(int f) {
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Simplified Newell Face Normal (DEPRECATED - Use face_normal_object with POSITION_BUFFER macro)
+/** \name Simplified Newell Face Normal (DEPRECATED - Use face_normal_object with POSITION_BUFFER
+ * macro)
  * \{ */
 
 /**
  * DEPRECATED: Use face_normal_object() with POSITION_BUFFER macro instead.
- * 
+ *
  * Returns GLSL code for newell_face_normal_object function.
  * Simplified version using safe_normalize (for shaders without tri/quad optimizations).
  * Kept for backward compatibility - will be removed in future versions.
@@ -334,13 +338,15 @@ int2 face_find_adjacent_verts(int f, int v) {
 /**
  * Returns GLSL code for compute_vertex_normal_smooth helper function.
  * GPU port of mesh_normals.cc normals_calc_verts (angle-weighted).
- * Unified implementation used by both scatter shader (mesh_gpu.cc) and displace shader (draw_displace.cc).
+ * Unified implementation used by both scatter shader (mesh_gpu.cc) and displace shader
+ * (draw_displace.cc).
  *
  * Requirements:
  * - Topology accessors: int vert_to_face_offsets(int i); int vert_to_face(int i);
  *                       int face_offsets(int i); int corner_verts(int i);
  * - Position buffer: POSITION_BUFFER macro must be defined.
- * - safe_normalize(), safe_acos_approx(), face_normal_object(), face_find_adjacent_verts() must be defined.
+ * - safe_normalize(), safe_acos_approx(), face_normal_object(), face_find_adjacent_verts() must be
+ * defined.
  */
 static std::string get_compute_vertex_normal_smooth_glsl()
 {
@@ -422,3 +428,4 @@ static std::string get_common_normal_lib_glsl()
 /** \} */
 
 }  // namespace blender::gpu
+}  // namespace blender

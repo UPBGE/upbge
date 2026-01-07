@@ -188,9 +188,11 @@ std::mutex &MeshGPUCacheManager::mutex()
   return g_mesh_cache_mutex_;
 }
 
+/* Forward declaration - implementation in mesh_gpu.cc */
+void mesh_gpu_orphans_flush_impl();
+
 void MeshGPUCacheManager::flush_orphans()
 {
-  extern void mesh_gpu_orphans_flush_impl();
   mesh_gpu_orphans_flush_impl();
 }
 

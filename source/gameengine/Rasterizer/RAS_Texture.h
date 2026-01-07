@@ -24,14 +24,14 @@
 
 #pragma once
 
+#include "DNA_image_types.h"
+
 #include <array>
 #include <string>
 
 namespace blender::gpu {
 class Texture;
 }  // namespace blender::gpu
-
-struct Image;
 
 class RAS_Texture {
  protected:
@@ -44,7 +44,7 @@ class RAS_Texture {
   virtual bool Ok() const = 0;
   virtual bool IsCubeMap() const = 0;
 
-  virtual Image *GetImage() const = 0;
+  virtual blender::Image *GetImage() const = 0;
   virtual blender::gpu::Texture *GetGPUTexture() const = 0;
   std::string &GetName();
 

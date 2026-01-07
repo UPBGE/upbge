@@ -34,6 +34,8 @@
 
 #include "KX_NetworkMessageScene.h"
 
+using namespace blender;
+
 SCA_NetworkMessageActuator::SCA_NetworkMessageActuator(
     SCA_IObject *gameobj,                  // the actuator controlling object
     KX_NetworkMessageScene *networkscene,  // needed for replication

@@ -10,13 +10,18 @@
 #include "BKE_mesh.hh"
 
 #include "GPU_vertex_buffer.hh"
+#include "GPU_storage_buffer.hh"
 
 namespace blender {
-namespace gpu {
-class StorageBuf;
-} // namespace gpu
-namespace draw {
+struct Mesh;
+struct Object;
+}  // namespace blender
 
+namespace blender::draw {
+
+
+/* Forward declaration for MeshBatchCache */
+struct MeshBatchCache;
 class ShapeKeySkinningManager {
  public:
   static ShapeKeySkinningManager &instance();
@@ -35,8 +40,7 @@ class ShapeKeySkinningManager {
    * Returns an SSBO containing the skinned positions on success (either the provided `ssbo_out`
    * or an internal SSBO). Returns nullptr on failure. The caller should perform final
    * scatter-to-corners when chaining deformers. */
-  blender::gpu::StorageBuf *dispatch_shapekeys(struct MeshBatchCache *cache,
-                                               struct Object *ob_eval);
+  gpu::StorageBuf *dispatch_shapekeys(struct MeshBatchCache *cache, Object *ob_eval);
 
   /* Free resources associated to a specific mesh (CPU-side). GPU resources freed by BKE mesh GPU
    * cache. */
@@ -61,5 +65,4 @@ class ShapeKeySkinningManager {
   std::unique_ptr<Impl> impl_;
 };
 
-} /* namespace draw */
-} /* namespace blender */
+} /* namespace blender::draw */

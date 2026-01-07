@@ -11,10 +11,10 @@
 
 #include "MT_Matrix4x4.h"
 
-/// \brief Camera frustum data.
+/// \brief blender::Camera frustum data.
 class SG_Frustum {
  private:
-  /// Camera modelview multiplied by projection.
+  /// blender::Camera modelview multiplied by projection.
   MT_Matrix4x4 m_matrix;
   /// Frustum planes.
   std::array<MT_Vector4, 6> m_planes;

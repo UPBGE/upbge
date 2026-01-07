@@ -57,18 +57,20 @@
 
 #ifdef WITH_AUDASPACE
 #  include "AUD_Device.h"
+
+using namespace blender;
 #endif
 
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system,
-                         Main *maggie,
-                         Scene *scene,
+                         blender::Main *maggie,
+                         blender::Scene *scene,
                          GlobalSettings *gs,
                          RAS_Rasterizer::StereoMode stereoMode,
                          int samples,
                          int argc,
                          char **argv,
-                         bContext *C,
+                         blender::bContext *C,
                          bool useViewportRender,
                          int shadingTypeRuntime)
     : m_startSceneName(scene->id.name + 2),
@@ -283,7 +285,7 @@ void LA_Launcher::InitEngine()
    * framerate below should patch with FPS macro defined in blendef.h
    * Could be in StartEngine set the framerate, we need the scene to do this.
    */
-  Scene *scene = m_kxStartScene->GetBlenderScene();  // needed for macro
+  blender::Scene *scene = m_kxStartScene->GetBlenderScene();  // needed for macro
   m_ketsjiEngine->SetAnimFrameRate(scene->frames_per_second());
 }
 

@@ -7,6 +7,8 @@
 
 #include "FilterBlueScreen.h"
 
+using namespace blender;
+
 // implementation FilterBlueScreen
 
 // constructor

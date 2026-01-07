@@ -38,6 +38,8 @@
 #include "KX_Light.h"
 #include "KX_ScalarInterpolator.h"
 
+using namespace blender;
+
 #if defined(_WIN64)
 typedef unsigned __int64 uint_ptr;
 #else
@@ -54,7 +56,7 @@ bool KX_LightIpoSGController::Update(double currentTime)
 
     SG_Node *ob = (SG_Node *)m_node;
     KX_LightObject *kxlight = (KX_LightObject *)ob->GetSGClientObject();
-    Light *la = kxlight->GetLight();
+    blender::Light *la = kxlight->GetLight();
 
     if (m_modify_energy) {
       la->energy = m_energy;

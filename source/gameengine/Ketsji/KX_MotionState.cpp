@@ -33,6 +33,8 @@
 
 #include "SG_Node.h"
 
+using namespace blender;
+
 KX_MotionState::KX_MotionState(SG_Node *node) : m_node(node)
 {
 }

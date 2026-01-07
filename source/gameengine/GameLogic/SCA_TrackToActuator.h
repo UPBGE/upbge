@@ -38,7 +38,7 @@
 
 class SCA_TrackToActuator : public SCA_IActuator {
   Py_Header
-      // Object reference. Actually, we use the object's 'life'
+      // blender::Object reference. Actually, we use the object's 'life'
       SCA_IObject *m_object;
   // 3d toggle
   bool m_allow3D;

@@ -50,10 +50,10 @@ class SCA_AddObjectActuator : public SCA_IActuator {
   /// Original object reference (object to replicate)
   KX_GameObject *m_OriginalObject;
 
-  /// Full Object copy
+  /// Full blender::Object copy
   bool m_duplicateObject;
 
-  /// Object will be added to the following scene
+  /// blender::Object will be added to the following scene
   KX_Scene *m_scene;
 
   /// Linear velocity upon creation of the object.

@@ -35,6 +35,8 @@
 #include <set>
 #include <vector>
 
+#include "DNA_action_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_ID.h"  // For IDRecalcFlag
 
 #include "EXP_PyObjectPlus.h"
@@ -52,9 +54,16 @@
 /**
  * \section Forward declarations
  */
-struct Scene;
+namespace blender { struct ID; }
+namespace blender { struct Object; }
+namespace blender { struct Scene; }
+namespace blender { struct Main; }
+namespace blender { struct Depsgraph; }
+namespace blender { struct bContext; }
+namespace blender { struct GPUViewport; }
 
 template<class T> class EXP_ListValue;
+
 
 class EXP_Value;
 class SCA_LogicManager;
@@ -83,16 +92,10 @@ class KX_2DFilterManager;
 class BL_SceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
-struct TaskPool;
-
-/*********EEVEE INTEGRATION************/
-struct bNodeTree;
-struct Mesh;
-struct Object;
-/**************************************/
+// struct TaskPool; removed to avoid ambiguity
 
 typedef struct BackupObj {
-  Object *ob;
+  blender::Object *ob;
   void *obtfm;
 } BackupObj;
 
@@ -115,15 +118,15 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
 
  protected:
   /***************EEVEE INTEGRATION*****************/
-  Object *m_gameDefaultCamera;
-  std::vector<struct Collection *> m_overlay_collections;
-  struct GPUViewport *m_currentGPUViewport;
+  blender::Object *m_gameDefaultCamera;
+  std::vector<blender::Collection *> m_overlay_collections;
+  blender::GPUViewport *m_currentGPUViewport;
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
   BL_SceneConverter *m_sceneConverter;
   bool m_isPythonMainLoop;
   std::vector<KX_GameObject *> m_kxobWithLod;
-  std::map<Object *, short> m_obVisibilityFlag;
+  std::map<blender::Object *, short> m_obVisibilityFlag;
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
   int m_backupOverlayFlag;
@@ -135,8 +138,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
    * because the other render pass can contain the same objects
    * which need to be notified + flushed again.
    */
-  std::vector<std::pair<ID *, IDRecalcFlag>> m_idsToUpdateInAllRenderPasses;
-  std::vector<std::pair<ID *, IDRecalcFlag>> m_idsToUpdateInOverlayPass;
+  std::vector<std::pair<blender::ID *, blender::IDRecalcFlag>> m_idsToUpdateInAllRenderPasses;
+  std::vector<std::pair<blender::ID *, blender::IDRecalcFlag>> m_idsToUpdateInOverlayPass;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -282,7 +285,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
    */
   static void PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo);
 
-  struct Scene *m_blenderScene;
+  blender::Scene *m_blenderScene;
 
   KX_2DFilterManager *m_filterManager;
 
@@ -295,23 +298,23 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   int m_lodHysteresisValue;
 
   // Convert objects list & collection helpers
-  void convert_blender_objects_list_synchronous(std::vector<Object *> objectslist);
-  void convert_blender_collection_synchronous(Collection *co);
+  void convert_blender_objects_list_synchronous(std::vector<blender::Object *> objectslist);
+  void convert_blender_collection_synchronous(blender::Collection *co);
 
  public:
   KX_Scene(SCA_IInputDevice *inputDevice,
            const std::string &scenename,
-           struct Scene *scene,
+           blender::Scene *scene,
            class RAS_ICanvas *canvas,
            KX_NetworkMessageManager *messageManager);
 
   virtual ~KX_Scene();
 
   /******************EEVEE INTEGRATION************************/
-  void ConvertBlenderObject(struct Object *ob);
-  void ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool asynchronous);
-  void ConvertBlenderCollection(struct Collection *co, bool asynchronous);
-  void ConvertBlenderAction(struct bAction *act);
+  void ConvertBlenderObject(blender::Object *ob);
+  void ConvertBlenderObjectsList(std::vector<blender::Object *> objectslist, bool asynchronous);
+  void ConvertBlenderCollection(blender::Collection *co, bool asynchronous);
+  void ConvertBlenderAction(blender::bAction *act);
 
   bool m_isRuntime;  // Too lazy to put that in protected
 
@@ -321,21 +324,21 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                               bool is_overlay_pass,
                               bool is_last_render_pass);
   void PrepareGPUViewport(KX_Camera *cam);
-  void UpdateDepsgraph(struct Main *bmain, Scene *scene, bool is_overlay_pass, bool is_last_render_pass, KX_Camera *cam);
+  void UpdateDepsgraph(blender::Main *bmain, blender::Scene *scene, bool is_overlay_pass, bool is_last_render_pass, KX_Camera *cam);
   bool ViewportRender(KX_Camera *cam,
                       const RAS_Rect &viewport,
-                      const struct rcti &window,
+                      const blender::rcti &window,
                       RAS_ICanvas *canvas,
-                      Scene *scene,
-                      struct bContext *C);
+                      blender::Scene *scene,
+                      blender::bContext *C);
 
-  void RenderAfterCameraSetupImageRender(KX_Camera *cam, const struct rcti *window);
-  Object *GetGameDefaultCamera();
+  void RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::rcti *window);
+  blender::Object *GetGameDefaultCamera();
   void ReinitBlenderContextVariables();
-  void AddOverlayCollection(KX_Camera *overlay_cam, struct Collection *collection);
-  void RemoveOverlayCollection(struct Collection *collection);
-  void SetCurrentGPUViewport(struct GPUViewport *viewport);
-  struct GPUViewport *GetCurrentGPUViewport();
+  void AddOverlayCollection(KX_Camera *overlay_cam, blender::Collection *collection);
+  void RemoveOverlayCollection(blender::Collection *collection);
+  void SetCurrentGPUViewport(blender::GPUViewport *viewport);
+  blender::GPUViewport *GetCurrentGPUViewport();
   void SetOverlayCamera(KX_Camera *cam);
   KX_Camera *GetOverlayCamera();
   void AddImageRenderCamera(KX_Camera *cam);
@@ -344,26 +347,26 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void SetIsPythonMainLoop(bool isPython);
   void AddObjToLodObjList(KX_GameObject *gameobj);
   void RemoveObjFromLodObjList(KX_GameObject *gameobj);
-  void BackupVisibilityFlag(Object *ob, short visibilityFlag);
+  void BackupVisibilityFlag(blender::Object *ob, short visibilityFlag);
   void RestoreVisibilityFlag();
   void TagForCollectionRemap();
-  KX_GameObject *GetGameObjectFromObject(Object *ob);
+  KX_GameObject *GetGameObjectFromObject(blender::Object *ob);
   void BackupObjectsMatToWorld(BackupObj *back);
   void RestoreObjectsMatToWorld();
   void TagForObjectsMatToWorldRestore();
-  bool OrigObCanBeTransformedInRealtime(Object *ob);
-  void IgnoreParentTxBGE(struct Main *bmain,
-                         struct Depsgraph *depsgraph,
-                         Scene *scene,
-                         Object *ob,
-                         std::vector<Object *> children);
-  void AppendToIdsToUpdate(ID *id, IDRecalcFlag flag, bool in_overlay_collection_only);
-  void TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam);
-  void TagBlenderPhysicsObject(Scene *scene, Object *ob);
+  bool OrigObCanBeTransformedInRealtime(blender::Object *ob);
+  void IgnoreParentTxBGE(blender::Main *bmain,
+                         blender::Depsgraph *depsgraph,
+                         blender::Scene *scene,
+                         blender::Object *ob,
+                         std::vector<blender::Object *> children);
+  void AppendToIdsToUpdate(blender::ID *id, blender::IDRecalcFlag flag, bool in_overlay_collection_only);
+  void TagForExtraIdsUpdate(blender::Main *bmain, KX_Camera *cam);
+  void TagBlenderPhysicsObject(blender::Scene *scene, blender::Object *ob);
   KX_GameObject *AddFullCopyObject(KX_GameObject *gameobj,
                                    KX_GameObject *reference,
                                    float lifespan);
-  void OverlayPassDisableEffects(struct Depsgraph *depsgraph,
+  void OverlayPassDisableEffects(blender::Depsgraph *depsgraph,
                                  KX_Camera *kxcam,
                                  bool isOverlayPass);
   const std::vector<KX_GameObject *> &GetDupliListVector() const
@@ -626,7 +629,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   /**
    * Returns the Blender scene this was made from
    */
-  struct Scene *GetBlenderScene()
+  blender::Scene *GetBlenderScene()
   {
     return m_blenderScene;
   }

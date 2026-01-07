@@ -34,9 +34,11 @@
 #include "ANIM_action.hh"
 #include "BKE_fcurve.hh"
 
+using namespace blender;
+
 using namespace blender::animrig;
 
-BL_ScalarInterpolator::BL_ScalarInterpolator(FCurve *fcu)
+BL_ScalarInterpolator::BL_ScalarInterpolator(blender::FCurve *fcu)
     :m_fcu(fcu)
 {
 }
@@ -46,12 +48,12 @@ float BL_ScalarInterpolator::GetValue(float currentTime) const
   return evaluate_fcurve(m_fcu, currentTime);
 }
 
-FCurve *BL_ScalarInterpolator::GetFCurve() const
+blender::FCurve *BL_ScalarInterpolator::GetFCurve() const
 {
   return m_fcu;
 }
 
-BL_InterpolatorList::BL_InterpolatorList(bAction *action) : m_action(action)
+BL_InterpolatorList::BL_InterpolatorList(blender::bAction *action) : m_action(action)
 {
   if (!action) {
     return;
@@ -83,7 +85,7 @@ BL_InterpolatorList::~BL_InterpolatorList()
 {
 }
 
-bAction *BL_InterpolatorList::GetAction() const
+blender::bAction *BL_InterpolatorList::GetAction() const
 {
   return m_action;
 }

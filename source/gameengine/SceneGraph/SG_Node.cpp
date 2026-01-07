@@ -11,6 +11,8 @@
 #include "SG_Controller.h"
 #include "SG_Familly.h"
 
+using namespace blender;
+
 static CM_ThreadMutex scheduleMutex;
 static CM_ThreadMutex transformMutex;
 

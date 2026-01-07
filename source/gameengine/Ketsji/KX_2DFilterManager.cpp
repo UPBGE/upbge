@@ -29,6 +29,8 @@
 #include "CM_Message.h"
 #include "KX_2DFilter.h"
 
+using namespace blender;
+
 KX_2DFilterManager::KX_2DFilterManager()
 {
 }

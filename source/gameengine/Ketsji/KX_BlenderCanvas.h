@@ -37,11 +37,10 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
-
-struct ARegion;
-struct rcti;
-struct wmWindow;
-struct wmWindowManager;
+namespace blender { struct ARegion; }
+namespace blender { struct rcti; }
+namespace blender { struct wmWindow; }
+namespace blender { struct wmWindowManager; }
 
 /**
  * 2D Blender device context abstraction.
@@ -52,20 +51,20 @@ class KX_BlenderCanvas : public RAS_ICanvas {
  private:
   int m_viewport[4];
 
-  wmWindowManager *m_wm;
-  wmWindow *m_win;
+  blender::wmWindowManager *m_wm;
+  blender::wmWindow *m_win;
   RAS_Rect m_area_rect;
-  ARegion *m_ar;
+  blender::ARegion *m_ar;
 
   bool m_useViewportRender;
 
  public:
   /* Construct a new canvas.
    *
-   * \param area The Blender ARegion to run the game within.
+   * \param area The Blender blender::ARegion to run the game within.
    */
   KX_BlenderCanvas(
-      RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, ARegion *ar, bool useViewportRender);
+      RAS_Rasterizer *rasty, blender::wmWindowManager *wm, blender::wmWindow *win, blender::rcti *viewport, blender::ARegion *ar, bool useViewportRender);
   virtual ~KX_BlenderCanvas();
 
   virtual void Init();

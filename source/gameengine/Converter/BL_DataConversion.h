@@ -37,23 +37,27 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
 
-class RAS_MeshObject *BL_ConvertMesh(struct Mesh *mesh,
-                                     struct Object *lightobj,
+#include "BKE_main.hh"
+#include "../depsgraph/DEG_depsgraph_query.hh"
+#include "DNA_object_types.h"
+
+class RAS_MeshObject *BL_ConvertMesh(blender::Mesh *mesh,
+                                     blender::Object *lightobj,
                                      class KX_Scene *scene,
                                      class RAS_Rasterizer *rasty,
                                      class BL_SceneConverter *converter,
                                      bool libloading,
                                      bool converting_during_runtime);
 
-void BL_ConvertBlenderObjects(struct Main *maggie,
-                              struct Depsgraph *depsgraph,
+void BL_ConvertBlenderObjects(blender::Main *maggie,
+                              blender::Depsgraph *depsgraph,
                               class KX_Scene *kxscene,
                               class KX_KetsjiEngine *ketsjiEngine,
                               e_PhysicsEngine physics_engine,
                               class RAS_Rasterizer *rendertools,
                               class RAS_ICanvas *canvas,
                               class BL_SceneConverter *sceneconverter,
-                              struct Object *single_obj,
+                              blender::Object *single_obj,
                               bool alwaysUseExpandFraming,
                               bool libloading = false);
 

@@ -38,6 +38,8 @@
 #include "EXP_StringValue.h"
 #include "SCA_KeyboardManager.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */

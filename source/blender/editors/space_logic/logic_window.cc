@@ -66,12 +66,14 @@
 #include "UI_view2d.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.hh"
+#include "rna_prototypes.hh"
 
 /* XXX BAD BAD */
 #include "../interface/interface_intern.hh"
 
 #include "logic_intern.hh"
+
+namespace blender {
 
 using namespace blender::ui;
 
@@ -3069,3 +3071,5 @@ void logic_buttons(bContext *C, ARegion *region)
   if (idar)
     MEM_freeN(idar);
 }
+
+} // namespace blender

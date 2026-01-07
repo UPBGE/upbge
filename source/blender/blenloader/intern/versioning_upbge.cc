@@ -70,7 +70,9 @@
 
 #include "MEM_guardedalloc.h"
 
-void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
+namespace blender {
+
+void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   /* UPBGE hack to force defaults in files saved in normal blender2.8 */
   if (!DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm")) {
@@ -482,3 +484,5 @@ void blo_do_versions_upbge(FileData *fd, Library */*lib*/, Main *bmain)
     }
   }
 }
+
+}  // namespace blender

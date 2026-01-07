@@ -70,7 +70,9 @@
 #include "SCA_RandomSensor.h"
 #include "SCA_RaySensor.h"
 
-void BL_ConvertSensors(struct Object *blenderobject,
+using namespace blender;
+
+void BL_ConvertSensors(blender::Object *blenderobject,
                        class KX_GameObject *gameobj,
                        SCA_LogicManager *logicmgr,
                        KX_Scene *kxscene,
@@ -84,7 +86,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
   int executePriority = 0;
   int uniqueint = 0;
   int count = 0;
-  bSensor *sens = (bSensor *)blenderobject->sensors.first;
+  blender::bSensor *sens = (blender::bSensor *)blenderobject->sensors.first;
   bool pos_pulsemode = false;
   bool neg_pulsemode = false;
   int skipped_ticks = 0;
@@ -96,7 +98,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
     sens = sens->next;
     count++;
   }
-  sens = (bSensor *)blenderobject->sensors.first;
+  sens = (blender::bSensor *)blenderobject->sensors.first;
 
   while (sens) {
     if (!(sens->flag & SENS_DEACTIVATE)) {
@@ -582,7 +584,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
         gameobj->AddSensor(gamesensor);
 
         for (int i = 0; i < sens->totlinks; i++) {
-          bController *linkedcont = (bController *)sens->links[i];
+          blender::bController *linkedcont = (blender::bController *)sens->links[i];
           if (linkedcont) {
             // If the controller is deactived doesn't register it
             if (!(linkedcont->flag & CONT_DEACTIVATE)) {

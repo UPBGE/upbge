@@ -7,6 +7,8 @@
 
 #include "FilterNormal.h"
 
+using namespace blender;
+
 // implementation FilterNormal
 
 // constructor

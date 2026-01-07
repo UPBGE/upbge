@@ -35,6 +35,8 @@
 #include "SCA_ISensor.h"
 #include "SCA_PythonController.h"
 
+using namespace blender;
+
 SCA_LogicManager::SCA_LogicManager()
 {
 }

@@ -21,6 +21,8 @@
 #include "EXP_ErrorValue.h"
 #include "EXP_StringValue.h"
 
+using namespace blender;
+
 const std::string EXP_BoolValue::sTrueString = "TRUE";
 const std::string EXP_BoolValue::sFalseString = "FALSE";
 

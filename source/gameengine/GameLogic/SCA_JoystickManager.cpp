@@ -33,6 +33,8 @@
 
 #include "SCA_ISensor.h"
 
+using namespace blender;
+
 SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager *logicmgr)
     : SCA_EventManager(logicmgr, JOY_EVENTMGR)
 {

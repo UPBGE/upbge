@@ -37,6 +37,8 @@
 #  include "BLI_time.h"
 #  include "VideoDeckLink.h"
 
+using namespace blender;
+
 extern ExceptionID DeckLinkInternalError;
 ExceptionID SourceVideoOnlyCapture, VideoDeckLinkBadFormat, VideoDeckLinkOpenCard,
     VideoDeckLinkDvpInternalError, VideoDeckLinkPinMemoryError;

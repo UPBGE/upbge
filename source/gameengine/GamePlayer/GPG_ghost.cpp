@@ -48,6 +48,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
 #include "BKE_callbacks.hh"
+#include "BKE_context.hh"
 #include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
@@ -129,8 +130,6 @@
 // keep at the bottom for linking
 #include "ANIM_keyingsets.hh"
 
-void UV_clipboard_free(void);
-
 #ifdef __APPLE__
 extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #endif
@@ -149,6 +148,12 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #ifdef WITH_GAMEENGINE_BPPLAYER
 #  include "SpindleEncryption.h"
 #endif  // WITH_GAMEENGINE_BPPLAYER
+
+using namespace blender;
+
+namespace blender {
+void UV_clipboard_free(void);
+}
 
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;
@@ -536,7 +541,7 @@ static void usage(const std::string &program, bool isBlenderPlayer)
   CM_Message("       Example: -s sidebyside  or  -s vinterlace" << std::endl);
   CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
   CM_Message("  -n: maximum anisotropic filtering (eg. 2,4,8,16)" << std::endl);
-  CM_Message("  -i: parent window's ID" << std::endl);
+  CM_Message("  -i: parent window's blender::ID" << std::endl);
 #ifdef _WIN32
   CM_Message("  -c: keep console window open" << std::endl);
 #endif
@@ -617,16 +622,16 @@ static void get_filename(int argc, char **argv, char *filename)
 #endif  // !_APPLE
 }
 
-static BlendFileData *load_game_data(const char *progname,
+static blender::BlendFileData *load_game_data(const char *progname,
                                      char *filename = nullptr,
                                      char *relativename = nullptr)
 {
-  ReportList reports;
-  BlendFileData *bfd = nullptr;
+  blender::ReportList reports;
+  blender::BlendFileData *bfd = nullptr;
 
   BKE_reports_init(&reports, RPT_STORE);
 
-  BlendFileReadReport breports;
+  blender::BlendFileReadReport breports;
   breports.reports = &reports;
 
   /* try to load ourself, will only work if we are a runtime */
@@ -664,10 +669,10 @@ static bool quitGame(KX_ExitRequest exitcode)
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
 
-static BlendFileData *load_encrypted_game_data(const char *filename, std::string encryptKey)
+static blender::BlendFileData *load_encrypted_game_data(const char *filename, std::string encryptKey)
 {
   ReportList reports;
-  BlendFileData *bfd = NULL;
+  blender::BlendFileData *bfd = NULL;
   char *fileData = NULL;
   int fileSize;
   std::string localPath(SPINDLE_GetFilePath());
@@ -702,15 +707,18 @@ static void callback_clg_fatal(void *fp)
   BLI_system_backtrace((FILE *)fp);
 }
 
-static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene *scene)
+static void InitBlenderContextVariables(blender::bContext *C)
 {
-  wmWindow *win = (wmWindow *)wm->windows.first;
-  bScreen *screen = WM_window_get_active_screen(win);
+  blender::wmWindowManager *wm = CTX_wm_manager(C);
+  blender::Scene *scene = CTX_data_scene(C);
+  blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+  blender::bScreen *screen = WM_window_get_active_screen(win);
 
-  for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+  for (blender::ScrArea *sa = (blender::ScrArea *)screen->areabase.first; sa; sa = sa->next) {
     if (sa->spacetype == SPACE_VIEW3D) {
-      ListBase *regionbase = &sa->regionbase;
-      for (ARegion *region = (ARegion *)regionbase->first; region; region = region->next) {
+      blender::ListBase *regionbase = &sa->regionbase;
+      for (blender::ARegion *region = (blender::ARegion *)regionbase->first; region;
+           region = region->next) {
         if (region->regiontype == RGN_TYPE_WINDOW) {
           if (region->regiondata) {
             CTX_wm_screen_set(C, screen);
@@ -726,9 +734,9 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
   }
 }
 
-static int GetShadingTypeRuntime(bContext *C)
+static int GetShadingTypeRuntime(blender::bContext *C)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  blender::View3D *v3d = CTX_wm_view3d(C);
   bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
 
   if (not_eevee) {
@@ -818,7 +826,7 @@ int main(int argc,
 
   //GPU_backend_type_selection_set(GPU_BACKEND_VULKAN);
 
-  BlendFileData *bfd = nullptr;
+  blender::BlendFileData *bfd = nullptr;
 
   /* creator.c */
 
@@ -826,7 +834,7 @@ int main(int argc,
   CLG_init();
   CLG_fatal_fn_set(callback_clg_fatal);
 
-  bContext *C = CTX_create();
+  blender::bContext *C = CTX_create();
 
   /* Initialize path to executable. */
   BKE_appdir_program_path_init(argv[0]);
@@ -1232,7 +1240,7 @@ int main(int argc,
           return 0;
           break;
         }
-        case 'i':  // parent window ID
+        case 'i':  // parent window blender::ID
         {
           i++;
           if ((i + 1) <= validArguments)
@@ -1242,7 +1250,7 @@ int main(int argc,
             CM_Error("too few options for parent window argument.");
           }
 #if defined(DEBUG)
-          CM_Debug("XWindows ID = " << int(parentWindow));
+          CM_Debug("XWindows blender::ID = " << int(parentWindow));
 #endif  // defined(DEBUG)
           break;
         }
@@ -1407,7 +1415,7 @@ int main(int argc,
         bool useViewportRender = false;
 
         /* We don't want to use other windows than the one where is the 3D view */
-        std::vector<wmWindow *> unused_windows = {};
+        std::vector<blender::wmWindow *> unused_windows = {};
 
         do {
           // Read the Blender file
@@ -1516,8 +1524,8 @@ int main(int argc,
              * previously...) */
             BKE_blender_globals_main_replace(bfd->main);
 
-            Main *maggie = bfd->main;
-            Scene *scene = bfd->curscene;
+            blender::Main *maggie = bfd->main;
+            blender::Scene *scene = bfd->curscene;
             CTX_data_main_set(C, maggie);
             CTX_data_scene_set(C, scene);
             G.main = maggie;
@@ -1678,21 +1686,21 @@ int main(int argc,
                 }
               }
               /* wm context */
-              wmWindowManager *wm = (wmWindowManager *)G_MAIN->wm.first;
-              wmWindow *win = (wmWindow *)wm->windows.first;
+              blender::wmWindowManager *wm = (blender::wmWindowManager *)G_MAIN->wm.first;
+              blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
               CTX_wm_manager_set(C, wm);
               CTX_wm_window_set(C, win);
             }
 
-            wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
-            wmWindow *win = (wmWindow *)wm->windows.first;
+            blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
+            blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
             CTX_wm_manager_set(C, wm);
             CTX_wm_window_set(C, win);
-            InitBlenderContextVariables(C, wm, bfd->curscene);
+            InitBlenderContextVariables(C);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
             /* Get rid of windows which are not the 3D view windows */
-            for (wmWindow *win_in_list = (wmWindow *)wm->windows.first; win_in_list; win_in_list = win_in_list->next) {
+            for (blender::wmWindow *win_in_list = (blender::wmWindow *)wm->windows.first; win_in_list; win_in_list = win_in_list->next) {
               if (win_in_list == win) {
                 continue;
               }
@@ -1728,30 +1736,30 @@ int main(int argc,
             // wm_init_scripts_extensions_once(C);
 
             WM_keyconfig_update_postpone_end();
-            WM_keyconfig_update(static_cast<wmWindowManager *>(G_MAIN->wm.first));
+            WM_keyconfig_update(static_cast<blender::wmWindowManager *>(G_MAIN->wm.first));
 
-            bScreen *screen = WM_window_get_active_screen(win);
+            blender::bScreen *screen = WM_window_get_active_screen(win);
             screen->state = SCREENFULL;
 
             if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
               ED_screens_init(C, G_MAIN, wm);
               wm->init_flag |= WM_INIT_FLAG_WINDOW;
-              /* ED_screen_init can change bContext then we need to restore it again
+              /* ED_screen_init can change blender::bContext then we need to restore it again
                * after... b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
-              InitBlenderContextVariables(C, wm, bfd->curscene);
+              InitBlenderContextVariables(C);
             }
 
             WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
             WM_window_set_active_screen(win, workspace, screen);
 
-            /* Make all ARegion invisible as we only want 3D view to be drawn - also, drawing everything
+            /* Make all blender::ARegion invisible as we only want 3D view to be drawn - also, drawing everything
                would need more code to be initialized */
             ED_screen_areas_iter (win, screen, area_iter) {
               /* this is to prevent a bug with gizmos drawing - if gizmos drawing is enabled by user during runtime */
               area_iter->full = screen;
               /* tag all areas for full redraw at least 1 time to prevent bugs during wm_draw_update */
               ED_area_tag_redraw(area_iter);
-              for (ARegion *region = (ARegion *)area_iter->regionbase.first; region; region = region->next) {
+              for (blender::ARegion *region = (blender::ARegion *)area_iter->regionbase.first; region; region = region->next) {
                 region->runtime->visible = 0;
               }
             }
@@ -1803,10 +1811,10 @@ int main(int argc,
            * these are not called in the player but we need to match some of there behavior here,
            * if the order of function calls or blenders state isn't matching that of blender
            * proper, we may get troubles later on */
-          wmWindowManager *wm = CTX_wm_manager(C);
+          blender::wmWindowManager *wm = CTX_wm_manager(C);
           WM_jobs_kill_all(wm);
 
-          for (wmWindow *win = (wmWindow *)wm->windows.first; win; win = win->next) {
+          for (blender::wmWindow *win = (blender::wmWindow *)wm->windows.first; win; win = win->next) {
             CTX_wm_window_set(C, win); /* needed by operator close callbacks */
             WM_event_remove_handlers(C, &win->runtime->handlers);
             WM_event_remove_handlers(C, &win->runtime->modalhandlers);
@@ -1816,7 +1824,7 @@ int main(int argc,
 
         /* Restore the windows we disabled during standalone runtime to free it
          * (normally) in standalone exit pipeline */
-        for (wmWindow *tmp_win : unused_windows) {
+        for (blender::wmWindow *tmp_win : unused_windows) {
           BLI_addtail(&CTX_wm_manager(C)->windows, tmp_win);
         }
 
@@ -1883,7 +1891,7 @@ int main(int argc,
 
   /* all non-screen and non-space stuff editors did, like editmode */
   if (C) {
-    Main *bmain = CTX_data_main(C);
+    blender::Main *bmain = CTX_data_main(C);
     ED_editors_exit(bmain, true);
   }
 
@@ -1897,7 +1905,7 @@ int main(int argc,
   RE_FreeAllRender();
   RE_engines_exit();
 
-  ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
+  ED_preview_free_dbase(); /* frees a blender::Main dbase, before BKE_blender_free! */
   ED_preview_restart_queue_free();
   blender::ed::asset::list::storage_exit();
 

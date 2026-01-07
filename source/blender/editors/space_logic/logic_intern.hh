@@ -30,6 +30,8 @@
 
 #pragma once
 
+namespace blender {
+
 /* internal exports only */
 struct bContext;
 struct ARegion;
@@ -37,7 +39,7 @@ struct ScrArea;
 struct wmOperatorType;
 
 /* space_logic.c */
-struct ARegion *logic_has_buttons_region(ScrArea *sa);
+ARegion *logic_has_buttons_region(ScrArea *sa);
 
 /* logic_ops.c */
 
@@ -48,3 +50,5 @@ void LOGIC_OT_links_cut(wmOperatorType *ot);
 /* logic_window.c */
 void logic_buttons(bContext *C, ARegion *region);
 /* void make_unique_prop_names(bContext *C, char *str); */
+
+}  // namespace blender

@@ -31,6 +31,8 @@
 #include <map>
 #include <string>
 
+using namespace blender;
+
 struct SingletonSystem {
   std::map<std::string, int> int_params;
   std::map<std::string, float> float_params;

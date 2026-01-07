@@ -33,6 +33,7 @@
 
 #include <map>
 
+#include "DNA_action_types.h"
 #include "DNA_constraint_types.h"
 
 #include "EXP_Value.h"
@@ -40,26 +41,25 @@
 class SCA_IObject;
 class KX_GameObject;
 class BL_ArmatureObject;
-struct bConstraint;
-struct bPoseChannel;
-struct Object;
 
 class BL_ArmatureConstraint : public EXP_Value {
   Py_Header
 
-      private : struct bConstraint *m_constraint;
-  struct bPoseChannel *m_posechannel;
+  private :
+
+  blender::bConstraint *m_constraint;
+  blender::bPoseChannel *m_posechannel;
   class BL_ArmatureObject *m_armature;
   std::string m_name;
   KX_GameObject *m_target;
   KX_GameObject *m_subtarget;
-  struct Object *m_blendtarget;
-  struct Object *m_blendsubtarget;
+  blender::Object *m_blendtarget;
+  blender::Object *m_blendsubtarget;
 
  public:
   BL_ArmatureConstraint(class BL_ArmatureObject *armature,
-                        struct bPoseChannel *posechannel,
-                        struct bConstraint *constraint,
+                        blender::bPoseChannel *posechannel,
+                        blender::bConstraint *constraint,
                         KX_GameObject *target,
                         KX_GameObject *subtarget);
   virtual ~BL_ArmatureConstraint();
@@ -90,8 +90,8 @@ class BL_ArmatureConstraint : public EXP_Value {
   }
   void SetWeight(float weight)
   {
-    if (m_constraint && m_constraint->type == CONSTRAINT_TYPE_KINEMATIC && m_constraint->data) {
-      bKinematicConstraint *con = (bKinematicConstraint *)m_constraint->data;
+    if (m_constraint && m_constraint->type == blender::CONSTRAINT_TYPE_KINEMATIC && m_constraint->data) {
+      blender::bKinematicConstraint *con = (blender::bKinematicConstraint *)m_constraint->data;
       con->weight = weight;
     }
   }

@@ -35,6 +35,8 @@
 #include "SCA_IActuator.h"
 #include "SCA_ISensor.h"
 
+using namespace blender;
+
 SG_QList SCA_IObject::m_activeBookmarkedControllers;
 
 SCA_IObject::SCA_IObject()

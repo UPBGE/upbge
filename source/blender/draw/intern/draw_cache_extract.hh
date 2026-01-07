@@ -321,7 +321,7 @@ struct MeshBatchCache {
   float tot_area, tot_uv_area;
 
   /* The original mesh this cache is for (for freeing some resources associated to this mesh). */
-  Mesh *mesh_owner = nullptr;
+  blender::Mesh *mesh_owner = nullptr;
 };
 
 #define MBC_EDITUV \

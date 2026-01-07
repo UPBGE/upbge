@@ -66,6 +66,8 @@
 
 #include "logic_intern.hh"
 
+namespace blender {
+
 /* ************* Generic Operator Helpers ************* */
 static bool edit_sensor_poll(bContext *C)
 {
@@ -815,7 +817,7 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 static wmOperatorStatus logic_region_flip_exec(bContext *C, wmOperator */*op*/)
 {
   ScrArea *sa = CTX_wm_area(C);
-  ARegion *region = logic_has_buttons_region(sa);
+  blender::ARegion *region = logic_has_buttons_region(sa);
 
   if (region == nullptr)
     return OPERATOR_CANCELLED;
@@ -1405,3 +1407,5 @@ void ED_operatortypes_logic()
   WM_operatortype_append(LOGIC_OT_view_all);
   WM_operatortype_append(LOGIC_OT_region_flip);
 }
+
+}  // namespace blender

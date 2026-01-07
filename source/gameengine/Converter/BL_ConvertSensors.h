@@ -31,7 +31,9 @@
 
 #pragma once
 
-void BL_ConvertSensors(struct Object *blenderobject,
+#include "makesdna/DNA_object_types.h"
+
+void BL_ConvertSensors(blender::Object *blenderobject,
                        class KX_GameObject *gameobj,
                        class SCA_LogicManager *logicmgr,
                        class KX_Scene *kxscene,

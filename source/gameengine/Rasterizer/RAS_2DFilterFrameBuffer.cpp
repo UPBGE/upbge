@@ -32,6 +32,8 @@
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"
 
+using namespace blender;
+
 RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots,
                                                  Flag flag,
                                                  unsigned int width,

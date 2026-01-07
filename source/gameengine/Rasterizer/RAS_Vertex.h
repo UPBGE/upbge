@@ -27,6 +27,7 @@
 #pragma once
 
 #include "RAS_IVertex.h"
+#include "BLI_math_vector.h"
 
 template<class Vertex> class RAS_DisplayArray;
 
@@ -82,7 +83,8 @@ template<unsigned int uvSize, unsigned int colorSize> class RAS_Vertex : public 
 
   virtual void SetUV(const int index, const float uv[2])
   {
-    copy_v2_v2(m_uvs[index], uv);
+    m_uvs[index][0] = uv[0];
+    m_uvs[index][1] = uv[1];
   }
 
   virtual const unsigned short getColorSize() const

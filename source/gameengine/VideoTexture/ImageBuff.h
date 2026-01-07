@@ -10,12 +10,12 @@
 #include "Common.h"
 #include "ImageBase.h"
 
-struct ImBuf;
+#include "IMB_imbuf.hh"
 
 /// class for image buffer
 class ImageBuff : public ImageBase {
  private:
-  struct ImBuf *m_imbuf;  // temporary structure for buffer manipulation
+  blender::ImBuf *m_imbuf;  // temporary structure for buffer manipulation
  public:
   /// constructor
   ImageBuff(void) : ImageBase(true), m_imbuf(nullptr)

@@ -29,6 +29,8 @@
 
 #include "EXP_ListWrapper.h"
 
+using namespace blender;
+
 SCA_InputEvent::SCA_InputEvent() : m_unicode(0)
 {
   m_status.push_back(NONE);

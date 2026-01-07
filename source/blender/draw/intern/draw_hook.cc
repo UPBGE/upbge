@@ -33,20 +33,21 @@
 
 #include "DEG_depsgraph_query.hh"
 
-using namespace blender::draw;
+
+namespace blender::draw {
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Implementation Data
  * \{ */
 
 struct blender::draw::HookManager::Impl {
-  /* Composite key: (Mesh*, modifier UID) to support multiple Hook modifiers per mesh */
-  struct MeshModifierKey {
-    Mesh *mesh;
-    uint32_t modifier_uid;
+/* Composite key: (Mesh*, modifier UID) to support multiple Hook modifiers per mesh */
+struct MeshModifierKey {
+  Mesh *mesh;
+  uint32_t modifier_uid;
 
-    uint64_t hash() const
-    {
+  uint64_t hash() const
+  {
       return (uint64_t(reinterpret_cast<uintptr_t>(mesh)) << 32) | uint64_t(modifier_uid);
     }
 
@@ -263,7 +264,8 @@ HookManager &HookManager::instance()
 HookManager::HookManager() : impl_(new Impl()) {}
 HookManager::~HookManager() {}
 
-uint32_t HookManager::compute_hook_hash(const Mesh *mesh_orig, const HookModifierData *hmd)
+uint32_t HookManager::compute_hook_hash(const Mesh *mesh_orig,
+                                        const HookModifierData *hmd)
 {
   if (!mesh_orig || !hmd) {
     return 0;
@@ -402,12 +404,12 @@ void HookManager::ensure_static_resources(const HookModifierData *hmd,
   }
 }
 
-blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
+gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
                                                        Depsgraph * /*depsgraph*/,
                                                        Object *ob_target_eval,
                                                        Object *deformed_eval,
                                                        MeshBatchCache *cache,
-                                                       blender::gpu::StorageBuf *ssbo_in)
+                                                       gpu::StorageBuf *ssbo_in)
 {
   if (!hmd || !ob_target_eval || !ssbo_in) {
     return nullptr;
@@ -436,12 +438,12 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   const std::string key_out = key_prefix + "output";
 
   /* Upload vertex group weights SSBO */
-  blender::gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
+  gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
 
   if (!msd.vgroup_weights.empty()) {
     if (!ssbo_vgroup) {
       const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
         GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
@@ -453,7 +455,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
      * Value MUST be 1.0f (not 0.0f)! See armature_skinning.cc for detailed explanation.
      * TL;DR: vertex 0 reads vgroup_weights[0], needs 1.0 for full effect when no vgroup. */
     if (!ssbo_vgroup) {
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
         float dummy = 1.0f;
@@ -463,12 +465,12 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   }
 
   /* Upload falloff curve LUT SSBO (if using curve falloff) */
-  blender::gpu::StorageBuf *ssbo_curve = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_curve);
+  gpu::StorageBuf *ssbo_curve = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_curve);
 
   if (!msd.falloff_curve_lut.empty()) {
     if (!ssbo_curve) {
       const size_t size_curve = msd.falloff_curve_lut.size() * sizeof(float);
-      ssbo_curve = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_curve = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_curve, size_curve);
       if (ssbo_curve) {
         GPU_storagebuf_update(ssbo_curve, msd.falloff_curve_lut.data());
@@ -479,7 +481,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
     /* No curve falloff: create empty dummy buffer (length=0 triggers default passthrough in
      * shader) */
     if (!ssbo_curve) {
-      ssbo_curve = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_curve = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_curve, sizeof(float));
       if (ssbo_curve) {
         float dummy = 1.0f; /* Unused, but set to 1.0 for safety */
@@ -490,12 +492,12 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
 
   /* Upload vertex bitmap SSBO (if using indexar) */
   const std::string key_bitmap = key_prefix + "vertex_bitmap";
-  blender::gpu::StorageBuf *ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_bitmap);
+  gpu::StorageBuf *ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_bitmap);
 
   if (msd.has_indices && !msd.vertex_bitmap.empty()) {
     if (!ssbo_bitmap) {
       const size_t size_bitmap = msd.vertex_bitmap.size() * sizeof(uint32_t);
-      ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_bitmap = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_bitmap, size_bitmap);
       if (ssbo_bitmap) {
         GPU_storagebuf_update(ssbo_bitmap, msd.vertex_bitmap.data());
@@ -505,7 +507,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   else {
     /* No indices: create dummy buffer */
     if (!ssbo_bitmap) {
-      ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_bitmap = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_bitmap, sizeof(uint32_t));
       if (ssbo_bitmap) {
         uint32_t dummy = 0;
@@ -516,7 +518,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
 
   /* Create output SSBO */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
-  blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
+  gpu::StorageBuf *ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, deformed_eval, key_out, size_out);
   if (!ssbo_out) {
     return nullptr;
@@ -569,9 +571,9 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
 
   /* Create shader */
   const std::string shader_key = "hook_compute";
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
   if (!shader) {
-    using namespace blender::gpu::shader;
+    using namespace gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
     info.local_group_size(256, 1, 1);
     info.compute_source_generated = hook_compute_src;
@@ -602,7 +604,7 @@ blender::gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *h
   }
 
   /* Bind and dispatch */
-  const blender::gpu::shader::SpecializationConstants *constants =
+  const gpu::shader::SpecializationConstants *constants =
       &GPU_shader_get_default_constant_state(shader);
   GPU_shader_bind(shader, constants);
 
@@ -665,7 +667,7 @@ void HookManager::invalidate_all(Mesh *mesh)
     return;
   }
   /* Free all GPU resources (SSBOs + shaders) for this mesh */
-  BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
+  bke::BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
 }
 
 void HookManager::free_all()
@@ -674,3 +676,5 @@ void HookManager::free_all()
 }
 
 /** \} */
+
+}  // namespace blender::draw

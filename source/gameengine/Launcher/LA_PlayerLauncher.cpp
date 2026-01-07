@@ -44,17 +44,19 @@
 #include "GPG_Canvas.h"
 #include "KX_PythonInit.h"
 
+using namespace blender;
+
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system,
                                      GHOST_IWindow *window,
-                                     Main *maggie,
-                                     Scene *scene,
+                                     blender::Main *maggie,
+                                     blender::Scene *scene,
                                      GlobalSettings *gs,
                                      RAS_Rasterizer::StereoMode stereoMode,
                                      int samples,
                                      int argc,
                                      char **argv,
                                      const std::string &pythonMainLoop,
-                                     bContext *C,
+                                     blender::bContext *C,
                                      bool useViewportRender,
                                      int shadingTypeRuntime)
     : LA_Launcher(system,

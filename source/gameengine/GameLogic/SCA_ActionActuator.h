@@ -33,6 +33,8 @@
 
 #include "DNA_actuator_types.h"
 
+#include "DNA_action_types.h"
+
 #include "BL_Action.h"  // For BL_Action::PlayMode.
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
@@ -44,7 +46,7 @@ class SCA_ActionActuator : public SCA_IActuator {
                                const std::string &framepropname,
                                float starttime,
                                float endtime,
-                               struct bAction *action,
+                               blender::bAction *action,
                                short playtype,
                                short blend_mode,
                                short blendin,
@@ -62,11 +64,11 @@ class SCA_ActionActuator : public SCA_IActuator {
   void SetLocalTime(float curtime);
   void ResetStartTime(float curtime);
 
-  bAction *GetAction()
+  blender::bAction *GetAction()
   {
     return m_action;
   }
-  void SetAction(bAction *act)
+  void SetAction(blender::bAction *act)
   {
     m_action = act;
   }
@@ -126,7 +128,7 @@ class SCA_ActionActuator : public SCA_IActuator {
   short m_priority;
   short m_layer;
   short m_ipo_flags;
-  struct bAction *m_action;
+  blender::bAction *m_action;
   std::string m_propname;
   std::string m_framepropname;
 };

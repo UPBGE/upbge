@@ -12,6 +12,8 @@
 
 #include "IMB_imbuf.hh"
 
+using namespace blender;
+
 
 // get material id
 static PyObject *getMaterialID(PyObject *self, PyObject *args)
@@ -30,10 +32,10 @@ static PyObject *getMaterialID(PyObject *self, PyObject *args)
   if (matID < 0) {
     PyErr_SetString(
         PyExc_RuntimeError,
-        "VideoTexture.materialID(ob, string): Object doesn't have material with given name");
+        "VideoTexture.materialID(ob, string): blender::Object doesn't have material with given name");
     return nullptr;
   }
-  // return material ID
+  // return material blender::ID
   return Py_BuildValue("h", matID);
 }
 
@@ -56,7 +58,7 @@ static PyObject *setLogFile(PyObject *self, PyObject *args)
 // image to numpy array
 static PyObject *imageToArray(PyObject *self, PyObject *args)
 {
-  // parameter is Image object
+  // parameter is blender::Image object
   PyObject *pyImg;
   char *mode = nullptr;
   if (!PyArg_ParseTuple(args, "O|s:imageToArray", &pyImg, &mode) ||
@@ -73,7 +75,7 @@ static PyObject *imageToArray(PyObject *self, PyObject *args)
 
 // metody modulu
 static PyMethodDef moduleMethods[] = {
-    {"materialID", getMaterialID, METH_VARARGS, "Gets object's Blender Material ID"},
+    {"materialID", getMaterialID, METH_VARARGS, "Gets object's Blender blender::Material blender::ID"},
     {"getLastError", getLastError, METH_NOARGS, "Gets last error description"},
     {"setLogFile", setLogFile, METH_VARARGS, "Sets log file name"},
     {"imageToArray",
@@ -215,4 +217,4 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void)
   return m;
 }
 
-// registration to Image types, put here because of silly linker bug
+// registration to blender::Image types, put here because of silly linker bug

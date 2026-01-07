@@ -32,17 +32,16 @@
 #pragma once
 
 #include "KX_GameObject.h"
-
-struct Light;
-struct Object;
+namespace blender { struct Light; }
+namespace blender { struct Object; }
 
 class KX_LightObject : public KX_GameObject {
   Py_Header
 
       protected :
 
-      Object *m_obLight;
-  Light *m_light;
+      blender::Object *m_obLight;
+  blender::Light *m_light;
 
  public:
   KX_LightObject();
@@ -56,9 +55,9 @@ class KX_LightObject : public KX_GameObject {
     return OBJ_LIGHT;
   }
 
-  Light *GetLight();
+  blender::Light *GetLight();
 
-  virtual void SetBlenderObject(Object *obj);
+  virtual void SetBlenderObject(blender::Object *obj);
 
 #ifdef WITH_PYTHON
   static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);

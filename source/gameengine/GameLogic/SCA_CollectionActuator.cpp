@@ -37,6 +37,8 @@
 
 #include "BKE_collection.hh"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -44,7 +46,7 @@
 SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
                                                KX_Scene *scene,
                                                KX_Camera *cam,
-                                               Collection *collection,
+                                               blender::Collection *collection,
                                                int mode,
                                                bool use_logic,
                                                bool use_physics,
@@ -115,7 +117,7 @@ bool SCA_CollectionActuator::Update()
   switch (m_mode) {
     case KX_COLLECTION_SUSPEND:
       for (KX_GameObject *gameobj : m_kxscene->GetObjectList()) {
-        Object *ob = gameobj->GetBlenderObject();
+        blender::Object *ob = gameobj->GetBlenderObject();
         if (ob && BKE_collection_has_object(m_collection, ob)) {
           if (m_useLogic) {
             gameobj->SuspendLogicAndActions(false);
@@ -131,7 +133,7 @@ bool SCA_CollectionActuator::Update()
       break;
     case KX_COLLECTION_RESUME:
       for (KX_GameObject *gameobj : m_kxscene->GetObjectList()) {
-        Object *ob = gameobj->GetBlenderObject();
+        blender::Object *ob = gameobj->GetBlenderObject();
         if (ob && BKE_collection_has_object(m_collection, ob)) {
           if (m_useLogic) {
             gameobj->RestoreLogicAndActions(false);
@@ -150,7 +152,7 @@ bool SCA_CollectionActuator::Update()
         m_kxscene->AddOverlayCollection(m_camera, m_collection);
       }
       else {
-        std::cout << "Collection Actuator: Camera not found" << std::endl;
+        std::cout << "blender::Collection Actuator: blender::Camera not found" << std::endl;
       }
       break;
     case KX_COLLECTION_REMOVE_OVERLAY:

@@ -44,6 +44,8 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Polygon.h"
 
+using namespace blender;
+
 SCA_RaySensor::SCA_RaySensor(class SCA_EventManager *eventmgr,
                              SCA_IObject *gameobj,
                              const std::string &propname,
@@ -291,7 +293,7 @@ bool SCA_RaySensor::Evaluate()
   else {
     if (m_bTriggered) {
       m_bTriggered = false;
-      // notify logicsystem that ray JUST left the Object
+      // notify logicsystem that ray JUST left the blender::Object
       result = true;
     }
     else {

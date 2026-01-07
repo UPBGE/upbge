@@ -39,6 +39,8 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_MeshObject.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */

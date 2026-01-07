@@ -17,6 +17,8 @@
 
 #include "EXP_ErrorValue.h"
 
+using namespace blender;
+
 EXP_ErrorValue::EXP_ErrorValue() : m_strErrorText("Error")
 {
 }

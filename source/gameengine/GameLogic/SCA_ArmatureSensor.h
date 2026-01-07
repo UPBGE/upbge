@@ -32,8 +32,7 @@
 
 #pragma once
 
-struct bConstraint;
-
+#include "DNA_constraint_types.h"
 #include "DNA_sensor_types.h"
 
 #include "SCA_ISensor.h"
@@ -76,7 +75,7 @@ class SCA_ArmatureSensor : public SCA_ISensor {
 #endif /* WITH_PYTHON */
 
  private:
-  struct bConstraint *m_constraint;
+  blender::bConstraint *m_constraint;
   std::string m_posechannel;
   std::string m_constraintname;
   int m_type;

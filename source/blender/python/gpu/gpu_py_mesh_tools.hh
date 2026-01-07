@@ -17,6 +17,9 @@
 
 #include "BLI_compiler_attrs.h"
 
+namespace blender {
+
+
 /* Forward declarations of Blender types used by the implementation. */
 struct Mesh;
 typedef struct _object PyObject;
@@ -67,3 +70,5 @@ PyObject *bpygpu_mesh_init() ATTR_WARN_UNUSED_RESULT;
 void bpygpu_mesh_tools_free_all();
 
 /** \} */
+
+}  // namespace blender

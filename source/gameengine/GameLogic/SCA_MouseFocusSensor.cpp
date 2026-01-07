@@ -48,6 +48,8 @@
 #include "RAS_ICanvas.h"
 #include "RAS_MeshObject.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -103,8 +105,8 @@ bool SCA_MouseFocusSensor::Evaluate()
   KX_Camera *overlayCam = m_kxscene->GetOverlayCamera();
   bool restorePreviousCam = false;
   if (overlayCam) {
-    Object *obcam = overlayCam->GetBlenderObject();
-    Camera *blCam = (Camera *)obcam->data;
+    blender::Object *obcam = overlayCam->GetBlenderObject();
+    blender::Camera *blCam = (blender::Camera *)obcam->data;
     if (blCam->gameflag & GAME_CAM_OVERLAY_MOUSE_CONTROL) {
       m_kxscene->SetActiveCamera(m_kxscene->GetOverlayCamera());
       restorePreviousCam = true;

@@ -12,9 +12,9 @@
 
 #include "BLI_compiler_attrs.h"
 
-namespace blender::gpu {
-class StorageBuf;
-}  // namespace blender::gpu
+#include "GPU_storage_buffer.hh"
+
+namespace blender {
 
 extern PyTypeObject BPyGPUStorageBuf_Type;
 
@@ -22,8 +22,10 @@ extern PyTypeObject BPyGPUStorageBuf_Type;
 
 struct BPyGPUStorageBuf {
   PyObject_HEAD
-  blender::gpu::StorageBuf *ssbo;
+  gpu::StorageBuf *ssbo;
 };
 
-[[nodiscard]] PyObject *BPyGPUStorageBuf_CreatePyObject(blender::gpu::StorageBuf *ssbo)
+[[nodiscard]] PyObject *BPyGPUStorageBuf_CreatePyObject(gpu::StorageBuf *ssbo)
     ATTR_NONNULL(1);
+
+}  // namespace blender

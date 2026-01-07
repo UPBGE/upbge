@@ -54,14 +54,16 @@
 
 extern "C" {
 
-void StartKetsjiShell(struct bContext *C,
-                      struct ARegion *ar,
-                      rcti *cam_frame,
+void StartKetsjiShell(blender::bContext *C,
+                      blender::ARegion *ar,
+                      blender::rcti *cam_frame,
                       int always_use_expand_framing);
 }
 
 #ifdef WITH_AUDASPACE
 #  include <AUD_Device.h>
+
+using namespace blender;
 #endif
 
 static BlendFileData *load_game_data(const char *filename)
@@ -86,15 +88,15 @@ static BlendFileData *load_game_data(const char *filename)
   return bfd;
 }
 
-static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene *scene)
+static void InitBlenderContextVariables(blender::bContext *C, blender::wmWindowManager *wm, blender::Scene *scene)
 {
-  wmWindow *win = (wmWindow *)wm->windows.first;
-  bScreen *screen = WM_window_get_active_screen(win);
+  blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+  blender::bScreen *screen = WM_window_get_active_screen(win);
 
-  for (ScrArea &sa : screen->areabase) {
+  for (blender::ScrArea &sa : screen->areabase) {
     if (sa.spacetype == SPACE_VIEW3D) {
-      const ListBaseT<ARegion>&regionbase = sa.regionbase;
-      for (ARegion &region : regionbase) {
+      const ListBaseT<blender::ARegion>&regionbase = sa.regionbase;
+      for (blender::ARegion &region : regionbase) {
         if (region.regiontype == RGN_TYPE_WINDOW) {
           if (region.regiondata) {
             CTX_wm_screen_set(C, screen);
@@ -110,9 +112,9 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
   }
 }
 
-static int GetShadingTypeRuntime(bContext *C, bool useViewportRender)
+static int GetShadingTypeRuntime(blender::bContext *C, bool useViewportRender)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  blender::View3D *v3d = CTX_wm_view3d(C);
   if (useViewportRender) {
     return v3d->shading.type;
   }
@@ -124,9 +126,9 @@ static int GetShadingTypeRuntime(bContext *C, bool useViewportRender)
   return v3d->shading.type;
 }
 
-static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *win, Scene *scene)
+static void RefreshContextAndScreen(blender::bContext *C, blender::wmWindowManager *wm, blender::wmWindow *win, blender::Scene *scene)
 {
-  bScreen *screen = WM_window_get_active_screen(win);
+  blender::bScreen *screen = WM_window_get_active_screen(win);
   InitBlenderContextVariables(C, wm, scene);
 
   WM_check(C);
@@ -138,9 +140,9 @@ static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *
   }
 }
 
-static Main *BKE_blender_globals_main_replace_no_free(Main *bmain)
+static blender::Main *BKE_blender_globals_main_replace_no_free(blender::Main *bmain)
 {
-  Main *old_main = G_MAIN;
+  blender::Main *old_main = G_MAIN;
 
   if (old_main != nullptr) {
     BLI_assert(old_main->is_global_main);
@@ -154,17 +156,17 @@ static Main *BKE_blender_globals_main_replace_no_free(Main *bmain)
   return old_main;
 }
 
-extern "C" void StartKetsjiShell(struct bContext *C,
-                                 struct ARegion *ar,
-                                 rcti *cam_frame,
+extern "C" void StartKetsjiShell(blender::bContext *C,
+                                 blender::ARegion *ar,
+                                 blender::rcti *cam_frame,
                                  int always_use_expand_framing)
 {
   /* context values */
-  Scene *startscene = CTX_data_scene(C);
-  Main *maggie1 = CTX_data_main(C);
+  blender::Scene *startscene = CTX_data_scene(C);
+  blender::Main *maggie1 = CTX_data_main(C);
 
   KX_ExitRequest exitrequested = KX_ExitRequest::NO_REQUEST;
-  Main *blenderdata = maggie1;
+  blender::Main *blenderdata = maggie1;
 
   char *startscenename = startscene->id.name + 2;
   char pathname[FILE_MAXDIR + FILE_MAXFILE];
@@ -210,8 +212,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
    */
   G.is_undo_at_exit = true;
 
-  wmWindowManager *wm_backup = CTX_wm_manager(C);
-  wmWindow *win_backup = CTX_wm_window(C);
+  blender::wmWindowManager *wm_backup = CTX_wm_manager(C);
+  blender::wmWindow *win_backup = CTX_wm_window(C);
   void *msgbus_backup = wm_backup->runtime->message_bus;
   void *gpuctx_backup = win_backup->runtime->gpuctx;
   void *ghostwin_backup = win_backup->runtime->ghostwin;
@@ -224,7 +226,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   /* Global Undo behaviour change since ebb5643e598a17b2f21b4e50acac35afe82dbd55
    * We now need to backup v3d->camera and restore it manually at ge exit as
    * v3d->camera can be changed during bge pipeline (RenderAfterCameraSetup) */
-  Object *backup_cam = nullptr;
+  blender::Object *backup_cam = nullptr;
   if (CTX_wm_view3d(C)->camera != nullptr) {
     backup_cam = CTX_wm_view3d(C)->camera;
   }
@@ -277,8 +279,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         /* If we don't change G_MAIN, bpy won't work in loaded .blends */
         BKE_blender_globals_main_replace_no_free(bfd->main);
         CTX_data_main_set(C, bfd->main);
-        wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
-        wmWindow *win = (wmWindow *)wm->windows.first;
+        blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
+        blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
         CTX_wm_manager_set(C, wm);
         CTX_wm_window_set(C, win);
         win->runtime->ghostwin = ghostwin_backup;
@@ -292,14 +294,14 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
         wm_window_ghostwindow_embedded_ensure(wm, win);
 
-        /* We need to init Blender bContext environment here
+        /* We need to init Blender blender::bContext environment here
          * to because in embedded, ar, v3d...
          * are needed for launcher creation + Refresh Screen
          * to be able to draw blender areas.
          */
         RefreshContextAndScreen(C, wm, win, bfd->curscene);
 
-        /* ED_screen_init can change bContext then we need to restore it again after...
+        /* ED_screen_init can change blender::bContext then we need to restore it again after...
          * b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
         InitBlenderContextVariables(C, wm, bfd->curscene);
 
@@ -315,9 +317,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       }
     }
 
-    Scene *scene = bfd ? bfd->curscene :
-                         (Scene *)BLI_findstring(
-                             &blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
+    blender::Scene *scene = bfd ? bfd->curscene :
+                         (blender::Scene *)BLI_findstring(
+                             &blenderdata->scenes, startscenename, offsetof(blender::ID, name) + 2);
 
     GHOST_ISystem *system = GHOST_ISystem::getSystem();
     LA_BlenderLauncher launcher = LA_BlenderLauncher(system,
@@ -353,10 +355,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
      * these are not called in the player but we need to match some of there behavior here,
      * if the order of function calls or blenders state isn't matching that of blender
      * proper, we may get troubles later on */
-    wmWindowManager *wm = CTX_wm_manager(C);
+    blender::wmWindowManager *wm = CTX_wm_manager(C);
     WM_jobs_kill_all(wm);
 
-    for (wmWindow &win : wm->windows) {
+    for (blender::wmWindow &win : wm->windows) {
       CTX_wm_window_set(C, &win); /* needed by operator close callbacks */
       WM_event_remove_handlers(C, &win.runtime->handlers);
       WM_event_remove_handlers(C, &win.runtime->modalhandlers);
@@ -373,7 +375,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     CTX_wm_manager(C)->runtime->message_bus = nullptr;
     BLO_blendfiledata_free(bfd);
 
-    /* Restore Main and Scene used before ge start */
+    /* Restore blender::Main and blender::Scene used before ge start */
     BKE_blender_globals_main_replace_no_free(maggie1);
     CTX_data_main_set(C, maggie1);
     CTX_wm_manager_set(C, wm_backup);
@@ -388,7 +390,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
   ED_screens_init(C,maggie1, wm_backup);
 
-  /* ED_screen_init can change bContext then we need to restore it again after...
+  /* ED_screen_init can change blender::bContext then we need to restore it again after...
    * b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
   InitBlenderContextVariables(C, wm_backup, startscene);
 

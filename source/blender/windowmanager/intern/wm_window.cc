@@ -69,6 +69,8 @@
 #  include "wm_xr.hh"
 #endif
 
+#include "../windowmanager/message_bus/wm_message_bus.hh"
+
 #include "ED_anim_api.hh"
 #include "ED_fileselect.hh"
 #include "ED_render.hh"

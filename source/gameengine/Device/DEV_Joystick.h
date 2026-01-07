@@ -45,6 +45,7 @@
 #    pragma warning(disable : 4005)
 #  endif
 #  include "SDL.h"
+
 #  ifdef _MSC_VER
 #    pragma warning(pop)
 #  endif

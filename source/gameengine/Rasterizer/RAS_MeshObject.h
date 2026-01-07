@@ -40,6 +40,10 @@
 #include <string>
 #include <vector>
 
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
+
 #include "MT_Transform.h"
 #include "MT_Vector2.h"
 #include "RAS_MaterialBucket.h"
@@ -48,9 +52,7 @@
 
 class RAS_Polygon;
 class RAS_IVertex;
-struct Mesh;
 struct MLoopCol;
-struct Object;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
@@ -64,7 +66,7 @@ class RAS_MeshObject {
    */
   struct Layer {
     const float (*luvs)[2];
-    MLoopCol *color;
+    blender::MLoopCol *color;
     /// The index of the color or uv layer in the vertices.
     unsigned short index;
     /// The name of the color or uv layer used to find corresponding material attributes.
@@ -90,18 +92,18 @@ class RAS_MeshObject {
 
  protected:
   RAS_MeshMaterialList m_materials;
-  Mesh *m_mesh;
+  blender::Mesh *m_mesh;
 
   int m_conversionTotverts;
 
-  /* In 2.8 code, ReinstancePhysicsShape2 needs an Object to recalculate the physics shape */
-  Object *m_originalOb;
+  /* In 2.8 code, ReinstancePhysicsShape2 needs an blender::Object to recalculate the physics shape */
+  blender::Object *m_originalOb;
 
  public:
   // for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-  RAS_MeshObject(Mesh *mesh,
+  RAS_MeshObject(blender::Mesh *mesh,
                  int conversionTotverts,
-                 Object *originalOb,
+                 blender::Object *originalOb,
                  const LayersInfo &layersInfo);
   virtual ~RAS_MeshObject();
 
@@ -117,7 +119,7 @@ class RAS_MeshObject {
   std::string &GetName();
 
   // original blender mesh
-  Mesh *GetOrigMesh();
+  blender::Mesh *GetOrigMesh();
 
   // Number of vertices at conversion time on eval mesh
   int GetConversionTotVerts();
@@ -157,7 +159,7 @@ class RAS_MeshObject {
 
   bool HasColliderPolygon();
 
-  Object *GetOriginalObject();
+  blender::Object *GetOriginalObject();
 
   // for construction to find shared vertices
   struct SharedVertex {

@@ -7,6 +7,8 @@
 
 #include "PyTypeList.h"
 
+using namespace blender;
+
 /// destructor
 PyTypeList::~PyTypeList()
 {

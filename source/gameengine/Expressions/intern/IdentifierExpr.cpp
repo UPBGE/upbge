@@ -31,6 +31,8 @@
 
 #include "EXP_IdentifierExpr.h"
 
+using namespace blender;
+
 EXP_IdentifierExpr::EXP_IdentifierExpr(const std::string &identifier, EXP_Value *id_context)
     : m_identifier(identifier)
 {

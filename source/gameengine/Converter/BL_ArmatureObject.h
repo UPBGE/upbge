@@ -44,13 +44,8 @@ namespace blender::gpu {
 class Shader;
 class StorageBuf;
 }  // namespace blender::gpu
-
-struct AnimationEvalContext;
-struct Bone;
-struct bPose;
-struct Object;
-struct Mesh;
-struct ID; /* forward declare ID for storing original data pointers */
+namespace blender { struct AnimationEvalContext; }
+namespace blender { struct ID; } /* forward declare blender::ID for storing original data pointers */
 class MT_Matrix4x4;
 class BL_SceneConverter;
 class RAS_DebugDraw;
@@ -64,15 +59,15 @@ class BL_ArmatureObject : public KX_GameObject {
   EXP_ListValue<BL_ArmatureConstraint> *m_controlledConstraints;
   /// List element: BL_ArmatureChannel.
   EXP_ListValue<BL_ArmatureChannel> *m_poseChannels;
-  Object *m_objArma;
+  blender::Object *m_objArma;
   /* Used to do the remapping between Parent (armature) and children
    * after ProcessReplica */
-  Object *m_previousArmature;
+  blender::Object *m_previousArmature;
 
   /* Map of replica meshes created for specific child objects. */
-  std::unordered_map<Object *, Mesh *> m_replicaMeshes;
+  std::unordered_map<blender::Object *, blender::Mesh *> m_replicaMeshes;
   /* Store the original data pointers for replaced children so they can be restored on cleanup. */
-  std::unordered_map<Object *, ID *> m_replacedOriginalData;
+  std::unordered_map<blender::Object *, blender::ID *> m_replacedOriginalData;
 
   double m_lastframe;
   size_t m_constraintNumber;
@@ -97,19 +92,19 @@ class BL_ArmatureObject : public KX_GameObject {
 
   double GetLastFrame();
 
-  void GetPose(bPose **pose) const;
+  void GetPose(blender::bPose **pose) const;
   /// Never edit this, only for accessing names.
-  bPose *GetPose() const;
+  blender::bPose *GetPose() const;
   void ApplyPose();
-  void GameBlendPose(bPose *dst, bPose *src, float srcweight, short mode);
+  void GameBlendPose(blender::bPose *dst, blender::bPose *src, float srcweight, short mode);
   void RemapParentChildren();
-  void ApplyAction(bAction *action, const AnimationEvalContext &evalCtx);
-  void BlendInPose(bPose *blend_pose, float weight, short mode);
+  void ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx);
+  void BlendInPose(blender::bPose *blend_pose, float weight, short mode);
 
   bool UpdateTimestep(double curtime);
 
-  Object *GetArmatureObject();
-  Object *GetOrigArmatureObject();
+  blender::Object *GetArmatureObject();
+  blender::Object *GetOrigArmatureObject();
   bool GetDrawDebug() const;
   void DrawDebug(RAS_DebugDraw &debugDraw);
 
@@ -124,18 +119,18 @@ class BL_ArmatureObject : public KX_GameObject {
   // for pose channel python API
   void LoadChannels();
   size_t GetChannelNumber() const;
-  BL_ArmatureChannel *GetChannel(bPoseChannel *channel);
+  BL_ArmatureChannel *GetChannel(blender::bPoseChannel *channel);
   BL_ArmatureChannel *GetChannel(const std::string &channel);
   BL_ArmatureChannel *GetChannel(int index);
 
   /// Retrieve the pose matrix for the specified bone.
   /// Returns true on success.
-  bool GetBoneMatrix(Bone *bone, MT_Matrix4x4 &matrix);
+  bool GetBoneMatrix(blender::Bone *bone, MT_Matrix4x4 &matrix);
 
   /// Returns the bone length. The end of the bone is in the local y direction.
-  float GetBoneLength(Bone *bone) const;
+  float GetBoneLength(blender::Bone *bone) const;
 
-  virtual void SetBlenderObject(Object *obj);
+  virtual void SetBlenderObject(blender::Object *obj);
 
 #ifdef WITH_PYTHON
 

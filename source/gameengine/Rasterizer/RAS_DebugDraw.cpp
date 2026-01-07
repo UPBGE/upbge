@@ -29,6 +29,8 @@
 #include "MT_Frustum.h"
 #include "RAS_OpenGLDebugDraw.h"
 
+using namespace blender;
+
 RAS_DebugDraw::RAS_DebugDraw()
 {
   m_impl = new RAS_OpenGLDebugDraw();

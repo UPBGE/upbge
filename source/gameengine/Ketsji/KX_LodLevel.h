@@ -35,14 +35,14 @@ class KX_LodLevel : public EXP_PyObjectPlus {
   short m_level;
   unsigned short m_flags;
   RAS_MeshObject *m_meshobj;
-  struct Object *m_object;
+  blender::Object *m_object;
 
  public:
   KX_LodLevel(float distance,
               float hysteresis,
               unsigned short level,
               RAS_MeshObject *meshobj,
-              struct Object *object,
+              blender::Object *object,
               unsigned short flag);
   virtual ~KX_LodLevel();
 
@@ -51,7 +51,7 @@ class KX_LodLevel : public EXP_PyObjectPlus {
   unsigned short GetLevel() const;
   unsigned short GetFlag() const;
   RAS_MeshObject *GetMesh() const;
-  struct Object *GetObject();
+  blender::Object *GetObject();
 
   enum {
     /// Use custom hysteresis for this level.

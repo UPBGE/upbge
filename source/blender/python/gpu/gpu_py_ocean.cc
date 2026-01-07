@@ -36,6 +36,10 @@
 
 #include "../windowmanager/WM_api.hh"
 
+namespace blender {
+
+
+using namespace blender;
 using blender::gpu::StorageBuf;
 using namespace blender::bke;
 
@@ -855,7 +859,7 @@ static PyObject *pygpu_ocean_generate_object(PyObject * /*self*/, PyObject *args
   }
 
   ob->type = OB_MESH;
-  ob->data = mesh;
+  ob->data = id_cast<ID *>(mesh);
   /* Increment mesh user for the object once (object now owns the mesh). */
   id_us_plus(&mesh->id);
 
@@ -4317,7 +4321,7 @@ void main() {
 }
 )GLSL";
 
-  Mesh *me = static_cast<Mesh *>(ob_eval->data);
+  Mesh *me = id_cast<Mesh *>(ob_eval->data);
   if (!me) {
     PyErr_SetString(PyExc_RuntimeError, "Object has no mesh data");
     return GpuComputeStatus::Error;
@@ -5233,7 +5237,7 @@ static PyObject *pygpu_ocean_scatter_to_mesh(PyObject * /*self*/, PyObject *args
     return nullptr;
   }
 
-  Mesh *me_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *me_eval = id_cast<Mesh *>(ob_eval->data);
   if (!me_eval) {
     PyErr_SetString(PyExc_RuntimeError, "Evaluated object has no mesh data");
     return nullptr;
@@ -5821,3 +5825,5 @@ PyObject *bpygpu_ocean_init(void)
 {
   return PyModule_Create(&pygpu_ocean_module_def);
 }
+
+}  // namespace blender

@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * Camera in the gameengine. Cameras are also used for views.
+ * blender::Camera in the gameengine. Cameras are also used for views.
  */
 
 /** \file gameengine/Ketsji/KX_Camera.cpp
@@ -40,6 +40,8 @@
 #include "KX_PyMath.h"
 #include "KX_RayCast.h"
 #include "RAS_ICanvas.h"
+
+using namespace blender;
 
 KX_Camera::KX_Camera()
     : KX_GameObject(),
@@ -68,11 +70,11 @@ KX_Camera::~KX_Camera()
   }
 }
 
-void KX_Camera::SetBlenderObject(Object *obj)
+void KX_Camera::SetBlenderObject(blender::Object *obj)
 {
   KX_GameObject::SetBlenderObject(obj);
 
-  Camera *ca = static_cast<Camera *>(obj->data);
+  blender::Camera *ca = id_cast<blender::Camera *>(obj->data);
 
   RAS_CameraData camdata(ca->lens,
                          ca->ortho_scale,
@@ -97,7 +99,7 @@ void KX_Camera::SetCameraData(const RAS_CameraData &camdata)
   m_camdata = camdata;
 }
 
-GPUViewport *KX_Camera::GetGPUViewport()
+blender::GPUViewport *KX_Camera::GetGPUViewport()
 {
   if (!m_gpuViewport) {
     m_gpuViewport = GPU_viewport_create();

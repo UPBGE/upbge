@@ -33,6 +33,8 @@
 
 #include "SCA_ActuatorSensor.h"
 
+using namespace blender;
+
 SCA_ActuatorEventManager::SCA_ActuatorEventManager(class SCA_LogicManager *logicmgr)
     : SCA_EventManager(logicmgr, ACTUATOR_EVENTMGR)
 {

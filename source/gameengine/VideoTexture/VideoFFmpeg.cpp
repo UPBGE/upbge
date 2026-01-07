@@ -31,6 +31,8 @@
 extern "C" {
 #  include <libavutil/imgutils.h>
 #  include <libavcodec/avcodec.h>
+
+using namespace blender;
 }
 
 // default framerate
@@ -198,7 +200,7 @@ int VideoFFmpeg::openStream(const char *filename,
       return -1;
     }
     else {
-      std::cout << "Camera capture: Format not compatible. Capture in default camera format"
+      std::cout << "blender::Camera capture: Format not compatible. Capture in default camera format"
                 << std::endl;
     }
   }
@@ -1068,7 +1070,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 
 // python methods
 
-// cast Image pointer to VideoFFmpeg
+// cast blender::Image pointer to VideoFFmpeg
 inline VideoFFmpeg *getVideoFFmpeg(PyImage *self)
 {
   return static_cast<VideoFFmpeg *>(self->m_image);

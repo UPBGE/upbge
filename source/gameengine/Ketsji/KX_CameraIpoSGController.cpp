@@ -34,6 +34,8 @@
 #include "KX_Camera.h"
 #include "KX_ScalarInterpolator.h"
 
+using namespace blender;
+
 #if defined(_WIN64)
 typedef unsigned __int64 uint_ptr;
 #else

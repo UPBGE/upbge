@@ -52,6 +52,8 @@
 
 #include <string.h>
 
+namespace blender {
+
 #ifdef WITH_PYTHON
 
 #  define FAKE_TYPES \
@@ -993,3 +995,5 @@ void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *use
   (void)userdata;
 #endif /* WITH_PYTHON */
 }
+
+}  // namespace blender

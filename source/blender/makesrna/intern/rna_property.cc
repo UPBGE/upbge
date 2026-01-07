@@ -41,6 +41,9 @@
 
 #include "WM_types.hh"
 
+using namespace blender;
+
+namespace blender {
 const EnumPropertyItem rna_enum_gameproperty_type_items[] = {
     {GPROP_BOOL, "BOOL", 0, "Boolean", "Boolean Property"},
     {GPROP_INT, "INT", 0, "Integer", "Integer Property"},
@@ -48,6 +51,7 @@ const EnumPropertyItem rna_enum_gameproperty_type_items[] = {
     {GPROP_STRING, "STRING", 0, "String", "String Property"},
     {GPROP_TIME, "TIMER", 0, "Timer", "Timer Property"},
     {0, nullptr, 0, nullptr, nullptr}};
+}  // namespace blender
 
 #ifdef RNA_RUNTIME
 
@@ -148,6 +152,8 @@ static void rna_GameStringProperty_value_set(PointerRNA *ptr, const char *value)
 
 #else
 
+namespace blender {
+
 void RNA_def_gameproperty(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -244,5 +250,7 @@ void RNA_def_gameproperty(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Value", "Property value");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
+
+}  // namespace blender
 
 #endif

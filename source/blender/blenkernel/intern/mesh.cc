@@ -252,7 +252,7 @@ static void mesh_free_data(ID *id)
    * BKE_mesh_gpu_free_for_mesh handles the case where no GPU
    * context is active (defers to orphans list).
    */
-  BKE_mesh_gpu_free_for_mesh(mesh);
+  bke::BKE_mesh_gpu_free_for_mesh(mesh);
 
   CustomData_free(&mesh->vert_data);
   CustomData_free(&mesh->edge_data);

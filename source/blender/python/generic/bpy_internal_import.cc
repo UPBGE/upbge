@@ -47,8 +47,10 @@
 
 #include "bpy_internal_import.hh" /* own include */
 
-static Main *bpy_import_main = nullptr;
-static std::vector<Main *> bpy_import_main_list = {};
+namespace blender {
+
+static blender::Main *bpy_import_main = nullptr;
+static std::vector<blender::Main *> bpy_import_main_list = {};
 
 /* 'builtins' is most likely PyEval_GetBuiltins() */
 
@@ -72,7 +74,7 @@ void bpy_import_init(PyObject *builtins)
   Py_DECREF(item);
 }
 
-static void free_compiled_text(Text *text)
+static void free_compiled_text(blender::Text *text)
 {
   if (text->compiled) {
     Py_DECREF((PyObject *)text->compiled);
@@ -80,37 +82,38 @@ static void free_compiled_text(Text *text)
   text->compiled = nullptr;
 }
 
-struct Main *bpy_import_main_get(void)
+struct blender::Main *bpy_import_main_get(void)
 {
   return bpy_import_main;
 }
 
-void bpy_import_main_set(struct Main *maggie)
+void bpy_import_main_set(blender::Main *maggie)
 {
   bpy_import_main = maggie;
 }
 
-void bpy_import_main_extra_add(struct Main *maggie)
+void bpy_import_main_extra_add(blender::Main *maggie)
 {
   bpy_import_main_list.emplace(bpy_import_main_list.begin(), maggie);
 }
 
-void bpy_import_main_extra_remove(struct Main *maggie)
+void bpy_import_main_extra_remove(blender::Main *maggie)
 {
-  std::vector<Main *>::iterator it = std::find(bpy_import_main_list.begin(), bpy_import_main_list.end(), maggie);
+  std::vector<blender::Main *>::iterator it = std::find(
+      bpy_import_main_list.begin(), bpy_import_main_list.end(), maggie);
   if (it != bpy_import_main_list.end()) {
     bpy_import_main_list.erase(it);
   }
 }
 
 /* returns a dummy filename for a textblock so we can tell what file a text block comes from */
-void bpy_text_filename_get(char *fn, size_t fn_len, Text *text)
+void bpy_text_filename_get(char *fn, size_t fn_len, blender::Text *text)
 {
-  BLI_snprintf(
+  blender::BLI_snprintf(
       fn, fn_len, "%s%c%s", ID_BLEND_PATH(bpy_import_main, &text->id), SEP, text->id.name + 2);
 }
 
-bool bpy_text_compile(Text *text)
+bool bpy_text_compile(blender::Text *text)
 {
   char fn_dummy[FILE_MAX];
   PyObject *fn_dummy_py;
@@ -121,7 +124,7 @@ bool bpy_text_compile(Text *text)
   /* if previously compiled, free the object */
   free_compiled_text(text);
 
-  fn_dummy_py = PyC_UnicodeFromBytes(fn_dummy);
+  fn_dummy_py = blender::PyC_UnicodeFromBytes(fn_dummy);
 
   size_t buf_len_dummy;
   buf = txt_to_buf(text, &buf_len_dummy);
@@ -142,7 +145,7 @@ bool bpy_text_compile(Text *text)
   }
 }
 
-PyObject *bpy_text_import(Text *text)
+PyObject *bpy_text_import(blender::Text *text)
 {
   char modulename[MAX_ID_NAME + 2];
   int len;
@@ -154,18 +157,18 @@ PyObject *bpy_text_import(Text *text)
   }
 
   len = strlen(text->id.name + 2);
-  BLI_strncpy(modulename, text->id.name + 2, len);
+  blender::BLI_strncpy(modulename, text->id.name + 2, len);
   modulename[len - 3] = '\0'; /* remove .py */
   return PyImport_ExecCodeModule(modulename, (PyObject *)text->compiled);
 }
 
 PyObject *bpy_text_import_name(const char *name, int *found)
 {
-  Text *text;
+  blender::Text *text;
   char txtname[MAX_ID_NAME - 2];
   int namelen = strlen(name);
   // XXX	Main *maggie = bpy_import_main ? bpy_import_main : G_MAIN;
-  Main *maggie = bpy_import_main;
+  blender::Main *maggie = bpy_import_main;
 
   *found = 0;
 
@@ -182,7 +185,7 @@ PyObject *bpy_text_import_name(const char *name, int *found)
   memcpy(txtname, name, namelen);
   memcpy(&txtname[namelen], ".py", 4);
 
-  text = (Text *)BLI_findstring(&maggie->texts, txtname, offsetof(ID, name) + 2);
+  text = (blender::Text *)BLI_findstring(&maggie->texts, txtname, offsetof(blender::ID, name) + 2);
 
   if (text) {
     *found = 1;
@@ -190,8 +193,9 @@ PyObject *bpy_text_import_name(const char *name, int *found)
   }
 
   /* If we still haven't found the module try additional modules form bpy_import_main_list */
-  for (Main *maggie : bpy_import_main_list) {
-    text = (Text *)BLI_findstring(&maggie->texts, txtname, offsetof(ID, name) + 2);
+  for (blender::Main *maggie : bpy_import_main_list) {
+    text = (blender::Text *)BLI_findstring(
+        &maggie->texts, txtname, offsetof(blender::ID, name) + 2);
     if (text) {
       break;
     }
@@ -207,7 +211,7 @@ PyObject *bpy_text_import_name(const char *name, int *found)
   return bpy_text_import(text);
 }
 
-static PyObject *blender_import(PyObject */*self*/, PyObject *args, PyObject *kw)
+static PyObject *blender_import(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   PyObject *exception, *err, *tb;
   const char *name;
@@ -230,7 +234,8 @@ static PyObject *blender_import(PyObject */*self*/, PyObject *args, PyObject *kw
       nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(
-          args, kw, &_parser, &name, &globals, &locals, &fromlist, &level)) {
+          args, kw, &_parser, &name, &globals, &locals, &fromlist, &level))
+  {
     return nullptr;
   }
 
@@ -255,13 +260,13 @@ static PyObject *blender_import(PyObject */*self*/, PyObject *args, PyObject *kw
     Py_XDECREF(tb);
     /* printf("imported from text buffer...\n"); */
   }
-  else if (found ==
-           1) { /* blender text module failed to execute but was found, use its error message */
+  else if (found == 1)
+  { /* blender text module failed to execute but was found, use its error message */
     Py_XDECREF(exception);
     Py_XDECREF(err);
     Py_XDECREF(tb);
 
-    //PyErr_Format(PyExc_ImportError, "Failed to import module : '%s'", name);
+    // PyErr_Format(PyExc_ImportError, "Failed to import module : '%s'", name);
 
     return nullptr;
   }
@@ -273,8 +278,9 @@ static PyObject *blender_import(PyObject */*self*/, PyObject *args, PyObject *kw
   return newmodule;
 }
 
-
 PyMethodDef bpy_import_meth = {"bpy_import_meth",
                                (PyCFunction)blender_import,
                                METH_VARARGS | METH_KEYWORDS,
                                "blenders import"};
+
+} // namespace blender

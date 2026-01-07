@@ -30,6 +30,8 @@
 
 #include "BL_Action.h"
 
+using namespace blender;
+
 
 BL_ActionManager::BL_ActionManager(class KX_GameObject *obj) : m_obj(obj), m_suspended(false)
 {
@@ -73,7 +75,7 @@ void BL_ActionManager::SetActionFrame(short layer, float frame)
     action->SetFrame(frame);
 }
 
-struct bAction *BL_ActionManager::GetCurrentAction(short layer)
+blender::bAction *BL_ActionManager::GetCurrentAction(short layer)
 {
   BL_Action *action = GetAction(layer);
 

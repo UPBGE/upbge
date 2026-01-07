@@ -38,9 +38,11 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Polygon.h"
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh,
+using namespace blender;
+
+RAS_MeshObject::RAS_MeshObject(blender::Mesh *mesh,
                                int conversionTotverts,
-                               Object *originalOb,
+                               blender::Object *originalOb,
                                const LayersInfo &layersInfo)
     : m_name(mesh->id.name + 2),
       m_layersInfo(layersInfo),
@@ -302,13 +304,13 @@ bool RAS_MeshObject::HasColliderPolygon()
   return false;
 }
 
-/* In 2.8 code, ReinstancePhysicsShape2 needs an Object to recalculate the physics shape */
-Object *RAS_MeshObject::GetOriginalObject()
+/* In 2.8 code, ReinstancePhysicsShape2 needs an blender::Object to recalculate the physics shape */
+blender::Object *RAS_MeshObject::GetOriginalObject()
 {
   return m_originalOb;
 }
 
-Mesh *RAS_MeshObject::GetOrigMesh()
+blender::Mesh *RAS_MeshObject::GetOrigMesh()
 {
   return m_mesh;
 }

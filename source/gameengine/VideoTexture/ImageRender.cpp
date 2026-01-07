@@ -25,11 +25,13 @@
 #include "RAS_Polygon.h"
 #include "Texture.h"
 
+using namespace blender;
+
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
 ExceptionID MirrorInvalid, MirrorSizeInvalid, MirrorNormalInvalid, MirrorHorizontal,
     MirrorTooSmall;
-ExpDesc SceneInvalidDesc(SceneInvalid, "Scene object is invalid");
-ExpDesc CameraInvalidDesc(CameraInvalid, "Camera object is invalid");
+ExpDesc SceneInvalidDesc(SceneInvalid, "blender::Scene object is invalid");
+ExpDesc CameraInvalidDesc(CameraInvalid, "blender::Camera object is invalid");
 ExpDesc ObserverInvalidDesc(ObserverInvalid, "Observer object is invalid");
 ExpDesc FrameBufferInvalidDesc(FrameBufferInvalid, "FrameBuffer object is invalid");
 ExpDesc MirrorInvalidDesc(MirrorInvalid, "Mirror object is invalid");
@@ -283,7 +285,7 @@ bool ImageRender::Render()
     float nearfrust = m_camera->GetCameraNear();
     float farfrust = m_camera->GetCameraFar();
     float aspect_ratio = 1.0f;
-    Scene *blenderScene = m_scene->GetBlenderScene();
+    blender::Scene *blenderScene = m_scene->GetBlenderScene();
     MT_Matrix4x4 projmat;
 
     // compute the aspect ratio from frame blender scene settings so that render to texture
@@ -336,9 +338,9 @@ bool ImageRender::Render()
   // restore the stereo mode now that the matrix is computed
   m_rasterizer->SetStereoMode(stereomode);
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   if (!depsgraph) {
     return false;
@@ -364,7 +366,7 @@ bool ImageRender::Render()
   for (int i = 0; i < num_passes; i++) {
     GPU_framebuffer_clear_depth(GPU_framebuffer_active_get(), 1.0f);
     /* viewport and window share the same values here */
-    const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
+    const blender::rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
     m_scene->RenderAfterCameraSetupImageRender(m_camera, &window);
   }
 
@@ -419,7 +421,7 @@ void ImageRender::RunPostDrawCallbacks()
   DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
 }
 
-// cast Image pointer to ImageRender
+// cast blender::Image pointer to ImageRender
 inline ImageRender *getImageRender(PyImage *self)
 {
   return static_cast<ImageRender *>(self->m_image);
@@ -655,12 +657,12 @@ static PyGetSetDef imageRenderGetSets[] = {
     {(char *)"pre_draw",
      (getter)getPreDrawCallbacks,
      (setter)setPreDrawCallbacks,
-     (char *)"Image Render pre-draw callbacks",
+     (char *)"blender::Image Render pre-draw callbacks",
      nullptr},
     {(char *)"post_draw",
      (getter)getPostDrawCallbacks,
      (setter)setPostDrawCallbacks,
-     (char *)"Image Render post-draw callbacks",
+     (char *)"blender::Image Render post-draw callbacks",
      nullptr},
     {nullptr}};
 
@@ -685,7 +687,7 @@ PyTypeObject ImageRenderType = {
     0,                                                            /*tp_setattro*/
     &imageBufferProcs,                                            /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,                                           /*tp_flags*/
-    "Image source from render",                                   /* tp_doc */
+    "blender::Image source from render",                                   /* tp_doc */
     0,                                                            /* tp_traverse */
     0,                                                            /* tp_clear */
     0,                                                            /* tp_richcompare */
@@ -1062,7 +1064,7 @@ PyTypeObject ImageMirrorType = {
     0,                                                            /*tp_setattro*/
     &imageBufferProcs,                                            /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,                                           /*tp_flags*/
-    "Image source from mirror",                                   /* tp_doc */
+    "blender::Image source from mirror",                                   /* tp_doc */
     0,                                                            /* tp_traverse */
     0,                                                            /* tp_clear */
     0,                                                            /* tp_richcompare */

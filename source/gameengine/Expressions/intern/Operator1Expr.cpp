@@ -19,6 +19,8 @@
 
 #include "EXP_EmptyValue.h"
 
+using namespace blender;
+
 EXP_Operator1Expr::EXP_Operator1Expr() : m_lhs(nullptr)
 {
 }

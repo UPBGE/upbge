@@ -32,6 +32,8 @@
 #include "DEV_InputDevice.h"
 #include "RAS_ICanvas.h"
 
+using namespace blender;
+
 DEV_EventConsumer::DEV_EventConsumer(GHOST_ISystem *system,
                                      DEV_InputDevice *device,
                                      RAS_ICanvas *canvas)
@@ -57,7 +59,7 @@ void DEV_EventConsumer::HandleWindowEvent(GHOST_TEventType type)
 void DEV_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
 {
   GHOST_TEventKeyData *keyData = (GHOST_TEventKeyData *)data;
-  unsigned int unicode = BLI_str_utf8_as_unicode_safe(keyData->utf8_buf);
+  unsigned int unicode = blender::BLI_str_utf8_as_unicode_safe(keyData->utf8_buf);
   m_device->ConvertKeyEvent(keyData->key, down, unicode);
   // See d6fef73ef110eb43756b7b87c2cba80abae3b39f if issue
 }

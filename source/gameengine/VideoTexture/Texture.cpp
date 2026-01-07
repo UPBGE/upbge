@@ -11,7 +11,6 @@
 
 #include "BKE_image.hh"
 #include "DEG_depsgraph_query.hh"
-#include "IMB_imbuf.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
 #include "GPU_viewport.hh"
@@ -23,6 +22,8 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "RAS_IPolygonMaterial.h"
+
+using namespace blender;
 
 #ifdef WITH_FFMPEG
 extern PyTypeObject VideoFFmpegType;
@@ -70,7 +71,7 @@ Texture::~Texture()
   // close texture
   Close();
   // release scaled image buffer
-  IMB_freeImBuf(m_scaledImBuf);
+  blender::IMB_freeImBuf(m_scaledImBuf);
 }
 
 void Texture::DestructFromPython()
@@ -111,7 +112,7 @@ void Texture::Close()
     m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
   }
   if (m_imgBuf) {
-    IMB_freeImBuf(m_imgBuf);
+    blender::IMB_freeImBuf(m_imgBuf);
     m_imgBuf = nullptr;
   }
   if (m_modifiedGPUTexture) {
@@ -144,7 +145,7 @@ void Texture::loadTexture(unsigned int *texture,
     // For ImageRender, directly use the GPU texture from the active framebuffer
     KX_Camera *cam = imr->GetCamera();
     if (cam && m_imgTexture && m_imgTexture->runtime->gputexture[TEXTARGET_2D][0]) {
-      GPUViewport *viewport = cam->GetGPUViewport();
+      blender::GPUViewport *viewport = cam->GetGPUViewport();
       // Get the color texture from the viewport's framebuffer
       blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
       // Assign the GPU texture to the Blender image slot
@@ -216,7 +217,7 @@ RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID)
   return nullptr;
 }
 
-// get material ID
+// get material blender::ID
 short getMaterialID(PyObject *obj, const char *name)
 {
   // search for material
@@ -275,11 +276,11 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 
   // parameters - game object with video texture
   PyObject *obj = nullptr;
-  // material ID
+  // material blender::ID
   short matID = 0;
-  // texture ID
+  // texture blender::ID
   short texID = 0;
-  // texture object with shared texture ID
+  // texture object with shared texture blender::ID
   Texture *texObj = nullptr;
 
   static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", nullptr};
@@ -417,9 +418,9 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           }
           // scale texture if needed
           if (size[0] != orgSize[0] || size[1] != orgSize[1]) {
-            IMB_freeImBuf(m_scaledImBuf);
-            m_scaledImBuf = IMB_allocFromBuffer((uint8_t *)texture, nullptr, orgSize[0], orgSize[1], 4);
-            IMB_scale(m_scaledImBuf, size[0], size[1], IMBScaleFilter::Box, false);
+            blender::IMB_freeImBuf(m_scaledImBuf);
+            m_scaledImBuf = blender::IMB_allocFromBuffer((uint8_t *)texture, nullptr, orgSize[0], orgSize[1], 4);
+            blender::IMB_scale(m_scaledImBuf, size[0], size[1], IMBScaleFilter::Box, false);
             // use scaled image instead original
             texture = (unsigned int *)m_scaledImBuf->byte_buffer.data;
           }

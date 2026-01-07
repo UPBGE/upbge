@@ -32,6 +32,8 @@
 #include "RAS_2DFilter.h"
 #include "RAS_FrameBuffer.h"
 
+using namespace blender;
+
 extern "C" {
 extern char datatoc_RAS_Blur2DFilter_glsl[];
 extern char datatoc_RAS_Sharpen2DFilter_glsl[];

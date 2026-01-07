@@ -42,6 +42,8 @@
 #  include "RAS_MeshObject.h"
 #  include "RAS_Polygon.h"
 
+using namespace blender;
+
 RAS_Polygon *KX_PolyProxy::GetPolygon()
 {
   return m_polygon;

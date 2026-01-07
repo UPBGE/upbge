@@ -9,6 +9,8 @@
 
 #include "FilterSource.h"
 
+using namespace blender;
+
 // FilterRGB24
 
 // define python type

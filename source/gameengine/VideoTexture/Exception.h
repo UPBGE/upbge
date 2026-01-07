@@ -111,7 +111,7 @@ class ExpDesc {
   static std::vector<ExpDesc *> m_expDescs;
 
  private:
-  // exception ID
+  // exception blender::ID
   ExceptionID &m_expID;
   // result
   RESULT m_hRslt;

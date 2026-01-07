@@ -133,7 +133,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   bool is_running_gpu_animation_playback = false;
   if (ob->type == OB_MESH) {
     Object *ob_orig = DEG_get_original(ob);
-    Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+    Mesh *mesh_orig = id_cast<Mesh *>(ob_orig->data);
     is_running_gpu_animation_playback = (mesh_orig->is_running_gpu_animation_playback == 1);
   }
 
@@ -290,8 +290,8 @@ void BKE_object_eval_uber_transform(Depsgraph * /*depsgraph*/, Object * /*object
 void BKE_object_batch_cache_dirty_tag(Object *ob)
 {
   switch (ob->type) {
-    case OB_MESH:
-      Mesh *mesh = (Mesh *)ob->data;
+    case OB_MESH: {
+      Mesh *mesh = id_cast<Mesh *>(ob->data);
       if (!mesh->is_running_gpu_animation_playback) {
         BKE_mesh_batch_cache_dirty_tag(id_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
         break;

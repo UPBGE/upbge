@@ -25,6 +25,8 @@
 #include "EXP_FloatValue.h"
 #include "EXP_StringValue.h"
 
+using namespace blender;
+
 EXP_IntValue::EXP_IntValue()
 {
 }

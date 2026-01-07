@@ -52,8 +52,10 @@
 #include "SCA_XNORController.h"
 #include "SCA_XORController.h"
 
+using namespace blender;
+
 static void LinkControllerToActuators(SCA_IController *game_controller,
-                                      bController *bcontr,
+                                      blender::bController *bcontr,
                                       SCA_LogicManager *logicmgr,
                                       BL_SceneConverter *converter)
 {
@@ -61,7 +63,7 @@ static void LinkControllerToActuators(SCA_IController *game_controller,
   // controller and find the corresponding ketsji actuator.
 
   for (int i = 0; i < bcontr->totlinks; i++) {
-    bActuator *bact = (bActuator *)bcontr->links[i];
+    blender::bActuator *bact = (blender::bActuator *)bcontr->links[i];
     SCA_IActuator *game_actuator = converter->FindGameActuator(bact);
     if (game_actuator) {
       logicmgr->RegisterToActuator(game_controller, game_actuator);
@@ -69,7 +71,7 @@ static void LinkControllerToActuators(SCA_IController *game_controller,
   }
 }
 
-void BL_ConvertControllers(struct Object *blenderobject,
+void BL_ConvertControllers(blender::Object *blenderobject,
                            class KX_GameObject *gameobj,
                            SCA_LogicManager *logicmgr,
                            int activeLayerBitInfo,
@@ -80,12 +82,12 @@ void BL_ConvertControllers(struct Object *blenderobject,
   int uniqueint = 0;
   int count = 0;
   int executePriority = 0;
-  bController *bcontr = (bController *)blenderobject->controllers.first;
+  blender::bController *bcontr = (blender::bController *)blenderobject->controllers.first;
   while (bcontr) {
     bcontr = bcontr->next;
     count++;
   }
-  bcontr = (bController *)blenderobject->controllers.first;
+  bcontr = (blender::bController *)blenderobject->controllers.first;
   while (bcontr) {
     SCA_IController *gamecontroller = nullptr;
     switch (bcontr->type) {

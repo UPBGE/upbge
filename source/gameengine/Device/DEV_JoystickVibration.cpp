@@ -30,6 +30,8 @@
 #include "DEV_JoystickPrivate.h"
 #include "BLI_time.h"  // Module to get real time in Game Engine
 
+using namespace blender;
+
 bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned int duration)
 {
 #ifdef WITH_SDL
@@ -166,7 +168,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
       return false;
     }
   }
-  m_private->m_hapticEndTime = BLI_time_now_seconds() * 1000.0 + (double)duration;
+  m_private->m_hapticEndTime = blender::BLI_time_now_seconds() * 1000.0 + (double)duration;
   return true;
 #endif  // WITH_SDL
   return false;
@@ -214,7 +216,7 @@ void DEV_Joystick::ProcessRumbleStatus()
     return;
   }
 
-  if ((BLI_time_now_seconds() * 1000.0) >= m_private->m_hapticEndTime) {
+  if ((blender::BLI_time_now_seconds() * 1000.0) >= m_private->m_hapticEndTime) {
     RumbleStop();
   }
 #endif

@@ -18,6 +18,8 @@
 
 #include "EXP_EmptyValue.h"
 
+using namespace blender;
+
 EXP_EmptyValue::EXP_EmptyValue()
 {
 }

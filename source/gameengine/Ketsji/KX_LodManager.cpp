@@ -35,6 +35,8 @@
 #include "KX_LodLevel.h"
 #include "KX_Scene.h"
 
+using namespace blender;
+
 KX_LodManager::LodLevelIterator::LodLevelIterator(const std::vector<KX_LodLevel *> &levels,
                                                   unsigned short index,
                                                   KX_Scene *scene)
@@ -94,7 +96,7 @@ inline bool KX_LodManager::LodLevelIterator::operator>(float distance2) const
   return square_f(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) > distance2;
 }
 
-KX_LodManager::KX_LodManager(Object *ob,
+KX_LodManager::KX_LodManager(blender::Object *ob,
                              KX_Scene *scene,
                              RAS_Rasterizer *rasty,
                              BL_SceneConverter *converter,
@@ -103,8 +105,8 @@ KX_LodManager::KX_LodManager(Object *ob,
     : m_refcount(1), m_distanceFactor(ob->lodfactor)
 {
   if (BLI_listbase_count_at_most(&ob->lodlevels, 2) > 1) {
-    Mesh *lodmesh = (Mesh *)ob->data;
-    Object *lodmatob = ob;
+    blender::Mesh *lodmesh = (blender::Mesh *)ob->data;
+    blender::Object *lodmatob = ob;
     unsigned short level = 0;
 
     for (LodLevel *lod = (LodLevel *)ob->lodlevels.first; lod; lod = lod->next) {
@@ -117,7 +119,7 @@ KX_LodManager::KX_LodManager(Object *ob,
       }
 
       if (lod->flags & OB_LOD_USE_MESH) {
-        lodmesh = (Mesh *)lod->source->data;
+        lodmesh = (blender::Mesh *)lod->source->data;
         flag |= KX_LodLevel::USE_MESH;
       }
 
@@ -139,7 +141,7 @@ KX_LodManager::KX_LodManager(Object *ob,
   }
 }
 
-KX_LodManager::KX_LodManager(RAS_MeshObject *meshObj, Object *lodsource)
+KX_LodManager::KX_LodManager(RAS_MeshObject *meshObj, blender::Object *lodsource)
     : m_refcount(1), m_distanceFactor(1.0f)
 {
   KX_LodLevel *lodLevel = new KX_LodLevel(

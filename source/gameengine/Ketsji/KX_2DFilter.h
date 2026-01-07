@@ -29,6 +29,10 @@
 #include "BL_Shader.h"
 #include "RAS_2DFilter.h"
 
+#ifdef WITH_PYTHON
+#  include "../python/gpu/gpu_py_texture.hh"
+#endif
+
 #ifdef _MSC_VER
 /* KX_2DFilter uses a diamond inheritance from a virtual pure base class. Only one branch of the
  * diamond define these virtual pure functions and come in the final class with dominance. This
@@ -44,7 +48,7 @@ class KX_2DFilter : public RAS_2DFilter, public BL_Shader {
   virtual bool LinkProgram();
 
 #ifdef WITH_PYTHON
-  bool SetTextureUniform(struct BPyGPUTexture *py_texture, const char *samplerName);
+  bool SetTextureUniform(blender::BPyGPUTexture *py_texture, const char *samplerName);
 
   static PyObject *pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_mipmap(EXP_PyObjectPlus *self_v,

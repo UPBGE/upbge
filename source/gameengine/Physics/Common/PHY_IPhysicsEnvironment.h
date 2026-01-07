@@ -37,6 +37,8 @@
 #include "MT_Vector4.h"
 #include "PHY_DynamicTypes.h"
 
+#include "DNA_constraint_types.h"
+
 #include <array>
 
 class PHY_IConstraint;
@@ -51,7 +53,6 @@ class KX_Scene;
 class BL_SceneConverter;
 
 class PHY_IMotionState;
-struct bRigidBodyJointConstraint;
 
 /**
  * pass back information from rayTest
@@ -284,7 +285,7 @@ class PHY_IPhysicsEnvironment {
    * instances. */
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
                                       KX_GameObject *obj_dest,
-                                      bRigidBodyJointConstraint *dat,
+                                      blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli)
   {
   }

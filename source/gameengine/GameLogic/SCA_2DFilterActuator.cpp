@@ -32,6 +32,8 @@
 #include "RAS_2DFilter.h"
 #include "RAS_2DFilterManager.h"
 
+using namespace blender;
+
 SCA_2DFilterActuator::SCA_2DFilterActuator(SCA_IObject *gameobj,
                                            int type,
                                            short flag,

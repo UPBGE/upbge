@@ -38,6 +38,8 @@
 #include "CM_Format.h"
 #include "EXP_FloatValue.h"
 
+using namespace blender;
+
 
 SCA_PropertySensor::SCA_PropertySensor(SCA_EventManager *eventmgr,
                                        SCA_IObject *gameobj,

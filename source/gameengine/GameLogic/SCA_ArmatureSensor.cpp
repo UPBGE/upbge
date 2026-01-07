@@ -36,6 +36,8 @@
 
 #include "BL_ArmatureObject.h"
 
+using namespace blender;
+
 SCA_ArmatureSensor::SCA_ArmatureSensor(class SCA_EventManager *eventmgr,
                                        SCA_IObject *gameobj,
                                        const std::string &posechannel,
@@ -66,18 +68,20 @@ void SCA_ArmatureSensor::FindConstraint()
   if (m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     BL_ArmatureObject *armobj = (BL_ArmatureObject *)m_gameobj;
     // get the persistent pose structure
-    bPose *pose = armobj->GetPose();
-    bPoseChannel *pchan;
-    bConstraint *pcon;
+    blender::bPose *pose = armobj->GetPose();
+    blender::bPoseChannel *pchan;
+    blender::bConstraint *pcon;
     // and locate the constraint
-    for (pchan = (bPoseChannel *)pose->chanbase.first; pchan;
-         pchan = (bPoseChannel *)pchan->next) {
+    for (pchan = (blender::bPoseChannel *)pose->chanbase.first; pchan;
+         pchan = (blender::bPoseChannel *)pchan->next)
+    {
       if (pchan->name == m_posechannel) {
         // now locate the constraint
-        for (pcon = (bConstraint *)pchan->constraints.first; pcon;
-             pcon = (bConstraint *)pcon->next) {
+        for (pcon = (blender::bConstraint *)pchan->constraints.first; pcon;
+             pcon = (blender::bConstraint *)pcon->next)
+        {
           if (pcon->name == m_constraintname) {
-            if (pcon->flag & CONSTRAINT_DISABLE)
+            if (pcon->flag & blender::CONSTRAINT_DISABLE)
               /* this constraint is not valid, can't use it */
               break;
             m_constraint = pcon;
@@ -123,7 +127,7 @@ bool SCA_ArmatureSensor::Evaluate()
     return false;
   switch (m_type) {
     case SENS_ARM_STATE_CHANGED:
-      m_result = !(m_constraint->flag & CONSTRAINT_OFF);
+      m_result = !(m_constraint->flag & blender::CONSTRAINT_OFF);
       break;
     case SENS_ARM_LIN_ERROR_BELOW:
       m_result = (m_constraint->lin_error < m_value);

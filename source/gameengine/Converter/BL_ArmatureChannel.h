@@ -36,7 +36,6 @@
 #include "EXP_Value.h"
 
 class BL_ArmatureObject;
-struct bPoseChannel;
 
 class BL_ArmatureChannel : public EXP_Value {
   // use Py_HeaderPtr since we use generic pointer in proxy
@@ -44,11 +43,11 @@ class BL_ArmatureChannel : public EXP_Value {
 
  private:
   friend class BL_ArmatureObject;
-  struct bPoseChannel *m_posechannel;
+  blender::bPoseChannel *m_posechannel;
   BL_ArmatureObject *m_armature;
 
  public:
-  BL_ArmatureChannel(class BL_ArmatureObject *armature, struct bPoseChannel *posechannel);
+  BL_ArmatureChannel(class BL_ArmatureObject *armature, blender::bPoseChannel *posechannel);
   virtual ~BL_ArmatureChannel();
 
   virtual std::string GetName()

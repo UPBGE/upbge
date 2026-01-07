@@ -21,6 +21,9 @@
  */
 #include "RAS_2DFilterData.h"
 
+namespace blender {}
+using namespace blender;
+
 RAS_2DFilterData::RAS_2DFilterData()
     : gameObject(nullptr), mipmap(false), filterMode(-1), filterPassIndex(-1)
 {

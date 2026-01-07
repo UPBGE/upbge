@@ -17,6 +17,8 @@
 
 #include "EXP_Operator2Expr.h"
 
+using namespace blender;
+
 EXP_Operator2Expr::EXP_Operator2Expr(VALUE_OPERATOR op, EXP_Expression *lhs, EXP_Expression *rhs)
     : m_rhs(rhs), m_lhs(lhs), m_op(op)
 {

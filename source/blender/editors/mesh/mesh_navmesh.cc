@@ -66,6 +66,7 @@
 
 #include "mesh_intern.hh" /* own include */
 
+namespace blender {
 using namespace blender::ed::object;
 
 static void createVertsTrisData(
@@ -713,3 +714,5 @@ void MESH_OT_navmesh_clear(struct wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+}  // namespace blender

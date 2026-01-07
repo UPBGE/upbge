@@ -44,6 +44,8 @@
 
 #include "WM_types.hh"
 
+namespace blender {
+
 /* Always keep in alphabetical order */
 static const EnumPropertyItem sensor_type_items[] = {
     {SENS_ACTUATOR, "ACTUATOR", 0, "Actuator", ""},
@@ -63,10 +65,14 @@ static const EnumPropertyItem sensor_type_items[] = {
     {SENS_RAY, "RAY", 0, "Ray", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include "BKE_sca.hh"
 #  include "DNA_controller_types.h"
+
+namespace blender {
 
 static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)
 {
@@ -267,10 +273,15 @@ static void rna_Sensor_Armature_update(Main */*bmain*/, Scene */*scene*/, Pointe
     }
   }
   /* didn't find any */
-  posechannel[0] = 0;
-  constraint[0] = 0;
-}
+    posechannel[0] = 0;
+    constraint[0] = 0;
+  }
+
+}  // namespace blender
+
 #else
+  
+namespace blender {
 
 static void rna_def_sensor(BlenderRNA *brna)
 {
@@ -1073,5 +1084,7 @@ void RNA_def_sensor(BlenderRNA *brna)
   rna_def_message_sensor(brna);
   rna_def_joystick_sensor(brna);
 }
+
+}  // namespace blender
 
 #endif

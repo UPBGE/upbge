@@ -34,6 +34,8 @@
 
 #include "SCA_ActuatorSensor.h"
 
+using namespace blender;
+
 SCA_ActuatorSensor::SCA_ActuatorSensor(SCA_EventManager *eventmgr,
                                        SCA_IObject *gameobj,
                                        const std::string &actname)

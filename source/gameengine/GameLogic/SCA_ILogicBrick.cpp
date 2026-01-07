@@ -31,6 +31,8 @@
 
 #include "SCA_ILogicBrick.h"
 
+using namespace blender;
+
 SCA_ILogicBrick::SCA_ILogicBrick(SCA_IObject *gameobj)
     : EXP_Value(),
       m_gameobj(gameobj),

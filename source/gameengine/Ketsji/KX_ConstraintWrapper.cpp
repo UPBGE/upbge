@@ -33,6 +33,8 @@
 
 #include "PHY_IConstraint.h"
 
+using namespace blender;
+
 KX_ConstraintWrapper::KX_ConstraintWrapper(PHY_IConstraint *constraint,
                                            PHY_ConstraintType ctype,
                                            int user_id)

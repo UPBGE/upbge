@@ -145,7 +145,7 @@ class RAS_IVertex {
 
   inline void SetXYZ(const float xyz[3])
   {
-    copy_v3_v3(m_localxyz, xyz);
+    blender::copy_v3_v3(m_localxyz, xyz);
   }
 
   inline void SetNormal(const MT_Vector3 &normal)
@@ -166,7 +166,7 @@ class RAS_IVertex {
     BLI_assert(getColorSize() == other->getColorSize());
     static const float eps = FLT_EPSILON;
     for (int i = 0, size = getUvSize(); i < size; ++i) {
-      if (!compare_v2v2(getUV(i), other->getUV(i), eps)) {
+      if (!blender::compare_v2v2(getUV(i), other->getUV(i), eps)) {
         return false;
       }
     }
@@ -180,8 +180,8 @@ class RAS_IVertex {
     return (/* m_flag == other->m_flag && */
             /* at the moment the face only stores the smooth/flat setting so don't bother comparing
                it */
-            compare_v3v3(m_normal, other->m_normal, eps) &&
-            compare_v3v3(m_tangent, other->m_tangent, eps)
+            blender::compare_v3v3(m_normal, other->m_normal, eps) &&
+            blender::compare_v3v3(m_tangent, other->m_tangent, eps)
             /* don't bother comparing m_localxyz since we know there from the same vert */
             /* && compare_v3v3(m_localxyz, other->m_localxyz, eps))*/
     );

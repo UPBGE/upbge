@@ -49,13 +49,11 @@
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
 
-#include "../blenkernel/intern/mesh_gpu_cache.hh"
-
 #include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
-using namespace blender::draw;
+namespace blender::draw {
 
 /* -------------------------------------------------------------------- */
 /** \name Colorspace Management Helpers
@@ -85,7 +83,7 @@ static bool displace_needs_manual_colorspace(Image *ima)
  * For displacement, we want raw byte values (matching CPU behavior).
  * The CPU reads bytes directly without sRGB→linear conversion, so GPU must do the same.
  */
-static void displace_upload_ibuf_to_texture(blender::gpu::Texture *tex,
+static void displace_upload_ibuf_to_texture(gpu::Texture *tex,
                                             ImBuf *ibuf,
                                             const char * /*colorspace_name*/)
 {
@@ -201,26 +199,26 @@ static uint32_t colorband_hash_from_coba(const ColorBand *coba)
 /** \name Internal Implementation Data
  * \{ */
 
-struct blender::draw::DisplaceManager::Impl {
-  /* Composite key: (Mesh*, modifier UID) to support multiple Displace modifiers per mesh */
-  struct MeshModifierKey {
-    Mesh *mesh;
-    uint32_t modifier_uid;
+struct draw::DisplaceManager::Impl {
+/* Composite key: (Mesh*, modifier UID) to support multiple Displace modifiers per mesh */
+struct MeshModifierKey {
+  Mesh *mesh;
+  uint32_t modifier_uid;
 
-    uint64_t hash() const
-    {
-      return (uint64_t(reinterpret_cast<uintptr_t>(mesh)) << 32) | uint64_t(modifier_uid);
-    }
+  uint64_t hash() const
+  {
+    return (uint64_t(reinterpret_cast<uintptr_t>(mesh)) << 32) | uint64_t(modifier_uid);
+  }
 
-    bool operator==(const MeshModifierKey &other) const
-    {
-      return mesh == other.mesh && modifier_uid == other.modifier_uid;
-    }
-  };
+  bool operator==(const MeshModifierKey &other) const
+  {
+    return mesh == other.mesh && modifier_uid == other.modifier_uid;
+  }
+};
 
   struct MeshStaticData {
     std::vector<float> vgroup_weights;       /* per-vertex weight (0.0-1.0) */
-    std::vector<blender::float3> tex_coords; /* per-vertex texture coordinates */
+    std::vector<float3> tex_coords; /* per-vertex texture coordinates */
     int verts_num = 0;
 
     Object *deformed = nullptr;
@@ -339,11 +337,11 @@ static std::string get_displace_shader_part1()
 
 static std::string get_vertex_normals()
 {
-  using namespace blender::gpu;
+  using namespace gpu;
   /* Define position buffer macro before including libs */
   return "#define POSITION_BUFFER input_positions\n" + 
-         get_common_texture_lib_glsl() +  /* ColorBand + boxsample + do_2d_mapping() */
-         get_common_normal_lib_glsl();     /* Normal calculation functions */
+         blender::gpu::get_common_texture_lib_glsl() +  /* ColorBand + boxsample + do_2d_mapping() */
+         blender::gpu::get_common_normal_lib_glsl();   /* Normal calculation functions */
 }
 
 /* Part 2: Main function body (texture sampling + displacement logic)
@@ -870,7 +868,7 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
   }
 
   /* Hash deform_verts pointer (detects vertex group changes) */
-  blender::Span<MDeformVert> dverts = mesh_orig->deform_verts();
+  Span<MDeformVert> dverts = mesh_orig->deform_verts();
   hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dverts.data())));
 
   /* Note: strength and midlevel are runtime uniforms, not hashed */
@@ -907,7 +905,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
   if (dmd->defgrp_name[0] != '\0') {
     const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, dmd->defgrp_name);
     if (defgrp_index != -1) {
-      blender::Span<MDeformVert> dverts = orig_mesh->deform_verts();
+      Span<MDeformVert> dverts = orig_mesh->deform_verts();
 
       /* Check if dverts is empty to prevent crash
        * When ALL vertex groups are deleted, dverts.data() == nullptr.
@@ -944,24 +942,22 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
     /* Copy to msd.tex_coords vector */
     msd.tex_coords.resize(verts_num);
     for (int v = 0; v < verts_num; ++v) {
-      msd.tex_coords[v] = blender::float3(tex_co[v]);
+      msd.tex_coords[v] = float3(tex_co[v]);
     }
 
     MEM_freeN(tex_co);
   }
 }
 
-blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dmd,
+gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dmd,
                                                            Depsgraph *depsgraph,
                                                            Object *deformed_eval,
                                                            MeshBatchCache *cache,
-                                                           blender::gpu::StorageBuf *ssbo_in)
+                                                           gpu::StorageBuf *ssbo_in)
 {
   if (!dmd || !ssbo_in) {
     return nullptr;
   }
-
-  using namespace blender::draw;
 
   Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
   if (!mesh_owner) {
@@ -982,12 +978,12 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   const std::string key_out = key_prefix + "output";
 
   /* Upload vertex group weights SSBO */
-  blender::gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
+  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
 
   if (!msd.vgroup_weights.empty()) {
     if (!ssbo_vgroup) {
       const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
         GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
@@ -997,7 +993,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   else {
     /* No vertex group: create dummy buffer (length=0 triggers default weight=1.0 in shader) */
     if (!ssbo_vgroup) {
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_vgroup, sizeof(float));
       if (ssbo_vgroup) {
         float dummy = 1.0f;
@@ -1008,8 +1004,8 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
   /* Upload texture coordinates SSBO and prepare texture binding */
   const std::string key_texcoords = key_prefix + "tex_coords";
-  blender::gpu::StorageBuf *ssbo_texcoords = nullptr;
-  blender::gpu::Texture *gpu_texture = nullptr;
+  gpu::StorageBuf *ssbo_texcoords = nullptr;
+  gpu::Texture *gpu_texture = nullptr;
   bool has_texture = false;
 
   if (dmd->texture && dmd->texture->type == TEX_IMAGE && dmd->texture->ima) {
@@ -1066,7 +1062,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
                                        std::to_string(iuser.framenr);
 
         /* Check if texture already exists in cache (optimization for static images) */
-        gpu_texture = BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
+        gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
 
         /* Only re-upload if texture doesn't exist OR if image source is animated */
         const bool is_animated = ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
@@ -1076,13 +1072,13 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
           if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
             /* Use UNORM_8_8_8_8 for bytes (no sRGB auto-decode), RGBA16F for floats */
-            blender::gpu::TextureFormat format;
+            gpu::TextureFormat format;
             if (ibuf->float_buffer.data) {
-              format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
+              format = gpu::TextureFormat::SFLOAT_16_16_16_16;
             }
             else {
               /* CRITICAL: UNORM_8_8_8_8 = no sRGB decode, bytes stay raw */
-              format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
+              format = gpu::TextureFormat::UNORM_8_8_8_8;
             }
 
             gpu_texture = GPU_texture_create_2d("displace_tex_raw",
@@ -1098,7 +1094,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
               displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
 
               /* Cache texture for reuse (static images will persist across frames) */
-              BKE_mesh_gpu_internal_texture_ensure(
+              bke::BKE_mesh_gpu_internal_texture_ensure(
                   mesh_owner, deformed_eval, key_texture, gpu_texture);
 
               /* Cache metadata to avoid repeated ImBuf acquisition
@@ -1124,17 +1120,17 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
         has_texture = true;
 
         /* Upload texture coordinates SSBO */
-        ssbo_texcoords = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);
+        ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);
 
         if (!ssbo_texcoords) {
-          const size_t size_texcoords = msd.tex_coords.size() * sizeof(blender::float4);
-          ssbo_texcoords = BKE_mesh_gpu_internal_ssbo_ensure(
+          const size_t size_texcoords = msd.tex_coords.size() * sizeof(float4);
+          ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_ensure(
               mesh_owner, deformed_eval, key_texcoords, size_texcoords);
           if (ssbo_texcoords) {
             /* Pad float3 to float4 for GPU alignment */
-            std::vector<blender::float4> padded_texcoords(msd.tex_coords.size());
+            std::vector<float4> padded_texcoords(msd.tex_coords.size());
             for (size_t i = 0; i < msd.tex_coords.size(); ++i) {
-              padded_texcoords[i] = blender::float4(
+              padded_texcoords[i] = float4(
                   msd.tex_coords[i].x, msd.tex_coords[i].y, msd.tex_coords[i].z, 1.0f);
             }
             GPU_storagebuf_update(ssbo_texcoords, padded_texcoords.data());
@@ -1147,7 +1143,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   /* Upload ColorBand UBO if texture has colorband enabled (TEX_COLORBAND flag)
    * GPU port of: if (tex->flag & TEX_COLORBAND) { ... } */
   const std::string key_colorband = key_prefix + "colorband";
-  blender::gpu::UniformBuf *ubo_colorband = nullptr;
+  gpu::UniformBuf *ubo_colorband = nullptr;
   bool use_colorband = false;
 
   /* ColorBand UBO layout (std140, vec4-aligned):
@@ -1176,7 +1172,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   const size_t size_colorband = sizeof(GPUColorBand);
 
   /* Check if UBO already exists in cache */
-  ubo_colorband = BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
+  ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
 
   if (!ubo_colorband) {
     /* Create and upload ColorBand data */
@@ -1201,7 +1197,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
         gpu_coba.data[i].pos_cur_pad[1] = float(coba->data[i].cur);
       }
 
-      ubo_colorband = BKE_mesh_gpu_internal_ubo_ensure(
+      ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(
           mesh_owner, deformed_eval, key_colorband, size_colorband);
       if (ubo_colorband) {
         GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
@@ -1212,7 +1208,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
       GPUColorBand dummy_coba = {};
       dummy_coba.tot_cur_ipotype_hue[0] = 0; /* 0 stops = disabled */
 
-      ubo_colorband = BKE_mesh_gpu_internal_ubo_ensure(
+      ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(
           mesh_owner, deformed_eval, key_colorband, size_colorband);
       if (ubo_colorband) {
         GPU_uniformbuf_update(ubo_colorband, &dummy_coba);
@@ -1226,7 +1222,7 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
 
   /* Create output SSBO */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
-  blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
+  gpu::StorageBuf *ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, deformed_eval, key_out, size_out);
   if (!ssbo_out) {
     return nullptr;
@@ -1243,12 +1239,12 @@ blender::gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifie
   }
 
   /* Create shader */
-  blender::bke::MeshGpuData *mesh_gpu_data = BKE_mesh_gpu_ensure_data(mesh_owner,
-                                                                      (Mesh *)deformed_eval->data);
+  Mesh *deformed_mesh = id_cast<Mesh *>(deformed_eval->data);
+  bke::MeshGpuData *mesh_gpu_data = bke::BKE_mesh_gpu_ensure_data(mesh_owner, deformed_mesh);
   const std::string shader_key = "displace_compute_v2";
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
   if (!shader) {
-    using namespace blender::gpu::shader;
+    using namespace gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
     info.local_group_size(256, 1, 1);
 
@@ -1343,7 +1339,7 @@ struct ColorBand {
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 
-    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
+    shader = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
   if (!shader) {
     return nullptr;
@@ -1377,7 +1373,7 @@ struct ColorBand {
   }
 
   /* Bind and dispatch */
-  const blender::gpu::shader::SpecializationConstants *constants =
+  const gpu::shader::SpecializationConstants *constants =
       &GPU_shader_get_default_constant_state(shader);
   GPU_shader_bind(shader, constants);
 
@@ -1562,7 +1558,7 @@ void DisplaceManager::invalidate_all(Mesh *mesh)
     return;
   }
   /* Free all GPU resources (SSBOs + shaders) for this mesh */
-  BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
+  bke::BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
 }
 
 void DisplaceManager::free_all()
@@ -1571,3 +1567,5 @@ void DisplaceManager::free_all()
 }
 
 /** \} */
+
+}  // namespace blender::draw

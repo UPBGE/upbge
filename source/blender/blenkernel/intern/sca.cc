@@ -51,6 +51,8 @@
 #include "BKE_main.hh"
 #include "BKE_sca.hh"
 
+namespace blender {
+
 /* ******************* SENSORS ************************ */
 
 void BKE_sca_free_sensor(bSensor *sens)
@@ -1252,3 +1254,5 @@ const char *BKE_sca_get_name_state(Object *ob, short bit)
   }
   return "";
 }
+
+} // namespace blender

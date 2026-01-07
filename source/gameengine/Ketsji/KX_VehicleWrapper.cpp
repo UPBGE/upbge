@@ -30,6 +30,8 @@
 #include "KX_PyMath.h"
 #include "PHY_IVehicle.h"
 
+using namespace blender;
+
 KX_VehicleWrapper::KX_VehicleWrapper(PHY_IVehicle *vehicle) : m_vehicle(vehicle)
 {
 }

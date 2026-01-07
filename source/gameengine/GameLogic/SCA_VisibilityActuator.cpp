@@ -34,6 +34,8 @@
 
 #include "KX_GameObject.h"
 
+using namespace blender;
+
 SCA_VisibilityActuator::SCA_VisibilityActuator(SCA_IObject *gameobj,
                                                bool visible,
                                                bool occlusion,

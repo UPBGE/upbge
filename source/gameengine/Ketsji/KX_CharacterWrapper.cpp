@@ -29,6 +29,8 @@
 
 #include "BLI_math_base.h"
 
+using namespace blender;
+
 KX_CharacterWrapper::KX_CharacterWrapper(PHY_ICharacter *character) : m_character(character)
 {
 }

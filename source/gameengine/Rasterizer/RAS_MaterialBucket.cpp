@@ -40,6 +40,8 @@
 
 #ifdef WIN32
 #  include <windows.h>
+
+using namespace blender;
 #endif  // WIN32
 
 RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat) : m_material(mat), m_shader(nullptr)

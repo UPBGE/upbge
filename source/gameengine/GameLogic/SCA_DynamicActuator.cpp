@@ -38,6 +38,8 @@
 
 #include "PHY_IPhysicsController.h"
 
+using namespace blender;
+
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */

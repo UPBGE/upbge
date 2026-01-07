@@ -54,14 +54,13 @@ extern void SYS_WriteCommandLineString(SYS_SystemHandle sys,
                                        const char *value);
 
 /* Start game engine */
+namespace blender { struct bContext; }
+namespace blender { struct ARegion; }
+namespace blender { struct rcti; }
 
-struct bContext;
-struct ARegion;
-struct rcti;
-
-extern void StartKetsjiShell(struct bContext *C,
-                             struct ARegion *ar,
-                             struct rcti *cam_frame,
+extern void StartKetsjiShell(blender::bContext *C,
+                             blender::ARegion *ar,
+                             blender::rcti *cam_frame,
                              int always_use_expand_framing);
 
 #ifdef __cplusplus

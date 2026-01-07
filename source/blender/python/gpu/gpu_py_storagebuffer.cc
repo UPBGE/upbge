@@ -24,6 +24,8 @@
 #include "gpu_py.hh"
 #include "gpu_py_storagebuffer.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name blender::gpu::StorageBuf Common Utilities
  * \{ */
@@ -239,7 +241,7 @@ static void BPyGPUStorageBuf__tp_dealloc(BPyGPUStorageBuf *self)
       GPU_storagebuf_free(self->ssbo);
     }
     else {
-      /* Contexte GPU dÈj‡ dÈtruit : Èviter d'appeler l'API GPU qui accÈderait ‡ des
+      /* Contexte GPU d√©j√† d√©truit : √©viter d'appeler l'API GPU qui acc√©derait √† des
        * ressources backend invalides. Log minimal pour debug. */
       printf("PyGPUStorageBuf freed after the GPU context has been destroyed.\n");
     }
@@ -340,3 +342,5 @@ PyObject *BPyGPUStorageBuf_CreatePyObject(blender::gpu::StorageBuf *ssbo)
 /** \} */
 
 #undef BPYGPU_STORAGEBUF_CHECK_OBJ
+
+}  // namespace blender

@@ -41,6 +41,8 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -450,7 +452,7 @@ PyAttributeDef SCA_ObjectActuator::Attributes[] = {
 
 static unsigned char mathutils_kxobactu_vector_cb_index = -1; /* index for our callbacks */
 
-static int mathutils_obactu_generic_check(BaseMathObject *bmo)
+static int mathutils_obactu_generic_check(blender::BaseMathObject *bmo)
 {
   SCA_ObjectActuator *self = static_cast<SCA_ObjectActuator *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -459,7 +461,7 @@ static int mathutils_obactu_generic_check(BaseMathObject *bmo)
   return 0;
 }
 
-static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
+static int mathutils_obactu_vector_get(blender::BaseMathObject *bmo, int subtype)
 {
   SCA_ObjectActuator *self = static_cast<SCA_ObjectActuator *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -477,7 +479,7 @@ static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int mathutils_obactu_vector_set(BaseMathObject *bmo, int subtype)
+static int mathutils_obactu_vector_set(blender::BaseMathObject *bmo, int subtype)
 {
   SCA_ObjectActuator *self = static_cast<SCA_ObjectActuator *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -495,7 +497,7 @@ static int mathutils_obactu_vector_set(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int mathutils_obactu_vector_get_index(BaseMathObject *bmo, int subtype, int index)
+static int mathutils_obactu_vector_get_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   /* lazy, avoid repeteing the case statement */
   if (mathutils_obactu_vector_get(bmo, subtype) == -1)
@@ -503,7 +505,7 @@ static int mathutils_obactu_vector_get_index(BaseMathObject *bmo, int subtype, i
   return 0;
 }
 
-static int mathutils_obactu_vector_set_index(BaseMathObject *bmo, int subtype, int index)
+static int mathutils_obactu_vector_set_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   float f = bmo->data[index];
 

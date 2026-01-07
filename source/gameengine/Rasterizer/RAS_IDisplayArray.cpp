@@ -26,6 +26,8 @@
 
 #include "RAS_DisplayArray.h"
 
+using namespace blender;
+
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat &format)
     : m_type(type), m_modifiedFlag(NONE_MODIFIED), m_format(format)
 {

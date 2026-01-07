@@ -36,6 +36,8 @@
 #  include "EXP_Python.h"
 #  include "py_capi_utils.hh"  // for PyC_FileAndNum only
 
+using namespace blender;
+
 #endif  // WITH_PYTHON
 
 std::ostream &_CM_PrefixWarning(std::ostream &stream)
@@ -63,12 +65,12 @@ std::ostream &_CM_PythonPrefix(std::ostream &stream)
   int line;
   const char *path;
   char file[FILE_MAX];
-  PyC_FileAndNum(&path, &line);
+  blender::PyC_FileAndNum(&path, &line);
   if (!path) {
     return stream;
   }
 
-  BLI_path_split_file_part(path, file, sizeof(file));
+  blender::BLI_path_split_file_part(path, file, sizeof(file));
 
   stream << termcolor::bold << file << termcolor::reset << "(" << termcolor::bold << line
          << termcolor::reset << "), ";

@@ -37,6 +37,8 @@
 
 #ifdef WIN32
 #  include <windows.h>
+
+using namespace blender;
 #endif  // WIN32
 
 RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket,

@@ -31,8 +31,10 @@
 
 #pragma once
 
+#include "makesdna/DNA_object_types.h"
+
 void BL_ConvertActuators(const char *maggiename,
-                         struct Object *blenderobject,
+                         blender::Object *blenderobject,
                          class KX_GameObject *gameobj,
                          class SCA_LogicManager *logicmgr,
                          class KX_Scene *scene,

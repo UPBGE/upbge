@@ -46,7 +46,7 @@ class RAS_MaterialBucket {
   RAS_MaterialBucket(RAS_IPolyMaterial *mat);
   virtual ~RAS_MaterialBucket();
 
-  // Material Properties
+  // blender::Material Properties
   RAS_IPolyMaterial *GetPolyMaterial() const;
   RAS_MaterialShader *GetShader() const;
   bool IsAlpha() const;

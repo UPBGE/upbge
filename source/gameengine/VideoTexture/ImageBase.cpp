@@ -11,6 +11,8 @@
 
 #include "Exception.h"
 
+using namespace blender;
+
 #if (defined(WIN32) || defined(WIN64))
 #  define strcasecmp _stricmp
 #endif
@@ -21,7 +23,7 @@ ExceptionID ImageHasExports;
 ExceptionID InvalidColorChannel;
 ExceptionID InvalidImageMode;
 
-ExpDesc ImageHasExportsDesc(ImageHasExports, "Image has exported buffers, cannot resize");
+ExpDesc ImageHasExportsDesc(ImageHasExports, "blender::Image has exported buffers, cannot resize");
 ExpDesc InvalidColorChannelDesc(
     InvalidColorChannel,
     "Invalid or too many color channels specified. At most 4 values within R, G, B, A, 0, 1");
@@ -359,7 +361,7 @@ void Image_dealloc(PyImage *self)
   // release object attributes
   if (self->m_image != nullptr) {
     if (self->m_image->m_exports > 0) {
-      PyErr_SetString(PyExc_SystemError, "deallocated Image object has exported buffers");
+      PyErr_SetString(PyExc_SystemError, "deallocated blender::Image object has exported buffers");
       PyErr_Print();
     }
     // if release requires deleting of object, do it
@@ -722,7 +724,7 @@ static int Image_getbuffer(PyImage *self, Py_buffer *view, int flags)
   }
 
   if (!image) {
-    PyErr_SetString(PyExc_BufferError, "Image buffer is not available");
+    PyErr_SetString(PyExc_BufferError, "blender::Image buffer is not available");
     return -1;
   }
   if (view == nullptr) {

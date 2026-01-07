@@ -44,8 +44,10 @@
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 
+using namespace blender;
+
 KX_BlenderCanvas::KX_BlenderCanvas(
-    RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, struct ARegion *ar, bool useViewportRender)
+    RAS_Rasterizer *rasty, blender::wmWindowManager *wm, blender::wmWindow *win, blender::rcti *viewport, blender::ARegion *ar, bool useViewportRender)
     : RAS_ICanvas(rasty), m_wm(wm), m_win(win), m_ar(ar), m_useViewportRender(useViewportRender)
 {
   m_frame = 1;
@@ -208,8 +210,8 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
   int height = m_viewportArea.GetHeight();
 
   /* initialize image file format data */
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Scene *scene = CTX_data_scene(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Scene *scene = CTX_data_scene(C);
   ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
                                                               "im_format");
 

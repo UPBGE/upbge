@@ -16,18 +16,21 @@
 
 #include "draw_cache_extract.hh"
 
+#include "GPU_storage_buffer.hh"
+
 /* Forward declarations */
+namespace blender {
 struct Depsgraph;
 struct Mesh;
 struct Object;
 struct SimpleDeformModifierData;
-
-namespace blender::gpu {
-class StorageBuf;
-}
+}  // namespace blender
 
 namespace blender::draw {
 
+
+/* Forward declaration for MeshBatchCache */
+struct MeshBatchCache;
 /**
  * Simple Deform GPU Manager (Singleton)
  * Handles GPU compute for Simple Deform modifier (Twist/Bend/Taper/Stretch)
@@ -46,7 +49,7 @@ class SimpleDeformManager {
    * @return Hash value, or 0 if inputs are invalid
    */
   static uint32_t compute_simpledeform_hash(const Mesh *mesh_orig,
-                                           const SimpleDeformModifierData *smd);
+                                            const blender::SimpleDeformModifierData *smd);
 
   /**
    * Prepare CPU-side static resources (vertex group weights).
@@ -57,7 +60,7 @@ class SimpleDeformManager {
    * @param orig_mesh The original mesh data
    * @param pipeline_hash Hash for change detection
    */
-  void ensure_static_resources(const SimpleDeformModifierData *smd,
+  void ensure_static_resources(const blender::SimpleDeformModifierData *smd,
                                Object *deform_ob,
                                Mesh *orig_mesh,
                                uint32_t pipeline_hash);
@@ -73,11 +76,11 @@ class SimpleDeformManager {
    * @param ssbo_in Input positions SSBO (from previous stage)
    * @return Output SSBO with deformed positions, or nullptr on failure
    */
-  blender::gpu::StorageBuf *dispatch_deform(const SimpleDeformModifierData *smd,
-                                            Depsgraph *depsgraph,
-                                            Object *deformed_eval,
-                                            MeshBatchCache *cache,
-                                            blender::gpu::StorageBuf *ssbo_in);
+  gpu::StorageBuf *dispatch_deform(const blender::SimpleDeformModifierData *smd,
+                                   Depsgraph *depsgraph,
+                                   Object *deformed_eval,
+                                   MeshBatchCache *cache,
+                                   gpu::StorageBuf *ssbo_in);
 
   /**
    * Free CPU-side static data for a specific mesh.

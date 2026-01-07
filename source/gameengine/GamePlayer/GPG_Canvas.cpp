@@ -44,7 +44,9 @@
 
 #include "KX_Globals.h"
 
-GPG_Canvas::GPG_Canvas(bContext *C, RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useViewportRender)
+using namespace blender;
+
+GPG_Canvas::GPG_Canvas(blender::bContext *C, RAS_Rasterizer *rasty, GHOST_IWindow *window, bool useViewportRender)
     : RAS_ICanvas(rasty), m_context(C), m_window(window), m_width(0), m_height(0), m_useViewportRender(useViewportRender), m_nativePixelSize(1)
 {
   if (m_window) {
@@ -73,7 +75,7 @@ void GPG_Canvas::BeginDraw()
 {
   if (!m_useViewportRender) {
     m_window->swapBufferAcquire();
-    wmWindow *win = CTX_wm_window(m_context);
+    blender::wmWindow *win = CTX_wm_window(m_context);
     GPU_context_main_lock();
     GPU_render_begin();
     GPU_render_step(true);
@@ -94,7 +96,7 @@ void GPG_Canvas::Resize(int width, int height)
     m_viewportArea = RAS_Rect(width * m_nativePixelSize, height * m_nativePixelSize);
     m_windowArea = RAS_Rect(width, height);
     /* Following code needed to properly resize window with VULKAN backend */
-    wmWindow *win = CTX_wm_window(m_context);
+    blender::wmWindow *win = CTX_wm_window(m_context);
     win->sizex = width;
     win->sizey = height;
     wm_window_set_size(win, win->sizex, win->sizey);
@@ -170,7 +172,7 @@ void GPG_Canvas::SwapBuffers()
 {
   if (m_window) {
     if (!m_useViewportRender) { // Not needed but for readability
-      wmWindow *win = CTX_wm_window(m_context);
+      blender::wmWindow *win = CTX_wm_window(m_context);
       /* See wm_draw_update for "chronology" */
       GPU_context_end_frame((GPUContext *)win->runtime->gpuctx);
       GPU_render_end();

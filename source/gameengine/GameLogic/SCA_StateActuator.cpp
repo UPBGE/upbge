@@ -34,6 +34,8 @@
 
 #include "KX_GameObject.h"
 
+using namespace blender;
+
 SCA_StateActuator::SCA_StateActuator(SCA_IObject *gameobj, int operation, unsigned int mask)
     : SCA_IActuator(gameobj, KX_ACT_STATE), m_operation(operation), m_mask(mask)
 {

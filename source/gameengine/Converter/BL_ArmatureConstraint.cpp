@@ -39,6 +39,8 @@
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
+using namespace blender;
+
 #ifdef WITH_PYTHON
 
 PyTypeObject BL_ArmatureConstraint::Type = {
@@ -83,8 +85,8 @@ PyTypeObject BL_ArmatureConstraint::Type = {
 #endif  // WITH_PYTHON
 
 BL_ArmatureConstraint::BL_ArmatureConstraint(BL_ArmatureObject *armature,
-                                             bPoseChannel *posechannel,
-                                             bConstraint *constraint,
+                                             blender::bPoseChannel *posechannel,
+                                             blender::bConstraint *constraint,
                                              KX_GameObject *target,
                                              KX_GameObject *subtarget)
     : m_constraint(constraint),
@@ -118,7 +120,7 @@ BL_ArmatureConstraint::~BL_ArmatureConstraint()
 
   // Free the fake blender object targets without freeing the pose of an armature set in these
   // objects.
-  bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
   if (m_blendtarget) {
     m_blendtarget->pose = nullptr;
     BKE_id_free(CTX_data_main(C), &m_blendtarget->id);
@@ -139,7 +141,7 @@ EXP_Value *BL_ArmatureConstraint::GetReplica()
 void BL_ArmatureConstraint::CopyBlenderTargets()
 {
   // Create the fake blender object target.
-  bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
   if (m_target) {
     m_blendtarget = BKE_object_add_only_object(
         CTX_data_main(C), OB_EMPTY, m_target->GetName().c_str());
@@ -183,14 +185,14 @@ void BL_ArmatureConstraint::ReParent(BL_ArmatureObject *armature)
   m_constraint = nullptr;
   m_posechannel = nullptr;
 
-  bPose *newpose = m_armature->GetPose();
+  blender::bPose *newpose = m_armature->GetPose();
 
   // find the corresponding constraint in the new armature object
   // and locate the constraint
-  for (bPoseChannel &pchan : newpose->chanbase) {
+  for (blender::bPoseChannel &pchan : newpose->chanbase) {
     if (posechannelname == pchan.name) {
       // now locate the constraint
-      for (bConstraint &pcon : pchan.constraints) {
+      for (blender::bConstraint &pcon : pchan.constraints) {
         if (constraintname == pcon.name) {
           m_constraint = &pcon;
           m_posechannel = &pchan;
@@ -338,7 +340,7 @@ PyObject *BL_ArmatureConstraint::py_attr_getattr(EXP_PyObjectPlus *self_v,
                                                  const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   BL_ArmatureConstraint *self = static_cast<BL_ArmatureConstraint *>(self_v);
-  bConstraint *constraint = self->m_constraint;
+  blender::bConstraint *constraint = self->m_constraint;
   bKinematicConstraint *ikconstraint = (constraint &&
                                         constraint->type == CONSTRAINT_TYPE_KINEMATIC) ?
                                            (bKinematicConstraint *)constraint->data :
@@ -408,7 +410,7 @@ int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v,
                                            PyObject *value)
 {
   BL_ArmatureConstraint *self = static_cast<BL_ArmatureConstraint *>(self_v);
-  bConstraint *constraint = self->m_constraint;
+  blender::bConstraint *constraint = self->m_constraint;
   bKinematicConstraint *ikconstraint = (constraint &&
                                         constraint->type == CONSTRAINT_TYPE_KINEMATIC) ?
                                            (bKinematicConstraint *)constraint->data :

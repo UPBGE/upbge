@@ -38,6 +38,8 @@
 
 #include "RAS_IPolygonMaterial.h"
 
+using namespace blender;
+
 RAS_BucketManager::RAS_BucketManager()
 {
 }

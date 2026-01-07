@@ -33,7 +33,8 @@
 
 #include "SCA_IActuator.h"
 
-struct Collection;
+#include "DNA_collection_types.h"
+
 class KX_Camera;
 class KX_Scene;
 
@@ -42,8 +43,8 @@ class SCA_CollectionActuator : public SCA_IActuator {
 
       private :
 
-      KX_Scene *m_kxscene;
-  Collection *m_collection;
+  KX_Scene *m_kxscene;
+  blender::Collection *m_collection;
   KX_Camera *m_camera;
   int m_mode;  // suspend/resume/addOverlayCollection/RemoveOverlayCollection
 
@@ -64,7 +65,7 @@ class SCA_CollectionActuator : public SCA_IActuator {
   SCA_CollectionActuator(SCA_IObject *gameobj,
                          KX_Scene *scene,
                          KX_Camera *cam,
-                         Collection *collection,
+                         blender::Collection *collection,
                          int m_mode,
                          bool use_logic,
                          bool use_physics,

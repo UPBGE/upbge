@@ -37,6 +37,8 @@
 #include "SCA_IActuator.h"
 #include "SCA_ISensor.h"
 
+using namespace blender;
+
 SCA_IController::SCA_IController(SCA_IObject *gameobj)
     : SCA_ILogicBrick(gameobj), m_statemask(0), m_justActivated(false)
 {

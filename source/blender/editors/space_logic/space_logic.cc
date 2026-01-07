@@ -58,6 +58,8 @@
 
 #include "GPU_framebuffer.hh"
 
+namespace blender {
+
 /* ******************** manage regions ********************* */
 
 ARegion *logic_has_buttons_region(ScrArea *sa)
@@ -75,7 +77,7 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
   if (region == nullptr)
     return nullptr;
 
-  regionnew = MEM_new<ARegion>("buttons for image");
+  regionnew = MEM_new<blender::ARegion>("buttons for image");
 
   BLI_insertlinkafter(&sa->regionbase, region, regionnew);
   regionnew->regiontype = RGN_TYPE_UI;
@@ -237,7 +239,7 @@ static void logic_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
-static void logic_main_region_draw(const bContext *C, ARegion *region)
+static void logic_main_region_draw(const blender::bContext *C, ARegion *region)
 {
   using namespace blender::ui;
   /* draw entirely, view changes should be handled here */
@@ -381,3 +383,5 @@ void ED_spacetype_logic()
 
   BKE_spacetype_register(std::move(st));
 }
+
+}  // namespace blender

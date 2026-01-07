@@ -37,6 +37,8 @@
 #include "RAS_ICanvas.h"
 #include "RAS_OpenGLDebugDraw.h"
 
+using namespace blender;
+
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
 {
 }

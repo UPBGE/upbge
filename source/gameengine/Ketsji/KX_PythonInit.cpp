@@ -168,6 +168,8 @@ static void KX_MACRO_addTypesToDict_fn(PyObject *dict, const char *name, long va
 // temporarily python stuff, will be put in another place later !
 #  include "EXP_Python.h"
 #  include "SCA_PythonController.h"
+
+using namespace blender;
 // List of methods defined in the module
 
 static PyObject *ErrorObject;
@@ -697,7 +699,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
     return nullptr;
   }
 
-  Main *maggie = converter->CreateMainDynamic(path);
+  blender::Main *maggie = converter->CreateMainDynamic(path);
 
   /* Copy the object into main */
   if (idcode == ID_ME) {
@@ -722,7 +724,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
     return ret;
   }
   else {
-    PyErr_Format(PyExc_ValueError, "only \"Mesh\" group currently supported");
+    PyErr_Format(PyExc_ValueError, "only \"blender::Mesh\" group currently supported");
     return nullptr;
   }
 
@@ -746,7 +748,7 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 
 static PyObject *gLibList(PyObject *, PyObject *args)
 {
-  const std::vector<Main *> &dynMaggie = KX_GetActiveEngine()->GetConverter()->GetMainDynamic();
+  const std::vector<blender::Main *> &dynMaggie = KX_GetActiveEngine()->GetConverter()->GetMainDynamic();
   PyObject *list = PyList_New(dynMaggie.size());
 
   for (unsigned short i = 0, size = dynMaggie.size(); i < size; ++i) {
@@ -1659,7 +1661,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   KX_MACRO_addTypesToDict(d, KX_GAME_LOADCFG, SCA_GameActuator::KX_GAME_LOADCFG);
   KX_MACRO_addTypesToDict(d, KX_GAME_SCREENSHOT, SCA_GameActuator::KX_GAME_SCREENSHOT);
 
-  /* Scene Actuator Modes */
+  /* blender::Scene Actuator Modes */
   KX_MACRO_addTypesToDict(d, KX_SCENE_RESTART, SCA_SceneActuator::KX_SCENE_RESTART);
   KX_MACRO_addTypesToDict(d, KX_SCENE_SET_SCENE, SCA_SceneActuator::KX_SCENE_SET_SCENE);
   KX_MACRO_addTypesToDict(d, KX_SCENE_SET_CAMERA, SCA_SceneActuator::KX_SCENE_SET_CAMERA);
@@ -1825,7 +1827,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 
   Py_DECREF(item);
 }
-static void initPySysObjects(Main *maggie)
+static void initPySysObjects(blender::Main *maggie)
 {
   PyObject *sys_path = PySys_GetObject("path");
   PyObject *sys_meta_path = PySys_GetObject("meta_path");
@@ -1840,13 +1842,13 @@ static void initPySysObjects(Main *maggie)
     PyList_SetSlice(sys_meta_path, 0, INT_MAX, gp_sys_backup.meta_path);
   }
 
-  Library *lib = (Library *)maggie->libraries.first;
+  blender::Library *lib = (blender::Library *)maggie->libraries.first;
 
   while (lib) {
     /* lib->name wont work in some cases (on win32),
      * even when expanding with KX_GetMainPath(), using lib->filename is less trouble */
     initPySysObjects__append(sys_path, lib->filepath);
-    lib = (Library *)lib->id.next;
+    lib = (blender::Library *)lib->id.next;
   }
 
   initPySysObjects__append(sys_path, KX_GetMainPath().c_str());
@@ -1886,12 +1888,12 @@ void appendPythonPath(const std::string &path)
   initPySysObjects__append(sys_path, path.c_str());
 }
 
-void addImportMain(struct Main *maggie)
+void addImportMain(blender::Main *maggie)
 {
   bpy_import_main_extra_add(maggie);
 }
 
-void removeImportMain(struct Main *maggie)
+void removeImportMain(blender::Main *maggie)
 {
   bpy_import_main_extra_remove(maggie);
 }
@@ -1939,7 +1941,7 @@ PyMODINIT_FUNC initBGE()
 }
 
 void InitGamePlayerPythonScripting(
-    Main *maggie, int argc, char **argv, bContext *C, bool *audioDeviceIsInitialized)
+    blender::Main *maggie, int argc, char **argv, blender::bContext *C, bool *audioDeviceIsInitialized)
 {
   bpy_import_init(PyEval_GetBuiltins());
 
@@ -1982,7 +1984,7 @@ void exitGamePlayerPythonScripting()
 /**
  * Python is already initialized.
  */
-void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsInitialized)
+void initGamePythonScripting(blender::Main *maggie, blender::bContext *C, bool *audioDeviceIsInitialized)
 {
   backupPySysObjects();
 
@@ -2023,12 +2025,12 @@ void exitGamePythonScripting()
 /* similar to the above functions except it sets up the namespace
  * and other more general things */
 void setupGamePython(KX_KetsjiEngine *ketsjiengine,
-                     Main *blenderdata,
+                     blender::Main *blenderdata,
                      PyObject *pyGlobalDict,
                      PyObject **gameLogic,
                      int argc,
                      char **argv,
-                     bContext *C,
+                     blender::bContext *C,
                      bool *audioDeviceIsInitialized)
 {
   PyObject *modules;
@@ -2048,7 +2050,7 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine,
                          "globalDict",
                          pyGlobalDict);  // Same as importing the module.z
 
-  Scene *startscene = CTX_data_scene(C);
+  blender::Scene *startscene = CTX_data_scene(C);
 
   PyObject *logger = PyImport_ImportModule("bge_extras.logger");
 

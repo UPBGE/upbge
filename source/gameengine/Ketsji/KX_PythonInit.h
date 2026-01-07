@@ -37,6 +37,11 @@
 #include "EXP_Python.h"
 #include "MT_Vector3.h"
 
+namespace blender {
+struct Main;
+struct bContext;
+}  // namespace blender
+
 class KX_KetsjiEngine;
 
 #ifdef WITH_PYTHON
@@ -47,13 +52,13 @@ PyMODINIT_FUNC initGameKeysPythonBinding(void);
 PyMODINIT_FUNC initRasterizerPythonBinding(void);
 PyMODINIT_FUNC initVideoTexturePythonBinding(void);
 
-void InitGamePlayerPythonScripting(struct Main *maggie,
+void InitGamePlayerPythonScripting(blender::Main *maggie,
                                    int argc,
                                    char **argv,
-                                   struct bContext *C,
+                                   blender::bContext *C,
                                    bool *audioDeviceIsInitialized);
-void initGamePythonScripting(struct Main *maggie,
-                             struct bContext *C,
+void initGamePythonScripting(blender::Main *maggie,
+                             blender::bContext *C,
                              bool *audioDeviceIsInitialized);
 
 // Add a python include path.
@@ -62,12 +67,12 @@ void appendPythonPath(const std::string &path);
 void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine,
-                     Main *blenderdata,
+                     blender::Main *blenderdata,
                      PyObject *pyGlobalDict,
                      PyObject **gameLogic,
                      int argc,
                      char **argv,
-                     struct bContext *C,
+                     blender::bContext *C,
                      bool *audioDeviceIsInitialized);
 std::string pathGamePythonConfig();
 void saveGamePythonConfig();
@@ -80,8 +85,8 @@ void createPythonConsole();
 void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX]);
 #endif
 
-void addImportMain(struct Main *maggie);
-void removeImportMain(struct Main *maggie);
+void addImportMain(blender::Main *maggie);
+void removeImportMain(blender::Main *maggie);
 
 typedef int (*PyNextFrameFunc)(void *);
 

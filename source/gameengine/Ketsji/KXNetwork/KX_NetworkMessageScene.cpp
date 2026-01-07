@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * Ketsji Logic Extension: Network Message Scene generic implementation
+ * Ketsji Logic Extension: Network Message blender::Scene generic implementation
  */
 
 /** \file gameengine/Ketsji/KXNetwork/KX_NetworkMessageScene.cpp

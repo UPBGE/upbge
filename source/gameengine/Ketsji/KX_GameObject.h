@@ -59,11 +59,9 @@ class KX_PythonComponent;
 class RAS_MeshObject;
 class PHY_IPhysicsController;
 class BL_ActionManager;
-struct Object;
 class KX_CollisionContactPointList;
-struct bAction;
 struct DupliObject;
-struct Mesh;
+namespace blender { struct Mesh; }
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
@@ -116,8 +114,8 @@ class KX_GameObject : public SCA_IObject {
   std::vector<RAS_MeshObject *> m_meshes;
   KX_LodManager *m_lodManager;
   short m_currentLodLevel;
-  struct Object *m_pBlenderObject;
-  struct Object *m_pBlenderGroupObject;
+  blender::Object *m_pBlenderObject;
+  blender::Object *m_pBlenderGroupObject;
 
   bool m_bIsNegativeScaling;
   MT_Vector4 m_objectColor;
@@ -127,7 +125,7 @@ class KX_GameObject : public SCA_IObject {
   bool m_bVisible;
   bool m_bOccluder;
 
-  // Object activity culling settings converted from blender objects.
+  // blender::Object activity culling settings converted from blender objects.
   ActivityCullingInfo m_activityCullingInfo;
 
   PHY_IPhysicsController *m_pPhysicsController;
@@ -145,7 +143,7 @@ class KX_GameObject : public SCA_IObject {
   EXP_ListValue<KX_PythonComponent> *m_components;
 #endif
 
-  std::vector<bRigidBodyJointConstraint *> m_constraints;
+  std::vector<blender::bRigidBodyJointConstraint *> m_constraints;
 
  public:
   /* EEVEE INTEGRATION */
@@ -158,7 +156,7 @@ class KX_GameObject : public SCA_IObject {
   void RestorePhysics(bool childrenRecursive);
   void SuspendLogicAndActions(bool childrenRecursive);
   void RestoreLogicAndActions(bool childrenRecursive);
-  void AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob);
+  void AddDummyLodManager(RAS_MeshObject *meshObj, blender::Object *ob);
   bool IsReplica();
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
@@ -233,14 +231,14 @@ class KX_GameObject : public SCA_IObject {
    * The user must take action to restore the matrix before leaving the GE.
    * Used in Armature evaluation
    */
-  void UpdateBlenderObjectMatrix(Object *blendobj = nullptr);
+  void UpdateBlenderObjectMatrix(blender::Object *blendobj = nullptr);
 
   /**
    * Used for constraint replication for group instances.
    * The list of constraints is filled during data conversion.
    */
-  void AddConstraint(bRigidBodyJointConstraint *cons);
-  std::vector<bRigidBodyJointConstraint *> GetConstraints();
+  void AddConstraint(blender::bRigidBodyJointConstraint *cons);
+  std::vector < blender::bRigidBodyJointConstraint * > GetConstraints();
   void ClearConstraints();
 
   /**
@@ -315,7 +313,7 @@ class KX_GameObject : public SCA_IObject {
   /**
    * Gets the currently running action on the given layer
    */
-  bAction *GetCurrentAction(short layer);
+  blender::bAction *GetCurrentAction(short layer);
 
   /**
    * Sets play mode of the action on the given layer
@@ -514,33 +512,33 @@ class KX_GameObject : public SCA_IObject {
    * \section blender object accessor functions.
    */
 
-  struct Object *GetBlenderObject()
+  blender::Object *GetBlenderObject()
   {
     return m_pBlenderObject;
   }
 
-  virtual void SetBlenderObject(struct Object *obj);
+  virtual void SetBlenderObject(blender::Object *obj);
 
-  struct Object *GetBlenderGroupObject()
+  blender::Object *GetBlenderGroupObject()
   {
     return m_pBlenderGroupObject;
   }
 
-  void SetBlenderGroupObject(struct Object *obj)
+  void SetBlenderGroupObject(blender::Object *obj)
   {
     m_pBlenderGroupObject = obj;
   }
 
   bool IsDupliGroup()
   {
-    return (m_pBlenderObject && (m_pBlenderObject->transflag & OB_DUPLICOLLECTION) &&
+    return (m_pBlenderObject && (m_pBlenderObject->transflag & blender::OB_DUPLICOLLECTION) &&
             m_pBlenderObject->instance_collection != nullptr) ?
                true :
                false;
   }
 
   /**
-   * Set the Scene graph node for this game object.
+   * Set the blender::Scene graph node for this game object.
    * warning - it is your responsibility to make sure
    * all controllers look at this new node. You must
    * also take care of the memory associated with the
@@ -629,7 +627,7 @@ class KX_GameObject : public SCA_IObject {
   void UpdateIPO(float curframetime, bool recurse);
 
   /**
-   * \section Mesh accessor functions.
+   * \section blender::Mesh accessor functions.
    */
 
   /**

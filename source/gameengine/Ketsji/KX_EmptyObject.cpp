@@ -31,6 +31,8 @@
 
 #include "KX_EmptyObject.h"
 
+using namespace blender;
+
 KX_EmptyObject::~KX_EmptyObject()
 {
 }

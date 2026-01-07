@@ -20,6 +20,8 @@
 
 #include "MOD_util.hh"
 
+namespace blender {
+
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext * /*ctx*/,
                          Mesh * /*mesh*/,
@@ -41,7 +43,7 @@ static void deform_verts(ModifierData *md,
           copy_v3_v3(positions[i], smd->vertcoos[i]);
         }
       });
-  }
+}
 
 /* SimpleDeform */
 static void init_data(ModifierData *md)
@@ -85,3 +87,5 @@ ModifierTypeInfo modifierType_SimpleDeformBGE = {
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
 };
+
+}  // namespace blender

@@ -1,5 +1,5 @@
 /*
-   Bullet Continuous Collision Detection and Physics Library
+   Bullet Continuous Collision Detection and Physics blender::Library
    Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 
    This software is provided 'as-is', without any express or implied warranty.
@@ -31,7 +31,7 @@ enum {
   PHY_FH_RESPONSE,
   PHY_SENSOR_RESPONSE,   // Touch Sensors
   PHY_CAMERA_RESPONSE,   // Visibility Culling
-  PHY_OBJECT_RESPONSE,   // Object Dynamic Geometry Response
+  PHY_OBJECT_RESPONSE,   // blender::Object Dynamic Geometry Response
   PHY_STATIC_RESPONSE,   // Static Geometry Response
   PHY_BROADPH_RESPONSE,  // broadphase Response
 

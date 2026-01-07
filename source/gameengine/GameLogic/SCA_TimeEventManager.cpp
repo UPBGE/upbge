@@ -40,6 +40,8 @@
 #include "CM_List.h"
 #include "EXP_FloatValue.h"
 
+using namespace blender;
+
 SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager *logicmgr)
     : SCA_EventManager(nullptr, TIME_EVENTMGR)
 {

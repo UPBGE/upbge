@@ -5,7 +5,11 @@
  *  \ingroup bgesg
  */
 
+
 #include "SG_Controller.h"
+
+#include "DNA_vec_types.h"
+
 
 void SG_Controller::SetNode(SG_Node *node)
 {

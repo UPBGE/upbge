@@ -35,6 +35,8 @@
 
 #include "KX_Light.h"
 
+using namespace blender;
+
 KX_LightObject::KX_LightObject() : KX_GameObject(), m_obLight(nullptr)
 {
 }
@@ -43,14 +45,14 @@ KX_LightObject::~KX_LightObject()
 {
 }
 
-void KX_LightObject::SetBlenderObject(Object *obj)
+void KX_LightObject::SetBlenderObject(blender::Object *obj)
 {
   KX_GameObject::SetBlenderObject(obj);
 
-  m_light = static_cast<Light *>(obj->data);
+  m_light = id_cast<blender::Light *>(obj->data);
 }
 
-Light *KX_LightObject::GetLight()
+blender::Light *KX_LightObject::GetLight()
 {
   return m_light;
 }
@@ -65,7 +67,7 @@ void KX_LightObject::ProcessReplica()
   KX_GameObject::ProcessReplica();
 
   m_obLight = m_pBlenderObject;
-  m_light = static_cast<Light *>(m_obLight->data);
+  m_light = id_cast<blender::Light *>(m_obLight->data);
 }
 
 #ifdef WITH_PYTHON

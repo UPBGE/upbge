@@ -41,16 +41,16 @@ class RAS_ICanvas;
 class DEV_EventConsumer;
 class DEV_InputDevice;
 class GHOST_ISystem;
-struct Scene;
-struct Main;
+namespace blender { struct Scene; }
+namespace blender { struct Main; }
 
 class LA_Launcher {
  protected:
   /// \section The game data.
   std::string m_startSceneName;
-  Scene *m_startScene;
-  Main *m_maggie;
-  struct bContext *m_context;
+  blender::Scene *m_startScene;
+  blender::Main *m_maggie;
+  blender::bContext *m_context;
   KX_Scene *m_kxStartScene;
   bool m_useViewportRender;
   int m_shadingTypeRuntime;
@@ -132,14 +132,14 @@ class LA_Launcher {
 
  public:
   LA_Launcher(GHOST_ISystem *system,
-              Main *maggie,
-              Scene *scene,
+              blender::Main *maggie,
+              blender::Scene *scene,
               GlobalSettings *gs,
               RAS_Rasterizer::StereoMode stereoMode,
               int samples,
               int argc,
               char **argv,
-              struct bContext *C,
+              blender::bContext *C,
               bool useViewportRender,
               int shadingTypeRuntime);
   virtual ~LA_Launcher();

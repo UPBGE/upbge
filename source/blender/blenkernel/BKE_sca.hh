@@ -33,6 +33,8 @@
  *  \ingroup bke
  */
 
+namespace blender {
+
 struct Main;
 struct Object;
 struct bSensor;
@@ -43,8 +45,8 @@ struct bActuator;
 void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size);
 void BKE_sca_unlink_logicbricks(void **poin, void ***ppoin, short *tot);
 void BKE_sca_remap_data_postprocess_links_logicbricks_update(struct Main *bmain,
-                                     struct Object *ob_old,
-                                     struct Object *ob_new);
+                                                             struct Object *ob_old,
+                                                             struct Object *ob_new);
 void BKE_sca_copy_logicbricks(struct Object *ob_new, const struct Object *ob, const int flag);
 
 /* Controllers */
@@ -106,3 +108,5 @@ void BKE_sca_controllers_id_loop(struct ListBase *contlist,
                                  SCAControllerIDFunc func,
                                  void *userdata);
 void BKE_sca_actuators_id_loop(struct ListBase *atclist, SCAActuatorIDFunc func, void *userdata);
+
+}  // namespace blender

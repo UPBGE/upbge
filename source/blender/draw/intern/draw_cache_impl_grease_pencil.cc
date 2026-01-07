@@ -281,7 +281,7 @@ static void grease_pencil_weight_batch_ensure(Object &object,
                                               const GreasePencil &grease_pencil,
                                               const Scene &scene)
 {
-  using namespace blender::bke::greasepencil;
+  using namespace bke::greasepencil;
 
   constexpr float no_active_weight = 666.0f;
 
@@ -722,7 +722,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
 {
-  using namespace blender::bke::greasepencil;
+  using namespace bke::greasepencil;
   BLI_assert(grease_pencil.runtime != nullptr);
   GreasePencilBatchCache *cache = static_cast<GreasePencilBatchCache *>(
       grease_pencil.runtime->batch_cache);
@@ -1141,7 +1141,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
 {
-  using namespace blender::bke::greasepencil;
+  using namespace bke::greasepencil;
   BLI_assert(grease_pencil.runtime != nullptr);
   GreasePencilBatchCache *cache = static_cast<GreasePencilBatchCache *>(
       grease_pencil.runtime->batch_cache);
@@ -1469,7 +1469,7 @@ static void grease_pencil_wire_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
 {
-  using namespace blender::bke::greasepencil;
+  using namespace bke::greasepencil;
 
   BLI_assert(grease_pencil.runtime != nullptr);
   GreasePencilBatchCache *cache = static_cast<GreasePencilBatchCache *>(

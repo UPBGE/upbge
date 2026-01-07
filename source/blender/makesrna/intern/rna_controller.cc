@@ -41,6 +41,9 @@
 
 #include "WM_types.hh"
 
+using namespace blender;
+
+namespace blender {
 const EnumPropertyItem rna_enum_controller_type_items[] = {
     {CONT_LOGIC_AND, "LOGIC_AND", 0, "And", "Logic And"},
     {CONT_LOGIC_OR, "LOGIC_OR", 0, "Or", "Logic Or"},
@@ -51,6 +54,7 @@ const EnumPropertyItem rna_enum_controller_type_items[] = {
     {CONT_EXPRESSION, "EXPRESSION", 0, "Expression", ""},
     {CONT_PYTHON, "PYTHON", 0, "Python", ""},
     {0, nullptr, 0, nullptr, nullptr}};
+}  // namespace blender
 
 #ifdef RNA_RUNTIME
 
@@ -153,6 +157,8 @@ static int rna_Controller_actuators_length(PointerRNA *ptr)
 }
 
 #else
+
+namespace blender {
 
 void RNA_def_controller(BlenderRNA *brna)
 {
@@ -302,5 +308,7 @@ void RNA_def_controller(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Xnor Controller", "Controller passing on events based on a logical XNOR operation");
 }
+
+}  // namespace blender
 
 #endif

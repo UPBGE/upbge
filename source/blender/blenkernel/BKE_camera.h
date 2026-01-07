@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DNA_vec_types.h"
+#include "BLI_rect.h"
 
 namespace blender {
 
@@ -12,8 +13,6 @@ namespace blender {
  * \ingroup bke
  * \brief Camera data-block and utility functions.
  */
-
-#include "BLI_rect.h"
 
 struct Camera;
 struct Depsgraph;

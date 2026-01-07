@@ -13,6 +13,8 @@
 #include "Exception.h"
 #include "ImageBase.h"
 
+#include "../imbuf/IMB_imbuf.hh"
+
 namespace blender::gpu {
 class Texture;
 }  // namespace blender::gpu
@@ -35,14 +37,14 @@ class Texture : public EXP_Value {
   // original texture bind code
   unsigned int m_orgTex;
   // original image bind code
-  struct Image *m_orgImg;
+  blender::Image *m_orgImg;
   // original texture saved
   bool m_orgSaved;
 
   // kernel image buffer, to make sure the image is loaded before we swap the bindcode
-  struct ImBuf *m_imgBuf;
+  blender::ImBuf *m_imgBuf;
   // texture image for game materials
-  Image *m_imgTexture;
+  blender::Image *m_imgTexture;
 
   // texture for blender materials
   RAS_Texture *m_matTexture;
@@ -57,7 +59,7 @@ class Texture : public EXP_Value {
   bool m_mipmap;
 
   // scaled image buffer
-  ImBuf *m_scaledImBuf;
+  blender::ImBuf *m_scaledImBuf;
   // last refresh
   double m_lastClock;
 
@@ -97,7 +99,7 @@ class Texture : public EXP_Value {
 // get material
 RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID);
 
-// get material ID
+// get material blender::ID
 short getMaterialID(PyObject *obj, const char *name);
 
 // Exceptions

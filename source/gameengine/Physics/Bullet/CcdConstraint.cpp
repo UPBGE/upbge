@@ -2,6 +2,8 @@
 
 #include "btBulletDynamicsCommon.h"
 
+using namespace blender;
+
 CcdConstraint::CcdConstraint(btTypedConstraint *constraint, bool disableCollision)
     : m_constraint(constraint), m_disableCollision(disableCollision), m_active(true)
 {

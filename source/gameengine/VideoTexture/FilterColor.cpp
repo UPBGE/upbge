@@ -7,6 +7,8 @@
 
 #include "FilterColor.h"
 
+using namespace blender;
+
 // implementation FilterGray
 
 // attributes structure

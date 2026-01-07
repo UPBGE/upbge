@@ -11,6 +11,8 @@
 
 #include "Exception.h"
 
+using namespace blender;
+
 // cast ImageSource pointer to ImageSourceMix
 inline ImageSourceMix *getImageSourceMix(ImageSource *src)
 {
@@ -41,7 +43,7 @@ bool ImageMix::setWeight(const char *id, short weight)
 
 ExceptionID ImageSizesNotMatch;
 
-ExpDesc ImageSizesNotMatchDesc(ImageSizesNotMatch, "Image sizes of sources are different");
+ExpDesc ImageSizesNotMatchDesc(ImageSizesNotMatch, "blender::Image sizes of sources are different");
 
 // calculate image from sources and set its availability
 void ImageMix::calcImage(unsigned int texId, double ts)
@@ -73,7 +75,7 @@ void ImageMix::calcImage(unsigned int texId, double ts)
   }
 }
 
-// cast Image pointer to ImageMix
+// cast blender::Image pointer to ImageMix
 inline ImageMix *getImageMix(PyImage *self)
 {
   return static_cast<ImageMix *>(self->m_image);
@@ -176,7 +178,7 @@ PyTypeObject ImageMixType = {
     0,                                                         /*tp_setattro*/
     &imageBufferProcs,                                         /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,                                        /*tp_flags*/
-    "Image mixer",                                             /* tp_doc */
+    "blender::Image mixer",                                             /* tp_doc */
     0,                                                         /* tp_traverse */
     0,                                                         /* tp_clear */
     0,                                                         /* tp_richcompare */

@@ -25,6 +25,8 @@
 #include "CM_List.h"
 #include "KX_GameObject.h"
 
+using namespace blender;
+
 static bool compareObjectDepth(KX_GameObject *o1, KX_GameObject *o2)
 {
   return o1->GetSGNode()->GetDepth() > o2->GetSGNode()->GetDepth();

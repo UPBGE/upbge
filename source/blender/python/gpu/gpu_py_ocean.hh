@@ -12,7 +12,12 @@
 
 #include <Python.h>
 
+namespace blender {
+
+
 /* Create and return the 'gpu.ocean' submodule (registered into sys.modules).
  * This follows the pattern used by other gpu submodules (bpygpu_*_init).
  */
 PyObject *bpygpu_ocean_init(void);
+
+}  // namespace blender

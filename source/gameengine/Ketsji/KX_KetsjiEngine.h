@@ -127,7 +127,7 @@ class KX_KetsjiEngine {
   };
 
   /***************EEVEE INTEGRATION*****************/
-  struct bContext *m_context;
+  blender::bContext *m_context;
   bool m_useViewportRender;
   int m_shadingTypeRuntime;
   std::vector<KX_Camera *> m_renderingCameras;
@@ -194,7 +194,7 @@ class KX_KetsjiEngine {
 
   bool m_doRender; /* whether or not the scene should be rendered after the logic frame */
 
-  /// Key used to exit the BGE
+  /// blender::Key used to exit the BGE
   short m_exitkey;
 
   KX_ExitRequest m_exitcode;
@@ -291,13 +291,13 @@ class KX_KetsjiEngine {
 
  public:
   KX_KetsjiEngine(KX_ISystem *system,
-                  struct bContext *C,
+                  blender::bContext *C,
                   bool useViewportRender,
                   int shadingTypeRuntime);
   virtual ~KX_KetsjiEngine();
 
   /******** EEVEE integration *********/
-  struct bContext *GetContext();
+  blender::bContext *GetContext();
   bool UseViewportRender();
   int ShadingTypeRuntime();
   // include depsgraph time in tc_depsgraph category
@@ -493,7 +493,7 @@ class KX_KetsjiEngine {
   KX_DebugOption GetShowShadowFrustum() const;
 
   KX_Scene *CreateScene(const std::string &scenename);
-  KX_Scene *CreateScene(Scene *scene, bool libloading);
+  KX_Scene *CreateScene(blender::Scene *scene, bool libloading);
 
   GlobalSettings *GetGlobalSettings(void);
   void SetGlobalSettings(GlobalSettings *gs);

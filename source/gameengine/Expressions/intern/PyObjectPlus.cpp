@@ -49,6 +49,8 @@
 
 #include "CM_Message.h"
 
+using namespace blender;
+
 EXP_PyObjectPlus::EXP_PyObjectPlus()
 {
 #ifdef WITH_PYTHON
@@ -432,7 +434,7 @@ PyObject *EXP_PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeD
               return nullptr;
             }
 #  ifdef USE_MATHUTILS
-            return Vector_CreatePyObject(val, attrdef->m_imax, nullptr);
+            return blender::Vector_CreatePyObject(val, attrdef->m_imax, nullptr);
 #  else
             PyObject *resultlist = PyList_New(attrdef->m_imax);
             for (unsigned int i = 0; i < attrdef->m_imax; i++) {
@@ -448,7 +450,7 @@ PyObject *EXP_PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeD
             return nullptr;
           }
 #  ifdef USE_MATHUTILS
-          return Matrix_CreatePyObject_wrap(val, attrdef->m_imin, attrdef->m_imax, nullptr);
+          return blender::Matrix_CreatePyObject_wrap(val, attrdef->m_imin, attrdef->m_imax, nullptr);
 #  else
           PyObject *collist = PyList_New(attrdef->m_imin);
           for (unsigned int i = 0; i < attrdef->m_imin; i++) {
@@ -468,7 +470,7 @@ PyObject *EXP_PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeD
 #  ifdef USE_MATHUTILS
         float fval[3];
         val->getValue(fval);
-        return Vector_CreatePyObject(fval, 3, nullptr);
+        return blender::Vector_CreatePyObject(fval, 3, nullptr);
 #  else
         PyObject *resultlist = PyList_New(3);
         for (unsigned int i = 0; i < 3; i++) {

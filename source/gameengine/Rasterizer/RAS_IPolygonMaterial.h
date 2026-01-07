@@ -34,15 +34,15 @@
 #include <map>
 #include <string>
 
+#include "DNA_material_types.h"
+#include "DNA_scene_types.h"
+
 #include "MT_Vector4.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Texture.h"
 
 class RAS_MaterialShader;
 class SCA_IScene;
-
-struct Material;
-struct Scene;
 
 enum MaterialProps {
   RAS_MULTILIGHT = (1 << 1),
@@ -61,7 +61,7 @@ enum MaterialRasterizerModes {
 };
 
 /**
- * Polygon Material on which the material buckets are sorted
+ * Polygon blender::Material on which the material buckets are sorted
  */
 class RAS_IPolyMaterial {
  protected:
@@ -106,8 +106,8 @@ class RAS_IPolyMaterial {
   RAS_Texture *GetTexture(unsigned int index);
 
   virtual const std::string GetTextureName() const = 0;
-  virtual Material *GetBlenderMaterial() const = 0;
-  virtual Scene *GetBlenderScene() const = 0;
+  virtual blender::Material *GetBlenderMaterial() const = 0;
+  virtual blender::Scene *GetBlenderScene() const = 0;
   virtual SCA_IScene *GetScene() const = 0;
   virtual void ReleaseMaterial() = 0;
   virtual bool UsesLighting() const;

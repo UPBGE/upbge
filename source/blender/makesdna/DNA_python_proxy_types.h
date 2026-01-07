@@ -42,6 +42,8 @@
 
 #include "DNA_listBase.h"
 
+namespace blender {
+
 typedef struct PythonProxyProperty {
   struct PythonProxyProperty *next = nullptr, *prev = nullptr;
   char name[128] = ""; /* 128 = MAX_PROPSTRING */
@@ -145,3 +147,5 @@ typedef struct PythonProxy {
   PT_DEF(World, world, WORLD)
 
 enum { COMPONENT_SHOW = (1 << 0) };
+
+}  // namespace blender

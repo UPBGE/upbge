@@ -47,7 +47,7 @@
 
 class SCA_CameraActuator : public SCA_IActuator {
   Py_Header private :
-      /** Object that will be tracked. */
+      /** blender::Object that will be tracked. */
       SCA_IObject *m_ob;
 
   /** height (float), */

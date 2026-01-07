@@ -15,6 +15,8 @@
 #include "RAS_ICanvas.h"
 #include "Texture.h"
 
+using namespace blender;
+
 ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false)
 {
   /* Because this constructor is called from python direclty without any arguments
@@ -171,7 +173,7 @@ bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, double ts
   return ret;
 }
 
-// cast Image pointer to ImageViewport
+// cast blender::Image pointer to ImageViewport
 inline ImageViewport *getImageViewport(PyImage *self)
 {
   return static_cast<ImageViewport *>(self->m_image);
@@ -381,7 +383,7 @@ PyTypeObject ImageViewportType = {
     0,                                                              /*tp_setattro*/
     &imageBufferProcs,                                              /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,                                             /*tp_flags*/
-    "Image source from viewport",                                   /* tp_doc */
+    "blender::Image source from viewport",                                   /* tp_doc */
     0,                                                              /* tp_traverse */
     0,                                                              /* tp_clear */
     0,                                                              /* tp_richcompare */

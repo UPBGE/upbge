@@ -28,6 +28,8 @@
 
 #include "BLI_time.h"
 
+using namespace blender;
+
 KX_LibLoadStatus::KX_LibLoadStatus(class BL_Converter *kx_converter,
                                    class KX_KetsjiEngine *kx_engine,
                                    class KX_Scene *merge_scene,

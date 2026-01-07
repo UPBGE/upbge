@@ -28,6 +28,8 @@
 
 #  include "EXP_ListWrapper.h"
 
+using namespace blender;
+
 EXP_ListWrapper::EXP_ListWrapper(void *client,
                                  PyObject *base,
                                  bool (*checkValid)(void *),

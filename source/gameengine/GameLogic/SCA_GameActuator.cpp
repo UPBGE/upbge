@@ -39,6 +39,8 @@
 #include "KX_PythonInit.h" /* for config load/saving */
 #include "RAS_ICanvas.h"
 
+using namespace blender;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */

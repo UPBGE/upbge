@@ -150,7 +150,7 @@ class VideoBase : public ImageBase {
 
 // python fuctions
 
-// cast Image pointer to Video
+// cast blender::Image pointer to Video
 inline VideoBase *getVideo(PyImage *self)
 {
   return static_cast<VideoBase *>(self->m_image);

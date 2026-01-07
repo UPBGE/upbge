@@ -10,9 +10,11 @@
 #include "BKE_bullet.h"
 #include "DNA_object_force_types.h"
 
+namespace blender {
+
 extern "C" {
 
-BulletSoftBody *bsbNew(void)
+BulletSoftBody *bsbNew()
 {
   BulletSoftBody *bsb = MEM_new<BulletSoftBody>("bulletsoftbody");
 
@@ -62,4 +64,6 @@ void bsbFree(BulletSoftBody *bsb)
   MEM_delete(bsb);
 }
 
-} // extern "C"
+}  // extern "C"
+
+}  // namespace blender

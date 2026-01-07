@@ -10,11 +10,14 @@
 
 #include "draw_cache_extract.hh"
 
+namespace blender {
 struct Mesh;
 struct Object;
-struct MeshBatchCache;
+}  // namespace blender
 
 namespace blender::draw {
+
+struct MeshBatchCache;
 
 /**
  * GPU Modifier Pipeline - Chains deform modifiers on GPU
@@ -140,6 +143,7 @@ class GPUModifierPipeline {
  *
  * Returns true if at least one modifier was added.
  */
-bool build_gpu_modifier_pipeline(Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline);
+bool build_gpu_modifier_pipeline(
+    Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline);
 
 }  // namespace blender::draw

@@ -28,7 +28,9 @@
 
 #include "GPU_texture.hh"
 
-BL_Texture::BL_Texture(Image *ima)
+using namespace blender;
+
+BL_Texture::BL_Texture(blender::Image *ima)
     : EXP_Value(),
       m_isCubeMap(false), m_ima(ima)
 {
@@ -56,7 +58,7 @@ bool BL_Texture::IsCubeMap() const
   return m_isCubeMap;
 }
 
-Image *BL_Texture::GetImage() const
+blender::Image *BL_Texture::GetImage() const
 {
   return m_ima;
 }

@@ -35,6 +35,8 @@
 
 #include "BL_ArmatureObject.h"
 
+using namespace blender;
+
 /**
  * This class is the conversion of the Pose channel constraint.
  * It makes a link between the pose constraint and the KX scene.
@@ -154,11 +156,11 @@ bool BL_ArmatureActuator::Update(double curtime)
         break;
       case ACT_ARM_ENABLE:
         if (m_constraint)
-          m_constraint->ClrConstraintFlag(CONSTRAINT_OFF);
+          m_constraint->ClrConstraintFlag(blender::CONSTRAINT_OFF);
         break;
       case ACT_ARM_DISABLE:
         if (m_constraint)
-          m_constraint->SetConstraintFlag(CONSTRAINT_OFF);
+          m_constraint->SetConstraintFlag(blender::CONSTRAINT_OFF);
         break;
       case ACT_ARM_SETTARGET:
         if (m_constraint) {

@@ -49,6 +49,8 @@ typedef unsigned long uint_ptr;
 #include "KX_ScalarInterpolator.h"
 #include "PHY_IPhysicsController.h"
 
+using namespace blender;
+
 // All objects should start on frame 1! Will we ever need an object to
 // start on another frame, the 1.0 should change.
 KX_IpoController::KX_IpoController()

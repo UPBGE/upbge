@@ -80,6 +80,8 @@
 #include "SCA_VibrationActuator.h"
 #include "SCA_VisibilityActuator.h"
 
+using namespace blender;
+
 /**
  * KX_flt_trunc needed to round 'almost' zero values to zero, else velocities etc. are incorrectly
  * set
@@ -91,7 +93,7 @@ BLI_INLINE float KX_flt_trunc(const float x)
 }
 
 void BL_ConvertActuators(const char *maggiename,
-                         struct Object *blenderobject,
+                         blender::Object *blenderobject,
                          KX_GameObject *gameobj,
                          SCA_LogicManager *logicmgr,
                          KX_Scene *scene,
@@ -104,12 +106,12 @@ void BL_ConvertActuators(const char *maggiename,
   int uniqueint = 0;
   int actcount = 0;
   int executePriority = 0;
-  bActuator *bact = (bActuator *)blenderobject->actuators.first;
+  blender::bActuator *bact = (blender::bActuator *)blenderobject->actuators.first;
   while (bact) {
     actcount++;
     bact = bact->next;
   }
-  bact = (bActuator *)blenderobject->actuators.first;
+  bact = (blender::bActuator *)blenderobject->actuators.first;
   while (bact) {
     std::string uniquename = bact->name;
     std::string objectname = gameobj->GetName();
@@ -292,7 +294,7 @@ void BL_ConvertActuators(const char *maggiename,
         }
 
         if (soundActuatorType != SCA_SoundActuator::KX_SOUNDACT_NODEF) {
-          bSound *sound = soundact->sound;
+          blender::bSound *sound = soundact->sound;
           bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
           bool preload = soundact->flag & ACT_SND_PRELOAD ? true : false;
 #ifdef WITH_AUDASPACE
@@ -315,7 +317,7 @@ void BL_ConvertActuators(const char *maggiename,
           }
           else {
 #ifdef WITH_AUDASPACE
-            bContext *C = KX_GetActiveEngine()->GetContext();
+            blender::bContext *C = KX_GetActiveEngine()->GetContext();
             BKE_sound_load_no_assert(CTX_data_main(C), sound);
             snd_sound = BKE_sound_playback_handle_get(sound);
 
@@ -658,7 +660,7 @@ void BL_ConvertActuators(const char *maggiename,
       case ACT_COLLECTION: {
         bCollectionActuator *colact = (bCollectionActuator *)bact->data;
         if (!colact->collection) {
-          std::cout << "No Collection found, actuator won't be converted. " << std::endl;
+          std::cout << "No blender::Collection found, actuator won't be converted. " << std::endl;
           break;
         }
         KX_Camera *cam = nullptr;
@@ -978,8 +980,8 @@ void BL_ConvertActuators(const char *maggiename,
         bSteeringActuator *stAct = (bSteeringActuator *)bact->data;
         KX_GameObject *navmeshob = nullptr;
         if (stAct->navmesh) {
-          PointerRNA settings_ptr = RNA_pointer_create_discrete(
-              (ID *)stAct->navmesh, &RNA_GameObjectSettings, stAct->navmesh);
+          blender::PointerRNA settings_ptr = RNA_pointer_create_discrete(
+              (blender::ID *)stAct->navmesh, &RNA_GameObjectSettings, stAct->navmesh);
           if (RNA_enum_get(&settings_ptr, "physics_type") == OB_BODY_TYPE_NAVMESH)
             navmeshob = converter->FindGameObject(stAct->navmesh);
         }

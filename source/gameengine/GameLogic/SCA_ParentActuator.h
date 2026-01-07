@@ -44,7 +44,7 @@ class SCA_ParentActuator : public SCA_IActuator {
   /** option */
   bool m_addToCompound;
   bool m_ghost;
-  /** Object to set as parent */
+  /** blender::Object to set as parent */
   SCA_IObject *m_ob;
 
  public:

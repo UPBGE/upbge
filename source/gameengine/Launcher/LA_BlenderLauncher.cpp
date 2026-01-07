@@ -35,16 +35,18 @@
 #include "KX_BlenderCanvas.h"
 #include "KX_PythonInit.h"
 
+using namespace blender;
+
 LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
-                                       Main *maggie,
-                                       Scene *scene,
+                                       blender::Main *maggie,
+                                       blender::Scene *scene,
                                        GlobalSettings *gs,
                                        RAS_Rasterizer::StereoMode stereoMode,
                                        int argc,
                                        char **argv,
-                                       bContext *context,
-                                       rcti *camframe,
-                                       ARegion *ar,
+                                       blender::bContext *context,
+                                       blender::rcti *camframe,
+                                       blender::ARegion *ar,
                                        int alwaysUseExpandFraming,
                                        bool useViewportRender,
                                        int shadingTypeRuntime)
@@ -69,7 +71,7 @@ LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
   m_window = CTX_wm_window(m_context);
   m_view3d = CTX_wm_view3d(m_context);
   CM_Debug(ar->winx << ", " << ar->winy);
-  print_rcti("rcti: ", &ar->winrct);
+  print_rcti("blender::rcti: ", &ar->winrct);
 }
 
 LA_BlenderLauncher::~LA_BlenderLauncher()
@@ -88,7 +90,7 @@ bool LA_BlenderLauncher::GetUseAlwaysExpandFraming()
 
 void LA_BlenderLauncher::InitCamera()
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(m_context);
+  blender::RegionView3D *rv3d = CTX_wm_region_view3d(m_context);
 
   // Some blender stuff.
   float camzoom = 1.0f;

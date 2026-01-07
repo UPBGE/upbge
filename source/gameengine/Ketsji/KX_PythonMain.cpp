@@ -32,11 +32,13 @@
 #include "BLI_listbase.h"
 #include "DNA_scene_types.h"
 
-std::string KX_GetPythonMain(Scene *scene)
+using namespace blender;
+
+std::string KX_GetPythonMain(blender::Scene *scene)
 {
   // Examine custom scene properties.
   if (scene->id.properties) {
-    IDProperty *item = IDP_GetPropertyTypeFromGroup(scene->id.properties, "__main__", IDP_STRING);
+    blender::IDProperty *item = IDP_GetPropertyTypeFromGroup(scene->id.properties, "__main__", IDP_STRING);
     if (item) {
       return IDP_string_get(item);
     }
@@ -45,9 +47,9 @@ std::string KX_GetPythonMain(Scene *scene)
   return "";
 }
 
-std::string KX_GetPythonCode(Main *bmain, const std::string &python_main)
+std::string KX_GetPythonCode(blender::Main *bmain, const std::string &python_main)
 {
-  Text *text = (Text *)BLI_findstring(&bmain->texts, python_main.c_str(), offsetof(ID, name) + 2);
+  blender::Text *text = (blender::Text *)BLI_findstring(&bmain->texts, python_main.c_str(), offsetof(blender::ID, name) + 2);
   if (text) {
     size_t buf_len_dummy;
     return txt_to_buf(text, &buf_len_dummy);

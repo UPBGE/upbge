@@ -46,7 +46,7 @@ class CM_ThreadSpinLock : public CM_ThreadLock {
   virtual void Unlock();
 
  private:
-  SpinLock m_spinlock;
+  blender::SpinLock m_spinlock;
 };
 
 class CM_ThreadMutex : public CM_ThreadLock {
@@ -58,5 +58,5 @@ class CM_ThreadMutex : public CM_ThreadLock {
   virtual void Unlock();
 
  private:
-  ThreadMutex m_mutex;
+  blender::ThreadMutex m_mutex;
 };

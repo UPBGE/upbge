@@ -24,6 +24,8 @@
 
 #include "RAS_Texture.h"
 
+using namespace blender;
+
 RAS_Texture::RAS_Texture() : m_name("")
 {
 }

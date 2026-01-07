@@ -7,6 +7,8 @@
 
 #include "SG_BBox.h"
 
+using namespace blender;
+
 
 SG_BBox::SG_BBox()
 {

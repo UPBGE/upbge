@@ -31,6 +31,8 @@
 #  include "CM_Message.h"
 #  include "KX_GameObject.h"
 
+using namespace blender;
+
 KX_PythonComponent::KX_PythonComponent(const std::string &name)
     : KX_PythonProxy(), m_gameobj(nullptr), m_name(name)
 {

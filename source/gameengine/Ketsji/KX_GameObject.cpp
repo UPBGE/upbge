@@ -74,6 +74,8 @@
 #  include "EXP_PythonCallBack.h"
 #  include "bpy_rna.hh"
 #  include "python_utildefines.hh"
+
+using namespace blender;
 #endif
 
 static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -144,15 +146,15 @@ KX_GameObject::~KX_GameObject()
 
   /* EEVEE INTEGRATION */
 
-  Object *ob = GetBlenderObject();
+  blender::Object *ob = GetBlenderObject();
 
   if (ob) {
-    /* Potential issue here with duplis instances pointing to the same Object */
+    /* Potential issue here with duplis instances pointing to the same blender::Object */
     ob->gameflag &= ~OB_OVERLAY_COLLECTION;
   }
 
   if (m_pSGNode) {
-    /* Discard rendered Object */
+    /* Discard rendered blender::Object */
     DiscardRenderedObject();
 
     /* At KX_Scene exit */
@@ -213,14 +215,14 @@ KX_GameObject::~KX_GameObject()
 }
 
 /************************EEVEE_INTEGRATION**********************/
-void KX_GameObject::SetBlenderObject(Object *obj)
+void KX_GameObject::SetBlenderObject(blender::Object *obj)
 {
   m_pBlenderObject = obj;
 }
 
 void KX_GameObject::SyncTransformWithDepsgraph()
 {
-  Object *ob = GetBlenderObject();
+  blender::Object *ob = GetBlenderObject();
   if (ob) {
     float loc[3], rot[3][3], size[3];
     mat4_to_loc_rot_size(loc, rot, size, ob->object_to_world().ptr());
@@ -264,11 +266,11 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     }
   }
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  Object *ob_orig = GetBlenderObject();
+  blender::Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
   /* Don't tag non overlay collection objects in overlay collection render pass */
@@ -293,9 +295,9 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     if (!staticObject || m_forceIgnoreParentTx) {
       std::vector<KX_GameObject *> children = GetChildren();
       if (children.size() > 0) {
-        std::vector<Object *> childrenObjects;
+        std::vector<blender::Object *> childrenObjects;
         for (KX_GameObject *go : children) {
-          Object *child = go->GetBlenderObject();
+          blender::Object *child = go->GetBlenderObject();
           if (child) {
             childrenObjects.push_back(child);
           }
@@ -333,10 +335,10 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  Object *ob_orig = GetBlenderObject();
+  blender::Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
 
@@ -345,18 +347,18 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
   }
 
   if (ob_orig && !skip_transform) {
-    Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
     copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
     BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
   }
 }
 
-static bool is_realtime_compositor_enabled(bContext *C)
+static bool is_realtime_compositor_enabled(blender::bContext *C)
 {
   bool is_realtime_compositor_enabled = false;
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  Scene *scene = CTX_data_scene(C);
+  blender::View3D *v3d = CTX_wm_view3d(C);
+  blender::RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  blender::Scene *scene = CTX_data_scene(C);
   if (v3d && scene) {
     if (v3d->shading.use_compositor != V3D_SHADING_USE_COMPOSITOR_DISABLED &&
         v3d->shading.type >= OB_MATERIAL && scene->compositing_node_group && rv3d &&
@@ -371,21 +373,21 @@ static bool is_realtime_compositor_enabled(bContext *C)
 
 void KX_GameObject::ReplicateBlenderObject()
 {
-  Object *ob = GetBlenderObject();
+  blender::Object *ob = GetBlenderObject();
 
   if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
-    /* Don't do a new copy of the Object if the gameobj is a dupli Base or a dupli instances
-     * All dupli instances will point to the same Object (m_pBlenderObject) */
+    /* Don't do a new copy of the blender::Object if the gameobj is a dupli Base or a dupli instances
+     * All dupli instances will point to the same blender::Object (m_pBlenderObject) */
     return;
   }
 
   if (ob) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Main *bmain = CTX_data_main(C);
-    Object *newob;
-    BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Main *bmain = CTX_data_main(C);
+    blender::Object *newob;
+    BKE_id_copy_ex(bmain, &ob->id, (blender::ID **)&newob, 0);
     id_us_min(&newob->id);
-    Scene *scene = GetScene()->GetBlenderScene();
+    blender::Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     BKE_collection_object_add_from(bmain,
                                    scene,
@@ -421,13 +423,13 @@ void KX_GameObject::ReplicateBlenderObject()
 }
 void KX_GameObject::DiscardRenderedObject()
 {
-  Object *ob = GetBlenderObject();
+  blender::Object *ob = GetBlenderObject();
   if (ob) {
     PHY_IPhysicsController *ctrl = GetPhysicsController();
     if (ctrl) {
       ctrl->RemoveSoftBodyModifier(ob);
     }
-    /* 1. Rendered Object is a dupli instance, just erase it from duplis list */
+    /* 1. Rendered blender::Object is a dupli instance, just erase it from duplis list */
     if (m_is_dupli_instance) {
       if (GetScene()) {
         TagDupliForTaaReset();
@@ -436,19 +438,19 @@ void KX_GameObject::DiscardRenderedObject()
       m_is_dupli_instance = false;
       return;
     }
-    /* 2. Rendered Object is a Replica (m_isReplica = true).
-     * As we created a new Object during KX_GameObject::ProcessReplica,
+    /* 2. Rendered blender::Object is a Replica (m_isReplica = true).
+     * As we created a new blender::Object during KX_GameObject::ProcessReplica,
      * we need to remove it with BKE_id_delete */
     if (m_isReplica) {
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      Main *bmain = CTX_data_main(C);
+      blender::bContext *C = KX_GetActiveEngine()->GetContext();
+      blender::Main *bmain = CTX_data_main(C);
       BKE_id_delete(bmain, ob);
       SetBlenderObject(nullptr);
       DEG_relations_tag_update(bmain);
       return;
     }
-    /* 3. The Object is not a Replica nor a dupli Instance,
-     * just hide the Original Object. Its visibility flags will
+    /* 3. The blender::Object is not a Replica nor a dupli Instance,
+     * just hide the Original blender::Object. Its visibility flags will
      * be restored at KX_Scene exit */
     SetVisible(false, false);
   }
@@ -643,7 +645,7 @@ void KX_GameObject::SetActivityCulling(ActivityCullingInfo::Flag flag, bool enab
   }
 }
 
-void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob)
+void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj, blender::Object *ob)
 {
   m_lodManager = new KX_LodManager(meshObj, ob);
   m_lodManager->AddRef();
@@ -725,12 +727,12 @@ void KX_GameObject::SetDupliGroupObject(KX_GameObject *obj)
   m_pDupliGroupObject = obj;
 }
 
-void KX_GameObject::AddConstraint(bRigidBodyJointConstraint *cons)
+void KX_GameObject::AddConstraint(blender::bRigidBodyJointConstraint *cons)
 {
   m_constraints.push_back(cons);
 }
 
-std::vector<bRigidBodyJointConstraint *> KX_GameObject::GetConstraints()
+std::vector<blender::bRigidBodyJointConstraint *> KX_GameObject::GetConstraints()
 {
   return m_constraints;
 }
@@ -942,7 +944,7 @@ void KX_GameObject::SetActionFrame(short layer, float frame)
   GetActionManager()->SetActionFrame(layer, frame);
 }
 
-bAction *KX_GameObject::GetCurrentAction(short layer)
+blender::bAction *KX_GameObject::GetCurrentAction(short layer)
 {
   return GetActionManager()->GetCurrentAction(layer);
 }
@@ -1118,7 +1120,7 @@ void KX_GameObject::ApplyRotation(const MT_Vector3 &drot, bool local)
   NodeUpdateGS(0.0f);
 }
 
-void KX_GameObject::UpdateBlenderObjectMatrix(Object *blendobj)
+void KX_GameObject::UpdateBlenderObjectMatrix(blender::Object *blendobj)
 {
   if (m_is_dupli_instance) {
     return;
@@ -1212,16 +1214,16 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   KX_LodLevel *currentLodLevel = m_lodManager->GetLevel(m_currentLodLevel);
 
   if (currentLodLevel) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
 
     /* Here we want to change the object which will be rendered, then the evaluated object by the
      * depsgraph */
-    Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
+    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
 
-    Object *eval_lod_ob = DEG_get_evaluated(depsgraph, currentLodLevel->GetObject());
+    blender::Object *eval_lod_ob = DEG_get_evaluated(depsgraph, currentLodLevel->GetObject());
     /* Try to get the object with all modifiers applied */
-    Mesh *lod_mesh = (Mesh *)eval_lod_ob->data;
+    blender::Mesh *lod_mesh = (blender::Mesh *)eval_lod_ob->data;
     BKE_object_free_derived_caches(ob_eval);
     BKE_object_eval_assign_data(ob_eval, &lod_mesh->id, false);
   }
@@ -1328,9 +1330,9 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
     return;
   }
 
-  Object *ob = GetBlenderObject();
+  blender::Object *ob = GetBlenderObject();
   if (ob) {
-    Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
+    blender::Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
     GetScene()->TagForCollectionRemap();
     DEG_relations_tag_update(bmain);
     if (v) {
@@ -1441,7 +1443,7 @@ void KX_GameObject::setAngularVelocity(const MT_Vector3 &ang_vel, bool local)
 void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
-  Object *ob_orig = GetBlenderObject();
+  blender::Object *ob_orig = GetBlenderObject();
   if (m_is_dupli_instance) {
     return;
   }
@@ -1993,7 +1995,7 @@ void KX_GameObject::Relink(std::map<SCA_IObject *, SCA_IObject *> &map_parameter
 
 static unsigned char mathutils_kxgameob_vector_cb_index = -1; /* index for our callbacks */
 
-static int mathutils_kxgameob_generic_check(BaseMathObject *bmo)
+static int mathutils_kxgameob_generic_check(blender::BaseMathObject *bmo)
 {
   KX_GameObject *self = static_cast<KX_GameObject *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -2002,7 +2004,7 @@ static int mathutils_kxgameob_generic_check(BaseMathObject *bmo)
   return 0;
 }
 
-static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
+static int mathutils_kxgameob_vector_get(blender::BaseMathObject *bmo, int subtype)
 {
   KX_GameObject *self = static_cast<KX_GameObject *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -2055,7 +2057,7 @@ static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
+static int mathutils_kxgameob_vector_set(blender::BaseMathObject *bmo, int subtype)
 {
   KX_GameObject *self = static_cast<KX_GameObject *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -2104,7 +2106,7 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int mathutils_kxgameob_vector_get_index(BaseMathObject *bmo, int subtype, int index)
+static int mathutils_kxgameob_vector_get_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   /* lazy, avoid repeteing the case statement */
   if (mathutils_kxgameob_vector_get(bmo, subtype) == -1)
@@ -2112,7 +2114,7 @@ static int mathutils_kxgameob_vector_get_index(BaseMathObject *bmo, int subtype,
   return 0;
 }
 
-static int mathutils_kxgameob_vector_set_index(BaseMathObject *bmo, int subtype, int index)
+static int mathutils_kxgameob_vector_set_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   float f = bmo->data[index];
 
@@ -2136,7 +2138,7 @@ static Mathutils_Callback mathutils_kxgameob_vector_cb = {mathutils_kxgameob_gen
 
 static unsigned char mathutils_kxgameob_matrix_cb_index = -1; /* index for our callbacks */
 
-static int mathutils_kxgameob_matrix_get(BaseMathObject *bmo, int subtype)
+static int mathutils_kxgameob_matrix_get(blender::BaseMathObject *bmo, int subtype)
 {
   KX_GameObject *self = static_cast<KX_GameObject *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -2154,7 +2156,7 @@ static int mathutils_kxgameob_matrix_get(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int mathutils_kxgameob_matrix_set(BaseMathObject *bmo, int subtype)
+static int mathutils_kxgameob_matrix_set(blender::BaseMathObject *bmo, int subtype)
 {
   KX_GameObject *self = static_cast<KX_GameObject *> EXP_PROXY_REF(bmo->cb_user);
   if (self == nullptr)
@@ -4492,7 +4494,7 @@ PyObject *KX_GameObject::pyattr_get_blender_object(EXP_PyObjectPlus *self_v,
                                                    const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  Object *ob = self->GetBlenderObject();
+  blender::Object *ob = self->GetBlenderObject();
   if (ob) {
     PyObject *py_blender_object = pyrna_id_CreatePyObject(&ob->id);
     return py_blender_object;

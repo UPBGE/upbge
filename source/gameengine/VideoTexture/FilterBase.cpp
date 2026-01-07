@@ -7,6 +7,8 @@
 
 #include "FilterBase.h"
 
+using namespace blender;
+
 // FilterBase class implementation
 
 // constructor

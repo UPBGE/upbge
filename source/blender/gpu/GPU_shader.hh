@@ -420,7 +420,7 @@ enum GPUUniformBlockBuiltin {
 int GPU_shader_get_uniform_block(gpu::Shader *shader, const char *name);
 
 /******************************************UPBGE*****************************************/
-void GPU_shader_force_unbind(void);
+void GPU_shader_force_unbind();
 /****************************************End of UPBGE************************************/
 
 /** \} */

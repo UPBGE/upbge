@@ -43,6 +43,8 @@
 
 #include "SCA_MouseSensor.h"
 
+using namespace blender;
+
 SCA_MouseManager::SCA_MouseManager(SCA_LogicManager *logicmgr, SCA_IInputDevice *mousedev)
     : SCA_EventManager(logicmgr, MOUSE_EVENTMGR), m_mousedevice(mousedev)
 {

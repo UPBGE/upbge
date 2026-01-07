@@ -1,5 +1,5 @@
 /*
-   Bullet Continuous Collision Detection and Physics Library
+   Bullet Continuous Collision Detection and Physics blender::Library
    Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 
    This software is provided 'as-is', without any express or implied warranty.
@@ -281,7 +281,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   void MergeEnvironment(PHY_IPhysicsEnvironment *other_env);
 
-  static CcdPhysicsEnvironment *Create(struct Scene *blenderscene, bool visualizePhysics);
+  static CcdPhysicsEnvironment *Create(blender::Scene *blenderscene, bool visualizePhysics);
 
   virtual void ConvertObject(BL_SceneConverter *converter,
                              KX_GameObject *gameobj,
@@ -296,7 +296,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
    * instances. */
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
                                       KX_GameObject *obj_dest,
-                                      bRigidBodyJointConstraint *dat,
+                                      blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli);
 
  protected:

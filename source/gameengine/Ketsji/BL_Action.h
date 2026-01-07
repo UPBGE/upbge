@@ -31,22 +31,27 @@
 
 #include "BKE_animsys.h"
 
+#include "DNA_action_types.h"
+
 class BL_ArmatureObject;
 class KX_Scene;
-struct bNodeTree;
-struct Object;
+namespace blender { struct bNodeTree; }
+namespace blender { struct Object; }
+namespace blender { struct AnimationEvalContext; }
+namespace blender { struct Key; }
 
 class BL_Action {
+
  private:
-  struct bAction *m_action;
-  struct bPose *m_blendpose;
-  struct bPose *m_blendinpose;
+  blender::bAction *m_action;
+  blender::bPose *m_blendpose;
+  blender::bPose *m_blendinpose;
   std::vector<class SG_Controller *> m_sg_contr_list;
   class KX_GameObject *m_obj;
   std::vector<float> m_blendshape;
   std::vector<float> m_blendinshape;
 
-  AnimationEvalContext m_animEvalCtx;
+  blender::AnimationEvalContext m_animEvalCtx;
 
   float m_startframe;
   float m_endframe;
@@ -88,7 +93,7 @@ class BL_Action {
   void SetLocalTime(float curtime);
   void ResetStartTime(float curtime);
   void IncrementBlending(float curtime);
-  void BlendShape(struct Key *key, float srcweight, std::vector<float> &blendshape);
+  void BlendShape(blender::Key *key, float srcweight, std::vector<float> &blendshape);
 
  public:
   BL_Action(class KX_GameObject *gameobj);
@@ -100,30 +105,30 @@ class BL_Action {
   void UpdateControllersAndAnimation(float curtime);
   void UpdateSpatialControllers();
   void UpdateArmatureAnimation(float curtime,
-                               Object *ob,
-                               const AnimationEvalContext &animEvalContext);
+                               blender::Object *ob,
+                               const blender::AnimationEvalContext &animEvalContext);
   void ProcessPipeline(BL_ArmatureObject *armatureObj,
-                       Object *ob,
+                       blender::Object *ob,
                        KX_Scene *scene,
-                       const AnimationEvalContext &animEvalContext);
+                       const blender::AnimationEvalContext &animEvalContext);
   void ProcessArmatureBlending(BL_ArmatureObject *armatureObj, float curtime);
-  void UpdateObjectAnimation(Object *ob, const AnimationEvalContext &animEvalContext);
-  bool TryUpdateModifierActions(Object *ob,
+  void UpdateObjectAnimation(blender::Object *ob, const blender::AnimationEvalContext &animEvalContext);
+  bool TryUpdateModifierActions(blender::Object *ob,
                                 KX_Scene *scene,
-                                const AnimationEvalContext &animEvalContext);
-  bool TryUpdateConstraintActions(Object *ob,
+                                const blender::AnimationEvalContext &animEvalContext);
+  bool TryUpdateConstraintActions(blender::Object *ob,
                                   KX_Scene *scene,
-                                  const AnimationEvalContext &animEvalContext);
-  bool TryUpdateIDPropertyActions(Object *ob,
+                                  const blender::AnimationEvalContext &animEvalContext);
+  bool TryUpdateIDPropertyActions(blender::Object *ob,
                                   KX_Scene *scene,
-                                  const AnimationEvalContext &animEvalContext);
-  bool TryUpdateNodeTreeActions(KX_Scene *scene, const AnimationEvalContext &animEvalContext);
-  bool TryUpdateShapeKeyActions(Object *ob,
+                                  const blender::AnimationEvalContext &animEvalContext);
+  bool TryUpdateNodeTreeActions(KX_Scene *scene, const blender::AnimationEvalContext &animEvalContext);
+  bool TryUpdateShapeKeyActions(blender::Object *ob,
                                 KX_Scene *scene,
-                                const AnimationEvalContext &animEvalContext);
-  bool IsNodeTreeActionMatch(bNodeTree *nodetree);
-  bool IsNLAShapeKeyActionMatch(Key *key);
-  void ProcessShapeKeyBlending(Key *key);
+                                const blender::AnimationEvalContext &animEvalContext);
+  bool IsNodeTreeActionMatch(blender::bNodeTree *nodetree);
+  bool IsNLAShapeKeyActionMatch(blender::Key *key);
+  void ProcessShapeKeyBlending(blender::Key *key);
 
   /**
    * Play an action
@@ -158,7 +163,7 @@ class BL_Action {
   float GetFrame();
   const std::string GetName();
 
-  struct bAction *GetAction();
+  blender::bAction *GetAction();
 
   // Mutators
   void SetFrame(float frame);

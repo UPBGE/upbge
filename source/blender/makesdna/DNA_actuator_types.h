@@ -33,6 +33,10 @@
 
 #pragma once
 
+#include "DNA_action_types.h"
+
+namespace blender {
+
 struct Object;
 struct Mesh;
 struct Scene;
@@ -44,11 +48,11 @@ struct Text;
 /* unused now, moved to editobjectactuator in 2.02. Still needed for dna */
 typedef struct bAddObjectActuator {
   int time = 0, _pad = 0;
-  struct Object *ob = nullptr;
+  Object *ob = nullptr;
 } bAddObjectActuator;
 
 typedef struct bActionActuator {
-  struct bAction *act = nullptr;                   /* Pointer to action */
+  bAction *act = nullptr;                   /* Pointer to action */
   short type = 0, flag = 0; /* Playback type */  // not in use
   float sta = 0.0f, end = 0.0f;                        /* Start & End frames */
   char name[64] = "";                         /* For property-driven playback, MAX_NAME */
@@ -90,7 +94,7 @@ typedef struct bSoundActuator {
 typedef struct bEditObjectActuator {
   int time = 0;
   short type = 0, flag = 0;
-  struct Object *ob = nullptr;
+  Object *ob = nullptr;
   struct Mesh *me = nullptr;
   char name[64] = "";        /* MAX_NAME */
   float linVelocity[3] = {} ; /* initial lin. velocity on creation */
@@ -107,7 +111,7 @@ typedef struct bSceneActuator {
   short type = 0, _pad1 = 0;
   int _pad = 0;
   struct Scene *scene = nullptr;
-  struct Object *camera = nullptr;
+  Object *camera = nullptr;
 } bSceneActuator;
 
 typedef struct bCollectionActuator {
@@ -115,13 +119,13 @@ typedef struct bCollectionActuator {
   short type = 0, flag = 0;
   int _pad = 0;
   struct Collection *collection = nullptr;
-  struct Object *camera = nullptr;
+  Object *camera = nullptr;
 } bCollectionActuator;
 
 typedef struct bPropertyActuator {
   int _pad = 0, type = 0;
   char name[64] = "", value[64] = ""; /* MAX_NAME */
-  struct Object *ob = nullptr;
+  Object *ob = nullptr;
 } bPropertyActuator;
 
 typedef struct bObjectActuator {
@@ -132,7 +136,7 @@ typedef struct bObjectActuator {
   float _pad[2] = {}, _pad1[3] = {};
   float dloc[3] = {}, drot[3] = {}; /* angle in radians */
   float linearvelocity[3] = {}, angularvelocity[3] = {};
-  struct Object *reference = nullptr;
+  Object *reference = nullptr;
 } bObjectActuator;
 
 /* deprecated, handled by bActionActuator now */
@@ -147,7 +151,7 @@ typedef struct bIpoActuator {
 } bIpoActuator;
 
 typedef struct bCameraActuator {
-  struct Object *ob = nullptr;
+  Object *ob = nullptr;
   float height = 0.0f, min = 0.0f, max = 0.0f;
   float damping = 0.0f;
   short _pad1 = 0, axis = 0;
@@ -188,7 +192,7 @@ typedef struct bRandomActuator {
 typedef struct bMessageActuator {
   char toPropName[64]; /* Send to all objects with this propertyname. Empty to broadcast. MAX_NAME.
                         */
-  struct Object *toObject; /* (Possible future use) pointer to a single destination object. */
+  Object *toObject = nullptr; /* (Possible future use) pointer to a single destination object. */
   char subject[64];        /* Message Subject to send. MAX_NAME. */
   short bodyType, _pad1;   /* bodyType is either 'User defined text' or PropName */
   int _pad2;
@@ -234,7 +238,7 @@ typedef struct bParentActuator {
   char _pad[2];
   short flag;
   int type;
-  struct Object *ob;
+  Object *ob = nullptr;
 } bParentActuator;
 
 typedef struct bStateActuator {
@@ -249,8 +253,8 @@ typedef struct bArmatureActuator {
   float weight;
   float influence;
   float _pad;
-  struct Object *target;
-  struct Object *subtarget;
+  Object *target;
+  Object *subtarget;
 } bArmatureActuator;
 
 typedef struct bSteeringActuator {
@@ -265,8 +269,8 @@ typedef struct bSteeringActuator {
   int updateTime;
   float pathlerpfactor;
   float _pad1;
-  struct Object *target;
-  struct Object *navmesh;
+  Object *target = nullptr;
+  Object *navmesh = nullptr;
 } bSteeringActuator;
 
 typedef struct bMouseActuator {
@@ -298,7 +302,7 @@ typedef struct bActuator {
   /**
    * For ipo's and props: to find out which object the actuator
    * belongs to */
-  struct Object *ob;
+  Object *ob = nullptr;
 
 } bActuator;
 
@@ -628,3 +632,5 @@ typedef struct bActuator {
 /* vibrationactuator->mode */
 #define ACT_VIBRATION_PLAY 0
 #define ACT_VIBRATION_STOP 1
+
+}  // namespace blender

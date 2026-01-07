@@ -348,8 +348,8 @@ class GreasePencil : Overlay {
       const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
           "cyclic", bke::AttrDomain::Curve, false);
 
-      IndexMaskMemory memory;
-      const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
+      blender::IndexMaskMemory memory;
+      const blender::IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
           *ob, info.drawing, memory);
 
       visible_strokes.foreach_index([&](const int stroke_i) {

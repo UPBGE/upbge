@@ -40,6 +40,8 @@
 #include "KX_BlenderMaterial.h"
 #include "RAS_MeshObject.h"
 
+#include "BLI_task.h"
+
 class EXP_StringValue;
 class BL_SceneConverter;
 class KX_KetsjiEngine;
@@ -48,11 +50,10 @@ class KX_BlenderMaterial;
 class BL_InterpolatorList;
 class RAS_MeshObject;
 class RAS_Rasterizer;
-struct Main;
+namespace blender { struct Main; }
 struct BlendHandle;
-struct Scene;
-struct bAction;
-struct TaskPool;
+namespace blender { struct Scene; }
+namespace blender { struct bAction; }
 
 template<class Value> using UniquePtrList = std::vector<std::unique_ptr<Value>>;
 
@@ -64,7 +65,7 @@ class BL_Converter {
     UniquePtrList<RAS_MeshObject> m_meshobjects;
     UniquePtrList<BL_InterpolatorList> m_interpolators;
 
-    std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
+    std::map<blender::bAction *, BL_InterpolatorList *> m_actionToInterp;
 
     SceneSlot();
     SceneSlot(const BL_SceneConverter *converter);
@@ -77,7 +78,7 @@ class BL_Converter {
   std::map<KX_Scene *, SceneSlot> m_sceneSlots;
 
   struct ThreadInfo {
-    TaskPool *m_pool;
+    blender::TaskPool *m_pool;
     CM_ThreadMutex m_mutex;
   } m_threadinfo;
 
@@ -85,14 +86,14 @@ class BL_Converter {
   std::map<std::string, KX_LibLoadStatus *> m_status_map;
   std::vector<KX_LibLoadStatus *> m_mergequeue;
 
-  Main *m_maggie;
-  std::vector<Main *> m_DynamicMaggie;
+  blender::Main *m_maggie;
+  std::vector<blender::Main *> m_DynamicMaggie;
 
   KX_KetsjiEngine *m_ketsjiEngine;
   bool m_alwaysUseExpandFraming;
 
  public:
-  BL_Converter(Main *maggie, KX_KetsjiEngine *engine);
+  BL_Converter(blender::Main *maggie, KX_KetsjiEngine *engine);
   virtual ~BL_Converter();
 
   /** \param Scenename name of the scene to be converted.
@@ -109,16 +110,16 @@ class BL_Converter {
 
   void RegisterInterpolatorList(KX_Scene *scene,
                                 BL_InterpolatorList *interpolator,
-                                bAction *for_act);
-  BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
+                                blender::bAction *for_act);
+  BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, blender::bAction *for_act);
 
-  Scene *GetBlenderSceneForName(const std::string &name);
+  blender::Scene *GetBlenderSceneForName(const std::string &name);
   EXP_ListValue<EXP_StringValue> *GetInactiveSceneNames();
 
-  Main *GetMain();
-  Main *CreateMainDynamic(const std::string &path);
-  Main *GetMainDynamicPath(const std::string &path) const;
-  const std::vector<Main *> &GetMainDynamic() const;
+  blender::Main *GetMain();
+  blender::Main *CreateMainDynamic(const std::string &path);
+  blender::Main *GetMainDynamicPath(const std::string &path) const;
+  const std::vector<blender::Main *> &GetMainDynamic() const;
 
   KX_LibLoadStatus *LinkBlendFileMemory(void *data,
                                         int length,
@@ -136,10 +137,10 @@ class BL_Converter {
                                   char **err_str,
                                   short options);
 
-  bool FreeBlendFile(Main *maggie);
+  bool FreeBlendFile(blender::Main *maggie);
   bool FreeBlendFile(const std::string &path);
 
-  RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string &name);
+  RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, blender::Main *maggie, const std::string &name);
 
   void MergeScene(KX_Scene *to, KX_Scene *from);
 

@@ -40,7 +40,7 @@ class GHOST_IWindow;
 
 class LA_PlayerLauncher : public LA_Launcher {
  protected:
-  /// Main window.
+  /// blender::Main window.
   GHOST_IWindow *m_mainWindow;
 
   /// Override python script main loop file name.
@@ -60,15 +60,15 @@ class LA_PlayerLauncher : public LA_Launcher {
  public:
   LA_PlayerLauncher(GHOST_ISystem *system,
                     GHOST_IWindow *window,
-                    Main *maggie,
-                    Scene *scene,
+                    blender::Main *maggie,
+                    blender::Scene *scene,
                     GlobalSettings *gs,
                     RAS_Rasterizer::StereoMode stereoMode,
                     int samples,
                     int argc,
                     char **argv,
                     const std::string &pythonMainLoop,
-                    struct bContext *C,
+                    blender::bContext *C,
                     bool useViewportRender,
                     int shadingTypeRuntime);
   virtual ~LA_PlayerLauncher();

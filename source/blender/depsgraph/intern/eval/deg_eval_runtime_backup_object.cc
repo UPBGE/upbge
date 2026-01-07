@@ -91,7 +91,7 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
 
   /* Detect if this mesh is currently driven by GPU deformation playback. */
   const bool is_gpu_anim_mesh = (object->type == OB_MESH) &&
-                                static_cast<Mesh *>(object->data)->is_running_gpu_animation_playback;
+                                id_cast<Mesh *>(object->data)->is_running_gpu_animation_playback;
 
   if (ELEM(object->type, OB_MESH, OB_LATTICE, OB_CURVES_LEGACY, OB_FONT) && data_eval != nullptr) {
     if (object->id.recalc & ID_RECALC_GEOMETRY) {

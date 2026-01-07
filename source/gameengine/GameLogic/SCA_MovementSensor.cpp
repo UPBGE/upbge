@@ -37,6 +37,8 @@
 #include "DNA_sensor_types.h"
 #include "KX_GameObject.h"
 
+using namespace blender;
+
 SCA_MovementSensor::SCA_MovementSensor(
     SCA_EventManager *eventmgr, SCA_IObject *gameobj, int axis, bool localflag, float threshold)
     : SCA_ISensor(gameobj, eventmgr), m_localflag(localflag), m_axis(axis), m_threshold(threshold)

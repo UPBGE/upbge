@@ -34,11 +34,11 @@
 #include "RAS_Rasterizer.h"
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_task.h"
+
+#include "DNA_scene_types.h"
 
 class RAS_Rect;
-
-struct ImageFormatData;
-struct TaskPool;
 
 /**
  * 2D rendering device context. The connection from 3d rendercontext to 2d surface.
@@ -134,7 +134,7 @@ class RAS_ICanvas {
     int y;
     int width;
     int height;
-    ImageFormatData *format;
+    blender::ImageFormatData *format;
   };
 
   std::vector<Screenshot> m_screenshots;
@@ -144,7 +144,7 @@ class RAS_ICanvas {
   RAS_MouseState m_mousestate;
   /// frame number for screenshots.
   int m_frame;
-  TaskPool *m_taskpool;
+  blender::TaskPool *m_taskpool;
 
   RAS_Rect m_windowArea;
   RAS_Rect m_viewportArea;
@@ -154,7 +154,7 @@ class RAS_ICanvas {
    * FlushScreenshots.
    */
   void AddScreenshot(
-      const std::string &path, int x, int y, int width, int height, ImageFormatData *format);
+      const std::string &path, int x, int y, int width, int height, blender::ImageFormatData *format);
 
   /**
    * Saves screenshot data to a file. The actual compression and disk I/O is performed in

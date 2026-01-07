@@ -32,6 +32,8 @@
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"
 
+using namespace blender;
+
 extern "C" {
 extern char datatoc_RAS_VertexShader2DFilter_glsl[];
 }

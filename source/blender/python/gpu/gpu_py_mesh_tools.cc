@@ -20,6 +20,7 @@
 #include "BLI_math_matrix.h"
 
 #include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 
 #include "../draw/intern/draw_cache_extract.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
@@ -36,6 +37,9 @@
 #include "gpu_py_storagebuffer.hh"
 #include "gpu_py_uniformbuffer.hh"
 #include "gpu_py_vertex_buffer.hh"
+
+namespace blender {
+
 
 using namespace blender::bke;
 using namespace blender::gpu::shader;
@@ -135,7 +139,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     return nullptr;
   }
 
-  Object *ob_eval = reinterpret_cast<Object *>(id_obj);
+  Object *ob_eval = id_cast<Object *>(id_obj);
   if (!DEG_is_evaluated(ob_eval) || ob_eval->type != OB_MESH) {
     PyErr_SetString(PyExc_TypeError, "Expected an evaluated mesh object");
     return nullptr;
@@ -147,7 +151,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     return nullptr;
   }
 
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
     /* Not an error, just not ready. Request a redraw and tell Python to try again later. */
     Object *ob_orig = DEG_get_original(ob_eval);
@@ -164,7 +168,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   auto *vbo_nor = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal)->get();
 
   Object *ob_orig = DEG_get_original(ob_eval);
-  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+  Mesh *mesh_orig = id_cast<Mesh *>(ob_orig->data);
   mesh_orig->is_python_request_gpu = 1;
   mesh_eval->is_python_request_gpu = 1;
 
@@ -253,7 +257,7 @@ static PyObject *pygpu_mesh_compute_free(PyObject * /*self*/, PyObject *args, Py
     return nullptr;
   }
 
-  Object *ob = reinterpret_cast<Object *>(id_obj);
+  Object *ob = id_cast<Object *>(id_obj);
 
   /* Accept evaluated or original object. If evaluated, find original. */
   Object *ob_orig = ob;
@@ -271,7 +275,7 @@ static PyObject *pygpu_mesh_compute_free(PyObject * /*self*/, PyObject *args, Py
     return nullptr;
   }
 
-  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+  Mesh *mesh_orig = id_cast<Mesh *>(ob_orig->data);
   if (!mesh_orig) {
     PyErr_SetString(PyExc_RuntimeError, "Object mesh data not available");
     return nullptr;
@@ -395,7 +399,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
     PyErr_Format(PyExc_TypeError, "Expected an Object, not %.200s", Py_TYPE(py_obj)->tp_name);
     return nullptr;
   }
-  Object *ob_eval = reinterpret_cast<Object *>(id_obj);
+  Object *ob_eval = id_cast<Object *>(id_obj);
   if (!DEG_is_evaluated(ob_eval) || ob_eval->type != OB_MESH) {
     PyErr_SetString(PyExc_TypeError, "Expected an evaluated mesh object");
     return nullptr;
@@ -558,7 +562,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
   }
 
   /* Prepare mesh and validate VBOs like original function */
-  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
   if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
     Object *ob_orig = DEG_get_original(ob_eval);
     if (ob_orig) {
@@ -576,7 +580,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
   }
 
   Object *ob_orig = DEG_get_original(ob_eval);
-  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+  Mesh *mesh_orig = id_cast<Mesh *>(ob_orig->data);
   mesh_orig->is_python_request_gpu = 1;
   mesh_eval->is_python_request_gpu = 1;
 
@@ -857,3 +861,5 @@ void bpygpu_mesh_tools_free_all()
 {
   BKE_mesh_gpu_free_all_caches();
 }
+
+}  // namespace blender

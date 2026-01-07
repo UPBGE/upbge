@@ -2,7 +2,7 @@
  *  \ingroup physbullet
  */
 /*
-   Bullet Continuous Collision Detection and Physics Library
+   Bullet Continuous Collision Detection and Physics blender::Library
    Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 
    This software is provided 'as-is', without any express or implied warranty.
@@ -2763,7 +2763,7 @@ struct BlenderDebugDraw : public btIDebugDraw {
   }
 };
 
-CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool visualizePhysics)
+CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(blender::Scene *blenderscene, bool visualizePhysics)
 {
 
   static const PHY_SolverType solverTypeTable[] = {
@@ -2799,7 +2799,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                                           bool hasCompoundChildren)
 {
   using namespace blender;
-  Object *blenderobject = gameobj->GetBlenderObject();
+  blender::Object *blenderobject = gameobj->GetBlenderObject();
 
   bool isbulletdyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
   bool isbulletsensor = (blenderobject->gameflag & OB_SENSOR) != 0;
@@ -2811,11 +2811,11 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   class CcdShapeConstructionInfo *shapeInfo = new CcdShapeConstructionInfo();
 
   // Find the upper parent object using compound shape.
-  Object *blenderRoot = blenderobject->parent;
-  Object *blenderCompoundRoot = nullptr;
+  blender::Object *blenderRoot = blenderobject->parent;
+  blender::Object *blenderCompoundRoot = nullptr;
   // Iterate over all parents in the object tree.
   {
-    Object *parentit = blenderobject->parent;
+    blender::Object *parentit = blenderobject->parent;
     while (parentit) {
       // If the parent is valid for compound parent shape, update blenderCompoundRoot.
       if ((parentit->gameflag & OB_CHILD) &&
@@ -2921,7 +2921,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       ci.m_soft_kDG = blenderobject->bsoft->kDG;  // Drag coefficient [0,+inf]
       ci.m_soft_kLF = blenderobject->bsoft->kLF;  // Lift coefficient [0,+inf]
       ci.m_soft_kPR = blenderobject->bsoft->kPR;  // Pressure coefficient [-inf,+inf]
-      ci.m_soft_kVC = blenderobject->bsoft->kVC;  // Volume conversation coefficient [0,+inf]
+      ci.m_soft_kVC = blenderobject->bsoft->kVC;  // blender::Volume conversation coefficient [0,+inf]
 
       ci.m_soft_kDF = blenderobject->bsoft->kDF;    // Dynamic friction coefficient [0,1]
       ci.m_soft_kMT = blenderobject->bsoft->kMT;    // Pose matching coefficient [0,1]
@@ -3293,7 +3293,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
 void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src,
                                                    KX_GameObject *obj_dest,
-                                                   bRigidBodyJointConstraint *dat,
+                                                   blender::bRigidBodyJointConstraint *dat,
                                                    bool replicate_dupli)
 {
   PHY_IPhysicsController *phy_src = obj_src->GetPhysicsController();

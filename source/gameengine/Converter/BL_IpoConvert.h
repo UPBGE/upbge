@@ -62,18 +62,20 @@
 #include "RAS_IPolygonMaterial.h"
 #include "SG_Node.h"
 
+using namespace blender;
+
 /* Prototypes (No .cpp for this file due to linking issues) */
-SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene);
-SG_Controller *BL_CreateObColorIPO(struct bAction *action,
+SG_Controller *BL_CreateIPO(blender::bAction *action, KX_GameObject *gameobj, KX_Scene *scene);
+SG_Controller *BL_CreateObColorIPO(blender::bAction *action,
                                    KX_GameObject *gameobj,
                                    KX_Scene *scene);
-SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject *lightobj, KX_Scene *scene);
-SG_Controller *BL_CreateCameraIPO(struct bAction *action,
+SG_Controller *BL_CreateLampIPO(blender::bAction *action, KX_GameObject *lightobj, KX_Scene *scene);
+SG_Controller *BL_CreateCameraIPO(blender::bAction *action,
                                   KX_GameObject *cameraobj,
                                   KX_Scene *scene);
 
 /* Definitions */
-static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
+static BL_InterpolatorList *GetAdtList(blender::bAction *for_act, KX_Scene *scene)
 {
   BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
   BL_InterpolatorList *adtList = converter->FindInterpolatorList(scene, for_act);
@@ -86,12 +88,12 @@ static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
   return adtList;
 }
 
-SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
+SG_Controller *BL_CreateIPO(blender::bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
 {
   KX_IpoController *ipocontr = new KX_IpoController();
   ipocontr->SetGameObject(gameobj);
 
-  Object *blenderobject = gameobj->GetBlenderObject();
+  blender::Object *blenderobject = gameobj->GetBlenderObject();
 
   ipocontr->GetIPOTransform().SetPosition(MT_Vector3(blenderobject->loc));
   ipocontr->GetIPOTransform().SetEulerAngles(MT_Vector3(blenderobject->rot));
@@ -174,7 +176,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_S
   return ipocontr;
 }
 
-SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
+SG_Controller *BL_CreateObColorIPO(blender::bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
 {
   KX_ObColorIpoSGController *ipocontr_obcol = nullptr;
   KX_IInterpolator *interpolator;
@@ -194,11 +196,11 @@ SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject *gameob
   return ipocontr_obcol;
 }
 
-SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject *lightobj, KX_Scene *scene)
+SG_Controller *BL_CreateLampIPO(blender::bAction *action, KX_GameObject *lightobj, KX_Scene *scene)
 {
   KX_LightIpoSGController *ipocontr = new KX_LightIpoSGController();
 
-  Light *blenderlamp = (Light *)lightobj->GetBlenderObject()->data;
+  blender::Light *blenderlamp = (blender::Light *)lightobj->GetBlenderObject()->data;
 
   ipocontr->m_energy = blenderlamp->energy;
   ipocontr->m_col_rgb[0] = blenderlamp->r;
@@ -237,13 +239,13 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject *lightobj,
   return ipocontr;
 }
 
-SG_Controller *BL_CreateCameraIPO(struct bAction *action,
+SG_Controller *BL_CreateCameraIPO(blender::bAction *action,
                                   KX_GameObject *cameraobj,
                                   KX_Scene *scene)
 {
   KX_CameraIpoSGController *ipocontr = new KX_CameraIpoSGController();
 
-  Camera *blendercamera = (Camera *)cameraobj->GetBlenderObject()->data;
+  blender::Camera *blendercamera = (blender::Camera *)cameraobj->GetBlenderObject()->data;
 
   ipocontr->m_lens = blendercamera->lens;
   ipocontr->m_clipstart = blendercamera->clip_start;

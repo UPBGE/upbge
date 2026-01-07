@@ -16,6 +16,8 @@
  */
 #include "EXP_Expression.h"
 
+using namespace blender;
+
 EXP_Expression::EXP_Expression()
 {
 }

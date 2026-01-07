@@ -38,6 +38,8 @@
 
 #include "CM_Message.h"
 
+using namespace blender;
+
 RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 {
 }

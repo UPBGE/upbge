@@ -67,7 +67,7 @@ static int handle_read_msb_int(int handle)
 
 int BLO_is_a_runtime(const char *path)
 {
-  int res = 0, fd = BLI_open(path, O_BINARY | O_RDONLY, 0);
+  int res = 0, fd = blender::BLI_open(path, O_BINARY | O_RDONLY, 0);
   int datastart;
   char buf[8];
 
@@ -94,17 +94,18 @@ cleanup:
   return res;
 }
 
-BlendFileData *BLO_read_runtime(const char *path, BlendFileReadReport *reports)
+blender::BlendFileData *BLO_read_runtime(const char *path, blender::BlendFileReadReport *reports)
 {
-  BlendFileData *bfd = nullptr;
+  blender::BlendFileData *bfd = nullptr;
   // size_t actualsize;
   int fd, datastart;
   char buf[8];
 
-  fd = BLI_open(path, O_BINARY | O_RDONLY, 0);
+  fd = blender::BLI_open(path, O_BINARY | O_RDONLY, 0);
 
   if (fd == -1) {
-    BKE_reportf(reports->reports, RPT_ERROR, "Unable to open '%s': %s", path, strerror(errno));
+    blender::BKE_reportf(
+        reports->reports, blender::RPT_ERROR, "Unable to open '%s': %s", path, strerror(errno));
     goto cleanup;
   }
 
@@ -115,15 +116,15 @@ BlendFileData *BLO_read_runtime(const char *path, BlendFileReadReport *reports)
   datastart = handle_read_msb_int(fd);
 
   if (datastart == -1) {
-    BKE_reportf(reports->reports, RPT_ERROR, "Unable to read '%s' (problem seeking)", path);
+    BKE_reportf(reports->reports, blender::RPT_ERROR, "Unable to read '%s' (problem seeking)", path);
     goto cleanup;
   }
   else if (read(fd, buf, 8) != 8) {
-    BKE_reportf(reports->reports, RPT_ERROR, "Unable to read '%s' (truncated header)", path);
+    BKE_reportf(reports->reports, blender::RPT_ERROR, "Unable to read '%s' (truncated header)", path);
     goto cleanup;
   }
   else if (memcmp(buf, "BRUNTIME", 8) != 0) {
-    BKE_reportf(reports->reports, RPT_ERROR, "Unable to read '%s' (not a blend file)", path);
+    BKE_reportf(reports->reports, blender::RPT_ERROR, "Unable to read '%s' (not a blend file)", path);
     goto cleanup;
   }
   else {

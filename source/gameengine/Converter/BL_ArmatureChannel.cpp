@@ -37,6 +37,8 @@
 
 #include "BL_ArmatureObject.h"
 
+using namespace blender;
+
 #ifdef WITH_PYTHON
 
 PyTypeObject BL_ArmatureChannel::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_ArmatureChannel",
@@ -89,7 +91,7 @@ PyObject *BL_ArmatureChannel::NewProxy(bool py_owns)
 
 #endif  // WITH_PYTHON
 
-BL_ArmatureChannel::BL_ArmatureChannel(BL_ArmatureObject *armature, bPoseChannel *posechannel)
+BL_ArmatureChannel::BL_ArmatureChannel(BL_ArmatureObject *armature, blender::bPoseChannel *posechannel)
     : m_posechannel(posechannel), m_armature(armature)
 {
 }
@@ -118,40 +120,41 @@ PyAttributeDef BL_ArmatureChannel::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-/* attributes directly taken from bPoseChannel */
+/* attributes directly taken from blender::bPoseChannel */
 PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
-    EXP_PYATTRIBUTE_CHAR_RO("name", bPoseChannel, name),
-    EXP_PYATTRIBUTE_FLAG_RO("has_ik", bPoseChannel, flag, POSE_CHAIN),
-    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_x", bPoseChannel, ikflag, BONE_IK_NO_XDOF),
-    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_y", bPoseChannel, ikflag, BONE_IK_NO_YDOF),
-    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_z", bPoseChannel, ikflag, BONE_IK_NO_ZDOF),
-    EXP_PYATTRIBUTE_FLAG_RO("ik_limit_x", bPoseChannel, ikflag, BONE_IK_XLIMIT),
-    EXP_PYATTRIBUTE_FLAG_RO("ik_limit_y", bPoseChannel, ikflag, BONE_IK_YLIMIT),
-    EXP_PYATTRIBUTE_FLAG_RO("ik_limit_z", bPoseChannel, ikflag, BONE_IK_ZLIMIT),
-    EXP_PYATTRIBUTE_FLAG_RO("ik_rot_control", bPoseChannel, ikflag, BONE_IK_ROTCTL),
-    EXP_PYATTRIBUTE_FLAG_RO("ik_lin_control", bPoseChannel, ikflag, BONE_IK_LINCTL),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("location", -FLT_MAX, FLT_MAX, bPoseChannel, loc, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("scale", -FLT_MAX, FLT_MAX, bPoseChannel, scale, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_quaternion", -1.0f, 1.0f, bPoseChannel, quat, 4),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler", -10.f, 10.f, bPoseChannel, eul, 3),
+    EXP_PYATTRIBUTE_CHAR_RO("name", blender::bPoseChannel, name),
+    EXP_PYATTRIBUTE_FLAG_RO("has_ik", blender::bPoseChannel, flag, POSE_CHAIN),
+    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_x", blender::bPoseChannel, ikflag, BONE_IK_NO_XDOF),
+    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_y", blender::bPoseChannel, ikflag, BONE_IK_NO_YDOF),
+    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_z", blender::bPoseChannel, ikflag, BONE_IK_NO_ZDOF),
+    EXP_PYATTRIBUTE_FLAG_RO("ik_limit_x", blender::bPoseChannel, ikflag, BONE_IK_XLIMIT),
+    EXP_PYATTRIBUTE_FLAG_RO("ik_limit_y", blender::bPoseChannel, ikflag, BONE_IK_YLIMIT),
+    EXP_PYATTRIBUTE_FLAG_RO("ik_limit_z", blender::bPoseChannel, ikflag, BONE_IK_ZLIMIT),
+    EXP_PYATTRIBUTE_FLAG_RO("ik_rot_control", blender::bPoseChannel, ikflag, BONE_IK_ROTCTL),
+    EXP_PYATTRIBUTE_FLAG_RO("ik_lin_control", blender::bPoseChannel, ikflag, BONE_IK_LINCTL),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("location", -FLT_MAX, FLT_MAX, blender::bPoseChannel, loc, 3),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("scale", -FLT_MAX, FLT_MAX, blender::bPoseChannel, scale, 3),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW(
+        "rotation_quaternion", -1.0f, 1.0f, blender::bPoseChannel, quat, 4),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler", -10.f, 10.f, blender::bPoseChannel, eul, 3),
     EXP_PYATTRIBUTE_SHORT_RW(
-        "rotation_mode", ROT_MODE_MIN, ROT_MODE_MAX, false, bPoseChannel, rotmode),
-    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("channel_matrix", bPoseChannel, chan_mat, 4),
-    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("pose_matrix", bPoseChannel, pose_mat, 4),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_head", bPoseChannel, pose_head, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_tail", bPoseChannel, pose_tail, 3),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_min_x", bPoseChannel, limitmin[0]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_max_x", bPoseChannel, limitmax[0]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_min_y", bPoseChannel, limitmin[1]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_max_y", bPoseChannel, limitmax[1]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_min_z", bPoseChannel, limitmin[2]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_max_z", bPoseChannel, limitmax[2]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_x", bPoseChannel, stiffness[0]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_y", bPoseChannel, stiffness[1]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_z", bPoseChannel, stiffness[2]),
-    EXP_PYATTRIBUTE_FLOAT_RO("ik_stretch", bPoseChannel, ikstretch),
-    EXP_PYATTRIBUTE_FLOAT_RW("ik_rot_weight", 0, 1.0f, bPoseChannel, ikrotweight),
-    EXP_PYATTRIBUTE_FLOAT_RW("ik_lin_weight", 0, 1.0f, bPoseChannel, iklinweight),
+        "rotation_mode", ROT_MODE_MIN, ROT_MODE_MAX, false, blender::bPoseChannel, rotmode),
+    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("channel_matrix", blender::bPoseChannel, chan_mat, 4),
+    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("pose_matrix", blender::bPoseChannel, pose_mat, 4),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_head", blender::bPoseChannel, pose_head, 3),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_tail", blender::bPoseChannel, pose_tail, 3),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_min_x", blender::bPoseChannel, limitmin[0]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_max_x", blender::bPoseChannel, limitmax[0]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_min_y", blender::bPoseChannel, limitmin[1]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_max_y", blender::bPoseChannel, limitmax[1]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_min_z", blender::bPoseChannel, limitmin[2]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_max_z", blender::bPoseChannel, limitmax[2]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_x", blender::bPoseChannel, stiffness[0]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_y", blender::bPoseChannel, stiffness[1]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_z", blender::bPoseChannel, stiffness[2]),
+    EXP_PYATTRIBUTE_FLOAT_RO("ik_stretch", blender::bPoseChannel, ikstretch),
+    EXP_PYATTRIBUTE_FLOAT_RW("ik_rot_weight", 0, 1.0f, blender::bPoseChannel, ikrotweight),
+    EXP_PYATTRIBUTE_FLOAT_RW("ik_lin_weight", 0, 1.0f, blender::bPoseChannel, iklinweight),
     EXP_PYATTRIBUTE_RW_FUNCTION("joint_rotation",
                                 BL_ArmatureChannel,
                                 py_attr_get_joint_rotation,
@@ -163,7 +166,7 @@ PyObject *BL_ArmatureChannel::py_attr_getattr(EXP_PyObjectPlus *self_v,
                                               const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   BL_ArmatureChannel *self = static_cast<BL_ArmatureChannel *>(self_v);
-  bPoseChannel *channel = self->m_posechannel;
+  blender::bPoseChannel *channel = self->m_posechannel;
   int attr_order = attrdef - Attributes;
 
   if (!channel) {
@@ -192,7 +195,7 @@ int BL_ArmatureChannel::py_attr_setattr(EXP_PyObjectPlus *self_v,
                                         PyObject *value)
 {
   BL_ArmatureChannel *self = static_cast<BL_ArmatureChannel *>(self_v);
-  bPoseChannel *channel = self->m_posechannel;
+  blender::bPoseChannel *channel = self->m_posechannel;
   int attr_order = attrdef - Attributes;
 
   //	int ival;
@@ -218,7 +221,7 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(EXP_PyObjectPlus *self_
                                                          const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   BL_ArmatureChannel *self = static_cast<BL_ArmatureChannel *>(self_v);
-  bPoseChannel *pchan = self->m_posechannel;
+  blender::bPoseChannel *pchan = self->m_posechannel;
   // decompose the pose matrix in euler rotation
   float rest_mat[3][3];
   float pose_mat[3][3];
@@ -325,7 +328,7 @@ int BL_ArmatureChannel::py_attr_set_joint_rotation(EXP_PyObjectPlus *self_v,
                                                    PyObject *value)
 {
   BL_ArmatureChannel *self = static_cast<BL_ArmatureChannel *>(self_v);
-  bPoseChannel *pchan = self->m_posechannel;
+  blender::bPoseChannel *pchan = self->m_posechannel;
   PyObject *item;
   float joints[3];
   float quat[4];
@@ -397,7 +400,7 @@ int BL_ArmatureChannel::py_attr_set_joint_rotation(EXP_PyObjectPlus *self_v,
 // *************************
 // BL_ArmatureBone
 //
-// Access to Bone structure
+// Access to blender::Bone structure
 PyTypeObject BL_ArmatureBone::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_ArmatureBone",
                                       sizeof(EXP_PyObjectPlus_Proxy),
                                       0,
@@ -448,7 +451,7 @@ PyObject *BL_ArmatureBone::NewProxy(bool py_owns)
 
 PyObject *BL_ArmatureBone::py_bone_repr(PyObject *self)
 {
-  Bone *bone = static_cast<Bone *> EXP_PROXY_PTR(self);
+  blender::Bone *bone = static_cast<blender::Bone *> EXP_PROXY_PTR(self);
   return PyUnicode_FromString(bone->name);
 }
 
@@ -461,21 +464,21 @@ PyAttributeDef BL_ArmatureBone::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-// attributes that work on proxy ptr (points to a Bone structure)
+// attributes that work on proxy ptr (points to a blender::Bone structure)
 PyAttributeDef BL_ArmatureBone::AttributesPtr[] = {
-    EXP_PYATTRIBUTE_CHAR_RO("name", Bone, name),
-    EXP_PYATTRIBUTE_FLAG_RO("connected", Bone, flag, BONE_CONNECTED),
-    EXP_PYATTRIBUTE_FLAG_RO("hinge", Bone, flag, BONE_HINGE),
-    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("inherit_scale", Bone, flag, BONE_NO_SCALE),
-    EXP_PYATTRIBUTE_SHORT_RO("bbone_segments", Bone, segments),
-    EXP_PYATTRIBUTE_FLOAT_RO("roll", Bone, roll),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("head", Bone, head, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("tail", Bone, tail, 3),
-    EXP_PYATTRIBUTE_FLOAT_RO("length", Bone, length),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_head", Bone, arm_head, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_tail", Bone, arm_tail, 3),
-    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("arm_mat", Bone, arm_mat, 4),
-    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("bone_mat", Bone, bone_mat, 3),
+    EXP_PYATTRIBUTE_CHAR_RO("name", blender::Bone, name),
+    EXP_PYATTRIBUTE_FLAG_RO("connected", blender::Bone, flag, BONE_CONNECTED),
+    EXP_PYATTRIBUTE_FLAG_RO("hinge", blender::Bone, flag, BONE_HINGE),
+    EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("inherit_scale", blender::Bone, flag, BONE_NO_SCALE),
+    EXP_PYATTRIBUTE_SHORT_RO("bbone_segments", blender::Bone, segments),
+    EXP_PYATTRIBUTE_FLOAT_RO("roll", blender::Bone, roll),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("head", blender::Bone, head, 3),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("tail", blender::Bone, tail, 3),
+    EXP_PYATTRIBUTE_FLOAT_RO("length", blender::Bone, length),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_head", blender::Bone, arm_head, 3),
+    EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_tail", blender::Bone, arm_tail, 3),
+    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("arm_mat", blender::Bone, arm_mat, 4),
+    EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("bone_mat", blender::Bone, bone_mat, 3),
     EXP_PYATTRIBUTE_RO_FUNCTION("parent", BL_ArmatureBone, py_bone_get_parent),
     EXP_PYATTRIBUTE_RO_FUNCTION("children", BL_ArmatureBone, py_bone_get_children),
     EXP_PYATTRIBUTE_NULL  // Sentinel
@@ -484,7 +487,7 @@ PyAttributeDef BL_ArmatureBone::AttributesPtr[] = {
 PyObject *BL_ArmatureBone::py_bone_get_parent(EXP_PyObjectPlus *self,
                                               const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  Bone *bone = reinterpret_cast<Bone *>(self);
+  blender::Bone *bone = reinterpret_cast<blender::Bone *>(self);
   if (bone->parent) {
     // create a proxy unconnected to any GE object
     return NewProxyPlus_Ext(nullptr, &Type, bone->parent, false);
@@ -495,15 +498,16 @@ PyObject *BL_ArmatureBone::py_bone_get_parent(EXP_PyObjectPlus *self,
 PyObject *BL_ArmatureBone::py_bone_get_children(EXP_PyObjectPlus *self,
                                                 const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  Bone *bone = reinterpret_cast<Bone *>(self);
-  Bone *child;
+  blender::Bone *bone = reinterpret_cast<blender::Bone *>(self);
+  blender::Bone *child;
   int count = 0;
-  for (child = (Bone *)bone->childbase.first; child; child = child->next)
+  for (child = (blender::Bone *)bone->childbase.first; child; child = child->next)
     count++;
 
   PyObject *childrenlist = PyList_New(count);
 
-  for (count = 0, child = (Bone *)bone->childbase.first; child; child = child->next, ++count)
+  for (count = 0, child = (blender::Bone *)bone->childbase.first; child;
+       child = child->next, ++count)
     PyList_SET_ITEM(childrenlist, count, NewProxyPlus_Ext(nullptr, &Type, child, false));
 
   return childrenlist;

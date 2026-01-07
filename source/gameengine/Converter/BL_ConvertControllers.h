@@ -33,7 +33,9 @@
 
 #include "EXP_Python.h"
 
-void BL_ConvertControllers(struct Object *blenderobject,
+#include "DNA_object_types.h"
+
+void BL_ConvertControllers(blender::Object *blenderobject,
                            class KX_GameObject *gameobj,
                            class SCA_LogicManager *logicmgr,
                            int activeLayerBitInfo,

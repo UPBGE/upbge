@@ -13,6 +13,8 @@
 
 #include <string>
 
+namespace blender {
+
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -960,9 +962,10 @@ void do_2d_mapping(inout float fx, inout float fy,
  */
 static std::string get_common_texture_lib_glsl()
 {
-  return get_colorband_helpers_glsl() + get_color_conversion_glsl() + 
-         get_boxsample_helpers_glsl() + get_boxsample_core_glsl() +
-         get_texture_mapping_glsl();
+  return get_colorband_helpers_glsl() + get_color_conversion_glsl() +
+         get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl();
 }
 
 }  // namespace blender::gpu
+
+}  // namespace blender

@@ -27,16 +27,16 @@
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
 
-using namespace blender::draw;
+namespace blender::draw {
 
 struct blender::draw::SimpleDeformManager::Impl {
-  /* Composite key: (Mesh*, modifier UID) to support multiple SimpleDeform modifiers per mesh */
-  struct MeshModifierKey {
-    Mesh *mesh;
-    uint32_t modifier_uid;
+/* Composite key: (Mesh*, modifier UID) to support multiple SimpleDeform modifiers per mesh */
+struct MeshModifierKey {
+  Mesh *mesh;
+  uint32_t modifier_uid;
 
-    uint64_t hash() const
-    {
+  uint64_t hash() const
+  {
       return (uint64_t(reinterpret_cast<uintptr_t>(mesh)) << 32) | uint64_t(modifier_uid);
     }
 
@@ -382,8 +382,8 @@ SimpleDeformManager &SimpleDeformManager::instance()
 SimpleDeformManager::SimpleDeformManager() : impl_(new Impl()) {}
 SimpleDeformManager::~SimpleDeformManager() {}
 
-uint32_t SimpleDeformManager::compute_simpledeform_hash(const Mesh *mesh_orig,
-                                                       const SimpleDeformModifierData *smd)
+uint32_t SimpleDeformManager::compute_simpledeform_hash(
+    const Mesh *mesh_orig, const blender::SimpleDeformModifierData *smd)
 {
   if (!mesh_orig || !smd) {
     return 0;
@@ -417,10 +417,10 @@ uint32_t SimpleDeformManager::compute_simpledeform_hash(const Mesh *mesh_orig,
   return hash;
 }
 
-void SimpleDeformManager::ensure_static_resources(const SimpleDeformModifierData *smd,
-                                                 Object *deform_ob,
-                                                 Mesh *orig_mesh,
-                                                 uint32_t pipeline_hash)
+void SimpleDeformManager::ensure_static_resources(const blender::SimpleDeformModifierData *smd,
+                                                  Object *deform_ob,
+                                                  Mesh *orig_mesh,
+                                                  uint32_t pipeline_hash)
 {
   if (!orig_mesh || !smd) {
     return;
@@ -462,12 +462,12 @@ void SimpleDeformManager::ensure_static_resources(const SimpleDeformModifierData
   }
 }
 
-blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
-    const SimpleDeformModifierData *smd,
+gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
+    const blender::SimpleDeformModifierData *smd,
     Depsgraph * /*depsgraph*/,
     Object *deformed_eval,
     MeshBatchCache *cache,
-    blender::gpu::StorageBuf *ssbo_in)
+    gpu::StorageBuf *ssbo_in)
 {
   if (!smd || !ssbo_in) {
     return nullptr;
@@ -493,33 +493,34 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
   const std::string key_out = key_prefix + "output";
 
   /* Vertex group weights SSBO */
-  blender::gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
+  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
 
   if (!msd.vgroup_weights.empty()) {
     if (!ssbo_vgroup) {
       const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
         GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
       }
     }
   }
-    else {
-      /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
-      if (!ssbo_vgroup) {
-        ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_ensure(
-            mesh_owner, deformed_eval, key_vgroup, sizeof(float));
-        if (ssbo_vgroup) {
-          float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
-          GPU_storagebuf_update(ssbo_vgroup, &dummy);
-        }
+  else {
+    /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader)
+     */
+    if (!ssbo_vgroup) {
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
+          mesh_owner, deformed_eval, key_vgroup, sizeof(float));
+      if (ssbo_vgroup) {
+        float dummy = 1.0f; /* Unused, but set to 1.0 for safety */
+        GPU_storagebuf_update(ssbo_vgroup, &dummy);
       }
     }
+  }
 
   /* Create output SSBO */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
-  blender::gpu::StorageBuf *ssbo_out = BKE_mesh_gpu_internal_ssbo_ensure(
+  gpu::StorageBuf *ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, deformed_eval, key_out, size_out);
   if (!ssbo_out) {
     return nullptr;
@@ -529,7 +530,7 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
    * transmat transforms from object space to deform space (origin)
    * CPU does: transmat = inverse(origin) * object */
   float transmat[4][4], transmat_inv[4][4];
-  
+
   if (smd->origin) {
     /* Transform: object → origin space */
     float origin_imat[4][4];
@@ -540,16 +541,16 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
     /* No origin: identity transform */
     unit_m4(transmat);
   }
-  
+
   invert_m4_m4(transmat_inv, transmat);
-  
+
   /* Calculate lock_axis and limit_axis (same as CPU MOD_simpledeform.cc) */
   const int deform_axis = std::clamp(int(smd->deform_axis), 0, 2);
   int lock_axis = smd->axis;
   int limit_axis = deform_axis;
-  
+
   if (smd->mode == MOD_SIMPLEDEFORM_MODE_BEND) {
-    lock_axis = 0;  /* Bend doesn't use lock axis */
+    lock_axis = 0; /* Bend doesn't use lock axis */
     /* Bend limit_axis is special */
     if (deform_axis == 0 || deform_axis == 1) {
       limit_axis = 2;
@@ -570,29 +571,29 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
       lock_axis &= ~MOD_SIMPLEDEFORM_LOCK_AXIS_Z;
     }
   }
-  
+
   /* Calculate absolute limits and smd_factor using GPU reduction pass
    * This ensures we use DEFORMED positions (ssbo_in), not REST positions! */
-  
+
   /* Create min/max result SSBO (2 uints for atomic operations) */
   const std::string key_minmax = "simpledeform_minmax";
   const size_t size_minmax = 2 * sizeof(uint32_t);
-  blender::gpu::StorageBuf *ssbo_minmax = BKE_mesh_gpu_internal_ssbo_ensure(
+  gpu::StorageBuf *ssbo_minmax = bke::BKE_mesh_gpu_internal_ssbo_ensure(
       mesh_owner, deformed_eval, key_minmax, size_minmax);
   if (!ssbo_minmax) {
     return nullptr;
   }
-  
+
   /* Initialize min/max to extreme values (as ordered uints) */
-  uint32_t init_minmax[2] = {0xFFFFFFFFu, 0x00000000u};  /* max uint, min uint */
+  uint32_t init_minmax[2] = {0xFFFFFFFFu, 0x00000000u}; /* max uint, min uint */
   GPU_storagebuf_update(ssbo_minmax, init_minmax);
-  
+
   /* Create reduction shader */
   const std::string shader_min_max_key = "simpledeform_minmax";
-  blender::gpu::Shader *minmax_shader = BKE_mesh_gpu_internal_shader_get(mesh_owner,
+  gpu::Shader *minmax_shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner,
                                                                          shader_min_max_key);
   if (!minmax_shader) {
-    using namespace blender::gpu::shader;
+    using namespace gpu::shader;
     ShaderCreateInfo minmax_info("pyGPU_Shader");
     minmax_info.local_group_size(256, 1, 1);
     minmax_info.storage_buf(0, Qualifier::read, "vec4", "input_positions[]");
@@ -601,32 +602,32 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
     minmax_info.push_constant(Type::int_t, "limit_axis");
     minmax_info.compute_source_generated = minmax_reduction_src;
 
-    minmax_shader = BKE_mesh_gpu_internal_shader_ensure(
+    minmax_shader = bke::BKE_mesh_gpu_internal_shader_ensure(
         mesh_owner, deformed_eval, shader_min_max_key, minmax_info);
   }
   if (!minmax_shader) {
     return nullptr;
   }
-  
+
   /* Dispatch reduction pass */
   GPU_shader_bind(minmax_shader);
   GPU_storagebuf_bind(ssbo_in, 0);
   GPU_storagebuf_bind(ssbo_minmax, 1);
   GPU_shader_uniform_mat4(minmax_shader, "transmat", (const float(*)[4])transmat);
   GPU_shader_uniform_1i(minmax_shader, "limit_axis", limit_axis);
-  
+
   const int minmax_groups = (msd.verts_num + 255) / 256;
   GPU_compute_dispatch(minmax_shader, minmax_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
-  
+
   /* Note: No CPU readback! The minmax results stay on GPU and are read by the deform shader */
 
   /* Create shader */
   const std::string shader_key = "simpledeform";
-  blender::gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
   if (!shader) {
-    using namespace blender::gpu::shader;
+    using namespace gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
     info.local_group_size(256, 1, 1);
     info.compute_source_generated = simpledeform_compute_src;
@@ -649,14 +650,14 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
     info.push_constant(Type::float_t, "limit_lower_factor"); /* smd->limit[0] */
     info.push_constant(Type::float_t, "limit_upper_factor"); /* smd->limit[1] */
 
-    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
+    shader = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
   if (!shader) {
     return nullptr;
   }
 
   /* Bind and dispatch */
-  const blender::gpu::shader::SpecializationConstants *constants =
+  const gpu::shader::SpecializationConstants *constants =
       &GPU_shader_get_default_constant_state(shader);
   GPU_shader_bind(shader, constants);
 
@@ -665,7 +666,7 @@ blender::gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
   if (ssbo_vgroup) {
     GPU_storagebuf_bind(ssbo_vgroup, 2);
   }
-  GPU_storagebuf_bind(ssbo_minmax, 3);  /* Bind minmax results from reduction pass */
+  GPU_storagebuf_bind(ssbo_minmax, 3); /* Bind minmax results from reduction pass */
 
   /* Set uniforms */
   GPU_shader_uniform_mat4(shader, "transmat", (const float(*)[4])transmat);
@@ -693,7 +694,7 @@ void SimpleDeformManager::free_resources_for_mesh(Mesh *mesh)
   if (!mesh) {
     return;
   }
-  
+
   /* Remove all entries for this mesh (may be multiple SimpleDeform modifiers) */
   Vector<Impl::MeshModifierKey> keys_to_remove;
   for (const auto &item : impl_->static_map.items()) {
@@ -701,7 +702,7 @@ void SimpleDeformManager::free_resources_for_mesh(Mesh *mesh)
       keys_to_remove.append(item.key);
     }
   }
-  
+
   for (const Impl::MeshModifierKey &key : keys_to_remove) {
     impl_->static_map.remove(key);
   }
@@ -713,10 +714,12 @@ void SimpleDeformManager::invalidate_all(Mesh *mesh)
     return;
   }
   /* Free all GPU resources (SSBOs + shaders) for this mesh */
-  BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
+  bke::BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
 }
 
 void SimpleDeformManager::free_all()
 {
   impl_->static_map.clear();
 }
+
+}  // namespace blender::draw

@@ -43,6 +43,7 @@
 #ifdef WITH_PYTHON
 #  ifdef USE_MATHUTILS
 #    include "../../blender/python/mathutils/mathutils.hh"  // So we can have mathutils callbacks.
+
 #  endif
 
 #  define MAX_PROP_NAME 64

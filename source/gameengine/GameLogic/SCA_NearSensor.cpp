@@ -38,6 +38,8 @@
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsController.h"
 
+using namespace blender;
+
 SCA_NearSensor::SCA_NearSensor(SCA_EventManager *eventmgr,
                                KX_GameObject *gameobj,
                                float margin,

@@ -33,6 +33,9 @@
 
 #include "RAS_Rect.h"
 
+namespace blender {}
+using namespace blender;
+
 void RAS_FramingManager::ComputeDefaultFrustum(const float camnear,
                                                const float camfar,
                                                const float lens,

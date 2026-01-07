@@ -44,6 +44,8 @@
 #include "RAS_Polygon.h"
 #include "Recast.h"
 
+using namespace blender;
+
 #define MAX_PATH_LEN 256
 static const float polyPickExt[3] = {2, 4, 2};
 
@@ -134,7 +136,7 @@ static float distPointToSegmentSq(const float point[3], const float a[3], const 
   return dx[0] * dx[0] + dx[2] * dx[2];
 }
 
-static int buildRawVertIndicesData(Mesh *me,
+static int buildRawVertIndicesData(blender::Mesh *me,
                                    int *nverts_r,
                                    float **verts_r,
                                    int *ntris_r,
@@ -495,7 +497,7 @@ fail:
   return 0;
 }
 
-static int buildNavMeshDataByMesh(Mesh *me,
+static int buildNavMeshDataByMesh(blender::Mesh *me,
                                   int *vertsPerPoly,
                                   int *nverts,
                                   float **verts,
@@ -600,10 +602,10 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
                                           int &vertsPerPoly)
 {
   /* TODO: This doesn't work currently because of eval_ctx. */
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
-  Mesh *final_me = (Mesh *)ob_eval->data;
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
+  blender::Mesh *final_me = (blender::Mesh *)ob_eval->data;
   using namespace blender;
   using namespace blender::bke;
   const AttributeAccessor attributes = final_me->attributes();

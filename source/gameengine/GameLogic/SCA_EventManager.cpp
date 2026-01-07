@@ -34,6 +34,8 @@
 #include "CM_List.h"
 #include "SCA_ISensor.h"
 
+using namespace blender;
+
 SCA_EventManager::SCA_EventManager(SCA_LogicManager *logicmgr, EVENT_MANAGER_TYPE mgrtype)
     : m_logicmgr(logicmgr), m_mgrtype(mgrtype)
 {

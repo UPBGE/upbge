@@ -7,6 +7,8 @@
 
 #include "SG_CullingNode.h"
 
+using namespace blender;
+
 SG_CullingNode::SG_CullingNode() : m_culled(true)
 {
 }

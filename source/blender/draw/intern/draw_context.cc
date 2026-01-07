@@ -125,6 +125,11 @@
 
 #include "DRW_select_buffer.hh"
 
+#include "BKE_colortools.hh"
+#include "BLI_link_utils.h"
+#include "BLI_linklist.h"
+#include "IMB_colormanagement.hh"
+
 namespace blender {
 
 thread_local DRWContext *DRWContext::g_context = nullptr;
@@ -467,13 +472,13 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
       if (entry.scheduled_free) {
         if (mesh && mesh->is_running_gpu_animation_playback == 0) {
           /* Free armature skinning static data first, then mesh GPU resources. */
-          blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
-          blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
-          blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
-          blender::draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
-          blender::draw::HookManager::instance().free_resources_for_mesh(mesh);
-          blender::draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
-          BKE_mesh_gpu_free_for_mesh(mesh);
+          draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
+          draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+          draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
+          draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
+          draw::HookManager::instance().free_resources_for_mesh(mesh);
+          draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
+          bke::BKE_mesh_gpu_free_for_mesh(mesh);
         }
         /* Free the pipeline and remove entry */
         entry.gpu_pipeline.reset();
@@ -498,13 +503,13 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
 
   /* If we have a GL context now, free armature resources then mesh GPU resources immediately. */
   if (GPU_context_active_get() != nullptr) {
-    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::HookManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
-    BKE_mesh_gpu_free_for_mesh(mesh);
+    draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
+    draw::HookManager::instance().free_resources_for_mesh(mesh);
+    draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
+    bke::BKE_mesh_gpu_free_for_mesh(mesh);
     return;
   }
 
@@ -522,13 +527,13 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
 
   /* Fallback: best-effort immediate free if GL becomes available right away. */
   if (GPU_context_active_get() != nullptr) {
-    blender::draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::HookManager::instance().free_resources_for_mesh(mesh);
-    blender::draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
-    BKE_mesh_gpu_free_for_mesh(mesh);
+    draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
+    draw::HookManager::instance().free_resources_for_mesh(mesh);
+    draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
+    bke::BKE_mesh_gpu_free_for_mesh(mesh);
   }
 }
 
@@ -1060,12 +1065,12 @@ static void drw_engines_cache_populate(draw::ObjectRef &ref,
     draw::drw_batch_cache_validate(ref.object);
     /* Ensure mesh_owner points to the original mesh (not an evaluated mesh). */
     if (ref.object && ref.object->type == OB_MESH) {
-      Mesh *mesh_eval = static_cast<Mesh *>(ref.object->data);
+      Mesh *mesh_eval = id_cast<Mesh *>(ref.object->data);
       blender::draw::MeshBatchCache *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
       if (cache) {
         Object *ob_orig = DEG_get_original(ref.object);
         if (ob_orig) {
-          cache->mesh_owner = static_cast<Mesh *>(ob_orig->data);
+          cache->mesh_owner = id_cast<Mesh *>(ob_orig->data);
         }
       }
     }
@@ -1184,7 +1189,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       continue;
     }
 
-    Mesh *mesh_eval = static_cast<Mesh *>(eval_obj->data);
+    Mesh *mesh_eval = id_cast<Mesh *>(eval_obj->data);
     if (!mesh_eval) {
       continue;
     }
@@ -1206,8 +1211,8 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     }
 
     /* Try to get position and normal VBOs from the final buffer list. */
-    blender::gpu::VertBuf *vbo_pos = nullptr;
-    blender::gpu::VertBuf *vbo_nor = nullptr;
+    gpu::VertBuf *vbo_pos = nullptr;
+    gpu::VertBuf *vbo_nor = nullptr;
     if (auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::Position)) {
       if (ptr) {
         vbo_pos = ptr->get();
@@ -1247,7 +1252,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       continue;
     }
     /* Execute the pipeline (chained ShapeKeys → Armature → ...) */
-    blender::gpu::StorageBuf *ssbo_final = pipeline.execute(mesh_owner, eval_obj, cache);
+    gpu::StorageBuf *ssbo_final = pipeline.execute(mesh_owner, eval_obj, cache);
     if (!ssbo_final) {
       if (G.debug & G_DEBUG) {
         printf("GPU modifier pipeline failed for mesh owner '%s'\n",
@@ -1258,7 +1263,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
 
     /* Prepare transformation matrix for scatter */
     const std::string key_transform_mat = "gpu_modifiers_pipeline_transform_mat";
-    blender::gpu::StorageBuf *ssbo_transform_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_transform_mat);
+    gpu::StorageBuf *ssbo_transform_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_transform_mat);
     if (!ssbo_transform_mat) {
       ssbo_transform_mat = BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, eval_obj, key_transform_mat, sizeof(float) * 16);
@@ -1268,15 +1273,15 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     }
 
     /* Final scatter: SSBO → VBO (corners) */
-    blender::Vector<blender::bke::GpuMeshComputeBinding> caller_bindings = {
-      {0, vbo_pos, blender::gpu::shader::Qualifier::write, "vec4", "positions_out[]"},
-      {1, vbo_nor, blender::gpu::shader::Qualifier::write, "uint", "normals_out[]"},
-      {2, ssbo_final, blender::gpu::shader::Qualifier::read, "vec4", "positions_in[]"},
-      {3, ssbo_transform_mat, blender::gpu::shader::Qualifier::read, "mat4", "transform_mat[]"},
+    blender::Vector<bke::GpuMeshComputeBinding> caller_bindings = {
+      {0, vbo_pos, gpu::shader::Qualifier::write, "vec4", "positions_out[]"},
+      {1, vbo_nor, gpu::shader::Qualifier::write, "uint", "normals_out[]"},
+      {2, ssbo_final, gpu::shader::Qualifier::read, "vec4", "positions_in[]"},
+      {3, ssbo_transform_mat, gpu::shader::Qualifier::read, "mat4", "transform_mat[]"},
     };
 
-    auto post_bind_fn = [](blender::gpu::Shader * /*sh*/) {};
-    auto config_fn = [](blender::gpu::shader::ShaderCreateInfo & /* info */) {};
+    auto post_bind_fn = [](gpu::Shader * /*sh*/) {};
+    auto config_fn = [](gpu::shader::ShaderCreateInfo & /* info */) {};
 
     BKE_mesh_gpu_scatter_to_corners(
         depsgraph, eval_obj, caller_bindings, config_fn, post_bind_fn, mesh_eval->corners_num);
@@ -2599,32 +2604,27 @@ void DRW_module_exit()
   GPU_render_begin();
 
   /* Free global caches owned by BKE (VBO/SSBO/shaders per-mesh). */
-  BKE_mesh_gpu_free_all_caches();
+  bke::BKE_mesh_gpu_free_all_caches();
 
   /* Clear manager CPU-side bookkeeping (no SSBO release here to avoid double-free). */
-  blender::draw::ShapeKeySkinningManager::instance().free_all();
-  blender::draw::ArmatureSkinningManager::instance().free_all();
-  blender::draw::LatticeSkinningManager::instance().free_all();
-  blender::draw::HookManager::instance().free_all();
-  blender::draw::SimpleDeformManager::instance().free_all();
-  blender::draw::DisplaceManager::instance().free_all();
+  draw::ShapeKeySkinningManager::instance().free_all();
+  draw::ArmatureSkinningManager::instance().free_all();
+  draw::LatticeSkinningManager::instance().free_all();
+  draw::HookManager::instance().free_all();
+  draw::SimpleDeformManager::instance().free_all();
+  draw::DisplaceManager::instance().free_all();
 
   GPU_render_end();
 
   DRW_shaders_free();
 
   /* Release CPU-side containers (maps/vectors) after GPU resources have been freed. */
-  blender::bke::MeshGPUCacheManager::get().release_cpu_memory();
+  bke::MeshGPUCacheManager::get().release_cpu_memory();
 }
 
 /** \} */
 
 /****************UPBGE**************************/
-
-#include "BKE_colortools.hh"
-#include "BLI_link_utils.h"
-#include "BLI_linklist.h"
-#include "IMB_colormanagement.hh"
 
 /*--UPBGE Viewport Debug Drawing --*/
 
@@ -2714,9 +2714,9 @@ static void drw_debug_draw_lines_bge(void)
   }
 
   GPUVertFormat *vert_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   uint col = GPU_vertformat_attr_add(
-      vert_format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+      vert_format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
@@ -2756,7 +2756,7 @@ static void drw_debug_draw_boxes_bge(void)
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   const float *size = DRW_context_get()->viewport_size_get();
@@ -2839,7 +2839,7 @@ static void drw_debug_draw_text_bge(Scene *scene)
 
 void drw_debug_draw_bge(Scene *scene)
 {
-  blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
+  draw::command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
 
   drw_debug_draw_lines_bge();
   drw_debug_draw_boxes_bge();
@@ -2866,7 +2866,6 @@ void DRW_game_render_loop(bContext *C,
                           bool is_overlay_pass)
 {
   using namespace blender::draw;
-
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
 
   ARegion *ar = CTX_wm_region(C);
@@ -2979,14 +2978,14 @@ void DRW_game_python_loop_end(ViewLayer * /*view_layer*/)
 /* Called instead of DRW_transform_to_display in eevee_engine
  * to avoid double tonemapping of rendered textures with ImageRender
  */
-void DRW_transform_to_display_image_render(blender::gpu::Texture *tex)
+void DRW_transform_to_display_image_render(gpu::Texture *tex)
 {
-  blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
+  draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
 
   GPUVertFormat *vert_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", gpu::VertAttrType::SFLOAT_32_32);
   uint texco = GPU_vertformat_attr_add(
-      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
+      vert_format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
   immUniform1i("image", 0);

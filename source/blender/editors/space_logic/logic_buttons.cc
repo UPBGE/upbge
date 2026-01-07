@@ -50,9 +50,11 @@
 #include "interface_intern.hh"
 #include "logic_intern.hh"
 
+namespace blender {
+
 using namespace blender::ui;
 
-static wmOperatorStatus logic_properties_toggle_exec(bContext *C, wmOperator */*op*/)
+static wmOperatorStatus logic_properties_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   ScrArea *sa = CTX_wm_area(C);
   ARegion *region = logic_has_buttons_region(sa);
@@ -121,7 +123,8 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
     Block *block;
     uiLinkLine *line, *nline;
     Button *but = nullptr;
-    for (block = static_cast<Block *>(region->runtime->uiblocks.first); block; block = block->next) {
+    for (block = static_cast<Block *>(region->runtime->uiblocks.first); block; block = block->next)
+    {
       int i = 0;
       while (i < block->buttons.size()) {
         but = block->buttons[i].get();
@@ -168,3 +171,5 @@ void LOGIC_OT_links_cut(wmOperatorType *ot)
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_KNIFE, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
 }
+
+}  // namespace blender

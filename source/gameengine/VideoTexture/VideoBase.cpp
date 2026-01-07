@@ -16,6 +16,8 @@
 
 #include "FilterSource.h"
 
+using namespace blender;
+
 // VideoBase implementation
 
 // initialize image data

@@ -57,6 +57,8 @@
 #include "RAS_ICanvas.h"
 #include "SCA_IInputDevice.h"
 
+using namespace blender;
+
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
 #ifdef FREE_WINDOWS /* XXX mingw64 (gcc 4.7.0) defines a macro for DrawText that translates to \
@@ -106,7 +108,7 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
     "Physics:",     // tc_physics
     "Logic:",       // tc_logic
     "Animations:",  // tc_animations
-    "Depsgraph:",   // tc_depsgraph
+    "blender::Depsgraph:",   // tc_depsgraph
     "Network:",     // tc_network
     "Scenegraph:",  // tc_scenegraph
     "Rasterizer:",  // tc_rasterizer
@@ -120,7 +122,7 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
  * Constructor of the Ketsji Engine
  */
 KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
-                                 bContext *C,
+                                 blender::bContext *C,
                                  bool useViewportRender,
                                  int shadingTypeRuntime)
     : m_context(C),                              // eevee
@@ -182,7 +184,7 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 }
 
 /* EEVEE integration */
-bContext *KX_KetsjiEngine::GetContext()
+blender::bContext *KX_KetsjiEngine::GetContext()
 {
   return m_context;
 }
@@ -197,7 +199,7 @@ int KX_KetsjiEngine::ShadingTypeRuntime()
   return m_shadingTypeRuntime;
 }
 
-/* include Depsgraph update time in tc_depsgraph category
+/* include blender::Depsgraph update time in tc_depsgraph category
  * (it can include part of animations time too I guess).
  */
 void KX_KetsjiEngine::CountDepsgraphTime()
@@ -814,7 +816,7 @@ void KX_KetsjiEngine::Render()
 
   if (!UseViewportRender()) {
     /* Clear the entire screen (draw a black background rect before drawing) */
-    ARegion *region = CTX_wm_region(m_context);
+    blender::ARegion *region = CTX_wm_region(m_context);
     wmWindowViewport(CTX_wm_window(m_context));
 
     blender::draw::command::StateSet::set();
@@ -838,9 +840,9 @@ void KX_KetsjiEngine::Render()
                 m_canvas->GetWidth() + 1,
                 m_canvas->GetHeight() + 1};
 
-    /* rcti xmin, xmax, ymin, ymax */
-    const rcti rect = {v[0], v[2] + v[0] - 1, v[1], v[3] + v[1] - 1};
-    GPUViewport *gpu_viewport = m_scenes->GetFront()->GetCurrentGPUViewport();
+    /* blender::rcti xmin, xmax, ymin, ymax */
+    const blender::rcti rect = {v[0], v[2] + v[0] - 1, v[1], v[3] + v[1] - 1};
+    blender::GPUViewport *gpu_viewport = m_scenes->GetFront()->GetCurrentGPUViewport();
     blender::gpu::Texture *backup = GPU_viewport_color_texture(gpu_viewport, 0);
     GPU_viewport_switch_color_tex(gpu_viewport,
                                   GPU_framebuffer_color_texture(background_fb->GetFrameBuffer()));
@@ -1151,7 +1153,7 @@ void KX_KetsjiEngine::StopEngine()
   }
 }
 
-// Scene Management is able to switch between scenes
+// blender::Scene Management is able to switch between scenes
 // and have several scenes running in parallel
 void KX_KetsjiEngine::AddScene(KX_Scene *scene)
 {
@@ -1190,8 +1192,8 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
       activecam->NodeUpdateGS(0.0f);
     }
     else {
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      blender::bContext *C = KX_GetActiveEngine()->GetContext();
+      blender::RegionView3D *rv3d = CTX_wm_region_view3d(C);
       MT_Vector3 pos = MT_Vector3(rv3d->viewinv[3]);
       activecam->NodeSetLocalPosition(pos);
       activecam->NodeSetLocalOrientation(MT_Matrix3x3(&rv3d->viewinv[0][0]));
@@ -1405,7 +1407,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
   }
 }
 
-KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
+KX_Scene *KX_KetsjiEngine::CreateScene(blender::Scene *scene, bool libloading)
 {
   KX_Scene *tmpscene = new KX_Scene(
       m_inputDevice, scene->id.name + 2, scene, m_canvas, m_networkMessageManager);
@@ -1417,7 +1419,7 @@ KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 
 KX_Scene *KX_KetsjiEngine::CreateScene(const std::string &scenename)
 {
-  Scene *scene = m_converter->GetBlenderSceneForName(scenename);
+  blender::Scene *scene = m_converter->GetBlenderSceneForName(scenename);
   if (!scene)
     return nullptr;
 
@@ -1458,7 +1460,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
         KX_Scene *scene = m_scenes->GetValue(sce_idx);
         if (scene->GetName() == oldscenename) {
           // avoid crash if the new scene doesn't exist, just do nothing
-          Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
+          blender::Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
           if (blScene) {
             m_converter->RemoveScene(scene);
 

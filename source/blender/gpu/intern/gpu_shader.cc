@@ -1205,15 +1205,16 @@ void ShaderCompiler::continue_all()
 
 /** \} */
 
+}  // namespace gpu
+
 /********************UPBGE*****************************/
-void GPU_shader_force_unbind(void)
+void GPU_shader_force_unbind()
 {
-  Context *ctx = Context::get();
+  gpu::Context *ctx = gpu::Context::get();
   if (ctx->shader) {
     ctx->shader->unbind();
   }
   ctx->shader = nullptr;
 }
 
-}  // namespace gpu
 }  // namespace blender

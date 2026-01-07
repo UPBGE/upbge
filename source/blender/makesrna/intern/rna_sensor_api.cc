@@ -45,6 +45,8 @@
 #  include "DNA_controller_types.h"
 #  include "DNA_sensor_types.h"
 
+namespace blender {
+
 static void rna_Sensor_link(bSensor *sens, bController *cont)
 {
   BKE_sca_link_logicbricks(
@@ -56,7 +58,11 @@ static void rna_Sensor_unlink(bSensor *sens, bController *cont)
   BKE_sca_unlink_logicbricks((void **)&cont, (void ***)&(sens->links), &sens->totlinks);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_sensor(StructRNA *srna)
 {
@@ -75,5 +81,7 @@ void RNA_api_sensor(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_property_update(parm, NC_LOGIC, nullptr);
 }
+
+}  // namespace blender
 
 #endif

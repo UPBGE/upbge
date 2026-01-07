@@ -17,9 +17,10 @@
 
 #include "node_shader_util.hh"
 
-/* **************** SPRITES ANIMATION - UPBGE **************** */
+namespace blender {
+namespace nodes::node_shader_sprite_anim_cc {
 
-namespace blender::nodes::node_shader_sprites_animation_cc {
+/* **************** SPRITES ANIMATION - UPBGE **************** */
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -54,31 +55,32 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static int gpu_shader_sprites_animation(GPUMaterial *mat,
                                         bNode *node,
-                                        bNodeExecData */*execdata*/,
+                                        bNodeExecData * /*execdata*/,
                                         GPUNodeStack *in,
                                         GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "node_sprites_animation", in, out);
 }
 
-}  // namespace blender::nodes::node_shader_sprites_animation_cc {
-
+}  // namespace nodes::node_shader_sprite_anim_cc
 
 void register_node_type_sh_sprites_animation()
 {
 
-  namespace file_ns = blender::nodes::node_shader_sprites_animation_cc;
+  namespace file_ns = blender::nodes::node_shader_sprite_anim_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   common_node_type_base(&ntype, "ShaderNodeSpritesAnimation", SH_NODE_SPRITES_ANIMATION);
   ntype.ui_name = "SpritesAnimation";
   ntype.ui_description = "To animate sprites";
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.add_ui_poll = object_eevee_shader_nodes_poll;
   ntype.gpu_fn = file_ns::gpu_shader_sprites_animation;
 
   node_register_type(ntype);
 }
+
+}  // namespace blender

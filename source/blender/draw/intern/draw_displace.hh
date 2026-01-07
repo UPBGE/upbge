@@ -32,22 +32,17 @@
 
 #include "draw_cache_extract.hh"
 
+#include "GPU_shader.hh"
+#include "GPU_storage_buffer.hh"
+
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
+
 #include <memory>
 
-struct Depsgraph;
-struct DisplaceModifierData;
-struct Mesh;
-struct MeshBatchCache;
-struct Object;
-
-namespace blender {
-namespace gpu {
-class Shader;
-class StorageBuf;
-}  // namespace gpu
-}  // namespace blender
-
 namespace blender::draw {
+
+/* Forward declaration for MeshBatchCache */
+struct MeshBatchCache;
 
 /**
  * Singleton manager for GPU-based Displace modifier.
@@ -76,11 +71,11 @@ class DisplaceManager {
    * Dispatch GPU compute shader to deform mesh vertices.
    * Returns SSBO containing deformed positions (vec4 per vertex).
    */
-  blender::gpu::StorageBuf *dispatch_deform(const DisplaceModifierData *dmd,
-                                            Depsgraph *depsgraph,
-                                            Object *deformed_eval,
-                                            MeshBatchCache *cache,
-                                            blender::gpu::StorageBuf *ssbo_in);
+  gpu::StorageBuf *dispatch_deform(const DisplaceModifierData *dmd,
+                                   Depsgraph *depsgraph,
+                                   Object *deformed_eval,
+                                   MeshBatchCache *cache,
+                                   gpu::StorageBuf *ssbo_in);
 
   /**
    * Free all cached resources associated with a specific mesh.

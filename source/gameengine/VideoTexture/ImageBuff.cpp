@@ -14,6 +14,8 @@
 #include "Exception.h"
 #include "FilterSource.h"
 
+using namespace blender;
+
 // default filter
 FilterRGB24 defFilter;
 
@@ -111,7 +113,7 @@ void ImageBuff::clear(short width, short height, unsigned char color)
 // img must point to a array of RGBA data of size width*height
 void ImageBuff::plot(unsigned char *img, short width, short height, short x, short y, short mode)
 {
-  struct ImBuf *tmpbuf;
+  blender::ImBuf *tmpbuf;
 
   if (m_size[0] == 0 || m_size[1] == 0 || width <= 0 || height <= 0)
     return;
@@ -187,7 +189,7 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
   img->m_imbuf->byte_buffer.data = nullptr;
 }
 
-// cast Image pointer to ImageBuff
+// cast blender::Image pointer to ImageBuff
 inline ImageBuff *getImageBuff(PyImage *self)
 {
   return static_cast<ImageBuff *>(self->m_image);
@@ -352,7 +354,7 @@ PyTypeObject ImageBuffType = {
     0,                                                          /*tp_setattro*/
     &imageBufferProcs,                                          /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,                                         /*tp_flags*/
-    "Image source from image buffer",                           /* tp_doc */
+    "blender::Image source from image buffer",                           /* tp_doc */
     0,                                                          /* tp_traverse */
     0,                                                          /* tp_clear */
     0,                                                          /* tp_richcompare */

@@ -49,6 +49,7 @@
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 
+namespace blender {
 void BKE_bproperty_free(bProperty *prop)
 {
 
@@ -266,3 +267,5 @@ void cp_property(bProperty *prop1, bProperty *prop2)
 	BKE_bproperty_set(prop1, str);
 }
 #endif
+
+}  // namespace blender

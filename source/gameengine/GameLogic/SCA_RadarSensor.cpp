@@ -37,6 +37,8 @@
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsController.h"
 
+using namespace blender;
+
 /**
  * 	RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
  */

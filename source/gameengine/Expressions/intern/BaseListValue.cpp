@@ -21,6 +21,8 @@
 
 #include "EXP_ListValue.h"
 
+using namespace blender;
+
 EXP_BaseListValue::EXP_BaseListValue() : m_bReleaseContents(true)
 {
 }

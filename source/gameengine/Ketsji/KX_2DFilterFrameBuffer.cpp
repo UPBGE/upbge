@@ -28,6 +28,8 @@
 
 #ifdef WITH_PYTHON
 #include "../../blender/python/gpu/gpu_py_texture.hh"
+
+using namespace blender;
 #endif
 
 KX_2DFilterFrameBuffer::KX_2DFilterFrameBuffer(unsigned short colorSlots,

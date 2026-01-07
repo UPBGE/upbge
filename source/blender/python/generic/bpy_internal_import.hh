@@ -22,6 +22,8 @@
 
 #pragma once
 
+namespace blender {
+
 /* python redefines :/ */
 #ifdef _POSIX_C_SOURCE
 #  undef _POSIX_C_SOURCE
@@ -31,12 +33,10 @@
 #  undef _XOPEN_SOURCE
 #endif
 
-struct Text;
-
 void bpy_import_init(PyObject *builtins);
 
-bool bpy_text_compile(struct Text *text);
-PyObject *bpy_text_import(struct Text *text);
+bool bpy_text_compile(blender::Text *text);
+PyObject *bpy_text_import(blender::Text *text);
 PyObject *bpy_text_import_name(const char *name, int *found);
 PyObject *bpy_text_reimport(PyObject *module, int *found);
 /* void		bpy_text_clear_modules(int clear_all);*/ /* Clear user modules */
@@ -44,11 +44,13 @@ PyObject *bpy_text_reimport(PyObject *module, int *found);
 void bpy_text_filename_get(char *fn, size_t fn_len, struct Text *text);
 
 /* The game engine has its own Main struct, if this is set search this rather than G.main */
-struct Main *bpy_import_main_get(void);
-void bpy_import_main_set(struct Main *maggie);
+blender::Main *bpy_import_main_get(void);
+void bpy_import_main_set(blender::Main *maggie);
 
 /* This is used for importing text from dynamically loaded libraries in the game engine */
-void bpy_import_main_extra_add(struct Main *maggie);
-void bpy_import_main_extra_remove(struct Main *maggie);
+void bpy_import_main_extra_add(blender::Main *maggie);
+void bpy_import_main_extra_remove(blender::Main *maggie);
 
 extern PyMethodDef bpy_import_meth;
+
+}  // namespace blender
