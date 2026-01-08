@@ -20,6 +20,7 @@
 #include "../../blenfont/BLF_api.hh"
 
 #include "BLI_utildefines.h"
+#include "DNA_vec_types.h"
 
 #include "../../imbuf/IMB_colormanagement.hh"
 #include "../../imbuf/IMB_imbuf.hh"
@@ -503,6 +504,183 @@ static PyObject *py_blf_unload(PyObject * /*self*/, PyObject *args)
   Py_RETURN_NONE;
 }
 
+/* -------------------------- UPBGE ------------------------------------*/
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_ascender_doc,
+    ".. function:: ascender(fontid)\n"
+    "\n"
+    "   Return the max height of the glyphs from the baseline.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :return: The ascender.\n"
+    "   :rtype: float\n");
+static PyObject *py_blf_ascender(PyObject * /*self*/, PyObject *args)
+{
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "i:blf.ascender", &fontid)) {
+    return nullptr;
+  }
+
+  return PyFloat_FromDouble((double)BLF_ascender(fontid));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_descender_doc,
+    ".. function:: descender(fontid)\n"
+    "\n"
+    "   Return the max depth of the glyphs from the baseline.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :return: The descender.\n"
+    "   :rtype: float\n");
+static PyObject *py_blf_descender(PyObject * /*self*/, PyObject *args)
+{
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "i:blf.descender", &fontid)) {
+    return nullptr;
+  }
+
+  return PyFloat_FromDouble((double)BLF_descender(fontid));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_height_max_doc,
+    ".. function:: height_max(fontid)\n"
+    "\n"
+    "   Return the maximum height of the font (typically ascender - descender).\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :return: The maximum height.\n"
+    "   :rtype: float\n");
+static PyObject *py_blf_height_max(PyObject * /*self*/, PyObject *args)
+{
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "i:blf.height_max", &fontid)) {
+    return nullptr;
+  }
+
+  return PyFloat_FromDouble((double)BLF_height_max(fontid));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_boundbox_doc,
+    ".. function:: boundbox(fontid, text)\n"
+    "\n"
+    "   Return the bounding box of the text.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :arg text: the text to measure.\n"
+    "   :type text: str\n"
+    "   :return: the bounding box (xmin, ymin, xmax, ymax).\n"
+    "   :rtype: tuple[int, int, int, int]\n");
+static PyObject *py_blf_boundbox(PyObject * /*self*/, PyObject *args)
+{
+  const char *text;
+  Py_ssize_t text_length;
+  int fontid;
+  rcti box;
+
+  if (!PyArg_ParseTuple(args, "is#:blf.boundbox", &fontid, &text, &text_length)) {
+    return nullptr;
+  }
+
+  BLF_boundbox(fontid, text, uint(text_length), &box, nullptr);
+
+  return Py_BuildValue("iiii", box.xmin, box.ymin, box.xmax, box.ymax);
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_glyph_advance_doc,
+    ".. function:: glyph_advance(fontid, text)\n"
+    "\n"
+    "   Return the advance width of the first character in the text.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :arg text: the text (glyph) to measure.\n"
+    "   :type text: str\n"
+    "   :return: The glyph advance.\n"
+    "   :rtype: float\n");
+static PyObject *py_blf_glyph_advance(PyObject * /*self*/, PyObject *args)
+{
+  const char *text;
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "is:blf.glyph_advance", &fontid, &text)) {
+    return nullptr;
+  }
+
+  return PyFloat_FromDouble((double)BLF_glyph_advance(fontid, text));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_fixed_width_doc,
+    ".. function:: fixed_width(fontid)\n"
+    "\n"
+    "   Return the fixed width of the font (0.0 if variable width).\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :return: The fixed width.\n"
+    "   :rtype: float\n");
+static PyObject *py_blf_fixed_width(PyObject * /*self*/, PyObject *args)
+{
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "i:blf.fixed_width", &fontid)) {
+    return nullptr;
+  }
+
+  return PyFloat_FromDouble((double)BLF_fixed_width(fontid));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_bounds_max_doc,
+    ".. function:: bounds_max(fontid)\n"
+    "\n"
+    "   Return the maximum bounding box of the font.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :return: the maximum bounding box (xmin, ymin, xmax, ymax).\n"
+    "   :rtype: tuple[float, float, float, float]\n");
+static PyObject *py_blf_bounds_max(PyObject * /*self*/, PyObject *args)
+{
+  int fontid;
+  rctf box;
+
+  if (!PyArg_ParseTuple(args, "i:blf.bounds_max", &fontid)) {
+    return nullptr;
+  }
+
+  BLF_bounds_max(fontid, &box);
+  return Py_BuildValue("ffff", box.xmin, box.ymin, box.xmax, box.ymax);
+}
+
+/* --------------------------- UPBGE ---------------------------------- */
+
 /* -------------------------------------------------------------------- */
 /** \name Image Buffer Access
  *
@@ -725,8 +903,12 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
 /*----------------------------MODULE INIT-------------------------*/
 static PyMethodDef BLF_methods[] = {
     {"aspect", static_cast<PyCFunction>(py_blf_aspect), METH_VARARGS, py_blf_aspect_doc},
+    {"ascender", static_cast<PyCFunction>(py_blf_ascender), METH_VARARGS, py_blf_ascender_doc},
+    {"boundbox", static_cast<PyCFunction>(py_blf_boundbox), METH_VARARGS, py_blf_boundbox_doc},
+    {"bounds_max", static_cast<PyCFunction>(py_blf_bounds_max), METH_VARARGS, py_blf_bounds_max_doc},
     {"clipping", static_cast<PyCFunction>(py_blf_clipping), METH_VARARGS, py_blf_clipping_doc},
     {"word_wrap", static_cast<PyCFunction>(py_blf_word_wrap), METH_VARARGS, py_blf_word_wrap_doc},
+    {"descender", static_cast<PyCFunction>(py_blf_descender), METH_VARARGS, py_blf_descender_doc},
     {"disable", static_cast<PyCFunction>(py_blf_disable), METH_VARARGS, py_blf_disable_doc},
     {"dimensions",
      static_cast<PyCFunction>(py_blf_dimensions),
@@ -738,6 +920,9 @@ static PyMethodDef BLF_methods[] = {
      METH_VARARGS,
      py_blf_draw_buffer_doc},
     {"enable", static_cast<PyCFunction>(py_blf_enable), METH_VARARGS, py_blf_enable_doc},
+    {"fixed_width", static_cast<PyCFunction>(py_blf_fixed_width), METH_VARARGS, py_blf_fixed_width_doc},
+    {"glyph_advance", static_cast<PyCFunction>(py_blf_glyph_advance), METH_VARARGS, py_blf_glyph_advance_doc},
+    {"height_max", static_cast<PyCFunction>(py_blf_height_max), METH_VARARGS, py_blf_height_max_doc},
     {"position", static_cast<PyCFunction>(py_blf_position), METH_VARARGS, py_blf_position_doc},
     {"rotation", static_cast<PyCFunction>(py_blf_rotation), METH_VARARGS, py_blf_rotation_doc},
     {"shadow", static_cast<PyCFunction>(py_blf_shadow), METH_VARARGS, py_blf_shadow_doc},
