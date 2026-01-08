@@ -66,7 +66,7 @@
 #include "UI_view2d.hh"
 
 #include "RNA_access.hh"
-#include "rna_prototypes.hh"
+#include "RNA_prototypes.hh"
 
 /* XXX BAD BAD */
 #include "../interface/interface_intern.hh"

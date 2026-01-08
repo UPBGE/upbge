@@ -839,7 +839,7 @@ typedef struct GameData {
    */
   int flag = GAME_USE_UNDO;
   short mode = 8;
-  short matmode DNA_DEPRECATED = 0;
+  short matmode = 0;
   short occlusionRes = 128; /* resolution of occlusion Z buffer in pixel */
   short physicsEngine = WOPHY_BULLET;
   short solverType = 0, _pad[3] = {};
@@ -847,7 +847,7 @@ typedef struct GameData {
   short pythonkeys[4] = {212, 217, 213, 116};
   short vsync = 0; /* Controls vsync: off, on, or adaptive (if supported) */
   short obstacleSimulation = OBSTSIMULATION_NONE;
-  short raster_storage DNA_DEPRECATED = 0;
+  short raster_storage = 0;
   short ticrate = 60, maxlogicstep = 5, physubstep = 1, maxphystep = 5;
   float timeScale = 1.0f;
   float levelHeight = 2.0f;

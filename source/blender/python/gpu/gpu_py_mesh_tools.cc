@@ -105,7 +105,7 @@ PyDoc_STRVAR(
     "   Returns\n"
     "   -------\n"
     "   None or raises RuntimeError on failure.\n");
-static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObject *kwds)
+PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   PyObject *py_obj = nullptr;
   BPyGPUStorageBuf *py_ssbo_skinned_pos = nullptr;
@@ -234,7 +234,7 @@ PyDoc_STRVAR(pygpu_mesh_compute_free_doc,
              "\n"
              "   This also resets internal flags like `mesh.is_using_gpu_deform`.\n"
              "   `obj` may be an evaluated object or an original object (bpy.types.Object).\n");
-static PyObject *pygpu_mesh_compute_free(PyObject * /*self*/, PyObject *args, PyObject *kwds)
+PyObject *pygpu_mesh_compute_free(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   PyObject *py_obj = nullptr;
   static const char *_keywords[] = {"obj", nullptr};

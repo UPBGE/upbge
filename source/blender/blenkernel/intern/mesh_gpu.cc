@@ -940,7 +940,7 @@ gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
   return sh;
 }
 
-gpu::StorageBuf *bke::BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
+gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
                                                             Object *ob_eval,
                                                             const std::string &key,
                                                             size_t size)
