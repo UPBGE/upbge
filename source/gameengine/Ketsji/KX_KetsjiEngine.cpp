@@ -108,7 +108,7 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
     "Physics:",     // tc_physics
     "Logic:",       // tc_logic
     "Animations:",  // tc_animations
-    "blender::Depsgraph:",   // tc_depsgraph
+    "Depsgraph:",   // tc_depsgraph
     "Network:",     // tc_network
     "Scenegraph:",  // tc_scenegraph
     "Rasterizer:",  // tc_rasterizer
