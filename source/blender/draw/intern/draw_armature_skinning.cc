@@ -83,7 +83,6 @@ struct blender::draw::ArmatureSkinningManager::Impl {
     std::vector<int> in_influence_offsets; /* size = verts + 1, offset into in_indices */
     std::vector<int> in_indices;           /* size = total_influences (variable per vertex) */
     std::vector<float> in_weights;         /* size = total_influences (variable per vertex) */
-    std::vector<float> rest_positions;     /* float4 per vert (flattened) */
     std::vector<float> vgroup_weights;     /* per-vertex weight (0.0-1.0) for modifier filter */
     int verts_num = 0;
     int bones = 0; /* Number of deformable bones in armature (cached to avoid recounting) */
@@ -186,8 +185,9 @@ mat4 get_bone_matrix(int bone_idx, vec3 co_armature_space) {
 }
 
 vec4 skin_pos_object(int v_idx) {
-  /* Transform rest position to armature space FIRST (matching CPU) */
-  vec4 rest_pos_object = premat[0] * rest_positions[v_idx];
+  /* Transform input position to armature space FIRST (matching CPU order).
+   * Use the "in" buffer so modifiers chain: callers must bind skinned_vert_positions_in[]. */
+  vec4 rest_pos_object = premat[0] * skinned_vert_positions_in[v_idx];
 
   /* Get influence range for this vertex */
   int start_idx = in_offsets[v_idx];
@@ -224,7 +224,7 @@ vec4 skin_pos_object(int v_idx) {
 
 void main() {
   uint v = gl_GlobalInvocationID.x;
-  if (v >= skinned_vert_positions.length()) {
+  if (v >= skinned_vert_positions_out.length()) {
     return;
   }
 
@@ -236,15 +236,15 @@ void main() {
 
   /* Early exit if weight is negligible */
   if (modifier_weight < 1e-6) {
-    skinned_vert_positions[v] = postmat[0] * (premat[0] * rest_positions[v]);
+    skinned_vert_positions_out[v] = postmat[0] * (premat[0] * skinned_vert_positions_in[v]);
     return;
   }
 
   vec4 skinned = skin_pos_object(int(v));
-  vec4 rest = premat[0] * rest_positions[v];
+  vec4 rest = premat[0] * skinned_vert_positions_in[v];
 
   /* Blend between rest and skinned based on modifier weight */
-  skinned_vert_positions[v] = postmat[0] * mix(rest, skinned, modifier_weight);
+  skinned_vert_positions_out[v] = postmat[0] * mix(rest, skinned, modifier_weight);
 }
 )GLSL";
 
@@ -342,8 +342,8 @@ void get_bone_dual_quat(int bone_idx, vec3 co_armature_space,
 }
 
 vec4 skin_pos_object(int v_idx) {
-  /* Transform rest position to armature space first */
-  vec3 co = (premat[0] * rest_positions[v_idx]).xyz;
+  /* Transform input position to armature space first (use pipeline in buffer) */
+  vec3 co = (premat[0] * skinned_vert_positions_in[v_idx]).xyz;
 
   /* Get influence range for this vertex */
   int start_idx = in_offsets[v_idx];
@@ -472,7 +472,7 @@ vec4 skin_pos_object(int v_idx) {
 
 void main() {
   uint v = gl_GlobalInvocationID.x;
-  if (v >= skinned_vert_positions.length()) {
+  if (v >= skinned_vert_positions_out.length()) {
     return;
   }
 
@@ -484,15 +484,15 @@ void main() {
 
   /* Early exit if weight is negligible */
   if (modifier_weight < 1e-6) {
-    skinned_vert_positions[v] = postmat[0] * (premat[0] * rest_positions[v]);
+    skinned_vert_positions_out[v] = postmat[0] * (premat[0] * skinned_vert_positions_in[v]);
     return;
   }
 
   vec4 skinned = skin_pos_object(int(v));
-  vec4 rest = premat[0] * rest_positions[v];
+  vec4 rest = premat[0] * skinned_vert_positions_in[v];
 
   /* Blend between rest and skinned based on modifier weight */
-  skinned_vert_positions[v] = postmat[0] * mix(rest, skinned, modifier_weight);
+  skinned_vert_positions_out[v] = postmat[0] * mix(rest, skinned, modifier_weight);
 }
 )GLSL";
 
@@ -874,10 +874,8 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
   msd.in_influence_offsets.clear();
   msd.in_indices.clear();
   msd.in_weights.clear();
-  msd.rest_positions.clear();
 
   msd.in_influence_offsets.resize(verts_num + 1, 0); /* +1 for end offset */
-  msd.rest_positions.resize(verts_num * 4, 0.0f);    /* float4 */
 
   /* Build group name -> bone index map from armature pose. */
   Map<std::string, int> bone_name_to_index;
@@ -1003,16 +1001,6 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
     }
   }
 
-  /* Rest positions (float4) from orig_mesh vert positions */
-  blender::Span<blender::float3> vert_positions = orig_mesh->vert_positions();
-  for (int i = 0; i < verts_num; ++i) {
-    const blender::float3 &p = vert_positions[i];
-    msd.rest_positions[i * 4 + 0] = p.x;
-    msd.rest_positions[i * 4 + 1] = p.y;
-    msd.rest_positions[i * 4 + 2] = p.z;
-    msd.rest_positions[i * 4 + 3] = 1.0f;
-  }
-
   /* Remember armature/deformed pointers so dispatch can compute premat/postmat. */
   msd.arm = arm_ob;
   msd.deformed = deformed_ob;
@@ -1076,7 +1064,6 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   const std::string key_in_idx = key_prefix + "in_idx";
   const std::string key_in_wgt = key_prefix + "in_wgt";
   const std::string key_in_offsets = key_prefix + "in_offsets";
-  const std::string key_rest_pos = key_prefix + "rest_pos";
   const std::string key_skinned_pos = key_prefix + "skinned_pos";
   const std::string key_premat = key_prefix + "premat";
   const std::string key_postmat = key_prefix + "postmat";
@@ -1153,15 +1140,14 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
   }
 
-  gpu::StorageBuf *ssbo_rest_pos = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner,
-                                                                           key_rest_pos);
-  if (!ssbo_rest_pos) {
-    ssbo_rest_pos = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, deformed_eval, key_rest_pos, sizeof(float) * msd.verts_num * 4);
-    if (!ssbo_rest_pos) {
-      return nullptr;
-    }
-    GPU_storagebuf_update(ssbo_rest_pos, msd.rest_positions.data());
+  /* Ensure per-modifier in/out skinned position SSBOs for chaining GPU modifiers. */
+  const std::string key_skinned_out = key_prefix + "skinned_pos_out";
+
+  gpu::StorageBuf *ssbo_skinned_out = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_skinned_out);
+  if (!ssbo_skinned_out) {
+    const size_t size_skinned = sizeof(float) * 4 * std::max(msd.verts_num, 1);
+    ssbo_skinned_out = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_skinned_out, size_skinned);
+    /* leave uninitialized; shader will write full buffer */
   }
 
   gpu::StorageBuf *ssbo_premat = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_premat);
@@ -1388,7 +1374,8 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     /* Select shader source based on skinning mode */
     if (use_dual_quaternions) {
       info.compute_source_generated = skin_compute_dqs_src;
-      info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
+      info.storage_buf(0, Qualifier::read, "vec4", "skinned_vert_positions_in[]");
+      info.storage_buf(15, Qualifier::write, "vec4", "skinned_vert_positions_out[]");
       info.storage_buf(1, Qualifier::read, "int", "in_offsets[]");
       info.storage_buf(2, Qualifier::read, "int", "in_idx[]");
       info.storage_buf(3, Qualifier::read, "float", "in_wgt[]");
@@ -1397,29 +1384,28 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
       info.storage_buf(6, Qualifier::read, "mat4", "bone_dq_scale[]");
       info.storage_buf(7, Qualifier::read, "float", "bone_dq_scale_weight[]");
       info.storage_buf(8, Qualifier::read, "mat4", "premat[]");
-      info.storage_buf(9, Qualifier::read, "vec4", "rest_positions[]");
-      info.storage_buf(10, Qualifier::read, "mat4", "postmat[]");
-      info.storage_buf(11, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
-      info.storage_buf(12, Qualifier::read, "int", "bone_segments[]");  // B-Bone segments per bone
-      info.storage_buf(13, Qualifier::read, "int", "bone_offsets[]");   // B-Bone DQ offsets
+      info.storage_buf(9, Qualifier::read, "mat4", "postmat[]");
+      info.storage_buf(10, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
+      info.storage_buf(11, Qualifier::read, "int", "bone_segments[]");  // B-Bone segments per bone
+      info.storage_buf(12, Qualifier::read, "int", "bone_offsets[]");   // B-Bone DQ offsets
       info.storage_buf(
-          14, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
+          13, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
     }
     else {
       info.compute_source_generated = skin_compute_lbs_src;
-      info.storage_buf(0, Qualifier::write, "vec4", "skinned_vert_positions[]");
+      info.storage_buf(0, Qualifier::read, "vec4", "skinned_vert_positions_in[]");
+      info.storage_buf(15, Qualifier::write, "vec4", "skinned_vert_positions_out[]");
       info.storage_buf(1, Qualifier::read, "int", "in_offsets[]");
       info.storage_buf(2, Qualifier::read, "int", "in_idx[]");
       info.storage_buf(3, Qualifier::read, "float", "in_wgt[]");
       info.storage_buf(4, Qualifier::read, "mat4", "bone_pose_mat[]");
       info.storage_buf(5, Qualifier::read, "mat4", "premat[]");
-      info.storage_buf(6, Qualifier::read, "vec4", "rest_positions[]");
-      info.storage_buf(7, Qualifier::read, "mat4", "postmat[]");
-      info.storage_buf(8, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
-      info.storage_buf(9, Qualifier::read, "int", "bone_segments[]");  // B-Bone segments per bone
-      info.storage_buf(10, Qualifier::read, "int", "bone_offsets[]");  // B-Bone matrix offsets
+      info.storage_buf(6, Qualifier::read, "mat4", "postmat[]");
+      info.storage_buf(7, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
+      info.storage_buf(8, Qualifier::read, "int", "bone_segments[]");  // B-Bone segments per bone
+      info.storage_buf(9, Qualifier::read, "int", "bone_offsets[]");  // B-Bone matrix offsets
       info.storage_buf(
-          11, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
+          10, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
     }
     compute_sh = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
@@ -1451,10 +1437,14 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
       GPU_storagebuf_bind(ssbo_bone_dq_scale_weight, 7);
     }
     GPU_storagebuf_bind(ssbo_premat, 8);
-    GPU_storagebuf_bind(ssbo_rest_pos, 9);
-    GPU_storagebuf_bind(ssbo_postmat, 10);
+    GPU_storagebuf_bind(ssbo_postmat, 9);
     if (ssbo_vgroup) {
-      GPU_storagebuf_bind(ssbo_vgroup, 11);
+      GPU_storagebuf_bind(ssbo_vgroup, 10);
+    }
+    /* Bind chained in/out buffers */
+    gpu::StorageBuf *ssbo_skinned_out = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_prefix + "skinned_pos_out");
+    if (ssbo_skinned_out) {
+      GPU_storagebuf_bind(ssbo_skinned_out, 15); /* output binding */
     }
 
     /* Bind B-Bone segment info for DQS (using new separate keys) */
@@ -1470,13 +1460,13 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
         mesh_owner, key_bone_head_tail);
 
     if (ssbo_bone_segments) {
-      GPU_storagebuf_bind(ssbo_bone_segments, 12);
+      GPU_storagebuf_bind(ssbo_bone_segments, 11);
     }
     if (ssbo_bone_offsets_dqs) {
-      GPU_storagebuf_bind(ssbo_bone_offsets_dqs, 13);
+      GPU_storagebuf_bind(ssbo_bone_offsets_dqs, 12);
     }
     if (ssbo_bone_head_tail) {
-      GPU_storagebuf_bind(ssbo_bone_head_tail, 14);
+      GPU_storagebuf_bind(ssbo_bone_head_tail, 13);
     }
   }
   else {
@@ -1489,10 +1479,14 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
       GPU_storagebuf_bind(ssbo_bone_mat, 4);
     }
     GPU_storagebuf_bind(ssbo_premat, 5);
-    GPU_storagebuf_bind(ssbo_rest_pos, 6);
-    GPU_storagebuf_bind(ssbo_postmat, 7);
+    GPU_storagebuf_bind(ssbo_postmat, 6);
     if (ssbo_vgroup) {
-      GPU_storagebuf_bind(ssbo_vgroup, 8);
+      GPU_storagebuf_bind(ssbo_vgroup, 7);
+    }
+    /* Bind chained in/out buffers for LBS */
+    gpu::StorageBuf *ssbo_skinned_out = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_prefix + "skinned_pos_out");
+    if (ssbo_skinned_out) {
+      GPU_storagebuf_bind(ssbo_skinned_out, 15);
     }
 
     /* Bind B-Bone segment info (using new separate keys) */
@@ -1508,13 +1502,13 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
         mesh_owner, key_bone_head_tail);
 
     if (ssbo_bone_segments) {
-      GPU_storagebuf_bind(ssbo_bone_segments, 9);
+      GPU_storagebuf_bind(ssbo_bone_segments, 8);
     }
     if (ssbo_bone_offsets_lbs) {
-      GPU_storagebuf_bind(ssbo_bone_offsets_lbs, 10);
+      GPU_storagebuf_bind(ssbo_bone_offsets_lbs, 9);
     }
     if (ssbo_bone_head_tail) {
-      GPU_storagebuf_bind(ssbo_bone_head_tail, 11);
+      GPU_storagebuf_bind(ssbo_bone_head_tail, 10);
     }
   }
 
@@ -1525,7 +1519,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   GPU_shader_unbind();
 
   /* Return the SSBO containing the skinned positions. Caller will perform scatter if needed. */
-  return ssbo_in;
+  return ssbo_skinned_out;
 }
 
 void ArmatureSkinningManager::free_resources_for_mesh(Mesh *mesh)
@@ -1555,7 +1549,7 @@ void ArmatureSkinningManager::invalidate_all(Mesh *mesh)
 
   /* 1. Free all GPU resources (SSBOs + shaders) for this mesh */
   bke::BKE_mesh_gpu_internal_resources_free_for_mesh(mesh);
-  /* Keep CPU data (influences, rest_positions, etc.) for fast recreation */
+  /* Keep CPU data (influences etc.) for fast recreation */
 }
 
 void ArmatureSkinningManager::free_all()
