@@ -11,6 +11,7 @@
 
 #include "BKE_mesh.hh"
 #include "BKE_scene.hh"
+#include "BKE_mesh_mapping.hh"
 
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
@@ -204,31 +205,16 @@ bool BKE_mesh_gpu_topology_create(const Mesh *mesh_eval, bke::MeshGPUTopology &t
 
   Vector<int> corner_edges_vec(corner_edges_span.begin(), corner_edges_span.end());
 
-  /* Get vertex-to-face mapping */
-  const OffsetIndices<int> v2f_off = mesh_eval->vert_to_face_map_offsets();
-  const GroupedSpan<int> v2f = mesh_eval->vert_to_face_map();
+  /* Build vertex->face offsets/indices from corner data (robust builder).
+   * Use `build_vert_to_face_map` to produce consistent offsets and indices
+   * that match `corner_verts_span` and `mesh_eval->verts_num`. This avoids
+   * relying on potentially stale/cached internal spans. */
+  Array<int> rebuilt_offsets;
+  Array<int> rebuilt_indices;
+  bke::mesh::build_vert_to_face_map(face_offsets, corner_verts_span, mesh_eval->verts_num, rebuilt_offsets, rebuilt_indices);
 
-  const int v2f_offsets_size = v2f_off.size();
-  Vector<int> v2f_offsets(v2f_offsets_size);
-  for (int v = 0; v < v2f_offsets_size; ++v) {
-    v2f_offsets[v] = v2f_off.data()[v];
-  }
-  const int total_v2f = v2f_offsets.is_empty() ? 0 : v2f_offsets.last();
-
-  Vector<int> v2f_indices;
-  v2f_indices.resize(std::max(total_v2f, 0));
-  if (v2f_offsets_size > 0) {
-    threading::parallel_for(
-        IndexRange(v2f_offsets_size - 1), 4096, [&](const IndexRange range) {
-          for (int v : range) {
-            const Span<int> faces_v = v2f[v];
-            const int dst = v2f_off.data()[v];
-            if (!faces_v.is_empty()) {
-              std::copy(faces_v.begin(), faces_v.end(), v2f_indices.begin() + dst);
-            }
-          }
-        });
-  }
+  Vector<int> v2f_offsets(rebuilt_offsets.begin(), rebuilt_offsets.end());
+  Vector<int> v2f_indices(rebuilt_indices.begin(), rebuilt_indices.end());
 
   /* Compute offsets for packed buffer */
   topology.face_offsets_offset = 0;
@@ -650,9 +636,15 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
   /* Use concatenated shader source for scatter shader, otherwise use main_glsl as-is */
-  const std::string shader_source = (main_glsl == scatter_to_corners_main_glsl)
-                                         ? glsl_accessors + scatter_shader_src
-                                         : glsl_accessors + main_glsl;
+  std::string shader_source;
+  if (main_glsl == scatter_to_corners_main_glsl) {
+    /* For the scatter shader include the generated accessors and the scatter
+     * main. Do not enable precomputation defines by default in this fork. */
+    shader_source = glsl_accessors + scatter_shader_src;
+  }
+  else {
+    shader_source = glsl_accessors + main_glsl;
+  }
   /* Build shader identifier */
   Scene *scene = DEG_get_input_scene(depsgraph);
   int normals_domain_val = (mesh_eval->normals_domain() == bke::MeshNormalDomain::Face) ?
