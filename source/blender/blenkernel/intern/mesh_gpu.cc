@@ -321,16 +321,6 @@ void main() {
     n_mesh = compute_vertex_normal_smooth(v);
   }
 
-  // Normal already in mesh space (no transformation needed)
-  // Fallback if accumulated normal is zero (fully degenerate topology)
-  float normal_len = length(n_mesh);
-  if (normal_len < 1e-35) {
-    n_mesh = safe_normalize(positions_in[v].xyz);
-  }
-  else {
-    n_mesh = safe_normalize(n_mesh);
-  }
-
   if (normals_hq == 0) {
     normals_out[c] = pack_norm(n_mesh);
   }

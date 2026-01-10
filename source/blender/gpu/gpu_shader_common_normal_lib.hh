@@ -11,7 +11,7 @@
  *
  * Port of CPU functions from:
  * - BLI_math_base.hh (safe_acos_approx)
- * - gpu_shader_math_vector_safe_lib.glsl (safe_normalize)
+ * - BLI_math_vector.hh (normalize_cpu)
  * - mesh_normals.cc (face_normal_object)
  */
 
@@ -81,17 +81,15 @@ uint pack_i16_pair(float a, float b) {
  * \{ */
 
 /**
- * Returns GLSL code for safe_normalize function.
+ * Returns GLSL code for normalize_cpu function.
  * Uses length_squared to avoid double sqrt() and match CPU threshold semantics.
  */
-static std::string get_safe_normalize_glsl()
+static std::string get_normalize_cpu_glsl()
 {
   return R"GLSL(
-/* Safe normalize: returns vec3(1,0,0) if input is zero.
- * Matches Blender's safe_normalize_and_get_length().
- * Uses length_squared to avoid double sqrt() and match CPU threshold semantics exactly.
- * Reference: gpu_shader_math_vector_safe_lib.glsl */
-vec3 safe_normalize(vec3 v) {
+/* Matches Blender's safe_normalize_and_get_length() version CPU (not GPU!).
+ * Uses length_squared to avoid double sqrt(). */
+vec3 normalize_cpu(vec3 v) {
   float length_squared = dot(v, v);
   const float threshold = 1e-35;
   if (length_squared > threshold) {
@@ -99,7 +97,7 @@ vec3 safe_normalize(vec3 v) {
     return v / len;
   }
   /* Either the vector is small or one of its values contained `nan`. */
-  return vec3(1.0, 0.0, 0.0);
+  return vec3(0.0, 0.0, 0.0);
 }
 )GLSL";
 }
@@ -165,23 +163,18 @@ vec3 face_normal_object(int f) {
   int beg = face_offsets(f);
   int end = face_offsets(f + 1);
   int count = end - beg;
+  vec3 normal = vec3(0.0, 0.0, 0.0);
 
   /* Fast path: Triangles (most common case) */
   if (count == 3) {
     vec3 a = POSITION_BUFFER[corner_verts(beg + 0)].xyz;
     vec3 b = POSITION_BUFFER[corner_verts(beg + 1)].xyz;
     vec3 c = POSITION_BUFFER[corner_verts(beg + 2)].xyz;
-    vec3 n = cross(b - a, c - a);
-    float len_sq = dot(n, n);
-    const float threshold = 1e-35;
-    if (len_sq <= threshold) {
-      return vec3(1.0, 0.0, 0.0);  /* Degenerate triangle -> X+ fallback */
-    }
-    return n / sqrt(len_sq);
+    normal = cross(b - a, c - a);
   }
 
   /* Fast path: Quads (second most common) */
-  if (count == 4) {
+  else if (count == 4) {
     vec3 v1 = POSITION_BUFFER[corner_verts(beg + 0)].xyz;
     vec3 v2 = POSITION_BUFFER[corner_verts(beg + 1)].xyz;
     vec3 v3 = POSITION_BUFFER[corner_verts(beg + 2)].xyz;
@@ -189,71 +182,26 @@ vec3 face_normal_object(int f) {
     /* Use diagonal cross-product method to match CPU normal_quad_v3(). */
     vec3 d1 = v1 - v3;
     vec3 d2 = v2 - v4;
-    vec3 n = cross(d1, d2);
-    float len_sq = dot(n, n);
-    const float threshold = 1e-35;
-    if (len_sq <= threshold) {
-      return vec3(1.0, 0.0, 0.0);  /* Degenerate quad -> X+ fallback */
+    normal = cross(d1, d2);
+  }
+  else {
+    /* Fallback: Newell's method for ngons (5+ vertices) */
+    vec3 n = vec3(0.0);
+    int v_prev_idx = corner_verts(end - 1);
+    vec3 v_prev = POSITION_BUFFER[v_prev_idx].xyz;
+    for (int i = beg; i < end; ++i) {
+      int v_curr_idx = corner_verts(i);
+      vec3 v_curr = POSITION_BUFFER[v_curr_idx].xyz;
+      n += cross(v_prev, v_curr);
+      v_prev = v_curr;
     }
-    return n / sqrt(len_sq);
+    normal = n;
   }
-
-  /* Fallback: Newell's method for ngons (5+ vertices) */
-  vec3 n = vec3(0.0);
-  int v_prev_idx = corner_verts(end - 1);
-  vec3 v_prev = POSITION_BUFFER[v_prev_idx].xyz;
-  for (int i = beg; i < end; ++i) {
-    int v_curr_idx = corner_verts(i);
-    vec3 v_curr = POSITION_BUFFER[v_curr_idx].xyz;
-    n += cross(v_prev, v_curr);
-    v_prev = v_curr;
+  float len_sq = dot(normal, normal);
+  if (len_sq < 1e-35) {
+    return vec3(0.0, 0.0, 1.0);
   }
-  float len_sq = dot(n, n);
-  const float threshold = 1e-35;
-  if (len_sq <= threshold) {
-    return vec3(1.0, 0.0, 0.0);  /* Degenerate ngon -> X+ fallback */
-  }
-  return n / sqrt(len_sq);
-}
-)GLSL";
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Simplified Newell Face Normal (DEPRECATED - Use face_normal_object with POSITION_BUFFER
- * macro)
- * \{ */
-
-/**
- * DEPRECATED: Use face_normal_object() with POSITION_BUFFER macro instead.
- *
- * Returns GLSL code for newell_face_normal_object function.
- * Simplified version using safe_normalize (for shaders without tri/quad optimizations).
- * Kept for backward compatibility - will be removed in future versions.
- */
-static std::string get_newell_face_normal_object_glsl()
-{
-  return R"GLSL(
-/* DEPRECATED: Use face_normal_object() with POSITION_BUFFER=positions_in instead.
- * Simplified version using safe_normalize (for shaders without tri/quad optimizations).
- * Requirements:
- * - Topology accessors: int face_offsets(int i); int corner_verts(int i);
- * - Position buffer: vec4 positions_in[];
- * Returns: Normalized face normal (X+ fallback via safe_normalize) */
-vec3 newell_face_normal_object(int f) {
-  int beg = face_offsets(f);
-  int end = face_offsets(f + 1);
-  vec3 n = vec3(0.0);
-  int v_prev_idx = corner_verts(end - 1);
-  vec3 v_prev = positions_in[v_prev_idx].xyz;
-  for (int i = beg; i < end; ++i) {
-    int v_curr_idx = corner_verts(i);
-    vec3 v_curr = positions_in[v_curr_idx].xyz;
-    n += cross(v_prev, v_curr);
-    v_prev = v_curr;
-  }
-  return safe_normalize(n);  /* Returns vec3(1,0,0) for degenerate faces */
+  return normal / sqrt(len_sq);
 }
 )GLSL";
 }
@@ -345,7 +293,7 @@ int2 face_find_adjacent_verts(int f, int v) {
  * - Topology accessors: int vert_to_face_offsets(int i); int vert_to_face(int i);
  *                       int face_offsets(int i); int corner_verts(int i);
  * - Position buffer: POSITION_BUFFER macro must be defined.
- * - safe_normalize(), safe_acos_approx(), face_normal_object(), face_find_adjacent_verts() must be
+ * - normalize_cpu(), safe_acos_approx(), face_normal_object(), face_find_adjacent_verts() must be
  * defined.
  */
 static std::string get_compute_vertex_normal_smooth_glsl()
@@ -364,10 +312,6 @@ vec3 compute_vertex_normal_smooth(int v) {
     int f = vert_to_face(beg);
     return face_normal_object(f);
   }
-  else if (face_count == 0) {
-    /* Isolated vertex: use input positions like in CPU */
-    return safe_normalize(POSITION_BUFFER[v].xyz);
-  }
   
   vec3 n_accum = vec3(0.0);
   
@@ -382,9 +326,9 @@ vec3 compute_vertex_normal_smooth(int v) {
     /* Compute angle at vertex (same as CPU) */
     vec3 v_pos = POSITION_BUFFER[v].xyz;
     
-    /* Use safe_normalize for edge directions (protects against degenerate edges) */
-    vec3 dir_prev = safe_normalize(POSITION_BUFFER[adj.x].xyz - v_pos);
-    vec3 dir_next = safe_normalize(POSITION_BUFFER[adj.y].xyz - v_pos);
+    /* Use normalize_cpu for edge directions (protects against degenerate edges) */
+    vec3 dir_prev = normalize_cpu(POSITION_BUFFER[adj.x].xyz - v_pos);
+    vec3 dir_next = normalize_cpu(POSITION_BUFFER[adj.y].xyz - v_pos);
     
     /* Compute angle factor */
     float angle = safe_acos_approx(dot(dir_prev, dir_next));
@@ -401,10 +345,10 @@ vec3 compute_vertex_normal_smooth(int v) {
   /* Fallback if accumulated normal is zero (fully degenerate topology) */
   float normal_len = length(n_accum);
   if (normal_len < 1e-35) {
-    return safe_normalize(POSITION_BUFFER[v].xyz);
+    return vec3(0.0, 0.0, 1.0);
   }
   
-  return safe_normalize(n_accum);
+  return n_accum / normal_len;
 }
 )GLSL";
 }
@@ -421,7 +365,7 @@ vec3 compute_vertex_normal_smooth(int v) {
  */
 static std::string get_common_normal_lib_glsl()
 {
-  return get_normal_packing_glsl() + get_safe_normalize_glsl() + get_safe_acos_approx_glsl() +
+  return get_normal_packing_glsl() + get_normalize_cpu_glsl() + get_safe_acos_approx_glsl() +
          get_face_normal_object_glsl() + get_compute_vertex_normal_smooth_glsl();
 }
 
