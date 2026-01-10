@@ -1136,29 +1136,19 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
   }
   else {
-    /* No vertex group selected: Create a minimal 1-float dummy buffer.
-     *
-     * CRITICAL: The dummy value MUST be 1.0f (not 0.0f)!
-     *
-     * Explanation:
-     * - GPU requires minimum buffer size (can't create 0-byte buffer)
-     * - Buffer of 1 float → shader sees vgroup_weights.length() == 1
-     * - Vertex 0 reads vgroup_weights[0] in the shader check:
-     *     if (vgroup_weights.length() > 0 && v < vgroup_weights.length())
-     * - With dummy=0.0f → vertex 0 gets modifier_weight=0.0 → stays in rest pose (BUG!)
-     * - With dummy=1.0f → vertex 0 gets modifier_weight=1.0 → full deformation (CORRECT!)
-     * - Vertices 1+ skip the read (v >= length()) → use default modifier_weight=1.0 (CORRECT!)
-     *
-     * The shader uses: mix(rest, skinned, modifier_weight)
-     * - modifier_weight=0.0 → rest pose (no skinning applied)
-     * - modifier_weight=1.0 → full skinning (expected behavior when no vertex group filter)
+    /* No vertex group selected: create a per-vertex buffer filled with 1.0f.
+     * This avoids backend-dependent behavior when using a single-float
+     * dummy (which can lead to incorrect reads on OpenGL). If the mesh has
+     * zero vertices allocate a single float to satisfy minimum buffer size.
      */
     if (!ssbo_vgroup) {
+      const size_t count = (msd.verts_num > 0) ? size_t(msd.verts_num) : size_t(1);
+      const size_t size_vgroup = count * sizeof(float);
       ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, sizeof(float));
+          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
-        float dummy = 1.0f; /* MUST be 1.0f - see explanation above */
-        GPU_storagebuf_update(ssbo_vgroup, &dummy);
+        std::vector<float> dummy(count, 1.0f);
+        GPU_storagebuf_update(ssbo_vgroup, dummy.data());
       }
     }
   }

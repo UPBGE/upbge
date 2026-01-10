@@ -451,15 +451,17 @@ gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
     }
   }
   else {
-    /* No vertex group: create minimal 1-float dummy buffer.
-     * Value MUST be 1.0f (not 0.0f)! See armature_skinning.cc for detailed explanation.
-     * TL;DR: vertex 0 reads vgroup_weights[0], needs 1.0 for full effect when no vgroup. */
+    /* No vertex group: create per-vertex buffer filled with 1.0f to avoid
+     * backend-dependent single-float behavior. If no vertices, allocate one
+     * float for minimum buffer size. */
     if (!ssbo_vgroup) {
+      const size_t count = (msd.verts_num > 0) ? size_t(msd.verts_num) : size_t(1);
+      const size_t size_vgroup = count * sizeof(float);
       ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, sizeof(float));
+          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
-        float dummy = 1.0f;
-        GPU_storagebuf_update(ssbo_vgroup, &dummy);
+        std::vector<float> dummy(count, 1.0f);
+        GPU_storagebuf_update(ssbo_vgroup, dummy.data());
       }
     }
   }
