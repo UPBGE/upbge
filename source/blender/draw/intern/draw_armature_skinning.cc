@@ -1064,7 +1064,6 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   const std::string key_in_idx = key_prefix + "in_idx";
   const std::string key_in_wgt = key_prefix + "in_wgt";
   const std::string key_in_offsets = key_prefix + "in_offsets";
-  const std::string key_skinned_pos = key_prefix + "skinned_pos";
   const std::string key_premat = key_prefix + "premat";
   const std::string key_postmat = key_prefix + "postmat";
   const std::string key_vgroup = key_prefix + "vgroup_weights";
