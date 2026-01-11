@@ -427,12 +427,6 @@ void main() {
  * Flow: MOD_get_texture_coords() → do_2d_mapping() → imagewrap() → BRICONTRGB
  * This replicates the EXACT CPU path for pixel-perfect GPU/CPU match. */
 
-struct TexResult {
-  vec4 trgba;  /* RGBA color */
-  float tin;   /* Intensity */
-  bool talpha; /* Use alpha channel */
-};
-
 /* Sample texture using MOD_get_texture_coords() or input_positions when requested */
 vec3 tex_coord = texture_coords[v].xyz;
 
@@ -457,7 +451,7 @@ else {
 }
 
 /* Sample texture (CPU uses boxsample for interpolation) */
-TexResult texres;
+TexResult_tex texres;
 texres.trgba = vec4(0.0);
 texres.talpha = use_talpha;  /* From CPU line 211-213 */
 texres.tin = 0.0;
@@ -476,23 +470,9 @@ do_2d_mapping(fx, fy, tex_extend, tex_repeat, tex_xmir, tex_ymir, tex_crop, tex_
 /* Step 3: Apply imagewrap() - handles all wrapping, filtering, and sampling
  * This now includes CLIPCUBE check, coordinate wrapping, and texture sampling */
   vec3 mapped_coord = vec3(fx, fy, tex_coord.z);
-  int retval = imagewrap(mapped_coord, texres.trgba, texres.tin, tex_size);
+  int retval = multitex_components(mapped_coord, texres.trgba, texres.tin, texres.talpha, int(v));
   /* texres.trgba and texres.tin are filled/processed by imagewrap() to match CPU pipeline */
   vec3 rgb = texres.trgba.rgb;
-  
-  /* Apply ColorBand if enabled (match CPU behavior) */
-  if (use_colorband) {
-    vec4 col;
-    if (BKE_colorband_evaluate(tex_colorband, texres.tin, col)) {
-      texres.talpha = true;
-      texres.trgba = col;
-      /* Update local rgb for further processing */
-      rgb = texres.trgba.rgb;
-      /* Indicate RGB output flag (as CPU sets retval |= TEX_RGB) */
-      retval |= TEX_RGB;
-    }
-  }
-  
   
   /* Use texres.tin for intensity to match CPU naming convention (imagewrap.cc line 244-253)
    * If the sampled result contained RGB data (retval & TEX_RGB) compute intensity from RGB.
@@ -1159,6 +1139,14 @@ struct ColorBand {
       /* Texture subtype and flags to match CPU Tex struct (Tex->stype, Tex->flag) */
       info.push_constant(Type::int_t, "tex_stype");
       info.push_constant(Type::int_t, "tex_flag");
+      info.push_constant(Type::int_t, "tex_type");
+      info.push_constant(Type::int_t, "tex_noisebasis");
+      info.push_constant(Type::int_t, "tex_noisebasis2");
+      info.push_constant(Type::float_t, "tex_noisesize");
+      info.push_constant(Type::float_t, "tex_turbul");
+      info.push_constant(Type::int_t, "tex_noisetype");
+      info.push_constant(Type::int_t, "tex_noisedepth");
+
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 
@@ -1356,6 +1344,14 @@ struct ColorBand {
       unit_m4(mapref_imat);
     }
     GPU_shader_uniform_mat4(shader, "mapref_imat", mapref_imat);
+    /* Multitex / noise uniforms: ensure these are uploaded when present. */
+    GPU_shader_uniform_1i(shader, "tex_type", int(tex->type));
+    GPU_shader_uniform_1i(shader, "tex_noisebasis", int(tex->noisebasis));
+    GPU_shader_uniform_1i(shader, "tex_noisebasis2", int(tex->noisebasis2));
+    GPU_shader_uniform_1f(shader, "tex_noisesize", float(tex->noisesize));
+    GPU_shader_uniform_1f(shader, "tex_turbul", float(tex->turbul));
+    GPU_shader_uniform_1i(shader, "tex_noisetype", int(tex->noisetype));
+    GPU_shader_uniform_1i(shader, "tex_noisedepth", int(tex->noisedepth));
   }
 
   const int group_size = 256;

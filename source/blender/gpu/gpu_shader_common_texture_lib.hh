@@ -233,66 +233,104 @@ static std::string get_texture_defines_glsl()
 #define TEX_NO_CLAMP (1 << 10)
 #endif
 
-/* Texture extend/wrap modes (match DNA_texture_types.h) */
-#ifndef TEX_EXTEND
-#define TEX_EXTEND 1
-#endif
-#ifndef TEX_CLIP
-#define TEX_CLIP 2
-#endif
-#ifndef TEX_REPEAT
-#define TEX_REPEAT 3
-#endif
-#ifndef TEX_CLIPCUBE
-#define TEX_CLIPCUBE 4
-#endif
-#ifndef TEX_CHECKER
-#define TEX_CHECKER 5
-#endif
-
 /* Voronoi color/distance types */
-#ifndef TEX_DISTANCE
 #define TEX_DISTANCE 0
-#endif
-#ifndef TEX_DISTANCE_SQUARED
 #define TEX_DISTANCE_SQUARED 1
-#endif
-#ifndef TEX_MANHATTAN
 #define TEX_MANHATTAN 2
-#endif
-#ifndef TEX_CHEBYCHEV
 #define TEX_CHEBYCHEV 3
-#endif
-#ifndef TEX_MINKOVSKY_HALF
 #define TEX_MINKOVSKY_HALF 4
-#endif
-#ifndef TEX_MINKOVSKY_FOUR
 #define TEX_MINKOVSKY_FOUR 5
-#endif
-#ifndef TEX_MINKOVSKY
 #define TEX_MINKOVSKY 6
-#endif
 
-#ifndef TEX_INTENSITY
 #define TEX_INTENSITY 0
-#endif
-#ifndef TEX_COL1
 #define TEX_COL1 1
-#endif
-#ifndef TEX_COL2
 #define TEX_COL2 2
-#endif
-#ifndef TEX_COL3
 #define TEX_COL3 3
-#endif
 
 /* Return flags (match CPU TEX_INT/TEX_RGB semantics) */
-#ifndef TEX_INT
 #define TEX_INT 0
-#endif
-#ifndef TEX_RGB
 #define TEX_RGB 1
+
+/* GPU Displace Modifier Compute Shader v2.1 with ColorBand support */
+/* Displace direction modes (matching DisplaceModifierDirection enum) */
+#define MOD_DISP_DIR_X 0
+#define MOD_DISP_DIR_Y 1
+#define MOD_DISP_DIR_Z 2
+#define MOD_DISP_DIR_NOR 3
+#define MOD_DISP_DIR_RGB_XYZ 4
+#define MOD_DISP_DIR_CLNOR 5
+
+/* Displace space modes (matching DisplaceModifierSpace enum) */
+#define MOD_DISP_SPACE_LOCAL 0
+#define MOD_DISP_SPACE_GLOBAL 1
+
+/* Texture extend modes (matching DNA_texture_types.h line 280-286)
+ * CRITICAL: Values start at 1 due to backward compatibility! */
+#define TEX_EXTEND 1
+#define TEX_CLIP 2
+#define TEX_REPEAT 3
+#define TEX_CLIPCUBE 4
+#define TEX_CHECKER 5
+
+/* Texture sampling strategy.
+ *
+ * - DISP_TEXSAMPLER_FAST_BILINEAR: Use hardware bilinear sampling (`texture()`).
+ *   This is very fast and matches the pre-refactor GPU performance characteristics.
+ *   It does NOT implement CPU `boxsample()` area filtering controlled by `filtersize`.
+ *
+ * - DISP_TEXSAMPLER_CPU_BOXSAMPLE: Use the CPU-ported `boxsample()` implementation.
+ *   This aims to match `texture_image.cc::boxsample()` behavior more closely but can be
+ *   extremely expensive in a compute shader due to nested loops and many `texelFetch()`.
+ *
+ * Toggle this define when debugging CPU/GPU mismatches.
+ */
+#define DISP_TEXSAMPLER_FAST_BILINEAR 0
+#define DISP_TEXSAMPLER_CPU_BOXSAMPLE 1
+
+#ifndef DISP_TEXSAMPLER_MODE
+#  /* Default to the historical Displace GPU behavior: use the CPU-ported box filter.
+#   * This matches the previous shader more closely, especially for TEX_REPEAT + filtering.
+#   *
+#   * The FAST_BILINEAR mode can be enabled for performance, but it may diverge from the
+#   * CPU `texture_image.cc::boxsample()` result (filtersize becomes an approximation). */
+#  define DISP_TEXSAMPLER_MODE DISP_TEXSAMPLER_CPU_BOXSAMPLE
 #endif
+
+/* NOTE ABOUT REPEAT + FILTERING
+ * The CPU image pipeline wraps integer pixel coordinates (x/y) and then adjusts the
+ * floating coordinates (fx/fy) by the wrapping delta (xi-x, yi-y) before filtering:
+ *   fx -= float(xi - x) / size_x;
+ *   fy -= float(yi - y) / size_y;
+ * This is critical for stable filtering across wrap boundaries (#27782).
+ *
+ * For easy CPU/GPU comparison we preserve this remap in both sampling modes.
+ *
+ * Even in the FAST_BILINEAR mode we do NOT simply do `fract(fx)` because that would
+ * ignore the snapped integer wrap that CPU performs and can change which side of the
+ * boundary gets filtered.
+ */
+
+/* ColorBand interpolation types (matching DNA_color_types.h) */
+#define COLBAND_INTERP_LINEAR 0
+#define COLBAND_INTERP_EASE 1
+#define COLBAND_INTERP_B_SPLINE 2
+#define COLBAND_INTERP_CARDINAL 3
+#define COLBAND_INTERP_CONSTANT 4
+
+/* ColorBand color modes (matching DNA_color_types.h) */
+#define COLBAND_BLEND_RGB 0
+#define COLBAND_BLEND_HSV 1
+#define COLBAND_BLEND_HSL 2
+
+/* ColorBand hue interpolation modes (matching DNA_color_types.h) */
+#define COLBAND_HUE_NEAR 0
+#define COLBAND_HUE_FAR 1
+#define COLBAND_HUE_CW 2
+#define COLBAND_HUE_CCW 3
+
+/* Note: All texture helper functions (ColorBand, boxsample, rctf, color conversions)
+ * are now in gpu_shader_common_texture_lib.hh and included automatically via
+ * get_vertex_normals() concatenation. Only displacement-specific code remains below. */
 
 /* Math constants */
 #ifndef M_PI
@@ -331,24 +369,6 @@ struct TexResult_tex {
 static std::string get_colorband_helpers_glsl()
 {
   return R"GLSL(
-/* ColorBand interpolation types (matching DNA_color_types.h) */
-#define COLBAND_INTERP_LINEAR 0
-#define COLBAND_INTERP_EASE 1
-#define COLBAND_INTERP_B_SPLINE 2
-#define COLBAND_INTERP_CARDINAL 3
-#define COLBAND_INTERP_CONSTANT 4
-
-/* ColorBand color modes (matching DNA_color_types.h) */
-#define COLBAND_BLEND_RGB 0
-#define COLBAND_BLEND_HSV 1
-#define COLBAND_BLEND_HSL 2
-
-/* ColorBand hue interpolation modes (matching DNA_color_types.h) */
-#define COLBAND_HUE_NEAR 0
-#define COLBAND_HUE_FAR 1
-#define COLBAND_HUE_CW 2
-#define COLBAND_HUE_CCW 3
-
 /* GPU port of key_curve_position_weights from key.cc */
 void key_curve_position_weights(float t, out float data[4], int type)
 {
@@ -865,251 +885,6 @@ int blend_tex(vec3 texvec, inout TexResult_tex texres, int tex_stype, bool tex_f
 
 /** \} */
 
-static std::string get_imagewrap()
-{
-  return R"GLSL(
-#ifdef HAS_TEXTURE
-
-/* Displacement-specific imagewrap() function
- * Note: BKE_colorband_evaluate() and do_2d_mapping() are in gpu_shader_common_texture_lib.hh
- * imagewrap() uses shader-specific uniforms (tex_flip_axis, tex_checker_*, etc.) */
-
-/* GPU port of imagewrap() from texture_image.cc (line 98-256)
- * Handles TEX_IMAROT, TEX_CHECKER filtering, CLIPCUBE check, coordinate wrapping, and texture sampling
- * Returns TEX_RGB flag if successful */
-int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_size)
-{
-  result = vec4(0.0);
-  int retval = TEX_RGB;
-
-  float fx = tex_coord.x;
-  float fy = tex_coord.y;
-  
-  /* Step 1: TEX_IMAROT (swap X/Y) AFTER crop */
-  if (tex_flip_axis) {
-    float temp = fx;
-    fx = fy;
-    fy = temp;
-  }
-
-  /* Step 2: TEX_CHECKER filtering */
-  if (tex_extend == TEX_CHECKER) {
-    int xs = int(floor(fx));
-    int ys = int(floor(fy));
-    int tile_parity = (xs + ys) & 1;
-    
-    bool show_tile = true;
-    if (tex_checker_odd && (tile_parity == 0)) {
-      show_tile = false;
-    }
-    if (tex_checker_even && (tile_parity == 1)) {
-      show_tile = false;
-    }
-    
-    if (!show_tile) {
-      return retval;
-    }
-    
-    fx -= float(xs);
-    fy -= float(ys);
-    
-    if (tex_checkerdist < 1.0) {
-      fx = (fx - 0.5) / (1.0 - tex_checkerdist) + 0.5;
-      fy = (fy - 0.5) / (1.0 - tex_checkerdist) + 0.5;
-    }
-  }
-  
-  /* Step 3: Compute integer pixel coordinates */
-  int x = int(floor(fx * float(tex_size.x)));
-  int y = int(floor(fy * float(tex_size.y)));
-  int xi = x;
-  int yi = y;
-  
-  /* Step 4: CLIPCUBE early return */
-  if (tex_extend == TEX_CLIPCUBE) {
-    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
-        tex_coord.z < -1.0 || tex_coord.z > 1.0) {
-      return retval;
-    }
-  }
-  /* Step 5: CLIP/CHECKER early return */
-  else if (tex_extend == TEX_CLIP || tex_extend == TEX_CHECKER) {
-    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
-      return retval;
-    }
-  }
-  /* Step 6: EXTEND or REPEAT mode: wrap/clamp coordinates */
-  else {
-    if (tex_extend == TEX_EXTEND) {
-      x = (x >= tex_size.x) ? (tex_size.x - 1) : ((x < 0) ? 0 : x);
-    }
-    else {
-      x = x % tex_size.x;
-      if (x < 0) x += tex_size.x;
-    }
-    
-    if (tex_extend == TEX_EXTEND) {
-      y = (y >= tex_size.y) ? (tex_size.y - 1) : ((y < 0) ? 0 : y);
-    }
-    else {
-      y = y % tex_size.y;
-      if (y < 0) y += tex_size.y;
-    }
-  }
-
-  /* Step 7: Sample texture with or without interpolation.
-   * Keep the FAST and CPU-like paths side-by-side to make comparisons easy.
-   */
-  if (tex_interpol) {
-#if DISP_TEXSAMPLER_MODE == DISP_TEXSAMPLER_CPU_BOXSAMPLE
-    /* CPU-like path: area filtered boxsample.
-     * This is closer to `texture_image.cc::boxsample()` but can be very slow on GPU.
-     */
-    float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
-    float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
-
-    /* Match CPU: wrap back to float coords after integer clamp/wrap. */
-    fx -= float(xi - x) / float(tex_size.x);
-    fy -= float(yi - y) / float(tex_size.y);
-
-    float min_tex_x = fx - filterx;
-    float min_tex_y = fy - filtery;
-    float max_tex_x = fx + filterx;
-    float max_tex_y = fy + filtery;
-
-    TexResult_tex texres_box;
-    texres_box.trgba = vec4(0.0);
-    texres_box.talpha = use_talpha;
-
-    boxsample(displacement_texture,
-              tex_size,
-              min_tex_x,
-              min_tex_y,
-              max_tex_x,
-              max_tex_y,
-              texres_box,
-              (tex_extend == TEX_REPEAT),
-              (tex_extend == TEX_EXTEND),
-              tex_is_byte,
-              tex_is_float,
-              tex_channels);
-
-    result = texres_box.trgba;
-#else
-    /* Fast path: rely on hardware bilinear sampling.
-     * This approximates CPU filtering but avoids the heavy nested loops of boxsample.
-     */
-    /* Match CPU wrap-remap (#27782) even in fast mode. */
-    float u = fx - float(xi - x) / float(tex_size.x);
-    float v = fy - float(yi - y) / float(tex_size.y);
-
-    if (tex_extend == TEX_EXTEND) {
-      u = clamp(u, 0.0, 1.0);
-      v = clamp(v, 0.0, 1.0);
-    }
-    else if (tex_extend == TEX_REPEAT) {
-      /* After CPU-style remap, u/v are expected to already be in wrapped space.
-       * Keep them as-is to mimic CPU x/y wrapping behavior.
-       */
-    }
-
-    result = shader_ibuf_get_color(texture(displacement_texture, vec2(u, v)),
-                                   tex_is_float,
-                                   tex_channels,
-                                   tex_is_byte);
-#endif
-  }
-  else {
-    ivec2 px_coord = ivec2(x, y);
-    px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
-    result = shader_ibuf_get_color(texelFetch(displacement_texture, px_coord, 0),
-                                  tex_is_float,
-                                  tex_channels,
-                                  tex_is_byte);
-  }
-  
-  /* Compute intensity */
-  if (use_talpha) {
-    out_tin = result.a;
-  }
-  else if (tex_calcalpha) {
-    out_tin = max(max(result.r, result.g), result.b);
-    result.a = out_tin;
-  }
-  else {
-    out_tin = 1.0;
-    result.a = 1.0;
-  }
-
-  if (tex_negalpha) {
-    result.a = 1.0 - result.a;
-  }
-
-  /* De-pre-multiply */
-  if (result.a != 1.0 && result.a > 1e-4 && !tex_calcalpha) {
-    float inv_alpha = 1.0 / result.a;
-    result.rgb *= inv_alpha;
-  }
-
-  /* BRICONTRGB (brightness/contrast/RGB factors) */
-  vec3 rgb = result.rgb;
-  rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
-  rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
-  rgb.b = tex_bfac * ((rgb.b - 0.5) * tex_contrast + tex_bright - 0.5);
-
-  if (!tex_no_clamp) {
-    rgb = max(rgb, vec3(0.0));
-  }
-
-  /* Apply saturation */
-  if (tex_saturation != 1.0) {
-    float cmax = max(max(rgb.r, rgb.g), rgb.b);
-    float cmin = min(min(rgb.r, rgb.g), rgb.b);
-    float delta_hsv = cmax - cmin;
-
-    float h = 0.0, s = 0.0, v = cmax;
-
-    if (delta_hsv > 1e-20) {
-      s = delta_hsv / (cmax + 1e-20);
-
-      if (rgb.r >= cmax) {
-        h = (rgb.g - rgb.b) / delta_hsv;
-      } else if (rgb.g >= cmax) {
-        h = 2.0 + (rgb.b - rgb.r) / delta_hsv;
-      } else {
-        h = 4.0 + (rgb.r - rgb.g) / delta_hsv;
-      }
-
-      h /= 6.0;
-      if (h < 0.0) h += 1.0;
-    }
-
-    s *= tex_saturation;
-
-    float nr = abs(h * 6.0 - 3.0) - 1.0;
-    float ng = 2.0 - abs(h * 6.0 - 2.0);
-    float nb = 2.0 - abs(h * 6.0 - 4.0);
-
-    nr = clamp(nr, 0.0, 1.0);
-    ng = clamp(ng, 0.0, 1.0);
-    nb = clamp(nb, 0.0, 1.0);
-
-    rgb.r = ((nr - 1.0) * s + 1.0) * v;
-    rgb.g = ((ng - 1.0) * s + 1.0) * v;
-    rgb.b = ((nb - 1.0) * s + 1.0) * v;
-
-    if (tex_saturation > 1.0 && !tex_no_clamp) {
-      rgb = max(rgb, vec3(0.0));
-    }
-  }
-
-  result.rgb = rgb;
-  return retval;
-}
-#endif // HAS_TEXTURE
-)GLSL";
-}
-
 /* -------------------------------------------------------------------- */
 /** \name RGB/HSV/HSL Color Conversion
  * \{ */
@@ -1324,9 +1099,6 @@ void bli_noise_voronoi(float x, float y, float z, out float da[4], out float pa[
 
 /** \} */
 
-
-/** \} */
-
 /* -------------------------------------------------------------------- */
 /** \name Boxsample Structures and Helpers
  * \{ */
@@ -1454,7 +1226,6 @@ void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inou
 
     if (starty == endy && startx == endx) {
       ibuf_get_color_boxsample(texres.trgba, displacement_texture, tex_size, startx, starty, tex_is_byte, tex_is_float, tex_channels);
-      texres.tin = texres.trgba.r; /* set intensity from fetched color.r for single pixel */
     }
     else {
       div = texres.trgba[0] = texres.trgba[1] = texres.trgba[2] = texres.trgba[3] = 0.0;
@@ -1511,7 +1282,6 @@ void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inou
       else {
         texres.trgba = vec4(0.0);
       }
-      texres.tin = texres.trgba.r; /* intensity from averaged color.r */
     }
 
     return;
@@ -1600,7 +1370,6 @@ void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inou
   else {
     texres.trgba = vec4(0.0);
   }
-  texres.tin = texres.trgba.r;
 }
 
 void boxsample(sampler2D displacement_texture,
@@ -1675,7 +1444,7 @@ void boxsample(sampler2D displacement_texture,
    * Since we do not split, we always sample a single rectangle here. */
   boxsampleclip(displacement_texture, tex_size, rf, texres, imaprepeat, tex_is_byte, tex_is_float, tex_channels);
   
-  if (texres.talpha) {
+  if (!texres.talpha) {
     texres.trgba[3] = 1.0;
   }
   
@@ -1975,6 +1744,367 @@ void do_2d_mapping(inout float fx, inout float fy,
 )GLSL";
 }
 
+static std::string get_imagewrap()
+{
+  return R"GLSL(
+#ifdef HAS_TEXTURE
+
+/* Displacement-specific imagewrap() function
+ * Note: BKE_colorband_evaluate() and do_2d_mapping() are in gpu_shader_common_texture_lib.hh
+ * imagewrap() uses shader-specific uniforms (tex_flip_axis, tex_checker_*, etc.) */
+
+/* GPU port of imagewrap() from texture_image.cc (line 98-256)
+ * Handles TEX_IMAROT, TEX_CHECKER filtering, CLIPCUBE check, coordinate wrapping, and texture sampling
+ * Returns TEX_RGB flag if successful */
+int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_size)
+{
+  result = vec4(0.0);
+  int retval = TEX_RGB;
+
+  float fx = tex_coord.x;
+  float fy = tex_coord.y;
+  
+  /* Step 1: TEX_IMAROT (swap X/Y) AFTER crop */
+  if (tex_flip_axis) {
+    float temp = fx;
+    fx = fy;
+    fy = temp;
+  }
+
+  /* Step 2: TEX_CHECKER filtering */
+  if (tex_extend == TEX_CHECKER) {
+    int xs = int(floor(fx));
+    int ys = int(floor(fy));
+    int tile_parity = (xs + ys) & 1;
+    
+    bool show_tile = true;
+    if (tex_checker_odd && (tile_parity == 0)) {
+      show_tile = false;
+    }
+    if (tex_checker_even && (tile_parity == 1)) {
+      show_tile = false;
+    }
+    
+    if (!show_tile) {
+      return retval;
+    }
+
+    fx -= float(xs);
+    fy -= float(ys);
+    
+    if (tex_checkerdist < 1.0) {
+      fx = (fx - 0.5) / (1.0 - tex_checkerdist) + 0.5;
+      fy = (fy - 0.5) / (1.0 - tex_checkerdist) + 0.5;
+    }
+  }
+  
+  /* Step 3: Compute integer pixel coordinates */
+  int x = int(floor(fx * float(tex_size.x)));
+  int y = int(floor(fy * float(tex_size.y)));
+  int xi = x;
+  int yi = y;
+  
+  /* Step 4: CLIPCUBE early return */
+  if (tex_extend == TEX_CLIPCUBE) {
+    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
+        tex_coord.z < -1.0 || tex_coord.z > 1.0) {
+      return retval;
+    }
+  }
+  /* Step 5: CLIP/CHECKER early return */
+  else if (tex_extend == TEX_CLIP || tex_extend == TEX_CHECKER) {
+    if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
+      return retval;
+    }
+  }
+  /* Step 6: EXTEND or REPEAT mode: wrap/clamp coordinates */
+  else {
+    if (tex_extend == TEX_EXTEND) {
+      x = (x >= tex_size.x) ? (tex_size.x - 1) : ((x < 0) ? 0 : x);
+    }
+    else {
+      x = x % tex_size.x;
+      if (x < 0) x += tex_size.x;
+    }
+    
+    if (tex_extend == TEX_EXTEND) {
+      y = (y >= tex_size.y) ? (tex_size.y - 1) : ((y < 0) ? 0 : y);
+    }
+    else {
+      y = y % tex_size.y;
+      if (y < 0) y += tex_size.y;
+    }
+  }
+
+  /* Step 7: Sample texture with or without interpolation.
+   * Keep the FAST and CPU-like paths side-by-side to make comparisons easy.
+   */
+  if (tex_interpol) {
+#if DISP_TEXSAMPLER_MODE == DISP_TEXSAMPLER_CPU_BOXSAMPLE
+    /* CPU-like path: area filtered boxsample.
+     * This is closer to `texture_image.cc::boxsample()` but can be very slow on GPU.
+     */
+    float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
+    float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
+
+    /* Match CPU: wrap back to float coords after integer clamp/wrap. */
+    fx -= float(xi - x) / float(tex_size.x);
+    fy -= float(yi - y) / float(tex_size.y);
+
+    float min_tex_x = fx - filterx;
+    float min_tex_y = fy - filtery;
+    float max_tex_x = fx + filterx;
+    float max_tex_y = fy + filtery;
+
+    TexResult_tex texres_box;
+    texres_box.trgba = vec4(0.0);
+    texres_box.talpha = use_talpha;
+
+    boxsample(displacement_texture,
+              tex_size,
+              min_tex_x,
+              min_tex_y,
+              max_tex_x,
+              max_tex_y,
+              texres_box,
+              (tex_extend == TEX_REPEAT),
+              (tex_extend == TEX_EXTEND),
+              tex_is_byte,
+              tex_is_float,
+              tex_channels);
+
+    result = texres_box.trgba;
+#else
+    /* Fast path: rely on hardware bilinear sampling.
+     * This approximates CPU filtering but avoids the heavy nested loops of boxsample.
+     */
+    /* Match CPU wrap-remap (#27782) even in fast mode. */
+    float u = fx - float(xi - x) / float(tex_size.x);
+    float v = fy - float(yi - y) / float(tex_size.y);
+
+    if (tex_extend == TEX_EXTEND) {
+      u = clamp(u, 0.0, 1.0);
+      v = clamp(v, 0.0, 1.0);
+    }
+    else if (tex_extend == TEX_REPEAT) {
+      /* After CPU-style remap, u/v are expected to already be in wrapped space.
+       * Keep them as-is to mimic CPU x/y wrapping behavior.
+       */
+    }
+
+    result = shader_ibuf_get_color(texture(displacement_texture, vec2(u, v)),
+                                   tex_is_float,
+                                   tex_channels,
+                                   tex_is_byte);
+#endif
+  }
+  else {
+    ivec2 px_coord = ivec2(x, y);
+    px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
+    result = shader_ibuf_get_color(texelFetch(displacement_texture, px_coord, 0),
+                                  tex_is_float,
+                                  tex_channels,
+                                  tex_is_byte);
+  }
+  
+  /* Compute intensity */
+  if (use_talpha) {
+    out_tin = result.a;
+  }
+  else if (tex_calcalpha) {
+    out_tin = max(max(result.r, result.g), result.b);
+    result.a = out_tin;
+  }
+  else {
+    out_tin = 1.0;
+    result.a = 1.0;
+  }
+
+  if (tex_negalpha) {
+    result.a = 1.0 - result.a;
+  }
+
+  /* De-pre-multiply */
+  if (result.a != 1.0 && result.a > 1e-4 && !tex_calcalpha) {
+    float inv_alpha = 1.0 / result.a;
+    result.rgb *= inv_alpha;
+  }
+
+  /* BRICONTRGB (brightness/contrast/RGB factors) */
+  vec3 rgb = result.rgb;
+  rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
+  rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
+  rgb.b = tex_bfac * ((rgb.b - 0.5) * tex_contrast + tex_bright - 0.5);
+
+  if (!tex_no_clamp) {
+    rgb = max(rgb, vec3(0.0));
+  }
+
+  /* Apply saturation */
+  if (tex_saturation != 1.0) {
+    float cmax = max(max(rgb.r, rgb.g), rgb.b);
+    float cmin = min(min(rgb.r, rgb.g), rgb.b);
+    float delta_hsv = cmax - cmin;
+
+    float h = 0.0, s = 0.0, v = cmax;
+
+    if (delta_hsv > 1e-20) {
+      s = delta_hsv / (cmax + 1e-20);
+
+      if (rgb.r >= cmax) {
+        h = (rgb.g - rgb.b) / delta_hsv;
+      } else if (rgb.g >= cmax) {
+        h = 2.0 + (rgb.b - rgb.r) / delta_hsv;
+      } else {
+        h = 4.0 + (rgb.r - rgb.g) / delta_hsv;
+      }
+
+      h /= 6.0;
+      if (h < 0.0) h += 1.0;
+    }
+
+    s *= tex_saturation;
+
+    float nr = abs(h * 6.0 - 3.0) - 1.0;
+    float ng = 2.0 - abs(h * 6.0 - 2.0);
+    float nb = 2.0 - abs(h * 6.0 - 4.0);
+
+    nr = clamp(nr, 0.0, 1.0);
+    ng = clamp(ng, 0.0, 1.0);
+    nb = clamp(nb, 0.0, 1.0);
+
+    float r = ((nr - 1.0) * s + 1.0) * v;
+    float g = ((ng - 1.0) * s + 1.0) * v;
+    float b = ((nb - 1.0) * s + 1.0) * v;
+
+    if (tex_saturation > 1.0 && !tex_no_clamp) {
+      rgb = max(rgb, vec3(0.0));
+    }
+  }
+
+  result.rgb = rgb;
+  return retval;
+}
+#endif  // HAS_TEXTURE
+)GLSL";
+}
+
+static std::string get_multitex_glsl()
+{
+  return R"GLSL(
+/* Generic multitex dispatcher: calls procedural texture helpers based on a set of
+ * uniforms describing the current `Tex` state. This is a simplified GPU-side
+ * port intended for compute shaders (e.g. Displace). The caller must provide
+ * the following uniforms when using this dispatcher:
+ *
+ * uniform int tex_type;
+ * uniform int tex_stype;
+ * uniform int tex_noisebasis;
+ * uniform int tex_noisebasis2; //marble and ?
+ * uniform float tex_noisesize;
+ * uniform float tex_turbul;
+ * uniform int tex_noisedepth;
+ * uniform bool tex_flipblend;
+ * int tex_mt -> uniform tex_stype; // marble mode
+ * uniform sampler2D displacement_texture; // for image types (sampler name used by imagewrap)
+ * uniform ivec2 tex_image_size (not needed - use textureSize);
+ * uniform bool use_colorband; // whether to apply colorband
+ * uniform ColorBand tex_colorband; // ColorBand UBO
+ */
+
+int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
+{
+  texres.talpha = false;
+  int retval = 0;
+  int t = tex_type;
+
+  if (t == 0) {
+    texres.tin = 0.0;
+    return 0;
+  }
+
+  if (t == TEX_CLOUDS) {
+    retval = clouds_tex(texres, texres, tex_noisesize, tex_turbul, tex_noisedepth, tex_noisebasis, tex_stype);
+  }
+  else if (t == TEX_WOOD) {
+    retval = wood_tex(texvec, texres, tex_noisebasis, tex_stype, tex_noisesize, tex_turbul);
+  }
+  else if (t == TEX_MARBLE) {
+    /* Marble uses `stype` as its mode in CPU code (tex->stype). Use tex_stype here. */
+    retval = marble_tex(texvec, texres, tex_noisebasis, tex_stype, tex_noisesize, tex_turbul);
+  }
+  else if (t == TEX_MAGIC) {
+    retval = magic_tex(texvec, texres, tex_turbul);
+  }
+  else if (t == TEX_BLEND) {
+    retval = blend_tex(texvec, texres, tex_stype, tex_flipblend);
+  }
+  else if (t == TEX_STUCCI) {
+    retval = stucci_tex(texvec, texres, tex_stype, tex_noisesize, tex_turbul, tex_noisebasis);
+  }
+  else if (t == TEX_NOISE) {
+    retval = texnoise_tex(texres, thread_id, tex_noisedepth);
+  }
+  else if (t == TEX_VORONOI) {
+    /* Example default params for voronoi; callers may set additional uniforms */
+    retval = voronoi_tex(texvec, texres, 1.0, 0.0, 0.0, 0.0, 1.0, TEX_COL1, 0, 1.0);
+  }
+  else if (t == TEX_DISTNOISE) {
+    /* Fallback to generic noise path */
+    retval = texnoise_tex(texres, thread_id, tex_noisedepth);
+  }
+  else if (t == TEX_IMAGE) {
+    /* Image sampling: use the shared `displacement_texture` sampler and imagewrap()
+     * (imagewrap expects a sampler named `displacement_texture`). Compute texture size
+     * from the bound sampler via `textureSize()` and forward result to TexResult_tex. */
+    ivec2 img_size = textureSize(displacement_texture, 0);
+    int ir = imagewrap(texvec, texres.trgba, texres.tin, img_size);
+    if (ir == TEX_RGB) retval = TEX_RGB;
+    else retval = TEX_INT;
+  }
+
+  /* Apply colorband if requested (requires ColorBand UBO with name `tex_colorband`).
+   * ColorBand maps an intensity -> color, so apply it only when the texture
+   * result is an intensity (i.e. TEX_RGB flag is NOT set). TEX_INT is defined
+   * as 0, so testing `retval & TEX_INT` is always false. */
+  if (use_colorband) {
+    vec4 cbcol;
+    if (BKE_colorband_evaluate(tex_colorband, texres.tin, cbcol)) {
+      texres.talpha = true;
+      texres.trgba = cbcol;
+      retval |= TEX_RGB;
+    }
+  }
+
+  return retval;
+}
+
+/* Wrapper for environments that cannot pass `inout` structs across compilation units.
+ * Accepts separate inout parameters for RGBA, intensity and talpha and forwards to
+ * the `multitex` implementation which uses `TexResult_tex` internally. */
+int multitex_components(vec3 texvec,
+                        inout vec4 out_trgba,
+                        inout float out_tin,
+                        inout bool out_talpha,
+                        int thread_id)
+{
+  TexResult_tex tmp;
+  tmp.trgba = out_trgba;
+  tmp.tin = out_tin;
+  tmp.talpha = out_talpha;
+
+  int retval = multitex(texvec, tmp, thread_id);
+
+  out_trgba = tmp.trgba;
+  out_tin = tmp.tin;
+  out_talpha = tmp.talpha;
+
+  return retval;
+}
+
+)GLSL";
+}
+
 /** \} */
 
 /**
@@ -2004,7 +2134,11 @@ static std::string get_common_texture_lib_glsl()
            /* Voronoi and other procedural types */
            get_voronoi_glsl() +
            /* Boxsample / image helpers and mapping last */
-           get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl() + get_imagewrap();
+           get_boxsample_helpers_glsl() +
+           get_boxsample_core_glsl() +
+           get_texture_mapping_glsl() +
+           get_imagewrap() +
+           get_multitex_glsl();
 }
 
 }  // namespace blender::gpu
