@@ -11,7 +11,7 @@
  *
  * Port of CPU functions from:
  * - BLI_math_base.hh (safe_acos_approx)
- * - BLI_math_vector.hh (normalize_cpu)
+ * - BLI_math_vector.hh (math::normalize when no arg passed -> fallback on vec3(0.0))
  * - mesh_normals.cc (face_normal_object)
  */
 
@@ -81,15 +81,15 @@ uint pack_i16_pair(float a, float b) {
  * \{ */
 
 /**
- * Returns GLSL code for normalize_cpu function.
+ * Returns GLSL code for math_normalize function.
  * Uses length_squared to avoid double sqrt() and match CPU threshold semantics.
  */
-static std::string get_normalize_cpu_glsl()
+static std::string get_math_normalize_glsl()
 {
   return R"GLSL(
 /* Matches Blender's safe_normalize_and_get_length() version CPU (not GPU!).
  * Uses length_squared to avoid double sqrt(). */
-vec3 normalize_cpu(vec3 v) {
+vec3 math_normalize(vec3 v) {
   float length_squared = dot(v, v);
   const float threshold = 1e-35;
   if (length_squared > threshold) {
@@ -293,7 +293,7 @@ int2 face_find_adjacent_verts(int f, int v) {
  * - Topology accessors: int vert_to_face_offsets(int i); int vert_to_face(int i);
  *                       int face_offsets(int i); int corner_verts(int i);
  * - Position buffer: POSITION_BUFFER macro must be defined.
- * - normalize_cpu(), safe_acos_approx(), face_normal_object(), face_find_adjacent_verts() must be
+ * - math_normalize(), safe_acos_approx(), face_normal_object(), face_find_adjacent_verts() must be
  * defined.
  */
 static std::string get_compute_vertex_normal_smooth_glsl()
@@ -312,12 +312,17 @@ vec3 compute_vertex_normal_smooth(int v) {
     int f = vert_to_face(beg);
     return face_normal_object(f);
   }
+  if (face_count == 0) {
+    return math_normalize(POSITION_BUFFER[v].xyz);
+  }
   
   vec3 n_accum = vec3(0.0);
   
   /* Angle-weighted normal accumulation (matches CPU mesh_normals.cc) */
   for (int i = beg; i < end; ++i) {
     int f = vert_to_face(i);
+    /* Warning here because it doesn't exactly match cpu version as all faces are computed
+     * before normals_calc_verts is called. */
     vec3 face_normal = face_normal_object(f);
     
     /* Find adjacent vertices in this face */
@@ -326,9 +331,9 @@ vec3 compute_vertex_normal_smooth(int v) {
     /* Compute angle at vertex (same as CPU) */
     vec3 v_pos = POSITION_BUFFER[v].xyz;
     
-    /* Use normalize_cpu for edge directions (protects against degenerate edges) */
-    vec3 dir_prev = normalize_cpu(POSITION_BUFFER[adj.x].xyz - v_pos);
-    vec3 dir_next = normalize_cpu(POSITION_BUFFER[adj.y].xyz - v_pos);
+    /* Use math_normalize for edge directions (protects against degenerate edges) */
+    vec3 dir_prev = math_normalize(POSITION_BUFFER[adj.x].xyz - v_pos);
+    vec3 dir_next = math_normalize(POSITION_BUFFER[adj.y].xyz - v_pos);
     
     /* Compute angle factor */
     float angle = safe_acos_approx(dot(dir_prev, dir_next));
@@ -365,7 +370,7 @@ vec3 compute_vertex_normal_smooth(int v) {
  */
 static std::string get_common_normal_lib_glsl()
 {
-  return get_normal_packing_glsl() + get_normalize_cpu_glsl() + get_safe_acos_approx_glsl() +
+  return get_normal_packing_glsl() + get_math_normalize_glsl() + get_safe_acos_approx_glsl() +
          get_face_normal_object_glsl() + get_compute_vertex_normal_smooth_glsl();
 }
 

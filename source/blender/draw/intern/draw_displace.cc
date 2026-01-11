@@ -746,12 +746,12 @@ do_2d_mapping(fx, fy, tex_extend, tex_repeat, tex_xmir, tex_ymir, tex_crop, tex_
     vec3 n_mesh = compute_vertex_normal_smooth(int(v));
     /* Displacement along vertex normal
      * This matches CPU behavior and is acceptable for most use cases. */
-    co += delta * normalize_cpu(n_mesh);
+    co += delta * math_normalize(n_mesh);
   }
   else if (direction == MOD_DISP_DIR_CLNOR) {
     /* Displacement along custom loop normals (Simplification -> same than DISP_DIR_NOR) */
     vec3 n_mesh = compute_vertex_normal_smooth(int(v));
-    co += delta * normalize_cpu(n_mesh);
+    co += delta * math_normalize(n_mesh);
   }
   else if (direction == MOD_DISP_DIR_RGB_XYZ) {
     /* Displacement using RGB as (X, Y, Z) vector
