@@ -71,11 +71,6 @@ static gpu::Texture *ensure_rng_texture_for_displace(Mesh *mesh_owner,
     return nullptr;
   }
 
-  /* Limit RNG texture creation to noise-based textures only. */
-  if (tex->type != TEX_NOISE) {
-    return nullptr;
-  }
-
   const std::string key_rng = key_prefix + "rng_texture_" +
                               std::to_string(reinterpret_cast<uintptr_t>(dmd));
   gpu::Texture *rt = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_rng);
@@ -826,7 +821,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   gpu::Texture *rng_texture = nullptr;
   bool has_texture = false;
 
-  if (dmd->texture && dmd->texture->type == TEX_IMAGE && dmd->texture->ima) {
+  if (dmd->texture && dmd->texture->ima) {
     Image *ima = dmd->texture->ima;
     Tex *tex = dmd->texture;
 
@@ -1146,7 +1141,7 @@ struct ColorBand {
       info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
       info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
       info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
-      /* NEW: Texture transformation parameters (rotation/scale/offset) */
+      /* Texture transformation parameters (rotation/scale/offset) */
       info.push_constant(Type::float3_t, "tex_size_param");  /* Tex->size (scale X/Y/Z) */
       info.push_constant(Type::float3_t, "tex_ofs");         /* Tex->ofs (offset X/Y/Z) */
       info.push_constant(Type::float_t, "tex_rot");          /* Tex->rot (rotation Z in radians) */
@@ -1220,9 +1215,9 @@ struct ColorBand {
     }
     if (gpu_texture) {
       GPU_texture_bind(gpu_texture, 0);
-      }
-      if (rng_texture) {
-        GPU_texture_bind(rng_texture, 1);
+    }
+    if (rng_texture) {
+      GPU_texture_bind(rng_texture, 1);
     }
   }
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
@@ -1367,6 +1362,9 @@ struct ColorBand {
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;
   GPU_compute_dispatch(shader, num_groups, 1, 1, constants);
 
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_shader_unbind();
+
   /* Unbind texture */
   if (gpu_texture) {
     GPU_texture_unbind(gpu_texture);
@@ -1374,9 +1372,6 @@ struct ColorBand {
   if (rng_texture) {
     GPU_texture_unbind(rng_texture);
   }
-
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-  GPU_shader_unbind();
 
   return ssbo_out;
 }

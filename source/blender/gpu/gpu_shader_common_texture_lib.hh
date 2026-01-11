@@ -471,12 +471,12 @@ static std::string get_texnoise_glsl()
  * derive noise values. Otherwise fall back to a small shader-local LCG.
  */
 
-int texnoise_tex(inout TexResult_tex texres, int thread, int noisedepth)
+int texnoise_tex(inout TexResult_tex texres, int thread_id, int noisedepth)
 {
 #ifdef HAS_RNG_TEXTURE
   int rng_len = textureSize(rng_texture, 0);
   if (rng_len > 0) {
-    int idx = int(thread) % rng_len;
+    int idx = thread_id % rng_len;
     uvec4 fetched = texelFetch(rng_texture, idx, 0);
     uint ran = fetched.r;
 
@@ -513,7 +513,7 @@ int texnoise_tex(inout TexResult_tex texres, int thread, int noisedepth)
   return TEX_INT;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -542,7 +542,7 @@ vec3 apply_bricont_rgb(vec3 col)
   return col;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -569,7 +569,7 @@ int stucci_tex(vec3 texvec, inout TexResult_tex texres, int stype, float noisesi
   return TEX_INT;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -621,7 +621,7 @@ int voronoi_tex(vec3 texvec, inout TexResult_tex texres, float vn_w1, float vn_w
   return TEX_INT;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -669,7 +669,7 @@ int marble_tex(vec3 texvec, inout TexResult_tex texres, int noisebasis2, int mt,
   return TEX_INT;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -694,7 +694,7 @@ int magic_tex(vec3 texvec, inout TexResult_tex texres, float turbul)
   return TEX_RGB;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -753,7 +753,7 @@ int wood_tex(vec3 texvec, inout TexResult_tex texres, int noisebasis2, int stype
   return TEX_INT;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -788,7 +788,7 @@ int clouds_tex(const TexResult_tex tex_in, inout TexResult_tex texres_in, float 
   return TEX_INT;
 }
 
-#endif
+#endif // HAS_TEXTURE
 
 )GLSL";
 }
@@ -859,7 +859,7 @@ int blend_tex(vec3 texvec, inout TexResult_tex texres, int tex_stype, bool tex_f
   return TEX_INT;
 }
 
-#endif
+#endif // HAS_TEXTURE
 )GLSL";
 }
 
@@ -1106,7 +1106,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
   result.rgb = rgb;
   return retval;
 }
-#endif
+#endif // HAS_TEXTURE
 )GLSL";
 }
 
