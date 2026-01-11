@@ -513,13 +513,17 @@ gpu::StorageBuf *LatticeSkinningManager::dispatch_deform(
     }
   }
   else {
-    /* No vertex group: create empty dummy buffer (length=0 triggers default weight=1.0 in shader) */
+    /* No vertex group: create per-vertex buffer filled with 1.0f. This avoids
+     * issues where a single-float dummy leads to incorrect reads on some
+     * backends. If mesh has zero vertices, allocate single float. */
     if (!ssbo_vgroup) {
+      const size_t count = (msd.verts_num > 0) ? size_t(msd.verts_num) : size_t(1);
+      const size_t size_vgroup = count * sizeof(float);
       ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, sizeof(float));
+          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
       if (ssbo_vgroup) {
-        float dummy = 1.0f;  /* Unused, but set to 1.0 for safety */
-        GPU_storagebuf_update(ssbo_vgroup, &dummy);
+        std::vector<float> dummy(count, 1.0f);
+        GPU_storagebuf_update(ssbo_vgroup, dummy.data());
       }
     }
   }
