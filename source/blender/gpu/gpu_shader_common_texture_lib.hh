@@ -491,8 +491,11 @@ int voronoi_tex(vec3 texvec, inout TexResult_tex texres, float vn_w1, float vn_w
 {
   float da[4];
   float pa[12];
-  //bli_noise_voronoi(texvec.x, texvec.y, texvec.z, da, pa, vn_mexp, vn_distm);
-  // simple weighted distance
+
+  /* Legacy Voronoi (texture system) exact port. */
+  bli_noise_voronoi_legacy(texvec.x, texvec.y, texvec.z, da, pa, vn_mexp, vn_distm);
+
+  /* Weighted distance (matches Blender texture Voronoi behavior). */
   float aw1 = abs(vn_w1);
   float aw2 = abs(vn_w2);
   float aw3 = abs(vn_w3);
@@ -503,10 +506,10 @@ int voronoi_tex(vec3 texvec, inout TexResult_tex texres, float vn_w1, float vn_w
   texres.tin = val;
   bool is_color = (vn_coltype == TEX_COL1 || vn_coltype == TEX_COL2 || vn_coltype == TEX_COL3);
   if (is_color) {
-    vec3 ca0 = vec3(0.0);//bli_noise_cell_v3(pa[0], pa[1], pa[2]);
-    vec3 ca1 = vec3(0.0);//bli_noise_cell_v3(pa[3], pa[4], pa[5]);
-    vec3 ca2 = vec3(0.0);//bli_noise_cell_v3(pa[6], pa[7], pa[8]);
-    vec3 ca3 = vec3(0.0);//bli_noise_cell_v3(pa[9], pa[10], pa[11]);
+    vec3 ca0 = gpu_BLI_noise_cell_v3_legacy(pa[0], pa[1], pa[2]);
+    vec3 ca1 = gpu_BLI_noise_cell_v3_legacy(pa[3], pa[4], pa[5]);
+    vec3 ca2 = gpu_BLI_noise_cell_v3_legacy(pa[6], pa[7], pa[8]);
+    vec3 ca3 = gpu_BLI_noise_cell_v3_legacy(pa[9], pa[10], pa[11]);
     vec3 c = aw1 * ca0 + aw2 * ca1 + aw3 * ca2 + aw4 * ca3;
     if (vn_coltype == TEX_COL2 || vn_coltype == TEX_COL3) {
       float t1 = (da[1] - da[0]) * 10.0;
@@ -935,7 +938,7 @@ vec3 linearrgb_to_srgb_vec3(vec3 v)
 /** \name Noise Helpers
  * \{ */
 
-static std::string get_noise_helpers_glsl()
+static std::string get_noise_helpers_part1_glsl()
 {
   return R"GLSL(
 /* Blender noise static data (from noise_c.cc line 103-106) */
@@ -1074,9 +1077,395 @@ const float hashvectf[768] = float[768](
   0.64801,-0.100586,0.114716,0.044525,-0.992371,0.966003,0.244873,-0.082764
 );
 
-/* GPU port of orgBlenderNoise() from noise_c.cc (line 182-250)
- * EXACT line-by-line port of the CPU implementation.
- * This is the original Blender Perlin noise (TEX_BLENDER basis 0). */
+)GLSL";
+}
+
+static std::string get_noise_helpers_part2_glsl()
+{
+  return R"GLSL(
+/* point table for Voronoi (copied from noise_c.cc hashpntf)
+ *
+ * IMPORTANT: Some GLSL compilers used by Blender reject dynamic indexing into
+ * a large `const float[]` (e.g. `hashpntf[idx + 1]`). To keep this compatible
+ * with compute shaders, store as `vec3[256]` and index with a single integer.
+ */
+const vec3 hashpntf3[256] = vec3[256](
+  vec3(0.536902,0.020915,0.501445),vec3(0.216316,0.517036,0.822466),vec3(0.965315,0.377313,0.678764),
+  vec3(0.744545,0.097731,0.396357),vec3(0.247202,0.520897,0.613396),vec3(0.542124,0.146813,0.255489),
+  vec3(0.810868,0.638641,0.980742),vec3(0.292316,0.357948,0.114382),vec3(0.861377,0.629634,0.72253),
+  vec3(0.714103,0.048549,0.075668),vec3(0.56492,0.162026,0.054466),vec3(0.411738,0.156897,0.887657),
+  vec3(0.599368,0.074249,0.170277),vec3(0.225799,0.393154,0.301348),vec3(0.057434,0.293849,0.442745),
+  vec3(0.150002,0.398732,0.184582),vec3(0.9152,0.630984,0.97404),vec3(0.117228,0.79552,0.763238),
+  vec3(0.158982,0.616211,0.250825),vec3(0.906539,0.316874,0.676205),vec3(0.23472,0.667673,0.792225),
+  vec3(0.273671,0.119363,0.199131),vec3(0.856716,0.828554,0.900718),vec3(0.70596,0.635923,0.989433),
+  vec3(0.027261,0.283507,0.113426),vec3(0.388115,0.900176,0.637741),vec3(0.438802,0.71549,0.043692),
+  vec3(0.20264,0.378325,0.450325),vec3(0.471832,0.147803,0.906899),vec3(0.524178,0.784981,0.051483),
+  vec3(0.893369,0.596895,0.275635),vec3(0.391483,0.844673,0.103061),vec3(0.257322,0.70839,0.504091),
+  vec3(0.199517,0.660339,0.376071),vec3(0.03888,0.531293,0.216116),vec3(0.138672,0.907737,0.807994),
+  vec3(0.659582,0.915264,0.449075),vec3(0.627128,0.480173,0.380942),vec3(0.018843,0.211808,0.569701),
+  vec3(0.082294,0.689488,0.57306),vec3(0.593859,0.21608,0.373159),vec3(0.108117,0.595539,0.021768),
+  vec3(0.380297,0.948125,0.377833),vec3(0.319699,0.315249,0.972805),vec3(0.79227,0.445396,0.845323),
+  vec3(0.372186,0.096147,0.689405),vec3(0.423958,0.055675,0.11794),vec3(0.328456,0.605808,0.631768),
+  vec3(0.37217,0.213723,0.0327),vec3(0.447257,0.440661,0.728488),vec3(0.299853,0.148599,0.649212),
+  vec3(0.498381,0.049921,0.496112),vec3(0.607142,0.562595,0.990246),vec3(0.739659,0.108633,0.978156),
+  vec3(0.209814,0.258436,0.876021),vec3(0.30926,0.600673,0.713597),vec3(0.576967,0.641402,0.85393),
+  vec3(0.029173,0.418111,0.581593),vec3(0.008394,0.589904,0.661574),vec3(0.979326,0.275724,0.111109),
+  vec3(0.440472,0.120839,0.521602),vec3(0.648308,0.284575,0.204501),vec3(0.153286,0.822444,0.300786),
+  vec3(0.303906,0.364717,0.209038),vec3(0.916831,0.900245,0.600685),vec3(0.890002,0.58166,0.431154),
+  vec3(0.705569,0.55125,0.417075),vec3(0.403749,0.696652,0.292652),vec3(0.911372,0.690922,0.323718),
+  vec3(0.036773,0.258976,0.274265),vec3(0.225076,0.628965,0.351644),vec3(0.065158,0.08034,0.467271),
+  vec3(0.130643,0.385914,0.919315),vec3(0.253821,0.966163,0.017439),vec3(0.39261,0.478792,0.978185),
+  vec3(0.072691,0.982009,0.097987),vec3(0.731533,0.401233,0.10757),vec3(0.349587,0.479122,0.700598),
+  vec3(0.481751,0.788429,0.706864),vec3(0.120086,0.562691,0.981797),vec3(0.001223,0.19212,0.451543),
+  vec3(0.173092,0.10896,0.549594),vec3(0.587892,0.657534,0.396365),vec3(0.125153,0.66642,0.385823),
+  vec3(0.890916,0.436729,0.128114),vec3(0.369598,0.759096,0.044677),vec3(0.904752,0.088052,0.621148),
+  vec3(0.005047,0.452331,0.162032),vec3(0.494238,0.523349,0.741829),vec3(0.69845,0.452316,0.563487),
+  vec3(0.819776,0.49216,0.00421),vec3(0.647158,0.551475,0.362995),vec3(0.177937,0.814722,0.727729),
+  vec3(0.867126,0.997157,0.108149),vec3(0.085726,0.796024,0.665075),vec3(0.362462,0.323124,0.043718),
+  vec3(0.042357,0.31503,0.328954),vec3(0.870845,0.683186,0.467922),vec3(0.514894,0.809971,0.631979),
+  vec3(0.176571,0.36632,0.850621),vec3(0.505555,0.749551,0.75083),vec3(0.401714,0.481216,0.438393),
+  vec3(0.508832,0.867971,0.654581),vec3(0.058204,0.566454,0.084124),vec3(0.548539,0.90269,0.779571),
+  vec3(0.562058,0.048082,0.863109),vec3(0.07929,0.713559,0.783496),vec3(0.265266,0.672089,0.786939),
+  vec3(0.143048,0.086196,0.876129),vec3(0.408708,0.229312,0.629995),vec3(0.206665,0.207308,0.710079),
+  vec3(0.341704,0.264921,0.028748),vec3(0.629222,0.470173,0.726228),vec3(0.125243,0.328249,0.794187),
+  vec3(0.74134,0.489895,0.189396),vec3(0.724654,0.092841,0.039809),vec3(0.860126,0.247701,0.655331),
+  vec3(0.964121,0.672536,0.044522),vec3(0.690567,0.837238,0.63152),vec3(0.953734,0.352484,0.289026),
+  vec3(0.034152,0.852575,0.098454),vec3(0.795529,0.452181,0.826159),vec3(0.186993,0.820725,0.440328),
+  vec3(0.922137,0.704592,0.915437),vec3(0.738183,0.733461,0.193798),vec3(0.929213,0.16139,0.318547),
+  vec3(0.888751,0.430968,0.740837),vec3(0.193544,0.872253,0.563074),vec3(0.274598,0.347805,0.666176),
+  vec3(0.449831,0.800991,0.588727),vec3(0.052296,0.714761,0.42062),vec3(0.570325,0.05755,0.210888),
+  vec3(0.407312,0.662848,0.924382),vec3(0.895958,0.775198,0.688605),vec3(0.025721,0.301913,0.791408),
+  vec3(0.500602,0.831984,0.828509),vec3(0.642093,0.494174,0.52588),vec3(0.446365,0.440063,0.763114),
+  vec3(0.630358,0.223943,0.333806),vec3(0.906033,0.498306,0.241278),vec3(0.42764,0.772683,0.198082),
+  vec3(0.225379,0.503894,0.436599),vec3(0.016503,0.803725,0.189878),vec3(0.291095,0.499114,0.151573),
+  vec3(0.079031,0.904618,0.708535),vec3(0.2739,0.067419,0.317124),vec3(0.936499,0.716511,0.543845),
+  vec3(0.939909,0.826574,0.71509),vec3(0.154864,0.75015,0.845808),vec3(0.648108,0.556564,0.644757),
+  vec3(0.140873,0.799167,0.632989),vec3(0.444245,0.471978,0.43591),vec3(0.359793,0.216241,0.007633),
+  vec3(0.337236,0.857863,0.380247),vec3(0.092517,0.799973,0.919),vec3(0.296798,0.096989,0.854831),
+  vec3(0.165369,0.568475,0.216855),vec3(0.020457,0.835511,0.538039),vec3(0.999742,0.620226,0.244053),
+  vec3(0.060399,0.323007,0.294874),vec3(0.988899,0.384919,0.735655),vec3(0.773428,0.549776,0.292882),
+  vec3(0.660611,0.593507,0.621118),vec3(0.175269,0.682119,0.794493),vec3(0.868197,0.63215,0.807823),
+  vec3(0.509656,0.482035,0.00178),vec3(0.259126,0.358002,0.280263),vec3(0.192985,0.290367,0.208111),
+  vec3(0.917633,0.114422,0.925491),vec3(0.98111,0.25557,0.974862),vec3(0.016629,0.552599,0.575741),
+  vec3(0.612978,0.615965,0.803615),vec3(0.772334,0.089745,0.838812),vec3(0.634542,0.113709,0.755832),
+  vec3(0.577589,0.667489,0.529834),vec3(0.32566,0.817597,0.316557),vec3(0.335093,0.737363,0.260951),
+  vec3(0.737073,0.04954,0.735541),vec3(0.988891,0.299116,0.147695),vec3(0.417271,0.940811,0.52416),
+  vec3(0.857968,0.176403,0.244835),vec3(0.485759,0.033353,0.280319),vec3(0.750688,0.755809,0.924208),
+  vec3(0.095956,0.962504,0.275584),vec3(0.173715,0.942716,0.706721),vec3(0.078464,0.576716,0.804667),
+  vec3(0.559249,0.900611,0.646904),vec3(0.432111,0.927885,0.383277),vec3(0.269973,0.114244,0.574867),
+  vec3(0.150703,0.241855,0.272871),vec3(0.19995,0.079719,0.868566),vec3(0.962833,0.789122,0.320025),
+  vec3(0.905554,0.234876,0.991356),vec3(0.061913,0.732911,0.78596),vec3(0.874074,0.069035,0.658632),
+  vec3(0.309901,0.023676,0.791603),vec3(0.764661,0.661278,0.319583),vec3(0.82965,0.117091,0.903124),
+  vec3(0.982098,0.161631,0.193576),vec3(0.670428,0.85739,0.00376),vec3(0.572578,0.222162,0.114551),
+  vec3(0.420118,0.530404,0.470682),vec3(0.525527,0.764281,0.040596),vec3(0.443275,0.501124,0.816161),
+  vec3(0.417467,0.332172,0.447565),vec3(0.614591,0.559246,0.805295),vec3(0.226342,0.155065,0.71463),
+  vec3(0.160925,0.760001,0.453456),vec3(0.093869,0.406092,0.264801),vec3(0.72037,0.743388,0.373269),
+  vec3(0.403098,0.911923,0.897249),vec3(0.147038,0.753037,0.516093),vec3(0.739257,0.175018,0.045768),
+  vec3(0.735857,0.80133,0.927708),vec3(0.240977,0.59187,0.921831),vec3(0.540733,0.1491,0.423152),
+  vec3(0.806876,0.397081,0.0611),vec3(0.81163,0.044899,0.460915),vec3(0.961202,0.822098,0.971524),
+  vec3(0.867608,0.773604,0.226616),vec3(0.686286,0.926972,0.411613),vec3(0.267873,0.081937,0.226124),
+  vec3(0.295664,0.374594,0.53324),vec3(0.237876,0.669629,0.599083),vec3(0.513081,0.878719,0.201577),
+  vec3(0.721296,0.495038,0.07976),vec3(0.965959,0.23309,0.052496),vec3(0.714748,0.887844,0.308724),
+  vec3(0.972885,0.723337,0.453089),vec3(0.914474,0.704063,0.823198),vec3(0.834769,0.906561,0.9196),
+  vec3(0.100601,0.307564,0.901977),vec3(0.468879,0.265376,0.885188),vec3(0.683875,0.868623,0.081032),
+  vec3(0.466835,0.199087,0.663437),vec3(0.812241,0.311337,0.821361),vec3(0.356628,0.898054,0.160781),
+  vec3(0.222539,0.714889,0.490287),vec3(0.984915,0.951755,0.964097),vec3(0.641795,0.815472,0.852732),
+  vec3(0.862074,0.051108,0.440139),vec3(0.323207,0.517171,0.562984),vec3(0.115295,0.743103,0.977914),
+  vec3(0.337596,0.440694,0.535879),vec3(0.959427,0.351427,0.704361),vec3(0.010826,0.131162,0.57708),
+  vec3(0.349572,0.774892,0.425796),vec3(0.072697,0.5,0.267322),vec3(0.909654,0.206176,0.223987),
+  vec3(0.937698,0.323423,0.117501),vec3(0.490308,0.474372,0.689943),vec3(0.168671,0.719417,0.188928),
+  vec3(0.330464,0.265273,0.446271),vec3(0.171933,0.176133,0.474616),vec3(0.140182,0.114246,0.905043),
+  vec3(0.71387,0.555261,0.951333)
+);
+  
+)GLSL";
+}
+
+static std::string get_noise_helpers_part3_glsl()
+{
+  return R"GLSL(
+/* cellnoise helper for GLSL side usage */
+float gpu_BLI_cellNoiseU(float cx, float cy, float cz)
+{
+  float fx = (cx + 0.000001) * 1.00001;
+  float fy = (cy + 0.000001) * 1.00001;
+  float fz = (cz + 0.000001) * 1.00001;
+  int xi = int(floor(fx));
+  int yi = int(floor(fy));
+  int zi = int(floor(fz));
+  uint n = uint(xi) + uint(yi) * uint(1301) + uint(zi) * uint(314159);
+  n ^= (n << 13);
+  uint v = n * (n * n * uint(15731) + uint(789221)) + uint(1376312589);
+  return float(v) / 4294967296.0;
+}
+
+/* Legacy Voronoi helpers (exact port of `source/blender/blenlib/intern/noise_c.cc`)
+ * Used by the old texture system (DNA noise basis 3..8) and `BLI_noise_voronoi()`.
+ *
+ * NOTE: This is intentionally separate from the modern node Voronoi implementation.
+ */
+
+float dist_Squared_legacy(float x, float y, float z, float e)
+{
+  return x * x + y * y + z * z;
+}
+
+float dist_Real_legacy(float x, float y, float z, float e)
+{
+  return sqrt(x * x + y * y + z * z);
+}
+
+float dist_Manhattan_legacy(float x, float y, float z, float e)
+{
+  return abs(x) + abs(y) + abs(z);
+}
+
+float dist_Chebychev_legacy(float x, float y, float z, float e)
+{
+  x = abs(x);
+  y = abs(y);
+  z = abs(z);
+  float t = (x > y) ? x : y;
+  return (z > t) ? z : t;
+}
+
+float dist_MinkovskyH_legacy(float x, float y, float z, float e)
+{
+  float d = sqrt(abs(x)) + sqrt(abs(y)) + sqrt(abs(z));
+  return d * d;
+}
+
+float dist_Minkovsky4_legacy(float x, float y, float z, float e)
+{
+  x *= x;
+  y *= y;
+  z *= z;
+  return sqrt(sqrt(x * x + y * y + z * z));
+}
+
+float dist_Minkovsky_legacy(float x, float y, float z, float e)
+{
+  return pow(pow(abs(x), e) + pow(abs(y), e) + pow(abs(z), e), 1.0 / e);
+}
+
+/* HASHPNT(xx, yy, zz) = hashpntf + 3 * hash[ hash[ hash[(z)&255] + (y) ] + (x) ]
+ * where `hash` is the 512-entry permutation table (uchar values repeated twice).
+ */
+vec3 gpu_hashpntf_legacy(int x, int y, int z)
+{
+  uint zu = uint(z) & 255u;
+  uint yu = uint(y) & 255u;
+  uint xu = uint(x) & 255u;
+  uint h0 = hash[zu];
+  uint h1 = hash[(h0 + yu) & 255u];
+  uint h2 = hash[(h1 + xu) & 255u];
+  return hashpntf3[int(h2)];
+}
+
+/* Exact helper matching CPU `BLI_noise_cell_v3()`.
+ * Returns the raw `hashpntf` triple for a cell.
+ */
+vec3 gpu_BLI_noise_cell_v3_legacy(float x, float y, float z)
+{
+  x = (x + 0.000001) * 1.00001;
+  y = (y + 0.000001) * 1.00001;
+  z = (z + 0.000001) * 1.00001;
+  int xi = int(floor(x));
+  int yi = int(floor(y));
+  int zi = int(floor(z));
+  return gpu_hashpntf_legacy(xi, yi, zi);
+}
+
+/* Exact port of CPU `BLI_noise_voronoi(float x, float y, float z, float *da, float *pa, float me, int dtype)`.
+ *
+ * Inputs:
+ * - x,y,z: point
+ * - me: minkowski exponent (only used for dtype==6)
+ * - dtype: distance type (0..6)
+ * Outputs:
+ * - da[4]: four nearest distances
+ * - pa[12]: feature point positions (4 points * 3 coords). Layout matches CPU.
+ */
+void bli_noise_voronoi_legacy(float x, float y, float z, out float da[4], out float pa[12], float me, int dtype)
+{
+  da[0] = da[1] = da[2] = da[3] = 1e10;
+
+  int xi = int(floor(x));
+  int yi = int(floor(y));
+  int zi = int(floor(z));
+
+  for (int xx = xi - 1; xx <= xi + 1; xx++) {
+    for (int yy = yi - 1; yy <= yi + 1; yy++) {
+      for (int zz = zi - 1; zz <= zi + 1; zz++) {
+        vec3 p = gpu_hashpntf_legacy(xx, yy, zz);
+        float xd = x - (p.x + float(xx));
+        float yd = y - (p.y + float(yy));
+        float zd = z - (p.z + float(zz));
+
+        float d;
+        if (dtype == 1) {
+          d = dist_Squared_legacy(xd, yd, zd, me);
+        }
+        else if (dtype == 2) {
+          d = dist_Manhattan_legacy(xd, yd, zd, me);
+        }
+        else if (dtype == 3) {
+          d = dist_Chebychev_legacy(xd, yd, zd, me);
+        }
+        else if (dtype == 4) {
+          d = dist_MinkovskyH_legacy(xd, yd, zd, me);
+        }
+        else if (dtype == 5) {
+          d = dist_Minkovsky4_legacy(xd, yd, zd, me);
+        }
+        else if (dtype == 6) {
+          d = dist_Minkovsky_legacy(xd, yd, zd, me);
+        }
+        else {
+          d = dist_Real_legacy(xd, yd, zd, me);
+        }
+
+        if (d < da[0]) {
+          da[3] = da[2];
+          da[2] = da[1];
+          da[1] = da[0];
+          da[0] = d;
+
+          pa[9] = pa[6];
+          pa[10] = pa[7];
+          pa[11] = pa[8];
+          pa[6] = pa[3];
+          pa[7] = pa[4];
+          pa[8] = pa[5];
+          pa[3] = pa[0];
+          pa[4] = pa[1];
+          pa[5] = pa[2];
+
+          pa[0] = p.x + float(xx);
+          pa[1] = p.y + float(yy);
+          pa[2] = p.z + float(zz);
+        }
+        else if (d < da[1]) {
+          da[3] = da[2];
+          da[2] = da[1];
+          da[1] = d;
+
+          pa[9] = pa[6];
+          pa[10] = pa[7];
+          pa[11] = pa[8];
+          pa[6] = pa[3];
+          pa[7] = pa[4];
+          pa[8] = pa[5];
+
+          pa[3] = p.x + float(xx);
+          pa[4] = p.y + float(yy);
+          pa[5] = p.z + float(zz);
+        }
+        else if (d < da[2]) {
+          da[3] = da[2];
+          da[2] = d;
+
+          pa[9] = pa[6];
+          pa[10] = pa[7];
+          pa[11] = pa[8];
+
+          pa[6] = p.x + float(xx);
+          pa[7] = p.y + float(yy);
+          pa[8] = p.z + float(zz);
+        }
+        else if (d < da[3]) {
+          da[3] = d;
+          pa[9] = p.x + float(xx);
+          pa[10] = p.y + float(yy);
+          pa[11] = p.z + float(zz);
+        }
+      }
+    }
+  }
+}
+
+/* Exact GLSL port of CPU `noise3_perlin(const float vec[3])` in `noise_c.cc`.
+ * IMPORTANT: The CPU uses a separate permutation table (g_perlin_data_ub) which is
+ * identical to the first 256 values of `hash` (and then repeated). We reuse `hash`
+ * while preserving the CPU's `SETUP()` behavior (add 10000, take int&255, use fract).
+ *
+ * This is used for TEX_STDPERLIN (basis==1) matching.
+ */
+float noise3_perlin(vec3 vec)
+{
+  /* CPU SETUP(vec[i], b0, b1, r0, r1):
+   * t = val + 10000; b0 = int(t) & 255; b1=(b0+1)&255; r0=t-floor(t); r1=r0-1;
+   */
+  float t;
+
+  t = vec.x + 10000.0;
+  int bx0 = int(t) & 255;
+  int bx1 = (bx0 + 1) & 255;
+  float rx0 = t - floor(t);
+  float rx1 = rx0 - 1.0;
+
+  t = vec.y + 10000.0;
+  int by0 = int(t) & 255;
+  int by1 = (by0 + 1) & 255;
+  float ry0 = t - floor(t);
+  float ry1 = ry0 - 1.0;
+
+  t = vec.z + 10000.0;
+  int bz0 = int(t) & 255;
+  int bz1 = (bz0 + 1) & 255;
+  float rz0 = t - floor(t);
+  float rz1 = rz0 - 1.0;
+
+  /* CPU uses `char *p = g_perlin_data_ub;` and indexes it directly.
+   * Our `hash` is uint[512] but values are in 0..255.
+   */
+  int i = int(hash[bx0]);
+  int j = int(hash[bx1]);
+
+  int b00 = int(hash[i + by0]);
+  int b10 = int(hash[j + by0]);
+  int b01 = int(hash[i + by1]);
+  int b11 = int(hash[j + by1]);
+
+  float sx = rx0 * rx0 * (3.0 - 2.0 * rx0);
+  float sy = ry0 * ry0 * (3.0 - 2.0 * ry0);
+  float sz = rz0 * rz0 * (3.0 - 2.0 * rz0);
+
+  /* CPU uses `g_perlin_data_v3` (same gradient vectors as `hashvectf`). */
+  int idx;
+  float u, v;
+
+  idx = 3 * (b00 + bz0);
+  u = rx0 * hashvectf[idx] + ry0 * hashvectf[idx + 1] + rz0 * hashvectf[idx + 2];
+  idx = 3 * (b10 + bz0);
+  v = rx1 * hashvectf[idx] + ry0 * hashvectf[idx + 1] + rz0 * hashvectf[idx + 2];
+  float a = mix(u, v, sx);
+
+  idx = 3 * (b01 + bz0);
+  u = rx0 * hashvectf[idx] + ry1 * hashvectf[idx + 1] + rz0 * hashvectf[idx + 2];
+  idx = 3 * (b11 + bz0);
+  v = rx1 * hashvectf[idx] + ry1 * hashvectf[idx + 1] + rz0 * hashvectf[idx + 2];
+  float b = mix(u, v, sx);
+
+  float c = mix(a, b, sy);
+
+  idx = 3 * (b00 + bz1);
+  u = rx0 * hashvectf[idx] + ry0 * hashvectf[idx + 1] + rz1 * hashvectf[idx + 2];
+  idx = 3 * (b10 + bz1);
+  v = rx1 * hashvectf[idx] + ry0 * hashvectf[idx + 1] + rz1 * hashvectf[idx + 2];
+  a = mix(u, v, sx);
+
+  idx = 3 * (b01 + bz1);
+  u = rx0 * hashvectf[idx] + ry1 * hashvectf[idx + 1] + rz1 * hashvectf[idx + 2];
+  idx = 3 * (b11 + bz1);
+  v = rx1 * hashvectf[idx] + ry1 * hashvectf[idx + 1] + rz1 * hashvectf[idx + 2];
+  b = mix(u, v, sx);
+
+  float d = mix(a, b, sy);
+
+  return 1.5 * mix(c, d, sz);
+}
+
 float orgBlenderNoise(float x, float y, float z)
 {
   float cn1, cn2, cn3, cn4, cn5, cn6, i_tmp;
@@ -1187,13 +1576,82 @@ float orgBlenderNoise(float x, float y, float z)
 
   return n;
 }
+)GLSL";
+}
+
+static std::string get_noise_helpers_part4_glsl()
+{
+  return R"GLSL(
+
+/* Helpers for improved Perlin (newPerlinU) used by `bli_noise_generic_turbulence`. */
+float npfade(float t)
+{
+  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+
+float newperlin_grad(int hash_val, float x, float y, float z)
+{
+  int h = hash_val & 15;
+  float u = (h < 8) ? x : y;
+  float v = (h < 4) ? y : ((h == 12) || (h == 14)) ? x : z;
+  return (((h & 1) == 0) ? u : -u) + (((h & 2) == 0) ? v : -v);
+}
+
+float newPerlinU(float x, float y, float z)
+{
+  float ux = floor(x);
+  float uy = floor(y);
+  float uz = floor(z);
+  int X = int(ux) & 255;
+  int Y = int(uy) & 255;
+  int Z = int(uz) & 255;
+  x -= ux;
+  y -= uy;
+  z -= uz;
+
+  float u = npfade(x);
+  float v = npfade(y);
+  float w = npfade(z);
+
+  int A = int(hash[X]) + Y;
+  int AA = int(hash[uint(A) & 255u]) + Z;
+  int AB = int(hash[uint(A + 1) & 255u]) + Z;
+  int B = int(hash[uint(X + 1) & 255u]) + Y;
+  int BA = int(hash[uint(B) & 255u]) + Z;
+  int BB = int(hash[uint(B + 1) & 255u]) + Z;
+
+  float g1 = newperlin_grad(int(hash[uint(AA) & 255u]), x, y, z);
+  float g2 = newperlin_grad(int(hash[uint(BA) & 255u]), x - 1.0, y, z);
+  float a1 = mix(g1, g2, u);
+
+  g1 = newperlin_grad(int(hash[uint(AB) & 255u]), x, y - 1.0, z);
+  g2 = newperlin_grad(int(hash[uint(BB) & 255u]), x - 1.0, y - 1.0, z);
+  float b1 = mix(g1, g2, u);
+  float c1 = mix(a1, b1, v);
+
+  g1 = newperlin_grad(int(hash[uint(AA + 1) & 255u]), x, y, z - 1.0);
+  g2 = newperlin_grad(int(hash[uint(BA + 1) & 255u]), x - 1.0, y, z - 1.0);
+  a1 = mix(g1, g2, u);
+
+  g1 = newperlin_grad(int(hash[uint(AB + 1) & 255u]), x, y - 1.0, z - 1.0);
+  g2 = newperlin_grad(int(hash[uint(BB + 1) & 255u]), x - 1.0, y - 1.0, z - 1.0);
+  b1 = mix(g1, g2, u);
+  float d1 = mix(a1, b1, v);
+
+  return 0.5 + 0.5 * mix(c1, d1, w);
+}
 
 float bli_noise_generic_turbulence(float size, float x, float y, float z, int depth, bool hard, int basis)
 {
-  x += 1; // The default case in switch (noise_c.cc line 1246)
-  y += 1; // The default case in switch
-  z += 1; // The default case in switch
-  /* Normalize coordinates by size (matches CPU line 386-390) */
+  /* If default basis (0) is used, CPU adds +1 to coords before scaling. */
+  bool default_basis = (basis == 0);
+  if (default_basis) {
+    x += 1.0;
+    y += 1.0;
+    z += 1.0;
+  }
+
+  /* Normalize coordinates by size (matches CPU) */
   if (size != 0.0) {
     float inv_size = 1.0 / size;
     x *= inv_size;
@@ -1201,16 +1659,45 @@ float bli_noise_generic_turbulence(float size, float x, float y, float z, int de
     z *= inv_size;
   }
 
-  float sum = 0.0;
-  float t, amp = 1.0, fscale = 1.0;
+  /* cell noise helper (CPU implementation port) */
+  /* implemented as a static function above (gpu_BLI_cellNoiseU) */
 
-  /* Octave loop (matches CPU line 393-401) */
+  float sum = 0.0;
+  float amp = 1.0;
+  float fscale = 1.0;
+
   for (int i = 0; i <= depth; ++i) {
-    if (basis == 0) { /* TEX_BLENDER */
-      t = orgBlenderNoise(fscale * x, fscale * y, fscale * z);
+    float sx = fscale * x;
+    float sy = fscale * y;
+    float sz = fscale * z;
+    float t = 0.0;
+
+    if (basis == 1) { /* orgPerlinNoiseU */
+      /* `noise3_perlin` matches CPU `noise3_perlin()` used by `orgPerlinNoiseU`. */
+      t = 0.5 + 0.5 * noise3_perlin(vec3(sx, sy, sz));
     }
-    else {
-      t = orgBlenderNoise(fscale * x, fscale * y, fscale * z); /* fallback */
+    else if (basis == 2) { /* newPerlinU */
+      t = newPerlinU(sx, sy, sz);
+    }
+    else if (basis >= 3 && basis <= 8) { /* Voronoi legacy variants: 3..8 */
+      float da[4];
+      float pa[12];
+      bli_noise_voronoi_legacy(sx, sy, sz, da, pa, 1.0, 0);
+      if (basis == 3) t = da[0];
+      else if (basis == 4) t = da[1];
+      else if (basis == 5) t = da[2];
+      else if (basis == 6) t = da[3];
+      else if (basis == 7) t = da[1] - da[0];
+      else {
+        float v = 10.0 * (da[1] - da[0]);
+        t = (v > 1.0) ? 1.0 : v;
+      }
+    }
+    else if (basis == 14) {
+      t = gpu_BLI_cellNoiseU(sx, sy, sz);
+    }
+    else { /* default/fallback -> orgBlenderNoise */
+      t = orgBlenderNoise(sx, sy, sz);
     }
 
     if (hard) {
@@ -1223,9 +1710,9 @@ float bli_noise_generic_turbulence(float size, float x, float y, float z, int de
   }
 
   sum *= float(1 << depth) / float((1 << (depth + 1)) - 1);
-
   return sum;
 }
+
 )GLSL";
 }
 
@@ -2258,7 +2745,10 @@ static std::string get_common_texture_lib_glsl()
     return get_texture_defines_glsl() +
            get_color_conversion_glsl() +
            get_bricont_glsl() +
-           get_noise_helpers_glsl() +
+           get_noise_helpers_part1_glsl() +
+           get_noise_helpers_part2_glsl() +
+           get_noise_helpers_part3_glsl() +
+           get_noise_helpers_part4_glsl() +
            get_colorband_helpers_glsl() +
            /* core structs used by texture functions */
            get_texture_structs_glsl() +
