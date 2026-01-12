@@ -10,6 +10,7 @@
 #include "draw_displace.hh"
 
 #include "BLI_hash.h"
+#include "BLI_noise.h"
 #include "BLI_map.hh"
 #include "BLI_rand.h"
 #include "BLI_math_matrix.h"
@@ -321,8 +322,7 @@ texres.trgba = vec4(0.0);
 texres.talpha = use_talpha;  /* From CPU line 211-213 */
 texres.tin = 0.0;
 
-/* Pass tex_coord in [-1,1] range to multitex() (matching CPU convention for procedural textures).
-* The [- 1,1]→[0,1] conversion for IMAGE textures is handled inside multitex() itself. */
+/* Pass tex_coord as-is (CPU procedural textures use raw mapped coords; IMAGE handles its own remap). */
  vec3 mapped_coord = tex_coord;
  int retval = multitex_components(mapped_coord, texres.trgba, texres.tin, texres.talpha, int(v));
   /* texres.trgba and texres.tin are filled/processed by imagewrap() to match CPU pipeline */
@@ -389,17 +389,20 @@ texres.tin = 0.0;
      * Each RGB component controls displacement along its respective axis
      * R → X displacement, G → Y displacement, B → Z displacement */
 #ifdef HAS_TEXTURE
+    /* Match CPU: (tex - midlevel) * strength * weight, then optional global transform. */
+    vec3 local_vec = (texres.trgba.rgb - vec3(midlevel)) * (strength * vgroup_weight);
+
     if (use_global) {
-      /* Transform local displacement vector to global space */
+      /* mul_transposed_mat3_m4_v3 equivalent: multiply by column vectors. */
       vec3 global_disp = vec3(
-        dot(vec3(local_mat[0][0], local_mat[0][1], local_mat[0][2]), texres.trgba.rgb),
-        dot(vec3(local_mat[1][0], local_mat[1][1], local_mat[1][2]), texres.trgba.rgb),
-        dot(vec3(local_mat[2][0], local_mat[2][1], local_mat[2][2]), texres.trgba.rgb)
+        dot(local_vec, vec3(local_mat[0][0], local_mat[1][0], local_mat[2][0])),
+        dot(local_vec, vec3(local_mat[0][1], local_mat[1][1], local_mat[2][1])),
+        dot(local_vec, vec3(local_mat[0][2], local_mat[1][2], local_mat[2][2]))
       );
       co += global_disp;
-    } else {
-      /* Local space: directly apply RGB as (X, Y, Z) */
-      co += texres.trgba.rgb;
+    }
+    else {
+      co += local_vec;
     }
 #else
     /* No texture: cannot use RGB_XYZ mode, fallback to no displacement */
@@ -1027,6 +1030,9 @@ struct ColorBand {
       info.push_constant(Type::int_t, "tex_noisetype");
       info.push_constant(Type::int_t, "tex_noisedepth");
       info.push_constant(Type::int_t, "tex_frame"); /* Current frame for animated textures */
+      /* Debug: CPU-computed turbulence sample to compare GPU noise implementation. */
+      info.push_constant(Type::float_t, "debug_cpu_turb");
+      info.push_constant(Type::bool_t, "debug_use_cpu_turb");
 
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
