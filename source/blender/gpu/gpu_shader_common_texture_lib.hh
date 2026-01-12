@@ -686,7 +686,8 @@ static std::string get_blend_glsl()
   return R"GLSL(
 #ifdef HAS_TEXTURE
 
-/* GPU port of CPU `blend()` texture (gradient/blend) */
+/* GPU port of CPU `blend()` texture (gradient/blend)
+ * Expects texvec in [-1,1] range (matching CPU convention). */
 int blend_tex(vec3 texvec, inout TexResult_tex texres, int tex_stype, bool tex_flipblend)
 {
   float x, y, t;

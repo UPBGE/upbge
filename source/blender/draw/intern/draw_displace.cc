@@ -321,39 +321,25 @@ texres.trgba = vec4(0.0);
 texres.talpha = use_talpha;  /* From CPU line 211-213 */
 texres.tin = 0.0;
 
-/* Step 1: FLAT mapping (normalize [-1,1] → [0,1]) */
-float fx = (tex_coord.x + 1.0) / 2.0;
-float fy = (tex_coord.y + 1.0) / 2.0;
-
-/* Step 3: Apply imagewrap() - handles all wrapping, filtering, and sampling
- * This now includes CLIPCUBE check, coordinate wrapping, and texture sampling */
-  vec3 mapped_coord = vec3(fx, fy, tex_coord.z);
-  int retval = multitex_components(mapped_coord, texres.trgba, texres.tin, texres.talpha, int(v));
+/* Pass tex_coord in [-1,1] range to multitex() (matching CPU convention for procedural textures).
+* The [- 1,1]→[0,1] conversion for IMAGE textures is handled inside multitex() itself. */
+ vec3 mapped_coord = tex_coord;
+ int retval = multitex_components(mapped_coord, texres.trgba, texres.tin, texres.talpha, int(v));
   /* texres.trgba and texres.tin are filled/processed by imagewrap() to match CPU pipeline */
   vec3 rgb = texres.trgba.rgb;
-  
-  /* Use texres.tin for intensity to match CPU naming convention (imagewrap.cc line 244-253)
-   * If the sampled result contained RGB data (retval & TEX_RGB) compute intensity from RGB.
-   * Otherwise propagate the intensity into the color channels (CPU copies tin to trgba). */
+
   if ((retval & TEX_RGB) != 0) {
-    texres.tin = (rgb.r + rgb.g + rgb.b) * (1.0 / 3.0);
+    texres.tin = (rgb.r + rgb.g + rgb.b) / 3.0;
   }
   else {
     texres.trgba.rgb = vec3(texres.tin);
-    rgb = vec3(texres.tin);
-  }
-
-  if (tex_flipblend) {
-    texres.tin = 1.0 - texres.tin;
   }
 
   float s = strength * vgroup_weight;
-  vec3 rgb_displacement = (rgb - vec3(midlevel)) * s;
   delta = (texres.tin - midlevel) * s;
 #else
   /* Fixed delta (no texture) */
   delta = (1.0 - midlevel) * strength * vgroup_weight;
-  vec3 rgb_displacement = vec3(0.0);  /* Not used without texture */
 #endif
   
   /* Clamp delta to prevent extreme deformations */
@@ -406,14 +392,14 @@ float fy = (tex_coord.y + 1.0) / 2.0;
     if (use_global) {
       /* Transform local displacement vector to global space */
       vec3 global_disp = vec3(
-        dot(vec3(local_mat[0][0], local_mat[0][1], local_mat[0][2]), rgb_displacement),
-        dot(vec3(local_mat[1][0], local_mat[1][1], local_mat[1][2]), rgb_displacement),
-        dot(vec3(local_mat[2][0], local_mat[2][1], local_mat[2][2]), rgb_displacement)
+        dot(vec3(local_mat[0][0], local_mat[0][1], local_mat[0][2]), texres.trgba.rgb),
+        dot(vec3(local_mat[1][0], local_mat[1][1], local_mat[1][2]), texres.trgba.rgb),
+        dot(vec3(local_mat[2][0], local_mat[2][1], local_mat[2][2]), texres.trgba.rgb)
       );
       co += global_disp;
     } else {
       /* Local space: directly apply RGB as (X, Y, Z) */
-      co += rgb_displacement;
+      co += texres.trgba.rgb;
     }
 #else
     /* No texture: cannot use RGB_XYZ mode, fallback to no displacement */
@@ -480,7 +466,7 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
 
   if (dmd->texture) {
     hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->type));
-    if (dmd->texture->type == TEX_IMAGE && dmd->texture->ima) {
+    if (dmd->texture->ima) {
       hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dmd->texture->ima)));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->source));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.tile));
@@ -570,7 +556,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
 
   /* Extract texture coordinates (if texture is present) */
   msd.tex_coords.clear();
-  if (dmd->texture && dmd->texture->type == TEX_IMAGE) {
+  if (dmd->texture) {
     /* Use the same MOD_get_texture_coords() function as the CPU modifier
      * to guarantee identical behavior for all mapping modes (LOCAL/GLOBAL/OBJECT/UV) */
     const int verts_num = orig_mesh->verts_num;
@@ -1248,7 +1234,7 @@ struct ColorBand {
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;
   GPU_compute_dispatch(shader, num_groups, 1, 1, constants);
 
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_TEXTURE_FETCH);
   GPU_shader_unbind();
 
   /* Unbind texture */
