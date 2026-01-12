@@ -1030,10 +1030,6 @@ struct ColorBand {
       info.push_constant(Type::int_t, "tex_noisetype");
       info.push_constant(Type::int_t, "tex_noisedepth");
       info.push_constant(Type::int_t, "tex_frame"); /* Current frame for animated textures */
-      /* Debug: CPU-computed turbulence sample to compare GPU noise implementation. */
-      info.push_constant(Type::float_t, "debug_cpu_turb");
-      info.push_constant(Type::bool_t, "debug_use_cpu_turb");
-
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 

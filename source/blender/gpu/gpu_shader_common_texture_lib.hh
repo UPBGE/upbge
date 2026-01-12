@@ -1190,9 +1190,9 @@ float orgBlenderNoise(float x, float y, float z)
 
 float bli_noise_generic_turbulence(float size, float x, float y, float z, int depth, bool hard, int basis)
 {
-  x+=1;
-  y+=1;
-  z+=1;
+  x += 1; // The default case in switch (noise_c.cc line 1246)
+  y += 1; // The default case in switch
+  z += 1; // The default case in switch
   /* Normalize coordinates by size (matches CPU line 386-390) */
   if (size != 0.0) {
     float inv_size = 1.0 / size;
@@ -1201,7 +1201,7 @@ float bli_noise_generic_turbulence(float size, float x, float y, float z, int de
     z *= inv_size;
   }
 
-  float sum = 0.0;  // ✅ FIX 1: Commence à 0 comme le CPU
+  float sum = 0.0;
   float t, amp = 1.0, fscale = 1.0;
 
   /* Octave loop (matches CPU line 393-401) */
@@ -1222,7 +1222,6 @@ float bli_noise_generic_turbulence(float size, float x, float y, float z, int de
     fscale *= 2.0;
   }
 
-  /* ✅ FIX 2: Normalize like CPU (line 403-404) */
   sum *= float(1 << depth) / float((1 << (depth + 1)) - 1);
 
   return sum;
