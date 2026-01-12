@@ -296,93 +296,6 @@ struct MeshModifierKey {
 
 /* GPU Displace Compute Shader - Split into several parts to avoid 16380 char limit */
 
-/* Part 1: Defines and helper functions */
-static std::string get_displace_shader_part1()
-{
-  return R"GLSL(
-/* GPU Displace Modifier Compute Shader v2.1 with ColorBand support */
-/* Displace direction modes (matching DisplaceModifierDirection enum) */
-#define MOD_DISP_DIR_X 0
-#define MOD_DISP_DIR_Y 1
-#define MOD_DISP_DIR_Z 2
-#define MOD_DISP_DIR_NOR 3
-#define MOD_DISP_DIR_RGB_XYZ 4
-#define MOD_DISP_DIR_CLNOR 5
-
-/* Displace space modes (matching DisplaceModifierSpace enum) */
-#define MOD_DISP_SPACE_LOCAL 0
-#define MOD_DISP_SPACE_GLOBAL 1
-
-/* Texture extend modes (matching DNA_texture_types.h line 280-286)
- * CRITICAL: Values start at 1 due to backward compatibility! */
-#define TEX_EXTEND 1
-#define TEX_CLIP 2
-#define TEX_REPEAT 3
-#define TEX_CLIPCUBE 4
-#define TEX_CHECKER 5
-
-/* Texture sampling strategy.
- *
- * - DISP_TEXSAMPLER_FAST_BILINEAR: Use hardware bilinear sampling (`texture()`).
- *   This is very fast and matches the pre-refactor GPU performance characteristics.
- *   It does NOT implement CPU `boxsample()` area filtering controlled by `filtersize`.
- *
- * - DISP_TEXSAMPLER_CPU_BOXSAMPLE: Use the CPU-ported `boxsample()` implementation.
- *   This aims to match `texture_image.cc::boxsample()` behavior more closely but can be
- *   extremely expensive in a compute shader due to nested loops and many `texelFetch()`.
- *
- * Toggle this define when debugging CPU/GPU mismatches.
- */
-#define DISP_TEXSAMPLER_FAST_BILINEAR 0
-#define DISP_TEXSAMPLER_CPU_BOXSAMPLE 1
-
-#ifndef DISP_TEXSAMPLER_MODE
-#  /* Default to the historical Displace GPU behavior: use the CPU-ported box filter.
-#   * This matches the previous shader more closely, especially for TEX_REPEAT + filtering.
-#   *
-#   * The FAST_BILINEAR mode can be enabled for performance, but it may diverge from the
-#   * CPU `texture_image.cc::boxsample()` result (filtersize becomes an approximation). */
-#  define DISP_TEXSAMPLER_MODE DISP_TEXSAMPLER_CPU_BOXSAMPLE
-#endif
-
-/* NOTE ABOUT REPEAT + FILTERING
- * The CPU image pipeline wraps integer pixel coordinates (x/y) and then adjusts the
- * floating coordinates (fx/fy) by the wrapping delta (xi-x, yi-y) before filtering:
- *   fx -= float(xi - x) / size_x;
- *   fy -= float(yi - y) / size_y;
- * This is critical for stable filtering across wrap boundaries (#27782).
- *
- * For easy CPU/GPU comparison we preserve this remap in both sampling modes.
- *
- * Even in the FAST_BILINEAR mode we do NOT simply do `fract(fx)` because that would
- * ignore the snapped integer wrap that CPU performs and can change which side of the
- * boundary gets filtered.
- */
-
-/* ColorBand interpolation types (matching DNA_color_types.h) */
-#define COLBAND_INTERP_LINEAR 0
-#define COLBAND_INTERP_EASE 1
-#define COLBAND_INTERP_B_SPLINE 2
-#define COLBAND_INTERP_CARDINAL 3
-#define COLBAND_INTERP_CONSTANT 4
-
-/* ColorBand color modes (matching DNA_color_types.h) */
-#define COLBAND_BLEND_RGB 0
-#define COLBAND_BLEND_HSV 1
-#define COLBAND_BLEND_HSL 2
-
-/* ColorBand hue interpolation modes (matching DNA_color_types.h) */
-#define COLBAND_HUE_NEAR 0
-#define COLBAND_HUE_FAR 1
-#define COLBAND_HUE_CW 2
-#define COLBAND_HUE_CCW 3
-
-/* Note: All texture helper functions (ColorBand, boxsample, rctf, color conversions)
- * are now in gpu_shader_common_texture_lib.hh and included automatically via
- * get_vertex_normals() concatenation. Only displacement-specific code remains below. */
-
-)GLSL";
-}
 
 static std::string get_vertex_normals()
 {
@@ -571,7 +484,7 @@ do_2d_mapping(fx, fy, tex_extend, tex_repeat, tex_xmir, tex_ymir, tex_crop, tex_
 /* Final assembly function - concatenates both parts */
 static std::string get_displace_compute_src()
 {
-  return get_displace_shader_part1() + get_vertex_normals() + get_displace_shader_part2();
+  return get_vertex_normals() + get_displace_shader_part2();
 }
 
 /** \} */

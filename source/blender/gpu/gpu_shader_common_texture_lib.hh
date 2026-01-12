@@ -29,209 +29,89 @@ static std::string get_texture_defines_glsl()
   return R"GLSL(
 /* Texture type defines (match DNA_texture_types.h) */
 /* Note: some legacy types are kept commented for reference. */
-#ifndef TEX_CLOUDS
 #define TEX_CLOUDS 1
-#endif
-#ifndef TEX_WOOD
 #define TEX_WOOD 2
-#endif
-#ifndef TEX_MARBLE
 #define TEX_MARBLE 3
-#endif
-#ifndef TEX_MAGIC
 #define TEX_MAGIC 4
-#endif
-#ifndef TEX_BLEND
 #define TEX_BLEND 5
-#endif
-#ifndef TEX_STUCCI
 #define TEX_STUCCI 6
-#endif
-#ifndef TEX_NOISE
 #define TEX_NOISE 7
-#endif
-#ifndef TEX_IMAGE
 #define TEX_IMAGE 8
-#endif
 /* #define TEX_PLUGIN 9  // Deprecated */
 /* #define TEX_ENVMAP 10 // Deprecated */
-#ifndef TEX_MUSGRAVE
 #define TEX_MUSGRAVE 11
-#endif
-#ifndef TEX_VORONOI
 #define TEX_VORONOI 12
-#endif
-#ifndef TEX_DISTNOISE
 #define TEX_DISTNOISE 13
-#endif
 /* #define TEX_POINTDENSITY 14 // Deprecated */
 /* #define TEX_VOXELDATA 15  // Deprecated */
 /* #define TEX_OCEAN 16      // Deprecated */
 
 /* Noise basis values (match DNA_texture_types.h) */
-#ifndef TEX_BLENDER
 #define TEX_BLENDER 0
-#endif
-#ifndef TEX_STDPERLIN
 #define TEX_STDPERLIN 1
-#endif
-#ifndef TEX_NEWPERLIN
 #define TEX_NEWPERLIN 2
-#endif
-#ifndef TEX_VORONOI_F1
 #define TEX_VORONOI_F1 3
-#endif
-#ifndef TEX_VORONOI_F2
 #define TEX_VORONOI_F2 4
-#endif
-#ifndef TEX_VORONOI_F3
 #define TEX_VORONOI_F3 5
-#endif
-#ifndef TEX_VORONOI_F4
 #define TEX_VORONOI_F4 6
-#endif
-#ifndef TEX_VORONOI_F2F1
 #define TEX_VORONOI_F2F1 7
-#endif
-#ifndef TEX_VORONOI_CRACKLE
 #define TEX_VORONOI_CRACKLE 8
-#endif
-#ifndef TEX_CELLNOISE
 #define TEX_CELLNOISE 14
-#endif
 
 /* Texture subtype defines (blend stype, wood/marble waveforms, etc.) */
-#ifndef TEX_LIN
 #define TEX_LIN 0
-#endif
-#ifndef TEX_QUAD
 #define TEX_QUAD 1
-#endif
-#ifndef TEX_EASE
 #define TEX_EASE 2
-#endif
-#ifndef TEX_DIAG
 #define TEX_DIAG 3
-#endif
-#ifndef TEX_SPHERE
 #define TEX_SPHERE 4
-#endif
-#ifndef TEX_HALO
 #define TEX_HALO 5
-#endif
-#ifndef TEX_RAD
 #define TEX_RAD 6
-#endif
 
 /* Wood waveform (noisebasis2) values */
-#ifndef TEX_SIN
 #define TEX_SIN 0
-#endif
-#ifndef TEX_SAW
 #define TEX_SAW 1
-#endif
-#ifndef TEX_TRI
 #define TEX_TRI 2
-#endif
 
 /* Wood stype values */
-#ifndef TEX_BAND
 #define TEX_BAND 0
-#endif
-#ifndef TEX_RING
 #define TEX_RING 1
-#endif
-#ifndef TEX_BANDNOISE
 #define TEX_BANDNOISE 2
-#endif
-#ifndef TEX_RINGNOISE
 #define TEX_RINGNOISE 3
-#endif
 
 /* Cloud stype values */
-#ifndef TEX_DEFAULT
 #define TEX_DEFAULT 0
-#endif
-#ifndef TEX_COLOR
 #define TEX_COLOR 1
-#endif
 
 /* Marble types */
-#ifndef TEX_SOFT
 #define TEX_SOFT 0
-#endif
-#ifndef TEX_SHARP
 #define TEX_SHARP 1
-#endif
-#ifndef TEX_SHARPER
 #define TEX_SHARPER 2
-#endif
 
 /* Stucci types */
-#ifndef TEX_PLASTIC
 #define TEX_PLASTIC 0
-#endif
-#ifndef TEX_WALLIN
 #define TEX_WALLIN 1
-#endif
-#ifndef TEX_WALLOUT
 #define TEX_WALLOUT 2
-#endif
 
 /* Image flags (imaflag bits) */
-#ifndef TEX_INTERPOL
 #define TEX_INTERPOL (1 << 0)
-#endif
-#ifndef TEX_USEALPHA
 #define TEX_USEALPHA (1 << 1)
-#endif
-#ifndef TEX_IMAROT
 #define TEX_IMAROT (1 << 4)
-#endif
-#ifndef TEX_CALCALPHA
 #define TEX_CALCALPHA (1 << 5)
-#endif
-#ifndef TEX_NORMALMAP
 #define TEX_NORMALMAP (1 << 11)
-#endif
-#ifndef TEX_DERIVATIVEMAP
 #define TEX_DERIVATIVEMAP (1 << 14)
-#endif
 
 /* Tex flags (flag bits) */
-#ifndef TEX_COLORBAND
 #define TEX_COLORBAND (1 << 0)
-#endif
-#ifndef TEX_FLIPBLEND
 #define TEX_FLIPBLEND (1 << 1)
-#endif
-#ifndef TEX_NEGALPHA
 #define TEX_NEGALPHA (1 << 2)
-#endif
-#ifndef TEX_CHECKER_ODD
 #define TEX_CHECKER_ODD (1 << 3)
-#endif
-#ifndef TEX_CHECKER_EVEN
 #define TEX_CHECKER_EVEN (1 << 4)
-#endif
-#ifndef TEX_PRV_ALPHA
 #define TEX_PRV_ALPHA (1 << 5)
-#endif
-#ifndef TEX_PRV_NOR
 #define TEX_PRV_NOR (1 << 6)
-#endif
-#ifndef TEX_REPEAT_XMIR
 #define TEX_REPEAT_XMIR (1 << 7)
-#endif
-#ifndef TEX_REPEAT_YMIR
 #define TEX_REPEAT_YMIR (1 << 8)
-#endif
-#ifndef TEX_DS_EXPAND
 #define TEX_DS_EXPAND (1 << 9)
-#endif
-#ifndef TEX_NO_CLAMP
 #define TEX_NO_CLAMP (1 << 10)
-#endif
 
 /* Voronoi color/distance types */
 #define TEX_DISTANCE 0
@@ -327,10 +207,6 @@ static std::string get_texture_defines_glsl()
 #define COLBAND_HUE_FAR 1
 #define COLBAND_HUE_CW 2
 #define COLBAND_HUE_CCW 3
-
-/* Note: All texture helper functions (ColorBand, boxsample, rctf, color conversions)
- * are now in gpu_shader_common_texture_lib.hh and included automatically via
- * get_vertex_normals() concatenation. Only displacement-specific code remains below. */
 
 /* Math constants */
 #ifndef M_PI
