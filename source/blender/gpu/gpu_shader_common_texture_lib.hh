@@ -406,6 +406,33 @@ int texnoise_tex(inout TexResult_tex texres, int thread_id, int noisedepth)
 )GLSL";
 }
 
+static std::string get_distnoise_glsl()
+{
+  return R"GLSL(
+#ifdef HAS_TEXTURE
+
+/* GPU port of CPU `mg_distNoiseTex()` / TEX_DISTNOISE.
+ * Note: CPU scales `texvec` by 1/noisesize before calling the musgrave noise.
+ */
+int distnoise_tex(vec3 texvec, inout TexResult_tex texres, float noisesize, float distortion, int noisebasis, int noisebasis2)
+{
+  /* Avoid div-by-zero; mimic CPU behavior (noisesize==0 -> leave coords unscaled). */
+  if (noisesize != 0.0) {
+    texvec *= (1.0 / noisesize);
+  }
+
+  /* CPU returns signed noise from BLI_noise_mg_variable_lacunarity then BRICONT.
+   * BRICONT expects an intensity-like value; keep behavior consistent with CPU code path.
+   */
+  texres.tin = bli_noise_mg_variable_lacunarity(texvec.x, texvec.y, texvec.z, distortion, noisebasis, noisebasis2);
+  texres.tin = apply_bricont_fn(texres.tin);
+  return TEX_INT;
+}
+
+#endif // HAS_TEXTURE
+  )GLSL";
+}
+
 static std::string get_bricont_glsl()
 {
   return R"GLSL(
@@ -541,40 +568,65 @@ static std::string get_marble_glsl()
   return R"GLSL(
 #ifdef HAS_TEXTURE
 
-/* GPU port of marble texture (marble_int + marble) - simplified */
-float marble_int_glsl(int noisebasis2, int mt, float x, float y, float z, float noisesize, float turbul)
+/* GPU port of CPU `marble_int()` + `marble()` from `texture_procedural.cc`.
+ * NOTE: CPU behavior:
+ * - `wf` (wave form) is `tex->noisebasis2` (0..2), clamped to TEX_SIN..TEX_TRI.
+ * - `mt` (marble type) is `tex->stype` (TEX_SOFT/TEX_SHARP/TEX_SHARPER).
+ * - turbulence uses `tex->noisebasis` + `tex->noisedepth` + `tex->noisetype`.
+ */
+float marble_int_glsl(int wf, int mt, float x, float y, float z, float noisesize, float turbul, int noisedepth, bool hard, int noisebasis)
 {
-  // approximate like CPU: n + turbul * turbulence
-  float n = 5.0 * (x + y + z);
-  float turb = turbul * bli_noise_generic_turbulence(tex_noisesize, x, y, z, 2, false, noisebasis2);
-  float mi = n + turb;
-
-  // waveform
-  int wf = noisebasis2;
-  float val = 0.0;
-  if (wf == 0) {
-    val = 0.5 + 0.5 * sin(mi);
+  /* Clamp waveform like CPU. */
+  if (wf < TEX_SIN || wf > TEX_TRI) {
+    wf = TEX_SIN;
   }
-  else if (wf == 1) {
-    val = fract(mi / (2.0 * M_PI));
+
+  float n = 5.0 * (x + y + z);
+  float mi = n + turbul * bli_noise_generic_turbulence(noisesize, x, y, z, noisedepth, hard, noisebasis);
+
+  /* waveform[wf](mi) */
+  if (wf == TEX_SIN) {
+    mi = 0.5 + 0.5 * sin(mi);
+  }
+  else if (wf == TEX_SAW) {
+    float b = 2.0 * M_PI;
+    float nn = floor(mi / b);
+    mi = mi - nn * b;
+    if (mi < 0.0) {
+      mi += b;
+    }
+    mi = mi / b;
   }
   else {
-    float a = mi;
-    val = 1.0 - 2.0 * abs(fract(a / (2.0 * M_PI) + 0.5) - 0.5);
+    /* TEX_TRI */
+    float b = 2.0 * M_PI;
+    const float rmax = 1.0;
+    mi = rmax - 2.0 * abs(floor((mi * (1.0 / b)) + 0.5) - (mi * (1.0 / b)));
   }
 
-  if (mt == 1) { // TEX_SHARP
-    val = sqrt(max(val, 0.0));
+  /* marble type shaping */
+  if (mt == TEX_SHARP) {
+    mi = sqrt(max(mi, 0.0));
   }
-  else if (mt == 2) { // TEX_SHARPER
-    val = sqrt(max(sqrt(max(val, 0.0)), 0.0));
+  else if (mt == TEX_SHARPER) {
+    mi = sqrt(sqrt(max(mi, 0.0)));
   }
-  return val;
+
+  return mi;
 }
 
-int marble_tex(vec3 texvec, inout TexResult_tex texres, int noisebasis2, int mt, float noisesize, float turbul)
+int marble_tex(vec3 texvec, inout TexResult_tex texres, int wf, int mt, float noisesize, float turbul)
 {
-  texres.tin = marble_int_glsl(noisebasis2, mt, texvec.x, texvec.y, texvec.z, noisesize, turbul);
+  texres.tin = marble_int_glsl(wf,
+                               mt,
+                               texvec.x,
+                               texvec.y,
+                               texvec.z,
+                               noisesize,
+                               turbul,
+                               tex_noisedepth,
+                               (tex_noisetype != 0),
+                               tex_noisebasis);
   texres.tin = apply_bricont_fn(texres.tin);
   return TEX_INT;
 }
@@ -589,18 +641,80 @@ static std::string get_magic_glsl()
   return R"GLSL(
 #ifdef HAS_TEXTURE
 
-/* GPU port of magic texture (simplified) */
+/* GPU port of CPU `magic()` texture from `texture_procedural.cc`.
+ * Matches CPU control flow and uses `tex_noisedepth` + `turbul/5` scaling. */
 int magic_tex(vec3 texvec, inout TexResult_tex texres, float turbul)
 {
-  float x = sin((texvec.x + texvec.y + texvec.z) * 5.0);
-  float y = cos((-texvec.x + texvec.y - texvec.z) * 5.0);
-  float z = -cos((-texvec.x - texvec.y + texvec.z) * 5.0);
+  float x, y, z;
+  float turb = turbul / 5.0;
+  int n = tex_noisedepth;
+
+  x = sin((texvec.x + texvec.y + texvec.z) * 5.0);
+  y = cos((-texvec.x + texvec.y - texvec.z) * 5.0);
+  z = -cos((-texvec.x - texvec.y + texvec.z) * 5.0);
+
+  if (n > 0) {
+    x *= turb;
+    y *= turb;
+    z *= turb;
+    y = -cos(x - y + z);
+    y *= turb;
+
+    if (n > 1) {
+      x = cos(x - y - z);
+      x *= turb;
+      if (n > 2) {
+        z = sin(-x - y - z);
+        z *= turb;
+        if (n > 3) {
+          x = -cos(-x + y - z);
+          x *= turb;
+          if (n > 4) {
+            y = -sin(-x + y + z);
+            y *= turb;
+            if (n > 5) {
+              y = -cos(-x + y + z);
+              y *= turb;
+              if (n > 6) {
+                x = cos(x + y + z);
+                x *= turb;
+                if (n > 7) {
+                  z = sin(x + y - z);
+                  z *= turb;
+                  if (n > 8) {
+                    x = -cos(-x - y + z);
+                    x *= turb;
+                    if (n > 9) {
+                      y = -sin(x - y + z);
+                      y *= turb;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (turb != 0.0) {
+    turb *= 2.0;
+    x /= turb;
+    y /= turb;
+    z /= turb;
+  }
 
   texres.trgba.r = 0.5 - x;
   texres.trgba.g = 0.5 - y;
   texres.trgba.b = 0.5 - z;
-  texres.tin = (texres.trgba.r + texres.trgba.g + texres.trgba.b) / 3.0;
   texres.trgba.a = 1.0;
+
+  texres.tin = (1.0 / 3.0) * (texres.trgba.r + texres.trgba.g + texres.trgba.b);
+
+  /* CPU uses BRICONTRGB (not BRICONT) for magic. */
+  texres.trgba.rgb = apply_bricont_rgb(texres.trgba.rgb);
+
   return TEX_RGB;
 }
 
@@ -1713,6 +1827,52 @@ float bli_noise_generic_turbulence(float size, float x, float y, float z, int de
   return sum;
 }
 
+float bli_noise_basis_signed(float x, float y, float z, int basis)
+{
+  if (basis == 1) {
+    /* orgPerlinNoise (signed) */
+    return noise3_perlin(vec3(x, y, z));
+  }
+  if (basis == 2) {
+    /* newPerlin (signed) */
+    return 2.0 * newPerlinU(x, y, z) - 1.0;
+  }
+  if (basis >= 3 && basis <= 8) {
+    /* Voronoi signed variants used by musgrave functions on CPU. */
+    float da[4];
+    float pa[12];
+    bli_noise_voronoi_legacy(x, y, z, da, pa, 1.0, 0);
+    if (basis == 3) return 2.0 * da[0] - 1.0;
+    if (basis == 4) return 2.0 * da[1] - 1.0;
+    if (basis == 5) return 2.0 * da[2] - 1.0;
+    if (basis == 6) return 2.0 * da[3] - 1.0;
+    if (basis == 7) return 2.0 * (da[1] - da[0]) - 1.0;
+    /* basis == 8 crackle */
+    float t = 10.0 * (da[1] - da[0]);
+    return 2.0 * min(t, 1.0) - 1.0;
+  }
+  if (basis == 14) {
+    return 2.0 * gpu_BLI_cellNoiseU(x, y, z) - 1.0;
+  }
+
+  /* TEX_BLENDER / fallback: orgBlenderNoiseS on CPU. */
+  return 2.0 * orgBlenderNoise(x, y, z) - 1.0;
+}
+
+/* GPU port of CPU `BLI_noise_mg_variable_lacunarity()` used by TEX_DISTNOISE.
+ * Returns signed noise in [-1, 1] range (like the CPU musgrave/noise signed variants).
+ */
+float bli_noise_mg_variable_lacunarity(float x, float y, float z, float distortion, int nbas1, int nbas2)
+{
+  vec3 rv;
+  rv.x = bli_noise_basis_signed(x + 13.5, y + 13.5, z + 13.5, nbas1) * distortion;
+  rv.y = bli_noise_basis_signed(x, y, z, nbas1) * distortion;
+  rv.z = bli_noise_basis_signed(x - 13.5, y - 13.5, z - 13.5, nbas1) * distortion;
+
+  /* distorted-domain noise */
+  return bli_noise_basis_signed(x + rv.x, y + rv.y, z + rv.z, nbas2);
+}
+
 )GLSL";
 }
 
@@ -2669,8 +2829,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
     retval = voronoi_tex(texvec, texres, 1.0, 0.0, 0.0, 0.0, 1.0, TEX_COL1, 0, 1.0);
   }
   else if (t == TEX_DISTNOISE) {
-    /* Fallback to generic noise path */
-    retval = texnoise_tex(texres, thread_id, tex_noisedepth);
+    retval = distnoise_tex(texvec, texres, tex_noisesize, tex_distamount, tex_noisebasis, tex_noisebasis2);
   }
   else if (t == TEX_IMAGE) {
     /* Image sampling: apply 2D mapping (scale/rotation/repeat/mirror/crop/offset)
@@ -2762,6 +2921,7 @@ static std::string get_common_texture_lib_glsl()
            get_texnoise_glsl() +
            /* Voronoi and other procedural types */
            get_voronoi_glsl() +
+           get_distnoise_glsl() +
            /* Boxsample / image helpers and mapping last */
            get_boxsample_helpers_glsl() +
            get_boxsample_core_glsl() +

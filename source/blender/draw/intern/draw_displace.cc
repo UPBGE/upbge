@@ -1029,6 +1029,7 @@ struct ColorBand {
       info.push_constant(Type::float_t, "tex_turbul");
       info.push_constant(Type::int_t, "tex_noisetype");
       info.push_constant(Type::int_t, "tex_noisedepth");
+      info.push_constant(Type::float_t, "tex_distamount");
       info.push_constant(Type::int_t, "tex_frame"); /* Current frame for animated textures */
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
@@ -1229,6 +1230,7 @@ struct ColorBand {
     GPU_shader_uniform_1f(shader, "tex_turbul", float(tex->turbul));
     GPU_shader_uniform_1i(shader, "tex_noisetype", int(tex->noisetype));
     GPU_shader_uniform_1i(shader, "tex_noisedepth", int(tex->noisedepth));
+    GPU_shader_uniform_1f(shader, "tex_distamount", float(tex->dist_amount));
     GPU_shader_uniform_1i(shader, "tex_frame", scene_frame);
   }
 
