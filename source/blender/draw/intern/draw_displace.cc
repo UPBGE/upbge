@@ -56,54 +56,6 @@
 
 namespace blender::draw {
 
-  /*
- * Ensure an RNG texture exists for the given displace modifier.
- * Returns existing texture from internal cache or creates+uploads a new 1D UINT texture.
- * Only creates texture for specific Tex types (e.g. TEX_NOISE) to avoid unnecessary work.
- */
-static gpu::Texture *ensure_rng_texture_for_displace(Mesh *mesh_owner,
-                                                     Object *deformed_eval,
-                                                     const std::string &key_prefix,
-                                                     const Tex *tex,
-                                                     const DisplaceModifierData *dmd)
-{
-  if (!tex || !mesh_owner) {
-    return nullptr;
-  }
-
-  const std::string key_rng = key_prefix + "rng_texture_" +
-                              std::to_string(reinterpret_cast<uintptr_t>(dmd));
-  gpu::Texture *rt = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_rng);
-  if (rt) {
-    return rt;
-  }
-
-  RNG_THREAD_ARRAY *rngarr = BLI_rng_threaded_new();
-  if (!rngarr) {
-    return nullptr;
-  }
-
-  const int rng_count = 1 << 12; /* 4096 randoms */
-  std::vector<uint32_t> rnds(rng_count);
-  for (int ri = 0; ri < rng_count; ++ri) {
-    rnds[ri] = uint32_t(BLI_rng_thread_rand(rngarr, 0));
-  }
-
-  rt = GPU_texture_create_1d("displace_rng_tex",
-                             rng_count,
-                             1,
-                             gpu::TextureFormat::UINT_32,
-                             GPU_TEXTURE_USAGE_SHADER_READ,
-                             nullptr);
-  if (rt) {
-    GPU_texture_update(rt, GPU_DATA_UINT, rnds.data());
-    bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_rng, rt);
-  }
-
-  BLI_rng_threaded_free(rngarr);
-  return rt;
-}
-
 /* -------------------------------------------------------------------- */
 /** \name Colorspace Management Helpers
  * \{ */
@@ -372,13 +324,6 @@ texres.tin = 0.0;
 /* Step 1: FLAT mapping (normalize [-1,1] → [0,1]) */
 float fx = (tex_coord.x + 1.0) / 2.0;
 float fy = (tex_coord.y + 1.0) / 2.0;
-  
-/* Get texture size for pixel-space calculations */
-ivec2 tex_size = textureSize(displacement_texture, 0);
-  
-/* Step 2: Apply do_2d_mapping() - SCALE → ROTATION → REPEAT → MIRROR → CROP → OFFSET
- * Note: do_2d_mapping() now supports full transformation pipeline from gpu_shader_common_texture_lib.hh */
-do_2d_mapping(fx, fy, tex_extend, tex_repeat, tex_xmir, tex_ymir, tex_crop, tex_size_param, tex_ofs, tex_rot);
 
 /* Step 3: Apply imagewrap() - handles all wrapping, filtering, and sampling
  * This now includes CLIPCUBE check, coordinate wrapping, and texture sampling */
@@ -672,6 +617,14 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
+  /* Current scene frame for animated RNG/textures. Use evaluated scene to
+   * match CPU evaluator frame calculation. */
+  Scene *scene = DEG_get_evaluated_scene(depsgraph);
+  int scene_frame = 0;
+  if (scene) {
+    scene_frame = int(scene->r.cfra);
+  }
+
   /* Create unique buffer keys per modifier instance using composite key hash */
   const std::string key_prefix = "displace_" + std::to_string(key.hash()) + "_";
   const std::string key_vgroup = key_prefix + "vgroup_weights";
@@ -711,9 +664,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   const std::string key_texcoords = key_prefix + "tex_coords";
   gpu::StorageBuf *ssbo_texcoords = nullptr;
   gpu::Texture *gpu_texture = nullptr;
-  gpu::Texture *rng_texture = nullptr;
   bool has_texture = false;
-
   if (dmd->texture && dmd->texture->ima) {
     Image *ima = dmd->texture->ima;
     Tex *tex = dmd->texture;
@@ -843,8 +794,43 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
           }
         }
       }
-      /* Ensure RNG texture if needed. Use helper to avoid inline lambda. */
-      rng_texture = ensure_rng_texture_for_displace(mesh_owner, deformed_eval, key_prefix, tex, dmd);
+    }
+  }
+
+  /* Shader-level flag: indicates a Tex is present (image or procedural).
+   * Separate from `has_texture` which historically meant image+coords.
+   * This controls which shader code paths are compiled and which push
+   * constants are emitted. */
+  bool shader_has_texture = (dmd->texture != nullptr);
+
+  /* If shader expects a displacement sampler but no image texture was provided
+   * (procedural Tex only), create or reuse a 1x1 dummy texture so the sampler
+   * binding is valid on all backends. Cache it per-mesh+modifier like other
+   * internal textures. */
+  if (shader_has_texture && !gpu_texture) {
+    const std::string key_dummy = key_prefix + "dummy_displacement";
+    gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_dummy);
+    if (!gpu_texture) {
+      /* Create a 1x1 UNORM texture with a neutral value (midlevel) */
+      unsigned char pixel[4] = {128, 128, 128, 255};
+      gpu_texture = GPU_texture_create_2d(
+          "displace_dummy_tex",
+          1,
+          1,
+          1,
+          gpu::TextureFormat::UNORM_8_8_8_8,
+          GPU_TEXTURE_USAGE_SHADER_READ,
+          nullptr);
+      if (gpu_texture) {
+        GPU_texture_update(gpu_texture, GPU_DATA_UBYTE, pixel);
+        bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_dummy, gpu_texture);
+      }
+    }
+    if (gpu_texture && !msd.tex_metadata_cached) {
+      msd.tex_is_byte = true;
+      msd.tex_is_float = false;
+      msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
+      msd.tex_metadata_cached = true;
     }
   }
 
@@ -884,7 +870,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
 
   if (!ubo_colorband) {
     /* Create and upload ColorBand data */
-    if (has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND)) {
+    if (shader_has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND)) {
       use_colorband = true;
 
       GPUColorBand gpu_coba = {};
@@ -925,7 +911,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   }
   else {
     /* UBO exists, check if we need to enable colorband */
-    use_colorband = (has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND));
+    use_colorband = (shader_has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND));
   }
 
   /* Create output SSBO */
@@ -959,11 +945,8 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     /* Build shader source with conditional texture support */
     std::string shader_src;
 
-    if (has_texture) {
+    if (shader_has_texture) {
       shader_src += "#define HAS_TEXTURE\n";
-      if (rng_texture) {
-        shader_src += "#define HAS_RNG_TEXTURE\n";
-      }
     }
     shader_src += get_displace_compute_src();
     std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(
@@ -990,11 +973,9 @@ struct ColorBand {
     info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
     info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
     info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-    if (has_texture) {
+    if (shader_has_texture) {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
       info.sampler(0, ImageType::Float2D, "displacement_texture");
-      /* RNG texture: 1D unsigned integer texture for noise RNG table */
-      info.sampler(1, ImageType::Uint1D, "rng_texture");
     }
     /* ColorBand UBO (binding 5) - added for TEX_COLORBAND support */
     info.uniform_buf(4, "ColorBand", "tex_colorband");
@@ -1010,7 +991,7 @@ struct ColorBand {
     info.push_constant(Type::bool_t, "use_colorband"); /* ColorBand enable flag */
 
     /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
-    if (has_texture) {
+    if (shader_has_texture) {
       info.push_constant(Type::bool_t, "use_talpha");      /* Enable de-premultiply */
       info.push_constant(Type::bool_t, "tex_calcalpha");   /* TEX_CALCALPHA */
       info.push_constant(Type::bool_t, "tex_negalpha");    /* TEX_NEGALPHA */
@@ -1059,6 +1040,7 @@ struct ColorBand {
       info.push_constant(Type::float_t, "tex_turbul");
       info.push_constant(Type::int_t, "tex_noisetype");
       info.push_constant(Type::int_t, "tex_noisedepth");
+      info.push_constant(Type::int_t, "tex_frame"); /* Current frame for animated textures */
 
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
@@ -1110,15 +1092,12 @@ struct ColorBand {
   /* Note: vertex normals SSBO removed — shader computes vertex normal from topology. */
 
   /* Bind texture coordinates and texture (if present) */
-  if (has_texture) {
+  if (shader_has_texture) {
     if (ssbo_texcoords) {
       GPU_storagebuf_bind(ssbo_texcoords, 3);
     }
     if (gpu_texture) {
       GPU_texture_bind(gpu_texture, 0);
-    }
-    if (rng_texture) {
-      GPU_texture_bind(rng_texture, 1);
     }
   }
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
@@ -1136,8 +1115,8 @@ struct ColorBand {
   GPU_shader_uniform_1b(shader, "use_global", use_global);
   GPU_shader_uniform_1b(shader, "use_colorband", use_colorband); /* ColorBand enable flag */
 
-  /* Set texture processing parameters (if texture is present) */
-  if (has_texture) {
+  /* Set texture processing parameters (if a Tex is present) */
+  if (shader_has_texture) {
     Tex *tex = dmd->texture;
     Image *ima = tex->ima;
 
@@ -1196,12 +1175,6 @@ struct ColorBand {
     GPU_shader_uniform_1b(shader, "tex_is_float", msd.tex_is_float);
     msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
     GPU_shader_uniform_1i(shader, "tex_channels", msd.tex_channels);
-    
-    /* RNG texture handled via compile-time define `HAS_RNG_TEXTURE`.
-     * The shader will use `textureSize(rng_texture, 0)` when
-     * `HAS_RNG_TEXTURE` is defined, so no runtime boolean or length
-     * uniform is required here. If an RNG texture exists it is bound
-     * elsewhere in the binding code. */
 
     /* Texture subtype and flag (match CPU Tex struct) */
     GPU_shader_uniform_1i(shader, "tex_stype", int(tex->stype));
@@ -1223,7 +1196,10 @@ struct ColorBand {
       tex_mapping = MOD_DISP_MAP_LOCAL;
     }
 
-    bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV);
+    /* When no texture coordinates were uploaded (procedural textures)
+     * force the shader to compute coords from input_positions[]. This
+     * prevents reading an unbound/empty SSBO when using NON-UV mapping. */
+    bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || msd.tex_coords.empty();
     GPU_shader_uniform_1i(shader, "tex_mapping", tex_mapping);
     GPU_shader_uniform_1b(shader, "mapping_use_input_positions", mapping_use_input_positions);
 
@@ -1265,6 +1241,7 @@ struct ColorBand {
     GPU_shader_uniform_1f(shader, "tex_turbul", float(tex->turbul));
     GPU_shader_uniform_1i(shader, "tex_noisetype", int(tex->noisetype));
     GPU_shader_uniform_1i(shader, "tex_noisedepth", int(tex->noisedepth));
+    GPU_shader_uniform_1i(shader, "tex_frame", scene_frame);
   }
 
   const int group_size = 256;
@@ -1277,9 +1254,6 @@ struct ColorBand {
   /* Unbind texture */
   if (gpu_texture) {
     GPU_texture_unbind(gpu_texture);
-  }
-  if (rng_texture) {
-    GPU_texture_unbind(rng_texture);
   }
 
   return ssbo_out;

@@ -362,50 +362,42 @@ static std::string get_texnoise_glsl()
 #ifdef HAS_TEXTURE
 
 /* Simple texnoise equivalent: produce a small-int-valued noise in [0,1]
- * If a precomputed RNG 1D unsigned texture is available (bound by the
- * consumer shader and enabled via #define HAS_RNG_TEXTURE), sample it and
- * derive noise values. Otherwise fall back to a small shader-local LCG.
+ * Small shader-local LCG to reproduce BLI_rng_thread_rand(random_tex_array, thread);
+ * without RNG texture dependency.
  */
+
+/* Integer hash (Wang/Jenkins-like) */
+uint wang_hash(uint x)
+{
+  x = (x ^ 61u) ^ (x >> 16);
+  x *= 9u;
+  x = x ^ (x >> 4);
+  x *= 0x27d4eb2du;
+  x = x ^ (x >> 15);
+  return x;
+}
 
 int texnoise_tex(inout TexResult_tex texres, int thread_id, int noisedepth)
 {
-#ifdef HAS_RNG_TEXTURE
-  int rng_len = textureSize(rng_texture, 0);
-  if (rng_len > 0) {
-    int idx = thread_id % rng_len;
-    uvec4 fetched = texelFetch(rng_texture, idx, 0);
-    uint ran = fetched.r;
+  /* Fallback: generate a cheap deterministic per-invocation RNG from
+   * thread id + frame. This avoids uploads and produces animated noise
+   * when `tex_frame` changes. */
 
-    int shift = 30;
-    int val = int((ran >> shift) & 3u);
-    float div = 3.0;
-    int loop = noisedepth;
-    while (loop-- > 0 && shift >= 2) {
-      shift -= 2;
-      val *= int((ran >> shift) & 3u);
-      div *= 3.0;
-    }
+  uint seed = uint(thread_id) + uint(tex_frame) * 1664525u;
+  uint ran = wang_hash(seed);
 
-    texres.tin = float(val) / div;
-    return TEX_INT;
-  }
-#endif
-
-  // Fallback to shader-local pseudo RNG when no RNG texture is provided.
-  // Some GLSL environments do not support uint constructors or bitwise ops on uints,
-  // so use a float-based LCG-like sequence to derive small integer digits.
-  float ranf = 0.0;
+  int shift = 30;
+  int val = int((ran >> shift) & 3u);
   float div = 3.0;
-  int val = int(floor(ranf * 4.0));
   int loop = noisedepth;
-  while (loop-- > 0) {
-    // advance sequence
-    ranf = fract(ranf * 43758.5453 + 0.12345);
-    int digit = int(floor(ranf * 4.0));
-    val *= max(digit, 0);
+  while (loop-- > 0 && shift >= 2) {
+    shift -= 2;
+    val *= int((ran >> shift) & 3u);
     div *= 3.0;
   }
+
   texres.tin = float(val) / div;
+  texres.tin = apply_bricont_fn(texres.tin);
   return TEX_INT;
 }
 
@@ -1930,11 +1922,18 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
     retval = texnoise_tex(texres, thread_id, tex_noisedepth);
   }
   else if (t == TEX_IMAGE) {
-    /* Image sampling: use the shared `displacement_texture` sampler and imagewrap()
-     * (imagewrap expects a sampler named `displacement_texture`). Compute texture size
-     * from the bound sampler via `textureSize()` and forward result to TexResult_tex. */
+    /* Image sampling: apply 2D mapping (scale/rotation/repeat/mirror/crop/offset)
+     * only for image textures, then call imagewrap() which handles sampling.
+     * This matches CPU behavior where do_2d_mapping is applied only for images. */
+    float fx = (texvec.x + 1.0) / 2.0;
+    float fy = (texvec.y + 1.0) / 2.0;
+
+    /* Apply mapping transforms (SCALE → ROTATION → REPEAT → MIRROR → CROP → OFFSET) */
+    do_2d_mapping(fx, fy, tex_extend, tex_repeat, tex_xmir, tex_ymir, tex_crop, tex_size_param, tex_ofs, tex_rot);
+
+    vec3 mapped_coord = vec3(fx, fy, texvec.z);
     ivec2 img_size = textureSize(displacement_texture, 0);
-    int ir = imagewrap(texvec, texres.trgba, texres.tin, img_size);
+    int ir = imagewrap(mapped_coord, texres.trgba, texres.tin, img_size);
     if (ir == TEX_RGB) retval = TEX_RGB;
     else retval = TEX_INT;
   }
@@ -1992,9 +1991,8 @@ static std::string get_common_texture_lib_glsl()
   /* Prepend texture subtype defines so shaders can reference TEX_* stype values
    * in a central place. These are placeholders that mirror the CPU-side names and
    * can be adjusted if DNA values differ. */
-    return get_texture_defines_glsl() +
+    return get_texture_defines_glsl() + get_bricont_glsl() +
            get_noise_helpers_glsl() +
-           get_bricont_glsl() +
            get_colorband_helpers_glsl() +
            get_color_conversion_glsl() +
            /* core structs used by texture functions */
