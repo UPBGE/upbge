@@ -3018,6 +3018,8 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
 static std::string get_multitex_glsl()
 {
   return R"GLSL(
+#ifdef HAS_TEXTURE
+
 /* Generic multitex dispatcher: calls procedural texture helpers based on a set of
  * uniforms describing the current `Tex` state. This is a simplified GPU-side
  * port intended for compute shaders (e.g. Displace). The caller must provide
@@ -3110,9 +3112,57 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
 
   return retval;
 }
+#endif // HAS_TEXTURE
+)GLSL";
+}
 
+static std::string get_multitex_image_only_glsl()
+{
+  return R"GLSL(
+#ifdef HAS_TEXTURE
 
+/* Minimal multitex dispatcher that only implements the IMAGE branch.
+ * Used to reduce compile-time when only image sampling is required.
+ */
+int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
+{
+  texres.talpha = false;
+  int retval = 0;
+  int t = u_tex_type;
 
+  if (t == 0) {
+    texres.tin = 0.0;
+    return 0;
+  }
+
+  if (t == TEX_IMAGE) {
+    /* Map coordinates from [-1,1] to [0,1] like CPU for image textures */
+    float fx = (texvec.x + 1.0) / 2.0;
+    float fy = (texvec.y + 1.0) / 2.0;
+
+    /* Apply 2D mapping transforms (scale/rotation/repeat/mirror/crop/offset) */
+    do_2d_mapping(fx, fy, u_tex_extend, u_tex_repeat, u_tex_xmir, u_tex_ymir, u_tex_crop, u_tex_size_param, u_tex_ofs, u_tex_rot);
+
+    vec3 mapped_coord = vec3(fx, fy, texvec.z);
+    ivec2 img_size = textureSize(displacement_texture, 0);
+    int ir = imagewrap(mapped_coord, texres.trgba, texres.tin, img_size);
+    if (ir == TEX_RGB) retval = TEX_RGB;
+    else retval = TEX_INT;
+  }
+
+  /* Apply colorband if requested */
+  if (u_use_colorband) {
+    vec4 cbcol;
+    if (BKE_colorband_evaluate(tex_colorband, texres.tin, cbcol)) {
+      texres.talpha = true;
+      texres.trgba = cbcol;
+      retval |= TEX_RGB;
+    }
+  }
+
+  return retval;
+}
+#endif // HAS_TEXTURE
 )GLSL";
 }
 
@@ -3156,6 +3206,20 @@ static std::string get_common_texture_lib_glsl()
            get_texture_mapping_glsl() +
            get_imagewrap() +
            get_multitex_glsl();
+}
+
+static std::string get_common_texture_image_lib_glsl()
+{
+  return get_texture_defines_glsl() + get_color_conversion_glsl() + get_bricont_glsl() +
+         /* ColorBand helpers required by imagewrap() / multitex IMAGE branch */
+         get_colorband_helpers_glsl() +
+         /* core structs used by texture functions */
+         get_texture_structs_glsl() +
+         /* Boxsample / image helpers and mapping */
+         get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl() +
+         get_imagewrap() +
+         /* Minimal multitex handling for IMAGE only */
+         get_multitex_image_only_glsl();
 }
 
 }  // namespace blender::gpu

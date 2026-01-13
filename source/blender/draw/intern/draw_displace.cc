@@ -250,11 +250,17 @@ struct MeshModifierKey {
 /* GPU Displace Compute Shader - Split into several parts to avoid 16380 char limit */
 
 
-static std::string get_vertex_normals()
+static std::string get_displace_shader_part1(bool image_only = false)
 {
   using namespace gpu;
   /* Define position buffer macro before including libs */
-  return "#define POSITION_BUFFER input_positions\n" + 
+  if (image_only) {
+    return "#define POSITION_BUFFER input_positions\n" +
+           blender::gpu::get_common_texture_image_lib_glsl() + /* Image-only texture helpers */
+           blender::gpu::get_common_normal_lib_glsl();
+  }
+
+  return "#define POSITION_BUFFER input_positions\n" +
          blender::gpu::get_common_texture_lib_glsl() +  /* ColorBand + boxsample + do_2d_mapping() */
          blender::gpu::get_common_normal_lib_glsl();   /* Normal calculation functions */
 }
@@ -416,9 +422,10 @@ texres.tin = 0.0;
 }
 
 /* Final assembly function - concatenates both parts */
-static std::string get_displace_compute_src()
+/* Final assembly function - concatenates both parts */
+static std::string get_displace_compute_src(bool image_only = false)
 {
-  return get_vertex_normals() + get_displace_shader_part2();
+  return get_displace_shader_part1(image_only) + get_displace_shader_part2();
 }
 
 /** \} */
@@ -924,7 +931,15 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   /* Create shader */
   Mesh *deformed_mesh = id_cast<Mesh *>(deformed_eval->data);
   bke::MeshGpuData *mesh_gpu_data = bke::BKE_mesh_gpu_ensure_data(mesh_owner, deformed_mesh);
-  const std::string shader_key = "displace_compute_v2";
+  /* Decide whether to compile an image-only shader variant (skip procedural noise code).
+   * This reduces compile time when the texture is a simple image. Use distinct shader keys
+   * to cache both variants separately. */
+  bool image_only_compile = false;
+  if (dmd->texture) {
+    image_only_compile = (dmd->texture->type == TEX_IMAGE);
+  }
+
+  const std::string shader_key = std::string("displace_compute_v2") + (image_only_compile ? "_image" : "_full");
   gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
   if (!shader) {
     using namespace gpu::shader;
@@ -933,11 +948,10 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
 
     /* Build shader source with conditional texture support */
     std::string shader_src;
-
     if (shader_has_texture) {
       shader_src += "#define HAS_TEXTURE\n";
     }
-    shader_src += get_displace_compute_src();
+    shader_src += get_displace_compute_src(image_only_compile);
     std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(
         mesh_gpu_data->topology);
 
@@ -1023,14 +1037,17 @@ struct ColorBand {
       info.push_constant(Type::int_t, "u_tex_stype");
       info.push_constant(Type::int_t, "u_tex_flag");
       info.push_constant(Type::int_t, "u_tex_type");
-      info.push_constant(Type::int_t, "u_tex_noisebasis");
-      info.push_constant(Type::int_t, "u_tex_noisebasis2");
-      info.push_constant(Type::float_t, "u_tex_noisesize");
-      info.push_constant(Type::float_t, "u_tex_turbul");
-      info.push_constant(Type::int_t, "u_tex_noisetype");
-      info.push_constant(Type::int_t, "u_tex_noisedepth");
-      info.push_constant(Type::float_t, "u_tex_distamount");
-      info.push_constant(Type::int_t, "u_tex_frame"); /* Current frame for animated textures */
+      if (!image_only_compile) {
+        /* Add procedural/noise-related push constants only when not compiling image-only shader */
+        info.push_constant(Type::int_t, "u_tex_noisebasis");
+        info.push_constant(Type::int_t, "u_tex_noisebasis2");
+        info.push_constant(Type::float_t, "u_tex_noisesize");
+        info.push_constant(Type::float_t, "u_tex_turbul");
+        info.push_constant(Type::int_t, "u_tex_noisetype");
+        info.push_constant(Type::int_t, "u_tex_noisedepth");
+        info.push_constant(Type::float_t, "u_tex_distamount");
+        info.push_constant(Type::int_t, "u_tex_frame"); /* Current frame for animated textures */
+      }
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 
@@ -1224,14 +1241,16 @@ struct ColorBand {
     GPU_shader_uniform_mat4(shader, "u_mapref_imat", mapref_imat);
     /* Multitex / noise uniforms: ensure these are uploaded when present. */
     GPU_shader_uniform_1i(shader, "u_tex_type", int(tex->type));
-    GPU_shader_uniform_1i(shader, "u_tex_noisebasis", int(tex->noisebasis));
-    GPU_shader_uniform_1i(shader, "u_tex_noisebasis2", int(tex->noisebasis2));
-    GPU_shader_uniform_1f(shader, "u_tex_noisesize", float(tex->noisesize));
-    GPU_shader_uniform_1f(shader, "u_tex_turbul", float(tex->turbul));
-    GPU_shader_uniform_1i(shader, "u_tex_noisetype", int(tex->noisetype));
-    GPU_shader_uniform_1i(shader, "u_tex_noisedepth", int(tex->noisedepth));
-    GPU_shader_uniform_1f(shader, "u_tex_distamount", float(tex->dist_amount));
-    GPU_shader_uniform_1i(shader, "u_tex_frame", scene_frame);
+    if (!image_only_compile) {
+      GPU_shader_uniform_1i(shader, "u_tex_noisebasis", int(tex->noisebasis));
+      GPU_shader_uniform_1i(shader, "u_tex_noisebasis2", int(tex->noisebasis2));
+      GPU_shader_uniform_1f(shader, "u_tex_noisesize", float(tex->noisesize));
+      GPU_shader_uniform_1f(shader, "u_tex_turbul", float(tex->turbul));
+      GPU_shader_uniform_1i(shader, "u_tex_noisetype", int(tex->noisetype));
+      GPU_shader_uniform_1i(shader, "u_tex_noisedepth", int(tex->noisedepth));
+      GPU_shader_uniform_1f(shader, "u_tex_distamount", float(tex->dist_amount));
+      GPU_shader_uniform_1i(shader, "u_tex_frame", scene_frame);
+    }
   }
 
   const int group_size = 256;
