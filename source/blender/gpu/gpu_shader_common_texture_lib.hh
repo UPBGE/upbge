@@ -383,7 +383,7 @@ int texnoise_tex(inout TexResult_tex texres, int thread_id, int noisedepth)
    * thread id + frame. This avoids uploads and produces animated noise
    * when `tex_frame` changes. */
 
-  uint seed = uint(thread_id) + uint(tex_frame) * 1664525u;
+  uint seed = uint(thread_id) + uint(u_tex_frame) * 1664525u;
   uint ran = wang_hash(seed);
 
   int shift = 30;
@@ -442,8 +442,8 @@ static std::string get_bricont_glsl()
 
 float apply_bricont_fn(float tin)
 {
-  float t = (tin - 0.5) * tex_contrast + tex_bright - 0.5;
-  if (!tex_no_clamp) {
+  float t = (tin - 0.5) * u_tex_contrast + u_tex_bright - 0.5;
+  if (!u_tex_no_clamp) {
     t = clamp(t, 0.0, 1.0);
   }
   return t;
@@ -452,23 +452,23 @@ float apply_bricont_fn(float tin)
 vec3 apply_bricont_rgb(vec3 col)
 {
   /* Step 1: Apply brightness/contrast with RGB factors (line 26-30 CPU) */
-  col.r = tex_rfac * ((col.r - 0.5) * tex_contrast + tex_bright - 0.5);
-  col.g = tex_gfac * ((col.g - 0.5) * tex_contrast + tex_bright - 0.5);
-  col.b = tex_bfac * ((col.b - 0.5) * tex_contrast + tex_bright - 0.5);
+  col.r = u_tex_rfac * ((col.r - 0.5) * u_tex_contrast + u_tex_bright - 0.5);
+  col.g = u_tex_gfac * ((col.g - 0.5) * u_tex_contrast + u_tex_bright - 0.5);
+  col.b = u_tex_bfac * ((col.b - 0.5) * u_tex_contrast + u_tex_bright - 0.5);
 
   /* Step 2: Clamp if TEX_NO_CLAMP is not set (line 31-40 CPU) */
-  if (!tex_no_clamp) {
+  if (!u_tex_no_clamp) {
     col = max(col, vec3(0.0));
   }
 
   /* Step 3: Apply saturation via HSV (line 41-56 CPU BRICONTRGB) */
-  if (tex_saturation != 1.0) {
+  if (u_tex_saturation != 1.0) {
     vec3 hsv = rgb_to_hsv(col);
-    hsv.y *= tex_saturation; /* multiply saturation channel */
+    hsv.y *= u_tex_saturation; /* multiply saturation channel */
     col = hsv_to_rgb(hsv);
 
     /* Clamp again if saturation > 1.0 */
-    if (tex_saturation > 1.0 && !tex_no_clamp) {
+    if (u_tex_saturation > 1.0 && !u_tex_no_clamp) {
       col = max(col, vec3(0.0));
     }
   }
@@ -490,12 +490,12 @@ static std::string get_stucci_glsl()
 int stucci_tex(vec3 texvec, inout TexResult_tex texres, int stype, float noisesize, float turbul, int noisebasis)
 {
   /* CPU uses BLI_noise_generic_noise for stucci; use same here for parity. */
-  float b2 = bli_noise_generic_noise(tex_noisesize, texvec.x, texvec.y, texvec.z, (tex_noisetype != 0), noisebasis);
+  float b2 = bli_noise_generic_noise(u_tex_noisesize, texvec.x, texvec.y, texvec.z, (u_tex_noisetype != 0), noisebasis);
   float ofs = turbul / 200.0;
   if (stype != 0) {
     ofs *= (b2 * b2);
   }
-  texres.tin = bli_noise_generic_noise(tex_noisesize, texvec.x, texvec.y, texvec.z + ofs, (tex_noisetype != 0), noisebasis);
+  texres.tin = bli_noise_generic_noise(u_tex_noisesize, texvec.x, texvec.y, texvec.z + ofs, (u_tex_noisetype != 0), noisebasis);
   if (stype == TEX_WALLOUT) {
     texres.tin = 1.0 - texres.tin;
   }
@@ -617,9 +617,9 @@ int marble_tex(vec3 texvec, inout TexResult_tex texres, int wf, int mt, float no
                                texvec.z,
                                noisesize,
                                turbul,
-                               tex_noisedepth,
-                               (tex_noisetype != 0),
-                               tex_noisebasis);
+                               u_tex_noisedepth,
+                               (u_tex_noisetype != 0),
+                               u_tex_noisebasis);
   texres.tin = apply_bricont_fn(texres.tin);
   return TEX_INT;
 }
@@ -640,7 +640,7 @@ int magic_tex(vec3 texvec, inout TexResult_tex texres, float turbul)
 {
   float x, y, z;
   float turb = turbul / 5.0;
-  int n = tex_noisedepth;
+  int n = u_tex_noisedepth;
 
   x = sin((texvec.x + texvec.y + texvec.z) * 5.0);
   y = cos((-texvec.x + texvec.y - texvec.z) * 5.0);
@@ -752,14 +752,14 @@ float wood_int_glsl(int noisebasis, int noisebasis2, int stype, float x, float y
     else wi = tex_tri_glsl(coord);
   }
   else if (stype == TEX_BANDNOISE) {
-    float n = bli_noise_generic_noise(noisesize, x, y, z, (tex_noisetype != 0), noisebasis);
+    float n = bli_noise_generic_noise(noisesize, x, y, z, (u_tex_noisetype != 0), noisebasis);
     float coord = (x + y + z) * 10.0 + turbul * n;
     if (wf == TEX_SIN) wi = tex_sin_glsl(coord);
     else if (wf == TEX_SAW) wi = tex_saw_glsl(coord);
     else wi = tex_tri_glsl(coord);
   }
   else if (stype == TEX_RINGNOISE) {
-    float n = bli_noise_generic_noise(noisesize, x, y, z, (tex_noisetype != 0), noisebasis);
+    float n = bli_noise_generic_noise(noisesize, x, y, z, (u_tex_noisetype != 0), noisebasis);
     float coord = sqrt(x * x + y * y + z * z) * 20.0 + turbul * n;
     if (wf == TEX_SIN) wi = tex_sin_glsl(coord);
     else if (wf == TEX_SAW) wi = tex_saw_glsl(coord);
@@ -795,32 +795,32 @@ int clouds_tex(vec3 texvec, inout TexResult_tex texres, float noisesize, float t
   int rv = TEX_INT;
 
   /* Main noise evaluation using texvec (not texres.trgba!) */
-  float n_base = bli_noise_generic_turbulence(tex_noisesize,
+  float n_base = bli_noise_generic_turbulence(noisesize,
                                               texvec.x,
                                               texvec.y,
                                               texvec.z,
-                                              tex_noisedepth,
-                                              (tex_noisetype != 0),
-                                              tex_noisebasis);
+                                              noisedepth,
+                                              (u_tex_noisetype != 0),
+                                              noisebasis);
   texres.tin = n_base;
 
   if (stype == TEX_COLOR) {
     /* RGB mode: permute texvec coordinates for each channel (matches CPU line 1147-1156) */
     texres.trgba.r = texres.tin;
-    texres.trgba.g = bli_noise_generic_turbulence(tex_noisesize,
+    texres.trgba.g = bli_noise_generic_turbulence(noisesize,
                                                 texvec.y,
                                                 texvec.x,
                                                 texvec.z,
-                                                tex_noisedepth,
-                                                (tex_noisetype != 0),
-                                                tex_noisebasis);
-    texres.trgba.b = bli_noise_generic_turbulence(tex_noisesize,
+                                                noisedepth,
+                                                (u_tex_noisetype != 0),
+                                                noisebasis);
+    texres.trgba.b = bli_noise_generic_turbulence(noisesize,
                                                 texvec.y,
                                                 texvec.z,
                                                 texvec.x,
-                                                tex_noisedepth,
-                                                (tex_noisetype != 0),
-                                                tex_noisebasis);
+                                                noisedepth,
+                                                (u_tex_noisetype != 0),
+                                                noisebasis);
 
     /* BRICONTRGB: apply brightness/contrast to RGB */
     texres.trgba.rgb = apply_bricont_rgb(texres.trgba.rgb);
@@ -846,11 +846,11 @@ static std::string get_blend_glsl()
 
 /* GPU port of CPU `blend()` texture (gradient/blend)
  * Expects texvec in [-1,1] range (matching CPU convention). */
-int blend_tex(vec3 texvec, inout TexResult_tex texres, int tex_stype, bool tex_flipblend)
+int blend_tex(vec3 texvec, inout TexResult_tex texres, int stype, bool flipblend)
 {
   float x, y, t;
 
-  if (tex_flipblend) {
+  if (flipblend) {
     x = texvec.y;
     y = texvec.x;
   }
@@ -859,10 +859,10 @@ int blend_tex(vec3 texvec, inout TexResult_tex texres, int tex_stype, bool tex_f
     y = texvec.y;
   }
 
-  if (tex_stype == TEX_LIN) { /* Linear. */
+  if (stype == TEX_LIN) { /* Linear. */
     texres.tin = (1.0 + x) / 2.0;
   }
-  else if (tex_stype == TEX_QUAD) { /* Quadratic. */
+  else if (stype == TEX_QUAD) { /* Quadratic. */
     texres.tin = (1.0 + x) / 2.0;
     if (texres.tin < 0.0) {
       texres.tin = 0.0;
@@ -871,7 +871,7 @@ int blend_tex(vec3 texvec, inout TexResult_tex texres, int tex_stype, bool tex_f
       texres.tin *= texres.tin;
     }
   }
-  else if (tex_stype == TEX_EASE) { /* Ease. */
+  else if (stype == TEX_EASE) { /* Ease. */
     texres.tin = (1.0 + x) / 2.0;
     if (texres.tin <= 0.0) {
       texres.tin = 0.0;
@@ -884,22 +884,22 @@ int blend_tex(vec3 texvec, inout TexResult_tex texres, int tex_stype, bool tex_f
       texres.tin = (3.0 * t - 2.0 * t * texres.tin);
     }
   }
-  else if (tex_stype == TEX_DIAG) { /* Diagonal. */
+  else if (stype == TEX_DIAG) { /* Diagonal. */
     texres.tin = (2.0 + x + y) / 4.0;
   }
-  else if (tex_stype == TEX_RAD) { /* Radial. */
+  else if (stype == TEX_RAD) { /* Radial. */
     texres.tin = (atan(texvec.y, texvec.x) / (2.0 * M_PI) + 0.5);
   }
   else { /* sphere TEX_SPHERE */
     texres.tin = 1.0 - sqrt(texvec.x * texvec.x + texvec.y * texvec.y + texvec.z * texvec.z);
     texres.tin = max(texres.tin, 0.0);
-    if (tex_stype == TEX_HALO) {
+    if (stype == TEX_HALO) {
       texres.tin *= texres.tin; /* Halo. */
     }
   }
 
   /* BRICONT macro: apply brightness/contrast and optional clamping (matches CPU macro)
-   * Uses shader-side parameters: tex_contrast, tex_bright, tex_no_clamp */
+   * Uses shader-side parameters: u_tex_contrast, u_tex_bright, tex_no_clamp */
   /* Use reusable BRICONT helper */
   texres.tin = apply_bricont_fn(texres.tin);
 
@@ -2791,23 +2791,23 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
   float fy = tex_coord.y;
   
   /* Step 1: TEX_IMAROT (swap X/Y) AFTER crop */
-  if (tex_flip_axis) {
+  if (u_tex_flip_axis) {
     float temp = fx;
     fx = fy;
     fy = temp;
   }
 
   /* Step 2: TEX_CHECKER filtering */
-  if (tex_extend == TEX_CHECKER) {
+  if (u_tex_extend == TEX_CHECKER) {
     int xs = int(floor(fx));
     int ys = int(floor(fy));
     int tile_parity = (xs + ys) & 1;
     
     bool show_tile = true;
-    if (tex_checker_odd && (tile_parity == 0)) {
+    if (u_tex_checker_odd && (tile_parity == 0)) {
       show_tile = false;
     }
-    if (tex_checker_even && (tile_parity == 1)) {
+    if (u_tex_checker_even && (tile_parity == 1)) {
       show_tile = false;
     }
     
@@ -2818,9 +2818,9 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     fx -= float(xs);
     fy -= float(ys);
     
-    if (tex_checkerdist < 1.0) {
-      fx = (fx - 0.5) / (1.0 - tex_checkerdist) + 0.5;
-      fy = (fy - 0.5) / (1.0 - tex_checkerdist) + 0.5;
+    if (u_tex_checkerdist < 1.0) {
+      fx = (fx - 0.5) / (1.0 - u_tex_checkerdist) + 0.5;
+      fy = (fy - 0.5) / (1.0 - u_tex_checkerdist) + 0.5;
     }
   }
   
@@ -2831,21 +2831,21 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
   int yi = y;
   
   /* Step 4: CLIPCUBE early return */
-  if (tex_extend == TEX_CLIPCUBE) {
+  if (u_tex_extend == TEX_CLIPCUBE) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y ||
         tex_coord.z < -1.0 || tex_coord.z > 1.0) {
       return retval;
     }
   }
   /* Step 5: CLIP/CHECKER early return */
-  else if (tex_extend == TEX_CLIP || tex_extend == TEX_CHECKER) {
+  else if (u_tex_extend == TEX_CLIP || u_tex_extend == TEX_CHECKER) {
     if (x < 0 || y < 0 || x >= tex_size.x || y >= tex_size.y) {
       return retval;
     }
   }
   /* Step 6: EXTEND or REPEAT mode: wrap/clamp coordinates */
   else {
-    if (tex_extend == TEX_EXTEND) {
+    if (u_tex_extend == TEX_EXTEND) {
       x = (x >= tex_size.x) ? (tex_size.x - 1) : ((x < 0) ? 0 : x);
     }
     else {
@@ -2853,7 +2853,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
       if (x < 0) x += tex_size.x;
     }
     
-    if (tex_extend == TEX_EXTEND) {
+    if (u_tex_extend == TEX_EXTEND) {
       y = (y >= tex_size.y) ? (tex_size.y - 1) : ((y < 0) ? 0 : y);
     }
     else {
@@ -2865,13 +2865,13 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
   /* Step 7: Sample texture with or without interpolation.
    * Keep the FAST and CPU-like paths side-by-side to make comparisons easy.
    */
-  if (tex_interpol) {
+  if (u_tex_interpol) {
 #if DISP_TEXSAMPLER_MODE == DISP_TEXSAMPLER_CPU_BOXSAMPLE
     /* CPU-like path: area filtered boxsample.
      * This is closer to `texture_image.cc::boxsample()` but can be very slow on GPU.
      */
-    float filterx = (0.5 * tex_filtersize) / float(tex_size.x);
-    float filtery = (0.5 * tex_filtersize) / float(tex_size.y);
+    float filterx = (0.5 * u_tex_filtersize) / float(tex_size.x);
+    float filtery = (0.5 * u_tex_filtersize) / float(tex_size.y);
 
     /* Match CPU: wrap back to float coords after integer clamp/wrap. */
     fx -= float(xi - x) / float(tex_size.x);
@@ -2884,7 +2884,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
 
     TexResult_tex texres_box;
     texres_box.trgba = vec4(0.0);
-    texres_box.talpha = use_talpha;
+    texres_box.talpha = u_use_talpha;
 
     boxsample(displacement_texture,
               tex_size,
@@ -2893,11 +2893,11 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
               max_tex_x,
               max_tex_y,
               texres_box,
-              (tex_extend == TEX_REPEAT),
-              (tex_extend == TEX_EXTEND),
-              tex_is_byte,
-              tex_is_float,
-              tex_channels);
+              (u_tex_extend == TEX_REPEAT),
+              (u_tex_extend == TEX_EXTEND),
+              u_tex_is_byte,
+              u_tex_is_float,
+              u_tex_channels);
 
     result = texres_box.trgba;
 #else
@@ -2908,36 +2908,36 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     float u = fx - float(xi - x) / float(tex_size.x);
     float v = fy - float(yi - y) / float(tex_size.y);
 
-    if (tex_extend == TEX_EXTEND) {
+    if (u_tex_extend == TEX_EXTEND) {
       u = clamp(u, 0.0, 1.0);
       v = clamp(v, 0.0, 1.0);
     }
-    else if (tex_extend == TEX_REPEAT) {
+    else if (u_tex_extend == TEX_REPEAT) {
       /* After CPU-style remap, u/v are expected to already be in wrapped space.
        * Keep them as-is to mimic CPU x/y wrapping behavior.
        */
     }
 
     result = shader_ibuf_get_color(texture(displacement_texture, vec2(u, v)),
-                                   tex_is_float,
-                                   tex_channels,
-                                   tex_is_byte);
+                                   u_tex_is_float,
+                                   u_tex_channels,
+                                   u_tex_is_byte);
 #endif
   }
   else {
     ivec2 px_coord = ivec2(x, y);
     px_coord = clamp(px_coord, ivec2(0), tex_size - 1);
     result = shader_ibuf_get_color(texelFetch(displacement_texture, px_coord, 0),
-                                  tex_is_float,
-                                  tex_channels,
-                                  tex_is_byte);
+                                  u_tex_is_float,
+                                  u_tex_channels,
+                                  u_tex_is_byte);
   }
   
   /* Compute intensity */
-  if (use_talpha) {
+  if (u_use_talpha) {
     out_tin = result.a;
   }
-  else if (tex_calcalpha) {
+  else if (u_tex_calcalpha) {
     out_tin = max(max(result.r, result.g), result.b);
     result.a = out_tin;
   }
@@ -2946,28 +2946,28 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     result.a = 1.0;
   }
 
-  if (tex_negalpha) {
+  if (u_tex_negalpha) {
     result.a = 1.0 - result.a;
   }
 
   /* De-pre-multiply */
-  if (result.a != 1.0 && result.a > 1e-4 && !tex_calcalpha) {
+  if (result.a != 1.0 && result.a > 1e-4 && !u_tex_calcalpha) {
     float inv_alpha = 1.0 / result.a;
     result.rgb *= inv_alpha;
   }
 
   /* BRICONTRGB (brightness/contrast/RGB factors) */
   vec3 rgb = result.rgb;
-  rgb.r = tex_rfac * ((rgb.r - 0.5) * tex_contrast + tex_bright - 0.5);
-  rgb.g = tex_gfac * ((rgb.g - 0.5) * tex_contrast + tex_bright - 0.5);
-  rgb.b = tex_bfac * ((rgb.b - 0.5) * tex_contrast + tex_bright - 0.5);
+  rgb.r = u_tex_rfac * ((rgb.r - 0.5) * u_tex_contrast + u_tex_bright - 0.5);
+  rgb.g = u_tex_gfac * ((rgb.g - 0.5) * u_tex_contrast + u_tex_bright - 0.5);
+  rgb.b = u_tex_bfac * ((rgb.b - 0.5) * u_tex_contrast + u_tex_bright - 0.5);
 
-  if (!tex_no_clamp) {
+  if (!u_tex_no_clamp) {
     rgb = max(rgb, vec3(0.0));
   }
 
   /* Apply saturation */
-  if (tex_saturation != 1.0) {
+  if (u_tex_saturation != 1.0) {
     float cmax = max(max(rgb.r, rgb.g), rgb.b);
     float cmin = min(min(rgb.r, rgb.g), rgb.b);
     float delta_hsv = cmax - cmin;
@@ -2989,7 +2989,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
       if (h < 0.0) h += 1.0;
     }
 
-    s *= tex_saturation;
+    s *= u_tex_saturation;
 
     float nr = abs(h * 6.0 - 3.0) - 1.0;
     float ng = 2.0 - abs(h * 6.0 - 2.0);
@@ -3003,7 +3003,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
     float g = ((ng - 1.0) * s + 1.0) * v;
     float b = ((nb - 1.0) * s + 1.0) * v;
 
-    if (tex_saturation > 1.0 && !tex_no_clamp) {
+    if (u_tex_saturation > 1.0 && !u_tex_no_clamp) {
       rgb = max(rgb, vec3(0.0));
     }
   }
@@ -3023,18 +3023,18 @@ static std::string get_multitex_glsl()
  * port intended for compute shaders (e.g. Displace). The caller must provide
  * the following uniforms when using this dispatcher:
  *
- * uniform int tex_type;
- * uniform int tex_stype;
- * uniform int tex_noisebasis;
- * uniform int tex_noisebasis2; //marble and ?
- * uniform float tex_noisesize;
- * uniform float tex_turbul;
- * uniform int tex_noisedepth;
- * uniform bool tex_flipblend;
- * int tex_mt -> uniform tex_stype; // marble mode
+ * uniform int u_tex_type;
+ * uniform int u_tex_stype;
+ * uniform int u_tex_noisebasis;
+ * uniform int u_tex_noisebasis2; //marble and ?
+ * uniform float u_tex_noisesize;
+ * uniform float u_tex_turbul;
+ * uniform int u_tex_noisedepth;
+ * uniform bool u_tex_flipblend;
+ * int tex_mt -> uniform u_tex_stype; // marble mode
  * uniform sampler2D displacement_texture; // for image types (sampler name used by imagewrap)
- * uniform ivec2 tex_image_size (not needed - use textureSize);
- * uniform bool use_colorband; // whether to apply colorband
+ * uniform ivec2 u_tex_image_size (not needed - use textureSize);
+ * uniform bool u_use_colorband; // whether to apply colorband
  * uniform ColorBand tex_colorband; // ColorBand UBO
  */
 
@@ -3042,7 +3042,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
 {
   texres.talpha = false;
   int retval = 0;
-  int t = tex_type;
+  int t = u_tex_type;
 
   if (t == 0) {
     texres.tin = 0.0;
@@ -3050,33 +3050,33 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
   }
 
   if (t == TEX_CLOUDS) {
-    retval = clouds_tex(texvec, texres, tex_noisesize, tex_turbul, tex_noisedepth, tex_noisebasis, tex_stype);
+    retval = clouds_tex(texvec, texres, u_tex_noisesize, u_tex_turbul, u_tex_noisedepth, u_tex_noisebasis, u_tex_stype);
   }
   else if (t == TEX_WOOD) {
-    retval = wood_tex(texvec, texres, tex_noisebasis, tex_noisebasis2, tex_stype, tex_noisesize, tex_turbul);
+    retval = wood_tex(texvec, texres, u_tex_noisebasis, u_tex_noisebasis2, u_tex_stype, u_tex_noisesize, u_tex_turbul);
   }
   else if (t == TEX_MARBLE) {
     /* Marble uses `stype` as its mode in CPU code (tex->stype). Use tex_stype here. */
-    retval = marble_tex(texvec, texres, tex_noisebasis2, tex_stype, tex_noisesize, tex_turbul);
+    retval = marble_tex(texvec, texres, u_tex_noisebasis2, u_tex_stype, u_tex_noisesize, u_tex_turbul);
   }
   else if (t == TEX_MAGIC) {
-    retval = magic_tex(texvec, texres, tex_turbul);
+    retval = magic_tex(texvec, texres, u_tex_turbul);
   }
   else if (t == TEX_BLEND) {
-    retval = blend_tex(texvec, texres, tex_stype, tex_flipblend);
+    retval = blend_tex(texvec, texres, u_tex_stype, u_tex_flipblend);
   }
   else if (t == TEX_STUCCI) {
-    retval = stucci_tex(texvec, texres, tex_stype, tex_noisesize, tex_turbul, tex_noisebasis);
+    retval = stucci_tex(texvec, texres, u_tex_stype, u_tex_noisesize, u_tex_turbul, u_tex_noisebasis);
   }
   else if (t == TEX_NOISE) {
-    retval = texnoise_tex(texres, thread_id, tex_noisedepth);
+    retval = texnoise_tex(texres, thread_id, u_tex_noisedepth);
   }
   else if (t == TEX_VORONOI) {
     /* Example default params for voronoi; callers may set additional uniforms */
     retval = voronoi_tex(texvec, texres, 1.0, 0.0, 0.0, 0.0, 1.0, TEX_COL1, 0, 1.0);
   }
   else if (t == TEX_DISTNOISE) {
-    retval = distnoise_tex(texvec, texres, tex_noisesize, tex_distamount, tex_noisebasis, tex_noisebasis2);
+    retval = distnoise_tex(texvec, texres, u_tex_noisesize, u_tex_distamount, u_tex_noisebasis, u_tex_noisebasis2);
   }
   else if (t == TEX_IMAGE) {
     /* Image sampling: apply 2D mapping (scale/rotation/repeat/mirror/crop/offset)
@@ -3086,7 +3086,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
     float fy = (texvec.y + 1.0) / 2.0;
 
     /* Apply mapping transforms (SCALE → ROTATION → REPEAT → MIRROR → CROP → OFFSET) */
-    do_2d_mapping(fx, fy, tex_extend, tex_repeat, tex_xmir, tex_ymir, tex_crop, tex_size_param, tex_ofs, tex_rot);
+    do_2d_mapping(fx, fy, u_tex_extend, u_tex_repeat, u_tex_xmir, u_tex_ymir, u_tex_crop, u_tex_size_param, u_tex_ofs, u_tex_rot);
 
     vec3 mapped_coord = vec3(fx, fy, texvec.z);
     ivec2 img_size = textureSize(displacement_texture, 0);
@@ -3095,11 +3095,11 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
     else retval = TEX_INT;
   }
 
-  /* Apply colorband if requested (requires ColorBand UBO with name `tex_colorband`).
+  /* Apply colorband if requested (requires ColorBand UBO with name `u_tex_colorband`).
    * ColorBand maps an intensity -> color, so apply it only when the texture
    * result is an intensity (i.e. TEX_RGB flag is NOT set). TEX_INT is defined
    * as 0, so testing `retval & TEX_INT` is always false. */
-  if (use_colorband) {
+  if (u_use_colorband) {
     vec4 cbcol;
     if (BKE_colorband_evaluate(tex_colorband, texres.tin, cbcol)) {
       texres.talpha = true;

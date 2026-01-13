@@ -296,16 +296,16 @@ void main() {
 /* Sample texture using MOD_get_texture_coords() or input_positions when requested */
 vec3 tex_coord = texture_coords[v].xyz;
 
-if (mapping_use_input_positions) {
+if (u_mapping_use_input_positions) {
   vec3 in_pos = input_positions[v].xyz;
-  if (tex_mapping == 0) { //MOD_DISP_MAP_LOCAL
+  if (u_tex_mapping == 0) { //MOD_DISP_MAP_LOCAL
     tex_coord = in_pos;
-  } else if (tex_mapping == 1) { //MOD_DISP_MAP_GLOBAL
-    vec4 w = object_to_world_mat * vec4(in_pos, 1.0);
+  } else if (u_tex_mapping == 1) { //MOD_DISP_MAP_GLOBAL
+    vec4 w = u_object_to_world_mat * vec4(in_pos, 1.0);
     tex_coord = w.xyz;
-  } else if (tex_mapping == 2) { //MOD_DISP_MAP_OBJECT
-    vec4 w = object_to_world_mat * vec4(in_pos, 1.0);
-    vec4 o = mapref_imat * w;
+  } else if (u_tex_mapping == 2) { //MOD_DISP_MAP_OBJECT
+    vec4 w = u_object_to_world_mat * vec4(in_pos, 1.0);
+    vec4 o = u_mapref_imat * w;
     tex_coord = o.xyz;
   } else {
     /* Fallback to precomputed coords (covers UV case and others) */
@@ -319,7 +319,7 @@ else {
 /* Sample texture (CPU uses boxsample for interpolation) */
 TexResult_tex texres;
 texres.trgba = vec4(0.0);
-texres.talpha = use_talpha;  /* From CPU line 211-213 */
+texres.talpha = u_use_talpha;  /* From CPU line 211-213 */
 texres.tin = 0.0;
 
 /* Pass tex_coord as-is (CPU procedural textures use raw mapped coords; IMAGE handles its own remap). */
@@ -335,69 +335,69 @@ texres.tin = 0.0;
     texres.trgba.rgb = vec3(texres.tin);
   }
 
-  float s = strength * vgroup_weight;
-  delta = (texres.tin - midlevel) * s;
+  float s = u_strength * vgroup_weight;
+  delta = (texres.tin - u_midlevel) * s;
 #else
   /* Fixed delta (no texture) */
-  delta = (1.0 - midlevel) * strength * vgroup_weight;
+  delta = (1.0 - u_midlevel) * u_strength * vgroup_weight;
 #endif
   
   /* Clamp delta to prevent extreme deformations */
   delta = clamp(delta, -10000.0, 10000.0);
 
   /* Apply displacement based on direction */
-  if (direction == MOD_DISP_DIR_X) {
-    if (use_global) {
+  if (u_direction == MOD_DISP_DIR_X) {
+    if (u_use_global) {
       /* Global X axis */
-      co += delta * vec3(local_mat[0][0], local_mat[1][0], local_mat[2][0]);
+      co += delta * vec3(u_local_mat[0][0], u_local_mat[1][0], u_local_mat[2][0]);
     } else {
       /* Local X axis */
       co.x += delta;
     }
   }
-  else if (direction == MOD_DISP_DIR_Y) {
-    if (use_global) {
+  else if (u_direction == MOD_DISP_DIR_Y) {
+    if (u_use_global) {
       /* Global Y axis */
-      co += delta * vec3(local_mat[0][1], local_mat[1][1], local_mat[2][1]);
+      co += delta * vec3(u_local_mat[0][1], u_local_mat[1][1], u_local_mat[2][1]);
     } else {
       /* Local Y axis */
       co.y += delta;
     }
   }
-  else if (direction == MOD_DISP_DIR_Z) {
-    if (use_global) {
+  else if (u_direction == MOD_DISP_DIR_Z) {
+    if (u_use_global) {
       /* Global Z axis */
-      co += delta * vec3(local_mat[0][2], local_mat[1][2], local_mat[2][2]);
+      co += delta * vec3(u_local_mat[0][2], u_local_mat[1][2], u_local_mat[2][2]);
     } else {
       /* Local Z axis */
       co.z += delta;
     }
   }
-  else if (direction == MOD_DISP_DIR_NOR) {
+  else if (u_direction == MOD_DISP_DIR_NOR) {
     vec3 n_mesh = compute_vertex_normal_smooth(int(v));
     /* Displacement along vertex normal
      * This matches CPU behavior and is acceptable for most use cases. */
     co += delta * math_normalize(n_mesh);
   }
-  else if (direction == MOD_DISP_DIR_CLNOR) {
+  else if (u_direction == MOD_DISP_DIR_CLNOR) {
     /* Displacement along custom loop normals (Simplification -> same than DISP_DIR_NOR) */
     vec3 n_mesh = compute_vertex_normal_smooth(int(v));
     co += delta * math_normalize(n_mesh);
   }
-  else if (direction == MOD_DISP_DIR_RGB_XYZ) {
+  else if (u_direction == MOD_DISP_DIR_RGB_XYZ) {
     /* Displacement using RGB as (X, Y, Z) vector
      * Each RGB component controls displacement along its respective axis
      * R → X displacement, G → Y displacement, B → Z displacement */
 #ifdef HAS_TEXTURE
-    /* Match CPU: (tex - midlevel) * strength * weight, then optional global transform. */
-    vec3 local_vec = (texres.trgba.rgb - vec3(midlevel)) * (strength * vgroup_weight);
+    /* Match CPU: (tex - u_midlevel) * u_strength * weight, then optional global transform. */
+    vec3 local_vec = (texres.trgba.rgb - vec3(u_midlevel)) * (u_strength * vgroup_weight);
 
-    if (use_global) {
+    if (u_use_global) {
       /* mul_transposed_mat3_m4_v3 equivalent: multiply by column vectors. */
       vec3 global_disp = vec3(
-        dot(local_vec, vec3(local_mat[0][0], local_mat[1][0], local_mat[2][0])),
-        dot(local_vec, vec3(local_mat[0][1], local_mat[1][1], local_mat[2][1])),
-        dot(local_vec, vec3(local_mat[0][2], local_mat[1][2], local_mat[2][2]))
+        dot(local_vec, vec3(u_local_mat[0][0], u_local_mat[1][0], u_local_mat[2][0])),
+        dot(local_vec, vec3(u_local_mat[0][1], u_local_mat[1][1], u_local_mat[2][1])),
+        dot(local_vec, vec3(u_local_mat[0][2], u_local_mat[1][2], u_local_mat[2][2]))
       );
       co += global_disp;
     }
@@ -972,65 +972,65 @@ struct ColorBand {
     info.storage_buf(15, Qualifier::read, "int", "topo[]");
 
     /* Push constants */
-    info.push_constant(Type::float4x4_t, "local_mat");
-    info.push_constant(Type::float_t, "strength");
-    info.push_constant(Type::float_t, "midlevel");
-    info.push_constant(Type::int_t, "direction");
-    info.push_constant(Type::bool_t, "use_global");
-    info.push_constant(Type::bool_t, "use_colorband"); /* ColorBand enable flag */
+    info.push_constant(Type::float4x4_t, "u_local_mat");
+    info.push_constant(Type::float_t, "u_strength");
+    info.push_constant(Type::float_t, "u_midlevel");
+    info.push_constant(Type::int_t, "u_direction");
+    info.push_constant(Type::bool_t, "u_use_global");
+    info.push_constant(Type::bool_t, "u_use_colorband"); /* ColorBand enable flag */
 
     /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
     if (shader_has_texture) {
-      info.push_constant(Type::bool_t, "use_talpha");      /* Enable de-premultiply */
-      info.push_constant(Type::bool_t, "tex_calcalpha");   /* TEX_CALCALPHA */
-      info.push_constant(Type::bool_t, "tex_negalpha");    /* TEX_NEGALPHA */
-      info.push_constant(Type::float_t, "tex_bright");     /* Tex->bright */
-      info.push_constant(Type::float_t, "tex_contrast");   /* Tex->contrast */
-      info.push_constant(Type::float_t, "tex_saturation"); /* Tex->saturation */
-      info.push_constant(Type::float_t, "tex_rfac");       /* Tex->rfac */
-      info.push_constant(Type::float_t, "tex_gfac");       /* Tex->gfac */
-      info.push_constant(Type::float_t, "tex_bfac");       /* Tex->bfac */
-      info.push_constant(Type::bool_t, "tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
-      info.push_constant(Type::int_t, "tex_extend");       /* Tex->extend (wrap mode) */
+      info.push_constant(Type::bool_t, "u_use_talpha");      /* Enable de-premultiply */
+      info.push_constant(Type::bool_t, "u_tex_calcalpha");   /* TEX_CALCALPHA */
+      info.push_constant(Type::bool_t, "u_tex_negalpha");    /* TEX_NEGALPHA */
+      info.push_constant(Type::float_t, "u_tex_bright");     /* Tex->bright */
+      info.push_constant(Type::float_t, "u_tex_contrast");   /* Tex->contrast */
+      info.push_constant(Type::float_t, "u_tex_saturation"); /* Tex->saturation */
+      info.push_constant(Type::float_t, "u_tex_rfac");       /* Tex->rfac */
+      info.push_constant(Type::float_t, "u_tex_gfac");       /* Tex->gfac */
+      info.push_constant(Type::float_t, "u_tex_bfac");       /* Tex->bfac */
+      info.push_constant(Type::bool_t, "u_tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
+      info.push_constant(Type::int_t, "u_tex_extend");       /* Tex->extend (wrap mode) */
       info.push_constant(Type::float4_t,
-                         "tex_crop"); /* (cropxmin, cropymin, cropxmax, cropymax) */
-      info.push_constant(Type::float2_t, "tex_repeat");     /* (xrepeat, yrepeat) */
-      info.push_constant(Type::bool_t, "tex_xmir");         /* TEX_REPEAT_XMIR */
-      info.push_constant(Type::bool_t, "tex_ymir");         /* TEX_REPEAT_YMIR */
-      info.push_constant(Type::bool_t, "tex_interpol");     /* TEX_INTERPOL */
-      info.push_constant(Type::float_t, "tex_filtersize");  /* Tex->filtersize for boxsample */
-      info.push_constant(Type::bool_t, "tex_checker_odd");  /* TEX_CHECKER_ODD */
-      info.push_constant(Type::bool_t, "tex_checker_even"); /* TEX_CHECKER_EVEN */
-      info.push_constant(Type::float_t, "tex_checkerdist"); /* Tex->checkerdist */
-      info.push_constant(Type::bool_t, "tex_flipblend");    /* TEX_FLIPBLEND */
-      info.push_constant(Type::bool_t, "tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
+                         "u_tex_crop"); /* (cropxmin, cropymin, cropxmax, cropymax) */
+      info.push_constant(Type::float2_t, "u_tex_repeat");     /* (xrepeat, yrepeat) */
+      info.push_constant(Type::bool_t, "u_tex_xmir");         /* TEX_REPEAT_XMIR */
+      info.push_constant(Type::bool_t, "u_tex_ymir");         /* TEX_REPEAT_YMIR */
+      info.push_constant(Type::bool_t, "u_tex_interpol");     /* TEX_INTERPOL */
+      info.push_constant(Type::float_t, "u_tex_filtersize");  /* Tex->filtersize for boxsample */
+      info.push_constant(Type::bool_t, "u_tex_checker_odd");  /* TEX_CHECKER_ODD */
+      info.push_constant(Type::bool_t, "u_tex_checker_even"); /* TEX_CHECKER_EVEN */
+      info.push_constant(Type::float_t, "u_tex_checkerdist"); /* Tex->checkerdist */
+      info.push_constant(Type::bool_t, "u_tex_flipblend");    /* TEX_FLIPBLEND */
+      info.push_constant(Type::bool_t, "u_tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
       /* Texture transformation parameters (rotation/scale/offset) */
-      info.push_constant(Type::float3_t, "tex_size_param");  /* Tex->size (scale X/Y/Z) */
-      info.push_constant(Type::float3_t, "tex_ofs");         /* Tex->ofs (offset X/Y/Z) */
-      info.push_constant(Type::float_t, "tex_rot");          /* Tex->rot (rotation Z in radians) */
+      info.push_constant(Type::float3_t, "u_tex_size_param");  /* Tex->size (scale X/Y/Z) */
+      info.push_constant(Type::float3_t, "u_tex_ofs");         /* Tex->ofs (offset X/Y/Z) */
+      info.push_constant(Type::float_t, "u_tex_rot");          /* Tex->rot (rotation Z in radians) */
       /* Mapping controls (when mapping_use_input_positions==true shader will
        * compute texture coords from input_positions[] instead of using
        * precomputed texture_coords[]). UV mapping remains CPU-side. */
-      info.push_constant(Type::int_t, "tex_mapping");
-      info.push_constant(Type::bool_t, "mapping_use_input_positions");
-      info.push_constant(Type::float4x4_t, "object_to_world_mat");
-      info.push_constant(Type::float4x4_t, "mapref_imat");
-      info.push_constant(Type::bool_t, "tex_is_byte"); /* Image data originally bytes (needs premultiply) */
-      info.push_constant(Type::bool_t, "tex_is_float"); /* ImBuf had float data */
-      info.push_constant(Type::int_t, "tex_channels");  /* number of channels in ImBuf (1/3/4) */
-      info.push_constant(Type::int_t, "mtex_mapto");    /* MTex.mapto flags (MAP_COL etc.) */
+      info.push_constant(Type::int_t, "u_tex_mapping");
+      info.push_constant(Type::bool_t, "u_mapping_use_input_positions");
+      info.push_constant(Type::float4x4_t, "u_object_to_world_mat");
+      info.push_constant(Type::float4x4_t, "u_mapref_imat");
+      info.push_constant(Type::bool_t, "u_tex_is_byte"); /* Image data originally bytes (needs premultiply) */
+      info.push_constant(Type::bool_t, "u_tex_is_float"); /* ImBuf had float data */
+      info.push_constant(Type::int_t, "u_tex_channels");  /* number of channels in ImBuf (1/3/4) */
+      info.push_constant(Type::int_t, "u_mtex_mapto");    /* MTex.mapto flags (MAP_COL etc.) */
       /* Texture subtype and flags to match CPU Tex struct (Tex->stype, Tex->flag) */
-      info.push_constant(Type::int_t, "tex_stype");
-      info.push_constant(Type::int_t, "tex_flag");
-      info.push_constant(Type::int_t, "tex_type");
-      info.push_constant(Type::int_t, "tex_noisebasis");
-      info.push_constant(Type::int_t, "tex_noisebasis2");
-      info.push_constant(Type::float_t, "tex_noisesize");
-      info.push_constant(Type::float_t, "tex_turbul");
-      info.push_constant(Type::int_t, "tex_noisetype");
-      info.push_constant(Type::int_t, "tex_noisedepth");
-      info.push_constant(Type::float_t, "tex_distamount");
-      info.push_constant(Type::int_t, "tex_frame"); /* Current frame for animated textures */
+      info.push_constant(Type::int_t, "u_tex_stype");
+      info.push_constant(Type::int_t, "u_tex_flag");
+      info.push_constant(Type::int_t, "u_tex_type");
+      info.push_constant(Type::int_t, "u_tex_noisebasis");
+      info.push_constant(Type::int_t, "u_tex_noisebasis2");
+      info.push_constant(Type::float_t, "u_tex_noisesize");
+      info.push_constant(Type::float_t, "u_tex_turbul");
+      info.push_constant(Type::int_t, "u_tex_noisetype");
+      info.push_constant(Type::int_t, "u_tex_noisedepth");
+      info.push_constant(Type::float_t, "u_tex_distamount");
+      info.push_constant(Type::int_t, "u_tex_frame"); /* Current frame for animated textures */
     }
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 
@@ -1097,12 +1097,12 @@ struct ColorBand {
   }
 
   /* Set uniforms (runtime parameters) */
-  GPU_shader_uniform_mat4(shader, "local_mat", (const float(*)[4])local_mat);
-  GPU_shader_uniform_1f(shader, "strength", dmd->strength);
-  GPU_shader_uniform_1f(shader, "midlevel", dmd->midlevel);
-  GPU_shader_uniform_1i(shader, "direction", int(dmd->direction));
-  GPU_shader_uniform_1b(shader, "use_global", use_global);
-  GPU_shader_uniform_1b(shader, "use_colorband", use_colorband); /* ColorBand enable flag */
+  GPU_shader_uniform_mat4(shader, "u_local_mat", (const float(*)[4])local_mat);
+  GPU_shader_uniform_1f(shader, "u_strength", dmd->strength);
+  GPU_shader_uniform_1f(shader, "u_midlevel", dmd->midlevel);
+  GPU_shader_uniform_1i(shader, "u_direction", int(dmd->direction));
+  GPU_shader_uniform_1b(shader, "u_use_global", use_global);
+  GPU_shader_uniform_1b(shader, "u_use_colorband", use_colorband); /* ColorBand enable flag */
 
   /* Set texture processing parameters (if a Tex is present) */
   if (shader_has_texture) {
@@ -1118,35 +1118,35 @@ struct ColorBand {
       }
     }
 
-    GPU_shader_uniform_1b(shader, "use_talpha", use_talpha);
-    GPU_shader_uniform_1b(shader, "tex_calcalpha", (tex->imaflag & TEX_CALCALPHA) != 0);
-    GPU_shader_uniform_1b(shader, "tex_negalpha", (tex->flag & TEX_NEGALPHA) != 0);
-    GPU_shader_uniform_1f(shader, "tex_bright", tex->bright);
-    GPU_shader_uniform_1f(shader, "tex_contrast", tex->contrast);
-    GPU_shader_uniform_1f(shader, "tex_saturation", tex->saturation);
-    GPU_shader_uniform_1f(shader, "tex_rfac", tex->rfac);
-    GPU_shader_uniform_1f(shader, "tex_gfac", tex->gfac);
-    GPU_shader_uniform_1f(shader, "tex_bfac", tex->bfac);
-    GPU_shader_uniform_1b(shader, "tex_no_clamp", (tex->flag & TEX_NO_CLAMP) != 0);
-    GPU_shader_uniform_1i(shader, "tex_extend", int(tex->extend));
+    GPU_shader_uniform_1b(shader, "u_use_talpha", use_talpha);
+    GPU_shader_uniform_1b(shader, "u_tex_calcalpha", (tex->imaflag & TEX_CALCALPHA) != 0);
+    GPU_shader_uniform_1b(shader, "u_tex_negalpha", (tex->flag & TEX_NEGALPHA) != 0);
+    GPU_shader_uniform_1f(shader, "u_tex_bright", tex->bright);
+    GPU_shader_uniform_1f(shader, "u_tex_contrast", tex->contrast);
+    GPU_shader_uniform_1f(shader, "u_tex_saturation", tex->saturation);
+    GPU_shader_uniform_1f(shader, "u_tex_rfac", tex->rfac);
+    GPU_shader_uniform_1f(shader, "u_tex_gfac", tex->gfac);
+    GPU_shader_uniform_1f(shader, "u_tex_bfac", tex->bfac);
+    GPU_shader_uniform_1b(shader, "u_tex_no_clamp", (tex->flag & TEX_NO_CLAMP) != 0);
+    GPU_shader_uniform_1i(shader, "u_tex_extend", int(tex->extend));
 
     /* Upload crop parameters (xmin, ymin, xmax, ymax) */
     float crop[4] = {tex->cropxmin, tex->cropymin, tex->cropxmax, tex->cropymax};
-    GPU_shader_uniform_4f(shader, "tex_crop", crop[0], crop[1], crop[2], crop[3]);
+    GPU_shader_uniform_4f(shader, "u_tex_crop", crop[0], crop[1], crop[2], crop[3]);
 
     /* Upload repeat/mirror flags */
-    GPU_shader_uniform_2f(shader, "tex_repeat", float(tex->xrepeat), float(tex->yrepeat));
-    GPU_shader_uniform_1b(shader, "tex_xmir", (tex->flag & TEX_REPEAT_XMIR) != 0);
-    GPU_shader_uniform_1b(shader, "tex_ymir", (tex->flag & TEX_REPEAT_YMIR) != 0);
-    GPU_shader_uniform_1b(shader, "tex_interpol", (tex->imaflag & TEX_INTERPOL) != 0);
-    GPU_shader_uniform_1b(shader, "tex_checker_odd", (tex->flag & TEX_CHECKER_ODD) == 0);
-    GPU_shader_uniform_1b(shader, "tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) == 0);
-    GPU_shader_uniform_1b(shader, "tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
-    GPU_shader_uniform_1b(shader, "tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
-    GPU_shader_uniform_1f(shader, "tex_filtersize", tex->filtersize);
+    GPU_shader_uniform_2f(shader, "u_tex_repeat", float(tex->xrepeat), float(tex->yrepeat));
+    GPU_shader_uniform_1b(shader, "u_tex_xmir", (tex->flag & TEX_REPEAT_XMIR) != 0);
+    GPU_shader_uniform_1b(shader, "u_tex_ymir", (tex->flag & TEX_REPEAT_YMIR) != 0);
+    GPU_shader_uniform_1b(shader, "u_tex_interpol", (tex->imaflag & TEX_INTERPOL) != 0);
+    GPU_shader_uniform_1b(shader, "u_tex_checker_odd", (tex->flag & TEX_CHECKER_ODD) == 0);
+    GPU_shader_uniform_1b(shader, "u_tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) == 0);
+    GPU_shader_uniform_1b(shader, "u_tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
+    GPU_shader_uniform_1b(shader, "u_tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
+    GPU_shader_uniform_1f(shader, "u_tex_filtersize", tex->filtersize);
 
     /* Checker pattern scaling parameter */
-    GPU_shader_uniform_1f(shader, "tex_checkerdist", tex->checkerdist);
+    GPU_shader_uniform_1f(shader, "u_tex_checkerdist", tex->checkerdist);
 
     /* NEW: Texture transformation parameters (rotation/scale/offset)
      * NOTE: These fields (size/ofs/rot) may not exist in all Tex versions.
@@ -1155,24 +1155,24 @@ struct ColorBand {
     float tex_ofs_default[3] = {0.0f, 0.0f, 0.0f};
     float tex_rot_default = 0.0f;
     
-    GPU_shader_uniform_3f(shader, "tex_size_param", tex_size_default[0], tex_size_default[1], tex_size_default[2]);
-    GPU_shader_uniform_3f(shader, "tex_ofs", tex_ofs_default[0], tex_ofs_default[1], tex_ofs_default[2]);
-    GPU_shader_uniform_1f(shader, "tex_rot", tex_rot_default);
+    GPU_shader_uniform_3f(shader, "u_tex_size_param", tex_size_default[0], tex_size_default[1], tex_size_default[2]);
+    GPU_shader_uniform_3f(shader, "u_tex_ofs", tex_ofs_default[0], tex_ofs_default[1], tex_ofs_default[2]);
+    GPU_shader_uniform_1f(shader, "u_tex_rot", tex_rot_default);
 
     /* Use metadata from MeshStaticData (filled during texture upload) */
-    GPU_shader_uniform_1b(shader, "tex_is_byte", msd.tex_is_byte);
-    GPU_shader_uniform_1b(shader, "tex_is_float", msd.tex_is_float);
+    GPU_shader_uniform_1b(shader, "u_tex_is_byte", msd.tex_is_byte);
+    GPU_shader_uniform_1b(shader, "u_tex_is_float", msd.tex_is_float);
     msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
-    GPU_shader_uniform_1i(shader, "tex_channels", msd.tex_channels);
+    GPU_shader_uniform_1i(shader, "u_tex_channels", msd.tex_channels);
 
     /* Texture subtype and flag (match CPU Tex struct) */
-    GPU_shader_uniform_1i(shader, "tex_stype", int(tex->stype));
-    GPU_shader_uniform_1i(shader, "tex_flag", int(tex->flag));
+    GPU_shader_uniform_1i(shader, "u_tex_stype", int(tex->stype));
+    GPU_shader_uniform_1i(shader, "u_tex_flag", int(tex->flag));
 
     /* Pass mtex->mapto to shader so it can decide whether to apply scene color conversion
      * (MAP_COL flag). If no mtex is used, this will be 0. */
     int mtex_mapto = 0; /* default: none */
-    GPU_shader_uniform_1i(shader, "mtex_mapto", mtex_mapto);
+    GPU_shader_uniform_1i(shader, "u_mtex_mapto", mtex_mapto);
 
     /* Mapping controls: replicate CPU logic from MOD_get_texture_coords()
      * If MOD_DISP_MAP_OBJECT but no map_object, fallback to LOCAL.
@@ -1189,13 +1189,13 @@ struct ColorBand {
      * force the shader to compute coords from input_positions[]. This
      * prevents reading an unbound/empty SSBO when using NON-UV mapping. */
     bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || msd.tex_coords.empty();
-    GPU_shader_uniform_1i(shader, "tex_mapping", tex_mapping);
-    GPU_shader_uniform_1b(shader, "mapping_use_input_positions", mapping_use_input_positions);
+    GPU_shader_uniform_1i(shader, "u_tex_mapping", tex_mapping);
+    GPU_shader_uniform_1b(shader, "u_mapping_use_input_positions", mapping_use_input_positions);
 
     /* Pass object->world matrix (fast copy) */
     float obj2w[4][4];
     memcpy(obj2w, deformed_eval->object_to_world().ptr(), sizeof(obj2w));
-    GPU_shader_uniform_mat4(shader, "object_to_world_mat", obj2w);
+    GPU_shader_uniform_mat4(shader, "u_object_to_world_mat", obj2w);
 
     /* mapref_imat: compute inverse map reference for MOD_DISP_MAP_OBJECT when possible.
      * Falls back to identity when no map_object is set. This mirrors logic from
@@ -1221,17 +1221,17 @@ struct ColorBand {
     else {
       unit_m4(mapref_imat);
     }
-    GPU_shader_uniform_mat4(shader, "mapref_imat", mapref_imat);
+    GPU_shader_uniform_mat4(shader, "u_mapref_imat", mapref_imat);
     /* Multitex / noise uniforms: ensure these are uploaded when present. */
-    GPU_shader_uniform_1i(shader, "tex_type", int(tex->type));
-    GPU_shader_uniform_1i(shader, "tex_noisebasis", int(tex->noisebasis));
-    GPU_shader_uniform_1i(shader, "tex_noisebasis2", int(tex->noisebasis2));
-    GPU_shader_uniform_1f(shader, "tex_noisesize", float(tex->noisesize));
-    GPU_shader_uniform_1f(shader, "tex_turbul", float(tex->turbul));
-    GPU_shader_uniform_1i(shader, "tex_noisetype", int(tex->noisetype));
-    GPU_shader_uniform_1i(shader, "tex_noisedepth", int(tex->noisedepth));
-    GPU_shader_uniform_1f(shader, "tex_distamount", float(tex->dist_amount));
-    GPU_shader_uniform_1i(shader, "tex_frame", scene_frame);
+    GPU_shader_uniform_1i(shader, "u_tex_type", int(tex->type));
+    GPU_shader_uniform_1i(shader, "u_tex_noisebasis", int(tex->noisebasis));
+    GPU_shader_uniform_1i(shader, "u_tex_noisebasis2", int(tex->noisebasis2));
+    GPU_shader_uniform_1f(shader, "u_tex_noisesize", float(tex->noisesize));
+    GPU_shader_uniform_1f(shader, "u_tex_turbul", float(tex->turbul));
+    GPU_shader_uniform_1i(shader, "u_tex_noisetype", int(tex->noisetype));
+    GPU_shader_uniform_1i(shader, "u_tex_noisedepth", int(tex->noisedepth));
+    GPU_shader_uniform_1f(shader, "u_tex_distamount", float(tex->dist_amount));
+    GPU_shader_uniform_1i(shader, "u_tex_frame", scene_frame);
   }
 
   const int group_size = 256;
