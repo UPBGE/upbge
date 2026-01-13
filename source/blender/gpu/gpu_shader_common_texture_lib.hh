@@ -3111,28 +3111,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
   return retval;
 }
 
-/* Wrapper for environments that cannot pass `inout` structs across compilation units.
- * Accepts separate inout parameters for RGBA, intensity and talpha and forwards to
- * the `multitex` implementation which uses `TexResult_tex` internally. */
-int multitex_components(vec3 texvec,
-                        inout vec4 out_trgba,
-                        inout float out_tin,
-                        inout bool out_talpha,
-                        int thread_id)
-{
-  TexResult_tex tmp;
-  tmp.trgba = out_trgba;
-  tmp.tin = out_tin;
-  tmp.talpha = out_talpha;
 
-  int retval = multitex(texvec, tmp, thread_id);
-
-  out_trgba = tmp.trgba;
-  out_tin = tmp.tin;
-  out_talpha = tmp.talpha;
-
-  return retval;
-}
 
 )GLSL";
 }

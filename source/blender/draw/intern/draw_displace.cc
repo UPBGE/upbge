@@ -324,8 +324,8 @@ texres.tin = 0.0;
 
 /* Pass tex_coord as-is (CPU procedural textures use raw mapped coords; IMAGE handles its own remap). */
  vec3 mapped_coord = tex_coord;
- int retval = multitex_components(mapped_coord, texres.trgba, texres.tin, texres.talpha, int(v));
-  /* texres.trgba and texres.tin are filled/processed by imagewrap() to match CPU pipeline */
+ int retval = multitex(mapped_coord, texres, int(v));
+  /* texres.trgba and texres.tin are filled/processed by imagewrap()/multitex() to match CPU pipeline */
   vec3 rgb = texres.trgba.rgb;
 
   if ((retval & TEX_RGB) != 0) {
