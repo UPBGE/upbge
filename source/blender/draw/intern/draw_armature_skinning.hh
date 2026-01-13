@@ -6,18 +6,15 @@
 
 #include <memory>
 
-#include "BKE_modifier.hh"
-
-/* Forward declarations to keep header lightweight. */
 namespace blender {
-struct Object;
-struct Mesh;
 struct Depsgraph;
+struct Mesh;
+struct Object;
+struct ArmatureModifierData;
 }  // namespace blender
 
 namespace blender {
 namespace gpu {
-class VertBuf;
 class StorageBuf;
 }  // namespace gpu
 }  // namespace blender

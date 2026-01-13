@@ -4,17 +4,19 @@
 
 #pragma once
 
-#include "GPU_storage_buffer.hh"
-
-#include "draw_cache_extract.hh"
-
-#include "BKE_modifier.hh"
-
-#include "DEG_depsgraph_query.hh"
+#include <memory>
 
 namespace blender {
+struct Depsgraph;
 struct Mesh;
 struct Object;
+struct LatticeModifierData;
+}  // namespace blender
+
+namespace blender {
+namespace gpu {
+class StorageBuf;
+}  // namespace gpu
 }  // namespace blender
 
 namespace blender::draw {

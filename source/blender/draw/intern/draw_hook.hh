@@ -4,16 +4,19 @@
 
 #pragma once
 
-#include "GPU_storage_buffer.hh"
-
-#include "draw_cache_extract.hh"
-
-#include "BKE_modifier.hh"
+#include <memory>
 
 namespace blender {
+struct Depsgraph;
 struct Mesh;
 struct Object;
-struct Depsgraph;
+struct HookModifierData;
+}  // namespace blender
+
+namespace blender {
+namespace gpu {
+class StorageBuf;
+}  // namespace gpu
 }  // namespace blender
 
 namespace blender::draw {
@@ -21,7 +24,6 @@ namespace blender::draw {
 
 /* Forward declaration for MeshBatchCache */
 struct MeshBatchCache;
-using namespace blender::bke;
 
 /**
  * Manager for GPU-accelerated Hook deformation.

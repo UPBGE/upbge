@@ -1263,9 +1263,9 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
 
     /* Prepare transformation matrix for scatter */
     const std::string key_transform_mat = "gpu_modifiers_pipeline_transform_mat";
-    gpu::StorageBuf *ssbo_transform_mat = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_transform_mat);
+    gpu::StorageBuf *ssbo_transform_mat = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_transform_mat);
     if (!ssbo_transform_mat) {
-      ssbo_transform_mat = BKE_mesh_gpu_internal_ssbo_ensure(
+      ssbo_transform_mat = bke::BKE_mesh_gpu_internal_ssbo_ensure(
           mesh_owner, eval_obj, key_transform_mat, sizeof(float) * 16);
       float identity[4][4];
       unit_m4(identity);
