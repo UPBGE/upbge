@@ -35,10 +35,6 @@
 #include <set>
 #include <vector>
 
-#include "DNA_action_types.h"
-#include "DNA_collection_types.h"
-#include "DNA_ID.h"  // For IDRecalcFlag
-
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 #include "KX_PhysicsEngineEnums.h"

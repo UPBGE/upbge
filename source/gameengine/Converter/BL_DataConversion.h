@@ -37,9 +37,13 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
 
-#include "BKE_main.hh"
-#include "../depsgraph/DEG_depsgraph_query.hh"
-#include "DNA_object_types.h"
+namespace blender {
+struct Mesh;
+struct Object;
+struct Depsgraph;
+struct Main;
+}  // namespace blender
+
 
 class RAS_MeshObject *BL_ConvertMesh(blender::Mesh *mesh,
                                      blender::Object *lightobj,

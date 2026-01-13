@@ -18,7 +18,6 @@
 
 
 #  include "BLI_threads.h"
-#  include "DNA_listBase.h"
 #  include <pthread.h>
 
 #  include <epoxy/gl.h>

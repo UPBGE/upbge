@@ -37,7 +37,11 @@
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsController.h"
 
-#include "DNA_modifier_types.h"
+namespace blender {
+struct Mesh;
+struct Object;
+struct SimpleDeformModifierDataBGE;
+}  // namespace blender
 
 extern btScalar gDeactivationTime;
 extern float gLinearSleepingTreshold;
