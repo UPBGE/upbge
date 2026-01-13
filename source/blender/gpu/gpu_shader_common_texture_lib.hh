@@ -12,10 +12,335 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
-namespace blender {
+#include "BKE_action.hh"
+
+#include "BLI_math_matrix.h"
+
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
+#include "DNA_texture_types.h"
 
 namespace blender::gpu {
+
+/* Forward declarations for Blender types used by helpers. These are defined
+ * in DNA/BKE headers but forward-declaring here avoids heavy includes in the
+ * common header. Implementation lives in a separate compilation unit. */
+struct Tex;
+struct Object;
+struct Image;
+struct DisplaceModifierData;
+
+/* C++ std140-compatible structs for ColorBand UBO data. Placed here so
+ * CPU-side code can build and upload UBOs matching the GLSL typedefs. */
+
+struct GPUCBData {
+  float rgba[4];
+  float pos_cur_pad[4];
+};
+
+struct GPUColorBand {
+  int32_t tot_cur_ipotype_hue[4];
+  int32_t color_mode_pad[4];
+  GPUCBData data[32];
+};
+
+/* C++ std140-compatible struct for TextureParams UBO. Fields chosen to match
+ * the GLSL `TextureParams` typedef. Use primitive arrays to ensure packing. */
+struct GPUTextureParams {
+  float tex_crop[4];
+  int32_t tex_repeat_xmir[4];
+  int32_t tex_properties[4];
+  float tex_bricont[4];
+  float tex_size_ofs_rot[4];
+  int32_t tex_mapping_misc[4];
+  int32_t tex_flags[4];
+  int32_t tex_noise[4];
+  float tex_noisesize_turbul[4]; /* noisesize, turbul, pad, pad */
+  int32_t tex_misc2[4];
+  float tex_rgbfac[4];
+  float tex_distamount[4];
+  int32_t tex_misc3[4];
+  float u_object_to_world_mat[16];
+  float u_mapref_imat[16];
+};
+
+/* Helper: fill a GPUTextureParams struct from a Tex + modifier info.
+ * - `tex` may be nullptr.
+ * - `dmd` may be nullptr (no modifier-specific parameters).
+ * - `deformed_eval` is the evaluated object used for object/world matrices.
+ * - `scene_frame` is current frame for animated textures.
+ * - `tex_is_byte/tex_is_float/tex_channels` are metadata from the ImBuf or
+ *   cached values obtained by the caller (avoid re-acquiring ImBuf here).
+ * - `has_tex_coords` indicates whether per-vertex texture coordinates exist.
+ *
+ * The function mirrors the parameter packing previously present in
+ * `draw_displace.cc` and centralizes it so other modifiers can reuse it.
+ */
+inline void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
+                                  blender::Tex *tex,
+                                  const blender::ModifierData *md,
+                                  blender::Object *deformed_eval,
+                                  int scene_frame,
+                                  bool tex_is_byte,
+                                  bool tex_is_float,
+                                  int tex_channels,
+                                  bool has_tex_coords)
+{
+  /* Initialize to zero to ensure all padding fields are deterministic. */
+  memset(&gpu_tex_params, 0, sizeof(gpu_tex_params));
+
+  if (!tex) {
+    return;
+  }
+
+  /* Crop */
+  gpu_tex_params.tex_crop[0] = tex->cropxmin;
+  gpu_tex_params.tex_crop[1] = tex->cropymin;
+  gpu_tex_params.tex_crop[2] = tex->cropxmax;
+  gpu_tex_params.tex_crop[3] = tex->cropymax;
+
+  /* Repeat.x, Repeat.y, xmir, ymir (stored as integers in UBO) */
+  gpu_tex_params.tex_repeat_xmir[0] = int32_t(tex->xrepeat);
+  gpu_tex_params.tex_repeat_xmir[1] = int32_t(tex->yrepeat);
+  gpu_tex_params.tex_repeat_xmir[2] = int32_t((tex->flag & TEX_REPEAT_XMIR) ? 1 : 0);
+  gpu_tex_params.tex_repeat_xmir[3] = int32_t((tex->flag & TEX_REPEAT_YMIR) ? 1 : 0);
+
+  /* Properties: is_byte, is_float, channels, type */
+  gpu_tex_params.tex_properties[0] = tex_is_byte ? 1 : 0;
+  gpu_tex_params.tex_properties[1] = tex_is_float ? 1 : 0;
+  gpu_tex_params.tex_properties[2] = tex_channels;
+  gpu_tex_params.tex_properties[3] = tex->type;
+
+  /* Bright/Contrast/Saturation */
+  gpu_tex_params.tex_bricont[0] = tex->bright;
+  gpu_tex_params.tex_bricont[1] = tex->contrast;
+  gpu_tex_params.tex_bricont[2] = tex->saturation;
+
+  /* RGB factors (rfac/gfac/bfac) */
+  gpu_tex_params.tex_rgbfac[0] = tex->rfac;
+  gpu_tex_params.tex_rgbfac[1] = tex->gfac;
+  gpu_tex_params.tex_rgbfac[2] = tex->bfac;
+
+  /* Size / Ofs / Rot (fallback to defaults when fields are not available) */
+  gpu_tex_params.tex_size_ofs_rot[0] = 1.0f;
+  gpu_tex_params.tex_size_ofs_rot[1] = 1.0f;
+  gpu_tex_params.tex_size_ofs_rot[2] = 0.0f;
+  gpu_tex_params.tex_size_ofs_rot[3] = 0.0f;
+
+  /* Mapping and misc */
+  int tex_mapping = MOD_DISP_MAP_LOCAL;
+  switch (md->type) {
+    case eModifierType_Displace: {
+      const blender::DisplaceModifierData *dmd = reinterpret_cast<const blender::DisplaceModifierData *>(md);
+      tex_mapping = int(dmd->texmapping);
+      if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
+        tex_mapping = MOD_DISP_MAP_LOCAL;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || !has_tex_coords;
+  gpu_tex_params.tex_mapping_misc[0] = tex_mapping;
+  gpu_tex_params.tex_mapping_misc[1] = mapping_use_input_positions ? 1 : 0;
+
+  int mtex_mapto = 0;
+  gpu_tex_params.tex_mapping_misc[2] = mtex_mapto;
+  gpu_tex_params.tex_mapping_misc[3] = tex->stype;
+
+  /* Flags / extend / checkerdist / imaflag */
+  gpu_tex_params.tex_flags[0] = tex->flag;
+  gpu_tex_params.tex_flags[1] = tex->extend;
+  gpu_tex_params.tex_flags[2] = int(tex->checkerdist * 1000.0f);
+
+  /* Store imaflag and runtime alpha flags in misc3 for use by shader helper macros */
+  gpu_tex_params.tex_misc3[0] = tex->imaflag;
+  {
+    blender::Image *ima_local = tex->ima;
+    bool use_talpha_local = false;
+    if ((tex->imaflag & TEX_USEALPHA) && ima_local && (ima_local->alpha_mode != IMA_ALPHA_IGNORE))
+    {
+      if ((tex->imaflag & TEX_CALCALPHA) == 0) {
+        use_talpha_local = true;
+      }
+    }
+    gpu_tex_params.tex_misc3[1] = use_talpha_local ? 1 : 0;
+    gpu_tex_params.tex_misc3[2] = ((tex->imaflag & TEX_CALCALPHA) != 0) ? 1 : 0;
+    gpu_tex_params.tex_misc3[3] = ((tex->flag & TEX_NEGALPHA) != 0) ? 1 : 0;
+  }
+
+  /* Noise params */
+  gpu_tex_params.tex_noise[0] = tex->noisebasis;
+  gpu_tex_params.tex_noise[1] = tex->noisebasis2;
+  gpu_tex_params.tex_noise[2] = tex->noisedepth;
+  gpu_tex_params.tex_noise[3] = tex->noisetype;
+
+  /* Noisesize and turbul */
+  gpu_tex_params.tex_noisesize_turbul[0] = tex->noisesize;
+  gpu_tex_params.tex_noisesize_turbul[1] = tex->turbul;
+
+  /* Misc2: filtersize*1000, frame */
+  gpu_tex_params.tex_misc2[0] = int(tex->filtersize * 1000.0f);
+  gpu_tex_params.tex_misc2[1] = scene_frame;
+
+  /* Distance distortion amount */
+  gpu_tex_params.tex_distamount[0] = tex->dist_amount;
+
+  /* Object->world matrix */
+  if (deformed_eval) {
+    memcpy(gpu_tex_params.u_object_to_world_mat,
+           deformed_eval->object_to_world().ptr(),
+           sizeof(gpu_tex_params.u_object_to_world_mat));
+  }
+
+  /* mapref_imat: compute inverse map reference for MOD_DISP_MAP_OBJECT when possible. */
+  float mapref_imat[4][4];
+  unit_m4(mapref_imat);
+  switch (md->type) {
+    case eModifierType_Displace: {
+      const blender::DisplaceModifierData *dmd = reinterpret_cast<const blender::DisplaceModifierData *>(md);
+      if (dmd->texmapping == MOD_DISP_MAP_OBJECT && dmd->map_object != nullptr) {
+        blender::Object *map_object = dmd->map_object;
+        if (dmd->map_bone[0] != '\0') {
+          bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, dmd->map_bone);
+          if (pchan) {
+            float mat_bone_world[4][4];
+            mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
+            invert_m4_m4(mapref_imat, mat_bone_world);
+          }
+          else {
+            invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+          }
+        }
+        else {
+          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  memcpy(gpu_tex_params.u_mapref_imat, mapref_imat, sizeof(gpu_tex_params.u_mapref_imat));
+}
+
+  /* Typedefs for ColorBand / CBData used by shaders. Kept separate so callers
+ * can set as typedef header in ShaderCreateInfo (avoids duplicating in compute source). */
+static std::string get_texture_typedefs_glsl()
+{
+  return R"GLSL(
+struct CBData {
+  vec4 rgba;         /* r, g, b, a packed in vec4 */
+  vec4 pos_cur_pad;  /* pos, cur (as float), pad[2] */
+};
+
+struct ColorBand {
+  ivec4 tot_cur_ipotype_hue;  /* tot, cur, ipotype, ipotype_hue */
+  ivec4 color_mode_pad;       /* color_mode, pad[3] */
+  CBData data[32];
+};
+
+struct TextureParams {
+  vec4 tex_crop;           /* cropxmin, cropymin, cropxmax, cropymax */
+  ivec4 tex_repeat_xmir;    /* repeat.x, repeat.y, xmir(0/1), ymir(0/1) */
+  ivec4 tex_properties;    /* is_byte(0/1), is_float(0/1), channels, type */
+  vec4 tex_bricont;        /* bright, contrast, saturation, pad */
+  vec4 tex_size_ofs_rot;   /* size.x, size.y, ofs.x, ofs.y (rot in .z or separate) */
+  ivec4 tex_mapping_misc;  /* mapping, mapping_use_input_positions(0/1), mtex_mapto, stype */
+  ivec4 tex_flags;         /* flag, extend, checkerdist(as int*1000), pad */
+  ivec4 tex_noise;         /* noisebasis, noisebasis2, noisedepth, noisetype */
+  vec4 tex_noisesize_turbul; /* noisesize, turbul, pad, pad */
+  ivec4 tex_misc2;         /* filtersize*1000 (as int), frame, pad, pad */
+  vec4 tex_rgbfac;        /* rfac, gfac, bfac, pad */
+  vec4 tex_distamount;    /* distamount, pad... */
+  ivec4 tex_misc3;        /* imaflag, pad, pad, pad */
+  mat4 u_object_to_world_mat; /* object->world */
+  mat4 u_mapref_imat;         /* inverse map reference for object mapping */
+};
+
+)GLSL";
+}
+
+/* Texture parameter UBO shared by texture/image helpers.
+ * Packed for std140 layout. Shaders can read via `tex_params`.
+ * This allows modifiers to upload a single UBO instead of many push constants. */
+static std::string get_texture_params_glsl()
+{
+  return R"GLSL(
+/* Convenience macros that map legacy push-constant names used throughout the
+ * texture helpers to fields inside the std140 `tex_params` UBO. This allows
+ * existing shader code to keep referencing `u_tex_*` identifiers while the
+ * real data is packed into a single UBO on the CPU side.
+ *
+ * Note: some values (rfac/gfac/bfac, u_use_talpha, u_tex_calcalpha, etc.) are
+ * still provided as push-constants in the current C++ shader setup. We only
+ * map fields that were migrated into `TextureParams` above.
+ */
+#define u_tex_crop tex_params.tex_crop
+#define u_tex_repeat vec2(tex_params.tex_repeat_xmir.x, tex_params.tex_repeat_xmir.y)
+#define u_tex_xmir (tex_params.tex_repeat_xmir.z != 0)
+#define u_tex_ymir (tex_params.tex_repeat_xmir.w != 0)
+#define u_tex_is_byte (tex_params.tex_properties.x != 0)
+#define u_tex_is_float (tex_params.tex_properties.y != 0)
+#define u_tex_channels int(tex_params.tex_properties.z)
+#define u_tex_type int(tex_params.tex_properties.w)
+#define u_tex_bricont tex_params.tex_bricont
+#define u_tex_bright tex_params.tex_bricont.x
+#define u_tex_contrast tex_params.tex_bricont.y
+#define u_tex_saturation tex_params.tex_bricont.z
+#define u_tex_rfac tex_params.tex_rgbfac.x
+#define u_tex_gfac tex_params.tex_rgbfac.y
+#define u_tex_bfac tex_params.tex_rgbfac.z
+#define u_tex_distamount tex_params.tex_distamount.x
+#define u_tex_noisesize tex_params.tex_noisesize_turbul.x
+#define u_tex_turbul tex_params.tex_noisesize_turbul.y
+#define u_tex_size_param vec3(tex_params.tex_size_ofs_rot.x, tex_params.tex_size_ofs_rot.y, 0.0)
+#define u_tex_ofs vec3(tex_params.tex_size_ofs_rot.z, tex_params.tex_size_ofs_rot.w, 0.0)
+#define u_tex_mapping int(tex_params.tex_mapping_misc.x)
+#define u_mapping_use_input_positions (tex_params.tex_mapping_misc.y != 0)
+#define u_mtex_mapto int(tex_params.tex_mapping_misc.z)
+#define u_tex_stype int(tex_params.tex_mapping_misc.w)
+#define u_tex_flag int(tex_params.tex_flags.x)
+#define u_tex_extend int(tex_params.tex_flags.y)
+#define u_tex_checkerdist (float(tex_params.tex_flags.z) / 1000.0)
+#define u_tex_noisebasis int(tex_params.tex_noise.x)
+#define u_tex_noisebasis2 int(tex_params.tex_noise.y)
+#define u_tex_noisedepth int(tex_params.tex_noise.z)
+#define u_tex_noisetype int(tex_params.tex_noise.w)
+#define u_tex_filtersize (float(tex_params.tex_misc2.x) / 1000.0)
+#define u_tex_frame int(tex_params.tex_misc2.y)
+#define u_object_to_world_mat tex_params.u_object_to_world_mat
+#define u_mapref_imat tex_params.u_mapref_imat
+/* Additional derived flags */
+#define u_tex_no_clamp ((tex_params.tex_flags.x & TEX_NO_CLAMP) != 0)
+
+/* Runtime flags migrated into `TextureParams.tex_misc3` to reduce push-constant
+ * usage. Map legacy names to UBO fields so existing shader code keeps
+ * working without uniform/push-constant updates. */
+#define u_use_talpha (tex_params.tex_misc3.y != 0)
+#define u_tex_calcalpha (tex_params.tex_misc3.z != 0)
+#define u_tex_negalpha (tex_params.tex_misc3.w != 0)
+/* Legacy/auxiliary texture macros expected by imagewrap/multitex helpers.
+ * Use numeric bit-masks here to avoid depending on TEX_* defines being
+ * available at the point this header is injected into shader sources. */
+#define U_BIT_IMAROT (1 << 4)
+#define U_BIT_CHECKER_ODD (1 << 3)
+#define U_BIT_CHECKER_EVEN (1 << 4)
+#define U_BIT_INTERPOL (1 << 0)
+#define U_BIT_FLIPBLEND (1 << 1)
+
+#define u_tex_flip_axis ((tex_params.tex_misc3.x & U_BIT_IMAROT) != 0)
+#define u_tex_checker_odd ((tex_params.tex_flags.x & U_BIT_CHECKER_ODD) != 0)
+#define u_tex_checker_even ((tex_params.tex_flags.x & U_BIT_CHECKER_EVEN) != 0)
+#define u_tex_interpol ((tex_params.tex_misc3.x & U_BIT_INTERPOL) != 0)
+#define u_tex_flipblend ((tex_params.tex_flags.x & U_BIT_FLIPBLEND) != 0)
+#define u_tex_rot (tex_params.tex_size_ofs_rot.z)
+)GLSL";
+}
 
 /* -------------------------------------------------------------------- */
 /** \name ColorBand Defines and Helper Functions
@@ -236,7 +561,6 @@ struct TexResult_tex {
 };
 )GLSL";
 }
-
 
 /**
  * Returns GLSL code for ColorBand-related defines and helper functions.
@@ -3223,5 +3547,3 @@ static std::string get_common_texture_image_lib_glsl()
 }
 
 }  // namespace blender::gpu
-
-}  // namespace blender

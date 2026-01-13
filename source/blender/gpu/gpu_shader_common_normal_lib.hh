@@ -19,8 +19,6 @@
 
 #include <string>
 
-namespace blender {
-
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -377,4 +375,3 @@ static std::string get_common_normal_lib_glsl()
 /** \} */
 
 }  // namespace blender::gpu
-}  // namespace blender

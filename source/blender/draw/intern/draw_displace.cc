@@ -259,13 +259,13 @@ static std::string get_displace_shader_part1(bool image_only = false)
   /* Define position buffer macro before including libs */
   if (image_only) {
     return "#define POSITION_BUFFER input_positions\n" +
-           blender::gpu::get_common_texture_image_lib_glsl() + /* Image-only texture helpers */
-           blender::gpu::get_common_normal_lib_glsl();
+           gpu::get_common_texture_image_lib_glsl() + /* Image-only texture helpers */
+           gpu::get_common_normal_lib_glsl();
   }
 
   return "#define POSITION_BUFFER input_positions\n" +
-         blender::gpu::get_common_texture_lib_glsl() +  /* ColorBand + boxsample + do_2d_mapping() */
-         blender::gpu::get_common_normal_lib_glsl();   /* Normal calculation functions */
+         gpu::get_common_texture_lib_glsl() +  /* ColorBand + boxsample + do_2d_mapping() */
+         gpu::get_common_normal_lib_glsl();   /* Normal calculation functions */
 }
 
 /* Part 2: Main function body (texture sampling + displacement logic)
@@ -837,42 +837,18 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
    * GPU port of: if (tex->flag & TEX_COLORBAND) { ... } */
   const std::string key_colorband = key_prefix + "colorband";
   gpu::UniformBuf *ubo_colorband = nullptr;
-  bool use_colorband = false;
-
-  /* ColorBand UBO layout (std140, vec4-aligned):
-   * struct CBData {
-   *   vec4 rgba;         // r, g, b, a packed in vec4 (16 bytes)
-   *   vec4 pos_cur_pad;  // pos, cur (as float), pad[2] (16 bytes)
-   * };  // Total: 32 bytes per stop
-   *
-   * struct ColorBand {
-   *   ivec4 tot_cur_ipotype_hue;  // tot, cur, ipotype, ipotype_hue (16 bytes)
-   *   ivec4 color_mode_pad;       // color_mode, pad[3] (16 bytes)
-   *   CBData data[32];            // 32 * 32 bytes = 1024 bytes
-   * };  // Total: 1056 bytes */
-
-  struct GPUCBData {
-    float rgba[4];        /* r, g, b, a */
-    float pos_cur_pad[4]; /* pos, cur (as float), pad[2] */
-  };
-
-  struct GPUColorBand {
-    int32_t tot_cur_ipotype_hue[4]; /* tot, cur, ipotype, ipotype_hue */
-    int32_t color_mode_pad[4];      /* color_mode, pad[3] */
-    GPUCBData data[32];
-  };
-
-  const size_t size_colorband = sizeof(GPUColorBand);
+  const size_t size_colorband = sizeof(gpu::GPUColorBand);
 
   /* Check if UBO already exists in cache */
   ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
 
+  bool use_colorband = false;
   if (!ubo_colorband) {
     /* Create and upload ColorBand data */
     if (shader_has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND)) {
       use_colorband = true;
 
-      GPUColorBand gpu_coba = {};
+      gpu::GPUColorBand gpu_coba = {};
       ColorBand *coba = dmd->texture->coba;
 
       gpu_coba.tot_cur_ipotype_hue[0] = coba->tot;
@@ -898,7 +874,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     }
     else {
       /* No colorband: create dummy UBO to avoid binding errors */
-      GPUColorBand dummy_coba = {};
+      gpu::GPUColorBand dummy_coba = {};
       dummy_coba.tot_cur_ipotype_hue[0] = 0; /* 0 stops = disabled */
 
       ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(
@@ -911,6 +887,40 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   else {
     /* UBO exists, check if we need to enable colorband */
     use_colorband = (shader_has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND));
+  }
+
+  /* Create/Update TextureParams UBO (similar pattern to ColorBand) */
+  const std::string key_tex_params = key_prefix + "texture_params";
+  gpu::UniformBuf *ubo_texture_params = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_tex_params);
+  gpu::GPUTextureParams gpu_tex_params = {};
+
+  if (shader_has_texture && dmd->texture) {
+    Tex *tex = dmd->texture;
+
+    /* Use centralized helper to fill all TextureParams fields. */
+    blender::gpu::fill_texture_params_from_tex(gpu_tex_params,
+                                               tex,
+                                               (ModifierData *)dmd,
+                                               deformed_eval,
+                                               scene_frame,
+                                               msd.tex_is_byte,
+                                               msd.tex_is_float,
+                                               msd.tex_channels,
+                                               !msd.tex_coords.empty());
+
+    /* `fill_texture_params_from_tex()` has already populated the remaining
+     * texture parameter fields (flags, misc3, noise, noisesize/turbul,
+     * misc2, distamount, object/world matrices and mapref_imat). Keep a
+     * single source of truth to avoid duplicated logic. */
+  }
+
+  const size_t size_tex_params = sizeof(gpu::GPUTextureParams);
+  if (!ubo_texture_params) {
+    ubo_texture_params = bke::BKE_mesh_gpu_internal_ubo_ensure(
+        mesh_owner, deformed_eval, key_tex_params, size_tex_params);
+  }
+  if (ubo_texture_params) {
+    GPU_uniformbuf_update(ubo_texture_params, &gpu_tex_params);
   }
 
   /* Create output SSBO */
@@ -958,22 +968,13 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     std::string glsl_accessors = bke::BKE_mesh_gpu_topology_glsl_accessors_string(
         mesh_gpu_data->topology);
 
-    /* Build typedef header with ColorBand structure (vec4-aligned for UBO std140 layout) */
-    std::string typedef_header = R"GLSL(
-struct CBData {
-  vec4 rgba;         /* r, g, b, a packed in vec4 */
-  vec4 pos_cur_pad;  /* pos, cur (as float), pad[2] */
-};
-
-struct ColorBand {
-  ivec4 tot_cur_ipotype_hue;  /* tot, cur, ipotype, ipotype_hue */
-  ivec4 color_mode_pad;       /* color_mode, pad[3] */
-  CBData data[32];
-};
-)GLSL";
-
-    info.typedef_source_generated = typedef_header;
-    info.compute_source_generated = glsl_accessors + shader_src;
+    /* Use shared typedefs (ColorBand + TextureParams) from common lib. */
+    info.typedef_source_generated = gpu::get_texture_typedefs_glsl();
+    /* Ensure texture params macros are available before any included GLSL
+     * accessors (they may reference legacy `u_tex_*` identifiers). Prepend
+     * `get_texture_params_glsl()` so macros map to the `tex_params` UBO
+     * before other generated sources are concatenated. */
+    info.compute_source_generated = gpu::get_texture_params_glsl() + glsl_accessors + shader_src;
 
     /* Bindings */
     info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
@@ -983,8 +984,10 @@ struct ColorBand {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
       info.sampler(0, ImageType::Float2D, "displacement_texture");
     }
-    /* ColorBand UBO (binding 5) - added for TEX_COLORBAND support */
+    /* ColorBand UBO (binding 4) - added for TEX_COLORBAND support */
     info.uniform_buf(4, "ColorBand", "tex_colorband");
+    /* TextureParams UBO (binding 5) - contains packed texture parameters */
+    info.uniform_buf(5, "TextureParams", "tex_params");
     /* Topology SSBO (binding 4) - parser automatically generates declaration before typedef */
     info.storage_buf(15, Qualifier::read, "int", "topo[]");
 
@@ -996,62 +999,12 @@ struct ColorBand {
     info.push_constant(Type::bool_t, "u_use_global");
     info.push_constant(Type::bool_t, "u_use_colorband"); /* ColorBand enable flag */
 
-    /* Texture processing parameters (for BRICONTRGB and de-premultiply) */
-    if (shader_has_texture) {
-      info.push_constant(Type::bool_t, "u_use_talpha");      /* Enable de-premultiply */
-      info.push_constant(Type::bool_t, "u_tex_calcalpha");   /* TEX_CALCALPHA */
-      info.push_constant(Type::bool_t, "u_tex_negalpha");    /* TEX_NEGALPHA */
-      info.push_constant(Type::float_t, "u_tex_bright");     /* Tex->bright */
-      info.push_constant(Type::float_t, "u_tex_contrast");   /* Tex->contrast */
-      info.push_constant(Type::float_t, "u_tex_saturation"); /* Tex->saturation */
-      info.push_constant(Type::float_t, "u_tex_rfac");       /* Tex->rfac */
-      info.push_constant(Type::float_t, "u_tex_gfac");       /* Tex->gfac */
-      info.push_constant(Type::float_t, "u_tex_bfac");       /* Tex->bfac */
-      info.push_constant(Type::bool_t, "u_tex_no_clamp");    /* Tex->flag & TEX_NO_CLAMP */
-      info.push_constant(Type::int_t, "u_tex_extend");       /* Tex->extend (wrap mode) */
-      info.push_constant(Type::float4_t,
-                         "u_tex_crop"); /* (cropxmin, cropymin, cropxmax, cropymax) */
-      info.push_constant(Type::float2_t, "u_tex_repeat");     /* (xrepeat, yrepeat) */
-      info.push_constant(Type::bool_t, "u_tex_xmir");         /* TEX_REPEAT_XMIR */
-      info.push_constant(Type::bool_t, "u_tex_ymir");         /* TEX_REPEAT_YMIR */
-      info.push_constant(Type::bool_t, "u_tex_interpol");     /* TEX_INTERPOL */
-      info.push_constant(Type::float_t, "u_tex_filtersize");  /* Tex->filtersize for boxsample */
-      info.push_constant(Type::bool_t, "u_tex_checker_odd");  /* TEX_CHECKER_ODD */
-      info.push_constant(Type::bool_t, "u_tex_checker_even"); /* TEX_CHECKER_EVEN */
-      info.push_constant(Type::float_t, "u_tex_checkerdist"); /* Tex->checkerdist */
-      info.push_constant(Type::bool_t, "u_tex_flipblend");    /* TEX_FLIPBLEND */
-      info.push_constant(Type::bool_t, "u_tex_flip_axis");    /* TEX_IMAROT (flip X/Y) */
-      /* Texture transformation parameters (rotation/scale/offset) */
-      info.push_constant(Type::float3_t, "u_tex_size_param");  /* Tex->size (scale X/Y/Z) */
-      info.push_constant(Type::float3_t, "u_tex_ofs");         /* Tex->ofs (offset X/Y/Z) */
-      info.push_constant(Type::float_t, "u_tex_rot");          /* Tex->rot (rotation Z in radians) */
-      /* Mapping controls (when mapping_use_input_positions==true shader will
-       * compute texture coords from input_positions[] instead of using
-       * precomputed texture_coords[]). UV mapping remains CPU-side. */
-      info.push_constant(Type::int_t, "u_tex_mapping");
-      info.push_constant(Type::bool_t, "u_mapping_use_input_positions");
-      info.push_constant(Type::float4x4_t, "u_object_to_world_mat");
-      info.push_constant(Type::float4x4_t, "u_mapref_imat");
-      info.push_constant(Type::bool_t, "u_tex_is_byte"); /* Image data originally bytes (needs premultiply) */
-      info.push_constant(Type::bool_t, "u_tex_is_float"); /* ImBuf had float data */
-      info.push_constant(Type::int_t, "u_tex_channels");  /* number of channels in ImBuf (1/3/4) */
-      info.push_constant(Type::int_t, "u_mtex_mapto");    /* MTex.mapto flags (MAP_COL etc.) */
-      /* Texture subtype and flags to match CPU Tex struct (Tex->stype, Tex->flag) */
-      info.push_constant(Type::int_t, "u_tex_stype");
-      info.push_constant(Type::int_t, "u_tex_flag");
-      info.push_constant(Type::int_t, "u_tex_type");
-      if (!image_only_compile) {
-        /* Add procedural/noise-related push constants only when not compiling image-only shader */
-        info.push_constant(Type::int_t, "u_tex_noisebasis");
-        info.push_constant(Type::int_t, "u_tex_noisebasis2");
-        info.push_constant(Type::float_t, "u_tex_noisesize");
-        info.push_constant(Type::float_t, "u_tex_turbul");
-        info.push_constant(Type::int_t, "u_tex_noisetype");
-        info.push_constant(Type::int_t, "u_tex_noisedepth");
-        info.push_constant(Type::float_t, "u_tex_distamount");
-        info.push_constant(Type::int_t, "u_tex_frame"); /* Current frame for animated textures */
-      }
-    }
+    /* Texture processing parameters are mostly packed in the `TextureParams` UBO.
+     * Only a minimal set of runtime push constants are declared above; detailed
+     * mapping and sampling flags live inside the UBO so shaders can access them
+     * via `tex_params`. This avoids large push-constant usage and keeps shaders
+     * compatible with legacy `u_tex_*` identifiers through macros in the
+     * common texture library. */
     bke::BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 
     shader = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
@@ -1065,7 +1018,7 @@ struct ColorBand {
     ColorBand *coba = dmd->texture->coba;
     uint32_t new_hash = colorband_hash_from_coba(coba);
     if (new_hash != msd.colorband_hash) {
-      GPUColorBand gpu_coba = {};
+      gpu::GPUColorBand gpu_coba = {};
 
       gpu_coba.tot_cur_ipotype_hue[0] = coba->tot;
       gpu_coba.tot_cur_ipotype_hue[1] = coba->cur;
@@ -1115,6 +1068,10 @@ struct ColorBand {
   if (ubo_colorband) {
     GPU_uniformbuf_bind(ubo_colorband, 4);
   }
+  /* Bind TextureParams UBO (binding 5) */
+  if (ubo_texture_params) {
+    GPU_uniformbuf_bind(ubo_texture_params, 5);
+  }
 
   /* Set uniforms (runtime parameters) */
   GPU_shader_uniform_mat4(shader, "u_local_mat", (const float(*)[4])local_mat);
@@ -1138,122 +1095,11 @@ struct ColorBand {
       }
     }
 
-    GPU_shader_uniform_1b(shader, "u_use_talpha", use_talpha);
-    GPU_shader_uniform_1b(shader, "u_tex_calcalpha", (tex->imaflag & TEX_CALCALPHA) != 0);
-    GPU_shader_uniform_1b(shader, "u_tex_negalpha", (tex->flag & TEX_NEGALPHA) != 0);
-    GPU_shader_uniform_1f(shader, "u_tex_bright", tex->bright);
-    GPU_shader_uniform_1f(shader, "u_tex_contrast", tex->contrast);
-    GPU_shader_uniform_1f(shader, "u_tex_saturation", tex->saturation);
-    GPU_shader_uniform_1f(shader, "u_tex_rfac", tex->rfac);
-    GPU_shader_uniform_1f(shader, "u_tex_gfac", tex->gfac);
-    GPU_shader_uniform_1f(shader, "u_tex_bfac", tex->bfac);
-    GPU_shader_uniform_1b(shader, "u_tex_no_clamp", (tex->flag & TEX_NO_CLAMP) != 0);
-    GPU_shader_uniform_1i(shader, "u_tex_extend", int(tex->extend));
-
-    /* Upload crop parameters (xmin, ymin, xmax, ymax) */
-    float crop[4] = {tex->cropxmin, tex->cropymin, tex->cropxmax, tex->cropymax};
-    GPU_shader_uniform_4f(shader, "u_tex_crop", crop[0], crop[1], crop[2], crop[3]);
-
-    /* Upload repeat/mirror flags */
-    GPU_shader_uniform_2f(shader, "u_tex_repeat", float(tex->xrepeat), float(tex->yrepeat));
-    GPU_shader_uniform_1b(shader, "u_tex_xmir", (tex->flag & TEX_REPEAT_XMIR) != 0);
-    GPU_shader_uniform_1b(shader, "u_tex_ymir", (tex->flag & TEX_REPEAT_YMIR) != 0);
-    GPU_shader_uniform_1b(shader, "u_tex_interpol", (tex->imaflag & TEX_INTERPOL) != 0);
-    GPU_shader_uniform_1b(shader, "u_tex_checker_odd", (tex->flag & TEX_CHECKER_ODD) == 0);
-    GPU_shader_uniform_1b(shader, "u_tex_checker_even", (tex->flag & TEX_CHECKER_EVEN) == 0);
-    GPU_shader_uniform_1b(shader, "u_tex_flipblend", (tex->flag & TEX_FLIPBLEND) != 0);
-    GPU_shader_uniform_1b(shader, "u_tex_flip_axis", (tex->imaflag & TEX_IMAROT) != 0);
-    GPU_shader_uniform_1f(shader, "u_tex_filtersize", tex->filtersize);
-
-    /* Checker pattern scaling parameter */
-    GPU_shader_uniform_1f(shader, "u_tex_checkerdist", tex->checkerdist);
-
-    /* NEW: Texture transformation parameters (rotation/scale/offset)
-     * NOTE: These fields (size/ofs/rot) may not exist in all Tex versions.
-     * For now, use default values (no transformation). Future versions can enable these. */
-    float tex_size_default[3] = {1.0f, 1.0f, 1.0f};
-    float tex_ofs_default[3] = {0.0f, 0.0f, 0.0f};
-    float tex_rot_default = 0.0f;
-    
-    GPU_shader_uniform_3f(shader, "u_tex_size_param", tex_size_default[0], tex_size_default[1], tex_size_default[2]);
-    GPU_shader_uniform_3f(shader, "u_tex_ofs", tex_ofs_default[0], tex_ofs_default[1], tex_ofs_default[2]);
-    GPU_shader_uniform_1f(shader, "u_tex_rot", tex_rot_default);
-
-    /* Use metadata from MeshStaticData (filled during texture upload) */
-    GPU_shader_uniform_1b(shader, "u_tex_is_byte", msd.tex_is_byte);
-    GPU_shader_uniform_1b(shader, "u_tex_is_float", msd.tex_is_float);
-    msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
-    GPU_shader_uniform_1i(shader, "u_tex_channels", msd.tex_channels);
-
-    /* Texture subtype and flag (match CPU Tex struct) */
-    GPU_shader_uniform_1i(shader, "u_tex_stype", int(tex->stype));
-    GPU_shader_uniform_1i(shader, "u_tex_flag", int(tex->flag));
-
-    /* Pass mtex->mapto to shader so it can decide whether to apply scene color conversion
-     * (MAP_COL flag). If no mtex is used, this will be 0. */
-    int mtex_mapto = 0; /* default: none */
-    GPU_shader_uniform_1i(shader, "u_mtex_mapto", mtex_mapto);
-
-    /* Mapping controls: replicate CPU logic from MOD_get_texture_coords()
-     * If MOD_DISP_MAP_OBJECT but no map_object, fallback to LOCAL.
-     * If UV mapping, use precomputed coords (mapping_use_input_positions = false).
-     * Otherwise compute coords from input_positions in shader. */
-    int tex_mapping = int(dmd->texmapping);
-
-    /* Replicate CPU fallback: if OBJECT mapping but no map_object, use LOCAL */
-    if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
-      tex_mapping = MOD_DISP_MAP_LOCAL;
-    }
-
-    /* When no texture coordinates were uploaded (procedural textures)
-     * force the shader to compute coords from input_positions[]. This
-     * prevents reading an unbound/empty SSBO when using NON-UV mapping. */
-    bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || msd.tex_coords.empty();
-    GPU_shader_uniform_1i(shader, "u_tex_mapping", tex_mapping);
-    GPU_shader_uniform_1b(shader, "u_mapping_use_input_positions", mapping_use_input_positions);
-
-    /* Pass object->world matrix (fast copy) */
-    float obj2w[4][4];
-    memcpy(obj2w, deformed_eval->object_to_world().ptr(), sizeof(obj2w));
-    GPU_shader_uniform_mat4(shader, "u_object_to_world_mat", obj2w);
-
-    /* mapref_imat: compute inverse map reference for MOD_DISP_MAP_OBJECT when possible.
-     * Falls back to identity when no map_object is set. This mirrors logic from
-     * MOD_get_texture_coords(). */
-    float mapref_imat[4][4];
-    if (dmd->texmapping == MOD_DISP_MAP_OBJECT && dmd->map_object != nullptr) {
-      Object *map_object = dmd->map_object;
-      if (dmd->map_bone[0] != '\0') {
-        bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, dmd->map_bone);
-        if (pchan) {
-          float mat_bone_world[4][4];
-          mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
-          invert_m4_m4(mapref_imat, mat_bone_world);
-        }
-        else {
-          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
-        }
-      }
-      else {
-        invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
-      }
-    }
-    else {
-      unit_m4(mapref_imat);
-    }
-    GPU_shader_uniform_mat4(shader, "u_mapref_imat", mapref_imat);
-    /* Multitex / noise uniforms: ensure these are uploaded when present. */
-    GPU_shader_uniform_1i(shader, "u_tex_type", int(tex->type));
-    if (!image_only_compile) {
-      GPU_shader_uniform_1i(shader, "u_tex_noisebasis", int(tex->noisebasis));
-      GPU_shader_uniform_1i(shader, "u_tex_noisebasis2", int(tex->noisebasis2));
-      GPU_shader_uniform_1f(shader, "u_tex_noisesize", float(tex->noisesize));
-      GPU_shader_uniform_1f(shader, "u_tex_turbul", float(tex->turbul));
-      GPU_shader_uniform_1i(shader, "u_tex_noisetype", int(tex->noisetype));
-      GPU_shader_uniform_1i(shader, "u_tex_noisedepth", int(tex->noisedepth));
-      GPU_shader_uniform_1f(shader, "u_tex_distamount", float(tex->dist_amount));
-      GPU_shader_uniform_1i(shader, "u_tex_frame", scene_frame);
-    }
+    /* Many texture-related parameters are packed in the `TextureParams` UBO
+     * and were uploaded earlier via `GPU_uniformbuf_update(ubo_texture_params, ...)`.
+     * Legacy `u_tex_*` identifiers are mapped to UBO fields in the GLSL via
+     * macros defined in `gpu_shader_common_texture_lib.hh`, so no additional
+     * runtime uniforms are required here. */
   }
 
   const int group_size = 256;
@@ -1266,6 +1112,12 @@ struct ColorBand {
   /* Unbind texture */
   if (gpu_texture) {
     GPU_texture_unbind(gpu_texture);
+  }
+  if (ubo_colorband) {
+    GPU_uniformbuf_unbind(ubo_colorband);
+  }
+  if (ubo_texture_params) {
+    GPU_uniformbuf_unbind(ubo_texture_params);
   }
 
   return ssbo_out;
