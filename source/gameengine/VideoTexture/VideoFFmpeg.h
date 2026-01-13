@@ -16,12 +16,10 @@
 #  include <pthread.h>
 
 #  include "BLI_threads.h"
-#  include "DNA_listBase.h"
 
 extern "C" {
 #  include "ffmpeg_compat.h"
 #  include <libavcodec/avcodec.h>
-#  include <pthread.h>
 }
 
 #  include "VideoBase.h"

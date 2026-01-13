@@ -12,18 +12,17 @@
 
 #include <memory>
 
-#include "BKE_modifier.hh"
-
-#include "draw_cache_extract.hh"
-
-#include "GPU_storage_buffer.hh"
-
-/* Forward declarations */
 namespace blender {
 struct Depsgraph;
 struct Mesh;
 struct Object;
 struct SimpleDeformModifierData;
+}  // namespace blender
+
+namespace blender {
+namespace gpu {
+class StorageBuf;
+}  // namespace gpu
 }  // namespace blender
 
 namespace blender::draw {
@@ -49,7 +48,7 @@ class SimpleDeformManager {
    * @return Hash value, or 0 if inputs are invalid
    */
   static uint32_t compute_simpledeform_hash(const Mesh *mesh_orig,
-                                            const blender::SimpleDeformModifierData *smd);
+                                            const SimpleDeformModifierData *smd);
 
   /**
    * Prepare CPU-side static resources (vertex group weights).
@@ -60,7 +59,7 @@ class SimpleDeformManager {
    * @param orig_mesh The original mesh data
    * @param pipeline_hash Hash for change detection
    */
-  void ensure_static_resources(const blender::SimpleDeformModifierData *smd,
+  void ensure_static_resources(const SimpleDeformModifierData *smd,
                                Object *deform_ob,
                                Mesh *orig_mesh,
                                uint32_t pipeline_hash);
@@ -76,7 +75,7 @@ class SimpleDeformManager {
    * @param ssbo_in Input positions SSBO (from previous stage)
    * @return Output SSBO with deformed positions, or nullptr on failure
    */
-  gpu::StorageBuf *dispatch_deform(const blender::SimpleDeformModifierData *smd,
+  gpu::StorageBuf *dispatch_deform(const SimpleDeformModifierData *smd,
                                    Depsgraph *depsgraph,
                                    Object *deformed_eval,
                                    MeshBatchCache *cache,

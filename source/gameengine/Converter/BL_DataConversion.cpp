@@ -72,6 +72,7 @@
 #include "BLI_listbase.h"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_python_proxy_types.h"
 #include "wm_event_types.hh"
 
@@ -256,11 +257,11 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
   for (const RAS_MeshObject::Layer &layer : layers) {
     const unsigned short index = layer.index;
     if (layer.color) {
-      const blender::MLoopCol &col = layer.color[loop];
+      const MLoopCol &col = layer.color[loop];
 
       union Convert {
         // Color isn't swapped in MLoopCol.
-        blender::MLoopCol col;
+        MLoopCol col;
         unsigned int val;
       };
       Convert con;
@@ -345,8 +346,8 @@ static int GetPolygonMaterialIndex(const VArray<int> mat_indices, const blender:
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_MeshObject *BL_ConvertMesh(blender::Mesh *mesh,
-                               blender::Object *blenderobj,
+RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
+                               Object *blenderobj,
                                KX_Scene *scene,
                                RAS_Rasterizer *rasty,
                                BL_SceneConverter *converter,

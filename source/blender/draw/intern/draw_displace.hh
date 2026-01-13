@@ -25,19 +25,20 @@
 
 #pragma once
 
-#include "BLI_map.hh"
-#include "BLI_vector.hh"
-
-#include "DNA_modifier_types.h"
-
-#include "draw_cache_extract.hh"
-
-#include "GPU_shader.hh"
-#include "GPU_storage_buffer.hh"
-
-#include "../blenkernel/intern/mesh_gpu_cache.hh"
-
 #include <memory>
+
+namespace blender {
+struct Depsgraph;
+struct Mesh;
+struct Object;
+struct DisplaceModifierData;
+}  // namespace blender
+
+namespace blender {
+namespace gpu {
+class StorageBuf;
+}  // namespace gpu
+}  // namespace blender
 
 namespace blender::draw {
 

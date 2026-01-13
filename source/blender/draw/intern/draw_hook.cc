@@ -30,6 +30,7 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
+#include "draw_cache_extract.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -438,7 +439,7 @@ gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
   const std::string key_out = key_prefix + "output";
 
   /* Upload vertex group weights SSBO */
-  gpu::StorageBuf *ssbo_vgroup = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
+  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
 
   if (!msd.vgroup_weights.empty()) {
     if (!ssbo_vgroup) {
@@ -467,7 +468,7 @@ gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
   }
 
   /* Upload falloff curve LUT SSBO (if using curve falloff) */
-  gpu::StorageBuf *ssbo_curve = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_curve);
+  gpu::StorageBuf *ssbo_curve = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_curve);
 
   if (!msd.falloff_curve_lut.empty()) {
     if (!ssbo_curve) {
@@ -494,7 +495,7 @@ gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
 
   /* Upload vertex bitmap SSBO (if using indexar) */
   const std::string key_bitmap = key_prefix + "vertex_bitmap";
-  gpu::StorageBuf *ssbo_bitmap = BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_bitmap);
+  gpu::StorageBuf *ssbo_bitmap = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_bitmap);
 
   if (msd.has_indices && !msd.vertex_bitmap.empty()) {
     if (!ssbo_bitmap) {
@@ -573,7 +574,7 @@ gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
 
   /* Create shader */
   const std::string shader_key = "hook_compute";
-  gpu::Shader *shader = BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
   if (!shader) {
     using namespace gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
@@ -599,7 +600,7 @@ gpu::StorageBuf *HookManager::dispatch_deform(const HookModifierData *hmd,
     info.push_constant(Type::bool_t, "use_uniform");
     info.push_constant(Type::bool_t, "use_indices"); /* true if using indexar */
 
-    shader = BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
+    shader = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
   if (!shader) {
     return nullptr;

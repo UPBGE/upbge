@@ -50,8 +50,11 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
+#include "draw_cache_extract.hh"
 
 #include "DEG_depsgraph_query.hh"
+
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -952,7 +955,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
       shader_src += "#define HAS_TEXTURE\n";
     }
     shader_src += get_displace_compute_src(image_only_compile);
-    std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(
+    std::string glsl_accessors = bke::BKE_mesh_gpu_topology_glsl_accessors_string(
         mesh_gpu_data->topology);
 
     /* Build typedef header with ColorBand structure (vec4-aligned for UBO std140 layout) */
@@ -1049,7 +1052,7 @@ struct ColorBand {
         info.push_constant(Type::int_t, "u_tex_frame"); /* Current frame for animated textures */
       }
     }
-    BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
+    bke::BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
 
     shader = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }

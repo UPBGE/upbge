@@ -4,17 +4,18 @@
 
 #pragma once
 
-#include "BLI_map.hh"
-#include "BLI_vector.hh"
-
-#include "BKE_mesh.hh"
-
-#include "GPU_vertex_buffer.hh"
-#include "GPU_storage_buffer.hh"
+#include <memory>
 
 namespace blender {
+struct Depsgraph;
 struct Mesh;
 struct Object;
+}  // namespace blender
+
+namespace blender {
+namespace gpu {
+class StorageBuf;
+}  // namespace gpu
 }  // namespace blender
 
 namespace blender::draw {

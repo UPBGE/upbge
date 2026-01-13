@@ -40,9 +40,6 @@
 
 #include <stddef.h>
 
-#include "DNA_constraint_types.h" /* for constraint replication */
-#include "DNA_object_types.h"
-
 #include "EXP_ListValue.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_Scene.h"
@@ -50,6 +47,10 @@
 #include "SCA_IObject.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 #include "SG_Node.h"
+
+namespace blender {
+struct bRigidBodyJointConstraint;
+}
 
 // Forward declarations.
 struct KX_ClientObjectInfo;

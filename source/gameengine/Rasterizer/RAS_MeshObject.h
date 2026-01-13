@@ -40,19 +40,20 @@
 #include <string>
 #include <vector>
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
-
 #include "MT_Transform.h"
 #include "MT_Vector2.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
 #include "RAS_Texture.h"
 
+namespace blender {
+struct MLoopCol;
+struct Mesh;
+struct Object;
+}  // namespace blender
+
 class RAS_Polygon;
 class RAS_IVertex;
-struct MLoopCol;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material

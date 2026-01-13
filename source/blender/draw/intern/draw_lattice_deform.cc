@@ -29,6 +29,7 @@
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
+#include "draw_cache_extract.hh"
 
 
 namespace blender::draw {
