@@ -489,12 +489,13 @@ static std::string get_stucci_glsl()
 /* Simplified stucci implementation (returns intensity) */
 int stucci_tex(vec3 texvec, inout TexResult_tex texres, int stype, float noisesize, float turbul, int noisebasis)
 {
-  float b2 = bli_noise_generic_turbulence(tex_noisesize, texvec.x, texvec.y, texvec.z, 2, false, noisebasis);
+  /* CPU uses BLI_noise_generic_noise for stucci; use same here for parity. */
+  float b2 = bli_noise_generic_noise(tex_noisesize, texvec.x, texvec.y, texvec.z, (tex_noisetype != 0), noisebasis);
   float ofs = turbul / 200.0;
   if (stype != 0) {
     ofs *= (b2 * b2);
   }
-  texres.tin = bli_noise_generic_turbulence(tex_noisesize, texvec.x, texvec.y, texvec.z + ofs, 2, false, noisebasis);
+  texres.tin = bli_noise_generic_noise(tex_noisesize, texvec.x, texvec.y, texvec.z + ofs, (tex_noisetype != 0), noisebasis);
   if (stype == TEX_WALLOUT) {
     texres.tin = 1.0 - texres.tin;
   }
@@ -586,22 +587,14 @@ float marble_int_glsl(int wf, int mt, float x, float y, float z, float noisesize
 
   /* waveform[wf](mi) */
   if (wf == TEX_SIN) {
-    mi = 0.5 + 0.5 * sin(mi);
+    mi = tex_sin_glsl(mi);
   }
   else if (wf == TEX_SAW) {
-    float b = 2.0 * M_PI;
-    float nn = floor(mi / b);
-    mi = mi - nn * b;
-    if (mi < 0.0) {
-      mi += b;
-    }
-    mi = mi / b;
+    mi = tex_saw_glsl(mi);
   }
   else {
     /* TEX_TRI */
-    float b = 2.0 * M_PI;
-    const float rmax = 1.0;
-    mi = rmax - 2.0 * abs(floor((mi * (1.0 / b)) + 0.5) - (mi * (1.0 / b)));
+    mi = tex_tri_glsl(mi);
   }
 
   /* marble type shaping */
@@ -729,49 +722,56 @@ static std::string get_wood_glsl()
   return R"GLSL(
 #ifdef HAS_TEXTURE
 
-/* GPU port of CPU `wood()` texture and helper wood_int() */
-float wood_int_glsl(int noisebasis2, int stype, float x, float y, float z, float noisesize, float turbul)
+/* GPU port of CPU `wood()` texture and helper wood_int()
+ * Implements exact CPU control flow for BAND, RING, BANDNOISE, RINGNOISE:
+ * - BAND: waveform((x+y+z)*10)
+ * - RING: waveform(sqrt(x*x+y*y+z*z)*20)
+ * - BANDNOISE: wi = turbul * BLI_noise_generic_noise(...); waveform((x+y+z)*10 + wi)
+ * - RINGNOISE: wi = turbul * BLI_noise_generic_noise(...); waveform(sqrt(...) * 20 + wi)
+ */
+float wood_int_glsl(int noisebasis, int noisebasis2, int stype, float x, float y, float z, float noisesize, float turbul)
 {
   float wi = 0.0;
-  // waveform selection: 0=sin,1=saw,2=tri
   int wf = noisebasis2;
 
-  // Simple waveform functions
-  float wave = 0.0;
-  if (wf == 0) {
-    wave = 0.5 + 0.5 * sin((x + y + z) * 10.0);
-  }
-  else if (wf == 1) {
-    float a = (x + y + z) * 10.0;
-    float b = 2.0 * M_PI;
-    float n = a - floor(a / b) * b;
-    wave = n / b;
-  }
-  else {
-    float a = (x + y + z) * 10.0;
-    float b = 2.0 * M_PI;
-    float n = a - floor(a / b) * b;
-    wave = 1.0 - 2.0 * abs(fract(n / b + 0.5) - 0.5);
+  /* Clamp waveform like CPU */
+  if (wf < TEX_SIN || wf > TEX_TRI) {
+    wf = TEX_SIN;
   }
 
   if (stype == TEX_BAND) {
-    wi = wave;
+    float coord = (x + y + z) * 10.0;
+    if (wf == TEX_SIN) wi = tex_sin_glsl(coord);
+    else if (wf == TEX_SAW) wi = tex_saw_glsl(coord);
+    else wi = tex_tri_glsl(coord);
   }
   else if (stype == TEX_RING) {
-    wi = wave; // approximate ring via same waveform for now
+    float coord = sqrt(x * x + y * y + z * z) * 20.0;
+    if (wf == TEX_SIN) wi = tex_sin_glsl(coord);
+    else if (wf == TEX_SAW) wi = tex_saw_glsl(coord);
+    else wi = tex_tri_glsl(coord);
   }
-  else {
-    // noise-influenced variants
-    float n = bli_noise_generic_turbulence(tex_noisesize, x, y, z, 2, false, tex_noisebasis2);
-    wi = wave + turbul * n;
+  else if (stype == TEX_BANDNOISE) {
+    float n = bli_noise_generic_noise(noisesize, x, y, z, (tex_noisetype != 0), noisebasis);
+    float coord = (x + y + z) * 10.0 + turbul * n;
+    if (wf == TEX_SIN) wi = tex_sin_glsl(coord);
+    else if (wf == TEX_SAW) wi = tex_saw_glsl(coord);
+    else wi = tex_tri_glsl(coord);
+  }
+  else if (stype == TEX_RINGNOISE) {
+    float n = bli_noise_generic_noise(noisesize, x, y, z, (tex_noisetype != 0), noisebasis);
+    float coord = sqrt(x * x + y * y + z * z) * 20.0 + turbul * n;
+    if (wf == TEX_SIN) wi = tex_sin_glsl(coord);
+    else if (wf == TEX_SAW) wi = tex_saw_glsl(coord);
+    else wi = tex_tri_glsl(coord);
   }
 
   return wi;
 }
 
-int wood_tex(vec3 texvec, inout TexResult_tex texres, int noisebasis2, int stype, float noisesize, float turbul)
+int wood_tex(vec3 texvec, inout TexResult_tex texres, int noisebasis, int noisebasis2, int stype, float noisesize, float turbul)
 {
-  float wi = wood_int_glsl(noisebasis2, stype, texvec.x, texvec.y, texvec.z, noisesize, turbul);
+  float wi = wood_int_glsl(noisebasis, noisebasis2, stype, texvec.x, texvec.y, texvec.z, noisesize, turbul);
   texres.tin = wi;
   texres.tin = apply_bricont_fn(texres.tin);
   return TEX_INT;
@@ -1051,6 +1051,35 @@ vec3 linearrgb_to_srgb_vec3(vec3 v)
 /* -------------------------------------------------------------------- */
 /** \name Noise Helpers
  * \{ */
+
+static std::string get_waveform_helpers_glsl()
+{
+  return R"GLSL(
+/* Waveform helpers shared by wood/marble to mirror CPU tex_sin/tex_saw/tex_tri */
+float tex_sin_glsl(float a)
+{
+  return 0.5 + 0.5 * sin(a);
+}
+
+float tex_saw_glsl(float a)
+{
+  const float b = 2.0 * M_PI;
+  /* Match CPU behavior: CPU uses `int(a / b)` which truncates toward zero.
+   * Using `floor` changes results for negative `a`. Replicate truncation. */
+  int ni = int(a / b);
+  float r = a - float(ni) * b;
+  if (r < 0.0) r += b;
+  return r / b;
+}
+
+float tex_tri_glsl(float a)
+{
+  const float b = 2.0 * M_PI;
+  const float rmax = 1.0;
+  return rmax - 2.0 * abs(floor((a * (1.0 / b)) + 0.5) - (a * (1.0 / b)));
+}
+)GLSL";
+}
 
 static std::string get_noise_helpers_part1_glsl()
 {
@@ -1827,6 +1856,7 @@ float bli_noise_generic_turbulence(float size, float x, float y, float z, int de
   return sum;
 }
 
+/* Helper: return signed basis noise for musgrave variants (port of BLI_noise_basis_signed) */
 float bli_noise_basis_signed(float x, float y, float z, int basis)
 {
   if (basis == 1) {
@@ -1859,18 +1889,235 @@ float bli_noise_basis_signed(float x, float y, float z, int basis)
   return 2.0 * orgBlenderNoise(x, y, z) - 1.0;
 }
 
-/* GPU port of CPU `BLI_noise_mg_variable_lacunarity()` used by TEX_DISTNOISE.
- * Returns signed noise in [-1, 1] range (like the CPU musgrave/noise signed variants).
+/* GLSL port of CPU `BLI_noise_generic_noise()` (unsigned noise selector).
+ * Chooses per-basis function and applies noisesize scaling and optional "hard" transform.
  */
-float bli_noise_mg_variable_lacunarity(float x, float y, float z, float distortion, int nbas1, int nbas2)
+float bli_noise_generic_noise(float noisesize, float x, float y, float z, bool hard, int noisebasis)
 {
-  vec3 rv;
-  rv.x = bli_noise_basis_signed(x + 13.5, y + 13.5, z + 13.5, nbas1) * distortion;
-  rv.y = bli_noise_basis_signed(x, y, z, nbas1) * distortion;
-  rv.z = bli_noise_basis_signed(x - 13.5, y - 13.5, z - 13.5, nbas1) * distortion;
+  int nb = noisebasis;
+  /* default basis (0) on CPU adds +1 to coords to match BLI_noise_hnoise behavior */
+  if (nb == 0) {
+    x += 1.0;
+    y += 1.0;
+    z += 1.0;
+  }
 
-  /* distorted-domain noise */
-  return bli_noise_basis_signed(x + rv.x, y + rv.y, z + rv.z, nbas2);
+  if (noisesize != 0.0) {
+    float inv = 1.0 / noisesize;
+    x *= inv;
+    y *= inv;
+    z *= inv;
+  }
+
+  float t = 0.0;
+  if (nb == 1) {
+    /* orgPerlinNoiseU */
+    t = 0.5 + 0.5 * noise3_perlin(vec3(x, y, z));
+  }
+  else if (nb == 2) {
+    /* newPerlinU */
+    t = newPerlinU(x, y, z);
+  }
+  else if (nb >= 3 && nb <= 8) {
+    float da[4];
+    float pa[12];
+    bli_noise_voronoi_legacy(x, y, z, da, pa, 1.0, 0);
+    if (nb == 3) t = da[0];
+    else if (nb == 4) t = da[1];
+    else if (nb == 5) t = da[2];
+    else if (nb == 6) t = da[3];
+    else if (nb == 7) t = da[1] - da[0];
+    else { /* 8: crackle */
+      float v = 10.0 * (da[1] - da[0]);
+      t = (v > 1.0) ? 1.0 : v;
+    }
+  }
+  else if (nb == 14) {
+    t = gpu_BLI_cellNoiseU(x, y, z);
+  }
+  else {
+    /* default/fallback uses orgBlenderNoise */
+    t = orgBlenderNoise(x, y, z);
+  }
+
+  if (hard) {
+    t = abs(2.0 * t - 1.0);
+  }
+
+  return t;
+}
+
+)GLSL";
+}
+
+static std::string get_noise_helpers_part5_glsl()
+{
+  return R"GLSL(
+
+/* Musgrave: fBm (fractional Brownian motion) GLSL port of BLI_noise_mg_fbm */
+float bli_noise_mg_fbm(float x, float y, float z, float H, float lacunarity, float octaves, int noisebasis)
+{
+  float value = 0.0;
+  float pwr = 1.0;
+  float pwHL = pow(lacunarity, -H);
+  int oct = int(octaves);
+  for (int i = 0; i < oct; i++) {
+    float n = bli_noise_basis_signed(x, y, z, noisebasis);
+    value += n * pwr;
+    pwr *= pwHL;
+    x *= lacunarity;
+    y *= lacunarity;
+    z *= lacunarity;
+  }
+
+  float rmd = octaves - floor(octaves);
+  if (rmd != 0.0) {
+    value += rmd * bli_noise_basis_signed(x, y, z, noisebasis) * pwr;
+  }
+
+  return value;
+}
+
+/* Musgrave: Hybrid Multifractal GLSL port of BLI_noise_mg_hybrid_multi_fractal */
+float bli_noise_mg_hybrid_multi_fractal(float x,
+                                        float y,
+                                        float z,
+                                        float H,
+                                        float lacunarity,
+                                        float octaves,
+                                        float offset,
+                                        float gain,
+                                        int noisebasis)
+{
+  float result = bli_noise_basis_signed(x, y, z, noisebasis) + offset;
+  float weight = gain * result;
+  x *= lacunarity;
+  y *= lacunarity;
+  z *= lacunarity;
+
+  float pwHL = pow(lacunarity, -H);
+  float pwr = pwHL; /* starts with i=1 instead of 0 */
+  int oct = int(octaves);
+  for (int i = 1; (weight > 0.001) && (i < oct); i++) {
+    weight = min(weight, 1.0);
+    float signal = (bli_noise_basis_signed(x, y, z, noisebasis) + offset) * pwr;
+    pwr *= pwHL;
+    result += weight * signal;
+    weight *= gain * signal;
+    x *= lacunarity;
+    y *= lacunarity;
+    z *= lacunarity;
+  }
+
+  float rmd = octaves - floor(octaves);
+  if (rmd != 0.0) {
+    result += rmd * ((bli_noise_basis_signed(x, y, z, noisebasis) + offset) * pwr);
+  }
+
+  return result;
+}
+
+/* Musgrave: Variable Lacunarity GLSL port of BLI_noise_mg_variable_lacunarity */
+float bli_noise_mg_variable_lacunarity(
+    float x, float y, float z, float distortion, int nbas1, int nbas2)
+{
+  float rv0 = bli_noise_basis_signed(x + 13.5, y + 13.5, z + 13.5, nbas1) * distortion;
+  float rv1 = bli_noise_basis_signed(x, y, z, nbas1) * distortion;
+  float rv2 = bli_noise_basis_signed(x - 13.5, y - 13.5, z - 13.5, nbas1) * distortion;
+
+  return bli_noise_basis_signed(x + rv0, y + rv1, z + rv2, nbas2);
+}
+
+/* Musgrave: Ridged Multifractal GLSL port of BLI_noise_mg_ridged_multi_fractal */
+float bli_noise_mg_ridged_multi_fractal(float x,
+                                        float y,
+                                        float z,
+                                        float H,
+                                        float lacunarity,
+                                        float octaves,
+                                        float offset,
+                                        float gain,
+                                        int noisebasis)
+{
+  float signal = pow(offset - abs(bli_noise_basis_signed(x, y, z, noisebasis)), 2.0);
+  float result = signal;
+  float pwHL = pow(lacunarity, -H);
+  float pwr = pwHL; /* starts with i=1 instead of 0 */
+  int oct = int(octaves);
+  for (int i = 1; i < oct; i++) {
+    x *= lacunarity;
+    y *= lacunarity;
+    z *= lacunarity;
+    float weight = signal * gain;
+    weight = clamp(weight, 0.0, 1.0);
+    signal = offset - abs(bli_noise_basis_signed(x, y, z, noisebasis));
+    signal *= signal;
+    signal *= weight;
+    result += signal * pwr;
+    pwr *= pwHL;
+  }
+
+  return result;
+}
+
+/* Musgrave: Multi Fractal GLSL port of BLI_noise_mg_multi_fractal */
+float bli_noise_mg_multi_fractal(float x, float y, float z, float H, float lacunarity, float octaves, int noisebasis)
+{
+  float value = 1.0;
+  float pwr = 1.0;
+  float pwHL = pow(lacunarity, -H);
+  int oct = int(octaves);
+  for (int i = 0; i < oct; i++) {
+    float n = bli_noise_basis_signed(x, y, z, noisebasis);
+    value *= (pwr * n + 1.0);
+    pwr *= pwHL;
+    x *= lacunarity;
+    y *= lacunarity;
+    z *= lacunarity;
+  }
+
+  float rmd = octaves - floor(octaves);
+  if (rmd != 0.0) {
+    value *= (rmd * bli_noise_basis_signed(x, y, z, noisebasis) * pwr + 1.0);
+  }
+
+  return value;
+}
+
+/* Musgrave: Heterogeneous Terrain GLSL port of BLI_noise_mg_hetero_terrain */
+float bli_noise_mg_hetero_terrain(float x,
+                                  float y,
+                                  float z,
+                                  float H,
+                                  float lacunarity,
+                                  float octaves,
+                                  float offset,
+                                  int noisebasis)
+{
+  /* first unscaled octave of function; later octaves are scaled */
+  float value = offset + bli_noise_basis_signed(x, y, z, noisebasis);
+  x *= lacunarity;
+  y *= lacunarity;
+  z *= lacunarity;
+
+  float pwHL = pow(lacunarity, -H);
+  float pwr = pwHL; /* starts with i=1 instead of 0 */
+  int oct = int(octaves);
+  for (int i = 1; i < oct; i++) {
+    float increment = (bli_noise_basis_signed(x, y, z, noisebasis) + offset) * pwr * value;
+    value += increment;
+    pwr *= pwHL;
+    x *= lacunarity;
+    y *= lacunarity;
+    z *= lacunarity;
+  }
+
+  float rmd = octaves - floor(octaves);
+  if (rmd != 0.0) {
+    float increment = (bli_noise_basis_signed(x, y, z, noisebasis) + offset) * pwr * value;
+    value += rmd * increment;
+  }
+  return value;
 }
 
 )GLSL";
@@ -2806,11 +3053,11 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
     retval = clouds_tex(texvec, texres, tex_noisesize, tex_turbul, tex_noisedepth, tex_noisebasis, tex_stype);
   }
   else if (t == TEX_WOOD) {
-    retval = wood_tex(texvec, texres, tex_noisebasis, tex_stype, tex_noisesize, tex_turbul);
+    retval = wood_tex(texvec, texres, tex_noisebasis, tex_noisebasis2, tex_stype, tex_noisesize, tex_turbul);
   }
   else if (t == TEX_MARBLE) {
     /* Marble uses `stype` as its mode in CPU code (tex->stype). Use tex_stype here. */
-    retval = marble_tex(texvec, texres, tex_noisebasis, tex_stype, tex_noisesize, tex_turbul);
+    retval = marble_tex(texvec, texres, tex_noisebasis2, tex_stype, tex_noisesize, tex_turbul);
   }
   else if (t == TEX_MAGIC) {
     retval = magic_tex(texvec, texres, tex_turbul);
@@ -2904,10 +3151,12 @@ static std::string get_common_texture_lib_glsl()
     return get_texture_defines_glsl() +
            get_color_conversion_glsl() +
            get_bricont_glsl() +
+           get_waveform_helpers_glsl() +
            get_noise_helpers_part1_glsl() +
            get_noise_helpers_part2_glsl() +
            get_noise_helpers_part3_glsl() +
            get_noise_helpers_part4_glsl() +
+           get_noise_helpers_part5_glsl() +
            get_colorband_helpers_glsl() +
            /* core structs used by texture functions */
            get_texture_structs_glsl() +
