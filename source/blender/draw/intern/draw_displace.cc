@@ -997,7 +997,8 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     info.push_constant(Type::float_t, "u_midlevel");
     info.push_constant(Type::int_t, "u_direction");
     info.push_constant(Type::bool_t, "u_use_global");
-    info.push_constant(Type::bool_t, "u_use_colorband"); /* ColorBand enable flag */
+    /* ColorBand enable flag moved into TextureParams UBO (tex_misc2.z).
+     * Avoid using a push-constant for this boolean to reduce push-constant usage. */
 
     /* Texture processing parameters are mostly packed in the `TextureParams` UBO.
      * Only a minimal set of runtime push constants are declared above; detailed

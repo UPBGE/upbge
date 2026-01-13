@@ -13,6 +13,7 @@
 
 #include <string>
 #include <cstdint>
+#include <cstring>
 
 #include "BKE_action.hh"
 
@@ -58,10 +59,10 @@ struct GPUTextureParams {
   int32_t tex_flags[4];
   int32_t tex_noise[4];
   float tex_noisesize_turbul[4]; /* noisesize, turbul, pad, pad */
-  int32_t tex_misc2[4];
+  int32_t tex_filtersize_frame_colorband_pad[4]; /* filtersize*1000 (as int), frame, use_colorband(0/1), pad */
   float tex_rgbfac[4];
-  float tex_distamount[4];
-  int32_t tex_misc3[4];
+  float tex_distamount[4]; /* distamount, pad... */
+  int32_t tex_imaflag_runtime_flags[4]; /* imaflag, use_talpha, calcalpha, negalpha */
   float u_object_to_world_mat[16];
   float u_mapref_imat[16];
 };
@@ -131,17 +132,14 @@ inline void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
 
   /* Mapping and misc */
   int tex_mapping = MOD_DISP_MAP_LOCAL;
-  switch (md->type) {
-    case eModifierType_Displace: {
+  if (md) {
+    if (md->type == eModifierType_Displace) {
       const blender::DisplaceModifierData *dmd = reinterpret_cast<const blender::DisplaceModifierData *>(md);
       tex_mapping = int(dmd->texmapping);
       if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
         tex_mapping = MOD_DISP_MAP_LOCAL;
       }
-      break;
     }
-    default:
-      break;
   }
 
   bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || !has_tex_coords;
@@ -157,20 +155,19 @@ inline void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
   gpu_tex_params.tex_flags[1] = tex->extend;
   gpu_tex_params.tex_flags[2] = int(tex->checkerdist * 1000.0f);
 
-  /* Store imaflag and runtime alpha flags in misc3 for use by shader helper macros */
-  gpu_tex_params.tex_misc3[0] = tex->imaflag;
+  /* Store imaflag and runtime alpha flags in tex_imaflag_runtime_flags for use by shader helper macros */
+  gpu_tex_params.tex_imaflag_runtime_flags[0] = tex->imaflag;
   {
     blender::Image *ima_local = tex->ima;
     bool use_talpha_local = false;
-    if ((tex->imaflag & TEX_USEALPHA) && ima_local && (ima_local->alpha_mode != IMA_ALPHA_IGNORE))
-    {
+    if ((tex->imaflag & TEX_USEALPHA) && ima_local && (ima_local->alpha_mode != IMA_ALPHA_IGNORE)) {
       if ((tex->imaflag & TEX_CALCALPHA) == 0) {
         use_talpha_local = true;
       }
     }
-    gpu_tex_params.tex_misc3[1] = use_talpha_local ? 1 : 0;
-    gpu_tex_params.tex_misc3[2] = ((tex->imaflag & TEX_CALCALPHA) != 0) ? 1 : 0;
-    gpu_tex_params.tex_misc3[3] = ((tex->flag & TEX_NEGALPHA) != 0) ? 1 : 0;
+    gpu_tex_params.tex_imaflag_runtime_flags[1] = use_talpha_local ? 1 : 0;
+    gpu_tex_params.tex_imaflag_runtime_flags[2] = ((tex->imaflag & TEX_CALCALPHA) != 0) ? 1 : 0;
+    gpu_tex_params.tex_imaflag_runtime_flags[3] = ((tex->flag & TEX_NEGALPHA) != 0) ? 1 : 0;
   }
 
   /* Noise params */
@@ -183,9 +180,10 @@ inline void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
   gpu_tex_params.tex_noisesize_turbul[0] = tex->noisesize;
   gpu_tex_params.tex_noisesize_turbul[1] = tex->turbul;
 
-  /* Misc2: filtersize*1000, frame */
-  gpu_tex_params.tex_misc2[0] = int(tex->filtersize * 1000.0f);
-  gpu_tex_params.tex_misc2[1] = scene_frame;
+  /* tex_filtersize_frame_colorband_pad: filtersize*1000 (int), frame, use_colorband, pad */
+  gpu_tex_params.tex_filtersize_frame_colorband_pad[0] = int(tex->filtersize * 1000.0f);
+  gpu_tex_params.tex_filtersize_frame_colorband_pad[1] = scene_frame;
+  gpu_tex_params.tex_filtersize_frame_colorband_pad[2] = ((tex->flag & TEX_COLORBAND) != 0) ? 1 : 0;
 
   /* Distance distortion amount */
   gpu_tex_params.tex_distamount[0] = tex->dist_amount;
@@ -254,10 +252,10 @@ struct TextureParams {
   ivec4 tex_flags;         /* flag, extend, checkerdist(as int*1000), pad */
   ivec4 tex_noise;         /* noisebasis, noisebasis2, noisedepth, noisetype */
   vec4 tex_noisesize_turbul; /* noisesize, turbul, pad, pad */
-  ivec4 tex_misc2;         /* filtersize*1000 (as int), frame, pad, pad */
+  ivec4 tex_filtersize_frame_colorband_pad; /* filtersize*1000 (as int), frame, use_colorband(0/1), pad */
   vec4 tex_rgbfac;        /* rfac, gfac, bfac, pad */
   vec4 tex_distamount;    /* distamount, pad... */
-  ivec4 tex_misc3;        /* imaflag, pad, pad, pad */
+  ivec4 tex_imaflag_runtime_flags; /* imaflag, use_talpha, calcalpha, negalpha */
   mat4 u_object_to_world_mat; /* object->world */
   mat4 u_mapref_imat;         /* inverse map reference for object mapping */
 };
@@ -311,19 +309,23 @@ static std::string get_texture_params_glsl()
 #define u_tex_noisebasis2 int(tex_params.tex_noise.y)
 #define u_tex_noisedepth int(tex_params.tex_noise.z)
 #define u_tex_noisetype int(tex_params.tex_noise.w)
-#define u_tex_filtersize (float(tex_params.tex_misc2.x) / 1000.0)
-#define u_tex_frame int(tex_params.tex_misc2.y)
+#define u_tex_filtersize (float(tex_params.tex_filtersize_frame_colorband_pad.x) / 1000.0)
+#define u_tex_frame int(tex_params.tex_filtersize_frame_colorband_pad.y)
 #define u_object_to_world_mat tex_params.u_object_to_world_mat
 #define u_mapref_imat tex_params.u_mapref_imat
 /* Additional derived flags */
 #define u_tex_no_clamp ((tex_params.tex_flags.x & TEX_NO_CLAMP) != 0)
 
-/* Runtime flags migrated into `TextureParams.tex_misc3` to reduce push-constant
+/* Runtime flags migrated into `TextureParams.tex_imaflag_runtime_flags` to reduce push-constant
  * usage. Map legacy names to UBO fields so existing shader code keeps
  * working without uniform/push-constant updates. */
-#define u_use_talpha (tex_params.tex_misc3.y != 0)
-#define u_tex_calcalpha (tex_params.tex_misc3.z != 0)
-#define u_tex_negalpha (tex_params.tex_misc3.w != 0)
+#define u_use_talpha (tex_params.tex_imaflag_runtime_flags.y != 0)
+#define u_tex_calcalpha (tex_params.tex_imaflag_runtime_flags.z != 0)
+#define u_tex_negalpha (tex_params.tex_imaflag_runtime_flags.w != 0)
+/* Convenience flag: enable ColorBand application in multitex/imagewrap
+ * Mapped into tex_misc2.z by the CPU so shaders can test the flag without
+ * requiring an extra push-constant. */
+#define u_use_colorband (tex_params.tex_filtersize_frame_colorband_pad.z != 0)
 /* Legacy/auxiliary texture macros expected by imagewrap/multitex helpers.
  * Use numeric bit-masks here to avoid depending on TEX_* defines being
  * available at the point this header is injected into shader sources. */
@@ -333,10 +335,10 @@ static std::string get_texture_params_glsl()
 #define U_BIT_INTERPOL (1 << 0)
 #define U_BIT_FLIPBLEND (1 << 1)
 
-#define u_tex_flip_axis ((tex_params.tex_misc3.x & U_BIT_IMAROT) != 0)
+#define u_tex_flip_axis ((tex_params.tex_imaflag_runtime_flags.x & U_BIT_IMAROT) != 0)
 #define u_tex_checker_odd ((tex_params.tex_flags.x & U_BIT_CHECKER_ODD) != 0)
 #define u_tex_checker_even ((tex_params.tex_flags.x & U_BIT_CHECKER_EVEN) != 0)
-#define u_tex_interpol ((tex_params.tex_misc3.x & U_BIT_INTERPOL) != 0)
+#define u_tex_interpol ((tex_params.tex_imaflag_runtime_flags.x & U_BIT_INTERPOL) != 0)
 #define u_tex_flipblend ((tex_params.tex_flags.x & U_BIT_FLIPBLEND) != 0)
 #define u_tex_rot (tex_params.tex_size_ofs_rot.z)
 )GLSL";
