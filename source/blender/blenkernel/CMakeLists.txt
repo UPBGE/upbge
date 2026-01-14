@@ -608,6 +608,7 @@ set(LIB
   PRIVATE bf::dependencies::optional::fftw3
   PRIVATE bf::dependencies::optional::opensubdiv
   PRIVATE bf::dependencies::optional::audaspace
+  PRIVATE bf::dependencies::optional::python
 )
 
 if(WITH_BINRELOC)

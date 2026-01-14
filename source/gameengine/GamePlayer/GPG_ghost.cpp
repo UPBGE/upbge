@@ -60,6 +60,7 @@
 #include "BKE_material.hh"
 #include "BKE_mball_tessellate.hh"
 #include "BKE_modifier.hh"
+#include "BKE_node.hh"
 #include "BKE_particle.h"
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
