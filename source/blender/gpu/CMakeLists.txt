@@ -105,6 +105,9 @@ set(SRC
   intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
+  gpu_modifiers_common/gpu_shader_common_normal_lib.cc
+  gpu_modifiers_common/gpu_shader_common_texture_lib.cc
+  gpu_modifiers_common/gpu_texture_helpers.cc
 
   shader_tool/attribute.cc
   shader_tool/enum.cc
@@ -148,8 +151,6 @@ set(SRC
   GPU_shader.hh
   GPU_shader_builtin.hh
   GPU_shader_shared.hh
-  gpu_shader_common_normal_lib.hh
-  gpu_shader_common_texture_lib.hh
   GPU_state.hh
   GPU_storage_buffer.hh
   GPU_texture.hh
@@ -159,6 +160,9 @@ set(SRC
   GPU_vertex_format.hh
   GPU_viewport.hh
   GPU_worker.hh
+  gpu_modifiers_common/gpu_shader_common_normal_lib.hh
+  gpu_modifiers_common/gpu_shader_common_texture_lib.hh
+  gpu_modifiers_common/gpu_texture_helpers.hh
 
   intern/gpu_backend.hh
   intern/gpu_capabilities_private.hh

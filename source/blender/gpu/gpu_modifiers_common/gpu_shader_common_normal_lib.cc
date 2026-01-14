@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * \file gpu_shader_common_normal_lib.hh
+ * \file gpu_shader_common_normal_lib.cc
  * \ingroup gpu
  *
  * Common normal calculation functions for GPU shaders (GLSL string generation).
@@ -19,7 +19,8 @@
 
 #include <string>
 
-namespace blender::gpu {
+namespace blender {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Normal Packing Utilities (10_10_10_2 and 16-bit formats)
@@ -33,7 +34,7 @@ namespace blender::gpu {
  *
  * Used by scatter shader and other systems that need to pack normals into GPU buffers.
  */
-static std::string get_normal_packing_glsl()
+const std::string get_normal_packing_glsl()
 {
   return R"GLSL(
 /* Normal Packing Utilities - GPU port matching Blender's packing formats */
@@ -82,7 +83,7 @@ uint pack_i16_pair(float a, float b) {
  * Returns GLSL code for math_normalize function.
  * Uses length_squared to avoid double sqrt() and match CPU threshold semantics.
  */
-static std::string get_math_normalize_glsl()
+const std::string get_math_normalize_glsl()
 {
   return R"GLSL(
 /* Matches Blender's safe_normalize_and_get_length() version CPU (not GPU!).
@@ -111,7 +112,7 @@ vec3 math_normalize(vec3 v) {
  * GPU port of BLI_math_base.hh safe_acos_approx.
  * Max error 4.51803e-05 (0.00258 degrees).
  */
-static std::string get_safe_acos_approx_glsl()
+const std::string get_safe_acos_approx_glsl()
 {
   return R"GLSL(
 /* GPU port of safe_acos_approx from BLI_math_base.hh (line ~197).
@@ -148,7 +149,7 @@ float safe_acos_approx(float x) {
  * - Position buffer macro: POSITION_BUFFER must be defined (e.g., input_positions or
  * positions_in).
  */
-static std::string get_face_normal_object_glsl()
+const std::string get_face_normal_object_glsl()
 {
   return R"GLSL(
 /* GPU port of face_normal_object from mesh_normals.cc.
@@ -218,7 +219,7 @@ vec3 face_normal_object(int f) {
  * Requirements:
  * - Topology accessors: int face_offsets(int i); int corner_verts(int i);
  */
-static std::string get_face_find_adjacent_verts_glsl()
+const std::string get_face_find_adjacent_verts_glsl()
 {
   return R"GLSL(
 /* Helper: Find the two adjacent vertices in a face for a given vertex.
@@ -294,7 +295,7 @@ int2 face_find_adjacent_verts(int f, int v) {
  * - math_normalize(), safe_acos_approx(), face_normal_object(), face_find_adjacent_verts() must be
  * defined.
  */
-static std::string get_compute_vertex_normal_smooth_glsl()
+const std::string get_compute_vertex_normal_smooth_glsl()
 {
   return get_face_find_adjacent_verts_glsl() + R"GLSL(
 /* Compute smooth vertex normal using angle-weighted accumulation.
@@ -366,12 +367,16 @@ vec3 compute_vertex_normal_smooth(int v) {
  * Returns all common normal calculation functions concatenated.
  * Use this for shaders that need vertex normal calculation (e.g., displace, scatter).
  */
-static std::string get_common_normal_lib_glsl()
+const std::string &get_common_normal_lib_glsl()
 {
-  return get_normal_packing_glsl() + get_math_normalize_glsl() + get_safe_acos_approx_glsl() +
-         get_face_normal_object_glsl() + get_compute_vertex_normal_smooth_glsl();
+  static const std::string normal_lib = get_normal_packing_glsl() + get_math_normalize_glsl() +
+                                        get_safe_acos_approx_glsl() +
+                                        get_face_normal_object_glsl() +
+                                        get_compute_vertex_normal_smooth_glsl();
+  return normal_lib;
 }
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

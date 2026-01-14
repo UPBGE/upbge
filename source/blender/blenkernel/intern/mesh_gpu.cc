@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 #include "mesh_gpu_cache.hh"
 
 #include "BKE_mesh_gpu.hh"
@@ -31,7 +33,7 @@
 #include "WM_api.hh"
 
 #include "../draw/intern/draw_cache_extract.hh"
-#include "gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
+#include "../gpu/gpu_modifiers_common/gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
 
 namespace blender {
 namespace bke {

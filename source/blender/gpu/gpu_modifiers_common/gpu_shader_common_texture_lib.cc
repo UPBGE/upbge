@@ -12,245 +12,15 @@
 #pragma once
 
 #include <string>
-#include <cstdint>
-#include <cstring>
 
-#include "BKE_action.hh"
+#include "gpu_shader_common_texture_lib.hh"
 
-#include "BLI_math_matrix.h"
+namespace blender {
+namespace gpu {
 
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
-#include "DNA_texture_types.h"
-
-namespace blender::gpu {
-
-/* Forward declarations for Blender types used by helpers. These are defined
- * in DNA/BKE headers but forward-declaring here avoids heavy includes in the
- * common header. Implementation lives in a separate compilation unit. */
-struct Tex;
-struct Object;
-struct Image;
-struct DisplaceModifierData;
-
-/* C++ std140-compatible structs for ColorBand UBO data. Placed here so
- * CPU-side code can build and upload UBOs matching the GLSL typedefs. */
-
-struct GPUCBData {
-  float rgba[4];
-  float pos_cur_pad[4];
-};
-
-struct GPUColorBand {
-  int32_t tot_cur_ipotype_hue[4];
-  int32_t color_mode_pad[4];
-  GPUCBData data[32];
-};
-
-/* C++ std140-compatible struct for TextureParams UBO. Fields chosen to match
- * the GLSL `TextureParams` typedef. Use primitive arrays to ensure packing. */
-struct GPUTextureParams {
-  float tex_crop[4];
-  int32_t tex_repeat_xmir[4];
-  int32_t tex_properties[4];
-  float tex_bricont[4];
-  float tex_size_ofs_rot[4];
-  int32_t tex_mapping_misc[4];
-  int32_t tex_flags[4];
-  int32_t tex_noise[4];
-  float tex_noisesize_turbul[4]; /* noisesize, turbul, pad, pad */
-  int32_t tex_filtersize_frame_colorband_pad[4]; /* filtersize*1000 (as int), frame, use_colorband(0/1), pad */
-  float tex_rgbfac[4];
-  float tex_distamount[4]; /* distamount, pad... */
-  float tex_mg_params[8]; /* mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain, ns_outscale, pad,
-                             pad */
-  float tex_voronoi[4];   /* vn_w1, vn_w2, vn_w3, vn_w4 */
-  float tex_voronoi_misc[4];            /* vn_mexp, vn_distm, vn_coltype, pad */
-  int32_t tex_imaflag_runtime_flags[4]; /* imaflag, use_talpha, calcalpha, negalpha */
-  float u_object_to_world_mat[16];
-  float u_mapref_imat[16];
-};
-
-/* Helper: fill a GPUTextureParams struct from a Tex + modifier info.
- * - `tex` may be nullptr.
- * - `dmd` may be nullptr (no modifier-specific parameters).
- * - `deformed_eval` is the evaluated object used for object/world matrices.
- * - `scene_frame` is current frame for animated textures.
- * - `tex_is_byte/tex_is_float/tex_channels` are metadata from the ImBuf or
- *   cached values obtained by the caller (avoid re-acquiring ImBuf here).
- * - `has_tex_coords` indicates whether per-vertex texture coordinates exist.
- *
- * The function mirrors the parameter packing previously present in
- * `draw_displace.cc` and centralizes it so other modifiers can reuse it.
- */
-inline void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
-                                  blender::Tex *tex,
-                                  const blender::ModifierData *md,
-                                  blender::Object *deformed_eval,
-                                  int scene_frame,
-                                  bool tex_is_byte,
-                                  bool tex_is_float,
-                                  int tex_channels,
-                                  bool has_tex_coords)
-{
-  /* Initialize to zero to ensure all padding fields are deterministic. */
-  memset(&gpu_tex_params, 0, sizeof(gpu_tex_params));
-
-  if (!tex) {
-    return;
-  }
-
-  /* Crop */
-  gpu_tex_params.tex_crop[0] = tex->cropxmin;
-  gpu_tex_params.tex_crop[1] = tex->cropymin;
-  gpu_tex_params.tex_crop[2] = tex->cropxmax;
-  gpu_tex_params.tex_crop[3] = tex->cropymax;
-
-  /* Repeat.x, Repeat.y, xmir, ymir (stored as integers in UBO) */
-  gpu_tex_params.tex_repeat_xmir[0] = int32_t(tex->xrepeat);
-  gpu_tex_params.tex_repeat_xmir[1] = int32_t(tex->yrepeat);
-  gpu_tex_params.tex_repeat_xmir[2] = int32_t((tex->flag & TEX_REPEAT_XMIR) ? 1 : 0);
-  gpu_tex_params.tex_repeat_xmir[3] = int32_t((tex->flag & TEX_REPEAT_YMIR) ? 1 : 0);
-
-  /* Properties: is_byte, is_float, channels, type */
-  gpu_tex_params.tex_properties[0] = tex_is_byte ? 1 : 0;
-  gpu_tex_params.tex_properties[1] = tex_is_float ? 1 : 0;
-  gpu_tex_params.tex_properties[2] = tex_channels;
-  gpu_tex_params.tex_properties[3] = tex->type;
-
-  /* Bright/Contrast/Saturation */
-  gpu_tex_params.tex_bricont[0] = tex->bright;
-  gpu_tex_params.tex_bricont[1] = tex->contrast;
-  gpu_tex_params.tex_bricont[2] = tex->saturation;
-
-  /* RGB factors (rfac/gfac/bfac) */
-  gpu_tex_params.tex_rgbfac[0] = tex->rfac;
-  gpu_tex_params.tex_rgbfac[1] = tex->gfac;
-  gpu_tex_params.tex_rgbfac[2] = tex->bfac;
-
-  /* Size / Ofs / Rot (fallback to defaults when fields are not available) */
-  gpu_tex_params.tex_size_ofs_rot[0] = 1.0f;
-  gpu_tex_params.tex_size_ofs_rot[1] = 1.0f;
-  gpu_tex_params.tex_size_ofs_rot[2] = 0.0f;
-  gpu_tex_params.tex_size_ofs_rot[3] = 0.0f;
-
-  /* Mapping and misc */
-  int tex_mapping = MOD_DISP_MAP_LOCAL;
-  if (md) {
-    if (md->type == eModifierType_Displace) {
-      const blender::DisplaceModifierData *dmd = reinterpret_cast<const blender::DisplaceModifierData *>(md);
-      tex_mapping = int(dmd->texmapping);
-      if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
-        tex_mapping = MOD_DISP_MAP_LOCAL;
-      }
-    }
-  }
-
-  bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || !has_tex_coords;
-  gpu_tex_params.tex_mapping_misc[0] = tex_mapping;
-  gpu_tex_params.tex_mapping_misc[1] = mapping_use_input_positions ? 1 : 0;
-
-  int mtex_mapto = 0;
-  gpu_tex_params.tex_mapping_misc[2] = mtex_mapto;
-  gpu_tex_params.tex_mapping_misc[3] = tex->stype;
-
-  /* Flags / extend / checkerdist / imaflag */
-  gpu_tex_params.tex_flags[0] = tex->flag;
-  gpu_tex_params.tex_flags[1] = tex->extend;
-  gpu_tex_params.tex_flags[2] = int(tex->checkerdist * 1000.0f);
-
-  /* Store imaflag and runtime alpha flags in tex_imaflag_runtime_flags for use by shader helper macros */
-  gpu_tex_params.tex_imaflag_runtime_flags[0] = tex->imaflag;
-  {
-    blender::Image *ima_local = tex->ima;
-    bool use_talpha_local = false;
-    if ((tex->imaflag & TEX_USEALPHA) && ima_local && (ima_local->alpha_mode != IMA_ALPHA_IGNORE)) {
-      if ((tex->imaflag & TEX_CALCALPHA) == 0) {
-        use_talpha_local = true;
-      }
-    }
-    gpu_tex_params.tex_imaflag_runtime_flags[1] = use_talpha_local ? 1 : 0;
-    gpu_tex_params.tex_imaflag_runtime_flags[2] = ((tex->imaflag & TEX_CALCALPHA) != 0) ? 1 : 0;
-    gpu_tex_params.tex_imaflag_runtime_flags[3] = ((tex->flag & TEX_NEGALPHA) != 0) ? 1 : 0;
-  }
-
-  /* Noise params */
-  gpu_tex_params.tex_noise[0] = tex->noisebasis;
-  gpu_tex_params.tex_noise[1] = tex->noisebasis2;
-  gpu_tex_params.tex_noise[2] = tex->noisedepth;
-  gpu_tex_params.tex_noise[3] = tex->noisetype;
-
-  /* Noisesize and turbul */
-  gpu_tex_params.tex_noisesize_turbul[0] = tex->noisesize;
-  gpu_tex_params.tex_noisesize_turbul[1] = tex->turbul;
-
-  /* tex_filtersize_frame_colorband_pad: filtersize*1000 (int), frame, use_colorband, pad */
-  gpu_tex_params.tex_filtersize_frame_colorband_pad[0] = int(tex->filtersize * 1000.0f);
-  gpu_tex_params.tex_filtersize_frame_colorband_pad[1] = scene_frame;
-  gpu_tex_params.tex_filtersize_frame_colorband_pad[2] = ((tex->flag & TEX_COLORBAND) != 0) ? 1 : 0;
-
-  /* Distance distortion amount */
-  gpu_tex_params.tex_distamount[0] = tex->dist_amount;
-  /* also expose ns_outscale next to distamount for Voronoi scaling */
-  gpu_tex_params.tex_distamount[1] = tex->ns_outscale;
-
-  /* Musgrave parameters (mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain) */
-  gpu_tex_params.tex_mg_params[0] = tex->mg_H;
-  gpu_tex_params.tex_mg_params[1] = tex->mg_lacunarity;
-  gpu_tex_params.tex_mg_params[2] = tex->mg_octaves;
-  gpu_tex_params.tex_mg_params[3] = tex->mg_offset;
-  gpu_tex_params.tex_mg_params[4] = tex->mg_gain;
-
-  /* Voronoi parameters and misc */
-  gpu_tex_params.tex_voronoi[0] = tex->vn_w1;
-  gpu_tex_params.tex_voronoi[1] = tex->vn_w2;
-  gpu_tex_params.tex_voronoi[2] = tex->vn_w3;
-  gpu_tex_params.tex_voronoi[3] = tex->vn_w4;
-  gpu_tex_params.tex_voronoi_misc[0] = tex->vn_mexp;
-  gpu_tex_params.tex_voronoi_misc[1] = float(tex->vn_distm);
-  gpu_tex_params.tex_voronoi_misc[2] = float(tex->vn_coltype);
-
-  /* Object->world matrix */
-  if (deformed_eval) {
-    memcpy(gpu_tex_params.u_object_to_world_mat,
-           deformed_eval->object_to_world().ptr(),
-           sizeof(gpu_tex_params.u_object_to_world_mat));
-  }
-
-  /* mapref_imat: compute inverse map reference for MOD_DISP_MAP_OBJECT when possible. */
-  float mapref_imat[4][4];
-  unit_m4(mapref_imat);
-  switch (md->type) {
-    case eModifierType_Displace: {
-      const blender::DisplaceModifierData *dmd = reinterpret_cast<const blender::DisplaceModifierData *>(md);
-      if (dmd->texmapping == MOD_DISP_MAP_OBJECT && dmd->map_object != nullptr) {
-        blender::Object *map_object = dmd->map_object;
-        if (dmd->map_bone[0] != '\0') {
-          bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, dmd->map_bone);
-          if (pchan) {
-            float mat_bone_world[4][4];
-            mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
-            invert_m4_m4(mapref_imat, mat_bone_world);
-          }
-          else {
-            invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
-          }
-        }
-        else {
-          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
-        }
-      }
-      break;
-    }
-    default:
-      break;
-  }
-  memcpy(gpu_tex_params.u_mapref_imat, mapref_imat, sizeof(gpu_tex_params.u_mapref_imat));
-}
-
-  /* Typedefs for ColorBand / CBData used by shaders. Kept separate so callers
+/* Typedefs for ColorBand / CBData used by shaders. Kept separate so callers
  * can set as typedef header in ShaderCreateInfo (avoids duplicating in compute source). */
-static std::string get_texture_typedefs_glsl()
+const std::string get_texture_typedefs_glsl()
 {
   return R"GLSL(
 struct CBData {
@@ -292,7 +62,7 @@ struct TextureParams {
 /* Texture parameter UBO shared by texture/image helpers.
  * Packed for std140 layout. Shaders can read via `tex_params`.
  * This allows modifiers to upload a single UBO instead of many push constants. */
-static std::string get_texture_params_glsl()
+const std::string get_texture_params_glsl()
 {
   return R"GLSL(
 /* Convenience macros that map legacy push-constant names used throughout the
@@ -388,7 +158,7 @@ static std::string get_texture_params_glsl()
 /* Placeholder defines for texture subtypes (blend stype, wood/marble waveforms, etc.)
  * These provide a single place to keep TEX_* name definitions for GPU shaders.
  * Values should match those in DNA_texture_types.h / CPU implementation. */
-static std::string get_texture_defines_glsl()
+const std::string get_texture_defines_glsl()
 {
   return R"GLSL(
 /* Texture type defines (match DNA_texture_types.h) */
@@ -589,7 +359,7 @@ static std::string get_texture_defines_glsl()
 /* Common texture result struct used by multiple texture helpers (different name
  * to avoid clash with local shader definitions). Mirrors CPU `TexResult` fields
  * but kept compact for shader usage. */
-static std::string get_texture_structs_glsl()
+const std::string get_texture_structs_glsl()
 {
   return R"GLSL(
 /* rctf rectangle struct (GPU port of BLI_rect.h) */
@@ -612,7 +382,7 @@ struct TexResult_tex {
  * Returns GLSL code for ColorBand-related defines and helper functions.
  * Includes interpolation types, color modes, hue modes, and key_curve_position_weights.
  */
-static std::string get_colorband_helpers_glsl()
+const std::string get_colorband_helpers_glsl()
 {
   return R"GLSL(
 /* GPU port of key_curve_position_weights from key.cc */
@@ -726,7 +496,7 @@ float colorband_hue_interp(int ipotype_hue, float mfac, float fac, float h1, flo
 )GLSL";
 }
 
-static std::string get_texnoise_glsl()
+const std::string get_texnoise_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -776,7 +546,7 @@ int texnoise_tex(inout TexResult_tex texres, int thread_id, int noisedepth)
 )GLSL";
 }
 
-static std::string get_distnoise_glsl()
+const std::string get_distnoise_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -842,7 +612,7 @@ int musgrave_tex_ubo(vec3 texvec, inout TexResult_tex texres)
   )GLSL";
 }
 
-static std::string get_bricont_glsl()
+const std::string get_bricont_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -890,7 +660,7 @@ vec3 apply_bricont_rgb(vec3 col)
 )GLSL";
 }
 
-static std::string get_stucci_glsl()
+const std::string get_stucci_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -918,7 +688,7 @@ int stucci_tex(vec3 texvec, inout TexResult_tex texres, int stype, float noisesi
 )GLSL";
 }
 
-static std::string get_voronoi_glsl()
+const std::string get_voronoi_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -989,7 +759,7 @@ int voronoi_tex_ubo(vec3 texvec, inout TexResult_tex texres)
 )GLSL";
 }
 
-static std::string get_marble_glsl()
+const std::string get_marble_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -1054,7 +824,7 @@ int marble_tex(vec3 texvec, inout TexResult_tex texres, int wf, int mt, float no
 )GLSL";
 }
 
-static std::string get_magic_glsl()
+const std::string get_magic_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -1142,7 +912,7 @@ int magic_tex(vec3 texvec, inout TexResult_tex texres, float turbul)
 }
 
 
-static std::string get_wood_glsl()
+const std::string get_wood_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -1208,7 +978,7 @@ int wood_tex(vec3 texvec, inout TexResult_tex texres, int noisebasis, int noiseb
 }
 
 
-static std::string get_clouds_glsl()
+const std::string get_clouds_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -1264,7 +1034,7 @@ int clouds_tex(vec3 texvec, inout TexResult_tex texres, float noisesize, float t
 )GLSL";
 }
 
-static std::string get_blend_glsl()
+const std::string get_blend_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -1345,7 +1115,7 @@ int blend_tex(vec3 texvec, inout TexResult_tex texres, int stype, bool flipblend
  * Returns GLSL code for RGB ↔ HSV/HSL conversion functions.
  * GPU port of BLI_math_color.h functions.
  */
-static std::string get_color_conversion_glsl()
+const std::string get_color_conversion_glsl()
 {
   return R"GLSL(
 /* RGB ↔ HSV/HSL conversion functions (GPU port of BLI_math_color.h) */
@@ -1477,7 +1247,7 @@ vec3 linearrgb_to_srgb_vec3(vec3 v)
 /** \name Noise Helpers
  * \{ */
 
-static std::string get_waveform_helpers_glsl()
+const std::string get_waveform_helpers_glsl()
 {
   return R"GLSL(
 /* Waveform helpers shared by wood/marble to mirror CPU tex_sin/tex_saw/tex_tri */
@@ -1506,7 +1276,7 @@ float tex_tri_glsl(float a)
 )GLSL";
 }
 
-static std::string get_noise_helpers_part1_glsl()
+const std::string get_noise_helpers_part1_glsl()
 {
   return R"GLSL(
 /* Blender noise static data (from noise_c.cc line 103-106) */
@@ -1648,7 +1418,7 @@ const float hashvectf[768] = float[768](
 )GLSL";
 }
 
-static std::string get_noise_helpers_part2_glsl()
+const std::string get_noise_helpers_part2_glsl()
 {
   return R"GLSL(
 /* point table for Voronoi (copied from noise_c.cc hashpntf)
@@ -1749,7 +1519,7 @@ const vec3 hashpntf3[256] = vec3[256](
 )GLSL";
 }
 
-static std::string get_noise_helpers_part3_glsl()
+const std::string get_noise_helpers_part3_glsl()
 {
   return R"GLSL(
 /* cellnoise helper for GLSL side usage */
@@ -2147,7 +1917,7 @@ float orgBlenderNoise(float x, float y, float z)
 )GLSL";
 }
 
-static std::string get_noise_helpers_part4_glsl()
+const std::string get_noise_helpers_part4_glsl()
 {
   return R"GLSL(
 
@@ -2375,7 +2145,7 @@ float bli_noise_generic_noise(float noisesize, float x, float y, float z, bool h
 )GLSL";
 }
 
-static std::string get_noise_helpers_part5_glsl()
+const std::string get_noise_helpers_part5_glsl()
 {
   return R"GLSL(
 
@@ -2558,7 +2328,7 @@ float bli_noise_mg_hetero_terrain(float x,
  * Returns GLSL code for boxsample helper structures and functions.
  * Includes rctf, TexResult_tex, ibuf_get_color, clipping functions.
  */
-static std::string get_boxsample_helpers_glsl()
+const std::string get_boxsample_helpers_glsl()
 {
   return R"GLSL(
 
@@ -2647,7 +2417,7 @@ float clipy_rctf(inout rctf rf, float y1, float y2)
  * Returns GLSL code for boxsampleclip and boxsample functions.
  * GPU port of texture_image.cc boxsample pipeline.
  */
-static std::string get_boxsample_core_glsl()
+const std::string get_boxsample_core_glsl()
 {
   return R"GLSL(
 void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inout TexResult_tex texres, bool imaprepeat, bool tex_is_byte, bool tex_is_float, int tex_channels)
@@ -2920,7 +2690,7 @@ void boxsample(sampler2D displacement_texture,
  * Includes BKE_colorband_evaluate, do_2d_mapping, imagewrap.
  * Note: These require TEX_* defines and uniform push constants.
  */
-static std::string get_texture_mapping_glsl()
+const std::string get_texture_mapping_glsl()
 {
   return R"GLSL(
 /* GPU port of BKE_colorband_evaluate() from colorband.cc (line 285-410)
@@ -3195,7 +2965,7 @@ void do_2d_mapping(inout float fx, inout float fy,
 )GLSL";
 }
 
-static std::string get_imagewrap()
+const std::string get_imagewrap()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -3440,7 +3210,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
 )GLSL";
 }
 
-static std::string get_multitex_glsl()
+const std::string get_multitex_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -3553,7 +3323,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
 )GLSL";
 }
 
-static std::string get_multitex_image_only_glsl()
+const std::string get_multitex_image_only_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -3609,54 +3379,45 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
  * Returns GLSL code for common texture processing functions.
  * Call this to get the full texture library.
  */
-static std::string get_common_texture_lib_glsl()
+const std::string &get_common_texture_lib_glsl()
 {
-  /* Prepend texture subtype defines so shaders can reference TEX_* stype values
-   * in a central place. These are placeholders that mirror the CPU-side names and
-   * can be adjusted if DNA values differ. */
-    return get_texture_defines_glsl() +
-           get_color_conversion_glsl() +
-           get_bricont_glsl() +
-           get_waveform_helpers_glsl() +
-           get_noise_helpers_part1_glsl() +
-           get_noise_helpers_part2_glsl() +
-           get_noise_helpers_part3_glsl() +
-           get_noise_helpers_part4_glsl() +
-           get_noise_helpers_part5_glsl() +
-           get_colorband_helpers_glsl() +
-           /* core structs used by texture functions */
-           get_texture_structs_glsl() +
-           /* Procedural textures in same order as CPU `multitex` switch */
-           get_clouds_glsl() +
-           get_wood_glsl() +
-           get_marble_glsl() +
-           get_magic_glsl() +
-           get_blend_glsl() +
-           get_stucci_glsl() +
-           get_texnoise_glsl() +
-           /* Voronoi and other procedural types */
-           get_voronoi_glsl() +
-           get_distnoise_glsl() +
-           /* Boxsample / image helpers and mapping last */
-           get_boxsample_helpers_glsl() +
-           get_boxsample_core_glsl() +
-           get_texture_mapping_glsl() +
-           get_imagewrap() +
-           get_multitex_glsl();
+  static const std::string texture_lib =
+      /* Prepend texture subtype defines so shaders can reference TEX_* stype values
+       * in a central place. These are placeholders that mirror the CPU-side names and
+       * can be adjusted if DNA values differ. */
+      get_texture_defines_glsl() + get_color_conversion_glsl() + get_bricont_glsl() +
+      get_waveform_helpers_glsl() + get_noise_helpers_part1_glsl() +
+      get_noise_helpers_part2_glsl() + get_noise_helpers_part3_glsl() +
+      get_noise_helpers_part4_glsl() + get_noise_helpers_part5_glsl() +
+      get_colorband_helpers_glsl() +
+      /* core structs used by texture functions */
+      get_texture_structs_glsl() +
+      /* Procedural textures in same order as CPU `multitex` switch */
+      get_clouds_glsl() + get_wood_glsl() + get_marble_glsl() + get_magic_glsl() +
+      get_blend_glsl() + get_stucci_glsl() + get_texnoise_glsl() +
+      /* Voronoi and other procedural types */
+      get_voronoi_glsl() + get_distnoise_glsl() +
+      /* Boxsample / image helpers and mapping last */
+      get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl() +
+      get_imagewrap() + get_multitex_glsl();
+  return texture_lib;
 }
 
-static std::string get_common_texture_image_lib_glsl()
+const std::string &get_common_texture_image_lib_glsl()
 {
-  return get_texture_defines_glsl() + get_color_conversion_glsl() + get_bricont_glsl() +
-         /* ColorBand helpers required by imagewrap() / multitex IMAGE branch */
-         get_colorband_helpers_glsl() +
-         /* core structs used by texture functions */
-         get_texture_structs_glsl() +
-         /* Boxsample / image helpers and mapping */
-         get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl() +
-         get_imagewrap() +
-         /* Minimal multitex handling for IMAGE only */
-         get_multitex_image_only_glsl();
+  static const std::string texture_lib =
+      get_texture_defines_glsl() + get_color_conversion_glsl() + get_bricont_glsl() +
+      /* ColorBand helpers required by imagewrap() / multitex IMAGE branch */
+      get_colorband_helpers_glsl() +
+      /* core structs used by texture functions */
+      get_texture_structs_glsl() +
+      /* Boxsample / image helpers and mapping */
+      get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl() +
+      get_imagewrap() +
+      /* Minimal multitex handling for IMAGE only */
+      get_multitex_image_only_glsl();
+  return texture_lib;
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

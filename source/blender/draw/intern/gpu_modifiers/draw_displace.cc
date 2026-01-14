@@ -7,6 +7,8 @@
  * GPU-accelerated Displace modifier implementation.
  */
 
+#pragma once
+
 #include "draw_displace.hh"
 
 #include "BLI_hash.h"
@@ -45,8 +47,9 @@
 #include <cstdint>
 
 #include "../gpu/intern/gpu_shader_create_info.hh"
-#include "gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
-#include "gpu_shader_common_texture_lib.hh" /* Common texture sampling functions */
+#include "../gpu/gpu_modifiers_common/gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
+#include "../gpu/gpu_modifiers_common/gpu_shader_common_texture_lib.hh" /* Common texture sampling functions */
+#include "../gpu/gpu_modifiers_common/gpu_texture_helpers.hh"
 
 #include "DRW_render.hh"
 #include "draw_cache_impl.hh"
@@ -747,7 +750,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
 
             if (gpu_texture) {
               /* Upload WITHOUT colorspace conversion (raw bytes) */
-              displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
+              gpu::displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
 
               /* Cache texture for reuse (static images will persist across frames) */
               bke::BKE_mesh_gpu_internal_texture_ensure(

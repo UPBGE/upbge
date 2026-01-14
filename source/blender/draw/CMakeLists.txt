@@ -59,7 +59,6 @@ set(SRC
   intern/mesh_extractors/extract_mesh_vbo_uv.cc
   intern/mesh_extractors/extract_mesh_vbo_vnor.cc
   intern/mesh_extractors/extract_mesh_vbo_weights.cc
-  intern/draw_armature_skinning.cc
   intern/draw_attributes.cc
   intern/draw_cache_impl_curve.cc
   intern/draw_cache_impl_curves.cc
@@ -78,24 +77,25 @@ set(SRC
   intern/draw_fluid.cc
   intern/draw_gpu_context.cc
   intern/draw_hair.cc
-  intern/draw_displace.cc
-  intern/draw_hook.cc
-  intern/draw_lattice_deform.cc
   intern/draw_manager.cc
   intern/draw_manager_text.cc
-  intern/draw_modifier_gpu_pipeline.cc
   intern/draw_pbvh.cc
   intern/draw_pointcloud.cc
   intern/draw_resource.cc
   intern/draw_sculpt.cc
   intern/draw_select_buffer.cc
   intern/draw_shader.cc
-  intern/draw_shapekeys_skinning.cc
-  intern/draw_simpledeform.cc
   intern/draw_view.cc
   intern/draw_view_c.cc
   intern/draw_view_data.cc
   intern/draw_volume.cc
+  intern/gpu_modifiers/draw_armature_skinning.cc
+  intern/gpu_modifiers/draw_displace.cc
+  intern/gpu_modifiers/draw_hook.cc
+  intern/gpu_modifiers/draw_lattice_deform.cc
+  intern/gpu_modifiers/draw_modifier_gpu_pipeline.cc
+  intern/gpu_modifiers/draw_shapekeys_skinning.cc
+  intern/gpu_modifiers/draw_simpledeform.cc
   engines/compositor/compositor_engine.cc
   engines/image/image_drawing_mode.cc
   engines/image/image_engine.cc
@@ -165,7 +165,6 @@ set(SRC
   intern/DRW_gpu_wrapper.hh
   intern/DRW_render.hh
   intern/attribute_convert.hh
-  intern/draw_armature_skinning.hh
   intern/draw_attributes.hh
   intern/draw_cache.hh
   intern/draw_cache_extract.hh
@@ -180,19 +179,13 @@ set(SRC
   intern/draw_debug.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
-  intern/draw_displace.hh
-  intern/draw_hook.hh
-  intern/draw_lattice_deform.hh
   intern/draw_manager.hh
   intern/draw_manager_text.hh
-  intern/draw_modifier_gpu_pipeline.hh
   intern/draw_pass.hh
   intern/draw_resource.hh
   intern/draw_sculpt.hh
   intern/draw_shader.hh
   intern/draw_shader_shared.hh
-  intern/draw_shapekeys_skinning.hh
-  intern/draw_simpledeform.hh
   intern/draw_state.hh
   intern/draw_subdiv_defines.hh
   intern/draw_subdiv_shader_shared.hh
@@ -201,6 +194,13 @@ set(SRC
   intern/draw_view_c.hh
   intern/draw_view_data.hh
   intern/mesh_extractors/extract_mesh.hh
+  intern/gpu_modifiers/draw_armature_skinning.hh
+  intern/gpu_modifiers/draw_displace.hh
+  intern/gpu_modifiers/draw_hook.hh
+  intern/gpu_modifiers/draw_lattice_deform.hh
+  intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh
+  intern/gpu_modifiers/draw_shapekeys_skinning.hh
+  intern/gpu_modifiers/draw_simpledeform.hh
   engines/compositor/compositor_engine.h
   engines/eevee/eevee_ambient_occlusion.hh
   engines/eevee/eevee_camera.hh
