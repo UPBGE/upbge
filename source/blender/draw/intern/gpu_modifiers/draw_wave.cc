@@ -123,7 +123,14 @@ void main() {
   amplit -= (u_time - u_timeoffs) * u_speed;
 
   if (u_cyclic != 0) {
-    amplit = mod(amplit - u_width, 2.0 * u_width) + u_width;
+    /* Use trunc-based wrap to match C `fmodf` semantics (truncate toward zero)
+     * GLSL `mod` uses floor() semantics which differs for negatives. Replicate
+     * fmodf: result = fmodf(amplit - width, 2*width) + width using trunc.
+     */
+    float tmp = amplit - u_width;
+    float denom = 2.0 * u_width;
+    /* trunc() matches C truncation toward zero for negative values. */
+    amplit = tmp - denom * trunc(tmp / denom) + u_width;
   }
 
   float falloff_fac = 1.0;
@@ -136,7 +143,7 @@ void main() {
 
   /* Gaussian shaping (narrow) */
   float a = amplit * u_narrow;
-  float minfac = 1.0 / exp(u_width * u_narrow * u_width * u_narrow);
+  float minfac = u_minfac; /* precomputed on CPU and uploaded as push-constant */
   float shaped = (1.0 / exp(a * a) - minfac);
 
   if (shaped != shaped || shaped == 0.0) {
@@ -165,7 +172,9 @@ void main() {
     n = n_mesh * n_mask;
   }
 
-  vec3 disp = n * (u_lifefac * shaped * u_vheight);
+  /* Match CPU: `lifefac` already represents the height factor (wmd->height),
+   * so multiply shaped by `u_lifefac` only. Do NOT multiply again by `u_vheight`. */
+  vec3 disp = n * (u_lifefac * shaped);
   co += disp;
   deformed_positions[v] = vec4(co, 1.0);
 }
@@ -613,7 +622,7 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
     info.push_constant(Type::float_t, "u_speed");
     info.push_constant(Type::float_t, "u_width");
     info.push_constant(Type::float_t, "u_narrow");
-    info.push_constant(Type::float_t, "u_vheight");
+    info.push_constant(Type::float_t, "u_minfac");
     info.push_constant(Type::float_t, "u_falloff");
     info.push_constant(Type::float_t, "u_lifefac");
     info.push_constant(Type::int_t, "u_axis");
@@ -665,19 +674,23 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   GPU_shader_uniform_1f(shader, "u_speed", wmd->speed);
   GPU_shader_uniform_1f(shader, "u_width", wmd->width);
   GPU_shader_uniform_1f(shader, "u_narrow", wmd->narrow);
-  GPU_shader_uniform_1f(shader, "u_vheight", wmd->height);
+  /* Compute and upload minfac once (same formula as CPU) */
+  float minfac = 1.0f / expf(wmd->width * wmd->narrow * wmd->width * wmd->narrow);
+  GPU_shader_uniform_1f(shader, "u_minfac", minfac);
   GPU_shader_uniform_1f(shader, "u_falloff", wmd->falloff);
-  /* Compute lifefac (matches CPU modifier behavior in MOD_wave):
+  /* Compute lifefac to match CPU behavior in MOD_wave:
    * lifefac starts as height. If lifetime is enabled and time passed exceeds
-   * lifetime, lifefac transitions to 0 over `damp` using sqrt easing. If
-   * damp == 0 on the modifier, use default 10.0f (CPU sets this on demand).
+   * lifetime, lifefac transitions to 0 over `damp` using sqrt easing.
+   * If damp == 0 on the modifier, use default 10.0f (CPU sets this on demand).
    */
   float lifefac = wmd->height;
   float damp = (wmd->damp == 0.0f) ? 10.0f : wmd->damp;
   if (wmd->lifetime != 0.0f) {
     float x = ctime - wmd->timeoffs;
+
     if (x > wmd->lifetime) {
       lifefac = x - wmd->lifetime;
+
       if (lifefac > damp) {
         lifefac = 0.0f;
       }
@@ -688,9 +701,12 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   }
   GPU_shader_uniform_1f(shader, "u_lifefac", lifefac);
 
+  /* Axis logic: both X and Y -> 0 (both), X only ->1, Y only ->2 (matches MOD_wave). */
+  const bool use_x = (wmd->flag & MOD_WAVE_X) != 0;
+  const bool use_y = (wmd->flag & MOD_WAVE_Y) != 0;
   int axis = 0;
-  if (wmd->flag & MOD_WAVE_X) axis = 1;
-  else if (wmd->flag & MOD_WAVE_Y) axis = 2;
+  if (use_x && !use_y) axis = 1;
+  else if (!use_x && use_y) axis = 2;
   GPU_shader_uniform_1i(shader, "u_axis", axis);
 
   GPU_shader_uniform_1i(shader, "u_cyclic", (wmd->flag & MOD_WAVE_CYCL) ? 1 : 0);
