@@ -62,6 +62,10 @@ struct GPUTextureParams {
   int32_t tex_filtersize_frame_colorband_pad[4]; /* filtersize*1000 (as int), frame, use_colorband(0/1), pad */
   float tex_rgbfac[4];
   float tex_distamount[4]; /* distamount, pad... */
+  float tex_mg_params[8]; /* mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain, ns_outscale, pad,
+                             pad */
+  float tex_voronoi[4];   /* vn_w1, vn_w2, vn_w3, vn_w4 */
+  float tex_voronoi_misc[4];            /* vn_mexp, vn_distm, vn_coltype, pad */
   int32_t tex_imaflag_runtime_flags[4]; /* imaflag, use_talpha, calcalpha, negalpha */
   float u_object_to_world_mat[16];
   float u_mapref_imat[16];
@@ -187,6 +191,24 @@ inline void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
 
   /* Distance distortion amount */
   gpu_tex_params.tex_distamount[0] = tex->dist_amount;
+  /* also expose ns_outscale next to distamount for Voronoi scaling */
+  gpu_tex_params.tex_distamount[1] = tex->ns_outscale;
+
+  /* Musgrave parameters (mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain) */
+  gpu_tex_params.tex_mg_params[0] = tex->mg_H;
+  gpu_tex_params.tex_mg_params[1] = tex->mg_lacunarity;
+  gpu_tex_params.tex_mg_params[2] = tex->mg_octaves;
+  gpu_tex_params.tex_mg_params[3] = tex->mg_offset;
+  gpu_tex_params.tex_mg_params[4] = tex->mg_gain;
+
+  /* Voronoi parameters and misc */
+  gpu_tex_params.tex_voronoi[0] = tex->vn_w1;
+  gpu_tex_params.tex_voronoi[1] = tex->vn_w2;
+  gpu_tex_params.tex_voronoi[2] = tex->vn_w3;
+  gpu_tex_params.tex_voronoi[3] = tex->vn_w4;
+  gpu_tex_params.tex_voronoi_misc[0] = tex->vn_mexp;
+  gpu_tex_params.tex_voronoi_misc[1] = float(tex->vn_distm);
+  gpu_tex_params.tex_voronoi_misc[2] = float(tex->vn_coltype);
 
   /* Object->world matrix */
   if (deformed_eval) {
@@ -244,7 +266,7 @@ struct ColorBand {
 
 struct TextureParams {
   vec4 tex_crop;           /* cropxmin, cropymin, cropxmax, cropymax */
-  ivec4 tex_repeat_xmir;    /* repeat.x, repeat.y, xmir(0/1), ymir(0/1) */
+  ivec4 tex_repeat_xmir;   /* repeat.x, repeat.y, xmir(0/1), ymir(0/1) */
   ivec4 tex_properties;    /* is_byte(0/1), is_float(0/1), channels, type */
   vec4 tex_bricont;        /* bright, contrast, saturation, pad */
   vec4 tex_size_ofs_rot;   /* size.x, size.y, ofs.x, ofs.y (rot in .z or separate) */
@@ -253,8 +275,12 @@ struct TextureParams {
   ivec4 tex_noise;         /* noisebasis, noisebasis2, noisedepth, noisetype */
   vec4 tex_noisesize_turbul; /* noisesize, turbul, pad, pad */
   ivec4 tex_filtersize_frame_colorband_pad; /* filtersize*1000 (as int), frame, use_colorband(0/1), pad */
-  vec4 tex_rgbfac;        /* rfac, gfac, bfac, pad */
-  vec4 tex_distamount;    /* distamount, pad... */
+  vec4 tex_rgbfac;         /* rfac, gfac, bfac, pad */
+  vec4 tex_distamount;     /* distamount, ns_outscale, pad, pad */
+  vec4 tex_mg_params0;     /* mg_H, mg_lacunarity, mg_octaves, mg_offset */
+  vec4 tex_mg_params1;     /* mg_gain, (reserved), pad, pad */
+  vec4 tex_voronoi;        /* vn_w1, vn_w2, vn_w3, vn_w4 */
+  vec4 tex_voronoi_misc;   /* vn_mexp, vn_distm, vn_coltype, pad */
   ivec4 tex_imaflag_runtime_flags; /* imaflag, use_talpha, calcalpha, negalpha */
   mat4 u_object_to_world_mat; /* object->world */
   mat4 u_mapref_imat;         /* inverse map reference for object mapping */
@@ -294,6 +320,8 @@ static std::string get_texture_params_glsl()
 #define u_tex_gfac tex_params.tex_rgbfac.y
 #define u_tex_bfac tex_params.tex_rgbfac.z
 #define u_tex_distamount tex_params.tex_distamount.x
+/* ns_outscale exposed next to distamount (CPU writes it into tex_distamount[1]) */
+#define u_tex_ns_outscale tex_params.tex_distamount.y
 #define u_tex_noisesize tex_params.tex_noisesize_turbul.x
 #define u_tex_turbul tex_params.tex_noisesize_turbul.y
 #define u_tex_size_param vec3(tex_params.tex_size_ofs_rot.x, tex_params.tex_size_ofs_rot.y, 0.0)
@@ -313,22 +341,31 @@ static std::string get_texture_params_glsl()
 #define u_tex_frame int(tex_params.tex_filtersize_frame_colorband_pad.y)
 #define u_object_to_world_mat tex_params.u_object_to_world_mat
 #define u_mapref_imat tex_params.u_mapref_imat
-/* Additional derived flags */
 #define u_tex_no_clamp ((tex_params.tex_flags.x & TEX_NO_CLAMP) != 0)
 
-/* Runtime flags migrated into `TextureParams.tex_imaflag_runtime_flags` to reduce push-constant
- * usage. Map legacy names to UBO fields so existing shader code keeps
- * working without uniform/push-constant updates. */
+/* Runtime flags migrated into tex_imaflag_runtime_flags */
 #define u_use_talpha (tex_params.tex_imaflag_runtime_flags.y != 0)
 #define u_tex_calcalpha (tex_params.tex_imaflag_runtime_flags.z != 0)
 #define u_tex_negalpha (tex_params.tex_imaflag_runtime_flags.w != 0)
-/* Convenience flag: enable ColorBand application in multitex/imagewrap
- * Mapped into tex_misc2.z by the CPU so shaders can test the flag without
- * requiring an extra push-constant. */
 #define u_use_colorband (tex_params.tex_filtersize_frame_colorband_pad.z != 0)
-/* Legacy/auxiliary texture macros expected by imagewrap/multitex helpers.
- * Use numeric bit-masks here to avoid depending on TEX_* defines being
- * available at the point this header is injected into shader sources. */
+
+/* Musgrave params */
+#define u_tex_mg_H (tex_params.tex_mg_params0.x)
+#define u_tex_mg_lacunarity (tex_params.tex_mg_params0.y)
+#define u_tex_mg_octaves (tex_params.tex_mg_params0.z)
+#define u_tex_mg_offset (tex_params.tex_mg_params0.w)
+#define u_tex_mg_gain (tex_params.tex_mg_params1.x)
+
+/* Voronoi params */
+#define u_tex_vn_w1 tex_params.tex_voronoi.x
+#define u_tex_vn_w2 tex_params.tex_voronoi.y
+#define u_tex_vn_w3 tex_params.tex_voronoi.z
+#define u_tex_vn_w4 tex_params.tex_voronoi.w
+#define u_tex_vn_mexp tex_params.tex_voronoi_misc.x
+#define u_tex_vn_distm int(tex_params.tex_voronoi_misc.y)
+#define u_tex_vn_coltype int(tex_params.tex_voronoi_misc.z)
+
+/* Auxiliary flags/macros */
 #define U_BIT_IMAROT (1 << 4)
 #define U_BIT_CHECKER_ODD (1 << 3)
 #define U_BIT_CHECKER_EVEN (1 << 4)
@@ -408,6 +445,13 @@ static std::string get_texture_defines_glsl()
 /* Cloud stype values */
 #define TEX_DEFAULT 0
 #define TEX_COLOR 1
+
+/* Musgrave subtype values (used by musgrave textures / mg_* helpers) */
+#define TEX_MFRACTAL 0
+#define TEX_RIDGEDMF 1
+#define TEX_HYBRIDMF 2
+#define TEX_FBM 3
+#define TEX_HTERRAIN 4
 
 /* Marble types */
 #define TEX_SOFT 0
@@ -755,6 +799,45 @@ int distnoise_tex(vec3 texvec, inout TexResult_tex texres, float noisesize, floa
   return TEX_INT;
 }
 
+/* Musgrave wrapper that reads parameters from the TextureParams UBO and
+ * matches CPU `mg_*` branches (scaled by u_tex_ns_outscale). */
+int musgrave_tex_ubo(vec3 texvec, inout TexResult_tex texres)
+{
+  float H = u_tex_mg_H;
+  float lac = u_tex_mg_lacunarity;
+  float oct = u_tex_mg_octaves;
+  float off = u_tex_mg_offset;
+  float gain = u_tex_mg_gain;
+  float ns = u_tex_ns_outscale;
+  int basis = u_tex_noisebasis;
+
+  int st = u_tex_stype;
+
+  if (st == TEX_MFRACTAL) {
+    texres.tin = ns * bli_noise_mg_multi_fractal(texvec.x, texvec.y, texvec.z, H, lac, oct, basis);
+  }
+  else if (st == TEX_FBM) {
+    texres.tin = ns * bli_noise_mg_fbm(texvec.x, texvec.y, texvec.z, H, lac, oct, basis);
+  }
+  else if (st == TEX_RIDGEDMF) {
+    texres.tin = ns * bli_noise_mg_ridged_multi_fractal(texvec.x, texvec.y, texvec.z, H, lac, oct, off, gain, basis);
+  }
+  else if (st == TEX_HYBRIDMF) {
+    texres.tin = ns * bli_noise_mg_hybrid_multi_fractal(texvec.x, texvec.y, texvec.z, H, lac, oct, off, gain, basis);
+  }
+  else if (st == TEX_HTERRAIN) {
+    texres.tin = ns * bli_noise_mg_hetero_terrain(texvec.x, texvec.y, texvec.z, H, lac, oct, off, basis);
+  }
+  else {
+    /* Fallback -> use fbm */
+    texres.tin = ns * bli_noise_mg_fbm(texvec.x, texvec.y, texvec.z, H, lac, oct, basis);
+  }
+
+  /* Match CPU: apply BRICONT after musgrave intensity */
+  texres.tin = apply_bricont_fn(texres.tin);
+  return TEX_INT;
+}
+
 #endif // HAS_TEXTURE
   )GLSL";
 }
@@ -883,6 +966,22 @@ int voronoi_tex(vec3 texvec, inout TexResult_tex texres, float vn_w1, float vn_w
     return (TEX_RGB);
   }
   return TEX_INT;
+}
+
+/* Convenience wrapper that reads Voronoi params from the TextureParams UBO.
+ * Use this from multitex so shaders get CPU-populated vn_* values. */
+int voronoi_tex_ubo(vec3 texvec, inout TexResult_tex texres)
+{
+  return voronoi_tex(texvec,
+                     texres,
+                     u_tex_vn_w1,
+                     u_tex_vn_w2,
+                     u_tex_vn_w3,
+                     u_tex_vn_w4,
+                     u_tex_ns_outscale,
+                     u_tex_vn_coltype,
+                     u_tex_vn_distm,
+                     u_tex_vn_mexp);
 }
 
 #endif // HAS_TEXTURE
@@ -3396,12 +3495,24 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
   else if (t == TEX_STUCCI) {
     retval = stucci_tex(texvec, texres, u_tex_stype, u_tex_noisesize, u_tex_turbul, u_tex_noisebasis);
   }
+  else if (t == TEX_MUSGRAVE) {
+    /* Match CPU: scale texvec by 1/noisesize before Musgrave evaluation. */
+    vec3 tmp = texvec;
+    if (u_tex_noisesize != 0.0) {
+      tmp *= (1.0 / u_tex_noisesize);
+    }
+    retval = musgrave_tex_ubo(tmp, texres);
+  }
   else if (t == TEX_NOISE) {
     retval = texnoise_tex(texres, thread_id, u_tex_noisedepth);
   }
   else if (t == TEX_VORONOI) {
-    /* Example default params for voronoi; callers may set additional uniforms */
-    retval = voronoi_tex(texvec, texres, 1.0, 0.0, 0.0, 0.0, 1.0, TEX_COL1, 0, 1.0);
+    /* Match CPU: scale texvec by 1/noisesize before Voronoi evaluation. */
+    vec3 tmp = texvec;
+    if (u_tex_noisesize != 0.0) {
+      tmp *= (1.0 / u_tex_noisesize);
+    }
+    retval = voronoi_tex_ubo(tmp, texres);
   }
   else if (t == TEX_DISTNOISE) {
     retval = distnoise_tex(texvec, texres, u_tex_noisesize, u_tex_distamount, u_tex_noisebasis, u_tex_noisebasis2);
