@@ -49,6 +49,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "NOD_shader_nodes_inline.hh"
+#include "RE_compositor.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
@@ -79,16 +80,12 @@
 #include "NOD_texture.h"
 #include "node_intern.hh" /* own include */
 
-#include "COM_compositor.hh"
-#include "COM_context.hh"
 #include "COM_node_group_operation.hh"
 #include "COM_profiler.hh"
 
 namespace blender {
 
 namespace ed::space_node {
-
-#define USE_ESC_COMPO
 
 /* -------------------------------------------------------------------- */
 /** \name Composite Job Manager
@@ -102,12 +99,10 @@ struct CompoJob {
   bNodeTree *ntree;
   /* Evaluated state/ */
   Depsgraph *compositor_depsgraph;
-  bNodeTree *localtree;
+  bNodeTree *evaluated_node_tree;
   /* Render instance. */
   Render *re;
   /* Job system integration. */
-  const bool *stop;
-  bool *do_update;
   bool cancelled;
 
   compositor::Profiler profiler;
@@ -133,39 +128,15 @@ float2 node_link_calculate_multi_input_position(const float2 &socket_position,
   return {socket_position.x, socket_position.y - offset + index * NODE_MULTI_INPUT_LINK_GAP};
 }
 
-/* Called by compositor, only to check job 'stop' value. */
-static bool compo_breakjob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  /* Without G.is_break 'ESC' won't quit - which annoys users. */
-  return (*(cj->stop)
-#ifdef USE_ESC_COMPO
-          || G.is_break
-#endif
-  );
-}
-
-/* Called by compositor, wmJob sends notifier. */
-static void compo_redrawjob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  *(cj->do_update) = true;
-}
-
 static void compo_freejob(void *cjv)
 {
   CompoJob *cj = static_cast<CompoJob *>(cjv);
 
-  if (cj->localtree) {
+  if (cj->evaluated_node_tree) {
     /* Merge back node previews, only for completed jobs. */
     if (!cj->cancelled) {
-      bke::node_preview_merge_tree(cj->ntree, cj->localtree, true);
+      bke::node_preview_merge_tree(cj->ntree, cj->evaluated_node_tree, true);
     }
-
-    bke::node_tree_free_tree(*cj->localtree);
-    MEM_freeN(cj->localtree);
   }
 
   MEM_delete(cj);
@@ -201,9 +172,7 @@ static void compo_initjob(void *cjv)
    * evaluate_on_framechange. */
   DEG_evaluate_on_refresh(cj->compositor_depsgraph);
 
-  bNodeTree *ntree_eval = DEG_get_evaluated(cj->compositor_depsgraph, cj->ntree);
-
-  cj->localtree = bke::node_tree_localize(ntree_eval, nullptr);
+  cj->evaluated_node_tree = DEG_get_evaluated(cj->compositor_depsgraph, cj->ntree);
 
   cj->re = RE_NewInteractiveCompositorRender(scene);
   if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
@@ -211,46 +180,34 @@ static void compo_initjob(void *cjv)
   }
 }
 
-/* Called before redraw notifiers, it moves finished previews over. */
-static void compo_updatejob(void * /*cjv*/)
-{
-  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, nullptr);
-}
-
 /* Only this runs inside thread. */
 static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
 {
   CompoJob *cj = static_cast<CompoJob *>(cjv);
-  bNodeTree *ntree = cj->localtree;
+  bNodeTree *ntree = cj->evaluated_node_tree;
   Scene *scene = DEG_get_evaluated_scene(cj->compositor_depsgraph);
 
-  cj->stop = &worker_status->stop;
-  cj->do_update = &worker_status->do_update;
-
-  ntree->runtime->test_break = compo_breakjob;
-  ntree->runtime->tbh = cj;
-  ntree->runtime->update_draw = compo_redrawjob;
-  ntree->runtime->udh = cj;
+  RE_test_break_cb(cj->re, &worker_status->stop, [](void *should_stop) -> bool {
+    return *static_cast<bool *>(should_stop) || G.is_break;
+  });
 
   BKE_callback_exec_id(cj->bmain, &cj->scene->id, BKE_CB_EVT_COMPOSITE_PRE);
 
-  worker_status->progress = 0.0f;
-  worker_status->do_update = true;
-
   if ((scene->r.scemode & R_MULTIVIEW) == 0) {
-    COM_execute(cj->re, &scene->r, scene, ntree, "", nullptr, &cj->profiler, cj->needed_outputs);
+    RE_compositor_execute(
+        *cj->re, *scene, scene->r, *ntree, "", nullptr, &cj->profiler, cj->needed_outputs);
   }
   else {
     for (SceneRenderView &srv : scene->r.views) {
       if (BKE_scene_multiview_is_render_view_active(&scene->r, &srv) == false) {
         continue;
       }
-      COM_execute(
-          cj->re, &scene->r, scene, ntree, srv.name, nullptr, &cj->profiler, cj->needed_outputs);
+      RE_compositor_execute(
+          *cj->re, *scene, scene->r, *ntree, srv.name, nullptr, &cj->profiler, cj->needed_outputs);
     }
   }
 
-  ntree->runtime->test_break = nullptr;
+  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, nullptr);
 }
 
 static void compo_canceljob(void *cjv)
@@ -391,9 +348,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
     return;
   }
 
-#ifdef USE_ESC_COMPO
   G.is_break = false;
-#endif
 
   BKE_image_backup_render(
       scene, BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result"), false);
@@ -416,13 +371,8 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   /* Set up job. */
   WM_jobs_customdata_set(wm_job, cj, compo_freejob);
   WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_COMPO_RESULT, NC_SCENE | ND_COMPO_RESULT);
-  WM_jobs_callbacks_ex(wm_job,
-                       compo_startjob,
-                       compo_initjob,
-                       compo_updatejob,
-                       nullptr,
-                       compo_completejob,
-                       compo_canceljob);
+  WM_jobs_callbacks_ex(
+      wm_job, compo_startjob, compo_initjob, nullptr, nullptr, compo_completejob, compo_canceljob);
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 }

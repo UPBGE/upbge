@@ -43,7 +43,7 @@
 #include "RNA_types.hh"
 
 #ifdef WITH_PYTHON
-#  include "Python.h"
+#include <Python.h>
 
 #  include "../../python/intern/bpy_rna.hh"
 #  include "generic/bpy_internal_import.hh"
