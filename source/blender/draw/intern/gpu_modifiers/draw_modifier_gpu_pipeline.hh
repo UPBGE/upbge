@@ -15,7 +15,8 @@ struct Mesh;
 struct Object;
 }  // namespace blender
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 struct MeshBatchCache;
 
@@ -146,4 +147,5 @@ class GPUModifierPipeline {
 bool build_gpu_modifier_pipeline(
     Object &ob_eval, Mesh &mesh_orig, GPUModifierPipeline &pipeline);
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

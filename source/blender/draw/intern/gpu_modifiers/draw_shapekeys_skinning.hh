@@ -18,8 +18,8 @@ class StorageBuf;
 }  // namespace gpu
 }  // namespace blender
 
-namespace blender::draw {
-
+namespace blender {
+namespace draw {
 
 /* Forward declaration for MeshBatchCache */
 struct MeshBatchCache;
@@ -31,8 +31,8 @@ class ShapeKeySkinningManager {
   ~ShapeKeySkinningManager();
 
   /* Prepare CPU-only static resources (deltas, rest positions). Safe to call from extraction
-   * thread. 
-   * 
+   * thread.
+   *
    * Takes pipeline_hash parameter to avoid redundant hash recalculation.
    * The hash is computed once by GPUModifierPipeline and passed to all managers. */
   void ensure_static_resources(Mesh *orig_mesh, uint32_t pipeline_hash);
@@ -66,4 +66,5 @@ class ShapeKeySkinningManager {
   std::unique_ptr<Impl> impl_;
 };
 
-} /* namespace blender::draw */
+}  // namespace draw
+}  // namespace blender

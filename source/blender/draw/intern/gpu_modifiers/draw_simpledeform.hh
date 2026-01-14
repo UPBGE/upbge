@@ -25,7 +25,8 @@ class StorageBuf;
 }  // namespace gpu
 }  // namespace blender
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 
 /* Forward declaration for MeshBatchCache */
@@ -104,4 +105,5 @@ class SimpleDeformManager {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

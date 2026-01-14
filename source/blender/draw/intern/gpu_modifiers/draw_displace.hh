@@ -40,7 +40,8 @@ class StorageBuf;
 }  // namespace gpu
 }  // namespace blender
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 /* Forward declaration for MeshBatchCache */
 struct MeshBatchCache;
@@ -103,4 +104,5 @@ class DisplaceManager {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

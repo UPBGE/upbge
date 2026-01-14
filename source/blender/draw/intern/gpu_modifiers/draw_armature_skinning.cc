@@ -44,9 +44,7 @@
 #include "DEG_depsgraph_query.hh"
 
 namespace blender {
-
-
-using namespace blender::draw;
+namespace draw {
 
 /* Dual Quaternion structure matching Blender's CPU format */
 struct GPUDualQuat {
@@ -1558,4 +1556,5 @@ void ArmatureSkinningManager::free_all()
   impl_->static_map.clear();
 }
 
+}  // namespace draw
 }  // namespace blender

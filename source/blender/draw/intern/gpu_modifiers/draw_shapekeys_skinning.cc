@@ -34,7 +34,8 @@
 #include "DNA_mesh_types.h"
 
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 struct ShapeKeySkinningManager::Impl {
   struct MeshStaticData {
@@ -117,8 +118,7 @@ uint32_t ShapeKeySkinningManager::compute_shapekey_hash(const Mesh *mesh)
   return hash;
 }
 
-void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh,
-                                                      uint32_t pipeline_hash)
+void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t pipeline_hash)
 {
   if (!orig_mesh) {
     return;
@@ -131,7 +131,7 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh,
    * GPUModifierPipeline and includes ALL ShapeKey state
    * (vertex count, Basis, Relative To,
    * Edit Mode changes, etc.)
-   * 
+   *
    * We recalculate CPU deltas when:
    * 1. First time
    * (last_verified_hash == 0)
@@ -313,10 +313,10 @@ gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cac
   gpu::StorageBuf *ssbo_deltas = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_deltas);
   if (!ssbo_deltas) {
     ssbo_deltas = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner,
-                                                    deformed_eval,
-                                                    key_deltas,
-                                                    sizeof(float) * size_t(kcount) *
-                                                        size_t(verts) * 4u);
+                                                         deformed_eval,
+                                                         key_deltas,
+                                                         sizeof(float) * size_t(kcount) *
+                                                             size_t(verts) * 4u);
     if (!ssbo_deltas) {
       return nullptr;
     }
@@ -461,7 +461,8 @@ gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cac
     info.storage_buf(3, Qualifier::write, "vec4", "out_pos[]");
     info.push_constant(Type::int_t, "u_vert_count");
     info.push_constant(Type::int_t, "u_key_count");
-    compute_sh = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
+    compute_sh = bke::BKE_mesh_gpu_internal_shader_ensure(
+        mesh_owner, deformed_eval, shader_key, info);
   }
 
   if (!compute_sh) {
@@ -469,8 +470,8 @@ gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cac
   }
 
   /* Bind and dispatch compute */
-  const gpu::shader::SpecializationConstants *constants =
-      &GPU_shader_get_default_constant_state(compute_sh);
+  const gpu::shader::SpecializationConstants *constants = &GPU_shader_get_default_constant_state(
+      compute_sh);
   GPU_shader_bind(compute_sh, constants);
   GPU_storagebuf_bind(ssbo_rest, 0);
   GPU_storagebuf_bind(ssbo_deltas, 1);
@@ -520,4 +521,5 @@ void ShapeKeySkinningManager::free_all()
   impl_->static_map.clear();
 }
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

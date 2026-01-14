@@ -96,6 +96,7 @@ set(SRC
   intern/gpu_modifiers/draw_modifier_gpu_pipeline.cc
   intern/gpu_modifiers/draw_shapekeys_skinning.cc
   intern/gpu_modifiers/draw_simpledeform.cc
+  intern/gpu_modifiers/draw_wave.cc
   engines/compositor/compositor_engine.cc
   engines/image/image_drawing_mode.cc
   engines/image/image_engine.cc
@@ -201,6 +202,7 @@ set(SRC
   intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh
   intern/gpu_modifiers/draw_shapekeys_skinning.hh
   intern/gpu_modifiers/draw_simpledeform.hh
+  intern/gpu_modifiers/draw_wave.hh
   engines/compositor/compositor_engine.h
   engines/eevee/eevee_ambient_occlusion.hh
   engines/eevee/eevee_camera.hh

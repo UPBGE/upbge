@@ -19,7 +19,9 @@ class StorageBuf;
 }  // namespace gpu
 }  // namespace blender
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
+
 struct MeshBatchCache;
 
 class ArmatureSkinningManager {
@@ -84,4 +86,5 @@ class ArmatureSkinningManager {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

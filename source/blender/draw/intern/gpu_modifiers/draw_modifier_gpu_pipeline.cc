@@ -28,7 +28,8 @@
 #include "BKE_mesh_gpu.hh"
 
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 int GPUModifierPipeline::instance_counter = 0;
 
@@ -567,4 +568,5 @@ bool build_gpu_modifier_pipeline(
 
 /** \} */
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

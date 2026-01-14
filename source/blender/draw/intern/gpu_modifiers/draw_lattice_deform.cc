@@ -32,7 +32,8 @@
 #include "draw_cache_extract.hh"
 
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 struct blender::draw::LatticeSkinningManager::Impl {
 /* Composite key: (Mesh*, modifier UID) to support multiple Lattice modifiers per mesh */
@@ -595,4 +596,5 @@ void LatticeSkinningManager::free_all()
   impl_->static_map.clear();
 }
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

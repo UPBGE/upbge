@@ -28,7 +28,8 @@
 #include "draw_cache_impl.hh"
 #include "draw_cache_extract.hh"
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 struct blender::draw::SimpleDeformManager::Impl {
 /* Composite key: (Mesh*, modifier UID) to support multiple SimpleDeform modifiers per mesh */
@@ -727,4 +728,5 @@ void SimpleDeformManager::free_all()
   impl_->static_map.clear();
 }
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

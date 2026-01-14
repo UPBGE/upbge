@@ -35,7 +35,8 @@
 #include "DEG_depsgraph_query.hh"
 
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Implementation Data
@@ -680,4 +681,5 @@ void HookManager::free_all()
 
 /** \} */
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

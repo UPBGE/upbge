@@ -61,7 +61,8 @@
 
 #include "MEM_guardedalloc.h"
 
-namespace blender::draw {
+namespace blender {
+namespace draw {
 
 /* -------------------------------------------------------------------- */
 /** \name Colorspace Management Helpers
@@ -1131,4 +1132,5 @@ void DisplaceManager::free_all()
 
 /** \} */
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

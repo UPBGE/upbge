@@ -19,8 +19,8 @@ class StorageBuf;
 }  // namespace gpu
 }  // namespace blender
 
-namespace blender::draw {
-
+namespace blender {
+namespace draw {
 
 /* Forward declaration for MeshBatchCache */
 struct MeshBatchCache;
@@ -43,18 +43,17 @@ class LatticeSkinningManager {
   /**
    * Compute a hash of the Lattice deformation state to detect changes.
    * Includes: vertex count, lattice dimensions, interpolation types, vertex groups.
-   * 
+   *
    * @param mesh_orig The original mesh (for vertex count)
    * @param lmd The lattice modifier data (contains lattice pointer, vertex group, etc.)
    * @return Hash value, or 0 if inputs are invalid
    */
-  static uint32_t compute_lattice_hash(const Mesh *mesh_orig,
-                                       const LatticeModifierData *lmd);
+  static uint32_t compute_lattice_hash(const Mesh *mesh_orig, const LatticeModifierData *lmd);
 
   /**
    * Prepare CPU-side static resources (lattice control points, grid dimensions).
    * Can be called from extraction phase (non-GL thread).
-   * 
+   *
    * @param lmd The specific LatticeModifierData to extract settings from
    * @param lattice_ob The lattice object
    * @param deformed_ob The object being deformed
@@ -71,15 +70,15 @@ class LatticeSkinningManager {
    * Execute lattice deformation compute shader.
    * Reads from ssbo_in (previous stage output), writes to internal SSBO.
    * Returns SSBO containing deformed positions.
-   * 
+   *
    * @param lmd The specific LatticeModifierData to extract settings from
    */
   gpu::StorageBuf *dispatch_deform(const LatticeModifierData *lmd,
-                                            Depsgraph *depsgraph,
-                                            Object *eval_lattice,
-                                            Object *deformed_eval,
-                                            MeshBatchCache *cache,
-                                            gpu::StorageBuf *ssbo_in);
+                                   Depsgraph *depsgraph,
+                                   Object *eval_lattice,
+                                   Object *deformed_eval,
+                                   MeshBatchCache *cache,
+                                   gpu::StorageBuf *ssbo_in);
 
   /**
    * Free all GPU resources associated with a mesh.
@@ -101,4 +100,5 @@ class LatticeSkinningManager {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender
