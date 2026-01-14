@@ -85,9 +85,11 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
   ID *data_orig = object->runtime->data_orig;
   ID *data_eval = runtime.data_eval;
   std::optional<Bounds<float3>> bounds = object->runtime->bounds_eval;
+  SculptSession *sculpt_session = object->runtime->sculpt_session;
   *object->runtime = runtime;
   object->runtime->data_orig = data_orig;
   object->runtime->bounds_eval = bounds;
+  object->runtime->sculpt_session = sculpt_session;
 
   /* Detect if this mesh is currently driven by GPU deformation playback. */
   const bool is_gpu_anim_mesh = (object->type == OB_MESH) &&

@@ -326,6 +326,7 @@ set(LIB
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::dependencies::optional::opensubdiv
 )
 
 set(GLSL_SRC
@@ -955,13 +956,6 @@ if(WITH_DRAW_DEBUG)
   add_definitions(-DWITH_DRAW_DEBUG)
 endif()
 
-if(WITH_OPENSUBDIV)
-  add_definitions(-DWITH_OPENSUBDIV)
-  list(APPEND INC_SYS
-    ${OPENSUBDIV_INCLUDE_DIRS}
-  )
-endif()
-
 if(WITH_MOD_FLUID)
   list(APPEND INC
     ../../../intern/mantaflow/extern
@@ -988,8 +982,8 @@ if(WITH_GTESTS)
     endif()
     if(WITH_VULKAN_BACKEND)
       add_definitions(-DWITH_VULKAN_BACKEND)
-      list(APPEND INC_SYS
-        PUBLIC ${VULKAN_INCLUDE_DIRS}
+      list(APPEND LIB
+        PRIVATE bf::dependencies::optional::vulkan
       )
     endif()
   endif()

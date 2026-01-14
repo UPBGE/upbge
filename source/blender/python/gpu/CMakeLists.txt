@@ -11,7 +11,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -64,22 +63,18 @@ set(SRC
 )
 
 set(LIB
-  ${PYTHON_LINKFLAGS}
-  ${PYTHON_LIBRARIES}
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dependencies::optional::python
 )
 
 if(WITH_OPENGL_BACKEND)
-  list(APPEND INC_SYS
-    ${Epoxy_INCLUDE_DIRS}
-  )
   list(APPEND LIB
-    ${Epoxy_LIBRARIES}
+    PRIVATE bf::dependencies::epoxy
   )
 endif()
 
