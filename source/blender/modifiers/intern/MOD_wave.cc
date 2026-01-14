@@ -298,6 +298,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.use_property_split_set(true);
 
+  /* UPBGE */
+  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
+
   ui::Layout *row = &layout.row(true, IFACE_("Motion"));
   row->prop(
       ptr, "use_x", ui::ITEM_R_TOGGLE | ui::ITEM_R_FORCE_BLANK_DECORATE, std::nullopt, ICON_NONE);

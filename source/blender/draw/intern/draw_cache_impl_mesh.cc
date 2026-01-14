@@ -1249,6 +1249,12 @@ static PlayBackRefuseInfo compute_gpu_playback_decision(Object &ob, Mesh &mesh)
         explicitly_cpu = dmd && !(dmd->deform_method & DIS_DEFORM_METHOD_GPU);
         break;
       }
+      case eModifierType_Wave: {
+        WaveModifierData *wmd = (WaveModifierData *)md;
+        requests_gpu = wmd && (wmd->deform_method & WAV_DEFORM_METHOD_GPU);
+        explicitly_cpu = wmd && !(wmd->deform_method & WAV_DEFORM_METHOD_GPU);
+        break;
+      }
       default:
         break;
     }

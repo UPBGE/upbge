@@ -26,7 +26,7 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_viewport.hh"
 
-#include "draw_modifier_gpu_pipeline.hh"
+#include "../draw/intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh"
 
 struct DRWDebugModule;
 struct DRWUniformChunk;

@@ -83,15 +83,14 @@
 #include "DRW_render.hh"
 
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
-#include "DNA_key_types.h"               // UPBGE
-#include "draw_armature_skinning.hh"     // UPBGE
-#include "draw_displace.hh"              // UPBGE
-#include "draw_hook.hh"                  // UPBGE
-#include "draw_lattice_deform.hh"        // UPBGE
-#include "draw_shapekeys_skinning.hh"    // UPBGE
-#include "draw_simpledeform.hh"          // UPBGE
-#include "draw_modifier_gpu_pipeline.hh" // UPBGE
-#include <unordered_set>
+#include "DNA_key_types.h"                                            // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_armature_skinning.hh"     // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_displace.hh"              // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_hook.hh"                  // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_lattice_deform.hh"        // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_shapekeys_skinning.hh"    // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_simpledeform.hh"          // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh" // UPBGE
 
 #include "draw_cache.hh"
 #include "draw_color_management.hh"

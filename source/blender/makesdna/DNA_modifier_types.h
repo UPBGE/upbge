@@ -847,7 +847,8 @@ struct WaveModifierData {
   struct Object *map_object = nullptr;
   char map_bone[/*MAXBONENAME*/ 64] = "";
   char uvlayer_name[/*MAX_CUSTOMDATA_LAYER_NAME*/ 68] = "";
-  char _pad1[4] = {};
+  short deform_method = 0;
+  char _pad1[2] = {};
   int uvlayer_tmp = 0;
   int texmapping = MOD_DISP_MAP_LOCAL;
   /* End MappingInfoModifierData. */
@@ -867,6 +868,12 @@ struct WaveModifierData {
   char _pad3[4] = {};
   void *_pad4 = nullptr;
 };
+
+/** WaveModifierData.deform_method */
+typedef enum {
+  WAV_DEFORM_METHOD_CPU = 0,
+  WAV_DEFORM_METHOD_GPU = 1,
+} WaveModifierDeformMethod;
 
 struct ArmatureModifierData {
   ModifierData modifier;
