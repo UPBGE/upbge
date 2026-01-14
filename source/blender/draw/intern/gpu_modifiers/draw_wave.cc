@@ -99,84 +99,95 @@ void main() {
   vec4 ip = input_positions[v];
   vec3 co = ip.xyz;
 
-  /* Get vertex group weight */
-  float vgroup_weight = 1.0;
-  if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
-    vgroup_weight = vgroup_weights[v];
-  }
-
-  /* Early exit if weight is zero (match CPU behavior) */
-  if (vgroup_weight < 1e-6) {
+  /* Match CPU early-out when lifefac == 0.0f: no deformation should be applied. */
+  if (u_lifefac == 0.0) {
     deformed_positions[v] = ip;
     return;
   }
+  /* Corresponds exactly to CPU `waveModifier_do` loop variables and order. */
+  float falloff_inv = (u_falloff != 0.0) ? 1.0 / u_falloff : 1.0;
 
-  /* Compute local amplitude based on X/Y (startx/starty provided as uniform) */
+  /* Get vertex group weight (CPU: def_weight inside loop) */
+  float def_weight = 1.0;
+  if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
+    def_weight = vgroup_weights[v];
+    if (def_weight == 0.0) {
+      deformed_positions[v] = ip;
+      return;
+    }
+  }
+
+  /* Per-vertex local coords */
   float x = co.x - u_startx;
   float y = co.y - u_starty;
+
+  /* amplit initial based on axis */
   float amplit = 0.0;
   int axis = u_axis; /* 0: both, 1: X, 2: Y */
   if (axis == 0) amplit = sqrt(x * x + y * y);
   else if (axis == 1) amplit = x;
   else amplit = y;
 
+  /* this way it makes nice circles */
   amplit -= (u_time - u_timeoffs) * u_speed;
 
+  /* cyclic (use trunc to match fmodf semantics) */
   if (u_cyclic != 0) {
-    /* Use trunc-based wrap to match C `fmodf` semantics (truncate toward zero)
-     * GLSL `mod` uses floor() semantics which differs for negatives. Replicate
-     * fmodf: result = fmodf(amplit - width, 2*width) + width using trunc.
-     */
     float tmp = amplit - u_width;
     float denom = 2.0 * u_width;
-    /* trunc() matches C truncation toward zero for negative values. */
     amplit = tmp - denom * trunc(tmp / denom) + u_width;
   }
 
+  /* falloff distance */
   float falloff_fac = 1.0;
   if (u_falloff != 0.0) {
     float dist = 0.0;
-    if (axis == 0) dist = length(vec2(x, y));
+    if (axis == 0) dist = sqrt(x * x + y * y);
     else dist = abs((axis == 1) ? x : y);
-    falloff_fac = clamp(1.0 - (dist * (1.0 / u_falloff)), 0.0, 1.0);
+    falloff_fac = 1.0 - (dist * falloff_inv);
+    falloff_fac = clamp(falloff_fac, 0.0, 1.0);
   }
 
-  /* Gaussian shaping (narrow) */
-  float a = amplit * u_narrow;
-  float minfac = u_minfac; /* precomputed on CPU and uploaded as push-constant */
-  float shaped = (1.0 / exp(a * a) - minfac);
+  /* GAUSSIAN check and shaping */
+  if ((falloff_fac != 0.0) && (amplit > -u_width) && (amplit < u_width)) {
+    /* compute shaped amplitude into `amplit` as CPU does */
+    amplit = amplit * u_narrow;
+    amplit = (1.0 / exp(amplit * amplit) - u_minfac);
 
-  if (shaped != shaped || shaped == 0.0) {
-    /* degenerate -> no move */
-    deformed_positions[v] = ip;
+#ifdef HAS_TEXTURE
+    TexResult_tex texres;
+    float tex_int = BKE_texture_get_value(texres, texture_coords[v].xyz, input_positions[v], int(v));
+    amplit *= tex_int;
+#endif
+
+    /* Apply weight & falloff (def_weight already read above) */
+    amplit *= def_weight * falloff_fac;
+
+    vec3 n = vec3(0.0, 0.0, 1.0);
+    if (u_use_normal != 0) {
+      vec3 n_mesh = compute_vertex_normal_smooth(int(v));
+      vec3 n_mask = vec3(float(u_use_normal_x != 0), float(u_use_normal_y != 0), float(u_use_normal_z != 0));
+      n = n_mesh * n_mask;
+    }
+
+    /* apply displacement along normals or Z exactly like CPU */
+    vec3 disp = vec3(0.0);
+    if (u_use_normal != 0) {
+      if (u_use_normal_x != 0) disp.x = u_lifefac * amplit * n.x;
+      if (u_use_normal_y != 0) disp.y = u_lifefac * amplit * n.y;
+      if (u_use_normal_z != 0) disp.z = u_lifefac * amplit * n.z;
+    }
+    else {
+      disp.z = u_lifefac * amplit;
+    }
+
+    co += disp;
+    deformed_positions[v] = vec4(co, 1.0);
     return;
   }
 
-#ifdef HAS_TEXTURE
-  /* Use shared helper which performs mapping + sampling and fills `texres`. */
-  TexResult_tex texres;
-  float tex_int = BKE_texture_get_value(texres, texture_coords[v].xyz, input_positions[v], int(v));
-
-  /* Apply texture intensity to shaped amplitude to match CPU path */
-  shaped *= tex_int;
-#endif
-
-  /* Apply falloff & vertex group weight */
-  shaped *= falloff_fac * vgroup_weight;
-
-  vec3 n = vec3(0.0, 0.0, 1.0);
-  if (u_use_normal != 0) {
-    /* Compute smooth vertex normal from topology */
-    vec3 n_mesh = compute_vertex_normal_smooth(int(v));
-    vec3 n_mask = vec3(float(u_use_normal_x != 0), float(u_use_normal_y != 0), float(u_use_normal_z != 0));
-    n = n_mesh * n_mask;
-  }
-
-  /* Match CPU: `lifefac` already represents the height factor (wmd->height),
-   * so multiply shaped by `u_lifefac` only. Do NOT multiply again by `u_vheight`. */
-  vec3 disp = n * (u_lifefac * shaped);
-  co += disp;
-  deformed_positions[v] = vec4(co, 1.0);
+  /* no change */
+  deformed_positions[v] = ip;
 }
 )GLSL";
 
