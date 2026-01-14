@@ -78,6 +78,71 @@ WaveManager &WaveManager::instance()
 WaveManager::WaveManager() : impl_(new Impl()) {}
 WaveManager::~WaveManager() { delete impl_; }
 
+uint32_t WaveManager::compute_wave_hash(const Mesh *mesh_orig,
+                                        const WaveModifierData *wmd)
+{
+  if (!mesh_orig || !wmd) {
+    return 0;
+  }
+
+  uint32_t hash = 0;
+
+  /* Hash vertex count */
+  hash = BLI_hash_int_2d(hash, mesh_orig->verts_num);
+
+  /* Hash vertex group name (mix into existing hash) */
+  if (wmd->defgrp_name[0] != '\0') {
+    hash = BLI_hash_int_2d(hash, BLI_hash_string(wmd->defgrp_name));
+  }
+
+  /* Hash texture mapping mode */
+  hash = BLI_hash_int_2d(hash, int(wmd->texmapping));
+
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(wmd->texture)));
+
+  if (wmd->texture) {
+    hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->type));
+    if (wmd->texture->ima) {
+      hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(wmd->texture->ima)));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->source));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.tile));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.framenr));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->imaflag));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->extend));
+
+      /* Mix Image generation flags/values (use actual values, not addresses). */
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->gen_flag));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->gen_depth));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->gen_type));
+      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->alpha_mode));
+
+      /* Hash the colorspace name string into the running hash. */
+      if (wmd->texture->ima->colorspace_settings.name[0] != '\0') {
+        hash = BLI_hash_int_2d(hash, BLI_hash_string(wmd->texture->ima->colorspace_settings.name));
+      }
+      else {
+        hash = BLI_hash_int_2d(hash, 0);
+      }
+      ImageTile *tile = BKE_image_get_tile(wmd->texture->ima, wmd->texture->iuser.tile);
+      if (tile) {
+        /* Tile generation color may be a small array/value; mix the numeric
+         * flags/types/depth which indicate tile changes. */
+        hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_flag));
+        hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_type));
+        hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_depth));
+      }
+    }
+  }
+
+  /* Hash deform_verts pointer (detects vertex group changes) */
+  Span<MDeformVert> dverts = mesh_orig->deform_verts();
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dverts.data())));
+
+  /* Note: strength and midlevel are runtime uniforms, not hashed */
+
+  return hash;
+}
+
 void WaveManager::ensure_static_resources(const WaveModifierData *wmd, Object *deform_ob, Mesh *orig_mesh, uint32_t pipeline_hash)
 {
   (void)wmd; (void)deform_ob; (void)orig_mesh; (void)pipeline_hash;

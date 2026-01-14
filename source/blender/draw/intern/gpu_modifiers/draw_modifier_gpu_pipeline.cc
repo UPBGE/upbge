@@ -24,6 +24,7 @@
 #include "draw_lattice_deform.hh"
 #include "draw_shapekeys_skinning.hh"
 #include "draw_simpledeform.hh"
+#include "draw_wave.hh"
 
 #include "BKE_mesh_gpu.hh"
 
@@ -210,6 +211,19 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
         }
         break;
       }
+      case ModifierGPUStageType::WAVE: {
+        /* Hook: Delegate to HookManager for complete hash */
+        if (mesh_orig_) {
+          WaveModifierData *wmd = static_cast<WaveModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, WaveManager::compute_wave_hash(mesh_orig_, wmd));
+        }
+        else {
+          BLI_assert_unreachable();
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
       default:
         /* Unsupported type: just hash the pointer */
         hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(stage.modifier_data)));
@@ -240,6 +254,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::DISPLACE:
       DisplaceManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::WAVE:
+      WaveManager::instance().invalidate_all(mesh_owner);
       break;
     default:
       break;
