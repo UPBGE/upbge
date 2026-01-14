@@ -118,29 +118,6 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
   }
 }
 
-static void local_merge(Main * /*bmain*/, bNodeTree *localtree, bNodeTree *ntree)
-{
-  /* move over the compbufs and previews */
-  bke::node_preview_merge_tree(ntree, localtree, true);
-
-  for (bNode &lnode : localtree->nodes) {
-    if (bNode *orig_node = bke::node_find_node_by_name(*ntree, lnode.name)) {
-      if (lnode.type_legacy == CMP_NODE_MOVIEDISTORTION) {
-        /* special case for distortion node: distortion context is allocating in exec function
-         * and to achieve much better performance on further calls this context should be
-         * copied back to original node */
-        if (lnode.storage) {
-          if (orig_node->storage) {
-            BKE_tracking_distortion_free((MovieDistortion *)orig_node->storage);
-          }
-
-          orig_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)lnode.storage);
-        }
-      }
-    }
-  }
-}
-
 static void update(bNodeTree *ntree)
 {
   bke::node_tree_set_output(*ntree);
@@ -202,7 +179,6 @@ void register_node_tree_type_cmp()
 
   tt->foreach_nodeclass = foreach_nodeclass;
   tt->localize = localize;
-  tt->local_merge = local_merge;
   tt->update = update;
   tt->get_from_context = composite_get_from_context;
   tt->node_add_init = composite_node_add_init;
@@ -235,27 +211,6 @@ void ntreeCompositTagRender(Scene *scene)
     }
   }
   BKE_ntree_update(*G_MAIN);
-}
-
-void ntreeCompositClearTags(bNodeTree *ntree)
-{
-  /* XXX: after render animation system gets a refresh, this call allows composite to end clean. */
-
-  if (ntree == nullptr) {
-    return;
-  }
-
-  for (bNode *node : ntree->all_nodes()) {
-    node->runtime->need_exec = 0;
-    if (node->is_group()) {
-      ntreeCompositClearTags(id_cast<bNodeTree *>(node->id));
-    }
-  }
-}
-
-void ntreeCompositTagNeedExec(bNode *node)
-{
-  node->runtime->need_exec = true;
 }
 
 }  // namespace blender
