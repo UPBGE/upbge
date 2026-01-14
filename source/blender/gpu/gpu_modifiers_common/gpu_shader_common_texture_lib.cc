@@ -3373,6 +3373,56 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
 )GLSL";
 }
 
+const std::string get_common_texture_bke_get_value_glsl()
+{
+  return R"GLSL(
+/* Returns intensity in [0..1]. When compiled without HAS_TEXTURE returns 1.0
+ * so shaders that multiply by the sampled intensity keep the value unchanged. */
+float BKE_texture_get_value(inout TexResult_tex texres, vec3 texture_coords_v, vec4 input_pos_v, int idx)
+{
+#ifdef HAS_TEXTURE
+  /* mapping selection (macros from get_texture_params_glsl() map these to tex_params) */
+  vec3 tex_coord = texture_coords_v;
+
+  if (u_mapping_use_input_positions) {
+    vec3 in_pos = input_pos_v.xyz;
+    if (u_tex_mapping == 0) { /* MOD_DISP_MAP_LOCAL */
+      tex_coord = in_pos;
+    } else if (u_tex_mapping == 1) { /* MOD_DISP_MAP_GLOBAL */
+      vec4 w = u_object_to_world_mat * vec4(in_pos, 1.0);
+      tex_coord = w.xyz;
+    } else if (u_tex_mapping == 2) { /* MOD_DISP_MAP_OBJECT */
+      vec4 w = u_object_to_world_mat * vec4(in_pos, 1.0);
+      vec4 o = u_mapref_imat * w;
+      tex_coord = o.xyz;
+    } else {
+      tex_coord = texture_coords_v;
+    }
+  }
+
+  /* Initialize provided texres and sample using the shared multitex path. */
+  texres.trgba = vec4(0.0);
+  texres.talpha = u_use_talpha; /* mapped to TextureParams UBO by macros */
+  texres.tin = 0.0;
+
+  vec3 mapped_coord = tex_coord;
+  int retval = multitex(mapped_coord, texres, idx);
+
+  vec3 rgb = texres.trgba.rgb;
+  if ((retval & TEX_RGB) != 0) {
+    texres.tin = (rgb.r + rgb.g + rgb.b) / 3.0;
+  } else {
+    texres.trgba.rgb = vec3(texres.tin);
+  }
+
+  return texres.tin;
+#else
+  return 1.0; /* no texture: neutral multiplier */
+#endif
+}
+)GLSL";
+}
+
 /** \} */
 
 /**
@@ -3399,7 +3449,7 @@ const std::string &get_common_texture_lib_glsl()
       get_voronoi_glsl() + get_distnoise_glsl() +
       /* Boxsample / image helpers and mapping last */
       get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl() +
-      get_imagewrap() + get_multitex_glsl();
+      get_imagewrap() + get_multitex_glsl() + get_common_texture_bke_get_value_glsl();
   return texture_lib;
 }
 
@@ -3415,7 +3465,7 @@ const std::string &get_common_texture_image_lib_glsl()
       get_boxsample_helpers_glsl() + get_boxsample_core_glsl() + get_texture_mapping_glsl() +
       get_imagewrap() +
       /* Minimal multitex handling for IMAGE only */
-      get_multitex_image_only_glsl();
+      get_multitex_image_only_glsl() + get_common_texture_bke_get_value_glsl();
   return texture_lib;
 }
 

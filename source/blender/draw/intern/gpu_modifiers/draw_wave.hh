@@ -34,7 +34,7 @@ class WaveManager {
    * Compute hash for Wave modifier pipeline.
    * Only hashes static topology/config, NOT runtime uniforms.
    */
-  static uint32_t compute_wave_hash(const Mesh *mesh_orig, const WaveModifierData *dmd);
+  static uint32_t compute_wave_hash(const Mesh *mesh_orig, const WaveModifierData *wmd);
 
   /* Ensure any cached/static resources required by a Wave modifier instance. */
   void ensure_static_resources(const WaveModifierData *wmd, Object *deform_ob, Mesh *orig_mesh, uint32_t pipeline_hash);

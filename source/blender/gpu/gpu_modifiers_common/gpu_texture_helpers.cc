@@ -208,6 +208,28 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
       }
       break;
     }
+    case eModifierType_Wave: {
+      /* Wave modifier uses the same mapping semantics as Displace for OBJECT mapping. */
+      const WaveModifierData *wmd = reinterpret_cast<const WaveModifierData *>(md);
+      if (wmd->texmapping == MOD_DISP_MAP_OBJECT && wmd->map_object != nullptr) {
+        Object *map_object = wmd->map_object;
+        if (wmd->map_bone[0] != '\0') {
+          bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, wmd->map_bone);
+          if (pchan) {
+            float mat_bone_world[4][4];
+            mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
+            invert_m4_m4(mapref_imat, mat_bone_world);
+          }
+          else {
+            invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+          }
+        }
+        else {
+          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+        }
+      }
+      break;
+    }
     default:
       break;
   }

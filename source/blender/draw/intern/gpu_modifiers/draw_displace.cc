@@ -302,54 +302,14 @@ void main() {
   float delta;
   
 #ifdef HAS_TEXTURE
-/* GPU port of Blender's texture sampling pipeline (texture_procedural.cc + texture_image.cc)
- * Flow: MOD_get_texture_coords() → do_2d_mapping() → imagewrap() → BRICONTRGB
- * This replicates the EXACT CPU path for pixel-perfect GPU/CPU match. */
-
-/* Sample texture using MOD_get_texture_coords() or input_positions when requested */
-vec3 tex_coord = texture_coords[v].xyz;
-
-if (u_mapping_use_input_positions) {
-  vec3 in_pos = input_positions[v].xyz;
-  if (u_tex_mapping == 0) { //MOD_DISP_MAP_LOCAL
-    tex_coord = in_pos;
-  } else if (u_tex_mapping == 1) { //MOD_DISP_MAP_GLOBAL
-    vec4 w = u_object_to_world_mat * vec4(in_pos, 1.0);
-    tex_coord = w.xyz;
-  } else if (u_tex_mapping == 2) { //MOD_DISP_MAP_OBJECT
-    vec4 w = u_object_to_world_mat * vec4(in_pos, 1.0);
-    vec4 o = u_mapref_imat * w;
-    tex_coord = o.xyz;
-  } else {
-    /* Fallback to precomputed coords (covers UV case and others) */
-    tex_coord = texture_coords[v].xyz;
-  }
-}
-else {
-  tex_coord = texture_coords[v].xyz;
-}
-
-/* Sample texture (CPU uses boxsample for interpolation) */
+/* Use shared helper to perform mapping + sampling. Fills `texres` and
+ * returns intensity (0..1). This relies on macros from `get_texture_params_glsl()`
+ * so the `tex_params` UBO is used for mapping flags and talpha. */
 TexResult_tex texres;
-texres.trgba = vec4(0.0);
-texres.talpha = u_use_talpha;  /* From CPU line 211-213 */
-texres.tin = 0.0;
+float tex_int = BKE_texture_get_value(texres, texture_coords[v].xyz, input_positions[v], int(v));
 
-/* Pass tex_coord as-is (CPU procedural textures use raw mapped coords; IMAGE handles its own remap). */
- vec3 mapped_coord = tex_coord;
- int retval = multitex(mapped_coord, texres, int(v));
-  /* texres.trgba and texres.tin are filled/processed by imagewrap()/multitex() to match CPU pipeline */
-  vec3 rgb = texres.trgba.rgb;
-
-  if ((retval & TEX_RGB) != 0) {
-    texres.tin = (rgb.r + rgb.g + rgb.b) / 3.0;
-  }
-  else {
-    texres.trgba.rgb = vec3(texres.tin);
-  }
-
-  float s = u_strength * vgroup_weight;
-  delta = (texres.tin - u_midlevel) * s;
+float s = u_strength * vgroup_weight;
+delta = (tex_int - u_midlevel) * s;
 #else
   /* Fixed delta (no texture) */
   delta = (1.0 - u_midlevel) * u_strength * vgroup_weight;
@@ -1057,28 +1017,6 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   GPU_shader_uniform_1f(shader, "u_midlevel", dmd->midlevel);
   GPU_shader_uniform_1i(shader, "u_direction", int(dmd->direction));
   GPU_shader_uniform_1b(shader, "u_use_global", use_global);
-  GPU_shader_uniform_1b(shader, "u_use_colorband", use_colorband); /* ColorBand enable flag */
-
-  /* Set texture processing parameters (if a Tex is present) */
-  if (shader_has_texture) {
-    Tex *tex = dmd->texture;
-    Image *ima = tex->ima;
-
-    /* Determine if we should use de-premultiply (talpha flag logic from imagewrap)
-     * talpha is set when: TEX_USEALPHA && alpha_mode != IGNORE && !TEX_CALCALPHA */
-    bool use_talpha = false;
-    if ((tex->imaflag & TEX_USEALPHA) && ima && (ima->alpha_mode != IMA_ALPHA_IGNORE)) {
-      if ((tex->imaflag & TEX_CALCALPHA) == 0) {
-        use_talpha = true;
-      }
-    }
-
-    /* Many texture-related parameters are packed in the `TextureParams` UBO
-     * and were uploaded earlier via `GPU_uniformbuf_update(ubo_texture_params, ...)`.
-     * Legacy `u_tex_*` identifiers are mapped to UBO fields in the GLSL via
-     * macros defined in `gpu_shader_common_texture_lib.hh`, so no additional
-     * runtime uniforms are required here. */
-  }
 
   const int group_size = 256;
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;

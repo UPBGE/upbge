@@ -506,6 +506,30 @@ static gpu::StorageBuf *dispatch_displace_stage(Mesh *mesh_orig,
       dmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
 }
 
+static gpu::StorageBuf *dispatch_wave_stage(Mesh *mesh_orig,
+                                               Object *ob_eval,
+                                               void *modifier_data,
+                                               gpu::StorageBuf *input,
+                                               uint32_t pipeline_hash)
+{
+  WaveModifierData *wmd = static_cast<WaveModifierData *>(modifier_data);
+  if (!wmd) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  WaveManager &wave_mgr = WaveManager::instance();
+
+  /* Pass original WaveModifierData (from original object) for settings extraction */
+  wave_mgr.ensure_static_resources(wmd, ob_eval, mesh_orig, pipeline_hash);
+
+  return wave_mgr.dispatch_deform(wmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
+}
 
 /** \} */
 
@@ -569,6 +593,10 @@ bool build_gpu_modifier_pipeline(
       case eModifierType_Displace: {
         pipeline.add_stage(
             ModifierGPUStageType::DISPLACE, md, execution_order++, dispatch_displace_stage);
+        break;
+      }
+      case eModifierType_Wave: {
+        pipeline.add_stage(ModifierGPUStageType::WAVE, md, execution_order++, dispatch_wave_stage);
         break;
       }
 

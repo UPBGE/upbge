@@ -5,13 +5,12 @@
 /** \file
  * \ingroup draw
  *
- * GPU-accelerated Wave modifier manager (skeleton).
+ * GPU-accelerated Wave modifier manager (skeleton + simple image-less compute).
  *
- * This file reproduces the structure and API of `draw_displace.cc` but does
- * not implement the full functionality yet. It is intended as a scaffold so
- * the Wave GPU implementation can be filled incrementally. The design mirrors
- * Displace: caching per-mesh resources, SSBO/UBO helpers and a `dispatch_deform`
- * entry point.
+ * This implementation provides a minimal working compute-path for Wave that
+ * does not sample any images. It supports vertex-group weighting and the
+ * core wave math (amplitude, speed, width, narrowness, falloff, lifetime).
+ * The structure mirrors `draw_displace.cc` to ease later feature parity.
  */
 
 #include "draw_wave.hh"
@@ -34,10 +33,21 @@
 #include "GPU_compute.hh"
 #include "GPU_shader.hh"
 #include "GPU_storage_buffer.hh"
+#include "GPU_texture.hh"
+
+#include "IMB_imbuf.hh"
+
+#include "draw_cache_extract.hh"
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
+#include "../gpu/gpu_modifiers_common/gpu_shader_common_texture_lib.hh"
+#include "../gpu/gpu_modifiers_common/gpu_shader_common_normal_lib.hh"
+#include "../gpu/gpu_modifiers_common/gpu_texture_helpers.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "DEG_depsgraph_query.hh"
+
+#include "MOD_util.hh"
 
 namespace blender {
 namespace draw {
@@ -69,6 +79,103 @@ struct WaveManager::Impl {
   Map<MeshModifierKey, MeshStaticData> static_map;
 };
 
+/* Shader source getter for Wave compute shader. Placed here to keep shader text
+ * separate and cacheable similar to draw_displace. */
+static std::string get_wave_compute_src(bool image_only = false)
+{
+  using namespace gpu;
+  /* Provide different common texture helpers depending on whether the shader
+   * is image-only (no procedural texture code) or full. This mirrors
+   * draw_displace and keeps shader variants consistent. */
+  const std::string common = image_only ? get_common_texture_image_lib_glsl() : get_common_texture_lib_glsl();
+  /* Normal helpers required for vertex-normal based displacement. */
+  const std::string normal_lib = get_common_normal_lib_glsl();
+
+  const std::string body = R"GLSL(
+void main() {
+  uint v = gl_GlobalInvocationID.x;
+  if (v >= deformed_positions.length()) return;
+
+  vec4 ip = input_positions[v];
+  vec3 co = ip.xyz;
+
+  /* Get vertex group weight */
+  float vgroup_weight = 1.0;
+  if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
+    vgroup_weight = vgroup_weights[v];
+  }
+
+  /* Early exit if weight is zero (match CPU behavior) */
+  if (vgroup_weight < 1e-6) {
+    deformed_positions[v] = ip;
+    return;
+  }
+
+  /* Compute local amplitude based on X/Y (startx/starty provided as uniform) */
+  float x = co.x - u_startx;
+  float y = co.y - u_starty;
+  float amplit = 0.0;
+  int axis = u_axis; /* 0: both, 1: X, 2: Y */
+  if (axis == 0) amplit = sqrt(x * x + y * y);
+  else if (axis == 1) amplit = x;
+  else amplit = y;
+
+  amplit -= (u_time - u_timeoffs) * u_speed;
+
+  if (u_cyclic != 0) {
+    amplit = mod(amplit - u_width, 2.0 * u_width) + u_width;
+  }
+
+  float falloff_fac = 1.0;
+  if (u_falloff != 0.0) {
+    float dist = 0.0;
+    if (axis == 0) dist = length(vec2(x, y));
+    else dist = abs((axis == 1) ? x : y);
+    falloff_fac = clamp(1.0 - (dist * (1.0 / u_falloff)), 0.0, 1.0);
+  }
+
+  /* Gaussian shaping (narrow) */
+  float a = amplit * u_narrow;
+  float minfac = 1.0 / exp(u_width * u_narrow * u_width * u_narrow);
+  float shaped = (1.0 / exp(a * a) - minfac);
+
+  if (shaped != shaped || shaped == 0.0) {
+    /* degenerate -> no move */
+    deformed_positions[v] = ip;
+    return;
+  }
+
+#ifdef HAS_TEXTURE
+  /* Use shared helper which performs mapping + sampling and fills `texres`. */
+  TexResult_tex texres;
+  float tex_int = BKE_texture_get_value(texres, texture_coords[v].xyz, input_positions[v], int(v));
+
+  /* Apply texture intensity to shaped amplitude to match CPU path */
+  shaped *= tex_int;
+#endif
+
+  /* Apply falloff & vertex group weight */
+  shaped *= falloff_fac * vgroup_weight;
+
+  vec3 n = vec3(0.0, 0.0, 1.0);
+  if (u_use_normal != 0) {
+    /* Compute smooth vertex normal from topology */
+    vec3 n_mesh = compute_vertex_normal_smooth(int(v));
+    vec3 n_mask = vec3(float(u_use_normal_x != 0), float(u_use_normal_y != 0), float(u_use_normal_z != 0));
+    n = n_mesh * n_mask;
+  }
+
+  vec3 disp = n * (u_lifefac * shaped * u_vheight);
+  co += disp;
+  deformed_positions[v] = vec4(co, 1.0);
+}
+)GLSL";
+
+  /* POSITION_BUFFER macro is required by normal helpers to reference the
+   * input positions buffer when computing normals from topology. */
+  return std::string("#define POSITION_BUFFER input_positions\n") + common + normal_lib + body;
+}
+
 WaveManager &WaveManager::instance()
 {
   static WaveManager manager;
@@ -78,55 +185,55 @@ WaveManager &WaveManager::instance()
 WaveManager::WaveManager() : impl_(new Impl()) {}
 WaveManager::~WaveManager() { delete impl_; }
 
-uint32_t WaveManager::compute_wave_hash(const Mesh *mesh_orig,
-                                        const WaveModifierData *wmd)
+uint32_t WaveManager::compute_wave_hash(const Mesh *mesh_orig, const WaveModifierData *wmd)
 {
   if (!mesh_orig || !wmd) {
     return 0;
   }
 
   uint32_t hash = 0;
-
-  /* Hash vertex count */
   hash = BLI_hash_int_2d(hash, mesh_orig->verts_num);
-
-  /* Hash vertex group name (mix into existing hash) */
+  hash = BLI_hash_int_2d(hash, int(wmd->flag));
+  hash = BLI_hash_int_2d(hash, int(wmd->texmapping));
   if (wmd->defgrp_name[0] != '\0') {
     hash = BLI_hash_int_2d(hash, BLI_hash_string(wmd->defgrp_name));
   }
 
-  /* Hash texture mapping mode */
-  hash = BLI_hash_int_2d(hash, int(wmd->texmapping));
+  /* Include objectcenter pointer to detect changes in the referenced object */
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(wmd->objectcenter)));
 
+  /* Include map_object pointer (for OBJECT mapping mode) */
+  hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(wmd->map_object)));
+
+  /* Texture-related metadata that affect sampling/result (similar to Displace). */
   hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(wmd->texture)));
-
   if (wmd->texture) {
     hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->type));
     if (wmd->texture->ima) {
-      hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(wmd->texture->ima)));
-      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->source));
+      Image *ima = wmd->texture->ima;
+      hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(ima)));
+      hash = BLI_hash_int_2d(hash, uint32_t(ima->source));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.tile));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.framenr));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->imaflag));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->extend));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
-      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->gen_flag));
-      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->gen_depth));
-      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->gen_type));
-      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->ima->alpha_mode));
+      hash = BLI_hash_int_2d(hash, uint32_t(ima->gen_flag));
+      hash = BLI_hash_int_2d(hash, uint32_t(ima->gen_depth));
+      hash = BLI_hash_int_2d(hash, uint32_t(ima->gen_type));
+      hash = BLI_hash_int_2d(hash, uint32_t(ima->alpha_mode));
 
       /* Hash the colorspace name string into the running hash. */
-      if (wmd->texture->ima->colorspace_settings.name[0] != '\0') {
-        hash = BLI_hash_int_2d(hash, BLI_hash_string(wmd->texture->ima->colorspace_settings.name));
+      if (ima->colorspace_settings.name[0] != '\0') {
+        hash = BLI_hash_int_2d(hash, BLI_hash_string(ima->colorspace_settings.name));
       }
       else {
         hash = BLI_hash_int_2d(hash, 0);
       }
-      ImageTile *tile = BKE_image_get_tile(wmd->texture->ima, wmd->texture->iuser.tile);
+
+      ImageTile *tile = BKE_image_get_tile(ima, wmd->texture->iuser.tile);
       if (tile) {
-        /* Tile generation color may be a small array/value; mix the numeric
-         * flags/types/depth which indicate tile changes. */
         hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_flag));
         hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_type));
         hash = BLI_hash_int_2d(hash, uint32_t(tile->gen_depth));
@@ -138,15 +245,81 @@ uint32_t WaveManager::compute_wave_hash(const Mesh *mesh_orig,
   Span<MDeformVert> dverts = mesh_orig->deform_verts();
   hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(dverts.data())));
 
-  /* Note: strength and midlevel are runtime uniforms, not hashed */
-
+  /* Do not include runtime parameters like speed/height here. */
   return hash;
 }
 
 void WaveManager::ensure_static_resources(const WaveModifierData *wmd, Object *deform_ob, Mesh *orig_mesh, uint32_t pipeline_hash)
 {
-  (void)wmd; (void)deform_ob; (void)orig_mesh; (void)pipeline_hash;
-  /* TODO: implement resource extraction (vgroup, texcoords) similar to DisplaceManager::ensure_static_resources */
+  if (!orig_mesh || !wmd) {
+    return;
+  }
+
+  Impl::MeshModifierKey key{orig_mesh, uint32_t(wmd->modifier.persistent_uid)};
+  Impl::MeshStaticData &msd = impl_->static_map.lookup_or_add_default(key);
+
+  const bool first_time = (msd.last_verified_hash == 0);
+  const bool hash_changed = (pipeline_hash != msd.last_verified_hash);
+
+  if (!first_time && !hash_changed) {
+    return;
+  }
+
+  msd.last_verified_hash = pipeline_hash;
+  msd.verts_num = orig_mesh->verts_num;
+  msd.deformed = deform_ob;
+
+  /* Extract vertex group weights */
+  msd.vgroup_weights.clear();
+  if (wmd->defgrp_name[0] != '\0') {
+    const int defgrp_index = BKE_id_defgroup_name_index(&orig_mesh->id, wmd->defgrp_name);
+    if (defgrp_index != -1) {
+      Span<MDeformVert> dverts = orig_mesh->deform_verts();
+      if (!dverts.is_empty()) {
+        msd.vgroup_weights.resize(orig_mesh->verts_num, 0.0f);
+        const bool invert_vgroup = (wmd->flag & MOD_WAVE_INVERT_VGROUP) != 0;
+        for (int v = 0; v < orig_mesh->verts_num; ++v) {
+          const MDeformVert &dvert = dverts[v];
+          float weight = BKE_defvert_find_weight(&dvert, defgrp_index);
+          msd.vgroup_weights[v] = invert_vgroup ? 1.0f - weight : weight;
+        }
+      }
+    }
+  }
+
+  /* Extract texture coordinates (if texture is present) */
+  msd.tex_coords.clear();
+  if (wmd->texture) {
+    const int verts_num = orig_mesh->verts_num;
+    float(*tex_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, "wave_tex_coords");
+
+    MOD_get_texture_coords(
+        reinterpret_cast<MappingInfoModifierData *>(const_cast<WaveModifierData *>(wmd)),
+        nullptr, /* ctx (not needed for coordinate calculation) */
+        deform_ob,
+        orig_mesh,
+        nullptr, /* cos (use original positions) */
+        tex_co);
+
+    msd.tex_coords.resize(verts_num);
+    for (int v = 0; v < verts_num; ++v) {
+      msd.tex_coords[v] = float3(tex_co[v]);
+    }
+
+    MEM_freeN(tex_co);
+  }
+
+  /* If no vertex group was found or specified, use default weight = 1.0 per-vertex.
+   * This simplifies later SSBO handling: we always have a per-vertex buffer to upload. */
+  if (msd.vgroup_weights.empty()) {
+    if (orig_mesh->verts_num > 0) {
+      msd.vgroup_weights.resize(orig_mesh->verts_num, 1.0f);
+    }
+    else {
+      /* Ensure at least one element to avoid zero-size allocations later. */
+      msd.vgroup_weights.resize(1, 1.0f);
+    }
+  }
 }
 
 gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
@@ -155,9 +328,397 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
                                               MeshBatchCache *cache,
                                               gpu::StorageBuf *ssbo_in)
 {
-  (void)wmd; (void)depsgraph; (void)deformed_eval; (void)cache; (void)ssbo_in;
-  /* TODO: implement shader assembly, UBO/SSBO/texture prep and dispatch. */
-  return nullptr;
+  if (!wmd || !ssbo_in || !cache) {
+    return nullptr;
+  }
+
+  Mesh *mesh_owner = (cache && cache->mesh_owner) ? cache->mesh_owner : nullptr;
+  if (!mesh_owner) {
+    return nullptr;
+  }
+
+  Impl::MeshModifierKey key{mesh_owner, uint32_t(wmd->modifier.persistent_uid)};
+  Impl::MeshStaticData *msd_ptr = impl_->static_map.lookup_ptr(key);
+  if (!msd_ptr) {
+    return nullptr;
+  }
+  Impl::MeshStaticData &msd = *msd_ptr;
+
+  /* Scene time: use DEG_get_ctime to match CPU modifier behavior (MOD_wave). */
+  float ctime = DEG_get_ctime(depsgraph);
+  Scene *scene = DEG_get_evaluated_scene(depsgraph);
+  int scene_frame = 0;
+  if (scene) {
+    scene_frame = int(scene->r.cfra);
+  }
+
+  /* Create unique keys and SSBOs similar to Displace pattern */
+  const std::string key_prefix = "wave_" + std::to_string(key.hash()) + "_";
+  const std::string key_vgroup = key_prefix + "vgroup_weights";
+  const std::string key_out = key_prefix + "output";
+
+  /* Ensure vgroup SSBO */
+  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
+  if (!msd.vgroup_weights.empty()) {
+    if (!ssbo_vgroup) {
+      const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_vgroup, size_vgroup);
+      if (ssbo_vgroup) {
+        GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
+      }
+    }
+  }
+  else {
+    if (!ssbo_vgroup) {
+      const size_t count = (msd.verts_num > 0) ? size_t(msd.verts_num) : size_t(1);
+      const size_t size_vgroup = count * sizeof(float);
+      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_vgroup, size_vgroup);
+      if (ssbo_vgroup) {
+        std::vector<float> dummy(count, 1.0f);
+        GPU_storagebuf_update(ssbo_vgroup, dummy.data());
+      }
+    }
+  }
+
+  /* Upload texture coordinates SSBO (if available). Pad float3 -> float4 for GPU alignment. */
+  const std::string key_texcoords = key_prefix + "tex_coords";
+  gpu::StorageBuf *ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);
+  if (!msd.tex_coords.empty()) {
+    if (!ssbo_texcoords) {
+      const size_t count = msd.tex_coords.size();
+      const size_t size_texcoords = count * sizeof(float) * 4; /* padded float4 */
+      ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_ensure(
+          mesh_owner, deformed_eval, key_texcoords, size_texcoords);
+      if (ssbo_texcoords) {
+        std::vector<float> padded(count * 4);
+        for (size_t i = 0; i < count; ++i) {
+          padded[4 * i + 0] = msd.tex_coords[i].x;
+          padded[4 * i + 1] = msd.tex_coords[i].y;
+          padded[4 * i + 2] = msd.tex_coords[i].z;
+          padded[4 * i + 3] = 1.0f;
+        }
+        GPU_storagebuf_update(ssbo_texcoords, padded.data());
+      }
+    }
+  }
+
+  /* Prepare GPU texture (if a Tex/Image is present). Follow Displace pattern: */
+  gpu::Texture *gpu_texture = nullptr;
+  bool shader_has_texture = (wmd->texture != nullptr);
+  bool has_texture = false;
+  if (shader_has_texture && wmd->texture && wmd->texture->ima) {
+    Image *ima = wmd->texture->ima;
+    Tex *tex = wmd->texture;
+
+    ImageUser iuser = tex->iuser; /* copy */
+    /* Update frame for animated images */
+    if (ima && ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+      Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+      if (scene_eval) {
+        BKE_image_user_frame_calc(ima, &iuser, int(scene_eval->r.cfra));
+      }
+    }
+
+    const bool is_non_color = (ima && ima->colorspace_settings.name[0] != '\0' &&
+                               STREQ(ima->colorspace_settings.name, "Non-Color"));
+
+    if (is_non_color) {
+      gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
+      if (gpu_texture && !msd.tex_metadata_cached) {
+        msd.tex_is_float = GPU_texture_has_float_format(gpu_texture);
+        msd.tex_is_byte = !msd.tex_is_float;
+        msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
+        msd.tex_metadata_cached = true;
+      }
+    }
+    else {
+      /* Slow path: manual ImBuf upload with no colorspace decode (raw bytes). */
+      const std::string key_texture = key_prefix + "texture_" +
+                                     std::to_string(reinterpret_cast<uintptr_t>(ima)) + "_" +
+                                     std::to_string(iuser.framenr);
+
+      gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
+
+      const bool is_animated = ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
+      if (!gpu_texture || (is_animated && !gpu_texture)) {
+        ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+        if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
+          gpu::TextureFormat format = ibuf->float_buffer.data ? 
+                                          gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                                          gpu::TextureFormat::UNORM_8_8_8_8;
+
+          gpu_texture = GPU_texture_create_2d(
+              "wave_tex_raw", ibuf->x, ibuf->y, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
+
+          if (gpu_texture) {
+            /* Upload WITHOUT colorspace conversion (raw bytes/floats). Use shared helper
+             * to match Displace behavior and avoid duplicating byte/float upload logic. */
+            gpu::displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
+
+            bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_texture, gpu_texture);
+
+            if (!msd.tex_metadata_cached) {
+              msd.tex_is_byte = (ibuf->byte_buffer.data != nullptr);
+              msd.tex_is_float = (ibuf->float_buffer.data != nullptr);
+              msd.tex_channels = ibuf->channels;
+              msd.tex_metadata_cached = true;
+            }
+          }
+        }
+        if (ibuf) {
+          BKE_image_release_ibuf(ima, ibuf, nullptr);
+        }
+      }
+    }
+
+    if (gpu_texture && !msd.tex_coords.empty()) {
+      has_texture = true;
+    }
+  }
+
+  /* If shader expects a texture but we have none, create a 1x1 dummy texture to satisfy binding. */
+  if (shader_has_texture && !gpu_texture) {
+    const std::string key_dummy = key_prefix + "dummy_wave_tex";
+    gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_dummy);
+    if (!gpu_texture) {
+      unsigned char pixel[4] = {128, 128, 128, 255};
+      gpu_texture = GPU_texture_create_2d(
+          "wave_dummy_tex", 1, 1, 1, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
+      if (gpu_texture) {
+        GPU_texture_update(gpu_texture, GPU_DATA_UBYTE, pixel);
+        bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_dummy, gpu_texture);
+      }
+    }
+    if (gpu_texture && !msd.tex_metadata_cached) {
+      msd.tex_is_byte = true;
+      msd.tex_is_float = false;
+      msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
+      msd.tex_metadata_cached = true;
+    }
+  }
+
+  /* Create output SSBO */
+  const size_t size_out = msd.verts_num * sizeof(float) * 4;
+  gpu::StorageBuf *ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_out, size_out);
+  if (!ssbo_out) {
+    return nullptr;
+  }
+
+  /* Upload ColorBand UBO if texture has colorband enabled */
+  const std::string key_colorband = key_prefix + "colorband";
+  gpu::UniformBuf *ubo_colorband = nullptr;
+  const size_t size_colorband = sizeof(blender::gpu::GPUColorBand);
+
+  ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
+  bool use_colorband = false;
+  if (!ubo_colorband) {
+    if (shader_has_texture && wmd->texture && wmd->texture->coba && (wmd->texture->flag & TEX_COLORBAND)) {
+      use_colorband = true;
+      ColorBand *coba = wmd->texture->coba;
+      blender::gpu::GPUColorBand gpu_coba = {};
+      if (blender::gpu::fill_gpu_colorband_from_colorband(gpu_coba, coba)) {
+        ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(mesh_owner, deformed_eval, key_colorband, size_colorband);
+        if (ubo_colorband) {
+          GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
+        }
+      }
+    }
+    else {
+      /* Create dummy UBO to avoid binding errors */
+      blender::gpu::GPUColorBand dummy_coba = {};
+      dummy_coba.tot_cur_ipotype_hue[0] = 0;
+      ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(mesh_owner, deformed_eval, key_colorband, size_colorband);
+      if (ubo_colorband) {
+        GPU_uniformbuf_update(ubo_colorband, &dummy_coba);
+      }
+    }
+  }
+  else {
+    use_colorband = (shader_has_texture && wmd->texture && wmd->texture->coba && (wmd->texture->flag & TEX_COLORBAND));
+  }
+
+  /* TextureParams UBO */
+  const std::string key_tex_params = key_prefix + "texture_params";
+  gpu::UniformBuf *ubo_texture_params = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_tex_params);
+  blender::gpu::GPUTextureParams gpu_tex_params = {};
+  if (shader_has_texture && wmd->texture) {
+    Tex *tex = wmd->texture;
+    blender::gpu::fill_texture_params_from_tex(gpu_tex_params,
+                                               tex,
+                                               const_cast<ModifierData *>(reinterpret_cast<const ModifierData *>(wmd)),
+                                               deformed_eval,
+                                               scene_frame,
+                                               msd.tex_is_byte,
+                                               msd.tex_is_float,
+                                               msd.tex_channels,
+                                               !msd.tex_coords.empty());
+  }
+  const size_t size_tex_params = sizeof(blender::gpu::GPUTextureParams);
+  if (!ubo_texture_params) {
+    ubo_texture_params = bke::BKE_mesh_gpu_internal_ubo_ensure(mesh_owner, deformed_eval, key_tex_params, size_tex_params);
+  }
+  if (ubo_texture_params) {
+    GPU_uniformbuf_update(ubo_texture_params, &gpu_tex_params);
+  }
+
+  /* Create shader (image-less compute) */
+  bool image_only_compile = false;
+  if (wmd->texture) {
+    image_only_compile = (wmd->texture->type == TEX_IMAGE);
+  }
+
+  const std::string shader_key = std::string("wave_compute_v1") + (image_only_compile ? "_image" : "_full");
+  gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
+  Mesh *mesh_eval = id_cast<Mesh *>(deformed_eval->data);
+  bke::MeshGpuData *mesh_gpu_data = bke::BKE_mesh_gpu_ensure_data(mesh_owner, mesh_eval);
+  if (!shader) {
+    using namespace gpu::shader;
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
+
+    std::string shader_src;
+    if (shader_has_texture) {
+      shader_src += "#define HAS_TEXTURE\n";
+    }
+    shader_src += get_wave_compute_src(image_only_compile);
+
+    /* Mesh topology accessors are required by normal helpers. Ensure we have
+     * mesh GPU data available and concatenate topology GLSL before the shader. */
+    
+    std::string glsl_accessors = bke::BKE_mesh_gpu_topology_glsl_accessors_string(mesh_gpu_data->topology);
+
+    /* Use shared typedefs when texture sampling / params are required. */
+    info.typedef_source_generated = gpu::get_texture_typedefs_glsl();
+    info.compute_source_generated = gpu::get_texture_params_glsl() + glsl_accessors + shader_src;
+
+    info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
+    info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
+    info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
+    if (shader_has_texture) {
+      info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
+      info.sampler(0, ImageType::Float2D, "displacement_texture");
+    }
+    /* Topology SSBO (binding 15) required by normal helpers */
+    info.storage_buf(15, Qualifier::read, "int", "topo[]");
+    /* ColorBand UBO (binding 4) */
+    info.uniform_buf(4, "ColorBand", "tex_colorband");
+    /* TextureParams UBO (binding 5) */
+    info.uniform_buf(5, "TextureParams", "tex_params");
+
+    /* Push constants / uniforms expected by shader */
+    info.push_constant(Type::float_t, "u_startx");
+    info.push_constant(Type::float_t, "u_starty");
+    info.push_constant(Type::float_t, "u_time");
+    info.push_constant(Type::float_t, "u_timeoffs");
+    info.push_constant(Type::float_t, "u_speed");
+    info.push_constant(Type::float_t, "u_width");
+    info.push_constant(Type::float_t, "u_narrow");
+    info.push_constant(Type::float_t, "u_vheight");
+    info.push_constant(Type::float_t, "u_falloff");
+    info.push_constant(Type::float_t, "u_lifefac");
+    info.push_constant(Type::int_t, "u_axis");
+    info.push_constant(Type::int_t, "u_cyclic");
+    info.push_constant(Type::int_t, "u_use_normal");
+    /* Per-axis normal enable flags (X/Y/Z) */
+    info.push_constant(Type::int_t, "u_use_normal_x");
+    info.push_constant(Type::int_t, "u_use_normal_y");
+    info.push_constant(Type::int_t, "u_use_normal_z");
+
+    /* Add specialization constants for topology if present */
+    bke::BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
+    shader = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
+  }
+  if (!shader) {
+    return nullptr;
+  }
+
+  /* Bind and dispatch */
+  const gpu::shader::SpecializationConstants *constants = &GPU_shader_get_default_constant_state(shader);
+  GPU_shader_bind(shader, constants);
+
+  GPU_storagebuf_bind(ssbo_out, 0);
+  GPU_storagebuf_bind(ssbo_in, 1);
+  if (ssbo_vgroup) {
+    GPU_storagebuf_bind(ssbo_vgroup, 2);
+  }
+  if (ssbo_texcoords) {
+    GPU_storagebuf_bind(ssbo_texcoords, 3);
+  }
+  if (gpu_texture) {
+    GPU_texture_bind(gpu_texture, 0);
+  }
+  /* Bind topology SSBO required by normal helpers */
+  GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
+  /* Bind ColorBand and TextureParams UBOs */
+  if (ubo_colorband) {
+    GPU_uniformbuf_bind(ubo_colorband, 4);
+  }
+  if (ubo_texture_params) {
+    GPU_uniformbuf_bind(ubo_texture_params, 5);
+  }
+
+  /* Set uniforms (push constants) */
+  GPU_shader_uniform_1f(shader, "u_startx", wmd->startx);
+  GPU_shader_uniform_1f(shader, "u_starty", wmd->starty);
+  GPU_shader_uniform_1f(shader, "u_time", ctime);
+  GPU_shader_uniform_1f(shader, "u_timeoffs", wmd->timeoffs);
+  GPU_shader_uniform_1f(shader, "u_speed", wmd->speed);
+  GPU_shader_uniform_1f(shader, "u_width", wmd->width);
+  GPU_shader_uniform_1f(shader, "u_narrow", wmd->narrow);
+  GPU_shader_uniform_1f(shader, "u_vheight", wmd->height);
+  GPU_shader_uniform_1f(shader, "u_falloff", wmd->falloff);
+  /* Compute lifefac (matches CPU modifier behavior in MOD_wave):
+   * lifefac starts as height. If lifetime is enabled and time passed exceeds
+   * lifetime, lifefac transitions to 0 over `damp` using sqrt easing. If
+   * damp == 0 on the modifier, use default 10.0f (CPU sets this on demand).
+   */
+  float lifefac = wmd->height;
+  float damp = (wmd->damp == 0.0f) ? 10.0f : wmd->damp;
+  if (wmd->lifetime != 0.0f) {
+    float x = ctime - wmd->timeoffs;
+    if (x > wmd->lifetime) {
+      lifefac = x - wmd->lifetime;
+      if (lifefac > damp) {
+        lifefac = 0.0f;
+      }
+      else {
+        lifefac = (wmd->height * (1.0f - sqrtf(lifefac / damp)));
+      }
+    }
+  }
+  GPU_shader_uniform_1f(shader, "u_lifefac", lifefac);
+
+  int axis = 0;
+  if (wmd->flag & MOD_WAVE_X) axis = 1;
+  else if (wmd->flag & MOD_WAVE_Y) axis = 2;
+  GPU_shader_uniform_1i(shader, "u_axis", axis);
+
+  GPU_shader_uniform_1i(shader, "u_cyclic", (wmd->flag & MOD_WAVE_CYCL) ? 1 : 0);
+  GPU_shader_uniform_1i(shader, "u_use_normal", (wmd->flag & MOD_WAVE_NORM) ? 1 : 0);
+  
+  /* Per-axis normal flags */
+  GPU_shader_uniform_1i(shader, "u_use_normal_x", (wmd->flag & MOD_WAVE_NORM_X) ? 1 : 0);
+  GPU_shader_uniform_1i(shader, "u_use_normal_y", (wmd->flag & MOD_WAVE_NORM_Y) ? 1 : 0);
+  GPU_shader_uniform_1i(shader, "u_use_normal_z", (wmd->flag & MOD_WAVE_NORM_Z) ? 1 : 0);
+
+  const int group_size = 256;
+  int num_groups = (msd.verts_num + group_size - 1) / group_size;
+  GPU_compute_dispatch(shader, num_groups, 1, 1, constants);
+
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_TEXTURE_FETCH);
+  GPU_shader_unbind();
+
+  /* Unbind texture and UBOs */
+  if (gpu_texture) {
+    GPU_texture_unbind(gpu_texture);
+  }
+  if (ubo_colorband) {
+    GPU_uniformbuf_unbind(ubo_colorband);
+  }
+  if (ubo_texture_params) {
+    GPU_uniformbuf_unbind(ubo_texture_params);
+  }
+  return ssbo_out;
 }
 
 void WaveManager::free_resources_for_mesh(Mesh *mesh)
