@@ -20,6 +20,7 @@ struct ImBuf;
 struct ModifierData;
 struct Object;
 struct Tex;
+struct ColorBand; /* forward-declare to avoid heavy includes in header */
 }  // namespace blender
 
 namespace blender {
@@ -83,6 +84,9 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
                                   bool tex_is_float,
                                   int tex_channels,
                                   bool has_tex_coords);
+
+/* Fill a GPUColorBand from a CPU ColorBand. Returns false if `src` is null or empty. */
+bool fill_gpu_colorband_from_colorband(GPUColorBand &dst, const ColorBand *src);
 
 } // namespace gpu
 } // namespace blender

@@ -9,6 +9,7 @@
 #include "IMB_imbuf.hh"
 #include "GPU_texture.hh"
 #include "MEM_guardedalloc.h"
+#include "BKE_colorband.hh"
 
 namespace blender {
 namespace gpu {
@@ -158,7 +159,7 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
   gpu_tex_params.tex_filtersize_frame_colorband_pad[0] = int(tex->filtersize * 1000.0f);
   gpu_tex_params.tex_filtersize_frame_colorband_pad[1] = scene_frame;
   gpu_tex_params.tex_filtersize_frame_colorband_pad[2] = ((tex->flag & TEX_COLORBAND) != 0) ? 1 :
-                                                                                              0;
+                                                                                               0;
 
   gpu_tex_params.tex_distamount[0] = tex->dist_amount;
   gpu_tex_params.tex_distamount[1] = tex->ns_outscale;
@@ -211,6 +212,45 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
       break;
   }
   memcpy(gpu_tex_params.u_mapref_imat, mapref_imat, sizeof(gpu_tex_params.u_mapref_imat));
+}
+
+/* Fill a GPUColorBand from a CPU ColorBand. Returns false if `src` is null or empty. */
+bool fill_gpu_colorband_from_colorband(GPUColorBand &dst, const ColorBand *src)
+{
+  if (src == nullptr || src->tot <= 0) {
+    return false;
+  }
+
+  memset(&dst, 0, sizeof(dst));
+
+  dst.tot_cur_ipotype_hue[0] = src->tot;
+  dst.tot_cur_ipotype_hue[1] = src->cur;
+  dst.tot_cur_ipotype_hue[2] = src->ipotype;
+  dst.tot_cur_ipotype_hue[3] = src->ipotype_hue;
+
+  dst.color_mode_pad[0] = src->color_mode;
+
+  const int max_elems = 32;
+  int copy_n = (src->tot < max_elems) ? src->tot : max_elems;
+  for (int i = 0; i < copy_n; ++i) {
+    const CBData &s = src->data[i];
+    dst.data[i].rgba[0] = s.r;
+    dst.data[i].rgba[1] = s.g;
+    dst.data[i].rgba[2] = s.b;
+    dst.data[i].rgba[3] = s.a;
+    dst.data[i].pos_cur_pad[0] = s.pos;
+    dst.data[i].pos_cur_pad[1] = float(s.cur);
+    dst.data[i].pos_cur_pad[2] = 0.0f;
+    dst.data[i].pos_cur_pad[3] = 0.0f;
+  }
+
+  for (int i = copy_n; i < max_elems; ++i) {
+    dst.data[i].rgba[0] = dst.data[i].rgba[1] = dst.data[i].rgba[2] = dst.data[i].rgba[3] = 0.0f;
+    dst.data[i].pos_cur_pad[0] = dst.data[i].pos_cur_pad[1] = dst.data[i].pos_cur_pad[2] =
+        dst.data[i].pos_cur_pad[3] = 0.0f;
+  }
+
+  return true;
 }
 
 } // namespace gpu

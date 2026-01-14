@@ -851,28 +851,16 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     if (shader_has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND)) {
       use_colorband = true;
 
-      gpu::GPUColorBand gpu_coba = {};
       ColorBand *coba = dmd->texture->coba;
-
-      gpu_coba.tot_cur_ipotype_hue[0] = coba->tot;
-      gpu_coba.tot_cur_ipotype_hue[1] = coba->cur;
-      gpu_coba.tot_cur_ipotype_hue[2] = coba->ipotype;
-      gpu_coba.tot_cur_ipotype_hue[3] = coba->ipotype_hue;
-      gpu_coba.color_mode_pad[0] = coba->color_mode;
-
-      for (int i = 0; i < 32; i++) {
-        gpu_coba.data[i].rgba[0] = coba->data[i].r;
-        gpu_coba.data[i].rgba[1] = coba->data[i].g;
-        gpu_coba.data[i].rgba[2] = coba->data[i].b;
-        gpu_coba.data[i].rgba[3] = coba->data[i].a;
-        gpu_coba.data[i].pos_cur_pad[0] = coba->data[i].pos;
-        gpu_coba.data[i].pos_cur_pad[1] = float(coba->data[i].cur);
-      }
-
-      ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(
-          mesh_owner, deformed_eval, key_colorband, size_colorband);
-      if (ubo_colorband) {
-        GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
+      gpu::GPUColorBand gpu_coba = {};
+      if (blender::gpu::fill_gpu_colorband_from_colorband(gpu_coba, coba)) {
+        ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(
+            mesh_owner, deformed_eval, key_colorband, size_colorband);
+        if (ubo_colorband) {
+          GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
+          /* Cache initial colorband hash to avoid redundant uploads. */
+          msd.colorband_hash = colorband_hash_from_coba(coba);
+        }
       }
     }
     else {
@@ -1018,29 +1006,14 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   }
 
   if (ubo_colorband && use_colorband) {
-    /* Update UBO only when colorband content changed to avoid redundant uploads. */
     ColorBand *coba = dmd->texture->coba;
     uint32_t new_hash = colorband_hash_from_coba(coba);
     if (new_hash != msd.colorband_hash) {
       gpu::GPUColorBand gpu_coba = {};
-
-      gpu_coba.tot_cur_ipotype_hue[0] = coba->tot;
-      gpu_coba.tot_cur_ipotype_hue[1] = coba->cur;
-      gpu_coba.tot_cur_ipotype_hue[2] = coba->ipotype;
-      gpu_coba.tot_cur_ipotype_hue[3] = coba->ipotype_hue;
-      gpu_coba.color_mode_pad[0] = coba->color_mode;
-
-      for (int i = 0; i < 32; i++) {
-        gpu_coba.data[i].rgba[0] = coba->data[i].r;
-        gpu_coba.data[i].rgba[1] = coba->data[i].g;
-        gpu_coba.data[i].rgba[2] = coba->data[i].b;
-        gpu_coba.data[i].rgba[3] = coba->data[i].a;
-        gpu_coba.data[i].pos_cur_pad[0] = coba->data[i].pos;
-        gpu_coba.data[i].pos_cur_pad[1] = float(coba->data[i].cur);
+      if (blender::gpu::fill_gpu_colorband_from_colorband(gpu_coba, coba)) {
+        GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
+        msd.colorband_hash = new_hash;
       }
-
-      GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
-      msd.colorband_hash = new_hash;
     }
   }
 
