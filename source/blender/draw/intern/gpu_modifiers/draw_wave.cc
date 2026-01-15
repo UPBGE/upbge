@@ -92,6 +92,10 @@ static std::string get_wave_compute_src(bool image_only = false)
   const std::string normal_lib = get_common_normal_lib_glsl();
 
   const std::string body = R"GLSL(
+
+#define MOD_WAVE_X (1 << 1)
+#define MOD_WAVE_Y (1 << 2)
+
 void main() {
   uint v = gl_GlobalInvocationID.x;
   if (v >= deformed_positions.length()) return;
@@ -127,15 +131,21 @@ void main() {
 
     /* initial amplitude depending on axis */
     float amplit = 0.0;
-    int axis = u_axis; /* 0: both, 1: X, 2: Y */
-    if (axis == 0) {
-      amplit = sqrt(x * x + y * y);
-    }
-    else if (axis == 1) {
-      amplit = x;
-    }
-    else {
-      amplit = y;
+    int axis = u_axis; /* bitflags: MOD_WAVE_X, MOD_WAVE_Y */
+    /* Mirror CPU switch(wmd_axis) */
+    switch (axis) {
+      case MOD_WAVE_X | MOD_WAVE_Y:
+        amplit = sqrt(x * x + y * y);
+        break;
+      case MOD_WAVE_X:
+        amplit = x;
+        break;
+      case MOD_WAVE_Y:
+        amplit = y;
+        break;
+      default:
+        amplit = 0.0;
+        break;
     }
 
     /* propagate wave over time */
@@ -151,14 +161,20 @@ void main() {
     float falloff_fac = 1.0;
     if (falloff != 0.0) {
       float dist = 0.0;
-      if (axis == 0) {
-        dist = sqrt(x * x + y * y);
-      }
-      else if (axis == 1) {
-        dist = abs(x);
-      }
-      else {
-        dist = abs(y);
+      /* Use same switch logic as CPU */
+      switch (axis) {
+        case MOD_WAVE_X | MOD_WAVE_Y:
+          dist = sqrt(x * x + y * y);
+          break;
+        case MOD_WAVE_X:
+          dist = abs(x);
+          break;
+        case MOD_WAVE_Y:
+          dist = abs(y);
+          break;
+        default:
+          dist = 0.0;
+          break;
       }
 
       falloff_fac = 1.0 - (dist * falloff_inv);
@@ -733,14 +749,8 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   }
   GPU_shader_uniform_1f(shader, "u_lifefac", lifefac);
 
-  /* Axis logic: both X and Y -> 0 (both), X only ->1, Y only ->2 (matches MOD_wave). */
-  const bool use_x = (wmd->flag & MOD_WAVE_X) != 0;
-  const bool use_y = (wmd->flag & MOD_WAVE_Y) != 0;
-  int axis = 0;
-  if (use_x && !use_y) axis = 1;
-  else if (!use_x && use_y) axis = 2;
-  GPU_shader_uniform_1i(shader, "u_axis", axis);
-
+  const int wmd_axis = wmd->flag & (MOD_WAVE_X | MOD_WAVE_Y);
+  GPU_shader_uniform_1i(shader, "u_axis", wmd_axis);
   GPU_shader_uniform_1i(shader, "u_cyclic", (wmd->flag & MOD_WAVE_CYCL) ? 1 : 0);
   GPU_shader_uniform_1i(shader, "u_use_normal", (wmd->flag & MOD_WAVE_NORM) ? 1 : 0);
   
