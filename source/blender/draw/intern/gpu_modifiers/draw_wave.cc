@@ -99,15 +99,19 @@ void main() {
   vec4 ip = input_positions[v];
   vec3 co = ip.xyz;
 
-  /* Match CPU early-out when lifefac == 0.0f: no deformation should be applied. */
+  /* match CPU early-out when lifefac == 0.0f */
   if (u_lifefac == 0.0) {
     deformed_positions[v] = ip;
     return;
   }
-  /* Corresponds exactly to CPU `waveModifier_do` loop variables and order. */
-  float falloff_inv = (u_falloff != 0.0) ? 1.0 / u_falloff : 1.0;
 
-  /* Get vertex group weight (CPU: def_weight inside loop) */
+  float ctime = u_time;
+
+  /* Precompute falloff inverse like CPU */
+  const float falloff = u_falloff;
+  const float falloff_inv = (falloff != 0.0) ? 1.0 / falloff : 1.0;
+
+  /* vertex group weight */
   float def_weight = 1.0;
   if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
     def_weight = vgroup_weights[v];
@@ -116,74 +120,92 @@ void main() {
       return;
     }
   }
+  if (u_lifefac != 0.0) {
+    /* local coords relative to start position */
+    float x = co.x - u_startx;
+    float y = co.y - u_starty;
 
-  /* Per-vertex local coords */
-  float x = co.x - u_startx;
-  float y = co.y - u_starty;
-
-  /* amplit initial based on axis */
-  float amplit = 0.0;
-  int axis = u_axis; /* 0: both, 1: X, 2: Y */
-  if (axis == 0) amplit = sqrt(x * x + y * y);
-  else if (axis == 1) amplit = x;
-  else amplit = y;
-
-  /* this way it makes nice circles */
-  amplit -= (u_time - u_timeoffs) * u_speed;
-
-  /* cyclic (use trunc to match fmodf semantics) */
-  if (u_cyclic != 0) {
-    float tmp = amplit - u_width;
-    float denom = 2.0 * u_width;
-    amplit = tmp - denom * trunc(tmp / denom) + u_width;
-  }
-
-  /* falloff distance */
-  float falloff_fac = 1.0;
-  if (u_falloff != 0.0) {
-    float dist = 0.0;
-    if (axis == 0) dist = sqrt(x * x + y * y);
-    else dist = abs((axis == 1) ? x : y);
-    falloff_fac = 1.0 - (dist * falloff_inv);
-    falloff_fac = clamp(falloff_fac, 0.0, 1.0);
-  }
-
-  /* GAUSSIAN check and shaping */
-  if ((falloff_fac != 0.0) && (amplit > -u_width) && (amplit < u_width)) {
-    /* compute shaped amplitude into `amplit` as CPU does */
-    amplit = amplit * u_narrow;
-    amplit = (1.0 / exp(amplit * amplit) - u_minfac);
-
-#ifdef HAS_TEXTURE
-    TexResult_tex texres;
-    float tex_int = BKE_texture_get_value(texres, texture_coords[v].xyz, input_positions[v], int(v));
-    amplit *= tex_int;
-#endif
-
-    /* Apply weight & falloff (def_weight already read above) */
-    amplit *= def_weight * falloff_fac;
-
-    vec3 n = vec3(0.0, 0.0, 1.0);
-    if (u_use_normal != 0) {
-      vec3 n_mesh = compute_vertex_normal_smooth(int(v));
-      vec3 n_mask = vec3(float(u_use_normal_x != 0), float(u_use_normal_y != 0), float(u_use_normal_z != 0));
-      n = n_mesh * n_mask;
+    /* initial amplitude depending on axis */
+    float amplit = 0.0;
+    int axis = u_axis; /* 0: both, 1: X, 2: Y */
+    if (axis == 0) {
+      amplit = sqrt(x * x + y * y);
     }
-
-    /* apply displacement along normals or Z exactly like CPU */
-    vec3 disp = vec3(0.0);
-    if (u_use_normal != 0) {
-      if (u_use_normal_x != 0) disp.x = u_lifefac * amplit * n.x;
-      if (u_use_normal_y != 0) disp.y = u_lifefac * amplit * n.y;
-      if (u_use_normal_z != 0) disp.z = u_lifefac * amplit * n.z;
+    else if (axis == 1) {
+      amplit = x;
     }
     else {
-      disp.z = u_lifefac * amplit;
+      amplit = y;
     }
 
-    co += disp;
-    deformed_positions[v] = vec4(co, 1.0);
-    return;
+    /* propagate wave over time */
+    amplit -= (ctime - u_timeoffs) * u_speed;
+
+    /* cyclic wrapping (match CPU fmodf behaviour) */
+    if (u_cyclic != 0) {
+      float tmp = amplit - u_width;
+      float denom = 2.0 * u_width;
+      amplit = tmp - denom * trunc(tmp / denom) + u_width;
+    }
+    /* falloff calculation */
+    float falloff_fac = 1.0;
+    if (falloff != 0.0) {
+      float dist = 0.0;
+      if (axis == 0) {
+        dist = sqrt(x * x + y * y);
+      }
+      else if (axis == 1) {
+        dist = abs(x);
+      }
+      else {
+        dist = abs(y);
+      }
+
+      falloff_fac = 1.0 - (dist * falloff_inv);
+      falloff_fac = clamp(falloff_fac, 0.0, 1.0);
+    }
+
+    /* gaussian range check + shaping */
+    if ((falloff_fac != 0.0) && (amplit > -u_width) && (amplit < u_width)) {
+      /* shape amplitude */
+      amplit = amplit * u_narrow;
+      amplit = (1.0 / exp(amplit * amplit) - u_minfac);
+
+  #ifdef HAS_TEXTURE
+      /* texture sampling (if compiled with texture support) */
+      TexResult_tex texres;
+      float tex_int = BKE_texture_get_value(texres, texture_coords[v].xyz, input_positions[v], int(v));
+      amplit *= tex_int;
+  #endif
+
+      /* apply vertex-group weight and falloff */
+      amplit *= def_weight * falloff_fac;
+
+      /* determine normal or axis displacement */
+      vec3 n = vec3(0.0, 0.0, 1.0);
+      if (u_use_normal != 0) {
+        vec3 n_mesh = vec3(0.0);
+        n_mesh = compute_vertex_normal_smooth(int(v));
+        n = vec3(0.0);
+        if (u_use_normal_x != 0) n.x = n_mesh.x;
+        if (u_use_normal_y != 0) n.y = n_mesh.y;
+        if (u_use_normal_z != 0) n.z = n_mesh.z;
+      }
+
+      vec3 disp = vec3(0.0);
+      if (u_use_normal != 0) {
+        if (u_use_normal_x != 0) disp.x = u_lifefac * amplit * n.x;
+        if (u_use_normal_y != 0) disp.y = u_lifefac * amplit * n.y;
+        if (u_use_normal_z != 0) disp.z = u_lifefac * amplit * n.z;
+      }
+      else {
+        disp.z = u_lifefac * amplit;
+      }
+
+      co += disp;
+      deformed_positions[v] = vec4(co, 1.0);
+      return;
+    }
   }
 
   /* no change */
@@ -685,8 +707,7 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   GPU_shader_uniform_1f(shader, "u_speed", wmd->speed);
   GPU_shader_uniform_1f(shader, "u_width", wmd->width);
   GPU_shader_uniform_1f(shader, "u_narrow", wmd->narrow);
-  /* Compute and upload minfac once (same formula as CPU) */
-  float minfac = 1.0f / expf(wmd->width * wmd->narrow * wmd->width * wmd->narrow);
+  float minfac = float(1.0 / exp(wmd->width * wmd->narrow * wmd->width * wmd->narrow));
   GPU_shader_uniform_1f(shader, "u_minfac", minfac);
   GPU_shader_uniform_1f(shader, "u_falloff", wmd->falloff);
   /* Compute lifefac to match CPU behavior in MOD_wave:
