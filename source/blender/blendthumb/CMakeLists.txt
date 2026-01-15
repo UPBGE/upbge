@@ -44,6 +44,10 @@ if(WIN32)
 
   add_library(BlendThumb SHARED ${SRC} ${SRC_WIN32})
 
+  # Ensure MSVC uses synchronous PDB access to avoid intermittent PDB locking issues
+  # during parallel builds or when other tools touch PDBs. Applied only for MSVC.
+  target_compile_options(BlendThumb PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/FS>)
+
   setup_platform_linker_flags(BlendThumb)
   setup_platform_linker_libs(BlendThumb)
 
