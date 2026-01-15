@@ -34,12 +34,12 @@ struct ColorBand {
 
 struct TextureParams {
   vec4 tex_crop;           /* cropxmin, cropymin, cropxmax, cropymax */
-  ivec4 tex_repeat_xmir;   /* repeat.x, repeat.y, xmir(0/1), ymir(0/1) */
-  ivec4 tex_properties;    /* is_byte(0/1), is_float(0/1), channels, type */
+  ivec4 tex_repeat_and_mirror; /* repeat.x, repeat.y, xmir(0/1), ymir(0/1) */
+  ivec4 tex_format_properties; /* is_byte(0/1), is_float(0/1), channels, type */
   vec4 tex_bricont;        /* bright, contrast, saturation, pad */
-  vec4 tex_size_ofs_rot;   /* size.x, size.y, ofs.x, ofs.y (rot in .z or separate) */
-  ivec4 tex_mapping_misc;  /* mapping, mapping_use_input_positions(0/1), mtex_mapto, stype */
+  ivec4 tex_mapping_info;  /* mapping, mapping_use_input_positions(0/1), mtex_mapto, stype */
   ivec4 tex_flags;         /* flag, extend, checkerdist(as int*1000), pad */
+  ivec4 tex_flipblend;     /* TEX_FLIPBLEND exposed as ivec4 (only .x used) */
   ivec4 tex_noise;         /* noisebasis, noisebasis2, noisedepth, noisetype */
   vec4 tex_noisesize_turbul; /* noisesize, turbul, pad, pad */
   ivec4 tex_filtersize_frame_colorband_pad; /* filtersize*1000 (as int), frame, use_colorband(0/1), pad */
@@ -73,13 +73,13 @@ const std::string get_texture_params_glsl()
  * map fields that were migrated into `TextureParams` above.
  */
 #define u_tex_crop tex_params.tex_crop
-#define u_tex_repeat vec2(tex_params.tex_repeat_xmir.x, tex_params.tex_repeat_xmir.y)
-#define u_tex_xmir (tex_params.tex_repeat_xmir.z != 0)
-#define u_tex_ymir (tex_params.tex_repeat_xmir.w != 0)
-#define u_tex_is_byte (tex_params.tex_properties.x != 0)
-#define u_tex_is_float (tex_params.tex_properties.y != 0)
-#define u_tex_channels int(tex_params.tex_properties.z)
-#define u_tex_type int(tex_params.tex_properties.w)
+#define u_tex_repeat vec2(tex_params.tex_repeat_and_mirror.x, tex_params.tex_repeat_and_mirror.y)
+#define u_tex_xmir (tex_params.tex_repeat_and_mirror.z != 0)
+#define u_tex_ymir (tex_params.tex_repeat_and_mirror.w != 0)
+#define u_tex_is_byte (tex_params.tex_format_properties.x != 0)
+#define u_tex_is_float (tex_params.tex_format_properties.y != 0)
+#define u_tex_channels int(tex_params.tex_format_properties.z)
+#define u_tex_type int(tex_params.tex_format_properties.w)
 #define u_tex_bricont tex_params.tex_bricont
 #define u_tex_bright tex_params.tex_bricont.x
 #define u_tex_contrast tex_params.tex_bricont.y
@@ -92,12 +92,10 @@ const std::string get_texture_params_glsl()
 #define u_tex_ns_outscale tex_params.tex_distamount.y
 #define u_tex_noisesize tex_params.tex_noisesize_turbul.x
 #define u_tex_turbul tex_params.tex_noisesize_turbul.y
-#define u_tex_size_param vec3(tex_params.tex_size_ofs_rot.x, tex_params.tex_size_ofs_rot.y, 0.0)
-#define u_tex_ofs vec3(tex_params.tex_size_ofs_rot.z, tex_params.tex_size_ofs_rot.w, 0.0)
-#define u_tex_mapping int(tex_params.tex_mapping_misc.x)
-#define u_mapping_use_input_positions (tex_params.tex_mapping_misc.y != 0)
-#define u_mtex_mapto int(tex_params.tex_mapping_misc.z)
-#define u_tex_stype int(tex_params.tex_mapping_misc.w)
+#define u_tex_mapping int(tex_params.tex_mapping_info.x)
+#define u_mapping_use_input_positions (tex_params.tex_mapping_info.y != 0)
+#define u_mtex_mapto int(tex_params.tex_mapping_info.z)
+#define u_tex_stype int(tex_params.tex_mapping_info.w)
 #define u_tex_flag int(tex_params.tex_flags.x)
 #define u_tex_extend int(tex_params.tex_flags.y)
 #define u_tex_checkerdist (float(tex_params.tex_flags.z) / 1000.0)
@@ -144,8 +142,8 @@ const std::string get_texture_params_glsl()
 #define u_tex_checker_odd ((tex_params.tex_flags.x & U_BIT_CHECKER_ODD) == 0)
 #define u_tex_checker_even ((tex_params.tex_flags.x & U_BIT_CHECKER_EVEN) == 0)
 #define u_tex_interpol ((tex_params.tex_imaflag_runtime_flags.x & U_BIT_INTERPOL) != 0)
-#define u_tex_flipblend ((tex_params.tex_flags.x & U_BIT_FLIPBLEND) != 0)
-#define u_tex_rot (tex_params.tex_size_ofs_rot.z)
+/* Prefer dedicated field for flipblend populated by CPU-side code. */
+#define u_tex_flipblend (tex_params.tex_flipblend.x != 0)
 )GLSL";
 }
 
@@ -2862,7 +2860,7 @@ bool BKE_colorband_evaluate(ColorBand coba, float in_intensity, out vec4 out_col
 }
 
 /* GPU port of do_2d_mapping() EXTENDED from texture_procedural.cc (line 501-537)
- * Applies texture transformations in correct order: SCALE → ROTATION → REPEAT → MIRROR → CROP → OFFSET
+ * Applies texture transformations in correct order: REPEAT → MIRROR → CROP → OFFSET
  * This matches CPU behavior and supports full Tex structure parameters.
  * Requires: TEX_REPEAT define, all transformation uniforms
  * NOTE: Scale/rotation/offset are SKIPPED if values are identity (optimization + correctness) */
@@ -2871,40 +2869,9 @@ void do_2d_mapping(inout float fx, inout float fy,
                    vec2 tex_repeat, 
                    bool tex_xmir, 
                    bool tex_ymir, 
-                   vec4 tex_crop,
-                   vec3 tex_size,      /* Tex->size (scale X/Y/Z) */
-                   vec3 tex_ofs,       /* Tex->ofs (offset X/Y/Z) */
-                   float tex_rot)      /* Tex->rot (rotation Z in radians) */
+                   vec4 tex_crop)
 {
-  /* OPTIMIZATION: Skip transformations if identity (most common case for Displace modifier) */
-  bool has_scale = (tex_size.x != 1.0 || tex_size.y != 1.0);
-  bool has_rotation = (tex_rot != 0.0);
-  bool has_offset = (tex_ofs.x != 0.0 || tex_ofs.y != 0.0);
-  
-  /* Step 1: Apply size (scale) FIRST - matches CPU order */
-  if (has_scale) {
-    if (tex_size.x != 1.0) fx *= tex_size.x;
-    if (tex_size.y != 1.0) fy *= tex_size.y;
-  }
-  
-  /* Step 2: Apply rotation Z around origin (0.5, 0.5) */
-  if (has_rotation) {
-    /* Translate to origin */
-    fx -= 0.5;
-    fy -= 0.5;
-    
-    /* Apply rotation matrix */
-    float s = sin(tex_rot);
-    float c = cos(tex_rot);
-    float nx = fx * c - fy * s;
-    float ny = fx * s + fy * c;
-    
-    /* Translate back */
-    fx = nx + 0.5;
-    fy = ny + 0.5;
-  }
-  
-  /* Step 3: REPEAT scaling + MIRROR (existing code) */
+  /* Step 1: REPEAT scaling + MIRROR (existing code) */
   if (tex_extend == 3) { /* TEX_REPEAT */
     float origf_x = fx;
     float origf_y = fy;
@@ -2952,12 +2919,6 @@ void do_2d_mapping(inout float fx, inout float fy,
   if (tex_crop.y != 0.0 || tex_crop.w != 1.0) {
     float fac1 = tex_crop.w - tex_crop.y;
     fy = tex_crop.y + fy * fac1;
-  }
-  
-  /* Step 5: Apply offset LAST (only if non-zero) */
-  if (has_offset) {
-    fx += tex_ofs.x;
-    fy += tex_ofs.y;
   }
 }
 )GLSL";
@@ -3293,7 +3254,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
     float fy = (texvec.y + 1.0) / 2.0;
 
     /* Apply mapping transforms (SCALE → ROTATION → REPEAT → MIRROR → CROP → OFFSET) */
-    do_2d_mapping(fx, fy, u_tex_extend, u_tex_repeat, u_tex_xmir, u_tex_ymir, u_tex_crop, u_tex_size_param, u_tex_ofs, u_tex_rot);
+    do_2d_mapping(fx, fy, u_tex_extend, u_tex_repeat, u_tex_xmir, u_tex_ymir, u_tex_crop);
 
     vec3 mapped_coord = vec3(fx, fy, texvec.z);
     ivec2 img_size = textureSize(displacement_texture, 0);
@@ -3346,7 +3307,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
     float fy = (texvec.y + 1.0) / 2.0;
 
     /* Apply 2D mapping transforms (scale/rotation/repeat/mirror/crop/offset) */
-    do_2d_mapping(fx, fy, u_tex_extend, u_tex_repeat, u_tex_xmir, u_tex_ymir, u_tex_crop, u_tex_size_param, u_tex_ofs, u_tex_rot);
+    do_2d_mapping(fx, fy, u_tex_extend, u_tex_repeat, u_tex_xmir, u_tex_ymir, u_tex_crop);
 
     vec3 mapped_coord = vec3(fx, fy, texvec.z);
     ivec2 img_size = textureSize(displacement_texture, 0);

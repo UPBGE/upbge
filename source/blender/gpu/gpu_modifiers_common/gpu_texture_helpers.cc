@@ -85,15 +85,17 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
   gpu_tex_params.tex_crop[2] = tex->cropxmax;
   gpu_tex_params.tex_crop[3] = tex->cropymax;
 
-  gpu_tex_params.tex_repeat_xmir[0] = int32_t(tex->xrepeat);
-  gpu_tex_params.tex_repeat_xmir[1] = int32_t(tex->yrepeat);
-  gpu_tex_params.tex_repeat_xmir[2] = int32_t((tex->flag & TEX_REPEAT_XMIR) ? 1 : 0);
-  gpu_tex_params.tex_repeat_xmir[3] = int32_t((tex->flag & TEX_REPEAT_YMIR) ? 1 : 0);
+  /* repeat.x, repeat.y, xmir, ymir */
+  gpu_tex_params.tex_repeat_and_mirror[0] = int32_t(tex->xrepeat);
+  gpu_tex_params.tex_repeat_and_mirror[1] = int32_t(tex->yrepeat);
+  gpu_tex_params.tex_repeat_and_mirror[2] = int32_t((tex->flag & TEX_REPEAT_XMIR) ? 1 : 0);
+  gpu_tex_params.tex_repeat_and_mirror[3] = int32_t((tex->flag & TEX_REPEAT_YMIR) ? 1 : 0);
 
-  gpu_tex_params.tex_properties[0] = tex_is_byte ? 1 : 0;
-  gpu_tex_params.tex_properties[1] = tex_is_float ? 1 : 0;
-  gpu_tex_params.tex_properties[2] = tex_channels;
-  gpu_tex_params.tex_properties[3] = tex->type;
+  /* format properties: is_byte, is_float, channels, type */
+  gpu_tex_params.tex_format_properties[0] = tex_is_byte ? 1 : 0;
+  gpu_tex_params.tex_format_properties[1] = tex_is_float ? 1 : 0;
+  gpu_tex_params.tex_format_properties[2] = tex_channels;
+  gpu_tex_params.tex_format_properties[3] = tex->type;
 
   gpu_tex_params.tex_bricont[0] = tex->bright;
   gpu_tex_params.tex_bricont[1] = tex->contrast;
@@ -103,40 +105,39 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
   gpu_tex_params.tex_rgbfac[1] = tex->gfac;
   gpu_tex_params.tex_rgbfac[2] = tex->bfac;
 
-  gpu_tex_params.tex_size_ofs_rot[0] = 1.0f;
-  gpu_tex_params.tex_size_ofs_rot[1] = 1.0f;
-  gpu_tex_params.tex_size_ofs_rot[2] = 0.0f;
-  gpu_tex_params.tex_size_ofs_rot[3] = 0.0f;
-
   int tex_mapping = MOD_DISP_MAP_LOCAL;
-  if (md) {
-    if (md->type == eModifierType_Displace) {
-      const DisplaceModifierData *dmd = reinterpret_cast<const DisplaceModifierData *>(md);
-      tex_mapping = int(dmd->texmapping);
-      if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
-        tex_mapping = MOD_DISP_MAP_LOCAL;
-      }
+  if (md && md->type == eModifierType_Displace) {
+    const DisplaceModifierData *dmd = reinterpret_cast<const DisplaceModifierData *>(md);
+    tex_mapping = int(dmd->texmapping);
+    if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
+      tex_mapping = MOD_DISP_MAP_LOCAL;
     }
   }
 
   bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || !has_tex_coords;
-  gpu_tex_params.tex_mapping_misc[0] = tex_mapping;
-  gpu_tex_params.tex_mapping_misc[1] = mapping_use_input_positions ? 1 : 0;
+  gpu_tex_params.tex_mapping_info[0] = tex_mapping;
+  gpu_tex_params.tex_mapping_info[1] = mapping_use_input_positions ? 1 : 0;
 
   int mtex_mapto = 0;
-  gpu_tex_params.tex_mapping_misc[2] = mtex_mapto;
-  gpu_tex_params.tex_mapping_misc[3] = tex->stype;
+  gpu_tex_params.tex_mapping_info[2] = mtex_mapto;
+  gpu_tex_params.tex_mapping_info[3] = tex->stype;
 
   gpu_tex_params.tex_flags[0] = tex->flag;
   gpu_tex_params.tex_flags[1] = tex->extend;
   gpu_tex_params.tex_flags[2] = int(tex->checkerdist * 1000.0f);
 
+  /* Expose TEX_FLIPBLEND as a dedicated field for shaders to avoid bit-twiddling in GLSL.
+   * Stored in tex_flipblend[0] to match std140 layout (mapped to ivec4 in GLSL). */
+  gpu_tex_params.tex_flipblend[0] = (tex->flag & TEX_FLIPBLEND) ? 1 : 0;
+  gpu_tex_params.tex_flipblend[1] = 0;
+  gpu_tex_params.tex_flipblend[2] = 0;
+  gpu_tex_params.tex_flipblend[3] = 0;
+
   gpu_tex_params.tex_imaflag_runtime_flags[0] = tex->imaflag;
   {
     Image *ima_local = tex->ima;
     bool use_talpha_local = false;
-    if ((tex->imaflag & TEX_USEALPHA) && ima_local && (ima_local->alpha_mode != IMA_ALPHA_IGNORE))
-    {
+    if ((tex->imaflag & TEX_USEALPHA) && ima_local && (ima_local->alpha_mode != IMA_ALPHA_IGNORE)) {
       if ((tex->imaflag & TEX_CALCALPHA) == 0) {
         use_talpha_local = true;
       }
@@ -156,8 +157,7 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
 
   gpu_tex_params.tex_filtersize_frame_colorband_pad[0] = int(tex->filtersize * 1000.0f);
   gpu_tex_params.tex_filtersize_frame_colorband_pad[1] = scene_frame;
-  gpu_tex_params.tex_filtersize_frame_colorband_pad[2] = ((tex->flag & TEX_COLORBAND) != 0) ? 1 :
-                                                                                               0;
+  gpu_tex_params.tex_filtersize_frame_colorband_pad[2] = ((tex->flag & TEX_COLORBAND) != 0) ? 1 : 0;
 
   gpu_tex_params.tex_distamount[0] = tex->dist_amount;
   gpu_tex_params.tex_distamount[1] = tex->ns_outscale;
@@ -184,53 +184,56 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
 
   float mapref_imat[4][4];
   unit_m4(mapref_imat);
-  switch (md->type) {
-    case eModifierType_Displace: {
-      const DisplaceModifierData *dmd = reinterpret_cast<const DisplaceModifierData *>(md);
-      if (dmd->texmapping == MOD_DISP_MAP_OBJECT && dmd->map_object != nullptr) {
-        Object *map_object = dmd->map_object;
-        if (dmd->map_bone[0] != '\0') {
-          bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, dmd->map_bone);
-          if (pchan) {
-            float mat_bone_world[4][4];
-            mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
-            invert_m4_m4(mapref_imat, mat_bone_world);
+
+  if (md) {
+    switch (md->type) {
+      case eModifierType_Displace: {
+        const DisplaceModifierData *dmd = reinterpret_cast<const DisplaceModifierData *>(md);
+        if (dmd->texmapping == MOD_DISP_MAP_OBJECT && dmd->map_object != nullptr) {
+          Object *map_object = dmd->map_object;
+          if (dmd->map_bone[0] != '\0') {
+            bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, dmd->map_bone);
+            if (pchan) {
+              float mat_bone_world[4][4];
+              mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
+              invert_m4_m4(mapref_imat, mat_bone_world);
+            }
+            else {
+              invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+            }
           }
           else {
             invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
           }
         }
-        else {
-          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
-        }
+        break;
       }
-      break;
-    }
-    case eModifierType_Wave: {
-      /* Wave modifier uses the same mapping semantics as Displace for OBJECT mapping. */
-      const WaveModifierData *wmd = reinterpret_cast<const WaveModifierData *>(md);
-      if (wmd->texmapping == MOD_DISP_MAP_OBJECT && wmd->map_object != nullptr) {
-        Object *map_object = wmd->map_object;
-        if (wmd->map_bone[0] != '\0') {
-          bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, wmd->map_bone);
-          if (pchan) {
-            float mat_bone_world[4][4];
-            mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
-            invert_m4_m4(mapref_imat, mat_bone_world);
+      case eModifierType_Wave: {
+        const WaveModifierData *wmd = reinterpret_cast<const WaveModifierData *>(md);
+        if (wmd->texmapping == MOD_DISP_MAP_OBJECT && wmd->map_object != nullptr) {
+          Object *map_object = wmd->map_object;
+          if (wmd->map_bone[0] != '\0') {
+            bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, wmd->map_bone);
+            if (pchan) {
+              float mat_bone_world[4][4];
+              mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
+              invert_m4_m4(mapref_imat, mat_bone_world);
+            }
+            else {
+              invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+            }
           }
           else {
             invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
           }
         }
-        else {
-          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
-        }
+        break;
       }
-      break;
+      default:
+        break;
     }
-    default:
-      break;
   }
+
   memcpy(gpu_tex_params.u_mapref_imat, mapref_imat, sizeof(gpu_tex_params.u_mapref_imat));
 }
 

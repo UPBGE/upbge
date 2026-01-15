@@ -45,12 +45,17 @@ struct GPUColorBand {
  * the GLSL `TextureParams` typedef. Use primitive arrays to ensure packing. */
 struct GPUTextureParams {
   float tex_crop[4];
-  int32_t tex_repeat_xmir[4];
-  int32_t tex_properties[4];
+  /* repeat.x, repeat.y, xmir(0/1), ymir(0/1) */
+  int32_t tex_repeat_and_mirror[4];
+  /* is_byte(0/1), is_float(0/1), channels, type */
+  int32_t tex_format_properties[4];
   float tex_bricont[4];
-  float tex_size_ofs_rot[4];
-  int32_t tex_mapping_misc[4];
+  /* mapping, mapping_use_input_positions(0/1), mtex_mapto, stype */
+  int32_t tex_mapping_info[4];
   int32_t tex_flags[4];
+  /* TEX_FLIPBLEND exposed as a 4-int slot so the CPU-side struct matches GLSL std140
+   * layout (mapped to an `ivec4 tex_flipblend` in the UBO). Only `.x` is used. */
+  int32_t tex_flipblend[4];
   int32_t tex_noise[4];
   float tex_noisesize_turbul[4];                 /* noisesize, turbul, pad, pad */
   int32_t tex_filtersize_frame_colorband_pad[4]; /* filtersize*1000 (as int), frame,
