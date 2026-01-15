@@ -2904,7 +2904,7 @@ struct Scene {
   View3DCursor cursor;
 
   /** Bit-flags for layer visibility (deprecated). */
-  DNA_DEPRECATED unsigned int lay = 0;
+  unsigned int lay = 0;
   /** Active layer (deprecated). */
   DNA_DEPRECATED int layact = 0;
   char _pad2[4] = {};

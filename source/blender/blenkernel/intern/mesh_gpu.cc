@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma once
-
 #include "mesh_gpu_cache.hh"
 
 #include "BKE_mesh_gpu.hh"

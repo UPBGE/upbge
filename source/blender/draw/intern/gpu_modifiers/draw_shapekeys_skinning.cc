@@ -501,9 +501,7 @@ void ShapeKeySkinningManager::free_resources_for_mesh(Mesh *mesh)
 {
   if (!mesh)
     return;
-  if (auto *it = impl_->static_map.lookup_ptr(mesh)) {
-    impl_->static_map.remove(mesh);
-  }
+  impl_->static_map.remove(mesh);
 }
 
 void ShapeKeySkinningManager::invalidate_all(Mesh *mesh)

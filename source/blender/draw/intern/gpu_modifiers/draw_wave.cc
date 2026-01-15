@@ -277,9 +277,6 @@ uint32_t WaveManager::compute_wave_hash(const Mesh *mesh_orig, const WaveModifie
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->extend));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
-      hash = BLI_hash_int_2d(hash, uint32_t(ima->gen_flag));
-      hash = BLI_hash_int_2d(hash, uint32_t(ima->gen_depth));
-      hash = BLI_hash_int_2d(hash, uint32_t(ima->gen_type));
       hash = BLI_hash_int_2d(hash, uint32_t(ima->alpha_mode));
 
       /* Hash the colorspace name string into the running hash. */
@@ -463,7 +460,6 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   /* Prepare GPU texture (if a Tex/Image is present). Follow Displace pattern: */
   gpu::Texture *gpu_texture = nullptr;
   bool shader_has_texture = (wmd->texture != nullptr);
-  bool has_texture = false;
   if (shader_has_texture && wmd->texture && wmd->texture->ima) {
     Image *ima = wmd->texture->ima;
     Tex *tex = wmd->texture;
@@ -528,10 +524,6 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
         }
       }
     }
-
-    if (gpu_texture && !msd.tex_coords.empty()) {
-      has_texture = true;
-    }
   }
 
   /* If shader expects a texture but we have none, create a 1x1 dummy texture to satisfy binding. */
@@ -568,10 +560,8 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   const size_t size_colorband = sizeof(blender::gpu::GPUColorBand);
 
   ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
-  bool use_colorband = false;
   if (!ubo_colorband) {
     if (shader_has_texture && wmd->texture && wmd->texture->coba && (wmd->texture->flag & TEX_COLORBAND)) {
-      use_colorband = true;
       ColorBand *coba = wmd->texture->coba;
       blender::gpu::GPUColorBand gpu_coba = {};
       if (blender::gpu::fill_gpu_colorband_from_colorband(gpu_coba, coba)) {
@@ -590,9 +580,6 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
         GPU_uniformbuf_update(ubo_colorband, &dummy_coba);
       }
     }
-  }
-  else {
-    use_colorband = (shader_has_texture && wmd->texture && wmd->texture->coba && (wmd->texture->flag & TEX_COLORBAND));
   }
 
   /* TextureParams UBO */

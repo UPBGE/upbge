@@ -7,8 +7,6 @@
  * GPU-accelerated Displace modifier implementation.
  */
 
-#pragma once
-
 #include "draw_displace.hh"
 
 #include "BLI_hash.h"
@@ -64,100 +62,6 @@
 namespace blender {
 namespace draw {
 
-/* -------------------------------------------------------------------- */
-/** \name Colorspace Management Helpers
- * \{ */
-
-/**
- * Check if we need manual colorspace handling for this image.
- * Returns true if the image uses a non-"Non-Color" colorspace.
- */
-static bool displace_needs_manual_colorspace(Image *ima)
-{
-  if (!ima) {
-    return false;
-  }
-
-  /* Check if colorspace is NOT "Non-Color" */
-  if (ima->colorspace_settings.name[0] != '\0') {
-    return !STREQ(ima->colorspace_settings.name, "Non-Color");
-  }
-
-  /* Default: assume sRGB if no colorspace specified */
-  return true;
-}
-
-/**
- * Upload ImBuf data to GPU texture WITHOUT colorspace conversion.
- * For displacement, we want raw byte values (matching CPU behavior).
- * The CPU reads bytes directly without sRGB→linear conversion, so GPU must do the same.
- */
-static void displace_upload_ibuf_to_texture(gpu::Texture *tex,
-                                            ImBuf *ibuf,
-                                            const char * /*colorspace_name*/)
-{
-  if (!tex || !ibuf) {
-    return;
-  }
-
-  const int width = ibuf->x;
-  const int height = ibuf->y;
-
-  /* For displacement, we want raw values WITHOUT colorspace conversion.
-   * CPU reads bytes directly (no sRGB decode), so GPU must match.
-   * Always upload as RGBA float (converted from bytes if needed). */
-  float *upload_data = MEM_malloc_arrayN<float>(width * height * 4, "displace_tex_upload");
-
-  if (ibuf->float_buffer.data) {
-    /* Float buffer: copy directly */
-    for (int i = 0; i < width * height; i++) {
-      if (ibuf->channels == 4) {
-        upload_data[4 * i + 0] = ibuf->float_buffer.data[4 * i + 0];
-        upload_data[4 * i + 1] = ibuf->float_buffer.data[4 * i + 1];
-        upload_data[4 * i + 2] = ibuf->float_buffer.data[4 * i + 2];
-        upload_data[4 * i + 3] = ibuf->float_buffer.data[4 * i + 3];
-      }
-      else if (ibuf->channels == 3) {
-        upload_data[4 * i + 0] = ibuf->float_buffer.data[3 * i + 0];
-        upload_data[4 * i + 1] = ibuf->float_buffer.data[3 * i + 1];
-        upload_data[4 * i + 2] = ibuf->float_buffer.data[3 * i + 2];
-        upload_data[4 * i + 3] = 1.0f;
-      }
-      else {
-        /* Single channel */
-        float val = ibuf->float_buffer.data[i];
-        upload_data[4 * i + 0] = val;
-        upload_data[4 * i + 1] = val;
-        upload_data[4 * i + 2] = val;
-        upload_data[4 * i + 3] = 1.0f;
-      }
-    }
-  }
-  else if (ibuf->byte_buffer.data) {
-    /* Byte buffer: convert to float WITHOUT sRGB decoding
-     * This matches CPU behavior which reads bytes directly as linear values */
-    for (int i = 0; i < width * height; i++) {
-      const uchar *rect = &ibuf->byte_buffer.data[4 * i];
-      upload_data[4 * i + 0] = float(rect[0]) * (1.0f / 255.0f);
-      upload_data[4 * i + 1] = float(rect[1]) * (1.0f / 255.0f);
-      upload_data[4 * i + 2] = float(rect[2]) * (1.0f / 255.0f);
-      upload_data[4 * i + 3] = float(rect[3]) * (1.0f / 255.0f);
-    }
-  }
-  else {
-    /* No valid buffer */
-    MEM_freeN(upload_data);
-    return;
-  }
-
-  /* Upload to GPU */
-  GPU_texture_update(tex, GPU_DATA_FLOAT, upload_data);
-
-  /* Free temp buffer */
-  MEM_freeN(upload_data);
-}
-
-/** \} */
 
 /* Compute a stable 32-bit hash for a ColorBand to detect changes. Uses FNV-1a. */
 static uint32_t colorband_hash_from_coba(const ColorBand *coba)
@@ -452,9 +356,6 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->extend));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
-      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_flag));
-      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_depth));
-      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->gen_type));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->alpha_mode));
 
       /* Hash the colorspace name string into the running hash. */
@@ -627,7 +528,6 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   const std::string key_texcoords = key_prefix + "tex_coords";
   gpu::StorageBuf *ssbo_texcoords = nullptr;
   gpu::Texture *gpu_texture = nullptr;
-  bool has_texture = false;
   if (dmd->texture && dmd->texture->ima) {
     Image *ima = dmd->texture->ima;
     Tex *tex = dmd->texture;
@@ -737,7 +637,6 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
       }
 
       if (gpu_texture && !msd.tex_coords.empty()) {
-        has_texture = true;
 
         /* Upload texture coordinates SSBO */
         ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);

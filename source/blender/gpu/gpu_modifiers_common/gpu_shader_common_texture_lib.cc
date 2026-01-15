@@ -9,8 +9,6 @@
  * Includes ColorBand, imagewrap, boxsample, and texture mapping utilities.
  */
 
-#pragma once
-
 #include <string>
 
 #include "gpu_shader_common_texture_lib.hh"
@@ -158,7 +156,7 @@ const std::string get_texture_params_glsl()
 /* Placeholder defines for texture subtypes (blend stype, wood/marble waveforms, etc.)
  * These provide a single place to keep TEX_* name definitions for GPU shaders.
  * Values should match those in DNA_texture_types.h / CPU implementation. */
-const std::string get_texture_defines_glsl()
+static const std::string get_texture_defines_glsl()
 {
   return R"GLSL(
 /* Texture type defines (match DNA_texture_types.h) */
@@ -359,7 +357,7 @@ const std::string get_texture_defines_glsl()
 /* Common texture result struct used by multiple texture helpers (different name
  * to avoid clash with local shader definitions). Mirrors CPU `TexResult` fields
  * but kept compact for shader usage. */
-const std::string get_texture_structs_glsl()
+static const std::string get_texture_structs_glsl()
 {
   return R"GLSL(
 /* rctf rectangle struct (GPU port of BLI_rect.h) */
@@ -382,7 +380,7 @@ struct TexResult_tex {
  * Returns GLSL code for ColorBand-related defines and helper functions.
  * Includes interpolation types, color modes, hue modes, and key_curve_position_weights.
  */
-const std::string get_colorband_helpers_glsl()
+static const std::string get_colorband_helpers_glsl()
 {
   return R"GLSL(
 /* GPU port of key_curve_position_weights from key.cc */
@@ -496,7 +494,7 @@ float colorband_hue_interp(int ipotype_hue, float mfac, float fac, float h1, flo
 )GLSL";
 }
 
-const std::string get_texnoise_glsl()
+static const std::string get_texnoise_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -546,7 +544,7 @@ int texnoise_tex(inout TexResult_tex texres, int thread_id, int noisedepth)
 )GLSL";
 }
 
-const std::string get_distnoise_glsl()
+static const std::string get_distnoise_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -612,7 +610,7 @@ int musgrave_tex_ubo(vec3 texvec, inout TexResult_tex texres)
   )GLSL";
 }
 
-const std::string get_bricont_glsl()
+static const std::string get_bricont_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -660,7 +658,7 @@ vec3 apply_bricont_rgb(vec3 col)
 )GLSL";
 }
 
-const std::string get_stucci_glsl()
+static const std::string get_stucci_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -688,7 +686,7 @@ int stucci_tex(vec3 texvec, inout TexResult_tex texres, int stype, float noisesi
 )GLSL";
 }
 
-const std::string get_voronoi_glsl()
+static const std::string get_voronoi_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -759,7 +757,7 @@ int voronoi_tex_ubo(vec3 texvec, inout TexResult_tex texres)
 )GLSL";
 }
 
-const std::string get_marble_glsl()
+static const std::string get_marble_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -824,7 +822,7 @@ int marble_tex(vec3 texvec, inout TexResult_tex texres, int wf, int mt, float no
 )GLSL";
 }
 
-const std::string get_magic_glsl()
+static const std::string get_magic_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -912,7 +910,7 @@ int magic_tex(vec3 texvec, inout TexResult_tex texres, float turbul)
 }
 
 
-const std::string get_wood_glsl()
+static const std::string get_wood_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -978,7 +976,7 @@ int wood_tex(vec3 texvec, inout TexResult_tex texres, int noisebasis, int noiseb
 }
 
 
-const std::string get_clouds_glsl()
+static const std::string get_clouds_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -1034,7 +1032,7 @@ int clouds_tex(vec3 texvec, inout TexResult_tex texres, float noisesize, float t
 )GLSL";
 }
 
-const std::string get_blend_glsl()
+static const std::string get_blend_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -1115,7 +1113,7 @@ int blend_tex(vec3 texvec, inout TexResult_tex texres, int stype, bool flipblend
  * Returns GLSL code for RGB ↔ HSV/HSL conversion functions.
  * GPU port of BLI_math_color.h functions.
  */
-const std::string get_color_conversion_glsl()
+static const std::string get_color_conversion_glsl()
 {
   return R"GLSL(
 /* RGB ↔ HSV/HSL conversion functions (GPU port of BLI_math_color.h) */
@@ -1247,7 +1245,7 @@ vec3 linearrgb_to_srgb_vec3(vec3 v)
 /** \name Noise Helpers
  * \{ */
 
-const std::string get_waveform_helpers_glsl()
+static const std::string get_waveform_helpers_glsl()
 {
   return R"GLSL(
 /* Waveform helpers shared by wood/marble to mirror CPU tex_sin/tex_saw/tex_tri */
@@ -1276,7 +1274,7 @@ float tex_tri_glsl(float a)
 )GLSL";
 }
 
-const std::string get_noise_helpers_part1_glsl()
+static const std::string get_noise_helpers_part1_glsl()
 {
   return R"GLSL(
 /* Blender noise static data (from noise_c.cc line 103-106) */
@@ -1418,7 +1416,7 @@ const float hashvectf[768] = float[768](
 )GLSL";
 }
 
-const std::string get_noise_helpers_part2_glsl()
+static const std::string get_noise_helpers_part2_glsl()
 {
   return R"GLSL(
 /* point table for Voronoi (copied from noise_c.cc hashpntf)
@@ -1519,7 +1517,7 @@ const vec3 hashpntf3[256] = vec3[256](
 )GLSL";
 }
 
-const std::string get_noise_helpers_part3_glsl()
+static const std::string get_noise_helpers_part3_glsl()
 {
   return R"GLSL(
 /* cellnoise helper for GLSL side usage */
@@ -1917,7 +1915,7 @@ float orgBlenderNoise(float x, float y, float z)
 )GLSL";
 }
 
-const std::string get_noise_helpers_part4_glsl()
+static const std::string get_noise_helpers_part4_glsl()
 {
   return R"GLSL(
 
@@ -2145,7 +2143,7 @@ float bli_noise_generic_noise(float noisesize, float x, float y, float z, bool h
 )GLSL";
 }
 
-const std::string get_noise_helpers_part5_glsl()
+static const std::string get_noise_helpers_part5_glsl()
 {
   return R"GLSL(
 
@@ -2328,7 +2326,7 @@ float bli_noise_mg_hetero_terrain(float x,
  * Returns GLSL code for boxsample helper structures and functions.
  * Includes rctf, TexResult_tex, ibuf_get_color, clipping functions.
  */
-const std::string get_boxsample_helpers_glsl()
+static const std::string get_boxsample_helpers_glsl()
 {
   return R"GLSL(
 
@@ -2417,7 +2415,7 @@ float clipy_rctf(inout rctf rf, float y1, float y2)
  * Returns GLSL code for boxsampleclip and boxsample functions.
  * GPU port of texture_image.cc boxsample pipeline.
  */
-const std::string get_boxsample_core_glsl()
+static const std::string get_boxsample_core_glsl()
 {
   return R"GLSL(
 void boxsampleclip(sampler2D displacement_texture, ivec2 tex_size, rctf rf, inout TexResult_tex texres, bool imaprepeat, bool tex_is_byte, bool tex_is_float, int tex_channels)
@@ -2690,7 +2688,7 @@ void boxsample(sampler2D displacement_texture,
  * Includes BKE_colorband_evaluate, do_2d_mapping, imagewrap.
  * Note: These require TEX_* defines and uniform push constants.
  */
-const std::string get_texture_mapping_glsl()
+static const std::string get_texture_mapping_glsl()
 {
   return R"GLSL(
 /* GPU port of BKE_colorband_evaluate() from colorband.cc (line 285-410)
@@ -2965,7 +2963,7 @@ void do_2d_mapping(inout float fx, inout float fy,
 )GLSL";
 }
 
-const std::string get_imagewrap()
+static const std::string get_imagewrap()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -3210,7 +3208,7 @@ int imagewrap(vec3 tex_coord, inout vec4 result, inout float out_tin, ivec2 tex_
 )GLSL";
 }
 
-const std::string get_multitex_glsl()
+static const std::string get_multitex_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -3323,7 +3321,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
 )GLSL";
 }
 
-const std::string get_multitex_image_only_glsl()
+static const std::string get_multitex_image_only_glsl()
 {
   return R"GLSL(
 #ifdef HAS_TEXTURE
@@ -3373,7 +3371,7 @@ int multitex(vec3 texvec, inout TexResult_tex texres, int thread_id)
 )GLSL";
 }
 
-const std::string get_common_texture_bke_get_value_glsl()
+static const std::string get_common_texture_bke_get_value_glsl()
 {
   return R"GLSL(
 /* Returns intensity in [0..1]. When compiled without HAS_TEXTURE returns 1.0

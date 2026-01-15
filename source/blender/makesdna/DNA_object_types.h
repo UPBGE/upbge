@@ -667,7 +667,7 @@ struct Object {
   float constinv[4][4] = _DNA_DEFAULT_UNIT_M4;
 
   /** Copy of Base's layer in the scene. */
-  DNA_DEPRECATED unsigned int lay = 0;
+  unsigned int lay = 0;
 
   /** Copy of Base. */
   short flag = OB_FLAG_USE_SIMULATION_CACHE;

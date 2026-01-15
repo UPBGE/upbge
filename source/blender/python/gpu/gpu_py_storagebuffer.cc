@@ -11,8 +11,6 @@
  * - Use `BPyGPU` for public API.
  */
 
-#pragma once
-
 #include "BLI_string_utf8.h"
 
 #include "GPU_context.hh"
