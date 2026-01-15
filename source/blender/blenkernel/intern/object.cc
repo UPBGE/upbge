@@ -127,6 +127,7 @@
 #include "BKE_preview_image.hh"
 #include "BKE_property.hh"
 #include "BKE_python_proxy.hh"
+#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_sca.hh"
 #include "BKE_scene.hh"
@@ -148,6 +149,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "RNA_prototypes.hh"
 
@@ -5351,7 +5353,7 @@ static bool modifiers_has_animation_check(const Object *ob)
   if (ob->adt != nullptr) {
     AnimData *adt = ob->adt;
     if (adt->action != nullptr) {
-      for (FCurve *fcu : animrig::legacy::fcurves_for_assigned_action(adt)) {
+      for (FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
         if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
           return true;
         }

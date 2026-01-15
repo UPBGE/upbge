@@ -18,6 +18,8 @@
 
 #include "WM_api.hh"
 
+#include "CLG_log.h"
+
 namespace blender {
 
 const EnumPropertyItem rna_enum_node_socket_type_items[] = {
@@ -75,6 +77,8 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
 #  include "ED_node.hh"
 
 namespace blender {
+
+static CLG_LogRef LOG = {"rna.node"};
 
 extern FunctionRNA rna_NodeSocket_draw_func;
 extern FunctionRNA rna_NodeSocket_draw_color_func;
@@ -313,8 +317,15 @@ static int rna_NodeSocket_bl_idname_length(PointerRNA *ptr)
 
 static void rna_NodeSocket_bl_idname_set(PointerRNA *ptr, const char *value)
 {
-  bNodeSocket *node = static_cast<bNodeSocket *>(ptr->data);
-  bke::bNodeSocketType *ntype = node->typeinfo;
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  bke::bNodeSocketType *ntype = sock->typeinfo;
+
+  if (ntype->type != SOCK_CUSTOM) {
+    CLOG_ERROR(
+        &LOG, "Cannot modify 'bl_idname' of built-in socket type '%s'", ntype->idname.c_str());
+    return;
+  }
+
   ntype->idname = value;
 }
 
@@ -2167,6 +2178,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      SOCK_FLOAT,
      PROP_PERCENTAGE},
     {"NodeSocketFloatFactor", "NodeTreeInterfaceSocketFloatFactor", SOCK_FLOAT, PROP_FACTOR},
+    {"NodeSocketFloatMass", "NodeTreeInterfaceSocketFloatMass", SOCK_FLOAT, PROP_MASS},
     {"NodeSocketFloatAngle", "NodeTreeInterfaceSocketFloatAngle", SOCK_FLOAT, PROP_ANGLE},
     {"NodeSocketFloatTime", "NodeTreeInterfaceSocketFloatTime", SOCK_FLOAT, PROP_TIME},
     {"NodeSocketFloatTimeAbsolute",
