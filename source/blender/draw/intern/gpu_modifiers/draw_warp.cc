@@ -194,12 +194,8 @@ void main() {
     /* Distance to 'from' object's origin (mat_from[3] holds translation) */
     vec3 from_loc = vec3(mat_from[3][0], mat_from[3][1], mat_from[3][2]);
     float len_sq = dot(co - from_loc, co - from_loc);
-    if (len_sq < falloff_sq) {
-      fac = (falloff_radius - sqrt(len_sq)) / falloff_radius;
-    }
-    else {
-      fac = 0.0;
-    }
+    /* Use helper to compute full falloff behaviour (includes curve, const, invsquare, etc.) */
+    fac = warp_falloff_factor(len_sq);
   }
 
   /* Vertex group weight (msd.vgroup_weights contains 1.0 default when no group) */
@@ -210,38 +206,6 @@ void main() {
       deformed_positions[v] = co_in;
       return;
     }
-  }
-
-  /* Apply falloff curve/shape */
-  switch (falloff_type) {
-    case eWarp_Falloff_None:
-      fac = 1.0;
-      break;
-    case eWarp_Falloff_Curve:
-      fac = eval_curve_falloff(fac);
-      break;
-    case eWarp_Falloff_Sharp:
-      fac = fac * fac;
-      break;
-    case eWarp_Falloff_Smooth:
-      fac = 3.0 * fac * fac - 2.0 * fac * fac * fac;
-      break;
-    case eWarp_Falloff_Root:
-      fac = sqrt(max(fac, 0.0));
-      break;
-    case eWarp_Falloff_Linear:
-      break;
-    case eWarp_Falloff_Const:
-      fac = 1.0;
-      break;
-    case eWarp_Falloff_Sphere:
-      fac = sqrt(max(0.0, 2.0 * fac - fac * fac));
-      break;
-    case eWarp_Falloff_InvSquare:
-      fac = fac * (2.0 - fac);
-      break;
-    default:
-      break;
   }
 
   fac *= weight;
