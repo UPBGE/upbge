@@ -71,7 +71,7 @@ namespace blender {
 /* ************* Generic Operator Helpers ************* */
 static bool edit_sensor_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "sensor", &RNA_Sensor);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "sensor", RNA_Sensor);
 
   if (ptr.data && ID_IS_LINKED(ptr.owner_id))
     return 0;
@@ -80,7 +80,7 @@ static bool edit_sensor_poll(bContext *C)
 
 static bool edit_controller_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "controller", &RNA_Controller);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "controller", RNA_Controller);
 
   if (ptr.data && ID_IS_LINKED(ptr.owner_id))
     return 0;
@@ -89,7 +89,7 @@ static bool edit_controller_poll(bContext *C)
 
 static bool edit_actuator_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "actuator", &RNA_Actuator);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "actuator", RNA_Actuator);
 
   if (ptr.data && ID_IS_LINKED(ptr.owner_id))
     return 0;
@@ -105,7 +105,7 @@ static void edit_sensor_properties(wmOperatorType *ot)
 
 static int edit_sensor_invoke_properties(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "sensor", &RNA_Sensor);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "sensor", RNA_Sensor);
 
   if (RNA_struct_property_is_set(op->ptr, "sensor") &&
       RNA_struct_property_is_set(op->ptr, "object"))
@@ -169,7 +169,7 @@ static void edit_controller_properties(wmOperatorType *ot)
 
 static int edit_controller_invoke_properties(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "controller", &RNA_Controller);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "controller", RNA_Controller);
 
   if (RNA_struct_property_is_set(op->ptr, "controller") &&
       RNA_struct_property_is_set(op->ptr, "object"))
@@ -211,7 +211,7 @@ static void edit_actuator_properties(wmOperatorType *ot)
 
 static int edit_actuator_invoke_properties(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "actuator", &RNA_Actuator);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "actuator", RNA_Actuator);
 
   if (RNA_struct_property_is_set(op->ptr, "actuator") &&
       RNA_struct_property_is_set(op->ptr, "object"))
@@ -256,7 +256,7 @@ static int logicbricks_move_property_get(wmOperator *op)
 
 static bool remove_component_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", RNA_PythonProxy);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id :
                                 blender::ed::object::context_active_object(C);
 
@@ -333,7 +333,7 @@ static wmOperatorStatus sensor_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->sensors), sens);
 
   /* set the sensor name based on rna type enum */
-  PointerRNA sens_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Sensor, sens);
+  PointerRNA sens_ptr = RNA_pointer_create_discrete((ID *)ob, RNA_Sensor, sens);
   prop = RNA_struct_find_property(&sens_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -446,7 +446,7 @@ static wmOperatorStatus controller_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->controllers), cont);
 
   /* set the controller name based on rna type enum */
-  PointerRNA cont_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Controller, cont);
+  PointerRNA cont_ptr = RNA_pointer_create_discrete((ID *)ob, RNA_Controller, cont);
   prop = RNA_struct_find_property(&cont_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -579,7 +579,7 @@ static wmOperatorStatus actuator_add_exec(bContext *C, wmOperator *op)
   BLI_addtail(&(ob->actuators), act);
 
   /* set the actuator name based on rna type enum */
-  PointerRNA act_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Actuator, act);
+  PointerRNA act_ptr = RNA_pointer_create_discrete((ID *)ob, RNA_Actuator, act);
   prop = RNA_struct_find_property(&act_ptr, "type");
 
   RNA_string_get(op->ptr, "name", name);
@@ -1216,7 +1216,7 @@ static wmOperatorStatus component_move_up_exec(bContext *C, wmOperator *op)
 
 static bool component_move_up_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", RNA_PythonProxy);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id :
                                 blender::ed::object::context_active_object(C);
 
@@ -1255,7 +1255,7 @@ static void LOGIC_OT_python_component_move_up(wmOperatorType *ot)
 
 static bool component_move_down_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", RNA_PythonProxy);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id :
                                 blender::ed::object::context_active_object(C);
 

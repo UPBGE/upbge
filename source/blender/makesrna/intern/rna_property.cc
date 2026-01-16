@@ -63,17 +63,17 @@ static StructRNA *rna_GameProperty_refine(struct PointerRNA *ptr)
 
   switch (property->type) {
     case GPROP_BOOL:
-      return &RNA_GameBooleanProperty;
+      return RNA_GameBooleanProperty;
     case GPROP_INT:
-      return &RNA_GameIntProperty;
+      return RNA_GameIntProperty;
     case GPROP_FLOAT:
-      return &RNA_GameFloatProperty;
+      return RNA_GameFloatProperty;
     case GPROP_STRING:
-      return &RNA_GameStringProperty;
+      return RNA_GameStringProperty;
     case GPROP_TIME:
-      return &RNA_GameTimerProperty;
+      return RNA_GameTimerProperty;
     default:
-      return &RNA_GameProperty;
+      return RNA_GameProperty;
   }
 }
 

@@ -67,23 +67,23 @@ static StructRNA *rna_Controller_refine(struct PointerRNA *ptr)
 
   switch (controller->type) {
     case CONT_LOGIC_AND:
-      return &RNA_AndController;
+      return RNA_AndController;
     case CONT_LOGIC_OR:
-      return &RNA_OrController;
+      return RNA_OrController;
     case CONT_LOGIC_NAND:
-      return &RNA_NandController;
+      return RNA_NandController;
     case CONT_LOGIC_NOR:
-      return &RNA_NorController;
+      return RNA_NorController;
     case CONT_LOGIC_XOR:
-      return &RNA_XorController;
+      return RNA_XorController;
     case CONT_LOGIC_XNOR:
-      return &RNA_XnorController;
+      return RNA_XnorController;
     case CONT_EXPRESSION:
-      return &RNA_ExpressionController;
+      return RNA_ExpressionController;
     case CONT_PYTHON:
-      return &RNA_PythonController;
+      return RNA_PythonController;
     default:
-      return &RNA_Controller;
+      return RNA_Controller;
   }
 }
 

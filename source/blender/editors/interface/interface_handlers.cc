@@ -2374,7 +2374,7 @@ static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
     return;
 
   /* in case the linked controller is not the active one */
-  PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, &RNA_Object, ob);
+  PointerRNA object_ptr = RNA_pointer_create_discrete((ID *)ob, RNA_Object, ob);
   wmOperatorType *ot = WM_operatortype_find("LOGIC_OT_controller_add", false);
   PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "object", ob->id.name + 2);

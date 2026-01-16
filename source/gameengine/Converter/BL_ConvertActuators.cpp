@@ -981,7 +981,7 @@ void BL_ConvertActuators(const char *maggiename,
         KX_GameObject *navmeshob = nullptr;
         if (stAct->navmesh) {
           blender::PointerRNA settings_ptr = RNA_pointer_create_discrete(
-              (blender::ID *)stAct->navmesh, &RNA_GameObjectSettings, stAct->navmesh);
+              (blender::ID *)stAct->navmesh, RNA_GameObjectSettings, stAct->navmesh);
           if (RNA_enum_get(&settings_ptr, "physics_type") == OB_BODY_TYPE_NAVMESH)
             navmeshob = converter->FindGameObject(stAct->navmesh);
         }

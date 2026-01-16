@@ -40,32 +40,32 @@ static StructRNA *rna_PythonProxyProperty_refine(struct PointerRNA *ptr)
 
   switch (pprop->type) {
     case PPROP_TYPE_BOOLEAN:
-      return &RNA_ProxyBooleanProperty;
+      return RNA_ProxyBooleanProperty;
     case PPROP_TYPE_INT:
-      return &RNA_ProxyIntProperty;
+      return RNA_ProxyIntProperty;
     case PPROP_TYPE_FLOAT:
-      return &RNA_ProxyFloatProperty;
+      return RNA_ProxyFloatProperty;
     case PPROP_TYPE_STRING:
-      return &RNA_ProxyStringProperty;
+      return RNA_ProxyStringProperty;
     case PPROP_TYPE_SET:
-      return &RNA_ProxySetProperty;
+      return RNA_ProxySetProperty;
     case PPROP_TYPE_VEC2:
-      return &RNA_ProxyVector2DProperty;
+      return RNA_ProxyVector2DProperty;
     case PPROP_TYPE_VEC3:
-      return &RNA_ProxyVector3DProperty;
+      return RNA_ProxyVector3DProperty;
     case PPROP_TYPE_VEC4:
-      return &RNA_ProxyVector4DProperty;
+      return RNA_ProxyVector4DProperty;
     case PPROP_TYPE_COL3:
-      return &RNA_ProxyColor3Property;
+      return RNA_ProxyColor3Property;
     case PPROP_TYPE_COL4:
-      return &RNA_ProxyColor4Property;
+      return RNA_ProxyColor4Property;
 #  define PT_DEF(name, lower, upper) \
     case PPROP_TYPE_##upper: \
-      return &RNA_Proxy##name##Property;
+      return RNA_Proxy##name##Property;
       POINTER_TYPES
 #  undef PT_DEF
     default:
-      return &RNA_PythonProxyProperty;
+      return RNA_PythonProxyProperty;
   }
 }
 

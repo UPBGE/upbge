@@ -85,47 +85,47 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 
   switch (actuator->type) {
     case ACT_ACTION:
-      return &RNA_ActionActuator;
+      return RNA_ActionActuator;
     case ACT_OBJECT:
-      return &RNA_ObjectActuator;
+      return RNA_ObjectActuator;
     case ACT_CAMERA:
-      return &RNA_CameraActuator;
+      return RNA_CameraActuator;
     case ACT_SOUND:
-      return &RNA_SoundActuator;
+      return RNA_SoundActuator;
     case ACT_PROPERTY:
-      return &RNA_PropertyActuator;
+      return RNA_PropertyActuator;
     case ACT_CONSTRAINT:
-      return &RNA_ConstraintActuator;
+      return RNA_ConstraintActuator;
     case ACT_EDIT_OBJECT:
-      return &RNA_EditObjectActuator;
+      return RNA_EditObjectActuator;
     case ACT_SCENE:
-      return &RNA_SceneActuator;
+      return RNA_SceneActuator;
     case ACT_COLLECTION:
-      return &RNA_CollectionActuator;
+      return RNA_CollectionActuator;
     case ACT_RANDOM:
-      return &RNA_RandomActuator;
+      return RNA_RandomActuator;
     case ACT_MESSAGE:
-      return &RNA_MessageActuator;
+      return RNA_MessageActuator;
     case ACT_GAME:
-      return &RNA_GameActuator;
+      return RNA_GameActuator;
     case ACT_VIBRATION:
-      return &RNA_VibrationActuator;
+      return RNA_VibrationActuator;
     case ACT_VISIBILITY:
-      return &RNA_VisibilityActuator;
+      return RNA_VisibilityActuator;
     case ACT_2DFILTER:
-      return &RNA_Filter2DActuator;
+      return RNA_Filter2DActuator;
     case ACT_PARENT:
-      return &RNA_ParentActuator;
+      return RNA_ParentActuator;
     case ACT_STATE:
-      return &RNA_StateActuator;
+      return RNA_StateActuator;
     case ACT_ARMATURE:
-      return &RNA_ArmatureActuator;
+      return RNA_ArmatureActuator;
     case ACT_STEERING:
-      return &RNA_SteeringActuator;
+      return RNA_SteeringActuator;
     case ACT_MOUSE:
-      return &RNA_MouseActuator;
+      return RNA_MouseActuator;
     default:
-      return &RNA_Actuator;
+      return RNA_Actuator;
   }
 }
 
@@ -502,7 +502,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
   Object *ob = nullptr;
   int totitem = 0;
 
-  if (ptr->type == &RNA_Actuator || RNA_struct_is_a(ptr->type, &RNA_Actuator)) {
+  if (ptr->type == RNA_Actuator || RNA_struct_is_a(ptr->type, RNA_Actuator)) {
     ob = (Object *)ptr->owner_id;
   }
   else {

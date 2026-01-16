@@ -80,37 +80,37 @@ static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)
 
   switch (sensor->type) {
     case SENS_ALWAYS:
-      return &RNA_AlwaysSensor;
+      return RNA_AlwaysSensor;
     case SENS_NEAR:
-      return &RNA_NearSensor;
+      return RNA_NearSensor;
     case SENS_KEYBOARD:
-      return &RNA_KeyboardSensor;
+      return RNA_KeyboardSensor;
     case SENS_PROPERTY:
-      return &RNA_PropertySensor;
+      return RNA_PropertySensor;
     case SENS_ARMATURE:
-      return &RNA_ArmatureSensor;
+      return RNA_ArmatureSensor;
     case SENS_MOUSE:
-      return &RNA_MouseSensor;
+      return RNA_MouseSensor;
     case SENS_COLLISION:
-      return &RNA_CollisionSensor;
+      return RNA_CollisionSensor;
     case SENS_RADAR:
-      return &RNA_RadarSensor;
+      return RNA_RadarSensor;
     case SENS_RANDOM:
-      return &RNA_RandomSensor;
+      return RNA_RandomSensor;
     case SENS_RAY:
-      return &RNA_RaySensor;
+      return RNA_RaySensor;
     case SENS_MOVEMENT:
-      return &RNA_MovementSensor;
+      return RNA_MovementSensor;
     case SENS_MESSAGE:
-      return &RNA_MessageSensor;
+      return RNA_MessageSensor;
     case SENS_JOYSTICK:
-      return &RNA_JoystickSensor;
+      return RNA_JoystickSensor;
     case SENS_ACTUATOR:
-      return &RNA_ActuatorSensor;
+      return RNA_ActuatorSensor;
     case SENS_DELAY:
-      return &RNA_DelaySensor;
+      return RNA_DelaySensor;
     default:
-      return &RNA_Sensor;
+      return RNA_Sensor;
   }
 }
 
@@ -155,7 +155,7 @@ const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C,
   Object *ob = nullptr;
   int totitem = 0;
 
-  if (ptr->type == &RNA_Sensor || RNA_struct_is_a(ptr->type, &RNA_Sensor)) {
+  if (ptr->type == RNA_Sensor || RNA_struct_is_a(ptr->type, RNA_Sensor)) {
     ob = (Object *)ptr->owner_id;
   }
   else {
