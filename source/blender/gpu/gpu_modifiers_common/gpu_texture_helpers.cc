@@ -114,7 +114,7 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
     }
   }
 
-  bool mapping_use_input_positions = (tex_mapping != MOD_DISP_MAP_UV) || !has_tex_coords;
+  bool mapping_use_input_positions = !has_tex_coords;
   gpu_tex_params.tex_mapping_info[0] = tex_mapping;
   gpu_tex_params.tex_mapping_info[1] = mapping_use_input_positions ? 1 : 0;
 
