@@ -774,12 +774,14 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     GPU_uniformbuf_update(ubo_texture_params, &gpu_tex_params);
   }
 
-  /* Create output SSBO */
+  /* Create output SSBO (use get -> ensure pattern to avoid unnecessary allocations). */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
-  gpu::StorageBuf *ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-      mesh_owner, deformed_eval, key_out, size_out);
+  gpu::StorageBuf *ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_out);
   if (!ssbo_out) {
-    return nullptr;
+    ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_out, size_out);
+    if (!ssbo_out) {
+      return nullptr;
+    }
   }
 
   /* Compute transformation matrix (for global space) */
