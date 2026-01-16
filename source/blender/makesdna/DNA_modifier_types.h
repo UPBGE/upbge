@@ -1604,7 +1604,8 @@ struct WarpModifierData {
   struct Object *map_object = nullptr;
   char map_bone[/*MAXBONENAME*/ 64] = "";
   char uvlayer_name[/*MAX_CUSTOMDATA_LAYER_NAME*/ 68] = "";
-  char _pad1[4] = {};
+  short deform_method = 0;
+  char _pad1[2] = {};
   int uvlayer_tmp = 0;
   int texmapping = 0;
   /* End #MappingInfoModifierData. */
@@ -1627,6 +1628,12 @@ struct WarpModifierData {
   char _pad2[6] = {};
   void *_pad3 = nullptr;
 };
+
+/** WarpModifierData.deform_method */
+typedef enum {
+  WAR_DEFORM_METHOD_CPU = 0,
+  WAR_DEFORM_METHOD_GPU = 1,
+} WarpModifierDeformMethod;
 
 /* Defines common to all WeightVG modifiers. */
 

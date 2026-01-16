@@ -25,6 +25,7 @@
 #include "draw_shapekeys_skinning.hh"
 #include "draw_simpledeform.hh"
 #include "draw_wave.hh"
+#include "draw_warp.hh"
 
 #include "BKE_mesh_gpu.hh"
 
@@ -224,6 +225,19 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
         }
         break;
       }
+      case ModifierGPUStageType::WARP: {
+        /* Hook: Delegate to HookManager for complete hash */
+        if (mesh_orig_) {
+          WarpModifierData *wmd = static_cast<WarpModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, WarpManager::compute_warp_hash(mesh_orig_, wmd));
+        }
+        else {
+          BLI_assert_unreachable();
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
       default:
         /* Unsupported type: just hash the pointer */
         hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(stage.modifier_data)));
@@ -257,6 +271,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::WAVE:
       WaveManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::WARP:
+      WarpManager::instance().invalidate_all(mesh_owner);
       break;
     default:
       break;
@@ -531,6 +548,31 @@ static gpu::StorageBuf *dispatch_wave_stage(Mesh *mesh_orig,
   return wave_mgr.dispatch_deform(wmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
 }
 
+static gpu::StorageBuf *dispatch_warp_stage(Mesh *mesh_orig,
+                                             Object *ob_eval,
+                                             void *modifier_data,
+                                             gpu::StorageBuf *input,
+                                             uint32_t pipeline_hash)
+{
+  WarpModifierData *wmd = static_cast<WarpModifierData *>(modifier_data);
+  if (!wmd) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  WarpManager &warp_mgr = WarpManager::instance();
+
+  /* Pass original WarpModifierData (from original object) for settings extraction */
+  warp_mgr.ensure_static_resources(wmd, ob_eval, mesh_orig, pipeline_hash);
+
+  return warp_mgr.dispatch_deform(wmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
+}
+
 /** \} */
 
 bool build_gpu_modifier_pipeline(
@@ -597,6 +639,10 @@ bool build_gpu_modifier_pipeline(
       }
       case eModifierType_Wave: {
         pipeline.add_stage(ModifierGPUStageType::WAVE, md, execution_order++, dispatch_wave_stage);
+        break;
+      }
+      case eModifierType_Warp: {
+        pipeline.add_stage(ModifierGPUStageType::WARP, md, execution_order++, dispatch_warp_stage);
         break;
       }
 

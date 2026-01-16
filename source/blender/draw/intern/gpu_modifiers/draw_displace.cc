@@ -58,55 +58,10 @@
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 
 #include "MEM_guardedalloc.h"
+#include "draw_modifier_gpu_helpers.hh"
 
 namespace blender {
 namespace draw {
-
-
-/* Compute a stable 32-bit hash for a ColorBand to detect changes. Uses FNV-1a. */
-static uint32_t colorband_hash_from_coba(const ColorBand *coba)
-{
-  if (!coba) {
-    return 0;
-  }
-
-  uint32_t hash = 0;
-
-  /* Hash basic integer fields */
-  hash = BLI_hash_int_2d(hash, uint32_t(coba->tot));
-  hash = BLI_hash_int_2d(hash, uint32_t(coba->cur));
-  hash = BLI_hash_int_2d(hash, uint32_t(coba->ipotype));
-  hash = BLI_hash_int_2d(hash, uint32_t(coba->ipotype_hue));
-  hash = BLI_hash_int_2d(hash, uint32_t(coba->color_mode));
-
-  /* Hash only the active stops (up to 32). For floats, hash their bit pattern. */
-  int tot = coba->tot;
-  if (tot < 0) {
-    tot = 0;
-  }
-  if (tot > 32) {
-    tot = 32;
-  }
-
-  for (int i = 0; i < tot; ++i) {
-    const auto &stop = coba->data[i];
-
-    uint32_t v;
-    memcpy(&v, &stop.r, sizeof(v));
-    hash = BLI_hash_int_2d(hash, v);
-    memcpy(&v, &stop.g, sizeof(v));
-    hash = BLI_hash_int_2d(hash, v);
-    memcpy(&v, &stop.b, sizeof(v));
-    hash = BLI_hash_int_2d(hash, v);
-    memcpy(&v, &stop.a, sizeof(v));
-    hash = BLI_hash_int_2d(hash, v);
-    memcpy(&v, &stop.pos, sizeof(v));
-    hash = BLI_hash_int_2d(hash, v);
-    hash = BLI_hash_int_2d(hash, uint32_t(stop.cur));
-  }
-
-  return hash;
-}
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Implementation Data
@@ -494,169 +449,30 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   const std::string key_vgroup = key_prefix + "vgroup_weights";
   const std::string key_out = key_prefix + "output";
 
-  /* Upload vertex group weights SSBO */
-  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
-
-  if (!msd.vgroup_weights.empty()) {
-    if (!ssbo_vgroup) {
-      const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
-      if (ssbo_vgroup) {
-        GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
-      }
-    }
-  }
-  else {
-    /* No vertex group: create a per-vertex buffer filled with 1.0f.
-     * This avoids backend-dependent behavior when using a single-float
-     * dummy (which can lead to incorrect reads on OpenGL). If the mesh has
-     * zero vertices allocate a single float to satisfy minimum buffer size. */
-    if (!ssbo_vgroup) {
-      const size_t count = (msd.verts_num > 0) ? size_t(msd.verts_num) : size_t(1);
-      const size_t size_vgroup = count * sizeof(float);
-      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
-      if (ssbo_vgroup) {
-        std::vector<float> dummy(count, 1.0f);
-        GPU_storagebuf_update(ssbo_vgroup, dummy.data());
-      }
-    }
-  }
+  /* Ensure vgroup SSBO using helper (get -> ensure + upload when created). */
+  gpu::StorageBuf *ssbo_vgroup = blender::draw::modifier_gpu_helpers::ensure_vgroup_ssbo(
+      mesh_owner, deformed_eval, key_vgroup, msd.vgroup_weights, msd.verts_num);
 
   /* Upload texture coordinates SSBO and prepare texture binding */
   const std::string key_texcoords = key_prefix + "tex_coords";
   gpu::StorageBuf *ssbo_texcoords = nullptr;
   gpu::Texture *gpu_texture = nullptr;
-  if (dmd->texture && dmd->texture->ima) {
-    Image *ima = dmd->texture->ima;
-    Tex *tex = dmd->texture;
 
-    /* Setup ImageUser with correct frame for ImageSequence/Movies
-     * CRITICAL: ImageUser.framenr must be updated from scene frame for animation!
-     * The CPU path (MOD_init_texture) calls BKE_texture_fetch_images_for_pool() which
-     * updates iuser.framenr. We must replicate this for GPU. */
-    if (ima && ima->runtime && tex) {
-      ImageUser iuser = tex->iuser; /* Start with texture's ImageUser */
-
-      /* For animated textures, update frame number from current scene
-       * This is CRITICAL for ImageSequence/Movie playback! */
-      if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-        /* Get scene from depsgraph (same as CPU modifier evaluator) and compute
-         * the correct image user frame using the shared utility which handles
-         * offsets, cycling and ranges. */
-        Scene *scene = DEG_get_evaluated_scene(depsgraph);
-        if (scene) {
-          BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
-        }
-      }
-
-      /* CRITICAL: For displacement, we MUST upload textures WITHOUT colorspace auto-decode!
-       * CPU reads bytes directly (no decode), GPU must match.
-       * 
-       * OPTIMIZATION: For "Non-Color" images, BKE_image_get_gpu_texture() already uses
-       * UNORM_8_8_8_8 (no sRGB decode), so we can use it directly (fast path).
-       * For other colorspaces (sRGB, Rec2020, etc.), we need manual upload with UNORM_8_8_8_8.
-       * 
-       * Cache texture persistently for static images (FILE/GENERATED/VIEWER).
-       * Only animated sources (SEQUENCE/MOVIE) need per-frame updates. */
-      
-      const bool is_non_color = STREQ(ima->colorspace_settings.name, "Non-Color");
-      
-      /* Fast path for Non-Color: use GPU cache directly (already UNORM_8_8_8_8) */
-      if (is_non_color) {
-        gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-        
-        if (gpu_texture && !msd.tex_metadata_cached) {
-          /* Cache metadata on first load */
-          msd.tex_is_float = GPU_texture_has_float_format(gpu_texture);
-          msd.tex_is_byte = !msd.tex_is_float;
-          msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
-          msd.tex_metadata_cached = true;
-        }
-      }
-      else {
-        /* Slow path for sRGB/Rec2020/etc: manual upload with UNORM_8_8_8_8 */
-        const std::string key_texture = key_prefix + "texture_" +
-                                       std::to_string(reinterpret_cast<uintptr_t>(ima)) + "_" +
-                                       std::to_string(iuser.framenr);
-
-        /* Check if texture already exists in cache (optimization for static images) */
-        gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
-
-        /* Only re-upload if texture doesn't exist OR if image source is animated */
-        const bool is_animated = ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
-        
-        if (!gpu_texture || (is_animated && !gpu_texture)) {
-          ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-
-          if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
-            /* Use UNORM_8_8_8_8 for bytes (no sRGB auto-decode), RGBA16F for floats */
-            gpu::TextureFormat format;
-            if (ibuf->float_buffer.data) {
-              format = gpu::TextureFormat::SFLOAT_16_16_16_16;
-            }
-            else {
-              /* CRITICAL: UNORM_8_8_8_8 = no sRGB decode, bytes stay raw */
-              format = gpu::TextureFormat::UNORM_8_8_8_8;
-            }
-
-            gpu_texture = GPU_texture_create_2d("displace_tex_raw",
-                                               ibuf->x,
-                                               ibuf->y,
-                                               1,
-                                               format,
-                                               GPU_TEXTURE_USAGE_SHADER_READ,
-                                               nullptr);
-
-            if (gpu_texture) {
-              /* Upload WITHOUT colorspace conversion (raw bytes) */
-              gpu::displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
-
-              /* Cache texture for reuse (static images will persist across frames) */
-              bke::BKE_mesh_gpu_internal_texture_ensure(
-                  mesh_owner, deformed_eval, key_texture, gpu_texture);
-
-              /* Cache metadata to avoid repeated ImBuf acquisition
-               * OPTIMIZATION: For animated sources, metadata stays constant across frames */
-              if (!msd.tex_metadata_cached) {
-                msd.tex_is_byte = (ibuf->byte_buffer.data != nullptr);
-                msd.tex_is_float = (ibuf->float_buffer.data != nullptr);
-                msd.tex_channels = ibuf->channels;
-                msd.tex_metadata_cached = true;
-              }
-            }
-          }
-
-          if (ibuf) {
-            BKE_image_release_ibuf(ima, ibuf, nullptr);
-          }
-        }
-        /* else: texture already cached, reuse it! (optimization for static images)
-         * Metadata already cached in msd, no need to acquire ImBuf */
-      }
-
-      if (gpu_texture && !msd.tex_coords.empty()) {
-
-        /* Upload texture coordinates SSBO */
-        ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);
-
-        if (!ssbo_texcoords) {
-          const size_t size_texcoords = msd.tex_coords.size() * sizeof(float4);
-          ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-              mesh_owner, deformed_eval, key_texcoords, size_texcoords);
-          if (ssbo_texcoords) {
-            /* Pad float3 to float4 for GPU alignment */
-            std::vector<float4> padded_texcoords(msd.tex_coords.size());
-            for (size_t i = 0; i < msd.tex_coords.size(); ++i) {
-              padded_texcoords[i] = float4(
-                  msd.tex_coords[i].x, msd.tex_coords[i].y, msd.tex_coords[i].z, 1.0f);
-            }
-            GPU_storagebuf_update(ssbo_texcoords, padded_texcoords.data());
-          }
-        }
-      }
-    }
+  if (dmd->texture) {
+    const bool create_dummy = (dmd->texture->type != TEX_IMAGE);
+    gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
+        mesh_owner,
+        deformed_eval,
+        depsgraph,
+        dmd->texture,
+        msd.tex_coords,
+        msd.tex_is_byte,
+        msd.tex_is_float,
+        msd.tex_channels,
+        msd.tex_metadata_cached,
+        key_prefix,
+        &ssbo_texcoords,
+        create_dummy);
   }
 
   /* Shader-level flag: indicates a Tex is present (image or procedural).
@@ -665,115 +481,26 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
    * constants are emitted. */
   bool shader_has_texture = (dmd->texture != nullptr);
 
-  /* If shader expects a displacement sampler but no image texture was provided
-   * (procedural Tex only), create or reuse a 1x1 dummy texture so the sampler
-   * binding is valid on all backends. Cache it per-mesh+modifier like other
-   * internal textures. */
-  if (shader_has_texture && !gpu_texture) {
-    const std::string key_dummy = key_prefix + "dummy_displacement";
-    gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_dummy);
-    if (!gpu_texture) {
-      /* Create a 1x1 UNORM texture with a neutral value (midlevel) */
-      unsigned char pixel[4] = {128, 128, 128, 255};
-      gpu_texture = GPU_texture_create_2d(
-          "displace_dummy_tex",
-          1,
-          1,
-          1,
-          gpu::TextureFormat::UNORM_8_8_8_8,
-          GPU_TEXTURE_USAGE_SHADER_READ,
-          nullptr);
-      if (gpu_texture) {
-        GPU_texture_update(gpu_texture, GPU_DATA_UBYTE, pixel);
-        bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_dummy, gpu_texture);
-      }
-    }
-    if (gpu_texture && !msd.tex_metadata_cached) {
-      msd.tex_is_byte = true;
-      msd.tex_is_float = false;
-      msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
-      msd.tex_metadata_cached = true;
-    }
-  }
-
-  /* Upload ColorBand UBO if texture has colorband enabled (TEX_COLORBAND flag)
-   * GPU port of: if (tex->flag & TEX_COLORBAND) { ... } */
+  /* Upload ColorBand UBO if texture has colorband enabled (TEX_COLORBAND flag) */
   const std::string key_colorband = key_prefix + "colorband";
   gpu::UniformBuf *ubo_colorband = nullptr;
-  const size_t size_colorband = sizeof(gpu::GPUColorBand);
+  /* Pass msd.colorband_hash so helper updates the cached hash when uploading. */
+  ubo_colorband = blender::draw::modifier_gpu_helpers::ensure_colorband_ubo(
+      mesh_owner, deformed_eval, key_colorband, dmd->texture, msd.colorband_hash);
 
-  /* Check if UBO already exists in cache */
-  ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
-
-  bool use_colorband = false;
-  if (!ubo_colorband) {
-    /* Create and upload ColorBand data */
-    if (shader_has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND)) {
-      use_colorband = true;
-
-      ColorBand *coba = dmd->texture->coba;
-      gpu::GPUColorBand gpu_coba = {};
-      if (blender::gpu::fill_gpu_colorband_from_colorband(gpu_coba, coba)) {
-        ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(
-            mesh_owner, deformed_eval, key_colorband, size_colorband);
-        if (ubo_colorband) {
-          GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
-          /* Cache initial colorband hash to avoid redundant uploads. */
-          msd.colorband_hash = colorband_hash_from_coba(coba);
-        }
-      }
-    }
-    else {
-      /* No colorband: create dummy UBO to avoid binding errors */
-      gpu::GPUColorBand dummy_coba = {};
-      dummy_coba.tot_cur_ipotype_hue[0] = 0; /* 0 stops = disabled */
-
-      ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_ensure(
-          mesh_owner, deformed_eval, key_colorband, size_colorband);
-      if (ubo_colorband) {
-        GPU_uniformbuf_update(ubo_colorband, &dummy_coba);
-      }
-    }
-  }
-  else {
-    /* UBO exists, check if we need to enable colorband */
-    use_colorband = (shader_has_texture && dmd->texture->coba && (dmd->texture->flag & TEX_COLORBAND));
-  }
-
-  /* Create/Update TextureParams UBO (similar pattern to ColorBand) */
+  /* Create/Update TextureParams UBO (use helper) */
   const std::string key_tex_params = key_prefix + "texture_params";
-  gpu::UniformBuf *ubo_texture_params = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_tex_params);
-  gpu::GPUTextureParams gpu_tex_params = {};
-
-  if (shader_has_texture && dmd->texture) {
-    Tex *tex = dmd->texture;
-
-    /* Use centralized helper to fill all TextureParams fields. */
-    blender::gpu::fill_texture_params_from_tex(gpu_tex_params,
-                                               tex,
-                                               (ModifierData *)dmd,
-                                               deformed_eval,
-                                               scene_frame,
-                                               msd.tex_is_byte,
-                                               msd.tex_is_float,
-                                               msd.tex_channels,
-                                               !msd.tex_coords.empty());
-
-    /* `fill_texture_params_from_tex()` has already populated the remaining
-     * texture parameter fields (flags, misc3, noise, noisesize/turbul,
-     * misc2, distamount, object/world matrices and mapref_imat). Keep a
-     * single source of truth to avoid duplicated logic. */
-  }
-
-  const size_t size_tex_params = sizeof(gpu::GPUTextureParams);
-  if (!ubo_texture_params) {
-    ubo_texture_params = bke::BKE_mesh_gpu_internal_ubo_ensure(
-        mesh_owner, deformed_eval, key_tex_params, size_tex_params);
-  }
-  if (ubo_texture_params) {
-    GPU_uniformbuf_update(ubo_texture_params, &gpu_tex_params);
-  }
-
+  gpu::UniformBuf *ubo_texture_params = blender::draw::modifier_gpu_helpers::ensure_texture_params_ubo(
+      mesh_owner,
+      deformed_eval,
+      key_tex_params,
+      dmd->texture,
+      (ModifierData *)dmd,
+      scene_frame,
+      msd.tex_is_byte,
+      msd.tex_is_float,
+      msd.tex_channels,
+      !msd.tex_coords.empty());
   /* Create output SSBO (use get -> ensure pattern to avoid unnecessary allocations). */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
   gpu::StorageBuf *ssbo_out = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_out);
@@ -865,18 +592,6 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   }
   if (!shader) {
     return nullptr;
-  }
-
-  if (ubo_colorband && use_colorband) {
-    ColorBand *coba = dmd->texture->coba;
-    uint32_t new_hash = colorband_hash_from_coba(coba);
-    if (new_hash != msd.colorband_hash) {
-      gpu::GPUColorBand gpu_coba = {};
-      if (blender::gpu::fill_gpu_colorband_from_colorband(gpu_coba, coba)) {
-        GPU_uniformbuf_update(ubo_colorband, &gpu_coba);
-        msd.colorband_hash = new_hash;
-      }
-    }
   }
 
   /* Bind and dispatch */

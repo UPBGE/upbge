@@ -28,6 +28,8 @@
 #include "draw_cache_impl.hh"
 #include "draw_cache_extract.hh"
 
+#include "draw_modifier_gpu_helpers.hh"
+
 namespace blender {
 namespace draw {
 
@@ -494,35 +496,9 @@ gpu::StorageBuf *SimpleDeformManager::dispatch_deform(
   const std::string key_vgroup = key_prefix + "vgroup_weights";
   const std::string key_out = key_prefix + "output";
 
-  /* Vertex group weights SSBO */
-  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
-
-  if (!msd.vgroup_weights.empty()) {
-    if (!ssbo_vgroup) {
-      const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
-      if (ssbo_vgroup) {
-        GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
-      }
-    }
-  }
-  else {
-    /* No vertex group selected: create a per-vertex buffer filled with 1.0f.
-     * This avoids backend-dependent behavior when using a single-float
-     * dummy (which can lead to incorrect reads on OpenGL). If the mesh has
-     * zero vertices allocate a single float to satisfy minimum buffer size. */
-    if (!ssbo_vgroup) {
-      const size_t count = (msd.verts_num > 0) ? size_t(msd.verts_num) : size_t(1);
-      const size_t size_vgroup = count * sizeof(float);
-      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
-      if (ssbo_vgroup) {
-        std::vector<float> dummy(count, 1.0f);
-        GPU_storagebuf_update(ssbo_vgroup, dummy.data());
-      }
-    }
-  }
+  /* Ensure vgroup SSBO using helper (get -> ensure + upload when created). */
+  gpu::StorageBuf *ssbo_vgroup = modifier_gpu_helpers::ensure_vgroup_ssbo(
+      mesh_owner, deformed_eval, key_vgroup, msd.vgroup_weights, msd.verts_num);
 
   /* Create output SSBO */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;

@@ -31,6 +31,7 @@
 #include "DNA_texture_types.h"
 
 #include "DEG_depsgraph_query.hh"
+#include "BKE_action.hh"
 
 #include "GPU_compute.hh"
 #include "GPU_shader.hh"
@@ -44,6 +45,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "MOD_util.hh"
+#include "draw_modifier_gpu_helpers.hh"
 
 namespace blender {
 namespace draw {
@@ -75,6 +77,7 @@ struct WarpManager::Impl {
     bool tex_is_byte = true;
     bool tex_is_float = false;
     int tex_channels = 4;
+    uint32_t colorband_hash = 0;
     bool tex_metadata_cached = false;
   };
 
@@ -174,7 +177,109 @@ float warp_falloff_factor(float len_sq) {
 }
 
 void main() {
-  /* empty for now */
+  uint v = gl_GlobalInvocationID.x;
+  if (v >= deformed_positions.length()) {
+    return;
+  }
+
+  vec4 co_in = input_positions[v];
+  vec3 co = co_in.xyz;
+
+  float fac = 0.0;
+
+  if (falloff_type == eWarp_Falloff_None) {
+    fac = 1.0;
+  }
+  else {
+    /* Distance to 'from' object's origin (mat_from[3] holds translation) */
+    vec3 from_loc = vec3(mat_from[3][0], mat_from[3][1], mat_from[3][2]);
+    float len_sq = dot(co - from_loc, co - from_loc);
+    if (len_sq < falloff_sq) {
+      fac = (falloff_radius - sqrt(len_sq)) / falloff_radius;
+    }
+    else {
+      fac = 0.0;
+    }
+  }
+
+  /* Vertex group weight (msd.vgroup_weights contains 1.0 default when no group) */
+  float weight = 1.0;
+  if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
+    weight = vgroup_weights[v] * strength;
+    if (weight <= 0.0) {
+      deformed_positions[v] = co_in;
+      return;
+    }
+  }
+
+  /* Apply falloff curve/shape */
+  switch (falloff_type) {
+    case eWarp_Falloff_None:
+      fac = 1.0;
+      break;
+    case eWarp_Falloff_Curve:
+      fac = eval_curve_falloff(fac);
+      break;
+    case eWarp_Falloff_Sharp:
+      fac = fac * fac;
+      break;
+    case eWarp_Falloff_Smooth:
+      fac = 3.0 * fac * fac - 2.0 * fac * fac * fac;
+      break;
+    case eWarp_Falloff_Root:
+      fac = sqrt(max(fac, 0.0));
+      break;
+    case eWarp_Falloff_Linear:
+      break;
+    case eWarp_Falloff_Const:
+      fac = 1.0;
+      break;
+    case eWarp_Falloff_Sphere:
+      fac = sqrt(max(0.0, 2.0 * fac - fac * fac));
+      break;
+    case eWarp_Falloff_InvSquare:
+      fac = fac * (2.0 - fac);
+      break;
+    default:
+      break;
+  }
+
+  fac *= weight;
+
+#ifdef HAS_TEXTURE
+  if (texture_coords.length() > 0 && v < texture_coords.length()) {
+    TexResult_tex texres;
+    float tex_int = BKE_texture_get_value(texres, texture_coords[v].xyz, input_positions[v], int(v));
+    fac *= tex_int;
+  }
+#endif
+
+  if (fac != 0.0) {
+    /* into the 'from' objects space */
+    vec3 co_from = (mat_from_inv * vec4(co, 1.0)).xyz;
+
+    if (fac == 1.0) {
+      co_from = (mat_final * vec4(co_from, 1.0)).xyz;
+    }
+    else {
+      if ((warp_flag & 1) != 0) { /* volume preserve */
+        /* GLSL mix may not support mat4 on all targets; interpolate manually. */
+        mat4 tmat = mat_unit * (1.0 - fac) + mat_final * fac;
+        co_from = (tmat * vec4(co_from, 1.0)).xyz;
+      }
+      else {
+        vec3 tvec = (mat_final * vec4(co_from, 1.0)).xyz;
+        co_from = mix(co_from, tvec, fac);
+      }
+    }
+
+    /* out of the 'from' objects space */
+    vec3 co_out = (mat_from * vec4(co_from, 1.0)).xyz;
+    deformed_positions[v] = vec4(co_out, 1.0);
+    return;
+  }
+
+  deformed_positions[v] = co_in;
 }
 
 )GLSL";
@@ -378,28 +483,11 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
 
   const std::string key_prefix = "warp_" + std::to_string(key.hash()) + "_";
   const std::string key_vgroup = key_prefix + "vgroup_weights";
-  const std::string key_texcoords = key_prefix + "tex_coords";
-  gpu::StorageBuf *ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_texcoords);
+  gpu::StorageBuf *ssbo_texcoords = nullptr;
 
-  /* Ensure vgroup SSBO */
-  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
-  if (!msd.vgroup_weights.empty()) {
-    if (!ssbo_vgroup) {
-      const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
-      if (ssbo_vgroup) {
-        GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
-      }
-    }
-  }
-
-  /* Ensure texcoord SSBO */
-  if (!msd.vgroup_weights.empty() && ssbo_texcoords) {
-    const size_t size_texcoords = msd.vgroup_weights.size() * sizeof(float) * 2;
-    ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-        mesh_owner, deformed_eval, key_texcoords, size_texcoords);
-  }
+  /* Ensure vgroup SSBO using helper (get -> ensure + upload when created). */
+  gpu::StorageBuf *ssbo_vgroup = blender::draw::modifier_gpu_helpers::ensure_vgroup_ssbo(
+      mesh_owner, deformed_eval, key_vgroup, msd.vgroup_weights, msd.verts_num);
 
   /* Upload falloff curve LUT SSBO (if available) */
   const std::string key_curve = key_prefix + "falloff_curve_lut";
@@ -436,101 +524,49 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
     }
   }
 
-  const Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  const bool is_seq_or_movie = ELEM(wmd->texture->ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
-
-  ImageUser iuser = wmd->texture->iuser; /* copy */
-  /* Update frame for animated images */
-  if (is_seq_or_movie && scene_eval) {
-    BKE_image_user_frame_calc(wmd->texture->ima, &iuser, int(scene_eval->r.cfra));
-  }
-
-  /* Prepare GPU texture (if a Tex/Image is present). Follow Displace pattern: */
+  /* Prepare GPU texture + texcoords using shared helper (handles ImageUser frame, ImBuf upload and caching). */
   gpu::Texture *gpu_texture = nullptr;
-  bool shader_has_texture = (wmd->texture != nullptr);
-  if (shader_has_texture && wmd->texture && wmd->texture->ima) {
-    Image *ima = wmd->texture->ima;
-    Tex *tex = wmd->texture;
-
-    const bool is_non_color = (ima && ima->colorspace_settings.name[0] != '\0' &&
-                               STREQ(ima->colorspace_settings.name, "Non-Color"));
-
-    if (is_non_color) {
-      gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-      if (gpu_texture && !msd.tex_metadata_cached) {
-        msd.tex_is_float = GPU_texture_has_float_format(gpu_texture);
-        msd.tex_is_byte = !msd.tex_is_float;
-        msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
-        msd.tex_metadata_cached = true;
-      }
-    }
-    else {
-      /* Slow path: manual ImBuf upload with no colorspace decode (raw bytes). */
-      const std::string key_texture = key_prefix + "texture_" +
-                                     std::to_string(reinterpret_cast<uintptr_t>(ima)) + "_" +
-                                     std::to_string(iuser.framenr);
-
-      gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
-
-      const bool is_animated = ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
-      if (!gpu_texture || (is_animated && !gpu_texture)) {
-        ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-        if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
-          gpu::TextureFormat format = ibuf->float_buffer.data ?
-                                          gpu::TextureFormat::SFLOAT_16_16_16_16 :
-                                          gpu::TextureFormat::UNORM_8_8_8_8;
-
-          gpu_texture = GPU_texture_create_2d(
-              "warp_tex_raw", ibuf->x, ibuf->y, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
-
-          if (gpu_texture) {
-            /* Upload WITHOUT colorspace conversion (raw bytes/floats). Use shared helper
-             * to match Displace behavior and avoid duplicating byte/float upload logic. */
-            gpu::displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
-
-            bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_texture, gpu_texture);
-
-            if (!msd.tex_metadata_cached) {
-              msd.tex_is_byte = (ibuf->byte_buffer.data != nullptr);
-              msd.tex_is_float = (ibuf->float_buffer.data != nullptr);
-              msd.tex_channels = ibuf->channels;
-              msd.tex_metadata_cached = true;
-            }
-          }
-        }
-        if (ibuf) {
-          BKE_image_release_ibuf(ima, ibuf, nullptr);
-        }
-      }
-    }
+  if (wmd->texture) {
+    const bool create_dummy = (wmd->texture->type != TEX_IMAGE);
+    gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
+        mesh_owner,
+        deformed_eval,
+        depsgraph,
+        wmd->texture,
+        msd.tex_coords,
+        msd.tex_is_byte,
+        msd.tex_is_float,
+        msd.tex_channels,
+        msd.tex_metadata_cached,
+        key_prefix,
+        &ssbo_texcoords,
+        create_dummy);
   }
 
-  /* If shader expects a texture but we have none, create a 1x1 dummy texture to satisfy binding. */
-  if (shader_has_texture && !gpu_texture) {
-    const std::string key_dummy = key_prefix + "dummy_warp_tex";
-    gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_dummy);
-    if (!gpu_texture) {
-      unsigned char pixel[4] = {128, 128, 128, 255};
-      gpu_texture = GPU_texture_create_2d(
-          "warp_dummy_tex", 1, 1, 1, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
-      if (gpu_texture) {
-        GPU_texture_update(gpu_texture, GPU_DATA_UBYTE, pixel);
-        bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_dummy, gpu_texture);
-      }
-    }
-    if (gpu_texture && !msd.tex_metadata_cached) {
-      msd.tex_is_byte = true;
-      msd.tex_is_float = false;
-      msd.tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
-      msd.tex_metadata_cached = true;
-    }
-  }
+  /* Upload ColorBand UBO if texture has colorband enabled */
+  const std::string key_colorband = key_prefix + "colorband";
+  gpu::UniformBuf *ubo_colorband = nullptr;
+  /* Pass msd.colorband_hash so helper updates the cached hash when uploading. */
+  ubo_colorband = blender::draw::modifier_gpu_helpers::ensure_colorband_ubo(
+      mesh_owner, deformed_eval, key_colorband, wmd->texture, msd.colorband_hash);
+
+  /* Create/Update TextureParams UBO (use helper) */
+  const std::string key_tex_params = key_prefix + "texture_params";
+  gpu::UniformBuf *ubo_texture_params = blender::draw::modifier_gpu_helpers::ensure_texture_params_ubo(
+      mesh_owner,
+      deformed_eval,
+      key_tex_params,
+      wmd->texture,
+      const_cast<ModifierData *>(reinterpret_cast<const ModifierData *>(wmd)),
+      /* scene_frame */ 0,
+      msd.tex_is_byte,
+      msd.tex_is_float,
+      msd.tex_channels,
+      !msd.tex_coords.empty());
 
   /* Simple passthrough compute shader: copy input to output. */
   const std::string shader_key = std::string("warp_compute_v1");
   gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
-  Mesh *mesh_eval = id_cast<Mesh *>(deformed_eval->data);
-  bke::MeshGpuData *mesh_gpu_data = bke::BKE_mesh_gpu_ensure_data(mesh_owner, mesh_eval);
   if (!shader) {
     using namespace gpu::shader;
     ShaderCreateInfo info("pyGPU_Shader");
@@ -551,10 +587,24 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
     info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
     if (wmd->texture) {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
-      info.sampler(0, ImageType::Float2D, "warp_texture");
+      info.sampler(0, ImageType::Float2D, "displacement_texture");
     }
     /* Falloff curve LUT (binding 4) */
     info.storage_buf(4, Qualifier::read, "float", "falloff_curve_lut[]");
+    /* ColorBand UBO (binding 4) */
+    info.uniform_buf(4, "ColorBand", "tex_colorband");
+    /* TextureParams UBO (binding 5) */
+    info.uniform_buf(5, "TextureParams", "tex_params");
+    /* Push constants for warp transform and parameters */
+    info.push_constant(Type::float4x4_t, "mat_from");
+    info.push_constant(Type::float4x4_t, "mat_from_inv");
+    info.push_constant(Type::float4x4_t, "mat_final");
+    info.push_constant(Type::float4x4_t, "mat_unit");
+    info.push_constant(Type::float_t, "strength");
+    info.push_constant(Type::float_t, "falloff_radius");
+    info.push_constant(Type::float_t, "falloff_sq");
+    info.push_constant(Type::int_t, "falloff_type");
+    info.push_constant(Type::int_t, "warp_flag");
     shader = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
   if (!shader) {
@@ -563,7 +613,6 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
 
   const gpu::shader::SpecializationConstants *constants = &GPU_shader_get_default_constant_state(
       shader);
-  GPU_shader_bind(shader, constants);
 
   GPU_storagebuf_bind(ssbo_out, 0);
   GPU_storagebuf_bind(ssbo_in, 1);
@@ -578,6 +627,82 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
   }
   if (gpu_texture) {
     GPU_texture_bind(gpu_texture, 0);
+  }
+  if (ubo_colorband) {
+    GPU_uniformbuf_bind(ubo_colorband, 4);
+  }
+  if (ubo_texture_params) {
+    GPU_uniformbuf_bind(ubo_texture_params, 5);
+  }
+
+  /* Set warp matrices and parameters (compute equivalent of MOD_warp matrix setup) */
+  {
+    float obinv[4][4];
+    invert_m4_m4(obinv, deformed_eval->object_to_world().ptr());
+
+    float mat_from[4][4];
+    float mat_to[4][4];
+    /* matrix_from_obj_pchan equivalent: use bone if present */
+    if (wmd->object_from && wmd->bone_from[0] != '\0' && wmd->object_from->pose) {
+      bPoseChannel *pchan = BKE_pose_channel_find_name(wmd->object_from->pose, wmd->bone_from);
+      if (pchan) {
+        float mat_bone_world[4][4];
+        mul_m4_m4m4(mat_bone_world, wmd->object_from->object_to_world().ptr(), pchan->pose_mat);
+        mul_m4_m4m4(mat_from, obinv, mat_bone_world);
+      }
+      else {
+        mul_m4_m4m4(mat_from, obinv, wmd->object_from->object_to_world().ptr());
+      }
+    }
+    else if (wmd->object_from) {
+      mul_m4_m4m4(mat_from, obinv, wmd->object_from->object_to_world().ptr());
+    }
+    else {
+      unit_m4(mat_from);
+    }
+
+    if (wmd->object_to && wmd->bone_to[0] != '\0' && wmd->object_to->pose) {
+      bPoseChannel *pchan = BKE_pose_channel_find_name(wmd->object_to->pose, wmd->bone_to);
+      if (pchan) {
+        float mat_bone_world[4][4];
+        mul_m4_m4m4(mat_bone_world, wmd->object_to->object_to_world().ptr(), pchan->pose_mat);
+        mul_m4_m4m4(mat_to, obinv, mat_bone_world);
+      }
+      else {
+        mul_m4_m4m4(mat_to, obinv, wmd->object_to->object_to_world().ptr());
+      }
+    }
+    else if (wmd->object_to) {
+      mul_m4_m4m4(mat_to, obinv, wmd->object_to->object_to_world().ptr());
+    }
+    else {
+      unit_m4(mat_to);
+    }
+
+    float mat_final[4][4];
+    float tmat_tmp[4][4];
+    invert_m4_m4(tmat_tmp, mat_from);
+    mul_m4_m4m4(mat_final, tmat_tmp, mat_to);
+
+    float mat_from_inv[4][4];
+    invert_m4_m4(mat_from_inv, mat_from);
+
+    float mat_unit[4][4];
+    unit_m4(mat_unit);
+
+    /* Upload matrices and params as push constants */
+    GPU_shader_uniform_mat4(shader, "mat_from", (const float(*)[4])mat_from);
+    GPU_shader_uniform_mat4(shader, "mat_from_inv", (const float(*)[4])mat_from_inv);
+    GPU_shader_uniform_mat4(shader, "mat_final", (const float(*)[4])mat_final);
+    GPU_shader_uniform_mat4(shader, "mat_unit", (const float(*)[4])mat_unit);
+
+    GPU_shader_uniform_1f(shader, "strength", wmd->strength);
+    GPU_shader_uniform_1f(shader, "falloff_radius", wmd->falloff_radius);
+    GPU_shader_uniform_1f(shader, "falloff_sq", wmd->falloff_radius * wmd->falloff_radius);
+    GPU_shader_uniform_1i(shader, "falloff_type", int(wmd->falloff_type));
+    /* warp_flag: use bit 0 to indicate volume preserve (MOD_WARP_VOLUME_PRESERVE) */
+    const int warp_flag = (wmd->flag & MOD_WARP_VOLUME_PRESERVE) ? 1 : 0;
+    GPU_shader_uniform_1i(shader, "warp_flag", warp_flag);
   }
 
   const int group_size = 256;

@@ -493,6 +493,16 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 4)) {
+    for (Object &ob : bmain->objects) {
+      for (ModifierData *md = (ModifierData *)ob.modifiers.first; md; md = md->next) {
+        if (md->type == eModifierType_Warp) {
+          WarpModifierData *wmd = (WarpModifierData *)md;
+          wmd->deform_method |= WAR_DEFORM_METHOD_CPU;
+        }
+      }
+    }
+  }
 }
 
 }  // namespace blender

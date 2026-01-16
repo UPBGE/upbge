@@ -43,6 +43,8 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "draw_modifier_gpu_helpers.hh"
+
 namespace blender {
 namespace draw {
 
@@ -1106,36 +1108,8 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   }
 
   /* Upload vertex group weights SSBO (modifier filter - like Lattice) */
-  gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
-
-  /* Only create/upload if vertex group weights exist */
-  if (!msd.vgroup_weights.empty()) {
-    if (!ssbo_vgroup) {
-      const size_t size_vgroup = msd.vgroup_weights.size() * sizeof(float);
-      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
-      if (ssbo_vgroup) {
-        GPU_storagebuf_update(ssbo_vgroup, msd.vgroup_weights.data());
-      }
-    }
-  }
-  else {
-    /* No vertex group selected: create a per-vertex buffer filled with 1.0f.
-     * This avoids backend-dependent behavior when using a single-float
-     * dummy (which can lead to incorrect reads on OpenGL). If the mesh has
-     * zero vertices allocate a single float to satisfy minimum buffer size.
-     */
-    if (!ssbo_vgroup) {
-      const size_t count = (msd.verts_num > 0) ? size_t(msd.verts_num) : size_t(1);
-      const size_t size_vgroup = count * sizeof(float);
-      ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-          mesh_owner, deformed_eval, key_vgroup, size_vgroup);
-      if (ssbo_vgroup) {
-        std::vector<float> dummy(count, 1.0f);
-        GPU_storagebuf_update(ssbo_vgroup, dummy.data());
-      }
-    }
-  }
+  gpu::StorageBuf *ssbo_vgroup = modifier_gpu_helpers::ensure_vgroup_ssbo(
+      mesh_owner, deformed_eval, key_vgroup, msd.vgroup_weights, msd.verts_num);
 
   /* Ensure per-modifier in/out skinned position SSBOs for chaining GPU modifiers. */
   const std::string key_skinned_out = key_prefix + "skinned_pos_out";

@@ -2637,6 +2637,13 @@ static void rna_def_modifier_warp(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "WarpModifierData");
   RNA_def_struct_ui_icon(srna, ICON_MOD_WARP);
 
+  /* UPBGE */
+  prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", WAR_DEFORM_METHOD_CPU);
+  RNA_def_property_ui_text(
+      prop, "Enable GPU Deform", "Deform mesh vertices using the GPU instead of the CPU");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   RNA_define_lib_overridable(true);
 
   prop = RNA_def_property(srna, "object_from", PROP_POINTER, PROP_NONE);
@@ -3179,7 +3186,7 @@ static void rna_def_modifier_wave(BlenderRNA *brna)
 
   /* UPBGE */
   prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", DIS_DEFORM_METHOD_CPU);
+  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", WAV_DEFORM_METHOD_CPU);
   RNA_def_property_ui_text(
       prop, "Enable GPU Deform", "Deform mesh vertices using the GPU instead of the CPU");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
