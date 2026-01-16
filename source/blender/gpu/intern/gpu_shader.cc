@@ -302,7 +302,22 @@ gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info
                                    preprocess_source(info.fragment_source_generated)});
   }
 
+  if (!preprocess) {
+    /* 1) Disable shaders preprocessors for users side shaders,
+     * else, some shaders are truncated/notcompiled.
+     * 2) Internal upbge Compute shaders used to compile ok when using
+     * GPU_shader_preprocess_source(input_src, info) but it fails after:
+     * 9c457ddf070e0c0acf5ccdcdcf4723ab3e401726 or another similar commit
+     * near 16/01/2026 */
+    G.debug |= G_DEBUG_GPU_SHADER_NO_PREPROCESSOR;
+  }
+
   gpu::Shader *result = GPUBackend::get()->get_compiler()->compile(info, false);
+
+  if (!preprocess) {
+    G.debug &= ~G_DEBUG_GPU_SHADER_NO_PREPROCESSOR;
+  }
+
   return result;
 }
 

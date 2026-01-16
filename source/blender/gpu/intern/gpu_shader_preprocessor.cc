@@ -1199,12 +1199,11 @@ struct Preprocessor : IntermediateFormWithIDs {
 
 std::string Shader::run_preprocessor(StringRef source)
 {
-  BLI_assert_msg(source.find("//") == std::string::npos && source.find("/*") == std::string::npos,
-                 "Input source to the preprocessor should have no comments.");
-
   if (G.debug & G_DEBUG_GPU_SHADER_NO_PREPROCESSOR) {
     return source;
   }
+  BLI_assert_msg(source.find("//") == std::string::npos && source.find("/*") == std::string::npos,
+                 "Input source to the preprocessor should have no comments.");
 
   Preprocessor processor(source);
   processor.preprocess();
