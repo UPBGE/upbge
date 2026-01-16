@@ -88,9 +88,11 @@
 #include "../draw/intern/gpu_modifiers/draw_displace.hh"              // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_hook.hh"                  // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_lattice_deform.hh"        // UPBGE
-#include "../draw/intern/gpu_modifiers/draw_shapekeys_skinning.hh"    // UPBGE
-#include "../draw/intern/gpu_modifiers/draw_simpledeform.hh"          // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh" // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_simpledeform.hh"          // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_shapekeys_skinning.hh"    // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_warp.hh"                  // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_wave.hh"                  // UPBGE
 
 #include "draw_cache.hh"
 #include "draw_color_management.hh"
@@ -477,6 +479,8 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
           draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
           draw::HookManager::instance().free_resources_for_mesh(mesh);
           draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
+          draw::WarpManager::instance().free_resources_for_mesh(mesh);
+          draw::WaveManager::instance().free_resources_for_mesh(mesh);
           bke::BKE_mesh_gpu_free_for_mesh(mesh);
         }
         /* Free the pipeline and remove entry */
@@ -508,6 +512,8 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
     draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
     draw::HookManager::instance().free_resources_for_mesh(mesh);
     draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
+    draw::WaveManager::instance().free_resources_for_mesh(mesh);
+    draw::WarpManager::instance().free_resources_for_mesh(mesh);
     bke::BKE_mesh_gpu_free_for_mesh(mesh);
     return;
   }
@@ -532,6 +538,8 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
     draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
     draw::HookManager::instance().free_resources_for_mesh(mesh);
     draw::DisplaceManager::instance().free_resources_for_mesh(mesh);
+    draw::WaveManager::instance().free_resources_for_mesh(mesh);
+    draw::WarpManager::instance().free_resources_for_mesh(mesh);
     bke::BKE_mesh_gpu_free_for_mesh(mesh);
   }
 }
@@ -2611,6 +2619,8 @@ void DRW_module_exit()
   draw::HookManager::instance().free_all();
   draw::SimpleDeformManager::instance().free_all();
   draw::DisplaceManager::instance().free_all();
+  draw::WarpManager::instance().free_all();
+  draw::WaveManager::instance().free_all();
 
   GPU_render_end();
 

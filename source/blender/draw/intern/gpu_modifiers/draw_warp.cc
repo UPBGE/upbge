@@ -529,7 +529,14 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
       !msd.tex_coords.empty());
 
   /* Simple passthrough compute shader: copy input to output. */
-  const std::string shader_key = std::string("warp_compute_v1");
+  /* Create shader (image-less compute) */
+  bool image_only_compile = false;
+  if (wmd->texture) {
+    image_only_compile = (wmd->texture->type == TEX_IMAGE);
+  }
+
+  const std::string shader_key = std::string("warp_compute_v1") +
+                                 (image_only_compile ? "_image" : "_full");
   gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(mesh_owner, shader_key);
   if (!shader) {
     using namespace gpu::shader;
@@ -675,6 +682,10 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_TEXTURE_FETCH);
   GPU_shader_unbind();
+
+  if (gpu_texture) {
+    GPU_texture_unbind(gpu_texture);
+  }
 
   return ssbo_out;
 }
