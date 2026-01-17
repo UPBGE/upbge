@@ -202,11 +202,6 @@ gpu::Texture *modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
         std::vector<float4> padded(tex_coords.size());
 
         for (size_t i = 0; i < tex_coords.size(); ++i) {
-          printf("Uploading texcoord %zu: (%f, %f, %f)\n",
-                 i,
-                 tex_coords[i].x,
-                 tex_coords[i].y,
-                 tex_coords[i].z);
           float z = is_uv_mapping ? 0.0f : tex_coords[i].z;
           padded[i] = float4(tex_coords[i].x, tex_coords[i].y, z, 1.0f);
         }
