@@ -106,14 +106,43 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
   gpu_tex_params.tex_rgbfac[2] = tex->bfac;
 
   int tex_mapping = MOD_DISP_MAP_LOCAL;
-  if (md && md->type == eModifierType_Displace) {
-    const DisplaceModifierData *dmd = reinterpret_cast<const DisplaceModifierData *>(md);
-    tex_mapping = int(dmd->texmapping);
-    if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
-      tex_mapping = MOD_DISP_MAP_LOCAL;
+  /* Determine tex_mapping from the specific modifier type that provides mapping info.
+   * Support common modifiers that expose `texmapping` + optional `map_object` / `map_bone`.
+   * Default to LOCAL when no mapping or map_object is missing. */
+  if (md) {
+    switch (md->type) {
+      case eModifierType_Displace: {
+        const DisplaceModifierData *dmd = reinterpret_cast<const DisplaceModifierData *>(md);
+        tex_mapping = int(dmd->texmapping);
+        if (tex_mapping == MOD_DISP_MAP_OBJECT && dmd->map_object == nullptr) {
+          tex_mapping = MOD_DISP_MAP_LOCAL;
+        }
+        break;
+      }
+      case eModifierType_Wave: {
+        const WaveModifierData *wmd = reinterpret_cast<const WaveModifierData *>(md);
+        tex_mapping = int(wmd->texmapping);
+        if (tex_mapping == MOD_DISP_MAP_OBJECT && wmd->map_object == nullptr) {
+          tex_mapping = MOD_DISP_MAP_LOCAL;
+        }
+        break;
+      }
+      case eModifierType_Warp: {
+        const WarpModifierData *wmd = reinterpret_cast<const WarpModifierData *>(md);
+        /* Warp uses the same texture mapping fields in its RNA as Displace/Wave. */
+        tex_mapping = int(wmd->texmapping);
+        if (tex_mapping == MOD_DISP_MAP_OBJECT && wmd->map_object == nullptr) {
+          tex_mapping = MOD_DISP_MAP_LOCAL;
+        }
+        break;
+      }
+      default:
+        break;
     }
   }
 
+  /* Prefer using precomputed `tex_coords` when available. This keeps CPU/GPU
+   * parity since `MOD_get_texture_coords()` is used to compute them on the CPU. */
   bool mapping_use_input_positions = !has_tex_coords;
   gpu_tex_params.tex_mapping_info[0] = tex_mapping;
   gpu_tex_params.tex_mapping_info[1] = mapping_use_input_positions ? 1 : 0;
@@ -177,9 +206,15 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
   gpu_tex_params.tex_voronoi_misc[2] = float(tex->vn_coltype);
 
   if (deformed_eval) {
-    memcpy(gpu_tex_params.u_object_to_world_mat,
-           deformed_eval->object_to_world().ptr(),
-           sizeof(gpu_tex_params.u_object_to_world_mat));
+    /* Pack matrix explicitly as column-major floats to match GLSL std140 mat4 layout.
+     * Copy into a temp then store column-major (cols contiguous). */
+    float tmp[4][4];
+    memcpy(tmp, deformed_eval->object_to_world().ptr(), sizeof(tmp));
+    for (int row = 0; row < 4; ++row) {
+      for (int col = 0; col < 4; ++col) {
+        gpu_tex_params.u_object_to_world_mat[col * 4 + row] = tmp[row][col];
+      }
+    }
   }
 
   float mapref_imat[4][4];
@@ -229,12 +264,38 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
         }
         break;
       }
+      case eModifierType_Warp: {
+        const WarpModifierData *wmd = reinterpret_cast<const WarpModifierData *>(md);
+        if (wmd->texmapping == MOD_DISP_MAP_OBJECT && wmd->map_object != nullptr) {
+          Object *map_object = wmd->map_object;
+          if (wmd->map_bone[0] != '\0') {
+            bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, wmd->map_bone);
+            if (pchan) {
+              float mat_bone_world[4][4];
+              mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
+              invert_m4_m4(mapref_imat, mat_bone_world);
+            }
+            else {
+              invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+            }
+          }
+          else {
+            invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
+          }
+        }
+        break;
+      }
       default:
         break;
     }
   }
 
-  memcpy(gpu_tex_params.u_mapref_imat, mapref_imat, sizeof(gpu_tex_params.u_mapref_imat));
+  /* Pack u_mapref_imat column-major to match GLSL std140 mat4 layout. */
+  for (int row = 0; row < 4; ++row) {
+    for (int col = 0; col < 4; ++col) {
+      gpu_tex_params.u_mapref_imat[col * 4 + row] = mapref_imat[row][col];
+    }
+  }
 }
 
 /* Fill a GPUColorBand from a CPU ColorBand. Returns false if `src` is null or empty. */

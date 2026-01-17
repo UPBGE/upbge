@@ -101,6 +101,7 @@ gpu::Texture *modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
     bool &r_tex_metadata_cached,
     const std::string &key_prefix,
     gpu::StorageBuf **r_ssbo_texcoords,
+    bool is_uv_mapping,
     bool create_dummy_if_missing)
 {
   if (!tex) {
@@ -199,9 +200,17 @@ gpu::Texture *modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
       ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_texcoords, size_texcoords);
       if (ssbo_texcoords) {
         std::vector<float4> padded(tex_coords.size());
+
         for (size_t i = 0; i < tex_coords.size(); ++i) {
-          padded[i] = float4(tex_coords[i].x, tex_coords[i].y, tex_coords[i].z, 1.0f);
+          printf("Uploading texcoord %zu: (%f, %f, %f)\n",
+                 i,
+                 tex_coords[i].x,
+                 tex_coords[i].y,
+                 tex_coords[i].z);
+          float z = is_uv_mapping ? 0.0f : tex_coords[i].z;
+          padded[i] = float4(tex_coords[i].x, tex_coords[i].y, z, 1.0f);
         }
+
         GPU_storagebuf_update(ssbo_texcoords, padded.data());
       }
     }

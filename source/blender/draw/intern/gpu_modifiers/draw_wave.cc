@@ -267,6 +267,7 @@ uint32_t WaveManager::compute_wave_hash(const Mesh *mesh_orig, const WaveModifie
 
   /* Texture-related metadata that affect sampling/result (similar to Displace). */
   hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(wmd->texture)));
+
   if (wmd->texture) {
     hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->type));
     if (wmd->texture->ima) {
@@ -276,7 +277,6 @@ uint32_t WaveManager::compute_wave_hash(const Mesh *mesh_orig, const WaveModifie
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.tile));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.framenr));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->imaflag));
-      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->extend));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
       hash = BLI_hash_int_2d(hash, uint32_t(ima->alpha_mode));
@@ -426,6 +426,7 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   /* Use shared helper to prepare texture and texcoords (handles image user frame, ImBuf upload and caching). */
   if (wmd->texture) {
     const bool create_dummy = (wmd->texture->type != TEX_IMAGE);
+    const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
     gpu_texture = modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
         mesh_owner,
         deformed_eval,
@@ -438,6 +439,7 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
         msd.tex_metadata_cached,
         key_prefix,
         &ssbo_texcoords,
+        is_uv_mapping,
         create_dummy);
   }
 

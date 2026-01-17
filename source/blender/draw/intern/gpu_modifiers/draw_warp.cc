@@ -304,7 +304,6 @@ uint32_t WarpManager::compute_warp_hash(const Mesh *mesh_orig, const WarpModifie
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.tile));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->iuser.framenr));
       hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->imaflag));
-      hash = BLI_hash_int_2d(hash, uint32_t(wmd->texture->extend));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
       hash = BLI_hash_int_2d(hash, uint32_t(ima->alpha_mode));
@@ -492,6 +491,7 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
   gpu::Texture *gpu_texture = nullptr;
   if (wmd->texture) {
     const bool create_dummy = (wmd->texture->type != TEX_IMAGE);
+    const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
     gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
         mesh_owner,
         deformed_eval,
@@ -504,6 +504,7 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
         msd.tex_metadata_cached,
         key_prefix,
         &ssbo_texcoords,
+        is_uv_mapping,
         create_dummy);
   }
 

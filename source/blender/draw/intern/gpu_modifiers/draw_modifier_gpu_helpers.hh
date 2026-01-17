@@ -49,6 +49,7 @@ blender::gpu::Texture *prepare_gpu_texture_and_texcoords(
     bool &r_tex_metadata_cached,
     const std::string &key_prefix,
     blender::gpu::StorageBuf **r_ssbo_texcoords,
+    bool is_uv_mapping,
     bool create_dummy_if_missing = false);
 
 /* Ensure ColorBand UBO (creates dummy when missing). Returns the UBO and

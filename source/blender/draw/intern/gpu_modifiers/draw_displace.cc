@@ -308,7 +308,6 @@ uint32_t DisplaceManager::compute_displace_hash(const Mesh *mesh_orig,
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.tile));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->iuser.framenr));
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->imaflag));
-      hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->extend));
 
       /* Mix Image generation flags/values (use actual values, not addresses). */
       hash = BLI_hash_int_2d(hash, uint32_t(dmd->texture->ima->alpha_mode));
@@ -460,6 +459,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
 
   if (dmd->texture) {
     const bool create_dummy = (dmd->texture->type != TEX_IMAGE);
+    const bool is_uv_mapping = (dmd->texmapping == MOD_DISP_MAP_UV);
     gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
         mesh_owner,
         deformed_eval,
@@ -472,6 +472,7 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
         msd.tex_metadata_cached,
         key_prefix,
         &ssbo_texcoords,
+        is_uv_mapping,
         create_dummy);
   }
 
