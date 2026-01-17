@@ -3392,8 +3392,8 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
                            "- Using with other modifiers can cause issues.\n"
                            "- The Armature must have a single child mesh.\n"
                            "- Only position and normal vertex buffers are updated.\n"
-                           "- GPU skinning is highly simplified compared to the CPU pipeline and\n"
-                           "    may produce incorrect deformations.");
+                           "- GPU skinning is highly simplified compared to the CPU pipeline and"
+                           "may produce incorrect deformations.");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   RNA_define_lib_overridable(false);
