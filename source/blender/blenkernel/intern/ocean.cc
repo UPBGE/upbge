@@ -1676,6 +1676,7 @@ void BKE_ocean_free_modifier_cache(OceanModifierData *omd)
   omd->cached = false;
 }
 
+#ifdef WITH_OCEANSIM
 /* --------------------------------------------------------------------
  * Export helpers to copy ocean internal arrays as float buffers for GPU/Python
  *
@@ -1940,5 +1941,55 @@ void BKE_ocean_free_export(void *ptr)
   }
   MEM_freeN(ptr);
 }
+
+#else /* WITH_OCEANSIM */
+
+bool BKE_ocean_export_shape(const Ocean * /*o*/, 
+                            int * /*r_M*/,
+                            int * /*r_N*/)
+{
+  return false;
+}
+
+bool BKE_ocean_export_htilda_float2(const Ocean * /*o*/,
+                                    float ** /*r_data*/, 
+                                    int * /*r_len*/)
+{
+  return false;
+}
+
+bool BKE_ocean_export_k(const Ocean * /*o*/,
+                        float ** /*r_k*/,
+                        int * /*r_len*/)
+{
+  return false;
+}
+
+bool BKE_ocean_export_kx_kz(const Ocean * /*o*/,
+                            float ** /*r_kx*/,
+                            int * /*r_kx_len*/,
+                            float ** /*r_kz*/,
+                            int * /*r_kz_len*/)
+{
+  return false;
+}
+
+bool BKE_ocean_export_disp_xyz(const Ocean * /*o*/,
+                               float ** /*r_buf*/,
+                               int * /*r_len_texels*/)
+{
+  return false;
+}
+
+bool BKE_ocean_export_normals_xyz(const Ocean * /*o*/,
+                                  float ** /*r_buf*/,
+                                  int * /*r_len_texels*/)
+{
+  return false;
+}
+
+void BKE_ocean_free_export(void * /*ptr*/) {}
+
+#endif /* WITH_OCEANSIM */
 
 }  // namespace blender
