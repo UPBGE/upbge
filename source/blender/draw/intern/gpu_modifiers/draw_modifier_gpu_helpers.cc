@@ -27,11 +27,11 @@ namespace blender {
 namespace draw {
 namespace modifier_gpu_helpers {
 
-gpu::StorageBuf *modifier_gpu_helpers::ensure_vgroup_ssbo(Mesh *mesh_owner,
-                                                          Object *deformed_eval,
-                                                          const std::string &key_vgroup,
-                                                          const std::vector<float> &weights,
-                                                          int verts_num)
+gpu::StorageBuf *ensure_vgroup_ssbo(Mesh *mesh_owner,
+                                    Object *deformed_eval,
+                                    const std::string &key_vgroup,
+                                    const std::vector<float> &weights,
+                                    int verts_num)
 {
   gpu::StorageBuf *ssbo_vgroup = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_vgroup);
 
@@ -89,7 +89,7 @@ static uint32_t colorband_hash_from_coba(const ColorBand *coba)
   return hash;
 }
 
-gpu::Texture *modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
+gpu::Texture *prepare_gpu_texture_and_texcoords(
     Mesh *mesh_owner,
     Object *deformed_eval,
     Depsgraph *depsgraph,
@@ -215,11 +215,11 @@ gpu::Texture *modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
   return gpu_texture;
 }
 
-gpu::UniformBuf *modifier_gpu_helpers::ensure_colorband_ubo(Mesh *mesh_owner,
-                                                            Object *deformed_eval,
-                                                            const std::string &key_colorband,
-                                                            Tex *tex,
-                                                            uint32_t &colorband_hash)
+gpu::UniformBuf *ensure_colorband_ubo(Mesh *mesh_owner,
+                                      Object *deformed_eval,
+                                      const std::string &key_colorband,
+                                      Tex *tex,
+                                      uint32_t &colorband_hash)
 {
   gpu::UniformBuf *ubo_colorband = bke::BKE_mesh_gpu_internal_ubo_get(mesh_owner, key_colorband);
   const size_t size_colorband = sizeof(blender::gpu::GPUColorBand);
@@ -279,16 +279,16 @@ gpu::UniformBuf *modifier_gpu_helpers::ensure_colorband_ubo(Mesh *mesh_owner,
   return ubo_colorband;
 }
 
-gpu::UniformBuf *modifier_gpu_helpers::ensure_texture_params_ubo(Mesh *mesh_owner,
-                                                                 Object *deformed_eval,
-                                                                 const std::string &key_tex_params,
-                                                                 Tex *tex,
-                                                                 ModifierData *md,
-                                                                 int scene_frame,
-                                                                 bool tex_is_byte,
-                                                                 bool tex_is_float,
-                                                                 int tex_channels,
-                                                                 bool has_texcoords)
+gpu::UniformBuf *ensure_texture_params_ubo(Mesh *mesh_owner,
+                                           Object *deformed_eval,
+                                           const std::string &key_tex_params,
+                                           Tex *tex,
+                                           ModifierData *md,
+                                           int scene_frame,
+                                           bool tex_is_byte,
+                                           bool tex_is_float,
+                                           int tex_channels,
+                                           bool has_texcoords)
 {
   blender::gpu::GPUTextureParams gpu_tex_params = {};
   if (tex) {
