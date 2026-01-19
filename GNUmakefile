@@ -170,16 +170,19 @@ Information
 endef
 # HELP_TEXT (end)
 
-# This makefile is not meant for Windows,
-# Note that a TAB indent prevents the message from showing, no indentation is intended.
-ifeq ($(OS),Windows_NT)
-$(error On Windows, use "cmd //c make.bat" instead of "make")
-endif
-
 # System Vars
 OS:=$(shell uname -s)
 OS_NCASE:=$(shell uname -s | tr '[A-Z]' '[a-z]')
 CPU:=$(shell uname -m)
+
+# Detect Windows (MINGW/MSYS2/Git Bash)
+IS_WINDOWS:=$(findstring MINGW,$(OS))$(findstring MSYS,$(OS))
+ifeq ($(IS_WINDOWS),)
+	# Check if OS environment variable indicates Windows
+	ifeq ($(OS),Windows_NT)
+		IS_WINDOWS:=1
+	endif
+endif
 
 # Use our OS and CPU architecture naming conventions.
 ifeq ($(CPU),x86_64)
@@ -188,8 +191,25 @@ endif
 ifeq ($(CPU),aarch64)
 	CPU:=arm64
 endif
+
+# Windows-specific CPU detection (fallback if uname doesn't work)
+ifneq ($(IS_WINDOWS),)
+	ifndef CPU
+		# Try to detect from environment
+		CPU:=$(shell echo $$PROCESSOR_ARCHITECTURE)
+		ifeq ($(CPU),AMD64)
+			CPU:=x64
+		endif
+		ifeq ($(CPU),ARM64)
+			CPU:=arm64
+		endif
+	endif
+endif
+
 ifeq ($(OS_NCASE),darwin)
 	OS_LIBDIR:=macos
+else ifneq ($(IS_WINDOWS),)
+	OS_LIBDIR:=windows
 else
 	OS_LIBDIR:=$(OS_NCASE)
 endif
@@ -204,7 +224,11 @@ BLENDER_IS_PYTHON_MODULE:=
 CMAKE_CONFIG_ARGS := $(BUILD_CMAKE_ARGS)
 
 ifndef BUILD_DIR
-	BUILD_DIR:=$(shell dirname "$(BLENDER_DIR)")/build_$(OS_NCASE)
+	ifneq ($(IS_WINDOWS),)
+		BUILD_DIR:=$(shell dirname "$(BLENDER_DIR)")/build_windows
+	else
+		BUILD_DIR:=$(shell dirname "$(BLENDER_DIR)")/build_$(OS_NCASE)
+	endif
 endif
 
 # Dependencies DIR's
@@ -350,6 +374,17 @@ endif
 ifeq ($(OS), Darwin)
 	BLENDER_BIN?="$(BUILD_DIR)/bin/Blender.app/Contents/MacOS/Blender"
 	BLENDER_BIN_DIR?="$(BUILD_DIR)/bin/Blender.app/Contents/MacOS/Blender"
+else ifneq ($(IS_WINDOWS),)
+	# Windows: default to Release, user can override with BLENDER_BIN
+	BLENDER_BIN?="$(BUILD_DIR)/bin/Release/blender.exe"
+	# Try to find actual location if default doesn't exist
+	ifeq ($(wildcard $(BLENDER_BIN)),)
+		BLENDER_BIN:="$(BUILD_DIR)/bin/Debug/blender.exe"
+		ifeq ($(wildcard $(BLENDER_BIN)),)
+			BLENDER_BIN:="$(BUILD_DIR)/bin/blender.exe"
+		endif
+	endif
+	BLENDER_BIN_DIR?="$(BUILD_DIR)/bin"
 else
 	BLENDER_BIN?="$(BUILD_DIR)/bin/blender"
 	BLENDER_BIN_DIR?="$(BUILD_DIR)/bin"
@@ -368,6 +403,17 @@ ifndef NPROCS
 	endif
 	ifneq (,$(filter $(OS),Darwin FreeBSD))
 		NPROCS:=$(shell sysctl -n hw.ncpu)
+	endif
+	ifneq ($(IS_WINDOWS),)
+		# Windows: try to detect cores (works in Git Bash/MSYS2)
+		NPROCS:=$(shell nproc 2>/dev/null || echo 1)
+		ifeq ($(NPROCS),1)
+			# Fallback: try environment variable
+			NPROCS:=$(shell echo $$NUMBER_OF_PROCESSORS)
+			ifeq ($(NPROCS),)
+				NPROCS:=1
+			endif
+		endif
 	endif
 endif
 
@@ -646,7 +692,7 @@ doc_js: .FORCE
 	    --background --factory-startup \
 	    --python doc/javascript_api/sphinx_doc_gen_blender.py -- \
 	    --output=doc/javascript_api/rst --force
-	@python -m sphinx -b html -j $(NPROCS) doc/javascript_api/rst doc/javascript_api/sphinx-out
+	@$(PYTHON) -m sphinx -b html -j $(NPROCS) doc/javascript_api/rst doc/javascript_api/sphinx-out
 	@echo "docs written into: '$(BLENDER_DIR)/doc/javascript_api/sphinx-out/index.html'"
 
 doc_doxy: .FORCE
