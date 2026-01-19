@@ -152,6 +152,9 @@ Documentation Targets
      Set the environment variable BLENDER_DOC_OFFLINE=1
      to prevent download data at build time.
 
+   * doc_js:
+     Generate sphinx JavaScript/TypeScript API docs from Python API.
+
    * doc_doxy:
      Generate doxygen C/C++ docs.
    * doc_dna:
@@ -635,6 +638,16 @@ doc_py: .FORCE
 	    --python doc/python_api/sphinx_doc_gen.py
 	@sphinx-build -b html -j $(NPROCS) doc/python_api/sphinx-in doc/python_api/sphinx-out
 	@echo "docs written into: '$(BLENDER_DIR)/doc/python_api/sphinx-out/index.html'"
+
+# Generate JavaScript/TypeScript API documentation from Python API
+doc_js: .FORCE
+	@ASAN_OPTIONS=halt_on_error=0:${ASAN_OPTIONS} \
+	$(BLENDER_BIN) \
+	    --background --factory-startup \
+	    --python doc/javascript_api/sphinx_doc_gen_blender.py -- \
+	    --output=doc/javascript_api/rst --force
+	@python -m sphinx -b html -j $(NPROCS) doc/javascript_api/rst doc/javascript_api/sphinx-out
+	@echo "docs written into: '$(BLENDER_DIR)/doc/javascript_api/sphinx-out/index.html'"
 
 doc_doxy: .FORCE
 	@cd doc/doxygen; doxygen Doxyfile

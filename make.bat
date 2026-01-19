@@ -18,7 +18,7 @@ if errorlevel 1 goto EOF
 
 REM if it is one of the convenience targets and BLENDER_BIN is set
 REM skip compiler detection
-if "%ICONS%%ICONS_GEOM%%DOC_PY%" == "1" (
+if "%ICONS%%ICONS_GEOM%%DOC_PY%%DOC_JS%" == "1" (
 	if EXIST "%BLENDER_BIN%" (
 		goto convenience_targets
 	)
@@ -108,6 +108,11 @@ if "%ICONS_GEOM%" == "1" (
 
 if "%DOC_PY%" == "1" (
 	call "%BLENDER_DIR%\build_files\windows\doc_py.cmd"
+	goto EOF
+)
+
+if "%DOC_JS%" == "1" (
+	call "%BLENDER_DIR%\build_files\windows\doc_js.cmd"
 	goto EOF
 )
 

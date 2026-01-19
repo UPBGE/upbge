@@ -38,6 +38,7 @@ echo - msvc ^(enable building with msvc - default on x64, unsupported on ARM64^)
 echo.
 echo Documentation Targets ^(Not associated with building^)
 echo - doc_py ^(Generate sphinx python api docs^)
+echo - doc_js ^(Generate sphinx JavaScript/TypeScript api docs^)
 
 echo.
 echo Experimental options

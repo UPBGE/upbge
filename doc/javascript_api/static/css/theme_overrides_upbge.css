@@ -1,0 +1,373 @@
+/*
+ * This stylesheet is applied after the theme's default one,
+ * and thus any overrides or additions can be added here.
+ *
+ * More info:
+ *		https://www.sphinx-doc.org/en/master/extdev/appapi.html#sphinx.application.Sphinx.add_css_file
+ */
+
+h5 {margin-bottom: 5px}
+
+/* Sidebar menu links. */
+.wy-menu-vertical li.toctree-l2.current li.toctree-l3 > a:hover {background: #c0c0c0}
+.wy-menu-vertical li.toctree-l3.current li.toctree-l4 > a:hover {background: #b5b5b5}
+.wy-menu-vertical li.toctree-l4 {font-size: 1em}
+.wy-menu-vertical li.current a {border: 0}
+.wy-side-nav-search > a:hover {background: none; opacity: 0.9}
+.wy-side-nav-search > a.icon::before {content: none}
+
+/* 'kbd' role. */
+.kbd.docutils.literal {
+  font-family: "Lato", "proxima-nova", "Helvetica Neue", Arial, sans-serif;
+  font-size: 85%;
+  font-weight: normal;
+  color: #404040;
+}
+
+/* Ensure background of input fields is light color even when a local theme wants it to be dark. */
+input[type="text"], input[type="search"], input[type="password"],
+input[type="email"], input[type="url"],
+input[type="date"], input[type="month"], input[type="week"], input[type="time"],
+input[type="datetime"], input[type="datetime-local"],
+input[type="number"], input[type="tel"], input[type="color"] {
+  background-color:#FCFCFC;
+}
+
+/* Fixes overlay of "align-right" images on block. */
+.rst-content .admonition {overflow: auto}
+
+/* Boxed paragraphs. */
+.rst-content .refbox .admonition-title {background-color: #bbb}
+.rst-content .refbox {
+  -webkit-font-smoothing: antialiased;
+  background-color: #e3e3e3;
+  line-height: 24px;
+  margin-bottom: 24px; padding: 12px;
+}
+.rst-content .seealso .admonition-title {background-color: #7a87e6}
+.rst-content .seealso {background-color: #e7ebfa}
+.rst-content .important .admonition-title {background-color: #ddca3b}
+.rst-content .important {background-color: #f6f3a5}
+
+/* refbox =, seealso ( > ), note ( i ), tip i , hint (+), warn / ! \ */
+.refbox .admonition-title::before {content:"\f00b"}
+.seealso .admonition-title::before{content:"\f138"}
+.note .admonition-title::before{content:"\f05a"}
+.tip .admonition-title::before{content:"\f129"; width: 0.75em; text-align: center}
+.hint .admonition-title::before{content:"\f055"}
+.warning .admonition-title::before{content:"\f071"}
+
+/* 'refbox' field. */
+.refbox .field-list .field-name, .refbox .field-list .field-body {
+  padding: 0px;
+}
+.refbox dl dt {font-weight: normal}
+
+/* Ugly 'red' literals. */
+.rst-content tt.literal, .rst-content tt.literal, .rst-content code.literal {
+  color:#404040;
+}
+
+/* Literal blocks that use too much padding, make them look like regular literals. */
+/*
+.rst-content pre.literal-block {
+  font-size: 75%;
+  margin:0;
+  padding:2px 4px;
+  color:#404040;
+  background: #ffffff;
+  white-space: normal;
+  display: inline;
+}*/
+
+/* Fix definisions with different ids. */
+.rst-content dl.simple {
+  margin-bottom: 0px;
+}
+
+/* Fix nested block spacing. */
+.rst-content .document dl dt,
+.rst-content dd dl,
+.rst-content dl.field-list dd > p {
+  margin: 0;
+}
+
+/* Dont indent field lists */
+.rst-content dl.field-list dt {
+  padding-left: 0 !important;
+}
+
+/* Fix padding for normal definitions nested in field lists */
+.rst-content dl.field-list dd > dl.simple {
+  padding-top: 12px;
+}
+
+/* Without this, paragraphs in bullet points within definition lists have too much vertical padding. */
+.rst-content li > p {
+  margin-bottom: 0px !important;
+}
+
+/* TABLE & FIGURE */
+
+/* Moves captions to bottom. */
+table {caption-side: bottom}
+
+/* captions text style */
+.rst-content .figure .caption,
+.rst-content table.docutils caption,
+.rst-content table.field-list caption {
+  font: italic 90%/18px Lato, proxima-nova, 'Helvetica Neue', Arial, sans-serif;
+  color: #808080;
+}
+
+/* Captions top padding. */
+.rst-content .figure .caption { margin-top: 4px; }
+.rst-content table.docutils caption { padding: 0.5em; }
+
+/* Text word wrap. */
+.wy-table-responsive table td,
+.wy-table-responsive table th { white-space: normal; }
+
+/* Cell's vertical align. */
+/* use "valign" class for middle align. */
+.rst-content table.docutils:not(.valign) td { vertical-align: baseline; }
+
+/* Field list align. */
+.rst-content table.field-list td { padding-top: 8px; }
+
+/* Perma-link to table, hide until hover. */
+.rst-content table.docutils caption .headerlink { visibility: hidden; }
+.rst-content table.docutils caption:hover .headerlink { visibility: visible; }
+
+/* Table header cells border color. */
+.rst-content table.docutils th { border-color: #e1e4e5; }
+
+/* Figure in table margin. */
+.rst-content td div.figure {
+  margin-top: 4px; margin-bottom: 0;
+}
+
+/* Figure legend. */
+.legend {
+  font-size: 90%;
+  color: #484848;
+  margin-top: -20px;
+}
+.rst-content dl .legend { margin-top: -10px; }
+
+@media screen and (max-width: 768px){
+
+  .wy-table-responsive table:not(.footnote) { min-width: 520px; }
+  .rst-content table.docutils caption { text-align: left; }
+  img { width: auto; }
+
+}
+
+/* End TABLE & FIGURE. */
+
+/* Video center. */
+iframe {
+  display: block;
+  margin: 0 auto 24px auto;
+}
+
+/* Copyright font scale down. */
+footer p{ font-size: smaller}
+
+.footer-contribute {
+  display: block;
+  font-size: smaller;
+  margin-top: -12px
+}
+
+.footer-contribute li {
+  display: inline;
+  list-style-type: none;
+  padding-right: 20px;
+}
+
+/* Breadcrumbs "Docs" to icon. */
+.wy-breadcrumbs-aside a {
+  position: absolute;
+  top: 2px;
+  right: 0;
+}
+.wy-breadcrumbs li:first-child a {
+  line-height: 0;
+  font-size: 0;
+}
+.wy-breadcrumbs li:first-child a::before {
+  content: "\f015";
+  font: 16px/1 FontAwesome;
+}
+
+/* Spacing bugfix. */
+.wy-breadcrumbs li a:first-child{padding:5px}
+.wy-breadcrumbs li:first-child a{padding-left:0}
+.wy-breadcrumbs li:nth-last-child(2){padding-left:5px}
+
+/* Block-quote > dl bugfix. */
+.rst-content dl{line-height:normal}
+/* multi-paragraph dl bugfix */
+.rst-content dl p{line-height:inherit}
+
+/* Quotes for Fig. "link". */
+a[href^="#fig-"]::before {content: "\201c";}
+a[href^="#fig-"]::after {content: "\201d";}
+
+/* Intermediate headline. */
+.rubric {font-family: "Roboto Slab","ff-tisa-web-pro","Georgia",Arial,sans-serif}
+
+/* ".. container::" lead, block text float around image. */
+.lead {
+  clear: both; width: 100%;
+}
+
+/* Mark external links. */
+a.external {color:#656AE0;}
+/* List blender.org as internal. */
+.external[href^="https://www.blender.org"], .external[href^="https://docs.blender.org"], .external[href^="https://wiki.blender.org"] {
+  color:#2980B9;
+}
+
+/* Draws a box around menuselection role. */
+/* Temporary fix for "theme(0.2.5b2)" bug: no box around 'kbd' role. */
+.menuselection, .kbd.docutils.literal {
+  font-size: 90%;
+  font-weight: normal;
+  background-color: rgba(255, 255, 255, 0.65);
+  border: solid #E1E4E5 1px;
+  white-space: nowrap;
+  padding: 2px 5px;
+}
+@media screen and (max-width: 420px) {
+  .menuselection {white-space: normal}
+}
+.caption .menuselection {
+  background-color: transparent;
+  border: none;
+}
+.caption .kbd {background-color: transparent}
+
+/* Remove indent on line break. */
+.rst-content .line-block {margin-left:0px}
+
+/* Applied on main index:sections. */
+/* Start section description. */
+@media screen and (min-width: 450px){
+  .tocdescr {
+    display: flex; display: -webkit-flex;
+    flex-flow: row wrap; -webkit-flex-flow: row wrap;
+    justify-content: space-between; -webkit-justify-content: space-between;
+    align-items: flex-start; -webkit-align-items: flex-start;
+    align-content: flex-start; -webkit-align-content: flex-start;
+    list-style-type: none;
+    margin-bottom: 10px;
+  }
+  /* Dan Andreasson on Stack Overflow. */
+  .tocdescr:after {
+    content: "";
+    flex: 1 0 33.3%; -webkit-flex: 1 0 33.3%;
+    margin-left: 45px;
+    align-self: stretch; -webkit-align-self: stretch;
+  }
+}
+@media screen and (max-width: 450px) {
+  .tocdescr {
+    display: flex; display: -webkit-flex;
+    flex-flow: column wrap; -webkit-flex-flow: column wrap;
+    justify-content: space-between; -webkit-justify-content: space-between;
+    align-items: flex-start; -webkit-align-items: flex-start;
+    align-content: flex-start; -webkit-align-content: flex-start;
+    list-style-type: none;
+    margin-bottom: 10px;
+  }
+  .tocdescr:after {
+    content: "";
+    flex: none; -webkit-flex: none;
+  }
+}
+.descr {
+  flex: 2 0 33.3%; -webkit-flex: 2 0 33.3%;
+  margin: 10px 15px;
+  border-radius: .3em;
+  user-select: none;
+}
+.descr div.figure {
+  margin-bottom: 0px;
+  display: block;
+}
+.descr img {
+  border-top-left-radius: .3em;
+  border-top-right-radius: .3em;
+}
+.descr dl {margin-bottom: 10px}
+.descr dl dt > a {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+.descr dl dt a em, .descr dl dt a span{
+  font-weight: bold;
+  font-style: normal;
+  font-size: 1.3em;
+}
+.descr dl dt{padding: 18px 15px 0px!important}
+.descr dl dd{
+  padding: 0px 15px;
+  font-style: normal;
+  margin: 0px;
+  color: #808080;
+  font-size: 90%;
+}
+.descr {
+  box-shadow: rgba(0,0,0,0.05) 0px 1px 4px 0px,
+          rgba(211,216,223,0.33) 0px 15px 20px -1px;
+}
+#getting-started .descr {
+  box-shadow: none;
+}
+/* End section description. */
+
+/* Start custom toctree. */
+.toctree-wrapper .toctree-l1 > a {margin-bottom: 0.15em}
+/* Indent all lines following the first. */
+.toctree-wrapper * a {
+  display: block;
+  width: 90%;
+  text-indent: -1em;
+  margin-left: 1em;/*invert indent*/
+  padding-top: 0.25em;
+  line-height: 1.25em;
+}
+
+/* Underline provided by nested ul (not li). */
+.toctree-wrapper * ul {
+  padding-left: 2em;
+  border-top: solid #ececec 1px;
+}
+.toctree-wrapper > ul {margin-left: 1em}
+.rst-content .toctree-wrapper ul li ul {
+  margin-bottom: 0.75em;
+  padding-top: 0.5em;
+}
+.rst-content .toctree-wrapper ul li a:hover {color: #25afef}
+.rst-content .toctree-wrapper ul li a:visited:hover {color: #C961DA}
+.toctree-wrapper .toctree-l1 > a{font-size: 104%}
+.toctree-wrapper .toctree-l2 > a{font-size: 102%}
+.toctree-wrapper .toctree-l3 > a{font-size: 100%}
+.toctree-wrapper .toctree-l1 > ul{border-color: #bfbfbf}
+.toctree-wrapper .toctree-l2 > ul{border-color: #e1e0e0}
+.toctree-wrapper .toctree-l3 > ul{border-color: #ececec}
+/* Remove list styling, css rule hierarchy. */
+.rst-content .toctree-wrapper ul li, .rst-content .toctree-wrapper ul li li , .rst-content .toctree-wrapper ul li li li {
+  list-style-type: none;
+  margin-left: 0px;
+}
+/* End custom toctree. */
+
+/* Start genindex consistency. */
+.genindextable * strong {font-weight: normal}
+.genindex-jumpbox {margin-bottom: 1.245em}
+.indextable {margin-bottom: 1.245em}
+/* End genindex consistency. */
