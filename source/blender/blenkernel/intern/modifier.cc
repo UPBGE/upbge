@@ -979,6 +979,7 @@ bool BKE_modifier_deform_verts(ModifierData *md,
      * different animation/evaluation contexts. */
     if (mesh && mesh->is_running_gpu_animation_playback == 1) {
       if (ELEM(md->type, eModifierType_Armature,
+                         eModifierType_Cast,
                          eModifierType_Lattice,
                          eModifierType_Hook,
                          eModifierType_Displace,

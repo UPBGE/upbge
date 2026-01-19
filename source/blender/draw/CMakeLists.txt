@@ -90,6 +90,7 @@ set(SRC
   intern/draw_view_data.cc
   intern/draw_volume.cc
   intern/gpu_modifiers/draw_armature_skinning.cc
+  intern/gpu_modifiers/draw_cast.cc
   intern/gpu_modifiers/draw_displace.cc
   intern/gpu_modifiers/draw_hook.cc
   intern/gpu_modifiers/draw_lattice_deform.cc
@@ -199,6 +200,7 @@ set(SRC
   intern/mesh_extractors/extract_mesh.hh
   intern/gpu_modifiers/draw_armature_skinning.hh
   intern/gpu_modifiers/draw_displace.hh
+  intern/gpu_modifiers/draw_cast.hh
   intern/gpu_modifiers/draw_hook.hh
   intern/gpu_modifiers/draw_lattice_deform.hh
   intern/gpu_modifiers/draw_modifier_gpu_helpers.hh

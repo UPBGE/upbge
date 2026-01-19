@@ -1225,6 +1225,12 @@ static PlayBackRefuseInfo compute_gpu_playback_decision(Object &ob, Mesh &mesh)
         explicitly_cpu = amd && !(amd->deform_method & ARM_DEFORM_METHOD_GPU);
         break;
       }
+      case eModifierType_Cast: {
+        CastModifierData *cmd = (CastModifierData *)md;
+        requests_gpu = cmd && (cmd->deform_method & CAS_DEFORM_METHOD_GPU);
+        explicitly_cpu = cmd && !(cmd->deform_method & CAS_DEFORM_METHOD_GPU);
+        break;
+      }
       case eModifierType_Lattice: {
         LatticeModifierData *lmd = (LatticeModifierData *)md;
         requests_gpu = lmd && (lmd->deform_method & LAT_DEFORM_METHOD_GPU);

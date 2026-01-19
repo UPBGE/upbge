@@ -24,6 +24,7 @@
 #include "draw_lattice_deform.hh"
 #include "draw_shapekeys_skinning.hh"
 #include "draw_simpledeform.hh"
+#include "draw_cast.hh"
 #include "draw_wave.hh"
 #include "draw_warp.hh"
 
@@ -130,6 +131,18 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
           /* Hash basic Key properties as emergency fallback */
           Key *key = static_cast<Key *>(stage.modifier_data);
           hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(key)));
+        }
+        break;
+      }
+      case ModifierGPUStageType::CAST: {
+        if (mesh_orig_) {
+          CastModifierData *cmd = static_cast<CastModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, draw::CastManager::instance().compute_cast_hash(mesh_orig_, cmd));
+        }
+        else {
+          BLI_assert_unreachable();
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
         }
         break;
       }
@@ -262,6 +275,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::SIMPLEDEFORM:
       SimpleDeformManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::CAST:
+      CastManager::instance().invalidate_all(mesh_owner);
       break;
     case ModifierGPUStageType::HOOK:
       HookManager::instance().invalidate_all(mesh_owner);
@@ -407,6 +423,32 @@ static gpu::StorageBuf *dispatch_armature_stage(Mesh *mesh_orig,
 
   return arm_mgr.dispatch_skinning(
       amd, DRW_context_get()->depsgraph, eval_arma, ob_eval, cache, input);
+}
+
+static gpu::StorageBuf *dispatch_cast_stage(Mesh *mesh_orig,
+                                            Object *ob_eval,
+                                            void *modifier_data,
+                                            gpu::StorageBuf *input,
+                                            uint32_t pipeline_hash)
+{
+  CastModifierData *cmd = static_cast<CastModifierData *>(modifier_data);
+  if (!cmd) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  CastManager &cast_mgr = CastManager::instance();
+
+  cast_mgr.ensure_static_resources(
+      cmd, cmd->object, ob_eval, mesh_orig, pipeline_hash);
+
+  return cast_mgr.dispatch_deform(
+      cmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
 }
 
 static gpu::StorageBuf *dispatch_lattice_stage(Mesh *mesh_orig,
@@ -626,6 +668,10 @@ bool build_gpu_modifier_pipeline(
                            md,
                            execution_order++,
                            dispatch_simpledeform_stage);
+        break;
+      }
+      case eModifierType_Cast: {
+        pipeline.add_stage(ModifierGPUStageType::CAST, md, execution_order++, dispatch_cast_stage);
         break;
       }
       case eModifierType_Hook: {

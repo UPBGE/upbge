@@ -36,10 +36,11 @@ enum class ModifierGPUStageType : uint8_t {
   LATTICE = 2,
   CURVE = 3,
   SIMPLEDEFORM = 4,
-  WAVE = 5,
-  WARP = 6,
-  HOOK = 7,
-  DISPLACE = 8,
+  CAST = 5,
+  WAVE = 6,
+  WARP = 7,
+  HOOK = 8,
+  DISPLACE = 9,
   /* Add new deform modifiers here */
   CUSTOM = 255
 };

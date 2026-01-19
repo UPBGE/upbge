@@ -85,6 +85,7 @@
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 #include "DNA_key_types.h"                                            // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_armature_skinning.hh"     // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_cast.hh"                  // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_displace.hh"              // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_hook.hh"                  // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_lattice_deform.hh"        // UPBGE
@@ -475,6 +476,7 @@ static void drw_process_scheduled_mesh_frees(DRWData *data)
           /* Free armature skinning static data first, then mesh GPU resources. */
           draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
           draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+          draw::CastManager::instance().free_resources_for_mesh(mesh);
           draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
           draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
           draw::HookManager::instance().free_resources_for_mesh(mesh);
@@ -508,6 +510,7 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
   if (GPU_context_active_get() != nullptr) {
     draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::CastManager::instance().free_resources_for_mesh(mesh);
     draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
     draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
     draw::HookManager::instance().free_resources_for_mesh(mesh);
@@ -534,6 +537,7 @@ void DRW_schedule_mesh_gpu_free(struct Mesh *mesh)
   if (GPU_context_active_get() != nullptr) {
     draw::ShapeKeySkinningManager::instance().free_resources_for_mesh(mesh);
     draw::ArmatureSkinningManager::instance().free_resources_for_mesh(mesh);
+    draw::CastManager::instance().free_resources_for_mesh(mesh);
     draw::LatticeSkinningManager::instance().free_resources_for_mesh(mesh);
     draw::SimpleDeformManager::instance().free_resources_for_mesh(mesh);
     draw::HookManager::instance().free_resources_for_mesh(mesh);
@@ -2615,6 +2619,7 @@ void DRW_module_exit()
   /* Clear manager CPU-side bookkeeping (no SSBO release here to avoid double-free). */
   draw::ShapeKeySkinningManager::instance().free_all();
   draw::ArmatureSkinningManager::instance().free_all();
+  draw::CastManager::instance().free_all();
   draw::LatticeSkinningManager::instance().free_all();
   draw::HookManager::instance().free_all();
   draw::SimpleDeformManager::instance().free_all();

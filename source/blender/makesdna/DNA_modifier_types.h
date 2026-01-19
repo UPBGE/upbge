@@ -818,6 +818,8 @@ struct CastModifierData {
   float fac = 0.5f;
   float radius = 0.0f;
   float size = 0.0f;
+  short deform_method = 0;
+  short _pad2[3] = {};
   char defgrp_name[/*MAX_VGROUP_NAME*/ 64] = "";
   /** #CastModifierFlag. */
   short flag = MOD_CAST_X | MOD_CAST_Y | MOD_CAST_Z | MOD_CAST_SIZE_FROM_RADIUS;
@@ -825,6 +827,12 @@ struct CastModifierData {
   short type = MOD_CAST_TYPE_SPHERE;
   void *_pad1 = nullptr;
 };
+
+/** CastModifierData.deform_method */
+typedef enum {
+  CAS_DEFORM_METHOD_CPU = 0,
+  CAS_DEFORM_METHOD_GPU = 1,
+} CastModifierDeformMethod;
 
 /** #WaveModifierData.flag */
 enum WaveModifierFlag {

@@ -469,6 +469,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.use_property_split_set(true);
 
+  /* UPBGE */
+  layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
+
   layout.prop(ptr, "cast_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   ui::Layout &row = layout.row(true, IFACE_("Axis"));
