@@ -30,6 +30,7 @@
 
 namespace blender {
 
+#ifdef WITH_OCEANSIM
 
 using namespace blender;
 using blender::gpu::StorageBuf;
@@ -5719,6 +5720,20 @@ static void pygpu_ocean_module_free(void * /*module*/)
     g_ocean_out_ssbo_cache.clear();
   }
 }
+
+#else /* WITH_OCEANSIM */
+
+// Empty Methods table
+static PyMethodDef pygpu_ocean_methods[] = {
+    {nullptr, nullptr, 0, nullptr},
+};
+
+// Empty free function 
+static void pygpu_ocean_module_free(void * /*module*/)
+{
+}
+
+#endif /* WITH_OCEANSIM */
 
 /* Module definition */
 static PyModuleDef pygpu_ocean_module_def = {
