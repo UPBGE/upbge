@@ -656,8 +656,13 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    CLOG_INFO(&LOG, "Using texture pool \"TexturePoolImpl\".");
+    return new TexturePoolImpl();
+  }
+  CLOG_INFO(&LOG, "Using texture pool \"VKTexturePool\".");
+  //return new VKTexturePool();
   return new TexturePoolImpl(); // Temp UPBGE: comment while investigating on perf regression
-  // return new VKTexturePool();
 }
 
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)
