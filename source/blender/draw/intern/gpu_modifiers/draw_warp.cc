@@ -15,37 +15,25 @@
 
 #include "BLI_hash.h"
 #include "BLI_math_matrix.h"
-#include "BLI_map.hh"
-#include "BLI_vector.hh"
 
+#include "BKE_action.hh"
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
 #include "BKE_image.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "DEG_depsgraph_query.hh"
-#include "BKE_action.hh"
+#include "draw_cache_extract.hh"
 
 #include "GPU_compute.hh"
-#include "GPU_shader.hh"
-#include "GPU_storage_buffer.hh"
-#include "GPU_texture.hh"
-
-#include "draw_cache_extract.hh"
-#include "IMB_imbuf.hh"
-#include "../gpu/gpu_modifiers_common/gpu_shader_common_texture_lib.hh"
-#include "../gpu/gpu_modifiers_common/gpu_texture_helpers.hh"
-#include "MEM_guardedalloc.h"
 
 #include "MOD_util.hh"
+
 #include "draw_modifier_gpu_helpers.hh"
+#include "../gpu/gpu_deform_common/gpu_shader_common_texture_lib.hh"
 
 namespace blender {
 namespace draw {

@@ -4,44 +4,22 @@
 
 #include "draw_armature_skinning.hh"
 
-#include <cstring>
 #include <map>
 
 #include "BLI_hash.h"
-#include "BLI_listbase.h"
-#include "BLI_map.hh"
 #include "BLI_math_matrix.h"
-#include "BLI_math_quaternion.hh"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_threads.h"
-#include "BLI_vector.hh"
 
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
-#include "BKE_object.hh"
 
-#include "DNA_armature_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_vec_types.h"
 
-#include "GPU_capabilities.hh"
-#include "GPU_compute.hh"
-#include "GPU_shader.hh"
-#include "GPU_state.hh"
-#include "GPU_storage_buffer.hh"
-
-#include "../gpu/intern/gpu_shader_create_info.hh"
-
-#include "DRW_render.hh"
 #include "draw_cache_extract.hh"
-#include "draw_cache_impl.hh"
+#include "DRW_render.hh"
 
-#include "DNA_mesh_types.h"
-
-#include "DEG_depsgraph_query.hh"
+#include "GPU_compute.hh"
 
 #include "draw_modifier_gpu_helpers.hh"
 

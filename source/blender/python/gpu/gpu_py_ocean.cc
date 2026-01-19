@@ -1,42 +1,32 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include <vector>
-#include <chrono>
-#include <sstream>
-#include <iomanip>
 
 #include "gpu_py_ocean.hh"
 
-#include "BLI_utildefines.h"
+#include <sstream>
+#include <iomanip>
 
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 
-#include "BKE_customdata.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_gpu.hh"
 
 #include "BLI_task.h"
 
-#include "../depsgraph/DEG_depsgraph_query.hh"
-#include "../draw/intern/draw_cache_extract.hh"
-#include "../draw/intern/draw_cache.hh"
 #include "../python/intern/bpy_rna.hh"
-#include "../gpu/intern/gpu_shader_create_info.hh"
 
-#include "../blenkernel/intern/mesh_gpu_cache.hh"
-#include "GPU_batch.hh"
+#include "../depsgraph/DEG_depsgraph_query.hh"
+
+#include "../draw/intern/draw_cache_extract.hh"
+
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
-#include "GPU_state.hh"
-#include "GPU_storage_buffer.hh"
 
 #include "../blenkernel/intern/ocean_intern.h"
 
 #include "gpu_py_storagebuffer.hh"
 
-#include "../windowmanager/WM_api.hh"
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
+
 
 namespace blender {
 

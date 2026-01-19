@@ -31,7 +31,7 @@
 #include "WM_api.hh"
 
 #include "../draw/intern/draw_cache_extract.hh"
-#include "../gpu/gpu_modifiers_common/gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
+#include "../gpu/gpu_deform_common/gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
 
 namespace blender {
 namespace bke {

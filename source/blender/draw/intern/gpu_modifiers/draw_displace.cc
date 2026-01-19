@@ -10,55 +10,25 @@
 #include "draw_displace.hh"
 
 #include "BLI_hash.h"
-#include "BLI_noise.h"
-#include "BLI_map.hh"
-#include "BLI_rand.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_vector.hh"
 
-#include "BKE_action.hh" /* BKE_pose_channel_find_name for MAP_OBJECT/bone */
-#include "BKE_colorband.hh"
 #include "BKE_deform.hh"
 #include "BKE_image.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_gpu.hh"
-#include "BKE_object.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "../modifiers/intern/MOD_util.hh"
-
-#include "GPU_compute.hh"
-#include "GPU_shader.hh"
-#include "GPU_storage_buffer.hh"
-#include "GPU_texture.hh"
-
-#include "IMB_colormanagement.hh"
-#include "IMB_imbuf.hh"
-
-#include <cstdio>
-#include <cstring>
-#include <cstdint>
-
-#include "../gpu/intern/gpu_shader_create_info.hh"
-#include "../gpu/gpu_modifiers_common/gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
-#include "../gpu/gpu_modifiers_common/gpu_shader_common_texture_lib.hh" /* Common texture sampling functions */
-#include "../gpu/gpu_modifiers_common/gpu_texture_helpers.hh"
-
-#include "DRW_render.hh"
-#include "draw_cache_impl.hh"
 #include "draw_cache_extract.hh"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "../blenkernel/intern/mesh_gpu_cache.hh"
+#include "GPU_compute.hh"
 
-#include "MEM_guardedalloc.h"
+#include "MOD_util.hh"
+
 #include "draw_modifier_gpu_helpers.hh"
+#include "../gpu/gpu_deform_common/gpu_shader_common_normal_lib.hh"  /* Common normal calculation functions */
+#include "../gpu/gpu_deform_common/gpu_shader_common_texture_lib.hh" /* Common texture sampling functions */
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
 
 namespace blender {
 namespace draw {
