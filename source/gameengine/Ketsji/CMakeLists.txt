@@ -107,6 +107,10 @@ set(SRC
   KX_VehicleWrapper.cpp
   KX_VertexProxy.cpp
   KX_CollisionContactPoints.cpp
+  KX_V8Engine.cpp
+  KX_V8Bindings.cpp
+  KX_V8Init.cpp
+  KX_TypeScriptCompiler.cpp
 
   BL_Action.h
   BL_ActionManager.h
@@ -165,6 +169,10 @@ set(SRC
   KX_VehicleWrapper.h
   KX_VertexProxy.h
   KX_CollisionContactPoints.h
+  KX_V8Engine.h
+  KX_V8Bindings.h
+  KX_V8Init.h
+  KX_TypeScriptCompiler.h
 )
 
 set(LIB
@@ -258,6 +266,12 @@ if(WITH_MOD_FLUID)
     bf_intern_mantaflow
   )
   add_definitions(-DWITH_FLUID)
+endif()
+
+if(WITH_JAVASCRIPT)
+  list(APPEND LIB
+    ${V8_LIBRARIES}
+  )
 endif()
 
 if(WITH_XR_OPENXR)

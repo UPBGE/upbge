@@ -48,6 +48,7 @@
 #include "KX_NetworkMessageManager.h"
 #include "KX_PythonInit.h"
 #include "KX_PythonMain.h"
+#include "KX_V8Init.h"
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
 
@@ -105,6 +106,9 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system,
 
 LA_Launcher::~LA_Launcher()
 {
+#ifdef WITH_JAVASCRIPT
+  exitGameJavaScript();
+#endif  // WITH_JAVASCRIPT
 }
 
 #ifdef WITH_PYTHON
@@ -248,6 +252,11 @@ void LA_Launcher::InitEngine()
                   m_context,
                   &m_audioDeviceIsInitialized);
 #endif  // WITH_PYTHON
+
+#ifdef WITH_JAVASCRIPT
+  initV8Engine();
+  setupGameJavaScript(m_ketsjiEngine, m_maggie);
+#endif  // WITH_JAVASCRIPT
 
   // Create a scene converter, create and convert the stratingscene.
   m_converter = new BL_Converter(m_maggie, m_ketsjiEngine);

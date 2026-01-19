@@ -256,6 +256,17 @@ mark_as_advanced(WITH_PYTHON)
 # make a build option.
 mark_as_advanced(WITH_PYTHON_SECURITY)
 
+option(WITH_JAVASCRIPT "Enable Embedded JavaScript/TypeScript API using V8 engine" OFF)
+mark_as_advanced(WITH_JAVASCRIPT)
+
+option(WITH_TYPESCRIPT "Enable TypeScript compilation support (requires WITH_JAVASCRIPT)" OFF)
+mark_as_advanced(WITH_TYPESCRIPT)
+
+# TypeScript requires JavaScript
+if(WITH_TYPESCRIPT AND NOT WITH_JAVASCRIPT)
+  message(FATAL_ERROR "WITH_TYPESCRIPT requires WITH_JAVASCRIPT to be enabled")
+endif()
+
 option(WITH_PYTHON_SAFETY "\
 Enable internal API error checking to track invalid data to prevent crash on access \
 (at the expense of some efficiency, only enable for development)."
@@ -2657,6 +2668,28 @@ if(WITH_PYTHON)
     # Always copy from precompiled libs.
   elseif(WITH_PYTHON_INSTALL_ZSTANDARD)
     find_python_package(zstandard "")
+  endif()
+endif()
+
+# V8 JavaScript Engine configuration
+if(WITH_JAVASCRIPT)
+  find_package(V8)
+  if(NOT V8_FOUND)
+    message(
+      WARNING
+      "V8 not found. JavaScript support will be disabled.\n"
+      "Set V8_ROOT to point to your V8 installation directory."
+    )
+    set(WITH_JAVASCRIPT OFF)
+    if(WITH_TYPESCRIPT)
+      set(WITH_TYPESCRIPT OFF)
+    endif()
+  else()
+    message(STATUS "Found V8: ${V8_INCLUDE_DIRS}")
+    add_definitions(-DWITH_JAVASCRIPT)
+    if(WITH_TYPESCRIPT)
+      add_definitions(-DWITH_TYPESCRIPT)
+    endif()
   endif()
 endif()
 

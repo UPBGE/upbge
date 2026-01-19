@@ -53,6 +53,15 @@ typedef struct bPythonCont {
   int flag = 0; /* only used for debug now */
 } bPythonCont;
 
+typedef struct bJavaScriptCont {
+  struct Text *text = nullptr;
+  struct Text *module_script = nullptr;
+  char module[64] = "";
+  int mode = 0;  /* SCRIPT or MODULE */
+  int flag = 0;  /* DEBUG, etc. */
+  bool use_typescript = false;  /* If should compile TypeScript */
+} bJavaScriptCont;
+
 typedef struct bController {
   struct bController *next = nullptr, *prev = nullptr, *mynew = nullptr;
   short type = 0, flag = 0, inputs = 0, totlinks = 0;
@@ -78,6 +87,7 @@ typedef struct bController {
 #define CONT_LOGIC_NOR 5
 #define CONT_LOGIC_XOR 6
 #define CONT_LOGIC_XNOR 7
+#define CONT_JAVASCRIPT 8
 
 /* controller->flag */
 #define CONT_SHOW 1
@@ -93,5 +103,12 @@ typedef struct bController {
 /* pyctrl->mode */
 #define CONT_PY_SCRIPT 0
 #define CONT_PY_MODULE 1
+
+/* jsctrl->flag */
+#define CONT_JS_DEBUG 1
+
+/* jsctrl->mode */
+#define CONT_JS_SCRIPT 0
+#define CONT_JS_MODULE 1
 
 }  // namespace blender

@@ -52,6 +52,7 @@
 #include "KX_Globals.h"
 #include "KX_NetworkMessageScene.h"
 #include "KX_PythonInit.h"  // for updatePythonJoysticks
+#include "KX_V8Init.h"      // for JavaScript initialization
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"

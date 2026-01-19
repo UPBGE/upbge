@@ -100,6 +100,7 @@ set(SRC
   SCA_PythonJoystick.cpp
   SCA_PythonKeyboard.cpp
   SCA_PythonMouse.cpp
+  SCA_JavaScriptController.cpp
   SCA_RadarSensor.cpp
   SCA_RandomActuator.cpp
   SCA_RandomNumberGenerator.cpp
@@ -168,6 +169,7 @@ set(SRC
   SCA_PythonJoystick.h
   SCA_PythonKeyboard.h
   SCA_PythonMouse.h
+  SCA_JavaScriptController.h
   SCA_RadarSensor.h
   SCA_RandomActuator.h
   SCA_RandomNumberGenerator.h
@@ -214,6 +216,12 @@ if(WITH_SDL)
   if(WITH_GHOST_SDL)
     add_definitions(-DWITH_GHOST_SDL)
   endif()
+endif()
+
+if(WITH_JAVASCRIPT)
+  list(APPEND LIB
+    ${V8_LIBRARIES}
+  )
 endif()
 
 blender_add_lib(ge_logic_bricks "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -49,6 +49,7 @@
 #include "SCA_NORController.h"
 #include "SCA_ORController.h"
 #include "SCA_PythonController.h"
+#include "SCA_JavaScriptController.h"
 #include "SCA_XNORController.h"
 #include "SCA_XORController.h"
 
@@ -159,6 +160,41 @@ void BL_ConvertControllers(blender::Object *blenderobject,
 
         break;
       }
+      case CONT_JAVASCRIPT: {
+#ifdef WITH_JAVASCRIPT
+        bJavaScriptCont *jscont = (bJavaScriptCont *)bcontr->data;
+        SCA_JavaScriptController *jsctrl = new SCA_JavaScriptController(gameobj, jscont->mode);
+        gamecontroller = jsctrl;
+        if (jscont->mode == SCA_JavaScriptController::SCA_JSEXEC_SCRIPT) {
+          if (jscont->text) {
+            char *buf;
+            size_t buf_len_dummy;
+            buf = txt_to_buf(jscont->text, &buf_len_dummy);
+            if (buf) {
+              jsctrl->SetScriptText(std::string(buf));
+              jsctrl->SetScriptName(jscont->text->id.name + 2);
+              jsctrl->SetUseTypeScript(jscont->use_typescript);
+              MEM_freeN(buf);
+            }
+          }
+        }
+        else {
+          jsctrl->SetScriptText(std::string(jscont->module));
+          jsctrl->SetScriptName(jscont->module);
+          jsctrl->SetUseTypeScript(jscont->use_typescript);
+
+          if (jscont->flag & CONT_JS_DEBUG) {
+            CM_Warning("debugging \"" << jscont->module << "\", module for object "
+                                      << blenderobject->id.name + 2
+                                      << " expect worse performance.");
+            jsctrl->SetDebug(true);
+          }
+        }
+#else
+        CM_Error("JavaScript controller found but JavaScript support is not compiled in");
+#endif  // WITH_JAVASCRIPT
+        break;
+      }
       default: {
       }
     }
@@ -202,6 +238,15 @@ void BL_ConvertControllers(blender::Object *blenderobject,
       }
 
 #endif  // WITH_PYTHON
+
+#ifdef WITH_JAVASCRIPT
+      // Compile JavaScript controllers early to catch syntax errors
+      if (!libloading && bcontr->type == CONT_JAVASCRIPT) {
+        SCA_JavaScriptController *jsctrl = static_cast<SCA_JavaScriptController *>(gamecontroller);
+        if (jsctrl->m_mode == SCA_JavaScriptController::SCA_JSEXEC_SCRIPT)
+          jsctrl->Compile();
+      }
+#endif  // WITH_JAVASCRIPT
 
       // done with gamecontroller
       gamecontroller->Release();
