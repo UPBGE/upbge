@@ -330,6 +330,10 @@ static void spindle_decrypt_hex_64(char *data, int dataSize, const char *key)
 	spindle_decrypt(data, dataSize, realKey);
 }
 
+#if defined( __GNUC__ )
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 static void spindle_encrypt_hex(char *data, int dataSize, const char *key)
 {
 	int keySize = 0, charPos, i;
@@ -354,6 +358,9 @@ static void spindle_encrypt_hex(char *data, int dataSize, const char *key)
 		}
 	}
 }
+#if defined( __GNUC__ )
+#pragma GCC diagnostic pop
+#endif
 
 static void spindle_decrypt_hex(char *data, int dataSize, const char *key)
 {

@@ -102,7 +102,7 @@
 using namespace blender;
 #endif
 
-void bge_dupli_provider(DEGObjectIterData *data)
+static void bge_dupli_provider(DEGObjectIterData *data)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   if (!engine || !engine->CurrentScenes()) {

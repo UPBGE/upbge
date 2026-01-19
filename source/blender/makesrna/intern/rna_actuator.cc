@@ -437,13 +437,13 @@ static void rna_ObjectActuator_type_set(struct PointerRNA *ptr, int value)
     oa->type = value;
     switch (oa->type) {
       case ACT_OBJECT_NORMAL:
-        memset(oa, 0, sizeof(bObjectActuator));
+        oa = {};
         oa->flag = ACT_FORCE_LOCAL | ACT_TORQUE_LOCAL | ACT_DLOC_LOCAL | ACT_DROT_LOCAL;
         oa->type = ACT_OBJECT_NORMAL;
         break;
 
       case ACT_OBJECT_SERVO:
-        memset(oa, 0, sizeof(bObjectActuator));
+        oa = {};
         oa->flag = ACT_LIN_VEL_LOCAL;
         oa->type = ACT_OBJECT_SERVO;
         oa->forcerot[0] = 30.0f;
@@ -452,7 +452,7 @@ static void rna_ObjectActuator_type_set(struct PointerRNA *ptr, int value)
         break;
 
       case ACT_OBJECT_CHARACTER:
-        memset(oa, 0, sizeof(bObjectActuator));
+        oa = {};
         oa->flag = ACT_DLOC_LOCAL | ACT_DROT_LOCAL;
         oa->type = ACT_OBJECT_CHARACTER;
         break;

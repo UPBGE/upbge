@@ -4,6 +4,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include "gpu_py_ocean.hh"
+
 #include "BLI_utildefines.h"
 
 #include "DNA_modifier_types.h"
@@ -675,7 +677,7 @@ static PyObject *pygpu_ocean_create_default_ocean(PyObject * /*self*/,
                            nullptr};
 
   OceanModifierData omd;
-  memset(&omd, 0, sizeof(omd));
+  omd = {};
   omd.resolution = 7;
   omd.size = 1.0f;
   omd.spatial_size = 1;
@@ -820,7 +822,7 @@ static PyObject *pygpu_ocean_generate_object(PyObject * /*self*/, PyObject *args
 
   OceanModifierData omd;
   /* Minimal initializer for geometry generation: ensure repeat and sizing are sane. */
-  memset(&omd, 0, sizeof(omd));
+  omd = {};
   omd.repeat_x = 1;
   omd.repeat_y = 1;
   omd.size = 1.0f;
@@ -1966,41 +1968,6 @@ void main() {
 }
 )GLSL";
 
-/* ---- normals compute shader (sample disp tex + central-difference normals) ---- */
-static const char *OCEAN_FINAL_COMP_BODY_GLSL = R"GLSL(
-int pack_i10_trunc(float x) { return clamp(int(x * 511.0), -512, 511) & 0x3FF; }
-uint pack_norm(vec3 n) {
-  return uint(pack_i10_trunc(n.x)) | (uint(pack_i10_trunc(n.y)) << 10) | (uint(pack_i10_trunc(n.z)) << 20);
-}
-
-void main() {
-  uint gid = gl_GlobalInvocationID.x;
-  if (gid >= normals_out.length()) {
-    return;
-  }
-
-  /* read basepos (vec4) and compute uv */
-  positions[gid] = basepos[gid];
-  vec2 uv = (bp.xy / size_param) + vec2(0.5);
-
-  /* center sample */
-  vec3 c = sample_disp_tex_bilerp(tex_side, inv_tex_side, uv);
-  vec3 p_center = vec3(bp.x + c.x, bp.y + c.z, bp.z + c.y * HEIGHT_SCALE);
-
-  /* small offsets in uv to sample neighbors (one texel) */
-  float du = inv_tex_side;
-  float dv = inv_tex_side;
-  vec3 cr = sample_disp_tex_bilerp(tex_side, inv_tex_side, uv + vec2(du, 0.0));
-  vec3 cu = sample_disp_tex_bilerp(tex_side, inv_tex_side, uv + vec2(0.0, dv));
-  vec3 p_right = vec3(bp.x + cr.x, bp.y + cr.z, bp.z + cr.y * HEIGHT_SCALE);
-  vec3 p_up = vec3(bp.x + cu.x, bp.y + cu.z, bp.z + cu.y * HEIGHT_SCALE);
-
-  vec3 n = normalize(cross(p_right - p_center, p_up - p_center));
-  uint packed = pack_norm(n);
-  normals_out[uint(gid)] = packed;
-}
-)GLSL";
-
 /* GLSL: compute htilda per compact element (row-major, count = M * halfN)
  * bindings:
  *  0 = vec2 h0_compact[]         (re,im)
@@ -2647,49 +2614,6 @@ static PyObject *pygpu_ocean_debug_compare_spatial(PyObject * /*self*/, PyObject
 
   BKE_ocean_free_export(cpu_disp);
   Py_RETURN_NONE;
-}
-
-static void gpu_generate_ocean_geometry_uvs_debug(void *__restrict userdata,
-                                                  const int y,
-                                                  const TaskParallelTLS *__restrict /*tls*/)
-{
-  GenerateOceanGeometryData *gogd = static_cast<GenerateOceanGeometryData *>(userdata);
-  int x;
-
-  for (x = 0; x < gogd->res_x; x++) {
-    const int i = y * gogd->res_x + x;
-    float(*luv)[2] = &gogd->uv_map[i * 4];
-
-    // Génération des UVs
-    (*luv)[0] = x * gogd->ix;
-    (*luv)[1] = y * gogd->iy;
-    luv++;
-
-    (*luv)[0] = (x + 1) * gogd->ix;
-    (*luv)[1] = y * gogd->iy;
-    luv++;
-
-    (*luv)[0] = (x + 1) * gogd->ix;
-    (*luv)[1] = (y + 1) * gogd->iy;
-    luv++;
-
-    (*luv)[0] = x * gogd->ix;
-    (*luv)[1] = (y + 1) * gogd->iy;
-    luv++;
-
-    // Ajout de logs pour déboguer les UVs
-    fprintf(stderr,
-            "UV[%d]: (%f, %f), (%f, %f), (%f, %f), (%f, %f)\n",
-            i,
-            gogd->uv_map[i * 4][0],
-            gogd->uv_map[i * 4][1],
-            gogd->uv_map[i * 4 + 1][0],
-            gogd->uv_map[i * 4 + 1][1],
-            gogd->uv_map[i * 4 + 2][0],
-            gogd->uv_map[i * 4 + 2][1],
-            gogd->uv_map[i * 4 + 3][0],
-            gogd->uv_map[i * 4 + 3][1]);
-  }
 }
 
 static PyObject *pygpu_ocean_debug_dump_ocean(PyObject * /*self*/, PyObject *args)
@@ -5138,7 +5062,6 @@ static PyObject *pygpu_ocean_simulate_and_export_disp_ssbo(PyObject * /*self*/,
  */
 static PyObject *pygpu_ocean_scatter_to_mesh(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
-  auto prof_start = std::chrono::steady_clock::now();
 
   PyObject *py_ocean_obj = nullptr;
   PyObject *py_ob_eval = nullptr;
@@ -5821,7 +5744,7 @@ static PyModuleDef pygpu_ocean_module_def = {
 };
 
 /* Module initialization */
-PyObject *bpygpu_ocean_init(void)
+PyObject *bpygpu_ocean_init()
 {
   return PyModule_Create(&pygpu_ocean_module_def);
 }
