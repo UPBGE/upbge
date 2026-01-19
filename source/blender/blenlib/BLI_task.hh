@@ -54,7 +54,16 @@ template<typename Range, typename Function>
 inline void parallel_for_each(Range &&range, const Function &function)
 {
 #ifdef WITH_TBB
+#  if defined(_MSC_VER)
+  /* oneAPI TBB's parallel_for_each(Range, Body) has C++20 concept constraints
+   * (container_based_sequence) that Blender's Map::MutableItemIterator and similar
+   * custom iterators do not satisfy on MSVC. Use serial fallback to avoid build failure. */
+  for (auto &&value : range) {
+    function(value);
+  }
+#  else
   tbb::parallel_for_each(range, function);
+#  endif
 #else
   for (auto &&value : range) {
     function(value);
