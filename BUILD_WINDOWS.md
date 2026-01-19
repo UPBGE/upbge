@@ -161,6 +161,22 @@ make.bat nobuild release
 make.bat builddir D:\build_upbge release
 ```
 
+### DNA alignment error ("can't make correct DNA.c file... check alignment")
+
+**Solution**: Do a full clean rebuild. The `makesdna` step can fail if generated files or the build are in a bad state:
+
+```bash
+# Remove the build directory and reconfigure
+rm -rf ../build_windows_release
+make release
+```
+
+If it still fails with Visual Studio 2026, it may be a toolchain/ABI compatibility issue; try building with Visual Studio 2022.
+
+### NanoVDB / TBB `parallel_reduce` (oneapi TBB incompatibility)
+
+On MSVC, NanoVDB is built without TBB (`NANOVDB_USE_TBB` disabled) and uses a `std::future` fallback, to avoid incompatibility with the oneapi TBB in the prebuilt libs. No action needed.
+
 ## 📝 After Building
 
 ### Test Blender

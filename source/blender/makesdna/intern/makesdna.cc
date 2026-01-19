@@ -1310,6 +1310,10 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
     fprintf(stderr, "*** Unknown structs :\n");
 
     for (int a = 0; a < structs_num; a++) {
+      /* Skip raw_data (SDNA_RAW_DATA_STRUCT_INDEX): it has size 0 by design. */
+      if (a == SDNA_RAW_DATA_STRUCT_INDEX) {
+        continue;
+      }
       const short *structpoin = structs[a];
       const int structtype = structpoin[0];
 
@@ -1437,6 +1441,9 @@ static int make_structDNA(const char *base_directory,
   raw_data_struct_info[1] = 0;
   BLI_STATIC_ASSERT(SDNA_RAW_DATA_STRUCT_INDEX == 0, "'raw data' SDNA struct index should be 0")
   BLI_assert(raw_data_struct_info == structs[SDNA_RAW_DATA_STRUCT_INDEX]);
+
+  /* Extra types for DNA structs (after eSDNA_Type-aligned block). */
+  add_type("bool", 1); /* For struct members like bJavaScriptCont.use_typescript */
 
   /* the defines above shouldn't be output in the padding file... */
   const int firststruct = types_num;

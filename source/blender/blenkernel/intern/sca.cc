@@ -295,6 +295,9 @@ void BKE_sca_init_controller(bController *cont)
     case CONT_PYTHON:
       cont->data = MEM_callocN(sizeof(bPythonCont), "pycont");
       break;
+    case CONT_JAVASCRIPT:
+      cont->data = MEM_callocN(sizeof(bJavaScriptCont), "jscont");
+      break;
   }
 }
 
@@ -1114,6 +1117,12 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
 
         func(controller, (ID **)&pc->module_script, userdata, IDWALK_CB_USER);
         func(controller, (ID **)&pc->text, userdata, IDWALK_CB_USER);
+        break;
+      }
+      case CONT_JAVASCRIPT: {
+        bJavaScriptCont *jc = (bJavaScriptCont *)controller->data;
+        func(controller, (ID **)&jc->module_script, userdata, IDWALK_CB_USER);
+        func(controller, (ID **)&jc->text, userdata, IDWALK_CB_USER);
         break;
       }
       case CONT_LOGIC_AND:

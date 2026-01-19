@@ -53,6 +53,7 @@ const EnumPropertyItem rna_enum_controller_type_items[] = {
     {CONT_LOGIC_XNOR, "LOGIC_XNOR", 0, "Xnor", "Logic Xnor"},
     {CONT_EXPRESSION, "EXPRESSION", 0, "Expression", ""},
     {CONT_PYTHON, "PYTHON", 0, "Python", ""},
+    {CONT_JAVASCRIPT, "JAVASCRIPT", 0, "JavaScript", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 }  // namespace blender
 
@@ -82,6 +83,8 @@ static StructRNA *rna_Controller_refine(struct PointerRNA *ptr)
       return RNA_ExpressionController;
     case CONT_PYTHON:
       return RNA_PythonController;
+    case CONT_JAVASCRIPT:
+      return RNA_JavaScriptController;
     default:
       return RNA_Controller;
   }
@@ -121,6 +124,17 @@ static void rna_Controller_mode_set(struct PointerRNA *ptr, int value)
     pycon->text = nullptr;
   }
   pycon->mode = value;
+}
+
+static void rna_Controller_js_mode_set(struct PointerRNA *ptr, int value)
+{
+  bController *cont = (bController *)ptr->data;
+  bJavaScriptCont *jscon = (bJavaScriptCont *)cont->data;
+
+  if (value != jscon->mode && jscon->mode == CONT_JS_SCRIPT) {
+    jscon->text = nullptr;
+  }
+  jscon->mode = value;
 }
 
 static int rna_Controller_state_number_get(struct PointerRNA *ptr)
@@ -168,6 +182,11 @@ void RNA_def_controller(BlenderRNA *brna)
   static const EnumPropertyItem python_controller_modes[] = {
       {CONT_PY_SCRIPT, "SCRIPT", 0, "Script", ""},
       {CONT_PY_MODULE, "MODULE", 0, "Module", ""},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  static const EnumPropertyItem javascript_controller_modes[] = {
+      {CONT_JS_SCRIPT, "SCRIPT", 0, "Script", ""},
+      {CONT_JS_MODULE, "MODULE", 0, "Module", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   /* Controller */
@@ -281,6 +300,46 @@ void RNA_def_controller(BlenderRNA *brna)
                            "D",
                            "Continuously reload the module from disk for editing external modules "
                            "without restarting");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  /* JavaScript Controller */
+  srna = RNA_def_struct(brna, "JavaScriptController", "Controller");
+  RNA_def_struct_sdna_from(srna, "bJavaScriptCont", "data");
+  RNA_def_struct_ui_text(
+      srna, "JavaScript Controller", "Controller executing a JavaScript or TypeScript script");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, javascript_controller_modes);
+  RNA_def_property_enum_funcs(prop, nullptr, "rna_Controller_js_mode_set", nullptr);
+  RNA_def_property_ui_text(
+      prop, "Execution Method", "Script type (text block or module - faster)");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "text", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Text");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Text", "Text data-block with the JavaScript/TypeScript script");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "module", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Module",
+                           "Module name and function to run, e.g. \"someModule.main\" "
+                           "(internal texts and external JS/TS files can be used)");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_debug", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CONT_JS_DEBUG);
+  RNA_def_property_ui_text(prop,
+                           "D",
+                           "Continuously reload the module from disk for editing external modules "
+                           "without restarting");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_typescript", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_typescript", 0);
+  RNA_def_property_ui_text(
+      prop, "TypeScript", "Compile script as TypeScript before running");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Other Controllers */

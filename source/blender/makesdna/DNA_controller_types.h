@@ -59,7 +59,8 @@ typedef struct bJavaScriptCont {
   char module[64] = "";
   int mode = 0;  /* SCRIPT or MODULE */
   int flag = 0;  /* DEBUG, etc. */
-  bool use_typescript = false;  /* If should compile TypeScript */
+  char use_typescript = 0;  /* If should compile TypeScript (0/1, RNA PROP_BOOLEAN-compatible) */
+  char _pad[7] = {};  /* Alignment padding so struct size matches 32/64-bit rules */
 } bJavaScriptCont;
 
 typedef struct bController {

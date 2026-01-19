@@ -763,6 +763,9 @@ static void write_controllers(BlendWriter *writer, ListBase *lb)
       case CONT_PYTHON:
         writer->write_struct_cast<bPythonCont>(cont->data);
         break;
+      case CONT_JAVASCRIPT:
+        writer->write_struct_cast<bJavaScriptCont>(cont->data);
+        break;
       default:; /* error: don't know how to write this file */
     }
 

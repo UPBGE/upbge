@@ -85,6 +85,11 @@ if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
+# FindCUDA module is deprecated/removed in newer CMake; set OLD to keep using it (Cycles).
+if(POLICY CMP0146)
+  cmake_policy(SET CMP0146 OLD)
+endif()
+
 # Install CODE|SCRIPT allow the use of generator expressions.
 if(POLICY CMP0087)
   cmake_policy(SET CMP0087 NEW)
@@ -2693,9 +2698,10 @@ if(WITH_JAVASCRIPT)
   endif()
 endif()
 
-# Select C++17 as the standard for C++ projects.
-set(CMAKE_CXX_STANDARD 17)
-# If C++17 is not available, downgrading to an earlier standard is NOT OK.
+# Select C++20 as the standard for C++ projects.
+# C++20 is required for Visual Studio 2026 (MSVC 14.50+) which uses <span> in STL headers.
+set(CMAKE_CXX_STANDARD 20)
+# If C++20 is not available, downgrading to an earlier standard is NOT OK.
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Do not enable compiler specific language extensions.
 set(CMAKE_CXX_EXTENSIONS OFF)

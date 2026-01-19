@@ -453,7 +453,7 @@ all: .FORCE
 
 	@echo
 	@echo Building Blender ...
-	$(BUILD_COMMAND) -C "$(BUILD_DIR)" -j $(NPROCS) install
+	cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(NPROCS)
 	@echo
 	@echo Edit build configuration with: \"$(BUILD_DIR)/CMakeCache.txt\" run make again to rebuild.
 	@if test -z "$(BLENDER_IS_PYTHON_MODULE)"; then \
@@ -712,7 +712,7 @@ help_features: .FORCE
 	@$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_print_build_options.py" $(BLENDER_DIR)"/CMakeLists.txt"
 
 clean: .FORCE
-	$(BUILD_COMMAND) -C "$(BUILD_DIR)" clean
+	cmake --build "$(BUILD_DIR)" --target clean
 
 .PHONY: all
 

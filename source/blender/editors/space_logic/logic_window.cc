@@ -421,6 +421,8 @@ static const char *controller_name(int type)
       return N_("Expression");
     case CONT_PYTHON:
       return N_("Python");
+    case CONT_JAVASCRIPT:
+      return N_("JavaScript");
   }
   return N_("Unknown");
 }
@@ -1602,6 +1604,25 @@ static void draw_controller_python(blender::ui::Layout *layout, PointerRNA *ptr)
   }
 }
 
+static void draw_controller_javascript(blender::ui::Layout *layout, PointerRNA *ptr)
+{
+  blender::ui::Layout *split, *sub;
+
+  split = &layout->split(0.3, true);
+  split->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  if (RNA_enum_get(ptr, "mode") == CONT_JS_SCRIPT) {
+    sub = &split->row(false);
+    sub->prop(ptr, "text", UI_ITEM_NONE, "", ICON_NONE);
+    sub->prop(ptr, "use_typescript", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  }
+  else {
+    sub = &split->split(0.8f, false);
+    sub->prop(ptr, "module", UI_ITEM_NONE, "", ICON_NONE);
+    sub->prop(ptr, "use_debug", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+    sub->prop(ptr, "use_typescript", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+  }
+}
+
 static void draw_controller_state(blender::ui::Layout */*layout*/, PointerRNA */*ptr*/)
 {
 }
@@ -1628,6 +1649,9 @@ static void draw_brick_controller(blender::ui::Layout *layout, PointerRNA *ptr)
       break;
     case CONT_PYTHON:
       draw_controller_python(box, ptr);
+      break;
+    case CONT_JAVASCRIPT:
+      draw_controller_javascript(box, ptr);
       break;
     case CONT_LOGIC_NAND:
       break;

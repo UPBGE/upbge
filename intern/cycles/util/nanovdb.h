@@ -10,7 +10,11 @@
 #  include <openvdb/openvdb.h>
 
 #  define NANOVDB_USE_OPENVDB
-#  define NANOVDB_USE_TBB
+/* oneapi TBB's parallel_reduce(range, identity, func, join) has incompatible overloads/concepts
+ * with nanovdb's Reduce.h. Use the std::future fallback on MSVC. */
+#  if !defined(_MSC_VER)
+#    define NANOVDB_USE_TBB
+#  endif
 
 #  include <nanovdb/NanoVDB.h>  // manages and streams the raw memory buffer of a NanoVDB grid.
 
