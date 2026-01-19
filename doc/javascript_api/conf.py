@@ -71,8 +71,8 @@ highlight_language = "javascript"
 # No need to detect encoding.
 highlight_options = {"default": {"encoding": "utf-8"}}
 
-# Quiet file not in table-of-contents warnings.
-exclude_patterns = []
+# Exclude info_javascript (redundant with index toctree; was causing toc.not_included and multiple toctrees).
+exclude_patterns = ['info_javascript.rst']
 
 html_title = "UPBGE JavaScript/TypeScript API"
 
@@ -82,33 +82,30 @@ html_title = "UPBGE JavaScript/TypeScript API"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-import sphinx_rtd_theme
+if has_module("sphinx_rtd_theme"):
+    import sphinx_rtd_theme
 
-html_theme = 'sphinx_rtd_theme'
-
-# Theme options
-html_theme_options = {
-        # included in the title
-        "display_version": False,
+    html_theme = "sphinx_rtd_theme"
+    html_theme_options = {
         "collapse_navigation": True,
         "navigation_depth": -1,
         "body_max_width": "80%",
     }
+    extensions.append("sphinx_rtd_theme")
+    html_sidebars = {'**': ['sidebar/variant-selector.html']}
+else:
+    html_theme = "alabaster"
+    html_theme_options = {}
+    html_sidebars = {}
 
-extensions.append('sphinx_rtd_theme')
+# Custom template directory for sidebar and other overrides
+templates_path = ['templates']
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['static']
-
-# Custom sidebar templates, must be a dictionary that maps document names
-# to template names.
-html_sidebars = {
-    '**': [
-        'sidebar/variant-selector.html',
-    ],
-}
+_html_static = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+html_static_path = ['static'] if os.path.isdir(_html_static) else []
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

@@ -134,6 +134,28 @@ make.bat debug
 make.bat nobuild release
 ```
 
+### Save build log and make errors easier to see
+
+When the build fails, the real error can be lost in parallel output. To **save everything to a file** (and still see it in the terminal):
+
+```bash
+make release BUILD_LOG=build.log
+```
+
+Then search the log for the failure, e.g. `erro`, `error C`, `LNK`, `MSB`, `FAILED`:
+
+```bash
+grep -n -i "error\|erro\|failed\|LNK\|MSB" build.log
+```
+
+To **run the build in series** (one job) so the failing command and its message appear right before `make: *** [all] Error`:
+
+```bash
+make release BUILD_JOBS=1
+```
+
+You can combine both: `make release BUILD_LOG=build.log BUILD_JOBS=1`
+
 ## ⚠️ Common Issues
 
 ### Visual Studio not found
@@ -177,6 +199,10 @@ If it still fails with Visual Studio 2026, it may be a toolchain/ABI compatibili
 
 On MSVC, NanoVDB is built without TBB (`NANOVDB_USE_TBB` disabled) and uses a `std::future` fallback, to avoid incompatibility with the oneapi TBB in the prebuilt libs. No action needed.
 
+### BLI_task `parallel_for_each` (oneAPI TBB concepts)
+
+On MSVC, the oneAPI TBB `parallel_for_each` overload used by `BLI_task.hh` has C++20 concept constraints that Blender's `Map` and similar iterators do not satisfy. The code uses a serial fallback for `threading::parallel_for_each` on MSVC. No action needed.
+
 ## 📝 After Building
 
 ### Test Blender
@@ -198,6 +224,10 @@ make.bat doc_js
 ```bash
 make doc_js
 ```
+
+Or together with a build (so `BUILD_DIR` matches): `make release doc_js`
+
+If you run `make doc_js` alone (without `release` or `debug` in the target), the GNUmakefile will look for `blender.exe` in `build_windows_release`, `build_windows_debug`, `build_windows_lite`, etc., since `BUILD_DIR` can be `build_windows`, `build_windows_release`, `build_windows_debug`, and similar.
 
 Documentation will be in:
 ```

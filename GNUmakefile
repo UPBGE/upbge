@@ -141,6 +141,12 @@ Environment Variables
    * BUILD_DIR:             Override default build path.
    * PYTHON:                Use this for the Python command (used for checking tools).
    * NPROCS:                Number of processes to use building (auto-detect when omitted).
+   * BUILD_LOG:             If set to a file path, the full build output is written there (and still
+                            shown). Useful to search for errors after a failed build. Example:
+                            make release BUILD_LOG=build.log
+   * BUILD_JOBS:            Override number of parallel build jobs. Use 1 for a serial build to see
+                            the failing command and its error immediately. Example:
+                            make release BUILD_JOBS=1
    * AUTOPEP8:              Command used for Python code-formatting (used for the format target).
 
 Documentation Targets
@@ -371,17 +377,32 @@ endif
 
 # Allow passing in own BLENDER_BIN so developers who don't
 # use the default build path can still use utility helpers.
+# Parent of BLENDER_DIR (used to search alternate build dirs on Windows).
+BUILD_TOP := $(shell dirname "$(BLENDER_DIR)")
 ifeq ($(OS), Darwin)
 	BLENDER_BIN?="$(BUILD_DIR)/bin/Blender.app/Contents/MacOS/Blender"
 	BLENDER_BIN_DIR?="$(BUILD_DIR)/bin/Blender.app/Contents/MacOS/Blender"
 else ifneq ($(IS_WINDOWS),)
-	# Windows: default to Release, user can override with BLENDER_BIN
+	# Windows: default from BUILD_DIR (build_windows, build_windows_release, etc.)
 	BLENDER_BIN?="$(BUILD_DIR)/bin/Release/blender.exe"
-	# Try to find actual location if default doesn't exist
 	ifeq ($(wildcard $(BLENDER_BIN)),)
 		BLENDER_BIN:="$(BUILD_DIR)/bin/Debug/blender.exe"
-		ifeq ($(wildcard $(BLENDER_BIN)),)
-			BLENDER_BIN:="$(BUILD_DIR)/bin/blender.exe"
+	endif
+	# If still not found, BUILD_DIR may be the base (e.g. build_windows) while the
+	# binary lives in build_windows_release, build_windows_debug, etc. Search them.
+	ifeq ($(wildcard $(BLENDER_BIN)),)
+		BLENDER_BIN:=$(shell \
+			for d in "$(BUILD_TOP)/build_windows_release" "$(BUILD_TOP)/build_windows_debug" \
+				"$(BUILD_TOP)/build_windows_lite" "$(BUILD_TOP)/build_windows_full" \
+				"$(BUILD_TOP)/build_windows_headless" "$(BUILD_TOP)/build_windows_cycles" \
+				"$(BUILD_TOP)/build_windows_bpy" "$(BUILD_TOP)/build_windows"; do \
+				for f in "$$d/bin/Release/blender.exe" "$$d/bin/Debug/blender.exe"; do \
+					[ -f "$$f" ] && echo "$$f" && exit 0; \
+				done; \
+			done; echo "")
+		BLENDER_BIN:=$(strip $(BLENDER_BIN))
+		ifneq ($(BLENDER_BIN),)
+			BLENDER_BIN:="$(BLENDER_BIN)"
 		endif
 	endif
 	BLENDER_BIN_DIR?="$(BUILD_DIR)/bin"
@@ -453,7 +474,13 @@ all: .FORCE
 
 	@echo
 	@echo Building Blender ...
-	cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(NPROCS)
+	@if [ -n "$(BUILD_LOG)" ]; then \
+		cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS)) > "$(BUILD_LOG)" 2>&1; r=$$?; \
+		cat "$(BUILD_LOG)"; \
+		exit $$r; \
+	else \
+		cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS)); \
+	fi
 	@echo
 	@echo Edit build configuration with: \"$(BUILD_DIR)/CMakeCache.txt\" run make again to rebuild.
 	@if test -z "$(BLENDER_IS_PYTHON_MODULE)"; then \
@@ -692,7 +719,7 @@ doc_js: .FORCE
 	    --background --factory-startup \
 	    --python doc/javascript_api/sphinx_doc_gen_blender.py -- \
 	    --output=doc/javascript_api/rst --force
-	@$(PYTHON) -m sphinx -b html -j $(NPROCS) doc/javascript_api/rst doc/javascript_api/sphinx-out
+	@$(PYTHON) -m sphinx -b html -j $(NPROCS) -c doc/javascript_api doc/javascript_api/rst doc/javascript_api/sphinx-out
 	@echo "docs written into: '$(BLENDER_DIR)/doc/javascript_api/sphinx-out/index.html'"
 
 doc_doxy: .FORCE

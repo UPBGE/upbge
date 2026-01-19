@@ -1,0 +1,423 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JavaScript/TypeScript Quickstart &mdash; UPBGE JavaScript/TypeScript API</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=db78e746"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="_static/copybutton.js?v=6dbb43f8"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Python vs JavaScript/TypeScript Differences" href="info_javascript_python_differences.html" />
+    <link rel="prev" title="JavaScript/TypeScript API Overview" href="info_javascript_overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            UPBGE 0.5x JavaScript/TypeScript API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="info_javascript_overview.html">JavaScript/TypeScript API Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">JavaScript/TypeScript Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#your-first-javascript-controller">Your First JavaScript Controller</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-examples">Basic Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#moving-an-object">Moving an Object</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rotating-an-object">Rotating an Object</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#checking-sensor-state">Checking Sensor State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#using-actuators">Using Actuators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#accessing-scene">Accessing Scene</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#typescript-example">TypeScript Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#game-loop-pattern">Game Loop Pattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#state-machine-pattern">State Machine Pattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#timer-pattern">Timer Pattern</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#common-issues">Common Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-help">Getting Help</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-scripts">Example Scripts</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="info_javascript_python_differences.html">Python vs JavaScript/TypeScript Differences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bge.javascript.html">Game Logic (bge.logic)</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">UPBGE 0.5x JavaScript/TypeScript API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">JavaScript/TypeScript Quickstart</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="javascript-typescript-quickstart">
+<span id="info-javascript-quickstart"></span><h1>JavaScript/TypeScript Quickstart<a class="headerlink" href="#javascript-typescript-quickstart" title="Link to this heading"></a></h1>
+<p>This guide will help you get started with JavaScript/TypeScript scripting in UPBGE.</p>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>UPBGE compiled with <code class="docutils literal notranslate"><span class="pre">WITH_JAVASCRIPT=ON</span></code></p></li>
+<li><p>V8 JavaScript engine installed and configured</p></li>
+<li><p>(Optional) TypeScript compiler (tsc) for TypeScript support</p></li>
+</ul>
+</section>
+<section id="your-first-javascript-controller">
+<h2>Your First JavaScript Controller<a class="headerlink" href="#your-first-javascript-controller" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Open UPBGE and create a new scene</p></li>
+<li><p>Add a cube object</p></li>
+<li><p>Go to the Logic Editor</p></li>
+<li><p>Add a Sensor (e.g., Always Sensor)</p></li>
+<li><p>Add a JavaScript Controller</p></li>
+<li><p>Link the sensor to the controller</p></li>
+<li><p>In the controller, select “Script” mode</p></li>
+<li><p>Enter your JavaScript code:</p></li>
+</ol>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="c1">// Move the object up</span>
+<span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.01</span><span class="p">;</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="9">
+<li><p>Run the game (Press P) and watch the cube move!</p></li>
+</ol>
+</section>
+<section id="basic-examples">
+<h2>Basic Examples<a class="headerlink" href="#basic-examples" title="Link to this heading"></a></h2>
+<section id="moving-an-object">
+<h3>Moving an Object<a class="headerlink" href="#moving-an-object" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="c1">// Get current position</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">;</span>
+
+<span class="c1">// Move forward (Z axis)</span>
+<span class="nx">pos</span><span class="p">[</span><span class="mf">2</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+
+<span class="c1">// Or set directly</span>
+<span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nx">pos</span><span class="p">[</span><span class="mf">0</span><span class="p">],</span><span class="w"> </span><span class="nx">pos</span><span class="p">[</span><span class="mf">1</span><span class="p">],</span><span class="w"> </span><span class="nx">pos</span><span class="p">[</span><span class="mf">2</span><span class="p">]];</span>
+</pre></div>
+</div>
+</section>
+<section id="rotating-an-object">
+<h3>Rotating an Object<a class="headerlink" href="#rotating-an-object" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">rot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">rotation</span><span class="p">;</span>
+<span class="nx">rot</span><span class="p">[</span><span class="mf">2</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.01</span><span class="p">;</span><span class="w">  </span><span class="c1">// Rotate around Z axis</span>
+</pre></div>
+</div>
+</section>
+<section id="checking-sensor-state">
+<h3>Checking Sensor State<a class="headerlink" href="#checking-sensor-state" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+
+<span class="c1">// Get a keyboard sensor</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">keyboard</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">sensors</span><span class="p">[</span><span class="s2">&quot;Keyboard&quot;</span><span class="p">];</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">keyboard</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">keyboard</span><span class="p">.</span><span class="nx">positive</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Sensor is active</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">actuator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">actuators</span><span class="p">[</span><span class="s2">&quot;Move&quot;</span><span class="p">];</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">actuator</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">cont</span><span class="p">.</span><span class="nx">activate</span><span class="p">(</span><span class="nx">actuator</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="using-actuators">
+<h3>Using Actuators<a class="headerlink" href="#using-actuators" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+
+<span class="c1">// Activate an actuator</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">moveActuator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">actuators</span><span class="p">[</span><span class="s2">&quot;MoveForward&quot;</span><span class="p">];</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">moveActuator</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">cont</span><span class="p">.</span><span class="nx">activate</span><span class="p">(</span><span class="nx">moveActuator</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// Deactivate an actuator</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">stopActuator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">actuators</span><span class="p">[</span><span class="s2">&quot;Stop&quot;</span><span class="p">];</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">stopActuator</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">cont</span><span class="p">.</span><span class="nx">deactivate</span><span class="p">(</span><span class="nx">stopActuator</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="accessing-scene">
+<h3>Accessing Scene<a class="headerlink" href="#accessing-scene" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">scene</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentScene</span><span class="p">();</span>
+
+<span class="c1">// Get active camera</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">camera</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">active_camera</span><span class="p">;</span>
+
+<span class="c1">// Get all objects in scene</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">objects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">objects</span><span class="p">;</span>
+
+<span class="c1">// Find object by name</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">player</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">objects</span><span class="p">[</span><span class="s2">&quot;Player&quot;</span><span class="p">];</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="typescript-example">
+<h2>TypeScript Example<a class="headerlink" href="#typescript-example" title="Link to this heading"></a></h2>
+<p>Here’s the same movement example in TypeScript:</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">interface</span><span class="w"> </span><span class="nx">Controller</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">owner</span><span class="o">:</span><span class="w"> </span><span class="kt">GameObject</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">sensors</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">[</span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="nx">Sensor</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="nx">actuators</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">[</span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="nx">Actuator</span><span class="w"> </span><span class="p">};</span>
+<span class="p">}</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">GameObject</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">position</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">];</span>
+<span class="w">    </span><span class="nx">rotation</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="o">:</span><span class="w"> </span><span class="kt">Controller</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="o">:</span><span class="w"> </span><span class="kt">GameObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="c1">// TypeScript provides type checking</span>
+<span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.01</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="common-patterns">
+<h2>Common Patterns<a class="headerlink" href="#common-patterns" title="Link to this heading"></a></h2>
+<section id="game-loop-pattern">
+<h3>Game Loop Pattern<a class="headerlink" href="#game-loop-pattern" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="c1">// This runs every frame when controller is triggered</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">update</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Update game logic here</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.01</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">update</span><span class="p">();</span>
+</pre></div>
+</div>
+</section>
+<section id="state-machine-pattern">
+<h3>State Machine Pattern<a class="headerlink" href="#state-machine-pattern" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="c1">// Simple state machine</span>
+<span class="kd">let</span><span class="w"> </span><span class="nx">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;idle&quot;</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">walkSensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">sensors</span><span class="p">[</span><span class="s2">&quot;Walk&quot;</span><span class="p">];</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">jumpSensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">sensors</span><span class="p">[</span><span class="s2">&quot;Jump&quot;</span><span class="p">];</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">jumpSensor</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">jumpSensor</span><span class="p">.</span><span class="nx">positive</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;jumping&quot;</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">walkSensor</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">walkSensor</span><span class="p">.</span><span class="nx">positive</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;walking&quot;</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;idle&quot;</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// Act based on state</span>
+<span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="s2">&quot;walking&quot;</span><span class="o">:</span>
+<span class="w">        </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">2</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="s2">&quot;jumping&quot;</span><span class="o">:</span>
+<span class="w">        </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.2</span><span class="p">;</span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="timer-pattern">
+<h3>Timer Pattern<a class="headerlink" href="#timer-pattern" title="Link to this heading"></a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="c1">// Use scene time for timers</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">scene</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentScene</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">currentTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">gameTime</span><span class="p">;</span>
+
+<span class="c1">// Simple timer (runs every second)</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nb">Math</span><span class="p">.</span><span class="nx">floor</span><span class="p">(</span><span class="nx">currentTime</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mf">1</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Do something every second</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Tick!&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><strong>Always check for null/undefined</strong>: Game objects might not exist</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentControllerObject</span><span class="p">();</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">obj</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.01</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Cache frequently accessed objects</strong>: Avoid repeated lookups</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span><span class="w">  </span><span class="c1">// Cache this</span>
+
+<span class="c1">// Use cached object</span>
+<span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.01</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Use meaningful variable names</strong>: Makes code more readable</p></li>
+<li><p><strong>Handle errors</strong>: Use try-catch for error handling</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.01</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s2">&quot;Error:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Use TypeScript for larger projects</strong>: Type safety helps catch errors early</p></li>
+</ol>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<section id="common-issues">
+<h3>Common Issues<a class="headerlink" href="#common-issues" title="Link to this heading"></a></h3>
+<p><strong>Script not executing</strong>:
+- Check that the sensor is linked to the controller
+- Verify the sensor is active
+- Check for JavaScript syntax errors in console</p>
+<p><strong>TypeScript not compiling</strong>:
+- Ensure TypeScript compiler (tsc) is installed
+- Check that tsc is in your PATH
+- Verify the controller is set to use TypeScript</p>
+<p><strong>Objects not found</strong>:
+- Check object names match exactly (case-sensitive)
+- Verify objects exist in the current scene
+- Use null checks before accessing properties</p>
+<p><strong>Performance issues</strong>:
+- Avoid creating objects in the game loop
+- Cache frequently accessed values
+- Use inline scripts for simple logic</p>
+</section>
+</section>
+<section id="getting-help">
+<h2>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Check the <a class="reference internal" href="bge.javascript.html#bge-javascript"><span class="std std-ref">Game Logic (bge.logic)</span></a></p></li>
+<li><p>See <a class="reference internal" href="info_javascript_overview.html#info-javascript-overview"><span class="std std-ref">JavaScript Overview</span></a> for detailed information</p></li>
+<li><p>Review <a class="reference internal" href="info_javascript_python_differences.html#info-javascript-python-differences"><span class="std std-ref">Python vs JavaScript Differences</span></a> for migration help</p></li>
+<li><p>Review Python API docs for similar functionality (APIs are similar)</p></li>
+<li><p>Check console for error messages</p></li>
+<li><p>See example scripts in <code class="docutils literal notranslate"><span class="pre">doc/javascript_api/examples/</span></code> directory</p></li>
+</ul>
+</section>
+<section id="example-scripts">
+<h2>Example Scripts<a class="headerlink" href="#example-scripts" title="Link to this heading"></a></h2>
+<p>Example JavaScript and TypeScript scripts are available in the documentation:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_basic_movement.js</span></code> - Simple object movement</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_keyboard_control.js</span></code> - Keyboard input example</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_sensor_actuator.js</span></code> - Sensor and actuator usage</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_scene_access.js</span></code> - Scene object access</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">typescript_basic_movement.ts</span></code> - TypeScript example</p></li>
+</ul>
+<p>These examples demonstrate common patterns and can be used as starting points for your own scripts.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="info_javascript_overview.html" class="btn btn-neutral float-left" title="JavaScript/TypeScript API Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="info_javascript_python_differences.html" class="btn btn-neutral float-right" title="Python vs JavaScript/TypeScript Differences" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright UPBGE Contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+<div class="footer-contribute">
+  <ul>
+    <li>
+      <a href="https://projects.blender.org/blender/blender/issues/new?template=.gitea/issue_template/api_docs.yaml&field:body=%2A%2APage+Information%2A%2A%0D%0AFile%3A+%60info_javascript_quickstart.rst%60%0D%0ABlender+Version%3A+%600.5%60%0D%0A%5BPermanent+Link%5D%28https%3A%2F%2Fdocs.blender.org%2Fapi%2F0.5%2Finfo_javascript_quickstart.html%29%0D%0A%0D%0A%2A%2AShort+description+of+error%2A%2A%0D%0A%5BPlease+fill+out+a+short+description+of+the+error+here%5D%0D%0A" class="fa fa-bug"> Report issue
+        on this page</a>
+    </li>
+  </ul>
+</div>
+
+</body>
+</html>

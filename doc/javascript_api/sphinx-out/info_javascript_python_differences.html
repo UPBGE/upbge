@@ -1,0 +1,449 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python vs JavaScript/TypeScript Differences &mdash; UPBGE JavaScript/TypeScript API</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=db78e746"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="_static/copybutton.js?v=6dbb43f8"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Game Logic (bge.logic)" href="bge.javascript.html" />
+    <link rel="prev" title="JavaScript/TypeScript Quickstart" href="info_javascript_quickstart.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            UPBGE 0.5x JavaScript/TypeScript API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="info_javascript_overview.html">JavaScript/TypeScript API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="info_javascript_quickstart.html">JavaScript/TypeScript Quickstart</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Python vs JavaScript/TypeScript Differences</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-types">Data Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#vectors-and-arrays">Vectors and Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#null-none-handling">Null/None Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#syntax-differences">Syntax Differences</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#property-access">Property Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#method-calls">Method Calls</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#string-formatting">String Formatting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#console-output">Console Output</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#type-system">Type System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#iterating-over-collections">Iterating Over Collections</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dictionary-object-access">Dictionary/Object Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#migration-guide">Migration Guide</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#converting-python-to-javascript">Converting Python to JavaScript</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-conversion">Example Conversion</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-considerations">Performance Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="bge.javascript.html">Game Logic (bge.logic)</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">UPBGE 0.5x JavaScript/TypeScript API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Python vs JavaScript/TypeScript Differences</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="python-vs-javascript-typescript-differences">
+<span id="info-javascript-python-differences"></span><h1>Python vs JavaScript/TypeScript Differences<a class="headerlink" href="#python-vs-javascript-typescript-differences" title="Link to this heading"></a></h1>
+<p>This document outlines the key differences between the Python and JavaScript/TypeScript APIs in UPBGE.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>While the JavaScript/TypeScript API provides the same functionality as the Python API,
+there are some differences in syntax and data types due to the nature of each language.</p>
+</section>
+<section id="data-types">
+<h2>Data Types<a class="headerlink" href="#data-types" title="Link to this heading"></a></h2>
+<section id="vectors-and-arrays">
+<h3>Vectors and Arrays<a class="headerlink" href="#vectors-and-arrays" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">mathutils</span>
+<span class="n">pos</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">((</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">))</span>
+<span class="n">pos</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mf">10.0</span>
+<span class="n">pos</span><span class="o">.</span><span class="n">y</span> <span class="o">+=</span> <span class="mf">5.0</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p">];</span>
+<span class="nx">pos</span><span class="p">[</span><span class="mf">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10.0</span><span class="p">;</span>
+<span class="nx">pos</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">5.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>TypeScript:</strong></p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">pos</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p">];</span>
+<span class="nx">pos</span><span class="p">[</span><span class="mf">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10.0</span><span class="p">;</span>
+<span class="nx">pos</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">5.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>JavaScript uses plain arrays for vectors, while Python uses special Vector objects from mathutils.</p>
+</section>
+<section id="null-none-handling">
+<h3>Null/None Handling<a class="headerlink" href="#null-none-handling" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">obj</span> <span class="o">=</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">getCurrentControllerObject</span><span class="p">()</span>
+<span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">obj</span><span class="o">.</span><span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">0.1</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentControllerObject</span><span class="p">();</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">obj</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">undefined</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// Or using truthy check</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">obj</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>TypeScript:</strong></p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="o">:</span><span class="w"> </span><span class="kt">GameObject</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentControllerObject</span><span class="p">();</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">obj</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="syntax-differences">
+<h2>Syntax Differences<a class="headerlink" href="#syntax-differences" title="Link to this heading"></a></h2>
+<section id="property-access">
+<h3>Property Access<a class="headerlink" href="#property-access" title="Link to this heading"></a></h3>
+<p>Both languages use dot notation, so this is the same:</p>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">obj</span><span class="o">.</span><span class="n">name</span>
+<span class="n">obj</span><span class="o">.</span><span class="n">position</span>
+<span class="n">cont</span><span class="o">.</span><span class="n">sensors</span><span class="p">[</span><span class="s2">&quot;MySensor&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">obj</span><span class="p">.</span><span class="nx">name</span>
+<span class="nx">obj</span><span class="p">.</span><span class="nx">position</span>
+<span class="nx">cont</span><span class="p">.</span><span class="nx">sensors</span><span class="p">[</span><span class="s2">&quot;MySensor&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
+<section id="method-calls">
+<h3>Method Calls<a class="headerlink" href="#method-calls" title="Link to this heading"></a></h3>
+<p>Method calls are similar, but JavaScript uses different syntax for some operations:</p>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cont</span><span class="o">.</span><span class="n">activate</span><span class="p">(</span><span class="n">actuator</span><span class="p">)</span>
+<span class="n">obj</span><span class="o">.</span><span class="n">applyMovement</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">cont</span><span class="p">.</span><span class="nx">activate</span><span class="p">(</span><span class="nx">actuator</span><span class="p">);</span>
+<span class="nx">obj</span><span class="p">.</span><span class="nx">applyMovement</span><span class="p">([</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="p">],</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span><span class="w">  </span><span class="c1">// Note: true not True</span>
+</pre></div>
+</div>
+</section>
+<section id="string-formatting">
+<h3>String Formatting<a class="headerlink" href="#string-formatting" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Player&quot;</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Player&quot;</span><span class="p">;</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Hello </span><span class="si">${</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span><span class="w">  </span><span class="c1">// Template literals</span>
+</pre></div>
+</div>
+<p><strong>TypeScript:</strong></p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Player&quot;</span><span class="p">;</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Hello </span><span class="si">${</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="console-output">
+<h3>Console Output<a class="headerlink" href="#console-output" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello World&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error:&quot;</span><span class="p">,</span> <span class="n">error</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Hello World&quot;</span><span class="p">);</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s2">&quot;Error:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">warn</span><span class="p">(</span><span class="s2">&quot;Warning message&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="type-system">
+<h2>Type System<a class="headerlink" href="#type-system" title="Link to this heading"></a></h2>
+<p>Python is dynamically typed, while TypeScript provides optional static typing:</p>
+<p><strong>Python (dynamic typing):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">obj</span> <span class="o">=</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">getCurrentControllerObject</span><span class="p">()</span>
+<span class="n">obj</span><span class="o">.</span><span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">0.1</span>  <span class="c1"># No type checking</span>
+</pre></div>
+</div>
+<p><strong>TypeScript (static typing):</strong></p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">interface</span><span class="w"> </span><span class="nx">GameObject</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">position</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="o">:</span><span class="w"> </span><span class="kt">GameObject</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentControllerObject</span><span class="p">();</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">obj</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span><span class="w">  </span><span class="c1">// Type checked</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="common-patterns">
+<h2>Common Patterns<a class="headerlink" href="#common-patterns" title="Link to this heading"></a></h2>
+<section id="iterating-over-collections">
+<h3>Iterating Over Collections<a class="headerlink" href="#iterating-over-collections" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="n">cont</span><span class="o">.</span><span class="n">sensors</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">sensor</span><span class="o">.</span><span class="n">positive</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">sensor</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">sensor</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">sensors</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">sensor</span><span class="p">.</span><span class="nx">positive</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">sensor</span><span class="p">.</span><span class="nx">name</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// Or using forEach</span>
+<span class="nb">Object</span><span class="p">.</span><span class="nx">values</span><span class="p">(</span><span class="nx">cont</span><span class="p">.</span><span class="nx">sensors</span><span class="p">).</span><span class="nx">forEach</span><span class="p">(</span><span class="nx">sensor</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">sensor</span><span class="p">.</span><span class="nx">positive</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">sensor</span><span class="p">.</span><span class="nx">name</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="dictionary-object-access">
+<h3>Dictionary/Object Access<a class="headerlink" href="#dictionary-object-access" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sensor</span> <span class="o">=</span> <span class="n">cont</span><span class="o">.</span><span class="n">sensors</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MySensor&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">sensor</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">sensor</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">sensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">sensors</span><span class="p">[</span><span class="s2">&quot;MySensor&quot;</span><span class="p">];</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">sensor</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">sensor</span><span class="p">.</span><span class="nx">name</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="error-handling">
+<h3>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
+    <span class="n">obj</span><span class="o">.</span><span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">0.1</span>
+<span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s2">&quot;Error:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>TypeScript:</strong></p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="o">:</span><span class="w"> </span><span class="kt">unknown</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="ne">Error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s2">&quot;Error:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="migration-guide">
+<h2>Migration Guide<a class="headerlink" href="#migration-guide" title="Link to this heading"></a></h2>
+<section id="converting-python-to-javascript">
+<h3>Converting Python to JavaScript<a class="headerlink" href="#converting-python-to-javascript" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Replace Python syntax with JavaScript:</strong>
+- <code class="docutils literal notranslate"><span class="pre">print()</span></code> → <code class="docutils literal notranslate"><span class="pre">console.log()</span></code>
+- <code class="docutils literal notranslate"><span class="pre">True/False</span></code> → <code class="docutils literal notranslate"><span class="pre">true/false</span></code>
+- <code class="docutils literal notranslate"><span class="pre">None</span></code> → <code class="docutils literal notranslate"><span class="pre">null</span></code> or <code class="docutils literal notranslate"><span class="pre">undefined</span></code>
+- <code class="docutils literal notranslate"><span class="pre">is</span> <span class="pre">not</span> <span class="pre">None</span></code> → <code class="docutils literal notranslate"><span class="pre">!==</span> <span class="pre">null</span></code> or truthy check</p></li>
+<li><p><strong>Convert Vector objects to arrays:</strong>
+- <code class="docutils literal notranslate"><span class="pre">mathutils.Vector((x,</span> <span class="pre">y,</span> <span class="pre">z))</span></code> → <code class="docutils literal notranslate"><span class="pre">[x,</span> <span class="pre">y,</span> <span class="pre">z]</span></code>
+- <code class="docutils literal notranslate"><span class="pre">vec.x</span></code> → <code class="docutils literal notranslate"><span class="pre">vec[0]</span></code>
+- <code class="docutils literal notranslate"><span class="pre">vec.y</span></code> → <code class="docutils literal notranslate"><span class="pre">vec[1]</span></code>
+- <code class="docutils literal notranslate"><span class="pre">vec.z</span></code> → <code class="docutils literal notranslate"><span class="pre">vec[2]</span></code></p></li>
+<li><p><strong>Update string formatting:</strong>
+- <code class="docutils literal notranslate"><span class="pre">f&quot;Hello</span> <span class="pre">{name}&quot;</span></code> → <code class="docutils literal notranslate"><span class="pre">`Hello</span> <span class="pre">${name}</span></code>
+- <code class="docutils literal notranslate"><span class="pre">&quot;Hello</span> <span class="pre">%s&quot;</span> <span class="pre">%</span> <span class="pre">name</span></code> → <code class="docutils literal notranslate"><span class="pre">`Hello</span> <span class="pre">${name}</span></code></p></li>
+<li><p><strong>Update loops:</strong>
+- <code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">item</span> <span class="pre">in</span> <span class="pre">list:</span></code> → <code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">(const</span> <span class="pre">item</span> <span class="pre">of</span> <span class="pre">list)</span></code>
+- <code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">key</span> <span class="pre">in</span> <span class="pre">dict:</span></code> → <code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">(const</span> <span class="pre">key</span> <span class="pre">in</span> <span class="pre">dict)</span></code></p></li>
+<li><p><strong>Add semicolons and proper variable declarations:</strong>
+- <code class="docutils literal notranslate"><span class="pre">obj</span> <span class="pre">=</span> <span class="pre">...</span></code> → <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">obj</span> <span class="pre">=</span> <span class="pre">...</span></code> or <code class="docutils literal notranslate"><span class="pre">let</span> <span class="pre">obj</span> <span class="pre">=</span> <span class="pre">...</span></code></p></li>
+</ol>
+</section>
+<section id="example-conversion">
+<h3>Example Conversion<a class="headerlink" href="#example-conversion" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">bge</span>
+
+<span class="n">cont</span> <span class="o">=</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">getCurrentController</span><span class="p">()</span>
+<span class="n">obj</span> <span class="o">=</span> <span class="n">cont</span><span class="o">.</span><span class="n">owner</span>
+
+<span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">position</span>
+    <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">0.1</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Object </span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> moved to </span><span class="si">{</span><span class="n">pos</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>JavaScript:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">obj</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">pos</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Object </span><span class="si">${</span><span class="nx">obj</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb"> moved to [</span><span class="si">${</span><span class="nx">pos</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span><span class="si">}</span><span class="sb">]`</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>TypeScript:</strong></p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">interface</span><span class="w"> </span><span class="nx">GameObject</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">position</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="kt">number</span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Controller</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">owner</span><span class="o">:</span><span class="w"> </span><span class="kt">GameObject</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">cont</span><span class="o">:</span><span class="w"> </span><span class="kt">Controller</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">obj</span><span class="o">:</span><span class="w"> </span><span class="kt">GameObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">cont</span><span class="p">.</span><span class="nx">owner</span><span class="p">;</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">obj</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">position</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">pos</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Object </span><span class="si">${</span><span class="nx">obj</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb"> moved to [</span><span class="si">${</span><span class="nx">pos</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span><span class="si">}</span><span class="sb">]`</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="performance-considerations">
+<h2>Performance Considerations<a class="headerlink" href="#performance-considerations" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>JavaScript/V8</strong>: Highly optimized, excellent performance for game logic</p></li>
+<li><p><strong>TypeScript</strong>: Compilation overhead at startup, but runtime performance is identical to JavaScript</p></li>
+<li><p><strong>Python</strong>: Good performance, but JavaScript/V8 may be faster for some operations</p></li>
+</ul>
+<p>Choose the language that best fits your project:</p>
+<ul class="simple">
+<li><p>Use <strong>Python</strong> if you’re already familiar with it or need Python-specific libraries</p></li>
+<li><p>Use <strong>JavaScript</strong> if you prefer JavaScript syntax or want maximum performance</p></li>
+<li><p>Use <strong>TypeScript</strong> if you want type safety and better IDE support</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="info_javascript_quickstart.html" class="btn btn-neutral float-left" title="JavaScript/TypeScript Quickstart" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="bge.javascript.html" class="btn btn-neutral float-right" title="Game Logic (bge.logic)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright UPBGE Contributors.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+<div class="footer-contribute">
+  <ul>
+    <li>
+      <a href="https://projects.blender.org/blender/blender/issues/new?template=.gitea/issue_template/api_docs.yaml&field:body=%2A%2APage+Information%2A%2A%0D%0AFile%3A+%60info_javascript_python_differences.rst%60%0D%0ABlender+Version%3A+%600.5%60%0D%0A%5BPermanent+Link%5D%28https%3A%2F%2Fdocs.blender.org%2Fapi%2F0.5%2Finfo_javascript_python_differences.html%29%0D%0A%0D%0A%2A%2AShort+description+of+error%2A%2A%0D%0A%5BPlease+fill+out+a+short+description+of+the+error+here%5D%0D%0A" class="fa fa-bug"> Report issue
+        on this page</a>
+    </li>
+  </ul>
+</div>
+
+</body>
+</html>

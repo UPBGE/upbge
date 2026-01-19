@@ -64,8 +64,9 @@ def convert_python_to_javascript_code(code):
     result = re.sub(r'\bis not None\b', '!== null', result)
     result = re.sub(r'\bis None\b', '=== null', result)
     
-    # Convert comments
+    # Convert comments: line-start # and end-of-line # to //
     result = re.sub(r'^(\s*)#\s*', r'\1// ', result, flags=re.MULTILINE)
+    result = re.sub(r'\s+#\s+', r' // ', result)
     
     # Convert variable assignments (add const)
     lines = result.split('\n')
@@ -106,7 +107,11 @@ def convert_python_to_javascript_code(code):
     # Add semicolons (simple heuristic)
     result = re.sub(r'([^;{}\n])\n(?![\s]*[{}:;])', r'\1;\n', result)
     result = re.sub(r';\s*;', ';', result)
-    
+
+    # Fix common Python variable names in converted code
+    result = re.sub(r'\bco\.', 'cont.', result)
+    result = re.sub(r'\bcontroller\.', 'cont.', result)
+
     return result
 
 
@@ -132,10 +137,10 @@ def convert_rst_content(content):
         # Replace code-block directive
         return full_match.replace('.. code-block:: python', '.. code-block:: javascript').replace(code, js_code)
     
-    # Match code blocks
-    pattern = r'(\.\. code-block::\s+)python(\s*\n)(.*?)(?=\n\.\. |\n\n|$)'
-    result = re.sub(pattern, 
-                    lambda m: m.group(1) + 'javascript' + m.group(2) + convert_python_to_javascript_code(m.group(3)), 
+    # Match code blocks (capture until next directive at line start or end; allow \n\n inside block)
+    pattern = r'(\.\. code-block::\s+)python(\s*\n)(.*?)(?=\n\.\. \w|$)'
+    result = re.sub(pattern,
+                    lambda m: m.group(1) + 'javascript' + m.group(2) + convert_python_to_javascript_code(m.group(3)),
                     result, flags=re.DOTALL)
     
     # Update type references
@@ -176,10 +181,14 @@ def generate_bge_logic_rst(output_dir):
     
     # Convert content
     js_content = convert_rst_content(content)
-    
+
+    # Prepend reST label for :ref:`bge.javascript`
+    if '.. _bge.javascript:' not in js_content:
+        js_content = '.. _bge.javascript:\n\n' + js_content
+
     # Ensure directory exists
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Write converted file
     with open(js_api_rst, 'w', encoding='utf-8') as f:
         f.write(js_content)
@@ -262,7 +271,7 @@ def main():
         print("\nNext steps:")
         print("  1. Review the generated files")
         print("  2. Build the documentation:")
-        print("     sphinx-build -b html doc/javascript_api/rst doc/javascript_api/sphinx-out")
+        print("     sphinx-build -b html -c doc/javascript_api doc/javascript_api/rst doc/javascript_api/sphinx-out")
         print("  3. Open doc/javascript_api/sphinx-out/index.html in your browser")
         return 0
     else:
