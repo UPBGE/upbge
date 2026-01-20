@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -43,19 +44,12 @@ class SCA_IObject;
 class KX_Scene;
 
 #ifdef WITH_JAVASCRIPT
-namespace v8 {
-class Context;
-class Script;
-template <class T>
-class Local;
-}  // namespace v8
+struct SCA_JavaScriptControllerV8;
 #endif
 
 class SCA_JavaScriptController : public SCA_IController {
 #ifdef WITH_JAVASCRIPT
-  v8::Local<v8::Script> m_compiled_script;  /* SCA_JSEXEC_SCRIPT only */
-  v8::Local<v8::Context> m_context;
-  std::string m_module_function_name;        /* SCA_JSEXEC_MODULE only */
+  std::unique_ptr<SCA_JavaScriptControllerV8> m_v8;
 #endif
   int m_function_argc;
   bool m_bModified;
@@ -74,6 +68,7 @@ class SCA_JavaScriptController : public SCA_IController {
   static SCA_JavaScriptController *m_sCurrentController;  // protected !!!
 
   SCA_JavaScriptController(SCA_IObject *gameobj, int mode);
+  SCA_JavaScriptController(const SCA_JavaScriptController &other);
   virtual ~SCA_JavaScriptController();
 
   virtual EXP_Value *GetReplica();
@@ -89,6 +84,10 @@ class SCA_JavaScriptController : public SCA_IController {
   {
     m_use_typescript = use_ts;
   }
+  int GetMode() const
+  {
+    return m_mode;
+  }
   void AddTriggeredSensor(class SCA_ISensor *sensor)
   {
     m_triggeredSensors.push_back(sensor);
@@ -97,7 +96,7 @@ class SCA_JavaScriptController : public SCA_IController {
   bool Compile();
   bool Import();
 
-  KX_Scene *GetScene() const;
+  KX_Scene *GetScene();
 };
 
 // Global reference for bindings

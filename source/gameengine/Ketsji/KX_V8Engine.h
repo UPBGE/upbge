@@ -39,19 +39,15 @@
 
 namespace v8 {
 class Isolate;
-class Context;
-class String;
 class Platform;
-namespace platform {
-class Platform;
-}
-namespace ArrayBuffer {
-class Allocator;
-}
-template <class T>
-class Local;
 class TryCatch;
+class Context;
+class Value;
+template <typename T>
+class Local;
 }  // namespace v8
+
+struct KX_V8EngineImpl;
 
 class KX_V8Engine {
  public:
@@ -98,17 +94,13 @@ class KX_V8Engine {
   static bool s_initialized;
 
   v8::Isolate *m_isolate;
-  v8::Local<v8::Context> m_default_context;
+  v8::Platform *m_platform;
+  void *m_array_buffer_allocator;  /* v8::ArrayBuffer::Allocator * */
 
-  // Platform and array buffer allocator (managed by V8)
-  v8::platform::Platform *m_platform;
-  v8::ArrayBuffer::Allocator *m_array_buffer_allocator;
+  std::unique_ptr<KX_V8EngineImpl> m_impl;
 
   // Initialize platform
   bool InitializePlatform();
-
-  // Shutdown platform
-  void ShutdownPlatform();
 };
 
 #endif  // WITH_JAVASCRIPT

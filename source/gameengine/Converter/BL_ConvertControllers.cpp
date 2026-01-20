@@ -243,7 +243,7 @@ void BL_ConvertControllers(blender::Object *blenderobject,
       // Compile JavaScript controllers early to catch syntax errors
       if (!libloading && bcontr->type == CONT_JAVASCRIPT) {
         SCA_JavaScriptController *jsctrl = static_cast<SCA_JavaScriptController *>(gamecontroller);
-        if (jsctrl->m_mode == SCA_JavaScriptController::SCA_JSEXEC_SCRIPT)
+        if (jsctrl->GetMode() == SCA_JavaScriptController::SCA_JSEXEC_SCRIPT)
           jsctrl->Compile();
       }
 #endif  // WITH_JAVASCRIPT

@@ -31,13 +31,14 @@
 
 #ifdef WITH_JAVASCRIPT
 
-#include "KX_V8Init.h"
-#include "KX_V8Engine.h"
-#include "KX_V8Bindings.h"
-#include "KX_KetsjiEngine.h"
-#include "CM_Message.h"
+#  include "v8_include.h"
 
-#include "BKE_main.h"
+#  include "KX_V8Init.h"
+#  include "KX_V8Engine.h"
+#  include "KX_V8Bindings.h"
+#  include "KX_KetsjiEngine.h"
+#  include "CM_Message.h"
+#  include "BKE_main.hh"
 
 using namespace blender;
 

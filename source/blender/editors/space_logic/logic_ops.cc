@@ -36,6 +36,7 @@
 #include "DNA_python_proxy_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sensor_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -386,6 +387,31 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
 
 /* ************* Add/Remove Controller Operator ************* */
 
+/* Controller type enum without JavaScript (when experimental pref or WITH_JAVASCRIPT is off). */
+static const EnumPropertyItem rna_enum_controller_type_items_no_js[] = {
+    {CONT_LOGIC_AND, "LOGIC_AND", 0, "And", "Logic And"},
+    {CONT_LOGIC_OR, "LOGIC_OR", 0, "Or", "Logic Or"},
+    {CONT_LOGIC_NAND, "LOGIC_NAND", 0, "Nand", "Logic Nand"},
+    {CONT_LOGIC_NOR, "LOGIC_NOR", 0, "Nor", "Logic Nor"},
+    {CONT_LOGIC_XOR, "LOGIC_XOR", 0, "Xor", "Logic Xor"},
+    {CONT_LOGIC_XNOR, "LOGIC_XNOR", 0, "Xnor", "Logic Xnor"},
+    {CONT_EXPRESSION, "EXPRESSION", 0, "Expression", ""},
+    {CONT_PYTHON, "PYTHON", 0, "Python", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem *rna_controller_add_type_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  *r_free = false;
+#if defined(WITH_JAVASCRIPT)
+  if (U.experimental.use_javascript_typescript) {
+    return rna_enum_controller_type_items;
+  }
+#endif
+  return rna_enum_controller_type_items_no_js;
+}
+
 static wmOperatorStatus controller_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = nullptr;
@@ -505,12 +531,11 @@ static void LOGIC_OT_controller_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna,
-                          "type",
-                          rna_enum_controller_type_items,
-                          CONT_LOGIC_AND,
-                          "Type",
-                          "Type of controller to add");
+  prop = RNA_def_property(ot->srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_enum_funcs(prop, rna_controller_add_type_itemf);
+  RNA_def_property_enum_default(prop, CONT_LOGIC_AND);
+  RNA_def_property_ui_text(prop, "Type", "Type of controller to add");
+  ot->prop = prop;
   prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of the Controller to add");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(

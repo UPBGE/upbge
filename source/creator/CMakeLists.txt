@@ -1592,6 +1592,15 @@ elseif(WIN32)
     ALL
   )
 
+  # V8 (JavaScript/TypeScript): copy all .dll from lib/v8/lib to blender.shared
+  if(WITH_JAVASCRIPT AND DEFINED LIBDIR AND EXISTS "${LIBDIR}/v8/lib")
+    file(GLOB _v8_dlls "${LIBDIR}/v8/lib/*.dll")
+    if(_v8_dlls)
+      windows_install_shared_manifest(FILES ${_v8_dlls} ALL)
+    endif()
+    unset(_v8_dlls)
+  endif()
+
   if(WITH_SYSTEM_AUDASPACE)
     install(
       FILES

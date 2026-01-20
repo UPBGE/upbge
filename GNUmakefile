@@ -142,7 +142,7 @@ Environment Variables
    * PYTHON:                Use this for the Python command (used for checking tools).
    * NPROCS:                Number of processes to use building (auto-detect when omitted).
    * BUILD_LOG:             If set to a file path, the full build output is written there (and still
-                            shown). Useful to search for errors after a failed build. Example:
+                            shown). The build duration is appended at the end. Example:
                             make release BUILD_LOG=build.log
    * BUILD_JOBS:            Override number of parallel build jobs. Use 1 for a serial build to see
                             the failing command and its error immediately. Example:
@@ -225,6 +225,7 @@ endif
 BLENDER_DIR:=$(shell pwd -P)
 BUILD_TYPE:=Release
 BLENDER_IS_PYTHON_MODULE:=
+BUILD_LOG:=build.log
 
 # CMake arguments, assigned to local variable to make it mutable.
 CMAKE_CONFIG_ARGS := $(BUILD_CMAKE_ARGS)
@@ -474,13 +475,15 @@ all: .FORCE
 
 	@echo
 	@echo Building Blender ...
-	@if [ -n "$(BUILD_LOG)" ]; then \
-		cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS)) > "$(BUILD_LOG)" 2>&1; r=$$?; \
-		cat "$(BUILD_LOG)"; \
-		exit $$r; \
-	else \
-		cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS)); \
-	fi
+	rm -rf "$(BUILD_LOG)"
+	start=$$($(PYTHON) -c "import time; print(int(time.time()))"); \
+	cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS)) > "$(BUILD_LOG)" 2>&1; r=$$?; \
+	end=$$($(PYTHON) -c "import time; print(int(time.time()))"); \
+	elaps=$$((end - start)); mins=$$((elaps / 60)); secs=$$((elaps % 60)); \
+	if [ $$mins -gt 0 ]; then dur="$${mins}m $${secs}s"; else dur="$${secs}s"; fi; \
+	echo "" >> "$(BUILD_LOG)"; echo "Build duration: $$dur" >> "$(BUILD_LOG)"; \
+	cat "$(BUILD_LOG)"; \
+	exit $$r; \
 	@echo
 	@echo Edit build configuration with: \"$(BUILD_DIR)/CMakeCache.txt\" run make again to rebuild.
 	@if test -z "$(BLENDER_IS_PYTHON_MODULE)"; then \

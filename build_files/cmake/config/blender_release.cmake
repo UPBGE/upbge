@@ -61,6 +61,8 @@ set(WITH_TBB                 ON  CACHE BOOL "" FORCE)
 set(WITH_USD                 ON  CACHE BOOL "" FORCE)
 set(WITH_MATERIALX           ON  CACHE BOOL "" FORCE)
 set(WITH_HYDRA               ON  CACHE BOOL "" FORCE)
+set(WITH_JAVASCRIPT          ON  CACHE BOOL "" FORCE)
+set(WITH_TYPESCRIPT          ON  CACHE BOOL "" FORCE)
 
 # platform dependent options
 if(APPLE)

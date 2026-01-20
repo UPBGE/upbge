@@ -36,15 +36,7 @@
 
 #include <string>
 
-namespace v8 {
-class Isolate;
-class Context;
-class ObjectTemplate;
-template <class T>
-class Local;
-class FunctionCallbackInfo;
-class PropertyCallbackInfo;
-}  // namespace v8
+#  include <v8.h>
 
 class KX_GameObject;
 class KX_Scene;
@@ -90,14 +82,14 @@ class KX_V8Bindings {
   static void GetCurrentScene(const v8::FunctionCallbackInfo<v8::Value> &args);
   static void GetCurrentControllerObject(const v8::FunctionCallbackInfo<v8::Value> &args);
 
-  // GameObject property getters
-  static void GameObjectGetName(v8::Local<v8::String> property,
-                                 const v8::PropertyCallbackInfo<v8::Value> &info);
-  static void GameObjectGetPosition(v8::Local<v8::String> property,
+  // GameObject property getters (AccessorNameGetterCallback: Local<Name>, PropertyCallbackInfo<Value>)
+  static void GameObjectGetName(v8::Local<v8::Name> property,
+                                const v8::PropertyCallbackInfo<v8::Value> &info);
+  static void GameObjectGetPosition(v8::Local<v8::Name> property,
                                     const v8::PropertyCallbackInfo<v8::Value> &info);
-  static void GameObjectGetRotation(v8::Local<v8::String> property,
+  static void GameObjectGetRotation(v8::Local<v8::Name> property,
                                     const v8::PropertyCallbackInfo<v8::Value> &info);
-  static void GameObjectGetScale(v8::Local<v8::String> property,
+  static void GameObjectGetScale(v8::Local<v8::Name> property,
                                  const v8::PropertyCallbackInfo<v8::Value> &info);
 };
 

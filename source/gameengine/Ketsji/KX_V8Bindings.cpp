@@ -31,24 +31,22 @@
 
 #ifdef WITH_JAVASCRIPT
 
-#include "KX_V8Bindings.h"
+#  include "v8_include.h"
 
-#include "KX_GameObject.h"
-#include "KX_Scene.h"
-#include "SCA_IController.h"
-#include "SCA_ISensor.h"
-#include "SCA_IActuator.h"
-#include "SCA_JavaScriptController.h"
-#include "MT_Vector3.h"
-#include "MT_Matrix3x3.h"
-
-#include <v8.h>
+#  include "KX_V8Bindings.h"
+#  include "KX_GameObject.h"
+#  include "KX_Scene.h"
+#  include "SCA_IController.h"
+#  include "SCA_ISensor.h"
+#  include "SCA_IActuator.h"
+#  include "SCA_JavaScriptController.h"
+#  include "MT_Vector3.h"
+#  include "MT_Matrix3x3.h"
 
 using namespace v8;
 
 void KX_V8Bindings::InitializeBindings(Local<Context> context)
 {
-  Isolate *isolate = context->GetIsolate();
   Context::Scope context_scope(context);
 
   SetupBGENamespace(context);
@@ -150,11 +148,11 @@ Local<Object> KX_V8Bindings::CreateGameObjectWrapper(Isolate *isolate, KX_GameOb
   Local<ObjectTemplate> obj_template = ObjectTemplate::New(isolate);
   obj_template->SetInternalFieldCount(1);  // Store pointer to C++ object
 
-  // Add property accessors
-  obj_template->SetAccessor(String::NewFromUtf8Literal(isolate, "name"), GameObjectGetName);
-  obj_template->SetAccessor(String::NewFromUtf8Literal(isolate, "position"), GameObjectGetPosition);
-  obj_template->SetAccessor(String::NewFromUtf8Literal(isolate, "rotation"), GameObjectGetRotation);
-  obj_template->SetAccessor(String::NewFromUtf8Literal(isolate, "scale"), GameObjectGetScale);
+  // Add property accessors (SetNativeDataProperty: getter-only)
+  obj_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "name"), GameObjectGetName);
+  obj_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "position"), GameObjectGetPosition);
+  obj_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "rotation"), GameObjectGetRotation);
+  obj_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "scale"), GameObjectGetScale);
 
   Local<Object> wrapper = obj_template->NewInstance(context).ToLocalChecked();
   wrapper->SetInternalField(0, External::New(isolate, obj));
@@ -245,7 +243,7 @@ SCA_IController *KX_V8Bindings::GetControllerFromWrapper(Local<Object> wrapper)
   return nullptr;
 }
 
-void KX_V8Bindings::GameObjectGetName(Local<String> property,
+void KX_V8Bindings::GameObjectGetName(Local<Name> property,
                                       const PropertyCallbackInfo<Value> &info)
 {
   Isolate *isolate = info.GetIsolate();
@@ -261,7 +259,7 @@ void KX_V8Bindings::GameObjectGetName(Local<String> property,
   }
 }
 
-void KX_V8Bindings::GameObjectGetPosition(Local<String> property,
+void KX_V8Bindings::GameObjectGetPosition(Local<Name> property,
                                           const PropertyCallbackInfo<Value> &info)
 {
   Isolate *isolate = info.GetIsolate();
@@ -282,7 +280,7 @@ void KX_V8Bindings::GameObjectGetPosition(Local<String> property,
   }
 }
 
-void KX_V8Bindings::GameObjectGetRotation(Local<String> property,
+void KX_V8Bindings::GameObjectGetRotation(Local<Name> property,
                                           const PropertyCallbackInfo<Value> &info)
 {
   Isolate *isolate = info.GetIsolate();
@@ -292,8 +290,9 @@ void KX_V8Bindings::GameObjectGetRotation(Local<String> property,
   
   if (obj) {
     MT_Matrix3x3 rot = obj->NodeGetWorldOrientation();
-    // Return as Euler angles (simplified - could be improved)
-    MT_Vector3 euler = rot.to_euler();
+    MT_Scalar yaw, pitch, roll;
+    rot.getEuler(yaw, pitch, roll);
+    MT_Vector3 euler(pitch, yaw, roll);
     Local<Array> rot_array = Array::New(isolate, 3);
     rot_array->Set(context, 0, Number::New(isolate, euler[0])).Check();
     rot_array->Set(context, 1, Number::New(isolate, euler[1])).Check();
@@ -305,7 +304,7 @@ void KX_V8Bindings::GameObjectGetRotation(Local<String> property,
   }
 }
 
-void KX_V8Bindings::GameObjectGetScale(Local<String> property,
+void KX_V8Bindings::GameObjectGetScale(Local<Name> property,
                                        const PropertyCallbackInfo<Value> &info)
 {
   Isolate *isolate = info.GetIsolate();

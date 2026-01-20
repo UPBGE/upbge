@@ -1441,3 +1441,12 @@ set(HIPRT_FILE hiprt-${HIPRT_VERSION}.tar.gz)
 set(HIPRT_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT)
 set(HIPRT_LICENSE SPDX:MIT)
 set(HIPRT_COPYRIGHT "Copyright (C) 2024 Advanced Micro Devices, Inc. All Rights Reserved. ")
+
+# V8 JavaScript engine (pre-built; zip with top-level v8/include and v8/lib).
+# Replace V8_HASH with the MD5 of your zip when adding v8-${V8_VERSION}-windows_x64.zip to PACKAGE_DIR.
+set(V8_VERSION 11.0.0)
+set(V8_FILE v8-${V8_VERSION}-windows_x64.zip)
+set(V8_HASH "00000000000000000000000000000000")
+set(V8_HASH_TYPE MD5)
+set(V8_HOMEPAGE https://v8.dev)
+set(V8_LICENSE SPDX:BSD-3-Clause)

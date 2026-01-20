@@ -2678,6 +2678,9 @@ endif()
 
 # V8 JavaScript Engine configuration
 if(WITH_JAVASCRIPT)
+  if(DEFINED LIBDIR AND EXISTS "${LIBDIR}/v8")
+    set(V8_ROOT "${LIBDIR}/v8" CACHE PATH "V8 from precompiled libs")
+  endif()
   find_package(V8)
   if(NOT V8_FOUND)
     message(

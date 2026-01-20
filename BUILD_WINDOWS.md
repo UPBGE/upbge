@@ -156,6 +156,30 @@ make release BUILD_JOBS=1
 
 You can combine both: `make release BUILD_LOG=build.log BUILD_JOBS=1`
 
+### JavaScript/TypeScript (V8)
+
+Release builds enable `WITH_JAVASCRIPT` and `WITH_TYPESCRIPT`. You need V8 in `lib/windows_x64/v8` (or `LIBDIR/v8` if you use a custom lib path).
+
+**Option 1 – vcpkg (recommended for MSVC)**
+
+- V8 is built with your MSVC, which avoids header/ABI issues (e.g. v8-unwinder.h). Prerequisites: [vcpkg](https://vcpkg.io) (`git clone` + `bootstrap-vcpkg.bat`), and `VCPKG_ROOT` set or `vcpkg` in PATH.
+- From the project root: `python build_files/setup_v8_vcpkg.py`
+- Runs `vcpkg install v8:x64-windows` and copies the result to `lib/windows_x64/v8`. The first run can take a long time (V8 is large). DLLs in `v8/lib` are copied to `blender.shared` when you run `make release`, `make debug`, `make lite`, or the install target.
+**Option 2 – Script (NuGet)**
+
+- From the project root: `python build_files/download_v8_nuget.py`
+- Downloads the v8-v143-x64 and v8.redist-v143-x64 NuGet packages and unpacks them into `lib/windows_x64/v8`. Uses VS 2022 (v143) by default; use `--toolset v142` for VS 2019. If you see header errors (e.g. v8-unwinder.h), try `--version-11` to use V8 11.x. The DLLs in `v8/lib` are copied automatically to `blender.shared` when you run `make release`, `make debug`, `make lite`, or the install target of any Windows build.
+
+**Option 3 – Via build_environment**
+
+- Create a zip with a top-level `v8` folder containing `include/` and `lib/` (see `lib/windows_x64/v8/README.txt`). Name it e.g. `v8-11.0.0-windows_x64.zip`, place it in `PACKAGE_DIR`, set `V8_HASH` in `build_files/build_environment/cmake/versions.cmake` to the zip MD5, run the deps build (e.g. `build_deps.cmd`), then copy `HARVEST_TARGET/v8` to `lib/windows_x64/v8`.
+
+**Option 4 – Manual**
+
+- Put `include/` and `lib/` directly into `lib/windows_x64/v8` as described in `lib/windows_x64/v8/README.txt`.
+
+If V8 is not found, CMake disables `WITH_JAVASCRIPT` and the build continues without JavaScript/TypeScript. The controller option is gated by **Preferences → Experimental → JavaScript/TypeScript** (off by default).
+
 ## ⚠️ Common Issues
 
 ### Visual Studio not found

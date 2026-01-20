@@ -31,19 +31,26 @@
 
 #ifdef WITH_JAVASCRIPT
 
-#include "KX_V8Engine.h"
+#  include "v8_include.h"
+#  include <libplatform/libplatform.h>
 
-#include "CM_Message.h"
-
-#include <v8.h>
-#include <libplatform/libplatform.h>
+#  include "KX_V8Engine.h"
+#  include "CM_Message.h"
 
 using namespace v8;
+
+struct KX_V8EngineImpl {
+  v8::Local<v8::Context> default_context;
+};
 
 KX_V8Engine *KX_V8Engine::s_instance = nullptr;
 bool KX_V8Engine::s_initialized = false;
 
-KX_V8Engine::KX_V8Engine() : m_isolate(nullptr), m_platform(nullptr), m_array_buffer_allocator(nullptr)
+KX_V8Engine::KX_V8Engine()
+    : m_isolate(nullptr),
+      m_platform(nullptr),
+      m_array_buffer_allocator(nullptr),
+      m_impl(std::make_unique<KX_V8EngineImpl>())
 {
 }
 
@@ -72,7 +79,7 @@ bool KX_V8Engine::Initialize()
   // Create isolate
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  
+
   Isolate *isolate = Isolate::New(create_params);
   isolate->Enter();
 
@@ -83,7 +90,7 @@ bool KX_V8Engine::Initialize()
   s_instance->m_platform = platform;
 
   // Create default context
-  s_instance->m_default_context = s_instance->CreateContext();
+  s_instance->m_impl->default_context = s_instance->CreateContext();
 
   s_initialized = true;
   return true;
@@ -97,10 +104,10 @@ void KX_V8Engine::Shutdown()
 
   if (s_instance) {
     if (s_instance->m_array_buffer_allocator) {
-      delete s_instance->m_array_buffer_allocator;
+      delete static_cast<v8::ArrayBuffer::Allocator *>(s_instance->m_array_buffer_allocator);
     }
     if (s_instance->m_platform) {
-      V8::ShutdownPlatform();
+      V8::DisposePlatform();
       delete s_instance->m_platform;
     }
     delete s_instance;
@@ -131,7 +138,7 @@ bool KX_V8Engine::ExecuteString(const std::string &source,
                                  Local<Value> *result,
                                  bool report_exceptions)
 {
-  return ExecuteStringInContext(m_default_context, source, name, result, report_exceptions);
+  return ExecuteStringInContext(GetDefaultContext(), source, name, result, report_exceptions);
 }
 
 bool KX_V8Engine::ExecuteStringInContext(Local<Context> context,
@@ -188,7 +195,7 @@ bool KX_V8Engine::ExecuteStringInContext(Local<Context> context,
 
 Local<Context> KX_V8Engine::GetDefaultContext() const
 {
-  return m_default_context;
+  return m_impl->default_context;
 }
 
 void KX_V8Engine::ReportException(TryCatch *try_catch)

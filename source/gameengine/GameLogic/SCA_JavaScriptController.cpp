@@ -32,20 +32,29 @@
  *  \ingroup gamelogic
  */
 
+#ifdef WITH_JAVASCRIPT
+#  include "v8_include.h"
+#endif
+
 #include "SCA_JavaScriptController.h"
 
 #ifdef WITH_JAVASCRIPT
 
-#include "KX_V8Engine.h"
-#include "KX_V8Bindings.h"
-#include "KX_TypeScriptCompiler.h"
-#include "KX_Scene.h"
-#include "CM_Message.h"
-
-#include <v8.h>
+#  include "KX_V8Engine.h"
+#  include "KX_V8Bindings.h"
+#  include "KX_TypeScriptCompiler.h"
+#  include "KX_GameObject.h"
+#  include "KX_Scene.h"
+#  include "CM_Message.h"
 
 using namespace v8;
 using namespace blender;
+
+struct SCA_JavaScriptControllerV8 {
+  v8::Local<v8::Script> compiled_script;
+  v8::Local<v8::Context> context;
+  std::string module_function_name;
+};
 
 // initialize static member variables
 SCA_JavaScriptController *SCA_JavaScriptController::m_sCurrentController = nullptr;
@@ -59,6 +68,19 @@ SCA_JavaScriptController::SCA_JavaScriptController(SCA_IObject *gameobj, int mod
       m_mode(mode),
       m_use_typescript(false)
 {
+}
+
+SCA_JavaScriptController::SCA_JavaScriptController(const SCA_JavaScriptController &other)
+    : SCA_IController(other),
+      m_function_argc(other.m_function_argc),
+      m_bModified(true),
+      m_debug(other.m_debug),
+      m_mode(other.m_mode),
+      m_use_typescript(other.m_use_typescript),
+      m_scriptText(other.m_scriptText),
+      m_scriptName(other.m_scriptName)
+{
+  /* m_v8 not copied; replica will recompile */
 }
 
 SCA_JavaScriptController::~SCA_JavaScriptController()
@@ -113,34 +135,38 @@ bool SCA_JavaScriptController::Compile()
   }
 
   // Create context for this controller
-  m_context = engine->CreateContext();
-  Context::Scope context_scope(m_context);
+  m_v8 = std::make_unique<SCA_JavaScriptControllerV8>();
+  m_v8->context = engine->CreateContext();
+  Context::Scope context_scope(m_v8->context);
 
   // Initialize bindings in this context
-  KX_V8Bindings::InitializeBindings(m_context);
+  KX_V8Bindings::InitializeBindings(m_v8->context);
 
   // Compile script
   Isolate *isolate = engine->GetIsolate();
   Local<String> source_string;
   if (!String::NewFromUtf8(isolate, script_to_compile.c_str()).ToLocal(&source_string)) {
     CM_Error("Failed to convert script to V8 string");
+    m_v8.reset();
     return false;
   }
 
   Local<String> resource_name;
   if (!String::NewFromUtf8(isolate, m_scriptName.c_str()).ToLocal(&resource_name)) {
     CM_Error("Failed to convert script name to V8 string");
+    m_v8.reset();
     return false;
   }
 
   ScriptOrigin origin(isolate, resource_name);
   Local<Script> script;
-  if (!Script::Compile(m_context, source_string, &origin).ToLocal(&script)) {
+  if (!Script::Compile(m_v8->context, source_string, &origin).ToLocal(&script)) {
     CM_Error("JavaScript compilation failed");
+    m_v8.reset();
     return false;
   }
 
-  m_compiled_script = script;
+  m_v8->compiled_script = script;
   return true;
 }
 
@@ -178,15 +204,15 @@ void SCA_JavaScriptController::Trigger(SCA_LogicManager *logicmgr)
         }
       }
 
-      if (m_compiled_script.IsEmpty()) {
+      if (!m_v8 || m_v8->compiled_script.IsEmpty()) {
         m_sCurrentController = nullptr;
         g_currentJavaScriptController = nullptr;
         return;
       }
 
-      Context::Scope context_scope(m_context);
+      Context::Scope context_scope(m_v8->context);
       Local<Value> result;
-      if (!m_compiled_script->Run(m_context).ToLocal(&result)) {
+      if (!m_v8->compiled_script->Run(m_v8->context).ToLocal(&result)) {
         CM_Error("JavaScript script execution failed");
       }
       break;
@@ -212,13 +238,10 @@ void SCA_JavaScriptController::Trigger(SCA_LogicManager *logicmgr)
 #endif
 }
 
-KX_Scene *SCA_JavaScriptController::GetScene() const
+KX_Scene *SCA_JavaScriptController::GetScene()
 {
-  SCA_IObject *obj = GetParent();
-  if (obj) {
-    return obj->GetScene();
-  }
-  return nullptr;
+  KX_GameObject *obj = dynamic_cast<KX_GameObject *>(GetParent());
+  return obj ? obj->GetScene() : nullptr;
 }
 
 #else  // WITH_JAVASCRIPT
