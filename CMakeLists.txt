@@ -261,10 +261,10 @@ mark_as_advanced(WITH_PYTHON)
 # make a build option.
 mark_as_advanced(WITH_PYTHON_SECURITY)
 
-option(WITH_JAVASCRIPT "Enable Embedded JavaScript/TypeScript API using V8 engine" OFF)
+option(WITH_JAVASCRIPT "Enable Embedded JavaScript/TypeScript API using V8 engine" ON)
 mark_as_advanced(WITH_JAVASCRIPT)
 
-option(WITH_TYPESCRIPT "Enable TypeScript compilation support (requires WITH_JAVASCRIPT)" OFF)
+option(WITH_TYPESCRIPT "Enable TypeScript compilation support (requires WITH_JAVASCRIPT)" ON)
 mark_as_advanced(WITH_TYPESCRIPT)
 
 # TypeScript requires JavaScript
