@@ -79,18 +79,44 @@ bool KX_TypeScriptCompiler::IsAvailable()
   return !result.empty();
 }
 
+static const char *BGE_DTS_CONTENT =
+    "/* BGE runtime globals - injected by UPBGE TypeScript compiler */\n"
+    "declare const bge: {\n"
+    "  logic: {\n"
+    "    getCurrentController(): any;\n"
+    "    getCurrentScene(): any;\n"
+    "    getCurrentControllerObject(): any;\n"
+    "  };\n"
+    "};\n";
+
 bool KX_TypeScriptCompiler::CompileWithTSC(const std::string &typescript_source,
                                            const std::string &source_name,
                                            std::string &javascript_output)
 {
-  // Create temporary TypeScript file
+  // Temporary .ts path: source_name + ".ts" (e.g. "teste.ts" -> "teste.ts.ts")
   std::string temp_ts_file = source_name + ".ts";
+
+  // bge_upbge.d.ts in same directory as .ts so /// <reference path="bge_upbge.d.ts" /> resolves
+  std::string::size_type sep = temp_ts_file.find_last_of("/\\");
+  std::string dts_path = (sep != std::string::npos) ? temp_ts_file.substr(0, sep + 1) : "";
+  dts_path += "bge_upbge.d.ts";
+
+  // Write BGE type declarations so tsc knows about global `bge` and `console`
+  std::ofstream dts_file(dts_path);
+  if (dts_file.is_open()) {
+    dts_file << BGE_DTS_CONTENT;
+    dts_file.close();
+  }
+
+  // Prepend reference to bge_upbge.d.ts so tsc loads it (avoids "Cannot find name 'bge'")
+  std::string ref = "/// <reference path=\"bge_upbge.d.ts\" />\n";
   std::ofstream ts_file(temp_ts_file);
   if (!ts_file.is_open()) {
     CM_Error("Failed to create temporary TypeScript file: " << temp_ts_file);
+    remove(dts_path.c_str());
     return false;
   }
-  ts_file << typescript_source;
+  ts_file << ref << typescript_source;
   ts_file.close();
 
   // Compile with tsc
@@ -98,6 +124,8 @@ bool KX_TypeScriptCompiler::CompileWithTSC(const std::string &typescript_source,
   FILE *pipe = popen(command.c_str(), "r");
   if (!pipe) {
     CM_Error("Failed to execute TypeScript compiler");
+    remove(temp_ts_file.c_str());
+    remove(dts_path.c_str());
     return false;
   }
 
@@ -111,17 +139,25 @@ bool KX_TypeScriptCompiler::CompileWithTSC(const std::string &typescript_source,
   // Check if compilation succeeded
   if (status != 0) {
     CM_Error("TypeScript compilation failed: " << error_output);
-    // Clean up temp file
     remove(temp_ts_file.c_str());
+    remove(dts_path.c_str());
     return false;
   }
 
-  // Read compiled JavaScript file
-  std::string js_file = source_name + ".js";
+  // tsc emits .js with same base name as .ts: "x.ts.ts" -> "x.ts.js", "x.ts" -> "x.js"
+  std::string js_file = temp_ts_file;
+  if (js_file.size() >= 3 && js_file.compare(js_file.size() - 3, 3, ".ts") == 0) {
+    js_file.resize(js_file.size() - 3);
+    js_file += ".js";
+  }
+  else {
+    js_file += ".js";
+  }
   std::ifstream js_stream(js_file);
   if (!js_stream.is_open()) {
     CM_Error("Failed to read compiled JavaScript file: " << js_file);
     remove(temp_ts_file.c_str());
+    remove(dts_path.c_str());
     return false;
   }
 
@@ -133,6 +169,7 @@ bool KX_TypeScriptCompiler::CompileWithTSC(const std::string &typescript_source,
   // Clean up temporary files
   remove(temp_ts_file.c_str());
   remove(js_file.c_str());
+  remove(dts_path.c_str());
 
   return true;
 }

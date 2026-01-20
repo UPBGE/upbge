@@ -153,6 +153,8 @@ Local<Object> KX_V8Bindings::CreateGameObjectWrapper(Isolate *isolate, KX_GameOb
   obj_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "position"), GameObjectGetPosition);
   obj_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "rotation"), GameObjectGetRotation);
   obj_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "scale"), GameObjectGetScale);
+  obj_template->Set(String::NewFromUtf8Literal(isolate, "setPosition"),
+                    FunctionTemplate::New(isolate, GameObjectSetPosition));
 
   Local<Object> wrapper = obj_template->NewInstance(context).ToLocalChecked();
   wrapper->SetInternalField(0, External::New(isolate, obj));
@@ -181,6 +183,8 @@ Local<Object> KX_V8Bindings::CreateControllerWrapper(Isolate *isolate, SCA_ICont
 
   Local<ObjectTemplate> controller_template = ObjectTemplate::New(isolate);
   controller_template->SetInternalFieldCount(1);
+  controller_template->SetNativeDataProperty(String::NewFromUtf8Literal(isolate, "owner"),
+                                            ControllerGetOwner);
 
   Local<Object> wrapper = controller_template->NewInstance(context).ToLocalChecked();
   wrapper->SetInternalField(0, External::New(isolate, controller));
@@ -319,6 +323,40 @@ void KX_V8Bindings::GameObjectGetScale(Local<Name> property,
     scale_array->Set(context, 1, Number::New(isolate, scale[1])).Check();
     scale_array->Set(context, 2, Number::New(isolate, scale[2])).Check();
     info.GetReturnValue().Set(scale_array);
+  }
+  else {
+    info.GetReturnValue().SetNull();
+  }
+}
+
+void KX_V8Bindings::GameObjectSetPosition(const FunctionCallbackInfo<Value> &args)
+{
+  Isolate *isolate = args.GetIsolate();
+  Local<Object> self = args.This();
+  KX_GameObject *obj = GetGameObjectFromWrapper(self);
+  if (!obj || args.Length() < 3) {
+    return;
+  }
+  Local<Context> ctx = isolate->GetCurrentContext();
+  double x = args[0]->NumberValue(ctx).FromMaybe(0.0);
+  double y = args[1]->NumberValue(ctx).FromMaybe(0.0);
+  double z = args[2]->NumberValue(ctx).FromMaybe(0.0);
+  obj->NodeSetWorldPosition(MT_Vector3(MT_Scalar(x), MT_Scalar(y), MT_Scalar(z)));
+}
+
+void KX_V8Bindings::ControllerGetOwner(Local<Name> property,
+                                       const PropertyCallbackInfo<Value> &info)
+{
+  Isolate *isolate = info.GetIsolate();
+  Local<Object> self = info.Holder();
+  SCA_IController *ctrl = GetControllerFromWrapper(self);
+  if (!ctrl) {
+    info.GetReturnValue().SetNull();
+    return;
+  }
+  KX_GameObject *obj = static_cast<KX_GameObject *>(ctrl->GetParent());
+  if (obj) {
+    info.GetReturnValue().Set(CreateGameObjectWrapper(isolate, obj));
   }
   else {
     info.GetReturnValue().SetNull();

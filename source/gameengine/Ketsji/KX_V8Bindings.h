@@ -56,7 +56,7 @@ class KX_V8Bindings {
   // Create JavaScript wrapper for Scene
   static v8::Local<v8::Object> CreateSceneWrapper(v8::Isolate *isolate, KX_Scene *scene);
 
-  // Create JavaScript wrapper for Controller
+  // Create JavaScript wrapper for Controller (includes "owner" -> parent KX_GameObject)
   static v8::Local<v8::Object> CreateControllerWrapper(v8::Isolate *isolate, SCA_IController *controller);
 
   // Create JavaScript wrapper for Sensor
@@ -90,6 +90,11 @@ class KX_V8Bindings {
   static void GameObjectGetRotation(v8::Local<v8::Name> property,
                                     const v8::PropertyCallbackInfo<v8::Value> &info);
   static void GameObjectGetScale(v8::Local<v8::Name> property,
+                                 const v8::PropertyCallbackInfo<v8::Value> &info);
+
+  static void GameObjectSetPosition(const v8::FunctionCallbackInfo<v8::Value> &args);
+
+  static void ControllerGetOwner(v8::Local<v8::Name> property,
                                  const v8::PropertyCallbackInfo<v8::Value> &info);
 };
 

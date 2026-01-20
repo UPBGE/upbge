@@ -61,7 +61,10 @@ class KX_V8Engine {
   // Get singleton instance
   static KX_V8Engine *GetInstance();
 
-  // Create a new context for script execution
+  // Create and store the default context in Global (called from Initialize only)
+  void CreateDefaultContext();
+
+  // Create a new context for script execution (e.g. per JavaScript controller)
   v8::Local<v8::Context> CreateContext();
 
   // Execute JavaScript code

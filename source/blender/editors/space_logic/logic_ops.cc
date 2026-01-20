@@ -405,11 +405,11 @@ static const EnumPropertyItem *rna_controller_add_type_itemf(
 {
   *r_free = false;
 #if defined(WITH_JAVASCRIPT)
-  if (U.experimental.use_javascript_typescript) {
-    return rna_enum_controller_type_items;
-  }
-#endif
+  /* JavaScript appears in Add Controller when built with V8 (no experimental pref). */
+  return rna_enum_controller_type_items;
+#else
   return rna_enum_controller_type_items_no_js;
+#endif
 }
 
 static wmOperatorStatus controller_remove_exec(bContext *C, wmOperator *op)

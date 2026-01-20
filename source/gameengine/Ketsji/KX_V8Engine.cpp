@@ -40,7 +40,7 @@
 using namespace v8;
 
 struct KX_V8EngineImpl {
-  v8::Local<v8::Context> default_context;
+  v8::Global<v8::Context> default_context;
 };
 
 KX_V8Engine *KX_V8Engine::s_instance = nullptr;
@@ -56,6 +56,7 @@ KX_V8Engine::KX_V8Engine()
 
 KX_V8Engine::~KX_V8Engine()
 {
+  m_impl->default_context.Reset();  /* release before isolate dispose */
   if (m_isolate) {
     m_isolate->Exit();
     m_isolate->Dispose();
@@ -65,32 +66,45 @@ KX_V8Engine::~KX_V8Engine()
 
 bool KX_V8Engine::Initialize()
 {
+  // Restart: V8/platform still initialized from a prior game session (ESC), but
+  // isolate was disposed. V8 cannot be re-initialized (kPlatformDisposed is
+  // terminal), so we only create a new isolate and default context.
+  if (s_initialized && s_instance && s_instance->m_platform && !s_instance->m_isolate) {
+    Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+    Isolate *isolate = Isolate::New(create_params);
+    isolate->Enter();
+    s_instance->m_isolate = isolate;
+    s_instance->m_array_buffer_allocator = create_params.array_buffer_allocator;
+    s_instance->CreateDefaultContext();
+    return true;
+  }
+
   if (s_initialized) {
     return true;
   }
 
-  // Initialize V8 platform
+  // First run: full V8 init. V8 does not support re-init after Dispose/DisposePlatform.
   V8::InitializeICUDefaultLocation(".");
-  V8::InitializeExternalStartupData(".");
+  // Do NOT call InitializeExternalStartupData: the NuGet/prebuilt V8 has
+  // the snapshot embedded. Calling it with "." would make V8 look for
+  // snapshot_blob.bin in CWD; if missing or from another build, heap
+  // corruption and "tagged-impl" / Context::Enter crashes can occur.
   v8::Platform *platform = v8::platform::NewDefaultPlatform().release();
   V8::InitializePlatform(platform);
   V8::Initialize();
 
-  // Create isolate
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-
   Isolate *isolate = Isolate::New(create_params);
   isolate->Enter();
 
-  // Create instance
   s_instance = new KX_V8Engine();
   s_instance->m_isolate = isolate;
   s_instance->m_array_buffer_allocator = create_params.array_buffer_allocator;
   s_instance->m_platform = platform;
 
-  // Create default context
-  s_instance->m_impl->default_context = s_instance->CreateContext();
+  s_instance->CreateDefaultContext();
 
   s_initialized = true;
   return true;
@@ -102,20 +116,24 @@ void KX_V8Engine::Shutdown()
     return;
   }
 
+  // Only tear down the isolate and allocator. Do NOT call V8::Dispose() or
+  // V8::DisposePlatform(): V8 cannot be re-initialized after that (kPlatformDisposed
+  // is terminal). Keeping the platform allows the next P (Initialize) to create
+  // a new isolate and run the game again. s_instance and m_platform are kept.
   if (s_instance) {
+    s_instance->m_impl->default_context.Reset();
+    if (s_instance->m_isolate) {
+      s_instance->m_isolate->Exit();
+      s_instance->m_isolate->Dispose();
+      s_instance->m_isolate = nullptr;
+    }
     if (s_instance->m_array_buffer_allocator) {
       delete static_cast<v8::ArrayBuffer::Allocator *>(s_instance->m_array_buffer_allocator);
+      s_instance->m_array_buffer_allocator = nullptr;
     }
-    if (s_instance->m_platform) {
-      V8::DisposePlatform();
-      delete s_instance->m_platform;
-    }
-    delete s_instance;
-    s_instance = nullptr;
   }
-
-  V8::Dispose();
-  s_initialized = false;
+  // Keep s_initialized = true and s_instance so Initialize() can restart by
+  // creating a new isolate when the user presses P again.
 }
 
 KX_V8Engine *KX_V8Engine::GetInstance()
@@ -123,14 +141,27 @@ KX_V8Engine *KX_V8Engine::GetInstance()
   return s_instance;
 }
 
-Local<Context> KX_V8Engine::CreateContext()
+void KX_V8Engine::CreateDefaultContext()
 {
   Isolate::Scope isolate_scope(m_isolate);
   HandleScope handle_scope(m_isolate);
 
   Local<ObjectTemplate> global = ObjectTemplate::New(m_isolate);
   Local<Context> context = Context::New(m_isolate, nullptr, global);
-  return context;
+  // Store in Global so the context outlives this HandleScope. A Local would
+  // become invalid when the scope is destroyed, causing use-after-free in
+  // Context::Enter (SnapshotCreator/tagged-impl crash).
+  m_impl->default_context.Reset(m_isolate, context);
+}
+
+Local<Context> KX_V8Engine::CreateContext()
+{
+  Isolate::Scope isolate_scope(m_isolate);
+  EscapableHandleScope handle_scope(m_isolate);
+
+  Local<ObjectTemplate> global = ObjectTemplate::New(m_isolate);
+  Local<Context> context = Context::New(m_isolate, nullptr, global);
+  return handle_scope.Escape(context);
 }
 
 bool KX_V8Engine::ExecuteString(const std::string &source,
@@ -195,7 +226,7 @@ bool KX_V8Engine::ExecuteStringInContext(Local<Context> context,
 
 Local<Context> KX_V8Engine::GetDefaultContext() const
 {
-  return m_impl->default_context;
+  return m_impl->default_context.Get(m_isolate);
 }
 
 void KX_V8Engine::ReportException(TryCatch *try_catch)

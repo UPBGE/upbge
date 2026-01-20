@@ -2698,6 +2698,11 @@ if(WITH_JAVASCRIPT)
     if(WITH_TYPESCRIPT)
       add_definitions(-DWITH_TYPESCRIPT)
     endif()
+    # Match prebuilt V8 (NuGet/vcpkg): 64-bit builds use pointer compression and sandbox.
+    # Embedder must define the same or V8_Fatal at Initialize().
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      add_definitions(-DV8_COMPRESS_POINTERS -DV8_31BIT_SMIS_ON_64BIT_ARCH -DV8_ENABLE_SANDBOX)
+    endif()
   endif()
 endif()
 

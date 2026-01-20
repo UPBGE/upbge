@@ -57,7 +57,8 @@ void setupGameJavaScript(KX_KetsjiEngine *ketsjiengine, Main *blenderdata)
     return;
   }
 
-  // Initialize bindings in the default context
+  // GetDefaultContext().Get() and InitializeBindings create handles; need a HandleScope.
+  v8::HandleScope handle_scope(engine->GetIsolate());
   auto context = engine->GetDefaultContext();
   KX_V8Bindings::InitializeBindings(context);
 }

@@ -51,8 +51,8 @@ using namespace v8;
 using namespace blender;
 
 struct SCA_JavaScriptControllerV8 {
-  v8::Local<v8::Script> compiled_script;
-  v8::Local<v8::Context> context;
+  v8::Global<v8::Script> compiled_script;
+  v8::Global<v8::Context> context;
   std::string module_function_name;
 };
 
@@ -134,16 +134,19 @@ bool SCA_JavaScriptController::Compile()
     script_to_compile = compiled_js;
   }
 
-  // Create context for this controller
+  // Create context for this controller. CreateContext uses EscapableHandleScope
+  // and requires an outer HandleScope; store in Global so they outlive this scope.
+  Isolate *isolate = engine->GetIsolate();
+  HandleScope handle_scope(isolate);
   m_v8 = std::make_unique<SCA_JavaScriptControllerV8>();
-  m_v8->context = engine->CreateContext();
-  Context::Scope context_scope(m_v8->context);
+  m_v8->context.Reset(isolate, engine->CreateContext());
+  Local<Context> ctx = m_v8->context.Get(isolate);
+  Context::Scope context_scope(ctx);
 
   // Initialize bindings in this context
-  KX_V8Bindings::InitializeBindings(m_v8->context);
+  KX_V8Bindings::InitializeBindings(ctx);
 
   // Compile script
-  Isolate *isolate = engine->GetIsolate();
   Local<String> source_string;
   if (!String::NewFromUtf8(isolate, script_to_compile.c_str()).ToLocal(&source_string)) {
     CM_Error("Failed to convert script to V8 string");
@@ -160,13 +163,13 @@ bool SCA_JavaScriptController::Compile()
 
   ScriptOrigin origin(isolate, resource_name);
   Local<Script> script;
-  if (!Script::Compile(m_v8->context, source_string, &origin).ToLocal(&script)) {
+  if (!Script::Compile(ctx, source_string, &origin).ToLocal(&script)) {
     CM_Error("JavaScript compilation failed");
     m_v8.reset();
     return false;
   }
 
-  m_v8->compiled_script = script;
+  m_v8->compiled_script.Reset(isolate, script);
   return true;
 }
 
@@ -210,9 +213,12 @@ void SCA_JavaScriptController::Trigger(SCA_LogicManager *logicmgr)
         return;
       }
 
-      Context::Scope context_scope(m_v8->context);
+      Isolate *isolate = engine->GetIsolate();
+      HandleScope handle_scope(isolate);
+      Local<Context> ctx = m_v8->context.Get(isolate);
+      Context::Scope context_scope(ctx);
       Local<Value> result;
-      if (!m_v8->compiled_script->Run(m_v8->context).ToLocal(&result)) {
+      if (!m_v8->compiled_script.Get(isolate)->Run(ctx).ToLocal(&result)) {
         CM_Error("JavaScript script execution failed");
       }
       break;
