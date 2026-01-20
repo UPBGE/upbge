@@ -858,7 +858,7 @@ static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
   while (pprop) {
     LinkData *link;
     writer->write_struct(pprop);
-    BLO_write_struct_list(writer, LinkData, &pprop->enumval);
+    writer->write_struct_list(&pprop->enumval);
     for (link = (LinkData *)pprop->enumval.first; link; link = link->next) {
       BLO_write_string(writer, (const char *)link->data);
     }
@@ -965,7 +965,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   if (ob->bsoft) {
     writer->write_struct(ob->bsoft);
   }
-  BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
+  writer->write_struct_list(&ob->lodlevels);
   /***************/
 
   BKE_constraint_blend_write(writer, &ob->constraints);
