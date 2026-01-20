@@ -629,6 +629,9 @@ void WaveManager::free_resources_for_mesh(Mesh *mesh)
       keys_to_remove.append(item.key);
     }
   }
+  for (const Impl::MeshModifierKey &key : keys_to_remove) {
+    impl_->static_map.remove(key);
+  }
 }
 
 void WaveManager::invalidate_all(Mesh *mesh)

@@ -639,6 +639,9 @@ void DisplaceManager::free_resources_for_mesh(Mesh *mesh)
       keys_to_remove.append(item.key);
     }
   }
+  for (const Impl::MeshModifierKey &key : keys_to_remove) {
+    impl_->static_map.remove(key);
+  }
 }
 
 void DisplaceManager::invalidate_all(Mesh *mesh)
