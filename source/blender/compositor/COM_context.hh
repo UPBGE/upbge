@@ -42,28 +42,20 @@ class Context {
   /* Get the compositing scene. */
   virtual const Scene &get_scene() const = 0;
 
-  /* Returns the domain that the inputs and outputs of the context will be in. Note that the inputs
-   * might be larger than this domain, and relevant input operations need to crop the inputs to
-   * match this domain by calling the get_input_region method. Also note that the context might
-   * require the output to be returned as is without being constrained by this domain by returning
-   * false in the use_context_bounds_for_input_output method. */
+  /* Returns the domain that the inputs and outputs of the context will be in. */
   virtual Domain get_compositing_domain() const = 0;
 
   /* Write the result of the compositor viewer. */
-  virtual void write_viewer(const Result &result) = 0;
+  virtual void write_viewer(Result &viewer_result) = 0;
 
   /* True if the compositor should use GPU acceleration. */
   virtual bool use_gpu() const = 0;
 
-  /* Get the rectangular region representing the area of the input that should be read from the
-   * get_input and get_pass methods. In the base case, the input region covers the entirety of the
-   * input. In other cases, the input region might be a subset of the input. */
-  virtual Bounds<int2> get_input_region() const;
-
   /* Get the strip that the compositing modifier is applied to. */
   virtual const Strip *get_strip() const;
 
-  /* Get the result where the given pass is stored. */
+  /* Get the pass with the given name in the given view layer and scene. Freeing the pass is the
+   * caller's responsibility. */
   virtual Result get_pass(const Scene *scene, int view_layer, const char *name);
 
   /* Get the render settings for compositing. This could be different from scene->r render settings
@@ -85,12 +77,6 @@ class Context {
   /* True if the compositor should treat viewer nodes as group output nodes because it has no
    * concept of or support for viewers. */
   virtual bool treat_viewer_as_group_output() const;
-
-  /* True if the compositor inputs/outputs should be in the compositing domain. */
-  virtual bool use_compositing_domain_for_input_output() const
-  {
-    return true;
-  }
 
   /* Populates the given meta data from the render stamp information of the given render pass. */
   virtual void populate_meta_data_for_pass(const Scene *scene,

@@ -1259,6 +1259,41 @@ def km_property_editor(_params):
 
 
 # ------------------------------------------------------------------------------
+# Editor (Preferences)
+
+def km_preferences(_params):
+    items = []
+    keymap = (
+        "Preferences",
+        {"space_type": 'PREFERENCES', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
+        ("preferences.start_filter", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
+        ("preferences.clear_filter", {"type": 'F', "value": 'PRESS', "alt": True}, None),
+    ])
+
+    return keymap
+
+
+def km_preferences_nav(_params):
+    items = []
+    keymap = (
+        "Preferences_nav",
+        {"space_type": 'PREFERENCES', "region_type": 'UI'},
+        {"items": items},
+    )
+
+    items.extend([
+        ("preferences.start_filter", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
+        ("preferences.clear_filter", {"type": 'F', "value": 'PRESS', "alt": True}, None),
+    ])
+
+    return keymap
+
+
+# ------------------------------------------------------------------------------
 # Editor (Outliner)
 
 def km_outliner(params):
@@ -4825,6 +4860,15 @@ def _template_view3d_paint_mask_select_loop(params):
          {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True},
          {"properties": [("extend", True), ("select", True)]}),
         ("paint.face_select_loop",
+         {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True, "ctrl": True},
+         {"properties": [("extend", True), ("select", False)]}),
+        ("paint.vert_select_loop",
+         {"type": params.select_mouse, "value": 'PRESS', "alt": True},
+         {"properties": [("extend", False), ("select", True)]}),
+        ("paint.vert_select_loop",
+         {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True},
+         {"properties": [("extend", True), ("select", True)]}),
+        ("paint.vert_select_loop",
          {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True, "ctrl": True},
          {"properties": [("extend", True), ("select", False)]}),
     ]
@@ -8845,6 +8889,8 @@ def generate_keymaps(params=None):
         # Editors.
         km_logic(params),
         km_outliner(params),
+        km_preferences(params),
+        km_preferences_nav(params),
         km_uv_editor(params),
         km_view3d_generic(params),
         km_view3d(params),
