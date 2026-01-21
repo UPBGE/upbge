@@ -313,6 +313,7 @@ else:
         "gpu.platform",
         "gpu.capabilities",
         "gpu_extras",
+        "idprop",
         "idprop.types",
         "mathutils",
         "mathutils.bvhtree",
@@ -1139,14 +1140,16 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
 
 
 def pyclass2sphinx(fw, module_name, type_name, value, write_class_examples):
+    # NOTE: for `.. class::` identifiers, the type name alone is enough
+    # because the module has already been set via `.. module::`.
     if value.__doc__:
         if value.__doc__.startswith(".. class::"):
             fw(value.__doc__)
         else:
-            fw(".. class:: {:s}.{:s}\n\n".format(module_name, type_name))
+            fw(".. class:: {:s}\n\n".format(type_name))
             write_indented_lines("   ", fw, value.__doc__, True)
     else:
-        fw(".. class:: {:s}.{:s}\n\n".format(module_name, type_name))
+        fw(".. class:: {:s}\n\n".format(type_name))
     fw("\n")
 
     if write_class_examples:
@@ -2106,7 +2109,7 @@ def write_rst_index(basepath):
         "freestyle",
         "gpu",
         "gpu_extras",
-        "idprop.types",
+        "idprop",
         "imbuf",
         "mathutils",
     )
@@ -2442,6 +2445,7 @@ def write_rst_importable_modules(basepath):
         "bpy.app.icons": "Application Icons",
         "bpy.app.timers": "Application Timers",
         "bpy.props": "Property Definitions",
+        "idprop": "ID Properties Module",
         "idprop.types": "ID Property Access",
         "mathutils": "Math Types & Utilities",
         "mathutils.geometry": "Geometry Utilities",
