@@ -241,6 +241,20 @@ Dictionary/Object Access
        console.log(sensor.name);
    }
 
+Scene Access
+------------
+
+**Python:** ``scene.objects`` is a list; get by name via iteration or logic. ``scene.active_camera``, ``scene.gravity``.
+
+**JavaScript:** ``scene.objects`` is an array; use ``scene.get("Name")`` to find by name. Use ``scene.activeCamera`` (camelCase), ``scene.gravity``. Both support get and set.
+
+**Controller:** ``cont.activate(actuator)`` and ``cont.deactivate(actuator)``; ``actuator`` can be the name (string) or the actuator wrapper.
+
+Raycast, Vehicle, Character
+---------------------------
+
+**JavaScript/TypeScript** provides the same features as Python: ``obj.rayCast(to, from?, dist?, prop?, face?, xray?, mask?)`` and ``obj.rayCastTo(other, dist?, prop?)`` returning ``{ object, point, normal }``. Use ``bge.constraints.setGravity``, ``bge.constraints.createVehicle(chassis)``, ``bge.constraints.getCharacter(obj)`` for vehicles and character controllers. The API matches the Python constraint, vehicle, and character APIs.
+
 Error Handling
 --------------
 

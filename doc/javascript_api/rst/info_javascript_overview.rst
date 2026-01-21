@@ -163,6 +163,65 @@ Sensors and actuators linked to the controller can be accessed:
    if (actuator) {
        cont.activate(actuator);
    }
+   // Deactivate: cont.deactivate(actuator);
+
+Scene API
+---------
+
+The scene provides access to objects, camera, and gravity:
+
+.. code-block:: javascript
+
+   const scene = bge.logic.getCurrentScene();
+   
+   // All objects (array)
+   const objects = scene.objects;
+   
+   // Find object by name
+   const player = scene.get("Player");
+   
+   // Active camera (get/set)
+   const cam = scene.activeCamera;
+   scene.activeCamera = someCameraObject;
+   
+   // Gravity (get/set), e.g. [0, 0, -9.81]
+   const g = scene.gravity;
+   scene.gravity = [0, 0, -10];
+
+GameObject: Physics, Transform, Raycast
+--------------------------------------
+
+Objects with physics support ``applyForce(force, local?)``, ``getVelocity(point?)``,
+``getLinearVelocity(local?)``, ``setLinearVelocity(vel, local?)``, ``getAngularVelocity``,
+``setAngularVelocity``, and ``has_physics``. Transform: ``setRotation([x,y,z])`` or
+``setRotation(x,y,z)``, ``setScale`` similarly.
+
+Raycasting:
+
+.. code-block:: javascript
+
+   // obj.rayCast(to, from?, dist?, prop?, face?, xray?, mask?)
+   const hit = obj.rayCast([0, 0, -10], null, 20);
+   if (hit && hit.object) {
+       console.log("Hit " + hit.object.name + " at " + hit.point);
+   }
+   
+   // obj.rayCastTo(other, dist?, prop?) -> { object, point, normal } or nulls
+   const toHit = obj.rayCastTo(targetObj, 50);
+
+bge.constraints, Vehicle, Character
+-----------------------------------
+
+Use ``bge.constraints`` for physics constraints: ``setGravity(x,y,z)`` or ``setGravity([x,y,z])``,
+``getVehicleConstraint(id)``, ``createVehicle(chassisObject)``, ``getCharacter(obj)``.
+
+Vehicle (from ``createVehicle`` or ``getVehicleConstraint``): ``addWheel``, ``getNumWheels``,
+``getWheelPosition/Rotation/Orientation``, ``setSteeringValue``, ``applyEngineForce``,
+``applyBraking``, ``setTyreFriction``, ``setSuspensionStiffness``, ``setRollInfluence``, etc.
+
+Character (from ``getCharacter``): ``jump()``, ``setVelocity(vel, time?, local?)``, ``reset()``;
+properties: ``onGround``, ``gravity``, ``fallSpeed``, ``maxJumps``, ``maxSlope``, ``jumpSpeed``,
+``walkDirection``.
 
 Object Properties
 -----------------
@@ -236,6 +295,8 @@ Example scripts are available in the ``doc/javascript_api/examples/`` directory:
 - ``javascript_keyboard_control.js`` - Keyboard input handling
 - ``javascript_sensor_actuator.js`` - Working with sensors and actuators
 - ``javascript_scene_access.js`` - Accessing scene objects
+- ``javascript_raycast.js`` - GameObject rayCast and rayCastTo
+- ``javascript_vehicle_character.js`` - bge.constraints, Vehicle, Character
 - ``typescript_basic_movement.ts`` - TypeScript example with type safety
 
 See Also

@@ -111,13 +111,13 @@ Accessing Scene
    const scene = bge.logic.getCurrentScene();
    
    // Get active camera
-   const camera = scene.active_camera;
+   const camera = scene.activeCamera;
    
-   // Get all objects in scene
+   // Get all objects in scene (array)
    const objects = scene.objects;
    
    // Find object by name
-   const player = scene.objects["Player"];
+   const player = scene.get("Player");
 
 TypeScript Example
 ==================
@@ -295,6 +295,8 @@ Example JavaScript and TypeScript scripts are available in the documentation:
 - ``javascript_keyboard_control.js`` - Keyboard input example
 - ``javascript_sensor_actuator.js`` - Sensor and actuator usage
 - ``javascript_scene_access.js`` - Scene object access
+- ``javascript_raycast.js`` - rayCast and rayCastTo
+- ``javascript_vehicle_character.js`` - Vehicle and character (bge.constraints)
 - ``typescript_basic_movement.ts`` - TypeScript example
 
 These examples demonstrate common patterns and can be used as starting points for your own scripts.

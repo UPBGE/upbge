@@ -7,17 +7,17 @@ const obj = cont.owner;
 
 if (scene && obj) {
     // Get active camera
-    const camera = scene.active_camera;
+    const camera = scene.activeCamera;
     if (camera) {
         console.log(`Active camera: ${camera.name}`);
     }
     
-    // Get all objects in scene
+    // Get all objects in scene (array)
     const objects = scene.objects;
     console.log(`Scene has ${objects.length} objects`);
     
     // Find specific object by name
-    const player = scene.objects["Player"];
+    const player = scene.get("Player");
     if (player) {
         const distance = Math.sqrt(
             Math.pow(obj.position[0] - player.position[0], 2) +

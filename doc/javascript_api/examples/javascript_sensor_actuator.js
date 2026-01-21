@@ -7,11 +7,11 @@ const obj = cont.owner;
 // Check if a sensor is active
 const alwaysSensor = cont.sensors["Always"];
 if (alwaysSensor && alwaysSensor.positive) {
-    // Sensor is active, activate an actuator
+    // Sensor is active: activate one actuator, deactivate another
     const moveActuator = cont.actuators["MoveForward"];
-    if (moveActuator) {
-        cont.activate(moveActuator);
-    }
+    const stopActuator = cont.actuators["Stop"];
+    if (moveActuator) cont.activate(moveActuator);
+    if (stopActuator) cont.deactivate(stopActuator);
 }
 
 // Example with collision sensor

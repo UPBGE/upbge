@@ -1,24 +1,41 @@
-// Basic movement example for TypeScript controller
-// This script moves an object forward continuously with type safety
+// Movimento com teclado (WASD) — TypeScript
+// Requer: sensor Keyboard nomeado "Keyboard" ligado a este controller.
 
 interface GameObject {
     name: string;
     position: [number, number, number];
-    rotation: [number, number, number];
     setPosition(x: number, y: number, z: number): void;
 }
 
 interface Controller {
     owner: GameObject;
+    sensors: { [name: string]: { positive: boolean; events: [number, number][] } };
 }
 
-const cont: Controller = bge.logic.getCurrentController();
-const obj: GameObject = cont.owner;
+(() => {
+    const cont = bge.logic.getCurrentController();
+    if (!cont) return;
 
-// Get current position (typed as tuple)
-const pos: [number, number, number] = obj.position;
+    const obj = cont.owner;
+    const keyboard = cont.sensors["Keyboard"];
 
-// Move forward (Z axis) — use setPosition to apply changes to the object
-obj.setPosition(pos[0], pos[1], pos[2] + 0.1);
+    if (keyboard && keyboard.positive && keyboard.events) {
+        const pos = obj.position;
+        let dx = 0, dz = 0;
+        const speed = 0.1;
 
-console.log(`Object ${obj.name} position: [${pos[0]}, ${pos[1]}, ${pos[2] + 0.1}]`);
+        for (const ev of keyboard.events) {
+            const [key, state] = ev;
+            if (state !== bge.events.ACTIVE) continue;
+
+            if (key === bge.events.WKEY) dz -= speed;   // frente
+            if (key === bge.events.SKEY) dz += speed;   // trás
+            if (key === bge.events.AKEY) dx -= speed;   // esquerda
+            if (key === bge.events.DKEY) dx += speed;   // direita
+        }
+
+        if (dx !== 0 || dz !== 0) {
+            obj.setPosition(pos[0] + dx, pos[1], pos[2] + dz);
+        }
+    }
+})();

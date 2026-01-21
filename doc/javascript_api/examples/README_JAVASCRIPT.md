@@ -22,9 +22,18 @@ This directory contains example scripts demonstrating JavaScript and TypeScript 
 
 - **javascript_scene_access.js** - Accessing scene objects
   - Gets active camera
-  - Finds objects by name
+  - Finds objects by name (scene.get)
   - Calculates distances between objects
   - Iterates over all scene objects
+
+- **javascript_raycast.js** - Raycasting
+  - obj.rayCast(to, from?, dist?, prop?, face?, xray?, mask?)
+  - obj.rayCastTo(other, dist?, prop?) → { object, point, normal }
+
+- **javascript_vehicle_character.js** - Physics constraints
+  - bge.constraints.setGravity, createVehicle, getVehicleConstraint, getCharacter
+  - Vehicle: addWheel, setSteeringValue, applyEngineForce, applyBraking
+  - Character: jump, walkDirection, setVelocity, onGround
 
 ### TypeScript Examples
 
