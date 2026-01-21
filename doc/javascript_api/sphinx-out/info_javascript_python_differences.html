@@ -66,6 +66,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#common-patterns">Common Patterns</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#iterating-over-collections">Iterating Over Collections</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#dictionary-object-access">Dictionary/Object Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#scene-access">Scene Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#raycast-vehicle-character">Raycast, Vehicle, Character</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#error-handling">Error Handling</a></li>
 </ul>
 </li>
@@ -292,6 +294,16 @@ there are some differences in syntax and data types due to the nature of each la
 <span class="p">}</span>
 </pre></div>
 </div>
+</section>
+<section id="scene-access">
+<h3>Scene Access<a class="headerlink" href="#scene-access" title="Link to this heading"></a></h3>
+<p><strong>Python:</strong> <code class="docutils literal notranslate"><span class="pre">scene.objects</span></code> is a list; get by name via iteration or logic. <code class="docutils literal notranslate"><span class="pre">scene.active_camera</span></code>, <code class="docutils literal notranslate"><span class="pre">scene.gravity</span></code>.</p>
+<p><strong>JavaScript:</strong> <code class="docutils literal notranslate"><span class="pre">scene.objects</span></code> is an array; use <code class="docutils literal notranslate"><span class="pre">scene.get(&quot;Name&quot;)</span></code> to find by name. Use <code class="docutils literal notranslate"><span class="pre">scene.activeCamera</span></code> (camelCase), <code class="docutils literal notranslate"><span class="pre">scene.gravity</span></code>. Both support get and set.</p>
+<p><strong>Controller:</strong> <code class="docutils literal notranslate"><span class="pre">cont.activate(actuator)</span></code> and <code class="docutils literal notranslate"><span class="pre">cont.deactivate(actuator)</span></code>; <code class="docutils literal notranslate"><span class="pre">actuator</span></code> can be the name (string) or the actuator wrapper.</p>
+</section>
+<section id="raycast-vehicle-character">
+<h3>Raycast, Vehicle, Character<a class="headerlink" href="#raycast-vehicle-character" title="Link to this heading"></a></h3>
+<p><strong>JavaScript/TypeScript</strong> provides the same features as Python: <code class="docutils literal notranslate"><span class="pre">obj.rayCast(to,</span> <span class="pre">from?,</span> <span class="pre">dist?,</span> <span class="pre">prop?,</span> <span class="pre">face?,</span> <span class="pre">xray?,</span> <span class="pre">mask?)</span></code> and <code class="docutils literal notranslate"><span class="pre">obj.rayCastTo(other,</span> <span class="pre">dist?,</span> <span class="pre">prop?)</span></code> returning <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">object,</span> <span class="pre">point,</span> <span class="pre">normal</span> <span class="pre">}</span></code>. Use <code class="docutils literal notranslate"><span class="pre">bge.constraints.setGravity</span></code>, <code class="docutils literal notranslate"><span class="pre">bge.constraints.createVehicle(chassis)</span></code>, <code class="docutils literal notranslate"><span class="pre">bge.constraints.getCharacter(obj)</span></code> for vehicles and character controllers. The API matches the Python constraint, vehicle, and character APIs.</p>
 </section>
 <section id="error-handling">
 <h3>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading"></a></h3>

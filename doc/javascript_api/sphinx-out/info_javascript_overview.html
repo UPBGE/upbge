@@ -59,6 +59,9 @@
 <li class="toctree-l2"><a class="reference internal" href="#key-concepts">Key Concepts</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#accessing-game-objects">Accessing Game Objects</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#accessing-sensors-and-actuators">Accessing Sensors and Actuators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#scene-api">Scene API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gameobject-physics-transform-raycast">GameObject: Physics, Transform, Raycast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bge-constraints-vehicle-character">bge.constraints, Vehicle, Character</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#object-properties">Object Properties</a></li>
 </ul>
 </li>
@@ -233,8 +236,59 @@ the source code changes.</p>
 <span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">actuator</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">cont</span><span class="p">.</span><span class="nx">activate</span><span class="p">(</span><span class="nx">actuator</span><span class="p">);</span>
 <span class="p">}</span>
+<span class="c1">// Deactivate: cont.deactivate(actuator);</span>
 </pre></div>
 </div>
+</section>
+<section id="scene-api">
+<h3>Scene API<a class="headerlink" href="#scene-api" title="Link to this heading"></a></h3>
+<p>The scene provides access to objects, camera, and gravity:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">scene</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentScene</span><span class="p">();</span>
+
+<span class="c1">// All objects (array)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">objects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">objects</span><span class="p">;</span>
+
+<span class="c1">// Find object by name</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">player</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">&quot;Player&quot;</span><span class="p">);</span>
+
+<span class="c1">// Active camera (get/set)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">cam</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">activeCamera</span><span class="p">;</span>
+<span class="nx">scene</span><span class="p">.</span><span class="nx">activeCamera</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">someCameraObject</span><span class="p">;</span>
+
+<span class="c1">// Gravity (get/set), e.g. [0, 0, -9.81]</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">g</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">gravity</span><span class="p">;</span>
+<span class="nx">scene</span><span class="p">.</span><span class="nx">gravity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">10</span><span class="p">];</span>
+</pre></div>
+</div>
+</section>
+<section id="gameobject-physics-transform-raycast">
+<h3>GameObject: Physics, Transform, Raycast<a class="headerlink" href="#gameobject-physics-transform-raycast" title="Link to this heading"></a></h3>
+<p>Objects with physics support <code class="docutils literal notranslate"><span class="pre">applyForce(force,</span> <span class="pre">local?)</span></code>, <code class="docutils literal notranslate"><span class="pre">getVelocity(point?)</span></code>,
+<code class="docutils literal notranslate"><span class="pre">getLinearVelocity(local?)</span></code>, <code class="docutils literal notranslate"><span class="pre">setLinearVelocity(vel,</span> <span class="pre">local?)</span></code>, <code class="docutils literal notranslate"><span class="pre">getAngularVelocity</span></code>,
+<code class="docutils literal notranslate"><span class="pre">setAngularVelocity</span></code>, and <code class="docutils literal notranslate"><span class="pre">has_physics</span></code>. Transform: <code class="docutils literal notranslate"><span class="pre">setRotation([x,y,z])</span></code> or
+<code class="docutils literal notranslate"><span class="pre">setRotation(x,y,z)</span></code>, <code class="docutils literal notranslate"><span class="pre">setScale</span></code> similarly.</p>
+<p>Raycasting:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// obj.rayCast(to, from?, dist?, prop?, face?, xray?, mask?)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">hit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">rayCast</span><span class="p">([</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">10</span><span class="p">],</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="mf">20</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">hit</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">hit</span><span class="p">.</span><span class="nx">object</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Hit &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">hit</span><span class="p">.</span><span class="nx">object</span><span class="p">.</span><span class="nx">name</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot; at &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">hit</span><span class="p">.</span><span class="nx">point</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// obj.rayCastTo(other, dist?, prop?) -&gt; { object, point, normal } or nulls</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">toHit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">rayCastTo</span><span class="p">(</span><span class="nx">targetObj</span><span class="p">,</span><span class="w"> </span><span class="mf">50</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="bge-constraints-vehicle-character">
+<h3>bge.constraints, Vehicle, Character<a class="headerlink" href="#bge-constraints-vehicle-character" title="Link to this heading"></a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">bge.constraints</span></code> for physics constraints: <code class="docutils literal notranslate"><span class="pre">setGravity(x,y,z)</span></code> or <code class="docutils literal notranslate"><span class="pre">setGravity([x,y,z])</span></code>,
+<code class="docutils literal notranslate"><span class="pre">getVehicleConstraint(id)</span></code>, <code class="docutils literal notranslate"><span class="pre">createVehicle(chassisObject)</span></code>, <code class="docutils literal notranslate"><span class="pre">getCharacter(obj)</span></code>.</p>
+<p>Vehicle (from <code class="docutils literal notranslate"><span class="pre">createVehicle</span></code> or <code class="docutils literal notranslate"><span class="pre">getVehicleConstraint</span></code>): <code class="docutils literal notranslate"><span class="pre">addWheel</span></code>, <code class="docutils literal notranslate"><span class="pre">getNumWheels</span></code>,
+<code class="docutils literal notranslate"><span class="pre">getWheelPosition/Rotation/Orientation</span></code>, <code class="docutils literal notranslate"><span class="pre">setSteeringValue</span></code>, <code class="docutils literal notranslate"><span class="pre">applyEngineForce</span></code>,
+<code class="docutils literal notranslate"><span class="pre">applyBraking</span></code>, <code class="docutils literal notranslate"><span class="pre">setTyreFriction</span></code>, <code class="docutils literal notranslate"><span class="pre">setSuspensionStiffness</span></code>, <code class="docutils literal notranslate"><span class="pre">setRollInfluence</span></code>, etc.</p>
+<p>Character (from <code class="docutils literal notranslate"><span class="pre">getCharacter</span></code>): <code class="docutils literal notranslate"><span class="pre">jump()</span></code>, <code class="docutils literal notranslate"><span class="pre">setVelocity(vel,</span> <span class="pre">time?,</span> <span class="pre">local?)</span></code>, <code class="docutils literal notranslate"><span class="pre">reset()</span></code>;
+properties: <code class="docutils literal notranslate"><span class="pre">onGround</span></code>, <code class="docutils literal notranslate"><span class="pre">gravity</span></code>, <code class="docutils literal notranslate"><span class="pre">fallSpeed</span></code>, <code class="docutils literal notranslate"><span class="pre">maxJumps</span></code>, <code class="docutils literal notranslate"><span class="pre">maxSlope</span></code>, <code class="docutils literal notranslate"><span class="pre">jumpSpeed</span></code>,
+<code class="docutils literal notranslate"><span class="pre">walkDirection</span></code>.</p>
 </section>
 <section id="object-properties">
 <h3>Object Properties<a class="headerlink" href="#object-properties" title="Link to this heading"></a></h3>
@@ -305,6 +359,8 @@ making it easier to port code between languages. However, there are some differe
 <li><p><code class="docutils literal notranslate"><span class="pre">javascript_keyboard_control.js</span></code> - Keyboard input handling</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">javascript_sensor_actuator.js</span></code> - Working with sensors and actuators</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">javascript_scene_access.js</span></code> - Accessing scene objects</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_raycast.js</span></code> - GameObject rayCast and rayCastTo</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_vehicle_character.js</span></code> - bge.constraints, Vehicle, Character</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">typescript_basic_movement.ts</span></code> - TypeScript example with type safety</p></li>
 </ul>
 </section>

@@ -203,13 +203,13 @@
 <div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">scene</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bge</span><span class="p">.</span><span class="nx">logic</span><span class="p">.</span><span class="nx">getCurrentScene</span><span class="p">();</span>
 
 <span class="c1">// Get active camera</span>
-<span class="kd">const</span><span class="w"> </span><span class="nx">camera</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">active_camera</span><span class="p">;</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">camera</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">activeCamera</span><span class="p">;</span>
 
-<span class="c1">// Get all objects in scene</span>
+<span class="c1">// Get all objects in scene (array)</span>
 <span class="kd">const</span><span class="w"> </span><span class="nx">objects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">objects</span><span class="p">;</span>
 
 <span class="c1">// Find object by name</span>
-<span class="kd">const</span><span class="w"> </span><span class="nx">player</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">objects</span><span class="p">[</span><span class="s2">&quot;Player&quot;</span><span class="p">];</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">player</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">scene</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">&quot;Player&quot;</span><span class="p">);</span>
 </pre></div>
 </div>
 </section>
@@ -378,6 +378,8 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">javascript_keyboard_control.js</span></code> - Keyboard input example</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">javascript_sensor_actuator.js</span></code> - Sensor and actuator usage</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">javascript_scene_access.js</span></code> - Scene object access</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_raycast.js</span></code> - rayCast and rayCastTo</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">javascript_vehicle_character.js</span></code> - Vehicle and character (bge.constraints)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">typescript_basic_movement.ts</span></code> - TypeScript example</p></li>
 </ul>
 <p>These examples demonstrate common patterns and can be used as starting points for your own scripts.</p>

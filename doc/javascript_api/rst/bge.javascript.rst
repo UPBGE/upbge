@@ -60,9 +60,8 @@ You can also access actuators linked to the controller
    // + Python +--+ Actuator "actuatorname" |;
    // +--------+  +-------------------------+;
    const actuator = cont.actuators["actuatorname"];
-   // Activate or deactivate an actuator (argument: actuator or name string);
+   // Activate an actuator;
    cont.activate(actuator);
-   cont.deactivate(actuator);
 
 See the actuator's reference for available methods;
 
@@ -99,12 +98,9 @@ There are also methods to access the current :class:`bge.types.KX_Scene`
 
    // Get the current scene;
    const scene = bge.logic.getCurrentScene();
-   // Scene: scene.objects (array), scene.get("Name"), scene.activeCamera (get/set), scene.gravity (get/set).
-   // GameObject: rayCast(to, from?, dist?, prop?, face?, xray?, mask?), rayCastTo(other, dist?, prop?).
-   // bge.constraints: setGravity, getVehicleConstraint, createVehicle, getCharacter (see Overview).
 
    // Get the current camera;
-   const cam = scene.activeCamera;
+   const cam = scene.active_camera;
 
 Matricies as used by the game engine are **row major**;
 ``matrix[row][col] = float``
