@@ -4236,6 +4236,11 @@ void main() {
 }
 )GLSL";
 
+  Object *orig_ob = DEG_get_original(ob_eval);
+  if (orig_ob->type != OB_MESH) {
+    PyErr_SetString(PyExc_TypeError, "Object must be an OB_MESH");
+    return GpuComputeStatus::Error;
+  }
   Mesh *me = id_cast<Mesh *>(ob_eval->data);
   if (!me) {
     PyErr_SetString(PyExc_RuntimeError, "Object has no mesh data");
@@ -4258,7 +4263,7 @@ void main() {
 
   /* Explicitely request animation playback status when calling from python.
    * Keep flags set: we require position extraction as vec4 (stride == 16). */
-  Mesh *orig_me = id_cast<Mesh *>(DEG_get_original(ob_eval)->data);
+  Mesh *orig_me = id_cast<Mesh *>(orig_ob->data);
   orig_me->is_python_request_gpu = 1;
   me->is_python_request_gpu = 1;
 
