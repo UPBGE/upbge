@@ -33,6 +33,7 @@ set(SRC
   intern/BLI_memiter.cc
   intern/BLI_mempool.cc
   intern/BLI_mmap.cc
+  intern/BLI_process_pipe.cc
   intern/BLI_subprocess.cc
   intern/BLI_timer.cc
   intern/array_store.cc
@@ -352,6 +353,7 @@ set(SRC
   BLI_polyfill_2d_beautify.h
   BLI_pool.hh
   BLI_probing_strategies.hh
+  BLI_process_pipe.h
   BLI_quadric.h
   BLI_radial_tiling.hh
   BLI_rand.h

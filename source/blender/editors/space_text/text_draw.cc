@@ -36,6 +36,7 @@
 
 #include "text_format.hh"
 #include "text_intern.hh"
+#include "text_lsp_ts.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -62,6 +63,8 @@ struct TextDrawContext {
   int cwidth_px;
   int lheight_px;
   bool syntax_highlight;
+  /** When true, use Atom One Dark–style colors (for JS/TS) instead of theme syntax colors. */
+  bool use_onedark;
 };
 
 static void space_text_draw_context_init(const SpaceText *st, TextDrawContext *tdc)
@@ -70,6 +73,8 @@ static void space_text_draw_context_init(const SpaceText *st, TextDrawContext *t
   tdc->cwidth_px = 0;
   tdc->lheight_px = st->runtime->lheight_px;
   tdc->syntax_highlight = st->showsyntax && ED_text_is_syntax_highlight_supported(st->text);
+  TextFormatType *tft = ED_text_format_get(st->text);
+  tdc->use_onedark = tdc->syntax_highlight && text_format_is_js_or_ts(tft);
 }
 
 static void text_font_begin(const TextDrawContext *tdc)
@@ -125,9 +130,81 @@ static void txt_format_text(SpaceText *st)
 }
 #endif
 
-/** Sets the current drawing color based on the format character specified. */
-static void format_draw_color(const TextDrawContext *tdc, char formatchar)
+/** Atom One Dark (akamud/vscode-theme-onedark) for JS/TS.
+ * From tokenColors: comment #5C6370; string #98C379; keyword/storage #C678DD;
+ * constant/numeric #D19A66; entity.name.type #E5C07B; entity.name.function #61AFEF;
+ * variable #E06C75; none/default #ABB2BF. Punctuation #ABB2BF.
+ * From colors: editor.background #282C34; editor.foreground #ABB2BF;
+ * editor.lineHighlightBackground #99BBFF0A; editor.selectionBackground #3E4451;
+ * editorCursor.foreground #528BFF; editorLineNumber #636D83 / active #ABB2BF. */
+static const unsigned char one_dark_foreground[4] = {0xAB, 0xB2, 0xBF, 255};   /* editor.foreground, none */
+static const unsigned char one_dark_comment[4] = {0x5C, 0x63, 0x70, 255};      /* comment */
+static const unsigned char one_dark_string[4] = {0x98, 0xC3, 0x79, 255};       /* string */
+static const unsigned char one_dark_keyword[4] = {0xC6, 0x78, 0xDD, 255};      /* keyword, storage */
+static const unsigned char one_dark_numeral[4] = {0xD1, 0x9A, 0x66, 255};      /* constant, constant.numeric */
+static const unsigned char one_dark_directive[4] = {0xE5, 0xC0, 0x7B, 255};    /* entity.name.type */
+static const unsigned char one_dark_special[4] = {0x61, 0xAF, 0xEF, 255};      /* entity.name.function, support.function */
+static const unsigned char one_dark_reserved[4] = {0xC6, 0x78, 0xDD, 255};     /* keyword */
+static const unsigned char one_dark_symbol[4] = {0xAB, 0xB2, 0xBF, 255};       /* punctuation */
+static const unsigned char one_dark_variable[4] = {0xE0, 0x6C, 0x75, 255};       /* variable, support.variable.property */
+static const unsigned char one_dark_editor_bg[4] = {0x28, 0x2C, 0x34, 255};    /* editor.background */
+static const unsigned char one_dark_linenr_bg[4] = {0x21, 0x25, 0x2B, 255};    /* editorGroup.background (gutter) */
+static const unsigned char one_dark_linenr[4] = {0x63, 0x6D, 0x83, 255};       /* editorLineNumber.foreground */
+static const unsigned char one_dark_linenr_active[4] = {0xAB, 0xB2, 0xBF, 255}; /* editorLineNumber.activeForeground */
+static const unsigned char one_dark_selection[4] = {0x3E, 0x44, 0x51, 255};    /* editor.selectionBackground */
+static const unsigned char one_dark_cursor[4] = {0x52, 0x8B, 0xFF, 255};       /* editorCursor.foreground */
+static const unsigned char one_dark_line_highlight[4] = {0x99, 0xBB, 0xFF, 0x0A}; /* editor.lineHighlightBackground */
+
+/** Sets the current drawing color based on the format character specified.
+ * For One Dark theme, can distinguish properties (red) from functions (blue) when formatchar is FMT_TYPE_SPECIAL.
+ * \param prev_fmt: Previous format character (used to detect property access after '.')
+ */
+static void format_draw_color(const TextDrawContext *tdc, char formatchar, char prev_fmt = 0)
 {
+  if (tdc->use_onedark) {
+    switch (formatchar) {
+      case FMT_TYPE_WHITESPACE:
+        break;
+      case FMT_TYPE_SYMBOL:
+        BLF_color4ubv(tdc->font_id, one_dark_symbol);
+        break;
+      case FMT_TYPE_COMMENT:
+        BLF_color4ubv(tdc->font_id, one_dark_comment);
+        break;
+      case FMT_TYPE_NUMERAL:
+        BLF_color4ubv(tdc->font_id, one_dark_numeral);
+        break;
+      case FMT_TYPE_STRING:
+        BLF_color4ubv(tdc->font_id, one_dark_string);
+        break;
+      case FMT_TYPE_DIRECTIVE:
+        BLF_color4ubv(tdc->font_id, one_dark_directive);
+        break;
+      case FMT_TYPE_SPECIAL:
+        /* In One Dark: functions are blue, properties (after '.') are red */
+        if (prev_fmt == FMT_TYPE_SYMBOL) {
+          /* Check if previous symbol was '.' - if so, this might be a property */
+          /* For now, assume it's a property if prev was symbol (will be refined) */
+          BLF_color4ubv(tdc->font_id, one_dark_variable);
+        }
+        else {
+          BLF_color4ubv(tdc->font_id, one_dark_special); /* Function: blue */
+        }
+        break;
+      case FMT_TYPE_RESERVED:
+        BLF_color4ubv(tdc->font_id, one_dark_reserved);
+        break;
+      case FMT_TYPE_KEYWORD:
+        BLF_color4ubv(tdc->font_id, one_dark_keyword);
+        break;
+      case FMT_TYPE_DEFAULT:
+      default:
+        BLF_color4ubv(tdc->font_id, one_dark_foreground);
+        break;
+    }
+    return;
+  }
+
   switch (formatchar) {
     case FMT_TYPE_WHITESPACE:
       break;
@@ -1158,7 +1235,7 @@ static void draw_suggestion_list(const SpaceText *st, const TextDrawContext *tdc
 /** \name Draw Cursor
  * \{ */
 
-static void draw_text_decoration(SpaceText *st, ARegion *region)
+static void draw_text_decoration(SpaceText *st, ARegion *region, const TextDrawContext *tdc)
 {
   Text *text = st->text;
   int vcurl, vcurc, vsell, vselc;
@@ -1193,7 +1270,12 @@ static void draw_text_decoration(SpaceText *st, ARegion *region)
 
     vcurc = std::max(vcurc, 0);
 
-    immUniformThemeColor(TH_SHADE2);
+    if (tdc->use_onedark) {
+      immUniformColor4ubv(one_dark_selection);
+    }
+    else {
+      immUniformThemeColor(TH_SHADE2);
+    }
 
     int x = TXT_BODY_LEFT(st);
     int y = region->winy;
@@ -1278,10 +1360,15 @@ static void draw_text_decoration(SpaceText *st, ARegion *region)
     }
 
     if (!(y1 < 0 || y2 > region->winy)) { /* Check we need to draw. */
-      float highlight_color[4];
-      ui::theme::get_color_4fv(TH_TEXT, highlight_color);
-      highlight_color[3] = 0.1f;
-      immUniformColor4fv(highlight_color);
+      if (tdc->use_onedark) {
+        immUniformColor4ubv(one_dark_line_highlight);
+      }
+      else {
+        float highlight_color[4];
+        ui::theme::get_color_4fv(TH_TEXT, highlight_color);
+        highlight_color[3] = 0.1f;
+        immUniformColor4fv(highlight_color);
+      }
       GPU_blend(GPU_BLEND_ALPHA);
       immRectf(pos, 0, y1, region->winx, y2);
       GPU_blend(GPU_BLEND_NONE);
@@ -1296,7 +1383,12 @@ static void draw_text_decoration(SpaceText *st, ARegion *region)
       y += st->runtime->scroll_ofs_px[1];
     }
 
-    immUniformThemeColor(TH_HILITE);
+    if (tdc->use_onedark) {
+      immUniformColor4ubv(one_dark_cursor);
+    }
+    else {
+      immUniformThemeColor(TH_HILITE);
+    }
 
     if (st->overwrite) {
       char ch = text->sell->line[text->selc];
@@ -1565,11 +1657,25 @@ void draw_text_main(SpaceText *st, ARegion *region)
   tdc.cwidth_px = max_ii(int(BLF_fixed_width(tdc.font_id)), 1);
   st->runtime->cwidth_px = tdc.cwidth_px;
 
+  /* One Dark: editor background (full region). */
+  if (tdc.use_onedark) {
+    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformColor4ubv(one_dark_editor_bg);
+    immRectf(pos, 0, 0, region->winx, region->winy);
+    immUnbindProgram();
+  }
+
   /* Draw line numbers background. */
   if (st->showlinenrs) {
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformThemeColor(TH_GRID);
+    if (tdc.use_onedark) {
+      immUniformColor4ubv(one_dark_linenr_bg);
+    }
+    else {
+      immUniformThemeColor(TH_GRID);
+    }
     immRectf(pos, 0, 0, TXT_NUMCOL_WIDTH(st), region->winy);
     immUnbindProgram();
   }
@@ -1588,7 +1694,7 @@ void draw_text_main(SpaceText *st, ARegion *region)
   winx = region->winx - TXT_SCROLL_WIDTH;
 
   /* Draw cursor, margin, selection and highlight. */
-  draw_text_decoration(st, region);
+  draw_text_decoration(st, region, &tdc);
 
   /* Draw the text. */
   ui::theme::font_theme_color_set(tdc.font_id, TH_TEXT);
@@ -1600,12 +1706,22 @@ void draw_text_main(SpaceText *st, ARegion *region)
 
     if (st->showlinenrs && !wrap_skip) {
       /* Draw line number. */
-      ui::theme::font_theme_color_set(tdc.font_id,
-                                      (tmp == text->sell) ? TH_HILITE : TH_LINENUMBERS);
+      if (tdc.use_onedark) {
+        BLF_color4ubv(tdc.font_id, (tmp == text->sell) ? one_dark_linenr_active : one_dark_linenr);
+      }
+      else {
+        ui::theme::font_theme_color_set(tdc.font_id,
+                                        (tmp == text->sell) ? TH_HILITE : TH_LINENUMBERS);
+      }
       SNPRINTF_UTF8(linenr, "%*d", st->runtime->line_number_display_digits, i + linecount + 1);
       text_font_draw(&tdc, TXT_NUMCOL_PAD * st->runtime->cwidth_px, y, linenr);
       /* Change back to text color. */
-      ui::theme::font_theme_color_set(tdc.font_id, TH_TEXT);
+      if (tdc.use_onedark) {
+        format_draw_color(&tdc, FMT_TYPE_DEFAULT);
+      }
+      else {
+        ui::theme::font_theme_color_set(tdc.font_id, TH_TEXT);
+      }
     }
 
     if (st->wordwrap) {

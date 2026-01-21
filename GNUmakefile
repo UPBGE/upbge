@@ -32,6 +32,8 @@ Other Convenience Targets
    Provided for other building operations.
 
    * config:        Run cmake configuration tool to set build options.
+   * blenlib:       Build only bf_blenlib (faster iteration). Use with your config
+                    so BUILD_DIR matches, e.g. 'make blenlib release' or 'make blenlib developer'.
    * deps:          Build library dependencies (intended only for platform maintainers).
 
                     The existence of locally build dependencies overrides the pre-built dependencies from subversion.
@@ -142,7 +144,8 @@ Environment Variables
    * PYTHON:                Use this for the Python command (used for checking tools).
    * NPROCS:                Number of processes to use building (auto-detect when omitted).
    * BUILD_LOG:             If set to a file path, the full build output is written there (and still
-                            shown). The build duration is appended at the end. Example:
+                            shown). The build start time is written at the beginning and the build
+                            duration is appended at the end. Example:
                             make release BUILD_LOG=build.log
    * BUILD_JOBS:            Override number of parallel build jobs. Use 1 for a serial build to see
                             the failing command and its error immediately. Example:
@@ -475,9 +478,11 @@ all: .FORCE
 
 	@echo
 	@echo Building Blender ...
-	rm -rf "$(BUILD_LOG)"
 	start=$$($(PYTHON) -c "import time; print(int(time.time()))"); \
-	cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS)) > "$(BUILD_LOG)" 2>&1; r=$$?; \
+	start_iso=$$($(PYTHON) -c "import time; print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))"); \
+	echo "Build started: $$start_iso" > "$(BUILD_LOG)"; \
+	echo "Build started: $$start_iso"; \
+	cmake --build "$(BUILD_DIR)" --target install --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS)) >> "$(BUILD_LOG)" 2>&1; r=$$?; \
 	end=$$($(PYTHON) -c "import time; print(int(time.time()))"); \
 	elaps=$$((end - start)); mins=$$((elaps / 60)); secs=$$((elaps % 60)); \
 	if [ $$mins -gt 0 ]; then dur="$${mins}m $${secs}s"; else dur="$${secs}s"; fi; \
@@ -503,6 +508,12 @@ bpy: all
 developer: all
 ninja: all
 ccache: all
+
+# -----------------------------------------------------------------------------
+# Partial build (faster iteration; use same config as full build, e.g. make blenlib release)
+blenlib: .FORCE
+	@$(CMAKE_CONFIG)
+	cmake --build "$(BUILD_DIR)" --target bf_blenlib --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS))
 
 # -----------------------------------------------------------------------------
 # Build dependencies

@@ -32,6 +32,7 @@
 
 #include "text_format.hh"
 #include "text_intern.hh" /* Own include. */
+#include "text_lsp_ts.h"
 
 namespace blender {
 
@@ -147,8 +148,11 @@ static GHash *text_autocomplete_build(Text *text)
     const int i = text_find_identifier_start(text->curl->line, text->curc);
     seek_len = text->curc - i;
     seek = text->curl->line + i;
+  }
 
-    // BLI_strncpy_utf8(seek, seek_ptr, seek_len);
+  TextFormatType *tft = ED_text_format_get(text);
+  if (text_format_is_js_or_ts(tft) && ts_lsp_get_completions(text, seek, seek_len, tft)) {
+    return nullptr; /* LSP provided suggestions; no GHash to free. */
   }
 
   /* Now walk over entire doc and suggest words. */
@@ -212,10 +216,6 @@ static GHash *text_autocomplete_build(Text *text)
 
     {
       GHashIterator gh_iter;
-
-      /* Get the formatter for highlighting. */
-      TextFormatType *tft;
-      tft = ED_text_format_get(text);
 
       GHASH_ITER (gh_iter, gh) {
         const char *s = static_cast<char *>(BLI_ghashIterator_getValue(&gh_iter));
@@ -545,6 +545,8 @@ static wmOperatorStatus text_autocomplete_modal(bContext *C, wmOperator *op, con
 
 static void text_autocomplete_free(bContext *C, wmOperator *op)
 {
+  ts_lsp_shutdown();
+
   GHash *gh = static_cast<GHash *>(op->customdata);
   if (gh) {
     BLI_ghash_free(gh, nullptr, MEM_freeN);

@@ -23,6 +23,7 @@ set(SRC
   text_format_pov_ini.cc
   text_format_py.cc
   text_header.cc
+  text_lsp_ts.cc
   text_ops.cc
   text_undo.cc
 
@@ -37,6 +38,7 @@ set(LIB
   PRIVATE bf::blenloader
   PRIVATE bf::blentranslation
   PRIVATE bf::dna
+  PRIVATE bf::extern::json
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::nodes
