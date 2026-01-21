@@ -494,7 +494,7 @@ void ED_spacetype_text()
   ED_text_format_register_glsl();
   ED_text_format_register_pov();
   ED_text_format_register_pov_ini();
-  ED_text_format_register_glsl();
+  ED_text_format_register_js(); /* JavaScript/TypeScript: .js, .mjs, .cjs, .ts, .mts, .cts */
 }
 
 }  // namespace blender
