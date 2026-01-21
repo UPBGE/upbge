@@ -4258,7 +4258,7 @@ void main() {
 
   /* Explicitely request animation playback status when calling from python.
    * Keep flags set: we require position extraction as vec4 (stride == 16). */
-  Mesh *orig_me = BKE_object_get_original_mesh(ob_eval);
+  Mesh *orig_me = id_cast<Mesh *>(DEG_get_original(ob_eval)->data);
   orig_me->is_python_request_gpu = 1;
   me->is_python_request_gpu = 1;
 

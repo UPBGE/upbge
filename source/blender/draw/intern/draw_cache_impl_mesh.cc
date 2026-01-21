@@ -1189,8 +1189,20 @@ static bool modifier_stack_has_topology_changer(Object *ob, PlayBackRefuseInfo &
 static PlayBackRefuseInfo compute_gpu_playback_decision(Object &ob, Mesh &mesh)
 {
   PlayBackRefuseInfo info;
+  if (ob.type != OB_MESH) {
+    info.allow_gpu = false;
+    info.key_requests_gpu = false;
+    info.modifiers_cpu = {};
+    info.modifiers_gpu = {};
+    info.ob = nullptr;
+    info.reason = PlaybackRefuseReason::None;
+    info.refusal_modifier = nullptr;
+    info.python_requests_gpu = false;
+    info.modifier_requests_gpu = false;
+    return info;
+  }
   info.ob = &ob;
-  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  Mesh *orig_mesh = DEG_get_original(&mesh);
 
   info.python_requests_gpu = (mesh.is_python_request_gpu != 0) ||
                           (orig_mesh && orig_mesh->is_python_request_gpu != 0);
@@ -1320,13 +1332,16 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const PlayBackRefuse
   if (!DRWContext::is_active()) {
     return;
   }
+  if (ob.type != OB_MESH) {
+    return;
+  }
 
   DRWData *dd = drw_get().data;
   if (dd == nullptr) {
     return;
   }
 
-  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  Mesh *orig_mesh = DEG_get_original(&mesh);
   if (orig_mesh == nullptr) {
     return;
   }
