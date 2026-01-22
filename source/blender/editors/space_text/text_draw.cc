@@ -147,6 +147,7 @@ static const unsigned char one_dark_special[4] = {0x61, 0xAF, 0xEF, 255};      /
 static const unsigned char one_dark_reserved[4] = {0xC6, 0x78, 0xDD, 255};     /* keyword */
 static const unsigned char one_dark_symbol[4] = {0xAB, 0xB2, 0xBF, 255};       /* punctuation */
 static const unsigned char one_dark_variable[4] = {0xE0, 0x6C, 0x75, 255};       /* variable, support.variable.property */
+static const unsigned char one_dark_type[4] = {0x56, 0xB6, 0xC2, 255};          /* support.type: primitive types (cyan) */
 static const unsigned char one_dark_editor_bg[4] = {0x28, 0x2C, 0x34, 255};    /* editor.background */
 static const unsigned char one_dark_linenr_bg[4] = {0x21, 0x25, 0x2B, 255};    /* editorGroup.background (gutter) */
 static const unsigned char one_dark_linenr[4] = {0x63, 0x6D, 0x83, 255};       /* editorLineNumber.foreground */
@@ -158,8 +159,14 @@ static const unsigned char one_dark_line_highlight[4] = {0x99, 0xBB, 0xFF, 0x0A}
 /** Sets the current drawing color based on the format character specified.
  * For One Dark theme, can distinguish properties (red) from functions (blue) when formatchar is FMT_TYPE_SPECIAL.
  * \param prev_fmt: Previous format character (used to detect property access after '.')
+ * \param format: Full format array (optional, for checking context)
+ * \param fmt_idx: Current index in format array (optional)
  */
-static void format_draw_color(const TextDrawContext *tdc, char formatchar, char prev_fmt = 0)
+static void format_draw_color(const TextDrawContext *tdc,
+                              char formatchar,
+                              char prev_fmt = 0,
+                              const char *format = nullptr,
+                              int fmt_idx = -1)
 {
   if (tdc->use_onedark) {
     switch (formatchar) {
@@ -182,16 +189,34 @@ static void format_draw_color(const TextDrawContext *tdc, char formatchar, char 
         break;
       case FMT_TYPE_SPECIAL:
         /* In One Dark: functions are blue, properties (after '.') are red */
+        /* Check if this is a property by looking backwards in format array for a '.' symbol */
+        bool is_property = false;
         if (prev_fmt == FMT_TYPE_SYMBOL) {
-          /* Check if previous symbol was '.' - if so, this might be a property */
-          /* For now, assume it's a property if prev was symbol (will be refined) */
+          /* Previous was a symbol - likely a property if it was '.' */
+          is_property = true;
+        }
+        else if (format != nullptr && fmt_idx > 0) {
+          /* Look backwards in format array, skipping whitespace, to find a '.' */
+          int check_idx = fmt_idx - 1;
+          while (check_idx >= 0 && format[check_idx] == FMT_TYPE_WHITESPACE) {
+            check_idx--;
+          }
+          if (check_idx >= 0 && format[check_idx] == FMT_TYPE_SYMBOL) {
+            /* Found a symbol before (possibly after whitespace) - likely a property access */
+            is_property = true;
+          }
+        }
+        if (is_property) {
+          /* Property access: red */
           BLF_color4ubv(tdc->font_id, one_dark_variable);
         }
         else {
-          BLF_color4ubv(tdc->font_id, one_dark_special); /* Function: blue */
+          /* Function: blue */
+          BLF_color4ubv(tdc->font_id, one_dark_special);
         }
         break;
       case FMT_TYPE_RESERVED:
+        /* In One Dark: primitive types (string, number, etc.) are purple #C678DD (same as keywords) */
         BLF_color4ubv(tdc->font_id, one_dark_reserved);
         break;
       case FMT_TYPE_KEYWORD:
@@ -549,7 +574,8 @@ static int space_text_draw_wrapped(const SpaceText *st,
       for (a = fstart, ma = mstart; ma < mend; a++) {
         if (use_syntax) {
           if (fmt_prev != format[a]) {
-            format_draw_color(tdc, fmt_prev = format[a]);
+            char prev = (a > fstart) ? format[a - 1] : 0;
+            format_draw_color(tdc, fmt_prev = format[a], prev, format, a);
           }
         }
         const int c_len = BLI_str_utf8_size_safe(str + ma);
@@ -579,7 +605,8 @@ static int space_text_draw_wrapped(const SpaceText *st,
   for (a = fstart, ma = mstart; str[ma] && y > clip_min_y; a++) {
     if (use_syntax) {
       if (fmt_prev != format[a]) {
-        format_draw_color(tdc, fmt_prev = format[a]);
+        char prev = (a > fstart) ? format[a - 1] : 0;
+        format_draw_color(tdc, fmt_prev = format[a], prev, format, a);
       }
     }
 
@@ -643,7 +670,8 @@ static void space_text_draw(const SpaceText *st,
 
     for (a = 0; a < amount; a++) {
       if (format[a] != fmt_prev) {
-        format_draw_color(tdc, fmt_prev = format[a]);
+        char prev = (a > 0) ? format[a - 1] : 0;
+        format_draw_color(tdc, fmt_prev = format[a], prev, format, a);
       }
       const int c_len = BLI_str_utf8_size_safe(in + str_shift);
       x += text_font_draw_character_utf8(tdc, x, y, in + str_shift, c_len);
@@ -1220,7 +1248,7 @@ static void draw_suggestion_list(const SpaceText *st, const TextDrawContext *tdc
       immUnbindProgram();
     }
 
-    format_draw_color(tdc, item->type);
+    format_draw_color(tdc, item->type, 0, nullptr, -1);
     space_text_draw(st, tdc, str, 0, 0, x + margin_x, y - 1, nullptr);
 
     if (item == last) {
@@ -1717,7 +1745,7 @@ void draw_text_main(SpaceText *st, ARegion *region)
       text_font_draw(&tdc, TXT_NUMCOL_PAD * st->runtime->cwidth_px, y, linenr);
       /* Change back to text color. */
       if (tdc.use_onedark) {
-        format_draw_color(&tdc, FMT_TYPE_DEFAULT);
+        format_draw_color(&tdc, FMT_TYPE_DEFAULT, 0, nullptr, -1);
       }
       else {
         ui::theme::font_theme_color_set(tdc.font_id, TH_TEXT);

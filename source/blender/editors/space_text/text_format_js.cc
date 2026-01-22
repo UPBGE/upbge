@@ -328,9 +328,8 @@ static void txtfmt_js_format_line(SpaceText *st, TextLine *line, const bool do_n
               ident_type = FMT_TYPE_SPECIAL; /* Function call: blue */
             }
             else {
-              /* Property: use DEFAULT but will need special handling for red color */
-              /* For now, use DEFAULT - we'll improve this later */
-              ident_type = FMT_TYPE_DEFAULT;
+              /* Property: use SPECIAL - format_draw_color will check prev_fmt to color it red */
+              ident_type = FMT_TYPE_SPECIAL; /* Will be colored red if prev was '.' */
             }
             i = ident_len;
           }
