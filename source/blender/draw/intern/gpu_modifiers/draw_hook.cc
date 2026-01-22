@@ -5,34 +5,18 @@
 #include "draw_hook.hh"
 
 #include "BLI_hash.h"
-#include "BLI_map.hh"
 #include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_vector.hh"
 
 #include "BKE_action.hh"
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 #include "BKE_modifier.hh"
-#include "BKE_object.hh"
 
-#include "DNA_armature_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
+#include "draw_cache_extract.hh"
+#include "DRW_render.hh"
 
 #include "GPU_compute.hh"
-#include "GPU_shader.hh"
-#include "GPU_storage_buffer.hh"
-
-#include "../gpu/intern/gpu_shader_create_info.hh"
-
-#include "DRW_render.hh"
-#include "draw_cache_impl.hh"
-#include "draw_cache_extract.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 #include "draw_modifier_gpu_helpers.hh"
 

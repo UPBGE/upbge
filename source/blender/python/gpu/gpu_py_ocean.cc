@@ -1,45 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include <vector>
-#include <chrono>
-#include <sstream>
-#include <iomanip>
 
 #include "gpu_py_ocean.hh"
 
-#include "BLI_utildefines.h"
+#include <sstream>
+#include <iomanip>
 
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 
-#include "BKE_customdata.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_gpu.hh"
 
 #include "BLI_task.h"
 
-#include "../depsgraph/DEG_depsgraph_query.hh"
-#include "../draw/intern/draw_cache_extract.hh"
-#include "../draw/intern/draw_cache.hh"
 #include "../python/intern/bpy_rna.hh"
-#include "../gpu/intern/gpu_shader_create_info.hh"
 
-#include "../blenkernel/intern/mesh_gpu_cache.hh"
-#include "GPU_batch.hh"
+#include "../depsgraph/DEG_depsgraph_query.hh"
+
+#include "../draw/intern/draw_cache_extract.hh"
+
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
-#include "GPU_state.hh"
-#include "GPU_storage_buffer.hh"
 
 #include "../blenkernel/intern/ocean_intern.h"
 
 #include "gpu_py_storagebuffer.hh"
 
-#include "../windowmanager/WM_api.hh"
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
+
 
 namespace blender {
 
+#ifdef WITH_OCEANSIM
 
 using namespace blender;
 using blender::gpu::StorageBuf;
@@ -4245,6 +4236,11 @@ void main() {
 }
 )GLSL";
 
+  Object *orig_ob = DEG_get_original(ob_eval);
+  if (orig_ob->type != OB_MESH) {
+    PyErr_SetString(PyExc_TypeError, "Object must be an OB_MESH");
+    return GpuComputeStatus::Error;
+  }
   Mesh *me = id_cast<Mesh *>(ob_eval->data);
   if (!me) {
     PyErr_SetString(PyExc_RuntimeError, "Object has no mesh data");
@@ -4267,7 +4263,7 @@ void main() {
 
   /* Explicitely request animation playback status when calling from python.
    * Keep flags set: we require position extraction as vec4 (stride == 16). */
-  Mesh *orig_me = BKE_object_get_original_mesh(ob_eval);
+  Mesh *orig_me = id_cast<Mesh *>(orig_ob->data);
   orig_me->is_python_request_gpu = 1;
   me->is_python_request_gpu = 1;
 
@@ -5729,6 +5725,20 @@ static void pygpu_ocean_module_free(void * /*module*/)
     g_ocean_out_ssbo_cache.clear();
   }
 }
+
+#else /* WITH_OCEANSIM */
+
+// Empty Methods table
+static PyMethodDef pygpu_ocean_methods[] = {
+    {nullptr, nullptr, 0, nullptr},
+};
+
+// Empty free function 
+static void pygpu_ocean_module_free(void * /*module*/)
+{
+}
+
+#endif /* WITH_OCEANSIM */
 
 /* Module definition */
 static PyModuleDef pygpu_ocean_module_def = {

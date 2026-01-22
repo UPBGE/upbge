@@ -107,7 +107,7 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
 void KX_FontObject::UpdateTextFromProperty()
 {
   // Allow for some logic brick control
-  EXP_Value *prop = GetProperty("blender::Text");
+  EXP_Value *prop = GetProperty("Text");
   if (prop && prop->GetText() != m_text) {
     SetText(prop->GetText());
     UpdateCurveText(m_text);  // eevee

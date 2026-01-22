@@ -3702,6 +3702,22 @@ struct GeometryNodeFieldToGrid {
   int active_index = 0;
 };
 
+struct GeometryNodeFieldToListItem {
+  /** #eNodeSocketDatatype. */
+  int8_t socket_type = SOCK_FLOAT;
+  char _pad[3] = {};
+  int identifier = 0;
+  char *name = nullptr;
+};
+
+struct GeometryNodeFieldToList {
+  char _pad[4] = {};
+  int next_identifier = 0;
+  GeometryNodeFieldToListItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+};
+
 struct NodeGeometryDistributePointsInVolume {
   DNA_DEFINE_CXX_METHODS(NodeGeometryDistributePointsInVolume)
 
@@ -3840,6 +3856,14 @@ struct NodeFunctionFormatString {
   int next_identifier = 0;
   int active_index = 0;
   char _pad[4] = {};
+};
+
+struct NodeGeometryListGetItem {
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type = SOCK_FLOAT;
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+  char _pad = {};
 };
 
 struct NodeGetBundleItem {

@@ -810,6 +810,7 @@ struct UserDef_Experimental {
   char use_shader_node_previews = 0;
   char use_geometry_nodes_lists = 0;
   char use_javascript_typescript = 0;
+  char use_geometry_bundle = 0;
   char _pad[4] = {};
 };
 

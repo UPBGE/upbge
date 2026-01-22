@@ -17,6 +17,10 @@
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
 namespace blender {
+struct Depsgraph;
+}  // namespace blender
+
+namespace blender {
 namespace bke {
 
 /**

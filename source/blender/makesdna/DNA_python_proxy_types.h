@@ -54,7 +54,7 @@ typedef struct PythonProxyProperty {
   char strval[128] = ""; /* 128 = MAX_PROPSTRING */
   int itemval = 0;
   float vec[4] = {};
-  ListBase enumval = {nullptr, nullptr};
+  ListBaseT<LinkData> enumval = {nullptr, nullptr};
   struct bAction *action = nullptr;
   struct bArmature *armature = nullptr;
   struct Camera *camera = nullptr;

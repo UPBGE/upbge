@@ -1,27 +1,17 @@
 #include "draw_modifier_gpu_helpers.hh"
 
-#include "BLI_hash.h"
-#include "BLI_math_vector.h"
-#include "BLI_vector.hh"
-
 #include "BKE_image.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_gpu.hh"
 
-#include "DNA_scene_types.h"
-#include "DNA_texture_types.h"
-
-#include "IMB_imbuf.hh"
-
-#include "GPU_texture.hh"
-#include "GPU_storage_buffer.hh"
-#include "GPU_uniform_buffer.hh"
-
-#include "../gpu/gpu_modifiers_common/gpu_texture_helpers.hh"
+#include "BLI_hash.h"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "MEM_guardedalloc.h"
+#include "DNA_scene_types.h"
+
+#include "IMB_imbuf.hh"
+
+#include "../gpu/gpu_deform_common/gpu_texture_helpers.hh"
 
 namespace blender {
 namespace draw {

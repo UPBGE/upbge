@@ -3213,12 +3213,18 @@ static void rna_def_userdef_theme_space_outliner(BlenderRNA *brna)
 static void rna_def_userdef_theme_space_userpref(BlenderRNA *brna)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
 
   /* space_userpref */
 
   srna = RNA_def_struct(brna, "ThemePreferences", nullptr);
   RNA_def_struct_sdna(srna, "ThemeSpace");
   RNA_def_struct_ui_text(srna, "Theme Preferences", "Theme settings for the Blender Preferences");
+
+  prop = RNA_def_property(srna, "match", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Search Match", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_main(srna);
 }
@@ -7519,6 +7525,10 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       "JavaScript/TypeScript",
       "Enable JavaScript/TypeScript controller in the Logic Editor (Add Controller)");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
+  prop = RNA_def_property(srna, "use_geometry_bundle", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Bundle in Geometry",
+                           "Support storing custom bundles in a geometry in Geometry Nodes");
 
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

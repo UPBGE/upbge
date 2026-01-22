@@ -796,7 +796,7 @@ struct Object {
   /************UPBGE**************/
 
   /** Contains data for levels of detail. */
-  ListBase lodlevels = {NULL, NULL};
+  ListBaseT<LodLevel> lodlevels = {NULL, NULL};
   LodLevel *currentlod = NULL;
   float lodfactor = 1.0f, _pad4[1] = {0.0f};
 
