@@ -17,7 +17,7 @@
         sensors: { [name: string]: { positive: boolean; events: [number, number][] } };
     }
 
-    const cont = bge.logic.getCurrentController();
+    const cont = bge.logic.getCurrentController() as Controller;
     if (!cont) return;
 
     const obj = cont.owner;

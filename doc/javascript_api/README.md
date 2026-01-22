@@ -36,6 +36,58 @@ sudo apt-get install python3.11 python3.11-venv python3.11-dev
 brew install python@3.11
 ```
 
+### Node.js Version
+
+**Node.js is required for TypeScript language server support in the editor.**
+
+- **Recommended**: Node.js >= 20.19.x
+- **Minimum**: Node.js 18.x (may have limited support)
+
+You can check your Node.js version:
+```bash
+node --version
+# or
+nodejs --version
+```
+
+### Installing Node.js
+
+#### Windows:
+1. Download Node.js 20.19+ from [nodejs.org](https://nodejs.org/)
+2. Use the LTS (Long Term Support) version
+3. During installation, ensure "Add to PATH" is checked
+4. Verify installation: `node --version` and `npm --version`
+
+#### Linux/macOS:
+```bash
+# Ubuntu/Debian (using NodeSource repository)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# macOS (using Homebrew)
+brew install node@20
+
+# Verify installation
+node --version
+npm --version
+```
+
+### TypeScript Installation
+
+**TypeScript must be installed globally** for the editor's autocomplete feature to work.
+
+After installing Node.js, install TypeScript globally:
+```bash
+npm install -g typescript
+```
+
+Verify TypeScript installation:
+```bash
+tsc --version
+```
+
+**Note**: The `typescript-language-server` is automatically installed via `npx` when needed, but having TypeScript installed globally ensures better editor support.
+
 ## Structure
 
 - **`rst/`** - reStructuredText source files for the documentation
@@ -48,11 +100,18 @@ brew install python@3.11
 
 ## Building the Documentation
 
-### Step 1: Install Python Dependencies
+### Step 1: Install Prerequisites
 
 1. Install Python 3.11+ (see Prerequisites above)
 
-2. Install Sphinx and dependencies:
+2. Install Node.js >= 20.19.x (see Prerequisites above)
+
+3. Install TypeScript globally:
+   ```bash
+   npm install -g typescript
+   ```
+
+4. Install Sphinx and Python dependencies:
    ```bash
    python -m pip install -r doc/javascript_api/requirements.txt
    ```
@@ -144,3 +203,20 @@ If Blender is not found during generation:
 - Set `BLENDER_BIN` environment variable to Blender executable path
 - Or ensure `blender` is in your PATH
 - On Windows, the script will look for `blender.exe` in common locations
+
+### Node.js Not Found
+
+If `node` or `npm` commands are not found:
+- Ensure Node.js is installed (see Prerequisites above)
+- Verify installation: `node --version` and `npm --version`
+- On Windows, restart your terminal after installation
+- On Linux/macOS, ensure Node.js is in your PATH
+- The editor's TypeScript autocomplete requires Node.js to be available
+
+### TypeScript Not Installed
+
+If TypeScript autocomplete doesn't work in the editor:
+- Install TypeScript globally: `npm install -g typescript`
+- Verify installation: `tsc --version`
+- Ensure `npx` is available (comes with Node.js)
+- The `typescript-language-server` will be installed automatically via `npx` when needed

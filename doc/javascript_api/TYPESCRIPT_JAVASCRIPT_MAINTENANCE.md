@@ -143,19 +143,37 @@ A função `txtfmt_js_format_line()` processa caracteres em sequência:
 
 #### Filtro de Sugestões
 
-O filtro atual (se implementado) deve:
+O filtro implementado aplica regras diferentes para TypeScript e JavaScript:
 
-- **Após ponto (`.`)**: Mostrar apenas `Property` (kind 5) e `Method` (kind 2)
-- **Filtrar inválidos**: Caracteres únicos não-alfanuméricos, comentários, palavras-chave
-- **Priorizar**: Property > Method > Variable/Function > Class/Interface
+**Para TypeScript (arquivos `.ts`, `.mts`, `.cts`):**
+
+- **Após ponto (`.`)**: Mostrar apenas propriedades e métodos do tipo/interface acessado
+  - `Property` (kind 5)
+  - `Method` (kind 2)
+  - `Variable` (kind 6) - quando usado para propriedades
+  - `Field` (kind 9) - campos de classe/interface
+- **Fora de contexto de propriedade**: Mostrar apenas sugestões relevantes, filtrando:
+  - `Text` (kind 1) - sugestões de texto genérico
+  - `Snippet` (kind 15) - snippets de código
+  - Palavras-chave JavaScript/TypeScript (const, let, function, class, etc.)
+  - Caracteres únicos não-alfanuméricos (exceto `_`)
+- **Objetivo**: Mostrar apenas o que está definido na interface ou tipo do dado sendo acessado
+
+**Para JavaScript (arquivos `.js`, `.mjs`, `.cjs`):**
+
+- Sem filtros restritivos - mostra todas as sugestões do LSP
 
 **LSP CompletionItemKind:**
+- `1` = Text
 - `2` = Method
 - `3` = Function
 - `5` = Property
 - `6` = Variable
 - `7` = Class
 - `8` = Interface
+- `9` = Field
+- `14` = Keyword
+- `15` = Snippet
 
 ### 3. Sistema de Cores (`text_draw.cc`)
 
@@ -252,37 +270,56 @@ Quando `formatchar == FMT_TYPE_SPECIAL`:
 
 1. **Edite `text_lsp_ts.cc`**:
    - Localize a função `ts_lsp_get_completions()` (linha 361)
-   - Encontre o loop que processa `items` (linha 449)
-   - Adicione/remova filtros conforme necessário
+   - Encontre o loop que processa `items` (após linha 448)
+   - O filtro atual detecta automaticamente se é TypeScript e aplica regras restritivas
 
-2. **Exemplo de filtro**:
+2. **Comportamento atual**:
+   - **TypeScript**: Filtro restritivo que mostra apenas propriedades/métodos após ponto (`.`) e filtra palavras-chave
+   - **JavaScript**: Sem filtros restritivos, mostra todas as sugestões
+
+3. **Exemplo de como adicionar filtros personalizados**:
    ```cpp
-   for (const nlohmann::json &it : items) {
-       std::string label = it.value("insertText", it.value("label", ""));
-       
-       // Filtrar sugestões vazias
-       if (label.empty()) {
-           continue;
-       }
-       
-       // Filtrar palavras-chave
-       if (label == "const" || label == "let" || label == "var") {
-           continue;
-       }
-       
-       // Filtrar por tipo (kind)
-       int kind = it.value("kind", 0);
-       if (kind == 1) { // Text - pular
-           continue;
-       }
-       
-       // Adicionar sugestão
-       char type = tft->format_identifier(label.c_str());
-       texttool_suggest_add(label.c_str(), type);
+   /* Dentro do loop for (const nlohmann::json &it : items) */
+   
+   /* Filtrar sugestões vazias */
+   if (label.empty()) {
+       continue;
    }
+   
+   /* Para TypeScript, aplicar filtros restritivos */
+   if (is_typescript) {
+       int kind = it.value("kind", 0);
+       
+       /* Após ponto: apenas propriedades e métodos */
+       if (after_dot) {
+           if (kind != 2 && kind != 5 && kind != 6 && kind != 9) {
+               continue;
+           }
+       }
+       
+       /* Filtrar palavras-chave */
+       bool is_keyword = false;
+       for (const char **kw = keywords; *kw; kw++) {
+           if (label == *kw) {
+               is_keyword = true;
+               break;
+           }
+       }
+       if (is_keyword) {
+           continue;
+       }
+   }
+   
+   /* Adicionar sugestão */
+   char type = tft->format_identifier(label.c_str());
+   texttool_suggest_add(label.c_str(), type);
    ```
 
-3. **Recompile e teste**.
+4. **Para modificar a lista de palavras-chave filtradas**:
+   - Localize o array `keywords` dentro de `ts_lsp_get_completions()`
+   - Adicione ou remova palavras-chave conforme necessário
+
+5. **Recompile e teste**.
 
 ### Adicionar/Modificar Tipos BGE no LSP
 
