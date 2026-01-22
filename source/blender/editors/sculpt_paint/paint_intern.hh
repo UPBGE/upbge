@@ -79,6 +79,7 @@ enum BrushStrokeMode {
   BRUSH_STROKE_INVERT,
   BRUSH_STROKE_SMOOTH,
   BRUSH_STROKE_ERASE,
+  BRUSH_STROKE_MASK,
 };
 
 namespace ed::sculpt_paint {
@@ -597,6 +598,7 @@ void PAINT_OT_vert_select_linked(wmOperatorType *ot);
 void PAINT_OT_vert_select_linked_pick(wmOperatorType *ot);
 void PAINT_OT_vert_select_more(wmOperatorType *ot);
 void PAINT_OT_vert_select_less(wmOperatorType *ot);
+void PAINT_OT_vert_select_loop(wmOperatorType *ot);
 
 bool vert_paint_poll(bContext *C);
 bool mask_paint_poll(bContext *C);

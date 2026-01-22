@@ -106,9 +106,9 @@ set(SRC
   intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
-  gpu_modifiers_common/gpu_shader_common_normal_lib.cc
-  gpu_modifiers_common/gpu_shader_common_texture_lib.cc
-  gpu_modifiers_common/gpu_texture_helpers.cc
+  gpu_deform_common/gpu_shader_common_normal_lib.cc
+  gpu_deform_common/gpu_shader_common_texture_lib.cc
+  gpu_deform_common/gpu_texture_helpers.cc
 
   shader_tool/attribute.cc
   shader_tool/enum.cc
@@ -161,9 +161,9 @@ set(SRC
   GPU_vertex_format.hh
   GPU_viewport.hh
   GPU_worker.hh
-  gpu_modifiers_common/gpu_shader_common_normal_lib.hh
-  gpu_modifiers_common/gpu_shader_common_texture_lib.hh
-  gpu_modifiers_common/gpu_texture_helpers.hh
+  gpu_deform_common/gpu_shader_common_normal_lib.hh
+  gpu_deform_common/gpu_shader_common_texture_lib.hh
+  gpu_deform_common/gpu_texture_helpers.hh
 
   intern/gpu_backend.hh
   intern/gpu_capabilities_private.hh

@@ -1913,7 +1913,6 @@ int main(int argc,
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
-  ED_node_clipboard_free();
   blender::ed::greasepencil::clipboard_free();
   UV_clipboard_free();
   wm_clipboard_free();

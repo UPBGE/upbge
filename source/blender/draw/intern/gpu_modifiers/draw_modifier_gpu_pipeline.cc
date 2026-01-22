@@ -4,21 +4,19 @@
 
 #include "draw_modifier_gpu_pipeline.hh"
 
-#include <algorithm>
-
+#include "BKE_mesh_gpu.hh"
 #include "BKE_modifier.hh"
-#include "BKE_object.hh"
-#include "BLI_hash.h"
-#include "DEG_depsgraph_query.hh"
-#include "DNA_armature_types.h"
-#include "DNA_key_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 
+#include "BLI_hash.h"
+
+#include "DEG_depsgraph_query.hh"
+
+#include "DNA_key_types.h"
+
+#include "draw_cache_extract.hh"
 #include "DRW_render.hh"
 
 #include "draw_armature_skinning.hh"
-#include "draw_cache_impl.hh"
 #include "draw_displace.hh"
 #include "draw_hook.hh"
 #include "draw_lattice_deform.hh"
@@ -26,8 +24,6 @@
 #include "draw_simpledeform.hh"
 #include "draw_wave.hh"
 #include "draw_warp.hh"
-
-#include "BKE_mesh_gpu.hh"
 
 
 namespace blender {

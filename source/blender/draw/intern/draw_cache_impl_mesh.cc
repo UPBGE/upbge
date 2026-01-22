@@ -1188,18 +1188,31 @@ static bool modifier_stack_has_topology_changer(Object *ob, PlayBackRefuseInfo &
 /* Compute decision without side-effects. */
 static PlayBackRefuseInfo compute_gpu_playback_decision(Object &ob, Mesh &mesh)
 {
-  PlayBackRefuseInfo info;
-  info.ob = &ob;
-  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  Object *ob_orig = DEG_get_original(&ob);
 
+  PlayBackRefuseInfo info;
+  if (ob_orig->type != OB_MESH) {
+    info.allow_gpu = false;
+    info.key_requests_gpu = false;
+    info.modifiers_cpu = {};
+    info.modifiers_gpu = {};
+    info.ob = nullptr;
+    info.reason = PlaybackRefuseReason::None;
+    info.refusal_modifier = nullptr;
+    info.python_requests_gpu = false;
+    info.modifier_requests_gpu = false;
+    return info;
+  }
+
+  Mesh *orig_mesh = id_cast<Mesh *>(ob_orig->data);
+
+  info.ob = &ob;
   info.python_requests_gpu = (mesh.is_python_request_gpu != 0) ||
                           (orig_mesh && orig_mesh->is_python_request_gpu != 0);
 
   /* Count deform modifiers requesting GPU */
   int total_deform_modifiers = 0;
   int gpu_deform_modifiers = 0;
-
-  Object *ob_orig = DEG_get_original(&ob);
 
   for (ModifierData *md = static_cast<ModifierData *>(ob_orig->modifiers.first); md; md = md->next)
   {
@@ -1320,13 +1333,18 @@ static void register_meshes_to_skin(Object &ob, Mesh &mesh, const PlayBackRefuse
   if (!DRWContext::is_active()) {
     return;
   }
+  Object *orig_ob = DEG_get_original(&ob);
+
+  if (orig_ob->type != OB_MESH) {
+    return;
+  }
 
   DRWData *dd = drw_get().data;
   if (dd == nullptr) {
     return;
   }
 
-  Mesh *orig_mesh = BKE_object_get_original_mesh(&ob);
+  Mesh *orig_mesh = id_cast<Mesh *>(orig_ob->data);
   if (orig_mesh == nullptr) {
     return;
   }

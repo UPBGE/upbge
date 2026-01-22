@@ -861,7 +861,7 @@ static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
   while (pprop) {
     LinkData *link;
     writer->write_struct(pprop);
-    BLO_write_struct_list(writer, LinkData, &pprop->enumval);
+    writer->write_struct_list(&pprop->enumval);
     for (link = (LinkData *)pprop->enumval.first; link; link = link->next) {
       BLO_write_string(writer, (const char *)link->data);
     }
@@ -942,7 +942,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Object, id_address, &ob->id);
+  writer->write_id_struct(id_address, ob);
   BKE_id_blend_write(writer, &ob->id);
 
   /* direct data */
@@ -968,7 +968,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   if (ob->bsoft) {
     writer->write_struct(ob->bsoft);
   }
-  BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
+  writer->write_struct_list(&ob->lodlevels);
   /***************/
 
   BKE_constraint_blend_write(writer, &ob->constraints);
@@ -1001,7 +1001,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_modifier_blend_write(writer, &ob->id, &ob->modifiers);
   BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
-  BLO_write_struct_list(writer, LinkData, &ob->pc_ids);
+  writer->write_struct_list(&ob->pc_ids);
 
   BKE_previewimg_blend_write(writer, ob->preview);
 

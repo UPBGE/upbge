@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include "BKE_modifier.hh"
-#include "BLI_vector.hh"
 #include "GPU_storage_buffer.hh"
 
-#include "draw_cache_extract.hh"
 
 namespace blender {
 struct Mesh;
