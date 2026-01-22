@@ -187,7 +187,7 @@ static void format_draw_color(const TextDrawContext *tdc,
       case FMT_TYPE_DIRECTIVE:
         BLF_color4ubv(tdc->font_id, one_dark_directive);
         break;
-      case FMT_TYPE_SPECIAL:
+      case FMT_TYPE_SPECIAL: {
         /* In One Dark: functions are blue, properties (after '.') are red */
         /* Check if this is a property by looking backwards in format array for a '.' symbol */
         bool is_property = false;
@@ -215,6 +215,7 @@ static void format_draw_color(const TextDrawContext *tdc,
           BLF_color4ubv(tdc->font_id, one_dark_special);
         }
         break;
+      }
       case FMT_TYPE_RESERVED:
         /* In One Dark: primitive types (string, number, etc.) are purple #C678DD (same as keywords) */
         BLF_color4ubv(tdc->font_id, one_dark_reserved);

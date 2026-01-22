@@ -32,6 +32,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
@@ -4086,6 +4087,13 @@ static bool screen_maximize_area_poll(bContext *C)
   const bScreen *screen = CTX_wm_screen(C);
   const ScrArea *area = CTX_wm_area(C);
   const wmWindowManager *wm = CTX_wm_manager(C);
+  const SpaceLink *sl = CTX_wm_space_data(C);
+  
+  /* Don't allow CTRL+SPACE to maximize when in text editor (use for autocomplete instead). */
+  if (sl && sl->spacetype == SPACE_TEXT) {
+    return false;
+  }
+  
   return ED_operator_areaactive(C) &&
          /* Don't allow maximizing global areas but allow minimizing from them. */
          ((screen->state != SCREENNORMAL) || !ED_area_is_global(area)) &&

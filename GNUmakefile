@@ -34,6 +34,10 @@ Other Convenience Targets
    * config:        Run cmake configuration tool to set build options.
    * blenlib:       Build only bf_blenlib (faster iteration). Use with your config
                     so BUILD_DIR matches, e.g. 'make blenlib release' or 'make blenlib developer'.
+   * texteditor:    Build only the text editor (faster iteration). Use with your config
+                    so BUILD_DIR matches, e.g. 'make texteditor release' or 'make texteditor developer'.
+   * blender:       Build only the Blender executable (faster iteration). Use with your config
+                    so BUILD_DIR matches, e.g. 'make blender release' or 'make blender developer'.
    * deps:          Build library dependencies (intended only for platform maintainers).
 
                     The existence of locally build dependencies overrides the pre-built dependencies from subversion.
@@ -514,6 +518,16 @@ ccache: all
 blenlib: .FORCE
 	@$(CMAKE_CONFIG)
 	cmake --build "$(BUILD_DIR)" --target bf_blenlib --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS))
+
+# Build only the text editor (for faster iteration when working on text editor features)
+texteditor: .FORCE
+	@$(CMAKE_CONFIG)
+	cmake --build "$(BUILD_DIR)" --target bf_editor_space_text --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS))
+
+# Build only the Blender executable (for faster iteration after code changes)
+blender: .FORCE
+	@$(CMAKE_CONFIG)
+	cmake --build "$(BUILD_DIR)" --target blender --config $(BUILD_TYPE) -j $(or $(BUILD_JOBS),$(NPROCS))
 
 # -----------------------------------------------------------------------------
 # Build dependencies

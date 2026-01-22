@@ -811,7 +811,7 @@ struct UserDef_Experimental {
   char use_geometry_nodes_lists = 0;
   char use_javascript_typescript = 0;
   char use_geometry_bundle = 0;
-  char _pad[4] = {};
+  char _pad[7] = {}; /* Padding to fix size error (add 3 bytes) */
 };
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -1218,10 +1218,12 @@ struct UserDef {
   UserDef_TempWinBounds stored_bounds;
 
   UserDef_Experimental experimental;
+  char _pad_after_experimental[4] = {}; /* Padding to align upbgeversionfile to 4 bytes (4 bytes needed) */
 
   /** UPBGE */
   /** UserDef has separate do-version handling, and can be read from other files. */
   int upbgeversionfile = 0, upbgesubversionfile = 0;
+  char _pad_upbge[8] = {}; /* Padding to ensure runtime is 8-byte aligned (need 8 bytes) */
 
   /** Runtime data (keep last). */
   UserDef_Runtime runtime;

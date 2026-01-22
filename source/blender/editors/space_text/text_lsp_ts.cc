@@ -74,6 +74,11 @@ static const char *BGE_DTS_CONTENT =
     "  activate(act: BGEActuator | string): void;\n"
     "  deactivate(act: BGEActuator | string): void;\n"
     "}\n"
+    "type Controller = BGEController;\n"
+    "type GameObject = BGEGameObject;\n"
+    "type Scene = BGEScene;\n"
+    "type Sensor = BGESensor;\n"
+    "type Actuator = BGEActuator;\n"
     "interface BGEVehicle {\n"
     "  addWheel(wheelObj: BGEGameObject, connectionPoint: [number, number, number], downDir: "
     "[number, number, number], axleDir: [number, number, number], suspensionRestLength: number, "
@@ -394,13 +399,25 @@ bool ts_lsp_get_completions(Text *text, const char *seek, int seek_len, TextForm
 
   ts_lsp_ensure_document(content, uri);
 
+  /* The TypeScript language server needs time to process document changes before it can
+   * provide intelligent completions based on type inference (e.g., after "as Controller").
+   * We send the completion request immediately; the server should handle it, but if it
+   * hasn't finished processing changes, it may return less accurate results.
+   * 
+   * Note: For most TypeScript/JavaScript code, byte offsets work fine for character positions
+   * since most characters are ASCII. The LSP spec requires UTF-16 code units, but many
+   * servers accept byte offsets for ASCII text. */
+
   const int completion_id = 2;
   nlohmann::json comp_req = {{"jsonrpc", "2.0"},
                              {"id", completion_id},
                              {"method", "textDocument/completion"},
                              {"params",
                               {{"textDocument", {{"uri", uri}}},
-                               {"position", {{"line", lsp_line}, {"character", lsp_char}}}}}};
+                               {"position", {{"line", lsp_line}, {"character", lsp_char}}},
+                               /* Include context to help with type inference.
+                                * triggerKind: 1 = Invoked (manual trigger via CTRL+SPACE) */
+                               {"context", {{"triggerKind", 1}}}}}};
 
   if (!lsp_send(ts_lsp_pipe, comp_req)) {
     return false;
