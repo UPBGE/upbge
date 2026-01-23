@@ -853,9 +853,9 @@ void RNA_def_collections(BlenderRNA *brna)
 
   /* UPBGE */
   prop = RNA_def_property(srna, "use_collection_spawn", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", COLLECTION_IS_SPAWNED);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", COLLECTION_IS_SPAWNED);
   RNA_def_property_ui_text(prop, "Instance Spawn", "Spawn behaviour when instanced");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Collection_flag_update");
   /*********/
 
   prop = RNA_def_property(srna, "objects", PROP_COLLECTION, PROP_NONE);
