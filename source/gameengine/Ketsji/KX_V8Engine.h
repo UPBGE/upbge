@@ -57,6 +57,8 @@ class KX_V8Engine {
   // Initialize V8 engine (singleton)
   static bool Initialize();
   static void Shutdown();
+  // Complete cleanup for final Blender exit (frees all resources including platform)
+  static void FinalShutdown();
 
   // Get singleton instance
   static KX_V8Engine *GetInstance();

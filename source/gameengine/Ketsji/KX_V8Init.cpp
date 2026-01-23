@@ -39,14 +39,23 @@
 #  include "KX_KetsjiEngine.h"
 #  include "CM_Message.h"
 #  include "BKE_main.hh"
+#  include "BKE_blender.hh"
 
 using namespace blender;
+
+static void v8_final_shutdown_atexit(void * /*user_data*/)
+{
+  KX_V8Engine::FinalShutdown();
+}
 
 void initV8Engine()
 {
   if (!KX_V8Engine::Initialize()) {
     CM_Error("Failed to initialize V8 JavaScript engine");
+    return;
   }
+  // Register final cleanup for Blender exit
+  BKE_blender_atexit_register(v8_final_shutdown_atexit, nullptr);
 }
 
 void setupGameJavaScript(KX_KetsjiEngine *ketsjiengine, Main *blenderdata)

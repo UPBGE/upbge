@@ -136,6 +136,43 @@ void KX_V8Engine::Shutdown()
   // creating a new isolate when the user presses P again.
 }
 
+void KX_V8Engine::FinalShutdown()
+{
+  if (!s_initialized) {
+    return;
+  }
+
+  // Complete cleanup for final Blender exit - free all resources
+  v8::Platform *platform_to_delete = nullptr;
+  if (s_instance) {
+    s_instance->m_impl->default_context.Reset();
+    if (s_instance->m_isolate) {
+      s_instance->m_isolate->Exit();
+      s_instance->m_isolate->Dispose();
+      s_instance->m_isolate = nullptr;
+    }
+    if (s_instance->m_array_buffer_allocator) {
+      delete static_cast<v8::ArrayBuffer::Allocator *>(s_instance->m_array_buffer_allocator);
+      s_instance->m_array_buffer_allocator = nullptr;
+    }
+    // Save platform pointer before deleting instance
+    platform_to_delete = s_instance->m_platform;
+    s_instance->m_platform = nullptr;
+    delete s_instance;
+    s_instance = nullptr;
+  }
+
+  // Cleanup V8 platform and engine (only safe on final exit)
+  // Order matters: Dispose() first, then DisposePlatform(), then delete platform
+  V8::Dispose();
+  V8::DisposePlatform();
+  if (platform_to_delete) {
+    delete platform_to_delete;
+  }
+
+  s_initialized = false;
+}
+
 KX_V8Engine *KX_V8Engine::GetInstance()
 {
   return s_instance;
