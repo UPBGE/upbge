@@ -161,7 +161,7 @@ bool SCA_JavaScriptController::Compile()
     return false;
   }
 
-  ScriptOrigin origin(isolate, resource_name);
+  ScriptOrigin origin(resource_name);
   Local<Script> script;
   if (!Script::Compile(ctx, source_string, &origin).ToLocal(&script)) {
     CM_Error("JavaScript compilation failed");

@@ -200,7 +200,7 @@ bool KX_V8Engine::ExecuteStringInContext(Local<Context> context,
     return false;
   }
 
-  ScriptOrigin origin(m_isolate, resource_name);
+  ScriptOrigin origin(resource_name);
   Local<Script> script;
   if (!Script::Compile(context, source_string, &origin).ToLocal(&script)) {
     if (report_exceptions) {

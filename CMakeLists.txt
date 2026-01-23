@@ -1513,14 +1513,16 @@ if(WITH_PYTHON)
   # upgrading Python tends to cause confusion for users who build.
   # Give the error message early to make this more obvious.
   #
-  # Do this before main 'platform_*' checks,
-  # because UNIX will search for the old Python paths which may not exist.
-  # giving errors about missing paths before this case is met.
-  if(DEFINED PYTHON_VERSION AND "${PYTHON_VERSION}" VERSION_LESS "3.13")
-    message(
-      FATAL_ERROR
-      "At least Python 3.13 is required to build, but found Python ${PYTHON_VERSION}"
-    )
+  # Note: On Windows, PYTHON_VERSION is set by platform_win32.cmake after this check.
+  # This check is mainly for UNIX platforms where Python is found via find_package.
+  # On Windows, the check happens after platform_win32.cmake includes.
+  if(NOT WIN32)
+    if(DEFINED PYTHON_VERSION AND "${PYTHON_VERSION}" VERSION_LESS "3.13")
+      message(
+        FATAL_ERROR
+        "At least Python 3.13 is required to build, but found Python ${PYTHON_VERSION}"
+      )
+    endif()
   endif()
 endif()
 
@@ -1640,6 +1642,16 @@ elseif(WIN32)
   include(platform_win32)
 elseif(APPLE)
   include(platform_apple)
+endif()
+
+# Verify Python version after platform files have set it
+if(WITH_PYTHON AND WIN32)
+  if(DEFINED PYTHON_VERSION AND "${PYTHON_VERSION}" VERSION_LESS "3.13")
+    message(
+      FATAL_ERROR
+      "At least Python 3.13 is required to build, but found Python ${PYTHON_VERSION}"
+    )
+  endif()
 endif()
 
 
@@ -2680,17 +2692,14 @@ if(WITH_JAVASCRIPT)
   if(DEFINED LIBDIR AND EXISTS "${LIBDIR}/v8")
     set(V8_ROOT "${LIBDIR}/v8" CACHE PATH "V8 from precompiled libs")
   endif()
-  find_package(V8)
+  find_package(V8 REQUIRED)
   if(NOT V8_FOUND)
     message(
-      WARNING
-      "V8 not found. JavaScript support will be disabled.\n"
-      "Set V8_ROOT to point to your V8 installation directory."
+      FATAL_ERROR
+      "V8 not found. JavaScript support is required but V8 engine is missing.\n"
+      "Please download V8 by running: python build_files/download_v8_nuget.py\n"
+      "Or set V8_ROOT to point to your V8 installation directory."
     )
-    set(WITH_JAVASCRIPT OFF)
-    if(WITH_TYPESCRIPT)
-      set(WITH_TYPESCRIPT OFF)
-    endif()
   else()
     message(STATUS "Found V8: ${V8_INCLUDE_DIRS}")
     add_definitions(-DWITH_JAVASCRIPT)
