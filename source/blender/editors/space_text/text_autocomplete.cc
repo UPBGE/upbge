@@ -151,11 +151,19 @@ static GHash *text_autocomplete_build(Text *text)
   }
 
   TextFormatType *tft = ED_text_format_get(text);
+  
+  /* For TypeScript files, ONLY use LSP suggestions - never fallback to word search */
+  if (text_format_is_typescript(tft)) {
+    ts_lsp_get_completions(text, seek, seek_len, tft);
+    return nullptr; /* Always return nullptr for TypeScript - no word-based fallback */
+  }
+  
+  /* For JavaScript and other languages, try LSP first, then fallback to word search */
   if (text_format_is_js_or_ts(tft) && ts_lsp_get_completions(text, seek, seek_len, tft)) {
     return nullptr; /* LSP provided suggestions; no GHash to free. */
   }
 
-  /* Now walk over entire doc and suggest words. */
+  /* Now walk over entire doc and suggest words (ONLY for non-TypeScript files). */
   {
     gh = BLI_ghash_str_new(__func__);
 

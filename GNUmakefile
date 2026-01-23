@@ -374,6 +374,9 @@ else
 	else
 		ifeq ($(OS), Darwin)
 			DEPS_BUILD_COMMAND:=make -s
+		else ifneq ($(IS_WINDOWS),)
+			# Windows: use cmake --build which works with any generator (Visual Studio, Ninja, etc.)
+			DEPS_BUILD_COMMAND:=cmake --build
 		else
 			DEPS_BUILD_COMMAND:="$(BLENDER_DIR)/build_files/build_environment/linux/make_deps_wrapper.sh" -s
 		endif
@@ -548,7 +551,13 @@ deps: .FORCE
 
 	@echo
 	@echo Building dependencies ...
-	$(DEPS_BUILD_COMMAND) -C "$(DEPS_BUILD_DIR)" -j $(NPROCS) $(DEPS_TARGET)
+	@if [ -z "$(IS_WINDOWS)" ]; then \
+		$(DEPS_BUILD_COMMAND) -C "$(DEPS_BUILD_DIR)" -j $(NPROCS) $(DEPS_TARGET); \
+	elif [ -f "$(DEPS_BUILD_DIR)/build.ninja" ]; then \
+		$(DEPS_BUILD_COMMAND) -C "$(DEPS_BUILD_DIR)" -j $(NPROCS) $(DEPS_TARGET); \
+	else \
+		cmake --build "$(DEPS_BUILD_DIR)" --config $(BUILD_TYPE) -j $(NPROCS); \
+	fi
 	@echo
 	@echo Dependencies successfully built and installed to $(DEPS_INSTALL_DIR).
 	@echo

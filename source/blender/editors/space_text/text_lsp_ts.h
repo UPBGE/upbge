@@ -19,6 +19,9 @@ struct TextFormatType;
 /** Return true if \a tft is the JS/TS formatter (extensions js, mjs, cjs, ts, mts, cts). */
 bool text_format_is_js_or_ts(const TextFormatType *tft);
 
+/** Return true if \a tft is the TypeScript formatter (extensions ts, mts, cts). */
+bool text_format_is_typescript(const TextFormatType *tft);
+
 /**
  * Try to get completions from the TypeScript LSP. Fills texttool_suggest_* on success.
  * \return true if at least one suggestion was added.
