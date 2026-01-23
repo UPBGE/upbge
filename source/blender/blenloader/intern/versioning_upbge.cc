@@ -439,68 +439,9 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
   }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 2)) {
-    for (Object &ob : bmain->objects) {
-      for (ModifierData *md = (ModifierData *)ob.modifiers.first; md; md = md->next) {
-        if (md->type == eModifierType_Armature) {
-          ArmatureModifierData *amd = (ArmatureModifierData *)md;
-          amd->deform_method |= ARM_DEFORM_METHOD_CPU;
-        }
-      }
-    }
-  }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 4)) {
     for (Mesh &mesh : bmain->meshes) {
       BKE_mesh_legacy_recast_to_generic(&mesh);
-    }
-  }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 1)) {
-    for (Mesh &mesh : bmain->meshes) {
-      if (mesh.key) {
-        mesh.key->deform_method |= KEY_DEFORM_METHOD_CPU;
-      }
-    }
-  }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 2)) {
-    for (Object &ob : bmain->objects) {
-      for (ModifierData *md = (ModifierData *)ob.modifiers.first; md; md = md->next) {
-        if (md->type == eModifierType_Lattice) {
-          LatticeModifierData *lmd = (LatticeModifierData *)md;
-          lmd->deform_method |= LAT_DEFORM_METHOD_CPU;
-        }
-        if (md->type == eModifierType_SimpleDeform) {
-          SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
-          smd->deform_method |= SIM_DEFORM_METHOD_CPU;
-        }
-        if (md->type == eModifierType_Hook) {
-          HookModifierData *hmd = (HookModifierData *)md;
-          hmd->deform_method |= HOO_DEFORM_METHOD_CPU;
-        }
-        if (md->type == eModifierType_Displace) {
-          DisplaceModifierData *dmd = (DisplaceModifierData *)md;
-          dmd->deform_method |= DIS_DEFORM_METHOD_CPU;
-        }
-      }
-    }
-  }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 3)) {
-    for (Object &ob : bmain->objects) {
-      for (ModifierData *md = (ModifierData *)ob.modifiers.first; md; md = md->next) {
-        if (md->type == eModifierType_Wave) {
-          WaveModifierData *wmd = (WaveModifierData *)md;
-          wmd->deform_method |= WAV_DEFORM_METHOD_CPU;
-        }
-      }
-    }
-  }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 4)) {
-    for (Object &ob : bmain->objects) {
-      for (ModifierData *md = (ModifierData *)ob.modifiers.first; md; md = md->next) {
-        if (md->type == eModifierType_Warp) {
-          WarpModifierData *wmd = (WarpModifierData *)md;
-          wmd->deform_method |= WAR_DEFORM_METHOD_CPU;
-        }
-      }
     }
   }
 }

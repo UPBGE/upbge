@@ -484,6 +484,12 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    modifiers_armature
+    ${TEST_SRC_DIR}/modeling/modifiers/armature_modifier.blend
+    --python ${TEST_PYTHON_DIR}/modeling/modifiers/armature_modifier.py
+  )
+
+  add_blender_test(
     physics_cloth
     ${TEST_SRC_DIR}/physics/cloth_test.blend
     --python ${TEST_PYTHON_DIR}/physics_cloth.py
@@ -546,13 +552,6 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_constraints.py
     --
     --testdir "${TEST_SRC_DIR}/constraints"
-  )
-
-  add_blender_test(
-    multires
-    --python ${TEST_PYTHON_DIR}/bl_multires.py
-    --
-    --testdir "${TEST_SRC_DIR}/sculpting"
   )
 endif()
 
@@ -652,7 +651,7 @@ endif()
 # BRUSH TESTS
 add_blender_test(
   bl_brush
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_brush_test.py
+  --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/brush_asset_test.py
 )
 
 # ------------------------------------------------------------------------------
@@ -1429,8 +1428,15 @@ endif()
 
 if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
-    bl_sculpt_operators
-    --python ${CMAKE_CURRENT_LIST_DIR}/bl_sculpt.py
+    bl_sculpt_mask
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_multires
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/multires_operators_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
@@ -1459,20 +1465,6 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_brush_curve_presets
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/brush_strength_curves_test.py
-    --
-    --testdir "${TEST_SRC_DIR}/sculpting"
-  )
-
-  add_blender_test(
-    bl_sculpt_mask_filter
-    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_filter_test.py
-    --
-    --testdir "${TEST_SRC_DIR}/sculpting"
-  )
-
-  add_blender_test(
-    bl_sculpt_mask_flood_fill
-    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_flood_fill_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )

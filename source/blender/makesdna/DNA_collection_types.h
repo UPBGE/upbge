@@ -170,10 +170,10 @@ struct Collection {
   DNA_DEPRECATED unsigned int layer = 0;
   float instance_offset[3] = {};
 
-  uint8_t flag = 0;
+  uint16_t flag = COLLECTION_IS_SPAWNED;  // upbge
   int8_t color_tag = COLLECTION_COLOR_NONE;
 
-  char _pad1[2] = {};
+  char _pad1[1] = {};
 
   uint8_t lineart_usage = 0; /* #eCollectionLineArt_Usage */
   uint8_t lineart_flags = 0; /* #eCollectionLineArt_Flags */

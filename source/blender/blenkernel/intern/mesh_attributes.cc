@@ -912,6 +912,18 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
     const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
+  fn.lookup_meta_data = [](const void *owner, StringRef name) -> std::optional<AttributeMetaData> {
+    const Mesh &mesh = *static_cast<const Mesh *>(owner);
+    if (BKE_defgroup_name_index(&mesh.vertex_group_names, name) != -1) {
+      return AttributeMetaData{AttrDomain::Point, AttrType::Float};
+    }
+    const AttributeStorage &storage = mesh.attribute_storage.wrap();
+    const Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return std::nullopt;
+    }
+    return AttributeMetaData{attr->domain(), attr->data_type()};
+  };
   fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
     const Mesh &mesh = *static_cast<const Mesh *>(owner);
 
@@ -946,7 +958,7 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
     }
 
     const AttributeStorage &storage = mesh.attribute_storage.wrap();
-    storage.foreach_with_stop([&](const Attribute &attr) {
+    for (const Attribute &attr : storage) {
       const auto get_fn = [&]() {
         const int domain_size = get_domain_size(owner, attr.domain());
         return attribute_to_reader(attr, attr.domain(), domain_size);
@@ -955,8 +967,10 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
       iter.is_builtin = builtin_attributes().contains(attr.name());
       iter.accessor = &accessor;
       fn(iter);
-      return !iter.is_stopped();
-    });
+      if (iter.is_stopped()) {
+        break;
+      }
+    }
   };
   fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
