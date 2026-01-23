@@ -143,18 +143,25 @@ void KX_V8Engine::FinalShutdown()
   }
 
   // Complete cleanup for final Blender exit - free all resources
+  // First, reset all V8 handles while isolate is still valid
   v8::Platform *platform_to_delete = nullptr;
   if (s_instance) {
+    // Reset default context first (while isolate is still valid)
     s_instance->m_impl->default_context.Reset();
+    
+    // Now dispose isolate (this will invalidate all handles)
     if (s_instance->m_isolate) {
       s_instance->m_isolate->Exit();
       s_instance->m_isolate->Dispose();
       s_instance->m_isolate = nullptr;
     }
+    
+    // Clean up allocator
     if (s_instance->m_array_buffer_allocator) {
       delete static_cast<v8::ArrayBuffer::Allocator *>(s_instance->m_array_buffer_allocator);
       s_instance->m_array_buffer_allocator = nullptr;
     }
+    
     // Save platform pointer before deleting instance
     platform_to_delete = s_instance->m_platform;
     s_instance->m_platform = nullptr;
@@ -193,11 +200,17 @@ void KX_V8Engine::CreateDefaultContext()
 
 Local<Context> KX_V8Engine::CreateContext()
 {
+  if (!m_isolate) {
+    return Local<Context>();
+  }
   Isolate::Scope isolate_scope(m_isolate);
   EscapableHandleScope handle_scope(m_isolate);
 
   Local<ObjectTemplate> global = ObjectTemplate::New(m_isolate);
   Local<Context> context = Context::New(m_isolate, nullptr, global);
+  if (context.IsEmpty()) {
+    return Local<Context>();
+  }
   return handle_scope.Escape(context);
 }
 

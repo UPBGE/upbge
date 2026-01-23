@@ -85,6 +85,22 @@ SCA_JavaScriptController::SCA_JavaScriptController(const SCA_JavaScriptControlle
 
 SCA_JavaScriptController::~SCA_JavaScriptController()
 {
+#ifdef WITH_JAVASCRIPT
+  // Clean up V8 handles before isolate is disposed
+  if (m_v8) {
+    KX_V8Engine *engine = KX_V8Engine::GetInstance();
+    if (engine && engine->GetIsolate()) {
+      v8::Isolate *isolate = engine->GetIsolate();
+      // Isolate::Scope is required when destroying Global handles
+      Isolate::Scope isolate_scope(isolate);
+      // Reset Global handles to release V8 references
+      m_v8->compiled_script.Reset();
+      m_v8->context.Reset();
+    }
+    // m_v8 will be automatically deleted by unique_ptr
+    m_v8.reset();
+  }
+#endif
 }
 
 EXP_Value *SCA_JavaScriptController::GetReplica()
@@ -122,6 +138,12 @@ bool SCA_JavaScriptController::Compile()
     return false;
   }
 
+  // Ensure V8 is properly initialized
+  if (!KX_V8Engine::Initialize()) {
+    CM_Error("Failed to initialize V8 engine");
+    return false;
+  }
+
   std::string script_to_compile = m_scriptText;
 
   // Compile TypeScript if needed
@@ -137,10 +159,45 @@ bool SCA_JavaScriptController::Compile()
   // Create context for this controller. CreateContext uses EscapableHandleScope
   // and requires an outer HandleScope; store in Global so they outlive this scope.
   Isolate *isolate = engine->GetIsolate();
+  if (!isolate) {
+    CM_Error("V8 isolate not available");
+    return false;
+  }
+  // Isolate::Scope is required when creating/destroying Global handles
+  Isolate::Scope isolate_scope(isolate);
+  
+  // Clean up any existing V8 handles before creating new ones
+  if (m_v8) {
+    m_v8->compiled_script.Reset();
+    m_v8->context.Reset();
+    m_v8.reset();
+  }
+  
+  // Create context and store in Global handle - must be done in same HandleScope
   HandleScope handle_scope(isolate);
   m_v8 = std::make_unique<SCA_JavaScriptControllerV8>();
-  m_v8->context.Reset(isolate, engine->CreateContext());
+  
+  // Create context directly here instead of using CreateContext() to ensure
+  // it stays in scope when we do Reset()
+  Local<ObjectTemplate> global = ObjectTemplate::New(isolate);
+  Local<Context> created_context = Context::New(isolate, nullptr, global);
+  if (created_context.IsEmpty()) {
+    CM_Error("Failed to create V8 context");
+    m_v8.reset();
+    return false;
+  }
+  
+  // Reset must be called while context is still in scope
+  m_v8->context.Reset(isolate, created_context);
+  
+  // Now we can use the context from the Global handle
   Local<Context> ctx = m_v8->context.Get(isolate);
+  if (ctx.IsEmpty()) {
+    CM_Error("Failed to get V8 context from Global handle");
+    m_v8->context.Reset();
+    m_v8.reset();
+    return false;
+  }
   Context::Scope context_scope(ctx);
 
   // Initialize bindings in this context
@@ -169,6 +226,7 @@ bool SCA_JavaScriptController::Compile()
     return false;
   }
 
+  // Reset must be called while isolate is in scope (already in Isolate::Scope from above)
   m_v8->compiled_script.Reset(isolate, script);
   return true;
 }
