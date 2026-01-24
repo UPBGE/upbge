@@ -22,6 +22,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "GPU_compute.hh"
+#include "GPU_texture.hh"
 
 #include "MOD_util.hh"
 
@@ -459,6 +460,16 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   ubo_colorband = blender::draw::modifier_gpu_helpers::ensure_colorband_ubo(
       mesh_owner, deformed_eval, key_colorband, dmd->texture, msd.colorband_hash);
 
+  std::string key_hash = key_prefix + "hash_perm";
+  std::string key_hashvect = key_prefix + "hash_vectf";
+  std::string key_hashpnt = key_prefix + "hash_pntf3";
+
+  /* Use shared helpers to create or retrieve cached noise textures (perm, gradients, points).
+   * These functions wrap creation/upload and lifetime management via the mesh internal texture cache. */
+  gpu::Texture *tex_hash = blender::gpu::get_noise_hash_texture(mesh_owner, deformed_eval, key_hash);
+  gpu::Texture *tex_hashvect = blender::gpu::get_noise_hashvect_texture(mesh_owner, deformed_eval, key_hashvect);
+  gpu::Texture *tex_hashpnt = blender::gpu::get_noise_hashpnt_texture(mesh_owner, deformed_eval, key_hashpnt);
+
   /* Create/Update TextureParams UBO (use helper) */
   const std::string key_tex_params = key_prefix + "texture_params";
   gpu::UniformBuf *ubo_texture_params = blender::draw::modifier_gpu_helpers::ensure_texture_params_ubo(
@@ -534,6 +545,10 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     if (shader_has_texture) {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
       info.sampler(0, ImageType::Float2D, "displacement_texture");
+      /* Noise/gradient permutation buffers used by GLSL noise helpers. */
+      info.sampler(1, ImageType::Float1D, "u_hash_buf");
+      info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
+      info.sampler(3, ImageType::Float1D, "u_hashpntf3_buf");
     }
     /* ColorBand UBO (binding 4) - added for TEX_COLORBAND support */
     info.uniform_buf(4, "ColorBand", "tex_colorband");
@@ -586,6 +601,16 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     if (gpu_texture) {
       GPU_texture_bind(gpu_texture, 0);
     }
+    /* Bind shared noise textures (if available) to matching units. */
+    if (tex_hash) {
+      GPU_texture_bind(tex_hash, 1);
+    }
+    if (tex_hashvect) {
+      GPU_texture_bind(tex_hashvect, 2);
+    }
+    if (tex_hashpnt) {
+      GPU_texture_bind(tex_hashpnt, 3);
+    }
   }
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 
@@ -615,6 +640,15 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   /* Unbind texture */
   if (gpu_texture) {
     GPU_texture_unbind(gpu_texture);
+  }
+  if (tex_hash) {
+    GPU_texture_unbind(tex_hash);
+  }
+  if (tex_hashvect) {
+    GPU_texture_unbind(tex_hashvect);
+  }
+  if (tex_hashpnt) {
+    GPU_texture_unbind(tex_hashpnt);
   }
   if (ubo_colorband) {
     GPU_uniformbuf_unbind(ubo_colorband);

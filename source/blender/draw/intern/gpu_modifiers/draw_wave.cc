@@ -447,17 +447,27 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
 
   /* TextureParams UBO */
   const std::string key_tex_params = key_prefix + "texture_params";
-  gpu::UniformBuf *ubo_texture_params = modifier_gpu_helpers::ensure_texture_params_ubo(
+  gpu::UniformBuf *ubo_texture_params = blender::draw::modifier_gpu_helpers::ensure_texture_params_ubo(
       mesh_owner,
       deformed_eval,
       key_tex_params,
       wmd->texture,
-      const_cast<ModifierData *>(reinterpret_cast<const ModifierData *>(wmd)),
+      (ModifierData *)wmd,
       scene_frame,
       msd.tex_is_byte,
       msd.tex_is_float,
       msd.tex_channels,
       !msd.tex_coords.empty());
+
+  /* Noise tables (shared helpers) - create or get cached textures holding
+   * permutation/gradient/point data used by procedural noise GLSL helpers. */
+  const std::string key_hash = key_prefix + "hash_perm";
+  const std::string key_hashvect = key_prefix + "hash_vectf";
+  const std::string key_hashpnt = key_prefix + "hash_pntf3";
+
+  gpu::Texture *tex_hash = blender::gpu::get_noise_hash_texture(mesh_owner, deformed_eval, key_hash);
+  gpu::Texture *tex_hashvect = blender::gpu::get_noise_hashvect_texture(mesh_owner, deformed_eval, key_hashvect);
+  gpu::Texture *tex_hashpnt = blender::gpu::get_noise_hashpnt_texture(mesh_owner, deformed_eval, key_hashpnt);
 
   /* Create shader (image-less compute) */
   bool image_only_compile = false;
@@ -496,6 +506,10 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
     if (shader_has_texture) {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
       info.sampler(0, ImageType::Float2D, "displacement_texture");
+      /* Noise/gradient permutation buffers used by GLSL noise helpers. */
+      info.sampler(1, ImageType::Float1D, "u_hash_buf");
+      info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
+      info.sampler(3, ImageType::Float1D, "u_hashpntf3_buf");
     }
     /* Topology SSBO (binding 15) required by normal helpers */
     info.storage_buf(15, Qualifier::read, "int", "topo[]");
@@ -545,6 +559,16 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   }
   if (gpu_texture) {
     GPU_texture_bind(gpu_texture, 0);
+  }
+  /* Bind shared noise textures (units must match shader sampler bindings). */
+  if (tex_hash) {
+    GPU_texture_bind(tex_hash, 1);
+  }
+  if (tex_hashvect) {
+    GPU_texture_bind(tex_hashvect, 2);
+  }
+  if (tex_hashpnt) {
+    GPU_texture_bind(tex_hashpnt, 3);
   }
   /* Bind topology SSBO required by normal helpers */
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
@@ -610,6 +634,15 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   /* Unbind texture and UBOs */
   if (gpu_texture) {
     GPU_texture_unbind(gpu_texture);
+  }
+  if (tex_hash) {
+    GPU_texture_unbind(tex_hash);
+  }
+  if (tex_hashvect) {
+    GPU_texture_unbind(tex_hashvect);
+  }
+  if (tex_hashpnt) {
+    GPU_texture_unbind(tex_hashpnt);
   }
   if (ubo_colorband) {
     GPU_uniformbuf_unbind(ubo_colorband);

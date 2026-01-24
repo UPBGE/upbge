@@ -517,7 +517,16 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
       msd.tex_channels,
       !msd.tex_coords.empty());
 
-  /* Simple passthrough compute shader: copy input to output. */
+  /* Noise tables (shared helpers) - create or get cached textures holding
+   * permutation/gradient/point data used by procedural noise GLSL helpers. */
+  const std::string key_hash = key_prefix + "hash_perm";
+  const std::string key_hashvect = key_prefix + "hash_vectf";
+  const std::string key_hashpnt = key_prefix + "hash_pntf3";
+
+  gpu::Texture *tex_hash = blender::gpu::get_noise_hash_texture(mesh_owner, deformed_eval, key_hash);
+  gpu::Texture *tex_hashvect = blender::gpu::get_noise_hashvect_texture(mesh_owner, deformed_eval, key_hashvect);
+  gpu::Texture *tex_hashpnt = blender::gpu::get_noise_hashpnt_texture(mesh_owner, deformed_eval, key_hashpnt);
+
   /* Create shader (image-less compute) */
   bool image_only_compile = false;
   if (wmd->texture) {
@@ -548,6 +557,10 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
     if (wmd->texture) {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
       info.sampler(0, ImageType::Float2D, "displacement_texture");
+      /* Noise/gradient permutation buffers used by GLSL noise helpers. */
+      info.sampler(1, ImageType::Float1D, "u_hash_buf");
+      info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
+      info.sampler(3, ImageType::Float1D, "u_hashpntf3_buf");
     }
     /* Falloff curve LUT (binding 4) */
     info.storage_buf(4, Qualifier::read, "float", "falloff_curve_lut[]");
@@ -587,6 +600,16 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
   }
   if (gpu_texture) {
     GPU_texture_bind(gpu_texture, 0);
+  }
+  /* Bind shared noise textures (units must match shader sampler bindings). */
+  if (tex_hash) {
+    GPU_texture_bind(tex_hash, 1);
+  }
+  if (tex_hashvect) {
+    GPU_texture_bind(tex_hashvect, 2);
+  }
+  if (tex_hashpnt) {
+    GPU_texture_bind(tex_hashpnt, 3);
   }
   if (ubo_colorband) {
     GPU_uniformbuf_bind(ubo_colorband, 4);
@@ -674,6 +697,15 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
 
   if (gpu_texture) {
     GPU_texture_unbind(gpu_texture);
+  }
+  if (tex_hash) {
+    GPU_texture_unbind(tex_hash);
+  }
+  if (tex_hashvect) {
+    GPU_texture_unbind(tex_hashvect);
+  }
+  if (tex_hashpnt) {
+    GPU_texture_unbind(tex_hashpnt);
   }
 
   return ssbo_out;
