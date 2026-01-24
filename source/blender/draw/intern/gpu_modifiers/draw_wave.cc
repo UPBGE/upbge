@@ -506,11 +506,11 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
     if (shader_has_texture) {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
       info.sampler(0, ImageType::Float2D, "displacement_texture");
-      /* Noise/gradient permutation buffers used by GLSL noise helpers. */
-      info.sampler(1, ImageType::Float1D, "u_hash_buf");
-      info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
-      info.sampler(3, ImageType::Float1D, "u_hashpntf3_buf");
     }
+    /* Noise/gradient permutation buffers used by GLSL noise helpers. */
+    info.sampler(1, ImageType::Float1D, "u_hash_buf");
+    info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
+    info.sampler(3, ImageType::Float1D, "u_hashpntf3_buf");
     /* Topology SSBO (binding 15) required by normal helpers */
     info.storage_buf(15, Qualifier::read, "int", "topo[]");
     /* ColorBand UBO (binding 4) */

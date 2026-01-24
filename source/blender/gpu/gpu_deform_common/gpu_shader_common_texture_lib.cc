@@ -261,8 +261,6 @@ gpu::Texture *get_noise_hash_texture(Mesh *mesh_owner,
                                 GPU_TEXTURE_USAGE_SHADER_READ,
                                 nullptr);
     GPU_texture_update(tex, GPU_DATA_FLOAT, packed_hashf);
-    GPU_texture_filter_mode(tex, false);
-    GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_REPEAT);
 
     bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key, tex);
   }

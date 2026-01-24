@@ -557,11 +557,11 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
     if (wmd->texture) {
       info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
       info.sampler(0, ImageType::Float2D, "displacement_texture");
-      /* Noise/gradient permutation buffers used by GLSL noise helpers. */
-      info.sampler(1, ImageType::Float1D, "u_hash_buf");
-      info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
-      info.sampler(3, ImageType::Float1D, "u_hashpntf3_buf");
     }
+    /* Noise/gradient permutation buffers used by GLSL noise helpers. */
+    info.sampler(1, ImageType::Float1D, "u_hash_buf");
+    info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
+    info.sampler(3, ImageType::Float1D, "u_hashpntf3_buf");
     /* Falloff curve LUT (binding 4) */
     info.storage_buf(4, Qualifier::read, "float", "falloff_curve_lut[]");
     /* ColorBand UBO (binding 4) */
