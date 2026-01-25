@@ -612,7 +612,6 @@ static PyObject *pygpu_shader_info_fragment_out(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"slot", "type", "name", "blend", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `slot` */
       "O&" /* `type` */
       "s"  /* `name` */
@@ -829,7 +828,6 @@ static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"slot", "format", "type", "name", "qualifiers", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `slot` */
       "O&" /* `format` */
       "O&" /* `type` */
@@ -1039,7 +1037,6 @@ static PyObject *pygpu_shader_info_push_constant(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"type", "name", "size", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `type` */
       "s"  /* `name` */
       "|"  /* Optional arguments. */

@@ -71,16 +71,15 @@ static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyO
   static const char *_keywords[] = {
       "shader", "groups_x_len", "groups_y_len", "groups_z_len", "barrier", nullptr};
   static _PyArg_Parser _parser = {
-        PY_ARG_PARSER_HEAD_COMPAT()
-        "O" /* `shader` */
-        "i" /* `groups_x_len` */
-        "i" /* `groups_y_len` */
-        "i" /* `groups_z_len` */
-        "|I" /* optional `barrier` (unsigned int) */
-        ":dispatch",
-        _keywords,
-        nullptr,
-    };
+      "O" /* `shader` */
+      "i" /* `groups_x_len` */
+      "i" /* `groups_y_len` */
+      "i" /* `groups_z_len` */
+      "|I" /* optional `barrier` (unsigned int) */
+      ":dispatch",
+      _keywords,
+      nullptr,
+  };
   if (_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &py_shader, &groups_x_len, &groups_y_len, &groups_z_len, &barrier))
   {
