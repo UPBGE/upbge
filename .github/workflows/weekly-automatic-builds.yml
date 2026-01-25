@@ -128,15 +128,15 @@ jobs:
 
       - name: Configure CMake (Linux)
         if: matrix.os == 'linux'
-        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DWITH_INSTALL_PORTABLE=ON -DWITH_VULKAN_BACKEND=ON -DWITH_GHOST_WAYLAND=ON -DPYTHON_VERSION="3.11"
+        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DWITH_INSTALL_PORTABLE=ON -DWITH_VULKAN_BACKEND=ON -DWITH_GHOST_WAYLAND=ON -DPYTHON_VERSION="3.13"
 
       - name: Configure CMake (Windows)
         if: matrix.os == 'windows'
-        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DWITH_WINDOWS_RELEASE_PDB=OFF -DCMAKE_BUILD_TYPE=Release -DWITH_VULKAN_BACKEND=ON -DPYTHON_VERSION="3.11"
+        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DWITH_WINDOWS_RELEASE_PDB=OFF -DCMAKE_BUILD_TYPE=Release -DWITH_VULKAN_BACKEND=ON -DPYTHON_VERSION="3.13"
 
       - name: Configure CMake (macOS)
         if: matrix.os == 'macos'
-        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DPYTHON_VERSION="3.11"
+        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DPYTHON_VERSION="3.13"
 
       - name: Build UPBGE (Linux)
         if: matrix.os == 'linux'
