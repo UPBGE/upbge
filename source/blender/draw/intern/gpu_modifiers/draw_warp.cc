@@ -477,24 +477,20 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
 
   /* Prepare GPU texture + texcoords using shared helper (handles ImageUser frame, ImBuf upload and caching). */
   gpu::Texture *gpu_texture = nullptr;
-  if (wmd->texture) {
-    const bool create_dummy = (wmd->texture->type != TEX_IMAGE);
-    const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
-    gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
-        mesh_owner,
-        deformed_eval,
-        depsgraph,
-        wmd->texture,
-        msd.tex_coords,
-        msd.tex_is_byte,
-        msd.tex_is_float,
-        msd.tex_channels,
-        msd.tex_metadata_cached,
-        key_prefix,
-        &ssbo_texcoords,
-        is_uv_mapping,
-        create_dummy);
-  }
+  const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
+  gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
+      mesh_owner,
+      deformed_eval,
+      depsgraph,
+      wmd->texture,
+      msd.tex_coords,
+      msd.tex_is_byte,
+      msd.tex_is_float,
+      msd.tex_channels,
+      msd.tex_metadata_cached,
+      key_prefix,
+      &ssbo_texcoords,
+      is_uv_mapping);
 
   /* Upload ColorBand UBO if texture has colorband enabled */
   const std::string key_colorband = key_prefix + "colorband";
@@ -554,10 +550,8 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
     info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
     /* vgroup binding available */
     info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-    if (wmd->texture) {
-      info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
-      info.sampler(0, ImageType::Float2D, "displacement_texture");
-    }
+    info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
+    info.sampler(0, ImageType::Float2D, "displacement_texture");
     /* Noise/gradient permutation buffers used by GLSL noise helpers. */
     info.sampler(1, ImageType::Float1D, "u_hash_buf");
     info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");

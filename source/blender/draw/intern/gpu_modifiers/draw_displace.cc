@@ -428,24 +428,20 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   gpu::StorageBuf *ssbo_texcoords = nullptr;
   gpu::Texture *gpu_texture = nullptr;
 
-  if (dmd->texture) {
-    const bool create_dummy = (dmd->texture->type != TEX_IMAGE);
-    const bool is_uv_mapping = (dmd->texmapping == MOD_DISP_MAP_UV);
-    gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
-        mesh_owner,
-        deformed_eval,
-        depsgraph,
-        dmd->texture,
-        msd.tex_coords,
-        msd.tex_is_byte,
-        msd.tex_is_float,
-        msd.tex_channels,
-        msd.tex_metadata_cached,
-        key_prefix,
-        &ssbo_texcoords,
-        is_uv_mapping,
-        create_dummy);
-  }
+  const bool is_uv_mapping = (dmd->texmapping == MOD_DISP_MAP_UV);
+  gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
+      mesh_owner,
+      deformed_eval,
+      depsgraph,
+      dmd->texture,
+      msd.tex_coords,
+      msd.tex_is_byte,
+      msd.tex_is_float,
+      msd.tex_channels,
+      msd.tex_metadata_cached,
+      key_prefix,
+      &ssbo_texcoords,
+      is_uv_mapping);
 
   /* Shader-level flag: indicates a Tex is present (image or procedural).
    * Separate from `has_texture` which historically meant image+coords.
@@ -542,10 +538,8 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
     info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
     info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
     info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-    if (shader_has_texture) {
-      info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
-      info.sampler(0, ImageType::Float2D, "displacement_texture");
-    }
+    info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
+    info.sampler(0, ImageType::Float2D, "displacement_texture");
     /* Noise/gradient permutation buffers used by GLSL noise helpers. */
     info.sampler(1, ImageType::Float1D, "u_hash_buf");
     info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
@@ -594,23 +588,21 @@ gpu::StorageBuf *DisplaceManager::dispatch_deform(const DisplaceModifierData *dm
   /* Note: vertex normals SSBO removed — shader computes vertex normal from topology. */
 
   /* Bind texture coordinates and texture (if present) */
-  if (shader_has_texture) {
-    if (ssbo_texcoords) {
-      GPU_storagebuf_bind(ssbo_texcoords, 3);
-    }
-    if (gpu_texture) {
-      GPU_texture_bind(gpu_texture, 0);
-    }
-    /* Bind shared noise textures (if available) to matching units. */
-    if (tex_hash) {
-      GPU_texture_bind(tex_hash, 1);
-    }
-    if (tex_hashvect) {
-      GPU_texture_bind(tex_hashvect, 2);
-    }
-    if (tex_hashpnt) {
-      GPU_texture_bind(tex_hashpnt, 3);
-    }
+  if (ssbo_texcoords) {
+    GPU_storagebuf_bind(ssbo_texcoords, 3);
+  }
+  if (gpu_texture) {
+    GPU_texture_bind(gpu_texture, 0);
+  }
+  /* Bind shared noise textures (if available) to matching units. */
+  if (tex_hash) {
+    GPU_texture_bind(tex_hash, 1);
+  }
+  if (tex_hashvect) {
+    GPU_texture_bind(tex_hashvect, 2);
+  }
+  if (tex_hashpnt) {
+    GPU_texture_bind(tex_hashpnt, 3);
   }
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 

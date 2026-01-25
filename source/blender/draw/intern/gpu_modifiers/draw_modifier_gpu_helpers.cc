@@ -91,74 +91,81 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
     bool &r_tex_metadata_cached,
     const std::string &key_prefix,
     gpu::StorageBuf **r_ssbo_texcoords,
-    bool is_uv_mapping,
-    bool create_dummy_if_missing)
+    bool is_uv_mapping)
 {
-  if (!tex) {
-    return nullptr;
-  }
 
   gpu::Texture *gpu_texture = nullptr;
-  Image *ima = tex->ima; /* may be nullptr for procedural textures */
-  ImageUser iuser = tex->iuser;
+  if (tex) {
+    Image *ima = tex->ima; /* may be nullptr for procedural textures */
+    ImageUser iuser = tex->iuser;
 
-  if (ima && ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-    Scene *scene = DEG_get_evaluated_scene(depsgraph);
-    if (scene) {
-      BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
-    }
-  }
-
-  const bool is_non_color = (ima && ima->colorspace_settings.name[0] != '\0' &&
-                             STREQ(ima->colorspace_settings.name, "Non-Color"));
-
-  if (ima) {
-    if (is_non_color) {
-      gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
-      if (gpu_texture && !r_tex_metadata_cached) {
-        r_tex_is_float = GPU_texture_has_float_format(gpu_texture);
-        r_tex_is_byte = !r_tex_is_float;
-        r_tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
-        r_tex_metadata_cached = true;
+    if (ima && ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+      Scene *scene = DEG_get_evaluated_scene(depsgraph);
+      if (scene) {
+        BKE_image_user_frame_calc(ima, &iuser, int(scene->r.cfra));
       }
     }
-    else {
-      const std::string key_texture = key_prefix + "texture_" + std::to_string(reinterpret_cast<uintptr_t>(ima)) + "_" +
-                                      std::to_string(iuser.framenr);
-      gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
 
-      const bool is_animated = (ima && ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE));
-      if (!gpu_texture || (is_animated && !gpu_texture)) {
-        ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-        if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
-          gpu::TextureFormat format = ibuf->float_buffer.data ?
-              gpu::TextureFormat::SFLOAT_16_16_16_16 : gpu::TextureFormat::UNORM_8_8_8_8;
+    const bool is_non_color = (ima && ima->colorspace_settings.name[0] != '\0' &&
+                               STREQ(ima->colorspace_settings.name, "Non-Color"));
 
-          gpu_texture = GPU_texture_create_2d("modifier_tex_raw", ibuf->x, ibuf->y, 1, format,
-                                             GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
-          if (gpu_texture) {
-            gpu::displace_upload_ibuf_to_texture(gpu_texture, ibuf, ima->colorspace_settings.name);
-            bke::BKE_mesh_gpu_internal_texture_ensure(mesh_owner, deformed_eval, key_texture, gpu_texture);
+    if (ima) {
+      if (is_non_color) {
+        gpu_texture = BKE_image_get_gpu_texture(ima, &iuser);
+        if (gpu_texture && !r_tex_metadata_cached) {
+          r_tex_is_float = GPU_texture_has_float_format(gpu_texture);
+          r_tex_is_byte = !r_tex_is_float;
+          r_tex_channels = GPU_texture_component_len(GPU_texture_format(gpu_texture));
+          r_tex_metadata_cached = true;
+        }
+      }
+      else {
+        const std::string key_texture = key_prefix + "texture_" +
+                                        std::to_string(reinterpret_cast<uintptr_t>(ima)) + "_" +
+                                        std::to_string(iuser.framenr);
+        gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
 
-            if (!r_tex_metadata_cached) {
-              r_tex_is_byte = (ibuf->byte_buffer.data != nullptr);
-              r_tex_is_float = (ibuf->float_buffer.data != nullptr);
-              r_tex_channels = ibuf->channels;
-              r_tex_metadata_cached = true;
+        const bool is_animated = (ima && ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE));
+        if (!gpu_texture || (is_animated && !gpu_texture)) {
+          ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+          if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
+            gpu::TextureFormat format = ibuf->float_buffer.data ?
+                                            gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                                            gpu::TextureFormat::UNORM_8_8_8_8;
+
+            gpu_texture = GPU_texture_create_2d("modifier_tex_raw",
+                                                ibuf->x,
+                                                ibuf->y,
+                                                1,
+                                                format,
+                                                GPU_TEXTURE_USAGE_SHADER_READ,
+                                                nullptr);
+            if (gpu_texture) {
+              gpu::displace_upload_ibuf_to_texture(
+                  gpu_texture, ibuf, ima->colorspace_settings.name);
+              bke::BKE_mesh_gpu_internal_texture_ensure(
+                  mesh_owner, deformed_eval, key_texture, gpu_texture);
+
+              if (!r_tex_metadata_cached) {
+                r_tex_is_byte = (ibuf->byte_buffer.data != nullptr);
+                r_tex_is_float = (ibuf->float_buffer.data != nullptr);
+                r_tex_channels = ibuf->channels;
+                r_tex_metadata_cached = true;
+              }
             }
           }
-        }
-        if (ibuf) {
-          BKE_image_release_ibuf(ima, ibuf, nullptr);
+          if (ibuf) {
+            BKE_image_release_ibuf(ima, ibuf, nullptr);
+          }
         }
       }
     }
   }
 
-  /* If requested, create a 1x1 dummy texture when a procedural texture
-   * exists (tex != nullptr) but no GPU texture was produced (no Image).
+  /* If no gputexture, create a 1x1 dummy texture when
+   * no GPU texture was produced.
    * Cache the dummy per-mesh+modifier using `key_prefix + "dummy_tex"`. */
-  if (!gpu_texture && tex && create_dummy_if_missing) {
+  if (!gpu_texture) {
     const std::string key_dummy = key_prefix + "dummy_tex";
     gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_dummy);
     if (!gpu_texture) {

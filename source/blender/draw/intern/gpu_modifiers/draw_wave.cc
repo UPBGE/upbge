@@ -409,24 +409,20 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   gpu::Texture *gpu_texture = nullptr;
 
   /* Use shared helper to prepare texture and texcoords (handles image user frame, ImBuf upload and caching). */
-  if (wmd->texture) {
-    const bool create_dummy = (wmd->texture->type != TEX_IMAGE);
-    const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
-    gpu_texture = modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
-        mesh_owner,
-        deformed_eval,
-        depsgraph,
-        wmd->texture,
-        msd.tex_coords,
-        msd.tex_is_byte,
-        msd.tex_is_float,
-        msd.tex_channels,
-        msd.tex_metadata_cached,
-        key_prefix,
-        &ssbo_texcoords,
-        is_uv_mapping,
-        create_dummy);
-  }
+  const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
+  gpu_texture = modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
+      mesh_owner,
+      deformed_eval,
+      depsgraph,
+      wmd->texture,
+      msd.tex_coords,
+      msd.tex_is_byte,
+      msd.tex_is_float,
+      msd.tex_channels,
+      msd.tex_metadata_cached,
+      key_prefix,
+      &ssbo_texcoords,
+      is_uv_mapping);
 
   /* Create output SSBO (use get -> ensure pattern to avoid unnecessary allocations). */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;
@@ -503,10 +499,8 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
     info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
     info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
     info.storage_buf(2, Qualifier::read, "float", "vgroup_weights[]");
-    if (shader_has_texture) {
-      info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
-      info.sampler(0, ImageType::Float2D, "displacement_texture");
-    }
+    info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
+    info.sampler(0, ImageType::Float2D, "displacement_texture");
     /* Noise/gradient permutation buffers used by GLSL noise helpers. */
     info.sampler(1, ImageType::Float1D, "u_hash_buf");
     info.sampler(2, ImageType::Float1D, "u_hashvectf_buf");
