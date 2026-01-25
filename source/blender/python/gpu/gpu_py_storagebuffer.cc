@@ -74,7 +74,6 @@ static PyObject *pygpu_storagebuffer__tp_new(PyTypeObject * /*self*/,
 
   static const char *_keywords[] = {"data", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O" /* `data` */
       ":GPUStorageBuf.__new__",
       _keywords,

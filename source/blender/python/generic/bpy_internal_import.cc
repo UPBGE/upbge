@@ -222,7 +222,6 @@ static PyObject *blender_import(PyObject * /*self*/, PyObject *args, PyObject *k
 
   static const char *_keywords[] = {"name", "globals", "locals", "fromlist", "level", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* name */
       "|"  /* Optional */
       "O"  /* globals */

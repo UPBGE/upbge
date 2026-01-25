@@ -718,7 +718,6 @@ static PyObject *pygpu_shader_info_storage_buf(BPyGPUShaderCreateInfo *self,
 
   static const char *_keywords[] = {"slot", "type_name", "name", "qualifiers", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i"  /* `slot` */
       "s"  /* `type_name` */
       "s"  /* `name` */
