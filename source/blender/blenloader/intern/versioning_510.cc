@@ -76,7 +76,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   separate_node.parent = node.parent;
   separate_node.location[0] = node.location[0] - 10.0f;
   separate_node.location[1] = node.location[1];
-  NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
+  NodeCMPCombSepColor *storage = MEM_new<NodeCMPCombSepColor>(__func__);
   storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
   separate_node.storage = storage;
 
@@ -96,7 +96,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   set_alpha_node.parent = node.parent;
   set_alpha_node.location[0] = node.location[0] - 10.0f;
   set_alpha_node.location[1] = node.location[1];
-  set_alpha_node.storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
+  set_alpha_node.storage = MEM_new<NodeCMPCombSepColor>(__func__);
 
   bNodeSocket &set_alpha_image_input = version_node_add_socket(
       node_tree, set_alpha_node, SOCK_IN, "NodeSocketColor", "Image");
@@ -151,7 +151,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   separate_alpha_node.parent = node.parent;
   separate_alpha_node.location[0] = node.location[0] - 10.0f;
   separate_alpha_node.location[1] = node.location[1];
-  NodeCombSepColor *separate_alpha_storage = MEM_new_for_free<NodeCombSepColor>(__func__);
+  NodeCombSepColor *separate_alpha_storage = MEM_new<NodeCombSepColor>(__func__);
   separate_alpha_storage->mode = NODE_COMBSEP_COLOR_RGB;
   separate_alpha_node.storage = separate_alpha_storage;
 
@@ -174,7 +174,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   separate_color_node.parent = node.parent;
   separate_color_node.location[0] = node.location[0] - 10.0f;
   separate_color_node.location[1] = node.location[1];
-  NodeCombSepColor *separate_color_storage = MEM_new_for_free<NodeCombSepColor>(__func__);
+  NodeCombSepColor *separate_color_storage = MEM_new<NodeCombSepColor>(__func__);
   separate_color_storage->mode = NODE_COMBSEP_COLOR_RGB;
   separate_color_node.storage = separate_color_storage;
 
@@ -193,7 +193,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   combine_color_node.parent = node.parent;
   combine_color_node.location[0] = node.location[0] - 10.0f;
   combine_color_node.location[1] = node.location[1];
-  NodeCombSepColor *combine_color_storage = MEM_new_for_free<NodeCombSepColor>(__func__);
+  NodeCombSepColor *combine_color_storage = MEM_new<NodeCombSepColor>(__func__);
   combine_color_storage->mode = NODE_COMBSEP_COLOR_RGB;
   combine_color_node.storage = combine_color_storage;
 
@@ -485,6 +485,26 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
   new_output.location[1] = emission.location[1];
 }
 
+/* For cycles, the Denoising Albedo render pass is now registered after the Denoising Normal pass
+ * to match the compositor Denoise node. So we swap the order of Denoising Albedo and Denoising
+ * Normal sockets in the Render Layers node that has been saved with the old order. */
+static void do_version_render_layers_node_albedo_normal_swap(bNode &node)
+{
+  bNodeSocket *socket_denoise_normal = nullptr;
+  bNodeSocket *socket_denoise_albedo = nullptr;
+  for (bNodeSocket &socket : node.outputs) {
+    if (STREQ(socket.identifier, "Denoising Normal")) {
+      socket_denoise_normal = &socket;
+    }
+    if (STREQ(socket.identifier, "Denoising Albedo")) {
+      socket_denoise_albedo = &socket;
+    }
+  }
+  if (socket_denoise_albedo && socket_denoise_normal) {
+    BLI_listbase_swaplinks(&node.outputs, socket_denoise_normal, socket_denoise_albedo);
+  }
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -635,7 +655,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (ELEM(node.type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
           for (bNodeSocket &socket : node.outputs) {
             if (socket.storage) {
-              MEM_freeN(socket.storage);
+              MEM_delete_void(socket.storage);
               socket.storage = nullptr;
             }
           }
@@ -696,6 +716,19 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         seq_ts->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 21)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == CMP_NODE_R_LAYERS) {
+            do_version_render_layers_node_albedo_normal_swap(node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**

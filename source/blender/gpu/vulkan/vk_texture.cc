@@ -347,7 +347,7 @@ void *VKTexture::read(int mip, eGPUDataFormat format)
   size_t sample_len = mip_size[0] * mip_size[1] * mip_size[2] * layers.size();
   size_t host_memory_size = sample_len * to_bytesize(format_, format);
 
-  void *data = MEM_mallocN(host_memory_size, __func__);
+  void *data = MEM_new_uninitialized(host_memory_size, __func__);
   int region[6] = {0, 0, 0, mip_size[0], mip_size[1], mip_size[2]};
   read_sub(mip, format, region, layers, data);
   return data;
@@ -750,10 +750,10 @@ bool VKTexture::allocate()
   if (result != VK_SUCCESS) {
     return false;
   }
-  debug::object_label(vk_image_, name_);
+  debug::object_label(vk_image_, name_.c_str());
 
   const bool use_subresource_tracking = image_info.arrayLayers > 1 || image_info.mipLevels > 1;
-  device.resources.add_image(vk_image_, use_subresource_tracking, name_);
+  device.resources.add_image(vk_image_, use_subresource_tracking, name_.c_str());
 
   return result == VK_SUCCESS;
 }

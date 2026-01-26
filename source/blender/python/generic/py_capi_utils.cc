@@ -1170,6 +1170,20 @@ void PyC_MainModule_Restore(PyObject *main_mod)
   }
 }
 
+int PyC_Module_AddToSysModules(PyObject *sys_modules, PyObject *module)
+{
+  /* It would be OK to remove this assert if we ever wanted to add to a non-standard module dict.
+   * Currently it's only ever expected that they match, hence the assert. */
+  BLI_assert(sys_modules == PyImport_GetModuleDict());
+  PyObject *name = PyModule_GetNameObject(module);
+  if (name == nullptr) {
+    return -1;
+  }
+  int result = PyDict_SetItem(sys_modules, name, module);
+  Py_DECREF(name);
+  return result;
+}
+
 bool PyC_IsInterpreterActive()
 {
   /* instead of PyThreadState_Get, which calls Py_FatalError */
@@ -1607,7 +1621,7 @@ bool PyC_RunString_AsStringAndSize(const char *imports[],
       ok = false;
     }
     else {
-      char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+      char *val_alloc = MEM_new_array_uninitialized<char>(size_t(val_len) + 1, __func__);
       memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(*val_alloc));
       *r_value = val_alloc;
       *r_value_size = val_len;
@@ -1651,7 +1665,7 @@ bool PyC_RunString_AsStringAndSizeOrNone(const char *imports[],
         ok = false;
       }
       else {
-        char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+        char *val_alloc = MEM_new_array_uninitialized<char>(size_t(val_len) + 1, __func__);
         memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(val_alloc));
         *r_value = val_alloc;
         *r_value_size = val_len;

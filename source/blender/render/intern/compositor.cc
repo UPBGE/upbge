@@ -173,7 +173,7 @@ class Context : public compositor::Context {
       render_result->have_combined = true;
 
       if (result.is_single_value()) {
-        float *data = MEM_malloc_arrayN<float>(
+        float *data = MEM_new_array_uninitialized<float>(
             4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
         IMB_assign_float_buffer(image_buffer, data, IB_TAKE_OWNERSHIP);
         IMB_rectfill(image_buffer, result.get_single_value<compositor::Color>());
@@ -184,7 +184,7 @@ class Context : public compositor::Context {
         IMB_assign_float_buffer(image_buffer, output_buffer, IB_TAKE_OWNERSHIP);
       }
       else {
-        float *data = MEM_malloc_arrayN<float>(
+        float *data = MEM_new_array_uninitialized<float>(
             4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
         IMB_assign_float_buffer(image_buffer, data, IB_TAKE_OWNERSHIP);
         std::memcpy(image_buffer->float_buffer.data,
@@ -204,9 +204,6 @@ class Context : public compositor::Context {
   void write_viewer_image(const compositor::Result &viewer_result)
   {
     Image *image = BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, "Viewer Node");
-    const float2 translation = viewer_result.domain().transformation.location();
-    image->runtime->backdrop_offset[0] = translation.x;
-    image->runtime->backdrop_offset[1] = translation.y;
 
     if (viewer_result.meta_data.is_non_color_data) {
       image->flag &= ~IMA_VIEW_AS_RENDER;
@@ -239,6 +236,14 @@ class Context : public compositor::Context {
       image_buffer->y = size.y;
       IMB_alloc_float_pixels(image_buffer, 4, false);
       image_buffer->userflags |= IB_DISPLAY_BUFFER_INVALID;
+    }
+
+    if (!viewer_result.is_single_value()) {
+      image_buffer->flags |= IB_has_display_window;
+      const int2 display_offset = int2(viewer_result.domain().transformation.location());
+      copy_v2_v2_int(image_buffer->display_size, viewer_result.domain().display_size);
+      copy_v2_v2_int(image_buffer->display_offset, display_offset);
+      copy_v2_v2_int(image_buffer->data_offset, viewer_result.domain().data_offset);
     }
 
     if (viewer_result.is_single_value()) {

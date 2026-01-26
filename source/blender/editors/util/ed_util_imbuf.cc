@@ -177,10 +177,8 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
     return;
   }
 
-  int offset[2];
-  offset[0] = int(image->runtime->backdrop_offset[0]);
-  offset[1] = int(image->runtime->backdrop_offset[1]);
-
+  const float2 offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                              float2(0.0f);
   int x = int(uv[0] * ibuf->x), y = int(uv[1] * ibuf->y);
 
   if (x >= offset[0] && y >= offset[1] && x < (ibuf->x + offset[0]) && y < (ibuf->y + offset[1])) {
@@ -443,7 +441,7 @@ void ED_imbuf_sample_exit(bContext *C, wmOperator *op)
 
   ED_region_draw_cb_exit(info->art, info->draw_handle);
   ED_area_tag_redraw(CTX_wm_area(C));
-  MEM_freeN(info);
+  MEM_delete(info);
 }
 
 wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -471,7 +469,7 @@ wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEve
     }
   }
 
-  ImageSampleInfo *info = MEM_callocN<ImageSampleInfo>("ImageSampleInfo");
+  ImageSampleInfo *info = MEM_new_zeroed<ImageSampleInfo>("ImageSampleInfo");
 
   info->art = region->runtime->type;
   info->draw_handle = ED_region_draw_cb_activate(

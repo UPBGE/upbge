@@ -395,7 +395,7 @@ const Mesh *DRW_object_get_editmesh_cage_for_drawing(const Object &object)
 
 DRWData *DRW_viewport_data_create()
 {
-  DRWData *drw_data = MEM_callocN<DRWData>("DRWData");
+  DRWData *drw_data = MEM_new_zeroed<DRWData>("DRWData");
 
   drw_data->default_view = new draw::View("DrawDefaultView");
 
@@ -441,7 +441,7 @@ void DRW_viewport_data_free(DRWData *drw_data)
     drw_data->meshes_to_process = nullptr;
   }
 
-  MEM_freeN(drw_data);
+  MEM_delete(drw_data);
 }
 
 static DRWData *drw_viewport_data_ensure(GPUViewport *viewport)

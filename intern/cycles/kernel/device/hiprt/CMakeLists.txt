@@ -16,7 +16,6 @@ set(SRC_KERNEL_DEVICE_HIPRT
 
 set(SRC_KERNEL_DEVICE_HIPRT_HEADERS
   bvh.h
-  common.h
   globals.h
 )
 
@@ -65,7 +64,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -D CCL_NAMESPACE_BEGIN=
     -D CCL_NAMESPACE_END=
     -D HIPCC
-    -D __HIPRT__
+    -D __KERNEL_HIPRT__
     -std=c++17
     -mllvm
     -amdgpu-early-inline-all=false

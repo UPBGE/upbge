@@ -816,7 +816,7 @@ enum eSnapType {
   SNAP_ON_SMALL,
 };
 
-static enum eSnapType ui_event_to_snap(const wmEvent *event)
+static eSnapType ui_event_to_snap(const wmEvent *event)
 {
   return (event->modifier & KM_CTRL) ? (event->modifier & KM_SHIFT) ? SNAP_ON_SMALL : SNAP_ON :
                                        SNAP_OFF;
@@ -828,7 +828,7 @@ static bool ui_event_is_snap(const wmEvent *event)
           ELEM(event->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY));
 }
 
-static void ui_color_snap_hue(const enum eSnapType snap, float *r_hue)
+static void ui_color_snap_hue(const eSnapType snap, float *r_hue)
 {
   const float snap_increment = (snap == SNAP_ON_SMALL) ? 24 : 12;
   BLI_assert(snap != SNAP_OFF);
@@ -1186,7 +1186,7 @@ static void ui_apply_but_funcs_after(bContext *C)
       after.rename_func(C, after.rename_arg1, static_cast<char *>(after.rename_orig));
     }
     if (after.rename_orig) {
-      MEM_freeN(after.rename_orig);
+      MEM_delete_void(after.rename_orig);
     }
 
     if (after.search_arg_free_fn) {
@@ -1497,7 +1497,7 @@ static void ui_multibut_free(HandleButtonData *data, Block *block)
       LinkNode *next = list->next;
       ButtonMultiState *mbut_state = static_cast<ButtonMultiState *>(list->link);
       MEM_delete(mbut_state);
-      MEM_freeN(list);
+      MEM_delete(list);
       list = next;
     }
   }
@@ -1831,7 +1831,7 @@ static void ui_drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const
 static void ui_handler_region_drag_toggle_remove(bContext * /*C*/, void *userdata)
 {
   uiDragToggleHandle *drag_info = static_cast<uiDragToggleHandle *>(userdata);
-  MEM_freeN(drag_info);
+  MEM_delete(drag_info);
 }
 
 static int ui_handler_region_drag_toggle(bContext *C, const wmEvent *event, void *userdata)
@@ -2059,7 +2059,7 @@ static void ui_selectcontext_apply(bContext *C,
         wmWindow *win = CTX_wm_window(C);
         if ((win->runtime->eventstate->modifier & KM_SHIFT) == 0) {
           const int len = RNA_property_array_length(&but->rnapoin, prop);
-          bool *tmparray = MEM_calloc_arrayN<bool>(len, __func__);
+          bool *tmparray = MEM_new_array_zeroed<bool>(len, __func__);
 
           tmparray[index] = true;
 
@@ -2069,7 +2069,7 @@ static void ui_selectcontext_apply(bContext *C,
             RNA_property_update(C, &lptr, lprop);
           }
 
-          MEM_freeN(tmparray);
+          MEM_delete(tmparray);
 
           return;
         }
@@ -2156,7 +2156,7 @@ static bool ui_but_drag_init(bContext *C,
     data->cancel = true;
 #ifdef USE_DRAG_TOGGLE
     if (ui_drag_toggle_but_is_supported(but)) {
-      uiDragToggleHandle *drag_info = MEM_callocN<uiDragToggleHandle>(__func__);
+      uiDragToggleHandle *drag_info = MEM_new_zeroed<uiDragToggleHandle>(__func__);
       ARegion *region_prev;
 
       /* call here because regular mouse-up event won't run,
@@ -2211,7 +2211,7 @@ static bool ui_but_drag_init(bContext *C,
         if (but->type == ButtonType::Color)
     {
       bool valid = false;
-      DragColorHandle *drag_info = MEM_callocN<DragColorHandle>(__func__);
+      DragColorHandle *drag_info = MEM_new_zeroed<DragColorHandle>(__func__);
 
       drag_info->has_alpha = button_color_has_alpha(but);
 
@@ -2237,7 +2237,7 @@ static bool ui_but_drag_init(bContext *C,
         WM_event_start_drag(C, ICON_COLOR, WM_DRAG_COLOR, drag_info, WM_DRAG_FREE_DATA);
       }
       else {
-        MEM_freeN(drag_info);
+        MEM_delete(drag_info);
         return false;
       }
     }
@@ -2534,7 +2534,7 @@ static void ui_apply_but(
     }
 
     if (data->text_edit.edit_string) {
-      MEM_freeN(data->text_edit.edit_string);
+      MEM_delete(data->text_edit.edit_string);
     }
     data->text_edit.edit_string = data->text_edit.original_string;
     data->text_edit.original_string = nullptr;
@@ -2772,7 +2772,7 @@ static void ui_but_get_pasted_text_from_clipboard(const bool ensure_utf8,
     *r_buf_len = length;
   }
   else {
-    *r_buf_paste = MEM_callocN<char>(__func__);
+    *r_buf_paste = MEM_new_zeroed<char>(__func__);
     *r_buf_len = 0;
   }
 }
@@ -3211,7 +3211,7 @@ static void ui_but_paste(bContext *C, Button *but, HandleButtonData *data, const
       break;
   }
 
-  MEM_freeN(buf_paste);
+  MEM_delete(buf_paste);
 }
 
 void button_clipboard_free()
@@ -3320,7 +3320,7 @@ void button_active_string_clear_and_exit(bContext *C, Button *but)
 
   /* most likely nullptr, but let's check, and give it temp zero string */
   if (!but->active->text_edit.edit_string) {
-    but->active->text_edit.edit_string = MEM_calloc_arrayN<char>(1, "temp str");
+    but->active->text_edit.edit_string = MEM_new_array_zeroed<char>(1, "temp str");
   }
   but->active->text_edit.edit_string[0] = 0;
 
@@ -3335,7 +3335,7 @@ static void ui_textedit_string_ensure_max_length(Button *but, TextEdit &text_edi
 
   if (str_maxncpy > text_edit.max_string_size) {
     text_edit.edit_string = but->editstr = static_cast<char *>(
-        MEM_reallocN(text_edit.edit_string, sizeof(char) * str_maxncpy));
+        MEM_realloc_uninitialized(text_edit.edit_string, sizeof(char) * str_maxncpy));
     text_edit.max_string_size = str_maxncpy;
   }
 }
@@ -3653,20 +3653,20 @@ static bool ui_textedit_copypaste(Button *but, TextEdit &text_edit, const int mo
 
       changed = true;
 
-      MEM_freeN(pbuf);
+      MEM_delete(pbuf);
     }
   }
   /* cut & copy */
   else if (ELEM(mode, UI_TEXTEDIT_COPY, UI_TEXTEDIT_CUT)) {
     /* copy the contents to the copypaste buffer */
     const int sellen = but->selend - but->selsta;
-    char *buf = MEM_malloc_arrayN<char>((sellen + 1), "ui_textedit_copypaste");
+    char *buf = MEM_new_array_uninitialized<char>((sellen + 1), "ui_textedit_copypaste");
 
     memcpy(buf, text_edit.edit_string + but->selsta, sellen);
     buf[sellen] = '\0';
 
     WM_clipboard_text_set(buf, false);
-    MEM_freeN(buf);
+    MEM_delete(buf);
 
     /* for cut only, delete the selection afterwards */
     if (mode == UI_TEXTEDIT_CUT) {
@@ -3739,7 +3739,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   const bool is_num_but = ELEM(but->type, ButtonType::Num, ButtonType::NumSlider);
   bool no_zero_strip = false;
 
-  MEM_SAFE_FREE(text_edit.edit_string);
+  MEM_SAFE_DELETE(text_edit.edit_string);
 
   WorkspaceStatus status(C);
 
@@ -3786,7 +3786,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   /* retrieve string */
   text_edit.max_string_size = button_string_get_maxncpy(but);
   if (text_edit.max_string_size != 0) {
-    text_edit.edit_string = MEM_calloc_arrayN<char>(text_edit.max_string_size, "textedit str");
+    text_edit.edit_string = MEM_new_array_zeroed<char>(text_edit.max_string_size, "textedit str");
     /* We do not want to truncate precision to default here, it's nice to show value,
      * not to edit it - way too much precision is lost then. */
     button_string_get_ex(but,
@@ -5179,7 +5179,7 @@ static int ui_do_but_text_value_cycle(bContext *C,
   int str_maxncpy = button_string_get_maxncpy(but);
   bool no_zero_strip = false;
   if (str_maxncpy != 0) {
-    but_string = MEM_calloc_arrayN<char>(str_maxncpy, __func__);
+    but_string = MEM_new_array_zeroed<char>(str_maxncpy, __func__);
     button_string_get_ex(
         but, but_string, str_maxncpy, UI_PRECISION_FLOAT_MAX, true, &no_zero_strip);
   }
@@ -5189,19 +5189,19 @@ static int ui_do_but_text_value_cycle(bContext *C,
 
   if (but_string[0] == '\0') {
     /* Don't append a number to an empty string. */
-    MEM_freeN(but_string);
+    MEM_delete(but_string);
     return WM_UI_HANDLER_CONTINUE;
   }
 
   /* More space needed for an added digit. */
   str_maxncpy += 1;
-  char *head = MEM_calloc_arrayN<char>(str_maxncpy, __func__);
-  char *tail = MEM_calloc_arrayN<char>(str_maxncpy, __func__);
+  char *head = MEM_new_array_zeroed<char>(str_maxncpy, __func__);
+  char *tail = MEM_new_array_zeroed<char>(str_maxncpy, __func__);
   ushort digits;
 
   /* Decode the string, parsing head, digits, tail. */
   int num = BLI_path_sequence_decode(but_string, head, str_maxncpy, tail, str_maxncpy, &digits);
-  MEM_freeN(but_string);
+  MEM_delete(but_string);
   if (num == 0 && digits == 0) {
     BLI_str_rstrip_digits(head);
   }
@@ -5210,16 +5210,16 @@ static int ui_do_but_text_value_cycle(bContext *C,
   num += inc_value;
 
   /* Encode the new string with the changed value. */
-  char *string = MEM_calloc_arrayN<char>(str_maxncpy, __func__);
+  char *string = MEM_new_array_zeroed<char>(str_maxncpy, __func__);
   BLI_path_sequence_encode(string, str_maxncpy, head, tail, digits, num);
 
   /* Save this new string to the button. */
   button_set_string_interactive(C, but, string);
 
   /* Free the strings. */
-  MEM_freeN(string);
-  MEM_freeN(head);
-  MEM_freeN(tail);
+  MEM_delete(string);
+  MEM_delete(head);
+  MEM_delete(tail);
 
   return WM_UI_HANDLER_BREAK;
 }
@@ -5526,7 +5526,7 @@ static int ui_do_but_EXIT(bContext *C, Button *but, HandleButtonData *data, cons
 
 /* var names match ui_numedit_but_NUM */
 static float ui_numedit_apply_snapf(
-    Button *but, float tempf, float softmin, float softmax, const enum eSnapType snap)
+    Button *but, float tempf, float softmin, float softmax, const eSnapType snap)
 {
   if (tempf == softmin || tempf == softmax || snap == SNAP_OFF) {
     /* pass */
@@ -5603,10 +5603,7 @@ static float ui_numedit_apply_snapf(
   return tempf;
 }
 
-static float ui_numedit_apply_snap(int temp,
-                                   float softmin,
-                                   float softmax,
-                                   const enum eSnapType snap)
+static float ui_numedit_apply_snap(int temp, float softmin, float softmax, const eSnapType snap)
 {
   if (ELEM(temp, softmin, softmax)) {
     return temp;
@@ -5631,7 +5628,7 @@ static bool ui_numedit_but_NUM(ButtonNumber *but,
                                int mx,
                                FunctionRef<int()> drag_threshold_fn,
                                const bool is_motion,
-                               const enum eSnapType snap,
+                               const eSnapType snap,
                                float fac)
 {
   float deler, tempf;
@@ -6039,7 +6036,7 @@ static int ui_do_but_NUM(
     }
     else if ((event->type == MOUSEMOVE) || ui_event_is_snap(event)) {
       const bool is_motion = (event->type == MOUSEMOVE);
-      const enum eSnapType snap = ui_event_to_snap(event);
+      const eSnapType snap = ui_event_to_snap(event);
       float fac;
 
 #ifdef USE_DRAG_MULTINUM
@@ -6773,7 +6770,7 @@ static int ui_do_but_BLOCK(bContext *C, Button *but, HandleButtonData *data, con
 }
 
 static bool ui_numedit_but_UNITVEC(
-    Button *but, HandleButtonData *data, int mx, int my, const enum eSnapType snap)
+    Button *but, HandleButtonData *data, int mx, int my, const eSnapType snap)
 {
   float mrad;
   bool changed = true;
@@ -7023,7 +7020,7 @@ static int ui_do_but_UNITVEC(
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      const enum eSnapType snap = ui_event_to_snap(event);
+      const eSnapType snap = ui_event_to_snap(event);
       data->dragstartx = mx;
       data->dragstarty = my;
       data->draglastx = mx;
@@ -7041,7 +7038,7 @@ static int ui_do_but_UNITVEC(
   else if (data->state == BUTTON_STATE_NUM_EDITING) {
     if ((event->type == MOUSEMOVE) || ui_event_is_snap(event)) {
       if (mx != data->draglastx || my != data->draglasty || event->type != MOUSEMOVE) {
-        const enum eSnapType snap = ui_event_to_snap(event);
+        const eSnapType snap = ui_event_to_snap(event);
         if (ui_numedit_but_UNITVEC(but, data, mx, my, snap)) {
           ui_numedit_apply(C, block, but, data);
         }
@@ -7117,7 +7114,7 @@ static bool ui_numedit_but_HSVCUBE(Button *but,
                                    HandleButtonData *data,
                                    int mx,
                                    int my,
-                                   const enum eSnapType snap,
+                                   const eSnapType snap,
                                    const bool shift,
                                    const bool use_continuous_grab,
                                    bool start_drag = false)
@@ -7244,7 +7241,7 @@ static bool ui_numedit_but_HSVCUBE(Button *but,
 static void ui_ndofedit_but_HSVCUBE(ButtonHSVCube *hsv_but,
                                     HandleButtonData *data,
                                     const wmNDOFMotionData &ndof,
-                                    const enum eSnapType snap,
+                                    const eSnapType snap,
                                     const bool shift)
 {
   ColorPicker *cpicker = static_cast<ColorPicker *>(hsv_but->custom_data);
@@ -7320,7 +7317,7 @@ static int ui_do_but_HSVCUBE(
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      const enum eSnapType snap = ui_event_to_snap(event);
+      const eSnapType snap = ui_event_to_snap(event);
 
       data->dragstartx = mx;
       data->dragstarty = my;
@@ -7341,7 +7338,7 @@ static int ui_do_but_HSVCUBE(
 #ifdef WITH_INPUT_NDOF
     if (event->type == NDOF_MOTION) {
       const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
-      const enum eSnapType snap = ui_event_to_snap(event);
+      const eSnapType snap = ui_event_to_snap(event);
 
       ui_ndofedit_but_HSVCUBE(hsv_but, data, ndof, snap, event->modifier & KM_SHIFT);
 
@@ -7394,7 +7391,7 @@ static int ui_do_but_HSVCUBE(
     }
     else if ((event->type == MOUSEMOVE) || ui_event_is_snap(event)) {
       if (mx != data->draglastx || my != data->draglasty || event->type != MOUSEMOVE) {
-        const enum eSnapType snap = ui_event_to_snap(event);
+        const eSnapType snap = ui_event_to_snap(event);
 
         const bool shift = event->modifier & KM_SHIFT;
         const bool use_continuous_grab = button_is_cursor_warp(but) &&
@@ -7418,7 +7415,7 @@ static bool ui_numedit_but_HSVCIRCLE(Button *but,
                                      HandleButtonData *data,
                                      float mx,
                                      float my,
-                                     const enum eSnapType snap,
+                                     const eSnapType snap,
                                      const bool shift,
                                      const bool use_continuous_grab,
                                      const bool start_drag = false)
@@ -7527,7 +7524,7 @@ static bool ui_numedit_but_HSVCIRCLE(Button *but,
 static void ui_ndofedit_but_HSVCIRCLE(Button *but,
                                       HandleButtonData *data,
                                       const wmNDOFMotionData &ndof,
-                                      const enum eSnapType snap,
+                                      const eSnapType snap,
                                       const bool shift)
 {
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
@@ -7612,7 +7609,7 @@ static int ui_do_but_HSVCIRCLE(
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      const enum eSnapType snap = ui_event_to_snap(event);
+      const eSnapType snap = ui_event_to_snap(event);
       data->dragstartx = mx;
       data->dragstarty = my;
       data->draglastx = mx;
@@ -7630,7 +7627,7 @@ static int ui_do_but_HSVCIRCLE(
     }
 #ifdef WITH_INPUT_NDOF
     if (event->type == NDOF_MOTION) {
-      const enum eSnapType snap = ui_event_to_snap(event);
+      const eSnapType snap = ui_event_to_snap(event);
       const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
 
       ui_ndofedit_but_HSVCIRCLE(but, data, ndof, snap, event->modifier & KM_SHIFT);
@@ -7650,7 +7647,7 @@ static int ui_do_but_HSVCIRCLE(
       len = RNA_property_array_length(&but->rnapoin, but->rnaprop);
       if (len >= 3) {
         float rgb[3], def_hsv[3];
-        float *def = MEM_calloc_arrayN<float>(len, __func__);
+        float *def = MEM_new_array_zeroed<float>(len, __func__);
 
         RNA_property_float_get_default_array(&but->rnapoin, but->rnaprop, def);
         color_picker_hsv_to_rgb(def, def_hsv);
@@ -7667,7 +7664,7 @@ static int ui_do_but_HSVCIRCLE(
 
         RNA_property_update(C, &but->rnapoin, but->rnaprop);
 
-        MEM_freeN(def);
+        MEM_delete(def);
       }
       return WM_UI_HANDLER_BREAK;
     }
@@ -7693,7 +7690,7 @@ static int ui_do_but_HSVCIRCLE(
     }
     else if ((event->type == MOUSEMOVE) || ui_event_is_snap(event)) {
       if (mx != data->draglastx || my != data->draglasty || event->type != MOUSEMOVE) {
-        const enum eSnapType snap = ui_event_to_snap(event);
+        const eSnapType snap = ui_event_to_snap(event);
         const bool shift = event->modifier & KM_SHIFT;
         const bool use_continuous_grab = button_is_cursor_warp(but) &&
                                          event->tablet.active == EVT_TABLET_NONE;
@@ -9436,10 +9433,10 @@ static void button_activate_exit(
 
   /* clean up */
   if (data->text_edit.edit_string) {
-    MEM_freeN(data->text_edit.edit_string);
+    MEM_delete(data->text_edit.edit_string);
   }
   if (data->text_edit.original_string) {
-    MEM_freeN(data->text_edit.original_string);
+    MEM_delete(data->text_edit.original_string);
   }
 
 #ifdef USE_ALLSELECT
@@ -10084,18 +10081,22 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
           bool reenable_tooltip = true;
           bScreen *screen = CTX_wm_screen(C);
           if (screen && screen->tool_tip) {
-            if (but->type == ButtonType::Label && BLI_rctf_size_y(&but->rect) > UI_UNIT_Y) {
-              /* For some large buttons (like File/Asset thumbnails),
-               * allow some movement once the tooltip timer has started. */
-              const int threshold = WM_event_drag_threshold(event);
-              const int movement = len_manhattan_v2v2_int(event->xy, screen->tool_tip->event_xy);
+            const int movement = len_manhattan_v2v2_int(event->xy, screen->tool_tip->event_xy);
+            const int threshold = WM_event_drag_threshold(event);
+            if (screen->tool_tip->region) {
+              /* Tooltip is showing. Only reset with motion on large buttons.
+               * Otherwise the tooltip follows the mouse while it is moved. */
+              const bool large_button = but->type == ButtonType::Label &&
+                                        BLI_rctf_size_y(&but->rect) > UI_UNIT_Y;
+              reenable_tooltip = (large_button && movement > threshold);
+            }
+            else {
+              /* Tooltip not yet showing. Allow some movement before resetting timer,
+               * otherwise it is difficult to get tooltips with pens and touch. #153319. */
               reenable_tooltip = (movement > threshold);
             }
-            else if (screen->tool_tip->region) {
-              /* Don't reset if already showing for a regular size button. */
-              reenable_tooltip = false;
-            }
           }
+
           if (reenable_tooltip) {
             ui_blocks_set_tooltips(region, true);
             button_tooltip_timer_reset(C, but);
@@ -10278,7 +10279,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
         (data->text_edit.edit_string[0] == '\0') &&
         (but->rnaprop && ELEM(RNA_property_type(but->rnaprop), PROP_FLOAT, PROP_INT)))
     {
-      MEM_SAFE_FREE(data->text_edit.edit_string);
+      MEM_SAFE_DELETE(data->text_edit.edit_string);
       ui_button_value_default(but, &data->value);
 
 #ifdef USE_DRAG_MULTINUM
@@ -10388,7 +10389,7 @@ static int ui_handle_list_event(bContext *C,
       if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
         /* If we have a display order different from
          * collection order, we have some work! */
-        int *org_order = MEM_malloc_arrayN<int>(dyn_data->items_shown, __func__);
+        int *org_order = MEM_new_array_uninitialized<int>(dyn_data->items_shown, __func__);
         const int *new_order = dyn_data->items_filter_neworder;
         int org_idx = -1, len = dyn_data->items_len;
         int current_idx = -1;
@@ -10416,7 +10417,7 @@ static int ui_handle_list_event(bContext *C,
         }
         CLAMP(current_idx, 0, dyn_data->items_shown - 1);
         value = org_order[current_idx];
-        MEM_freeN(org_order);
+        MEM_delete(org_order);
       }
       else {
         value += inc;
@@ -12865,7 +12866,7 @@ static BlockInteraction_Handle *block_interaction_begin(bContext *C,
                                                         const bool is_click)
 {
   BLI_assert(block->custom_interaction_callbacks.begin_fn != nullptr);
-  BlockInteraction_Handle *interaction = MEM_callocN<BlockInteraction_Handle>(__func__);
+  BlockInteraction_Handle *interaction = MEM_new_zeroed<BlockInteraction_Handle>(__func__);
 
   int unique_retval_ids_len = 0;
   for (const std::unique_ptr<Button> &but : block->buttons) {
@@ -12874,7 +12875,7 @@ static BlockInteraction_Handle *block_interaction_begin(bContext *C,
     }
   }
 
-  int *unique_retval_ids = MEM_malloc_arrayN<int>(unique_retval_ids_len, __func__);
+  int *unique_retval_ids = MEM_new_array_uninitialized<int>(unique_retval_ids_len, __func__);
   unique_retval_ids_len = 0;
   for (const std::unique_ptr<Button> &but : block->buttons) {
     if (but->active || (but->flag & BUT_DRAG_MULTI)) {
@@ -12886,8 +12887,8 @@ static BlockInteraction_Handle *block_interaction_begin(bContext *C,
     qsort(unique_retval_ids, unique_retval_ids_len, sizeof(int), BLI_sortutil_cmp_int);
     unique_retval_ids_len = BLI_array_deduplicate_ordered(unique_retval_ids,
                                                           unique_retval_ids_len);
-    unique_retval_ids = static_cast<int *>(
-        MEM_reallocN(unique_retval_ids, sizeof(*unique_retval_ids) * unique_retval_ids_len));
+    unique_retval_ids = static_cast<int *>(MEM_realloc_uninitialized(
+        unique_retval_ids, sizeof(*unique_retval_ids) * unique_retval_ids_len));
   }
 
   interaction->params.is_click = is_click;
@@ -12905,8 +12906,8 @@ static void block_interaction_end(bContext *C,
 {
   BLI_assert(callbacks->end_fn != nullptr);
   callbacks->end_fn(C, &interaction->params, callbacks->arg1, interaction->user_data);
-  MEM_freeN(interaction->params.unique_retval_ids);
-  MEM_freeN(interaction);
+  MEM_delete(interaction->params.unique_retval_ids);
+  MEM_delete(interaction);
 }
 
 static void block_interaction_update(bContext *C,

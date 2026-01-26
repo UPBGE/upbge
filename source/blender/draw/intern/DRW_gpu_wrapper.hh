@@ -287,11 +287,12 @@ class UniformArrayBuffer : public detail::UniformCommon<T, len, false> {
   UniformArrayBuffer(const char *name = nullptr) : detail::UniformCommon<T, len, false>(name)
   {
     /* TODO(@fclem): We should map memory instead. */
-    this->data_ = static_cast<T *>(MEM_mallocN_aligned(len * sizeof(T), 16, this->name_));
+    this->data_ = static_cast<T *>(
+        MEM_new_uninitialized_aligned(len * sizeof(T), 16, this->name_));
   }
   ~UniformArrayBuffer()
   {
-    MEM_freeN(static_cast<void *>(this->data_));
+    MEM_delete_void(static_cast<void *>(this->data_));
   }
 };
 
@@ -334,13 +335,14 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   StorageArrayBuffer(const char *name = nullptr) : detail::StorageCommon<T, len, device_only>(name)
   {
     /* TODO(@fclem): We should map memory instead. */
-    this->data_ = static_cast<T *>(MEM_mallocN_aligned(len * sizeof(T), 16, this->name_));
+    this->data_ = static_cast<T *>(
+        MEM_new_uninitialized_aligned(len * sizeof(T), 16, this->name_));
   }
   ~StorageArrayBuffer()
   {
     /* NOTE: T is not always trivial (e.g. can be #eevee::VelocityIndex), so cannot use
-     * `MEM_freeN` directly on it, without casting it to `void *`. */
-    MEM_freeN(static_cast<void *>(this->data_));
+     * `MEM_delete` directly on it, without casting it to `void *`. */
+    MEM_delete_void(static_cast<void *>(this->data_));
   }
 
   /* Resize to \a new_size elements. */
@@ -348,12 +350,13 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   {
     BLI_assert(new_size > 0);
     if (new_size != this->len_) {
-      /* Manual realloc since MEM_reallocN_aligned does not exists. */
-      T *new_data_ = static_cast<T *>(MEM_mallocN_aligned(new_size * sizeof(T), 16, this->name_));
+      /* Manual realloc since MEM_realloc_uninitialized_aligned does not exists. */
+      T *new_data_ = static_cast<T *>(
+          MEM_new_uninitialized_aligned(new_size * sizeof(T), 16, this->name_));
       memcpy(reinterpret_cast<void *>(new_data_),
              this->data_,
              min_uu(this->len_, new_size) * sizeof(T));
-      MEM_freeN(static_cast<void *>(this->data_));
+      MEM_delete_void(static_cast<void *>(this->data_));
       this->data_ = new_data_;
       GPU_storagebuf_free(this->ssbo_);
 
@@ -951,7 +954,7 @@ class Texture : NonCopyable {
 
   /**
    * Returns a buffer containing the texture data for the specified miplvl.
-   * The memory block needs to be manually freed by MEM_freeN().
+   * The memory block needs to be manually freed by MEM_delete().
    */
   template<typename T> T *read(eGPUDataFormat format, int miplvl = 0)
   {
@@ -1070,7 +1073,7 @@ class TextureFromPool : public Texture, NonMovable {
   gpu::TexturePool *pool_ = nullptr;
 
  public:
-  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
+  TextureFromPool(const char *name = "draw::TextureFromPool") : Texture(name) {};
 
   /* On destructor, textures after `::retain()` may need to be released. */
   ~TextureFromPool()
@@ -1085,7 +1088,7 @@ class TextureFromPool : public Texture, NonMovable {
   {
     if (tx_ == nullptr) {
       pool_ = &gpu::TexturePool::get();
-      tx_ = pool_->acquire_texture(extent, format, usage);
+      tx_ = pool_->acquire_texture(extent, format, usage, name_);
       if (G.debug & G_DEBUG_GPU) {
         debug_clear();
       }

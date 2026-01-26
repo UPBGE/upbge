@@ -129,7 +129,7 @@ void wm_surface_remove(wmSurface *surface, bContext *C)
   wm_surface_make_drawable(surface, C);
   surface->free_data(surface);
   wm_surface_clear_drawable(C);
-  MEM_freeN(surface);
+  MEM_delete(surface);
 }
 
 void wm_surfaces_free()

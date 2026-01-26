@@ -10,9 +10,9 @@ if(NOT MSVC)
   message(FATAL_ERROR "Compiler is unsupported")
 endif()
 
-# By default CMAKE will map imported configs that lack a specific RELWITHDEBINFO 
+# By default CMAKE will map imported configs that lack a specific RELWITHDEBINFO
 # or MINSIZEREL location, to the debug libs, which is not good as this will cause
-# all sorts of linking issues with MSVC. Map them explicitly to Release libs. 
+# all sorts of linking issues with MSVC. Map them explicitly to Release libs.
 # for further reading: https://gitlab.kitware.com/cmake/cmake/-/issues/20319
 set(CMAKE_MAP_IMPORTED_CONFIG_MINSIZEREL MinSizeRel RelWithDebInfo Release Debug)
 set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO RelWithDebInfo Release MinSizeRel Debug)
@@ -89,8 +89,6 @@ macro(find_package_wrapper)
     find_package(${ARGV})
   endif()
 endmacro()
-
-add_definitions(-DWIN32)
 
 # Needed, otherwise system encoding causes utf-8 encoding to fail in some cases (C4819)
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
@@ -385,7 +383,7 @@ set(ZLIB_INCLUDE_DIR ${LIBDIR}/zlib/include)
 set(ZLIB_LIBRARY ${LIBDIR}/zlib/lib/libz_st.lib)
 set(ZLIB_DIR ${LIBDIR}/zlib)
 
-set(fmt_DIR ${LIBDIR}/fmt/lib/cmake/config) 
+set(fmt_DIR ${LIBDIR}/fmt/lib/cmake/config)
 find_package(fmt REQUIRED CONFIG)
 
 windows_find_package(ZLIB) # We want to find before finding things that depend on it like PNG.
@@ -535,7 +533,7 @@ if(WITH_IMAGE_OPENEXR)
       ${OPENEXR_INCLUDE_DIR}/OpenEXR
     )
     set(OPENEXR_LIBPATH ${OPENEXR}/lib)
-    # Check if the blender 3.3 lib static library eixts
+    # Check if the blender 3.3 lib static library exists
     # if not assume this is a 3.4+ dynamic version.
     if(EXISTS "${OPENEXR_LIBPATH}/OpenEXR_s.lib")
       set(OPENEXR_POSTFIX _s)
@@ -1186,7 +1184,7 @@ if(WINDOWS_PYTHON_DEBUG)
   set_target_properties(blender_python_system_scripts PROPERTIES FOLDER "scripts")
   set_target_properties(blender_python_user_scripts PROPERTIES FOLDER "scripts")
   # Set the default debugging options for the project, only write this file once so the user
-  # is free to override them at their own perril.
+  # is free to override them at their own peril.
   set(USER_PROPS_FILE "${CMAKE_CURRENT_BINARY_DIR}/source/creator/blender.Cpp.user.props")
   if(NOT EXISTS ${USER_PROPS_FILE})
     # Layout below is messy, because otherwise the generated file will look messy.

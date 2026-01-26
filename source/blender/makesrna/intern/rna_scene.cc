@@ -65,7 +65,7 @@ const EnumPropertyItem rna_enum_exr_codec_items[] = {
     {R_IMF_EXR_CODEC_HTJ2K,
      "HTJ2K",
      0,
-     "",
+     "HTJ2K",
      "Lossless compression based on high throughput JPEG 2000 encoding. It produces smaller "
      "files, but it is new and not widely supported by other software yet."},
     {R_IMF_EXR_CODEC_ZIPS,
@@ -924,7 +924,7 @@ static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 static void rna_Scene_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Scene *scene = static_cast<Scene *>(ptr->data);
-  iter->internal.custom = MEM_callocN<BLI_Iterator>(__func__);
+  iter->internal.custom = MEM_new_zeroed<BLI_Iterator>(__func__);
 
   BKE_scene_objects_iterator_begin(static_cast<BLI_Iterator *>(iter->internal.custom),
                                    static_cast<void *>(scene));
@@ -940,7 +940,7 @@ static void rna_Scene_objects_next(CollectionPropertyIterator *iter)
 static void rna_Scene_objects_end(CollectionPropertyIterator *iter)
 {
   BKE_scene_objects_iterator_end(static_cast<BLI_Iterator *>(iter->internal.custom));
-  MEM_freeN(iter->internal.custom);
+  MEM_delete_void(iter->internal.custom);
 }
 
 static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
@@ -2509,7 +2509,7 @@ static void rna_GameSettings_python_key4_set(PointerRNA *ptr, int value)
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
-  TimeMarker *marker = MEM_new_for_free<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_new<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
   STRNCPY_UTF8(marker->name, name);
@@ -2533,7 +2533,7 @@ static void rna_TimeLine_remove(Scene *scene, ReportList *reports, PointerRNA *m
     return;
   }
 
-  MEM_freeN(marker);
+  MEM_delete(marker);
   marker_ptr->invalidate();
 
   WM_main_add_notifier(NC_SCENE | ND_MARKERS, nullptr);

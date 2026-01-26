@@ -68,20 +68,6 @@ static bool wm_xr_operator_sessionactive(bContext *C)
   return WM_xr_session_is_ready(&wm->xr);
 }
 
-static bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event)
-{
-  if (event->type != EVT_XR_ACTION) {
-    return false;
-  }
-
-  BLI_assert(event->custom == EVT_DATA_XR);
-  BLI_assert(event->customdata);
-
-  wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
-  return (actiondata->ot == op->type &&
-          IDP_EqualsProperties(actiondata->op_properties, op->properties));
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -187,13 +173,13 @@ static void wm_xr_grab_init(wmOperator *op)
 {
   BLI_assert(op->customdata == nullptr);
 
-  op->customdata = MEM_callocN<XrGrabData>(__func__);
+  op->customdata = MEM_new_zeroed<XrGrabData>(__func__);
 }
 
 static void wm_xr_grab_uninit(wmOperator *op)
 {
   XrGrabData *data = static_cast<XrGrabData *>(op->customdata);
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data);
   op->customdata = nullptr;
 }
 
@@ -417,10 +403,6 @@ static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
   wm_xr_grab_init(op);
@@ -548,10 +530,6 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrGrabData *data = static_cast<XrGrabData *>(op->customdata);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -661,7 +639,7 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 {
   BLI_assert(op->customdata == nullptr);
 
-  XrFlyData *data = MEM_callocN<XrFlyData>(__func__);
+  XrFlyData *data = MEM_new_zeroed<XrFlyData>(__func__);
   op->customdata = data;
 
   WM_xr_session_state_viewer_pose_rotation_get(xr, data->viewer_rot);
@@ -671,7 +649,7 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 static void wm_xr_fly_uninit(wmOperator *op)
 {
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data);
   op->customdata = nullptr;
 }
 
@@ -781,12 +759,8 @@ static void wm_xr_basenav_rotation_calc(const wmXrData *xr,
 
 static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
                                                     wmOperator *op,
-                                                    const wmEvent *event)
+                                                    const wmEvent * /*event*/)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   wmWindowManager *wm = CTX_wm_manager(C);
 
   wm_xr_fly_init(op, &wm->xr);
@@ -810,10 +784,6 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   if (event->val == KM_RELEASE) {
     wm_xr_fly_uninit(op);
     return OPERATOR_FINISHED;
@@ -1550,10 +1520,6 @@ static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   wm_xr_navigation_teleport_init(op);
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -1580,10 +1546,6 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
   wmXrData *xr = &CTX_wm_manager(C)->xr;
@@ -1827,12 +1789,8 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 
 static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
                                                            wmOperator *op,
-                                                           const wmEvent *event)
+                                                           const wmEvent * /*event*/)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   WM_event_add_modal_handler(C, op);
 
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1849,13 +1807,9 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext * /*C*/, wmOpe
 }
 
 static wmOperatorStatus wm_xr_navigation_swap_hands_modal(bContext *C,
-                                                          wmOperator *op,
+                                                          wmOperator * /*op*/,
                                                           const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
 

@@ -241,7 +241,7 @@ void *ED_region_draw_cb_activate(ARegionType *art,
                                  void *customdata,
                                  int type)
 {
-  RegionDrawCB *rdc = MEM_callocN<RegionDrawCB>(__func__);
+  RegionDrawCB *rdc = MEM_new_zeroed<RegionDrawCB>(__func__);
 
   BLI_addtail(&art->drawcalls, rdc);
   rdc->draw = draw;
@@ -256,7 +256,7 @@ bool ED_region_draw_cb_exit(ARegionType *art, void *handle)
   for (RegionDrawCB &rdc : art->drawcalls) {
     if (&rdc == static_cast<RegionDrawCB *>(handle)) {
       BLI_remlink(&art->drawcalls, &rdc);
-      MEM_freeN(&rdc);
+      MEM_delete(&rdc);
       return true;
     }
   }
@@ -290,7 +290,7 @@ void ED_region_draw_cb_remove_by_type(ARegionType *art, void *draw_fn, void (*fr
         free(rdc.customdata);
       }
       BLI_remlink(&art->drawcalls, &rdc);
-      MEM_freeN(&rdc);
+      MEM_delete(&rdc);
     }
   }
 }

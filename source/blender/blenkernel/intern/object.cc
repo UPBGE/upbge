@@ -212,8 +212,8 @@ static void object_copy_data(Main *bmain,
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
 
   if (ob_src->totcol) {
-    ob_dst->mat = static_cast<Material **>(MEM_dupallocN(ob_src->mat));
-    ob_dst->matbits = static_cast<char *>(MEM_dupallocN(ob_src->matbits));
+    ob_dst->mat = MEM_dupalloc(ob_src->mat);
+    ob_dst->matbits = MEM_dupalloc(ob_src->matbits);
     ob_dst->totcol = ob_src->totcol;
   }
   else if (ob_dst->mat != nullptr || ob_dst->matbits != nullptr) {
@@ -225,7 +225,7 @@ static void object_copy_data(Main *bmain,
   }
 
   if (ob_src->iuser) {
-    ob_dst->iuser = static_cast<ImageUser *>(MEM_dupallocN(ob_src->iuser));
+    ob_dst->iuser = MEM_dupalloc(ob_src->iuser);
   }
 
   BLI_listbase_clear(&ob_dst->shader_fx);
@@ -267,7 +267,7 @@ static void object_copy_data(Main *bmain,
   ob_dst->runtime->sculpt_session = nullptr;
 
   if (ob_src->pd) {
-    ob_dst->pd = static_cast<PartDeflect *>(MEM_dupallocN(ob_src->pd));
+    ob_dst->pd = MEM_dupalloc(ob_src->pd);
   }
   BKE_rigidbody_object_copy(bmain, ob_dst, ob_src, flag_subdata);
 
@@ -290,7 +290,7 @@ static void object_copy_data(Main *bmain,
   }
 
   if (ob_src->lightgroup) {
-    ob_dst->lightgroup = static_cast<LightgroupMembership *>(MEM_dupallocN(ob_src->lightgroup));
+    ob_dst->lightgroup = MEM_dupalloc(ob_src->lightgroup);
   }
   BKE_light_linking_copy(ob_dst, ob_src, flag_subdata);
 
@@ -298,7 +298,7 @@ static void object_copy_data(Main *bmain,
     if (ob_src->lightprobe_cache) {
       /* Reference the original object data. */
       ob_dst->lightprobe_cache = static_cast<LightProbeObjectCache *>(
-          MEM_dupallocN(ob_src->lightprobe_cache));
+          MEM_dupalloc(ob_src->lightprobe_cache));
       ob_dst->lightprobe_cache->shared = true;
     }
   }
@@ -319,9 +319,9 @@ static void object_free_data(ID *id)
   BKE_object_free_modifiers(ob, LIB_ID_CREATE_NO_USER_REFCOUNT);
   BKE_object_free_shaderfx(ob, LIB_ID_CREATE_NO_USER_REFCOUNT);
 
-  MEM_SAFE_FREE(ob->mat);
-  MEM_SAFE_FREE(ob->matbits);
-  MEM_SAFE_FREE(ob->iuser);
+  MEM_SAFE_DELETE(ob->mat);
+  MEM_SAFE_DELETE(ob->matbits);
+  MEM_SAFE_DELETE(ob->iuser);
 
   if (ob->pose) {
     BKE_pose_free_ex(ob->pose, false);
@@ -363,15 +363,15 @@ static void object_free_data(ID *id)
   if (ob->runtime->curve_cache) {
     BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
     if (ob->runtime->curve_cache->anim_path_accum_length) {
-      MEM_freeN(ob->runtime->curve_cache->anim_path_accum_length);
+      MEM_delete(ob->runtime->curve_cache->anim_path_accum_length);
     }
-    MEM_freeN(ob->runtime->curve_cache);
+    MEM_delete(ob->runtime->curve_cache);
     ob->runtime->curve_cache = nullptr;
   }
 
   BKE_previewimg_free(&ob->preview);
 
-  MEM_SAFE_FREE(ob->lightgroup);
+  MEM_SAFE_DELETE(ob->lightgroup);
   BKE_light_linking_delete(ob, LIB_ID_CREATE_NO_USER_REFCOUNT);
 
   BKE_lightprobe_cache_free(ob);
@@ -1087,7 +1087,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
       BKE_modifiers_persistent_uid_init(*ob, wmd->modifier);
 
       BLI_remlink(&ob->effect, paf);
-      MEM_freeN(paf);
+      MEM_delete(paf);
 
       paf = next;
       continue;
@@ -1107,7 +1107,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
       BKE_modifiers_persistent_uid_init(*ob, bmd->modifier);
 
       BLI_remlink(&ob->effect, paf);
-      MEM_freeN(paf);
+      MEM_delete(paf);
 
       paf = next;
       continue;
@@ -1239,7 +1239,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   if (ob->rigidbody_object) {
     RigidBodyOb *rbo = ob->rigidbody_object;
     /* Allocate runtime-only struct */
-    rbo->shared = MEM_new_for_free<RigidBodyOb_Shared>("RigidBodyObShared");
+    rbo->shared = MEM_new<RigidBodyOb_Shared>("RigidBodyObShared");
   }
   BLO_read_struct(reader, RigidBodyCon, &ob->rigidbody_constraint);
   if (ob->rigidbody_constraint) {
@@ -1277,7 +1277,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_modifier_unique_name(&ob->modifiers, reinterpret_cast<ModifierData *>(hmd));
     BKE_modifiers_persistent_uid_init(*ob, hmd->modifier);
 
-    MEM_freeN(hook);
+    MEM_delete(hook);
   }
 
   BLO_read_struct(reader, ImageUser, &ob->iuser);
@@ -1567,10 +1567,10 @@ void BKE_object_free_curve_cache(Object *ob)
     BKE_displist_free(&ob->runtime->curve_cache->disp);
     BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
     if (ob->runtime->curve_cache->anim_path_accum_length) {
-      MEM_freeN(ob->runtime->curve_cache->anim_path_accum_length);
+      MEM_delete(ob->runtime->curve_cache->anim_path_accum_length);
     }
     BKE_nurbList_free(&ob->runtime->curve_cache->deformed_nurbs);
-    MEM_freeN(ob->runtime->curve_cache);
+    MEM_delete(ob->runtime->curve_cache);
     ob->runtime->curve_cache = nullptr;
   }
 }
@@ -2075,7 +2075,7 @@ void BKE_object_free_derived_caches(Object *ob)
       else {
         BKE_libblock_free_data(data_eval, false);
         BKE_libblock_free_datablock(data_eval, 0);
-        MEM_freeN(data_eval);
+        MEM_delete(data_eval);
       }
     }
     ob->runtime->data_eval = nullptr;
@@ -2615,7 +2615,6 @@ Object *BKE_object_add_for_data(Main *bmain,
 void BKE_object_copy_softbody(Object *ob_dst, const Object *ob_src, const int flag)
 {
   SoftBody *sb = ob_src->soft;
-  const bool is_orig = (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) == 0;
 
   ob_dst->softflag = ob_src->softflag;
   if (sb == nullptr) {
@@ -2623,50 +2622,7 @@ void BKE_object_copy_softbody(Object *ob_dst, const Object *ob_src, const int fl
     return;
   }
 
-  SoftBody *sbn = static_cast<SoftBody *>(MEM_dupallocN(sb));
-
-  if ((flag & LIB_ID_COPY_CACHES) == 0) {
-    sbn->totspring = sbn->totpoint = 0;
-    sbn->bpoint = nullptr;
-    sbn->bspring = nullptr;
-  }
-  else {
-    sbn->totspring = sb->totspring;
-    sbn->totpoint = sb->totpoint;
-
-    if (sbn->bpoint) {
-      int i;
-
-      sbn->bpoint = static_cast<BodyPoint *>(MEM_dupallocN(sbn->bpoint));
-
-      for (i = 0; i < sbn->totpoint; i++) {
-        if (sbn->bpoint[i].springs) {
-          sbn->bpoint[i].springs = static_cast<int *>(MEM_dupallocN(sbn->bpoint[i].springs));
-        }
-      }
-    }
-
-    if (sb->bspring) {
-      sbn->bspring = static_cast<BodySpring *>(MEM_dupallocN(sb->bspring));
-    }
-  }
-
-  sbn->keys = nullptr;
-  sbn->totkey = sbn->totpointkey = 0;
-
-  sbn->scratch = nullptr;
-
-  if (is_orig) {
-    sbn->shared = static_cast<SoftBody_Shared *>(MEM_dupallocN(sb->shared));
-    sbn->shared->pointcache = BKE_ptcache_copy_list(
-        &sbn->shared->ptcaches, &sb->shared->ptcaches, flag);
-  }
-
-  if (sb->effector_weights) {
-    sbn->effector_weights = static_cast<EffectorWeights *>(MEM_dupallocN(sb->effector_weights));
-  }
-
-  ob_dst->soft = sbn;
+  ob_dst->soft = sbCopy(sb, flag);
 }
 
 #ifdef WITH_GAMEENGINE
@@ -2818,7 +2774,7 @@ BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int /*flag*
 
 ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int flag)
 {
-  ParticleSystem *psysn = static_cast<ParticleSystem *>(MEM_dupallocN(psys));
+  ParticleSystem *psysn = MEM_dupalloc(psys);
 
   psys_copy_particles(psysn, psys);
 
@@ -4240,14 +4196,14 @@ void BKE_object_empty_draw_type_set(Object *ob, const int value)
 
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
     if (!ob->iuser) {
-      ob->iuser = MEM_new_for_free<ImageUser>("image user");
+      ob->iuser = MEM_new<ImageUser>("image user");
       ob->iuser->flag |= IMA_ANIM_ALWAYS;
       ob->iuser->frames = 100;
       ob->iuser->sfra = 1;
     }
   }
   else {
-    MEM_SAFE_FREE(ob->iuser);
+    MEM_SAFE_DELETE(ob->iuser);
   }
 }
 
@@ -4498,7 +4454,7 @@ struct ObTfmBack {
 
 void *BKE_object_tfm_backup(Object *ob)
 {
-  ObTfmBack *obtfm = MEM_mallocN<ObTfmBack>("ObTfmBack");
+  ObTfmBack *obtfm = MEM_new_uninitialized<ObTfmBack>("ObTfmBack");
   copy_v3_v3(obtfm->loc, ob->loc);
   copy_v3_v3(obtfm->dloc, ob->dloc);
   copy_v3_v3(obtfm->scale, ob->scale);
@@ -4915,7 +4871,7 @@ int BKE_object_insert_ptcache(Object *ob)
     }
   }
 
-  link = MEM_callocN<LinkData>("PCLink");
+  link = MEM_new_zeroed<LinkData>("PCLink");
   link->data = POINTER_FROM_INT(i);
   BLI_addtail(&ob->pc_ids, link);
 
@@ -5006,7 +4962,7 @@ static KeyBlock *insert_lattkey(Main *bmain, Object *ob, const char *name, const
     kb = BKE_keyblock_add_ctime(key, name, false);
     if (!newkey) {
       KeyBlock *basekb = static_cast<KeyBlock *>(key->block.first);
-      kb->data = MEM_dupallocN(basekb->data);
+      kb->data = MEM_dupalloc_void(basekb->data);
       kb->totelem = basekb->totelem;
     }
     else {
@@ -5046,7 +5002,7 @@ static KeyBlock *insert_curvekey(Main *bmain, Object *ob, const char *name, cons
     kb = BKE_keyblock_add_ctime(key, name, false);
     if (!newkey) {
       KeyBlock *basekb = static_cast<KeyBlock *>(key->block.first);
-      kb->data = MEM_dupallocN(basekb->data);
+      kb->data = MEM_dupalloc_void(basekb->data);
       kb->totelem = basekb->totelem;
     }
     else {
@@ -5174,9 +5130,9 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   }
 
   if (kb->data) {
-    MEM_freeN(kb->data);
+    MEM_delete_void(kb->data);
   }
-  MEM_freeN(kb);
+  MEM_delete(kb);
 
   /* Unset active when all are freed. */
   if (BLI_listbase_is_empty(&key->block)) {
