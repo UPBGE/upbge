@@ -80,7 +80,7 @@ jobs:
           sudo apt install -y build-essential git-lfs git subversion cmake ninja-build \
             cmake-curses-gui cmake-gui patch libx11-dev \
             libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
-            libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
+            libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev gcc-14 g++-14
 
       - name: Install Dependencies (Windows)
         if: matrix.os == 'windows'
@@ -128,6 +128,9 @@ jobs:
 
       - name: Configure CMake (Linux)
         if: matrix.os == 'linux'
+        env:
+          CC: gcc-14
+          CXX: g++-14
         run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DWITH_INSTALL_PORTABLE=ON -DWITH_VULKAN_BACKEND=ON -DWITH_GHOST_WAYLAND=ON -DPYTHON_VERSION="3.13"
 
       - name: Configure CMake (Windows)
