@@ -1329,7 +1329,7 @@ void KX_Scene::TagForObjectsMatToWorldRestore()
       }
     }
     /* Free what was allocated in BlenderDataConversion */
-    MEM_freeN(backup->obtfm);
+    MEM_delete_void(backup->obtfm);
     delete backup;
   }
 }

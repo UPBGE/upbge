@@ -2097,8 +2097,9 @@ void BKE_sound_use_end()
   sound_device_use_end();
 }
 
-void *BKE_sound_get_device()
+AUD_Device BKE_sound_get_device()
 {
+  std::lock_guard lock(g_state.sound_device_mutex);
   return g_state.sound_device;
 }
 /**************************/

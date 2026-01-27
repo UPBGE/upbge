@@ -363,7 +363,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
     /* Use the same MOD_get_texture_coords() function as the CPU modifier
      * to guarantee identical behavior for all mapping modes (LOCAL/GLOBAL/OBJECT/UV) */
     const int verts_num = orig_mesh->verts_num;
-    float(*tex_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, "displace_tex_coords");
+    float(*tex_co)[3] = MEM_new_array_uninitialized<float[3]>(verts_num, "displace_tex_coords");
 
     MOD_get_texture_coords(
         reinterpret_cast<MappingInfoModifierData *>(const_cast<DisplaceModifierData *>(dmd)),
@@ -379,7 +379,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
       msd.tex_coords[v] = float3(tex_co[v]);
     }
 
-    MEM_freeN(tex_co);
+    MEM_delete(tex_co);
   }
 }
 

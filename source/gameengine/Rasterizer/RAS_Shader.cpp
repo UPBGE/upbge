@@ -39,7 +39,7 @@ RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)
     : m_loc(-1), m_count(1), m_dirty(true), m_type(UNI_NONE), m_transpose(0), m_dataLen(data_size)
 {
 #ifdef SORT_UNIFORMS
-  m_data = (void *)MEM_mallocN(m_dataLen, "shader-uniform-alloc");
+  m_data = (void *)MEM_new_uninitialized(m_dataLen, "shader-uniform-alloc");
 #endif
 }
 
@@ -47,7 +47,7 @@ RAS_Shader::RAS_Uniform::~RAS_Uniform()
 {
 #ifdef SORT_UNIFORMS
   if (m_data) {
-    MEM_freeN(m_data);
+    MEM_delete_void(m_data);
     m_data = nullptr;
   }
 #endif

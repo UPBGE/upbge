@@ -607,10 +607,10 @@ static float *pygpu_ocean_get_or_alloc_padded_cpu(Ocean *o, size_t bytes_needed)
       return buf;
     }
     /* resize existing allocation */
-    MEM_freeN(buf);
+    MEM_delete(buf);
     g_ocean_padded_cpu_cache.erase(it);
   }
-  float *buf = static_cast<float *>(MEM_mallocN(bytes_needed, "ocean_disp_xyz_padded_cached"));
+  float *buf = static_cast<float *>(MEM_new_uninitialized(bytes_needed, "ocean_disp_xyz_padded_cached"));
   if (!buf) {
     return nullptr;
   }
@@ -636,7 +636,7 @@ static void pygpu_ocean_capsule_destructor(PyObject *capsule)
 {
   void *ctx = PyCapsule_GetContext(capsule);
   if (ctx) {
-    MEM_freeN(ctx);
+    MEM_delete_void(ctx);
     PyCapsule_SetContext(capsule, nullptr);
   }
 }
@@ -758,7 +758,7 @@ static PyObject *pygpu_ocean_create_default_ocean(PyObject * /*self*/,
   }
 
   /* attach defaults context so simulate functions can use them when keywords omitted */
-  OceanCapsuleContext *ctx = (OceanCapsuleContext *)MEM_mallocN(sizeof(OceanCapsuleContext),
+  OceanCapsuleContext *ctx = (OceanCapsuleContext *)MEM_new_uninitialized(sizeof(OceanCapsuleContext),
                                                                 "ocean_capsule_ctx");
   if (!ctx) {
     /* best-effort cleanup */
@@ -1081,7 +1081,7 @@ static PyObject *pygpu_ocean_export_disp_xyz_ssbo(PyObject * /*self*/, PyObject 
   const size_t padded_count = size_t(texels);
   const size_t padded_bytes = padded_count * 4u * sizeof(float);
 
-  /* Use or allocate cached padded CPU buffer to avoid repeated MEM_mallocN/freeN. */
+  /* Use or allocate cached padded CPU buffer to avoid repeated MEM_new_uninitialized/freeN. */
   float *padded = pygpu_ocean_get_or_alloc_padded_cpu(o, padded_bytes);
   if (!padded) {
     BKE_ocean_free_export(buf);
@@ -1558,7 +1558,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
 
   /* Build basepos CPU buffer and update cached base SSBO */
   const size_t base_bytes = verts * 4u * sizeof(float);
-  float *base_cpu = static_cast<float *>(MEM_mallocN(base_bytes, "ocean_test_basepos"));
+  float *base_cpu = static_cast<float *>(MEM_new_uninitialized(base_bytes, "ocean_test_basepos"));
   if (!base_cpu) {
     if (created_disp_transient && disp_ssbo) {
       GPU_storagebuf_free(disp_ssbo);
@@ -1599,7 +1599,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       if (created_disp_transient && disp_ssbo) {
         GPU_storagebuf_free(disp_ssbo);
       }
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "GPU alloc failed (base)");
       return nullptr;
@@ -1611,7 +1611,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       if (created_disp_transient && disp_ssbo) {
         GPU_storagebuf_free(disp_ssbo);
       }
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "Failed to wrap GPU storage buffer (base)");
       return nullptr;
@@ -1627,7 +1627,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       if (created_disp_transient && disp_ssbo) {
         GPU_storagebuf_free(disp_ssbo);
       }
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "Failed to cache base SSBO");
       return nullptr;
@@ -1636,7 +1636,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
     created_base_transient = false;
     base_ssbo = pygpu_ocean_entry_get_ssbo(&ins_base.first->second);
     if (!base_ssbo) {
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "Cached base SSBO invalid after insert");
       return nullptr;
@@ -1665,7 +1665,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
   }
   else {
     /* Create GPU SSBO + Python wrapper and cache it */
-    float *out_cpu = static_cast<float *>(MEM_callocN(out_bytes, "ocean_test_outcpu"));
+    float *out_cpu = static_cast<float *>(MEM_new_zeroed(out_bytes, "ocean_test_outcpu"));
     if (!out_cpu) {
       if (created_disp_transient && disp_ssbo) {
         GPU_storagebuf_free(disp_ssbo);
@@ -1673,14 +1673,14 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       if (created_base_transient && base_ssbo) {
         GPU_storagebuf_free(base_ssbo);
       }
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_NoMemory();
       return nullptr;
     }
     StorageBuf *new_out = GPU_storagebuf_create_ex(
         out_bytes, out_cpu, GPU_USAGE_STATIC, "ocean_test_out");
-    MEM_freeN(out_cpu);
+    MEM_delete(out_cpu);
     if (!new_out) {
       if (created_disp_transient && disp_ssbo) {
         GPU_storagebuf_free(disp_ssbo);
@@ -1688,7 +1688,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       if (created_base_transient && base_ssbo) {
         GPU_storagebuf_free(base_ssbo);
       }
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "GPU_storagebuf_create_ex failed (out)");
       return nullptr;
@@ -1703,7 +1703,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       if (created_base_transient && base_ssbo) {
         GPU_storagebuf_free(base_ssbo);
       }
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "Failed to wrap GPU storage buffer (out)");
       return nullptr;
@@ -1722,7 +1722,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       if (created_base_transient && base_ssbo) {
         GPU_storagebuf_free(base_ssbo);
       }
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "Failed to cache out SSBO");
       return nullptr;
@@ -1731,7 +1731,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
     created_out_transient = false;
     out_ssbo = pygpu_ocean_entry_get_ssbo(&ins_out.first->second);
     if (!out_ssbo) {
-      MEM_freeN(base_cpu);
+      MEM_delete(base_cpu);
       BKE_ocean_free_export(disp_buf);
       PyErr_SetString(PyExc_RuntimeError, "Cached out SSBO invalid after insert");
       return nullptr;
@@ -1743,7 +1743,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       base_ssbo, disp_ssbo, out_ssbo, o, float(size_param), verts);
 
   /* cleanup CPU temporaries */
-  MEM_freeN(base_cpu);
+  MEM_delete(base_cpu);
   BKE_ocean_free_export(disp_buf);
 
   if (!ok) {
@@ -5211,7 +5211,7 @@ static PyObject *pygpu_ocean_scatter_to_mesh(PyObject * /*self*/, PyObject *args
 
   float *base_cpu = nullptr;
   if (need_update) {
-    /* reuse a cached padded CPU buffer to avoid MEM_mallocN/MEM_freeN each frame */
+    /* reuse a cached padded CPU buffer to avoid MEM_new_uninitialized/MEM_delete each frame */
     base_cpu = pygpu_ocean_get_or_alloc_padded_cpu(o, base_bytes);
     if (!base_cpu) {
       PyErr_NoMemory();
@@ -5332,7 +5332,7 @@ static PyObject *pygpu_ocean_free_ocean(PyObject * /*self*/, PyObject *args)
     if (it_pad != g_ocean_padded_cpu_cache.end()) {
       float *ptr = it_pad->second.first;
       if (ptr) {
-        MEM_freeN(ptr);
+        MEM_delete(ptr);
       }
       g_ocean_padded_cpu_cache.erase(it_pad);
     }
@@ -5402,7 +5402,7 @@ static PyObject *pygpu_ocean_free_resources(PyObject * /*self*/, PyObject * /*ar
   for (auto &kv : g_ocean_padded_cpu_cache) {
     float *ptr = kv.second.first;
     if (ptr) {
-      MEM_freeN(ptr);
+      MEM_delete(ptr);
     }
   }
   g_ocean_padded_cpu_cache.clear();
@@ -5638,7 +5638,7 @@ static void pygpu_ocean_module_free(void * /*module*/)
   for (auto &kv : g_ocean_padded_cpu_cache) {
     float *ptr = kv.second.first;
     if (ptr) {
-      MEM_freeN(ptr);
+      MEM_delete(ptr);
     }
   }
   g_ocean_padded_cpu_cache.clear();

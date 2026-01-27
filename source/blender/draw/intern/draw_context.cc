@@ -2684,7 +2684,7 @@ void DRW_end_debug_bge_viewport()
 void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[4])
 {
   unit_m4(g_modelmat);
-  DRWDebugLine *line = (DRWDebugLine *)MEM_mallocN(sizeof(DRWDebugLine), "DRWDebugLine");
+  DRWDebugLine *line = (DRWDebugLine *)MEM_new_uninitialized(sizeof(DRWDebugLine), "DRWDebugLine");
   mul_v3_m4v3(line->pos[0], g_modelmat, v1);
   mul_v3_m4v3(line->pos[1], g_modelmat, v2);
   copy_v4_v4(line->color, color);
@@ -2693,7 +2693,7 @@ void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[
 
 void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize)
 {
-  DRWDebugBox2D *box = (DRWDebugBox2D *)MEM_mallocN(sizeof(DRWDebugBox2D), "DRWDebugBox");
+  DRWDebugBox2D *box = (DRWDebugBox2D *)MEM_new_uninitialized(sizeof(DRWDebugBox2D), "DRWDebugBox");
   box->xco = xco;
   box->yco = yco;
   box->xsize = xsize;
@@ -2703,7 +2703,7 @@ void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, c
 
 void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
 {
-  DRWDebugText2D *text = (DRWDebugText2D *)MEM_mallocN(sizeof(DRWDebugText2D), "DRWDebugText2D");
+  DRWDebugText2D *text = (DRWDebugText2D *)MEM_new_uninitialized(sizeof(DRWDebugText2D), "DRWDebugText2D");
   text->xco = xco;
   text->yco = yco;
   STRNCPY(text->text, str);
@@ -2742,7 +2742,7 @@ static void drw_debug_draw_lines_bge(void)
     immAttr4fv(col, debug_bge->lines->color);
     immVertex3fv(pos, debug_bge->lines->pos[1]);
 
-    MEM_freeN(debug_bge->lines);
+    MEM_delete(debug_bge->lines);
     debug_bge->lines = (DRWDebugLine *)next;
   }
   immEnd();
@@ -2780,7 +2780,7 @@ static void drw_debug_draw_boxes_bge(void)
     DRWDebugBox2D *b = debug_bge->boxes;
     immUniformColor4fv(white);
     immRectf(pos, b->xco + 1 + b->xsize, b->yco + b->ysize, b->xco, b->yco);
-    MEM_freeN(debug_bge->boxes);
+    MEM_delete(debug_bge->boxes);
     debug_bge->boxes = (DRWDebugBox2D *)next;
   }
   immUnbindProgram();
@@ -2839,7 +2839,7 @@ static void drw_debug_draw_text_bge(Scene *scene)
     BLF_color4fv(blf_mono_font, white);
     BLF_position(blf_mono_font, t->xco, t->yco, 0.0f);
     BLF_draw(blf_mono_font, t->text, BLF_DRAW_STR_DUMMY_MAX);
-    MEM_freeN(debug_bge->texts);
+    MEM_delete(debug_bge->texts);
     debug_bge->texts = (DRWDebugText2D *)next;
   }
   BLF_disable(blf_mono_font, BLF_SHADOW);
@@ -2945,17 +2945,17 @@ void DRW_game_viewport_render_loop_end()
   }
   while (debug_bge->lines) {
     void *next = debug_bge->lines->next;
-    MEM_freeN(debug_bge->lines);
+    MEM_delete(debug_bge->lines);
     debug_bge->lines = (DRWDebugLine *)next;
   }
   while (debug_bge->boxes){
     void *next = debug_bge->boxes->next;
-    MEM_freeN(debug_bge->boxes);
+    MEM_delete(debug_bge->boxes);
     debug_bge->boxes = (DRWDebugBox2D *)next;
   }
   while (debug_bge->texts) {
     void *next = debug_bge->texts->next;
-    MEM_freeN(debug_bge->texts);
+    MEM_delete(debug_bge->texts);
     debug_bge->texts = (DRWDebugText2D *)next;
   }
   MEM_delete(debug_bge);

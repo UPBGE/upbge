@@ -37,7 +37,7 @@ DynamicLibrary *BLI_dynlib_open(const char *name)
     return NULL;
   }
 
-  lib = MEM_callocN<DynamicLibrary>("Dynamic Library");
+  lib = MEM_new_zeroed<DynamicLibrary>("Dynamic Library");
   lib->handle = handle;
 
   return lib;
@@ -79,7 +79,7 @@ char *BLI_dynlib_get_error_as_string(DynamicLibrary *lib)
 void BLI_dynlib_close(DynamicLibrary *lib)
 {
   FreeLibrary(HMODULE(lib->handle));
-  MEM_freeN(lib);
+  MEM_delete(lib);
 }
 
 #else /* Unix */
@@ -95,7 +95,7 @@ DynamicLibrary *BLI_dynlib_open(const char *name)
     return nullptr;
   }
 
-  lib = MEM_callocN<DynamicLibrary>("Dynamic Library");
+  lib = MEM_new_zeroed<DynamicLibrary>("Dynamic Library");
   lib->handle = handle;
 
   return lib;
@@ -115,7 +115,7 @@ char *BLI_dynlib_get_error_as_string(DynamicLibrary *lib)
 void BLI_dynlib_close(DynamicLibrary *lib)
 {
   dlclose(lib->handle);
-  MEM_freeN(lib);
+  MEM_delete(lib);
 }
 
 #endif

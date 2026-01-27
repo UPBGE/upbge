@@ -53,7 +53,7 @@ ImageBase::~ImageBase(void)
 {
   // release image
   if (m_image)
-    MEM_freeN(m_image);
+    MEM_delete(m_image);
 }
 
 // release python objects
@@ -200,8 +200,8 @@ void ImageBase::init(short width, short height)
       m_imgSize = newSize;
       // release previous and create new buffer
       if (m_image)
-        MEM_freeN(m_image);
-      m_image = (unsigned int *)MEM_mallocN(m_imgSize * sizeof(unsigned int), "ImageBase init");
+        MEM_delete(m_image);
+      m_image = (unsigned int *)MEM_new_uninitialized(m_imgSize * sizeof(unsigned int), "ImageBase init");
     }
     // new image size
     m_size[0] = width;

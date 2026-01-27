@@ -212,7 +212,7 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
   /* initialize image file format data */
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Scene *scene = CTX_data_scene(C);
-  ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
+  ImageFormatData *im_format = (ImageFormatData *)MEM_new_uninitialized(sizeof(ImageFormatData),
                                                               "im_format");
 
   if (scene) {

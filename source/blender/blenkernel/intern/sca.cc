@@ -58,10 +58,10 @@ namespace blender {
 void BKE_sca_free_sensor(bSensor *sens)
 {
   if (sens->links)
-    MEM_freeN(sens->links);
+    MEM_delete(sens->links);
   if (sens->data)
-    MEM_freeN(sens->data);
-  MEM_freeN(sens);
+    MEM_delete_void(sens->data);
+  MEM_delete(sens);
 }
 
 void BKE_sca_free_sensors(ListBase *lb)
@@ -77,14 +77,14 @@ bSensor *BKE_sca_copy_sensor(bSensor *sens, const int /*flag*/)
 {
   bSensor *sensn;
 
-  sensn = (bSensor *)MEM_dupallocN(sens);
+  sensn = (bSensor *)MEM_dupalloc(sens);
   sensn->flag |= SENS_NEW;
   if (sens->data) {
-    sensn->data = (void *)MEM_dupallocN(sens->data);
+    sensn->data = (void *)MEM_dupalloc_void(sens->data);
   }
 
   if (sens->links)
-    sensn->links = (bController **)MEM_dupallocN(sens->links);
+    sensn->links = (bController **)MEM_dupalloc(sens->links);
 
   return sensn;
 }
@@ -112,7 +112,7 @@ void BKE_sca_init_sensor(bSensor *sens)
   bMovementSensor *movs;
 
   if (sens->data)
-    MEM_freeN(sens->data);
+    MEM_delete_void(sens->data);
   sens->data = nullptr;
   sens->pulse = 0;
 
@@ -121,57 +121,57 @@ void BKE_sca_init_sensor(bSensor *sens)
       sens->pulse = 0;
       break;
     case SENS_NEAR:
-      sens->data = MEM_callocN(sizeof(bNearSensor), "nearsens");
+      sens->data = MEM_new_zeroed(sizeof(bNearSensor), "nearsens");
       ns = (bNearSensor *)sens->data;
       ns->dist = 1.0;
       ns->resetdist = 2.0;
       break;
     case SENS_KEYBOARD:
-      sens->data = MEM_callocN(sizeof(bKeyboardSensor), "keysens");
+      sens->data = MEM_new_zeroed(sizeof(bKeyboardSensor), "keysens");
       break;
     case SENS_PROPERTY:
-      sens->data = MEM_callocN(sizeof(bPropertySensor), "propsens");
+      sens->data = MEM_new_zeroed(sizeof(bPropertySensor), "propsens");
       break;
     case SENS_ARMATURE:
-      sens->data = MEM_callocN(sizeof(bArmatureSensor), "armsens");
+      sens->data = MEM_new_zeroed(sizeof(bArmatureSensor), "armsens");
       break;
     case SENS_ACTUATOR:
-      sens->data = MEM_callocN(sizeof(bActuatorSensor), "actsens");
+      sens->data = MEM_new_zeroed(sizeof(bActuatorSensor), "actsens");
       break;
     case SENS_DELAY:
-      sens->data = MEM_callocN(sizeof(bDelaySensor), "delaysens");
+      sens->data = MEM_new_zeroed(sizeof(bDelaySensor), "delaysens");
       break;
     case SENS_MOUSE:
-      sens->data = MEM_callocN(sizeof(bMouseSensor), "mousesens");
+      sens->data = MEM_new_zeroed(sizeof(bMouseSensor), "mousesens");
       ms = (bMouseSensor *)sens->data;
       ms->type = 1;  // LEFTMOUSE workaround because Mouse Sensor types enum starts in 1
       ms->mask = (1 << OB_MAX_COL_MASKS) - 1;
       break;
     case SENS_COLLISION:
-      sens->data = MEM_callocN(sizeof(bCollisionSensor), "colsens");
+      sens->data = MEM_new_zeroed(sizeof(bCollisionSensor), "colsens");
       break;
     case SENS_RADAR:
-      sens->data = MEM_callocN(sizeof(bRadarSensor), "radarsens");
+      sens->data = MEM_new_zeroed(sizeof(bRadarSensor), "radarsens");
       break;
     case SENS_RANDOM:
-      sens->data = MEM_callocN(sizeof(bRandomSensor), "randomsens");
+      sens->data = MEM_new_zeroed(sizeof(bRandomSensor), "randomsens");
       break;
     case SENS_MOVEMENT:
-      sens->data = MEM_callocN(sizeof(bMovementSensor), "movementsens");
+      sens->data = MEM_new_zeroed(sizeof(bMovementSensor), "movementsens");
       movs = (bMovementSensor *)sens->data;
       movs->threshold = 0.01f;
       break;
     case SENS_RAY:
-      sens->data = MEM_callocN(sizeof(bRaySensor), "raysens");
+      sens->data = MEM_new_zeroed(sizeof(bRaySensor), "raysens");
       rs = (bRaySensor *)sens->data;
       rs->range = 0.01f;
       rs->mask = (1 << OB_MAX_COL_MASKS) - 1;
       break;
     case SENS_MESSAGE:
-      sens->data = MEM_callocN(sizeof(bMessageSensor), "messagesens");
+      sens->data = MEM_new_zeroed(sizeof(bMessageSensor), "messagesens");
       break;
     case SENS_JOYSTICK:
-      sens->data = MEM_callocN(sizeof(bJoystickSensor), "joysticksens");
+      sens->data = MEM_new_zeroed(sizeof(bJoystickSensor), "joysticksens");
       js = (bJoystickSensor *)sens->data;
       js->type = SENS_JOY_AXIS;
       js->axis = SENS_JOY_LEFT_STICK;
@@ -187,7 +187,7 @@ bSensor *BKE_sca_new_sensor(int type)
 {
   bSensor *sens;
 
-  sens = (bSensor *)MEM_callocN(sizeof(bSensor), "Sensor");
+  sens = (bSensor *)MEM_new_zeroed(sizeof(bSensor), "Sensor");
   sens->type = type;
   sens->flag = SENS_SHOW;
 
@@ -229,13 +229,13 @@ void BKE_sca_unlink_controllers(ListBase *lb)
 void BKE_sca_free_controller(bController *cont)
 {
   if (cont->links)
-    MEM_freeN(cont->links);
+    MEM_delete(cont->links);
 
   /* the controller itself */
   if (cont->data) {
-    MEM_freeN(cont->data);
+    MEM_delete_void(cont->data);
   }
-  MEM_freeN(cont);
+  MEM_delete(cont);
 }
 
 void BKE_sca_free_controllers(ListBase *lb)
@@ -244,7 +244,7 @@ void BKE_sca_free_controllers(ListBase *lb)
 
   while ((cont = (bController *)BLI_pophead(lb))) {
     if (cont->slinks)
-      MEM_freeN(cont->slinks);
+      MEM_delete(cont->slinks);
     BKE_sca_free_controller(cont);
   }
 }
@@ -253,14 +253,14 @@ bController *BKE_sca_copy_controller(bController *cont, const int /*flag*/)
 {
   bController *contn;
 
-  cont->mynew = contn = (bController *)MEM_dupallocN(cont);
+  cont->mynew = contn = (bController *)MEM_dupalloc(cont);
   contn->flag |= CONT_NEW;
   if (cont->data) {
-    contn->data = MEM_dupallocN(cont->data);
+    contn->data = MEM_dupalloc_void(cont->data);
   }
 
   if (cont->links)
-    contn->links = (bActuator **)MEM_dupallocN(cont->links);
+    contn->links = (bActuator **)MEM_dupalloc(cont->links);
   contn->slinks = nullptr;
   contn->totslinks = 0;
 
@@ -285,15 +285,15 @@ void BKE_sca_init_controller(bController *cont)
   /* also use when controller changes type, leave actuators... */
 
   if (cont->data)
-    MEM_freeN(cont->data);
+    MEM_delete_void(cont->data);
   cont->data = nullptr;
 
   switch (cont->type) {
     case CONT_EXPRESSION:
-      cont->data = MEM_callocN(sizeof(bExpressionCont), "expcont");
+      cont->data = MEM_new_zeroed(sizeof(bExpressionCont), "expcont");
       break;
     case CONT_PYTHON:
-      cont->data = MEM_callocN(sizeof(bPythonCont), "pycont");
+      cont->data = MEM_new_zeroed(sizeof(bPythonCont), "pycont");
       break;
   }
 }
@@ -302,7 +302,7 @@ bController *BKE_sca_new_controller(int type)
 {
   bController *cont;
 
-  cont = (bController *)MEM_callocN(sizeof(bController), "Controller");
+  cont = (bController *)MEM_new_zeroed(sizeof(bController), "Controller");
   cont->type = type;
   cont->flag = CONT_SHOW;
 
@@ -360,9 +360,9 @@ void BKE_sca_free_actuator(bActuator *act)
       }
     }
 
-    MEM_freeN(act->data);
+    MEM_delete_void(act->data);
   }
-  MEM_freeN(act);
+  MEM_delete(act);
 }
 
 void BKE_sca_free_actuators(ListBase *lb)
@@ -378,10 +378,10 @@ bActuator *BKE_sca_copy_actuator(bActuator *act)
 {
   bActuator *actn;
 
-  act->mynew = actn = (bActuator *)MEM_dupallocN(act);
+  act->mynew = actn = (bActuator *)MEM_dupalloc(act);
   actn->flag |= ACT_NEW;
   if (act->data) {
-    actn->data = MEM_dupallocN(act->data);
+    actn->data = MEM_dupalloc_void(act->data);
   }
 
   switch (act->type) {
@@ -431,15 +431,15 @@ void BKE_sca_init_actuator(bActuator *act)
   bVibrationActuator *via;
 
   if (act->data)
-    MEM_freeN(act->data);
+    MEM_delete_void(act->data);
   act->data = nullptr;
 
   switch (act->type) {
     case ACT_ACTION:
-      act->data = MEM_callocN(sizeof(bActionActuator), "actionact");
+      act->data = MEM_new_zeroed(sizeof(bActionActuator), "actionact");
       break;
     case ACT_SOUND:
-      act->data = MEM_callocN(sizeof(bSoundActuator), "soundact");
+      act->data = MEM_new_zeroed(sizeof(bSoundActuator), "soundact");
       sa = (bSoundActuator *)act->data;
       sa->volume = 1.0f;
       sa->sound3D.rolloff_factor = 1.0f;
@@ -450,73 +450,73 @@ void BKE_sca_init_actuator(bActuator *act)
       sa->sound3D.max_distance = FLT_MAX;
       break;
     case ACT_OBJECT:
-      act->data = MEM_callocN(sizeof(bObjectActuator), "objectact");
+      act->data = MEM_new_zeroed(sizeof(bObjectActuator), "objectact");
       oa = (bObjectActuator *)act->data;
       oa->flag = 15;
       break;
     case ACT_PROPERTY:
-      act->data = MEM_callocN(sizeof(bPropertyActuator), "propact");
+      act->data = MEM_new_zeroed(sizeof(bPropertyActuator), "propact");
       break;
     case ACT_CAMERA:
-      act->data = MEM_callocN(sizeof(bCameraActuator), "camact");
+      act->data = MEM_new_zeroed(sizeof(bCameraActuator), "camact");
       ca = (bCameraActuator *)act->data;
       ca->axis = OB_POSX;
       ca->damping = 1.0 / 32.0;
       break;
     case ACT_EDIT_OBJECT:
-      act->data = MEM_callocN(sizeof(bEditObjectActuator), "editobact");
+      act->data = MEM_new_zeroed(sizeof(bEditObjectActuator), "editobact");
       eoa = (bEditObjectActuator *)act->data;
       eoa->upflag = ACT_TRACK_UP_Z;
       eoa->trackflag = ACT_TRACK_TRAXIS_Y;
       break;
     case ACT_CONSTRAINT:
-      act->data = MEM_callocN(sizeof(bConstraintActuator), "cons act");
+      act->data = MEM_new_zeroed(sizeof(bConstraintActuator), "cons act");
       break;
     case ACT_SCENE:
-      act->data = MEM_callocN(sizeof(bSceneActuator), "scene act");
+      act->data = MEM_new_zeroed(sizeof(bSceneActuator), "scene act");
       break;
     case ACT_COLLECTION:
-      act->data = MEM_callocN(sizeof(bCollectionActuator), "collection act");
+      act->data = MEM_new_zeroed(sizeof(bCollectionActuator), "collection act");
       break;
     case ACT_GROUP:
-      act->data = MEM_callocN(sizeof(bGroupActuator), "group act");
+      act->data = MEM_new_zeroed(sizeof(bGroupActuator), "group act");
       break;
     case ACT_RANDOM:
-      act->data = MEM_callocN(sizeof(bRandomActuator), "random act");
+      act->data = MEM_new_zeroed(sizeof(bRandomActuator), "random act");
       ra = (bRandomActuator *)act->data;
       ra->float_arg_1 = 0.1f;
       break;
     case ACT_MESSAGE:
-      act->data = MEM_callocN(sizeof(bMessageActuator), "message act");
+      act->data = MEM_new_zeroed(sizeof(bMessageActuator), "message act");
       break;
     case ACT_GAME:
-      act->data = MEM_callocN(sizeof(bGameActuator), "game act");
+      act->data = MEM_new_zeroed(sizeof(bGameActuator), "game act");
       break;
     case ACT_VIBRATION:
-      act->data = MEM_callocN(sizeof(bVibrationActuator), "vibration act");
+      act->data = MEM_new_zeroed(sizeof(bVibrationActuator), "vibration act");
       via = (bVibrationActuator *)act->data;
       via->duration = 500;  // milliseconds
       via->strength = 0.4;
       break;
     case ACT_VISIBILITY:
-      act->data = MEM_callocN(sizeof(bVisibilityActuator), "visibility act");
+      act->data = MEM_new_zeroed(sizeof(bVisibilityActuator), "visibility act");
       break;
     case ACT_2DFILTER:
-      act->data = MEM_callocN(sizeof(bTwoDFilterActuator), "2d filter act");
+      act->data = MEM_new_zeroed(sizeof(bTwoDFilterActuator), "2d filter act");
       break;
     case ACT_PARENT:
-      act->data = MEM_callocN(sizeof(bParentActuator), "parent act");
+      act->data = MEM_new_zeroed(sizeof(bParentActuator), "parent act");
       break;
     case ACT_STATE:
-      act->data = MEM_callocN(sizeof(bStateActuator), "state act");
+      act->data = MEM_new_zeroed(sizeof(bStateActuator), "state act");
       break;
     case ACT_ARMATURE:
-      act->data = MEM_callocN(sizeof(bArmatureActuator), "armature act");
+      act->data = MEM_new_zeroed(sizeof(bArmatureActuator), "armature act");
       arma = (bArmatureActuator *)act->data;
       arma->influence = 1.f;
       break;
     case ACT_STEERING:
-      act->data = MEM_callocN(sizeof(bSteeringActuator), "steering act");
+      act->data = MEM_new_zeroed(sizeof(bSteeringActuator), "steering act");
       sta = (bSteeringActuator *)act->data;
       sta->acceleration = 3.f;
       sta->turnspeed = 120.f;
@@ -527,7 +527,7 @@ void BKE_sca_init_actuator(bActuator *act)
       sta->pathlerpfactor = 0.15f;
       break;
     case ACT_MOUSE:
-      act->data = MEM_callocN(sizeof(bMouseActuator), "mouse act");
+      act->data = MEM_new_zeroed(sizeof(bMouseActuator), "mouse act");
       ma = (bMouseActuator *)act->data;
       ma->flag = ACT_MOUSE_VISIBLE | ACT_MOUSE_USE_AXIS_X | ACT_MOUSE_USE_AXIS_Y |
                  ACT_MOUSE_RESET_X | ACT_MOUSE_RESET_Y | ACT_MOUSE_LOCAL_Y;
@@ -546,7 +546,7 @@ bActuator *BKE_sca_new_actuator(int type)
 {
   bActuator *act;
 
-  act = (bActuator *)MEM_callocN(sizeof(bActuator), "Actuator");
+  act = (bActuator *)MEM_new_zeroed(sizeof(bActuator), "Actuator");
   act->type = type;
   act->flag = ACT_SHOW;
 
@@ -995,7 +995,7 @@ void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size
     old_links = *ppoin;
 
     (*tot)++;
-    *ppoin = (void **)MEM_callocN((*tot) * size, "new link");
+    *ppoin = (void **)MEM_new_zeroed((*tot) * size, "new link");
 
     for (ibrick = 0; ibrick < *(tot)-1; ibrick++) {
       (*ppoin)[ibrick] = old_links[ibrick];
@@ -1003,11 +1003,11 @@ void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size
     (*ppoin)[ibrick] = *poin;
 
     if (old_links)
-      MEM_freeN(old_links);
+      MEM_delete(old_links);
   }
   else {
     (*tot) = 1;
-    *ppoin = (void **)MEM_callocN((*tot) * size, "new link");
+    *ppoin = (void **)MEM_new_zeroed((*tot) * size, "new link");
     (*ppoin)[0] = *poin;
   }
 }
@@ -1028,7 +1028,7 @@ void BKE_sca_unlink_logicbricks(void **poin, void ***ppoin, short *tot)
     (*tot)--;
 
     if (*tot == 0) {
-      MEM_freeN(*ppoin);
+      MEM_delete(*ppoin);
       (*ppoin) = nullptr;
     }
     return;

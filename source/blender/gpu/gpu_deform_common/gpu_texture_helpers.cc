@@ -21,7 +21,8 @@ void displace_upload_ibuf_to_texture(gpu::Texture *tex, ImBuf *ibuf, const char 
   const int width = ibuf->x;
   const int height = ibuf->y;
 
-  float *upload_data = (float *)MEM_malloc_arrayN<float>(width * height * 4, "displace_tex_upload");
+  float *upload_data = (float *)MEM_new_array_uninitialized<float>(width * height * 4,
+                                                                   "displace_tex_upload");
   if (ibuf->float_buffer.data) {
     for (int i = 0; i < width * height; i++) {
       if (ibuf->channels == 4) {
@@ -55,12 +56,12 @@ void displace_upload_ibuf_to_texture(gpu::Texture *tex, ImBuf *ibuf, const char 
     }
   }
   else {
-    MEM_freeN(upload_data);
+    MEM_delete(upload_data);
     return;
   }
 
   GPU_texture_update(tex, GPU_DATA_FLOAT, upload_data);
-  MEM_freeN(upload_data);
+  MEM_delete(upload_data);
 }
 
 /* Helper: fill a GPUTextureParams struct from a Tex + modifier info. */

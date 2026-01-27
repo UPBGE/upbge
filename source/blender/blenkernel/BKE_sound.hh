@@ -263,7 +263,7 @@ bool sound_mixdown(AUD_Sequence sequence,
 void BKE_sound_load_no_assert(struct Main *main, struct bSound *sound);
 void BKE_sound_use_begin(void);
 void BKE_sound_use_end(void);
-void *BKE_sound_get_device(void);
+AUD_Device BKE_sound_get_device();
 /**************************/
 
 }  // namespace blender

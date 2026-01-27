@@ -233,7 +233,7 @@ static PythonProxyProperty *create_property(char *name)
 {
   PythonProxyProperty *pprop;
 
-  pprop = (PythonProxyProperty *)MEM_callocN(sizeof(PythonProxyProperty), "PythonProxyProperty");
+  pprop = (PythonProxyProperty *)MEM_new_zeroed(sizeof(PythonProxyProperty), "PythonProxyProperty");
   BLI_strncpy(pprop->name, name, sizeof(pprop->name));
 
   return pprop;
@@ -245,11 +245,11 @@ static PythonProxyProperty *copy_property(PythonProxyProperty *pprop)
 {
   PythonProxyProperty *ppropn;
 
-  ppropn = (PythonProxyProperty *)MEM_dupallocN(pprop);
+  ppropn = (PythonProxyProperty *)MEM_dupalloc(pprop);
 
   BLI_duplicatelist(&ppropn->enumval, &pprop->enumval);
   for (LinkData *link = (LinkData *)ppropn->enumval.first; link; link = link->next) {
-    link->data = MEM_dupallocN(link->data);
+    link->data = MEM_dupalloc_void(link->data);
   }
 
   return ppropn;
@@ -258,10 +258,10 @@ static PythonProxyProperty *copy_property(PythonProxyProperty *pprop)
 static void free_property(PythonProxyProperty *pprop)
 {
   for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
-    MEM_freeN(link->data);
+    MEM_delete_void(link->data);
   }
   BLI_freelistN(&pprop->enumval);
-  MEM_freeN(pprop);
+  MEM_delete(pprop);
 }
 
 static void free_properties(ListBase *lb)
@@ -344,8 +344,8 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
           continue;
         }
 
-        LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "PythonComponentProperty set link data");
-        char *str = (char *)MEM_callocN(MAX_PROPSTRING, "PythonComponentProperty set string");
+        LinkData *link = (LinkData *)MEM_new_zeroed(sizeof(LinkData), "PythonComponentProperty set link data");
+        char *str = (char *)MEM_new_zeroed(MAX_PROPSTRING, "PythonComponentProperty set string");
         BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
 
         link->data = str;
@@ -634,7 +634,7 @@ static PythonProxy *BKE_python_class_new(char *import,
     return nullptr;
   }
 
-  pp = (PythonProxy *)MEM_callocN(sizeof(PythonProxy), "PythonProxy");
+  pp = (PythonProxy *)MEM_new_zeroed(sizeof(PythonProxy), "PythonProxy");
 
   // Copy module and class names.
   strcpy(pp->module, modulename);
@@ -734,9 +734,9 @@ static PythonProxy *BKE_python_class_create_file(char *import,
 
   BKE_text_write(text, filecontent, strlen(filecontent));
 
-  MEM_freeN(filecontent);
+  MEM_delete(filecontent);
 
-  pp = (PythonProxy *)MEM_callocN(sizeof(PythonProxy), "PythonProxy");
+  pp = (PythonProxy *)MEM_new_zeroed(sizeof(PythonProxy), "PythonProxy");
 
   // Copy module and class names.
   strcpy(pp->module, modulename);
@@ -820,7 +820,7 @@ PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
   PythonProxy *proxyn;
   PythonProxyProperty *pprop, *ppropn;
 
-  proxyn = (PythonProxy *)MEM_dupallocN(pp);
+  proxyn = (PythonProxy *)MEM_dupalloc(pp);
 
   BLI_listbase_clear(&proxyn->properties);
   pprop = (PythonProxyProperty *)pp->properties.first;
@@ -861,7 +861,7 @@ void BKE_python_proxy_free(PythonProxy *pp)
 #ifdef WITH_PYTHON
   free_properties(&pp->properties);
 
-  MEM_freeN(pp);
+  MEM_delete(pp);
 #else
   (void)pp;
 #endif /* WITH_PYTHON */

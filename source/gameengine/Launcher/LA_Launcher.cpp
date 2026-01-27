@@ -56,10 +56,15 @@
 #endif                  // WITH_PYTHON
 
 #ifdef WITH_AUDASPACE
-#  include "AUD_Device.h"
+#  include <devices/IDevice.h>
+#  include <devices/I3DDevice.h>
+#  include <devices/DeviceManager.h>
+#  include <devices/IHandle.h>
+#  include <devices/I3DHandle.h>
+#  include <respec/ChannelMapper.h>
+#endif
 
 using namespace blender;
-#endif
 
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system,
@@ -263,11 +268,16 @@ void LA_Launcher::InitEngine()
   if (U.audiodevice != 4) {
     // Initialize 3D Audio Settings.
     BKE_sound_use_begin(); // Since 308f6032c8047ea710fa75510ec212ca84d14135
-    AUD_Device *device = BKE_sound_get_device();
+    // BKE_sound_get_device() returns a void* that actually points to an AUD_Device
+    // (pointer to std::shared_ptr<aud::IDevice>). Convert and use it safely.
+    AUD_Device device = BKE_sound_get_device();
     if (device) {
-      AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
-      AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
-      AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
+      std::shared_ptr<aud::I3DDevice> dev3d = std::dynamic_pointer_cast<aud::I3DDevice>(device);
+      if (dev3d) {
+        dev3d->setSpeedOfSound(m_startScene->audio.speed_of_sound);
+        dev3d->setDopplerFactor(m_startScene->audio.doppler_factor);
+        dev3d->setDistanceModel(aud::DistanceModel(m_startScene->audio.distance_model));
+      }
     }
   }
   //}
@@ -362,13 +372,13 @@ void LA_Launcher::ExitEngine()
   //if (m_audioDeviceIsInitialized) {
     // Stop all remaining playing sounds.
   if (U.audiodevice != 4) {
-    AUD_Device *device = BKE_sound_get_device();
+    AUD_Device device = BKE_sound_get_device();
     if (device) {
-      AUD_Device_stopAll(BKE_sound_get_device());
+      device->stopAll();
       BKE_sound_use_end();
     }
-  }
-  //}
+   }
+   //}
 #endif  // WITH_AUDASPACE
 
   m_exitRequested = KX_ExitRequest::NO_REQUEST;

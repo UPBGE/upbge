@@ -504,7 +504,7 @@ bool WM_init_game(bContext *C)
     /* Records time since last report was added */
     wm->runtime->reports.reporttimer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.02);
 
-    rti = (ReportTimerInfo *)MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
+    rti = (ReportTimerInfo *)MEM_new_zeroed(sizeof(ReportTimerInfo), "ReportTimerInfo");
     wm->runtime->reports.reporttimer->customdata = rti;
 
     return false;

@@ -892,7 +892,7 @@ void CcdPhysicsController::UpdateSoftBody()
             BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
             BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
             DEG_relations_tag_update(CTX_data_main(C));
-            m_sbCoords = (float(*)[3])MEM_callocN(sizeof(float[3]) * me->vert_positions().size(),
+            m_sbCoords = (float(*)[3])MEM_new_zeroed(sizeof(float[3]) * me->vert_positions().size(),
                                                   __func__);
           }
 
@@ -929,7 +929,7 @@ void CcdPhysicsController::RemoveSoftBodyModifier(blender::Object *ob)
 {
   if (GetSoftBody()) {
     if (m_sbCoords) {
-      MEM_freeN(m_sbCoords);
+      MEM_delete(m_sbCoords);
       m_sbCoords = nullptr;
     }
     if (m_sbModifier) {

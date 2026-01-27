@@ -2622,7 +2622,7 @@ static void ui_linkline_add(ListBase *listb, Button *but, Button *bt, short deac
 {
   uiLinkLine *line;
 
-  line = static_cast <uiLinkLine *>(MEM_callocN(sizeof(uiLinkLine), "linkline"));
+  line = static_cast <uiLinkLine *>(MEM_new_zeroed(sizeof(uiLinkLine), "linkline"));
   BLI_addtail(listb, line);
   line->from = but;
   line->to = bt;
@@ -2712,7 +2712,7 @@ void ui_linkline_remove(uiLinkLine *line, Button *but)
 
     if (*(link->totlink) == 1) {
       *(link->totlink) = 0;
-      MEM_freeN(*(link->ppoin));
+      MEM_delete(*(link->ppoin));
       *(link->ppoin) = nullptr;
     }
     else {
@@ -2730,7 +2730,7 @@ void ui_linkline_remove(uiLinkLine *line, Button *but)
     *(link->poin) = nullptr;
   }
 
-  MEM_freeN(line);
+  MEM_delete(line);
   // REDRAW
 }
 
@@ -3880,7 +3880,7 @@ static void ui_free_link(uiLink *link)
 {
   if (link) {
     BLI_freelistN(&link->lines);
-    MEM_freeN(link);
+    MEM_delete(link);
   }
 }
 
@@ -6205,7 +6205,7 @@ void UI_but_link_set(Button *but, void **poin, void ***ppoin, short *tot, int fr
 {
   uiLink *link;
 
-  link = but->link = static_cast <uiLink *>(MEM_callocN(sizeof(uiLink), "new uilink"));
+  link = but->link = static_cast <uiLink *>(MEM_new_zeroed(sizeof(uiLink), "new uilink"));
 
   link->poin = poin;
   link->ppoin = ppoin;

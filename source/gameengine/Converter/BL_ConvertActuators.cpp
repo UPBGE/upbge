@@ -37,7 +37,7 @@
 #include "BL_ConvertActuators.h"
 
 #ifdef WITH_AUDASPACE
-#  include <AUD_Sound.h>
+#  include <respec/ChannelMapper.h>
 #endif
 
 /* This little block needed for linking to Blender... */
@@ -297,9 +297,7 @@ void BL_ConvertActuators(const char *maggiename,
           blender::bSound *sound = soundact->sound;
           bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
           bool preload = soundact->flag & ACT_SND_PRELOAD ? true : false;
-#ifdef WITH_AUDASPACE
-          AUD_Sound *snd_sound = nullptr;
-#endif  // WITH_AUDASPACE
+
           KX_3DSoundSettings settings;
           settings.cone_inner_angle = RAD2DEGF(soundact->sound3D.cone_inner_angle);
           settings.cone_outer_angle = RAD2DEGF(soundact->sound3D.cone_outer_angle);
@@ -310,23 +308,25 @@ void BL_ConvertActuators(const char *maggiename,
           settings.reference_distance = soundact->sound3D.reference_distance;
           settings.rolloff_factor = soundact->sound3D.rolloff_factor;
 
-          if (!sound) {
-            CM_Warning("sound actuator \"" << bact->name << "\" from object \""
-                                           << blenderobject->id.name + 2
-                                           << "\" has no sound datablock.");
-          }
-          else {
 #ifdef WITH_AUDASPACE
+          AUD_Sound snd_sound;
+          if (sound) {
             blender::bContext *C = KX_GetActiveEngine()->GetContext();
             BKE_sound_load_no_assert(CTX_data_main(C), sound);
-            snd_sound = BKE_sound_playback_handle_get(sound);
-
-            // if sound shall be 3D but isn't mono, we have to make it mono!
-            if (is3d) {
-              snd_sound = AUD_Sound_rechannel(snd_sound, AUD_CHANNELS_MONO);
-            }
-#endif  // WITH_AUDASPACE
           }
+          AUD_Sound snd = BKE_sound_playback_handle_get(sound);
+
+          // if sound shall be 3D but isn't mono, wrap it with a ChannelMapper to make it mono.
+          if (is3d && snd) {
+            aud::DeviceSpecs specs;
+            specs.channels = aud::CHANNELS_MONO;
+            specs.rate = aud::RATE_INVALID;
+            specs.format = aud::FORMAT_INVALID;
+            snd = AUD_Sound(new aud::ChannelMapper(snd, specs));
+          }
+          snd_sound = snd;
+#endif  // WITH_AUDASPACE
+
           SCA_SoundActuator *tmpsoundact = new SCA_SoundActuator(
               gameobj,
 #ifdef WITH_AUDASPACE
@@ -339,12 +339,6 @@ void BL_ConvertActuators(const char *maggiename,
               settings,
               soundActuatorType);
 
-#ifdef WITH_AUDASPACE
-          // if we made it mono, we have to free it
-          if (sound && snd_sound && snd_sound != BKE_sound_playback_handle_get(sound)) {
-            AUD_Sound_free(snd_sound);
-          }
-#endif  // WITH_AUDASPACE
 
           tmpsoundact->SetName(bact->name);
           baseact = tmpsoundact;
@@ -928,7 +922,7 @@ void BL_ConvertActuators(const char *maggiename,
           buf = txt_to_buf(_2dfilter->text, &buf_len_dummy);
           if (buf) {
             tmp->SetShaderText(buf);
-            MEM_freeN(buf);
+            MEM_delete(buf);
           }
         }
 

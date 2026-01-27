@@ -139,7 +139,7 @@ static void rna_GameStringProperty_value_set(PointerRNA *ptr, const char *value)
   bProperty *prop = (bProperty *)ptr->data;
 
   if (prop->poin) {
-    MEM_freeN(prop->poin);
+    MEM_delete_void(prop->poin);
   }
 
   if (value[0]) {

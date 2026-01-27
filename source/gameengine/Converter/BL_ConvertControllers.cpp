@@ -137,7 +137,7 @@ void BL_ConvertControllers(blender::Object *blenderobject,
             if (buf) {
               pyctrl->SetScriptText(std::string(buf));
               pyctrl->SetScriptName(pycont->text->id.name + 2);
-              MEM_freeN(buf);
+              MEM_delete(buf);
             }
           }
         }

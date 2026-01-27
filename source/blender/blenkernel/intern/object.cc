@@ -2629,12 +2629,12 @@ void BKE_object_copy_softbody(Object *ob_dst, const Object *ob_src, const int fl
 
 void BKE_object_lod_add(Object *ob)
 {
-  LodLevel *lod = (LodLevel *)MEM_callocN(sizeof(LodLevel), "LoD Level");
+  LodLevel *lod = (LodLevel *)MEM_new_zeroed(sizeof(LodLevel), "LoD Level");
   LodLevel *last = (LodLevel *)ob->lodlevels.last;
 
   /* If the lod list is empty, initialize it with the base lod level */
   if (!last) {
-    LodLevel *base = (LodLevel *)MEM_callocN(sizeof(LodLevel), "Base LoD Level");
+    LodLevel *base = (LodLevel *)MEM_new_zeroed(sizeof(LodLevel), "Base LoD Level");
     BLI_addtail(&ob->lodlevels, base);
     base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
     base->source = ob;
@@ -2678,13 +2678,13 @@ bool BKE_object_lod_remove(Object *ob, int level)
   }
 
   BLI_remlink(&ob->lodlevels, rem);
-  MEM_freeN(rem);
+  MEM_delete(rem);
 
   /* If there are no user defined lods, remove the base lod as well */
   if (BLI_listbase_is_single(&ob->lodlevels)) {
     LodLevel *base = (LodLevel *)ob->lodlevels.first;
     BLI_remlink(&ob->lodlevels, base);
-    MEM_freeN(base);
+    MEM_delete(base);
     ob->currentlod = NULL;
   }
 
@@ -2764,7 +2764,7 @@ BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int /*flag*
 
   if (bsb == nullptr)
     return nullptr;
-  bsbn = (BulletSoftBody *)MEM_mallocN(sizeof(BulletSoftBody), "BulletSoftBody");
+  bsbn = (BulletSoftBody *)MEM_new_uninitialized(sizeof(BulletSoftBody), "BulletSoftBody");
   memcpy((void *)bsbn, bsb, sizeof(BulletSoftBody));
   /* no pointer in this structure yet */
   return bsbn;

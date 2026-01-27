@@ -155,7 +155,7 @@ static int buildRawVertIndicesData(blender::Mesh *me,
   }
 
   // Copie des positions avec swap Y/Z
-  float(*v)[3] = (float(*)[3])MEM_mallocN(sizeof(float[3]) * nverts, __func__);
+  float(*v)[3] = (float(*)[3])MEM_new_uninitialized(sizeof(float[3]) * nverts, __func__);
   blender::MutableSpan(reinterpret_cast<blender::float3 *>(v), nverts)
       .copy_from(me->vert_positions());
   float *verts = (float *)v;
@@ -172,13 +172,13 @@ static int buildRawVertIndicesData(blender::Mesh *me,
   int ntris = tris.size();
   if (ntris == 0) {
     printf("Converting navmesh: Error! There are %i vertices, but no triangles!\n", nverts);
-    MEM_freeN(verts);
+    MEM_delete(verts);
     return 0;
   }
 
-  unsigned short *tris_out = (unsigned short *)MEM_callocN(sizeof(unsigned short) * 3 * ntris,
+  unsigned short *tris_out = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * 3 * ntris,
                                                            "buildRawVertIndicesData tris");
-  int *trisToFacesMap = (int *)MEM_callocN(sizeof(int) * ntris,
+  int *trisToFacesMap = (int *)MEM_new_zeroed(sizeof(int) * ntris,
                                            "buildRawVertIndicesData trisToFacesMap");
 
   const blender::Span<int> corner_verts = me->corner_verts();
@@ -216,7 +216,7 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
 {
   int polyidx;
   int capacity = vertsPerPoly;
-  unsigned short *newPoly = (unsigned short *)MEM_callocN(sizeof(unsigned short) * capacity,
+  unsigned short *newPoly = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * capacity,
                                                           "buildPolygonsByDetailedMeshes newPoly");
   memset(newPoly, 0xff, sizeof(unsigned short) * capacity);
 
@@ -229,7 +229,7 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
     int edge, bedge = -1;
     int dtrisNum = dmeshes[polyidx * 4 + 3];
     int dtrisBase = dmeshes[polyidx * 4 + 2];
-    unsigned char *traversedTris = (unsigned char *)MEM_callocN(
+    unsigned char *traversedTris = (unsigned char *)MEM_new_zeroed(
         sizeof(unsigned char) * dtrisNum, "buildPolygonsByDetailedMeshes traversedTris");
     unsigned short *adjustedPoly;
     int adjustedNv;
@@ -248,8 +248,8 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
     }
     if (btri == -1 || bedge == -1) {
       /* can't find triangle with border edge */
-      MEM_freeN(traversedTris);
-      MEM_freeN(newPoly);
+      MEM_delete(traversedTris);
+      MEM_delete(newPoly);
 
       return 0;
     }
@@ -264,11 +264,11 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
         if (nv == capacity) {
           unsigned short *newPolyBig;
           capacity += vertsPerPoly;
-          newPolyBig = (unsigned short *)MEM_callocN(sizeof(unsigned short) * capacity,
+          newPolyBig = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * capacity,
                                                      "buildPolygonsByDetailedMeshes newPolyBig");
           memset(newPolyBig, 0xff, sizeof(unsigned short) * capacity);
           memcpy(newPolyBig, newPoly, sizeof(unsigned short) * nv);
-          MEM_freeN(newPoly);
+          MEM_delete(newPoly);
           newPoly = newPolyBig;
         }
         newPoly[nv++] = dtris[tri * 3 * 2 + edge];
@@ -286,7 +286,7 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
         }
         if (twinedge == -1) {
           printf("Converting navmesh: Error! Can't find neighbor edge - invalid adjacency info\n");
-          MEM_freeN(traversedTris);
+          MEM_delete(traversedTris);
           goto returnLabel;
         }
         tri = neighbortri;
@@ -295,7 +295,7 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
       }
     }
 
-    adjustedPoly = (unsigned short *)MEM_callocN(sizeof(unsigned short) * nv,
+    adjustedPoly = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * nv,
                                                  "buildPolygonsByDetailedMeshes adjustedPoly");
     adjustedNv = 0;
     for (i = 0; i < nv; i++) {
@@ -308,7 +308,7 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
         adjustedPoly[adjustedNv++] = cur;
     }
     memcpy(newPoly, adjustedPoly, adjustedNv * sizeof(unsigned short));
-    MEM_freeN(adjustedPoly);
+    MEM_delete(adjustedPoly);
     nv = adjustedNv;
 
     allBorderTraversed = 1;
@@ -332,11 +332,11 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
       }
     }
 
-    MEM_freeN(traversedTris);
+    MEM_delete(traversedTris);
   }
 
 returnLabel:
-  MEM_freeN(newPoly);
+  MEM_delete(newPoly);
 
   return 1;
 }
@@ -385,7 +385,7 @@ static int buildNavMeshData(const int nverts,
     return 0;
   }
 
-  trisMapping = (int *)MEM_callocN(sizeof(int) * ntris, "buildNavMeshData trisMapping");
+  trisMapping = (int *)MEM_new_zeroed(sizeof(int) * ntris, "buildNavMeshData trisMapping");
 
   /* sort the triangles by polygon idx */
   for (i = 0; i < ntris; i++)
@@ -405,19 +405,19 @@ static int buildNavMeshData(const int nverts,
 
   if (validTriStart < 0) {
     printf("Converting navmesh: Error! No valid polygons in mesh\n");
-    MEM_freeN(trisMapping);
+    MEM_delete(trisMapping);
     return 0;
   }
 
   ndtris = ntris - validTriStart;
   /* fill dtris to faces mapping */
-  dtrisToTrisMap = (int *)MEM_callocN(sizeof(int) * ndtris, "buildNavMeshData dtrisToTrisMap");
+  dtrisToTrisMap = (int *)MEM_new_zeroed(sizeof(int) * ndtris, "buildNavMeshData dtrisToTrisMap");
   memcpy(dtrisToTrisMap, &trisMapping[validTriStart], ndtris * sizeof(int));
-  MEM_freeN(trisMapping);
+  MEM_delete(trisMapping);
 
   /* create detailed mesh triangles  - copy only valid triangles
    * and reserve memory for adjacency info */
-  dtris = (unsigned short *)MEM_callocN(sizeof(unsigned short) * 3 * 2 * ndtris,
+  dtris = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * 3 * 2 * ndtris,
                                         "buildNavMeshData dtris");
   memset(dtris, 0xff, sizeof(unsigned short) * 3 * 2 * ndtris);
   for (i = 0; i < ndtris; i++) {
@@ -427,7 +427,7 @@ static int buildNavMeshData(const int nverts,
   /* create new recast data corresponded to dtris and renumber for continuous indices */
   prevPolyIdx = -1;
   newPolyIdx = 0;
-  dtrisToPolysMap = (int *)MEM_callocN(sizeof(int) * ndtris, "buildNavMeshData dtrisToPolysMap");
+  dtrisToPolysMap = (int *)MEM_new_zeroed(sizeof(int) * ndtris, "buildNavMeshData dtrisToPolysMap");
   for (i = 0; i < ndtris; i++) {
     curPolyIdx = recastData[trisToFacesMap[dtrisToTrisMap[i]]];
     if (curPolyIdx != prevPolyIdx) {
@@ -440,14 +440,14 @@ static int buildNavMeshData(const int nverts,
   /* build adjacency info for detailed mesh triangles */
   if (!buildMeshAdjacency(dtris, ndtris, nverts, 3)) {
     printf("Converting navmesh: Error! Unable to build mesh adjacency information\n");
-    MEM_freeN(trisMapping);
-    MEM_freeN(dtrisToPolysMap);
+    MEM_delete(trisMapping);
+    MEM_delete(dtrisToPolysMap);
     return 0;
   }
 
   /* create detailed mesh description for each navigation polygon */
   npolys = dtrisToPolysMap[ndtris - 1];
-  dmeshes = (unsigned short *)MEM_callocN(sizeof(unsigned short) * npolys * 4,
+  dmeshes = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * npolys * 4,
                                           "buildNavMeshData dmeshes");
   memset(dmeshes, 0, npolys * 4 * sizeof(unsigned short));
   dmesh = nullptr;
@@ -469,7 +469,7 @@ static int buildNavMeshData(const int nverts,
 
   /* create navigation polygons */
   vertsPerPoly = 6;
-  polys = (unsigned short *)MEM_callocN(sizeof(unsigned short) * npolys * vertsPerPoly * 2,
+  polys = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * npolys * vertsPerPoly * 2,
                                         "buildNavMeshData polys");
   memset(polys, 0xff, sizeof(unsigned short) * vertsPerPoly * 2 * npolys);
 
@@ -491,9 +491,9 @@ static int buildNavMeshData(const int nverts,
   return 1;
 
 fail:
-  MEM_freeN(dmeshes);
-  MEM_freeN(dtrisToPolysMap);
-  MEM_freeN(dtrisToTrisMap);
+  MEM_delete(dmeshes);
+  MEM_delete(dtrisToPolysMap);
+  MEM_delete(dtrisToTrisMap);
   return 0;
 }
 
@@ -541,7 +541,7 @@ static int buildNavMeshDataByMesh(blender::Mesh *me,
 
 exit:
   if (tris)
-    MEM_freeN(tris);
+    MEM_delete(tris);
 
   return res;
 }
@@ -631,11 +631,11 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
                            &dtrisToTrisMap,
                            &trisToFacesMap);
 
-    MEM_SAFE_FREE(dtrisToPolysMap);
-    MEM_SAFE_FREE(dtrisToTrisMap);
-    MEM_SAFE_FREE(trisToFacesMap);
+    MEM_SAFE_DELETE(dtrisToPolysMap);
+    MEM_SAFE_DELETE(dtrisToTrisMap);
+    MEM_SAFE_DELETE(trisToFacesMap);
 
-    unsigned short *verticesMap = (unsigned short *)MEM_mallocN(sizeof(*verticesMap) * nAllVerts,
+    unsigned short *verticesMap = (unsigned short *)MEM_new_uninitialized(sizeof(*verticesMap) * nAllVerts,
                                                                 __func__);
     memset(verticesMap, 0xff, sizeof(*verticesMap) * nAllVerts);
     int curIdx = 0;
@@ -677,8 +677,8 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
             int idxInPoly = polyFindVertex(poly, vertsPerPoly, newVertexIdx);
             if (idxInPoly == -1) {
               CM_Error("building NavMeshObject, can't find vertex in polygon\n");
-              MEM_SAFE_FREE(allVerts);
-              MEM_freeN(verticesMap);
+              MEM_SAFE_DELETE(allVerts);
+              MEM_delete(verticesMap);
               return false;
             }
             dtri[k] = idxInPoly;
@@ -711,9 +711,9 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
       }
     }
 
-    MEM_SAFE_FREE(allVerts);
+    MEM_SAFE_DELETE(allVerts);
 
-    MEM_freeN(verticesMap);
+    MEM_delete(verticesMap);
   }
   else {
     // create from RAS_MeshObject (detailed mesh is fake)
@@ -747,7 +747,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
     }
 
     // create tris
-    polys = (unsigned short *)MEM_callocN(sizeof(unsigned short) * 3 * 2 * npolys,
+    polys = (unsigned short *)MEM_new_zeroed(sizeof(unsigned short) * 3 * 2 * npolys,
                                           "BuildVertIndArrays polys");
     memset(polys, 0xff, sizeof(unsigned short) * 3 * 2 * npolys);
     unsigned short *poly = polys;
@@ -807,13 +807,13 @@ bool KX_NavMeshObject::BuildNavMesh()
       delete[] dvertices;
     }
     if (polys) {
-      MEM_freeN(polys);
+      MEM_delete(polys);
     }
     if (dmeshes) {
-      MEM_freeN(dmeshes);
+      MEM_delete(dmeshes);
     }
     if (dtris) {
-      MEM_freeN(dtris);
+      MEM_delete(dtris);
     }
     return false;
   }
@@ -837,13 +837,13 @@ bool KX_NavMeshObject::BuildNavMesh()
       delete[] dvertices;
     }
     if (polys) {
-      MEM_freeN(polys);
+      MEM_delete(polys);
     }
     if (dmeshes) {
-      MEM_freeN(dmeshes);
+      MEM_delete(dmeshes);
     }
     if (dtris) {
-      MEM_freeN(dtris);
+      MEM_delete(dtris);
     }
     return false;
   }
@@ -858,13 +858,13 @@ bool KX_NavMeshObject::BuildNavMesh()
       delete[] dvertices;
     }
     if (polys) {
-      MEM_freeN(polys);
+      MEM_delete(polys);
     }
     if (dmeshes) {
-      MEM_freeN(dmeshes);
+      MEM_delete(dmeshes);
     }
     if (dtris) {
-      MEM_freeN(dtris);
+      MEM_delete(dtris);
     }
     return false;
   }
@@ -996,11 +996,11 @@ bool KX_NavMeshObject::BuildNavMesh()
   delete[] vertices;
 
   /* navmesh conversion is using C guarded alloc for memory allocaitons */
-  MEM_freeN(polys);
+  MEM_delete(polys);
   if (dmeshes)
-    MEM_freeN(dmeshes);
+    MEM_delete(dmeshes);
   if (dtris)
-    MEM_freeN(dtris);
+    MEM_delete(dtris);
 
   if (dvertices)
     delete[] dvertices;

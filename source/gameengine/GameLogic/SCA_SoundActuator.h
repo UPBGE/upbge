@@ -36,9 +36,7 @@
 #include "SCA_IActuator.h"
 
 #ifdef WITH_AUDASPACE
-#  include <AUD_Handle.h>
-#  include <AUD_Sound.h>
-
+// Use audaspace C++ API via shared_ptr typedefs in BKE_sound_types.hh
 #endif
 
 typedef struct KX_3DSoundSettings {
@@ -56,10 +54,10 @@ class SCA_SoundActuator : public SCA_IActuator {
   Py_Header
   bool m_isplaying;
 #ifdef WITH_AUDASPACE
-  AUD_Sound *m_sound;
-  AUD_Handle *m_handle;
+  AUD_Sound m_sound;
+  AUD_Handle m_handle;
   // Cached, pre-buffered sound data to avoid re-decoding on repeated play.
-  AUD_Sound *m_prepared;
+  AUD_Sound m_prepared;
 #endif  // WITH_AUDASPACE
   float m_volume;
   float m_pitch;
@@ -86,7 +84,7 @@ class SCA_SoundActuator : public SCA_IActuator {
 
   SCA_SoundActuator(SCA_IObject *gameobj,
 #ifdef WITH_AUDASPACE
-                    AUD_Sound *sound,
+                    AUD_Sound sound,
 #endif  // WITH_AUDASPACE
                     float volume,
                     float pitch,

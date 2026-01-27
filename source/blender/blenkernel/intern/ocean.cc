@@ -1687,7 +1687,7 @@ void BKE_ocean_free_modifier_cache(OceanModifierData *omd)
  *
  * Note:
  *  - Caller receives pointers allocated with MEM_malloc_arrayN and must free them with
- * MEM_freeN().
+ * MEM_delete().
  *  - All copies are protected by oceanmutex (THREAD_LOCK_READ).
  * -------------------------------------------------------------------- */
 
@@ -1724,7 +1724,7 @@ bool BKE_ocean_export_htilda_float2(const Ocean *o, float **r_data, int *r_len)
 
   BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
 
-  float *buf = (float *)MEM_malloc_arrayN<float>(count * 2, "ocean_htilda_export");
+  float *buf = (float *)MEM_new_array_uninitialized<float>(count * 2, "ocean_htilda_export");
   if (!buf) {
     BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
     return false;
@@ -1761,7 +1761,7 @@ bool BKE_ocean_export_k(const Ocean *o, float **r_k, int *r_len)
 
   BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
 
-  float *buf = (float *)MEM_malloc_arrayN<float>(count, "ocean_k_export");
+  float *buf = (float *)MEM_new_array_uninitialized<float>(count, "ocean_k_export");
   if (!buf) {
     BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
     return false;
@@ -1778,7 +1778,7 @@ bool BKE_ocean_export_k(const Ocean *o, float **r_k, int *r_len)
   return true;
 }
 
-/* Export kx and kz arrays. Caller must free both with MEM_freeN. */
+/* Export kx and kz arrays. Caller must free both with MEM_delete. */
 bool BKE_ocean_export_kx_kz(
     const Ocean *o, float **r_kx, int *r_kx_len, float **r_kz, int *r_kz_len)
 {
@@ -1798,14 +1798,14 @@ bool BKE_ocean_export_kx_kz(
 
   BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
 
-  float *buf_kx = (float *)MEM_malloc_arrayN<float>(len_kx, "ocean_kx_export");
-  float *buf_kz = (float *)MEM_malloc_arrayN<float>(len_kz, "ocean_kz_export");
+  float *buf_kx = (float *)MEM_new_array_uninitialized<float>(len_kx, "ocean_kx_export");
+  float *buf_kz = (float *)MEM_new_array_uninitialized<float>(len_kz, "ocean_kz_export");
   if (!buf_kx || !buf_kz) {
     if (buf_kx) {
-      MEM_freeN(buf_kx);
+      MEM_delete(buf_kx);
     }
     if (buf_kz) {
-      MEM_freeN(buf_kz);
+      MEM_delete(buf_kz);
     }
     BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
     return false;
@@ -1848,7 +1848,7 @@ bool BKE_ocean_export_disp_xyz(const Ocean *o, float **r_buf, int *r_len_texels)
 
   BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
 
-  float *buf = (float *)MEM_malloc_arrayN<float>(texels * 3, "ocean_disp_xyz_export");
+  float *buf = (float *)MEM_new_array_uninitialized<float>(texels * 3, "ocean_disp_xyz_export");
   if (!buf) {
     BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
     return false;
@@ -1906,7 +1906,7 @@ bool BKE_ocean_export_normals_xyz(const Ocean *o, float **r_buf, int *r_len_texe
 
   BLI_rw_mutex_lock(&((Ocean *)o)->oceanmutex, THREAD_LOCK_READ);
 
-  float *buf = (float *)MEM_malloc_arrayN<float>(texels * 3, "ocean_normals_export");
+  float *buf = (float *)MEM_new_array_uninitialized<float>(texels * 3, "ocean_normals_export");
   if (!buf) {
     BLI_rw_mutex_unlock(&((Ocean *)o)->oceanmutex);
     return false;
@@ -1944,7 +1944,7 @@ void BKE_ocean_free_export(void *ptr)
   if (ptr == nullptr) {
     return;
   }
-  MEM_freeN(ptr);
+  MEM_delete_void(ptr);
 }
 
 #else /* WITH_OCEANSIM */

@@ -90,7 +90,7 @@ bool LA_PlayerLauncher::GetPythonMainLoopCode(std::string &pythonCode, std::stri
       char *filecontent = (char *)BLI_file_read_text_as_mem(
           m_pythonMainLoop.c_str(), 0, &filesize);
       pythonCode = std::string(filecontent, filesize);
-      MEM_freeN(filecontent);
+      MEM_delete(filecontent);
       pythonFileName = m_pythonMainLoop;
       return true;
     }

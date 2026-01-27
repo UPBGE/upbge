@@ -279,7 +279,7 @@ void EXP_PyObjectPlus::py_base_dealloc(PyObject *self)
       // Does python own this?, then delete it.
       if (EXP_PROXY_PYOWNS(self)) {
         // Generic structure owned by python MUST be created though MEM_alloc.
-        MEM_freeN(ptr);
+        MEM_delete_void(ptr);
       }
       EXP_PROXY_PTR(self) = nullptr;  // Not really needed.
     }

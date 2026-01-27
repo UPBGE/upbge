@@ -1435,7 +1435,7 @@ int main(int argc,
 
               //BLO_blendfiledata_free(bfd);
               if (bfd->user) {
-                MEM_freeN(bfd->user);
+                MEM_delete(bfd->user);
               }
 
               MEM_delete(bfd);
@@ -1934,7 +1934,7 @@ int main(int argc,
   ED_undosys_type_free();
 
   if (bfd && bfd->user) {
-    MEM_freeN(bfd->user);
+    MEM_delete(bfd->user);
   }
 
   MEM_delete(bfd);

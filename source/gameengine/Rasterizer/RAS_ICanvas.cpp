@@ -145,7 +145,7 @@ void save_screenshot_thread_func(blender::TaskPool *__restrict (pool),
   // Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use
   // free() then.
   free(task->dumprect);
-  MEM_freeN(task->im_format);
+  MEM_delete(task->im_format);
 }
 
 void RAS_ICanvas::SaveScreeshot(const Screenshot &screenshot)
@@ -159,7 +159,7 @@ void RAS_ICanvas::SaveScreeshot(const Screenshot &screenshot)
 
   /* Save the actual file in a different thread, so that the
    * game engine can keep running at full speed. */
-  ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData),
+  ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_new_uninitialized(sizeof(ScreenshotTaskData),
                                                                "screenshot-data");
   task->dumprect = pixels;
   task->dumpsx = screenshot.width;

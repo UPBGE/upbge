@@ -111,7 +111,7 @@ void GPG_Canvas::MakeScreenShot(const std::string &filename)
   unsigned int dumpsy = GetHeight();
 
   // initialize image file format data
-  ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
+  ImageFormatData *im_format = (ImageFormatData *)MEM_new_uninitialized(sizeof(ImageFormatData),
                                                               "im_format");
   BKE_image_format_init(im_format);
 

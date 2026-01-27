@@ -120,8 +120,8 @@ static void createVertsTrisData(
   int nverts = (int)(verts_vec.size() / 3);
   int ntris = (int)(tris_vec.size() / 3);
 
-  float *verts = (float *)MEM_mallocN(sizeof(float) * 3 * nverts, "createVertsTrisData verts");
-  int *tris = (int *)MEM_mallocN(sizeof(int) * 3 * ntris, "createVertsTrisData faces");
+  float *verts = (float *)MEM_new_uninitialized(sizeof(float) * 3 * nverts, "createVertsTrisData verts");
+  int *tris = (int *)MEM_new_uninitialized(sizeof(int) * 3 * ntris, "createVertsTrisData faces");
 
   std::copy(verts_vec.begin(), verts_vec.end(), verts);
   std::copy(tris_vec.begin(), tris_vec.end(), tris);
@@ -185,13 +185,13 @@ static bool buildNavMesh(const RecastData *recastParams,
   }
 
   /* Allocate array that can hold triangle flags */
-  triflags = (unsigned char *)MEM_callocN(sizeof(unsigned char) * ntris, "buildNavMesh triflags");
+  triflags = (unsigned char *)MEM_new_zeroed(sizeof(unsigned char) * ntris, "buildNavMesh triflags");
 
   /* Find triangles which are walkable based on their slope and rasterize them */
   recast_markWalkableTriangles(
       RAD2DEGF(recastParams->agentmaxslope), verts, nverts, tris, ntris, triflags);
   recast_rasterizeTriangles(verts, nverts, tris, triflags, ntris, solid, 1);
-  MEM_freeN(triflags);
+  MEM_delete(triflags);
 
   /* ** Step 3: Filter walkables surfaces ** */
   recast_filterLowHangingWalkableObstacles(walkableClimb, solid);
@@ -476,8 +476,8 @@ static wmOperatorStatus navmesh_create_exec(bContext *C, wmOperator *op)
       createRepresentation(C, pmesh, dmesh, navmeshBase);
     }
 
-    MEM_freeN(verts);
-    MEM_freeN(tris);
+    MEM_delete(verts);
+    MEM_delete(tris);
 
     return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
   }
@@ -564,7 +564,7 @@ static int findFreeNavPolyIndex(BMEditMesh *em)
 {
   /* construct vector of indices */
   int numfaces = em->bm->totface;
-  int *indices = (int *)MEM_callocN(sizeof(int) * numfaces, "findFreeNavPolyIndex(indices)");
+  int *indices = (int *)MEM_new_zeroed(sizeof(int) * numfaces, "findFreeNavPolyIndex(indices)");
   BMFace *ef;
   BMIter iter;
   int i, idx = em->bm->totface - 1, freeIdx = 1;
@@ -587,7 +587,7 @@ static int findFreeNavPolyIndex(BMEditMesh *em)
       break;
   }
 
-  MEM_freeN(indices);
+  MEM_delete(indices);
 
   return freeIdx;
 }

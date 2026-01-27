@@ -54,8 +54,8 @@ void BKE_bproperty_free(bProperty *prop)
 {
 
   if (prop->poin && prop->poin != &prop->data)
-    MEM_freeN(prop->poin);
-  MEM_freeN(prop);
+    MEM_delete_void(prop->poin);
+  MEM_delete(prop);
 }
 
 void BKE_bproperty_free_list(ListBase *lb)
@@ -71,9 +71,9 @@ bProperty *BKE_bproperty_copy(const bProperty *prop)
 {
   bProperty *propn;
 
-  propn = (bProperty *)MEM_dupallocN(prop);
+  propn = (bProperty *)MEM_dupalloc(prop);
   if (prop->poin && prop->poin != &prop->data) {
-    propn->poin = MEM_dupallocN(prop->poin);
+    propn->poin = MEM_dupalloc_void(prop->poin);
   }
   else {
     propn->poin = &propn->data;
@@ -99,7 +99,7 @@ void BKE_bproperty_init(bProperty *prop)
   /* also use when property changes type */
 
   if (prop->poin && prop->poin != &prop->data)
-    MEM_freeN(prop->poin);
+    MEM_delete_void(prop->poin);
   prop->poin = nullptr;
 
   prop->data = 0;
@@ -112,7 +112,7 @@ void BKE_bproperty_init(bProperty *prop)
       prop->poin = &prop->data;
       break;
     case GPROP_STRING:
-      prop->poin = MEM_callocN(MAX_PROPSTRING, "property string");
+      prop->poin = MEM_new_zeroed(MAX_PROPSTRING, "property string");
       break;
   }
 }
@@ -121,7 +121,7 @@ bProperty *BKE_bproperty_new(int type)
 {
   bProperty *prop;
 
-  prop = (bProperty *)MEM_callocN(sizeof(bProperty), "property");
+  prop = (bProperty *)MEM_new_zeroed(sizeof(bProperty), "property");
   prop->type = type;
 
   BKE_bproperty_init(prop);

@@ -60,11 +60,7 @@ void StartKetsjiShell(blender::bContext *C,
                       int always_use_expand_framing);
 }
 
-#ifdef WITH_AUDASPACE
-#  include <AUD_Device.h>
-
 using namespace blender;
-#endif
 
 static BlendFileData *load_game_data(const char *filename)
 {

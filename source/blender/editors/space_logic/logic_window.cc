@@ -647,7 +647,7 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
     return nullptr;
   // if (*count > 24)
   //*count = 24; /* temporal */
-  idar = (ID **)MEM_callocN((*count) * sizeof(void *), "idar");
+  idar = (ID **)MEM_new_zeroed((*count) * sizeof(void *), "idar");
 
   ob = static_cast<Object *>(bmain->objects.first);
   nr = 0;
@@ -724,7 +724,7 @@ static void do_sensor_menu(bContext *C, void */*arg*/, int event)
   }
 
   if (idar)
-    MEM_freeN(idar);
+    MEM_delete(idar);
 }
 
 static Block *sensor_menu(bContext *C, ARegion *region, void */*arg*/)
@@ -831,7 +831,7 @@ static void do_controller_menu(bContext *C, void */*arg*/, int event)
   }
 
   if (idar)
-    MEM_freeN(idar);
+    MEM_delete(idar);
 }
 
 static Block *controller_menu(bContext *C, ARegion *region, void */*arg*/)
@@ -939,7 +939,7 @@ static void do_actuator_menu(bContext *C, void */*arg*/, int event)
   }
 
   if (idar)
-    MEM_freeN(idar);
+    MEM_delete(idar);
 }
 
 static Block *actuator_menu(bContext *C, ARegion *region, void */*arg*/)
@@ -3069,7 +3069,7 @@ void logic_buttons(bContext *C, ARegion *region)
   view2d_view_restore(C);
 
   if (idar)
-    MEM_freeN(idar);
+    MEM_delete(idar);
 }
 
 } // namespace blender

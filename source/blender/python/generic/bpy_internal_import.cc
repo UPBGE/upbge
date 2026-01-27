@@ -129,7 +129,7 @@ bool bpy_text_compile(blender::Text *text)
   size_t buf_len_dummy;
   buf = txt_to_buf(text, &buf_len_dummy);
   text->compiled = Py_CompileStringObject(buf, fn_dummy_py, Py_file_input, nullptr, -1);
-  MEM_freeN(buf);
+  MEM_delete(buf);
 
   Py_DECREF(fn_dummy_py);
 

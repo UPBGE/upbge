@@ -2283,7 +2283,7 @@ static void ui_linkline_remove_active(Block *block)
 
             if (*(link->totlink) == 1) {
               *(link->totlink) = 0;
-              MEM_freeN(*(link->ppoin));
+              MEM_delete(*(link->ppoin));
               *(link->ppoin) = NULL;
             }
             else {
@@ -2302,7 +2302,7 @@ static void ui_linkline_remove_active(Block *block)
             *(link->poin) = NULL;
           }
 
-          MEM_freeN(line);
+          MEM_delete(line);
         }
       }
     }
@@ -2406,7 +2406,7 @@ static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
     ui_but_link_add(C, tmp_but, to);
 
     /* (5) garbage collection */
-    MEM_freeN(tmp_but->link);
+    MEM_delete(tmp_but->link);
     MEM_delete(tmp_but);
   }
   WM_operator_properties_free(&props_ptr);
@@ -2448,7 +2448,7 @@ static void ui_but_link_add(bContext *C, Button *from, Button *to)
     oldppoin = *(link->ppoin);
 
     (*(link->totlink))++;
-    *(link->ppoin) = (void **)MEM_callocN(*(link->totlink) * sizeof(void *), "new link");
+    *(link->ppoin) = (void **)MEM_new_zeroed(*(link->totlink) * sizeof(void *), "new link");
 
     for (a = 0; a < (*(link->totlink)) - 1; a++) {
       (*(link->ppoin))[a] = oldppoin[a];
@@ -2456,7 +2456,7 @@ static void ui_but_link_add(bContext *C, Button *from, Button *to)
     (*(link->ppoin))[a] = to->poin;
 
     if (oldppoin)
-      MEM_freeN(oldppoin);
+      MEM_delete(oldppoin);
   }
   else {
     *(link->poin) = to->poin;

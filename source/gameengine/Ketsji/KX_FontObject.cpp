@@ -87,17 +87,17 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
   blender::Object *ob = GetBlenderObject();
   blender::Curve *cu = (blender::Curve *)ob->data;
   if (cu->str)
-    MEM_freeN(cu->str);
+    MEM_delete(cu->str);
   if (cu->strinfo)
-    MEM_freeN(cu->strinfo);
+    MEM_delete(cu->strinfo);
 
   size_t len_bytes;
   size_t len_chars = BLI_strlen_utf8_ex(newText.c_str(), &len_bytes);
 
   cu->len_char32 = len_chars;
   cu->len = len_bytes;
-  cu->strinfo = static_cast<CharInfo *>(MEM_callocN((len_chars + 1) * sizeof(CharInfo), __func__));
-  cu->str = static_cast<char *>(MEM_mallocN(len_bytes + sizeof(char32_t), __func__));
+  cu->strinfo = static_cast<CharInfo *>(MEM_new_zeroed((len_chars + 1) * sizeof(CharInfo), __func__));
+  cu->str = static_cast<char *>(MEM_new_uninitialized(len_bytes + sizeof(char32_t), __func__));
   memcpy(cu->str, newText.c_str(), len_bytes + 1);
 
   GetScene()->AppendToIdsToUpdate(

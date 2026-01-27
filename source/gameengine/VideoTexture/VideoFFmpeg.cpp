@@ -121,12 +121,12 @@ bool VideoFFmpeg::release()
     m_frame = nullptr;
   }
   if (m_frameDeinterlaced) {
-    MEM_freeN(m_frameDeinterlaced->data[0]);
+    MEM_delete(m_frameDeinterlaced->data[0]);
     av_frame_free(&m_frameDeinterlaced);
     m_frameDeinterlaced = nullptr;
   }
   if (m_frameRGB) {
-    MEM_freeN(m_frameRGB->data[0]);
+    MEM_delete(m_frameRGB->data[0]);
     av_frame_free(&m_frameRGB);
     m_frameRGB = nullptr;
   }
@@ -147,7 +147,7 @@ AVFrame *VideoFFmpeg::allocFrameRGB()
     av_image_fill_arrays(
         frame->data,
         frame->linesize,
-        (uint8_t *)MEM_callocN(
+        (uint8_t *)MEM_new_zeroed(
             av_image_get_buffer_size(AV_PIX_FMT_RGBA, m_codecCtx->width, m_codecCtx->height, 1),
             "ffmpeg rgba"),
         AV_PIX_FMT_RGBA,
@@ -159,7 +159,7 @@ AVFrame *VideoFFmpeg::allocFrameRGB()
     av_image_fill_arrays(
         frame->data,
         frame->linesize,
-        (uint8_t *)MEM_callocN(
+        (uint8_t *)MEM_new_zeroed(
             av_image_get_buffer_size(AV_PIX_FMT_RGB24, m_codecCtx->width, m_codecCtx->height, 1),
             "ffmpeg rgb"),
         AV_PIX_FMT_RGB24,
@@ -279,7 +279,7 @@ int VideoFFmpeg::openStream(const char *filename,
   av_image_fill_arrays(
       m_frameDeinterlaced->data,
       m_frameDeinterlaced->linesize,
-      (uint8_t *)MEM_callocN(
+      (uint8_t *)MEM_new_zeroed(
           av_image_get_buffer_size(m_codecCtx->pix_fmt, m_codecCtx->width, m_codecCtx->height, 1),
           "ffmpeg deinterlace"),
       m_codecCtx->pix_fmt,
@@ -328,10 +328,10 @@ int VideoFFmpeg::openStream(const char *filename,
     m_formatCtx = nullptr;
     av_frame_free(&m_frame);
     m_frame = nullptr;
-    MEM_freeN(m_frameDeinterlaced->data[0]);
+    MEM_delete(m_frameDeinterlaced->data[0]);
     av_frame_free(&m_frameDeinterlaced);
     m_frameDeinterlaced = nullptr;
-    MEM_freeN(m_frameRGB->data[0]);
+    MEM_delete(m_frameRGB->data[0]);
     av_frame_free(&m_frameRGB);
     m_frameRGB = nullptr;
     return -1;
@@ -508,13 +508,13 @@ void VideoFFmpeg::stopCache()
     CachePacket *packet;
     while ((frame = (CacheFrame *)m_frameCacheBase.first) != nullptr) {
       BLI_remlink(&m_frameCacheBase, frame);
-      MEM_freeN(frame->frame->data[0]);
+      MEM_delete(frame->frame->data[0]);
       av_frame_free(&frame->frame);
       delete frame;
     }
     while ((frame = (CacheFrame *)m_frameCacheFree.first) != nullptr) {
       BLI_remlink(&m_frameCacheFree, frame);
-      MEM_freeN(frame->frame->data[0]);
+      MEM_delete(frame->frame->data[0]);
       av_frame_free(&frame->frame);
       delete frame;
     }

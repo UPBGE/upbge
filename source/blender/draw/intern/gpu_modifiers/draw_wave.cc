@@ -333,7 +333,7 @@ void WaveManager::ensure_static_resources(const WaveModifierData *wmd, Object *d
   msd.tex_coords.clear();
   if (wmd->texture) {
     const int verts_num = orig_mesh->verts_num;
-    float(*tex_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, "wave_tex_coords");
+    float(*tex_co)[3] = MEM_new_array_uninitialized<float[3]>(verts_num, "wave_tex_coords");
 
     MOD_get_texture_coords(
         reinterpret_cast<MappingInfoModifierData *>(const_cast<WaveModifierData *>(wmd)),
@@ -348,7 +348,7 @@ void WaveManager::ensure_static_resources(const WaveModifierData *wmd, Object *d
       msd.tex_coords[v] = float3(tex_co[v]);
     }
 
-    MEM_freeN(tex_co);
+    MEM_delete(tex_co);
   }
 
   /* If no vertex group was found or specified, use default weight = 1.0 per-vertex.

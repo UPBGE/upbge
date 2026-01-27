@@ -168,7 +168,7 @@ float BLI_ocean_spectrum_jonswap(const struct Ocean *oc, float kx, float kz);
  * Export helpers (implemented in ocean.cc)
  *
  * All functions below allocate buffers with MEM_malloc_arrayN().
- * Caller MUST free returned buffers with MEM_freeN().
+ * Caller MUST free returned buffers with MEM_delete().
  * All exports take the ocean mutex (THREAD_LOCK_READ) internally.
  * -------------------------------------------------------------------- */
 
