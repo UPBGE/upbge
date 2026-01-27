@@ -207,7 +207,7 @@ jobs:
     - name: Install Python Dependencies
       run: |
         curl https://bootstrap.pypa.io/get-pip.py | python && \
-        python -m pip install setuptools bpystubgen
+        python -m pip install setuptools standard-imghdr bpystubgen
 
     - name: Build API Stubs
       working-directory: python_api
