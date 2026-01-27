@@ -73,7 +73,7 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
                                   bool tex_is_byte,
                                   bool tex_is_float,
                                   int tex_channels,
-                                  bool has_tex_coords)
+                                  bool /*has_tex_coords*/)
 {
   memset(&gpu_tex_params, 0, sizeof(gpu_tex_params));
 
@@ -142,9 +142,15 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
     }
   }
 
-  /* Prefer using precomputed `tex_coords` when available. This keeps CPU/GPU
-   * parity since `MOD_get_texture_coords()` is used to compute them on the CPU. */
-  bool mapping_use_input_positions = !has_tex_coords;
+  /* Prefer using input positions (positions from ssbo_in) as they are updated
+   * on GPU side and up to date. This provides a better matching with CPU behaviour
+   * in most cases (because MOD_get_texcoord is called each frame on CPU with up to date
+   * mesh->vertex_positions() and:
+   * 1) Our mesh->vertex_positions() are not up to date (no cpu update)
+        (positions before animation playback)
+   * 2) The ssbo_texcoords created from MOD_get_texcoords is created only 1 time
+   *    and not updated later */
+  bool mapping_use_input_positions = true;
   gpu_tex_params.tex_mapping_info[0] = tex_mapping;
   gpu_tex_params.tex_mapping_info[1] = mapping_use_input_positions ? 1 : 0;
 
