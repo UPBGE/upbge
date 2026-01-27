@@ -26,7 +26,7 @@ jobs:
         sudo apt install -y build-essential git-lfs git subversion cmake \
         patch libx11-dev \
         libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
-        libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev
+        libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev gcc-14 g++-14
 
     - name: Install Python
       uses: actions/setup-python@v5
@@ -55,6 +55,9 @@ jobs:
         ./build_files/utils/make_update.py --use-linux-libraries
 
     - name: Configure CMake
+      env:
+        CC: gcc-14
+        CXX: g++-14
       run: |
         cmake -S upbge -B build \
                  -C upbge/build_files/cmake/config/blender_release.cmake \
