@@ -3536,7 +3536,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 #ifndef __APPLE__
   /* Set the state here, so minimized state comes up correct on windows. */
   if (wm_init_state.window_focus) {
-    ghost_i_win->setState(GHOST_TWindowState(win->windowstate));
+    ghost_i_win->setState(ghost_i_win->getState());
   }
 #endif
 
@@ -3574,7 +3574,7 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 #ifndef __APPLE__
   /* Set the state here, so minimized state comes up correct on windows. */
   if (wm_init_state.window_focus) {
-    ghost_i_win->setState(GHOST_TWindowState(win->windowstate));
+    ghost_i_win->setState(ghost_i_win->getState());
   }
 #endif
 
