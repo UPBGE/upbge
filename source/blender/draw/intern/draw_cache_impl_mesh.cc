@@ -620,8 +620,8 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
 
 void DRW_mesh_batch_cache_free(draw::MeshBatchCache *batch_cache)
 {
-  if (cache->mesh_owner && !cache->mesh_owner->is_running_gpu_animation_playback) {
-    DRW_schedule_mesh_gpu_free(cache->mesh_owner);
+  if (batch_cache->mesh_owner && !batch_cache->mesh_owner->is_running_gpu_animation_playback) {
+    DRW_schedule_mesh_gpu_free(batch_cache->mesh_owner);
   }
   mesh_batch_cache_clear(*batch_cache);
   MEM_delete(batch_cache);

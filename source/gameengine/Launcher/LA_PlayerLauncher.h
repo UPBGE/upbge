@@ -33,7 +33,7 @@
 #  include <wtypes.h>
 #endif
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 #include "LA_Launcher.h"
 
 class GHOST_IWindow;

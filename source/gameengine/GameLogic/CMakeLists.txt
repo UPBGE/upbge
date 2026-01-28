@@ -39,6 +39,7 @@ set(INC
   ../../blender/python/generic
   ../../../intern/termcolor
   ../../../intern/ghost
+  ../../blender/makesrna
 )
 
 set(INC_SYS
@@ -190,6 +191,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
   ge_expressions
 )
 

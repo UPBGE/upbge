@@ -26,9 +26,9 @@
 
 #include "SCA_PythonKeyboard.h"
 
-#include "GHOST_C-api.h"
-
 #include "SCA_IInputDevice.h"
+
+#include "../windowmanager/WM_api.hh"
 
 using namespace blender;
 
@@ -54,8 +54,10 @@ SCA_PythonKeyboard::~SCA_PythonKeyboard()
 /* clipboard */
 static PyObject *gPyGetClipboard(PyObject *args, PyObject *kwds)
 {
-  char *buf = (char *)GHOST_getClipboard(0);
-  return PyUnicode_FromString(buf ? buf : "");
+  int buf_str_len;
+
+  char *buf_str = WM_clipboard_text_get(false, false, &buf_str_len);
+  return PyUnicode_FromString(buf_str ? buf_str : "");
 }
 
 static PyObject *gPySetClipboard(PyObject *args, PyObject *value)
@@ -64,7 +66,7 @@ static PyObject *gPySetClipboard(PyObject *args, PyObject *value)
   if (!PyArg_ParseTuple(value, "s:setClipboard", &buf))
     Py_RETURN_NONE;
 
-  GHOST_putClipboard((char *)buf, 0);
+  WM_clipboard_text_set((char *)buf, false);
   Py_RETURN_NONE;
 }
 

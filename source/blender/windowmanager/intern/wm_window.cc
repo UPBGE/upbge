@@ -3488,7 +3488,7 @@ void WM_ghost_show_message_box(const char *title,
 
 void WM_set_g_system_blenderplayer(void* ghost_system)
 {
-  g_system = GHOST_SystemHandle(ghost_system);
+  g_system = (GHOST_ISystem *)ghost_system;
 }
 
 /* Reuse wm->message_bus when we restart game or load a new .blend */
@@ -3499,13 +3499,13 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
                                                 void *ghostwin,
                                                 bool first_time_window)
 {
+  GHOST_IWindow *ghost_i_win = (GHOST_IWindow *)ghostwin;
   win->runtime->ghostwin = ghostwin;
-  GHOST_RectangleHandle bounds;
 
   wm_window_clear_drawable(wm);
 
   if (first_time_window) {
-    win->runtime->gpuctx = GPU_context_create(ghostwin, nullptr);
+    win->runtime->gpuctx = GPU_context_create(ghost_i_win, nullptr);
     wm->runtime->message_bus = WM_msgbus_create();
     runtime_msgbus = wm->runtime->message_bus;
   }
@@ -3516,7 +3516,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
   wm_window_set_drawable(wm, win, false);
-  GHOST_SetWindowUserData(GHOST_WindowHandle(ghostwin), win); /* pointer back */
+  ghost_i_win->setUserData(win); /* pointer back */
 
   /* We can't call the following function here in blenderplayer pipeline.
    * We could do it after if we realize that there are issues without this.
@@ -3524,19 +3524,19 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   // wm_window_ensure_eventstate(win);
 
   /* store actual window size in blender window */
-  bounds = GHOST_GetClientBounds(GHOST_WindowHandle(win->runtime->ghostwin));
+  GHOST_Rect bounds;
+  ghost_i_win->getClientBounds(bounds);
   /* win32: gives undefined window size when minimized */
-  if (GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)) != GHOST_kWindowStateMinimized) {
-    win->sizex = GHOST_GetWidthRectangle(bounds);
-    win->sizey = GHOST_GetHeightRectangle(bounds);
+  const GHOST_TWindowState state = ghost_i_win->getState();
+  if (state != GHOST_kWindowStateMinimized) {
+    win->sizex = bounds.getWidth();
+    win->sizey = bounds.getHeight();
   }
-  GHOST_DisposeRectangle(bounds);
 
 #ifndef __APPLE__
-  /* set the state here, so minimized state comes up correct on windows */
+  /* Set the state here, so minimized state comes up correct on windows. */
   if (wm_init_state.window_focus) {
-    GHOST_SetWindowState(GHOST_WindowHandle(win->runtime->ghostwin),
-                         GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)));
+    ghost_i_win->setState(GHOST_TWindowState(win->windowstate));
   }
 #endif
 
@@ -3558,21 +3558,23 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
   wm_window_clear_drawable(wm);
   wm_window_set_drawable(wm, win, false);
 
-  GHOST_RectangleHandle bounds;
-  /* store actual window size in blender window */
-  bounds = GHOST_GetClientBounds(GHOST_WindowHandle(win->runtime->ghostwin));
+  GHOST_IWindow *ghost_i_win = (GHOST_IWindow *)win->runtime->ghostwin;
+
   /* win32: gives undefined window size when minimized */
-  if (GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)) != GHOST_kWindowStateMinimized) {
-    win->sizex = GHOST_GetWidthRectangle(bounds);
-    win->sizey = GHOST_GetHeightRectangle(bounds);
+  /* store actual window size in blender window */
+  GHOST_Rect bounds;
+  ghost_i_win->getClientBounds(bounds);
+  /* win32: gives undefined window size when minimized */
+  const GHOST_TWindowState state = ghost_i_win->getState();
+  if (state != GHOST_kWindowStateMinimized) {
+    win->sizex = bounds.getWidth();
+    win->sizey = bounds.getHeight();
   }
-  GHOST_DisposeRectangle(bounds);
 
 #ifndef __APPLE__
-  /* set the state here, so minimized state comes up correct on windows */
+  /* Set the state here, so minimized state comes up correct on windows. */
   if (wm_init_state.window_focus) {
-    GHOST_SetWindowState(GHOST_WindowHandle(win->runtime->ghostwin),
-                         GHOST_GetWindowState(GHOST_WindowHandle(win->runtime->ghostwin)));
+    ghost_i_win->setState(GHOST_TWindowState(win->windowstate));
   }
 #endif
 

@@ -41,7 +41,6 @@
 #include "DEV_EventConsumer.h"
 #include "DEV_InputDevice.h"
 #include "DEV_Joystick.h"
-#include "GHOST_C-api.h"
 #include "GHOST_ISystem.hh"
 #include "GPG_Canvas.h"
 #include "KX_Globals.h"
@@ -406,7 +405,7 @@ void LA_Launcher::HandlePythonConsole()
 
   // Pop the console window for windows.
 #    if defined(WIN32)
-  GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateShow);
+  m_system->setConsoleWindowState(GHOST_kConsoleWindowStateShow);
 #    else
   m_system->setConsoleWindowState(GHOST_kConsoleWindowStateShow);
 #    endif
@@ -415,7 +414,7 @@ void LA_Launcher::HandlePythonConsole()
 
   // Hide the console window for windows.
 #    if defined(WIN32)
-  GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateHide);
+  m_system->setConsoleWindowState(GHOST_kConsoleWindowStateHide);
 #    else
   m_system->setConsoleWindowState(GHOST_kConsoleWindowStateHide);
 #    endif

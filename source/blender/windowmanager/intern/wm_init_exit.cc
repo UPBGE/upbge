@@ -481,12 +481,13 @@ bool WM_init_game(bContext *C)
       }
     }
     else {
-      GHOST_RectangleHandle rect = GHOST_GetClientBounds(GHOST_WindowHandle(win->runtime->ghostwin));
-      ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
-      ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
+      GHOST_Rect bounds;
+      GHOST_IWindow *ghost_win = (GHOST_IWindow *)win->runtime->ghostwin;
+      ghost_win->getClientBounds(bounds);
+      ar->winrct.ymax = bounds.getHeight();
+      ar->winrct.xmax = bounds.getWidth();
       ar->winx = ar->winrct.xmax + 1;
       ar->winy = ar->winrct.ymax + 1;
-      GHOST_DisposeRectangle(rect);
     }
 
     WM_operator_name_call(

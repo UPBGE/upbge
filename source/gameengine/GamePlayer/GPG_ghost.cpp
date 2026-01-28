@@ -103,7 +103,7 @@
 #include "ED_undo.hh"
 #include "ED_util.hh"
 #include "GHOST_ISystem.hh"
-#include "GHOST_Path-api.hh"
+#include "GHOST_ISystemPaths.hh"
 #include "GPU_context.hh"
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
@@ -887,7 +887,6 @@ int main(int argc,
   BKE_materials_init();
 
   /* wm_init_exit */
-  GHOST_CreateSystemPaths();
 
   BKE_addon_pref_type_init();
   BKE_keyconfig_pref_type_init();
