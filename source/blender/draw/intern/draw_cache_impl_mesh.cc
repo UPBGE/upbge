@@ -394,7 +394,7 @@ static void drw_mesh_weight_state_extract(
 
 static bool mesh_batch_cache_valid(Mesh &mesh)
 {
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
+  MeshBatchCache *cache = mesh.runtime->batch_cache;
 
   if (cache == nullptr) {
     return false;
@@ -423,9 +423,9 @@ static void mesh_batch_cache_init(Mesh &mesh)
     mesh.runtime->batch_cache = MEM_new<MeshBatchCache>(__func__);
   }
   else {
-    *static_cast<MeshBatchCache *>(mesh.runtime->batch_cache) = {};
+    *mesh.runtime->batch_cache = {};
   }
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
+  MeshBatchCache *cache = mesh.runtime->batch_cache;
 
   cache->is_editmode = mesh.runtime->edit_mesh != nullptr;
 
@@ -451,7 +451,7 @@ void DRW_mesh_batch_cache_validate(Mesh &mesh)
 {
   if (!mesh_batch_cache_valid(mesh)) {
     if (mesh.runtime->batch_cache) {
-      mesh_batch_cache_clear(*static_cast<MeshBatchCache *>(mesh.runtime->batch_cache));
+      mesh_batch_cache_clear(*mesh.runtime->batch_cache);
     }
     mesh_batch_cache_init(mesh);
   }
@@ -459,7 +459,7 @@ void DRW_mesh_batch_cache_validate(Mesh &mesh)
 
 static MeshBatchCache *mesh_batch_cache_get(Mesh &mesh)
 {
-  return static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
+  return mesh.runtime->batch_cache;
 }
 
 static void mesh_batch_cache_check_vertex_group(MeshBatchCache &cache,
@@ -544,7 +544,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
   if (!mesh->runtime->batch_cache) {
     return;
   }
-  MeshBatchCache &cache = *static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
+  MeshBatchCache &cache = *mesh->runtime->batch_cache;
   switch (mode) {
     case BKE_MESH_BATCH_DIRTY_SELECT:
       discard_buffers(cache, {VBOType::EditData, VBOType::FaceDotNormal}, {});
@@ -618,15 +618,13 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   mesh_batch_cache_free_subdiv_cache(cache);
 }
 
-void DRW_mesh_batch_cache_free(void *batch_cache)
+void DRW_mesh_batch_cache_free(draw::MeshBatchCache *batch_cache)
 {
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(batch_cache);
   if (cache->mesh_owner && !cache->mesh_owner->is_running_gpu_animation_playback) {
     DRW_schedule_mesh_gpu_free(cache->mesh_owner);
   }
-  mesh_batch_cache_clear(*cache);
-  cache->mesh_owner = nullptr;
-  MEM_delete(cache);
+  mesh_batch_cache_clear(*batch_cache);
+  MEM_delete(batch_cache);
 }
 
 /** \} */
@@ -1034,7 +1032,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_edges(Mesh &mesh)
 
 void DRW_mesh_batch_cache_free_old(Mesh *mesh, int ctime)
 {
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
+  MeshBatchCache *cache = mesh->runtime->batch_cache;
 
   if (cache == nullptr) {
     return;
