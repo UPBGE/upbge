@@ -750,10 +750,6 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
 
-  if (ob_orig) {
-    DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
-  }
-
   return bke::GpuComputeStatus::Success;
 }
 
