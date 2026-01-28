@@ -107,7 +107,7 @@ endif()
 
 if(WITH_IMAGE_OPENEXR)
   # NOTE: This is _only_ needed when linking blender before the install target runs.
-  # Once openjph libraries have been copied into `TARGETDIR_LIB` then Blender will link.
+  # Once `openjph` libraries have been copied into `TARGETDIR_LIB` then Blender will link.
   # Don't rely on this though as failing on a fresh build is no good and the library
   # files could get outdated too.
   if(DEFINED LIBDIR)
@@ -2076,28 +2076,6 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
     DIRECTORY ${LIBDIR}/materialx/libraries
     DESTINATION "${TARGETDIR_LIB}/materialx"
   )
-endif()
-
-if(WIN32 AND DEFINED BOOST_LIBPATH)
-  if(EXISTS ${BOOST_LIBPATH})
-    set(BOOST_COMPONENTS atomic chrono date_time filesystem
-      iostreams locale program_options regex
-      serialization system thread wave wserialization
-      python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
-    )
-    foreach(component ${BOOST_COMPONENTS})
-      if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
-        windows_install_shared_manifest(
-          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
-          RELEASE
-        )
-        windows_install_shared_manifest(
-          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
-          DEBUG
-        )
-      endif()
-    endforeach()
-  endif()
 endif()
 
 if(WIN32)
