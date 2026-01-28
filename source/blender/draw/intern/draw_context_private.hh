@@ -83,6 +83,7 @@ struct MeshProcessEntry {
   bool scheduled_free = false;
   /* GPU modifier pipeline (persistent across frames to preserve pipeline_hash_) */
   std::unique_ptr<blender::draw::GPUModifierPipeline> gpu_pipeline = nullptr;
+  uint64_t last_depsgraph_update_ = 0;
 };
 
 /** Contains memory pools information. */

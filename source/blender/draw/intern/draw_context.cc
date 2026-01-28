@@ -1236,6 +1236,10 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       }
       continue;
     }
+    if (entry.last_depsgraph_update_ == eval_obj->runtime->last_update_geometry) {
+      /* Already up to date */
+      continue;
+    }
 
     /* Build GPU modifier pipeline from object's modifier stack */
     if (!entry.gpu_pipeline) {
@@ -1257,6 +1261,7 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       /* No GPU modifiers to execute */
       continue;
     }
+
     /* Execute the pipeline (chained ShapeKeys → Armature → ...) */
     gpu::StorageBuf *ssbo_final = pipeline.execute(mesh_owner, eval_obj, cache);
     if (!ssbo_final) {
@@ -1291,6 +1296,8 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
 
     BKE_mesh_gpu_scatter_to_corners(
         depsgraph, eval_obj, caller_bindings, config_fn, post_bind_fn, mesh_eval->corners_num);
+
+    entry.last_depsgraph_update_ = eval_obj->runtime->last_update_geometry;
   }
 
   cleanup_gpu_skinning_entries(map);
