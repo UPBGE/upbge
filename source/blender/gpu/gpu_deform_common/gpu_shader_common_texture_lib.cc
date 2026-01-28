@@ -1599,7 +1599,12 @@ uint gpu_hash(int idx)
  * The function returns the vec3 that corresponds to that triple. */
 vec3 gpu_hashvectf_by_hidx(int h_idx)
 {
-  int vec_index = h_idx / 3; /* h_idx is 3 * entry_index */
+  /* h_idx is 3 * entry_index. Wrap the computed entry index to 0..255
+   * to match the original CPU permutation behavior (uchar permutation
+   * table repeated twice). Without masking the index can exceed 255 and
+   * cause out-of-bounds fetches / incorrect gradients leading to a
+   * regression in the original Perlin noise implementation. */
+  int vec_index = (h_idx / 3) & 255;
   return texelFetch(u_hashvectf_buf, vec_index, 0).xyz;
 }
 
