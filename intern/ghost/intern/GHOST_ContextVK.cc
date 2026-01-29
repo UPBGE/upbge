@@ -804,8 +804,12 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   const bool use_hdr_swapchain = hdr_info_ &&
                                  (hdr_info_->wide_gamut_enabled || hdr_info_->hdr_enabled) &&
                                  device_vk.use_vk_ext_swapchain_colorspace;
-  if (use_hdr_swapchain != use_hdr_swapchain_) {
-    /* Re-create swapchain if HDR mode was toggled in the system settings. */
+  /* Decide whether we need to recreate the swapchain. Consume the dirty flag
+   * atomically so other threads marking it won't race with us. */
+  bool consumed_dirty = swapchain_dirty_.exchange(false);
+  if (use_hdr_swapchain != use_hdr_swapchain_ || consumed_dirty) {
+    /* Re-create swapchain if HDR mode was toggled in the system settings or
+     * if someone explicitly requested a recreation (e.g. swapped vsync). */
     recreateSwapchain(use_hdr_swapchain);
   }
   else {
@@ -1068,31 +1072,46 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
 {
+  /* Adapted on upbge side */
+
   uint32_t present_count;
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, nullptr);
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
-
-  if (vsync != GHOST_kVSyncModeUnset) {
-    const bool vsync_off = (vsync == GHOST_kVSyncModeOff);
-    if (vsync_off) {
-      for (auto present_mode : presents) {
-        if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-          *r_presentMode = present_mode;
-          return GHOST_kSuccess;
-        }
+  /* Handle explicit requests first. */
+  if (vsync == GHOST_kVSyncModeOff) {
+    for (auto present_mode : presents) {
+      if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+        *r_presentMode = present_mode;
+        return GHOST_kSuccess;
       }
-      CLOG_WARN(&LOG,
-                "Vulkan: VSync off was requested via --gpu-vsync, "
-                "but VK_PRESENT_MODE_IMMEDIATE_KHR is not supported.");
     }
+    CLOG_WARN(&LOG,
+              "Vulkan: VSync off was requested via --gpu-vsync, "
+              "but VK_PRESENT_MODE_IMMEDIATE_KHR is not supported. Falling back.");
+    /* Fallthrough to select a supported mode. */
   }
 
-  /* MAILBOX is the lowest latency V-Sync enabled mode. We will use it if available as it fixes
-   * some lag on NVIDIA/Intel GPUs. */
-  /* TODO: select the correct presentation mode based on the actual being performed by the user.
-   * When low latency is required (paint cursor) we should select mailbox, otherwise we can do FIFO
-   * to reduce CPU/GPU usage. */
+  if (vsync == GHOST_kVSyncModeAuto) {
+    /* "Auto"/Adaptive: prefer MAILBOX (low-latency vblank) if available, else fallback to FIFO. */
+    for (auto present_mode : presents) {
+      if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+        *r_presentMode = present_mode;
+        return GHOST_kSuccess;
+      }
+    }
+    CLOG_TRACE(&LOG, "Vulkan: Adaptive VSync requested but MAILBOX not available, falling back to FIFO.");
+    *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    return GHOST_kSuccess;
+  }
+  /* If VSync is explicitly ON, use FIFO which is guaranteed to be vblank-synced. */
+  if (vsync == GHOST_kVSyncModeOn) {
+    *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    return GHOST_kSuccess;
+  }
+
+  /* For unset (no explicit user choice), prefer MAILBOX when available (lower latency),
+   * otherwise FIFO. */
   for (auto present_mode : presents) {
     if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
       *r_presentMode = present_mode;
@@ -1100,9 +1119,7 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
     }
   }
 
-  /* FIFO present mode is always available and we (should) prefer it as it will keep the main loop
-   * running along the monitor refresh rate. Mailbox and FIFO relaxed can generate a lot of frames
-   * that will never be displayed. */
+  /* FIFO is guaranteed to be available per spec; use it as the safe default. */
   *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
   return GHOST_kSuccess;
 }
@@ -1191,7 +1208,26 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   }
 
   VkPresentModeKHR present_mode;
-  if (!selectPresentMode(getVSync(), device_vk.vk_physical_device, surface_, &present_mode)) {
+  /* If user explicitly requested a swap interval, prefer mapping that to present mode.
+   * Otherwise use context v-sync hint from context params. */
+  GHOST_TVSyncModes vsync_hint = getVSync();
+  /* UPBGE - override vsync_hint with bge runtime parameter */
+  if (swap_interval_set_) {
+    /* Map stored swap interval value to GHOST_TVSyncModes. */
+    if (swap_interval_ == 0) {
+      vsync_hint = GHOST_kVSyncModeOff;
+    }
+    else if (swap_interval_ == -1) {
+      /* Adaptive/vblank-like behavior, treat as unset to select MAILBOX/FIFO. */
+      vsync_hint = GHOST_kVSyncModeUnset;
+    }
+    else {
+      vsync_hint = GHOST_kVSyncModeOn;
+    }
+  }
+  /* UPBGE - override vsync_hint with bge runtime parameter */
+
+  if (!selectPresentMode(vsync_hint, device_vk.vk_physical_device, surface_, &present_mode)) {
     return GHOST_kFailure;
   }
 

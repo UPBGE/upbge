@@ -36,6 +36,7 @@
 #include <map>
 #include <optional>
 #include <vector>
+#include <atomic>
 
 #ifndef GHOST_OPENGL_VK_CONTEXT_FLAGS
 /* leave as convenience define for the future */
@@ -180,9 +181,13 @@ class GHOST_ContextVK : public GHOST_Context {
    * \param interval: The swap interval to use.
    * \return A boolean success indicator.
    */
-  GHOST_TSuccess setSwapInterval(int /*interval*/) override
+  GHOST_TSuccess setSwapInterval(int interval) override
   {
-    return GHOST_kFailure;
+    /* Default behavior: remember requested interval and mark swapchain dirty so it will be
+     * recreated with the requested present mode at a safe point. */
+    GHOST_Context::setSwapInterval(interval);
+    swapchain_dirty_.store(true);
+    return GHOST_kSuccess;
   }
 
   /**
@@ -190,9 +195,9 @@ class GHOST_ContextVK : public GHOST_Context {
    * \param interval_out: Variable to store the swap interval if it can be read.
    * \return Whether the swap interval can be read.
    */
-  GHOST_TSuccess getSwapInterval(int & /*interval_out*/) override
+  GHOST_TSuccess getSwapInterval(int &interval_out) override
   {
-    return GHOST_kFailure;
+    return GHOST_Context::getSwapInterval(interval_out);
   };
 
   /**
@@ -204,6 +209,9 @@ class GHOST_ContextVK : public GHOST_Context {
   {
     return true;
   }
+
+  /** Mark swapchain as needing recreation. Safe to call from other threads. */
+  void markSwapchainDirty() { swapchain_dirty_.store(true); }
 
  private:
 #ifdef _WIN32
@@ -251,6 +259,7 @@ class GHOST_ContextVK : public GHOST_Context {
 
   std::vector<VkFence> fence_pile_;
   std::map<VkSwapchainKHR, std::vector<VkFence>> present_fences_;
+  std::atomic<bool> swapchain_dirty_ = false;
 
   const char *getPlatformSpecificSurfaceExtension() const;
   GHOST_TSuccess recreateSwapchain(bool use_hdr_swapchain);

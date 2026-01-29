@@ -82,9 +82,14 @@ class GHOST_Context : public GHOST_IContext {
    * \param interval: The swap interval to use.
    * \return A boolean success indicator.
    */
-  virtual GHOST_TSuccess setSwapInterval(int /*interval*/)
+  virtual GHOST_TSuccess setSwapInterval(int interval)
   {
-    return GHOST_kFailure;
+    /* Default: remember requested interval. Backends that support changing the swap
+     * interval should override this and apply it immediately. Others can still store
+     * the requested value for later use. */
+    swap_interval_ = interval;
+    swap_interval_set_ = true;
+    return GHOST_kSuccess;
   }
 
   /**
@@ -92,10 +97,18 @@ class GHOST_Context : public GHOST_IContext {
    * \param interval_out: Variable to store the swap interval if it can be read.
    * \return Whether the swap interval can be read.
    */
-  virtual GHOST_TSuccess getSwapInterval(int & /*interval*/)
+  virtual GHOST_TSuccess getSwapInterval(int &interval)
   {
-    return GHOST_kFailure;
+    /* Default: return the last requested value. Backends that support querying the
+     * current swap interval should override to return the real value. */
+    interval = swap_interval_;
+    return GHOST_kSuccess;
   }
+
+  /** Stored requested swap interval. Backends may ignore until next swapchain/context recreate. */
+  int swap_interval_ = 0;
+  /** Whether a swap interval has been explicitly requested via setSwapInterval(). */
+  bool swap_interval_set_ = false;
 
   /**
    * Get user data.
