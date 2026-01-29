@@ -1058,7 +1058,15 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
 
     if (actedge) {
       if (screen_geom_edge_is_horizontal(actedge)) {
-        WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        rcti screen_rect;
+        WM_window_screen_rect_calc(win, &screen_rect);
+        /* Check if edge is at top of screen (with small threshold that scales with interface). */
+        if (actedge->v1->vec.y >= screen_rect.ymax - int(2.0f * UI_SCALE_FAC)) {
+          WM_cursor_set(win, WM_CURSOR_DEFAULT);
+        }
+        else {
+          WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        }
       }
       else {
         WM_cursor_set(win, WM_CURSOR_X_MOVE);
@@ -2017,7 +2025,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
 
   DEG_time_tag_update(bmain);
 
-  void *camera = BKE_scene_camera_switch_find(scene);
+  void *camera = BKE_scene_camera_switch_find(scene, int(BKE_scene_ctime_get(scene)));
   if (camera && scene->camera != camera) {
     scene->camera = static_cast<Object *>(camera);
     /* are there cameras in the views that are not in the scene? */

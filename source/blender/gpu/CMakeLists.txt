@@ -806,7 +806,7 @@ endif()
 if(WITH_METAL_BACKEND)
   list(APPEND GLSL_SRC ${MTL_BACKEND_GLSL_SRC})
 
-  set(MSL_C)
+  set(MSL_C "")
   foreach(MSL_FILE ${MSL_SRC})
     data_to_c_simple(${MSL_FILE} MSL_C)
   endforeach()
@@ -828,12 +828,12 @@ set(GLSL_INC
   vulkan/shaders
 )
 
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
-set(SHADER_C)
+set(SHADER_C "")
 list(APPEND SHADER_C ${GLSL_C})
 if(WITH_METAL_BACKEND)
   list(APPEND SHADER_C ${MSL_C})
@@ -927,8 +927,8 @@ endif()
 
 
 if(WITH_GTESTS)
-  set(TEST_SRC)
-  set(TEST_INC)
+  set(TEST_SRC "")
+  set(TEST_INC "")
   set(TEST_LIB
     bf_intern_ghost
     bf_imbuf

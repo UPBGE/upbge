@@ -233,6 +233,8 @@ class GHOST_WindowCocoa : public GHOST_Window {
 
   void setNativePixelSize();
 
+  void updateDrawingSize();
+
   GHOST_TSuccess beginFullScreen() const override
   {
     return GHOST_kFailure;
