@@ -606,30 +606,48 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
     return;
   }
 
-  // Group fcurves by rna_path to avoid conflits
-  blender::Map<std::string, blender::Vector<FCurve *>> fcurves_by_path;
+  /* Group fcurves by `rna_path` into a local vector of groups in a single pass.
+   * Use an unordered_map to map the path to the group's index. This avoids a second
+   * pass to copy values out of the map and keeps lifetime/simple ownership semantics. */
+  std::unordered_map<std::string, int> groups_index;
+  std::vector<blender::Vector<FCurve *>> groups;
+  groups.reserve(fcurves.size());
+  groups_index.reserve(fcurves.size());
 
   for (FCurve *fcu : fcurves) {
     if (!is_fcurve_evaluatable(fcu)) {
       continue;
     }
-    if (fcu->rna_path) {
-      fcurves_by_path.lookup_or_add(fcu->rna_path, {}).append(fcu);
+    if (!fcu->rna_path) {
+      continue;
+    }
+
+    auto it = groups_index.find(fcu->rna_path);
+    if (it == groups_index.end()) {
+      const int new_idx = int(groups.size());
+      groups.emplace_back();
+      groups_index.emplace(fcu->rna_path, new_idx);
+      groups[new_idx].append(fcu);
+    }
+    else {
+      groups[it->second].append(fcu);
     }
   }
 
-  // Evaluate each group in parallell
-  blender::threading::parallel_for_each(fcurves_by_path.items(), [&](const auto &item) {
-    const blender::Vector<FCurve *> &group_fcurves = item.value;
+  const int groups_count = int(groups.size());
+  blender::threading::parallel_for(IndexRange(0, groups_count), 64, [&](const IndexRange range) {
+    for (int gi : range) {
+      const blender::Vector<FCurve *> &group_fcurves = groups[gi];
 
-    // Inside same group, sequential (same property)
-    for (FCurve *fcu : group_fcurves) {
-      PathResolvedRNA anim_rna;
-      if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
-        const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
-        BKE_animsys_write_to_rna_path(&anim_rna, curval);
-        if (flush_to_original) {
-          animsys_write_orig_anim_rna(ptr, fcu->rna_path, fcu->array_index, curval);
+      /* Inside same group, sequential (same property) */
+      for (FCurve *fcu : group_fcurves) {
+        PathResolvedRNA anim_rna;
+        if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+          const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
+          BKE_animsys_write_to_rna_path(&anim_rna, curval);
+          if (flush_to_original) {
+            animsys_write_orig_anim_rna(ptr, fcu->rna_path, fcu->array_index, curval);
+          }
         }
       }
     }
