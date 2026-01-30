@@ -26,7 +26,6 @@ set(INC
 set(INC_SYS
   ../../../intern/moto/include
   ${Epoxy_INCLUDE_DIRS}
-  ${BOOST_INCLUDE_DIR}
 )
 
 add_definitions(${GL_DEFINITIONS})

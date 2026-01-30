@@ -52,7 +52,6 @@ set(INC
 
 set(INC_SYS
   ../../../intern/moto/include
-  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
