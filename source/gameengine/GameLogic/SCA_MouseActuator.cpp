@@ -67,7 +67,8 @@ SCA_MouseActuator::SCA_MouseActuator(SCA_IObject *gameobj,
       m_reset_x(reset[0]),
       m_reset_y(reset[1]),
       m_local_x(local[0]),
-      m_local_y(local[1])
+      m_local_y(local[1]),
+      m_mouseGrabbed(false)
 {
   m_canvas = m_ketsji->GetCanvas();
   m_oldposition[0] = m_oldposition[1] = 0.0f;
@@ -90,6 +91,7 @@ SCA_MouseActuator::SCA_MouseActuator(SCA_IObject *gameobj,
 
 SCA_MouseActuator::~SCA_MouseActuator()
 {
+  EnsureMouseGrab(false);
   mouact_total--;
 }
 
@@ -127,6 +129,8 @@ bool SCA_MouseActuator::Update()
       break;
     }
     case KX_ACT_MOUSE_LOOK: {
+      const bool needsGrab = (m_reset_x || m_reset_y);
+      EnsureMouseGrab(needsGrab);
       if (m_mouse) {
 
         float position[2];
@@ -306,6 +310,7 @@ EXP_Value *SCA_MouseActuator::GetReplica()
 void SCA_MouseActuator::ProcessReplica()
 {
   SCA_IActuator::ProcessReplica();
+  m_mouseGrabbed = false;
 }
 
 void SCA_MouseActuator::Replace_IScene(SCA_IScene *scene)
@@ -336,6 +341,27 @@ void SCA_MouseActuator::setMousePosition(float fx, float fy)
   y = (int)(fy * m_canvas->GetHeight());
 
   m_canvas->SetMousePosition(x, y);
+}
+
+void SCA_MouseActuator::EnsureMouseGrab(bool enable)
+{
+  if (!m_canvas) {
+    m_mouseGrabbed = false;
+    return;
+  }
+
+  if (enable) {
+    if (!m_mouseGrabbed) {
+      m_canvas->AcquireMouseGrab();
+      m_mouseGrabbed = true;
+    }
+  }
+  else {
+    if (m_mouseGrabbed) {
+      m_canvas->ReleaseMouseGrab();
+      m_mouseGrabbed = false;
+    }
+  }
 }
 
 #ifdef WITH_PYTHON
