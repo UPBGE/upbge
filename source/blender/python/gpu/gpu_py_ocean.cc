@@ -908,8 +908,8 @@ static PyObject *pygpu_ocean_get_or_create_object(PyObject *py_ocean_obj, int re
   if (it != g_ocean_object_cache.end() && it->second) {
     PyObject *weak = it->second; /* owns ref */
     /* Get the referenced object (borrowed reference). */
-    PyObject *target = PyWeakref_GetObject(weak);
-    if (target == nullptr) {
+    PyObject *target = nullptr;
+    if (PyWeakref_GetRef(weak, &target) == 0) {
       /* Unexpected: weakref API failure — remove entry and continue to create a new one. */
       PyErr_Clear();
       Py_DECREF(weak);
