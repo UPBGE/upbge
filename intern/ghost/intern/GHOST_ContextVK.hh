@@ -210,9 +210,6 @@ class GHOST_ContextVK : public GHOST_Context {
     return true;
   }
 
-  /** Mark swapchain as needing recreation. Safe to call from other threads. */
-  void markSwapchainDirty() { swapchain_dirty_.store(true); }
-
  private:
 #ifdef _WIN32
   HWND hwnd_;
