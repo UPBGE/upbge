@@ -46,7 +46,6 @@ set(INC_SYS
   ../../../intern/moto/include
         ../../../extern/recastnavigation/Recast/Include
         ../../../extern/recastnavigation/Detour/Include
-  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC

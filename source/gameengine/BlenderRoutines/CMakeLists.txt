@@ -24,7 +24,6 @@ set(INC
 set(INC_SYS
   ../../../intern/moto/include
   ${PTHREADS_INCLUDE_DIRS}
-  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC

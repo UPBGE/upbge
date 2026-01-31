@@ -184,7 +184,7 @@ static float interpolateToi(float a, const float *dir, const float *toi, const i
     int next = (i + 1) % ntoi;
     float t;
     if (inBetweenAngle(a, dir[i], dir[next], t)) {
-      return lerp(toi[i], toi[next], t);
+      return std::lerp(toi[i], toi[next], t);
     }
   }
   return 0;
