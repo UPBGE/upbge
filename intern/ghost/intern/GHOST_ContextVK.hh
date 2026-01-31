@@ -186,7 +186,7 @@ class GHOST_ContextVK : public GHOST_Context {
     /* Default behavior: remember requested interval and mark swapchain dirty so it will be
      * recreated with the requested present mode at a safe point. */
     GHOST_Context::setSwapInterval(interval);
-    swapchain_dirty_.store(true);
+    upbge_vsync_override_.store(true);
     return GHOST_kSuccess;
   }
 
@@ -256,10 +256,10 @@ class GHOST_ContextVK : public GHOST_Context {
 
   std::vector<VkFence> fence_pile_;
   std::map<VkSwapchainKHR, std::vector<VkFence>> present_fences_;
-  std::atomic<bool> swapchain_dirty_ = false;
+  std::atomic<bool> upbge_vsync_override_ = false;
 
   const char *getPlatformSpecificSurfaceExtension() const;
-  GHOST_TSuccess recreateSwapchain(bool use_hdr_swapchain);
+  GHOST_TSuccess recreateSwapchain(bool use_hdr_swapchain, bool upbge_vsync_override = false);
   GHOST_TSuccess initializeFrameData();
   GHOST_TSuccess destroySwapchain();
 
