@@ -32,6 +32,7 @@
 #include "BKE_node.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "RNA_access.hh"
@@ -630,7 +631,20 @@ bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
     if (isRightAction) {
       IDRecalcFlag flag = BKE_modifier_is_non_geometrical(md) ? ID_RECALC_TRANSFORM :
                                                                 ID_RECALC_GEOMETRY;
-      scene->AppendToIdsToUpdate(&ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
+      bool skip_depsgraph = false;
+      if (ob->type == OB_MESH) {
+        blender::Mesh *me = id_cast<blender::Mesh *>(ob->data);
+        skip_depsgraph = (me && me->is_running_gpu_animation_playback);
+      }
+      if (!skip_depsgraph) {
+        scene->AppendToIdsToUpdate(&ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
+      }
+      else {
+        bContext *C = KX_GetActiveEngine()->GetContext();
+        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+        ob_eval->runtime->last_update_geometry += 1;
+      }
 
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(

@@ -177,14 +177,14 @@ void LA_Launcher::InitEngine()
   m_canvas = CreateCanvas();
 
   // Copy current vsync mode to restore at the game end.
-  m_canvas->GetSwapInterval(m_savedData.vsync);
+  //m_canvas->GetSwapInterval(m_savedData.vsync);
 
-  if (gm.vsync == VSYNC_ADAPTIVE) {
+  /*if (gm.vsync == VSYNC_ADAPTIVE) {
     m_canvas->SetSwapInterval(-1);
   }
   else {
     m_canvas->SetSwapInterval((gm.vsync == VSYNC_ON) ? 1 : 0);
-  }
+  }*/
 
   // Set canvas multisamples.
   m_canvas->SetSamples(m_samples);
@@ -329,7 +329,7 @@ void LA_Launcher::ExitEngine()
   }
 
   // Set vsync mode back to original value.
-  m_canvas->SetSwapInterval(m_savedData.vsync);
+  //m_canvas->SetSwapInterval(m_savedData.vsync);
 
   if (m_converter) {
     delete m_converter;
