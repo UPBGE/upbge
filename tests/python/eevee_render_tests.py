@@ -65,6 +65,11 @@ BLOCKLIST_VULKAN = [
 BLOCKLIST_INTEL = [
 ]
 
+BLOCKLIST_INTEL_WINDOWS_GL = [
+    # Fails sporadically and causes all subsequent volume tests to fail (See #153612).
+    "volume_instance.blend"
+]
+
 
 def setup():
     import bpy
@@ -225,9 +230,12 @@ def main():
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
 
-    gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
-    if gpu_vendor == "INTEL":
-        blocklist += BLOCKLIST_INTEL
+    if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
+        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+        if gpu_vendor == "INTEL":
+            blocklist += BLOCKLIST_INTEL
+        if gpu_vendor == "INTEL" and sys.platform == "win32" and args.gpu_backend == "vulkan":
+            blocklist += BLOCKLIST_INTEL_WINDOWS_GL
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
