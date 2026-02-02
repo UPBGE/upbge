@@ -359,4 +359,14 @@ uint64_t DEG_get_update_count(const Depsgraph *depsgraph)
   return deg_graph->update_count;
 }
 
+/* UPBGE */
+void DEG_bump_update_count(Depsgraph *depsgraph)
+{
+  using namespace deg;
+  deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(depsgraph);
+  /* Use the same method than: static void set_id_update_count(ID *id) for Images. */
+  static std::atomic<uint64_t> global_update_count = 0;
+  deg_graph->update_count = global_update_count.fetch_add(1) + 1;
+}
+
 }  // namespace blender

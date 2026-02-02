@@ -5282,6 +5282,7 @@ static PyObject *pygpu_ocean_scatter_to_mesh(PyObject * /*self*/, PyObject *args
   else if (status == GpuComputeStatus::Error) {
     return nullptr; /* exception déjà définie par le helper */
   }
+  DEG_bump_update_count(depsgraph);
   Py_RETURN_NONE;
 }
 

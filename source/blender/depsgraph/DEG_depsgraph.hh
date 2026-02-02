@@ -291,6 +291,9 @@ void DEG_debug_print_eval_time(Depsgraph *depsgraph,
                                const void *object_address,
                                float time);
 
+/* UPBGE */
+void DEG_bump_update_count(Depsgraph *depsgraph);
+
 /** \} */
 
 }  // namespace blender
