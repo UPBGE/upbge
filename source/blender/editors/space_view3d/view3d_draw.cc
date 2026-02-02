@@ -1993,7 +1993,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      const float winmat[4][4],
                                      float clip_start,
                                      float clip_end,
-                                     float vignette_aperture,
+                                     float xr_vignette_aperture,
                                      bool is_xr_surface,
                                      bool is_image_render,
                                      bool draw_background,
@@ -2003,14 +2003,14 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      GPUViewport *viewport)
 {
   View3D v3d = dna::shallow_zero_initialize();
-  ARegion ar = {nullptr};
+  ARegion region = {nullptr};
   bke::ARegionRuntime region_runtime{};
-  ar.runtime = &region_runtime;
+  region.runtime = &region_runtime;
   RegionView3D rv3d;
 
-  v3d.regionbase.first = v3d.regionbase.last = &ar;
-  ar.regiondata = &rv3d;
-  ar.regiontype = RGN_TYPE_WINDOW;
+  v3d.regionbase.first = v3d.regionbase.last = &region;
+  region.regiondata = &rv3d;
+  region.regiontype = RGN_TYPE_WINDOW;
 
   View3DShading *source_shading_settings = &scene->display.shading;
   if (draw_flags & V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS && shading_override != nullptr) {
@@ -2075,7 +2075,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
   v3d.clip_end = clip_end;
   /* Actually not used since we pass in the projection matrix. */
   v3d.lens = 0;
-  v3d.vignette_aperture = vignette_aperture;
+  v3d.xr_vignette_aperture = xr_vignette_aperture;
 
   /* WORKAROUND: Disable overscan because it is not supported for arbitrary input matrices.
    * The proper fix to this would be to support arbitrary matrices in `eevee::Camera::sync()`. */
@@ -2086,7 +2086,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                            scene,
                            drawtype,
                            &v3d,
-                           &ar,
+                           &region,
                            winx,
                            winy,
                            viewmat,

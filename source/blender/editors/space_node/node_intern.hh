@@ -593,6 +593,8 @@ void invoke_node_link_drag_add_menu(bContext &C,
                                     bNodeSocket &socket,
                                     const float2 &cursor);
 
+void NODE_OT_link_drag_operation_test(wmOperatorType *ot);
+
 /* `add_menu_assets.cc` */
 
 MenuType catalog_assets_menu_type();
@@ -687,6 +689,7 @@ NodeTreeInterfaceMapping build_node_declaration_interface(const NodeSetInterface
  * node. No new sockets are added to the interface.
  */
 NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &params,
+                                                  const bNodeTree &tree,
                                                   const bNode &group_node);
 
 /**
