@@ -100,15 +100,16 @@ static void joined_armature_fix_links_constraints(Main *bmain,
       BKE_constraint_targets_flush(&con, &targets, false);
     }
 
-    /* action constraint? (pose constraints only) */
-    if (con.type == CONSTRAINT_TYPE_ACTION) {
+    /* If it's an action constraint on the source object that's being joined,
+     * also remap the channels in the action. (Pose constraints only.) */
+    if (con.type == CONSTRAINT_TYPE_ACTION && ob == srcArm) {
       bActionConstraint *data = static_cast<bActionConstraint *>(con.data);
 
       if (data->act) {
         BKE_action_fix_paths_rename(&tarArm->id,
                                     data->act,
                                     data->action_slot_handle,
-                                    "pose.bones[",
+                                    "pose.bones",
                                     pchan->name,
                                     curbone->name,
                                     0,
