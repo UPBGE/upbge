@@ -456,13 +456,13 @@ static void frame_to_time_string(
 static void frame_to_string(
     void * /*user_data*/, const float frame, const float step, char *r_str, const uint str_maxncpy)
 {
-  if (step >= 1.0f * UI_SCALE_FAC) {
+  if (step >= 1.0f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(frame));
   }
-  else if (step >= 0.5f * UI_SCALE_FAC) {
+  else if (step >= 0.5f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.1f", frame);
   }
-  else if (step >= 0.01f * UI_SCALE_FAC) {
+  else if (step >= 0.01f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.2f", frame);
   }
   else {
@@ -492,7 +492,7 @@ float view2d_grid_resolution_y__values(const View2D *v2d, const int base)
 void view2d_draw_lines_x(const View2D *v2d,
                          const bool display_seconds,
                          const bool show_fractions,
-                         const bool draw_minor_lines,
+                         bool draw_minor_lines,
                          const int base)
 {
   float major_line_distance;
@@ -504,10 +504,11 @@ void view2d_draw_lines_x(const View2D *v2d,
   else {
     major_line_distance = calculate_grid_step(
         base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+    draw_minor_lines = draw_minor_lines && (major_line_distance > 1);
   }
   /* The extra check for minor line drawing here is so minor lines are *not* drawn
    * below a distance of 1. */
-  view2d_draw_lines(v2d, major_line_distance, draw_minor_lines && (major_line_distance > 1), 'v');
+  view2d_draw_lines(v2d, major_line_distance, draw_minor_lines, 'v');
 }
 
 void view2d_draw_lines_x_frames(const View2D *v2d,

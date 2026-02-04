@@ -6009,6 +6009,14 @@ static void def_sh_radial_tiling(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_sh_raycast(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "only_local", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 0);
+  RNA_def_property_ui_text(prop, "Only Local", "Only raycast against the object itself");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_sh_displacement(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem prop_space_items[] = {
@@ -9838,6 +9846,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeParticleInfo");
   define("ShaderNode", "ShaderNodePointInfo");
   define("ShaderNode", "ShaderNodeRadialTiling", def_sh_radial_tiling);
+  define("ShaderNode", "ShaderNodeRaycast", def_sh_raycast);
   define("ShaderNode", "ShaderNodeRGB");
   define("ShaderNode", "ShaderNodeRGBCurve", def_rgb_curve);
   define("ShaderNode", "ShaderNodeRGBToBW");
@@ -10130,7 +10139,9 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGridMean");
   define("GeometryNode", "GeometryNodeGridMedian");
   define("GeometryNode", "GeometryNodeGridPrune");
+  define("GeometryNode", "GeometryNodeGridClip");
   define("GeometryNode", "GeometryNodeGridToMesh");
+  define("GeometryNode", "GeometryNodeGridToPoints");
   define("GeometryNode", "GeometryNodeGridVoxelize");
   define("GeometryNode", "GeometryNodeImageInfo");
   define("GeometryNode", "GeometryNodeImageTexture", def_geo_image_texture);

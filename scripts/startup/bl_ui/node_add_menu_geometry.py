@@ -962,6 +962,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         del context
         layout = self.layout
         self.node_operator(layout, "GeometryNodeGridToMesh")
+        self.node_operator(layout, "GeometryNodeGridToPoints")
         self.node_operator(layout, "GeometryNodeVolumeToMesh")
         layout.separator()
         self.node_operator(layout, "GeometryNodeSDFGridBoolean")
@@ -973,6 +974,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSDFGridOffset")
         layout.separator()
         self.node_operator(layout, "GeometryNodeFieldToGrid")
+        self.node_operator(layout, "GeometryNodeGridClip")
         self.node_operator(layout, "GeometryNodeGridDilateAndErode")
         self.node_operator(layout, "GeometryNodeGridMean")
         self.node_operator(layout, "GeometryNodeGridMedian")

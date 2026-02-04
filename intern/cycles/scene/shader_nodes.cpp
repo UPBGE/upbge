@@ -31,6 +31,8 @@
 #include "kernel/svm/math_util.h"
 #include "kernel/svm/ramp_util.h"
 
+#include <mutex>
+
 CCL_NAMESPACE_BEGIN
 
 /* Texture Mapping */
@@ -2006,61 +2008,63 @@ void RGBToBWNode::compile(OSLCompiler &compiler)
 
 /* Convert */
 
-const NodeType *ConvertNode::node_types[ConvertNode::MAX_TYPE][ConvertNode::MAX_TYPE];
-bool ConvertNode::initialized = ConvertNode::register_types();
+const NodeType *(&ConvertNode::get_node_types())[ConvertNode::MAX_TYPE][ConvertNode::MAX_TYPE]
+{
+  static const NodeType *node_types[MAX_TYPE][MAX_TYPE];
+  static std::once_flag node_types_flag;
+
+  std::call_once(node_types_flag, [&] {
+    const int num_types = 8;
+    const SocketType::Type types[num_types] = {SocketType::FLOAT,
+                                               SocketType::INT,
+                                               SocketType::COLOR,
+                                               SocketType::VECTOR,
+                                               SocketType::POINT,
+                                               SocketType::NORMAL,
+                                               SocketType::STRING,
+                                               SocketType::CLOSURE};
+
+    for (size_t i = 0; i < num_types; i++) {
+      const SocketType::Type from = types[i];
+      const ustring from_name(SocketType::type_name(from));
+      const ustring from_value_name("value_" + from_name.string());
+
+      for (size_t j = 0; j < num_types; j++) {
+        const SocketType::Type to = types[j];
+        const ustring to_name(SocketType::type_name(to));
+        const ustring to_value_name("value_" + to_name.string());
+
+        const string node_name = "convert_" + from_name.string() + "_to_" + to_name.string();
+        NodeType *type = NodeType::add(node_name.c_str(), create, NodeType::SHADER);
+
+        type->register_input(from_value_name,
+                             from_value_name,
+                             from,
+                             SOCKET_OFFSETOF(ConvertNode, value_float),
+                             SocketType::zero_default_value(),
+                             nullptr,
+                             nullptr,
+                             SocketType::LINKABLE);
+        type->register_output(to_value_name, to_value_name, to);
+
+        assert(from < MAX_TYPE);
+        assert(to < MAX_TYPE);
+
+        node_types[from][to] = type;
+      }
+    }
+  });
+
+  return node_types;
+}
 
 unique_ptr<Node> ConvertNode::create(const NodeType *type)
 {
   return make_unique<ConvertNode>(type->inputs[0].type, type->outputs[0].type);
 }
 
-bool ConvertNode::register_types()
-{
-  const int num_types = 8;
-  const SocketType::Type types[num_types] = {SocketType::FLOAT,
-                                             SocketType::INT,
-                                             SocketType::COLOR,
-                                             SocketType::VECTOR,
-                                             SocketType::POINT,
-                                             SocketType::NORMAL,
-                                             SocketType::STRING,
-                                             SocketType::CLOSURE};
-
-  for (size_t i = 0; i < num_types; i++) {
-    const SocketType::Type from = types[i];
-    const ustring from_name(SocketType::type_name(from));
-    const ustring from_value_name("value_" + from_name.string());
-
-    for (size_t j = 0; j < num_types; j++) {
-      const SocketType::Type to = types[j];
-      const ustring to_name(SocketType::type_name(to));
-      const ustring to_value_name("value_" + to_name.string());
-
-      const string node_name = "convert_" + from_name.string() + "_to_" + to_name.string();
-      NodeType *type = NodeType::add(node_name.c_str(), create, NodeType::SHADER);
-
-      type->register_input(from_value_name,
-                           from_value_name,
-                           from,
-                           SOCKET_OFFSETOF(ConvertNode, value_float),
-                           SocketType::zero_default_value(),
-                           nullptr,
-                           nullptr,
-                           SocketType::LINKABLE);
-      type->register_output(to_value_name, to_value_name, to);
-
-      assert(from < MAX_TYPE);
-      assert(to < MAX_TYPE);
-
-      node_types[from][to] = type;
-    }
-  }
-
-  return true;
-}
-
 ConvertNode::ConvertNode(SocketType::Type from_, SocketType::Type to_, bool autoconvert)
-    : ShaderNode(node_types[from_][to_])
+    : ShaderNode(get_node_types()[from_][to_])
 {
   from = from_;
   to = to_;
@@ -2132,7 +2136,7 @@ void ConvertNode::constant_fold(const ConstantFolder &folder)
     ShaderNode *prev = in->link->parent;
 
     /* no-op conversion of A to B to A */
-    if (prev->type == node_types[to][from]) {
+    if (prev->type == get_node_types()[to][from]) {
       ShaderInput *prev_in = prev->inputs[0];
 
       if (SocketType::is_float3(from) && (to == SocketType::FLOAT || SocketType::is_float3(to)) &&
@@ -8008,6 +8012,58 @@ void VectorDisplacementNode::compile(OSLCompiler &compiler)
 
   compiler.parameter(this, "space");
   compiler.add(this, "node_vector_displacement");
+}
+
+/* Raycast */
+
+NODE_DEFINE(RaycastNode)
+{
+  NodeType *type = NodeType::add("raycast", create, NodeType::SHADER);
+
+  SOCKET_IN_POINT(position, "Position", zero_float3(), SocketType::LINK_POSITION);
+  SOCKET_IN_NORMAL(direction, "Direction", zero_float3(), SocketType::LINK_NORMAL);
+  SOCKET_IN_FLOAT(length, "Length", 1.0f);
+
+  SOCKET_OUT_FLOAT(is_hit, "Is Hit");
+  SOCKET_OUT_FLOAT(is_self_hit, "Self Hit");
+  SOCKET_OUT_FLOAT(hit_distance, "Hit Distance");
+  SOCKET_OUT_POINT(hit_position, "Hit Position");
+  SOCKET_OUT_NORMAL(hit_position, "Hit Normal");
+
+  SOCKET_BOOLEAN(only_local, "Only Local", false);
+
+  return type;
+}
+
+RaycastNode::RaycastNode() : ShaderNode(get_node_type()) {}
+
+void RaycastNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *position_in = input("Position");
+  ShaderInput *direction_in = input("Direction");
+  ShaderInput *length_in = input("Length");
+  ShaderOutput *is_hit_out = output("Is Hit");
+  ShaderOutput *is_self_hit_out = output("Self Hit");
+  ShaderOutput *hit_distance_out = output("Hit Distance");
+  ShaderOutput *hit_position_out = output("Hit Position");
+  ShaderOutput *hit_normal_out = output("Hit Normal");
+
+  compiler.add_node(NODE_RAYCAST,
+                    compiler.encode_uchar4(compiler.stack_assign(position_in),
+                                           compiler.stack_assign(direction_in),
+                                           compiler.stack_assign(length_in),
+                                           compiler.stack_assign(is_hit_out)),
+                    compiler.encode_uchar4(compiler.stack_assign(is_self_hit_out),
+                                           compiler.stack_assign(hit_distance_out),
+                                           compiler.stack_assign(hit_position_out),
+                                           compiler.stack_assign(hit_normal_out)),
+                    only_local);
+}
+
+void RaycastNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "only_local");
+  compiler.add(this, "node_raycast");
 }
 
 CCL_NAMESPACE_END
