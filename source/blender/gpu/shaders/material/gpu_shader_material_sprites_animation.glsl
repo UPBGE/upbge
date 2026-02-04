@@ -5,6 +5,7 @@ void remainder(float frame, float x, float y, out float remainder_temp, out floa
   remainder_temp = (frame - (quotient_floored * L) + 0.000001) * 0.999999;
 }
 
+[[node]]
 void node_sprites_animation(float frame,
                             float columns,
                             float rows,

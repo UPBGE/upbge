@@ -71,7 +71,7 @@ void register_node_type_sh_sprites_animation()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeSpritesAnimation", SH_NODE_SPRITES_ANIMATION);
+  sh_node_type_base(&ntype, "ShaderNodeSpritesAnimation", SH_NODE_SPRITES_ANIMATION);
   ntype.ui_name = "SpritesAnimation";
   ntype.ui_description = "To animate sprites";
   ntype.nclass = NODE_CLASS_SHADER;
