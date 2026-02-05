@@ -626,7 +626,7 @@ static float color_delta_get(const float3 &color_a,
 {
   float len = math::distance(color_a, color_b);
   /* Normalize len to the (0, 1) range. */
-  len = len / math::numbers::sqrt3_v<float>;
+  len = len / std::numbers::sqrt3_v<float>;
 
   if (len < threshold - MASK_BY_COLOR_SLOPE) {
     len = 1.0f;
@@ -686,7 +686,7 @@ static void mask_by_color_contiguous_mesh(const Depsgraph &depsgraph,
     new_mask[to_v] = new_vertex_mask;
 
     float len = math::distance(current_color.xyz(), active_color.xyz());
-    len = len / math::numbers::sqrt3_v<float>;
+    len = len / std::numbers::sqrt3_v<float>;
     return len <= threshold;
   });
 
@@ -748,6 +748,8 @@ static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
+
+  ed::sculpt_paint::mask_overlay_check(*C, *op);
 
   /* Color data is not available in multi-resolution or dynamic topology. */
   if (!color_supported_check(scene, ob, op->reports)) {
@@ -1112,6 +1114,8 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
   MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), &ob);
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
 
+  ed::sculpt_paint::mask_overlay_check(*C, *op);
+
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);
 
@@ -1312,6 +1316,8 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
 
   MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), &ob);
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
+
+  ed::sculpt_paint::mask_overlay_check(*C, *op);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);

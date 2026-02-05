@@ -592,7 +592,7 @@ Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
     symm_verts.append(*nearest);
   }
 
-  std::sort(symm_verts.begin(), symm_verts.end());
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
@@ -625,7 +625,7 @@ Vector<int> find_symm_verts_grids(const Object &object,
     symm_verts.append(nearest->to_index(key));
   }
 
-  std::sort(symm_verts.begin(), symm_verts.end());
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
@@ -657,7 +657,7 @@ Vector<int> find_symm_verts_bmesh(const Object &object,
     symm_verts.append(BM_elem_index_get(*nearest));
   }
 
-  std::sort(symm_verts.begin(), symm_verts.end());
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
@@ -2765,6 +2765,13 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
   }
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, needs_colors);
+
+  if (ss.expand_cache->target == TargetType::Mask) {
+    ed::sculpt_paint::mask_overlay_check(*C, *op);
+  }
+  else if (ss.expand_cache->target == TargetType::FaceSets) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
+  }
 
   /* Do nothing when the mesh has 0 vertices. */
   const int totvert = SCULPT_vertex_count_get(ob);
