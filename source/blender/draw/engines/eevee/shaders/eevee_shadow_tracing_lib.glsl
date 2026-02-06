@@ -79,9 +79,10 @@ float shadow_pcf_uniform(LightData light,
   const float kernel[9] = float[9](1.0f, 2.0f, 1.0f,
                                    2.0f, 4.0f, 2.0f,
                                    1.0f, 2.0f, 1.0f);
-  const float kernel_sum = 16.0f;
-
+  /* When tiles are missing, ignore those taps and renormalize the kernel so
+   * missing data doesn't bias the filter towards lit. */
   float vis_sum = 0.0f;
+  float weight_sum = 0.0f;
   int ki = 0;
   for (int yy = -1; yy <= 1; ++yy) {
     for (int xx = -1; xx <= 1; ++xx) {
@@ -89,20 +90,24 @@ float shadow_pcf_uniform(LightData light,
       float3 P_tap = P_center + offset;
       /* shadow_sample returns (receiver - occluder): positive = shadowed. */
       float d = shadow_sample(is_directional, shadow_atlas_tx, shadow_tilemaps_tx, light, P_tap);
-      float vis;
       if (d > 1e9f) {
-        /* No valid shadow data (missing tile). Treat as lit. */
-        vis = 1.0f;
+        /* Missing tile: skip this tap in the normalization. */
+        ki++;
+        continue;
       }
-      else {
-        /* d > 0 means receiver is behind occluder (shadow).
-         * Smoothstep from 0 (fully shadowed) to softness (fully lit). */
-        vis = 1.0f - saturate(smoothstep(0.0f, softness, d));
-      }
-      vis_sum += vis * kernel[ki++];
+      /* d > 0 means receiver is behind occluder (shadow). Smoothstep from
+       * 0 (fully shadowed) to softness (fully lit). */
+      float vis = 1.0f - saturate(smoothstep(0.0f, softness, d));
+      float w = kernel[ki++];
+      vis_sum += vis * w;
+      weight_sum += w;
     }
   }
-  return saturate(vis_sum / kernel_sum);
+  if (weight_sum == 0.0f) {
+    /* No valid taps -> treat as lit to avoid false darkening. */
+    return 1.0f;
+  }
+  return saturate(vis_sum / weight_sum);
 }
 /* End of UPBGE PCF path. */
 
@@ -519,6 +524,31 @@ float shadow_eval(LightData light,
   /* Shadow map texel radius at the receiver position. */
   float texel_radius = shadow_texel_radius_at_position(light, is_directional, P);
 
+  /* Compute a unified filter radius used by both PCF and stochastic paths so
+   * the two methods match in covered surface. For directional lights derive
+   * an apparent sun radius at the receiver; for punctual use the light local
+   * shadow radius. Mix with per-light `filter_radius` to avoid abrupt jumps. */
+  float3 lP_for_filter = is_directional ? transform_direction_transposed(light.object_to_world, P) -
+                                         light_position_get(light)
+                                       : light_world_to_local_point(light, P) -
+                                         light.local().local.shadow_position;
+  float effective_filter_radius;
+  if (is_directional) {
+    float clip_near = orderedIntBitsToFloat(light.clip_near);
+    /* Use a conservative distance estimate (max of near-plane and full lP
+     * length) to avoid underestimating the apparent sun radius. */
+    float dist_to_near_plane = max(1e-6f, -lP_for_filter.z - clip_near);
+    float receiver_dist = max(dist_to_near_plane, length(lP_for_filter));
+    float c = light.sun().shadow_angle_cos;
+    float tan_angle = sqrt(max(0.0f, 1.0f - c * c)) / max(1e-6f, c);
+    float sun_radius = tan_angle * receiver_dist;
+    effective_filter_radius = mix(light.filter_radius, sun_radius, 0.8f);
+  }
+  else {
+    float punctual_radius = light.local().local.shadow_radius;
+    effective_filter_radius = mix(light.filter_radius, punctual_radius, 0.8f);
+  }
+
   /* UPBGE: If the global PCF option is enabled and the light doesn't use jitter,
    * use a stable 3x3 PCF instead of the noisy ray-tracing path.
    * This gives clean shadows with 1 ray / 1 step, no TAA required. */
@@ -530,7 +560,7 @@ float shadow_eval(LightData light,
                                            light_position_get(light)
                                            : light_world_to_local_point(light, P) - light.local().local.shadow_position;
 
-    float filter_radius;
+    float filter_radius = effective_filter_radius;
     if (is_directional) {
       float clip_near = orderedIntBitsToFloat(light.clip_near);
       float dist_to_near_plane = max(1e-6f, -lP_for_filter.z - clip_near);
@@ -542,26 +572,39 @@ float shadow_eval(LightData light,
       // apparent world-space radius of sun at the receiver's near plane distance
       float sun_radius = tan_angle * dist_to_near_plane;
 
-      // keep at least the per-light filter_radius (fallback/min)
-      filter_radius = max(sun_radius, light.filter_radius);
+      // keep a mix (computed above) but ensure sun_radius still influences result
+      filter_radius = max(filter_radius, sun_radius);
     }
     else {
-      filter_radius = light.local().local.shadow_radius;
+      /* Use the light's shadow radius for punctual lights, but mix with the
+       * per-light `filter_radius` to avoid abrupt jumps when values change.
+       * The mix weight favors the punctual radius while keeping the per-light
+       * setting as a soft fallback. */
+      float punctual_radius = light.local().local.shadow_radius;
+      filter_radius = mix(light.filter_radius, punctual_radius, 0.8f);
     }
     /* Softness of the shadow edge in world-space shadow distance units.
-     * filter_radius drives how wide the PCF kernel spreads. */
-    float softness = max(filter_radius * 0.5f, texel_radius * 0.5f);
+     * Slightly favor larger softness for punctual lights to avoid sharp
+     * transitions under objects. */
+    float softness = max(filter_radius * (is_directional ? 0.5f : 0.6f), texel_radius * 0.5f);
 
     /* World-space distance between PCF taps. Proportional to filter_radius
-     * and texel_radius so the kernel covers a meaningful area. */
-    float pcf_step = max(1e-6f, filter_radius * texel_radius * grain_scale);
-    /* Apply normal bias to avoid self-shadowing. */
-    float3 P_biased = P + N_bias * shadow_normal_offset(Ng, L, texel_radius);
+     * and texel_radius so the kernel covers a meaningful area. Clamp the
+     * grain scale to avoid extremely small steps that make edges sharp. */
+    float effective_grain = max(grain_scale, 0.8f);
+    float pcf_step = max(1e-6f, filter_radius * texel_radius * effective_grain);
+    /* Apply normal bias to avoid self-shadowing. Use a slightly larger bias
+     * for punctual lights which tend to exhibit leakage under objects. */
+    float normal_offset = shadow_normal_offset(Ng, L, texel_radius);
+    if (!is_directional) {
+      normal_offset *= 1.2f;
+    }
+    float3 P_biased = P + N_bias * normal_offset;
     /* Small jitter from blue-noise to break banding without adding temporal noise. */
     float2 temporal_jitter = random_shadow_3d.xy * 0.25f;
     float2 pcf_rnd = fract(random_pcf_2d + temporal_jitter);
     /* Apply PCF center offset (cone-shaped bias along L). */
-    float3 P_center = P_biased + (light.filter_radius * texel_radius * offset_scale) *
+    float3 P_center = P_biased + (filter_radius * texel_radius * offset_scale) *
                                   shadow_pcf_offset(L, Ng, pcf_rnd);
 
     return shadow_pcf_uniform(light, is_directional, L, Ng, P_center, pcf_step, softness);
@@ -576,8 +619,9 @@ float shadow_eval(LightData light,
   }
   /* Avoid self intersection with respect to numerical precision. */
   P = offset_ray(P, N_bias);
-  /* Stochastic Percentage Closer Filtering. */
-  P += (light.filter_radius * texel_radius) * shadow_pcf_offset(L, Ng, random_pcf_2d);
+  /* Stochastic Percentage Closer Filtering. Use the same effective filter
+   * radius so stochastic and PCF paths cover comparable surface. */
+  P += (effective_filter_radius * texel_radius) * shadow_pcf_offset(L, Ng, random_pcf_2d);
   /* Add normal bias to avoid aliasing artifacts. */
   P += N_bias * shadow_normal_offset(Ng, L, texel_radius);
 
