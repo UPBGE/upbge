@@ -609,6 +609,19 @@ void ShadowModule::init()
   data_.ray_count = clamp_i(scene.eevee.shadow_ray_count, 1, SHADOW_MAX_RAY);
   data_.step_count = clamp_i(scene.eevee.shadow_step_count, 1, SHADOW_MAX_STEP);
 
+  /* UPBGE: Force 1 ray / 1 step for realtime-friendly shadows.
+   * With PCF enabled these are unused anyway. Without PCF, 1 step gives
+   * a simple depth-compare which is sufficient for game-engine use. */
+  bool32_t use_pcf = (scene.eevee.shadow_use_pcf != 0);
+  if (use_pcf) {
+    data_.ray_count = 1;
+    data_.step_count = 1;
+  }
+  data_.use_pcf = bool32_t(scene.eevee.shadow_use_pcf != 0);
+  data_.pcf_offset_scale = scene.eevee.shadow_pcf_offset;
+  data_.pcf_grain_scale = scene.eevee.shadow_pcf_grain;
+  /*********/
+
   /* Pool size is in MBytes. */
   const size_t pool_byte_size = enabled_ ? scene.eevee.shadow_pool_size * square_i(1024) : 1;
   const size_t page_byte_size = square_i(shadow_page_size_) * sizeof(int);

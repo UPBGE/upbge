@@ -444,6 +444,12 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       BKE_mesh_legacy_recast_to_generic(&mesh);
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 51, 5)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.eevee.shadow_pcf_offset = 1.0f;
+      scene.eevee.shadow_pcf_grain = 1.0f;
+    }
+  }
 }
 
 }  // namespace blender

@@ -2800,6 +2800,12 @@ struct SceneEEVEE {
   int shadow_step_count = 6;
   float shadow_resolution_scale = 1.0f;
 
+  /* PCF shadow options (upbge only). */
+  int shadow_use_pcf = 0;
+  float shadow_pcf_offset = 1.0f;
+  float shadow_pcf_grain = 1.0f;
+  float _pad2[1] = {};
+
   float clamp_surface_direct = 0;
   float clamp_surface_indirect = 10.0f;
   float clamp_volume_direct = 0;

@@ -42,6 +42,13 @@ struct [[host_shared]] ShadowSceneData {
   float film_pixel_radius;
   /* Global switch for jittered shadows. */
   bool32_t use_jitter;
+  /* Global switch for PCF shadow path (overrides per-light jitter toggle). */
+  bool32_t use_pcf;
+  /* Scale factor for the PCF center offset (controls self-shadow bias). */
+  float pcf_offset_scale;
+  /* Scale factor for the PCF kernel grain size (tap spacing). */
+  float pcf_grain_scale;
+  int _pad1;
 };
 
 /* Light Clamping. */

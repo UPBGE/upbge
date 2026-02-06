@@ -55,6 +55,57 @@ ShadowMapTracingState shadow_map_trace_init(int sample_count, float step_offset)
   return state;
 }
 
+/**
+ * UPBGE: Unified 3x3 PCF helper for both directional and punctual lights.
+ * Uses `shadow_sample()` which returns (receiver_dist - occluder_dist):
+ *   positive = in shadow, negative or large = visible.
+ * `is_directional` selects the correct shadow sampling path.
+ * `L` is the light direction (world space), `Ng` the geometric normal.
+ * `P_center` is the world-space shading point (already biased).
+ * `pcf_step` is the world-space distance between PCF taps.
+ * `softness` controls the smoothstep transition width.
+ */
+float shadow_pcf_uniform(LightData light,
+                         const bool is_directional,
+                         float3 L,
+                         float3 Ng,
+                         float3 P_center,
+                         float pcf_step,
+                         float softness)
+{
+  float3 right, up;
+  make_orthonormal_basis(L, right, up);
+
+  const float kernel[9] = float[9](1.0f, 2.0f, 1.0f,
+                                   2.0f, 4.0f, 2.0f,
+                                   1.0f, 2.0f, 1.0f);
+  const float kernel_sum = 16.0f;
+
+  float vis_sum = 0.0f;
+  int ki = 0;
+  for (int yy = -1; yy <= 1; ++yy) {
+    for (int xx = -1; xx <= 1; ++xx) {
+      float3 offset = right * (float(xx) * pcf_step) + up * (float(yy) * pcf_step);
+      float3 P_tap = P_center + offset;
+      /* shadow_sample returns (receiver - occluder): positive = shadowed. */
+      float d = shadow_sample(is_directional, shadow_atlas_tx, shadow_tilemaps_tx, light, P_tap);
+      float vis;
+      if (d > 1e9f) {
+        /* No valid shadow data (missing tile). Treat as lit. */
+        vis = 1.0f;
+      }
+      else {
+        /* d > 0 means receiver is behind occluder (shadow).
+         * Smoothstep from 0 (fully shadowed) to softness (fully lit). */
+        vis = 1.0f - saturate(smoothstep(0.0f, softness, d));
+      }
+      vis_sum += vis * kernel[ki++];
+    }
+  }
+  return saturate(vis_sum / kernel_sum);
+}
+/* End of UPBGE PCF path. */
+
 struct ShadowTracingSample {
   /**
    * Occluder position in ray space.
@@ -467,6 +518,33 @@ float shadow_eval(LightData light,
 
   /* Shadow map texel radius at the receiver position. */
   float texel_radius = shadow_texel_radius_at_position(light, is_directional, P);
+
+  /* UPBGE: If the global PCF option is enabled and the light doesn't use jitter,
+   * use a stable 3x3 PCF instead of the noisy ray-tracing path.
+   * This gives clean shadows with 1 ray / 1 step, no TAA required. */
+  if (bool(uniform_buf.shadow.use_pcf) && !bool(light.shadow_jitter)) {
+    float offset_scale = uniform_buf.shadow.pcf_offset_scale;
+    float grain_scale = uniform_buf.shadow.pcf_grain_scale;
+    /* Softness of the shadow edge in world-space shadow distance units.
+     * filter_radius drives how wide the PCF kernel spreads. */
+    float softness = max(light.filter_radius * 0.5f, texel_radius * 0.5f);
+
+    /* World-space distance between PCF taps. Proportional to filter_radius
+     * and texel_radius so the kernel covers a meaningful area. */
+    float pcf_step = max(1e-6f, light.filter_radius * texel_radius * grain_scale);
+
+    /* Apply normal bias to avoid self-shadowing. */
+    float3 P_biased = P + N_bias * shadow_normal_offset(Ng, L, texel_radius);
+    /* Small jitter from blue-noise to break banding without adding temporal noise. */
+    float2 temporal_jitter = random_shadow_3d.xy * 0.25f;
+    float2 pcf_rnd = fract(random_pcf_2d + temporal_jitter);
+    /* Apply PCF center offset (cone-shaped bias along L). */
+    float3 P_center = P_biased + (light.filter_radius * texel_radius * offset_scale) *
+                                  shadow_pcf_offset(L, Ng, pcf_rnd);
+
+    return shadow_pcf_uniform(light, is_directional, L, Ng, P_center, pcf_step, softness);
+  }
+  /* End of UPBGE PCF path. */
 
   if (is_transmission && !is_facing_light) {
     /* Ideally, we should bias using the chosen ray direction. In practice, this conflict with our
