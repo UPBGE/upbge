@@ -35,6 +35,7 @@
 #  pragma warning(disable : 4786)
 #endif
 
+#include "BKE_blender.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -45,6 +46,7 @@
 #include "BLO_readfile.hh"
 #include "ED_screen.hh"
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "wm_window.hh"
 
 #include "CM_Message.h"
@@ -136,20 +138,36 @@ static void RefreshContextAndScreen(blender::bContext *C, blender::wmWindowManag
   }
 }
 
-static blender::Main *BKE_blender_globals_main_replace_no_free(blender::Main *bmain)
+/**
+ * Free a BlendFileData whose WM and window have borrowed resources
+ * (ghostwin, gpuctx, message_bus) from the original WM.
+ * Nullifies all borrowed pointers before freeing so that the loaded
+ * WM's destructor does not free resources owned by the backup WM.
+ */
+static void bge_blendfiledata_free(BlendFileData *bfd)
 {
-  blender::Main *old_main = G_MAIN;
+  if (bfd->main) {
+    blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
+    if (wm) {
+      /* Null out borrowed runtime pointers so they are not freed
+       * when the loaded WM is destroyed. */
+      wm->runtime->message_bus = nullptr;
 
-  if (old_main != nullptr) {
-    BLI_assert(old_main->is_global_main);
-    old_main->is_global_main = false;
+      /* The keyconfigs list owns the same keyconfig objects that defaultconf/addonconf/userconf
+       * point to. Clear the entire list so the destructor doesn't free borrowed keyconfigs.
+       * This mirrors what wm_file_read_setup_wm_use_new does in wm_files.cc. */
+      BLI_listbase_clear(&wm->runtime->keyconfigs);
+      wm->runtime->defaultconf = nullptr;
+      wm->runtime->addonconf = nullptr;
+      wm->runtime->userconf = nullptr;
+
+      for (blender::wmWindow &win : wm->windows) {
+        win.runtime->ghostwin = nullptr;
+        win.runtime->gpuctx = nullptr;
+      }
+    }
   }
-
-  BLI_assert(!bmain->is_global_main);
-  bmain->is_global_main = true;
-  G_MAIN = bmain;
-
-  return old_main;
+  BLO_blendfiledata_free(bfd);
 }
 
 extern "C" void StartKetsjiShell(blender::bContext *C,
@@ -233,13 +251,10 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
         exitrequested == KX_ExitRequest::RESTART_GAME) {
       exitrequested = KX_ExitRequest::NO_REQUEST;
       if (bfd) {
-        /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
-         * .blend */
-        CTX_wm_window(C)->runtime->ghostwin = nullptr;
-        /* Hack to not free wm->message_bus when we restart/load new .blend */
-        CTX_wm_manager(C)->runtime->message_bus = nullptr;
-        BLO_blendfiledata_free(bfd);
-        BKE_blender_globals_main_replace_no_free(maggie1);
+        /* Swap G_MAIN back to maggie1 before freeing the loaded data,
+         * to avoid leaving G_MAIN as a dangling pointer. */
+        BKE_blender_globals_main_swap(maggie1);
+        bge_blendfiledata_free(bfd);
       }
 
       char basedpath[FILE_MAX];
@@ -273,7 +288,7 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
         startscenename = bfd->curscene->id.name + 2;
 
         /* If we don't change G_MAIN, bpy won't work in loaded .blends */
-        BKE_blender_globals_main_replace_no_free(bfd->main);
+        BKE_blender_globals_main_swap(bfd->main);
         CTX_data_main_set(C, bfd->main);
         blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
         blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
@@ -283,6 +298,14 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
         win->runtime->gpuctx = gpuctx_backup;
         wm->runtime->message_bus = (wmMsgBus *)msgbus_backup;
 
+        /* Transfer key configurations from backup WM to loaded WM.
+         * First free any keyconfigs the loaded WM may already own,
+         * then move the entire list from the backup. This mirrors
+         * wm_file_read_setup_wm_use_new in wm_files.cc. */
+        while (wmKeyConfig *kc = (wmKeyConfig *)BLI_pophead(&wm->runtime->keyconfigs)) {
+          WM_keyconfig_free(kc);
+        }
+        wm->runtime->keyconfigs = wm_backup->runtime->keyconfigs;
         wm->runtime->defaultconf = wm_backup->runtime->defaultconf;
         wm->runtime->addonconf = wm_backup->runtime->addonconf;
         wm->runtime->userconf = wm_backup->runtime->userconf;
@@ -364,21 +387,20 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
   if (bfd) {
-    /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
-     * .blend */
-    CTX_wm_window(C)->runtime->ghostwin = nullptr;
-    /* Hack to not free wm->message_bus when we restart/load new .blend */
-    CTX_wm_manager(C)->runtime->message_bus = nullptr;
-    BLO_blendfiledata_free(bfd);
+    /* Swap G_MAIN back to maggie1 before freeing the loaded data. */
+    BKE_blender_globals_main_swap(maggie1);
+    bge_blendfiledata_free(bfd);
 
-    /* Restore blender::Main and blender::Scene used before ge start */
-    BKE_blender_globals_main_replace_no_free(maggie1);
+    /* Restore context to use the original Main and WM. */
     CTX_data_main_set(C, maggie1);
     CTX_wm_manager_set(C, wm_backup);
-    win_backup->runtime->ghostwin = ghostwin_backup;
-    win_backup->runtime->gpuctx = gpuctx_backup;
-    wm_backup->runtime->message_bus = (wmMsgBus *)msgbus_backup;
   }
+
+  /* Always restore the borrowed resources to the backup WM/window,
+   * even if no bfd was loaded (restart of the same file case). */
+  win_backup->runtime->ghostwin = ghostwin_backup;
+  win_backup->runtime->gpuctx = gpuctx_backup;
+  wm_backup->runtime->message_bus = (wmMsgBus *)msgbus_backup;
   CTX_wm_window_set(C, win_backup);  // Fix for crash at exit when we have preferences window open
 
   RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
