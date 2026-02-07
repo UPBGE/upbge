@@ -1532,7 +1532,7 @@ def pyrna2sphinx(basepath):
             kwargs = {"as_ret": True}
             identifier = ""
         else:
-            id_name = "arg"
+            id_name = "param"
             id_type = "type"
             kwargs = {"as_arg": True}
             identifier = " {:s}".format(prop.identifier)

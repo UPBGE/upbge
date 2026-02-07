@@ -55,7 +55,7 @@ static void fill_new_attribute(const Span<const GeometryComponent *> src_compone
     GVArraySpan src_span{read_attribute};
     const void *src_buffer = src_span.data();
     void *dst_buffer = dst_span[offset];
-    cpp_type.copy_assign_n(src_buffer, dst_buffer, domain_num);
+    cpp_type.copy_construct_n(src_buffer, dst_buffer, domain_num);
 
     offset += domain_num;
   }
@@ -146,8 +146,7 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
   }
   const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
 
-  std::unique_ptr<bke::Instances> dst_instances = std::make_unique<bke::Instances>();
-  dst_instances->resize(offsets.total_size());
+  auto dst_instances = std::make_unique<bke::Instances>(offsets.total_size());
 
   MutableSpan<int> all_handles = dst_instances->reference_handles_for_write();
 
@@ -221,8 +220,7 @@ static void join_component_type(const bke::GeometryComponent::Type component_typ
       break;
   }
 
-  std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
-  instances->resize(components.size());
+  auto instances = std::make_unique<bke::Instances>(components.size());
   instances->transforms_for_write().fill(float4x4::identity());
   MutableSpan<int> handles = instances->reference_handles_for_write();
   Map<const GeometryComponent *, int> handle_by_component;
@@ -240,7 +238,7 @@ static void join_component_type(const bke::GeometryComponent::Type component_typ
   options.realize_instance_attributes = false;
   options.attribute_filter = attribute_filter;
   GeometrySet joined_components =
-      realize_instances(GeometrySet::from_instances(instances.release()), options).geometry;
+      realize_instances(GeometrySet::from_instances(std::move(instances)), options).geometry;
   result.add(joined_components.get_component_for_write(component_type));
 }
 

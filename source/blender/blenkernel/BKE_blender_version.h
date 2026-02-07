@@ -20,9 +20,9 @@ namespace blender {
  */
 
 /** Blender major and minor version. */
-#define BLENDER_VERSION 501
+#define BLENDER_VERSION 502
 
-#define UPBGE_VERSION 51
+#define UPBGE_VERSION 52
 
 /** Blender patch version for bug-fix releases. */
 #define BLENDER_VERSION_PATCH 0
@@ -38,11 +38,11 @@ namespace blender {
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
 
-#define BLENDER_FILE_SUBVERSION 26
+#define BLENDER_FILE_SUBVERSION 0
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
-#define UPBGE_FILE_SUBVERSION 4
+#define UPBGE_FILE_SUBVERSION 0
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and cancel loading the file, showing a warning to

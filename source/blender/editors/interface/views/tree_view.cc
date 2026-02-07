@@ -103,7 +103,7 @@ void TreeViewItemContainer::sort_alpha()
   std::ranges::sort(children_,
                     [](const std::unique_ptr<AbstractTreeViewItem> &a,
                        const std::unique_ptr<AbstractTreeViewItem> &b) {
-                      return a.get()->debug_name() < b.get()->debug_name();
+                      return a.get()->label() < b.get()->label();
                     });
 
   for (std::unique_ptr<AbstractTreeViewItem> &item : children_) {
@@ -836,6 +836,11 @@ void AbstractTreeViewItem::on_filter()
   }
 }
 
+StringRefNull AbstractTreeViewItem::label() const
+{
+  return label_;
+}
+
 /* ---------------------------------------------------------------------- */
 
 class TreeViewLayoutBuilder {
@@ -909,7 +914,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   if (tree_view.scroll_active_into_view_on_draw_) {
     if (!is_active_visible) {
-      /* Don't scroll the list when active item is alredy in view. */
+      /* Don't scroll the list when active item is already in view. */
       tree_view.scroll_active_into_view();
     }
   }
