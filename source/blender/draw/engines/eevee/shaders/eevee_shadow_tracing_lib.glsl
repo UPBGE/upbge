@@ -521,25 +521,30 @@ float shadow_eval(LightData light,
 
   /* UPBGE: If the global PCF option is enabled and the light doesn't use jitter,
    * use a stable 3x3 PCF instead of the noisy ray-tracing path.
-   * This gives clean shadows with 1 ray / 1 step, no TAA required. */
+   * This gives clean shadows with 1 ray / 1 step, no TAA required.
+   *
+   * pcf_step and softness are fixed at texel_radius scale so the kernel
+   * always samples neighbouring texels and never reaches far enough to
+   * darken lit areas. User settings only affect pcf_rnd which controls
+   * the sub-texel jitter of P_center via shadow_pcf_offset:
+   *   - grain_scale modulates the amplitude of the center offset.
+   *   - offset_scale modulates the random input to vary the pattern. */
   if (bool(uniform_buf.shadow.use_pcf) && !bool(light.shadow_jitter)) {
     float offset_scale = uniform_buf.shadow.pcf_offset_scale;
     float grain_scale = uniform_buf.shadow.pcf_grain_scale;
-    /* Softness of the shadow edge in world-space shadow distance units.
-     * filter_radius drives how wide the PCF kernel spreads. */
-    float softness = max(light.filter_radius * 0.5f, texel_radius * 0.5f);
 
-    /* World-space distance between PCF taps. Proportional to filter_radius
-     * and texel_radius so the kernel covers a meaningful area. */
-    float pcf_step = max(1e-6f, light.filter_radius * texel_radius * grain_scale);
+    float softness = texel_radius * 0.5f;
+    float pcf_step = texel_radius;
 
     /* Apply normal bias to avoid self-shadowing. */
     float3 P_biased = P + N_bias * shadow_normal_offset(Ng, L, texel_radius);
-    /* Small jitter from blue-noise to break banding without adding temporal noise. */
+
+    /* User controls feed into the jitter only:
+     * - offset_scale scales the random input (0 = deterministic pattern).
+     * - grain_scale scales the resulting offset amplitude. */
     float2 temporal_jitter = random_shadow_3d.xy * 0.25f;
-    float2 pcf_rnd = fract(random_pcf_2d + temporal_jitter);
-    /* Apply PCF center offset (cone-shaped bias along L). */
-    float3 P_center = P_biased + (light.filter_radius * texel_radius * offset_scale) *
+    float2 pcf_rnd = fract(random_pcf_2d) + temporal_jitter * offset_scale * 2.0f;
+    float3 P_center = P_biased + (texel_radius * grain_scale) *
                                   shadow_pcf_offset(L, Ng, pcf_rnd);
 
     return shadow_pcf_uniform(light, is_directional, L, Ng, P_center, pcf_step, softness);
