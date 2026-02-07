@@ -525,36 +525,14 @@ float shadow_eval(LightData light,
   if (bool(uniform_buf.shadow.use_pcf) && !bool(light.shadow_jitter)) {
     float offset_scale = uniform_buf.shadow.pcf_offset_scale;
     float grain_scale = uniform_buf.shadow.pcf_grain_scale;
-    // compute a local light-space position used for directional filter radius estimation
-    float3 lP_for_filter = is_directional ? transform_direction_transposed(light.object_to_world, P) -
-                                           light_position_get(light)
-                                           : light_world_to_local_point(light, P) - light.local().local.shadow_position;
-
-    float filter_radius;
-    if (is_directional) {
-      float clip_near = orderedIntBitsToFloat(light.clip_near);
-      float dist_to_near_plane = max(1e-6f, -lP_for_filter.z - clip_near);
-
-      // derive tangent from cos(angle) robustly
-      float c = light.sun().shadow_angle_cos;
-      float tan_angle = sqrt(max(0.0f, 1.0f - c * c)) / max(1e-6f, c);
-
-      // apparent world-space radius of sun at the receiver's near plane distance
-      float sun_radius = tan_angle * dist_to_near_plane;
-
-      // keep at least the per-light filter_radius (fallback/min)
-      filter_radius = max(sun_radius, light.filter_radius);
-    }
-    else {
-      filter_radius = light.local().local.shadow_radius;
-    }
     /* Softness of the shadow edge in world-space shadow distance units.
      * filter_radius drives how wide the PCF kernel spreads. */
-    float softness = max(filter_radius * 0.5f, texel_radius * 0.5f);
+    float softness = max(light.filter_radius * 0.5f, texel_radius * 0.5f);
 
     /* World-space distance between PCF taps. Proportional to filter_radius
      * and texel_radius so the kernel covers a meaningful area. */
-    float pcf_step = max(1e-6f, filter_radius * texel_radius * grain_scale);
+    float pcf_step = max(1e-6f, light.filter_radius * texel_radius * grain_scale);
+
     /* Apply normal bias to avoid self-shadowing. */
     float3 P_biased = P + N_bias * shadow_normal_offset(Ng, L, texel_radius);
     /* Small jitter from blue-noise to break banding without adding temporal noise. */
