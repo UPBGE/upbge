@@ -1272,6 +1272,14 @@ static PlayBackRefuseInfo compute_gpu_playback_decision(Object &ob, Mesh &mesh)
         explicitly_cpu = wmd && !(wmd->deform_method & WAV_DEFORM_METHOD_GPU);
         break;
       }
+      case eModifierType_DynamicPaint2Gpu: {
+        DynamicPaint2GpuModifierData *dmd = (DynamicPaint2GpuModifierData *)md;
+        if (dmd && dmd->type == MOD_DYNAMICPAINT2GPU_TYPE_CANVAS) {
+          requests_gpu = true;
+          explicitly_cpu = false;
+          break;
+        }
+      }
       default:
         break;
     }

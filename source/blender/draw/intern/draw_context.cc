@@ -1241,10 +1241,10 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       }
       continue;
     }
-    if (entry.last_depsgraph_update_ == eval_obj->runtime->last_update_geometry) {
-      /* Already up to date */
-      continue;
-    }
+    //if (entry.last_depsgraph_update_ == eval_obj->runtime->last_update_geometry) {
+    //  /* Already up to date */
+    //  continue;
+    //}
 
     /* Build GPU modifier pipeline from object's modifier stack */
     if (!entry.gpu_pipeline) {

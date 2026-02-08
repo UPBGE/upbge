@@ -24,6 +24,7 @@
 #include "DNA_cloth_types.h"
 #include "DNA_colorband_types.h"
 #include "DNA_dynamicpaint_types.h"
+#include "DNA_dynamicpaint2gpu_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
@@ -47,6 +48,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
+#include "BKE_colortools.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
@@ -1217,6 +1219,29 @@ void BKE_modifier_blend_write(BlendWriter *writer,
         writer->write_struct(pmd->brush->vel_ramp);
       }
     }
+    else if (md.type == eModifierType_DynamicPaint2Gpu) {
+      DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(&md);
+
+      /* Write canvas settings */
+      if (pmd->canvas) {
+        writer->write_struct(pmd->canvas);
+        for (DynamicPaint2GpuSurface *surface =
+                 static_cast<DynamicPaint2GpuSurface *>(pmd->canvas->surfaces.first);
+             surface;
+             surface = surface->next)
+        {
+          writer->write_struct(surface);
+        }
+      }
+
+      /* Write brushes */
+      for (DynamicPaint2GpuBrushSettings &brush : pmd->brushes) {
+        writer->write_struct(&brush);
+        if (brush.curfalloff) {
+          BKE_curvemapping_blend_write(writer, brush.curfalloff);
+        }
+      }
+    }
     else if (md.type == eModifierType_Collision) {
 
 #if 0
@@ -1544,6 +1569,37 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBaseT<ModifierDat
         BLO_read_struct(reader, ParticleSystem, &pmd->brush->psys);
         BLO_read_struct(reader, ColorBand, &pmd->brush->paint_ramp);
         BLO_read_struct(reader, ColorBand, &pmd->brush->vel_ramp);
+      }
+    }
+    else if (md->type == eModifierType_DynamicPaint2Gpu) {
+      DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(md);
+
+      /* Read canvas settings */
+      if (pmd->canvas) {
+        BLO_read_struct(reader, DynamicPaint2GpuCanvasSettings, &pmd->canvas);
+        pmd->canvas->pmd = pmd;
+        if (pmd->canvas->surfaces.first) {
+          BLO_read_struct_list(reader, DynamicPaint2GpuSurface, &pmd->canvas->surfaces);
+          for (DynamicPaint2GpuSurface *surface =
+                   static_cast<DynamicPaint2GpuSurface *>(pmd->canvas->surfaces.first);
+               surface;
+               surface = surface->next)
+          {
+            surface->canvas = pmd->canvas;
+          }
+        }
+      }
+
+      /* Read brushes */
+      if (pmd->brushes.first) {
+        BLO_read_struct_list(reader, DynamicPaint2GpuBrushSettings, &pmd->brushes);
+        for (DynamicPaint2GpuBrushSettings &brush : pmd->brushes) {
+          if (brush.curfalloff) {
+            BLO_read_struct(reader, CurveMapping, &brush.curfalloff);
+            BKE_curvemapping_blend_read(reader, brush.curfalloff);
+          }
+          /* Pointers resolved during lib_link (origin, target, mask_texture). */
+        }
       }
     }
 

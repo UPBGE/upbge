@@ -74,6 +74,9 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(md);
 
+  /* Walk brush collection pointer. */
+  walk(user_data, ob, reinterpret_cast<ID **>(&pmd->brush_collection), IDWALK_CB_NOP);
+
   /* Walk canvas surfaces */
   if (pmd->canvas) {
     DynamicPaint2GpuSurface *surface = static_cast<DynamicPaint2GpuSurface *>(
@@ -90,6 +93,23 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
     walk(user_data, ob, reinterpret_cast<ID **>(&brush->origin), IDWALK_CB_NOP);
     walk(user_data, ob, reinterpret_cast<ID **>(&brush->target), IDWALK_CB_NOP);
     walk(user_data, ob, reinterpret_cast<ID **>(&brush->mask_texture), IDWALK_CB_USER);
+    walk(user_data, ob, reinterpret_cast<ID **>(&brush->map_object), IDWALK_CB_NOP);
+  }
+}
+
+static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
+{
+  DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(md);
+
+  DynamicPaint2GpuBrushSettings *brush = static_cast<DynamicPaint2GpuBrushSettings *>(
+      pmd->brushes.first);
+  for (; brush; brush = brush->next) {
+    if (brush->mask_texture) {
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          &ob->id, RNA_DynamicPaint2GpuBrush, brush);
+      PropertyRNA *prop = RNA_struct_find_property(&ptr, "mask_texture");
+      walk(user_data, ob, md, &ptr, prop);
+    }
   }
 }
 
@@ -97,7 +117,13 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 {
   DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(md);
 
-  /* Add dependency on brush origin/target objects. */
+  /* Canvas mode: add transform dependencies for all objects in brush_collection. */
+  if (pmd->type == MOD_DYNAMICPAINT2GPU_TYPE_CANVAS && pmd->brush_collection) {
+    DEG_add_collection_geometry_relation(
+        ctx->node, pmd->brush_collection, "DynamicPaint2Gpu Brush Collection");
+  }
+
+  /* Add dependency on brush origin/target objects (for local brushes). */
   DynamicPaint2GpuBrushSettings *brush = static_cast<DynamicPaint2GpuBrushSettings *>(
       pmd->brushes.first);
   for (; brush; brush = brush->next) {
@@ -108,6 +134,10 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     if (brush->target) {
       DEG_add_object_relation(
           ctx->node, brush->target, DEG_OB_COMP_TRANSFORM, "DynamicPaint2Gpu Brush Target");
+    }
+    if (brush->map_object) {
+      DEG_add_object_relation(
+          ctx->node, brush->map_object, DEG_OB_COMP_TRANSFORM, "DynamicPaint2Gpu Texture Object");
     }
   }
 }
@@ -167,7 +197,7 @@ ModifierTypeInfo modifierType_DynamicPaint2Gpu = {
     /*depends_on_time*/ nullptr,
     /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
-    /*foreach_tex_link*/ nullptr,
+    /*foreach_tex_link*/ foreach_tex_link,
     /*free_runtime_data*/ nullptr,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,

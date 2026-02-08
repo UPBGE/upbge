@@ -1913,6 +1913,9 @@ struct DynamicPaint2GpuModifierData {
   struct DynamicPaint2GpuCanvasSettings *canvas = nullptr;
   /** Linked list of DynamicPaint2GpuBrushSettings. */
   ListBaseT<DynamicPaint2GpuBrushSettings> brushes = {nullptr, nullptr};
+  /** Collection of brush objects (canvas mode only). Objects in this collection
+   *  with a DynamicPaint2Gpu modifier in BRUSH mode will contribute their brushes. */
+  struct Collection *brush_collection = nullptr;
   /** #DynamicPaint2GpuModifierType. UI display: canvas / brush. */
   int type = MOD_DYNAMICPAINT2GPU_TYPE_BRUSH;
   char _pad[4] = {};

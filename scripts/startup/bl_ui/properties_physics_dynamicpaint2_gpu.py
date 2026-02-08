@@ -67,7 +67,7 @@ class PhysicButtonsPanel:
 
 
 # ---------------------------------------------------------------------------
-# Main panel – Canvas / Brush toggle  (like Dynamic Paint)
+# Main panel -- Canvas / Brush toggle  (like Dynamic Paint)
 
 class PHYSICS_PT_dynamic_paint2gpu(PhysicButtonsPanel, Panel):
     bl_label = "Dynamic Paint GPU"
@@ -85,16 +85,17 @@ class PHYSICS_PT_dynamic_paint2gpu(PhysicButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         md = context.dynamic_paint2gpu
         if md is None:
             return
 
-        layout.prop(md, "ui_type", expand=True)
+        layout.prop(md, "ui_type")
 
 
 # ---------------------------------------------------------------------------
-# Canvas panel  (placeholder – will be expanded later)
+# Canvas panel  (placeholder -- will be expanded later)
 
 class PHYSICS_PT_dp2gpu_canvas(PhysicButtonsPanel, Panel):
     bl_label = "Canvas"
@@ -113,12 +114,20 @@ class PHYSICS_PT_dp2gpu_canvas(PhysicButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+
+        md = context.dynamic_paint2gpu
+        if md is None:
+            return
+
+        layout.prop(md, "brush_collection", text="Brush Collection")
 
 
 # ---------------------------------------------------------------------------
-# Brush list panel – add/remove buttons and brush list
+# Brush settings panel -- all brush settings in one panel, one box per brush
+# containing direction, falloff, and texture settings together.
 
-class PHYSICS_PT_dp2gpu_brush_list(PhysicButtonsPanel, Panel):
+class PHYSICS_PT_dp2gpu_brushes(PhysicButtonsPanel, Panel):
     bl_label = "Brushes"
     bl_parent_id = "PHYSICS_PT_dynamic_paint2gpu"
     COMPAT_ENGINES = {
@@ -135,6 +144,7 @@ class PHYSICS_PT_dp2gpu_brush_list(PhysicButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         md = context.dynamic_paint2gpu
         if md is None:
@@ -149,51 +159,25 @@ class PHYSICS_PT_dp2gpu_brush_list(PhysicButtonsPanel, Panel):
 
         for i, brush in enumerate(brushes):
             box = layout.box()
+
+            # -- Header with name + remove button --
             header = box.row(align=True)
             header.prop(brush, "name", text="", icon='BRUSH_DATA')
             remove_op = header.operator("dpaint2gpu.brush_remove", text="", icon='X')
             remove_op.index = i
 
-
-# ---------------------------------------------------------------------------
-# Brush settings panel
-
-class PHYSICS_PT_dp2gpu_settings(PhysicButtonsPanel, Panel):
-    bl_label = "Settings"
-    bl_parent_id = "PHYSICS_PT_dynamic_paint2gpu"
-    COMPAT_ENGINES = {
-        'BLENDER_RENDER',
-        'BLENDER_EEVEE',
-        'BLENDER_WORKBENCH',
-    }
-
-    @classmethod
-    def poll(cls, context):
-        if not PhysicButtonsPanel.poll_dp2gpu_has_brushes(context):
-            return False
-        return (context.engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        md = context.dynamic_paint2gpu
-        if md is None:
-            return
-
-        for i, brush in enumerate(md.brushes):
-            box = layout.box()
-            box.label(text=brush.name if brush.name else f"Brush {i}",
-                      icon='BRUSH_DATA')
-
             col = box.column()
-            col.prop(brush, "direction_mode", text="Ray Direction")
 
-            # Object-based modes: show origin / target pickers.
-            if brush.direction_mode in {'ORIGIN_TO_TARGET', 'ORIGIN_FORWARD'}:
+            # -- Direction settings --
+            col.prop(brush, "direction_type", text="Direction Type")
+
+            if brush.direction_type == 'OBJECT':
+                col.prop(brush, "direction_object", text="Object Mode")
                 col.prop(brush, "origin", text="Ray Origin")
-                if brush.direction_mode == 'ORIGIN_TO_TARGET':
+                if brush.direction_object == 'ORIGIN_TO_TARGET':
                     col.prop(brush, "target", text="Ray Target")
+            else:
+                col.prop(brush, "direction_axis", text="Ray Axis")
 
             col.prop(brush, "use_vertex_normals")
 
@@ -203,84 +187,30 @@ class PHYSICS_PT_dp2gpu_settings(PhysicButtonsPanel, Panel):
             col.prop(brush, "radius")
             col.prop(brush, "intensity", slider=True)
 
-
-# ---------------------------------------------------------------------------
-# Falloff sub-panel
-
-class PHYSICS_PT_dp2gpu_falloff(PhysicButtonsPanel, Panel):
-    bl_label = "Falloff"
-    bl_parent_id = "PHYSICS_PT_dp2gpu_settings"
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {
-        'BLENDER_RENDER',
-        'BLENDER_EEVEE',
-        'BLENDER_WORKBENCH',
-    }
-
-    @classmethod
-    def poll(cls, context):
-        if not PhysicButtonsPanel.poll_dp2gpu_has_brushes(context):
-            return False
-        return (context.engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        md = context.dynamic_paint2gpu
-        if md is None:
-            return
-
-        for i, brush in enumerate(md.brushes):
-            box = layout.box()
-            box.label(text=brush.name if brush.name else f"Brush {i}",
-                      icon='BRUSH_DATA')
-
-            col = box.column()
+            # -- Falloff settings --
+            col.separator()
+            col.label(text="Falloff", icon='SMOOTHCURVE')
             col.prop(brush, "falloff_type")
 
-            row = col.row()
-            row.active = (brush.falloff_type != 'NONE')
-            row.prop(brush, "falloff")
+            sub = col.row()
+            sub.active = (brush.falloff_type != 'NONE')
+            sub.prop(brush, "falloff")
 
             if brush.falloff_type == 'CURVE':
                 col.template_curve_mapping(brush, "falloff_curve")
 
-
-# ---------------------------------------------------------------------------
-# Texture sub-panel  (mirrors Displace modifier texture UI)
-
-class PHYSICS_PT_dp2gpu_texture(PhysicButtonsPanel, Panel):
-    bl_label = "Texture"
-    bl_parent_id = "PHYSICS_PT_dp2gpu_settings"
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {
-        'BLENDER_RENDER',
-        'BLENDER_EEVEE',
-        'BLENDER_WORKBENCH',
-    }
-
-    @classmethod
-    def poll(cls, context):
-        if not PhysicButtonsPanel.poll_dp2gpu_has_brushes(context):
-            return False
-        return (context.engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        md = context.dynamic_paint2gpu
-        if md is None:
-            return
-
-        for i, brush in enumerate(md.brushes):
-            box = layout.box()
-            box.label(text=brush.name if brush.name else f"Brush {i}",
-                      icon='BRUSH_DATA')
-
-            col = box.column()
+            # -- Texture settings --
+            col.separator()
+            col.label(text="Texture", icon='TEXTURE')
             col.template_ID(brush, "mask_texture", new="texture.new")
+
+            if brush.mask_texture:
+                col.prop(brush, "texture_coords", text="Coordinates")
+
+                if brush.texture_coords == 'OBJECT':
+                    col.prop(brush, "texture_coords_object", text="Object")
+                elif brush.texture_coords == 'UV':
+                    col.prop(brush, "uv_layer", text="UV Map")
 
 
 # ---------------------------------------------------------------------------
@@ -290,10 +220,7 @@ classes = (
     PHYSICS_UL_dp2gpu_brushes,
     PHYSICS_PT_dynamic_paint2gpu,
     PHYSICS_PT_dp2gpu_canvas,
-    PHYSICS_PT_dp2gpu_brush_list,
-    PHYSICS_PT_dp2gpu_settings,
-    PHYSICS_PT_dp2gpu_falloff,
-    PHYSICS_PT_dp2gpu_texture,
+    PHYSICS_PT_dp2gpu_brushes,
 )
 
 

@@ -23,10 +23,16 @@
 
 #include "BLI_hash.h"
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_string.h"
 
+#include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_image.hh"
+#include "BKE_modifier.hh"
+
+#include "DNA_collection_types.h"
 
 #include "DNA_modifier_types.h"
 #include "DNA_dynamicpaint2gpu_types.h"
@@ -40,6 +46,7 @@
 #include "GPU_compute.hh"
 
 #include "draw_modifier_gpu_helpers.hh"
+#include "MOD_util.hh"
 #include "../gpu/gpu_deform_common/gpu_shader_common_texture_lib.hh"
 #include "../gpu/gpu_deform_common/gpu_shader_common_normal_lib.hh"
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
@@ -68,6 +75,12 @@ struct DynamicPaint2GpuManager::Impl {
   /* Per-brush cached data uploaded to GPU once (reused every frame). */
   struct BrushStaticData {
     std::vector<float> falloff_curve_lut; /* 1024 samples for curve falloff */
+    std::vector<float3> tex_coords;      /* per-vertex texture coordinates */
+    bool tex_is_byte = true;
+    bool tex_is_float = false;
+    int tex_channels = 4;
+    bool tex_metadata_cached = false;
+    uint32_t colorband_hash = 0;
   };
 
   struct MeshStaticData {
@@ -242,6 +255,73 @@ DynamicPaint2GpuManager::~DynamicPaint2GpuManager() = default;
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Brush collection helper
+ * \{ */
+
+/**
+ * Collect all brush settings pointers that a canvas modifier should process.
+ * This includes local brushes on the modifier itself (typically empty on a
+ * canvas) plus the first brush from each object in brush_collection —
+ * following the original Dynamic Paint convention of one brush per object.
+ *
+ * The BrushEntry pairs each brush with its owner object so that the
+ * dispatch loop can use the owner's transform as the default ray origin.
+ * For functions that don't need the owner (hash, static resources), the
+ * owner_ob field can be ignored.
+ */
+struct BrushEntry {
+  const DynamicPaint2GpuBrushSettings *brush;
+  Object *owner_ob;
+};
+
+static Vector<BrushEntry> collect_all_brushes(
+    const DynamicPaint2GpuModifierData *pmd,
+    Object *canvas_ob)
+{
+  Vector<BrushEntry> all_brushes;
+
+  /* Local brushes on this modifier (typically non-empty on brush objects,
+   * typically empty on canvas objects). */
+  for (const DynamicPaint2GpuBrushSettings *brush =
+           static_cast<const DynamicPaint2GpuBrushSettings *>(pmd->brushes.first);
+       brush;
+       brush = brush->next)
+  {
+    all_brushes.append({brush, canvas_ob});
+  }
+
+  /* Canvas mode: collect one brush per object in brush_collection. */
+  if (pmd->type == MOD_DYNAMICPAINT2GPU_TYPE_CANVAS && pmd->brush_collection) {
+    Collection *coll = pmd->brush_collection;
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (coll, brush_ob) {
+      if (brush_ob == canvas_ob) {
+        continue;
+      }
+      ModifierData *brush_md = BKE_modifiers_findby_type(
+          brush_ob, eModifierType_DynamicPaint2Gpu);
+      if (!brush_md || !(brush_md->mode & eModifierMode_Realtime)) {
+        continue;
+      }
+      DynamicPaint2GpuModifierData *brush_pmd =
+          reinterpret_cast<DynamicPaint2GpuModifierData *>(brush_md);
+      if (brush_pmd->type != MOD_DYNAMICPAINT2GPU_TYPE_BRUSH) {
+        continue;
+      }
+      const DynamicPaint2GpuBrushSettings *first_brush =
+          static_cast<const DynamicPaint2GpuBrushSettings *>(brush_pmd->brushes.first);
+      if (first_brush) {
+        all_brushes.append({first_brush, brush_ob});
+      }
+    }
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+  }
+
+  return all_brushes;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Hash
  * \{ */
 
@@ -252,15 +332,15 @@ uint32_t DynamicPaint2GpuManager::compute_dp2gpu_hash(
     return 0;
   }
 
+  /* Collect all brushes (local + from brush_collection). */
+  Vector<BrushEntry> all_brushes = collect_all_brushes(pmd, nullptr);
+
   uint32_t hash = 0;
   hash = BLI_hash_int_2d(hash, mesh_orig->verts_num);
 
   int brush_index = 0;
-  for (const DynamicPaint2GpuBrushSettings *brush =
-           static_cast<const DynamicPaint2GpuBrushSettings *>(pmd->brushes.first);
-       brush;
-       brush = brush->next)
-  {
+  for (const BrushEntry &be : all_brushes) {
+    const DynamicPaint2GpuBrushSettings *brush = be.brush;
     hash = BLI_hash_int_2d(hash, uint32_t(brush_index));
     hash = BLI_hash_int_2d(hash, uint32_t(brush->direction_mode));
     hash = BLI_hash_int_2d(hash, uint32_t(brush->use_vertex_normals));
@@ -268,9 +348,14 @@ uint32_t DynamicPaint2GpuManager::compute_dp2gpu_hash(
     hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(brush->origin)));
     hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(brush->target)));
     hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(brush->mask_texture)));
+    hash = BLI_hash_int_2d(hash, uint32_t(brush->texmapping));
+    hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(brush->map_object)));
     if (brush->curfalloff) {
       hash = BLI_hash_int_2d(hash, brush->curfalloff->changed_timestamp);
     }
+    /* Also hash the owner object pointer — different brush objects produce
+     * different origins even if brush settings are identical. */
+    hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(be.owner_ob)));
     brush_index++;
   }
 
@@ -308,13 +393,13 @@ void DynamicPaint2GpuManager::ensure_static_resources(
   msd.verts_num = orig_mesh->verts_num;
   msd.deformed = deform_ob;
 
-  /* Build per-brush static data (falloff curve LUTs) */
+  /* Collect all brushes (local + from brush_collection). */
+  Vector<BrushEntry> all_brushes = collect_all_brushes(pmd, deform_ob);
+
+  /* Build per-brush static data (falloff curve LUTs, texture coordinates). */
   msd.brush_data.clear();
-  for (const DynamicPaint2GpuBrushSettings *brush =
-           static_cast<const DynamicPaint2GpuBrushSettings *>(pmd->brushes.first);
-       brush;
-       brush = brush->next)
-  {
+  for (const BrushEntry &be : all_brushes) {
+    const DynamicPaint2GpuBrushSettings *brush = be.brush;
     Impl::BrushStaticData bsd;
 
     /* Build falloff curve LUT if using curve falloff */
@@ -326,6 +411,36 @@ void DynamicPaint2GpuManager::ensure_static_resources(
         float t = float(i) / float(LUT_SIZE - 1);
         bsd.falloff_curve_lut[i] = BKE_curvemapping_evaluateF(brush->curfalloff, 0, t);
       }
+    }
+
+    /* Extract texture coordinates for this brush (if it has a mask texture) */
+    bsd.tex_coords.clear();
+    bsd.tex_metadata_cached = false;
+    if (brush->mask_texture) {
+      const int verts_num = orig_mesh->verts_num;
+      float(*tex_co)[3] = MEM_new_array_uninitialized<float[3]>(verts_num, "dp2gpu_tex_coords");
+
+      MappingInfoModifierData mapping_info = {};
+      mapping_info.texture = const_cast<Tex *>(brush->mask_texture);
+      mapping_info.map_object = const_cast<Object *>(brush->map_object);
+      mapping_info.texmapping = brush->texmapping;
+      if (brush->uvlayer_name[0] != '\0') {
+        BLI_strncpy(mapping_info.uvlayer_name, brush->uvlayer_name, sizeof(mapping_info.uvlayer_name));
+      }
+
+      MOD_get_texture_coords(&mapping_info,
+                             nullptr,
+                             deform_ob,
+                             orig_mesh,
+                             nullptr,
+                             tex_co);
+
+      bsd.tex_coords.resize(verts_num);
+      for (int v = 0; v < verts_num; ++v) {
+        bsd.tex_coords[v] = float3(tex_co[v]);
+      }
+
+      MEM_delete(tex_co);
     }
 
     msd.brush_data.push_back(std::move(bsd));
@@ -361,7 +476,9 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
   }
   Impl::MeshStaticData &msd = *msd_ptr;
 
-  if (BLI_listbase_is_empty(&pmd->brushes)) {
+  /* Collect all brushes using the shared helper. */
+  Vector<BrushEntry> all_brushes = collect_all_brushes(pmd, deformed_eval);
+  if (all_brushes.is_empty()) {
     return ssbo_in;
   }
 
@@ -379,18 +496,24 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
     }
   }
 
+  /* Second output SSBO for ping-pong when there are 2+ brushes.
+   * Without this, the second brush dispatch would overwrite ssbo_in
+   * (the pipeline's original input), corrupting it for later modifiers. */
+  const std::string key_out2 = key_prefix + "output2";
+  gpu::StorageBuf *ssbo_out2 = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_out2);
+  if (!ssbo_out2 && all_brushes.size() > 1) {
+    ssbo_out2 = bke::BKE_mesh_gpu_internal_ssbo_ensure(
+        mesh_owner, deformed_eval, key_out2, size_out);
+  }
+
   /* --- Scene time for texture params --- */
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   int scene_frame = scene ? int(scene->r.cfra) : 0;
 
   /* --- Determine if any brush uses a texture --- */
   const bool any_has_texture = [&]() {
-    for (const DynamicPaint2GpuBrushSettings *b =
-             static_cast<const DynamicPaint2GpuBrushSettings *>(pmd->brushes.first);
-         b;
-         b = b->next)
-    {
-      if (b->mask_texture) {
+    for (const BrushEntry &be : all_brushes) {
+      if (be.brush->mask_texture) {
         return true;
       }
     }
@@ -401,12 +524,8 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
   if (any_has_texture) {
     /* Check if ALL textures are image-only */
     image_only_compile = true;
-    for (const DynamicPaint2GpuBrushSettings *b =
-             static_cast<const DynamicPaint2GpuBrushSettings *>(pmd->brushes.first);
-         b;
-         b = b->next)
-    {
-      if (b->mask_texture && b->mask_texture->type != TEX_IMAGE) {
+    for (const BrushEntry &be : all_brushes) {
+      if (be.brush->mask_texture && be.brush->mask_texture->type != TEX_IMAGE) {
         image_only_compile = false;
         break;
       }
@@ -454,10 +573,7 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
     info.storage_buf(0, Qualifier::write, "vec4", "deformed_positions[]");
     info.storage_buf(1, Qualifier::read, "vec4", "input_positions[]");
     info.storage_buf(2, Qualifier::read, "float", "falloff_curve_lut[]");
-
-    if (any_has_texture) {
-      info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
-    }
+    info.storage_buf(3, Qualifier::read, "vec4", "texture_coords[]");
 
     /* Texture samplers (same slots as draw_wave) */
     info.sampler(0, ImageType::Float2D, "displacement_texture");
@@ -493,27 +609,39 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
   const int group_size = 256;
   const int num_groups = (msd.verts_num + group_size - 1) / group_size;
 
+  /* Ping-pong between ssbo_out and ssbo_out2 so we never write to ssbo_in.
+   * First brush: reads ssbo_in, writes ssbo_out.
+   * Second brush: reads ssbo_out, writes ssbo_out2.
+   * Third brush: reads ssbo_out2, writes ssbo_out. etc. */
   gpu::StorageBuf *current_in = ssbo_in;
   gpu::StorageBuf *current_out = ssbo_out;
+  gpu::StorageBuf *ping = ssbo_out;
+  gpu::StorageBuf *pong = ssbo_out2 ? ssbo_out2 : ssbo_out;
 
   const gpu::shader::SpecializationConstants *constants =
       &GPU_shader_get_default_constant_state(shader);
 
   /* --- Per-brush dispatch loop --- */
   int brush_idx = 0;
-  for (const DynamicPaint2GpuBrushSettings *brush =
-           static_cast<const DynamicPaint2GpuBrushSettings *>(pmd->brushes.first);
-       brush;
-       brush = brush->next, brush_idx++)
+  for (const BrushEntry &be : all_brushes)
   {
+    const DynamicPaint2GpuBrushSettings *brush = be.brush;
+
     /* Compute brush origin world position.
-     * Fallback: use the canvas/modifier owner object position. */
-    float3 origin_pos = float3(deformed_eval->object_to_world().location());
+     * Priority: brush->origin > brush owner object > canvas object.
+     * For external brushes (from brush_collection), the owner object IS
+     * the brush, so its position is the natural default origin — matching
+     * how original Dynamic Paint treats each object in brush_group. */
+    float3 origin_pos;
     if (brush->origin) {
       Object *eval_origin = DEG_get_evaluated(depsgraph, brush->origin);
-      if (eval_origin) {
-        origin_pos = float3(eval_origin->object_to_world().location());
-      }
+      origin_pos = eval_origin ? float3(eval_origin->object_to_world().location())
+                               : float3(be.owner_ob->object_to_world().location());
+    }
+    else {
+      Object *eval_owner = DEG_get_evaluated(depsgraph, be.owner_ob);
+      origin_pos = eval_owner ? float3(eval_owner->object_to_world().location())
+                              : float3(deformed_eval->object_to_world().location());
     }
 
     /* Compute ray direction */
@@ -559,6 +687,14 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
       }
     }
     ray_dir = math::normalize(ray_dir);
+
+    /* Transform origin and ray direction from world space into the mesh's
+     * local/object space, since vertex positions in the SSBO are local. */
+    {
+      float4x4 world_to_local = math::invert(deformed_eval->object_to_world());
+      origin_pos = math::transform_point(world_to_local, origin_pos);
+      ray_dir = math::normalize(math::transform_direction(world_to_local, ray_dir));
+    }
 
     /* Falloff radius: 0 means use brush radius */
     float falloff_radius = brush->falloff > 0.0f ? brush->falloff : brush->radius;
@@ -614,21 +750,109 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
     /* Bind topology SSBO */
     GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 
-    /* Prepare per-brush colorband and texture params UBOs */
+    /* Prepare per-brush texture coordinate SSBO + GPU texture upload */
     const std::string key_colorband = key_prefix + "colorband_" + std::to_string(brush_idx);
+
+    /* Per-brush texture coordinate SSBO + GPU texture upload.
+     * Always call prepare_gpu_texture_and_texcoords even when brush has
+     * no texture — it creates a dummy 1x1 texture, matching the pattern
+     * used by draw_displace.cc and draw_wave.cc. */
+    gpu::StorageBuf *ssbo_texcoords = nullptr;
+    gpu::Texture *brush_gpu_texture = nullptr;
+
+    const bool brush_has_texture = (brush->mask_texture != nullptr);
+    const std::string brush_key_prefix = key_prefix + "brush_" + std::to_string(brush_idx) + "_";
+
+    {
+      /* Resolve per-brush static data; for brushes without a texture we
+       * pass empty coords and nullptr tex — the helper creates a dummy. */
+      std::vector<float3> empty_coords;
+      bool bsd_tex_is_byte = true, bsd_tex_is_float = false;
+      int bsd_tex_channels = 4;
+      bool bsd_tex_metadata_cached = false;
+
+      std::vector<float3> *tex_coords_ptr = &empty_coords;
+      Tex *brush_tex = nullptr;
+      bool is_uv_mapping = false;
+
+      if (brush_has_texture && brush_idx < int(msd.brush_data.size())) {
+        Impl::BrushStaticData &bsd = msd.brush_data[brush_idx];
+        tex_coords_ptr = &bsd.tex_coords;
+        bsd_tex_is_byte = bsd.tex_is_byte;
+        bsd_tex_is_float = bsd.tex_is_float;
+        bsd_tex_channels = bsd.tex_channels;
+        bsd_tex_metadata_cached = bsd.tex_metadata_cached;
+        brush_tex = const_cast<Tex *>(brush->mask_texture);
+        is_uv_mapping = (brush->texmapping == MOD_DISP_MAP_UV);
+      }
+
+      brush_gpu_texture = modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
+          mesh_owner,
+          deformed_eval,
+          depsgraph,
+          brush_tex,
+          *tex_coords_ptr,
+          bsd_tex_is_byte,
+          bsd_tex_is_float,
+          bsd_tex_channels,
+          bsd_tex_metadata_cached,
+          brush_key_prefix,
+          &ssbo_texcoords,
+          is_uv_mapping);
+
+      /* Write back cached metadata for real brushes. */
+      if (brush_has_texture && brush_idx < int(msd.brush_data.size())) {
+        Impl::BrushStaticData &bsd = msd.brush_data[brush_idx];
+        bsd.tex_is_byte = bsd_tex_is_byte;
+        bsd.tex_is_float = bsd_tex_is_float;
+        bsd.tex_channels = bsd_tex_channels;
+        bsd.tex_metadata_cached = bsd_tex_metadata_cached;
+      }
+    }
+
+    /* Ensure texcoords SSBO is always valid (Vulkan requires all declared
+     * storage buffers to be bound). When prepare_gpu_texture_and_texcoords
+     * skips the texcoords upload (empty coords), create a dummy SSBO. */
+    if (!ssbo_texcoords) {
+      const std::string key_dummy_tc = brush_key_prefix + "dummy_texcoords";
+      ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_dummy_tc);
+      if (!ssbo_texcoords) {
+        ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_ensure(
+            mesh_owner, deformed_eval, key_dummy_tc, sizeof(float4));
+        if (ssbo_texcoords) {
+          float4 dummy_tc(0.0f, 0.0f, 0.0f, 1.0f);
+          GPU_storagebuf_update(ssbo_texcoords, &dummy_tc);
+        }
+      }
+    }
+
+    /* Bind per-brush texture coords and GPU texture (unconditionally) */
+    if (ssbo_texcoords) {
+      GPU_storagebuf_bind(ssbo_texcoords, 3);
+    }
+    if (brush_gpu_texture) {
+      GPU_texture_bind(brush_gpu_texture, 0);
+    }
+
     gpu::UniformBuf *ubo_colorband = modifier_gpu_helpers::ensure_colorband_ubo(
-        mesh_owner, deformed_eval, key_colorband, brush->mask_texture,
+        mesh_owner, deformed_eval, key_colorband, const_cast<Tex *>(brush->mask_texture),
         const_cast<uint32_t &>(msd.last_verified_hash));
 
     bool tex_is_byte = true, tex_is_float = false;
     int tex_channels = 4;
+    if (brush_idx < int(msd.brush_data.size())) {
+      tex_is_byte = msd.brush_data[brush_idx].tex_is_byte;
+      tex_is_float = msd.brush_data[brush_idx].tex_is_float;
+      tex_channels = msd.brush_data[brush_idx].tex_channels;
+    }
     const std::string key_tex_params = key_prefix + "texparams_" + std::to_string(brush_idx);
     gpu::UniformBuf *ubo_tex_params = modifier_gpu_helpers::ensure_texture_params_ubo(
         mesh_owner, deformed_eval, key_tex_params,
-        brush->mask_texture,
+        const_cast<Tex *>(brush->mask_texture),
         const_cast<ModifierData *>(reinterpret_cast<const ModifierData *>(pmd)),
         scene_frame, tex_is_byte, tex_is_float, tex_channels,
-        false);
+        brush_has_texture && brush_idx < int(msd.brush_data.size()) &&
+            !msd.brush_data[brush_idx].tex_coords.empty());
 
     if (ubo_colorband) {
       GPU_uniformbuf_bind(ubo_colorband, 4);
@@ -650,6 +874,9 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
     GPU_shader_unbind();
 
     /* Unbind textures and UBOs */
+    if (brush_gpu_texture) {
+      GPU_texture_unbind(brush_gpu_texture);
+    }
     if (tex_hash) {
       GPU_texture_unbind(tex_hash);
     }
@@ -666,7 +893,10 @@ gpu::StorageBuf *DynamicPaint2GpuManager::dispatch_deform(
       GPU_uniformbuf_unbind(ubo_tex_params);
     }
 
-    std::swap(current_in, current_out);
+    /* Advance ping-pong: result is now in current_out. */
+    current_in = current_out;
+    current_out = (current_in == ping) ? pong : ping;
+    brush_idx++;
   }
 
   return current_in;

@@ -4903,10 +4903,19 @@ static void rna_def_modifier_dynamic_paint2gpu(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "DynamicPaint2GpuBrush");
   RNA_def_property_ui_text(prop, "Brushes", "GPU brushes for this modifier");
 
+  prop = RNA_def_property(srna, "brush_collection", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "brush_collection");
+  RNA_def_property_struct_type(prop, "Collection");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Brush Collection",
+                           "Collection of brush objects (only objects with a Dynamic Paint GPU "
+                           "modifier in Brush mode are used)");
+
   prop = RNA_def_property(srna, "ui_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_sdna(prop, nullptr, "type");
   RNA_def_property_enum_items(prop, rna_enum_dp2gpu_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SIMULATION);
   RNA_def_property_ui_text(prop, "Type", "");
 
   RNA_define_lib_overridable(false);

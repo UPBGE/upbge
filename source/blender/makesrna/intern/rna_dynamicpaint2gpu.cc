@@ -107,25 +107,33 @@ static void rna_GPU_Surface_active_index_range(
 
 namespace blender {
 
-static const EnumPropertyItem rna_enum_dp2gpu_direction_items[] = {
-    RNA_ENUM_ITEM_HEADING(N_("Object"), nullptr),
+static const EnumPropertyItem rna_enum_dp2gpu_direction_type_items[] = {
+    {DP2GPU_DIRTYPE_AXIS, "AXIS", 0, "Axis", "Cast ray along a world axis"},
+    {DP2GPU_DIRTYPE_OBJECT, "OBJECT", 0, "Object", "Cast ray using origin/target objects"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem rna_enum_dp2gpu_direction_axis_items[] = {
+    {DP2GPU_DIR_X, "X", 0, "+X", "Cast ray along the +X axis"},
+    {DP2GPU_DIR_NEG_X, "NEG_X", 0, "-X", "Cast ray along the -X axis"},
+    {DP2GPU_DIR_Y, "Y", 0, "+Y", "Cast ray along the +Y axis"},
+    {DP2GPU_DIR_NEG_Y, "NEG_Y", 0, "-Y", "Cast ray along the -Y axis"},
+    {DP2GPU_DIR_Z, "Z", 0, "+Z", "Cast ray along the +Z axis"},
+    {DP2GPU_DIR_NEG_Z, "NEG_Z", 0, "-Z", "Cast ray along the -Z axis"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem rna_enum_dp2gpu_direction_object_items[] = {
     {DP2GPU_DIR_ORIGIN_TO_TARGET,
      "ORIGIN_TO_TARGET",
      0,
-     "Ray Origin \u2192 Ray Target",
+     "Origin \u2192 Target",
      "Ray from origin object toward target object (uses brush position as fallback)"},
     {DP2GPU_DIR_ORIGIN_FORWARD,
      "ORIGIN_FORWARD",
      0,
      "Origin Forward",
      "Use origin object's local forward (-Y) axis"},
-    RNA_ENUM_ITEM_HEADING(N_("Axis"), nullptr),
-    {DP2GPU_DIR_X, "X", 0, "+X", "Cast ray along the +X axis"},
-    {DP2GPU_DIR_NEG_X, "NEG_X", 0, "-X", "Cast ray along the -X axis"},
-    {DP2GPU_DIR_Y, "Y", 0, "+Y", "Cast ray along the +Y axis"},
-    {DP2GPU_DIR_NEG_Y, "NEG_Y", 0, "-Y", "Cast ray along the -Y axis"},
-    {DP2GPU_DIR_Z, "Z", 0, "+Z", "Cast ray along the +Z axis"},
-    {DP2GPU_DIR_NEG_Z, "NEG_Z", 0, "-Z", "Cast ray along the -Z axis (default)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -139,6 +147,14 @@ static const EnumPropertyItem rna_enum_dp2gpu_falloff_items[] = {
     {DP2GPU_FALLOFF_CONST, "CONST", 0, "Constant", "Constant (no falloff)"},
     {DP2GPU_FALLOFF_SPHERE, "SPHERE", 0, "Sphere", "Spherical falloff"},
     {DP2GPU_FALLOFF_INVSQUARE, "INVSQUARE", 0, "Inverse Square", "Inverse square falloff"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem rna_enum_dp2gpu_texmapping_items[] = {
+    {MOD_DISP_MAP_LOCAL, "LOCAL", 0, "Local", "Use local coordinates for texture mapping"},
+    {MOD_DISP_MAP_GLOBAL, "GLOBAL", 0, "Global", "Use global coordinates for texture mapping"},
+    {MOD_DISP_MAP_OBJECT, "OBJECT", 0, "Object", "Use another object's coordinates for texture mapping"},
+    {MOD_DISP_MAP_UV, "UV", 0, "UV", "Use UV coordinates for texture mapping"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -170,10 +186,20 @@ static void rna_def_dynamic_paint2gpu_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Ray Target",
                            "Target object (ray direction / length computed from origin to target)");
 
-  prop = RNA_def_property(srna, "direction_mode", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "direction_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "direction_type");
+  RNA_def_property_enum_items(prop, rna_enum_dp2gpu_direction_type_items);
+  RNA_def_property_ui_text(prop, "Direction Type", "How the ray direction is determined");
+
+  prop = RNA_def_property(srna, "direction_axis", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "direction_mode");
-  RNA_def_property_enum_items(prop, rna_enum_dp2gpu_direction_items);
-  RNA_def_property_ui_text(prop, "Ray Direction", "Direction of the displacement ray");
+  RNA_def_property_enum_items(prop, rna_enum_dp2gpu_direction_axis_items);
+  RNA_def_property_ui_text(prop, "Ray Axis", "World axis along which to cast the ray");
+
+  prop = RNA_def_property(srna, "direction_object", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "direction_mode");
+  RNA_def_property_enum_items(prop, rna_enum_dp2gpu_direction_object_items);
+  RNA_def_property_ui_text(prop, "Object Mode", "Object-based ray direction mode");
 
   prop = RNA_def_property(srna, "use_vertex_normals", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_vertex_normals", 1);
@@ -224,6 +250,24 @@ static void rna_def_dynamic_paint2gpu_brush(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Mask Texture",
                            "Procedural texture to modulate brush intensity");
+
+  /* Texture coordinate mapping */
+  prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "texmapping");
+  RNA_def_property_enum_items(prop, rna_enum_dp2gpu_texmapping_items);
+  RNA_def_property_ui_text(prop, "Texture Coordinates",
+                           "Coordinate system for texture mapping");
+
+  prop = RNA_def_property(srna, "texture_coords_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "map_object");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Texture Coordinate Object",
+                           "Object to use for texture coordinate mapping");
+
+  prop = RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "uvlayer_name");
+  RNA_def_property_ui_text(prop, "UV Map", "UV map name for UV texture mapping");
 }
 
 static void rna_def_dynamic_paint2gpu_surface(BlenderRNA *brna)
