@@ -4030,6 +4030,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_controller.cc", "rna_controller_api.cc", RNA_def_controller},
     {"rna_curve.cc", "rna_curve_api.cc", RNA_def_curve},
     {"rna_dynamicpaint.cc", nullptr, RNA_def_dynamic_paint},
+    {"rna_dynamicpaint2gpu.cc", nullptr, RNA_def_dynamic_paint2gpu},
     {"rna_fcurve.cc", "rna_fcurve_api.cc", RNA_def_fcurve},
     {"rna_annotations.cc", nullptr, RNA_def_annotations},
     {"rna_grease_pencil.cc", "rna_grease_pencil_api.cc", RNA_def_grease_pencil},

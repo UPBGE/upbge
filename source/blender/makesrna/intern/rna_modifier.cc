@@ -11,6 +11,7 @@
 #include <cstdlib>
 
 #include "DNA_armature_types.h"
+#include "DNA_dynamicpaint2gpu_types.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_lineart_types.h"
 #include "DNA_modifier_types.h"
@@ -290,7 +291,7 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      "DISPLACE",
      ICON_MOD_DISPLACE,
      "Displace",
-     "Offset vertices based on a texture"},
+      "Offset vertices based on a texture"},
     {eModifierType_Hook, "HOOK", ICON_HOOK, "Hook", "Deform specific points using another object"},
     {eModifierType_LaplacianDeform,
      "LAPLACIANDEFORM",
@@ -413,6 +414,11 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      "Dynamic Paint",
      "Turn objects into paint canvases and brushes, creating color attributes, image sequences, "
      "or displacement"},
+    {eModifierType_DynamicPaint2Gpu,
+     "DYNAMIC_PAINT2GPU",
+     ICON_MOD_DYNAMICPAINT,
+     "Dynamic Paint GPU",
+     "GPU-based dynamic paint modifier (brush-like GPU processing, experimental)"},
     {eModifierType_Explode,
      "EXPLODE",
      ICON_MOD_EXPLODE,
@@ -2407,6 +2413,13 @@ static void rna_GreasePencilShrinkwrapModifier_face_cull_set(PointerRNA *ptr, in
   GreasePencilShrinkwrapModifierData *smd = static_cast<GreasePencilShrinkwrapModifierData *>(
       ptr->data);
   smd->shrink_opts = (smd->shrink_opts & ~MOD_SHRINKWRAP_CULL_TARGET_MASK) | value;
+}
+
+static void rna_DynamicPaint2Gpu_brushes_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  DynamicPaint2GpuModifierData *pmd =
+      static_cast<DynamicPaint2GpuModifierData *>(ptr->data);
+  rna_iterator_listbase_begin(iter, ptr, &pmd->brushes, nullptr);
 }
 
 }  // namespace blender
@@ -4848,6 +4861,52 @@ static void rna_def_modifier_dynamic_paint(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "type");
   RNA_def_property_enum_items(prop, rna_enum_prop_dynamicpaint_type_items);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SIMULATION);
+  RNA_def_property_ui_text(prop, "Type", "");
+
+  RNA_define_lib_overridable(false);
+}
+
+static void rna_def_modifier_dynamic_paint2gpu(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem rna_enum_dp2gpu_type_items[] = {
+      {MOD_DYNAMICPAINT2GPU_TYPE_CANVAS, "CANVAS", 0, "Canvas", ""},
+      {MOD_DYNAMICPAINT2GPU_TYPE_BRUSH, "BRUSH", 0, "Brush", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  srna = RNA_def_struct(brna, "DynamicPaint2GpuModifier", "Modifier");
+  RNA_def_struct_ui_text(srna, "Dynamic Paint GPU Modifier",
+                         "GPU-accelerated brush modifier with per-brush raycast");
+  RNA_def_struct_sdna(srna, "DynamicPaint2GpuModifierData");
+  RNA_def_struct_ui_icon(srna, ICON_MOD_DYNAMICPAINT);
+
+  RNA_define_lib_overridable(true);
+
+  prop = RNA_def_property(srna, "canvas", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "canvas");
+  RNA_def_property_struct_type(prop, "DynamicPaint2GpuCanvasSettings");
+  RNA_def_property_ui_text(prop, "Canvas Settings", "Canvas settings for GPU dynamic paint");
+
+  prop = RNA_def_property(srna, "brushes", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_DynamicPaint2Gpu_brushes_begin",
+                                    "rna_iterator_listbase_next",
+                                    "rna_iterator_listbase_end",
+                                    "rna_iterator_listbase_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_struct_type(prop, "DynamicPaint2GpuBrush");
+  RNA_def_property_ui_text(prop, "Brushes", "GPU brushes for this modifier");
+
+  prop = RNA_def_property(srna, "ui_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_sdna(prop, nullptr, "type");
+  RNA_def_property_enum_items(prop, rna_enum_dp2gpu_type_items);
   RNA_def_property_ui_text(prop, "Type", "");
 
   RNA_define_lib_overridable(false);
@@ -11421,6 +11480,7 @@ void RNA_def_modifier(BlenderRNA *brna)
   rna_def_modifier_weightvgmix(brna);
   rna_def_modifier_weightvgproximity(brna);
   rna_def_modifier_dynamic_paint(brna);
+  rna_def_modifier_dynamic_paint2gpu(brna);
   rna_def_modifier_ocean(brna);
   rna_def_modifier_remesh(brna);
   rna_def_modifier_skin(brna);

@@ -912,6 +912,7 @@ const char *buttons_context_dir[] = {
     "collision",
     "brush",
     "dynamic_paint",
+    "dynamic_paint2gpu",
     "line_style",
     "collection",
     "gpencil",
@@ -1228,6 +1229,17 @@ int /*eContextResult*/ buttons_context(const bContext *C,
       Object *ob = static_cast<Object *>(ptr->data);
       ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_DynamicPaint);
       CTX_data_pointer_set(result, &ob->id, RNA_DynamicPaintModifier, md);
+      return CTX_RESULT_OK;
+    }
+    return CTX_RESULT_NO_DATA;
+  }
+  if (CTX_data_equals(member, "dynamic_paint2gpu")) {
+    PointerRNA *ptr = get_pointer_type(path, RNA_Object);
+
+    if (ptr && ptr->data) {
+      Object *ob = static_cast<Object *>(ptr->data);
+      ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_DynamicPaint2Gpu);
+      CTX_data_pointer_set(result, &ob->id, RNA_DynamicPaint2GpuModifier, md);
       return CTX_RESULT_OK;
     }
     return CTX_RESULT_NO_DATA;

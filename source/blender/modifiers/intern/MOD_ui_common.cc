@@ -172,7 +172,8 @@ static int modifier_is_simulation(const ModifierData *md)
            eModifierType_Fluid,
            eModifierType_Softbody,
            eModifierType_Surface,
-           eModifierType_DynamicPaint))
+           eModifierType_DynamicPaint,
+           eModifierType_DynamicPaint2Gpu))
   {
     return 1;
   }

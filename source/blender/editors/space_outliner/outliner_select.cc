@@ -1348,6 +1348,7 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
             case eModifierType_Collision:
             case eModifierType_Fluidsim:
             case eModifierType_DynamicPaint:
+            case eModifierType_DynamicPaint2Gpu:
             case eModifierType_Fluid:
               context = BCONTEXT_PHYSICS;
               break;

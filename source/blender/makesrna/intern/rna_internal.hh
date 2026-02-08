@@ -164,6 +164,7 @@ void RNA_def_context(BlenderRNA *brna);
 void RNA_def_curve(BlenderRNA *brna);
 void RNA_def_depsgraph(BlenderRNA *brna);
 void RNA_def_dynamic_paint(BlenderRNA *brna);
+void RNA_def_dynamic_paint2gpu(BlenderRNA *brna);
 void RNA_def_fcurve(BlenderRNA *brna);
 void RNA_def_annotations(BlenderRNA *brna);
 void RNA_def_grease_pencil(BlenderRNA *brna);

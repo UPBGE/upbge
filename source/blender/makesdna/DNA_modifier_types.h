@@ -30,6 +30,7 @@ struct BVHTreeFromMesh;
 
 struct LineartModifierRuntime;
 struct Mesh;
+struct DynamicPaint2GpuBrushSettings;
 
 /* WARNING ALERT! TYPEDEF VALUES ARE WRITTEN IN FILES! SO DO NOT CHANGE!
  * (ONLY ADD NEW ITEMS AT THE END)
@@ -1910,9 +1911,10 @@ enum DynamicPaint2GpuModifierType {
 struct DynamicPaint2GpuModifierData {
   ModifierData modifier;
   struct DynamicPaint2GpuCanvasSettings *canvas = nullptr;
-  struct DynamicPaint2GpuBrushSettings *brush = nullptr;
-  /** #DynamicPaintModifierType. UI display: canvas / brush. */
-  int type = MOD_DYNAMICPAINT2GPU_TYPE_CANVAS;
+  /** Linked list of DynamicPaint2GpuBrushSettings. */
+  ListBaseT<DynamicPaint2GpuBrushSettings> brushes = {nullptr, nullptr};
+  /** #DynamicPaint2GpuModifierType. UI display: canvas / brush. */
+  int type = MOD_DYNAMICPAINT2GPU_TYPE_BRUSH;
   char _pad[4] = {};
 };
 

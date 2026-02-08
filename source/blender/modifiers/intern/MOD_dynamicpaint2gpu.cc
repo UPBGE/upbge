@@ -12,15 +12,22 @@
 
 #include "BLT_translation.hh"
 
+#include "BLI_listbase.h"
+
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_colortools.hh"
 #include "BKE_modifier.hh"
+#include "BKE_lib_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
+
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -28,9 +35,20 @@
 #include "MOD_ui_common.hh"
 
 /* DNA header for GPU dynamic paint types. Use the include name generated in makesdna. */
-#include "DNA_dynamicpaint2_gpu_types.h"
+#include "DNA_dynamicpaint2gpu_types.h"
 
 namespace blender {
+
+static void free_data(ModifierData *md)
+{
+  DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(md);
+  for (DynamicPaint2GpuBrushSettings &brush : pmd->brushes) {
+    if (brush.curfalloff) {
+      BKE_curvemapping_free(brush.curfalloff);
+      brush.curfalloff = nullptr;
+    }
+  }
+}
 
 static void init_data(ModifierData *md)
 {
@@ -54,16 +72,44 @@ static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cd
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  /* No ID links yet. Keep API compatible. */
-  (void)md;
-  (void)ob;
-  (void)walk;
-  (void)user_data;
+  DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(md);
+
+  /* Walk canvas surfaces */
+  if (pmd->canvas) {
+    DynamicPaint2GpuSurface *surface = static_cast<DynamicPaint2GpuSurface *>(
+        pmd->canvas->surfaces.first);
+    for (; surface; surface = surface->next) {
+      walk(user_data, ob, reinterpret_cast<ID **>(&surface->brush_group), IDWALK_CB_NOP);
+    }
+  }
+
+  /* Walk brushes list */
+  DynamicPaint2GpuBrushSettings *brush = static_cast<DynamicPaint2GpuBrushSettings *>(
+      pmd->brushes.first);
+  for (; brush; brush = brush->next) {
+    walk(user_data, ob, reinterpret_cast<ID **>(&brush->origin), IDWALK_CB_NOP);
+    walk(user_data, ob, reinterpret_cast<ID **>(&brush->target), IDWALK_CB_NOP);
+    walk(user_data, ob, reinterpret_cast<ID **>(&brush->mask_texture), IDWALK_CB_USER);
+  }
 }
 
-static void update_depsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgraphContext * /*ctx*/)
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  /* Nothing yet */
+  DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(md);
+
+  /* Add dependency on brush origin/target objects. */
+  DynamicPaint2GpuBrushSettings *brush = static_cast<DynamicPaint2GpuBrushSettings *>(
+      pmd->brushes.first);
+  for (; brush; brush = brush->next) {
+    if (brush->origin) {
+      DEG_add_object_relation(
+          ctx->node, brush->origin, DEG_OB_COMP_TRANSFORM, "DynamicPaint2Gpu Brush Origin");
+    }
+    if (brush->target) {
+      DEG_add_object_relation(
+          ctx->node, brush->target, DEG_OB_COMP_TRANSFORM, "DynamicPaint2Gpu Brush Target");
+    }
+  }
 }
 
 static void deform_verts(ModifierData *md,
@@ -78,15 +124,13 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  ui::Layout *layout = panel->layout;
-  PointerRNA ob_ptr;
-  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
+  ui::Layout &layout = *panel->layout;
 
-  layout->use_property_split_set(true);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  /* Placeholder UI. Real UI will expose brushes collection etc. */
-  layout->label("GPU Brush modifier (skeleton)", ICON_NONE);
-  modifier_error_message_draw(*layout, ptr);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
+
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -99,10 +143,12 @@ ModifierTypeInfo modifierType_DynamicPaint2Gpu = {
     /*name*/ N_("Dynamic Paint GPU"),
     /*struct_name*/ "DynamicPaint2GpuModifierData",
     /*struct_size*/ sizeof(DynamicPaint2GpuModifierData),
-    /*srna*/ nullptr,
+    /*srna*/ &RNA_DynamicPaint2GpuModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
-    /*flags*/ static_cast<ModifierTypeFlag>(0),
-    /*icon*/ ICON_MOD_CAST,
+    /*flags*/
+    static_cast<ModifierTypeFlag>(eModifierTypeFlag_AcceptsMesh |
+                                  eModifierTypeFlag_SupportsMapping),
+    /*icon*/ ICON_MOD_DYNAMICPAINT,
 
     /*copy_data*/ nullptr,
 
@@ -115,7 +161,7 @@ ModifierTypeInfo modifierType_DynamicPaint2Gpu = {
 
     /*init_data*/ init_data,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

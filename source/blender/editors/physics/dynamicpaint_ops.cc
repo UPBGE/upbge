@@ -10,13 +10,16 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_dynamicpaint_types.h"
+#include "DNA_dynamicpaint2gpu_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -24,6 +27,7 @@
 
 #include "BKE_attribute.h"
 #include "BKE_attribute.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_dynamicpaint.h"
@@ -530,5 +534,86 @@ void DPAINT_OT_bake(wmOperatorType *ot)
   ot->exec = dynamicpaint_bake_exec;
   ot->poll = ED_operator_object_active_local_editable;
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Dynamic Paint 2 GPU – Brush Add / Remove
+ * \{ */
+
+static wmOperatorStatus dp2gpu_brush_add_exec(bContext *C, wmOperator * /*op*/)
+{
+  Object *ob = ed::object::context_active_object(C);
+  DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(
+      BKE_modifiers_findby_type(ob, eModifierType_DynamicPaint2Gpu));
+  if (!pmd) {
+    return OPERATOR_CANCELLED;
+  }
+
+  DynamicPaint2GpuBrushSettings *brush = MEM_new<DynamicPaint2GpuBrushSettings>(__func__);
+  const int count = BLI_listbase_count(&pmd->brushes) + 1;
+  BLI_snprintf(brush->name, sizeof(brush->name), "Brush %d", count);
+
+  BLI_addtail(&pmd->brushes, brush);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+
+  return OPERATOR_FINISHED;
+}
+
+void DPAINT2GPU_OT_brush_add(wmOperatorType *ot)
+{
+  ot->name = "Add Brush";
+  ot->idname = "DPAINT2GPU_OT_brush_add";
+  ot->description = "Add a new GPU dynamic paint brush";
+
+  ot->exec = dp2gpu_brush_add_exec;
+  ot->poll = ED_operator_object_active_local_editable;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus dp2gpu_brush_remove_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = ed::object::context_active_object(C);
+  DynamicPaint2GpuModifierData *pmd = reinterpret_cast<DynamicPaint2GpuModifierData *>(
+      BKE_modifiers_findby_type(ob, eModifierType_DynamicPaint2Gpu));
+  if (!pmd) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int index = RNA_int_get(op->ptr, "index");
+  DynamicPaint2GpuBrushSettings *brush = static_cast<DynamicPaint2GpuBrushSettings *>(
+      BLI_findlink(&pmd->brushes, index));
+  if (!brush) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (brush->curfalloff) {
+    BKE_curvemapping_free(brush->curfalloff);
+  }
+  BLI_remlink(&pmd->brushes, brush);
+  MEM_delete(brush);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+
+  return OPERATOR_FINISHED;
+}
+
+void DPAINT2GPU_OT_brush_remove(wmOperatorType *ot)
+{
+  ot->name = "Remove Brush";
+  ot->idname = "DPAINT2GPU_OT_brush_remove";
+  ot->description = "Remove a GPU dynamic paint brush";
+
+  ot->exec = dp2gpu_brush_remove_exec;
+  ot->poll = ED_operator_object_active_local_editable;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Brush index to remove", 0, INT_MAX);
+}
+
+/** \} */
 
 }  // namespace blender

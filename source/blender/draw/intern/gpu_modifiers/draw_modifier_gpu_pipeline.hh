@@ -37,6 +37,7 @@ enum class ModifierGPUStageType : uint8_t {
   WARP = 6,
   HOOK = 7,
   DISPLACE = 8,
+  DYNAMICPAINT2GPU = 9,
   /* Add new deform modifiers here */
   CUSTOM = 255
 };

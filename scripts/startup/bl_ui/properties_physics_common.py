@@ -82,6 +82,7 @@ class PHYSICS_PT_add(PhysicButtonsPanel, Panel):
 
             physics_add(col, context.cloth, "Cloth", 'CLOTH', 'MOD_CLOTH', True)
             physics_add(col, context.dynamic_paint, "Dynamic Paint", 'DYNAMIC_PAINT', 'MOD_DYNAMICPAINT', True)
+            physics_add(col, context.dynamic_paint2gpu, "Dynamic Paint2", 'DYNAMIC_PAINT2GPU', 'MOD_DYNAMICPAINT', True)
 
         col = flow.column()
 
@@ -152,16 +153,22 @@ def point_cache_ui(self, cache, enabled, cachetype):
                 col.alignment = 'RIGHT'
                 col.label(text="Cache is disabled until the file is saved")
                 layout.enabled = False
+        if cachetype == 'DYNAMIC_PAINT2GPU':
+            if not is_saved:
+                col = layout.column(align=True)
+                col.alignment = 'RIGHT'
+                col.label(text="Cache is disabled until the file is saved")
+                layout.enabled = False
 
     if not cache.use_external:
         col = layout.column(align=True)
 
-        if cachetype not in {'PSYS', 'DYNAMIC_PAINT'}:
+        if cachetype not in {'PSYS', 'DYNAMIC_PAINT', 'DYNAMIC_PAINT2GPU'}:
             col.enabled = enabled
             col.prop(cache, "frame_start", text="Simulation Start")
             col.prop(cache, "frame_end")
 
-        if cachetype not in {'CLOTH', 'DYNAMIC_PAINT', 'RIGID_BODY'}:
+        if cachetype not in {'CLOTH', 'DYNAMIC_PAINT', 'DYNAMIC_PAINT2GPU', 'RIGID_BODY'}:
             col.prop(cache, "frame_step")
 
         cache_info = cache.info
@@ -172,7 +179,7 @@ def point_cache_ui(self, cache, enabled, cachetype):
 
         can_bake = True
 
-        if cachetype not in {'DYNAMIC_PAINT', 'RIGID_BODY'}:
+        if cachetype not in {'DYNAMIC_PAINT', 'DYNAMIC_PAINT2GPU', 'RIGID_BODY'}:
             if not is_saved:
                 col = layout.column(align=True)
                 col.alignment = 'RIGHT'

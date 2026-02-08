@@ -127,6 +127,11 @@ void DPAINT_OT_surface_slot_remove(wmOperatorType *ot);
 void DPAINT_OT_type_toggle(wmOperatorType *ot);
 void DPAINT_OT_output_toggle(wmOperatorType *ot);
 
+/* `dynamicpaint_ops.cc` – Dynamic Paint 2 GPU */
+
+void DPAINT2GPU_OT_brush_add(wmOperatorType *ot);
+void DPAINT2GPU_OT_brush_remove(wmOperatorType *ot);
+
 /* `physics_pointcache.cc` */
 
 void PTCACHE_OT_bake_all(wmOperatorType *ot);

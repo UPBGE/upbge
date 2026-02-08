@@ -167,6 +167,9 @@ static void operatortypes_dynamicpaint()
   WM_operatortype_append(DPAINT_OT_surface_slot_remove);
   WM_operatortype_append(DPAINT_OT_type_toggle);
   WM_operatortype_append(DPAINT_OT_output_toggle);
+
+  WM_operatortype_append(DPAINT2GPU_OT_brush_add);
+  WM_operatortype_append(DPAINT2GPU_OT_brush_remove);
 }
 
 /** \} */

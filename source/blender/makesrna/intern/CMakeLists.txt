@@ -48,6 +48,7 @@ set(DEFSRC
   rna_curves.cc
   rna_depsgraph.cc
   rna_dynamicpaint.cc
+  rna_dynamicpaint2gpu.cc
   rna_fcurve.cc
   rna_fluid.cc
   rna_grease_pencil.cc

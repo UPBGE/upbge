@@ -99,6 +99,7 @@ set(SRC
   intern/gpu_modifiers/draw_simpledeform.cc
   intern/gpu_modifiers/draw_warp.cc
   intern/gpu_modifiers/draw_wave.cc
+  intern/gpu_modifiers/draw_dynamicpaint2.cc
   engines/compositor/compositor_engine.cc
   engines/image/image_drawing_mode.cc
   engines/image/image_engine.cc
@@ -207,6 +208,7 @@ set(SRC
   intern/gpu_modifiers/draw_simpledeform.hh
   intern/gpu_modifiers/draw_warp.hh
   intern/gpu_modifiers/draw_wave.hh
+  intern/gpu_modifiers/draw_dynamicpaint2.hh
   engines/compositor/compositor_engine.h
   engines/eevee/eevee_ambient_occlusion.hh
   engines/eevee/eevee_camera.hh

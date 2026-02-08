@@ -12,6 +12,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_key_types.h"
+#include "DNA_dynamicpaint2gpu_types.h"
 
 #include "draw_cache_extract.hh"
 #include "DRW_render.hh"
@@ -24,6 +25,7 @@
 #include "draw_simpledeform.hh"
 #include "draw_wave.hh"
 #include "draw_warp.hh"
+#include "draw_dynamicpaint2.hh"
 
 
 namespace blender {
@@ -234,6 +236,20 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
         }
         break;
       }
+      case ModifierGPUStageType::DYNAMICPAINT2GPU: {
+        if (mesh_orig_) {
+          DynamicPaint2GpuModifierData *pmd = static_cast<DynamicPaint2GpuModifierData *>(
+              stage.modifier_data);
+          hash = BLI_hash_int_2d(
+              hash, DynamicPaint2GpuManager::compute_dp2gpu_hash(mesh_orig_, pmd));
+        }
+        else {
+          BLI_assert_unreachable();
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
       default:
         /* Unsupported type: just hash the pointer */
         hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(stage.modifier_data)));
@@ -270,6 +286,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::WARP:
       WarpManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::DYNAMICPAINT2GPU:
+      DynamicPaint2GpuManager::instance().invalidate_all(mesh_owner);
       break;
     default:
       break;
@@ -569,6 +588,30 @@ static gpu::StorageBuf *dispatch_warp_stage(Mesh *mesh_orig,
   return warp_mgr.dispatch_deform(wmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
 }
 
+static gpu::StorageBuf *dispatch_dynamicpaint2gpu_stage(Mesh *mesh_orig,
+                                                        Object *ob_eval,
+                                                        void *modifier_data,
+                                                        gpu::StorageBuf *input,
+                                                        uint32_t pipeline_hash)
+{
+  DynamicPaint2GpuModifierData *pmd = static_cast<DynamicPaint2GpuModifierData *>(modifier_data);
+  if (!pmd) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  DynamicPaint2GpuManager &mgr = DynamicPaint2GpuManager::instance();
+  mgr.ensure_static_resources(pmd, ob_eval, mesh_orig, pipeline_hash);
+
+  return mgr.dispatch_deform(
+      pmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
+}
+
 /** \} */
 
 bool build_gpu_modifier_pipeline(
@@ -639,6 +682,13 @@ bool build_gpu_modifier_pipeline(
       }
       case eModifierType_Warp: {
         pipeline.add_stage(ModifierGPUStageType::WARP, md, execution_order++, dispatch_warp_stage);
+        break;
+      }
+      case eModifierType_DynamicPaint2Gpu: {
+        pipeline.add_stage(ModifierGPUStageType::DYNAMICPAINT2GPU,
+                           md,
+                           execution_order++,
+                           dispatch_dynamicpaint2gpu_stage);
         break;
       }
 
