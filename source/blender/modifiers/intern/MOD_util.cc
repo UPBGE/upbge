@@ -290,6 +290,7 @@ void modifier_type_init(ModifierTypeInfo *types[])
   INIT_TYPE(GreasePencilBuild);
   INIT_TYPE(GreasePencilTexture);
   INIT_TYPE(SimpleDeformBGE);
+  INIT_TYPE(DynamicPaint2Gpu);
 #undef INIT_TYPE
 }
 

@@ -57,6 +57,8 @@ extern ModifierTypeInfo modifierType_WeightVGEdit;
 extern ModifierTypeInfo modifierType_WeightVGMix;
 extern ModifierTypeInfo modifierType_WeightVGProximity;
 extern ModifierTypeInfo modifierType_DynamicPaint;
+extern ModifierTypeInfo modifierType_DynamicPaint2Gpu;
+extern ModifierTypeInfo modifierType_Brush;
 extern ModifierTypeInfo modifierType_Remesh;
 extern ModifierTypeInfo modifierType_Skin;
 extern ModifierTypeInfo modifierType_LaplacianSmooth;

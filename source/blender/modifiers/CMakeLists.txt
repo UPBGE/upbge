@@ -33,6 +33,7 @@ set(SRC
   intern/MOD_deform_bge.cc
   intern/MOD_displace.cc
   intern/MOD_dynamicpaint.cc
+  intern/MOD_dynamicpaint2_gpu.cc
   intern/MOD_edgesplit.cc
   intern/MOD_explode.cc
   intern/MOD_fluid.cc

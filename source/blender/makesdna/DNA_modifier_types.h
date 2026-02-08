@@ -126,6 +126,7 @@ enum ModifierType {
   eModifierType_GreasePencilSimplify = 85,
   eModifierType_GreasePencilTexture = 86,
   eModifierType_SimpleDeformBGE = 87,
+  eModifierType_DynamicPaint2Gpu = 88,
   NUM_MODIFIER_TYPES,
 };
 
@@ -1896,6 +1897,22 @@ struct DynamicPaintModifierData {
   struct DynamicPaintBrushSettings *brush = nullptr;
   /** #DynamicPaintModifierType. UI display: canvas / brush. */
   int type = MOD_DYNAMICPAINT_TYPE_CANVAS;
+  char _pad[4] = {};
+};
+
+/* ------------------ DynamicPaint2Gpu Modifier DNA ------------------ */
+enum DynamicPaint2GpuModifierType {
+  MOD_DYNAMICPAINT2GPU_TYPE_CANVAS = (1 << 0),
+  MOD_DYNAMICPAINT2GPU_TYPE_BRUSH = (1 << 1),
+};
+
+/** Brush modifier data stored on the object. */
+struct DynamicPaint2GpuModifierData {
+  ModifierData modifier;
+  struct DynamicPaint2GpuCanvasSettings *canvas = nullptr;
+  struct DynamicPaint2GpuBrushSettings *brush = nullptr;
+  /** #DynamicPaintModifierType. UI display: canvas / brush. */
+  int type = MOD_DYNAMICPAINT2GPU_TYPE_CANVAS;
   char _pad[4] = {};
 };
 
