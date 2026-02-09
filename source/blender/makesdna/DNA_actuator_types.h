@@ -117,7 +117,12 @@ typedef struct bSceneActuator {
 typedef struct bCollectionActuator {
   /* type = Suspend/Resume/overlayAdd/overlayRemove; flag = use logic/physics/visibility */
   short type = 0, flag = 0;
-  int _pad = 0;
+  int full_copy = 0;
+  float linVelocity[3] = {}; /* initial linear velocity */
+  float angVelocity[3] = {}; /* initial angular velocity */
+  short localflag = 0;       /* local lin/ang velocity */
+  short _pad = 0;
+  int _pad2 = 0;
   struct Collection *collection = nullptr;
   Object *camera = nullptr;
 } bCollectionActuator;
@@ -514,11 +519,16 @@ typedef struct bActuator {
 #define ACT_COLLECTION_RESUME 1
 #define ACT_COLLECTION_ADD_OVERLAY 2
 #define ACT_COLLECTION_REMOVE_OVERLAY 3
+#define ACT_COLLECTION_SPAWN 4
 
 /* CollectionActuator->flag */
 #define ACT_COLLECTION_SUSPEND_LOGIC 2
 #define ACT_COLLECTION_SUSPEND_PHYSICS 4
 #define ACT_COLLECTION_SUSPEND_VISIBILITY 8
+#define ACT_COLLECTION_FULL_COPY 16
+
+/* collectionActuator->localflag */
+#define ACT_CLN_LOCAL_ANGV 4
 
 /* randomAct->distribution */
 #define ACT_RANDOM_BOOL_CONST 0

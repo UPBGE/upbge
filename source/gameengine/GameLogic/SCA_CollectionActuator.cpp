@@ -33,9 +33,17 @@
 
 #include "SCA_CollectionActuator.h"
 
+#include <unordered_map>
+#include <vector>
+
 #include "KX_Camera.h"
+#include "KX_GameObject.h"
+#include "KX_Scene.h"
 
 #include "BKE_collection.hh"
+#include "MT_Matrix3x3.h"
+#include "MT_Vector3.h"
+#include "PHY_IPhysicsController.h"
 
 using namespace blender;
 
@@ -50,7 +58,12 @@ SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
                                                int mode,
                                                bool use_logic,
                                                bool use_physics,
-                                               bool use_visibility)
+                                               bool use_visibility,
+                                               bool full_copy,
+                                               const float *linvel,
+                                               bool linv_local,
+                                               const float *angvel,
+                                               bool angv_local)
     : SCA_IActuator(gameobj, KX_ACT_COLLECTION),
       m_kxscene(scene),
       m_collection(collection),
@@ -58,8 +71,19 @@ SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
       m_mode(mode),
       m_useLogic(use_logic),
       m_usePhysics(use_physics),
-      m_useVisibility(use_visibility)
+      m_useVisibility(use_visibility),
+      m_fullCopy(full_copy),
+      m_localLinvFlag(linv_local),
+      m_localAngvFlag(angv_local)
 {
+  m_linear_velocity[0] = linvel[0];
+  m_linear_velocity[1] = linvel[1];
+  m_linear_velocity[2] = linvel[2];
+
+  m_angular_velocity[0] = angvel[0];
+  m_angular_velocity[1] = angvel[1];
+  m_angular_velocity[2] = angvel[2];
+
   if (m_camera)
     m_camera->RegisterActuator(this);
 } /* End of constructor */
@@ -152,12 +176,107 @@ bool SCA_CollectionActuator::Update()
         m_kxscene->AddOverlayCollection(m_camera, m_collection);
       }
       else {
-        std::cout << "blender::Collection Actuator: blender::Camera not found" << std::endl;
+        std::cout << "Collection Actuator: Camera not found" << std::endl;
       }
       break;
     case KX_COLLECTION_REMOVE_OVERLAY:
       m_kxscene->RemoveOverlayCollection(m_collection);
       break;
+    case KX_COLLECTION_SPAWN: {
+      KX_GameObject *referenceobj = static_cast<KX_GameObject *>(GetParent());
+      std::vector<KX_GameObject *> spawned_objects;
+      std::vector<KX_GameObject *> spawned_physics;
+      std::unordered_map<std::string, KX_GameObject *> spawned_lookup;
+
+      for (KX_GameObject *gameobj : m_kxscene->GetInactiveList()) {
+        blender::Object *ob = gameobj->GetBlenderObject();
+        if (ob && BKE_collection_has_object(m_collection, ob)) {
+          KX_GameObject *replica = nullptr;
+          if (!m_fullCopy) {
+            replica = m_kxscene->AddReplicaObject(gameobj, nullptr, 0.0f);
+          }
+          else {
+            replica = m_kxscene->AddFullCopyObject(gameobj, nullptr, 0.0f);
+            /* Full copy converts each object individually, so the conversion's
+             * local sumolist can't resolve cross-object references. Copy the
+             * constraint data from the original inactive template so that
+             * ReplicateConstraints and ReplicateRigidBodyConstraints work. */
+            if (replica) {
+              for (const KX_GameObject::RigidBodyConstraintData &origData :
+                   gameobj->GetRigidBodyConstraints())
+              {
+                KX_GameObject::RigidBodyConstraintData newData = origData;
+                newData.m_constraintId = -1;
+                replica->m_rigidbodyConstraints.push_back(newData);
+              }
+              for (blender::bRigidBodyJointConstraint *cons : gameobj->GetConstraints()) {
+                replica->AddConstraint(cons);
+              }
+            }
+          }
+          if (replica) {
+            if (referenceobj) {
+              /* Compose original transform with owner transform so each spawned object keeps its
+               * collection offset relative to the actuator owner, similar to instanced collections.
+               */
+              const MT_Vector3 owner_scale =
+                  referenceobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
+              const MT_Vector3 orig_pos = replica->NodeGetWorldPosition();
+              const MT_Matrix3x3 orig_ori = replica->NodeGetWorldOrientation();
+              const MT_Vector3 orig_scale = replica->GetSGNode()->GetRootSGParent()->GetLocalScale();
+
+              const MT_Matrix3x3 owner_ori = referenceobj->NodeGetWorldOrientation();
+              const MT_Vector3 owner_pos = referenceobj->NodeGetWorldPosition();
+
+              const MT_Vector3 scaled_offset(orig_pos[0] * owner_scale[0],
+                                             orig_pos[1] * owner_scale[1],
+                                             orig_pos[2] * owner_scale[2]);
+              const MT_Vector3 composed_pos = owner_pos + owner_ori * scaled_offset;
+              const MT_Matrix3x3 composed_ori = owner_ori * orig_ori;
+              const MT_Vector3 composed_scale(orig_scale[0] * owner_scale[0],
+                                              orig_scale[1] * owner_scale[1],
+                                              orig_scale[2] * owner_scale[2]);
+
+              replica->NodeSetLocalPosition(composed_pos);
+              replica->NodeSetLocalOrientation(composed_ori);
+              replica->NodeSetRelativeScale(composed_scale);
+              replica->GetSGNode()->UpdateWorldData(0.0);
+            }
+            replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
+            replica->setAngularVelocity(MT_Vector3(m_angular_velocity), m_localAngvFlag);
+
+            spawned_lookup.emplace(gameobj->GetName(), replica);
+            spawned_lookup.emplace(gameobj->GetBlenderObject()->id.name + 2, replica);
+            spawned_lookup.emplace(replica->GetName(), replica);
+            spawned_lookup.emplace(replica->GetBlenderObject()->id.name + 2, replica);
+            spawned_objects.push_back(replica);
+            if (replica->GetPhysicsController()) {
+              spawned_physics.push_back(replica);
+            }
+          }
+        }
+      }
+
+      /* Replicate physics constraints between spawned objects using shared lookup. */
+      for (KX_GameObject *replica : spawned_physics) {
+        replica->GetPhysicsController()->ReplicateConstraints(replica, spawned_physics);
+        replica->ClearConstraints();
+      }
+
+      /* Replicate rigid body constraints using name-based lookup, similar to hierarchy duplication. */
+      for (KX_GameObject *replica : spawned_objects) {
+        if (replica->HasRigidBodyConstraints()) {
+          replica->ReplicateRigidBodyConstraints(spawned_lookup);
+        }
+      }
+
+      if (!m_fullCopy) {
+        for (KX_GameObject *replica : spawned_objects) {
+          replica->Release();
+        }
+      }
+      break;
+    }
     default:
       break;
   }

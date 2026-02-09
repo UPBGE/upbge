@@ -1438,7 +1438,7 @@ static void draw_sensor_rbconstraint(blender::ui::Layout *layout, PointerRNA *pt
   /* Ensure sensor data exists, in case older/corrupted files have nullptr. */
   bSensor *sens = (bSensor *)ptr->data;
   if (sens != nullptr && sens->data == nullptr) {
-    sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_ui_fix");
+    sens->data = MEM_new_zeroed(sizeof(bRBConstraintSensor), "rbconstraint_sens_ui_fix");
   }
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2369,6 +2369,15 @@ static void draw_actuator_collection(blender::ui::Layout *layout, PointerRNA *pt
       row->prop(ptr, "camera", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case ACT_COLLECTION_REMOVE_OVERLAY:
+      break;
+    case ACT_COLLECTION_SPAWN:
+      row->prop(ptr, "use_full_copy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row = &layout->row(true);
+      row->prop(ptr, "linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_local_linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row = &layout->row(true);
+      row->prop(ptr, "angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_local_angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     default:
       break;

@@ -123,7 +123,7 @@ class KX_IpoController : public SG_Controller {
   }
 
   /* Field channel helpers */
-  void SetFieldInitial(const PartDeflect *pd);
+  void SetFieldInitial(const blender::PartDeflect *pd);
   void SetFieldStrengthActive(bool value);
   void SetFieldFlowActive(bool value);
   void SetFieldNoiseActive(bool value);
