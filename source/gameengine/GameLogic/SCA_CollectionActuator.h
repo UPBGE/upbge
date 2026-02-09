@@ -51,6 +51,11 @@ class SCA_CollectionActuator : public SCA_IActuator {
   bool m_useLogic;
   bool m_usePhysics;
   bool m_useVisibility;
+  bool m_fullCopy;
+  float m_linear_velocity[3];
+  bool m_localLinvFlag;
+  float m_angular_velocity[3];
+  bool m_localAngvFlag;
 
  public:
   enum SCA_SceneActuatorMode {
@@ -59,6 +64,7 @@ class SCA_CollectionActuator : public SCA_IActuator {
     KX_COLLECTION_RESUME,
     KX_COLLECTION_ADD_OVERLAY,
     KX_COLLECTION_REMOVE_OVERLAY,
+    KX_COLLECTION_SPAWN,
     KX_COLLECTION_MAX
   };
 
@@ -69,7 +75,12 @@ class SCA_CollectionActuator : public SCA_IActuator {
                          int m_mode,
                          bool use_logic,
                          bool use_physics,
-                         bool use_visibility);
+                         bool use_visibility,
+                         bool full_copy,
+                         const float *linvel,
+                         bool linv_local,
+                         const float *angvel,
+                         bool angv_local);
   virtual ~SCA_CollectionActuator();
 
   virtual EXP_Value *GetReplica();

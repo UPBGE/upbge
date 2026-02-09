@@ -16,6 +16,8 @@ class PHY_IConstraint {
   virtual float GetBreakingThreshold() const = 0;
   virtual void SetBreakingThreshold(float threshold) = 0;
 
+  virtual void SetSolverIterations(int iterations) = 0;
+
   virtual int GetIdentifier() const = 0;
   virtual PHY_ConstraintType GetType() const = 0;
 };

@@ -146,6 +146,15 @@ typedef struct bArmatureSensor {
   float value = 0.0f;
 } bArmatureSensor;
 
+typedef struct bRBConstraintSensor {
+  /** Detection mode for this sensor. */
+  short mode;
+  char _pad[2];
+  /** Deprecated: previously stored target object name. Unused but kept for DNA backwards
+   * compatibility with old .blend files. */
+  char target[64];
+} bRBConstraintSensor;
+
 typedef struct bMessageSensor {
   /**
    * (Possible future use) pointer to a single sender object
@@ -262,6 +271,9 @@ typedef struct bMovementSensor {
 /* update this when adding new type */
 #define SENS_ARM_MAXTYPE 4
 
+/* bRBConstraintSensor->mode */
+#define SENS_RBC_BROKEN 0
+
 /* sensor->type */
 #define SENS_ALWAYS 0
 #define SENS_TOUCH 1 /* DEPRECATED */
@@ -279,6 +291,7 @@ typedef struct bMovementSensor {
 #define SENS_DELAY 13
 #define SENS_ARMATURE 14
 #define SENS_MOVEMENT 15
+#define SENS_RBCONSTRAINT 16
 /* sensor->flag */
 #define SENS_SHOW 1
 #define SENS_DEL 2

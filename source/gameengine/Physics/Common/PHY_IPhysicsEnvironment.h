@@ -53,6 +53,10 @@ class KX_Scene;
 class BL_SceneConverter;
 
 class PHY_IMotionState;
+namespace blender {
+struct bRigidBodyJointConstraint;
+struct RigidBodyCon;
+}  // namespace blender
 
 /**
  * pass back information from rayTest
@@ -224,6 +228,7 @@ class PHY_IPhysicsEnvironment {
                                             bool replicate_dupli = false) = 0;
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) = 0;
   virtual void RemoveConstraintById(int constraintid, bool free) = 0;
+  virtual bool IsRigidBodyConstraintEnabled(int constraintid) = 0;
   virtual float GetAppliedImpulse(int constraintid)
   {
     return 0.0f;
@@ -286,7 +291,11 @@ class PHY_IPhysicsEnvironment {
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
                                       KX_GameObject *obj_dest,
                                       blender::bRigidBodyJointConstraint *dat,
-                                      bool replicate_dupli)
-  {
-  }
+                                      bool replicate_dupli) = 0;
+  /// Returns constraint ID on success, -1 on failure
+  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
+                                        KX_GameObject *gameobj1,
+                                        KX_GameObject *gameobj2,
+                                        blender::RigidBodyCon *rbc) = 0;
+  virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) = 0;
 };
