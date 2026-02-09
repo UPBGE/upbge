@@ -70,6 +70,8 @@ static const EnumPropertyItem sensor_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "MEM_guardedalloc.h"
+
 #  include "BKE_sca.hh"
 #  include "DNA_controller_types.h"
 
@@ -285,7 +287,7 @@ static int rna_RBConstraintSensor_mode_get(PointerRNA *ptr)
 {
   bSensor *sens = (bSensor *)ptr->data;
   if (!sens->data) {
-    sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_rna_fix");
+    sens->data = MEM_new_zeroed(sizeof(bRBConstraintSensor), "rbconstraint_sens_rna_fix");
   }
   bRBConstraintSensor *rbcs = (bRBConstraintSensor *)sens->data;
   return rbcs->mode;
@@ -295,7 +297,7 @@ static void rna_RBConstraintSensor_mode_set(PointerRNA *ptr, int value)
 {
   bSensor *sens = (bSensor *)ptr->data;
   if (!sens->data) {
-    sens->data = MEM_callocN(sizeof(bRBConstraintSensor), "rbconstraint_sens_rna_fix");
+    sens->data = MEM_new_zeroed(sizeof(bRBConstraintSensor), "rbconstraint_sens_rna_fix");
   }
   bRBConstraintSensor *rbcs = (bRBConstraintSensor *)sens->data;
   rbcs->mode = value;

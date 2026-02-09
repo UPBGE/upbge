@@ -37,9 +37,11 @@
 #include "KX_KetsjiEngine.h"
 #include "PHY_IPhysicsEnvironment.h"
 
+namespace blender {
 struct Depsgraph;
 struct EffectorWeights;
 struct Scene;
+}  // namespace blender
 
 class btTypedConstraint;
 class btDispatcher;
@@ -100,13 +102,13 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /* Fast lookup to avoid O(n) scans when removing constraints by ID. */
   std::unordered_map<int, btTypedConstraint *> m_constraintById;
 
-  Scene *m_blenderScene;
-  EffectorWeights *m_fallbackEffectorWeights;
+  blender::Scene *m_blenderScene;
+  blender::EffectorWeights *m_fallbackEffectorWeights;
 
   void ProcessFhSprings(double curTime, float timeStep);
   void ApplyEffectorForces();
-  EffectorWeights *GetEffectorWeights();
-  Depsgraph *GetDepsgraph();
+  blender::EffectorWeights *GetEffectorWeights();
+  blender::Depsgraph *GetDepsgraph();
 
  public:
   CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling);

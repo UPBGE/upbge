@@ -1712,6 +1712,7 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
       {ACT_COLLECTION_RESUME, "RESUME", 0, "Resume Collection", ""},
       {ACT_COLLECTION_ADD_OVERLAY, "ADD_OVERLAY", 0, "Add Overlay Collection", ""},
       {ACT_COLLECTION_REMOVE_OVERLAY, "REMOVE_OVERLAY", 0, "Remove Overlay Collection", ""},
+      {ACT_COLLECTION_SPAWN, "SPAWN", 0, "Spawn Collection", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   srna = RNA_def_struct(brna, "CollectionActuator", "Actuator");
@@ -1750,6 +1751,36 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", ACT_COLLECTION_SUSPEND_VISIBILITY);
   RNA_def_property_ui_text(prop, "Visibility", "Suspend/Resume Visibility");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  /* Spawn mode properties */
+  prop = RNA_def_property(srna, "use_full_copy", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ACT_COLLECTION_FULL_COPY);
+  RNA_def_property_ui_text(prop, "Full Copy", "Spawn full copies instead of replicas");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "linear_velocity", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "linVelocity");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_range(prop, -100.0f, 100.0f, 10, 2);
+  RNA_def_property_ui_text(prop, "Linear Velocity", "Initial linear velocity of spawned objects");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_local_linear_velocity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "localflag", 1);
+  RNA_def_property_ui_text(prop, "L", "Apply linear velocity in local coordinates");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "angular_velocity", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "angVelocity");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_range(prop, -100.0f, 100.0f, 10, 2);
+  RNA_def_property_ui_text(prop, "Angular Velocity", "Initial angular velocity of spawned objects");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_local_angular_velocity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "localflag", ACT_CLN_LOCAL_ANGV);
+  RNA_def_property_ui_text(prop, "L", "Apply angular velocity in local coordinates");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 

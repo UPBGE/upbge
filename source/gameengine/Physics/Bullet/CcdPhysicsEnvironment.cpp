@@ -51,6 +51,8 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 
+using namespace blender;
+
 #define CCD_CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
 
 static btRaycastVehicle::btVehicleTuning gTuning;
@@ -787,7 +789,7 @@ void CcdPhysicsEnvironment::ApplyEffectorForces()
     return;
   }
 
-  ListBase *effectors = BKE_effectors_create(depsgraph, nullptr, nullptr, effector_weights, false);
+  ListBaseT<EffectorCache> *effectors = BKE_effectors_create(depsgraph, nullptr, nullptr, effector_weights, false);
   if (effectors == nullptr) {
     return;
   }
@@ -826,8 +828,8 @@ void CcdPhysicsEnvironment::ApplyEffectorForces()
     const btVector3 &origin = xform.getOrigin();
     const btVector3 &linvel = body->getLinearVelocity();
 
-    float eff_loc[3] = {origin.getX(), origin.getY(), origin.getZ()};
-    float eff_vel[3] = {linvel.getX(), linvel.getY(), linvel.getZ()};
+    float eff_loc[3] = {float(origin.getX()), float(origin.getY()), float(origin.getZ())};
+    float eff_vel[3] = {float(linvel.getX()), float(linvel.getY()), float(linvel.getZ())};
 
     EffectedPoint epoint;
     pd_point_from_loc(m_blenderScene, eff_loc, eff_vel, 0, &epoint);
@@ -2206,7 +2208,7 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
     delete m_cullingCache;
 
   if (m_fallbackEffectorWeights) {
-    MEM_freeN(m_fallbackEffectorWeights);
+    MEM_delete_void(static_cast<void *>(m_fallbackEffectorWeights));
   }
 }
 
