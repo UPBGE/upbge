@@ -296,6 +296,7 @@ enum {
   OB_LOCK_RIGID_BODY_Y_ROT_AXIS = 1 << 6,
   OB_LOCK_RIGID_BODY_Z_ROT_AXIS = 1 << 7,
   OB_CCD_RIGID_BODY = 1 << 8,
+  OB_GYROSCOPIC_FORCE = 1 << 9,
 
   /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
 };
@@ -871,6 +872,10 @@ struct Object {
   /* rigid body ccd */
   float ccd_motion_threshold = 1.0f;
   float ccd_swept_sphere_radius = 0.9f;
+
+  /* per-body gravity multiplier (Jolt mGravityFactor). 1.0 = normal gravity. */
+  float gravity_factor = 1.0f;
+  int _pad57 = 0;
 
   void *_pad54 = nullptr;
 

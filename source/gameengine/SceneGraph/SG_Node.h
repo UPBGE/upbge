@@ -326,7 +326,7 @@ class SG_Node : public SG_QList {
   void SetFamilly(const std::shared_ptr<SG_Familly> &familly);
 
   bool IsModified();
-  bool IsDirty(DirtyFlag flag);
+  bool IsDirty(DirtyFlag flag) const;
 
  protected:
   friend class SG_Controller;

@@ -256,6 +256,12 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
+bool KX_GameObject::NeedsDepsgraphTransformUpdate() const
+{
+  const SG_Node *sgnode = GetSGNode();
+  return (sgnode && sgnode->IsDirty(SG_Node::DIRTY_RENDER)) || m_forceIgnoreParentTx;
+}
+
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
   if (m_is_dupli_instance) {
@@ -4630,6 +4636,7 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
 
     if (testResult.collData) {
       KX_CollisionContactPointList *contactPointList = new KX_CollisionContactPointList(testResult.collData, testResult.isFirst);
+      contactPointList->SetOwnsCollData(true);  /* Transfer ownership; Python GC will free it. */
       PyTuple_SET_ITEM(result, 1, contactPointList->NewProxy(true));
     }
     else {

@@ -396,6 +396,18 @@ if(WITH_BULLET)
 endif()
 
 # -----------------------------------------------------------------------------
+# Configure Jolt Physics
+
+add_library(bf_deps_optional_jolt INTERFACE)
+add_library(bf::dependencies::optional::jolt ALIAS bf_deps_optional_jolt)
+
+if(WITH_JOLT)
+  target_compile_definitions(bf_deps_optional_jolt INTERFACE WITH_JOLT)
+  target_include_directories(bf_deps_optional_jolt SYSTEM INTERFACE ${JOLT_INCLUDE_DIRS})
+  target_link_libraries(bf_deps_optional_jolt INTERFACE Jolt)
+endif()
+
+# -----------------------------------------------------------------------------
 # Configure Audaspace
 
 add_library(bf_deps_optional_audaspace INTERFACE)

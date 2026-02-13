@@ -123,6 +123,7 @@ KX_PythonProxy *KX_Camera::NewInstance()
 void KX_Camera::ProcessReplica()
 {
   KX_GameObject::ProcessReplica();
+  m_gpuViewport = nullptr;
   // replicated camera are always registered in the scene
   m_delete_node = false;
 }

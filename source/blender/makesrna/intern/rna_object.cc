@@ -3200,6 +3200,27 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Damping", "Damping of the spring force, when inside the physics distance area");
 
+  /* Per-body gravity multiplier (Jolt). */
+  prop = RNA_def_property(srna, "gravity_factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "gravity_factor");
+  RNA_def_property_range(prop, -10.0, 10.0);
+  RNA_def_property_ui_range(prop, 0.0, 2.0, 1, 3);
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Gravity Factor",
+      "Per-object gravity multiplier (0 = no gravity, 1 = normal, 2 = double gravity). "
+      "Jolt physics only");
+
+  /* Gyroscopic force (Jolt). */
+  prop = RNA_def_property(srna, "use_gyroscopic_force", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gameflag2", OB_GYROSCOPIC_FORCE);
+  RNA_def_property_ui_text(
+      prop,
+      "Gyroscopic Force",
+      "Apply gyroscopic force to simulate the Dzhanibekov / tennis racket effect. "
+      "Jolt physics only");
+
   /* state */
 
   prop = RNA_def_property(srna, "states_visible", PROP_BOOLEAN, PROP_LAYER_MEMBER);

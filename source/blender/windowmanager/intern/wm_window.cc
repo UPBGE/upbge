@@ -3502,7 +3502,7 @@ void WM_set_g_system_blenderplayer(void* ghost_system)
   g_system = (GHOST_ISystem *)ghost_system;
 }
 
-/* Reuse wm->message_bus when we restart game or load a new .blend */
+/* Track the runtime message bus across blenderplayer restarts. */
 static void *runtime_msgbus;
 
 void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
@@ -3522,7 +3522,14 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   }
   else {
     win->runtime->gpuctx = GPU_context_active_get();
-    wm->runtime->message_bus = (wmMsgBus *)runtime_msgbus;
+    /* The previous WM is torn down during restart with its runtime message-bus pointer detached.
+     * Recreate the shared message bus here to avoid carrying stale subscriptions across runs. */
+    if (runtime_msgbus != nullptr) {
+      WM_msgbus_destroy((wmMsgBus *)runtime_msgbus);
+      runtime_msgbus = nullptr;
+    }
+    wm->runtime->message_bus = WM_msgbus_create();
+    runtime_msgbus = wm->runtime->message_bus;
   }
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */

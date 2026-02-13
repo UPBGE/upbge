@@ -35,6 +35,8 @@ class PHYSICS_PT_rigid_body_constraint(PHYSICS_PT_rigidbody_constraint_panel, Pa
 
         layout.prop(rbc, "type")
 
+        layout.operator("rigidbody.constraint_settings_copy", icon='COPYDOWN')
+
 
 class PHYSICS_PT_rigid_body_constraint_settings(PHYSICS_PT_rigidbody_constraint_panel, Panel):
     bl_label = "Settings"

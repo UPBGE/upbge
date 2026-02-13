@@ -631,6 +631,13 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce.gm.cfm = 0.0f;
 
     sce.gm.logLevel = GAME_LOG_LEVEL_WARNING;
+
+    /* Jolt Physics defaults */
+    sce.gm.jolt_physics_threads = -1;
+    sce.gm.jolt_max_bodies = 65536;
+    sce.gm.jolt_max_body_pairs = 65536;
+    sce.gm.jolt_max_contact_constraints = 65536;
+    sce.gm.jolt_temp_allocator_mb = 32;
   }
   for (Object &ob : bmain->objects) {
     /* UPBGE defaults*/

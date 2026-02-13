@@ -49,6 +49,10 @@ if(WITH_BULLET)
   add_subdirectory(Physics/Bullet)
 endif()
 
+if(WITH_JOLT)
+  add_subdirectory(Physics/Jolt)
+endif()
+
 if(WITH_PYTHON)
   add_subdirectory(VideoTexture)
 endif()

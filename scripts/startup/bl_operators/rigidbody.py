@@ -316,8 +316,110 @@ class ConnectRigidBodies(Operator):
             return {'CANCELLED'}
 
 
+class CopyRigidBodyConstraintSettings(Operator):
+    """Copy Rigid Body Constraint settings from active object to selected"""
+    bl_idname = "rigidbody.constraint_settings_copy"
+    bl_label = "Copy Rigid Body Constraint Settings"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _attrs = (
+        "type",
+        "enabled",
+        "disable_collisions",
+        "use_breaking",
+        "breaking_threshold",
+        "use_override_solver_iterations",
+        "solver_iterations",
+        # Linear limits.
+        "use_limit_lin_x",
+        "use_limit_lin_y",
+        "use_limit_lin_z",
+        "limit_lin_x_lower",
+        "limit_lin_x_upper",
+        "limit_lin_y_lower",
+        "limit_lin_y_upper",
+        "limit_lin_z_lower",
+        "limit_lin_z_upper",
+        # Angular limits.
+        "use_limit_ang_x",
+        "use_limit_ang_y",
+        "use_limit_ang_z",
+        "limit_ang_x_lower",
+        "limit_ang_x_upper",
+        "limit_ang_y_lower",
+        "limit_ang_y_upper",
+        "limit_ang_z_lower",
+        "limit_ang_z_upper",
+        # Motor.
+        "use_motor_lin",
+        "motor_lin_target_velocity",
+        "motor_lin_max_impulse",
+        "use_motor_ang",
+        "motor_ang_target_velocity",
+        "motor_ang_max_impulse",
+        # Springs.
+        "spring_type",
+        "use_spring_x",
+        "use_spring_y",
+        "use_spring_z",
+        "spring_stiffness_x",
+        "spring_stiffness_y",
+        "spring_stiffness_z",
+        "spring_damping_x",
+        "spring_damping_y",
+        "spring_damping_z",
+        "use_spring_ang_x",
+        "use_spring_ang_y",
+        "use_spring_ang_z",
+        "spring_stiffness_ang_x",
+        "spring_stiffness_ang_y",
+        "spring_stiffness_ang_z",
+        "spring_damping_ang_x",
+        "spring_damping_ang_y",
+        "spring_damping_ang_z",
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return (obj and obj.rigid_body_constraint)
+
+    def execute(self, context):
+        obj_act = context.object
+        rbc_from = obj_act.rigid_body_constraint
+
+        if rbc_from is None:
+            self.report({'WARNING'}, "Active object has no Rigid Body Constraint")
+            return {'CANCELLED'}
+
+        count = 0
+        for o in context.selected_objects:
+            if o == obj_act:
+                continue
+
+            rbc_to = o.rigid_body_constraint
+            if rbc_to is None:
+                continue
+
+            for attr in self._attrs:
+                try:
+                    setattr(rbc_to, attr, getattr(rbc_from, attr))
+                except AttributeError:
+                    pass
+
+            count += 1
+
+        if count == 0:
+            self.report({'WARNING'}, "No selected objects with Rigid Body Constraint")
+            return {'CANCELLED'}
+
+        self.report({'INFO'}, "Copied constraint settings to %d object(s)" % count)
+        return {'FINISHED'}
+
+
 classes = (
     BakeToKeyframes,
     ConnectRigidBodies,
     CopyRigidbodySettings,
+    CopyRigidBodyConstraintSettings,
 )

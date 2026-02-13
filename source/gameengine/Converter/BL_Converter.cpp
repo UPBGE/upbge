@@ -65,6 +65,10 @@
 #  include "CcdPhysicsEnvironment.h"
 #endif
 
+#ifdef WITH_JOLT
+#  include "JoltPhysicsEnvironment.h"
+#endif
+
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
 
@@ -190,6 +194,16 @@ void BL_Converter::ConvertScene(KX_Scene *destinationscene,
 
       phy_env = CcdPhysicsEnvironment::Create(blenderscene, visualizePhysics);
       physics_engine = UseBullet;
+      break;
+    }
+#endif
+#ifdef WITH_JOLT
+    case WOPHY_JOLT: {
+      SYS_SystemHandle syshandle = SYS_GetSystem();
+      int visualizePhysics = SYS_GetCommandLineInt(syshandle, "show_physics", 0);
+
+      phy_env = JoltPhysicsEnvironment::Create(blenderscene, visualizePhysics);
+      physics_engine = UseJolt;
       break;
     }
 #endif

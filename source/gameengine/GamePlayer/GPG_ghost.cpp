@@ -1700,7 +1700,11 @@ int main(int argc,
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
             /* Get rid of windows which are not the 3D view windows */
-            for (blender::wmWindow *win_in_list = (blender::wmWindow *)wm->windows.first; win_in_list; win_in_list = win_in_list->next) {
+            for (blender::wmWindow *win_in_list = (blender::wmWindow *)wm->windows.first,
+                                   *win_next = nullptr;
+                 win_in_list;
+                 win_in_list = win_next) {
+              win_next = win_in_list->next;
               if (win_in_list == win) {
                 continue;
               }
@@ -1788,7 +1792,7 @@ int main(int argc,
 #ifdef WITH_PYTHON
             // Acquire Python's GIL (global interpreter lock)
             // so we can safely run Python code and API calls
-            PyGILState_Ensure();
+            PyGILState_STATE py_gil_state = PyGILState_Ensure();
             if (!globalDict) {
               globalDict = PyDict_New();
             }
@@ -1805,6 +1809,9 @@ int main(int argc,
             gs = *launcher.GetGlobalSettings();
 
             launcher.ExitEngine();
+#ifdef WITH_PYTHON
+            PyGILState_Release(py_gil_state);
+#endif  // WITH_PYTHON
           }
 
           /* refer to WM_exit_ext() and BKE_blender_free(),
@@ -1812,6 +1819,14 @@ int main(int argc,
            * if the order of function calls or blenders state isn't matching that of blender
            * proper, we may get troubles later on */
           blender::wmWindowManager *wm = CTX_wm_manager(C);
+
+          /* Restore detached windows before cleanup so restart cycles don't leak them when old
+           * Main/WM is freed. */
+          for (blender::wmWindow *tmp_win : unused_windows) {
+            BLI_addtail(&wm->windows, tmp_win);
+          }
+          unused_windows.clear();
+
           WM_jobs_kill_all(wm);
 
           for (blender::wmWindow *win = (blender::wmWindow *)wm->windows.first; win; win = win->next) {
@@ -1821,12 +1836,6 @@ int main(int argc,
             ED_screen_exit(C, win, WM_window_get_active_screen(win));
           }
         } while (!quitGame(exitcode));
-
-        /* Restore the windows we disabled during standalone runtime to free it
-         * (normally) in standalone exit pipeline */
-        for (blender::wmWindow *tmp_win : unused_windows) {
-          BLI_addtail(&CTX_wm_manager(C)->windows, tmp_win);
-        }
 
 #ifdef WITH_PYTHON
         // Free globalDict OUTSIDE runtime loop.

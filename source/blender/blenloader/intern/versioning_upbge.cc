@@ -465,6 +465,15 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
   }
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "jolt_physics_threads")) {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.jolt_physics_threads = -1;
+      scene.gm.jolt_max_bodies = 65536;
+      scene.gm.jolt_max_body_pairs = 65536;
+      scene.gm.jolt_max_contact_constraints = 65536;
+      scene.gm.jolt_temp_allocator_mb = 32;
+    }
+  }
 }
 
 }  // namespace blender

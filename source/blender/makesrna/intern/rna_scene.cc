@@ -6392,6 +6392,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   static const EnumPropertyItem physics_engine_items[] = {
       {WOPHY_NONE, "NONE", 0, "None", "Don't use a physics engine"},
       {WOPHY_BULLET, "BULLET", 0, "Bullet", "Use the Bullet physics engine"},
+      {WOPHY_JOLT, "JOLT", 0, "Jolt", "Use the Jolt Physics engine"},
       {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem obstacle_simulation_items[] = {
@@ -6557,6 +6558,65 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "solverType");
   RNA_def_property_enum_items(prop, solver_items);
   RNA_def_property_ui_text(prop, "Physics Solver", "Physics constraint solver");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Depsgraph optimization */
+  prop = RNA_def_property(srna, "depsgraph_optimize_transform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "depsgraph_optimize_transform", 1);
+  RNA_def_property_ui_text(prop,
+                           "Optimize Depsgraph Transforms",
+                           "Skip depsgraph transform sync for objects that haven't moved. "
+                           "Greatly reduces overhead for scenes with many static/sleeping objects. "
+                           "May affect drivers or metaballs that depend on other objects' transforms "
+                           "in rare edge cases");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Jolt Physics settings */
+  prop = RNA_def_property(srna, "jolt_physics_threads", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_physics_threads");
+  RNA_def_property_range(prop, -1, 64);
+  RNA_def_property_ui_range(prop, -1, 16, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Physics Threads",
+                           "Number of threads for Jolt physics simulation "
+                           "(-1 = auto, uses max(1, CPU cores - 1))");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_max_bodies", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_max_bodies");
+  RNA_def_property_range(prop, 1024, 262144);
+  RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Max Bodies",
+                           "Maximum number of physics bodies in the Jolt physics system");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_max_body_pairs", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_max_body_pairs");
+  RNA_def_property_range(prop, 1024, 262144);
+  RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Max Body Pairs",
+                           "Maximum number of body pairs for Jolt broadphase collision detection");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_max_contact_constraints", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_max_contact_constraints");
+  RNA_def_property_range(prop, 1024, 262144);
+  RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Max Contact Constraints",
+                           "Maximum number of contact constraints in the Jolt physics system");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_temp_allocator_mb", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_temp_allocator_mb");
+  RNA_def_property_range(prop, 8, 256);
+  RNA_def_property_ui_range(prop, 16, 128, 8, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Temp Allocator (MB)",
+                           "Size of Jolt's temporary allocator in megabytes "
+                           "(32 MB recommended for complex scenes with 5000+ bodies)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "occlusion_culling_resolution", PROP_INT, PROP_PIXEL);

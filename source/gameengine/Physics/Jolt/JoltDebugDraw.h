@@ -15,25 +15,31 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): UPBGE Contributors
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_PhysicsEngineEnums.h
- *  \ingroup ketsji
+/** \file JoltDebugDraw.h
+ *  \ingroup physjolt
+ *  \brief Debug drawing utilities for Jolt Physics in UPBGE.
+ *
+ *  Since JPH_DEBUG_RENDERER is not enabled, this provides manual debug
+ *  drawing by iterating bodies and drawing their AABBs/shapes as wireframes
+ *  using UPBGE's KX_RasterizerDrawDebugLine.
  */
 
 #pragma once
 
-enum e_PhysicsEngine {
-  NoSelection = -1,
-  UseNone = 0,
-  UseBullet = 5,
-  UseJolt = 6,
-};
+class JoltPhysicsEnvironment;
+
+namespace JoltDebugDraw {
+
+/** Draw wireframe AABBs for all bodies in the physics system.
+ *  Uses KX_RasterizerDrawDebugLine for rendering. */
+void DrawBodies(JoltPhysicsEnvironment *env);
+
+/** Draw wireframe representations of all active constraints. */
+void DrawConstraints(JoltPhysicsEnvironment *env);
+
+}  // namespace JoltDebugDraw

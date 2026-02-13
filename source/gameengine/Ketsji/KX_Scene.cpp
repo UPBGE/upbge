@@ -84,6 +84,7 @@
 #include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PyMath.h"
+#include "KX_PhysicsEngineEnums.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_BucketManager.h"
@@ -390,16 +391,16 @@ KX_Scene::~KX_Scene()
     TagForObjectsMatToWorldRestore();
   }
 
-  if (!KX_GetActiveEngine()->UseViewportRender()) {
-    if (!m_isPythonMainLoop) {
-      if (m_currentGPUViewport) {
-        /* This will free m_currentGPUViewport */
-        GPU_viewport_free(m_currentGPUViewport);
-      }
-    }
+  /* The active camera never frees the current viewport itself (see #KX_Camera::RemoveGPUViewport),
+   * so scene teardown must always release it to avoid restart-time leaks. Keep the pointer value
+   * until objects are destroyed so camera destructors skip freeing it again. */
+  const bool had_current_gpu_viewport = (m_currentGPUViewport != nullptr);
+  if (had_current_gpu_viewport) {
+    GPU_viewport_free(m_currentGPUViewport);
   }
-  else {
-    // Free the allocated profile a last time
+
+  if (KX_GetActiveEngine()->UseViewportRender()) {
+    // Free the allocated profile a last time.
     DRW_game_viewport_render_loop_end();
   }
 
@@ -421,6 +422,10 @@ KX_Scene::~KX_Scene()
     KX_GameObject *parentobj = GetRootParentList()->GetValue(0);
     this->RemoveObject(parentobj);
     BKE_view_layer_synced_ensure(scene, BKE_view_layer_default_view(scene));
+  }
+
+  if (had_current_gpu_viewport) {
+    m_currentGPUViewport = nullptr;
   }
 
   if (m_obstacleSimulation) {
@@ -799,29 +804,58 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     m_collectionRemap = false;
   }
 
-  /* Notify the depsgraph if object transform changed in the scene
-   * for next drawing loop. */
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    /* Update compatibles blender physics simulations */
-    blender::Object *ob = gameobj->GetBlenderObject();
-    TagBlenderPhysicsObject(scene, ob);
-    gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
+  const bool optimize_transforms = scene->gm.depsgraph_optimize_transform != 0;
+
+  if (optimize_transforms) {
+    /* Optimized path: only process objects that actually moved (dirty render flag
+     * or forced parent override). Skips expensive matrix ops and depsgraph tagging
+     * for static/sleeping objects. */
+    std::vector<KX_GameObject *> dirtyObjects;
+    dirtyObjects.reserve(256);
+
+    for (KX_GameObject *gameobj : GetObjectList()) {
+      blender::Object *ob = gameobj->GetBlenderObject();
+      TagBlenderPhysicsObject(scene, ob);
+      if (gameobj->NeedsDepsgraphTransformUpdate()) {
+        gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
+        dirtyObjects.push_back(gameobj);
+      }
+    }
+
+    TagForExtraIdsUpdate(bmain, cam);
+
+    if (is_last_render_pass) {
+      m_idsToUpdateInAllRenderPasses.clear();
+    }
+
+    blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
+    BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+    /* Only sync evaluated transforms for objects that actually moved. */
+    for (KX_GameObject *gameobj : dirtyObjects) {
+      gameobj->TagForTransformUpdateEvaluated();
+    }
   }
+  else {
+    /* Original path: process all objects every frame (full compatibility). */
+    for (KX_GameObject *gameobj : GetObjectList()) {
+      blender::Object *ob = gameobj->GetBlenderObject();
+      TagBlenderPhysicsObject(scene, ob);
+      gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
+    }
 
-  /* Notify depsgraph for other changes */
-  TagForExtraIdsUpdate(bmain, cam);
+    TagForExtraIdsUpdate(bmain, cam);
 
-  if (is_last_render_pass) {
-    m_idsToUpdateInAllRenderPasses.clear();
-  }
+    if (is_last_render_pass) {
+      m_idsToUpdateInAllRenderPasses.clear();
+    }
 
-  /* We need the changes to be flushed before each draw loop! */
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
+    blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
+    BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-  /* Update evaluated object object_to_world according to SceneGraph. */
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForTransformUpdateEvaluated();
+    for (KX_GameObject *gameobj : GetObjectList()) {
+      gameobj->TagForTransformUpdateEvaluated();
+    }
   }
 }
 
@@ -1058,7 +1092,7 @@ BL_SceneConverter *KX_Scene::GetBlenderSceneConverter()
 void KX_Scene::ConvertBlenderObject(blender::Object *ob)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  e_PhysicsEngine physics_engine = UseBullet;
+  e_PhysicsEngine physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   blender::bContext *C = engine->GetContext();
@@ -1080,7 +1114,7 @@ void KX_Scene::ConvertBlenderObject(blender::Object *ob)
 void KX_Scene::convert_blender_objects_list_synchronous(std::vector<blender::Object *> objectslist)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  e_PhysicsEngine physics_engine = UseBullet;
+  e_PhysicsEngine physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   blender::bContext *C = engine->GetContext();
@@ -1143,7 +1177,7 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<blender::Object *> objectsl
      * game engine can keep running at full speed. */
     ConvertBlenderObjectsListTaskData task;
     task.engine = KX_GetActiveEngine();
-    task.physics_engine = UseBullet;
+    task.physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
     task.kxscene = this;
     task.converter = m_sceneConverter;
     task.rasty = task.engine->GetRasterizer();
@@ -1182,7 +1216,7 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<blender::Object *> objectsl
 void KX_Scene::convert_blender_collection_synchronous(blender::Collection *co)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  e_PhysicsEngine physics_engine = UseBullet;
+  e_PhysicsEngine physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   blender::bContext *C = engine->GetContext();
@@ -1249,7 +1283,7 @@ void KX_Scene::ConvertBlenderCollection(blender::Collection *co, bool asynchrono
     ConvertBlenderCollectionTaskData task;
 
     task.engine = KX_GetActiveEngine();
-    task.physics_engine = UseBullet;
+    task.physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
     task.co = co;
     task.kxscene = this;
     task.converter = m_sceneConverter;

@@ -344,6 +344,7 @@ Use the systems bullet library (currently unsupported due to missing features in
   OFF
 )
 mark_as_advanced(WITH_SYSTEM_BULLET)
+option(WITH_JOLT "Enable Jolt Physics (Alternative Physics Backend)" ON)
 option(WITH_OPENCOLORIO "Enable OpenColorIO color management" ON)
 
 option(WITH_XR_OPENXR "Enable VR features through the OpenXR specification" ON)

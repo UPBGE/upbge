@@ -1650,14 +1650,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         bool valid2 = !ob2 || (gameobj2 && (gameobj2->GetLayer() & activeLayerBitInfo) &&
                                gameobj2->GetSGNode() && gameobj2->GetPhysicsController());
 
-        CM_Debug("BL_DataConversion: " << gameobj->GetName() << " validConstraint=" << validConstraint
-                 << " valid1=" << valid1 << " valid2=" << valid2
-                 << " (gameobj1=" << (gameobj1 ? gameobj1->GetName() : "null")
-                 << ", gameobj2=" << (gameobj2 ? gameobj2->GetName() : "null") << ")");
-
         if (validConstraint && valid1 && valid2) {
           int constraintId = physEnv->CreateRigidBodyConstraint(gameobj, gameobj1, gameobj2, rbc);
-          CM_Debug("BL_DataConversion: " << gameobj->GetName() << " created constraint ID=" << constraintId);
           // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
           if (constraintId != -1) {
             gameobj->SetRigidBodyConstraintId(rbc, constraintId);

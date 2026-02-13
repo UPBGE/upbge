@@ -805,6 +805,20 @@ typedef struct GameData {
   short fixed_max_logic_step = 5;   /* Max logic frames per render for fixed physics mode */
   short _pad_fixed_rates = 0;
 
+  /* Skip depsgraph transform sync for objects that haven't moved (dirty-skip optimization).
+   * Reduces depsgraph overhead for scenes with many static/sleeping objects.
+   * Off by default because it may affect drivers/metaballs in rare edge cases. */
+  int depsgraph_optimize_transform = 0;
+  int _pad_depsgraph_opt = 0;
+
+  /* Jolt Physics configuration (only used when physicsEngine == WOPHY_JOLT) */
+  short jolt_physics_threads = -1; /* -1 = auto (max(1, cores-1)), 1..N = explicit thread count */
+  short _pad_jolt[3] = {};
+  int jolt_max_bodies = 10240;         /* Maximum number of bodies in the physics system */
+  int jolt_max_body_pairs = 10240;     /* Maximum number of body pairs for broadphase */
+  int jolt_max_contact_constraints = 10240; /* Maximum contact constraints */
+  int jolt_temp_allocator_mb = 64;     /* TempAllocator size in MB (auto-scaled up if needed) */
+
   void *_pad10 = nullptr;
 } GameData;
 
@@ -825,6 +839,7 @@ typedef struct GameData {
 /* GameData.physicsEngine */
 #define WOPHY_NONE 0
 #define WOPHY_BULLET 5
+#define WOPHY_JOLT 6
 
 /* obstacleSimulation */
 #define OBSTSIMULATION_NONE 0

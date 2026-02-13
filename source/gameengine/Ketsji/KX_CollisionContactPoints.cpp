@@ -199,6 +199,9 @@ KX_CollisionContactPointList::KX_CollisionContactPointList(const PHY_ICollData *
 
 KX_CollisionContactPointList::~KX_CollisionContactPointList()
 {
+  if (m_ownsCollData) {
+    delete m_collData;
+  }
 }
 
 std::string KX_CollisionContactPointList::GetName()
