@@ -598,7 +598,7 @@ bool SG_Node::IsModified()
   return m_modified;
 }
 
-bool SG_Node::IsDirty(DirtyFlag flag)
+bool SG_Node::IsDirty(DirtyFlag flag) const
 {
   return (m_dirty & flag);
 }

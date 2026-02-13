@@ -40,6 +40,8 @@
 #include "DNA_constraint_types.h"
 
 #include <array>
+#include <cstdint>
+#include <vector>
 
 class PHY_IConstraint;
 class PHY_IVehicle;
@@ -274,6 +276,21 @@ class PHY_IPhysicsEnvironment {
   virtual PHY_IPhysicsController *CreateConeController(float coneradius, float coneheight) = 0;
 
   virtual void ExportFile(const std::string &filename){};
+
+  /** Save the entire physics simulation state into a binary buffer.
+   *  Returns true on success. The buffer can later be passed to
+   *  RestorePhysicsState() to rewind the simulation to this snapshot. */
+  virtual bool SavePhysicsState(std::vector<uint8_t> &outBuffer)
+  {
+    return false;
+  }
+
+  /** Restore a previously saved physics simulation state from a binary
+   *  buffer produced by SavePhysicsState(). Returns true on success. */
+  virtual bool RestorePhysicsState(const std::vector<uint8_t> &inBuffer)
+  {
+    return false;
+  }
 
   virtual void MergeEnvironment(PHY_IPhysicsEnvironment *other_env) = 0;
 

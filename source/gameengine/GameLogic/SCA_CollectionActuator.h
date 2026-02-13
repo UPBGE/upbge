@@ -59,8 +59,7 @@ class SCA_CollectionActuator : public SCA_IActuator {
 
  public:
   enum SCA_SceneActuatorMode {
-    KX_COLLECTION_NODEF = 0,
-    KX_COLLECTION_SUSPEND,
+    KX_COLLECTION_SUSPEND = 0,
     KX_COLLECTION_RESUME,
     KX_COLLECTION_ADD_OVERLAY,
     KX_COLLECTION_REMOVE_OVERLAY,

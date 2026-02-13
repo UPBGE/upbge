@@ -426,6 +426,10 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
     if (step_data_from_name) {
       BKE_undosys_step_undo_with_data(
           CTX_wm_manager(C)->runtime->undo_stack, C, step_data_from_name);
+
+      /* `bge_start`/`pre` are temporary runtime checkpoints. Remove them (and any redo states
+       * after them) so each game start does not keep accumulating full undo snapshots in RAM. */
+      BKE_undosys_stack_clear_active(CTX_wm_manager(C)->runtime->undo_stack);
     }
     else {
       BKE_undosys_step_undo(CTX_wm_manager(C)->runtime->undo_stack, C);

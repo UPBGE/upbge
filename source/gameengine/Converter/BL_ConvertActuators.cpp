@@ -668,7 +668,7 @@ void BL_ConvertActuators(const char *maggiename,
         KX_Camera *cam = nullptr;
 
         SCA_CollectionActuator *tmpcolact;
-        int mode = SCA_CollectionActuator::KX_COLLECTION_NODEF;
+        int mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
         switch (colact->type) {
           case ACT_COLLECTION_RESUME:
             mode = SCA_CollectionActuator::KX_COLLECTION_RESUME;

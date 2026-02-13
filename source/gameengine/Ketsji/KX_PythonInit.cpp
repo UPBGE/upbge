@@ -2000,7 +2000,9 @@ void InitGamePlayerPythonScripting(
 
   initPySysObjects(maggie);
 
-  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+  PyObject *bge_mod = initBGE();
+  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", bge_mod);
+  Py_DECREF(bge_mod);
 
   EXP_PyObjectPlus::ClearDeprecationWarning();
 
@@ -2045,7 +2047,9 @@ void initGamePythonScripting(blender::Main *maggie, blender::bContext *C, bool *
 
   initPySysObjects(maggie);
 
-  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+  PyObject *bge_mod = initBGE();
+  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", bge_mod);
+  Py_DECREF(bge_mod);
 
   BPY_python_reset(C);
 

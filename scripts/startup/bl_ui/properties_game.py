@@ -226,6 +226,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         ob = context.active_object
         game = ob.game
         soft = ob.game.soft_body
+        gs = context.scene.game_settings
+        is_jolt = (gs.physics_engine == 'JOLT')
 
         layout.prop(game, "physics_type")
         layout.separator()
@@ -280,14 +282,17 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Friction:")
             col.prop(game, "friction")
-            col.prop(game, "rolling_friction")
-            col.separator()
+            if not is_jolt:
+                col.prop(game, "rolling_friction")
+                col.separator()
 
-            sub = col.column()
-            sub.prop(game, "use_anisotropic_friction")
-            subsub = sub.column()
-            subsub.active = game.use_anisotropic_friction
-            subsub.prop(game, "friction_coefficients", text="", slider=True)
+                sub = col.column()
+                sub.prop(game, "use_anisotropic_friction")
+                subsub = sub.column()
+                subsub.active = game.use_anisotropic_friction
+                subsub.prop(game, "friction_coefficients", text="", slider=True)
+            else:
+                col.separator()
 
             split = layout.split()
             col = split.column()
@@ -307,10 +312,17 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             col = split.column()
             col.prop(game, "use_ccd_rigid_body")
-            sub = col.column()
-            sub.active = game.use_ccd_rigid_body
-            sub.prop(game, "ccd_motion_threshold")
-            sub.prop(game, "ccd_swept_sphere_radius")
+            if not is_jolt:
+                sub = col.column()
+                sub.active = game.use_ccd_rigid_body
+                sub.prop(game, "ccd_motion_threshold")
+                sub.prop(game, "ccd_swept_sphere_radius")
+
+            if is_jolt:
+                col = split.column()
+                col.label(text="Jolt Physics:")
+                col.prop(game, "gravity_factor")
+                col.prop(game, "use_gyroscopic_force")
 
             layout.separator()
             col = layout.column()
@@ -416,14 +428,15 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "elasticity", slider=True)
             col.label(text="Friction:")
             col.prop(game, "friction")
-            col.prop(game, "rolling_friction")
+            if not is_jolt:
+                col.prop(game, "rolling_friction")
 
-            col = split.column()
-            sub = col.column()
-            sub.prop(game, "use_anisotropic_friction")
-            subsub = sub.column()
-            subsub.active = game.use_anisotropic_friction
-            subsub.prop(game, "friction_coefficients", text="", slider=True)
+                col = split.column()
+                sub = col.column()
+                sub.prop(game, "use_anisotropic_friction")
+                subsub = sub.column()
+                subsub.active = game.use_anisotropic_friction
+                subsub.prop(game, "friction_coefficients", text="", slider=True)
 
         elif physics_type == 'SENSOR':
             col = layout.column()
@@ -563,7 +576,8 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
 
         layout.prop(gs, "physics_engine", text="Engine")
         if gs.physics_engine != 'NONE':
-            layout.prop(gs, "physics_solver")
+            if gs.physics_engine != 'JOLT':
+                layout.prop(gs, "physics_solver")
             layout.prop(gs, "physics_gravity", text="Gravity")
 
             # Fixed Physics Timestep controls
@@ -626,16 +640,35 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             sub = col.row()
             sub.prop(gs, "deactivation_time", text="Time")
 
-            col = layout.column()
-            col.label(text="Physics Joint Error Reduction:")
-            sub = col.column(align=True)
-            sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
-            sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
-            sub.prop(gs, "cfm_parameter", text="CFM for Soft Constraints")
+            if gs.physics_engine != 'JOLT':
+                col = layout.column()
+                col.label(text="Physics Joint Error Reduction:")
+                sub = col.column(align=True)
+                sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
+                sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
+                sub.prop(gs, "cfm_parameter", text="CFM for Soft Constraints")
 
             row = layout.row()
             row.label(text="Object Activity:")
             row.prop(gs, "use_activity_culling")
+
+            # Depsgraph optimization
+            layout.separator()
+            col = layout.column()
+            col.label(text="Performance Optimization:")
+            col.prop(gs, "depsgraph_optimize_transform", text="Optimize Depsgraph Transforms")
+
+            # Jolt Physics engine settings
+            if gs.physics_engine == 'JOLT':
+                layout.separator()
+                col = layout.column()
+                col.label(text="Jolt Physics Settings:")
+                col.prop(gs, "jolt_physics_threads", text="Physics Threads (-1 = Auto)")
+                sub = col.column(align=True)
+                sub.prop(gs, "jolt_max_bodies", text="Max Bodies")
+                sub.prop(gs, "jolt_max_body_pairs", text="Max Body Pairs")
+                sub.prop(gs, "jolt_max_contact_constraints", text="Max Contact Constraints")
+                sub.prop(gs, "jolt_temp_allocator_mb", text="Temp Allocator (MB)")
 
         else:
             split = layout.split()
