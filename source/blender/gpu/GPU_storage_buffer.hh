@@ -92,7 +92,7 @@ void GPU_storagebuf_read(gpu::StorageBuf *ssbo, void *data);
  *
  * Falls back to synchronous `GPU_storagebuf_read` on backends that don't override it.
  */
-bool GPU_storagebuf_read_fast(gpu::StorageBuf *ssbo, void *data);
+bool GPU_storagebuf_read_fast(gpu::StorageBuf *ssbo, void *data);  // upbge
 
 /**
  * \brief Copy a part of a vertex buffer to a storage buffer.

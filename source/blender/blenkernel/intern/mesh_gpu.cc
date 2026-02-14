@@ -24,7 +24,6 @@
 #include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
-#include "GPU_platform.hh"
 #include "GPU_state.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -286,14 +285,11 @@ void BKE_mesh_gpu_topology_free(bke::MeshGPUTopology &topology)
 }
 
 static const char *scatter_to_corners_main_glsl = R"GLSL(
-/* --- Bounds helpers (only used when bounds_enabled == 1) --- */
+/* --- Bounds helpers --- */
 uint float_to_ordered_uint(float f) {
   uint u = floatBitsToUint(f);
   return (u & 0x80000000u) != 0u ? ~u : (u ^ 0x80000000u);
 }
-
-shared vec3 wg_min[256];
-shared vec3 wg_max[256];
 
 void main() {
   uint c = gl_GlobalInvocationID.x;
@@ -756,6 +752,10 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     info.specialization_constant(Type::int_t, "normals_domain", normals_domain_val);
     info.specialization_constant(Type::int_t, "normals_hq", normals_hq_val);
     info.define("USE_BOUNDS_REDUCTION", bounds_enabled ? "1" : "0");
+    info.typedef_source_generated = R"GLSL(
+        shared vec3 wg_min[256];
+        shared vec3 wg_max[256];
+    )GLSL";
 
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
 
