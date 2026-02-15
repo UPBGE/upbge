@@ -148,6 +148,21 @@ void VKBuffer::flush() const
   vmaFlushAllocation(allocator, allocation_, 0, max_ulul(size_in_bytes(), 1));
 }
 
+void VKBuffer::flush_mapped_range(size_t offset, size_t size) const
+{
+  const VKDevice &device = VKBackend::get().device;
+  VmaAllocator allocator = device.mem_allocator_get();
+  /* vmaFlushAllocation expects size 0 to mean whole allocation; pass actual range. */
+  vmaFlushAllocation(allocator, allocation_, offset, size);
+}
+
+void VKBuffer::invalidate_mapped_range(size_t offset, size_t size) const
+{
+  const VKDevice &device = VKBackend::get().device;
+  VmaAllocator allocator = device.mem_allocator_get();
+  vmaInvalidateAllocation(allocator, allocation_, offset, size);
+}
+
 void VKBuffer::clear(VKContext &context, uint32_t clear_value)
 {
   render_graph::VKFillBufferNode::CreateInfo fill_buffer = {};

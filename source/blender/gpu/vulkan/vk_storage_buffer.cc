@@ -38,6 +38,12 @@ VKStorageBuffer::~VKStorageBuffer()
   }
 }
 
+void *VKStorageBuffer::mapped_ptr_get() const
+{
+  /* By default we don't allocate host-visible storage buffers. Return nullptr. */
+  return buffer_.is_mapped() ? buffer_.mapped_memory_get() : nullptr;
+}
+
 void VKStorageBuffer::update(const void *data)
 {
   VKContext &context = *VKContext::get();
@@ -87,11 +93,17 @@ void VKStorageBuffer::allocate()
                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-  buffer_.create(size_in_bytes_,
-                 buffer_usage_flags,
-                 VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-                 VmaAllocationCreateFlags(0),
-                 0.8f);
+
+  VmaMemoryUsage vma_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+  VmaAllocationCreateFlags alloc_flags = VmaAllocationCreateFlags(0);
+  if (use_host_visible_allocation_) {
+    /* Prefer host visible memory and request mapping flags for VMA. */
+    vma_usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+    alloc_flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                   VMA_ALLOCATION_CREATE_MAPPED_BIT;
+  }
+
+  buffer_.create(size_in_bytes_, buffer_usage_flags, vma_usage, alloc_flags, 0.8f);
   if (buffer_.is_allocated()) {
     debug::object_label(buffer_.vk_handle(), name_);
   }
@@ -169,6 +181,32 @@ bool VKStorageBuffer::read_fast(void *data)
   ensure_allocated();
   VKContext &context = *VKContext::get();
 
+  /* If the backing buffer is host-visible and persistently mapped we can avoid the
+   * staging buffer entirely: wait for the previous timeline, invalidate the mapped range
+   * and memcpy from the mapped memory. This is Vulkan-only zero-copy path (no staging). */
+  void *mapped = mapped_ptr_get();
+  if (mapped != nullptr) {
+    bool has_result = false;
+    if (fast_read_timeline_ != 0) {
+      VKDevice &device = VKBackend::get().device;
+      device.wait_for_timeline(fast_read_timeline_);
+      fast_read_timeline_ = 0;
+
+      /* Make device writes visible to the host. */
+      buffer_.invalidate_mapped_range(0, size_in_bytes_);
+      memcpy(data, mapped, size_in_bytes_);
+      has_result = true;
+    }
+
+    /* Ensure rendering is flushed so the next frame's data will be available. */
+    context.rendering_end();
+    fast_read_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                                                     RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+
+    return has_result;
+  }
+
+  /* Fallback to existing staging-based implementation. */
   /* Create a dedicated host-visible staging buffer that persists across frames. */
   if (fast_read_buffer_ == nullptr) {
     fast_read_buffer_ = MEM_new<VKStagingBuffer>(

@@ -276,8 +276,9 @@ gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
 gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_get(Mesh *mesh_orig, const std::string &key);
 gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
                                                     Object *ob_eval,
-                                                            const std::string &key,
-                                                            size_t size);
+                                                    const std::string &key,
+                                                    size_t size,
+                                                    bool host_visible = false);
 
 /* Helpers for index buffers (IBO) */
 gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_get(Mesh *mesh_orig, const std::string &key);

@@ -28,6 +28,12 @@ gpu::StorageBuf *GPU_storagebuf_create_ex(size_t size,
                                           GPUUsageType usage,
                                           const char *name);
 
+/** Opt-in: request the implementation to allocate the created storage buffer as host-visible
+ * and persistently mapped. This is Vulkan-only and may be ignored by other backends. Call
+ * immediately after creation on the returned `StorageBuf*` and before any allocate/upload.
+ */
+void GPU_storagebuf_enable_host_visible_mapping(gpu::StorageBuf *ssbo);
+
 #define GPU_storagebuf_create(size) \
   GPU_storagebuf_create_ex(size, nullptr, GPU_USAGE_DYNAMIC, __func__);
 
@@ -111,5 +117,8 @@ void GPU_storagebuf_copy_sub_from_vertbuf(
  * NOTE: Internally, this is only required for the OpenGL backend.
  */
 void GPU_storagebuf_sync_as_indirect_buffer(gpu::StorageBuf *ssbo);
+
+/* Opt-in helper: request host-visible persistent mapping for a storage buffer (Vulkan-only). */
+void GPU_storagebuf_enable_host_visible_mapping(gpu::StorageBuf *ssbo);
 
 }  // namespace blender

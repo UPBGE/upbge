@@ -1036,7 +1036,8 @@ gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
 gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
                                                             Object *ob_eval,
                                                             const std::string &key,
-                                                            size_t size)
+                                                            size_t size,
+                                                            bool host_visible)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1056,6 +1057,10 @@ gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
   gpu::StorageBuf *buf = GPU_storagebuf_create(size);
   if (!buf) {
     return nullptr;
+  }
+  if (host_visible) {
+    /* Request host-visible persistent mapping before any allocation/upload. */
+    GPU_storagebuf_enable_host_visible_mapping(buf);
   }
   GPU_storagebuf_clear_to_zero(buf);
   d->internal_resources->ssbo_map.add_new(key, {buf});

@@ -71,6 +71,14 @@ class StorageBuf {
    * path (returns `true` always, blocking).
    */
   virtual bool read_fast(void *data); //upbge
+  /** Return a CPU pointer to the buffer memory when available (Vulkan-only zero-copy). */
+  virtual void *mapped_ptr_get() const
+  {
+    return nullptr;
+  }
+  /** Opt-in: request the implementation to allocate the buffer as host-visible and persistently
+   * mapped. Default no-op for backends that don't support it. Call before allocate(). */
+  virtual void enable_host_visible_mapping(){}
 };
 
 #undef DEBUG_NAME_LEN
