@@ -210,7 +210,7 @@ jobs:
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install --no-user setuptools standard-imghdr bpystubgen
+        python -m pip install --no-user setuptools standard-imghdr git+https://github.com/mysticfall/bpystubgen.git@main
 
     - name: Build API Stubs
       working-directory: python_api
