@@ -859,8 +859,7 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
           !(pmin.x > pmax.x || pmin.y > pmax.y || pmin.z > pmax.z))
       {
         Bounds<float3> bounds(pmin, pmax);
-        mesh_eval->runtime->bounds_cache.tag_dirty();
-        mesh_eval->runtime->bounds_cache.ensure(
+        mesh_eval->runtime->bounds_cache.update(
             [&bounds](Bounds<float3> &r_data) { r_data = bounds; });
       }
     }

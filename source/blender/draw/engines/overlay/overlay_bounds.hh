@@ -134,9 +134,14 @@ class Bounds : Overlay {
     };
 
     auto add_bounds = [&](const bool around_origin, const char bound_type) {
-      const std::optional<blender::Bounds<float3>> bounds_opt =
+      std::optional<blender::Bounds<float3>> bounds_opt =
           ELEM(ob->type, OB_LATTICE, OB_ARMATURE) ? BKE_object_boundbox_get(ob) :
                                                     BKE_object_evaluated_geometry_bounds(ob);
+      const bool is_gpu_anim_mesh = (ob->type == OB_MESH) &&
+                                    id_cast<Mesh *>(ob->data)->is_running_gpu_animation_playback;
+      if (is_gpu_anim_mesh) {
+        bounds_opt = BKE_object_boundbox_get(ob);
+      }
       const blender::Bounds<float3> bounds = bounds_opt.value_or(
           blender::Bounds(float3(-1.0f), float3(1.0f)));
       const float3 size = (bounds.max - bounds.min) * 0.5f;
