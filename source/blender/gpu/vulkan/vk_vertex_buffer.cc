@@ -26,6 +26,80 @@ namespace gpu {
 VKVertexBuffer::~VKVertexBuffer()
 {
   release_data();
+  if (fast_read_buffer_) {
+    MEM_delete(fast_read_buffer_);
+    fast_read_buffer_ = nullptr;
+  }
+
+}
+
+void *VKVertexBuffer::mapped_ptr_get() const
+{
+  return buffer_.is_mapped() ? buffer_.mapped_memory_get() : nullptr;
+}
+
+void VKVertexBuffer::enable_host_visible_mapping()
+{
+  use_host_visible_allocation_ = true;
+}
+
+bool VKVertexBuffer::read_fast(void *data)
+{
+  /* Mirror VKStorageBuffer::read_fast but for vertex buffers. */
+  if (!buffer_.is_allocated()) {
+    allocate();
+  }
+
+  VKContext &context = *VKContext::get();
+
+  /* If the backing buffer is host-visible and persistently mapped we can avoid the
+   * staging buffer entirely: wait for the previous timeline, invalidate the mapped range
+   * and memcpy from the mapped memory. */
+  void *mapped = mapped_ptr_get();
+  if (mapped != nullptr) {
+    bool has_result = false;
+    if (fast_read_timeline_ != 0) {
+      VKDevice &device = VKBackend::get().device;
+      device.wait_for_timeline(fast_read_timeline_);
+      fast_read_timeline_ = 0;
+
+      /* Make device writes visible to the host. */
+      buffer_.invalidate_mapped_range(0, size_used_get());
+      memcpy(data, mapped, size_used_get());
+      has_result = true;
+    }
+
+    /* Ensure rendering is flushed so the next frame's data will be available. */
+    context.rendering_end();
+    fast_read_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                                                     RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+
+    return has_result;
+  }
+
+  /* Fallback to staging-based implementation using a persistent staging buffer. */
+  if (fast_read_buffer_ == nullptr) {
+    fast_read_buffer_ = MEM_new<VKStagingBuffer>(__func__, buffer_, VKStagingBuffer::Direction::DeviceToHost);
+  }
+
+  bool has_result = false;
+  if (fast_read_timeline_ != 0) {
+    VKDevice &device = VKBackend::get().device;
+    device.wait_for_timeline(fast_read_timeline_);
+    fast_read_timeline_ = 0;
+
+    BLI_assert(fast_read_buffer_->host_buffer_get().is_mapped());
+    memcpy(data, fast_read_buffer_->host_buffer_get().mapped_memory_get(), size_used_get());
+    has_result = true;
+  }
+
+  /* Submit a new async copy for the next call to pick up. */
+  fast_read_buffer_->copy_from_device(context);
+  context.rendering_end();
+  fast_read_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                                                   RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+
+  return has_result;
 }
 
 void VKVertexBuffer::bind_as_ssbo(uint binding)
@@ -210,8 +284,15 @@ void VKVertexBuffer::allocate()
                                        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-  buffer_.create(
-      size_alloc_get(), vk_buffer_usage, VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags(0), 0.8f);
+  VmaMemoryUsage vma_usage = VMA_MEMORY_USAGE_AUTO;
+  VmaAllocationCreateFlags alloc_flags = VmaAllocationCreateFlags(0);
+  if (use_host_visible_allocation_) {
+    vma_usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+    /* Prefer host-visible memory suitable for random host access (reads). */
+    alloc_flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+  }
+
+  buffer_.create(size_alloc_get(), vk_buffer_usage, vma_usage, alloc_flags, 0.8f);
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
 

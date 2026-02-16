@@ -157,6 +157,14 @@ void GPU_storagebuf_enable_host_visible_mapping(gpu::StorageBuf *ssbo)
   ssbo->enable_host_visible_mapping();
 }
 
+void GPU_storagebuf_enable_readback_vbo(gpu::StorageBuf *ssbo)
+{
+  if (ssbo == nullptr) {
+    return;
+  }
+  ssbo->enable_readback_vbo();
+}
+
 void GPU_storagebuf_sync_as_indirect_buffer(gpu::StorageBuf *ssbo)
 {
   ssbo->sync_as_indirect_buffer();

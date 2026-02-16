@@ -34,6 +34,9 @@ gpu::StorageBuf *GPU_storagebuf_create_ex(size_t size,
  */
 void GPU_storagebuf_enable_host_visible_mapping(gpu::StorageBuf *ssbo);
 
+/* Opt-in: request using a VBO (GL_ARRAY_BUFFER) as the readback buffer in OpenGL backend. */
+void GPU_storagebuf_enable_readback_vbo(gpu::StorageBuf *ssbo);
+
 #define GPU_storagebuf_create(size) \
   GPU_storagebuf_create_ex(size, nullptr, GPU_USAGE_DYNAMIC, __func__);
 

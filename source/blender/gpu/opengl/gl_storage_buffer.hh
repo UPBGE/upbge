@@ -27,8 +27,14 @@ class GLStorageBuf : public StorageBuf {
   GLuint ssbo_id_ = 0;
   /** Usage type. */
   GPUUsageType usage_ = GPUUsageType(-1);
+  /** Prefer creating a host-visible, persistently mapped readback buffer at allocation time. */
+  bool use_host_visible_allocation_ = false;
+  /** Prefer using a VBO (GL_ARRAY_BUFFER) as the readback buffer instead of an SSBO. */
+  bool use_readback_vbo_ = false;
   /* Read */
   GLuint read_ssbo_id_ = 0;
+  /** Optional VBO used as readback target when enabled. */
+  GLuint read_vbo_id_ = 0;
   GLsync read_fence_ = 0;
   void *persistent_ptr_ = nullptr;
   size_t alloc_size_in_bytes_ = 0;
@@ -46,6 +52,10 @@ class GLStorageBuf : public StorageBuf {
   bool read_fast(void *data) override; //upbge
   void async_flush_to_host() override;
   void sync_as_indirect_buffer() override;
+
+  /* Request host-visible persistent mapping for this storage buffer. */
+  void enable_host_visible_mapping() override;
+  void enable_readback_vbo() override;
 
   /* Special internal function to bind SSBOs to indirect argument targets. */
   void bind_as(GLenum target);

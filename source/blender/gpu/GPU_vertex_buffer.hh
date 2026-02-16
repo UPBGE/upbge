@@ -178,6 +178,12 @@ class VertBuf {
   virtual void bind_as_ssbo(uint binding) = 0;
   virtual void bind_as_texture(uint binding) = 0;
 
+  /* Optional: request host-visible persistently mapped allocation for VBO. */
+  virtual void enable_host_visible_mapping() {}
+  /* Fast non-blocking read: returns true if data was available and copied into `data`, false if
+   * not ready yet. */
+  virtual bool read_fast(void *data) { (void)data; return false; }
+
   virtual void wrap_handle(uint64_t handle) = 0;
 
   /* Size of the data allocated. */
@@ -337,6 +343,13 @@ void GPU_vertbuf_tag_dirty(gpu::VertBuf *verts);
 void GPU_vertbuf_use(gpu::VertBuf *);
 void GPU_vertbuf_bind_as_ssbo(gpu::VertBuf *verts, int binding);
 void GPU_vertbuf_bind_as_texture(gpu::VertBuf *verts, int binding);
+
+/* Opt-in: request the implementation to allocate the vertex buffer as host-visible and
+ * persistently mapped. Call before any allocation/upload. */
+void GPU_vertbuf_enable_host_visible_mapping(gpu::VertBuf *verts);
+
+/* Non-blocking 1-frame-delayed readback for VBO. Returns true if `data` filled. */
+bool GPU_vertbuf_read_fast(gpu::VertBuf *verts, void *data);
 
 void GPU_vertbuf_wrap_handle(gpu::VertBuf *verts, uint64_t handle);
 

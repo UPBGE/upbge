@@ -2249,10 +2249,10 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
   const std::string key_out0 = key_prefix + "_out_pos_0";
   const std::string key_out1 = key_prefix + "_out_pos_1";
 
-  gpu::StorageBuf *ssbo_out0 = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-      me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true);
-  gpu::StorageBuf *ssbo_out1 = bke::BKE_mesh_gpu_internal_ssbo_ensure(
-      me, ob_eval, key_out1, verts_num * sizeof(float) * 4, true);
+  gpu::VertBuf *ssbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
+      me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true, true);
+  gpu::VertBuf *ssbo_out1 = bke::BKE_mesh_gpu_internal_vbo_ensure(
+      me, ob_eval, key_out1, verts_num * sizeof(float) * 4, true, true);
 
   if (!ssbo_out0 || !ssbo_out1) {
     return false;
@@ -2283,8 +2283,8 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
   std::string glsl_accessors = bke::BKE_mesh_gpu_topology_glsl_accessors_string(
       mesh_gpu_data->topology);
 
-  gpu::StorageBuf *ssbo_write = nullptr;
-  gpu::StorageBuf *ssbo_read = nullptr;
+  gpu::VertBuf *ssbo_write = nullptr;
+  gpu::VertBuf *ssbo_read = nullptr;
 
   /* Compute shader that averages corner positions per vertex. */
   static const char *cs_src = R"GLSL(
@@ -2320,7 +2320,7 @@ void main() {
    * available for CPU read (previous frame). */
   ssbo_write = (toggle == 0) ? ssbo_out0 : ssbo_out1;
   ssbo_read = (toggle == 0) ? ssbo_out1 : ssbo_out0;
-  GPU_storagebuf_bind(ssbo_write, 1);
+  GPU_vertbuf_bind_as_ssbo(ssbo_write, 1);
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 
   const int group_size = 256;
@@ -2343,9 +2343,9 @@ void main() {
 #ifdef BT_USE_DOUBLE_PRECISION
   thread_local std::vector<float> tmp;
   tmp.resize(size_t(verts_num) * 4);
-  bool ok_fast = GPU_storagebuf_read_fast(ssbo_read, tmp.data());
+  bool ok_fast = GPU_vertbuf_read_fast(ssbo_read, tmp.data());
   if (!ok_fast) {
-    GPU_storagebuf_read(ssbo_read, tmp.data());
+    GPU_vertbuf_read(ssbo_read, tmp.data());
   }
 
   const size_t elems = size_t(verts_num) * 3;
@@ -2368,9 +2368,9 @@ void main() {
   }
 #else
   m_vertexArray.resize(verts_floats);
-  bool ok_fast = GPU_storagebuf_read_fast(ssbo_read, &m_vertexArray[0]);
+  bool ok_fast = GPU_vertbuf_read_fast(ssbo_read, &m_vertexArray[0]);
   if (!ok_fast) {
-    GPU_storagebuf_read(ssbo_read, &m_vertexArray[0]);
+    GPU_vertbuf_read(ssbo_read, &m_vertexArray[0]);
   }
 
   /* Parallel compact: vec4 -> vec3 in-place */
