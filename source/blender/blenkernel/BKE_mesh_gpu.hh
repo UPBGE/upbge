@@ -278,8 +278,7 @@ gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
                                                     Object *ob_eval,
                                                     const std::string &key,
                                                     size_t size,
-                                                    bool host_visible = false,
-                                                    bool readback_vbo = false);
+                                                    bool host_visible = false);
 
 /* Helpers for index buffers (IBO) */
 gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_get(Mesh *mesh_orig, const std::string &key);
@@ -293,8 +292,7 @@ gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
                                                         Object *ob_eval,
                                                         const std::string &key,
                                                         size_t size,
-                                                        bool host_visible = false,
-                                                        bool readback_persistent = false);
+                                                        bool host_visible = false);
 gpu::VertBuf *BKE_mesh_gpu_internal_vbo_get(Mesh *mesh_orig, const std::string &key);
 
 /* Helpers for uniform buffers (UBO) */

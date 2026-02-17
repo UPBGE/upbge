@@ -240,6 +240,14 @@ void GLContext::orphans_clear()
     glDeleteFramebuffers(uint(orphaned_framebuffers_.size()), orphaned_framebuffers_.data());
     orphaned_framebuffers_.clear();
   }
+  if (!orphaned_syncs_.is_empty()) {
+    for (GLsync sync : orphaned_syncs_) {
+      if (sync) {
+        glDeleteSync(sync);
+      }
+    }
+    orphaned_syncs_.clear();
+  }
   lists_mutex_.unlock();
 
   shared_orphan_list_.orphans_clear();
@@ -269,6 +277,20 @@ void GLContext::fbo_free(GLuint fbo_id)
   }
   else {
     orphans_add(orphaned_framebuffers_, lists_mutex_, fbo_id);
+  }
+}
+
+void GLContext::fence_free(GLsync fence)
+{
+  if (this == GLContext::get()) {
+    if (fence) {
+      glDeleteSync(fence);
+    }
+  }
+  else {
+    lists_mutex_.lock();
+    orphaned_syncs_.append(fence);
+    lists_mutex_.unlock();
   }
 }
 

@@ -61,7 +61,7 @@ static void mesh_gpu_free_internal_resources_ptr(bke::MeshGpuInternalResources *
   for (const auto &kv : ir->vbo_map.items()) {
     auto &entry = kv.value;
     if (entry.buffer) {
-      GPU_vertbuf_clear(entry.buffer);
+      GPU_vertbuf_discard(entry.buffer);
     }
   }
   for (const auto &kv : ir->ibo_map.items()) {
@@ -1041,8 +1041,7 @@ gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
                                                             Object *ob_eval,
                                                             const std::string &key,
                                                             size_t size,
-                                                            bool host_visible,
-                                                            bool readback_vbo)
+                                                            bool host_visible)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1064,11 +1063,9 @@ gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
     return nullptr;
   }
   if (host_visible) {
-    /* Request host-visible persistent mapping before any allocation/upload. */
+    /* Request host-visible persistent mapping before any allocation/upload
+     * (For Vulkan - needs tests on different hardwares). */
     GPU_storagebuf_enable_host_visible_mapping(buf);
-  }
-  if (readback_vbo) {
-    GPU_storagebuf_enable_readback_vbo(buf);
   }
   GPU_storagebuf_clear_to_zero(buf);
   d->internal_resources->ssbo_map.add_new(key, {buf});
@@ -1206,8 +1203,7 @@ gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
                                                         Object *ob_eval,
                                                         const std::string &key,
                                                         size_t size,
-                                                        bool host_visible,
-                                                        bool readback_persistent)
+                                                        bool host_visible)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1233,10 +1229,6 @@ gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
   }
 
   if (host_visible) {
-    GPU_vertbuf_enable_host_visible_mapping(vb);
-  }
-  if (readback_persistent) {
-    /* For VBOs this currently maps to the same host_visible flag (opt-in). */
     GPU_vertbuf_enable_host_visible_mapping(vb);
   }
   /* Build a simple vec4 format for positions. */

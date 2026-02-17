@@ -30,15 +30,11 @@ class GLVertBuf : public VertBuf {
   bool is_wrapper_ = false;
   /** Size on the GPU. */
   size_t vbo_size_ = 0;
-  /* Optional host-visible persistent map for readback testing. */
-  bool use_host_visible_mapping_ = false;
+
   void *persistent_ptr_ = nullptr;
   GLsync read_fence_ = 0;
-  /** Optional persistent readback buffer used when VBO is not host-visible. */
+  /** persistent readback buffer. */
   GLuint read_vbo_id_ = 0;
-  /** When true persistent_ptr_ points to the readback buffer mapping. */
-  bool persistent_is_readback_ = false;
-  size_t alloc_size_in_bytes_ = 0;
 
  public:
   void bind();
@@ -48,7 +44,6 @@ class GLVertBuf : public VertBuf {
   void read(void *data) const override;
 
   void wrap_handle(uint64_t handle) override;
-  void enable_host_visible_mapping() override;
   bool read_fast(void *data) override;
 
  protected:

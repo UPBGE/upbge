@@ -31,51 +31,26 @@ GLStorageBuf::GLStorageBuf(size_t size, GPUUsageType usage, const char *name)
   BLI_assert(size <= GPU_max_storage_buffer_size());
 }
 
-void GLStorageBuf::enable_readback_vbo()
-{
-  use_readback_vbo_ = true;
-}
-
-void GLStorageBuf::enable_host_visible_mapping()
-{
-  /* Opt-in: request the backend to allocate a host-visible persistently
-   * mapped readback buffer at allocation time. This mirrors Vulkan's
-   * enable_host_visible_mapping semantics as an optional hint for OpenGL. */
-  use_host_visible_allocation_ = true;
-}
-
 GLStorageBuf::~GLStorageBuf()
 {
   if (read_fence_) {
-    glDeleteSync(read_fence_);
+    GLContext::get()->fence_free(read_fence_);
+    read_fence_ = 0;
   }
 
   if (persistent_ptr_) {
     if (GLContext::direct_state_access_support) {
-      if (use_readback_vbo_)
-        glUnmapNamedBuffer(read_vbo_id_);
-      else
-        glUnmapNamedBuffer(read_ssbo_id_);
+      glUnmapNamedBuffer(read_ssbo_id_);
     }
     else {
-      if (use_readback_vbo_) {
-        glBindBuffer(GL_ARRAY_BUFFER, read_vbo_id_);
-        glUnmapBuffer(GL_ARRAY_BUFFER);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-      }
-      else {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_);
-        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-      }
+      glBindBuffer(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_);
+      glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+      glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
   }
 
   if (read_ssbo_id_) {
     GLContext::buffer_free(read_ssbo_id_);
-  }
-  if (read_vbo_id_) {
-    GLContext::buffer_free(read_vbo_id_);
   }
 
   GLContext::buffer_free(ssbo_id_);
@@ -92,54 +67,11 @@ void GLStorageBuf::init()
   BLI_assert(GLContext::get());
 
   alloc_size_in_bytes_ = ceil_to_multiple_ul(size_in_bytes_, 16);
-  if (GLContext::direct_state_access_support) {
-    glCreateBuffers(1, &ssbo_id_);
-    glNamedBufferData(ssbo_id_, alloc_size_in_bytes_, nullptr, to_gl(this->usage_));
-  }
-  else {
-    glGenBuffers(1, &ssbo_id_);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_id_);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, alloc_size_in_bytes_, nullptr, to_gl(this->usage_));
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-  }
+  glGenBuffers(1, &ssbo_id_);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_id_);
+  glBufferData(GL_SHADER_STORAGE_BUFFER, alloc_size_in_bytes_, nullptr, to_gl(this->usage_));
 
   debug::object_label(GL_SHADER_STORAGE_BUFFER, ssbo_id_, name_);
-
-  /* If requested, create and persistently map the readback buffer now to avoid
-   * incurring that cost at first read. Use the actual useful size (size_in_bytes_). */
-  if (use_host_visible_allocation_) {
-    if (read_ssbo_id_ == 0) {
-      if (GLContext::direct_state_access_support) {
-        glCreateBuffers(1, &read_ssbo_id_);
-        glNamedBufferStorage(read_ssbo_id_,
-                             size_in_bytes_,
-                             nullptr,
-                             GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT |
-                                 GL_MAP_COHERENT_BIT);
-        persistent_ptr_ = glMapNamedBufferRange(read_ssbo_id_,
-                                                0,
-                                                size_in_bytes_,
-                                                GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT);
-        BLI_assert(persistent_ptr_);
-        debug::object_label(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_, name_);
-      }
-      else {
-        glGenBuffers(1, &read_ssbo_id_);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_);
-        glBufferStorage(GL_SHADER_STORAGE_BUFFER,
-                        size_in_bytes_,
-                        nullptr,
-                        GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT);
-        persistent_ptr_ = glMapBufferRange(GL_SHADER_STORAGE_BUFFER,
-                                           0,
-                                           size_in_bytes_,
-                                           GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT);
-        BLI_assert(persistent_ptr_);
-        debug::object_label(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_, name_);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-      }
-    }
-  }
 }
 
 void GLStorageBuf::update(const void *data)
@@ -261,39 +193,25 @@ void GLStorageBuf::async_flush_to_host()
     glBufferStorage(GL_SHADER_STORAGE_BUFFER,
                     alloc_size_in_bytes_,
                     nullptr,
-                    GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT);
+                    GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
     persistent_ptr_ = glMapBufferRange(GL_SHADER_STORAGE_BUFFER,
                                        0,
                                        alloc_size_in_bytes_,
-                                       GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT);
+                                       GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
     BLI_assert(persistent_ptr_);
     debug::object_label(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_, name_);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
   }
 
-  if (use_readback_vbo_) {
-    if (GLContext::direct_state_access_support) {
-      glCopyNamedBufferSubData(ssbo_id_, read_vbo_id_, 0, 0, size_in_bytes_);
-    }
-    else {
-      glBindBuffer(GL_COPY_READ_BUFFER, ssbo_id_);
-      glBindBuffer(GL_COPY_WRITE_BUFFER, read_vbo_id_);
-      glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, size_in_bytes_);
-      glBindBuffer(GL_COPY_READ_BUFFER, 0);
-      glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
-    }
+  if (GLContext::direct_state_access_support) {
+    glCopyNamedBufferSubData(ssbo_id_, read_ssbo_id_, 0, 0, alloc_size_in_bytes_);
   }
   else {
-    if (GLContext::direct_state_access_support) {
-      glCopyNamedBufferSubData(ssbo_id_, read_ssbo_id_, 0, 0, size_in_bytes_);
-    }
-    else {
-      glBindBuffer(GL_COPY_READ_BUFFER, ssbo_id_);
-      glBindBuffer(GL_COPY_WRITE_BUFFER, read_ssbo_id_);
-      glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, size_in_bytes_);
-      glBindBuffer(GL_COPY_READ_BUFFER, 0);
-      glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
-    }
+    glBindBuffer(GL_COPY_READ_BUFFER, ssbo_id_);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, read_ssbo_id_);
+    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, alloc_size_in_bytes_);
+    glBindBuffer(GL_COPY_READ_BUFFER, 0);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
   }
 
   glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
@@ -350,12 +268,11 @@ bool GLStorageBuf::read_fast(void *data)
     glBufferStorage(GL_SHADER_STORAGE_BUFFER,
                     size_in_bytes_,
                     nullptr,
-                    GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_READ_BIT);
+                    GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
     persistent_ptr_ = glMapBufferRange(GL_SHADER_STORAGE_BUFFER,
                                        0,
                                        size_in_bytes_,
-                                       GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT |
-                                           GL_MAP_READ_BIT);
+                                       GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
     BLI_assert(persistent_ptr_);
     debug::object_label(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_, name_);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
@@ -368,17 +285,11 @@ bool GLStorageBuf::read_fast(void *data)
   if (read_fence_) {
     GLenum status = glClientWaitSync(read_fence_, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
     if (status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED) {
-      /* Previous copy is complete — read from the persistent pointer or read_vbo_id_. */
-      if (read_vbo_id_) {
-        memcpy(data, persistent_ptr_, size_in_bytes_);
-      } else {
-        glBindBuffer(GL_COPY_READ_BUFFER, read_vbo_id_);
-        glGetBufferSubData(GL_COPY_READ_BUFFER, 0, size_in_bytes_, data);
-        glBindBuffer(GL_COPY_READ_BUFFER, 0);
-      }
+      /* Previous copy is complete — read from the persistent pointer. */
+      memcpy(data, persistent_ptr_, size_in_bytes_);
       has_result = true;
-      glDeleteSync(read_fence_);
-      read_fence_ = nullptr;
+      GLContext::get()->fence_free(read_fence_);
+      read_fence_ = 0;
     }
     else {
       /* Still not ready (unlikely after a full frame). Don't wait — skip this readback.

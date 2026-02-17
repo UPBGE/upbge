@@ -2250,9 +2250,9 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
   const std::string key_out1 = key_prefix + "_out_pos_1";
 
   gpu::VertBuf *ssbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
-      me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true, true);
+      me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true);
   gpu::VertBuf *ssbo_out1 = bke::BKE_mesh_gpu_internal_vbo_ensure(
-      me, ob_eval, key_out1, verts_num * sizeof(float) * 4, true, true);
+      me, ob_eval, key_out1, verts_num * sizeof(float) * 4, true);
 
   if (!ssbo_out0 || !ssbo_out1) {
     return false;

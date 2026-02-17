@@ -76,12 +76,10 @@ class StorageBuf {
   {
     return nullptr;
   }
-  /** Opt-in: request the implementation to allocate the buffer as host-visible and persistently
-   * mapped. Default no-op for backends that don't support it. Call before allocate(). */
+  /** Opt-in: request the implementation to allocate the buffer as host-visible.
+   *  Vulkan only. OpenGL uses a different mechanism by default (persistent mapping).
+   */
   virtual void enable_host_visible_mapping(){}
-  /** Opt-in: request the implementation to use a VBO (GL_ARRAY_BUFFER) as the
-   * persistent-mapped readback buffer instead of an SSBO. Default no-op. */
-  virtual void enable_readback_vbo(){}
 };
 
 #undef DEBUG_NAME_LEN
