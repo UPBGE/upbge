@@ -112,12 +112,13 @@ bool GLVertBuf::read_fast(void *data)
     glBufferStorage(GL_ARRAY_BUFFER,
                     alloc_size,
                     nullptr,
-                    GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
+                    GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT);
     persistent_ptr_ = glMapBufferRange(GL_ARRAY_BUFFER,
                                        0,
                                        alloc_size,
                                        GL_MAP_PERSISTENT_BIT |
-                                           GL_MAP_READ_BIT);
+                                           GL_MAP_READ_BIT |
+                                           GL_MAP_COHERENT_BIT);
     BLI_assert(persistent_ptr_);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }

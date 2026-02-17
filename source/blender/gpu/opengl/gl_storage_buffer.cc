@@ -268,11 +268,11 @@ bool GLStorageBuf::read_fast(void *data)
     glBufferStorage(GL_SHADER_STORAGE_BUFFER,
                     size_in_bytes_,
                     nullptr,
-                    GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
+                    GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_READ_BIT);
     persistent_ptr_ = glMapBufferRange(GL_SHADER_STORAGE_BUFFER,
                                        0,
                                        size_in_bytes_,
-                                       GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
+                                       GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_READ_BIT);
     BLI_assert(persistent_ptr_);
     debug::object_label(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_, name_);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
