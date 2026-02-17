@@ -123,27 +123,27 @@ static PyStructSequence_Field app_info_fields[] = {
 
     /* buildinfo */
     {"build_date",
-     "The date this blender instance was built\n"
+     "The date this Blender instance was built\n"
      "\n"
      ":type: bytes\n"},
     {"build_time",
-     "The time this blender instance was built\n"
+     "The time this Blender instance was built\n"
      "\n"
      ":type: bytes\n"},
     {"build_commit_timestamp",
-     "The unix timestamp of commit this blender instance was built\n"
+     "The unix timestamp of the commit this Blender instance was built from\n"
      "\n"
      ":type: int\n"},
     {"build_commit_date",
-     "The date of commit this blender instance was built\n"
+     "The date of the commit this Blender instance was built from\n"
      "\n"
      ":type: bytes\n"},
     {"build_commit_time",
-     "The time of commit this blender instance was built\n"
+     "The time of the commit this Blender instance was built from\n"
      "\n"
      ":type: bytes\n"},
     {"build_hash",
-     "The commit hash this blender instance was built with\n"
+     "The commit hash this Blender instance was built with\n"
      "\n"
      ":type: bytes\n"},
     {"build_branch",
@@ -413,7 +413,7 @@ static int bpy_app_global_flag_set__only_disable(PyObject * /*self*/,
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_debug_value_doc,
-    "Short, number which can be set to non-zero values for testing purposes.\n"
+    "Integer value which can be set to non-zero values for testing purposes.\n"
     "\n"
     ":type: int\n");
 static PyObject *bpy_app_debug_value_get(PyObject * /*self*/, void * /*closure*/)

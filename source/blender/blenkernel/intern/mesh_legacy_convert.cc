@@ -2694,23 +2694,27 @@ void BKE_mesh_calc_edges_tessface(Mesh *mesh)
   mesh->edges_num = numEdges;
 }
 
-/* UPBGE */
+/* UPBGE: only done if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 4)) { */
 void BKE_mesh_legacy_recast_to_generic(Mesh *mesh)
 {
   using namespace blender;
   if (mesh->attributes().contains(".recast_data")) {
     return;
   }
+  /* Old files from the fork stored CD_RECAST at slot 24 (before it was reassigned to
+   * CD_PROP_FLOAT4 by Blender developers). Check the legacy
+   * value 24 to handle old blend files. */
+  int CD_RECAST_LEGACY = 24;
   int *data = nullptr;
   const ImplicitSharingInfo *sharing_info = nullptr;
   for (const int i : IndexRange(mesh->face_data.totlayer)) {
     CustomDataLayer &layer = mesh->face_data.layers[i];
-    if (layer.type == CD_RECAST) {
+    if (layer.type == CD_RECAST_LEGACY) {
       data = static_cast<int *>(layer.data);
       sharing_info = layer.sharing_info;
       layer.data = nullptr;
       layer.sharing_info = nullptr;
-      CustomData_free_layer(&mesh->face_data, CD_RECAST, i);
+      CustomData_free_layer(&mesh->face_data, eCustomDataType(layer.type), i);
       break;
     }
   }

@@ -1906,7 +1906,6 @@ int main(int argc,
   RE_engines_exit();
 
   ED_preview_free_dbase(); /* frees a blender::Main dbase, before BKE_blender_free! */
-  ED_preview_restart_queue_free();
   blender::ed::asset::list::storage_exit();
 
   BKE_tracking_clipboard_free();
