@@ -189,11 +189,11 @@ PyDoc_STRVAR(
     bpy_bm_utils_vert_splice_doc,
     ".. method:: vert_splice(vert, vert_target)\n"
     "\n"
-    "   Splice vert into vert_target.\n"
+    "   Splice vert into vert_target, merging them.\n"
     "\n"
     "   :param vert: The vertex to be removed.\n"
     "   :type vert: :class:`bmesh.types.BMVert`\n"
-    "   :param vert_target: The vertex to use.\n"
+    "   :param vert_target: The vertex to merge into.\n"
     "   :type vert_target: :class:`bmesh.types.BMVert`\n"
     "\n"
     "   .. note:: The verts mustn't share an edge or face.\n");
@@ -412,7 +412,7 @@ PyDoc_STRVAR(
     "   :type use_exist: bool\n"
     "   :param source: Newly created edge will copy settings from this one.\n"
     "   :type source: :class:`bmesh.types.BMEdge` | None\n"
-    "   :return: The newly created face or None on failure.\n"
+    "   :return: The newly created face and loop.\n"
     "   :rtype: tuple[:class:`bmesh.types.BMFace`, :class:`bmesh.types.BMLoop`]\n");
 static PyObject *bpy_bm_utils_face_split(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -717,7 +717,7 @@ PyDoc_STRVAR(
     bpy_bm_utils_face_flip_doc,
     ".. method:: face_flip(face)\n"
     "\n"
-    "   Flip the faces direction.\n"
+    "   Flip the face's direction.\n"
     "\n"
     "   :param face: Face to flip.\n"
     "   :type face: :class:`bmesh.types.BMFace`\n");
@@ -791,7 +791,7 @@ PyDoc_STRVAR(
     "may cause tools not to behave properly.\n"
     "   :type sync: bool\n"
     "   :param flush: Check the selection has been properly flushed between elements "
-    "(based on the current :class:`BMesh.select_mode`).\n"
+    "(based on the current :attr:`bmesh.types.BMesh.select_mode`).\n"
     "   :type flush: bool\n"
     "   :param contiguous: Check connected UV's and edges have a matching selection state.\n"
     "   :type contiguous: bool\n"
@@ -993,7 +993,8 @@ static PyMethodDef BPy_BM_utils_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     BPy_BM_utils_doc,
-    "This module provides access to Blender's bmesh data structures.");
+    "This module provides bmesh utility functions for splitting, joining, "
+    "and modifying mesh elements.");
 static PyModuleDef BPy_BM_utils_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bmesh.utils",

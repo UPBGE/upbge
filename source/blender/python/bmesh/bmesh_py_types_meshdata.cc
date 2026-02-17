@@ -64,7 +64,7 @@ struct BPy_BMLoopUV {
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmloopuv_uv_doc,
-    "Loops UV (as a 2D Vector).\n"
+    "Loop UV (as a 2D Vector).\n"
     "\n"
     ":type: :class:`mathutils.Vector`\n");
 static PyObject *bpy_bmloopuv_uv_get(BPy_BMLoopUV *self, void * /*closure*/)
@@ -285,7 +285,7 @@ static void bm_init_types_bmvertskin()
 
   BPy_BMVertSkin_Type.tp_name = "BMVertSkin";
 
-  BPy_BMVertSkin_Type.tp_doc = nullptr; /* todo */
+  BPy_BMVertSkin_Type.tp_doc = "Skin vertex data for the skin modifier.";
 
   BPy_BMVertSkin_Type.tp_getset = bpy_bmvertskin_getseters;
 
@@ -577,7 +577,7 @@ PyDoc_STRVAR(
     "   Return the group indices used by this vertex\n"
     "   (matching Python's dict.keys() functionality).\n"
     "\n"
-    "   :return: the deform group this vertex uses\n"
+    "   :return: The deform group indices this vertex uses.\n"
     "   :rtype: list[int]\n");
 static PyObject *bpy_bmdeformvert_keys(BPy_BMDeformVert *self)
 {
@@ -652,7 +652,7 @@ PyDoc_STRVAR(
     "   Returns the deform weight matching the key or default\n"
     "   when not found (matches Python's dictionary function of the same name).\n"
     "\n"
-    "   :param key: The key associated with deform weight.\n"
+    "   :param key: The vertex group index.\n"
     "   :type key: int\n"
     "   :param default: Optional argument for the value to return if\n"
     "      *key* is not found.\n"

@@ -1548,7 +1548,7 @@ PyDoc_STRVAR(
     Matrix_to_translation_doc,
     ".. method:: to_translation()\n"
     "\n"
-    "   Return the translation part of a 4 row matrix.\n"
+    "   Return the translation part of a 4x4 matrix.\n"
     "\n"
     "   :return: Return the translation of a matrix.\n"
     "   :rtype: :class:`Vector`\n");
@@ -1911,10 +1911,12 @@ PyDoc_STRVAR(
     "\n"
     "   Rotates the matrix by another mathutils value.\n"
     "\n"
-    "   :param other: rotation component of mathutils value\n"
-    "   :type other: :class:`Euler` | :class:`Quaternion` | :class:`Matrix`\n"
+    "   .. note:: The matrix must be 3x3.\n"
     "\n"
-    "   .. note:: If any of the columns are not unit length this may not have desired results.\n");
+    "   .. note:: If any of the columns are not unit length this may not have desired results.\n"
+    "\n"
+    "   :param other: rotation component of mathutils value\n"
+    "   :type other: :class:`Euler` | :class:`Quaternion` | :class:`Matrix`\n");
 static PyObject *Matrix_rotate(MatrixObject *self, PyObject *value)
 {
   float self_rmat[3][3], other_rmat[3][3], rmat[3][3];
@@ -1954,7 +1956,7 @@ PyDoc_STRVAR(
     Matrix_decompose_doc,
     ".. method:: decompose()\n"
     "\n"
-    "   Return the translation, rotation, and scale components of this matrix.\n"
+    "   Return the translation, rotation, and scale components of this 4x4 matrix.\n"
     "\n"
     "   :return: Tuple of translation, rotation, and scale.\n"
     "   :rtype: tuple[:class:`Vector`, :class:`Quaternion`, :class:`Vector`]\n");
@@ -2154,7 +2156,7 @@ PyDoc_STRVAR(
     Matrix_normalize_doc,
     ".. method:: normalize()\n"
     "\n"
-    "   Normalize each of the matrix columns.\n"
+    "   Normalize each of the matrix columns (3x3 and 4x4 only).\n"
     "\n"
     "   .. note:: for 4x4 matrices, the 4th column (translation) is left untouched.\n");
 static PyObject *Matrix_normalize(MatrixObject *self)
@@ -2191,7 +2193,7 @@ PyDoc_STRVAR(
     Matrix_normalized_doc,
     ".. method:: normalized()\n"
     "\n"
-    "   Return a column normalized matrix\n"
+    "   Return a column normalized matrix (3x3 and 4x4 only).\n"
     "\n"
     "   :return: a column normalized matrix\n"
     "   :rtype: :class:`Matrix`\n"
@@ -2303,7 +2305,7 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a copy of this matrix.\n"
     "\n"
-    "   :return: an instance of itself\n"
+    "   :return: A copy of the matrix.\n"
     "   :rtype: :class:`Matrix`\n");
 static PyObject *Matrix_copy(MatrixObject *self)
 {
@@ -3293,7 +3295,7 @@ static PyObject *Matrix_row_get(MatrixObject *self, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     Matrix_col_doc,
-    "Access the matrix by columns, 3x3 and 4x4 only, (read-only).\n"
+    "Access the matrix by columns (read-only).\n"
     "\n"
     ":type: :class:`MatrixAccess`\n");
 static PyObject *Matrix_col_get(MatrixObject *self, void * /*closure*/)

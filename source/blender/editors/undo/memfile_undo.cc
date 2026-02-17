@@ -138,32 +138,6 @@ static int memfile_undosys_step_id_reused_cb(LibraryIDLinkCallbackData *cb_data)
   return IDWALK_RET_NOP;
 }
 
-/**
- * ID previews may be generated in a parallel job. So whatever operation generates the preview
- * likely does the undo push before the preview is actually done and stored in the ID. Hence they
- * get some extra treatment here:
- * When undoing back to the moment the preview generation was triggered, this function schedules
- * the preview for regeneration.
- */
-static void memfile_undosys_unfinished_id_previews_restart(ID *id)
-{
-  PreviewImage *preview = BKE_previewimg_id_get(id);
-  if (!preview) {
-    return;
-  }
-
-  for (int i = 0; i < NUM_ICON_SIZES; i++) {
-    if (preview->flag[i] & PRV_USER_EDITED) {
-      /* Don't modify custom previews. */
-      continue;
-    }
-
-    if (!BKE_previewimg_is_finished(preview, i)) {
-      ED_preview_restart_queue_add(id, eIconSizes(i));
-    }
-  }
-}
-
 static void memfile_undosys_step_decode(
     bContext *C, Main *bmain, UndoStep *us_p, const eUndoStepDir undo_direction, bool /*is_final*/)
 {
@@ -213,7 +187,7 @@ static void memfile_undosys_step_decode(
 
   ED_editors_exit(bmain, false);
   /* Ensure there's no preview job running. Unfinished previews will be scheduled for regeneration
-   * via #memfile_undosys_unfinished_id_previews_restart(). */
+   * via #PRV_TAG_RESTART_RENDERING in BKE_previewimg_blend_read. */
   ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 
   MemFileUndoStep *us = reinterpret_cast<MemFileUndoStep *>(us_p);
@@ -306,9 +280,6 @@ static void memfile_undosys_step_decode(
           }
         }
       }
-
-      /* Restart preview generation if the undo state was generating previews. */
-      memfile_undosys_unfinished_id_previews_restart(id);
     }
     FOREACH_MAIN_ID_END;
 
@@ -331,14 +302,6 @@ static void memfile_undosys_step_decode(
           scene->master_collection->id.recalc_after_undo_push = 0;
         }
       }
-    }
-    FOREACH_MAIN_ID_END;
-  }
-  else {
-    ID *id = nullptr;
-    FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      /* Restart preview generation if the undo state was generating previews. */
-      memfile_undosys_unfinished_id_previews_restart(id);
     }
     FOREACH_MAIN_ID_END;
   }

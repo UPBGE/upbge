@@ -76,11 +76,11 @@ PyDoc_STRVAR(
     py_imbuf_resize_doc,
     ".. method:: resize(size, *, method='FAST')\n"
     "\n"
-    "   Resize the image.\n"
+    "   Resize the image in-place.\n"
     "\n"
     "   :param size: New size.\n"
     "   :type size: tuple[int, int]\n"
-    "   :param method: Method of resizing ('FAST', 'BILINEAR')\n"
+    "   :param method: Method of resizing ('FAST', 'BILINEAR').\n"
     "   :type method: str\n");
 static PyObject *py_imbuf_resize(Py_ImBuf *self, PyObject *args, PyObject *kw)
 {
@@ -132,11 +132,11 @@ PyDoc_STRVAR(
     py_imbuf_crop_doc,
     ".. method:: crop(min, max)\n"
     "\n"
-    "   Crop the image.\n"
+    "   Crop the image in-place.\n"
     "\n"
-    "   :param min: X, Y minimum.\n"
+    "   :param min: Minimum pixel coordinates (X, Y), inclusive.\n"
     "   :type min: tuple[int, int]\n"
-    "   :param max: X, Y maximum.\n"
+    "   :param max: Maximum pixel coordinates (X, Y), inclusive.\n"
     "   :type max: tuple[int, int]\n");
 static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
 {
@@ -178,6 +178,8 @@ PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_copy_doc,
     ".. method:: copy()\n"
+    "\n"
+    "   Return a copy of the image.\n"
     "\n"
     "   :return: A copy of the image.\n"
     "   :rtype: :class:`ImBuf`\n");
@@ -264,7 +266,7 @@ static PyMethodDef Py_ImBuf_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_size_doc,
-    "size of the image in pixels.\n"
+    "Size of the image in pixels.\n"
     "\n"
     ":type: tuple[int, int]\n");
 static PyObject *py_imbuf_size_get(Py_ImBuf *self, void * /*closure*/)
@@ -277,7 +279,7 @@ static PyObject *py_imbuf_size_get(Py_ImBuf *self, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_ppm_doc,
-    "pixels per meter.\n"
+    "Pixels per meter.\n"
     "\n"
     ":type: tuple[float, float]\n");
 static PyObject *py_imbuf_ppm_get(Py_ImBuf *self, void * /*closure*/)
@@ -310,7 +312,7 @@ static int py_imbuf_ppm_set(Py_ImBuf *self, PyObject *value, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_filepath_doc,
-    "filepath associated with this image.\n"
+    "Filepath associated with this image.\n"
     "\n"
     ":type: str\n");
 static PyObject *py_imbuf_filepath_get(Py_ImBuf *self, void * /*closure*/)
@@ -508,7 +510,7 @@ PyDoc_STRVAR(
     "\n"
     "   :param size: The size of the image in pixels.\n"
     "   :type size: tuple[int, int]\n"
-    "   :return: the newly created image.\n"
+    "   :return: The newly created image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -570,9 +572,9 @@ PyDoc_STRVAR(
     "\n"
     "   Load an image from a file.\n"
     "\n"
-    "   :param filepath: the filepath of the image.\n"
+    "   :param filepath: The filepath of the image.\n"
     "   :type filepath: str | bytes\n"
-    "   :return: the newly loaded image.\n"
+    "   :return: The newly loaded image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_load(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -620,7 +622,7 @@ PyDoc_STRVAR(
     "\n"
     "   :param buffer: A buffer containing the image data.\n"
     "   :type buffer: collections.abc.Buffer\n"
-    "   :return: the newly loaded image.\n"
+    "   :return: The newly loaded image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_load_from_buffer(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -679,9 +681,9 @@ PyDoc_STRVAR(
     "\n"
     "   Write an image.\n"
     "\n"
-    "   :param image: the image to write.\n"
+    "   :param image: The image to write.\n"
     "   :type image: :class:`ImBuf`\n"
-    "   :param filepath: Optional filepath of the image (fallback to the images file path).\n"
+    "   :param filepath: Optional filepath of the image (fallback to the image's file path).\n"
     "   :type filepath: str | bytes | None\n");
 static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
