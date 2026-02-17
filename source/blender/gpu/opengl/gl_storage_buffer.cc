@@ -257,9 +257,6 @@ bool GLStorageBuf::read_fast(void *data)
   if (data == nullptr) {
     return false;
   }
-  if (ssbo_id_ == 0) {
-    this->init();
-  }
 
   /* Ensure the persistent-mapped readback buffer exists (coherent = GPU writes auto-visible). */
   if (read_ssbo_id_ == 0) {
