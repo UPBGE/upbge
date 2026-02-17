@@ -640,11 +640,7 @@ bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
         scene->AppendToIdsToUpdate(&ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
       else {
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-        DEG_bump_update_count(depsgraph);
-        ob_eval->runtime->last_update_geometry = DEG_get_update_count(depsgraph);
+        scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
 
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
