@@ -818,10 +818,6 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
 
-  /* No explicit notify is required: read_fast() will submit a fence/timeline
-   * when the CPU first requests a read. This avoids needing an explicit
-   * notify_written() call here. */
-
   /* --- Bounds async readback (1-frame delayed) --- */
   if (bounds_enabled && bounds_ssbo) {
     /* Read previous frame's bounds (non-blocking if data ready). */
