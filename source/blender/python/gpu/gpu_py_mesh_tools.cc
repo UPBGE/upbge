@@ -208,7 +208,7 @@ PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObject *kwds
     GPU_storagebuf_free(transform_ssbo);
     transform_ssbo = nullptr;
   }
-  DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+  DEG_bump_update_count(depsgraph);
   Py_RETURN_NONE;
 }
 
@@ -788,7 +788,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
     if (b.bind_name)
       free((void *)b.bind_name);
   }
-  DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+  DEG_bump_update_count(depsgraph);
   return PyLong_FromLong(static_cast<int>(status));
 }
 
