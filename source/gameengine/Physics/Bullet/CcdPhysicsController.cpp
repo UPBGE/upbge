@@ -2251,12 +2251,12 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
   const std::string key_out0 = key_prefix + "_out_pos_0";
   const std::string key_out1 = key_prefix + "_out_pos_1";
 
-  gpu::VertBuf *ssbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
+  gpu::VertBuf *vbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
       me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true);
-  gpu::VertBuf *ssbo_out1 = bke::BKE_mesh_gpu_internal_vbo_ensure(
+  gpu::VertBuf *vbo_out1 = bke::BKE_mesh_gpu_internal_vbo_ensure(
       me, ob_eval, key_out1, verts_num * sizeof(float) * 4, true);
 
-  if (!ssbo_out0 || !ssbo_out1) {
+  if (!vbo_out0 || !vbo_out1) {
     return false;
   }
 
@@ -2320,8 +2320,8 @@ void main() {
   vbo_pos->bind_as_ssbo(0);
   /* Bind the write buffer for this frame (ping) and leave the other buffer
    * available for CPU read (previous frame). */
-  ssbo_write = (toggle == 0) ? ssbo_out0 : ssbo_out1;
-  ssbo_read = (toggle == 0) ? ssbo_out1 : ssbo_out0;
+  ssbo_write = (toggle == 0) ? vbo_out0 : vbo_out1;
+  ssbo_read = (toggle == 0) ? vbo_out1 : vbo_out0;
   GPU_vertbuf_bind_as_ssbo(ssbo_write, 1);
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 
@@ -2329,7 +2329,7 @@ void main() {
   const int num_groups = (corners_num + group_size - 1) / group_size;
   GPU_compute_dispatch(shader, num_groups, 1, 1, constants);
 
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
   /* Double-buffering: read from the previous buffer if available. If this is
    * the first time, ssbo_read may not contain valid data yet -> skip read and
