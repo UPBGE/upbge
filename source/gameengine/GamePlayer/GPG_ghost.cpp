@@ -846,6 +846,7 @@ int main(int argc,
   DNA_sdna_current_init();
 
   BKE_blender_globals_init(); /* blender.c */
+  G.is_blenderplayer = true;
 
   MEM_CacheLimiter_set_disabled(true);
 
