@@ -29,10 +29,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
-#include <unordered_map>
-#include <mutex>
-#include <unordered_map>
-#include <mutex>
+
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "DEG_depsgraph_query.hh"
@@ -51,12 +48,14 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 
+/* Following includes to update physics shape from gpu */
+#include "BKE_mesh_gpu.hh"
 #include "../gpu/GPU_state.hh"
 #include "../gpu/GPU_compute.hh"
+#include "../gpu/GPU_context.hh"
 #include "../gpu/GPU_storage_buffer.hh"
 #include "../gpu/GPU_vertex_buffer.hh"
 #include "../draw/intern/draw_cache_extract.hh"
-#include "BKE_mesh_gpu.hh"
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 
 using namespace blender;
@@ -2217,6 +2216,9 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
  */
 bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
 {
+  if (!GPU_context_active_get()) {
+    return false;
+  }
   Object *ob_orig = gameobj->GetBlenderObject();
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -2695,10 +2697,9 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       }
     }
   }
-  else { /*
-          * RAS blender::Mesh Update
-          *
-          * */
+  else {
+    /* RAS blender::Mesh Update */
+
     // Note!, gameobj can be nullptr here
 
     /* transverts are only used for deformed RAS_Meshes, the RAS_Vertex data
