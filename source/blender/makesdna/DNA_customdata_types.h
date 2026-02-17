@@ -77,7 +77,7 @@ enum eCustomDataType {
   CD_CREASE = 30,
 #endif
   CD_ORIGSPACE_MLOOP = 31,
-  /* CD_PREVIEW_MLOOPCOL = 32, */ /* UNUSED */
+  CD_RECAST = 32, /* BGE navmesh data (was CD_PREVIEW_MLOOPCOL) */
   CD_BM_ELEM_PYPTR = 33,
 
 #ifdef DNA_DEPRECATED_ALLOW
@@ -130,7 +130,7 @@ enum eCustomDataType {
 #define CD_MASK_PROP_BYTE_COLOR (1 << CD_PROP_BYTE_COLOR)
 #define CD_MASK_MDISPS (1 << CD_MDISPS)
 #define CD_MASK_CLOTH_ORCO (1 << CD_CLOTH_ORCO)
-#define CD_MASK_RECAST (1 << CD_RECAST)
+#define CD_MASK_RECAST (1LL << CD_RECAST)
 
 #define CD_MASK_SHAPE_KEYINDEX (1 << CD_SHAPE_KEYINDEX)
 #define CD_MASK_SHAPEKEY (1 << CD_SHAPEKEY)

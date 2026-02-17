@@ -1811,8 +1811,14 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
         .dominmax = layerDoMinMax_mloop_origspace,
         .copyvalue = layerCopyValue_mloop_origspace,
     },
-    /* 32: CD_PREVIEW_MLOOPCOL */ /* DEPRECATED */ /* UNUSED */
-    {},
+    /* 32: CD_RECAST */ /* BGE navmesh data */
+    {
+        .size = sizeof(int),
+        .alignment = alignof(int),
+        .structname = "MRecast",
+        .structnum = 1,
+        .defaultname = N_("Recast"),
+    },
     /* 33: CD_BM_ELEM_PYPTR */
     {
         .size = sizeof(void *),
@@ -2020,7 +2026,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
     "CDIDMCol",
     "CDTextureMCol",
     "CDClothOrco",
-    "CDMRecast",
+    "CDPropFloat4",
 
     /* BMESH ONLY */
     /* 25-29 */ "CDMPoly",
@@ -2030,7 +2036,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
     "CDBevelWeight",
     /* 30-34 */ "CDSubSurfCrease",
     "CDOrigSpaceLoop",
-    "CDPreviewLoopCol",
+    "CDMRecast",
     "CDBMElemPyPtr",
     "CDPaintMask",
     /* 35-36 */ "CDGridPaintMask",
