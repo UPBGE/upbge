@@ -2285,8 +2285,8 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
   std::string glsl_accessors = bke::BKE_mesh_gpu_topology_glsl_accessors_string(
       mesh_gpu_data->topology);
 
-  gpu::VertBuf *ssbo_write = nullptr;
-  gpu::VertBuf *ssbo_read = nullptr;
+  gpu::VertBuf *vbo_write = nullptr;
+  gpu::VertBuf *vbo_read = nullptr;
 
   /* Compute shader that averages corner positions per vertex. */
   static const char *cs_src = R"GLSL(
@@ -2320,9 +2320,9 @@ void main() {
   vbo_pos->bind_as_ssbo(0);
   /* Bind the write buffer for this frame (ping) and leave the other buffer
    * available for CPU read (previous frame). */
-  ssbo_write = (toggle == 0) ? vbo_out0 : vbo_out1;
-  ssbo_read = (toggle == 0) ? vbo_out1 : vbo_out0;
-  GPU_vertbuf_bind_as_ssbo(ssbo_write, 1);
+  vbo_write = (toggle == 0) ? vbo_out0 : vbo_out1;
+  vbo_read = (toggle == 0) ? vbo_out1 : vbo_out0;
+  GPU_vertbuf_bind_as_ssbo(vbo_write, 1);
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 
   const int group_size = 256;
@@ -2345,9 +2345,9 @@ void main() {
 #ifdef BT_USE_DOUBLE_PRECISION
   thread_local std::vector<float> tmp;
   tmp.resize(size_t(verts_num) * 4);
-  bool ok_fast = GPU_vertbuf_read_fast(ssbo_read, tmp.data());
+  bool ok_fast = GPU_vertbuf_read_fast(vbo_read, tmp.data());
   if (!ok_fast) {
-    GPU_vertbuf_read(ssbo_read, tmp.data());
+    GPU_vertbuf_read(vbo_read, tmp.data());
   }
 
   const size_t elems = size_t(verts_num) * 3;
