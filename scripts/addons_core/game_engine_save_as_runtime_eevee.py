@@ -172,6 +172,10 @@ def WriteRuntime(player_path, output_path, new_icon_path, copy_python, overwrite
         py_folder = os.path.join(version_string, "python", "lib")
         dst = os.path.join(runtime_dir, py_folder)
         CopyPythonLibs(dst, overwrite_lib, report)
+        py_folder = os.path.join(version_string, "python", "bin")
+        src = os.path.join(blender_dir, py_folder)
+        dst = os.path.join(runtime_dir, py_folder)
+        shutil.copytree(src, dst)
         if output_path.endswith('.exe'):
             py_folder = os.path.join(version_string, "python", "DLLs")
             src = os.path.join(blender_dir, py_folder)
