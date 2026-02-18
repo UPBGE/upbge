@@ -29,6 +29,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "DEG_depsgraph_query.hh"
@@ -46,6 +47,16 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+
+/* Following includes to update physics shape from gpu */
+#include "BKE_mesh_gpu.hh"
+#include "GPU_state.hh"
+#include "GPU_compute.hh"
+#include "GPU_context.hh"
+#include "GPU_storage_buffer.hh"
+#include "GPU_vertex_buffer.hh"
+#include "../draw/intern/draw_cache_extract.hh"
+#include "../blenkernel/intern/mesh_gpu_cache.hh"
 
 using namespace blender;
 
@@ -2195,6 +2206,299 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   return true;
 }
 
+/* Note: topology changes are currently forbidden during GPU deform/runback
+ * playback, so we deliberately only update `m_vertexArray` from the GPU
+ * position VBO. The triangle/index/uv/polygon arrays (`m_triFaceArray`,
+ * `m_triFaceUVcoArray`, `m_polygonIndexArray`) are not updated on the GPU
+ * because handling topology changes would require complex GPU-side
+ * deduplication and synchronization. For safety we only enable the GPU path
+ * when the mesh is in GPU animation playback mode.
+ */
+bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
+{
+  if (!GPU_context_active_get()) {
+    return false;
+  }
+  Object *ob_orig = gameobj->GetBlenderObject();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+  Mesh *me_original = (Mesh *)ob_orig->data;
+  Mesh *me_eval = (Mesh *)ob_eval->data;
+  blender::Mesh *me = me_eval;
+  if (me == nullptr || !me->is_running_gpu_animation_playback) {
+    return false;
+  }
+
+  auto *cache = static_cast<draw::MeshBatchCache *>(me_eval->runtime->batch_cache);
+  auto *vbo_pos_ptr = cache->final.buff.vbos.lookup_ptr(draw::VBOType::Position);
+  if (!vbo_pos_ptr) {
+    return false;
+  }
+  auto *vbo_pos = vbo_pos_ptr->get();
+  const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
+  if (!format || format->stride != 16) {
+    /* Position VBO not vec4-aligned: fall back to CPU path. */
+    return false;
+  }
+  const int verts_num = me->verts_num;
+  const int corners_num = int(me->corner_verts().size());
+  if (verts_num == 0 || corners_num == 0) {
+    return false;
+  }
+
+  const std::string key_prefix = std::string("ccd_") + std::to_string(uintptr_t(m_meshObject));
+  const std::string key_out0 = key_prefix + "_out_pos_0";
+  const std::string key_out1 = key_prefix + "_out_pos_1";
+
+  gpu::VertBuf *vbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
+      me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true);
+  gpu::VertBuf *vbo_out1 = bke::BKE_mesh_gpu_internal_vbo_ensure(
+      me, ob_eval, key_out1, verts_num * sizeof(float) * 4, true);
+
+  if (!vbo_out0 || !vbo_out1) {
+    return false;
+  }
+
+  /* Per-mesh ping/pong state to avoid GPU<->CPU stalls (double buffering). */
+  static std::unordered_map<Mesh *, int> ssbo_toggle_map;
+  static std::unordered_map<Mesh *, std::array<bool, 2>> ssbo_init_map;
+  static std::mutex ssbo_map_mutex;
+
+  int toggle = 0;
+  bool read_ready = false;
+  {
+    std::lock_guard<std::mutex> lock(ssbo_map_mutex);
+    auto it = ssbo_toggle_map.find(me_original);
+    if (it == ssbo_toggle_map.end()) {
+      ssbo_toggle_map.emplace(me_original, 0);
+      ssbo_init_map.emplace(me_original, std::array<bool, 2>{false, false});
+      toggle = 0;
+    }
+    else {
+      toggle = it->second;
+    }
+    read_ready = ssbo_init_map[me_original][toggle ^ 1];
+  }
+
+  bke::MeshGpuData *mesh_gpu_data = bke::BKE_mesh_gpu_ensure_data(me_original, me_eval);
+  std::string glsl_accessors = bke::BKE_mesh_gpu_topology_glsl_accessors_string(
+      mesh_gpu_data->topology);
+
+  gpu::VertBuf *vbo_write = nullptr;
+  gpu::VertBuf *vbo_read = nullptr;
+
+  /* Compute shader that averages corner positions per vertex. */
+  static const char *cs_src = R"GLSL(
+void main() {
+  uint c = gl_GlobalInvocationID.x;
+  if (int(c) >= in_pos.length()) return;
+  int v = corner_verts(int(c));
+  out_pos[v] = in_pos[c];
+}
+)GLSL";
+
+  const std::string shader_key = key_prefix + "_avg_cs";
+  gpu::Shader *shader = bke::BKE_mesh_gpu_internal_shader_get(me, shader_key);
+  if (!shader) {
+    gpu::shader::ShaderCreateInfo info("pyGPU_Shader");
+    info.local_group_size(256, 1, 1);
+    info.compute_source_generated = glsl_accessors + cs_src;
+    info.storage_buf(0, gpu::shader::Qualifier::read, "vec4", "in_pos[]");
+    info.storage_buf(1, gpu::shader::Qualifier::write, "vec4", "out_pos[]");
+    info.storage_buf(15, gpu::shader::Qualifier::read, "int", "topo[]");
+    info.push_constant(gpu::shader::Type::int_t, "verts_num");
+    bke::BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_gpu_data->topology);
+    shader = bke::BKE_mesh_gpu_internal_shader_ensure(me, ob_eval, shader_key, info);
+  }
+  if (!shader) {
+    return false;
+  }
+
+  const gpu::shader::SpecializationConstants *constants = &GPU_shader_get_default_constant_state(shader);
+  GPU_shader_bind(shader, constants);
+  vbo_pos->bind_as_ssbo(0);
+  /* Bind the write buffer for this frame (ping) and leave the other buffer
+   * available for CPU read (previous frame). */
+  vbo_write = (toggle == 0) ? vbo_out0 : vbo_out1;
+  vbo_read = (toggle == 0) ? vbo_out1 : vbo_out0;
+  GPU_vertbuf_bind_as_ssbo(vbo_write, 1);
+  GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
+
+  const int group_size = 256;
+  const int num_groups = (corners_num + group_size - 1) / group_size;
+  GPU_compute_dispatch(shader, num_groups, 1, 1, constants);
+
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
+  GPU_shader_unbind();
+  /* Double-buffering: read from the previous buffer if available. If this is
+   * the first time, ssbo_read may not contain valid data yet -> skip read and
+   * mark the write buffer as initialized for next frame. */
+  if (!read_ready) {
+    std::lock_guard<std::mutex> lock(ssbo_map_mutex);
+    ssbo_init_map[me_original][toggle] = true; /* write buffer now initialized */
+    ssbo_toggle_map[me_original] = toggle ^ 1; /* next frame will write other buffer */
+    return false;
+  }
+
+  const size_t verts_floats = size_t(verts_num) * 4;
+#ifdef BT_USE_DOUBLE_PRECISION
+  thread_local std::vector<float> tmp;
+  tmp.resize(size_t(verts_num) * 4);
+  bool ok_fast = GPU_vertbuf_read_fast(vbo_read, tmp.data());
+  if (!ok_fast) {
+    return false;
+  }
+
+  const size_t elems = size_t(verts_num) * 3;
+  m_vertexArray.resize(elems);
+  /* Parallel convert floats -> btScalar (double) */
+  {
+    struct ConvertCtx {
+      const float *src;
+      btScalar *dst;
+    } ctx{tmp.data(), &m_vertexArray[0]};
+
+    /* Fallback single-threaded conversion to avoid dependency on task API here. */
+    for (int i = 0; i < verts_num; ++i) {
+      const size_t src = size_t(i) * 4;
+      const size_t dst = size_t(i) * 3;
+      ctx.dst[dst + 0] = static_cast<btScalar>(ctx.src[src + 0]);
+      ctx.dst[dst + 1] = static_cast<btScalar>(ctx.src[src + 1]);
+      ctx.dst[dst + 2] = static_cast<btScalar>(ctx.src[src + 2]);
+    }
+  }
+#else
+  m_vertexArray.resize(verts_floats);
+  bool ok_fast = GPU_vertbuf_read_fast(ssbo_read, &m_vertexArray[0]);
+  if (!ok_fast) {
+    GPU_vertbuf_read(ssbo_read, &m_vertexArray[0]);
+  }
+
+  /* Parallel compact: vec4 -> vec3 in-place */
+  const size_t elems = size_t(verts_num) * 3;
+  {
+    /* Compact using float temporary view since data currently contains floats.
+     * m_vertexArray is btScalar but in the float path it's safe to reinterpret. */
+    float *fdata = reinterpret_cast<float *>(&m_vertexArray[0]);
+    struct CompactCtx {
+      float *data;
+    } ctx{fdata};
+
+    /* Fallback single-threaded compact to avoid task API here. */
+    for (int i = 0; i < verts_num; ++i) {
+      const size_t src = size_t(i) * 4;
+      const size_t dst = size_t(i) * 3;
+      ctx.data[dst + 0] = ctx.data[src + 0];
+      ctx.data[dst + 1] = ctx.data[src + 1];
+      ctx.data[dst + 2] = ctx.data[src + 2];
+    }
+  }
+  m_vertexArray.resize(elems);
+#endif
+
+  /* If we produced vertex positions from the GPU, reconstruct the triangle
+   * topology arrays so that the triangle mesh debug lines keep the same
+   * visual order as the CPU path. We compact vertices according to the
+   * corner topology (verts referenced by tris) and rebuild
+   * m_triFaceArray / m_triFaceUVcoArray / m_polygonIndexArray accordingly. */
+  if (m_shapeType == PHY_SHAPE_MESH) {
+    const blender::Span<blender::int3> tris = me->corner_tris();
+    const blender::Span<int> corner_verts = me->corner_verts();
+    const blender::Span<int> tri_faces = me->corner_tri_faces();
+
+    // UVs
+    blender::VArraySpan<blender::float2> uvs;
+    const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
+    if (uv_layer_count > 0) {
+      const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
+      if (uv_name) {
+        blender::bke::AttributeAccessor attributes = me->attributes();
+        if (auto uv_varray = attributes.lookup<blender::float2>(uv_name,
+                                                                blender::bke::AttrDomain::Corner))
+        {
+          uvs = *uv_varray;
+        }
+      }
+    }
+
+    // Prepare containers (keep m_vertexArray content produced by the GPU -
+    // it contains one vec3 per original vertex index)
+    m_triFaceArray.clear();
+    m_triFaceUVcoArray.clear();
+    m_polygonIndexArray.clear();
+
+    std::vector<int> vert_remap((size_t)me->verts_num, -1);
+    int next_vert = 0;
+
+    m_triFaceArray.resize(tris.size() * 3);
+    m_polygonIndexArray.resize(tris.size());
+    if (!uvs.is_empty()) {
+      m_triFaceUVcoArray.resize(tris.size() * 3);
+    }
+
+    // Temporary buffer for unique vertices (read from the GPU-filled array)
+    std::vector<std::array<float, 3>> temp_vertex_buffer((size_t)me->verts_num);
+
+    for (int t = 0; t < tris.size(); ++t) {
+      const blender::int3 &tri = tris[t];
+      int tri_indices[3];
+      UVco tri_uv[3] = {};
+
+      for (int j = 0; j < 3; ++j) {
+        int loop_idx = tri[j];
+        int vert_idx = corner_verts[loop_idx];
+
+        int idx = vert_remap[vert_idx];
+        if (idx == -1) {
+          idx = next_vert++;
+          vert_remap[vert_idx] = idx;
+          // copy position from m_vertexArray (which currently contains N*3 floats
+          // produced by the GPU: position per original vertex index)
+          temp_vertex_buffer[idx][0] = m_vertexArray[vert_idx * 3 + 0];
+          temp_vertex_buffer[idx][1] = m_vertexArray[vert_idx * 3 + 1];
+          temp_vertex_buffer[idx][2] = m_vertexArray[vert_idx * 3 + 2];
+        }
+        tri_indices[j] = idx;
+
+        if (!uvs.is_empty()) {
+          tri_uv[j].uv[0] = uvs[loop_idx].x;
+          tri_uv[j].uv[1] = uvs[loop_idx].y;
+        }
+      }
+
+      m_triFaceArray[t * 3 + 0] = tri_indices[0];
+      m_triFaceArray[t * 3 + 1] = tri_indices[1];
+      m_triFaceArray[t * 3 + 2] = tri_indices[2];
+
+      if (!uvs.is_empty()) {
+        m_triFaceUVcoArray[t * 3 + 0] = tri_uv[0];
+        m_triFaceUVcoArray[t * 3 + 1] = tri_uv[1];
+        m_triFaceUVcoArray[t * 3 + 2] = tri_uv[2];
+      }
+
+      m_polygonIndexArray[t] = tri_faces[t];
+    }
+
+    // Copy unique vertices to m_vertexArray (compacted)
+    m_vertexArray.resize(next_vert * 3);
+    for (int i = 0; i < next_vert; ++i) {
+      m_vertexArray[i * 3 + 0] = temp_vertex_buffer[i][0];
+      m_vertexArray[i * 3 + 1] = temp_vertex_buffer[i][1];
+      m_vertexArray[i * 3 + 2] = temp_vertex_buffer[i][2];
+    }
+  }
+
+  /* Mark the write buffer as initialized (it now contains data) and flip toggle. */
+  {
+    std::lock_guard<std::mutex> lock(ssbo_map_mutex);
+    ssbo_init_map[me_original][toggle] = true;
+    ssbo_toggle_map[me_original] = toggle ^ 1;
+  }
+
+  return true;
+}
+
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
@@ -2253,138 +2557,147 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     me = (blender::Mesh *)from_gameobj->GetBlenderObject()->data;
   }
 
+  bool gpu_reinstance = !from_meshobj && evaluatedMesh && from_gameobj && me && me->is_running_gpu_animation_playback;
+
   if (me && meshobj) {
-
     if (m_shapeType == PHY_SHAPE_POLYTOPE) {
-      // --- POLYTOPE: Build a convex hull from all mesh vertices ---
-      const blender::Span<blender::float3> positions = me->vert_positions();
-
-      // Remap to ensure each vertex is added only once and to provide compact indices.
-      std::map<int, int> vert_remap;
-      int next_vert = 0;
-
-      // Tag and remap all vertices. Not really needed, but keep the logic similar
-      for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
-        vert_remap[vert_idx] = next_vert++;
+      /* GPU path when gpu animated meshes. Only updates m_vertexArray
+       * from the GPU position VBO. The triangle/index/uv/polygon arrays
+       * are not updated (no topology change allowed anyway) */
+      if (gpu_reinstance) {
+        UpdateMeshGPU(from_gameobj);
       }
-
-      // If no vertices were found, the mesh is empty.
-      if (next_vert == 0) {
-        m_shapeType = PHY_SHAPE_NONE;
-        m_meshObject = nullptr;
-        m_vertexArray.clear();
-        m_polygonIndexArray.clear();
-        m_triFaceArray.clear();
-        m_triFaceUVcoArray.clear();
-        return false;
+      if (!gpu_reinstance) {
+        // CPU.
+        const blender::Span<blender::float3> positions = me->vert_positions();
+        std::map<int, int> vert_remap;
+        int next_vert = 0;
+        for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
+          vert_remap[vert_idx] = next_vert++;
+        }
+        if (next_vert == 0) {
+          m_shapeType = PHY_SHAPE_NONE;
+          m_meshObject = nullptr;
+          m_vertexArray.clear();
+          m_polygonIndexArray.clear();
+          m_triFaceArray.clear();
+          m_triFaceUVcoArray.clear();
+          return false;
+        }
+        m_vertexArray.resize(next_vert * 3);
+        for (const auto &pair : vert_remap) {
+          const float *vtx = &positions[pair.first][0];
+          int idx = pair.second;
+          m_vertexArray[idx * 3 + 0] = vtx[0];
+          m_vertexArray[idx * 3 + 1] = vtx[1];
+          m_vertexArray[idx * 3 + 2] = vtx[2];
+        }
       }
-
-      // Fill the compacted vertex array using the remapped indices.
-      m_vertexArray.resize(next_vert * 3);
-      for (const auto &pair : vert_remap) {
-        const float *vtx = &positions[pair.first][0];
-        int idx = pair.second;
-        m_vertexArray[idx * 3 + 0] = vtx[0];
-        m_vertexArray[idx * 3 + 1] = vtx[1];
-        m_vertexArray[idx * 3 + 2] = vtx[2];
-      }
-      // No triangle, UV, or polygon index arrays needed for polytope (convex hull).
+      /* No triangle, UV, or polygon index arrays needed for polytope (convex
+       * hull). */
     }
     else {
-      // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
-      const blender::Span<blender::float3> positions = me->vert_positions();
-      const blender::Span<blender::int3> tris = me->corner_tris();
-      const blender::Span<int> corner_verts = me->corner_verts();
-      const blender::Span<int> tri_faces = me->corner_tri_faces();
-
-      // UVs
-      blender::VArraySpan<blender::float2> uvs;
-      const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
-      if (uv_layer_count > 0) {
-        const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
-        if (uv_name) {
-          blender::bke::AttributeAccessor attributes = me->attributes();
-          if (auto uv_varray = attributes.lookup<blender::float2>(
-                  uv_name, blender::bke::AttrDomain::Corner))
-          {
-            uvs = *uv_varray;
-          }
-        }
+      /* GPU path when gpu animated meshes. Only updates m_vertexArray
+       * from the GPU position VBO. The triangle/index/uv/polygon arrays
+       * are not updated (no topology change allowed anyway) */
+      if (gpu_reinstance) {
+        UpdateMeshGPU(from_gameobj);
       }
+      if (!gpu_reinstance) {
+        // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
+        const blender::Span<blender::float3> positions = me->vert_positions();
+        const blender::Span<blender::int3> tris = me->corner_tris();
+        const blender::Span<int> corner_verts = me->corner_verts();
+        const blender::Span<int> tri_faces = me->corner_tri_faces();
 
-      m_vertexArray.clear();
-      m_triFaceArray.clear();
-      m_triFaceUVcoArray.clear();
-      m_polygonIndexArray.clear();
-
-      // Topology changed: full reconstruction
-      std::vector<int> vert_remap(positions.size(), -1);
-      int next_vert = 0;
-
-      m_triFaceArray.resize(tris.size() * 3);
-      m_polygonIndexArray.resize(tris.size());
-      if (!uvs.is_empty()) {
-        m_triFaceUVcoArray.resize(tris.size() * 3);
-      }
-
-      // Temporary buffer for unique vertices
-      std::vector<std::array<float, 3>> temp_vertex_buffer(positions.size());
-
-      for (int t = 0; t < tris.size(); ++t) {
-        const blender::int3 &tri = tris[t];
-        int tri_indices[3];
-        UVco tri_uv[3] = {};
-
-        for (int j = 0; j < 3; ++j) {
-          int loop_idx = tri[j];
-          int vert_idx = corner_verts[loop_idx];
-
-          int idx = vert_remap[vert_idx];
-          if (idx == -1) {
-            idx = next_vert++;
-            vert_remap[vert_idx] = idx;
-            temp_vertex_buffer[idx][0] = positions[vert_idx][0];
-            temp_vertex_buffer[idx][1] = positions[vert_idx][1];
-            temp_vertex_buffer[idx][2] = positions[vert_idx][2];
-          }
-          tri_indices[j] = idx;
-
-          // UVs
-          if (!uvs.is_empty()) {
-            tri_uv[j].uv[0] = uvs[loop_idx].x;
-            tri_uv[j].uv[1] = uvs[loop_idx].y;
+        // UVs
+        blender::VArraySpan<blender::float2> uvs;
+        const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
+        if (uv_layer_count > 0) {
+          const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
+          if (uv_name) {
+            blender::bke::AttributeAccessor attributes = me->attributes();
+            if (auto uv_varray = attributes.lookup<blender::float2>(
+                    uv_name, blender::bke::AttrDomain::Corner))
+            {
+              uvs = *uv_varray;
+            }
           }
         }
 
-        // Triangle indices
-        m_triFaceArray[t * 3 + 0] = tri_indices[0];
-        m_triFaceArray[t * 3 + 1] = tri_indices[1];
-        m_triFaceArray[t * 3 + 2] = tri_indices[2];
+        m_vertexArray.clear();
+        m_triFaceArray.clear();
+        m_triFaceUVcoArray.clear();
+        m_polygonIndexArray.clear();
 
-        // Triangle UVs
+        // Topology changed: full reconstruction
+        std::vector<int> vert_remap(positions.size(), -1);
+        int next_vert = 0;
+
+        m_triFaceArray.resize(tris.size() * 3);
+        m_polygonIndexArray.resize(tris.size());
         if (!uvs.is_empty()) {
-          m_triFaceUVcoArray[t * 3 + 0] = tri_uv[0];
-          m_triFaceUVcoArray[t * 3 + 1] = tri_uv[1];
-          m_triFaceUVcoArray[t * 3 + 2] = tri_uv[2];
+          m_triFaceUVcoArray.resize(tris.size() * 3);
         }
 
-        // Polygon index (original polygon index for this triangle)
-        m_polygonIndexArray[t] = tri_faces[t];
-      }
+        // Temporary buffer for unique vertices
+        std::vector<std::array<float, 3>> temp_vertex_buffer(positions.size());
 
-      // Copy unique vertices to m_vertexArray
-      m_vertexArray.resize(next_vert * 3);
-      for (int i = 0; i < next_vert; ++i) {
-        m_vertexArray[i * 3 + 0] = temp_vertex_buffer[i][0];
-        m_vertexArray[i * 3 + 1] = temp_vertex_buffer[i][1];
-        m_vertexArray[i * 3 + 2] = temp_vertex_buffer[i][2];
+        for (int t = 0; t < tris.size(); ++t) {
+          const blender::int3 &tri = tris[t];
+          int tri_indices[3];
+          UVco tri_uv[3] = {};
+
+          for (int j = 0; j < 3; ++j) {
+            int loop_idx = tri[j];
+            int vert_idx = corner_verts[loop_idx];
+
+            int idx = vert_remap[vert_idx];
+            if (idx == -1) {
+              idx = next_vert++;
+              vert_remap[vert_idx] = idx;
+              temp_vertex_buffer[idx][0] = positions[vert_idx][0];
+              temp_vertex_buffer[idx][1] = positions[vert_idx][1];
+              temp_vertex_buffer[idx][2] = positions[vert_idx][2];
+            }
+            tri_indices[j] = idx;
+
+            // UVs
+            if (!uvs.is_empty()) {
+              tri_uv[j].uv[0] = uvs[loop_idx].x;
+              tri_uv[j].uv[1] = uvs[loop_idx].y;
+            }
+          }
+
+          // Triangle indices
+          m_triFaceArray[t * 3 + 0] = tri_indices[0];
+          m_triFaceArray[t * 3 + 1] = tri_indices[1];
+          m_triFaceArray[t * 3 + 2] = tri_indices[2];
+
+          // Triangle UVs
+          if (!uvs.is_empty()) {
+            m_triFaceUVcoArray[t * 3 + 0] = tri_uv[0];
+            m_triFaceUVcoArray[t * 3 + 1] = tri_uv[1];
+            m_triFaceUVcoArray[t * 3 + 2] = tri_uv[2];
+          }
+
+          // Polygon index (original polygon index for this triangle)
+          m_polygonIndexArray[t] = tri_faces[t];
+        }
+
+        // Copy unique vertices to m_vertexArray
+        m_vertexArray.resize(next_vert * 3);
+        for (int i = 0; i < next_vert; ++i) {
+          m_vertexArray[i * 3 + 0] = temp_vertex_buffer[i][0];
+          m_vertexArray[i * 3 + 1] = temp_vertex_buffer[i][1];
+          m_vertexArray[i * 3 + 2] = temp_vertex_buffer[i][2];
+        }
       }
     }
   }
-  else { /*
-          * RAS blender::Mesh Update
-          *
-          * */
+  else {
+    /* RAS blender::Mesh Update */
+
     // Note!, gameobj can be nullptr here
 
     /* transverts are only used for deformed RAS_Meshes, the RAS_Vertex data

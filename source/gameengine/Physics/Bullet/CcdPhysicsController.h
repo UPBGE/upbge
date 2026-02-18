@@ -162,6 +162,8 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return m_shapeProxy;
   }
 
+  bool UpdateMeshGPU(class KX_GameObject *gameobj);
+
   btCollisionShape *CreateBulletShape(btScalar margin,
                                       bool useGimpact = false,
                                       bool useBvh = true);

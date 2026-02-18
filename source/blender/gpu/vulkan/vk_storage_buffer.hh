@@ -30,10 +30,18 @@ class VKStorageBuffer : public StorageBuf {
   /** Timeline value from the previous read_fast submission, 0 if none pending. */
   TimelineValue fast_read_timeline_ = 0;
   VkDeviceSize offset_ = 0;
+  /** When true, allocate the storage buffer as host-visible and persistently mapped. */
+  bool use_host_visible_allocation_ = false;
 
  public:
   VKStorageBuffer(size_t size, GPUUsageType usage, const char *name);
   ~VKStorageBuffer();
+
+  /** Enable host-visible persistently-mapped allocation (opt-in). Call before allocate(). */
+  void enable_host_visible_mapping()
+  {
+    use_host_visible_allocation_ = true;
+  }
 
   void update(const void *data) override;
   void bind(int slot) override;
@@ -44,6 +52,7 @@ class VKStorageBuffer : public StorageBuf {
   bool read_fast(void *data) override; //upbge
   void async_flush_to_host() override;
   void sync_as_indirect_buffer() override { /* No-Op. */ };
+  void *mapped_ptr_get() const;
 
   VkBuffer vk_handle() const
   {

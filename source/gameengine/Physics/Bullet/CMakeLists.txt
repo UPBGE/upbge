@@ -68,6 +68,7 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::gpu
 )
 
 if(WITH_PYTHON)

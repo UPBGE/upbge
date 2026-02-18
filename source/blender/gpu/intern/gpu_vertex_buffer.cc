@@ -317,6 +317,19 @@ void GPU_vertbuf_update_sub(VertBuf *verts, uint start, uint len, const void *da
   verts->update_sub(start, len, data);
 }
 
+void GPU_vertbuf_enable_host_visible_mapping(VertBuf *verts)
+{
+  if (verts) {
+    verts->enable_host_visible_mapping();
+  }
+}
+
+bool GPU_vertbuf_read_fast(VertBuf *verts, void *data)
+{
+  if (!verts) return false;
+  return verts->read_fast(data);
+}
+
 /** \} */
 
 }  // namespace blender

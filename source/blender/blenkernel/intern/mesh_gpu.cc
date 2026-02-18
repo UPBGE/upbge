@@ -61,7 +61,7 @@ static void mesh_gpu_free_internal_resources_ptr(bke::MeshGpuInternalResources *
   for (const auto &kv : ir->vbo_map.items()) {
     auto &entry = kv.value;
     if (entry.buffer) {
-      GPU_vertbuf_clear(entry.buffer);
+      GPU_vertbuf_discard(entry.buffer);
     }
   }
   for (const auto &kv : ir->ibo_map.items()) {
@@ -1036,7 +1036,8 @@ gpu::Shader *BKE_mesh_gpu_internal_shader_ensure(
 gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
                                                             Object *ob_eval,
                                                             const std::string &key,
-                                                            size_t size)
+                                                            size_t size,
+                                                            bool host_visible)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1056,6 +1057,11 @@ gpu::StorageBuf *BKE_mesh_gpu_internal_ssbo_ensure(Mesh *mesh_orig,
   gpu::StorageBuf *buf = GPU_storagebuf_create(size);
   if (!buf) {
     return nullptr;
+  }
+  if (host_visible) {
+    /* Request host-visible persistent mapping before any allocation/upload
+     * (For Vulkan - needs tests on different hardwares). */
+    GPU_storagebuf_enable_host_visible_mapping(buf);
   }
   GPU_storagebuf_clear_to_zero(buf);
   d->internal_resources->ssbo_map.add_new(key, {buf});
@@ -1192,7 +1198,8 @@ gpu::IndexBuf *BKE_mesh_gpu_internal_ibo_get(Mesh *mesh_orig, const std::string 
 gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
                                                         Object *ob_eval,
                                                         const std::string &key,
-                                                        size_t /*size*/)
+                                                        size_t size,
+                                                        bool host_visible)
 {
   if (!mesh_orig) {
     return nullptr;
@@ -1210,10 +1217,29 @@ gpu::VertBuf *BKE_mesh_gpu_internal_vbo_ensure(Mesh *mesh_orig,
     return nullptr;
   }
   /* Create an empty vertex buffer. Callers should initialize format/size and upload data. */
+  /* Create a vertex buffer with a vec4 float format (positions). The `size`
+   * parameter is in bytes (expected to be verts_num * sizeof(float) * 4). */
   gpu::VertBuf *vb = GPU_vertbuf_calloc();
   if (!vb) {
     return nullptr;
   }
+
+  if (host_visible) {
+    GPU_vertbuf_enable_host_visible_mapping(vb);
+  }
+  /* Build a simple vec4 format for positions. */
+  static const GPUVertFormat format =
+      GPU_vertformat_from_attribute("pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
+  GPU_vertbuf_init_with_format_ex(*vb, format, GPU_USAGE_DYNAMIC);
+
+  /* Allocate vertex count from provided byte size. */
+  if (size > 0) {
+    const uint vert_len = uint(size / 16);
+    if (vert_len > 0) {
+      GPU_vertbuf_data_alloc(*vb, vert_len);
+    }
+  }
+
   d->internal_resources->vbo_map.add_new(key, {vb});
   return vb;
 }

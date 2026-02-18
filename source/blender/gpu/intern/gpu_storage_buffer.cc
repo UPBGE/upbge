@@ -71,6 +71,9 @@ gpu::StorageBuf *GPU_storagebuf_create_ex(size_t size,
                                           const char *name)
 {
   StorageBuf *ssbo = GPUBackend::get()->storagebuf_alloc(size, usage, name);
+  /* By default storagebuffer is allocated normally. If the caller requested host-visible
+   * mapping prior to creation, the backend may honor it; GPU_storagebuf_enable_host_visible_mapping
+   * will set the flag on the returned object. */
   /* Direct init. */
   if (data != nullptr) {
     ssbo->update(data);
@@ -144,6 +147,14 @@ void GPU_storagebuf_read(gpu::StorageBuf *ssbo, void *data)
 bool GPU_storagebuf_read_fast(gpu::StorageBuf *ssbo, void *data)
 {
   return ssbo->read_fast(data);
+}
+
+void GPU_storagebuf_enable_host_visible_mapping(gpu::StorageBuf *ssbo)
+{
+  if (ssbo == nullptr) {
+    return;
+  }
+  ssbo->enable_host_visible_mapping();
 }
 
 void GPU_storagebuf_sync_as_indirect_buffer(gpu::StorageBuf *ssbo)

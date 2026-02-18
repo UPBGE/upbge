@@ -31,6 +31,11 @@ class GLVertBuf : public VertBuf {
   /** Size on the GPU. */
   size_t vbo_size_ = 0;
 
+  void *persistent_ptr_ = nullptr;
+  mutable GLsync read_fence_ = 0;
+  /** persistent readback buffer. */
+  GLuint read_vbo_id_ = 0;
+
  public:
   void bind();
 
@@ -39,6 +44,7 @@ class GLVertBuf : public VertBuf {
   void read(void *data) const override;
 
   void wrap_handle(uint64_t handle) override;
+  bool read_fast(void *data) override;
 
  protected:
   void acquire_data() override;

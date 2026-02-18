@@ -41,6 +41,15 @@ void GLVertBuf::release_data()
     return;
   }
 
+  if (read_fence_) {
+    glDeleteSync(read_fence_);
+    read_fence_ = 0;
+  }
+  if (read_vbo_id_ != 0) {
+    GLContext::buffer_free(read_vbo_id_);
+    read_vbo_id_ = 0;
+  }
+
   if (vbo_id_ != 0) {
     GPU_TEXTURE_FREE_SAFE(buffer_texture_);
     GLContext::buffer_free(vbo_id_);
@@ -86,6 +95,68 @@ void GLVertBuf::bind()
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
     flag |= GPU_VERTBUF_DATA_UPLOADED;
   }
+}
+
+// upbge
+bool GLVertBuf::read_fast(void *data)
+{
+  if (data == nullptr) {
+    return false;
+  }
+
+  const size_t alloc_size = ceil_to_multiple_ul((size_t)vbo_size_, 16);
+  /* Ensure the persistent-mapped readback buffer exists (coherent = GPU writes auto-visible). */
+  if (read_vbo_id_ == 0) {
+    glGenBuffers(1, &read_vbo_id_);
+    glBindBuffer(GL_ARRAY_BUFFER, read_vbo_id_);
+    glBufferStorage(GL_ARRAY_BUFFER,
+                    alloc_size,
+                    nullptr,
+                    GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_READ_BIT);
+    persistent_ptr_ = glMapBufferRange(GL_ARRAY_BUFFER,
+                                       0,
+                                       alloc_size,
+                                       GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT |
+                                           GL_MAP_READ_BIT);
+    BLI_assert(persistent_ptr_);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
+
+  bool has_result = false;
+
+  /* Step 1: If a fence from a PREVIOUS call is pending, check if it's done.
+   * By now (next frame) it should be signaled — zero or near-zero wait. */
+  if (read_fence_) {
+    GLenum status = glClientWaitSync(read_fence_, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
+    if (status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED) {
+      /* Previous copy is complete — read from the persistent pointer. */
+      memcpy(data, persistent_ptr_, vbo_size_);
+      has_result = true;
+      glDeleteSync(read_fence_);
+      read_fence_ = 0;
+    }
+    else {
+      /* Still not ready (unlikely after a full frame). Don't wait — skip this readback.
+       * The fence stays alive; we'll check again next frame. */
+      return false;
+    }
+  }
+
+  /* Step 2: Submit a NEW async copy for the next call to pick up. */
+  if (GLContext::direct_state_access_support) {
+    glCopyNamedBufferSubData(vbo_id_, read_vbo_id_, 0, 0, alloc_size);
+  }
+  else {
+    glBindBuffer(GL_COPY_READ_BUFFER, vbo_id_);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, read_vbo_id_);
+    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, alloc_size);
+    glBindBuffer(GL_COPY_READ_BUFFER, 0);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+  }
+
+  read_fence_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+
+  return has_result;
 }
 
 void GLVertBuf::bind_as_ssbo(uint binding)
