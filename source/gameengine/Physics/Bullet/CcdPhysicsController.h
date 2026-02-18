@@ -87,7 +87,8 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
         m_triangleIndexVertexArray(nullptr),
         m_forceReInstance(false),
         m_weldingThreshold1(0.0f),
-        m_shapeProxy(nullptr)
+        m_shapeProxy(nullptr),
+        m_lastShapeScale(1.0f)
   {
     m_childTrans.setIdentity();
   }
@@ -152,6 +153,11 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
                   class RAS_MeshObject *from_meshobj,
                   bool evaluatedMesh = false);
 
+  /** Request full re-instance of internal Bullet triangle/index data on
+   * next shape creation. Used when m_triFaceArray or m_vertexArray have been
+   * modified externally. */
+  void SetForceReInstance(bool val) { m_forceReInstance = val; }
+
   CcdShapeConstructionInfo *GetReplica();
 
   void ProcessReplica();
@@ -163,6 +169,18 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   }
 
   bool UpdateMeshGPU(class KX_GameObject *gameobj);
+  void updateIndexedMeshVertexBase();
+  bool GetForceReInstance()
+  {
+    return m_forceReInstance;
+  }
+  btTriangleIndexVertexArray *GetTriangleIndexVertexArray()
+  {
+    return m_triangleIndexVertexArray;
+  }
+
+  float GetLastShapeScale() const { return m_lastShapeScale; }
+  void SetLastShapeScale(float s) { m_lastShapeScale = s; }
 
   btCollisionShape *CreateBulletShape(btScalar margin,
                                       bool useGimpact = false,
@@ -195,6 +213,9 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   {
     m_weldingThreshold1 = threshold * threshold;
   }
+
+  /* Last applied shape_scale used to avoid unnecessary reinstance. */
+  float m_lastShapeScale;
 
  protected:
   static std::map<RAS_MeshObject *, CcdShapeConstructionInfo *> m_meshShapeMap;
@@ -897,9 +918,16 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                       RAS_MeshObject *from_meshobj,
                                       bool dupli = false,
-                                      bool evaluatedMesh = false);
+                                      bool evaluatedMesh = false,
+                                      float shape_scale = 1.0f);
 
   virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
+
+  /** Update the controller collision shape in-place when the underlying
+   * CcdShapeConstructionInfo changed but topology hasn't. This will try to
+   * update vertex pointers and refit/update BVH or GImpact bounds instead of
+   * recreating the whole Bullet shape. */
+  void UpdateShapeFromShapeInfo(CcdShapeConstructionInfo *shapeInfo);
 
   /* Method to replicate rigid body joint contraints for group instances. */
   virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj);

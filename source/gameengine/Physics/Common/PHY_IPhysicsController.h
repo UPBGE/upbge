@@ -165,7 +165,8 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                       RAS_MeshObject *from_meshobj,
                                       bool dupli = false,
-                                      bool evaluatedMesh = false) = 0;
+                                      bool evaluatedMesh = false,
+                                      float shape_scale = 1.0f) = 0;
 
   virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl) = 0;
 

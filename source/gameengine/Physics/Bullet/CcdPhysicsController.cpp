@@ -83,6 +83,132 @@ CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl,
 {
 }
 
+void CcdPhysicsController::UpdateShapeFromShapeInfo(CcdShapeConstructionInfo *shapeInfo)
+{
+  if (!shapeInfo || !m_object)
+    return;
+
+  if (shapeInfo->GetTriangleIndexVertexArray() && !shapeInfo->GetForceReInstance()) {
+    shapeInfo->updateIndexedMeshVertexBase();
+
+    btCollisionShape *shape = m_object->getCollisionShape();
+    if (!shape)
+      return;
+
+    switch (shape->getShapeType()) {
+      case SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE: {
+        btScaledBvhTriangleMeshShape *scaled = (btScaledBvhTriangleMeshShape *)shape;
+        btBvhTriangleMeshShape *unscaled = scaled->getChildShape();
+        if (unscaled) {
+          btVector3 aabbMin(BT_LARGE_FLOAT, BT_LARGE_FLOAT, BT_LARGE_FLOAT);
+          btVector3 aabbMax(-BT_LARGE_FLOAT, -BT_LARGE_FLOAT, -BT_LARGE_FLOAT);
+          const btAlignedObjectArray<btScalar> &v = shapeInfo->m_vertexArray;
+          const int nv = int(v.size() / 3);
+          for (int i = 0; i < nv; ++i) {
+            btScalar x = v[i * 3 + 0];
+            btScalar y = v[i * 3 + 1];
+            btScalar z = v[i * 3 + 2];
+            if (x < aabbMin.getX())
+              aabbMin.setX(x);
+            if (y < aabbMin.getY())
+              aabbMin.setY(y);
+            if (z < aabbMin.getZ())
+              aabbMin.setZ(z);
+            if (x > aabbMax.getX())
+              aabbMax.setX(x);
+            if (y > aabbMax.getY())
+              aabbMax.setY(y);
+            if (z > aabbMax.getZ())
+              aabbMax.setZ(z);
+          }
+          unscaled->refitTree(aabbMin, aabbMax);
+          unscaled->recalcLocalAabb();
+        }
+        break;
+      }
+      case TRIANGLE_MESH_SHAPE_PROXYTYPE: {
+        btBvhTriangleMeshShape *trimesh = (btBvhTriangleMeshShape *)shape;
+        btVector3 aabbMin(BT_LARGE_FLOAT, BT_LARGE_FLOAT, BT_LARGE_FLOAT);
+        btVector3 aabbMax(-BT_LARGE_FLOAT, -BT_LARGE_FLOAT, -BT_LARGE_FLOAT);
+        const btAlignedObjectArray<btScalar> &v = shapeInfo->m_vertexArray;
+        const int nv = int(v.size() / 3);
+        for (int i = 0; i < nv; ++i) {
+          btScalar x = v[i * 3 + 0];
+          btScalar y = v[i * 3 + 1];
+          btScalar z = v[i * 3 + 2];
+          if (x < aabbMin.getX())
+            aabbMin.setX(x);
+          if (y < aabbMin.getY())
+            aabbMin.setY(y);
+          if (z < aabbMin.getZ())
+            aabbMin.setZ(z);
+          if (x > aabbMax.getX())
+            aabbMax.setX(x);
+          if (y > aabbMax.getY())
+            aabbMax.setY(y);
+          if (z > aabbMax.getZ())
+            aabbMax.setZ(z);
+        }
+        trimesh->refitTree(aabbMin, aabbMax);
+        trimesh->recalcLocalAabb();
+        break;
+      }
+      case GIMPACT_SHAPE_PROXYTYPE: {
+        btGImpactMeshShape *gimpact = (btGImpactMeshShape *)shape;
+        gimpact->updateBound();
+        break;
+      }
+      default:
+        /* Fallback: recreate shape */
+        ReplaceControllerShape(nullptr);
+        break;
+    }
+
+    /* Refresh broadphase so pairs get updated. */
+    if (m_cci.m_physicsEnv)
+      m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
+  }
+  else {
+    /* Topology changed: recreate */
+    ReplaceControllerShape(nullptr);
+    if (m_cci.m_physicsEnv)
+      m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
+  }
+}
+
+/* Update the internal btIndexedMesh pointers to point to the current
+ * `m_vertexArray` storage so Bullet shapes that reference
+ * `m_triangleIndexVertexArray` can read the latest vertex positions
+ * without recreating the entire triangle/index array. This relies on
+ * `m_vertexArray` keeping a stable address between updates (no further
+ * reallocation until next call). */
+void CcdShapeConstructionInfo::updateIndexedMeshVertexBase()
+{
+  if (!m_triangleIndexVertexArray) {
+    return;
+  }
+
+  auto &indexed = m_triangleIndexVertexArray->getIndexedMeshArray();
+  if (indexed.size() == 0) {
+    return;
+  }
+
+  /* Update all subparts (usually 1). */
+  for (int i = 0; i < indexed.size(); ++i) {
+    btIndexedMesh &mesh = indexed[i];
+    /* Point the vertex base to our contiguous vertex storage. */
+    if (m_vertexArray.size() > 0) {
+      mesh.m_vertexBase = reinterpret_cast<const unsigned char *>(&m_vertexArray[0]);
+      mesh.m_numVertices = int(m_vertexArray.size() / 3);
+      mesh.m_vertexStride = 3 * sizeof(btScalar);
+    }
+    /* Update triangle count & index base in case topology changed earlier. */
+    mesh.m_numTriangles = int(m_triFaceArray.size() / 3);
+    mesh.m_triangleIndexBase = reinterpret_cast<const unsigned char *>(m_triFaceArray.data());
+    mesh.m_triangleIndexStride = 3 * sizeof(int);
+  }
+}
+
 void CcdCharacter::updateAction(btCollisionWorld *collisionWorld, btScalar dt)
 {
   if (onGround())
@@ -1887,7 +2013,8 @@ bool CcdPhysicsController::IsPhysicsSuspended()
 bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                                   RAS_MeshObject *from_meshobj,
                                                   bool dupli,
-                                                  bool evaluatedMesh)
+                                                  bool evaluatedMesh,
+                                                  float shape_scale)
 {
   if (!(ELEM(m_shapeInfo->m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE)))
     return false;
@@ -1903,6 +2030,90 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
 
   /* updates the arrays used for making the new bullet mesh */
   m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj, evaluatedMesh);
+
+  /* shape_scale: a relative scale [0..1] applied to the triangle count. If
+   * shape_scale < 1.0 the target triangle count is original_tri_count *
+   * shape_scale. Only reduce if target < current. Avoid doing work when
+   * shape_scale hasn't changed since last time. */
+  if (shape_scale > 0.0f && shape_scale < 1.0f && m_shapeInfo->m_shapeType == PHY_SHAPE_MESH &&
+      !btFuzzyZero(shape_scale - m_shapeInfo->GetLastShapeScale())) {
+    const int orig_tri_count = int(m_shapeInfo->m_triFaceArray.size() / 3);
+    if (orig_tri_count > 0) {
+      int target_tri_count = int(float(orig_tri_count) * shape_scale);
+      int cur_tri_count = orig_tri_count;
+      if (target_tri_count < 1)
+        target_tri_count = 1;
+
+      /* If already at or below target, do nothing. */
+      if (cur_tri_count > target_tri_count) {
+        /* Deterministic subsample step. Choose stride so we keep roughly the
+         * right number of triangles. */
+        int stride = cur_tri_count / target_tri_count;
+        if (stride < 1)
+          stride = 1;
+
+        const std::vector<int> &old_tri = m_shapeInfo->m_triFaceArray;
+        const std::vector<CcdShapeConstructionInfo::UVco> &old_uv = m_shapeInfo->m_triFaceUVcoArray;
+        const std::vector<int> &old_poly = m_shapeInfo->m_polygonIndexArray;
+
+        const int old_num_tris = cur_tri_count;
+        const int old_num_verts = int(m_shapeInfo->m_vertexArray.size() / 3);
+
+        std::vector<int> new_tri;
+        std::vector<CcdShapeConstructionInfo::UVco> new_uv;
+        std::vector<int> new_poly;
+        std::vector<btScalar> new_verts;
+        std::vector<int> vert_map(old_num_verts, -1);
+
+        int next_vert = 0;
+        for (int t = 0; t < old_num_tris; t += stride) {
+          int i0 = old_tri[t * 3 + 0];
+          int i1 = old_tri[t * 3 + 1];
+          int i2 = old_tri[t * 3 + 2];
+          int ids[3] = {i0, i1, i2};
+          int out_ids[3];
+          for (int j = 0; j < 3; ++j) {
+            int oi = ids[j];
+            if (oi < 0 || oi >= old_num_verts) {
+              out_ids[j] = 0;
+              continue;
+            }
+            if (vert_map[oi] == -1) {
+              vert_map[oi] = next_vert++;
+              /* copy vertex */
+              new_verts.push_back(m_shapeInfo->m_vertexArray[oi * 3 + 0]);
+              new_verts.push_back(m_shapeInfo->m_vertexArray[oi * 3 + 1]);
+              new_verts.push_back(m_shapeInfo->m_vertexArray[oi * 3 + 2]);
+            }
+            out_ids[j] = vert_map[oi];
+          }
+          new_tri.push_back(out_ids[0]);
+          new_tri.push_back(out_ids[1]);
+          new_tri.push_back(out_ids[2]);
+          if (!old_uv.empty()) {
+            new_uv.push_back(old_uv[t * 3 + 0]);
+            new_uv.push_back(old_uv[t * 3 + 1]);
+            new_uv.push_back(old_uv[t * 3 + 2]);
+          }
+          if (!old_poly.empty()) {
+            new_poly.push_back(old_poly[t]);
+          }
+        }
+
+        if (!new_tri.empty()) {
+          m_shapeInfo->m_triFaceArray.swap(new_tri);
+          m_shapeInfo->m_triFaceUVcoArray.swap(new_uv);
+          m_shapeInfo->m_polygonIndexArray.swap(new_poly);
+          m_shapeInfo->m_vertexArray.resize(new_verts.size());
+          for (size_t k = 0; k < new_verts.size(); ++k)
+            m_shapeInfo->m_vertexArray[k] = new_verts[k];
+          /* Force recreation of triangle/indexed representation. */
+          m_shapeInfo->SetForceReInstance(true);
+          m_shapeInfo->SetLastShapeScale(shape_scale);
+        }
+      }
+    }
+  }
 
   /* create the new bullet mesh */
   GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
@@ -2597,9 +2808,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
        * hull). */
     }
     else {
-      /* GPU path when gpu animated meshes. Only updates m_vertexArray
-       * from the GPU position VBO. The triangle/index/uv/polygon arrays
-       * are not updated (no topology change allowed anyway) */
       if (gpu_reinstance) {
         UpdateMeshGPU(from_gameobj);
       }
@@ -2801,7 +3009,9 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   /* force recreation of the m_triangleIndexVertexArray.
    * If this has multiple users we cant delete */
   if (m_triangleIndexVertexArray) {
-    m_forceReInstance = true;
+    if (!gpu_reinstance) {
+      m_forceReInstance = true;
+    }
   }
 
   // Make sure to also replace the mesh in the shape map! Otherwise we leave dangling references

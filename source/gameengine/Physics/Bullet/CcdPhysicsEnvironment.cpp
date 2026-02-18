@@ -28,6 +28,8 @@
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
+#include "BulletCollision/Gimpact/btGImpactShape.h"
+#include "BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
 #include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
@@ -655,6 +657,18 @@ bool CcdPhysicsEnvironment::IsActiveCcdPhysicsController(CcdPhysicsController *c
   return (m_controllers.find(ctrl) != m_controllers.end());
 }
 
+void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo)
+{
+  for (CcdPhysicsController *ctrl : m_controllers) {
+    if (ctrl->GetShapeInfo() != shapeInfo)
+      continue;
+
+    /* Delegate update to controller which will attempt an in-place update
+     * (refit BVH / update GImpact bounds) or recreate the shape if necessary. */
+    ctrl->UpdateShapeFromShapeInfo(shapeInfo);
+  }
+}
+
 void CcdPhysicsEnvironment::AddCcdGraphicController(CcdGraphicController *ctrl)
 {
   if (m_cullingTree && !ctrl->GetBroadphaseHandle()) {
@@ -684,17 +698,6 @@ void CcdPhysicsEnvironment::RemoveCcdGraphicController(CcdGraphicController *ctr
       m_cullingTree->destroyProxy(bp, nullptr);
       ctrl->SetBroadphaseHandle(nullptr);
     }
-  }
-}
-
-void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo)
-{
-  for (CcdPhysicsController *ctrl : m_controllers) {
-    if (ctrl->GetShapeInfo() != shapeInfo)
-      continue;
-
-    ctrl->ReplaceControllerShape(nullptr);
-    RefreshCcdPhysicsController(ctrl);
   }
 }
 

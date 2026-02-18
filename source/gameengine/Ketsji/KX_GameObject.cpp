@@ -2432,19 +2432,21 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
   int dupli = 0;
   int evaluated;
+  float shape_scale = 1.0f;
 
   PyObject *gameobj_py = nullptr;
   PyObject *mesh_py = nullptr;
 
-  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", nullptr};
+  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", "shapeScale", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "|OOii:reinstancePhysicsMesh",
+                                   "|OOiif:reinstancePhysicsMesh",
                                    const_cast<char **>(kwlist),
                                    &gameobj_py,
                                    &mesh_py,
                                    &dupli,
-                                   &evaluated) ||
+                                   &evaluated,
+                                   &shape_scale) ||
       (gameobj_py && !ConvertPythonToGameObject(
                          logicmgr,
                          gameobj_py,
@@ -2462,7 +2464,7 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 
   /* gameobj and mesh can be nullptr */
   if (GetPhysicsController() &&
-      GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli, evaluated))
+      GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli, evaluated, shape_scale))
     Py_RETURN_TRUE;
 
   Py_RETURN_FALSE;
