@@ -605,6 +605,28 @@ static void node_reroute_init(bNodeTree * /*ntree*/, bNode *node)
   node->storage = data;
 }
 
+static bool node_reroute_poll_instance(const bNode *node,
+                                       const bNodeTree *nodetree,
+                                       const char **r_disabled_hint)
+{
+  const NodeReroute &data = *static_cast<NodeReroute *>(node->storage);
+  bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
+  if (!socket_type) {
+    if (r_disabled_hint) {
+      *r_disabled_hint = "Socket type not found";
+    }
+    return false;
+  }
+  bke::bNodeTreeType &tree_type = *nodetree->typeinfo;
+  if (tree_type.valid_socket_type && !tree_type.valid_socket_type(&tree_type, socket_type)) {
+    if (r_disabled_hint) {
+      *r_disabled_hint = "Socket type not supported";
+    }
+    return false;
+  }
+  return true;
+}
+
 void register_node_type_reroute()
 {
   /* frame type is used for all tree types, needs dynamic allocation */
@@ -620,6 +642,7 @@ void register_node_type_reroute()
   ntype->declare = node_reroute_declare;
   ntype->initfunc = node_reroute_init;
   node_type_storage(*ntype, "NodeReroute", node_free_standard_storage, node_copy_standard_storage);
+  ntype->poll_instance = node_reroute_poll_instance;
 
   bke::node_register_type(*ntype);
 }
@@ -924,40 +947,43 @@ static void node_group_input_extra_info(nodes::NodeExtraInfoParams &parameters)
     return;
   }
 
-  blender::Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
-  bool added_warning_for_unsupported_inputs = false;
+  Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
+  int color_count = 0;
+  int float_count = 0;
+  int other_count = 0;
   for (const bNodeSocket *input : group_inputs) {
-    if (StringRef(input->name) == "Image") {
-      if (input->type != SOCK_RGBA) {
-        blender::nodes::NodeExtraInfoRow row;
-        row.text = IFACE_("Wrong Image Input Type");
-        row.icon = ICON_ERROR;
-        row.tooltip = TIP_("Node group's main Image input should be of type Color");
-        parameters.rows.append(std::move(row));
-      }
+    if (input->type == SOCK_RGBA) {
+      color_count++;
     }
-    else if (StringRef(input->name) == "Mask") {
-      if (input->type != SOCK_RGBA) {
-        blender::nodes::NodeExtraInfoRow row;
-        row.text = IFACE_("Wrong Mask Input Type");
-        row.icon = ICON_ERROR;
-        row.tooltip = TIP_("Node group's Mask input should be of type Color");
-        parameters.rows.append(std::move(row));
-      }
+    else if (input->type == SOCK_FLOAT) {
+      float_count++;
     }
     else {
-      if (added_warning_for_unsupported_inputs) {
-        continue;
-      }
-      blender::nodes::NodeExtraInfoRow row;
-      row.text = IFACE_("Unsupported Inputs");
-      row.icon = ICON_WARNING_LARGE;
-      row.tooltip = TIP_(
-          "Only a main Image and Mask inputs are supported, the rest are unsupported and will "
-          "return zero");
-      parameters.rows.append(std::move(row));
-      added_warning_for_unsupported_inputs = true;
+      other_count++;
     }
+  }
+
+  if (color_count > 2) {
+    nodes::NodeExtraInfoRow row;
+    row.text = IFACE_("Unsupported Inputs");
+    row.icon = ICON_WARNING_LARGE;
+    row.tooltip = TIP_("Sequencer supports up to two Image inputs, the rest will return zero");
+    parameters.rows.append(std::move(row));
+  }
+  if (float_count > 1) {
+    nodes::NodeExtraInfoRow row;
+    row.text = IFACE_("Unsupported Inputs");
+    row.icon = ICON_WARNING_LARGE;
+    row.tooltip = TIP_("Sequencer supports one Float input, the rest will return zero");
+    parameters.rows.append(std::move(row));
+  }
+  if (other_count > 0) {
+    nodes::NodeExtraInfoRow row;
+    row.text = IFACE_("Unsupported Inputs");
+    row.icon = ICON_WARNING_LARGE;
+    row.tooltip = TIP_(
+        "Sequencer supports only Color and Float inputs, the rest will return zero");
+    parameters.rows.append(std::move(row));
   }
 }
 
