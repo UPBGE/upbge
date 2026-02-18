@@ -32,7 +32,7 @@ class GLVertBuf : public VertBuf {
   size_t vbo_size_ = 0;
 
   void *persistent_ptr_ = nullptr;
-  GLsync read_fence_ = 0;
+  mutable GLsync read_fence_ = 0;
   /** persistent readback buffer. */
   GLuint read_vbo_id_ = 0;
 

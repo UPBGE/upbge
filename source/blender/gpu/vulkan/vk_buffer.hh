@@ -113,8 +113,6 @@ class VKBuffer : public NonCopyable {
    * Can only be called when the buffer is (still) mapped.
    */
   void *mapped_memory_get() const;
-  /** Flush a range of the mapped memory to make host writes visible to the device. */
-  void flush_mapped_range(size_t offset, size_t size) const;
   /** Invalidate a range of the mapped memory to make device writes visible to the host. */
   void invalidate_mapped_range(size_t offset, size_t size) const;
 

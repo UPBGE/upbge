@@ -93,7 +93,6 @@ class GLContext : public Context {
   /** VertexArrays and framebuffers are not shared across context. */
   Vector<GLuint> orphaned_vertarrays_;
   Vector<GLuint> orphaned_framebuffers_;
-  Vector<GLsync> orphaned_syncs_;
   /** #GLBackend owns this data. */
   GLSharedOrphanLists &shared_orphan_list_;
 
@@ -146,7 +145,6 @@ class GLContext : public Context {
   /* These need to be called with the context the id was created with. */
   void vao_free(GLuint vao_id);
   void fbo_free(GLuint fbo_id);
-  void fence_free(GLsync fence);
   /* These can be called by any threads even without OpenGL ctx. Deletion will be delayed. */
   static void buffer_free(GLuint buf_id);
   static void texture_free(GLuint tex_id);

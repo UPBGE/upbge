@@ -50,11 +50,11 @@
 
 /* Following includes to update physics shape from gpu */
 #include "BKE_mesh_gpu.hh"
-#include "../gpu/GPU_state.hh"
-#include "../gpu/GPU_compute.hh"
-#include "../gpu/GPU_context.hh"
-#include "../gpu/GPU_storage_buffer.hh"
-#include "../gpu/GPU_vertex_buffer.hh"
+#include "GPU_state.hh"
+#include "GPU_compute.hh"
+#include "GPU_context.hh"
+#include "GPU_storage_buffer.hh"
+#include "GPU_vertex_buffer.hh"
 #include "../draw/intern/draw_cache_extract.hh"
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 
@@ -2347,7 +2347,7 @@ void main() {
   tmp.resize(size_t(verts_num) * 4);
   bool ok_fast = GPU_vertbuf_read_fast(vbo_read, tmp.data());
   if (!ok_fast) {
-    GPU_vertbuf_read(vbo_read, tmp.data());
+    return false;
   }
 
   const size_t elems = size_t(verts_num) * 3;
@@ -2543,8 +2543,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     return false;
   }
 
-  bool gpu_reinstance = !from_meshobj && evaluatedMesh && from_gameobj;
-
   blender::Mesh *me = nullptr;
   if (from_meshobj) {
     me = nullptr;
@@ -2559,17 +2557,18 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     me = (blender::Mesh *)from_gameobj->GetBlenderObject()->data;
   }
 
+  bool gpu_reinstance = !from_meshobj && evaluatedMesh && from_gameobj && me && me->is_running_gpu_animation_playback;
+
   if (me && meshobj) {
     if (m_shapeType == PHY_SHAPE_POLYTOPE) {
       /* GPU path when gpu animated meshes. Only updates m_vertexArray
        * from the GPU position VBO. The triangle/index/uv/polygon arrays
        * are not updated (no topology change allowed anyway) */
-      bool gpu_did_the_stuff = false;
       if (gpu_reinstance) {
-        gpu_did_the_stuff = UpdateMeshGPU(from_gameobj);
+        UpdateMeshGPU(from_gameobj);
       }
-      if (!gpu_did_the_stuff) {
-        // CPU fallback: build compacted vertex array from mesh positions.
+      if (!gpu_reinstance) {
+        // CPU.
         const blender::Span<blender::float3> positions = me->vert_positions();
         std::map<int, int> vert_remap;
         int next_vert = 0;
@@ -2601,11 +2600,10 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       /* GPU path when gpu animated meshes. Only updates m_vertexArray
        * from the GPU position VBO. The triangle/index/uv/polygon arrays
        * are not updated (no topology change allowed anyway) */
-      bool gpu_did_the_stuff = false;
       if (gpu_reinstance) {
-        gpu_did_the_stuff = UpdateMeshGPU(from_gameobj);
+        UpdateMeshGPU(from_gameobj);
       }
-      if (!gpu_did_the_stuff) {
+      if (!gpu_reinstance) {
         // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
         const blender::Span<blender::float3> positions = me->vert_positions();
         const blender::Span<blender::int3> tris = me->corner_tris();

@@ -11,7 +11,6 @@
 #include "gl_context.hh"
 
 #include "gl_vertex_buffer.hh"
-#include "gl_debug.hh"
 
 namespace blender::gpu {
 
@@ -43,7 +42,7 @@ void GLVertBuf::release_data()
   }
 
   if (read_fence_) {
-    GLContext::get()->fence_free(read_fence_);
+    glDeleteSync(read_fence_);
     read_fence_ = 0;
   }
   if (read_vbo_id_ != 0) {
@@ -82,7 +81,8 @@ void GLVertBuf::bind()
     /* This is fine on some systems but will crash on others. */
     BLI_assert(vbo_size_ != 0);
     /* Orphan the vbo to avoid sync then upload data. */
-    glBufferData(GL_ARRAY_BUFFER, ceil_to_multiple_ul(vbo_size_, 16), nullptr, to_gl(usage_));
+    // using dynamic copy sounds to work on windows to avoid sync and not only on linux (youle) /*UPBGE*/
+    glBufferData(GL_ARRAY_BUFFER, ceil_to_multiple_ul(vbo_size_, 16), nullptr, GL_DYNAMIC_COPY);
     /* Do not transfer data from host to device when buffer is device only. */
     if (usage_ != GPU_USAGE_DEVICE_ONLY) {
       glBufferSubData(GL_ARRAY_BUFFER, 0, vbo_size_, data_);
@@ -104,21 +104,20 @@ bool GLVertBuf::read_fast(void *data)
     return false;
   }
 
+  const size_t alloc_size = ceil_to_multiple_ul((size_t)vbo_size_, 16);
   /* Ensure the persistent-mapped readback buffer exists (coherent = GPU writes auto-visible). */
   if (read_vbo_id_ == 0) {
     glGenBuffers(1, &read_vbo_id_);
-    const size_t alloc_size = ceil_to_multiple_ul((size_t)vbo_size_, 16);
     glBindBuffer(GL_ARRAY_BUFFER, read_vbo_id_);
     glBufferStorage(GL_ARRAY_BUFFER,
                     alloc_size,
                     nullptr,
-                    GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT);
+                    GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_READ_BIT);
     persistent_ptr_ = glMapBufferRange(GL_ARRAY_BUFFER,
                                        0,
                                        alloc_size,
-                                       GL_MAP_PERSISTENT_BIT |
-                                           GL_MAP_READ_BIT |
-                                           GL_MAP_COHERENT_BIT);
+                                       GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT |
+                                           GL_MAP_READ_BIT);
     BLI_assert(persistent_ptr_);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
@@ -133,7 +132,7 @@ bool GLVertBuf::read_fast(void *data)
       /* Previous copy is complete — read from the persistent pointer. */
       memcpy(data, persistent_ptr_, vbo_size_);
       has_result = true;
-      GLContext::get()->fence_free(read_fence_);
+      glDeleteSync(read_fence_);
       read_fence_ = 0;
     }
     else {
@@ -145,12 +144,12 @@ bool GLVertBuf::read_fast(void *data)
 
   /* Step 2: Submit a NEW async copy for the next call to pick up. */
   if (GLContext::direct_state_access_support) {
-    glCopyNamedBufferSubData(vbo_id_, read_vbo_id_, 0, 0, vbo_size_);
+    glCopyNamedBufferSubData(vbo_id_, read_vbo_id_, 0, 0, alloc_size);
   }
   else {
     glBindBuffer(GL_COPY_READ_BUFFER, vbo_id_);
     glBindBuffer(GL_COPY_WRITE_BUFFER, read_vbo_id_);
-    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, vbo_size_);
+    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, alloc_size);
     glBindBuffer(GL_COPY_READ_BUFFER, 0);
     glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
   }
@@ -184,27 +183,10 @@ void GLVertBuf::bind_as_texture(uint binding)
 
 void GLVertBuf::read(void *data) const
 {
-  if (data == nullptr) {
-    return;
-  }
-
-  if (vbo_id_ == 0) {
-    return;
-  }
-
-  /* Prefer DSA path when available to avoid changing binding state. */
-  if (GLContext::direct_state_access_support) {
-    GLsizeiptr sz = (GLsizeiptr)size_used_get();
-    glGetNamedBufferSubData(vbo_id_, 0, sz, data);
-    return;
-  }
-
-  /* Fallback: bind the buffer, read, and restore previous binding. */
-  GLint prev = 0;
-  glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_id_);
-  glGetBufferSubData(GL_ARRAY_BUFFER, 0, (GLsizeiptr)size_used_get(), data);
-  glBindBuffer(GL_ARRAY_BUFFER, prev);
+  BLI_assert(is_active());
+  void *result = glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
+  memcpy(data, result, size_used_get());
+  glUnmapBuffer(GL_ARRAY_BUFFER);
 }
 
 void GLVertBuf::wrap_handle(uint64_t handle)
