@@ -99,6 +99,4 @@ class GPG_Canvas : public RAS_ICanvas {
 
   virtual void BeginDraw();
   virtual void EndDraw();
-
-  virtual bool IsBlenderPlayer();
 };

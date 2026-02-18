@@ -92,6 +92,4 @@ class KX_BlenderCanvas : public RAS_ICanvas {
 
   virtual void BeginDraw();
   virtual void EndDraw();
-
-  virtual bool IsBlenderPlayer();
 };

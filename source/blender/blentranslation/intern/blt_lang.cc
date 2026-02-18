@@ -26,6 +26,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
+#include "BKE_global.hh"
 
 #include "DNA_userdef_types.h"
 
@@ -70,6 +71,11 @@ static void free_locales()
 
 static void fill_locales()
 {
+  /* UPBGE - To avoid useless warning messages in console when blenderplayer is launched*/
+  if (G.is_blenderplayer) {
+    return;
+  }
+
   std::optional<std::string> languages_path = BKE_appdir_folder_id(BLENDER_DATAFILES, "locale");
   if (!languages_path.has_value()) {
     CLOG_WARN(&LOG, "'locale' data path for translations not found");

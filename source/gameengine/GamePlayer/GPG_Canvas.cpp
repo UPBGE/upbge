@@ -242,8 +242,3 @@ void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool /*s
     r_y *= m_nativePixelSize;
   }
 }
-
-bool GPG_Canvas::IsBlenderPlayer()
-{
-  return true;
-}

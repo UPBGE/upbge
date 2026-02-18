@@ -229,8 +229,3 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
 
   AddScreenshot(path, x, y, width, height, im_format);
 }
-
-bool KX_BlenderCanvas::IsBlenderPlayer()
-{
-  return false;
-}

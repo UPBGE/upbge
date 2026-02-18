@@ -157,7 +157,12 @@ struct Global {
    */
   int fileflags;
 
-  bool is_undo_at_exit; // UPBGE
+  /**
+   * UPBGE global variables
+   */
+
+  bool is_undo_at_exit;
+  bool is_blenderplayer;
 
   /**
    * Message to show when loading a `.blend` file attempts to execute
