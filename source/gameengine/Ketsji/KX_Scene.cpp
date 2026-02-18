@@ -36,6 +36,7 @@
 
 #include "KX_Scene.h"
 
+#include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BLI_math_base.h"
@@ -755,7 +756,7 @@ bool KX_Scene::ViewportRender(KX_Camera *cam,
     GPU_framebuffer_restore();
 
     if (cam) {
-      if (canvas->IsBlenderPlayer()) {
+      if (G.is_blenderplayer) {
         blender::ARegion *region = CTX_wm_region(C);
         scene->flag |= SCE_IS_BLENDERPLAYER;
         region->winrct = window;
@@ -787,7 +788,7 @@ bool KX_Scene::ViewportRender(KX_Camera *cam,
        */
       ReinitBlenderContextVariables();
 
-      if (canvas->IsBlenderPlayer()) {
+      if (G.is_blenderplayer) {
         scene->flag &= ~SCE_IS_BLENDERPLAYER;
       }
 
