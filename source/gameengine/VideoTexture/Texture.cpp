@@ -110,6 +110,7 @@ void Texture::Close()
   }
   if (m_origGpuTex) {
     m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
+    m_origGpuTex = nullptr;
   }
   if (m_imgBuf) {
     blender::IMB_freeImBuf(m_imgBuf);
