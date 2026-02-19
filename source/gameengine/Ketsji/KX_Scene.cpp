@@ -1614,6 +1614,12 @@ KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
 
       replica->GetSGNode()->UpdateWorldData(0);
 
+      // Sync physics body to the updated transform.
+      // This is needed for Jolt which creates bodies with fixed positions at creation time.
+      if (replica->GetPhysicsController()) {
+        replica->GetPhysicsController()->SetTransform();
+      }
+
       return replica;
     }
   }
@@ -2056,6 +2062,12 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     // update scenegraph for entire tree of children
     replica->GetSGNode()->UpdateWorldData(0);
 
+    // Sync physics body to the updated transform.
+    // This is needed for Jolt which creates bodies with fixed positions at creation time.
+    if (replica->GetPhysicsController()) {
+      replica->GetPhysicsController()->SetTransform();
+    }
+
     remap_parents_recursive(replica);
 
     // done with replica
@@ -2187,6 +2199,15 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
   }
 
   replica->GetSGNode()->UpdateWorldData(0);
+
+  // Sync physics bodies to the updated transforms.
+  // This is needed for Jolt which creates bodies with fixed positions at creation time,
+  // unlike Bullet which uses a motion state callback system.
+  for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+    if (gameobj->GetPhysicsController()) {
+      gameobj->GetPhysicsController()->SetTransform();
+    }
+  }
 
   // now replicate logic
   for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {

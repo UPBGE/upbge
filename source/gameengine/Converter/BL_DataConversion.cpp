@@ -99,6 +99,7 @@
 #include "KX_ObstacleSimulation.h"
 #include "KX_PythonComponent.h"
 #include "CM_Message.h"
+#include "MT_Transform.h"
 #include "PHY_IConstraint.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
@@ -1226,6 +1227,13 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   int aspect_height;
   std::set<blender::Collection *> grouplist;  // list of groups to be converted
   std::set<blender::Object *> groupobj;       // objects from groups (never in active layer)
+  std::set<blender::Object *> rigidBodyConstraintObjects;
+
+  auto register_rigidbody_constraint_object = [&](blender::Object *ob) {
+    if (ob && ob->rigidbody_constraint) {
+      rigidBodyConstraintObjects.insert(ob);
+    }
+  };
 
   /* We have to ensure that group definitions are only converted once
    * push all converted group members to this set.
@@ -1350,6 +1358,11 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
                              BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
+    register_rigidbody_constraint_object(blenderobject);
+    if (blenderobject->rigidbody_constraint) {
+      continue;
+    }
+
     kxscene->BackupVisibilityFlag(blenderobject, blenderobject->visibility_flag);
 
     /* Force OB_HIDE_VIEWPORT to avoid not needed depsgraph operations in some cases,
@@ -1407,6 +1420,12 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       for (git = tempglist.begin(); git != tempglist.end(); git++) {
         blender::Collection *group = *git;
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
+          register_rigidbody_constraint_object(blenderobject);
+          if (blenderobject->rigidbody_constraint) {
+            groupobj.insert(blenderobject);
+            continue;
+          }
+
           if (converter->FindGameObject(blenderobject) == nullptr) {
             groupobj.insert(blenderobject);
             KX_GameObject *gameobj = BL_gameobject_from_blenderobject(blenderobject,
@@ -1591,6 +1610,79 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
 
+  /* Convert rigid body constraints from Blender helper objects to object1-owned constraints. */
+  for (blender::Object *constraintObject : rigidBodyConstraintObjects) {
+    PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
+    RigidBodyCon *rbc = constraintObject->rigidbody_constraint;
+
+    if (!rbc || !(rbc->flag & RBC_FLAG_ENABLED)) {
+      continue;
+    }
+
+    Object *ob1 = rbc->ob1;
+    Object *ob2 = rbc->ob2;
+
+    if (!ob1 && !ob2) {
+      continue;
+    }
+
+    /* If ob1 is null (world), swap so ob1 is the dynamic body and ob2 is world (null). */
+    if (!ob1) {
+      std::swap(ob1, ob2);
+    }
+
+    KX_GameObject *gameobj1 = (KX_GameObject *)sumolist->FindValue(ob1->id.name + 2);
+    KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) : nullptr;
+
+    if (!gameobj1 || (ob2 && !gameobj2)) {
+      continue;
+    }
+
+    /* Use BKE_object_to_mat4() to get object matrices from local transform properties
+     * (loc, rot, scale) without depsgraph evaluation. This works for hidden objects. */
+    float constraintMatrix[4][4];
+    float object1Matrix[4][4];
+    BKE_object_to_mat4(constraintObject, constraintMatrix);
+    BKE_object_to_mat4(ob1, object1Matrix);
+
+    const MT_Transform constraintWorld(&constraintMatrix[0][0]);
+    const MT_Transform object1World(&object1Matrix[0][0]);
+    MT_Transform object1Inv;
+    object1Inv.invert(object1World);
+
+    const MT_Vector3 pivotLocal = object1Inv * constraintWorld.getOrigin();
+    const MT_Matrix3x3 basisLocal = object1Inv.getBasis() * constraintWorld.getBasis();
+
+    /* Store on object1 for replication (must happen before validation for spawned collections). */
+    gameobj1->AddRigidBodyConstraint(rbc, ob1, ob2, pivotLocal, basisLocal);
+
+    /* During libloading, only store constraint, don't create it now. */
+    if (libloading) {
+      continue;
+    }
+
+    /* Skip already converted constraints from linked group definitions. */
+    if (convertedlist->FindValue(gameobj1->GetName())) {
+      continue;
+    }
+
+    const int constraintLayerMask =
+        (groupobj.find(constraintObject) == groupobj.end()) ? activeLayerBitInfo : 0;
+    const bool validConstraint = (constraintObject->lay & constraintLayerMask) != 0;
+    const bool valid1 = (gameobj1->GetLayer() & activeLayerBitInfo) && gameobj1->GetSGNode() &&
+                        gameobj1->GetPhysicsController();
+    const bool valid2 = !ob2 || ((gameobj2->GetLayer() & activeLayerBitInfo) && gameobj2->GetSGNode() &&
+                                 gameobj2->GetPhysicsController());
+
+    if (validConstraint && valid1 && valid2) {
+      int constraintId = physEnv->CreateRigidBodyConstraint(gameobj1, gameobj2, pivotLocal, basisLocal, rbc);
+      /* Store any valid ID (only -1 means failure, other negative values are valid due to int overflow). */
+      if (constraintId != -1) {
+        gameobj1->SetRigidBodyConstraintId(rbc, constraintId);
+      }
+    }
+  }
+
   // create physics joints
   for (KX_GameObject *gameobj : sumolist) {
     PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
@@ -1602,70 +1694,6 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
     blender::ListBase *conlist = BL_GetActiveConstraint(blenderobject);
     blender::bConstraint *curcon;
-
-    /* Handle Rigid Body Constraints (Blender 2.66+ system) */
-    if (blenderobject->rigidbody_constraint) {
-      RigidBodyCon *rbc = blenderobject->rigidbody_constraint;
-
-      // Skip disabled constraints
-      if (!(rbc->flag & RBC_FLAG_ENABLED)) {
-        continue;
-      }
-
-      Object *ob1 = rbc->ob1;
-      Object *ob2 = rbc->ob2;
-
-      if (ob1 || ob2) {
-        // If ob1 is null (world), swap so ob1 is the object and ob2 is null (world)
-        if (!ob1) {
-          std::swap(ob1, ob2);
-        }
-
-        KX_GameObject *gameobj1 = (KX_GameObject *)sumolist->FindValue(ob1->id.name + 2);
-        KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) :
-                                        nullptr;
-
-        // Store constraint for replication (like rigid body joints do)
-        // This MUST happen before validation so spawned collections work
-        if (gameobj1 && (!ob2 || gameobj2)) {
-          gameobj->AddRigidBodyConstraint(rbc, ob1, ob2);
-        }
-
-        // During libloading, only store constraint, don't create it
-        // Constraint will be replicated later in scene->MergeScene
-        if (libloading) {
-          continue;
-        }
-
-        // Skip already converted constraints
-        if (convertedlist->FindValue(gameobj->GetName())) {
-          continue;
-        }
-
-        // Validate before creating: check layer, SG_Node, and physics controller
-        // This matches the validation used by rigid body joints
-        bool validConstraint = gameobj->GetSGNode() && (gameobj->GetLayer() & activeLayerBitInfo);
-        bool valid1 = gameobj1 && (gameobj1->GetLayer() & activeLayerBitInfo) &&
-                      gameobj1->GetSGNode() && gameobj1->GetPhysicsController();
-        bool valid2 = !ob2 || (gameobj2 && (gameobj2->GetLayer() & activeLayerBitInfo) &&
-                               gameobj2->GetSGNode() && gameobj2->GetPhysicsController());
-
-        if (validConstraint && valid1 && valid2) {
-          int constraintId = physEnv->CreateRigidBodyConstraint(gameobj, gameobj1, gameobj2, rbc);
-          // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
-          if (constraintId != -1) {
-            gameobj->SetRigidBodyConstraintId(rbc, constraintId);
-
-            // Automatically parent the constraint object to the first rigid body
-            // so it visually moves with it.
-            gameobj->SetParent(gameobj1, false, false);
-          }
-        }
-        else {
-          CM_Debug("BL_DataConversion: " << gameobj->GetName() << " SKIPPED - validation failed");
-        }
-      }
-    }
 
     if (!conlist)
       continue;

@@ -165,7 +165,9 @@ class KX_GameObject : public SCA_IObject {
     std::string m_object1Name;
     std::string m_object2Name;
     bool m_hasObject2;
-    int m_constraintId;  // Physics constraint ID for cleanup when Empty is deleted
+    MT_Vector3 m_pivotLocal;
+    MT_Matrix3x3 m_basisLocal;
+    int m_constraintId;  // Physics constraint ID for cleanup when owner object is deleted
   };
   std::vector<RigidBodyConstraintData> m_rigidbodyConstraints;
 
@@ -265,7 +267,11 @@ class KX_GameObject : public SCA_IObject {
   void AddConstraint(blender::bRigidBodyJointConstraint *cons);
   std::vector < blender::bRigidBodyJointConstraint * > GetConstraints();
   void ClearConstraints();
-  void AddRigidBodyConstraint(blender::RigidBodyCon *cons, blender::Object *ob1, blender::Object *ob2);
+  void AddRigidBodyConstraint(blender::RigidBodyCon *cons,
+                              blender::Object *ob1,
+                              blender::Object *ob2,
+                              const MT_Vector3 &pivotLocal,
+                              const MT_Matrix3x3 &basisLocal);
   void SetRigidBodyConstraintId(blender::RigidBodyCon *cons, int constraintId);
   bool SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName = "");
   const std::vector<RigidBodyConstraintData> &GetRigidBodyConstraints() const;

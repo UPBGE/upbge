@@ -6582,6 +6582,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "(-1 = auto, uses max(1, CPU cores - 1))");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
+  prop = RNA_def_property(srna, "jolt_debug_errors", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "jolt_debug_errors", 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Debug Errors",
+                           "Report Jolt physics errors (resource saturation, contacts ignored) to console");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
   prop = RNA_def_property(srna, "jolt_max_bodies", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "jolt_max_bodies");
   RNA_def_property_range(prop, 1024, 262144);

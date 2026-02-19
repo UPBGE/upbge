@@ -46,18 +46,6 @@ bool SCA_RBConstraintSensor::Evaluate()
 
   KX_GameObject *selfObj = static_cast<KX_GameObject *>(parent);
 
-  /* Check if this object has any rigid body constraints */
-  if (!selfObj->HasRigidBodyConstraints()) {
-    /* No constraints on this object - sensor always returns false */
-    bool reset = m_reset && m_level;
-    m_reset = false;
-    if (m_lastResult != false) {
-      m_lastResult = false;
-      return true;
-    }
-    return reset;
-  }
-
   /* Get the scene - may be null during shutdown */
   KX_Scene *scene = selfObj->GetScene();
   if (!scene) {
@@ -85,22 +73,31 @@ bool SCA_RBConstraintSensor::Evaluate()
   }
 #endif
 
-  /* Check if any constraint on this object is broken (disabled) */
+  /* Check only constraints owned by this object (object1 ownership model). */
   bool broken = false;
-  const std::vector<KX_GameObject::RigidBodyConstraintData> &constraints =
+
+  const std::vector<KX_GameObject::RigidBodyConstraintData> &selfConstraints =
       selfObj->GetRigidBodyConstraints();
 
-  for (const KX_GameObject::RigidBodyConstraintData &data : constraints) {
-    /* Skip invalid constraint IDs */
+  for (const KX_GameObject::RigidBodyConstraintData &data : selfConstraints) {
     if (data.m_constraintId == -1) {
       continue;
     }
 
-    /* Check if this constraint is disabled (broken) */
     if (!physEnv->IsRigidBodyConstraintEnabled(data.m_constraintId)) {
       broken = true;
       break;
     }
+  }
+
+  if (selfConstraints.empty()) {
+    bool reset = m_reset && m_level;
+    m_reset = false;
+    if (m_lastResult != false) {
+      m_lastResult = false;
+      return true;
+    }
+    return reset;
   }
 
   bool reset = m_reset && m_level;

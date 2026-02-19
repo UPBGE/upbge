@@ -774,10 +774,19 @@ void KX_GameObject::ClearConstraints()
   m_constraints.clear();
 }
 
-void KX_GameObject::AddRigidBodyConstraint(blender::RigidBodyCon *cons, blender::Object *ob1, blender::Object *ob2)
+void KX_GameObject::AddRigidBodyConstraint(blender::RigidBodyCon *cons,
+                                           blender::Object *ob1,
+                                           blender::Object *ob2,
+                                           const MT_Vector3 &pivotLocal,
+                                           const MT_Matrix3x3 &basisLocal)
 {
-  for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
+  for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
     if (data.m_constraint == cons) {
+      data.m_object1Name = ob1 ? ob1->id.name + 2 : "";
+      data.m_object2Name = ob2 ? ob2->id.name + 2 : "";
+      data.m_hasObject2 = (ob2 != nullptr);
+      data.m_pivotLocal = pivotLocal;
+      data.m_basisLocal = basisLocal;
       return;
     }
   }
@@ -786,6 +795,8 @@ void KX_GameObject::AddRigidBodyConstraint(blender::RigidBodyCon *cons, blender:
   data.m_object1Name = ob1 ? ob1->id.name + 2 : "";
   data.m_object2Name = ob2 ? ob2->id.name + 2 : "";
   data.m_hasObject2 = (ob2 != nullptr);
+  data.m_pivotLocal = pivotLocal;
+  data.m_basisLocal = basisLocal;
   data.m_constraintId = -1;  // Will be set after constraint is created
   m_rigidbodyConstraints.push_back(data);
 }
@@ -914,13 +925,11 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
       }
     }
 
-    int constraintId = physEnv->CreateRigidBodyConstraint(this, target1, target2, data.m_constraint);
+    int constraintId = physEnv->CreateRigidBodyConstraint(
+        target1, target2, data.m_pivotLocal, data.m_basisLocal, data.m_constraint);
     // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
     if (constraintId != -1) {
       data.m_constraintId = constraintId;
-
-      // Automatically parent the constraint object to the first rigid body so it follows it.
-      SetParent(target1, false, false);
     }
   }
 }

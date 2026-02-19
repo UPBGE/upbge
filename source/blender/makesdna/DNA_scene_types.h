@@ -813,7 +813,8 @@ typedef struct GameData {
 
   /* Jolt Physics configuration (only used when physicsEngine == WOPHY_JOLT) */
   short jolt_physics_threads = -1; /* -1 = auto (max(1, cores-1)), 1..N = explicit thread count */
-  short _pad_jolt[3] = {};
+  char jolt_debug_errors = 0;      /* Enable Jolt physics error reporting */
+  char _pad_jolt[5] = {0};
   int jolt_max_bodies = 10240;         /* Maximum number of bodies in the physics system */
   int jolt_max_body_pairs = 10240;     /* Maximum number of body pairs for broadphase */
   int jolt_max_contact_constraints = 10240; /* Maximum contact constraints */

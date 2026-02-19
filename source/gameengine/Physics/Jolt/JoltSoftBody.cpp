@@ -54,9 +54,19 @@ JoltSoftBody::JoltSoftBody(JoltPhysicsEnvironment *env, JoltPhysicsController *c
 JoltSoftBody::~JoltSoftBody()
 {
   if (!m_bodyID.IsInvalid() && m_env) {
-    JPH::BodyInterface &bi = m_env->GetBodyInterface();
-    bi.RemoveBody(m_bodyID);
-    bi.DestroyBody(m_bodyID);
+    /* If physics is currently updating, defer body destruction. */
+    if (m_env->IsPhysicsUpdating()) {
+      JoltDeferredOp op;
+      op.type = JoltDeferredOpType::DestroyBody;
+      op.bodyID = m_bodyID;
+      op.controller = nullptr;
+      m_env->QueueDeferredOperation(op);
+    }
+    else {
+      JPH::BodyInterface &bi = m_env->GetBodyInterface();
+      bi.RemoveBody(m_bodyID);
+      bi.DestroyBody(m_bodyID);
+    }
   }
 }
 

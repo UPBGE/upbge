@@ -3623,17 +3623,18 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src,
   }
 }
 
-int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *constraintObject,
-                                                     KX_GameObject *gameobj1,
+int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
                                                      KX_GameObject *gameobj2,
+                                                     const MT_Vector3 &pivotLocal,
+                                                     const MT_Matrix3x3 &basisLocal,
                                                      blender::RigidBodyCon *rbc)
 {
-  if (!constraintObject || !gameobj1 || !rbc) {
+  if (!gameobj1 || !rbc) {
     return -1;
   }
 
-  // Safety check: ensure objects have valid scene graph nodes
-  if (!constraintObject->GetSGNode() || !gameobj1->GetSGNode()) {
+  // Safety check: ensure first object has a valid scene graph node
+  if (!gameobj1->GetSGNode()) {
     return -1;
   }
 
@@ -3644,20 +3645,8 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *constraintOb
     return -1;
   }
 
-  const MT_Transform &worldTrans = constraintObject->NodeGetWorldTransform();
-  const MT_Vector3 pivotWorld = worldTrans.getOrigin();
-  const MT_Matrix3x3 basisWorld = worldTrans.getBasis();
-
-  const MT_Transform &ob1Trans = gameobj1->NodeGetWorldTransform();
-  MT_Transform ob1Inv;
-  ob1Inv.invert(ob1Trans);
-
-  MT_Vector3 pivotLocal = ob1Inv * pivotWorld;
-  MT_Matrix3x3 basisLocal = ob1Inv.getBasis() * basisWorld;
-
-  // Normalize axes to handle scaled constraint empties, scaled rigid bodies,
-  // and parented empties inheriting scale. Bullet physics expects unit vectors
-  // for constraint axes; non-unit axes cause instability and incorrect behavior.
+  // Normalize axes from the object1-local constraint frame.
+  // Bullet physics expects unit vectors for constraint axes; non-unit axes cause instability.
   MT_Vector3 axis0 = basisLocal.getColumn(0).safe_normalized();
   MT_Vector3 axis1 = basisLocal.getColumn(1).safe_normalized();
   MT_Vector3 axis2 = basisLocal.getColumn(2).safe_normalized();
