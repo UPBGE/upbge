@@ -151,10 +151,7 @@ GHOST_TSuccess GHOST_System::beginFullScreen(GHOST_IWindow **window,
     success = createFullScreenWindow((GHOST_Window **)window, settings, gpu_settings);
     if (success == GHOST_kSuccess) {
       window_manager_->beginFullScreen(*window, (gpu_settings.flags & GHOST_gpuStereoVisual) != 0);
-    }
-    else {
-      /*m_displayManager->setCurrentDisplaySetting(GHOST_DisplayManager::kMainDisplay,
-                                                 m_preFullScreenSetting);*/
+      setDisplaySettings(settings);
     }
   }
   if (success == GHOST_kFailure) {
@@ -171,6 +168,7 @@ GHOST_TSuccess GHOST_System::updateFullScreen(GHOST_IWindow ** /*window*/,
 
 GHOST_TSuccess GHOST_System::endFullScreen()
 {
+  restorePreviousDisplaySettings();
   return GHOST_kSuccess;
 }
 

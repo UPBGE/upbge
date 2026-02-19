@@ -16,6 +16,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <ole2.h> /* For drag-n-drop. */
 #include <windows.h>
+#include <map>
+
 
 #include "GHOST_System.hh"
 
@@ -73,6 +75,15 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \return The number of displays.
    */
   uint8_t getNumDisplays() const override;
+
+  /**
+   * Set the current display setting for a given display index.
+   * \param display: index of the display to change.
+   * \param settings: requested display settings (resolution).
+   * \return Indication of success.
+   */
+  GHOST_TSuccess setDisplaySettings(const GHOST_DisplaySettings &settings);
+  GHOST_TSuccess restorePreviousDisplaySettings();
 
   /**
    * Returns the dimensions of the main display on this system.
@@ -490,6 +501,11 @@ class GHOST_SystemWin32 : public GHOST_System {
   /** Wheel delta accumulators. */
   int wheel_delta_accum_vertical_;
   int wheel_delta_accum_horizontal_;
+
+  /* Saved display modes before entering fullscreen, keyed by display index. */
+  std::map<int, DEVMODE> pre_fullscreen_modes_;
+  /* Saved device names per display. Use TCHAR-based string to match windows TCHAR. */
+  std::map<int, std::basic_string<TCHAR>> pre_fullscreen_device_names_;
 };
 
 inline void GHOST_SystemWin32::handleKeyboardChange()

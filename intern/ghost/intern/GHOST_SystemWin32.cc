@@ -404,6 +404,128 @@ GHOST_TSuccess GHOST_SystemWin32::disposeContextD3D(GHOST_ContextD3D *context)
   return GHOST_kSuccess;
 }
 
+GHOST_TSuccess GHOST_SystemWin32::setDisplaySettings(const GHOST_DisplaySettings &settings)
+{
+  bool any_success = false;
+
+  /* Enumerate all active display devices and apply the same settings to each. */
+  for (DWORD display = 0;; ++display) {
+    DISPLAY_DEVICE dd;
+    ZeroMemory(&dd, sizeof(dd));
+    dd.cb = sizeof(dd);
+
+    if (!::EnumDisplayDevices(nullptr, display, &dd, 0)) {
+      break; /* no more displays */
+    }
+
+    /* Skip disconnected or mirroring devices. */
+    if (!(dd.StateFlags & DISPLAY_DEVICE_ACTIVE)) {
+      continue;
+    }
+
+    /* Save current mode for restoration on endFullScreen. */
+    DEVMODE prev_dm;
+    ZeroMemory(&prev_dm, sizeof(prev_dm));
+    prev_dm.dmSize = sizeof(prev_dm);
+    if (::EnumDisplaySettings(dd.DeviceName, ENUM_CURRENT_SETTINGS, &prev_dm)) {
+      pre_fullscreen_modes_[(int)display] = prev_dm;
+      pre_fullscreen_device_names_[(int)display] = std::basic_string<TCHAR>(dd.DeviceName);
+    }
+
+    /* Try to find a matching mode (same width/height) among available modes. */
+    DEVMODE dm;
+    ZeroMemory(&dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+
+    bool found = false;
+    int mode_index = 0;
+    DEVMODE candidate;
+    ZeroMemory(&candidate, sizeof(candidate));
+    candidate.dmSize = sizeof(candidate);
+
+    while (::EnumDisplaySettings(dd.DeviceName, mode_index++, &dm)) {
+      if ((int)dm.dmPelsWidth == settings.xPixels && (int)dm.dmPelsHeight == settings.yPixels) {
+        candidate = dm;
+        found = true;
+        break;
+      }
+    }
+
+    LONG status = DISP_CHANGE_FAILED;
+    if (found) {
+      status = ::ChangeDisplaySettingsEx(dd.DeviceName, &candidate, nullptr, CDS_FULLSCREEN, nullptr);
+    }
+    else {
+      /* Fallback: modify current settings (may be accepted by driver) */
+      ZeroMemory(&dm, sizeof(dm));
+      dm.dmSize = sizeof(dm);
+      if (!::EnumDisplaySettings(dd.DeviceName, ENUM_CURRENT_SETTINGS, &dm)) {
+        GHOST_PRINT("setDisplaySettings: EnumDisplaySettings(ENUM_CURRENT_SETTINGS) failed\n");
+        continue;
+      }
+      dm.dmPelsWidth = settings.xPixels;
+      dm.dmPelsHeight = settings.yPixels;
+      dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
+      status = ::ChangeDisplaySettingsEx(dd.DeviceName, &dm, nullptr, CDS_FULLSCREEN, nullptr);
+    }
+
+    if (status == DISP_CHANGE_SUCCESSFUL) {
+      any_success = true;
+    }
+    else {
+      /* Log common failures but keep trying other displays. */
+      switch (status) {
+        case DISP_CHANGE_RESTART:
+          GHOST_PRINT("setDisplaySettings: DISP_CHANGE_RESTART - The computer must be restarted.\n");
+          break;
+        case DISP_CHANGE_BADFLAGS:
+          GHOST_PRINT("setDisplaySettings: DISP_CHANGE_BADFLAGS - An invalid set of flags was passed.\n");
+          break;
+        case DISP_CHANGE_BADPARAM:
+          GHOST_PRINT("setDisplaySettings: DISP_CHANGE_BADPARAM - An invalid parameter was passed.\n");
+          break;
+        case DISP_CHANGE_FAILED:
+          GHOST_PRINT("setDisplaySettings: DISP_CHANGE_FAILED - The display driver failed the specified graphics mode.\n");
+          break;
+        case DISP_CHANGE_BADMODE:
+          GHOST_PRINT("setDisplaySettings: DISP_CHANGE_BADMODE - The graphics mode is not supported.\n");
+          break;
+        case DISP_CHANGE_NOTUPDATED:
+          GHOST_PRINT("setDisplaySettings: DISP_CHANGE_NOTUPDATED - Unable to write settings to the registry.\n");
+          break;
+        default:
+          printf("setDisplaySettings: Unknown return value %ld\n", status);
+          break;
+      }
+    }
+  }
+  return any_success ? GHOST_kSuccess : GHOST_kFailure;
+}
+
+GHOST_TSuccess GHOST_SystemWin32::restorePreviousDisplaySettings()
+{
+  /* Restore any saved modes. */
+  for (const auto &it : pre_fullscreen_modes_) {
+    int display = it.first;
+    const DEVMODE &dm = it.second;
+    auto devname = pre_fullscreen_device_names_[display];
+    /* Use ChangeDisplaySettingsEx without CDS_FULLSCREEN to restore. */
+    LONG status = ::ChangeDisplaySettingsEx(devname.empty() ? nullptr : devname.c_str(),
+                                            const_cast<DEVMODE *>(&dm),
+                                            nullptr,
+                                            0,
+                                            nullptr);
+    if (status != DISP_CHANGE_SUCCESSFUL) {
+      /* Try global restore as a fallback. */
+      ::ChangeDisplaySettingsEx(nullptr, nullptr, nullptr, 0, nullptr);
+    }
+  }
+  pre_fullscreen_modes_.clear();
+  pre_fullscreen_device_names_.clear();
+
+  return GHOST_kSuccess;
+}
+
 bool GHOST_SystemWin32::processEvents(bool waitForEvent)
 {
   MSG msg;

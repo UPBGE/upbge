@@ -281,6 +281,23 @@ class GHOST_ISystem {
                                          const GHOST_GPUSettings &gpu_settings) = 0;
 
   /**
+   * Set the current display setting for a given display index.
+   * Default implementation may simply return failure; backends can override.
+   */
+  virtual GHOST_TSuccess setDisplaySettings(const GHOST_DisplaySettings &/*setting*/) {
+    return GHOST_kFailure;
+  }
+
+  /**
+   * Restore previous display settings.
+   * Default implementation may simply return failure; backends can override.
+   */
+  virtual GHOST_TSuccess restorePreviousDisplaySettings()
+  {
+    return GHOST_kFailure;
+  }
+
+  /**
    * Updates the resolution while in full-screen mode.
    * \param setting: The new setting of the display.
    * \param window: Window displayed in full screen.
