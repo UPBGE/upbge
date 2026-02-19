@@ -246,12 +246,7 @@ static PyObject *load(PyImage *self, PyObject *args)
     PyErr_SetString(PyExc_TypeError, "Expected a Python buffer, width, and height as arguments");
     return nullptr;
   }
-  // parse parameters: only accept Python buffer, width, height
-  if (!PyArg_ParseTuple(args, "s*hh:load", &buffer, &width, &height)) {
-    // If parsing fails, report error and return
-    PyErr_SetString(PyExc_TypeError, "Expected a Python buffer, width, and height as arguments");
-    return nullptr;
-  }
+
   // Check if buffer size is correct
   if (testPyBuffer(&buffer, width, height, pixSize)) {
     try {
