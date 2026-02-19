@@ -315,9 +315,10 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                       KX_GameObject *obj_dest,
                                       blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli);
-  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
-                                        KX_GameObject *gameobj1,
+  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
                                         KX_GameObject *gameobj2,
+                                        const MT_Vector3 &pivotLocal,
+                                        const MT_Matrix3x3 &basisLocal,
                                         blender::RigidBodyCon *rbc) override;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
 

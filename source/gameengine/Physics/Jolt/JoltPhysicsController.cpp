@@ -60,12 +60,24 @@ JoltPhysicsController::~JoltPhysicsController()
 {
   /* Remove body from the physics system if we still have a valid environment. */
   if (m_physicsEnv && !m_bodyID.IsInvalid()) {
-    JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
-    if (bi.IsAdded(m_bodyID)) {
-      bi.RemoveBody(m_bodyID);
+    /* If physics is currently updating, defer body destruction to prevent
+     * crashes from destroying bodies while physics jobs reference them. */
+    if (m_physicsEnv->IsPhysicsUpdating()) {
+      JoltDeferredOp op;
+      op.type = JoltDeferredOpType::DestroyBody;
+      op.bodyID = m_bodyID;
+      op.controller = this;
+      m_physicsEnv->QueueDeferredOperation(op);
+      m_bodyID = JPH::BodyID(); /* Invalidate to prevent double-free. */
     }
-    bi.DestroyBody(m_bodyID);
-    m_bodyID = JPH::BodyID(); /* Invalidate to prevent double-free. */
+    else {
+      JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+      if (bi.IsAdded(m_bodyID)) {
+        bi.RemoveBody(m_bodyID);
+      }
+      bi.DestroyBody(m_bodyID);
+      m_bodyID = JPH::BodyID(); /* Invalidate to prevent double-free. */
+    }
   }
 
   /* Remove ourselves from the environment's controller list. */
@@ -192,33 +204,55 @@ void JoltPhysicsController::PostProcessReplica(PHY_IMotionState *motionstate,
 {
   m_motionState = motionstate;
 
-  if (!m_physicsEnv || m_bodyID.IsInvalid()) {
+  if (!m_physicsEnv || m_bodyID.IsInvalid() || !m_motionState) {
     return;
   }
 
-  /* Clone the Jolt body for the replicated game object. */
-  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
-  JPH::BodyLockRead lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
-  if (!lock.Succeeded()) {
-    return;
-  }
+  /* Clone the Jolt body for the replicated game object.
+   * Read source creation settings first, then release the body lock before
+   * creating/adding the replica body. Holding a body lock while CreateBody /
+   * AddBody acquires internal locks can deadlock.
+   *
+   * No-lock interfaces are safe here: replica creation runs on the main thread
+   * while PhysicsSystem::Update() is not running.
+   *
+   * CRITICAL: We must invalidate m_bodyID BEFORE attempting CreateBody.
+   * GetReplica() copies the source's m_bodyID to us. If CreateBody fails,
+   * we must NOT retain the source's BodyID - that would cause a double-free
+   * when both controllers are destroyed. */
+  const JPH::BodyID sourceBodyID = m_bodyID;
+  m_bodyID = JPH::BodyID();  /* Invalidate now to prevent double-free on failure. */
 
-  const JPH::Body &srcBody = lock.GetBody();
-  JPH::BodyCreationSettings bcs = srcBody.GetBodyCreationSettings();
+  JPH::BodyCreationSettings bcs;
+  {
+    const JPH::BodyLockInterface &lockInterface =
+        m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
+    JPH::BodyLockRead lock(lockInterface, sourceBodyID);
+    if (!lock.Succeeded()) {
+      return;
+    }
+
+    bcs = lock.GetBody().GetBodyCreationSettings();
+  }
 
   /* Use the replica's motion state position. */
-  MT_Vector3 pos = motionstate->GetWorldPosition();
-  MT_Matrix3x3 ori = motionstate->GetWorldOrientation();
+  MT_Vector3 pos = m_motionState->GetWorldPosition();
+  MT_Matrix3x3 ori = m_motionState->GetWorldOrientation();
   MT_Quaternion quat = ori.getRotation();
   bcs.mPosition = JoltMath::ToJolt(pos);
   bcs.mRotation = JoltMath::ToJolt(quat);
 
+  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterfaceNoLock();
   JPH::Body *newBody = bi.CreateBody(bcs);
-  if (newBody) {
-    m_bodyID = newBody->GetID();
-    newBody->SetUserData(reinterpret_cast<JPH::uint64>(m_newClientInfo));
-    bi.AddBody(m_bodyID, JPH::EActivation::Activate);
+  if (!newBody) {
+    /* Body creation failed (e.g., maxBodies limit exceeded).
+     * m_bodyID is already invalid - safe for destructor. */
+    return;
   }
+
+  m_bodyID = newBody->GetID();
+  newBody->SetUserData(reinterpret_cast<JPH::uint64>(m_newClientInfo));
+  bi.AddBody(m_bodyID, JPH::EActivation::Activate);
 }
 
 void JoltPhysicsController::SetPhysicsEnvironment(PHY_IPhysicsEnvironment *env)
@@ -727,6 +761,17 @@ void JoltPhysicsController::SuspendPhysics(bool freeConstraints)
     return;
   }
 
+  /* If physics is currently updating, defer removal. */
+  if (m_physicsEnv->IsPhysicsUpdating()) {
+    JoltDeferredOp op;
+    op.type = JoltDeferredOpType::RemoveBody;
+    op.bodyID = m_bodyID;
+    op.controller = this;
+    m_physicsEnv->QueueDeferredOperation(op);
+    m_physicsSuspended = true;
+    return;
+  }
+
   m_physicsEnv->GetBodyInterface().RemoveBody(m_bodyID);
   m_physicsSuspended = true;
 }
@@ -734,6 +779,17 @@ void JoltPhysicsController::SuspendPhysics(bool freeConstraints)
 void JoltPhysicsController::RestorePhysics()
 {
   if (!m_physicsSuspended || !m_physicsEnv || m_bodyID.IsInvalid()) {
+    return;
+  }
+
+  /* If physics is currently updating, defer body re-addition. */
+  if (m_physicsEnv->IsPhysicsUpdating()) {
+    JoltDeferredOp op;
+    op.type = JoltDeferredOpType::AddBody;
+    op.bodyID = m_bodyID;
+    op.controller = this;
+    m_physicsEnv->QueueDeferredOperation(op);
+    m_physicsSuspended = false;
     return;
   }
 
@@ -758,6 +814,20 @@ void JoltPhysicsController::SuspendDynamics(bool ghost)
     if (lock.Succeeded()) {
       m_savedIsSensor = lock.GetBody().IsSensor();
     }
+  }
+
+  /* Check if physics is currently updating - defer if so. */
+  if (m_physicsEnv->IsPhysicsUpdating()) {
+    JoltDeferredOp op;
+    op.type = JoltDeferredOpType::SuspendDynamics;
+    op.bodyID = m_bodyID;
+    op.ghost = ghost;
+    op.controller = this;
+    op.collisionGroup = m_collisionGroup;
+    op.collisionMask = m_collisionMask;
+    m_physicsEnv->QueueDeferredOperation(op);
+    m_dynamicsSuspended = true;
+    return;
   }
 
   /* Switch to static. */
@@ -787,6 +857,22 @@ void JoltPhysicsController::SuspendDynamics(bool ghost)
 void JoltPhysicsController::RestoreDynamics()
 {
   if (!m_dynamicsSuspended || !m_physicsEnv || m_bodyID.IsInvalid()) {
+    return;
+  }
+
+  /* Check if physics is currently updating - defer if so. */
+  if (m_physicsEnv->IsPhysicsUpdating()) {
+    JoltDeferredOp op;
+    op.type = JoltDeferredOpType::RestoreDynamics;
+    op.bodyID = m_bodyID;
+    op.ghost = m_savedIsSensor;
+    op.motionType = m_savedMotionType;
+    op.controller = this;
+    op.collisionGroup = m_collisionGroup;
+    op.collisionMask = m_collisionMask;
+    op.bpCategory = m_bpCategory;
+    m_physicsEnv->QueueDeferredOperation(op);
+    m_dynamicsSuspended = false;
     return;
   }
 
@@ -845,6 +931,17 @@ void JoltPhysicsController::SetCollisionGroup(unsigned short group)
 {
   m_collisionGroup = group;
   if (m_physicsEnv && !m_bodyID.IsInvalid()) {
+    /* If physics is currently updating, defer layer change. */
+    if (m_physicsEnv->IsPhysicsUpdating()) {
+      JoltDeferredOp op;
+      op.type = JoltDeferredOpType::SetObjectLayer;
+      op.bodyID = m_bodyID;
+      op.objectLayer = JoltMakeObjectLayer(m_collisionGroup, m_collisionMask, m_bpCategory);
+      op.controller = this;
+      m_physicsEnv->QueueDeferredOperation(op);
+      return;
+    }
+
     JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
     /* CollisionGroup fields (GroupFilter, SubGroupID) are reserved for
      * constraint "Disable Collisions" filtering — do not overwrite them.
@@ -859,6 +956,17 @@ void JoltPhysicsController::SetCollisionMask(unsigned short mask)
 {
   m_collisionMask = mask;
   if (m_physicsEnv && !m_bodyID.IsInvalid()) {
+    /* If physics is currently updating, defer layer change. */
+    if (m_physicsEnv->IsPhysicsUpdating()) {
+      JoltDeferredOp op;
+      op.type = JoltDeferredOpType::SetObjectLayer;
+      op.bodyID = m_bodyID;
+      op.objectLayer = JoltMakeObjectLayer(m_collisionGroup, m_collisionMask, m_bpCategory);
+      op.controller = this;
+      m_physicsEnv->QueueDeferredOperation(op);
+      return;
+    }
+
     JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
     /* CollisionGroup fields (GroupFilter, SubGroupID) are reserved for
      * constraint "Disable Collisions" filtering — do not overwrite them.

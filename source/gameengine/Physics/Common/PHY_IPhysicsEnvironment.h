@@ -32,6 +32,7 @@
 #pragma once
 
 #include "MT_Matrix4x4.h"
+#include "MT_Matrix3x3.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
@@ -310,9 +311,10 @@ class PHY_IPhysicsEnvironment {
                                       blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli) = 0;
   /// Returns constraint ID on success, -1 on failure
-  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
-                                        KX_GameObject *gameobj1,
+  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
                                         KX_GameObject *gameobj2,
+                                        const MT_Vector3 &pivotLocal,
+                                        const MT_Matrix3x3 &basisLocal,
                                         blender::RigidBodyCon *rbc) = 0;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) = 0;
 };

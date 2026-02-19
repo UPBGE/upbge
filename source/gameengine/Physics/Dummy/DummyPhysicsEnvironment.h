@@ -166,9 +166,10 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   {
   }
 
-  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
-                                        KX_GameObject *gameobj1,
+  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
                                         KX_GameObject *gameobj2,
+                                        const MT_Vector3 &pivotLocal,
+                                        const MT_Matrix3x3 &basisLocal,
                                         blender::RigidBodyCon *rbc) override
   {
     return -1;

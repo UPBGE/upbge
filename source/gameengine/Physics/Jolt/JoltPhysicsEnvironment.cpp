@@ -93,6 +93,40 @@ static int g_joltConstraintUid = 1;
 #include <thread>
 
 /* -------------------------------------------------------------------- */
+/** \name Bullet-style combine functions for friction and restitution
+ * \{
+ *
+ * Bullet Physics uses multiply mode for both friction and restitution:
+ * - Combined friction = friction1 * friction2
+ * - Combined restitution = restitution1 * restitution2
+ *
+ * This means if either object has 0 restitution, the collision is inelastic.
+ * Jolt's default is max() for restitution and geometric mean for friction.
+ */
+
+static float BulletCombineFriction(const JPH::Body &inBody1,
+                                    const JPH::SubShapeID &inSubShapeID1,
+                                    const JPH::Body &inBody2,
+                                    const JPH::SubShapeID &inSubShapeID2)
+{
+  (void)inSubShapeID1;
+  (void)inSubShapeID2;
+  return inBody1.GetFriction() * inBody2.GetFriction();
+}
+
+static float BulletCombineRestitution(const JPH::Body &inBody1,
+                                       const JPH::SubShapeID &inSubShapeID1,
+                                       const JPH::Body &inBody2,
+                                       const JPH::SubShapeID &inSubShapeID2)
+{
+  (void)inSubShapeID1;
+  (void)inSubShapeID2;
+  return inBody1.GetRestitution() * inBody2.GetRestitution();
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Jolt global initialization (once per process)
  * \{ */
 
@@ -297,12 +331,19 @@ JoltPhysicsEnvironment::JoltPhysicsEnvironment(blender::Scene *blenderscene,
   m_physicsSystem->SetBodyActivationListener(&m_bodyActivationListener);
   m_physicsSystem->SetContactListener(&m_contactListener);
 
+  /* Set Bullet-style combine functions for friction and restitution.
+   * This makes the behavior consistent with Bullet Physics where
+   * restitution = r1 * r2 (if either is 0, result is 0). */
+  m_physicsSystem->SetCombineFriction(BulletCombineFriction);
+  m_physicsSystem->SetCombineRestitution(BulletCombineRestitution);
+
   /* Set default gravity (Blender Z-up: -9.81 on Z → Jolt Y-up: -9.81 on Y). */
   m_physicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
 
   if (visualizePhysics) {
     m_debugMode = 1;
   }
+  m_debugErrors = blenderscene->gm.jolt_debug_errors != 0;
 }
 
 JoltPhysicsEnvironment::~JoltPhysicsEnvironment()
@@ -385,23 +426,18 @@ JoltPhysicsEnvironment *JoltPhysicsEnvironment::Create(blender::Scene *blendersc
     maxBodies = 65536;
   }
 
-  int maxBodyPairs = blenderscene->gm.jolt_max_body_pairs;
-  if (maxBodyPairs <= 0) {
-    maxBodyPairs = 65536;
-  }
+  /* Auto-calculate derived settings based on maxBodies.
+   * These ratios prevent resource saturation (BodyPairCacheFull, ContactConstraintsFull)
+   * which causes bodies to fall through the world. */
+  int maxBodyPairs = maxBodies * 8;           /* 8x: broadphase pairs >> actual contacts */
+  int maxContactConstraints = maxBodies * 4;  /* 4x: typical contacts per body in dense scenes */
 
-  int maxContactConstraints = blenderscene->gm.jolt_max_contact_constraints;
-  if (maxContactConstraints <= 0) {
-    maxContactConstraints = 65536;
-  }
-
-  int tempAllocatorMB = blenderscene->gm.jolt_temp_allocator_mb;
-  /* Jolt's Update() needs roughly maxBodies * 900 bytes of temp memory.
-   * Compute a safe minimum and use the larger of user setting vs minimum. */
-  int minTempMB = std::max(32, (int)((int64_t)maxBodies * 900 / (1024 * 1024)) + 16);
-  if (tempAllocatorMB < minTempMB) {
-    tempAllocatorMB = minTempMB;
-  }
+  /* Temp allocator needs memory for:
+   * - Body pairs (maxBodyPairs * ~200 bytes)
+   * - Contact constraints (maxContactConstraints * ~64 bytes)
+   * - Per-body temp data (maxBodies * ~900 bytes)
+   * Use a safe multiplier to avoid OOM during collision detection. */
+  int tempAllocatorMB = std::max(64, (int)((int64_t)maxBodies * 2048 / (1024 * 1024)) + 32);
   JoltPhysicsEnvironment *env = new JoltPhysicsEnvironment(blenderscene,
                                                            numThreads,
                                                            maxBodies,
@@ -415,6 +451,8 @@ JoltPhysicsEnvironment *JoltPhysicsEnvironment::Create(blender::Scene *blendersc
   env->SetDeactivationTime(blenderscene->gm.deactivationtime);
   env->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
   env->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
+  env->SetERPNonContact(blenderscene->gm.erp);
+  env->SetERPContact(blenderscene->gm.erp2);
 
   return env;
 }
@@ -455,13 +493,20 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
     ctrl->WriteMotionStateToDynamics(true);  /* nondynaonly = true → only kinematic/static */
   }
 
-  /* Step 2: Run the physics simulation. */
+  /* Step 2: Run the physics simulation.
+   * Set the updating flag to defer unsafe body modifications.
+   * This prevents crashes when logic tries to modify bodies during physics. */
+  m_isPhysicsUpdating = true;
   JPH::EPhysicsUpdateError updateErr = m_physicsSystem->Update(
       timeStep, collisionSteps, m_tempAllocator.get(), m_jobSystem.get());
+  m_isPhysicsUpdating = false;
 
-  if (updateErr != JPH::EPhysicsUpdateError::None) {
+  if (m_debugErrors && updateErr != JPH::EPhysicsUpdateError::None) {
     printf("Jolt: Update returned error %d\n", (int)updateErr);
   }
+
+  /* Process any deferred operations that were queued during the physics update. */
+  ProcessDeferredOperations();
 
   /* Step 3: Process FH (Floating Height) springs. */
   ProcessFhSprings(timeStep);
@@ -605,12 +650,22 @@ void JoltPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
 
 void JoltPhysicsEnvironment::SetERPNonContact(float erp)
 {
-  /* No direct Jolt equivalent. Store for reference. */
+  /* Map to Jolt's Baumgarte stabilization factor.
+   * ERP in Bullet is typically 0.2-0.8, Jolt's mBaumgarte is 0.0-1.0.
+   * Clamp to reasonable range to prevent instability. */
+  JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
+  settings.mBaumgarte = std::clamp(erp, 0.1f, 0.8f);
+  m_physicsSystem->SetPhysicsSettings(settings);
 }
 
 void JoltPhysicsEnvironment::SetERPContact(float erp2)
 {
-  /* No direct Jolt equivalent. Store for reference. */
+  /* Map to Jolt's Baumgarte stabilization factor for contacts.
+   * Jolt doesn't separate contact/non-contact ERP like Bullet does.
+   * We use the same setting, but prioritize contact ERP if both are set. */
+  JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
+  settings.mBaumgarte = std::clamp(erp2, 0.1f, 0.8f);
+  m_physicsSystem->SetPhysicsSettings(settings);
 }
 
 void JoltPhysicsEnvironment::SetCFM(float cfm)
@@ -1077,7 +1132,17 @@ void JoltPhysicsEnvironment::RemoveSensor(PHY_IPhysicsController *ctrl)
   }
 
   if (joltCtrl->Unregister()) {
-    GetBodyInterface().RemoveBody(joltCtrl->GetBodyID());
+    /* If physics is currently updating, defer body removal. */
+    if (m_isPhysicsUpdating) {
+      JoltDeferredOp op;
+      op.type = JoltDeferredOpType::RemoveBody;
+      op.bodyID = joltCtrl->GetBodyID();
+      op.controller = joltCtrl;
+      QueueDeferredOperation(op);
+    }
+    else {
+      GetBodyInterface().RemoveBody(joltCtrl->GetBodyID());
+    }
   }
 }
 
@@ -1893,18 +1958,19 @@ void JoltPhysicsEnvironment::SetupObjectConstraints(
   }
 }
 
-int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *constraintObject,
-                                                       KX_GameObject *gameobj1,
+int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
                                                        KX_GameObject *gameobj2,
+                                                       const MT_Vector3 &pivotLocal,
+                                                       const MT_Matrix3x3 &basisLocal,
                                                        blender::RigidBodyCon *rbc)
 {
   using namespace blender;
 
-  if (!constraintObject || !gameobj1 || !rbc) {
+  if (!gameobj1 || !rbc) {
     return -1;
   }
 
-  if (!constraintObject->GetSGNode() || !gameobj1->GetSGNode()) {
+  if (!gameobj1->GetSGNode()) {
     return -1;
   }
 
@@ -1915,20 +1981,28 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *constraintO
     return -1;
   }
 
-  const MT_Transform &worldTrans = constraintObject->NodeGetWorldTransform();
-  const MT_Vector3 pivotWorld = worldTrans.getOrigin();
-  const MT_Matrix3x3 basisWorld = worldTrans.getBasis();
-
-  const MT_Transform &ob1Trans = gameobj1->NodeGetWorldTransform();
-  MT_Transform ob1Inv;
-  ob1Inv.invert(ob1Trans);
-
-  MT_Vector3 pivotLocal = ob1Inv * pivotWorld;
-  MT_Matrix3x3 basisLocal = ob1Inv.getBasis() * basisWorld;
-
   MT_Vector3 axis0 = basisLocal.getColumn(0).safe_normalized();
   MT_Vector3 axis1 = basisLocal.getColumn(1).safe_normalized();
   MT_Vector3 axis2 = basisLocal.getColumn(2).safe_normalized();
+
+  /* Build an orthonormal frame for Jolt from the incoming local basis.
+   * Jolt is stricter than Bullet about valid constraint frames and may reject or
+   * behave badly with scaled/sheared axes from authoring transforms. */
+  if (axis0.length2() < 1.0e-8f) {
+    axis0 = MT_Vector3(1.0f, 0.0f, 0.0f);
+  }
+
+  axis1 = (axis1 - axis0.dot(axis1) * axis0).safe_normalized();
+  if (axis1.length2() < 1.0e-8f) {
+    axis1 = (axis2 - axis0.dot(axis2) * axis0).safe_normalized();
+  }
+  if (axis1.length2() < 1.0e-8f) {
+    const MT_Vector3 fallback = (std::abs(axis0.z()) < 0.999f) ? MT_Vector3(0.0f, 0.0f, 1.0f) :
+                                                              MT_Vector3(0.0f, 1.0f, 0.0f);
+    axis1 = (fallback - axis0.dot(fallback) * axis0).safe_normalized();
+  }
+
+  axis2 = axis0.cross(axis1).safe_normalized();
 
   PHY_ConstraintType type = PHY_GENERIC_6DOF_CONSTRAINT;
   bool use_springs = false;
@@ -2339,6 +2413,117 @@ void JoltPhysicsEnvironment::ProcessFhSprings(float timeStep)
         torqueAxis = torqueAxis / sinAngle;
         float torqueMag = sinAngle * fhSpring * 0.5f * bodyMass;
         bi.AddTorque(bodyID, torqueAxis * torqueMag);
+      }
+    }
+  }
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Deferred Physics Operations
+ * \{ */
+
+bool JoltPhysicsEnvironment::QueueDeferredOperation(const JoltDeferredOp &op)
+{
+  if (!m_isPhysicsUpdating) {
+    /* Physics not updating - caller should execute immediately. */
+    return false;
+  }
+
+  m_deferredOps.push_back(op);
+  return true;
+}
+
+void JoltPhysicsEnvironment::ProcessDeferredOperations()
+{
+  /* Swap to local copy to allow new operations to be queued during processing. */
+  std::vector<JoltDeferredOp> ops;
+  ops.swap(m_deferredOps);
+
+  if (ops.empty()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = GetBodyInterface();
+
+  for (const JoltDeferredOp &op : ops) {
+    /* Skip if body ID became invalid (destroyed by another operation). */
+    if (op.bodyID.IsInvalid()) {
+      continue;
+    }
+
+    switch (op.type) {
+      case JoltDeferredOpType::SuspendDynamics: {
+        /* Switch to static. */
+        bi.SetMotionType(op.bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
+
+        /* If ghost mode, make sensor and update layer. */
+        if (op.ghost && bi.IsAdded(op.bodyID)) {
+          JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
+          if (lock.Succeeded()) {
+            lock.GetBody().SetIsSensor(true);
+          }
+          bi.SetObjectLayer(op.bodyID,
+                            JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, JOLT_BP_SENSOR));
+        }
+        else if (bi.IsAdded(op.bodyID)) {
+          bi.SetObjectLayer(op.bodyID,
+                            JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, JOLT_BP_STATIC));
+        }
+        break;
+      }
+
+      case JoltDeferredOpType::RestoreDynamics: {
+        /* Restore motion type. */
+        bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
+
+        /* Restore sensor flag. */
+        {
+          JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
+          if (lock.Succeeded()) {
+            lock.GetBody().SetIsSensor(op.ghost);
+          }
+        }
+
+        /* Restore layer. */
+        if (bi.IsAdded(op.bodyID)) {
+          bi.SetObjectLayer(op.bodyID,
+                            JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, op.bpCategory));
+        }
+        break;
+      }
+
+      case JoltDeferredOpType::RemoveBody: {
+        if (bi.IsAdded(op.bodyID)) {
+          bi.RemoveBody(op.bodyID);
+        }
+        break;
+      }
+
+      case JoltDeferredOpType::AddBody: {
+        if (!bi.IsAdded(op.bodyID)) {
+          bi.AddBody(op.bodyID, JPH::EActivation::Activate);
+        }
+        break;
+      }
+
+      case JoltDeferredOpType::DestroyBody: {
+        if (bi.IsAdded(op.bodyID)) {
+          bi.RemoveBody(op.bodyID);
+        }
+        bi.DestroyBody(op.bodyID);
+        break;
+      }
+
+      case JoltDeferredOpType::SetObjectLayer: {
+        if (bi.IsAdded(op.bodyID)) {
+          bi.SetObjectLayer(op.bodyID, op.objectLayer);
+        }
+        break;
+      }
+
+      case JoltDeferredOpType::SetMotionType: {
+        bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
+        break;
       }
     }
   }

@@ -640,12 +640,12 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             sub = col.row()
             sub.prop(gs, "deactivation_time", text="Time")
 
+            col = layout.column()
+            col.label(text="Physics Joint Error Reduction:")
+            sub = col.column(align=True)
+            sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
+            sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
             if gs.physics_engine != 'JOLT':
-                col = layout.column()
-                col.label(text="Physics Joint Error Reduction:")
-                sub = col.column(align=True)
-                sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
-                sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
                 sub.prop(gs, "cfm_parameter", text="CFM for Soft Constraints")
 
             row = layout.row()
@@ -664,11 +664,9 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 col = layout.column()
                 col.label(text="Jolt Physics Settings:")
                 col.prop(gs, "jolt_physics_threads", text="Physics Threads (-1 = Auto)")
-                sub = col.column(align=True)
-                sub.prop(gs, "jolt_max_bodies", text="Max Bodies")
-                sub.prop(gs, "jolt_max_body_pairs", text="Max Body Pairs")
-                sub.prop(gs, "jolt_max_contact_constraints", text="Max Contact Constraints")
-                sub.prop(gs, "jolt_temp_allocator_mb", text="Temp Allocator (MB)")
+                col.prop(gs, "jolt_max_bodies", text="Max Bodies")
+                col.prop(gs, "jolt_debug_errors", text="Debug Errors")
+                # Max Body Pairs, Contact Constraints, Temp Allocator are auto-calculated from Max Bodies
 
         else:
             split = layout.split()

@@ -187,6 +187,10 @@ bool SCA_CollectionActuator::Update()
       std::vector<KX_GameObject *> spawned_objects;
       std::vector<KX_GameObject *> spawned_physics;
       std::unordered_map<std::string, KX_GameObject *> spawned_lookup;
+      const MT_Vector3 collection_offset(m_collection->instance_offset);
+      const bool use_first_object_as_origin = collection_offset.fuzzyZero();
+      MT_Vector3 spawn_origin = collection_offset;
+      bool spawn_origin_initialized = !use_first_object_as_origin;
 
       for (KX_GameObject *gameobj : m_kxscene->GetInactiveList()) {
         blender::Object *ob = gameobj->GetBlenderObject();
@@ -216,39 +220,45 @@ bool SCA_CollectionActuator::Update()
           }
           if (replica) {
             if (referenceobj) {
-              /* Compose original transform with owner transform so each spawned object keeps its
-               * collection offset relative to the actuator owner, similar to instanced collections.
+              /* Spawn relative to collection origin at the actuator owner transform.
+               * This mirrors collection instancing behavior and keeps per-object offsets.
                */
-              const MT_Vector3 owner_scale =
-                  referenceobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
-              const MT_Vector3 orig_pos = replica->NodeGetWorldPosition();
-              const MT_Matrix3x3 orig_ori = replica->NodeGetWorldOrientation();
-              const MT_Vector3 orig_scale = replica->GetSGNode()->GetRootSGParent()->GetLocalScale();
+              if (!spawn_origin_initialized) {
+                /* Keep default behavior with collection.instance_offset when it is set.
+                 * Otherwise, anchor to the first collection object so the spawn starts
+                 * exactly at the logic brick owner position.
+                 */
+                spawn_origin = gameobj->NodeGetWorldPosition();
+                spawn_origin_initialized = true;
+              }
+
+              const MT_Vector3 owner_scale = referenceobj->NodeGetWorldScaling();
+              const MT_Vector3 orig_pos = gameobj->NodeGetWorldPosition();
+              const MT_Matrix3x3 orig_ori = gameobj->NodeGetWorldOrientation();
 
               const MT_Matrix3x3 owner_ori = referenceobj->NodeGetWorldOrientation();
               const MT_Vector3 owner_pos = referenceobj->NodeGetWorldPosition();
 
-              const MT_Vector3 scaled_offset(orig_pos[0] * owner_scale[0],
-                                             orig_pos[1] * owner_scale[1],
-                                             orig_pos[2] * owner_scale[2]);
+              const MT_Vector3 relative_pos = orig_pos - spawn_origin;
+
+              const MT_Vector3 scaled_offset(relative_pos[0] * owner_scale[0],
+                                             relative_pos[1] * owner_scale[1],
+                                             relative_pos[2] * owner_scale[2]);
               const MT_Vector3 composed_pos = owner_pos + owner_ori * scaled_offset;
               const MT_Matrix3x3 composed_ori = owner_ori * orig_ori;
-              const MT_Vector3 composed_scale(orig_scale[0] * owner_scale[0],
-                                              orig_scale[1] * owner_scale[1],
-                                              orig_scale[2] * owner_scale[2]);
 
               replica->NodeSetLocalPosition(composed_pos);
               replica->NodeSetLocalOrientation(composed_ori);
-              replica->NodeSetRelativeScale(composed_scale);
+              replica->NodeSetRelativeScale(owner_scale);
               replica->GetSGNode()->UpdateWorldData(0.0);
             }
             replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
             replica->setAngularVelocity(MT_Vector3(m_angular_velocity), m_localAngvFlag);
 
-            spawned_lookup.emplace(gameobj->GetName(), replica);
+            /* Rigid body constraint replication looks up targets by Blender ID names
+             * (ob->id.name + 2). Logic names or replica names are never queried, so
+             * avoid storing redundant entries in the lookup table. */
             spawned_lookup.emplace(gameobj->GetBlenderObject()->id.name + 2, replica);
-            spawned_lookup.emplace(replica->GetName(), replica);
-            spawned_lookup.emplace(replica->GetBlenderObject()->id.name + 2, replica);
             spawned_objects.push_back(replica);
             if (replica->GetPhysicsController()) {
               spawned_physics.push_back(replica);

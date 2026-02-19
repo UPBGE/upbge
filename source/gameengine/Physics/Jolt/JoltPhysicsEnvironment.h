@@ -112,6 +112,55 @@ inline JoltBroadPhaseLayer JoltGetCategory(JPH::ObjectLayer layer)
 }
 
 /* -------------------------------------------------------------------- */
+/** \name Deferred Physics Operations
+ *
+ * Operations that modify body state (motion type, object layer, body removal)
+ * cannot be safely performed while PhysicsSystem::Update() is running.
+ * These operations are deferred until after the physics step completes.
+ * \{ */
+
+/** Types of operations that can be deferred. */
+enum class JoltDeferredOpType {
+  SuspendDynamics,
+  RestoreDynamics,
+  RemoveBody,
+  AddBody,
+  DestroyBody,
+  SetObjectLayer,
+  SetMotionType
+};
+
+/** Data for a deferred operation. Union stores operation-specific parameters. */
+struct JoltDeferredOp {
+  JoltDeferredOpType type;
+  JPH::BodyID bodyID;
+
+  /** Parameters for different operation types. */
+  union {
+    /** SuspendDynamics / RestoreDynamics: ghost mode flag. */
+    bool ghost;
+
+    /** SetObjectLayer: new layer value. */
+    JPH::ObjectLayer objectLayer;
+
+    /** SetMotionType: new motion type. */
+    JPH::EMotionType motionType;
+  };
+
+  /** Controller that requested this operation (for tracking). */
+  JoltPhysicsController *controller = nullptr;
+
+  /** Collision group/mask for layer operations. */
+  unsigned short collisionGroup = 0;
+  unsigned short collisionMask = 0;
+
+  /** Broadphase category for layer operations. */
+  JoltBroadPhaseLayer bpCategory = JOLT_BP_STATIC;
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Custom Broadphase Layer Interface
  *
  * Maps ObjectLayer → BroadPhaseLayer using the 2-bit motion category.
@@ -438,9 +487,10 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                       blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli) override;
 
-  virtual int CreateRigidBodyConstraint(KX_GameObject *constraintObject,
-                                        KX_GameObject *gameobj1,
+  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
                                         KX_GameObject *gameobj2,
+                                        const MT_Vector3 &pivotLocal,
+                                        const MT_Matrix3x3 &basisLocal,
                                         blender::RigidBodyCon *rbc) override;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
 
@@ -468,7 +518,18 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void CallbackTriggers();
   void ProcessFhSprings(float timeStep);
 
+  /** Check if physics update is currently in progress. */
+  bool IsPhysicsUpdating() const { return m_isPhysicsUpdating; }
+
+  /** Queue a deferred operation to be processed after physics update completes.
+   * Returns true if queued (physics updating), false if should execute immediately. */
+  bool QueueDeferredOperation(const JoltDeferredOp &op);
+
+  /** Process all queued deferred operations. Called after physics update completes. */
+  void ProcessDeferredOperations();
+
   friend class JoltContactListener;
+  friend class JoltPhysicsController;
 
  protected:
   std::unique_ptr<JPH::TempAllocatorImpl> m_tempAllocator;
@@ -502,6 +563,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   int m_numTimeSubSteps;
   int m_debugMode;
+  bool m_debugErrors = false;
 
   float m_fixedTimeStep = 0.0f;
   float m_deactivationTime;
@@ -511,6 +573,12 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   int m_activeBodyCount = 0;
 
   bool m_needsBroadPhaseOptimize = true;
+
+  /** Flag set during PhysicsSystem::Update() to prevent unsafe body modifications. */
+  bool m_isPhysicsUpdating = false;
+
+  /** Queue of deferred operations to process after physics update completes. */
+  std::vector<JoltDeferredOp> m_deferredOps;
 };
 
 /** \} */
