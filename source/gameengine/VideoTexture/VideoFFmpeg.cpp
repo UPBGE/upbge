@@ -675,6 +675,19 @@ void VideoFFmpeg::openCam(char *file, short camIdx)
   if (openStream(filename, inputFormat, &formatParams) != 0)
     return;
 
+  // Verify the driver returned a valid resolution.
+  // Some devices report 0x0 if no signal is present or parameters were not accepted.
+  if (m_codecCtx->width <= 0 || m_codecCtx->height <= 0) {
+    printf("VideoFFmpeg: capture device returned invalid resolution %dx%d, aborting.\n",
+           m_codecCtx->width,
+           m_codecCtx->height);
+    avcodec_free_context(&m_codecCtx);
+    m_codecCtx = nullptr;
+    avformat_close_input(&m_formatCtx);
+    m_formatCtx = nullptr;
+    return;
+  }
+
   // for video capture it is important to do non blocking read
   m_formatCtx->flags |= AVFMT_FLAG_NONBLOCK;
   // open base class
