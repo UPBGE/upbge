@@ -66,6 +66,9 @@ class Texture : public EXP_Value {
   // image source
   PyImage *m_source;
 
+  // cached result of dynamic_cast<ImageRender*>
+  bool m_isImageRender;
+
   Texture();
   virtual ~Texture();
 

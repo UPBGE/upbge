@@ -59,7 +59,8 @@ Texture::Texture():
       m_mipmap(false),
       m_scaledImBuf(nullptr),
       m_lastClock(0.0),
-      m_source(nullptr)
+      m_source(nullptr),
+      m_isImageRender(false)
 {
   textures.push_back(this);
 }
@@ -132,6 +133,8 @@ void Texture::SetSource(PyImage *source)
   Py_XDECREF(m_source);
   Py_INCREF(source);
   m_source = source;
+  // Cache whether source is ImageRender to avoid dynamic_cast in the hot path every frame.
+  m_isImageRender = (dynamic_cast<ImageRender *>(source->m_image) != nullptr);
 }
 
 // load texture
@@ -141,7 +144,8 @@ void Texture::loadTexture(unsigned int *texture,
                           blender::gpu::TextureFormat format)
 {
   // Check if the source is an ImageRender (offscreen 3D render)
-  ImageRender *imr = dynamic_cast<ImageRender *>(m_source ? m_source->m_image : nullptr);
+  ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_image) : nullptr;
+
   if (imr && !m_origGpuTex) {
     // For ImageRender, directly use the GPU texture from the active framebuffer
     KX_Camera *cam = imr->GetCamera();
