@@ -148,6 +148,20 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return m_meshObject;
   }
 
+  /* For gpu reinstance (no topology changes) */
+  bool UpdateMeshGPU(class KX_GameObject *gameobj);
+
+  void updateIndexedMeshVertexBase();
+  bool GetForceReInstance()
+  {
+    return m_forceReInstance;
+  }
+  btTriangleIndexVertexArray *GetTriangleIndexVertexArray()
+  {
+    return m_triangleIndexVertexArray;
+  }
+  /**********************/
+
   bool UpdateMesh(class KX_GameObject *from_gameobj,
                   class RAS_MeshObject *from_meshobj,
                   bool evaluatedMesh = false);
@@ -161,8 +175,6 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   {
     return m_shapeProxy;
   }
-
-  bool UpdateMeshGPU(class KX_GameObject *gameobj);
 
   btCollisionShape *CreateBulletShape(btScalar margin,
                                       bool useGimpact = false,
@@ -900,6 +912,12 @@ class CcdPhysicsController : public PHY_IPhysicsController {
                                       bool evaluatedMesh = false);
 
   virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
+
+  /** Update the controller collision shape in-place when the underlying
+   * CcdShapeConstructionInfo changed but topology hasn't. This will try to
+   * update vertex pointers and refit/update BVH or GImpact bounds instead of
+   * recreating the whole Bullet shape. */
+  void UpdateShapeFromShapeInfo(CcdShapeConstructionInfo *shapeInfo);
 
   /* Method to replicate rigid body joint contraints for group instances. */
   virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj);

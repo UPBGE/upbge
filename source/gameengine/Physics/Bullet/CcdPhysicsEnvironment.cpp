@@ -693,8 +693,9 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstruction
     if (ctrl->GetShapeInfo() != shapeInfo)
       continue;
 
-    ctrl->ReplaceControllerShape(nullptr);
-    RefreshCcdPhysicsController(ctrl);
+    /* Delegate update to controller which will attempt an in-place update
+     * (refit BVH / update GImpact bounds) or recreate the shape if necessary. */
+    ctrl->UpdateShapeFromShapeInfo(shapeInfo);
   }
 }
 

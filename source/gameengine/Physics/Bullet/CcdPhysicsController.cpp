@@ -1934,6 +1934,70 @@ bool CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
   return true;
 }
 
+void CcdPhysicsController::UpdateShapeFromShapeInfo(CcdShapeConstructionInfo *shapeInfo)
+{
+  if (!shapeInfo || !m_object)
+    return;
+
+  /* For now only called for gpu animated meshes, else old path (ReplaceControllerShape + RefreshCcdPhysicsController) */
+  if (shapeInfo->GetTriangleIndexVertexArray() && !shapeInfo->GetForceReInstance()) {
+    shapeInfo->updateIndexedMeshVertexBase();
+
+    btCollisionShape *shape = m_object->getCollisionShape();
+    if (!shape)
+      return;
+
+    KX_GameObject *gameobj = KX_GameObject::GetClientObject(
+        (KX_ClientObjectInfo *)GetNewClientInfo());
+    Object *blenderobj = gameobj->GetBlenderObject();
+    Mesh *mesh = (Mesh *)blenderobj->data;
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
+    Mesh *mesh_eval = (Mesh *)ob_eval->data;
+    const std::optional<Bounds<float3>> bounds = mesh_eval->runtime->bounds_cache.data();
+    btVector3 aabbMin(btVector3(bounds->min.x, bounds->min.y, bounds->min.z));
+    btVector3 aabbMax(btVector3(bounds->max.x, bounds->max.y, bounds->max.z));
+
+    switch (shape->getShapeType()) {
+      case SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE: {
+        btScaledBvhTriangleMeshShape *scaled = (btScaledBvhTriangleMeshShape *)shape;
+        btBvhTriangleMeshShape *unscaled = scaled->getChildShape();
+        if (unscaled) {
+          unscaled->refitTree(aabbMin, aabbMax);
+          unscaled->recalcLocalAabb();
+        }
+        break;
+      }
+      case TRIANGLE_MESH_SHAPE_PROXYTYPE: {
+        btBvhTriangleMeshShape *trimesh = (btBvhTriangleMeshShape *)shape;
+        trimesh->refitTree(aabbMin, aabbMax);
+        trimesh->recalcLocalAabb();
+        break;
+      }
+      case GIMPACT_SHAPE_PROXYTYPE: {
+        btGImpactMeshShape *gimpact = (btGImpactMeshShape *)shape;
+        gimpact->updateBound();
+        break;
+      }
+      default:
+        /* Fallback: recreate shape */
+        ReplaceControllerShape(nullptr);
+        break;
+    }
+
+    /* Refresh broadphase so pairs get updated. */
+    if (m_cci.m_physicsEnv)
+      m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
+  }
+  else {
+    /* Topology changed: recreate */
+    ReplaceControllerShape(nullptr);
+    if (m_cci.m_physicsEnv)
+      m_cci.m_physicsEnv->RefreshCcdPhysicsController(this);
+  }
+}
+
 void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica,
                                                 std::vector<KX_GameObject *> constobj)
 {
@@ -2206,13 +2270,41 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   return true;
 }
 
+/* Update the internal btIndexedMesh pointers to point to the current
+ * `m_vertexArray` storage so Bullet shapes that reference
+ * `m_triangleIndexVertexArray` can read the latest vertex positions
+ * without recreating the entire triangle/index array. This relies on
+ * `m_vertexArray` keeping a stable address between updates (no further
+ * reallocation until next call). */
+void CcdShapeConstructionInfo::updateIndexedMeshVertexBase()
+{
+  if (!m_triangleIndexVertexArray) {
+    return;
+  }
+
+  auto &indexed = m_triangleIndexVertexArray->getIndexedMeshArray();
+  if (indexed.size() == 0) {
+    return;
+  }
+
+  /* Update all subparts (usually 1). */
+  for (int i = 0; i < indexed.size(); ++i) {
+    btIndexedMesh &mesh = indexed[i];
+    /* Point the vertex base to our contiguous vertex storage. */
+    if (m_vertexArray.size() > 0) {
+      mesh.m_vertexBase = reinterpret_cast<const unsigned char *>(&m_vertexArray[0]);
+      mesh.m_numVertices = int(m_vertexArray.size() / 3);
+      mesh.m_vertexStride = 3 * sizeof(btScalar);
+    }
+    /* Update triangle count & index base in case topology changed earlier. */
+    mesh.m_numTriangles = int(m_triFaceArray.size() / 3);
+    mesh.m_triangleIndexBase = reinterpret_cast<const unsigned char *>(m_triFaceArray.data());
+    mesh.m_triangleIndexStride = 3 * sizeof(int);
+  }
+}
+
 /* Note: topology changes are currently forbidden during GPU deform/runback
- * playback, so we deliberately only update `m_vertexArray` from the GPU
- * position VBO. The triangle/index/uv/polygon arrays (`m_triFaceArray`,
- * `m_triFaceUVcoArray`, `m_polygonIndexArray`) are not updated on the GPU
- * because handling topology changes would require complex GPU-side
- * deduplication and synchronization. For safety we only enable the GPU path
- * when the mesh is in GPU animation playback mode.
+ * playback.
  */
 bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
 {
@@ -2794,7 +2886,10 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   /* force recreation of the m_triangleIndexVertexArray.
    * If this has multiple users we cant delete */
   if (m_triangleIndexVertexArray) {
-    m_forceReInstance = true;
+    /* Don't force reinstance for gpu animated meshes (no topology change) */
+    if (!gpu_reinstance) {
+      m_forceReInstance = true;
+    }
   }
 
   // Make sure to also replace the mesh in the shape map! Otherwise we leave dangling references
