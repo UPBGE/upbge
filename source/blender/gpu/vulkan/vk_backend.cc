@@ -669,8 +669,7 @@ TexturePool *VKBackend::texturepool_alloc()
     return new TexturePoolImpl();
   }
   CLOG_TRACE(&LOG, "Using texture pool \"VKTexturePool\".");
-  //return new VKTexturePool();
-  return new TexturePoolImpl(); // Temp UPBGE: comment while investigating on perf regression
+  return new VKTexturePool();
 }
 
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)
