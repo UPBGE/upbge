@@ -2569,13 +2569,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       }
       if (!gpu_reinstance) {
         // CPU.
-        const blender::Span<blender::float3> positions = me->vert_positions();
-        std::map<int, int> vert_remap;
-        int next_vert = 0;
-        for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
-          vert_remap[vert_idx] = next_vert++;
-        }
-        if (next_vert == 0) {
+        if (me->vert_positions().size() == 0) {
           m_shapeType = PHY_SHAPE_NONE;
           m_meshObject = nullptr;
           m_vertexArray.clear();
@@ -2584,13 +2578,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
           m_triFaceUVcoArray.clear();
           return false;
         }
-        m_vertexArray.resize(next_vert * 3);
-        for (const auto &pair : vert_remap) {
-          const float *vtx = &positions[pair.first][0];
-          int idx = pair.second;
-          m_vertexArray[idx * 3 + 0] = vtx[0];
-          m_vertexArray[idx * 3 + 1] = vtx[1];
-          m_vertexArray[idx * 3 + 2] = vtx[2];
+        const blender::Span<blender::float3> positions = me->vert_positions();
+        m_vertexArray.resize(me->vert_positions().size() * 3);
+        for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
+          m_vertexArray[vert_idx * 3 + 0] = positions[vert_idx][0];
+          m_vertexArray[vert_idx * 3 + 1] = positions[vert_idx][1];
+          m_vertexArray[vert_idx * 3 + 2] = positions[vert_idx][2];
         }
       }
       /* No triangle, UV, or polygon index arrays needed for polytope (convex
