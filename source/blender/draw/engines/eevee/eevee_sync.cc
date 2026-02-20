@@ -41,15 +41,8 @@ ObjectHandle &SyncModule::sync_object(const ObjectRef &ob_ref)
     return new_handle;
   });
 
-  /* UPBGE shadows artifacts GPU deform workaround. */
-  if (ob_ref.object->type == OB_MESH) {
-    Mesh *me_eval = (Mesh *)ob_ref.object->data;
-    if (me_eval->is_running_gpu_animation_playback) {
-      ob_ref.object->runtime->last_update_geometry = DEG_get_update_count(inst_.depsgraph) + 1;
-    }
-  }
-
   handle.recalc = inst_.get_recalc_flags(ob_ref);
+
   return handle;
 }
 
@@ -104,6 +97,14 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
   if ((ob->dt < OB_SOLID) && (inst_.is_viewport() && inst_.v3d->shading.type != OB_RENDER)) {
     /** Do not render objects with display type lower than solid when in material preview mode. */
     return;
+  }
+
+  /* UPBGE shadows artifacts GPU deform workaround. */
+  if (ob->type == OB_MESH) {
+    Mesh *me_eval = (Mesh *)ob->data;
+    if (me_eval->is_running_gpu_animation_playback) {
+      inst_.shadows.mark_gpu_deform_clear_needed();
+    }
   }
 
   ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);

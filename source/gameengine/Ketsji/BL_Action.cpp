@@ -554,10 +554,8 @@ void BL_Action::ProcessPipeline(BL_ArmatureObject *obj,
     }
     blender::Mesh *me = id_cast<blender::Mesh *>(child_ob->data);
     if (me->is_running_gpu_animation_playback) {
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-      DEG_bump_update_count(depsgraph);
       is_running_gpu_skinning = true;
+      break;
     }
   }
   if (!is_running_gpu_skinning) {
@@ -644,7 +642,9 @@ bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
       else {
         bContext *C = KX_GetActiveEngine()->GetContext();
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
         DEG_bump_update_count(depsgraph);
+        ob_eval->runtime->last_update_geometry = DEG_get_update_count(depsgraph);
       }
 
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
