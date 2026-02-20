@@ -165,6 +165,15 @@ class Instance : public DrawEngine {
       return;
     }
 
+    /* UPBGE shadows artifacts GPU deform workaround for Workbench. */
+    if (ob_ref.object->type == OB_MESH) {
+      Mesh *me_eval = (Mesh *)ob_ref.object->data;
+      if (me_eval->is_running_gpu_animation_playback) {
+        Depsgraph *depsgraph = DRW_context_get()->depsgraph;
+        ob_ref.object->runtime->last_update_geometry = DEG_get_update_count(depsgraph) + 1;
+      }
+    }
+
     const ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob);
 
     bool is_object_data_visible = (DRW_object_visibility_in_active_context(ob) &
