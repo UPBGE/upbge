@@ -5330,14 +5330,6 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 {
   int flag = 0;
 
-  /* UPBGE: For GPU deform (on evaluated Object/Mesh) */
-  if (ob->type == OB_MESH) {
-    Mesh *me_eval = (Mesh *)ob->data;
-    if (me_eval && me_eval->is_running_gpu_animation_playback) {
-      flag |= eModifierMode_Realtime;
-    }
-  }
-
   /* Always test on original object since evaluated object may no longer
    * have shape keys or modifiers that were used to evaluate it. */
   ob = DEG_get_original(ob);
