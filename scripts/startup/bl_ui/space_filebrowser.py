@@ -627,7 +627,9 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
         layout = self.layout
         space = context.space_data
         params = space.params
-        use_extended_browser = context.preferences.experimental.use_extended_asset_browser
+        experimental = context.preferences.experimental
+        use_extended_browser = experimental.use_extended_asset_browser
+        use_remote_asset_libraries = experimental.use_remote_asset_libraries
 
         if params.use_filter_blendid:
             col = layout.column(align=True)
@@ -642,7 +644,8 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
                     row.label(icon=filter_id.bl_rna.properties[identifier].icon)
                     row.prop(filter_id, identifier, toggle=False)
 
-        layout.prop(params, "show_online_assets", text="Online Assets")
+        if use_remote_asset_libraries:
+            layout.prop(params, "show_online_assets", text="Online Assets")
 
 
 class AssetBrowserMenu:
@@ -864,6 +867,10 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         params = st.params
         asset = context.asset
 
+        if asset and asset.is_online:
+            layout.operator("asset.assets_download")
+            layout.separator()
+
         layout.operator("asset.library_refresh", icon='FILE_REFRESH')
 
         layout.separator()
@@ -872,11 +879,6 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         sub.operator_context = 'EXEC_DEFAULT'
         sub.operator("asset.clear", text="Clear Asset").set_fake_user = False
         sub.operator("asset.clear", text="Clear Asset (Set Fake User)").set_fake_user = True
-
-        if asset and asset.is_online:
-            layout.separator()
-
-            layout.operator("asset.assets_download")
 
         layout.separator()
 
