@@ -46,7 +46,11 @@ class FilterBlueScreen : public FilterBase {
   unsigned int m_squareLimits[2];
   /// distance between squared limits
   unsigned int m_limitDist;
-
+  /// source pixel size is 3 (RGB input)
+  virtual unsigned int getPixelSize(void)
+  {
+    return 3;
+  }
   /// filter pixel template, source int buffer
   template<class SRC>
   unsigned int tFilter(
