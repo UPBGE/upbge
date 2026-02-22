@@ -15,9 +15,14 @@
 #include "RAS_ICanvas.h"
 #include "Texture.h"
 
+#include "GPU_framebuffer.hh"
+#include "GPU_texture.hh"
+#include "GPU_state.hh"
+#include "BKE_Image.hh"
+
 using namespace blender;
 
-ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false)
+ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false), m_blitFb(nullptr)
 {
   /* Because this constructor is called from python direclty without any arguments
    * the viewport should be the one of the final screen with gaps.
@@ -48,7 +53,7 @@ ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false)
 
 // constructor
 ImageViewport::ImageViewport(unsigned int width, unsigned int height)
-    : m_width(width), m_height(height), m_alpha(false), m_texInit(false)
+    : m_width(width), m_height(height), m_alpha(false), m_texInit(false), m_blitFb(nullptr)
 {
   m_viewport[0] = 0;
   m_viewport[1] = 0;
@@ -70,6 +75,10 @@ ImageViewport::ImageViewport(unsigned int width, unsigned int height)
 ImageViewport::~ImageViewport(void)
 {
   delete[] m_viewportImage;
+  if (m_blitFb) {
+    GPU_framebuffer_free(m_blitFb);
+    m_blitFb = nullptr;
+  }
 }
 
 // use whole viewport to capture image
@@ -134,11 +143,156 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
   if (m_scaleChange)
     init(m_capSize[0], m_capSize[1]);
 
-  // If the texture was not initialized, initialize it
-  if (!m_texInit) {
-    if (m_texture) {
+  /* ---- GPU->GPU fast path ------------------------------------------- */
+  /* Use when: a Texture destination exists, no zbuff/depth, no CPU pixel filter.
+   * Blits directly from the active FBO into the destination GPU texture.
+   * m_avail stays false — the image lives on the GPU, not in m_image. */
+  const bool needsCPU = m_zbuff || m_depth || (m_pyfilter != nullptr);
+
+  if (!needsCPU && m_texture != nullptr) {
+    blender::gpu::Texture *dstTex = m_texture->m_modifiedGPUTexture;
+
+    // First frame: create the destination texture if it doesn't exist yet,
+    // or if the size has changed.
+    if (!dstTex || (m_size[0] != GPU_texture_width(dstTex) ||
+                    m_size[1] != GPU_texture_height(dstTex)))
+    {
+      if (dstTex) {
+        GPU_texture_free(dstTex);
+      }
+      dstTex = GPU_texture_create_2d(
+          "videotexture_vp",
+          m_size[0], m_size[1], 1,
+          blender::gpu::TextureFormat::UNORM_8_8_8_8,
+          GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT,
+          nullptr);
+      m_texture->m_modifiedGPUTexture = dstTex;
+
+      // Attach destination texture to Blender material on first creation.
+      if (!m_texInit && m_texture->m_imgTexture &&
+          m_texture->m_imgTexture->runtime->gputexture[TEXTARGET_2D][0])
+      {
+        if (!m_texture->m_origGpuTex) {
+          m_texture->m_origGpuTex =
+              m_texture->m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
+        }
+        m_texture->m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = dstTex;
+        m_texInit = true;
+      }
+    }
+
+    // Ensure our scratch blit FBO exists.
+    if (!m_blitFb) {
+      m_blitFb = GPU_framebuffer_create("vp_blit_fb");
+    }
+
+    // Attach destination texture as color attachment of blit FBO.
+    GPU_framebuffer_texture_attach(m_blitFb, dstTex, 0, 0);
+
+    // Blit from active (source) FBO -> blit FBO (GPU->GPU, zero CPU cost).
+    blender::gpu::FrameBuffer *srcFb = GPU_framebuffer_active_get();
+    if (srcFb) {
+      GPU_framebuffer_blit(srcFb, 0, m_blitFb, 0, GPU_COLOR_BIT);
+    }
+
+    GPU_framebuffer_texture_detach(m_blitFb, dstTex);
+
+    // Image is on GPU — CPU buffer is not valid.
+    m_avail = false;
+    return;
+  }
+
+  /* ---- CPU readback slow path --------------------------------------- */
+  /* Used when zbuff / depth / pixel filter are active, or when there is no
+   * GPU texture destination (standalone ImageViewport used as Python buffer). */
+  readPixelsCPU();
+
+  // If a Texture destination also exists, push the CPU buffer up to GPU
+  // so the material stays in sync (filter + material case).
+  if (m_texture != nullptr && m_avail) {
+    if (!m_texInit) {
       m_texture->loadTexture(m_image, m_size, false, m_internalFormat);
       m_texInit = true;
+    }
+    else {
+      if (m_texture->m_modifiedGPUTexture) {
+        GPU_texture_update(m_texture->m_modifiedGPUTexture, GPU_DATA_UBYTE, m_image);
+        GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+      }
+    }
+  }
+}
+
+// CPU readback: reads pixels from the currently bound FBO into m_image.
+// Called only when zbuff, depth or pixel filters are active.
+void ImageViewport::readPixelsCPU()
+{
+  if (m_scaleChange)
+    init(m_capSize[0], m_capSize[1]);
+
+  blender::gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
+  if (!fb) {
+    // Fallback: restore default framebuffer (screen).
+    GPU_framebuffer_restore();
+    fb = GPU_framebuffer_active_get();
+    if (!fb)
+      return;
+  }
+
+  if (m_zbuff) {
+    // Use read pixels with the depth buffer
+    // *** misusing m_viewportImage here, but since it has the correct size
+    //     (4 bytes per pixel = size of float) and we just need it to apply
+    //     the filter, it's ok
+    GPU_framebuffer_read_depth(
+        fb, m_upLeft[0], m_upLeft[1], m_capSize[0], m_capSize[1],
+        GPU_DATA_FLOAT, m_viewportImage);
+    FilterZZZA filt;
+    filterImage(filt, (float *)m_viewportImage, m_capSize);
+  }
+  else if (m_depth) {
+    // Use read pixels with the depth buffer
+    // See warning above about m_viewportImage.
+    GPU_framebuffer_read_depth(
+        fb, m_upLeft[0], m_upLeft[1], m_capSize[0], m_capSize[1],
+        GPU_DATA_FLOAT, m_viewportImage);
+    FilterDEPTH filt;
+    filterImage(filt, (float *)m_viewportImage, m_capSize);
+  }
+  else {
+    // get frame buffer data
+    if (m_alpha) {
+      // as we are reading the pixel in the native format, we can read directly in the image
+      // buffer if we are sure that no processing is needed on the image
+      if (m_size[0] == m_capSize[0] && m_size[1] == m_capSize[1] && !m_flip && !m_pyfilter) {
+        GPU_framebuffer_read_color(
+            fb, m_upLeft[0], m_upLeft[1], m_capSize[0], m_capSize[1],
+            4, 0, GPU_DATA_UBYTE, m_image);
+        m_avail = true;
+        return;
+      }
+      else if (!m_pyfilter) {
+        GPU_framebuffer_read_color(
+            fb, m_upLeft[0], m_upLeft[1], m_capSize[0], m_capSize[1],
+            4, 0, GPU_DATA_UBYTE, m_viewportImage);
+        FilterRGBA32 filt;
+        filterImage(filt, m_viewportImage, m_capSize);
+      }
+      else {
+        GPU_framebuffer_read_color(
+            fb, m_upLeft[0], m_upLeft[1], m_capSize[0], m_capSize[1],
+            4, 0, GPU_DATA_UBYTE, m_viewportImage);
+        FilterRGBA32 filt;
+        filterImage(filt, m_viewportImage, m_capSize);
+      }
+    }
+    else {
+      GPU_framebuffer_read_color(
+          fb, m_upLeft[0], m_upLeft[1], m_capSize[0], m_capSize[1],
+          4, 0, GPU_DATA_UBYTE, m_viewportImage);
+      // filter loaded data
+      FilterRGB24 filt;
+      filterImage(filt, m_viewportImage, m_capSize);
     }
   }
 }

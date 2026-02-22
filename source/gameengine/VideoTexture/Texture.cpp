@@ -31,6 +31,7 @@ extern PyTypeObject ImageFFmpegType;
 #endif
 extern PyTypeObject ImageMixType;
 extern PyTypeObject ImageViewportType;
+extern PyTypeObject ImageBuffType;
 
 static std::vector<Texture *> textures;
 
@@ -110,7 +111,8 @@ void Texture::Close()
     m_orgSaved = false;
   }
   if (m_origGpuTex) {
-    m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
+    if (m_imgTexture->runtime)
+      m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
     m_origGpuTex = nullptr;
   }
   if (m_imgBuf) {
@@ -137,43 +139,50 @@ void Texture::SetSource(PyImage *source)
   m_isImageRender = (dynamic_cast<ImageRender *>(source->m_image) != nullptr);
 }
 
-// load texture
 void Texture::loadTexture(unsigned int *texture,
                           short *size,
                           bool mipmap,
                           blender::gpu::TextureFormat format)
 {
-  // Check if the source is an ImageRender (offscreen 3D render)
+  /* Check if the source is an ImageRender (offscreen 3D render). */
   ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_image) : nullptr;
 
-  if (imr && !m_origGpuTex) {
-    // For ImageRender, directly use the GPU texture from the active framebuffer
-    KX_Camera *cam = imr->GetCamera();
-    if (cam && m_imgTexture && m_imgTexture->runtime->gputexture[TEXTARGET_2D][0]) {
-      blender::GPUViewport *viewport = cam->GetGPUViewport();
-      // Get the color texture from the viewport's framebuffer
-      blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
-      // Assign the GPU texture to the Blender image slot
-      m_origGpuTex = m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
-      m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = gpuTex;
-      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->runtime->gputexture[TEXTARGET_2D][0],
-                                                false);
-      Py_INCREF(m_py_color);
+  if (imr) {
+    /* GPU->GPU path: ImageViewport::calcViewport has already blitted the rendered
+     * scene into m_modifiedGPUTexture. We only need to keep the Blender material
+     * slot pointing at it every frame because EEVEE may recreate viewport textures
+     * between frames. */
+    blender::gpu::Texture *dstTex = m_modifiedGPUTexture;
+    if (!dstTex)
+      return;
+
+    if (m_imgTexture && m_imgTexture->runtime &&
+        m_imgTexture->runtime->gputexture[TEXTARGET_2D][0]) {
+      if (!m_origGpuTex) {
+        blender::gpu::Texture *cur = m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
+        if (cur && cur != dstTex)
+          m_origGpuTex = cur;
+      }
+      m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = dstTex;
     }
-    // No need to upload a CPU buffer, return early
     return;
   }
 
-  // For video/image sources: upload the CPU buffer to a GPU texture
-  if (m_imgTexture && m_imgTexture->runtime->gputexture[TEXTARGET_2D][0]) {
+  /* CPU->GPU path: upload CPU buffer to m_modifiedGPUTexture and point the
+   * Blender image slot at it. DEG_id_tag_update forces EEVEE to re-read the
+   * slot on the next draw instead of using its cached pointer. */
+  if (m_imgTexture && m_imgTexture->runtime &&
+      m_imgTexture->runtime->gputexture[TEXTARGET_2D][0]) {
+
+    /* Recreate GPU texture if size changed. */
     if (m_modifiedGPUTexture && (size[0] != GPU_texture_width(m_modifiedGPUTexture) ||
-                                 size[1] != GPU_texture_height(m_modifiedGPUTexture)))
+                                  size[1] != GPU_texture_height(m_modifiedGPUTexture)))
     {
       GPU_texture_free(m_modifiedGPUTexture);
       m_modifiedGPUTexture = nullptr;
     }
+
     if (!m_modifiedGPUTexture) {
-      // Create the GPU texture if not already done
       m_modifiedGPUTexture = GPU_texture_create_2d("videotexture",
                                                    size[0],
                                                    size[1],
@@ -184,22 +193,27 @@ void Texture::loadTexture(unsigned int *texture,
                                                    nullptr);
     }
 
-    // Upload the RGBA8 buffer to the GPU texture
+    /* Upload pixel data to GPU. */
     GPU_texture_update(m_modifiedGPUTexture, GPU_DATA_UBYTE, texture);
-
-    // Optionally update mipmaps
-    if (mipmap) {
+    if (mipmap)
       GPU_texture_update_mipmap_chain(m_modifiedGPUTexture);
-    }
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-    if (!m_origGpuTex) {
+
+    /* Save original texture on first use for restoration in Close(). */
+    if (!m_origGpuTex)
       m_origGpuTex = m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
-    }
-    // Integrate the new GPU texture into the Blender pipeline
+
+    /* Point the image slot at our modified texture. */
     m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_modifiedGPUTexture;
+
+    /* Force EEVEE to re-read the texture slot on next draw. Without this,
+     * EEVEE caches the gpu::Texture pointer at shader compile time and ignores
+     * subsequent slot changes, causing dynamic updates to have no visual effect. */
+    DEG_id_tag_update(&m_imgTexture->id, 0);
+
     if (!m_py_color) {
-      m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->runtime->gputexture[TEXTARGET_2D][0],
-                                                false);
+      m_py_color = BPyGPUTexture_CreatePyObject(
+          m_imgTexture->runtime->gputexture[TEXTARGET_2D][0], false);
       Py_INCREF(m_py_color);
     }
   }
@@ -376,8 +390,10 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
   // some trick here: we are in the business of loading a texture,
   // no use to do it if we are still in the same rendering frame.
   // We find this out by looking at the engine current clock time
+  // NOTE: Always refresh for ImageBuff; other source types refresh at most once per clock tick.
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  if (engine->GetClockTime() != m_lastClock) {
+  bool isImageBuff = PyObject_TypeCheck(&m_source->ob_base, &ImageBuffType);
+  if (isImageBuff || engine->GetClockTime() != m_lastClock) {
     m_lastClock = engine->GetClockTime();
     // set source refresh
     bool refreshSource = (param == Py_True);
@@ -403,6 +419,15 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
             m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, nullptr, nullptr);
             m_orgImg = m_imgTexture;
           }
+        }
+
+        /* Refresh source FIRST so Render() executes before we read the result.
+         * For ImageRender, getImage() calls calcViewport() which calls Render() only
+         * if m_done=false. Calling refresh() after getImage() would trigger a second
+         * Render() on stale state. Rendering first ensures m_modifiedGPUTexture is
+         * filled before loadTexture() runs. */
+        if (refreshSource) {
+          m_source->m_image->refresh();
         }
 
         // get texture
@@ -435,10 +460,15 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
               m_mipmap,
               m_source->m_image->GetInternalFormat());
         }
-        // refresh texture source, if required
-        if (refreshSource) {
-          m_source->m_image->refresh();
+        else if (m_isImageRender) {
+          /* GPU->GPU path: getImage() returns nullptr because m_avail is false by
+           * design (data lives on GPU, not in m_image).  We still call loadTexture
+           * to keep the Blender material slot updated every frame. */
+          short size[2] = {m_source->m_image->getSize()[0],
+                           m_source->m_image->getSize()[1]};
+          loadTexture(nullptr, size, m_mipmap, m_source->m_image->GetInternalFormat());
         }
+        // (refreshSource already called above, before getImage)
       }
 
       /* Add a depsgraph notifier to trigger
@@ -467,6 +497,8 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 PyObject *Texture::pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = static_cast<Texture *>(self_v);
+  if (!self->m_imgTexture || !self->m_imgTexture->runtime)
+    Py_RETURN_NONE;
   blender::gpu::Texture *gputex = self->m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
   if (gputex) {
     return BPyGPUTexture_CreatePyObject(gputex, true);

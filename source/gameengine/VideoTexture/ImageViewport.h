@@ -10,6 +10,10 @@
 #include "Common.h"
 #include "ImageBase.h"
 
+namespace blender::gpu {
+class FrameBuffer;
+}  // namespace blender::gpu
+
 class Texture;
 
 /// class for viewport access
@@ -86,6 +90,9 @@ class ImageViewport : public ImageBase {
 
   Texture *m_texture;
 
+  /// Scratch FBO used for GPU->GPU blit. Not owned by ImageRender.
+  blender::gpu::FrameBuffer *m_blitFb;
+
   /// capture image from viewport
   virtual void calcImage(unsigned int texid, double ts)
   {
@@ -94,6 +101,11 @@ class ImageViewport : public ImageBase {
 
   /// capture image from viewport
   virtual void calcViewport(unsigned int texid, double ts);
+
+  /// CPU readback path: reads pixels from the currently bound FBO into m_image.
+  /// Called only when zbuff, depth or pixel filters are active, or when the
+  /// user explicitly reads the image buffer from Python.
+  void readPixelsCPU();
 
   /// get viewport size
   int *getViewportSize(void)

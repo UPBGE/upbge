@@ -16,6 +16,7 @@
 #include "DEG_depsgraph_query.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
+#include "GPU_framebuffer.hh"
 
 #include "CM_Message.h"
 #include "EXP_PythonCallBack.h"
@@ -110,11 +111,27 @@ void ImageRender::calcViewport(unsigned int texId, double ts)
 {
   // render the scene from the camera
   if (!m_done) {
+    /* DRW_game_render_loop() asserts that the active FBO is the back buffer:
+     *   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get())
+     * We must restore the default FBO before calling Render() so that assert
+     * does not crash when a 2D filter is active in the scene. */
+    GPU_framebuffer_restore();
+
     if (!Render()) {
       return;
     }
   }
   m_done = false;
+
+  blender::GPUViewport *gpuvp = m_camera->GetGPUViewport();
+  if (!gpuvp)
+    return;
+
+  blender::gpu::Texture *colorTex = GPU_viewport_color_texture(gpuvp, 0);
+  blender::gpu::Texture *depthTex = GPU_viewport_depth_texture(gpuvp);
+
+  if (!colorTex)
+    return;
 
   const RAS_Rect *viewport = &m_canvas->GetViewportArea();
   GPU_viewport(
@@ -124,22 +141,23 @@ void ImageRender::calcViewport(unsigned int texId, double ts)
       viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   GPU_apply_state();
 
-  GPU_framebuffer_texture_attach(
-      m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
-  GPU_framebuffer_texture_attach(
-      m_targetfb, GPU_viewport_depth_texture(m_camera->GetGPUViewport()), 0, 0);
+  /* Configure m_targetfb with the camera viewport textures.
+   * Convention (matches RAS_FrameBuffer.cpp): index 0 = depth, index 1 = color. */
+  GPUAttachment config[] = {
+      depthTex ? GPU_ATTACHMENT_TEXTURE(depthTex) : GPU_ATTACHMENT_NONE,
+      GPU_ATTACHMENT_TEXTURE(colorTex)};
+  GPU_framebuffer_config_array(m_targetfb, config, sizeof(config) / sizeof(GPUAttachment));
 
-  /* We want color and depth textures to be available in calcViewport
-   * to be abled to apply filters */
+  /* Bind so that ImageViewport::calcViewport sees this FBO as the active one
+   * and blits/reads from the camera's rendered result. */
   GPU_framebuffer_bind(m_targetfb);
 
   // get image from viewport (or FBO)
   ImageViewport::calcViewport(0, ts);
 
-  GPU_framebuffer_texture_detach(m_targetfb,
-                                 GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
-  GPU_framebuffer_texture_detach(m_targetfb,
-                                 GPU_viewport_depth_texture(m_camera->GetGPUViewport()));
+  /* Detach textures and restore the default FBO. */
+  GPUAttachment clearConfig[] = {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_NONE};
+  GPU_framebuffer_config_array(m_targetfb, clearConfig, sizeof(clearConfig) / sizeof(GPUAttachment));
 
   GPU_framebuffer_restore();
 }
@@ -166,6 +184,12 @@ bool ImageRender::Render()
     CM_Warning("Viewport Render mode doesn't support ImageRender");
     return false;
   }
+
+  /* Protect the camera's GPUViewport from being freed by RemoveGPUViewport()
+   * during this frame. RemoveGPUViewport() skips free if the viewport matches
+   * GetCurrentGPUViewport(), so we must set it here — before BeginFrame() or
+   * any other call that may trigger viewport cleanup. */
+  m_scene->SetCurrentGPUViewport(m_camera->GetGPUViewport());
 
   if (m_mirror) {
     // mirror mode, compute camera frustum, position and orientation
@@ -345,8 +369,6 @@ bool ImageRender::Render()
   if (!depsgraph) {
     return false;
   }
-
-  m_scene->SetCurrentGPUViewport(m_camera->GetGPUViewport());
 
   /* Add a depsgraph notifier to trigger
    * update on next draw loop. */
@@ -892,6 +914,9 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_canvas = m_engine->GetCanvas();
 
   m_internalFormat = blender::gpu::TextureFormat::UNORM_8_8_8_8;
+
+  // Mirror constructor also needs its own FBO.
+  m_targetfb = GPU_framebuffer_create("game_fb");
 
   // this constructor is used for automatic planar mirror
   // create a camera, take all data by default, in any case we will recompute the frustum on each
