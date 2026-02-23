@@ -69,6 +69,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::gpu
+  PRIVATE bf::bmesh
 )
 
 if(WITH_PYTHON)

@@ -2431,38 +2431,40 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
   RAS_MeshObject *mesh = nullptr;
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
   int dupli = 0;
-  int evaluated;
+  int evaluated = 1;
+  float collapseFactor = 1.0f;
 
   PyObject *gameobj_py = nullptr;
   PyObject *mesh_py = nullptr;
 
-  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", nullptr};
+  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", "collapseFactor", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "|OOii:reinstancePhysicsMesh",
+                                   "|OOiif:reinstancePhysicsMesh",
                                    const_cast<char **>(kwlist),
                                    &gameobj_py,
                                    &mesh_py,
                                    &dupli,
-                                   &evaluated) ||
+                                   &evaluated,
+                                   &collapseFactor) ||
       (gameobj_py && !ConvertPythonToGameObject(
                          logicmgr,
                          gameobj_py,
                          &gameobj,
                          true,
-                         "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
+                         "gameOb.reinstancePhysicsMesh(obj, mesh, dupli, evaluated, collapseFactor): KX_GameObject")) ||
       (mesh_py &&
        !ConvertPythonToMesh(logicmgr,
                             mesh_py,
                             &mesh,
                             true,
-                            "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject"))) {
+                            "gameOb.reinstancePhysicsMesh(obj, mesh, dupli, evaluated, collapseFactor): KX_GameObject"))) {
     return nullptr;
   }
 
   /* gameobj and mesh can be nullptr */
   if (GetPhysicsController() &&
-      GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli, evaluated))
+      GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli, evaluated, collapseFactor))
     Py_RETURN_TRUE;
 
   Py_RETURN_FALSE;

@@ -149,22 +149,30 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   }
 
   /* For gpu reinstance (no topology changes) */
-  bool UpdateMeshGPU(class KX_GameObject *gameobj);
+  bool UpdateMeshGPU(class KX_GameObject *gameobj, float collapseFactor = 1.0f);
 
   void updateIndexedMeshVertexBase();
   bool GetForceReInstance()
   {
     return m_forceReInstance;
   }
+  void SetForceReInstance(bool force)
+  {
+    m_forceReInstance = force;
+  }
   btTriangleIndexVertexArray *GetTriangleIndexVertexArray()
   {
     return m_triangleIndexVertexArray;
   }
+
+  /* Generates a decimated Mesh * from non decimated Mesh * to umdate physics shape */
+  void DecimateMesh(blender::Mesh *mesh, float collapseFactor);
   /**********************/
 
   bool UpdateMesh(class KX_GameObject *from_gameobj,
                   class RAS_MeshObject *from_meshobj,
-                  bool evaluatedMesh = false);
+                  bool evaluatedMesh = false,
+                  float collapseFactor = 1.0f);
 
   CcdShapeConstructionInfo *GetReplica();
 
@@ -222,6 +230,11 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   float m_weldingThreshold1;
   /// only used for PHY_SHAPE_PROXY, pointer to actual shape info
   CcdShapeConstructionInfo *m_shapeProxy;
+  /// Non decimated Mesh backup
+  blender::Mesh *m_backupMesh = nullptr;
+  blender::Mesh *m_decimatedMesh = nullptr;
+  std::map<int, int> m_vertIndexMap;
+  float m_lastCollapseFactor = 1.0f;
 };
 
 struct CcdConstructionInfo {
@@ -906,10 +919,16 @@ class CcdPhysicsController : public PHY_IPhysicsController {
     return GetConstructionInfo().m_shapeInfo->m_shapeType == PHY_SHAPE_COMPOUND;
   }
 
+  /* Optional `collapseFactor` in range (0..1]. When < 1.0, the intention is to
+   * perform a BMesh collapse-decimation on a temporary copy of the original
+   * Mesh before constructing the physics shape. The actual decimation steps are
+   * implemented in the .cpp (TODO) and are kept optional to preserve
+   * compatibility. Default value 1.0f means no decimation. */
   virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                       RAS_MeshObject *from_meshobj,
                                       bool dupli = false,
-                                      bool evaluatedMesh = false);
+                                      bool evaluatedMesh = false,
+                                      float collapseFactor = 1.0f);
 
   virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
 
