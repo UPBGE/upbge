@@ -2332,8 +2332,11 @@ void CcdShapeConstructionInfo::updateIndexedMeshVertexBase()
 
 void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseFactor)
 {
-  if (collapseFactor >= 1.0f) {
-    return;
+  if (collapseFactor > 1.0f) {
+    collapseFactor = 1.0f;
+  }
+  if (collapseFactor < 0.0f) {
+    collapseFactor = 0.0f;
   }
   if (collapseFactor == m_lastCollapseFactor) {
     return;
