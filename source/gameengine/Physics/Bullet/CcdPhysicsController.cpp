@@ -2333,18 +2333,10 @@ void CcdShapeConstructionInfo::updateIndexedMeshVertexBase()
 void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseFactor)
 {
   if (collapseFactor >= 1.0f) {
-    if (m_backupMesh) {
-        BKE_id_delete(nullptr, &m_backupMesh->id);
-        m_backupMesh = nullptr;
-    }
     return;
   }
   if (collapseFactor == m_lastCollapseFactor) {
     return;
-  }
-  if (m_backupMesh) {
-    BKE_id_delete(nullptr, &m_backupMesh->id);
-    m_backupMesh = nullptr;
   }
   if (m_decimatedMesh) {
     BKE_id_delete(nullptr, &m_decimatedMesh->id);
@@ -2353,8 +2345,6 @@ void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseF
   m_vertIndexMap.clear();
 
   m_lastCollapseFactor = collapseFactor;
-  m_backupMesh = BKE_mesh_new_nomain_from_template(
-      mesh, mesh->verts_num, mesh->edges_num, mesh->faces_num, mesh->corners_num);
   /* Create a mesh to receive the decimated result. */
   m_decimatedMesh = BKE_mesh_new_nomain_from_template(
       mesh, mesh->verts_num, mesh->edges_num, mesh->faces_num, mesh->corners_num);
@@ -3237,10 +3227,6 @@ CcdShapeConstructionInfo::~CcdShapeConstructionInfo()
   }
   m_shapeArray.clear();
 
-  if (m_backupMesh) {
-    BKE_id_free(nullptr, &m_backupMesh->id);
-    m_backupMesh = nullptr;
-  }
   if (m_decimatedMesh) {
     BKE_id_free(nullptr, &m_decimatedMesh->id);
     m_decimatedMesh = nullptr;

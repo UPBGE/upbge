@@ -230,8 +230,6 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   float m_weldingThreshold1;
   /// only used for PHY_SHAPE_PROXY, pointer to actual shape info
   CcdShapeConstructionInfo *m_shapeProxy;
-  /// Non decimated Mesh backup
-  blender::Mesh *m_backupMesh = nullptr;
   blender::Mesh *m_decimatedMesh = nullptr;
   std::map<int, int> m_vertIndexMap;
   float m_lastCollapseFactor = 1.0f;
