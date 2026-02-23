@@ -2342,7 +2342,7 @@ void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseF
     return;
   }
   if (m_decimatedMesh) {
-    BKE_id_delete(nullptr, &m_decimatedMesh->id);
+    BKE_id_free(nullptr, &m_decimatedMesh->id);
     m_decimatedMesh = nullptr;
   }
   m_vertIndexMap.clear();
