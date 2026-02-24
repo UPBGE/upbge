@@ -899,8 +899,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* Clear output framebuffer to ensure it has no color from previous pass.
    * (was causing troubles in Vulkan + custom bge viewports) */
   GPU_framebuffer_bind(output->GetFrameBuffer());
-  const float clear_col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-  GPU_framebuffer_clear_color_depth(output->GetFrameBuffer(), clear_col, 1.0f);
+  GPU_framebuffer_clear_color_depth(output->GetFrameBuffer(), {0.0, 0.0, 0.0, 1.0}, 1.0f);
   GPU_framebuffer_restore();
 
   /* Draw 2D filters */

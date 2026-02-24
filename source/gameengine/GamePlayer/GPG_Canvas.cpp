@@ -126,11 +126,10 @@ void GPG_Canvas::MakeScreenShot(const std::string &filename)
 void GPG_Canvas::Init()
 {
   if (m_window) {
-    const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), clear_col, 1.0f);
+    GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), {0.0, 0.0, 0.0, 0.0}, 1.0f);
     /* This code below is already called at window creation */
-    //m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
-    //BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
+    // m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
+    // BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
   }
 }
 
