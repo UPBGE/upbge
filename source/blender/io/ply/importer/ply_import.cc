@@ -8,6 +8,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -239,13 +240,21 @@ void importer_main(Main *bmain,
   /* Create mesh and do all prep work. */
   Mesh *mesh_in_main = BKE_mesh_add(bmain, ob_name);
   BKE_view_layer_base_deselect_all(scene, view_layer);
-  LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
+  LayerCollection *lc = BKE_layer_collection_get_active_editable(view_layer);
+  if (!ID_IS_EDITABLE(lc->collection)) {
+    BKE_report(import_params.reports,
+               RPT_WARNING,
+               "Could not find an editable collection in current scene, imported data will not be "
+               "instantiated");
+  }
   Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name);
   obj->data = id_cast<ID *>(mesh_in_main);
   BKE_collection_object_add(bmain, lc->collection, obj);
   BKE_view_layer_synced_ensure(scene, view_layer);
-  Base *base = BKE_view_layer_base_find(view_layer, obj);
-  BKE_view_layer_base_select_and_set_active(view_layer, base);
+  if (Base *base = BKE_view_layer_base_find(view_layer, obj)) {
+    /* `base` will be nullptr if the Object could not be instantiated in the current viewlayer. */
+    BKE_view_layer_base_select_and_set_active(view_layer, base);
+  }
 
   BKE_mesh_nomain_to_mesh(mesh, mesh_in_main, obj);
 

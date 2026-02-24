@@ -101,6 +101,9 @@ using UrlToLibraryStatusMap = Map<std::string /*url*/, asset_system::RemoteLibra
 static UrlToLibraryStatusMap &library_to_status_map()
 {
   static UrlToLibraryStatusMap map = UrlToLibraryStatusMap{};
+  BLI_assert_msg(
+      BLI_thread_is_main(),
+      "Remote library status isn't synchronized and should only be accessed from the main thread");
   return map;
 }
 

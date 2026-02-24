@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-11-19 06:24+0000\n"
 "Last-Translator: \"M. Amin Taheri\" <amintaheri2001@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -1428,10 +1428,6 @@ msgid "Saturation"
 msgstr "ﻉﺎﺒﺷﺍ"
 
 
-msgid "Both"
-msgstr "ﻭﺩ ﺮﻫ"
-
-
 msgctxt "File browser"
 msgid "Path"
 msgstr "ﺮﯿﺴﻣ"
@@ -1667,46 +1663,6 @@ msgstr "ﺩﻮﺷ ﻁﻮﻠﺨﻣ ﯽﺟﻭﺮﺧ ﺖﻓﺎﺑ ﮓﻧﺭ ﺎﺑ 
 
 msgid "Blend Factor"
 msgstr "ﻁﻮﻠﺨﻣ ﺭﻮﺘﮐﺎﻓ"
-
-
-msgid "Blend Type"
-msgstr "ﻁﻮﻠﺨﻣ ﻉﻮﻧ"
-
-
-msgid "Mix"
-msgstr "ﻁﻮﻠﺨﻣ"
-
-
-msgid "Darken"
-msgstr "ﮏﯾﺭﺎﺗ"
-
-
-msgid "Lighten"
-msgstr "ﻦﺷﻭﺭ"
-
-
-msgid "Screen"
-msgstr "ﻩﺩﺮﭘ"
-
-
-msgid "Overlay"
-msgstr "ﻢﻬﯾﻭﺭ"
-
-
-msgid "Soft Light"
-msgstr "ﻢﯾﻼ﻿ﻣ ﺭﻮﻧ"
-
-
-msgid "Linear Light"
-msgstr "ﯽﻄﺧ ﺭﻮﻧ"
-
-
-msgid "Difference"
-msgstr "ﺕﻭﺎﻔﺗ"
-
-
-msgid "Divide"
-msgstr "ﻢﯿﺴﻘﺗ"
 
 
 msgid "Brightness"
@@ -2262,6 +2218,10 @@ msgid "The highest power of 'x' for this polynomial (number of coefficients - 1)
 msgstr "(ﮏﯾ ﯼﺎﻬﻨﻣ ﺎﻫ‌ﺐﯾﺮﺿ ﺩﺍﺪﻌﺗ) ﯼﺍ‌ﻪﻠﻤﺟﺪﻨﭼ ﺭﺩ x ﻥِﺍﻮﺗ ﻦﯾﺮﺗﻻ﻿ﺎﺑ"
 
 
+msgid "Blend Type"
+msgstr "ﻁﻮﻠﺨﻣ ﻉﻮﻧ"
+
+
 msgid "Frame"
 msgstr "ﻢﯾﺮﻓ"
 
@@ -2419,6 +2379,10 @@ msgstr "ﺭﺍﺰﺑﺍ"
 
 msgid "Ping Pong"
 msgstr "ﮓﻨﭘ ﮓﻨﯿﭘ"
+
+
+msgid "Divide"
+msgstr "ﻢﯿﺴﻘﺗ"
 
 
 msgid "Local Matrix"
@@ -3030,12 +2994,44 @@ msgid "Keying Sets"
 msgstr "ﺪﯿﻠﮐ ﯼﺎﻫ‌ﻪﻋﻮﻤﺠﻣ"
 
 
+msgid "Mix"
+msgstr "ﻁﻮﻠﺨﻣ"
+
+
+msgid "Difference"
+msgstr "ﺕﻭﺎﻔﺗ"
+
+
 msgid "Max Angle"
 msgstr "ﻪﯾﻭﺍﺯ ﻪﻨﯿﺸﯿﺑ"
 
 
 msgid "Min Angle"
 msgstr "ﻪﯾﻭﺍﺯ ﻞﻗﺍﺪﺣ"
+
+
+msgid "Darken"
+msgstr "ﮏﯾﺭﺎﺗ"
+
+
+msgid "Lighten"
+msgstr "ﻦﺷﻭﺭ"
+
+
+msgid "Screen"
+msgstr "ﻩﺩﺮﭘ"
+
+
+msgid "Overlay"
+msgstr "ﻢﻬﯾﻭﺭ"
+
+
+msgid "Soft Light"
+msgstr "ﻢﯾﻼ﻿ﻣ ﺭﻮﻧ"
+
+
+msgid "Linear Light"
+msgstr "ﯽﻄﺧ ﺭﻮﻧ"
 
 
 msgctxt "FreestyleLineStyle"
@@ -3082,32 +3078,8 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
-msgid "Pivot Point"
-msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
-
-
-msgid "Layout"
-msgstr "ﺡﺮﻃ"
-
-
-msgid "Mirror"
-msgstr "ﻪﻨﯾﺁ"
-
-
-msgid "Tracking"
-msgstr "ﯽﺑﺎﯾﺩﺭ"
-
-
-msgid "Math"
-msgstr "ﯽﺿﺎﯾﺭ"
-
-
-msgid "Add Image"
-msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
-
-
-msgid "Relations"
-msgstr "ﻂﺑﺍﻭﺭ"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Apply"
@@ -3118,12 +3090,36 @@ msgid "Convert"
 msgstr "ﻞﯾﺪﺒﺗ"
 
 
+msgid "Layout"
+msgstr "ﺡﺮﻃ"
+
+
+msgid "Tracking"
+msgstr "ﯽﺑﺎﯾﺩﺭ"
+
+
+msgid "Math"
+msgstr "ﯽﺿﺎﯾﺭ"
+
+
+msgid "Pivot Point"
+msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
+
+
+msgid "Mirror"
+msgstr "ﻪﻨﯾﺁ"
+
+
 msgid "Import"
 msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Add Image"
+msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
+
+
+msgid "Relations"
+msgstr "ﻂﺑﺍﻭﺭ"
 
 
 msgid "Key"
@@ -3276,10 +3272,6 @@ msgstr "ﺭﻭﺩ"
 msgctxt "Mesh"
 msgid "Flat"
 msgstr "ﺖﺨﺗ"
-
-
-msgid "Use Channel"
-msgstr "ﻝﺎﻧﺎﮐ ﺯﺍ ﻩﺩﺎﻔﺘﺳﺍ"
 
 
 msgid "Default Weight A"
@@ -3889,6 +3881,10 @@ msgstr "ﻥﺩﺮﮐ‌ﺯﺎﺑ"
 
 msgid "Play"
 msgstr "ﺶﺨﭘ"
+
+
+msgid "Both"
+msgstr "ﻭﺩ ﺮﻫ"
 
 
 msgid "Flat"

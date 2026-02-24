@@ -150,7 +150,9 @@ void interpolate_to_evaluated(const GSpan src,
                               GMutableSpan dst)
 {
   attribute_math::to_static_type(src.type(), [&]<typename T>() {
-    interpolate_to_evaluated(src.typed<T>(), cyclic, resolution, dst.typed<T>());
+    if constexpr (!std::is_same_v<T, std::string>) {
+      interpolate_to_evaluated(src.typed<T>(), cyclic, resolution, dst.typed<T>());
+    }
   });
 }
 
@@ -160,7 +162,9 @@ void interpolate_to_evaluated(const GSpan src,
                               GMutableSpan dst)
 {
   attribute_math::to_static_type(src.type(), [&]<typename T>() {
-    interpolate_to_evaluated(src.typed<T>(), cyclic, evaluated_offsets, dst.typed<T>());
+    if constexpr (!std::is_same_v<T, std::string>) {
+      interpolate_to_evaluated(src.typed<T>(), cyclic, evaluated_offsets, dst.typed<T>());
+    }
   });
 }
 

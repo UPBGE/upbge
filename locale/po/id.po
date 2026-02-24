@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -5516,14 +5516,6 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor Penyederhanaan menggunakan algoritma adaptif"
 
 
-msgid "Stroke"
-msgstr "Sapuan"
-
-
-msgid "Fill"
-msgstr "Isi"
-
-
 msgid "Active Layer"
 msgstr "Layer Aktif"
 
@@ -5676,8 +5668,16 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Mendefinisikan bagaimana warna titik sudut mempengaruhi sapuan"
 
 
+msgid "Stroke"
+msgstr "Sapuan"
+
+
 msgid "Vertex Color affects to Stroke only"
 msgstr "Warna Titik Sudut hanya mempengaruhi Sapuan"
+
+
+msgid "Fill"
+msgstr "Isi"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -6750,46 +6750,6 @@ msgstr "Campurkan warna agar campur dengan tekstur warna keluaran"
 
 msgid "Blend Factor"
 msgstr "Faktor Campuran"
-
-
-msgid "Blend Type"
-msgstr "Tipe Campuran"
-
-
-msgid "Mix"
-msgstr "Campur/Mix"
-
-
-msgid "Darken"
-msgstr "Menggelapkan"
-
-
-msgid "Lighten"
-msgstr "Menerangkan"
-
-
-msgid "Screen"
-msgstr "Layar"
-
-
-msgid "Overlay"
-msgstr "Hamparan"
-
-
-msgid "Soft Light"
-msgstr "Cahaya Halus"
-
-
-msgid "Linear Light"
-msgstr "Cahaya Linier"
-
-
-msgid "Difference"
-msgstr "Perbedaan"
-
-
-msgid "Divide"
-msgstr "Membagi"
 
 
 msgid "Brightness"
@@ -10071,6 +10031,10 @@ msgid "Limit F-Modifier"
 msgstr "Modus Sunting"
 
 
+msgid "Blend Type"
+msgstr "Tipe Campuran"
+
+
 msgid "Phase"
 msgstr "Fase"
 
@@ -11594,6 +11558,10 @@ msgid "Hard Light"
 msgstr "Cahaya Keras"
 
 
+msgid "Divide"
+msgstr "Membagi"
+
+
 msgid "Grease Pencil frames"
 msgstr "Bingkai-bingkai Pensil Grease"
 
@@ -11821,24 +11789,8 @@ msgid "The number of times the cavity mask is blurred"
 msgstr "Berapa kali masker rongga diburamkan"
 
 
-msgid "Blending Mode"
-msgstr "Mode Campuran"
-
-
-msgid "Exclusion"
-msgstr "Pengecualian (Eksklusi)"
-
-
-msgid "Erase Alpha"
-msgstr "Hapus Alpha"
-
-
 msgid "Erase alpha while painting"
 msgstr "Hapus alpha saat melukis"
-
-
-msgid "Add Alpha"
-msgstr "Tambah Alpha"
 
 
 msgid "Add alpha while painting"
@@ -15281,6 +15233,14 @@ msgid "Modifier Name"
 msgstr "Nama Pengubah"
 
 
+msgid "Mix"
+msgstr "Campur/Mix"
+
+
+msgid "Difference"
+msgstr "Perbedaan"
+
+
 msgid "Mapping"
 msgstr "Pemetaan"
 
@@ -15291,6 +15251,34 @@ msgstr "Jenis Pengubah"
 
 msgid "Material Attribute"
 msgstr "Atribut Bahan"
+
+
+msgid "Darken"
+msgstr "Menggelapkan"
+
+
+msgid "Lighten"
+msgstr "Menerangkan"
+
+
+msgid "Screen"
+msgstr "Layar"
+
+
+msgid "Overlay"
+msgstr "Hamparan"
+
+
+msgid "Soft Light"
+msgstr "Cahaya Halus"
+
+
+msgid "Linear Light"
+msgstr "Cahaya Linier"
+
+
+msgid "Exclusion"
+msgstr "Pengecualian (Eksklusi)"
 
 
 msgid "2D Offset"
@@ -15691,64 +15679,12 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Sample"
 msgstr "Sampel"
-
-
-msgid "Metaball"
-msgstr "Metabola"
-
-
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Snap"
-msgstr "Jepret"
-
-
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Mirror"
-msgstr "Cermin"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
-
-
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
-
-
-msgid "Tracking"
-msgstr "Pelacakan"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
-
-
-msgid "Light"
-msgstr "Cahaya"
-
-
-msgid "Light Probe"
-msgstr "Probe Cahaya"
-
-
-msgid "Add Image"
-msgstr "Tambah Gambar"
 
 
 msgid "Apply"
@@ -15767,6 +15703,54 @@ msgid "Hooks"
 msgstr "Kait"
 
 
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
+
+
+msgid "Metaball"
+msgstr "Metabola"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
+
+
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
+
+
 msgid "Gizmo"
 msgstr "Gizmo"
 
@@ -15779,12 +15763,16 @@ msgid "Import"
 msgstr "Impor"
 
 
-msgid "Merge"
-msgstr "Menggabungkan"
+msgid "Light"
+msgstr "Cahaya"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Light Probe"
+msgstr "Probe Cahaya"
+
+
+msgid "Add Image"
+msgstr "Tambah Gambar"
 
 
 msgid "Animals"
@@ -17072,10 +17060,6 @@ msgstr "Kurva Kustom"
 msgctxt "Curve"
 msgid "Random"
 msgstr "Acak"
-
-
-msgid "Use Channel"
-msgstr "Gunakan Saluran"
 
 
 msgid "Group Add"
@@ -18780,6 +18764,10 @@ msgstr "Mengonversi dari derajat menjadi radian"
 
 msgid "Convert from radians to degrees"
 msgstr "Mengonversi dari radian menjadi derajat"
+
+
+msgid "Blending Mode"
+msgstr "Mode Campuran"
 
 
 msgid "Space of the input normal"
@@ -21942,10 +21930,6 @@ msgstr "Mode Perbedaan"
 
 msgid "Burn Mode"
 msgstr "Mode Bakar"
-
-
-msgid "Current"
-msgstr "Setelah Ini"
 
 
 msgid "Absolute Mode"
@@ -27270,6 +27254,10 @@ msgid "Show reference frame only"
 msgstr "Saluran"
 
 
+msgid "Current"
+msgstr "Setelah Ini"
+
+
 msgid "Context Gizmo"
 msgstr "Gizmo Konteks"
 
@@ -31615,10 +31603,6 @@ msgid "Lightness:"
 msgstr "Keringanan:"
 
 
-msgid "Value:"
-msgstr "Nilai:"
-
-
 msgid "Alpha:"
 msgstr "Alpha:"
 
@@ -32455,6 +32439,10 @@ msgstr "Nama dokumen"
 
 msgid "Cursor X"
 msgstr "Kursor X"
+
+
+msgid "Value:"
+msgstr "Nilai:"
 
 
 msgid "Driver:"

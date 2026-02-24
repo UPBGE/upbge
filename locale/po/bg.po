@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Just Adam <adam.abbas2009@gmail.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -584,16 +584,12 @@ msgid "All"
 msgstr "Всички"
 
 
-msgid "Fill"
-msgstr "Запълни"
-
-
-msgid "Both"
-msgstr "Двете"
-
-
 msgid "Active Layer"
 msgstr "Активен Слой"
+
+
+msgid "Fill"
+msgstr "Запълни"
 
 
 msgid "Crop"
@@ -654,22 +650,6 @@ msgstr "Гама"
 
 msgid "View"
 msgstr "Изглед"
-
-
-msgid "Mix"
-msgstr "Смесване"
-
-
-msgid "Screen"
-msgstr "Екран"
-
-
-msgid "Difference"
-msgstr "Разлика"
-
-
-msgid "Divide"
-msgstr "Делене"
 
 
 msgid "RGB"
@@ -908,6 +888,10 @@ msgid "Region Type"
 msgstr "Тип на Региона"
 
 
+msgid "Divide"
+msgstr "Делене"
+
+
 msgid "Library"
 msgstr "Библиотека"
 
@@ -1144,16 +1128,20 @@ msgid "Click"
 msgstr "Клик"
 
 
+msgid "Mix"
+msgstr "Смесване"
+
+
+msgid "Difference"
+msgstr "Разлика"
+
+
+msgid "Screen"
+msgstr "Екран"
+
+
 msgid "ID Type"
 msgstr "ID тип"
-
-
-msgid "UV Mapping"
-msgstr "UV Картиране"
-
-
-msgid "Light"
-msgstr "Светлина"
 
 
 msgid "Rigid Body"
@@ -1176,12 +1164,20 @@ msgid "In-Betweens"
 msgstr "Междинни Кадри"
 
 
+msgid "Merge"
+msgstr "Слей"
+
+
+msgid "UV Mapping"
+msgstr "UV Картиране"
+
+
 msgid "Import"
 msgstr "Внеси"
 
 
-msgid "Merge"
-msgstr "Слей"
+msgid "Light"
+msgstr "Светлина"
 
 
 msgid "Cache"
@@ -1541,6 +1537,10 @@ msgstr "Вмъкване на текст"
 msgctxt "Operator"
 msgid "Unlink"
 msgstr "Развържи"
+
+
+msgid "Both"
+msgstr "Двете"
 
 
 msgid "Next Keyframe"

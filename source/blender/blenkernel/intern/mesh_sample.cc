@@ -60,8 +60,15 @@ void sample_point_attribute(const Span<int> corner_verts,
 
   const CPPType &type = src.type();
   attribute_math::to_static_type(type, [&]<typename T>() {
-    sample_point_attribute<T>(
-        corner_verts, corner_tris, tri_indices, bary_coords, src.typed<T>(), mask, dst.typed<T>());
+    if constexpr (!std::is_same_v<T, std::string>) {
+      sample_point_attribute<T>(corner_verts,
+                                corner_tris,
+                                tri_indices,
+                                bary_coords,
+                                src.typed<T>(),
+                                mask,
+                                dst.typed<T>());
+    }
   });
 }
 
@@ -160,18 +167,18 @@ static void sample_barycentric_weights(const Span<float3> vert_positions,
 }
 
 template<bool check_indices = false>
-static void sample_nearest_weights(const Span<float3> vert_positions,
-                                   const Span<int> corner_verts,
-                                   const Span<int3> corner_tris,
-                                   const Span<int> tri_indices,
-                                   const Span<float3> sample_positions,
-                                   const IndexMask &mask,
-                                   MutableSpan<float3> bary_coords)
+static void sample_nearest_corner(const Span<float3> vert_positions,
+                                  const Span<int> corner_verts,
+                                  const Span<int3> corner_tris,
+                                  const Span<int> tri_indices,
+                                  const Span<float3> sample_positions,
+                                  const IndexMask &mask,
+                                  MutableSpan<int> nearest_corner)
 {
   mask.foreach_index([&](const int i) {
     if constexpr (check_indices) {
       if (tri_indices[i] == -1) {
-        bary_coords[i] = {};
+        nearest_corner[i] = -1;
         return;
       }
     }
@@ -182,8 +189,7 @@ static void sample_nearest_weights(const Span<float3> vert_positions,
         math::distance_squared(sample_positions[i], vert_positions[corner_verts[tri[2]]]),
     };
     const int index = std::min_element(distances.begin(), distances.end()) - distances.begin();
-    const std::array<float3, 3> weights{float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)};
-    bary_coords[i] = weights[index];
+    nearest_corner[i] = tri[index];
   });
 }
 
@@ -396,7 +402,7 @@ void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                    bary_weights);
 }
 
-CornerBaryWeightFromPositionFn::CornerBaryWeightFromPositionFn(GeometrySet geometry)
+NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
     : source_(std::move(geometry))
 {
   source_.ensure_owns_direct_data();
@@ -405,7 +411,7 @@ CornerBaryWeightFromPositionFn::CornerBaryWeightFromPositionFn(GeometrySet geome
     mf::SignatureBuilder builder{"Nearest Weight from Position", signature};
     builder.single_input<float3>("Position");
     builder.single_input<int>("Triangle Index");
-    builder.single_output<float3>("Barycentric Weight");
+    builder.single_output<int>("Nearest Corner");
     return signature;
   }();
   this->set_signature(&signature);
@@ -415,21 +421,20 @@ CornerBaryWeightFromPositionFn::CornerBaryWeightFromPositionFn(GeometrySet geome
   corner_tris_ = mesh.corner_tris();
 }
 
-void CornerBaryWeightFromPositionFn::call(const IndexMask &mask,
-                                          mf::Params params,
-                                          mf::Context /*context*/) const
+void NearestCornerFromPositionFn::call(const IndexMask &mask,
+                                       mf::Params params,
+                                       mf::Context /*context*/) const
 {
   const VArraySpan<float3> sample_positions = params.readonly_single_input<float3>(0, "Position");
   const VArraySpan<int> triangle_indices = params.readonly_single_input<int>(1, "Triangle Index");
-  MutableSpan<float3> bary_weights = params.uninitialized_single_output<float3>(
-      2, "Barycentric Weight");
-  sample_nearest_weights<true>(vert_positions_,
-                               corner_verts_,
-                               corner_tris_,
-                               triangle_indices,
-                               sample_positions,
-                               mask,
-                               bary_weights);
+  MutableSpan<int> nearest_corner = params.uninitialized_single_output<int>(2, "Nearest Corner");
+  sample_nearest_corner<true>(vert_positions_,
+                              corner_verts_,
+                              corner_tris_,
+                              triangle_indices,
+                              sample_positions,
+                              mask,
+                              nearest_corner);
 }
 
 BaryWeightSampleFn::BaryWeightSampleFn(GeometrySet geometry, fn::GField src_field)
@@ -456,12 +461,14 @@ void BaryWeightSampleFn::call(const IndexMask &mask,
   const IndexMask valid_mask = IndexMask::from_predicate(
       mask, memory, [&](const int i) { return triangle_indices[i] != -1; });
   attribute_math::to_static_type(dst.type(), [&]<typename T>() {
-    sample_corner_attribute<T>(corner_tris_,
-                               triangle_indices,
-                               bary_weights,
-                               source_data_->typed<T>(),
-                               valid_mask,
-                               dst.typed<T>());
+    if constexpr (!std::is_same_v<T, std::string>) {
+      sample_corner_attribute<T>(corner_tris_,
+                                 triangle_indices,
+                                 bary_weights,
+                                 source_data_->typed<T>(),
+                                 valid_mask,
+                                 dst.typed<T>());
+    }
   });
   dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
 }

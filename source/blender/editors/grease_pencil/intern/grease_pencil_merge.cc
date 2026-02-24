@@ -350,19 +350,21 @@ void merge_layers(const GreasePencil &src_grease_pencil,
 
     const CPPType &type = dst_attribute.span.type();
     bke::attribute_math::to_static_type(type, [&]<typename T>() {
-      const VArraySpan<T> src_span = src_attribute.varray.typed<T>();
-      MutableSpan<T> new_span = dst_attribute.span.typed<T>();
+      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+        const VArraySpan<T> src_span = src_attribute.varray.typed<T>();
+        MutableSpan<T> new_span = dst_attribute.span.typed<T>();
 
-      bke::attribute_math::DefaultMixer<T> mixer(new_span);
-      for (const int dst_layer_i : IndexRange(num_dst_layers)) {
-        const Span<int> src_layer_indices = src_layer_indices_by_dst_layer[dst_layer_i];
-        const int new_index = old_to_new_index_map[dst_layer_i];
-        for (const int src_layer_i : src_layer_indices) {
-          const T &src_value = src_span[src_layer_i];
-          mixer.mix_in(new_index, src_value);
+        bke::attribute_math::DefaultMixer<T> mixer(new_span);
+        for (const int dst_layer_i : IndexRange(num_dst_layers)) {
+          const Span<int> src_layer_indices = src_layer_indices_by_dst_layer[dst_layer_i];
+          const int new_index = old_to_new_index_map[dst_layer_i];
+          for (const int src_layer_i : src_layer_indices) {
+            const T &src_value = src_span[src_layer_i];
+            mixer.mix_in(new_index, src_value);
+          }
         }
+        mixer.finalize();
       }
-      mixer.finalize();
     });
 
     dst_attribute.finish();

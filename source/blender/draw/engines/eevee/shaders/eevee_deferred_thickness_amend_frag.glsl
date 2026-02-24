@@ -124,7 +124,7 @@ void main()
   gbuffer::Header header = gbuffer::Header::from_data(
       texelFetch(gbuf_header_tx, int3(texel, 0), 0).r);
 
-  uchar data_layer = header.closure_len();
+  uchar data_layer = uniform_buf.pipeline.gbuffer_additional_data_layer_id;
   float2 data_packed = imageLoad(gbuf_normal_img, int3(texel, int(data_layer))).rg;
   float gbuffer_thickness = gbuffer::thickness_unpack(data_packed.x);
   if (gbuffer_thickness == 0.0f) {

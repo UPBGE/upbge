@@ -894,7 +894,7 @@ static void block_colorpicker(const bContext * /*C*/,
                               !block->is_color_gamma_picker);
   }
   else {
-    add_hsv_perceptual_slider(IFACE_("Value:"),
+    add_hsv_perceptual_slider(CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "Value:"),
                               CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"),
                               2,
                               yco -= UI_UNIT_Y,
@@ -944,8 +944,11 @@ static void block_colorpicker(const bContext * /*C*/,
           IFACE_("Lightness:"), TIP_("Lightness"), 2, yco -= UI_UNIT_Y, false);
     }
     else {
-      add_hsv_perceptual_slider(
-          IFACE_("Value:"), CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"), 2, yco -= UI_UNIT_Y, false);
+      add_hsv_perceptual_slider(CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "Value:"),
+                                CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"),
+                                2,
+                                yco -= UI_UNIT_Y,
+                                false);
     }
   }
 

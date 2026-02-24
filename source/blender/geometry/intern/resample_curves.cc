@@ -347,28 +347,30 @@ static void resample_to_uniform(const CurvesGeometry &src_curves,
         for (const int i_attribute : attributes.dst.index_range()) {
           const CPPType &type = attributes.src[i_attribute].type();
           bke::attribute_math::to_static_type(type, [&]<typename T>() {
-            Span<T> src = attributes.src[i_attribute].typed<T>();
-            MutableSpan<T> dst = attributes.dst[i_attribute].typed<T>();
+            if constexpr (!std::is_same_v<T, std::string>) {
+              Span<T> src = attributes.src[i_attribute].typed<T>();
+              MutableSpan<T> dst = attributes.dst[i_attribute].typed<T>();
 
-            for (const int i_curve : selection_segment) {
-              const IndexRange src_points = src_points_by_curve[i_curve];
-              const IndexRange dst_points = dst_points_by_curve[i_curve];
+              for (const int i_curve : selection_segment) {
+                const IndexRange src_points = src_points_by_curve[i_curve];
+                const IndexRange dst_points = dst_points_by_curve[i_curve];
 
-              if (curve_types[i_curve] == CURVE_TYPE_POLY) {
-                length_parameterize::interpolate(src.slice(src_points),
-                                                 sample_indices.as_span().slice(dst_points),
-                                                 sample_factors.as_span().slice(dst_points),
-                                                 dst.slice(dst_points));
-              }
-              else {
-                MutableSpan evaluated = evaluated_buffer.resize<T>(
-                    evaluated_points_by_curve[i_curve].size());
-                src_curves.interpolate_to_evaluated(i_curve, src.slice(src_points), evaluated);
+                if (curve_types[i_curve] == CURVE_TYPE_POLY) {
+                  length_parameterize::interpolate(src.slice(src_points),
+                                                   sample_indices.as_span().slice(dst_points),
+                                                   sample_factors.as_span().slice(dst_points),
+                                                   dst.slice(dst_points));
+                }
+                else {
+                  MutableSpan evaluated = evaluated_buffer.resize<T>(
+                      evaluated_points_by_curve[i_curve].size());
+                  src_curves.interpolate_to_evaluated(i_curve, src.slice(src_points), evaluated);
 
-                length_parameterize::interpolate(evaluated.as_span(),
-                                                 sample_indices.as_span().slice(dst_points),
-                                                 sample_factors.as_span().slice(dst_points),
-                                                 dst.slice(dst_points));
+                  length_parameterize::interpolate(evaluated.as_span(),
+                                                   sample_indices.as_span().slice(dst_points),
+                                                   sample_factors.as_span().slice(dst_points),
+                                                   dst.slice(dst_points));
+                }
               }
             }
           });

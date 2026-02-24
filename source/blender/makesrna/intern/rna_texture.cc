@@ -586,6 +586,7 @@ static void rna_def_colormapping(BlenderRNA *brna)
   prop = RNA_def_property(srna, "blend_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, blend_type_items);
   RNA_def_property_ui_text(prop, "Blend Type", "Mode used to mix with texture output color");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, 0, "rna_Color_mapping_update");
 
   prop = RNA_def_property(srna, "blend_color", PROP_FLOAT, PROP_COLOR);
@@ -658,6 +659,7 @@ static void rna_def_mtex(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, blend_type_items);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Blend Type", "Mode used to apply the texture");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
 
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, PROP_NONE);

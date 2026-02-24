@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -710,10 +710,6 @@ msgid "Fill"
 msgstr "भरण"
 
 
-msgid "Both"
-msgstr "दोनों"
-
-
 msgid "Background Image"
 msgstr "पृष्ठभूमि छवि"
 
@@ -840,18 +836,6 @@ msgstr "गामा"
 
 msgid "View"
 msgstr "दृश्य"
-
-
-msgid "Blend Type"
-msgstr "मिश्रण प्रकार"
-
-
-msgid "Mix"
-msgstr "मिश्रण"
-
-
-msgid "Screen"
-msgstr "चित्रपट"
 
 
 msgid "RGB"
@@ -1328,6 +1312,10 @@ msgid "Sine"
 msgstr "ज्या"
 
 
+msgid "Blend Type"
+msgstr "मिश्रण प्रकार"
+
+
 msgid "Phase"
 msgstr "चरण"
 
@@ -1642,14 +1630,6 @@ msgstr "परतें"
 
 msgid "Rest Position"
 msgstr "शेष स्थिति"
-
-
-msgid "Erase Alpha"
-msgstr "पारदर्शिता को मिटाएँ"
-
-
-msgid "Add Alpha"
-msgstr "पारदर्शिता जोड़ें"
 
 
 msgid "Box"
@@ -2549,12 +2529,20 @@ msgid "Point selected"
 msgstr "बिंदु चयनित"
 
 
+msgid "Mix"
+msgstr "मिश्रण"
+
+
 msgid "Min Angle"
 msgstr "न्यूनतम् कोण"
 
 
 msgid "Change alpha transparency based on a material attribute"
 msgstr "पदार्थ"
+
+
+msgid "Screen"
+msgstr "चित्रपट"
 
 
 msgid "Circles"
@@ -2585,36 +2573,8 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "Light"
-msgstr "प्रकाश"
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Rigid Body"
@@ -2633,12 +2593,20 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
 msgid "Hooks"
 msgstr "खूँटी"
+
+
+msgid "Names"
+msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2649,16 +2617,36 @@ msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
 
 
-msgid "Import"
-msgstr "आयात करें"
-
-
 msgid "Merge"
 msgstr "विलय करें"
 
 
-msgid "UV"
-msgstr "यूवी"
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
+
+
+msgid "Import"
+msgstr "आयात करें"
+
+
+msgid "Light"
+msgstr "प्रकाश"
 
 
 msgid "Basic"
@@ -3610,6 +3598,10 @@ msgid "Side"
 msgstr "किनारा"
 
 
+msgid "Both"
+msgstr "दोनों"
+
+
 msgid "Next Keyframe"
 msgstr "अगले अनुबोधक चिन्ह"
 
@@ -3835,10 +3827,6 @@ msgstr "एक reroute नोड जोड़ें"
 
 msgid "Exit"
 msgstr "निर्गम"
-
-
-msgid "Current"
-msgstr "वर्तमान"
 
 
 msgctxt "Operator"
@@ -4800,6 +4788,10 @@ msgstr "कुंजी-बंधन"
 
 msgid "Filter based on key bindings"
 msgstr "प्रमुख बाइंडिंग पर आधारित फ़िल्टर करें"
+
+
+msgid "Current"
+msgstr "वर्तमान"
 
 
 msgid "Find Text"
@@ -5879,10 +5871,6 @@ msgid "%d items"
 msgstr "%d वस्तु"
 
 
-msgid "Value:"
-msgstr "मान:"
-
-
 msgid "Hex"
 msgstr "हेक्स"
 
@@ -6276,6 +6264,10 @@ msgstr "संचिका पथ"
 
 msgid "File name"
 msgstr "संचिका का नाम"
+
+
+msgid "Value:"
+msgstr "मान:"
 
 
 msgid "Unsupported audio format"

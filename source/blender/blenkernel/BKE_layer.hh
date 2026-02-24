@@ -128,6 +128,11 @@ bool BKE_layer_collection_activate(ViewLayer *view_layer, LayerCollection *lc);
 LayerCollection *BKE_layer_collection_activate_parent(ViewLayer *view_layer, LayerCollection *lc);
 
 /**
+ * Get the active collection if it is editable, or activate and return its first editable parent.
+ */
+LayerCollection *BKE_layer_collection_get_active_editable(ViewLayer *view_layer);
+
+/**
  * Get the total number of collections (including all the nested collections)
  */
 int BKE_layer_collection_count(const ViewLayer *view_layer);

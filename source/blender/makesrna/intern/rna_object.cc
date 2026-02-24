@@ -1250,7 +1250,7 @@ static void rna_Object_rotation_mode_set(PointerRNA *ptr, int value)
       ob->quat, ob->rot, ob->rotAxis, &ob->rotAngle, ob->rotmode, short(value));
 
   /* finally, set the new rotation type */
-  ob->rotmode = value;
+  ob->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
 static void rna_Object_dimensions_get(PointerRNA *ptr, float *value)
@@ -4479,7 +4479,7 @@ static void rna_def_object(BlenderRNA *brna)
   prop = RNA_def_property(srna, "instance_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Collection");
   RNA_def_property_pointer_sdna(prop, nullptr, "instance_collection");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_pointer_funcs(prop, nullptr, "rna_Object_dup_collection_set", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Instance Collection", "Instance an existing collection");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");

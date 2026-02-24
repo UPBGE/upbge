@@ -206,18 +206,20 @@ void copy_with_mixing(const Span<T> src,
                       const IndexMask &selection,
                       MutableSpan<T> dst)
 {
-  selection.foreach_segment(
-      [&](const IndexMaskSegment segment, const int64_t segment_pos) {
-        const IndexRange dst_range(segment_pos, segment.size());
-        bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(dst_range)};
-        for (const int i : segment.index_range()) {
-          for (const int src_i : src_groups[segment[i]]) {
-            mixer.mix_in(i, src[src_i]);
+  if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+    selection.foreach_segment(
+        [&](const IndexMaskSegment segment, const int64_t segment_pos) {
+          const IndexRange dst_range(segment_pos, segment.size());
+          bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(dst_range)};
+          for (const int i : segment.index_range()) {
+            for (const int src_i : src_groups[segment[i]]) {
+              mixer.mix_in(i, src[src_i]);
+            }
           }
-        }
-        mixer.finalize();
-      },
-      exec_mode::grain_size(512));
+          mixer.finalize();
+        },
+        exec_mode::grain_size(512));
+  }
 }
 
 static void copy_with_mixing(const GSpan src,
@@ -237,16 +239,18 @@ void copy_with_mixing(const Span<T> src,
                       const Span<int> selection,
                       MutableSpan<T> dst)
 {
-  threading::parallel_for(dst.index_range(), 512, [&](const IndexRange range) {
-    bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(range)};
-    for (const int i : range.index_range()) {
-      const int group_i = selection[i];
-      for (const int i_src : src_groups[group_i]) {
-        mixer.mix_in(i, src[i_src]);
+  if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+    threading::parallel_for(dst.index_range(), 512, [&](const IndexRange range) {
+      bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(range)};
+      for (const int i : range.index_range()) {
+        const int group_i = selection[i];
+        for (const int i_src : src_groups[group_i]) {
+          mixer.mix_in(i, src[i_src]);
+        }
       }
-    }
-    mixer.finalize();
-  });
+      mixer.finalize();
+    });
+  }
 }
 
 static void copy_with_mixing(const GSpan src,
@@ -726,55 +730,57 @@ static void extrude_mesh_edges(Mesh &mesh,
   for (const StringRef id : ids_by_domain[int(AttrDomain::Corner)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
     bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
-      MutableSpan<T> data = attribute.span.typed<T>();
-      MutableSpan<T> new_data = data.slice(new_loop_range);
-      edge_selection.foreach_index(
-          [&](const int64_t orig_edge_index, const int64_t i_edge_selection) {
-            const Span<int> connected_faces = edge_to_face_map[orig_edge_index];
-            if (connected_faces.is_empty()) {
-              /* If there are no connected faces, there is no corner data to interpolate. */
-              new_data.slice(4 * i_edge_selection, 4).fill(T());
-              return;
-            }
+      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+        MutableSpan<T> data = attribute.span.typed<T>();
+        MutableSpan<T> new_data = data.slice(new_loop_range);
+        edge_selection.foreach_index(
+            [&](const int64_t orig_edge_index, const int64_t i_edge_selection) {
+              const Span<int> connected_faces = edge_to_face_map[orig_edge_index];
+              if (connected_faces.is_empty()) {
+                /* If there are no connected faces, there is no corner data to interpolate. */
+                new_data.slice(4 * i_edge_selection, 4).fill(T());
+                return;
+              }
 
-            /* Both corners on each vertical edge of the side face get the same value,
-             * so there are only two unique values to mix. */
-            Array<T> side_face_corner_data(2);
-            bke::attribute_math::DefaultPropagationMixer<T> mixer{side_face_corner_data};
+              /* Both corners on each vertical edge of the side face get the same value,
+               * so there are only two unique values to mix. */
+              Array<T> side_face_corner_data(2);
+              bke::attribute_math::DefaultPropagationMixer<T> mixer{side_face_corner_data};
 
-            const int new_vert_1 = duplicate_edges[i_edge_selection][0];
-            const int new_vert_2 = duplicate_edges[i_edge_selection][1];
-            const int orig_vert_1 = edges[orig_edge_index][0];
-            const int orig_vert_2 = edges[orig_edge_index][1];
+              const int new_vert_1 = duplicate_edges[i_edge_selection][0];
+              const int new_vert_2 = duplicate_edges[i_edge_selection][1];
+              const int orig_vert_1 = edges[orig_edge_index][0];
+              const int orig_vert_2 = edges[orig_edge_index][1];
 
-            /* Average the corner data from the corners that share a vertex from the
-             * faces that share an edge with the extruded edge. */
-            for (const int connected_face : connected_faces) {
-              for (const int i_loop : faces[connected_face]) {
-                if (corner_verts[i_loop] == orig_vert_1) {
-                  mixer.mix_in(0, data[i_loop]);
+              /* Average the corner data from the corners that share a vertex from the
+               * faces that share an edge with the extruded edge. */
+              for (const int connected_face : connected_faces) {
+                for (const int i_loop : faces[connected_face]) {
+                  if (corner_verts[i_loop] == orig_vert_1) {
+                    mixer.mix_in(0, data[i_loop]);
+                  }
+                  if (corner_verts[i_loop] == orig_vert_2) {
+                    mixer.mix_in(1, data[i_loop]);
+                  }
                 }
-                if (corner_verts[i_loop] == orig_vert_2) {
-                  mixer.mix_in(1, data[i_loop]);
+              }
+
+              mixer.finalize();
+
+              /* Instead of replicating the order in #fill_quad_consistent_direction here, it's
+               * simpler (though probably slower) to just match the corner data based on the
+               * vertex indices. */
+              for (const int i : IndexRange(4 * i_edge_selection, 4)) {
+                if (ELEM(new_corner_verts[i], new_vert_1, orig_vert_1)) {
+                  new_data[i] = side_face_corner_data.first();
+                }
+                else if (ELEM(new_corner_verts[i], new_vert_2, orig_vert_2)) {
+                  new_data[i] = side_face_corner_data.last();
                 }
               }
-            }
-
-            mixer.finalize();
-
-            /* Instead of replicating the order in #fill_quad_consistent_direction here, it's
-             * simpler (though probably slower) to just match the corner data based on the
-             * vertex indices. */
-            for (const int i : IndexRange(4 * i_edge_selection, 4)) {
-              if (ELEM(new_corner_verts[i], new_vert_1, orig_vert_1)) {
-                new_data[i] = side_face_corner_data.first();
-              }
-              else if (ELEM(new_corner_verts[i], new_vert_2, orig_vert_2)) {
-                new_data[i] = side_face_corner_data.last();
-              }
-            }
-          },
-          exec_mode::grain_size(256));
+            },
+            exec_mode::grain_size(256));
+      }
     });
 
     attribute.finish();
@@ -1374,20 +1380,22 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
     for (const StringRef id : ids_by_domain[int(AttrDomain::Edge)]) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
       bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
-        MutableSpan<T> data = attribute.span.typed<T>();
-        MutableSpan<T> dst = data.slice(connect_edge_range);
-        threading::parallel_for(dst.index_range(), 1024, [&](const IndexRange range) {
-          for (const int i : range) {
-            const int2 neighbors = neighbor_edges[i];
-            if constexpr (std::is_same_v<T, bool>) {
-              /* Propagate selections with "or" instead of "at least half". */
-              dst[i] = data[neighbors[0]] || data[neighbors[1]];
+        if constexpr (!std::is_same_v<T, std::string>) {
+          MutableSpan<T> data = attribute.span.typed<T>();
+          MutableSpan<T> dst = data.slice(connect_edge_range);
+          threading::parallel_for(dst.index_range(), 1024, [&](const IndexRange range) {
+            for (const int i : range) {
+              const int2 neighbors = neighbor_edges[i];
+              if constexpr (std::is_same_v<T, bool>) {
+                /* Propagate selections with "or" instead of "at least half". */
+                dst[i] = data[neighbors[0]] || data[neighbors[1]];
+              }
+              else {
+                dst[i] = bke::attribute_math::mix2(0.5f, data[neighbors[0]], data[neighbors[1]]);
+              }
             }
-            else {
-              dst[i] = bke::attribute_math::mix2(0.5f, data[neighbors[0]], data[neighbors[1]]);
-            }
-          }
-        });
+          });
+        }
       });
       attribute.finish();
     }

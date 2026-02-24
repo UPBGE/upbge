@@ -205,6 +205,10 @@ source/blender/gpu/shader_tool/.*                       @fclem
 source/blender/gpu/shaders/.*                           @fclem
 
 # --------------------------------------------------
+# Editors
+source/blender/editors/space_outliner/.* @JulianEisel
+
+# --------------------------------------------------
 # VSE.
 source/blender/sequencer/.*                  @eliphaz 
 source/blender/editors/space_sequencer/.*    @eliphaz

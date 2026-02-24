@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2026-02-01 08:12+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -3835,18 +3835,6 @@ msgid "View"
 msgstr "มุมมอง"
 
 
-msgid "Mix"
-msgstr "ผสม"
-
-
-msgid "Screen"
-msgstr "จอภาพ"
-
-
-msgid "Difference"
-msgstr "แตกต่าง"
-
-
 msgid "Brightness"
 msgstr "ความสว่าง"
 
@@ -4326,10 +4314,6 @@ msgstr "ผู้ใช้"
 
 msgid "Layers"
 msgstr "ชั้น"
-
-
-msgid "Add Alpha"
-msgstr "เพิ่มแอลฟา"
 
 
 msgid "Local"
@@ -4925,6 +4909,18 @@ msgid "Rotation & Scale"
 msgstr "หมุน และ ย่อขยาย"
 
 
+msgid "Mix"
+msgstr "ผสม"
+
+
+msgid "Difference"
+msgstr "แตกต่าง"
+
+
+msgid "Screen"
+msgstr "จอภาพ"
+
+
 msgid "Squares"
 msgstr "สี่เหลี่ยม"
 
@@ -4953,12 +4949,48 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Metaball"
-msgstr "เมตาบอล"
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Apply"
+msgstr "นำไปใช้"
+
+
+msgid "Track"
+msgstr "แทร็ค"
+
+
+msgid "Hooks"
+msgstr "ตะขอ"
 
 
 msgid "Names"
 msgstr "ชื่อ"
+
+
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
+msgid "Merge"
+msgstr "ผสาน"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
+msgid "Keying"
+msgstr "คีย์"
+
+
+msgid "Math"
+msgstr "คณิตศาสตร์"
 
 
 msgid "Pivot Point"
@@ -4975,10 +5007,6 @@ msgstr "แก้ไข"
 
 msgid "Mask Edit"
 msgstr "การแก้ไขหน้ากาก"
-
-
-msgid "Layout"
-msgstr "เค้าโครง"
 
 
 msgid "Mirror"
@@ -5009,12 +5037,8 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
-msgid "Keying"
-msgstr "คีย์"
-
-
-msgid "Math"
-msgstr "คณิตศาสตร์"
+msgid "Import"
+msgstr "นำเข้า"
 
 
 msgid "Light"
@@ -5023,34 +5047,6 @@ msgstr "แสง"
 
 msgid "Add Image"
 msgstr "เพิ่มภาพ"
-
-
-msgid "Apply"
-msgstr "นำไปใช้"
-
-
-msgid "Track"
-msgstr "แทร็ค"
-
-
-msgid "Hooks"
-msgstr "ตะขอ"
-
-
-msgid "Import"
-msgstr "นำเข้า"
-
-
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
-msgid "Merge"
-msgstr "ผสาน"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Zoom"

@@ -5956,6 +5956,7 @@ static void rna_def_modifier_weightvg_mask(BlenderRNA * /*brna*/,
 
   prop = RNA_def_property(srna, "mask_tex_use_channel", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, weightvg_mask_tex_used_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_ui_text(prop, "Use Channel", "Which texture channel to use for masking");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
@@ -8690,6 +8691,7 @@ static void rna_def_modifier_grease_pencil_color(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.0, 2.0, 0.1, 3);
   RNA_def_property_float_sdna(prop, nullptr, "hsv[2]");
   RNA_def_property_ui_text(prop, "Value", "Color value factor");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   RNA_define_lib_overridable(false);

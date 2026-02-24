@@ -608,7 +608,7 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
 
-  /* Note: Serial loop without GrainSize, since immediate mode drawing can't happen in worker
+  /* Note: Serial loop since immediate mode drawing can't happen in worker
    * threads, has to be from the main thread. */
   strokes_mask.foreach_index([&](const int stroke_i) {
     /* Check if the color is visible. */

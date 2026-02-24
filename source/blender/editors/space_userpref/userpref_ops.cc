@@ -245,7 +245,6 @@ static void preferences_asset_library_add_ui(bContext * /*C*/, wmOperator *op)
       break;
     }
     case bUserAssetLibraryAddType::Local: {
-      BLI_assert_unreachable();
       layout->prop(op->ptr, "name", ui::ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
       break;
     }

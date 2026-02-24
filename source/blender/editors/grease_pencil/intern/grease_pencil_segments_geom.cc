@@ -337,27 +337,29 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
            src_attributes, dst_attributes, {bke::AttrDomain::Point}, {}))
   {
     bke::attribute_math::to_static_type(attribute.dst.span.type(), [&]<typename T>() {
-      const Span<T> src_attr = attribute.src.typed<T>();
-      MutableSpan<T> dst_attr = attribute.dst.span.typed<T>();
+      if constexpr (!std::is_same_v<T, std::string>) {
+        const Span<T> src_attr = attribute.src.typed<T>();
+        MutableSpan<T> dst_attr = attribute.dst.span.typed<T>();
 
-      threading::parallel_for(
-          point_to_interpolate.index_range(), 4096, [&](const IndexRange points) {
-            for (const int i : points) {
-              const InterpolatePoint &int_point = point_to_interpolate[i];
+        threading::parallel_for(
+            point_to_interpolate.index_range(), 4096, [&](const IndexRange points) {
+              for (const int i : points) {
+                const InterpolatePoint &int_point = point_to_interpolate[i];
 
-              if (int_point.factor == 0.0f) {
-                dst_attr[i] = src_attr[int_point.src_point_1];
+                if (int_point.factor == 0.0f) {
+                  dst_attr[i] = src_attr[int_point.src_point_1];
+                }
+                else if (int_point.factor == 1.0f) {
+                  dst_attr[i] = src_attr[int_point.src_point_2];
+                }
+                else {
+                  dst_attr[i] = bke::attribute_math::mix2<T>(int_point.factor,
+                                                             src_attr[int_point.src_point_1],
+                                                             src_attr[int_point.src_point_2]);
+                }
               }
-              else if (int_point.factor == 1.0f) {
-                dst_attr[i] = src_attr[int_point.src_point_2];
-              }
-              else {
-                dst_attr[i] = bke::attribute_math::mix2<T>(int_point.factor,
-                                                           src_attr[int_point.src_point_1],
-                                                           src_attr[int_point.src_point_2]);
-              }
-            }
-          });
+            });
+      }
     });
 
     attribute.dst.finish();

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -3077,14 +3077,6 @@ msgid "Show Lasso"
 msgstr "Näytä lasso"
 
 
-msgid "Stroke"
-msgstr "Piirto"
-
-
-msgid "Fill"
-msgstr "Täytä"
-
-
 msgid "Active Layer"
 msgstr "Aktiivinen taso"
 
@@ -3185,8 +3177,16 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Määritteen miten kärkiväri vaikuttaa viivoihin"
 
 
+msgid "Stroke"
+msgstr "Piirto"
+
+
 msgid "Vertex Color affects to Stroke only"
 msgstr "Kärkiväri vaikuttaa ainoastaan viivaan"
+
+
+msgid "Fill"
+msgstr "Täytä"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -3639,18 +3639,6 @@ msgstr "Käytä käyriä"
 
 msgid "View"
 msgstr "Näkymä"
-
-
-msgid "Mix"
-msgstr "Sekoita"
-
-
-msgid "Screen"
-msgstr "Näyttö"
-
-
-msgid "Divide"
-msgstr "Jaa"
 
 
 msgid "Brightness"
@@ -5866,6 +5854,10 @@ msgid "Use Masks"
 msgstr "Käytä maskeja"
 
 
+msgid "Divide"
+msgstr "Jaa"
+
+
 msgid "Active Grease Pencil layer"
 msgstr "Aktiivinen öljykynän taso"
 
@@ -7244,8 +7236,20 @@ msgid "Direction"
 msgstr "Suunta"
 
 
+msgid "Mix"
+msgstr "Sekoita"
+
+
+msgid "Screen"
+msgstr "Näyttö"
+
+
 msgid "ID Type"
 msgstr "ID-tyyppi"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Read"
@@ -7256,16 +7260,40 @@ msgid "Write"
 msgstr "Kirjoita"
 
 
+msgid "Track"
+msgstr "Raide"
+
+
 msgid "Show/Hide"
 msgstr "Näytä/Piilota"
+
+
+msgid "Hooks"
+msgstr "Koukut"
+
+
+msgid "Random Mask"
+msgstr "Satunnainen maski"
+
+
+msgid "Names"
+msgstr "Nimet"
+
+
+msgid "Mesh Select Mode"
+msgstr "Muodon valintatila"
 
 
 msgid "Metaball"
 msgstr "Metapallo"
 
 
-msgid "Names"
-msgstr "Nimet"
+msgid "Utilities"
+msgstr "Työkalut"
+
+
+msgid "Math"
+msgstr "Matematiikka"
 
 
 msgid "UV Mapping"
@@ -7288,12 +7316,12 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
-msgid "Utilities"
-msgstr "Työkalut"
+msgid "Instances"
+msgstr "Instanssit"
 
 
-msgid "Math"
-msgstr "Matematiikka"
+msgid "Import"
+msgstr "Tuo"
 
 
 msgid "Light"
@@ -7306,34 +7334,6 @@ msgstr "Valoluotain"
 
 msgid "Add Image"
 msgstr "Lisää kuva"
-
-
-msgid "Track"
-msgstr "Raide"
-
-
-msgid "Hooks"
-msgstr "Koukut"
-
-
-msgid "Random Mask"
-msgstr "Satunnainen maski"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Import"
-msgstr "Tuo"
-
-
-msgid "Mesh Select Mode"
-msgstr "Muodon valintatila"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Basic"
@@ -7734,10 +7734,6 @@ msgstr "V-akseli"
 
 msgid "UV Center"
 msgstr "UV-keskus"
-
-
-msgid "Use Channel"
-msgstr "Käytä kanavaa"
 
 
 msgid "Wave Modifier"
@@ -10034,6 +10030,11 @@ msgid "Save Sequence"
 msgstr "Tallenna sekvenssi"
 
 
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Kulma"
+
+
 msgid "Expand"
 msgstr "Laajenna"
 
@@ -10917,11 +10918,6 @@ msgstr "Näytä Ajanotto"
 
 msgid "Dynamic Grid Size"
 msgstr "Dynaaminen Ruudukon Koko"
-
-
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Kulma"
 
 
 msgid "Dynamic grid"
@@ -13875,10 +13871,6 @@ msgid "Lightness:"
 msgstr "Valoisuus:"
 
 
-msgid "Value:"
-msgstr "Arvo:"
-
-
 msgid "Alpha:"
 msgstr "Alfa:"
 
@@ -14692,6 +14684,10 @@ msgstr "Avainkehys"
 
 msgid "Driver Value:"
 msgstr "Ajuriarvo:"
+
+
+msgid "Value:"
+msgstr "Arvo:"
 
 
 msgid "Driver:"

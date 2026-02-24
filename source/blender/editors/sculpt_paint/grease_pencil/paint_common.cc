@@ -583,7 +583,9 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
 }
 
 void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
-    const bContext &C, FunctionRef<bool(const GreasePencilStrokeParams &params)> fn) const
+    const bContext &C,
+    FunctionRef<bool(const GreasePencilStrokeParams &params)> fn,
+    const exec_mode::Mode &mode) const
 {
   using namespace blender::bke::greasepencil;
 
@@ -594,22 +596,46 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
   Object &object = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
 
-  bool changed = false;
+  std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
-  for (const int64_t i : drawings.index_range()) {
-    const MutableDrawingInfo &info = drawings[i];
-    GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
-        scene,
-        depsgraph,
-        region,
-        rv3d,
-        object,
-        info.layer_index,
-        info.frame_number,
-        info.multi_frame_falloff,
-        info.drawing);
-    if (fn(params)) {
-      changed = true;
+
+  if (mode.is_parallel) {
+    threading::parallel_for(
+        drawings.index_range(), mode.grain_size(16), [&](const IndexRange range) {
+          for (const int64_t i : range) {
+            const MutableDrawingInfo &info = drawings[i];
+            GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
+                scene,
+                depsgraph,
+                region,
+                rv3d,
+                object,
+                info.layer_index,
+                info.frame_number,
+                info.multi_frame_falloff,
+                info.drawing);
+            if (fn(params)) {
+              changed = true;
+            }
+          }
+        });
+  }
+  else {
+    for (const int64_t i : drawings.index_range()) {
+      const MutableDrawingInfo &info = drawings[i];
+      GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
+          scene,
+          depsgraph,
+          region,
+          rv3d,
+          object,
+          info.layer_index,
+          info.frame_number,
+          info.multi_frame_falloff,
+          info.drawing);
+      if (fn(params)) {
+        changed = true;
+      }
     }
   }
 
@@ -655,47 +681,6 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
       changed = true;
     }
   }
-
-  if (changed) {
-    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
-  }
-}
-
-void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
-    const bContext &C,
-    const GrainSize grain_size,
-    FunctionRef<bool(const GreasePencilStrokeParams &params)> fn) const
-{
-  using namespace blender::bke::greasepencil;
-
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
-  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
-
-  std::atomic<bool> changed = false;
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
-  threading::parallel_for(drawings.index_range(), grain_size.value, [&](const IndexRange range) {
-    for (const int64_t i : range) {
-      const MutableDrawingInfo &info = drawings[i];
-      GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
-          scene,
-          depsgraph,
-          region,
-          rv3d,
-          object,
-          info.layer_index,
-          info.frame_number,
-          info.multi_frame_falloff,
-          info.drawing);
-      if (fn(params)) {
-        changed = true;
-      }
-    }
-  });
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);

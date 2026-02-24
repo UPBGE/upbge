@@ -103,7 +103,7 @@ def download_preview(
     :param preview_url: the URL to download. Can be absolute or relative.
     :param preview_hash: the hash of the thumbnail, will be appended to the URL.
 
-    :param savedst_filepath_to: the path on disk where to download to. While the
+    :param dst_filepath: the path on disk where to download to. While the
         download is pending, ".part" will be appended to the filename. When the
         download finishes succesfully, it is renamed to the final path.
     """

@@ -437,10 +437,26 @@ class EvaluateAtIndexInput final : public bke::GeometryFieldInput {
   }
 };
 
-void copy_with_checked_indices(const GVArray &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               GMutableSpan dst);
+class SampleIndexFunction : public mf::MultiFunction {
+  GeometrySet src_geometry_;
+  fn::GField src_field_;
+  AttrDomain domain_;
+
+  mf::Signature signature_;
+
+  std::optional<bke::GeometryFieldContext> geometry_context_;
+  std::unique_ptr<fn::FieldEvaluator> evaluator_;
+  const GVArray *src_data_ = nullptr;
+
+ public:
+  SampleIndexFunction(GeometrySet geometry, fn::GField src_field, AttrDomain domain);
+  void evaluate_field();
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override;
+
+  static const GeometryComponent *find_source_component(const GeometrySet &geometry,
+                                                        AttrDomain domain);
+};
 
 class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
  private:

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-11-14 10:59+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -4966,18 +4966,6 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Sababu ya Kurahisisha kwa kutumia algoriti inayobadilika"
 
 
-msgid "Stroke"
-msgstr "Kiharusi"
-
-
-msgid "Fill"
-msgstr "Jaza"
-
-
-msgid "Both"
-msgstr "Zote mbili"
-
-
 msgid "Active Layer"
 msgstr "Tabaka Inayotumika"
 
@@ -5146,8 +5134,16 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Inafafanua jinsi rangi ya kipeo inavyoathiri kwa mipigo"
 
 
+msgid "Stroke"
+msgstr "Kiharusi"
+
+
 msgid "Vertex Color affects to Stroke only"
 msgstr "Rangi ya Vertex huathiri kwa Kiharusi pekee"
+
+
+msgid "Fill"
+msgstr "Jaza"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -6366,48 +6362,8 @@ msgid "Blend Factor"
 msgstr "Sababu ya Mchanganyiko"
 
 
-msgid "Blend Type"
-msgstr "Aina ya Mchanganyiko"
-
-
 msgid "Mode used to mix with texture output color"
 msgstr "Modi inayotumika kuchanganya na rangi ya matokeo ya unamu"
-
-
-msgid "Mix"
-msgstr "Changanya"
-
-
-msgid "Darken"
-msgstr "Giza"
-
-
-msgid "Lighten"
-msgstr "Nuru"
-
-
-msgid "Screen"
-msgstr "Skrini"
-
-
-msgid "Overlay"
-msgstr "Uwekeleaji"
-
-
-msgid "Soft Light"
-msgstr "Mwanga laini"
-
-
-msgid "Linear Light"
-msgstr "Mwanga wa mstari"
-
-
-msgid "Difference"
-msgstr "Tofauti"
-
-
-msgid "Divide"
-msgstr "Gawanya"
 
 
 msgid "Brightness"
@@ -11645,6 +11601,10 @@ msgid "Give randomness to the modified F-Curve"
 msgstr "Toa nasibu kwa F-Curve iliyorekebishwa"
 
 
+msgid "Blend Type"
+msgstr "Aina ya Mchanganyiko"
+
+
 msgid "Method of modifying the existing F-Curve"
 msgstr "Njia ya kurekebisha F-Curve iliyopo"
 
@@ -15145,6 +15105,10 @@ msgid "Hard Light"
 msgstr "Mwanga Mgumu"
 
 
+msgid "Divide"
+msgstr "Gawanya"
+
+
 msgid "List of Masking Layers"
 msgstr "Orodha ya Tabaka za Kufunika"
 
@@ -15630,10 +15594,6 @@ msgid "View Normal Limit"
 msgstr "Tazama Kikomo cha Kawaida"
 
 
-msgid "Blending Mode"
-msgstr "Njia ya Kuchanganya"
-
-
 msgid "Brush blending mode"
 msgstr "Modi ya kuchanganya brashi"
 
@@ -15650,10 +15610,6 @@ msgid "Use Multiply blending mode while painting"
 msgstr "Tumia hali ya uchanganyaji ya Kuzidisha unapopaka rangi"
 
 
-msgid "Color Burn"
-msgstr "Kuchoma kwa Rangi"
-
-
 msgid "Use Color Burn blending mode while painting"
 msgstr "Tumia hali ya kuchanganya ya Kuchoma Rangi unapopaka rangi"
 
@@ -15668,10 +15624,6 @@ msgstr "Tumia hali ya uchanganyaji ya Lighten wakati wa uchoraji"
 
 msgid "Use Screen blending mode while painting"
 msgstr "Tumia hali ya kuchanganya Skrini unapopaka rangi"
-
-
-msgid "Color Dodge"
-msgstr "Rangi ya Dodge"
 
 
 msgid "Use Color Dodge blending mode while painting"
@@ -15694,10 +15646,6 @@ msgid "Use Hard Light blending mode while painting"
 msgstr "Tumia hali ya uchanganyaji wa Mwanga Mgumu unapopaka rangi"
 
 
-msgid "Vivid Light"
-msgstr "Mwangaza Wazi"
-
-
 msgid "Use Vivid Light blending mode while painting"
 msgstr "Tumia hali ya uchanganyaji wa Mwangaza Wazi unapopaka rangi"
 
@@ -15706,20 +15654,12 @@ msgid "Use Linear Light blending mode while painting"
 msgstr "Tumia hali ya kuchanganya Mwangaza wa Linear unapopaka rangi"
 
 
-msgid "Pin Light"
-msgstr "Nuru ya Pin"
-
-
 msgid "Use Pin Light blending mode while painting"
 msgstr "Tumia modi ya kuchanganya Mwanga wa Pin unapopaka rangi"
 
 
 msgid "Use Difference blending mode while painting"
 msgstr "Tumia hali ya kuchanganya Tofauti wakati wa uchoraji"
-
-
-msgid "Exclusion"
-msgstr "Kutengwa"
 
 
 msgid "Use Exclusion blending mode while painting"
@@ -15746,16 +15686,8 @@ msgid "Use Value blending mode while painting"
 msgstr "Tumia hali ya kuchanganya Thamani unapopaka rangi"
 
 
-msgid "Erase Alpha"
-msgstr "Futa Alfa"
-
-
 msgid "Erase alpha while painting"
 msgstr "Futa alfa wakati wa uchoraji"
-
-
-msgid "Add Alpha"
-msgstr "Ongeza Alfa"
 
 
 msgid "Add alpha while painting"
@@ -27102,6 +27034,14 @@ msgid "Specify how the modifier value is blended into the base value"
 msgstr "Bainisha jinsi thamani ya kirekebishaji inavyochanganywa katika thamani ya msingi"
 
 
+msgid "Mix"
+msgstr "Changanya"
+
+
+msgid "Difference"
+msgstr "Tofauti"
+
+
 msgid "Curve used for the curve mapping"
 msgstr "Mviringo unaotumika kutengeneza ramani ya curve"
 
@@ -27304,6 +27244,42 @@ msgstr "Aina ya msingi ili kufafanua virekebisha rangi vya mstari"
 
 msgid "Change line color along stroke"
 msgstr "Badilisha rangi ya mstari pamoja na kiharusi"
+
+
+msgid "Darken"
+msgstr "Giza"
+
+
+msgid "Color Burn"
+msgstr "Kuchoma kwa Rangi"
+
+
+msgid "Lighten"
+msgstr "Nuru"
+
+
+msgid "Screen"
+msgstr "Skrini"
+
+
+msgid "Color Dodge"
+msgstr "Rangi ya Dodge"
+
+
+msgid "Overlay"
+msgstr "Uwekeleaji"
+
+
+msgid "Soft Light"
+msgstr "Mwanga laini"
+
+
+msgid "Linear Light"
+msgstr "Mwanga wa mstari"
+
+
+msgid "Exclusion"
+msgstr "Kutengwa"
 
 
 msgid "Color ramp used to change line color"
@@ -28409,40 +28385,40 @@ msgid "Sample"
 msgstr "Mfano"
 
 
-msgid "Clean Up"
-msgstr "Safisha"
-
-
 msgid "Primitives"
 msgstr "Watu wa kwanza"
+
+
+msgid "Apply"
+msgstr "Tumia"
 
 
 msgid "Show/Hide"
 msgstr "Onyesha/Ficha"
 
 
-msgid "Metaball"
-msgstr "Mpira wa miguu"
+msgid "Clean Up"
+msgstr "Safisha"
 
 
-msgid "Pivot Point"
-msgstr "Egemeo"
+msgid "Asset"
+msgstr "Mali"
 
 
-msgid "Snap"
-msgstr "Picha"
+msgid "Bone Collections"
+msgstr "Mikusanyo ya Mifupa"
+
+
+msgid "Merge"
+msgstr "Unganisha"
 
 
 msgid "Layout"
 msgstr "Mpangilio"
 
 
-msgid "Mirror"
-msgstr "Kioo"
-
-
-msgid "Navigation"
-msgstr "Urambazaji"
+msgid "Metaball"
+msgstr "Mpira wa miguu"
 
 
 msgid "Adjust"
@@ -28451,10 +28427,6 @@ msgstr "Rekebisha"
 
 msgid "Keying"
 msgstr "Kuweka"
-
-
-msgid "Select Linked"
-msgstr "Chagua Imeunganishwa"
 
 
 msgid "Tracking"
@@ -28469,24 +28441,24 @@ msgid "Math"
 msgstr "Hisabati"
 
 
-msgid "Light"
-msgstr "Mwanga"
+msgid "Pivot Point"
+msgstr "Egemeo"
 
 
-msgid "Light Probe"
-msgstr "Uchunguzi wa Mwanga"
+msgid "Snap"
+msgstr "Picha"
 
 
-msgid "Apply"
-msgstr "Tumia"
+msgid "Mirror"
+msgstr "Kioo"
 
 
-msgid "Asset"
-msgstr "Mali"
+msgid "Navigation"
+msgstr "Urambazaji"
 
 
-msgid "Bone Collections"
-msgstr "Mikusanyo ya Mifupa"
+msgid "Select Linked"
+msgstr "Chagua Imeunganishwa"
 
 
 msgid "Instances"
@@ -28497,12 +28469,16 @@ msgid "Import"
 msgstr "Ingiza"
 
 
+msgid "Light"
+msgstr "Mwanga"
+
+
+msgid "Light Probe"
+msgstr "Uchunguzi wa Mwanga"
+
+
 msgid "Deprecated"
 msgstr "Imeacha kutumika"
-
-
-msgid "Merge"
-msgstr "Unganisha"
 
 
 msgid "Keyframe Insert Pie"
@@ -28690,13 +28666,13 @@ msgid "Strip"
 msgstr "Ukanda"
 
 
-msgid "Node"
-msgstr "Njia"
-
-
 msgctxt "NodeTree"
 msgid "Constant"
 msgstr "Mara kwa mara"
+
+
+msgid "Node"
+msgstr "Njia"
 
 
 msgid "Node Color Specials"
@@ -35039,10 +35015,6 @@ msgid "Use coordinates from a UV layer"
 msgstr "Tumia kuratibu kutoka kwa safu ya UV"
 
 
-msgid "Use Channel"
-msgstr "Tumia Idhaa"
-
-
 msgid "Which texture channel to use for masking"
 msgstr "Ni njia gani ya maandishi ya kutumia kwa kufunika"
 
@@ -40321,6 +40293,10 @@ msgstr "Bana matokeo ya nodi hadi safu ya 0.0 hadi 1.0"
 
 msgid "Mix values by a factor"
 msgstr "Changanya thamani kwa kipengele"
+
+
+msgid "Blending Mode"
+msgstr "Njia ya Kuchanganya"
 
 
 msgid "Clamp Factor"
@@ -51594,6 +51570,10 @@ msgid "Equalize selected keyframes' right handles"
 msgstr "Sawazisha vishikio vya kulia vya fremu kuu zilizochaguliwa"
 
 
+msgid "Both"
+msgstr "Zote mbili"
+
+
 msgid "Equalize both of a keyframe's handles"
 msgstr "Sawazisha vishikio vyote viwili vya fremu muhimu"
 
@@ -55710,10 +55690,6 @@ msgid "Only cut the front most geometry"
 msgstr "Kata tu jiometri ya mbele zaidi"
 
 
-msgid "Measurements"
-msgstr "Vipimo"
-
-
 msgid "Visible distance and angle measurements"
 msgstr "Vipimo vya umbali vinavyoonekana na pembe"
 
@@ -55728,6 +55704,11 @@ msgstr "Onyesha umbali na pembe zote"
 
 msgid "Show just distance measurements"
 msgstr "Onyesha vipimo vya umbali tu"
+
+
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Pembe"
 
 
 msgid "Show just angle measurements"
@@ -58224,10 +58205,6 @@ msgstr "Nakili rangi kwa nodi zote zilizochaguliwa"
 
 msgid "Overlay Mode"
 msgstr "Njia ya Uwekeleaji"
-
-
-msgid "Current"
-msgstr "Sasa"
 
 
 msgctxt "Operator"
@@ -82980,6 +82957,10 @@ msgid "Show reference frame only"
 msgstr "Onyesha fremu ya marejeleo pekee"
 
 
+msgid "Current"
+msgstr "Sasa"
+
+
 msgid "Show current frame only"
 msgstr "Onyesha fremu ya sasa pekee"
 
@@ -83775,11 +83756,6 @@ msgstr "Onyesha Aina ya Kunyoosha"
 
 msgid "Type of stretch to display"
 msgstr "Aina ya kunyoosha kuonyesha"
-
-
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Pembe"
 
 
 msgid "Angular distortion between UV and 3D angles"
@@ -101541,10 +101517,6 @@ msgid "Lightness:"
 msgstr "Nuru:"
 
 
-msgid "Value:"
-msgstr "Thamani:"
-
-
 msgid "Alpha:"
 msgstr "Alfa:"
 
@@ -104750,6 +104722,10 @@ msgstr "Maelezo:"
 
 msgid "Add Input Variable"
 msgstr "Ongeza Kibadala cha Kuingiza"
+
+
+msgid "Value:"
+msgstr "Thamani:"
 
 
 msgid "Update Dependencies"

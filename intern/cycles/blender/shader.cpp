@@ -359,9 +359,24 @@ static ShaderNode *add_node(Scene *scene,
     color->set_value(get_node_output_rgba(b_node, "Color"));
     node = color;
   }
+  else if (b_node.is_type("FunctionNodeInputVector")) {
+    ColorNode *color = graph->create_node<ColorNode>();
+    color->set_value(get_node_output_vector(b_node, "Vector"));
+    node = color;
+  }
   else if (b_node.is_type("ShaderNodeValue")) {
     ValueNode *value = graph->create_node<ValueNode>();
     value->set_value(get_node_output_value(b_node, "Value"));
+    node = value;
+  }
+  else if (b_node.is_type("FunctionNodeInputBool")) {
+    ValueNode *value = graph->create_node<ValueNode>();
+    value->set_value(get_node_output_value(b_node, "Boolean"));
+    node = value;
+  }
+  else if (b_node.is_type("FunctionNodeInputInt")) {
+    ValueNode *value = graph->create_node<ValueNode>();
+    value->set_value(get_node_output_value(b_node, "Integer"));
     node = value;
   }
   else if (b_node.is_type("ShaderNodeCameraData")) {

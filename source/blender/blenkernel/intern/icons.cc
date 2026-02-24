@@ -462,6 +462,9 @@ std::optional<IconBufferRef> BKE_icon_get_buffer(const int icon_id, const eIconS
   switch (icon->obj_type) {
     case ICON_DATA_IMBUF: {
       const ImBuf *ibuf = static_cast<ImBuf *>(icon->obj);
+      if (ibuf->byte_buffer.data == nullptr) {
+        return std::nullopt;
+      }
       return construct_icon_buffer(ibuf->x, ibuf->y, ibuf->channels, ibuf->byte_buffer.data);
     }
     case ICON_DATA_ID: {

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2026-02-06 22:29+0000\n"
 "Last-Translator: Hoang Duy Tran <hoangduytran1960@googlemail.com>\n"
 "Language-Team: Vietnamese <https://translate.blender.org/projects/blender-ui/ui/vi/>\n"
@@ -6039,18 +6039,6 @@ msgid "Threshold in screen space used for the simplify algorithm. Points within 
 msgstr "Ngưỡng trong không gian màn hình được sử dụng cho thuật toán đơn giản hóa. Các điểm trong ngưỡng này được xử lý như thể chúng nằm trên một đường thẳng."
 
 
-msgid "Stroke"
-msgstr "Nét Vẽ"
-
-
-msgid "Fill"
-msgstr "Vùng/Tô Phủ Kín/Lấp Đầy"
-
-
-msgid "Both"
-msgstr "Cả Hai"
-
-
 msgid "Active Layer"
 msgstr "Tầng Lớp đang Hoạt Động"
 
@@ -6239,8 +6227,16 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Xác định ảnh hưởng của màu điểm đỉnh đến nét vẽ thế nào"
 
 
+msgid "Stroke"
+msgstr "Nét Vẽ"
+
+
 msgid "Vertex Color affects to Stroke only"
 msgstr "Màu Điểm Đỉnh chỉ tác động đến Nét Vẽ mà thôi"
+
+
+msgid "Fill"
+msgstr "Vùng/Tô Phủ Kín/Lấp Đầy"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -7839,48 +7835,78 @@ msgid "Blend Factor"
 msgstr "Hệ Số Pha Trộn"
 
 
-msgid "Blend Type"
-msgstr "Kiểu Pha Trộn"
-
-
 msgid "Mode used to mix with texture output color"
 msgstr "Chế độ sử dụng để hòa trộn với màu xuất chất liệu"
 
 
-msgid "Mix"
-msgstr "Hòa Trộn"
-
-
+msgctxt "Color"
 msgid "Darken"
 msgstr "Làm Tối"
 
 
+msgctxt "Color"
+msgid "Multiply"
+msgstr "Nhân"
+
+
+msgctxt "Color"
 msgid "Lighten"
 msgstr "Làm Sáng"
 
 
+msgctxt "Color"
 msgid "Screen"
 msgstr "Màn Hình"
 
 
+msgctxt "Color"
+msgid "Add"
+msgstr "Cộng"
+
+
+msgctxt "Color"
 msgid "Overlay"
 msgstr "Vẽ Lồng"
 
 
+msgctxt "Color"
 msgid "Soft Light"
 msgstr "Ánh Sáng Mềm Mại"
 
 
+msgctxt "Color"
 msgid "Linear Light"
 msgstr "Ánh Sáng Tuyến Tính"
 
 
+msgctxt "Color"
 msgid "Difference"
 msgstr "Hiệu"
 
 
-msgid "Divide"
-msgstr "Chia"
+msgctxt "Color"
+msgid "Subtract"
+msgstr "Khấu Trừ"
+
+
+msgctxt "Color"
+msgid "Hue"
+msgstr "Sắc Màu"
+
+
+msgctxt "Color"
+msgid "Saturation"
+msgstr "Độ Bão Hòa"
+
+
+msgctxt "Color"
+msgid "Color"
+msgstr "Màu"
+
+
+msgctxt "Color"
+msgid "Value"
+msgstr "Giá Trị"
 
 
 msgid "Brightness"
@@ -13676,6 +13702,10 @@ msgid "Give randomness to the modified F-Curve"
 msgstr "Gây cho Đường Cong-F bị thay đổi một cách ngẫu nhiên"
 
 
+msgid "Blend Type"
+msgstr "Kiểu Pha Trộn"
+
+
 msgid "Method of modifying the existing F-Curve"
 msgstr "Phương pháp sửa đổi Đường Cong-F hiện có"
 
@@ -17938,6 +17968,10 @@ msgid "Hard Light"
 msgstr "Ánh Sáng Mạnh"
 
 
+msgid "Divide"
+msgstr "Chia"
+
+
 msgid "Grease Pencil frames"
 msgstr "Các khung hình Bút Chì Dầu"
 
@@ -18710,6 +18744,7 @@ msgid "View Normal Limit"
 msgstr "Giới Hạn Pháp Tuyến Góc Nhìn"
 
 
+msgctxt "Color"
 msgid "Blending Mode"
 msgstr "Chế độ pha trộn"
 
@@ -18730,6 +18765,7 @@ msgid "Use Multiply blending mode while painting"
 msgstr "Dùng chế độ pha trộn nhân gấp lên (Multiply) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Color Burn"
 msgstr "Đốt Cháy Màu"
 
@@ -18738,6 +18774,7 @@ msgid "Use Color Burn blending mode while painting"
 msgstr "Dùng chế độ pha trộn Đốt Cháy Màu (Color Burn) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Linear Burn"
 msgstr "Đốt Cháy Tuyến Tính"
 
@@ -18754,6 +18791,7 @@ msgid "Use Screen blending mode while painting"
 msgstr "Dùng chế độ pha trộn Màn Hình (Screen) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Color Dodge"
 msgstr "Tránh Né Màu"
 
@@ -18774,10 +18812,16 @@ msgid "Use Soft Light blending mode while painting"
 msgstr "Sử dụng chế độ pha trộn Ánh Sáng Mềm Mại (Soft Light) trong khi sơn"
 
 
+msgctxt "Color"
+msgid "Hard Light"
+msgstr "Ánh Sáng Mạnh"
+
+
 msgid "Use Hard Light blending mode while painting"
 msgstr "Dùng chế độ pha trộn Ánh Sáng Đường Đột/Cứng/Mạnh (Hard Light) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Vivid Light"
 msgstr "Ánh Sáng Rực Rỡ"
 
@@ -18790,6 +18834,7 @@ msgid "Use Linear Light blending mode while painting"
 msgstr "Sử dụng chế độ pha trộn Ánh Sáng Tiếp Tuyến (Linear Light) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Pin Light"
 msgstr "Ánh Sáng Hội Tụ"
 
@@ -18802,6 +18847,7 @@ msgid "Use Difference blending mode while painting"
 msgstr "Dùng chế độ pha trộn Hiệu Số (Difference) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Exclusion"
 msgstr "Loại Trừ"
 
@@ -18830,16 +18876,8 @@ msgid "Use Value blending mode while painting"
 msgstr "Sử dụng chế độ pha trộn Giá Trị (Value) trong khi sơn"
 
 
-msgid "Erase Alpha"
-msgstr "Xóa Alpha"
-
-
 msgid "Erase alpha while painting"
 msgstr "Xóa alpha trong khi sơn"
-
-
-msgid "Add Alpha"
-msgstr "Thêm Alpha"
 
 
 msgid "Add alpha while painting"
@@ -32873,6 +32911,14 @@ msgid "Specify how the modifier value is blended into the base value"
 msgstr "Xác định phương pháp pha trộn giá trị của bộ điều chỉnh với giá trị cơ sở"
 
 
+msgid "Mix"
+msgstr "Hòa Trộn"
+
+
+msgid "Difference"
+msgstr "Hiệu"
+
+
 msgid "Curve used for the curve mapping"
 msgstr "Đường cong dùng để ánh xạ đường cong"
 
@@ -33079,6 +33125,42 @@ msgstr "Loại cơ sở để xác định bộ điều chỉnh màu nét"
 
 msgid "Change line color along stroke"
 msgstr "Đổi màu dọc theo nét vẽ"
+
+
+msgid "Darken"
+msgstr "Làm Tối"
+
+
+msgid "Color Burn"
+msgstr "Đốt Cháy Màu"
+
+
+msgid "Lighten"
+msgstr "Làm Sáng"
+
+
+msgid "Screen"
+msgstr "Màn Hình"
+
+
+msgid "Color Dodge"
+msgstr "Tránh Né Màu"
+
+
+msgid "Overlay"
+msgstr "Vẽ Lồng"
+
+
+msgid "Soft Light"
+msgstr "Ánh Sáng Mềm Mại"
+
+
+msgid "Linear Light"
+msgstr "Ánh Sáng Tuyến Tính"
+
+
+msgid "Exclusion"
+msgstr "Loại Trừ"
 
 
 msgid "Color ramp used to change line color"
@@ -34253,8 +34335,16 @@ msgid "Editor menu containing buttons"
 msgstr "Trình đơn của trình biên soạn có chứa các nút"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Read"
 msgstr "Đọc"
+
+
+msgid "Rigid Body"
+msgstr "Thân Cứng"
 
 
 msgid "Write"
@@ -34265,172 +34355,8 @@ msgid "Sample"
 msgstr "Lấy Mẫu Vật"
 
 
-msgid "Clean Up"
-msgstr "Dọn Dẹp"
-
-
 msgid "Primitives"
 msgstr "Hình Cơ Bản"
-
-
-msgid "Show/Hide"
-msgstr "Hiện/Ẩn Giấu"
-
-
-msgid "Special Characters"
-msgstr "Các Ký Tự Đặc Biệt"
-
-
-msgid "Kerning"
-msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
-
-
-msgid "Metaball"
-msgstr "Siêu Cầu"
-
-
-msgid "Names"
-msgstr "Tên"
-
-
-msgid "Bone Roll"
-msgstr "Lăn Xương"
-
-
-msgid "Pivot Point"
-msgstr "Điểm Tựa"
-
-
-msgid "Snap"
-msgstr "Bám Dính"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
-
-
-msgid "Mask Edit"
-msgstr "Biên Soạn Màn Chắn Lọc"
-
-
-msgid "Automasking"
-msgstr "Tự Động Chắn Lọc"
-
-
-msgid "Face Sets Edit"
-msgstr "Biên Soạn các Mặt Ấn Định"
-
-
-msgid "Vertex Group Locks"
-msgstr "Khóa của Nhóm Điểm Đỉnh"
-
-
-msgid "Layout"
-msgstr "Bố Trí"
-
-
-msgid "Mirror"
-msgstr "Phản Chiếu Đối Xứng"
-
-
-msgid "UV Mapping"
-msgstr "Ánh Xạ UV"
-
-
-msgid "Local View"
-msgstr "Góc Nhìn Cục Bộ"
-
-
-msgid "Render Preview"
-msgstr "Góc Nhìn Kết Xuất"
-
-
-msgid "Viewpoint"
-msgstr "Điểm Nhìn"
-
-
-msgid "Navigation"
-msgstr "Điều Hướng"
-
-
-msgid "Align View"
-msgstr "Căn Chỉnh Góc Nhìn"
-
-
-msgid "Align View to Active"
-msgstr "Căn Chỉnh Góc Nhìn vào cái đang Hoạt Động"
-
-
-msgid "View Regions"
-msgstr "Vùng Góc Nhìn"
-
-
-msgid "Select More/Less"
-msgstr "Tăng/Giảm Lựa Chọn"
-
-
-msgid "Adjust"
-msgstr "Điều Chỉnh"
-
-
-msgid "Select Similar"
-msgstr "Chọn Tương Tự"
-
-
-msgid "Select All by Trait"
-msgstr "Chọn Toàn Bộ theo Đặc Điểm"
-
-
-msgid "Keying"
-msgstr "Khóa Hóa"
-
-
-msgid "Select Linked"
-msgstr "Chọn cái Kết Nối"
-
-
-msgid "Tracking"
-msgstr "Giám Sát"
-
-
-msgid "Select Loops"
-msgstr "Chọn Vòng Mạch"
-
-
-msgid "Utilities"
-msgstr "Thường Trình"
-
-
-msgid "Math"
-msgstr "Toán"
-
-
-msgid "Creative"
-msgstr "Kiến Tạo"
-
-
-msgid "Assign Material"
-msgstr "Ấn Định Nguyên Vật Liệu"
-
-
-msgid "Light"
-msgstr "Nguồn/Ánh Sáng/Đèn"
-
-
-msgid "Light Probe"
-msgstr "Đầu Dò Ánh Sáng"
-
-
-msgid "Add Image"
-msgstr "Thêm Hình Ảnh"
-
-
-msgid "Relations"
-msgstr "Mối Quan Hệ"
-
-
-msgid "Rigid Body"
-msgstr "Thân Cứng"
 
 
 msgid "Apply"
@@ -34443,6 +34369,14 @@ msgstr "Giám Sát"
 
 msgid "Quick Effects"
 msgstr "Hiệu Ứng Nhanh"
+
+
+msgid "Show/Hide"
+msgstr "Hiện/Ẩn Giấu"
+
+
+msgid "Clean Up"
+msgstr "Dọn Dẹp"
 
 
 msgid "Asset"
@@ -34463,6 +34397,10 @@ msgstr "Kết Nối/Thuyên Chuyển Dữ Liệu"
 
 msgid "Hooks"
 msgstr "Móc"
+
+
+msgid "Vertex Group Locks"
+msgstr "Khóa của Nhóm Điểm Đỉnh"
 
 
 msgid "Trim/Add"
@@ -34497,12 +34435,8 @@ msgid "Bone Collections"
 msgstr "Bộ Sưu Tập Xương"
 
 
-msgid "Gizmo"
-msgstr "Dụng Cụ"
-
-
-msgid "Instances"
-msgstr "Thực Thể"
+msgid "Names"
+msgstr "Tên"
 
 
 msgid "Toggle Bone Options"
@@ -34515,10 +34449,6 @@ msgstr "Bật các Tùy Chọn về Xương"
 
 msgid "Disable Bone Options"
 msgstr "Tắt các Tùy Chọn về Xương"
-
-
-msgid "Import"
-msgstr "Nhập Khẩu"
 
 
 msgid "Mesh Select Mode"
@@ -34537,6 +34467,158 @@ msgid "Set Face Strength"
 msgstr "Đặt Cường Độ Mặt"
 
 
+msgid "Merge"
+msgstr "Hợp Nhất"
+
+
+msgid "Layout"
+msgstr "Bố Trí"
+
+
+msgid "Render Preview"
+msgstr "Góc Nhìn Kết Xuất"
+
+
+msgid "Special Characters"
+msgstr "Các Ký Tự Đặc Biệt"
+
+
+msgid "Kerning"
+msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
+
+
+msgid "Metaball"
+msgstr "Siêu Cầu"
+
+
+msgid "Adjust"
+msgstr "Điều Chỉnh"
+
+
+msgid "Keying"
+msgstr "Khóa Hóa"
+
+
+msgid "Bone Roll"
+msgstr "Lăn Xương"
+
+
+msgid "Tracking"
+msgstr "Giám Sát"
+
+
+msgid "Utilities"
+msgstr "Thường Trình"
+
+
+msgid "Math"
+msgstr "Toán"
+
+
+msgid "Creative"
+msgstr "Kiến Tạo"
+
+
+msgid "Pivot Point"
+msgstr "Điểm Tựa"
+
+
+msgid "Snap"
+msgstr "Bám Dính"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
+
+
+msgid "Mask Edit"
+msgstr "Biên Soạn Màn Chắn Lọc"
+
+
+msgid "Automasking"
+msgstr "Tự Động Chắn Lọc"
+
+
+msgid "Face Sets Edit"
+msgstr "Biên Soạn các Mặt Ấn Định"
+
+
+msgid "Mirror"
+msgstr "Phản Chiếu Đối Xứng"
+
+
+msgid "UV Mapping"
+msgstr "Ánh Xạ UV"
+
+
+msgid "Local View"
+msgstr "Góc Nhìn Cục Bộ"
+
+
+msgid "Viewpoint"
+msgstr "Điểm Nhìn"
+
+
+msgid "Navigation"
+msgstr "Điều Hướng"
+
+
+msgid "Align View"
+msgstr "Căn Chỉnh Góc Nhìn"
+
+
+msgid "Align View to Active"
+msgstr "Căn Chỉnh Góc Nhìn vào cái đang Hoạt Động"
+
+
+msgid "View Regions"
+msgstr "Vùng Góc Nhìn"
+
+
+msgid "Select More/Less"
+msgstr "Tăng/Giảm Lựa Chọn"
+
+
+msgid "Select Similar"
+msgstr "Chọn Tương Tự"
+
+
+msgid "Select All by Trait"
+msgstr "Chọn Toàn Bộ theo Đặc Điểm"
+
+
+msgid "Select Linked"
+msgstr "Chọn cái Kết Nối"
+
+
+msgid "Select Loops"
+msgstr "Chọn Vòng Mạch"
+
+
+msgid "Assign Material"
+msgstr "Ấn Định Nguyên Vật Liệu"
+
+
+msgid "Gizmo"
+msgstr "Dụng Cụ"
+
+
+msgid "Instances"
+msgstr "Thực Thể"
+
+
+msgid "Import"
+msgstr "Nhập Khẩu"
+
+
+msgid "Light"
+msgstr "Nguồn/Ánh Sáng/Đèn"
+
+
+msgid "Light Probe"
+msgstr "Đầu Dò Ánh Sáng"
+
+
 msgid "Deprecated"
 msgstr "Lỗi Thời"
 
@@ -34545,12 +34627,12 @@ msgid "List"
 msgstr "Nâng"
 
 
-msgid "Merge"
-msgstr "Hợp Nhất"
+msgid "Add Image"
+msgstr "Thêm Hình Ảnh"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Relations"
+msgstr "Mối Quan Hệ"
 
 
 msgid "Keyframe Insert Pie"
@@ -34780,13 +34862,13 @@ msgid "Track"
 msgstr "Dãnh"
 
 
-msgid "Node"
-msgstr "Nút"
-
-
 msgctxt "NodeTree"
 msgid "Constant"
 msgstr "Hằng Số"
+
+
+msgid "Node"
+msgstr "Nút"
 
 
 msgid "Node Color Specials"
@@ -41823,10 +41905,6 @@ msgstr "Dùng tọa độ sinh tạo địa phương của một đối tượng
 
 msgid "Use coordinates from a UV layer"
 msgstr "Sử dụng tọa độ từ một tầng lớp UV"
-
-
-msgid "Use Channel"
-msgstr "Dùng Kênh"
 
 
 msgid "Which texture channel to use for masking"
@@ -49043,6 +49121,10 @@ msgstr "Giới hạn kết quả của nút, chỉ cho phép nằm trong phạm 
 
 msgid "Mix values by a factor"
 msgstr "Hòa trộn các giá trị với nhau theo hệ số"
+
+
+msgid "Blending Mode"
+msgstr "Chế độ pha trộn"
 
 
 msgid "Clamp Factor"
@@ -62597,6 +62679,10 @@ msgid "Equalize selected keyframes' right handles"
 msgstr "Cân bằng tay cầm bên phải của các khung khóa đã chọn"
 
 
+msgid "Both"
+msgstr "Cả Hai"
+
+
 msgid "Equalize both of a keyframe's handles"
 msgstr "Cân bằng cả hai tay cầm của một khung khóa"
 
@@ -67689,10 +67775,6 @@ msgid "Only cut the front most geometry"
 msgstr "Chỉ cắt hình học nằm ở phía trước nhất mà thôi"
 
 
-msgid "Measurements"
-msgstr "Đo Lường"
-
-
 msgid "Visible distance and angle measurements"
 msgstr "Các đo lường về khoảng cách và góc độ sẽ được biểu hiện"
 
@@ -67707,6 +67789,11 @@ msgstr "Hiển thị cả hai, khoảng cách và góc độ"
 
 msgid "Show just distance measurements"
 msgstr "Chỉ hiển thị các đo lường về khoảng cách mà thôi"
+
+
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Góc Độ"
 
 
 msgid "Show just angle measurements"
@@ -70620,20 +70707,12 @@ msgid "Linear Light Mode"
 msgstr "Chế Độ Ánh Sáng Tuyến Tính"
 
 
-msgid "Current"
-msgstr "Hiện Tại"
-
-
 msgid "Leave at current state"
 msgstr "Để nguyên ở trạng thái hiện tại"
 
 
 msgid "Next blend type/operation"
 msgstr "Kiểu/thao tác pha trộn tiếp theo"
-
-
-msgid "Prev"
-msgstr "Trước"
 
 
 msgid "Previous blend type/operation"
@@ -88739,6 +88818,26 @@ msgid "Panel containing UI elements"
 msgstr "Bảng có chứa các phần tử Giao Diện Người Dùng (UI)"
 
 
+msgid "VR"
+msgstr "Virtual Reality: Thực Tế Ảo"
+
+
+msgid "VR Info"
+msgstr "Thông Tin VR"
+
+
+msgid "glTF Variants"
+msgstr "Biến Thể glTF"
+
+
+msgid "glTF Material Variants"
+msgstr "Biến Thể Nguyên Vật Liệu glTF"
+
+
+msgid "glTF Animations"
+msgstr "Hoạt Họa glTF"
+
+
 msgid "Active Tool"
 msgstr "Công Cụ đang Hoạt Động"
 
@@ -88783,14 +88882,6 @@ msgid "Guides"
 msgstr "Hướng Dẫn"
 
 
-msgid "glTF Variants"
-msgstr "Biến Thể glTF"
-
-
-msgid "glTF Material Variants"
-msgstr "Biến Thể Nguyên Vật Liệu glTF"
-
-
 msgid "Viewer Node"
 msgstr "Nút Quan Sát"
 
@@ -88813,10 +88904,6 @@ msgstr "Chế Độ Biên Soạn Đường Cong"
 
 msgid "Curves Edit Mode"
 msgstr "Chế Độ Biên Soạn Đường Cong"
-
-
-msgid "glTF Animations"
-msgstr "Hoạt Họa glTF"
 
 
 msgid "Transform Orientations"
@@ -88869,14 +88956,6 @@ msgstr "Tỷ Lệ Phình Ra/Thu Lại của Đường Cong"
 
 msgid "Viewport Debug"
 msgstr "Hiệu Chỉnh Lỗi Cổng Nhìn"
-
-
-msgid "VR"
-msgstr "Virtual Reality: Thực Tế Ảo"
-
-
-msgid "VR Info"
-msgstr "Thông Tin VR"
 
 
 msgid "Import Settings"
@@ -103024,6 +103103,10 @@ msgid "Show reference frame only"
 msgstr "Chỉ hiển thị khung hình tham khảo mà thôi"
 
 
+msgid "Current"
+msgstr "Hiện Tại"
+
+
 msgid "Show current frame only"
 msgstr "Chỉ hiển thị khung hình hiện tại mà thôi"
 
@@ -103901,11 +103984,6 @@ msgid "Type of stretch to display"
 msgstr "Thể loại kéo giãn để hiển thị"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Góc Độ"
-
-
 msgid "Angular distortion between UV and 3D angles"
 msgstr "Biến dạng của góc giữa UV và các góc 3D"
 
@@ -104386,118 +104464,8 @@ msgid "Percentage of how much the strip's colors affect other strips"
 msgstr "Lượng phần trăm mà màu của dải ảnh hưởng đến các dải khác"
 
 
-msgctxt "Color"
-msgid "Blending Mode"
-msgstr "Chế độ pha trộn"
-
-
 msgid "Method for controlling how the strip combines with other strips"
 msgstr "Phương pháp điều chế sự pha trộn của các dải phim"
-
-
-msgctxt "Color"
-msgid "Darken"
-msgstr "Làm Tối"
-
-
-msgctxt "Color"
-msgid "Multiply"
-msgstr "Nhân"
-
-
-msgctxt "Color"
-msgid "Color Burn"
-msgstr "Đốt Cháy Màu"
-
-
-msgctxt "Color"
-msgid "Linear Burn"
-msgstr "Đốt Cháy Tuyến Tính"
-
-
-msgctxt "Color"
-msgid "Lighten"
-msgstr "Làm Sáng"
-
-
-msgctxt "Color"
-msgid "Screen"
-msgstr "Màn Hình"
-
-
-msgctxt "Color"
-msgid "Color Dodge"
-msgstr "Tránh Né Màu"
-
-
-msgctxt "Color"
-msgid "Add"
-msgstr "Cộng"
-
-
-msgctxt "Color"
-msgid "Overlay"
-msgstr "Vẽ Lồng"
-
-
-msgctxt "Color"
-msgid "Soft Light"
-msgstr "Ánh Sáng Mềm Mại"
-
-
-msgctxt "Color"
-msgid "Hard Light"
-msgstr "Ánh Sáng Mạnh"
-
-
-msgctxt "Color"
-msgid "Vivid Light"
-msgstr "Ánh Sáng Rực Rỡ"
-
-
-msgctxt "Color"
-msgid "Linear Light"
-msgstr "Ánh Sáng Tuyến Tính"
-
-
-msgctxt "Color"
-msgid "Pin Light"
-msgstr "Ánh Sáng Hội Tụ"
-
-
-msgctxt "Color"
-msgid "Difference"
-msgstr "Hiệu"
-
-
-msgctxt "Color"
-msgid "Exclusion"
-msgstr "Loại Trừ"
-
-
-msgctxt "Color"
-msgid "Subtract"
-msgstr "Khấu Trừ"
-
-
-msgctxt "Color"
-msgid "Hue"
-msgstr "Sắc Màu"
-
-
-msgctxt "Color"
-msgid "Saturation"
-msgstr "Độ Bão Hòa"
-
-
-msgctxt "Color"
-msgid "Color"
-msgstr "Màu"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "Giá Trị"
 
 
 msgid "Strip Color"
@@ -128756,10 +128724,6 @@ msgid "Lightness:"
 msgstr "Độ Sáng:"
 
 
-msgid "Value:"
-msgstr "Giá Trị:"
-
-
 msgid "Alpha:"
 msgstr "Độ Đục:"
 
@@ -133190,6 +133154,10 @@ msgstr "Biểu Thức:"
 
 msgid "Add Input Variable"
 msgstr "Thêm Biến Số Đầu Vào"
+
+
+msgid "Value:"
+msgstr "Giá Trị:"
 
 
 msgid "Update Dependencies"

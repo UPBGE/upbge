@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -4163,18 +4163,6 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor der Vereinfachung mit adaptivem Algorithmus"
 
 
-msgid "Stroke"
-msgstr "Pinselstrich"
-
-
-msgid "Fill"
-msgstr "Füllen"
-
-
-msgid "Both"
-msgstr "Beides"
-
-
 msgid "Active Layer"
 msgstr "Aktive Ebene"
 
@@ -4323,8 +4311,16 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Definiert, wie sich die Eckpunktfarbe auf die Striche auswirkt"
 
 
+msgid "Stroke"
+msgstr "Pinselstrich"
+
+
 msgid "Vertex Color affects to Stroke only"
 msgstr "Eckpunktfarbe wirkt sich nur auf Strich aus"
+
+
+msgid "Fill"
+msgstr "Füllen"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -5551,48 +5547,8 @@ msgid "Blend Factor"
 msgstr "Mischfaktor"
 
 
-msgid "Blend Type"
-msgstr "Überblendungstyp"
-
-
 msgid "Mode used to mix with texture output color"
 msgstr "Modus der verwendet wird, um die Texturausgabefarbe zu mischen"
-
-
-msgid "Mix"
-msgstr "Mischen"
-
-
-msgid "Darken"
-msgstr "Abdunkeln"
-
-
-msgid "Lighten"
-msgstr "Aufhellen"
-
-
-msgid "Screen"
-msgstr "Negativ Multiplizieren"
-
-
-msgid "Overlay"
-msgstr "Überlagern"
-
-
-msgid "Soft Light"
-msgstr "Weiches Licht"
-
-
-msgid "Linear Light"
-msgstr "Lineares Licht"
-
-
-msgid "Difference"
-msgstr "Differenz"
-
-
-msgid "Divide"
-msgstr "Dividieren"
 
 
 msgid "Brightness"
@@ -9371,6 +9327,10 @@ msgid "Noise F-Modifier"
 msgstr "Modifikator entfernen"
 
 
+msgid "Blend Type"
+msgstr "Überblendungstyp"
+
+
 msgid "Lacunarity"
 msgstr "Lückenhaftigkeit"
 
@@ -11285,6 +11245,10 @@ msgid "Blend mode"
 msgstr "Mischmodus"
 
 
+msgid "Divide"
+msgstr "Dividieren"
+
+
 msgid "Local Matrix"
 msgstr "Lokale Matrix"
 
@@ -11522,10 +11486,6 @@ msgid "Propagation Steps"
 msgstr "Propagationsschritte"
 
 
-msgid "Blending Mode"
-msgstr "Überblendungsmodus"
-
-
 msgid "Brush blending mode"
 msgstr "Pinsel-Überblendungsmodus"
 
@@ -11558,10 +11518,6 @@ msgid "Use Screen blending mode while painting"
 msgstr "Bildschirm-Überblendenmodus während des Malens verwenden"
 
 
-msgid "Color Dodge"
-msgstr "Farbdodge"
-
-
 msgid "Use Color Dodge blending mode while painting"
 msgstr "Verwenden des Color Dodge-Mischmodus beim Malen"
 
@@ -11590,20 +11546,12 @@ msgid "Use Linear Light blending mode while painting"
 msgstr "Verwenden Sie den linearen Licht-Mischmodus beim Malen"
 
 
-msgid "Pin Light"
-msgstr "Licht anpinnen"
-
-
 msgid "Use Pin Light blending mode while painting"
 msgstr "Verwenden Sie den Pin Licht-Mischmodus beim Malen"
 
 
 msgid "Use Difference blending mode while painting"
 msgstr "Verwenden des Differenzmischmodus beim Malen"
-
-
-msgid "Exclusion"
-msgstr "Ausgrenzung"
 
 
 msgid "Use Exclusion blending mode while painting"
@@ -11628,14 +11576,6 @@ msgstr "Verwenden des Farbmischmodus beim Malen"
 
 msgid "Use Value blending mode while painting"
 msgstr "Verwenden des Wertmischmodus beim Malen"
-
-
-msgid "Erase Alpha"
-msgstr "Alpha radieren"
-
-
-msgid "Add Alpha"
-msgstr "Alpha hinzufügen"
 
 
 msgid "Kernel Radius"
@@ -18161,6 +18101,14 @@ msgid "Name of the modifier"
 msgstr "Name des Modifikators"
 
 
+msgid "Mix"
+msgstr "Mischen"
+
+
+msgid "Difference"
+msgstr "Differenz"
+
+
 msgid "Mapping"
 msgstr "Mapping"
 
@@ -18227,6 +18175,38 @@ msgstr "Zeitraum des Rauschens"
 
 msgid "Seed for the noise generation"
 msgstr "Samen für die Geräuschentwicklung"
+
+
+msgid "Darken"
+msgstr "Abdunkeln"
+
+
+msgid "Lighten"
+msgstr "Aufhellen"
+
+
+msgid "Screen"
+msgstr "Negativ Multiplizieren"
+
+
+msgid "Color Dodge"
+msgstr "Farbdodge"
+
+
+msgid "Overlay"
+msgstr "Überlagern"
+
+
+msgid "Soft Light"
+msgstr "Weiches Licht"
+
+
+msgid "Linear Light"
+msgstr "Lineares Licht"
+
+
+msgid "Exclusion"
+msgstr "Ausgrenzung"
 
 
 msgid "2D Offset"
@@ -18710,8 +18690,16 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Read"
 msgstr "Lesen"
+
+
+msgid "Rigid Body"
+msgstr "Rigid Body"
 
 
 msgid "Write"
@@ -18722,16 +18710,92 @@ msgid "Sample"
 msgstr "Beispiel"
 
 
-msgid "Clean Up"
-msgstr "Aufräumen"
-
-
 msgid "Primitives"
 msgstr "Grundkörper"
 
 
+msgid "Apply"
+msgstr "Anwenden"
+
+
+msgid "Track"
+msgstr "Spur"
+
+
+msgid "Quick Effects"
+msgstr "Schnelle Effekte"
+
+
 msgid "Show/Hide"
 msgstr "Zeigen/Verbergen"
+
+
+msgid "Clean Up"
+msgstr "Aufräumen"
+
+
+msgid "Asset"
+msgstr "Asset"
+
+
+msgid "Make Single User"
+msgstr "Einfachen Benutzer erzeugen"
+
+
+msgid "Convert"
+msgstr "Konvertieren"
+
+
+msgid "Hooks"
+msgstr "Haken"
+
+
+msgid "Vertex Group Locks"
+msgstr "Punktgruppen sperren"
+
+
+msgid "Random Mask"
+msgstr "Zufällige Maske"
+
+
+msgid "Clear Transform"
+msgstr "Transformation löschen"
+
+
+msgid "In-Betweens"
+msgstr "Dazwischen"
+
+
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Toggle Bone Options"
+msgstr "Knochen-Optionen umschalten"
+
+
+msgid "Enable Bone Options"
+msgstr "Knochen-Optionen einschalten"
+
+
+msgid "Disable Bone Options"
+msgstr "Knochen-Optionen ausschalten"
+
+
+msgid "Mesh Select Mode"
+msgstr "Maschenauswahlmodus"
+
+
+msgid "Face Data"
+msgstr "Flächendaten"
+
+
+msgid "Merge"
+msgstr "Zusammenführen"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Special Characters"
@@ -18746,8 +18810,16 @@ msgid "Metaball"
 msgstr "Metaball"
 
 
-msgid "Names"
-msgstr "Namen"
+msgid "Keying"
+msgstr "Schlüsselbilder"
+
+
+msgid "Tracking"
+msgstr "Verfolgen"
+
+
+msgid "Math"
+msgstr "Mathematisch"
 
 
 msgid "Pivot Point"
@@ -18764,14 +18836,6 @@ msgstr "Proportionaler Bearbeitungsabfall"
 
 msgid "Mask Edit"
 msgstr "Maskenbearbeitung"
-
-
-msgid "Vertex Group Locks"
-msgstr "Punktgruppen sperren"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Mirror"
@@ -18814,28 +18878,24 @@ msgid "Select All by Trait"
 msgstr "Alles nach Merkmal auswählen"
 
 
-msgid "Keying"
-msgstr "Schlüsselbilder"
-
-
 msgid "Select Linked"
 msgstr "Verknüpfte auswählen"
-
-
-msgid "Tracking"
-msgstr "Verfolgen"
 
 
 msgid "Select Loops"
 msgstr "Schleifen auswählen"
 
 
-msgid "Math"
-msgstr "Mathematisch"
-
-
 msgid "Assign Material"
 msgstr "Material zuweisen"
+
+
+msgid "Instances"
+msgstr "Instanzen"
+
+
+msgid "Import"
+msgstr "Importieren"
 
 
 msgid "Light"
@@ -18852,86 +18912,6 @@ msgstr "Bild hinzufügen"
 
 msgid "Relations"
 msgstr "Beziehungen"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
-
-
-msgid "Apply"
-msgstr "Anwenden"
-
-
-msgid "Track"
-msgstr "Spur"
-
-
-msgid "Quick Effects"
-msgstr "Schnelle Effekte"
-
-
-msgid "Asset"
-msgstr "Asset"
-
-
-msgid "Make Single User"
-msgstr "Einfachen Benutzer erzeugen"
-
-
-msgid "Convert"
-msgstr "Konvertieren"
-
-
-msgid "Hooks"
-msgstr "Haken"
-
-
-msgid "Random Mask"
-msgstr "Zufällige Maske"
-
-
-msgid "Clear Transform"
-msgstr "Transformation löschen"
-
-
-msgid "In-Betweens"
-msgstr "Dazwischen"
-
-
-msgid "Instances"
-msgstr "Instanzen"
-
-
-msgid "Toggle Bone Options"
-msgstr "Knochen-Optionen umschalten"
-
-
-msgid "Enable Bone Options"
-msgstr "Knochen-Optionen einschalten"
-
-
-msgid "Disable Bone Options"
-msgstr "Knochen-Optionen ausschalten"
-
-
-msgid "Import"
-msgstr "Importieren"
-
-
-msgid "Mesh Select Mode"
-msgstr "Maschenauswahlmodus"
-
-
-msgid "Face Data"
-msgstr "Flächendaten"
-
-
-msgid "Merge"
-msgstr "Zusammenführen"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Assets"
@@ -21620,10 +21600,6 @@ msgid "Use coordinates from a UV layer"
 msgstr "Koordinaten von einer UV-Ebene verwenden"
 
 
-msgid "Use Channel"
-msgstr "Kanal verwenden"
-
-
 msgid "Masking Tex"
 msgstr "Textur maskieren"
 
@@ -23984,6 +23960,10 @@ msgstr "Konvertiere von Radiant zu Grad"
 
 msgid "Clamp result of the node to 0.0 to 1.0 range"
 msgstr "Resultat der Knoten in einer Spanne von 0.0 bis 1.0 halten"
+
+
+msgid "Blending Mode"
+msgstr "Überblendungsmodus"
 
 
 msgid "Include alpha of second input in this operation"
@@ -29165,6 +29145,10 @@ msgid "Side"
 msgstr "Seite"
 
 
+msgid "Both"
+msgstr "Beides"
+
+
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "F-Kurven Modifikator hinzufügen"
@@ -31012,10 +30996,6 @@ msgid "Only cut selected geometry"
 msgstr "Zwischen ausgewählten Markierungen"
 
 
-msgid "Measurements"
-msgstr "Messungen"
-
-
 msgid "X-Ray"
 msgstr "Röntgen"
 
@@ -32193,10 +32173,6 @@ msgstr "Option"
 
 msgid "Overlay Mode"
 msgstr "Überlagerungsmodus"
-
-
-msgid "Current"
-msgstr "Aktuelle Szene"
 
 
 msgid "BMP"
@@ -38815,6 +38791,10 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
+msgid "VR"
+msgstr "VR"
+
+
 msgid "Active Tool"
 msgstr "Aktives Werkzeug"
 
@@ -38889,10 +38869,6 @@ msgstr "Stereoskopie"
 
 msgid "Auto-Masking"
 msgstr "Automatisches Maskieren"
-
-
-msgid "VR"
-msgstr "VR"
 
 
 msgid "Chain Scaling"
@@ -45143,6 +45119,10 @@ msgstr "Streifenmodifikator"
 
 msgid "Show reference frame only"
 msgstr "Python-Referenzen in Tooltips zeigen"
+
+
+msgid "Current"
+msgstr "Aktuelle Szene"
 
 
 msgid "Show current frame only"
@@ -54304,10 +54284,6 @@ msgid "%d items"
 msgstr "%d Gegenstände"
 
 
-msgid "Value:"
-msgstr "Wert:"
-
-
 msgid "Hex"
 msgstr "Hex"
 
@@ -55912,6 +55888,10 @@ msgstr "Ausdruck:"
 
 msgid "Add Input Variable"
 msgstr "Eingabewert hinzufügen"
+
+
+msgid "Value:"
+msgstr "Wert:"
 
 
 msgid "Update Dependencies"

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -155,10 +155,6 @@ msgid "Fill"
 msgstr "Συμπλήρωμα"
 
 
-msgid "Both"
-msgstr "Both"
-
-
 msgid "Crop"
 msgstr "Περικοπή"
 
@@ -189,14 +185,6 @@ msgstr "Γάμμα"
 
 msgid "View"
 msgstr "View"
-
-
-msgid "Mix"
-msgstr "Μείξη"
-
-
-msgid "Screen"
-msgstr "Οθόνη"
 
 
 msgid "Near"
@@ -523,24 +511,12 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Metaball"
-msgstr "Μετα-σφαίρα"
+msgid "Mix"
+msgstr "Μείξη"
 
 
-msgid "Snap"
-msgstr "Προσκόλληση"
-
-
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
-
-
-msgid "Select Linked"
-msgstr "Επιλογή Συνδεδεμένων"
-
-
-msgid "Light"
-msgstr "Φως"
+msgid "Screen"
+msgstr "Οθόνη"
 
 
 msgid "Rigid Body"
@@ -559,12 +535,32 @@ msgid "Make Single User"
 msgstr "Ορισμός Ενός Χρήστη"
 
 
+msgid "Merge"
+msgstr "Συγχώνευση"
+
+
+msgid "Metaball"
+msgstr "Μετα-σφαίρα"
+
+
+msgid "Snap"
+msgstr "Προσκόλληση"
+
+
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
+
+
+msgid "Select Linked"
+msgstr "Επιλογή Συνδεδεμένων"
+
+
 msgid "Import"
 msgstr "Εισαγωγή"
 
 
-msgid "Merge"
-msgstr "Συγχώνευση"
+msgid "Light"
+msgstr "Φως"
 
 
 msgid "Cache"
@@ -735,6 +731,10 @@ msgstr "Διατήρηση Αρχικού"
 
 msgid "Open"
 msgstr "Άνοιγμα"
+
+
+msgid "Both"
+msgstr "Both"
 
 
 msgid "Next Keyframe"

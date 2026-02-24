@@ -1575,23 +1575,25 @@ Array<PointTransferData> compute_topology_change(
            src_attributes, dst_attributes, {bke::AttrDomain::Point}))
   {
     bke::attribute_math::to_static_type(attribute.dst.span.type(), [&]<typename T>() {
-      auto src_attr = attribute.src.typed<T>();
-      auto dst_attr = attribute.dst.span.typed<T>();
+      if constexpr (!std::is_same_v<T, std::string>) {
+        auto src_attr = attribute.src.typed<T>();
+        auto dst_attr = attribute.dst.span.typed<T>();
 
-      threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points) {
-        for (const int dst_point : dst_points) {
-          const PointTransferData &point_transfer = dst_transfer_data[dst_point];
-          if (point_transfer.is_src_point) {
-            dst_attr[dst_point] = src_attr[point_transfer.src_point];
+        threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points) {
+          for (const int dst_point : dst_points) {
+            const PointTransferData &point_transfer = dst_transfer_data[dst_point];
+            if (point_transfer.is_src_point) {
+              dst_attr[dst_point] = src_attr[point_transfer.src_point];
+            }
+            else {
+              dst_attr[dst_point] = bke::attribute_math::mix2<T>(
+                  point_transfer.factor,
+                  src_attr[point_transfer.src_point],
+                  src_attr[point_transfer.src_next_point]);
+            }
           }
-          else {
-            dst_attr[dst_point] = bke::attribute_math::mix2<T>(
-                point_transfer.factor,
-                src_attr[point_transfer.src_point],
-                src_attr[point_transfer.src_next_point]);
-          }
-        }
-      });
+        });
+      }
 
       attribute.dst.finish();
     });

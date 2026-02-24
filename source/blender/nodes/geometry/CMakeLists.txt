@@ -233,6 +233,7 @@ set(SRC
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
   nodes/node_geo_set_curve_normal.cc
+  nodes/node_geo_set_curve_order.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_bundle.cc

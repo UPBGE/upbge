@@ -344,14 +344,16 @@ static void mix_attrs(const Span<GSpan> src,
 {
   for (const int attr : src.index_range()) {
     attribute_math::to_static_type(src[attr].type(), [&]<typename T>() {
-      const Span<T> src_attr = src[attr].typed<T>();
-      MutableSpan<T> dst_attr = dst[attr].typed<T>();
-      if constexpr (std::is_same_v<T, bool>) {
-        dst_attr[dst_index] = mix_bools(src_attr, src_indices, {1.0f - factor, factor});
-      }
-      else {
-        dst_attr[dst_index] = attribute_math::mix2(
-            factor, src_attr[src_indices[0]], src_attr[src_indices[1]]);
+      if constexpr (!std::is_same_v<T, std::string>) {
+        const Span<T> src_attr = src[attr].typed<T>();
+        MutableSpan<T> dst_attr = dst[attr].typed<T>();
+        if constexpr (std::is_same_v<T, bool>) {
+          dst_attr[dst_index] = mix_bools(src_attr, src_indices, {1.0f - factor, factor});
+        }
+        else {
+          dst_attr[dst_index] = attribute_math::mix2(
+              factor, src_attr[src_indices[0]], src_attr[src_indices[1]]);
+        }
       }
     });
   }
@@ -365,17 +367,19 @@ static void mix_attrs(const Span<GSpan> src,
 {
   for (const int attr : src.index_range()) {
     attribute_math::to_static_type(src[attr].type(), [&]<typename T>() {
-      const Span<T> src_attr = src[attr].typed<T>();
-      MutableSpan<T> dst_attr = dst[attr].typed<T>();
-      if constexpr (std::is_same_v<T, bool>) {
-        dst_attr[dst_index] = mix_bools(src_attr, src_indices, {&weights.x, 4});
-      }
-      else {
-        dst_attr[dst_index] = attribute_math::mix4(weights,
-                                                   src_attr[src_indices[0]],
-                                                   src_attr[src_indices[1]],
-                                                   src_attr[src_indices[2]],
-                                                   src_attr[src_indices[3]]);
+      if constexpr (!std::is_same_v<T, std::string>) {
+        const Span<T> src_attr = src[attr].typed<T>();
+        MutableSpan<T> dst_attr = dst[attr].typed<T>();
+        if constexpr (std::is_same_v<T, bool>) {
+          dst_attr[dst_index] = mix_bools(src_attr, src_indices, {&weights.x, 4});
+        }
+        else {
+          dst_attr[dst_index] = attribute_math::mix4(weights,
+                                                     src_attr[src_indices[0]],
+                                                     src_attr[src_indices[1]],
+                                                     src_attr[src_indices[2]],
+                                                     src_attr[src_indices[3]]);
+        }
       }
     });
   }
@@ -401,9 +405,11 @@ static void mix_attrs(const Span<GSpan> src,
 {
   for (const int attr : src.index_range()) {
     attribute_math::to_static_type(src[attr].type(), [&]<typename T>() {
-      const Span<T> src_attr = src[attr].typed<T>();
-      MutableSpan<T> dst_attr = dst[attr].typed<T>();
-      dst_attr[dst_index] = mix_attr(src_attr, src_indices, weights);
+      if constexpr (!std::is_same_v<T, std::string>) {
+        const Span<T> src_attr = src[attr].typed<T>();
+        MutableSpan<T> dst_attr = dst[attr].typed<T>();
+        dst_attr[dst_index] = mix_attr(src_attr, src_indices, weights);
+      }
     });
   }
 }

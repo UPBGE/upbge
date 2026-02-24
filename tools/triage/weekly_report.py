@@ -147,7 +147,7 @@ def report_personal_weekly_get(
     issues_commented: set[str] = set()
     issues_created: set[str] = set()
 
-    pulls_reviewed: list[str] = []
+    pulls_reviewed: set[str] = set()
 
     issues_confirmed: list[str] = []
     issues_needing_user_info: list[str] = []
@@ -205,7 +205,7 @@ def report_personal_weekly_get(
                 pulls_created.add(fullname)
             elif op_type in {"approve_pull_request", "reject_pull_request"}:
                 fullname = activity["repo"]["full_name"] + "/pulls/" + activity["content"].split('|')[0]
-                pulls_reviewed.append(fullname)
+                pulls_reviewed.add(fullname)
             elif op_type == "commit_repo":
                 if (
                         activity["content"] and
@@ -336,7 +336,7 @@ def report_personal_weekly_get(
         if pull_events:
             pull_data = gitea_json_issue_get_cached(pull)
             if pull_data["user"]["login"] != username:
-                pulls_reviewed.append(pull)
+                pulls_reviewed.add(pull)
 
     # Print triaging stats
 
@@ -357,11 +357,22 @@ def report_personal_weekly_get(
 
     # Print review stats
     def print_pulls(pulls: Iterable[str]) -> None:
+        display_list = []
+
         for pull in pulls:
             pull_data = gitea_json_issue_get_cached(pull)
-            title = pull_data["title"]
             owner, repo, _, number = pull.split('/')
-            print(f"* {title} ({owner}/{repo}!{number})")
+
+            display_list.append({
+                "title": pull_data["title"],
+                "formatted_ref": f"{owner}/{repo}!{number}"
+            })
+
+        # Sort the list by the "title" key. Use .lower() to ensure case insensitiveness.
+        display_list.sort(key=lambda x: x["title"].lower())
+
+        for item in display_list:
+            print(f"* {item['title']} ({item['formatted_ref']})")
 
     print("**Review: {:d}**".format(len(pulls_reviewed)))
     print_pulls(pulls_reviewed)

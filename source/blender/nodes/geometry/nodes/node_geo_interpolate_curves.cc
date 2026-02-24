@@ -495,25 +495,27 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
         return;
       }
       bke::attribute_math::to_static_type(type, [&]<typename T>() {
-        const Span<T> src = src_generic.typed<T>();
-        MutableSpan<T> dst = dst_generic.span.typed<T>();
+        if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+          const Span<T> src = src_generic.typed<T>();
+          MutableSpan<T> dst = dst_generic.span.typed<T>();
 
-        bke::attribute_math::DefaultMixer<T> mixer(dst);
-        threading::parallel_for(child_curves.curves_range(), 256, [&](const IndexRange range) {
-          for (const int child_curve_i : range) {
-            const int neighbor_count = all_neighbor_counts[child_curve_i];
-            const IndexRange neighbors_range{child_curve_i * max_neighbors, neighbor_count};
-            const Span<float> neighbor_weights = all_neighbor_weights.slice(neighbors_range);
-            const Span<int> neighbor_indices = all_neighbor_indices.slice(neighbors_range);
+          bke::attribute_math::DefaultMixer<T> mixer(dst);
+          threading::parallel_for(child_curves.curves_range(), 256, [&](const IndexRange range) {
+            for (const int child_curve_i : range) {
+              const int neighbor_count = all_neighbor_counts[child_curve_i];
+              const IndexRange neighbors_range{child_curve_i * max_neighbors, neighbor_count};
+              const Span<float> neighbor_weights = all_neighbor_weights.slice(neighbors_range);
+              const Span<int> neighbor_indices = all_neighbor_indices.slice(neighbors_range);
 
-            for (const int neighbor_i : IndexRange(neighbor_count)) {
-              const int neighbor_index = neighbor_indices[neighbor_i];
-              const float neighbor_weight = neighbor_weights[neighbor_i];
-              mixer.mix_in(child_curve_i, src[neighbor_index], neighbor_weight);
+              for (const int neighbor_i : IndexRange(neighbor_count)) {
+                const int neighbor_index = neighbor_indices[neighbor_i];
+                const float neighbor_weight = neighbor_weights[neighbor_i];
+                mixer.mix_in(child_curve_i, src[neighbor_index], neighbor_weight);
+              }
             }
-          }
-          mixer.finalize(range);
-        });
+            mixer.finalize(range);
+          });
+        }
       });
 
       dst_generic.finish();
@@ -527,71 +529,73 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
       }
 
       bke::attribute_math::to_static_type(type, [&]<typename T>() {
-        const Span<T> src = src_generic.typed<T>();
-        MutableSpan<T> dst = dst_generic.span.typed<T>();
+        if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+          const Span<T> src = src_generic.typed<T>();
+          MutableSpan<T> dst = dst_generic.span.typed<T>();
 
-        bke::attribute_math::DefaultMixer<T> mixer(dst);
-        threading::parallel_for(child_curves.curves_range(), 256, [&](const IndexRange range) {
-          Vector<float, 16> sample_lengths;
-          Vector<int, 16> sample_segments;
-          Vector<float, 16> sample_factors;
-          for (const int child_curve_i : range) {
-            const IndexRange points = child_points_by_curve[child_curve_i];
-            const int neighbor_count = all_neighbor_counts[child_curve_i];
-            const IndexRange neighbors_range{child_curve_i * max_neighbors, neighbor_count};
-            const Span<float> neighbor_weights = all_neighbor_weights.slice(neighbors_range);
-            const Span<int> neighbor_indices = all_neighbor_indices.slice(neighbors_range);
-            const bool use_direct_interpolation =
-                use_direct_interpolation_per_child[child_curve_i];
+          bke::attribute_math::DefaultMixer<T> mixer(dst);
+          threading::parallel_for(child_curves.curves_range(), 256, [&](const IndexRange range) {
+            Vector<float, 16> sample_lengths;
+            Vector<int, 16> sample_segments;
+            Vector<float, 16> sample_factors;
+            for (const int child_curve_i : range) {
+              const IndexRange points = child_points_by_curve[child_curve_i];
+              const int neighbor_count = all_neighbor_counts[child_curve_i];
+              const IndexRange neighbors_range{child_curve_i * max_neighbors, neighbor_count};
+              const Span<float> neighbor_weights = all_neighbor_weights.slice(neighbors_range);
+              const Span<int> neighbor_indices = all_neighbor_indices.slice(neighbors_range);
+              const bool use_direct_interpolation =
+                  use_direct_interpolation_per_child[child_curve_i];
 
-            for (const int neighbor_i : IndexRange(neighbor_count)) {
-              const int neighbor_index = neighbor_indices[neighbor_i];
-              const float neighbor_weight = neighbor_weights[neighbor_i];
-              const IndexRange guide_points = guide_points_by_curve[neighbor_index];
+              for (const int neighbor_i : IndexRange(neighbor_count)) {
+                const int neighbor_index = neighbor_indices[neighbor_i];
+                const float neighbor_weight = neighbor_weights[neighbor_i];
+                const IndexRange guide_points = guide_points_by_curve[neighbor_index];
 
-              if (use_direct_interpolation) {
-                for (const int i : IndexRange(points.size())) {
-                  mixer.mix_in(points[i], src[guide_points[i]], neighbor_weight);
-                }
-              }
-              else {
-                const IndexRange guide_offsets = parameterized_guide_offsets[neighbor_index];
-                if (guide_offsets.is_empty()) {
-                  /* Single point curve. */
-                  const T &curve_value = src[guide_points.first()];
-                  for (const int i : points) {
-                    mixer.mix_in(i, curve_value, neighbor_weight);
+                if (use_direct_interpolation) {
+                  for (const int i : IndexRange(points.size())) {
+                    mixer.mix_in(points[i], src[guide_points[i]], neighbor_weight);
                   }
-                  continue;
                 }
+                else {
+                  const IndexRange guide_offsets = parameterized_guide_offsets[neighbor_index];
+                  if (guide_offsets.is_empty()) {
+                    /* Single point curve. */
+                    const T &curve_value = src[guide_points.first()];
+                    for (const int i : points) {
+                      mixer.mix_in(i, curve_value, neighbor_weight);
+                    }
+                    continue;
+                  }
 
-                const Span<float> lengths = parameterized_guide_lengths.slice(guide_offsets);
-                const float neighbor_length = lengths.last();
+                  const Span<float> lengths = parameterized_guide_lengths.slice(guide_offsets);
+                  const float neighbor_length = lengths.last();
 
-                sample_lengths.reinitialize(points.size());
-                const float sample_length_factor = math::safe_divide(neighbor_length,
-                                                                     float(points.size() - 1));
-                for (const int i : sample_lengths.index_range()) {
-                  sample_lengths[i] = i * sample_length_factor;
-                }
+                  sample_lengths.reinitialize(points.size());
+                  const float sample_length_factor = math::safe_divide(neighbor_length,
+                                                                       float(points.size() - 1));
+                  for (const int i : sample_lengths.index_range()) {
+                    sample_lengths[i] = i * sample_length_factor;
+                  }
 
-                sample_segments.reinitialize(points.size());
-                sample_factors.reinitialize(points.size());
-                length_parameterize::sample_at_lengths(
-                    lengths, sample_lengths, sample_segments, sample_factors);
+                  sample_segments.reinitialize(points.size());
+                  sample_factors.reinitialize(points.size());
+                  length_parameterize::sample_at_lengths(
+                      lengths, sample_lengths, sample_segments, sample_factors);
 
-                for (const int i : IndexRange(points.size())) {
-                  const int segment = sample_segments[i];
-                  const float factor = sample_factors[i];
-                  const T value = math::interpolate(
-                      src[guide_points[segment]], src[guide_points[segment + 1]], factor);
-                  mixer.mix_in(points[i], value, neighbor_weight);
+                  for (const int i : IndexRange(points.size())) {
+                    const int segment = sample_segments[i];
+                    const float factor = sample_factors[i];
+                    const T value = math::interpolate(
+                        src[guide_points[segment]], src[guide_points[segment + 1]], factor);
+                    mixer.mix_in(points[i], value, neighbor_weight);
+                  }
                 }
               }
             }
-          }
-          mixer.finalize(child_points_by_curve[range]);
-        });
+            mixer.finalize(child_points_by_curve[range]);
+          });
+        }
       });
 
       dst_generic.finish();

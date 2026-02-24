@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-11-11 12:13+0000\n"
 "Last-Translator: Rafael Teixeira de Avila Soares <rafaeltas@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -4072,18 +4072,6 @@ msgid "Show Lasso"
 msgstr "Mostrar Laço"
 
 
-msgid "Stroke"
-msgstr "Traços"
-
-
-msgid "Fill"
-msgstr "Preencher"
-
-
-msgid "Both"
-msgstr "Ambos"
-
-
 msgid "Active Layer"
 msgstr "Camada ativa"
 
@@ -4154,6 +4142,14 @@ msgstr "Aparar Extremidades do Traço"
 
 msgid "UV Random"
 msgstr "UV Aleatório"
+
+
+msgid "Stroke"
+msgstr "Traços"
+
+
+msgid "Fill"
+msgstr "Preencher"
 
 
 msgid "Stroke & Fill"
@@ -5076,48 +5072,8 @@ msgid "Blend Factor"
 msgstr "Fator de mesclagem"
 
 
-msgid "Blend Type"
-msgstr "Tipo de mescla"
-
-
 msgid "Mode used to mix with texture output color"
 msgstr "Modo usado para mistura com a cor de saída de textura."
-
-
-msgid "Mix"
-msgstr "Misturar"
-
-
-msgid "Darken"
-msgstr "Escurecer"
-
-
-msgid "Lighten"
-msgstr "Clarear"
-
-
-msgid "Screen"
-msgstr "Tela"
-
-
-msgid "Overlay"
-msgstr "Sobreposição"
-
-
-msgid "Soft Light"
-msgstr "Luz suave"
-
-
-msgid "Linear Light"
-msgstr "Luz linear"
-
-
-msgid "Difference"
-msgstr "Diferença"
-
-
-msgid "Divide"
-msgstr "Dividir"
 
 
 msgid "Brightness"
@@ -9488,6 +9444,10 @@ msgid "Give randomness to the modified F-Curve"
 msgstr "Fornece uma aleatorização para a curva-f modificada."
 
 
+msgid "Blend Type"
+msgstr "Tipo de mescla"
+
+
 msgid "Method of modifying the existing F-Curve"
 msgstr "Método de modificação da curva-f existente."
 
@@ -11446,6 +11406,10 @@ msgid "Hard Light"
 msgstr "Luz direta"
 
 
+msgid "Divide"
+msgstr "Dividir"
+
+
 msgid "Local Matrix"
 msgstr "Matriz local"
 
@@ -11651,32 +11615,8 @@ msgid "Brush blending mode"
 msgstr "O modo para mesclar pincéis."
 
 
-msgid "Linear Burn"
-msgstr "Queima linear"
-
-
-msgid "Vivid Light"
-msgstr "Luz vívida"
-
-
-msgid "Pin Light"
-msgstr "Afixar luz"
-
-
-msgid "Exclusion"
-msgstr "Exclusão"
-
-
-msgid "Erase Alpha"
-msgstr "Apagar alfa"
-
-
 msgid "Erase alpha while painting"
 msgstr "Apaga o alfa durante a pintura."
-
-
-msgid "Add Alpha"
-msgstr "Adicionar alfa"
 
 
 msgid "Add alpha while painting"
@@ -20126,6 +20066,14 @@ msgid "Specify how the modifier value is blended into the base value"
 msgstr "Permite a especificação de como o valor do modificador é mesclado no valor de base."
 
 
+msgid "Mix"
+msgstr "Misturar"
+
+
+msgid "Difference"
+msgstr "Diferença"
+
+
 msgid "Curve used for the curve mapping"
 msgstr "Curva usada para o mapeamento de curva."
 
@@ -20332,6 +20280,34 @@ msgstr "Tipo base para definir os modificadores de cor das linhas."
 
 msgid "Change line color along stroke"
 msgstr "Altera a cor da linha ao longo do traço."
+
+
+msgid "Darken"
+msgstr "Escurecer"
+
+
+msgid "Lighten"
+msgstr "Clarear"
+
+
+msgid "Screen"
+msgstr "Tela"
+
+
+msgid "Overlay"
+msgstr "Sobreposição"
+
+
+msgid "Soft Light"
+msgstr "Luz suave"
+
+
+msgid "Linear Light"
+msgstr "Luz linear"
+
+
+msgid "Exclusion"
+msgstr "Exclusão"
 
 
 msgid "Color ramp used to change line color"
@@ -21219,12 +21195,92 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Clean Up"
-msgstr "Limpeza"
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Rigid Body"
+msgstr "Corpo rígido"
+
+
+msgid "Apply"
+msgstr "Aplicar"
+
+
+msgid "Track"
+msgstr "Rastrear"
+
+
+msgid "Quick Effects"
+msgstr "Efeitos instantâneos"
 
 
 msgid "Show/Hide"
 msgstr "Mostrar ou ocultar"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
+msgid "Make Single User"
+msgstr "Tornar usuário único"
+
+
+msgid "Convert"
+msgstr "Converter"
+
+
+msgid "Hooks"
+msgstr "Ganchos"
+
+
+msgid "Random Mask"
+msgstr "Máscara Aleatória"
+
+
+msgid "Clear Transform"
+msgstr "Limpar transformações"
+
+
+msgid "In-Betweens"
+msgstr "Entre as continuidades"
+
+
+msgid "Propagate"
+msgstr "Propagar"
+
+
+msgid "Names"
+msgstr "Nomes"
+
+
+msgid "Toggle Bone Options"
+msgstr "Alternar opções de ossos"
+
+
+msgid "Enable Bone Options"
+msgstr "Habilitar opções de ossos"
+
+
+msgid "Disable Bone Options"
+msgstr "Desabilitar as opções de ossos"
+
+
+msgid "Mesh Select Mode"
+msgstr "Modo de seleção de malhas"
+
+
+msgid "Face Data"
+msgstr "Dados das faces"
+
+
+msgid "Merge"
+msgstr "Fundir"
+
+
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Special Characters"
@@ -21235,12 +21291,20 @@ msgid "Metaball"
 msgstr "Meta-esfera"
 
 
-msgid "Names"
-msgstr "Nomes"
+msgid "Keying"
+msgstr "Inserção de chaves"
 
 
 msgid "Bone Roll"
 msgstr "Rolagem dos ossos"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
+
+
+msgid "Math"
+msgstr "Matemática"
 
 
 msgid "Pivot Point"
@@ -21253,10 +21317,6 @@ msgstr "Atrair"
 
 msgid "Proportional Editing Falloff"
 msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "Layout"
-msgstr "Organizar"
 
 
 msgid "Mirror"
@@ -21303,24 +21363,20 @@ msgid "Select All by Trait"
 msgstr "Selecionar todos por características..."
 
 
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
 msgid "Select Linked"
 msgstr "Selecionar vinculados(as)"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
 
 
 msgid "Select Loops"
 msgstr "Selecionar anéis"
 
 
-msgid "Math"
-msgstr "Matemática"
+msgid "Instances"
+msgstr "Instâncias"
+
+
+msgid "Import"
+msgstr "Importar"
 
 
 msgid "Light"
@@ -21337,86 +21393,6 @@ msgstr "Adicionar Imagem"
 
 msgid "Relations"
 msgstr "Relações"
-
-
-msgid "Rigid Body"
-msgstr "Corpo rígido"
-
-
-msgid "Apply"
-msgstr "Aplicar"
-
-
-msgid "Track"
-msgstr "Rastrear"
-
-
-msgid "Quick Effects"
-msgstr "Efeitos instantâneos"
-
-
-msgid "Make Single User"
-msgstr "Tornar usuário único"
-
-
-msgid "Convert"
-msgstr "Converter"
-
-
-msgid "Hooks"
-msgstr "Ganchos"
-
-
-msgid "Random Mask"
-msgstr "Máscara Aleatória"
-
-
-msgid "Clear Transform"
-msgstr "Limpar transformações"
-
-
-msgid "In-Betweens"
-msgstr "Entre as continuidades"
-
-
-msgid "Propagate"
-msgstr "Propagar"
-
-
-msgid "Instances"
-msgstr "Instâncias"
-
-
-msgid "Toggle Bone Options"
-msgstr "Alternar opções de ossos"
-
-
-msgid "Enable Bone Options"
-msgstr "Habilitar opções de ossos"
-
-
-msgid "Disable Bone Options"
-msgstr "Desabilitar as opções de ossos"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Mesh Select Mode"
-msgstr "Modo de seleção de malhas"
-
-
-msgid "Face Data"
-msgstr "Dados das faces"
-
-
-msgid "Merge"
-msgstr "Fundir"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Basic"
@@ -25035,10 +25011,6 @@ msgstr "Usa as coordenadas globais"
 
 msgid "Use local generated coordinates of another object"
 msgstr "Usa as coordenadas geradas localmente de outro objeto."
-
-
-msgid "Use Channel"
-msgstr "Usar canal"
 
 
 msgid "Which texture channel to use for masking"
@@ -34475,6 +34447,10 @@ msgid "Side"
 msgstr "Lado"
 
 
+msgid "Both"
+msgstr "Ambos"
+
+
 msgctxt "Operator"
 msgid "Euler Discontinuity Filter"
 msgstr "Filtro de descontinuidade para Euler"
@@ -38783,10 +38759,6 @@ msgstr "Copia as cores para todos os nós selecionados"
 
 msgid "Overlay Mode"
 msgstr "Modo de sobreposição"
-
-
-msgid "Current"
-msgstr "Atual"
 
 
 msgid "Sign Mode"
@@ -55238,6 +55210,10 @@ msgid "Show reference frame only"
 msgstr "Mostra somente o quadro de referência."
 
 
+msgid "Current"
+msgstr "Atual"
+
+
 msgid "Show current frame only"
 msgstr "Mostra somente o quadro atual."
 
@@ -63478,10 +63454,6 @@ msgid "%d items"
 msgstr "%d itens"
 
 
-msgid "Value:"
-msgstr "Valor:"
-
-
 msgid "Hex"
 msgstr "Hex"
 
@@ -65401,6 +65373,10 @@ msgstr "Propriedades:"
 
 msgid "Driver Value:"
 msgstr "Valor de controlador:"
+
+
+msgid "Value:"
+msgstr "Valor:"
 
 
 msgid "Update Dependencies"

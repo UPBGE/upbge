@@ -137,9 +137,9 @@ void node_blend_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_ramp_blend_items, node->custom1, &name);
   if (!enum_label) {
-    name = N_("Unknown");
+    name = CTX_N_(BLT_I18NCONTEXT_COLOR, "Unknown");
   }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_COLOR, name), label_maxncpy);
 }
 
 void node_image_label(const bNodeTree * /*ntree*/,

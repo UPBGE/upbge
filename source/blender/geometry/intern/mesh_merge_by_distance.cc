@@ -1454,22 +1454,24 @@ static void mix_src_indices(const GSpan src_attr,
                             GMutableSpan dst_attr)
 {
   bke::attribute_math::to_static_type(src_attr.type(), [&]<typename T>() {
-    const Span<T> src = src_attr.typed<T>();
-    MutableSpan<T> dst = dst_attr.typed<T>();
-    threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
-      for (const int dst_index : range) {
-        const Span<int> src_indices = dst_to_src[dst_index];
-        if (src_indices.size() == 1) {
-          dst[dst_index] = src[src_indices.first()];
-          continue;
+    if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+      const Span<T> src = src_attr.typed<T>();
+      MutableSpan<T> dst = dst_attr.typed<T>();
+      threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
+        for (const int dst_index : range) {
+          const Span<int> src_indices = dst_to_src[dst_index];
+          if (src_indices.size() == 1) {
+            dst[dst_index] = src[src_indices.first()];
+            continue;
+          }
+          bke::attribute_math::DefaultMixer<T> mixer({&dst[dst_index], 1});
+          for (const int src_index : src_indices) {
+            mixer.mix_in(0, src[src_index]);
+          }
+          mixer.finalize();
         }
-        bke::attribute_math::DefaultMixer<T> mixer({&dst[dst_index], 1});
-        for (const int src_index : src_indices) {
-          mixer.mix_in(0, src[src_index]);
-        }
-        mixer.finalize();
-      }
-    });
+      });
+    }
   });
 }
 

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -2628,18 +2628,6 @@ msgid "Visual Aids"
 msgstr "Visuella hjälpmedel"
 
 
-msgid "Stroke"
-msgstr "Streck"
-
-
-msgid "Fill"
-msgstr "Fyll"
-
-
-msgid "Both"
-msgstr "Båda"
-
-
 msgid "Active Layer"
 msgstr "Aktivt lager"
 
@@ -2674,6 +2662,14 @@ msgstr "Använd tryck"
 
 msgid "Outline"
 msgstr "Kontur"
+
+
+msgid "Stroke"
+msgstr "Streck"
+
+
+msgid "Fill"
+msgstr "Fyll"
 
 
 msgid "Stroke & Fill"
@@ -2979,32 +2975,9 @@ msgid "Color mapping settings"
 msgstr "Inställningar för färgmappning"
 
 
-msgid "Mix"
-msgstr "Mix"
-
-
-msgid "Darken"
-msgstr "Mörka"
-
-
-msgid "Lighten"
-msgstr "Ljusare"
-
-
-msgid "Screen"
-msgstr "Skärm"
-
-
-msgid "Overlay"
-msgstr "Överlägg"
-
-
-msgid "Linear Light"
-msgstr "Linjärt ljus"
-
-
-msgid "Difference"
-msgstr "Skillnad"
+msgctxt "Color"
+msgid "Value"
+msgstr "Värde"
 
 
 msgid "Brightness"
@@ -5668,10 +5641,6 @@ msgstr "THEME20"
 
 msgid "Widgets Collection"
 msgstr "Widgetsamling"
-
-
-msgid "Add Alpha"
-msgstr "Lägg till alfa"
 
 
 msgid "Kernel Radius"
@@ -9192,6 +9161,14 @@ msgid "Along Stroke"
 msgstr "Längs streck"
 
 
+msgid "Mix"
+msgstr "Mix"
+
+
+msgid "Difference"
+msgstr "Skillnad"
+
+
 msgid "Mapping"
 msgstr "Mappning"
 
@@ -9210,6 +9187,26 @@ msgstr "Minimal vinkel"
 
 msgid "Minimum angle to modify thickness"
 msgstr "Minimal vinkel för att ändra tjocklek"
+
+
+msgid "Darken"
+msgstr "Mörka"
+
+
+msgid "Lighten"
+msgstr "Ljusare"
+
+
+msgid "Screen"
+msgstr "Skärm"
+
+
+msgid "Overlay"
+msgstr "Överlägg"
+
+
+msgid "Linear Light"
+msgstr "Linjärt ljus"
 
 
 msgid "2D Offset"
@@ -9335,24 +9332,72 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Read"
 msgstr "Läs"
+
+
+msgid "Rigid Body"
+msgstr "Rigid kropp"
 
 
 msgid "Write"
 msgstr "Skriv"
 
 
-msgid "Clean Up"
-msgstr "Städa upp"
-
-
 msgid "Primitives"
 msgstr "Primitiver"
 
 
+msgid "Apply"
+msgstr "Applicera"
+
+
+msgid "Track"
+msgstr "Spår"
+
+
+msgid "Quick Effects"
+msgstr "Snabbeffekter"
+
+
 msgid "Show/Hide"
 msgstr "Visa/dölj"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Asset"
+msgstr "Tillgång"
+
+
+msgid "Convert"
+msgstr "Konvertera"
+
+
+msgid "Link/Transfer Data"
+msgstr "Länka/överför data"
+
+
+msgid "Propagate"
+msgstr "Propagera"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Special Characters"
@@ -9363,8 +9408,16 @@ msgid "Metaball"
 msgstr "Metaboll"
 
 
-msgid "Names"
-msgstr "Namn"
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
 
 
 msgid "Pivot Point"
@@ -9373,10 +9426,6 @@ msgstr "Fast punkt"
 
 msgid "Snap"
 msgstr "Snäpp"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Mirror"
@@ -9407,68 +9456,8 @@ msgid "Select More/Less"
 msgstr "Markera mera/mindre"
 
 
-msgid "Adjust"
-msgstr "Justera"
-
-
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Math"
-msgstr "Matematik"
-
-
 msgid "Assign Material"
 msgstr "Tilldela material"
-
-
-msgid "Light"
-msgstr "Ljus"
-
-
-msgid "Light Probe"
-msgstr "Ljussond"
-
-
-msgid "Add Image"
-msgstr "Lägg till bild"
-
-
-msgid "Relations"
-msgstr "Relationer"
-
-
-msgid "Rigid Body"
-msgstr "Rigid kropp"
-
-
-msgid "Apply"
-msgstr "Applicera"
-
-
-msgid "Track"
-msgstr "Spår"
-
-
-msgid "Quick Effects"
-msgstr "Snabbeffekter"
-
-
-msgid "Asset"
-msgstr "Tillgång"
-
-
-msgid "Convert"
-msgstr "Konvertera"
-
-
-msgid "Link/Transfer Data"
-msgstr "Länka/överför data"
-
-
-msgid "Propagate"
-msgstr "Propagera"
 
 
 msgid "Instances"
@@ -9479,16 +9468,24 @@ msgid "Import"
 msgstr "Importera"
 
 
+msgid "Light"
+msgstr "Ljus"
+
+
+msgid "Light Probe"
+msgstr "Ljussond"
+
+
 msgid "Deprecated"
 msgstr "Föråldrad"
 
 
-msgid "Merge"
-msgstr "Sammanfoga"
+msgid "Add Image"
+msgstr "Lägg till bild"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Relations"
+msgstr "Relationer"
 
 
 msgid "Animals"
@@ -9605,13 +9602,13 @@ msgid "Track"
 msgstr "Spåra"
 
 
-msgid "Node"
-msgstr "Nod"
-
-
 msgctxt "NodeTree"
 msgid "Constant"
 msgstr "Konstant"
+
+
+msgid "Node"
+msgstr "Nod"
 
 
 msgid "Copy Label"
@@ -10334,10 +10331,6 @@ msgstr "Lägg till tröskelvärde"
 
 msgid "Use global coordinates"
 msgstr "Använd globala koordinater"
-
-
-msgid "Use Channel"
-msgstr "Använd kanal"
 
 
 msgid "Remove Threshold"
@@ -15633,6 +15626,10 @@ msgid "Replace Existing"
 msgstr "Ersätt befintlig"
 
 
+msgid "Both"
+msgstr "Båda"
+
+
 msgctxt "Operator"
 msgid "Hide Curves"
 msgstr "Dölj kurvor"
@@ -16862,10 +16859,6 @@ msgid "Occlude Geometry"
 msgstr "Skym struktur"
 
 
-msgid "Measurements"
-msgstr "Mått"
-
-
 msgid "Visible distance and angle measurements"
 msgstr "Synliga avstånd- och vinkelmått"
 
@@ -16880,6 +16873,11 @@ msgstr "Visa både avstånd och vinklar"
 
 msgid "Show just distance measurements"
 msgstr "Visa endast avståndsmått"
+
+
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Vinkel"
 
 
 msgid "Show just angle measurements"
@@ -17630,16 +17628,8 @@ msgid "Value Mode"
 msgstr "Värdesläge"
 
 
-msgid "Current"
-msgstr "Aktuell"
-
-
 msgid "Leave at current state"
 msgstr "Lämna vid nuvarande tillstånd"
-
-
-msgid "Prev"
-msgstr "Föreg"
 
 
 msgid "Logarithm Mode"
@@ -21264,6 +21254,10 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
+msgid "VR"
+msgstr "VR"
+
+
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -21290,10 +21284,6 @@ msgstr "Mätning"
 
 msgid "Stroke Placement"
 msgstr "Streckplacering"
-
-
-msgid "VR"
-msgstr "VR"
 
 
 msgid "Import Settings"
@@ -24213,6 +24203,10 @@ msgid "Visual Effects Properties"
 msgstr "Egenskaper för visuella effekter"
 
 
+msgid "Current"
+msgstr "Aktuell"
+
+
 msgid "Scene size"
 msgstr "Scenstorlek"
 
@@ -24317,11 +24311,6 @@ msgid "Dynamic Grid Size"
 msgstr "Dynamisk rutnätsstorlek"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Vinkel"
-
-
 msgid "Bézier U"
 msgstr "Bézier U"
 
@@ -24372,11 +24361,6 @@ msgstr "Lagerindex"
 
 msgid "Active Table"
 msgstr "Aktiv tabell"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "Värde"
 
 
 msgctxt "Sequence"
@@ -30687,10 +30671,6 @@ msgid "Lightness:"
 msgstr "Ljushet:"
 
 
-msgid "Value:"
-msgstr "Värde:"
-
-
 msgid "Alpha:"
 msgstr "Alfa:"
 
@@ -31747,6 +31727,10 @@ msgstr "Interpolation:"
 
 msgid "Driver Value:"
 msgstr "Drivarvärde:"
+
+
+msgid "Value:"
+msgstr "Värde:"
 
 
 msgid "Update Dependencies"

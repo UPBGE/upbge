@@ -126,6 +126,8 @@ if(WITH_UI_TESTS)
       --no-window-frame
       -p 0 0 800 600
       --gpu-backend ${backend}
+      # Log operator calls at a debug level so it is easier to debug runs on the buildbot that fail
+      --log "operator" --log-level "debug"
       "${EXE_PARAMS}"
       "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
       "${ARGN}"
@@ -1389,6 +1391,11 @@ endif()
 # ------------------------------------------------------------------------------
 
 if(TEST_SRC_DIR_EXISTS)
+  add_blender_test(
+    bl_voxel_remesh
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_test.py
+  )
+
   add_blender_test(
     bl_sculpt_mask
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py

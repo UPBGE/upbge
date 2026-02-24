@@ -401,7 +401,7 @@ struct Strip {
   /** List of channels for meta-strips. */
   ListBaseT<struct SeqTimelineChannel> channels = {nullptr, nullptr};
 
-  /* List of strip connections (one-way, not bidirectional). */
+  /* List of one-way strip connections (they are required to point back to this strip). */
   ListBaseT<struct StripConnection> connections = {nullptr, nullptr};
 
   /** The linked "bSound" object. */

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-02-23 10:33+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -3535,18 +3535,6 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Faktor zjednodušení pomocí adaptivního algoritmu"
 
 
-msgid "Stroke"
-msgstr "Tah"
-
-
-msgid "Fill"
-msgstr "Vyplnit"
-
-
-msgid "Both"
-msgstr "Oba"
-
-
 msgid "Active Layer"
 msgstr "Aktivní vrstva"
 
@@ -3589,6 +3577,14 @@ msgstr "Použít Sílu Tlaku"
 
 msgid "Use tablet pressure for color strength"
 msgstr "Použít tlak tabletu pro sílu bravy"
+
+
+msgid "Stroke"
+msgstr "Tah"
+
+
+msgid "Fill"
+msgstr "Vyplnit"
 
 
 msgid "Object Path"
@@ -4371,44 +4367,8 @@ msgid "Blend Factor"
 msgstr "Činitel mixování"
 
 
-msgid "Blend Type"
-msgstr "Typ mixování"
-
-
 msgid "Mode used to mix with texture output color"
 msgstr "Režim používaný ke smíchání s výstupní barvou textury"
-
-
-msgid "Mix"
-msgstr "Mix"
-
-
-msgid "Darken"
-msgstr "Ztmavit"
-
-
-msgid "Lighten"
-msgstr "Zesvětlit"
-
-
-msgid "Screen"
-msgstr "Obrazovka"
-
-
-msgid "Overlay"
-msgstr "Překrýt"
-
-
-msgid "Linear Light"
-msgstr "Lineární světlo"
-
-
-msgid "Difference"
-msgstr "Rozdíl"
-
-
-msgid "Divide"
-msgstr "Dělit"
 
 
 msgid "Brightness"
@@ -7191,6 +7151,10 @@ msgid "Give randomness to the modified F-Curve"
 msgstr "Určuje délku životnosti vlny"
 
 
+msgid "Blend Type"
+msgstr "Typ mixování"
+
+
 msgid "Phase"
 msgstr "Fáze"
 
@@ -8293,6 +8257,10 @@ msgid "Blend Mode"
 msgstr "Režim prolnutí"
 
 
+msgid "Divide"
+msgstr "Dělit"
+
+
 msgid "Local Matrix"
 msgstr "Místní matice"
 
@@ -8450,20 +8418,8 @@ msgid "Brush blending mode"
 msgstr "Boolean operace"
 
 
-msgid "Exclusion"
-msgstr "Vyloučení"
-
-
-msgid "Erase Alpha"
-msgstr "Vymazat alfu"
-
-
 msgid "Erase alpha while painting"
 msgstr "Vymazání alfa při malování"
-
-
-msgid "Add Alpha"
-msgstr "Přidat Alfu"
 
 
 msgid "Add alpha while painting"
@@ -13441,6 +13397,14 @@ msgid "Name of the modifier"
 msgstr "Název modifikátoru"
 
 
+msgid "Mix"
+msgstr "Mix"
+
+
+msgid "Difference"
+msgstr "Rozdíl"
+
+
 msgid "Mapping"
 msgstr "Mapování"
 
@@ -13511,6 +13475,30 @@ msgstr "Dolní mez vstupního rozsahu, ve které je mapování použito"
 
 msgid "Specular Hardness"
 msgstr "Speciality"
+
+
+msgid "Darken"
+msgstr "Ztmavit"
+
+
+msgid "Lighten"
+msgstr "Zesvětlit"
+
+
+msgid "Screen"
+msgstr "Obrazovka"
+
+
+msgid "Overlay"
+msgstr "Překrýt"
+
+
+msgid "Linear Light"
+msgstr "Lineární světlo"
+
+
+msgid "Exclusion"
+msgstr "Vyloučení"
 
 
 msgid "Sampling"
@@ -13834,12 +13822,64 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Clean Up"
-msgstr "Vyčistit"
+msgid "Rigid Body"
+msgstr "Tuhé Těleso"
+
+
+msgid "Apply"
+msgstr "Použít"
+
+
+msgid "Track"
+msgstr "Sledování"
+
+
+msgid "Quick Effects"
+msgstr "Rychlé Efekty"
 
 
 msgid "Show/Hide"
 msgstr "Zobrazit/skrýt"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
+msgid "Make Single User"
+msgstr "Přivlastnit"
+
+
+msgid "Hooks"
+msgstr "Háky"
+
+
+msgid "Clear Transform"
+msgstr "Vyčistit transformaci"
+
+
+msgid "Propagate"
+msgstr "Vložit"
+
+
+msgid "Names"
+msgstr "Názvy"
+
+
+msgid "Mesh Select Mode"
+msgstr "Síťový mód výběru"
+
+
+msgid "Face Data"
+msgstr "Data Ploch"
+
+
+msgid "Merge"
+msgstr "Sloučit"
+
+
+msgid "Layout"
+msgstr "Rozložení"
 
 
 msgid "Special Characters"
@@ -13850,12 +13890,24 @@ msgid "Metaball"
 msgstr "Meta objekt"
 
 
-msgid "Names"
-msgstr "Názvy"
+msgid "Keying"
+msgstr "Klíčovací sestava"
 
 
 msgid "Bone Roll"
 msgstr "Kost"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
+
+
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Pivot Point"
@@ -13868,10 +13920,6 @@ msgstr "Přichytit"
 
 msgid "Proportional Editing Falloff"
 msgstr "Způsob útlumu"
-
-
-msgid "Layout"
-msgstr "Rozložení"
 
 
 msgid "Mirror"
@@ -13894,68 +13942,12 @@ msgid "Align View"
 msgstr "Zarovnat pohled"
 
 
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
 msgid "Select Linked"
 msgstr "Vybrat Propojené"
 
 
-msgid "Tracking"
-msgstr "Sledování"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
 msgid "Assign Material"
 msgstr "Přiřadit Materiál"
-
-
-msgid "Light"
-msgstr "Světlo"
-
-
-msgid "Relations"
-msgstr "Vztahy"
-
-
-msgid "Rigid Body"
-msgstr "Tuhé Těleso"
-
-
-msgid "Apply"
-msgstr "Použít"
-
-
-msgid "Track"
-msgstr "Sledování"
-
-
-msgid "Quick Effects"
-msgstr "Rychlé Efekty"
-
-
-msgid "Make Single User"
-msgstr "Přivlastnit"
-
-
-msgid "Hooks"
-msgstr "Háky"
-
-
-msgid "Clear Transform"
-msgstr "Vyčistit transformaci"
-
-
-msgid "Propagate"
-msgstr "Vložit"
 
 
 msgid "Instances"
@@ -13966,16 +13958,12 @@ msgid "Import"
 msgstr "Importovat"
 
 
-msgid "Mesh Select Mode"
-msgstr "Síťový mód výběru"
+msgid "Light"
+msgstr "Světlo"
 
 
-msgid "Face Data"
-msgstr "Data Ploch"
-
-
-msgid "Merge"
-msgstr "Sloučit"
+msgid "Relations"
+msgstr "Vztahy"
 
 
 msgid "Basic"
@@ -15993,10 +15981,6 @@ msgstr "Použít celkové souřadnice"
 
 msgid "Use local generated coordinates of another object"
 msgstr "Odstranit označené Objekt(y)"
-
-
-msgid "Use Channel"
-msgstr "Změnit pruh"
 
 
 msgid "Which texture channel to use for masking"
@@ -21843,6 +21827,10 @@ msgid "Side"
 msgstr "Ze strany"
 
 
+msgid "Both"
+msgstr "Oba"
+
+
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Přidat modifikátor"
@@ -24470,10 +24458,6 @@ msgstr "Odstranit označené Objekt(y)"
 
 msgid "Option"
 msgstr "Možnost"
-
-
-msgid "Current"
-msgstr "Aktuální"
 
 
 msgctxt "Operator"
@@ -34825,6 +34809,10 @@ msgid "Show reference frame only"
 msgstr "Ukáže nabídky v záhlaví"
 
 
+msgid "Current"
+msgstr "Aktuální"
+
+
 msgid "Show current frame only"
 msgstr "Další klíč"
 
@@ -40732,10 +40720,6 @@ msgid "%d items"
 msgstr "%d předměty"
 
 
-msgid "Value:"
-msgstr "Hodnota:"
-
-
 msgid "OK"
 msgstr "OK"
 
@@ -41988,6 +41972,10 @@ msgstr "Prop:"
 
 msgid "Driver Value:"
 msgstr "Driver Value:"
+
+
+msgid "Value:"
+msgstr "Hodnota:"
 
 
 msgid "Update Dependencies"

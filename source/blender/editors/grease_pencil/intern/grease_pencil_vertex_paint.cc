@@ -8,6 +8,8 @@
 
 #include "BLI_math_color.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -241,7 +243,9 @@ static void GREASE_PENCIL_OT_vertex_color_hsv(wmOperatorType *ot)
       ot->srna, "mode", prop_grease_pencil_vertex_mode, int(VertexColorMode::Both), "Mode", "");
   RNA_def_float(ot->srna, "h", 0.5f, 0.0f, 1.0f, "Hue", "", 0.0f, 1.0f);
   RNA_def_float(ot->srna, "s", 1.0f, 0.0f, 2.0f, "Saturation", "", 0.0f, 2.0f);
-  RNA_def_float(ot->srna, "v", 1.0f, 0.0f, 2.0f, "Value", "", 0.0f, 2.0f);
+
+  ot->prop = RNA_def_float(ot->srna, "v", 1.0f, 0.0f, 2.0f, "Value", "", 0.0f, 2.0f);
+  RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_COLOR);
 }
 
 static wmOperatorStatus grease_pencil_vertex_paint_invert_exec(bContext *C, wmOperator *op)

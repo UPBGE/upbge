@@ -7,6 +7,7 @@ set(INC
   ..
   include
   ../intern
+  ../shader
   ../../editors/include
   ../../makesrna
   # RNA_prototypes.hh
@@ -81,6 +82,7 @@ set(LIB
   PRIVATE bf::blenloader
   PRIVATE bf::dna
   PRIVATE bf::functions
+  PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager

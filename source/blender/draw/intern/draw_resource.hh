@@ -66,8 +66,16 @@ inline void ObjectInfos::sync()
 {
   object_attrs_len = 0;
   object_attrs_offset = 0;
-
+  /* Zero-Initialize since this data might still be accesible (See #154105). */
+  orco_add = float3(0.0f);
+  orco_mul = float3(0.0f);
+  ob_color = float4(0.0f);
+  index = 0;
+  light_and_shadow_set_membership = 0;
+  random = 0.0f;
   flag = eObjectInfoFlag::OBJECT_NO_INFO;
+  shadow_terminator_normal_offset = 0.0f;
+  shadow_terminator_geometry_offset = 0.0f;
 }
 
 inline void ObjectInfos::sync(const draw::ObjectRef ref,

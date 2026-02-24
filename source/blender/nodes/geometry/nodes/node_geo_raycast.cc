@@ -5,6 +5,7 @@
 #include "DNA_mesh_types.h"
 
 #include "BKE_bvhutils.hh"
+#include "BKE_geometry_fields.hh"
 #include "BKE_mesh_sample.hh"
 
 #include "NOD_rna_define.hh"
@@ -302,10 +303,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GField field = params.extract_input<GField>("Attribute");
-  bke::SocketValueVariant bary_weights;
   bke::SocketValueVariant triangle_index_copy = triangle_index;
   switch (mapping) {
-    case GEO_NODE_RAYCAST_INTERPOLATED:
+    case GEO_NODE_RAYCAST_INTERPOLATED: {
+      bke::SocketValueVariant bary_weights;
       if (!execute_multi_function_on_value_variant(
               std::make_shared<bke::mesh_surface_sample::BaryWeightFromPositionFn>(target),
               {&hit_position, &triangle_index_copy},
@@ -317,12 +318,12 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.error_message_add(NodeWarningType::Error, std::move(error_message));
         return;
       }
-      break;
-    case GEO_NODE_RAYCAST_NEAREST:
+      bke::SocketValueVariant sampled_atribute;
       if (!execute_multi_function_on_value_variant(
-              std::make_shared<bke::mesh_surface_sample::CornerBaryWeightFromPositionFn>(target),
-              {&hit_position, &triangle_index_copy},
-              {&bary_weights},
+              std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(target),
+                                                                             std::move(field)),
+              {&triangle_index, &bary_weights},
+              {&sampled_atribute},
               params.user_data(),
               error_message))
       {
@@ -330,24 +331,39 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.error_message_add(NodeWarningType::Error, std::move(error_message));
         return;
       }
+      params.set_output("Attribute", std::move(sampled_atribute));
       break;
+    }
+    case GEO_NODE_RAYCAST_NEAREST: {
+      bke::SocketValueVariant nearest_corner;
+      if (!execute_multi_function_on_value_variant(
+              std::make_shared<bke::mesh_surface_sample::NearestCornerFromPositionFn>(target),
+              {&hit_position, &triangle_index_copy},
+              {&nearest_corner},
+              params.user_data(),
+              error_message))
+      {
+        params.set_default_remaining_outputs();
+        params.error_message_add(NodeWarningType::Error, std::move(error_message));
+        return;
+      }
+      bke::SocketValueVariant sampled_atribute;
+      if (!execute_multi_function_on_value_variant(
+              std::make_shared<bke::SampleIndexFunction>(
+                  std::move(target), std::move(field), bke::AttrDomain::Corner),
+              {&nearest_corner},
+              {&sampled_atribute},
+              params.user_data(),
+              error_message))
+      {
+        params.set_default_remaining_outputs();
+        params.error_message_add(NodeWarningType::Error, std::move(error_message));
+        return;
+      }
+      params.set_output("Attribute", std::move(sampled_atribute));
+      break;
+    }
   }
-
-  bke::SocketValueVariant sampled_atribute;
-  if (!execute_multi_function_on_value_variant(
-          std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(target),
-                                                                         std::move(field)),
-          {&triangle_index, &bary_weights},
-          {&sampled_atribute},
-          params.user_data(),
-          error_message))
-  {
-    params.set_default_remaining_outputs();
-    params.error_message_add(NodeWarningType::Error, std::move(error_message));
-    return;
-  }
-
-  params.set_output("Attribute", std::move(sampled_atribute));
 }
 
 static void node_rna(StructRNA *srna)

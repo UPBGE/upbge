@@ -37,6 +37,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph.hh"
@@ -58,7 +59,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "CLG_log.h"
+
 namespace blender {
+
+static CLG_LogRef LOG = {"io.alembic"};
 
 using Alembic::Abc::IV3fArrayProperty;
 using Alembic::Abc::ObjectHeader;
@@ -665,14 +670,17 @@ static void import_endjob(void *user_data)
     }
   }
   else {
-    Base *base;
-    LayerCollection *lc;
     const Scene *scene = data->scene;
     ViewLayer *view_layer = data->view_layer;
 
     BKE_view_layer_base_deselect_all(scene, view_layer);
 
-    lc = BKE_layer_collection_get_active(view_layer);
+    LayerCollection *lc = BKE_layer_collection_get_active_editable(view_layer);
+    if (!ID_IS_EDITABLE(lc->collection)) {
+      WM_global_report(RPT_WARNING,
+                       "Could not find an editable collection in current scene, imported data "
+                       "will not be instantiated");
+    }
 
     for (AbcObjectReader *reader : data->readers) {
       Object *ob = reader->object();
@@ -680,9 +688,17 @@ static void import_endjob(void *user_data)
     }
     /* Sync and do the view layer operations. */
     BKE_view_layer_synced_ensure(scene, view_layer);
+    bool has_instantiated_object = false;
+    bool has_uninstantiated_object = false;
     for (AbcObjectReader *reader : data->readers) {
       Object *ob = reader->object();
-      base = BKE_view_layer_base_find(view_layer, ob);
+      Base *base = BKE_view_layer_base_find(view_layer, ob);
+      if (!base) {
+        /* Object not instantiated in current viewlayer. */
+        has_uninstantiated_object = true;
+        continue;
+      }
+      has_instantiated_object = true;
       /* TODO: is setting active needed? */
       BKE_view_layer_base_select_and_set_active(view_layer, base);
 
@@ -691,6 +707,10 @@ static void import_endjob(void *user_data)
                            &ob->id,
                            ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION |
                                ID_RECALC_BASE_FLAGS);
+    }
+
+    if (has_instantiated_object && has_uninstantiated_object) {
+      CLOG_ERROR(&LOG, "Some imported objects were not instantiated, while others were");
     }
 
     DEG_id_tag_update(&data->scene->id, ID_RECALC_BASE_FLAGS);

@@ -957,8 +957,10 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
       const void *next_value = next_copy.get_single_ptr().get();
 
       bke::attribute_math::to_static_type(type, [&]<typename T>() {
-        *static_cast<T *>(prev_value) = bke::attribute_math::mix2(
-            factor, *static_cast<T *>(prev_value), *static_cast<const T *>(next_value));
+        if constexpr (!std::is_same_v<T, std::string>) {
+          *static_cast<T *>(prev_value) = bke::attribute_math::mix2(
+              factor, *static_cast<T *>(prev_value), *static_cast<const T *>(next_value));
+        }
       });
       break;
     }

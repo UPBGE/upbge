@@ -382,10 +382,10 @@ static void generator_panel_draw(const bContext *C, Panel *panel)
       char xval[32];
 
       /* The first value gets the mathematical "Constant" label. */
-      STRNCPY_UTF8(xval, N_("Constant"));
+      STRNCPY_UTF8(xval, CTX_IFACE_(BLT_I18NCONTEXT_MODIFIER, "Constant"));
 
       for (int i = 0; i < data->arraysize; i++) {
-        col.prop(ptr, prop, i, 0, UI_ITEM_NONE, IFACE_(xval), ICON_NONE);
+        col.prop(ptr, prop, i, 0, UI_ITEM_NONE, xval, ICON_NONE);
         SNPRINTF_UTF8(xval, "x^%d", i + 1);
       }
       break;

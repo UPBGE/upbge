@@ -53,7 +53,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .description(
           "If the difference in value between the color and key color is less than this "
-          "threshold, it is keyed");
+          "threshold, it is keyed")
+      .translation_context(BLT_I18NCONTEXT_COLOR);
 }
 
 using namespace blender::compositor;

@@ -524,6 +524,7 @@ struct ViewZoomData {
   float zoom;
   int launch_event;
   float location[2];
+  bool snap;
 
   /* needed for continuous zoom */
   wmTimer *timer;
@@ -556,6 +557,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   vpd->origx = event->xy[0];
   vpd->origy = event->xy[1];
   vpd->zoom = sima->zoom;
+  vpd->snap = false;
   vpd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   ui::view2d_region_to_view(
@@ -721,10 +723,6 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
   short event_code = VIEW_PASS;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
 
-  WorkspaceStatus status(C);
-  status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
-  status.item_bool(IFACE_("Precision"), event->modifier & KM_SHIFT, ICON_EVENT_SHIFT);
-
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
     event_code = VIEW_APPLY;
@@ -740,6 +738,11 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
       event_code = VIEW_CONFIRM;
     }
   }
+  else if (ELEM(event->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
+    /* Snapping should be off when the operator starts, regardless
+     * of ctrl key state. Only change with subsequent presses. */
+    vpd->snap = (event->val == KM_PRESS);
+  }
 
   switch (event_code) {
     case VIEW_APPLY: {
@@ -751,7 +754,7 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
                        (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
-                       event->modifier & KM_CTRL,
+                       vpd->snap,
                        event->modifier & KM_SHIFT);
       break;
     }
@@ -760,6 +763,10 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
       break;
     }
   }
+
+  WorkspaceStatus status(C);
+  status.item_bool(IFACE_("Snap"), vpd->snap, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Precision"), event->modifier & KM_SHIFT, ICON_EVENT_SHIFT);
 
   if ((ret & OPERATOR_RUNNING_MODAL) == 0) {
     image_view_zoom_exit(C, op, false);
