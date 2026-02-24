@@ -366,7 +366,7 @@ template<typename T, int Size> struct VecSwizzleReadWrite {
   /* VecSwizzleReadOnly<T, 4, 2, 1, 3, 0> zywx; */ \
   /* VecSwizzleReadOnly<T, 4, 2, 3, 0, 1> zwxy; */ \
   /* VecSwizzleReadOnly<T, 4, 2, 3, 1, 0> zwyx; */ \
-  /* VecSwizzleReadOnly<T, 4, 3, 0, 1, 2> wxyz; */ \
+  VecSwizzleReadOnly<T, 4, 3, 0, 1, 2> wxyz; \
   /* VecSwizzleReadOnly<T, 4, 3, 0, 2, 1> wxzy; */ \
   /* VecSwizzleReadOnly<T, 4, 3, 1, 0, 2> wyxz; */ \
   /* VecSwizzleReadOnly<T, 4, 3, 1, 2, 0> wyzx; */ \

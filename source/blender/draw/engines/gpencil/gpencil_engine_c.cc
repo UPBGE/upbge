@@ -746,8 +746,6 @@ void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
 {
   Manager *manager = DRW_manager_get();
 
-  const float clear_col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  float clear_depth = ob->is_drawmode3d ? 1.0f : 0.0f;
   bool inverted = false;
   /* OPTI(@fclem): we could optimize by only clearing if the new mask_bits does not contain all
    * the masks already rendered in the buffer, and drawing only the layers not already drawn. */
@@ -771,7 +769,8 @@ void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
 
     if (!cleared) {
       cleared = true;
-      GPU_framebuffer_clear_color_depth(this->mask_fb, clear_col, clear_depth);
+      GPU_framebuffer_clear_color_depth(
+          this->mask_fb, {1.0, 1.0, 1.0, 1.0}, ob->is_drawmode3d ? 1.0f : 0.0f);
     }
 
     tLayer *mask_layer = grease_pencil_layer_cache_get(ob, i, true);
@@ -795,7 +794,7 @@ void Instance::draw_object(View &view, tObject *ob)
 {
   Manager *manager = DRW_manager_get();
 
-  const float clear_cols[2][4] = {{0.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}};
+  const std::array<double4, 2> clear_cols = {double4{0, 0, 0, 0}, double4{1, 1, 1, 1}};
 
   GPU_debug_group_begin("GPencil Object");
 
@@ -860,18 +859,21 @@ void Instance::draw(Manager &manager)
   }
   BLI_assert(this->scene_depth_tx);
 
-  float clear_cols[2][4] = {{0.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}};
+  std::array<double4, 2> clear_cols = {double4{0.0f, 0.0f, 0.0f, 0.0f},
+                                       double4{1.0f, 1.0f, 1.0f, 1.0f}};
 
   /* Fade 3D objects. */
   if ((!this->is_render) && (this->fade_3d_object_opacity > -1.0f) && (this->obact != nullptr) &&
       ELEM(this->obact->type, OB_GREASE_PENCIL))
   {
-    float background_color[3];
+    float3 background_color;
     ED_view3d_background_color_get(this->scene, this->v3d, background_color);
     /* Blend color. */
-    interp_v3_v3v3(clear_cols[0], background_color, clear_cols[0], this->fade_3d_object_opacity);
+    background_color = math::interpolate(
+        background_color, float3(clear_cols[0]), this->fade_3d_object_opacity);
 
-    mul_v4_fl(clear_cols[1], this->fade_3d_object_opacity);
+    clear_cols[0] = double4(background_color, 0.0f);
+    clear_cols[1] = double4(float4(clear_cols[1]) * this->fade_3d_object_opacity);
   }
 
   /* Sort object by decreasing Z to avoid most of alpha ordering issues. */

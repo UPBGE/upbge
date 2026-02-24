@@ -877,9 +877,9 @@ static void rna_def_nlastrip(BlenderRNA *brna)
       "property instead.");
   RNA_def_property_update(
       prop, NC_ANIMATION | ND_NLA | NA_EDITED, "rna_NlaStrip_transform_update");
-  /* The `..._ui` properties should NOT be considered for library overrides, as they are meant to
-   * have different behavior than when setting their non-`..._ui` counterparts. */
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  /* The `..._ui` properties should NOT be considered for library overrides. But they should *act*
+   * as if they are a overridable property since from a user perspective they are. */
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
 
   prop = RNA_def_property(srna, "frame_end_ui", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "end");
@@ -892,9 +892,9 @@ static void rna_def_nlastrip(BlenderRNA *brna)
       "changed, see the \"frame_end\" property instead.");
   RNA_def_property_update(
       prop, NC_ANIMATION | ND_NLA | NA_EDITED, "rna_NlaStrip_transform_update");
-  /* The `..._ui` properties should NOT be considered for library overrides, as they are meant to
-   * have different behavior than when setting their non-`..._ui` counterparts. */
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  /* The `..._ui` properties should NOT be considered for library overrides. But they should *act*
+   * as if they are a overridable property since from a user perspective they are. */
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
 
   /* Blending */
   prop = RNA_def_property(srna, "blend_in", PROP_FLOAT, PROP_NONE);

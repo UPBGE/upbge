@@ -1365,6 +1365,11 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
 
 /* Compute-runtime (ie. NEO) version is what gets returned by sycl/L0 on Windows
  * since Windows driver 101.3268. */
+/* IMPORTANT: ocloc 101.8424 (compute-runtime version 36246) generates
+ * AoT binaries that have been manually verified compatible down to
+ * driver 101.8306 by Intel, matching lowest_supported_driver_version_win.
+ * If ocloc is upgraded again in future, this compatibility must be re-verified
+ * or the minimum version bumped. */
 static const int lowest_supported_driver_version_win = 1018306;
 #  ifdef _WIN32
 /* For Windows driver 101.8331, compute-runtime version is 35716.

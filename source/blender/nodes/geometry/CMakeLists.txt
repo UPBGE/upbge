@@ -133,6 +133,7 @@ set(SRC
   nodes/node_geo_input_curve_tilt.cc
   nodes/node_geo_input_edge_smooth.cc
   nodes/node_geo_input_face_smooth.cc
+  nodes/node_geo_input_font.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
   nodes/node_geo_input_instance_bounds.cc

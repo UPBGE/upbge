@@ -582,38 +582,6 @@ std::optional<AttrDomain> NamedLayerSelectionFieldInput::preferred_domain(
   return AttrDomain::Layer;
 }
 
-template<typename T>
-void copy_with_checked_indices(const VArray<T> &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               MutableSpan<T> dst)
-{
-  const IndexRange src_range = src.index_range();
-  devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-    mask.foreach_index(
-        [&](const int i) {
-          const int index = indices[i];
-          if (src_range.contains(index)) {
-            dst[i] = src[index];
-          }
-          else {
-            dst[i] = {};
-          }
-        },
-        exec_mode::grain_size(4096));
-  });
-}
-
-static void copy_with_checked_indices(const GVArray &src,
-                                      const VArray<int> &indices,
-                                      const IndexMask &mask,
-                                      GMutableSpan dst)
-{
-  bke::attribute_math::to_static_type(src.type(), [&]<typename T>() {
-    copy_with_checked_indices(src.typed<T>(), indices, mask, dst.typed<T>());
-  });
-}
-
 EvaluateAtIndexInput::EvaluateAtIndexInput(fn::Field<int> index_field,
                                            fn::GField value_field,
                                            AttrDomain value_field_domain)
@@ -641,10 +609,15 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   fn::FieldEvaluator index_evaluator{context, &mask};
   index_evaluator.add(index_field_);
   index_evaluator.evaluate();
-  const VArray<int> indices = index_evaluator.get_evaluated<int>(0);
+  const VArraySpan<int> indices = index_evaluator.get_evaluated<int>(0);
 
   GArray<> dst_array(values.type(), mask.min_array_size());
-  copy_with_checked_indices(values, indices, mask, dst_array);
+  IndexMaskMemory memory;
+  const int size = values.size();
+  const IndexMask valid_mask = IndexMask::from_predicate(
+      mask, memory, [&](const int64_t i) { return indices[i] >= 0 && indices[i] < size; });
+  bke::attribute_math::gather(values, indices, valid_mask, dst_array);
+  dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
   return GVArray::from_garray(std::move(dst_array));
 }
 
@@ -712,7 +685,7 @@ void SampleIndexFunction::call(const IndexMask &mask,
                                mf::Params params,
                                mf::Context /*context*/) const
 {
-  const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
+  const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
   GMutableSpan dst = params.uninitialized_single_output(1, "Value");
 
   const CPPType &type = dst.type();
@@ -721,7 +694,12 @@ void SampleIndexFunction::call(const IndexMask &mask,
     return;
   }
 
-  copy_with_checked_indices(*src_data_, indices, mask, dst);
+  IndexMaskMemory memory;
+  const int size = src_data_->size();
+  const IndexMask valid_mask = IndexMask::from_predicate(
+      mask, memory, [&](const int64_t i) { return indices[i] >= 0 && indices[i] < size; });
+  bke::attribute_math::gather(*src_data_, indices, valid_mask, dst);
+  dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
 }
 
 EvaluateOnDomainInput::EvaluateOnDomainInput(fn::GField field, AttrDomain domain)

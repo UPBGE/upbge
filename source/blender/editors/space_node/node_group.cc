@@ -580,13 +580,9 @@ static void node_group_make_insert_selected(const bContext &C,
   params.skip_hidden = true;
   /* Expose only connected sockets if there is more than one node. */
   params.skip_unconnected = (nodes.size() > 1);
-  /* TODO Shared external connection will only create a single interface socket, but its type is
-   * based on the first internal socket. This creates potential conversion conflicts.
-   * (see also NodeSetInterfaceBuilder::expose_socket). */
+  /* Share external connections if a socket has multiple links. */
   params.use_unique_input = false;
-  /* TODO Unique output interface sockets are redundant and all use the same internal socket
-   * template. (see also NodeSetInterfaceBuilder::expose_socket). */
-  params.use_unique_output = true;
+  params.use_unique_output = false;
   const NodeTreeInterfaceMapping io_mapping = build_node_set_interface(
       params, ntree, nodes, group);
 

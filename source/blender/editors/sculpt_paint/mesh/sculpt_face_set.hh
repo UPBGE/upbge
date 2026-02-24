@@ -15,6 +15,8 @@
 
 #include "BKE_attribute.hh"
 
+#include "bmesh.hh"
+
 namespace blender {
 
 struct BMVert;
@@ -24,6 +26,8 @@ struct SubdivCCG;
 struct SubdivCCGCoord;
 
 namespace ed::sculpt_paint::face_set {
+
+constexpr float FACE_SET_MIN_FADE = 0.05f;
 
 int active_face_set_get(const Object &object);
 int vert_face_set_get(GroupedSpan<int> vert_to_face_map, Span<int> face_sets, int vert);
@@ -44,6 +48,23 @@ bool vert_has_unique_face_set(OffsetIndices<int> faces,
                               const SubdivCCG &subdiv_ccg,
                               SubdivCCGCoord coord);
 bool vert_has_unique_face_set(int face_set_offset, const BMVert &vert);
+
+void fill_factor_from_hide_and_mask(const BMesh &bm,
+                                    const Set<BMFace *, 0L> &faces,
+                                    const MutableSpan<float> r_factors);
+
+void fill_factor_from_hide_and_mask(const Mesh &mesh,
+                                    const Span<int> face_indices,
+                                    const MutableSpan<float> r_factors);
+void calc_face_centers(const OffsetIndices<int> faces,
+                       const Span<int> corner_verts,
+                       const Span<float3> vert_positions,
+                       const Span<int> face_indices,
+                       const MutableSpan<float3> positions);
+void calc_face_centers(const Set<BMFace *, 0L> &faces, const MutableSpan<float3> centers);
+void calc_face_indices_grids(const SubdivCCG &subdiv_ccg,
+                             const Span<int> grids,
+                             const MutableSpan<int> &face_indices);
 
 /**
  * Creates the sculpt face set attribute on the mesh if it doesn't exist.

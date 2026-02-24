@@ -1261,7 +1261,7 @@ class Framebuffer : NonCopyable {
 
   void clear_color(float4 color)
   {
-    GPU_framebuffer_clear_color(fb_, color);
+    GPU_framebuffer_clear_color(fb_, double4(color));
   }
 
   Framebuffer &operator=(Framebuffer &&a)

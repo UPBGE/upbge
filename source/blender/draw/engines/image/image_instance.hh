@@ -189,7 +189,7 @@ class Instance : public DrawEngine {
     }
     else {
       GPU_framebuffer_clear_color_depth(
-          DRW_context_get()->viewport_framebuffer_list_get()->default_fb, float4(0.0), 1.0f);
+          DRW_context_get()->viewport_framebuffer_list_get()->default_fb, double4(0.0), 1.0f);
     }
     this->state.float_buffers.remove_unused_buffers();
     state.image = nullptr;

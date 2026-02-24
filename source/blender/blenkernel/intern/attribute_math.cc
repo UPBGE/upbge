@@ -258,14 +258,24 @@ void float4x4Mixer::finalize(const IndexMask &mask)
 
 void gather(const GSpan src, const Span<int> map, GMutableSpan dst)
 {
-  attribute_math::to_static_type(
-      src.type(), [&]<typename T>() { array_utils::gather(src.typed<T>(), map, dst.typed<T>()); });
+  gather(GVArray::from_span(src), map, IndexRange(dst.size()), dst);
 }
 
 void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
 {
-  attribute_math::to_static_type(
-      src.type(), [&]<typename T>() { array_utils::gather(src.typed<T>(), map, dst.typed<T>()); });
+  gather(src, map, IndexRange(dst.size()), dst);
+}
+
+void gather(const GSpan src, const Span<int> map, const IndexMask &dst_mask, GMutableSpan dst)
+{
+  gather(GVArray::from_span(src), map, dst_mask, dst);
+}
+
+void gather(const GVArray &src, const Span<int> map, const IndexMask &dst_mask, GMutableSpan dst)
+{
+  to_static_type(src.type(), [&]<typename T>() {
+    array_utils::gather(src.typed<T>(), map, dst_mask, dst.typed<T>());
+  });
 }
 
 void gather_group_to_group(const OffsetIndices<int> src_offsets,

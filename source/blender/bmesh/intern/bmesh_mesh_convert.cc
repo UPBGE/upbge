@@ -2008,21 +2008,14 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
     add_bm_cd_to_mesh(bm, bke::AttrDomain::Corner, mask_final.lmask, mesh);
   }
 
-  {
-    const StringRef name = mesh.active_uv_map_name();
-    int index = CustomData_get_named_layer_index(&bm.ldata, CD_PROP_FLOAT2, name);
-    if (index == -1) {
-      index = CustomData_get_layer_index(&bm.ldata, CD_PROP_FLOAT2);
-    }
-    CustomData_set_layer_active_index(&bm.ldata, CD_PROP_FLOAT2, index);
+  if (const char *name = CustomData_get_active_layer_name(&bm.ldata, CD_PROP_FLOAT2)) {
+    MEM_SAFE_DELETE(mesh.active_uv_map_attribute);
+    mesh.active_uv_map_attribute = BLI_strdup(name);
   }
-  {
-    const StringRef name = mesh.default_uv_map_name();
-    int index = CustomData_get_named_layer_index(&bm.ldata, CD_PROP_FLOAT2, name);
-    if (index == -1) {
-      index = CustomData_get_layer_index(&bm.ldata, CD_PROP_FLOAT2);
-    }
-    CustomData_set_layer_render_index(&bm.ldata, CD_PROP_FLOAT2, index);
+
+  if (const char *name = CustomData_get_render_layer_name(&bm.ldata, CD_PROP_FLOAT2)) {
+    MEM_SAFE_DELETE(mesh.default_uv_map_attribute);
+    mesh.default_uv_map_attribute = BLI_strdup(name);
   }
 
   /* Add optional mesh attributes before parallel iteration. */

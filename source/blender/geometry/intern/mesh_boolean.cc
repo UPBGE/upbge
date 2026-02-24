@@ -87,29 +87,17 @@ IndexRange vertex_range_for_face(const int face_id, const MeshOffsets &mesh_offs
                                     mesh_offsets.vert_start[mesh_id + 1]);
 }
 
-template<typename T>
-void copy_attribute_using_map(const Span<T> src, const Span<int> out_to_in_map, MutableSpan<T> dst)
-{
-  const int grain_size = 20000;
-  threading::parallel_for(out_to_in_map.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int out_elem : range) {
-      const int in_elem = out_to_in_map[out_elem];
-      if (in_elem == -1) {
-        dst[out_elem] = T();
-      }
-      else {
-        dst[out_elem] = src[in_elem];
-      }
-    }
-  });
-}
-
 void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GMutableSpan dst)
 {
   const CPPType &type = dst.type();
-  bke::attribute_math::to_static_type(type, [&]<typename T>() {
-    copy_attribute_using_map(src.typed<T>(), out_to_in_map, dst.typed<T>());
-  });
+  IndexMaskMemory memory;
+  const IndexMask valid_mask = IndexMask::from_predicate(
+      IndexRange(dst.size()),
+      memory,
+      [&](const int64_t i) { return out_to_in_map[i] != -1; },
+      exec_mode::grain_size(4096));
+  bke::attribute_math::gather(src, out_to_in_map, valid_mask, dst);
+  type.value_initialize_indices(dst.data(), valid_mask.complement(IndexRange(dst.size()), memory));
 }
 
 void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,

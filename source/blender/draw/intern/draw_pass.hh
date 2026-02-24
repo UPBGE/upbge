@@ -205,7 +205,7 @@ class PassBase {
    * Clear each color attachment with different values. Span needs to be appropriately sized.
    * IMPORTANT: The source is dereference on pass submission.
    */
-  void clear_multi(Span<float4> colors);
+  void clear_multi(Span<double4> colors);
 
   /**
    * Reminders:
@@ -663,7 +663,7 @@ inline void PassBase<T>::clear(GPUFrameBufferBits planes,
   create_command(command::Type::Clear).clear = {uint8_t(planes), stencil, depth, color};
 }
 
-template<class T> inline void PassBase<T>::clear_multi(Span<float4> colors)
+template<class T> inline void PassBase<T>::clear_multi(Span<double4> colors)
 {
   create_command(command::Type::ClearMulti).clear_multi = {colors.data(),
                                                            static_cast<int>(colors.size())};

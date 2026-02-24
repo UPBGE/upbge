@@ -853,8 +853,7 @@ void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
     GPU_framebuffer_bind(dfbl->default_fb);
     /* Clear when using render borders. */
     if (data_.extent != int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color))) {
-      float4 clear_color = {0.0f, 0.0f, 0.0f, 0.0f};
-      GPU_framebuffer_clear_color(dfbl->default_fb, clear_color);
+      GPU_framebuffer_clear_color(dfbl->default_fb, double4(0.0));
     }
     GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
   }

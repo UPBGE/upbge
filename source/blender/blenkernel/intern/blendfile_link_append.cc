@@ -726,14 +726,12 @@ static void loose_data_gather_instanciated_objects_for_viewlayer(
   FOREACH_OBJECT_END;
 }
 
-static Set<Object *> loose_data_gather_instanciated_objects(
-    LooseDataInstantiateContext &instantiate_context)
+static void loose_data_gather_instanciated_objects(
+    LooseDataInstantiateContext &instantiate_context, Set<Object *> &instanciated_objects)
 {
   BlendfileLinkAppendContext *lapp_context = instantiate_context.lapp_context;
   const Scene *scene = lapp_context->params->context.scene;
   ViewLayer *view_layer = lapp_context->params->context.view_layer;
-
-  Set<Object *> instanciated_objects;
 
   /* Linked/appended objects only need to be instantiated if they are not already in the current
    * view layer, either:
@@ -759,8 +757,6 @@ static Set<Object *> loose_data_gather_instanciated_objects(
           scene_iter, view_layer_iter, instanciated_objects);
     }
   }
-
-  return instanciated_objects;
 }
 
 static void loose_data_instantiate_object_process(LooseDataInstantiateContext *instantiate_context)
@@ -780,8 +776,8 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
 
   const bool is_linking = (lapp_context->params->flag & FILE_LINK) != 0;
 
-  const Set<Object *> instanciated_objects = loose_data_gather_instanciated_objects(
-      *instantiate_context);
+  Set<Object *> instanciated_objects;
+  loose_data_gather_instanciated_objects(*instantiate_context, instanciated_objects);
 
   /* NOTE: For objects we only view_layer-instantiate duplicated objects that are not yet used
    * anywhere. */
@@ -824,6 +820,10 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
                                                      v3d,
                                                      lapp_context->params->flag,
                                                      object_set_active);
+
+    /* Instancing an object may also instance implicitely others, so we need to update the set
+     * everytime. */
+    loose_data_gather_instanciated_objects(*instantiate_context, instanciated_objects);
   }
 }
 

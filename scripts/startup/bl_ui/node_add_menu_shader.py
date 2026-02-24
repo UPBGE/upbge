@@ -123,6 +123,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Portal Depth"
             ],
         )
+        self.node_operator(layout, "FunctionNodeInputMenu")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeObjectInfo",
             ["Location", "Color", "Alpha", "Object Index", "Material Index", "Random"],

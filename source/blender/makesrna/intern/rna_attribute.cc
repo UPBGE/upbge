@@ -772,6 +772,26 @@ static PointerRNA rna_AttributeGroupID_new(
       *bke::custom_data_type_to_attr_type(eCustomDataType(type)),
       bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
 
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    Mesh *mesh = owner.get_mesh();
+    if (ELEM(attr.data_type(), bke::AttrType::ColorFloat, bke::AttrType::ColorByte)) {
+      if (!mesh->active_color_attribute) {
+        BKE_id_attributes_active_color_set(id, attr.name());
+      }
+      if (!mesh->default_color_attribute) {
+        BKE_id_attributes_default_color_set(id, attr.name());
+      }
+    }
+    if (ELEM(attr.data_type(), bke::AttrType::Float2)) {
+      if (mesh->active_uv_map_name().is_empty()) {
+        mesh->uv_maps_active_set(attr.name());
+      }
+      if (mesh->default_uv_map_name().is_empty()) {
+        mesh->uv_maps_default_set(attr.name());
+      }
+    }
+  }
+
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 

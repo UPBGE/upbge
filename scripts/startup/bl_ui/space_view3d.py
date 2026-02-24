@@ -2992,6 +2992,10 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
+            layout.operator("object.transform_axis_target", text="Look At Target")
+
+            layout.separator()
+
         elif obj.type in {'CURVE', 'FONT'}:
             layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -3080,6 +3084,10 @@ class VIEW3D_MT_object_context_menu(Menu):
                 props.data_path_item = "data.spot_blend"
                 props.input_scale = -0.01
                 props.header_text = rpt_("Spot Blend: %.2f")
+
+            layout.separator()
+
+            layout.operator("object.transform_axis_target", text="Look At Target")
 
             layout.separator()
 

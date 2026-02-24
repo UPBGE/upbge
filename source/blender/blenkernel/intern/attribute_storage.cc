@@ -290,7 +290,17 @@ Attribute &AttributeStorage::add(std::string name,
 
 bool AttributeStorage::remove(const StringRef name)
 {
-  return this->runtime->attributes.remove_as(name);
+  const int index = this->runtime->attributes.index_of_try_as(name);
+  if (index == -1) {
+    return false;
+  }
+  Vector<std::unique_ptr<Attribute>> old_vector = this->runtime->attributes.extract_vector();
+  old_vector.remove(index);
+  this->runtime->attributes.reserve(old_vector.size());
+  for (std::unique_ptr<Attribute> &attribute : old_vector) {
+    this->runtime->attributes.add_new(std::move(attribute));
+  }
+  return true;
 }
 
 std::string AttributeStorage::unique_name_calc(const StringRef name) const

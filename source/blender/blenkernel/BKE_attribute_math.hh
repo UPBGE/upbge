@@ -708,6 +708,8 @@ template<typename T> using DefaultMixer = typename DefaultMixerStruct<T>::type;
 
 void gather(GSpan src, Span<int> map, GMutableSpan dst);
 void gather(const GVArray &src, Span<int> map, GMutableSpan dst);
+void gather(GSpan src, Span<int> map, const IndexMask &dst_mask, GMutableSpan dst);
+void gather(const GVArray &src, Span<int> map, const IndexMask &dst_mask, GMutableSpan dst);
 void gather_group_to_group(OffsetIndices<int> src_offsets,
                            OffsetIndices<int> dst_offsets,
                            const IndexMask &selection,

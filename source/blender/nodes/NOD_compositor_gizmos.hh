@@ -20,6 +20,7 @@ namespace nodes::gizmos {
 
 void bbox_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 void box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+void bbox_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
 
@@ -29,6 +30,7 @@ void box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 
 void box_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
 bool box_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+bool box_mask_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
 
@@ -40,6 +42,7 @@ void crop_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 void crop_setup(const bContext *C, wmGizmoGroup *gzgroup);
 bool crop_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 void crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
+bool crop_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
 
@@ -49,6 +52,8 @@ void crop_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 void glare_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void glare_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool glare_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
+void glare_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup);
 bool glare_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 void glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
@@ -60,7 +65,9 @@ void glare_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 void corner_pin_setup(const bContext *C, wmGizmoGroup *gzgroup);
 void corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup);
+bool corner_pin_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 bool corner_pin_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+void corner_pin_draw_prepare_space_image(const bContext *C, wmGizmoGroup *gzgroup);
 void corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup);
 
 /** \} */
@@ -71,6 +78,8 @@ void corner_pin_draw_prepare_space_node(const bContext *C, wmGizmoGroup *gzgroup
 
 void ellipse_mask_setup(const bContext *C, wmGizmoGroup *gzgroup);
 bool ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+bool ellipse_mask_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -80,6 +89,7 @@ bool ellipse_mask_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
 void split_refresh(const bContext *C, wmGizmoGroup *gzgroup);
 void split_setup(const bContext *C, wmGizmoGroup *gzgroup);
 bool split_poll_space_node(const bContext *C, wmGizmoGroupType *gzgt);
+bool split_poll_space_image(const bContext *C, wmGizmoGroupType *gzgt);
 
 /** \} */
 

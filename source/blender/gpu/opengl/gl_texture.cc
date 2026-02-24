@@ -396,10 +396,8 @@ void GLTexture::generate_mipmap()
   }
 }
 
-void GLTexture::clear(eGPUDataFormat data_format, const void *data)
+void GLTexture::clear(const double4 data)
 {
-  BLI_assert(validate_data_format(format_, data_format));
-
   /* Note: do not use glClearTexImage, even if it is available (via
    * extension or GL 4.4). It causes GL framebuffer binding to be
    * way slower at least on some drivers (e.g. Win10 / NV RTX 3080,
@@ -411,7 +409,7 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
 
   FrameBuffer *fb = this->framebuffer_get();
   fb->bind(true);
-  fb->clear_attachment(this->attachment_type(0), data_format, data);
+  fb->clear_attachment(this->attachment_type(0), data);
 
   GPU_framebuffer_bind(prev_fb);
 }

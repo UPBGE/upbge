@@ -557,7 +557,37 @@ void *GPU_texture_read(gpu::Texture *texture, eGPUDataFormat data_format, int mi
 void GPU_texture_clear(gpu::Texture *tex, eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(data != nullptr); /* Do not accept nullptr as parameter. */
-  tex->clear(data_format, data);
+  BLI_assert(validate_data_format(tex->format_get(), data_format));
+
+  /* TODO(fclem): Ideally modify the GPU_texture_clear API. */
+  double4 clear_data;
+  int comp_len = to_component_len(tex->format_get());
+  switch (data_format) {
+    case GPU_DATA_FLOAT:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const float *>(data)[i];
+      }
+      break;
+    case GPU_DATA_INT:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const int *>(data)[i];
+      }
+      break;
+    case GPU_DATA_UINT:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const uint *>(data)[i];
+      }
+      break;
+    case GPU_DATA_UBYTE:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const uint *>(data)[i];
+      }
+      break;
+    default:
+      BLI_assert_msg(0, "Unhandled data format");
+      return;
+  }
+  tex->clear(clear_data);
 }
 
 void GPU_texture_update(gpu::Texture *tex, eGPUDataFormat data_format, const void *data)

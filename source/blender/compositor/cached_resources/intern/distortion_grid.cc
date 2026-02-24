@@ -89,10 +89,10 @@ static Domain compute_output_domain(MovieDistortion *distortion,
                                     const Domain &domain)
 {
   auto distortion_function = [&](const float2 &coordinates) {
-    /* We are looping over the data space, so transfer to the display space by subtracting the data
+    /* We are looping over the data space, so transfer to the display space by adding the data
      * offset. Finally, transform to the calibration space since this is what the distortion
      * functions expect. */
-    const float2 display_coordinates = coordinates - float2(domain.data_offset);
+    const float2 display_coordinates = coordinates + float2(domain.data_offset);
     const float2 normalized_coordinates = display_coordinates / float2(domain.display_size);
     const float2 calibrated_coordinates = normalized_coordinates * float2(calibration_size);
 
@@ -169,7 +169,7 @@ static Domain compute_output_domain(MovieDistortion *distortion,
    * accordingly. */
   Domain output_domain = domain;
   output_domain.data_size = domain.data_size + lower_left_offset + upper_right_offset;
-  output_domain.data_offset = lower_left_offset;
+  output_domain.data_offset = -lower_left_offset;
   return output_domain;
 }
 
@@ -187,10 +187,10 @@ DistortionGrid::DistortionGrid(Context &context,
   this->result.allocate_texture(output_domain, false, ResultStorageType::CPU);
 
   parallel_for(this->result.domain().data_size, [&](const int2 texel) {
-    /* We are looping over the data space, so transfer to the display space by subtracting the data
+    /* We are looping over the data space, so transfer to the display space by adding the data
      * offset. Add 0.5 to distort at the pixel centers. Finally, transform to the calibration space
      * since this is what the distortion functions expect. */
-    const float2 display_coordinates = float2(texel - output_domain.data_offset) + 0.5f;
+    const float2 display_coordinates = float2(texel + output_domain.data_offset) + 0.5f;
     const float2 normalized_coordinates = display_coordinates / float2(domain.display_size);
     const float2 calibrated_coordinates = normalized_coordinates * float2(calibration_size);
 
@@ -212,7 +212,7 @@ DistortionGrid::DistortionGrid(Context &context,
                                                     float2(calibration_size);
     const float2 distorted_display_coordinates = distorted_normalized_coordinates *
                                                  float2(domain.display_size);
-    const float2 distorted_data_coordinates = distorted_display_coordinates +
+    const float2 distorted_data_coordinates = distorted_display_coordinates -
                                               float2(domain.data_offset);
     const float2 sampling_coordinates = distorted_data_coordinates / float2(domain.data_size);
     this->result.store_pixel(texel, sampling_coordinates);

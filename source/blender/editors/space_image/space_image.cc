@@ -45,6 +45,8 @@
 #include "ED_util.hh"
 #include "ED_uvedit.hh"
 
+#include "NOD_compositor_gizmos.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -342,6 +344,8 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
             BKE_image_partial_update_mark_full_update(sima->image);
           }
           ED_area_tag_redraw(area);
+          const ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+          WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
           break;
       }
       break;
@@ -534,6 +538,90 @@ static void IMAGE_GGT_navigate(wmGizmoGroupType *gzgt)
   ui::VIEW2D_GGT_navigate_impl(gzgt, "IMAGE_GGT_navigate");
 }
 
+static void IMAGE_GGT_compositor_box_mask(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Box Mask Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_box_mask";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
+
+  gzgt->poll = nodes::gizmos::box_mask_poll_space_image;
+  gzgt->setup = nodes::gizmos::box_mask_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::box_mask_refresh;
+}
+
+static void IMAGE_GGT_compositor_crop(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Crop Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_crop";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
+
+  gzgt->poll = nodes::gizmos::crop_poll_space_image;
+  gzgt->setup = nodes::gizmos::crop_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::crop_refresh;
+}
+
+static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Glare Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_glare";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
+
+  gzgt->poll = nodes::gizmos::glare_poll_space_image;
+  gzgt->setup = nodes::gizmos::glare_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = nodes::gizmos::glare_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::glare_refresh;
+}
+
+static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Glare Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_corner_pin";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
+
+  gzgt->poll = nodes::gizmos::corner_pin_poll_space_image;
+  gzgt->setup = nodes::gizmos::corner_pin_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = nodes::gizmos::corner_pin_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::corner_pin_refresh;
+}
+
+static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Ellipse Mask Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_ellipse_mask";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
+
+  gzgt->poll = nodes::gizmos::ellipse_mask_poll_space_image;
+  gzgt->setup = nodes::gizmos::ellipse_mask_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::box_mask_refresh;
+}
+
+static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Ellipse Mask Node Widget";
+  gzgt->idname = "IMAGE_GGT_compositor_split";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
+
+  gzgt->poll = nodes::gizmos::split_poll_space_image;
+  gzgt->setup = nodes::gizmos::split_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = nodes::gizmos::bbox_draw_prepare_space_image;
+  gzgt->refresh = nodes::gizmos::split_refresh;
+}
+
 static void image_widgets()
 {
   const wmGizmoMapType_Params params{SPACE_IMAGE, RGN_TYPE_WINDOW};
@@ -545,6 +633,13 @@ static void image_widgets()
   WM_gizmogrouptype_append(IMAGE_GGT_gizmo2d_rotate);
 
   WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_navigate);
+
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_box_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_crop);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_glare);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_corner_pin);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_ellipse_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, IMAGE_GGT_compositor_split);
 }
 
 /************************** main region ***************************/
@@ -833,6 +928,12 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
         {
           ED_region_tag_redraw(region);
         }
+      }
+      break;
+    case NC_NODE:
+      if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+        WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+        ED_region_tag_redraw(region);
       }
       break;
     case NC_SCREEN:

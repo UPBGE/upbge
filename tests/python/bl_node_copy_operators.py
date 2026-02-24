@@ -267,6 +267,8 @@ def execute_group_insert(test_case, test_tree, expected_tree=None):
         # Should have one node group labeled "external".
         assert len(test_nodes_external) == 1
         group_node = test_nodes_external[0]
+        # Ensure single-user node group, so that inserting nodes does not modify a shared tree.
+        group_node.node_tree = group_node.node_tree.copy()
         with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes_internal + [group_node], active_node=group_node):
             bpy.ops.node.group_insert()
 
@@ -400,7 +402,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         self.assertTrue(args.testdir.exists(),
                         'Test dir {0} should exist'.format(args.testdir))
         open_test_file()
-        self.assertEqual(bpy.data.version, (5, 1, 27))
+        self.assertEqual(bpy.data.version, (5, 2, 5))
 
     def tearDown(self):
         self._tempdir.cleanup()

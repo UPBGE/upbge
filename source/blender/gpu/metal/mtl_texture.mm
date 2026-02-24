@@ -1353,26 +1353,24 @@ void gpu::MTLTexture::copy_to(Texture *dst)
   }
 }
 
-void gpu::MTLTexture::clear(eGPUDataFormat data_format, const void *data)
+void gpu::MTLTexture::clear(const double4 data)
 {
+  if (ELEM(type_, GPU_TEXTURE_1D, GPU_TEXTURE_1D_ARRAY)) {
+    MTL_LOG_ERROR("Clearing 1D texture is not supported");
+    /* Avoid Metal error in release. */
+    return;
+  }
+
   /* Ensure texture is baked. */
   this->ensure_baked();
 
-  /* If render-pass clear is not supported, use compute-based clear. */
-  bool do_render_pass_clear = true;
-  if (ELEM(type_, GPU_TEXTURE_1D, GPU_TEXTURE_1D_ARRAY)) {
-    do_render_pass_clear = false;
-  }
   /* If texture is buffer-backed, clear directly on buffer.
-   * NOTE: This us currently only true for fallback atomic textures. */
+   * NOTE: This is currently only true for fallback atomic textures. */
   if (backing_buffer_ != nullptr) {
-    uint channel_len = to_component_len(format_);
-    uint channel_size = to_bytesize(data_format);
-    bool fast_buf_clear = true;
-    const uchar *val = reinterpret_cast<const uchar *>(data);
-    for (int i = 1; i < channel_size * channel_len; i++) {
-      fast_buf_clear = fast_buf_clear && (val[i] == val[0]);
-    }
+    /* Assume data is INT32 or UINT32. */
+    uint4 u32 = uint4(data);
+    /* Rotate the vector and the bytes to check equality with neighbor. */
+    bool fast_buf_clear = (u32.xyzw() == u32.wxyz()) && (u32 == ((u32 << 8) | (u32 >> 24)));
     if (fast_buf_clear) {
       /* Fetch active context. */
       MTLContext *ctx = MTLContext::get();
@@ -1383,7 +1381,7 @@ void gpu::MTLTexture::clear(eGPUDataFormat data_format, const void *data)
           ctx->main_command_buffer.ensure_begin_blit_encoder();
       [blit_encoder fillBuffer:backing_buffer_->get_metal_buffer()
                          range:NSMakeRange(0, backing_buffer_->get_size())
-                         value:val[0]];
+                         value:u32[0]];
     }
     else {
       BLI_assert_msg(false,
@@ -1392,87 +1390,14 @@ void gpu::MTLTexture::clear(eGPUDataFormat data_format, const void *data)
     return;
   }
 
-  if (do_render_pass_clear) {
-    /* Create clear frame-buffer for fast clear. */
-    gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
-    FrameBuffer *fb = this->get_blit_framebuffer(-1, 0);
-    fb->bind(true);
-    fb->clear_attachment(this->attachment_type(0), data_format, data);
-    GPU_framebuffer_bind(prev_fb);
-  }
-  else {
-    /** Perform compute-based clear. */
-    /* Prepare specialization struct (For texture clear routine). */
-    int num_channels = to_component_len(format_);
-    TextureUpdateRoutineSpecialisation compute_specialization_kernel = {
-        tex_data_format_to_msl_type_str(data_format),              /* INPUT DATA FORMAT */
-        tex_data_format_to_msl_texture_template_type(data_format), /* TEXTURE DATA FORMAT */
-        num_channels,
-        num_channels,
-        true /* Operation is a clear. */
-    };
-
-    /* Determine size of source data clear. */
-    uint clear_data_size = to_bytesize(format_, data_format);
-
-    /* Fetch active context. */
-    MTLContext *ctx = MTLContext::get();
-    BLI_assert(ctx);
-
-    /* Determine writeable texture handle. */
-    id<MTLTexture> texture_handle = texture_;
-
-    /* Begin compute encoder. */
-    id<MTLComputeCommandEncoder> compute_encoder =
-        ctx->main_command_buffer.ensure_begin_compute_encoder();
-
-    /* Perform clear operation based on texture type. */
-    switch (type_) {
-      case GPU_TEXTURE_1D: {
-        id<MTLComputePipelineState> pso = texture_update_1d_get_kernel(
-            compute_specialization_kernel);
-        TextureUpdateParams params = {0, {w_, 1, 1}, {0, 0, 0}, w_};
-
-        /* Bind resources via compute state for optimal state caching performance. */
-        MTLComputeState &cs = ctx->main_command_buffer.get_compute_state();
-        cs.bind_pso(pso);
-        cs.bind_compute_bytes(&params, sizeof(params), 0);
-        cs.bind_compute_bytes(data, clear_data_size, 1);
-        cs.bind_compute_texture(texture_handle, 0);
-        [compute_encoder dispatchThreads:MTLSizeMake(w_, 1, 1) /* Width, Height, Layer */
-                   threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
-      } break;
-      case GPU_TEXTURE_1D_ARRAY: {
-        id<MTLComputePipelineState> pso = texture_update_1d_array_get_kernel(
-            compute_specialization_kernel);
-        TextureUpdateParams params = {0, {w_, h_, 1}, {0, 0, 0}, w_};
-
-        /* Bind resources via compute state for optimal state caching performance. */
-        MTLComputeState &cs = ctx->main_command_buffer.get_compute_state();
-        cs.bind_pso(pso);
-        cs.bind_compute_bytes(&params, sizeof(params), 0);
-        cs.bind_compute_bytes(data, clear_data_size, 1);
-        cs.bind_compute_texture(texture_handle, 0);
-        [compute_encoder dispatchThreads:MTLSizeMake(w_, h_, 1) /* Width, layers, nil */
-                   threadsPerThreadgroup:MTLSizeMake(8, 8, 1)];
-      } break;
-      default: {
-        MTL_LOG_ERROR(
-            "gpu::MTLTexture::clear requires compute pass for texture"
-            "type: %d, but this is not yet supported",
-            (int)type_);
-      } break;
-    }
-
-    /* Textures which use MTLStorageModeManaged need to have updated contents
-     * synced back to CPU to avoid an automatic flush overwriting contents. */
-    id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
-    if (texture_.storageMode == MTLStorageModeManaged) {
-      [blit_encoder synchronizeResource:texture_];
-    }
-    [blit_encoder optimizeContentsForGPUAccess:texture_];
-  }
+  /* Create clear frame-buffer for fast clear. */
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  FrameBuffer *fb = this->get_blit_framebuffer(-1, 0);
+  fb->bind(true);
+  fb->clear_attachment(this->attachment_type(0), data);
+  GPU_framebuffer_bind(prev_fb);
 }
+
 static MTLTextureSwizzle swizzle_to_mtl(const char swizzle)
 {
   switch (swizzle) {

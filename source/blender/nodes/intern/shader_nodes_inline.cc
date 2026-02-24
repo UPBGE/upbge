@@ -564,6 +564,10 @@ class ShaderNodesInliner {
       this->handle_output_socket__menu_switch(socket);
       return;
     }
+    if (node->is_type("FunctionNodeInputMenu")) {
+      this->handle_output_socket__input_menu(socket);
+      return;
+    }
     if (node->is_type("NodeJoinBundle")) {
       this->handle_output_socket__join_bundle(socket);
       return;
@@ -1083,6 +1087,16 @@ class ShaderNodesInliner {
     /* Set the value of the mask output. */
     const bool is_selected = selected_index == socket->index() - 1;
     this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
+  }
+
+  void handle_output_socket__input_menu(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const auto &storage = *static_cast<const NodeInputMenu *>(node->storage);
+    SocketInContext output_socket = node.output_socket(0);
+    this->store_socket_value(output_socket,
+                             {PrimitiveSocketValue::from_value(
+                                 {output_socket->typeinfo->base_cpp_type, &storage.value})});
   }
 
   void handle_output_socket__implicit_conversion(const SocketInContext &socket)

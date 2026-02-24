@@ -488,7 +488,7 @@ static PyObject *pygpu_framebuffer_clear(BPyGPUFrameBuffer *self, PyObject *args
     buffers |= GPU_STENCIL_BIT;
   }
 
-  GPU_framebuffer_clear(self->fb, buffers, col, depth, stencil);
+  GPU_framebuffer_clear(self->fb, buffers, double4(UNPACK4(col)), depth, stencil);
   Py_RETURN_NONE;
 }
 

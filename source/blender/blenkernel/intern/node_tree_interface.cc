@@ -1345,13 +1345,19 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
   return new_socket;
 }
 
-bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
-                                                         const bNode &from_node,
-                                                         const bNodeSocket &from_sock,
-                                                         const StringRef socket_type,
-                                                         const StringRef name)
+bNodeTreeInterfaceSocket *add_interface_socket_from_node(
+    bNodeTree &ntree,
+    const bNode &from_node,
+    const bNodeSocket &from_sock,
+    const std::optional<StringRef> name,
+    const std::optional<eNodeSocketInOut> in_out)
 {
   ntree.ensure_topology_cache();
+
+  BLI_assert(from_sock.typeinfo);
+  const StringRef socket_type = from_sock.typeinfo->idname;
+  const bool is_input = in_out ? bool(*in_out & SOCK_IN) : from_sock.is_input();
+
   bNodeTreeInterfaceSocket *iosock = nullptr;
   if (from_node.is_group()) {
     if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(from_node.id)) {
@@ -1359,16 +1365,16 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
        */
       group->ensure_interface_cache();
       const bNodeTreeInterfaceSocket &src_io_socket =
-          from_sock.is_input() ? *group->interface_inputs()[from_sock.index()] :
-                                 *group->interface_outputs()[from_sock.index()];
+          is_input ? *group->interface_inputs()[from_sock.index()] :
+                     *group->interface_outputs()[from_sock.index()];
       iosock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
           ntree.tree_interface.add_item_copy(src_io_socket.item, nullptr));
     }
   }
   if (!iosock) {
     NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(0);
-    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
-    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
+    SET_FLAG_FROM_TEST(flag, is_input, NODE_INTERFACE_SOCKET_INPUT);
+    SET_FLAG_FROM_TEST(flag, !is_input, NODE_INTERFACE_SOCKET_OUTPUT);
 
     const nodes::SocketDeclaration *decl = from_sock.runtime->declaration;
     StringRef description = from_sock.description;
@@ -1377,14 +1383,15 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
         description = decl->description;
       }
       SET_FLAG_FROM_TEST(flag, decl->optional_label, NODE_INTERFACE_SOCKET_OPTIONAL_LABEL);
-      if (socket_type == "NodeSocketMenu" && from_sock.type == SOCK_MENU) {
+      if (from_sock.type == SOCK_MENU) {
         if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(decl)) {
           SET_FLAG_FROM_TEST(flag, menu_decl->is_expanded, NODE_INTERFACE_SOCKET_MENU_EXPANDED);
         }
       }
     }
 
-    iosock = ntree.tree_interface.add_socket(name, description, socket_type, flag, nullptr);
+    const StringRef io_name = name ? *name : node_socket_label(from_sock);
+    iosock = ntree.tree_interface.add_socket(io_name, description, socket_type, flag, nullptr);
 
     if (iosock) {
       if (decl) {

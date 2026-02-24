@@ -146,7 +146,7 @@ void VKFrameBuffer::build_clear_attachments_depth_stencil(
 }
 
 void VKFrameBuffer::build_clear_attachments_color(
-    const float (*clear_colors)[4],
+    Span<double4> clear_colors,
     const bool multi_clear_colors,
     render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments) const
 {
@@ -162,7 +162,7 @@ void VKFrameBuffer::build_clear_attachments_color(
     clear_attachment.colorAttachment = color_slot;
     eGPUDataFormat data_format = to_texture_data_format(GPU_texture_format(attachment.tex));
     clear_attachment.clearValue.color = to_vk_clear_color_value(data_format,
-                                                                &clear_colors[color_index]);
+                                                                clear_colors[color_index]);
 
     color_index += multi_clear_colors ? 1 : 0;
   }
@@ -180,7 +180,7 @@ void VKFrameBuffer::clear(render_graph::VKClearAttachmentsNode::CreateInfo &clea
 }
 
 void VKFrameBuffer::clear(const GPUFrameBufferBits buffers,
-                          const float clear_color[4],
+                          const double4 clear_color,
                           float clear_depth,
                           uint clear_stencil)
 {
@@ -223,9 +223,8 @@ void VKFrameBuffer::clear(const GPUFrameBufferBits buffers,
     }
   }
   if (buffers & GPU_COLOR_BIT) {
-    float clear_color_single[4];
-    copy_v4_v4(clear_color_single, clear_color);
-    build_clear_attachments_color(&clear_color_single, false, clear_attachments);
+    double4 clear_color_single = double4(clear_color);
+    build_clear_attachments_color({&clear_color_single, 1}, false, clear_attachments);
   }
 
   if (clear_attachments.attachment_count) {
@@ -233,22 +232,20 @@ void VKFrameBuffer::clear(const GPUFrameBufferBits buffers,
   }
 }
 
-void VKFrameBuffer::clear_multi(const float (*clear_color)[4])
+void VKFrameBuffer::clear_multi(Span<double4> clear_cols)
 {
   render_graph::VKClearAttachmentsNode::CreateInfo clear_attachments = {};
   render_area_update(clear_attachments.vk_clear_rect.rect);
   clear_attachments.vk_clear_rect.baseArrayLayer = 0;
   clear_attachments.vk_clear_rect.layerCount = 1;
 
-  build_clear_attachments_color(clear_color, true, clear_attachments);
+  build_clear_attachments_color(clear_cols, true, clear_attachments);
   if (clear_attachments.attachment_count) {
     clear(clear_attachments);
   }
 }
 
-void VKFrameBuffer::clear_attachment(GPUAttachmentType /*type*/,
-                                     eGPUDataFormat /*data_format*/,
-                                     const void * /*clear_value*/)
+void VKFrameBuffer::clear_attachment(GPUAttachmentType /*type*/, const double4 /*clear_value*/)
 {
   /* Clearing of a single attachment was added to implement `clear_multi` in OpenGL. As
    * `clear_multi` is supported in Vulkan it isn't needed to implement this method.
@@ -294,9 +291,10 @@ static VkAttachmentStoreOp to_vk_attachment_store_op(GPUStoreOp store_op)
 }
 
 static void set_load_store(VkRenderingAttachmentInfo &r_rendering_attachment,
+                           eGPUDataFormat data_format,
                            const GPULoadStore &ls)
 {
-  copy_v4_v4(r_rendering_attachment.clearValue.color.float32, ls.clear_value);
+  r_rendering_attachment.clearValue.color = to_vk_clear_color_value(data_format, ls.clear_value);
   r_rendering_attachment.loadOp = to_vk_attachment_load_op(ls.load_action);
   r_rendering_attachment.storeOp = to_vk_attachment_store_op(ls.store_action);
 }
@@ -645,7 +643,10 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     attachment_info.imageView = vk_image_view;
     attachment_info.imageLayout = supports_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
                                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    set_load_store(attachment_info, load_stores[color_attachment_index]);
+
+    eGPUDataFormat data_format = to_texture_data_format(color_texture.format_get());
+
+    set_load_store(attachment_info, data_format, load_stores[color_attachment_index]);
 
     access_info.images.append(
         {color_texture.vk_image_handle(),
@@ -707,7 +708,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
       attachment_info.imageView = depth_image_view;
       attachment_info.imageLayout = vk_image_layout;
 
-      set_load_store(attachment_info, load_stores[depth_attachment_index]);
+      set_load_store(attachment_info, GPU_DATA_FLOAT, load_stores[depth_attachment_index]);
       depth_attachment_format_ = vk_format;
       begin_rendering.node_data.vk_rendering_info.pDepthAttachment =
           &begin_rendering.node_data.depth_attachment;
@@ -719,7 +720,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
       attachment_info.imageView = depth_image_view;
       attachment_info.imageLayout = vk_image_layout;
 
-      set_load_store(attachment_info, load_stores[depth_attachment_index]);
+      set_load_store(attachment_info, GPU_DATA_UINT, load_stores[depth_attachment_index]);
       stencil_attachment_format_ = vk_format;
       begin_rendering.node_data.vk_rendering_info.pStencilAttachment =
           &begin_rendering.node_data.stencil_attachment;

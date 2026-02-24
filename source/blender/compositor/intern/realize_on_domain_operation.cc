@@ -300,9 +300,15 @@ Domain RealizeOnDomainOperation::compute_realized_transformation_domain(
   /* Create a domain from the new safe size and just the translation component of the
    * transformation if not realizing translation. */
   if (realize_translation) {
-    return Domain(safe_size);
+    Domain realized_domain = Domain(safe_size);
+    realized_domain.realization_options = domain.realization_options;
+    return realized_domain;
   }
-  return Domain(safe_size, math::from_location<float3x3>(domain.transformation.location()));
+
+  Domain realized_domain = Domain(safe_size,
+                                  math::from_location<float3x3>(domain.transformation.location()));
+  realized_domain.realization_options = domain.realization_options;
+  return realized_domain;
 }
 
 SimpleOperation *RealizeOnDomainOperation::construct_if_needed(

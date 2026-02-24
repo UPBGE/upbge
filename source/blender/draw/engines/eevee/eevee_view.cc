@@ -126,10 +126,10 @@ void ShadingView::render()
     rbufs.prepass_normal_tx.clear(float4(0.0f));
   }
 
-  /* Alpha stores transmittance. So start at 1. */
-  float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
-  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, inst_.film.depth.clear_value);
+  /* Alpha stores transmittance. So start at 1. */
+  GPU_framebuffer_clear_color_depth(
+      combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
   if (DRW_context_get()->is_background_drawing()) { //UPBGE: for overlay pass
     inst_.pipelines.background.clear(render_view_);
   }
@@ -404,8 +404,9 @@ void CaptureView::render_probes()
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
       GPU_framebuffer_bind(combined_fb_);
+      /* Alpha stores transmittance. So start at 1. */
       GPU_framebuffer_clear_color_depth(
-          combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), inst_.film.depth.clear_value);
+          combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 

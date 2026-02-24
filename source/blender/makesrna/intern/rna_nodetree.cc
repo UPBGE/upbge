@@ -4235,6 +4235,27 @@ static int rna_NodeInputVector_vector_get_array_length(const PointerRNA *ptr,
   return storage.dimensions;
 }
 
+const EnumPropertyItem *rna_NodeInputMenu_menu_itemf(bContext * /*C*/,
+                                                     PointerRNA *ptr,
+                                                     PropertyRNA *prop,
+                                                     bool *r_free)
+{
+  const bNode *node = static_cast<bNode *>(ptr->data);
+  const bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+  if (!socket) {
+    *r_free = false;
+    return rna_enum_dummy_NULL_items;
+  }
+  const bNodeSocketValueMenu *data = static_cast<bNodeSocketValueMenu *>(socket->default_value);
+  if (!data->enum_items) {
+    *r_free = false;
+    return rna_enum_dummy_NULL_items;
+  }
+  const char *socket_translation_context = bke::node_socket_translation_context(*socket);
+  RNA_def_property_translation_context(prop, socket_translation_context);
+  return RNA_node_enum_definition_itemf(*data->enum_items, r_free);
+}
+
 }  // namespace blender
 
 #else
@@ -4947,6 +4968,20 @@ static void def_fn_input_int(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_int_default(prop, 1);
   RNA_def_property_ui_text(prop, "Integer", "Input value used for unconnected socket");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_fn_input_menu(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeInputMenu", "storage");
+
+  prop = RNA_def_property(srna, "value", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_NULL_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeInputMenu_menu_itemf");
+  RNA_def_property_ui_text(prop, "Menu", "Value of the output socket");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
 static void def_fn_input_rotation(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -8547,6 +8582,19 @@ static void def_geo_input_collection(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_geo_input_font(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "font", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "id");
+  RNA_def_property_struct_type(prop, "VectorFont");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Font", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_geo_input_normal(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop = RNA_def_property(srna, "legacy_corner_normals", PROP_BOOLEAN, PROP_NONE);
@@ -10163,6 +10211,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeInputBool", def_fn_input_bool);
   define("FunctionNode", "FunctionNodeInputColor", def_fn_input_color);
   define("FunctionNode", "FunctionNodeInputInt", def_fn_input_int);
+  define("FunctionNode", "FunctionNodeInputMenu", def_fn_input_menu);
   define("FunctionNode", "FunctionNodeInputRotation", def_fn_input_rotation);
   define("FunctionNode", "FunctionNodeInputSpecialCharacters");
   define("FunctionNode", "FunctionNodeInputString", def_fn_input_string);
@@ -10290,6 +10339,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputCurveHandlePositions");
   define("GeometryNode", "GeometryNodeInputCurveTilt");
   define("GeometryNode", "GeometryNodeInputEdgeSmooth");
+  define("GeometryNode", "GeometryNodeInputFont", def_geo_input_font);
   define("GeometryNode", "GeometryNodeInputID");
   define("GeometryNode", "GeometryNodeInputImage", def_geo_image);
   define("GeometryNode", "GeometryNodeInputIndex");

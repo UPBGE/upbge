@@ -406,11 +406,10 @@ class Instance : public DrawEngine {
      * OpenGL render is used for quick preview (thumbnails or sequencer preview)
      * where using the rendering engine to preview doesn't make so much sense. */
     if (draw_ctx->evil_C) {
-      const float clear_col[4] = {0, 0, 0, 0};
       /* This is to keep compatibility with external engine. */
       /* TODO(fclem): remove it eventually. */
       GPU_framebuffer_bind(dfbl->default_fb);
-      GPU_framebuffer_clear_color(dfbl->default_fb, clear_col);
+      GPU_framebuffer_clear_color(dfbl->default_fb, {0.0, 0.0, 0.0, 0.0});
 
       DRW_submission_start();
       draw_scene_do(manager, view);

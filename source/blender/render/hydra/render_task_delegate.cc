@@ -284,8 +284,7 @@ void GPURenderTaskDelegate::bind()
       &framebuffer_, {GPU_ATTACHMENT_TEXTURE(tex_depth_), GPU_ATTACHMENT_TEXTURE(tex_color_)});
   GPU_framebuffer_bind(framebuffer_);
 
-  float clear_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  GPU_framebuffer_clear_color_depth(framebuffer_, clear_color, 1.0f);
+  GPU_framebuffer_clear_color_depth(framebuffer_, {0.0, 0.0, 0.0, 0.0}, 1.0f);
 
 #ifdef WITH_OPENGL_BACKEND
   /* Workaround missing/buggy VAOs in hgiGL and hdSt. For OpenGL compatibility

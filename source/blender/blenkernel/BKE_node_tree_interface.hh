@@ -353,28 +353,20 @@ template<typename T> const T &get_socket_data_as(const bNodeTreeInterfaceSocket 
   return *static_cast<const T *>(item.socket_data);
 }
 
-bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
-                                                         const bNode &from_node,
-                                                         const bNodeSocket &from_sock,
-                                                         StringRef socket_type,
-                                                         StringRef name);
-
-inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
-                                                                const bNode &from_node,
-                                                                const bNodeSocket &from_sock,
-                                                                const StringRef socket_type)
-{
-  return add_interface_socket_from_node(
-      ntree, from_node, from_sock, socket_type, node_socket_label(from_sock));
-}
-
-inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
-                                                                const bNode &from_node,
-                                                                const bNodeSocket &from_sock)
-{
-  return add_interface_socket_from_node(
-      ntree, from_node, from_sock, from_sock.typeinfo->idname, node_socket_label(from_sock));
-}
+/**
+ * Add a tree interface socket based on the properties of an existing node socket.
+ * \param ntree Node tree where the interface socket is added.
+ * \param from_node Node that owns the template socket. Does not have to be part of \a ntree.
+ * \param from_sock Template socket on which the interface properties are based.
+ * \param name Optional custom socket name. By default the visible socket label or name is used.
+ * \param in_out Optional input/output direction. By default same as the template socket.
+ */
+bNodeTreeInterfaceSocket *add_interface_socket_from_node(
+    bNodeTree &ntree,
+    const bNode &from_node,
+    const bNodeSocket &from_sock,
+    std::optional<StringRef> name = std::nullopt,
+    std::optional<eNodeSocketInOut> in_out = std::nullopt);
 
 /**
  * Reference to a node tree's interface item.

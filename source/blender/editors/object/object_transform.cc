@@ -2017,12 +2017,9 @@ static bool object_is_target_compat(const Object *ob)
       return true;
     }
   }
-  /* We might want to enable this later, for now just lights. */
-#if 0
   else if (ob->type == OB_CAMERA) {
     return true;
   }
-#endif
   return false;
 }
 
@@ -2392,7 +2389,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Interactive Light Track to Cursor";
+  ot->name = "Track to Cursor";
   ot->description = "Interactively point cameras and lights to a location (Ctrl translates)";
   ot->idname = "OBJECT_OT_transform_axis_target";
 

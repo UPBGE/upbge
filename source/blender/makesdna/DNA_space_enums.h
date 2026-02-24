@@ -800,6 +800,7 @@ enum {
   /** All gizmos. */
   SI_GIZMO_HIDE = (1 << 0),
   SI_GIZMO_HIDE_NAVIGATE = (1 << 1),
+  SI_GIZMO_HIDE_ACTIVE_NODE = (1 << 2),
 };
 
 /** Keep in sync with `STEPS_LEN` in `grid_frag.glsl`. */

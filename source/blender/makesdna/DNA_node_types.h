@@ -2978,6 +2978,13 @@ struct NodeInputInt {
   int integer = 0;
 };
 
+struct NodeInputMenu {
+  DNA_DEFINE_CXX_METHODS(NodeInputMenu)
+
+  /* Note: enum items are determined by the node output socket. */
+  int value = 0;
+};
+
 struct NodeInputRotation {
   DNA_DEFINE_CXX_METHODS(NodeInputRotation)
 

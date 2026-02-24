@@ -46,13 +46,11 @@ class VKFrameBuffer : public FrameBuffer {
   void bind(bool enabled_srgb) override;
   bool check(char err_out[256]) override;
   void clear(GPUFrameBufferBits buffers,
-             const float clear_color[4],
+             const double4 clear_color,
              float clear_depth,
              uint clear_stencil) override;
-  void clear_multi(const float (*clear_color)[4]) override;
-  void clear_attachment(GPUAttachmentType type,
-                        eGPUDataFormat data_format,
-                        const void *clear_value) override;
+  void clear_multi(Span<double4> clear_cols) override;
+  void clear_attachment(GPUAttachmentType type, const double4 clear_value) override;
 
   void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore /*ls*/) override;
 
@@ -142,7 +140,7 @@ class VKFrameBuffer : public FrameBuffer {
       uint32_t clear_stencil,
       render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments) const;
   void build_clear_attachments_color(
-      const float (*clear_colors)[4],
+      Span<double4> clear_colors,
       const bool multi_clear_colors,
       render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments) const;
   void clear(render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments);
