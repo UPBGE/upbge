@@ -768,6 +768,27 @@ static void rna_Object_empty_display_type_set(PointerRNA *ptr, int value)
   BKE_object_empty_draw_type_set(ob, value);
 }
 
+static int rna_Object_collision_bounds_type_get(PointerRNA *ptr)
+{
+  Object *ob = (Object *)ptr->data;
+  if (ob->gameflag & OB_BOUNDS) {
+    return ob->collision_boundtype;
+  }
+  /* OB_BOUNDS not set: return type-based default so the UI shows the correct
+   * effective value (particularly important for Jolt which has no checkbox). */
+  if (ob->gameflag & OB_SOFT_BODY) return OB_BOUND_TRIANGLE_MESH;
+  if (ob->gameflag & OB_CHARACTER) return OB_BOUND_SPHERE;
+  if (ob->gameflag & OB_DYNAMIC) return OB_BOUND_SPHERE;
+  return OB_BOUND_TRIANGLE_MESH; /* static / sensor */
+}
+
+static void rna_Object_collision_bounds_type_set(PointerRNA *ptr, int value)
+{
+  Object *ob = (Object *)ptr->data;
+  ob->collision_boundtype = value;
+  ob->gameflag |= OB_BOUNDS;
+}
+
 static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext */*C*/,
                                                                  PointerRNA *ptr,
                                                                  PropertyRNA */*prop*/,
@@ -1607,6 +1628,9 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       ob->gameflag &= ~(OB_OCCLUDER | OB_CHARACTER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY |
                         OB_ACTOR | OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH |
                         OB_COLLISION_RESPONSE | OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_TRIANGLE_MESH;
+      }
       break;
     case OB_BODY_TYPE_OCCLUDER:
       ob->gameflag |= OB_OCCLUDER;
@@ -1638,20 +1662,32 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       if ((ob->gameflag & OB_BOUNDS) && ob->collision_boundtype == OB_BOUND_TRIANGLE_MESH) {
         ob->boundtype = ob->collision_boundtype = OB_BOUND_BOX;
       }
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_SPHERE;
+      }
       break;
     case OB_BODY_TYPE_STATIC:
       ob->gameflag |= OB_COLLISION;
       ob->gameflag &= ~(OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER |
                         OB_SENSOR | OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_TRIANGLE_MESH;
+      }
       break;
     case OB_BODY_TYPE_DYNAMIC:
       ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_ACTOR;
       ob->gameflag &= ~(OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR |
                         OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_SPHERE;
+      }
       break;
     case OB_BODY_TYPE_RIGID:
       ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY | OB_ACTOR;
       ob->gameflag &= ~(OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_SPHERE;
+      }
       break;
     default:
     case OB_BODY_TYPE_SOFT:
@@ -3120,7 +3156,10 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "collision_bounds_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "collision_boundtype");
   RNA_def_property_enum_items(prop, collision_bounds_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Object_collision_bounds_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_Object_collision_bounds_type_get",
+                              "rna_Object_collision_bounds_type_set",
+                              "rna_Object_collision_bounds_itemf");
   RNA_def_property_ui_text(
       prop, "Collision Shape", "Select the collision shape that better fits the object");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);

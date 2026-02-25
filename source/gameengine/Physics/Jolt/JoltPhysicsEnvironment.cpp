@@ -36,9 +36,11 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
+#include <Jolt/Physics/Body/BodyLockMulti.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
@@ -66,14 +68,28 @@ JPH_SUPPRESS_WARNINGS
 #include "JoltPhysicsController.h"
 #include "JoltShapeBuilder.h"
 
+#include "BKE_context.hh"
+#include "BKE_deform.hh"
+#include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BLI_bounds.hh"
+#include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
+#include "BLI_span.hh"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
+#include "DNA_modifier_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BL_SceneConverter.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_GameObject.h"
+#include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_Scene.h"
 #include "PHY_IMotionState.h"
@@ -255,6 +271,46 @@ void JoltContactListener::SwapContacts(std::vector<JoltContactPair> &outContacts
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name JoltSoftBodyContactListener
+ * \{ */
+
+JPH::SoftBodyValidateResult JoltSoftBodyContactListener::OnSoftBodyContactValidate(
+    const JPH::Body &inSoftBody,
+    const JPH::Body &inOtherBody,
+    JPH::SoftBodyContactSettings &ioSettings)
+{
+  /* Called from physics threads during soft body collision detection.
+   * All bodies are locked; do NOT call any body-locking functions here. */
+  std::lock_guard<std::mutex> lock(m_mutex);
+  auto it = m_noPinCollisionMap.find(inSoftBody.GetID().GetIndexAndSequenceNumber());
+  if (it != m_noPinCollisionMap.end() &&
+      it->second == inOtherBody.GetID().GetIndexAndSequenceNumber()) {
+    /* Keep the contact so the soft body still collides/deforms against the
+     * pin/parent body, but disable impulse transfer to the pin/parent body.
+     * This matches the "No Force on Pin Object" meaning. */
+    ioSettings.mInvMassScale2 = 0.0f;
+    ioSettings.mInvInertiaScale2 = 0.0f;
+    ioSettings.mIsSensor = false;
+  }
+  return JPH::SoftBodyValidateResult::AcceptContact;
+}
+
+void JoltSoftBodyContactListener::Register(JPH::BodyID softBodyID, JPH::BodyID pinBodyID)
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  m_noPinCollisionMap[softBodyID.GetIndexAndSequenceNumber()] =
+      pinBodyID.GetIndexAndSequenceNumber();
+}
+
+void JoltSoftBodyContactListener::Unregister(JPH::BodyID softBodyID)
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  m_noPinCollisionMap.erase(softBodyID.GetIndexAndSequenceNumber());
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name JoltBodyActivationListener
  * \{ */
 
@@ -330,6 +386,7 @@ JoltPhysicsEnvironment::JoltPhysicsEnvironment(blender::Scene *blenderscene,
   m_contactListener.SetEnvironment(this);
   m_physicsSystem->SetBodyActivationListener(&m_bodyActivationListener);
   m_physicsSystem->SetContactListener(&m_contactListener);
+  m_physicsSystem->SetSoftBodyContactListener(&m_softBodyContactListener);
 
   /* Set Bullet-style combine functions for friction and restitution.
    * This makes the behavior consistent with Bullet Physics where
@@ -493,6 +550,28 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
     ctrl->WriteMotionStateToDynamics(true);  /* nondynaonly = true → only kinematic/static */
   }
 
+  /* Step 1.5: Update kinematic (pinned) vertices on soft bodies so they follow their
+   * pin objects this frame.  Must happen after kinematic rigid bodies are written
+   * (Step 1) but before the physics solver runs (Step 2). */
+  for (JoltSoftBody *sb : m_softBodies) {
+    if (!sb->HasPinnedVertices()) {
+      continue;
+    }
+    JoltPhysicsController *pinCtrl = sb->GetPinController();
+    if (pinCtrl && pinCtrl->GetMotionState()) {
+      MT_Vector3 pinPos = pinCtrl->GetMotionState()->GetWorldPosition();
+      /* Jolt soft bodies always report identity rotation (orientation is baked into
+       * particle positions at creation, never updated as a body rotation).
+       * For soft body pin objects we must use the stored initial Blender orientation,
+       * which is their permanent effective rotation.  For rigid body pin objects,
+       * read the actual current orientation from the motion state. */
+      MT_Matrix3x3 pinOri = pinCtrl->GetSoftBody() ?
+                                sb->GetPinInitialOri() :
+                                pinCtrl->GetMotionState()->GetWorldOrientation();
+      sb->UpdatePinnedVertices(pinPos, pinOri);
+    }
+  }
+
   /* Step 2: Run the physics simulation.
    * Set the updating flag to defer unsafe body modifications.
    * This prevents crashes when logic tries to modify bodies during physics. */
@@ -556,10 +635,82 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
   return true;
 }
 
+void JoltPhysicsEnvironment::RegisterControllerForObject(blender::Object *obj,
+                                                          JoltPhysicsController *ctrl)
+{
+  if (obj) {
+    m_controllerByBlenderObject[obj] = ctrl;
+  }
+}
+
+JoltPhysicsController *JoltPhysicsEnvironment::FindControllerByBlenderObject(blender::Object *obj)
+{
+  if (!obj) {
+    return nullptr;
+  }
+  auto it = m_controllerByBlenderObject.find(obj);
+  return (it != m_controllerByBlenderObject.end()) ? it->second : nullptr;
+}
+
+void JoltPhysicsEnvironment::AddSoftBodyReplica(JoltSoftBody *sb,
+                                                JoltPhysicsController *pinCtrl)
+{
+  if (!sb) {
+    return;
+  }
+
+  /* Track in the soft body update list. */
+  m_softBodies.push_back(sb);
+
+  /* Set Jolt user data so collision callbacks can identify the owner. */
+  if (!sb->GetBodyID().IsInvalid()) {
+    const JPH::BodyLockInterfaceNoLock &lockIf = m_physicsSystem->GetBodyLockInterfaceNoLock();
+    JPH::BodyLockWrite lock(lockIf, sb->GetBodyID());
+    if (lock.Succeeded()) {
+      lock.GetBody().SetCollisionGroup(
+          JPH::CollisionGroup(m_constraintGroupFilter,
+                              (JPH::CollisionGroup::GroupID)sb->GetController()->GetCollisionGroup(),
+                              sb->GetBodyID().GetIndexAndSequenceNumber()));
+      if (sb->GetController()->GetNewClientInfo()) {
+        lock.GetBody().SetUserData(
+            reinterpret_cast<JPH::uint64>(sb->GetController()->GetNewClientInfo()));
+      }
+    }
+  }
+
+  /* Register no-pin-collision if the flag is set and pin body is valid. */
+  if (pinCtrl && sb->GetNoPinCollision() && !pinCtrl->GetBodyID().IsInvalid()) {
+    m_softBodyContactListener.Register(sb->GetBodyID(), pinCtrl->GetBodyID());
+  }
+}
+
+void JoltPhysicsEnvironment::FinalizeSoftBodyPins()
+{
+  for (JoltSoftBody *sb : m_softBodies) {
+    if (!sb->HasPinnedVertices()) {
+      continue;
+    }
+    /* Retrieve the pin object controller from the Blender object pointer stored during
+     * ConvertObject. The lookup is safe even if pin_object has no physics body. */
+    blender::Object *pinObj = sb->GetPinBlenderObject();
+    if (pinObj) {
+      JoltPhysicsController *pinCtrl = FindControllerByBlenderObject(pinObj);
+      sb->SetPinController(pinCtrl); /* may be null — fixed-world-space pinning still works */
+
+      /* If the "No Force on Pin Object" flag is set and the pin object has a
+       * physics body, register the pair so the soft body contact listener can
+       * zero out impulses transferred to the pin body. */
+      if (pinCtrl && sb->GetNoPinCollision() && !pinCtrl->GetBodyID().IsInvalid()) {
+        m_softBodyContactListener.Register(sb->GetBodyID(), pinCtrl->GetBodyID());
+      }
+    }
+  }
+}
+
 void JoltPhysicsEnvironment::UpdateSoftBodies()
 {
   for (JoltSoftBody *sb : m_softBodies) {
-    sb->SyncVertices();
+    sb->UpdateMesh();
   }
 }
 
@@ -1510,19 +1661,22 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   bool isRigidBody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
   bool useGimpact = ((isDyna || isSensor) && !isSoftBody);
 
-  /* Skip compound children for now (Phase 3 handles full compound support). */
-  if (isCompoundChild) {
-    delete motionstate;
-    return;
-  }
-
   /* Determine bounds type. */
-  char boundsType = isDyna ? OB_BOUND_SPHERE : OB_BOUND_TRIANGLE_MESH;
+  char boundsType;
   if (!(blenderobject->gameflag & OB_BOUNDS)) {
+    /* No explicit bounds configured — use type-based defaults.
+     * Also sync collision_boundtype and set OB_BOUNDS so the Jolt UI
+     * dropdown (which has no checkbox) shows the correct value. */
     if (blenderobject->gameflag & OB_SOFT_BODY)
       boundsType = OB_BOUND_TRIANGLE_MESH;
     else if (blenderobject->gameflag & OB_CHARACTER)
       boundsType = OB_BOUND_SPHERE;
+    else if (isDyna)
+      boundsType = OB_BOUND_SPHERE;
+    else
+      boundsType = OB_BOUND_TRIANGLE_MESH;
+    blenderobject->collision_boundtype = boundsType;
+    blenderobject->gameflag |= OB_BOUNDS;
   }
   else {
     if (ELEM(blenderobject->collision_boundtype, OB_BOUND_CONVEX_HULL, OB_BOUND_TRIANGLE_MESH) &&
@@ -1535,7 +1689,6 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   }
 
   /* Get bounds information. */
-  float bounds_center[3] = {0.0f, 0.0f, 0.0f};
   float bounds_extends[3] = {1.0f, 1.0f, 1.0f};
   if (const std::optional<Bounds<float3>> bl_bounds = BKE_object_boundbox_eval_cached_get(
           blenderobject)) {
@@ -1543,15 +1696,30 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     bounds_extends[0] = 0.5f * fabsf(corners[0][0] - corners[4][0]);
     bounds_extends[1] = 0.5f * fabsf(corners[0][1] - corners[2][1]);
     bounds_extends[2] = 0.5f * fabsf(corners[0][2] - corners[1][2]);
-    bounds_center[0] = 0.5f * (corners[0][0] + corners[4][0]);
-    bounds_center[1] = 0.5f * (corners[0][1] + corners[2][1]);
-    bounds_center[2] = 0.5f * (corners[0][2] + corners[1][2]);
   }
 
   /* Build the collision shape. */
   JoltShapeBuilder shapeBuilder;
   float margin = isSoftBody ? 0.1f : blenderobject->margin;
   shapeBuilder.SetMargin(margin);
+
+  /* For soft bodies, strip any stale joltSbModifier that survived from a
+   * previous game run BEFORE SetMesh() reads vertex positions.  Without
+   * this, the depsgraph-cached evaluated mesh still contains the deformation
+   * from the previous run and feeds wrong rest-pose coords into Create(). */
+  if (isSoftBody) {
+    ModifierData *md = (ModifierData *)blenderobject->modifiers.first;
+    while (md) {
+      ModifierData *next = md->next;
+      if (md->type == eModifierType_SimpleDeformBGE) {
+        ((blender::SimpleDeformModifierDataBGE *)md)->vertcoos = nullptr;
+        BLI_remlink(&blenderobject->modifiers, md);
+        BKE_modifier_free(md);
+      }
+      md = next;
+    }
+    DEG_id_tag_update(&blenderobject->id, ID_RECALC_GEOMETRY);
+  }
 
   switch (boundsType) {
     case OB_BOUND_SPHERE:
@@ -1620,26 +1788,93 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
     JoltSoftBody *sb = new JoltSoftBody(this, ctrl);
 
-    float stiffness = 1.0f;
-    float sbFriction = blenderobject->friction;
-    float sbDamping = blenderobject->damping;
+    /* Map all BulletSoftBody settings that have a Jolt equivalent. */
+    JoltSoftBodySettings sbSettings;
+    sbSettings.mass = mass;
+    sbSettings.friction = blenderobject->friction;  /* fallback */
+    sbSettings.restitution = blenderobject->reflect;
+    sbSettings.damping  = blenderobject->damping;   /* fallback */
+    sbSettings.margin   = margin;
+    sbSettings.gravityFactor = blenderobject->gravity_factor;
+
     if (blenderobject->bsoft) {
-      stiffness = blenderobject->bsoft->linStiff;
-      sbDamping = blenderobject->bsoft->kDP;
+      const blender::BulletSoftBody *bsoft = blenderobject->bsoft;
+      sbSettings.linStiff         = bsoft->linStiff;  /* edge compliance */
+      sbSettings.shearStiff       = bsoft->shearStiff; /* shear compliance */
+      sbSettings.angStiff         = bsoft->angStiff;  /* bend compliance */
+      sbSettings.friction         = bsoft->kDF;        /* dynamic friction */
+      sbSettings.damping          = bsoft->kDP;        /* linear damping */
+      sbSettings.pressure         = bsoft->kPR;        /* gas pressure */
+      sbSettings.margin           = (bsoft->margin > 0.0f) ? bsoft->margin : margin;
+      sbSettings.numIterations    = bsoft->piterations;
+      sbSettings.bendingConstraints = (bsoft->flag & OB_BSB_BENDING_CONSTRAINTS) != 0;
+      sbSettings.lraConstraints   = (bsoft->flag & OB_BSB_LRA_CONSTRAINTS) != 0;
+      sbSettings.lraType          = bsoft->lraType;
+      sbSettings.facesDoubleSided = (bsoft->flag & OB_BSB_FACES_DOUBLE_SIDED) != 0;
+      sbSettings.noPinCollision   = (bsoft->flag & OB_BSB_NO_PIN_COLLISION) != 0;
+      sbSettings.pinWeightThreshold = 1.0f - bsoft->pin_weight_threshold;
+
+      /* Build pin vertex weight list from the named vertex group. */
+      if (bsoft->pin_vgroup[0] != '\0') {
+        blender::bContext *ctx = KX_GetActiveEngine()->GetContext();
+        blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(ctx);
+        blender::Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
+        blender::Mesh *me = (blender::Mesh *)ob_eval->data;
+        int vgIdx = blender::BKE_object_defgroup_name_index(ob_eval, bsoft->pin_vgroup);
+        if (vgIdx >= 0) {
+          const blender::Span<blender::MDeformVert> dverts = me->deform_verts();
+          if (!dverts.is_empty()) {
+            /* vertRemap is built after this block — grab it from shapeBuilder directly. */
+            const std::unordered_map<int, int> &vr = shapeBuilder.GetVertexRemap();
+            for (const auto &[blendIdx, joltIdx] : vr) {
+              if (blendIdx < (int)dverts.size()) {
+                float w = blender::BKE_defvert_find_weight(&dverts[blendIdx], vgIdx);
+                if (w > 0.0f) {
+                  sbSettings.pinVertexWeights.push_back({joltIdx, w});
+                }
+              }
+            }
+          }
+        }
+      }
+
+      /* Store the pin object's initial world transform for per-frame following. */
+      if (bsoft->pin_object) {
+        blender::Object *pinObj = bsoft->pin_object;
+        float loc[3], rot[3][3], scale[3];
+        /* Use BKE_object_to_mat4 instead of pinObj->object_to_world() because
+         * inactive (template) objects have OB_HIDE_VIEWPORT forced on them by
+         * BL_DataConversion, which prevents the depsgraph from evaluating their
+         * world transform.  On the second game run pinObj->runtime->object_to_world
+         * is (0,0,0) because the depsgraph skipped its evaluation.
+         * BKE_object_to_mat4 computes the matrix directly from loc/rot/size and
+         * the parent chain without touching the depsgraph cache — the same
+         * approach used for rigid-body constraints in BL_DataConversion. */
+        float pinMat[4][4];
+        BKE_object_to_mat4(pinObj, pinMat);
+        mat4_to_loc_rot_size(loc, rot, scale, (const float (*)[4])pinMat);
+        sbSettings.hasPinObject  = true;
+        sbSettings.pinInitialPos = MT_Vector3(loc[0], loc[1], loc[2]);
+        sbSettings.pinInitialOri = MT_Matrix3x3(
+            rot[0][0], rot[1][0], rot[2][0],
+            rot[0][1], rot[1][1], rot[2][1],
+            rot[0][2], rot[1][2], rot[2][2]);
+      }
     }
 
     const std::vector<float> &verts = shapeBuilder.GetVertexArray();
     const std::vector<int> &tris = shapeBuilder.GetTriangleArray();
+    const std::unordered_map<int, int> &vertRemap = shapeBuilder.GetVertexRemap();
+
     bool ok = sb->Create(verts.data(),
                          (int)verts.size() / 3,
                          tris.data(),
                          (int)tris.size() / 3,
-                         mass,
                          pos,
-                         margin,
-                         stiffness,
-                         sbFriction,
-                         sbDamping);
+                         ori,
+                         scaling,
+                         sbSettings,
+                         vertRemap);
     if (!ok) {
       delete sb;
       delete ctrl;
@@ -1647,34 +1882,186 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       return;
     }
 
+    /* Template objects (disabled in viewport) must NOT be simulated.
+     * Two hazards arise if the template soft body is left active:
+     *
+     * 1. SGNode drift: SynchronizeMotionStates() writes the Jolt COM back to
+     *    the game object's SGNode each frame.  CloneIntoReplica() reads that
+     *    node's world position as the clone's spawn origin (replicaPos).  If
+     *    the template has been simulating, replicaPos drifts away from the
+     *    rest-pose and all spawned clones appear at the wrong location.
+     *
+     * 2. Modifier corruption: UpdateMesh() writes Jolt particle positions into
+     *    the shared Blender modifier buffer (m_sbCoords).  That buffer is used
+     *    by every live replica.  The m_isActive guard in UpdateMesh() (set by
+     *    SetActive(false) below) prevents this write for the template.
+     *
+     * Removing the body from the active world keeps m_bodyID valid (the body
+     * still exists in the pool so PostProcessReplica can lock+inspect it), but
+     * prevents any physics steps from running on it. */
+    bool sbVisCheck = (blenderobject->base_flag &
+                       (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                        BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
+    if (!sbVisCheck) {
+      m_physicsSystem->GetBodyInterfaceNoLock().RemoveBody(sb->GetBodyID());
+      sb->SetActive(false);
+    }
+
+    sb->SetGameObject(gameobj);
+    sb->SetMeshObject(meshobj);
+    /* Remove any SimpleDeformBGE modifiers left over from a previous game run.
+     * Must be called here (once per template, before any clones exist) rather
+     * than inside UpdateMesh() where multiple simultaneous clones would
+     * accidentally destroy each other's active modifiers. */
+    sb->PurgeStaleModifiers();
+    if (blenderobject->bsoft && blenderobject->bsoft->pin_object) {
+      sb->SetPinBlenderObject(blenderobject->bsoft->pin_object);
+    }
+
+    ctrl->SetSoftBody(sb);
     ctrl->SetBodyID(sb->GetBodyID());
     ctrl->SetNewClientInfo(gameobj->getClientInfo());
     gameobj->SetPhysicsController(ctrl);
+    /* Pre-center in Create() places the Jolt body at COM while preserving a
+     * stored COM->origin offset in JoltSoftBody. WriteDynamicsToMotionState()
+     * subtracts that offset for soft bodies, so the SG node starts at authored
+     * object origin from frame 0 with no startup reposition.
+     *
+     * Client info must be set before this call so parented soft bodies can use
+     * game-object world->local conversion during startup sync. */
+    ctrl->WriteDynamicsToMotionState();
 
-    /* Set collision group/mask on the soft body. */
+    /* Set collision group/mask on the soft body.
+     * Scene setup is single-threaded; use no-lock interface to avoid conflicting
+     * with Jolt's internal body-add bookkeeping. */
     unsigned short collGroup = blenderobject->col_group;
     unsigned short collMask = blenderobject->col_mask;
-    JPH::BodyInterface &bi = GetBodyInterface();
-    const JPH::BodyLockInterface &lockIf = m_physicsSystem->GetBodyLockInterface();
-    JPH::BodyLockWrite lock(lockIf, sb->GetBodyID());
-    if (lock.Succeeded()) {
-      lock.GetBody().SetCollisionGroup(
-          JPH::CollisionGroup(m_constraintGroupFilter,
-                              (JPH::CollisionGroup::GroupID)collGroup,
-                              lock.GetBody().GetID().GetIndexAndSequenceNumber()));
-      lock.GetBody().SetUserData(
-          reinterpret_cast<JPH::uint64>(gameobj->getClientInfo()));
+    {
+      const JPH::BodyLockInterfaceNoLock &lockIf = m_physicsSystem->GetBodyLockInterfaceNoLock();
+      JPH::BodyLockWrite lock(lockIf, sb->GetBodyID());
+      if (lock.Succeeded()) {
+        lock.GetBody().SetCollisionGroup(
+            JPH::CollisionGroup(m_constraintGroupFilter,
+                                (JPH::CollisionGroup::GroupID)collGroup,
+                                lock.GetBody().GetID().GetIndexAndSequenceNumber()));
+        lock.GetBody().SetUserData(
+            reinterpret_cast<JPH::uint64>(gameobj->getClientInfo()));
+      }
     }
     ctrl->SetCollisionGroup(collGroup);
     ctrl->SetCollisionMask(collMask);
 
     m_softBodies.push_back(sb);
     AddController(ctrl);
+    /* Register controller → blender object mapping for soft-body pin resolution. */
+    RegisterControllerForObject(blenderobject, ctrl);
     return;
+  }
+
+  /* Soft body was requested but the mesh data is empty (no vertices or no
+   * triangles). This can happen if the object is not a mesh or has no
+   * collider polygons. Warn so the user understands why physics falls back. */
+  if (isSoftBody) {
+    printf("Jolt: Object '%s' is set to Soft Body but has no triangle mesh data — "
+           "falling back to rigid body simulation.\n",
+           blenderobject->id.name + 2);
   }
 
   JPH::RefConst<JPH::Shape> shape = shapeBuilder.Build(useGimpact, scaling);
   if (!shape) {
+    delete motionstate;
+    return;
+  }
+
+  /* ---- Compound child: merge shape into the parent's compound shape ---- */
+  if (isCompoundChild) {
+    /* Walk the parent chain to find the compound root (topmost parent with
+     * OB_CHILD flag and a solid physics type — same logic as BL_DataConversion). */
+    blender::Object *blenderCompoundRoot = nullptr;
+    {
+      blender::Object *parentit = blenderobject->parent;
+      while (parentit) {
+        if ((parentit->gameflag & OB_CHILD) &&
+            (parentit->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
+            !(parentit->gameflag & OB_SOFT_BODY)) {
+          blenderCompoundRoot = parentit;
+        }
+        parentit = parentit->parent;
+      }
+    }
+
+    if (!blenderCompoundRoot || !converter) {
+      delete motionstate;
+      return;
+    }
+
+    KX_GameObject *compoundParent = converter->FindGameObject(blenderCompoundRoot);
+    if (!compoundParent || !compoundParent->GetPhysicsController()) {
+      delete motionstate;
+      return;
+    }
+
+    JoltPhysicsController *parentCtrl = static_cast<JoltPhysicsController *>(
+        compoundParent->GetPhysicsController());
+    if (!parentCtrl || !parentCtrl->GetShape()) {
+      delete motionstate;
+      return;
+    }
+
+    /* Compute relative transform (position + rotation) of the child
+     * in the parent's local space, matching Bullet's compound child logic. */
+    SG_Node *childNode = gameobj->GetSGNode();
+    SG_Node *parentNode = compoundParent->GetSGNode();
+
+    MT_Vector3 parentScale = parentNode->GetWorldScaling();
+    parentScale[0] = MT_Scalar(1.0f) / parentScale[0];
+    parentScale[1] = MT_Scalar(1.0f) / parentScale[1];
+    parentScale[2] = MT_Scalar(1.0f) / parentScale[2];
+
+    MT_Matrix3x3 parentInvRot = parentNode->GetWorldOrientation().transposed();
+    MT_Vector3 relativePos = parentInvRot *
+        ((childNode->GetWorldPosition() - parentNode->GetWorldPosition()) * parentScale);
+    MT_Matrix3x3 relativeRot = parentInvRot * childNode->GetWorldOrientation();
+    MT_Quaternion relQuat = relativeRot.getRotation();
+
+    /* Build a new StaticCompoundShape from the parent's existing shape(s)
+     * plus the child shape at the computed relative transform. */
+    JPH::StaticCompoundShapeSettings compoundSettings;
+    JPH::RefConst<JPH::Shape> parentShape = parentCtrl->GetShape();
+
+    const JPH::Shape *rawParentShape = parentShape.GetPtr();
+    if (rawParentShape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
+      const JPH::StaticCompoundShape *existingCompound =
+          static_cast<const JPH::StaticCompoundShape *>(rawParentShape);
+      /* Parent is already compound — re-add all existing sub-shapes. */
+      for (JPH::uint i = 0; i < existingCompound->GetNumSubShapes(); i++) {
+        const JPH::CompoundShape::SubShape &sub = existingCompound->GetSubShape(i);
+        compoundSettings.AddShape(
+            sub.GetPositionCOM(), sub.GetRotation(), sub.mShape);
+      }
+    }
+    else {
+      /* Parent has a single shape — it becomes the first sub-shape. */
+      compoundSettings.AddShape(JPH::Vec3::sZero(), JPH::Quat::sIdentity(), parentShape);
+    }
+
+    /* Add the child shape with its relative transform. */
+    compoundSettings.AddShape(
+        JoltMath::ToJolt(relativePos), JoltMath::ToJolt(relQuat), shape);
+
+    JPH::Shape::ShapeResult result = compoundSettings.Create();
+    if (result.HasError()) {
+      delete motionstate;
+      return;
+    }
+
+    /* Update the parent body to use the new compound shape. */
+    JPH::RefConst<JPH::Shape> newCompound = result.Get();
+    parentCtrl->SetShape(newCompound);
+
+    JPH::BodyInterface &bi = GetBodyInterface();
+    bi.SetShape(parentCtrl->GetBodyID(), newCompound, true, JPH::EActivation::Activate);
+
     delete motionstate;
     return;
   }
@@ -1869,6 +2256,9 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     /* Sensor: controller tracked but body not added until AddSensor(). */
     AddController(ctrl);
   }
+
+  /* Register blender object → controller mapping so soft-body pin_object lookup works. */
+  RegisterControllerForObject(blenderobject, ctrl);
 
   /* Suspend dynamics for parented objects. */
   blender::Object *blenderRoot = blenderobject->parent;
@@ -2247,18 +2637,22 @@ void JoltPhysicsEnvironment::CallbackTriggers()
   const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
 
   for (const JoltContactPair &pair : contacts) {
-    /* Lock both bodies to read their user data. */
-    JPH::BodyLockRead lock1(lockInterface, pair.bodyID1);
-    JPH::BodyLockRead lock2(lockInterface, pair.bodyID2);
-    if (!lock1.Succeeded() || !lock2.Succeeded()) {
+    /* Lock both bodies atomically to read their user data.
+     * BodyLockMultiRead computes a combined mutex mask so each unique
+     * internal Jolt mutex is locked exactly once, avoiding the undefined
+     * behaviour (and potential std::system_error / deadlock) that occurs
+     * when two separate BodyLockRead calls happen to map to the same
+     * mutex slot in Jolt's MutexArray. */
+    JPH::BodyID ids[2] = { pair.bodyID1, pair.bodyID2 };
+    JPH::BodyLockMultiRead multiLock(lockInterface, ids, 2);
+    const JPH::Body *body1 = multiLock.GetBody(0);
+    const JPH::Body *body2 = multiLock.GetBody(1);
+    if (!body1 || !body2) {
       continue;
     }
 
-    const JPH::Body &body1 = lock1.GetBody();
-    const JPH::Body &body2 = lock2.GetBody();
-
-    KX_ClientObjectInfo *info1 = reinterpret_cast<KX_ClientObjectInfo *>(body1.GetUserData());
-    KX_ClientObjectInfo *info2 = reinterpret_cast<KX_ClientObjectInfo *>(body2.GetUserData());
+    KX_ClientObjectInfo *info1 = reinterpret_cast<KX_ClientObjectInfo *>(body1->GetUserData());
+    KX_ClientObjectInfo *info2 = reinterpret_cast<KX_ClientObjectInfo *>(body2->GetUserData());
     if (!info1 || !info2 || !info1->m_gameobject || !info2->m_gameobject) {
       continue;
     }
@@ -2453,26 +2847,35 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
 
     switch (op.type) {
       case JoltDeferredOpType::SuspendDynamics: {
-        /* Switch to static. */
-        bi.SetMotionType(op.bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
-
-        /* If ghost mode, make sensor and update layer. */
-        if (op.ghost && bi.IsAdded(op.bodyID)) {
-          JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
-          if (lock.Succeeded()) {
-            lock.GetBody().SetIsSensor(true);
+        if (op.ghost) {
+          /* Ghost mode: make body a static sensor. */
+          bi.SetMotionType(op.bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
+          if (bi.IsAdded(op.bodyID)) {
+            {
+              JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
+              if (lock.Succeeded()) {
+                lock.GetBody().SetIsSensor(true);
+              }
+            }
+            bi.SetObjectLayer(op.bodyID,
+                              JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, JOLT_BP_SENSOR));
           }
-          bi.SetObjectLayer(op.bodyID,
-                            JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, JOLT_BP_SENSOR));
         }
-        else if (bi.IsAdded(op.bodyID)) {
-          bi.SetObjectLayer(op.bodyID,
-                            JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, JOLT_BP_STATIC));
+        else {
+          /* Non-ghost: remove body from world entirely (no collision). */
+          if (bi.IsAdded(op.bodyID)) {
+            bi.RemoveBody(op.bodyID);
+          }
         }
         break;
       }
 
       case JoltDeferredOpType::RestoreDynamics: {
+        /* If body is not in the world (removed on suspend), add it back. */
+        if (!bi.IsAdded(op.bodyID)) {
+          bi.AddBody(op.bodyID, JPH::EActivation::Activate);
+        }
+
         /* Restore motion type. */
         bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
 

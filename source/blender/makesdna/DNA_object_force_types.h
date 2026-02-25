@@ -411,12 +411,17 @@ struct SoftBody {
 #define OB_BSB_BENDING_CONSTRAINTS 8
 #define OB_BSB_AERO_VPOINT 16 /* aero model, Vertex normals are oriented toward velocity*/
 // #define OB_BSB_AERO_VTWOSIDE 32 /* aero model, Vertex normals are flipped to match velocity */
+#define OB_BSB_LRA_CONSTRAINTS 64    /* Jolt: Long Range Attachment constraints (anti-stretch) */
+#define OB_BSB_FACES_DOUBLE_SIDED 128 /* Jolt: treat soft body faces as double-sided for collision */
+#define OB_BSB_NO_PIN_COLLISION 256   /* Jolt: soft body cannot apply collision forces to its pin/parent object */
 
 /* BulletSoftBody.collisionflags */
 #define OB_BSB_COL_SDF_RS 2 /* SDF based rigid vs soft */
 #define OB_BSB_COL_CL_RS 4  /* Cluster based rigid vs soft */
 #define OB_BSB_COL_CL_SS 8  /* Cluster based soft vs soft */
 #define OB_BSB_COL_VF_SS 16 /* Vertex/Face based soft vs soft */
+
+struct Object; /* forward declaration for pin_object */
 
 struct BulletSoftBody {
   DNA_DEFINE_CXX_METHODS(BulletSoftBody)
@@ -457,7 +462,15 @@ struct BulletSoftBody {
   int bending_dist = 2;         /* Bending constraint distance */
   float welding = 0.0f;            /* welding limit to remove duplicate/nearby vertices */
   float margin = 0.0f;             /* margin specific to softbody */
-  int _pad = 0;
+  float shearStiff = 0.5f; /* shear stiffness 0..1 */
+  /* Jolt-specific: LRA constraint type (0=Euclidean, 1=Geodesic). */
+  int lraType = 0;
+  char _pad0[4];
+  /* Jolt: vertex pinning — vertices in pin_vgroup with weight >= threshold are kinematic. */
+  Object *pin_object = nullptr; /* optional: pinned verts follow this object's transform */
+  char pin_vgroup[64] = {};    /* vertex group name; empty = no pinning */
+  float pin_weight_threshold = 0.5f; /* weight >= this → kinematic vertex */
+  char _pad2[4];
 };
 
 }  // namespace blender

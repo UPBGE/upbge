@@ -978,7 +978,10 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
     obj->GetSGNode()->AddChild(GetSGNode());
 
     if (m_pPhysicsController) {
-      m_pPhysicsController->SuspendDynamics(ghost);
+      /* Parent-actuator ghost mode is only meaningful when adding the child
+       * to the parent's compound setup. If compound mode is disabled, ignore
+       * any stale ghost flag value (UI can keep a disabled checkbox state). */
+      m_pPhysicsController->SuspendDynamics(ghost && addToCompound);
     }
     // Set us to our new scale, position, and orientation
     scale2[0] = 1.0f / scale2[0];

@@ -37,6 +37,7 @@ JPH_SUPPRESS_WARNINGS
 #include "MT_Vector3.h"
 #include "PHY_DynamicTypes.h"
 
+#include <unordered_map>
 #include <vector>
 
 class RAS_MeshObject;
@@ -73,6 +74,8 @@ class JoltShapeBuilder {
   const std::vector<float> &GetVertexArray() const { return m_vertexArray; }
   /** Access raw triangle index array (3 indices per triangle). */
   const std::vector<int> &GetTriangleArray() const { return m_triFaceArray; }
+  /** Access vertex remap: Blender original vert index → soft body particle index. */
+  const std::unordered_map<int, int> &GetVertexRemap() const { return m_vertRemap; }
 
   /** Build the Jolt shape from the configured parameters.
    *  Returns nullptr if the configuration is invalid.
@@ -111,4 +114,6 @@ class JoltShapeBuilder {
   std::vector<float> m_vertexArray;
   /** Triangle index data (3 indices per triangle). */
   std::vector<int> m_triFaceArray;
+  /** Maps Blender original vertex index to Jolt soft body particle index. */
+  std::unordered_map<int, int> m_vertRemap;
 };

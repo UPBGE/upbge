@@ -132,6 +132,10 @@ class PHY_IPhysicsEnvironment {
 
   virtual void UpdateSoftBodies() = 0;
 
+  /** Link pin-object controllers to soft bodies after all objects are converted.
+   *  Called once from BL_DataConversion after the physics creation loop. */
+  virtual void FinalizeSoftBodyPins() {}
+
   /// draw debug lines (make sure to call this during the render phase, otherwise lines are not
   /// drawn properly)
   virtual void DebugDrawWorld()
