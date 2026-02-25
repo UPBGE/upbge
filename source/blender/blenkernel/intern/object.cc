@@ -565,6 +565,13 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
       level = level->next;
     }
   }
+
+  /* UPBGE Jolt: pin_object inside BulletSoftBody is an Object ID reference that must be
+   * walked so the blend-file lib-link pass can translate the raw file pointer to a valid
+   * current-session pointer. Without this the pointer stays as garbage → crash on access. */
+  if (object->bsoft) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->bsoft->pin_object, IDWALK_CB_NEVER_SELF);
+  }
   /****************/
 
   if (object->soft) {
@@ -2948,7 +2955,8 @@ BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int /*flag*
     return nullptr;
   bsbn = (BulletSoftBody *)MEM_new_uninitialized(sizeof(BulletSoftBody), "BulletSoftBody");
   memcpy((void *)bsbn, bsb, sizeof(BulletSoftBody));
-  /* no pointer in this structure yet */
+  /* pin_object is an ID pointer; it is a non-owning reference so the raw copy is fine for
+   * same-session duplicates. Cross-session fixup is handled by object_foreach_id. */
   return bsbn;
 }
 

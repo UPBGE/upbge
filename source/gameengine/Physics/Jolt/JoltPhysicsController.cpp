@@ -38,11 +38,14 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 
 #include "JoltDefaultMotionState.h"
 #include "JoltMathUtils.h"
 #include "JoltPhysicsEnvironment.h"
 #include "JoltShapeBuilder.h"
+#include "JoltSoftBody.h"
+#include "KX_ClientObjectInfo.h"
 #include "KX_GameObject.h"
 #include "KX_Scene.h"
 #include "PHY_IMotionState.h"
@@ -58,8 +61,14 @@ JoltPhysicsController::JoltPhysicsController()
 
 JoltPhysicsController::~JoltPhysicsController()
 {
+  /* For soft body controllers the Jolt body lifetime is owned by JoltSoftBody.
+   * ~JoltSoftBody() removes and destroys the body; we must not touch it here
+   * or we will double-free the body and crash inside sDeleteBody. */
+  if (m_softBody) {
+    m_bodyID = JPH::BodyID(); /* Invalidate our copy so nobody else tries. */
+  }
   /* Remove body from the physics system if we still have a valid environment. */
-  if (m_physicsEnv && !m_bodyID.IsInvalid()) {
+  else if (m_physicsEnv && !m_bodyID.IsInvalid()) {
     /* If physics is currently updating, defer body destruction to prevent
      * crashes from destroying bodies while physics jobs reference them. */
     if (m_physicsEnv->IsPhysicsUpdating()) {
@@ -115,12 +124,9 @@ bool JoltPhysicsController::SynchronizeMotionStates(float time)
 
 void JoltPhysicsController::UpdateSoftBody()
 {
-  if (!m_physicsEnv || m_bodyID.IsInvalid()) {
-    return;
-  }
-
-  /* Soft body vertex sync is handled by JoltSoftBody::SyncVertices()
-   * which is called from JoltPhysicsEnvironment::UpdateSoftBodies(). */
+  /* Mesh deformation is handled by JoltSoftBody::UpdateMesh(),
+   * called each frame from JoltPhysicsEnvironment::UpdateSoftBodies().
+   * Nothing to do here. */
 }
 
 void JoltPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori)
@@ -129,24 +135,49 @@ void JoltPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT
     return;
   }
 
-  /* Set the soft body's world transform. */
+  if (m_softBody) {
+    /* Full-copy spawning creates a new soft body from the template first, then
+     * repositions/reorients the game object to the actuator reference.
+     * Soft-body orientation is baked into local particle coordinates (body
+     * rotation should remain identity), so we must rotate/rebase that local
+     * data instead of applying a body rotation. */
+    m_softBody->ApplySpawnTransform(pos, ori);
+    return;
+  }
+
+  /* pos is a positional delta (newpos - oldpos) per KX_Scene convention, NOT
+   * a world position. Offset the current body origin by the delta so that the
+   * soft body particles — stored in local space — translate correctly with it.
+   * Passing pos directly as a world position would teleport the body to the
+   * delta vector, misplacing all particles. */
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  JPH::RVec3 curPos = bi.GetPosition(m_bodyID);
   bi.SetPositionAndRotation(
       m_bodyID,
-      JoltMath::ToJolt(pos),
+      curPos + JoltMath::ToJolt(pos),
       JoltMath::ToJolt(ori.getRotation()),
       JPH::EActivation::Activate);
 }
 
 void JoltPhysicsController::RemoveSoftBodyModifier(blender::Object *ob)
 {
-  /* Soft body modifiers are managed at the Blender level.
-   * No Jolt-specific cleanup needed here. */
+  if (m_softBody) {
+    m_softBody->CleanupModifier(ob);
+  }
 }
 
 void JoltPhysicsController::WriteMotionStateToDynamics(bool nondynaonly)
 {
   if (!m_physicsEnv || m_bodyID.IsInvalid() || !m_motionState) {
+    return;
+  }
+
+  /* Soft body particle positions are managed entirely by the Jolt solver and
+   * UpdatePinnedVertices().  Calling SetPositionAndRotation on a soft body
+   * translates ALL particles by the delta between the stored (stale) motion-
+   * state position and the current COM, dragging the body back to its spawn
+   * location every frame and preventing any world-space movement. */
+  if (m_softBody) {
     return;
   }
 
@@ -182,6 +213,28 @@ void JoltPhysicsController::WriteDynamicsToMotionState()
   bi.GetPositionAndRotation(m_bodyID, joltPos, joltRot);
 
   MT_Vector3 pos = JoltMath::ToMT(JPH::Vec3(joltPos));
+
+  /* Soft bodies keep a persistent COM->origin offset so the game-object origin
+   * stays at the authored spawn position on startup while still following the
+   * simulated body translation afterward. Jolt reports identity body rotation
+   * for soft bodies, so don't overwrite the object's orientation here. */
+  if (m_softBody) {
+    pos -= m_softBody->GetBodyOriginOffset();
+
+    /* KX_MotionState::SetWorldPosition writes local position directly.
+     * For parented objects we must convert world->local first to avoid writing
+     * world coordinates into child local space (startup teleport on child soft bodies). */
+    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(m_newClientInfo);
+    KX_GameObject *gameobj = (info) ? info->m_gameobject : nullptr;
+    if (gameobj && gameobj->GetParent()) {
+      gameobj->NodeSetWorldPosition(pos);
+    }
+    else {
+      m_motionState->SetWorldPosition(pos);
+    }
+    return;
+  }
+
   MT_Quaternion quat = JoltMath::ToMT(joltRot);
 
   m_motionState->SetWorldPosition(pos);
@@ -202,6 +255,7 @@ PHY_IMotionState *JoltPhysicsController::GetMotionState()
 void JoltPhysicsController::PostProcessReplica(PHY_IMotionState *motionstate,
                                                 PHY_IPhysicsController *parentctrl)
 {
+  (void)parentctrl;
   m_motionState = motionstate;
 
   if (!m_physicsEnv || m_bodyID.IsInvalid() || !m_motionState) {
@@ -221,8 +275,9 @@ void JoltPhysicsController::PostProcessReplica(PHY_IMotionState *motionstate,
    * we must NOT retain the source's BodyID - that would cause a double-free
    * when both controllers are destroyed. */
   const JPH::BodyID sourceBodyID = m_bodyID;
-  m_bodyID = JPH::BodyID();  /* Invalidate now to prevent double-free on failure. */
+  m_bodyID = JPH::BodyID();  /* Invalidate our copy so nobody else tries. */
 
+  bool isSoftBody = false;
   JPH::BodyCreationSettings bcs;
   {
     const JPH::BodyLockInterface &lockInterface =
@@ -232,27 +287,58 @@ void JoltPhysicsController::PostProcessReplica(PHY_IMotionState *motionstate,
       return;
     }
 
-    bcs = lock.GetBody().GetBodyCreationSettings();
+    /* Soft bodies must be cloned via JoltSoftBody::CloneIntoReplica, not through
+     * BodyCreationSettings (which only describes rigid bodies). */
+    if (lock.GetBody().IsSoftBody()) {
+      isSoftBody = true;
+    }
+    else {
+      bcs = lock.GetBody().GetBodyCreationSettings();
+    }
   }
 
-  /* Use the replica's motion state position. */
-  MT_Vector3 pos = m_motionState->GetWorldPosition();
-  MT_Matrix3x3 ori = m_motionState->GetWorldOrientation();
-  MT_Quaternion quat = ori.getRotation();
-  bcs.mPosition = JoltMath::ToJolt(pos);
-  bcs.mRotation = JoltMath::ToJolt(quat);
+  if (!isSoftBody) {
+    /* ---- Rigid body replica path ---- */
+    MT_Vector3 pos = m_motionState->GetWorldPosition();
+    MT_Matrix3x3 ori = m_motionState->GetWorldOrientation();
+    MT_Quaternion quat = ori.getRotation();
+    bcs.mPosition = JoltMath::ToJolt(pos);
+    bcs.mRotation = JoltMath::ToJolt(quat);
 
-  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterfaceNoLock();
-  JPH::Body *newBody = bi.CreateBody(bcs);
-  if (!newBody) {
-    /* Body creation failed (e.g., maxBodies limit exceeded).
-     * m_bodyID is already invalid - safe for destructor. */
+    JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterfaceNoLock();
+    JPH::Body *newBody = bi.CreateBody(bcs);
+    if (!newBody) {
+      /* Body creation failed (e.g., maxBodies limit exceeded).
+       * m_bodyID is already invalid - safe for destructor. */
+      return;
+    }
+
+    m_bodyID = newBody->GetID();
+    newBody->SetUserData(reinterpret_cast<JPH::uint64>(m_newClientInfo));
+    bi.AddBody(m_bodyID, JPH::EActivation::Activate);
     return;
   }
 
-  m_bodyID = newBody->GetID();
-  newBody->SetUserData(reinterpret_cast<JPH::uint64>(m_newClientInfo));
-  bi.AddBody(m_bodyID, JPH::EActivation::Activate);
+  /* ---- Soft body replica path ---- */
+  /* PostProcessReplica is called BEFORE UpdateWorldData() sets the replica's
+   * correct world transform.  Defer the actual Jolt body creation to SetTransform()
+   * so we use the correct spawn position.  Just record the source and parent. */
+  {
+    JoltSoftBody *originalSb = m_softBody;
+    m_softBody = nullptr;
+
+    if (!originalSb) {
+      return;
+    }
+
+    /* Mark the hidden-layer template inactive so it stops writing to the shared
+     * Blender modifier while replicas are alive. */
+    originalSb->SetActive(false);
+
+    m_pendingSoftBodySource = originalSb;
+    /* m_bodyID is already invalid (cleared at top of PostProcessReplica).
+     * SetTransform() will create the real body and fill m_bodyID. */
+  }
 }
 
 void JoltPhysicsController::SetPhysicsEnvironment(PHY_IPhysicsEnvironment *env)
@@ -362,20 +448,74 @@ void JoltPhysicsController::SetScaling(const MT_Vector3 &scale)
     return;
   }
 
-  /* Jolt ScaledShape has no SetScale — create new ScaledShape wrapping original. */
+  /* Jolt ScaledShape has no SetScale — create new ScaledShape wrapping original.
+   * For replicas, the shape may already be a ScaledShape with the source object's
+   * scale baked in. We need to unwrap it to get the base shape, then apply the
+   * new scale. Otherwise ScaleShape would multiply scales (e.g., 3x * 1x = 3x
+   * instead of replacing with 1x). */
   JPH::Vec3 joltScale(scale[0], scale[2], scale[1]);
 
-  JPH::Shape::ShapeResult result = m_shape->ScaleShape(joltScale);
+  /* Get the base shape (unwrap ScaledShape if present). */
+  JPH::RefConst<JPH::Shape> baseShape = m_shape;
+  if (m_shape->GetSubType() == JPH::EShapeSubType::Scaled) {
+    const JPH::ScaledShape *scaledShape = static_cast<const JPH::ScaledShape *>(m_shape.GetPtr());
+    baseShape = scaledShape->GetInnerShape();
+  }
+
+  /* Apply the new scale to the base shape. */
+  JPH::Shape::ShapeResult result = baseShape->ScaleShape(joltScale);
   if (result.HasError()) {
     return;
   }
 
+  JPH::RefConst<JPH::Shape> newShape = result.Get();
+
+  /* Update the stored shape reference. */
+  m_shape = newShape;
+
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
-  bi.SetShape(m_bodyID, result.Get(), true, JPH::EActivation::Activate);
+  bi.SetShape(m_bodyID, newShape, true, JPH::EActivation::Activate);
 }
 
 void JoltPhysicsController::SetTransform()
 {
+  /* --- Deferred soft body clone creation ---
+   * PostProcessReplica stores the source here because the replica's world
+   * position is only correct AFTER KX_Scene::AddReplicaObject calls
+   * UpdateWorldData() + SetTransform() on all nodes.  We consume the pending
+   * clone here so CloneIntoReplica reads the right spawn position. */
+  if (m_pendingSoftBodySource && m_physicsEnv && m_motionState) {
+    JoltSoftBody *originalSb = m_pendingSoftBodySource;
+    m_pendingSoftBodySource  = nullptr;
+
+    /* By the time SetTransform() is called, UpdateWorldData() has already run and
+     * the scene graph parent-child relationships are fully established.  Look up
+     * the replica's parent controller here rather than using the stale value from
+     * PostProcessReplica (where AddChild() had not been called yet). */
+    PHY_IPhysicsController *pc = nullptr;
+    KX_ClientObjectInfo *info  = static_cast<KX_ClientObjectInfo *>(m_newClientInfo);
+    if (info && info->m_gameobject) {
+      KX_GameObject *parent = info->m_gameobject->GetParent();
+      if (parent) {
+        pc = parent->GetPhysicsController();
+      }
+    }
+
+    JoltSoftBody *clonedSb = originalSb->CloneIntoReplica(this, m_motionState, pc);
+    if (clonedSb) {
+      if (info && info->m_gameobject) {
+        clonedSb->SetGameObject(info->m_gameobject);
+      }
+
+      m_softBody = clonedSb;
+      m_bodyID   = clonedSb->GetBodyID();
+      SetDynamic(true);
+
+      m_physicsEnv->AddSoftBodyReplica(clonedSb, clonedSb->GetPinController());
+    }
+    return;
+  }
+
   if (!m_physicsEnv || m_bodyID.IsInvalid() || !m_motionState) {
     return;
   }
@@ -383,6 +523,14 @@ void JoltPhysicsController::SetTransform()
   MT_Vector3 pos = m_motionState->GetWorldPosition();
   MT_Matrix3x3 ori = m_motionState->GetWorldOrientation();
   MT_Quaternion quat = ori.getRotation();
+
+  if (m_softBody) {
+    /* Keep soft-body body rotation at identity: orientation is represented by
+     * local particle coordinates, not body quaternion. Also preserve the COM
+     * offset so WriteDynamicsToMotionState() <-> SetTransform() stay inverse. */
+    pos += m_softBody->GetBodyOriginOffset();
+    quat = MT_Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+  }
 
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
   bi.SetPositionAndRotation(
@@ -540,6 +688,38 @@ void JoltPhysicsController::SetLinearVelocity(const MT_Vector3 &lin_vel, bool lo
 
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
   JPH::Vec3 joltLinVel = JoltMath::ToJolt(lin_vel);
+
+  if (m_softBody) {
+    /* Jolt stores soft-body particle velocities in body-local space.
+     * Convert world-space input (local=false) back to body-local so spawned
+     * full-duplication soft bodies move in the same direction as normal
+     * replicas. For local=true, lin_vel is already in local space. */
+    if (!local) {
+      JPH::Quat rot = bi.GetRotation(m_bodyID);
+      joltLinVel = rot.Conjugated() * joltLinVel;
+    }
+
+    /* Jolt's BodyInterface::SetLinearVelocity has an IsRigidBody() guard and
+     * is a no-op for soft bodies.  Soft body velocity is per-particle:
+     * set all SoftBodyVertex::mVelocity entries uniformly so the whole
+     * cloth/rope starts moving at the requested speed on spawn. */
+    const JPH::BodyLockInterface &lockIf =
+        m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
+    JPH::BodyLockWrite lock(lockIf, m_bodyID);
+    if (lock.Succeeded() && lock.GetBody().IsSoftBody()) {
+      JPH::SoftBodyMotionProperties *mp =
+          static_cast<JPH::SoftBodyMotionProperties *>(lock.GetBody().GetMotionProperties());
+      for (JPH::SoftBodyVertex &v : mp->GetVertices()) {
+        if (v.mInvMass == 0.0f) {
+          continue;  /* Pinned (kinematic) vertices are position-controlled; injecting
+                      * velocity would fight UpdatePinnedVertices and overstress
+                      * constraints between pinned / unpinned regions on spawn. */
+        }
+        v.mVelocity = joltLinVel;
+      }
+    }
+    return;
+  }
 
   if (local) {
     JPH::Quat rot = bi.GetRotation(m_bodyID);
@@ -827,28 +1007,33 @@ void JoltPhysicsController::SuspendDynamics(bool ghost)
     op.collisionMask = m_collisionMask;
     m_physicsEnv->QueueDeferredOperation(op);
     m_dynamicsSuspended = true;
+    m_bodyRemovedOnSuspend = !ghost;
     return;
   }
 
-  /* Switch to static. */
-  bi.SetMotionType(m_bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
-
-  /* If ghost mode, make it a sensor (collisions detected but not resolved). */
   if (ghost) {
-    JPH::BodyLockWrite lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
-    if (lock.Succeeded()) {
-      lock.GetBody().SetIsSensor(true);
+    /* Ghost mode: make body a static sensor (collisions detected but not resolved). */
+    bi.SetMotionType(m_bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
+    {
+      JPH::BodyLockWrite lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
+      if (lock.Succeeded()) {
+        lock.GetBody().SetIsSensor(true);
+      }
     }
-    /* Update ObjectLayer to SENSOR broadphase category. */
     if (bi.IsAdded(m_bodyID)) {
       bi.SetObjectLayer(m_bodyID, JoltMakeObjectLayer(m_collisionGroup, m_collisionMask, JOLT_BP_SENSOR));
     }
+    m_bodyRemovedOnSuspend = false;
   }
   else {
-    /* Update ObjectLayer to STATIC broadphase category. */
+    /* Non-ghost: remove the body from the physics world entirely so
+     * the parented child has no collision at all.  The body is kept
+     * alive (not destroyed) so RestoreDynamics / RemoveParent can
+     * re-add it later. */
     if (bi.IsAdded(m_bodyID)) {
-      bi.SetObjectLayer(m_bodyID, JoltMakeObjectLayer(m_collisionGroup, m_collisionMask, JOLT_BP_STATIC));
+      bi.RemoveBody(m_bodyID);
     }
+    m_bodyRemovedOnSuspend = true;
   }
 
   m_dynamicsSuspended = true;
@@ -878,6 +1063,13 @@ void JoltPhysicsController::RestoreDynamics()
 
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
 
+  /* If body was removed from the world on suspend, add it back first. */
+  if (m_bodyRemovedOnSuspend) {
+    if (!bi.IsAdded(m_bodyID)) {
+      bi.AddBody(m_bodyID, JPH::EActivation::Activate);
+    }
+  }
+
   /* Restore motion type. */
   bi.SetMotionType(m_bodyID, m_savedMotionType, JPH::EActivation::Activate);
 
@@ -895,6 +1087,7 @@ void JoltPhysicsController::RestoreDynamics()
   }
 
   m_dynamicsSuspended = false;
+  m_bodyRemovedOnSuspend = false;
 }
 
 void JoltPhysicsController::SetActive(bool active)
@@ -1053,7 +1246,8 @@ PHY_IPhysicsController *JoltPhysicsController::GetReplica()
   replica->m_isCompound = m_isCompound;
   replica->m_bpCategory = m_bpCategory;
   replica->m_originalMotionType = m_originalMotionType;
-  replica->m_bodyID = m_bodyID;  /* Will be replaced in PostProcessReplica. */
+  replica->m_bodyID  = m_bodyID;   /* Will be replaced in PostProcessReplica. */
+  replica->m_softBody = m_softBody; /* Temporarily carried so PostProcessReplica can clone it. */
 
   if (m_physicsEnv) {
     m_physicsEnv->AddController(replica);

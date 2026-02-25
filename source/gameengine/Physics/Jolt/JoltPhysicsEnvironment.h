@@ -38,6 +38,7 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/CollisionGroup.h>
+#include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
 #include "PHY_IPhysicsEnvironment.h"
 
@@ -56,6 +57,7 @@ class JoltVehicle;
 class KX_GameObject;
 
 namespace blender {
+struct Object;
 struct Scene;
 }
 
@@ -364,6 +366,37 @@ class JoltBodyActivationListener : public JPH::BodyActivationListener {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Soft Body Contact Listener
+ * \{ */
+
+/**
+ * Filters soft body ↔ rigid body contacts so that a soft body with the
+ * "No Force on Pin Object" flag set cannot push its designated pin/parent body.
+ * Setting mInvMassScale2 = 0 gives the other body infinite effective mass for
+ * that contact, so no impulse is transferred to it.
+ */
+class JoltSoftBodyContactListener : public JPH::SoftBodyContactListener {
+ public:
+  virtual JPH::SoftBodyValidateResult OnSoftBodyContactValidate(
+      const JPH::Body &inSoftBody,
+      const JPH::Body &inOtherBody,
+      JPH::SoftBodyContactSettings &ioSettings) override;
+
+  /** Register a soft body / pin body pair that should not exchange forces. */
+  void Register(JPH::BodyID softBodyID, JPH::BodyID pinBodyID);
+
+  /** Remove the entry when the soft body is destroyed. */
+  void Unregister(JPH::BodyID softBodyID);
+
+ private:
+  std::mutex m_mutex;
+  /** Maps soft body IndexAndSequenceNumber → pin body IndexAndSequenceNumber. */
+  std::unordered_map<JPH::uint32, JPH::uint32> m_noPinCollisionMap;
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name JoltPhysicsEnvironment
  *
  * Main physics environment implementing PHY_IPhysicsEnvironment for Jolt Physics.
@@ -512,6 +545,20 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void AddController(JoltPhysicsController *ctrl);
   bool RemoveController(JoltPhysicsController *ctrl);
 
+  /** Register a blender Object → controller mapping (used for soft body pin lookup). */
+  void RegisterControllerForObject(blender::Object *obj, JoltPhysicsController *ctrl);
+
+  /** Find the controller registered for a given Blender Object (may return null). */
+  JoltPhysicsController *FindControllerByBlenderObject(blender::Object *obj);
+
+  /** Link pinned-vertex controllers for all soft bodies that have a pin_object set.
+   *  Call once after all objects have been converted (post-scene-init). */
+  void FinalizeSoftBodyPins();
+
+  /** Register a soft body clone produced by PostProcessReplica (Add Object spawning).
+   *  Adds it to m_softBodies and the no-pin-collision map if needed. */
+  void AddSoftBodyReplica(JoltSoftBody *sb, JoltPhysicsController *pinCtrl);
+
   void AddGraphicController(JoltGraphicController *ctrl);
   void RemoveGraphicController(JoltGraphicController *ctrl);
 
@@ -546,6 +593,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::unique_ptr<JPH::PhysicsSystem> m_physicsSystem;
   JPH::Ref<JoltConstraintGroupFilter> m_constraintGroupFilter;
   JoltContactListener m_contactListener;
+  JoltSoftBodyContactListener m_softBodyContactListener;
   JoltBodyActivationListener m_bodyActivationListener;
 
   std::set<JoltPhysicsController *> m_controllers;
@@ -555,6 +603,9 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::vector<JoltVehicle *> m_vehicles;
   std::set<JoltGraphicController *> m_graphicControllers;
   std::vector<JoltSoftBody *> m_softBodies;
+
+  /** Maps Blender Object* → JoltPhysicsController* for soft-body pin-object lookup. */
+  std::unordered_map<blender::Object*, JoltPhysicsController*> m_controllerByBlenderObject;
 
   PHY_ResponseCallback m_triggerCallbacks[PHY_NUM_RESPONSE];
   void *m_triggerCallbacksUserPtrs[PHY_NUM_RESPONSE];

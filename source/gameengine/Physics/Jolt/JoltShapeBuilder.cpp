@@ -105,13 +105,14 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
 {
   m_vertexArray.clear();
   m_triFaceArray.clear();
+  m_vertRemap.clear();
 
   if (!meshobj || !meshobj->HasColliderPolygon()) {
     return false;
   }
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   blender::Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
   blender::Mesh *me = (blender::Mesh *)ob_eval->data;
@@ -139,6 +140,7 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
       m_vertexArray[idx * 3 + 0] = vtx[0];
       m_vertexArray[idx * 3 + 1] = vtx[1];
       m_vertexArray[idx * 3 + 2] = vtx[2];
+      m_vertRemap[pair.first] = pair.second;
     }
   }
   else {
@@ -164,7 +166,9 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
           m_vertexArray.push_back(positions[vert_idx][1]);
           m_vertexArray.push_back(positions[vert_idx][2]);
           tri_indices[j] = next_vert;
-          vert_remap[vert_idx] = next_vert++;
+          vert_remap[vert_idx] = next_vert;
+          m_vertRemap[vert_idx] = next_vert;
+          next_vert++;
         }
         else {
           tri_indices[j] = it->second;

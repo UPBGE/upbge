@@ -38,6 +38,7 @@ JPH_SUPPRESS_WARNINGS
 #include "PHY_IPhysicsController.h"
 #include "JoltPhysicsEnvironment.h"
 
+class JoltSoftBody;
 class PHY_IMotionState;
 
 /**
@@ -169,6 +170,7 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   /* ---- Jolt-specific helpers ---- */
 
   void SetMotionState(PHY_IMotionState *ms) { m_motionState = ms; }
+  PHY_IMotionState *GetMotionState() const { return m_motionState; }
   void SetEnvironment(JoltPhysicsEnvironment *env) { m_physicsEnv = env; }
   void SetDynamic(bool dyna) { m_isDynamic = dyna; }
   void SetRigidBodyFlag(bool rigid) { m_isRigidBody = rigid; }
@@ -201,8 +203,16 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   bool Unregister() { return (--m_registerCount == 0); }
   bool Registered() const { return (m_registerCount != 0); }
 
+  void SetSoftBody(JoltSoftBody *sb) { m_softBody = sb; }
+  JoltSoftBody *GetSoftBody() const { return m_softBody; }
+
  private:
-  JoltPhysicsEnvironment *m_physicsEnv = nullptr;
+  JoltSoftBody *m_softBody = nullptr;
+  JoltPhysicsEnvironment *m_physicsEnv = nullptr;  /* m_softBody declared above */
+
+  /** Deferred soft body clone: set in PostProcessReplica, consumed in SetTransform()
+   *  once UpdateWorldData() has given the motion state its correct world position. */
+  JoltSoftBody *m_pendingSoftBodySource = nullptr;
   PHY_IMotionState *m_motionState = nullptr;
   void *m_newClientInfo = nullptr;
   JPH::BodyID m_bodyID;
@@ -233,6 +243,7 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   JoltBroadPhaseLayer m_bpCategory = JOLT_BP_STATIC;
   bool m_dynamicsSuspended = false;
   bool m_physicsSuspended = false;
+  bool m_bodyRemovedOnSuspend = false;
 
   JPH::EMotionType m_originalMotionType = JPH::EMotionType::Static;
 

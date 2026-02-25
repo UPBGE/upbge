@@ -195,6 +195,18 @@ bool SCA_CollectionActuator::Update()
       for (KX_GameObject *gameobj : m_kxscene->GetInactiveList()) {
         blender::Object *ob = gameobj->GetBlenderObject();
         if (ob && BKE_collection_has_object(m_collection, ob)) {
+          /* Skip child objects: AddReplicaObject already spawns the full
+           * hierarchy when the parent is processed.  Spawning children
+           * individually here would create duplicate stray objects (the
+           * classic "phantom soft body at template position" bug). */
+          KX_GameObject *templateParent = gameobj->GetParent();
+          if (templateParent) {
+            blender::Object *parentOb = templateParent->GetBlenderObject();
+            if (parentOb && BKE_collection_has_object(m_collection, parentOb)) {
+              continue;
+            }
+          }
+
           KX_GameObject *replica = nullptr;
           if (!m_fullCopy) {
             replica = m_kxscene->AddReplicaObject(gameobj, nullptr, 0.0f);
@@ -251,9 +263,48 @@ bool SCA_CollectionActuator::Update()
               replica->NodeSetLocalOrientation(composed_ori);
               replica->NodeSetRelativeScale(owner_scale);
               replica->GetSGNode()->UpdateWorldData(0.0);
+
+              /* Re-sync all physics bodies in the hierarchy to the new world
+               * positions.  AddReplicaObject called SetTransform() while the
+               * SGNode was still at the template position; soft-body deferred
+               * clones are created inside SetTransform(), so they ended up at
+               * the wrong location.  A second pass after UpdateWorldData places
+               * them correctly.  m_pendingSoftBodySource is consumed on the
+               * first call, so the second call only does a cheap position
+               * update for rigid bodies and a proper clone creation for any
+               * soft body that still has a pending source (there shouldn't be
+               * any after the first pass, but the guard inside SetTransform
+               * handles that safely). */
+              std::function<void(KX_GameObject *)> syncPhysics =
+                  [&](KX_GameObject *obj) {
+                    if (obj->GetPhysicsController()) {
+                      obj->GetPhysicsController()->SetTransform();
+                    }
+                    for (KX_GameObject *child : obj->GetChildren()) {
+                      syncPhysics(child);
+                    }
+                  };
+              syncPhysics(replica);
             }
-            replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
-            replica->setAngularVelocity(MT_Vector3(m_angular_velocity), m_localAngvFlag);
+            /* Compute world-space velocity from local flag and actuator owner rotation. */
+            MT_Vector3 worldLinVel(m_linear_velocity);
+            MT_Vector3 worldAngVel(m_angular_velocity);
+            if (m_localLinvFlag || m_localAngvFlag) {
+              KX_GameObject *owner = static_cast<KX_GameObject *>(GetParent());
+              MT_Matrix3x3 ownerOri = owner->NodeGetWorldOrientation();
+              if (m_localLinvFlag) {
+                worldLinVel = ownerOri * worldLinVel;
+              }
+              if (m_localAngvFlag) {
+                worldAngVel = ownerOri * worldAngVel;
+              }
+            }
+            replica->setLinearVelocity(worldLinVel, false);
+            replica->setAngularVelocity(worldAngVel, false);
+            /* Propagate linear velocity to children (e.g. soft body pinned to this RB). */
+            for (KX_GameObject *child : replica->GetChildren()) {
+              child->setLinearVelocity(worldLinVel, false);
+            }
 
             /* Rigid body constraint replication looks up targets by Blender ID names
              * (ob->id.name + 2). Logic names or replica names are never queried, so

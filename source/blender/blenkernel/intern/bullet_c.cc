@@ -20,6 +20,7 @@ BulletSoftBody *bsbNew()
 
   bsb->flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
   bsb->linStiff = 0.5f;
+  bsb->shearStiff = 0.5f;
   bsb->angStiff = 1.0f;
   bsb->volume = 1.0f;
 

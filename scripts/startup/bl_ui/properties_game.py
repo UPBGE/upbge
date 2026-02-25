@@ -270,7 +270,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Attributes:")
             col.prop(game, "mass")
-            col.prop(game, "radius")
+            if not is_jolt:
+                col.prop(game, "radius")
             col.prop(game, "form_factor", slider=True)
             col.prop(game, "elasticity", slider=True)
 
@@ -355,62 +356,94 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="General Attributes:")
             col.prop(game, "mass")
-            # disabled in the code
-            # col.prop(soft, "weld_threshold")
             col.prop(soft, "linear_stiffness", slider=True)
+            col.prop(soft, "shear_stiffness", slider=True)
+            col.prop(soft, "angular_stiffness", slider=True)
+            col.prop(game, "elasticity", slider=True)
+            col.prop(game, "gravity_factor", slider=True)
             col.prop(soft, "dynamic_friction", slider=True)
             col.prop(soft, "kdp", text="Damping", slider=True)
             col.prop(soft, "collision_margin", slider=True)
-            col.prop(soft, "kvcf", text="Velocity Correction", slider=True)
+
+            if not is_jolt:
+                col.prop(soft, "kvcf", text="Velocity Correction")
+
             col.prop(soft, "use_bending_constraints", text="Bending Constraints")
 
-            sub = col.column()
-            sub.active = soft.use_bending_constraints
-            sub.prop(soft, "bending_distance")
+            if not is_jolt:
+                sub = col.column()
+                sub.active = soft.use_bending_constraints
+                sub.prop(soft, "bending_distance")
 
-            col.prop(soft, "use_shape_match")
+            if is_jolt:
+                col.prop(soft, "use_lra_constraints", text="Long Range Attachment")
+                sub = col.column()
+                sub.active = soft.use_lra_constraints
+                sub.prop(soft, "lra_type", text="LRA Type")
+                col.prop(soft, "use_faces_double_sided", text="Double-Sided Faces")
 
-            sub = col.column()
-            sub.active = soft.use_shape_match
-            sub.prop(soft, "shape_threshold", slider=True)
+                col.separator()
+                col.label(text="Vertex Pinning (Jolt):")
+                col.prop_search(soft, "pin_vgroup", ob, "vertex_groups", text="Pin Group")
+                has_pin_group = bool(soft.pin_vgroup)
+                pin_col = col.column()
+                pin_col.active = has_pin_group
+                pin_col.prop(soft, "pin_weight_threshold", text="Vertex Weight Pin Threshold", slider=True)
+                pin_col.prop(soft, "pin_object", text="", icon='OBJECT_DATA')
+                has_pin_obj = bool(soft.pin_object)
+                no_pin_col = col.column()
+                no_pin_col.active = has_pin_obj
+                no_pin_col.prop(soft, "use_no_pin_collision", text="No Force on Pin Object")
+
+            if not is_jolt:
+                col.prop(soft, "use_shape_match")
+                sub = col.column()
+                sub.active = soft.use_shape_match
+                sub.prop(soft, "shape_threshold", slider=True)
 
             col.label(text="Solver Iterations:")
             col.prop(soft, "position_solver_iterations", text="Position Solver")
-            col.prop(soft, "velocity_solver_iterations", text="Velocity Solver")
-            col.prop(soft, "cluster_solver_iterations", text="Cluster Solver")
-            col.prop(soft, "drift_solver_iterations", text="Drift Solver")
+
+            if not is_jolt:
+                col.prop(soft, "velocity_solver_iterations", text="Velocity Solver")
+                col.prop(soft, "cluster_solver_iterations", text="Cluster Solver")
+                col.prop(soft, "drift_solver_iterations", text="Drift Solver")
 
             col = split.column()
-            col.label(text="Hardness:")
-            col.prop(soft, "kchr", text="Rigid Contacts", slider=True)
-            col.prop(soft, "kkhr", text="Kinetic Contacts", slider=True)
-            col.prop(soft, "kshr", text="Soft Contacts", slider=True)
-            col.prop(soft, "kahr", text="Anchors", slider=True)
 
-            col.label(text="Cluster Collision:")
-            col.prop(soft, "use_cluster_rigid_to_softbody")
-            col.prop(soft, "use_cluster_soft_to_softbody")
-            sub = col.column()
-            sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
-            sub.prop(soft, "cluster_iterations", text="Iterations")
-            sub.prop(soft, "ksrhr_cl", text="Rigid Hardness", slider=True)
-            sub.prop(soft, "kskhr_cl", text="Kinetic Hardness", slider=True)
-            sub.prop(soft, "ksshr_cl", text="Soft Hardness", slider=True)
-            sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split", slider=True)
-            sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split", slider=True)
-            sub.prop(soft, "kss_split_cl", text="Soft Impulse Split", slider=True)
+            if not is_jolt:
+                col.label(text="Hardness:")
+                col.prop(soft, "kchr", text="Rigid Contacts", slider=True)
+                col.prop(soft, "kkhr", text="Kinetic Contacts", slider=True)
+                col.prop(soft, "kshr", text="Soft Contacts", slider=True)
+                col.prop(soft, "kahr", text="Anchors", slider=True)
+
+                col.label(text="Cluster Collision:")
+                col.prop(soft, "use_cluster_rigid_to_softbody")
+                col.prop(soft, "use_cluster_soft_to_softbody")
+                sub = col.column()
+                sub.active = soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody
+                sub.prop(soft, "cluster_iterations", text="Iterations")
+                sub.prop(soft, "ksrhr_cl", text="Rigid Hardness", slider=True)
+                sub.prop(soft, "kskhr_cl", text="Kinetic Hardness", slider=True)
+                sub.prop(soft, "ksshr_cl", text="Soft Hardness", slider=True)
+                sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split", slider=True)
+                sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split", slider=True)
+                sub.prop(soft, "kss_split_cl", text="Soft Impulse Split", slider=True)
 
             split = layout.split()
 
             col = split.column()
             col.label(text="Volume:")
             col.prop(soft, "kpr", text="Pressure Coefficient")
-            col.prop(soft, "kvc", text="Volume Conservation")
+            if not is_jolt:
+                col.prop(soft, "kvc", text="Volume Conservation")
 
-            col = split.column()
-            col.label(text="Aerodynamics:")
-            col.prop(soft, "kdg", text="Drag Coefficient")
-            col.prop(soft, "klf", text="Lift Coefficient")
+            if not is_jolt:
+                col = split.column()
+                col.label(text="Aerodynamics:")
+                col.prop(soft, "kdg", text="Drag Coefficient")
+                col.prop(soft, "klf", text="Lift Coefficient")
 
         elif physics_type == 'STATIC':
             col = layout.column()
@@ -424,7 +457,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             col = split.column()
             col.label(text="Attributes:")
-            col.prop(game, "radius")
+            if not is_jolt:
+                col.prop(game, "radius")
             col.prop(game, "elasticity", slider=True)
             col.label(text="Friction:")
             col.prop(game, "friction")
@@ -482,22 +516,34 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
                 and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY'})
 
     def draw_header(self, context):
-        game = context.active_object.game
-
-        self.layout.prop(game, "use_collision_bounds", text="")
+        gs = context.scene.game_settings
+        is_jolt = (gs.physics_engine == 'JOLT')
+        if not is_jolt:
+            game = context.active_object.game
+            self.layout.prop(game, "use_collision_bounds", text="")
 
     def draw(self, context):
         layout = self.layout
 
         game = context.active_object.game
+        gs = context.scene.game_settings
+        is_jolt = (gs.physics_engine == 'JOLT')
+
         split = layout.split()
-        split.active = game.use_collision_bounds
+        if not is_jolt:
+            split.active = game.use_collision_bounds
 
         col = split.column()
         col.prop(game, "collision_bounds_type", text="Bounds")
 
         row = col.row()
-        row.prop(game, "collision_margin", text="Margin", slider=True)
+
+        margin_row = row.row()
+        if is_jolt:
+            margin_row.active = game.collision_bounds_type in {
+                'BOX', 'CYLINDER', 'CONE', 'CONVEX_HULL'}
+        margin_text = "Rounded Corners" if is_jolt else "Margin"
+        margin_row.prop(game, "collision_margin", text=margin_text, slider=True)
 
         sub = row.row()
         sub.active = game.physics_type not in {'SOFT_BODY', 'CHARACTER'}

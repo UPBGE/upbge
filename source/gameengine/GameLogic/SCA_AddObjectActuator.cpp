@@ -296,8 +296,28 @@ void SCA_AddObjectActuator::InstantAddObject()
       return;
     }
 
-    replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
-    replica->setAngularVelocity(MT_Vector3(m_angular_velocity), m_localAngvFlag);
+    /* Compute world-space velocity from local flag and actuator owner rotation.
+     * Using the owner's rotation (not the spawned body's) ensures soft bodies
+     * receive the correct direction — their internal body rotation may differ
+     * from the actuator owner's orientation. */
+    MT_Vector3 worldLinVel(m_linear_velocity);
+    MT_Vector3 worldAngVel(m_angular_velocity);
+    if (m_localLinvFlag || m_localAngvFlag) {
+      KX_GameObject *owner = static_cast<KX_GameObject *>(GetParent());
+      MT_Matrix3x3 ownerOri = owner->NodeGetWorldOrientation();
+      if (m_localLinvFlag) {
+        worldLinVel = ownerOri * worldLinVel;
+      }
+      if (m_localAngvFlag) {
+        worldAngVel = ownerOri * worldAngVel;
+      }
+    }
+    replica->setLinearVelocity(worldLinVel, false);
+    replica->setAngularVelocity(worldAngVel, false);
+    /* Propagate linear velocity to children (e.g. a soft body pinned to this RB). */
+    for (KX_GameObject *child : replica->GetChildren()) {
+      child->setLinearVelocity(worldLinVel, false);
+    }
 
     // keep a copy of the last object, to allow python scripters to change it
     if (m_lastCreatedObject) {
