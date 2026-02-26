@@ -65,17 +65,17 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
                                            const openvdb::CoordBBox &leaf_bbox,
                                            const grid::GetVoxelsFn get_voxels_fn)
 {
-  /* Create an index mask for all the active voxels in the leaf. */
-  IndexMaskMemory memory;
-  const IndexMask index_mask = IndexMask::from_predicate(
-      IndexRange(grid::LeafNodeMask::SIZE),
-      memory,
-      [&](const int64_t i) { return leaf_node_mask.isOn(i); },
-      exec_mode::serial);
-
   AlignedBuffer<8192, 8> allocation_buffer;
   ResourceScope scope;
   scope.allocator().provide_buffer(allocation_buffer);
+
+  /* Create an index mask for all the active voxels in the leaf. */
+  const IndexMask index_mask = IndexMask::from_predicate(
+      IndexRange(grid::LeafNodeMask::SIZE),
+      scope.allocator(),
+      [&](const int64_t i) { return leaf_node_mask.isOn(i); },
+      exec_mode::serial);
+
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 

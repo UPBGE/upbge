@@ -418,7 +418,7 @@ bool GeometryDataSource::has_selection_filter() const
 
 static IndexMask calc_mesh_selection_mask_faces(const Mesh &mesh_eval,
                                                 const Mesh &mesh_orig,
-                                                IndexMaskMemory &memory)
+                                                LinearAllocator<> &memory)
 {
   const bke::AttributeAccessor attributes_eval = mesh_eval.attributes();
   const IndexRange range(attributes_eval.domain_size(bke::AttrDomain::Face));
@@ -449,7 +449,7 @@ static IndexMask calc_mesh_selection_mask_faces(const Mesh &mesh_eval,
 static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
                                           const Mesh &mesh_orig,
                                           const bke::AttrDomain domain,
-                                          IndexMaskMemory &memory)
+                                          LinearAllocator<> &memory)
 {
   const bke::AttributeAccessor attributes_eval = mesh_eval.attributes();
   const IndexRange range(attributes_eval.domain_size(domain));
@@ -527,7 +527,7 @@ static IndexMask calc_mesh_selection_mask(const Mesh &mesh_eval,
   }
 }
 
-IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) const
+IndexMask GeometryDataSource::apply_selection_filter(LinearAllocator<> &memory) const
 {
   std::lock_guard lock{mutex_};
   const IndexMask full_range(this->tot_rows());

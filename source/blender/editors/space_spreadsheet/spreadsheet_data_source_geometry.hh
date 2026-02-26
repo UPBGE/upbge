@@ -61,7 +61,7 @@ class GeometryDataSource : public DataSource {
   }
 
   bool has_selection_filter() const override;
-  IndexMask apply_selection_filter(IndexMaskMemory &memory) const;
+  IndexMask apply_selection_filter(LinearAllocator<> &memory) const;
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;

@@ -183,13 +183,21 @@ class Domain {
   /* Returns a transposed version of itself, that is, with the x and y sizes swapped. */
   Domain transposed() const;
 
+  /* Compute a domain from this potential transformed domain such that its rotation and scale
+   * become identity and the size of the domain is increased/reduced to adapt to the new
+   * transformation. For instance, if the domain is rotated, the returned domain will have zero
+   * rotation but expanded size to account for the bounding box of the domain after rotation.
+   * Similarly, if the realize_translation argument is true, translation will be set to zero,
+   * though this will not affect the size of the domain in any way. */
+  Domain realize_transformation(const bool realize_translation = false) const;
+
   /* Returns a domain of size 1x1 and an identity transformation. */
   static Domain identity();
 
   /* Compare the size and transformation of the domain. Transformations are compared within the
    * given epsilon. The realization_options are not compared because they only describe the method
    * of realization on another domain, which is not technically a property of the domain itself. */
-  static bool is_equal(const Domain &a, const Domain &b, const float epsilon = 0.0f);
+  static bool is_equal(const Domain &a, const Domain &b, const float epsilon = 10e-6f);
 };
 
 /* Identical to the is_equal static method with zero epsilon. */

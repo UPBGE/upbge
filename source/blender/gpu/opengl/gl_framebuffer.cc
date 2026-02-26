@@ -435,10 +435,19 @@ void GLFrameBuffer::clear(GPUFrameBufferBits buffers,
   GPUStencilTest stencil_test = GPU_stencil_test_get();
 
   if (buffers & GPU_COLOR_BIT) {
-    int type = GPU_FB_COLOR_ATTACHMENT0;
-    for (int i = 0; type < GPU_FB_MAX_ATTACHMENT; i++, type++) {
-      if (attachments_[type].tex != nullptr) {
-        this->clear_attachment(GPU_FB_COLOR_ATTACHMENT0 + i, clear_col);
+    if (immutable_) {
+      /* Immutable frame-buffers (default/window) have no texture attachments,
+       * clear via #glClearColor + #glClear (included in the mask below). */
+      GPU_color_mask(true, true, true, true);
+      glClearColor(
+          float(clear_col[0]), float(clear_col[1]), float(clear_col[2]), float(clear_col[3]));
+    }
+    else {
+      int type = GPU_FB_COLOR_ATTACHMENT0;
+      for (int i = 0; type < GPU_FB_MAX_ATTACHMENT; i++, type++) {
+        if (attachments_[type].tex != nullptr) {
+          this->clear_attachment(GPU_FB_COLOR_ATTACHMENT0 + i, clear_col);
+        }
       }
     }
   }
@@ -454,8 +463,11 @@ void GLFrameBuffer::clear(GPUFrameBufferBits buffers,
 
   context_->state_manager->apply_state();
 
-  /* Clear remaining buffers (stencil and depth). */
-  GLbitfield mask = to_gl(buffers & ~GPU_COLOR_BIT);
+  /* Mutable frame-buffers clear color via per-attachment calls above,
+   * exclude color from the #glClear mask in that case. */
+  GPUFrameBufferBits glclear_buffers = immutable_ ? buffers :
+                                                    GPUFrameBufferBits(buffers & ~GPU_COLOR_BIT);
+  GLbitfield mask = to_gl(glclear_buffers);
   glClear(mask);
 
   if (buffers & (GPU_COLOR_BIT | GPU_DEPTH_BIT)) {

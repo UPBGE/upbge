@@ -27,6 +27,14 @@ float3 transform_point(float4x4 mat, float3 point)
 }
 
 /**
+ * Transform a 2d point using a 3x3 matrix (location & rotation & scale).
+ */
+float2 transform_point(float3x3 mat, float2 point)
+{
+  return (mat * float3(point, 1.0f)).xy;
+}
+
+/**
  * Transform a 3d direction vector using a 3x3 matrix (rotation & scale).
  */
 float3 transform_direction(float3x3 mat, float3 direction)

@@ -19,6 +19,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_modifier.hh"
+#include "BKE_paint.hh"
 #include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
@@ -1304,6 +1306,13 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
 static bool view3d_interactive_add_poll(bContext *C)
 {
   const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+
+  if (mode == CTX_MODE_SCULPT) {
+    Object *ob = CTX_data_active_object(C);
+    return !BKE_sculpt_multires_active(CTX_data_scene(C), ob) &&
+           !BKE_object_sculpt_use_dyntopo(ob);
+  }
+
   return ELEM(mode, CTX_MODE_OBJECT, CTX_MODE_EDIT_MESH);
 }
 

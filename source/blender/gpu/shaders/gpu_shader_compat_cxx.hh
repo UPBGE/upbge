@@ -234,6 +234,17 @@ struct PipelineGraphic {
   }
 };
 
+/* For assert support. */
+#if defined(GPU_VERTEX_SHADER)
+#  define GPU_THREAD uint3(0)
+#elif defined(GPU_FRAGMENT_SHADER)
+#  define GPU_THREAD uint3(0)
+#elif defined(GPU_COMPUTE_SHADER)
+#  define GPU_THREAD uint3(0)
+#else
+#  define GPU_THREAD error_not_in_a_shader_question_mark
+#endif
+
 template<typename CompFn,
          typename ConstT1 = NoConstants,
          typename ConstT2 = ConstT1,

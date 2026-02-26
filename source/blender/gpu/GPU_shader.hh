@@ -380,8 +380,6 @@ enum GPUUniformBuiltin {
 
   GPU_UNIFORM_COLOR,              /* vec4 color */
   GPU_UNIFORM_BASE_INSTANCE,      /* int baseInstance */
-  GPU_UNIFORM_RESOURCE_CHUNK,     /* int resourceChunk */
-  GPU_UNIFORM_RESOURCE_ID,        /* int resourceId */
   GPU_UNIFORM_SRGB_TRANSFORM,     /* bool srgbTarget */
   GPU_UNIFORM_SCENE_LINEAR_XFORM, /* float3x3 gpu_scene_linear_to_xyz */
 };

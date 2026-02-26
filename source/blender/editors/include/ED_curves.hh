@@ -334,15 +334,15 @@ bool has_anything_selected(const VArray<bool> &varray, const IndexMask &indices_
  * Find curves that have any point selected (a selection factor greater than zero),
  * or curves that have their own selection factor greater than zero.
  */
-IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
-IndexMask retrieve_selected_curves(const Curves &curves_id, IndexMaskMemory &memory);
+IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, LinearAllocator<> &memory);
+IndexMask retrieve_selected_curves(const Curves &curves_id, LinearAllocator<> &memory);
 
 /**
  * Find points that are selected (a selection factor greater than zero),
  * or points in curves with a selection factor greater than zero).
  */
-IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
-IndexMask retrieve_selected_points(const Curves &curves_id, IndexMaskMemory &memory);
+IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves, LinearAllocator<> &memory);
+IndexMask retrieve_selected_points(const Curves &curves_id, LinearAllocator<> &memory);
 /**
  * Find points that are selected, for a given attribute_name, requires mask of all Bezier points.
  * Note: When retrieving ".selection_handle_left" or ".selection_handle_right" all non-Bezier
@@ -351,7 +351,7 @@ IndexMask retrieve_selected_points(const Curves &curves_id, IndexMaskMemory &mem
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
                                    StringRef attribute_name,
                                    const IndexMask &bezier_points,
-                                   IndexMaskMemory &memory);
+                                   LinearAllocator<> &memory);
 
 /**
  * Find points that are selected (a selection factor greater than zero) or have
@@ -359,7 +359,7 @@ IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
  */
 IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves,
                                        int handle_display,
-                                       IndexMaskMemory &memory);
+                                       LinearAllocator<> &memory);
 
 /**
  * If the selection_id attribute doesn't exist, create it with the requested type (bool or float).

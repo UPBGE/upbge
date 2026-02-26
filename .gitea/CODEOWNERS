@@ -88,9 +88,13 @@ intern/guardedalloc.*        @mont29
 
 # --------------------------------------------------
 # BPY.
-source/python/[^/]+        @mont29
-source/python/intern/.*    @mont29
-source/python/generic/.*   @mont29
+source/python/[^/]+        @mont29 @ideasman42
+source/python/intern/.*    @mont29 @ideasman42
+source/python/generic/.*   @mont29 @ideasman42
+
+# --------------------------------------------------
+# BPY (Scripts).
+scripts/modules/.*     @ideasman42
 
 # --------------------------------------------------
 # Motion tracking and Libmv.
@@ -206,7 +210,9 @@ source/blender/gpu/shaders/.*                           @fclem
 
 # --------------------------------------------------
 # Editors
-source/blender/editors/space_outliner/.* @JulianEisel
+source/blender/editors/space_console/.*   @ideasman42
+source/blender/editors/space_outliner/.*  @JulianEisel
+source/blender/editors/space_text/.*      @ideasman42
 
 # --------------------------------------------------
 # VSE.
@@ -217,6 +223,15 @@ source/blender/editors/space_sequencer/.*    @eliphaz
 # Compositor.
 scripts/startup/bl_ui/node_add_menu_compositor.py 	@zazizizou
 
+# --------------------------------------------------
+# Animation Player.
+source/blender/windowmanager/intern/wm_playanim.cc      @ideasman42
+
+# --------------------------------------------------
+# Gizmos.
+source/blender/windowmanager/gizmo/.*                  @ideasman42
+source/blender/editors/gizmo_library/.*                @ideasman42
+source/blender/editors/space_view3d/view3d_gizmo_.*    @ideasman42
 
 # --------------------------------------------------
 # XR
@@ -247,6 +262,10 @@ build_files/cmake/platform/platform_apple.*     @Brainzman
 ## macOS Objective-C code
 .*\\.mm                                         @Brainzman
 
+## Wayland Maintenance.
+intern/ghost/intern/GHOST_.*Wayland.*          @ideasman42
+intern/wayland_dynload/.*                      @ideasman42
+
 # --------------------------------------------------
 # DevOps & CI/CD
 build_files/buildbot/.*         @bartvdbraak
@@ -271,3 +290,9 @@ source/blender/blenkernel/paint.*               @Sean-Kim
 source/blender/blenkernel/pbvh.*                @Sean-Kim
 source/blender/editors/sculpt_paint/paint_.*    @Sean-Kim
 source/blender/editors/sculpt_paint/mesh/.*     @Sean-Kim
+
+# --------------------------------------------------
+# Modeling.
+source/blender/bmesh/.*            @ideasman42
+source/blender/editors/curve/.*    @ideasman42
+source/blender/editors/mesh/.*     @ideasman42

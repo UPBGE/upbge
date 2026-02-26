@@ -7,6 +7,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_sample.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
 
@@ -164,6 +165,18 @@ static void sample_barycentric_weights(const Span<float3> vert_positions,
     bary_coords[i] = compute_bary_coord_in_triangle(
         vert_positions, corner_verts, tri, sample_positions[i]);
   });
+}
+
+void sample_barycentric_weights(const Span<float3> vert_positions,
+                                const Span<int> corner_verts,
+                                const Span<int3> corner_tris,
+                                const Span<int> tri_indices,
+                                const Span<float3> sample_positions,
+                                const IndexMask &mask,
+                                MutableSpan<float3> bary_coords)
+{
+  sample_barycentric_weights<false>(
+      vert_positions, corner_verts, corner_tris, tri_indices, sample_positions, mask, bary_coords);
 }
 
 template<bool check_indices = false>
@@ -458,8 +471,7 @@ void BaryWeightSampleFn::call(const IndexMask &mask,
       1, "Barycentric Weight");
   GMutableSpan dst = params.uninitialized_single_output(2, "Value");
   IndexMaskMemory memory;
-  const IndexMask valid_mask = IndexMask::from_predicate(
-      mask, memory, [&](const int i) { return triangle_indices[i] != -1; });
+  const IndexMask valid_mask = array_utils::indices_non_negative(mask, triangle_indices, memory);
   attribute_math::to_static_type(dst.type(), [&]<typename T>() {
     if constexpr (!std::is_same_v<T, std::string>) {
       sample_corner_attribute<T>(corner_tris_,

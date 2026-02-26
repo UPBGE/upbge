@@ -5041,7 +5041,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
         wmWindow *close_win = jd->win1;
         area_join_exit(C, op);
         if (do_close_win) {
-          wm_window_close(C, CTX_wm_manager(C), close_win);
+          wm_window_close_request(C, CTX_wm_manager(C), close_win);
         }
 
         WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);

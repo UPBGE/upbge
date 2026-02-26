@@ -2907,7 +2907,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           if (BLI_listbase_is_single(&file_area->spacedata)) {
             BLI_assert(root_win != &win);
 
-            wm_window_close(C, wm, &win);
+            wm_window_close_request(C, wm, &win);
 
             /* #wm_window_close() sets the context's window to null. */
             CTX_wm_window_set(C, root_win);

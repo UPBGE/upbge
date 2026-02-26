@@ -41,26 +41,21 @@ struct ThreadKernelGlobalsCPU;
  * These are stored in a concurrent hash map, because OSL can compile multiple
  * shaders in parallel.
  *
- * NOTE: The svm_slots array contains a compressed mapping of tile to svm_slot pairs
- * stored as follows: x:tile_a, y:svm_slot_a, z:tile_b, w:svm_slot_b etc. */
+ * NOTE: The svm_image_texture_ids array contains a compressed mapping of tile to
+ * svm_image_texture_ids pairs stored as follows: x:tile_a,
+ * y:svm_image_texture_ids_a, z:tile_b, w:svm_image_texture_ids_b etc. */
 
 struct OSLTextureHandle {
   enum Type { OIIO, SVM, IES, BEVEL, AO };
 
-  OSLTextureHandle(Type type, const vector<int4> &svm_slots) : type(type), svm_slots(svm_slots) {}
+  OSLTextureHandle(Type type, const int id = -1) : type(type), id(id) {}
 
-  OSLTextureHandle(Type type = OIIO, const int svm_slot = -1)
-      : OSLTextureHandle(type, {make_int4(0, svm_slot, -1, -1)})
-  {
-  }
-
-  OSLTextureHandle(const ImageHandle &handle)
-      : type(SVM), svm_slots(handle.get_svm_slots()), handle(handle)
+  OSLTextureHandle(const ImageHandle &handle) : type(SVM), id(handle.kernel_id()), handle(handle)
   {
   }
 
   Type type;
-  vector<int4> svm_slots;
+  int id = -1;
   OSL::TextureSystem::TextureHandle *oiio_handle = nullptr;
   ColorSpaceProcessor *processor = nullptr;
   ImageHandle handle;

@@ -772,7 +772,7 @@ class SpecMeshTest(MeshTest):
             print("Applied operator {}".format(operator))
 
         if operator.mode != 'OBJECT':
-            bpy.ops.object.mode_set('OBJECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
 
     def _apply_deform_modifier(self, test_object, operation: DeformModifierSpec):
         """

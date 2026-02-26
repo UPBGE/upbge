@@ -54,9 +54,7 @@ class ImageInfoOperation : public NodeOperation {
     Result &dimensions_result = this->get_result("Dimensions");
     if (dimensions_result.should_compute()) {
       dimensions_result.allocate_single_value();
-      const Domain realized_domain =
-          RealizeOnDomainOperation::compute_realized_transformation_domain(this->context(),
-                                                                           domain);
+      const Domain realized_domain = domain.realize_transformation();
       dimensions_result.set_single_value(float2(realized_domain.data_size));
     }
 

@@ -182,7 +182,7 @@ IndexMask IndexMask::slice_content(const int64_t start, const int64_t size) cons
 
 IndexMask IndexMask::slice_and_shift(const IndexRange range,
                                      const int64_t offset,
-                                     IndexMaskMemory &memory) const
+                                     LinearAllocator<> &memory) const
 {
   return this->slice_and_shift(range.start(), range.size(), offset, memory);
 }
@@ -190,7 +190,7 @@ IndexMask IndexMask::slice_and_shift(const IndexRange range,
 IndexMask IndexMask::slice_and_shift(const int64_t start,
                                      const int64_t size,
                                      const int64_t offset,
-                                     IndexMaskMemory &memory) const
+                                     LinearAllocator<> &memory) const
 {
   if (size == 0) {
     return {};
@@ -201,7 +201,7 @@ IndexMask IndexMask::slice_and_shift(const int64_t start,
   return this->slice(start, size).shift(offset, memory);
 }
 
-IndexMask IndexMask::shift(const int64_t offset, IndexMaskMemory &memory) const
+IndexMask IndexMask::shift(const int64_t offset, LinearAllocator<> &memory) const
 {
   if (indices_num_ == 0) {
     return {};
@@ -223,7 +223,7 @@ IndexMask IndexMask::shift(const int64_t offset, IndexMaskMemory &memory) const
 }
 
 int64_t consolidate_index_mask_segments(MutableSpan<IndexMaskSegment> segments,
-                                        IndexMaskMemory & /*memory*/)
+                                        LinearAllocator<> & /*memory*/)
 {
   if (segments.is_empty()) {
     return 0;
@@ -284,7 +284,8 @@ int64_t consolidate_index_mask_segments(MutableSpan<IndexMaskSegment> segments,
   return new_segments_num;
 }
 
-IndexMask IndexMask::from_segments(const Span<IndexMaskSegment> segments, IndexMaskMemory &memory)
+IndexMask IndexMask::from_segments(const Span<IndexMaskSegment> segments,
+                                   LinearAllocator<> &memory)
 {
   if (segments.is_empty()) {
     return {};
@@ -402,7 +403,7 @@ struct ParallelSegmentsCollector {
   }
 };
 
-IndexMask IndexMask::complement(const IndexMask &universe, IndexMaskMemory &memory) const
+IndexMask IndexMask::complement(const IndexMask &universe, LinearAllocator<> &memory) const
 {
   ExprBuilder builder;
   const Expr &expr = builder.subtract(&universe, {this});
@@ -410,7 +411,7 @@ IndexMask IndexMask::complement(const IndexMask &universe, IndexMaskMemory &memo
 }
 
 template<typename T>
-IndexMask IndexMask::from_indices(const Span<T> indices, IndexMaskMemory &memory)
+IndexMask IndexMask::from_indices(const Span<T> indices, LinearAllocator<> &memory)
 {
   if (indices.is_empty()) {
     return {};
@@ -447,7 +448,7 @@ IndexMask IndexMask::from_indices(const Span<T> indices, IndexMaskMemory &memory
   return IndexMask::from_segments(segments, memory);
 }
 
-IndexMask IndexMask::from_bits(const BitSpan bits, IndexMaskMemory &memory)
+IndexMask IndexMask::from_bits(const BitSpan bits, LinearAllocator<> &memory)
 {
   return IndexMask::from_bits(bits.index_range(), bits, memory);
 }
@@ -482,7 +483,7 @@ static int64_t from_bits_batch_predicate(const IndexMaskSegment universe_segment
 
 IndexMask IndexMask::from_bits(const IndexMask &universe,
                                const BitSpan bits,
-                               IndexMaskMemory &memory)
+                               LinearAllocator<> &memory)
 {
   BLI_assert(bits.size() >= universe.min_array_size());
   /* Use #from_batch_predicate because we can process many bits at once. */
@@ -553,7 +554,7 @@ static void segments_from_batch_predicate(
 
 IndexMask IndexMask::from_batch_predicate(
     const IndexMask &universe,
-    IndexMaskMemory &memory,
+    LinearAllocator<> &memory,
     const FunctionRef<int64_t(const IndexMaskSegment &universe_segment,
                               IndexRangesBuilder<int16_t> &builder)> batch_predicate,
     const exec_mode::Mode mode)
@@ -588,29 +589,29 @@ IndexMask IndexMask::from_batch_predicate(
   return IndexMask::from_segments(segments, memory);
 }
 
-IndexMask IndexMask::from_bools(Span<bool> bools, IndexMaskMemory &memory)
+IndexMask IndexMask::from_bools(Span<bool> bools, LinearAllocator<> &memory)
 {
   return IndexMask::from_bools(bools.index_range(), bools, memory);
 }
 
-IndexMask IndexMask::from_bools(const VArray<bool> &bools, IndexMaskMemory &memory)
+IndexMask IndexMask::from_bools(const VArray<bool> &bools, LinearAllocator<> &memory)
 {
   return IndexMask::from_bools(bools.index_range(), bools, memory);
 }
 
-IndexMask IndexMask::from_bools_inverse(const Span<bool> bools, IndexMaskMemory &memory)
+IndexMask IndexMask::from_bools_inverse(const Span<bool> bools, LinearAllocator<> &memory)
 {
   return IndexMask::from_bools_inverse(bools.index_range(), bools, memory);
 }
 
-IndexMask IndexMask::from_bools_inverse(const VArray<bool> &bools, IndexMaskMemory &memory)
+IndexMask IndexMask::from_bools_inverse(const VArray<bool> &bools, LinearAllocator<> &memory)
 {
   return IndexMask::from_bools_inverse(bools.index_range(), bools, memory);
 }
 
 IndexMask IndexMask::from_bools(const IndexMask &universe,
                                 Span<bool> bools,
-                                IndexMaskMemory &memory)
+                                LinearAllocator<> &memory)
 {
   BLI_assert(bools.size() >= universe.min_array_size());
   return IndexMask::from_batch_predicate(
@@ -639,7 +640,7 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
 
 IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
                                         Span<bool> bools,
-                                        IndexMaskMemory &memory)
+                                        LinearAllocator<> &memory)
 {
   BitVector bits(bools);
   bits::invert(bits);
@@ -648,7 +649,7 @@ IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
 
 IndexMask IndexMask::from_bools(const IndexMask &universe,
                                 const VArray<bool> &bools,
-                                IndexMaskMemory &memory)
+                                LinearAllocator<> &memory)
 {
   const CommonVArrayInfo info = bools.common_info();
   if (info.type == CommonVArrayInfo::Type::Single) {
@@ -667,7 +668,7 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
 
 IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
                                         const VArray<bool> &bools,
-                                        IndexMaskMemory &memory)
+                                        LinearAllocator<> &memory)
 {
   const CommonVArrayInfo info = bools.common_info();
   if (info.type == CommonVArrayInfo::Type::Single) {
@@ -687,7 +688,7 @@ IndexMask IndexMask::from_bools_inverse(const IndexMask &universe,
 template<typename T>
 IndexMask IndexMask::from_ranges(OffsetIndices<T> offsets,
                                  const IndexMask &mask,
-                                 IndexMaskMemory &memory)
+                                 LinearAllocator<> &memory)
 {
   Vector<IndexMaskSegment, 16> segments;
   mask.foreach_range([&](const IndexRange mask_range) {
@@ -699,12 +700,12 @@ IndexMask IndexMask::from_ranges(OffsetIndices<T> offsets,
 
 IndexMask IndexMask::from_union(const IndexMask &mask_a,
                                 const IndexMask &mask_b,
-                                IndexMaskMemory &memory)
+                                LinearAllocator<> &memory)
 {
   return IndexMask::from_union({mask_a, mask_b}, memory);
 }
 
-IndexMask IndexMask::from_union(const Span<IndexMask> masks, IndexMaskMemory &memory)
+IndexMask IndexMask::from_union(const Span<IndexMask> masks, LinearAllocator<> &memory)
 {
   ExprBuilder builder;
   Vector<ExprBuilder::Term> terms;
@@ -717,7 +718,7 @@ IndexMask IndexMask::from_union(const Span<IndexMask> masks, IndexMaskMemory &me
 
 IndexMask IndexMask::from_difference(const IndexMask &mask_a,
                                      const IndexMask &mask_b,
-                                     IndexMaskMemory &memory)
+                                     LinearAllocator<> &memory)
 {
   ExprBuilder builder;
   const Expr &expr = builder.subtract({&mask_a}, {&mask_b});
@@ -726,7 +727,7 @@ IndexMask IndexMask::from_difference(const IndexMask &mask_a,
 
 IndexMask IndexMask::from_intersection(const IndexMask &mask_a,
                                        const IndexMask &mask_b,
-                                       IndexMaskMemory &memory)
+                                       LinearAllocator<> &memory)
 {
   ExprBuilder builder;
   const Expr &expr = builder.intersect({&mask_a, &mask_b});
@@ -734,7 +735,7 @@ IndexMask IndexMask::from_intersection(const IndexMask &mask_a,
 }
 
 IndexMask IndexMask::from_initializers(const Span<Initializer> initializers,
-                                       IndexMaskMemory &memory)
+                                       LinearAllocator<> &memory)
 {
   Set<int64_t> values;
   for (const Initializer &item : initializers) {
@@ -857,7 +858,7 @@ static void segments_from_predicate_filter(
 
 IndexMask from_predicate_impl(
     const IndexMask &universe,
-    IndexMaskMemory &memory,
+    LinearAllocator<> &memory,
     const FunctionRef<int64_t(IndexMaskSegment indices, int16_t *r_true_indices)> filter_indices,
     const exec_mode::Mode mode)
 {
@@ -985,7 +986,7 @@ static Array<int16_t> build_every_nth_index_array(const int64_t n)
  */
 static Span<int16_t> get_every_nth_index(const int64_t n,
                                          const int64_t repetitions,
-                                         IndexMaskMemory &memory)
+                                         LinearAllocator<> &memory)
 {
   BLI_assert(n >= 2);
   BLI_assert(n * repetitions <= max_segment_size);
@@ -1019,7 +1020,7 @@ IndexMask IndexMask::from_repeating(const IndexMask &mask_to_repeat,
                                     const int64_t repetitions,
                                     const int64_t stride,
                                     const int64_t initial_offset,
-                                    IndexMaskMemory &memory)
+                                    LinearAllocator<> &memory)
 {
   if (mask_to_repeat.is_empty()) {
     return {};
@@ -1093,7 +1094,7 @@ IndexMask IndexMask::from_repeating(const IndexMask &mask_to_repeat,
 IndexMask IndexMask::from_every_nth(const int64_t n,
                                     const int64_t indices_num,
                                     const int64_t initial_offset,
-                                    IndexMaskMemory &memory)
+                                    LinearAllocator<> &memory)
 {
   BLI_assert(n >= 1);
   return IndexMask::from_repeating(IndexRange(1), indices_num, n, initial_offset, memory);
@@ -1208,7 +1209,7 @@ bool operator==(const IndexMask &a, const IndexMask &b)
 
 Vector<IndexMask, 4> IndexMask::from_group_ids(const IndexMask &universe,
                                                const VArray<int> &group_ids,
-                                               IndexMaskMemory &memory,
+                                               LinearAllocator<> &memory,
                                                VectorSet<int> &r_index_by_group_id)
 {
   BLI_assert(group_ids.size() >= universe.min_array_size());
@@ -1238,29 +1239,29 @@ Vector<IndexMask, 4> IndexMask::from_group_ids(const IndexMask &universe,
 }
 
 Vector<IndexMask, 4> IndexMask::from_group_ids(const VArray<int> &group_ids,
-                                               IndexMaskMemory &memory,
+                                               LinearAllocator<> &memory,
                                                VectorSet<int> &r_index_by_group_id)
 {
   return IndexMask::from_group_ids(
       IndexMask(group_ids.size()), group_ids, memory, r_index_by_group_id);
 }
 
-template IndexMask IndexMask::from_indices(Span<int32_t>, IndexMaskMemory &);
-template IndexMask IndexMask::from_indices(Span<int64_t>, IndexMaskMemory &);
+template IndexMask IndexMask::from_indices(Span<int32_t>, LinearAllocator<> &);
+template IndexMask IndexMask::from_indices(Span<int64_t>, LinearAllocator<> &);
 template void IndexMask::to_indices(MutableSpan<int32_t>) const;
 template void IndexMask::to_indices(MutableSpan<int64_t>) const;
 template IndexMask IndexMask::from_ranges(OffsetIndices<int32_t>,
                                           const IndexMask &,
-                                          IndexMaskMemory &);
+                                          LinearAllocator<> &);
 template IndexMask IndexMask::from_ranges(OffsetIndices<int64_t>,
                                           const IndexMask &,
-                                          IndexMaskMemory &);
+                                          LinearAllocator<> &);
 
 IndexMask random_mask(const IndexMask &mask,
                       const int64_t universe_size,
                       const uint32_t random_seed,
                       const float probability,
-                      IndexMaskMemory &memory)
+                      LinearAllocator<> &memory)
 {
   RandomNumberGenerator rng{random_seed};
   const auto next_bool_random_value = [&]() { return rng.get_float() <= probability; };
@@ -1275,7 +1276,7 @@ IndexMask random_mask(const IndexMask &mask,
 IndexMask random_mask(const int64_t universe_size,
                       const uint32_t random_seed,
                       const float probability,
-                      IndexMaskMemory &memory)
+                      LinearAllocator<> &memory)
 {
   const IndexRange selection(universe_size);
   return random_mask(selection, universe_size, random_seed, probability, memory);

@@ -13,6 +13,7 @@
 #include "BKE_mesh.hh"
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -91,11 +92,8 @@ void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GM
 {
   const CPPType &type = dst.type();
   IndexMaskMemory memory;
-  const IndexMask valid_mask = IndexMask::from_predicate(
-      IndexRange(dst.size()),
-      memory,
-      [&](const int64_t i) { return out_to_in_map[i] != -1; },
-      exec_mode::grain_size(4096));
+  const IndexMask valid_mask = array_utils::indices_non_negative(
+      IndexRange(dst.size()), out_to_in_map, memory);
   bke::attribute_math::gather(src, out_to_in_map, valid_mask, dst);
   type.value_initialize_indices(dst.data(), valid_mask.complement(IndexRange(dst.size()), memory));
 }

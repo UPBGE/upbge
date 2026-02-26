@@ -1457,7 +1457,7 @@ static bool is_plane(const Mesh *mesh,
                      float3 *r_normal,
                      float *r_origin_offset)
 {
-  if (mesh->faces_num != 1 && mesh->verts_num != 4) {
+  if (mesh->faces_num != 1 || mesh->verts_num != 4) {
     return false;
   }
   float3 vpos[4];
@@ -1684,6 +1684,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         set_material_from_map(
             out_to_in.ensure_face_map(), material_remaps, meshes, mesh_offsets, dst.span);
       }
+      dst.finish();
     }
 
     interpolate_corner_attributes(output_attrs,

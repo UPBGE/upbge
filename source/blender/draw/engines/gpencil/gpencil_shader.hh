@@ -44,6 +44,8 @@ class ShaderCache {
   StaticShader layer_blend = {"gpencil_layer_blend"};
   /* Merge the final object depth to the depth buffer. */
   StaticShader depth_merge = {"gpencil_depth_merge"};
+  /* Merge the final object depth to the depth pass. */
+  StaticShader depth_pass_merge = {"gpencil_depth_pass_merge"};
   /* Invert the content of the mask buffer. */
   StaticShader mask_invert = {"gpencil_mask_invert"};
   /* Effects. */

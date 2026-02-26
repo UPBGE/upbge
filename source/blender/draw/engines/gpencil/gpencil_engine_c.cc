@@ -247,6 +247,18 @@ void Instance::begin_sync()
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
   {
+    /* Merges the object's depth to the viewport compositor depth pass. */
+    PassSimple &pass = this->merge_depth_pass_ps;
+    pass.init();
+    pass.state_set(DRW_STATE_WRITE_COLOR);
+    pass.shader_set(ShaderCache::get().depth_pass_merge.get());
+    pass.bind_texture("depth_buf", &this->depth_tx);
+    pass.bind_image("depth_pass_img", &this->depth_pass_img);
+    pass.push_constant("stroke_order3d", &this->is_stroke_order_3d);
+    pass.push_constant("gp_model_matrix", &this->object_bound_mat);
+    pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+  }
+  {
     PassSimple &pass = this->mask_invert_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_LOGIC_INVERT);
@@ -724,6 +736,11 @@ void Instance::acquire_resources()
     grease_pencil_pass.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
     this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(grease_pencil_pass));
   }
+
+  if (DRW_viewport_pass_texture_exists(RE_PASSNAME_DEPTH)) {
+    draw::TextureFromPool &depth_pass = DRW_viewport_pass_texture_get(RE_PASSNAME_DEPTH);
+    this->depth_pass_img = depth_pass.gpu_texture();
+  }
 }
 
 void Instance::release_resources()
@@ -839,6 +856,10 @@ void Instance::draw_object(View &view, tObject *ob)
   if (this->scene_fb) {
     GPU_framebuffer_bind(this->scene_fb);
     manager->submit(this->merge_depth_ps, view);
+  }
+
+  if (DRW_viewport_pass_texture_exists(RE_PASSNAME_DEPTH)) {
+    manager->submit(this->merge_depth_pass_ps, view);
   }
 
   GPU_debug_group_end();

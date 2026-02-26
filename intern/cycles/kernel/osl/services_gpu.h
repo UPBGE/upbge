@@ -283,7 +283,7 @@ ccl_device_extern bool rend_get_userdata(RSDeviceString name,
   return false;
 }
 
-ccl_device_extern bool rs_texture(ccl_private ShaderGlobals * /*sg*/,
+ccl_device_extern bool rs_texture(ccl_private ShaderGlobals *sg,
                                   RSDeviceString /*filename*/,
                                   ccl_private void *texture_handle,
                                   ccl_private void * /*texture_thread_info*/,
@@ -301,11 +301,13 @@ ccl_device_extern bool rs_texture(ccl_private ShaderGlobals * /*sg*/,
                                   ccl_private void * /*errormessage*/)
 {
   const unsigned int type = OSL_TEXTURE_HANDLE_TYPE(texture_handle);
-  const unsigned int slot = OSL_TEXTURE_HANDLE_SLOT(texture_handle);
+  const unsigned int image_texture_id = OSL_TEXTURE_HANDLE_ID(texture_handle);
 
   switch (type) {
     case OSL_TEXTURE_HANDLE_TYPE_SVM: {
-      const float4 rgba = kernel_image_interp(nullptr, slot, s, 1.0f - t);
+      ccl_private ShaderData *sd = sg->sd;
+      const float4 rgba = kernel_image_interp_with_udim(
+          nullptr, sd, image_texture_id, make_float2(s, 1.0f - t));
       if (nchannels > 0) {
         result[0] = rgba.x;
       }
@@ -322,7 +324,7 @@ ccl_device_extern bool rs_texture(ccl_private ShaderGlobals * /*sg*/,
     }
     case OSL_TEXTURE_HANDLE_TYPE_IES: {
       if (nchannels > 0) {
-        result[0] = kernel_ies_interp(nullptr, slot, s, t);
+        result[0] = kernel_ies_interp(nullptr, image_texture_id, s, t);
       }
       return true;
     }
@@ -349,12 +351,12 @@ ccl_device_extern bool rs_texture3d(ccl_private ShaderGlobals *sg,
                                     ccl_private void * /*errormessage*/)
 {
   const unsigned int type = OSL_TEXTURE_HANDLE_TYPE(texture_handle);
-  const unsigned int slot = OSL_TEXTURE_HANDLE_SLOT(texture_handle);
+  const unsigned int image_texture_id = OSL_TEXTURE_HANDLE_ID(texture_handle);
 
   switch (type) {
     case OSL_TEXTURE_HANDLE_TYPE_SVM: {
       const float4 rgba = kernel_image_interp_3d(
-          nullptr, sg->sd, slot, *P, INTERPOLATION_NONE, false);
+          nullptr, sg->sd, image_texture_id, *P, INTERPOLATION_NONE, false);
       if (nchannels > 0) {
         result[0] = rgba.x;
       }

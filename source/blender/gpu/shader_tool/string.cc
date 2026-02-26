@@ -86,7 +86,7 @@ void SourceProcessor::lower_printf(Parser &parser)
     int arg_count = 0;
     tokens[1].scope().foreach_scope(ScopeType::FunctionParam, [&](const Scope &) { arg_count++; });
 
-    string unrolled = "print_start(" + to_string(arg_count) + ")";
+    string unrolled = "print_start(" + to_string(arg_count) + "u)";
     tokens[1].scope().foreach_scope(ScopeType::FunctionParam, [&](const Scope &attribute) {
       unrolled = "print_data(" + unrolled + ", " + attribute.str() + ")";
     });

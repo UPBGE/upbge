@@ -359,6 +359,16 @@ inline BooleanMix booleans_mix_calc(const VArray<bool> &varray)
 /** Check if the value exists in the array. */
 bool contains(const VArray<bool> &varray, const IndexMask &indices_to_check, bool value);
 
+/** Return indices in the mask that are non-negative. */
+IndexMask indices_non_negative(const IndexMask &universe,
+                               Span<int> values,
+                               LinearAllocator<> &memory);
+/** Return indices in the mask that are not negative and less than the given size. */
+IndexMask indices_in_range(const IndexMask &universe,
+                           Span<int> values,
+                           IndexRange range,
+                           LinearAllocator<> &memory);
+
 /**
  * Finds all the index ranges for which consecutive values in \a span equal \a value.
  */

@@ -117,6 +117,14 @@ float3 compute_bary_coord_in_triangle(Span<float3> vert_positions,
                                       const int3 &corner_tri,
                                       const float3 &position);
 
+void sample_barycentric_weights(Span<float3> vert_positions,
+                                Span<int> corner_verts,
+                                Span<int3> corner_tris,
+                                Span<int> tri_indices,
+                                Span<float3> sample_positions,
+                                const IndexMask &mask,
+                                MutableSpan<float3> bary_coords);
+
 template<typename T>
 inline T sample_corner_attribute_with_bary_coords(const float3 &bary_weights,
                                                   const int3 &corner_tri,

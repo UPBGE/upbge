@@ -884,8 +884,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   rect_tex.xmax = 1.0f + halfx;
   rect_tex.ymax = 1.0f + halfy;
 
-  float alpha_easing = 1.0f - alpha;
-  alpha_easing = 1.0f - alpha_easing * alpha_easing;
+  /* Quadratic ease-out: 1 - (1 - alpha)^2 == alpha * (2 - alpha). */
+  float alpha_easing = alpha * (2.0f - alpha);
 
   /* Slide panels. */
   float ofs_x = BLI_rcti_size_x(&region->winrct) * (1.0f - alpha_easing);
@@ -913,7 +913,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
       float(rect_geo.xmin), float(rect_geo.ymin), float(rect_geo.xmax), float(rect_geo.ymax)};
 
   if (blend) {
-    GPU_blend((alpha < 1.0f) ? GPU_BLEND_ALPHA : GPU_BLEND_ALPHA_PREMULT);
+    /* Regions drawn off-screen have pre-multiplied alpha. */
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   }
 
   /* Setup actual texture. */
@@ -931,7 +932,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
 
   GPU_shader_uniform_float_ex(shader, rect_tex_loc, 4, 1, rectt);
   GPU_shader_uniform_float_ex(shader, rect_geo_loc, 4, 1, rectg);
-  GPU_shader_uniform_float_ex(shader, color_loc, 4, 1, float4{1, 1, 1, alpha});
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, float4{alpha_easing, alpha_easing, alpha_easing, alpha_easing});
 
   gpu::Batch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);

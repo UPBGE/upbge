@@ -467,11 +467,11 @@ class IndexRangeCyclic {
 
 IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
                                    const IndexMask &curve_selection,
-                                   IndexMaskMemory &memory);
+                                   LinearAllocator<> &memory);
 
 IndexMask curve_type_point_selection(const bke::CurvesGeometry &curves,
                                      CurveType curve_type,
-                                     IndexMaskMemory &memory);
+                                     LinearAllocator<> &memory);
 
 void fill_points(OffsetIndices<int> points_by_curve,
                  const IndexMask &curve_selection,
@@ -502,7 +502,7 @@ IndexMask indices_for_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,
                            const CurveType type,
                            const IndexMask &selection,
-                           IndexMaskMemory &memory);
+                           LinearAllocator<> &memory);
 
 void foreach_curve_by_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,

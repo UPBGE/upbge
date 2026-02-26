@@ -5,6 +5,7 @@
 #pragma once
 
 #include "kernel/globals.h"
+#include "kernel/util/image_2d.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -83,9 +84,19 @@ ccl_device_noinline T kernel_image_interp_bicubic(const ccl_global KernelImageIn
                          g1x * ccl_gpu_image_object_read_2D<T>(tex, x1, y1));
 }
 
-ccl_device float4 kernel_image_interp(KernelGlobals kg, const int id, const float x, float y)
+ccl_device float4 kernel_image_interp(KernelGlobals kg,
+                                      const int image_texture_id,
+                                      const float x,
+                                      float y)
 {
-  const ccl_global KernelImageInfo &info = kernel_data_fetch(image_info, id);
+  if (image_texture_id == KERNEL_IMAGE_NONE) {
+    return IMAGE_MISSING_RGBA;
+  }
+  const ccl_global KernelImageTexture &tex = kernel_data_fetch(image_textures, image_texture_id);
+  if (tex.image_info_id == KERNEL_IMAGE_NONE) {
+    return IMAGE_MISSING_RGBA;
+  }
+  const ccl_global KernelImageInfo &info = kernel_data_fetch(image_info, tex.image_info_id);
 
   /* float4, byte4, ushort4 and half4 */
   const int image_type = info.data_type;
@@ -114,6 +125,19 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg, const int id, const floa
 
     return make_float4(f, f, f, 1.0f);
   }
+}
+
+ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
+                                                            ccl_private ShaderData * /*sd*/,
+                                                            const int udim_id,
+                                                            float2 uv)
+{
+  const int image_texture_id = kernel_image_udim_map(kg, udim_id, uv);
+  if (image_texture_id == KERNEL_IMAGE_NONE) {
+    return IMAGE_MISSING_RGBA;
+  }
+
+  return kernel_image_interp(kg, image_texture_id, uv.x, uv.y);
 }
 
 CCL_NAMESPACE_END

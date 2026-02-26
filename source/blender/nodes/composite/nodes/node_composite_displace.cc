@@ -224,8 +224,10 @@ class DisplaceOperation : public NodeOperation {
                                            const float2 &y_gradient) {
         /* Sample the input using the displaced coordinates passing in the computed gradients in
          * order to utilize the anisotropic filtering capabilities of the sampler. */
-        output.store_pixel(texel,
-                           image.sample_ewa(coordinates, x_gradient, y_gradient, Extension::Clip));
+        output.store_pixel(
+            texel,
+            image.sample_ewa(
+                coordinates, x_gradient, y_gradient, Extension::Clip, Extension::Clip));
       };
 
       compute_anisotropic_pixel(

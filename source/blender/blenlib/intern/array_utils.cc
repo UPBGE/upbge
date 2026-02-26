@@ -284,6 +284,26 @@ bool contains(const VArray<bool> &varray, const IndexMask &indices_to_check, con
       std::logical_or());
 }
 
+IndexMask indices_non_negative(const IndexMask &universe,
+                               const Span<int> values,
+                               LinearAllocator<> &memory)
+{
+  return IndexMask::from_predicate(
+      universe, memory, [&](const int i) { return values[i] >= 0; }, exec_mode::grain_size(4096));
+}
+
+IndexMask indices_in_range(const IndexMask &universe,
+                           const Span<int> values,
+                           const IndexRange range,
+                           LinearAllocator<> &memory)
+{
+  return IndexMask::from_predicate(
+      universe,
+      memory,
+      [&](const int i) { return range.contains(values[i]); },
+      exec_mode::grain_size(4096));
+}
+
 int64_t count_booleans(const VArray<bool> &varray)
 {
   return count_booleans(varray, IndexMask(varray.size()));

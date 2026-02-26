@@ -148,10 +148,9 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
   ResourceScope scope;
   scope.allocator().provide_buffer(allocation_buffer);
 
-  IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
       IndexRange(grid::LeafNodeMask::SIZE),
-      memory,
+      scope.allocator(),
       [&](const int64_t i) { return leaf_node_mask.isOn(i); },
       exec_mode::serial);
 

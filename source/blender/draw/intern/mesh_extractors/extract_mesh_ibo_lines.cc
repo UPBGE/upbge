@@ -31,8 +31,8 @@ static IndexMask calc_mesh_edge_visibility(const MeshRenderData &mr,
   }
   if (mr.hide_unmapped_edges && mr.orig_index_edge != nullptr) {
     const int *orig_index = mr.orig_index_edge;
-    visible = IndexMask::from_predicate(
-        visible, memory, [&](const int64_t i) { return orig_index[i] != ORIGINDEX_NONE; });
+    static_assert(ORIGINDEX_NONE == -1);
+    visible = array_utils::indices_non_negative(visible, Span(orig_index, mr.edges_num), memory);
   }
   return visible;
 }

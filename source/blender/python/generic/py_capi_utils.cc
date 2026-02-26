@@ -1761,7 +1761,7 @@ bool PyC_RunString_AsStringAndSizeOrNone(const char *imports[],
       }
       else {
         char *val_alloc = MEM_new_array_uninitialized<char>(size_t(val_len) + 1, __func__);
-        memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(val_alloc));
+        memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(*val_alloc));
         *r_value = val_alloc;
         *r_value_size = val_len;
         ok = true;

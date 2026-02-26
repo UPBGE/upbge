@@ -41,18 +41,6 @@ class RealizeOnDomainOperation : public SimpleOperation {
                                               const InputDescriptor &input_descriptor,
                                               const Domain &operation_domain);
 
-  /* Given a potentially transformed domain, compute a domain such that its rotation and scale
-   * become identity and the size of the domain is increased/reduced to adapt to the new
-   * transformation. For instance, if the domain is rotated, the returned domain will have zero
-   * rotation but expanded size to account for the bounding box of the domain after rotation.
-   * Similarly, if the realize_translation argument is true, translation will be set to zero,
-   * though this will not affect the size of the domain in any way. The size of the returned domain
-   * is bound and clipped by the maximum possible size to avoid allocations that surpass hardware
-   * limits. */
-  static Domain compute_realized_transformation_domain(Context &context,
-                                                       const Domain &domain,
-                                                       const bool realize_translation = false);
-
  protected:
   /* The operation domain is just the target domain. */
   Domain compute_domain() override;
@@ -65,8 +53,8 @@ class RealizeOnDomainOperation : public SimpleOperation {
    * to interpolation. See the implementation for more information. */
   float2 compute_corrective_translation();
 
-  void realize_on_domain_gpu(const float3x3 &inverse_transformation);
-  void realize_on_domain_cpu(const float3x3 &inverse_transformation);
+  void realize_on_domain_gpu(const float3x3 &transformation);
+  void realize_on_domain_cpu(const float3x3 &transformation);
 };
 
 }  // namespace blender::compositor

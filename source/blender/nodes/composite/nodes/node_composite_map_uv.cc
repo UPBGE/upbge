@@ -270,8 +270,8 @@ class MapUVOperation : public NodeOperation {
                                const float2 &y_gradient) {
         /* Sample the input using the UV coordinates passing in the computed gradients in order
          * to utilize the anisotropic filtering capabilities of the sampler. */
-        float4 sampled_color = float4(
-            input_image.sample_ewa(coordinates, x_gradient, y_gradient, Extension::Clip));
+        float4 sampled_color = float4(input_image.sample_ewa(
+            coordinates, x_gradient, y_gradient, Extension::Clip, Extension::Clip));
 
         /* The UV input is assumed to contain an alpha channel as its third channel, since the
          * UV coordinates might be defined in only a subset area of the UV texture as mentioned.

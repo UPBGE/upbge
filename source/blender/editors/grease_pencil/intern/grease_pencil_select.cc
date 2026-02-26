@@ -1222,8 +1222,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
       if (const VArray<bool> hide_stroke = *curves.attributes().lookup<bool>(
               "hide_stroke", bke::AttrDomain::Curve))
       {
-        IndexMask mask = IndexMask::from_predicate(
-            selectable_strokes, memory, [&](const int index) { return !hide_stroke[index]; });
+        IndexMask mask = IndexMask::from_bools_inverse(selectable_strokes, hide_stroke, memory);
         if (selection_domain == bke::AttrDomain::Point) {
           mask = IndexMask::from_ranges(curves.points_by_curve(), mask, memory);
         }

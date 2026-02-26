@@ -65,7 +65,17 @@ wmWindow *wm_window_copy_test(bContext *C, wmWindow *win_src, bool duplicate_lay
  */
 void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win);
 /**
- * This is event from ghost, or exit-Blender operator.
+ * User request to close the window (close event for example, or exit operator).
+ *
+ * - Close may be deferred (if the file isn't saved).
+ * - Store temp window screen coordinates.
+ */
+void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win);
+/**
+ * Close the window unconditionally.
+ *
+ * \note Lower level, may run if GHOST failed to initialize the window.
+ * We cannot assume GHOST or the GPU context is valid at this point.
  */
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win);
 
