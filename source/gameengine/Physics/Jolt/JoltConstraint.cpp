@@ -278,18 +278,20 @@ float JoltConstraint::GetBreakingThreshold() const
 void JoltConstraint::SetBreakingThreshold(float threshold)
 {
   m_breakingThreshold = threshold;
+  if (m_env) {
+    m_env->NotifyConstraintBreakingThresholdChanged();
+  }
 }
 
 bool JoltConstraint::CheckBreaking() const
 {
-  if (!m_constraint || m_breakingThreshold >= FLT_MAX) {
+  if (!m_constraint || m_breakingThreshold >= FLT_MAX || !m_constraint->GetEnabled() ||
+      !m_constraint->IsActive()) {
     return false;
   }
 
   /* Jolt has no built-in breaking threshold. Check the constraint's applied
    * impulse (lambda) and compare against the threshold. */
-  JPH::TwoBodyConstraint *tbc = static_cast<JPH::TwoBodyConstraint *>(m_constraint);
-
   /* Sum position and rotation lambdas for total constraint impulse. */
   float totalLambda = 0.0f;
   /* Use GetTotalLambdaPosition/Rotation where available. For a generic check,
@@ -315,7 +317,6 @@ bool JoltConstraint::CheckBreaking() const
       break;
     }
     default: {
-      (void)tbc;
       return false;
     }
   }

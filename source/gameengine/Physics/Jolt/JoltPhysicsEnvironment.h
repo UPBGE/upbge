@@ -41,11 +41,15 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
 #include "PHY_IPhysicsEnvironment.h"
+#include "MT_Matrix3x3.h"
+#include "MT_Vector3.h"
 
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class JoltCharacter;
@@ -57,6 +61,8 @@ class JoltVehicle;
 class KX_GameObject;
 
 namespace blender {
+struct Depsgraph;
+struct EffectorWeights;
 struct Object;
 struct Scene;
 }
@@ -389,7 +395,8 @@ class JoltSoftBodyContactListener : public JPH::SoftBodyContactListener {
   void Unregister(JPH::BodyID softBodyID);
 
  private:
-  std::mutex m_mutex;
+  std::atomic<bool> m_hasNoPinCollisionPairs{false};
+  mutable std::shared_mutex m_mutex;
   /** Maps soft body IndexAndSequenceNumber → pin body IndexAndSequenceNumber. */
   std::unordered_map<JPH::uint32, JPH::uint32> m_noPinCollisionMap;
 };
@@ -541,6 +548,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   JPH::BodyInterface &GetBodyInterface();
   JPH::BodyInterface &GetBodyInterfaceNoLock();
   JPH::TempAllocator *GetTempAllocator() { return m_tempAllocator.get(); }
+  JoltConstraintGroupFilter *GetConstraintGroupFilter() const { return m_constraintGroupFilter.GetPtr(); }
 
   void AddController(JoltPhysicsController *ctrl);
   bool RemoveController(JoltPhysicsController *ctrl);
@@ -559,10 +567,45 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
    *  Adds it to m_softBodies and the no-pin-collision map if needed. */
   void AddSoftBodyReplica(JoltSoftBody *sb, JoltPhysicsController *pinCtrl);
 
+  /** Queue a newly created rigid-body body ID for batched AddBodiesPrepare/Finalize.
+   *  Used by runtime spawn paths to reduce per-body broadphase insertion cost. */
+  void QueueRigidBodyBodyAdd(JPH::BodyID bodyID,
+                             JPH::EActivation activation = JPH::EActivation::Activate);
+
+  /** Remove one queued rigid-body add entry if present.
+   *  Used when a body is suspended/removed before the queued add is flushed. */
+  void RemovePendingRigidBodyBodyAdd(JPH::BodyID bodyID);
+
+  /** Queue a newly created soft-body body ID for batched AddBodiesPrepare/Finalize.
+   *  Used by runtime replica spawning to reduce per-body broadphase insertion cost. */
+  void QueueSoftBodyBodyAdd(JPH::BodyID bodyID);
+
+  /** Record a soft-body AddBody call so runtime broadphase maintenance can be
+   *  triggered after heavy spawn bursts. */
+  void NotifySoftBodyBodyAdded();
+
+  /** Record a rigid-body AddBody call so runtime broadphase maintenance can be
+   *  triggered after heavy spawn bursts. */
+  void NotifyRigidBodyBodyAdded();
+
+  /** Request one global depsgraph relations refresh for soft-body modifier edits.
+   *  UpdateSoftBodies() will perform the actual tag once per frame. */
+  void RequestSoftBodyRelationsTagUpdate();
+
+  /** Mark the breakable-constraint cache dirty after threshold changes. */
+  void NotifyConstraintBreakingThresholdChanged();
+
+  /** Remove a soft body from update/contact bookkeeping and delete it.
+   *  Called on runtime object destroy and environment teardown. */
+  void RemoveSoftBody(JoltSoftBody *sb);
+
   void AddGraphicController(JoltGraphicController *ctrl);
   void RemoveGraphicController(JoltGraphicController *ctrl);
 
   void CallbackTriggers();
+  void ApplyEffectorForces();
+  blender::EffectorWeights *GetEffectorWeights();
+  blender::Depsgraph *GetDepsgraph();
   void ProcessFhSprings(float timeStep);
 
   /** Check if physics update is currently in progress. */
@@ -574,6 +617,33 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   /** Process all queued deferred operations. Called after physics update completes. */
   void ProcessDeferredOperations();
+
+  /** Finalize queued rigid-body body insertions through Jolt's batched add API.
+   *  Called from ProceedDeltaTime() before simulation. */
+  void FlushPendingRigidBodyBodyAdds();
+
+  /** Finalize queued soft-body body insertions through Jolt's batched add API.
+   *  Called from ProceedDeltaTime() before simulation. */
+  void FlushPendingSoftBodyBodyAdds();
+
+  /** Finalize queued soft-body removals/destructions in batches.
+   *  Called before each simulation step and during environment teardown. */
+  void FlushPendingSoftBodyBodyRemoves();
+
+  /** Rebuild and return dense controller iteration storage preserving set order. */
+  const std::vector<JoltPhysicsController *> &GetControllersForIteration();
+
+  /** Queue one compound child sub-shape to be assembled into the parent in one pass. */
+  void QueuePendingCompoundChildShape(JoltPhysicsController *parentCtrl,
+                                      const JPH::Vec3 &relativePos,
+                                      const JPH::Quat &relativeRot,
+                                      JPH::RefConst<JPH::Shape> childShape);
+
+  /** Finalize queued parent compound-shape rebuilds. */
+  void FinalizePendingCompoundShapeBuilds();
+
+  /** Rebuild cache of constraints that have finite breaking thresholds. */
+  void RebuildBreakableConstraintCache();
 
   friend class JoltContactListener;
   friend class JoltPhysicsController;
@@ -598,11 +668,85 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   std::set<JoltPhysicsController *> m_controllers;
   std::set<JoltPhysicsController *> m_collisionCallbackControllers;
+  std::atomic<bool> m_collectContactsForCallbacks{false};
   std::unordered_map<int, JoltConstraint *> m_constraintById;
+  std::vector<JoltConstraint *> m_breakableConstraintsCache;
+  std::vector<int> m_brokenConstraintIDsScratch;
   std::unordered_map<KX_GameObject *, JoltCharacter *> m_characterByObject;
   std::vector<JoltVehicle *> m_vehicles;
   std::set<JoltGraphicController *> m_graphicControllers;
   std::vector<JoltSoftBody *> m_softBodies;
+  std::vector<JoltSoftBody *> m_pinnedSoftBodies;
+
+  struct PinnedSoftBodyUpdateEntry {
+    JoltSoftBody *softBody = nullptr;
+    MT_Vector3 pinPos;
+    MT_Matrix3x3 pinOri;
+  };
+
+  struct PendingBodyAddEntry {
+    JPH::BodyID bodyID;
+    JPH::EActivation activation = JPH::EActivation::Activate;
+  };
+
+  struct PendingCompoundSubShapeEntry {
+    JPH::Vec3 position;
+    JPH::Quat rotation;
+    JPH::RefConst<JPH::Shape> shape;
+  };
+
+  /** Runtime-created rigid-body bodies waiting for batched AddBodiesFinalize. */
+  std::vector<PendingBodyAddEntry> m_pendingRigidBodyBodyAdds;
+
+  /** Per-parent queued compound sub-shapes for one-pass rebuild. */
+  std::unordered_map<JoltPhysicsController *, std::vector<PendingCompoundSubShapeEntry>>
+      m_pendingCompoundSubShapesByController;
+
+  /** Runtime-created soft-body bodies waiting for batched AddBodiesFinalize. */
+  std::vector<JPH::BodyID> m_pendingSoftBodyBodyAdds;
+
+  /** Soft-body bodies queued for batched RemoveBodies/DestroyBodies. */
+  std::vector<JPH::BodyID> m_pendingSoftBodyBodyRemoves;
+
+  /** Scratch buffers reused each frame to avoid repeated allocations. */
+  std::vector<PinnedSoftBodyUpdateEntry> m_pinnedSoftBodyUpdatesScratch;
+  std::vector<JPH::BodyID> m_pinnedSoftBodyBodyIDsScratch;
+  std::vector<JoltSoftBody *> m_softBodiesToMeshUpdateScratch;
+  std::vector<JPH::BodyID> m_softBodyMeshUpdateIDsScratch;
+  std::vector<JoltContactPair> m_contactPairsScratch;
+  std::vector<JoltPhysicsController *> m_controllersIterationCache;
+
+  /** True when m_controllersIterationCache must be rebuilt from m_controllers. */
+  bool m_controllersIterationCacheDirty = true;
+
+  /** Number of soft bodies added one-by-one since the last broadphase optimize. */
+  int m_pendingSoftBodyAddsForOptimize = 0;
+
+  /** Number of rigid bodies added one-by-one since the last broadphase optimize. */
+  int m_pendingRigidBodyAddsForOptimize = 0;
+
+  /** Number of soft bodies added through AddBodiesFinalize since the last optimize.
+   *  Batched insertion is already broadphase-friendly, so this uses a higher
+   *  optimize threshold than one-by-one AddBody insertions. */
+  int m_pendingSoftBodyBatchAddsForOptimize = 0;
+
+  /** Number of soft-body adds observed since the previous ProceedDeltaTime() tick.
+   *  Includes both one-by-one and batched insertions. */
+  int m_softBodyAddsSinceLastStep = 0;
+
+  /** Number of rigid-body one-by-one adds observed since the previous step. */
+  int m_rigidBodyAddsSinceLastStep = 0;
+
+  /** Number of consecutive physics ticks without new soft-body adds while a
+   *  runtime spawn burst is pending broadphase optimization. */
+  int m_softBodyAddIdleFrames = 0;
+
+  /** Number of consecutive physics ticks without new rigid-body one-by-one adds
+   *  while a runtime spawn burst is pending broadphase optimization. */
+  int m_rigidBodyAddIdleFrames = 0;
+
+  /** True if at least one soft body requested DEG_relations_tag_update this frame. */
+  bool m_softBodyRelationsTagDirty = false;
 
   /** Maps Blender Object* → JoltPhysicsController* for soft-body pin-object lookup. */
   std::unordered_map<blender::Object*, JoltPhysicsController*> m_controllerByBlenderObject;
@@ -611,6 +755,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void *m_triggerCallbacksUserPtrs[PHY_NUM_RESPONSE];
 
   blender::Scene *m_blenderScene;
+  blender::EffectorWeights *m_fallbackEffectorWeights = nullptr;
 
   int m_numTimeSubSteps;
   int m_debugMode;
@@ -624,12 +769,59 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   int m_activeBodyCount = 0;
 
   bool m_needsBroadPhaseOptimize = true;
+  int m_broadPhaseOptimizeCooldownFrames = 0;
+  bool m_breakableConstraintsCacheDirty = true;
+
+  /* Temporary runtime probe state for identifying constraint-heavy regressions. */
+  bool m_perfProbeEnabled = false;
+  int m_perfProbeWindowFrames = 120;
+  int m_perfProbeFramesAccum = 0;
+  double m_perfProbeStepUSAccum = 0.0;
+  double m_perfProbeUpdateUSAccum = 0.0;
+  double m_perfProbeBroadphaseUSAccum = 0.0;
+  double m_perfProbeBreakCheckUSAccum = 0.0;
+  double m_perfProbePrepUSAccum = 0.0;
+  double m_perfProbeWriteKinematicUSAccum = 0.0;
+  double m_perfProbePinnedUpdateUSAccum = 0.0;
+  double m_perfProbeDeferredUSAccum = 0.0;
+  double m_perfProbeFhSpringUSAccum = 0.0;
+  double m_perfProbeSimulationTickUSAccum = 0.0;
+  double m_perfProbeSyncMotionUSAccum = 0.0;
+  double m_perfProbeCharacterUSAccum = 0.0;
+  double m_perfProbeVehicleUSAccum = 0.0;
+  double m_perfProbeCallbackUSAccum = 0.0;
+  double m_perfProbeUpdateSoftBodiesUSAccum = 0.0;
+  double m_perfProbeUpdateSoftBodiesDepsgraphUSAccum = 0.0;
+  double m_perfProbeUpdateSoftBodiesFilterUSAccum = 0.0;
+  double m_perfProbeUpdateSoftBodiesMeshUSAccum = 0.0;
+  double m_perfProbeUpdateSoftBodiesRelTagUSAccum = 0.0;
+  size_t m_perfProbeBroadphaseCallsAccum = 0;
+  size_t m_perfProbeBroadphaseStartupCallsAccum = 0;
+  size_t m_perfProbeBroadphaseSoftSingleCallsAccum = 0;
+  size_t m_perfProbeBroadphaseSoftBatchCallsAccum = 0;
+  size_t m_perfProbeBroadphaseRigidSingleCallsAccum = 0;
+  size_t m_perfProbeBroadphaseOtherCallsAccum = 0;
+  size_t m_perfProbeBreakableCheckedAccum = 0;
+  size_t m_perfProbeBrokenAccum = 0;
+  size_t m_perfProbeDeferredOpsQueuedAccum = 0;
+  size_t m_perfProbeControllersAccum = 0;
+  size_t m_perfProbeContactPairsAccum = 0;
+  size_t m_perfProbePendingSoftSingleAddsAccum = 0;
+  size_t m_perfProbePendingSoftBatchAddsAccum = 0;
+  size_t m_perfProbePendingRigidSingleAddsAccum = 0;
+  size_t m_perfProbeUpdateSoftBodiesCallsAccum = 0;
+  size_t m_perfProbeSoftBodiesTotalAccum = 0;
+  size_t m_perfProbeSoftBodiesCandidatesAccum = 0;
+  size_t m_perfProbeSoftBodiesUpdatedAccum = 0;
 
   /** Flag set during PhysicsSystem::Update() to prevent unsafe body modifications. */
   bool m_isPhysicsUpdating = false;
 
   /** Queue of deferred operations to process after physics update completes. */
   std::vector<JoltDeferredOp> m_deferredOps;
+
+  /** Set after the first successful physics step. Used to detect startup conversion. */
+  bool m_hasSteppedSimulation = false;
 };
 
 /** \} */

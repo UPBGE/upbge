@@ -69,6 +69,7 @@ JPH_SUPPRESS_WARNINGS
 #include "JoltShapeBuilder.h"
 
 #include "BKE_context.hh"
+#include "BKE_effect.h"
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
@@ -76,15 +77,19 @@ JPH_SUPPRESS_WARNINGS
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_span.hh"
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_modifier_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
+#include "MEM_guardedalloc.h"
 
 #include "BL_SceneConverter.h"
 #include "KX_ClientObjectInfo.h"
@@ -100,7 +105,9 @@ JPH_SUPPRESS_WARNINGS
 #include <cfloat>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstdarg>
+#include <unordered_set>
 
 static int g_joltConstraintUid = 1;
 
@@ -238,7 +245,12 @@ void JoltContactListener::StoreContact(const JPH::Body &inBody1,
                                         const JPH::ContactSettings &ioSettings,
                                         bool isNew)
 {
-  /* Called from physics threads — must be thread-safe. */
+  /* Called from physics threads — must be thread-safe.
+   * Skip contact capture entirely when no controller requested callbacks. */
+  if (!m_env || !m_env->m_collectContactsForCallbacks.load(std::memory_order_relaxed)) {
+    return;
+  }
+
   JoltContactPair pair;
   pair.bodyID1 = inBody1.GetID();
   pair.bodyID2 = inBody2.GetID();
@@ -279,9 +291,13 @@ JPH::SoftBodyValidateResult JoltSoftBodyContactListener::OnSoftBodyContactValida
     const JPH::Body &inOtherBody,
     JPH::SoftBodyContactSettings &ioSettings)
 {
+  if (!m_hasNoPinCollisionPairs.load(std::memory_order_acquire)) {
+    return JPH::SoftBodyValidateResult::AcceptContact;
+  }
+
   /* Called from physics threads during soft body collision detection.
    * All bodies are locked; do NOT call any body-locking functions here. */
-  std::lock_guard<std::mutex> lock(m_mutex);
+  std::shared_lock<std::shared_mutex> lock(m_mutex);
   auto it = m_noPinCollisionMap.find(inSoftBody.GetID().GetIndexAndSequenceNumber());
   if (it != m_noPinCollisionMap.end() &&
       it->second == inOtherBody.GetID().GetIndexAndSequenceNumber()) {
@@ -297,15 +313,17 @@ JPH::SoftBodyValidateResult JoltSoftBodyContactListener::OnSoftBodyContactValida
 
 void JoltSoftBodyContactListener::Register(JPH::BodyID softBodyID, JPH::BodyID pinBodyID)
 {
-  std::lock_guard<std::mutex> lock(m_mutex);
+  std::unique_lock<std::shared_mutex> lock(m_mutex);
   m_noPinCollisionMap[softBodyID.GetIndexAndSequenceNumber()] =
       pinBodyID.GetIndexAndSequenceNumber();
+  m_hasNoPinCollisionPairs.store(true, std::memory_order_release);
 }
 
 void JoltSoftBodyContactListener::Unregister(JPH::BodyID softBodyID)
 {
-  std::lock_guard<std::mutex> lock(m_mutex);
+  std::unique_lock<std::shared_mutex> lock(m_mutex);
   m_noPinCollisionMap.erase(softBodyID.GetIndexAndSequenceNumber());
+  m_hasNoPinCollisionPairs.store(!m_noPinCollisionMap.empty(), std::memory_order_release);
 }
 
 /** \} */
@@ -401,6 +419,27 @@ JoltPhysicsEnvironment::JoltPhysicsEnvironment(blender::Scene *blenderscene,
     m_debugMode = 1;
   }
   m_debugErrors = blenderscene->gm.jolt_debug_errors != 0;
+
+  const char *perfProbeEnv = std::getenv("UPBGE_JOLT_PERF_PROBE");
+  const char *perfProbeWindowEnv = std::getenv("UPBGE_JOLT_PERF_PROBE_WINDOW");
+
+  /* Probe defaults to debug-errors mode and can be forced through env vars.
+   * This keeps regular gameplay builds quiet unless explicit investigation is enabled. */
+  m_perfProbeEnabled = m_debugErrors;
+  if (perfProbeEnv && perfProbeEnv[0] != '\0' && perfProbeEnv[0] != '0') {
+    m_perfProbeEnabled = true;
+  }
+
+  if (perfProbeWindowEnv) {
+    const int window = std::atoi(perfProbeWindowEnv);
+    if (window > 0) {
+      m_perfProbeWindowFrames = window;
+    }
+  }
+
+  if (m_perfProbeEnabled) {
+    printf("Jolt: Perf probe enabled (window=%d frames)\n", m_perfProbeWindowFrames);
+  }
 }
 
 JoltPhysicsEnvironment::~JoltPhysicsEnvironment()
@@ -429,34 +468,63 @@ JoltPhysicsEnvironment::~JoltPhysicsEnvironment()
   m_vehicles.clear();
 
   /* Delete soft bodies. */
-  for (JoltSoftBody *sb : m_softBodies) {
-    delete sb;
+  while (!m_softBodies.empty()) {
+    RemoveSoftBody(m_softBodies.back());
   }
-  m_softBodies.clear();
+  FlushPendingSoftBodyBodyRemoves();
 
   /* Controllers are normally destroyed by KX_GameObject before we get here.
    * Each controller destructor removes its body and erases itself from m_controllers.
    * Handle any stragglers that weren't cleaned up by game objects. */
   {
-    JPH::BodyInterface &bodyInterface = m_physicsSystem->GetBodyInterface();
+    JPH::BodyInterface &bodyInterface = m_physicsSystem->GetBodyInterfaceNoLock();
     /* Copy the set since controller destructors modify m_controllers. */
     std::vector<JoltPhysicsController *> remaining(m_controllers.begin(), m_controllers.end());
+
+    std::vector<JPH::BodyID> addedBodyIDs;
+    std::vector<JPH::BodyID> destroyBodyIDs;
+    addedBodyIDs.reserve(remaining.size());
+    destroyBodyIDs.reserve(remaining.size());
+
     for (JoltPhysicsController *ctrl : remaining) {
       JPH::BodyID bodyID = ctrl->GetBodyID();
       if (!bodyID.IsInvalid()) {
-        if (bodyInterface.IsAdded(bodyID)) {
-          bodyInterface.RemoveBody(bodyID);
+        if (std::find(destroyBodyIDs.begin(), destroyBodyIDs.end(), bodyID) == destroyBodyIDs.end()) {
+          destroyBodyIDs.push_back(bodyID);
         }
-        bodyInterface.DestroyBody(bodyID);
+        if (bodyInterface.IsAdded(bodyID) &&
+            std::find(addedBodyIDs.begin(), addedBodyIDs.end(), bodyID) == addedBodyIDs.end()) {
+          addedBodyIDs.push_back(bodyID);
+        }
       }
+    }
+
+    if (!addedBodyIDs.empty()) {
+      bodyInterface.RemoveBodies(addedBodyIDs.data(), (int)addedBodyIDs.size());
+    }
+    if (!destroyBodyIDs.empty()) {
+      bodyInterface.DestroyBodies(destroyBodyIDs.data(), (int)destroyBodyIDs.size());
+    }
+
+    for (JoltPhysicsController *ctrl : remaining) {
       ctrl->SetEnvironment(nullptr);  /* Prevent controller destructor from double-freeing. */
       delete ctrl;  /* Free the controller and its motion state. */
     }
+
+    m_pendingRigidBodyBodyAdds.clear();
+    m_pendingCompoundSubShapesByController.clear();
     m_controllers.clear();
+    m_controllersIterationCache.clear();
+    m_controllersIterationCacheDirty = true;
   }
 
   /* Graphic controllers are owned by KX_GameObject, but clear stale pointers. */
   m_graphicControllers.clear();
+
+  if (m_fallbackEffectorWeights) {
+    MEM_delete(m_fallbackEffectorWeights);
+    m_fallbackEffectorWeights = nullptr;
+  }
 
   /* Destroy physics system before job system and allocator. */
   m_physicsSystem.reset();
@@ -483,11 +551,15 @@ JoltPhysicsEnvironment *JoltPhysicsEnvironment::Create(blender::Scene *blendersc
     maxBodies = 65536;
   }
 
-  /* Auto-calculate derived settings based on maxBodies.
-   * These ratios prevent resource saturation (BodyPairCacheFull, ContactConstraintsFull)
-   * which causes bodies to fall through the world. */
-  int maxBodyPairs = maxBodies * 8;           /* 8x: broadphase pairs >> actual contacts */
-  int maxContactConstraints = maxBodies * 4;  /* 4x: typical contacts per body in dense scenes */
+  int maxBodyPairs = blenderscene->gm.jolt_max_body_pairs;
+  if (maxBodyPairs <= 0) {
+    maxBodyPairs = 10240;
+  }
+
+  int maxContactConstraints = blenderscene->gm.jolt_max_contact_constraints;
+  if (maxContactConstraints <= 0) {
+    maxContactConstraints = 10240;
+  }
 
   /* Temp allocator needs memory for:
    * - Body pairs (maxBodyPairs * ~200 bytes)
@@ -526,6 +598,32 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
     return false;
   }
 
+  using PerfClock = std::chrono::steady_clock;
+  const bool perfProbeEnabled = m_perfProbeEnabled;
+  const PerfClock::time_point perfStepStart =
+      perfProbeEnabled ? PerfClock::now() : PerfClock::time_point();
+  double perfBroadphaseUS = 0.0;
+  double perfUpdateUS = 0.0;
+  double perfBreakCheckUS = 0.0;
+  double perfPrepUS = 0.0;
+  double perfWriteKinematicUS = 0.0;
+  double perfPinnedUpdateUS = 0.0;
+  double perfDeferredUS = 0.0;
+  double perfFhSpringUS = 0.0;
+  double perfSimulationTickUS = 0.0;
+  double perfSyncMotionUS = 0.0;
+  double perfCharacterUS = 0.0;
+  double perfVehicleUS = 0.0;
+  double perfCallbackUS = 0.0;
+  size_t perfBreakableChecked = 0;
+  size_t perfBroken = 0;
+  size_t perfDeferredOpsQueued = 0;
+  size_t perfControllers = 0;
+  size_t perfContactPairs = 0;
+  size_t perfPendingSoftSingleAdds = 0;
+  size_t perfPendingSoftBatchAdds = 0;
+  size_t perfPendingRigidSingleAdds = 0;
+
   int collisionSteps = m_numTimeSubSteps;
   if (collisionSteps < 1) {
     collisionSteps = 1;
@@ -533,110 +631,745 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
 
   /* Full simulation step sequence (matching Bullet's order for physics correctness):
    *   1. Sync motion states BEFORE physics (kinematic bodies read from game objects)
+   *   1.75 Apply Blender effectors (force fields)
    *   2. PhysicsSystem::Update()
    *   3. Process FH springs
    *   4. Sync motion states AFTER physics (dynamic bodies write to game objects)
    *   5. CallbackTriggers()
    */
 
-  /* One-time broad-phase optimization after scene load. */
-  if (m_needsBroadPhaseOptimize) {
-    m_physicsSystem->OptimizeBroadPhase();
-    m_needsBroadPhaseOptimize = false;
+  PerfClock::time_point prepStart;
+  if (perfProbeEnabled) {
+    prepStart = PerfClock::now();
+    perfPendingSoftSingleAdds = (size_t)m_pendingSoftBodyAddsForOptimize;
+    perfPendingSoftBatchAdds = (size_t)m_pendingSoftBodyBatchAddsForOptimize;
+    perfPendingRigidSingleAdds = (size_t)m_pendingRigidBodyAddsForOptimize;
   }
 
+  /* Finalize any queued compound-shape rebuilds before body adds so newly added
+   * bodies enter the broadphase with their final collision shape. */
+  FinalizePendingCompoundShapeBuilds();
+
+  /* Finalize queued runtime body additions/removals before per-step work.
+   * Rigid bodies and soft bodies both use Jolt's batched add APIs here. */
+  FlushPendingRigidBodyBodyAdds();
+  FlushPendingSoftBodyBodyRemoves();
+  FlushPendingSoftBodyBodyAdds();
+
+  if (perfProbeEnabled) {
+    perfPrepUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                     PerfClock::now() - prepStart)
+                     .count();
+  }
+
+  /* Broadphase maintenance:
+   *  - one-time optimize after scene load / environment merge;
+   *  - runtime re-optimize for many one-by-one AddBody insertions;
+   *  - optional safety optimize for very large batched spawn bursts.
+   *
+   * Jolt docs note batched insertion is already broadphase-friendly and that
+   * OptimizeBroadPhase should not be called every frame. Keep a short cooldown
+   * for runtime-triggered optimizes to avoid repeated spikes. */
+  constexpr int kRuntimeSoftBodySingleAddOptimizeThreshold = 8;
+  constexpr int kRuntimeSoftBodyBatchAddOptimizeThreshold = 128;
+  constexpr int kRuntimeSoftBodySingleAddIdleFramesBeforeOptimize = 2;
+  constexpr int kRuntimeSoftBodyBatchAddIdleFramesBeforeOptimize = 4;
+  constexpr int kRuntimeRigidBodySingleAddOptimizeThreshold = 16;
+  constexpr int kRuntimeRigidBodySingleAddIdleFramesBeforeOptimize = 2;
+  constexpr int kRuntimeBroadPhaseOptimizeCooldownFrames = 30;
+
+  if (m_broadPhaseOptimizeCooldownFrames > 0) {
+    --m_broadPhaseOptimizeCooldownFrames;
+  }
+
+  if (m_pendingSoftBodyAddsForOptimize > 0 || m_pendingSoftBodyBatchAddsForOptimize > 0) {
+    if (m_softBodyAddsSinceLastStep > 0) {
+      m_softBodyAddIdleFrames = 0;
+    }
+    else {
+      ++m_softBodyAddIdleFrames;
+    }
+  }
+
+  if (m_pendingRigidBodyAddsForOptimize > 0) {
+    if (m_rigidBodyAddsSinceLastStep > 0) {
+      m_rigidBodyAddIdleFrames = 0;
+    }
+    else {
+      ++m_rigidBodyAddIdleFrames;
+    }
+  }
+
+  const bool shouldOptimizeForSingleAdds =
+      m_pendingSoftBodyAddsForOptimize >= kRuntimeSoftBodySingleAddOptimizeThreshold &&
+      m_softBodyAddIdleFrames >= kRuntimeSoftBodySingleAddIdleFramesBeforeOptimize;
+  const bool shouldOptimizeForBatchAdds =
+      m_pendingSoftBodyBatchAddsForOptimize >= kRuntimeSoftBodyBatchAddOptimizeThreshold &&
+      m_softBodyAddIdleFrames >= kRuntimeSoftBodyBatchAddIdleFramesBeforeOptimize;
+  const bool shouldOptimizeForRigidSingleAdds =
+      m_pendingRigidBodyAddsForOptimize >= kRuntimeRigidBodySingleAddOptimizeThreshold &&
+      m_rigidBodyAddIdleFrames >= kRuntimeRigidBodySingleAddIdleFramesBeforeOptimize;
+
+  const bool shouldOptimizeForRuntimeAdds =
+      shouldOptimizeForSingleAdds || shouldOptimizeForBatchAdds || shouldOptimizeForRigidSingleAdds;
+
+  /* Keep startup optimize immediate. Runtime optimize requests are throttled to
+   * avoid expensive repeated broadphase rebuilds in consecutive frames. */
+  const bool shouldForceOptimizeNow = m_needsBroadPhaseOptimize && !m_hasSteppedSimulation;
+  const bool shouldOptimizeNow =
+      shouldForceOptimizeNow ||
+      ((m_needsBroadPhaseOptimize || shouldOptimizeForRuntimeAdds) &&
+       m_broadPhaseOptimizeCooldownFrames == 0);
+
+  if (shouldOptimizeNow) {
+    PerfClock::time_point broadPhaseStart;
+    if (perfProbeEnabled) {
+      broadPhaseStart = PerfClock::now();
+    }
+
+    m_physicsSystem->OptimizeBroadPhase();
+    m_needsBroadPhaseOptimize = false;
+    m_pendingSoftBodyAddsForOptimize = 0;
+    m_pendingRigidBodyAddsForOptimize = 0;
+    m_pendingSoftBodyBatchAddsForOptimize = 0;
+    m_softBodyAddIdleFrames = 0;
+    m_rigidBodyAddIdleFrames = 0;
+    m_broadPhaseOptimizeCooldownFrames = kRuntimeBroadPhaseOptimizeCooldownFrames;
+
+    if (perfProbeEnabled) {
+      perfBroadphaseUS += (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                              PerfClock::now() - broadPhaseStart)
+                              .count();
+      ++m_perfProbeBroadphaseCallsAccum;
+      if (shouldForceOptimizeNow) {
+        ++m_perfProbeBroadphaseStartupCallsAccum;
+      }
+      if (shouldOptimizeForSingleAdds) {
+        ++m_perfProbeBroadphaseSoftSingleCallsAccum;
+      }
+      if (shouldOptimizeForBatchAdds) {
+        ++m_perfProbeBroadphaseSoftBatchCallsAccum;
+      }
+      if (shouldOptimizeForRigidSingleAdds) {
+        ++m_perfProbeBroadphaseRigidSingleCallsAccum;
+      }
+      if (!shouldForceOptimizeNow && !shouldOptimizeForSingleAdds &&
+          !shouldOptimizeForBatchAdds && !shouldOptimizeForRigidSingleAdds) {
+        ++m_perfProbeBroadphaseOtherCallsAccum;
+      }
+    }
+  }
+  m_softBodyAddsSinceLastStep = 0;
+  m_rigidBodyAddsSinceLastStep = 0;
+
   /* Step 1: Write game object transforms to kinematic bodies. */
-  for (JoltPhysicsController *ctrl : m_controllers) {
+  PerfClock::time_point writeKinematicStart;
+  if (perfProbeEnabled) {
+    writeKinematicStart = PerfClock::now();
+  }
+
+  for (JoltPhysicsController *ctrl : GetControllersForIteration()) {
     ctrl->WriteMotionStateToDynamics(true);  /* nondynaonly = true → only kinematic/static */
   }
 
+  if (perfProbeEnabled) {
+    perfWriteKinematicUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                             PerfClock::now() - writeKinematicStart)
+                             .count();
+    perfControllers = GetControllersForIteration().size();
+  }
+
   /* Step 1.5: Update kinematic (pinned) vertices on soft bodies so they follow their
-   * pin objects this frame.  Must happen after kinematic rigid bodies are written
+   * pin objects this frame. Must happen after kinematic rigid bodies are written
    * (Step 1) but before the physics solver runs (Step 2). */
-  for (JoltSoftBody *sb : m_softBodies) {
-    if (!sb->HasPinnedVertices()) {
+  PerfClock::time_point pinnedUpdateStart;
+  if (perfProbeEnabled) {
+    pinnedUpdateStart = PerfClock::now();
+  }
+
+  m_pinnedSoftBodyUpdatesScratch.clear();
+  m_pinnedSoftBodyBodyIDsScratch.clear();
+  m_pinnedSoftBodyUpdatesScratch.reserve(m_pinnedSoftBodies.size());
+  m_pinnedSoftBodyBodyIDsScratch.reserve(m_pinnedSoftBodies.size());
+
+  for (JoltSoftBody *sb : m_pinnedSoftBodies) {
+    if (!sb || !sb->HasPinnedVertices()) {
       continue;
     }
+
     JoltPhysicsController *pinCtrl = sb->GetPinController();
-    if (pinCtrl && pinCtrl->GetMotionState()) {
-      MT_Vector3 pinPos = pinCtrl->GetMotionState()->GetWorldPosition();
-      /* Jolt soft bodies always report identity rotation (orientation is baked into
-       * particle positions at creation, never updated as a body rotation).
-       * For soft body pin objects we must use the stored initial Blender orientation,
-       * which is their permanent effective rotation.  For rigid body pin objects,
-       * read the actual current orientation from the motion state. */
-      MT_Matrix3x3 pinOri = pinCtrl->GetSoftBody() ?
-                                sb->GetPinInitialOri() :
-                                pinCtrl->GetMotionState()->GetWorldOrientation();
-      sb->UpdatePinnedVertices(pinPos, pinOri);
+    if (!pinCtrl || !pinCtrl->GetMotionState()) {
+      continue;
+    }
+
+    const JPH::BodyID sbBodyID = sb->GetBodyID();
+    if (sbBodyID.IsInvalid()) {
+      continue;
+    }
+
+    MT_Vector3 pinPos = pinCtrl->GetMotionState()->GetWorldPosition();
+    /* Jolt soft bodies always report identity rotation (orientation is baked into
+     * particle positions at creation, never updated as a body rotation).
+     * For soft body pin objects we must use the stored initial Blender orientation,
+     * which is their permanent effective rotation. For rigid body pin objects,
+     * read the actual current orientation from the motion state. */
+    MT_Matrix3x3 pinOri = pinCtrl->GetSoftBody() ?
+                              sb->GetPinInitialOri() :
+                              pinCtrl->GetMotionState()->GetWorldOrientation();
+
+    PinnedSoftBodyUpdateEntry entry;
+    entry.softBody = sb;
+    entry.pinPos = pinPos;
+    entry.pinOri = pinOri;
+    m_pinnedSoftBodyUpdatesScratch.push_back(entry);
+    m_pinnedSoftBodyBodyIDsScratch.push_back(sbBodyID);
+  }
+
+  if (!m_pinnedSoftBodyBodyIDsScratch.empty()) {
+    const JPH::BodyLockInterface &lockIf =
+        m_physicsSystem->GetBodyLockInterfaceNoLock();
+    JPH::BodyLockMultiWrite multiLock(lockIf,
+                                      m_pinnedSoftBodyBodyIDsScratch.data(),
+                                      (int)m_pinnedSoftBodyBodyIDsScratch.size());
+
+    for (int i = 0; i < (int)m_pinnedSoftBodyBodyIDsScratch.size(); ++i) {
+      JPH::Body *body = multiLock.GetBody(i);
+      if (!body) {
+        continue;
+      }
+
+      const PinnedSoftBodyUpdateEntry &entry = m_pinnedSoftBodyUpdatesScratch[(size_t)i];
+      entry.softBody->UpdatePinnedVerticesLocked(entry.pinPos, entry.pinOri, *body);
     }
   }
+
+  if (perfProbeEnabled) {
+    perfPinnedUpdateUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                           PerfClock::now() - pinnedUpdateStart)
+                           .count();
+  }
+
+  /* Step 1.75: Apply Blender effectors (force fields) to dynamic rigid bodies. */
+  ApplyEffectorForces();
 
   /* Step 2: Run the physics simulation.
    * Set the updating flag to defer unsafe body modifications.
    * This prevents crashes when logic tries to modify bodies during physics. */
+  PerfClock::time_point updateStart;
+  if (perfProbeEnabled) {
+    updateStart = PerfClock::now();
+  }
+
   m_isPhysicsUpdating = true;
   JPH::EPhysicsUpdateError updateErr = m_physicsSystem->Update(
       timeStep, collisionSteps, m_tempAllocator.get(), m_jobSystem.get());
   m_isPhysicsUpdating = false;
+
+  if (perfProbeEnabled) {
+    perfUpdateUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                       PerfClock::now() - updateStart)
+                       .count();
+  }
 
   if (m_debugErrors && updateErr != JPH::EPhysicsUpdateError::None) {
     printf("Jolt: Update returned error %d\n", (int)updateErr);
   }
 
   /* Process any deferred operations that were queued during the physics update. */
+  PerfClock::time_point deferredStart;
+  if (perfProbeEnabled) {
+    deferredStart = PerfClock::now();
+    perfDeferredOpsQueued = m_deferredOps.size();
+  }
+
   ProcessDeferredOperations();
+  FlushPendingSoftBodyBodyRemoves();
+
+  if (perfProbeEnabled) {
+    perfDeferredUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                         PerfClock::now() - deferredStart)
+                         .count();
+  }
 
   /* Step 3: Process FH (Floating Height) springs. */
+  PerfClock::time_point fhSpringStart;
+  if (perfProbeEnabled) {
+    fhSpringStart = PerfClock::now();
+  }
+
   ProcessFhSprings(timeStep);
 
+  if (perfProbeEnabled) {
+    perfFhSpringUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                        PerfClock::now() - fhSpringStart)
+                        .count();
+  }
+
   /* Step 3b: SimulationTick — clamp velocities (min/max linear/angular). */
-  for (JoltPhysicsController *ctrl : m_controllers) {
+  PerfClock::time_point simulationTickStart;
+  if (perfProbeEnabled) {
+    simulationTickStart = PerfClock::now();
+  }
+
+  for (JoltPhysicsController *ctrl : GetControllersForIteration()) {
     ctrl->SimulationTick(timeStep);
   }
 
+  if (perfProbeEnabled) {
+    perfSimulationTickUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                               PerfClock::now() - simulationTickStart)
+                               .count();
+  }
+
   /* Step 4: Read Jolt body transforms back to game objects. */
-  for (JoltPhysicsController *ctrl : m_controllers) {
+  PerfClock::time_point syncMotionStart;
+  if (perfProbeEnabled) {
+    syncMotionStart = PerfClock::now();
+  }
+
+  for (JoltPhysicsController *ctrl : GetControllersForIteration()) {
     ctrl->SynchronizeMotionStates(timeStep);
   }
 
+  if (perfProbeEnabled) {
+    perfSyncMotionUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                          PerfClock::now() - syncMotionStart)
+                          .count();
+  }
+
   /* Step 5: Update characters. */
+  PerfClock::time_point characterStart;
+  if (perfProbeEnabled) {
+    characterStart = PerfClock::now();
+  }
+
   for (auto &pair : m_characterByObject) {
     pair.second->Update(timeStep);
   }
 
+  if (perfProbeEnabled) {
+    perfCharacterUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                        PerfClock::now() - characterStart)
+                        .count();
+  }
+
   /* Step 6: Sync vehicle wheels. */
+  PerfClock::time_point vehicleStart;
+  if (perfProbeEnabled) {
+    vehicleStart = PerfClock::now();
+  }
+
   for (JoltVehicle *veh : m_vehicles) {
     veh->SyncWheels();
   }
 
+  if (perfProbeEnabled) {
+    perfVehicleUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                      PerfClock::now() - vehicleStart)
+                      .count();
+  }
+
   /* Step 7: Check breaking thresholds on constraints. */
-  for (auto it = m_constraintById.begin(); it != m_constraintById.end(); ) {
-    JoltConstraint *con = it->second;
-    if (con->CheckBreaking()) {
-      JPH::Constraint *joltCon = con->GetConstraint();
-      if (joltCon) {
-        m_physicsSystem->RemoveConstraint(joltCon);
-      }
-      delete con;
-      it = m_constraintById.erase(it);
-    }
-    else {
-      ++it;
+  PerfClock::time_point breakCheckStart;
+  if (perfProbeEnabled) {
+    breakCheckStart = PerfClock::now();
+  }
+
+  if (m_breakableConstraintsCacheDirty) {
+    RebuildBreakableConstraintCache();
+  }
+
+  m_brokenConstraintIDsScratch.clear();
+  for (JoltConstraint *con : m_breakableConstraintsCache) {
+    if (con && con->CheckBreaking()) {
+      m_brokenConstraintIDsScratch.push_back(con->GetIdentifier());
     }
   }
 
+  for (int constraintID : m_brokenConstraintIDsScratch) {
+    RemoveConstraintById(constraintID, true);
+  }
+
+  if (perfProbeEnabled) {
+    perfBreakableChecked = m_breakableConstraintsCache.size();
+    perfBroken = m_brokenConstraintIDsScratch.size();
+    perfBreakCheckUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                           PerfClock::now() - breakCheckStart)
+                           .count();
+  }
+
   /* Step 8: Fire collision callbacks. */
+  PerfClock::time_point callbackStart;
+  if (perfProbeEnabled) {
+    callbackStart = PerfClock::now();
+  }
+
   CallbackTriggers();
+
+  if (perfProbeEnabled) {
+    perfCallbackUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                       PerfClock::now() - callbackStart)
+                       .count();
+    if (m_triggerCallbacks[PHY_OBJECT_RESPONSE]) {
+      perfContactPairs = m_contactPairsScratch.size();
+    }
+  }
 
   /* Track active body count. */
   m_activeBodyCount = m_bodyActivationListener.GetActiveCount();
+  m_hasSteppedSimulation = true;
+
+  if (perfProbeEnabled) {
+    const double perfStepUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                                  PerfClock::now() - perfStepStart)
+                                  .count();
+
+    m_perfProbeStepUSAccum += perfStepUS;
+    m_perfProbeUpdateUSAccum += perfUpdateUS;
+    m_perfProbeBroadphaseUSAccum += perfBroadphaseUS;
+    m_perfProbeBreakCheckUSAccum += perfBreakCheckUS;
+    m_perfProbePrepUSAccum += perfPrepUS;
+    m_perfProbeWriteKinematicUSAccum += perfWriteKinematicUS;
+    m_perfProbePinnedUpdateUSAccum += perfPinnedUpdateUS;
+    m_perfProbeDeferredUSAccum += perfDeferredUS;
+    m_perfProbeFhSpringUSAccum += perfFhSpringUS;
+    m_perfProbeSimulationTickUSAccum += perfSimulationTickUS;
+    m_perfProbeSyncMotionUSAccum += perfSyncMotionUS;
+    m_perfProbeCharacterUSAccum += perfCharacterUS;
+    m_perfProbeVehicleUSAccum += perfVehicleUS;
+    m_perfProbeCallbackUSAccum += perfCallbackUS;
+    m_perfProbeBreakableCheckedAccum += perfBreakableChecked;
+    m_perfProbeBrokenAccum += perfBroken;
+    m_perfProbeDeferredOpsQueuedAccum += perfDeferredOpsQueued;
+    m_perfProbeControllersAccum += perfControllers;
+    m_perfProbeContactPairsAccum += perfContactPairs;
+    m_perfProbePendingSoftSingleAddsAccum += perfPendingSoftSingleAdds;
+    m_perfProbePendingSoftBatchAddsAccum += perfPendingSoftBatchAdds;
+    m_perfProbePendingRigidSingleAddsAccum += perfPendingRigidSingleAdds;
+    ++m_perfProbeFramesAccum;
+
+    const int probeWindow = std::max(1, m_perfProbeWindowFrames);
+    if (m_perfProbeFramesAccum >= probeWindow) {
+      const double invFrames = 1.0 / (double)m_perfProbeFramesAccum;
+      const double stepAvgMS = (m_perfProbeStepUSAccum * invFrames) / 1000.0;
+      const double updateAvgMS = (m_perfProbeUpdateUSAccum * invFrames) / 1000.0;
+      const double broadphaseFrameAvgMS = (m_perfProbeBroadphaseUSAccum * invFrames) / 1000.0;
+      const double breakCheckAvgMS = (m_perfProbeBreakCheckUSAccum * invFrames) / 1000.0;
+      const double prepAvgMS = (m_perfProbePrepUSAccum * invFrames) / 1000.0;
+      const double writeKinematicAvgMS = (m_perfProbeWriteKinematicUSAccum * invFrames) / 1000.0;
+      const double pinnedUpdateAvgMS = (m_perfProbePinnedUpdateUSAccum * invFrames) / 1000.0;
+      const double deferredAvgMS = (m_perfProbeDeferredUSAccum * invFrames) / 1000.0;
+      const double fhSpringAvgMS = (m_perfProbeFhSpringUSAccum * invFrames) / 1000.0;
+      const double simulationTickAvgMS = (m_perfProbeSimulationTickUSAccum * invFrames) / 1000.0;
+      const double syncMotionAvgMS = (m_perfProbeSyncMotionUSAccum * invFrames) / 1000.0;
+      const double characterAvgMS = (m_perfProbeCharacterUSAccum * invFrames) / 1000.0;
+      const double vehicleAvgMS = (m_perfProbeVehicleUSAccum * invFrames) / 1000.0;
+      const double callbackAvgMS = (m_perfProbeCallbackUSAccum * invFrames) / 1000.0;
+      const double broadphaseCallAvgMS =
+          m_perfProbeBroadphaseCallsAccum > 0 ?
+              (m_perfProbeBroadphaseUSAccum / (double)m_perfProbeBroadphaseCallsAccum) / 1000.0 :
+              0.0;
+      const double breakableCheckedAvg = (double)m_perfProbeBreakableCheckedAccum * invFrames;
+      const double deferredQueuedAvg = (double)m_perfProbeDeferredOpsQueuedAccum * invFrames;
+      const double controllersAvg = (double)m_perfProbeControllersAccum * invFrames;
+      const double contactPairsAvg = (double)m_perfProbeContactPairsAccum * invFrames;
+      const double pendingSoftSingleAddsAvg = (double)m_perfProbePendingSoftSingleAddsAccum * invFrames;
+      const double pendingSoftBatchAddsAvg = (double)m_perfProbePendingSoftBatchAddsAccum * invFrames;
+      const double pendingRigidSingleAddsAvg =
+          (double)m_perfProbePendingRigidSingleAddsAccum * invFrames;
+      const double updateSoftBodiesFrameAvgMS =
+          (m_perfProbeUpdateSoftBodiesUSAccum * invFrames) / 1000.0;
+      const double updateSoftBodiesCallAvgMS =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (m_perfProbeUpdateSoftBodiesUSAccum /
+               (double)m_perfProbeUpdateSoftBodiesCallsAccum) /
+                  1000.0 :
+              0.0;
+      const double updateSoftBodiesDepsgraphCallAvgMS =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (m_perfProbeUpdateSoftBodiesDepsgraphUSAccum /
+               (double)m_perfProbeUpdateSoftBodiesCallsAccum) /
+                  1000.0 :
+              0.0;
+      const double updateSoftBodiesFilterCallAvgMS =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (m_perfProbeUpdateSoftBodiesFilterUSAccum /
+               (double)m_perfProbeUpdateSoftBodiesCallsAccum) /
+                  1000.0 :
+              0.0;
+      const double updateSoftBodiesMeshCallAvgMS =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (m_perfProbeUpdateSoftBodiesMeshUSAccum /
+               (double)m_perfProbeUpdateSoftBodiesCallsAccum) /
+                  1000.0 :
+              0.0;
+      const double updateSoftBodiesRelTagCallAvgMS =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (m_perfProbeUpdateSoftBodiesRelTagUSAccum /
+               (double)m_perfProbeUpdateSoftBodiesCallsAccum) /
+                  1000.0 :
+              0.0;
+      const double softBodiesTotalAvg =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (double)m_perfProbeSoftBodiesTotalAccum /
+                  (double)m_perfProbeUpdateSoftBodiesCallsAccum :
+              0.0;
+      const double softBodiesCandidatesAvg =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (double)m_perfProbeSoftBodiesCandidatesAccum /
+                  (double)m_perfProbeUpdateSoftBodiesCallsAccum :
+              0.0;
+      const double softBodiesUpdatedAvg =
+          m_perfProbeUpdateSoftBodiesCallsAccum > 0 ?
+              (double)m_perfProbeSoftBodiesUpdatedAccum /
+                  (double)m_perfProbeUpdateSoftBodiesCallsAccum :
+              0.0;
+
+      printf(
+          "JoltPerfProbe: window=%d step_avg=%.3fms update_avg=%.3fms "
+          "broadphase_frame_avg=%.3fms broadphase_calls=%zu broadphase_call_avg=%.3fms "
+          "triggers[startup=%zu soft_single=%zu soft_batch=%zu rigid_single=%zu other=%zu] "
+          "breakcheck_avg=%.3fms breakable_checked_avg=%.1f broken_total=%zu\n",
+          m_perfProbeFramesAccum,
+          stepAvgMS,
+          updateAvgMS,
+          broadphaseFrameAvgMS,
+          m_perfProbeBroadphaseCallsAccum,
+          broadphaseCallAvgMS,
+          m_perfProbeBroadphaseStartupCallsAccum,
+          m_perfProbeBroadphaseSoftSingleCallsAccum,
+          m_perfProbeBroadphaseSoftBatchCallsAccum,
+          m_perfProbeBroadphaseRigidSingleCallsAccum,
+          m_perfProbeBroadphaseOtherCallsAccum,
+          breakCheckAvgMS,
+          breakableCheckedAvg,
+          m_perfProbeBrokenAccum);
+
+      printf(
+          "JoltPerfProbeDetail: prep=%.3fms write_kinematic=%.3fms pinned_update=%.3fms "
+          "deferred=%.3fms fh=%.3fms sim_tick=%.3fms sync=%.3fms chars=%.3fms "
+          "vehicles=%.3fms callbacks=%.3fms controllers_avg=%.1f deferred_ops_avg=%.1f "
+          "contacts_avg=%.1f pending_adds_avg[soft_single=%.1f soft_batch=%.1f rigid_single=%.1f]\n",
+          prepAvgMS,
+          writeKinematicAvgMS,
+          pinnedUpdateAvgMS,
+          deferredAvgMS,
+          fhSpringAvgMS,
+          simulationTickAvgMS,
+          syncMotionAvgMS,
+          characterAvgMS,
+          vehicleAvgMS,
+          callbackAvgMS,
+          controllersAvg,
+          deferredQueuedAvg,
+          contactPairsAvg,
+          pendingSoftSingleAddsAvg,
+          pendingSoftBatchAddsAvg,
+          pendingRigidSingleAddsAvg);
+
+      printf(
+          "JoltPerfProbeSoftBody: calls=%zu frame_avg=%.3fms call_avg=%.3fms "
+          "call_breakdown[depsgraph=%.3fms filter=%.3fms mesh=%.3fms rel_tag=%.3fms] "
+          "counts_per_call[total=%.1f candidates=%.1f updated=%.1f]\n",
+          m_perfProbeUpdateSoftBodiesCallsAccum,
+          updateSoftBodiesFrameAvgMS,
+          updateSoftBodiesCallAvgMS,
+          updateSoftBodiesDepsgraphCallAvgMS,
+          updateSoftBodiesFilterCallAvgMS,
+          updateSoftBodiesMeshCallAvgMS,
+          updateSoftBodiesRelTagCallAvgMS,
+          softBodiesTotalAvg,
+          softBodiesCandidatesAvg,
+          softBodiesUpdatedAvg);
+
+      m_perfProbeFramesAccum = 0;
+      m_perfProbeStepUSAccum = 0.0;
+      m_perfProbeUpdateUSAccum = 0.0;
+      m_perfProbeBroadphaseUSAccum = 0.0;
+      m_perfProbeBreakCheckUSAccum = 0.0;
+      m_perfProbePrepUSAccum = 0.0;
+      m_perfProbeWriteKinematicUSAccum = 0.0;
+      m_perfProbePinnedUpdateUSAccum = 0.0;
+      m_perfProbeDeferredUSAccum = 0.0;
+      m_perfProbeFhSpringUSAccum = 0.0;
+      m_perfProbeSimulationTickUSAccum = 0.0;
+      m_perfProbeSyncMotionUSAccum = 0.0;
+      m_perfProbeCharacterUSAccum = 0.0;
+      m_perfProbeVehicleUSAccum = 0.0;
+      m_perfProbeCallbackUSAccum = 0.0;
+      m_perfProbeUpdateSoftBodiesUSAccum = 0.0;
+      m_perfProbeUpdateSoftBodiesDepsgraphUSAccum = 0.0;
+      m_perfProbeUpdateSoftBodiesFilterUSAccum = 0.0;
+      m_perfProbeUpdateSoftBodiesMeshUSAccum = 0.0;
+      m_perfProbeUpdateSoftBodiesRelTagUSAccum = 0.0;
+      m_perfProbeBroadphaseCallsAccum = 0;
+      m_perfProbeBroadphaseStartupCallsAccum = 0;
+      m_perfProbeBroadphaseSoftSingleCallsAccum = 0;
+      m_perfProbeBroadphaseSoftBatchCallsAccum = 0;
+      m_perfProbeBroadphaseRigidSingleCallsAccum = 0;
+      m_perfProbeBroadphaseOtherCallsAccum = 0;
+      m_perfProbeBreakableCheckedAccum = 0;
+      m_perfProbeBrokenAccum = 0;
+      m_perfProbeDeferredOpsQueuedAccum = 0;
+      m_perfProbeControllersAccum = 0;
+      m_perfProbeContactPairsAccum = 0;
+      m_perfProbePendingSoftSingleAddsAccum = 0;
+      m_perfProbePendingSoftBatchAddsAccum = 0;
+      m_perfProbePendingRigidSingleAddsAccum = 0;
+      m_perfProbeUpdateSoftBodiesCallsAccum = 0;
+      m_perfProbeSoftBodiesTotalAccum = 0;
+      m_perfProbeSoftBodiesCandidatesAccum = 0;
+      m_perfProbeSoftBodiesUpdatedAccum = 0;
+    }
+  }
 
   return true;
 }
 
+blender::Depsgraph *JoltPhysicsEnvironment::GetDepsgraph()
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  if (engine == nullptr) {
+    return nullptr;
+  }
+
+  blender::bContext *C = engine->GetContext();
+  if (C == nullptr) {
+    return nullptr;
+  }
+
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  if (depsgraph == nullptr) {
+    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  }
+
+  return depsgraph;
+}
+
+blender::EffectorWeights *JoltPhysicsEnvironment::GetEffectorWeights()
+{
+  if (m_blenderScene == nullptr) {
+    return nullptr;
+  }
+
+  blender::RigidBodyWorld *rbw = m_blenderScene->rigidbody_world;
+  blender::EffectorWeights *weights = rbw ? rbw->effector_weights : nullptr;
+
+  if (weights == nullptr) {
+    if (m_fallbackEffectorWeights == nullptr) {
+      m_fallbackEffectorWeights = blender::BKE_effector_add_weights(nullptr);
+    }
+    weights = m_fallbackEffectorWeights;
+  }
+
+  return weights;
+}
+
+void JoltPhysicsEnvironment::ApplyEffectorForces()
+{
+  if (m_blenderScene == nullptr) {
+    return;
+  }
+
+  blender::Depsgraph *depsgraph = GetDepsgraph();
+  if (depsgraph == nullptr) {
+    return;
+  }
+
+  blender::EffectorWeights *effectorWeights = GetEffectorWeights();
+  if (effectorWeights == nullptr) {
+    return;
+  }
+
+  blender::ListBaseT<blender::EffectorCache> *effectors =
+      blender::BKE_effectors_create(depsgraph, nullptr, nullptr, effectorWeights, false);
+  if (effectors == nullptr) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = GetBodyInterface();
+
+  for (JoltPhysicsController *ctrl : GetControllersForIteration()) {
+    if (ctrl->GetSoftBody()) {
+      continue;
+    }
+
+    const JPH::BodyID bodyID = ctrl->GetBodyID();
+    if (bodyID.IsInvalid() || !bi.IsAdded(bodyID)) {
+      continue;
+    }
+
+    JPH::RVec3 bodyPos;
+    JPH::Vec3 bodyLinVel;
+    {
+      JPH::BodyLockRead bodyLock(m_physicsSystem->GetBodyLockInterface(), bodyID);
+      if (!bodyLock.Succeeded()) {
+        continue;
+      }
+
+      const JPH::Body &body = bodyLock.GetBody();
+      if (!body.IsDynamic() || body.GetMotionProperties() == nullptr) {
+        continue;
+      }
+
+      if (body.GetMotionProperties()->GetInverseMass() <= 0.0f) {
+        continue;
+      }
+
+      bodyPos = body.GetCenterOfMassPosition();
+      bodyLinVel = body.GetLinearVelocity();
+    }
+
+    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(ctrl->GetNewClientInfo());
+    if (info == nullptr) {
+      continue;
+    }
+
+    KX_GameObject *gameobj = KX_GameObject::GetClientObject(info);
+    if (gameobj == nullptr) {
+      continue;
+    }
+
+    blender::Object *blenderobj = gameobj->GetBlenderObject();
+    if (blenderobj == nullptr) {
+      continue;
+    }
+
+    if (blenderobj->pd && blenderobj->pd->forcefield != blender::PFIELD_NULL) {
+      continue;
+    }
+
+    /* Force-field sampling must track the game-object origin used by gameplay
+     * transforms/spawn logic. For hidden template replicas with non-unit scale,
+     * Jolt body COM can diverge from that origin after shape scaling, which can
+     * move effector sampling outside field falloff and yield zero force. */
+    PHY_IMotionState *motionState = ctrl->GetMotionState();
+    const MT_Vector3 worldPos = motionState ? motionState->GetWorldPosition() :
+                                              JoltMath::ToMT(bodyPos);
+    const MT_Vector3 worldVel = JoltMath::ToMT(bodyLinVel);
+
+    float effLoc[3] = {float(worldPos.x()), float(worldPos.y()), float(worldPos.z())};
+    float effVel[3] = {float(worldVel.x()), float(worldVel.y()), float(worldVel.z())};
+
+    blender::EffectedPoint effectedPoint;
+    blender::pd_point_from_loc(m_blenderScene, effLoc, effVel, 0, &effectedPoint);
+
+    float effForce[3] = {0.0f, 0.0f, 0.0f};
+    blender::BKE_effectors_apply(
+        effectors, nullptr, effectorWeights, &effectedPoint, effForce, nullptr, nullptr);
+
+    if (!blender::is_zero_v3(effForce)) {
+      bi.AddForce(bodyID,
+                  JoltMath::ToJolt(effForce[0], effForce[1], effForce[2]),
+                  JPH::EActivation::Activate);
+    }
+  }
+
+  blender::BKE_effectors_free(effectors);
+}
+
 void JoltPhysicsEnvironment::RegisterControllerForObject(blender::Object *obj,
-                                                          JoltPhysicsController *ctrl)
+                                                         JoltPhysicsController *ctrl)
 {
   if (obj) {
     m_controllerByBlenderObject[obj] = ctrl;
@@ -661,21 +1394,8 @@ void JoltPhysicsEnvironment::AddSoftBodyReplica(JoltSoftBody *sb,
 
   /* Track in the soft body update list. */
   m_softBodies.push_back(sb);
-
-  /* Set Jolt user data so collision callbacks can identify the owner. */
-  if (!sb->GetBodyID().IsInvalid()) {
-    const JPH::BodyLockInterfaceNoLock &lockIf = m_physicsSystem->GetBodyLockInterfaceNoLock();
-    JPH::BodyLockWrite lock(lockIf, sb->GetBodyID());
-    if (lock.Succeeded()) {
-      lock.GetBody().SetCollisionGroup(
-          JPH::CollisionGroup(m_constraintGroupFilter,
-                              (JPH::CollisionGroup::GroupID)sb->GetController()->GetCollisionGroup(),
-                              sb->GetBodyID().GetIndexAndSequenceNumber()));
-      if (sb->GetController()->GetNewClientInfo()) {
-        lock.GetBody().SetUserData(
-            reinterpret_cast<JPH::uint64>(sb->GetController()->GetNewClientInfo()));
-      }
-    }
+  if (sb->HasPinnedVertices()) {
+    m_pinnedSoftBodies.push_back(sb);
   }
 
   /* Register no-pin-collision if the flag is set and pin body is valid. */
@@ -684,12 +1404,423 @@ void JoltPhysicsEnvironment::AddSoftBodyReplica(JoltSoftBody *sb,
   }
 }
 
+void JoltPhysicsEnvironment::QueueRigidBodyBodyAdd(JPH::BodyID bodyID,
+                                                   JPH::EActivation activation)
+{
+  if (bodyID.IsInvalid()) {
+    return;
+  }
+
+  PendingBodyAddEntry entry;
+  entry.bodyID = bodyID;
+  entry.activation = activation;
+  m_pendingRigidBodyBodyAdds.push_back(entry);
+}
+
+void JoltPhysicsEnvironment::RemovePendingRigidBodyBodyAdd(JPH::BodyID bodyID)
+{
+  if (bodyID.IsInvalid() || m_pendingRigidBodyBodyAdds.empty()) {
+    return;
+  }
+
+  auto newEnd = std::remove_if(
+      m_pendingRigidBodyBodyAdds.begin(),
+      m_pendingRigidBodyBodyAdds.end(),
+      [bodyID](const PendingBodyAddEntry &entry) {
+        return entry.bodyID == bodyID;
+      });
+  if (newEnd != m_pendingRigidBodyBodyAdds.end()) {
+    m_pendingRigidBodyBodyAdds.erase(newEnd, m_pendingRigidBodyBodyAdds.end());
+  }
+}
+
+void JoltPhysicsEnvironment::QueuePendingCompoundChildShape(JoltPhysicsController *parentCtrl,
+                                                            const JPH::Vec3 &relativePos,
+                                                            const JPH::Quat &relativeRot,
+                                                            JPH::RefConst<JPH::Shape> childShape)
+{
+  if (!parentCtrl || !childShape) {
+    return;
+  }
+
+  std::vector<PendingCompoundSubShapeEntry> &pendingSubShapes =
+      m_pendingCompoundSubShapesByController[parentCtrl];
+
+  if (pendingSubShapes.empty()) {
+    JPH::RefConst<JPH::Shape> parentShape = parentCtrl->GetShape();
+    if (!parentShape) {
+      m_pendingCompoundSubShapesByController.erase(parentCtrl);
+      return;
+    }
+
+    const JPH::Shape *rawParentShape = parentShape.GetPtr();
+    if (rawParentShape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
+      const JPH::StaticCompoundShape *existingCompound =
+          static_cast<const JPH::StaticCompoundShape *>(rawParentShape);
+      pendingSubShapes.reserve(existingCompound->GetNumSubShapes() + 1);
+      for (JPH::uint i = 0; i < existingCompound->GetNumSubShapes(); ++i) {
+        const JPH::CompoundShape::SubShape &sub = existingCompound->GetSubShape(i);
+        PendingCompoundSubShapeEntry entry;
+        entry.position = sub.GetPositionCOM();
+        entry.rotation = sub.GetRotation();
+        entry.shape = sub.mShape;
+        pendingSubShapes.push_back(entry);
+      }
+    }
+    else {
+      PendingCompoundSubShapeEntry rootEntry;
+      rootEntry.position = JPH::Vec3::sZero();
+      rootEntry.rotation = JPH::Quat::sIdentity();
+      rootEntry.shape = parentShape;
+      pendingSubShapes.push_back(rootEntry);
+    }
+  }
+
+  PendingCompoundSubShapeEntry childEntry;
+  childEntry.position = relativePos;
+  childEntry.rotation = relativeRot;
+  childEntry.shape = childShape;
+  pendingSubShapes.push_back(childEntry);
+}
+
+void JoltPhysicsEnvironment::FinalizePendingCompoundShapeBuilds()
+{
+  if (m_pendingCompoundSubShapesByController.empty()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = GetBodyInterface();
+
+  for (auto &pair : m_pendingCompoundSubShapesByController) {
+    JoltPhysicsController *parentCtrl = pair.first;
+    std::vector<PendingCompoundSubShapeEntry> &subShapes = pair.second;
+    if (!parentCtrl || subShapes.empty()) {
+      continue;
+    }
+
+    const JPH::BodyID parentBodyID = parentCtrl->GetBodyID();
+    if (parentBodyID.IsInvalid()) {
+      continue;
+    }
+
+    JPH::RefConst<JPH::Shape> parentShapeAtFinalize = parentCtrl->GetShape();
+    if (!parentShapeAtFinalize) {
+      continue;
+    }
+
+    size_t baseShapeCount = 1;
+    const JPH::Shape *parentRawShape = parentShapeAtFinalize.GetPtr();
+    if (parentRawShape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
+      const JPH::StaticCompoundShape *existingCompound =
+          static_cast<const JPH::StaticCompoundShape *>(parentRawShape);
+      baseShapeCount = (size_t)existingCompound->GetNumSubShapes();
+    }
+    if (baseShapeCount > subShapes.size()) {
+      baseShapeCount = subShapes.size();
+    }
+
+    JPH::StaticCompoundShapeSettings compoundSettings;
+    for (const PendingCompoundSubShapeEntry &entry : subShapes) {
+      if (!entry.shape) {
+        continue;
+      }
+      compoundSettings.AddShape(entry.position, entry.rotation, entry.shape);
+    }
+
+    JPH::Shape::ShapeResult result = compoundSettings.Create();
+    if (result.HasError()) {
+      /* Fallback: preserve previous behavior by trying incremental child appends,
+       * so an invalid late child does not discard all previously valid children. */
+      JPH::RefConst<JPH::Shape> fallbackShape = parentShapeAtFinalize;
+      for (size_t childIndex = baseShapeCount; childIndex < subShapes.size(); ++childIndex) {
+        const PendingCompoundSubShapeEntry &childEntry = subShapes[childIndex];
+        if (!childEntry.shape) {
+          continue;
+        }
+
+        JPH::StaticCompoundShapeSettings incrementalSettings;
+        const JPH::Shape *fallbackRaw = fallbackShape.GetPtr();
+        if (fallbackRaw->GetSubType() == JPH::EShapeSubType::StaticCompound) {
+          const JPH::StaticCompoundShape *existingCompound =
+              static_cast<const JPH::StaticCompoundShape *>(fallbackRaw);
+          for (JPH::uint i = 0; i < existingCompound->GetNumSubShapes(); ++i) {
+            const JPH::CompoundShape::SubShape &sub = existingCompound->GetSubShape(i);
+            incrementalSettings.AddShape(sub.GetPositionCOM(), sub.GetRotation(), sub.mShape);
+          }
+        }
+        else {
+          incrementalSettings.AddShape(JPH::Vec3::sZero(), JPH::Quat::sIdentity(), fallbackShape);
+        }
+
+        incrementalSettings.AddShape(childEntry.position, childEntry.rotation, childEntry.shape);
+        JPH::Shape::ShapeResult incrementalResult = incrementalSettings.Create();
+        if (incrementalResult.HasError()) {
+          continue;
+        }
+
+        fallbackShape = incrementalResult.Get();
+        parentCtrl->SetShape(fallbackShape);
+        bi.SetShape(parentBodyID, fallbackShape, true, JPH::EActivation::Activate);
+      }
+      continue;
+    }
+
+    JPH::RefConst<JPH::Shape> newCompound = result.Get();
+    parentCtrl->SetShape(newCompound);
+    bi.SetShape(parentBodyID, newCompound, true, JPH::EActivation::Activate);
+  }
+
+  m_pendingCompoundSubShapesByController.clear();
+}
+
+void JoltPhysicsEnvironment::FlushPendingRigidBodyBodyAdds()
+{
+  if (m_pendingRigidBodyBodyAdds.empty()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = m_physicsSystem->GetBodyInterfaceNoLock();
+
+  auto flushRun = [&](std::vector<JPH::BodyID> &runIDs,
+                      std::unordered_set<JPH::uint32> &runIDKeys,
+                      JPH::EActivation activation) {
+    if (runIDs.empty()) {
+      return;
+    }
+
+    JPH::BodyID *bodyIDs = runIDs.data();
+    const int bodyCount = (int)runIDs.size();
+    JPH::BodyInterface::AddState addState = bi.AddBodiesPrepare(bodyIDs, bodyCount);
+    if (addState) {
+      bi.AddBodiesFinalize(bodyIDs, bodyCount, addState, activation);
+    }
+    else {
+      /* Fallback path: preserve behavior if batched prepare fails. */
+      for (int i = 0; i < bodyCount; ++i) {
+        bi.AddBody(bodyIDs[i], activation);
+      }
+
+      /* Fallback used one-by-one insertion. Track this as a runtime add burst
+       * so broadphase optimize can happen on the normal threshold/idle policy. */
+      m_pendingRigidBodyAddsForOptimize += bodyCount;
+      m_rigidBodyAddsSinceLastStep += bodyCount;
+    }
+
+    runIDs.clear();
+    runIDKeys.clear();
+  };
+
+  std::vector<JPH::BodyID> runIDs;
+  std::unordered_set<JPH::uint32> runIDKeys;
+  runIDs.reserve(m_pendingRigidBodyBodyAdds.size());
+  runIDKeys.reserve(m_pendingRigidBodyBodyAdds.size());
+  JPH::EActivation runActivation = JPH::EActivation::DontActivate;
+  bool hasRun = false;
+
+  for (const PendingBodyAddEntry &entry : m_pendingRigidBodyBodyAdds) {
+    if (entry.bodyID.IsInvalid() || bi.IsAdded(entry.bodyID)) {
+      continue;
+    }
+
+    if (!hasRun) {
+      runActivation = entry.activation;
+      hasRun = true;
+    }
+    else if (entry.activation != runActivation) {
+      flushRun(runIDs, runIDKeys, runActivation);
+      runActivation = entry.activation;
+    }
+
+    if (runIDKeys.insert(entry.bodyID.GetIndexAndSequenceNumber()).second) {
+      runIDs.push_back(entry.bodyID);
+    }
+  }
+
+  if (hasRun) {
+    flushRun(runIDs, runIDKeys, runActivation);
+  }
+
+  m_pendingRigidBodyBodyAdds.clear();
+}
+
+void JoltPhysicsEnvironment::QueueSoftBodyBodyAdd(JPH::BodyID bodyID)
+{
+  if (!bodyID.IsInvalid()) {
+    m_pendingSoftBodyBodyAdds.push_back(bodyID);
+  }
+}
+
+void JoltPhysicsEnvironment::NotifySoftBodyBodyAdded()
+{
+  ++m_pendingSoftBodyAddsForOptimize;
+  ++m_softBodyAddsSinceLastStep;
+}
+
+void JoltPhysicsEnvironment::NotifyRigidBodyBodyAdded()
+{
+  ++m_pendingRigidBodyAddsForOptimize;
+  ++m_rigidBodyAddsSinceLastStep;
+}
+
+void JoltPhysicsEnvironment::RequestSoftBodyRelationsTagUpdate()
+{
+  m_softBodyRelationsTagDirty = true;
+}
+
+void JoltPhysicsEnvironment::NotifyConstraintBreakingThresholdChanged()
+{
+  m_breakableConstraintsCacheDirty = true;
+}
+
+void JoltPhysicsEnvironment::RebuildBreakableConstraintCache()
+{
+  m_breakableConstraintsCache.clear();
+  m_breakableConstraintsCache.reserve(m_constraintById.size());
+
+  for (const auto &pair : m_constraintById) {
+    JoltConstraint *constraint = pair.second;
+    if (constraint && constraint->GetBreakingThreshold() < FLT_MAX) {
+      m_breakableConstraintsCache.push_back(constraint);
+    }
+  }
+
+  m_breakableConstraintsCacheDirty = false;
+}
+
+void JoltPhysicsEnvironment::FlushPendingSoftBodyBodyAdds()
+{
+  if (m_pendingSoftBodyBodyAdds.empty()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = m_physicsSystem->GetBodyInterfaceNoLock();
+  JPH::BodyID *bodyIDs = m_pendingSoftBodyBodyAdds.data();
+  const int bodyCount = (int)m_pendingSoftBodyBodyAdds.size();
+
+  JPH::BodyInterface::AddState addState = bi.AddBodiesPrepare(bodyIDs, bodyCount);
+  if (addState) {
+    bi.AddBodiesFinalize(bodyIDs, bodyCount, addState, JPH::EActivation::Activate);
+    m_pendingSoftBodyBatchAddsForOptimize += bodyCount;
+  }
+  else {
+    /* Fallback path (defensive): preserve behavior even if AddBodiesPrepare fails. */
+    for (int i = 0; i < bodyCount; ++i) {
+      bi.AddBody(bodyIDs[i], JPH::EActivation::Activate);
+    }
+    m_pendingSoftBodyAddsForOptimize += bodyCount;
+  }
+
+  m_softBodyAddsSinceLastStep += bodyCount;
+  m_pendingSoftBodyBodyAdds.clear();
+}
+
+void JoltPhysicsEnvironment::FlushPendingSoftBodyBodyRemoves()
+{
+  if (m_pendingSoftBodyBodyRemoves.empty()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = m_physicsSystem->GetBodyInterfaceNoLock();
+  std::vector<JPH::BodyID> addedBodyIDs;
+  std::vector<JPH::BodyID> destroyBodyIDs;
+  addedBodyIDs.reserve(m_pendingSoftBodyBodyRemoves.size());
+  destroyBodyIDs.reserve(m_pendingSoftBodyBodyRemoves.size());
+
+  for (const JPH::BodyID &bodyID : m_pendingSoftBodyBodyRemoves) {
+    if (bodyID.IsInvalid()) {
+      continue;
+    }
+
+    destroyBodyIDs.push_back(bodyID);
+    if (bi.IsAdded(bodyID)) {
+      addedBodyIDs.push_back(bodyID);
+    }
+  }
+
+  if (!addedBodyIDs.empty()) {
+    bi.RemoveBodies(addedBodyIDs.data(), (int)addedBodyIDs.size());
+  }
+  if (!destroyBodyIDs.empty()) {
+    bi.DestroyBodies(destroyBodyIDs.data(), (int)destroyBodyIDs.size());
+  }
+
+  m_pendingSoftBodyBodyRemoves.clear();
+}
+
+void JoltPhysicsEnvironment::RemoveSoftBody(JoltSoftBody *sb)
+{
+  if (!sb) {
+    return;
+  }
+
+  const JPH::BodyID sbBodyID = sb->GetBodyID();
+  if (!sbBodyID.IsInvalid()) {
+    m_softBodyContactListener.Unregister(sbBodyID);
+  }
+
+  JoltPhysicsController *ctrl = sb->GetController();
+  if (ctrl) {
+    auto ctrlIt = m_controllers.find(ctrl);
+    if (ctrlIt != m_controllers.end() && ctrl->GetSoftBody() == sb) {
+      ctrl->SetSoftBody(nullptr);
+      if (ctrl->GetBodyID() == sbBodyID) {
+        ctrl->SetBodyID(JPH::BodyID());
+      }
+    }
+  }
+
+  auto it = std::find(m_softBodies.begin(), m_softBodies.end(), sb);
+  if (it != m_softBodies.end()) {
+    m_softBodies.erase(it);
+  }
+
+  auto pinnedIt = std::find(m_pinnedSoftBodies.begin(), m_pinnedSoftBodies.end(), sb);
+  if (pinnedIt != m_pinnedSoftBodies.end()) {
+    m_pinnedSoftBodies.erase(pinnedIt);
+  }
+
+  if (!sbBodyID.IsInvalid()) {
+    auto pendingBegin = m_pendingSoftBodyBodyAdds.begin();
+    auto pendingEnd = std::remove(pendingBegin, m_pendingSoftBodyBodyAdds.end(), sbBodyID);
+    if (pendingEnd != m_pendingSoftBodyBodyAdds.end()) {
+      m_pendingSoftBodyBodyAdds.erase(pendingEnd, m_pendingSoftBodyBodyAdds.end());
+    }
+
+    auto removeBegin = m_pendingSoftBodyBodyRemoves.begin();
+    auto removeEnd = std::remove(removeBegin, m_pendingSoftBodyBodyRemoves.end(), sbBodyID);
+    if (removeEnd != m_pendingSoftBodyBodyRemoves.end()) {
+      m_pendingSoftBodyBodyRemoves.erase(removeEnd, m_pendingSoftBodyBodyRemoves.end());
+    }
+    m_pendingSoftBodyBodyRemoves.push_back(sbBodyID);
+
+    if (!m_isPhysicsUpdating) {
+      JPH::BodyInterface &bi = m_physicsSystem->GetBodyInterfaceNoLock();
+      if (bi.IsAdded(sbBodyID)) {
+        bi.RemoveBody(sbBodyID);
+      }
+    }
+  }
+
+  sb->SetBodyDestructionHandledByEnvironment(true);
+  delete sb;
+}
+
 void JoltPhysicsEnvironment::FinalizeSoftBodyPins()
 {
+  /* Startup conversion can queue rigid adds/compound updates before this method
+   * is called from BL_DataConversion. Finalize them now to preserve startup
+   * behavior while still batching conversion work. */
+  FinalizePendingCompoundShapeBuilds();
+  FlushPendingRigidBodyBodyAdds();
+
+  m_pinnedSoftBodies.clear();
+
   for (JoltSoftBody *sb : m_softBodies) {
     if (!sb->HasPinnedVertices()) {
       continue;
     }
+    m_pinnedSoftBodies.push_back(sb);
+
     /* Retrieve the pin object controller from the Blender object pointer stored during
      * ConvertObject. The lookup is safe even if pin_object has no physics body. */
     blender::Object *pinObj = sb->GetPinBlenderObject();
@@ -709,8 +1840,160 @@ void JoltPhysicsEnvironment::FinalizeSoftBodyPins()
 
 void JoltPhysicsEnvironment::UpdateSoftBodies()
 {
+  using PerfClock = std::chrono::steady_clock;
+  const bool perfProbeEnabled = m_perfProbeEnabled;
+  const PerfClock::time_point updateSoftBodiesStart =
+      perfProbeEnabled ? PerfClock::now() : PerfClock::time_point();
+  double perfDepsgraphUS = 0.0;
+  double perfFilterUS = 0.0;
+  double perfMeshUS = 0.0;
+  double perfRelTagUS = 0.0;
+  size_t softBodiesTotal = m_softBodies.size();
+  size_t softBodiesCandidates = 0;
+  size_t softBodiesUpdated = 0;
+
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  blender::bContext *C = engine ? engine->GetContext() : nullptr;
+
+  /* Fast path: no soft-body work and no pending relations refresh request. */
+  if (m_softBodies.empty() && !m_softBodyRelationsTagDirty) {
+    if (perfProbeEnabled) {
+      const double updateSoftBodiesUS =
+          (double)std::chrono::duration_cast<std::chrono::microseconds>(
+              PerfClock::now() - updateSoftBodiesStart)
+              .count();
+
+      m_perfProbeUpdateSoftBodiesUSAccum += updateSoftBodiesUS;
+      ++m_perfProbeUpdateSoftBodiesCallsAccum;
+      m_perfProbeSoftBodiesTotalAccum += softBodiesTotal;
+    }
+    return;
+  }
+
+  JPH::BodyInterface &bi = m_physicsSystem->GetBodyInterfaceNoLock();
+
+  /* Build candidate list first. This avoids depsgraph lookup entirely when
+   * no soft body needs mesh update this frame. */
+  PerfClock::time_point filterStart;
+  if (perfProbeEnabled) {
+    filterStart = PerfClock::now();
+  }
+
+  m_softBodiesToMeshUpdateScratch.clear();
+  m_softBodyMeshUpdateIDsScratch.clear();
+  m_softBodiesToMeshUpdateScratch.reserve(m_softBodies.size());
+  m_softBodyMeshUpdateIDsScratch.reserve(m_softBodies.size());
+
   for (JoltSoftBody *sb : m_softBodies) {
-    sb->UpdateMesh();
+    if (!sb) {
+      continue;
+    }
+    if (!sb->IsActive()) {
+      continue;
+    }
+    const JPH::BodyID bodyID = sb->GetBodyID();
+    if (bodyID.IsInvalid()) {
+      continue;
+    }
+    if (!bi.IsAdded(bodyID)) {
+      continue;
+    }
+    if (!bi.IsActive(bodyID) && !sb->HasPinnedVertices() && sb->HasMeshUpload()) {
+      continue;
+    }
+
+    m_softBodiesToMeshUpdateScratch.push_back(sb);
+    m_softBodyMeshUpdateIDsScratch.push_back(bodyID);
+  }
+
+  softBodiesCandidates = m_softBodyMeshUpdateIDsScratch.size();
+
+  if (perfProbeEnabled) {
+    perfFilterUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                       PerfClock::now() - filterStart)
+                       .count();
+  }
+
+  blender::Depsgraph *depsgraph = nullptr;
+  if (!m_softBodyMeshUpdateIDsScratch.empty()) {
+    PerfClock::time_point depsgraphStart;
+    if (perfProbeEnabled) {
+      depsgraphStart = PerfClock::now();
+    }
+
+    if (C) {
+      depsgraph = CTX_data_depsgraph_pointer(C);
+      if (!depsgraph) {
+        depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      }
+    }
+
+    if (perfProbeEnabled) {
+      perfDepsgraphUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                           PerfClock::now() - depsgraphStart)
+                           .count();
+    }
+
+    if (depsgraph) {
+      PerfClock::time_point meshStart;
+      if (perfProbeEnabled) {
+        meshStart = PerfClock::now();
+      }
+
+      const JPH::BodyLockInterface &lockIf =
+          m_physicsSystem->GetBodyLockInterfaceNoLock();
+      JPH::BodyLockMultiRead multiLock(lockIf,
+                                       m_softBodyMeshUpdateIDsScratch.data(),
+                                       (int)m_softBodyMeshUpdateIDsScratch.size());
+
+      for (int i = 0; i < (int)m_softBodyMeshUpdateIDsScratch.size(); ++i) {
+        const JPH::Body *body = multiLock.GetBody(i);
+        if (!body) {
+          continue;
+        }
+        m_softBodiesToMeshUpdateScratch[(size_t)i]->UpdateMeshLocked(depsgraph, *body);
+        ++softBodiesUpdated;
+      }
+
+      if (perfProbeEnabled) {
+        perfMeshUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                        PerfClock::now() - meshStart)
+                        .count();
+      }
+    }
+  }
+
+  if (m_softBodyRelationsTagDirty && C) {
+    PerfClock::time_point relTagStart;
+    if (perfProbeEnabled) {
+      relTagStart = PerfClock::now();
+    }
+
+    DEG_relations_tag_update(CTX_data_main(C));
+    m_softBodyRelationsTagDirty = false;
+
+    if (perfProbeEnabled) {
+      perfRelTagUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                          PerfClock::now() - relTagStart)
+                          .count();
+    }
+  }
+
+  if (perfProbeEnabled) {
+    const double updateSoftBodiesUS =
+        (double)std::chrono::duration_cast<std::chrono::microseconds>(
+            PerfClock::now() - updateSoftBodiesStart)
+            .count();
+
+    m_perfProbeUpdateSoftBodiesUSAccum += updateSoftBodiesUS;
+    m_perfProbeUpdateSoftBodiesDepsgraphUSAccum += perfDepsgraphUS;
+    m_perfProbeUpdateSoftBodiesFilterUSAccum += perfFilterUS;
+    m_perfProbeUpdateSoftBodiesMeshUSAccum += perfMeshUS;
+    m_perfProbeUpdateSoftBodiesRelTagUSAccum += perfRelTagUS;
+    ++m_perfProbeUpdateSoftBodiesCallsAccum;
+    m_perfProbeSoftBodiesTotalAccum += softBodiesTotal;
+    m_perfProbeSoftBodiesCandidatesAccum += softBodiesCandidates;
+    m_perfProbeSoftBodiesUpdatedAccum += softBodiesUpdated;
   }
 }
 
@@ -755,10 +2038,20 @@ void JoltPhysicsEnvironment::SetDebugMode(int debugMode)
 
 void JoltPhysicsEnvironment::SetNumIterations(int numIter)
 {
-  /* Map to collision steps count. */
-  if (numIter > 0) {
-    m_numTimeSubSteps = numIter;
+  if (numIter <= 0) {
+    return;
   }
+
+  /* Map iterative solver quality to Jolt's solver steps.
+   * Keep Bullet-like behavior where one value controls iteration strength,
+   * with position steps following Jolt's default 10:2 velocity/position ratio. */
+  const int velocitySteps = std::max(1, numIter);
+  const int positionSteps = std::max(1, (velocitySteps + 4) / 5);
+
+  JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
+  settings.mNumVelocitySteps = (JPH::uint)velocitySteps;
+  settings.mNumPositionSteps = (JPH::uint)positionSteps;
+  m_physicsSystem->SetPhysicsSettings(settings);
 }
 
 void JoltPhysicsEnvironment::SetNumTimeSubSteps(int numTimeSubSteps)
@@ -880,6 +2173,11 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
                                                           int flag,
                                                           bool replicate_dupli)
 {
+  if (!m_isPhysicsUpdating) {
+    FinalizePendingCompoundShapeBuilds();
+    FlushPendingRigidBodyBodyAdds();
+  }
+
   bool disableCollision = (0 != (flag & CCD_CONSTRAINT_DISABLE_LINKED_COLLISION));
 
   JoltPhysicsController *c0 = static_cast<JoltPhysicsController *>(ctrl);
@@ -1096,6 +2394,7 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
 
   /* Track constraint for O(1) lookup by ID. */
   m_constraintById[uid] = wrapper;
+  m_breakableConstraintsCacheDirty = true;
 
   return wrapper;
 }
@@ -1141,6 +2440,7 @@ void JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
   }
 
   m_constraintById.erase(it);
+  m_breakableConstraintsCacheDirty = true;
 }
 
 bool JoltPhysicsEnvironment::IsRigidBodyConstraintEnabled(int constraintid)
@@ -1272,6 +2572,7 @@ void JoltPhysicsEnvironment::AddSensor(PHY_IPhysicsController *ctrl)
 
   if (joltCtrl->Register()) {
     GetBodyInterface().AddBody(joltCtrl->GetBodyID(), JPH::EActivation::Activate);
+    NotifyRigidBodyBodyAdded();
   }
 }
 
@@ -1316,6 +2617,7 @@ bool JoltPhysicsEnvironment::RequestCollisionCallback(PHY_IPhysicsController *ct
   /* Register the controller for collision callback notifications.
    * The actual callback invocation happens in CallbackTriggers(). */
   m_collisionCallbackControllers.insert(joltCtrl);
+  m_collectContactsForCallbacks.store(true, std::memory_order_relaxed);
   return true;
 }
 
@@ -1326,6 +2628,16 @@ bool JoltPhysicsEnvironment::RemoveCollisionCallback(PHY_IPhysicsController *ctr
     return false;
   }
   m_collisionCallbackControllers.erase(joltCtrl);
+  const bool collectContacts = !m_collisionCallbackControllers.empty();
+  m_collectContactsForCallbacks.store(collectContacts, std::memory_order_relaxed);
+
+  if (!collectContacts) {
+    /* Drop any pending pairs from the previous frame(s) now that nobody listens. */
+    m_contactPairsScratch.clear();
+    m_contactListener.SwapContacts(m_contactPairsScratch);
+    m_contactPairsScratch.clear();
+  }
+
   return true;
 }
 
@@ -1341,14 +2653,13 @@ PHY_CollisionTestResult JoltPhysicsEnvironment::CheckCollision(PHY_IPhysicsContr
   }
 
   const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
-  JPH::BodyLockRead lock0(lockInterface, jc0->GetBodyID());
-  JPH::BodyLockRead lock1(lockInterface, jc1->GetBodyID());
-  if (!lock0.Succeeded() || !lock1.Succeeded()) {
+  JPH::BodyID ids[2] = {jc0->GetBodyID(), jc1->GetBodyID()};
+  JPH::BodyLockMultiRead multiLock(lockInterface, ids, 2);
+  const JPH::Body *body0 = multiLock.GetBody(0);
+  const JPH::Body *body1 = multiLock.GetBody(1);
+  if (!body0 || !body1) {
     return result;
   }
-
-  const JPH::Body &body0 = lock0.GetBody();
-  const JPH::Body &body1 = lock1.GetBody();
 
   /* Use CollideShape to check if the two shapes overlap. */
   JPH::CollideShapeSettings collideSettings;
@@ -1357,12 +2668,12 @@ PHY_CollisionTestResult JoltPhysicsEnvironment::CheckCollision(PHY_IPhysicsContr
   JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
 
   const JPH::NarrowPhaseQuery &npq = m_physicsSystem->GetNarrowPhaseQuery();
-  const JPH::Shape *shape0 = body0.GetShape();
+  const JPH::Shape *shape0 = body0->GetShape();
 
   npq.CollideShape(
       shape0,
       JPH::Vec3::sReplicate(1.0f),
-      body0.GetCenterOfMassTransform(),
+      body0->GetCenterOfMassTransform(),
       collideSettings,
       JPH::RVec3::sZero(),
       collector,
@@ -1374,7 +2685,7 @@ PHY_CollisionTestResult JoltPhysicsEnvironment::CheckCollision(PHY_IPhysicsContr
 
   /* Check if body1 is among the hits. */
   for (const JPH::CollideShapeResult &hit : collector.mHits) {
-    if (hit.mBodyID2 == body1.GetID()) {
+    if (hit.mBodyID2 == body1->GetID()) {
       result.collide = true;
       result.isFirst = true;
 
@@ -1483,6 +2794,15 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
     return;
   }
 
+  FinalizePendingCompoundShapeBuilds();
+  other->FinalizePendingCompoundShapeBuilds();
+
+  /* Ensure queued body operations are materialized before transferring state. */
+  FlushPendingRigidBodyBodyAdds();
+  other->FlushPendingRigidBodyBodyAdds();
+  FlushPendingSoftBodyBodyRemoves();
+  other->FlushPendingSoftBodyBodyRemoves();
+
   /* Transfer all controllers from the other environment to this one.
    * In Jolt, bodies cannot be shared between PhysicsSystem instances.
    * We remove from the source system and recreate in the destination using
@@ -1519,6 +2839,7 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
     srcBI.RemoveBody(oldID);
     srcBI.DestroyBody(oldID);
     other->m_controllers.erase(ctrl);
+    other->m_controllersIterationCacheDirty = true;
 
     /* Create in destination. */
     JPH::Body *newBody = dstBI.CreateBody(bcs);
@@ -1612,6 +2933,7 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
     delete srcCon;
   }
   other->m_constraintById.clear();
+  m_breakableConstraintsCacheDirty = true;
 
   /* Transfer graphic controllers. */
   for (JoltGraphicController *gc : other->m_graphicControllers) {
@@ -1625,6 +2947,22 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
     m_softBodies.push_back(sb);
   }
   other->m_softBodies.clear();
+
+  for (JoltSoftBody *sb : other->m_pinnedSoftBodies) {
+    m_pinnedSoftBodies.push_back(sb);
+  }
+  other->m_pinnedSoftBodies.clear();
+  other->m_pendingRigidBodyBodyAdds.clear();
+  other->m_pendingCompoundSubShapesByController.clear();
+  other->m_pendingSoftBodyBodyAdds.clear();
+  other->m_pendingSoftBodyBodyRemoves.clear();
+  other->m_pendingRigidBodyAddsForOptimize = 0;
+  other->m_pendingSoftBodyAddsForOptimize = 0;
+  other->m_pendingSoftBodyBatchAddsForOptimize = 0;
+  other->m_rigidBodyAddsSinceLastStep = 0;
+  other->m_softBodyAddsSinceLastStep = 0;
+  other->m_rigidBodyAddIdleFrames = 0;
+  other->m_softBodyAddIdleFrames = 0;
 
   /* Transfer characters. */
   for (auto &pair : other->m_characterByObject) {
@@ -1774,6 +3112,9 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   if (isSoftBody && !shapeBuilder.GetVertexArray().empty() &&
       !shapeBuilder.GetTriangleArray().empty())
   {
+    unsigned short collGroup = blenderobject->col_group;
+    unsigned short collMask = blenderobject->col_mask;
+
     JoltPhysicsController *ctrl = new JoltPhysicsController();
     ctrl->SetMotionState(motionstate);
     ctrl->SetEnvironment(this);
@@ -1785,6 +3126,9 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     ctrl->SetBroadPhaseCategory(JOLT_BP_DYNAMIC);
     ctrl->SetMargin(margin);
     ctrl->SetRadius(blenderobject->inertia);
+    ctrl->SetCollisionGroup(collGroup);
+    ctrl->SetCollisionMask(collMask);
+    ctrl->SetNewClientInfo(gameobj->getClientInfo());
 
     JoltSoftBody *sb = new JoltSoftBody(this, ctrl);
 
@@ -1920,7 +3264,6 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
     ctrl->SetSoftBody(sb);
     ctrl->SetBodyID(sb->GetBodyID());
-    ctrl->SetNewClientInfo(gameobj->getClientInfo());
     gameobj->SetPhysicsController(ctrl);
     /* Pre-center in Create() places the Jolt body at COM while preserving a
      * stored COM->origin offset in JoltSoftBody. WriteDynamicsToMotionState()
@@ -1931,27 +3274,10 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
      * game-object world->local conversion during startup sync. */
     ctrl->WriteDynamicsToMotionState();
 
-    /* Set collision group/mask on the soft body.
-     * Scene setup is single-threaded; use no-lock interface to avoid conflicting
-     * with Jolt's internal body-add bookkeeping. */
-    unsigned short collGroup = blenderobject->col_group;
-    unsigned short collMask = blenderobject->col_mask;
-    {
-      const JPH::BodyLockInterfaceNoLock &lockIf = m_physicsSystem->GetBodyLockInterfaceNoLock();
-      JPH::BodyLockWrite lock(lockIf, sb->GetBodyID());
-      if (lock.Succeeded()) {
-        lock.GetBody().SetCollisionGroup(
-            JPH::CollisionGroup(m_constraintGroupFilter,
-                                (JPH::CollisionGroup::GroupID)collGroup,
-                                lock.GetBody().GetID().GetIndexAndSequenceNumber()));
-        lock.GetBody().SetUserData(
-            reinterpret_cast<JPH::uint64>(gameobj->getClientInfo()));
-      }
-    }
-    ctrl->SetCollisionGroup(collGroup);
-    ctrl->SetCollisionMask(collMask);
-
     m_softBodies.push_back(sb);
+    if (sb->HasPinnedVertices()) {
+      m_pinnedSoftBodies.push_back(sb);
+    }
     AddController(ctrl);
     /* Register controller → blender object mapping for soft-body pin resolution. */
     RegisterControllerForObject(blenderobject, ctrl);
@@ -2024,8 +3350,18 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     MT_Matrix3x3 relativeRot = parentInvRot * childNode->GetWorldOrientation();
     MT_Quaternion relQuat = relativeRot.getRotation();
 
-    /* Build a new StaticCompoundShape from the parent's existing shape(s)
-     * plus the child shape at the computed relative transform. */
+    if (!m_hasSteppedSimulation) {
+      /* Startup conversion path: queue parent shape rebuild for one-pass
+       * assembly once conversion-time compound children are known. */
+      QueuePendingCompoundChildShape(
+          parentCtrl, JoltMath::ToJolt(relativePos), JoltMath::ToJolt(relQuat), shape);
+
+      delete motionstate;
+      return;
+    }
+
+    /* Runtime path: preserve prior behavior by rebuilding parent compound
+     * immediately when a new child is converted. */
     JPH::StaticCompoundShapeSettings compoundSettings;
     JPH::RefConst<JPH::Shape> parentShape = parentCtrl->GetShape();
 
@@ -2033,21 +3369,16 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     if (rawParentShape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
       const JPH::StaticCompoundShape *existingCompound =
           static_cast<const JPH::StaticCompoundShape *>(rawParentShape);
-      /* Parent is already compound — re-add all existing sub-shapes. */
       for (JPH::uint i = 0; i < existingCompound->GetNumSubShapes(); i++) {
         const JPH::CompoundShape::SubShape &sub = existingCompound->GetSubShape(i);
-        compoundSettings.AddShape(
-            sub.GetPositionCOM(), sub.GetRotation(), sub.mShape);
+        compoundSettings.AddShape(sub.GetPositionCOM(), sub.GetRotation(), sub.mShape);
       }
     }
     else {
-      /* Parent has a single shape — it becomes the first sub-shape. */
       compoundSettings.AddShape(JPH::Vec3::sZero(), JPH::Quat::sIdentity(), parentShape);
     }
 
-    /* Add the child shape with its relative transform. */
-    compoundSettings.AddShape(
-        JoltMath::ToJolt(relativePos), JoltMath::ToJolt(relQuat), shape);
+    compoundSettings.AddShape(JoltMath::ToJolt(relativePos), JoltMath::ToJolt(relQuat), shape);
 
     JPH::Shape::ShapeResult result = compoundSettings.Create();
     if (result.HasError()) {
@@ -2055,7 +3386,6 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       return;
     }
 
-    /* Update the parent body to use the new compound shape. */
     JPH::RefConst<JPH::Shape> newCompound = result.Get();
     parentCtrl->SetShape(newCompound);
 
@@ -2245,7 +3575,13 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                              BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
   if (!isSensor && layCheck && visCheck)
   {
-    bi.AddBody(body->GetID(), JPH::EActivation::Activate);
+    if (!m_hasSteppedSimulation) {
+      QueueRigidBodyBodyAdd(body->GetID(), JPH::EActivation::Activate);
+    }
+    else {
+      bi.AddBody(body->GetID(), JPH::EActivation::Activate);
+      NotifyRigidBodyBodyAdded();
+    }
     AddController(ctrl);
   }
   else if (!isSensor) {
@@ -2606,12 +3942,54 @@ JPH::BodyInterface &JoltPhysicsEnvironment::GetBodyInterfaceNoLock()
 
 void JoltPhysicsEnvironment::AddController(JoltPhysicsController *ctrl)
 {
-  m_controllers.insert(ctrl);
+  if (!ctrl) {
+    return;
+  }
+
+  const std::pair<std::set<JoltPhysicsController *>::iterator, bool> insertResult =
+      m_controllers.insert(ctrl);
+  if (insertResult.second) {
+    m_controllersIterationCacheDirty = true;
+  }
 }
 
 bool JoltPhysicsEnvironment::RemoveController(JoltPhysicsController *ctrl)
 {
-  return m_controllers.erase(ctrl) > 0;
+  if (!ctrl) {
+    return false;
+  }
+
+  const bool removed = m_controllers.erase(ctrl) > 0;
+  if (!removed) {
+    return false;
+  }
+
+  m_controllersIterationCacheDirty = true;
+  m_pendingCompoundSubShapesByController.erase(ctrl);
+
+  const JPH::BodyID bodyID = ctrl->GetBodyID();
+  if (bodyID.IsInvalid()) {
+    return true;
+  }
+  RemovePendingRigidBodyBodyAdd(bodyID);
+
+  return true;
+}
+
+const std::vector<JoltPhysicsController *> &JoltPhysicsEnvironment::GetControllersForIteration()
+{
+  if (!m_controllersIterationCacheDirty) {
+    return m_controllersIterationCache;
+  }
+
+  m_controllersIterationCache.clear();
+  m_controllersIterationCache.reserve(m_controllers.size());
+  for (JoltPhysicsController *ctrl : m_controllers) {
+    m_controllersIterationCache.push_back(ctrl);
+  }
+  m_controllersIterationCacheDirty = false;
+
+  return m_controllersIterationCache;
 }
 
 void JoltPhysicsEnvironment::AddGraphicController(JoltGraphicController *ctrl)
@@ -2630,13 +4008,21 @@ void JoltPhysicsEnvironment::CallbackTriggers()
     return;
   }
 
+  if (!m_collectContactsForCallbacks.load(std::memory_order_relaxed)) {
+    /* If callback requests were removed during/after Update(), flush leftovers. */
+    m_contactPairsScratch.clear();
+    m_contactListener.SwapContacts(m_contactPairsScratch);
+    m_contactPairsScratch.clear();
+    return;
+  }
+
   /* Swap contact pairs from the listener (accumulated during Update()). */
-  std::vector<JoltContactPair> contacts;
-  m_contactListener.SwapContacts(contacts);
+  m_contactPairsScratch.clear();
+  m_contactListener.SwapContacts(m_contactPairsScratch);
 
   const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
 
-  for (const JoltContactPair &pair : contacts) {
+  for (const JoltContactPair &pair : m_contactPairsScratch) {
     /* Lock both bodies atomically to read their user data.
      * BodyLockMultiRead computes a combined mutex mask so each unique
      * internal Jolt mutex is locked exactly once, avoiding the undefined
@@ -2710,8 +4096,9 @@ void JoltPhysicsEnvironment::ProcessFhSprings(float timeStep)
 
   JPH::BodyInterface &bi = GetBodyInterface();
   const JPH::NarrowPhaseQuery &npq = m_physicsSystem->GetNarrowPhaseQuery();
+  const std::vector<JoltPhysicsController *> &controllers = GetControllersForIteration();
 
-  for (JoltPhysicsController *ctrl : m_controllers) {
+  for (JoltPhysicsController *ctrl : controllers) {
     if (!ctrl->IsDynamic() || ctrl->IsPhysicsSuspended()) {
       continue;
     }
@@ -2839,14 +4226,139 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
 
   JPH::BodyInterface &bi = GetBodyInterface();
 
-  for (const JoltDeferredOp &op : ops) {
-    /* Skip if body ID became invalid (destroyed by another operation). */
-    if (op.bodyID.IsInvalid()) {
-      continue;
+  auto removePendingRigidAdds = [&](const std::vector<JPH::BodyID> &bodyIDs) {
+    if (bodyIDs.empty() || m_pendingRigidBodyBodyAdds.empty()) {
+      return;
     }
 
+    std::unordered_set<JPH::uint32> bodyIDSet;
+    bodyIDSet.reserve(bodyIDs.size());
+    for (const JPH::BodyID bodyID : bodyIDs) {
+      bodyIDSet.insert(bodyID.GetIndexAndSequenceNumber());
+    }
+
+    auto newEnd = std::remove_if(
+        m_pendingRigidBodyBodyAdds.begin(),
+        m_pendingRigidBodyBodyAdds.end(),
+        [&](const PendingBodyAddEntry &entry) {
+          return bodyIDSet.find(entry.bodyID.GetIndexAndSequenceNumber()) != bodyIDSet.end();
+        });
+    if (newEnd != m_pendingRigidBodyBodyAdds.end()) {
+      m_pendingRigidBodyBodyAdds.erase(newEnd, m_pendingRigidBodyBodyAdds.end());
+    }
+  };
+
+  auto removeBodiesBatch = [&](const std::vector<JPH::BodyID> &bodyIDs) {
+    if (!bodyIDs.empty()) {
+      std::vector<JPH::BodyID> mutableBodyIDs = bodyIDs;
+      bi.RemoveBodies(mutableBodyIDs.data(), (int)mutableBodyIDs.size());
+    }
+  };
+
+  auto addBodiesBatch = [&](const std::vector<JPH::BodyID> &bodyIDs,
+                            JPH::EActivation activation) {
+    if (bodyIDs.empty()) {
+      return;
+    }
+
+    std::vector<JPH::BodyID> addBodyIDs = bodyIDs;
+    JPH::BodyID *rawBodyIDs = addBodyIDs.data();
+    const int bodyCount = (int)addBodyIDs.size();
+    JPH::BodyInterface::AddState addState = bi.AddBodiesPrepare(rawBodyIDs, bodyCount);
+    if (addState) {
+      bi.AddBodiesFinalize(rawBodyIDs, bodyCount, addState, activation);
+    }
+    else {
+      for (int bodyIndex = 0; bodyIndex < bodyCount; ++bodyIndex) {
+        bi.AddBody(rawBodyIDs[bodyIndex], activation);
+      }
+
+      /* Fallback used one-by-one insertion. Track this as runtime add pressure
+       * for the regular threshold/idle broadphase optimize policy. */
+      m_pendingRigidBodyAddsForOptimize += bodyCount;
+      m_rigidBodyAddsSinceLastStep += bodyCount;
+    }
+  };
+
+  auto destroyBodiesBatch = [&](const std::vector<JPH::BodyID> &bodyIDs) {
+    if (bodyIDs.empty()) {
+      return;
+    }
+
+    std::vector<JPH::BodyID> addedBodyIDs;
+    addedBodyIDs.reserve(bodyIDs.size());
+    for (const JPH::BodyID bodyID : bodyIDs) {
+      if (bi.IsAdded(bodyID)) {
+        addedBodyIDs.push_back(bodyID);
+      }
+    }
+
+    if (!addedBodyIDs.empty()) {
+      bi.RemoveBodies(addedBodyIDs.data(), (int)addedBodyIDs.size());
+    }
+    bi.DestroyBodies(bodyIDs.data(), (int)bodyIDs.size());
+  };
+
+  auto collectRunUniqueBodyIDs = [&](size_t &index, JoltDeferredOpType type) {
+    std::vector<JPH::BodyID> bodyIDs;
+    std::unordered_set<JPH::uint32> bodyIDSet;
+    while (index < ops.size() && ops[index].type == type) {
+      const JoltDeferredOp &runOp = ops[index];
+      if (!runOp.bodyID.IsInvalid() &&
+          bodyIDSet.insert(runOp.bodyID.GetIndexAndSequenceNumber()).second) {
+        bodyIDs.push_back(runOp.bodyID);
+      }
+      ++index;
+    }
+    return bodyIDs;
+  };
+
+  size_t i = 0;
+  while (i < ops.size()) {
+    const JoltDeferredOp &op = ops[i];
+
     switch (op.type) {
+      case JoltDeferredOpType::AddBody: {
+        std::vector<JPH::BodyID> bodyIDs = collectRunUniqueBodyIDs(i, JoltDeferredOpType::AddBody);
+        std::vector<JPH::BodyID> addBodyIDs;
+        addBodyIDs.reserve(bodyIDs.size());
+        for (const JPH::BodyID bodyID : bodyIDs) {
+          if (!bi.IsAdded(bodyID)) {
+            addBodyIDs.push_back(bodyID);
+          }
+        }
+        addBodiesBatch(addBodyIDs, JPH::EActivation::Activate);
+        break;
+      }
+
+      case JoltDeferredOpType::RemoveBody: {
+        std::vector<JPH::BodyID> bodyIDs = collectRunUniqueBodyIDs(i, JoltDeferredOpType::RemoveBody);
+        removePendingRigidAdds(bodyIDs);
+
+        std::vector<JPH::BodyID> addedBodyIDs;
+        addedBodyIDs.reserve(bodyIDs.size());
+        for (const JPH::BodyID bodyID : bodyIDs) {
+          if (bi.IsAdded(bodyID)) {
+            addedBodyIDs.push_back(bodyID);
+          }
+        }
+        removeBodiesBatch(addedBodyIDs);
+        break;
+      }
+
+      case JoltDeferredOpType::DestroyBody: {
+        std::vector<JPH::BodyID> bodyIDs = collectRunUniqueBodyIDs(i, JoltDeferredOpType::DestroyBody);
+        removePendingRigidAdds(bodyIDs);
+        destroyBodiesBatch(bodyIDs);
+        break;
+      }
+
       case JoltDeferredOpType::SuspendDynamics: {
+        ++i;
+        if (op.bodyID.IsInvalid()) {
+          break;
+        }
+
         if (op.ghost) {
           /* Ghost mode: make body a static sensor. */
           bi.SetMotionType(op.bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
@@ -2863,6 +4375,8 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
         }
         else {
           /* Non-ghost: remove body from world entirely (no collision). */
+          std::vector<JPH::BodyID> bodyIDs = {op.bodyID};
+          removePendingRigidAdds(bodyIDs);
           if (bi.IsAdded(op.bodyID)) {
             bi.RemoveBody(op.bodyID);
           }
@@ -2871,9 +4385,15 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
       }
 
       case JoltDeferredOpType::RestoreDynamics: {
+        ++i;
+        if (op.bodyID.IsInvalid()) {
+          break;
+        }
+
         /* If body is not in the world (removed on suspend), add it back. */
         if (!bi.IsAdded(op.bodyID)) {
-          bi.AddBody(op.bodyID, JPH::EActivation::Activate);
+          std::vector<JPH::BodyID> addBodyIDs = {op.bodyID};
+          addBodiesBatch(addBodyIDs, JPH::EActivation::Activate);
         }
 
         /* Restore motion type. */
@@ -2895,37 +4415,19 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
         break;
       }
 
-      case JoltDeferredOpType::RemoveBody: {
-        if (bi.IsAdded(op.bodyID)) {
-          bi.RemoveBody(op.bodyID);
-        }
-        break;
-      }
-
-      case JoltDeferredOpType::AddBody: {
-        if (!bi.IsAdded(op.bodyID)) {
-          bi.AddBody(op.bodyID, JPH::EActivation::Activate);
-        }
-        break;
-      }
-
-      case JoltDeferredOpType::DestroyBody: {
-        if (bi.IsAdded(op.bodyID)) {
-          bi.RemoveBody(op.bodyID);
-        }
-        bi.DestroyBody(op.bodyID);
-        break;
-      }
-
       case JoltDeferredOpType::SetObjectLayer: {
-        if (bi.IsAdded(op.bodyID)) {
+        ++i;
+        if (!op.bodyID.IsInvalid() && bi.IsAdded(op.bodyID)) {
           bi.SetObjectLayer(op.bodyID, op.objectLayer);
         }
         break;
       }
 
       case JoltDeferredOpType::SetMotionType: {
-        bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
+        ++i;
+        if (!op.bodyID.IsInvalid()) {
+          bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
+        }
         break;
       }
     }

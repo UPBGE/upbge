@@ -871,7 +871,9 @@ bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
   m_logger.StartLog(tc_outside);
 
   /********** FPS CAP ENFORCEMENT **********/
-  // Cap render FPS when enabled (absolute deadline + short spin)
+  // Cap render FPS when enabled (absolute deadline + short spin).
+  // If a heavy frame made us miss multiple deadlines, drop accumulated debt
+  // to avoid a long uncapped catch-up phase after load recovers.
   if (m_useFixedFPSCap) {
     using clock = std::chrono::steady_clock;
     // Use renderCapRate to control rendering rate
@@ -881,6 +883,11 @@ bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
     auto now = clock::now();
     if (m_nextFrameDeadline.time_since_epoch().count() == 0) {
       m_nextFrameDeadline = now + period;
+    }
+    // Resync if we're more than one frame late: keep pacing smooth and avoid
+    // prolonged overshoot after transient overload.
+    if (now >= m_nextFrameDeadline + period) {
+      m_nextFrameDeadline = now;
     }
     // Widened safety window to reduce oversleep
     constexpr auto safety = std::chrono::microseconds(2000); // ~2.0ms

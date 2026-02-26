@@ -447,7 +447,7 @@ void KX_GameObject::ReplicateBlenderObject()
       }
     }
 
-    DEG_relations_tag_update(bmain);
+    GetScene()->TagForRelationsUpdate();
 
     m_pBlenderObject = newob;
     m_isReplica = true;
@@ -478,7 +478,12 @@ void KX_GameObject::DiscardRenderedObject()
       blender::Main *bmain = CTX_data_main(C);
       BKE_id_delete(bmain, ob);
       SetBlenderObject(nullptr);
-      DEG_relations_tag_update(bmain);
+      if (GetScene()) {
+        GetScene()->TagForRelationsUpdate();
+      }
+      else {
+        DEG_relations_tag_update(bmain);
+      }
       return;
     }
     /* 3. The blender::Object is not a Replica nor a dupli Instance,
@@ -1527,9 +1532,7 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
 
   blender::Object *ob = GetBlenderObject();
   if (ob) {
-    blender::Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
     GetScene()->TagForCollectionRemap();
-    DEG_relations_tag_update(bmain);
     if (v) {
       ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
     }

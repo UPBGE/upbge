@@ -60,7 +60,7 @@ JPH_SUPPRESS_WARNINGS
 #include "MT_Matrix4x4.h"
 
 #include <algorithm>
-#include <unordered_set>
+#include <cmath>
 #include "MT_Transform.h"
 #include "RAS_IDisplayArray.h"
 #include "SG_Node.h"
@@ -74,6 +74,131 @@ JPH_SUPPRESS_WARNINGS
 
 using namespace blender;
 
+namespace {
+
+inline bool IsNearlyIdentityRotation(const MT_Matrix3x3 &m, float eps = 1.0e-6f)
+{
+  return (std::abs((float)m[0][0] - 1.0f) <= eps &&
+          std::abs((float)m[0][1]) <= eps &&
+          std::abs((float)m[0][2]) <= eps &&
+          std::abs((float)m[1][0]) <= eps &&
+          std::abs((float)m[1][1] - 1.0f) <= eps &&
+          std::abs((float)m[1][2]) <= eps &&
+          std::abs((float)m[2][0]) <= eps &&
+          std::abs((float)m[2][1]) <= eps &&
+          std::abs((float)m[2][2] - 1.0f) <= eps);
+}
+
+inline uint64_t MakeRotationCacheKey(const MT_Matrix3x3 &rotationDelta)
+{
+  MT_Quaternion q = rotationDelta.getRotation();
+  const float qLen = (float)q.length();
+  if (qLen > 1.0e-12f) {
+    q /= qLen;
+  }
+  else {
+    q.setValue(0.0f, 0.0f, 0.0f, 1.0f);
+  }
+
+  if (q.w() < 0.0f) {
+    q.setValue(-q.x(), -q.y(), -q.z(), -q.w());
+  }
+
+  auto quantize = [](float c) -> uint16_t {
+    c = std::clamp(c, -1.0f, 1.0f);
+    const int32_t qv = (int32_t)std::lround(c * 32767.0f);
+    return (uint16_t)(qv + 32768);
+  };
+
+  uint64_t key = 1469598103934665603ull; /* FNV-1a 64-bit offset basis */
+  auto mix = [&key](uint16_t v) {
+    key ^= (uint64_t)v;
+    key *= 1099511628211ull; /* FNV-1a 64-bit prime */
+  };
+
+  mix(quantize((float)q.x()));
+  mix(quantize((float)q.y()));
+  mix(quantize((float)q.z()));
+  mix(quantize((float)q.w()));
+  return key;
+}
+
+inline JPH::Vec3 CalculateBoundsCenter(
+    const JPH::Array<JPH::SoftBodySharedSettings::Vertex> &vertices)
+{
+  if (vertices.empty()) {
+    return JPH::Vec3::sZero();
+  }
+
+  const JPH::Float3 &p0 = vertices[0].mPosition;
+  float minX = p0[0], minY = p0[1], minZ = p0[2];
+  float maxX = p0[0], maxY = p0[1], maxZ = p0[2];
+
+  for (size_t i = 1; i < vertices.size(); ++i) {
+    const JPH::Float3 &p = vertices[i].mPosition;
+    minX = std::min(minX, p[0]);
+    minY = std::min(minY, p[1]);
+    minZ = std::min(minZ, p[2]);
+    maxX = std::max(maxX, p[0]);
+    maxY = std::max(maxY, p[1]);
+    maxZ = std::max(maxZ, p[2]);
+  }
+
+  return JPH::Vec3(0.5f * (minX + maxX),
+                   0.5f * (minY + maxY),
+                   0.5f * (minZ + maxZ));
+}
+
+inline void RecenterVertices(JPH::Array<JPH::SoftBodySharedSettings::Vertex> &vertices,
+                             JPH::Vec3Arg center)
+{
+  for (JPH::SoftBodySharedSettings::Vertex &v : vertices) {
+    const JPH::Float3 &p = v.mPosition;
+    v.mPosition = JPH::Float3(p[0] - center.GetX(),
+                              p[1] - center.GetY(),
+                              p[2] - center.GetZ());
+  }
+}
+
+inline JPH::Vec3 CalculateRotatedBoundsCenter(
+    const JPH::Array<JPH::SoftBodySharedSettings::Vertex> &vertices,
+    const MT_Matrix3x3 &rotationDelta)
+{
+  if (vertices.empty()) {
+    return JPH::Vec3::sZero();
+  }
+
+  const JPH::Float3 &p0 = vertices[0].mPosition;
+  MT_Vector3 baseLocal(p0[0], -p0[2], p0[1]);
+  MT_Vector3 baseRotated = rotationDelta * baseLocal;
+  float minX = (float)baseRotated.x();
+  float minY = (float)baseRotated.z();
+  float minZ = (float)-baseRotated.y();
+  float maxX = minX, maxY = minY, maxZ = minZ;
+
+  for (size_t i = 1; i < vertices.size(); ++i) {
+    const JPH::Float3 &jp = vertices[i].mPosition;
+    MT_Vector3 blenderLocal(jp[0], -jp[2], jp[1]);
+    MT_Vector3 rotated = rotationDelta * blenderLocal;
+
+    const float x = (float)rotated.x();
+    const float y = (float)rotated.z();
+    const float z = (float)-rotated.y();
+    minX = std::min(minX, x);
+    minY = std::min(minY, y);
+    minZ = std::min(minZ, z);
+    maxX = std::max(maxX, x);
+    maxY = std::max(maxY, y);
+    maxZ = std::max(maxZ, z);
+  }
+
+  return JPH::Vec3(0.5f * (minX + maxX),
+                   0.5f * (minY + maxY),
+                   0.5f * (minZ + maxZ));
+}
+
+}  // namespace
+
 /* -------------------------------------------------------------------- */
 /** \name JoltSoftBody — Construction / Destruction
  * \{ */
@@ -85,6 +210,10 @@ JoltSoftBody::JoltSoftBody(JoltPhysicsEnvironment *env, JoltPhysicsController *c
 
 JoltSoftBody::~JoltSoftBody()
 {
+  if (m_bodyDestructionHandledByEnvironment) {
+    return;
+  }
+
   if (!m_bodyID.IsInvalid() && m_env) {
     /* If physics is currently updating, defer body destruction. */
     if (m_env->IsPhysicsUpdating()) {
@@ -101,10 +230,10 @@ JoltSoftBody::~JoltSoftBody()
       }
       bi.DestroyBody(m_bodyID);
     }
-    /* Do NOT touch m_ctrl here: ~JoltPhysicsController() (which runs before us
-     * from ~KX_GameObject) already called RemoveController(this), so the
-     * environment destructor's controller-cleanup loop will never see this
-     * controller.  The m_ctrl pointer may be dangling at this point. */
+    /* Do NOT touch m_ctrl here: controller lifetime is managed externally.
+     * Runtime teardown can destroy us from ~JoltPhysicsController(), while
+     * environment teardown may delete us after controllers were already removed.
+     * In both cases m_ctrl may be stale. */
   }
 }
 
@@ -128,8 +257,25 @@ bool JoltSoftBody::Create(const float *vertices,
     return false;
   }
 
-  /* Store vertex remap for mesh deformation. */
-  m_blenderVertToJoltVert = vertRemap;
+  /* Build dense Blender->Jolt lookup table used in UpdateMesh().
+   * Unmapped vertices keep -1 so we can skip them without hash lookups. */
+  m_blenderVertToJoltVert.clear();
+  if (!vertRemap.empty()) {
+    int maxBlenderVert = -1;
+    for (const auto &[blenderVert, joltVert] : vertRemap) {
+      (void)joltVert;
+      maxBlenderVert = std::max(maxBlenderVert, blenderVert);
+    }
+
+    if (maxBlenderVert >= 0) {
+      m_blenderVertToJoltVert.assign((size_t)maxBlenderVert + 1, -1);
+      for (const auto &[blenderVert, joltVert] : vertRemap) {
+        if (blenderVert >= 0) {
+          m_blenderVertToJoltVert[(size_t)blenderVert] = joltVert;
+        }
+      }
+    }
+  }
 
   /* ---- Build SoftBodySharedSettings ---- */
   JPH::Ref<JPH::SoftBodySharedSettings> sbSettings = new JPH::SoftBodySharedSettings();
@@ -138,7 +284,11 @@ bool JoltSoftBody::Create(const float *vertices,
    * Per Jolt docs, mInvMass=0 pins the vertex (infinite mass). */
   float invMass = (settings.mass > 0.0f) ? (1.0f / settings.mass) * (float)numVerts : 1.0f;
   sbSettings->mVertices.resize(numVerts);
-  std::vector<MT_Vector3> worldPositions(numVerts);
+  const bool hasPinVertexWeights = !settings.pinVertexWeights.empty();
+  std::vector<MT_Vector3> worldPositions;
+  if (hasPinVertexWeights) {
+    worldPositions.resize(numVerts);
+  }
 
   for (int i = 0; i < numVerts; ++i) {
     float bx = vertices[i * 3 + 0];
@@ -168,14 +318,22 @@ bool JoltSoftBody::Create(const float *vertices,
     sbSettings->mVertices[i].mInvMass = invMass;
 
     /* Store initial world positions for pin initialization below. */
-    worldPositions[i] = vr;
+    if (hasPinVertexWeights) {
+      worldPositions[i] = vr;
+    }
   }
 
   /* ---- Vertex pinning ----
    * Vertices whose weight in the pin vertex group >= pinWeightThreshold get
    * mInvMass = 0 (kinematic).  They stay at their initial world position unless
    * UpdatePinnedVertices() moves them to follow a pin object. */
-  if (!settings.pinVertexWeights.empty()) {
+  if (hasPinVertexWeights) {
+    if (settings.hasPinObject) {
+      m_pinInitialPos = settings.pinInitialPos;
+      m_pinInitialOri = settings.pinInitialOri;
+    }
+    MT_Matrix3x3 invPinInitialOri = m_pinInitialOri.transposed();
+
     /* Deduplicate: multiple Blender verts can map to the same Jolt particle. */
     std::unordered_map<int, float> joltPinWeight;
     for (const auto &[joltIdx, w] : settings.pinVertexWeights) {
@@ -187,15 +345,11 @@ bool JoltSoftBody::Create(const float *vertices,
     for (const auto &[joltIdx, w] : joltPinWeight) {
       if (w >= settings.pinWeightThreshold && joltIdx >= 0 && joltIdx < numVerts) {
         sbSettings->mVertices[joltIdx].mInvMass = 0.0f; /* kinematic */
-        /* Store (joltIdx, initial world-space position in Blender Z-up). */
+        /* Store (joltIdx, local offset in the pin's initial frame). */
         MT_Vector3 initWorldPos = position + worldPositions[joltIdx];
-        m_pinnedData.push_back({joltIdx, initWorldPos});
+        MT_Vector3 pinLocalOffset = invPinInitialOri * (initWorldPos - m_pinInitialPos);
+        m_pinnedData.push_back({joltIdx, pinLocalOffset});
       }
-    }
-    /* Store pin object initial transform for per-frame offset calculation. */
-    if (settings.hasPinObject) {
-      m_pinInitialPos = settings.pinInitialPos;
-      m_pinInitialOri = settings.pinInitialOri;
     }
     m_noPinCollision = settings.noPinCollision;
   }
@@ -355,7 +509,17 @@ bool JoltSoftBody::Create(const float *vertices,
   }
 
   m_bodyID = body->GetID();
+
+  body->SetCollisionGroup(JPH::CollisionGroup(
+      m_env->GetConstraintGroupFilter(),
+      (JPH::CollisionGroup::GroupID)m_ctrl->GetCollisionGroup(),
+      m_bodyID.GetIndexAndSequenceNumber()));
+  if (m_ctrl->GetNewClientInfo()) {
+    body->SetUserData(reinterpret_cast<JPH::uint64>(m_ctrl->GetNewClientInfo()));
+  }
+
   bi.AddBody(m_bodyID, JPH::EActivation::Activate);
+  m_env->NotifySoftBodyBodyAdded();
 
   return true;
 }
@@ -405,13 +569,14 @@ void JoltSoftBody::ApplySpawnTransform(const MT_Vector3 &posDelta, const MT_Matr
   /* Rotate cached COM->origin offset so motion-state sync stays coherent. */
   m_bodyOriginOffset = rotationDelta * m_bodyOriginOffset;
 
-  /* Re-express pinned caches in the new spawned frame. */
-  for (auto &entry : m_pinnedData) {
-    MT_Vector3 rel = entry.second - oldOrigin;
-    entry.second = newOrigin + rotationDelta * rel;
-  }
+  /* Re-express the pin frame in the new spawned frame.
+   * Pinned local offsets remain valid in that frame and do not need per-vertex updates. */
   m_pinInitialPos = newOrigin + rotationDelta * (m_pinInitialPos - oldOrigin);
   m_pinInitialOri = rotationDelta * m_pinInitialOri;
+
+  /* Pin frame changed: drop cached previous transform so the next pinned update
+   * is forced to refresh against the new spawn-space pin basis. */
+  m_hasLastPinTransform = false;
 
   /* This orientation is now baked into local particle coordinates. */
   m_initialWorldOri = newWorldOri;
@@ -423,47 +588,52 @@ void JoltSoftBody::ApplySpawnTransform(const MT_Vector3 &posDelta, const MT_Matr
 /** \name JoltSoftBody — Update Mesh and Pinned Vertices
  * \{ */
 
-void JoltSoftBody::UpdatePinnedVertices(const MT_Vector3 &pinPos, const MT_Matrix3x3 &pinOri)
+void JoltSoftBody::UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
+                                              const MT_Matrix3x3 &pinOri,
+                                              JPH::Body &body)
 {
-  if (m_pinnedData.empty() || m_bodyID.IsInvalid() || !m_env) {
+  if (m_pinnedData.empty() || !m_env || !body.IsSoftBody()) {
     return;
+  }
+
+  /* Conservative early-out for idle pinned setups:
+   * - if the pin transform is unchanged from the previous frame; and
+   * - the soft body is sleeping,
+   * then re-writing pinned vertices is redundant. */
+  if (m_hasLastPinTransform) {
+    const MT_Vector3 pinPosDelta = pinPos - m_lastPinPos;
+    const MT_Matrix3x3 pinOriDelta = pinOri * m_lastPinOri.transposed();
+    constexpr float kPinPosEpsilonSq = 1.0e-12f;
+    const bool pinPosUnchanged = pinPosDelta.length2() <= kPinPosEpsilonSq;
+    const bool pinOriUnchanged = IsNearlyIdentityRotation(pinOriDelta);
+
+    if (pinPosUnchanged && pinOriUnchanged && !body.IsActive()) {
+      return;
+    }
   }
 
   /* mPosition in SoftBodyMotionProperties is body-local (relative to body's
    * current world position, i.e. GetPosition()).  To pin a vertex at a target
    * Blender world position we must convert:
    *   joltLocal = joltWorld(target) - body.GetPosition() */
-  MT_Matrix3x3 invInitOri = m_pinInitialOri.transposed();
-
-  /* Match the read pattern in UpdateMesh(): NoLock interface is correct here
-   * because we run before PhysicsSystem::Update() (no parallel jobs active). */
-  const JPH::BodyLockInterface &lockIf =
-      m_env->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
-  JPH::BodyLockWrite lock(lockIf, m_bodyID);
-  if (!lock.Succeeded()) {
-    return;
-  }
-
-  JPH::Body &body = lock.GetBody();
-  if (!body.IsSoftBody()) {
-    return;
-  }
-
   /* Body world position in Jolt Y-up space (used to convert world→local). */
   JPH::RVec3 bodyWorldPos = body.GetPosition();
 
   JPH::SoftBodyMotionProperties *mp =
       static_cast<JPH::SoftBodyMotionProperties *>(body.GetMotionProperties());
+  if (!mp) {
+    return;
+  }
+
   auto &joltVerts = mp->GetVertices();
 
-  for (const auto &[joltIdx, initWorldPos] : m_pinnedData) {
+  for (const auto &[joltIdx, pinLocalOffset] : m_pinnedData) {
     if (joltIdx < 0 || joltIdx >= (int)joltVerts.size()) {
       continue;
     }
 
     /* Compute target Blender world position following the pin object. */
-    MT_Vector3 localOffset = invInitOri * (initWorldPos - m_pinInitialPos);
-    MT_Vector3 newWorldPos = pinPos + pinOri * localOffset;
+    MT_Vector3 newWorldPos = pinPos + pinOri * pinLocalOffset;
 
     /* Convert Blender Z-up world → Jolt Y-up world → body local. */
     JPH::Vec3 joltWorld(static_cast<float>(newWorldPos.x()),
@@ -477,6 +647,28 @@ void JoltSoftBody::UpdatePinnedVertices(const MT_Vector3 &pinPos, const MT_Matri
      * cause visible jiggling, especially with CCD-enabled pin bodies. */
     joltVerts[joltIdx].mVelocity = JPH::Vec3::sZero();
   }
+
+  m_lastPinPos = pinPos;
+  m_lastPinOri = pinOri;
+  m_hasLastPinTransform = true;
+}
+
+void JoltSoftBody::UpdatePinnedVertices(const MT_Vector3 &pinPos, const MT_Matrix3x3 &pinOri)
+{
+  if (m_pinnedData.empty() || m_bodyID.IsInvalid() || !m_env) {
+    return;
+  }
+
+  /* NoLock interface is correct here because this runs before
+   * PhysicsSystem::Update() (no parallel jobs active). */
+  const JPH::BodyLockInterface &lockIf =
+      m_env->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
+  JPH::BodyLockWrite lock(lockIf, m_bodyID);
+  if (!lock.Succeeded()) {
+    return;
+  }
+
+  UpdatePinnedVerticesLocked(pinPos, pinOri, lock.GetBody());
 }
 
 /** \} */
@@ -485,23 +677,53 @@ void JoltSoftBody::UpdatePinnedVertices(const MT_Vector3 &pinPos, const MT_Matri
 /** \name JoltSoftBody — Update Mesh
  * \{ */
 
-void JoltSoftBody::UpdateMesh()
+void JoltSoftBody::UpdateMesh(blender::Depsgraph *depsgraph)
+{
+  if (m_bodyID.IsInvalid() || !m_env) {
+    return;
+  }
+
+  const JPH::BodyLockInterface &lockInterface =
+      m_env->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
+  JPH::BodyLockRead lock(lockInterface, m_bodyID);
+  if (!lock.Succeeded()) {
+    return;
+  }
+
+  UpdateMeshLocked(depsgraph, lock.GetBody());
+}
+
+void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Body &body)
 {
   /* Hidden-layer template objects must NOT write to the shared Blender modifier;
    * doing so would corrupt active replicas that share the same blender::Object*. */
   if (!m_isActive) {
     return;
   }
-  if (!m_gameobj || !m_meshObject || m_bodyID.IsInvalid() || !m_env) {
+  if (!m_gameobj || !m_meshObject || !m_env || !body.IsSoftBody()) {
+    return;
+  }
+
+  /* Sleeping soft bodies without pinned vertices have stable particle positions.
+   * Skip expensive mesh/depsgraph work until they wake up again. */
+  if (!body.IsActive() && m_pinnedData.empty() && m_hasMeshUpload) {
+    return;
+  }
+
+  if (!depsgraph) {
     return;
   }
 
   /* 1. Get the evaluated Blender object for modifier and mesh access. */
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   blender::Object *ob = m_gameobj->GetBlenderObject();
   blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+  if (!ob_eval) {
+    return;
+  }
   blender::Mesh *me = (blender::Mesh *)ob_eval->data;
+  if (!me) {
+    return;
+  }
 
   /* Sanity: skip if a modifier changed vertex count at runtime. */
   if (m_numBlenderVerts > 0 && me->verts_num != m_numBlenderVerts) {
@@ -521,10 +743,11 @@ void JoltSoftBody::UpdateMesh()
     BLI_addtail(&ob->modifiers, m_sbModifier);
     BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
     BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
-    DEG_relations_tag_update(CTX_data_main(C));
+    m_env->RequestSoftBodyRelationsTagUpdate();
 
     m_sbCoords = (float(*)[3])MEM_new_zeroed(
         sizeof(float[3]) * (size_t)m_numBlenderVerts, "JoltSoftBody.sbCoords");
+    m_hasMeshUpload = false;
 
     /* Pre-fill from the rest-pose vertex positions so that vertices not covered
      * by the physics mesh (e.g. isolated verts) keep their original location. */
@@ -540,19 +763,11 @@ void JoltSoftBody::UpdateMesh()
    * Jolt soft body vertex mPosition is already in LOCAL space of the body!
    * We just need to apply the object scale (if any) and convert coordinates
    * from Jolt (X,Y,Z) -> Blender (X,-Z,Y). */
-  const JPH::BodyLockInterface &lockInterface = m_env->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
-  JPH::BodyLockRead lock(lockInterface, m_bodyID);
-  if (!lock.Succeeded()) {
-    return;
-  }
-
-  const JPH::Body &body = lock.GetBody();
-  if (!body.IsSoftBody()) {
-    return;
-  }
-
   const JPH::SoftBodyMotionProperties *mp =
       static_cast<const JPH::SoftBodyMotionProperties *>(body.GetMotionProperties());
+  if (!mp) {
+    return;
+  }
   const JPH::Array<JPH::SoftBodyVertex> &joltVerts = mp->GetVertices();
 
   /* Body world position in Blender Z-up (Jolt Y-up → Blender Z-up: X,Y,Z → X,-Z,Y). */
@@ -573,9 +788,10 @@ void JoltSoftBody::UpdateMesh()
   SG_Node *sgNode = m_gameobj->GetSGNode();
   const SG_Node *sgParent = sgNode->GetSGParent();
 
-  MT_Vector3   renderPos;
+  MT_Vector3 renderPos;
   MT_Matrix3x3 renderInvOri;
   float invSx, invSy, invSz;
+  bool useNoRotationFastPath = false;
 
   if (sgParent) {
     /* parent_world * A_local gives the transform UpdateParents will compute. */
@@ -588,7 +804,7 @@ void JoltSoftBody::UpdateMesh()
     invSx = (sx > 1e-6f) ? 1.0f / sx : 1.0f;
     invSy = (sy > 1e-6f) ? 1.0f / sy : 1.0f;
     invSz = (sz > 1e-6f) ? 1.0f / sz : 1.0f;
-    renderPos    = combined.getOrigin();
+    renderPos = combined.getOrigin();
     /* Pure rotation = basis with scale removed; inverse rotation = transpose. */
     renderInvOri = combined.getBasis().scaled(invSx, invSy, invSz).transposed();
   }
@@ -598,39 +814,76 @@ void JoltSoftBody::UpdateMesh()
     invSx = (std::abs(scale.x()) > 1e-6f) ? 1.0f / scale.x() : 1.0f;
     invSy = (std::abs(scale.y()) > 1e-6f) ? 1.0f / scale.y() : 1.0f;
     invSz = (std::abs(scale.z()) > 1e-6f) ? 1.0f / scale.z() : 1.0f;
-    renderInvOri = m_gameobj->NodeGetWorldOrientation().transposed();
+
+    const MT_Matrix3x3 worldOri = m_gameobj->NodeGetWorldOrientation();
+    renderInvOri = worldOri.transposed();
+
+    /* Hot path for most runtime-spawned soft bodies: unparented with no rotation.
+     * Skip per-vertex matrix multiply and go directly world→local with scale only. */
+    useNoRotationFastPath = IsNearlyIdentityRotation(worldOri);
   }
 
-  for (int blVert = 0; blVert < m_numBlenderVerts; ++blVert) {
-    auto it = m_blenderVertToJoltVert.find(blVert);
-    if (it == m_blenderVertToJoltVert.end()) {
-      continue;
-    }
-    int joltIdx = it->second;
+  const float renderPosX = (float)renderPos.x();
+  const float renderPosY = (float)renderPos.y();
+  const float renderPosZ = (float)renderPos.z();
+
+  const float changeEpsilon = 1.0e-6f;
+  bool coordsChanged = false;
+
+  const int remapSize = (int)m_blenderVertToJoltVert.size();
+  const int loopCount = std::min(m_numBlenderVerts, remapSize);
+  for (int blVert = 0; blVert < loopCount; ++blVert) {
+    int joltIdx = m_blenderVertToJoltVert[blVert];
     if (joltIdx < 0 || joltIdx >= (int)joltVerts.size()) {
       continue;
     }
 
-    const JPH::Vec3 &mp = joltVerts[joltIdx].mPosition;
+    const JPH::Vec3 &joltPos = joltVerts[joltIdx].mPosition;
 
-    /* Particle world position in Blender Z-up: body COM + body-local offset. */
-    float wx = bodyBx + mp.GetX();
-    float wy = bodyBy + (-mp.GetZ());
-    float wz = bodyBz +   mp.GetY();
+    float newX;
+    float newY;
+    float newZ;
 
-    /* World → A's local space: inv(R) * (world − origin) / scale. */
-    MT_Vector3 offset((double)(wx - (float)renderPos.x()),
-                      (double)(wy - (float)renderPos.y()),
-                      (double)(wz - (float)renderPos.z()));
-    MT_Vector3 local = renderInvOri * offset;
-    m_sbCoords[blVert][0] = (float)(local.x() * invSx);
-    m_sbCoords[blVert][1] = (float)(local.y() * invSy);
-    m_sbCoords[blVert][2] = (float)(local.z() * invSz);
+    if (useNoRotationFastPath) {
+      newX = (bodyBx + joltPos.GetX() - renderPosX) * invSx;
+      newY = (bodyBy - joltPos.GetZ() - renderPosY) * invSy;
+      newZ = (bodyBz + joltPos.GetY() - renderPosZ) * invSz;
+    }
+    else {
+      /* Particle world position in Blender Z-up: body COM + body-local offset. */
+      float wx = bodyBx + joltPos.GetX();
+      float wy = bodyBy + (-joltPos.GetZ());
+      float wz = bodyBz + joltPos.GetY();
+
+      /* World → A's local space: inv(R) * (world − origin) / scale. */
+      MT_Vector3 offset((double)(wx - renderPosX),
+                        (double)(wy - renderPosY),
+                        (double)(wz - renderPosZ));
+      MT_Vector3 local = renderInvOri * offset;
+      newX = (float)(local.x() * invSx);
+      newY = (float)(local.y() * invSy);
+      newZ = (float)(local.z() * invSz);
+    }
+
+    if (std::abs(m_sbCoords[blVert][0] - newX) > changeEpsilon ||
+        std::abs(m_sbCoords[blVert][1] - newY) > changeEpsilon ||
+        std::abs(m_sbCoords[blVert][2] - newZ) > changeEpsilon) {
+      m_sbCoords[blVert][0] = newX;
+      m_sbCoords[blVert][1] = newY;
+      m_sbCoords[blVert][2] = newZ;
+      coordsChanged = true;
+    }
   }
 
-  /* 4. Hand the coord buffer to the modifier and tag for re-evaluation. */
-  m_sbModifier->vertcoos = m_sbCoords;
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  /* 4. Hand the coord buffer to the modifier and tag only when needed. */
+  const bool needsUpload = !m_hasMeshUpload ||
+                           (m_sbModifier->vertcoos != m_sbCoords) ||
+                           coordsChanged;
+  if (needsUpload) {
+    m_sbModifier->vertcoos = m_sbCoords;
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    m_hasMeshUpload = true;
+  }
 }
 
 /** \} */
@@ -667,6 +920,7 @@ void JoltSoftBody::CleanupModifier(blender::Object *ob)
     MEM_delete_void(static_cast<void *>(m_sbCoords));
     m_sbCoords = nullptr;
   }
+  m_hasMeshUpload = false;
 }
 
 void JoltSoftBody::PurgeStaleModifiers()
@@ -748,109 +1002,105 @@ JoltSoftBody *JoltSoftBody::CloneIntoReplica(JoltPhysicsController *newCtrl,
     /* Soft body is pinned to a parent. Use pin orientation for rotation delta. */
     MT_Matrix3x3 invInitialOri = m_pinInitialOri.transposed();
     rotationDelta = newPinOri * invInitialOri;
-    needsRotation = true;
+    needsRotation = !IsNearlyIdentityRotation(rotationDelta);
   }
   else if (m_pinnedData.empty()) {
     /* No pinned vertices - use replica's own orientation. */
     MT_Matrix3x3 invInitialOri = m_initialWorldOri.transposed();
     rotationDelta = replicaOri * invInitialOri;
-    needsRotation = true;
+    needsRotation = !IsNearlyIdentityRotation(rotationDelta);
   }
 
-  /* Build a set of pinned vertex indices for fast lookup. */
-  std::unordered_set<int> pinnedIndices;
-  for (const auto &[joltIdx, initWorldPos] : m_pinnedData) {
-    pinnedIndices.insert(joltIdx);
-  }
-
-  /* Create a new SoftBodySharedSettings with rotated particle positions.
-   * We must create a new settings object because the template's shared settings
-   * have the template's orientation baked in, and multiple replicas may share
-   * different orientations. */
-  JPH::Ref<JPH::SoftBodySharedSettings> replicaSettings;
-  if (needsRotation && !pinnedIndices.empty()) {
-    /* Mixed case: some pinned, some non-pinned. Need custom settings. */
-    replicaSettings = new JPH::SoftBodySharedSettings();
-    const JPH::Array<JPH::SoftBodySharedSettings::Vertex> &srcVerts =
-        m_sharedSettings->mVertices;
-    replicaSettings->mVertices.resize(srcVerts.size());
-
-    for (size_t i = 0; i < srcVerts.size(); ++i) {
-      replicaSettings->mVertices[i].mInvMass = srcVerts[i].mInvMass;
-
-      if (pinnedIndices.count((int)i) > 0) {
-        /* Pinned vertex: keep position as-is (UpdatePinnedVertices will set it). */
-        replicaSettings->mVertices[i].mPosition = srcVerts[i].mPosition;
+  /* Dense pinned mask: avoids per-spawn hash allocations/lookups. */
+  std::vector<char> pinnedMask;
+  if (needsRotation && !m_pinnedData.empty()) {
+    const size_t vertCount = m_sharedSettings->mVertices.size();
+    pinnedMask.assign(vertCount, 0);
+    for (const auto &[joltIdx, pinLocalOffset] : m_pinnedData) {
+      (void)pinLocalOffset;
+      if (joltIdx >= 0 && joltIdx < (int)vertCount) {
+        pinnedMask[(size_t)joltIdx] = 1;
       }
-      else {
+    }
+  }
+
+  const bool useRotationBake = needsRotation && m_pinnedData.empty();
+
+  /* Mixed pinned/non-pinned rotations need custom shared settings.
+   * For unpinned rotated replicas we use SoftBodyCreationSettings rotation baking
+   * and keep sharing the template settings. */
+  JPH::Ref<JPH::SoftBodySharedSettings> replicaSettings;
+  JPH::Vec3 replicaBoundsCenterCorrection(0.0f, 0.0f, 0.0f);
+  if (needsRotation && !pinnedMask.empty()) {
+    const uint64_t rotationKey = MakeRotationCacheKey(rotationDelta);
+    auto cacheIt = m_rotatedPinnedSettingsCache.find(rotationKey);
+    if (cacheIt == m_rotatedPinnedSettingsCache.end()) {
+      RotatedPinnedSettingsCacheEntry cacheEntry;
+      /* Clone the template settings to preserve Jolt's internal optimization data
+       * (e.g. update groups / skinned normals) used by the solver. Rebuilding
+       * from public arrays can leave those private caches invalid and crash in
+       * rotated mixed pinned/non-pinned spawn paths. */
+      cacheEntry.settings = m_sharedSettings->Clone();
+
+      const JPH::Array<JPH::SoftBodySharedSettings::Vertex> &srcVerts =
+          m_sharedSettings->mVertices;
+      JPH::Array<JPH::SoftBodySharedSettings::Vertex> &dstVerts =
+          cacheEntry.settings->mVertices;
+
+      for (size_t i = 0; i < srcVerts.size(); ++i) {
+        if (pinnedMask[i] != 0) {
+          /* Pinned vertex: keep position/velocity as-is (UpdatePinnedVertices will
+           * place it from pin local offsets just before simulation). */
+          continue;
+        }
+
         /* Non-pinned vertex: rotate to match replica's orientation.
-         * Position is in Jolt Y-up local space (relative to body COM).
+         * Position/velocity are in Jolt Y-up local space (relative to body COM).
          * Convert to Blender Z-up, apply rotation, convert back to Jolt Y-up. */
         const JPH::Float3 &jp = srcVerts[i].mPosition;
-        /* Jolt Y-up (X,Y,Z) -> Blender Z-up (X,-Z,Y) */
         MT_Vector3 blenderLocal(jp[0], -jp[2], jp[1]);
-        /* Apply rotation delta */
         MT_Vector3 rotated = rotationDelta * blenderLocal;
-        /* Blender Z-up -> Jolt Y-up */
-        replicaSettings->mVertices[i].mPosition = JPH::Float3(
+        dstVerts[i].mPosition = JPH::Float3(
             static_cast<float>(rotated.x()),
             static_cast<float>(rotated.z()),
             -static_cast<float>(rotated.y()));
+
+        const JPH::Float3 &jv = srcVerts[i].mVelocity;
+        MT_Vector3 blenderVelocity(jv[0], -jv[2], jv[1]);
+        MT_Vector3 rotatedVelocity = rotationDelta * blenderVelocity;
+        dstVerts[i].mVelocity = JPH::Float3(
+            static_cast<float>(rotatedVelocity.x()),
+            static_cast<float>(rotatedVelocity.z()),
+            -static_cast<float>(rotatedVelocity.y()));
       }
+
+      cacheEntry.boundsCenterCorrection = CalculateBoundsCenter(dstVerts);
+      RecenterVertices(dstVerts, cacheEntry.boundsCenterCorrection);
+
+      cacheIt = m_rotatedPinnedSettingsCache.emplace(rotationKey, std::move(cacheEntry)).first;
     }
 
-    /* Copy all other settings (constraints, faces, etc.) */
-    replicaSettings->mFaces = m_sharedSettings->mFaces;
-    replicaSettings->mEdgeConstraints = m_sharedSettings->mEdgeConstraints;
-    replicaSettings->mVolumeConstraints = m_sharedSettings->mVolumeConstraints;
-    replicaSettings->mDihedralBendConstraints = m_sharedSettings->mDihedralBendConstraints;
-    replicaSettings->mLRAConstraints = m_sharedSettings->mLRAConstraints;
-    replicaSettings->mSkinnedConstraints = m_sharedSettings->mSkinnedConstraints;
-    replicaSettings->mRodStretchShearConstraints = m_sharedSettings->mRodStretchShearConstraints;
-    replicaSettings->mRodBendTwistConstraints = m_sharedSettings->mRodBendTwistConstraints;
-    replicaSettings->mMaterials = m_sharedSettings->mMaterials;
-    replicaSettings->mInvBindMatrices = m_sharedSettings->mInvBindMatrices;
-
-    /* Optimize the new settings for simulation. */
-    replicaSettings->Optimize();
-  }
-  else if (needsRotation) {
-    /* All particles need rotation (no pinned vertices). */
-    replicaSettings = new JPH::SoftBodySharedSettings();
-    const JPH::Array<JPH::SoftBodySharedSettings::Vertex> &srcVerts =
-        m_sharedSettings->mVertices;
-    replicaSettings->mVertices.resize(srcVerts.size());
-
-    for (size_t i = 0; i < srcVerts.size(); ++i) {
-      replicaSettings->mVertices[i].mInvMass = srcVerts[i].mInvMass;
-
-      /* Rotate all vertices. */
-      const JPH::Float3 &jp = srcVerts[i].mPosition;
-      MT_Vector3 blenderLocal(jp[0], -jp[2], jp[1]);
-      MT_Vector3 rotated = rotationDelta * blenderLocal;
-      replicaSettings->mVertices[i].mPosition = JPH::Float3(
-          static_cast<float>(rotated.x()),
-          static_cast<float>(rotated.z()),
-          -static_cast<float>(rotated.y()));
-    }
-
-    /* Copy all other settings. */
-    replicaSettings->mFaces = m_sharedSettings->mFaces;
-    replicaSettings->mEdgeConstraints = m_sharedSettings->mEdgeConstraints;
-    replicaSettings->mVolumeConstraints = m_sharedSettings->mVolumeConstraints;
-    replicaSettings->mDihedralBendConstraints = m_sharedSettings->mDihedralBendConstraints;
-    replicaSettings->mLRAConstraints = m_sharedSettings->mLRAConstraints;
-    replicaSettings->mSkinnedConstraints = m_sharedSettings->mSkinnedConstraints;
-    replicaSettings->mRodStretchShearConstraints = m_sharedSettings->mRodStretchShearConstraints;
-    replicaSettings->mRodBendTwistConstraints = m_sharedSettings->mRodBendTwistConstraints;
-    replicaSettings->mMaterials = m_sharedSettings->mMaterials;
-    replicaSettings->mInvBindMatrices = m_sharedSettings->mInvBindMatrices;
-
-    replicaSettings->Optimize();
+    replicaSettings = cacheIt->second.settings;
+    replicaBoundsCenterCorrection = cacheIt->second.boundsCenterCorrection;
   }
   else {
-    /* No rotation needed - reuse template's shared settings. */
+    /* No mixed pinning rotation path required.
+     * For unpinned rotated replicas we reuse shared settings and let
+     * SoftBodyCreationSettings bake the rotation into local vertices. */
     replicaSettings = m_sharedSettings;
+    if (useRotationBake) {
+      const uint64_t rotationKey = MakeRotationCacheKey(rotationDelta);
+      auto correctionIt = m_rotatedSharedBoundsCenterCache.find(rotationKey);
+      if (correctionIt == m_rotatedSharedBoundsCenterCache.end()) {
+        replicaBoundsCenterCorrection = CalculateRotatedBoundsCenter(
+            m_sharedSettings->mVertices, rotationDelta);
+        correctionIt = m_rotatedSharedBoundsCenterCache.emplace(
+            rotationKey, replicaBoundsCenterCorrection).first;
+      }
+      else {
+        replicaBoundsCenterCorrection = correctionIt->second;
+      }
+    }
   }
 
   /* Preserve the template's COM-to-origin offset for this replica.
@@ -860,38 +1110,7 @@ JoltSoftBody *JoltSoftBody::CloneIntoReplica(JoltPhysicsController *newCtrl,
     replicaOriginOffset = rotationDelta * replicaOriginOffset;
   }
   JPH::Vec3 replicaSpawnOffset = JoltMath::ToJolt(replicaOriginOffset);
-
-  /* Additional recenter pass: if the rotated/customized local vertices are not
-   * centered around local AABB center, compensate exactly like in Create(). */
-  JPH::Vec3 replicaBoundsCenterCorrection(0.0f, 0.0f, 0.0f);
-  if (needsRotation && !replicaSettings->mVertices.empty()) {
-    const JPH::Float3 &p0 = replicaSettings->mVertices[0].mPosition;
-    float minX = p0[0], minY = p0[1], minZ = p0[2];
-    float maxX = p0[0], maxY = p0[1], maxZ = p0[2];
-
-    for (size_t i = 1; i < replicaSettings->mVertices.size(); ++i) {
-      const JPH::Float3 &p = replicaSettings->mVertices[i].mPosition;
-      minX = std::min(minX, p[0]);
-      minY = std::min(minY, p[1]);
-      minZ = std::min(minZ, p[2]);
-      maxX = std::max(maxX, p[0]);
-      maxY = std::max(maxY, p[1]);
-      maxZ = std::max(maxZ, p[2]);
-    }
-
-    replicaBoundsCenterCorrection = JPH::Vec3(0.5f * (minX + maxX),
-                                              0.5f * (minY + maxY),
-                                              0.5f * (minZ + maxZ));
-
-    for (JPH::SoftBodySharedSettings::Vertex &v : replicaSettings->mVertices) {
-      const JPH::Float3 &p = v.mPosition;
-      v.mPosition = JPH::Float3(p[0] - replicaBoundsCenterCorrection.GetX(),
-                                p[1] - replicaBoundsCenterCorrection.GetY(),
-                                p[2] - replicaBoundsCenterCorrection.GetZ());
-    }
-
-    replicaSpawnOffset += replicaBoundsCenterCorrection;
-  }
+  replicaSpawnOffset += replicaBoundsCenterCorrection;
 
   /* Create a new Jolt soft body with the (possibly rotated) settings. */
   JPH::Vec3 baseReplicaPos = JoltMath::ToJolt(replicaPos);
@@ -899,10 +1118,23 @@ JoltSoftBody *JoltSoftBody::CloneIntoReplica(JoltPhysicsController *newCtrl,
                      baseReplicaPos.GetY() + replicaSpawnOffset.GetY(),
                      baseReplicaPos.GetZ() + replicaSpawnOffset.GetZ());
 
+  JPH::Quat replicaRotation = JPH::Quat::sIdentity();
+  if (useRotationBake) {
+    MT_Quaternion rotationDeltaQuat = rotationDelta.getRotation();
+    const float qLen = (float)rotationDeltaQuat.length();
+    if (qLen > 1.0e-12f) {
+      rotationDeltaQuat /= qLen;
+    }
+    else {
+      rotationDeltaQuat = MT_Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+    replicaRotation = JoltMath::ToJolt(rotationDeltaQuat);
+  }
+
   JPH::SoftBodyCreationSettings cs(
       replicaSettings.GetPtr(),
       posJolt,
-      JPH::Quat::sIdentity(),
+      replicaRotation,
       JoltMakeObjectLayer(
           newCtrl->GetCollisionGroup(), newCtrl->GetCollisionMask(), JOLT_BP_DYNAMIC));
 
@@ -915,11 +1147,20 @@ JoltSoftBody *JoltSoftBody::CloneIntoReplica(JoltPhysicsController *newCtrl,
   cs.mNumIterations    = (JPH::uint32)m_replicaParams.numIterations;
   cs.mFacesDoubleSided = m_replicaParams.facesDoubleSided;
   cs.mUpdatePosition   = true;
+  cs.mMakeRotationIdentity = true;
 
   JPH::BodyInterface &bi = m_env->GetBodyInterfaceNoLock();
   JPH::Body *body = bi.CreateSoftBody(cs);
   if (!body) {
     return nullptr;
+  }
+
+  body->SetCollisionGroup(JPH::CollisionGroup(
+      m_env->GetConstraintGroupFilter(),
+      (JPH::CollisionGroup::GroupID)newCtrl->GetCollisionGroup(),
+      body->GetID().GetIndexAndSequenceNumber()));
+  if (newCtrl->GetNewClientInfo()) {
+    body->SetUserData(reinterpret_cast<JPH::uint64>(newCtrl->GetNewClientInfo()));
   }
 
   JoltSoftBody *clone        = new JoltSoftBody(m_env, newCtrl);
@@ -934,33 +1175,24 @@ JoltSoftBody *JoltSoftBody::CloneIntoReplica(JoltPhysicsController *newCtrl,
   clone->m_initialWorldOri   = hasPinTransform ? newPinOri : replicaOri;
   clone->m_bodyOriginOffset  = JoltMath::ToMT(replicaSpawnOffset);
 
-  bi.AddBody(clone->m_bodyID, JPH::EActivation::Activate);
+  /* Queue body insertion so runtime spawn bursts can be added in one Jolt batch
+   * (AddBodiesPrepare/AddBodiesFinalize) before the next physics step. */
+  m_env->QueueSoftBodyBodyAdd(clone->m_bodyID);
 
-  /* Copy pinned vertex world positions, re-expressed in the replica's pin frame. */
+  /* Copy pinned local offsets in the pin frame. */
   if (!m_pinnedData.empty()) {
+    clone->m_pinnedData = m_pinnedData;
     if (hasPinTransform) {
-      MT_Matrix3x3 invOrigOri = m_pinInitialOri.transposed();
-      for (const auto &[joltIdx, initWorldPos] : m_pinnedData) {
-        MT_Vector3 localOffset = invOrigOri * (initWorldPos - m_pinInitialPos);
-        MT_Vector3 newWorldPos = newPinPos + newPinOri * localOffset;
-        clone->m_pinnedData.push_back({joltIdx, newWorldPos});
-      }
       /* Wire the replica's pin controller so UpdatePinnedVertices() works. */
       clone->m_pinCtrl = static_cast<JoltPhysicsController *>(parentCtrl);
-    }
-    else {
-      clone->m_pinnedData = m_pinnedData;
     }
     clone->m_pinInitialPos = newPinPos;
     clone->m_pinInitialOri = newPinOri;
 
-    /* Pre-position pinned particles at their correct world locations immediately.
-     * Without this, they start at (replicaPos + template_local_offsets) and only
-     * reach the correct world positions on the first UpdatePinnedVertices call,
-     * causing a visible one-frame teleport on the spawn frame. */
-    if (hasPinTransform) {
-      clone->UpdatePinnedVertices(newPinPos, newPinOri);
-    }
+    /* Do not lock/update the freshly created body here: runtime replicas are
+     * queued and only added to the world in FlushPendingSoftBodyBodyAdds().
+     * The first pinned update is performed in ProceedDeltaTime() after add,
+     * before simulation, which keeps spawn safe and deterministic. */
   }
 
   return clone;

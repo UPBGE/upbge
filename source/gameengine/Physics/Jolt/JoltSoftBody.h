@@ -39,6 +39,7 @@ JPH_SUPPRESS_WARNINGS
 #include "MT_Matrix3x3.h"
 #include "MT_Vector3.h"
 
+#include <cstdint>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -50,7 +51,12 @@ class PHY_IMotionState;
 class PHY_IPhysicsController;
 class RAS_MeshObject;
 
+namespace JPH {
+class Body;
+}
+
 namespace blender {
+struct Depsgraph;
 struct Object;
 struct SimpleDeformModifierDataBGE;
 }  // namespace blender
@@ -140,6 +146,12 @@ class JoltSoftBody {
    *  Must be called BEFORE PhysicsSystem::Update() each frame. */
   void UpdatePinnedVertices(const MT_Vector3 &pinPos, const MT_Matrix3x3 &pinOri);
 
+  /** Same as UpdatePinnedVertices(), but operates on a body already locked by the caller.
+   *  Used by JoltPhysicsEnvironment with BodyLockMultiWrite. */
+  void UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
+                                  const MT_Matrix3x3 &pinOri,
+                                  JPH::Body &body);
+
   /** Returns true if this soft body has at least one kinematic (pinned) vertex. */
   bool HasPinnedVertices() const { return !m_pinnedData.empty(); }
 
@@ -159,8 +171,13 @@ class JoltSoftBody {
   blender::Object *GetPinBlenderObject() const { return m_pinBlenderObject; }
 
   /** Push deformed particle positions to the Blender render mesh each frame.
-   *  No-op if this soft body is marked inactive (hidden-layer template). */
-  void UpdateMesh();
+   *  No-op if this soft body is marked inactive (hidden-layer template).
+   *  depsgraph is resolved once in JoltPhysicsEnvironment::UpdateSoftBodies(). */
+  void UpdateMesh(blender::Depsgraph *depsgraph);
+
+  /** Same as UpdateMesh(), but uses an already locked body.
+   *  Used by JoltPhysicsEnvironment with BodyLockMultiRead. */
+  void UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Body &body);
 
   /** Remove the runtime deform modifier from the Blender object on shutdown. */
   void CleanupModifier(blender::Object *ob);
@@ -188,6 +205,13 @@ class JoltSoftBody {
   /** Mark this soft body active (updates mesh modifier) or inactive (hidden template). */
   void SetActive(bool active) { m_isActive = active; }
   bool IsActive() const { return m_isActive; }
+  bool HasMeshUpload() const { return m_hasMeshUpload; }
+
+  /** When true, JoltPhysicsEnvironment is responsible for Remove/DestroyBody. */
+  void SetBodyDestructionHandledByEnvironment(bool handled)
+  {
+    m_bodyDestructionHandledByEnvironment = handled;
+  }
 
   /** Create a new independent JoltSoftBody for a replica game object spawned via
    *  'Add Object' logic brick.  Re-uses the shared Jolt settings but creates a
@@ -214,6 +238,11 @@ class JoltSoftBody {
     bool  facesDoubleSided = false;
   };
 
+  struct RotatedPinnedSettingsCacheEntry {
+    JPH::Ref<JPH::SoftBodySharedSettings> settings;
+    JPH::Vec3 boundsCenterCorrection = JPH::Vec3::sZero();
+  };
+
   JoltPhysicsEnvironment *m_env;
   JoltPhysicsController *m_ctrl;
   JPH::BodyID m_bodyID;
@@ -221,14 +250,24 @@ class JoltSoftBody {
   /** Shared Jolt settings — can be reused across multiple bodies (Ref-counted). */
   JPH::Ref<JPH::SoftBodySharedSettings> m_sharedSettings;
 
+  /** Cache of rotation-specific shared settings for mixed pinned/non-pinned replicas.
+   *  Keyed by quantized rotation delta. */
+  std::unordered_map<uint64_t, RotatedPinnedSettingsCacheEntry> m_rotatedPinnedSettingsCache;
+
+  /** Cache of local-bounds center corrections for unpinned rotated replicas.
+   *  Keyed by quantized rotation delta. */
+  std::unordered_map<uint64_t, JPH::Vec3> m_rotatedSharedBoundsCenterCache;
+
   /** Scalar creation params stored during Create() for use in CloneIntoReplica(). */
   SoftBodyReplicaParams m_replicaParams;
 
   KX_GameObject *m_gameobj = nullptr;
   RAS_MeshObject *m_meshObject = nullptr;
 
-  /** Maps Blender original vertex index -> Jolt particle index. */
-  std::unordered_map<int, int> m_blenderVertToJoltVert;
+  /** Dense remap: Blender original vertex index -> Jolt particle index.
+   *  Unmapped entries store -1. This avoids per-vertex hash lookups
+   *  in UpdateMesh(). */
+  std::vector<int> m_blenderVertToJoltVert;
 
   /** Per-vertex coordinate array fed to SimpleDeformModifierDataBGE.
    *  Indexed by Blender vertex index; stores LOCAL-space positions. */
@@ -246,17 +285,24 @@ class JoltSoftBody {
   /** Optional controller of the object that pinned vertices follow each frame. */
   JoltPhysicsController *m_pinCtrl = nullptr;
 
+  /** Last pin transform used to update pinned vertices.
+   *  Used for a conservative early-out when the pin target did not move and
+   *  the soft body is sleeping. */
+  MT_Vector3 m_lastPinPos = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Matrix3x3 m_lastPinOri = MT_Matrix3x3::Identity();
+  bool m_hasLastPinTransform = false;
+
   /** Blender Object* of the pin target, stored for deferred FinalizeSoftBodyPins lookup. */
   blender::Object *m_pinBlenderObject = nullptr;
 
   /** Initial world transform of the pin object at creation time (Blender Z-up). */
-  MT_Vector3   m_pinInitialPos;
-  MT_Matrix3x3 m_pinInitialOri;
+  MT_Vector3   m_pinInitialPos = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Matrix3x3 m_pinInitialOri = MT_Matrix3x3::Identity();
 
   /** The soft body's own initial world orientation (baked into particle positions).
    *  Used by CloneIntoReplica to compute rotation delta for replicas spawned with
    *  different orientations (e.g., when the logic brick owner is rotated). */
-  MT_Matrix3x3 m_initialWorldOri;
+  MT_Matrix3x3 m_initialWorldOri = MT_Matrix3x3::Identity();
 
   /** If true, this soft body does not apply collision forces to its pin/parent object. */
   bool m_noPinCollision = false;
@@ -267,4 +313,10 @@ class JoltSoftBody {
   /** False for hidden-layer template objects: stops UpdateMesh() writing to the
    *  shared Blender modifier so active replicas are not corrupted. */
   bool m_isActive = true;
+
+  /** True after at least one deformation upload was sent to the modifier. */
+  bool m_hasMeshUpload = false;
+
+  /** True when JoltPhysicsEnvironment queues this body for batched remove/destroy. */
+  bool m_bodyDestructionHandledByEnvironment = false;
 };
