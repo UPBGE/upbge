@@ -219,6 +219,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_sceneConverter(nullptr),              // eevee
       m_isPythonMainLoop(false),              // eevee
       m_collectionRemap(false),               // eevee (to uncheck viewport restrictflag)
+      m_relationsUpdatePending(false),
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -808,6 +809,11 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     m_collectionRemap = false;
   }
 
+  if (m_relationsUpdatePending) {
+    DEG_relations_tag_update(bmain);
+    m_relationsUpdatePending = false;
+  }
+
   const bool optimize_transforms = scene->gm.depsgraph_optimize_transform != 0;
 
   if (optimize_transforms) {
@@ -1365,6 +1371,12 @@ void KX_Scene::RestoreVisibilityFlag()
 void KX_Scene::TagForCollectionRemap()
 {
   m_collectionRemap = true;
+  m_relationsUpdatePending = true;
+}
+
+void KX_Scene::TagForRelationsUpdate()
+{
+  m_relationsUpdatePending = true;
 }
 
 KX_GameObject *KX_Scene::GetGameObjectFromObject(blender::Object *ob)

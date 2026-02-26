@@ -124,6 +124,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   std::vector<KX_GameObject *> m_kxobWithLod;
   std::map<blender::Object *, short> m_obVisibilityFlag;
   bool m_collectionRemap;
+  bool m_relationsUpdatePending;
   std::vector<BackupObj *> m_backupObList;
   int m_backupOverlayFlag;
 
@@ -350,6 +351,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void BackupVisibilityFlag(blender::Object *ob, short visibilityFlag);
   void RestoreVisibilityFlag();
   void TagForCollectionRemap();
+  void TagForRelationsUpdate();
   KX_GameObject *GetGameObjectFromObject(blender::Object *ob);
   void BackupObjectsMatToWorld(BackupObj *back);
   void RestoreObjectsMatToWorld();
