@@ -31,7 +31,7 @@ def mutex_lock(local_library_path: Path) -> bool:
         - https://www.pythontutorials.net/blog/make-sure-only-a-single-instance-of-a-program-is-running/
         - https://yakking.branchable.com/posts/procrun-2-pidfiles/
 
-    :returns: true if the lock was created succesfully, false if some other
+    :returns: true if the lock was created successfully, false if some other
         Blender already locked this library.
     """
     global _registered_atexit

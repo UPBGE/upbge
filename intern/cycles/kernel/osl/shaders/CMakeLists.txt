@@ -122,6 +122,7 @@ find_path(OSL_SHADER_DIR
     share/OSL/shaders
     shaders
 )
+mark_as_advanced(OSL_SHADER_DIR)
 
 if(NOT EXISTS "${OSL_SHADER_DIR}")
   if(WITH_STRICT_BUILD_OPTIONS)

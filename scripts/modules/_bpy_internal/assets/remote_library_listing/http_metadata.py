@@ -22,7 +22,7 @@ class ExtraFileMetadataProvider(http_dl.MetadataProvider):
 
     The downloader will get the request to download to `file-unsafe.json`.
     However, if `file.json` is still fresh (i.e. the HTTP metadata for the URL
-    is appliccable to that file), the downloader should be able to do a
+    is applicable to that file), the downloader should be able to do a
     conditional download (instead of an unconditional one).
 
     This is implemented as a wrapper for any other MetadataProvider, rather than

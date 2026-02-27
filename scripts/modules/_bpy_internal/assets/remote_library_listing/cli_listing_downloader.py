@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class CLIArguments:
-    """Parsed commandline arguments."""
+    """Parsed command-line arguments."""
 
     url: str
 

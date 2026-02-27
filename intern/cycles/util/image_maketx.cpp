@@ -1,5 +1,6 @@
 /* SPDX-FileCopyrightText: 2025 OpenImageIO project
- * SPDX-FileCopyrightText: 2026 Blender Authors
+ *                         2026 Blender Authors
+ *
  * SPDX-License-Identifier: Apache-2.0
  *
  * This is a modified version of maketexture.cpp from OpenImageIO, to add a few

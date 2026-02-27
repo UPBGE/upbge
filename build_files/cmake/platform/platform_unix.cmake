@@ -663,6 +663,7 @@ if(WITH_SYSTEM_FREETYPE)
 endif()
 
 find_package_wrapper(Eigen3 REQUIRED)
+mark_as_advanced(Eigen3_DIR)
 
 if(WITH_LIBMV)
   find_package_wrapper(Ceres REQUIRED)

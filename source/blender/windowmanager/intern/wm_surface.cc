@@ -91,7 +91,7 @@ void wm_surface_clear_drawable(bContext *C)
 
     g_drawable = nullptr;
 
-    /* Workaround: For surface drawing, the Userdef runtime DPI/pixelsize values are set to
+    /* Workaround: For surface drawing, the #UserDef runtime DPI/pixel-size values are set to
      * base constants in #wm_surface_constant_dpi_set_userpref called in #wm_surface_make_drawable.
      * This does not affect window rendering as #WM_window_dpi_set_userdef is called in
      * #wm_window_make_drawable. However, some handlers called before window re-draw (such as

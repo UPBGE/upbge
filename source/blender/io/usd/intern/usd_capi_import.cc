@@ -100,7 +100,7 @@ struct ImportJobData {
   ViewLayer *view_layer;
   wmWindowManager *wm;
 
-  char filepath[1024];
+  char filepath[FILE_MAX];
   USDImportParams params;
 
   USDStageReader *archive;

@@ -25,17 +25,17 @@ namespace lexit {
  */
 class TokenBuffer {
  protected:
-  /* Input string. */
+  /** Input string. */
   const uint8_t *str_;
-  /* Length of the input string without including null terminator. */
+  /** Length of the input string without including null terminator. */
   const uint32_t str_len_;
-  /* Type of each token. */
+  /** Type of each token. */
   TokenType *types_;
-  /* Starting character index of each token. */
+  /** Starting character index of each token. */
   uint32_t *offsets_;
-  /* Original character index of each next token before whitespace merging (optional). */
+  /** Original character index of each next token before white-space merging (optional). */
   uint32_t *original_offsets_;
-  /* Amount of tokens inside the buffer excluding the terminating EndOfFile token. */
+  /** Amount of tokens inside the buffer excluding the terminating EndOfFile token. */
   uint32_t size_;
 
  public:

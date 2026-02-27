@@ -66,7 +66,7 @@ inline void ObjectInfos::sync()
 {
   object_attrs_len = 0;
   object_attrs_offset = 0;
-  /* Zero-Initialize since this data might still be accesible (See #154105). */
+  /* Zero-Initialize since this data might still be accessible (See #154105). */
   orco_add = float3(0.0f);
   orco_mul = float3(0.0f);
   ob_color = float4(0.0f);

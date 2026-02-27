@@ -88,12 +88,12 @@ void RemoteAssetLibrary::refresh_catalogs()
  * \{ */
 
 /*
- * Note: Some of the status setters here only modify status if the current status is
+ * NOTE: Some of the status setters here only modify status if the current status is
  * #RemoteLibraryLoadingStatus::Loading. That is done to avoid status changes after loading ended,
  * mostly after a timeout. E.g. after a timeout of the C++ status because Python didn't send status
  * updates, Python might eventually resume sending updates. These shouldn't affect the C++ status
  * anymore, since the earlier failure aborted the C++ side asset library loading. Plus, the UI
- * might show an error, and would suddenly switch to showing an incompletly loaded asset library.
+ * might show an error, and would suddenly switch to showing an incompletely loaded asset library.
  */
 
 using UrlToLibraryStatusMap = Map<std::string /*url*/, asset_system::RemoteLibraryLoadingStatus>;

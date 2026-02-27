@@ -444,8 +444,8 @@ add_custom_command(
 # Build bf_rna
 set(SRC
   rna_access.cc
-  rna_define.cc
   rna_access_compare_override.cc
+  rna_define.cc
   rna_path.cc
   ${GENSRC}
 

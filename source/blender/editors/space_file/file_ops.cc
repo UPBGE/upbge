@@ -2968,7 +2968,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_b
 
   if (filelist_is_dir(sfile->files, params->dir)) {
     if (!STREQ(params->dir, filelist_dir(sfile->files))) {
-      /* Keep focus to allow Tab autocompletion. #150689. */
+      /* Keep focus to allow Tab auto-completion. #150689. */
       blender::ui::Button *but = static_cast<blender::ui::Button *>(arg_but);
       textbutton_activate_but(C, but);
       button_clear_selection(but);

@@ -84,6 +84,7 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
+  const float4x4 &ob_mat = ob->object_to_world();
   float dir[3];
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
@@ -92,7 +93,7 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
   CameraWidgetGroup *cagzgroup = MEM_new_zeroed<CameraWidgetGroup>(__func__);
   gzgroup->customdata = cagzgroup;
 
-  negate_v3_v3(dir, ob->object_to_world().ptr()[2]);
+  negate_v3_v3(dir, ob_mat.ptr()[2]);
 
   /* dof distance */
   {
@@ -201,18 +202,18 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Camera *ca = id_cast<Camera *>(ob->data);
+  const float4x4 &ob_mat = ob->object_to_world();
   float dir[3];
 
   PointerRNA camera_ptr = RNA_pointer_create_discrete(&ca->id, RNA_Camera, ca);
 
   const bool is_modal = WM_gizmo_group_is_modal(gzgroup);
 
-  negate_v3_v3(dir, ob->object_to_world().ptr()[2]);
+  negate_v3_v3(dir, ob_mat.ptr()[2]);
 
   if ((ca->flag & CAM_SHOWLIMITS) && (v3d->gizmo_show_camera & V3D_GIZMO_SHOW_CAMERA_DOF_DIST)) {
-    WM_gizmo_set_matrix_location(cagzgroup->dop_dist, ob->object_to_world().location());
-    WM_gizmo_set_matrix_rotation_from_yz_axis(
-        cagzgroup->dop_dist, ob->object_to_world().ptr()[1], dir);
+    WM_gizmo_set_matrix_location(cagzgroup->dop_dist, ob_mat.location());
+    WM_gizmo_set_matrix_rotation_from_yz_axis(cagzgroup->dop_dist, ob_mat.ptr()[1], dir);
 
     /* TODO: investigate why this doesn't work. */
     if (false) {
@@ -268,14 +269,14 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
       float zscale_or_one = ob->scale[2] == 0.0f ? 1.0f : fabsf(ob->scale[2]);
       blender::float3 local_gizmo_location = blender::float3{
           0.0f, 0.0f, -1.0f * ca->drawsize / zscale_or_one};
-      gizmo_location = blender::math::transform_point(ob->object_to_world(), local_gizmo_location);
+      gizmo_location = blender::math::transform_point(ob_mat, local_gizmo_location);
     }
     else {
-      gizmo_location = ob->object_to_world().location();
+      gizmo_location = ob_mat.location();
     }
     WM_gizmo_set_matrix_location(widget, gizmo_location);
 
-    const float *gizmo_y_axis = ob->object_to_world().ptr()[1];
+    const float *gizmo_y_axis = ob_mat.ptr()[1];
     WM_gizmo_set_matrix_rotation_from_yz_axis(widget, gizmo_y_axis, dir);
 
     if (is_ortho) {
@@ -294,9 +295,9 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
       WM_gizmo_set_matrix_offset_location(widget, offset);
 
       const float ob_scale_inv[3] = {
-          1.0f / len_v3(ob->object_to_world().ptr()[0]),
-          1.0f / len_v3(ob->object_to_world().ptr()[1]),
-          1.0f / len_v3(ob->object_to_world().ptr()[2]),
+          1.0f / len_v3(ob_mat.ptr()[0]),
+          1.0f / len_v3(ob_mat.ptr()[1]),
+          1.0f / len_v3(ob_mat.ptr()[2]),
       };
       const float ob_scale_uniform_inv = (ob_scale_inv[0] + ob_scale_inv[1] + ob_scale_inv[2]) /
                                          3.0f;

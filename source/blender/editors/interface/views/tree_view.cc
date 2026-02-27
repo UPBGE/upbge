@@ -132,25 +132,6 @@ void AbstractTreeView::foreach_root_item(ItemIterFn iter_fn) const
   }
 }
 
-AbstractTreeViewItem *AbstractTreeView::find_hovered(const ARegion &region, const int2 &xy)
-{
-  AbstractTreeViewItem *hovered_item = nullptr;
-  this->foreach_item_recursive(
-      [&](AbstractTreeViewItem &item) {
-        if (hovered_item) {
-          return;
-        }
-
-        std::optional<rctf> win_rect = item.get_win_rect(region);
-        if (win_rect && BLI_rctf_isect_y(&*win_rect, xy[1])) {
-          hovered_item = &item;
-        }
-      },
-      IterOptions::SkipCollapsed | IterOptions::SkipFiltered);
-
-  return hovered_item;
-}
-
 void AbstractTreeView::set_default_rows(int default_rows)
 {
   BLI_assert_msg(default_rows >= MIN_ROWS,

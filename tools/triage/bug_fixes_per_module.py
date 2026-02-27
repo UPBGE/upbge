@@ -69,7 +69,7 @@ class CommitInfo():
 
     def check_full_commit_message_for_fixed_reports(self) -> None:
         command = ['git', 'show', '-s', '--format=%B', self.hash]
-        command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
+        command_output = subprocess.run(command, capture_output=True, check=True).stdout.decode('utf-8')
 
         if "revert" in command_output.lower():
             # If "revert" is the commit message, then it's probably a revert commit and didn't fix a issue.
@@ -194,7 +194,7 @@ def get_fix_commits(start_date: str, end_date: str, jobs: int) -> list[CommitInf
         '--grep',
         r'Fix.*#+\d+',
     ]
-    git_log_command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
+    git_log_command_output = subprocess.run(command, capture_output=True, check=True).stdout.decode('utf-8')
     git_log_output = git_log_command_output.splitlines()
 
     # Gathering a list of commits is not compute intensive, it is time consuming due to hundreds of git log calls.
