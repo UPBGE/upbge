@@ -38,9 +38,9 @@
 
 #ifdef WITH_PYTHON
 #  include "bpy_rna.hh"
+#endif
 
 using namespace blender;
-#endif
 
 KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                        KX_Scene *scene,

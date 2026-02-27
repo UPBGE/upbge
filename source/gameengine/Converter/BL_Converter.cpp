@@ -67,9 +67,9 @@
 
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
+#endif                  // WITH_PYTHON
 
 using namespace blender;
-#endif                  // WITH_PYTHON
 
 BL_Converter::SceneSlot::SceneSlot() = default;
 

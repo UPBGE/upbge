@@ -74,9 +74,9 @@
 #  include "EXP_PythonCallBack.h"
 #  include "bpy_rna.hh"
 #  include "python_utildefines.hh"
+#endif
 
 using namespace blender;
-#endif
 
 static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);

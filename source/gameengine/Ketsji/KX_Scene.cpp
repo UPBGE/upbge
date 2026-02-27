@@ -99,9 +99,9 @@
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #  include "bpy_rna.hh"
+#endif
 
 using namespace blender;
-#endif
 
 static void bge_dupli_provider(DEGObjectIterData *data)
 {
