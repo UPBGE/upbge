@@ -888,7 +888,7 @@ int main(int argc,
   BKE_materials_init();
 
   /* wm_init_exit */
-
+  wm_init_cursor_data();
   BKE_addon_pref_type_init();
   BKE_keyconfig_pref_type_init();
 
@@ -1518,6 +1518,8 @@ int main(int argc,
 #  endif  // !defined(DEBUG)
 #endif    // WIN32
 
+            WM_set_g_system_blenderplayer(system);
+
             /* We load our own G_MAIN in blenderplayer,
              * so free the one that BKE_blender_globals_init() gives us.
              */
@@ -1714,8 +1716,6 @@ int main(int argc,
               BPY_python_start(C, argc, (const char **)argv);
               CTX_py_init_set(C, true);
 #  endif /*WITH_PYTHON*/
-
-              WM_set_g_system_blenderplayer(system);
               GPU_backend_ghost_system_set(system);
               WM_init_gpu();
 
