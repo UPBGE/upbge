@@ -41,6 +41,8 @@
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "wm_window.hh"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "KX_Globals.h"
 
@@ -74,8 +76,8 @@ void GPG_Canvas::EndFrame()
 void GPG_Canvas::BeginDraw()
 {
   if (!m_useViewportRender) {
-    m_window->swapBufferAcquire();
     blender::wmWindow *win = CTX_wm_window(m_context);
+    wm_window_swap_buffer_acquire(win);
     GPU_context_main_lock();
     GPU_render_begin();
     GPU_render_step(true);
@@ -127,9 +129,11 @@ void GPG_Canvas::Init()
 {
   if (m_window) {
     GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), {0.0, 0.0, 0.0, 0.0}, 1.0f);
-    /* This code below is already called at window creation */
-    // m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
-    // BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
+    wmWindow *win = CTX_wm_window(m_context);
+    wmEvent tmp_event;
+    wm_event_init_from_window(win, &tmp_event);
+    win->runtime->eventstate->xy[0] = tmp_event.xy[0];
+    win->runtime->eventstate->xy[1] = tmp_event.xy[1];
   }
 }
 
@@ -139,10 +143,13 @@ void GPG_Canvas::SetMousePosition(int x, int y)
   if (system && m_window) {
     int32_t gx = (int32_t)x / m_nativePixelSize;
     int32_t gy = (int32_t)y / m_nativePixelSize;
-    int32_t cx;
-    int32_t cy;
-    m_window->clientToScreen(gx, gy, cx, cy);
-    system->setCursorPosition(cx, cy);
+
+    wmWindow *win = CTX_wm_window(m_context);
+    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_XY, nullptr, m_mousestate != MOUSE_NORMAL);
+    int event_x = int(gx);
+    int event_y = int((m_windowArea.GetHeight() - 1 - gy));
+    WM_cursor_warp(win, event_x, event_y);
+    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_NONE, nullptr, m_mousestate != MOUSE_NORMAL);
   }
 }
 
@@ -150,19 +157,21 @@ void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 {
   m_mousestate = mousestate;
 
-  if (m_window) {
-    switch (mousestate) {
-      case MOUSE_INVISIBLE:
-        m_window->setCursorVisibility(false);
-        break;
-      case MOUSE_WAIT:
-        m_window->setCursorShape(GHOST_kStandardCursorWait);
-        m_window->setCursorVisibility(true);
-        break;
-      case MOUSE_NORMAL:
-        m_window->setCursorShape(GHOST_kStandardCursorDefault);
-        m_window->setCursorVisibility(true);
-        break;
+  switch (mousestate) {
+    case MOUSE_INVISIBLE: {
+      WM_cursor_set(CTX_wm_window(m_context), WM_CURSOR_NONE);
+      break;
+    }
+    case MOUSE_WAIT: {
+      WM_cursor_set(CTX_wm_window(m_context), WM_CURSOR_WAIT);
+      break;
+    }
+    case MOUSE_NORMAL: {
+      WM_cursor_set(CTX_wm_window(m_context), WM_CURSOR_DEFAULT);
+      break;
+    }
+    default: {
+     break;
     }
   }
 }
@@ -170,15 +179,15 @@ void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 void GPG_Canvas::SwapBuffers()
 {
   if (m_window) {
-    if (!m_useViewportRender) { // Not needed but for readability
-      blender::wmWindow *win = CTX_wm_window(m_context);
+    blender::wmWindow *win = CTX_wm_window(m_context);
+    if (!m_useViewportRender) {
       /* See wm_draw_update for "chronology" */
       GPU_context_end_frame((GPUContext *)win->runtime->gpuctx);
       GPU_render_end();
       GPU_context_main_unlock();
       G.is_rendering = false;
     }
-    m_window->swapBufferRelease();
+    wm_window_swap_buffer_release(win);
   }
 }
 
@@ -212,6 +221,7 @@ void GPG_Canvas::GetDisplayDimensions(blender::int2 &scr_size)
 
 void GPG_Canvas::ResizeWindow(int width, int height)
 {
+  /* Get events from ghost, handle window events, add to window queues. */
   m_window->setClientSize(width, height);
 
   Resize(width, height);

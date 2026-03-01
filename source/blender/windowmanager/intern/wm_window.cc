@@ -3531,6 +3531,15 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   GHOST_IWindow *ghost_i_win = (GHOST_IWindow *)ghostwin;
   win->runtime->ghostwin = ghostwin;
 
+#ifdef WITH_GHOST_CSD
+  if (wm_init_state.window_frame &&
+      ((WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_SERVER_SIDE) == 0))
+  {
+    g_system_use_csd = true;
+    WM_window_csd_params_update();
+  }
+#endif /* WITH_GHOST_CSD */
+
   wm_window_clear_drawable(wm);
 
   if (first_time_window) {
@@ -3542,15 +3551,17 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     win->runtime->gpuctx = GPU_context_active_get();
     wm->runtime->message_bus = (wmMsgBus *)runtime_msgbus;
   }
+
+  win->active = true;
+  wm->runtime->winactive = win;
+
+  wm_window_ensure_eventstate(win);
+  WM_window_dpi_set_userdef(win);
+
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
   wm_window_set_drawable(wm, win, false);
   ghost_i_win->setUserData(win); /* pointer back */
-
-  /* We can't call the following function here in blenderplayer pipeline.
-   * We could do it after if we realize that there are issues without this.
-   */
-  // wm_window_ensure_eventstate(win);
 
   /* store actual window size in blender window */
   GHOST_Rect bounds;
@@ -3568,13 +3579,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     ghost_i_win->setState(ghost_i_win->getState());
   }
 #endif
-
-  /* until screens get drawn, make it black */
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
-
-  /* needed here, because it's used before it reads userdef */
-  WM_window_dpi_set_userdef(win);
-
   /* We avoid swap buffers when we aren't at first time
    * to avoid transition when reload or load a new blend */
   if (first_time_window) {

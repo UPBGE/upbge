@@ -362,10 +362,19 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
 {
   uint32_t sysWidth = 0, sysHeight = 0;
   system->getMainDisplayDimensions(sysWidth, sysHeight);
+
   // Create the main window
   GHOST_DisplaySettings settings;
-  settings.xPixels = (useDesktop) ? sysWidth : width;
-  settings.yPixels = (useDesktop) ? sysHeight : height;
+  const char *backend = GHOST_ISystem::getSystemBackend();
+  const bool is_wayland = backend && (strcmp(backend, "WAYLAND") == 0);
+  if (is_wayland) {
+    settings.xPixels = sysWidth;
+    settings.yPixels = sysHeight;
+  }
+  else {
+    settings.xPixels = (useDesktop) ? sysWidth : width;
+    settings.yPixels = (useDesktop) ? sysHeight : height;
+  }
 
   GHOST_GPUSettings gpu_settings = {0};
   const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
@@ -888,7 +897,7 @@ int main(int argc,
   BKE_materials_init();
 
   /* wm_init_exit */
-
+  wm_init_cursor_data();
   BKE_addon_pref_type_init();
   BKE_keyconfig_pref_type_init();
 
@@ -1379,6 +1388,8 @@ int main(int argc,
     // Create the system
     if (GHOST_ISystem::createSystem(true, false) == GHOST_kSuccess) {
       system = GHOST_ISystem::getSystem();
+      GPU_backend_ghost_system_set(system);
+      WM_set_g_system_blenderplayer(system);
       BLI_assert(system);
 
       if (!fullScreenWidth || !fullScreenHeight)
@@ -1699,6 +1710,8 @@ int main(int argc,
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+            WM_check(C);
+            InitBlenderContextVariables(C);
 
             /* Get rid of windows which are not the 3D view windows */
             for (blender::wmWindow *win_in_list = (blender::wmWindow *)wm->windows.first; win_in_list; win_in_list = win_in_list->next) {
@@ -1714,16 +1727,11 @@ int main(int argc,
               BPY_python_start(C, argc, (const char **)argv);
               CTX_py_init_set(C, true);
 #  endif /*WITH_PYTHON*/
-
-              WM_set_g_system_blenderplayer(system);
-              GPU_backend_ghost_system_set(system);
               WM_init_gpu();
-
               blender::ui::theme::init_default();
               blender::ui::init();
               /* To have blf_monofont_render available for generated textures checkerboard */
               blender::ui::reinit_font();
-
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
               shadingTypeRuntime = GetShadingTypeRuntime(C);
@@ -1741,14 +1749,6 @@ int main(int argc,
 
             blender::bScreen *screen = WM_window_get_active_screen(win);
             screen->state = SCREENFULL;
-
-            if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
-              ED_screens_init(C, G_MAIN, wm);
-              wm->init_flag |= WM_INIT_FLAG_WINDOW;
-              /* ED_screen_init can change blender::bContext then we need to restore it again
-               * after... b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
-              InitBlenderContextVariables(C);
-            }
 
             WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
             WM_window_set_active_screen(win, workspace, screen);

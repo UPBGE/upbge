@@ -34,6 +34,7 @@
 #include "BKE_sound.hh"
 #include "DNA_scene_types.h"
 #include "wm_event_types.hh"
+#include "WM_api.hh"
 
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
@@ -190,12 +191,19 @@ void LA_Launcher::InitEngine()
   m_canvas->SetSamples(m_samples);
 
   m_canvas->Init();
-  if (gm.flag & GAME_SHOW_MOUSE) {
+
+  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, nullptr, false);
+
+  bool show_mouse = (gm.flag & GAME_SHOW_MOUSE) != 0;
+  if (show_mouse) {
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
   }
   else {
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
   }
+  m_canvas->SetMousePosition(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2);
+
+  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_NONE, nullptr, !show_mouse);
 
   // Create the inputdevices.
   m_inputDevice = new DEV_InputDevice();
@@ -327,6 +335,7 @@ void LA_Launcher::ExitEngine()
     // load.
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
   }
+  WM_cursor_grab_disable(CTX_wm_window(m_context), nullptr);
 
   // Set vsync mode back to original value.
   m_canvas->SetSwapInterval(m_savedData.vsync);
