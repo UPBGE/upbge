@@ -192,13 +192,7 @@ void LA_Launcher::InitEngine()
 
   m_canvas->Init();
 
-  rcti bounds;
-  bounds.xmin = m_canvas->GetViewportArea().GetLeft();
-  bounds.xmax = m_canvas->GetViewportArea().GetRight();
-  bounds.ymin = m_canvas->GetViewportArea().GetBottom();
-  bounds.ymax = m_canvas->GetViewportArea().GetTop();
-
-  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, &bounds, false);
+  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, nullptr, false);
 
   bool show_mouse = (gm.flag & GAME_SHOW_MOUSE) != 0;
   if (show_mouse) {
@@ -209,7 +203,7 @@ void LA_Launcher::InitEngine()
   }
   m_canvas->SetMousePosition(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2);
 
-  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_NONE, &bounds, !show_mouse);
+  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_NONE, nullptr, !show_mouse);
 
   // Create the inputdevices.
   m_inputDevice = new DEV_InputDevice();

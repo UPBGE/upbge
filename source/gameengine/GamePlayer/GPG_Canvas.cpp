@@ -143,18 +143,13 @@ void GPG_Canvas::SetMousePosition(int x, int y)
   if (system && m_window) {
     int32_t gx = (int32_t)x / m_nativePixelSize;
     int32_t gy = (int32_t)y / m_nativePixelSize;
-    rcti bounds;
-    bounds.xmin = m_viewportArea.GetLeft();
-    bounds.xmax = m_viewportArea.GetRight();
-    bounds.ymin = m_viewportArea.GetBottom();
-    bounds.ymax = m_viewportArea.GetTop();
 
     wmWindow *win = CTX_wm_window(m_context);
-    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_XY, &bounds, m_mousestate != MOUSE_NORMAL);
+    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_XY, nullptr, m_mousestate != MOUSE_NORMAL);
     int event_x = int(gx);
     int event_y = int((m_windowArea.GetHeight() - 1 - gy));
     WM_cursor_warp(win, event_x, event_y);
-    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_NONE, &bounds, m_mousestate != MOUSE_NORMAL);
+    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_NONE, nullptr, m_mousestate != MOUSE_NORMAL);
   }
 }
 
