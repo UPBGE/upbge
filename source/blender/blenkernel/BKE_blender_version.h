@@ -37,6 +37,7 @@ namespace blender {
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
+
 #define BLENDER_FILE_SUBVERSION 5
 
 /* UPBGE file format version. */
