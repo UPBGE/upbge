@@ -2993,7 +2993,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
-            layout.operator("object.transform_axis_target", text="Look At Target")
+            layout.operator("object.transform_axis_target")
 
             layout.separator()
 
@@ -3088,7 +3088,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
-            layout.operator("object.transform_axis_target", text="Look At Target")
+            layout.operator("object.transform_axis_target")
 
             layout.separator()
 
