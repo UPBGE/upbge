@@ -544,12 +544,12 @@ void popup_block_scrolltest(Block *block)
   /* mark buttons overlapping arrows, if we have them */
   for (Button &bt : block->buttons()) {
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      if (bt.rect.ymax < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
+      if (bt.rect.ymax < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
         bt.flag |= UI_SCROLLED;
       }
     }
     if (block->flag & BLOCK_CLIPTOP) {
-      if (bt.rect.ymin > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
+      if (bt.rect.ymin > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
         bt.flag |= UI_SCROLLED;
       }
     }
@@ -607,9 +607,9 @@ void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
     body.start_y += dy;
     body.end_y += dy;
   }
-  for (LayoutPanelHeader &headcer : panel->runtime->layout_panels.headers) {
-    headcer.start_y += dy;
-    headcer.end_y += dy;
+  for (LayoutPanelHeader &header : panel->runtime->layout_panels.headers) {
+    header.start_y += dy;
+    header.end_y += dy;
   }
 }
 
