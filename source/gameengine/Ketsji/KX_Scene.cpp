@@ -3350,14 +3350,16 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     convertBlenderObjectsList,
-                    "convertBlenderObjectsList()\n"
+                    "convertBlenderObjectsList(objects, asynchronous=False)\n"
                     "\n")
 {
   PyObject *list;
   int asynchronous = 0;
 
-  if (!PyArg_ParseTuple(args, "O!i:", &PyList_Type, &list, &asynchronous)) {
-    PyErr_SetString(PyExc_TypeError, "convertBlenderObjectsList: Expected a bpy.types.blender::Object list.");
+  static const char *kwlist[] = {"objects", "asynchronous", nullptr};
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|i:", const_cast<char **>(kwlist), &PyList_Type, &list, &asynchronous)) {
+    PyErr_SetString(PyExc_TypeError, "convertBlenderObjectsList(objects, asynchronous=False): Expected a bpy.types.blender::Object list.");
     return nullptr;
   }
 
@@ -3369,7 +3371,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
     blender::ID *id;
     if (!pyrna_id_FromPyObject(bl_object, &id)) {
-      PyErr_SetString(PyExc_RuntimeError, "convertBlenderObjectsList: Failed to convert object.");
+      PyErr_SetString(PyExc_RuntimeError, "convertBlenderObjectsList(objects, asynchronous=False): Failed to convert object.");
       return nullptr;
     }
 
@@ -3383,20 +3385,22 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     convertBlenderCollection,
-                    "convertBlenderCollection()\n"
+                    "convertBlenderCollection(collection, asynchronous=False)\n"
                     "\n")
 {
   PyObject *bl_collection = Py_None;
-  int asynchronous;
+  int asynchronous = 0;
 
-  if (!PyArg_ParseTuple(args, "Oi:", &bl_collection, &asynchronous)) {
-    PyErr_SetString(PyExc_TypeError, "convertBlenderCollection: Expected a bpy.types.blender::Collection.");
+  static const char *kwlist[] = {"collection", "asynchronous", nullptr};
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|i:", const_cast<char **>(kwlist), &bl_collection, &asynchronous)) {
+    PyErr_SetString(PyExc_TypeError, "convertBlenderCollection(collection, asynchronous=False): Expected a bpy.types.blender::Collection.");
     return nullptr;
   }
 
   blender::ID *id;
   if (!pyrna_id_FromPyObject(bl_collection, &id)) {
-    PyErr_SetString(PyExc_RuntimeError, "convertBlenderCollection: Failed to convert collection.");
+    PyErr_SetString(PyExc_RuntimeError, "convertBlenderCollection(collection, asynchronous=False): Failed to convert collection.");
     return nullptr;
   }
 

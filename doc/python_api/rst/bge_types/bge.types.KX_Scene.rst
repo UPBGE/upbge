@@ -256,7 +256,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       :return: Returns the newly converted gameobject.
       :rtype: :class:`~bge.types.KX_GameObject`
 
-   .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous)
+   .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous=False)
 
       Converts all bpy.types.Object inside a python List into its correspondent :class:`~bge.types.KX_GameObject` during runtime.
       For example, you can append an Object List during bge runtime using: ob = object_data_add(...) and ML.append(ob) then convert the Objects
@@ -265,10 +265,10 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       :arg blenderObjectsList: The Object list to be converted.
       :type blenderObjectsList: list of :class:`~bpy.types.Object`
-      :arg asynchronous: The Object list conversion can be asynchronous or not.
+      :arg asynchronous: Optional. The Object list conversion can be asynchronous or not. Default is False.
       :type asynchronous: boolean
 
-   .. method:: convertBlenderCollection(blenderCollection, asynchronous)
+   .. method:: convertBlenderCollection(blenderCollection, asynchronous=False)
 
       Converts all bpy.types.Object inside a Collection into its correspondent :class:`~bge.types.KX_GameObject` during runtime.
       For example, you can append a Collection from another .blend file during bge runtime
@@ -278,7 +278,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       :arg blenderCollection: The collection to be converted.
       :type blenderCollection: :class:`~bpy.types.Collection`
-      :arg asynchronous: The collection conversion can be asynchronous or not.
+      :arg asynchronous: Optional. The collection conversion can be asynchronous or not. Default is False.
       :type asynchronous: boolean
 
    .. method:: convertBlenderAction(Action)

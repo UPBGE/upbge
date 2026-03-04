@@ -2978,9 +2978,9 @@ struct Scene {
 
   /** None of the dependency graph vars is mean to be saved. */
   SceneDepsgraphsMap *depsgraph_hash = nullptr;
+  void *_pad6 = nullptr;
 
   uint8_t playback_loop_mode = SCE_LOOP_MODE_INFINITE;
-  void *_pad_ptr = nullptr;
   char _pad7[3] = {};
 
   /* User-Defined KeyingSets. */
