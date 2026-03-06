@@ -128,14 +128,14 @@ void main()
   float3 Ng = center_N;
   float3 V = drw_world_incident_vector(P);
 
-  LightProbeSample samp = lightprobe_load(P, Ng, V);
+  LightProbeSample samp = lightprobe_load(float2(texel), P, Ng, V);
 
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
   samp.volume_irradiance = spherical_harmonics_clamp(samp.volume_irradiance, clamp_indirect);
 
   const uchar closure_count = gbuf.header.closure_len();
   const uint3 bin_indices = gbuf.header.bin_index_per_layer();
-  const float thickness = gbuffer::read_thickness(gbuf.header, texel_fullres);
+  const Thickness thickness = gbuffer::read_thickness(gbuf.header, texel_fullres);
 
   for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < closure_count; i++) {
     ClosureUndetermined cl = gbuf.layer_get(i);
