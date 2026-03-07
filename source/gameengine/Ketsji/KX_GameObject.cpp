@@ -1231,8 +1231,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
     if (back_to_level0 || (Mesh *)ob_eval->runtime->data_eval != lod_mesh) {
       BKE_object_free_derived_caches(ob_eval);
       if (back_to_level0) {
-        /* If we come back to level 0, we need to recalc eval data with depsgraph */
-        DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_GEOMETRY);
+        DEG_bump_update_count(depsgraph);
+        ob_eval->runtime->last_update_geometry = DEG_get_update_count(depsgraph) + 1;
       }
       else {
         /* We assign lod_mesh data to ob_eval */
