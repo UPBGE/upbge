@@ -222,7 +222,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   SCA_JoystickManager *joymgr = new SCA_JoystickManager(m_logicmgr);
   m_logicmgr->RegisterEventManager(joymgr);
 
-  m_networkScene = new KX_NetworkMessageScene(messageManager);
+  m_networkMessageScene = new KX_NetworkMessageScene(messageManager);
 
   m_rootnode = nullptr;
 
@@ -428,8 +428,8 @@ KX_Scene::~KX_Scene()
   if (m_physicsEnvironment)
     delete m_physicsEnvironment;
 
-  if (m_networkScene)
-    delete m_networkScene;
+  if (m_networkMessageScene)
+    delete m_networkMessageScene;
 
   if (m_bucketmanager) {
     delete m_bucketmanager;
@@ -2523,12 +2523,12 @@ void KX_Scene::UpdateObjectActivity(void)
 
 KX_NetworkMessageScene *KX_Scene::GetNetworkMessageScene()
 {
-  return m_networkScene;
+  return m_networkMessageScene;
 }
 
 void KX_Scene::SetNetworkMessageScene(KX_NetworkMessageScene *newScene)
 {
-  m_networkScene = newScene;
+  m_networkMessageScene = newScene;
 }
 
 void KX_Scene::SetGravity(const MT_Vector3 &gravity)
@@ -2564,7 +2564,7 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick *brick, KX_Scene *from, KX_Sce
   SCA_LogicManager *logicmgr = to->GetLogicManager();
 
   brick->Replace_IScene(to);
-  brick->Replace_NetworkScene(to->GetNetworkMessageScene());
+  brick->Replace_NetworkMessageScene(to->GetNetworkMessageScene());
   brick->SetLogicManager(to->GetLogicManager());
 
   // If we end up replacing a KX_CollisionEventManager, we need to make sure

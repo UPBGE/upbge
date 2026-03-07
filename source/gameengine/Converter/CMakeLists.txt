@@ -31,7 +31,7 @@ set(INC
   ../Expressions
   ../GameLogic
   ../Ketsji
-  ../Ketsji/KXNetwork
+  ../Ketsji/KXNetworkMessage
   ../Launcher
   ../Physics/Bullet
   ../Physics/Dummy

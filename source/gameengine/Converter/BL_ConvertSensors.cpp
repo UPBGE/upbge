@@ -172,13 +172,13 @@ void BL_ConvertSensors(blender::Object *blenderobject,
               SCA_EventManager::BASIC_EVENTMGR);
           bMessageSensor *msgSens = (bMessageSensor *)sens->data;
 
-          /* Get our NetworkScene */
-          KX_NetworkMessageScene *NetworkScene = kxscene->GetNetworkMessageScene();
+          /* Get our NetworkMessageScene */
+          KX_NetworkMessageScene *NetworkMessageScene = kxscene->GetNetworkMessageScene();
           /* filter on the incoming subjects, might be empty */
           const std::string subject = msgSens->subject;
 
           gamesensor = new SCA_NetworkMessageSensor(eventmgr,      // our eventmanager
-                                                    NetworkScene,  // our NetworkScene
+                                                    NetworkMessageScene,  // our NetworkMessageScene
                                                     gameobj,       // the sensor controlling object
                                                     subject);      // subject to filter on
           break;

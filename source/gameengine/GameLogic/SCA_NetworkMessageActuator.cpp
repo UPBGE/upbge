@@ -26,8 +26,8 @@
  * Ketsji Logic Extension: Network Message Actuator generic implementation
  */
 
-/** \file gameengine/Ketsji/KXNetwork/SCA_NetworkMessageActuator.cpp
- *  \ingroup ketsjinet
+/** \file gameengine/GameLogic/SCA_NetworkMessageActuator.cpp
+ *  \ingroup gamelogic
  */
 
 #include "SCA_NetworkMessageActuator.h"
@@ -38,13 +38,13 @@ using namespace blender;
 
 SCA_NetworkMessageActuator::SCA_NetworkMessageActuator(
     SCA_IObject *gameobj,                  // the actuator controlling object
-    KX_NetworkMessageScene *networkscene,  // needed for replication
+    KX_NetworkMessageScene *networkmessagescene,  // needed for replication
     const std::string &toPropName,
     const std::string &subject,
     int bodyType,
     const std::string &body)
     : SCA_IActuator(gameobj, KX_ACT_MESSAGE),
-      m_networkscene(networkscene),
+      m_networkmessagescene(networkmessagescene),
       m_toPropName(toPropName),
       m_subject(subject),
       m_bPropBody(bodyType),
@@ -68,11 +68,11 @@ bool SCA_NetworkMessageActuator::Update()
 
   // ACT_MESG_PROP in DNA_actuator_types.h
   if (m_bPropBody) {
-    m_networkscene->SendMessage(
+    m_networkmessagescene->SendMessage(
         m_toPropName, GetParent(), m_subject, GetParent()->GetPropertyText(m_body));
   }
   else {
-    m_networkscene->SendMessage(m_toPropName, GetParent(), m_subject, m_body);
+    m_networkmessagescene->SendMessage(m_toPropName, GetParent(), m_subject, m_body);
   }
   return false;
 }

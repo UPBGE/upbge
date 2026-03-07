@@ -26,7 +26,7 @@
  * Ketsji Logic Extension: Network Message blender::Scene generic implementation
  */
 
-/** \file gameengine/Ketsji/KXNetwork/KX_NetworkMessageManager.cpp
+/** \file gameengine/Ketsji/KXNetworkMessage/KX_NetworkMessageManager.cpp
  *  \ingroup ketsjinet
  */
 

@@ -33,7 +33,7 @@ set(INC
   ../GameLogic
   ../GamePlayer
   ../Ketsji
-  ../Ketsji/KXNetwork
+  ../Ketsji/KXNetworkMessage
   ../Rasterizer
   ../SceneGraph
   ../VideoTexture

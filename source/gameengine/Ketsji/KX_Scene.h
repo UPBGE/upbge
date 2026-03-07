@@ -195,7 +195,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   /**
    * Network scene.
    */
-  KX_NetworkMessageScene *m_networkScene;
+  KX_NetworkMessageScene *m_networkMessageScene;
 
   /**
    * A temporary variable used to parent objects together on

@@ -25,7 +25,7 @@
 
 set(INC
   .
-  KXNetwork
+  KXNetworkMessage
   ../BlenderRoutines
   ../Common
   ../Converter

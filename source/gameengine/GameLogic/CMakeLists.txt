@@ -30,7 +30,7 @@ set(INC
   ../Device
   ../Expressions
   ../Ketsji
-  ../Ketsji/KXNetwork
+  ../Ketsji/KXNetworkMessage
   ../Physics/Common
   ../Rasterizer
   ../SceneGraph
