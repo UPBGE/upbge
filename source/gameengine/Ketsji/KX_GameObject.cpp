@@ -1231,7 +1231,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
     if (back_to_level0 || (Mesh *)ob_eval->runtime->data_eval != lod_mesh) {
       BKE_object_free_derived_caches(ob_eval);
       if (back_to_level0) {
-        /* If we come back to level 0, we need to relcal eval data with depsgraph */
+        /* If we come back to level 0, we need to recalc eval data with depsgraph */
         DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_GEOMETRY);
       }
       else {
@@ -1248,7 +1248,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   if (updatePhysicsShape) {
     /* If we come back to level 0, physics shape will be reinstanced from RAS_MeshObject
      * as ob_eval->data has been cleared (free derived caches), else, physics shape will
-     * be reinstaciated from assigned lodmesh. */
+     * be reinstanced from assigned lodmesh. */
     GetPhysicsController()->ReinstancePhysicsShape(this, nullptr, false, true);
   }
 }
