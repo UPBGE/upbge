@@ -76,9 +76,9 @@ float shadow_pcf_uniform(LightData light,
   float3 right, up;
   make_orthonormal_basis(L, right, up);
 
-  const float kernel[9] = float[9](1.0f, 2.0f, 1.0f,
-                                   2.0f, 4.0f, 2.0f,
-                                   1.0f, 2.0f, 1.0f);
+  const float kernel[9] = {1.0f, 2.0f, 1.0f,
+                           2.0f, 4.0f, 2.0f,
+                           1.0f, 2.0f, 1.0f};
   const float kernel_sum = 16.0f;
 
   float vis_sum = 0.0f;
