@@ -1972,7 +1972,7 @@ int main(int argc,
   ED_file_exit(); /* for fsmenu */
 
   DRW_gpu_context_enable_ex(false);
-  blender::ui::ui_exit();
+  blender::ui::exit();
   GPU_shader_cache_dir_clear_old();
   GPU_exit();
   DRW_gpu_context_disable_ex(false);

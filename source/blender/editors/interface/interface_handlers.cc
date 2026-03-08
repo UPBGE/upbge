@@ -20,6 +20,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_curveprofile_types.h"
+#include "DNA_object_types.h"  // UPBGE
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
@@ -2323,7 +2324,6 @@ static uiLinkLine *ui_but_find_link(Button *from, Button *to)
   return NULL;
 }
 
-#include "DNA_object_types.h"  // UPBGE
 /* XXX BAD BAD HACK, fixme later **************** */
 /* Try to add an AND Controller between the sensor and the actuator logic bricks and to connect
  * them all */
@@ -2483,7 +2483,7 @@ static void ui_apply_but_LINK(bContext *C, Button *but, HandleButtonData *data)
     else
       ui_but_link_add(C, bt, but);
 
-    ui_apply_but_func(C, but);
+    apply_but_func(C, but);
     data->retval = but->retval;
   }
   data->applied = true;
@@ -8598,7 +8598,6 @@ static int do_but_WAVEFORM(
   return WM_UI_HANDLER_CONTINUE;
 }
 
-<<<<<<< HEAD
 static int ui_do_but_LINK(bContext *C, Button *but, HandleButtonData *data, const wmEvent *event)
 {
   copy_v2_v2_int(but->linkto, event->mval);
@@ -8626,10 +8625,7 @@ static int ui_do_but_LINK(bContext *C, Button *but, HandleButtonData *data, cons
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static bool ui_numedit_but_TRACKPREVIEW(
-=======
 static bool numedit_but_TRACKPREVIEW(
->>>>>>> b/main
     bContext *C, Button *but, HandleButtonData *data, int mx, int my, const bool shift)
 {
   MovieClipScopes *scopes = reinterpret_cast<MovieClipScopes *>(but->poin);
@@ -10235,7 +10231,7 @@ static int handle_button_event(bContext *C, const wmEvent *event, Button *but)
       case MOUSEMOVE: {
         if (ELEM(but->type, ButtonType::Link, ButtonType::Inlink)) {
           but->flag |= UI_SELECT;
-          ui_do_button(C, block, but, event);
+          do_button(C, block, but, event);
           ED_region_tag_redraw(data->region);
         }
         /* deselect the button when moving the mouse away */
