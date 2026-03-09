@@ -353,12 +353,6 @@ KX_Scene::~KX_Scene()
   }
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
-    if (!m_isPythonMainLoop) {
-      if (m_currentGPUViewport) {
-        /* This will free m_currentGPUViewport */
-        GPU_viewport_free(m_currentGPUViewport);
-      }
-    }
   }
   else {
     // Free the allocated profile a last time
