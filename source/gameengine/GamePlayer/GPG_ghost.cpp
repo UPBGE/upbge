@@ -159,25 +159,21 @@ void UV_clipboard_free(void);
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;
 
-/* Previously, boost::split was used but the boost include was causing issues that I didn't managed
- * to solve, and it was also causing Visual studio text highlighting problems in gpg_ghost.cpp,
- * then I choosed to workaround without using boost. The following func has been found on a random
- * blog on the net */
-static void custom_split_string(std::vector<std::string> &parts,
-                                std::string fullstring,
-                                char *separator)
+/* Split a string by a single character separator into parts.
+ * Uses BLI_strchr_or_end. */
+static void split_string_parts(std::vector<std::string> &parts,
+                               const std::string &fullstring,
+                               char separator)
 {
-  int startIndex = 0, endIndex = 0;
-  for (int i = 0; i <= fullstring.size(); i++) {
-
-    // If we reached the end of the word or the end of the input.
-    if (fullstring[i] == *separator || i == fullstring.size()) {
-      endIndex = i;
-      std::string temp;
-      temp.append(fullstring, startIndex, endIndex - startIndex);
-      parts.push_back(temp);
-      startIndex = endIndex + 1;
+  const char *s = fullstring.c_str();
+  const char *p = s;
+  for (;;) {
+    const char *q = BLI_strchr_or_end(p, separator);
+    parts.emplace_back(p, q - p);
+    if (*q == '\0') {
+      break;
     }
+    p = q + 1;
   }
 }
 
@@ -1659,15 +1655,15 @@ int main(int argc,
                 std::string path = titlename;
                 std::vector<std::string> parts;
 #ifndef WIN32
-                custom_split_string(parts, path, (char *)("/"));
+                split_string_parts(parts, path, '/');
 #else   // WIN32
-                custom_split_string(parts, path, (char *)("\\"));
+                split_string_parts(parts, path, '\\');
 #endif  // WIN32
                 std::string title;
                 if (parts.size()) {
                   title = parts[parts.size() - 1];
                   std::vector<std::string> sublastparts;
-                  custom_split_string(sublastparts, title, (char *)("."));
+                  split_string_parts(sublastparts, title, '.');
                   if (sublastparts.size() > 1) {
                     title = sublastparts[0];
                   }
