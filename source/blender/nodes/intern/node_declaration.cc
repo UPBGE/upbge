@@ -381,6 +381,9 @@ static bool socket_type_to_static_decl_type(const eNodeSocketDatatype socket_typ
     case SOCK_CLOSURE:
       fn.template operator()<decl::Closure>();
       return true;
+    case SOCK_INT_VECTOR:
+      fn.template operator()<decl::IntVector>();
+      return true;
     default:
       return false;
   }
@@ -466,7 +469,7 @@ void DeclarationListBuilder::add_layout(
   this->items.append(&decl);
 }
 
-PanelDeclarationBuilder &DeclarationListBuilder::add_panel(const StringRef name, int identifier)
+PanelDeclarationBuilder &DeclarationListBuilder::add_panel(const UString name, int identifier)
 {
   auto panel_decl_ptr = std::make_unique<PanelDeclaration>();
   PanelDeclaration &panel_decl = *panel_decl_ptr;

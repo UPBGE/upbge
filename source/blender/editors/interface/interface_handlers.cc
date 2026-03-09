@@ -365,6 +365,9 @@ struct HandleButtonMulti {
    * here so we can tell if this is a vertical motion or not. */
   float drag_dir[2] = {0.0f, 0.0f};
 
+  /* Previous mouse position for accumulating drag_dir. */
+  int drag_dir_prev[2] = {0, 0};
+
   /* values copied direct from event->xy
    * used to detect buttons between the current and initial mouse position */
   int drag_start[2] = {0, 0};
@@ -6079,6 +6082,8 @@ static int do_but_NUM(
 
 #ifdef USE_DRAG_MULTINUM
       copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
     }
   }
@@ -6113,8 +6118,10 @@ static int do_but_NUM(
       float fac;
 
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
 
       fac = 1.0f;
@@ -6445,6 +6452,8 @@ static int do_but_SLI(
     }
 #ifdef USE_DRAG_MULTINUM
     copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+    data->multi_data.drag_dir_prev[0] = mx;
+    data->multi_data.drag_dir_prev[1] = my;
 #endif
   }
   else if (data->state == BUTTON_STATE_NUM_EDITING) {
@@ -6479,8 +6488,10 @@ static int do_but_SLI(
     else if ((event->type == MOUSEMOVE) || event_is_snap(event)) {
       const bool is_motion = (event->type == MOUSEMOVE);
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
       if (numedit_but_SLI(but,
                           data,
@@ -9137,7 +9148,9 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
           time = 1;
         }
         else if (but->block->flag & BLOCK_LOOP && but->type == ButtonType::Pulldown) {
-          time = 5 * U.menuthreshold2;
+          /* When auto open is disabled, open subpanel on hover but don't rely on sub level
+           * threshold value, see: #153110 */
+          time = (U.uiflag & USER_MENUOPENAUTO) ? 5 * U.menuthreshold2 : 10;
         }
         else if (U.uiflag & USER_MENUOPENAUTO) {
           time = 5 * U.menuthreshold1;

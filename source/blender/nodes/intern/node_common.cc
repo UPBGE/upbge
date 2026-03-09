@@ -299,6 +299,17 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
                     .max(value.max);
         break;
       }
+      case SOCK_INT_VECTOR: {
+        const auto &value = node_interface::get_socket_data_as<bNodeSocketValueIntVector>(
+            io_socket);
+        decl = &b.add_socket<decl::IntVector>(name, identifier, in_out)
+                    .subtype(PropertySubType(value.subtype))
+                    .default_value(int3(value.value))
+                    .dimensions(value.dimensions)
+                    .min(value.min)
+                    .max(value.max);
+        break;
+      }
       case SOCK_RGBA: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueRGBA>(io_socket);
         decl = &b.add_socket<decl::Color>(name, identifier, in_out).default_value(value.value);
@@ -472,7 +483,7 @@ static void node_group_declare_panel_recursive(
       case NODE_INTERFACE_PANEL: {
         add_layout_if_needed();
         const auto &io_panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
-        auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
+        auto &panel_b = b.add_panel(UString(io_panel.name), io_panel.identifier)
                             .description(StringRef(io_panel.description))
                             .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
         node_group_declare_panel_recursive(
