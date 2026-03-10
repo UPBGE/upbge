@@ -1907,10 +1907,6 @@ int main(int argc,
   UV_clipboard_free();
   wm_clipboard_free();
 
-#ifdef WITH_COMPOSITOR_CPU
-  COM_deinitialize();
-#endif
-
   blender::bke::subdiv::exit();
 
   BKE_image_free_unused_gpu_textures();
