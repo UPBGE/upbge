@@ -1693,11 +1693,6 @@ int main(int argc,
                                          alphaBackground);
                 }
               }
-              /* wm context */
-              blender::wmWindowManager *wm = (blender::wmWindowManager *)G_MAIN->wm.first;
-              blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
-              CTX_wm_manager_set(C, wm);
-              CTX_wm_window_set(C, win);
             }
 
             blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
