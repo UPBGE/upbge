@@ -392,9 +392,9 @@ eGPUDataFormat Result::get_gpu_data_format() const
   return Result::gpu_data_format(type_);
 }
 
-static Domain sanitize_domain_size(const Domain domain,
-                                   const Context &context,
-                                   const std::optional<ResultStorageType> storage_type)
+static Domain sanitize_domain_data_size(const Domain domain,
+                                        const Context &context,
+                                        const std::optional<ResultStorageType> storage_type)
 {
   Domain sanitized_domain = domain;
   const bool use_gpu = storage_type.has_value() ? storage_type.value() == ResultStorageType::GPU :
@@ -413,7 +413,7 @@ void Result::allocate_texture(const Domain domain,
   BLI_assert(!Result::is_single_value_only_type(this->type()));
 
   is_single_value_ = false;
-  domain_ = sanitize_domain_size(domain, *context_, storage_type);
+  domain_ = sanitize_domain_data_size(domain, *context_, storage_type);
   this->allocate_data(domain_.data_size, from_pool, storage_type);
 }
 
@@ -804,6 +804,38 @@ bool Result::is_allocated() const
 int Result::reference_count() const
 {
   return reference_count_;
+}
+
+int64_t Result::channels_count() const
+{
+  if (storage_type_ == ResultStorageType::GPU) {
+    return GPU_texture_component_len(GPU_texture_format(this->gpu_texture()));
+  }
+
+  switch (type_) {
+    case ResultType::Float:
+    case ResultType::Int:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      return 1;
+    case ResultType::Float2:
+    case ResultType::Int2:
+      return 2;
+    case ResultType::Float3:
+    case ResultType::Int3:
+      return 3;
+    case ResultType::Color:
+    case ResultType::Float4:
+      return 4;
+    case ResultType::String:
+      /* Single only types do not have channels. */
+      BLI_assert(Result::is_single_value_only_type(type_));
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return 4;
 }
 
 int64_t Result::size_in_bytes() const
