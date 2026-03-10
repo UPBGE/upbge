@@ -38,7 +38,7 @@
 
 class SCA_NetworkMessageActuator : public SCA_IActuator {
   Py_Header bool m_lastEvent;
-  class KX_NetworkMessageScene *m_networkscene;  // needed for replication
+  class KX_NetworkMessageScene *m_networkmessagescene;  // needed for replication
   std::string m_toPropName;
   std::string m_subject;
   bool m_bPropBody;
@@ -46,7 +46,7 @@ class SCA_NetworkMessageActuator : public SCA_IActuator {
 
  public:
   SCA_NetworkMessageActuator(SCA_IObject *gameobj,
-                             KX_NetworkMessageScene *networkscene,
+                             KX_NetworkMessageScene *networkmessagescene,
                              const std::string &toPropName,
                              const std::string &subject,
                              int bodyType,
@@ -55,8 +55,8 @@ class SCA_NetworkMessageActuator : public SCA_IActuator {
 
   virtual bool Update();
   virtual EXP_Value *GetReplica();
-  virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
+  virtual void Replace_NetworkMessageScene(KX_NetworkMessageScene *val)
   {
-    m_networkscene = val;
+    m_networkmessagescene = val;
   };
 };

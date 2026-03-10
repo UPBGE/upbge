@@ -202,7 +202,11 @@ class RENDER_PT_color_management_working_space(RenderButtonsPanel, Panel):
             text_ctxt=i18n_contexts.default,
         )
 
-        col.prop(scene.sequencer_colorspace_settings, "name", text="Sequencer")
+        col.prop_with_menu(
+            scene.sequencer_colorspace_settings,
+            "name",
+            text="Sequencer",
+            menu="UI_MT_color_space_select")
 
 
 class RENDER_PT_color_management_advanced(RenderButtonsPanel, Panel):
@@ -898,6 +902,7 @@ class RENDER_PT_eevee_performance(RenderButtonsPanel, Panel):
         layout.use_property_decorate = False  # No animation.
 
         layout.prop(rd, "use_high_quality_normals")
+        layout.prop(rd, "anisotropic_filter")
 
 
 class CompositorPerformanceButtonsPanel:

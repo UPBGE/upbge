@@ -921,7 +921,7 @@ void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
   data->pool = nullptr;
 
   const bool had_layer = CustomData_free_layer_active(data, eCustomDataType(type));
-  /* Assert because its expensive to realloc - better not do if layer isn't present. */
+  /* Assert because its expensive to reallocate - better not do if layer isn't present. */
   BLI_assert(had_layer != false);
   UNUSED_VARS_NDEBUG(had_layer);
 

@@ -388,12 +388,12 @@ except ImportError:
 # to avoid having to match Blender's source tree.
 EXTRA_SOURCE_FILES = (
     "../../../scripts/templates_py/bmesh_simple.py",
-    "../../../scripts/templates_py/gizmo_operator.py",
-    "../../../scripts/templates_py/gizmo_operator_target.py",
-    "../../../scripts/templates_py/gizmo_simple_3d.py",
-    "../../../scripts/templates_py/operator_simple.py",
-    "../../../scripts/templates_py/ui_panel_simple.py",
-    "../../../scripts/templates_py/ui_previews_custom_icon.py",
+    "../../../scripts/templates_py/Gizmo/operator.py",
+    "../../../scripts/templates_py/Gizmo/operator_target.py",
+    "../../../scripts/templates_py/Gizmo/simple_3d.py",
+    "../../../scripts/templates_py/Operator/simple.py",
+    "../../../scripts/templates_py/UI/panel_simple.py",
+    "../../../scripts/templates_py/UI/previews_custom_icon.py",
     "../examples/bmesh.ops.1.py",
     "../examples/bpy.app.translations.0.py",
 )
@@ -1840,7 +1840,7 @@ def pyrna2sphinx(basepath):
                         fw(pyrna_deprecated_directive("      ", deprecated))
                         fw("\n")
 
-                fw("      :rtype: ({:s})\n".format(", ".join(type_descrs)))
+                fw("      :rtype: tuple[{:s}]\n".format(", ".join(type_descrs)))
 
             write_example_ref("      ", fw, struct_module_name + "." + struct_id + "." + func.identifier)
 

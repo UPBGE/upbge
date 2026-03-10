@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "util/defines.h"
+#include "util/optimization.h"
 
 /* SSE Intrinsics includes
  *
@@ -47,7 +48,7 @@
 #    define SIMD_GET_FLUSH_TO_ZERO get_fz(_MM_FLUSH_ZERO_ON)
 #  else
 #    define _MM_FLUSH_ZERO_ON 24
-#    define __get_fpcr(__fpcr) _ReadStatusReg(__fpcr)
+#    define __get_fpcr(__fpcr) __fpcr = _ReadStatusReg(0x5A20)
 #    define __set_fpcr(__fpcr) _WriteStatusReg(0x5A20, __fpcr)
 #    define SIMD_SET_FLUSH_TO_ZERO set_fz(_MM_FLUSH_ZERO_ON);
 #    define SIMD_GET_FLUSH_TO_ZERO get_fz(_MM_FLUSH_ZERO_ON)
@@ -131,7 +132,7 @@ __forceinline int set_fz(const uint32_t flag)
   uint64_t old_fpcr;
   uint64_t new_fpcr;
   __get_fpcr(old_fpcr);
-  new_fpcr = old_fpcr | (1ULL << flag);
+  new_fpcr = old_fpcr | (uint64_t(1) << flag);
   __set_fpcr(new_fpcr);
   __get_fpcr(old_fpcr);
   return old_fpcr == new_fpcr;
@@ -140,7 +141,7 @@ __forceinline int get_fz(const uint32_t flag)
 {
   uint64_t cur_fpcr;
   __get_fpcr(cur_fpcr);
-  return (cur_fpcr & (1ULL << flag)) > 0 ? 1 : 0;
+  return (cur_fpcr & (uint64_t(1) << flag)) > 0 ? 1 : 0;
 }
 #endif
 
@@ -397,7 +398,7 @@ __forceinline uint64_t bitscan(const uint64_t v)
 __forceinline uint32_t __bsf(const uint32_t x)
 {
   for (uint32_t i = 0; i < 32; i++) {
-    if (x & (1U << i)) {
+    if (x & (uint32_t(1) << i)) {
       return i;
     }
   }
@@ -407,7 +408,7 @@ __forceinline uint32_t __bsf(const uint32_t x)
 __forceinline uint32_t __bsr(const uint32_t x)
 {
   for (uint32_t i = 0; i < 32; i++) {
-    if (x & (1U << (31 - i))) {
+    if (x & (uint32_t(1) << (31 - i))) {
       return (31 - i);
     }
   }
@@ -416,14 +417,14 @@ __forceinline uint32_t __bsr(const uint32_t x)
 
 __forceinline uint32_t __btc(const uint32_t x, const uint32_t bit)
 {
-  const uint32_t mask = 1U << bit;
-  return x & (~mask);
+  const uint32_t mask = uint32_t(1) << bit;
+  return x ^ mask;
 }
 
 __forceinline uint32_t __bsf(const uint64_t x)
 {
   for (uint32_t i = 0; i < 64; i++) {
-    if (x & (1UL << i)) {
+    if (x & (uint64_t(1) << i)) {
       return i;
     }
   }
@@ -433,7 +434,7 @@ __forceinline uint32_t __bsf(const uint64_t x)
 __forceinline uint32_t __bsr(const uint64_t x)
 {
   for (uint32_t i = 0; i < 64; i++) {
-    if (x & (1UL << (63 - i))) {
+    if (x & (uint64_t(1) << (63 - i))) {
       return (63 - i);
     }
   }
@@ -442,28 +443,20 @@ __forceinline uint32_t __bsr(const uint64_t x)
 
 __forceinline uint64_t __btc(const uint64_t x, const uint32_t bit)
 {
-  const uint64_t mask = 1UL << bit;
-  return x & (~mask);
+  const uint64_t mask = uint64_t(1) << bit;
+  return x ^ mask;
 }
 
 __forceinline uint32_t bitscan(const uint32_t value)
 {
   assert(value != 0);
-  uint32_t bit = 0;
-  while ((value & (1 << bit)) == 0) {
-    ++bit;
-  }
-  return bit;
+  return __bsf(value);
 }
 
 __forceinline uint64_t bitscan(const uint64_t value)
 {
   assert(value != 0);
-  uint64_t bit = 0;
-  while ((value & (1 << bit)) == 0) {
-    ++bit;
-  }
-  return bit;
+  return __bsf(value);
 }
 
 #endif /* Intrinsics */

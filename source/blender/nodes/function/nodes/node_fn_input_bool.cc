@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 #include "NOD_geometry_nodes_gizmos.hh"
 
@@ -24,12 +25,32 @@ static void node_declare(NodeDeclarationBuilder &b)
   });
 }
 
+static int gpu_shader_bool(GPUMaterial *mat,
+                           bNode *node,
+                           bNodeExecData * /*execdata*/,
+                           GPUNodeStack * /*in*/,
+                           GPUNodeStack *out)
+{
+  NodeInputBool *node_storage = static_cast<NodeInputBool *>(node->storage);
+  float value = static_cast<float>(node_storage->boolean);
+  return GPU_link(mat, "set_value", GPU_uniform(&value), &out->link);
+}
+
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &bnode = builder.node();
   NodeInputBool *node_storage = static_cast<NodeInputBool *>(bnode.storage);
   builder.construct_and_set_matching_fn<mf::CustomMF_Constant<bool>>(node_storage->boolean);
 }
+
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  NodeItem boolean = get_output_default("Boolean", NodeItem::Type::Boolean);
+  return create_node("constant", NodeItem::Type::Boolean, {{"value", boolean}});
+}
+#endif
+NODE_SHADER_MATERIALX_END
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
@@ -41,7 +62,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_cmp_node_type_base(&ntype, "FunctionNodeInputBool", FN_NODE_INPUT_BOOL);
+  common_node_type_base(&ntype, "FunctionNodeInputBool", FN_NODE_INPUT_BOOL);
   ntype.ui_name = "Boolean";
   ntype.ui_description =
       "Provide a True/False value that can be connected to other nodes in the tree";
@@ -49,9 +70,12 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
+  ntype.gpu_fn = gpu_shader_bool;
   bke::node_type_storage(
       ntype, "NodeInputBool", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
+  ntype.materialx_fn = node_shader_materialx;
+
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

@@ -531,7 +531,7 @@ enum PropertyOverrideFlag {
    * created for it, and no attempt to restore the data from linked reference either.
    *
    * WARNING: This flag should be used with a lot of caution, as it completely bypasses override
-   * system. It is currently only used for ID's names, since we cannot prevent local override to
+   * system. It is used for example for ID's names, since we cannot prevent local override to
    * get a different name from the linked reference, and ID names are 'rna name property' (i.e. are
    * used in overrides of collections of IDs). See also `BKE_lib_override_library_update()` where
    * we deal manually with the value of that property at DNA level. */

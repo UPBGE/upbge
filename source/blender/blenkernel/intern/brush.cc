@@ -1734,6 +1734,25 @@ static bool is_paint_tool(const Brush &brush)
               SCULPT_BRUSH_TYPE_SMEAR,
               SCULPT_BRUSH_TYPE_BLUR);
 }
+/**
+ * A helper method for classifying a certain subset of brush types.
+ *
+ * Certain sculpt deformations are 'grab-like' in that they behave as if they have an anchored
+ * start point.
+ */
+static bool is_grab_tool(const Brush &brush)
+{
+  return (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH &&
+          brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) ||
+         ELEM(brush.sculpt_brush_type,
+              SCULPT_BRUSH_TYPE_GRAB,
+              SCULPT_BRUSH_TYPE_SNAKE_HOOK,
+              SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+              SCULPT_BRUSH_TYPE_POSE,
+              SCULPT_BRUSH_TYPE_BOUNDARY,
+              SCULPT_BRUSH_TYPE_THUMB,
+              SCULPT_BRUSH_TYPE_ROTATE);
+}
 bool supports_dyntopo(const Brush &brush)
 {
   return !ELEM(brush.sculpt_brush_type,
@@ -1770,7 +1789,8 @@ bool supports_accumulate(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
               SCULPT_BRUSH_TYPE_ROTATE,
-              SCULPT_BRUSH_TYPE_PLANE);
+              SCULPT_BRUSH_TYPE_PLANE,
+              SCULPT_BRUSH_TYPE_SCENE_PROJECT);
 }
 bool supports_topology_rake(const Brush &brush)
 {
@@ -1814,11 +1834,7 @@ bool supports_plane_depth(const Brush &brush)
 bool supports_jitter(const Brush &brush)
 {
   return !(ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT)) &&
-         !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-               SCULPT_BRUSH_TYPE_THUMB);
+         !is_grab_tool(brush);
 }
 bool supports_normal_weight(const Brush &brush)
 {
@@ -1852,11 +1868,7 @@ bool supports_plane_offset(const Brush &brush)
 }
 bool supports_random_texture_angle(const Brush &brush)
 {
-  return !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-               SCULPT_BRUSH_TYPE_THUMB);
+  return !is_grab_tool(brush);
 }
 bool supports_sculpt_plane(const Brush &brush)
 {
@@ -1894,40 +1906,12 @@ bool supports_smooth_stroke(const Brush &brush)
                 BRUSH_STROKE_DRAG_DOT,
                 BRUSH_STROKE_LINE,
                 BRUSH_STROKE_CURVE)) &&
-         !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-               SCULPT_BRUSH_TYPE_THUMB);
+         !is_grab_tool(brush);
 }
 bool supports_space_attenuation(const Brush &brush)
 {
   return ELEM(brush.stroke_method, BRUSH_STROKE_SPACE, BRUSH_STROKE_LINE, BRUSH_STROKE_CURVE) &&
-         !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SMOOTH,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK);
-}
-
-/**
- * A helper method for classifying a certain subset of brush types.
- *
- * Certain sculpt deformations are 'grab-like' in that they behave as if they have an anchored
- * start point.
- */
-static bool is_grab_tool(const Brush &brush)
-{
-  return (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH &&
-          brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) ||
-         ELEM(brush.sculpt_brush_type,
-              SCULPT_BRUSH_TYPE_GRAB,
-              SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-              SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
-              SCULPT_BRUSH_TYPE_POSE,
-              SCULPT_BRUSH_TYPE_BOUNDARY,
-              SCULPT_BRUSH_TYPE_THUMB,
-              SCULPT_BRUSH_TYPE_ROTATE);
+         !is_grab_tool(brush);
 }
 bool supports_strength_pressure(const Brush &brush)
 {
@@ -1960,7 +1944,8 @@ bool supports_inverted_direction(const Brush &brush)
               SCULPT_BRUSH_TYPE_PLANE,
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_PINCH,
-              SCULPT_BRUSH_TYPE_MASK);
+              SCULPT_BRUSH_TYPE_MASK,
+              SCULPT_BRUSH_TYPE_SCENE_PROJECT);
 }
 bool supports_gravity(const Brush &brush)
 {

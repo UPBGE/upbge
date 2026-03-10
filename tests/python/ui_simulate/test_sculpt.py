@@ -312,3 +312,38 @@ def trim_gestures():
     yield from ui.call_operator(e, "Line Trim")
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_y(window))
     t.assertEqual(mesh.attributes.domain_size('POINT'), 10)
+
+
+def primitive_tool_add():
+    import bpy
+    e, t, window = ui.test_window()
+
+    yield e.ctrl.tab().s()                                                # Sculpt via pie menu.
+
+    yield from ui.call_menu(e, "Sculpt -> Add Primitive -> Add Cube")     # Select add cube tool
+
+    area = ui.get_window_area_by_type(window, 'VIEW_3D')
+    position = (area.x + area.width // 2, area.y + area.height // 2)
+    yield e.cursor_position_set(*position, move=True)                     # Move mouse to center
+
+    e.leftmouse.press()
+    yield
+
+    pixels = 10
+    for delta in range(pixels):
+        position = (position[0] + delta, position[1] + delta)
+        yield e.cursor_position_set(*position, move=True)
+
+    e.leftmouse.release()
+    yield
+
+    for delta in range(pixels):
+        position = (position[0] - delta, position[1] - delta)
+        yield e.cursor_position_set(*position, move=True)
+
+    e.leftmouse.tap()
+    yield
+
+    mesh = bpy.context.object.data
+    num_faces = mesh.attributes.domain_size('FACE')
+    t.assertEqual(num_faces, 12)                                          # There should be 6 + 6 faces

@@ -1521,7 +1521,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_bmesh(Object &object,
 
     if (!next_segment_data) {
       /* It is possible that when traversing neighbors that we no longer have any vertices that
-       * have not been assigned to a face set when trying to find the next segement's starting
+       * have not been assigned to a face set when trying to find the next segment's starting
        * point. All further segments are invalid in this case. */
       break;
     }

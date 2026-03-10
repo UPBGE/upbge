@@ -358,6 +358,10 @@ void MeshFromGeometry::create_uv_verts(Mesh *mesh)
   if (!added_uv) {
     attributes.remove("UVMap");
   }
+  else {
+    mesh->uv_maps_active_set("UVMap");
+    mesh->uv_maps_default_set("UVMap");
+  }
 }
 
 static Material *get_or_create_material(Main *bmain,

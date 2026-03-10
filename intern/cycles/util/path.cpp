@@ -492,7 +492,7 @@ string path_make_relative(const string &path_, const string &base_)
 
   /* Also don't make relative if root directories are different. This prevents
    * typical cases like making relative to /tmp. */
-  if (root_name.empty() && path.root_directory() != path.root_directory()) {
+  if (root_name.empty() && path.root_directory() != base.root_directory()) {
     return path_;
   }
 
@@ -717,7 +717,7 @@ bool path_write_binary(const string &path, const vector<uint8_t> &binary)
   return true;
 }
 
-bool path_write_text(const string &path, string &text)
+bool path_write_text(const string &path, const string &text)
 {
   vector<uint8_t> binary(text.length(), 0);
   std::copy(text.begin(), text.end(), binary.begin());

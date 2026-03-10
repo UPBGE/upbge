@@ -884,20 +884,27 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   rect_tex.xmax = 1.0f + halfx;
   rect_tex.ymax = 1.0f + halfy;
 
-  float alpha_easing = 1.0f - alpha;
-  alpha_easing = 1.0f - alpha_easing * alpha_easing;
+  /* Quadratic ease-out: 1 - (1 - alpha)^2 == alpha * (2 - alpha). */
+  float alpha_easing = alpha * (2.0f - alpha);
 
-  /* Slide vertical panels. */
+  /* Slide panels. */
   float ofs_x = BLI_rcti_size_x(&region->winrct) * (1.0f - alpha_easing);
+  float ofs_y = BLI_rcti_size_y(&region->winrct) * (1.0f - alpha_easing);
   if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_RIGHT) {
     rect_geo.xmin += ofs_x;
     rect_tex.xmax *= alpha_easing;
-    alpha = 1.0f;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_LEFT) {
     rect_geo.xmax -= ofs_x;
     rect_tex.xmin += 1.0f - alpha_easing;
-    alpha = 1.0f;
+  }
+  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) {
+    rect_geo.ymin += ofs_y;
+    rect_tex.ymax *= alpha_easing;
+  }
+  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_BOTTOM) {
+    rect_geo.ymax -= ofs_y;
+    rect_tex.ymin += 1.0f - alpha_easing;
   }
 
   /* Not the same layout as #rctf/#rcti. */
@@ -925,7 +932,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
 
   GPU_shader_uniform_float_ex(shader, rect_tex_loc, 4, 1, rectt);
   GPU_shader_uniform_float_ex(shader, rect_geo_loc, 4, 1, rectg);
-  GPU_shader_uniform_float_ex(shader, color_loc, 4, 1, float4{1, 1, 1, 1});
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, float4{alpha_easing, alpha_easing, alpha_easing, alpha_easing});
 
   gpu::Batch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);
@@ -1672,8 +1680,20 @@ void wm_draw_update(bContext *C)
 
   CTX_wm_window_set(C, nullptr);
 
-  /* Draw non-windows (surfaces). */
+  /* Draw surfaces (non-windows, currently only used for XR). */
   wm_surfaces_iter(C, wm_draw_surface);
+
+  /* Restore GPU context to the last valid window if surface drawing cleared it, also restore DPI.
+   * This is required for GPU rendering code called before the next window redraw. Such as by
+   * events, handlers and notifiers (see #WM_main). */
+  if (wm->runtime->windrawable == nullptr && GPU_context_active_get() == nullptr) {
+    for (wmWindow &win : wm->windows.items_reversed()) {
+      if (win.runtime->ghostwin) {
+        wm_window_make_drawable(wm, &win);
+        break;
+      }
+    }
+  }
 
   GPU_render_end();
   GPU_context_main_unlock();

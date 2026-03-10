@@ -503,8 +503,11 @@ class RemoteAssetListingDownloader:
             if file_path == sanitized_path:
                 continue
 
-            print(("Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}").format(
-                json_path=json_path, file_path=file_path, report=report))
+            print((
+                "Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}"
+            ).format(
+                json_path=json_path, file_path=file_path, report=report,
+            ))
 
             bad_path = file.path
             file.path = sanitized_path.as_posix()

@@ -1018,15 +1018,16 @@ int calc_gizmo_stats(const bContext *C,
   }
 
   if (params->use_local_axis && (ob && ob->mode & (OB_MODE_EDIT | OB_MODE_POSE))) {
+    const float4x4 &ob_mat = ob->object_to_world();
     float diff_mat[3][3];
-    copy_m3_m4(diff_mat, ob->object_to_world().ptr());
+    copy_m3_m4(diff_mat, ob_mat.ptr());
     normalize_m3(diff_mat);
     invert_m3(diff_mat);
     mul_m3_m3_pre(tbounds->axis, diff_mat);
     normalize_m3(tbounds->axis);
 
     tbounds->use_matrix_space = true;
-    copy_m4_m4(tbounds->matrix_space, ob->object_to_world().ptr());
+    copy_m4_m4(tbounds->matrix_space, ob_mat.ptr());
   }
 
   const auto gizmo_3d_tbounds_calc_fn = [&](const float3 &co) { calc_tw_center(tbounds, co); };
@@ -1043,12 +1044,13 @@ int calc_gizmo_stats(const bContext *C,
     mul_v3_fl(tbounds->center, 1.0f / float(totsel)); /* Centroid! */
 
     if (obedit || (ob && (ob->mode & (OB_MODE_POSE | OB_MODE_SCULPT)))) {
+      const float4x4 &ob_mat = ob->object_to_world();
       if (ob->mode & OB_MODE_POSE) {
-        invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+        invert_m4_m4(ob->runtime->world_to_object.ptr(), ob_mat.ptr());
       }
-      mul_m4_v3(ob->object_to_world().ptr(), tbounds->center);
-      mul_m4_v3(ob->object_to_world().ptr(), tbounds->min);
-      mul_m4_v3(ob->object_to_world().ptr(), tbounds->max);
+      mul_m4_v3(ob_mat.ptr(), tbounds->center);
+      mul_m4_v3(ob_mat.ptr(), tbounds->min);
+      mul_m4_v3(ob_mat.ptr(), tbounds->max);
     }
   }
 

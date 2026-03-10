@@ -483,45 +483,63 @@ static rctf *stored_window_bounds(eSpace_Type space_type)
   return nullptr;
 }
 
-void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
+static bool wm_window_is_last_main_window(wmWindowManager *wm, wmWindow *win)
 {
-  bScreen *screen = WM_window_get_active_screen(win);
-
-  if (screen->temp && BLI_listbase_is_single(&screen->areabase) && !WM_window_is_maximized(win)) {
-    ScrArea *area = static_cast<ScrArea *>(screen->areabase.first);
-    rctf *stored_bounds = stored_window_bounds(eSpace_Type(area->spacetype));
-
-    if (stored_bounds) {
-      /* Get DPI and scale from parent window, if there is one. */
-      WM_window_dpi_set_userdef(win->parent ? win->parent : win);
-
-      GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-      const float f = ghost_window->getNativePixelSize();
-
-      stored_bounds->xmin = float(win->posx) * f / UI_SCALE_FAC;
-      stored_bounds->xmax = stored_bounds->xmin + float(win->sizex) * f / UI_SCALE_FAC;
-      stored_bounds->ymin = float(win->posy) * f / UI_SCALE_FAC;
-      stored_bounds->ymax = stored_bounds->ymin + float(win->sizey) * f / UI_SCALE_FAC;
-      /* Tag user preferences as dirty. */
-      U.runtime.is_dirty = true;
-    }
+  if (win->parent) {
+    return false;
   }
-
   wmWindow *win_other;
-
-  /* First check if there is another main window remaining. */
   for (win_other = static_cast<wmWindow *>(wm->windows.first); win_other;
        win_other = win_other->next)
   {
     if (win_other != win && win_other->parent == nullptr && !WM_window_is_temp_screen(win_other)) {
-      break;
+      return false;
     }
   }
+  /* This window is the last. */
+  return true;
+}
 
-  if (win->parent == nullptr && win_other == nullptr) {
+void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
+{
+  /* First check if there is another main window remaining. */
+  if (wm_window_is_last_main_window(wm, win)) {
     wm_quit_with_optional_confirmation_prompt(C, win);
     return;
   }
+
+  if (!(WM_window_is_maximized(win) || WM_window_is_fullscreen(win)) &&
+      /* While unlikely, don't crash if the window wasn't initialized properly. */
+      (win->runtime->ghostwin != nullptr))
+  {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (screen && screen->temp && BLI_listbase_is_single(&screen->areabase)) {
+      const ScrArea *area = static_cast<const ScrArea *>(screen->areabase.first);
+      rctf *stored_bounds = stored_window_bounds(eSpace_Type(area->spacetype));
+
+      if (stored_bounds) {
+        /* Get DPI and scale from parent window, if there is one. */
+        WM_window_dpi_set_userdef(win->parent ? win->parent : win);
+
+        GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+        const float fac = ghost_window->getNativePixelSize() / UI_SCALE_FAC;
+
+        stored_bounds->xmin = float(win->posx) * fac;
+        stored_bounds->xmax = stored_bounds->xmin + float(win->sizex) * fac;
+        stored_bounds->ymin = float(win->posy) * fac;
+        stored_bounds->ymax = stored_bounds->ymin + float(win->sizey) * fac;
+        /* Tag user preferences as dirty. */
+        U.runtime.is_dirty = true;
+      }
+    }
+  }
+
+  wm_window_close(C, wm, win);
+}
+
+void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
+{
+  bScreen *screen = WM_window_get_active_screen(win);
 
   /* Close child windows. */
   for (wmWindow &iter_win : wm->windows.items_mutable()) {
@@ -1463,7 +1481,7 @@ wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  wm_window_close(C, wm, win);
+  wm_window_close_request(C, wm, win);
   return OPERATOR_FINISHED;
 }
 
@@ -1843,7 +1861,7 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
       break;
     }
     case GHOST_kEventWindowClose: {
-      wm_window_close(C, wm, win);
+      wm_window_close_request(C, wm, win);
       break;
     }
     case GHOST_kEventWindowUpdate: {
@@ -3513,6 +3531,15 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   GHOST_IWindow *ghost_i_win = (GHOST_IWindow *)ghostwin;
   win->runtime->ghostwin = ghostwin;
 
+#ifdef WITH_GHOST_CSD
+  if (wm_init_state.window_frame &&
+      ((WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_SERVER_SIDE) == 0))
+  {
+    g_system_use_csd = true;
+    WM_window_csd_params_update();
+  }
+#endif /* WITH_GHOST_CSD */
+
   wm_window_clear_drawable(wm);
 
   if (first_time_window) {
@@ -3524,15 +3551,17 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     win->runtime->gpuctx = GPU_context_active_get();
     wm->runtime->message_bus = (wmMsgBus *)runtime_msgbus;
   }
+
+  win->active = true;
+  wm->runtime->winactive = win;
+
+  wm_window_ensure_eventstate(win);
+  WM_window_dpi_set_userdef(win);
+
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
   wm_window_set_drawable(wm, win, false);
   ghost_i_win->setUserData(win); /* pointer back */
-
-  /* We can't call the following function here in blenderplayer pipeline.
-   * We could do it after if we realize that there are issues without this.
-   */
-  // wm_window_ensure_eventstate(win);
 
   /* store actual window size in blender window */
   GHOST_Rect bounds;
@@ -3550,13 +3579,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     ghost_i_win->setState(ghost_i_win->getState());
   }
 #endif
-
-  /* until screens get drawn, make it black */
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
-
-  /* needed here, because it's used before it reads userdef */
-  WM_window_dpi_set_userdef(win);
-
   /* We avoid swap buffers when we aren't at first time
    * to avoid transition when reload or load a new blend */
   if (first_time_window) {

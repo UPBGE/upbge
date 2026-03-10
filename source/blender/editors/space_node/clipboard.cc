@@ -52,6 +52,7 @@ static void node_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepat
 static int node_copy_local(bNodeTree &from_tree,
                            bNodeTree &to_tree,
                            const bool allow_duplicate_names,
+                           const bool do_user_count,
                            const float2 offset,
                            const bool snap_to_grid,
                            ReportList *reports)
@@ -66,13 +67,13 @@ static int node_copy_local(bNodeTree &from_tree,
     if (!node->typeinfo->poll_instance ||
         node->typeinfo->poll_instance(node, &to_tree, &disabled_hint))
     {
-      bNode *new_node = bke::node_copy_with_mapping(&to_tree,
-                                                    *node,
-                                                    LIB_ID_COPY_DEFAULT,
-                                                    std::nullopt,
-                                                    std::nullopt,
-                                                    socket_map,
-                                                    allow_duplicate_names);
+      int flags = LIB_ID_COPY_DEFAULT;
+      if (!do_user_count) {
+        flags |= LIB_ID_CREATE_NO_USER_REFCOUNT;
+      }
+
+      bNode *new_node = bke::node_copy_with_mapping(
+          &to_tree, *node, flags, std::nullopt, std::nullopt, socket_map, allow_duplicate_names);
       node_map.add_new(node, new_node);
       new_node->location[0] += offset.x;
       new_node->location[1] += offset.y;
@@ -183,7 +184,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
   copy_tree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
 
   const int num_copied = node_copy_local(
-      *node_tree, *copy_tree, true, float2(0), false, op->reports);
+      *node_tree, *copy_tree, true, false, float2(0), false, op->reports);
   if (num_copied == 0) {
     return OPERATOR_CANCELLED;
   }
@@ -354,7 +355,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   const bool snap_to_grid = CTX_data_scene(C)->toolsettings->snap_flag_node & SCE_SNAP;
   const int num_copied = node_copy_local(
-      *from_tree, *snode->edittree, false, offset, snap_to_grid, op->reports);
+      *from_tree, *snode->edittree, false, true, offset, snap_to_grid, op->reports);
   if (num_copied == 0) {
     /* Note: we don't return OPERATOR_CANCELLED here although the copy fails to avoid corrupting
      * the undo stack after merging two bmains. */

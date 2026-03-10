@@ -7,7 +7,7 @@ set(INC
   ../Expressions
   ../GameLogic
   ../Ketsji
-  ../Ketsji/KXNetwork
+  ../Ketsji/KXNetworkMessage
   ../Launcher
   ../Physics/Bullet
   ../Physics/Common
@@ -53,8 +53,12 @@ if(WITH_AUDASPACE)
   )
   list(APPEND LIB
     ${AUDASPACE_C_LIBRARIES}
-    ${AUDASPACE_PY_LIBRARIES}
   )
+  if(WITH_PYTHON)
+    list(APPEND LIB
+      ${AUDASPACE_PY_LIBRARIES}
+    )
+  endif()
   add_definitions(-DWITH_AUDASPACE)
 endif()
 

@@ -145,13 +145,11 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
                                            const Span<openvdb::GridBase::Ptr> output_grids)
 {
   AlignedBuffer<8192, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
+  ResourceScope scope(allocation_buffer);
 
-  IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
       IndexRange(grid::LeafNodeMask::SIZE),
-      memory,
+      scope.allocator(),
       [&](const int64_t i) { return leaf_node_mask.isOn(i); },
       exec_mode::serial);
 
@@ -208,8 +206,7 @@ BLI_NOINLINE static void process_voxels(const Span<fn::GField> fields,
 {
   const int64_t voxels_num = voxels.size();
   AlignedBuffer<8192, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
+  ResourceScope scope(allocation_buffer);
 
   bke::VoxelFieldContext field_context{transform, voxels};
   fn::FieldEvaluator evaluator{field_context, voxels_num};
@@ -234,8 +231,7 @@ BLI_NOINLINE static void process_tiles(const Span<fn::GField> fields,
 {
   const int64_t tiles_num = tiles.size();
   AlignedBuffer<8192, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
+  ResourceScope scope(allocation_buffer);
 
   bke::TilesFieldContext field_context{transform, tiles};
   fn::FieldEvaluator evaluator{field_context, tiles_num};
@@ -258,8 +254,7 @@ BLI_NOINLINE static void process_background(const Span<fn::GField> fields,
                                             const Span<openvdb::GridBase::Ptr> output_grids)
 {
   AlignedBuffer<256, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
+  ResourceScope scope(allocation_buffer);
 
   static const openvdb::CoordBBox background_space = openvdb::CoordBBox::inf();
   bke::TilesFieldContext field_context(transform, Span<openvdb::CoordBBox>(&background_space, 1));

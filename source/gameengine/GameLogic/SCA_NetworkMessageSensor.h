@@ -39,7 +39,7 @@ template<class ItemType> class EXP_ListValue;
 
 class SCA_NetworkMessageSensor : public SCA_ISensor {
   // note: Py_Header MUST BE the first listed here
-  Py_Header KX_NetworkMessageScene *m_NetworkScene;
+  Py_Header KX_NetworkMessageScene *m_NetworkMessageScene;
 
   // The subject we filter on.
   std::string m_subject;
@@ -54,7 +54,7 @@ class SCA_NetworkMessageSensor : public SCA_ISensor {
 
  public:
   SCA_NetworkMessageSensor(SCA_EventManager *eventmgr,            // our eventmanager
-                           KX_NetworkMessageScene *NetworkScene,  // our scene
+                           KX_NetworkMessageScene *NetworkMessageScene,  // our scene
                            SCA_IObject *gameobj,                  // the sensor controlling object
                            const std::string &subject);
   virtual ~SCA_NetworkMessageSensor();
@@ -65,9 +65,9 @@ class SCA_NetworkMessageSensor : public SCA_ISensor {
   virtual void Init();
   void EndFrame();
 
-  virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
+  virtual void Replace_NetworkMessageScene(KX_NetworkMessageScene *val)
   {
-    m_NetworkScene = val;
+    m_NetworkMessageScene = val;
   };
 
 #ifdef WITH_PYTHON

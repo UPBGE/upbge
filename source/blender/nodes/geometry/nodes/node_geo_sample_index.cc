@@ -75,127 +75,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-static bool component_is_available(const GeometrySet &geometry,
-                                   const GeometryComponent::Type type,
-                                   const AttrDomain domain)
-{
-  if (!geometry.has(type)) {
-    return false;
-  }
-  const GeometryComponent &component = *geometry.get_component(type);
-  return component.attribute_domain_size(domain) != 0;
-}
-
-static const GeometryComponent *find_source_component(const GeometrySet &geometry,
-                                                      const AttrDomain domain)
-{
-  /* Choose the other component based on a consistent order, rather than some more complicated
-   * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
-  static const Array<GeometryComponent::Type> supported_types = {
-      GeometryComponent::Type::Mesh,
-      GeometryComponent::Type::PointCloud,
-      GeometryComponent::Type::Curve,
-      GeometryComponent::Type::Instance,
-      GeometryComponent::Type::GreasePencil};
-  for (const GeometryComponent::Type src_type : supported_types) {
-    if (component_is_available(geometry, src_type, domain)) {
-      return geometry.get_component(src_type);
-    }
-  }
-
-  return nullptr;
-}
-
-template<typename T>
-void copy_with_clamped_indices(const VArray<T> &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               MutableSpan<T> dst)
-{
-  const int last_index = src.index_range().last();
-  devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-    mask.foreach_index_optimized<int>(
-        [&](const int i) {
-          const int index = indices[i];
-          dst[i] = src[std::clamp(index, 0, last_index)];
-        },
-        exec_mode::grain_size(4096));
-  });
-}
-
-/**
- * The index-based transfer theoretically does not need realized data when there is only one
- * instance geometry set in the source. A future optimization could be removing that limitation
- * internally.
- */
-class SampleIndexFunction : public mf::MultiFunction {
-  GeometrySet src_geometry_;
-  GField src_field_;
-  AttrDomain domain_;
-  bool clamp_;
-
-  mf::Signature signature_;
-
-  std::optional<bke::GeometryFieldContext> geometry_context_;
-  std::unique_ptr<FieldEvaluator> evaluator_;
-  const GVArray *src_data_ = nullptr;
-
- public:
-  SampleIndexFunction(GeometrySet geometry,
-                      GField src_field,
-                      const AttrDomain domain,
-                      const bool clamp)
-      : src_geometry_(std::move(geometry)),
-        src_field_(std::move(src_field)),
-        domain_(domain),
-        clamp_(clamp)
-  {
-    src_geometry_.ensure_owns_direct_data();
-
-    mf::SignatureBuilder builder{"Sample Index", signature_};
-    builder.single_input<int>("Index");
-    builder.single_output("Value", src_field_.cpp_type());
-    this->set_signature(&signature_);
-
-    this->evaluate_field();
-  }
-
-  void evaluate_field()
-  {
-    const GeometryComponent *component = find_source_component(src_geometry_, domain_);
-    if (component == nullptr) {
-      return;
-    }
-    const int domain_num = component->attribute_domain_size(domain_);
-    geometry_context_.emplace(bke::GeometryFieldContext(*component, domain_));
-    evaluator_ = std::make_unique<FieldEvaluator>(*geometry_context_, domain_num);
-    evaluator_->add(src_field_);
-    evaluator_->evaluate();
-    src_data_ = &evaluator_->get_evaluated(0);
-  }
-
-  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
-  {
-    const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
-    GMutableSpan dst = params.uninitialized_single_output(1, "Value");
-
-    const CPPType &type = dst.type();
-    if (src_data_ == nullptr) {
-      type.value_initialize_indices(dst.data(), mask);
-      return;
-    }
-
-    if (clamp_) {
-      bke::attribute_math::to_static_type(type, [&]<typename T>() {
-        copy_with_clamped_indices(src_data_->typed<T>(), indices, mask, dst.typed<T>());
-      });
-    }
-    else {
-      bke::copy_with_checked_indices(*src_data_, indices, mask, dst);
-    }
-  }
-};
-
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
@@ -207,12 +86,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   SocketValueVariant index_value_variant = params.extract_input<SocketValueVariant>("Index");
   const CPPType &cpp_type = value_field.cpp_type();
 
+  const GeometryComponent *component = bke::SampleIndexFunction::find_source_component(geometry,
+                                                                                       domain);
+  if (!component) {
+    params.set_default_remaining_outputs();
+    return;
+  }
   if (index_value_variant.is_single()) {
-    const GeometryComponent *component = find_source_component(geometry, domain);
-    if (!component) {
-      params.set_default_remaining_outputs();
-      return;
-    }
     /* Optimization for the case when the index is a single value. Here only that one index has to
      * be evaluated. */
     const int domain_size = component->attribute_domain_size(domain);
@@ -239,11 +119,34 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bke::SocketValueVariant output_value;
   std::string error_message;
+
+  if (use_clamp) {
+    bke::SocketValueVariant index_value_variant_copy = index_value_variant;
+    static auto clamp_fn = mf::build::SI3_SO<int, int, int, int>(
+        "Clamp",
+        [](int value, int min, int max) { return std::clamp(value, min, max); },
+        mf::build::exec_presets::SomeSpanOrSingle<0>());
+    const int domain_size = component->attribute_domain_size(domain);
+    bke::SocketValueVariant min_value = bke::SocketValueVariant::From(0);
+    bke::SocketValueVariant max_value = bke::SocketValueVariant::From(domain_size - 1);
+    if (!execute_multi_function_on_value_variant(
+            clamp_fn,
+            {&index_value_variant_copy, &min_value, &max_value},
+            {&index_value_variant},
+            params.user_data(),
+            error_message))
+    {
+      params.set_default_remaining_outputs();
+      params.error_message_add(NodeWarningType::Error, std::move(error_message));
+      return;
+    }
+  }
+
+  bke::SocketValueVariant output_value;
   if (!execute_multi_function_on_value_variant(
-          std::make_shared<SampleIndexFunction>(
-              std::move(geometry), std::move(value_field), domain, use_clamp),
+          std::make_shared<bke::SampleIndexFunction>(
+              std::move(geometry), std::move(value_field), domain),
           {&index_value_variant},
           {&output_value},
           params.user_data(),

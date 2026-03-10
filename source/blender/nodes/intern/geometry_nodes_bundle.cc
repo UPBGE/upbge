@@ -121,7 +121,7 @@ void Bundle::add_path_override(const StringRef path, const BundleItemValue &valu
     BundleItemValue &item = current->items_.lookup_or_add_cb_as(
         path_elem, [&]() { return create_nested_bundle_item(); });
     BundlePtr *child_bundle_ptr = item.as_pointer<BundlePtr>();
-    if (!child_bundle_ptr) {
+    if (!child_bundle_ptr || !*child_bundle_ptr) {
       /* Override the items content with a new bundle. */
       item = create_nested_bundle_item();
       child_bundle_ptr = item.as_pointer<BundlePtr>();
@@ -428,6 +428,24 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
     }
   }
   return signature;
+}
+
+std::optional<bke::SocketValueVariant> BundleItemValue::as_socket_value(
+    const bke::bNodeSocketType &dst_socket_type) const
+{
+  const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
+  if (!socket_value) {
+    return std::nullopt;
+  }
+  if (socket_value->type->type == dst_socket_type.type) {
+    return socket_value->value;
+  }
+  if (std::optional<bke::SocketValueVariant> converted_value = implicitly_convert_socket_value(
+          *socket_value->type, socket_value->value, dst_socket_type))
+  {
+    return converted_value;
+  }
+  return std::nullopt;
 }
 
 }  // namespace blender::nodes

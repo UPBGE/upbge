@@ -44,26 +44,37 @@ using ushort = unsigned short;
 using device_ptr = uint64_t;
 #endif /* __KERNEL_GPU__ */
 
+/* Make offset a multiple of alignment, rounding up. Alignment must be a power of two. */
 ccl_device_inline size_t align_up(const size_t offset, const size_t alignment)
 {
   return (offset + alignment - 1) & ~(alignment - 1);
 }
 
+/* Divide x by y, rounding up. */
 ccl_device_inline size_t divide_up(const size_t x, const size_t y)
 {
   return (x + y - 1) / y;
 }
 
+/* Divide x by (1 << y), rounding up. */
+ccl_device_inline size_t divide_up_by_shift(const size_t x, const size_t y)
+{
+  return (x + ((1 << y) - 1)) >> y;
+}
+
+/* Make x a multiple of another number, rounding up. */
 ccl_device_inline size_t round_up(const size_t x, const size_t multiple)
 {
   return ((x + multiple - 1) / multiple) * multiple;
 }
 
+/* Make x a multiple of another number, rounding down. */
 ccl_device_inline size_t round_down(const size_t x, const size_t multiple)
 {
   return (x / multiple) * multiple;
 }
 
+/* Test if x is a power of two. */
 ccl_device_inline bool is_power_of_two(const size_t x)
 {
   return (x & (x - 1)) == 0;

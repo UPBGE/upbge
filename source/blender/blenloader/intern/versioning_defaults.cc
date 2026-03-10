@@ -149,6 +149,10 @@ static void blo_update_defaults_screen(bScreen *screen,
         sima->uv_face_opacity = 0.0f;
         sima->uv_edge_opacity = 0.0f;
       }
+      else if (BLI_str_startswith(workspace_name, "Compositing")) {
+        SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
+        sima->overlay.flag &= ~SI_OVERLAY_DRAW_TEXT_INFO;
+      }
     }
     else if (area.spacetype == SPACE_ACTION) {
       /* Show markers region, hide channels and collapse summary in timelines. */
@@ -757,6 +761,24 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       /* Ensure Palette by default. */
       if (ts->gp_paint) {
         BKE_gpencil_palette_ensure(bmain, &scene);
+      }
+    }
+
+    if (app_template &&
+        (STREQ(app_template, "2D_Animation") || STREQ(app_template, "Storyboarding")))
+    {
+      /* Since !153036, the base colors for stroke & fill were getting versioned to have 0% opacity
+       * if the stroke/fill was disabled. This meant that in a new file using the following App
+       * Templates, the "Solid Stroke" material wouldn't show anything when trying to draw a fill.
+       * This sets the fill to a mid grey to make sure users don't run into this issue. */
+
+      /* Change Solid Stroke settings. */
+      Material *ma = static_cast<Material *>(
+          BLI_findstring(&bmain->materials, "Solid Stroke", offsetof(ID, name) + 2));
+      if (ma != nullptr) {
+        /* Black Stroke and Grey Fill. */
+        copy_v4_fl4(ma->gp_style->stroke_rgba, 0.0f, 0.0f, 0.0f, 1.0f);
+        copy_v4_fl4(ma->gp_style->fill_rgba, 0.5f, 0.5f, 0.5f, 1.0f);
       }
     }
   }

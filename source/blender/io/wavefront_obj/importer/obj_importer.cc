@@ -23,7 +23,9 @@
 #include "BKE_instances.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph_build.hh"
 
@@ -36,7 +38,13 @@
 #include "obj_import_objects.hh"
 #include "obj_importer.hh"
 
-namespace blender::io::obj {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.obj"};
+
+namespace io::obj {
 
 static Collection *find_or_create_collection(Main *bmain,
                                              Collection *target,
@@ -170,14 +178,26 @@ static void geometry_to_blender_objects(Main *bmain,
 
   /* Do object selections in a separate loop (allows just one view layer sync). */
   BKE_view_layer_synced_ensure(scene, view_layer);
+  bool has_instantiated_object = false;
+  bool has_uninstantiated_object = false;
   for (Object *obj : objects) {
     Base *base = BKE_view_layer_base_find(view_layer, obj);
+    if (!base) {
+      /* Object not instantiated in current viewlayer. */
+      has_uninstantiated_object = true;
+      continue;
+    }
+    has_instantiated_object = true;
     BKE_view_layer_base_select_and_set_active(view_layer, base);
 
     int flags = ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION |
                 ID_RECALC_BASE_FLAGS;
     DEG_id_tag_update_ex(bmain, &obj->id, flags);
   }
+  if (has_instantiated_object && has_uninstantiated_object) {
+    CLOG_ERROR(&LOG, "Some imported objects were not instantiated, while others were");
+  }
+
   for (Collection *col : collections) {
     DEG_id_tag_update(&col->id, ID_RECALC_SYNC_TO_EVAL);
   }
@@ -236,6 +256,14 @@ void importer_main(Main *bmain,
     BKE_view_layer_base_deselect_all(scene, view_layer);
   }
 
+  LayerCollection *lc = BKE_layer_collection_get_active_editable(view_layer);
+  if (!ID_IS_EDITABLE(lc->collection)) {
+    BKE_report(import_params.reports,
+               RPT_WARNING,
+               "Could not find an editable collection in current scene, imported data will not be "
+               "instantiated");
+  }
+
   /* Create Blender objects from the parsed geometries */
   geometry_to_blender_objects(bmain,
                               scene,
@@ -246,4 +274,5 @@ void importer_main(Main *bmain,
                               materials,
                               created_materials);
 }
-}  // namespace blender::io::obj
+}  // namespace io::obj
+}  // namespace blender

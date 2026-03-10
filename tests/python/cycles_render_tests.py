@@ -28,6 +28,7 @@ BLOCKLIST_ALL = [
     "shadow_min_pool_size.blend",
     "shadow_resolution_scale.blend",
     "shader_to_rgb_transparent.blend",
+    "subsurface_shader_to_rgb.blend"
 ]
 
 # Blocklist for device + build configuration that does not support OSL at all.

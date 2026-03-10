@@ -2806,6 +2806,7 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
 
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        del context
         asset_library = item
 
         icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'

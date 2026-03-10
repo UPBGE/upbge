@@ -219,11 +219,15 @@ class NodeMenu(Menu):
         return operators
 
     @classmethod
-    def node_operator_with_outputs(cls, context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+    def node_operator_with_outputs(
+            cls, context, layout, node_type, subnames, *, label=None, poll=None, search_weight=0.0):
         """Similar to `node_operator`, but with extra entries based on a enum socket while in search."""
         bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
         if not label:
             label = bl_rna.name if bl_rna else "Unknown"
+
+        if poll is not None and poll is False:
+            return None
 
         operators = []
         operators.append(cls.node_operator(layout, node_type, label=label, search_weight=search_weight))

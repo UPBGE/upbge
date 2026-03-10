@@ -171,7 +171,7 @@ static ReadingResult<> listing_entries_from_root(const DictionaryValue &value,
   /* Build a mapping from local file path to its file info. */
   const ArrayValue *files = value.lookup_array("files");
   BLI_assert(files != nullptr);
-  if (assets == nullptr) {
+  if (files == nullptr) {
     /* The 'files' section is mandatory in the OpenAPI schema. */
     return ReadingResult<>::Failure(
         N_("error reading asset listing, page file has no files section"));

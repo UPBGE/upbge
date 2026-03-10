@@ -26,7 +26,14 @@
 
 #pragma once
 
-#include <stdio.h>  // printf
+#ifdef _MSC_VER
+/* Equivalent to "-Wno-unused-parameter".
+ * Must be declared here since the setup from compile_sources_as_cpp seems to be
+ * overridden otherwise. */
+#  pragma warning(disable : 4100)
+#endif
+
+#include <cstdio>  // IWYU pragma: export printf
 
 #include "gpu_shader_cxx_builtin.hh"  // IWYU pragma: export
 #include "gpu_shader_cxx_global.hh"   // IWYU pragma: export
@@ -209,8 +216,8 @@ struct NoConstants {};
 template<typename VertFn,
          typename FragFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineGraphic {
   VertFn vert;
   FragFn frag;
@@ -234,10 +241,21 @@ struct PipelineGraphic {
   }
 };
 
+/* For assert support. */
+#if defined(GPU_VERTEX_SHADER)
+#  define GPU_THREAD uint3(0)
+#elif defined(GPU_FRAGMENT_SHADER)
+#  define GPU_THREAD uint3(0)
+#elif defined(GPU_COMPUTE_SHADER)
+#  define GPU_THREAD uint3(0)
+#else
+#  define GPU_THREAD error_not_in_a_shader_question_mark
+#endif
+
 template<typename CompFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineCompute {
   CompFn comp;
   /* Constant values. */

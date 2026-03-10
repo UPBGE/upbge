@@ -677,6 +677,11 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
     return;
   }
 
+  if (sfile_udata->thumbnail_size == 0) {
+    /* Saved params are invalid so continue with defaults. */
+    return;
+  }
+
   params->thumbnail_size = sfile_udata->thumbnail_size;
   params->details_flags = sfile_udata->details_flags;
   params->filter_id = sfile_udata->filter_id;

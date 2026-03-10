@@ -564,6 +564,10 @@ class ShaderNodesInliner {
       this->handle_output_socket__menu_switch(socket);
       return;
     }
+    if (node->is_type("FunctionNodeInputMenu")) {
+      this->handle_output_socket__input_menu(socket);
+      return;
+    }
     if (node->is_type("NodeJoinBundle")) {
       this->handle_output_socket__join_bundle(socket);
       return;
@@ -1085,6 +1089,16 @@ class ShaderNodesInliner {
     this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
   }
 
+  void handle_output_socket__input_menu(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const auto &storage = *static_cast<const NodeInputMenu *>(node->storage);
+    SocketInContext output_socket = node.output_socket(0);
+    this->store_socket_value(output_socket,
+                             {PrimitiveSocketValue::from_value(
+                                 {output_socket->typeinfo->base_cpp_type, &storage.value})});
+  }
+
   void handle_output_socket__implicit_conversion(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
@@ -1380,27 +1394,25 @@ class ShaderNodesInliner {
       return {node, socket};
     }
     if (const int *value_int = std::get_if<int>(&value.value)) {
-      bNode *node = this->add_node("ShaderNodeValue");
+      bNode *node = this->add_node("FunctionNodeInputInt");
       bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
-      socket->default_value_typed<bNodeSocketValueFloat>()->value = *value_int;
+      socket->default_value_typed<bNodeSocketValueInt>()->value = *value_int;
       return {node, socket};
     }
     if (const bool *value_bool = std::get_if<bool>(&value.value)) {
-      bNode *node = this->add_node("ShaderNodeValue");
+      bNode *node = this->add_node("FunctionNodeInputBool");
       bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
-      socket->default_value_typed<bNodeSocketValueFloat>()->value = *value_bool;
+      socket->default_value_typed<bNodeSocketValueBoolean>()->value = *value_bool;
       return {node, socket};
     }
     if (const float3 *value_float3 = std::get_if<float3>(&value.value)) {
-      bNode *node = this->add_node("ShaderNodeCombineXYZ");
-      bNodeSocket *output_socket = static_cast<bNodeSocket *>(node->outputs.first);
-      bNodeSocket *input_x = static_cast<bNodeSocket *>(node->inputs.first);
-      bNodeSocket *input_y = input_x->next;
-      bNodeSocket *input_z = input_y->next;
-      input_x->default_value_typed<bNodeSocketValueFloat>()->value = value_float3->x;
-      input_y->default_value_typed<bNodeSocketValueFloat>()->value = value_float3->y;
-      input_z->default_value_typed<bNodeSocketValueFloat>()->value = value_float3->z;
-      return {node, output_socket};
+      bNode *node = this->add_node("FunctionNodeInputVector");
+      bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+      bNodeSocketValueVector *vector_socket =
+          socket->default_value_typed<bNodeSocketValueVector>();
+      copy_v3_v3(vector_socket->value, *value_float3);
+      vector_socket->dimensions = 3;
+      return {node, socket};
     }
     if (const ColorGeometry4f *value_color = std::get_if<ColorGeometry4f>(&value.value)) {
       bNode *node = this->add_node("ShaderNodeRGB");

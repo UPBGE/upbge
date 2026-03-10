@@ -43,7 +43,7 @@ class SG_DList {
     }
     bool end()
     {
-      return (m_current == (T *)m_head.Self());
+      return m_current == (T *)(m_head.Self());
     }
     bool add_back(T *item)
     {
@@ -92,7 +92,7 @@ class SG_DList {
     }
     bool end()
     {
-      return (m_current == (const T *)m_head.Self());
+      return m_current == (const T *)(m_head.Self());
     }
     const T *operator*()
     {

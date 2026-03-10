@@ -74,9 +74,9 @@
 #  include "EXP_PythonCallBack.h"
 #  include "bpy_rna.hh"
 #  include "python_utildefines.hh"
+#endif
 
 using namespace blender;
-#endif
 
 static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
@@ -1190,17 +1190,21 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
   bool updatePhysicsShape = false;
-  if (GetBlenderObject()->gameflag & OB_LOD_UPDATE_PHYSICS) {
-    if (GetPhysicsController()) {
-      /* As m_previousLodLevel is initialized to -1,
-       * the physics shape will be ensured on first frame
-       * to match the lodLevel or the absence of lodLevel
-       */
-      if (m_currentLodLevel != m_previousLodLevel) {
+  bool back_to_level0 = false;
+  if (m_currentLodLevel != m_previousLodLevel) {
+    if (GetBlenderObject()->gameflag & OB_LOD_UPDATE_PHYSICS) {
+      if (GetPhysicsController()) {
+        /* As m_previousLodLevel is initialized to -1,
+         * the physics shape will be ensured on first frame
+         * to match the lodLevel or the absence of lodLevel
+         */
         updatePhysicsShape = true;
-        m_previousLodLevel = m_currentLodLevel;
       }
     }
+    if (m_currentLodLevel == 0) {
+      back_to_level0 = true;
+    }
+    m_previousLodLevel = m_currentLodLevel;
   }
 
   if (lodLevel) {
@@ -1223,12 +1227,28 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
 
     blender::Object *eval_lod_ob = DEG_get_evaluated(depsgraph, currentLodLevel->GetObject());
     /* Try to get the object with all modifiers applied */
-    blender::Mesh *lod_mesh = (blender::Mesh *)eval_lod_ob->data;
-    BKE_object_free_derived_caches(ob_eval);
-    BKE_object_eval_assign_data(ob_eval, &lod_mesh->id, false);
+    blender::Mesh *lod_mesh = (Mesh *)eval_lod_ob->runtime->data_eval;
+    if (back_to_level0 || (Mesh *)ob_eval->runtime->data_eval != lod_mesh) {
+      BKE_object_free_derived_caches(ob_eval);
+      if (back_to_level0) {
+        DEG_bump_update_count(depsgraph);
+        ob_eval->runtime->last_update_geometry = DEG_get_update_count(depsgraph) + 1;
+      }
+      else {
+        /* We assign lod_mesh data to ob_eval */
+        BKE_object_eval_assign_data(ob_eval, &lod_mesh->id, false);
+        /* Bump depsgraph count to avoid issues with TAA + shadows problems */
+        DEG_bump_update_count(depsgraph);
+        /* Never do that before UpdateDepsgraph, else last_update_geometry can still be < depsgraph counter */
+        ob_eval->runtime->last_update_geometry = DEG_get_update_count(depsgraph) + 1;
+      }
+    }
   }
 
   if (updatePhysicsShape) {
+    /* If we come back to level 0, physics shape will be reinstanced from RAS_MeshObject
+     * as ob_eval->data has been cleared (free derived caches), else, physics shape will
+     * be reinstanced from assigned lodmesh. */
     GetPhysicsController()->ReinstancePhysicsShape(this, nullptr, false, true);
   }
 }

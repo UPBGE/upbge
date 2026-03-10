@@ -382,10 +382,12 @@ class SampleCurveFunction : public mf::MultiFunction {
         src_evaluated_values.reinitialize(evaluated_points.size());
         curves.interpolate_to_evaluated(curve_i, src_original_values, src_evaluated_values);
         bke::attribute_math::to_static_type(source_data_->type(), [&]<typename T>() {
-          const Span<T> src_evaluated_values_typed = src_evaluated_values.as_span().typed<T>();
-          MutableSpan<T> sampled_values_typed = sampled_values.typed<T>();
-          length_parameterize::interpolate_to_masked<T>(
-              src_evaluated_values_typed, indices, factors, mask, sampled_values_typed);
+          if constexpr (!std::is_same_v<T, std::string>) {
+            const Span<T> src_evaluated_values_typed = src_evaluated_values.as_span().typed<T>();
+            MutableSpan<T> sampled_values_typed = sampled_values.typed<T>();
+            length_parameterize::interpolate_to_masked<T>(
+                src_evaluated_values_typed, indices, factors, mask, sampled_values_typed);
+          }
         });
       }
     };

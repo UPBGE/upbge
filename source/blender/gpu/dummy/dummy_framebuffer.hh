@@ -21,17 +21,13 @@ class DummyFrameBuffer : public FrameBuffer {
     return true;
   }
   void clear(GPUFrameBufferBits /*buffers*/,
-             const float /*clear_color*/[4],
+             const double4 /*clear_color*/,
              float /*clear_depth*/,
              uint /*clear_stencil*/) override
   {
   }
-  void clear_multi(const float (* /*clear_color*/)[4]) override {}
-  void clear_attachment(GPUAttachmentType /*type*/,
-                        eGPUDataFormat /*data_format*/,
-                        const void * /*clear_value*/) override
-  {
-  }
+  void clear_multi(Span<double4> /*clear_cols*/) override {}
+  void clear_attachment(GPUAttachmentType /*type*/, const double4 /*clear_value*/) override {}
 
   void attachment_set_loadstore_op(GPUAttachmentType /*type*/, GPULoadStore /*ls*/) override {}
 

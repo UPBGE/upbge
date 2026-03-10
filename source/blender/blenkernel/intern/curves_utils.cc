@@ -10,12 +10,28 @@
 #include "BKE_customdata.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_bit_span_ops.hh"
+#include "BLI_bit_vector.hh"
 
 namespace blender::bke::curves {
 
+IndexMask point_to_curve_selection(OffsetIndices<int> points_by_curve,
+                                   const IndexMask &point_mask,
+                                   LinearAllocator<> &memory)
+{
+  BitVector<1024> selected(points_by_curve.total_size());
+  point_mask.to_bits(selected);
+
+  return IndexMask::from_predicate(points_by_curve.index_range(), memory, [&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    const BitSpan curve_bits = bits::to_best_bit_span(selected).slice(points);
+    return bits::any_bit_set(curve_bits);
+  });
+}
+
 IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
                                    const IndexMask &curve_selection,
-                                   IndexMaskMemory &memory)
+                                   LinearAllocator<> &memory)
 {
   Array<index_mask::IndexMask::Initializer> point_ranges(curve_selection.size());
   curve_selection.foreach_index(
@@ -26,7 +42,7 @@ IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
 
 IndexMask curve_type_point_selection(const bke::CurvesGeometry &curves,
                                      const CurveType curve_type,
-                                     IndexMaskMemory &memory)
+                                     LinearAllocator<> &memory)
 {
   return curve_to_point_selection(curves.points_by_curve(),
                                   indices_for_type(curves.curve_types(),
@@ -68,7 +84,7 @@ IndexMask indices_for_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,
                            const CurveType type,
                            const IndexMask &selection,
-                           IndexMaskMemory &memory)
+                           LinearAllocator<> &memory)
 {
   if (type_counts[type] == types.size()) {
     return selection;

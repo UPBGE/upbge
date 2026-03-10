@@ -19,7 +19,7 @@
 
 GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_shared)
 LOCAL_GROUP_SIZE(16, 16)
-PUSH_CONSTANT(float4x4, inverse_transformation)
+PUSH_CONSTANT(float4x4, transformation)
 COMPUTE_SOURCE("compositor_realize_on_domain.glsl")
 GPU_SHADER_CREATE_END()
 
@@ -98,6 +98,12 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_int2)
 ADDITIONAL_INFO(compositor_realize_on_domain_int_shared)
 IMAGE(0, SINT_16_16, write, iimage2D, domain_img)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_int4)
+ADDITIONAL_INFO(compositor_realize_on_domain_int_shared)
+IMAGE(0, SINT_16_16_16_16, write, iimage2D, domain_img)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

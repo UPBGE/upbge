@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'21cc928ee21e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-03-09 08:57+0000\n"
 "PO-Revision-Date: 2026-01-30 13:12+0000\n"
 "Last-Translator: Martin Hansen <martini-141@users.noreply.translate.blender.org>\n"
 "Language-Team: Norwegian Bokmål <https://translate.blender.org/projects/blender-ui/ui/nb_NO/>\n"
@@ -5340,10 +5340,6 @@ msgid "Locale code: eu_EU. Translation progress: 1%"
 msgstr "Lokalkode: eu_EU. Status på oversettelse: 1 %"
 
 
-msgid "Belarusian - беларуску"
-msgstr "Belarusisk – беларуску"
-
-
 msgid "Locale code: be. Translation progress: 0%"
 msgstr "Lokalkode: be. Status på oversettelse: 0 %"
 
@@ -5590,10 +5586,6 @@ msgstr "Lokalkode: sk_SK. Status på oversettelse: 100 %"
 
 msgid "Slovenian - Slovenščina"
 msgstr "Slovensk – Slovenščina"
-
-
-msgid "Locale code: sl. Translation progress: 50%"
-msgstr "Lokalkode: sl. Status på oversettelse: 50 %"
 
 
 msgid "Spanish - Español"

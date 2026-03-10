@@ -227,7 +227,10 @@ class SocketTooltipBuilder {
       return;
     }
     const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration;
-    if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
+    if (socket_decl &&
+        socket_decl->default_input_type != NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE)
+    {
+      BLI_assert(socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit);
       this->start_block(TooltipBlockType::Value);
       build_tooltip_value_implicit_default(socket_decl->default_input_type);
       return;
@@ -599,7 +602,7 @@ class SocketTooltipBuilder {
 
     for (const std::string &input_tooltip : input_tooltips) {
       this->add_space();
-      this->add_text_field_mono(fmt::format(" \u2022 {}", input_tooltip));
+      this->add_text_field_mono(fmt::format(" \u2022 {}", TIP_(input_tooltip)));
     }
 
     this->add_space();
@@ -721,8 +724,7 @@ class SocketTooltipBuilder {
         {
           type_name = *internal_type_name;
         }
-        this->add_text_field_mono(
-            fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"), item.key, type_name));
+        this->add_text_field_mono(fmt::format("\u2022 \"{}\" ({})\n", item.key, type_name));
       }
     }
     this->add_space();
@@ -740,8 +742,7 @@ class SocketTooltipBuilder {
         for (const geo_log::ClosureValueLog::Item &item : closure_log.inputs) {
           this->add_space();
           const std::string type_name = TIP_(item.type->label);
-          this->add_text_field_mono(
-              fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"), item.key, type_name));
+          this->add_text_field_mono(fmt::format("\u2022 \"{}\" ({})\n", item.key, type_name));
         }
       }
       if (!closure_log.outputs.is_empty()) {
@@ -750,8 +751,7 @@ class SocketTooltipBuilder {
         for (const geo_log::ClosureValueLog::Item &item : closure_log.outputs) {
           this->add_space();
           const std::string type_name = TIP_(item.type->label);
-          this->add_text_field_mono(
-              fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"), item.key, type_name));
+          this->add_text_field_mono(fmt::format("\u2022 \"{}\" ({})\n", item.key, type_name));
         }
       }
     }

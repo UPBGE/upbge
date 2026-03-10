@@ -60,7 +60,7 @@ class VKVertexBuffer : public VertBuf {
   void ensure_buffer_view();
   void *mapped_ptr_get() const;
 
-  void enable_host_visible_mapping();
+  void enable_host_visible_mapping() override;
   bool read_fast(void *data) override;
 
   inline VkFormat to_vk_format()

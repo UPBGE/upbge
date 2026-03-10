@@ -25,3 +25,6 @@ set(WITH_PYTHON_SAFETY                ON  CACHE BOOL "" FORCE)
 if(WIN32)
   set(WITH_WINDOWS_BUNDLE_CRT         OFF CACHE BOOL "" FORCE)
 endif()
+# For Ninja & Makefile: Generate compile_commands.json. Used by Clang tools (that many common IDEs
+# rely on) to obtain include paths, compile flags, etc. from the build system.
+set(CMAKE_EXPORT_COMPILE_COMMANDS     ON  CACHE BOOL "" FORCE)

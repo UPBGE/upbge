@@ -502,7 +502,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
    *
    * TODO: We should re-validate vertex input dynamic state as there are multiple vendors with
    * similar issues. It might be an oversight. Will wait for feedback from the driver developers
-   * and perfrom some out of bounds error checks.
+   * and perform some out of bounds error checks.
    */
   if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
     extensions.vertex_input_dynamic_state = false;
@@ -561,14 +561,6 @@ void VKBackend::init_resources()
 void VKBackend::delete_resources()
 {
   MEM_delete(compiler_);
-}
-
-void VKBackend::samplers_update()
-{
-  VKDevice &device = VKBackend::get().device;
-  if (device.is_initialized()) {
-    device.reinit();
-  }
 }
 
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)

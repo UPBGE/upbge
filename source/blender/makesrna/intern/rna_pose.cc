@@ -251,7 +251,7 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
       pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(value));
 
   /* finally, set the new rotation type */
-  pchan->rotmode = value;
+  pchan->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
 static float rna_PoseChannel_length_get(PointerRNA *ptr)
@@ -1260,7 +1260,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
    * overlay_shader_shared.hh */
   RNA_def_property_range(prop, 1.0f, 16.0f);
-  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 1);
+  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 2);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "color", PROP_POINTER, PROP_NONE);

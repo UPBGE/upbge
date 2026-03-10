@@ -127,7 +127,7 @@ class SCA_ILogicBrick : public EXP_Value, public SG_QList {
   virtual void Replace_IScene(SCA_IScene *val)
   {
   }
-  virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
+  virtual void Replace_NetworkMessageScene(KX_NetworkMessageScene *val)
   {
   }
 

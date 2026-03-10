@@ -44,7 +44,10 @@ static timeit::Nanoseconds duration_;
 
 namespace blender::ed::transform {
 
-static float4 occlusion_plane_create(float3 ray_dir, float3 ray_co, float3 ray_no)
+static float4 occlusion_plane_create(float3 ray_start,
+                                     float3 ray_dir,
+                                     float3 ray_co,
+                                     float3 ray_no)
 {
   float4 plane;
   plane_from_point_normal_v3(plane, ray_co, ray_no);
@@ -53,8 +56,15 @@ static float4 occlusion_plane_create(float3 ray_dir, float3 ray_co, float3 ray_n
     negate_v4(plane);
   }
 
-  /* Small offset to simulate a kind of volume for edges and vertices. */
-  plane[3] += 0.01f;
+  /* Small offset to simulate a kind of volume for edges and vertices.
+   * NOTE: The offset added to plane[3] was previously hardcoded as 0.01f
+   * but that caused snapping to pass through occluding geometry at small
+   * scales, so scale it by the view depth instead. Values of 1e-6f and
+   * above work for the scale factor, 1e-7f or smaller are lost to float
+   * precision. See: #154426. */
+  const float depth = math::dot(ray_co - ray_start, ray_dir);
+  const float scale_factor = 1e-5f;
+  plane[3] += std::max(depth * scale_factor, FLT_EPSILON);
 
   return plane;
 }
@@ -343,7 +353,7 @@ void SnapData::register_result_raycast(SnapObjectContext *sctx,
 
     if (is_in_front) {
       sctx->runtime.occlusion_plane_in_front = occlusion_plane_create(
-          sctx->runtime.ray_dir, co, no);
+          sctx->runtime.ray_start, sctx->runtime.ray_dir, co, no);
       sctx->runtime.has_occlusion_plane_in_front = true;
     }
   }
@@ -1485,7 +1495,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
       /* Compute the new clip plane but do not add it yet. */
       BLI_ASSERT_UNIT_V3(sctx->ret.no);
       sctx->runtime.occlusion_plane = occlusion_plane_create(
-          sctx->runtime.ray_dir, sctx->ret.loc, sctx->ret.no);
+          sctx->runtime.ray_start, sctx->runtime.ray_dir, sctx->ret.loc, sctx->ret.no);
 
       /* First, snap to the geometry of the polygon obtained via raycast.
        * This is necessary because the occlusion plane may "occlude" part of the polygon's

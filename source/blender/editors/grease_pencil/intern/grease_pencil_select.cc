@@ -9,6 +9,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_fills.hh"
 #include "BKE_object.hh"
@@ -153,10 +154,10 @@ bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
   }
   IndexMaskMemory memory;
 
-  const IndexMask changed_curve_mask = ed::curves::curve_mask_from_points(
-      curves, point_selection_mask, memory);
-
   const OffsetIndices points_by_curve = curves.points_by_curve();
+  const IndexMask changed_curve_mask = bke::curves::point_to_curve_selection(
+      points_by_curve, point_selection_mask, memory);
+
   const Span<float2> screen_space_positions = tree_data.start_positions.as_span().slice(
       tree_data_range);
 
@@ -1222,8 +1223,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
       if (const VArray<bool> hide_stroke = *curves.attributes().lookup<bool>(
               "hide_stroke", bke::AttrDomain::Curve))
       {
-        IndexMask mask = IndexMask::from_predicate(
-            selectable_strokes, memory, [&](const int index) { return !hide_stroke[index]; });
+        IndexMask mask = IndexMask::from_bools_inverse(selectable_strokes, hide_stroke, memory);
         if (selection_domain == bke::AttrDomain::Point) {
           mask = IndexMask::from_ranges(curves.points_by_curve(), mask, memory);
         }

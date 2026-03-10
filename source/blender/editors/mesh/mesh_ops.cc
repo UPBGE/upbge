@@ -192,6 +192,8 @@ void ED_operatortypes_mesh()
   WM_operatortype_append(MESH_OT_flip_quad_tessellation);
   WM_operatortype_append(MESH_OT_reorder_vertices_spatial);
 
+  WM_operatortype_append(MESH_OT_circularize);
+
 #ifdef WITH_GAMEENGINE
   WM_operatortype_append(MESH_OT_navmesh_make);
   WM_operatortype_append(MESH_OT_navmesh_face_copy);

@@ -607,15 +607,7 @@ VkComponentSwizzle to_vk_component_swizzle(const char swizzle)
   return VK_COMPONENT_SWIZZLE_IDENTITY;
 }
 
-template<typename T> void copy_color(T dst[4], const T *src)
-{
-  dst[0] = src[0];
-  dst[1] = src[1];
-  dst[2] = src[2];
-  dst[3] = src[3];
-}
-
-VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const void *data)
+VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const double4 data)
 {
   VkClearColorValue result = {{0.0f}};
   switch (format) {
@@ -626,20 +618,26 @@ VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const voi
     case GPU_DATA_UBYTE:
     case GPU_DATA_10_11_11_REV:
     case GPU_DATA_2_10_10_10_REV: {
-      const float *float_data = static_cast<const float *>(data);
-      copy_color<float>(result.float32, float_data);
+      result.float32[0] = float(data[0]);
+      result.float32[1] = float(data[1]);
+      result.float32[2] = float(data[2]);
+      result.float32[3] = float(data[3]);
       break;
     }
 
     case GPU_DATA_INT: {
-      const int32_t *int_data = static_cast<const int32_t *>(data);
-      copy_color<int32_t>(result.int32, int_data);
+      result.int32[0] = int32_t(data[0]);
+      result.int32[1] = int32_t(data[1]);
+      result.int32[2] = int32_t(data[2]);
+      result.int32[3] = int32_t(data[3]);
       break;
     }
 
     case GPU_DATA_UINT: {
-      const uint32_t *uint_data = static_cast<const uint32_t *>(data);
-      copy_color<uint32_t>(result.uint32, uint_data);
+      result.uint32[0] = uint32_t(data[0]);
+      result.uint32[1] = uint32_t(data[1]);
+      result.uint32[2] = uint32_t(data[2]);
+      result.uint32[3] = uint32_t(data[3]);
       break;
     }
     case GPU_DATA_UINT_24_8_DEPRECATED: {

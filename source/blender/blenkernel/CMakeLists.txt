@@ -418,8 +418,8 @@ set(SRC
   BKE_gpencil_modifier_legacy.h
   BKE_grease_pencil.h
   BKE_grease_pencil.hh
-  BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_fills.hh
+  BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
   BKE_icons.hh
   BKE_id_hash.hh
@@ -481,6 +481,7 @@ set(SRC
   BKE_node_socket_value_fwd.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
+  BKE_node_tree_interface_convert.hh
   BKE_node_tree_reference_lifetimes.hh
   BKE_node_tree_update.hh
   BKE_node_tree_zones.hh

@@ -33,6 +33,7 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
 
 class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
     bl_label = "Constant"
+    bl_translation_context = i18n_contexts.id_nodetree
     menu_path = "Input/Constant"
 
     def draw(self, _context):
@@ -40,6 +41,8 @@ class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeInputBool")
         self.node_operator(layout, "CompositorNodeRGB")
         self.node_operator(layout, "FunctionNodeInputInt")
+        self.node_operator(layout, "FunctionNodeInputIntVector")
+        self.node_operator(layout, "FunctionNodeInputMenu")
         self.node_operator(layout, "CompositorNodeNormal")
         self.node_operator(layout, "ShaderNodeValue")
         self.node_operator(layout, "FunctionNodeInputVector")

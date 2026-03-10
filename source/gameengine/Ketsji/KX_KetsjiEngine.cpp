@@ -793,9 +793,9 @@ void KX_KetsjiEngine::Render()
   for (FrameRenderData &frameData : frameDataList) {
     GPU_framebuffer_bind(background_fb->GetFrameBuffer());
     // Use the framing bar color set in the Blender scenes
-    const float clear_col[4] = {
-        framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f};
-    GPU_framebuffer_clear_color(background_fb->GetFrameBuffer(), clear_col);
+    GPU_framebuffer_clear_color(
+        background_fb->GetFrameBuffer(),
+        {framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0});
     GPU_depth_mask(true);
     GPU_framebuffer_clear_depth(background_fb->GetFrameBuffer(), 1.0f);
 

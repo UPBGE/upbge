@@ -859,7 +859,9 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
   if (region) {
     if (region_flag == RGN_FLAG_HIDDEN) {
       /* Only support animation when the area is in the current context. */
-      if (region->overlap && (area == CTX_wm_area(C)) && !(U.uiflag & USER_REDUCE_MOTION)) {
+      if (region->overlap && (area == CTX_wm_area(C)) && !(U.uiflag & USER_REDUCE_MOTION) &&
+          !(region->alignment & (RGN_SPLIT_SCALE_PREV | RGN_ALIGN_HIDE_WITH_PREV)))
+      {
         ED_region_visibility_change_update_animated(C, area, region);
       }
       else {
@@ -908,6 +910,7 @@ static void rna_Space_show_region_header_set(PointerRNA *ptr, bool value)
 static void rna_Space_show_region_header_update(bContext *C, PointerRNA *ptr)
 {
   rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_HEADER, RGN_FLAG_HIDDEN);
+  rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_TOOL_HEADER, RGN_FLAG_HIDDEN);
 }
 
 /* Footer Region. */
@@ -1037,6 +1040,8 @@ static bool rna_Space_show_region_asset_shelf_get(PointerRNA *ptr)
 static void rna_Space_show_region_asset_shelf_set(PointerRNA *ptr, bool value)
 {
   rna_Space_bool_from_region_flag_set_by_type(ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN, !value);
+  rna_Space_bool_from_region_flag_set_by_type(
+      ptr, RGN_TYPE_ASSET_SHELF_HEADER, RGN_FLAG_HIDDEN, !value);
 }
 static int rna_Space_show_region_asset_shelf_editable(const PointerRNA *ptr, const char **r_info)
 {
@@ -1062,6 +1067,8 @@ static int rna_Space_show_region_asset_shelf_editable(const PointerRNA *ptr, con
 static void rna_Space_show_region_asset_shelf_update(bContext *C, PointerRNA *ptr)
 {
   rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN);
+  rna_Space_bool_from_region_flag_update_by_type(
+      C, ptr, RGN_TYPE_ASSET_SHELF_HEADER, RGN_FLAG_HIDDEN);
 }
 
 /** \} */
@@ -6376,6 +6383,11 @@ static void rna_def_space_image(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_gizmo_navigate", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "gizmo_flag", SI_GIZMO_HIDE_NAVIGATE);
   RNA_def_property_ui_text(prop, "Navigate Gizmo", "Viewport navigation gizmo");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
+  prop = RNA_def_property(srna, "show_gizmo_active_node", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "gizmo_flag", SI_GIZMO_HIDE_ACTIVE_NODE);
+  RNA_def_property_ui_text(prop, "Active Node", "Context sensitive gizmo for the active node");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
   /* Overlays */

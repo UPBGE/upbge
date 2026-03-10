@@ -117,6 +117,14 @@ float3 compute_bary_coord_in_triangle(Span<float3> vert_positions,
                                       const int3 &corner_tri,
                                       const float3 &position);
 
+void sample_barycentric_weights(Span<float3> vert_positions,
+                                Span<int> corner_verts,
+                                Span<int3> corner_tris,
+                                Span<int> tri_indices,
+                                Span<float3> sample_positions,
+                                const IndexMask &mask,
+                                MutableSpan<float3> bary_coords);
+
 template<typename T>
 inline T sample_corner_attribute_with_bary_coords(const float3 &bary_weights,
                                                   const int3 &corner_tri,
@@ -153,18 +161,14 @@ class BaryWeightFromPositionFn : public mf::MultiFunction {
   void call(const IndexMask &mask, mf::Params params, mf::Context context) const override;
 };
 
-/**
- * Calculate face corner weights from triangle indices and positions within the triangles.
- * The weights are 1 for the nearest corner and 0 for the two others.
- */
-class CornerBaryWeightFromPositionFn : public mf::MultiFunction {
+class NearestCornerFromPositionFn : public mf::MultiFunction {
   GeometrySet source_;
   Span<float3> vert_positions_;
   Span<int> corner_verts_;
   Span<int3> corner_tris_;
 
  public:
-  CornerBaryWeightFromPositionFn(GeometrySet geometry);
+  NearestCornerFromPositionFn(GeometrySet geometry);
   void call(const IndexMask &mask, mf::Params params, mf::Context context) const override;
 };
 

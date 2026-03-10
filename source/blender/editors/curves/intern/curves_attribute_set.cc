@@ -178,10 +178,12 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
   BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
 
   bke::attribute_math::to_static_type(type, [&]<typename T>() {
-    const VArray<T> values_typed = attribute.varray.typed<T>();
-    bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(static_cast<T *>(buffer), 1)};
-    selection.foreach_index([&](const int i) { mixer.mix_in(0, values_typed[i]); });
-    mixer.finalize();
+    if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+      const VArray<T> values_typed = attribute.varray.typed<T>();
+      bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(static_cast<T *>(buffer), 1)};
+      selection.foreach_index([&](const int i) { mixer.mix_in(0, values_typed[i]); });
+      mixer.finalize();
+    }
   });
 
   geometry::rna_property_for_attribute_type_set_value(*op->ptr, *prop, GPointer(type, buffer));

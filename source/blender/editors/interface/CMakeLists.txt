@@ -6,6 +6,7 @@ set(INC
   .
   ../asset
   ../include
+  ../../animrig
   ../../makesrna
   ../../python
   ../../../../intern/ghost
@@ -41,6 +42,7 @@ set(SRC
   interface_icons_event.cc
   interface_layout.cc
   interface_ops.cc
+  interface_ops_color.cc
   interface_panel.cc
   interface_query.cc
   regions/interface_region_color_picker.cc

@@ -49,7 +49,7 @@ enum {
 struct CacheObjectPath {
   struct CacheObjectPath *next = nullptr, *prev = nullptr;
 
-  char path[4096] = "";
+  char path[/*PATH_MAX*/ 4096] = "";
 };
 
 struct CacheFileLayer {

@@ -129,6 +129,8 @@ struct Instance final : public DrawEngine {
   PassSimple accumulate_ps = {"aa_accumulate"};
   /* Composite the object depth to the default depth buffer to occlude overlays. */
   PassSimple merge_depth_ps = {"merge_depth_ps"};
+  /* Composite the object depth to the depth pass. */
+  PassSimple merge_depth_pass_ps = {"merge_depth_pass_ps"};
   /* Invert mask buffer content. */
   PassSimple mask_invert_ps = {"mask_invert_ps"};
 
@@ -147,6 +149,9 @@ struct Instance final : public DrawEngine {
   /* Textures used by Anti-aliasing. */
   Texture smaa_area_tx = {"smaa_area_tx"};
   Texture smaa_search_tx = {"smaa_search_tx"};
+
+  /* Stores the viewport compositor depth pass if needed. */
+  gpu::Texture *depth_pass_img = nullptr;
 
   /* Temp Textures (shared with other engines). */
   TextureFromPool depth_tx = {"depth_tx"};

@@ -47,7 +47,7 @@ struct MovieReader {
   int video_rotation = 0;
 
   /* for number */
-  char filepath[1024] = {};
+  char filepath[/*FILE_MAX*/ 1024] = {};
 
   int streamindex = 0;
 

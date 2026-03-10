@@ -851,8 +851,9 @@ static bool vfont_to_curve(Object *ob,
    *   - 1.0 is normal (no change).
    *
    * Use the #XTRAX_WITH_CHAR_WIDTH macro to enforce this logic. */
-  const float xtrax = (cu.spacing < 1.0f) ? (cu.spacing - 1.0f) : (0.5f * cu.spacing - 0.5f);
-#define XTRAX_WITH_CHAR_WIDTH(twidth) ((xtrax < 1.0f) ? (xtrax * (twidth)) : xtrax)
+  const bool xtrax_contract = cu.spacing < 1.0f;
+  const float xtrax = xtrax_contract ? (cu.spacing - 1.0f) : (0.5f * cu.spacing - 0.5f);
+#define XTRAX_WITH_CHAR_WIDTH(twidth) (xtrax_contract ? (xtrax * (twidth)) : xtrax)
 
   TextBoxBounds_ForCursor *tb_bounds_for_cursor = nullptr;
   if (cursor_params != nullptr) {

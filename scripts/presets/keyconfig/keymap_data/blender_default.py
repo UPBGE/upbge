@@ -2332,7 +2332,7 @@ def km_node_editor(params):
         op_menu_pie("NODE_MT_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
         ("node.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("node.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-        ("node.delete_copy_reconnect", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
+        ("node.delete_reconnect", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
         ("node.delete_reconnect", {"type": 'DEL', "value": 'PRESS', "ctrl": True}, None),
         *_template_items_select_actions(params, "node.select_all"),
         ("node.select_linked_to", {"type": 'L', "value": 'PRESS', "shift": True}, None),
@@ -4468,9 +4468,9 @@ def km_grease_pencil_fill_tool_modal_map(_params):
         ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
         ("EXTENSION_MODE_TOGGLE", {"type": 'S', "value": 'PRESS'}, None),
         ("EXTENSION_LENGTHEN", {"type": 'PAGE_UP', "value": 'PRESS', "repeat": True}, None),
-        ("EXTENSION_LENGTHEN", {"type": 'WHEELUPMOUSE', "value": 'PRESS'}, None),
+        ("EXTENSION_LENGTHEN", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS'}, None),
         ("EXTENSION_SHORTEN", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True}, None),
-        ("EXTENSION_SHORTEN", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS'}, None),
+        ("EXTENSION_SHORTEN", {"type": 'WHEELUPMOUSE', "value": 'PRESS'}, None),
         ("EXTENSION_DRAG", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
         ("EXTENSION_COLLIDE", {"type": 'D', "value": 'PRESS'}, None),
         ("INVERT", {"type": 'LEFT_CTRL', "value": 'ANY', "any": True}, None),
@@ -6476,6 +6476,29 @@ def km_bevel_modal_map(_params):
         ("PRECISION_OFF", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
         ("PRECISION_ON", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
         ("PRECISION_OFF", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
+    ])
+
+    return keymap
+
+
+def km_transform_axis_target_modal(_params):
+    items = []
+    keymap = (
+        "Transform Axis Target Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
+        ("TRANSLATE_ENABLE", {"type": 'LEFT_CTRL', "value": 'PRESS', "any": True}, None),
+        ("TRANSLATE_DISABLE", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
+        ("TRANSLATE_ENABLE", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
+        ("TRANSLATE_DISABLE", {"type": 'RIGHT_CTRL', "value": 'RELEASE', "any": True}, None),
     ])
 
     return keymap
@@ -9008,6 +9031,7 @@ def generate_keymaps(params=None):
         km_knife_tool_modal_map(params),
         km_custom_normals_modal_map(params),
         km_bevel_modal_map(params),
+        km_transform_axis_target_modal(params),
         km_view3d_fly_modal(params),
         km_view3d_walk_modal(params),
         km_view3d_rotate_modal(params),

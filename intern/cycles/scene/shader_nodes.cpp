@@ -368,20 +368,25 @@ void ImageTextureNode::attributes(Shader *shader, AttributeRequestSet *attribute
   ShaderNode::attributes(shader, attributes);
 }
 
+void ImageTextureNode::update_images(const SVMCompiler &compiler)
+{
+  if (handle.empty()) {
+    cull_tiles(compiler.scene, compiler.current_graph);
+    ImageManager *image_manager = compiler.scene->image_manager.get();
+    handle = image_manager->add_image(filename.string(), image_params(), tiles);
+  }
+}
+
 void ImageTextureNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *vector_in = input("Vector");
   ShaderOutput *color_out = output("Color");
   ShaderOutput *alpha_out = output("Alpha");
 
-  if (handle.empty()) {
-    cull_tiles(compiler.scene, compiler.current_graph);
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    handle = image_manager->add_image(filename.string(), image_params(), tiles);
-  }
+  update_images(compiler);
 
   /* All tiles have the same metadata. */
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
 
   const int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
@@ -401,44 +406,17 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
   }
 
   if (projection != NODE_IMAGE_PROJ_BOX) {
-    /* If there only is one image (a very common case), we encode it as a negative value. */
-    int num_nodes;
-    if (handle.num_tiles() == 0) {
-      num_nodes = -handle.svm_slot();
-    }
-    else {
-      num_nodes = divide_up(handle.num_tiles(), 2);
-    }
-
     compiler.add_node(NODE_TEX_IMAGE,
-                      num_nodes,
+                      handle.kernel_id(),
                       compiler.encode_uchar4(vector_offset,
                                              compiler.stack_assign_if_linked(color_out),
                                              compiler.stack_assign_if_linked(alpha_out),
                                              flags),
                       projection);
-
-    if (num_nodes > 0) {
-      for (int i = 0; i < num_nodes; i++) {
-        int4 node;
-        node.x = tiles[2 * i];
-        node.y = handle.svm_slot(2 * i);
-        if (2 * i + 1 < tiles.size()) {
-          node.z = tiles[2 * i + 1];
-          node.w = handle.svm_slot(2 * i + 1);
-        }
-        else {
-          node.z = -1;
-          node.w = -1;
-        }
-        compiler.add_node(node.x, node.y, node.z, node.w);
-      }
-    }
   }
   else {
-    assert(handle.num_svm_slots() == 1);
     compiler.add_node(NODE_TEX_IMAGE_BOX,
-                      handle.svm_slot(),
+                      handle.kernel_id(),
                       compiler.encode_uchar4(vector_offset,
                                              compiler.stack_assign_if_linked(color_out),
                                              compiler.stack_assign_if_linked(alpha_out),
@@ -460,12 +438,12 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
     handle = image_manager->add_image(filename.string(), image_params());
   }
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool is_float = metadata.is_float();
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
   const ustring known_colorspace = metadata.colorspace;
 
-  if (handle.svm_slot() == -1) {
+  if (handle.kernel_id() == KERNEL_IMAGE_NONE) {
     compiler.parameter_texture(
         "filename", filename, compress_as_srgb ? u_colorspace_scene_linear : known_colorspace);
   }
@@ -571,18 +549,23 @@ void EnvironmentTextureNode::attributes(Shader *shader, AttributeRequestSet *att
   ShaderNode::attributes(shader, attributes);
 }
 
+void EnvironmentTextureNode::update_images(const SVMCompiler &compiler)
+{
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager.get();
+    handle = image_manager->add_image(filename.string(), image_params());
+  }
+}
+
 void EnvironmentTextureNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *vector_in = input("Vector");
   ShaderOutput *color_out = output("Color");
   ShaderOutput *alpha_out = output("Alpha");
 
-  if (handle.empty()) {
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    handle = image_manager->add_image(filename.string(), image_params());
-  }
+  update_images(compiler);
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
 
   const int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
@@ -593,7 +576,7 @@ void EnvironmentTextureNode::compile(SVMCompiler &compiler)
   }
 
   compiler.add_node(NODE_TEX_ENVIRONMENT,
-                    handle.svm_slot(),
+                    handle.kernel_id(),
                     compiler.encode_uchar4(vector_offset,
                                            compiler.stack_assign_if_linked(color_out),
                                            compiler.stack_assign_if_linked(alpha_out),
@@ -612,12 +595,12 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 
   tex_mapping.compile(compiler);
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool is_float = metadata.is_float();
   const bool compress_as_srgb = metadata.is_compressible_as_srgb;
   const ustring known_colorspace = metadata.colorspace;
 
-  if (handle.svm_slot() == -1) {
+  if (handle.kernel_id() == KERNEL_IMAGE_NONE) {
     compiler.parameter_texture(
         "filename", filename, compress_as_srgb ? u_colorspace_scene_linear : known_colorspace);
   }
@@ -1027,7 +1010,7 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
     compiler.add_node(__float_as_uint(sunsky.nishita_data[8]),
                       __float_as_uint(sunsky.nishita_data[9]),
                       __float_as_uint(sunsky.nishita_data[10]),
-                      handle.svm_slot());
+                      handle.kernel_id());
   }
 
   tex_mapping.compile_end(compiler, vector_in, vector_offset);
@@ -7600,6 +7583,11 @@ NODE_DEFINE(NormalMapNode)
   convention_enum.insert("directx", NODE_NORMAL_MAP_CONVENTION_DIRECTX);
   SOCKET_ENUM(convention, "Convention", convention_enum, NODE_NORMAL_MAP_CONVENTION_OPENGL);
 
+  static NodeEnum base_enum;
+  base_enum.insert("original", NODE_NORMAL_MAP_BASE_ORIGINAL);
+  base_enum.insert("displaced", NODE_NORMAL_MAP_BASE_DISPLACED);
+  SOCKET_ENUM(base, "Base", base_enum, NODE_NORMAL_MAP_BASE_ORIGINAL);
+
   SOCKET_STRING(attribute, "Attribute", ustring());
 
   SOCKET_IN_FLOAT(strength, "Strength", 1.0f);
@@ -7618,16 +7606,29 @@ void NormalMapNode::attributes(Shader *shader, AttributeRequestSet *attributes)
     if (attribute.empty()) {
       /* We don't need the UV ourselves, but we need to compute the tangent from it. */
       attributes->add(ATTR_STD_UV);
-      attributes->add(ATTR_STD_UV_TANGENT_UNDISPLACED);
-      attributes->add(ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED);
+      if (base == NODE_NORMAL_MAP_BASE_DISPLACED) {
+        attributes->add(ATTR_STD_UV_TANGENT);
+        attributes->add(ATTR_STD_UV_TANGENT_SIGN);
+      }
+      else {
+        attributes->add(ATTR_STD_UV_TANGENT_UNDISPLACED);
+        attributes->add(ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED);
+        attributes->add(ATTR_STD_NORMAL_UNDISPLACED);
+      }
     }
     else {
       attributes->add(attribute);
-      attributes->add(ustring((string(attribute.c_str()) + ".undisplaced_tangent").c_str()));
-      attributes->add(ustring((string(attribute.c_str()) + ".undisplaced_tangent_sign").c_str()));
+      if (base == NODE_NORMAL_MAP_BASE_DISPLACED) {
+        attributes->add(ustring((string(attribute.c_str()) + ".tangent").c_str()));
+        attributes->add(ustring((string(attribute.c_str()) + ".tangent_sign").c_str()));
+      }
+      else {
+        attributes->add(ustring((string(attribute.c_str()) + ".undisplaced_tangent").c_str()));
+        attributes->add(
+            ustring((string(attribute.c_str()) + ".undisplaced_tangent_sign").c_str()));
+        attributes->add(ATTR_STD_NORMAL_UNDISPLACED);
+      }
     }
-
-    attributes->add(ATTR_STD_NORMAL_UNDISPLACED);
   }
 
   ShaderNode::attributes(shader, attributes);
@@ -7643,21 +7644,37 @@ void NormalMapNode::compile(SVMCompiler &compiler)
 
   if (space == NODE_NORMAL_MAP_TANGENT) {
     if (attribute.empty()) {
-      attr = compiler.attribute(ATTR_STD_UV_TANGENT_UNDISPLACED);
-      attr_sign = compiler.attribute(ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED);
+      if (base == NODE_NORMAL_MAP_BASE_DISPLACED) {
+        attr = compiler.attribute(ATTR_STD_UV_TANGENT);
+        attr_sign = compiler.attribute(ATTR_STD_UV_TANGENT_SIGN);
+      }
+      else {
+        attr = compiler.attribute(ATTR_STD_UV_TANGENT_UNDISPLACED);
+        attr_sign = compiler.attribute(ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED);
+      }
     }
     else {
-      attr = compiler.attribute(
-          ustring((string(attribute.c_str()) + ".undisplaced_tangent").c_str()));
-      attr_sign = compiler.attribute(
-          ustring((string(attribute.c_str()) + ".undisplaced_tangent_sign").c_str()));
+      if (base == NODE_NORMAL_MAP_BASE_DISPLACED) {
+        attr = compiler.attribute(ustring((string(attribute.c_str()) + ".tangent").c_str()));
+        attr_sign = compiler.attribute(
+            ustring((string(attribute.c_str()) + ".tangent_sign").c_str()));
+      }
+      else {
+        attr = compiler.attribute(
+            ustring((string(attribute.c_str()) + ".undisplaced_tangent").c_str()));
+        attr_sign = compiler.attribute(
+            ustring((string(attribute.c_str()) + ".undisplaced_tangent_sign").c_str()));
+      }
     }
   }
 
-  /* Pack space and convention into byte. */
+  /* Pack space, convention and base flags into byte 3 of node.y. */
   int flags = space;
   if (convention == NODE_NORMAL_MAP_CONVENTION_DIRECTX) {
     flags |= NODE_NORMAL_MAP_FLAG_DIRECTX;
+  }
+  if (base == NODE_NORMAL_MAP_BASE_ORIGINAL) {
+    flags |= NODE_NORMAL_MAP_FLAG_ORIGINAL;
   }
 
   compiler.add_node(NODE_NORMAL_MAP,
@@ -7672,21 +7689,36 @@ void NormalMapNode::compile(SVMCompiler &compiler)
 void NormalMapNode::compile(OSLCompiler &compiler)
 {
   if (space == NODE_NORMAL_MAP_TANGENT) {
+    std::string attr_name, attr_sign_name;
+
     if (attribute.empty()) {
-      compiler.parameter("attr_name", ustring("geom:undisplaced_tangent"));
-      compiler.parameter("attr_sign_name", ustring("geom:undisplaced_tangent_sign"));
+      if (base == NODE_NORMAL_MAP_BASE_DISPLACED) {
+        attr_name = "geom:tangent";
+        attr_sign_name = "geom:tangent_sign";
+      }
+      else {
+        attr_name = "geom:undisplaced_tangent";
+        attr_sign_name = "geom:undisplaced_tangent_sign";
+      }
     }
     else {
-      compiler.parameter("attr_name",
-                         ustring((string(attribute.c_str()) + ".undisplaced_tangent").c_str()));
-      compiler.parameter(
-          "attr_sign_name",
-          ustring((string(attribute.c_str()) + ".undisplaced_tangent_sign").c_str()));
+      if (base == NODE_NORMAL_MAP_BASE_DISPLACED) {
+        attr_name = string(attribute.c_str()) + ".tangent";
+        attr_sign_name = string(attribute.c_str()) + ".tangent_sign";
+      }
+      else {
+        attr_name = string(attribute.c_str()) + ".undisplaced_tangent";
+        attr_sign_name = string(attribute.c_str()) + ".undisplaced_tangent_sign";
+      }
     }
+
+    compiler.parameter("attr_name", attr_name.c_str());
+    compiler.parameter("attr_sign_name", attr_sign_name.c_str());
   }
 
   compiler.parameter(this, "space");
   compiler.parameter(this, "convention");
+  compiler.parameter(this, "base");
   compiler.add(this, "node_normal_map");
 }
 

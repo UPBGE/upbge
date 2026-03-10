@@ -317,7 +317,7 @@ static wmOperatorStatus render_view_cancel_exec(bContext *C, wmOperator * /*op*/
     return OPERATOR_FINISHED;
   }
   if (WM_window_is_temp_screen(win)) {
-    wm_window_close(C, CTX_wm_manager(C), win);
+    wm_window_close_request(C, CTX_wm_manager(C), win);
     return OPERATOR_FINISHED;
   }
 

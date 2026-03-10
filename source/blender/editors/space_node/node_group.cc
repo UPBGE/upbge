@@ -252,8 +252,9 @@ void NODE_OT_group_enter_exit(wmOperatorType *ot)
 /**
  * \return True if successful.
  */
-static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
+static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
 {
+  Main &bmain = *CTX_data_main(&C);
   NodeSetInterfaceParams params;
   params.skip_hidden = false;
 
@@ -270,12 +271,17 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
         return true;
       },
       ntree);
-  connect_copied_nodes_to_external_sockets(ngroup, copied_nodes, io_mapping);
+  const InterfaceProxyNodes proxy_nodes = connect_copied_nodes_to_external_sockets(
+      C, ngroup, copied_nodes, io_mapping, &group_node);
 
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {
     const float2 center = bounds->center();
     for (bNode *node : copied_nodes.node_map().values()) {
+      node->location[0] += center[0];
+      node->location[1] += center[1];
+    }
+    for (bNode *node : proxy_nodes.values()) {
       node->location[0] += center[0];
       node->location[1] += center[1];
     }
@@ -288,6 +294,9 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
 
   /* Select ungrouped nodes*/
   for (bNode *node : copied_nodes.node_map().values()) {
+    bke::node_set_selected(*node, true);
+  }
+  for (bNode *node : proxy_nodes.values()) {
     bke::node_set_selected(*node, true);
   }
 }
@@ -316,7 +325,7 @@ static wmOperatorStatus node_group_ungroup_exec(bContext *C, wmOperator * /*op*/
 
   node_deselect_all(*snode->edittree);
   for (bNode *node : nodes_to_ungroup) {
-    node_group_ungroup(*bmain, *snode->edittree, *node);
+    node_group_ungroup(*C, *snode->edittree, *node);
   }
   BKE_main_ensure_invariants(*CTX_data_main(C));
   return OPERATOR_FINISHED;
@@ -580,13 +589,9 @@ static void node_group_make_insert_selected(const bContext &C,
   params.skip_hidden = true;
   /* Expose only connected sockets if there is more than one node. */
   params.skip_unconnected = (nodes.size() > 1);
-  /* TODO Shared external connection will only create a single interface socket, but its type is
-   * based on the first internal socket. This creates potential conversion conflicts.
-   * (see also NodeSetInterfaceBuilder::expose_socket). */
+  /* Share external connections if a socket has multiple links. */
   params.use_unique_input = false;
-  /* TODO Unique output interface sockets are redundant and all use the same internal socket
-   * template. (see also NodeSetInterfaceBuilder::expose_socket). */
-  params.use_unique_output = true;
+  params.use_unique_output = false;
   const NodeTreeInterfaceMapping io_mapping = build_node_set_interface(
       params, ntree, nodes, group);
 

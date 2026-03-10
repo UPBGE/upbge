@@ -58,6 +58,7 @@
 
 #include "BLO_read_write.hh"
 
+#include "cache/compositor_cache.hh"
 #include "cache/final_image_cache.hh"
 #include "cache/intra_frame_cache.hh"
 #include "cache/source_image_cache.hh"
@@ -373,6 +374,7 @@ SequencerToolSettings *tool_settings_init()
                              SEQ_SNAP_TO_STRIP_HOLD | SEQ_SNAP_TO_MARKERS | SEQ_SNAP_TO_RETIMING |
                              SEQ_SNAP_TO_PREVIEW_BORDERS | SEQ_SNAP_TO_PREVIEW_CENTER |
                              SEQ_SNAP_TO_STRIPS_PREVIEW | SEQ_SNAP_TO_FRAME_RANGE;
+  tool_settings->snap_flag = SEQ_SNAP_TO_ALL_CHANNEL_STRIPS;
   tool_settings->snap_distance = 15;
   tool_settings->overlap_mode = SEQ_OVERLAP_SHUFFLE;
   tool_settings->pivot_point = V3D_AROUND_LOCAL_ORIGINS;
@@ -1182,8 +1184,13 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
 
   /* Ensure strip is playing correct sound. */
   if (BLI_listbase_is_empty(&strip->modifiers)) {
-    /* Just use playback handle from sound ID. */
-    BKE_sound_update_scene_sound(strip->runtime->scene_sound, strip->sound);
+    /* No modifiers: ensure we are playing the sound ID. However do not do this
+     * if we are pitch correcting, as the proper playback handle will be assigned there.
+     * Changing between original file sound and the pitch correction sound produces garbage
+     * audio in renders. */
+    if (strip->runtime->sound_time_stretch == nullptr) {
+      BKE_sound_update_scene_sound(strip->runtime->scene_sound, strip->sound);
+    }
   }
   else {
     /* Use Playback handle from sound ID as input for modifier stack. */
@@ -1258,7 +1265,30 @@ void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBaseT<Strip> *seqbase)
   sound_update_bounds_all(scene);
 }
 
+EditingRuntime::~EditingRuntime()
+{
+  MEM_delete(this->compositor_cache);
+}
+
+CompositorCache &EditingRuntime::ensure_compositor_cache()
+{
+  if (this->compositor_cache == nullptr) {
+    this->compositor_cache = MEM_new<CompositorCache>(__func__);
+  }
+  return *this->compositor_cache;
+}
+
 }  // namespace seq
+
+Editing::Editing()
+{
+  this->runtime = MEM_new<seq::EditingRuntime>(__func__);
+}
+
+Editing::~Editing()
+{
+  MEM_delete(this->runtime);
+}
 
 ListBaseT<Strip> *Editing::current_strips()
 {

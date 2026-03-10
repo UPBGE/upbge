@@ -99,9 +99,9 @@
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #  include "bpy_rna.hh"
+#endif
 
 using namespace blender;
-#endif
 
 static void bge_dupli_provider(DEGObjectIterData *data)
 {
@@ -222,7 +222,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   SCA_JoystickManager *joymgr = new SCA_JoystickManager(m_logicmgr);
   m_logicmgr->RegisterEventManager(joymgr);
 
-  m_networkScene = new KX_NetworkMessageScene(messageManager);
+  m_networkMessageScene = new KX_NetworkMessageScene(messageManager);
 
   m_rootnode = nullptr;
 
@@ -353,12 +353,6 @@ KX_Scene::~KX_Scene()
   }
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
-    if (!m_isPythonMainLoop) {
-      if (m_currentGPUViewport) {
-        /* This will free m_currentGPUViewport */
-        GPU_viewport_free(m_currentGPUViewport);
-      }
-    }
   }
   else {
     // Free the allocated profile a last time
@@ -428,8 +422,8 @@ KX_Scene::~KX_Scene()
   if (m_physicsEnvironment)
     delete m_physicsEnvironment;
 
-  if (m_networkScene)
-    delete m_networkScene;
+  if (m_networkMessageScene)
+    delete m_networkMessageScene;
 
   if (m_bucketmanager) {
     delete m_bucketmanager;
@@ -899,8 +893,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* Clear output framebuffer to ensure it has no color from previous pass.
    * (was causing troubles in Vulkan + custom bge viewports) */
   GPU_framebuffer_bind(output->GetFrameBuffer());
-  const float clear_col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-  GPU_framebuffer_clear_color_depth(output->GetFrameBuffer(), clear_col, 1.0f);
+  GPU_framebuffer_clear_color_depth(output->GetFrameBuffer(), {0.0, 0.0, 0.0, 1.0}, 1.0f);
   GPU_framebuffer_restore();
 
   /* Draw 2D filters */
@@ -2270,10 +2263,6 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
     if (gameobj->GetPhysicsController())
       gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, mesh);
   }
-
-  if (use_gfx || use_phys) {
-    DEG_id_tag_update(&gameobj->GetBlenderObject()->id, ID_RECALC_GEOMETRY);
-  }
 }
 
 KX_Camera *KX_Scene::GetActiveCamera()
@@ -2528,12 +2517,12 @@ void KX_Scene::UpdateObjectActivity(void)
 
 KX_NetworkMessageScene *KX_Scene::GetNetworkMessageScene()
 {
-  return m_networkScene;
+  return m_networkMessageScene;
 }
 
 void KX_Scene::SetNetworkMessageScene(KX_NetworkMessageScene *newScene)
 {
-  m_networkScene = newScene;
+  m_networkMessageScene = newScene;
 }
 
 void KX_Scene::SetGravity(const MT_Vector3 &gravity)
@@ -2569,7 +2558,7 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick *brick, KX_Scene *from, KX_Sce
   SCA_LogicManager *logicmgr = to->GetLogicManager();
 
   brick->Replace_IScene(to);
-  brick->Replace_NetworkScene(to->GetNetworkMessageScene());
+  brick->Replace_NetworkMessageScene(to->GetNetworkMessageScene());
   brick->SetLogicManager(to->GetLogicManager());
 
   // If we end up replacing a KX_CollisionEventManager, we need to make sure
@@ -3351,14 +3340,16 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     convertBlenderObjectsList,
-                    "convertBlenderObjectsList()\n"
+                    "convertBlenderObjectsList(objects, asynchronous=False)\n"
                     "\n")
 {
   PyObject *list;
   int asynchronous = 0;
 
-  if (!PyArg_ParseTuple(args, "O!i:", &PyList_Type, &list, &asynchronous)) {
-    PyErr_SetString(PyExc_TypeError, "convertBlenderObjectsList: Expected a bpy.types.blender::Object list.");
+  static const char *kwlist[] = {"objects", "asynchronous", nullptr};
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|i:", const_cast<char **>(kwlist), &PyList_Type, &list, &asynchronous)) {
+    PyErr_SetString(PyExc_TypeError, "convertBlenderObjectsList(objects, asynchronous=False): Expected a bpy.types.blender::Object list.");
     return nullptr;
   }
 
@@ -3370,7 +3361,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
     blender::ID *id;
     if (!pyrna_id_FromPyObject(bl_object, &id)) {
-      PyErr_SetString(PyExc_RuntimeError, "convertBlenderObjectsList: Failed to convert object.");
+      PyErr_SetString(PyExc_RuntimeError, "convertBlenderObjectsList(objects, asynchronous=False): Failed to convert object.");
       return nullptr;
     }
 
@@ -3384,20 +3375,22 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     convertBlenderCollection,
-                    "convertBlenderCollection()\n"
+                    "convertBlenderCollection(collection, asynchronous=False)\n"
                     "\n")
 {
   PyObject *bl_collection = Py_None;
-  int asynchronous;
+  int asynchronous = 0;
 
-  if (!PyArg_ParseTuple(args, "Oi:", &bl_collection, &asynchronous)) {
-    PyErr_SetString(PyExc_TypeError, "convertBlenderCollection: Expected a bpy.types.blender::Collection.");
+  static const char *kwlist[] = {"collection", "asynchronous", nullptr};
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|i:", const_cast<char **>(kwlist), &bl_collection, &asynchronous)) {
+    PyErr_SetString(PyExc_TypeError, "convertBlenderCollection(collection, asynchronous=False): Expected a bpy.types.blender::Collection.");
     return nullptr;
   }
 
   blender::ID *id;
   if (!pyrna_id_FromPyObject(bl_collection, &id)) {
-    PyErr_SetString(PyExc_RuntimeError, "convertBlenderCollection: Failed to convert collection.");
+    PyErr_SetString(PyExc_RuntimeError, "convertBlenderCollection(collection, asynchronous=False): Failed to convert collection.");
     return nullptr;
   }
 

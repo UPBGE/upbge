@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include <cassert>
 #include <cstdio>
 
 #include <OpenImageIO/filesystem.h>
@@ -66,9 +67,53 @@ TypeDesc ImageMetaData::typedesc() const
     case IMAGE_DATA_TYPE_NANOVDB_FP16:
     case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
     case IMAGE_DATA_NUM_TYPES:
+      assert(!"Unknown data type");
       break;
   }
   return TypeUnknown;
+}
+
+size_t ImageMetaData::pixel_memory_size() const
+{
+  switch (type) {
+    case IMAGE_DATA_TYPE_BYTE:
+      return sizeof(uint8_t);
+    case IMAGE_DATA_TYPE_BYTE4:
+      return sizeof(uint8_t) * 4;
+    case IMAGE_DATA_TYPE_USHORT:
+      return sizeof(uint16_t);
+    case IMAGE_DATA_TYPE_USHORT4:
+      return sizeof(uint16_t) * 4;
+    case IMAGE_DATA_TYPE_HALF:
+    case IMAGE_DATA_TYPE_NANOVDB_FP16:
+      return sizeof(half);
+    case IMAGE_DATA_TYPE_HALF4:
+      return sizeof(half) * 4;
+    case IMAGE_DATA_TYPE_FLOAT:
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT:
+      return sizeof(float);
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT3:
+      return sizeof(float) * 3;
+    case IMAGE_DATA_TYPE_FLOAT4:
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT4:
+      return sizeof(float) * 4;
+    case IMAGE_DATA_TYPE_NANOVDB_FPN:
+    case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
+    case IMAGE_DATA_NUM_TYPES:
+      break;
+  }
+
+  return 0;
+}
+
+size_t ImageMetaData::memory_size() const
+{
+  /* For NanoVDB, the byte size is stored directly. */
+  if (is_nanovdb_type(type)) {
+    return nanovdb_byte_size;
+  }
+
+  return width * height * pixel_memory_size();
 }
 
 void ImageMetaData::finalize(const ImageAlphaType alpha_type)
@@ -99,12 +144,19 @@ void ImageMetaData::finalize(const ImageAlphaType alpha_type)
   ignore_alpha = alpha_type == IMAGE_ALPHA_IGNORE;
   is_channel_packed = alpha_type == IMAGE_ALPHA_CHANNEL_PACKED;
 
-  /* For typical RGBA images we let OIIO convert to associated alpha,
-   * but some types we want to leave the RGB channels untouched. */
-  is_unassociated_alpha = is_unassociated_alpha &&
-                          !(ColorSpaceManager::colorspace_is_data(colorspace) ||
-                            alpha_type == IMAGE_ALPHA_IGNORE ||
-                            alpha_type == IMAGE_ALPHA_CHANNEL_PACKED);
+  /* No alpha conversion needed for data, associated, no alpha or channel packed. */
+  if (ColorSpaceManager::colorspace_is_data(colorspace) || alpha_type == IMAGE_ALPHA_ASSOCIATED ||
+      alpha_type == IMAGE_ALPHA_IGNORE || alpha_type == IMAGE_ALPHA_CHANNEL_PACKED)
+  {
+    is_unassociated_alpha = false;
+  }
+  /* Allways convert if explicitly specified as unassociated. */
+  else if (alpha_type == IMAGE_ALPHA_UNASSOCIATED) {
+    is_unassociated_alpha = true;
+  }
+  else {
+    /* Leave automatically detected is_unassociated_alpha unchanged. */
+  }
 }
 
 void ImageMetaData::make_float()

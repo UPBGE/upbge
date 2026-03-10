@@ -1,0 +1,2 @@
+030000005e0400001b00000000000000,Microsoft SideWinder Force Feedback 2 Joystick,a:b7,b:b4,x:b6,y:b5,leftshoulder:b2,rightshoulder:b3,leftstick:b0,rightstick:b1,leftx:a2,lefty:a3,rightx:a0,righty:a1,dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,platform:Windows,
+030000005e0400001b00000000010000,Microsoft SideWinder Force Feedback 2 Joystick,a:b7,b:b4,x:b6,y:b5,leftshoulder:b2,rightshoulder:b3,leftstick:b0,rightstick:b1,leftx:a2,lefty:a3,rightx:a0,righty:a1,dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,platform:Linux,

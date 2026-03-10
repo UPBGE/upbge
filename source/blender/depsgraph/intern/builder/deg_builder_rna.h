@@ -60,7 +60,7 @@ class RNANodeIdentifier {
 };
 
 /* Helper class which performs optimized lookups of a node within a given
- * dependency graph which satisfies given RNA pointer or RAN path. */
+ * dependency graph which satisfies given RNA pointer or RNA path. */
 class RNANodeQuery {
  public:
   RNANodeQuery(Depsgraph *depsgraph, DepsgraphBuilder *builder);

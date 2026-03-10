@@ -223,7 +223,7 @@ struct Instance : public DrawEngine {
     e_data.context.max_index_drawn_len = 1;
     framebuffer_setup();
     GPU_framebuffer_bind(e_data.framebuffer_select_id);
-    GPU_framebuffer_clear_color_depth(e_data.framebuffer_select_id, float4{0.0f}, 1.0f);
+    GPU_framebuffer_clear_color_depth(e_data.framebuffer_select_id, {0.0, 0.0, 0.0, 0.0}, 1.0f);
   }
 
   ElemIndexRanges edit_mesh_sync(Object *ob,

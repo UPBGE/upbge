@@ -7,6 +7,7 @@ set(INC
   ..
   include
   ../intern
+  ../shader
   ../../editors/include
   ../../makesrna
   # RNA_prototypes.hh
@@ -35,6 +36,8 @@ set(SRC
   nodes/node_fn_input_bool.cc
   nodes/node_fn_input_color.cc
   nodes/node_fn_input_int.cc
+  nodes/node_fn_input_int_vector.cc
+  nodes/node_fn_input_menu.cc
   nodes/node_fn_input_rotation.cc
   nodes/node_fn_input_special_characters.cc
   nodes/node_fn_input_string.cc
@@ -81,6 +84,7 @@ set(LIB
   PRIVATE bf::blenloader
   PRIVATE bf::dna
   PRIVATE bf::functions
+  PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager

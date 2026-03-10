@@ -582,38 +582,6 @@ std::optional<AttrDomain> NamedLayerSelectionFieldInput::preferred_domain(
   return AttrDomain::Layer;
 }
 
-template<typename T>
-void copy_with_checked_indices(const VArray<T> &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               MutableSpan<T> dst)
-{
-  const IndexRange src_range = src.index_range();
-  devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-    mask.foreach_index(
-        [&](const int i) {
-          const int index = indices[i];
-          if (src_range.contains(index)) {
-            dst[i] = src[index];
-          }
-          else {
-            dst[i] = {};
-          }
-        },
-        exec_mode::grain_size(4096));
-  });
-}
-
-void copy_with_checked_indices(const GVArray &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               GMutableSpan dst)
-{
-  bke::attribute_math::to_static_type(src.type(), [&]<typename T>() {
-    copy_with_checked_indices(src.typed<T>(), indices, mask, dst.typed<T>());
-  });
-}
-
 EvaluateAtIndexInput::EvaluateAtIndexInput(fn::Field<int> index_field,
                                            fn::GField value_field,
                                            AttrDomain value_field_domain)
@@ -641,11 +609,95 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   fn::FieldEvaluator index_evaluator{context, &mask};
   index_evaluator.add(index_field_);
   index_evaluator.evaluate();
-  const VArray<int> indices = index_evaluator.get_evaluated<int>(0);
+  const VArraySpan<int> indices = index_evaluator.get_evaluated<int>(0);
 
   GArray<> dst_array(values.type(), mask.min_array_size());
-  copy_with_checked_indices(values, indices, mask, dst_array);
+  IndexMaskMemory memory;
+  const IndexMask valid_mask = array_utils::indices_in_range(
+      mask, indices, values.index_range(), memory);
+  bke::attribute_math::gather(values, indices, valid_mask, dst_array);
+  dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
   return GVArray::from_garray(std::move(dst_array));
+}
+
+static bool component_is_available(const GeometrySet &geometry,
+                                   const GeometryComponent::Type type,
+                                   const AttrDomain domain)
+{
+  if (!geometry.has(type)) {
+    return false;
+  }
+  const GeometryComponent &component = *geometry.get_component(type);
+  return component.attribute_domain_size(domain) != 0;
+}
+
+const GeometryComponent *SampleIndexFunction::find_source_component(const GeometrySet &geometry,
+                                                                    const AttrDomain domain)
+{
+  /* Choose the other component based on a consistent order, rather than some more complicated
+   * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
+  static const Array<GeometryComponent::Type> supported_types = {
+      GeometryComponent::Type::Mesh,
+      GeometryComponent::Type::PointCloud,
+      GeometryComponent::Type::Curve,
+      GeometryComponent::Type::Instance,
+      GeometryComponent::Type::GreasePencil};
+  for (const GeometryComponent::Type src_type : supported_types) {
+    if (component_is_available(geometry, src_type, domain)) {
+      return geometry.get_component(src_type);
+    }
+  }
+
+  return nullptr;
+}
+
+SampleIndexFunction::SampleIndexFunction(GeometrySet geometry,
+                                         fn::GField src_field,
+                                         const AttrDomain domain)
+    : src_geometry_(std::move(geometry)), src_field_(std::move(src_field)), domain_(domain)
+{
+  src_geometry_.ensure_owns_direct_data();
+
+  mf::SignatureBuilder builder{"Sample Index", signature_};
+  builder.single_input<int>("Index");
+  builder.single_output("Value", src_field_.cpp_type());
+  this->set_signature(&signature_);
+
+  this->evaluate_field();
+}
+
+void SampleIndexFunction::evaluate_field()
+{
+  const GeometryComponent *component = find_source_component(src_geometry_, domain_);
+  if (component == nullptr) {
+    return;
+  }
+  const int domain_num = component->attribute_domain_size(domain_);
+  geometry_context_.emplace(GeometryFieldContext(*component, domain_));
+  evaluator_ = std::make_unique<fn::FieldEvaluator>(*geometry_context_, domain_num);
+  evaluator_->add(src_field_);
+  evaluator_->evaluate();
+  src_data_ = &evaluator_->get_evaluated(0);
+}
+
+void SampleIndexFunction::call(const IndexMask &mask,
+                               mf::Params params,
+                               mf::Context /*context*/) const
+{
+  const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
+  GMutableSpan dst = params.uninitialized_single_output(1, "Value");
+
+  const CPPType &type = dst.type();
+  if (src_data_ == nullptr) {
+    type.value_initialize_indices(dst.data(), mask);
+    return;
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask valid_mask = array_utils::indices_in_range(
+      mask, indices, src_data_->index_range(), memory);
+  bke::attribute_math::gather(*src_data_, indices, valid_mask, dst);
+  dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
 }
 
 EvaluateOnDomainInput::EvaluateOnDomainInput(fn::GField field, AttrDomain domain)
@@ -887,13 +939,13 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   bool success = true;
 
   for (const int input_index : names.index_range()) {
-    const StringRef id = names[input_index];
+    const StringRef name = names[input_index];
     const CPPType &type = fields[input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
 
     /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
     if (const std::optional<AttributeDomainAndType> meta_data =
-            attributes.get_builtin_domain_and_type(id))
+            attributes.get_builtin_domain_and_type(name))
     {
       if (*meta_data != AttributeDomainAndType{domain, data_type}) {
         success = false;
@@ -901,11 +953,11 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       }
     }
 
-    const AttributeValidator validator = attributes.lookup_validator(id);
+    const AttributeValidator validator = attributes.lookup_validator(name);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
 
     /* We are writing to an attribute that exists already with the correct domain and type. */
-    if (const GAttributeReader dst = attributes.lookup(id)) {
+    if (const GAttributeReader dst = attributes.lookup(name)) {
       if (dst.domain == domain && dst.varray.type() == field.cpp_type()) {
         const int evaluator_index = evaluator.add(field);
         results_to_store.append({input_index, evaluator_index});
@@ -914,7 +966,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     }
 
     if (!validator && selection_is_full) {
-      if (try_add_shared_field_attribute(attributes, id, domain, field)) {
+      if (try_add_shared_field_attribute(attributes, name, domain, field)) {
         continue;
       }
     }
@@ -925,7 +977,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       void *buffer = MEM_new_uninitialized_aligned(
           type.size * domain_size, type.alignment, __func__);
       if (!selection_is_full) {
-        initialize_new_data(attributes, domain, domain_size, id, type, data_type, buffer);
+        initialize_new_data(attributes, domain, domain_size, name, type, data_type, buffer);
       }
 
       GMutableSpan dst(type, buffer, domain_size);
@@ -943,31 +995,31 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
 
   for (const StoreResult &result : results_to_store) {
-    const StringRef id = names[result.input_index];
+    const StringRef name = names[result.input_index];
     const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
     const CommonVArrayInfo info = result_data.common_info();
     if (selection_is_full) {
       if (info.type == CommonVArrayInfo::Type::Single) {
-        if (try_assign_single_value(attributes, id, GPointer(result_data.type(), info.data))) {
+        if (try_assign_single_value(attributes, name, GPointer(result_data.type(), info.data))) {
           continue;
         }
       }
     }
-    const GAttributeReader dst = attributes.lookup(id);
+    const GAttributeReader dst = attributes.lookup(name);
     if (!attribute_data_matches_varray(dst, info)) {
-      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);
+      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(name);
       array_utils::copy(result_data, mask, dst_mut.span);
       dst_mut.finish();
     }
   }
 
   for (AddResult &result : results_to_add) {
-    const StringRef id = names[result.input_index];
-    attributes.remove(id);
+    const StringRef name = names[result.input_index];
+    attributes.remove(name);
     const CPPType &type = fields[result.input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
     if (auto *array = std::get_if<AddResult::Array>(&result.new_data)) {
-      if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(array->data))) {
+      if (!attributes.add(name, domain, data_type, AttributeInitMoveArray(array->data))) {
         /* If the name corresponds to a builtin attribute, removing the attribute might fail if
          * it's required, adding the attribute might fail if the domain or type is incorrect. */
         type.destruct_n(array->data, domain_size);
@@ -978,7 +1030,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     else {
       const auto value = std::get<AddResult::Single>(result.new_data);
       const AttributeInitValue init(GPointer(type, value.value));
-      if (!attributes.add(id, domain, data_type, init)) {
+      if (!attributes.add(name, domain, data_type, init)) {
         success = false;
       }
     }

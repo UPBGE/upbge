@@ -173,7 +173,7 @@ class RemoteLibraryLoadingStatus {
    * given timeout duration. Changes the status to failure in that case.
    *
    * Note that this function doesn't do more than check if the timeout is reached, and changing
-   * state to failure if so. It's meant to be called in regular, short intervalls to make the whole
+   * state to failure if so. It's meant to be called in regular, short intervals to make the whole
    * timeout handling work. Current remote asset library loading takes care of this.
    *
    * \return True if the loading status switched to #Status::Failure due to timing out.
@@ -181,7 +181,7 @@ class RemoteLibraryLoadingStatus {
   static bool handle_timeout(StringRef url);
 
  private:
-  /** Update the last update time point, effectively resetting the timout timer. */
+  /** Update the last update time point, effectively resetting the time-out timer. */
   void reset_timeout();
 };
 

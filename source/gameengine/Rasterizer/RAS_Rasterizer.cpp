@@ -256,9 +256,7 @@ void RAS_Rasterizer::Exit()
   // SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
   // Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
-
-  const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), clear_col, 1.0f);
+  GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), {0.0, 0.0, 0.0, 0.0}, 1.0f);
 }
 
 void RAS_Rasterizer::BeginFrame(double time)

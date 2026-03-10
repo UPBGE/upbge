@@ -13,6 +13,7 @@
 #include "BKE_mesh.hh"
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -87,29 +88,14 @@ IndexRange vertex_range_for_face(const int face_id, const MeshOffsets &mesh_offs
                                     mesh_offsets.vert_start[mesh_id + 1]);
 }
 
-template<typename T>
-void copy_attribute_using_map(const Span<T> src, const Span<int> out_to_in_map, MutableSpan<T> dst)
-{
-  const int grain_size = 20000;
-  threading::parallel_for(out_to_in_map.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int out_elem : range) {
-      const int in_elem = out_to_in_map[out_elem];
-      if (in_elem == -1) {
-        dst[out_elem] = T();
-      }
-      else {
-        dst[out_elem] = src[in_elem];
-      }
-    }
-  });
-}
-
 void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GMutableSpan dst)
 {
   const CPPType &type = dst.type();
-  bke::attribute_math::to_static_type(type, [&]<typename T>() {
-    copy_attribute_using_map(src.typed<T>(), out_to_in_map, dst.typed<T>());
-  });
+  IndexMaskMemory memory;
+  const IndexMask valid_mask = array_utils::indices_non_negative(
+      IndexRange(dst.size()), out_to_in_map, memory);
+  bke::attribute_math::gather(src, out_to_in_map, valid_mask, dst);
+  type.value_initialize_indices(dst.data(), valid_mask.complement(IndexRange(dst.size()), memory));
 }
 
 void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
@@ -243,17 +229,19 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
               const bool need_flip = face_is_flipped && is_normal_attribute[attr_index];
               const CPPType &type = dst.type();
               bke::attribute_math::to_static_type(type, [&]<typename T>() {
-                const Span<T> src_typed = src.typed<T>();
-                MutableSpan<T> dst_typed = dst.typed<T>();
-                bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(&dst_typed[out_c], 1)};
-                for (const int i : in_face.index_range()) {
-                  mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
-                }
-                mixer.finalize();
-                if (need_flip) {
-                  /* The joined mesh has converted custom normals to float3. */
-                  if (type.is<float3>()) {
-                    dst.typed<float3>()[out_c] = -dst.typed<float3>()[out_c];
+                if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+                  const Span<T> src_typed = src.typed<T>();
+                  MutableSpan<T> dst_typed = dst.typed<T>();
+                  bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(&dst_typed[out_c], 1)};
+                  for (const int i : in_face.index_range()) {
+                    mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
+                  }
+                  mixer.finalize();
+                  if (need_flip) {
+                    /* The joined mesh has converted custom normals to float3. */
+                    if (type.is<float3>()) {
+                      dst.typed<float3>()[out_c] = -dst.typed<float3>()[out_c];
+                    }
                   }
                 }
               });

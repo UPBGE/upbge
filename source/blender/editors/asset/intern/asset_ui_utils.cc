@@ -118,7 +118,7 @@ std::optional<AssetLibraryReference> get_user_library_ref_for_save(
 {
   std::optional<AssetLibraryReference> preferred_library_ref =
       preferred_library ? preferred_library->library_reference() : std::nullopt;
-  BLI_assert(bool(preferred_library_ref));
+  BLI_assert(!preferred_library || bool(preferred_library_ref));
 
   if (preferred_library_ref &&
       !ELEM(preferred_library_ref->type, ASSET_LIBRARY_ALL, ASSET_LIBRARY_ESSENTIALS))

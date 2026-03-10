@@ -2907,7 +2907,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           if (BLI_listbase_is_single(&file_area->spacedata)) {
             BLI_assert(root_win != &win);
 
-            wm_window_close(C, wm, &win);
+            wm_window_close_request(C, wm, &win);
 
             /* #wm_window_close() sets the context's window to null. */
             CTX_wm_window_set(C, root_win);
@@ -3567,16 +3567,23 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
 
                   action |= WM_HANDLER_BREAK;
 
+                  /* Some of the values will have been freed when freeing the window-manger. */
+                  const bool is_file_read = CTX_wm_window(C) == nullptr;
+
                   /* Free the drags. */
-                  WM_drag_free_list(lb);
+                  if (!is_file_read) {
+                    WM_drag_free_list(lb);
+                  }
                   WM_drag_free_list(&single_lb);
 
-                  wm_event_custom_clear(event);
+                  if (!is_file_read) {
+                    wm_event_custom_clear(event);
+                  }
 
                   wm_drop_end(C, &drag, &drop);
 
                   /* XXX file-read case. */
-                  if (CTX_wm_window(C) == nullptr) {
+                  if (is_file_read) {
                     return action;
                   }
 

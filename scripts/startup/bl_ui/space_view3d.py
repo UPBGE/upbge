@@ -1269,6 +1269,7 @@ class VIEW3D_MT_transform_base:
         layout.separator()
 
         layout.operator("transform.tosphere", text="To Sphere")
+        layout.operator("mesh.circularize", text="To Circle")
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
@@ -2992,6 +2993,10 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
+            layout.operator("object.transform_axis_target")
+
+            layout.separator()
+
         elif obj.type in {'CURVE', 'FONT'}:
             layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -3080,6 +3085,10 @@ class VIEW3D_MT_object_context_menu(Menu):
                 props.data_path_item = "data.spot_blend"
                 props.input_scale = -0.01
                 props.header_text = rpt_("Spot Blend: %.2f")
+
+            layout.separator()
+
+            layout.operator("object.transform_axis_target")
 
             layout.separator()
 
@@ -3737,6 +3746,10 @@ class VIEW3D_MT_sculpt(Menu):
 
         layout.separator()
 
+        layout.menu("VIEW3D_MT_add_object", text="Add Primitive")
+
+        layout.separator()
+
         sculpt_filters_types = [
             ('SMOOTH', iface_("Smooth", i18n_contexts.operator_default)),
             ('SURFACE_SMOOTH', iface_("Surface Smooth")),
@@ -3852,6 +3865,33 @@ class VIEW3D_MT_sculpt_trim(Menu):
 
         props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Add")
         props.trim_mode = 'JOIN'
+
+
+class VIEW3D_MT_add_object(Menu):
+    bl_label = "Add Primitive"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        props = layout.operator("wm.tool_set_by_id", text="Add Cube")
+        props.name = "builtin.primitive_cube_add"
+        props.space_type = 'VIEW_3D'
+
+        props = layout.operator("wm.tool_set_by_id", text="Add Cylinder")
+        props.name = "builtin.primitive_cylinder_add"
+        props.space_type = 'VIEW_3D'
+
+        props = layout.operator("wm.tool_set_by_id", text="Add Cone")
+        props.name = "builtin.primitive_cone_add"
+        props.space_type = 'VIEW_3D'
+
+        props = layout.operator("wm.tool_set_by_id", text="Add UV Sphere")
+        props.name = "builtin.primitive_uv_sphere_add"
+        props.space_type = 'VIEW_3D'
+
+        props = layout.operator("wm.tool_set_by_id", text="Add Ico Cube")
+        props.name = "builtin.primitive_ico_sphere_add"
+        props.space_type = 'VIEW_3D'
 
 
 class VIEW3D_MT_sculpt_curves(Menu):
@@ -6718,7 +6758,7 @@ class VIEW3D_PT_shading_lighting(Panel):
 class VIEW3D_PT_shading_color(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
-    bl_label = "Wireframe Color"
+    bl_label = "Color"
     bl_parent_id = "VIEW3D_PT_shading"
 
     def _draw_color_type(self, context):
@@ -6742,13 +6782,14 @@ class VIEW3D_PT_shading_color(Panel):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
 
-        self.layout.row().prop(shading, "wireframe_color_type", expand=True)
-        self.layout.separator()
+        layout.label(text="Wireframe")
+        layout.row().prop(shading, "wireframe_color_type", expand=True)
+        layout.separator()
 
         if shading.type == 'SOLID':
-            layout.row().label(text="Object Color")
+            layout.label(text="Object")
             self._draw_color_type(context)
-            self.layout.separator()
+            layout.separator()
             self._draw_background_color(context)
         elif shading.type == 'WIREFRAME':
             self._draw_background_color(context)
@@ -8749,10 +8790,19 @@ class VIEW3D_PT_paint_vertex_context_menu(Panel):
 
 
 class VIEW3D_PT_paint_texture_context_menu(Panel):
+    # Used in both the 3DView as well as the Image Editor
     # Only for popover, these are dummy values.
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'WINDOW'
     bl_label = "Texture Paint"
+
+    @classmethod
+    def poll(cls, context):
+        # Since bl_space_type is ignored for popovers, we need to check if the Image Editor is in the right mode
+        space = context.space_data
+        if space is not None and space.type == 'IMAGE_EDITOR' and space.mode != 'PAINT':
+            return False
+        return True
 
     def draw(self, context):
         layout = self.layout
@@ -9307,6 +9357,7 @@ classes = (
     VIEW3D_MT_sculpt_transform,
     VIEW3D_MT_sculpt_showhide,
     VIEW3D_MT_sculpt_trim,
+    VIEW3D_MT_add_object,
     VIEW3D_MT_mask,
     VIEW3D_MT_face_sets,
     VIEW3D_MT_face_sets_init,

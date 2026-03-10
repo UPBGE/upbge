@@ -3904,6 +3904,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 else ()
             ),
             None,
+            _tools_view3d_add,
+            None,
             (
                 _defs_sculpt.mask_border,
                 _defs_sculpt.mask_lasso,

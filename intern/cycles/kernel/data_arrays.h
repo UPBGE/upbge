@@ -61,7 +61,6 @@ KERNEL_DATA_ARRAY(float2, light_background_conditional_cdf)
 KERNEL_DATA_ARRAY(KernelLightTreeNode, light_tree_nodes)
 KERNEL_DATA_ARRAY(KernelLightTreeEmitter, light_tree_emitters)
 KERNEL_DATA_ARRAY(uint, light_to_tree)
-KERNEL_DATA_ARRAY(uint, object_to_tree)
 KERNEL_DATA_ARRAY(uint, object_lookup_offset)
 KERNEL_DATA_ARRAY(uint, triangle_to_tree)
 
@@ -78,9 +77,6 @@ KERNEL_DATA_ARRAY(float, lookup_table)
 /* tabulated Sobol sample pattern */
 KERNEL_DATA_ARRAY(float, sample_pattern_lut)
 
-/* image textures */
-KERNEL_DATA_ARRAY(KernelImageInfo, image_info)
-
 /* ies lights */
 KERNEL_DATA_ARRAY(float, ies)
 
@@ -89,5 +85,10 @@ KERNEL_DATA_ARRAY(KernelOctreeNode, volume_tree_nodes)
 KERNEL_DATA_ARRAY(KernelOctreeRoot, volume_tree_roots)
 KERNEL_DATA_ARRAY(int, volume_tree_root_ids)
 KERNEL_DATA_ARRAY(float, volume_step_size)
+
+/* image textures */
+KERNEL_DATA_ARRAY(KernelImageTexture, image_textures)
+KERNEL_DATA_ARRAY(KernelImageUDIM, image_texture_udims)
+KERNEL_DATA_ARRAY(KernelImageInfo, image_info)
 
 #undef KERNEL_DATA_ARRAY

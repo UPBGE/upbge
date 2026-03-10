@@ -28,6 +28,7 @@ struct MeshGpuData {
   uint32_t session_uid = 0;
 };
 
+void mesh_gpu_orphans_flush_impl();
 /* Manager owning mesh/armature GPU caches. */
 class MeshGPUCacheManager {
  public:

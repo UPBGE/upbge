@@ -1122,7 +1122,7 @@ static void evaluate_short_unknown_segments_exactly(
     const ExactEvalMode exact_eval_mode,
     const Span<const Expr *> eval_order,
     const Span<IndexRange> short_unknown_segments,
-    IndexMaskMemory &memory,
+    LinearAllocator<> &memory,
     Vector<EvaluatedSegment, 16> &r_evaluated_segments)
 {
   /* Evaluate a segment exactly. */
@@ -1222,7 +1222,7 @@ static void evaluate_short_unknown_segments_exactly(
 }
 
 static IndexMask evaluated_segments_to_index_mask(MutableSpan<EvaluatedSegment> evaluated_segments,
-                                                  IndexMaskMemory &memory)
+                                                  LinearAllocator<> &memory)
 {
   if (evaluated_segments.is_empty()) {
     return {};
@@ -1251,7 +1251,7 @@ static IndexMask evaluated_segments_to_index_mask(MutableSpan<EvaluatedSegment> 
 }
 
 static IndexMask evaluate_expression_impl(const Expr &root_expression,
-                                          IndexMaskMemory &memory,
+                                          LinearAllocator<> &memory,
                                           const ExactEvalMode exact_eval_mode)
 {
   /* Precompute the evaluation order here, because it's used potentially many times throughout the
@@ -1275,7 +1275,7 @@ static IndexMask evaluate_expression_impl(const Expr &root_expression,
   return evaluated_segments_to_index_mask(evaluated_segments, memory);
 }
 
-IndexMask evaluate_expression(const Expr &expression, IndexMaskMemory &memory)
+IndexMask evaluate_expression(const Expr &expression, LinearAllocator<> &memory)
 {
   const ExactEvalMode exact_eval_mode = determine_exact_eval_mode(expression);
   IndexMask mask = evaluate_expression_impl(expression, memory, exact_eval_mode);

@@ -878,6 +878,47 @@ static void view_zoomstep_apply(bContext *C, wmOperator *op)
 /** \name View Zoom Operator (single step)
  * \{ */
 
+/**
+ * Default 2D zoom per scroll-wheel "step".
+ */
+static constexpr float view_zoomfac_default = 0.0375f;
+
+static void view_zoomstep_props_init(bContext *C, wmOperator *op, const float zoomfac_default)
+{
+  bool do_zoom_xy[2];
+  view_zoom_axis_lock_defaults(C, do_zoom_xy);
+
+  /* Set RNA-Props - zooming in by uniform factor. */
+  const char *props_zoomfac[2] = {"zoomfacx", "zoomfacy"};
+  for (int i = 0; i < 2; i++) {
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, props_zoomfac[i]);
+    /* If we can zoom on this value *and* the value is set (likely by the key-map),
+     * then respect the value the user set. */
+    if (do_zoom_xy[i] && RNA_property_is_set(op->ptr, prop)) {
+      continue;
+    }
+    RNA_property_float_set(op->ptr, prop, do_zoom_xy[i] ? zoomfac_default : 0.0f);
+  }
+}
+
+static void view_zoomstep_props_def(StructRNA *srna, const float zoomfac_default)
+{
+  const char *props_id[2] = {"zoomfacx", "zoomfacy"};
+  const char *props_name[2] = {"Zoom Factor X", "Zoom Factor Y"};
+  for (int i = 0; i < 2; i++) {
+    PropertyRNA *prop = RNA_def_float(srna,
+                                      props_id[i],
+                                      zoomfac_default,
+                                      -FLT_MAX,
+                                      FLT_MAX,
+                                      props_name[i],
+                                      "",
+                                      -FLT_MAX,
+                                      FLT_MAX);
+    RNA_def_property_flag(prop, PROP_HIDDEN);
+  }
+}
+
 /* Cleanup temp custom-data. */
 static void view_zoomstep_exit(bContext *C, wmOperator *op)
 {
@@ -900,14 +941,8 @@ static wmOperatorStatus view_zoomin_exec(bContext *C, wmOperator *op)
     view_zoomdrag_init(C, op);
   }
 
-  bool do_zoom_xy[2];
-  view_zoom_axis_lock_defaults(C, do_zoom_xy);
-
-  /* set RNA-Props - zooming in by uniform factor */
-  RNA_float_set(op->ptr, "zoomfacx", do_zoom_xy[0] ? 0.0375f : 0.0f);
-  RNA_float_set(op->ptr, "zoomfacy", do_zoom_xy[1] ? 0.0375f : 0.0f);
-
-  /* apply movement, then we're done */
+  /* Apply movement, then we're done. */
+  view_zoomstep_props_init(C, op, view_zoomfac_default);
   view_zoomstep_apply(C, op);
 
   view_zoomstep_exit(C, op);
@@ -934,8 +969,6 @@ static wmOperatorStatus view_zoomin_invoke(bContext *C, wmOperator *op, const wm
 
 static void VIEW2D_OT_zoom_in(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
-
   /* identifiers */
   ot->name = "Zoom In";
   ot->description = "Zoom in the view";
@@ -946,31 +979,18 @@ static void VIEW2D_OT_zoom_in(wmOperatorType *ot)
   ot->exec = view_zoomin_exec;
   ot->poll = view_zoom_poll;
 
-  /* rna - must keep these in sync with the other operators */
-  prop = RNA_def_float(
-      ot->srna, "zoomfacx", 0, -FLT_MAX, FLT_MAX, "Zoom Factor X", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_flag(prop, PROP_HIDDEN);
-  prop = RNA_def_float(
-      ot->srna, "zoomfacy", 0, -FLT_MAX, FLT_MAX, "Zoom Factor Y", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_flag(prop, PROP_HIDDEN);
+  view_zoomstep_props_def(ot->srna, view_zoomfac_default);
 }
 
 /* this operator only needs this single callback, where it calls the view_zoom_*() methods */
 static wmOperatorStatus view_zoomout_exec(bContext *C, wmOperator *op)
 {
-  bool do_zoom_xy[2];
-
   if (op->customdata == nullptr) { /* Might have been setup in _invoke() already. */
     view_zoomdrag_init(C, op);
   }
 
-  view_zoom_axis_lock_defaults(C, do_zoom_xy);
-
-  /* set RNA-Props - zooming in by uniform factor */
-  RNA_float_set(op->ptr, "zoomfacx", do_zoom_xy[0] ? -0.0375f : 0.0f);
-  RNA_float_set(op->ptr, "zoomfacy", do_zoom_xy[1] ? -0.0375f : 0.0f);
-
-  /* apply movement, then we're done */
+  /* Apply movement, then we're done. */
+  view_zoomstep_props_init(C, op, -view_zoomfac_default);
   view_zoomstep_apply(C, op);
 
   view_zoomstep_exit(C, op);
@@ -997,8 +1017,6 @@ static wmOperatorStatus view_zoomout_invoke(bContext *C, wmOperator *op, const w
 
 static void VIEW2D_OT_zoom_out(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
-
   /* identifiers */
   ot->name = "Zoom Out";
   ot->description = "Zoom out the view";
@@ -1010,13 +1028,7 @@ static void VIEW2D_OT_zoom_out(wmOperatorType *ot)
 
   ot->poll = view_zoom_poll;
 
-  /* rna - must keep these in sync with the other operators */
-  prop = RNA_def_float(
-      ot->srna, "zoomfacx", 0, -FLT_MAX, FLT_MAX, "Zoom Factor X", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_flag(prop, PROP_HIDDEN);
-  prop = RNA_def_float(
-      ot->srna, "zoomfacy", 0, -FLT_MAX, FLT_MAX, "Zoom Factor Y", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_flag(prop, PROP_HIDDEN);
+  view_zoomstep_props_def(ot->srna, -view_zoomfac_default);
 }
 
 /** \} */

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'21cc928ee21e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-03-09 08:57+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: VertexSelection <amacsizk2021@gmail.com>\n"
 "Language-Team: Turkish <https://translate.blender.org/projects/blender-ui/ui/tr/>\n"
@@ -5351,18 +5351,6 @@ msgid "Factor of Simplify using adaptive algorithm"
 msgstr "Uyarlanabilir algoritma kullanarak basitleştirme çarpanı"
 
 
-msgid "Stroke"
-msgstr "Vuruş"
-
-
-msgid "Fill"
-msgstr "Doldur"
-
-
-msgid "Both"
-msgstr "İkisi de"
-
-
 msgid "Active Layer"
 msgstr "Etkin Katman"
 
@@ -5531,8 +5519,16 @@ msgid "Defines how vertex color affect to the strokes"
 msgstr "Tepe noktası renginin vuruşlara nasıl etki edeceğini tanımlar"
 
 
+msgid "Stroke"
+msgstr "Vuruş"
+
+
 msgid "Vertex Color affects to Stroke only"
 msgstr "Tepecik Rengi, yalnızca vuruşa etki eder"
+
+
+msgid "Fill"
+msgstr "Doldur"
 
 
 msgid "Vertex Color affects to Fill only"
@@ -6995,32 +6991,9 @@ msgid "Mode used to mix with texture output color"
 msgstr "Doku çıktı rengiyle karıştırmak için kullanılan mod"
 
 
-msgid "Mix"
-msgstr "Karışım"
-
-
-msgid "Darken"
-msgstr "Karartmak"
-
-
-msgid "Lighten"
-msgstr "Hafifletmek"
-
-
-msgid "Screen"
-msgstr "Ekran"
-
-
-msgid "Overlay"
-msgstr "Kaplama"
-
-
-msgid "Difference"
-msgstr "Fark"
-
-
-msgid "Divide"
-msgstr "Bölmek"
+msgctxt "Color"
+msgid "Value"
+msgstr "Değer"
 
 
 msgid "Brightness"
@@ -14828,6 +14801,10 @@ msgid "Hard Light"
 msgstr "Sert Işık"
 
 
+msgid "Divide"
+msgstr "Bölmek"
+
+
 msgid "Ignore Material Locking"
 msgstr "Malzeme Kilitlenmesini Yoksay"
 
@@ -15357,10 +15334,6 @@ msgid "View Normal Limit"
 msgstr "Normal Limiti Görüntüle"
 
 
-msgid "Blending Mode"
-msgstr "Harmanlama Modu"
-
-
 msgid "Brush blending mode"
 msgstr "Fırça karıştırma modu"
 
@@ -15377,16 +15350,8 @@ msgid "Use Multiply blending mode while painting"
 msgstr "Boyama sırasında Çarpma karıştırma modunu kullanın"
 
 
-msgid "Color Burn"
-msgstr "Renk Yanığı"
-
-
 msgid "Use Color Burn blending mode while painting"
 msgstr "Boyama sırasında Renk Yakma karıştırma modunu kullanın"
-
-
-msgid "Linear Burn"
-msgstr "Doğrusal yanma"
 
 
 msgid "Use Linear Burn blending mode while painting"
@@ -15399,10 +15364,6 @@ msgstr "Boyama sırasında Aydınlatma karıştırma modunu kullanın"
 
 msgid "Use Screen blending mode while painting"
 msgstr "Boyama sırasında Ekran karıştırma modunu kullanın"
-
-
-msgid "Color Dodge"
-msgstr "Renk Atlatma"
 
 
 msgid "Use Color Dodge blending mode while painting"
@@ -15425,10 +15386,6 @@ msgid "Use Hard Light blending mode while painting"
 msgstr "Boyama sırasında Sert Işık karıştırma modunu kullanın"
 
 
-msgid "Vivid Light"
-msgstr "Canlı Işık"
-
-
 msgid "Use Vivid Light blending mode while painting"
 msgstr "Boyama sırasında Canlı Işık karıştırma modunu kullanın"
 
@@ -15437,20 +15394,12 @@ msgid "Use Linear Light blending mode while painting"
 msgstr "Boyama sırasında Doğrusal Işık karıştırma modunu kullanın"
 
 
-msgid "Pin Light"
-msgstr "Pin Işığı"
-
-
 msgid "Use Pin Light blending mode while painting"
 msgstr "Boyama sırasında Pin Light karıştırma modunu kullanın"
 
 
 msgid "Use Difference blending mode while painting"
 msgstr "Boyama sırasında Fark karıştırma modunu kullanın"
-
-
-msgid "Exclusion"
-msgstr "Dışlama"
 
 
 msgid "Use Exclusion blending mode while painting"
@@ -15477,16 +15426,8 @@ msgid "Use Value blending mode while painting"
 msgstr "Boyama sırasında Değer karıştırma modunu kullanın"
 
 
-msgid "Erase Alpha"
-msgstr "Alfa'yı sil"
-
-
 msgid "Erase alpha while painting"
 msgstr "Boyama sırasında alfayı sil"
-
-
-msgid "Add Alpha"
-msgstr "Alfa Ekle"
 
 
 msgid "Add alpha while painting"
@@ -27682,6 +27623,14 @@ msgid "Specify how the modifier value is blended into the base value"
 msgstr "Değiştirici değerin temel değere nasıl karıştırılacağını belirtin"
 
 
+msgid "Mix"
+msgstr "Karışım"
+
+
+msgid "Difference"
+msgstr "Fark"
+
+
 msgid "Curve used for the curve mapping"
 msgstr "Eğri eşlemesi için kullanılan eğri"
 
@@ -27888,6 +27837,34 @@ msgstr "Çizgi renk değiştiricilerini tanımlamak için temel tür"
 
 msgid "Change line color along stroke"
 msgstr "Vuruş boyunca çizgi rengini değiştir"
+
+
+msgid "Darken"
+msgstr "Karartmak"
+
+
+msgid "Color Burn"
+msgstr "Renk Yanığı"
+
+
+msgid "Lighten"
+msgstr "Hafifletmek"
+
+
+msgid "Screen"
+msgstr "Ekran"
+
+
+msgid "Color Dodge"
+msgstr "Renk Atlatma"
+
+
+msgid "Overlay"
+msgstr "Kaplama"
+
+
+msgid "Exclusion"
+msgstr "Dışlama"
 
 
 msgid "Color ramp used to change line color"
@@ -28937,6 +28914,18 @@ msgid "Editor menu containing buttons"
 msgstr "Düğmeler içeren düzenleyici menüsü"
 
 
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Metaball"
+msgstr "Metabol"
+
+
+msgid "Show/Hide"
+msgstr "Göster/Gizle"
+
+
 msgid "Read"
 msgstr "Okumak"
 
@@ -28949,36 +28938,20 @@ msgid "Sample"
 msgstr "Örnek"
 
 
-msgid "Clean Up"
-msgstr "Temizle"
+msgid "Names"
+msgstr "Adlar"
 
 
 msgid "Primitives"
 msgstr "İlkel"
 
 
-msgid "Show/Hide"
-msgstr "Göster/Gizle"
-
-
-msgid "Special Characters"
-msgstr "Özel Karakterler"
-
-
-msgid "Kerning"
-msgstr "Harf aralığı"
-
-
-msgid "Metaball"
-msgstr "Metabol"
-
-
-msgid "Names"
-msgstr "Adlar"
-
-
 msgid "Bone Roll"
 msgstr "Kemik Rulosu"
+
+
+msgid "Clean Up"
+msgstr "Temizle"
 
 
 msgid "Pivot Point"
@@ -29007,10 +28980,6 @@ msgstr "Yüz Setleri Düzenle"
 
 msgid "Vertex Group Locks"
 msgstr "Vertex Grup Kilitleri"
-
-
-msgid "Layout"
-msgstr "Yerleşim"
 
 
 msgid "Mirror"
@@ -29049,8 +29018,8 @@ msgid "Select More/Less"
 msgstr "Daha Fazla/Daha Az Seç"
 
 
-msgid "Adjust"
-msgstr "Ayarlamak"
+msgid "Layout"
+msgstr "Yerleşim"
 
 
 msgid "Select Similar"
@@ -29061,20 +29030,28 @@ msgid "Select All by Trait"
 msgstr "Özelliğe Göre Tümünü Seç"
 
 
-msgid "Keying"
-msgstr "Anahtarlama"
-
-
 msgid "Select Linked"
 msgstr "Bağlantılıyı Seç"
 
 
-msgid "Tracking"
-msgstr "Takip"
-
-
 msgid "Select Loops"
 msgstr "Döngüleri Seç"
+
+
+msgid "Adjust"
+msgstr "Ayarlamak"
+
+
+msgid "Assign Material"
+msgstr "Malzeme Atamak"
+
+
+msgid "Keying"
+msgstr "Anahtarlama"
+
+
+msgid "Tracking"
+msgstr "Takip"
 
 
 msgid "Utilities"
@@ -29083,10 +29060,6 @@ msgstr "Kamu hizmetleri"
 
 msgid "Math"
 msgstr "Matematik"
-
-
-msgid "Assign Material"
-msgstr "Malzeme Atamak"
 
 
 msgid "Light"
@@ -29173,10 +29146,6 @@ msgid "Bone Collections"
 msgstr "Kemik Koleksiyonları"
 
 
-msgid "Instances"
-msgstr "Örnekler"
-
-
 msgid "Toggle Bone Options"
 msgstr "Kemik Seçeneklerini Değiştir"
 
@@ -29189,16 +29158,16 @@ msgid "Disable Bone Options"
 msgstr "Kemik Seçeneklerini Devre Dışı Bırak"
 
 
-msgid "Import"
-msgstr "İçe Aktar"
-
-
 msgid "Mesh Select Mode"
 msgstr "Örgü Seçim Kipi"
 
 
 msgid "Face Data"
 msgstr "Yüz Verileri"
+
+
+msgid "Instances"
+msgstr "Örnekler"
 
 
 msgid "Select by Face Strength"
@@ -29209,16 +29178,24 @@ msgid "Set Face Strength"
 msgstr "Yüz Gücünü Ayarla"
 
 
-msgid "Deprecated"
-msgstr "Kullanım dışı bırakıldı"
+msgid "Import"
+msgstr "İçe Aktar"
 
 
 msgid "Merge"
 msgstr "Birleştir"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Deprecated"
+msgstr "Kullanım dışı bırakıldı"
+
+
+msgid "Special Characters"
+msgstr "Özel Karakterler"
+
+
+msgid "Kerning"
+msgstr "Harf aralığı"
 
 
 msgid "Keyframe Insert Pie"
@@ -29434,13 +29411,13 @@ msgid "Strip"
 msgstr "Şerit"
 
 
-msgid "Node"
-msgstr "Düğüm"
-
-
 msgctxt "NodeTree"
 msgid "Constant"
 msgstr "Devamlı"
+
+
+msgid "Node"
+msgstr "Düğüm"
 
 
 msgid "Node Color Specials"
@@ -35677,10 +35654,6 @@ msgid "Use coordinates from a UV layer"
 msgstr "UV katmanından koordinatları kullanın"
 
 
-msgid "Use Channel"
-msgstr "Kanalı Kullan"
-
-
 msgid "Which texture channel to use for masking"
 msgstr "Maskeleme için hangi doku kanalının kullanılacağı"
 
@@ -41442,6 +41415,10 @@ msgid "Mix values by a factor"
 msgstr "Değerleri bir faktöre göre karıştırın"
 
 
+msgid "Blending Mode"
+msgstr "Harmanlama Modu"
+
+
 msgid "Clamp Factor"
 msgstr "Kelepçe Faktörü"
 
@@ -41496,6 +41473,10 @@ msgstr "Mevcut gölgelendirme noktası hakkında geometrik bilgi alın"
 
 msgid "Generate a normal vector and a dot product"
 msgstr "Normal bir vektör ve bir nokta çarpımı oluşturun"
+
+
+msgid "Base"
+msgstr "Temel"
 
 
 msgid "OpenGL"
@@ -53201,6 +53182,10 @@ msgid "Equalize selected keyframes' right handles"
 msgstr "Seçili anahtar karelerin sağ tutamaklarını eşitle"
 
 
+msgid "Both"
+msgstr "İkisi de"
+
+
 msgid "Equalize both of a keyframe's handles"
 msgstr "Bir anahtar karenin her iki tutamacını eşitle"
 
@@ -57595,10 +57580,6 @@ msgid "Only cut the front most geometry"
 msgstr "Sadece ön taraftaki geometriyi kesin"
 
 
-msgid "Measurements"
-msgstr "Ölçümler"
-
-
 msgid "Visible distance and angle measurements"
 msgstr "Görünür mesafe ve açı ölçümleri"
 
@@ -57613,6 +57594,11 @@ msgstr "Hem mesafeleri hem de açıları göster"
 
 msgid "Show just distance measurements"
 msgstr "Sadece mesafe ölçümlerini göster"
+
+
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Açı"
 
 
 msgid "Show just angle measurements"
@@ -60208,10 +60194,6 @@ msgstr "Yumuşak Işık Modu"
 
 msgid "Linear Light Mode"
 msgstr "Doğrusal Işık Modu"
-
-
-msgid "Current"
-msgstr "Akım"
 
 
 msgid "Leave at current state"
@@ -75901,14 +75883,6 @@ msgid "Guides"
 msgstr "Rehberler"
 
 
-msgid "glTF Variants"
-msgstr "glTF Çeşitleri"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF Malzeme Varyantları"
-
-
 msgid "Viewer Node"
 msgstr "Görüntüleyici Düğümü"
 
@@ -75927,6 +75901,14 @@ msgstr "Ölçüm"
 
 msgid "Curve Edit Mode"
 msgstr "Eğri Düzenleme Modu"
+
+
+msgid "glTF Variants"
+msgstr "glTF Çeşitleri"
+
+
+msgid "glTF Material Variants"
+msgstr "glTF Malzeme Varyantları"
 
 
 msgid "Transform Orientations"
@@ -80934,10 +80916,6 @@ msgstr "Kaydetmeyi Atla"
 
 msgid "True when the property uses ghost values"
 msgstr "Özellik hayalet değerler kullandığında doğrudur"
-
-
-msgid "Base"
-msgstr "Temel"
 
 
 msgid "Struct definition used for properties assigned to this item"
@@ -87964,6 +87942,10 @@ msgid "Show reference frame only"
 msgstr "Sadece referans çerçevesini göster"
 
 
+msgid "Current"
+msgstr "Akım"
+
+
 msgid "Show current frame only"
 msgstr "Yalnızca geçerli kareyi göster"
 
@@ -88765,11 +88747,6 @@ msgid "Type of stretch to display"
 msgstr "Görüntülenecek esneme türü"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Açı"
-
-
 msgid "Angular distortion between UV and 3D angles"
 msgstr "UV ve 3D açıları arasındaki açısal bozulma"
 
@@ -89144,11 +89121,6 @@ msgstr "Şeridin renklerinin diğer şeritleri ne kadar etkilediğinin yüzdesi"
 
 msgid "Method for controlling how the strip combines with other strips"
 msgstr "Şeridin diğer şeritlerle nasıl birleşeceğini kontrol etme yöntemi"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "Değer"
 
 
 msgid "Strip Color"
@@ -92245,10 +92217,6 @@ msgid "Auto-Keying Mode"
 msgstr "Otomatik Anahtarlama Modu"
 
 
-msgid "Mode of automatic keyframe insertion for objects, bones and masks"
-msgstr "Nesneler, kemikler ve maskeler için otomatik anahtar kare ekleme modu"
-
-
 msgid "Add & Replace"
 msgstr "Ekle ve Değiştir"
 
@@ -92606,10 +92574,6 @@ msgstr "Çevrime Duyarlı Anahtarlama"
 
 msgid "Auto Keying"
 msgstr "Otomatik Anahtarlama"
-
-
-msgid "Automatic keyframe insertion for objects, bones and masks"
-msgstr "Nesneler, kemikler ve maskeler için otomatik anahtar kare ekleme"
 
 
 msgid "Auto Keyframe Insert Keying Set"
@@ -109729,10 +109693,6 @@ msgid "Lightness:"
 msgstr "Aydınlık:"
 
 
-msgid "Value:"
-msgstr "Değer:"
-
-
 msgid "Alpha:"
 msgstr "Alfa:"
 
@@ -113300,6 +113260,10 @@ msgstr "İfade:"
 
 msgid "Add Input Variable"
 msgstr "Giriş Değişkeni Ekle"
+
+
+msgid "Value:"
+msgstr "Değer:"
 
 
 msgid "Update Dependencies"

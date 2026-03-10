@@ -191,8 +191,8 @@ set(SRC
   intern/gpu_shader_private.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
-  intern/gpu_texture_private.hh
   intern/gpu_texture_pool_private.hh
+  intern/gpu_texture_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
 

@@ -64,7 +64,7 @@ class ExprBuilder {
   const Expr &term_to_expr(const Term &term);
 };
 
-IndexMask evaluate_expression(const Expr &expression, IndexMaskMemory &memory);
+IndexMask evaluate_expression(const Expr &expression, LinearAllocator<> &memory);
 
 inline int Expr::expression_array_size() const
 {

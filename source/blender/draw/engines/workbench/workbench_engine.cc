@@ -498,8 +498,8 @@ class Instance : public DrawEngine {
                                GPU_ATTACHMENT_TEXTURE(resources_.color_tx),
                                id_attachment);
     resources_.clear_fb.bind();
-    float4 clear_colors[2] = {scene_state_.background_color, float4(0.0f)};
-    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float (*)[4]>(clear_colors));
+    std::array<double4, 2> clear_colors = {double4(scene_state_.background_color), double4(0.0f)};
+    GPU_framebuffer_multi_clear(resources_.clear_fb, clear_colors);
     GPU_framebuffer_clear_depth_stencil(resources_.clear_fb, 1.0f, 0x00);
 
     opaque_ps_.draw(

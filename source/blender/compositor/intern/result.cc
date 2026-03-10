@@ -17,7 +17,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
-#include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -52,6 +51,7 @@ bool Result::is_single_value_only_type(ResultType type)
     case ResultType::Float2:
     case ResultType::Int:
     case ResultType::Int2:
+    case ResultType::Int3:
     case ResultType::Bool:
     case ResultType::Menu:
       return false;
@@ -83,6 +83,10 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
           return gpu::TextureFormat::SINT_16;
         case ResultType::Int2:
           return gpu::TextureFormat::SINT_16_16;
+        case ResultType::Int3:
+          /* RGB textures are not fully supported by hardware, so we store Int3 results in RGBA
+           * textures. */
+          return gpu::TextureFormat::SINT_16_16_16_16;
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
           return gpu::TextureFormat::SINT_8;
@@ -114,6 +118,10 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
           return gpu::TextureFormat::SINT_32;
         case ResultType::Int2:
           return gpu::TextureFormat::SINT_32_32;
+        case ResultType::Int3:
+          /* RGB textures are not fully supported by hardware, so we store Int3 results in RGBA
+           * textures. */
+          return gpu::TextureFormat::SINT_32_32_32_32;
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
           return gpu::TextureFormat::SINT_8;
@@ -145,6 +153,7 @@ eGPUDataFormat Result::gpu_data_format(ResultType type)
       return GPU_DATA_FLOAT;
     case ResultType::Int:
     case ResultType::Int2:
+    case ResultType::Int3:
     case ResultType::Bool:
     case ResultType::Menu:
       return GPU_DATA_INT;
@@ -171,6 +180,7 @@ gpu::TextureFormat Result::gpu_texture_format(gpu::TextureFormat format, ResultP
         case gpu::TextureFormat::SFLOAT_16_16_16_16:
         case gpu::TextureFormat::SINT_16:
         case gpu::TextureFormat::SINT_16_16:
+        case gpu::TextureFormat::SINT_16_16_16_16:
           return format;
 
         /* Used to store booleans where precision doesn't matter. */
@@ -189,6 +199,8 @@ gpu::TextureFormat Result::gpu_texture_format(gpu::TextureFormat format, ResultP
           return gpu::TextureFormat::SINT_16;
         case gpu::TextureFormat::SINT_32_32:
           return gpu::TextureFormat::SINT_16_16;
+        case gpu::TextureFormat::SINT_32_32_32_32:
+          return gpu::TextureFormat::SINT_16_16_16_16;
         default:
           break;
       }
@@ -202,6 +214,7 @@ gpu::TextureFormat Result::gpu_texture_format(gpu::TextureFormat format, ResultP
         case gpu::TextureFormat::SFLOAT_32_32_32_32:
         case gpu::TextureFormat::SINT_32:
         case gpu::TextureFormat::SINT_32_32:
+        case gpu::TextureFormat::SINT_32_32_32_32:
           return format;
 
         /* Used to store booleans where precision doesn't matter. */
@@ -220,6 +233,8 @@ gpu::TextureFormat Result::gpu_texture_format(gpu::TextureFormat format, ResultP
           return gpu::TextureFormat::SINT_32;
         case gpu::TextureFormat::SINT_16_16:
           return gpu::TextureFormat::SINT_32_32;
+        case gpu::TextureFormat::SINT_16_16_16_16:
+          return gpu::TextureFormat::SINT_32_32_32_32;
         default:
           break;
       }
@@ -239,6 +254,7 @@ ResultPrecision Result::precision(gpu::TextureFormat format)
     case gpu::TextureFormat::SFLOAT_16_16_16_16:
     case gpu::TextureFormat::SINT_16:
     case gpu::TextureFormat::SINT_16_16:
+    case gpu::TextureFormat::SINT_16_16_16_16:
       return ResultPrecision::Half;
     case gpu::TextureFormat::SFLOAT_32:
     case gpu::TextureFormat::SFLOAT_32_32:
@@ -246,6 +262,7 @@ ResultPrecision Result::precision(gpu::TextureFormat format)
     case gpu::TextureFormat::SFLOAT_32_32_32_32:
     case gpu::TextureFormat::SINT_32:
     case gpu::TextureFormat::SINT_32_32:
+    case gpu::TextureFormat::SINT_32_32_32_32:
       return ResultPrecision::Full;
     /* Used to store booleans where precision doesn't matter. */
     case gpu::TextureFormat::SINT_8:
@@ -279,6 +296,10 @@ ResultType Result::type(gpu::TextureFormat format)
     case gpu::TextureFormat::SINT_16_16:
     case gpu::TextureFormat::SINT_32_32:
       return ResultType::Int2;
+    case gpu::TextureFormat::SINT_16_16_16_16:
+    case gpu::TextureFormat::SINT_32_32_32_32:
+      /* Stores Int3, see Result::gpu_texture_format. */
+      return ResultType::Int3;
     case gpu::TextureFormat::SINT_8:
       return ResultType::Bool;
     default:
@@ -306,6 +327,8 @@ const CPPType &Result::cpp_type(const ResultType type)
       return CPPType::get<int32_t>();
     case ResultType::Int2:
       return CPPType::get<int2>();
+    case ResultType::Int3:
+      return CPPType::get<int3>();
     case ResultType::Bool:
       return CPPType::get<bool>();
     case ResultType::Menu:
@@ -335,6 +358,8 @@ const char *Result::type_name(const ResultType type)
       return "int";
     case ResultType::Int2:
       return "int2";
+    case ResultType::Int3:
+      return "int3";
     case ResultType::Bool:
       return "bool";
     case ResultType::Menu:
@@ -374,7 +399,7 @@ static Domain sanitize_domain_size(const Domain domain,
   Domain sanitized_domain = domain;
   const bool use_gpu = storage_type.has_value() ? storage_type.value() == ResultStorageType::GPU :
                                                   context.use_gpu();
-  const int max_size = use_gpu ? GPU_max_texture_size() : 65536;
+  const int max_size = use_gpu ? 8192 : 32768;
   sanitized_domain.data_size = math::clamp(domain.data_size, int2(1), int2(max_size));
   return sanitized_domain;
 }
@@ -434,6 +459,9 @@ void Result::allocate_single_value()
       break;
     case ResultType::Int2:
       this->set_single_value(int2(0));
+      break;
+    case ResultType::Int3:
+      this->set_single_value(int3(0));
       break;
     case ResultType::Bool:
       this->set_single_value(false);
@@ -559,11 +587,18 @@ void Result::steal_data(void *data, const Domain &domain)
 [[maybe_unused]] static bool is_compatible_texture(const gpu::Texture *texture,
                                                    const Result &result)
 {
-  /* Float3 types are an exception, see the documentation on the get_gpu_texture_format method for
-   * more information. */
+  /* Float3 and Int3 types are an exception, see the documentation on the get_gpu_texture_format
+   * method for more information. */
   if (result.type() == ResultType::Float3) {
     if (GPU_texture_format(texture) ==
         Result::gpu_texture_format(gpu::TextureFormat::SFLOAT_32_32_32, result.precision()))
+    {
+      return true;
+    }
+  }
+  else if (result.type() == ResultType::Int3) {
+    if (GPU_texture_format(texture) ==
+        Result::gpu_texture_format(gpu::TextureFormat::SINT_32_32_32, result.precision()))
     {
       return true;
     }
@@ -815,6 +850,13 @@ void Result::update_single_value_data()
            * pad the value with a zero before updating. */
           const float4 vector_value = float4(this->get_single_value<float3>(), 0.0f);
           GPU_texture_update(this->gpu_texture(), GPU_DATA_FLOAT, vector_value);
+          break;
+        }
+        case ResultType::Int3: {
+          /* Int3 results are stored in 4-component textures due to hardware limitations. So
+           * pad the value with a zero before updating. */
+          const int4 vector_value = int4(this->get_single_value<int3>(), 0);
+          GPU_texture_update(this->gpu_texture(), GPU_DATA_INT, vector_value);
           break;
         }
         case ResultType::String:

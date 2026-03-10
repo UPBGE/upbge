@@ -69,8 +69,8 @@ GPU_TEST(texture_read)
 
 static void test_texture_1d()
 {
-  if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
-    GTEST_SKIP() << "OpenGL texture clearing doesn't support 1d textures.";
+  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_OPENGL)) {
+    GTEST_SKIP() << "Clearing 1d textures not supported by OpenGL & Metal";
   }
   const int SIZE = 32;
   GPU_render_begin();
@@ -98,8 +98,8 @@ GPU_TEST(texture_1d)
 
 static void test_texture_1d_array()
 {
-  if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
-    GTEST_SKIP() << "Read back of 1d texture arrays not supported by OpenGL";
+  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_OPENGL)) {
+    GTEST_SKIP() << "Clearing 1d textures not supported by OpenGL & Metal";
   }
   const int LAYERS = 8;
   const int SIZE = 32;

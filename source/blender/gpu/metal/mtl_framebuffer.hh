@@ -25,11 +25,7 @@ class MTLContext;
 struct MTLAttachment {
   bool used = false;
   gpu::MTLTexture *texture = nullptr;
-  union {
-    float color[4];
-    float depth;
-    uint stencil;
-  } clear_value;
+  double4 clear_value;
 
   GPULoadOp load_action = GPU_LOADACTION_DONT_CARE;
   GPUStoreOp store_action = GPU_STOREACTION_DONT_CARE;
@@ -131,13 +127,11 @@ class MTLFrameBuffer : public FrameBuffer {
   bool check(char err_out[256]) override;
 
   void clear(GPUFrameBufferBits buffers,
-             const float clear_col[4],
+             const double4 clear_col,
              float clear_depth,
              uint clear_stencil) override;
-  void clear_multi(const float (*clear_cols)[4]) override;
-  void clear_attachment(GPUAttachmentType type,
-                        eGPUDataFormat data_format,
-                        const void *clear_value) override;
+  void clear_multi(Span<double4> clear_cols) override;
+  void clear_attachment(GPUAttachmentType type, const double4 clear_value) override;
 
   void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) override;
 
@@ -186,7 +180,7 @@ class MTLFrameBuffer : public FrameBuffer {
   void ensure_render_target_size();
 
   /* Clear values -> Load/store actions. */
-  bool set_color_attachment_clear_color(uint slot, const float clear_color[4]);
+  bool set_color_attachment_clear_color(uint slot, const double4 clear_color);
   bool set_depth_attachment_clear_value(float depth_clear);
   bool set_stencil_attachment_clear_value(uint stencil_clear);
   bool set_color_loadstore_op(uint slot, GPULoadOp load_action, GPUStoreOp store_action);

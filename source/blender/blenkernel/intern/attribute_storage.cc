@@ -13,6 +13,8 @@
 #include "BLI_string_utils.hh"
 #include "BLI_vector_set.hh"
 
+#include "BLT_translation.hh"
+
 #include "BLO_read_write.hh"
 
 #include "DNA_attribute_types.h"
@@ -71,7 +73,7 @@ Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
   const void *value_ptr = value.get();
 
   /* Prefer `calloc` to zeroing after allocation since it is faster. */
-  if (BLI_memory_is_zero(value_ptr, type.size)) {
+  if (memory_is_zero(value_ptr, type.size)) {
     data.data = MEM_new_array_zeroed_aligned(domain_size, type.size, type.alignment, __func__);
   }
   else {
@@ -290,13 +292,26 @@ Attribute &AttributeStorage::add(std::string name,
 
 bool AttributeStorage::remove(const StringRef name)
 {
-  return this->runtime->attributes.remove_as(name);
+  const int index = this->runtime->attributes.index_of_try_as(name);
+  if (index == -1) {
+    return false;
+  }
+  Vector<std::unique_ptr<Attribute>> old_vector = this->runtime->attributes.extract_vector();
+  old_vector.remove(index);
+  this->runtime->attributes.reserve(old_vector.size());
+  for (std::unique_ptr<Attribute> &attribute : old_vector) {
+    this->runtime->attributes.add_new(std::move(attribute));
+  }
+  return true;
 }
 
 std::string AttributeStorage::unique_name_calc(const StringRef name) const
 {
+  const StringRef name_final = name.is_empty() ? DATA_("Attribute") : name;
   return BLI_uniquename_cb(
-      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
+      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; },
+      '.',
+      name_final);
 }
 
 void AttributeStorage::rename(const StringRef old_name, std::string new_name)

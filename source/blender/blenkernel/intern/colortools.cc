@@ -1093,6 +1093,8 @@ void BKE_curvemapping_reset_view(CurveMapping *cumap)
 
 float BKE_curvemap_evaluateF(const CurveMapping *cumap, const CurveMap *cuma, float value)
 {
+  BLI_assert_msg(cuma->table, "Table must be initialized, see 'BKE_curvemapping_init'");
+
   /* index in table */
   float fi = (value - cuma->mintable) * cuma->range;
   int i = int(fi);

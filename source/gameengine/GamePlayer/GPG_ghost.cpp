@@ -159,25 +159,21 @@ void UV_clipboard_free(void);
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;
 
-/* Previously, boost::split was used but the boost include was causing issues that I didn't managed
- * to solve, and it was also causing Visual studio text highlighting problems in gpg_ghost.cpp,
- * then I choosed to workaround without using boost. The following func has been found on a random
- * blog on the net */
-static void custom_split_string(std::vector<std::string> &parts,
-                                std::string fullstring,
-                                char *separator)
+/* Split a string by a single character separator into parts.
+ * Uses BLI_strchr_or_end. */
+static void split_string_parts(std::vector<std::string> &parts,
+                               const std::string &fullstring,
+                               char separator)
 {
-  int startIndex = 0, endIndex = 0;
-  for (int i = 0; i <= fullstring.size(); i++) {
-
-    // If we reached the end of the word or the end of the input.
-    if (fullstring[i] == *separator || i == fullstring.size()) {
-      endIndex = i;
-      std::string temp;
-      temp.append(fullstring, startIndex, endIndex - startIndex);
-      parts.push_back(temp);
-      startIndex = endIndex + 1;
+  const char *s = fullstring.c_str();
+  const char *p = s;
+  for (;;) {
+    const char *q = BLI_strchr_or_end(p, separator);
+    parts.emplace_back(p, q - p);
+    if (*q == '\0') {
+      break;
     }
+    p = q + 1;
   }
 }
 
@@ -362,10 +358,19 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
 {
   uint32_t sysWidth = 0, sysHeight = 0;
   system->getMainDisplayDimensions(sysWidth, sysHeight);
+
   // Create the main window
   GHOST_DisplaySettings settings;
-  settings.xPixels = (useDesktop) ? sysWidth : width;
-  settings.yPixels = (useDesktop) ? sysHeight : height;
+  const char *backend = GHOST_ISystem::getSystemBackend();
+  const bool is_wayland = backend && (strcmp(backend, "WAYLAND") == 0);
+  if (is_wayland) {
+    settings.xPixels = sysWidth;
+    settings.yPixels = sysHeight;
+  }
+  else {
+    settings.xPixels = (useDesktop) ? sysWidth : width;
+    settings.yPixels = (useDesktop) ? sysHeight : height;
+  }
 
   GHOST_GPUSettings gpu_settings = {0};
   const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
@@ -888,7 +893,7 @@ int main(int argc,
   BKE_materials_init();
 
   /* wm_init_exit */
-
+  wm_init_cursor_data();
   BKE_addon_pref_type_init();
   BKE_keyconfig_pref_type_init();
 
@@ -1379,6 +1384,8 @@ int main(int argc,
     // Create the system
     if (GHOST_ISystem::createSystem(true, false) == GHOST_kSuccess) {
       system = GHOST_ISystem::getSystem();
+      GPU_backend_ghost_system_set(system);
+      WM_set_g_system_blenderplayer(system);
       BLI_assert(system);
 
       if (!fullScreenWidth || !fullScreenHeight)
@@ -1648,15 +1655,15 @@ int main(int argc,
                 std::string path = titlename;
                 std::vector<std::string> parts;
 #ifndef WIN32
-                custom_split_string(parts, path, (char *)("/"));
+                split_string_parts(parts, path, '/');
 #else   // WIN32
-                custom_split_string(parts, path, (char *)("\\"));
+                split_string_parts(parts, path, '\\');
 #endif  // WIN32
                 std::string title;
                 if (parts.size()) {
                   title = parts[parts.size() - 1];
                   std::vector<std::string> sublastparts;
-                  custom_split_string(sublastparts, title, (char *)("."));
+                  split_string_parts(sublastparts, title, '.');
                   if (sublastparts.size() > 1) {
                     title = sublastparts[0];
                   }
@@ -1686,11 +1693,6 @@ int main(int argc,
                                          alphaBackground);
                 }
               }
-              /* wm context */
-              blender::wmWindowManager *wm = (blender::wmWindowManager *)G_MAIN->wm.first;
-              blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
-              CTX_wm_manager_set(C, wm);
-              CTX_wm_window_set(C, win);
             }
 
             blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
@@ -1699,6 +1701,8 @@ int main(int argc,
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+            WM_check(C);
+            InitBlenderContextVariables(C);
 
             /* Get rid of windows which are not the 3D view windows */
             for (blender::wmWindow *win_in_list = (blender::wmWindow *)wm->windows.first; win_in_list; win_in_list = win_in_list->next) {
@@ -1714,16 +1718,11 @@ int main(int argc,
               BPY_python_start(C, argc, (const char **)argv);
               CTX_py_init_set(C, true);
 #  endif /*WITH_PYTHON*/
-
-              WM_set_g_system_blenderplayer(system);
-              GPU_backend_ghost_system_set(system);
               WM_init_gpu();
-
               blender::ui::theme::init_default();
               blender::ui::init();
               /* To have blf_monofont_render available for generated textures checkerboard */
               blender::ui::reinit_font();
-
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
               shadingTypeRuntime = GetShadingTypeRuntime(C);
@@ -1741,14 +1740,6 @@ int main(int argc,
 
             blender::bScreen *screen = WM_window_get_active_screen(win);
             screen->state = SCREENFULL;
-
-            if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
-              ED_screens_init(C, G_MAIN, wm);
-              wm->init_flag |= WM_INIT_FLAG_WINDOW;
-              /* ED_screen_init can change blender::bContext then we need to restore it again
-               * after... b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
-              InitBlenderContextVariables(C);
-            }
 
             WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
             WM_window_set_active_screen(win, workspace, screen);
@@ -1916,10 +1907,6 @@ int main(int argc,
   UV_clipboard_free();
   wm_clipboard_free();
 
-#ifdef WITH_COMPOSITOR_CPU
-  COM_deinitialize();
-#endif
-
   blender::bke::subdiv::exit();
 
   BKE_image_free_unused_gpu_textures();
@@ -1972,7 +1959,7 @@ int main(int argc,
   ED_file_exit(); /* for fsmenu */
 
   DRW_gpu_context_enable_ex(false);
-  blender::ui::ui_exit();
+  blender::ui::exit();
   GPU_shader_cache_dir_clear_old();
   GPU_exit();
   DRW_gpu_context_disable_ex(false);

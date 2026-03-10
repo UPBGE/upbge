@@ -22,7 +22,7 @@ template<typename T, typename OperationFn>
 static IndexMask apply_filter_operation(const VArray<T> &data,
                                         OperationFn check_fn,
                                         const IndexMask &mask,
-                                        IndexMaskMemory &memory)
+                                        LinearAllocator<> &memory)
 {
   return IndexMask::from_predicate(
       mask, memory, [&](const int64_t i) { return check_fn(data[i]); });
@@ -31,7 +31,7 @@ static IndexMask apply_filter_operation(const VArray<T> &data,
 static IndexMask apply_row_filter(const SpreadsheetRowFilter &row_filter,
                                   const Map<StringRef, const ColumnValues *> &columns,
                                   const IndexMask &prev_mask,
-                                  IndexMaskMemory &memory)
+                                  LinearAllocator<> &memory)
 {
   const ColumnValues &column = *columns.lookup(row_filter.column_name);
   const GVArray &column_data = column.data();
@@ -458,13 +458,12 @@ IndexMask spreadsheet_filter_rows(const SpaceSpreadsheet &sspreadsheet,
     return IndexMask(tot_rows);
   }
 
-  IndexMaskMemory &mask_memory = scope.construct<IndexMaskMemory>();
   IndexMask mask(tot_rows);
 
   if (use_selection) {
     const GeometryDataSource *geometry_data_source = dynamic_cast<const GeometryDataSource *>(
         &data_source);
-    mask = geometry_data_source->apply_selection_filter(mask_memory);
+    mask = geometry_data_source->apply_selection_filter(scope.allocator());
   }
 
   if (use_filters) {
@@ -478,7 +477,7 @@ IndexMask spreadsheet_filter_rows(const SpaceSpreadsheet &sspreadsheet,
         if (!columns.contains(row_filter.column_name)) {
           continue;
         }
-        mask = apply_row_filter(row_filter, columns, mask, mask_memory);
+        mask = apply_row_filter(row_filter, columns, mask, scope.allocator());
       }
     }
   }

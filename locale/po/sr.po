@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'1fa1b22043cd')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'21cc928ee21e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 10:28+0000\n"
+"POT-Creation-Date: 2026-03-09 08:57+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1525,20 +1525,16 @@ msgid "Saturation"
 msgstr "Засићеност"
 
 
+msgid "Active Layer"
+msgstr "Активни слој"
+
+
 msgid "Stroke"
 msgstr "Потез"
 
 
 msgid "Fill"
 msgstr "Испуна"
-
-
-msgid "Both"
-msgstr "Обе"
-
-
-msgid "Active Layer"
-msgstr "Активни слој"
 
 
 msgid "Background Image"
@@ -1987,46 +1983,6 @@ msgstr "Бела тачка"
 
 msgid "Blend Factor"
 msgstr "Фактор прелива"
-
-
-msgid "Blend Type"
-msgstr "Врста прелаза"
-
-
-msgid "Mix"
-msgstr "Мешање"
-
-
-msgid "Darken"
-msgstr "Тамније"
-
-
-msgid "Lighten"
-msgstr "Светлије"
-
-
-msgid "Screen"
-msgstr "Екран"
-
-
-msgid "Overlay"
-msgstr "Преклапање"
-
-
-msgid "Soft Light"
-msgstr "Меко светло"
-
-
-msgid "Linear Light"
-msgstr "Линеарно светло"
-
-
-msgid "Difference"
-msgstr "Разлика"
-
-
-msgid "Divide"
-msgstr "Подељено"
 
 
 msgid "Brightness"
@@ -4100,6 +4056,10 @@ msgid "Give randomness to the modified F-Curve"
 msgstr "Изузети оквир из коначне слике"
 
 
+msgid "Blend Type"
+msgstr "Врста прелаза"
+
+
 msgid "Phase"
 msgstr "Фаза"
 
@@ -4860,6 +4820,10 @@ msgid "Grease Pencil Layer"
 msgstr "Слој скице"
 
 
+msgid "Divide"
+msgstr "Подељено"
+
+
 msgid "Local Matrix"
 msgstr "Локална матрица"
 
@@ -4932,20 +4896,8 @@ msgid "X-Axis Mirror"
 msgstr "Мод измене "
 
 
-msgid "Exclusion"
-msgstr "Искључење"
-
-
-msgid "Erase Alpha"
-msgstr "Користи додатну провидност"
-
-
 msgid "Erase alpha while painting"
 msgstr "Бојењем бриши провидност"
-
-
-msgid "Add Alpha"
-msgstr "Додај алфу"
 
 
 msgid "Add alpha while painting"
@@ -8196,6 +8148,14 @@ msgid "Name of the modifier"
 msgstr "Име модификатора"
 
 
+msgid "Mix"
+msgstr "Мешање"
+
+
+msgid "Difference"
+msgstr "Разлика"
+
+
 msgid "Curve used for the curve mapping"
 msgstr "Крива коришћена за мапирање криве"
 
@@ -8226,6 +8186,34 @@ msgstr "Макс. угао"
 
 msgid "Min Angle"
 msgstr "Мин. угао"
+
+
+msgid "Darken"
+msgstr "Тамније"
+
+
+msgid "Lighten"
+msgstr "Светлије"
+
+
+msgid "Screen"
+msgstr "Екран"
+
+
+msgid "Overlay"
+msgstr "Преклапање"
+
+
+msgid "Soft Light"
+msgstr "Меко светло"
+
+
+msgid "Linear Light"
+msgstr "Линеарно светло"
+
+
+msgid "Exclusion"
+msgstr "Искључење"
 
 
 msgid "2D Transform"
@@ -8489,16 +8477,16 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
-
-
-msgid "Special Characters"
-msgstr "Специјални знаци"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Metaball"
 msgstr "Мета лопта"
+
+
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
 
 
 msgid "Names"
@@ -8533,12 +8521,12 @@ msgid "Align View"
 msgstr "Поравнај поглед"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
 msgid "Select Linked"
 msgstr "Изабери повезано"
+
+
+msgid "Keying"
+msgstr "Збирка тастера"
 
 
 msgid "Tracking"
@@ -8601,20 +8589,20 @@ msgid "Disable Bone Options"
 msgstr "Онемогући опције костију"
 
 
-msgid "Import"
-msgstr "Увоз"
-
-
 msgid "Mesh Select Mode"
 msgstr "Мод избора мреже"
+
+
+msgid "Import"
+msgstr "Увоз"
 
 
 msgid "Merge"
 msgstr "Сједини"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Special Characters"
+msgstr "Специјални знаци"
 
 
 msgid "Basic"
@@ -9997,10 +9985,6 @@ msgid "Use global coordinates"
 msgstr "Локалне координате"
 
 
-msgid "Use Channel"
-msgstr "Користи канал"
-
-
 msgid "Masking texture"
 msgstr "Текстура маске"
 
@@ -10891,6 +10875,10 @@ msgstr "Опсег мапе"
 
 msgid "Mix Shader"
 msgstr "Мешање сенчења"
+
+
+msgid "Base"
+msgstr "Основа"
 
 
 msgid "Space of the input normal"
@@ -13818,6 +13806,10 @@ msgid "Side"
 msgstr "Са стране"
 
 
+msgid "Both"
+msgstr "Обе"
+
+
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Додај модификатор Ф-криве"
@@ -15607,10 +15599,6 @@ msgstr "Направи ново дрво чворова"
 
 msgid "Tree Type"
 msgstr "Врста дрвета"
-
-
-msgid "Current"
-msgstr "Текуће"
 
 
 msgctxt "Operator"
@@ -20313,10 +20301,6 @@ msgid "Translate Tooltips"
 msgstr "Преводи описе"
 
 
-msgid "Base"
-msgstr "Основа"
-
-
 msgid "Case"
 msgstr "Велика/мала слова"
 
@@ -21252,6 +21236,10 @@ msgstr "Врста преклапања"
 
 msgid "Show reference frame only"
 msgstr "Прикажи само референтни кадар"
+
+
+msgid "Current"
+msgstr "Текуће"
 
 
 msgid "Show current frame only"

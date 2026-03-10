@@ -11,6 +11,7 @@
 #include "draw_subdivision.hh"
 #include "extract_mesh.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_timeit.hh"
 
 namespace blender::draw {
@@ -25,8 +26,8 @@ static IndexMask calc_vert_visibility_mesh(const MeshRenderData &mr,
   }
   if (mr.orig_index_vert != nullptr) {
     const int *orig_index = mr.orig_index_vert;
-    visible = IndexMask::from_predicate(
-        visible, memory, [&](const int64_t i) { return orig_index[i] != ORIGINDEX_NONE; });
+    static_assert(ORIGINDEX_NONE == -1);
+    visible = array_utils::indices_non_negative(visible, Span(orig_index, mr.verts_num), memory);
   }
   return visible;
 }

@@ -412,7 +412,7 @@ double BKE_cachefile_frame_offset(const CacheFile *cache_file, const double time
   return cache_file->is_sequence ? frame : frame - time_offset;
 }
 
-CacheFileLayer *BKE_cachefile_add_layer(CacheFile *cache_file, const char filepath[1024])
+CacheFileLayer *BKE_cachefile_add_layer(CacheFile *cache_file, const char filepath[FILE_MAX])
 {
   for (CacheFileLayer &layer : cache_file->layers) {
     if (STREQ(layer.filepath, filepath)) {

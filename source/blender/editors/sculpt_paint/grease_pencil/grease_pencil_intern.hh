@@ -215,12 +215,9 @@ class GreasePencilStrokeOperationCommon : public GreasePencilStrokeOperation {
                        const DeltaProjectionFunc &projection_fn)> fn) const;
 
   /** Used in vertex paint mode. */
-  void foreach_editable_drawing(
-      const bContext &C, FunctionRef<bool(const GreasePencilStrokeParams &params)> fn) const;
-  void foreach_editable_drawing(
-      const bContext &C,
-      GrainSize grain_size,
-      FunctionRef<bool(const GreasePencilStrokeParams &params)> fn) const;
+  void foreach_editable_drawing(const bContext &C,
+                                FunctionRef<bool(const GreasePencilStrokeParams &params)> fn,
+                                const exec_mode::Mode &mode = exec_mode::serial) const;
 };
 
 /* Operations */

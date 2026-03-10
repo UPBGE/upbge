@@ -12,23 +12,48 @@
 namespace blender::eevee {
 #endif
 
+/**
+ * Defines the specific rendering pass or shading strategy for a material.
+ * This determines which shader variants are generated.
+ */
 enum eMaterialPipeline {
+  /* G-Buffer pass, lighting is calculated in a separate pass. */
   MAT_PIPE_DEFERRED = 0,
+  /* Main shading pass where lighting is calculated per-pixel during geometry submission. */
   MAT_PIPE_FORWARD,
-  /* These all map to the depth shader. */
+
+  /**
+   * Pre-pass shaders: These are used to populate the Depth buffer and Motion Vectors before
+   * the main shading pass.
+   */
+
+  /* Standard depth-only pass for the deferred pipeline. */
   MAT_PIPE_PREPASS_DEFERRED,
   MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
-  MAT_PIPE_PREPASS_OVERLAP,
+  /* Standard depth-only pass for the forward pipeline (opaque only). */
   MAT_PIPE_PREPASS_FORWARD,
   MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+  /* Per object prepass to handle the transparency overlap option. */
+  MAT_PIPE_PREPASS_OVERLAP,
+  /* Depth pre-pass specifically for planar reflection probes. */
   MAT_PIPE_PREPASS_PLANAR,
 
-  MAT_PIPE_VOLUME_MATERIAL,
+  /* Pipeline for baking meshes volume occupancy to the froxel grid. */
   MAT_PIPE_VOLUME_OCCUPANCY,
+  /* Pipeline for baking volume material properties to the froxel grid. */
+  MAT_PIPE_VOLUME_MATERIAL,
+
+  /* Pipeline for shadow map rendering. */
   MAT_PIPE_SHADOW,
+
+  /* Pipeline for surfel capture. */
   MAT_PIPE_CAPTURE,
 };
 
+/**
+ * Defines the geometric primitive type the shader is intended to run on.
+ * This affects attribute fetching and attribute interpolation.
+ */
 enum eMaterialGeometry {
   /* These maps directly to object types. */
   MAT_GEOM_MESH = 0,
@@ -36,7 +61,7 @@ enum eMaterialGeometry {
   MAT_GEOM_CURVES,
   MAT_GEOM_VOLUME,
 
-  /* These maps to special shader. */
+  /* Special case: The world background / HDRI environment shader. */
   MAT_GEOM_WORLD,
 };
 

@@ -44,7 +44,7 @@ class SG_QList : public SG_DList {
     }
     bool end()
     {
-      return (m_current == (T *)m_head.Self());
+      return m_current == (T *)(m_head.Self());
     }
     bool add_back(T *item)
     {

@@ -1982,7 +1982,7 @@ template<typename T> void nonzero_winding_negative_only_test()
 
 /**
  * Stress test: overlapping rectangles with shared collinear edge segment.
- * Tests winding when one face's edge is a subsegment of another's edge.
+ * Tests winding when one face's edge is a sub-segment of another's edge.
  *
  * \code{.unparsed}
  * Geometry:

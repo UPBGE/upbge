@@ -19,6 +19,7 @@
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BKE_global.hh"
@@ -35,7 +36,7 @@ namespace blender {
 struct BPy_DataContext {
   PyObject_HEAD /* Required Python macro. */
   BPy_StructRNA *data_rna;
-  char filepath[1024];
+  char filepath[FILE_MAX];
 };
 
 static PyObject *bpy_rna_data_temp_data(PyObject *self, PyObject *args, PyObject *kw);

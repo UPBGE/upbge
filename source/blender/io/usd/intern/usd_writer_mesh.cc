@@ -226,7 +226,7 @@ void USDGenericMeshWriter::write_generic_data(const Mesh *mesh,
                                               const bke::AttributeIter &attr)
 {
   const pxr::TfToken pv_name(
-      make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
   const bool use_color3f_type = pv_name == usdtokens::displayColor;
   const std::optional<pxr::TfToken> pv_interp = convert_blender_domain_to_usd(attr.domain);
   const std::optional<pxr::SdfValueTypeName> pv_type = convert_blender_type_to_usd(
@@ -319,13 +319,18 @@ void USDGenericMeshWriter::write_uv_data(const Mesh *mesh,
 
   const pxr::UsdTimeCode time = get_export_time_code();
   const pxr::TfToken pv_name(
-      make_safe_name(name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(name, usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_mesh);
 
   pxr::UsdGeomPrimvar pv_uv = pv_api.CreatePrimvar(
       pv_name, pxr::SdfValueTypeNames->TexCoord2fArray, pxr::UsdGeomTokens->faceVarying);
   set_attribute(pv_uv, unique_uvs, time, usd_value_writer_);
-  pv_uv.SetIndices(indices, time);
+
+  pxr::UsdAttribute attr_indices = pv_uv.CreateIndicesAttr();
+  if (!attr_indices.HasValue()) {
+    attr_indices.Set(indices, time);
+  }
+  usd_value_writer_.SetAttribute(attr_indices, pxr::VtValue(indices), time);
 }
 
 void USDGenericMeshWriter::free_export_mesh(Mesh *mesh)

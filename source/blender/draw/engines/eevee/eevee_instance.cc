@@ -192,6 +192,8 @@ void Instance::init(const int2 &output_res,
     is_image_render = true;
   }
 
+  anisotropic_filtering = GPU_anisotropic_filtering_flags(scene->r.anisotropic_filter);
+
   sampling.init(scene);
   camera.init();
   film.init(output_res, output_rect);
@@ -706,7 +708,7 @@ void Instance::draw_viewport()
 {
   if (skip_render_ || !is_loaded(needed_shaders)) {
     DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
-    GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
+    GPU_framebuffer_clear_color_depth(dfbl->default_fb, double4(0.0), 1.0f);
     if (!is_loaded(needed_shaders & ~WORLD_SHADERS)) {
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();

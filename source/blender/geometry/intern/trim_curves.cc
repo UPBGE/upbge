@@ -591,17 +591,19 @@ static void trim_attribute_linear(const bke::CurvesGeometry &src_curves,
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
   for (bke::AttributeTransferData &attribute : transfer_attributes) {
     bke::attribute_math::to_static_type(attribute.meta_data.data_type, [&]<typename T>() {
-      selection.foreach_index(
-          [&](const int curve_i) {
-            const IndexRange src_points = src_points_by_curve[curve_i];
-            sample_interval_linear<T>(attribute.src.template typed<T>().slice(src_points),
-                                      attribute.dst.span.typed<T>(),
-                                      src_ranges[curve_i],
-                                      dst_points_by_curve[curve_i],
-                                      start_points[curve_i],
-                                      end_points[curve_i]);
-          },
-          exec_mode::grain_size(512));
+      if constexpr (!std::is_same_v<T, std::string>) {
+        selection.foreach_index(
+            [&](const int curve_i) {
+              const IndexRange src_points = src_points_by_curve[curve_i];
+              sample_interval_linear<T>(attribute.src.template typed<T>().slice(src_points),
+                                        attribute.dst.span.typed<T>(),
+                                        src_ranges[curve_i],
+                                        dst_points_by_curve[curve_i],
+                                        start_points[curve_i],
+                                        end_points[curve_i]);
+            },
+            exec_mode::grain_size(512));
+      }
     });
   }
 }
@@ -676,20 +678,22 @@ static void trim_catmull_rom_curves(const bke::CurvesGeometry &src_curves,
 
   for (bke::AttributeTransferData &attribute : transfer_attributes) {
     bke::attribute_math::to_static_type(attribute.meta_data.data_type, [&]<typename T>() {
-      selection.foreach_index(
-          [&](const int curve_i) {
-            const IndexRange src_points = src_points_by_curve[curve_i];
-            const IndexRange dst_points = dst_points_by_curve[curve_i];
+      if constexpr (!std::is_same_v<T, std::string>) {
+        selection.foreach_index(
+            [&](const int curve_i) {
+              const IndexRange src_points = src_points_by_curve[curve_i];
+              const IndexRange dst_points = dst_points_by_curve[curve_i];
 
-            sample_interval_catmull_rom<T>(attribute.src.template typed<T>().slice(src_points),
-                                           attribute.dst.span.typed<T>(),
-                                           src_ranges[curve_i],
-                                           dst_points,
-                                           start_points[curve_i],
-                                           end_points[curve_i],
-                                           src_cyclic[curve_i]);
-          },
-          exec_mode::grain_size(512));
+              sample_interval_catmull_rom<T>(attribute.src.template typed<T>().slice(src_points),
+                                             attribute.dst.span.typed<T>(),
+                                             src_ranges[curve_i],
+                                             dst_points,
+                                             start_points[curve_i],
+                                             end_points[curve_i],
+                                             src_cyclic[curve_i]);
+            },
+            exec_mode::grain_size(512));
+      }
     });
   }
 }
@@ -778,27 +782,29 @@ static void trim_evaluated_curves(const bke::CurvesGeometry &src_curves,
 
   for (bke::AttributeTransferData &attribute : transfer_attributes) {
     bke::attribute_math::to_static_type(attribute.meta_data.data_type, [&]<typename T>() {
-      selection.foreach_segment(
-          [&](const IndexMaskSegment segment) {
-            Vector<std::byte> evaluated_buffer;
-            for (const int64_t curve_i : segment) {
-              const IndexRange src_points = src_points_by_curve[curve_i];
+      if constexpr (!std::is_same_v<T, std::string>) {
+        selection.foreach_segment(
+            [&](const IndexMaskSegment segment) {
+              Vector<std::byte> evaluated_buffer;
+              for (const int64_t curve_i : segment) {
+                const IndexRange src_points = src_points_by_curve[curve_i];
 
-              /* Interpolate onto the evaluated point domain and sample the evaluated domain. */
-              evaluated_buffer.reinitialize(sizeof(T) *
-                                            src_evaluated_points_by_curve[curve_i].size());
-              MutableSpan<T> evaluated = evaluated_buffer.as_mutable_span().cast<T>();
-              src_curves.interpolate_to_evaluated(
-                  curve_i, attribute.src.slice(src_points), evaluated);
-              sample_interval_linear<T>(evaluated,
-                                        attribute.dst.span.typed<T>(),
-                                        src_ranges[curve_i],
-                                        dst_points_by_curve[curve_i],
-                                        start_points[curve_i],
-                                        end_points[curve_i]);
-            }
-          },
-          exec_mode::grain_size(512));
+                /* Interpolate onto the evaluated point domain and sample the evaluated domain. */
+                evaluated_buffer.reinitialize(sizeof(T) *
+                                              src_evaluated_points_by_curve[curve_i].size());
+                MutableSpan<T> evaluated = evaluated_buffer.as_mutable_span().cast<T>();
+                src_curves.interpolate_to_evaluated(
+                    curve_i, attribute.src.slice(src_points), evaluated);
+                sample_interval_linear<T>(evaluated,
+                                          attribute.dst.span.typed<T>(),
+                                          src_ranges[curve_i],
+                                          dst_points_by_curve[curve_i],
+                                          start_points[curve_i],
+                                          end_points[curve_i]);
+              }
+            },
+            exec_mode::grain_size(512));
+      }
     });
   }
 }

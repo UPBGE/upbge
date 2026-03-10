@@ -43,7 +43,7 @@ struct MovieIndexFrame {
 };
 
 struct MovieIndex {
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   Vector<MovieIndexFrame> entries;
 

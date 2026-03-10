@@ -64,7 +64,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f);
 
-  PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
+  PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling"_ustr).default_closed(true);
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
@@ -224,12 +224,15 @@ class CornerPinOperation : public NodeOperation {
       else {
         /* The derivatives of the projected coordinates with respect to x and y are the first and
          * second columns respectively, divided by the z projection factor as can be shown by
-         * differentiating the above matrix multiplication with respect to x and y. Divide by the
-         * output size since sample_ewa assumes derivatives with respect to texel coordinates. */
-        float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
-        float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
-        sampled_color = float4(
-            input.sample_ewa(projected_coordinates, x_gradient, y_gradient, Extension::Extend));
+         * differentiating the above matrix multiplication with respect to x and y. */
+        float2 x_gradient = homography_matrix[0].xy() / transformed_coordinates.z;
+        float2 y_gradient = homography_matrix[1].xy() / transformed_coordinates.z;
+        const float2x2 jacobian = float2x2(x_gradient, y_gradient);
+        sampled_color = float4(input.sample<Color>(projected_coordinates,
+                                                   Interpolation::Anisotropic,
+                                                   Extension::Extend,
+                                                   Extension::Extend,
+                                                   jacobian));
       }
 
       float4 plane_color = plane_mask ? sampled_color * plane_mask->load_pixel<float>(texel) :

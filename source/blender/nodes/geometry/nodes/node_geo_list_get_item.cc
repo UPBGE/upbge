@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
+
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_rna_define.hh"
@@ -102,24 +104,12 @@ class SampleIndexFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
+    const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
 
-    const IndexRange list_range(list_->size());
-
     IndexMaskMemory memory;
-    const IndexMask valid_indices = [&]() {
-      if (const std::optional<int> index = indices.get_if_single()) {
-        return list_range.contains(*index) ? mask : IndexMask{};
-      }
-      if (indices.is_span()) {
-        const Span<int> indices_span = indices.get_internal_span();
-        return IndexMask::from_predicate(
-            mask, memory, [&](const int i) { return list_range.contains(indices_span[i]); });
-      }
-      return IndexMask::from_predicate(
-          mask, memory, [&](const int i) { return list_range.contains(indices[i]); });
-    }();
+    const IndexMask valid_indices = array_utils::indices_in_range(
+        mask, indices, IndexRange(list_->size()), memory);
 
     if (valid_indices.size() != mask.size()) {
       const IndexMask invalid_indices = valid_indices.complement(mask, memory);

@@ -462,7 +462,7 @@ struct Clear {
 
 struct ClearMulti {
   /** \note This should be a Span<float4> but we need have to only have trivial types here. */
-  const float4 *colors;
+  const double4 *colors;
   int colors_len;
 
   void execute() const;

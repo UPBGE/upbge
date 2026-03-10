@@ -92,49 +92,57 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
   /* The average color is the color that will be mixed in. */
   const ColorGeometry4f mix_color(average_color.x, average_color.y, average_color.z, 1.0f);
 
-  this->foreach_editable_drawing(C, GrainSize(1), [&](const GreasePencilStrokeParams &params) {
-    IndexMaskMemory memory;
-    const IndexMask point_selection = point_mask_for_stroke_operation(
-        params, use_selection_masking, memory);
-    if (!point_selection.is_empty() && do_points) {
-      const Array<float2> view_positions = view_positions_from_point_mask(params, point_selection);
-      MutableSpan<ColorGeometry4f> vertex_colors = params.drawing.vertex_colors_for_write();
+  this->foreach_editable_drawing(
+      C,
+      [&](const GreasePencilStrokeParams &params) {
+        IndexMaskMemory memory;
+        const IndexMask point_selection = point_mask_for_stroke_operation(
+            params, use_selection_masking, memory);
+        if (!point_selection.is_empty() && do_points) {
+          const Array<float2> view_positions = view_positions_from_point_mask(params,
+                                                                              point_selection);
+          MutableSpan<ColorGeometry4f> vertex_colors = params.drawing.vertex_colors_for_write();
 
-      point_selection.foreach_index(
-          [&](const int64_t point_i) {
-            const float influence = brush_point_influence(paint,
-                                                          brush,
-                                                          view_positions[point_i],
-                                                          extension_sample,
-                                                          params.multi_frame_falloff);
+          point_selection.foreach_index(
+              [&](const int64_t point_i) {
+                const float influence = brush_point_influence(paint,
+                                                              brush,
+                                                              view_positions[point_i],
+                                                              extension_sample,
+                                                              params.multi_frame_falloff);
 
-            ColorGeometry4f &color = vertex_colors[point_i];
-            color = math::interpolate(color, mix_color, influence);
-          },
-          exec_mode::grain_size(4096));
-    }
+                ColorGeometry4f &color = vertex_colors[point_i];
+                color = math::interpolate(color, mix_color, influence);
+              },
+              exec_mode::grain_size(4096));
+        }
 
-    const IndexMask fill_selection = fill_mask_for_stroke_operation(
-        params, use_selection_masking, memory);
-    if (!fill_selection.is_empty() && do_fill) {
-      const OffsetIndices<int> points_by_curve = params.drawing.strokes().points_by_curve();
-      const Array<float2> view_positions = view_positions_from_curve_mask(params, fill_selection);
-      MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
+        const IndexMask fill_selection = fill_mask_for_stroke_operation(
+            params, use_selection_masking, memory);
+        if (!fill_selection.is_empty() && do_fill) {
+          const OffsetIndices<int> points_by_curve = params.drawing.strokes().points_by_curve();
+          const Array<float2> view_positions = view_positions_from_curve_mask(params,
+                                                                              fill_selection);
+          MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
 
-      fill_selection.foreach_index(
-          [&](const int64_t curve_i) {
-            const IndexRange points = points_by_curve[curve_i];
-            const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
-            const float influence = brush_fill_influence(
-                paint, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
+          fill_selection.foreach_index(
+              [&](const int64_t curve_i) {
+                const IndexRange points = points_by_curve[curve_i];
+                const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
+                const float influence = brush_fill_influence(paint,
+                                                             brush,
+                                                             curve_view_positions,
+                                                             extension_sample,
+                                                             params.multi_frame_falloff);
 
-            ColorGeometry4f &color = fill_colors[curve_i];
-            color = math::interpolate(color, mix_color, influence);
-          },
-          exec_mode::grain_size(1024));
-    }
-    return true;
-  });
+                ColorGeometry4f &color = fill_colors[curve_i];
+                color = math::interpolate(color, mix_color, influence);
+              },
+              exec_mode::grain_size(1024));
+        }
+        return true;
+      },
+      exec_mode::grain_size(1));
 }
 
 void VertexAverageOperation::on_stroke_done(const bContext & /*C*/) {}

@@ -26,8 +26,8 @@
  * Ketsji Logic Extension: Network Message Sensor generic implementation
  */
 
-/** \file gameengine/Ketsji/KXNetwork/SCA_NetworkMessageSensor.cpp
- *  \ingroup ketsjinet
+/** \file gameengine/GameLogic/SCA_NetworkMessageSensor.cpp
+ *  \ingroup gamelogic
  */
 
 #include "SCA_NetworkMessageSensor.h"
@@ -44,11 +44,11 @@ using namespace blender;
 
 SCA_NetworkMessageSensor::SCA_NetworkMessageSensor(
     SCA_EventManager *eventmgr,                  // our eventmanager
-    class KX_NetworkMessageScene *NetworkScene,  // our scene
+    class KX_NetworkMessageScene *NetworkMessageScene,  // our scene
     SCA_IObject *gameobj,                        // the sensor controlling object
     const std::string &subject)
     : SCA_ISensor(gameobj, eventmgr),
-      m_NetworkScene(NetworkScene),
+      m_NetworkMessageScene(NetworkMessageScene),
       m_subject(subject),
       m_frame_message_count(0),
       m_BodyList(nullptr),
@@ -101,7 +101,7 @@ bool SCA_NetworkMessageSensor::Evaluate()
   std::string toname = GetParent()->GetName();
   std::string &subject = this->m_subject;
 
-  const std::vector<KX_NetworkMessageManager::Message> messages = m_NetworkScene->FindMessages(
+  const std::vector<KX_NetworkMessageManager::Message> messages = m_NetworkMessageScene->FindMessages(
       toname, subject);
 
   m_frame_message_count = messages.size();

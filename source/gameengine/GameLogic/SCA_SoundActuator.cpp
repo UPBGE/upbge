@@ -44,7 +44,9 @@ typedef float sample_t;
 #  include <sequence/PingPong.h>
 #  include <util/StreamBuffer.h>
 #  include <file/File.h>
-#  include <python/PyAPI.h>
+#  ifdef WITH_PYTHON
+#    include <python/PyAPI.h>
+#  endif
 #  include <devices/IDevice.h>
 #endif
 

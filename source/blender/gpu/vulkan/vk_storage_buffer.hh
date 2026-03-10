@@ -38,7 +38,7 @@ class VKStorageBuffer : public StorageBuf {
   ~VKStorageBuffer();
 
   /** Enable host-visible persistently-mapped allocation (opt-in). Call before allocate(). */
-  void enable_host_visible_mapping()
+  void enable_host_visible_mapping() override
   {
     use_host_visible_allocation_ = true;
   }
@@ -52,7 +52,7 @@ class VKStorageBuffer : public StorageBuf {
   bool read_fast(void *data) override; //upbge
   void async_flush_to_host() override;
   void sync_as_indirect_buffer() override { /* No-Op. */ };
-  void *mapped_ptr_get() const;
+  void *mapped_ptr_get() const override;
 
   VkBuffer vk_handle() const
   {
