@@ -141,8 +141,8 @@ void GPG_Canvas::SetMousePosition(int x, int y)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   if (system && m_window) {
-    int32_t gx = (int32_t)x / m_nativePixelSize;
-    int32_t gy = (int32_t)y / m_nativePixelSize;
+    int32_t gx = (int32_t)x;
+    int32_t gy = (int32_t)y;
 
     wmWindow *win = CTX_wm_window(m_context);
     WM_cursor_grab_enable(win, WM_CURSOR_WRAP_XY, nullptr, m_mousestate != MOUSE_NORMAL);
