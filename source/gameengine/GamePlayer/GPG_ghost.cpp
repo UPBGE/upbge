@@ -41,6 +41,10 @@
 #  pragma comment(linker, "/include:__TBB_malloc_proxy")
 #endif
 
+#ifdef WIN32_LEAN_AND_MEAN
+  #undef WIN32_LEAN_AND_MEAN
+#endif
+
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
