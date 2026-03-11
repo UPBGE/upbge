@@ -275,7 +275,11 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 
     /* Haptic configuration */
     if (!joy_error) {
-      m_private->m_haptic = SDL_HapticOpen(m_joyindex);
+      /* Use SDL_HapticOpenFromJoystick to correctly associate haptic with the
+       * game controller's underlying joystick. SDL_HapticOpen(index) takes a
+       * haptic device index which does not match the joystick/controller index
+       * and can fail silently with newer SDL versions. */
+      m_private->m_haptic = SDL_HapticOpenFromJoystick(joy);
       if (!m_private->m_haptic) {
         CM_Warning("Game Controller (" << GetName() << ") with index " << m_joyindex
                                        << " has not force feedback (vibration) available");
