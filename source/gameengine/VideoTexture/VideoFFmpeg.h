@@ -20,12 +20,13 @@
 extern "C" {
 #  include "ffmpeg_compat.h"
 #  include <libavcodec/avcodec.h>
+#  include <libavutil/hwcontext.h>
 }
 
 #  include "VideoBase.h"
 
 #  define CACHE_FRAME_SIZE 10
-#  define CACHE_PACKET_SIZE 30
+#  define CACHE_PACKET_SIZE 50
 
 // type VideoFFmpeg declaration
 class VideoFFmpeg : public VideoBase {
@@ -74,6 +75,39 @@ class VideoFFmpeg : public VideoBase {
   {
     m_deinterlace = deinterlace;
   }
+  bool getUseHWDecoding(void)
+  {
+    return m_useHWDecoding;
+  }
+  void setUseHWDecoding(bool useHW)
+  {
+    if (m_useHWDecoding == useHW)
+      return;
+    m_useHWDecoding = useHW;
+    /* Reopen the stream so openStream() picks up the new flag.
+     * m_imageName is set by openFile() once the stream is open,
+     * so this is a reliable guard against reopening before play(). */
+    if (!m_imageName.empty()) {
+      std::string name = m_imageName;
+      release();
+      openFile(const_cast<char *>(name.c_str()));
+    }
+  }
+  bool getLastFrameIsNV12(void) const
+  {
+    return m_lastFrameIsNV12;
+  }
+  /* Returns the owned YUV frame copy — valid until clearLastFrameNV12(). */
+  const AVFrame *getLastFrameNV12(void) const
+  {
+    return m_lastFrameYUVCopy;
+  }
+  void clearLastFrameNV12(void)
+  {
+    m_lastFrameIsNV12 = false;
+    if (m_lastFrameYUVCopy)
+      av_frame_unref(m_lastFrameYUVCopy);
+  }
   char *getImageName(void)
   {
     return (m_isImage) ? (char *)m_imageName.c_str() : nullptr;
@@ -90,6 +124,22 @@ class VideoFFmpeg : public VideoBase {
   AVFrame *m_frameRGB;
   // conversion from raw to RGB is done with sws_scale
   struct SwsContext *m_imgConvertCtx;
+  // hardware device context (D3D11VA / DXVA2), nullptr if software decoding
+  AVBufferRef *m_hwDeviceCtx;
+  // pixel format reported by the hardware decoder (e.g. AV_PIX_FMT_D3D11)
+  AVPixelFormat m_hwPixFmt;
+  // actual SW pixel format after av_hwframe_transfer_data (e.g. NV12 for D3D11VA)
+  // AV_PIX_FMT_NONE until the first frame is transferred
+  AVPixelFormat m_hwSwFmt;
+  // when false, hardware decoding is skipped and the CPU decoder is used
+  bool m_useHWDecoding;
+  // set by grabFrame when the last frame is a supported YUV format for loadTextureYUV
+  bool m_lastFrameIsNV12;
+  // owned copy of the last YUV frame (NV12/P010/YUV420P) — safe to read from Pyrefresh
+  // without any race against the cache thread. Unref'd by clearLastFrameNV12().
+  AVFrame *m_lastFrameYUVCopy;
+  // owns the SW frame allocated by the non-threaded grabFrame path for NV12
+  AVFrame *m_frameSWNonCached;
   // should the codec be deinterlaced?
   bool m_deinterlace;
   // number of frame of preseek
@@ -151,6 +201,10 @@ class VideoFFmpeg : public VideoBase {
   /// common function to video file and capture
   int openStream(const char *filename, const AVInputFormat *inputFormat, AVDictionary **formatParams);
 
+  /// transfer a hardware-decoded frame to system memory if needed; returns SW frame or nullptr
+  /// dst must be a dedicated per-slot AVFrame to avoid data races in the cache thread
+  AVFrame *resolveHWFrame(AVFrame *hwFrame, AVFrame *dst);
+
   /// check if a frame is available and load it in pFrame, return true if a frame could be
   /// retrieved
   AVFrame *grabFrame(long frame);
@@ -167,11 +221,18 @@ class VideoFFmpeg : public VideoBase {
     blender::Link link;
     long framePosition;
     AVFrame *frame;
+    /* Per-slot SW frame used to receive av_hwframe_transfer_data output.
+     * Avoids the data-race that arises when a single shared m_frameSW is
+     * overwritten by the next resolveHWFrame call before sws_scale has
+     * finished reading the previous one. nullptr when HW decode is inactive. */
+    AVFrame *frameSW;
   } CacheFrame;
   typedef struct {
     blender::Link link;
     AVPacket packet;
   } CachePacket;
+
+  friend AVPixelFormat getHWFormat(AVCodecContext *ctx, const AVPixelFormat *pix_fmts);
 
   bool m_stopThread;
   bool m_cacheStarted;

@@ -26,11 +26,13 @@
 #  include "BLI_string.h"
 #  include "BLI_time.h"
 #  include "movie_util.hh"
+#  include "GPU_context.hh"
 
 
 extern "C" {
 #  include <libavutil/imgutils.h>
 #  include <libavcodec/avcodec.h>
+#  include <libavutil/hwcontext.h>
 
 using namespace blender;
 }
@@ -57,6 +59,13 @@ VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
       m_frameDeinterlaced(nullptr),
       m_frameRGB(nullptr),
       m_imgConvertCtx(nullptr),
+      m_hwDeviceCtx(nullptr),
+      m_hwPixFmt(AV_PIX_FMT_NONE),
+      m_hwSwFmt(AV_PIX_FMT_NONE),
+      m_useHWDecoding(true),
+      m_lastFrameIsNV12(false),
+      m_lastFrameYUVCopy(av_frame_alloc()),
+      m_frameSWNonCached(nullptr),
       m_deinterlace(false),
       m_preseek(0),
       m_videoStream(-1),
@@ -92,6 +101,7 @@ VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
 // destructor
 VideoFFmpeg::~VideoFFmpeg()
 {
+  av_frame_free(&m_lastFrameYUVCopy);
 }
 
 void VideoFFmpeg::refresh(void)
@@ -133,6 +143,19 @@ bool VideoFFmpeg::release()
   if (m_imgConvertCtx) {
     sws_freeContext(m_imgConvertCtx);
     m_imgConvertCtx = nullptr;
+  }
+  if (m_hwDeviceCtx) {
+    av_buffer_unref(&m_hwDeviceCtx);
+    m_hwDeviceCtx = nullptr;
+  }
+  m_hwPixFmt = AV_PIX_FMT_NONE;
+  m_hwSwFmt = AV_PIX_FMT_NONE;
+  m_lastFrameIsNV12 = false;
+  if (m_lastFrameYUVCopy)
+    av_frame_unref(m_lastFrameYUVCopy);
+  if (m_frameSWNonCached) {
+    av_frame_free(&m_frameSWNonCached);
+    m_frameSWNonCached = nullptr;
   }
   m_status = SourceStopped;
   m_lastFrame = -1;
@@ -177,6 +200,25 @@ void VideoFFmpeg::initParams(short width, short height, float rate, bool image)
   m_captHeight = height;
   m_captRate = rate;
   m_isImage = image;
+}
+
+/*
+ * get_format callback: called by the decoder when it needs to choose a pixel
+ * format. We inspect the list and return the hardware format if it matches
+ * what we initialised, otherwise fall back to the first software format.
+ * The chosen format is stored in VideoFFmpeg::m_hwPixFmt so that grabFrame /
+ * cacheThread know whether a transfer from VRAM is needed.
+ */
+static AVPixelFormat getHWFormat(AVCodecContext *ctx, const AVPixelFormat *pix_fmts)
+{
+  VideoFFmpeg *video = static_cast<VideoFFmpeg *>(ctx->opaque);
+  for (const AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
+    if (*p == video->m_hwPixFmt)
+      return *p;
+  }
+  /* Hardware format not available for this content, fall back to SW. */
+  video->m_hwPixFmt = AV_PIX_FMT_NONE;
+  return pix_fmts[0];
 }
 
 int VideoFFmpeg::openStream(const char *filename,
@@ -254,6 +296,94 @@ int VideoFFmpeg::openStream(const char *filename,
     pCodecCtx->thread_type = FF_THREAD_SLICE;
   }
 
+  /* --- Hardware-accelerated decoding ---
+   * Skipped entirely when m_useHWDecoding is false (user opted for CPU).
+   * The list of HW types to try is built at runtime from the active Blender
+   * GPU backend so we never mix e.g. a D3D11 decoder with a Vulkan render
+   * context (they cannot share resources and may conflict on some drivers).
+   *
+   * Mapping:
+   *   Vulkan  (Windows) ? D3D11VA / DXVA2   (decoded frames stay CPU-side)
+   *   Vulkan  (Linux)   ? VAAPI / VDPAU
+   *   OpenGL  (Windows) ? D3D11VA / DXVA2
+   *   OpenGL  (Linux)   ? VAAPI / VDPAU
+   *   Metal   (macOS)   ? VideoToolbox
+   *
+   * In all cases av_hwframe_transfer_data() copies the decoded frame back to
+   * CPU RAM before sws_scale, so there is no GPU-memory interop required.
+   * The backend check is therefore about avoiding driver-level conflicts when
+   * two separate GPU contexts are alive simultaneously, not about zero-copy. */
+  if (m_useHWDecoding) {
+    /* Build the platform HW device priority list. */
+    AVHWDeviceType hw_priority[4] = {
+        AV_HWDEVICE_TYPE_NONE, AV_HWDEVICE_TYPE_NONE,
+        AV_HWDEVICE_TYPE_NONE, AV_HWDEVICE_TYPE_NONE};
+    int hw_count = 0;
+#if defined(WIN32)
+    hw_priority[hw_count++] = AV_HWDEVICE_TYPE_D3D11VA;
+    hw_priority[hw_count++] = AV_HWDEVICE_TYPE_DXVA2;
+#elif defined(__APPLE__)
+    hw_priority[hw_count++] = AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
+#else
+    hw_priority[hw_count++] = AV_HWDEVICE_TYPE_VAAPI;
+    hw_priority[hw_count++] = AV_HWDEVICE_TYPE_VDPAU;
+#endif
+
+    const AVCodecID target_id = video_stream->codecpar->codec_id;
+
+    /* Iterate all registered codecs to find HW decoders for this codec_id.
+     * This discovers e.g. h264_d3d11va, hevc_d3d11va, av1_d3d11va, etc.
+     * without relying on a hardcoded name table. */
+    for (int hi = 0; hi < hw_count && !m_hwDeviceCtx; hi++) {
+      AVHWDeviceType wanted_type = hw_priority[hi];
+
+      void *iter = nullptr;
+      const AVCodec *candidate = nullptr;
+      while ((candidate = av_codec_iterate(&iter)) != nullptr) {
+        /* Must be a decoder for the same codec_id. */
+        if (!av_codec_is_decoder(candidate) || candidate->id != target_id)
+          continue;
+
+        /* Must support hw_device_ctx with the wanted device type. */
+        AVPixelFormat hw_fmt = AV_PIX_FMT_NONE;
+        for (int ci = 0;; ci++) {
+          const AVCodecHWConfig *cfg = avcodec_get_hw_config(candidate, ci);
+          if (!cfg)
+            break;
+          if ((cfg->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) &&
+              cfg->device_type == wanted_type) {
+            hw_fmt = cfg->pix_fmt;
+            break;
+          }
+        }
+        if (hw_fmt == AV_PIX_FMT_NONE)
+          continue;
+
+        AVBufferRef *hw_ctx = nullptr;
+        if (av_hwdevice_ctx_create(&hw_ctx, wanted_type, nullptr, nullptr, 0) < 0)
+          continue;
+
+        /* Success — switch to this HW codec and wire up the device context. */
+        pCodec = candidate;
+        avcodec_free_context(&pCodecCtx);
+        pCodecCtx = avcodec_alloc_context3(nullptr);
+        avcodec_parameters_to_context(pCodecCtx, video_stream->codecpar);
+        pCodecCtx->workaround_bugs = FF_BUG_AUTODETECT;
+        if (pCodec->capabilities & AV_CODEC_CAP_OTHER_THREADS)
+          pCodecCtx->thread_count = 0;
+        else
+          pCodecCtx->thread_count = BLI_system_thread_count();
+
+        m_hwDeviceCtx           = hw_ctx;
+        m_hwPixFmt              = hw_fmt;
+        pCodecCtx->hw_device_ctx = av_buffer_ref(hw_ctx);
+        pCodecCtx->opaque       = this;
+        pCodecCtx->get_format   = getHWFormat;
+        break;
+      }
+    }
+  }
+
   if (avcodec_open2(pCodecCtx, pCodec, nullptr) < 0) {
     avformat_close_input(&pFormatCtx);
     return -1;
@@ -299,7 +429,7 @@ int VideoFFmpeg::openStream(const char *filename,
                                      m_codecCtx->width,
                                      m_codecCtx->height,
                                      AV_PIX_FMT_RGBA,
-                                     SWS_FAST_BILINEAR,
+                                     SWS_POINT,
                                      nullptr,
                                      nullptr,
                                      nullptr);
@@ -314,7 +444,7 @@ int VideoFFmpeg::openStream(const char *filename,
                                      m_codecCtx->width,
                                      m_codecCtx->height,
                                      AV_PIX_FMT_RGB24,
-                                     SWS_FAST_BILINEAR,
+                                     SWS_POINT,
                                      nullptr,
                                      nullptr,
                                      nullptr);
@@ -337,6 +467,53 @@ int VideoFFmpeg::openStream(const char *filename,
     return -1;
   }
   return 0;
+}
+
+/*
+ * If the decoded frame lives in GPU memory (hardware decode), transfer it to
+ * a CPU-side frame via av_hwframe_transfer_data().  Returns the CPU frame on
+ * success, or the original frame when software decoding is active.
+ * On transfer failure, returns nullptr so the caller can skip the frame.
+ *
+ * D3D11VA outputs NV12 (semi-planar) rather than YUV420P. The SwsContext was
+ * built in openStream() using m_codecCtx->pix_fmt (the SW hint), which may
+ * not match the actual transferred format. We detect the mismatch on the
+ * first frame and silently rebuild the SwsContext with the correct source
+ * format so subsequent sws_scale calls are correct and fast.
+ */
+AVFrame *VideoFFmpeg::resolveHWFrame(AVFrame *hwFrame, AVFrame *dst)
+{
+  if (m_hwPixFmt == AV_PIX_FMT_NONE || hwFrame->format != m_hwPixFmt)
+    return hwFrame; /* already a SW frame, dst unused */
+
+  av_frame_unref(dst);
+  if (av_hwframe_transfer_data(dst, hwFrame, 0) < 0) {
+    return nullptr;
+  }
+  av_frame_copy_props(dst, hwFrame);
+
+  /* Rebuild SwsContext if the real SW pixel format differs from what was
+   * assumed during openStream() (e.g. NV12 instead of YUV420P for D3D11VA). */
+  const AVPixelFormat realFmt = static_cast<AVPixelFormat>(dst->format);
+  if (realFmt != AV_PIX_FMT_NONE && m_imgConvertCtx != nullptr && m_hwSwFmt == AV_PIX_FMT_NONE) {
+    m_hwSwFmt = realFmt;
+    if (realFmt != m_codecCtx->pix_fmt) {
+      sws_freeContext(m_imgConvertCtx);
+      const AVPixelFormat dstPixFmt = (m_format == RGBA32) ? AV_PIX_FMT_RGBA : AV_PIX_FMT_RGB24;
+      m_imgConvertCtx = sws_getContext(m_codecCtx->width,
+                                       m_codecCtx->height,
+                                       realFmt,
+                                       m_codecCtx->width,
+                                       m_codecCtx->height,
+                                       dstPixFmt,
+                                       SWS_POINT,
+                                       nullptr,
+                                       nullptr,
+                                       nullptr);
+    }
+  }
+
+  return dst;
 }
 
 /*
@@ -417,6 +594,32 @@ void *VideoFFmpeg::cacheThread(void *data)
         if (frameFinished) {
           AVFrame *input = video->m_frame;
 
+          /* Hardware path: transfer VRAM frame to the per-slot SW frame. */
+          if (video->m_hwPixFmt != AV_PIX_FMT_NONE) {
+            input = video->resolveHWFrame(video->m_frame, currentFrame->frameSW);
+            if (!input) {
+              av_frame_unref(video->m_frame);
+              av_packet_unref(&cachePacket->packet);
+              BLI_addtail(&video->m_packetCacheFree, cachePacket);
+              continue;
+            }
+          }
+          /* Software YUV fast path: only when the user has not disabled the GPU YUV
+           * path via useHWDecoding=False. When disabled, fall through to sws_scale. */
+          else {
+            const int fmt = input->format;
+            if (video->m_useHWDecoding &&
+                (fmt == AV_PIX_FMT_NV12 ||
+                 fmt == AV_PIX_FMT_P010 ||
+                 fmt == AV_PIX_FMT_YUV420P) &&
+                currentFrame->frameSW != nullptr)
+            {
+              av_frame_unref(currentFrame->frameSW);
+              av_frame_move_ref(currentFrame->frameSW, input);
+              input = currentFrame->frameSW;
+            }
+          }
+
           /* This means the data wasnt read properly, this check stops crashing */
           if (input->data[0] != 0 || input->data[1] != 0 || input->data[2] != 0 ||
               input->data[3] != 0) {
@@ -429,15 +632,25 @@ void *VideoFFmpeg::cacheThread(void *data)
                 input = video->m_frameDeinterlaced;
               }
             }
-            // convert to RGB24
-            sws_scale(video->m_imgConvertCtx,
-                      input->data,
-                      input->linesize,
-                      0,
-                      video->m_codecCtx->height,
-                      currentFrame->frame->data,
-                      currentFrame->frame->linesize);
-            // move frame to queue, this frame is necessarily the next one
+
+            /* YUV fast path: skip sws_scale for NV12, P010 and YUV420P.
+             * Extended to cover HW (NV12/P010) and SW (YUV420P) decoders. */
+            const int fmt = input->format;
+            const bool isYUV = (fmt == AV_PIX_FMT_NV12 ||
+                                 fmt == AV_PIX_FMT_P010 ||
+                                 fmt == AV_PIX_FMT_YUV420P);
+            const bool useYUVPath = (isYUV && input == currentFrame->frameSW &&
+                                     input->data[0] != nullptr);
+            if (!useYUVPath) {
+              sws_scale(video->m_imgConvertCtx,
+                        input->data,
+                        input->linesize,
+                        0,
+                        video->m_codecCtx->height,
+                        currentFrame->frame->data,
+                        currentFrame->frame->linesize);
+            }
+
             video->m_curPosition = (long)((cachePacket->packet.dts - startTs) *
                                               (video->m_baseFrameRate * timeBase) +
                                           0.5);
@@ -482,9 +695,24 @@ bool VideoFFmpeg::startCache()
 {
   if (!m_cacheStarted && m_isThreaded) {
     m_stopThread = false;
-    for (int i = 0; i < CACHE_FRAME_SIZE; i++) {
+    /* For high-resolution video (>= 4K) keep fewer decoded frames in the
+     * cache to avoid exhausting RAM (each RGB frame is ~50 MB at 8K).
+     * More packets are buffered instead so the decode thread stays busy. */
+    const int pixelCount = m_codecCtx ? m_codecCtx->width * m_codecCtx->height : 0;
+    const int frameCount = (pixelCount >= 3840 * 2160) ? 3 : CACHE_FRAME_SIZE;
+    /* Allocate frameSW for HW decode (GPU?CPU transfer) and for SW YUV
+     * formats that bypass sws_scale — but only when the GPU YUV path is active
+     * (m_useHWDecoding true). When false, sws_scale is always used instead. */
+    const AVPixelFormat swFmt = m_codecCtx ? m_codecCtx->pix_fmt : AV_PIX_FMT_NONE;
+    const bool needFrameSW = m_useHWDecoding &&
+                             ((m_hwDeviceCtx != nullptr) ||
+                              (swFmt == AV_PIX_FMT_NV12 ||
+                               swFmt == AV_PIX_FMT_P010 ||
+                               swFmt == AV_PIX_FMT_YUV420P));
+    for (int i = 0; i < frameCount; i++) {
       CacheFrame *frame = new CacheFrame();
       frame->frame = allocFrameRGB();
+      frame->frameSW = needFrameSW ? av_frame_alloc() : nullptr;
       BLI_addtail(&m_frameCacheFree, frame);
     }
     for (int i = 0; i < CACHE_PACKET_SIZE; i++) {
@@ -510,12 +738,16 @@ void VideoFFmpeg::stopCache()
       BLI_remlink(&m_frameCacheBase, frame);
       MEM_delete(frame->frame->data[0]);
       av_frame_free(&frame->frame);
+      if (frame->frameSW)
+        av_frame_free(&frame->frameSW);
       delete frame;
     }
     while ((frame = (CacheFrame *)m_frameCacheFree.first) != nullptr) {
       BLI_remlink(&m_frameCacheFree, frame);
       MEM_delete(frame->frame->data[0]);
       av_frame_free(&frame->frame);
+      if (frame->frameSW)
+        av_frame_free(&frame->frameSW);
       delete frame;
     }
     while ((packet = (CachePacket *)m_packetCacheBase.first) != nullptr) {
@@ -528,6 +760,10 @@ void VideoFFmpeg::stopCache()
       delete packet;
     }
     m_cacheStarted = false;
+    /* Invalidate the owned YUV copy — its buffer is no longer safe to read. */
+    m_lastFrameIsNV12 = false;
+    if (m_lastFrameYUVCopy)
+      av_frame_unref(m_lastFrameYUVCopy);
   }
 }
 
@@ -537,6 +773,11 @@ void VideoFFmpeg::releaseFrame(AVFrame *frame)
     // this is not a frame from the cache, ignore
     return;
   }
+  /* YUV fast path: frameSW owns the decoded data (via av_frame_move_ref).
+   * Do NOT unref it here — Texture::refresh may still be uploading it to the
+   * GPU via loadTextureYUV. The cache thread calls av_frame_unref(frameSW)
+   * at the top of the next av_frame_move_ref cycle, which is the correct
+   * moment to release the buffer. */
   // this frame MUST be the first one of the queue
   pthread_mutex_lock(&m_cacheMutex);
   CacheFrame *cacheFrame = (CacheFrame *)m_frameCacheBase.first;
@@ -551,6 +792,9 @@ void VideoFFmpeg::openFile(char *filename)
 {
   if (openStream(filename, nullptr, nullptr) != 0)
     return;
+
+  /* Save filename so setUseHWDecoding() can reopen the stream if needed. */
+  m_imageName = filename;
 
   if (m_codecCtx->gop_size)
     m_preseek = (m_codecCtx->gop_size < 25) ? m_codecCtx->gop_size + 1 : 25;
@@ -832,8 +1076,14 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
         m_lastFrame = actFrame;
         // init image, if needed
         init(short(m_codecCtx->width), short(m_codecCtx->height));
-        // process image
-        process((BYTE *)(frame->data[0]));
+        // process image — NV12 fast path skips VideoBase::process entirely
+        if (m_lastFrameIsNV12) {
+          /* Data stays on CPU but we skip sws_scale and filterImage.
+           * Texture::refresh will detect m_lastFrameIsNV12 and call loadTextureYUV. */
+        }
+        else {
+          process((BYTE *)(frame->data[0]));
+        }
         // finished with the frame, release it so that cache can reuse it
         releaseFrame(frame);
         // in case it is an image, automatically stop reading it
@@ -906,6 +1156,25 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
       // for streaming, always return the next frame,
       // that's what grabFrame does in non cache mode anyway.
       if (m_isStreaming || frame->framePosition == position) {
+        /* If this slot was filled via the YUV fast path (sws_scale was skipped),
+         * frameSW holds the raw NV12/P010/YUV420P data. Copy a ref into the owned
+         * m_lastFrameYUVCopy so Pyrefresh can read it without racing the cache thread. */
+        if (frame->frameSW && frame->frameSW->data[0] != nullptr) {
+          const int fmt = frame->frameSW->format;
+          if (fmt == AV_PIX_FMT_NV12 || fmt == AV_PIX_FMT_P010 || fmt == AV_PIX_FMT_YUV420P) {
+            m_lastFrameIsNV12 = true;
+            av_frame_unref(m_lastFrameYUVCopy);
+            av_frame_ref(m_lastFrameYUVCopy, frame->frameSW);
+          }
+          else {
+            m_lastFrameIsNV12 = false;
+            av_frame_unref(m_lastFrameYUVCopy);
+          }
+        }
+        else {
+          m_lastFrameIsNV12 = false;
+          av_frame_unref(m_lastFrameYUVCopy);
+        }
         return frame->frame;
       }
       // for cam, skip old frames to keep image realtime.
@@ -1028,6 +1297,44 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 
       if (frameFinished && posFound == 1) {
         AVFrame *input = m_frame;
+        AVFrame *frameSWTmp = nullptr;
+
+        /* Hardware path: transfer VRAM frame to m_frameSWNonCached. */
+        if (m_hwPixFmt != AV_PIX_FMT_NONE) {
+          if (m_frameSWNonCached) {
+            av_frame_unref(m_frameSWNonCached);
+          }
+          else {
+            m_frameSWNonCached = av_frame_alloc();
+          }
+          frameSWTmp = m_frameSWNonCached;
+          input = resolveHWFrame(m_frame, frameSWTmp);
+          if (!input) {
+            m_frameSWNonCached = nullptr; /* resolveHWFrame unref'd it on failure */
+            av_packet_unref(&packet);
+            av_frame_unref(m_frame);
+            break;
+          }
+        }
+        /* Software YUV fast path: move the frame into m_frameSWNonCached so it
+         * owns the data independently of m_frame (which gets unref'd below).
+         * Only used when the GPU YUV path is enabled (m_useHWDecoding intent). */
+        else {
+          const int fmt = input->format;
+          if (m_useHWDecoding &&
+              (fmt == AV_PIX_FMT_NV12 ||
+               fmt == AV_PIX_FMT_P010 ||
+               fmt == AV_PIX_FMT_YUV420P))
+          {
+            if (!m_frameSWNonCached)
+              m_frameSWNonCached = av_frame_alloc();
+            else
+              av_frame_unref(m_frameSWNonCached);
+            av_frame_move_ref(m_frameSWNonCached, input);
+            frameSWTmp = m_frameSWNonCached;
+            input = frameSWTmp;
+          }
+        }
 
         /* This means the data wasnt read properly,
          * this check stops crashing */
@@ -1047,14 +1354,38 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
             input = m_frameDeinterlaced;
           }
         }
-        // convert to RGB24
-        sws_scale(m_imgConvertCtx,
-                  input->data,
-                  input->linesize,
-                  0,
-                  m_codecCtx->height,
-                  m_frameRGB->data,
-                  m_frameRGB->linesize);
+        /* YUV fast path: copy a ref into the owned m_lastFrameYUVCopy so Pyrefresh
+         * can safely read it without racing the next grabFrame call. */
+        if (frameSWTmp) {
+          const int fmt = frameSWTmp->format;
+          if (fmt == AV_PIX_FMT_NV12 || fmt == AV_PIX_FMT_P010 || fmt == AV_PIX_FMT_YUV420P) {
+            m_lastFrameIsNV12 = true;
+            av_frame_unref(m_lastFrameYUVCopy);
+            av_frame_ref(m_lastFrameYUVCopy, frameSWTmp);
+          }
+          else {
+            m_lastFrameIsNV12 = false;
+            av_frame_unref(m_lastFrameYUVCopy);
+            sws_scale(m_imgConvertCtx,
+                      input->data,
+                      input->linesize,
+                      0,
+                      m_codecCtx->height,
+                      m_frameRGB->data,
+                      m_frameRGB->linesize);
+          }
+        }
+        else {
+          m_lastFrameIsNV12 = false;
+          av_frame_unref(m_lastFrameYUVCopy);
+          sws_scale(m_imgConvertCtx,
+                    input->data,
+                    input->linesize,
+                    0,
+                    m_codecCtx->height,
+                    m_frameRGB->data,
+                    m_frameRGB->linesize);
+        }
         av_packet_unref(&packet);
         av_frame_unref(m_frame);
         frameLoaded = true;
@@ -1180,6 +1511,26 @@ static int VideoFFmpeg_setDeinterlace(PyImage *self, PyObject *value, void *clos
   return 0;
 }
 
+// get useHWDecoding
+static PyObject *VideoFFmpeg_getUseHWDecoding(PyImage *self, void *closure)
+{
+  if (getFFmpeg(self)->getUseHWDecoding())
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+}
+
+// set useHWDecoding
+static int VideoFFmpeg_setUseHWDecoding(PyImage *self, PyObject *value, void *closure)
+{
+  if (value == nullptr || !PyBool_Check(value)) {
+    PyErr_SetString(PyExc_TypeError, "The value must be a bool");
+    return -1;
+  }
+  getFFmpeg(self)->setUseHWDecoding(value == Py_True);
+  return 0;
+}
+
 // methods structure
 static PyMethodDef videoMethods[] = {  // methods from VideoBase class
     {"play", (PyCFunction)Video_play, METH_NOARGS, "Play (restart) video"},
@@ -1237,6 +1588,11 @@ static PyGetSetDef videoGetSets[] = {  // methods from VideoBase class
      (getter)VideoFFmpeg_getDeinterlace,
      (setter)VideoFFmpeg_setDeinterlace,
      (char *)"deinterlace image",
+     nullptr},
+    {(char *)"useHWDecoding",
+     (getter)VideoFFmpeg_getUseHWDecoding,
+     (setter)VideoFFmpeg_setUseHWDecoding,
+     (char *)"use hardware-accelerated decoding (D3D11VA/VAAPI/VideoToolbox), True by default",
      nullptr},
     {nullptr}};
 

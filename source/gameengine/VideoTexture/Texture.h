@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "DNA_image_types.h"
 
 #include "EXP_Value.h"
@@ -17,6 +19,7 @@
 
 namespace blender::gpu {
 class Texture;
+class StorageBuf;
 }  // namespace blender::gpu
 
 struct ImBuf;
@@ -55,6 +58,22 @@ class Texture : public EXP_Value {
   blender::gpu::Texture *m_modifiedGPUTexture;
   void *m_py_color;
 
+  /* Persistent SSBOs for the NV12->RGB compute shader.
+   * Reused every frame to avoid per-frame C++ allocation overhead.
+   * Sized to match the last uploaded frame; recreated when resolution changes. */
+  blender::gpu::StorageBuf *m_ssboY;
+  blender::gpu::StorageBuf *m_ssboUV;
+  blender::gpu::StorageBuf *m_ssboV;  /* V plane for YUV420P only, else nullptr */
+  int m_ssboWidth;
+  int m_ssboHeight;
+  int m_ssboYStride;
+  int m_ssboUVStride;
+  int m_ssboFmt;   /* AVPixelFormat of last allocation, -1 = none */
+  /* Compact (stride-free) CPU staging buffers, reused across frames. */
+  std::vector<uint8_t> m_yCompact;
+  std::vector<uint8_t> m_uvCompact;
+  std::vector<uint8_t> m_vCompact;
+
   // use mipmapping
   bool m_mipmap;
 
@@ -77,11 +96,22 @@ class Texture : public EXP_Value {
   void Close();
   void SetSource(PyImage *source);
 
-  // load texture
+  // load texture from a CPU RGBA buffer (existing path)
   void loadTexture(unsigned int *texture,
                    short *size,
                    bool mipmap,
                    blender::gpu::TextureFormat format);
+
+  // load texture from NV12/P010/YUV420P planes via GPU compute shader (zero-copy RGB conversion)
+  void loadTextureYUV(const uint8_t *y_data,
+                      const uint8_t *uv_data,
+                      const uint8_t *v_data,
+                      int width,
+                      int height,
+                      int avPixFmt,
+                      int y_linesize,
+                      int uv_linesize,
+                      int v_linesize);
 
   static void FreeAllTextures(KX_Scene *scene);
 
