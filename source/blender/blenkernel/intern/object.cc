@@ -679,7 +679,7 @@ static void write_properties(BlendWriter *writer, ListBase *lb)
     writer->write_struct(prop);
 
     if (prop->poin && prop->poin != &prop->data) {
-      BLO_write_raw(writer, MEM_allocN_len(prop->poin), prop->poin);
+      writer->write_raw(MEM_allocN_len(prop->poin), prop->poin);
     }
 
     prop = prop->next;
@@ -694,7 +694,7 @@ static void write_sensors(BlendWriter *writer, ListBase *lb)
   while (sens) {
     writer->write_struct(sens);
 
-    BLO_write_pointer_array(writer, sens->totlinks, sens->links);
+    writer->write_pointer_array(sens->totlinks, sens->links);
 
     switch (sens->type) {
       case SENS_NEAR:
@@ -754,7 +754,7 @@ static void write_controllers(BlendWriter *writer, ListBase *lb)
   while (cont) {
     writer->write_struct(cont);
 
-    BLO_write_pointer_array(writer, cont->totlinks, cont->links);
+    writer->write_pointer_array(cont->totlinks, cont->links);
 
     switch (cont->type) {
       case CONT_EXPRESSION:
@@ -860,7 +860,7 @@ static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
     writer->write_struct(pprop);
     writer->write_struct_list(&pprop->enumval);
     for (link = (LinkData *)pprop->enumval.first; link; link = link->next) {
-      BLO_write_string(writer, (const char *)link->data);
+      writer->write_string((const char *)link->data);
     }
     pprop = pprop->next;
   }
