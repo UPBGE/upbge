@@ -65,6 +65,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_library.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_movieclip.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -5195,6 +5196,10 @@ static void followtrack_project_to_depth_object_if_needed(FollowTrackContext *co
   sub_v3_v3v3(ray_direction, ray_end, ray_start);
   normalize_v3(ray_direction);
 
+  /* In edit-mode, we _could_ create a BVH tree from the edit mesh, for now, just convert mesh data
+   * since this isn't typically used in edit-mode. */
+  BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(depth_mesh));
+
   bke::BVHTreeFromMesh tree_data = depth_mesh->bvh_corner_tris();
 
   BVHTreeRayHit hit;
@@ -6897,14 +6902,14 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBaseT<bConstraint> *con
           bSplineIKConstraint *data = static_cast<bSplineIKConstraint *>(con.data);
 
           /* write points array */
-          BLO_write_float_array(writer, data->numpoints, data->points);
+          writer->write_float_array(data->numpoints, data->points);
 
           break;
         }
         case CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE: {
           bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(
               con.data);
-          BLO_write_string(writer, data->attribute_name);
+          writer->write_string(data->attribute_name);
           break;
         }
       }
