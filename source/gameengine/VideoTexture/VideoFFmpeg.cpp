@@ -315,9 +315,10 @@ int VideoFFmpeg::openStream(const char *filename,
    * two separate GPU contexts are alive simultaneously, not about zero-copy. */
   if (m_useHWDecoding) {
     /* Build the platform HW device priority list. */
-    AVHWDeviceType hw_priority[4] = {
+    AVHWDeviceType hw_priority[5] = {
         AV_HWDEVICE_TYPE_NONE, AV_HWDEVICE_TYPE_NONE,
-        AV_HWDEVICE_TYPE_NONE, AV_HWDEVICE_TYPE_NONE};
+        AV_HWDEVICE_TYPE_NONE, AV_HWDEVICE_TYPE_NONE,
+        AV_HWDEVICE_TYPE_NONE};
     int hw_count = 0;
 #if defined(WIN32)
     hw_priority[hw_count++] = AV_HWDEVICE_TYPE_D3D11VA;
@@ -325,6 +326,7 @@ int VideoFFmpeg::openStream(const char *filename,
 #elif defined(__APPLE__)
     hw_priority[hw_count++] = AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
 #else
+    hw_priority[hw_count++] = AV_HWDEVICE_TYPE_CUDA;
     hw_priority[hw_count++] = AV_HWDEVICE_TYPE_VAAPI;
     hw_priority[hw_count++] = AV_HWDEVICE_TYPE_VDPAU;
 #endif
@@ -382,6 +384,71 @@ int VideoFFmpeg::openStream(const char *filename,
         break;
       }
     }
+
+#if !defined(WIN32) && !defined(__APPLE__)
+    /* Fallback: if no specialised HW codec was found but the generic decoder
+     * supports VAAPI via hw_device_ctx, attach a VAAPI device anyway.
+     * This is the standard way most players use VAAPI — the regular decoder
+     * (e.g. "h264") offloads decoding to the GPU when a hw_device_ctx is set
+     * and the driver advertises support for the codec. */
+    if (!m_hwDeviceCtx) {
+      /* Check if the already-selected generic codec has a VAAPI hw config. */
+      AVPixelFormat vaapi_fmt = AV_PIX_FMT_NONE;
+      for (int ci = 0;; ci++) {
+        const AVCodecHWConfig *cfg = avcodec_get_hw_config(pCodec, ci);
+        if (!cfg)
+          break;
+        if ((cfg->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) &&
+            cfg->device_type == AV_HWDEVICE_TYPE_VAAPI) {
+          vaapi_fmt = cfg->pix_fmt;
+          break;
+        }
+      }
+      if (vaapi_fmt != AV_PIX_FMT_NONE) {
+        AVBufferRef *hw_ctx = nullptr;
+        /* Try the default render node first, then nullptr (auto). */
+        if (av_hwdevice_ctx_create(
+                &hw_ctx, AV_HWDEVICE_TYPE_VAAPI, "/dev/dri/renderD128", nullptr, 0) >= 0 ||
+            av_hwdevice_ctx_create(
+                &hw_ctx, AV_HWDEVICE_TYPE_VAAPI, nullptr, nullptr, 0) >= 0)
+        {
+          m_hwDeviceCtx            = hw_ctx;
+          m_hwPixFmt               = vaapi_fmt;
+          pCodecCtx->hw_device_ctx = av_buffer_ref(hw_ctx);
+          pCodecCtx->opaque        = this;
+          pCodecCtx->get_format    = getHWFormat;
+        }
+      }
+    }
+
+    /* Fallback CUDA/NVDEC: same approach — attach a CUDA device to the generic
+     * decoder if no HW context was established yet (NVIDIA proprietary driver). */
+    if (!m_hwDeviceCtx) {
+      AVPixelFormat cuda_fmt = AV_PIX_FMT_NONE;
+      for (int ci = 0;; ci++) {
+        const AVCodecHWConfig *cfg = avcodec_get_hw_config(pCodec, ci);
+        if (!cfg)
+          break;
+        if ((cfg->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) &&
+            cfg->device_type == AV_HWDEVICE_TYPE_CUDA) {
+          cuda_fmt = cfg->pix_fmt;
+          break;
+        }
+      }
+      if (cuda_fmt != AV_PIX_FMT_NONE) {
+        AVBufferRef *hw_ctx = nullptr;
+        if (av_hwdevice_ctx_create(
+                &hw_ctx, AV_HWDEVICE_TYPE_CUDA, nullptr, nullptr, 0) >= 0)
+        {
+          m_hwDeviceCtx            = hw_ctx;
+          m_hwPixFmt               = cuda_fmt;
+          pCodecCtx->hw_device_ctx = av_buffer_ref(hw_ctx);
+          pCodecCtx->opaque        = this;
+          pCodecCtx->get_format    = getHWFormat;
+        }
+      }
+    }
+#endif
   }
 
   if (avcodec_open2(pCodecCtx, pCodec, nullptr) < 0) {
