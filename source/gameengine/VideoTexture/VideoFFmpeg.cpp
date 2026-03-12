@@ -209,7 +209,7 @@ void VideoFFmpeg::initParams(short width, short height, float rate, bool image)
  * The chosen format is stored in VideoFFmpeg::m_hwPixFmt so that grabFrame /
  * cacheThread know whether a transfer from VRAM is needed.
  */
-static AVPixelFormat getHWFormat(AVCodecContext *ctx, const AVPixelFormat *pix_fmts)
+AVPixelFormat getHWFormat(AVCodecContext *ctx, const AVPixelFormat *pix_fmts)
 {
   VideoFFmpeg *video = static_cast<VideoFFmpeg *>(ctx->opaque);
   for (const AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
@@ -363,7 +363,7 @@ int VideoFFmpeg::openStream(const char *filename,
         if (av_hwdevice_ctx_create(&hw_ctx, wanted_type, nullptr, nullptr, 0) < 0)
           continue;
 
-        /* Success — switch to this HW codec and wire up the device context. */
+        /* Success ï¿½ switch to this HW codec and wire up the device context. */
         pCodec = candidate;
         avcodec_free_context(&pCodecCtx);
         pCodecCtx = avcodec_alloc_context3(nullptr);
@@ -701,7 +701,7 @@ bool VideoFFmpeg::startCache()
     const int pixelCount = m_codecCtx ? m_codecCtx->width * m_codecCtx->height : 0;
     const int frameCount = (pixelCount >= 3840 * 2160) ? 3 : CACHE_FRAME_SIZE;
     /* Allocate frameSW for HW decode (GPU?CPU transfer) and for SW YUV
-     * formats that bypass sws_scale — but only when the GPU YUV path is active
+     * formats that bypass sws_scale ï¿½ but only when the GPU YUV path is active
      * (m_useHWDecoding true). When false, sws_scale is always used instead. */
     const AVPixelFormat swFmt = m_codecCtx ? m_codecCtx->pix_fmt : AV_PIX_FMT_NONE;
     const bool needFrameSW = m_useHWDecoding &&
@@ -760,7 +760,7 @@ void VideoFFmpeg::stopCache()
       delete packet;
     }
     m_cacheStarted = false;
-    /* Invalidate the owned YUV copy — its buffer is no longer safe to read. */
+    /* Invalidate the owned YUV copy ï¿½ its buffer is no longer safe to read. */
     m_lastFrameIsNV12 = false;
     if (m_lastFrameYUVCopy)
       av_frame_unref(m_lastFrameYUVCopy);
@@ -774,7 +774,7 @@ void VideoFFmpeg::releaseFrame(AVFrame *frame)
     return;
   }
   /* YUV fast path: frameSW owns the decoded data (via av_frame_move_ref).
-   * Do NOT unref it here — Texture::refresh may still be uploading it to the
+   * Do NOT unref it here ï¿½ Texture::refresh may still be uploading it to the
    * GPU via loadTextureYUV. The cache thread calls av_frame_unref(frameSW)
    * at the top of the next av_frame_move_ref cycle, which is the correct
    * moment to release the buffer. */
@@ -1076,7 +1076,7 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
         m_lastFrame = actFrame;
         // init image, if needed
         init(short(m_codecCtx->width), short(m_codecCtx->height));
-        // process image — NV12 fast path skips VideoBase::process entirely
+        // process image ï¿½ NV12 fast path skips VideoBase::process entirely
         if (m_lastFrameIsNV12) {
           /* Data stays on CPU but we skip sws_scale and filterImage.
            * Texture::refresh will detect m_lastFrameIsNV12 and call loadTextureYUV. */
