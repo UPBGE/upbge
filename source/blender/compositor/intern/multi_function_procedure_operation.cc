@@ -244,6 +244,24 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(
       }
       break;
     }
+    case SOCK_INT_VECTOR: {
+      switch (input.default_value_typed<bNodeSocketValueIntVector>()->dimensions) {
+        case 2: {
+          const int2 value = int2(input.default_value_typed<bNodeSocketValueIntVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<int2>>(value);
+          break;
+        }
+        case 3: {
+          const int3 value = int3(input.default_value_typed<bNodeSocketValueIntVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<int3>>(value);
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
+      break;
+    }
     case SOCK_RGBA: {
       const Color value = Color(input.default_value_typed<bNodeSocketValueRGBA>()->value);
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
@@ -264,6 +282,36 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(
       const std::string value = input.default_value_typed<bNodeSocketValueString>()->value;
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<std::string>>(
           value);
+      break;
+    }
+    case SOCK_OBJECT: {
+      Object *value = input.default_value_typed<bNodeSocketValueObject>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Object *>>(value);
+      break;
+    }
+    case SOCK_IMAGE: {
+      Image *value = input.default_value_typed<bNodeSocketValueImage>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Image *>>(value);
+      break;
+    }
+    case SOCK_FONT: {
+      VFont *value = input.default_value_typed<bNodeSocketValueFont>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<VFont *>>(value);
+      break;
+    }
+    case SOCK_SCENE: {
+      Scene *value = input.default_value_typed<bNodeSocketValueScene>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Scene *>>(value);
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      Text *value = input.default_value_typed<bNodeSocketValueText>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Text *>>(value);
+      break;
+    }
+    case SOCK_MASK: {
+      Mask *value = input.default_value_typed<bNodeSocketValueMask>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Mask *>>(value);
       break;
     }
     default:
