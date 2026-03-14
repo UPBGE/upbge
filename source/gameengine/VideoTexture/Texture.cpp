@@ -44,10 +44,6 @@ static blender::gpu::Shader *g_yuv_shaders[3] = {nullptr, nullptr, nullptr};
 
 static std::vector<Texture *> textures;
 
-/* Lazy-initialized shader — one instance shared across all Texture objects.
- * Freed in FreeAllTextures() when the scene shuts down. */
-static blender::gpu::Shader *g_yuv_to_rgb_shader = nullptr;
-
 // macro for exception handling and logging
 #define CATCH_EXCP \
   catch (Exception & exp) \
@@ -464,10 +460,10 @@ int v_linesize)
     if (m_ssboV) { GPU_storagebuf_free(m_ssboV); m_ssboV = nullptr; }
   }
   if (!m_ssboY) {
-    m_ssboY  = GPU_storagebuf_create_ex(y_bytes,  nullptr, GPU_USAGE_STREAM, "yuv_y_plane");
-    m_ssboUV = GPU_storagebuf_create_ex(uv_bytes, nullptr, GPU_USAGE_STREAM, "yuv_uv_plane");
+    m_ssboY  = GPU_storagebuf_create_ex(y_bytes,  nullptr, GPU_USAGE_DYNAMIC, "yuv_y_plane");
+    m_ssboUV = GPU_storagebuf_create_ex(uv_bytes, nullptr, GPU_USAGE_DYNAMIC, "yuv_uv_plane");
     if (fmt == YUVFormat::YUV420P)
-      m_ssboV = GPU_storagebuf_create_ex(v_bytes, nullptr, GPU_USAGE_STREAM, "yuv_v_plane");
+      m_ssboV = GPU_storagebuf_create_ex(v_bytes, nullptr, GPU_USAGE_DYNAMIC, "yuv_v_plane");
     m_ssboWidth    = width;
     m_ssboHeight   = height;
     m_ssboYStride  = width;
@@ -476,11 +472,10 @@ int v_linesize)
   }
   GPU_storagebuf_update(m_ssboY,  m_yCompact.data());
   GPU_storagebuf_update(m_ssboUV, m_uvCompact.data());
-  if (fmt == YUVFormat::YUV420P && m_ssboV)
+  if (fmt == YUVFormat::YUV420P && m_ssboV) {
     GPU_storagebuf_update(m_ssboV, m_vCompact.data());
-
-  const gpu::shader::SpecializationConstants *spec_consts = &GPU_shader_get_default_constant_state(shader);
-  GPU_shader_bind(shader, spec_consts);
+  }
+  GPU_shader_bind(shader);
   GPU_storagebuf_bind(m_ssboY,  GPU_shader_get_ssbo_binding(shader, "y_plane"));
   GPU_storagebuf_bind(m_ssboUV, GPU_shader_get_ssbo_binding(shader, "uv_plane"));
   if (fmt == YUVFormat::YUV420P && m_ssboV)
@@ -492,8 +487,8 @@ int v_linesize)
   GPU_shader_uniform_1i(shader, "image_height", height);
 
   const int groups = (width * height + 255) / 256;
-  GPU_compute_dispatch(shader, groups, 1, 1, spec_consts);
-  GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH);
+  GPU_compute_dispatch(shader, groups, 1, 1);
+  GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_STORAGE);
 
   GPU_texture_image_unbind(m_modifiedGPUTexture);
   GPU_shader_unbind();
