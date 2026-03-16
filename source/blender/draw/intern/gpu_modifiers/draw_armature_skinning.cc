@@ -1362,10 +1362,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
   if (!compute_sh) {
     return nullptr;
   }
-
-  const gpu::shader::SpecializationConstants *constants =
-      &GPU_shader_get_default_constant_state(compute_sh);
-  GPU_shader_bind(compute_sh, constants);
+  GPU_shader_bind(compute_sh);
 
   if (use_dual_quaternions) {
     /* Bind DQS buffers */
@@ -1463,7 +1460,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
 
   const int group_size = 256;
   int num_groups = (msd.verts_num + group_size - 1) / group_size;
-  GPU_compute_dispatch(compute_sh, num_groups, 1, 1, constants);
+  GPU_compute_dispatch(compute_sh, num_groups, 1, 1);
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   GPU_shader_unbind();
 

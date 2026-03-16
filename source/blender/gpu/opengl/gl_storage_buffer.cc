@@ -224,6 +224,12 @@ void GLStorageBuf::async_flush_to_host()
 
 void GLStorageBuf::read(void *data)
 {
+  BLI_assert(!read_if_ready_in_use_);
+  if (read_if_ready_in_use_) {
+    printf("Error: Trying to read storage buffer '%s' while an async copy is in progress.\n",
+           name_);
+  }
+
   if (data == nullptr) {
     return;
   }
@@ -252,7 +258,7 @@ void GLStorageBuf::read(void *data)
 }
 
 // upbge
-bool GLStorageBuf::read_fast(void *data)
+bool GLStorageBuf::read_if_ready(void *data)
 {
   if (data == nullptr) {
     return false;
@@ -287,6 +293,7 @@ bool GLStorageBuf::read_fast(void *data)
       has_result = true;
       glDeleteSync(read_fence_);
       read_fence_ = 0;
+      read_if_ready_in_use_ = false;
     }
     else {
       /* Still not ready (unlikely after a full frame). Don't wait — skip this readback.
@@ -308,6 +315,7 @@ bool GLStorageBuf::read_fast(void *data)
   }
 
   read_fence_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+  read_if_ready_in_use_ = true;
 
   return has_result;
 }

@@ -12,8 +12,8 @@
 
 #include "vk_buffer.hh"
 #include "vk_common.hh"
-#include "vk_data_conversion.hh"
 #include "vk_staging_buffer.hh"
+#include <atomic>
 
 namespace blender::gpu {
 
@@ -25,10 +25,12 @@ class VKVertexBuffer : public VertBuf {
   bool data_uploaded_ = false;
   /** When true, allocate the vertex buffer as host-visible and persistently mapped. */
   bool use_host_visible_allocation_ = false;
-  /** Timeline value from the previous read_fast submission, 0 if none pending. */
-  TimelineValue fast_read_timeline_ = 0;
+  /** Timeline value from the previous read_if_ready submission, 0 if none pending. */
+  TimelineValue read_if_ready_timeline_ = 0;
   /** Dedicated host-visible staging buffer for async readback. */
-  VKStagingBuffer *fast_read_buffer_ = nullptr;
+  VKStagingBuffer *read_if_ready_buffer_ = nullptr;
+  /** Indicates the mapped read buffer is currently the target of an async copy. */
+  mutable std::atomic_bool read_if_ready_in_use_ = false; // upbge
 
  public:
   ~VKVertexBuffer();
@@ -37,7 +39,7 @@ class VKVertexBuffer : public VertBuf {
   void bind_as_texture(uint binding) override;
   void wrap_handle(uint64_t handle) override;
 
-  void update_sub(uint start, uint len, const void *data) override;
+  void update_sub(uint start_offset, uint data_size_in_bytes, const void *data) override;
   void read(void *data) const override;
 
   VkBuffer vk_handle() const
@@ -45,7 +47,7 @@ class VKVertexBuffer : public VertBuf {
     return buffer_.vk_handle();
   }
 
-  inline VkDeviceAddress device_address_get() const
+  VkDeviceAddress device_address_get() const
   {
     return buffer_.device_address_get();
   }
@@ -61,9 +63,9 @@ class VKVertexBuffer : public VertBuf {
   void *mapped_ptr_get() const;
 
   void enable_host_visible_mapping() override;
-  bool read_fast(void *data) override;
+  bool read_if_ready(void *data) override;
 
-  inline VkFormat to_vk_format()
+  VkFormat to_vk_format()
   {
     return gpu::to_vk_format(to_texture_format(&format));
   }

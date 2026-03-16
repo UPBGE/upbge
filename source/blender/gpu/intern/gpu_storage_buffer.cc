@@ -47,7 +47,7 @@ void StorageBuf::usage_size_set(size_t usage_size)
 }
 
 // upbge
-bool StorageBuf::read_fast(void *data)
+bool StorageBuf::read_if_ready(void *data)
 {
   /* Default fallback: use the regular synchronous path (always returns true). */
   async_flush_to_host();
@@ -144,9 +144,9 @@ void GPU_storagebuf_read(gpu::StorageBuf *ssbo, void *data)
   ssbo->read(data);
 }
 
-bool GPU_storagebuf_read_fast(gpu::StorageBuf *ssbo, void *data)
+bool GPU_storagebuf_read_if_ready(gpu::StorageBuf *ssbo, void *data)
 {
-  return ssbo->read_fast(data);
+  return ssbo->read_if_ready(data);
 }
 
 void GPU_storagebuf_enable_host_visible_mapping(gpu::StorageBuf *ssbo)

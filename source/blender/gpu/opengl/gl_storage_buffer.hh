@@ -31,6 +31,8 @@ class GLStorageBuf : public StorageBuf {
   GLuint read_ssbo_id_ = 0;
   GLsync read_fence_ = 0;
   void *persistent_ptr_ = nullptr;
+  /** Indicates the mapped read buffer is currently the target of an async GPU copy. */
+  bool read_if_ready_in_use_ = false; // upbge
   size_t alloc_size_in_bytes_ = 0;
 
  public:
@@ -43,7 +45,7 @@ class GLStorageBuf : public StorageBuf {
   void clear(uint32_t clear_value) override;
   void copy_sub(VertBuf *src, uint dst_offset, uint src_offset, uint copy_size) override;
   void read(void *data) override;
-  bool read_fast(void *data) override; //upbge
+  bool read_if_ready(void *data) override; //upbge
   void async_flush_to_host() override;
   void sync_as_indirect_buffer() override;
 

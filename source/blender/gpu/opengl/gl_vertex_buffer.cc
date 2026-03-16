@@ -98,7 +98,7 @@ void GLVertBuf::bind()
 }
 
 // upbge
-bool GLVertBuf::read_fast(void *data)
+bool GLVertBuf::read_if_ready(void *data)
 {
   if (data == nullptr) {
     return false;
@@ -134,6 +134,7 @@ bool GLVertBuf::read_fast(void *data)
       has_result = true;
       glDeleteSync(read_fence_);
       read_fence_ = 0;
+      read_if_ready_in_use_ = false;
     }
     else {
       /* Still not ready (unlikely after a full frame). Don't wait — skip this readback.
@@ -155,6 +156,7 @@ bool GLVertBuf::read_fast(void *data)
   }
 
   read_fence_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+  read_if_ready_in_use_ = true;
 
   return has_result;
 }
@@ -184,6 +186,12 @@ void GLVertBuf::bind_as_texture(uint binding)
 void GLVertBuf::read(void *data) const
 {
   BLI_assert(is_active());
+  /* Debug: ensure we don't read while mapped buffer is targeted by an async copy. */
+  BLI_assert(!read_if_ready_in_use_);
+  if (read_if_ready_in_use_) {
+    printf("Error: Trying to read vertex buffer while an async copy is in progress.\n");
+  }
+
   void *result = glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
   memcpy(data, result, size_used_get());
   glUnmapBuffer(GL_ARRAY_BUFFER);

@@ -677,7 +677,7 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   /* --- Bounds SSBO injection for scatter shader --- */
   const bool is_scatter = (main_glsl && main_glsl == scatter_to_corners_main_glsl);
   /* Check if mesh has bounds computation enabled via its flag.
-   * Disabled on Metal backend where GPU_storagebuf_read_fast is not implemented. */
+   * Disabled on Metal backend where GPU_storagebuf_read_if_ready is not implemented. */
   const bool bounds_enabled = is_scatter && (mesh_orig->is_running_gpu_animation_playback != 0) &&
                               (GPU_backend_get_type() != GPU_BACKEND_METAL);
   const std::string bounds_key = "scatter_bounds_out";
@@ -818,11 +818,11 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
 
-  /* --- Bounds async readback (1-frame delayed) --- */
+  /* --- Bounds async readback (1-frame delayed) (no host_visible mapping (GPU friendly memory)) --- */
   if (bounds_enabled && bounds_ssbo) {
     /* Read previous frame's bounds (non-blocking if data ready). */
     uint32_t bounds_u[8];
-    bool has_bounds = GPU_storagebuf_read_fast(bounds_ssbo, bounds_u);
+    bool has_bounds = GPU_storagebuf_read_if_ready(bounds_ssbo, bounds_u);
 
     /* Re-initialize bounds SSBO to +INF/-INF for the NEXT frame's dispatch. */
     auto ordered_from_bits = [](uint32_t u) -> uint32_t {

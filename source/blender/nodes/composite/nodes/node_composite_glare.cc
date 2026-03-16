@@ -286,26 +286,19 @@ class GlareOperation : public NodeOperation {
   void execute() override
   {
     const Result &image_input = this->get_input("Image");
-    Result &glare_output = this->get_result("Glare");
-    Result &highlights_output = this->get_result("Highlights");
-
     if (image_input.is_single_value()) {
       Result &image_output = this->get_result("Image");
       if (image_output.should_compute()) {
         image_output.share_data(image_input);
       }
-      if (glare_output.should_compute()) {
-        glare_output.allocate_invalid();
-      }
-      if (highlights_output.should_compute()) {
-        highlights_output.allocate_invalid();
-      }
+      this->allocate_default_remaining_outputs();
       return;
     }
 
     Result highlights = this->compute_highlights();
     Result glare = this->compute_glare(highlights);
 
+    Result &highlights_output = this->get_result("Highlights");
     if (highlights_output.should_compute()) {
       if (highlights.domain().data_size != image_input.domain().data_size) {
         /* The highlights were computed on a fraction of the image size, see the get_quality_factor
@@ -322,6 +315,7 @@ class GlareOperation : public NodeOperation {
     /* Combine the original input and the generated glare. */
     execute_mix(glare);
 
+    Result &glare_output = this->get_result("Glare");
     if (glare_output.should_compute()) {
       this->write_glare_output(glare);
     }
@@ -2685,7 +2679,7 @@ class GlareOperation : public NodeOperation {
   /* The computed glare might need to be normalized to be energy conserving or be in a reasonable
    * range, instead of doing that in a separate step as part of the glare computation, we delay the
    * normalization until the mixing step as an optimization, since we multiply by the tint and
-   * strength anyways. */
+   * strength anyway. */
   float get_normalization_scale()
   {
     switch (this->get_type()) {

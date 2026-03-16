@@ -324,10 +324,10 @@ void GPU_vertbuf_enable_host_visible_mapping(VertBuf *verts)
   }
 }
 
-bool GPU_vertbuf_read_fast(VertBuf *verts, void *data)
+bool GPU_vertbuf_read_if_ready(VertBuf *verts, void *data)
 {
   if (!verts) return false;
-  return verts->read_fast(data);
+  return verts->read_if_ready(data);
 }
 
 /** \} */

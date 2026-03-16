@@ -110,7 +110,7 @@ void GPU_storagebuf_sync_as_indirect_buffer(gpu::StorageBuf *ssbo);
  *
  * Falls back to synchronous `GPU_storagebuf_read` on backends that don't override it.
  */
-bool GPU_storagebuf_read_fast(gpu::StorageBuf *ssbo, void *data);  // upbge
+bool GPU_storagebuf_read_if_ready(gpu::StorageBuf *ssbo, void *data);  // upbge
 
 /** Opt-in: request the implementation to allocate the created storage buffer as host-visible
  * and persistently mapped. This is Vulkan-only and may be ignored by other backends. Call

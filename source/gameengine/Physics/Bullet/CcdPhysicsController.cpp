@@ -2343,6 +2343,7 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
   const std::string key_out0 = key_prefix + "_out_pos_0";
   const std::string key_out1 = key_prefix + "_out_pos_1";
 
+  /* Host_visible mapping (CPU friendly memory) */
   gpu::VertBuf *vbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
       me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true);
   gpu::VertBuf *vbo_out1 = bke::BKE_mesh_gpu_internal_vbo_ensure(
@@ -2437,7 +2438,7 @@ void main() {
 #ifdef BT_USE_DOUBLE_PRECISION
   thread_local std::vector<float> tmp;
   tmp.resize(size_t(verts_num) * 4);
-  bool ok_fast = GPU_vertbuf_read_fast(vbo_read, tmp.data());
+  bool ok_fast = GPU_vertbuf_read_if_ready(vbo_read, tmp.data());
   if (!ok_fast) {
     return false;
   }
@@ -2462,7 +2463,7 @@ void main() {
   }
 #else
   m_vertexArray.resize(verts_floats);
-  bool ok_fast = GPU_vertbuf_read_fast(ssbo_read, &m_vertexArray[0]);
+  bool ok_fast = GPU_vertbuf_read_if_ready(ssbo_read, &m_vertexArray[0]);
   if (!ok_fast) {
     GPU_vertbuf_read(ssbo_read, &m_vertexArray[0]);
   }
