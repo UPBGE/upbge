@@ -70,7 +70,7 @@ class StorageBuf {
    * The default implementation falls back to the synchronous `async_flush_to_host()` + `read()`
    * path (returns `true` always, blocking).
    */
-  virtual bool read_fast(void *data); //upbge
+  virtual bool read_if_ready(void *data); //upbge
   /** Return a CPU pointer to the buffer memory when available (Vulkan-only zero-copy). */
   virtual void *mapped_ptr_get() const
   {

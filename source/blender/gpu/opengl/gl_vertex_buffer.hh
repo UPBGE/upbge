@@ -35,6 +35,8 @@ class GLVertBuf : public VertBuf {
   mutable GLsync read_fence_ = 0;
   /** persistent readback buffer. */
   GLuint read_vbo_id_ = 0;
+  /** Indicates the mapped read buffer is currently the target of an async copy. */
+  mutable bool read_if_ready_in_use_ = false; // upbge
 
  public:
   void bind();
@@ -44,7 +46,7 @@ class GLVertBuf : public VertBuf {
   void read(void *data) const override;
 
   void wrap_handle(uint64_t handle) override;
-  bool read_fast(void *data) override;
+  bool read_if_ready(void *data) override;
 
  protected:
   void acquire_data() override;

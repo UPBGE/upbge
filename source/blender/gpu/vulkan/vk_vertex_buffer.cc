@@ -26,9 +26,9 @@ namespace gpu {
 VKVertexBuffer::~VKVertexBuffer()
 {
   release_data();
-  if (fast_read_buffer_) {
-    MEM_delete(fast_read_buffer_);
-    fast_read_buffer_ = nullptr;
+  if (read_if_ready_buffer_) {
+    MEM_delete(read_if_ready_buffer_);
+    read_if_ready_buffer_ = nullptr;
   }
 
 }
@@ -43,13 +43,8 @@ void VKVertexBuffer::enable_host_visible_mapping()
   use_host_visible_allocation_ = true;
 }
 
-bool VKVertexBuffer::read_fast(void *data)
+bool VKVertexBuffer::read_if_ready(void *data)
 {
-  /* Mirror VKStorageBuffer::read_fast but for vertex buffers. */
-  if (!buffer_.is_allocated()) {
-    allocate();
-  }
-
   VKContext &context = *VKContext::get();
 
   /* If the backing buffer is host-visible and persistently mapped we can avoid the
@@ -58,46 +53,54 @@ bool VKVertexBuffer::read_fast(void *data)
   void *mapped = mapped_ptr_get();
   if (mapped != nullptr) {
     bool has_result = false;
-    if (fast_read_timeline_ != 0) {
+    if (read_if_ready_timeline_ != 0) {
       VKDevice &device = VKBackend::get().device;
-      device.wait_for_timeline(fast_read_timeline_);
-      fast_read_timeline_ = 0;
+      device.wait_for_timeline(read_if_ready_timeline_);
+      read_if_ready_timeline_ = 0;
 
       /* Make device writes visible to the host. */
       buffer_.invalidate_mapped_range(0, size_used_get());
       memcpy(data, mapped, size_used_get());
+      /* Consumed the mapped data produced by the previous async submission. */
+      read_if_ready_in_use_.store(false, std::memory_order_release);
       has_result = true;
     }
 
     /* Ensure rendering is flushed so the next frame's data will be available. */
     context.rendering_end();
-    fast_read_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+    read_if_ready_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                                                      RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+    /* Mark that the mapped buffer will be the target of the new async submission. */
+    read_if_ready_in_use_.store(true, std::memory_order_release);
 
     return has_result;
   }
 
   /* Fallback to staging-based implementation using a persistent staging buffer. */
-  if (fast_read_buffer_ == nullptr) {
-    fast_read_buffer_ = MEM_new<VKStagingBuffer>(__func__, buffer_, VKStagingBuffer::Direction::DeviceToHost);
+  if (read_if_ready_buffer_ == nullptr) {
+    read_if_ready_buffer_ = MEM_new<VKStagingBuffer>(__func__, buffer_, VKStagingBuffer::Direction::DeviceToHost);
   }
 
   bool has_result = false;
-  if (fast_read_timeline_ != 0) {
+  if (read_if_ready_timeline_ != 0) {
     VKDevice &device = VKBackend::get().device;
-    device.wait_for_timeline(fast_read_timeline_);
-    fast_read_timeline_ = 0;
+    device.wait_for_timeline(read_if_ready_timeline_);
+    read_if_ready_timeline_ = 0;
 
-    BLI_assert(fast_read_buffer_->host_buffer_get().is_mapped());
-    memcpy(data, fast_read_buffer_->host_buffer_get().mapped_memory_get(), size_used_get());
+    BLI_assert(read_if_ready_buffer_->host_buffer_get().is_mapped());
+    memcpy(data, read_if_ready_buffer_->host_buffer_get().mapped_memory_get(), size_used_get());
     has_result = true;
+    /* Consumed the mapped data produced by the previous async submission. */
+    read_if_ready_in_use_.store(false, std::memory_order_release);
   }
 
   /* Submit a new async copy for the next call to pick up. */
-  fast_read_buffer_->copy_from_device(context);
+  read_if_ready_buffer_->copy_from_device(context);
   context.rendering_end();
-  fast_read_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+  read_if_ready_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                                                    RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  /* Mark that the staging buffer's mapped memory will be targeted by the async submission. */
+  read_if_ready_in_use_.store(true, std::memory_order_release);
 
   return has_result;
 }
@@ -165,6 +168,11 @@ void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, cons
 
 void VKVertexBuffer::read(void *data) const
 {
+  /* Debug: ensure we don't read while mapped buffer is targeted by an async copy. */
+  BLI_assert(!read_if_ready_in_use_.load());
+  if (read_if_ready_in_use_.load()) {
+    printf("Error: Trying to read Vulkan vertex buffer while an async copy is in progress.\n");
+  }
   VKContext &context = *VKContext::get();
   if (buffer_.is_mapped()) {
     buffer_.read(context, data);

@@ -15,6 +15,7 @@
 
 #include "vk_buffer.hh"
 #include "vk_staging_buffer.hh"
+#include <atomic>
 
 namespace blender::gpu {
 class VertBuf;
@@ -26,12 +27,14 @@ class VKStorageBuffer : public StorageBuf {
   /** Staging buffer that is used when doing an async read-back. */
   VKStagingBuffer *async_read_buffer_ = nullptr;
   /** Dedicated host-visible buffer for fast readback (persistent mapping). */
-  VKStagingBuffer *fast_read_buffer_ = nullptr;
-  /** Timeline value from the previous read_fast submission, 0 if none pending. */
-  TimelineValue fast_read_timeline_ = 0;
+  VKStagingBuffer *read_if_ready_buffer_ = nullptr;
+  /** Timeline value from the previous read_if_ready submission, 0 if none pending. */
+  TimelineValue read_if_ready_timeline_ = 0;
   VkDeviceSize offset_ = 0;
   /** When true, allocate the storage buffer as host-visible and persistently mapped. */
   bool use_host_visible_allocation_ = false;
+  /** Indicates the mapped read buffer is currently the target of an async copy. */
+  mutable std::atomic_bool read_if_ready_in_use_ = false; // upbge
 
  public:
   VKStorageBuffer(size_t size, GPUUsageType usage, const char *name);
@@ -49,10 +52,11 @@ class VKStorageBuffer : public StorageBuf {
   void clear(uint32_t clear_value) override;
   void copy_sub(VertBuf *src, uint dst_offset, uint src_offset, uint copy_size) override;
   void read(void *data) override;
-  bool read_fast(void *data) override; //upbge
   void async_flush_to_host() override;
   void sync_as_indirect_buffer() override { /* No-Op. */ };
-  void *mapped_ptr_get() const override;
+
+  bool read_if_ready(void *data) override;  // upbge
+  void *mapped_ptr_get() const override; // upbge
 
   VkBuffer vk_handle() const
   {

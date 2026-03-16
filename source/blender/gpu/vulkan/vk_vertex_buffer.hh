@@ -13,6 +13,7 @@
 #include "vk_buffer.hh"
 #include "vk_common.hh"
 #include "vk_staging_buffer.hh"
+#include <atomic>
 
 namespace blender::gpu {
 
@@ -24,10 +25,12 @@ class VKVertexBuffer : public VertBuf {
   bool data_uploaded_ = false;
   /** When true, allocate the vertex buffer as host-visible and persistently mapped. */
   bool use_host_visible_allocation_ = false;
-  /** Timeline value from the previous read_fast submission, 0 if none pending. */
-  TimelineValue fast_read_timeline_ = 0;
+  /** Timeline value from the previous read_if_ready submission, 0 if none pending. */
+  TimelineValue read_if_ready_timeline_ = 0;
   /** Dedicated host-visible staging buffer for async readback. */
-  VKStagingBuffer *fast_read_buffer_ = nullptr;
+  VKStagingBuffer *read_if_ready_buffer_ = nullptr;
+  /** Indicates the mapped read buffer is currently the target of an async copy. */
+  mutable std::atomic_bool read_if_ready_in_use_ = false; // upbge
 
  public:
   ~VKVertexBuffer();
@@ -60,7 +63,7 @@ class VKVertexBuffer : public VertBuf {
   void *mapped_ptr_get() const;
 
   void enable_host_visible_mapping() override;
-  bool read_fast(void *data) override;
+  bool read_if_ready(void *data) override;
 
   VkFormat to_vk_format()
   {

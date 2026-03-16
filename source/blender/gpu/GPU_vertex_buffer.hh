@@ -182,7 +182,7 @@ class VertBuf {
   virtual void enable_host_visible_mapping() {}
   /* Fast non-blocking read: returns true if data was available and copied into `data`, false if
    * not ready yet. */
-  virtual bool read_fast(void *data) { (void)data; return false; }
+  virtual bool read_if_ready(void *data) { (void)data; return false; }
 
   virtual void wrap_handle(uint64_t handle) = 0;
 
@@ -348,8 +348,8 @@ void GPU_vertbuf_bind_as_texture(gpu::VertBuf *verts, int binding);
  * persistently mapped. Call before any allocation/upload. */
 void GPU_vertbuf_enable_host_visible_mapping(gpu::VertBuf *verts);
 
-/* Non-blocking 1-frame-delayed readback for VBO. Returns true if `data` filled. */
-bool GPU_vertbuf_read_fast(gpu::VertBuf *verts, void *data);
+/* Async readback for VBO. Returns true if `data` filled. */
+bool GPU_vertbuf_read_if_ready(gpu::VertBuf *verts, void *data);
 
 void GPU_vertbuf_wrap_handle(gpu::VertBuf *verts, uint64_t handle);
 
