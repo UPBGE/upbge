@@ -413,7 +413,9 @@ int v_linesize)
   const int uv_row_bytes = (fmt == YUVFormat::P010) ? uv_w * 4 :   /* 2 samples × 2 bytes */
                            (fmt == YUVFormat::NV12)  ? uv_w * 2 :  /* 2 interleaved bytes  */
                                                        uv_w;        /* YUV420P U-plane      */
-  const int y_bytes  = width  * height;
+  const int y_sample_bytes = (fmt == YUVFormat::P010) ? 2 : 1;
+  const int y_row_bytes = width * y_sample_bytes;
+  const int y_bytes = y_row_bytes * height;
   const int uv_bytes = uv_row_bytes * uv_h;
   const int v_bytes  = (fmt == YUVFormat::YUV420P) ? uv_w * uv_h : 0;
 
@@ -428,7 +430,7 @@ int v_linesize)
   }
   else {
     for (int row = 0; row < height; row++)
-      std::memcpy(m_yCompact.data() + row * width, y_data + row * y_linesize, width);
+      std::memcpy(m_yCompact.data() + row * y_row_bytes, y_data + row * y_linesize, y_row_bytes);
   }
 
   /* Compact UV / U plane. */
@@ -469,6 +471,9 @@ int v_linesize)
     m_ssboYStride  = width;
     m_ssboUVStride = uv_row_bytes;
     m_ssboFmt      = avPixFmt;
+  }
+  if (m_ssboY) {
+    GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   }
   GPU_storagebuf_update(m_ssboY,  m_yCompact.data());
   GPU_storagebuf_update(m_ssboUV, m_uvCompact.data());
