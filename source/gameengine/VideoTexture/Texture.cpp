@@ -155,7 +155,7 @@ void Texture::loadTexture(unsigned int *texture,
       blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
       // Assign the GPU texture to the Blender image slot
       m_origGpuTex = m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
-      m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = gpuTex;
+      BKE_image_set_gpu_texture_override(m_imgTexture, gpuTex);
       m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->runtime->gputexture[TEXTARGET_2D][0],
                                                 false);
       Py_INCREF(m_py_color);
@@ -196,7 +196,7 @@ void Texture::loadTexture(unsigned int *texture,
       m_origGpuTex = m_imgTexture->runtime->gputexture[TEXTARGET_2D][0];
     }
     // Integrate the new GPU texture into the Blender pipeline
-    m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_modifiedGPUTexture;
+    BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
     if (!m_py_color) {
       m_py_color = BPyGPUTexture_CreatePyObject(m_imgTexture->runtime->gputexture[TEXTARGET_2D][0],
                                                 false);
