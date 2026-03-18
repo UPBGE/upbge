@@ -63,6 +63,12 @@ struct VKExtensions {
    */
   bool external_memory = false;
 
+  /**
+   * Does the device support VK_EXT_external_memory_dma_buf (Linux DMA-BUF import).
+   * Subset of external_memory, only set on non-Apple Linux.
+   */
+  bool external_memory_dma_buf = false;
+
   /** VK_KHR_maintenance4 */
   bool maintenance4 = false;
 

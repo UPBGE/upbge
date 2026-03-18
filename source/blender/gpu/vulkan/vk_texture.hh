@@ -60,6 +60,12 @@ class VKTexture : public Texture {
   VmaAllocationInfo allocation_info_ = {};
 
   /**
+   * Non-VMA device memory for externally-imported images (DMA-BUF / D3D11).
+   * When set, the destructor calls vkFreeMemory instead of going through VMA.
+   */
+  VkDeviceMemory imported_memory_ = VK_NULL_HANDLE;
+
+  /**
    * Image views are owned by VKTexture. When a specific image view is needed it will be created
    * and stored here. Image view can be requested by calling `image_view_get` method.
    */
@@ -130,6 +136,20 @@ class VKTexture : public Texture {
    * Returns the handle + offset of the image inside the handle.
    */
   VKMemoryExport export_memory(VkExternalMemoryHandleTypeFlagBits handle_type);
+
+  /**
+   * Import an externally-owned image (DMA-BUF fd on Linux, DXGI shared HANDLE on Windows)
+   * into this texture without copying.  Must be called right after GPU_texture_create_2d()
+   * with no data, before the texture is used for rendering.
+   *
+   * \param handle_type: VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT     (Linux)
+   *                     VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT (Windows)
+   * \param handle:  DMA-BUF fd cast to int64_t, or Win32 HANDLE cast to int64_t.
+   * \param stride:  Row stride in bytes (used for LINEAR tiling only).
+   */
+  bool init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits handle_type,
+                                     int64_t handle,
+                                     uint32_t stride);
 
   VkImage vk_image_handle() const
   {

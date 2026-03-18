@@ -388,6 +388,13 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     return result;
   }
 
+  /* Short-circuit: if an external override texture has been set, return it directly.
+   * This bypasses all partial-update logic and pixel uploads entirely. */
+  if (ima->runtime->gpu_texture_override != nullptr) {
+    result.texture = &ima->runtime->gpu_texture_override;
+    return result;
+  }
+
   /* Free any unused GPU textures, since we know we are in a thread with OpenGL
    * context and might as well ensure we have as much space free as possible. */
   gpu_free_unused_buffers();
@@ -976,6 +983,20 @@ void BKE_image_paint_set_mipmap(Main *bmain, bool mipmap)
       ima.runtime->gpuflag &= ~IMA_GPU_MIPMAP_COMPLETE;
     }
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name GPU Texture Override
+ * \{ */
+
+void BKE_image_set_gpu_texture_override(Image *image, gpu::Texture *tex)
+{
+  if (image == nullptr || image->runtime == nullptr) {
+    return;
+  }
+  image->runtime->gpu_texture_override = tex;
 }
 
 /** \} */
