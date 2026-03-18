@@ -45,6 +45,17 @@ static VkImageAspectFlags to_vk_image_aspect_single_bit(const VkImageAspectFlags
 
 VKTexture::~VKTexture()
 {
+  if (imported_memory_ != VK_NULL_HANDLE) {
+    /* External-import path: image + memory are not VMA-managed.
+     * Unregister from the resource state tracker before destroying. */
+    VKDevice &device = VKBackend::get().device;
+    device.resources.remove_image(vk_image_);
+    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
+    vk_image_ = VK_NULL_HANDLE;
+    imported_memory_ = VK_NULL_HANDLE;
+    return;
+  }
   if (vk_image_ != VK_NULL_HANDLE && allocation_ != VK_NULL_HANDLE) {
     VKDiscardPool::discard_pool_get().discard_image(vk_image_, allocation_);
     vk_image_ = VK_NULL_HANDLE;
@@ -571,6 +582,156 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
 #endif
   BLI_assert_unreachable();
   return {};
+}
+
+bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits handle_type,
+                                              int64_t handle,
+                                              uint32_t /*stride*/)
+{
+  VKDevice &device = VKBackend::get().device;
+  const VKExtensions &extensions = device.extensions_get();
+
+  if (!extensions.external_memory) {
+    return false;
+  }
+
+#if !defined(_WIN32) && !defined(__APPLE__)
+  if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT &&
+      !extensions.external_memory_dma_buf)
+  {
+    return false;
+  }
+#endif
+
+  /* Free the VMA-managed image created by allocate() — we replace it with an imported one.
+   * Must unregister from the resource state tracker first (allocate() registers it). */
+  if (vk_image_ != VK_NULL_HANDLE && allocation_ != VK_NULL_HANDLE) {
+    device.resources.remove_image(vk_image_);
+    vmaDestroyImage(device.mem_allocator_get(), vk_image_, allocation_);
+    vk_image_ = VK_NULL_HANDLE;
+    allocation_ = VK_NULL_HANDLE;
+  }
+
+  /* DMA-BUF frames from video decoders are linearly tiled; D3D11 shared textures use optimal. */
+  const VkImageTiling tiling =
+#if !defined(_WIN32) && !defined(__APPLE__)
+      (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) ? VK_IMAGE_TILING_LINEAR :
+#endif
+          VK_IMAGE_TILING_OPTIMAL;
+
+  /* Step 1: Create VkImage that advertises acceptance of external memory. */
+  VkExternalMemoryImageCreateInfo ext_image_info = {
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      nullptr,
+      static_cast<VkExternalMemoryHandleTypeFlags>(handle_type)};
+  VkImageCreateInfo image_info = {};
+  image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.pNext = &ext_image_info;
+  image_info.imageType = VK_IMAGE_TYPE_2D;
+  image_info.format = to_vk_format(device_format_);
+  image_info.extent = {uint32_t(w_), uint32_t(h_), 1};
+  image_info.mipLevels = 1;
+  image_info.arrayLayers = 1;
+  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  image_info.tiling = tiling;
+  image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                     VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+  VkResult result = vkCreateImage(device.vk_handle(), &image_info, nullptr, &vk_image_);
+  if (result != VK_SUCCESS) {
+    vk_image_ = VK_NULL_HANDLE;
+    return false;
+  }
+  debug::object_label(vk_image_, name_.c_str());
+
+  /* Step 2: Query memory requirements; check if dedicated allocation is required. */
+  VkMemoryDedicatedRequirements dedicated_reqs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
+  VkMemoryRequirements2 mem_reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, &dedicated_reqs};
+  VkImageMemoryRequirementsInfo2 img_req_info = {
+      VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2, nullptr, vk_image_};
+  vkGetImageMemoryRequirements2(device.vk_handle(), &img_req_info, &mem_reqs2);
+  const VkMemoryRequirements &mem_reqs = mem_reqs2.memoryRequirements;
+
+  /* Step 3: Find a device-local memory type compatible with the image requirements. */
+  VkPhysicalDeviceMemoryProperties mem_props = {};
+  vkGetPhysicalDeviceMemoryProperties(device.physical_device_get(), &mem_props);
+  uint32_t memory_type_index = UINT32_MAX;
+  for (uint32_t i = 0; i < mem_props.memoryTypeCount; i++) {
+    if (!(mem_reqs.memoryTypeBits & (1u << i))) {
+      continue;
+    }
+    if (mem_props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+      memory_type_index = i;
+      break;
+    }
+  }
+  if (memory_type_index == UINT32_MAX) {
+    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    vk_image_ = VK_NULL_HANDLE;
+    return false;
+  }
+
+  /* Step 4: Allocate memory importing the external handle. */
+  VkMemoryDedicatedAllocateInfo dedicated_alloc_info = {
+      VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, nullptr, vk_image_, VK_NULL_HANDLE};
+
+  VkMemoryAllocateInfo mem_alloc_info = {};
+  mem_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  mem_alloc_info.allocationSize = mem_reqs.size;
+  mem_alloc_info.memoryTypeIndex = memory_type_index;
+
+#if !defined(_WIN32) && !defined(__APPLE__)
+  VkImportMemoryFdInfoKHR import_fd_info = {
+      VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+      /* chain dedicated alloc if required */
+      dedicated_reqs.requiresDedicatedAllocation ? &dedicated_alloc_info : nullptr,
+      handle_type,
+      int(handle), /* driver dups the fd internally; caller retains ownership */
+  };
+  mem_alloc_info.pNext = &import_fd_info;
+#elif defined(_WIN32)
+  VkImportMemoryWin32HandleInfoKHR import_win32_info = {
+      VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
+      dedicated_reqs.requiresDedicatedAllocation ? &dedicated_alloc_info : nullptr,
+      handle_type,
+      HANDLE(handle),
+      nullptr, /* name */
+  };
+  mem_alloc_info.pNext = &import_win32_info;
+#else
+  /* macOS: no external memory import supported. */
+  vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+  vk_image_ = VK_NULL_HANDLE;
+  return false;
+#endif
+
+  result = vkAllocateMemory(device.vk_handle(), &mem_alloc_info, nullptr, &imported_memory_);
+  if (result != VK_SUCCESS) {
+    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    vk_image_ = VK_NULL_HANDLE;
+    imported_memory_ = VK_NULL_HANDLE;
+    return false;
+  }
+
+  /* Step 5: Bind the imported memory to the image. */
+  VkBindImageMemoryInfo bind_info = {
+      VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO, nullptr, vk_image_, imported_memory_, 0};
+  result = vkBindImageMemory2(device.vk_handle(), 1, &bind_info);
+  if (result != VK_SUCCESS) {
+    vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
+    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    vk_image_ = VK_NULL_HANDLE;
+    imported_memory_ = VK_NULL_HANDLE;
+    return false;
+  }
+
+  device.resources.add_image(vk_image_, false, name_.c_str());
+  has_data_ = true;
+  allow_host_image_copy_ = false;
+  this->mip_range_set(0, 0);
+  return true;
 }
 
 bool VKTexture::init_internal()

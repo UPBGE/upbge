@@ -476,10 +476,15 @@ void VKBackend::detect_workarounds(VKDevice &device)
 #ifdef _WIN32
   extensions.external_memory = device.supports_extension(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+  extensions.external_memory_dma_buf = false;
 #elif not defined(__APPLE__)
   extensions.external_memory = device.supports_extension(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+  extensions.external_memory_dma_buf = extensions.external_memory &&
+                                       device.supports_extension(
+                                           VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME);
 #else
   extensions.external_memory = false;
+  extensions.external_memory_dma_buf = false;
 #endif
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */

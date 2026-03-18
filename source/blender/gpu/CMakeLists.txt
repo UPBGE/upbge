@@ -99,6 +99,8 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
+  intern/gpu_texture_dmabuf.cc
+  intern/gpu_texture_external.cc
   intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc

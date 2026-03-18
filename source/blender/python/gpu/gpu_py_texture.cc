@@ -31,6 +31,10 @@
 
 #include "gpu_py_texture.hh" /* own include */
 
+#ifdef WITH_VULKAN_BACKEND
+#  include <vulkan/vulkan.h>
+#endif
+
 /* Doc-string Literal type for texture formats. */
 
 #define PYDOC_TEX_FORMAT_LITERAL \
@@ -251,15 +255,17 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
 
   void *data = nullptr;
   if (pybuffer_obj) {
-    if (pybuffer_obj->format != GPU_DATA_FLOAT) {
-      PyErr_SetString(PyExc_ValueError,
-                      "GPUTexture.__new__: Only Buffer of format `FLOAT` is currently supported");
+    if (pybuffer_obj->format != GPU_DATA_FLOAT && pybuffer_obj->format != GPU_DATA_UBYTE) {
+      PyErr_SetString(
+          PyExc_ValueError,
+          "GPUTexture.__new__: Only Buffer of format `FLOAT` or `UBYTE` is supported");
       return nullptr;
     }
 
     int component_len = GPU_texture_component_len(
         gpu::TextureFormat(pygpu_textureformat.value_found));
-    int component_size_expected = sizeof(float);
+    int component_size_expected = (pybuffer_obj->format == GPU_DATA_UBYTE) ? sizeof(uchar) :
+                                                                              sizeof(float);
     size_t data_space_expected = size_t(size[0]) * size[1] * size[2] * max_ii(1, layers) *
                                  component_len * component_size_expected;
     if (is_cubemap) {
@@ -272,6 +278,12 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
     }
     data = pybuffer_obj->buf.as_void;
   }
+
+  /* GPU_texture_create_* always passes GPU_DATA_FLOAT to tex->update() internally.
+   * For UBYTE buffers we must NOT pass data inline — instead we allocate without
+   * data and upload afterwards with GPU_texture_update(GPU_DATA_UBYTE). */
+  const bool is_ubyte = (pybuffer_obj && pybuffer_obj->format == GPU_DATA_UBYTE);
+  const float *inline_float_data = is_ubyte ? nullptr : static_cast<const float *>(data);
 
   gpu::Texture *tex = nullptr;
   if (is_cubemap && len != 1) {
@@ -299,7 +311,7 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                             1,
                                             gpu::TextureFormat(pygpu_textureformat.value_found),
                                             usage,
-                                            static_cast<const float *>(data));
+                                            inline_float_data);
       }
       else {
         tex = GPU_texture_create_cube(name,
@@ -307,7 +319,7 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                       1,
                                       gpu::TextureFormat(pygpu_textureformat.value_found),
                                       usage,
-                                      static_cast<const float *>(data));
+                                      inline_float_data);
       }
     }
     else if (layers) {
@@ -319,7 +331,7 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                           1,
                                           gpu::TextureFormat(pygpu_textureformat.value_found),
                                           usage,
-                                          static_cast<const float *>(data));
+                                          inline_float_data);
       }
       else {
         tex = GPU_texture_create_1d_array(name,
@@ -328,7 +340,7 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                           1,
                                           gpu::TextureFormat(pygpu_textureformat.value_found),
                                           usage,
-                                          static_cast<const float *>(data));
+                                          inline_float_data);
       }
     }
     else if (len == 3) {
@@ -339,7 +351,7 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                   1,
                                   gpu::TextureFormat(pygpu_textureformat.value_found),
                                   usage,
-                                  data);
+                                  is_ubyte ? nullptr : data);
     }
     else if (len == 2) {
       tex = GPU_texture_create_2d(name,
@@ -348,7 +360,7 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                   1,
                                   gpu::TextureFormat(pygpu_textureformat.value_found),
                                   usage,
-                                  static_cast<const float *>(data));
+                                  inline_float_data);
     }
     else {
       tex = GPU_texture_create_1d(name,
@@ -356,7 +368,12 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                   1,
                                   gpu::TextureFormat(pygpu_textureformat.value_found),
                                   usage,
-                                  static_cast<const float *>(data));
+                                  inline_float_data);
+    }
+
+    /* Upload UBYTE data separately with the correct data format. */
+    if (tex && is_ubyte && data) {
+      GPU_texture_update(tex, GPU_DATA_UBYTE, data);
     }
   }
 
@@ -638,6 +655,45 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pygpu_texture_update_doc,
+    ".. method:: update(format, data)\n"
+    "\n"
+    "   Update the entire texture with new pixel data.\n"
+    "\n"
+    "   :param format: The data format of the pixel data.\n"
+    "   :type format: " PYDOC_DATAFORMAT_LITERAL "\n"
+    "   :param data: Buffer with pixel data the size of the whole texture.\n"
+    "   :type data: :class:`gpu.types.Buffer`\n");
+static PyObject *pygpu_texture_update(BPyGPUTexture *self, PyObject *args, PyObject *kwds)
+{
+  BPYGPU_TEXTURE_CHECK_OBJ(self);
+
+  PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items};
+  BPyGPUBuffer *pybuffer_obj = nullptr;
+
+  static const char *_keywords[] = {"format", "data", nullptr};
+  static _PyArg_Parser _parser = {
+      "O&" /* `format` */
+      "O!" /* `data` */
+      ":update",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kwds, &_parser, PyC_ParseStringEnum, &pygpu_dataformat,
+          &BPyGPU_BufferType, &pybuffer_obj))
+  {
+    return nullptr;
+  }
+
+  GPU_texture_update(self->tex,
+                     eGPUDataFormat(pygpu_dataformat.value_found),
+                     pybuffer_obj->buf.as_void);
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pygpu_texture_read_doc,
     ".. method:: read()\n"
     "\n"
@@ -788,6 +844,10 @@ static PyMethodDef pygpu_texture__tp_methods[] = {
      reinterpret_cast<PyCFunction>(pygpu_texture_anisotropic_filter),
      METH_O,
      pygpu_texture_anisotropic_filter_doc},
+    {"update",
+     reinterpret_cast<PyCFunction>(pygpu_texture_update),
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_update_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -907,11 +967,249 @@ static PyObject *pygpu_texture_from_image(PyObject * /*self*/, PyObject *arg)
   return BPyGPUTexture_CreatePyObject(tex, true);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_texture_set_image_doc,
+    ".. function:: set_image_texture(image, texture)\n"
+    "\n"
+    "   Override the GPU texture used by a :class:`bpy.types.Image` datablock.\n"
+    "   Material Image Texture nodes will sample from ``texture`` instead of\n"
+    "   uploading pixel data from CPU memory.\n"
+    "   Pass ``None`` to clear the override and restore normal behaviour.\n"
+    "\n"
+    "   .. warning::\n"
+    "      The image does not take ownership of the texture.\n"
+    "      You must keep it alive for as long as the image may be rendered,\n"
+    "      and free it manually with :meth:`gpu.types.GPUTexture.free`.\n"
+    "\n"
+    "   :param image: The Image datablock to override.\n"
+    "   :type image: :class:`bpy.types.Image`\n"
+    "   :param texture: Texture to use, or ``None`` to clear.\n"
+    "   :type texture: :class:`gpu.types.GPUTexture` | None\n");
+static PyObject *pygpu_texture_set_image(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *py_image;
+  PyObject *py_tex;
+
+  if (!PyArg_ParseTuple(args, "OO:set_image_texture", &py_image, &py_tex)) {
+    return nullptr;
+  }
+
+  Image *ima = static_cast<Image *>(PyC_RNA_AsPointer(py_image, "Image"));
+  if (ima == nullptr) {
+    return nullptr;
+  }
+
+  gpu::Texture *tex = nullptr;
+  if (py_tex != Py_None) {
+    if (!BPyGPUTexture_Check(py_tex)) {
+      PyErr_SetString(PyExc_TypeError, "set_image_texture: expected a GPUTexture or None");
+      return nullptr;
+    }
+    if (UNLIKELY(pygpu_texture_valid_check(reinterpret_cast<BPyGPUTexture *>(py_tex)) == -1)) {
+      return nullptr;
+    }
+    tex = reinterpret_cast<BPyGPUTexture *>(py_tex)->tex;
+  }
+
+  BKE_image_set_gpu_texture_override(ima, tex);
+  Py_RETURN_NONE;
+}
+
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_texture_from_dmabuf_doc,
+    ".. function:: from_dmabuf(fd, width, height, stride, drm_format, format)\n"
+    "\n"
+    "   Create a :class:`gpu.types.GPUTexture` backed by a Linux DMA-BUF file descriptor.\n"
+    "   Uses EGL_EXT_image_dma_buf_import for zero-copy GPU import.\n"
+    "   Returns ``None`` if EGL or the required extension is unavailable.\n"
+    "\n"
+    "   :param fd: DMA-BUF file descriptor (not closed by this call).\n"
+    "   :type fd: int\n"
+    "   :param width: Texture width in pixels.\n"
+    "   :type width: int\n"
+    "   :param height: Texture height in pixels.\n"
+    "   :type height: int\n"
+    "   :param stride: Row stride in bytes.\n"
+    "   :type stride: int\n"
+    "   :param drm_format: DRM fourcc pixel format integer.\n"
+    "      Use ``0x34324241`` for RGBA8 (DRM_FORMAT_ABGR8888).\n"
+    "   :type drm_format: int\n"
+    "   :param format: Internal GPU texture format string.\n"
+    "   :type format: " PYDOC_TEX_FORMAT_LITERAL "\n"
+    "   :return: The created texture, or None on failure.\n"
+    "   :rtype: :class:`gpu.types.GPUTexture` | None\n");
+static PyObject *pygpu_texture_from_dmabuf(PyObject * /*self*/, PyObject *args, PyObject *kwds)
+{
+  int fd, w, h, stride, drm_format;
+  PyC_StringEnum pygpu_textureformat = {pygpu_textureformat_items};
+
+  static const char *_keywords[] = {
+      "fd", "width", "height", "stride", "drm_format", "format", nullptr};
+  static _PyArg_Parser _parser = {
+      "iiiii" /* fd, width, height, stride, drm_format */
+      "O&"    /* format */
+      ":from_dmabuf",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kwds,
+                                        &_parser,
+                                        &fd,
+                                        &w,
+                                        &h,
+                                        &stride,
+                                        &drm_format,
+                                        PyC_ParseStringEnum,
+                                        &pygpu_textureformat))
+  {
+    return nullptr;
+  }
+
+  gpu::Texture *tex = GPU_texture_create_from_dmabuf(
+      "py_dmabuf",
+      w,
+      h,
+      stride,
+      drm_format,
+      gpu::TextureFormat(pygpu_textureformat.value_found),
+      fd);
+  if (tex == nullptr) {
+    Py_RETURN_NONE;
+  }
+  return BPyGPUTexture_CreatePyObject(tex, false);
+}
+#endif /* WITH_OPENGL_BACKEND */
+#endif   /* __linux__ */
+
+#ifdef WITH_VULKAN_BACKEND
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_texture_from_external_memory_doc,
+    ".. function:: from_external_memory(handle, handle_type, format, width, height, stride)\n"
+    "\n"
+    "   Create a :class:`gpu.types.GPUTexture` from an externally-owned GPU memory handle.\n"
+    "   Zero-copy Vulkan external memory import. Requires the Vulkan backend and the matching\n"
+    "   device extension (VK_KHR_external_memory_fd on Linux,\n"
+    "   VK_KHR_external_memory_win32 on Windows).\n"
+    "   Returns ``None`` if the extension is unavailable or import fails.\n"
+    "\n"
+    "   :param handle: DMA-BUF fd (Linux) or Win32 HANDLE (Windows) cast to int.\n"
+    "   :type handle: int\n"
+    "   :param handle_type: External memory handle type string.\n"
+    "      ``'DMA_BUF'``   – ``VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT`` (Linux).\n"
+    "      ``'D3D11_KMT'`` – ``VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT`` (Windows).\n"
+    "   :type handle_type: str\n"
+    "   :param format: Internal GPU texture format string.\n"
+    "   :type format: " PYDOC_TEX_FORMAT_LITERAL "\n"
+    "   :param width: Texture width in pixels.\n"
+    "   :type width: int\n"
+    "   :param height: Texture height in pixels.\n"
+    "   :type height: int\n"
+    "   :param stride: Row stride in bytes.\n"
+    "   :type stride: int\n"
+    "   :return: The imported texture, or None on failure.\n"
+    "   :rtype: :class:`gpu.types.GPUTexture` | None\n");
+static PyObject *pygpu_texture_from_external_memory(PyObject * /*self*/,
+                                                    PyObject *args,
+                                                    PyObject *kwds)
+{
+  int64_t handle;
+  const char *handle_type_str;
+  PyC_StringEnum pygpu_textureformat = {pygpu_textureformat_items};
+  int w, h, stride;
+
+  static const char *_keywords[] = {
+      "handle", "handle_type", "format", "width", "height", "stride", nullptr};
+  static _PyArg_Parser _parser = {
+      "L"  /* handle */
+      "s"  /* handle_type */
+      "O&" /* format */
+      "iii" /* width, height, stride */
+      ":from_external_memory",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kwds,
+                                        &_parser,
+                                        &handle,
+                                        &handle_type_str,
+                                        PyC_ParseStringEnum,
+                                        &pygpu_textureformat,
+                                        &w,
+                                        &h,
+                                        &stride))
+  {
+    return nullptr;
+  }
+
+  VkExternalMemoryHandleTypeFlagBits vk_handle_type;
+  if (STREQ(handle_type_str, "DMA_BUF")) {
+#  if !defined(_WIN32) && !defined(__APPLE__)
+    vk_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+#  else
+    PyErr_SetString(PyExc_ValueError, "DMA_BUF handle type is only supported on Linux");
+    return nullptr;
+#  endif
+  }
+  else if (STREQ(handle_type_str, "D3D11_KMT")) {
+#  ifdef _WIN32
+    vk_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT;
+#  else
+    PyErr_SetString(PyExc_ValueError, "D3D11_KMT handle type is only supported on Windows");
+    return nullptr;
+#  endif
+  }
+  else {
+    PyErr_Format(PyExc_ValueError,
+                 "Unknown handle_type '%s'. Expected 'DMA_BUF' or 'D3D11_KMT'",
+                 handle_type_str);
+    return nullptr;
+  }
+
+  gpu::Texture *tex = GPU_texture_create_from_external_memory(
+      "py_ext_mem",
+      w,
+      h,
+      uint32_t(stride),
+      gpu::TextureFormat(pygpu_textureformat.value_found),
+      uint32_t(vk_handle_type),
+      handle);
+  if (tex == nullptr) {
+    Py_RETURN_NONE;
+  }
+  return BPyGPUTexture_CreatePyObject(tex, false);
+}
+#endif /* WITH_VULKAN_BACKEND */
+
 static PyMethodDef pygpu_texture__m_methods[] = {
     {"from_image",
      static_cast<PyCFunction>(pygpu_texture_from_image),
      METH_O,
      pygpu_texture_from_image_doc},
+    {"set_image_texture",
+     reinterpret_cast<PyCFunction>(pygpu_texture_set_image),
+     METH_VARARGS,
+     pygpu_texture_set_image_doc},
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+    {"from_dmabuf",
+     reinterpret_cast<PyCFunction>(pygpu_texture_from_dmabuf),
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_from_dmabuf_doc},
+#endif
+#endif
+#ifdef WITH_VULKAN_BACKEND
+    {"from_external_memory",
+     reinterpret_cast<PyCFunction>(pygpu_texture_from_external_memory),
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_from_external_memory_doc},
+#endif
     {nullptr, nullptr, 0, nullptr},
 };
 

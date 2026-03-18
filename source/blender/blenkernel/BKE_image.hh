@@ -69,6 +69,15 @@ struct ImageRuntime {
   /* The 2 is for the left/right stereo eyes. */
   gpu::Texture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
 
+  /**
+   * Optional external texture override.
+   * When non-null, BKE_image_get_gpu_texture() returns this directly,
+   * bypassing all pixel upload and caching logic.
+   * The Image does NOT take ownership â the caller is responsible for
+   * keeping the texture alive and for calling GPU_texture_free() on it.
+   */
+  gpu::Texture *gpu_texture_override = nullptr;
+
   /* GPU texture flag. */
   int gpuframenr = IMAGE_GPU_FRAME_NONE;
   short gpuflag = 0;
@@ -636,6 +645,13 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser);
  * complete caching system.
  */
 gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);
+
+/**
+ * Set (or clear) an external GPU texture that overrides normal pixel upload.
+ * Pass nullptr to restore normal Blender-managed texture behaviour.
+ * Thread-safety: call only from the main thread with an active GPU context.
+ */
+void BKE_image_set_gpu_texture_override(Image *image, gpu::Texture *tex);
 
 /*
  * Like BKE_image_get_gpu_texture, but can also get render or compositing result.

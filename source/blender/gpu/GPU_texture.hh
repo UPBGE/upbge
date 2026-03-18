@@ -878,6 +878,52 @@ gpu::Texture *GPU_texture_create_from_vertbuf(const char *name, gpu::VertBuf *ve
  */
 gpu::Texture *GPU_texture_create_error(int dimension, bool array);
 
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+/**
+ * Create a 2D texture backed by a Linux DMA-BUF file descriptor (EGL/Linux only).
+ * Returns nullptr on non-EGL contexts or if the EGL extension is unavailable.
+ *
+ * \param fd: DMA-BUF file descriptor (not closed by this function).
+ * \param stride: Row stride in bytes.
+ * \param drm_format: DRM fourcc pixel format (e.g. 0x34324241 = DRM_FORMAT_ABGR8888 for RGBA).
+ * \param format: Internal GPU texture format (e.g. gpu::TextureFormat::UNORM_8_8_8_8).
+ */
+gpu::Texture *GPU_texture_create_from_dmabuf(
+    const char *name, int w, int h, int stride, int drm_format, gpu::TextureFormat format, int fd);
+
+/**
+ * Rebind a DMA-BUF texture to a new fd (zero-copy per-frame update).
+ * Returns true on success. Must be called with an active GL context on the main thread.
+ */
+bool GPU_texture_update_dmabuf(gpu::Texture *texture, int fd, int stride, int drm_format);
+#endif /* WITH_OPENGL_BACKEND */
+#endif   /* __linux__ */
+
+#ifdef WITH_VULKAN_BACKEND
+/**
+ * Create a 2D texture from an externally-owned GPU memory handle (Vulkan backend only).
+ * Zero-copy: imports the external allocation directly into Blender's Vulkan device.
+ *
+ * Supported handle types (pass the raw VkExternalMemoryHandleTypeFlagBits value as uint32_t):
+ *   Linux:   VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT       = 0x00000200
+ *   Windows: VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT = 0x00000080
+ *
+ * Returns nullptr if the required Vulkan extension is unavailable or import fails.
+ *
+ * \param handle_type: VkExternalMemoryHandleTypeFlagBits cast to uint32_t.
+ * \param stride: Row stride in bytes (used for LINEAR tiling on Linux DMA-BUF).
+ * \param handle: DMA-BUF fd (Linux) or Win32 HANDLE (Windows) cast to int64_t.
+ */
+gpu::Texture *GPU_texture_create_from_external_memory(const char *name,
+                                                      int w,
+                                                      int h,
+                                                      uint32_t stride,
+                                                      gpu::TextureFormat format,
+                                                      uint32_t handle_type,
+                                                      int64_t handle);
+#endif /* WITH_VULKAN_BACKEND */
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

@@ -79,6 +79,14 @@ if(WITH_OPENGL_BACKEND)
   )
 endif()
 
+if(WITH_VULKAN_BACKEND)
+  list(APPEND LIB
+    PUBLIC bf::dependencies::optional::vulkan
+  )
+
+  add_definitions(-DWITH_VULKAN_BACKEND)
+endif()
+
 if(WITH_FFTW3)
   list(APPEND INC_SYS
     ${FFTW3_INCLUDE_DIRS}

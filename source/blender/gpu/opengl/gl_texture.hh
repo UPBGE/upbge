@@ -55,6 +55,13 @@ class GLTexture : public Texture {
   bool is_bound_image_ = false;
   /** True if pixels in the texture have been initialized. */
   bool has_pixels_ = false;
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+  /** EGLImageKHR handle; stored as void* to avoid pulling EGL headers into this header.
+   *  nullptr when no DMA-BUF import is active. */
+  void *egl_image_ = nullptr;
+#endif
+#endif
 
  public:
   GLTexture(const char *name);
@@ -103,6 +110,16 @@ class GLTexture : public Texture {
    * The sampler is retrieved from the cached samplers computed in the samplers_init() method.
    */
   static GLuint get_sampler(const GPUSamplerState &sampler_state);
+
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+  /**
+   * Import a DMA-BUF fd as an EGLImage-backed 2D texture.
+   * Safe to call multiple times â rebinds to the new fd on each call.
+   */
+  bool init_internal_dmabuf(int fd, int stride, int drm_format);
+#endif
+#endif
 
  protected:
   /** Return true on success. */

@@ -27,6 +27,12 @@
 
 #include "gl_texture.hh"
 
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+#  include "epoxy/egl.h"
+#endif
+#endif
+
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -42,6 +48,19 @@ GLTexture::GLTexture(const char *name) : Texture(name)
 
 GLTexture::~GLTexture()
 {
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+  if (egl_image_) {
+    EGLDisplay dpy = eglGetCurrentDisplay();
+    auto fn = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(
+        eglGetProcAddress("eglDestroyImageKHR"));
+    if (dpy != EGL_NO_DISPLAY && fn) {
+      fn(dpy, static_cast<EGLImageKHR>(egl_image_));
+    }
+    egl_image_ = nullptr;
+  }
+#endif
+#endif
   if (framebuffer_) {
     GPU_framebuffer_free(framebuffer_);
   }
@@ -901,3 +920,69 @@ size_t GLPixelBuffer::get_size()
 }
 
 }  // namespace blender::gpu
+
+/* -------------------------------------------------------------------- */
+/** \name DMA-BUF Import (EGL/Linux only)
+ * \{ */
+
+#ifdef __linux__
+#ifdef WITH_OPENGL_BACKEND
+#  include <EGL/egl.h>
+#  include <EGL/eglext.h>
+
+namespace blender::gpu {
+
+bool GLTexture::init_internal_dmabuf(int fd, int stride, int drm_format)
+{
+  EGLDisplay dpy = eglGetCurrentDisplay();
+  if (dpy == EGL_NO_DISPLAY) {
+    /* Running under GLX â DMA-BUF/EGL import is unavailable. */
+    return false;
+  }
+
+  auto eglCreateImageKHR_fn = reinterpret_cast<PFNEGLCREATEIMAGEKHRPROC>(
+      eglGetProcAddress("eglCreateImageKHR"));
+  auto glEGLImageTargetTexture2DOES_fn = reinterpret_cast<PFNGLEGLIMAGETARGETTEXTURE2DOESPROC>(
+      eglGetProcAddress("glEGLImageTargetTexture2DOES"));
+  auto eglDestroyImageKHR_fn = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(
+      eglGetProcAddress("eglDestroyImageKHR"));
+
+  if (!eglCreateImageKHR_fn || !glEGLImageTargetTexture2DOES_fn || !eglDestroyImageKHR_fn) {
+    return false;
+  }
+
+  /* Release previous EGLImage before rebinding. */
+  if (egl_image_) {
+    eglDestroyImageKHR_fn(dpy, static_cast<EGLImageKHR>(egl_image_));
+    egl_image_ = nullptr;
+  }
+
+  const EGLint attribs[] = {
+      EGL_WIDTH,                     w_,
+      EGL_HEIGHT,                    h_,
+      EGL_LINUX_DRM_FOURCC_EXT,      drm_format,
+      EGL_DMA_BUF_PLANE0_FD_EXT,     fd,
+      EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
+      EGL_DMA_BUF_PLANE0_PITCH_EXT,  stride,
+      EGL_NONE,
+  };
+
+  EGLImageKHR image = eglCreateImageKHR_fn(
+      dpy, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
+  if (image == EGL_NO_IMAGE_KHR) {
+    return false;
+  }
+
+  egl_image_ = static_cast<void *>(image);
+  target_ = GL_TEXTURE_2D;
+  GLContext::state_manager_active_get()->texture_bind_temp(this);
+  glEGLImageTargetTexture2DOES_fn(GL_TEXTURE_2D, image);
+  has_pixels_ = true;
+  return true;
+}
+
+}  // namespace blender::gpu
+#endif /* WITH_OPENGL_BACKEND */
+#endif   /* __linux__ */
+
+/** \} */
