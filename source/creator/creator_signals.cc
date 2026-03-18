@@ -153,7 +153,7 @@ static void sig_cleanup_and_terminate(int signum)
   TerminateProcess(GetCurrentProcess(), signum);
 #  endif
 }
-
+#  if !defined(WIN32)
 static void sig_handle_crash_fn(int signum)
 {
   char filepath_crashlog[FILE_MAX];
@@ -161,8 +161,7 @@ static void sig_handle_crash_fn(int signum)
   crashlog_file_generate(filepath_crashlog, nullptr);
   sig_cleanup_and_terminate(signum);
 }
-
-#  ifdef WIN32
+#  else
 extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
 {
   /* If this is a stack overflow then we can't walk the stack, so just try to show
