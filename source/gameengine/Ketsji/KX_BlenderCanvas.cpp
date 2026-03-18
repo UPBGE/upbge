@@ -199,9 +199,8 @@ void KX_BlenderCanvas::SetMousePosition(int x, int y)
   int winX = m_viewportArea.GetLeft();
   int winY = m_viewportArea.GetBottom();
   int winH = m_viewportArea.GetHeight();
-  WM_cursor_grab_enable(m_win, WM_CURSOR_WRAP_XY, nullptr, m_mousestate != MOUSE_NORMAL);
   WM_cursor_warp(m_win, winX + x + 1, winY + (winH - y - 1));
-  WM_cursor_grab_enable(m_win, WM_CURSOR_WRAP_NONE, nullptr, m_mousestate != MOUSE_NORMAL);
+  SetMouseState(m_mousestate);
 }
 
 void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)

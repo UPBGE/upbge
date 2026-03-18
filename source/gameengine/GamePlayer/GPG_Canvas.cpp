@@ -145,11 +145,10 @@ void GPG_Canvas::SetMousePosition(int x, int y)
     int32_t gy = (int32_t)y;
 
     wmWindow *win = CTX_wm_window(m_context);
-    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_XY, nullptr, m_mousestate != MOUSE_NORMAL);
     int event_x = int(gx);
     int event_y = int((m_windowArea.GetHeight() - 1 - gy));
     WM_cursor_warp(win, event_x, event_y);
-    WM_cursor_grab_enable(win, WM_CURSOR_WRAP_NONE, nullptr, m_mousestate != MOUSE_NORMAL);
+    SetMouseState(m_mousestate);
   }
 }
 
