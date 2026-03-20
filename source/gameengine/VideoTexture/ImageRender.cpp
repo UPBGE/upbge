@@ -218,11 +218,6 @@ bool ImageRender::Render()
   int viewport[4] = {
       m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]};
 
-  GPU_viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-  GPU_scissor_test(true);
-  GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
-  GPU_apply_state();
-
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
 
   // matrix calculation, don't apply any of the stereo mode
@@ -333,6 +328,11 @@ bool ImageRender::Render()
 
   int num_passes = max_ii(1, m_samples);
   num_passes = min_ii(num_passes, m_scene->GetBlenderScene()->eevee.taa_samples);
+
+  GPU_viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+  GPU_scissor_test(true);
+  GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
+  GPU_apply_state();
 
   for (int i = 0; i < num_passes; i++) {
     GPU_framebuffer_clear_depth(GPU_framebuffer_active_get(), 1.0f);
