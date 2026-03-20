@@ -111,18 +111,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts)
   }
   m_done = false;
 
-  const RAS_Rect *viewport = &m_canvas->GetViewportArea();
-  GPU_viewport(
-      viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
-  GPU_scissor_test(true);
-  GPU_scissor(
-      viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
-  GPU_apply_state();
-
-  // get image from viewport (or FBO)
+  // get image from KX_Camera GPUViewport
   ImageViewport::calcViewport(0, ts);
-
-  GPU_framebuffer_restore();
 }
 
 bool ImageRender::Render()
