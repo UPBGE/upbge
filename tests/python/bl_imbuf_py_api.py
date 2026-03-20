@@ -759,41 +759,69 @@ class TestImBufFileTypes(unittest.TestCase):
             with self.subTest(type_id=type_id):
                 self.assertEqual(file_type.id, type_id)
                 self.assertIsInstance(file_type.file_extensions, tuple)
-                self.assertGreater(len(file_type.file_extensions), 0)
+                if type_id != 'NONE':
+                    self.assertGreater(len(file_type.file_extensions), 0)
+
+    def test_none_file_type(self):
+        # NONE is accessible in the file_types dict.
+        self.assertIn('NONE', imbuf.file_types)
+        none_type = imbuf.file_types['NONE']
+        self.assertEqual(none_type.id, 'NONE')
+        self.assertEqual(none_type.file_extensions, ())
+        self.assertFalse(none_type.has_write_file)
+        self.assertFalse(none_type.has_write_memory)
+
+        # Can set file_type to NONE and read it back.
+        ibuf = imbuf.new(DEFAULT_SIZE)
+        ibuf.file_type = 'NONE'
+        self.assertEqual(ibuf.file_type, 'NONE')
+
+        # Writing as NONE fails for both file and memory.
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, 'test.bin')
+            with self.assertRaises(ValueError):
+                imbuf.write(ibuf, filepath=filepath)
+        with self.assertRaises(ValueError):
+            imbuf.write_to_buffer(ibuf, io.BytesIO())
+
+        ibuf.free()
 
     def test_write_and_detect_all_types(self):
-        # TODO: make this meta-data available.
-        read_only_types = {'PSD', 'DDS'}
         size = (32, 32)
         with tempfile.TemporaryDirectory() as tempdir:
             for type_id, file_type in imbuf.file_types.items():
-                # Skip until #155822 is fixed.
-                if type_id == 'AVIF':
-                    continue
-                if type_id in read_only_types:
+                if not (file_type.has_write_file or file_type.has_write_memory):
                     continue
                 ext = file_type.file_extensions[0]
                 with self.subTest(type_id=type_id):
                     ibuf = imbuf.new(size)
                     ibuf.file_type = type_id
 
-                    filepath = os.path.join(tempdir, "test" + ext)
-                    imbuf.write(ibuf, filepath=filepath)
+                    image_data = []
+
+                    if file_type.has_write_file:
+                        filepath = os.path.join(tempdir, "test" + ext)
+                        imbuf.write(ibuf, filepath=filepath)
+                        with open(filepath, "rb") as fh:
+                            image_data.append(("file", fh.read()))
+
+                    if file_type.has_write_memory:
+                        buf = io.BytesIO()
+                        imbuf.write_to_buffer(ibuf, buf)
+                        image_data.append(("memory", buf.getvalue()))
+
                     ibuf.free()
 
-                    with open(filepath, "rb") as fh:
-                        data = fh.read()
+                    for kind, data in image_data:
+                        msg = "{:s} ({:s})".format(type_id, kind)
+                        detected = imbuf.file_type_from_buffer(data)
+                        self.assertIsNotNone(detected, msg=msg)
+                        self.assertEqual(detected.id, type_id, msg=msg)
 
-                    # Detect type from buffer.
-                    detected = imbuf.file_type_from_buffer(data)
-                    self.assertIsNotNone(detected, msg=type_id)
-                    self.assertEqual(detected.id, type_id)
-
-                    # Load from buffer and verify size and type.
-                    ibuf_loaded = imbuf.load_from_buffer(data)
-                    self.assertEqual(ibuf_loaded.size, size)
-                    self.assertEqual(ibuf_loaded.file_type, type_id)
-                    ibuf_loaded.free()
+                        ibuf_loaded = imbuf.load_from_buffer(data)
+                        self.assertEqual(ibuf_loaded.size, size, msg=msg)
+                        self.assertEqual(ibuf_loaded.file_type, type_id, msg=msg)
+                        ibuf_loaded.free()
 
 
 def main():

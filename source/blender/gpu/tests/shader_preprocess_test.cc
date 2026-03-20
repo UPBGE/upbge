@@ -36,6 +36,22 @@ static std::string process_test_string(std::string str,
   return result.substr(newline + 1);
 }
 
+static std::string process_test_local(std::string str,
+                                      std::string &first_error,
+                                      shader::metadata::Source *r_metadata = nullptr,
+                                      shader::Language language = shader::Language::BLENDER_GLSL)
+{
+  std::string prefix = "void wrapper_func() {";
+  std::string suffix = "\n}";
+  std::string result = process_test_string(
+      prefix + str + suffix, first_error, r_metadata, language);
+  result = result.substr(prefix.size(), result.size() - suffix.size() - prefix.size());
+  if (result.starts_with("\n#line 4")) {
+    result = "\n" + result.substr(std::string("\n#line 4").size());
+  }
+  return result;
+}
+
 static void test_preprocess_array()
 {
   using namespace shader;
@@ -504,7 +520,7 @@ for (int i = 2; i < 4; i++) [[unroll]] { content += i; })";
 #line 2
                                                        })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
@@ -524,7 +540,7 @@ for (int i = 2; i < 4; i++, y++) [[unroll]] { content += i; })";
 #line 2
                                                             })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
@@ -548,7 +564,7 @@ for (int i = 2; i < 4 && i < y; i++, y++) [[unroll]] { cont += i; })";
 #line 2
                                                                   })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
@@ -569,7 +585,7 @@ for (; i < j;) [[unroll_n(2)]] { content += i; })";
 #line 2
                                                })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
@@ -612,20 +628,20 @@ for (; i < j;) [[unroll_n(2)]] { for (; j < k;) [[unroll_n(2)]] {} })";
 #line 2
                                                                    })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
     string input = R"(for (; i < j;) [[unroll_n(2)]] { break; })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(error, "Unrolled loop cannot contain \"break\" statement.");
   }
   {
     string input = R"(for (; i < j;) [[unroll_n(2)]] { continue; })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(error, "Unrolled loop cannot contain \"continue\" statement.");
   }
   {
@@ -645,14 +661,14 @@ for (; i < j;) [[unroll_n(2)]] { for (; j < k;) {break;continue;} })";
 #line 2
                                                                   })";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
     string input = R"(for (int i = 3; i > 2; i++) [[unroll]] {})";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(error, "Unsupported condition in unrolled loop.");
   }
 }
@@ -759,23 +775,23 @@ template void func(float a);
     string input = R"(func<float, 1>(a);)";
     string expect = R"(funcTfloatT1(a);)";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
     string input = R"(a.template func<float, 1>(a);)";
-    string expect = R"(a.         funcTfloatT1(a);)";
+    string expect = R"(_funcTfloatT1(a, a);)";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
     string input = R"(this->template func<float, 1>(a);)";
-    string expect = R"(this_.funcTfloatT1(a);)";
+    string expect = R"(_funcTfloatT1(this_, a);)";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
@@ -907,7 +923,7 @@ static void test_preprocess_reference()
     string input = R"(auto &a = b;)";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "Reference is defined inside a global or unterminated scope.");
+    EXPECT_EQ(error, "Unexpected token \"&\": Expecting declaration");
   }
 }
 GPU_TEST(preprocess_reference);
@@ -1221,6 +1237,16 @@ static void test_preprocess_static_branch()
 
   {
     string input = R"(
+struct Resources {
+  [[compilation_constant]] const int use_color_band;
+
+  void fn() {
+    if (use_color_band) [[static_branch]] {
+      test;
+    }
+  }
+};
+
 void func([[resource_table]] Resources &srt)
 {
   if (srt.use_color_band) [[static_branch]] {
@@ -1249,65 +1275,114 @@ void func([[resource_table]] Resources &srt)
 }
 )";
     string expect = R"(
+#define access_Resources_use_color_band() use_color_band
+#ifdef CREATE_INFO_RES_PASS_Resources
+CREATE_INFO_RES_PASS_Resources
+#endif
+#ifdef CREATE_INFO_RES_BATCH_Resources
+CREATE_INFO_RES_BATCH_Resources
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_Resources
+CREATE_INFO_RES_GEOMETRY_Resources
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_Resources
+CREATE_INFO_RES_SHARED_VARS_Resources
+#endif
+#line 2
+struct Resources {
+#line 18
+int _pad;};
+#line 21
+#ifndef GPU_METAL
+Resources Resources_ctor_();
+void _fn(Resources  this_);
+Resources Resources_new_();
+#endif
+#line 2
+                         Resources Resources_ctor_() {Resources r;r._pad=0;return r;}
+#line 5
 
 #if defined(CREATE_INFO_Resources)
-#line 2
-void func(Resources  srt)
-{
+#line 5
+  void _fn(Resources  this_) {
 
 #if SRT_CONSTANT_use_color_band
-#line 4
-                                                               {
-    test;
-  }
-#endif
+#line 6
+                                                                 {
+      test;
+    }
 
-#if SRT_CONSTANT_use_color_band == 1
-#line 8
-                                                                    {
-    test;
-  }
-#else
-#line 10
-         {
-    test;
+#endif
+#line 9
   }
 #endif
+       Resources Resources_new_()
+{
+  Resources result;
+  result._pad = 0;
+  return result;
+#line 9
+}
+#line 12
+
+#if defined(CREATE_INFO_Resources)
+#line 12
+void func(Resources  srt)
+{
 
 #if SRT_CONSTANT_use_color_band
 #line 14
                                                                {
     test;
   }
+#endif
+
+#if SRT_CONSTANT_use_color_band == 1
+#line 18
+                                                                    {
+    test;
+  }
+#else
+#line 20
+         {
+    test;
+  }
+#endif
+
+#if SRT_CONSTANT_use_color_band
+#line 24
+                                                               {
+    test;
+  }
 #elif SRT_CONSTANT_use_color_band
-#line 16
+#line 26
                                                                       {
     test;
   }
 #endif
 
 #if SRT_CONSTANT_use_color_band
-#line 20
+#line 30
                                                                {
     test;
   }
 #elif SRT_CONSTANT_use_color_band
-#line 22
+#line 32
                                                                       {
     test;
   }
 #else
-#line 24
+#line 34
          {
     test;
   }
 
 #endif
-#line 27
+#line 37
 }
 
 #endif
-#line 28
+#line 38
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1739,7 +1814,7 @@ static void test_preprocess_swizzle()
     string input = R"(a.xyzw().aaa().xxx().grba().yzww; aaaa();)";
     string expect = R"(a.xyzw  .aaa  .xxx  .grba  .yzww; aaaa();)";
     string error;
-    string output = process_test_string(input, error);
+    string output = process_test_local(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }

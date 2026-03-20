@@ -50,21 +50,40 @@ struct NodeAndSocket {
   const bNode &node;
   std::string socket_identifier;
   eNodeSocketInOut in_out;
+  bool link_muted;
+  std::optional<int> multi_input_sort_id;
 
   NodeAndSocket(const bNode &node,
                 const StringRef socket_identifier,
-                const eNodeSocketInOut in_out)
-      : node(node), socket_identifier(socket_identifier), in_out(in_out)
+                const eNodeSocketInOut in_out,
+                const bool link_muted,
+                std::optional<int> multi_input_sort_id = std::nullopt)
+      : node(node),
+        socket_identifier(socket_identifier),
+        in_out(in_out),
+        link_muted(link_muted),
+        multi_input_sort_id(multi_input_sort_id)
   {
   }
-  NodeAndSocket(const bNode &node, const bNodeSocket &socket)
-      : node(node), socket_identifier(socket.identifier), in_out(eNodeSocketInOut(socket.in_out))
+  NodeAndSocket(const bNode &node,
+                const bNodeSocket &socket,
+                const bool link_muted,
+                std::optional<int> multi_input_sort_id = std::nullopt)
+      : node(node),
+        socket_identifier(socket.identifier),
+        in_out(eNodeSocketInOut(socket.in_out)),
+        link_muted(link_muted),
+        multi_input_sort_id(multi_input_sort_id)
   {
   }
-  NodeAndSocket(const bNodeSocket &socket)
+  NodeAndSocket(const bNodeSocket &socket,
+                const bool link_muted,
+                std::optional<int> multi_input_sort_id = std::nullopt)
       : node(socket.owner_node()),
         socket_identifier(socket.identifier),
-        in_out(eNodeSocketInOut(socket.in_out))
+        in_out(eNodeSocketInOut(socket.in_out)),
+        link_muted(link_muted),
+        multi_input_sort_id(multi_input_sort_id)
   {
   }
 
@@ -89,7 +108,8 @@ struct NodeAndSocket {
   friend bool operator==(const NodeAndSocket &a, const NodeAndSocket &b)
   {
     return &a.node == &b.node && a.in_out == b.in_out &&
-           a.socket_identifier == b.socket_identifier;
+           a.socket_identifier == b.socket_identifier && a.link_muted == b.link_muted &&
+           a.multi_input_sort_id == b.multi_input_sort_id;
   }
 };
 
@@ -102,27 +122,46 @@ struct MutableNodeAndSocket {
   bNode &node;
   std::string socket_identifier;
   eNodeSocketInOut in_out;
+  bool link_muted;
+  std::optional<int> multi_input_sort_id;
 
   MutableNodeAndSocket(bNode &node,
                        const StringRef socket_identifier,
-                       const eNodeSocketInOut in_out)
-      : node(node), socket_identifier(socket_identifier), in_out(in_out)
+                       const eNodeSocketInOut in_out,
+                       const bool link_muted,
+                       std::optional<int> multi_input_sort_id = std::nullopt)
+      : node(node),
+        socket_identifier(socket_identifier),
+        in_out(in_out),
+        link_muted(link_muted),
+        multi_input_sort_id(multi_input_sort_id)
   {
   }
-  MutableNodeAndSocket(bNode &node, bNodeSocket &socket)
-      : node(node), socket_identifier(socket.identifier), in_out(eNodeSocketInOut(socket.in_out))
+  MutableNodeAndSocket(bNode &node,
+                       bNodeSocket &socket,
+                       const bool link_muted,
+                       std::optional<int> multi_input_sort_id = std::nullopt)
+      : node(node),
+        socket_identifier(socket.identifier),
+        in_out(eNodeSocketInOut(socket.in_out)),
+        link_muted(link_muted),
+        multi_input_sort_id(multi_input_sort_id)
   {
   }
-  MutableNodeAndSocket(bNodeSocket &socket)
+  MutableNodeAndSocket(bNodeSocket &socket,
+                       const bool link_muted,
+                       std::optional<int> multi_input_sort_id = std::nullopt)
       : node(socket.owner_node()),
         socket_identifier(socket.identifier),
-        in_out(eNodeSocketInOut(socket.in_out))
+        in_out(eNodeSocketInOut(socket.in_out)),
+        link_muted(link_muted),
+        multi_input_sort_id(multi_input_sort_id)
   {
   }
 
   NodeAndSocket operator()() const
   {
-    return {node, socket_identifier, in_out};
+    return {node, socket_identifier, in_out, link_muted, multi_input_sort_id};
   }
 
   bool is_input() const
@@ -145,32 +184,41 @@ struct MutableNodeAndSocket {
 
   friend bool operator==(const MutableNodeAndSocket &a, const MutableNodeAndSocket &b)
   {
-    return (&a.node == &b.node) && (a.in_out == b.in_out) &&
-           (a.socket_identifier == b.socket_identifier);
+    return &a.node == &b.node && a.in_out == b.in_out &&
+           (a.socket_identifier == b.socket_identifier) && a.link_muted == b.link_muted &&
+           a.multi_input_sort_id == b.multi_input_sort_id;
   }
 };
 
 template<> struct DefaultHash<NodeAndSocket> {
   uint64_t operator()(const NodeAndSocket &value) const
   {
-    return get_default_hash(&value.node, value.in_out, value.socket_identifier);
+    return get_default_hash(&value.node,
+                            value.in_out,
+                            value.socket_identifier,
+                            value.link_muted,
+                            value.multi_input_sort_id ? *value.multi_input_sort_id : 0);
   }
   uint64_t operator()(const bNodeSocket &socket) const
   {
     return get_default_hash(
-        &socket.owner_node(), eNodeSocketInOut(socket.in_out), socket.identifier);
+        &socket.owner_node(), eNodeSocketInOut(socket.in_out), socket.identifier, false, 0);
   }
 };
 
 template<> struct DefaultHash<MutableNodeAndSocket> {
   uint64_t operator()(const MutableNodeAndSocket &value) const
   {
-    return get_default_hash(&value.node, value.in_out, value.socket_identifier);
+    return get_default_hash(&value.node,
+                            value.in_out,
+                            value.socket_identifier,
+                            value.link_muted,
+                            value.multi_input_sort_id ? *value.multi_input_sort_id : 0);
   }
   uint64_t operator()(const bNodeSocket &socket) const
   {
     return get_default_hash(
-        &socket.owner_node(), eNodeSocketInOut(socket.in_out), socket.identifier);
+        &socket.owner_node(), eNodeSocketInOut(socket.in_out), socket.identifier, false, 0);
   }
 };
 

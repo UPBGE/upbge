@@ -7,7 +7,7 @@ macro(list_insert_after
   )
   set(_index "")
   list(FIND "${list_id}" "${item_check}" _index)
-  if("${_index}" MATCHES "-1")
+  if(${_index} EQUAL -1)
     message(FATAL_ERROR "'${list_id}' doesn't contain '${item_check}'")
   endif()
   math(EXPR _index "${_index} + 1")
@@ -20,7 +20,7 @@ macro(list_insert_before
   )
   set(_index "")
   list(FIND "${list_id}" "${item_check}" _index)
-  if("${_index}" MATCHES "-1")
+  if(${_index} EQUAL -1)
     message(FATAL_ERROR "'${list_id}' doesn't contain '${item_check}'")
   endif()
   list(INSERT ${list_id} "${_index}" ${item_add})
@@ -54,16 +54,22 @@ macro(path_ensure_trailing_slash
   path_new path_input
   )
   file(TO_NATIVE_PATH "/" _path_sep)
-  string(REGEX REPLACE "[${_path_sep}]+$" "" ${path_new} ${path_input})
+  # Escape for use in regex (`string(REGEX QUOTE ...)` is only available in CMake 4.2+).
+  string(REPLACE "\\" "\\\\" _path_sep_escaped "${_path_sep}")
+  string(REGEX REPLACE "[${_path_sep_escaped}]+$" "" ${path_new} ${path_input})
   set(${path_new} "${${path_new}}${_path_sep}")
   unset(_path_sep)
+  unset(_path_sep_escaped)
 endmacro()
 
 macro(path_strip_trailing_slash
   path_new path_input
   )
   file(TO_NATIVE_PATH "/" _path_sep)
-  string(REGEX REPLACE "[${_path_sep}]+$" "" ${path_new} ${path_input})
+  # Escape for use in regex (`string(REGEX QUOTE ...)` is only available in CMake 4.2+).
+  string(REPLACE "\\" "\\\\" _path_sep_escaped "${_path_sep}")
+  string(REGEX REPLACE "[${_path_sep_escaped}]+$" "" ${path_new} ${path_input})
+  unset(_path_sep_escaped)
 endmacro()
 
 # Our own version of `cmake_path(IS_PREFIX ..)`.
@@ -78,7 +84,18 @@ macro(path_is_prefix
   get_filename_component(_abs_suffix "${${path}}" ABSOLUTE)
   string(LENGTH "${_abs_prefix}" _len)
   string(SUBSTRING "${_abs_suffix}" 0 "${_len}" _substr)
-  string(COMPARE EQUAL "${_abs_prefix}" "${_substr}" "${result_var}")
+  string(COMPARE EQUAL "${_abs_prefix}" "${_substr}" _is_prefix)
+  # Ensure "/foo/bar" isn't considered a prefix of "/foo/bar_baz".
+  # Checking "/" is sufficient on WIN32 since `get_filename_component` normalizes paths.
+  if(_is_prefix)
+    string(SUBSTRING "${_abs_suffix}" "${_len}" 1 _next_char)
+    if(NOT "${_next_char}" STREQUAL "" AND NOT "${_next_char}" STREQUAL "/")
+      set(_is_prefix FALSE)
+    endif()
+    unset(_next_char)
+  endif()
+  set("${result_var}" "${_is_prefix}")
+  unset(_is_prefix)
   unset(_abs_prefix)
   unset(_abs_suffix)
   unset(_len)
@@ -271,7 +288,7 @@ function(blender_source_group
       # remove ../'s
       get_filename_component(_SRC_DIR ${_SRC} REALPATH)
       get_filename_component(_SRC_DIR ${_SRC_DIR} DIRECTORY)
-      string(FIND ${_SRC_DIR} "${CMAKE_CURRENT_SOURCE_DIR}/" _pos)
+      string(FIND "${_SRC_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/" _pos)
       if(NOT _pos EQUAL -1)
         string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" GROUP_ID ${_SRC_DIR})
         string(REPLACE "/" "\\" GROUP_ID ${GROUP_ID})
@@ -284,12 +301,12 @@ function(blender_source_group
     source_group("Source Files" FILES CMakeLists.txt)
     foreach(_SRC ${sources})
       get_filename_component(_SRC_EXT ${_SRC} EXT)
-      if((${_SRC_EXT} MATCHES ".h") OR
-         (${_SRC_EXT} MATCHES ".hpp") OR
-         (${_SRC_EXT} MATCHES ".hh"))
+      if(("${_SRC_EXT}" STREQUAL ".h") OR
+         ("${_SRC_EXT}" STREQUAL ".hpp") OR
+         ("${_SRC_EXT}" STREQUAL ".hh"))
 
         set(GROUP_ID "Header Files")
-      elseif(${_SRC_EXT} MATCHES ".glsl$")
+      elseif("${_SRC_EXT}" STREQUAL ".glsl")
         set(GROUP_ID "Shaders")
       else()
         set(GROUP_ID "Source Files")
@@ -313,18 +330,23 @@ endfunction()
 # 'name' should always match the target name,
 # use this macro before add_library or add_executable.
 #
-# Optionally takes an arg passed to set(), eg PARENT_SCOPE.
+# Optionally takes an ARGV1 passed to set(), eg `PARENT_SCOPE`.
 macro(add_cc_flags_custom_test
   name
   )
 
+  # NOTE: When ARGV1 is PARENT_SCOPE, propagate to the caller's parent scope.
+  # `string(APPEND)` alone only modifies the local scope, and `set()` is
+  # needed because `string(APPEND)` does not support PARENT_SCOPE.
   string(TOUPPER ${name} _name_upper)
   if(DEFINED CMAKE_C_FLAGS_${_name_upper})
     message(
       STATUS
       "Using custom CFLAGS: "
       "CMAKE_C_FLAGS_${_name_upper} in \"${CMAKE_CURRENT_SOURCE_DIR}\"")
-    string(APPEND CMAKE_C_FLAGS " ${CMAKE_C_FLAGS_${_name_upper}}" ${ARGV1})
+    string(APPEND CMAKE_C_FLAGS " ${CMAKE_C_FLAGS_${_name_upper}}")
+    # Harmless if ARGV1 isn't set.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" ${ARGV1})
   endif()
   if(DEFINED CMAKE_CXX_FLAGS_${_name_upper})
     message(
@@ -332,7 +354,9 @@ macro(add_cc_flags_custom_test
       "Using custom CXXFLAGS: "
       "CMAKE_CXX_FLAGS_${_name_upper} in \"${CMAKE_CURRENT_SOURCE_DIR}\""
     )
-    string(APPEND CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_${_name_upper}}" ${ARGV1})
+    string(APPEND CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_${_name_upper}}")
+    # Harmless if ARGV1 isn't set.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" ${ARGV1})
   endif()
   unset(_name_upper)
 
@@ -671,13 +695,19 @@ macro(add_c_flag
   flag)
 
   string(APPEND CMAKE_C_FLAGS " ${flag}")
-  string(APPEND CMAKE_CXX_FLAGS " ${flag}")
 endmacro()
 
 macro(add_cxx_flag
   flag)
 
   string(APPEND CMAKE_CXX_FLAGS " ${flag}")
+endmacro()
+
+macro(add_cc_flag
+  flag)
+
+  add_c_flag("${flag}")
+  add_cxx_flag("${flag}")
 endmacro()
 
 # Needed to "negate" options: `-Wno-example`
@@ -798,7 +828,6 @@ endmacro()
 
 macro(remove_strict_cxx_flags_file
   filenames)
-  remove_strict_c_flags_file(${filenames} ${ARGV})
   foreach(_SOURCE ${ARGV})
     if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
        (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -925,15 +954,15 @@ function(get_blender_version)
     _out_version_cycle "${_contents}"
   )
 
-  if(NOT ${_out_version} MATCHES "[0-9]+")
+  if(NOT ${_out_version} MATCHES "^[0-9]+$")
     message(FATAL_ERROR "Version parsing failed for BLENDER_VERSION")
   endif()
 
-  if(NOT ${_out_version_patch} MATCHES "[0-9]+")
+  if(NOT ${_out_version_patch} MATCHES "^[0-9]+$")
     message(FATAL_ERROR "Version parsing failed for BLENDER_VERSION_PATCH")
   endif()
 
-  if(NOT ${_out_version_cycle} MATCHES "[a-z]+")
+  if(NOT ${_out_version_cycle} MATCHES "^[a-z]+$")
     message(FATAL_ERROR "Version parsing failed for BLENDER_VERSION_CYCLE")
   endif()
 
@@ -1045,8 +1074,6 @@ function(data_to_c
   list(APPEND ${list_to_add} ${file_to})
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
 
-  get_filename_component(_file_to_path ${file_to} PATH)
-
   add_custom_command(
     OUTPUT ${file_to}
     COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to} ${symbol_name_override}
@@ -1070,8 +1097,6 @@ function(data_to_c_simple
   source_group(Generated FILES ${_file_to})
   list(APPEND ${list_to_add} ${file_from})
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
-
-  get_filename_component(_file_to_path ${_file_to} PATH)
 
   add_custom_command(
     OUTPUT  ${_file_to}
@@ -1107,8 +1132,6 @@ function(glsl_to_c
   source_group(Generated FILES ${_file_to})
   list(APPEND ${list_to_add} ${file_from})
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
-
-  get_filename_component(_file_to_path ${_file_to} PATH)
 
   add_custom_command(
     OUTPUT  ${_file_to} ${_file_meta} ${_file_info}
@@ -1314,7 +1337,7 @@ macro(find_python_module_file
     )
     if(${out_var_abs})
       # Internal because this is only to track changes (users never need to manipulate it).
-      set(_${out_var_abs}_DEPS "${_python_mod_file_deps_test}" CACHE INTERNAL STRING "")
+      set(_${out_var_abs}_DEPS "${_python_mod_file_deps_test}" CACHE INTERNAL "")
     endif()
   endif()
 
@@ -1581,7 +1604,7 @@ endfunction()
 macro(optimize_debug_target executable)
   if(WITH_OPTIMIZED_BUILD_TOOLS)
     if(WIN32)
-      remove_cc_flag(${executable} "/Od" "/RTC1")
+      remove_cc_flag("/Od" "/RTC1")
       target_compile_options(${executable} PRIVATE "/Ox")
       target_compile_definitions(${executable} PRIVATE "_ITERATOR_DEBUG_LEVEL=0")
     else()
