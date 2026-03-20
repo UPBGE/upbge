@@ -89,9 +89,6 @@ class ImageRender : public ImageViewport {
   /// do we own the camera?
   bool m_owncamera;
 
-  /// Used to make color and depth textures availables in ImageViewport::calcViewport
-  blender::gpu::FrameBuffer *m_targetfb;
-
   /// for mirror operation
   KX_GameObject *m_observer;
   KX_GameObject *m_mirror;
