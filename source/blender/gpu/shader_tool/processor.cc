@@ -438,9 +438,23 @@ void SourceProcessor::parse_includes(Parser &parser)
   });
 }
 
+bool SourceProcessor::has_pragma(Parser &parser, string_view pragma_str)
+{
+  bool has_pragma = false;
+  /* Can't use foreach_match because it skips preprocessor scopes. */
+  parser().foreach_token(Hash, [&](Token tok) {
+    if (tok.scope().type() == ScopeType::Preprocessor && tok.next(1).str() == "pragma" &&
+        tok.next(2).str() == pragma_str)
+    {
+      has_pragma = true;
+    }
+  });
+  return has_pragma;
+}
+
 void SourceProcessor::parse_pragma_runtime_generated(Parser &parser)
 {
-  if (parser.str().find("\n#pragma runtime_generated") != string::npos) {
+  if (has_pragma(parser, "runtime_generated")) {
     metadata_.builtins.emplace_back(metadata::Builtin::runtime_generated);
   }
 }
@@ -450,7 +464,7 @@ void SourceProcessor::lint_pragma_once(Parser &parser, const string &filename)
   if (filename.find("_lib.") == string::npos && filename.find(".hh") == string::npos) {
     return;
   }
-  if (parser.str().find("\n#pragma once") == string::npos) {
+  if (!has_pragma(parser, "once")) {
     report_error_(0, 0, "", "Header files must contain #pragma once directive.");
   }
 }
@@ -682,7 +696,13 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser, const string &fi
     string create_info_decl;
 
     while (tok == ',') {
-      Scope scope = tok.next().next().scope();
+      Token struct_name = tok.next();
+      Scope scope = struct_name.next().scope();
+      if (scope.token_count() == 2) {
+        report_error_(ERROR_TOK(struct_name),
+                      "Empty brace constructor is an error in Pipeline declaration. "
+                      "Either remove it or add compilation constant values to it.");
+      }
       auto process_constant = [&](const vector<Token> &toks) {
         create_info_decl += "COMPILATION_CONSTANT(";
         create_info_decl += (toks[3] == Number) ?
@@ -700,9 +720,19 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser, const string &fi
     return create_info_decl;
   };
 
+  auto validate_fn_name = [&](Token fn_name) {
+    if (fn_name == '&') {
+      report_error_(ERROR_TOK(fn_name), "Double function reference, remove '&'");
+    }
+    else if (fn_name != Word) {
+      report_error_(ERROR_TOK(fn_name), "Expected function name");
+    }
+    return fn_name;
+  };
+
   auto process_graphic_pipeline = [&](Token pipeline_name, Scope params) {
-    Token vertex_fn = params[1];
-    Token fragment_fn = params[3];
+    Token vertex_fn = validate_fn_name(params[1]);
+    Token fragment_fn = validate_fn_name(params[3]);
     /* For now, just emit good old create info macros. */
     string create_info_decl;
     create_info_decl += "GPU_SHADER_CREATE_INFO(" + string(pipeline_name.str()) + ")\n";
@@ -719,7 +749,7 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser, const string &fi
   };
 
   auto process_compute_pipeline = [&](Token pipeline_name, Scope params) {
-    Token compute_fn = params[1];
+    Token compute_fn = validate_fn_name(params[1]);
     /* For now, just emit good old create info macros. */
     string create_info_decl;
     create_info_decl += "GPU_SHADER_CREATE_INFO(" + string(pipeline_name.str()) + ")\n";
@@ -733,7 +763,7 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser, const string &fi
     metadata_.create_infos_declarations.emplace_back(create_info_decl);
   };
 
-  parser().foreach_match("AA(A", [&](const vector<Token> &tokens) {
+  parser().foreach_match("AA(", [&](const vector<Token> &tokens) {
     Scope parameters = tokens[2].scope();
     if (tokens[0].str() == "PipelineGraphic") {
       process_graphic_pipeline(tokens[1], parameters);
@@ -1329,6 +1359,11 @@ void SourceProcessor::lower_function_default_arguments(Parser &parser)
       });
 
   parser.apply_mutations();
+
+  /* The above code can produce call to methods without `this->` prefix.
+   * Since lower_implicit_member was already called, we call it again to process these few
+   * occurrences. */
+  lower_implicit_member(parser);
 }
 
 /* Successive mutations can introduce a lot of unneeded line directives. */

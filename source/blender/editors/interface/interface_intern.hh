@@ -1008,6 +1008,8 @@ struct PopupBlockHandle {
 
   wmTimer *scrolltimer = nullptr;
   float scrolloffset = 0.0f;
+  float scrollmin = 0.0f;
+  float scrollmax = 0.0f;
 
   KeyNavLock keynav_state;
 
@@ -1042,6 +1044,12 @@ struct PopupBlockHandle {
   /* #endif */
 
   char menu_idname[64] = "";
+
+  bool mmb_panning = false;
+  int mmb_panning_last_y = 0;
+  /** Short period of time that prevents closing the current menu with ongoing actions like middle
+   * mouse panning.  */
+  wmTimer *keep_open_timer = nullptr;
 };
 
 /* -------------------------------------------------------------------- */

@@ -852,6 +852,79 @@ void func(ATfloat a) {}
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    /* Struct templated methods. */
+    string input = R"(
+namespace N {
+
+template<typename B> struct A {
+  B i;
+  template<typename T> static void fn1(T a) {}
+  template<typename T> static T fn2() { return T(0); }
+  template<typename T> void fn3(T a) { i += int(fn4<T>()); }
+  template<typename T> T fn4() { fn3(0); return T(0); }
+};
+
+template struct A<int>;
+
+template void A<int>::fn1<int>(int);
+template int A<int>::fn2<int>();
+template void A<int>::fn3<int>(int);
+template int A<int>::fn4<int>();
+
+void fn(A<int> a)
+{
+  A<int>::fn1(0);
+  A<int>::fn2<int>();
+  a.fn3(0);
+  a.fn4<int>();
+}
+
+}
+)";
+    string expect = R"(
+#line 4
+struct N_ATint {
+  int i;
+
+
+
+
+
+
+#line 19
+};
+#line 22
+#ifndef GPU_METAL
+N_ATint N_ATint_ctor_();
+void N_ATint_fn1(int a);
+int N_ATint_fn2Tint();
+void _fn3(_ref(N_ATint ,this_), int a);
+int _fn4Tint(_ref(N_ATint ,this_));
+#endif
+#line 4
+                       N_ATint N_ATint_ctor_() {N_ATint r;r.i=0;return r;}
+#line 6
+       void N_ATint_fn1(int a) {}
+       int N_ATint_fn2Tint() { return int(0); }
+void _fn3(_ref(N_ATint ,this_), int a) { this_.i += int(_fn4Tint(this_)); }
+int _fn4Tint(_ref(N_ATint ,this_)) { _fn3(this_, 0); return int(0); }
+#line 19
+void N_fn(N_ATint a)
+{
+  N_ATint_fn1(0);
+  N_ATint_fn2Tint();
+  _fn3(a, 0);
+  _fn4Tint(a);
+}
+
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
 }
 GPU_TEST(preprocess_template_struct);
 
@@ -1415,7 +1488,9 @@ void func([[resource_table]] Resources &srt)
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "Expecting compilation or specialization constant.");
+    EXPECT_EQ(error,
+              "Expecting compilation or specialization constant. Make sure SRT arguments "
+              "have the [[resource_table]] attribute.");
   }
   {
     string input = R"(
