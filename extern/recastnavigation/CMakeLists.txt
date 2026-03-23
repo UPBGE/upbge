@@ -23,7 +23,7 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-remove_cc_flag_unsigned_char()
+remove_c_and_cxx_flag_unsigned_char()
 
 set(INC 
 	Recast/Include

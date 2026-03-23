@@ -5354,7 +5354,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 
       case ButtonType::Link:
       case ButtonType::Inlink:
-        wt = widget_type(UI_WTYPE_ICON);
+        wt = widget_type(WidgetStyle::Icon);
         wt->custom = widget_link;
         break;
 

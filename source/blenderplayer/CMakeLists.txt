@@ -172,7 +172,7 @@ if(WITH_BUILDINFO)
   add_dependencies(buildinfoobj_player buildinfo_player)
 endif()
 
-add_cc_flags_custom_test(blenderplayer)
+add_c_and_cxx_flags_custom_test(blenderplayer)
 
 if(WITH_TBB)
   list(APPEND INC ${TBB_INCLUDE_DIRS})
