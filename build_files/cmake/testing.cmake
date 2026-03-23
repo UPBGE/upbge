@@ -46,7 +46,7 @@ function(blender_test_set_envvars testname envvar_list)
   set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${envvar_list}")
 endfunction()
 
-macro(blender_src_gtest_ex)
+function(blender_src_gtest_ex)
   if(WITH_GTESTS)
     set(options "")
     set(oneValueArgs NAME)
@@ -120,12 +120,8 @@ macro(blender_src_gtest_ex)
         )
       endif()
     endif()
-    unset(MANIFEST)
-    unset(TEST_INC)
-    unset(TEST_INC_SYS)
-    unset(TARGET_NAME)
   endif()
-endmacro()
+endfunction()
 
 function(blender_add_ctests)
   if(ARGC LESS 1)
@@ -202,7 +198,7 @@ function(blender_add_test_suite_lib
   set(common_sources ${ARGN})
 
   if(WITH_TESTS_SINGLE_BINARY)
-    add_cc_flags_custom_test(${name}_tests PARENT_SCOPE)
+    add_c_and_cxx_flags_custom_test(${name}_tests PARENT_SCOPE)
 
     # Otherwise external projects will produce warnings that we cannot fix.
     remove_strict_flags()
@@ -262,7 +258,7 @@ function(blender_add_test_executable_impl
   unset(oneValueArgs)
   unset(multiValueArgs)
 
-  add_cc_flags_custom_test(${name} PARENT_SCOPE)
+  add_c_and_cxx_flags_custom_test(${name} PARENT_SCOPE)
 
   ## Otherwise external projects will produce warnings that we cannot fix.
   remove_strict_flags()
