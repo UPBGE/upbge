@@ -952,6 +952,7 @@ if(WITH_GTESTS)
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc
       tests/texture_test.cc
+      tests/texture_view_test.cc
       tests/vertex_buffer_test.cc
     )
   endif()

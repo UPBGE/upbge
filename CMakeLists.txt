@@ -1015,7 +1015,7 @@ endif()
 
 if(WIN32)
   getDefaultWindowsPrefixBase(CMAKE_GENERIC_PROGRAM_FILES)
-  set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/${})
+  set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/)
 endif()
 
 option(WITH_STRSIZE_DEBUG "\
@@ -2392,6 +2392,16 @@ if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
 endif()
 
 if(WITH_COMPILER_SHORT_FILE_MACRO)
+
+  set(_is_new_c TRUE)
+  if (DEFINED CACHE{C_MACRO_PREFIX_MAP})
+    set(_is_new_c FALSE)
+  endif()
+  set(_is_new_cxx TRUE)
+  if (DEFINED CACHE{CXX_MACRO_PREFIX_MAP})
+    set(_is_new_cxx FALSE)
+  endif()
+
   # Use `-fmacro-prefix-map` for Clang and GCC (MSVC doesn't support this).
   set(C_PREFIX_MAP_FLAGS "")
   set(CXX_PREFIX_MAP_FLAGS "")
@@ -2428,15 +2438,19 @@ if(WITH_COMPILER_SHORT_FILE_MACRO)
       unset(_bin_dir)
     endif()
   else()
-    message(
-      WARNING
-      "-fmacro-prefix-map flag is NOT supported by C/C++ compiler."
-      " Disabling WITH_COMPILER_SHORT_FILE_MACRO."
-    )
+    if(_is_new_c OR _is_new_cxx)
+      message(
+        WARNING
+        "-fmacro-prefix-map flag is NOT supported by C/C++ compiler."
+        " Disabling WITH_COMPILER_SHORT_FILE_MACRO."
+      )
+    endif()
     set(WITH_COMPILER_SHORT_FILE_MACRO OFF)
   endif()
   unset(C_PREFIX_MAP_FLAGS)
   unset(CXX_PREFIX_MAP_FLAGS)
+  unset(_is_new_c)
+  unset(_is_new_cxx)
 endif()
 
 # Include warnings first, so its possible to disable them with user defined flags

@@ -2475,7 +2475,7 @@ struct VertOut {
 
 struct FragOut {
   [[frag_color(0)]] float3 color;
-  [[frag_color(1), index(2)]] uint test;
+  [[frag_color(1), index(1)]] uint test;
 };
 
 template<typename T>
@@ -2649,7 +2649,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_FragOut)
 FRAGMENT_OUT(0, float3, ns_FragOut_color)
-FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, 2)
+FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, SRC_1)
 GPU_SHADER_CREATE_END()
 
 
@@ -2801,8 +2801,8 @@ void fn() {
     string expect = R"(
 T fn1() { return _ctor(T) 1, 2 _rotc() ; }
 T fn2() { return _ctor(T) 1, 2   _rotc() ; }
-T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return T_tmp;}; }
-T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return T_tmp;}; }
+T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }
+T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return _tmp;}; }
 T fn5() { return _ctor(T) 1, 2 _rotc() ; }
 T fn6() { return _ctor(T) 1, 2   _rotc() ; }
 T fn7() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }
