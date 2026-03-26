@@ -102,6 +102,7 @@ set(SRC
   intern/gpu_texture_dmabuf.cc
   intern/gpu_texture_external.cc
   intern/gpu_texture_pool.cc
+  intern/gpu_texture_mipmap.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
@@ -400,6 +401,7 @@ set(METAL_SRC
   metal/mtl_state.mm
   metal/mtl_storage_buffer.mm
   metal/mtl_texture.mm
+  metal/mtl_texture_pool.mm
   metal/mtl_texture_util.mm
   metal/mtl_uniform_buffer.mm
   metal/mtl_vertex_buffer.mm
@@ -553,6 +555,7 @@ set(GLSL_SRC
   shaders/gpu_shader_3D_smooth_color_vert.glsl
   shaders/gpu_shader_3D_smooth_color_frag.glsl
   shaders/gpu_shader_3D_clipped_uniform_color_vert.glsl
+  shaders/gpu_shader_2D_update_mipmaps.bsl.hh
 
   shaders/gpu_shader_point_uniform_color_aa_frag.glsl
   shaders/gpu_shader_point_uniform_color_outline_aa_frag.glsl

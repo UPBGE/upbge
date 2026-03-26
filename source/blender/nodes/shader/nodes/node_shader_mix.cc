@@ -43,7 +43,7 @@ static void sh_node_mix_declare(NodeDeclarationBuilder &b)
    * Input socket indices must be kept in sync with ntree_shader_disconnect_inactive_mix_branches
    */
   b.add_input<decl::Float>("Factor", "Factor_Float")
-      .default_value(0.5f)
+      .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
@@ -223,7 +223,8 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
       return;
   }
 
-  int weight = 0;
+  /* Ensure color math operations have higher priority than vector or float math operations. */
+  int weight = type == SOCK_RGBA ? 4 : 0;
   if (params.in_out() == SOCK_OUT) {
     params.add_item(IFACE_("Result"), [type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("ShaderNodeMix");

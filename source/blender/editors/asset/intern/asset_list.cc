@@ -67,7 +67,8 @@ class FileListWrapper {
 
  public:
   explicit FileListWrapper(eFileSelectType filesel_type)
-      : file_list_(filelist_new(filesel_type), filelist_free_fn)
+      : file_list_(filelist_new(filesel_type, /*is_from_global_asset_list=*/true),
+                   filelist_free_fn)
   {
   }
   FileListWrapper(FileListWrapper &&other) = default;
@@ -286,7 +287,12 @@ int AssetList::size() const
 void AssetList::tag_main_data_dirty() const
 {
   if (filelist_needs_reset_on_main_changes(filelist_)) {
-    filelist_tag_force_reset_mainfiles(filelist_);
+    if (!filelist_is_ready(filelist_)) {
+      filelist_tag_force_reset(filelist_);
+    }
+    else {
+      filelist_tag_force_reset_mainfiles(filelist_);
+    }
   }
 }
 

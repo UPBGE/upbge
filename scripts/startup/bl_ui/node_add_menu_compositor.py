@@ -15,6 +15,7 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.draw_menu(layout, path="Input/Constant")
         layout.separator()
+        self.node_operator(layout, "CompositorNodeBlankImage")
         self.node_operator(layout, "CompositorNodeBokehImage")
         self.node_operator(layout, "NodeGroupInput")
         self.node_operator(layout, "CompositorNodeImage")
@@ -338,7 +339,12 @@ class NODE_MT_compositor_node_math_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeClamp")
         self.node_operator(layout, "ShaderNodeFloatCurve")
         self.node_operator(layout, "ShaderNodeMapRange")
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator_with_searchable_enum(
+            context,
+            layout,
+            "ShaderNodeMath",
+            "operation",
+            defaults_callback=node_add_menu.set_math_node_default_props)
         self.node_operator(layout, "ShaderNodeMix")
 
         self.draw_assets_for_catalog(layout, self.menu_path)

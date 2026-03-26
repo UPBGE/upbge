@@ -379,6 +379,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       file_tick
       file_volume
       filter
+      filter_filled
       fixed_size
       folder_redirect
       fontpreview

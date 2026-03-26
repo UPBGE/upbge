@@ -6118,6 +6118,18 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Memory Cache Limit", "Memory cache limit (in megabytes)");
   RNA_def_property_update(prop, 0, "rna_Userdef_memcache_update");
 
+  /* Geometry Nodes. */
+
+  prop = RNA_def_property(srna, "geometry_nodes_stack_limit", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 1, INT32_MAX);
+  RNA_def_property_ui_text(prop,
+                           "Geometry Nodes Stack Limit",
+                           "Approximate maximum size of the call stack used by Geometry Nodes. "
+                           "For example, this corresponds to the number of allowed nested node "
+                           "groups. Setting this too high can result in crashes caused by "
+                           "running out of stack memory.");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   /* Sequencer proxy setup */
 
   prop = RNA_def_property(srna, "sequencer_proxy_setup", PROP_ENUM, PROP_NONE);
@@ -7206,6 +7218,25 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem save_modified_images_items[] = {
+      {USER_SAVE_MODIFIED_IMAGES_ASK,
+       "ASK",
+       0,
+       "Ask Every Time",
+       "Show dialog to save modified images when saving the .blend file"},
+      {USER_SAVE_MODIFIED_IMAGES_ALWAYS,
+       "ALWAYS_SAVE",
+       0,
+       "Always Save",
+       "Always save modified images when saving the .blend file"},
+      {USER_SAVE_MODIFIED_IMAGES_NEVER,
+       "NEVER_SAVE",
+       0,
+       "Never Save",
+       "Never save modified images when saving the .blend file"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "PreferencesFilePaths", nullptr);
   RNA_def_struct_sdna(srna, "UserDef");
   RNA_def_struct_nested(brna, srna, "Preferences");
@@ -7381,6 +7412,12 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
                            "uses process ID.\n"
                            "Warning: Sculpt and edit mode data won't be saved");
   RNA_def_property_update(prop, 0, "rna_userdef_autosave_update");
+
+  prop = RNA_def_property(srna, "save_modified_images", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, save_modified_images_items);
+  RNA_def_property_ui_text(prop,
+                           "Save Modified Images",
+                           "How modified images should be handled when saving the .blend file");
 
   prop = RNA_def_property(srna, "auto_save_time", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "savetime");
