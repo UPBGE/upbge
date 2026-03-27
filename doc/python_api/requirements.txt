@@ -5,7 +5,7 @@ Jinja2==3.1.6
 Pygments==2.19.2
 docutils==0.21.2
 snowballstemmer==3.0.1
-requests==2.32.4
+requests==2.33.0
 
 # Only needed to match the theme used for the official documentation.
 # Without this theme, the default theme will be used.
