@@ -2,7 +2,7 @@ sphinx==8.2.3
 
 # Sphinx dependencies that are important
 Jinja2==3.1.6
-Pygments==2.19.2
+Pygments==2.20.0
 docutils==0.21.2
 snowballstemmer==3.0.1
 requests==2.33.0
