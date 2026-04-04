@@ -214,7 +214,7 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
   GlobalSettings gs;
   gs.glslflag = startscene->gm.flag;
 
-  if (startscene->gm.flag & GAME_USE_UNDO) {
+  if (!G.background && (startscene->gm.flag & GAME_USE_UNDO)) {
     BKE_undosys_step_push(CTX_wm_manager(C)->runtime->undo_stack, C, "bge_start");
     /* Temp hack to fix issue with undo https://github.com/UPBGE/upbge/issues/1516 */
     /* https://github.com/UPBGE/upbge/commit/1b4d5c7a35597a70411515f721a405416244b540 */
@@ -228,20 +228,19 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
 
   blender::wmWindowManager *wm_backup = CTX_wm_manager(C);
   blender::wmWindow *win_backup = CTX_wm_window(C);
-  void *msgbus_backup = wm_backup->runtime->message_bus;
-  void *gpuctx_backup = win_backup->runtime->gpuctx;
-  void *ghostwin_backup = win_backup->runtime->ghostwin;
+  void *msgbus_backup = wm_backup ? wm_backup->runtime->message_bus : nullptr;
+  void *gpuctx_backup  = win_backup ? win_backup->runtime->gpuctx   : nullptr;
+  void *ghostwin_backup = win_backup ? win_backup->runtime->ghostwin : nullptr;
 
   /* Set Viewport render mode and shading type for the whole runtime */
   bool useViewportRender = startscene->gm.flag & GAME_USE_VIEWPORT_RENDER;
-  int shadingTypeRuntime = GetShadingTypeRuntime(C, useViewportRender);
-  int shadingTypeBackup = CTX_wm_view3d(C)->shading.type;
+  int shadingTypeRuntime = G.background ? 0 : GetShadingTypeRuntime(C, useViewportRender);
+  int shadingTypeBackup  = (!G.background && CTX_wm_view3d(C)) ?
+                               CTX_wm_view3d(C)->shading.type : 0;
 
-  /* Global Undo behaviour change since ebb5643e598a17b2f21b4e50acac35afe82dbd55
-   * We now need to backup v3d->camera and restore it manually at ge exit as
-   * v3d->camera can be changed during bge pipeline (RenderAfterCameraSetup) */
+  /* Backup v3d->camera (only meaningful in interactive mode). */
   blender::Object *backup_cam = nullptr;
-  if (CTX_wm_view3d(C)->camera != nullptr) {
+  if (!G.background && CTX_wm_view3d(C) && CTX_wm_view3d(C)->camera != nullptr) {
     backup_cam = CTX_wm_view3d(C)->camera;
   }
 
@@ -398,28 +397,29 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
 
   /* Always restore the borrowed resources to the backup WM/window,
    * even if no bfd was loaded (restart of the same file case). */
-  win_backup->runtime->ghostwin = ghostwin_backup;
-  win_backup->runtime->gpuctx = gpuctx_backup;
-  wm_backup->runtime->message_bus = (wmMsgBus *)msgbus_backup;
-  CTX_wm_window_set(C, win_backup);  // Fix for crash at exit when we have preferences window open
-
-  RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
-
-  /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
-  ED_screens_init(C,maggie1, wm_backup);
-
-  /* ED_screen_init can change blender::bContext then we need to restore it again after...
-   * b9907cb60b3c37e55cc8ea186e6cca26e333a039 */
-  InitBlenderContextVariables(C, wm_backup, startscene);
-
-  /* Restore shading type we had before game start */
-  CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
-
-  /* Restore saved v3d->camera before bge start */
-  CTX_wm_view3d(C)->camera = backup_cam;
+  if (!G.background && win_backup) {
+    win_backup->runtime->ghostwin = ghostwin_backup;
+    win_backup->runtime->gpuctx = gpuctx_backup;
+  }
+  if (!G.background && wm_backup) {
+    wm_backup->runtime->message_bus = (wmMsgBus *)msgbus_backup;
+  }
+  if (!G.background && win_backup) {
+    CTX_wm_window_set(C, win_backup);  // Fix for crash at exit when we have preferences window open
+    RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
+    /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
+    ED_screens_init(C, maggie1, wm_backup);
+    /* ED_screen_init can change blender::bContext then we need to restore it again after */
+    InitBlenderContextVariables(C, wm_backup, startscene);
+    /* Restore shading type we had before game start */
+    if (CTX_wm_view3d(C)) {
+      CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
+      CTX_wm_view3d(C)->camera = backup_cam;
+    }
+  }
 
   /* Undo System */
-  if (startscene->gm.flag & GAME_USE_UNDO) {
+  if (!G.background && (startscene->gm.flag & GAME_USE_UNDO)) {
     UndoStep *step_data_from_name = NULL;
     step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->runtime->undo_stack,
                                                         "bge_start");

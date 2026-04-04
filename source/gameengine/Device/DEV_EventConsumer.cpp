@@ -39,12 +39,15 @@ DEV_EventConsumer::DEV_EventConsumer(GHOST_ISystem *system,
                                      RAS_ICanvas *canvas)
     : m_device(device), m_canvas(canvas)
 {
-  // Setup the default mouse position.
-  int cursorx, cursory;
-  system->getCursorPosition(cursorx, cursory);
-  int x, y;
-  m_canvas->ConvertMousePosition(cursorx, cursory, x, y, true);
-  m_device->ConvertMoveEvent(x, y);
+  /* In headless (--background) mode system is null: skip cursor init.
+   * The mouse position stays at (0,0) which is harmless. */
+  if (system) {
+    int cursorx, cursory;
+    system->getCursorPosition(cursorx, cursory);
+    int x, y;
+    m_canvas->ConvertMousePosition(cursorx, cursory, x, y, true);
+    m_device->ConvertMoveEvent(x, y);
+  }
 }
 
 DEV_EventConsumer::~DEV_EventConsumer()

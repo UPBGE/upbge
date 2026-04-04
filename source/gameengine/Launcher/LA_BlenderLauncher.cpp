@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@
 #include "LA_BlenderLauncher.h"
 
 #include "BKE_screen.hh"
+#include "BKE_global.hh"
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
 #include "wm_event_system.hh"
@@ -34,6 +35,7 @@
 #include "CM_Message.h"
 #include "KX_BlenderCanvas.h"
 #include "KX_PythonInit.h"
+#include "RAS_NullCanvas.h"
 
 using namespace blender;
 
@@ -69,9 +71,11 @@ LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
 {
   m_windowManager = CTX_wm_manager(m_context);
   m_window = CTX_wm_window(m_context);
-  m_view3d = CTX_wm_view3d(m_context);
-  CM_Debug(ar->winx << ", " << ar->winy);
-  print_rcti("blender::rcti: ", &ar->winrct);
+  m_view3d = G.background ? nullptr : CTX_wm_view3d(m_context);
+  if (!G.background && m_ar) {
+    CM_Debug(ar->winx << ", " << ar->winy);
+    print_rcti("blender::rcti: ", &ar->winrct);
+  }
 }
 
 LA_BlenderLauncher::~LA_BlenderLauncher()
@@ -80,7 +84,12 @@ LA_BlenderLauncher::~LA_BlenderLauncher()
 
 RAS_ICanvas *LA_BlenderLauncher::CreateCanvas()
 {
-  return (new KX_BlenderCanvas(m_rasterizer, m_windowManager, m_window, m_camFrame, m_ar, m_useViewportRender));
+  if (G.background) {
+    /* --background mode: no GHOST window available, use a no-op stub canvas. */
+    return new RAS_NullCanvas(m_rasterizer);
+  }
+  return new KX_BlenderCanvas(
+      m_rasterizer, m_windowManager, m_window, m_camFrame, m_ar, m_useViewportRender);
 }
 
 bool LA_BlenderLauncher::GetUseAlwaysExpandFraming()
@@ -90,6 +99,13 @@ bool LA_BlenderLauncher::GetUseAlwaysExpandFraming()
 
 void LA_BlenderLauncher::InitCamera()
 {
+  if (G.background) {
+    /* No View3D region in --background mode: use neutral zoom, no camera override. */
+    m_ketsjiEngine->SetCameraZoom(1.0f);
+    m_ketsjiEngine->SetCameraOverrideZoom(2.0f);
+    return;
+  }
+
   blender::RegionView3D *rv3d = CTX_wm_region_view3d(m_context);
 
   // Some blender stuff.
@@ -142,8 +158,7 @@ void LA_BlenderLauncher::InitEngine()
   m_savedBlenderData.sceneLayer = m_startScene->lay;
   m_savedBlenderData.camera = m_startScene->camera;
 
-  if (m_view3d->scenelock == 0) {
-    // m_startScene->lay = m_view3d->local_view_uuid;
+  if (!G.background && m_view3d && m_view3d->scenelock == 0) {
     m_startScene->camera = m_view3d->camera;
   }
 
@@ -155,19 +170,23 @@ void LA_BlenderLauncher::ExitEngine()
   LA_Launcher::ExitEngine();
 
   // Lock frame and camera enabled - restoring global values.
-  if (m_view3d->scenelock == 0) {
+  if (!G.background && m_view3d && m_view3d->scenelock == 0) {
     m_startScene->lay = m_savedBlenderData.sceneLayer;
     m_startScene->camera = m_savedBlenderData.camera;
   }
 
-  // Free all window manager events unused.
-  wm_event_free_all(m_window);
+  if (!G.background) {
+    // Free all window manager events unused.
+    wm_event_free_all(m_window);
+  }
 }
 
 bool LA_BlenderLauncher::EngineNextFrame()
 {
-  // Free all window manager events unused.
-  wm_event_free_all(m_window);
+  if (!G.background) {
+    // Free all window manager events unused.
+    wm_event_free_all(m_window);
+  }
 
   return LA_Launcher::EngineNextFrame();
 }

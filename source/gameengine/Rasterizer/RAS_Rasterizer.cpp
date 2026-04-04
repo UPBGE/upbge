@@ -31,6 +31,7 @@
 
 #include "RAS_Rasterizer.h"
 
+#include "BKE_global.hh"
 #include "KX_GameObject.h"
 #include "KX_RayCast.h"
 #include "RAS_FrameBuffer.h"
@@ -248,14 +249,11 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 
 void RAS_Rasterizer::Exit()
 {
-  // SetClearDepth(1.0f);
-  // SetColorMask(true, true, true, true);
+  if (G.background) {
+    return;
+  }
   GPU_color_mask(true, true, true, true);
   GPU_apply_state();
-
-  // SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-  // Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
   GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), {0.0, 0.0, 0.0, 0.0}, 1.0f);
 }
 

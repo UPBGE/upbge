@@ -59,6 +59,7 @@ set(SRC
   RAS_FrameBuffer.cpp
   RAS_FramingManager.cpp
   RAS_ICanvas.cpp
+  RAS_NullCanvas.cpp
   RAS_IDisplayArray.cpp
   RAS_IPolygonMaterial.cpp
   RAS_Rasterizer.cpp
@@ -82,6 +83,7 @@ set(SRC
   RAS_FrameBuffer.h
   RAS_FramingManager.h
   RAS_ICanvas.h
+  RAS_NullCanvas.h
   RAS_IDisplayArray.h
   RAS_IPolygonMaterial.h
   RAS_Rasterizer.h

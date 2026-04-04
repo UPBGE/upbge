@@ -324,7 +324,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   DEG_register_bge_object_provider(bge_dupli_provider);
 
   /* Fix black shading issue with addObject https://github.com/UPBGE/upbge/issues/1354 */
-  GPU_shader_force_unbind();
+  if (!G.background) {
+    GPU_shader_force_unbind();
+  }
   /****************************************************/
 }
 
@@ -360,7 +362,9 @@ KX_Scene::~KX_Scene()
   }
 
   /* Fixes issue when switching .blend erm...*/
-  GPU_shader_force_unbind();
+  if (!G.background) {
+    GPU_shader_force_unbind();
+  }
 
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;

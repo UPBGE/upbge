@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -38,6 +38,7 @@
 
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
+#include "BKE_global.hh"
 #include "CM_Message.h"
 #include "DEV_EventConsumer.h"
 #include "DEV_InputDevice.h"
@@ -50,6 +51,7 @@
 #include "KX_PythonMain.h"
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
+#include "RAS_NullCanvas.h"
 
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
@@ -175,16 +177,23 @@ void LA_Launcher::InitEngine()
   m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
 
   // Create the canvas, rasterizer and rendertools.
+  // In headless (--background) mode, use a no-op NullCanvas instead of a real GPU canvas.
   m_canvas = CreateCanvas();
 
-  // Copy current vsync mode to restore at the game end.
-  m_canvas->GetSwapInterval(m_savedData.vsync);
-
-  if (gm.vsync == VSYNC_ADAPTIVE) {
-    m_canvas->SetSwapInterval(-1);
+  if (G.background) {
+    CM_Debug("BGE headless mode: using RAS_NullCanvas (" << m_canvas->GetWidth() << "x"
+                                                         << m_canvas->GetHeight() << ")");
   }
   else {
-    m_canvas->SetSwapInterval((gm.vsync == VSYNC_ON) ? 1 : 0);
+    // Copy current vsync mode to restore at the game end.
+    m_canvas->GetSwapInterval(m_savedData.vsync);
+
+    if (gm.vsync == VSYNC_ADAPTIVE) {
+      m_canvas->SetSwapInterval(-1);
+    }
+    else {
+      m_canvas->SetSwapInterval((gm.vsync == VSYNC_ON) ? 1 : 0);
+    }
   }
 
   // Set canvas multisamples.
@@ -192,23 +201,32 @@ void LA_Launcher::InitEngine()
 
   m_canvas->Init();
 
-  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, nullptr, false);
+  if (!G.background) {
+    WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, nullptr, false);
+  }
 
   bool show_mouse = (gm.flag & GAME_SHOW_MOUSE) != 0;
-  if (show_mouse) {
-    m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+  if (!G.background) {
+    if (show_mouse) {
+      m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+    }
+    else {
+      m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
+    }
+    m_canvas->SetMousePosition(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2);
+    WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_NONE, nullptr, !show_mouse);
   }
-  else {
-    m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
-  }
-  m_canvas->SetMousePosition(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2);
-
-  WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_NONE, nullptr, !show_mouse);
 
   // Create the inputdevices.
+  // DEV_EventConsumer est toujours cree : bge.logic.endGame() passe par
+  // KX_KetsjiEngine->GetExitCode() sans passer par GHOST.
+  // En headless, system est null : le consumer le tolere (guard interne)
+  // et n'est pas enregistre aupres de GHOST (pas de fenetre).
   m_inputDevice = new DEV_InputDevice();
   m_eventConsumer = new DEV_EventConsumer(m_system, m_inputDevice, m_canvas);
-  m_system->addEventConsumer(m_eventConsumer);
+  if (!G.background && m_system) {
+    m_system->addEventConsumer(m_eventConsumer);
+  }
 
   // Create a ketsjisystem (only needed for timing and stuff).
   m_kxsystem = new LA_System();
@@ -246,7 +264,9 @@ void LA_Launcher::InitEngine()
   // Set the global settings (carried over if restart/load new files).
   m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
 
-  m_rasterizer->Init(m_canvas);
+  if (!G.background) {
+    m_rasterizer->Init(m_canvas);
+  }
   InitCamera();
 
 #ifdef WITH_PYTHON
@@ -329,16 +349,16 @@ void LA_Launcher::ExitEngine()
 #endif  // WITH_PYTHON
 
   // Do we will stop ?
-  if ((m_exitRequested != KX_ExitRequest::RESTART_GAME) &&
-      (m_exitRequested != KX_ExitRequest::START_OTHER_GAME)) {
-    // Then set the cursor back to normal here to avoid set the cursor visible between two game
-    // load.
-    m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-  }
-  WM_cursor_grab_disable(CTX_wm_window(m_context), nullptr);
+  if (!G.background) {
+    if ((m_exitRequested != KX_ExitRequest::RESTART_GAME) &&
+        (m_exitRequested != KX_ExitRequest::START_OTHER_GAME)) {
+      m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+    }
+    WM_cursor_grab_disable(CTX_wm_window(m_context), nullptr);
 
-  // Set vsync mode back to original value.
-  m_canvas->SetSwapInterval(m_savedData.vsync);
+    // Set vsync mode back to original value.
+    m_canvas->SetSwapInterval(m_savedData.vsync);
+  }
 
   if (m_converter) {
     delete m_converter;
@@ -357,7 +377,9 @@ void LA_Launcher::ExitEngine()
     m_inputDevice = nullptr;
   }
   if (m_eventConsumer) {
-    m_system->removeEventConsumer(m_eventConsumer);
+    if (!G.background && m_system) {
+      m_system->removeEventConsumer(m_eventConsumer);
+    }
     delete m_eventConsumer;
   }
   if (m_rasterizer) {
@@ -457,6 +479,10 @@ int LA_Launcher::PythonEngineNextFrame(void *state)
 
 void LA_Launcher::RenderEngine()
 {
+  if (G.background) {
+    /* No GPU context in headless mode: skip all rendering. */
+    return;
+  }
   // Render the frame.
   m_ketsjiEngine->Render();
 }
@@ -505,21 +531,23 @@ bool LA_Launcher::EngineNextFrame()
     }
   }
 
-  m_system->processEvents(false);
-  m_system->dispatchEvents();
+  if (!G.background) {
+    m_system->processEvents(false);
+    m_system->dispatchEvents();
 
-  if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey())
-          .Find(SCA_InputEvent::ACTIVE) &&
-      !m_inputDevice->GetHookExitKey()) {
-    m_inputDevice->ConvertEvent(
-        (SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
-    m_exitRequested = KX_ExitRequest::BLENDER_ESC;
-  }
-  else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
-           m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE)) {
-    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
-    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
-    m_exitRequested = KX_ExitRequest::OUTSIDE;
+    if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey())
+            .Find(SCA_InputEvent::ACTIVE) &&
+        !m_inputDevice->GetHookExitKey()) {
+      m_inputDevice->ConvertEvent(
+          (SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
+      m_exitRequested = KX_ExitRequest::BLENDER_ESC;
+    }
+    else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
+             m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE)) {
+      m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
+      m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
+      m_exitRequested = KX_ExitRequest::OUTSIDE;
+    }
   }
 
   return (m_exitRequested == KX_ExitRequest::NO_REQUEST);

@@ -22,11 +22,20 @@
 
 /** \file LA_Launcher.h
  *  \ingroup launcher
+ *
+ * \note Headless support (--background / G.background) :
+ *   Seul le lecteur embarque (LA_BlenderLauncher) est supporte en mode headless.
+ *   Le lecteur autonome (LA_PlayerLauncher) necessite une fenetre GHOST et ne
+ *   fonctionnera pas sans elle. Les appels GPU et les interactions avec le
+ *   gestionnaire de fenetres sont proteges par des gardes G.background dans
+ *   tout le code du launcher et du moteur.
  */
 
 #pragma once
 
 #include <string>
+
+#include "BKE_global.hh"
 
 #include "KX_ISystem.h"
 #include "KX_KetsjiEngine.h"

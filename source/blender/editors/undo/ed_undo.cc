@@ -943,9 +943,16 @@ size_t ED_undosys_total_memory_calc(UndoStack *ustack)
 /* UPBGE */
 void ED_undo_push_old(bContext *C, const char *str)
 {
+  /* In headless (--background) mode the undo stack is not initialised. */
+  wmWindowManager *wm = CTX_wm_manager(C);
+  if (!wm || !wm->runtime || !wm->runtime->undo_stack) {
+    return;
+  }
   ED_undo_push(C, str);
-  UndoStep *last_step = (UndoStep *)CTX_wm_manager(C)->runtime->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  UndoStep *last_step = (UndoStep *)wm->runtime->undo_stack->steps.last;
+  if (last_step) {
+    last_step->use_old_bmain_data = false;
+  }
 }
 /*********/
 

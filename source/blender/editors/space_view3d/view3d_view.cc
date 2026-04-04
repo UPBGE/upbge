@@ -1530,6 +1530,11 @@ static void game_set_commmandline_options(GameData *gm)
 
 static bool game_engine_poll(bContext *C)
 {
+  /* In headless (--background) mode, skip all window/area checks. */
+  if (G.background) {
+    return CTX_data_scene(C) != nullptr;
+  }
+
   const wmWindow *win = CTX_wm_window(C);
   // const Scene *scene = WM_window_get_active_scene(win);
 
@@ -1566,7 +1571,7 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 
   /* Don't allow to start from other window than main blender window -
    * Blenderplayer will also only use main blender window */
-  if (CTX_wm_window(C) != (wmWindow *)wm->windows.first) {
+  if (!G.background && CTX_wm_window(C) != (wmWindow *)wm->windows.first) {
     BKE_report(op->reports, RPT_ERROR, "Game engine must be started from main blender/upbge window");
     return OPERATOR_CANCELLED;
   }
@@ -1574,15 +1579,18 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
   /* Redraw 1 time before context switch (switch to view3d)
    * to avoid embedded button flickering when we start embedded
    * player from embedded start button (Issue on some computers (youle)).
+   * Skip entirely in headless mode (no GPU context available).
    */
-  if (prevsa == NULL || prevsa->spacetype != SPACE_VIEW3D) {
-    ED_region_tag_redraw(
-        prevar);  // "properties render" region (where is the embedded start button)
-    WM_redraw_windows(C);
+  if (!G.background) {
+    if (prevsa == NULL || prevsa->spacetype != SPACE_VIEW3D) {
+      ED_region_tag_redraw(
+          prevar);  // "properties render" region (where is the embedded start button)
+      WM_redraw_windows(C);
+    }
   }
 
-  /* bad context switch .. */
-  if (!ED_view3d_context_activate(C))
+  /* bad context switch -- skip in headless mode (no View3D region required) */
+  if (!G.background && !ED_view3d_context_activate(C))
     return OPERATOR_CANCELLED;
 
 #  ifdef WITH_XR_OPENXR
@@ -1594,24 +1602,30 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 #  endif
 
   /* Calling this seems to avoid some UI flickering on windows
-   * later during runtime. */
-  ED_area_tag_redraw(CTX_wm_area(C));
+   * later during runtime. Skip in headless mode.
+   */
+  if (!G.background) {
+    ED_area_tag_redraw(CTX_wm_area(C));
 
-  /* Redraw to hide any menus/popups, we don't go back to
-   * the window manager until after this operator exits */
-  WM_redraw_windows(C);
+    /* Redraw to hide any menus/popups, we don't go back to
+     * the window manager until after this operator exits */
+    WM_redraw_windows(C);
+  }
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_GAME_PRE);
 
-  rv3d = CTX_wm_region_view3d(C);
+  rv3d = G.background ? nullptr : CTX_wm_region_view3d(C);
   /* sa = CTX_wm_area(C); */ /* UNUSED */
-  ar = CTX_wm_region(C);
+  ar = G.background ? nullptr : CTX_wm_region(C);
 
-  view3d_operator_needs_gpu(C);
+  if (!G.background) {
+    view3d_operator_needs_gpu(C);
+  }
 
   game_set_commmandline_options(&startscene->gm);
 
-  if ((rv3d->persp == RV3D_CAMOB) && (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS)) {
+  if (!G.background && rv3d &&
+      (rv3d->persp == RV3D_CAMOB) && (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS)) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     /* Letterbox */
     rctf cam_framef;
@@ -1623,11 +1637,18 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
     cam_frame.ymax = cam_framef.ymax + ar->winrct.ymin;
     BLI_rcti_isect(&ar->winrct, &cam_frame, &cam_frame);
   }
-  else {
+  else if (!G.background && ar) {
     cam_frame.xmin = ar->winrct.xmin;
     cam_frame.xmax = ar->winrct.xmax;
     cam_frame.ymin = ar->winrct.ymin;
     cam_frame.ymax = ar->winrct.ymax;
+  }
+  else {
+    /* Headless: use a default frame matching RAS_NullCanvas dimensions. */
+    cam_frame.xmin = 0;
+    cam_frame.ymin = 0;
+    cam_frame.xmax = startscene->r.xsch;
+    cam_frame.ymax = startscene->r.ysch;
   }
 
   game_engine_save_state(C, prevwin);
@@ -1637,25 +1658,27 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 
   StartKetsjiShell(C, ar, &cam_frame, 1);
 
-  /* window wasnt closed while the BGE was running */
-  if (BLI_findindex(&CTX_wm_manager(C)->windows, prevwin) == -1) {
-    prevwin = NULL;
-    CTX_wm_window_set(C, NULL);
+  if (!G.background) {
+    /* window wasnt closed while the BGE was running */
+    if (BLI_findindex(&CTX_wm_manager(C)->windows, prevwin) == -1) {
+      prevwin = NULL;
+      CTX_wm_window_set(C, NULL);
+    }
+
+    ED_area_tag_redraw(CTX_wm_area(C));
+
+    if (prevwin) {
+      /* restore context, in case it changed in the meantime, for
+       * example by working in another window or closing it */
+      CTX_wm_region_set(C, prevar);
+      CTX_wm_window_set(C, prevwin);
+      CTX_wm_area_set(C, prevsa);
+    }
+
+    CTX_data_scene(C)->flag &= ~SCE_IS_GAME_XR_SESSION;
+
+    game_engine_restore_state(C, prevwin);
   }
-
-  ED_area_tag_redraw(CTX_wm_area(C));
-
-  if (prevwin) {
-    /* restore context, in case it changed in the meantime, for
-     * example by working in another window or closing it */
-    CTX_wm_region_set(C, prevar);
-    CTX_wm_window_set(C, prevwin);
-    CTX_wm_area_set(C, prevsa);
-  }
-
-  CTX_data_scene(C)->flag &= ~SCE_IS_GAME_XR_SESSION;
-
-  game_engine_restore_state(C, prevwin);
 
   // XXX restore_all_scene_cfra(scene_cfra_store);
   // BKE_scene_set_background(CTX_data_main(C), startscene);
