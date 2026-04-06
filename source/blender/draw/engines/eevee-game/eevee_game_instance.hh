@@ -35,10 +35,14 @@ struct ViewLayer;
 
 namespace blender::eevee_game {
 
+/* Maximum punctual (spot/point) lights that can receive shadow atlas slots.
+ * The atlas bottom half provides this many tiles; must match ShadowModule layout. */
+#define MAX_PUNCTUAL_SHADOW_SLOTS 16
+
 /* ---- HiZBuffer ---- */
 
 struct HiZBuffer {
-  gpu::Texture ref_tx_; /* R32F mip chain, mip_count = ceil(log2(max_dim)) + 1 */
+  gpu::Texture ref_tx_; /* R32F mip chain, mip_count = floor(log2(max_dim)) + 1 */
   void ensure(int2 render_res);
 };
 
@@ -86,6 +90,15 @@ struct LightModule {
   void begin_sync();
   void add(int id, const LightEntry &entry);
   void end_sync();
+
+  /**
+   * Re-pack and re-upload the light SSBO after shadow indices have been written
+   * back into light_map_ entries by GameInstance::end_sync().
+   * FIX: this method was missing — without it the shadow_index stamp was done
+   * in memory but never pushed to the GPU buffer.
+   */
+  void upload();
+
   void bind_resources(PassSimple &ps);
 };
 
@@ -118,7 +131,7 @@ class GameInstance {
   ShadowModule   shadows;
   VelocityModule velocity;
   CullingModule  culling;
-  SyncModule     sync;       /* Scene traversal — populates culling, lights, velocity */
+  SyncModule     sync;        /* Scene traversal — populates culling, lights, velocity */
   BloomModule    bloom;
   DepthOfField   dof;
   GTAOModule     gtao;
@@ -149,8 +162,7 @@ class GameInstance {
 
   float delta_time_ms = 16.666f;
 
-  /* Anisotropic filtering level (1, 2, 4, 8, 16). Read by material sub-passes
-   * via matpass.sub_pass->material_set(..., anisotropic_filtering). */
+  /* Anisotropic filtering level (1, 2, 4, 8, 16). */
   int anisotropic_filtering = 1;
 
   /* Blender/UPBGE scene pointers (not owned) */
@@ -158,7 +170,7 @@ class GameInstance {
   ViewLayer    *view_layer   = nullptr;
   Depsgraph    *depsgraph    = nullptr;
   DRWContext   *draw_ctx     = nullptr;
-  RenderEngine *render_engine_ = nullptr; /* Needed by sync_scene() / DRW_render_object_iter */
+  RenderEngine *render_engine_ = nullptr;
 
   const Object *camera_eval_object = nullptr;
   Manager      *manager            = nullptr;
@@ -169,7 +181,6 @@ class GameInstance {
   /**
    * Full Depsgraph traversal: calls SyncModule::object_sync() for every object.
    * Populates culling, lights, velocity, shadows for the current frame.
-   * Called from begin_sync().
    */
   void sync_scene();
 

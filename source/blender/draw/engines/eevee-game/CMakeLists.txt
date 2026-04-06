@@ -63,6 +63,15 @@ set(SRC
   eevee_game_velocity.hh
   eevee_game_view.hh
   eevee_game_volume.hh
+
+  # GLSL shaders — listed so CMake tracks them for incremental rebuilds.
+  # The actual compilation happens via ShaderCreateInfo at runtime.
+  shaders/eevee_game_bloom_composite_comp.glsl
+  shaders/eevee_game_culling_comp.glsl
+  shaders/eevee_game_film_present_frag.glsl
+  shaders/eevee_game_fsr2_mask_gen.glsl
+  shaders/eevee_game_fxaa_frag.glsl
+  shaders/eevee_game_smaa_frag.glsl
 )
 
 set(LIB

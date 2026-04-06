@@ -7,9 +7,6 @@
 #include "RE_pipeline.h"
 #include "DRW_render.hh"
 
-/* eevee::ShaderModule is a static singleton with reference counting.
- * We acquire it in init_static() and release it in free_static() so
- * eevee_game owns a reference independently of whether EEVEE is open. */
 #include "../eevee/eevee_shader.hh"
 
 namespace blender::eevee_game {
@@ -22,76 +19,59 @@ DrawEngine *Engine::create_instance()
 void Engine::init_static()
 {
   /* Acquire a reference to EEVEE's ShaderModule singleton.
-   *
-   * StaticShaderCache<T>::get() is reference-counted and thread-safe.
-   * If EEVEE is already open (or registered), the refcount increments.
-   * If not (e.g. standalone game player), this call constructs the singleton.
-   *
-   * We need this because eevee_game::ShaderModule::material_shader_get()
-   * delegates to eevee::ShaderModule for the codegen_callback and
-   * pass_replacement_cb — both are deeply coupled to EEVEE's shader infos.
-   * Without this init, those callbacks would run on a null or invalid module. */
+   * eevee_game::ShaderModule::material_shader_get() delegates to eevee::ShaderModule for
+   * codegen and pass callbacks — both require the singleton to be alive. */
   eevee::ShaderModule::module_get();
 }
 
 void Engine::free_static()
 {
-  /* Release eevee_game's own compiled static shaders */
   ShaderModule::module_free();
-
-  /* Release our reference to the EEVEE ShaderModule singleton.
-   * If EEVEE still has its own reference, the object stays alive.
-   * If we were the last holder (standalone player), it is destroyed here. */
   eevee::ShaderModule::module_free();
 }
 
 /* ---- Static render callback (F12 / Render Image) ----
  *
- * DRW_render_to_image expects a plain C function pointer, so we cannot use a lambda
- * with captures. Instead we store the GameInstance* in the engine's 'type_data'
- * pointer (which persists for the duration of the render) and recover it inside
- * the static trampoline. */
-
-struct RenderJobData {
-  GameInstance *instance;
-};
+ * FIX: was using engine->type->type_data to pass the GameInstance pointer to the callback.
+ * engine->type is a global shared across all engine instances and all viewports/renders.
+ * Writing to engine->type->type_data from a per-render callback is a data race when
+ * multiple renders or viewports are active simultaneously (e.g. background renders,
+ * split viewports with different engine types).
+ *
+ * The correct pattern is engine->customdata (or engine->re_render.render_data), which is
+ * per-engine-instance and not shared.  DRW_render_to_image's trampoline receives the
+ * engine pointer, so we recover the GameInstance from engine->customdata. */
 
 static void eevee_game_render_to_image(RenderEngine *engine,
                                        RenderLayer  *layer,
                                        const rcti    *rect)
 {
-  auto *job = static_cast<RenderJobData *>(engine->type->type_data);
-  if (!job || !job->instance) {
+  /* Recover the per-instance GameInstance from customdata (set by eevee_game_render below). */
+  auto *instance = static_cast<GameInstance *>(engine->customdata);
+  if (!instance) {
     return;
   }
 
   const int2 size = int2(engine->resolution_x, engine->resolution_y);
-
-  /* Initialize GameInstance for a static high-res render.
-   * output_rect may be non-null for border renders. */
-  job->instance->init(size, rect);
-
-  /* Execute the full AAA game render loop for one still frame */
-  job->instance->render_frame(engine, layer);
+  instance->init(size, rect);
+  instance->render_frame(engine, layer);
 }
 
 static void eevee_game_render(RenderEngine *engine, Depsgraph *depsgraph)
 {
-  RenderJobData job;
-  job.instance = new GameInstance();
-
-  /* Attach job data to the engine type so the trampoline can find it */
-  engine->type->type_data = &job;
+  /* Allocate a GameInstance that lives for the duration of this render job.
+   * Store it in engine->customdata so the trampoline can reach it without
+   * touching the shared engine->type->type_data pointer. */
+  auto *instance = new GameInstance();
+  engine->customdata = instance;
 
   DRW_render_to_image(engine, depsgraph, eevee_game_render_to_image, nullptr);
 
-  engine->type->type_data = nullptr;
-  delete job.instance;
+  /* Clean up after the render is complete. */
+  engine->customdata = nullptr;
+  delete instance;
 }
 
-/* ---- Render pass registration ----
- * Declares which AOV outputs this engine can produce.
- * Called by Blender when building the compositor node graph. */
 static void eevee_game_render_update_passes(RenderEngine *engine,
                                             Scene        *scene,
                                             ViewLayer    *view_layer)
@@ -101,8 +81,6 @@ static void eevee_game_render_update_passes(RenderEngine *engine,
   RE_engine_register_pass(
       engine, scene, view_layer, RE_PASSNAME_VELOCITY, 4, "XYZW", SOCK_VECTOR);
 
-  /* FSR Reactive Mask debug output - only registered if the scene flag is set.
-   * This flag must be added to the EEVEE scene DNA (see DNA notes at end of file). */
   if (scene->eevee.flag & SCE_EEVEE_GAME_DEBUG_FSR_MASK) {
     RE_engine_register_pass(
         engine, scene, view_layer, "FSR2_Reactive", 1, "R", SOCK_FLOAT);
@@ -110,18 +88,10 @@ static void eevee_game_render_update_passes(RenderEngine *engine,
 }
 
 /* ---- Engine Type Registration ----
- * Blender's render engine registry reads this struct to populate the Engine selector.
  * The idname "BLENDER_EEVEE_GAME" must also be registered in rna_scene.cc.
  *
- * IMPORTANT: Call Engine::init_static() from draw_manager.cc immediately after
- * DRW_engines_register() for this engine type. This acquires the eevee::ShaderModule
- * singleton reference required for material shader compilation.
- * Example in draw_context.cc:
- *
- *   RE_engines_register(&DRW_engine_viewport_eevee_type);
- *   RE_engines_register(&DRW_engine_viewport_eevee_game_type);
- *   blender::eevee_game::Engine::init_static();  // ← TODO: add this line
- */
+ * IMPORTANT: Call Engine::init_static() from draw_context.cc immediately after
+ * DRW_engines_register() for this engine type. */
 RenderEngineType DRW_engine_viewport_eevee_game_type = {
     /* next */                nullptr,
     /* prev */                nullptr,

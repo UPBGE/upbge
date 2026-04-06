@@ -16,9 +16,8 @@ struct bNodeTree;
 namespace blender::eevee_game {
 
 /* All static shaders used by eevee_game.
- * Every entry that is referenced from any .cc must be listed here.
- * Entries that were missing in the original (bloom, culling, gtao, ssgi, etc.)
- * have been added so that static_shader_get() compiles without undefined enum values. */
+ * Every entry referenced from any .cc must be listed here.
+ * Order matters only for readability; the enum values index shaders_[]. */
 enum eShaderType {
   /* --- Deferred / Lighting --- */
   SH_DEFERRED_LIGHT = 0,
@@ -26,7 +25,7 @@ enum eShaderType {
   SH_DEFERRED_TILE_CLASSIFY,
   SH_GBUFFER,
 
-  /* --- Shadows (Optimized) --- */
+  /* --- Shadows (Optimized Fixed Atlas) --- */
   SH_SHADOW_DIRECTIONAL_CSM,
   SH_SHADOW_PUNCTUAL_ATLAS,
   SH_SHADOW_PCSS_FILTER,
@@ -42,13 +41,17 @@ enum eShaderType {
   SH_SSGI_MAIN,
   SH_SSGI_BLUR,
 
-  /* --- Bloom --- */
+  /* --- Bloom ---
+   * FIX: added SH_BLOOM_COMPOSITE so BloomModule::sync() can call
+   * static_shader_get(SH_BLOOM_COMPOSITE) without hitting an undefined enum value. */
   SH_BLOOM_DOWNSAMPLE,
   SH_BLOOM_UPSAMPLE,
+  SH_BLOOM_COMPOSITE,
 
   /* --- Volumetrics --- */
   SH_VOLUME_SCATTER,
   SH_VOLUME_INTEGRATE,
+  SH_VOLUME_RESOLVE,
 
   /* --- GPU-Driven Culling --- */
   SH_CULLING_COMPUTE,
@@ -75,15 +78,15 @@ enum eShaderType {
   MAX_SHADER_TYPE,
 };
 
-/* Groups of shaders that can be async-compiled together to avoid frame stalls */
+/* Groups of shaders that can be compiled together at init time to avoid frame stalls. */
 enum ShaderGroups {
-  SG_NONE      = 0,
-  SG_LIGHTING  = (1 << 0),
-  SG_SHADOW    = (1 << 1),
-  SG_POST_FX   = (1 << 2),
-  SG_AA        = (1 << 3),
-  SG_REFLECT   = (1 << 4),
-  SG_ALL       = 0xFF,
+  SG_NONE     = 0,
+  SG_LIGHTING = (1 << 0),
+  SG_SHADOW   = (1 << 1),
+  SG_POST_FX  = (1 << 2),
+  SG_AA       = (1 << 3),
+  SG_REFLECT  = (1 << 4),
+  SG_ALL      = 0xFF,
 };
 
 ENUM_OPERATORS(ShaderGroups, int)
@@ -93,22 +96,22 @@ class ShaderModule {
   ShaderModule();
   ~ShaderModule();
 
-  /* Returns a compiled GPU shader; synchronous fallback compile if not yet loaded */
+  /* Returns a compiled GPU shader; performs synchronous compile on first call if
+   * static_shaders_load() was not called at init time. */
   gpu::Shader *static_shader_get(eShaderType type);
 
   /**
-   * Compile (or retrieve from cache) a GPUMaterial for the given node tree and pipeline.
-   * This is the entry point for node-based material shaders. Delegates to the same
-   * GPU_material_from_nodetree() backend that EEVEE uses, so all EEVEE material
-   * ShaderCreateInfos are reused without duplication.
-   *
-   * @param material      The Blender material (used for blend flags, displacement, etc.).
-   * @param ntree         The shader node tree to compile.
-   * @param pipeline_type Encodes the render pipeline (deferred, forward, shadow, etc.).
-   * @param geometry_type Encodes the geometry type (mesh, curves, pointcloud, volume).
-   * @param deferred      If true, return a fallback material while compiling asynchronously.
-   * @param default_mat   Fallback Blender material used when compilation is deferred.
-   * @return              A GPU_MAT_SUCCESS GPUMaterial ready for drawing.
+   * Compile all static shaders in the given group synchronously.
+   * Call from GameInstance::init() to avoid per-frame stalls.
+   * When Blender's async shader compilation API is available this should
+   * be replaced with GPU_shader_batch_precompile().
+   */
+  void static_shaders_load(ShaderGroups groups);
+
+  /**
+   * Compile (or retrieve from cache) a GPUMaterial for the given node tree.
+   * Delegates to eevee::ShaderModule to reuse the codegen_callback and
+   * pass_replacement_cb without duplicating 1000+ lines of shader create info.
    */
   GPUMaterial *material_shader_get(blender::Material *material,
                                    bNodeTree *ntree,
@@ -117,13 +120,10 @@ class ShaderModule {
                                    bool deferred,
                                    blender::Material *default_mat);
 
-  /* Trigger async compilation of a group to avoid mid-gameplay stalls */
-  void static_shaders_load(ShaderGroups groups);
-
   /* Maps enum to the ShaderCreateInfo name registered in eevee_game_shader_info.cc */
   static const char *static_shader_name_get(eShaderType type);
 
-  /* Frees all compiled shaders; called from Engine::free_static() at exit */
+  /* Frees shared resources; called from Engine::free_static() at Blender shutdown. */
   static void module_free();
 
  private:

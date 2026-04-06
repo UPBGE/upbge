@@ -5,6 +5,8 @@
 
 #include "eevee_game_defines.hh"
 #include "draw_pass.hh"
+#include "GPU_texture.hh"
+#include "GPU_framebuffer.hh"
 
 namespace blender::eevee_game {
 
@@ -14,41 +16,56 @@ namespace blender::eevee_game {
  */
 class ShadingView {
  public:
+  ShadingView(class GameInstance &inst) : inst_(inst) {}
+
   void init(const char *name);
-  
-  // The main entry point for rendering the frame
+
+  /* Main entry point: runs the full frame pipeline in order. */
   void render();
 
  private:
-  // Updates camera matrices and handles sub-pixel jitter for FSR
+  /* Updates camera matrices and applies sub-pixel jitter for FSR temporal accumulation. */
   void update_view();
-  
-  // Handles Bloom, DoF, and Anti-Aliasing/Upscaling
-  gpu::Texture *render_postfx(gpu::Texture *input_tx);
-  
-  // Executes the depth/velocity prepass
+
+  /* Depth + velocity prepass — writes depth_tx and vector_tx before G-Buffer fill. */
   void render_prepass();
 
-  const char *name_;
-  int2 extent_; // Internal render resolution (potentially lower than display)
-  
-  // Render View handles (Culling and Matrices)
-  View main_view_;
-  View render_view_;
+  const char *name_  = nullptr;
+  int2        extent_ = int2(0); /* Render resolution (may be less than display when FSR is ON). */
 
-  // Framebuffers
-  Framebuffer combined_fb_;
-  Framebuffer gbuffer_fb_;
-  Framebuffer prepass_fb_;
+  /* Primary and render views.
+   * main_view_   — includes sub-pixel jitter for FSR.
+   * render_view_ — matches the actual draw resolution, used for culling and rasterisation. */
+  View main_view_{"ShadingView.Main"};
+  View render_view_{"ShadingView.Render"};
 
-  // Post-Processing chain textures
-  gpu::Texture postfx_tx_;      // Intermediary for Bloom/DoF
-  gpu::Texture display_res_tx_; // High-resolution output for FSR 3.0
+  /* Framebuffers.
+   * combined_fb_ : color attachment = render_buffers.combined_tx (HDR RGBA16F).
+   * prepass_fb_  : depth-only, writes render_buffers.depth_tx.
+   * gbuffer_fb_  : MRT — depth (read-only) + G-Buffer color layers. */
+  Framebuffer combined_fb_{"Combined"};
+  Framebuffer gbuffer_fb_{"GBuffer"};
+  Framebuffer prepass_fb_{"Prepass"};
+
+  /* Post-processing intermediate textures.
+   *
+   * postfx_tx_   : DoF output (render resolution, RGBA16F).
+   *                Input = combined_tx (after bloom), output = this.
+   *                Must be distinct from combined_tx to avoid compute read/write aliasing.
+   *
+   * display_res_tx_ : FSR3 output (display resolution, RGBA16F).
+   *                   Written by UpscaleModule::apply_fsr3().
+   *
+   * aa_out_tx_   : FXAA/SMAA output when FSR is OFF (render resolution).
+   *               Separate from postfx_tx_ to keep SMAA's multi-pass chain
+   *               source-distinct from the destination on each pass. */
+  gpu::Texture postfx_tx_{"postfx"};
+  gpu::Texture display_res_tx_{"display_res"};
+  gpu::Texture aa_out_tx_{"aa_out"};
 
   class GameInstance &inst_;
 
   friend class GameInstance;
-  ShadingView(class GameInstance &inst) : inst_(inst) {}
 };
 
 } // namespace blender::eevee_game
