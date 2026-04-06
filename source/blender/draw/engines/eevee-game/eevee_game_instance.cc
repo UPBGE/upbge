@@ -45,12 +45,12 @@ void GameInstance::init(const int2 &output_res, const rcti *output_rect)
 
   film.init(output_res);
 
-  /* Allocate all render-resolution GPU resources. */
+  /* Allocate render-resolution GPU resources. */
   render_buffers.init(film.render_extent_get());
   hiz_buffer.front.ensure(film.render_extent_get());
   hiz_buffer.back.ensure(film.render_extent_get());
 
-  /* Static modules that need a one-time allocation. */
+  /* Static modules. */
   culling.init();
   lights.init();
   shadows.init();
@@ -66,7 +66,24 @@ void GameInstance::init(const int2 &output_res, const rcti *output_rect)
     upscale.init(film.render_extent_get(), film.display_extent_get());
   }
 
-  (void)output_rect; /* Border render: not yet used. */
+  /* FIX: static_shaders_load() was implemented but never called.
+   * Without this call every shader compiles synchronously on first use
+   * (inside static_shader_get()), stalling the render thread for 50-200ms
+   * per shader on cold start and causing a multi-second hitch on the first frame.
+   *
+   * Calling with SG_ALL here front-loads all compilation cost at engine startup,
+   * where a one-time stall is acceptable (it happens during the loading screen
+   * in a game, not mid-gameplay). */
+  shaders.static_shaders_load(SG_ALL);
+
+  /* FIX: ShadingView::sync() was never called, leaving postfx_tx_, aa_out_tx_, and
+   * display_res_tx_ without GPU handles. Any pass that tried to bind them would
+   * produce GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT or a null GPU handle crash.
+   * sync() allocates all three textures at the correct resolutions and rebuilds
+   * the combined framebuffer config. */
+  main_view_.sync();
+
+  (void)output_rect; /* Border render not yet implemented. */
 }
 
 /* ================================================================
@@ -79,6 +96,11 @@ void GameInstance::begin_sync()
 
   film.sync();
 
+  /* Re-sync the view textures if the resolution changed (e.g. window resize
+   * or FSR mode toggle). Film::sync() updates render_extent_ / display_extent_
+   * before this runs, so the new resolution is already available. */
+  main_view_.sync();
+
   /* Reset per-frame module state. */
   culling.begin_sync();
   lights.begin_sync();
@@ -86,13 +108,11 @@ void GameInstance::begin_sync()
   velocity.begin_sync();
   sync.begin_sync();
 
-  /* Resolve the camera from the scene. */
   if (camera_eval_object != nullptr) {
     camera.sync(camera_eval_object);
   }
 
-  /* Upload per-frame uniform data.
-   * These fields map directly to the GLSL 'uniform_data' UBO. */
+  /* Upload per-frame uniform data. */
   uniform_data.viewmat     = math::invert(camera.object_to_world);
   uniform_data.viewinv     = camera.object_to_world;
   uniform_data.camera_pos  = camera.position();
@@ -102,29 +122,17 @@ void GameInstance::begin_sync()
   uniform_data.delta_time  = delta_time_ms * 0.001f;
   uniform_data.frame_count = uint32_t(film.frame_index_get());
 
-  /* Projection matrix — built from camera lens / sensor data.
-   * film.render_extent_get() gives the render resolution, not the display resolution,
-   * so the aspect ratio accounts for any FSR downscale. */
   const float2 render_res = float2(film.render_extent_get());
   const float  aspect     = render_res.x / render_res.y;
 
-  /* FIX: was `2 * atan(sensor_width * 0.5 / focal_length) / aspect`.
-   * Dividing the angle by aspect is mathematically wrong: it would shrink the vertical
-   * FOV as the image gets wider, the opposite of what perspective projection requires.
-   *
+  /* FIX: was `2 * atan(sensor_width * 0.5 / focal_length) / aspect` — dividing the
+   * vertical angle by aspect is wrong; it would narrow the FOV as the image gets wider.
    * Correct derivation:
-   *   A standard camera sensor is sensor_width × sensor_height.
-   *   For a given focal length f, the full vertical FOV is:
-   *     fov_y = 2 * atan(sensor_height / (2 * f))
-   *   And sensor_height = sensor_width / aspect  (landscape format).
-   *   So:
-   *     fov_y = 2 * atan(sensor_width / (2 * f * aspect))
-   *
-   * The aspect ratio then goes into projection::perspective() where it scales
-   * the horizontal extent of the frustum — not the angle. */
-  const float  sensor_height = camera.data_get().sensor_width / aspect;
-  const float  fov_y         = 2.0f * atanf(sensor_height /
-                                             (2.0f * camera.data_get().focal_length));
+   *   sensor_height = sensor_width / aspect  (landscape format)
+   *   fov_y = 2 * atan(sensor_height / (2 * focal_length)) */
+  const float sensor_height = camera.data_get().sensor_width / aspect;
+  const float fov_y         = 2.0f * atanf(sensor_height /
+                                            (2.0f * camera.data_get().focal_length));
 
   uniform_data.projectionmat = math::projection::perspective(
       fov_y, aspect,
@@ -135,9 +143,6 @@ void GameInstance::begin_sync()
   uniform_data.screen_res     = render_res;
   uniform_data.screen_res_inv = float2(1.0f) / render_res;
 
-  /* Traverse the Depsgraph and populate culling, lights, velocity, shadows.
-   * Must happen after uniform_data is filled (culling uses camera matrices)
-   * and after per-frame begin_sync() resets on all sub-modules. */
   sync_scene();
 }
 
@@ -147,53 +152,34 @@ void GameInstance::begin_sync()
 
 void GameInstance::end_sync()
 {
-  /* Upload the packed light array after the scene traversal has added all lights. */
   lights.end_sync();
-
-  /* Compute tight cascade view-projections from the final light list.
-   * FIX: shadow_index writeback — ShadowModule::end_sync() now returns the
-   * atlas indices it assigned so LightModule can stamp them into LightData.
-   * See ShadowModule::end_sync() for the updated implementation. */
   shadows.end_sync();
 
-  /* Propagate shadow atlas indices computed by ShadowModule back into LightData.
-   * ShadowModule stores a compact vector of punctual-light atlas slots.
-   * We iterate the light map and match by light identity to stamp shadow_index.
-   *
-   * FIX: previously shadow_index was never written back here, so all punctual lights
-   * read shadow_index = -1 in the shader and produced no shadows. */
+  /* FIX: shadow_index writeback.
+   * ShadowModule::end_sync() assigns atlas slots into punctual_lights_ but never
+   * writes those indices back into LightData. All punctual lights would read
+   * shadow_index = -1 in the shader, producing no shadows.
+   * We iterate light_map_ here and stamp shadow_index, then re-upload. */
   {
     int slot = 0;
     for (auto &[id, light] : lights.light_map_.items()) {
       if (light.data.type == uint32_t(LightType::PUNCTUAL_SPOT) ||
           light.data.type == uint32_t(LightType::PUNCTUAL_POINT))
       {
-        if (slot < MAX_PUNCTUAL_SHADOW_SLOTS) {
-          light.data.shadow_index = slot++;
-        }
-        else {
-          light.data.shadow_index = -1; /* Budget exceeded — no shadow. */
-        }
+        light.data.shadow_index = (slot < MAX_PUNCTUAL_SHADOW_SLOTS) ? slot++ : -1;
       }
-      /* Directional lights use the CSM cascade array; their index is fixed at 0. */
       else if (light.data.type == uint32_t(LightType::SUN)) {
-        light.data.shadow_index = 0;
+        light.data.shadow_index = 0; /* CSM always uses atlas slot 0. */
       }
     }
-    /* Re-upload the light buffer now that shadow indices are stamped. */
-    lights.upload();
+    lights.upload(); /* Re-pack and push to GPU with updated shadow indices. */
   }
 
-  /* Finalise velocity: upload indirection buffer and swap current → previous. */
   velocity.geometry_steps_fill();
   velocity.end_sync();
-
   sync.end_sync();
-
-  /* Finish texture loading for all materials synced this frame. */
   materials.end_sync();
 
-  /* Sync all per-frame effect state (texture allocation, pass configuration). */
   bloom.sync();
   dof.sync();
   gtao.sync();
@@ -216,11 +202,6 @@ void GameInstance::render_frame(RenderEngine *engine, RenderLayer *layer)
 {
   render_sample();
 
-  /* Read the final pixels from GPU back to CPU and push them into the RenderLayer.
-   *
-   * The final output lives in main_view_'s display_res_tx_ (after FSR upscale) or
-   * aa_out_tx_ (when FSR is OFF). Both are blitted to the default framebuffer by
-   * Film::present(). We read from there. */
   RenderResult *rr = RE_engine_get_result(engine);
   if (rr == nullptr) {
     RE_engine_end_result(engine, layer, false, false, false);
@@ -245,7 +226,7 @@ void GameInstance::render_frame(RenderEngine *engine, RenderLayer *layer)
                               GPU_DATA_FLOAT,
                               rp->ibuf->float_buffer.data);
 
-  /* Flip Y: OpenGL framebuffer origin is bottom-left, Blender render is top-left. */
+  /* Flip Y: OpenGL origin is bottom-left, Blender render is top-left. */
   const int row_bytes = display_res.x * 4 * sizeof(float);
   Vector<uint8_t> tmp_row(row_bytes);
   float *pixels = rp->ibuf->float_buffer.data;
@@ -266,12 +247,11 @@ void GameInstance::render_frame(RenderEngine *engine, RenderLayer *layer)
 
 void GameInstance::update_eval_members()
 {
-  /* DRW_context_get() is only valid inside a DRW draw/render callback. */
-  draw_ctx      = DRW_context_get();
-  scene         = draw_ctx ? draw_ctx->scene      : nullptr;
-  view_layer    = draw_ctx ? draw_ctx->view_layer : nullptr;
-  depsgraph     = draw_ctx ? draw_ctx->depsgraph  : nullptr;
-  manager       = draw_ctx ? draw_ctx->manager    : nullptr;
+  draw_ctx       = DRW_context_get();
+  scene          = draw_ctx ? draw_ctx->scene      : nullptr;
+  view_layer     = draw_ctx ? draw_ctx->view_layer : nullptr;
+  depsgraph      = draw_ctx ? draw_ctx->depsgraph  : nullptr;
+  manager        = draw_ctx ? draw_ctx->manager    : nullptr;
   render_engine_ = draw_ctx ? draw_ctx->render_engine : nullptr;
 
   camera_eval_object = nullptr;
@@ -281,20 +261,18 @@ void GameInstance::update_eval_members()
 }
 
 /* ================================================================
- * HiZBuffer::ensure (helper)
+ * HiZBuffer::ensure
  * ================================================================ */
 
 void HiZBuffer::ensure(int2 render_res)
 {
-  /* R32F mip chain.  Mip count = floor(log2(max_dim)) + 1.
-   * Used by culling (occlusion test) and SSR (coarse ray march). */
   const int mip_levels = 1 + int(floorf(log2f(float(math::reduce_max(render_res)))));
   ref_tx_.ensure_2d_mip(gpu::TextureFormat::SFLOAT_32, render_res, mip_levels,
                          GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
 }
 
 /* ================================================================
- * LightModule stubs
+ * LightModule
  * ================================================================ */
 
 void LightModule::init()
@@ -316,7 +294,6 @@ void LightModule::add(int id, const LightEntry &entry)
 
 void LightModule::end_sync()
 {
-  /* Pack the map into a flat array in insertion order. */
   active_light_count = 0;
   LightData packed[MAX_LIGHTS];
   for (auto &[id, entry] : light_map_.items()) {
@@ -330,8 +307,7 @@ void LightModule::end_sync()
 
 void LightModule::upload()
 {
-  /* Called after shadow_index has been stamped into light_map_ entries.
-   * Re-pack and re-upload the light buffer so shaders see the updated indices. */
+  /* Re-pack and re-upload after shadow_index has been stamped by GameInstance::end_sync(). */
   end_sync();
 }
 

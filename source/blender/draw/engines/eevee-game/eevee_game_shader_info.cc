@@ -45,37 +45,37 @@ GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_gtao_upsample",    "eevee_horizon_denoi
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_ssgi_main",        "eevee_horizon_scan")
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_ssgi_blur",        "eevee_horizon_resolve")
 
-/* Bloom downsample/upsample — aliased to film copy as placeholder until
- * dedicated GLSL is written. The composite pass IS a new shader (see below). */
+/* Bloom downsample/upsample — placeholder alias until dedicated GLSL is written.
+ * The composite pass IS a proper new shader defined below. */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_bloom_downsample", "eevee_film_copy_frag")
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_bloom_upsample",   "eevee_film_copy_frag")
 
 /* Volumetrics */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_volume_scatter",   "eevee_volume_scatter")
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_volume_integrate", "eevee_volume_integration")
-/* FIX: eevee_game_volume_resolve was completely missing from the original file.
- * VolumeModule::resolve() calls static_shader_get(SH_VOLUME_RESOLVE) which maps to this name.
- * Without this alias, GPU_shader_create_from_info_name() returns nullptr and
- * the resolve() pass crashes on its first dispatch.
- * eevee_volume_resolve is EEVEE's screen-space volumetric composite shader — exactly
- * what is needed here: it reads the integrated 3D texture and composites it onto 2D color. */
+/* FIX: eevee_game_volume_resolve was entirely missing.
+ * VolumeModule::resolve() calls static_shader_get(SH_VOLUME_RESOLVE) which maps here.
+ * Without this alias, GPU_shader_create_from_info_name() returns nullptr → crash.
+ *
+ * TODO: verify that "eevee_volume_resolve" exists in the target EEVEE-Next branch.
+ * If it does not, replace this alias with a GPU_SHADER_CREATE_INFO block pointing to
+ * a new eevee_game_volume_resolve_comp.glsl. */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_volume_resolve",   "eevee_volume_resolve")
 
 /* Forward surface */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_forward",          "eevee_surf_forward")
 
-/* Anti-Aliasing */
+/* SMAA — 3-pass rasterisation, reuses EEVEE effect shaders unchanged */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_smaa_edge",        "effect_smaa_edge_aa")
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_smaa_weight",      "effect_smaa_neighborhood_blending")
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_smaa_blend",       "effect_smaa_blending_weight_calculation")
-GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_fxaa",             "eevee_film_frag")
 
 /* Depth of Field */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_dof_coc_setup",    "eevee_depth_of_field_setup")
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_dof_bokeh_blur",   "eevee_depth_of_field_gather_foreground_no_lut")
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_dof_resolve",      "eevee_depth_of_field_resolve_no_lut")
 
-/* Motion blur — not used in game mode; alias to no-op so the enum slot is filled. */
+/* Motion blur — unused in game mode; alias to no-op so the enum slot is filled. */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_motion_blur_fast", "eevee_film_copy_frag")
 
 /* Hi-Z */
@@ -88,7 +88,10 @@ GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_hiz_update",       "eevee_hiz_update")
  * \{ */
 
 /* Film present — final blit from HDR combined_tx to the viewport default framebuffer.
- * Applies exposure scalar. Simple full-screen quad with a single sampler. */
+ *
+ * Exposure is applied here, AFTER FSR3 upscaling. This means combined_tx always enters
+ * FSR with linear HDR values and no pre-exposure baked in, so preExposure = 1.0f in
+ * apply_fsr3() is correct and intentional. Do not change this ordering. */
 GPU_SHADER_CREATE_INFO("eevee_game_film_present")
     .vertex_out(gpu::shader::ScreenVertIface())
     .sampler(0, ImageType::Float2D, "combined_tx", Frequency::PASS)
@@ -106,10 +109,8 @@ GPU_SHADER_CREATE_INFO("eevee_game_film_present")
  *   binding 2 (WRITE)      : uint visible_indices_buf[]    — surviving resource_ids (compact)
  *   binding 3 (READ_WRITE) : uint visible_count_buf        — atomic counter, reset to 0 per frame
  *
- * FIX 1: original info only declared bindings 0 and 1.  The GLSL declares 4 SSBOs.
- *         Mismatch → GL_LINK_ERROR or silent reads from unbound (zero) memory.
- * FIX 2: indirect_draw_buf changed from READ_WRITE to READ — this shader never writes it.
- *         READ_WRITE forces L2 coherence tracking on AMD/NVIDIA for no reason. */
+ * FIX: original info only declared bindings 0 and 1 → GL_LINK_ERROR.
+ * FIX: indirect_draw_buf changed from READ_WRITE to READ — never written by this shader. */
 GPU_SHADER_CREATE_INFO("eevee_game_culling_compute")
     .local_group_size(64, 1, 1)
     .storage_buf(0, Qualifier::READ,       "InstanceData",                "instance_data_buf[]")
@@ -121,18 +122,40 @@ GPU_SHADER_CREATE_INFO("eevee_game_culling_compute")
     .compute_source("eevee_game_culling_comp.glsl")
     .do_static_compilation(true);
 
-/* Bloom Composite — additively blends the bloom pyramid base level onto combined_tx.
+/* FXAA — Fast Approximate Anti-Aliasing.
  *
- * Inputs:
- *   bloom_tx    : RGBA16F at render_res/2 (bilinear-sampled to full res).
- *   combined_img: RGBA16F at render_res, READ_WRITE (in-place add).
+ * FIX: was aliased to "eevee_film_frag" (EEVEE's film accumulation blit).
+ * That shader has no edge detection or filtering logic. SH_FXAA would silently
+ * produce an unfiltered copy of the source — identical to AA being disabled.
+ *
+ * eevee_game_fxaa_frag.glsl is a standard 3-sample FXAA implementation:
+ *   - Samples 4 diagonal luma neighbours to detect contrast.
+ *   - Computes an edge gradient direction.
+ *   - Performs a two-stage directional blur along the edge.
+ *   - Writes the result via imageStore (image2D RGBA16F, WRITE binding).
+ *
+ * The shader runs in the fragment stage on a full-screen triangle (3 procedural
+ * vertices from eevee_fullscreen_vert.glsl). imageStore in the fragment stage is
+ * valid under OpenGL 4.2 (GL_ARB_shader_image_load_store), which is Blender's
+ * minimum desktop GL requirement.
+ *
+ * fxaa_params.x = luma contrast threshold  (edge detection cutoff, default 0.166)
+ * fxaa_params.y = sub-pixel blend strength (default 0.125, higher = softer) */
+GPU_SHADER_CREATE_INFO("eevee_game_fxaa")
+    .vertex_out(gpu::shader::ScreenVertIface())
+    .sampler(0, ImageType::Float2D,  "color_tx", Frequency::PASS)
+    .image(0, GPU_RGBA16F, Qualifier::WRITE, ImageType::Float2D, "out_img", Frequency::PASS)
+    .push_constant(Type::VEC4, "fxaa_params")
+    .vertex_source("eevee_fullscreen_vert.glsl")
+    .fragment_source("eevee_game_fxaa_frag.glsl")
+    .do_static_compilation(true);
+
+/* Bloom Composite — additively blends the bloom pyramid base level onto combined_tx.
  *
  * For each pixel: combined_img[p] += texture(bloom_tx, uv) * bloom_intensity
  *
- * Single compute pass with imageLoad/imageStore avoids a temporary texture allocation
- * (saves ~8 MB at 1440p, ~16 MB at 4K) compared to a ping-pong framebuffer approach.
- *
- * This shader is new to eevee_game; EEVEE-Next does not have a standalone bloom composite. */
+ * Single READ_WRITE imageLoad/imageStore compute pass. No temporary texture needed:
+ * saves ~8 MB at 1440p, ~16 MB at 4K compared to a ping-pong framebuffer approach. */
 GPU_SHADER_CREATE_INFO("eevee_game_bloom_composite")
     .local_group_size(8, 8, 1)
     .sampler(0, ImageType::Float2D, "bloom_tx", Frequency::PASS)
