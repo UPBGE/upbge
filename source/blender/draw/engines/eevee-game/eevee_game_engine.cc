@@ -90,8 +90,15 @@ static void eevee_game_render_update_passes(RenderEngine *engine,
 /* ---- Engine Type Registration ----
  * The idname "BLENDER_EEVEE_GAME" must also be registered in rna_scene.cc.
  *
- * IMPORTANT: Call Engine::init_static() from draw_context.cc immediately after
- * DRW_engines_register() for this engine type. */
+ * IMPORTANT_XXX: Call Engine::init_static() from draw_context.cc immediately after
+ * DRW_engines_register() for this engine type. This acquires the eevee::ShaderModule
+ * singleton reference required for material shader compilation.
+ * Example in draw_context.cc:
+ *
+ *   RE_engines_register(&DRW_engine_viewport_eevee_type);
+ *   RE_engines_register(&DRW_engine_viewport_eevee_game_type);
+ *   blender::eevee_game::Engine::init_static();  // ← TODO: add this line
+ */
 RenderEngineType DRW_engine_viewport_eevee_game_type = {
     /* next */                nullptr,
     /* prev */                nullptr,
