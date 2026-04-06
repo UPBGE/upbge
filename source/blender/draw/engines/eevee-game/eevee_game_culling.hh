@@ -3,61 +3,59 @@
 
 #pragma once
 
-#include "eevee_game_defines.hh"
-#include "GPU_buffer.hh"
+#include "eevee_game_defines.hh"  /* GPUInstanceData is defined here - not redefined below */
+#include "GPU_storage_buffer.hh"
+
+struct Object;
 
 namespace blender::eevee_game {
 
-// Data for a single object instance on the GPU
-struct GPUInstanceData {
-    float4x4 model_matrix;
-    float3 bb_min;
-    uint32_t object_id;
-    float3 bb_max;
-    uint32_t flags; // e.g., Shadow caster, Transparent, etc.
-};
-
-// Arguments for the Indirect Draw call (Matches OpenGL/Vulkan specs)
+/* Arguments for DrawElementsIndirect - matches the OpenGL/Vulkan spec layout exactly.
+ * The Compute Shader writes instanceCount; the CPU fills count/firstIndex/etc. */
 struct DrawCommand {
-    uint32_t count;         // Indices count
-    uint32_t instanceCount; // To be filled by Compute Shader
-    uint32_t firstIndex;
-    uint32_t baseVertex;
-    uint32_t baseInstance;
+  uint32_t count;          /* Index count per draw */
+  uint32_t instanceCount;  /* Filled by the culling Compute Shader */
+  uint32_t firstIndex;
+  uint32_t baseVertex;
+  uint32_t baseInstance;
 };
 
 class CullingModule {
-public:
-    CullingModule(class GameInstance &inst);
-    ~CullingModule();
+ public:
+  CullingModule(class GameInstance &inst);
+  ~CullingModule() = default; /* unique_ptr members handle GPU resource cleanup */
 
-    void init();
-    
-    // Reset instance counters for the new frame
-    void begin_sync();
-    
-    // Add an object to the GPU buffer instead of drawing it immediately
-    void add_instance(Object *ob, uint32_t resource_id);
-    
-    // Run the Compute Shader to filter visible instances
-    void execute_culling(View &view);
+  void init();
 
-    // Buffers for Shaders
-    gpu::StorageBuffer *get_instance_buffer() { return instance_data_sb_.get(); }
-    gpu::StorageBuffer *get_visible_idx_buffer() { return visible_indices_sb_.get(); }
+  /* Clear the CPU instance list at the start of each frame */
+  void begin_sync();
 
-private:
-    GameInstance *inst_;
-    
-    // Source data: All objects in the scene
-    std::unique_ptr<gpu::StorageBuffer> instance_data_sb_;
-    // Output data: Indices of objects that passed culling
-    std::unique_ptr<gpu::StorageBuffer> visible_indices_sb_;
-    // Output data: Arguments for DrawIndirect
-    std::unique_ptr<gpu::StorageBuffer> indirect_draw_sb_;
+  /* Append one object to the pending instance list (CPU side) */
+  void add_instance(Object *ob, uint32_t resource_id);
 
-    std::vector<GPUInstanceData> cpu_instance_cache_;
-    PassSimple culling_ps_{"Culling.Execute"};
+  /* Upload instance data and dispatch the GPU culling compute shader */
+  void execute_culling(View &view);
+
+  gpu::StorageBuffer *get_instance_buffer()   { return instance_data_sb_.get(); }
+  gpu::StorageBuffer *get_visible_idx_buffer() { return visible_indices_sb_.get(); }
+
+ private:
+  GameInstance *inst_;
+
+  /* Source: all object transforms/AABBs uploaded to the GPU each frame */
+  std::unique_ptr<gpu::StorageBuffer> instance_data_sb_;
+  /* Output: resource_ids of objects that passed frustum + Hi-Z culling */
+  std::unique_ptr<gpu::StorageBuffer> visible_indices_sb_;
+  /* Output: DrawElementsIndirect argument buffer (instanceCount written by GPU) */
+  std::unique_ptr<gpu::StorageBuffer> indirect_draw_sb_;
+  /* Single uint32 atomic counter — reset to 0 before each dispatch,
+   * incremented by the culling shader for each surviving instance. */
+  std::unique_ptr<gpu::StorageBuffer> visible_count_sb_;
+
+  /* CPU staging list; cleared each frame, uploaded in one shot before dispatch */
+  std::vector<GPUInstanceData> cpu_instance_cache_;
+
+  PassSimple culling_ps_{"Culling.Execute"};
 };
 
 } // namespace blender::eevee_game
