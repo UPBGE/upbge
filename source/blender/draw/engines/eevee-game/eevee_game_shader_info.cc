@@ -74,9 +74,9 @@ GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_tile_classify",    "eevee_deferred_tile
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_gbuffer",          "eevee_surf_deferred")
 
 /* Shadow atlas rasterisation — depth-only surface pass, reused verbatim. */
-GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_shadow_csm",       "eevee_surf_shadow")
-GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_shadow_atlas",     "eevee_surf_shadow")
-GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_shadow_pcss",      "eevee_surf_depth")
+GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_shadow_csm",        "eevee_surf_shadow")
+GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_shadow_atlas",      "eevee_surf_shadow")
+GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_shadow_depth_write","eevee_surf_depth")
 
 /* Screen-space reflections — EEVEE Hi-Z trace, same binding layout. */
 GPU_SHADER_CREATE_INFO_ALIAS("eevee_game_ssr_hiz_trace",    "eevee_ray_trace_screen")
