@@ -53,6 +53,10 @@ void GameInstance::init(const int2 &output_res, const rcti *output_rect)
   /* Static modules. */
   culling.init();
   lights.init();
+  /* shadows.init() allocates both atlases.
+   * Default: DynamicShadowSlots::S16 (16 slots, 2048x2048, ~4 MB).
+   * To change at runtime (e.g. from game settings), call:
+   *   shadows.init(DynamicShadowSlots::S4 / S16 / S64 / OFF) */
   shadows.init();
   volume.init();
   bloom.init();
@@ -155,25 +159,60 @@ void GameInstance::end_sync()
   lights.end_sync();
   shadows.end_sync();
 
-  /* FIX: shadow_index writeback.
-   * ShadowModule::end_sync() assigns atlas slots into punctual_lights_ but never
-   * writes those indices back into LightData. All punctual lights would read
-   * shadow_index = -1 in the shader, producing no shadows.
-   * We iterate light_map_ here and stamp shadow_index, then re-upload. */
-  {
-    int slot = 0;
-    for (auto &[id, light] : lights.light_map_.items()) {
-      if (light.data.type == uint32_t(LightType::PUNCTUAL_SPOT) ||
-          light.data.type == uint32_t(LightType::PUNCTUAL_POINT))
-      {
-        light.data.shadow_index = (slot < MAX_PUNCTUAL_SHADOW_SLOTS) ? slot++ : -1;
+  /* Shadow index writeback — dual atlas edition.
+   *
+   * ShadowModule::end_sync() builds static_punctual_ and dynamic_punctual_
+   * lists but LightData.shadow_index must be set before the GPU upload.
+   *
+   * Encoding convention (must match the deferred lighting shader):
+   *   shadow_index >= 0                       → static atlas slot index
+   *   shadow_index in [DYNAMIC_BASE .. +N-1]  → dynamic atlas slot index
+   *   shadow_index == -1                      → no shadow
+   *
+   * We use STATIC_PUNCTUAL_SLOTS as the base offset for dynamic indices so
+   * the shader can distinguish the two atlases with a single integer compare:
+   *   if (idx < STATIC_PUNCTUAL_SLOTS) → sample static_atlas
+   *   else                             → sample dynamic_atlas at (idx - base)
+   */
+  constexpr int DYNAMIC_INDEX_BASE = STATIC_PUNCTUAL_SLOTS; /* == 12 */
+
+  int static_slot  = 0;
+  int dynamic_slot = 0;
+
+  for (auto &[id, light] : lights.light_map_.items()) {
+    if (light.data.type == uint32_t(LightType::SUN)) {
+      light.data.shadow_index = 0; /* CSM always uses static atlas cascade row. */
+      continue;
+    }
+
+    if (light.data.type != uint32_t(LightType::PUNCTUAL_SPOT) &&
+        light.data.type != uint32_t(LightType::PUNCTUAL_POINT))
+    {
+      light.data.shadow_index = -1;
+      continue;
+    }
+
+    const bool is_dynamic = (light.data.flags & LIGHT_FLAG_SHADOW_DYNAMIC) != 0;
+
+    if (is_dynamic && dynamic_slot < shadows.dynamic_slot_count()) {
+      /* Dynamic atlas: encode index above the static range. */
+      light.data.shadow_index = DYNAMIC_INDEX_BASE + dynamic_slot++;
+    }
+    else if (!is_dynamic && static_slot < STATIC_PUNCTUAL_SLOTS) {
+      light.data.shadow_index = static_slot++;
+    }
+    else {
+      /* Fallback: dynamic atlas full → try static; static full → no shadow. */
+      if (static_slot < STATIC_PUNCTUAL_SLOTS) {
+        light.data.shadow_index = static_slot++;
       }
-      else if (light.data.type == uint32_t(LightType::SUN)) {
-        light.data.shadow_index = 0; /* CSM always uses atlas slot 0. */
+      else {
+        light.data.shadow_index = -1;
       }
     }
-    lights.upload(); /* Re-pack and push to GPU with updated shadow indices. */
   }
+
+  lights.upload(); /* Re-pack and push to GPU with updated shadow indices. */
 
   velocity.geometry_steps_fill();
   velocity.end_sync();
