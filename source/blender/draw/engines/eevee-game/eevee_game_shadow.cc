@@ -239,6 +239,79 @@ void ShadowModule::set_view(View &view, int2 extent)
   GPU_framebuffer_viewport_reset(&shadow_fb_);
 
   GPU_debug_group_end();
+
+  /* --- PCF 3x3 Compute Pass ---
+   * The atlas is now fully populated. Dispatch the compute shader that reads
+   * G-Buffer depth + normal and writes shadow_mask_tx.
+   * This must happen AFTER the atlas rasterisation and BEFORE the lighting pass. */
+  dispatch_pcf(extent);
+}
+
+void ShadowModule::dispatch_pcf(int2 extent)
+{
+  GPU_debug_group_begin("Shadow.PCF");
+
+  RenderBuffers &rbufs = inst_->render_buffers;
+
+  /* Re-init each frame: texture pointers are stable but the pass object is cheap
+   * to rebuild and this avoids stale bindings if resolution changes. */
+  pcf_ps_.init();
+  pcf_ps_.shader_set(inst_->shaders.static_shader_get(SH_SHADOW_PCF_FILTER));
+
+  /* Inputs: G-Buffer depth and normal (layer 0 of rp_color_tx = world normals) */
+  pcf_ps_.bind_texture("depth_tx",    &rbufs.depth_tx);
+  pcf_ps_.bind_texture("normal_tx",   rbufs.rp_color_tx.layer_view(0));
+  pcf_ps_.bind_texture("shadow_atlas", atlas_tx_.get());
+
+  /* Output: shadow mask at render resolution */
+  pcf_ps_.bind_image("shadow_mask_img", &rbufs.shadow_mask_tx);
+
+  /* Per-frame camera inverse VP for world-space position reconstruction.
+   * Same matrix that GTAO, SSGI, and SSR use — already computed by uniform_data. */
+  const float4x4 vp_inv = math::invert(
+      inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat);
+  pcf_ps_.push_constant("viewprojinv", vp_inv);
+
+  /* Upload cascade matrices individually — the shader declares them as
+   * separate uniforms (cascade_viewproj[0..3]) not as an array UBO,
+   * keeping the binding layout flat and avoiding a UBO allocation. */
+  for (int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
+    const float4x4 &m = (i < int(cascades_.size())) ?
+                         cascades_[i].view_proj :
+                         float4x4::identity();
+    /* Push constant names must match the shader declarations exactly. */
+    const char *names[MAX_SHADOW_CASCADES] = {
+        "cascade_viewproj[0]",
+        "cascade_viewproj[1]",
+        "cascade_viewproj[2]",
+        "cascade_viewproj[3]",
+    };
+    pcf_ps_.push_constant(names[i], m);
+  }
+
+  /* Pack cascade split depths into a vec4 (one float per cascade).
+   * The shader uses these to select the correct cascade tile per pixel. */
+  float4 splits = float4(0.0f);
+  for (int i = 0; i < math::min(int(cascades_.size()), MAX_SHADOW_CASCADES); ++i) {
+    splits[i] = cascades_[i].split_depth;
+  }
+  pcf_ps_.push_constant("cascade_splits",  splits);
+  pcf_ps_.push_constant("shadow_bias",     0.005f);        /* 5 mm world-space normal bias */
+  pcf_ps_.push_constant("pcf_offset_scale", data_.pcf_offset_scale);
+  pcf_ps_.push_constant("shadow_map_res",  SHADOW_ATLAS_RES);
+
+  /* Dispatch: one thread per pixel, 8x8 tiles.
+   * divide_ceil ensures coverage when extent is not a multiple of 8. */
+  pcf_ps_.dispatch(math::divide_ceil(extent, int2(8)));
+
+  /* Barrier: the lighting pass reads shadow_mask_tx as a sampler2D.
+   * GPU_BARRIER_TEXTURE_FETCH ensures the imageStore writes are visible
+   * to subsequent texture() calls without explicit sync on the CPU side. */
+  pcf_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+
+  inst_->manager->submit(pcf_ps_);
+
+  GPU_debug_group_end();
 }
 
 void ShadowModule::sync_object(Object *ob, ResourceHandleRange res_handle)

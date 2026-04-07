@@ -71,6 +71,7 @@ set(SRC
   shaders/eevee_game_film_present_frag.glsl
   shaders/eevee_game_fsr2_mask_gen.glsl
   shaders/eevee_game_fxaa_frag.glsl
+  shaders/eevee_game_shadow_pcf_comp.glsl
   shaders/eevee_game_smaa_frag.glsl
 )
 

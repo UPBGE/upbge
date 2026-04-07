@@ -164,4 +164,43 @@ GPU_SHADER_CREATE_INFO("eevee_game_bloom_composite")
     .compute_source("eevee_game_bloom_composite_comp.glsl")
     .do_static_compilation(true);
 
+/* Deterministic 3x3 PCF Shadow Filter — compute shader.
+ *
+ * Runs as a full-screen compute dispatch after the shadow atlas is rendered
+ * and before the deferred lighting pass. Reads the G-Buffer depth and normal
+ * to reconstruct world-space position, projects into shadow-atlas space, and
+ * writes one shadow factor (R16F) per pixel into shadow_mask_img.
+ *
+ * The lighting pass reads shadow_mask_tx as a plain sampler2D — no shadow
+ * comparison needed there, the filter result is already in [0, 1].
+ *
+ * Binding layout (must match eevee_game_shadow_pcf_comp.glsl exactly):
+ *   sampler 0 : depth_tx       — scene depth (SFLOAT_32_DEPTH)
+ *   sampler 1 : normal_tx      — G-Buffer normals (RGBA16F, layer 0 of rp_color_tx)
+ *   sampler 2 : shadow_atlas   — fixed 4096x4096 depth atlas, compare mode ON (D32F)
+ *   image   0 : shadow_mask    — output R16F (shadow factor [0,1])
+ *
+ * Uniforms are bound via push_constant; cascade matrices + splits are uploaded
+ * as individual MAT4/VEC4 constants (no UBO indirection, avoids binding point
+ * allocation overhead for a small constant payload of 4 matrices + 1 vec4).
+ *
+ * Local group 8x8 = 64 threads: fills one NVIDIA warp-pair / one AMD wavefront. */
+GPU_SHADER_CREATE_INFO("eevee_game_shadow_pcf_compute")
+    .local_group_size(8, 8, 1)
+    .sampler(0, ImageType::Float2D,       "depth_tx",     Frequency::PASS)
+    .sampler(1, ImageType::Float2D,       "normal_tx",    Frequency::PASS)
+    .sampler(2, ImageType::Float2DShadow, "shadow_atlas", Frequency::PASS)
+    .image(0, GPU_R16F, Qualifier::WRITE, ImageType::Float2D, "shadow_mask_img", Frequency::PASS)
+    .push_constant(Type::MAT4,  "viewprojinv")
+    .push_constant(Type::MAT4,  "cascade_viewproj[0]")
+    .push_constant(Type::MAT4,  "cascade_viewproj[1]")
+    .push_constant(Type::MAT4,  "cascade_viewproj[2]")
+    .push_constant(Type::MAT4,  "cascade_viewproj[3]")
+    .push_constant(Type::VEC4,  "cascade_splits")
+    .push_constant(Type::FLOAT, "shadow_bias")
+    .push_constant(Type::FLOAT, "pcf_offset_scale")
+    .push_constant(Type::INT,   "shadow_map_res")
+    .compute_source("eevee_game_shadow_pcf_comp.glsl")
+    .do_static_compilation(true);
+
 /** \} */

@@ -41,6 +41,11 @@ void RenderBuffers::acquire(int2 extent) {
   rp_color_tx.ensure_2d_array(gpu::TextureFormat::SFLOAT_16_16_16_16, extent, color_len, usage_rw);
   rp_value_tx.ensure_2d_array(gpu::TextureFormat::SFLOAT_16, extent, value_len, usage_rw);
 
+  /* Shadow mask: written exclusively by the PCF compute pass, read by deferred lighting.
+   * Allocated at render resolution (same as depth/normal).
+   * R16F — 2 bytes per pixel, ~4 MB at 1440p. No pooling needed: persists whole frame. */
+  shadow_mask_tx.ensure_2d(gpu::TextureFormat::SFLOAT_16, extent, usage_rw);
+
   // 3. FSR 3.0 Specific Buffers
   // Masks are generated at render resolution
   reactive_mask_tx.acquire(extent, gpu::TextureFormat::R8, usage_rw);
@@ -57,6 +62,8 @@ void RenderBuffers::release() {
   reactive_mask_tx.release();
   transp_mask_tx.release();
   ui_color_tx.release();
+  /* shadow_mask_tx is ensure_2d (not pooled), so no release needed —
+   * it persists across frames and is reused in-place each frame. */
 }
 
 } // namespace blender::eevee_game

@@ -59,13 +59,15 @@ class ShadowModule {
    * Called once per mesh from SyncModule::sync_mesh(). */
   void sync_object(Object *ob, ResourceHandleRange res_handle);
 
-  /* Render all shadow maps into the atlas from the given camera's perspective */
+  /* Render all shadow maps into the atlas from the given camera's perspective,
+   * then dispatch the PCF compute pass to populate shadow_mask_tx. */
   void set_view(View &view, int2 extent);
 
   const ShadowData  &get_data()  const { return data_; }
   gpu::Texture      *get_atlas()       { return atlas_tx_.get(); }
 
-  /* Bind shadow atlas texture + cascade UBO to a render pass */
+  /* Bind shadow atlas texture to a render pass (used by forward pass).
+   * The deferred lighting pass reads shadow_mask_tx directly from RenderBuffers. */
   void bind_resources(PassSimple &ps);
 
  private:
@@ -75,6 +77,11 @@ class ShadowModule {
 
   void allocate_atlas();
 
+  /* Build and dispatch the PCF 3x3 compute pass.
+   * Reads depth_tx + normal_tx (G-Buffer), writes shadow_mask_tx.
+   * Called from set_view() after the atlas rasterisation is complete. */
+  void dispatch_pcf(int2 extent);
+
   GameInstance *inst_;
   ShadowData   &data_;
 
@@ -83,6 +90,10 @@ class ShadowModule {
   /* Depth-only pass submitted from each light's viewpoint */
   PassSimple  shadow_pass_ps_{"Shadow.Pass"};
   Framebuffer shadow_fb_;
+
+  /* PCF compute pass: one shadow factor per pixel, written into shadow_mask_tx.
+   * Re-initialised each set_view() call to rebind the current frame's textures. */
+  PassSimple pcf_ps_{"Shadow.PCF"};
 
   std::vector<ShadowCascade>  cascades_;
   std::vector<ShadowPunctual> punctual_lights_;

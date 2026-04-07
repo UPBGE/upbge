@@ -69,6 +69,9 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
     case SH_SHADOW_DIRECTIONAL_CSM:  return "eevee_game_shadow_csm";
     case SH_SHADOW_PUNCTUAL_ATLAS:   return "eevee_game_shadow_atlas";
     case SH_SHADOW_PCSS_FILTER:      return "eevee_game_shadow_pcss";
+    /* PCF compute: reads G-Buffer depth+normal, writes shadow_mask_tx.
+     * This is the game-mode default filtering path — deterministic, no noise. */
+    case SH_SHADOW_PCF_FILTER:       return "eevee_game_shadow_pcf_compute";
 
     /* --- SSR --- */
     case SH_SSR_TRACE:               return "eevee_game_ssr_hiz_trace";
@@ -154,10 +157,11 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
     { SH_GBUFFER,                SG_LIGHTING },
     { SH_FORWARD,                SG_LIGHTING },
 
-    /* Shadow */
+    /* Shadow — atlas rasterisation + PCF compute filter */
     { SH_SHADOW_DIRECTIONAL_CSM, SG_SHADOW },
     { SH_SHADOW_PUNCTUAL_ATLAS,  SG_SHADOW },
     { SH_SHADOW_PCSS_FILTER,     SG_SHADOW },
+    { SH_SHADOW_PCF_FILTER,      SG_SHADOW },
 
     /* Post FX */
     { SH_BLOOM_DOWNSAMPLE,       SG_POST_FX },

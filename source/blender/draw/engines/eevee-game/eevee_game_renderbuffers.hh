@@ -52,6 +52,12 @@ class RenderBuffers {
   gpu::Texture rp_color_tx;   // Array of SFLOAT_16_16_16_16
   gpu::Texture rp_value_tx;   // Array of SFLOAT_16 (Single Channel)
 
+  /* Shadow mask: one float per pixel, written by the PCF 3x3 compute shader
+   * and read by the deferred lighting pass as a plain sampler2D.
+   * R16F: 16-bit float is sufficient for a [0,1] shadow factor — halves VRAM
+   * cost vs R32F (~4 MB vs ~8 MB at 1440p) with no visible precision loss. */
+  gpu::Texture shadow_mask_tx; // R16F, render resolution
+
   // FSR 3.0 Specific Buffers
   gpu::Texture reactive_mask_tx; // R8 (Protects smoke/alpha)
   gpu::Texture transp_mask_tx;   // R8 (Protects glass/composition)

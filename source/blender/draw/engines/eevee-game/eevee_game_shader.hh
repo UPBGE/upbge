@@ -30,6 +30,13 @@ enum eShaderType {
   SH_SHADOW_PUNCTUAL_ATLAS,
   SH_SHADOW_PCSS_FILTER,
 
+  /* Deterministic 3x3 PCF shadow mask — compute shader that reads depth + normal
+   * from the G-Buffer and writes one shadow factor per pixel into shadow_mask_tx.
+   * Runs after the shadow atlas is rendered, before the deferred lighting pass.
+   * Kept separate from SH_SHADOW_PCSS_FILTER: PCF is the game-mode default path
+   * (stable, zero noise, no denoiser); PCSS is an optional higher-quality mode. */
+  SH_SHADOW_PCF_FILTER,
+
   /* --- Reflections (Fast Hi-Z SSR) --- */
   SH_SSR_TRACE,
 

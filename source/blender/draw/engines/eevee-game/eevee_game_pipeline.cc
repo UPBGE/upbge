@@ -202,7 +202,10 @@ void PipelineModule::sync()
   /* ---- Tiled Deferred Lighting pass ----
    * A full-screen pass that reads the G-Buffer and evaluates all lights
    * within each screen tile. The tile size (e.g. 16x16) is hardcoded in the shader.
-   * Binds: shadow atlas, light SSBO, AO result, SSGI result, uniform data. */
+   * Binds: shadow mask, light SSBO, AO result, SSGI result, uniform data.
+   *
+   * shadow_mask_tx is written by the PCF compute pass (dispatch_pcf) which runs
+   * inside ShadowModule::set_view(), called from render() below before this pass. */
   opaque_layer_.lighting_ps_.init();
   opaque_layer_.lighting_ps_.shader_set(shaders_->static_shader_get(SH_DEFERRED_LIGHT));
 
@@ -214,6 +217,12 @@ void PipelineModule::sync()
   /* AO and GI from the screen-space effect modules */
   opaque_layer_.lighting_ps_.bind_texture("ao_tx",   inst_->gtao.get_result());
   opaque_layer_.lighting_ps_.bind_texture("ssgi_tx", inst_->ssgi.get_result());
+
+  /* Pre-filtered shadow mask: one [0,1] float per pixel written by the PCF compute.
+   * Binding here is safe because the texture handle is stable across frames;
+   * the actual pixel data is filled during set_view() before submit(). */
+  opaque_layer_.lighting_ps_.bind_texture("shadow_mask_tx",
+                                           &inst_->render_buffers.shadow_mask_tx);
 
   /* Shadow atlas and light list */
   inst_->shadows.bind_resources(opaque_layer_.lighting_ps_);
@@ -250,7 +259,23 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   GPU_debug_group_end();
 
   /* ================================================================
-   * Pass 2: Screen-Space Ambient Occlusion (GTAO)
+   * Pass 2: Shadow Atlas + PCF Compute
+   *
+   * set_view() does two things in sequence:
+   *   a) Rasterises scene geometry from each light's POV into the fixed atlas.
+   *   b) Dispatches the PCF 3x3 compute shader that reads G-Buffer depth+normal
+   *      and writes shadow_mask_tx (one float per pixel).
+   *
+   * This must happen BEFORE GTAO/SSGI/Lighting so that shadow_mask_tx is
+   * populated when the lighting pass samples it.
+   *
+   * Why here and not in view.cc before pipelines.render()?
+   *   The PCF compute reads rp_color_tx (normals) which is written in Pass 1.
+   *   Calling set_view() before the G-Buffer fill would read stale normal data. */
+  inst_->shadows.set_view(view, extent);
+
+  /* ================================================================
+   * Pass 3: Screen-Space Ambient Occlusion (GTAO)
    * Run before the lighting pass so ao_tx is ready to bind.
    * Works on the just-written normal and depth data. */
   GPU_debug_group_begin("GTAO");
@@ -260,7 +285,7 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   GPU_debug_group_end();
 
   /* ================================================================
-   * Pass 3: Screen-Space Global Illumination (SSGI)
+   * Pass 4: Screen-Space Global Illumination (SSGI)
    * Computes one diffuse bounce from the current frame's radiance.
    * Uses the combined_tx from the previous frame as the radiance source,
    * which is still resident in GPU memory at this point. */
@@ -272,12 +297,13 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   GPU_debug_group_end();
 
   /* ================================================================
-   * Pass 4: Tiled Deferred Lighting
+   * Pass 5: Tiled Deferred Lighting
    * Full-screen pass that evaluates all lights per tile, reading from:
    *   - G-Buffer layers (normals, closures)
    *   - GTAO result (ambient occlusion)
    *   - SSGI result (indirect bounce)
-   *   - Shadow Atlas (CSM + punctual)
+   *   - shadow_mask_tx (pre-filtered PCF shadow factor, written in Pass 2)
+   *   - Shadow Atlas (CSM + punctual, for forward/punctual lookup)
    *   - Light SSBO
    * Writes the final HDR radiance into combined_tx. */
   GPU_debug_group_begin("DeferredLighting");
@@ -287,7 +313,7 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   GPU_debug_group_end();
 
   /* ================================================================
-   * Pass 5: Transparent Forward + FSR Reactive Mask
+   * Pass 6: Transparent Forward + FSR Reactive Mask
    *
    * Snapshot the opaque-only color before drawing transparencies.
    * The pixel-wise delta between the snapshot and the post-transparency result
