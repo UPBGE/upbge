@@ -158,11 +158,13 @@ void UpscaleModule::apply_fsr3(gpu::Texture *src, gpu::Texture *dst, gpu::Textur
 
   const CameraData &cam = inst_->camera.data_get();
   const float2 render_res_f = float2(render_res);
-  const float  aspect       = render_res_f.x / render_res_f.y;
+  /* Same guard as in begin_sync(): during window resize render_res.y can
+   * transiently be 0. A NaN cameraFovAngleVertical causes FSR3 to assert
+   * or produce garbage temporal accumulation for the entire subsequent
+   * sequence until the context is recreated. */
+  const float  aspect       = (render_res_f.y > 0.0f) ?
+                               render_res_f.x / render_res_f.y : 1.0f;
 
-  /* FIX: was `2 * atan(sensor_width * 0.5 / focal_length)` — that is the horizontal FOV,
-   * not the vertical.  FSR3 expects the vertical FOV angle (cameraFovAngleVertical).
-   * Derivation: sensor_height = sensor_width / aspect; fov_y = 2*atan(sensor_height / (2*f)). */
   const float sensor_height = cam.sensor_width / aspect;
   dispatch.cameraFovAngleVertical = 2.0f * atanf(sensor_height / (2.0f * cam.focal_length));
 

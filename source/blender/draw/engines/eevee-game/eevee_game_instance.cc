@@ -127,13 +127,13 @@ void GameInstance::begin_sync()
   uniform_data.frame_count = uint32_t(film.frame_index_get());
 
   const float2 render_res = float2(film.render_extent_get());
-  const float  aspect     = render_res.x / render_res.y;
-
-  /* FIX: was `2 * atan(sensor_width * 0.5 / focal_length) / aspect` — dividing the
-   * vertical angle by aspect is wrong; it would narrow the FOV as the image gets wider.
-   * Correct derivation:
-   *   sensor_height = sensor_width / aspect  (landscape format)
-   *   fov_y = 2 * atan(sensor_height / (2 * focal_length)) */
+  /* Guard against zero height during window creation / minimise.
+   * A zero denominator produces Inf in sensor_height and NaN in atan2,
+   * which corrupts the projection matrix for the entire frame.
+   * Aspect 1:1 is a safe neutral default: produces a valid matrix with
+   * no geometry visible, better than a NaN that propagates everywhere. */
+  const float  aspect     = (render_res.y > 0.0f) ?
+                             render_res.x / render_res.y : 1.0f;
   const float sensor_height = camera.data_get().sensor_width / aspect;
   const float fov_y         = 2.0f * atanf(sensor_height /
                                             (2.0f * camera.data_get().focal_length));

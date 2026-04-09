@@ -72,7 +72,14 @@ void VolumeModule::render(View &view)
   volume_scatter_ps_.bind_resources(inst_->uniform_data);
   volume_scatter_ps_.bind_image("out_grid_img", volume_grid_tx_.get());
   volume_scatter_ps_.push_constant("vol_density",    settings_.density);
-  volume_scatter_ps_.push_constant("vol_anisotropy", settings_.anisotropy);
+  /* Clamp g to [−0.99, 0.99]: the Henyey-Greenstein denominator is
+   *   (1 + g² − 2g·cosθ)^(3/2)
+   * At g = ±1.0 the denominator goes to zero for θ = 0 (or π),
+   * producing Inf phase which propagates into the froxel grid and
+   * poisons the Beer-Lambert integration for the entire volume.
+   * 0.99 preserves extreme anisotropy without the singularity. */
+  volume_scatter_ps_.push_constant("vol_anisotropy",
+                                    math::clamp(settings_.anisotropy, -0.99f, 0.99f));
 
   const int3 grid_size = volume_grid_tx_->size();
   volume_scatter_ps_.dispatch(math::divide_ceil(grid_size, int3(8, 8, 1)));

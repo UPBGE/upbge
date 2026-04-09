@@ -80,19 +80,29 @@ void ShadingView::render()
   inst_.hiz_update_ps_.bind_texture("depth_tx", &rbufs.depth_tx);
   inst_.hiz_update_ps_.dispatch(
       math::divide_ceil(inst_.film.render_extent_get(), int2(8)));
+  /* GPU_BARRIER_TEXTURE_FETCH: ensures imageStore writes from the HiZ mip
+   * downsampling compute are visible to subsequent texture() reads in:
+   *   - CullingModule::execute_culling()  (hiz_tx occlusion test, next frame)
+   *   - GTAOModule::render()              (hiz_tx horizon search)
+   *   - SSGIModule::render()              (hiz_tx ray march)
+   *   - RayTraceModule::render()          (hiz_tx SSR trace)
+   * Without this barrier all four shaders read stale or partially-written
+   * mip data, producing flickering and incorrect occlusion culling results. */
+  inst_.hiz_update_ps_.barrier(GPU_BARRIER_TEXTURE_FETCH |
+                               GPU_BARRIER_SHADER_IMAGE_ACCESS);
 
   /* ================================================================
    * Step 3: Main Rendering Pipeline
-   * G-Buffer → GTAO → SSGI → Tiled Deferred Lighting → Transparent Forward.
+   * G-Buffer -> GTAO -> SSGI -> Tiled Deferred Lighting -> Transparent Forward.
    * FIX: was called as pipelines.render(render_view_) — missing combined_fb_ argument. */
   inst_.pipelines.render(render_view_, combined_fb_);
 
   /* ================================================================
    * Step 4: Post-Processing chain
    *
-   * combined_tx  ──Bloom additive──► combined_tx  ──DoF──► postfx_tx_
+   * combined_tx  -> Bloom additive -> combined_tx  -> DoF -> postfx_tx_
    *                                                              │
-   *                                                    AA or FSR3 below
+   *                                                        AA or FSR3 below
    *
    * All three textures (combined_tx, postfx_tx_, aa_out_tx_/display_res_tx_)
    * are distinct — necessary to avoid compute shader read/write aliasing. */
