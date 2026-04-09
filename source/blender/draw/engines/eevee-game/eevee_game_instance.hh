@@ -144,6 +144,20 @@ class GameInstance {
 
   /* ---- Shared state ---- */
 
+  /* Shared per-frame state propagated to all modules before any sync.
+   * camera_cut: set by the game logic layer when the active camera changes
+   *   discontinuously (scene load, teleport, camera switch). Consumed by
+   *   UpscaleModule (FSR3 reset), SSGIModule and GTAOModule (history discard).
+   *   Reset to false at the end of begin_sync() after all modules have read it.
+   * history_valid: false on the very first frame and after any camera_cut.
+   *   Modules that read from previous-frame buffers (SSGI radiance cache,
+   *   GTAO temporal, SSR reprojection) must skip history blending when false. */
+  struct FrameState {
+    bool camera_cut    = false;
+    bool history_valid = false;
+    uint32_t  frame_index   = 0;
+  } frame_state;
+
   UniformData     uniform_data;
   UpscaleSettings upscale_settings;
   HiZBufferPair   hiz_buffer;

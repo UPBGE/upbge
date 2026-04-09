@@ -105,6 +105,18 @@ void GameInstance::begin_sync()
 {
   update_eval_members();
 
+  /* Advance frame state. history_valid becomes true after the first complete
+   * frame so temporal modules do not blend against uninitialised buffers. */
+  frame_state.frame_index++;
+  /* Single expression: valid only after the first complete frame AND when
+   * no discontinuity occurred. camera_cut is read here by all modules
+   * before being cleared at the end of this block. */
+  frame_state.history_valid = (frame_state.frame_index > 1) && !frame_state.camera_cut;
+  if (frame_state.camera_cut) {
+    upscale.notify_camera_cut();
+    frame_state.camera_cut = false;  /* cleared after all modules have read it */
+  }
+
   film.sync();
 
   /* Re-sync the view textures if the resolution changed (e.g. window resize
@@ -137,7 +149,8 @@ void GameInstance::begin_sync()
   uniform_data.z_near      = camera.data_get().clip_near;
   uniform_data.z_far       = camera.data_get().clip_far;
   uniform_data.delta_time  = delta_time_ms * 0.001f;
-  uniform_data.frame_count = uint32_t(film.frame_index_get());
+  /* begin_sync() — single assignment, no separate tracking */
+  uniform_data.frame_count = frame_state.frame_index;
 
   const float2 render_res = float2(film.render_extent_get());
   /* Guard against zero height during window creation / minimise.

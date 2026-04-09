@@ -25,7 +25,6 @@ private:
   int2 display_extent_;
   int2 render_extent_;
   float2 jitter_;
-  uint64_t frame_index_ = 0;
 };
 
 } // namespace blender::eevee_game

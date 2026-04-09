@@ -36,7 +36,17 @@ void SSGIModule::sync() {
 void SSGIModule::render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *depth_tx, gpu::Texture *normal_tx) {
     if (!settings_.enabled) return;
 
-    GPU_debug_group_begin("SSGI");
+    /* On the first frame and after a camera cut the previous-frame radiance
+     * cache (scene_color_tx) contains uninitialised or stale data. Skip the
+     * indirect bounce rather than accumulate ghost radiance. The next frame
+     * history_valid will be true and SSGI resumes normally. */
+    if (!inst_->frame_state.history_valid) {
+        /* Clear the output to black so the lighting pass reads zero indirect
+         * radiance rather than stale data from the previous frame or uninitialised
+         * VRAM. A single compute clear is cheaper than a full render pass. */
+        GPU_texture_clear(ssgi_final_tx_.get(), GPU_DATA_FLOAT, float4(0.0f));
+        return;
+    }
 
     // Pass 1: Main Trace (Using Hi-Z)
     // We sample the scene_color_tx (radiance) and "bounce" it based on surface normals
@@ -80,8 +90,6 @@ void SSGIModule::render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *
 
     int2 full_res = ssgi_final_tx_->size().xy();
     ssgi_blur_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
-
-    GPU_debug_group_end();
 }
 
 } // namespace blender::eevee_game

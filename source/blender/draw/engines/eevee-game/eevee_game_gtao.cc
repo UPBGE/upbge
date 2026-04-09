@@ -40,8 +40,6 @@ void GTAOModule::sync() {
 void GTAOModule::render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal_tx) {
     if (!settings_.enabled) return;
 
-    GPU_debug_group_begin("GTAO");
-
     // Pass 1: Main Horizon Search (Half-Res)
     gtao_main_ps_.bind_texture("depth_tx", depth_tx);
     gtao_main_ps_.bind_texture("normal_tx", normal_tx);
@@ -82,8 +80,6 @@ void GTAOModule::render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal
 
     int2 full_res = gtao_final_tx_->size().xy();
     gtao_upsample_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
-
-    GPU_debug_group_end();
 }
 
 } // namespace blender::eevee_game

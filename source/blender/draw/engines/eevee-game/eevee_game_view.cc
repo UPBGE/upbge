@@ -197,6 +197,16 @@ void ShadingView::render()
    * All three textures (combined_tx, postfx_tx_, aa_out_tx_/display_res_tx_)
    * are distinct — necessary to avoid compute shader read/write aliasing. */
 
+  /* Aliasing guards: these are the three points where a future refactor
+   * could accidentally pass the same texture as source and destination.
+   * The GPU backend does not validate this; the result is undefined. */
+  BLI_assert_msg(rbufs.combined_tx.get() != &postfx_tx_,
+                 "EEVEE-Game: combined_tx and postfx_tx_ must be distinct");
+  BLI_assert_msg(&postfx_tx_ != &aa_out_tx_,
+                 "EEVEE-Game: postfx_tx_ and aa_out_tx_ must be distinct");
+  BLI_assert_msg(&postfx_tx_ != &display_res_tx_,
+                 "EEVEE-Game: postfx_tx_ and display_res_tx_ must be distinct");
+
   /* Bloom: build the downsample/upsample pyramid, then additively composite
    * pyramid[0] back onto combined_tx in a single READ_WRITE compute pass. */
   inst_.bloom.render(rbufs.combined_tx.get());

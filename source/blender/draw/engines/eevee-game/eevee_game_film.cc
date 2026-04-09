@@ -42,8 +42,6 @@ void Film::sync()
      * SMAA/FXAA are purely spatial and don't use sub-pixel offsets. */
     jitter_ = float2(0.0f);
   }
-
-  frame_index_++;
 }
 
 void Film::present(gpu::Texture *final_color_tx)
