@@ -14,7 +14,11 @@ namespace blender::eevee_game {
  * The Compute Shader writes instanceCount; the CPU fills count/firstIndex/etc. */
 struct DrawCommand {
   uint32_t count;          /* Index count per draw */
-  uint32_t instanceCount;  /* Filled by the culling Compute Shader */
+  /* Reset to 0 by CullingModule::begin_sync() each frame via CPU upload.
+   * The culling shader has indirect_draw_buf as READ-only — it never writes
+   * this field. Stale non-zero counts cause phantom draws on meshes that
+   * have no visible instances in the current frame. */
+  uint32_t instanceCount;
   uint32_t firstIndex;
   uint32_t baseVertex;
   uint32_t baseInstance;
@@ -51,6 +55,9 @@ class CullingModule {
   /* Single uint32 atomic counter — reset to 0 before each dispatch,
    * incremented by the culling shader for each surviving instance. */
   std::unique_ptr<gpu::StorageBuffer> visible_count_sb_;
+
+  /* Cached bucket count for indirect_draw_sb_; avoids size/sizeof each frame. */
+  int num_draw_buckets_ = 0;
 
   /* CPU staging list; cleared each frame, uploaded in one shot before dispatch */
   std::vector<GPUInstanceData> cpu_instance_cache_;

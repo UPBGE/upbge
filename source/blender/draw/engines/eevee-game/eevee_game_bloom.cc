@@ -19,15 +19,13 @@ void BloomModule::sync()
 {
   int2 res = inst_->film.render_extent_get();
 
-  /* Allocate the downsample/upsample pyramid.
-   * Each level is half the previous; we stop when either dimension hits 1.
-   * RGBA16F is required for HDR values — R11G11B10 would clip bright pixels. */
+  /* ensure_2d() is a no-op when size and format are unchanged, so this loop
+   * only touches GPU memory on the first frame or after a resolution change. */
   for (int i = 0; i < PYRAMID_LEVELS; ++i) {
     res = math::max(int2(1), res / 2);
-    bloom_pyramid_[i] = std::make_unique<gpu::Texture>("bloom_level");
-    bloom_pyramid_[i]->ensure_2d(gpu::TextureFormat::RGBA16F, res,
-                                  GPU_TEXTURE_USAGE_SHADER_WRITE |
-                                  GPU_TEXTURE_USAGE_SHADER_READ);
+    bloom_pyramid_[i].ensure_2d(gpu::TextureFormat::RGBA16F, res,
+                                GPU_TEXTURE_USAGE_SHADER_WRITE |
+                                GPU_TEXTURE_USAGE_SHADER_READ);
   }
 
   bloom_downsample_ps_.init();
@@ -58,7 +56,7 @@ void BloomModule::render(gpu::Texture *input_color_tx)
   gpu::Texture *current_src = input_color_tx;
   for (int i = 0; i < PYRAMID_LEVELS; ++i) {
     bloom_downsample_ps_.bind_texture("in_color_tx", current_src);
-    bloom_downsample_ps_.bind_image("out_color_img", bloom_pyramid_[i].get());
+    bloom_downsample_ps_.bind_image("out_color_img", &bloom_pyramid_[i]);
 
     /* Level 0: encode threshold + knee into params.xy; higher levels: params = -1 (bypass). */
     float4 params = (i == 0) ?
@@ -71,7 +69,7 @@ void BloomModule::render(gpu::Texture *input_color_tx)
     bloom_downsample_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS |
                                   GPU_BARRIER_TEXTURE_FETCH);
 
-    current_src = bloom_pyramid_[i].get();
+    current_src = &bloom_pyramid_[i];
   }
 
   /* --- Phase 2: Upsampling (Blur + Accumulation) ---
@@ -80,8 +78,8 @@ void BloomModule::render(gpu::Texture *input_color_tx)
    * each level into the one above it.  The tent-filter upsample provides
    * smooth spatial falloff without ringing. */
   for (int i = PYRAMID_LEVELS - 1; i > 0; --i) {
-    bloom_upsample_ps_.bind_texture("in_blur_tx",  bloom_pyramid_[i].get());
-    bloom_upsample_ps_.bind_image("out_color_img", bloom_pyramid_[i - 1].get());
+    bloom_upsample_ps_.bind_texture("in_blur_tx",  &bloom_pyramid_[i]);
+    bloom_upsample_ps_.bind_image("out_color_img", &bloom_pyramid_[i - 1]);
     bloom_upsample_ps_.push_constant("radius", settings_.radius);
 
     bloom_upsample_ps_.dispatch(
@@ -113,7 +111,7 @@ void BloomModule::composite(gpu::Texture *combined_tx)
 
   /* bloom_pyramid_[0] is at render resolution / 2.  The composite shader samples
    * it with bilinear filtering to produce the full-resolution contribution. */
-  bloom_composite_ps_.bind_texture("bloom_tx",    bloom_pyramid_[0].get());
+  bloom_composite_ps_.bind_texture("bloom_tx",    &bloom_pyramid_[0]);
   bloom_composite_ps_.bind_image("combined_img",  combined_tx);
   bloom_composite_ps_.push_constant("bloom_intensity", settings_.intensity);
 

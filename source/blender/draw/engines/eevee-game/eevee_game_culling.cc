@@ -28,7 +28,15 @@ void CullingModule::init()
 
   /* One DrawCommand per unique mesh/material bucket - 1000 is a safe upper bound */
   indirect_draw_sb_ = std::make_unique<gpu::StorageBuffer>(
-      1000 * sizeof(DrawCommand), GPU_USAGE_DEVICE_ONLY);
+      1000 * sizeof(DrawCommand), GPU_USAGE_DYNAMIC);
+
+  num_draw_buckets_ = 1000;
+
+  /* Zero-initialise all instanceCount fields on first allocation.
+   * GPU_USAGE_DEVICE_ONLY buffers would leave OS-provided uninitialised
+   * memory; GPU_USAGE_DYNAMIC lets us zero via the staging path here. */
+  const Vector<DrawCommand> zero_cmds(num_draw_buckets_, DrawCommand{});
+  indirect_draw_sb_->update(zero_cmds.data());
 
   /* Single uint32 atomic counter used by the culling shader to count visible instances.
    * Must be reset to 0 at the start of each dispatch (done in execute_culling). */
@@ -39,6 +47,17 @@ void CullingModule::init()
 void CullingModule::begin_sync()
 {
   cpu_instance_cache_.clear();
+
+  /* Reset instanceCount to 0 for every DrawCommand bucket.
+   * The culling shader (indirect_draw_buf = READ-only) never writes this
+   * field. Without this reset, mesh buckets with zero visible instances
+   * this frame inherit the previous frame's non-zero count and submit
+   * phantom indirect draws — geometry drawn at wrong transforms with
+   * undefined instance data. StorageBuffer::update() on GPU_USAGE_DYNAMIC
+   * queues a staging transfer; it does not stall the CPU against the GPU
+   * provided begin_sync() runs before execute_culling(). */
+  const Vector<DrawCommand> zero_cmds(num_draw_buckets_, DrawCommand{});
+  indirect_draw_sb_->update(zero_cmds.data());
 }
 
 void CullingModule::add_instance(Object *ob, uint32_t resource_id)
@@ -106,10 +125,11 @@ void CullingModule::execute_culling(View &view)
    * including any jitter applied for FSR temporal accumulation. */
   culling_ps_.push_constant("viewproj", view.persmat());
 
-  /* Reset the visible_count atomic to 0 before the dispatch.
-   * Without this, leftover counts from the previous frame accumulate and
-   * visible_indices_buf overflows. */
-  uint32_t zero = 0;
+  /* Reset the visible instance counter before dispatch.
+   * 4-byte DMA via staging is cheaper than a 1-thread compute dispatch
+   * for a single uint; the transfer is ordered before the compute by the
+   * DRW command list so the shader sees zero on the first atomicAdd. */
+  constexpr uint32_t zero = 0u;
   visible_count_sb_->update(&zero);
 
   /* Each workgroup processes 64 instances (local_size_x = 64 in the GLSL). */
