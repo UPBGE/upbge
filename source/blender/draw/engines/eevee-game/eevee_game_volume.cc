@@ -143,6 +143,8 @@ void VolumeModule::resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx
   volume_resolve_ps_.push_constant("tile_size",  settings_.tile_size);
   volume_resolve_ps_.push_constant("samples_z",  settings_.samples_z);
   volume_resolve_ps_.push_constant("screen_res", float2(render_res));
+  volume_resolve_ps_.push_constant("z_near", inst_->uniform_data.z_near);
+  volume_resolve_ps_.push_constant("z_far",  inst_->uniform_data.z_far);
 
   /* One thread per screen pixel. */
   volume_resolve_ps_.dispatch(

@@ -26,6 +26,15 @@ void ShadingView::sync()
   const int2 render_res  = inst_.film.render_extent_get();
   const int2 display_res = inst_.film.display_extent_get();
 
+  /* Acquire all pooled render-buffer textures (combined_tx, vector_tx,
+   * reactive_mask_tx, transp_mask_tx, ui_color_tx).
+   * TextureFromPool::acquire() obtains a GPU handle from the DRW texture pool.
+   * Without this call all five textures remain nullptr and every framebuffer
+   * that references them is GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT.
+   * release() is called at the end of render() to return them to the pool. */
+  inst_.render_buffers.release(); /* no-op on first call; safe to call always */
+  inst_.render_buffers.acquire(render_res);
+
   /* Usage flags for intermediate post-processing targets:
    *   SHADER_READ  — sampled as a texture by the next pass in the chain.
    *   SHADER_WRITE — written by compute imageStore.
@@ -137,6 +146,9 @@ void ShadingView::render()
   /* ================================================================
    * Step 6: Present */
   inst_.film.present(final_output);
+
+  /* Return pooled textures to the DRW texture pool for reuse by other engines. */
+  inst_.render_buffers.release();
 }
 
 } // namespace blender::eevee_game

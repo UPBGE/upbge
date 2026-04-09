@@ -115,6 +115,25 @@ void UpscaleModule::init(int2 render_res, int2 display_res)
  * apply_fsr3()
  * ================================================================ */
 
+float2 UpscaleModule::advance_jitter()
+{
+#ifdef WITH_AMD_FSR3
+  if (!is_initialized_) {
+    return float2(0.0f);
+  }
+  float jitter_x = 0.0f, jitter_y = 0.0f;
+  ffxFsr3GetJitterOffset(&jitter_x, &jitter_y, jitter_frame_index_, jitter_phase_count_);
+  jitter_frame_index_ = (jitter_frame_index_ + 1) % jitter_phase_count_;
+  /* Convert from pixel-space SDK offsets to NDC UV fraction expected by
+   * the projection matrix offset (see begin_sync usage below). */
+  const int2 render_res = inst_->film.render_extent_get();
+  return float2(2.0f * jitter_x / float(render_res.x),
+               -2.0f * jitter_y / float(render_res.y));
+#else
+  return float2(0.0f);
+#endif
+}
+
 void UpscaleModule::apply_fsr3(gpu::Texture *src, gpu::Texture *dst, gpu::Texture *ui_tx)
 {
 #ifdef WITH_AMD_FSR3
@@ -122,15 +141,11 @@ void UpscaleModule::apply_fsr3(gpu::Texture *src, gpu::Texture *dst, gpu::Textur
     return;
   }
 
-  float jitter_x = 0.0f;
-  float jitter_y = 0.0f;
-  ffxFsr3GetJitterOffset(&jitter_x, &jitter_y, jitter_frame_index_, jitter_phase_count_);
-  jitter_frame_index_ = (jitter_frame_index_ + 1) % jitter_phase_count_;
-
+  /* Jitter was already advanced in begin_sync() via advance_jitter().
+   * inst_->uniform_data.jitter is already set; read it back for the SDK. */
   const int2 render_res = inst_->film.render_extent_get();
-  inst_->uniform_data.jitter = float2(
-       2.0f * jitter_x / float(render_res.x),
-      -2.0f * jitter_y / float(render_res.y));
+  const float jitter_x = inst_->uniform_data.jitter.x * float(render_res.x) / 2.0f;
+  const float jitter_y = -inst_->uniform_data.jitter.y * float(render_res.y) / 2.0f;
 
   FfxFsr3DispatchUpscaleDescription dispatch = {};
   dispatch.commandList = get_command_list();

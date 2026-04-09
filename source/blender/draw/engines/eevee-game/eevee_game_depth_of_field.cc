@@ -54,7 +54,9 @@ void DepthOfField::render_fast(gpu::Texture *input_color_tx, gpu::Texture *outpu
   coc_setup_ps_.bind_texture("depth_tx", &inst_->render_buffers.depth_tx);
   coc_setup_ps_.bind_image("out_coc_img", coc_tx_.get());
   coc_setup_ps_.push_constant("focus_params", float4(settings_.focus_distance, settings_.f_stop, settings_.max_bokeh_radius, 0.0f));
-  
+  coc_setup_ps_.push_constant("z_planes",
+      float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
+
   int2 render_res = coc_tx_->size().xy();
   coc_setup_ps_.dispatch(math::divide_ceil(render_res, int2(8)));
   coc_setup_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);

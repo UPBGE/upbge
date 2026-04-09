@@ -120,7 +120,13 @@ void GameInstance::begin_sync()
   uniform_data.viewmat     = math::invert(camera.object_to_world);
   uniform_data.viewinv     = camera.object_to_world;
   uniform_data.camera_pos  = camera.position();
-  uniform_data.jitter      = film.get_pixel_jitter();
+  /* FSR3: advance the SDK jitter counter NOW so the offset is baked into the
+   * projection matrix before the prepass and G-Buffer are rendered.
+   * apply_fsr3() reads the value back later — it no longer advances the counter.
+   * Non-FSR path: advance_jitter() returns float2(0) without touching the SDK. */
+  uniform_data.jitter = (upscale_settings.mode != UpscaleMode::OFF) ?
+                         upscale.advance_jitter() :
+                         float2(0.0f);
   uniform_data.z_near      = camera.data_get().clip_near;
   uniform_data.z_far       = camera.data_get().clip_far;
   uniform_data.delta_time  = delta_time_ms * 0.001f;
@@ -156,7 +162,11 @@ void GameInstance::begin_sync()
 
 void GameInstance::end_sync()
 {
-  lights.end_sync();
+  /* Do NOT call lights.end_sync() here: it packs and uploads the SSBO before
+   * shadow_index has been stamped into each LightEntry.  The correct upload
+   * happens via lights.upload() below, which calls end_sync() internally after
+   * the shadow index writeback loop.  Calling end_sync() twice per frame wastes
+   * one full SSBO DMA transfer (~MAX_LIGHTS * sizeof(LightData) bytes). */
   shadows.end_sync();
 
   /* Shadow index writeback — dual atlas edition.

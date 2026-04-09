@@ -48,7 +48,20 @@ void GTAOModule::render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal
     gtao_main_ps_.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
     gtao_main_ps_.bind_image("out_ao_img", gtao_lowres_tx_.get());
     
-    gtao_main_ps_.push_constant("settings", &settings_);
+    /* Push each field individually: the GLSL shader declares them as separate
+     * uniforms (gtao_radius, gtao_falloff, etc.), not as a named struct block. */
+    gtao_main_ps_.push_constant("gtao_radius",        settings_.radius);
+    gtao_main_ps_.push_constant("gtao_falloff",       settings_.falloff);
+    gtao_main_ps_.push_constant("gtao_intensity",     settings_.intensity);
+    gtao_main_ps_.push_constant("gtao_quality_steps", settings_.quality_steps);
+
+    /* Camera matrices — required for world-position reconstruction and step sizing. */
+    const float4x4 vp_inv = math::invert(
+        inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat);
+    gtao_main_ps_.push_constant("viewprojinv", vp_inv);
+    gtao_main_ps_.push_constant("z_planes",
+        float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
+    gtao_main_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
     
     int2 half_res = gtao_lowres_tx_->size().xy();
     gtao_main_ps_.dispatch(math::divide_ceil(half_res, int2(8)));
@@ -61,6 +74,12 @@ void GTAOModule::render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal
     gtao_upsample_ps_.bind_texture("depth_tx", depth_tx);
     gtao_upsample_ps_.bind_image("out_ao_final_img", gtao_final_tx_.get());
     
+    /* Bilateral upsample also needs z_planes and screen_res to linearise depth
+     * for the cross-bilateral weight — declared as uniforms in the GLSL. */
+    gtao_upsample_ps_.push_constant("z_planes",
+        float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
+    gtao_upsample_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
+
     int2 full_res = gtao_final_tx_->size().xy();
     gtao_upsample_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
 

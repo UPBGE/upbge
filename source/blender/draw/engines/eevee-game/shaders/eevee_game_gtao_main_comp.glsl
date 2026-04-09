@@ -82,14 +82,17 @@ float noise_angle(ivec2 px)
  * maximum angle above the tangent plane of the surface normal.
  *
  * Returns the horizon angle (radians) in [0, π/2]. */
-float horizon_search(vec3 world_pos, vec3 world_normal, vec2 ray_uv_dir,
+float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_uv_dir,
                      float step_size_uv, int steps, sampler2D depth,
                      float z_near, float z_far)
 {
   float max_horizon = -1.0;  /* sin(angle) */
 
-  vec2 uv = (world_pos.xy / screen_res) + 0.5;  /* Approximate screen UV */
-  /* Use the actual reprojected UV below. */
+  /* base_uv is the correctly projected UV of the surface point, computed in
+   * main() from the half-res pixel coordinate and screen_res. Marching from
+   * this UV in screen space is correct; the old approach divided world-space
+   * metres by pixel dimensions, producing UV values that scale with scene size. */
+  vec2 uv = base_uv;
 
   for (int i = 1; i <= steps; i++) {
     /* March along the direction in screen UV space. */
@@ -179,10 +182,12 @@ void main()
     vec2  dir   = vec2(cos(angle), sin(angle));
 
     /* Horizon search in both ±directions along this axis. */
-    float h_pos = horizon_search(world_pos, world_normal,  dir,
+    /* Pass the half-res UV (== full-res UV of the 2x2 block centre) so
+     * horizon_search marches in correct screen space from the right origin. */
+    float h_pos = horizon_search(world_pos, world_normal, uv,  dir,
                                  step_size_uv, gtao_quality_steps,
                                  hiz_tx, z_near, z_far);
-    float h_neg = horizon_search(world_pos, world_normal, -dir,
+    float h_neg = horizon_search(world_pos, world_normal, uv, -dir,
                                  step_size_uv, gtao_quality_steps,
                                  hiz_tx, z_near, z_far);
 

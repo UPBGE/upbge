@@ -46,7 +46,22 @@ void SSGIModule::render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *
     ssgi_main_ps_.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
     ssgi_main_ps_.bind_image("out_ssgi_img", ssgi_lowres_tx_.get());
     
-    ssgi_main_ps_.push_constant("settings", &settings_);
+    /* Each uniform is declared separately in the GLSL shader */
+    ssgi_main_ps_.push_constant("ssgi_intensity",         settings_.intensity);
+    ssgi_main_ps_.push_constant("ssgi_radius",            settings_.radius);
+    ssgi_main_ps_.push_constant("ssgi_color_saturation",  settings_.color_saturation);
+    ssgi_main_ps_.push_constant("ssgi_quality_steps",     settings_.quality_steps);
+
+    /* Camera data for world-pos reconstruction and reprojection. */
+    const float4x4 vp_inv = math::invert(
+        inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat);
+    ssgi_main_ps_.push_constant("viewprojinv",  vp_inv);
+    ssgi_main_ps_.push_constant("viewproj",
+        inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat);
+    ssgi_main_ps_.push_constant("z_planes",
+        float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
+    ssgi_main_ps_.push_constant("screen_res",   inst_->uniform_data.screen_res);
+    ssgi_main_ps_.push_constant("frame_count",  inst_->uniform_data.frame_count);
     
     int2 half_res = ssgi_lowres_tx_->size().xy();
     ssgi_main_ps_.dispatch(math::divide_ceil(half_res, int2(8)));
@@ -59,6 +74,10 @@ void SSGIModule::render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *
     ssgi_blur_ps_.bind_texture("depth_tx", depth_tx);
     ssgi_blur_ps_.bind_image("out_ssgi_final_img", ssgi_final_tx_.get());
     
+    ssgi_blur_ps_.push_constant("z_planes",
+        float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
+    ssgi_blur_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
+
     int2 full_res = ssgi_final_tx_->size().xy();
     ssgi_blur_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
 

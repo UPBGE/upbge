@@ -119,9 +119,13 @@ vec3 linear_to_srgb(vec3 c)
 
 void main()
 {
-  /* Derive UV from fragment coordinate relative to the viewport size.
-   * gl_FragCoord is in window space; texture() handles the [0,1] mapping. */
-  vec2 uv = gl_FragCoord.xy / vec2(textureSize(color_tx, 0));
+  /* UV is interpolated from the fullscreen triangle vertex shader.
+   * Using a varying avoids the division gl_FragCoord/textureSize which
+   * produces a sub-pixel offset when the viewport origin != (0,0) — this
+   * happens during split-viewport in the Blender editor and during window
+   * resize transitions where the viewport rect lags the texture allocation.
+   * The varying is set up by eevee_fullscreen_vert.glsl as interp.texcoord. */
+  vec2 uv = interp.texcoord;
 
   vec4 color = texture(color_tx, uv);
 
