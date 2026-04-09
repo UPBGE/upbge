@@ -40,6 +40,15 @@ class ShadingView {
    *   Culling → Prepass → HiZ → Pipeline → Bloom → DoF → AA/FSR → Present */
   void render();
 
+  /* Returns the texture that holds the completed frame after render().
+   * FSR3 active  → display_res_tx_ (display resolution)
+   * FSR3 inactive → aa_out_tx_     (render resolution)
+   * Used by GameInstance::render_frame() for F12 pixel readback. */
+  gpu::Texture *get_final_texture() {
+    return (inst_.upscale_settings.mode != UpscaleMode::OFF) ?
+           &display_res_tx_ : &aa_out_tx_;
+  }
+
  private:
   void update_view();
   void render_prepass();

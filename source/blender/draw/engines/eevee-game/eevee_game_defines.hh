@@ -57,10 +57,10 @@ enum class AAMode : uint32_t {
 
 enum class UpscaleMode : uint32_t {
   OFF                = 0,
-  FSR2_ULTRA_QUALITY = 1,
-  FSR2_QUALITY       = 2,
-  FSR2_BALANCED      = 3,
-  FSR2_PERFORMANCE   = 4
+  FSR3_ULTRA_QUALITY = 1,
+  FSR3_QUALITY       = 2,
+  FSR3_BALANCED      = 3,
+  FSR3_PERFORMANCE   = 4
 };
 
 /* Stencil bits for Deferred Hybrid material classification */

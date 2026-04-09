@@ -46,7 +46,14 @@ void GameInstance::init(const int2 &output_res, const rcti *output_rect)
   film.init(output_res);
 
   /* Allocate render-resolution GPU resources. */
-  render_buffers.init(film.render_extent_get());
+  /* init() only fills the pass-index metadata (RenderBuffersInfoData).
+   * It takes no arguments — the resolution is queried internally from Film.
+   * acquire() must be called separately to allocate GPU texture handles;
+   * without it all TextureFromPool members remain nullptr and every
+   * framebuffer that references them is GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT.
+   * release() is paired in ShadingView::render() after present(). */
+  render_buffers.init();
+  render_buffers.acquire(film.render_extent_get());
   hiz_buffer.front.ensure(film.render_extent_get());
   hiz_buffer.back.ensure(film.render_extent_get());
 
@@ -265,15 +272,26 @@ void GameInstance::render_frame(RenderEngine *engine, RenderLayer *layer)
 
   const int2 display_res = film.display_extent_get();
 
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-  GPU_framebuffer_bind(dfbl->default_fb);
-  GPU_framebuffer_read_color(dfbl->default_fb,
-                              0, 0,
-                              display_res.x, display_res.y,
-                              4,
-                              0,
-                              GPU_DATA_FLOAT,
-                              rp->ibuf->float_buffer.data);
+  /* Read pixels directly from the final post-processed texture rather than
+   * from the viewport backbuffer. dfbl->default_fb is only valid when a
+   * viewport is open; in background F12 renders DRW_viewport_framebuffer_list_get()
+   * returns nullptr and the bind/read would crash or produce garbage.
+   *
+   * main_view_ holds display_res_tx_ (FSR3 output) or aa_out_tx_ (SMAA/FXAA
+   * output) depending on the upscale mode. Both are plain gpu::Texture objects
+   * with valid GPU handles after render_sample() completes, so we can read them
+   * directly without touching the swapchain framebuffer at all.
+   *
+   * GPU_texture_read() performs an implicit pipeline flush and stall; acceptable
+   * here because F12 is a one-shot render, not a real-time frame. */
+  gpu::Texture *final_tx = main_view_.get_final_texture();
+  BLI_assert_msg(final_tx != nullptr,
+                 "eevee_game: render_frame called before render_sample() populated final_tx");
+
+  GPU_texture_read(final_tx->get(),
+                   GPU_DATA_FLOAT,
+                   0,
+                   rp->ibuf->float_buffer.data);
 
   /* Flip Y: OpenGL origin is bottom-left, Blender render is top-left. */
   const int row_bytes = display_res.x * 4 * sizeof(float);

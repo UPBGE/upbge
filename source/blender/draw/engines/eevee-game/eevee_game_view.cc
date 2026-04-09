@@ -7,6 +7,86 @@
 namespace blender::eevee_game {
 
 /* ================================================================
+ * init()
+ *
+ * One-time setup of persistent GPU resources that do not depend on
+ * resolution. Currently a no-op beyond storing the view name, but
+ * reserved for future per-view GPU buffer allocation.
+ * ================================================================ */
+
+void ShadingView::init(const char *name)
+{
+  name_ = name;
+}
+
+/* ================================================================
+ * update_view()
+ *
+ * Synchronises render_view_ with the current frame's camera matrices.
+ * Must be called every frame before culling and pipeline submission,
+ * because render_view_.persmat() is what CullingModule reads for the
+ * frustum planes — using an identity matrix culls everything or nothing.
+ *
+ * We pass viewprojmat as persmat and viewinv as the inverse so the
+ * View object can expose both the combined VP and the separate view
+ * matrix to any pass that needs them.
+ * ================================================================ */
+
+void ShadingView::update_view()
+{
+  render_view_.sync(inst_.uniform_data.viewprojmat,
+                    inst_.uniform_data.viewinv);
+}
+
+/* ================================================================
+ * render_prepass()
+ *
+ * Depth + velocity prepass. Runs before the G-Buffer fill so the
+ * G-Buffer shaders can use DEPTH_EQUAL (no depth write, free early-Z).
+ *
+ * Two sub-passes share the same framebuffer:
+ *   - opaque_layer_.prepass_ps  : writes depth and optional velocity
+ *   - forward_layer_.prepass_ps : transparent depth pre-write (for DoF CoC)
+ *
+ * The prepass framebuffer attaches depth_tx (write) and vector_tx
+ * (write, for FSR3 motion vectors). combined_tx is not attached here —
+ * it is bound in the G-Buffer framebuffer in PipelineModule::sync().
+ * ================================================================ */
+
+void ShadingView::render_prepass()
+{
+  RenderBuffers &rbufs = inst_.render_buffers;
+  const int2 render_res = inst_.film.render_extent_get();
+
+  /* Framebuffer: depth write + motion vector write.
+   * vector_tx is RG16F (screen-space UV velocity per pixel).
+   * No colour attachment for the opaque prepass — depth only. */
+  GPU_framebuffer_ensure_config(
+      &prepass_fb_,
+      {
+          GPU_ATTACHMENT_TEXTURE(&rbufs.depth_tx),
+          GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx.get()),
+      });
+
+  GPU_framebuffer_bind(&prepass_fb_);
+  GPU_framebuffer_clear_depth(&prepass_fb_, 1.0f);
+
+  /* Opaque depth + velocity — all materials submit here in sync_mesh().
+   * DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL set per sub-pass
+   * in PipelineModule::material_add(). */
+  GPU_debug_group_begin("Prepass.Opaque");
+  inst_.manager->submit(inst_.pipelines.opaque_layer_.prepass_ps, render_view_);
+  GPU_debug_group_end();
+
+  /* Transparent prepass: writes depth so DoF CoC is correct at glass edges.
+   * Blended geometry depth is intentionally written here to prevent
+   * CoC discontinuities at transparent-opaque boundaries. */
+  GPU_debug_group_begin("Prepass.Transparent");
+  inst_.manager->submit(inst_.pipelines.forward_layer_.prepass_ps, render_view_);
+  GPU_debug_group_end();
+}
+
+/* ================================================================
  * sync()
  *
  * Allocates all resolution-dependent textures used by the post-processing
@@ -15,10 +95,6 @@ namespace blender::eevee_game {
  *   - Whenever the render or display resolution changes (window resize,
  *     FSR mode change).
  *
- * FIX: postfx_tx_, aa_out_tx_, display_res_tx_ were gpu::Texture members
- * that were never given a GPU handle via ensure_2d(). Any pass that tried
- * to bind them would receive a null texture → GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT
- * or a driver-level null dereference.
  * ================================================================ */
 
 void ShadingView::sync()
@@ -73,6 +149,11 @@ void ShadingView::sync()
 void ShadingView::render()
 {
   RenderBuffers &rbufs = inst_.render_buffers;
+
+  /* Sync render_view_ with the current frame's camera matrices.
+   * Must precede culling — CullingModule reads render_view_.persmat()
+   * for the Gribb-Hartmann frustum planes. */
+  update_view();
 
   /* ================================================================
    * Step 1: GPU-Driven Culling

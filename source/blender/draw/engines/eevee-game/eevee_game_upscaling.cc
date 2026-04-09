@@ -11,6 +11,101 @@
 
 namespace blender::eevee_game {
 
+#ifdef WITH_AMD_FSR3
+
+/* ================================================================
+ * to_ffx_quality()
+ *
+ * Maps eevee_game UpscaleMode to the FSR3 SDK FfxFsr3QualityMode enum.
+ * OFF is never passed here — the caller guards against it.
+ *
+ * FSR3 quality modes control the render-resolution ratio:
+ *   ULTRA_QUALITY : ~77% of display res  (sharpest, most expensive)
+ *   QUALITY       : ~67%
+ *   BALANCED      : ~59%
+ *   PERFORMANCE   : ~50%  (fastest, most visible upscaling artefacts)
+ * ================================================================ */
+
+/* static */
+FfxFsr3QualityMode UpscaleModule::to_ffx_quality(UpscaleMode mode)
+{
+  switch (mode) {
+    case UpscaleMode::FSR3_ULTRA_QUALITY: return FFX_FSR3_QUALITY_MODE_ULTRA_QUALITY;
+    case UpscaleMode::FSR3_QUALITY:       return FFX_FSR3_QUALITY_MODE_QUALITY;
+    case UpscaleMode::FSR3_BALANCED:      return FFX_FSR3_QUALITY_MODE_BALANCED;
+    case UpscaleMode::FSR3_PERFORMANCE:   return FFX_FSR3_QUALITY_MODE_PERFORMANCE;
+    default:
+      BLI_assert_unreachable();
+      return FFX_FSR3_QUALITY_MODE_QUALITY;
+  }
+}
+
+/* ================================================================
+ * get_command_list()
+ *
+ * Returns the currently active Vulkan command buffer wrapped as an
+ * FfxCommandList so the FSR3 SDK can record its compute dispatches
+ * into the same command stream as the rest of the frame.
+ *
+ * GPU_vk_command_buffer_get() is the public API that gives us the
+ * VkCommandBuffer without touching Blender GPU internals directly.
+ * The cast chain mirrors the pattern used in init() for VkDevice. */
+FfxCommandList UpscaleModule::get_command_list()
+{
+  const GPUVKDeviceHandles handles = GPU_vk_device_handles_get();
+  VkCommandBuffer cmd = reinterpret_cast<VkCommandBuffer>(
+      static_cast<uintptr_t>(handles.vk_command_buffer));
+  return ffxGetCommandListVK(cmd);
+}
+
+/* ================================================================
+ * bridge_texture()
+ *
+ * Wraps a gpu::Texture* into an FfxResource so FSR3 can read or write
+ * it within its Vulkan dispatch passes.
+ *
+ * The public GPU_texture_vk_handles_get() gives us the VkImage,
+ * VkImageView, and format without requiring access to Blender's
+ * internal VKTexture class.  ffxGetTextureResourceVK() then wraps
+ * these into an FfxResource with the correct state and debug label.
+ *
+ * FfxResourceDescription is filled from the gpu::Texture dimensions
+ * and format so FSR3 can reason about mip counts and array layers
+ * without deriving them from Vulkan itself. */
+FfxResource UpscaleModule::bridge_texture(gpu::Texture *tx,
+                                           const wchar_t *debug_name,
+                                           FfxResourceStates initial_state)
+{
+  BLI_assert(tx != nullptr);
+
+  const GPUTextureVKHandles vk = GPU_texture_vk_handles_get(tx->get());
+  const int3 size = tx->size();
+
+  FfxResourceDescription desc = {};
+  desc.type   = FFX_RESOURCE_TYPE_TEXTURE2D;
+  desc.format = ffxGetSurfaceFormatVK(static_cast<VkFormat>(vk.vk_format));
+  desc.width  = uint32_t(size.x);
+  desc.height = uint32_t(size.y);
+  desc.depth  = 1;
+  desc.mipCount = uint32_t(tx->mip_count());
+  desc.flags  = FFX_RESOURCE_FLAGS_NONE;
+  desc.usage  = (initial_state == FFX_RESOURCE_STATE_UNORDERED_ACCESS) ?
+                    FFX_RESOURCE_USAGE_UAV :
+                    FFX_RESOURCE_USAGE_READ_ONLY;
+
+  return ffxGetTextureResourceVK(
+      &fsr3_context_,
+      reinterpret_cast<VkImage>(static_cast<uintptr_t>(vk.vk_image)),
+      reinterpret_cast<VkImageView>(static_cast<uintptr_t>(vk.vk_image_view)),
+      uint32_t(size.x),
+      uint32_t(size.y),
+      static_cast<VkFormat>(vk.vk_format),
+      debug_name,
+      initial_state);
+}
+
+#endif /* WITH_AMD_FSR3 */
+
 /* ================================================================
  * Destructor
  * ================================================================ */
@@ -33,6 +128,16 @@ UpscaleModule::~UpscaleModule()
 void UpscaleModule::init(int2 render_res, int2 display_res)
 {
 #ifdef WITH_AMD_FSR3
+  /* FSR3 is Vulkan-only. If the active GPU backend is OpenGL or Metal,
+   * GPU_vk_device_handles_get() returns zeroed handles and the subsequent
+   * ffxGetScratchMemorySizeVK() call will crash or produce nonsense.
+   * Mark as uninitialised and return cleanly; ShadingView::render() will
+   * fall back to SMAA/FXAA automatically because is_initialized_ == false. */
+  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
+    is_initialized_ = false;
+    return;
+  }
+
   if (is_initialized_) {
     ffxFsr3ContextDestroy(&fsr3_context_);
     is_initialized_ = false;

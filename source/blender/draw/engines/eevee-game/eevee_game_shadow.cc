@@ -270,7 +270,6 @@ void ShadowModule::render_static_atlas(View &view)
     View cascade_view("shadow_cascade");
     cascade_view.sync(cascades_[i].view_proj, float4x4::identity());
 
-    shadow_pass_ps_.push_constant("cascade_index", i);
     inst_->manager->submit(shadow_pass_ps_, cascade_view);
   }
 
@@ -296,7 +295,6 @@ void ShadowModule::render_static_atlas(View &view)
     View punctual_view("shadow_static_punctual");
     punctual_view.sync(p.view_proj, float4x4::identity());
 
-    shadow_pass_ps_.push_constant("cascade_index", -1);
     inst_->manager->submit(shadow_pass_ps_, punctual_view);
 
     p.needs_update = false; /* Mark clean after render */
@@ -342,7 +340,6 @@ void ShadowModule::render_dynamic_atlas(View &view)
     View punctual_view("shadow_dynamic_punctual");
     punctual_view.sync(p.view_proj, float4x4::identity());
 
-    shadow_pass_ps_.push_constant("cascade_index", -1);
     inst_->manager->submit(shadow_pass_ps_, punctual_view);
   }
 

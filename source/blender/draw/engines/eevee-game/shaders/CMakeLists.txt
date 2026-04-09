@@ -61,7 +61,7 @@ set(SRC_GLSL_COMP
   eevee_game_culling_comp.glsl
 
   # FSR3 reactive / transparency mask generation
-  eevee_game_fsr2_mask_gen_comp.glsl
+  eevee_game_fsr3_mask_gen_comp.glsl
 )
 
 if(WITH_GPU_SHADER_CPP_COMPILATION)

@@ -49,6 +49,9 @@ class AAModule {
   /* SMAA Area LUT (256x256 RG8) - constant, loaded once in init() */
   std::unique_ptr<gpu::Texture> smaa_area_lut_tx_;
 
+  /* SMAA Search LUT (64x16 RGBA8) - constant, loaded once in init() */
+  std::unique_ptr<gpu::Texture> smaa_search_lut_tx_;
+
   /* Pooled intermediate SMAA targets; acquired/released each apply_smaa() call */
   TextureFromPool smaa_edge_tx_;
   TextureFromPool smaa_weight_tx_;

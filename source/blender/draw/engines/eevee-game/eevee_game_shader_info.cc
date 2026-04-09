@@ -538,7 +538,7 @@ GPU_SHADER_CREATE_INFO("eevee_game_culling_compute")
  *
  * Only compiled when WITH_AMD_FSR3 is set; still registered so the info
  * name exists for GPU_shader_create_from_info_name() lookup even without FSR. */
-GPU_SHADER_CREATE_INFO("eevee_game_fsr2_mask_gen")
+GPU_SHADER_CREATE_INFO("eevee_game_fsr3_mask_gen")
     .local_group_size(8, 8, 1)
     .sampler(0, ImageType::Float2D, "color_tx",         Frequency::PASS)
     .sampler(1, ImageType::Float2D, "vector_tx",        Frequency::PASS)
@@ -549,7 +549,7 @@ GPU_SHADER_CREATE_INFO("eevee_game_fsr2_mask_gen")
     .push_constant(Type::FLOAT, "reactive_motion_threshold")
     .push_constant(Type::FLOAT, "reactive_luma_threshold")
     .push_constant(Type::FLOAT, "reactive_base")
-    .compute_source("eevee_game_fsr2_mask_gen_comp.glsl")
+    .compute_source("eevee_game_fsr3_mask_gen_comp.glsl")
     .do_static_compilation(true);
 
 /** \} */

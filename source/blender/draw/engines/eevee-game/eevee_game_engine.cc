@@ -83,7 +83,7 @@ static void eevee_game_render_update_passes(RenderEngine *engine,
 
   if (scene->eevee.flag & SCE_EEVEE_GAME_DEBUG_FSR_MASK) {
     RE_engine_register_pass(
-        engine, scene, view_layer, "FSR2_Reactive", 1, "R", SOCK_FLOAT);
+        engine, scene, view_layer, "FSR3_Reactive", 1, "R", SOCK_FLOAT);
   }
 }
 

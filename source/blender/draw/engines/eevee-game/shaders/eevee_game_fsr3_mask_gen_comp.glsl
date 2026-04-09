@@ -23,7 +23,7 @@
  *   reactive_mask_img   — [0,1]: 0 = fully accumulated, 1 = fully reactive.
  *   transp_mask_img     — [0,1]: 0 = opaque, 1 = fully transparent.
  *
- * Classification heuristics (from AMD FSR2 Best Practices guide):
+ * Classification heuristics (from AMD FSR3 Best Practices guide):
  *
  *   REACTIVE:
  *     a) Motion vector magnitude: pixels with high screen-space velocity

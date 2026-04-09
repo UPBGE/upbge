@@ -28,20 +28,56 @@ void AAModule::init()
   GPU_texture_update(smaa_area_lut_tx_->get(),
                      GPU_DATA_UBYTE,
                      smaa_area_lut_bytes);
+
+  /* SMAA Search LUT (64x16 RGBA8): encodes the crossing pattern search path
+   * used by the blending weight calculation pass to find edge endpoints.
+   * Without this texture the SMAABlendingWeightCalculationPS function in
+   * SMAA_STAGE==1 reads from an unbound sampler and produces zero weights —
+   * the neighbourhood blend pass then outputs the unfiltered source unchanged,
+   * making SMAA silently degrade to a no-op.
+   *
+   * smaa_search_lut_bytes is defined in smaa_search_lut.h, generated from
+   * the official SMAA repository alongside smaa_area_lut.h. */
+  smaa_search_lut_tx_ = std::make_unique<gpu::Texture>("smaa_search_lut");
+  smaa_search_lut_tx_->ensure_2d(
+      gpu::TextureFormat::RGBA8,
+      int2(64, 16),
+      GPU_TEXTURE_USAGE_SHADER_READ);
+  GPU_texture_update(smaa_search_lut_tx_->get(),
+                     GPU_DATA_UBYTE,
+                     smaa_search_lut_bytes);
 }
 
 void AAModule::sync_framebuffers(int2 extent)
 {
-  /* SMAA passes write into intermediate pooled textures via rasterisation,
-   * so they need explicit framebuffer objects with color attachments.
+  /* Re-configure the three SMAA framebuffers whenever the render resolution
+   * changes. The pooled textures (smaa_edge_tx_, smaa_weight_tx_) are
+   * acquired per-call in apply_smaa() so they always carry the correct size,
+   * but the framebuffer config must be rebuilt to match them.
    *
-   * smaa_edge_fb_   -> smaa_edge_tx_   (RG8  : luma edges)
-   * smaa_weight_fb_ -> smaa_weight_tx_ (RGBA8: blend weights)
-   * smaa_blend_fb_  -> dst texture     (set per-call in apply_smaa)
+   * Without this, a resolution change leaves the FBO pointing at textures
+   * from the previous resolution, causing SMAA_STAGE==1 and ==2 to write
+   * outside the valid region and read undefined border texels on AMD/Intel.
    *
-   * We re-configure these whenever the pooled textures are freshly acquired,
-   * which happens at the start of every apply_smaa() call. */
-  (void)extent; /* Extent used implicitly through the pooled texture sizes */
+   * Called from PipelineModule::sync() every time the resolution changes. */
+  smaa_edge_tx_.acquire(extent,   gpu::TextureFormat::RG8);
+  smaa_weight_tx_.acquire(extent, gpu::TextureFormat::RGBA8);
+
+  GPU_framebuffer_ensure_config(
+      &smaa_edge_fb_,
+      { GPU_ATTACHMENT_NONE,
+        GPU_ATTACHMENT_TEXTURE(smaa_edge_tx_.get()) });
+
+  GPU_framebuffer_ensure_config(
+      &smaa_weight_fb_,
+      { GPU_ATTACHMENT_NONE,
+        GPU_ATTACHMENT_TEXTURE(smaa_weight_tx_.get()) });
+
+  /* smaa_blend_fb_ target (dst) is set per-call in apply_smaa() because
+   * the destination texture changes depending on whether FSR is active. */
+
+  smaa_edge_tx_.release();
+  smaa_weight_tx_.release();
 }
 
 void AAModule::apply_fxaa(gpu::Texture *src, gpu::Texture *dst)
@@ -117,6 +153,7 @@ void AAModule::apply_smaa(gpu::Texture *src, gpu::Texture *dst)
   smaa_weight_ps_.shader_set(inst_->shaders.static_shader_get(SH_SMAA_WEIGHT));
   smaa_weight_ps_.bind_texture("edges_tx", smaa_edge_tx_.get());
   smaa_weight_ps_.bind_texture("area_tx",  smaa_area_lut_tx_.get());
+  smaa_weight_ps_.bind_texture("search_tx", smaa_search_lut_tx_.get());
   smaa_weight_ps_.framebuffer_set(&smaa_weight_fb_);
 
   GPU_framebuffer_bind(&smaa_weight_fb_);
