@@ -55,6 +55,23 @@ JPH_SUPPRESS_WARNINGS
 #include <cmath>
 #include <cstdio>
 
+namespace {
+
+constexpr float JOLT_DEFAULT_MAX_LINEAR_VELOCITY = 500.0f;
+constexpr float JOLT_DEFAULT_MAX_ANGULAR_VELOCITY = 0.25f * JPH::JPH_PI * 60.0f;
+
+float JoltEffectiveLinearVelocityMax(const float value)
+{
+  return value > 0.0f ? value : JOLT_DEFAULT_MAX_LINEAR_VELOCITY;
+}
+
+float JoltEffectiveAngularVelocityMax(const float value)
+{
+  return value > 0.0f ? value : JOLT_DEFAULT_MAX_ANGULAR_VELOCITY;
+}
+
+}  // namespace
+
 JoltPhysicsController::JoltPhysicsController()
 {
 }
@@ -1207,6 +1224,8 @@ void JoltPhysicsController::SetRigidBody(bool rigid)
 
 void JoltPhysicsController::SimulationTick(float timestep)
 {
+  (void)timestep;
+
   if (!m_physicsEnv || m_bodyID.IsInvalid() || !m_isDynamic) {
     return;
   }
@@ -1215,28 +1234,24 @@ void JoltPhysicsController::SimulationTick(float timestep)
    * PhysicsSystem::Update() is not running. */
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterfaceNoLock();
 
-  /* Clamp linear velocity. */
-  if (m_linVelMax > 0.0f || m_linVelMin > 0.0f) {
+  /* Clamp minimum linear velocity.
+   * Maximum linear velocity is enforced natively by Jolt. */
+  if (m_linVelMin > 0.0f) {
     JPH::Vec3 linVel = bi.GetLinearVelocity(m_bodyID);
     float len = linVel.Length();
 
-    if (m_linVelMax > 0.0f && len > m_linVelMax) {
-      bi.SetLinearVelocity(m_bodyID, linVel * (m_linVelMax / len));
-    }
-    else if (m_linVelMin > 0.0f && len > 1e-6f && len < m_linVelMin) {
+    if (len > 1e-6f && len < m_linVelMin) {
       bi.SetLinearVelocity(m_bodyID, linVel * (m_linVelMin / len));
     }
   }
 
-  /* Clamp angular velocity. */
-  if (m_angVelMax > 0.0f || m_angVelMin > 0.0f) {
+  /* Clamp minimum angular velocity.
+   * Maximum angular velocity is enforced natively by Jolt. */
+  if (m_angVelMin > 0.0f) {
     JPH::Vec3 angVel = bi.GetAngularVelocity(m_bodyID);
     float len = angVel.Length();
 
-    if (m_angVelMax > 0.0f && len > m_angVelMax) {
-      bi.SetAngularVelocity(m_bodyID, angVel * (m_angVelMax / len));
-    }
-    else if (m_angVelMin > 0.0f && len > 1e-6f && len < m_angVelMin) {
+    if (len > 1e-6f && len < m_angVelMin) {
       bi.SetAngularVelocity(m_bodyID, angVel * (m_angVelMin / len));
     }
   }
@@ -1341,6 +1356,17 @@ float JoltPhysicsController::GetLinVelocityMax() const
 void JoltPhysicsController::SetLinVelocityMax(float val)
 {
   m_linVelMax = val;
+
+  if (!m_physicsEnv || m_bodyID.IsInvalid()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  bi.SetMaxLinearVelocity(m_bodyID, JoltEffectiveLinearVelocityMax(val));
+
+  if (val > 0.0f) {
+    bi.SetLinearVelocity(m_bodyID, bi.GetLinearVelocity(m_bodyID));
+  }
 }
 
 float JoltPhysicsController::GetAngularVelocityMin() const
@@ -1361,6 +1387,17 @@ float JoltPhysicsController::GetAngularVelocityMax() const
 void JoltPhysicsController::SetAngularVelocityMax(float val)
 {
   m_angVelMax = val;
+
+  if (!m_physicsEnv || m_bodyID.IsInvalid()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  bi.SetMaxAngularVelocity(m_bodyID, JoltEffectiveAngularVelocityMax(val));
+
+  if (val > 0.0f) {
+    bi.SetAngularVelocity(m_bodyID, bi.GetAngularVelocity(m_bodyID));
+  }
 }
 
 /** \} */

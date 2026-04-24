@@ -791,7 +791,7 @@ typedef struct GameData {
   short ticrate = 60, maxlogicstep = 5, physubstep = 1, maxphystep = 5;
   float timeScale = 1.0f;
   float levelHeight = 2.0f;
-  float deactivationtime = 2.0f, lineardeactthreshold = 0.8f, angulardeactthreshold = 1.0f;
+  float deactivationtime = 0.5f, lineardeactthreshold = 0.03f, angulardeactthreshold = 0.03f;
   float erp = 0.2f, erp2 = 0.8f, cfm = 0.0f, _pad1 = 0;
 
   /* Scene LoD */

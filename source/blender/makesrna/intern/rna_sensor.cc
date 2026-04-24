@@ -1074,6 +1074,12 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
       prop, "All Events", "Triggered by all events on this joystick's current type (axis/button)");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
+    prop = RNA_def_property(srna, "use_analog_strength", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SENS_JOY_PROPORTIONAL);
+    RNA_def_property_ui_text(
+      prop, "Analog Strength", "Use proportional analog strength instead of thresholded triggering");
+    RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
   /* Button */
   prop = RNA_def_property(srna, "button_number", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "button");
@@ -1114,6 +1120,22 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "precision");
   RNA_def_property_ui_text(prop, "Threshold", "Threshold minimum to detect the stick/trigger");
   RNA_def_property_range(prop, 0, 32768);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "axis_deadzone", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "deadzone");
+    RNA_def_property_int_default(prop, 5000);
+  RNA_def_property_ui_text(
+      prop, "Deadzone", "Minimum stick/trigger input ignored before analog strength starts rising");
+  RNA_def_property_range(prop, 0, 32767);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "strength_multiplier", PROP_INT, PROP_PERCENTAGE);
+  RNA_def_property_int_sdna(prop, nullptr, "strength_multiplier");
+    RNA_def_property_int_default(prop, 100);
+  RNA_def_property_ui_text(
+      prop, "Strength Multiplier", "Scale the analog strength output percentage");
+  RNA_def_property_range(prop, 1, 400);
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 

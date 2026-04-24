@@ -302,7 +302,7 @@ enum {
   OB_LOCK_RIGID_BODY_Y_ROT_AXIS = 1 << 6,
   OB_LOCK_RIGID_BODY_Z_ROT_AXIS = 1 << 7,
   OB_CCD_RIGID_BODY = 1 << 8,
-  OB_GYROSCOPIC_FORCE = 1 << 9,
+  OB_HAS_VEHICLE = 1 << 10,
 
   /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
 };
@@ -318,6 +318,7 @@ enum {
   OB_BODY_TYPE_SENSOR = 6,
   OB_BODY_TYPE_NAVMESH = 7,
   OB_BODY_TYPE_CHARACTER = 8,
+  OB_BODY_TYPE_VEHICLE = 9,
 };
 
 /* ob->scavisflag */
@@ -533,6 +534,186 @@ typedef struct ObjectActivityCulling {
   int flags = 0;
   int _pad = 0;
 } ObjectActivityCulling;
+
+/* Deprecated: kept only for versioning migration from old wheel-list format. */
+typedef struct GameVehicleWheel {
+  struct GameVehicleWheel *next = nullptr, *prev = nullptr;
+  struct Object *wheel_object = nullptr;
+
+  float connection_point[3] = {};
+  float down_direction[3] = {0.0f, 0.0f, -1.0f};
+  float axle_direction[3] = {1.0f, 0.0f, 0.0f};
+
+  float engine_force = 0.0f;
+  float brake = 0.0f;
+  float steering = 0.0f;
+
+  float wheel_radius = 0.5f;
+  float wheel_width = 0.2f;
+  float wheel_rest_length = 0.3f;
+  float wheel_friction_slip = 10.5f;
+  float wheel_roll_influence = 0.1f;
+
+  float suspension_stiffness = 15000.0f;
+  float suspension_travel = 0.4f;
+  float damping_compression = 2500.0f;
+  float damping_relaxation = 2500.0f;
+
+  int flags = 0;
+  int collision_mode = 2;
+  int _pad[3] = {};
+} GameVehicleWheel;
+
+enum {
+  OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM = 1 << 0,
+  OB_VEHICLE_WHEEL_USE_TRACTION = 1 << 1,
+  OB_VEHICLE_WHEEL_USE_STEERING = 1 << 2,
+  OB_VEHICLE_WHEEL_USE_HANDBRAKE = 1 << 3,
+  OB_VEHICLE_WHEEL_AUTO_RADIUS = 1 << 4,
+  OB_VEHICLE_WHEEL_OVERRIDE_ENGINE_FORCE = 1 << 5,
+  OB_VEHICLE_WHEEL_OVERRIDE_BRAKE = 1 << 6,
+  OB_VEHICLE_WHEEL_OVERRIDE_STEERING = 1 << 7,
+  OB_VEHICLE_WHEEL_COLLAPSED = 1 << 8,
+  OB_VEHICLE_WHEEL_AUTO_WIDTH = 1 << 9,
+  /* Deprecated: kept for blend-file versioning migration only. */
+  OB_VEHICLE_WHEEL_AUTO_RIDE_HEIGHT = 1 << 10,
+  OB_VEHICLE_WHEEL_USE_BRAKE = 1 << 11,
+  OB_VEHICLE_WHEEL_AUTO_INERTIA = 1 << 12,
+  OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES = 1 << 13,
+};
+
+enum {
+  OB_VEHICLE_WHEEL_COLLISION_RAY = 0,
+  OB_VEHICLE_WHEEL_COLLISION_SPHERE = 1,
+  OB_VEHICLE_WHEEL_COLLISION_CYLINDER = 2,
+};
+
+/* Vehicle sub-type: whether this object acts as a chassis or a wheel, and
+ * whether it is a 4+ wheel car-style vehicle or a 2-wheel motorcycle
+ * (Jolt MotorcycleController with auto-balancing lean spring). */
+enum {
+  OB_VEHICLE_TYPE_CHASSIS = 0,
+  OB_VEHICLE_TYPE_WHEEL = 1,
+  OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS = 2,
+  OB_VEHICLE_TYPE_MOTORCYCLE_WHEEL = 3,
+};
+
+/* Limited-slip differential presets. */
+enum {
+  OB_VEHICLE_LSD_CUSTOM = 0,
+  OB_VEHICLE_LSD_FWD_ROAD = 1,
+  OB_VEHICLE_LSD_RWD_DRIFT = 2,
+  OB_VEHICLE_LSD_AWD_RALLY = 3,
+  OB_VEHICLE_LSD_OFFROAD = 4,
+  OB_VEHICLE_LSD_RACE = 5,
+  OB_VEHICLE_LSD_OPEN = 6,
+};
+
+enum {
+  OB_VEHICLE_AUTO_CREATE = 1 << 0,
+  /* Deprecated: kept for DNA compatibility only. */
+  OB_VEHICLE_AUTO_ROLL_INFLUENCE = 1 << 1,
+  /* Jolt: replace the automatic gearbox with a fixed manual drive ratio.
+   * Throttle directly engages/disengages the clutch so releasing throttle
+   * immediately disconnects the engine from the wheels. Steering, brakes,
+   * suspension and LSD stay on the native Jolt solver path. */
+  OB_VEHICLE_SIMPLE_DRIVE = 1 << 2,
+  /* Motorcycle only: enable Jolt's lean-spring auto-balance controller. */
+  OB_VEHICLE_MC_LEAN_CONTROLLER = 1 << 3,
+  /* Motorcycle only: limit steering angle based on vehicle speed so the
+   * generated inertial force cannot topple the bike over. */
+  OB_VEHICLE_MC_LEAN_STEERING_LIMIT = 1 << 4,
+  /* Motorcycle only: apply front-wheel suspension and traction forces at a
+   * fixed point on the chassis instead of the contact patch. Disabled matches
+   * Jolt's documented default. */
+  OB_VEHICLE_MC_FRONT_FORCE_POINT = 1 << 5,
+  /* Motorcycle only: apply rear-wheel suspension and traction forces at a
+   * fixed point on the chassis instead of the contact patch. Disabled matches
+   * Jolt's documented default. */
+  OB_VEHICLE_MC_REAR_FORCE_POINT = 1 << 6,
+};
+
+typedef struct GameVehicleSettings {
+  /* Deprecated: old wheel list, kept for versioning migration only. */
+  ListBaseT<GameVehicleWheel> legacy_wheels = {nullptr, nullptr};
+
+  /* Wheel-only: the chassis object this wheel belongs to (pointer placed here for alignment). */
+  struct Object *chassis_object = nullptr;
+
+  /* --- Common fields --- */
+  int vehicle_type = 0; /* OB_VEHICLE_TYPE_CHASSIS or OB_VEHICLE_TYPE_WHEEL */
+  int flags = OB_VEHICLE_SIMPLE_DRIVE | OB_VEHICLE_MC_LEAN_CONTROLLER |
+              OB_VEHICLE_MC_LEAN_STEERING_LIMIT | OB_VEHICLE_MC_FRONT_FORCE_POINT |
+              OB_VEHICLE_MC_REAR_FORCE_POINT;
+
+  /* --- Chassis-only fields (used when vehicle_type == OB_VEHICLE_TYPE_CHASSIS) --- */
+  float engine_force = 0.0f;
+  float brake = 1500.0f;
+  float steering = 1.22173f;
+  int ray_mask = 0xffff;
+
+  float max_pitch_roll_angle = 3.14159265f;
+  float wheel_inertia = 0.9f;
+  float wheel_angular_damping = 0.2f;
+
+  float anti_roll_front = 0.0f;
+  float anti_roll_rear = 0.0f;
+  float chassis_roll_influence = 1.0f;
+  float differential_ratio = 3.42f;
+  float limited_slip_ratio = 1.4f;
+  int lsd_preset = 0; /* OB_VEHICLE_LSD_CUSTOM .. OB_VEHICLE_LSD_OPEN */
+
+  float handbrake_torque = 4000.0f;
+  float engine_torque = 500.0f;
+  float steering_speed = 0.15f;
+  float high_speed_steering_reduction = 1.0f;
+  int solver_iterations = 0;
+
+  short forward_axis = 1;
+  short up_axis = 2;
+
+  /* --- Wheel-only fields (used when vehicle_type == OB_VEHICLE_TYPE_WHEEL) --- */
+  float connection_point[3] = {};
+  float down_direction[3] = {0.0f, 0.0f, -1.0f};
+  float axle_direction[3] = {1.0f, 0.0f, 0.0f};
+
+  float wheel_engine_force = 0.0f;
+  float wheel_brake = 1500.0f;
+  float wheel_steering = 0.62831853f;
+
+  float wheel_radius = 0.5f;
+  float wheel_width = 0.2f;
+  float wheel_rest_length = 0.3f;
+  float wheel_friction_slip = 10.5f;
+  float wheel_longitudinal_friction = 10.5f;
+  float wheel_lateral_friction = 10.5f;
+  float wheel_roll_influence = 0.1f;
+
+  float suspension_stiffness = 15000.0f;
+  float suspension_travel = 0.4f;
+  float damping_compression = 2500.0f;
+  float damping_relaxation = 2500.0f;
+
+  int wheel_flags = OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM | OB_VEHICLE_WHEEL_AUTO_RADIUS |
+                    OB_VEHICLE_WHEEL_AUTO_WIDTH | OB_VEHICLE_WHEEL_AUTO_INERTIA |
+                    OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES;
+  int collision_mode = 2;
+  int wheel_ray_mask = 1;
+
+  /* --- Motorcycle chassis-only fields (Jolt MotorcycleController).
+   * Used when vehicle_type == OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS. Defaults
+   * mirror Jolt's MotorcycleControllerSettings. --- */
+  float mc_max_lean_angle = 0.785398163f;      /* 45 deg */
+  float mc_lean_spring_constant = 5000.0f;
+  float mc_lean_spring_damping = 1000.0f;
+  float mc_lean_spring_integration_coef = 0.0f;
+  float mc_lean_spring_integration_decay = 4.0f;
+  float mc_lean_smoothing_factor = 0.8f;
+
+  /* Deprecated fields kept for DNA compatibility. */
+  int legacy_active_wheel = 0;
+  int _pad0[2] = {};
+} GameVehicleSettings;
 
 /* object activity flags */
 enum {
@@ -842,9 +1023,11 @@ struct Object {
   float formfactor = 0.4f;
   float rdamping = 0.1f;
   float margin = 0.04f;
-  float max_vel = 0.0f;    /* clamp the maximum velocity 0.0 is disabled */
+  float max_vel = 0.0f;    /* clamp the maximum velocity; 0.0 disables in Bullet and uses
+                            * Jolt's 500.0 default cap in Jolt */
   float min_vel = 0.0f;    /* clamp the minimum velocity 0.0 is disabled */
-  float max_angvel = 0.0f; /* clamp the maximum angular velocity, 0.0 is disabled */
+  float max_angvel = 0.0f; /* clamp the maximum angular velocity; 0.0 disables in Bullet and
+                            * uses Jolt's 47.12 rad/s default cap in Jolt */
   float min_angvel = 0.0f; /* clamp the minimum angular velocity, 0.0 is disabled */
   float obstacleRad = 1.0f;
 
@@ -872,6 +1055,8 @@ struct Object {
   ListBase components = {NULL, NULL};  /* python components */
 
   struct ObjectActivityCulling activityCulling = {0};
+
+  struct GameVehicleSettings *vehicle = nullptr;
 
   float sf = 0.0f; /* sf is time-offset */
 

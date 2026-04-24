@@ -80,6 +80,10 @@ class SCA_JoystickSensor : public SCA_ISensor {
    * Detect all events for the currently selected type
    */
   bool m_bAllEvents;
+  bool m_useAnalogStrength;
+  int m_deadzone;
+  int m_strengthMultiplier;
+  float m_analogStrength;
 
  public:
   enum KX_JOYSENSORMODE {
@@ -148,6 +152,9 @@ class SCA_JoystickSensor : public SCA_ISensor {
                      int axisf,
                      int prec,
                      int button,
+                     bool useAnalogStrength,
+                     int deadzone,
+                     int strengthMultiplier,
                      bool allevents);
   virtual ~SCA_JoystickSensor();
   virtual EXP_Value *GetReplica();
@@ -155,6 +162,8 @@ class SCA_JoystickSensor : public SCA_ISensor {
   virtual bool Evaluate();
   virtual bool IsPositiveTrigger();
   virtual void Init();
+  virtual bool HasAnalogOutput() const override;
+  virtual float GetAnalogOutput() const override;
 
   short int GetJoyIndex(void)
   {

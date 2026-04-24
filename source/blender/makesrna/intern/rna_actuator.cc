@@ -37,6 +37,8 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_context.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -69,6 +71,20 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_STEERING, "STEERING", 0, "Steering", ""},
     {ACT_VIBRATION, "VIBRATION", 0, "Vibration", ""},
     {ACT_VISIBILITY, "VISIBILITY", 0, "Visibility", ""},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static const EnumPropertyItem object_actuator_mode_items[] = {
+    {ACT_OBJECT_NORMAL, "OBJECT_NORMAL", 0, "Simple Motion", ""},
+    {ACT_OBJECT_SERVO, "OBJECT_SERVO", 0, "Servo Control", ""},
+    {ACT_OBJECT_CHARACTER, "OBJECT_CHARACTER", 0, "Character Motion", ""},
+    {ACT_OBJECT_VEHICLE, "OBJECT_VEHICLE", 0, "Vehicle Motion", ""},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static const EnumPropertyItem object_vehicle_mode_items[] = {
+    {ACT_OBJECT_VEHICLE_THROTTLE, "VEHICLE_THROTTLE", 0, "Throttle", ""},
+    {ACT_OBJECT_VEHICLE_BRAKE, "VEHICLE_BRAKE", 0, "Brake", ""},
+    {ACT_OBJECT_VEHICLE_STEERING, "VEHICLE_STEERING", 0, "Steering", ""},
+    {ACT_OBJECT_VEHICLE_HANDBRAKE, "VEHICLE_HANDBRAKE", 0, "Handbrake", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
 }  // namespace blender
@@ -472,6 +488,12 @@ static void rna_ObjectActuator_type_set(struct PointerRNA *ptr, int value)
         oa->flag = ACT_DLOC_LOCAL | ACT_DROT_LOCAL;
         oa->type = ACT_OBJECT_CHARACTER;
         break;
+
+      case ACT_OBJECT_VEHICLE:
+        *oa = {};
+        oa->type = ACT_OBJECT_VEHICLE;
+        oa->servotype = ACT_OBJECT_VEHICLE_THROTTLE;
+        break;
     }
   }
 }
@@ -619,6 +641,28 @@ static void rna_Actuator_editobject_mesh_set(PointerRNA *ptr,
 
     eoa->me = (Mesh *)value.data;
   }
+
+static const EnumPropertyItem *rna_ObjectActuator_type_itemf(bContext *C,
+                                                             PointerRNA * /*ptr*/,
+                                                             PropertyRNA * /*prop*/,
+                                                             bool *r_free)
+{
+  EnumPropertyItem *item = nullptr;
+  int totitem = 0;
+  const Scene *scene = C ? CTX_data_scene(C) : nullptr;
+  const bool use_jolt = scene && scene->gm.physicsEngine == WOPHY_JOLT;
+
+  RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_NORMAL);
+  RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_SERVO);
+  RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_CHARACTER);
+  if (use_jolt) {
+    RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_VEHICLE);
+  }
+
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
+  return item;
+}
 
 }  // namespace blender
 
@@ -814,12 +858,6 @@ static void rna_def_object_actuator(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem prop_type_items[] = {
-      {ACT_OBJECT_NORMAL, "OBJECT_NORMAL", 0, "Simple Motion", ""},
-      {ACT_OBJECT_SERVO, "OBJECT_SERVO", 0, "Servo Control", ""},
-      {ACT_OBJECT_CHARACTER, "OBJECT_CHARACTER", 0, "Character Motion", ""},
-      {0, nullptr, 0, nullptr, nullptr}};
-
   static EnumPropertyItem prop_servo_type_items[] = {
       {ACT_SERVO_LINEAR, "SERVO_LINEAR", 0, "Linear", ""},
       {ACT_SERVO_ANGULAR, "SERVO_ANGULAR", 0, "Angular", ""},
@@ -831,8 +869,9 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "type");
-  RNA_def_property_enum_items(prop, prop_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, "rna_ObjectActuator_type_set", nullptr);
+  RNA_def_property_enum_items(prop, object_actuator_mode_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, "rna_ObjectActuator_type_set", "rna_ObjectActuator_type_itemf");
   RNA_def_property_ui_text(prop, "Motion Type", "Specify the motion system");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
@@ -840,6 +879,11 @@ static void rna_def_object_actuator(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "servotype");
   RNA_def_property_enum_items(prop, prop_servo_type_items);
   RNA_def_property_ui_text(prop, "Servo Type", "Specify the servo control system");
+
+  prop = RNA_def_property(srna, "vehicle_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "servotype");
+  RNA_def_property_enum_items(prop, object_vehicle_mode_items);
+  RNA_def_property_ui_text(prop, "Vehicle Type", "Specify the vehicle control system");
 
   prop = RNA_def_property(srna, "reference_object", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
@@ -879,6 +923,16 @@ static void rna_def_object_actuator(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, -100.0, 100.0, 10, 2);
   RNA_def_property_ui_text(
       prop, "Derivate Coefficient", "Not required, high values can cause instability");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "vehicle_value", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "forceloc[0]");
+  RNA_def_property_ui_range(prop, -1.0, 1.0, 0.1, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Normalized Value",
+      "Normalized Jolt vehicle input. Use -1..1 for throttle and steering, and 0..1 for "
+      "brake and handbrake");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Servo Limit */

@@ -330,10 +330,15 @@ typedef struct bActuator {
 #define ACT_OBJECT_NORMAL 0
 #define ACT_OBJECT_SERVO 1
 #define ACT_OBJECT_CHARACTER 2
+#define ACT_OBJECT_VEHICLE 3
 
 /* objectactuator->servotype */
 #define ACT_SERVO_LINEAR 0
 #define ACT_SERVO_ANGULAR 1
+#define ACT_OBJECT_VEHICLE_THROTTLE 0
+#define ACT_OBJECT_VEHICLE_BRAKE 1
+#define ACT_OBJECT_VEHICLE_STEERING 2
+#define ACT_OBJECT_VEHICLE_HANDBRAKE 3
 
 /* actuator->type */
 #define ACT_OBJECT 0

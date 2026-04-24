@@ -2064,7 +2064,6 @@ static void rna_def_game_softbody(BlenderRNA *brna)
   prop = RNA_def_property(srna, "pin_weight_threshold", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "pin_weight_threshold");
   RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_float_default(prop, 0.5f);
   RNA_def_property_ui_text(
       prop,
       "Vertex Weight Pin Threshold",

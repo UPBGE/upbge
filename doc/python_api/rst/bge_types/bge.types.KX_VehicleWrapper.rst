@@ -9,7 +9,10 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    KX_VehicleWrapper
 
-   TODO - description
+   Runtime wrapper for a vehicle constraint.
+
+   Vehicles can be created from Blender-authored ``Vehicle`` game physics settings or from Python with
+   :func:`bge.constraints.createVehicle`. Once created, both paths expose the same per-wheel API on this wrapper.
 
    .. method:: addWheel(wheel, attachPos, downDir, axleDir, suspensionRestLength, wheelRadius, hasSteering)
 
@@ -166,6 +169,6 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: rayMask
 
-      Set ray cast mask.
+      Set the collision mask used by suspension ray casts.
 
       :type: bitfield

@@ -562,6 +562,9 @@ void BL_ConvertSensors(blender::Object *blenderobject,
                                                 axisf,
                                                 prec,
                                                 button,
+                                                (bjoy->flag & SENS_JOY_PROPORTIONAL) != 0,
+                                                bjoy->deadzone,
+                                                bjoy->strength_multiplier,
                                                 (bjoy->flag & SENS_JOY_ANY_EVENT));
           }
           else {

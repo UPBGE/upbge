@@ -234,6 +234,8 @@ bool SCA_SteeringActuator::Update(double curtime)
   if (bNegativeEvent || !m_target)
     return false;  // do nothing on negative events
 
+  const float analog_factor = GetLinkedSensorAnalogStrength();
+
   KX_GameObject *obj = (KX_GameObject *)GetParent();
   const MT_Vector3 &mypos = obj->NodeGetWorldPosition();
   const MT_Vector3 &targpos = m_target->NodeGetWorldPosition();
@@ -359,7 +361,7 @@ bool SCA_SteeringActuator::Update(double curtime)
       m_steerVec.z() = 0;
     if (!m_steerVec.fuzzyZero())
       m_steerVec.normalize();
-    MT_Vector3 newvel = m_velocity * m_steerVec;
+    MT_Vector3 newvel = (m_velocity * analog_factor) * m_steerVec;
 
     // adjust velocity to avoid obstacles
     if (m_simulation && m_obstacle /*&& !newvel.fuzzyZero()*/) {

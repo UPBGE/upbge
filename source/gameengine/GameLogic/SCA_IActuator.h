@@ -50,6 +50,7 @@ class SCA_IActuator : public SCA_ILogicBrick {
 
   std::vector<SCA_IController *> m_linkedcontrollers;
 
+  float GetLinkedSensorAnalogStrength() const;
   void RemoveAllEvents();
 
  public:

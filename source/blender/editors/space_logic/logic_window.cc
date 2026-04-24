@@ -1276,9 +1276,17 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
 
       col = &layout->column(false);
       col->prop(ptr, "axis_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
-      col->prop(ptr, "axis_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row = &col->row(false);
+      row->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
+      row->prop(ptr, "axis_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_analog_strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      if (RNA_boolean_get(ptr, "use_analog_strength")) {
+        col->prop(ptr, "axis_deadzone", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        col->prop(ptr, "strength_multiplier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
+      else {
+        col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
       break;
     case SENS_JOY_AXIS_SINGLE:
       col = &layout->column(false);
@@ -1288,7 +1296,14 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
     case SENS_JOY_SHOULDER_TRIGGER:
       col = &layout->column(false);
       col->prop(ptr, "axis_trigger_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_analog_strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      if (RNA_boolean_get(ptr, "use_analog_strength")) {
+        col->prop(ptr, "axis_deadzone", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        col->prop(ptr, "strength_multiplier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
+      else {
+        col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
       break;
   }
 }
@@ -2111,7 +2126,8 @@ static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
       row->prop(ptr, "offset_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       split->prop(ptr, "use_local_rotation", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
-      if (ELEM(physics_type, OB_BODY_TYPE_DYNAMIC, OB_BODY_TYPE_RIGID, OB_BODY_TYPE_SOFT)) {
+      if (ELEM(
+              physics_type, OB_BODY_TYPE_DYNAMIC, OB_BODY_TYPE_RIGID, OB_BODY_TYPE_SOFT, OB_BODY_TYPE_VEHICLE)) {
         layout->label(IFACE_("Dynamic Object Settings:"), ICON_NONE);
         split = &layout->split(0.9, false);
         row = &split->row(false);
@@ -2203,6 +2219,18 @@ static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
       split = &row->split(0.7, false);
       split->label("", ICON_NONE); /*Just use this for some spacing */
       split->prop(ptr, "use_character_jump", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      break;
+    case ACT_OBJECT_VEHICLE:
+      if (physics_type != OB_BODY_TYPE_VEHICLE) {
+        layout->label(IFACE_("Requires Vehicle physics type."), ICON_ERROR);
+      }
+      else {
+        layout->prop(ptr, "vehicle_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        const int vmode = RNA_enum_get(ptr, "vehicle_mode");
+        if (vmode != ACT_OBJECT_VEHICLE_BRAKE && vmode != ACT_OBJECT_VEHICLE_HANDBRAKE) {
+          layout->prop(ptr, "vehicle_value", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        }
+      }
       break;
   }
 }

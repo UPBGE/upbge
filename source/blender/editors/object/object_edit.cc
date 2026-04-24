@@ -2656,6 +2656,8 @@ static wmOperatorStatus game_physics_copy_exec(bContext *C, wmOperator */*op*/)
       ob_iter->collision_boundtype = ob->collision_boundtype;
       ob_iter->margin = ob->margin;
       ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
+      BKE_object_vehicle_settings_free(ob_iter);
+      ob_iter->vehicle = BKE_object_vehicle_settings_copy(ob->vehicle);
       if (ob->visibility_flag & OB_HIDE_RENDER)
         ob_iter->visibility_flag |= OB_HIDE_RENDER;
       else

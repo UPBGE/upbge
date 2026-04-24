@@ -6794,7 +6794,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Deactivation Linear Threshold",
-      "Linear velocity that an object must be below before the deactivation timer can start");
+      "Linear velocity that an object must be below before the deactivation timer can start. "
+      "In Jolt this is used as the single point-velocity sleep threshold");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "deactivation_angular_threshold", PROP_FLOAT, PROP_NONE);
@@ -6804,7 +6805,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Deactivation Angular Threshold",
-      "Angular velocity that an object must be below before the deactivation timer can start");
+      "Angular velocity that an object must be below before the deactivation timer can start "
+      "in Bullet. Jolt does not expose a separate angular sleep threshold");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "deactivation_time", PROP_FLOAT, PROP_NONE);
@@ -6815,7 +6817,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       prop,
       "Deactivation Time",
       "Amount of time (in seconds) after which objects with a velocity less than the given "
-      "threshold will deactivate (0.0 means no deactivation)");
+      "threshold will deactivate (0.0 means no deactivation). In Jolt, the single "
+      "point-velocity threshold controls both linear and angular sleeping");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "erp_parameter", PROP_FLOAT, PROP_NONE);

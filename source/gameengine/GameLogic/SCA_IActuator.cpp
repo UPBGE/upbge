@@ -33,12 +33,41 @@
 
 #include "CM_List.h"
 #include "CM_Message.h"
+#include "SCA_ISensor.h"
 
 using namespace blender;
 
 SCA_IActuator::SCA_IActuator(SCA_IObject *gameobj, KX_ACTUATOR_TYPE type)
     : SCA_ILogicBrick(gameobj), m_type(type), m_links(0), m_posevent(false), m_negevent(false)
 {
+}
+
+float SCA_IActuator::GetLinkedSensorAnalogStrength() const
+{
+  float strength = 0.0f;
+  bool found_analog_sensor = false;
+
+  for (SCA_IController *controller : m_linkedcontrollers) {
+    if (!controller) {
+      continue;
+    }
+
+    for (SCA_ISensor *sensor : controller->GetLinkedSensors()) {
+      if (!sensor || !sensor->HasAnalogOutput()) {
+        continue;
+      }
+
+      const float sensor_strength = sensor->GetAnalogOutput();
+      if (sensor_strength > 0.0f) {
+        found_analog_sensor = true;
+        if (sensor_strength > strength) {
+          strength = sensor_strength;
+        }
+      }
+    }
+  }
+
+  return found_analog_sensor ? strength : 1.0f;
 }
 
 void SCA_IActuator::RemoveAllEvents()

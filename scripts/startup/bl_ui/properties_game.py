@@ -220,6 +220,277 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         rd = context.scene.render
         return ob and ob.game and (rd.engine in cls.COMPAT_ENGINES)
 
+    def draw_vehicle_chassis(self, layout, game, vehicle, is_jolt):
+        """Draw chassis-specific settings."""
+        traction_managed_by_preset = vehicle.lsd_preset in {'FWD_ROAD', 'RWD_DRIFT', 'AWD_RALLY', 'OFFROAD'}
+
+        split = layout.split()
+        col = split.column()
+        col.label(text="Chassis:")
+        if is_jolt:
+            col.prop(vehicle, "solver_iterations")
+        col.prop(game, "mass")
+        if is_jolt:
+            col.prop(game, "elasticity", slider=True)
+            col.prop(game, "velocity_max", text="Linear Velocity Max")
+            col.prop(game, "angular_velocity_max", text="Angular Velocity Max")
+        if not is_jolt:
+            col.prop(vehicle, "engine_force")
+            col.prop(vehicle, "brake")
+
+        col = split.column()
+        col.label(text="Object:")
+        col.prop(game, "use_actor")
+        col.prop(game, "use_ghost")
+        col.prop(game, "use_sleep")
+        col.label(text="Damping:")
+        sub = col.column(align=True)
+        sub.prop(game, "damping", text="Translation", slider=True)
+        sub.prop(game, "rotation_damping", text="Rotation", slider=True)
+        col.label(text="Body Friction:")
+        col.prop(game, "friction")
+        if not is_jolt:
+            col.prop(game, "rolling_friction")
+            sub = col.column()
+            sub.prop(game, "use_anisotropic_friction")
+            subsub = sub.column()
+            subsub.active = game.use_anisotropic_friction
+            subsub.prop(game, "friction_coefficients", text="", slider=True)
+
+        layout.separator()
+
+        split = layout.split()
+        col = split.column()
+        col.prop(game, "gravity_factor")
+        col.prop(vehicle, "max_pitch_roll_angle")
+        col.prop(vehicle, "anti_roll_front")
+        col.prop(vehicle, "anti_roll_rear")
+        if is_jolt:
+            col.prop(vehicle, "chassis_roll_influence")
+        if not is_jolt:
+            col.prop(vehicle, "handbrake_torque")
+
+        col = split.column()
+        col.prop(vehicle, "forward_axis")
+        col.prop(vehicle, "up_axis")
+        if is_jolt:
+            col.prop(vehicle, "engine_torque")
+            col.prop(vehicle, "lsd_preset")
+            if traction_managed_by_preset:
+                col.label(text="Preset controls linked wheel traction flags.", icon='INFO')
+            sub = col.column()
+            sub.prop(vehicle, "limited_slip_ratio")
+            sub.enabled = (vehicle.lsd_preset == 'CUSTOM')
+            if vehicle.lsd_preset != 'CUSTOM':
+                col.label(text="Layout: " + vehicle.detected_layout)
+            simple_drive_col = col.column(align=True)
+            simple_drive_col.prop(vehicle, "steering_speed")
+            simple_drive_col.prop(vehicle, "high_speed_steering_reduction")
+        if not is_jolt:
+            col.prop(vehicle, "wheel_inertia")
+            col.prop(vehicle, "wheel_angular_damping")
+
+        layout.separator()
+        col = layout.column()
+        col.label(text="Lock Translation:")
+        row = col.row()
+        row.prop(game, "lock_location_x", text="X")
+        row.prop(game, "lock_location_y", text="Y")
+        row.prop(game, "lock_location_z", text="Z")
+
+        col.label(text="Lock Rotation:")
+        row = col.row()
+        row.prop(game, "lock_rotation_x", text="X")
+        row.prop(game, "lock_rotation_y", text="Y")
+        row.prop(game, "lock_rotation_z", text="Z")
+
+    def draw_motorcycle_chassis(self, layout, game, vehicle, is_jolt):
+        """Draw motorcycle chassis settings (Jolt MotorcycleController)."""
+        if not is_jolt:
+            layout.label(text="Motorcycle requires the Jolt physics backend.",
+                         icon='ERROR')
+            return
+
+        split = layout.split()
+        col = split.column()
+        col.label(text="Chassis:")
+        col.prop(vehicle, "solver_iterations")
+        col.prop(game, "mass")
+        col.prop(game, "elasticity", slider=True)
+        col.prop(game, "velocity_max", text="Linear Velocity Max")
+        col.prop(game, "angular_velocity_max", text="Angular Velocity Max")
+
+        col = split.column()
+        col.label(text="Object:")
+        col.prop(game, "use_actor")
+        col.prop(game, "use_ghost")
+        col.prop(game, "use_sleep")
+        col.label(text="Damping:")
+        sub = col.column(align=True)
+        sub.prop(game, "damping", text="Translation", slider=True)
+        sub.prop(game, "rotation_damping", text="Rotation", slider=True)
+        col.label(text="Body Friction:")
+        col.prop(game, "friction")
+
+        layout.separator()
+
+        split = layout.split()
+        col = split.column()
+        col.prop(game, "gravity_factor")
+        col.prop(vehicle, "max_pitch_roll_angle")
+
+        col = split.column()
+        col.prop(vehicle, "forward_axis")
+        col.prop(vehicle, "up_axis")
+        col.prop(vehicle, "engine_torque")
+        # High-speed steering reduction is redundant on motorcycles: Jolt's
+        # MotorcycleController applies a physics-correct steering clamp
+        # (asin(wheelbase * tan(maxLean) * g / v^2)) whenever Lean Steering
+        # Limit is enabled, which always wins above low speeds. Only expose
+        # the input smoothing time.
+        col.prop(vehicle, "steering_speed")
+
+        layout.separator()
+        box = layout.box()
+        box.label(text="Lean Controller (auto-balance):")
+        row = box.row()
+        row.prop(vehicle, "mc_enable_lean_controller")
+        row.prop(vehicle, "mc_enable_lean_steering_limit")
+
+        split2 = box.split()
+        lcol = split2.column(align=True)
+        max_lean_col = lcol.column(align=True)
+        max_lean_col.active = (vehicle.mc_enable_lean_controller or
+                       vehicle.mc_enable_lean_steering_limit)
+        max_lean_col.prop(vehicle, "mc_max_lean_angle")
+        smoothing_col = lcol.column(align=True)
+        smoothing_col.active = vehicle.mc_enable_lean_controller
+        smoothing_col.prop(vehicle, "mc_lean_smoothing_factor", slider=True)
+
+        rcol = split2.column(align=True)
+        rcol.active = vehicle.mc_enable_lean_controller
+        rcol.prop(vehicle, "mc_lean_spring_constant")
+        rcol.prop(vehicle, "mc_lean_spring_damping")
+        rcol.prop(vehicle, "mc_lean_spring_integration_coefficient")
+        rcol.prop(vehicle, "mc_lean_spring_integration_decay")
+
+        force_box = layout.box()
+        force_box.label(text="Suspension Force Points:")
+        force_box.prop(vehicle, "mc_override_suspension_force_points")
+        force_box.label(text="Disable to use Jolt's contact-point behavior.")
+
+        layout.separator()
+        col = layout.column()
+        col.label(text="Lock Translation:")
+        row = col.row()
+        row.prop(game, "lock_location_x", text="X")
+        row.prop(game, "lock_location_y", text="Y")
+        row.prop(game, "lock_location_z", text="Z")
+
+        col.label(text="Lock Rotation:")
+        row = col.row()
+        row.prop(game, "lock_rotation_x", text="X")
+        row.prop(game, "lock_rotation_y", text="Y")
+        row.prop(game, "lock_rotation_z", text="Z")
+
+    def draw_vehicle_wheel(self, layout, vehicle, is_jolt):
+        """Draw wheel-specific settings."""
+        layout.prop(vehicle, "chassis_object")
+
+        chassis_vehicle = None
+        traction_managed_by_preset = False
+        if vehicle.chassis_object and vehicle.chassis_object.game and vehicle.chassis_object.game.vehicle:
+            chassis_vehicle = vehicle.chassis_object.game.vehicle
+            traction_managed_by_preset = chassis_vehicle.lsd_preset in {'FWD_ROAD', 'RWD_DRIFT', 'AWD_RALLY', 'OFFROAD'}
+
+        col = layout.column()
+        traction_col = col.column()
+        traction_col.enabled = not traction_managed_by_preset
+        traction_col.prop(vehicle, "use_as_traction")
+        if traction_managed_by_preset:
+            col.label(text="Traction is controlled by the chassis LSD preset.", icon='INFO')
+            col.label(text="Set chassis LSD Preset to Custom or Open to edit it.")
+        col.prop(vehicle, "use_as_steering")
+
+        if is_jolt:
+            steer_col = col.column()
+            steer_col.active = vehicle.use_as_steering
+            steer_col.prop(vehicle, "wheel_steering", text="Max Steer Angle")
+
+        col.prop(vehicle, "use_as_brake")
+
+        if is_jolt:
+            brake_col = col.column()
+            brake_col.active = vehicle.use_as_brake
+            brake_col.prop(vehicle, "wheel_brake")
+
+        # Motorcycles have no parking/handbrake lever in Jolt's MotorcycleController;
+        # only the normal brake channel is physically meaningful on a two-wheeler.
+        if vehicle.vehicle_type != 'MOTORCYCLE_WHEEL':
+            col.prop(vehicle, "use_handbrake")
+
+        if is_jolt:
+            col.prop(vehicle, "use_auto_inertia")
+            sub = col.column()
+            sub.active = not vehicle.use_auto_inertia
+            sub.prop(vehicle, "wheel_inertia")
+            col.prop(vehicle, "wheel_angular_damping")
+        else:
+            row = layout.row(align=True)
+            row.prop(vehicle, "use_steering_override", text="Steering Override")
+            sub = row.row(align=True)
+            sub.active = vehicle.use_steering_override
+            sub.prop(vehicle, "wheel_steering", text="")
+
+        split = layout.split()
+        col = split.column()
+        col.label(text="Wheel Setup:")
+        col.prop(vehicle, "collision_mode")
+        col.prop(vehicle, "wheel_ray_mask")
+        col.prop(vehicle, "use_auto_radius")
+        radius_col = col.column()
+        radius_col.active = not vehicle.use_auto_radius
+        radius_col.prop(vehicle, "wheel_radius")
+        col.prop(vehicle, "use_auto_width")
+        width_col = col.column()
+        width_col.active = not vehicle.use_auto_width
+        width_col.prop(vehicle, "wheel_width")
+        if is_jolt:
+            col.prop(vehicle, "use_combined_friction_axes")
+            if vehicle.use_combined_friction_axes:
+                col.prop(vehicle, "wheel_friction_slip")
+            else:
+                col.prop(vehicle, "wheel_longitudinal_friction")
+                col.prop(vehicle, "wheel_lateral_friction")
+        else:
+            col.prop(vehicle, "wheel_friction_slip")
+            col.prop(vehicle, "wheel_roll_influence")
+
+        col = split.column()
+        col.label(text="Suspension:")
+        col.prop(vehicle, "suspension_stiffness")
+        col.prop(vehicle, "suspension_travel")
+        if is_jolt:
+            col.prop(vehicle, "damping_compression", text="Damping")
+        else:
+            col.prop(vehicle, "damping_compression")
+            col.prop(vehicle, "damping_relaxation")
+
+        transform = layout.column()
+        transform.label(text="Transform:")
+        transform.prop(vehicle, "use_derive_from_transform")
+        manual = transform.column()
+        manual.active = not vehicle.use_derive_from_transform
+        manual.prop(vehicle, "connection_point")
+
+        row = manual.row()
+        row.label(text="Down Direction:")
+        row.prop(vehicle, "down_direction_axis", text="")
+
+        row = manual.row()
+        row.label(text="Axle Direction:")
+        row.prop(vehicle, "axle_direction_axis", text="")
+
     def draw(self, context):
         layout = self.layout
 
@@ -323,7 +594,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
                 col = split.column()
                 col.label(text="Jolt Physics:")
                 col.prop(game, "gravity_factor")
-                col.prop(game, "use_gyroscopic_force")
 
             layout.separator()
             col = layout.column()
@@ -333,6 +603,20 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             row.prop(game, "lock_location_x", text="X")
             row.prop(game, "lock_location_y", text="Y")
             row.prop(game, "lock_location_z", text="Z")
+
+        elif physics_type == 'VEHICLE':
+            vehicle = game.vehicle
+
+            layout.prop(vehicle, "vehicle_type")
+
+            if vehicle.vehicle_type == 'CHASSIS':
+                self.draw_vehicle_chassis(layout, game, vehicle, is_jolt)
+            elif vehicle.vehicle_type == 'WHEEL':
+                self.draw_vehicle_wheel(layout, vehicle, is_jolt)
+            elif vehicle.vehicle_type == 'MOTORCYCLE_CHASSIS':
+                self.draw_motorcycle_chassis(layout, game, vehicle, is_jolt)
+            elif vehicle.vehicle_type == 'MOTORCYCLE_WHEEL':
+                self.draw_vehicle_wheel(layout, vehicle, is_jolt)
 
         if physics_type == 'RIGID_BODY':
             col = layout.column()
@@ -512,8 +796,14 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         game = context.object.game
-        return (context.scene.render.engine in cls.COMPAT_ENGINES) \
-                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY'})
+        if not (context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        if game.physics_type not in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY', 'VEHICLE'}:
+            return False
+        if (game.physics_type == 'VEHICLE' and game.vehicle and
+                game.vehicle.vehicle_type in {'WHEEL', 'MOTORCYCLE_WHEEL'}):
+            return False
+        return True
 
     def draw_header(self, context):
         gs = context.scene.game_settings
@@ -567,8 +857,13 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         game = context.object.game
-        return (context.scene.render.engine in cls.COMPAT_ENGINES) \
-                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'})
+        if not (context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        if game.physics_type == 'VEHICLE':
+            return False
+        if game.physics_type not in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'}:
+            return False
+        return True
 
     def draw_header(self, context):
         game = context.active_object.game
@@ -680,11 +975,18 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
 
             col = layout.column()
             col.label(text="Physics Deactivation:")
-            sub = col.row(align=True)
-            sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
-            sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
-            sub = col.row()
-            sub.prop(gs, "deactivation_time", text="Time")
+            if gs.physics_engine == 'JOLT':
+                sub = col.row()
+                sub.prop(gs, "deactivation_linear_threshold", text="Sleep Velocity Threshold")
+                sub = col.row()
+                sub.prop(gs, "deactivation_time", text="Time")
+                col.label(text="Jolt uses one point-velocity sleep threshold.", icon='INFO')
+            else:
+                sub = col.row(align=True)
+                sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
+                sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
+                sub = col.row()
+                sub.prop(gs, "deactivation_time", text="Time")
 
             col = layout.column()
             col.label(text="Physics Joint Error Reduction:")

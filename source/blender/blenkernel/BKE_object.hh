@@ -764,6 +764,11 @@ bool BKE_object_lod_is_usable(Object *ob);
 Object *BKE_object_lod_meshob_get(Object *ob);
 //struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer);
 
+struct GameVehicleSettings *BKE_object_vehicle_settings_ensure(Object *ob);
+struct GameVehicleSettings *BKE_object_vehicle_settings_copy(
+    const struct GameVehicleSettings *settings);
+void BKE_object_vehicle_settings_free(Object *ob);
+
 
 struct BulletSoftBody *copy_bulletsoftbody(const struct BulletSoftBody *sb, const int flag);
 void BKE_object_free_bulletsoftbody(Object *ob);

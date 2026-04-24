@@ -243,6 +243,10 @@ class PHY_IPhysicsEnvironment {
 
   // complex constraint for vehicles
   virtual PHY_IVehicle *GetVehicleConstraint(int constraintId) = 0;
+  virtual PHY_IVehicle *GetVehicleConstraint(PHY_IPhysicsController * /*ctrl*/)
+  {
+    return nullptr;
+  }
   // Character physics wrapper
   virtual PHY_ICharacter *GetCharacterController(class KX_GameObject *ob) = 0;
 

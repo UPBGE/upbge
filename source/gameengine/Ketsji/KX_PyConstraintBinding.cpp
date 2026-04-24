@@ -75,10 +75,12 @@ PyDoc_STRVAR(gPySetDeactivationTime__doc__,
              "This sets the time after which a resting rigidbody gets deactived");
 PyDoc_STRVAR(gPySetDeactivationLinearTreshold__doc__,
              "setDeactivationLinearTreshold(float linearTreshold)\n"
-             "");
+             "Set the linear sleep threshold. In Jolt this maps to the native point-velocity "
+             "sleep threshold.");
 PyDoc_STRVAR(gPySetDeactivationAngularTreshold__doc__,
              "setDeactivationAngularTreshold(float angularTreshold)\n"
-             "");
+             "Set the angular sleep threshold. Bullet uses this directly; Jolt has no "
+             "separate angular sleep threshold so the value is ignored there.");
 PyDoc_STRVAR(gPySetContactBreakingTreshold__doc__,
              "setContactBreakingTreshold(float breakingTreshold)\n"
              "Reasonable default is 0.02 (if units are meters)");

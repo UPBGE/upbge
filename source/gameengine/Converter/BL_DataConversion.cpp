@@ -51,6 +51,11 @@
 
 #include "BL_DataConversion.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <optional>
+
 #include <fmt/format.h>
 
 /* This little block needed for linking to Blender... */
@@ -69,7 +74,9 @@
 #include "BKE_mesh_tangent.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
 #include "DNA_meshdata_types.h"
@@ -101,6 +108,7 @@
 #include "CM_Message.h"
 #include "MT_Transform.h"
 #include "PHY_IConstraint.h"
+#include "PHY_IVehicle.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
 #ifdef WITH_BULLET
@@ -572,6 +580,15 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
     return;
   }
 
+  /* Wheel-type vehicle objects are visual only; their transforms are driven by
+   * the vehicle constraint on the chassis. Do not create independent rigid bodies.
+   * Applies to both regular vehicle wheels and motorcycle wheels. */
+  if ((blenderobject->gameflag2 & OB_HAS_VEHICLE) && blenderobject->vehicle &&
+      (blenderobject->vehicle->vehicle_type == OB_VEHICLE_TYPE_WHEEL ||
+       blenderobject->vehicle->vehicle_type == OB_VEHICLE_TYPE_MOTORCYCLE_WHEEL)) {
+    return;
+  }
+
   blender::Object *parent = blenderobject->parent;
 
   bool isCompoundChild = false;
@@ -620,6 +637,400 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                                                KX_ClientObjectInfo::OBSENSOR) :
                                      (isActor)  ? KX_ClientObjectInfo::ACTOR :
                                                   KX_ClientObjectInfo::STATIC;
+}
+
+static int BL_vehicle_axis_to_index(short axis)
+{
+  return std::clamp<int>(axis, OB_POSX, OB_NEGZ);
+}
+
+static MT_Vector3 BL_vehicle_axis_vector(short axis)
+{
+  switch (BL_vehicle_axis_to_index(axis)) {
+    case OB_POSX:
+      return MT_Vector3(1.0f, 0.0f, 0.0f);
+    case OB_POSY:
+      return MT_Vector3(0.0f, 1.0f, 0.0f);
+    case OB_POSZ:
+      return MT_Vector3(0.0f, 0.0f, 1.0f);
+    case OB_NEGX:
+      return MT_Vector3(-1.0f, 0.0f, 0.0f);
+    case OB_NEGY:
+      return MT_Vector3(0.0f, -1.0f, 0.0f);
+    case OB_NEGZ:
+      return MT_Vector3(0.0f, 0.0f, -1.0f);
+    default:
+      return MT_Vector3(1.0f, 0.0f, 0.0f);
+  }
+}
+
+static int BL_vehicle_vector_to_axis(const MT_Vector3 &axis)
+{
+  const float ax = std::abs(axis.x());
+  const float ay = std::abs(axis.y());
+  const float az = std::abs(axis.z());
+
+  if (ax >= ay && ax >= az) {
+    return axis.x() >= 0.0f ? OB_POSX : OB_NEGX;
+  }
+  if (ay >= ax && ay >= az) {
+    return axis.y() >= 0.0f ? OB_POSY : OB_NEGY;
+  }
+  return axis.z() >= 0.0f ? OB_POSZ : OB_NEGZ;
+}
+
+static int BL_vehicle_right_axis(short up_axis, short forward_axis)
+{
+  const MT_Vector3 up = BL_vehicle_axis_vector(up_axis);
+  const MT_Vector3 forward = BL_vehicle_axis_vector(forward_axis);
+  const MT_Vector3 right = forward.cross(up);
+
+  if (right.length2() < 1.0e-6f) {
+    return OB_POSX;
+  }
+  return BL_vehicle_vector_to_axis(right);
+}
+
+static void BL_vehicle_derive_wheel_frame(KX_GameObject *chassis_obj,
+                                         KX_GameObject *wheel_obj,
+                                         MT_Vector3 &connection_point,
+                                         MT_Vector3 &down_direction,
+                                         MT_Vector3 &axle_direction)
+{
+  const MT_Vector3 chassis_pos = chassis_obj->NodeGetWorldPosition();
+  const MT_Matrix3x3 chassis_inv = chassis_obj->NodeGetWorldOrientation().inverse();
+  const MT_Matrix3x3 wheel_ori = wheel_obj->NodeGetWorldOrientation();
+
+  connection_point = chassis_inv * (wheel_obj->NodeGetWorldPosition() - chassis_pos);
+  down_direction = (chassis_inv * (wheel_ori * MT_Vector3(0.0f, 0.0f, -1.0f))).safe_normalized();
+  axle_direction = (chassis_inv * (wheel_ori * MT_Vector3(1.0f, 0.0f, 0.0f))).safe_normalized();
+}
+
+struct BL_AutoWheelDimensions {
+  float radius;
+  float width;
+  bool valid;
+};
+
+static BL_AutoWheelDimensions BL_vehicle_auto_wheel_dimensions(
+    KX_GameObject *chassis_obj,
+    KX_GameObject *wheel_obj,
+    blender::Object *wheel_blender_obj,
+    const MT_Vector3 &axle_direction,
+    const MT_Vector3 &down_direction)
+{
+  BL_AutoWheelDimensions dimensions = {0.0f, 0.0f, false};
+  if (!wheel_blender_obj) {
+    return dimensions;
+  }
+
+  std::optional<Bounds<float3>> bl_bounds = BKE_object_boundbox_eval_cached_get(wheel_blender_obj);
+  if (!bl_bounds) {
+    bl_bounds = BKE_object_boundbox_get(wheel_blender_obj);
+  }
+  if (!bl_bounds) {
+    return dimensions;
+  }
+
+  const std::array<float3, 8> corners = bounds::corners(*bl_bounds);
+  const MT_Vector3 axle_world =
+      (chassis_obj->NodeGetWorldOrientation() * axle_direction).safe_normalized();
+  MT_Vector3 radial_axis_a =
+      (chassis_obj->NodeGetWorldOrientation() * down_direction).safe_normalized();
+  if (axle_world.length2() < 1.0e-6f) {
+    return dimensions;
+  }
+  radial_axis_a = (radial_axis_a - axle_world * radial_axis_a.dot(axle_world)).safe_normalized();
+  if (radial_axis_a.length2() < 1.0e-6f) {
+    const MT_Vector3 fallback = std::abs(axle_world.x()) < 0.9f ? MT_Vector3(1.0f, 0.0f, 0.0f) :
+                                                                 MT_Vector3(0.0f, 1.0f, 0.0f);
+    radial_axis_a = axle_world.cross(fallback).safe_normalized();
+  }
+  const MT_Vector3 radial_axis_b = axle_world.cross(radial_axis_a).safe_normalized();
+
+  const MT_Matrix3x3 wheel_ori = wheel_obj->NodeGetWorldOrientation();
+  const MT_Vector3 wheel_scale = wheel_obj->NodeGetWorldScaling();
+  bool is_first = true;
+  float min_axle_projection = 0.0f;
+  float max_axle_projection = 0.0f;
+  float max_radial_extent_a = 0.0f;
+  float max_radial_extent_b = 0.0f;
+
+  for (const float3 &corner : corners) {
+    const MT_Vector3 scaled_corner(corner[0] * wheel_scale.x(),
+                                   corner[1] * wheel_scale.y(),
+                                   corner[2] * wheel_scale.z());
+    const MT_Vector3 offset = wheel_ori * scaled_corner;
+    const float axle_projection = offset.dot(axle_world);
+
+    if (is_first) {
+      min_axle_projection = axle_projection;
+      max_axle_projection = axle_projection;
+      is_first = false;
+    }
+    else {
+      min_axle_projection = std::min(min_axle_projection, axle_projection);
+      max_axle_projection = std::max(max_axle_projection, axle_projection);
+    }
+
+    max_radial_extent_a = std::max(max_radial_extent_a, std::abs(offset.dot(radial_axis_a)));
+    max_radial_extent_b = std::max(max_radial_extent_b, std::abs(offset.dot(radial_axis_b)));
+  }
+
+  dimensions.width = std::max(0.0f, max_axle_projection - min_axle_projection);
+  dimensions.radius = std::max(max_radial_extent_a, max_radial_extent_b);
+  dimensions.valid = dimensions.width > 1.0e-6f || dimensions.radius > 1.0e-6f;
+  return dimensions;
+}
+
+static float BL_vehicle_auto_wheel_radius_fallback(KX_GameObject *wheel_obj,
+                                                   const MT_Vector3 &axle_direction)
+{
+  const MT_Vector3 scale = wheel_obj->NodeGetWorldScaling();
+  const float axle_x = std::abs(axle_direction.x());
+  const float axle_y = std::abs(axle_direction.y());
+  const float axle_z = std::abs(axle_direction.z());
+
+  if (axle_x >= axle_y && axle_x >= axle_z) {
+    return 0.5f * std::max(std::abs(scale.y()), std::abs(scale.z()));
+  }
+  if (axle_y >= axle_x && axle_y >= axle_z) {
+    return 0.5f * std::max(std::abs(scale.x()), std::abs(scale.z()));
+  }
+  return 0.5f * std::max(std::abs(scale.x()), std::abs(scale.y()));
+}
+
+static float BL_vehicle_auto_wheel_width_fallback(KX_GameObject *wheel_obj,
+                                                  const MT_Vector3 &axle_direction)
+{
+  const MT_Vector3 scale = wheel_obj->NodeGetWorldScaling();
+  const float axle_x = std::abs(axle_direction.x());
+  const float axle_y = std::abs(axle_direction.y());
+  const float axle_z = std::abs(axle_direction.z());
+
+  if (axle_x >= axle_y && axle_x >= axle_z) {
+    return std::abs(scale.x());
+  }
+  if (axle_y >= axle_x && axle_y >= axle_z) {
+    return std::abs(scale.y());
+  }
+  return std::abs(scale.z());
+}
+
+static void BL_CreateVehicleAuthoringObjects(EXP_ListValue<KX_GameObject> *sumolist,
+                                             KX_Scene *kxscene,
+                                             BL_SceneConverter *converter,
+                                             blender::Object *single_object,
+                                             bool converting_instance_col_at_runtime)
+{
+  PHY_IPhysicsEnvironment *phys_env = kxscene->GetPhysicsEnvironment();
+
+  /* First pass: create vehicles for all chassis objects. */
+  for (KX_GameObject *gameobj : sumolist) {
+    blender::Object *blenderobject = gameobj->GetBlenderObject();
+    if (single_object && !converting_instance_col_at_runtime && blenderobject != single_object) {
+      continue;
+    }
+
+    if (!(blenderobject->gameflag2 & OB_HAS_VEHICLE) || !blenderobject->vehicle) {
+      continue;
+    }
+
+    GameVehicleSettings *vehicle_settings = blenderobject->vehicle;
+    if (vehicle_settings->vehicle_type != OB_VEHICLE_TYPE_CHASSIS &&
+        vehicle_settings->vehicle_type != OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS) {
+      continue;
+    }
+    const bool is_motorcycle =
+        (vehicle_settings->vehicle_type == OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS);
+
+    PHY_IPhysicsController *chassis_ctrl = gameobj->GetPhysicsController();
+    if (!chassis_ctrl || !gameobj->GetSGNode()) {
+      continue;
+    }
+
+    PHY_IVehicle *vehicle = phys_env->CreateVehicle(chassis_ctrl);
+    if (!vehicle) {
+      continue;
+    }
+
+    /* Must be set BEFORE wheels are added because the controller kind
+     * (WheeledVehicle vs Motorcycle) is baked into the VehicleConstraint at
+     * build time. */
+    vehicle->SetMotorcycleMode(is_motorcycle);
+    if (is_motorcycle) {
+      vehicle->SetMotorcycleLean(vehicle_settings->mc_max_lean_angle,
+                                 vehicle_settings->mc_lean_spring_constant,
+                                 vehicle_settings->mc_lean_spring_damping,
+                                 vehicle_settings->mc_lean_spring_integration_coef,
+                                 vehicle_settings->mc_lean_spring_integration_decay,
+                                 vehicle_settings->mc_lean_smoothing_factor);
+      vehicle->SetMotorcycleLeanFlags(
+          (vehicle_settings->flags & OB_VEHICLE_MC_LEAN_CONTROLLER) != 0,
+          (vehicle_settings->flags & OB_VEHICLE_MC_LEAN_STEERING_LIMIT) != 0);
+        vehicle->SetMotorcycleSuspensionForcePointOverride(
+          (vehicle_settings->flags & OB_VEHICLE_MC_FRONT_FORCE_POINT) != 0,
+          (vehicle_settings->flags & OB_VEHICLE_MC_REAR_FORCE_POINT) != 0);
+    }
+
+    /* Chassis-level ray_mask is not used by Jolt: each wheel has its own
+     * ray mask that drives the per-wheel collision tester.  Skip setting
+     * the chassis mask so it cannot silently affect behavior. */
+    vehicle->SetCoordinateSystem(BL_vehicle_right_axis(vehicle_settings->up_axis,
+                                                       vehicle_settings->forward_axis),
+                                 BL_vehicle_axis_to_index(vehicle_settings->up_axis),
+                                 BL_vehicle_axis_to_index(vehicle_settings->forward_axis));
+    vehicle->SetMaxPitchRollAngle(vehicle_settings->max_pitch_roll_angle);
+    vehicle->SetSolverIterations(vehicle_settings->solver_iterations);
+    vehicle->SetWheelDefaults(
+        0.0f, vehicle_settings->wheel_inertia, vehicle_settings->wheel_angular_damping);
+    vehicle->SetDrivetrain(vehicle_settings->handbrake_torque,
+                           vehicle_settings->engine_torque,
+                           vehicle_settings->differential_ratio,
+                           vehicle_settings->limited_slip_ratio);
+    vehicle->SetSimpleDriveMode(true);
+    /* For motorcycles the car-style linear high-speed steering reduction is
+     * redundant with (and weaker than) Jolt's physics-correct Lean Steering
+     * Limit. Force it to 0 so old blend files with non-zero values cannot
+     * silently double-dip when the lean limit is disabled. */
+    const float effective_high_speed_steering_reduction =
+        is_motorcycle ? 0.0f : vehicle_settings->high_speed_steering_reduction;
+    vehicle->SetSimpleDriveSteering(vehicle_settings->steering_speed,
+                    effective_high_speed_steering_reduction);
+    vehicle->SetAntiRoll(vehicle_settings->anti_roll_front, vehicle_settings->anti_roll_rear);
+    vehicle->SetMaxBrakeTorque(vehicle_settings->brake);
+    /* Roll influence offsets the per-wheel suspension force point along the
+     * suspension axis to create a suspension-geometry roll couple on 4+
+     * wheel cars. On a two-wheeler the two force points sit on the bike's
+     * forward axis, so any such offset produces only a pitch couple and
+     * fights the Jolt MotorcycleController lean spring. Force it off for
+     * motorcycle chassis on both new and legacy blend files. */
+    const float chassis_roll_influence = is_motorcycle ?
+                                             0.0f :
+                                             vehicle_settings->chassis_roll_influence;
+
+    /* Second pass: find all wheel objects that reference this chassis. */
+    for (KX_GameObject *wheel_gameobj : sumolist) {
+      blender::Object *wheel_blobj = wheel_gameobj->GetBlenderObject();
+      if (!(wheel_blobj->gameflag2 & OB_HAS_VEHICLE) || !wheel_blobj->vehicle) {
+        continue;
+      }
+
+      GameVehicleSettings *ws = wheel_blobj->vehicle;
+      /* A motorcycle chassis only accepts motorcycle wheels and a regular
+       * vehicle chassis only accepts regular wheels. This matches the split
+       * in the UI and prevents accidentally linking the wrong wheel type. */
+      const int expected_wheel_type = is_motorcycle ? OB_VEHICLE_TYPE_MOTORCYCLE_WHEEL :
+                                                      OB_VEHICLE_TYPE_WHEEL;
+      if (ws->vehicle_type != expected_wheel_type) {
+        continue;
+      }
+      if (ws->chassis_object != blenderobject) {
+        continue;
+      }
+      if (!wheel_gameobj->GetSGNode()) {
+        continue;
+      }
+
+      MT_Vector3 connection_point = MT_Vector3(ws->connection_point);
+      MT_Vector3 down_direction = MT_Vector3(ws->down_direction).safe_normalized();
+      MT_Vector3 axle_direction = MT_Vector3(ws->axle_direction).safe_normalized();
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM) {
+        BL_vehicle_derive_wheel_frame(
+            gameobj, wheel_gameobj, connection_point, down_direction, axle_direction);
+      }
+
+      const BL_AutoWheelDimensions auto_dimensions = BL_vehicle_auto_wheel_dimensions(
+          gameobj, wheel_gameobj, wheel_blobj, axle_direction, down_direction);
+
+      float wheel_radius = ws->wheel_radius;
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_RADIUS) {
+        wheel_radius = auto_dimensions.valid && auto_dimensions.radius > 1.0e-6f ?
+                           auto_dimensions.radius :
+                           BL_vehicle_auto_wheel_radius_fallback(wheel_gameobj, axle_direction);
+      }
+      wheel_radius = std::max(wheel_radius, 0.01f);
+
+      /* Jolt always treats the parked wheel center as one wheel radius below the
+       * suspension hardpoint. When the wheel frame is derived from the wheel
+       * object transform, that transform authors the parked wheel center, so
+       * move the hardpoint one radius upward. Manual connection points already
+       * author the hardpoint directly. */
+      const float wheel_rest_length = wheel_radius;
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM) {
+        connection_point -= down_direction * wheel_radius;
+      }
+
+      /* Only honour the visible "Use As Steering" flag.  The legacy
+       * Bullet-only OVERRIDE_STEERING flag is hidden in the Jolt UI
+       * and must not leak into Jolt steering behaviour. */
+      const bool has_steering = (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_STEERING) != 0;
+      float suspension_travel = ws->suspension_travel;
+
+      vehicle->AddWheel(new KX_MotionState(wheel_gameobj->GetSGNode()),
+                        connection_point,
+                        down_direction,
+                        axle_direction,
+                        wheel_rest_length,
+                        wheel_radius,
+                        has_steering);
+
+      const int wheel_index = vehicle->GetNumWheels() - 1;
+      const bool use_traction = (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_TRACTION) != 0;
+      const bool use_brake = (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_BRAKE) != 0;
+      /* Do not use the hidden chassis engine_force (a Bullet-era value).
+       * Jolt derives drive force from the visible engine_torque and
+       * drivetrain settings instead. */
+      const float w_engine_force = 0.0f;
+      const float w_brake = use_brake ? ws->wheel_brake : 0.0f;
+      const float w_steering = has_steering ? ws->wheel_steering : 0.0f;
+      vehicle->SetWheelCollisionMode(ws->collision_mode, wheel_index);
+      vehicle->SetWheelRayCastMask(short(ws->wheel_ray_mask), wheel_index);
+      vehicle->SetWheelUseTraction(wheel_index, use_traction);
+      vehicle->SetWheelMaxEngineForce(w_engine_force, wheel_index);
+      vehicle->SetWheelMaxBrakeTorque(w_brake, wheel_index);
+      vehicle->SetWheelMaxSteerAngle(w_steering, wheel_index);
+      float wheel_width = std::max(0.0f, ws->wheel_width);
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_WIDTH) {
+        wheel_width = auto_dimensions.valid && auto_dimensions.width > 1.0e-6f ?
+                          auto_dimensions.width :
+                          BL_vehicle_auto_wheel_width_fallback(wheel_gameobj, axle_direction);
+      }
+      vehicle->SetWheelWidth(wheel_width, wheel_index);
+      vehicle->SetWheelFriction(ws->wheel_friction_slip, wheel_index);
+      if ((ws->wheel_flags & OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES) == 0) {
+        vehicle->SetWheelLongitudinalFriction(ws->wheel_longitudinal_friction, wheel_index);
+        vehicle->SetWheelLateralFriction(ws->wheel_lateral_friction, wheel_index);
+      }
+      vehicle->SetSuspensionStiffness(ws->suspension_stiffness, wheel_index);
+      vehicle->SetSuspensionDamping(ws->damping_relaxation, wheel_index);
+      vehicle->SetSuspensionCompression(ws->damping_compression, wheel_index);
+      vehicle->SetRollInfluence(chassis_roll_influence, wheel_index);
+      vehicle->SetSuspensionTravel(suspension_travel, wheel_index);
+      vehicle->SetWheelUseHandBrake(
+          wheel_index, (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_HANDBRAKE) != 0);
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_INERTIA) {
+        /* Approximate wheel mass as 3% of chassis mass (realistic for car
+         * tire + rim) and compute the rotational inertia of a solid cylinder:
+         *   I = 0.5 * M_wheel * R^2
+         * For a 700 kg chassis with 0.3 m radius this gives ~0.945 kg m^2,
+         * close to Jolt's 0.9 default. */
+        const float chassis_mass = std::max(1.0f, float(chassis_ctrl->GetMass()));
+        const float wheel_mass = chassis_mass * 0.03f;
+        const float auto_inertia = std::max(0.01f, 0.5f * wheel_mass * wheel_radius * wheel_radius);
+        vehicle->SetWheelInertia(auto_inertia, wheel_index);
+      }
+      else {
+        vehicle->SetWheelInertia(ws->wheel_inertia, wheel_index);
+      }
+      vehicle->SetWheelAngularDamping(ws->wheel_angular_damping, wheel_index);
+      vehicle->SetWheelHandBrakeTorque(vehicle_settings->handbrake_torque, wheel_index);
+    }
+
+    if (vehicle->GetNumWheels() == 0) {
+      phys_env->RemoveConstraintById(vehicle->GetUserConstraintId(), true);
+    }
+  }
 }
 
 static KX_LodManager *BL_lodmanager_from_blenderobject(blender::Object *ob,
@@ -1591,6 +2002,11 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       BL_CreatePhysicsObjectNew(
           gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
     }
+  }
+
+  if (physics_engine == UseJolt) {
+    BL_CreateVehicleAuthoringObjects(
+        sumolist, kxscene, converter, single_object, converting_instance_col_at_runtime);
   }
 
   /* Convert rigid body constraints from Blender helper objects to object1-owned constraints. */

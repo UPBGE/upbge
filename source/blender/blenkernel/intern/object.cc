@@ -56,6 +56,7 @@
 #include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
@@ -183,6 +184,15 @@ static_assert(sizeof(blender::bke::ObjectRuntime::contained_geometry_types) * 8 
 
 static void copy_object_pose(Object *obn, const Object *ob, const int flag);
 static void copy_object_lod(Object *obn, const Object *ob, const int flag);
+static GameVehicleSettings *copy_object_vehicle_settings(const GameVehicleSettings *settings);
+static void object_vehicle_settings_free_data(GameVehicleSettings *settings);
+
+static GameVehicleSettings *object_vehicle_settings_new()
+{
+  GameVehicleSettings *settings = MEM_new<GameVehicleSettings>("GameVehicleSettings");
+  settings->flags = OB_VEHICLE_AUTO_CREATE;
+  return settings;
+}
 
 static void object_init_data(ID *id)
 {
@@ -252,6 +262,7 @@ static void object_copy_data(Main *bmain,
   if (ob_src->bsoft) {
     ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, 0);
   }
+  ob_dst->vehicle = copy_object_vehicle_settings(ob_src->vehicle);
   copy_object_lod(ob_dst, ob_src, flag_subdata);
   /**************/
 
@@ -347,6 +358,7 @@ static void object_free_data(ID *id)
   BKE_sca_free_actuators(&ob->actuators);
   BKE_python_proxy_free_list(&ob->components);
   BKE_object_free_bulletsoftbody(ob);
+  BKE_object_vehicle_settings_free(ob);
   BLI_freelistN(&ob->lodlevels);
   /****************/
 
@@ -563,6 +575,18 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     while (level) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, level->source, IDWALK_CB_NEVER_SELF);
       level = level->next;
+    }
+  }
+
+  if (object->vehicle) {
+    /* Resolve chassis_object pointer for wheel-type vehicles. */
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(
+        data, object->vehicle->chassis_object, IDWALK_CB_NEVER_SELF);
+    /* Resolve legacy wheel_object pointers (for versioning migration). */
+    for (GameVehicleWheel *wheel :
+         ListBaseWrapper<GameVehicleWheel>(object->vehicle->legacy_wheels))
+    {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, wheel->wheel_object, IDWALK_CB_NEVER_SELF);
     }
   }
 
@@ -1146,6 +1170,10 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   if (ob->bsoft) {
     writer->write_struct(ob->bsoft);
   }
+  if (ob->vehicle) {
+    writer->write_struct(ob->vehicle);
+    writer->write_struct_list(&ob->vehicle->legacy_wheels);
+  }
   writer->write_struct_list(&ob->lodlevels);
   /***************/
 
@@ -1415,6 +1443,15 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   BLO_read_struct(reader, BulletSoftBody, &ob->bsoft);
+  BLO_read_struct(reader, GameVehicleSettings, &ob->vehicle);
+  if (ob->vehicle) {
+    /* Read the legacy wheel list (used by versioning migration). */
+    BLO_read_struct_list(reader, GameVehicleWheel, &ob->vehicle->legacy_wheels);
+    ob->gameflag2 |= OB_HAS_VEHICLE;
+  }
+  else {
+    ob->gameflag2 &= ~OB_HAS_VEHICLE;
+  }
 
   BLO_read_struct_list(reader, LodLevel, &ob->lodlevels);
   ob->currentlod = (LodLevel *)ob->lodlevels.first;
@@ -2880,6 +2917,27 @@ bool BKE_object_lod_remove(Object *ob, int level)
   return true;
 }
 
+GameVehicleSettings *BKE_object_vehicle_settings_ensure(Object *ob)
+{
+  if (!ob->vehicle) {
+    ob->vehicle = object_vehicle_settings_new();
+  }
+  return ob->vehicle;
+}
+
+GameVehicleSettings *BKE_object_vehicle_settings_copy(const GameVehicleSettings *settings)
+{
+  return copy_object_vehicle_settings(settings);
+}
+
+void BKE_object_vehicle_settings_free(Object *ob)
+{
+  object_vehicle_settings_free_data(ob->vehicle);
+  ob->vehicle = nullptr;
+  ob->gameflag2 &= ~OB_HAS_VEHICLE;
+}
+
+
 static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 {
   LodLevel *current = ob->currentlod;
@@ -3090,6 +3148,37 @@ static void copy_object_lod(Object *obn, const Object *ob, const int /*flag*/)
 {
   BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
   obn->currentlod = (LodLevel *)obn->lodlevels.first;
+}
+
+static GameVehicleSettings *copy_object_vehicle_settings(const GameVehicleSettings *settings)
+{
+  if (!settings) {
+    return nullptr;
+  }
+
+  GameVehicleSettings *settings_copy = MEM_new<GameVehicleSettings>("GameVehicleSettings");
+  *settings_copy = *settings;
+
+  /* Legacy wheel list should not be copied — it only exists for versioning. */
+  BLI_listbase_clear(&settings_copy->legacy_wheels);
+  return settings_copy;
+}
+
+static void object_vehicle_settings_free_data(GameVehicleSettings *settings)
+{
+  if (!settings) {
+    return;
+  }
+
+  /* Free any legacy wheels that may exist from old files. */
+  GameVehicleWheel *wheel = static_cast<GameVehicleWheel *>(settings->legacy_wheels.first);
+  while (wheel) {
+    GameVehicleWheel *wheel_next = wheel->next;
+    MEM_delete(wheel);
+    wheel = wheel_next;
+  }
+
+  MEM_delete(settings);
 }
 
 bool BKE_object_pose_context_check(const Object *ob)

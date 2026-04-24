@@ -74,9 +74,13 @@ bool SCA_VibrationActuator::Update()
   RemoveAllEvents();
 
   if (bPositiveEvent) {
+    const float analog_factor = GetLinkedSensorAnalogStrength();
+
     switch (m_mode) {
       case KX_ACT_VIBRATION_PLAY: {
-        instance->RumblePlay(m_strengthLeft, m_strengthRight, m_duration);
+        instance->RumblePlay(m_strengthLeft * analog_factor,
+                            m_strengthRight * analog_factor,
+                            m_duration);
         break;
       }
       case KX_ACT_VIBRATION_STOP: {

@@ -106,20 +106,24 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   float mcoords[256][2];
-  int i = 0;
+  int path_count = 0;
 
   RNA_BEGIN (op->ptr, itemptr, "path") {
     float loc[2];
 
     RNA_float_get_array(&itemptr, "loc", loc);
-    view2d_region_to_view(&region->v2d, (int)loc[0], (int)loc[1], &mcoords[i][0], &mcoords[i][1]);
-    i++;
-    if (i >= 256)
+    view2d_region_to_view(&region->v2d,
+                          (int)loc[0],
+                          (int)loc[1],
+                          &mcoords[path_count][0],
+                          &mcoords[path_count][1]);
+    path_count++;
+    if (path_count >= 256)
       break;
   }
   RNA_END;
 
-  if (i > 1) {
+  if (path_count > 1) {
     Block *block;
     uiLinkLine *line, *nline;
     Button *but = nullptr;
@@ -132,7 +136,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
           for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
             nline = line->next;
 
-            if (cut_links_intersect(line, mcoords, i)) {
+            if (cut_links_intersect(line, mcoords, path_count)) {
               ui_linkline_remove(line, but);
             }
           }
@@ -142,7 +146,6 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
     }
 
     ED_undo_push_old(C, "cut_links_exec");
-
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;

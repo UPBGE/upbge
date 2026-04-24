@@ -479,6 +479,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual float GetAppliedImpulse(int constraintid) override;
 
   virtual PHY_IVehicle *GetVehicleConstraint(int constraintId) override;
+  virtual PHY_IVehicle *GetVehicleConstraint(PHY_IPhysicsController *ctrl) override;
   virtual PHY_ICharacter *GetCharacterController(class KX_GameObject *ob) override;
 
   virtual PHY_IPhysicsController *RayTest(PHY_IRayCastFilterCallback &filterCallback,

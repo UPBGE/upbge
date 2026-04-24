@@ -164,7 +164,8 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   virtual void *GetNewClientInfo() override;
   virtual void SetNewClientInfo(void *clientinfo) override;
 
-  /** Called each physics tick to clamp velocities (min/max linear/angular). */
+  /** Called each physics tick to apply UPBGE minimum velocity clamps.
+   * Maximum linear/angular velocity is handled natively by Jolt. */
   void SimulationTick(float timestep);
 
   /* ---- Jolt-specific helpers ---- */

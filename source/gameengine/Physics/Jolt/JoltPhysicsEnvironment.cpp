@@ -147,6 +147,19 @@ static float BulletCombineRestitution(const JPH::Body &inBody1,
   return inBody1.GetRestitution() * inBody2.GetRestitution();
 }
 
+static constexpr float JOLT_DEFAULT_MAX_LINEAR_VELOCITY = 500.0f;
+static constexpr float JOLT_DEFAULT_MAX_ANGULAR_VELOCITY = 0.25f * JPH::JPH_PI * 60.0f;
+
+static float JoltLinearVelocityMaxOrDefault(const float value)
+{
+  return value > 0.0f ? value : JOLT_DEFAULT_MAX_LINEAR_VELOCITY;
+}
+
+static float JoltAngularVelocityMaxOrDefault(const float value)
+{
+  return value > 0.0f ? value : JOLT_DEFAULT_MAX_ANGULAR_VELOCITY;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -629,9 +642,10 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
     collisionSteps = 1;
   }
 
-  /* Full simulation step sequence (matching Bullet's order for physics correctness):
+  /* Full simulation step sequence:
    *   1. Sync motion states BEFORE physics (kinematic bodies read from game objects)
    *   1.75 Apply Blender effectors (force fields)
+   *   1.9 Vehicle pre-step + UPBGE minimum velocity clamps
    *   2. PhysicsSystem::Update()
    *   3. Process FH springs
    *   4. Sync motion states AFTER physics (dynamic bodies write to game objects)
@@ -852,6 +866,28 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
   /* Step 1.75: Apply Blender effectors (force fields) to dynamic rigid bodies. */
   ApplyEffectorForces();
 
+  for (JoltVehicle *veh : m_vehicles) {
+    veh->PreStep(timeStep);
+  }
+
+  /* Step 1.9: Apply UPBGE minimum velocity clamps before Jolt evaluates
+   * constraints, integration, and sleeping. Maximum linear/angular velocity is
+   * handled natively by Jolt during Update(). */
+  PerfClock::time_point simulationTickStart;
+  if (perfProbeEnabled) {
+    simulationTickStart = PerfClock::now();
+  }
+
+  for (JoltPhysicsController *ctrl : GetControllersForIteration()) {
+    ctrl->SimulationTick(timeStep);
+  }
+
+  if (perfProbeEnabled) {
+    perfSimulationTickUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                               PerfClock::now() - simulationTickStart)
+                               .count();
+  }
+
   /* Step 2: Run the physics simulation.
    * Set the updating flag to defer unsafe body modifications.
    * This prevents crashes when logic tries to modify bodies during physics. */
@@ -903,22 +939,6 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
     perfFhSpringUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
                         PerfClock::now() - fhSpringStart)
                         .count();
-  }
-
-  /* Step 3b: SimulationTick — clamp velocities (min/max linear/angular). */
-  PerfClock::time_point simulationTickStart;
-  if (perfProbeEnabled) {
-    simulationTickStart = PerfClock::now();
-  }
-
-  for (JoltPhysicsController *ctrl : GetControllersForIteration()) {
-    ctrl->SimulationTick(timeStep);
-  }
-
-  if (perfProbeEnabled) {
-    perfSimulationTickUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
-                               PerfClock::now() - simulationTickStart)
-                               .count();
   }
 
   /* Step 4: Read Jolt body transforms back to game objects. */
@@ -2075,21 +2095,19 @@ void JoltPhysicsEnvironment::SetDeactivationTime(float dTime)
 void JoltPhysicsEnvironment::SetDeactivationLinearTreshold(float linTresh)
 {
   m_linearDeactivationThreshold = linTresh;
-  /* Jolt uses a single point velocity threshold. Use the larger of linear/angular. */
+  /* Jolt exposes one scene-level sleep threshold in m/s for tracked point
+   * velocity. The linear scene threshold is the closest direct mapping. */
   JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
-  settings.mPointVelocitySleepThreshold = std::max(m_linearDeactivationThreshold,
-                                                    m_angularDeactivationThreshold);
+  settings.mPointVelocitySleepThreshold = m_linearDeactivationThreshold;
   m_physicsSystem->SetPhysicsSettings(settings);
 }
 
 void JoltPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
 {
   m_angularDeactivationThreshold = angTresh;
-  /* Jolt uses a single point velocity threshold. Use the larger of linear/angular. */
-  JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
-  settings.mPointVelocitySleepThreshold = std::max(m_linearDeactivationThreshold,
-                                                    m_angularDeactivationThreshold);
-  m_physicsSystem->SetPhysicsSettings(settings);
+  /* Jolt does not expose a separate angular sleep threshold. Preserve the
+   * scene value for UI / API compatibility, but the native sleep threshold is
+   * driven solely by SetDeactivationLinearTreshold(). */
 }
 
 void JoltPhysicsEnvironment::SetERPNonContact(float erp)
@@ -2224,152 +2242,155 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
    * the main thread during scene setup, not during physics stepping, so
    * the no-lock interface is safe here. */
   const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterfaceNoLock();
-
-  JPH::BodyLockWrite lock0(lockInterface, bodyID0);
-  if (!lock0.Succeeded()) {
-    return nullptr;
-  }
-  JPH::Body &body0 = lock0.GetBody();
-
-  /* Optional second body. */
-  JPH::Body *body1Ptr = &JPH::Body::sFixedToWorld;
-  JPH::BodyLockWrite lock1(lockInterface, !bodyID1.IsInvalid() ? bodyID1 : JPH::BodyID());
-  if (!bodyID1.IsInvalid()) {
-    if (!lock1.Succeeded()) {
-      return nullptr;
-    }
-    body1Ptr = &lock1.GetBody();
-  }
-  JPH::Body &body1 = *body1Ptr;
-
   JPH::Constraint *joltConstraint = nullptr;
+  auto create_constraint = [&](JPH::Body &body0, JPH::Body &body1) {
+    switch (type) {
+      case PHY_POINT2POINT_CONSTRAINT: {
+        JPH::PointConstraintSettings settings;
+        if (!bodyID1.IsInvalid()) {
+          settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+          settings.mPoint1 = pivotLocal;
+          settings.mPoint2 = pivotLocal1;
+        }
+        else {
+          settings.mSpace = JPH::EConstraintSpace::WorldSpace;
+          settings.mPoint1 = JPH::Vec3(pivotWorld);
+          settings.mPoint2 = JPH::Vec3(pivotWorld);
+        }
+        joltConstraint = settings.Create(body0, body1);
+        return true;
+      }
 
-  switch (type) {
-    case PHY_POINT2POINT_CONSTRAINT: {
-      JPH::PointConstraintSettings settings;
-      if (!bodyID1.IsInvalid()) {
-        settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-        settings.mPoint1 = pivotLocal;
-        settings.mPoint2 = pivotLocal1;
+      case PHY_LINEHINGE_CONSTRAINT:
+      case PHY_ANGULAR_CONSTRAINT: {
+        JPH::HingeConstraintSettings settings;
+        if (!bodyID1.IsInvalid()) {
+          settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+          settings.mPoint1 = pivotLocal;
+          settings.mHingeAxis1 = axisIn;
+          settings.mNormalAxis1 = axisIn.GetNormalizedPerpendicular();
+          JPH::Quat rot1 = bi.GetRotation(bodyID1);
+          JPH::Vec3 worldAxis = rot0 * axisIn;
+          settings.mPoint2 = pivotLocal1;
+          settings.mHingeAxis2 = rot1.Conjugated() * worldAxis;
+          settings.mNormalAxis2 = settings.mHingeAxis2.GetNormalizedPerpendicular();
+        }
+        else {
+          settings.mSpace = JPH::EConstraintSpace::WorldSpace;
+          JPH::Vec3 worldAxis = rot0 * axisIn;
+          settings.mPoint1 = JPH::Vec3(pivotWorld);
+          settings.mHingeAxis1 = worldAxis;
+          settings.mNormalAxis1 = worldAxis.GetNormalizedPerpendicular();
+          settings.mPoint2 = settings.mPoint1;
+          settings.mHingeAxis2 = settings.mHingeAxis1;
+          settings.mNormalAxis2 = settings.mNormalAxis1;
+        }
+        joltConstraint = settings.Create(body0, body1);
+        return true;
       }
-      else {
-        settings.mSpace = JPH::EConstraintSpace::WorldSpace;
-        settings.mPoint1 = JPH::Vec3(pivotWorld);
-        settings.mPoint2 = JPH::Vec3(pivotWorld);
-      }
-      joltConstraint = settings.Create(body0, body1);
-      break;
-    }
 
-    case PHY_LINEHINGE_CONSTRAINT:
-    case PHY_ANGULAR_CONSTRAINT: {
-      JPH::HingeConstraintSettings settings;
-      if (!bodyID1.IsInvalid()) {
-        settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-        settings.mPoint1 = pivotLocal;
-        settings.mHingeAxis1 = axisIn;
-        settings.mNormalAxis1 = axisIn.GetNormalizedPerpendicular();
-        JPH::Quat rot1 = bi.GetRotation(bodyID1);
-        JPH::Vec3 worldAxis = rot0 * axisIn;
-        settings.mPoint2 = pivotLocal1;
-        settings.mHingeAxis2 = rot1.Conjugated() * worldAxis;
-        settings.mNormalAxis2 = settings.mHingeAxis2.GetNormalizedPerpendicular();
+      case PHY_CONE_TWIST_CONSTRAINT: {
+        JPH::ConeConstraintSettings settings;
+        settings.mHalfConeAngle = JPH::JPH_PI * 0.25f;
+        if (!bodyID1.IsInvalid()) {
+          settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+          settings.mPoint1 = pivotLocal;
+          settings.mTwistAxis1 = axisIn;
+          JPH::Quat rot1 = bi.GetRotation(bodyID1);
+          JPH::Vec3 worldAxis = rot0 * axisIn;
+          settings.mPoint2 = pivotLocal1;
+          settings.mTwistAxis2 = rot1.Conjugated() * worldAxis;
+        }
+        else {
+          settings.mSpace = JPH::EConstraintSpace::WorldSpace;
+          JPH::Vec3 worldAxis = rot0 * axisIn;
+          settings.mPoint1 = JPH::Vec3(pivotWorld);
+          settings.mTwistAxis1 = worldAxis;
+          settings.mPoint2 = settings.mPoint1;
+          settings.mTwistAxis2 = settings.mTwistAxis1;
+        }
+        joltConstraint = settings.Create(body0, body1);
+        return true;
       }
-      else {
-        settings.mSpace = JPH::EConstraintSpace::WorldSpace;
-        JPH::Vec3 worldAxis = rot0 * axisIn;
-        settings.mPoint1 = JPH::Vec3(pivotWorld);
-        settings.mHingeAxis1 = worldAxis;
-        settings.mNormalAxis1 = worldAxis.GetNormalizedPerpendicular();
-        settings.mPoint2 = settings.mPoint1;
-        settings.mHingeAxis2 = settings.mHingeAxis1;
-        settings.mNormalAxis2 = settings.mNormalAxis1;
-      }
-      joltConstraint = settings.Create(body0, body1);
-      break;
-    }
 
-    case PHY_CONE_TWIST_CONSTRAINT: {
-      JPH::ConeConstraintSettings settings;
-      settings.mHalfConeAngle = JPH::JPH_PI * 0.25f;  /* Default 45 degrees. */
-      if (!bodyID1.IsInvalid()) {
-        settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-        settings.mPoint1 = pivotLocal;
-        settings.mTwistAxis1 = axisIn;
-        JPH::Quat rot1 = bi.GetRotation(bodyID1);
-        JPH::Vec3 worldAxis = rot0 * axisIn;
-        settings.mPoint2 = pivotLocal1;
-        settings.mTwistAxis2 = rot1.Conjugated() * worldAxis;
-      }
-      else {
-        settings.mSpace = JPH::EConstraintSpace::WorldSpace;
-        JPH::Vec3 worldAxis = rot0 * axisIn;
-        settings.mPoint1 = JPH::Vec3(pivotWorld);
-        settings.mTwistAxis1 = worldAxis;
-        settings.mPoint2 = settings.mPoint1;
-        settings.mTwistAxis2 = settings.mTwistAxis1;
-      }
-      joltConstraint = settings.Create(body0, body1);
-      break;
-    }
+      case PHY_GENERIC_6DOF_CONSTRAINT:
+      case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+        JPH::SixDOFConstraintSettings settings;
+        settings.mSwingType = JPH::ESwingType::Pyramid;
 
-    case PHY_GENERIC_6DOF_CONSTRAINT:
-    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
-      JPH::SixDOFConstraintSettings settings;
-
-      /* Use Pyramid swing type so Y/Z rotation limits can be asymmetric
-       * (e.g. -45° to 30°). The default Cone mode requires symmetric
-       * limits in [0, π] which doesn't match Blender's convention. */
-      settings.mSwingType = JPH::ESwingType::Pyramid;
-
-      /* Build rotation frame from provided axes. */
-      JPH::Vec3 ax1 = JoltMath::ToJolt(axis1X, axis1Y, axis1Z);
-      JPH::Vec3 ax2 = JoltMath::ToJolt(axis2X, axis2Y, axis2Z);
-      if (ax1.LengthSq() < 1e-6f) {
-        ax1 = axisIn.GetNormalizedPerpendicular();
-        ax2 = axisIn.Cross(ax1).Normalized();
-      }
-      else {
-        ax1 = ax1.Normalized();
-        if (ax2.LengthSq() < 1e-6f) {
+        JPH::Vec3 ax1 = JoltMath::ToJolt(axis1X, axis1Y, axis1Z);
+        JPH::Vec3 ax2 = JoltMath::ToJolt(axis2X, axis2Y, axis2Z);
+        if (ax1.LengthSq() < 1e-6f) {
+          ax1 = axisIn.GetNormalizedPerpendicular();
           ax2 = axisIn.Cross(ax1).Normalized();
         }
         else {
-          ax2 = ax2.Normalized();
+          ax1 = ax1.Normalized();
+          if (ax2.LengthSq() < 1e-6f) {
+            ax2 = axisIn.Cross(ax1).Normalized();
+          }
+          else {
+            ax2 = ax2.Normalized();
+          }
         }
+
+        if (!bodyID1.IsInvalid()) {
+          settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+          settings.mPosition1 = pivotLocal;
+          settings.mPosition2 = pivotLocal1;
+          settings.mAxisX1 = axisIn;
+          settings.mAxisY1 = ax1;
+          JPH::Quat rot1 = bi.GetRotation(bodyID1);
+          JPH::Vec3 worldAxisX = rot0 * axisIn;
+          JPH::Vec3 worldAxisY = rot0 * ax1;
+          settings.mAxisX2 = rot1.Conjugated() * worldAxisX;
+          settings.mAxisY2 = rot1.Conjugated() * worldAxisY;
+        }
+        else {
+          settings.mSpace = JPH::EConstraintSpace::WorldSpace;
+          settings.mPosition1 = JPH::Vec3(pivotWorld);
+          settings.mPosition2 = settings.mPosition1;
+          JPH::Vec3 worldAxisX = rot0 * axisIn;
+          JPH::Vec3 worldAxisY = rot0 * ax1;
+          settings.mAxisX1 = worldAxisX;
+          settings.mAxisY1 = worldAxisY;
+          settings.mAxisX2 = settings.mAxisX1;
+          settings.mAxisY2 = settings.mAxisY1;
+        }
+
+        joltConstraint = settings.Create(body0, body1);
+        return true;
       }
 
-      if (!bodyID1.IsInvalid()) {
-        settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-        settings.mPosition1 = pivotLocal;
-        settings.mPosition2 = pivotLocal1;
-        settings.mAxisX1 = axisIn;
-        settings.mAxisY1 = ax1;
-        JPH::Quat rot1 = bi.GetRotation(bodyID1);
-        JPH::Vec3 worldAxisX = rot0 * axisIn;
-        JPH::Vec3 worldAxisY = rot0 * ax1;
-        settings.mAxisX2 = rot1.Conjugated() * worldAxisX;
-        settings.mAxisY2 = rot1.Conjugated() * worldAxisY;
-      }
-      else {
-        settings.mSpace = JPH::EConstraintSpace::WorldSpace;
-        settings.mPosition1 = JPH::Vec3(pivotWorld);
-        settings.mPosition2 = settings.mPosition1;
-        JPH::Vec3 worldAxisX = rot0 * axisIn;
-        JPH::Vec3 worldAxisY = rot0 * ax1;
-        settings.mAxisX1 = worldAxisX;
-        settings.mAxisY1 = worldAxisY;
-        settings.mAxisX2 = settings.mAxisX1;
-        settings.mAxisY2 = settings.mAxisY1;
-      }
+      default:
+        return false;
+    }
+  };
 
-      /* By default all axes are free. Limits are set via SetParam(). */
-      joltConstraint = settings.Create(body0, body1);
-      break;
+  if (bodyID1.IsInvalid()) {
+    JPH::BodyLockWrite lock0(lockInterface, bodyID0);
+    if (!lock0.Succeeded()) {
+      return nullptr;
     }
 
-    default:
+    JPH::Body &body0 = lock0.GetBody();
+    JPH::Body &body1 = JPH::Body::sFixedToWorld;
+    if (!create_constraint(body0, body1)) {
       return nullptr;
+    }
+  }
+  else {
+    JPH::BodyID ids[2] = {bodyID0, bodyID1};
+    JPH::BodyLockMultiWrite multiLock(lockInterface, ids, 2);
+    JPH::Body *body0 = multiLock.GetBody(0);
+    JPH::Body *body1 = multiLock.GetBody(1);
+    if (!body0 || !body1) {
+      return nullptr;
+    }
+
+    if (!create_constraint(*body0, *body1)) {
+      return nullptr;
+    }
   }
 
   if (!joltConstraint) {
@@ -2415,32 +2436,44 @@ PHY_IVehicle *JoltPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl
 void JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
 {
   auto it = m_constraintById.find(constraintid);
-  if (it == m_constraintById.end()) {
+  if (it != m_constraintById.end()) {
+    JoltConstraint *wrapper = it->second;
+    JPH::Constraint *joltCon = wrapper->GetConstraint();
+
+    /* Remove no-collide pair from group filter before removing the constraint,
+     * while the body references are still valid. */
+    if (wrapper->GetDisableCollision() && joltCon) {
+      JPH::TwoBodyConstraint *tbc = static_cast<JPH::TwoBodyConstraint *>(joltCon);
+      m_constraintGroupFilter->EnableCollision(
+          tbc->GetBody1()->GetID().GetIndexAndSequenceNumber(),
+          tbc->GetBody2()->GetID().GetIndexAndSequenceNumber());
+    }
+
+    if (joltCon) {
+      m_physicsSystem->RemoveConstraint(joltCon);
+    }
+
+    if (free) {
+      delete wrapper;
+    }
+
+    m_constraintById.erase(it);
+    m_breakableConstraintsCacheDirty = true;
     return;
   }
 
-  JoltConstraint *wrapper = it->second;
-  JPH::Constraint *joltCon = wrapper->GetConstraint();
+  for (auto it_vehicle = m_vehicles.begin(); it_vehicle != m_vehicles.end(); ++it_vehicle) {
+    JoltVehicle *vehicle = *it_vehicle;
+    if (vehicle->GetUserConstraintId() != constraintid) {
+      continue;
+    }
 
-  /* Remove no-collide pair from group filter before removing the constraint,
-   * while the body references are still valid. */
-  if (wrapper->GetDisableCollision() && joltCon) {
-    JPH::TwoBodyConstraint *tbc = static_cast<JPH::TwoBodyConstraint *>(joltCon);
-    m_constraintGroupFilter->EnableCollision(
-        tbc->GetBody1()->GetID().GetIndexAndSequenceNumber(),
-        tbc->GetBody2()->GetID().GetIndexAndSequenceNumber());
+    if (free) {
+      delete vehicle;
+    }
+    m_vehicles.erase(it_vehicle);
+    return;
   }
-
-  if (joltCon) {
-    m_physicsSystem->RemoveConstraint(joltCon);
-  }
-
-  if (free) {
-    delete wrapper;
-  }
-
-  m_constraintById.erase(it);
-  m_breakableConstraintsCacheDirty = true;
 }
 
 bool JoltPhysicsEnvironment::IsRigidBodyConstraintEnabled(int constraintid)
@@ -2462,6 +2495,21 @@ PHY_IVehicle *JoltPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 {
   for (JoltVehicle *veh : m_vehicles) {
     if (veh->GetUserConstraintId() == constraintId) {
+      return veh;
+    }
+  }
+  return nullptr;
+}
+
+PHY_IVehicle *JoltPhysicsEnvironment::GetVehicleConstraint(PHY_IPhysicsController *ctrl)
+{
+  JoltPhysicsController *joltCtrl = static_cast<JoltPhysicsController *>(ctrl);
+  if (!joltCtrl) {
+    return nullptr;
+  }
+
+  for (JoltVehicle *veh : m_vehicles) {
+    if (veh->UsesController(joltCtrl)) {
       return veh;
     }
   }
@@ -2900,19 +2948,19 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
     JPH::TwoBodyConstraintSettings *tbcSettings =
         static_cast<JPH::TwoBodyConstraintSettings *>(settings.GetPtr());
 
-    const JPH::BodyLockInterface &dstLock = m_physicsSystem->GetBodyLockInterfaceNoLock();
-    JPH::BodyLockWrite lock1(dstLock, it1->second);
-    JPH::BodyLockWrite lock2(dstLock, it2->second);
-    if (!lock1.Succeeded() || !lock2.Succeeded()) {
-      continue;
+    JPH::Constraint *newCon = nullptr;
+    {
+      const JPH::BodyLockInterface &dstLock = m_physicsSystem->GetBodyLockInterfaceNoLock();
+      JPH::BodyID ids[2] = {it1->second, it2->second};
+      JPH::BodyLockMultiWrite multiLock(dstLock, ids, 2);
+      JPH::Body *newBody1 = multiLock.GetBody(0);
+      JPH::Body *newBody2 = multiLock.GetBody(1);
+      if (!newBody1 || !newBody2) {
+        continue;
+      }
+
+      newCon = tbcSettings->Create(*newBody1, *newBody2);
     }
-
-    JPH::Body &newBody1 = lock1.GetBody();
-    JPH::Body &newBody2 = lock2.GetBody();
-
-    JPH::Constraint *newCon = tbcSettings->Create(newBody1, newBody2);
-    lock1.ReleaseLock();
-    lock2.ReleaseLock();
 
     m_physicsSystem->AddConstraint(newCon);
 
@@ -2972,6 +3020,8 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
 
   /* Transfer vehicles. */
   for (JoltVehicle *veh : other->m_vehicles) {
+    veh->ResetConstraint();
+    veh->SetEnvironment(this);
     m_vehicles.push_back(veh);
   }
   other->m_vehicles.clear();
@@ -3434,6 +3484,8 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   bodySettings.mRestitution = blenderobject->reflect;
   bodySettings.mLinearDamping = blenderobject->damping;
   bodySettings.mAngularDamping = blenderobject->rdamping;
+  bodySettings.mMaxLinearVelocity = JoltLinearVelocityMaxOrDefault(blenderobject->max_vel);
+  bodySettings.mMaxAngularVelocity = JoltAngularVelocityMaxOrDefault(blenderobject->max_angvel);
 
   /* Per-body gravity multiplier. */
   bodySettings.mGravityFactor = blenderobject->gravity_factor;
@@ -3461,11 +3513,6 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   /* CCD for fast-moving dynamic bodies. */
   if ((blenderobject->gameflag2 & OB_CCD_RIGID_BODY) && isDyna) {
     bodySettings.mMotionQuality = JPH::EMotionQuality::LinearCast;
-  }
-
-  /* Gyroscopic force (Dzhanibekov / tennis racket effect). */
-  if (blenderobject->gameflag2 & OB_GYROSCOPIC_FORCE) {
-    bodySettings.mApplyGyroscopicForce = true;
   }
 
   /* Enhanced internal edge removal for mesh shapes. */
@@ -3898,6 +3945,10 @@ void JoltPhysicsEnvironment::ExportFile(const std::string &filename)
 
 bool JoltPhysicsEnvironment::SavePhysicsState(std::vector<uint8_t> &outBuffer)
 {
+  for (JoltVehicle *veh : m_vehicles) {
+    veh->Build();
+  }
+
   JPH::StateRecorderImpl recorder;
   m_physicsSystem->SaveState(recorder);
 
@@ -3919,6 +3970,10 @@ bool JoltPhysicsEnvironment::RestorePhysicsState(const std::vector<uint8_t> &inB
 
   if (!m_physicsSystem->RestoreState(recorder)) {
     return false;
+  }
+
+  for (JoltVehicle *veh : m_vehicles) {
+    veh->SyncWheels();
   }
 
   return true;
@@ -3969,9 +4024,28 @@ bool JoltPhysicsEnvironment::RemoveController(JoltPhysicsController *ctrl)
 
   const JPH::BodyID bodyID = ctrl->GetBodyID();
   if (bodyID.IsInvalid()) {
+    for (auto it = m_vehicles.begin(); it != m_vehicles.end();) {
+      if ((*it)->UsesController(ctrl)) {
+        delete *it;
+        it = m_vehicles.erase(it);
+      }
+      else {
+        ++it;
+      }
+    }
     return true;
   }
   RemovePendingRigidBodyBodyAdd(bodyID);
+
+  for (auto it = m_vehicles.begin(); it != m_vehicles.end();) {
+    if ((*it)->UsesController(ctrl)) {
+      delete *it;
+      it = m_vehicles.erase(it);
+    }
+    else {
+      ++it;
+    }
+  }
 
   return true;
 }
