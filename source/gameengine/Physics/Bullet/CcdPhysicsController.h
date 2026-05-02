@@ -23,6 +23,7 @@
 #pragma once
 
 #include <map>
+#include <utility>
 #include <vector>
 
 ///	PHY_IPhysicsController is the abstract simplified Interface to a physical object.
@@ -41,6 +42,7 @@ namespace blender {
 struct Mesh;
 struct Object;
 struct SimpleDeformModifierDataBGE;
+struct SubsurfModifierData;
 }  // namespace blender
 
 extern btScalar gDeactivationTime;
@@ -584,6 +586,9 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   blender::SimpleDeformModifierDataBGE *m_sbModifier;
   float (*m_sbCoords)[3];
+  int m_sbDeformVerts;
+  std::vector<int> m_sbDeformVertexToNode;
+  std::vector<std::pair<blender::SubsurfModifierData *, short>> m_subsurfLevelOverrides;
 
   class PHY_IMotionState *m_MotionState;
   btMotionState *m_bulletMotionState;

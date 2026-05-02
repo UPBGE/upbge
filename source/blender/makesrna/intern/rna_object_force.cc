@@ -2093,6 +2093,62 @@ static void rna_def_game_softbody(BlenderRNA *brna)
       "Jolt: Prevent this soft body from applying collision forces to the object it is pinned or "
       "parented to. The soft body still deforms around the pin object but cannot push it");
 
+    prop = RNA_def_property(srna, "use_pin_transform_follow", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_PIN_TRANSFORM_FOLLOW);
+    RNA_def_property_ui_text(
+      prop,
+      "Follow Pin Transform",
+      "Jolt: Move the whole soft body with the pin object before simulation, preserving current "
+      "deformation while preventing pin motion from stretching or shaking unpinned vertices");
+    RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "use_plasticity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_PLASTICITY);
+  RNA_def_property_ui_text(
+      prop,
+      "Plasticity",
+      "Jolt: Permanently deform the soft body by changing edge rest lengths");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plastic_threshold", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticThreshold");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Plastic Threshold",
+      "Jolt: Stretch or compression ratio needed before an edge keeps permanent deformation");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plasticity_strength", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticStrength");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Plasticity Strength",
+      "Jolt: How quickly edge rest lengths move toward their deformed length");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plastic_max_deform", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticMaxDeform");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Max Permanent Deform",
+      "Jolt: Maximum rest-length change from the original length; zero disables the clamp");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plastic_repair_rate", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticRepairRate");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Repair Rate",
+      "Jolt: How quickly rest lengths recover toward their original values each second");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
   static const EnumPropertyItem lra_type_items[] = {
       {0,
        "EUCLIDEAN",

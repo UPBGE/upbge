@@ -98,6 +98,15 @@ class JoltCharacter : public PHY_ICharacter {
   /** Get the underlying CharacterVirtual. */
   JPH::CharacterVirtual *GetCharacterVirtual() { return m_character.GetPtr(); }
 
+  /** Get the physics controller that owns this character. */
+  JoltPhysicsController *GetController() const { return m_ctrl; }
+
+  /** True if this character is owned by the given physics controller. */
+  bool UsesController(const JoltPhysicsController *ctrl) const { return m_ctrl == ctrl; }
+
+  /** Rebind after transferring to another Jolt physics environment. */
+  void SetEnvironment(JoltPhysicsEnvironment *env) { m_env = env; }
+
  private:
   JPH::Ref<JPH::CharacterVirtual> m_character;
   JoltPhysicsController *m_ctrl;

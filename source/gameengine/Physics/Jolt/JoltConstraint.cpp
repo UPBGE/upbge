@@ -290,38 +290,45 @@ bool JoltConstraint::CheckBreaking() const
     return false;
   }
 
-  /* Jolt has no built-in breaking threshold. Check the constraint's applied
-   * impulse (lambda) and compare against the threshold. */
-  /* Sum position and rotation lambdas for total constraint impulse. */
-  float totalLambda = 0.0f;
-  /* Use GetTotalLambdaPosition/Rotation where available. For a generic check,
-   * we approximate using the constraint type. */
+  return GetAppliedImpulse() > m_breakingThreshold;
+}
+
+float JoltConstraint::GetAppliedImpulse() const
+{
+  if (!m_constraint || !m_constraint->GetEnabled() || !m_constraint->IsActive()) {
+    return 0.0f;
+  }
+
   switch (m_type) {
     case PHY_POINT2POINT_CONSTRAINT: {
       JPH::PointConstraint *pc = static_cast<JPH::PointConstraint *>(m_constraint);
-      totalLambda = pc->GetTotalLambdaPosition().Length();
-      break;
+      return pc->GetTotalLambdaPosition().Length();
     }
     case PHY_LINEHINGE_CONSTRAINT:
     case PHY_ANGULAR_CONSTRAINT: {
       JPH::HingeConstraint *hc = static_cast<JPH::HingeConstraint *>(m_constraint);
-      totalLambda = std::abs(hc->GetTotalLambdaMotor()) +
-                    hc->GetTotalLambdaRotation().Length();
-      break;
+      return hc->GetTotalLambdaPosition().Length() +
+             hc->GetTotalLambdaRotation().Length() +
+             std::abs(hc->GetTotalLambdaRotationLimits()) +
+             std::abs(hc->GetTotalLambdaMotor());
+    }
+    case PHY_CONE_TWIST_CONSTRAINT: {
+      JPH::ConeConstraint *cone = static_cast<JPH::ConeConstraint *>(m_constraint);
+      return cone->GetTotalLambdaPosition().Length() +
+             std::abs(cone->GetTotalLambdaRotation());
     }
     case PHY_GENERIC_6DOF_CONSTRAINT:
     case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
       JPH::SixDOFConstraint *sixdof = static_cast<JPH::SixDOFConstraint *>(m_constraint);
-      totalLambda = sixdof->GetTotalLambdaPosition().Length() +
-                    sixdof->GetTotalLambdaRotation().Length();
-      break;
+      return sixdof->GetTotalLambdaPosition().Length() +
+             sixdof->GetTotalLambdaRotation().Length() +
+             sixdof->GetTotalLambdaMotorTranslation().Length() +
+             sixdof->GetTotalLambdaMotorRotation().Length();
     }
     default: {
-      return false;
+      return 0.0f;
     }
   }
-
-  return totalLambda > m_breakingThreshold;
 }
 
 /** \} */

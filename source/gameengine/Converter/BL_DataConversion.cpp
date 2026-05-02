@@ -55,6 +55,7 @@
 #include <array>
 #include <cmath>
 #include <optional>
+#include <vector>
 
 #include <fmt/format.h>
 
@@ -67,19 +68,26 @@
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh" /* give_current_material */
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_tangent.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_math_matrix.h"
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_python_proxy_types.h"
 #include "DNA_rigidbody_types.h"
 #include "wm_event_types.hh"
@@ -364,14 +372,16 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                RAS_Rasterizer *rasty,
                                BL_SceneConverter *converter,
                                bool libloading,
-                               bool converting_during_runtime)
+                               bool converting_during_runtime,
+                               bool owns_mesh)
 {
   RAS_MeshObject *meshobj;
   int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) - 1;  // all layers if no object.
 
   // Without checking names, we get some reuse we don't want that can cause
   // problems with material LoDs.
-  if (blenderobj && ((meshobj = converter->FindGameMesh(mesh /*, ob->lay*/)) != nullptr)) {
+  if (!owns_mesh && blenderobj &&
+      ((meshobj = converter->FindGameMesh(mesh /*, ob->lay*/)) != nullptr)) {
     const std::string bge_name = meshobj->GetName();
     const std::string blender_name = ((blender::ID *)blenderobj->data)->name + 2;
     if (bge_name == blender_name) {
@@ -380,10 +390,19 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   }
 
   // Get blender::Mesh data
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
-  blender::Mesh *final_me = (blender::Mesh *)ob_eval->data;
+  blender::Object *ob_eval = nullptr;
+  blender::Mesh *final_me = mesh;
+  if (blenderobj && !owns_mesh) {
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
+    if (ob_eval && blenderobj->type == OB_MESH) {
+      final_me = (blender::Mesh *)ob_eval->data;
+    }
+  }
+  if (!final_me) {
+    return nullptr;
+  }
 
   const blender::Span<blender::float3> positions = final_me->vert_positions();
   const int totverts = final_me->verts_num;
@@ -439,7 +458,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                           {uv_map});
   }
 
-  meshobj = new RAS_MeshObject(mesh, final_me->verts_num, blenderobj, layersInfo);
+  meshobj = new RAS_MeshObject(mesh, final_me->verts_num, blenderobj, layersInfo, owns_mesh);
   meshobj->m_sharedvertex_map.resize(totverts);
 
   // Initialize vertex format with used uv and color layers.
@@ -462,7 +481,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // Convert all the materials contained in the mesh.
   for (unsigned short i = 0; i < totmat; ++i) {
     blender::Material *ma = nullptr;
-    if (blenderobj) {
+    if (blenderobj && ob_eval) {
       ma = BKE_object_material_get(ob_eval, i + 1);
     }
     else {
@@ -563,6 +582,126 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   converter->RegisterGameMesh(meshobj, mesh);
   return meshobj;
+}
+
+static blender::Mesh *BL_CreateCollisionMeshFromCurve(blender::Object *ob)
+{
+  if (ob->type != OB_CURVES_LEGACY || !(ob->gameflag & OB_COLLISION)) {
+    return nullptr;
+  }
+
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+  if (!ob_eval) {
+    return nullptr;
+  }
+
+  return BKE_mesh_new_from_object(depsgraph, ob_eval, false, false, true);
+}
+
+struct BL_SubsurfLevelOverride {
+  blender::SubsurfModifierData *modifier;
+  short levels;
+};
+
+static bool BL_ShouldUseSoftBodyRenderSubsurfVisuals(blender::Object *ob)
+{
+  if (!ob || ob->type != OB_MESH || !(ob->gameflag & OB_SOFT_BODY)) {
+    return false;
+  }
+
+  bool has_render_only_subsurf = false;
+  for (blender::ModifierData *md = (blender::ModifierData *)ob->modifiers.first; md;
+       md = md->next) {
+    if (!(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    if (md->type != eModifierType_Subsurf) {
+      const blender::ModifierTypeInfo *mti = BKE_modifier_get_info(
+          blender::ModifierType(md->type));
+      if (mti && mti->type != blender::ModifierTypeType::OnlyDeform &&
+          mti->type != blender::ModifierTypeType::NonGeometrical && !has_render_only_subsurf) {
+        return false;
+      }
+      continue;
+    }
+
+    blender::SubsurfModifierData *smd = (blender::SubsurfModifierData *)md;
+    if (smd->levels > 0) {
+      return false;
+    }
+    if (smd->renderLevels > smd->levels) {
+      has_render_only_subsurf = true;
+    }
+  }
+
+  return has_render_only_subsurf;
+}
+
+static void BL_ApplySoftBodyRenderSubsurfLevels(
+    blender::Object *ob, std::vector<BL_SubsurfLevelOverride> &overrides)
+{
+  overrides.clear();
+  if (!BL_ShouldUseSoftBodyRenderSubsurfVisuals(ob)) {
+    return;
+  }
+
+  for (blender::ModifierData *md = (blender::ModifierData *)ob->modifiers.first; md;
+       md = md->next) {
+    if (md->type != eModifierType_Subsurf || !(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    blender::SubsurfModifierData *smd = (blender::SubsurfModifierData *)md;
+    if (smd->renderLevels > smd->levels) {
+      overrides.push_back({smd, smd->levels});
+      smd->levels = smd->renderLevels;
+    }
+  }
+}
+
+static void BL_RestoreSoftBodyRenderSubsurfLevels(
+    blender::Object *ob, std::vector<BL_SubsurfLevelOverride> &overrides)
+{
+  if (overrides.empty()) {
+    return;
+  }
+
+  for (const BL_SubsurfLevelOverride &item : overrides) {
+    item.modifier->levels = item.levels;
+  }
+  overrides.clear();
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+}
+
+static blender::Mesh *BL_CreateSoftBodyRenderMesh(blender::Object *ob)
+{
+  std::vector<BL_SubsurfLevelOverride> overrides;
+  BL_ApplySoftBodyRenderSubsurfLevels(ob, overrides);
+  if (overrides.empty()) {
+    return nullptr;
+  }
+
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
+  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+  blender::Mesh *mesh = nullptr;
+  if (ob_eval) {
+    mesh = BKE_mesh_new_from_object(depsgraph, ob_eval, false, false, true);
+  }
+
+  BL_RestoreSoftBodyRenderSubsurfLevels(ob, overrides);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  return mesh;
 }
 
 //////////////////////////////////////////////////////
@@ -1156,6 +1295,68 @@ static KX_GameObject *BL_gameobject_from_customobject(blender::Object *ob,
 }
 #endif
 
+static KX_GameObject *BL_gameobject_from_mesh_object(blender::Object *ob,
+                                                     blender::Mesh *mesh,
+                                                     bool owns_mesh,
+                                                     KX_Scene *kxscene,
+                                                     RAS_Rasterizer *rasty,
+                                                     BL_SceneConverter *converter,
+                                                     bool libloading,
+                                                     bool converting_during_runtime)
+{
+  RAS_MeshObject *meshobj = BL_ConvertMesh(
+      mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime, owns_mesh);
+  if (!meshobj) {
+    if (owns_mesh) {
+      BKE_id_free(nullptr, mesh);
+    }
+    return nullptr;
+  }
+
+  kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
+
+  KX_GameObject *gameobj = nullptr;
+  if (ob->gameflag & OB_NAVMESH) {
+#ifdef WITH_PYTHON
+    gameobj = BL_gameobject_from_customobject(ob, &KX_NavMeshObject::Type, kxscene);
+#endif
+    if (!gameobj) {
+      gameobj = new KX_NavMeshObject();
+    }
+
+    gameobj->AddMesh(meshobj);
+    return gameobj;
+  }
+
+#ifdef WITH_PYTHON
+  gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
+#endif
+  if (!gameobj) {
+    gameobj = new KX_EmptyObject();
+  }
+
+  gameobj->AddMesh(meshobj);
+
+  KX_LodManager *lodManager = owns_mesh ? nullptr : BL_lodmanager_from_blenderobject(
+                                                  ob,
+                                                  kxscene,
+                                                  rasty,
+                                                  converter,
+                                                  libloading,
+                                                  converting_during_runtime);
+  gameobj->SetLodManager(lodManager);
+  if (lodManager) {
+    lodManager->Release();
+    kxscene->AddObjToLodObjList(gameobj);
+  }
+  else {
+    kxscene->RemoveObjFromLodObjList(gameobj);
+  }
+
+  gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+  return gameobj;
+}
+
 static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
@@ -1209,50 +1410,13 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     }
 
     case OB_MESH: {
-      blender::Mesh *mesh = id_cast<blender::Mesh *>(ob->data);
-      RAS_MeshObject *meshobj = BL_ConvertMesh(
-          mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime);
-
-      // needed for python scripting
-      kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
-
-      if (ob->gameflag & OB_NAVMESH) {
-#ifdef WITH_PYTHON
-        gameobj = BL_gameobject_from_customobject(ob, &KX_NavMeshObject::Type, kxscene);
-#endif
-        if (!gameobj) {
-          gameobj = new KX_NavMeshObject();
-        }
-
-        gameobj->AddMesh(meshobj);
-        break;
+      blender::Mesh *mesh = BL_CreateSoftBodyRenderMesh(ob);
+      const bool owns_mesh = mesh != nullptr;
+      if (!mesh) {
+        mesh = id_cast<blender::Mesh *>(ob->data);
       }
-      else {
-#ifdef WITH_PYTHON
-        gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
-#endif
-        if (!gameobj) {
-          gameobj = new KX_EmptyObject();
-        }
-      }
-
-      // set transformation
-      gameobj->AddMesh(meshobj);
-
-      // gather levels of detail
-      KX_LodManager *lodManager = BL_lodmanager_from_blenderobject(
-          ob, kxscene, rasty, converter, libloading, converting_during_runtime);
-      gameobj->SetLodManager(lodManager);
-      if (lodManager) {
-        lodManager->Release();
-        kxscene->AddObjToLodObjList(gameobj);
-      }
-      else {
-        /* Just in case */
-        kxscene->RemoveObjFromLodObjList(gameobj);
-      }
-
-      gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+      gameobj = BL_gameobject_from_mesh_object(
+          ob, mesh, owns_mesh, kxscene, rasty, converter, libloading, converting_during_runtime);
       break;
     }
 
@@ -1295,7 +1459,6 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     case OB_SURF:
     case OB_GREASE_PENCIL:
     case OB_GPENCIL_LEGACY:
-    case OB_CURVES_LEGACY:
     case OB_POINTCLOUD:
     case OB_LATTICE:
     case OB_VOLUME:
@@ -1311,6 +1474,28 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
       // set transformation
       break;
     }
+
+#ifdef THREADED_DAG_WORKAROUND
+    case OB_CURVES_LEGACY: {
+      if (blender::Mesh *mesh = BL_CreateCollisionMeshFromCurve(ob)) {
+        gameobj = BL_gameobject_from_mesh_object(
+            ob, mesh, true, kxscene, rasty, converter, libloading, converting_during_runtime);
+        if (gameobj) {
+          break;
+        }
+      }
+
+#ifdef WITH_PYTHON
+      gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
+#endif
+
+      if (!gameobj) {
+        gameobj = new KX_EmptyObject();
+      }
+      // set transformation
+      break;
+    }
+#endif
     default:
       break;
   }
@@ -1468,10 +1653,46 @@ static bool is_lod_level(std::vector<blender::Object *> lod_objs, blender::Objec
   return std::find(lod_objs.begin(), lod_objs.end(), blenderobject) != lod_objs.end();
 }
 
+static void bl_parent_inverse_matrix_from_blender_object(blender::Depsgraph *depsgraph,
+                                                         blender::Scene *scene,
+                                                         blender::Object *blenderobject,
+                                                         float r_parentinv[4][4])
+{
+  copy_m4_m4(r_parentinv, blenderobject->parentinv);
+
+  blender::Object *parent = blenderobject->parent;
+  if (!depsgraph || !scene || !parent || parent->type != OB_CURVES_LEGACY ||
+      (blenderobject->partype & PARTYPE) != PAROBJECT) {
+    return;
+  }
+
+  blender::Curve *curve = id_cast<blender::Curve *>(parent->data);
+  if (!curve || !(curve->flag & CU_PATH)) {
+    return;
+  }
+
+  blender::Object *parent_eval = DEG_get_evaluated(depsgraph, parent);
+  if (!parent_eval) {
+    return;
+  }
+
+  float parent_world_inv[4][4];
+  if (!invert_m4_m4(parent_world_inv, parent_eval->object_to_world().ptr())) {
+    return;
+  }
+
+  const blender::float4x4 parent_matrix = BKE_object_calc_parent(depsgraph, scene, blenderobject);
+  float curve_parent_offset[4][4];
+  mul_m4_m4m4(curve_parent_offset, parent_world_inv, parent_matrix.ptr());
+  mul_m4_m4m4(r_parentinv, curve_parent_offset, blenderobject->parentinv);
+}
+
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
                                            blender::Object *blenderobject,
+                                           blender::Depsgraph *depsgraph,
+                                           blender::Scene *blenderscene,
                                            std::vector<BL_parentChildLink> &vec_parent_child,
                                            EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
                                            EXP_ListValue<KX_GameObject> *objectlist,
@@ -1524,8 +1745,10 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
     pclink.m_gamechildnode = parentinversenode;
     vec_parent_child.push_back(pclink);
 
-    float *fl = (float *)blenderobject->parentinv;
-    MT_Transform parinvtrans(fl);
+    float parentinv[4][4];
+    bl_parent_inverse_matrix_from_blender_object(depsgraph, blenderscene, blenderobject, parentinv);
+
+    MT_Transform parinvtrans(&parentinv[0][0]);
     parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
     // problem here: the parent inverse transform combines scaling and rotation
     // in the basis but the scenegraph needs separate rotation and scaling.
@@ -1598,6 +1821,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 #define BL_CONVERTBLENDEROBJECT_SINGLE \
   bl_ConvertBlenderObject_Single(converter, \
                                  blenderobject, \
+                                 depsgraph, \
+                                 blenderscene, \
                                  vec_parent_child, \
                                  logicbrick_conversionlist, \
                                  objectlist, \

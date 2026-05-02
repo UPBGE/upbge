@@ -23,17 +23,22 @@
 #  include <stdint.h>
 #endif
 
+#include <cfloat>
+
 #include "CcdPhysicsController.h"
 
 #include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
-
+#include "BKE_scene.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactShape.h"
@@ -69,6 +74,114 @@ extern bool gDisableDeactivation;
 
 float gLinearSleepingTreshold;
 float gAngularSleepingTreshold;
+
+static bool BGE_SoftBodyHasRenderOnlySubsurf(Object *ob)
+{
+  if (!ob || ob->type != OB_MESH) {
+    return false;
+  }
+
+  bool has_render_only_subsurf = false;
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+    if (!(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    if (md->type != eModifierType_Subsurf) {
+      const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+      if (mti && mti->type != ModifierTypeType::OnlyDeform &&
+          mti->type != ModifierTypeType::NonGeometrical && !has_render_only_subsurf) {
+        return false;
+      }
+      continue;
+    }
+
+    SubsurfModifierData *smd = (SubsurfModifierData *)md;
+    if (smd->levels > 0) {
+      return false;
+    }
+    if (smd->renderLevels > smd->levels) {
+      has_render_only_subsurf = true;
+    }
+  }
+
+  return has_render_only_subsurf;
+}
+
+static bool BGE_EnsureSoftBodyRenderSubsurfLevels(
+    Object *ob,
+    std::vector<std::pair<SubsurfModifierData *, short>> &overrides,
+    bool &changed)
+{
+  changed = false;
+  if (!overrides.empty()) {
+    return true;
+  }
+  if (!BGE_SoftBodyHasRenderOnlySubsurf(ob)) {
+    return false;
+  }
+
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+    if (md->type != eModifierType_Subsurf || !(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    SubsurfModifierData *smd = (SubsurfModifierData *)md;
+    if (smd->renderLevels > smd->levels) {
+      overrides.push_back(std::make_pair(smd, smd->levels));
+      smd->levels = smd->renderLevels;
+      changed = true;
+    }
+  }
+
+  return !overrides.empty();
+}
+
+static void BGE_RestoreSoftBodyRenderSubsurfLevels(
+    Object *ob, std::vector<std::pair<SubsurfModifierData *, short>> &overrides)
+{
+  if (overrides.empty()) {
+    return;
+  }
+
+  for (const std::pair<SubsurfModifierData *, short> &item : overrides) {
+    item.first->levels = item.second;
+  }
+  overrides.clear();
+
+  if (ob) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  }
+}
+
+static ModifierData *BGE_FirstTopologyModifier(Object *ob)
+{
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+    if (!mti) {
+      continue;
+    }
+    if (mti->type != ModifierTypeType::OnlyDeform &&
+        mti->type != ModifierTypeType::NonGeometrical) {
+      return md;
+    }
+  }
+
+  return nullptr;
+}
+
+static void BGE_InsertSoftBodyModifier(Object *ob,
+                                       SimpleDeformModifierDataBGE *modifier,
+                                       bool before_topology)
+{
+  ModifierData *before = before_topology ? BGE_FirstTopologyModifier(ob) : nullptr;
+  if (before) {
+    BLI_insertlinkbefore(&ob->modifiers, before, modifier);
+  }
+  else {
+    BLI_addtail(&ob->modifiers, modifier);
+  }
+}
 
 CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl,
                                                                    btMotionState *motionState,
@@ -237,6 +350,7 @@ CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo &ci) : m_cc
   m_suspended = false;
   m_sbModifier = nullptr;
   m_sbCoords = nullptr;
+  m_sbDeformVerts = 0;
 
   CreateRigidbody();
 }
@@ -868,10 +982,17 @@ void CcdPhysicsController::UpdateSoftBody()
         KX_GameObject *gameobj = KX_GameObject::GetClientObject(
             (KX_ClientObjectInfo *)GetNewClientInfo());
         blender::bContext *C = KX_GetActiveEngine()->GetContext();
+        blender::Object *ob = gameobj->GetBlenderObject();
+        bool subsurf_changed = false;
+        const bool use_render_subsurf = BGE_EnsureSoftBodyRenderSubsurfLevels(
+            ob, m_subsurfLevelOverrides, subsurf_changed);
         /* We need to ensure the depsgraph is up to date to have right mesh with modifiers polycount
          * When we just added a KX_GameObject with a constructive modifier for example */
         blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-        blender::Object *ob = gameobj->GetBlenderObject();
+        if (subsurf_changed) {
+          DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+          BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(C));
+        }
         blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
         blender::Mesh *me = (blender::Mesh *)ob_eval->data;
 
@@ -899,23 +1020,62 @@ void CcdPhysicsController::UpdateSoftBody()
             m_sbModifier = (blender::SimpleDeformModifierDataBGE *)BKE_modifier_new(
                 eModifierType_SimpleDeformBGE);
             STRNCPY(m_sbModifier->modifier.name, "sbModifier");
-            BLI_addtail(&ob->modifiers, m_sbModifier);
+            BGE_InsertSoftBodyModifier(ob, m_sbModifier, use_render_subsurf);
             BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
             BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
             DEG_relations_tag_update(CTX_data_main(C));
-            m_sbCoords = (float(*)[3])MEM_new_zeroed(sizeof(float[3]) * me->vert_positions().size(),
-                                                  __func__);
+
+            blender::Mesh *deform_me = use_render_subsurf ? (blender::Mesh *)ob->data : me;
+            const blender::Span<blender::float3> deform_positions = deform_me->vert_positions();
+            m_sbDeformVerts = int(deform_positions.size());
+            m_sbCoords = (float(*)[3])MEM_new_zeroed(sizeof(float[3]) * m_sbDeformVerts,
+                                                     __func__);
+
+            if (use_render_subsurf) {
+              m_sbDeformVertexToNode.assign(m_sbDeformVerts, -1);
+              for (int vert = 0; vert < m_sbDeformVerts; ++vert) {
+                const blender::float3 &co = deform_positions[vert];
+                float closest_dist_sq = FLT_MAX;
+                int closest_node = -1;
+                for (int node_index = 0; node_index < nodes.size(); ++node_index) {
+                  MT_Vector3 node_pos = invtrans * ToMoto(nodes.at(node_index).m_x);
+                  const float dx = co.x - node_pos.x();
+                  const float dy = co.y - node_pos.y();
+                  const float dz = co.z - node_pos.z();
+                  const float dist_sq = dx * dx + dy * dy + dz * dz;
+                  if (dist_sq < closest_dist_sq) {
+                    closest_dist_sq = dist_sq;
+                    closest_node = node_index;
+                  }
+                }
+                m_sbDeformVertexToNode[vert] = closest_node;
+                m_sbCoords[vert][0] = co.x;
+                m_sbCoords[vert][1] = co.y;
+                m_sbCoords[vert][2] = co.z;
+              }
+            }
           }
 
-          for (int m = 0; m < rasMesh->NumMaterials(); m++) {
-            RAS_MeshMaterial *mmat = rasMesh->GetMeshMaterial(m);
-            RAS_IDisplayArray *array = mmat->GetDisplayArray();
-            for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-              RAS_VertexInfo info = array->GetVertexInfo(i);
-              float *v1 = &m_sbCoords[info.getOrigIndex()][0];
-              int i1 = info.getSoftBodyIndex();
-              MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
-              copy_v3_v3(v1, p1.getValue());
+          if (use_render_subsurf) {
+            for (int vert = 0; vert < m_sbDeformVerts; ++vert) {
+              const int node_index = m_sbDeformVertexToNode[vert];
+              if (node_index >= 0 && node_index < nodes.size()) {
+                MT_Vector3 p1 = invtrans * ToMoto(nodes.at(node_index).m_x);
+                copy_v3_v3(m_sbCoords[vert], p1.getValue());
+              }
+            }
+          }
+          else {
+            for (int m = 0; m < rasMesh->NumMaterials(); m++) {
+              RAS_MeshMaterial *mmat = rasMesh->GetMeshMaterial(m);
+              RAS_IDisplayArray *array = mmat->GetDisplayArray();
+              for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+                RAS_VertexInfo info = array->GetVertexInfo(i);
+                float *v1 = &m_sbCoords[info.getOrigIndex()][0];
+                int i1 = info.getSoftBodyIndex();
+                MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
+                copy_v3_v3(v1, p1.getValue());
+              }
             }
           }
 
@@ -938,17 +1098,18 @@ void CcdPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_
 
 void CcdPhysicsController::RemoveSoftBodyModifier(blender::Object *ob)
 {
-  if (GetSoftBody()) {
-    if (m_sbCoords) {
-      MEM_delete(m_sbCoords);
-      m_sbCoords = nullptr;
-    }
-    if (m_sbModifier) {
-      BLI_remlink(&ob->modifiers, m_sbModifier);
-      BKE_modifier_free((ModifierData *)m_sbModifier);
-      m_sbModifier = nullptr;
-    }
+  if (m_sbCoords) {
+    MEM_delete(m_sbCoords);
+    m_sbCoords = nullptr;
   }
+  m_sbDeformVerts = 0;
+  m_sbDeformVertexToNode.clear();
+  if (m_sbModifier && ob) {
+    BLI_remlink(&ob->modifiers, m_sbModifier);
+    BKE_modifier_free((ModifierData *)m_sbModifier);
+    m_sbModifier = nullptr;
+  }
+  BGE_RestoreSoftBodyRenderSubsurfLevels(ob, m_subsurfLevelOverrides);
 }
 
 /**
@@ -2132,8 +2293,17 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
-  blender::Mesh *me = (blender::Mesh *)ob_eval->data;
+  blender::Mesh *me = meshobj->GetOrigMesh();
+  blender::Object *original_object = meshobj->GetOriginalObject();
+  if (original_object && original_object->type == OB_MESH) {
+    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, original_object);
+    if (ob_eval) {
+      me = (blender::Mesh *)ob_eval->data;
+    }
+  }
+  if (!me) {
+    return false;
+  }
 
   const blender::Span<blender::float3> positions = me->vert_positions();
 

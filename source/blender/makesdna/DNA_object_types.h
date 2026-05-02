@@ -659,6 +659,7 @@ typedef struct GameVehicleSettings {
   float anti_roll_front = 0.0f;
   float anti_roll_rear = 0.0f;
   float chassis_roll_influence = 1.0f;
+  float center_of_mass_offset = 0.0f;
   float differential_ratio = 3.42f;
   float limited_slip_ratio = 1.4f;
   int lsd_preset = 0; /* OB_VEHICLE_LSD_CUSTOM .. OB_VEHICLE_LSD_OPEN */
@@ -712,7 +713,7 @@ typedef struct GameVehicleSettings {
 
   /* Deprecated fields kept for DNA compatibility. */
   int legacy_active_wheel = 0;
-  int _pad0[2] = {};
+  int _pad0[3] = {};
 } GameVehicleSettings;
 
 /* object activity flags */
@@ -1011,7 +1012,7 @@ struct Object {
    * and is not changed to avoid DNA surgery. It actually reflects the
    * Size value in the GameButtons (= radius) */
 
-  float mass = 1.0f, damping = 0.04f, inertia = 1.0f;
+  float mass = 1.0f, damping = 0.0f, inertia = 1.0f;
   /* The form factor k is introduced to give the user more control
    * and to fix incompatibility problems.
    * For rotational symmetric objects, the inertia value can be

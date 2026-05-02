@@ -39,7 +39,8 @@ void JoltCollData::AddContactPoint(const MT_Vector3 &localA,
                                     const MT_Vector3 &worldPt,
                                     const MT_Vector3 &normal,
                                     float friction,
-                                    float restitution)
+                                    float restitution,
+                                    float appliedImpulse)
 {
   ContactPoint cp;
   cp.localPointA = localA;
@@ -48,7 +49,7 @@ void JoltCollData::AddContactPoint(const MT_Vector3 &localA,
   cp.normal = normal;
   cp.combinedFriction = friction;
   cp.combinedRestitution = restitution;
-  cp.appliedImpulse = 0.0f;
+  cp.appliedImpulse = appliedImpulse;
   m_contacts.push_back(cp);
 }
 

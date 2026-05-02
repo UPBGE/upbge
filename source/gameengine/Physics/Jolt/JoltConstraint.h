@@ -85,6 +85,9 @@ class JoltConstraint : public PHY_IConstraint {
   /** Check if constraint lambda exceeds breaking threshold. Called each frame. */
   bool CheckBreaking() const;
 
+  /** Return the constraint impulse from Jolt's last solver update. */
+  float GetAppliedImpulse() const;
+
  private:
   JPH::Constraint *m_constraint;
   JoltPhysicsEnvironment *m_env;

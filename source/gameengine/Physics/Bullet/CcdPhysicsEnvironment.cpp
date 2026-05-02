@@ -3238,7 +3238,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   }
   else {
     if (ELEM(blenderobject->collision_boundtype, OB_BOUND_CONVEX_HULL, OB_BOUND_TRIANGLE_MESH) &&
-        blenderobject->type != OB_MESH) {
+        blenderobject->type != OB_MESH && !meshobj) {
       // Can't use triangle mesh or convex hull on a non-mesh object, fall-back to sphere
       bounds = OB_BOUND_SPHERE;
     }

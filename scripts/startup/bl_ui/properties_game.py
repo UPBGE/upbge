@@ -267,6 +267,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         col.prop(vehicle, "anti_roll_rear")
         if is_jolt:
             col.prop(vehicle, "chassis_roll_influence")
+            col.prop(vehicle, "center_of_mass_offset", slider=True)
         if not is_jolt:
             col.prop(vehicle, "handbrake_torque")
 
@@ -667,6 +668,16 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
                 col.prop(soft, "use_faces_double_sided", text="Double-Sided Faces")
 
                 col.separator()
+                col.label(text="Plasticity (Jolt):")
+                col.prop(soft, "use_plasticity", text="Plasticity")
+                sub = col.column()
+                sub.active = soft.use_plasticity
+                sub.prop(soft, "plastic_threshold", text="Plastic Threshold")
+                sub.prop(soft, "plasticity_strength", text="Plasticity Strength")
+                sub.prop(soft, "plastic_max_deform", text="Max Permanent Deform")
+                sub.prop(soft, "plastic_repair_rate", text="Repair Rate")
+
+                col.separator()
                 col.label(text="Vertex Pinning (Jolt):")
                 col.prop_search(soft, "pin_vgroup", ob, "vertex_groups", text="Pin Group")
                 has_pin_group = bool(soft.pin_vgroup)
@@ -678,6 +689,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
                 no_pin_col = col.column()
                 no_pin_col.active = has_pin_obj
                 no_pin_col.prop(soft, "use_no_pin_collision", text="No Force on Pin Object")
+                no_pin_col.prop(soft, "use_pin_transform_follow", text="Follow Pin Transform")
 
             if not is_jolt:
                 col.prop(soft, "use_shape_match")
@@ -796,9 +808,12 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         game = context.object.game
+        gs = context.scene.game_settings
         if not (context.scene.render.engine in cls.COMPAT_ENGINES):
             return False
         if game.physics_type not in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY', 'VEHICLE'}:
+            return False
+        if gs.physics_engine == 'JOLT' and game.physics_type == 'SOFT_BODY':
             return False
         if (game.physics_type == 'VEHICLE' and game.vehicle and
                 game.vehicle.vehicle_type in {'WHEEL', 'MOTORCYCLE_WHEEL'}):
@@ -840,6 +855,32 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
         sub.prop(game, "use_collision_compound", text="Compound")
 
         layout.separator()
+        split = layout.split()
+        col = split.column()
+        col.prop(game, "collision_group")
+        col = split.column()
+        col.prop(game, "collision_mask")
+
+
+class PHYSICS_PT_game_collision_filtering(PhysicsButtonsPanel, Panel):
+    bl_label = "Collision Filtering"
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        game = context.object.game
+        gs = context.scene.game_settings
+        if not (context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        return gs.physics_engine == 'JOLT' and game.physics_type == 'SOFT_BODY'
+
+    def draw(self, context):
+        layout = self.layout
+        game = context.active_object.game
+
         split = layout.split()
         col = split.column()
         col.prop(game, "collision_group")
@@ -1313,6 +1354,7 @@ classes = (
     GAME_MT_component_context_menu,
     PHYSICS_PT_game_physics,
     PHYSICS_PT_game_collision_bounds,
+    PHYSICS_PT_game_collision_filtering,
     PHYSICS_PT_game_obstacles,
     SCENE_PT_game_physics,
     SCENE_PT_game_blender_physics,

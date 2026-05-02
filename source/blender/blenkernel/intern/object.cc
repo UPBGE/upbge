@@ -1447,7 +1447,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   if (ob->vehicle) {
     /* Read the legacy wheel list (used by versioning migration). */
     BLO_read_struct_list(reader, GameVehicleWheel, &ob->vehicle->legacy_wheels);
-    ob->gameflag2 |= OB_HAS_VEHICLE;
+    /* Keep the stored OB_HAS_VEHICLE bit authoritative. Vehicle settings may remain allocated
+     * after switching away from Vehicle physics. */
   }
   else {
     ob->gameflag2 &= ~OB_HAS_VEHICLE;

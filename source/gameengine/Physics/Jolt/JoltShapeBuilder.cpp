@@ -114,8 +114,17 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
-  blender::Mesh *me = (blender::Mesh *)ob_eval->data;
+  blender::Mesh *me = meshobj->GetOrigMesh();
+  blender::Object *original_object = meshobj->GetOriginalObject();
+  if (original_object && original_object->type == blender::OB_MESH) {
+    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, original_object);
+    if (ob_eval) {
+      me = (blender::Mesh *)ob_eval->data;
+    }
+  }
+  if (!me) {
+    return false;
+  }
 
   const blender::Span<blender::float3> positions = me->vert_positions();
 

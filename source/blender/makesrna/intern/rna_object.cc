@@ -1769,7 +1769,6 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
     /* create the structure here because we display soft body buttons in the main panel */
     if (!ob->bsoft) {
       ob->bsoft = (BulletSoftBody *)bsbNew();
-      ob->bsoft->margin = 0.1f;  // not set in bsbNew
       ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
     }
   }
@@ -1872,7 +1871,6 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       /* create a BulletSoftBody structure if not already existing */
       if (!ob->bsoft) {
         ob->bsoft = (BulletSoftBody *)bsbNew();
-        ob->bsoft->margin = 0.1f;  // not set in bsbNew
         ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
       }
       break;
@@ -3576,6 +3574,19 @@ static void rna_def_game_vehicle_settings(BlenderRNA *brna)
                  "Biases where suspension and tire forces are applied on the chassis "
                  "for all wheels; 1.0 places them at the wheel center, matching Jolt's "
                  "recommended default while lower values reduce body roll");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "center_of_mass_offset", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "center_of_mass_offset");
+  RNA_def_property_range(prop, -1.0f, 1.0f);
+  RNA_def_property_ui_text(prop,
+                           "Center of Mass Offset",
+                           "Vertical center of mass offset normalized to the chassis collision "
+                           "shape half-height; 0 uses the shape center, negative lowers it, "
+                           "positive raises it. Example: if the chassis collision shape is 2 "
+                           "meters tall, its half-height is 1 meter. Slider -1.0 moves COM "
+                           "down by 1 meter from the shape center; slider -0.5 moves it down "
+                           "by 0.5 meters; slider 0.5 moves it up by 0.5 meters");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
 
   prop = RNA_def_property(srna, "differential_ratio", PROP_FLOAT, PROP_NONE);

@@ -310,6 +310,7 @@ struct JoltContactPair {
   float penetrationDepth;
   float combinedFriction;
   float combinedRestitution;
+  float appliedImpulse;
   bool isNew;  /**< true = OnContactAdded, false = OnContactPersisted */
 };
 
@@ -388,6 +389,15 @@ class JoltSoftBodyContactListener : public JPH::SoftBodyContactListener {
       const JPH::Body &inOtherBody,
       JPH::SoftBodyContactSettings &ioSettings) override;
 
+  virtual void OnSoftBodyContactAdded(const JPH::Body &inSoftBody,
+                                      const JPH::SoftBodyManifold &inManifold) override;
+
+  void SetCollectPlasticityContacts(bool collect);
+  void RegisterPlasticityContactBody(JPH::BodyID softBodyID);
+  void UnregisterPlasticityContactBody(JPH::BodyID softBodyID);
+  void ConsumePlasticityContacts(
+      std::unordered_map<JPH::uint32, std::vector<JPH::uint32>> &contacts);
+
   /** Register a soft body / pin body pair that should not exchange forces. */
   void Register(JPH::BodyID softBodyID, JPH::BodyID pinBodyID);
 
@@ -396,9 +406,14 @@ class JoltSoftBodyContactListener : public JPH::SoftBodyContactListener {
 
  private:
   std::atomic<bool> m_hasNoPinCollisionPairs{false};
+  std::atomic<bool> m_collectPlasticityContacts{false};
+  std::atomic<bool> m_hasPlasticityContactSoftBodies{false};
   mutable std::shared_mutex m_mutex;
+  std::mutex m_plasticityContactMutex;
   /** Maps soft body IndexAndSequenceNumber → pin body IndexAndSequenceNumber. */
   std::unordered_map<JPH::uint32, JPH::uint32> m_noPinCollisionMap;
+  std::unordered_set<JPH::uint32> m_plasticityContactSoftBodies;
+  std::unordered_map<JPH::uint32, std::vector<JPH::uint32>> m_plasticityContactVertices;
 };
 
 /** \} */
@@ -683,6 +698,8 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     JoltSoftBody *softBody = nullptr;
     MT_Vector3 pinPos;
     MT_Matrix3x3 pinOri;
+    bool pinFollowTransformChanged = false;
+    JPH::RVec3 previousBodyPos;
   };
 
   struct PendingBodyAddEntry {
@@ -712,6 +729,11 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /** Scratch buffers reused each frame to avoid repeated allocations. */
   std::vector<PinnedSoftBodyUpdateEntry> m_pinnedSoftBodyUpdatesScratch;
   std::vector<JPH::BodyID> m_pinnedSoftBodyBodyIDsScratch;
+  std::unordered_map<JPH::uint32, std::vector<JPH::uint32>>
+      m_softBodyContactVerticesScratch;
+  std::vector<JoltSoftBody *> m_softBodiesToPlasticityUpdateScratch;
+  std::vector<JPH::BodyID> m_softBodyPlasticityUpdateIDsScratch;
+  std::vector<const std::vector<JPH::uint32> *> m_softBodyPlasticityContactVerticesScratch;
   std::vector<JoltSoftBody *> m_softBodiesToMeshUpdateScratch;
   std::vector<JPH::BodyID> m_softBodyMeshUpdateIDsScratch;
   std::vector<JoltContactPair> m_contactPairsScratch;

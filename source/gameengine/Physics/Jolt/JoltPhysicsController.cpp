@@ -35,6 +35,7 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Body/BodyInterface.h>
 #include <Jolt/Physics/Body/MotionType.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
+#include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -68,6 +69,65 @@ float JoltEffectiveLinearVelocityMax(const float value)
 float JoltEffectiveAngularVelocityMax(const float value)
 {
   return value > 0.0f ? value : JOLT_DEFAULT_MAX_ANGULAR_VELOCITY;
+}
+
+const JPH::StaticCompoundShape *JoltAsStaticCompoundShape(const JPH::Shape *shape)
+{
+  if (!shape) {
+    return nullptr;
+  }
+
+  if (shape->GetSubType() == JPH::EShapeSubType::OffsetCenterOfMass) {
+    shape = static_cast<const JPH::OffsetCenterOfMassShape *>(shape)
+                ->GetInnerShape();
+  }
+
+  if (shape && shape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
+    return static_cast<const JPH::StaticCompoundShape *>(shape);
+  }
+
+  return nullptr;
+}
+
+JPH::Vec3 JoltCompoundSubShapeLocalPosition(const JPH::StaticCompoundShape &compound,
+                                            const JPH::CompoundShape::SubShape &subShape)
+{
+  return subShape.GetPositionCOM() + compound.GetCenterOfMass() -
+         subShape.GetRotation() * subShape.mShape->GetCenterOfMass();
+}
+
+void JoltAddExistingShapeToCompoundSettings(JPH::StaticCompoundShapeSettings &settings,
+                                            const JPH::Shape *shape)
+{
+  const JPH::StaticCompoundShape *compound = JoltAsStaticCompoundShape(shape);
+  if (!compound) {
+    if (shape) {
+      settings.AddShape(JPH::Vec3::sZero(), JPH::Quat::sIdentity(), shape);
+    }
+    return;
+  }
+
+  for (JPH::uint i = 0; i < compound->GetNumSubShapes(); ++i) {
+    const JPH::CompoundShape::SubShape &subShape = compound->GetSubShape(i);
+    settings.AddShape(JoltCompoundSubShapeLocalPosition(*compound, subShape),
+                      subShape.GetRotation(),
+                      subShape.mShape);
+  }
+}
+
+JPH::RefConst<JPH::Shape> JoltShapeWithCenterOfMass(JPH::RefConst<JPH::Shape> shape,
+                                                    JPH::Vec3Arg centerOfMass)
+{
+  if (!shape) {
+    return shape;
+  }
+
+  const JPH::Vec3 offset = centerOfMass - shape->GetCenterOfMass();
+  if (offset.IsNearZero()) {
+    return shape;
+  }
+
+  return new JPH::OffsetCenterOfMassShape(shape.GetPtr(), offset);
 }
 
 }  // namespace
@@ -610,6 +670,26 @@ void JoltPhysicsController::SetMass(MT_Scalar newmass)
   mp.mInertia = body.GetMotionProperties()->GetLocalSpaceInverseInertia().Inversed();
   mp.ScaleToMass((float)newmass);
   body.GetMotionProperties()->SetMassProperties(JPH::EAllowedDOFs::All, mp);
+}
+
+void JoltPhysicsController::SetShapePreservingMassPropertiesAndCenterOfMass(
+    JPH::RefConst<JPH::Shape> shape)
+{
+  if (!shape) {
+    return;
+  }
+
+  const JPH::Vec3 centerOfMass = m_shape ? m_shape->GetCenterOfMass() :
+                                             shape->GetCenterOfMass();
+  shape = JoltShapeWithCenterOfMass(shape, centerOfMass);
+
+  m_shape = shape;
+  if (!m_physicsEnv || m_bodyID.IsInvalid()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  bi.SetShape(m_bodyID, shape, false, JPH::EActivation::Activate);
 }
 
 MT_Scalar JoltPhysicsController::GetFriction()
@@ -1417,15 +1497,9 @@ void JoltPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
     return;
   }
 
-  /* Get the current shape and check if it's a mutable compound. If not,
-   * wrap it in one. Then add the child shape with its relative transform. */
-  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
-
   /* Build new compound from current shape + child shape. */
   JPH::StaticCompoundShapeSettings compoundSettings;
-  if (m_shape) {
-    compoundSettings.AddShape(JPH::Vec3::sZero(), JPH::Quat::sIdentity(), m_shape);
-  }
+  JoltAddExistingShapeToCompoundSettings(compoundSettings, m_shape.GetPtr());
 
   /* Compute child's relative transform. */
   MT_Vector3 myPos, childPos;
@@ -1440,8 +1514,7 @@ void JoltPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 
   JPH::Shape::ShapeResult result = compoundSettings.Create();
   if (!result.HasError()) {
-    m_shape = result.Get();
-    bi.SetShape(m_bodyID, m_shape, true, JPH::EActivation::Activate);
+    SetShapePreservingMassPropertiesAndCenterOfMass(result.Get());
   }
 }
 

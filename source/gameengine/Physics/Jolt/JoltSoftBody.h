@@ -59,6 +59,7 @@ namespace blender {
 struct Depsgraph;
 struct Object;
 struct SimpleDeformModifierDataBGE;
+struct SubsurfModifierData;
 }  // namespace blender
 
 /**
@@ -66,14 +67,14 @@ struct SimpleDeformModifierDataBGE;
  */
 struct JoltSoftBodySettings {
   float mass = 1.0f;
-  float linStiff = 0.5f;     /* Linear stiffness 0..1 -> edge compliance */
-  float shearStiff = 0.5f;   /* Shear stiffness 0..1 -> shear compliance */
-  float angStiff = 1.0f;     /* Angular stiffness 0..1 -> bend compliance */
-  float friction = 0.2f;     /* Dynamic friction (kDF) */
+  float linStiff = 0.95f;    /* Linear stiffness 0..1 -> edge compliance */
+  float shearStiff = 0.95f;  /* Shear stiffness 0..1 -> shear compliance */
+  float angStiff = 0.95f;    /* Angular stiffness 0..1 -> bend compliance */
+  float friction = 0.5f;     /* Dynamic friction (kDF) */
   float restitution = 0.0f;  /* Restitution/Elasticity */
   float damping = 0.0f;      /* Damping coefficient (kDP) -> mLinearDamping */
   float pressure = 0.0f;     /* Pressure coefficient (kPR) -> mPressure */
-  float margin = 0.1f;       /* Vertex radius (mVertexRadius) */
+  float margin = 0.01f;      /* Vertex radius (mVertexRadius) */
   float gravityFactor = 1.0f;
   int numIterations = 5;     /* Position solver iterations (piterations) */
   bool bendingConstraints = true;
@@ -91,6 +92,13 @@ struct JoltSoftBodySettings {
   MT_Matrix3x3 pinInitialOri; /* pin object world orientation at creation time */
   /* If true, this soft body cannot apply collision forces to its pin/parent object. */
   bool noPinCollision = false;
+  /* If true, the current deformed shape is carried by the pin object's transform delta. */
+  bool pinTransformFollow = false;
+  bool plasticity = false;
+  float plasticThreshold = 0.1f;
+  float plasticStrength = 1.0f;
+  float plasticMaxDeform = 1.0f;
+  float plasticRepairRate = 0.0f;
 };
 
 /**
@@ -133,6 +141,12 @@ class JoltSoftBody {
   /** Set the controller of the object that pinned vertices should follow. */
   void SetPinController(JoltPhysicsController *ctrl) { m_pinCtrl = ctrl; }
 
+  /** Rebind after transferring the owning physics environment. */
+  void SetEnvironment(JoltPhysicsEnvironment *env) { m_env = env; }
+
+  /** Rebind after recreating the Jolt body in another physics system. */
+  void SetBodyID(JPH::BodyID bodyID) { m_bodyID = bodyID; }
+
   /** Rebase this soft body after full-copy spawning.
    *  Applies the new world orientation to particle local data (and related
    *  cached offsets) so AddFullCopyObject spawns match the reference object's
@@ -150,7 +164,29 @@ class JoltSoftBody {
    *  Used by JoltPhysicsEnvironment with BodyLockMultiWrite. */
   void UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
                                   const MT_Matrix3x3 &pinOri,
-                                  JPH::Body &body);
+                                  JPH::Body &body,
+                                  const JPH::RVec3 *previousBodyWorldPos = nullptr);
+
+  /** Compute the body move needed to carry pin-follow particles coherently.
+   *  Called before BodyLockMultiWrite so BodyInterface can update broadphase/activation. */
+  bool PreparePinTransformFollowBodyMove(const MT_Vector3 &pinPos,
+                                         const MT_Matrix3x3 &pinOri,
+                                         const JPH::RVec3 &currentBodyPos,
+                                         JPH::RVec3 &r_targetBodyPos) const;
+
+  /** Returns true when this body needs a post-step rest-length plasticity pass. */
+  bool NeedsPlasticityUpdate(bool hasContactVertices) const;
+
+  /** Returns true when repair should wake a sleeping soft body. */
+  bool NeedsPlasticityRepairWakeUp() const;
+
+  /** Returns true when plasticity should collect contact vertices from Jolt callbacks. */
+  bool UsesContactPlasticity() const;
+
+  /** Apply permanent deformation by changing edge rest lengths after Jolt has stepped. */
+  void ApplyPlasticityLocked(JPH::Body &body,
+                             float timeStep,
+                             const std::vector<JPH::uint32> *contactVertexIndices);
 
   /** Returns true if this soft body has at least one kinematic (pinned) vertex. */
   bool HasPinnedVertices() const { return !m_pinnedData.empty(); }
@@ -243,6 +279,9 @@ class JoltSoftBody {
     JPH::Vec3 boundsCenterCorrection = JPH::Vec3::sZero();
   };
 
+  void ConfigurePlasticity(const JoltSoftBodySettings &settings,
+                           const JPH::SoftBodySharedSettings &sharedSettings);
+
   JoltPhysicsEnvironment *m_env;
   JoltPhysicsController *m_ctrl;
   JPH::BodyID m_bodyID;
@@ -261,6 +300,15 @@ class JoltSoftBody {
   /** Scalar creation params stored during Create() for use in CloneIntoReplica(). */
   SoftBodyReplicaParams m_replicaParams;
 
+  bool m_plasticityEnabled = false;
+  float m_plasticThreshold = 0.05f;
+  float m_plasticStrength = 0.25f;
+  float m_plasticMaxDeform = 0.5f;
+  float m_plasticRepairRate = 0.0f;
+  bool m_hasPlasticDeformation = false;
+  std::vector<float> m_originalEdgeRestLengths;
+  std::vector<unsigned char> m_plasticDirtyVertices;
+
   KX_GameObject *m_gameobj = nullptr;
   RAS_MeshObject *m_meshObject = nullptr;
 
@@ -276,8 +324,17 @@ class JoltSoftBody {
   /** Runtime deform modifier attached to the Blender object. */
   blender::SimpleDeformModifierDataBGE *m_sbModifier = nullptr;
 
+  /** Temporary Subdivision Viewport-level overrides active only during game runtime. */
+  std::vector<std::pair<blender::SubsurfModifierData *, short>> m_subsurfLevelOverrides;
+
+  /** True when the soft body deforms the control mesh and leaves Subdivision visual-only. */
+  bool m_useRenderSubsurfControl = false;
+
   /** Number of Blender mesh vertices (sanity check for runtime geometry changes). */
   int m_numBlenderVerts = 0;
+
+  /** Final evaluated visual vertex count converted into the render mesh. */
+  int m_numVisualVerts = 0;
 
   /** Pinned (kinematic) vertex data: (joltParticleIndex, localOffset relative to pin object). */
   std::vector<std::pair<int, MT_Vector3>> m_pinnedData;
@@ -306,6 +363,9 @@ class JoltSoftBody {
 
   /** If true, this soft body does not apply collision forces to its pin/parent object. */
   bool m_noPinCollision = false;
+
+  /** If true, all particles follow the pin object's transform delta before solving. */
+  bool m_pinTransformFollow = false;
 
   /** Body COM offset relative to game-object origin (Blender world space). */
   MT_Vector3 m_bodyOriginOffset = MT_Vector3(0.0f, 0.0f, 0.0f);

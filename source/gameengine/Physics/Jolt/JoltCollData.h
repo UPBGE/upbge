@@ -55,7 +55,8 @@ class JoltCollData : public PHY_ICollData {
                         const MT_Vector3 &worldPt,
                         const MT_Vector3 &normal,
                         float friction,
-                        float restitution);
+                        float restitution,
+                        float appliedImpulse = 0.0f);
 
   /* ---- PHY_ICollData interface ---- */
 

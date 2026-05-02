@@ -33,6 +33,8 @@
 
 #include "DNA_mesh_types.h"
 
+#include "BKE_lib_id.hh"
+
 #include "CM_Message.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_IPolygonMaterial.h"
@@ -43,10 +45,12 @@ using namespace blender;
 RAS_MeshObject::RAS_MeshObject(blender::Mesh *mesh,
                                int conversionTotverts,
                                blender::Object *originalOb,
-                               const LayersInfo &layersInfo)
+                               const LayersInfo &layersInfo,
+                               bool ownsMesh)
     : m_name(mesh->id.name + 2),
       m_layersInfo(layersInfo),
       m_mesh(mesh),
+      m_ownsMesh(ownsMesh),
       m_conversionTotverts(conversionTotverts),
       m_originalOb(originalOb)
 {
@@ -61,6 +65,11 @@ RAS_MeshObject::~RAS_MeshObject()
     delete meshmat;
   }
   m_materials.clear();
+
+  if (m_ownsMesh && m_mesh) {
+    BKE_id_free(nullptr, m_mesh);
+    m_mesh = nullptr;
+  }
 }
 
 int RAS_MeshObject::NumMaterials()

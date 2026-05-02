@@ -420,7 +420,9 @@ struct SoftBody {
 // #define OB_BSB_AERO_VTWOSIDE 32 /* aero model, Vertex normals are flipped to match velocity */
 #define OB_BSB_LRA_CONSTRAINTS 64    /* Jolt: Long Range Attachment constraints (anti-stretch) */
 #define OB_BSB_FACES_DOUBLE_SIDED 128 /* Jolt: treat soft body faces as double-sided for collision */
-#define OB_BSB_NO_PIN_COLLISION 256   /* Jolt: soft body cannot apply collision forces to its pin/parent object */
+#define OB_BSB_NO_PIN_COLLISION 256   /* Jolt: do not push the pin/parent object */
+#define OB_BSB_PLASTICITY 512         /* Jolt: permanent edge rest-length changes */
+#define OB_BSB_PIN_TRANSFORM_FOLLOW 1024 /* Jolt: move all vertices with the pin object */
 
 /* BulletSoftBody.collisionflags */
 #define OB_BSB_COL_SDF_RS 2 /* SDF based rigid vs soft */
@@ -433,8 +435,8 @@ struct Object; /* forward declaration for pin_object */
 struct BulletSoftBody {
   DNA_DEFINE_CXX_METHODS(BulletSoftBody)
   int flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT; /* various boolean options */
-  float linStiff = 0.5f; /* linear stiffness 0..1 */
-  float angStiff = 1.0f; /* angular stiffness 0..1 */
+  float linStiff = 0.95f; /* linear stiffness 0..1 */
+  float angStiff = 0.95f; /* angular stiffness 0..1 */
   float volume = 1.0f;   /* volume preservation 0..1 */
 
   int viterations = 0; /* Velocities solver iterations */
@@ -457,7 +459,7 @@ struct BulletSoftBody {
   float kPR = 0.0f; /* Pressure coefficient [-inf,+inf] */
   float kVC = 0.0f; /* Volume conversation coefficient [0,+inf] */
 
-  float kDF = 0.2f;  /* Dynamic friction coefficient [0,1] */
+  float kDF = 0.5f;   /* Dynamic friction coefficient [0,1] */
   float kMT = 0.05f;  /* Pose matching coefficient [0,1] */
   float kCHR = 1.0f; /* Rigid contacts hardness [0,1] */
   float kKHR = 0.1f; /* Kinetic contacts hardness [0,1] */
@@ -468,10 +470,14 @@ struct BulletSoftBody {
   int numclusteriterations = 64; /* number of iterations to refine collision clusters*/
   int bending_dist = 2;         /* Bending constraint distance */
   float welding = 0.0f;            /* welding limit to remove duplicate/nearby vertices */
-  float margin = 0.0f;             /* margin specific to softbody */
-  float shearStiff = 0.5f; /* shear stiffness 0..1 */
+  float margin = 0.01f;            /* margin specific to softbody */
+  float shearStiff = 0.95f; /* shear stiffness 0..1 */
   /* Jolt-specific: LRA constraint type (0=Euclidean, 1=Geodesic). */
   int lraType = 0;
+  float plasticThreshold = 0.1f;   /* strain ratio before rest length is changed */
+  float plasticStrength = 1.0f;    /* blend factor toward current edge length */
+  float plasticMaxDeform = 1.0f;   /* max rest-length change ratio; 0 disables clamp */
+  float plasticRepairRate = 0.0f;  /* rest-length recovery rate per second */
   char _pad0[4];
   /* Jolt: vertex pinning — vertices in pin_vgroup with weight >= threshold are kinematic. */
   Object *pin_object = nullptr; /* optional: pinned verts follow this object's transform */

@@ -182,6 +182,7 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   void SetOriginalMotionType(JPH::EMotionType mt) { m_originalMotionType = mt; }
   JPH::EMotionType GetOriginalMotionType() const { return m_originalMotionType; }
   void SetShape(JPH::RefConst<JPH::Shape> shape) { m_shape = shape; }
+  void SetShapePreservingMassPropertiesAndCenterOfMass(JPH::RefConst<JPH::Shape> shape);
   JPH::RefConst<JPH::Shape> GetShape() const { return m_shape; }
   bool IsSensor() const { return m_isSensor; }
   bool IsRigidBodyFlag() const { return m_isRigidBody; }

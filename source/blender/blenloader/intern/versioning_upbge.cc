@@ -450,6 +450,21 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       scene.eevee.shadow_pcf_grain = 1.0f;
     }
   }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 13)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "BulletSoftBody", "float", "plasticThreshold")) {
+      for (Object &ob : bmain->objects) {
+        if (!ob.bsoft) {
+          continue;
+        }
+
+        ob.bsoft->plasticThreshold = 0.1f;
+        ob.bsoft->plasticStrength = 1.0f;
+        ob.bsoft->plasticMaxDeform = 1.0f;
+        ob.bsoft->plasticRepairRate = 0.0f;
+      }
+    }
+  }
 }
 
 }  // namespace blender

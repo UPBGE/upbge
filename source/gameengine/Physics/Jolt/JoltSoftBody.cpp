@@ -43,6 +43,7 @@ JPH_SUPPRESS_WARNINGS
 #include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
+#include "BKE_scene.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
@@ -121,6 +122,120 @@ inline uint64_t MakeRotationCacheKey(const MT_Matrix3x3 &rotationDelta)
   mix(quantize((float)q.z()));
   mix(quantize((float)q.w()));
   return key;
+}
+
+static bool JoltIsSoftBodyModifier(const ModifierData *md)
+{
+  return md && md->type == eModifierType_SimpleDeformBGE &&
+         STRPREFIX(md->name, "joltSbModifier");
+}
+
+static bool JoltSoftBodyHasRenderOnlySubsurf(Object *ob)
+{
+  if (!ob || ob->type != OB_MESH) {
+    return false;
+  }
+
+  bool has_render_only_subsurf = false;
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+    if (!(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    if (md->type != eModifierType_Subsurf) {
+      const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+      if (mti && mti->type != ModifierTypeType::OnlyDeform &&
+          mti->type != ModifierTypeType::NonGeometrical && !has_render_only_subsurf) {
+        return false;
+      }
+      continue;
+    }
+
+    SubsurfModifierData *smd = (SubsurfModifierData *)md;
+    if (smd->levels > 0) {
+      return false;
+    }
+    if (smd->renderLevels > smd->levels) {
+      has_render_only_subsurf = true;
+    }
+  }
+
+  return has_render_only_subsurf;
+}
+
+static bool JoltEnsureSoftBodyRenderSubsurfLevels(
+    Object *ob,
+    std::vector<std::pair<SubsurfModifierData *, short>> &overrides,
+    bool &changed)
+{
+  changed = false;
+  if (!overrides.empty()) {
+    return true;
+  }
+  if (!JoltSoftBodyHasRenderOnlySubsurf(ob)) {
+    return false;
+  }
+
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+    if (md->type != eModifierType_Subsurf || !(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    SubsurfModifierData *smd = (SubsurfModifierData *)md;
+    if (smd->renderLevels > smd->levels) {
+      overrides.push_back(std::make_pair(smd, smd->levels));
+      smd->levels = smd->renderLevels;
+      changed = true;
+    }
+  }
+
+  return !overrides.empty();
+}
+
+static void JoltRestoreSoftBodyRenderSubsurfLevels(
+    Object *ob, std::vector<std::pair<SubsurfModifierData *, short>> &overrides)
+{
+  if (overrides.empty()) {
+    return;
+  }
+
+  for (const std::pair<SubsurfModifierData *, short> &item : overrides) {
+    item.first->levels = item.second;
+  }
+  overrides.clear();
+
+  if (ob) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  }
+}
+
+static ModifierData *JoltFirstTopologyModifier(Object *ob)
+{
+  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+    if (!mti) {
+      continue;
+    }
+    if (mti->type != ModifierTypeType::OnlyDeform &&
+        mti->type != ModifierTypeType::NonGeometrical) {
+      return md;
+    }
+  }
+
+  return nullptr;
+}
+
+static void JoltInsertSoftBodyModifier(Object *ob,
+                                       SimpleDeformModifierDataBGE *modifier,
+                                       bool before_topology)
+{
+  ModifierData *before = before_topology ? JoltFirstTopologyModifier(ob) : nullptr;
+  if (before) {
+    BLI_insertlinkbefore(&ob->modifiers, before, modifier);
+  }
+  else {
+    BLI_addtail(&ob->modifiers, modifier);
+  }
 }
 
 inline JPH::Vec3 CalculateBoundsCenter(
@@ -235,6 +350,31 @@ JoltSoftBody::~JoltSoftBody()
      * environment teardown may delete us after controllers were already removed.
      * In both cases m_ctrl may be stale. */
   }
+}
+
+void JoltSoftBody::ConfigurePlasticity(const JoltSoftBodySettings &settings,
+                                       const JPH::SoftBodySharedSettings &sharedSettings)
+{
+  m_plasticityEnabled = settings.plasticity;
+  m_plasticThreshold = std::max(settings.plasticThreshold, 0.0f);
+  m_plasticStrength = std::clamp(settings.plasticStrength, 0.0f, 1.0f);
+  m_plasticMaxDeform = std::max(settings.plasticMaxDeform, 0.0f);
+  m_plasticRepairRate = std::max(settings.plasticRepairRate, 0.0f);
+
+  m_originalEdgeRestLengths.clear();
+  m_plasticDirtyVertices.clear();
+  m_hasPlasticDeformation = false;
+
+  if (!m_plasticityEnabled || sharedSettings.mEdgeConstraints.empty()) {
+    m_plasticityEnabled = false;
+    return;
+  }
+
+  m_originalEdgeRestLengths.reserve(sharedSettings.mEdgeConstraints.size());
+  for (const JPH::SoftBodySharedSettings::Edge &edge : sharedSettings.mEdgeConstraints) {
+    m_originalEdgeRestLengths.push_back(edge.mRestLength);
+  }
+  m_plasticDirtyVertices.assign(sharedSettings.mVertices.size(), 0);
 }
 
 /** \} */
@@ -352,6 +492,7 @@ bool JoltSoftBody::Create(const float *vertices,
       }
     }
     m_noPinCollision = settings.noPinCollision;
+    m_pinTransformFollow = settings.pinTransformFollow;
   }
 
   /* ---- Pre-center particles to eliminate the first-step origin jump ----
@@ -457,6 +598,8 @@ bool JoltSoftBody::Create(const float *vertices,
 
   /* Optimize constraint groups for parallel XPBD execution. */
   sbSettings->Optimize();
+
+  ConfigurePlasticity(settings, *sbSettings);
 
   /* Cache for replica cloning (reuse shared settings across spawned instances). */
   m_sharedSettings = sbSettings;
@@ -588,9 +731,169 @@ void JoltSoftBody::ApplySpawnTransform(const MT_Vector3 &posDelta, const MT_Matr
 /** \name JoltSoftBody — Update Mesh and Pinned Vertices
  * \{ */
 
+bool JoltSoftBody::NeedsPlasticityUpdate(bool hasContactVertices) const
+{
+  if (!m_plasticityEnabled || m_originalEdgeRestLengths.empty()) {
+    return false;
+  }
+  if (m_plasticStrength > 0.0f && hasContactVertices) {
+    return true;
+  }
+  return NeedsPlasticityRepairWakeUp();
+}
+
+bool JoltSoftBody::NeedsPlasticityRepairWakeUp() const
+{
+  return m_plasticityEnabled && !m_originalEdgeRestLengths.empty() &&
+         m_plasticRepairRate > 0.0f && m_hasPlasticDeformation;
+}
+
+bool JoltSoftBody::UsesContactPlasticity() const
+{
+  return m_plasticityEnabled && m_plasticStrength > 0.0f;
+}
+
+void JoltSoftBody::ApplyPlasticityLocked(
+    JPH::Body &body,
+    float timeStep,
+    const std::vector<JPH::uint32> *contactVertexIndices)
+{
+  const bool hasContactVertices = contactVertexIndices && !contactVertexIndices->empty();
+  const bool bodyIsActive = body.IsActive();
+  if (!NeedsPlasticityUpdate(hasContactVertices) || !m_sharedSettings || !body.IsSoftBody()) {
+    return;
+  }
+
+  const bool plasticAllowed = m_plasticStrength > 0.0f && hasContactVertices;
+  const float repairStep = (bodyIsActive && m_hasPlasticDeformation) ?
+                               std::clamp(m_plasticRepairRate * std::max(timeStep, 0.0f),
+                                          0.0f,
+                                          1.0f) :
+                               0.0f;
+  if (!plasticAllowed && repairStep <= 0.0f) {
+    return;
+  }
+
+  JPH::SoftBodyMotionProperties *motionProperties =
+      static_cast<JPH::SoftBodyMotionProperties *>(body.GetMotionProperties());
+  if (!motionProperties) {
+    return;
+  }
+
+  const auto &vertices = motionProperties->GetVertices();
+  auto &edges = m_sharedSettings->mEdgeConstraints;
+  if (m_originalEdgeRestLengths.size() != edges.size()) {
+    return;
+  }
+
+  if (hasContactVertices) {
+    if (m_plasticDirtyVertices.size() != vertices.size()) {
+      m_plasticDirtyVertices.assign(vertices.size(), 0);
+    }
+    else {
+      std::fill(m_plasticDirtyVertices.begin(), m_plasticDirtyVertices.end(), 0);
+    }
+
+    for (JPH::uint32 vertexIndex : *contactVertexIndices) {
+      if (vertexIndex < m_plasticDirtyVertices.size()) {
+        m_plasticDirtyVertices[vertexIndex] = 1;
+      }
+    }
+  }
+
+  constexpr float kMinRestLength = 1.0e-6f;
+  constexpr float kRestLengthEpsilon = 1.0e-4f;
+  bool hasPlasticDeformation = false;
+  for (size_t edgeIndex = 0; edgeIndex < edges.size(); ++edgeIndex) {
+    JPH::SoftBodySharedSettings::Edge &edge = edges[edgeIndex];
+    const JPH::uint32 vertex0 = edge.mVertex[0];
+    const JPH::uint32 vertex1 = edge.mVertex[1];
+    if (vertex0 >= vertices.size() || vertex1 >= vertices.size()) {
+      continue;
+    }
+
+    const float originalRestLength = m_originalEdgeRestLengths[edgeIndex];
+    if (originalRestLength <= kMinRestLength) {
+      continue;
+    }
+
+    bool plasticUpdated = false;
+    if (plasticAllowed) {
+      const bool edgeInContactZone = vertex0 < m_plasticDirtyVertices.size() &&
+                                     vertex1 < m_plasticDirtyVertices.size() &&
+                                     (m_plasticDirtyVertices[vertex0] ||
+                                      m_plasticDirtyVertices[vertex1]);
+
+      if (edgeInContactZone) {
+        const float currentRestLength = std::max(edge.mRestLength, kMinRestLength);
+        const float currentLength =
+            std::max((vertices[vertex1].mPosition - vertices[vertex0].mPosition).Length(),
+                     kMinRestLength);
+        const float strain = std::abs(currentLength - edge.mRestLength) / currentRestLength;
+
+        if (strain > m_plasticThreshold) {
+          float targetRestLength = edge.mRestLength +
+                                   (currentLength - edge.mRestLength) * m_plasticStrength;
+          if (m_plasticMaxDeform > 0.0f) {
+            const float minRestLength = originalRestLength * std::max(0.0f,
+                                                                      1.0f - m_plasticMaxDeform);
+            const float maxRestLength = originalRestLength * (1.0f + m_plasticMaxDeform);
+            targetRestLength = std::clamp(targetRestLength,
+                                          std::max(minRestLength, kMinRestLength),
+                                          std::max(maxRestLength, kMinRestLength));
+          }
+          edge.mRestLength = targetRestLength;
+          plasticUpdated = true;
+        }
+      }
+    }
+
+    if (!plasticUpdated && repairStep > 0.0f) {
+      edge.mRestLength += (originalRestLength - edge.mRestLength) * repairStep;
+      const float snapEpsilon = std::max(originalRestLength * kRestLengthEpsilon,
+                                         kMinRestLength);
+      if (std::abs(edge.mRestLength - originalRestLength) <= snapEpsilon) {
+        edge.mRestLength = originalRestLength;
+      }
+    }
+
+    const float deformationEpsilon = std::max(originalRestLength * kRestLengthEpsilon,
+                                             kMinRestLength);
+    if (std::abs(edge.mRestLength - originalRestLength) > deformationEpsilon) {
+      hasPlasticDeformation = true;
+    }
+  }
+  m_hasPlasticDeformation = hasPlasticDeformation;
+}
+
+bool JoltSoftBody::PreparePinTransformFollowBodyMove(const MT_Vector3 &pinPos,
+                                                     const MT_Matrix3x3 &pinOri,
+                                                     const JPH::RVec3 &currentBodyPos,
+                                                     JPH::RVec3 &r_targetBodyPos) const
+{
+  if (!m_pinTransformFollow || !m_hasLastPinTransform) {
+    return false;
+  }
+
+  constexpr float kPinPosEpsilonSq = 1.0e-12f;
+  const MT_Vector3 pinPosDelta = pinPos - m_lastPinPos;
+  const MT_Matrix3x3 pinOriDelta = pinOri * m_lastPinOri.transposed();
+  if (pinPosDelta.length2() <= kPinPosEpsilonSq && IsNearlyIdentityRotation(pinOriDelta)) {
+    return false;
+  }
+
+  const MT_Matrix3x3 invLastPinOri = m_lastPinOri.transposed();
+  const MT_Vector3 bodyWorldPos = JoltMath::ToMT(JPH::Vec3(currentBodyPos));
+  const MT_Vector3 bodyPinLocal = invLastPinOri * (bodyWorldPos - m_lastPinPos);
+  const MT_Vector3 targetBodyPos = pinPos + pinOri * bodyPinLocal;
+  r_targetBodyPos = JoltMath::ToJoltR(targetBodyPos);
+  return true;
+}
+
 void JoltSoftBody::UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
                                               const MT_Matrix3x3 &pinOri,
-                                              JPH::Body &body)
+                                              JPH::Body &body,
+                                              const JPH::RVec3 *previousBodyWorldPos)
 {
   if (m_pinnedData.empty() || !m_env || !body.IsSoftBody()) {
     return;
@@ -600,16 +903,15 @@ void JoltSoftBody::UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
    * - if the pin transform is unchanged from the previous frame; and
    * - the soft body is sleeping,
    * then re-writing pinned vertices is redundant. */
-  if (m_hasLastPinTransform) {
-    const MT_Vector3 pinPosDelta = pinPos - m_lastPinPos;
-    const MT_Matrix3x3 pinOriDelta = pinOri * m_lastPinOri.transposed();
-    constexpr float kPinPosEpsilonSq = 1.0e-12f;
-    const bool pinPosUnchanged = pinPosDelta.length2() <= kPinPosEpsilonSq;
-    const bool pinOriUnchanged = IsNearlyIdentityRotation(pinOriDelta);
+  constexpr float kPinPosEpsilonSq = 1.0e-12f;
+  const MT_Vector3 pinPosDelta = pinPos - m_lastPinPos;
+  const MT_Matrix3x3 pinOriDelta = pinOri * m_lastPinOri.transposed();
+  const bool pinPosUnchanged = !m_hasLastPinTransform ||
+                               pinPosDelta.length2() <= kPinPosEpsilonSq;
+  const bool pinOriUnchanged = !m_hasLastPinTransform || IsNearlyIdentityRotation(pinOriDelta);
 
-    if (pinPosUnchanged && pinOriUnchanged && !body.IsActive()) {
-      return;
-    }
+  if (m_hasLastPinTransform && pinPosUnchanged && pinOriUnchanged && !body.IsActive()) {
+    return;
   }
 
   /* mPosition in SoftBodyMotionProperties is body-local (relative to body's
@@ -618,6 +920,8 @@ void JoltSoftBody::UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
    *   joltLocal = joltWorld(target) - body.GetPosition() */
   /* Body world position in Jolt Y-up space (used to convert world→local). */
   JPH::RVec3 bodyWorldPos = body.GetPosition();
+  JPH::RVec3 sourceBodyWorldPos = previousBodyWorldPos ? *previousBodyWorldPos :
+                                                         bodyWorldPos;
 
   JPH::SoftBodyMotionProperties *mp =
       static_cast<JPH::SoftBodyMotionProperties *>(body.GetMotionProperties());
@@ -626,6 +930,23 @@ void JoltSoftBody::UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
   }
 
   auto &joltVerts = mp->GetVertices();
+
+  if (m_pinTransformFollow && m_hasLastPinTransform &&
+      (!pinPosUnchanged || !pinOriUnchanged)) {
+    const MT_Matrix3x3 invLastPinOri = m_lastPinOri.transposed();
+
+    for (JPH::SoftBodyVertex &vertex : joltVerts) {
+      const MT_Vector3 oldWorldPos = JoltMath::ToMT(JPH::Vec3(sourceBodyWorldPos) +
+                                                    vertex.mPosition);
+      const MT_Vector3 pinLocalPos = invLastPinOri * (oldWorldPos - m_lastPinPos);
+      const MT_Vector3 newWorldPos = pinPos + pinOri * pinLocalPos;
+      const JPH::Vec3 newLocalPos = JoltMath::ToJolt(newWorldPos) - JPH::Vec3(bodyWorldPos);
+
+      vertex.mPosition = newLocalPos;
+      vertex.mPreviousPosition = newLocalPos;
+      vertex.mVelocity = JPH::Vec3::sZero();
+    }
+  }
 
   for (const auto &[joltIdx, pinLocalOffset] : m_pinnedData) {
     if (joltIdx < 0 || joltIdx >= (int)joltVerts.size()) {
@@ -640,6 +961,7 @@ void JoltSoftBody::UpdatePinnedVerticesLocked(const MT_Vector3 &pinPos,
                         static_cast<float>(newWorldPos.z()),
                         -static_cast<float>(newWorldPos.y()));
     joltVerts[joltIdx].mPosition = joltWorld - JPH::Vec3(bodyWorldPos);
+    joltVerts[joltIdx].mPreviousPosition = joltVerts[joltIdx].mPosition;
     /* Keep body-local velocity at zero for pinned vertices.  Their world-space
      * motion comes from the soft body's own body velocity (which tracks the pin
      * object).  Any stale per-particle velocity would create artificial forces
@@ -716,6 +1038,21 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
 
   /* 1. Get the evaluated Blender object for modifier and mesh access. */
   blender::Object *ob = m_gameobj->GetBlenderObject();
+  bool subsurf_changed = false;
+  const bool ensured_render_subsurf = JoltEnsureSoftBodyRenderSubsurfLevels(
+      ob, m_subsurfLevelOverrides, subsurf_changed);
+  if (ensured_render_subsurf) {
+    m_useRenderSubsurfControl = true;
+  }
+  const bool use_render_subsurf = m_useRenderSubsurfControl;
+  if (subsurf_changed) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    KX_KetsjiEngine *engine = KX_GetActiveEngine();
+    if (engine && engine->GetContext()) {
+      BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(engine->GetContext()));
+    }
+  }
+
   blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
     return;
@@ -725,14 +1062,18 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
     return;
   }
 
-  /* Sanity: skip if a modifier changed vertex count at runtime. */
-  if (m_numBlenderVerts > 0 && me->verts_num != m_numBlenderVerts) {
+  const int visual_verts = me->verts_num;
+
+  /* Sanity: skip if the final display mesh changed vertex count at runtime. */
+  if (m_numVisualVerts > 0 && visual_verts != m_numVisualVerts) {
     return;
   }
 
   /* 2. First time: create the deform modifier and allocate the coord buffer. */
   if (!m_sbModifier) {
-    m_numBlenderVerts = me->verts_num;
+    blender::Mesh *deform_me = use_render_subsurf ? (blender::Mesh *)ob->data : me;
+    m_numVisualVerts = visual_verts;
+    m_numBlenderVerts = deform_me ? deform_me->verts_num : 0;
     if (m_numBlenderVerts <= 0) {
       return;
     }
@@ -740,7 +1081,7 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
     m_sbModifier = (blender::SimpleDeformModifierDataBGE *)BKE_modifier_new(
         eModifierType_SimpleDeformBGE);
     STRNCPY(m_sbModifier->modifier.name, "joltSbModifier");
-    BLI_addtail(&ob->modifiers, m_sbModifier);
+    JoltInsertSoftBodyModifier(ob, m_sbModifier, use_render_subsurf);
     BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
     BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
     m_env->RequestSoftBodyRelationsTagUpdate();
@@ -751,7 +1092,7 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
 
     /* Pre-fill from the rest-pose vertex positions so that vertices not covered
      * by the physics mesh (e.g. isolated verts) keep their original location. */
-    const blender::Span<blender::float3> restPos = me->vert_positions();
+    const blender::Span<blender::float3> restPos = deform_me->vert_positions();
     for (int v = 0; v < m_numBlenderVerts && v < (int)restPos.size(); ++v) {
       m_sbCoords[v][0] = restPos[v][0];
       m_sbCoords[v][1] = restPos[v][1];
@@ -783,8 +1124,9 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
    * so that modifier coords land in A's true local space and are not
    * double-transformed when UpdateParents later applies the parent rotation.
    *
-   * For unparented soft bodies this reduces to the object's current world
-   * transform and remains equivalent to the previous direct path. */
+    * For unparented soft bodies this reduces to the object's pending local
+    * transform.  Using cached world values here can be one frame stale because
+    * physics sync marks the node modified before UpdateSoftBodies runs. */
   SG_Node *sgNode = m_gameobj->GetSGNode();
   const SG_Node *sgParent = sgNode->GetSGParent();
 
@@ -809,18 +1151,18 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
     renderInvOri = combined.getBasis().scaled(invSx, invSy, invSz).transposed();
   }
   else {
-    renderPos = m_gameobj->NodeGetWorldPosition();
-    MT_Vector3 scale = m_gameobj->NodeGetWorldScaling();
+    renderPos = m_gameobj->NodeGetLocalPosition();
+    MT_Vector3 scale = m_gameobj->NodeGetLocalScaling();
     invSx = (std::abs(scale.x()) > 1e-6f) ? 1.0f / scale.x() : 1.0f;
     invSy = (std::abs(scale.y()) > 1e-6f) ? 1.0f / scale.y() : 1.0f;
     invSz = (std::abs(scale.z()) > 1e-6f) ? 1.0f / scale.z() : 1.0f;
 
-    const MT_Matrix3x3 worldOri = m_gameobj->NodeGetWorldOrientation();
-    renderInvOri = worldOri.transposed();
+    const MT_Matrix3x3 localOri = m_gameobj->NodeGetLocalOrientation();
+    renderInvOri = localOri.transposed();
 
     /* Hot path for most runtime-spawned soft bodies: unparented with no rotation.
      * Skip per-vertex matrix multiply and go directly world→local with scale only. */
-    useNoRotationFastPath = IsNearlyIdentityRotation(worldOri);
+    useNoRotationFastPath = IsNearlyIdentityRotation(localOri);
   }
 
   const float renderPosX = (float)renderPos.x();
@@ -915,11 +1257,15 @@ void JoltSoftBody::CleanupModifier(blender::Object *ob)
     }
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
+  JoltRestoreSoftBodyRenderSubsurfLevels(ob, m_subsurfLevelOverrides);
   /* Free coord buffer only after the modifier is gone. */
   if (m_sbCoords) {
     MEM_delete_void(static_cast<void *>(m_sbCoords));
     m_sbCoords = nullptr;
   }
+  m_numBlenderVerts = 0;
+  m_numVisualVerts = 0;
+  m_useRenderSubsurfControl = false;
   m_hasMeshUpload = false;
 }
 
@@ -939,7 +1285,7 @@ void JoltSoftBody::PurgeStaleModifiers()
   ModifierData *md = (ModifierData *)ob->modifiers.first;
   while (md) {
     ModifierData *next = md->next;
-    if (md->type == eModifierType_SimpleDeformBGE) {
+    if (JoltIsSoftBodyModifier(md)) {
       ((blender::SimpleDeformModifierDataBGE *)md)->vertcoos = nullptr;
       BLI_remlink(&ob->modifiers, md);
       BKE_modifier_free(md);
@@ -1103,6 +1449,17 @@ JoltSoftBody *JoltSoftBody::CloneIntoReplica(JoltPhysicsController *newCtrl,
     }
   }
 
+  if (m_plasticityEnabled) {
+    replicaSettings = replicaSettings->Clone();
+    if (replicaSettings->mEdgeConstraints.size() == m_sharedSettings->mEdgeConstraints.size()) {
+      const size_t edgeCount = replicaSettings->mEdgeConstraints.size();
+      for (size_t edgeIndex = 0; edgeIndex < edgeCount; ++edgeIndex) {
+        replicaSettings->mEdgeConstraints[edgeIndex].mRestLength =
+            m_sharedSettings->mEdgeConstraints[edgeIndex].mRestLength;
+      }
+    }
+  }
+
   /* Preserve the template's COM-to-origin offset for this replica.
    * For rotated replicas the offset rotates with the spawn orientation delta. */
   MT_Vector3 replicaOriginOffset = m_bodyOriginOffset;
@@ -1169,11 +1526,23 @@ JoltSoftBody *JoltSoftBody::CloneIntoReplica(JoltPhysicsController *newCtrl,
   clone->m_replicaParams     = m_replicaParams;
   clone->m_blenderVertToJoltVert = m_blenderVertToJoltVert;
   clone->m_noPinCollision    = m_noPinCollision;
+  clone->m_pinTransformFollow = m_pinTransformFollow;
   clone->m_pinBlenderObject  = m_pinBlenderObject;
   clone->m_meshObject        = m_meshObject;
   clone->m_isActive          = true;
+  clone->m_useRenderSubsurfControl = m_useRenderSubsurfControl;
   clone->m_initialWorldOri   = hasPinTransform ? newPinOri : replicaOri;
   clone->m_bodyOriginOffset  = JoltMath::ToMT(replicaSpawnOffset);
+  clone->m_plasticityEnabled = m_plasticityEnabled;
+  clone->m_plasticThreshold = m_plasticThreshold;
+  clone->m_plasticStrength = m_plasticStrength;
+  clone->m_plasticMaxDeform = m_plasticMaxDeform;
+  clone->m_plasticRepairRate = m_plasticRepairRate;
+  clone->m_hasPlasticDeformation = m_hasPlasticDeformation;
+  clone->m_originalEdgeRestLengths = m_originalEdgeRestLengths;
+  if (clone->m_plasticityEnabled) {
+    clone->m_plasticDirtyVertices.assign(replicaSettings->mVertices.size(), 0);
+  }
 
   /* Queue body insertion so runtime spawn bursts can be added in one Jolt batch
    * (AddBodiesPrepare/AddBodiesFinalize) before the next physics step. */
