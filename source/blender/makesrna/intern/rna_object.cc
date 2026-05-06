@@ -889,7 +889,7 @@ static int rna_Object_collision_bounds_type_get(PointerRNA *ptr)
 static void rna_Object_collision_bounds_type_set(PointerRNA *ptr, int value)
 {
   Object *ob = (Object *)ptr->data;
-  ob->collision_boundtype = value;
+  ob->collision_boundtype = static_cast<eObject_BoundType>(value);
   ob->gameflag |= OB_BOUNDS;
 }
 
@@ -3649,7 +3649,6 @@ static void rna_def_game_vehicle_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "simple_drive_mode", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_SIMPLE_DRIVE);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Simple Drive Mode",
@@ -3698,7 +3697,6 @@ static void rna_def_game_vehicle_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mc_enable_lean_controller", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_LEAN_CONTROLLER);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop,
       "Enable Lean Controller",
@@ -3708,7 +3706,6 @@ static void rna_def_game_vehicle_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mc_enable_lean_steering_limit", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_LEAN_STEERING_LIMIT);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop,
       "Lean Steering Limit",
@@ -3732,7 +3729,6 @@ static void rna_def_game_vehicle_settings(BlenderRNA *brna)
   prop = RNA_def_property(
       srna, "mc_override_front_suspension_force_point", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_FRONT_FORCE_POINT);
-    RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop,
       "Override Front Suspension Force Point",
@@ -3744,7 +3740,6 @@ static void rna_def_game_vehicle_settings(BlenderRNA *brna)
   prop = RNA_def_property(
       srna, "mc_override_rear_suspension_force_point", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_REAR_FORCE_POINT);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop,
       "Override Rear Suspension Force Point",

@@ -6602,17 +6602,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Physics Solver", "Physics constraint solver");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
-  /* Depsgraph optimization */
-  prop = RNA_def_property(srna, "depsgraph_optimize_transform", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "depsgraph_optimize_transform", 1);
-  RNA_def_property_ui_text(prop,
-                           "Optimize Depsgraph Transforms",
-                           "Skip depsgraph transform sync for objects that haven't moved. "
-                           "Greatly reduces overhead for scenes with many static/sleeping objects. "
-                           "May affect drivers or metaballs that depend on other objects' transforms "
-                           "in rare edge cases");
-  RNA_def_property_update(prop, NC_SCENE, NULL);
-
   /* Jolt Physics settings */
   prop = RNA_def_property(srna, "jolt_physics_threads", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "jolt_physics_threads");
@@ -6851,6 +6840,18 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "However, setting ERP = 1 is not recommended, as the joint error will not be completely "
       "fixed due "
       "to various internal approximations. A value of ERP = 0.1 to 0.8 is recommended");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_correction_strength", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "erp");
+  RNA_def_property_ui_range(prop, 0.01f, 1.0f, 0.01f, 3);
+  RNA_def_property_range(prop, 0.01f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Correction Strength",
+      "Controls how strongly Jolt fixes overlap and joint drift each physics step. "
+      "Higher values make contacts and joints tighter. Lower values make them softer, "
+      "but allow more penetration and drift.");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "cfm_parameter", PROP_FLOAT, PROP_NONE);

@@ -189,7 +189,6 @@ class KX_GameObject : public SCA_IObject {
   void AddDummyLodManager(RAS_MeshObject *meshObj, blender::Object *ob);
   bool IsReplica();
   void ForceIgnoreParentTx();
-  bool NeedsDepsgraphTransformUpdate() const;
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
   BL_ActionManager *GetActionManagerNoCreate();

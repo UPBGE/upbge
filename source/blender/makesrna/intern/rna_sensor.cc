@@ -1124,7 +1124,6 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "axis_deadzone", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "deadzone");
-    RNA_def_property_int_default(prop, 5000);
   RNA_def_property_ui_text(
       prop, "Deadzone", "Minimum stick/trigger input ignored before analog strength starts rising");
   RNA_def_property_range(prop, 0, 32767);
@@ -1132,7 +1131,6 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "strength_multiplier", PROP_INT, PROP_PERCENTAGE);
   RNA_def_property_int_sdna(prop, nullptr, "strength_multiplier");
-    RNA_def_property_int_default(prop, 100);
   RNA_def_property_ui_text(
       prop, "Strength Multiplier", "Scale the analog strength output percentage");
   RNA_def_property_range(prop, 1, 400);

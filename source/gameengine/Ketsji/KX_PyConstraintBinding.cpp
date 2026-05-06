@@ -87,10 +87,12 @@ PyDoc_STRVAR(gPySetContactBreakingTreshold__doc__,
 
 PyDoc_STRVAR(gPySetERPNonContact__doc__,
              "setERPNonContact(float erp)\n"
-             "");
+             "Set non-contact ERP. In Jolt this maps to the single global "
+             "Baumgarte stabilization factor.");
 PyDoc_STRVAR(gPySetERPContact__doc__,
              "setERPContact(float erp2)\n"
-             "");
+             "Set contact ERP. Bullet uses this directly; Jolt has no separate "
+             "contact ERP so the value is ignored there.");
 PyDoc_STRVAR(gPySetCFM__doc__,
              "setCFM(float cfm)\n"
              "");

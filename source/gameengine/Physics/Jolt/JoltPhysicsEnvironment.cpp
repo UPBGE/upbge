@@ -2444,22 +2444,21 @@ void JoltPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
 
 void JoltPhysicsEnvironment::SetERPNonContact(float erp)
 {
-  /* Map to Jolt's Baumgarte stabilization factor.
-   * ERP in Bullet is typically 0.2-0.8, Jolt's mBaumgarte is 0.0-1.0.
-   * Clamp to reasonable range to prevent instability. */
+  /* Jolt exposes a single Baumgarte stabilization factor for both contact
+   * and non-contact position correction. Use the non-contact ERP as the
+   * canonical scene mapping so Jolt keeps its upstream default behavior when
+   * the Blender defaults are used (erp=0.2, erp2=0.8). */
   JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
-  settings.mBaumgarte = std::clamp(erp, 0.1f, 0.8f);
+  settings.mBaumgarte = std::clamp(erp, 0.0f, 1.0f);
   m_physicsSystem->SetPhysicsSettings(settings);
 }
 
 void JoltPhysicsEnvironment::SetERPContact(float erp2)
 {
-  /* Map to Jolt's Baumgarte stabilization factor for contacts.
-   * Jolt doesn't separate contact/non-contact ERP like Bullet does.
-   * We use the same setting, but prioritize contact ERP if both are set. */
-  JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
-  settings.mBaumgarte = std::clamp(erp2, 0.1f, 0.8f);
-  m_physicsSystem->SetPhysicsSettings(settings);
+  /* Jolt has no separate contact ERP. Keep the API entry point for Python/UI
+   * compatibility, but do not let Bullet's contact ERP slider overwrite the
+   * single scene-wide Baumgarte value. */
+  (void)erp2;
 }
 
 void JoltPhysicsEnvironment::SetCFM(float cfm)

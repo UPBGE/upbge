@@ -819,11 +819,8 @@ typedef struct GameData {
   short fixed_max_logic_step = 5;   /* Max logic frames per render for fixed physics mode */
   short _pad_fixed_rates = 0;
 
-  /* Skip depsgraph transform sync for objects that haven't moved (dirty-skip optimization).
-   * Reduces depsgraph overhead for scenes with many static/sleeping objects.
-   * Off by default because it may affect drivers/metaballs in rare edge cases. */
-  int depsgraph_optimize_transform = 0;
-  int _pad_depsgraph_opt = 0;
+  /* Reserved padding for removed depsgraph transform optimization setting. */
+  int _pad_depsgraph_opt[2] = {0, 0};
 
   /* Jolt Physics configuration (only used when physicsEngine == WOPHY_JOLT) */
   short jolt_physics_threads = -1; /* -1 = auto (max(1, cores-1)), 1..N = explicit thread count */

@@ -1021,7 +1021,9 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 sub.prop(gs, "deactivation_linear_threshold", text="Sleep Velocity Threshold")
                 sub = col.row()
                 sub.prop(gs, "deactivation_time", text="Time")
-                col.label(text="Jolt uses one point-velocity sleep threshold.", icon='INFO')
+                col.label(text="Jolt Position Correction:")
+                sub = col.column(align=True)
+                sub.prop(gs, "jolt_correction_strength", text="Correction Strength")
             else:
                 sub = col.row(align=True)
                 sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
@@ -1029,23 +1031,17 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 sub = col.row()
                 sub.prop(gs, "deactivation_time", text="Time")
 
-            col = layout.column()
-            col.label(text="Physics Joint Error Reduction:")
-            sub = col.column(align=True)
-            sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
-            sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
             if gs.physics_engine != 'JOLT':
+                col = layout.column()
+                col.label(text="Physics Joint Error Reduction:")
+                sub = col.column(align=True)
+                sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
+                sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
                 sub.prop(gs, "cfm_parameter", text="CFM for Soft Constraints")
 
             row = layout.row()
             row.label(text="Object Activity:")
             row.prop(gs, "use_activity_culling")
-
-            # Depsgraph optimization
-            layout.separator()
-            col = layout.column()
-            col.label(text="Performance Optimization:")
-            col.prop(gs, "depsgraph_optimize_transform", text="Optimize Depsgraph Transforms")
 
             # Jolt Physics engine settings
             if gs.physics_engine == 'JOLT':

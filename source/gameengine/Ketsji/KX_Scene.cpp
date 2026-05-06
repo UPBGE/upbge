@@ -814,58 +814,23 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     m_relationsUpdatePending = false;
   }
 
-  const bool optimize_transforms = scene->gm.depsgraph_optimize_transform != 0;
-
-  if (optimize_transforms) {
-    /* Optimized path: only process objects that actually moved (dirty render flag
-     * or forced parent override). Skips expensive matrix ops and depsgraph tagging
-     * for static/sleeping objects. */
-    std::vector<KX_GameObject *> dirtyObjects;
-    dirtyObjects.reserve(256);
-
-    for (KX_GameObject *gameobj : GetObjectList()) {
-      blender::Object *ob = gameobj->GetBlenderObject();
-      TagBlenderPhysicsObject(scene, ob);
-      if (gameobj->NeedsDepsgraphTransformUpdate()) {
-        gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
-        dirtyObjects.push_back(gameobj);
-      }
-    }
-
-    TagForExtraIdsUpdate(bmain, cam);
-
-    if (is_last_render_pass) {
-      m_idsToUpdateInAllRenderPasses.clear();
-    }
-
-    blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
-    BKE_scene_graph_update_tagged(depsgraph, bmain);
-
-    /* Only sync evaluated transforms for objects that actually moved. */
-    for (KX_GameObject *gameobj : dirtyObjects) {
-      gameobj->TagForTransformUpdateEvaluated();
-    }
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    blender::Object *ob = gameobj->GetBlenderObject();
+    TagBlenderPhysicsObject(scene, ob);
+    gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
   }
-  else {
-    /* Original path: process all objects every frame (full compatibility). */
-    for (KX_GameObject *gameobj : GetObjectList()) {
-      blender::Object *ob = gameobj->GetBlenderObject();
-      TagBlenderPhysicsObject(scene, ob);
-      gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
-    }
 
-    TagForExtraIdsUpdate(bmain, cam);
+  TagForExtraIdsUpdate(bmain, cam);
 
-    if (is_last_render_pass) {
-      m_idsToUpdateInAllRenderPasses.clear();
-    }
+  if (is_last_render_pass) {
+    m_idsToUpdateInAllRenderPasses.clear();
+  }
 
-    blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
-    BKE_scene_graph_update_tagged(depsgraph, bmain);
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-    for (KX_GameObject *gameobj : GetObjectList()) {
-      gameobj->TagForTransformUpdateEvaluated();
-    }
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    gameobj->TagForTransformUpdateEvaluated();
   }
 }
 
