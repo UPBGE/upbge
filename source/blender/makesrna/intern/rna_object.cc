@@ -18,11 +18,13 @@
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 #include "DNA_python_proxy_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_math_rotation.h"
 
 #include "BLT_translation.hh"
 
+#include "BKE_context.hh"
 #include "BKE_bullet.h"
 #include "BKE_paint.hh"
 #include "BKE_python_proxy.hh"
@@ -38,6 +40,94 @@
 #include "WM_types.hh"
 
 namespace blender {
+
+static const EnumPropertyItem body_type_items[] = {
+    {OB_BODY_TYPE_NO_COLLISION, "NO_COLLISION", 0, "No Collision", "Disable collision for this object"},
+    {OB_BODY_TYPE_STATIC, "STATIC", 0, "Static", "Stationary object"},
+    {OB_BODY_TYPE_DYNAMIC, "DYNAMIC", 0, "Dynamic", "Linear physics"},
+    {OB_BODY_TYPE_RIGID, "RIGID_BODY", 0, "Rigid Body", "Linear and angular physics"},
+    {OB_BODY_TYPE_SOFT, "SOFT_BODY", 0, "Soft Body", "Soft body"},
+    {OB_BODY_TYPE_SENSOR,
+     "SENSOR",
+     0,
+     "Sensor",
+     "Collision Sensor, detects static and dynamic objects but not the other "
+     "collision sensor objects"},
+    {OB_BODY_TYPE_NAVMESH, "NAVMESH", 0, "Navigation Mesh", "Navigation mesh"},
+    {OB_BODY_TYPE_CHARACTER,
+     "CHARACTER",
+     0,
+     "Character",
+     "Simple kinematic physics appropriate for game characters"},
+    {OB_BODY_TYPE_VEHICLE,
+     "VEHICLE",
+     0,
+     "Vehicle",
+     "Rigid-body vehicle with authored wheel settings"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static const EnumPropertyItem vehicle_type_items[] = {
+    {OB_VEHICLE_TYPE_CHASSIS, "CHASSIS", 0, "Chassis", "This object is a vehicle chassis"},
+    {OB_VEHICLE_TYPE_WHEEL, "WHEEL", 0, "Wheel", "This object is a vehicle wheel"},
+    {OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS,
+     "MOTORCYCLE_CHASSIS",
+     0,
+     "Motorcycle Chassis",
+     "This object is a motorcycle chassis (Jolt MotorcycleController with auto-balancing "
+     "lean spring)"},
+    {OB_VEHICLE_TYPE_MOTORCYCLE_WHEEL,
+     "MOTORCYCLE_WHEEL",
+     0,
+     "Motorcycle Wheel",
+     "This object is a motorcycle wheel; links to a Motorcycle Chassis"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static const EnumPropertyItem lsd_preset_items[] = {
+    {OB_VEHICLE_LSD_CUSTOM, "CUSTOM", 0, "Custom", "Manually set the limited-slip ratio"},
+    {OB_VEHICLE_LSD_FWD_ROAD,
+     "FWD_ROAD",
+     0,
+     "FWD Road Car",
+  "Front-wheel-drive road car (ratio 2.2). While active, the chassis automatically marks "
+  "front linked wheels as traction wheels and keeps them synced."},
+    {OB_VEHICLE_LSD_RWD_DRIFT,
+     "RWD_DRIFT",
+     0,
+     "RWD Drift Car",
+  "Rear-wheel-drive drift car (ratio 1.1). While active, the chassis automatically marks "
+  "rear linked wheels as traction wheels and keeps them synced."},
+    {OB_VEHICLE_LSD_AWD_RALLY,
+     "AWD_RALLY",
+     0,
+     "AWD Rally Car",
+  "All-wheel-drive rally car (ratio 1.35). While active, the chassis automatically marks "
+  "all linked wheels as traction wheels and keeps them synced."},
+    {OB_VEHICLE_LSD_OFFROAD,
+     "OFFROAD",
+     0,
+     "Off-road Truck",
+  "Off-road truck (ratio 1.25). While active, the chassis automatically marks all linked "
+  "wheels as traction wheels and keeps them synced."},
+    {OB_VEHICLE_LSD_OPEN,
+     "OPEN",
+     0,
+     "Open Differential",
+     "No limited slip - fully open differential"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static const EnumPropertyItem vehicle_wheel_collision_mode_items[] = {
+    {OB_VEHICLE_WHEEL_COLLISION_RAY, "RAY", 0, "Ray", "Use a ray cast for wheel-ground detection"},
+    {OB_VEHICLE_WHEEL_COLLISION_SPHERE,
+     "SPHERE",
+     0,
+     "Sphere",
+     "Use a sphere cast for wheel-ground detection"},
+    {OB_VEHICLE_WHEEL_COLLISION_CYLINDER,
+     "CYLINDER",
+     0,
+     "Cylinder",
+     "Use a cylinder cast for wheel-ground detection"},
+    {0, nullptr, 0, nullptr, nullptr}};
 
 const EnumPropertyItem rna_enum_object_mode_items[] = {
     {OB_MODE_OBJECT, "OBJECT", ICON_OBJECT_DATAMODE, "Object Mode", ""},
@@ -342,6 +432,7 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "BKE_lib_id.hh"
 #  include "BKE_library.hh"
 #  include "BKE_light_linking.h"
+#  include "BKE_main.hh"
 #  include "BKE_material.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_mesh_wrapper.hh"
@@ -363,6 +454,45 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "DEG_depsgraph_query.hh"
 
 namespace blender {
+
+static constexpr float game_damping_bullet_linear_default = 0.04f;
+static constexpr float game_damping_bullet_angular_default = 0.1f;
+static constexpr float game_damping_jolt_linear_default = 0.05f;
+static constexpr float game_damping_jolt_angular_default = 0.05f;
+
+static bool rna_GameObjectSettings_default_scene_uses_jolt(PointerRNA *ptr)
+{
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+
+  if (!ob || !G_MAIN) {
+    return false;
+  }
+
+  for (Scene *scene = static_cast<Scene *>(G_MAIN->scenes.first); scene;
+       scene = static_cast<Scene *>(scene->id.next))
+  {
+    if (scene->gm.physicsEngine == WOPHY_JOLT && BKE_scene_object_find(*G_MAIN, scene, ob)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static float rna_GameObjectSettings_damping_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  return rna_GameObjectSettings_default_scene_uses_jolt(ptr) ?
+             game_damping_jolt_linear_default :
+             game_damping_bullet_linear_default;
+}
+
+static float rna_GameObjectSettings_rotation_damping_default(PointerRNA *ptr,
+                                                            PropertyRNA * /*prop*/)
+{
+  return rna_GameObjectSettings_default_scene_uses_jolt(ptr) ?
+             game_damping_jolt_angular_default :
+             game_damping_bullet_angular_default;
+}
 
 static void rna_Object_internal_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
@@ -781,7 +911,49 @@ static void rna_Object_empty_display_type_set(PointerRNA *ptr, int value)
   BKE_object_empty_draw_type_set(ob, value);
 }
 
-static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext */*C*/,
+static int rna_Object_collision_bounds_type_get(PointerRNA *ptr)
+{
+  Object *ob = (Object *)ptr->data;
+  if (ob->gameflag & OB_BOUNDS) {
+    return ob->collision_boundtype;
+  }
+  /* OB_BOUNDS not set: return type-based default so the UI shows the correct
+   * effective value (particularly important for Jolt which has no checkbox). */
+  if (ob->gameflag & OB_SOFT_BODY) return OB_BOUND_TRIANGLE_MESH;
+  if (ob->gameflag & OB_CHARACTER) return OB_BOUND_SPHERE;
+  if (ob->gameflag & OB_DYNAMIC) return OB_BOUND_SPHERE;
+  return OB_BOUND_TRIANGLE_MESH; /* static / sensor */
+}
+
+static void rna_Object_collision_bounds_type_set(PointerRNA *ptr, int value)
+{
+  Object *ob = (Object *)ptr->data;
+  ob->collision_boundtype = static_cast<eObject_BoundType>(value);
+  ob->gameflag |= OB_BOUNDS;
+}
+
+static const char *rna_Object_collision_bounds_triangle_mesh_description(const Scene *scene,
+                                                                         const Object *ob)
+{
+  const bool use_jolt = scene && scene->gm.physicsEngine == WOPHY_JOLT;
+  const bool is_vehicle = ob->body_type == OB_BODY_TYPE_VEHICLE ||
+                          ((ob->gameflag & OB_RIGID_BODY) && (ob->gameflag2 & OB_HAS_VEHICLE));
+  const bool jolt_dynamic_mesh_uses_convex_hull = use_jolt &&
+                                                  (ELEM(ob->body_type,
+                                                        OB_BODY_TYPE_DYNAMIC,
+                                                        OB_BODY_TYPE_RIGID) ||
+                                                   is_vehicle);
+
+  if (jolt_dynamic_mesh_uses_convex_hull) {
+    return "Use the mesh triangles for collisions. In Jolt, Dynamic, Rigid Body, and "
+           "Vehicle chassis objects are converted to Convex Hull on game start, so "
+           "in-game collisions behave like Convex Hull.";
+  }
+
+  return "Use the mesh triangles for collisions.";
+}
+
+static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext *C,
                                                                  PointerRNA *ptr,
                                                                  PropertyRNA */*prop*/,
                                                                  bool *r_free)
@@ -789,9 +961,17 @@ static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext */*C*/
   Object *ob = (Object *)ptr->data;
   EnumPropertyItem *item = nullptr;
   int totitem = 0;
+  const Scene *scene = C ? CTX_data_scene(C) : nullptr;
 
   if (ob->body_type != OB_BODY_TYPE_CHARACTER) {
-    RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_TRIANGLE_MESH);
+    const EnumPropertyItem triangle_mesh_item = {
+        OB_BOUND_TRIANGLE_MESH,
+        "TRIANGLE_MESH",
+        ICON_MESH_MONKEY,
+        "Triangle Mesh",
+        rna_Object_collision_bounds_triangle_mesh_description(scene, ob),
+    };
+    RNA_enum_item_add(&item, &totitem, &triangle_mesh_item);
   }
 
   if (ob->body_type != OB_BODY_TYPE_SOFT) {
@@ -809,6 +989,33 @@ static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext */*C*/
   RNA_enum_item_end(&item, &totitem);
   *r_free = true;
 
+  return item;
+}
+
+static const EnumPropertyItem *rna_GameObjectSettings_physics_type_itemf(bContext *C,
+                                                                         PointerRNA * /*ptr*/,
+                                                                         PropertyRNA * /*prop*/,
+                                                                         bool *r_free)
+{
+  EnumPropertyItem *item = nullptr;
+  int totitem = 0;
+  const Scene *scene = C ? CTX_data_scene(C) : nullptr;
+  const bool use_jolt = scene && scene->gm.physicsEngine == WOPHY_JOLT;
+
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_NO_COLLISION);
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_STATIC);
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_DYNAMIC);
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_RIGID);
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_SOFT);
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_SENSOR);
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_NAVMESH);
+  RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_CHARACTER);
+  if (use_jolt) {
+    RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_VEHICLE);
+  }
+
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
   return item;
 }
 
@@ -1590,6 +1797,9 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
   else if (!(ob->gameflag & (OB_RIGID_BODY | OB_SOFT_BODY))) {
     ob->body_type = OB_BODY_TYPE_DYNAMIC;
   }
+  else if ((ob->gameflag & OB_RIGID_BODY) && (ob->gameflag2 & OB_HAS_VEHICLE)) {
+    ob->body_type = OB_BODY_TYPE_VEHICLE;
+  }
   else if (ob->gameflag & OB_RIGID_BODY) {
     ob->body_type = OB_BODY_TYPE_RIGID;
   }
@@ -1598,7 +1808,6 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
     /* create the structure here because we display soft body buttons in the main panel */
     if (!ob->bsoft) {
       ob->bsoft = (BulletSoftBody *)bsbNew();
-      ob->bsoft->margin = 0.1f;  // not set in bsbNew
       ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
     }
   }
@@ -1611,6 +1820,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
   Object *ob = (Object *)ptr->owner_id;
   const int gameflag_prev = ob->gameflag;
   ob->body_type = value;
+  ob->gameflag2 &= ~OB_HAS_VEHICLE;
 
   switch (ob->body_type) {
     case OB_BODY_TYPE_SENSOR:
@@ -1618,6 +1828,9 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       ob->gameflag &= ~(OB_OCCLUDER | OB_CHARACTER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY |
                         OB_ACTOR | OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH |
                         OB_COLLISION_RESPONSE | OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_TRIANGLE_MESH;
+      }
       break;
     case OB_BODY_TYPE_OCCLUDER:
       ob->gameflag |= OB_OCCLUDER;
@@ -1649,20 +1862,41 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       if ((ob->gameflag & OB_BOUNDS) && ob->collision_boundtype == OB_BOUND_TRIANGLE_MESH) {
         ob->boundtype = ob->collision_boundtype = OB_BOUND_BOX;
       }
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_SPHERE;
+      }
       break;
     case OB_BODY_TYPE_STATIC:
       ob->gameflag |= OB_COLLISION;
       ob->gameflag &= ~(OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER |
                         OB_SENSOR | OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_TRIANGLE_MESH;
+      }
       break;
     case OB_BODY_TYPE_DYNAMIC:
       ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_ACTOR;
       ob->gameflag &= ~(OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR |
                         OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_SPHERE;
+      }
       break;
     case OB_BODY_TYPE_RIGID:
       ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY | OB_ACTOR;
       ob->gameflag &= ~(OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_SPHERE;
+      }
+      break;
+    case OB_BODY_TYPE_VEHICLE:
+      ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY | OB_ACTOR;
+      ob->gameflag &= ~(OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
+      ob->gameflag2 |= OB_HAS_VEHICLE;
+      BKE_object_vehicle_settings_ensure(ob);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_SPHERE;
+      }
       break;
     default:
     case OB_BODY_TYPE_SOFT:
@@ -1676,7 +1910,6 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       /* create a BulletSoftBody structure if not already existing */
       if (!ob->bsoft) {
         ob->bsoft = (BulletSoftBody *)bsbNew();
-        ob->bsoft->margin = 0.1f;  // not set in bsbNew
         ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
       }
       break;
@@ -1695,6 +1928,457 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 static PointerRNA rna_Object_game_settings_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_with_parent(*ptr, RNA_GameObjectSettings, ptr->owner_id);
+}
+
+static PointerRNA rna_GameObjectSettings_vehicle_get(PointerRNA *ptr)
+{
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+
+  if (!ob->vehicle && (ob->gameflag2 & OB_HAS_VEHICLE)) {
+    BKE_object_vehicle_settings_ensure(ob);
+  }
+
+  if (!ob->vehicle) {
+    return PointerRNA_NULL;
+  }
+
+  return RNA_pointer_create_with_parent(*ptr, RNA_GameVehicleSettings, ob->vehicle);
+}
+
+static void rna_GameVehicleSettings_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
+}
+
+static float rna_GameVehicleSettings_combined_wheel_friction_get(
+    const GameVehicleSettings *settings)
+{
+  return 0.5f *
+         (settings->wheel_longitudinal_friction + settings->wheel_lateral_friction);
+}
+
+static bool rna_GameVehicleSettings_mc_override_suspension_force_points_get(PointerRNA *ptr)
+{
+  const GameVehicleSettings *settings = static_cast<const GameVehicleSettings *>(ptr->data);
+  return settings &&
+         (settings->flags &
+          (OB_VEHICLE_MC_FRONT_FORCE_POINT | OB_VEHICLE_MC_REAR_FORCE_POINT)) != 0;
+}
+
+static void rna_GameVehicleSettings_mc_override_suspension_force_points_set(PointerRNA *ptr,
+                                                                            bool value)
+{
+  GameVehicleSettings *settings = static_cast<GameVehicleSettings *>(ptr->data);
+  if (!settings) {
+    return;
+  }
+
+  if (value) {
+    settings->flags |= OB_VEHICLE_MC_FRONT_FORCE_POINT | OB_VEHICLE_MC_REAR_FORCE_POINT;
+  }
+  else {
+    settings->flags &= ~(OB_VEHICLE_MC_FRONT_FORCE_POINT | OB_VEHICLE_MC_REAR_FORCE_POINT);
+  }
+}
+
+static bool rna_GameVehicleSettings_use_combined_friction_axes_get(PointerRNA *ptr)
+{
+  const GameVehicleSettings *settings = static_cast<const GameVehicleSettings *>(ptr->data);
+  return settings &&
+         (settings->wheel_flags & OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES) != 0;
+}
+
+static void rna_GameVehicleSettings_use_combined_friction_axes_set(PointerRNA *ptr, bool value)
+{
+  GameVehicleSettings *settings = static_cast<GameVehicleSettings *>(ptr->data);
+  if (!settings) {
+    return;
+  }
+
+  const bool was_combined =
+      (settings->wheel_flags & OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES) != 0;
+  if (was_combined == value) {
+    return;
+  }
+
+  if (value) {
+    settings->wheel_friction_slip = rna_GameVehicleSettings_combined_wheel_friction_get(settings);
+    settings->wheel_longitudinal_friction = settings->wheel_friction_slip;
+    settings->wheel_lateral_friction = settings->wheel_friction_slip;
+    settings->wheel_flags |= OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES;
+  }
+  else {
+    settings->wheel_longitudinal_friction = settings->wheel_friction_slip;
+    settings->wheel_lateral_friction = settings->wheel_friction_slip;
+    settings->wheel_flags &= ~OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES;
+  }
+}
+
+static void rna_GameVehicleSettings_wheel_friction_axes_update(
+    Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  GameVehicleSettings *settings = static_cast<GameVehicleSettings *>(ptr->data);
+  if (settings &&
+      (settings->wheel_flags & OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES) == 0)
+  {
+    settings->wheel_friction_slip = rna_GameVehicleSettings_combined_wheel_friction_get(settings);
+  }
+
+  rna_GameVehicleSettings_update(bmain, nullptr, ptr);
+}
+
+/**
+ * Detect the drivetrain layout (FWD / RWD / AWD) by scanning wheel objects
+ * that reference this chassis and have their traction flag set.
+ * Returns 0 = unknown, 1 = FWD, 2 = RWD, 3 = AWD.
+ */
+enum {
+  VEHICLE_LAYOUT_UNKNOWN = 0,
+  VEHICLE_LAYOUT_FWD = 1,
+  VEHICLE_LAYOUT_RWD = 2,
+  VEHICLE_LAYOUT_AWD = 3,
+};
+
+static bool rna_GameVehicle_forward_split_get(Main *bmain, Object *chassis_ob, float *r_split)
+{
+  GameVehicleSettings *vs = chassis_ob ? chassis_ob->vehicle : nullptr;
+  if (!vs || vs->vehicle_type != OB_VEHICLE_TYPE_CHASSIS) {
+    return false;
+  }
+
+  const int fwd_axis = vs->forward_axis % 3;
+  const float fwd_sign = (vs->forward_axis < 3) ? 1.0f : -1.0f;
+  bool found_wheel = false;
+  float min_forward = 0.0f;
+  float max_forward = 0.0f;
+
+  for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
+       ob = static_cast<Object *>(ob->id.next))
+  {
+    if (!ob->vehicle) {
+      continue;
+    }
+
+    GameVehicleSettings *ws = ob->vehicle;
+    if (ws->vehicle_type != OB_VEHICLE_TYPE_WHEEL || ws->chassis_object != chassis_ob) {
+      continue;
+    }
+
+    const float forward_delta = fwd_sign * (ob->loc[fwd_axis] - chassis_ob->loc[fwd_axis]);
+    if (!found_wheel) {
+      min_forward = forward_delta;
+      max_forward = forward_delta;
+      found_wheel = true;
+    }
+    else {
+      min_forward = std::min(min_forward, forward_delta);
+      max_forward = std::max(max_forward, forward_delta);
+    }
+  }
+
+  if (!found_wheel) {
+    return false;
+  }
+
+  *r_split = 0.5f * (min_forward + max_forward);
+  return true;
+}
+
+static int rna_GameVehicle_detect_layout(Main *bmain, Object *chassis_ob)
+{
+  GameVehicleSettings *vs = chassis_ob->vehicle;
+  if (!vs || vs->vehicle_type != OB_VEHICLE_TYPE_CHASSIS) {
+    return VEHICLE_LAYOUT_UNKNOWN;
+  }
+
+  const int fwd_axis = vs->forward_axis % 3; /* Map to 0=X, 1=Y, 2=Z */
+  const float fwd_sign = (vs->forward_axis < 3) ? 1.0f : -1.0f;
+  float forward_split = 0.0f;
+  const bool has_forward_split = rna_GameVehicle_forward_split_get(
+      bmain, chassis_ob, &forward_split);
+  bool has_front_traction = false;
+  bool has_rear_traction = false;
+
+  for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
+       ob = static_cast<Object *>(ob->id.next))
+  {
+    if (!ob->vehicle) {
+      continue;
+    }
+    GameVehicleSettings *ws = ob->vehicle;
+    if (ws->vehicle_type != OB_VEHICLE_TYPE_WHEEL) {
+      continue;
+    }
+    if (ws->chassis_object != chassis_ob) {
+      continue;
+    }
+    if (!(ws->wheel_flags & OB_VEHICLE_WHEEL_USE_TRACTION)) {
+      continue;
+    }
+
+    const float forward_delta = fwd_sign * (ob->loc[fwd_axis] - chassis_ob->loc[fwd_axis]);
+    if (forward_delta > (has_forward_split ? forward_split : 0.0f)) {
+      has_front_traction = true;
+    }
+    else {
+      has_rear_traction = true;
+    }
+  }
+
+  if (has_front_traction && has_rear_traction) {
+    return VEHICLE_LAYOUT_AWD;
+  }
+  if (has_front_traction) {
+    return VEHICLE_LAYOUT_FWD;
+  }
+  if (has_rear_traction) {
+    return VEHICLE_LAYOUT_RWD;
+  }
+  return VEHICLE_LAYOUT_UNKNOWN;
+}
+
+/** Return the limited-slip ratio for the given preset and detected layout. */
+static float rna_GameVehicle_lsd_preset_value(int preset, int layout)
+{
+  switch (preset) {
+    case OB_VEHICLE_LSD_FWD_ROAD:
+      return 2.2f;
+    case OB_VEHICLE_LSD_RWD_DRIFT:
+      return 1.1f;
+    case OB_VEHICLE_LSD_AWD_RALLY:
+      return 1.35f;
+    case OB_VEHICLE_LSD_OFFROAD:
+      return 1.25f;
+    case OB_VEHICLE_LSD_RACE:
+      switch (layout) {
+        case VEHICLE_LAYOUT_FWD:
+          return 1.9f;
+        case VEHICLE_LAYOUT_RWD:
+          return 1.45f;
+        case VEHICLE_LAYOUT_AWD:
+          return 1.35f;
+        default:
+          return 1.5f;
+      }
+    case OB_VEHICLE_LSD_OPEN:
+      return FLT_MAX;
+    default:
+      return 0.0f; /* CUSTOM – caller should not apply. */
+  }
+}
+
+/** Re-apply the LSD preset on the given chassis if one is active. */
+static void rna_GameVehicle_reapply_lsd_preset(Main *bmain, Object *chassis_ob)
+{
+  if (!chassis_ob || !chassis_ob->vehicle) {
+    return;
+  }
+  GameVehicleSettings *vs = chassis_ob->vehicle;
+  if (vs->vehicle_type != OB_VEHICLE_TYPE_CHASSIS || vs->lsd_preset == OB_VEHICLE_LSD_CUSTOM) {
+    return;
+  }
+
+  /* For layout-specific presets, assign traction flags to linked wheels first. */
+  const int preset = vs->lsd_preset;
+  if (preset == OB_VEHICLE_LSD_FWD_ROAD || preset == OB_VEHICLE_LSD_RWD_DRIFT ||
+      preset == OB_VEHICLE_LSD_AWD_RALLY || preset == OB_VEHICLE_LSD_OFFROAD)
+  {
+    const int fwd_axis = vs->forward_axis % 3;
+    const float fwd_sign = (vs->forward_axis < 3) ? 1.0f : -1.0f;
+    float forward_split = 0.0f;
+    const bool has_forward_split = rna_GameVehicle_forward_split_get(
+      bmain, chassis_ob, &forward_split);
+
+    for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
+         ob = static_cast<Object *>(ob->id.next))
+    {
+      if (!ob->vehicle) {
+        continue;
+      }
+      GameVehicleSettings *ws = ob->vehicle;
+      if (ws->vehicle_type != OB_VEHICLE_TYPE_WHEEL || ws->chassis_object != chassis_ob) {
+        continue;
+      }
+
+      const float forward_delta = fwd_sign * (ob->loc[fwd_axis] - chassis_ob->loc[fwd_axis]);
+      const bool is_front = (forward_delta > (has_forward_split ? forward_split : 0.0f));
+
+      bool should_drive = false;
+      if (preset == OB_VEHICLE_LSD_AWD_RALLY || preset == OB_VEHICLE_LSD_OFFROAD) {
+        should_drive = true;
+      }
+      else if (preset == OB_VEHICLE_LSD_FWD_ROAD) {
+        should_drive = is_front;
+      }
+      else if (preset == OB_VEHICLE_LSD_RWD_DRIFT) {
+        should_drive = !is_front;
+      }
+
+      if (should_drive) {
+        ws->wheel_flags |= OB_VEHICLE_WHEEL_USE_TRACTION;
+      }
+      else {
+        ws->wheel_flags &= ~OB_VEHICLE_WHEEL_USE_TRACTION;
+      }
+
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
+    }
+  }
+
+  int layout = rna_GameVehicle_detect_layout(bmain, chassis_ob);
+  float value = rna_GameVehicle_lsd_preset_value(vs->lsd_preset, layout);
+  if (value > 0.0f) {
+    vs->limited_slip_ratio = value;
+  }
+}
+
+static void rna_GameVehicle_lsd_preset_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  rna_GameVehicle_reapply_lsd_preset(bmain, ob);
+
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
+}
+
+/**
+ * Update callback for wheel properties that affect layout detection
+ * (traction flag and chassis_object link). Re-applies the chassis LSD preset.
+ */
+static void rna_GameVehicle_wheel_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  GameVehicleSettings *ws = (GameVehicleSettings *)ptr->data;
+  if (ws && ws->chassis_object) {
+    rna_GameVehicle_reapply_lsd_preset(bmain, ws->chassis_object);
+    DEG_id_tag_update(&ws->chassis_object->id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ws->chassis_object->id);
+  }
+
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
+}
+
+static void rna_GameVehicle_detected_layout_get(PointerRNA *ptr, char *value)
+{
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  GameVehicleSettings *vs = (GameVehicleSettings *)ptr->data;
+  const char *label = "Unknown";
+
+  if (vs && vs->vehicle_type == OB_VEHICLE_TYPE_CHASSIS) {
+    Main *bmain = G_MAIN;
+    int layout = rna_GameVehicle_detect_layout(bmain, ob);
+    switch (layout) {
+      case VEHICLE_LAYOUT_FWD:
+        label = "FWD";
+        break;
+      case VEHICLE_LAYOUT_RWD:
+        label = "RWD";
+        break;
+      case VEHICLE_LAYOUT_AWD:
+        label = "AWD";
+        break;
+      default:
+        label = "Unknown";
+        break;
+    }
+  }
+  strcpy(value, label);
+}
+
+static int rna_GameVehicle_detected_layout_length(PointerRNA *ptr)
+{
+  char buf[8];
+  rna_GameVehicle_detected_layout_get(ptr, buf);
+  return int(strlen(buf));
+}
+
+static std::optional<std::string> rna_GameVehicleSettings_path(const PointerRNA * /*ptr*/)
+{
+  return "game.vehicle";
+}
+
+static void rna_GameVehicleSettings_wheel_ray_mask_get(PointerRNA *ptr, bool *values)
+{
+  GameVehicleSettings *vs = (GameVehicleSettings *)ptr->data;
+  for (int i = 0; i < OB_MAX_COL_MASKS; i++) {
+    values[i] = (vs->wheel_ray_mask & (1 << i)) != 0;
+  }
+}
+
+static void rna_GameVehicleSettings_wheel_ray_mask_set(PointerRNA *ptr, const bool *values)
+{
+  GameVehicleSettings *vs = (GameVehicleSettings *)ptr->data;
+  int tot = 0;
+
+  for (int i = 0; i < OB_MAX_COL_MASKS; i++)
+    if (values[i])
+      tot++;
+
+  if (tot == 0)
+    return;
+
+  for (int i = 0; i < OB_MAX_COL_MASKS; i++) {
+    if (values[i])
+      vs->wheel_ray_mask |= (1 << i);
+    else
+      vs->wheel_ray_mask &= ~(1 << i);
+  }
+}
+
+static int rna_GameVehicleWheel_direction_axis_from_vector(const float dir[3])
+{
+  int best = OB_NEGZ;
+  float best_abs = 0.0f;
+  for (int i = 0; i < 3; i++) {
+    float a = fabsf(dir[i]);
+    if (a > best_abs) {
+      best_abs = a;
+      best = (dir[i] >= 0.0f) ? i : (i + 3);
+    }
+  }
+  return best;
+}
+
+static void rna_GameVehicleWheel_direction_vector_from_axis(int axis, float dir[3])
+{
+  dir[0] = dir[1] = dir[2] = 0.0f;
+  switch (axis) {
+    case OB_POSX: dir[0] = 1.0f; break;
+    case OB_POSY: dir[1] = 1.0f; break;
+    case OB_POSZ: dir[2] = 1.0f; break;
+    case OB_NEGX: dir[0] = -1.0f; break;
+    case OB_NEGY: dir[1] = -1.0f; break;
+    case OB_NEGZ: dir[2] = -1.0f; break;
+  }
+}
+
+static int rna_GameVehicle_down_direction_axis_get(PointerRNA *ptr)
+{
+  GameVehicleSettings *vs = (GameVehicleSettings *)ptr->data;
+  return rna_GameVehicleWheel_direction_axis_from_vector(vs->down_direction);
+}
+
+static void rna_GameVehicle_down_direction_axis_set(PointerRNA *ptr, int value)
+{
+  GameVehicleSettings *vs = (GameVehicleSettings *)ptr->data;
+  rna_GameVehicleWheel_direction_vector_from_axis(value, vs->down_direction);
+}
+
+static int rna_GameVehicle_axle_direction_axis_get(PointerRNA *ptr)
+{
+  GameVehicleSettings *vs = (GameVehicleSettings *)ptr->data;
+  return rna_GameVehicleWheel_direction_axis_from_vector(vs->axle_direction);
+}
+
+static void rna_GameVehicle_axle_direction_axis_set(PointerRNA *ptr, int value)
+{
+  GameVehicleSettings *vs = (GameVehicleSettings *)ptr->data;
+  rna_GameVehicleWheel_direction_vector_from_axis(value, vs->axle_direction);
 }
 
 static void rna_GameObjectSettings_state_get(PointerRNA *ptr, bool *values)
@@ -2836,39 +3520,597 @@ static void rna_def_game_object_activity_culling(BlenderRNA *brna)
       "Suspend logic and animation of this object by its distance to nearest camera");
 }
 
-static void rna_def_object_game_settings(BlenderRNA *brna)
+static void rna_def_game_vehicle_settings(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem body_type_items[] = {
-      {OB_BODY_TYPE_NO_COLLISION,
-       "NO_COLLISION",
-       0,
-       "No Collision",
-       "Disable collision for this object"},
-      {OB_BODY_TYPE_STATIC, "STATIC", 0, "Static", "Stationary object"},
-      {OB_BODY_TYPE_DYNAMIC, "DYNAMIC", 0, "Dynamic", "Linear physics"},
-      {OB_BODY_TYPE_RIGID, "RIGID_BODY", 0, "Rigid Body", "Linear and angular physics"},
-      {OB_BODY_TYPE_SOFT, "SOFT_BODY", 0, "Soft Body", "Soft body"},
-      //{OB_BODY_TYPE_OCCLUDER,
-      //"OCCLUDER",
-      // 0,
-      //"Occluder",
-      //"Occluder for optimizing scene rendering"},
-      {OB_BODY_TYPE_SENSOR,
-       "SENSOR",
-       0,
-       "Sensor",
-       "Collision Sensor, detects static and dynamic objects but not the other "
-       "collision sensor objects"},
-      {OB_BODY_TYPE_NAVMESH, "NAVMESH", 0, "Navigation Mesh", "Navigation mesh"},
-      {OB_BODY_TYPE_CHARACTER,
-       "CHARACTER",
-       0,
-       "Character",
-       "Simple kinematic physics appropriate for game characters"},
-      {0, nullptr, 0, nullptr, nullptr}};
+  srna = RNA_def_struct(brna, "GameVehicleSettings", nullptr);
+  RNA_def_struct_sdna(srna, "GameVehicleSettings");
+  RNA_def_struct_nested(brna, srna, "Object");
+  RNA_def_struct_ui_text(srna, "Game Vehicle Settings", "Vehicle authoring settings for the object");
+  RNA_def_struct_path_func(srna, "rna_GameVehicleSettings_path");
+
+  /* --- Common fields --- */
+
+  prop = RNA_def_property(srna, "vehicle_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "vehicle_type");
+  RNA_def_property_enum_items(prop, vehicle_type_items);
+  RNA_def_property_ui_text(prop, "Vehicle Type", "Whether this object acts as a chassis or a wheel");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  /* --- Chassis-only fields --- */
+
+  prop = RNA_def_property(srna, "engine_force", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "engine_force");
+  RNA_def_property_ui_text(prop,
+                           "Engine Strength",
+                           "How strongly the driven wheels push the vehicle forward or backward");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "brake", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "brake");
+  RNA_def_property_ui_text(prop, "Brake Strength", "How strongly the brakes slow the vehicle down");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "steering", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "steering");
+  RNA_def_property_ui_text(prop,
+                           "Steering Angle",
+                           "Deprecated: chassis steering angle (no longer used as fallback)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "solver_iterations");
+  RNA_def_property_range(prop, 0, 255);
+  RNA_def_property_ui_range(prop, 0, 30, 1, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Solver Iterations",
+      "Jolt only: override the vehicle constraint solver iterations. 0 uses the scene "
+      "default (10 velocity / 2 position). Higher values mainly raise the velocity-step "
+      "override; the position-step override is capped internally because Jolt position "
+      "steps are much more expensive and saturate quickly. Applies to the entire physics "
+      "island containing this vehicle for one step: the island uses max(override, "
+      "scene default), so values below the default have no effect on velocity steps");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "max_pitch_roll_angle", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "max_pitch_roll_angle");
+  RNA_def_property_range(prop, 0.0f, M_PI);
+  RNA_def_property_ui_text(prop, "Max Pitch Roll Angle", "Maximum pitch / roll angle");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_inertia", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_inertia");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Wheel Inertia", "Rotational inertia of this wheel (kg m^2)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_angular_damping", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_angular_damping");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Wheel Angular Damping", "Angular damping factor for this wheel");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "anti_roll_front", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "anti_roll_front");
+  RNA_def_property_ui_text(
+      prop, "Anti-Roll (Front)", "Helps keep the front of the vehicle flatter while turning");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "anti_roll_rear", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "anti_roll_rear");
+  RNA_def_property_ui_text(
+      prop, "Anti-Roll (Rear)", "Helps keep the rear of the vehicle flatter while turning");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "chassis_roll_influence", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "chassis_roll_influence");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop,
+                           "Roll Influence",
+                 "Biases where suspension and tire forces are applied on the chassis "
+                 "for all wheels; 1.0 places them at the wheel center, matching Jolt's "
+                 "recommended default while lower values reduce body roll");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "center_of_mass_offset", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "center_of_mass_offset");
+  RNA_def_property_range(prop, -1.0f, 1.0f);
+  RNA_def_property_ui_text(prop,
+                           "Center of Mass Offset",
+                           "Vertical center of mass offset normalized to the chassis collision "
+                           "shape half-height; 0 uses the shape center, negative lowers it, "
+                           "positive raises it. Example: if the chassis collision shape is 2 "
+                           "meters tall, its half-height is 1 meter. Slider -1.0 moves COM "
+                           "down by 1 meter from the shape center; slider -0.5 moves it down "
+                           "by 0.5 meters; slider 0.5 moves it up by 0.5 meters");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "differential_ratio", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "differential_ratio");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop,
+                           "Differential Ratio",
+                           "Final drive ratio that multiplies engine torque before it reaches "
+                           "the driven wheels");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "limited_slip_ratio", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "limited_slip_ratio");
+  RNA_def_property_range(prop, 1.0f, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop,
+      "Limited Slip Ratio",
+      "Jolt limited-slip ratio between driven axles. Values must be greater than 1; use a "
+      "very large value for an open differential");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "lsd_preset", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "lsd_preset");
+  RNA_def_property_enum_items(prop, lsd_preset_items);
+  RNA_def_property_ui_text(prop,
+                           "LSD Preset",
+                           "Choose a vehicle-type preset that automatically sets the "
+                           "limited-slip ratio. FWD, RWD, AWD Rally, and Off-road presets also "
+                           "control linked wheel traction flags from the chassis. Use Custom or "
+                           "Open Differential to edit wheel traction manually");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicle_lsd_preset_update");
+
+  prop = RNA_def_property(srna, "detected_layout", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_GameVehicle_detected_layout_get",
+                                "rna_GameVehicle_detected_layout_length",
+                                nullptr);
+  RNA_def_property_ui_text(
+      prop, "Detected Layout", "Auto-detected drivetrain layout based on traction wheels");
+
+  prop = RNA_def_property(srna, "handbrake_torque", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "handbrake_torque");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 20000.0f, 100.0f, 0);
+  RNA_def_property_ui_text(prop,
+                           "Handbrake Torque",
+                           "Maximum handbrake torque in Nm applied to wheels that use the "
+                           "handbrake. Typical values: 2000-8000");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "engine_torque", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "engine_torque");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 5000.0f, 10.0f, 0);
+  RNA_def_property_ui_text(prop,
+                           "Engine Torque",
+                           "Maximum engine torque in Nm. Typical values: 200-1000");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "simple_drive_mode", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_SIMPLE_DRIVE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Simple Drive Mode",
+                           "Legacy compatibility property. Jolt vehicles now always use "
+                           "Simple Drive with a fixed manual drive ratio");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+    prop = RNA_def_property(srna, "steering_speed", PROP_FLOAT, PROP_NONE);
+    RNA_def_property_float_sdna(prop, nullptr, "steering_speed");
+    RNA_def_property_range(prop, 0.0f, FLT_MAX);
+    RNA_def_property_ui_range(prop, 0.0f, 1.5f, 0.01f, 3);
+    RNA_def_property_ui_text(
+      prop,
+      "Steering Speed",
+      "Time in seconds for the wheels to reach the new steering direction. "
+      "Changing from full right to full left uses this same time too. 0 makes steering instant");
+    RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+    prop = RNA_def_property(srna, "high_speed_steering_reduction", PROP_FLOAT, PROP_FACTOR);
+    RNA_def_property_float_sdna(prop, nullptr, "high_speed_steering_reduction");
+    RNA_def_property_range(prop, 0.0f, 1.0f);
+    RNA_def_property_ui_text(
+      prop,
+      "High Speed Steering Reduction",
+      "Reduces steering angle as the vehicle moves faster. "
+      "This value is the reduction strength: 0 = 0%, 0.5 = 50%, 1 = 100%. "
+      "The effect fades in from about 5 m/s to 27.8 m/s (18 to 100 km/h). "
+      "At 0.5, high-speed steering is reduced by about 41.25%, leaving about 58.75% of each "
+      "wheel's max steering angle. At 1, it is reduced by about 82.5%, leaving about 17.5% "
+      "of each wheel's max steering angle");
+    RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "forward_axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "forward_axis");
+  RNA_def_property_enum_items(prop, rna_enum_object_axis_items);
+  RNA_def_property_ui_text(prop, "Forward Axis", "Vehicle forward axis");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "up_axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "up_axis");
+  RNA_def_property_enum_items(prop, rna_enum_object_axis_items);
+  RNA_def_property_ui_text(prop, "Up Axis", "Vehicle up axis");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  /* --- Motorcycle-only chassis fields (Jolt MotorcycleController) --- */
+
+  prop = RNA_def_property(srna, "mc_enable_lean_controller", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_LEAN_CONTROLLER);
+  RNA_def_property_ui_text(
+      prop,
+      "Enable Lean Controller",
+      "Enable Jolt's lean spring that keeps the motorcycle upright. Disable to let the "
+      "bike fall over");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "mc_enable_lean_steering_limit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_LEAN_STEERING_LIMIT);
+  RNA_def_property_ui_text(
+      prop,
+      "Lean Steering Limit",
+      "Automatically limit steering angle at high speed so the generated inertial "
+      "force cannot topple the bike over");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+    prop = RNA_def_property(srna, "mc_override_suspension_force_points", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_funcs(
+      prop,
+      "rna_GameVehicleSettings_mc_override_suspension_force_points_get",
+      "rna_GameVehicleSettings_mc_override_suspension_force_points_set");
+    RNA_def_property_boolean_default(prop, true);
+    RNA_def_property_ui_text(
+      prop,
+      "Override Suspension Force Points",
+      "Apply front and rear wheel suspension and traction forces at fixed points on the "
+      "chassis. Disable to use Jolt's contact-point behavior");
+    RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(
+      srna, "mc_override_front_suspension_force_point", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_FRONT_FORCE_POINT);
+  RNA_def_property_ui_text(
+      prop,
+      "Override Front Suspension Force Point",
+      "Apply front-wheel suspension and traction forces at a fixed point on the chassis. "
+      "Disabled matches Jolt's default contact-point behavior; enabled uses the front "
+      "wheel center in its neutral pose as Jolt's recommended fixed point");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(
+      srna, "mc_override_rear_suspension_force_point", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", OB_VEHICLE_MC_REAR_FORCE_POINT);
+  RNA_def_property_ui_text(
+      prop,
+      "Override Rear Suspension Force Point",
+      "Apply rear-wheel suspension and traction forces at a fixed point on the chassis. "
+      "Disabled matches Jolt's default contact-point behavior; enabled uses the rear "
+      "wheel center in its neutral pose as Jolt's recommended fixed point");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "mc_max_lean_angle", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "mc_max_lean_angle");
+  RNA_def_property_range(prop, 0.0f, M_PI_2);
+  RNA_def_property_ui_text(
+      prop, "Max Lean Angle", "How far the bike is willing to lean over in turns");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "mc_lean_spring_constant", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "mc_lean_spring_constant");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 20000.0f, 100.0f, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Lean Spring Stiffness",
+      "Spring constant of the lean-correcting spring. Higher values keep the bike "
+      "upright more aggressively");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "mc_lean_spring_damping", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "mc_lean_spring_damping");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 10000.0f, 50.0f, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Lean Spring Damping",
+      "Damping of the lean spring. Higher values reduce lean oscillation");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "mc_lean_spring_integration_coefficient",
+                          PROP_FLOAT,
+                          PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "mc_lean_spring_integration_coef");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop,
+      "Integration Coefficient",
+      "Extra force proportional to the time-integrated lean error. Turns the lean "
+      "spring into a PID controller; use 0 for a plain PD spring");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "mc_lean_spring_integration_decay", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "mc_lean_spring_integration_decay");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop,
+      "Integration Decay",
+      "Rate at which the integrated lean error decays when the wheels are in the "
+      "air: new = e^(-decay * dt) * old");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "mc_lean_smoothing_factor", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "mc_lean_smoothing_factor");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Lean Smoothing",
+      "Smoothing of the target lean angle. 0 = no smoothing, 1 = lean angle never "
+      "changes. Frame-rate dependent");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  /* --- Wheel-only fields (used when vehicle_type == WHEEL) --- */
+
+  prop = RNA_def_property(srna, "chassis_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "chassis_object");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Chassis Object", "The chassis object this wheel belongs to");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicle_wheel_update");
+
+  prop = RNA_def_property(srna, "use_derive_from_transform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM);
+  RNA_def_property_ui_text(
+      prop,
+      "Derive From Transform",
+      "Use the wheel object transform to derive the parked wheel center and axes");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "connection_point", PROP_FLOAT, PROP_TRANSLATION);
+  RNA_def_property_float_sdna(prop, nullptr, "connection_point");
+  RNA_def_property_array(prop, 3);
+    RNA_def_property_ui_text(prop,
+                 "Connection Point",
+                 "Vehicle-space suspension hardpoint for this wheel. The parked wheel "
+                 "center sits one wheel radius along Down Direction from this point");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "down_direction", PROP_FLOAT, PROP_DIRECTION);
+  RNA_def_property_float_sdna(prop, nullptr, "down_direction");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Down Direction", "Vehicle-space suspension direction");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "down_direction_axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_object_axis_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_GameVehicle_down_direction_axis_get",
+                              "rna_GameVehicle_down_direction_axis_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Down Direction", "Vehicle-space suspension direction axis");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "axle_direction", PROP_FLOAT, PROP_DIRECTION);
+  RNA_def_property_float_sdna(prop, nullptr, "axle_direction");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Axle Direction", "Vehicle-space wheel axle direction");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "axle_direction_axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_object_axis_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_GameVehicle_axle_direction_axis_get",
+                              "rna_GameVehicle_axle_direction_axis_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Axle Direction", "Vehicle-space wheel axle direction axis");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_as_traction", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_USE_TRACTION);
+  RNA_def_property_ui_text(prop,
+                           "Use As Traction",
+                           "This wheel is powered by the engine. If the linked chassis uses an "
+                           "FWD, RWD, AWD Rally, or Off-road LSD preset, the chassis "
+                           "automatically controls this flag and manual changes are overwritten. "
+                           "Use the chassis LSD Preset Custom or Open Differential modes to edit "
+                           "wheel traction manually");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicle_wheel_update");
+
+  prop = RNA_def_property(srna, "use_as_steering", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_USE_STEERING);
+  RNA_def_property_ui_text(prop, "Use As Steering", "This wheel is used for steering");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_as_brake", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_USE_BRAKE);
+  RNA_def_property_ui_text(prop, "Use As Brake", "This wheel participates in braking");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_handbrake", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_USE_HANDBRAKE);
+  RNA_def_property_ui_text(prop, "Use Handbrake", "Apply chassis handbrake torque to this wheel");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_auto_radius", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_AUTO_RADIUS);
+  RNA_def_property_ui_text(prop, "Auto Radius", "Derive the wheel radius from the wheel object");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_auto_width", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_AUTO_WIDTH);
+  RNA_def_property_ui_text(
+      prop, "Auto Width", "Derive the wheel width from the wheel object");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_auto_inertia", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_AUTO_INERTIA);
+  RNA_def_property_ui_text(
+      prop,
+      "Auto Inertia",
+      "Automatically compute wheel rotational inertia from chassis mass and wheel radius");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "collision_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "collision_mode");
+  RNA_def_property_enum_items(prop, vehicle_wheel_collision_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Collision Shape", "How this wheel tests against the ground in Jolt");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_ray_mask", PROP_BOOLEAN, PROP_LAYER_MEMBER);
+  RNA_def_property_array(prop, OB_MAX_COL_MASKS);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GameVehicleSettings_wheel_ray_mask_get",
+                                 "rna_GameVehicleSettings_wheel_ray_mask_set");
+  RNA_def_property_ui_text(prop,
+                           "Collision Mask",
+                           "Collision mask for this wheel's suspension ray or shape cast");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_engine_force_override", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_OVERRIDE_ENGINE_FORCE);
+  RNA_def_property_ui_text(
+      prop, "Override Engine Force", "Use a per-wheel engine force instead of the default");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_brake_override", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_OVERRIDE_BRAKE);
+  RNA_def_property_ui_text(
+      prop, "Override Brake", "Use this wheel's Brake Strength instead of the chassis value");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_steering_override", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "wheel_flags", OB_VEHICLE_WHEEL_OVERRIDE_STEERING);
+  RNA_def_property_ui_text(
+      prop, "Override Steering", "Use this wheel's Steering Angle instead of the chassis value");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_engine_force", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_engine_force");
+  RNA_def_property_ui_text(prop,
+                           "Engine Strength",
+                           "How strongly this wheel pushes the vehicle forward or backward when "
+                           "its override is enabled");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_brake", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_brake");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 20000.0f, 100.0f, 0);
+  RNA_def_property_ui_text(
+      prop, "Brake Strength", "Maximum brake torque in Nm applied to this wheel");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_steering", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_steering");
+  RNA_def_property_range(prop, 0.0f, M_PI);
+  RNA_def_property_ui_text(prop,
+                           "Steering Angle",
+                           "How far this wheel can turn left or right");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_radius");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Wheel Radius", "Wheel radius");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_width", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_width");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop,
+      "Wheel Width",
+      "Wheel width in meters. Set to 0 to use the automatic fallback from wheel radius");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "use_combined_friction_axes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GameVehicleSettings_use_combined_friction_axes_get",
+                                 "rna_GameVehicleSettings_use_combined_friction_axes_set");
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop,
+                           "Combine Both Friction Axes",
+                           "Use the same grip value for both Jolt tire friction axes");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "wheel_friction_slip", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_friction_slip");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop,
+                           "Wheel Friction / Grip",
+                           "Controls how much grip this wheel has on the ground. Higher values "
+                           "usually mean more traction");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+                prop = RNA_def_property(srna, "wheel_longitudinal_friction", PROP_FLOAT, PROP_NONE);
+                RNA_def_property_float_sdna(prop, nullptr, "wheel_longitudinal_friction");
+                RNA_def_property_range(prop, 0.0f, FLT_MAX);
+                RNA_def_property_ui_text(prop,
+                             "Longitudinal Friction / Grip",
+                             "Controls forward and braking grip for Jolt tire friction");
+                RNA_def_property_update(
+                  prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_wheel_friction_axes_update");
+
+                prop = RNA_def_property(srna, "wheel_lateral_friction", PROP_FLOAT, PROP_NONE);
+                RNA_def_property_float_sdna(prop, nullptr, "wheel_lateral_friction");
+                RNA_def_property_range(prop, 0.0f, FLT_MAX);
+                RNA_def_property_ui_text(prop,
+                             "Lateral Friction / Grip",
+                             "Controls sideways cornering and drifting grip for Jolt tire friction");
+                RNA_def_property_update(
+                  prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_wheel_friction_axes_update");
+
+  prop = RNA_def_property(srna, "wheel_roll_influence", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "wheel_roll_influence");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop,
+                           "Wheel Roll Influence",
+                           "Biases where suspension and tire forces are applied on the chassis; "
+                           "lower values reduce body roll");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "suspension_stiffness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "suspension_stiffness");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 100000.0f, 1000.0f, 0);
+  RNA_def_property_ui_text(prop,
+                           "Suspension Stiffness",
+                           "Spring stiffness in N/m. Typical values: 10000-30000 for offroad, "
+                           "30000-80000 for sport cars");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "suspension_travel", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "suspension_travel");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Suspension Travel", "Suspension travel distance");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "damping_compression", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "damping_compression");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 20000.0f, 100.0f, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Damping (Compression)",
+      "Suspension damping in Ns/m. In Jolt this is the only damping value used. "
+      "In Bullet this controls compression damping. Typical values: 1500-5000");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+
+  prop = RNA_def_property(srna, "damping_relaxation", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "damping_relaxation");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 20000.0f, 100.0f, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Damping (Rebound)",
+      "Damping in Ns/m when suspension extends (Bullet only, ignored in Jolt). "
+      "Typical values: 1500-5000");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_GameVehicleSettings_update");
+}
+
+static void rna_def_object_game_settings(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "GameObjectSettings", nullptr);
   RNA_def_struct_sdna(srna, "Object");
@@ -2938,9 +4180,14 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop,
                               "rna_GameObjectSettings_physics_type_get",
                               "rna_GameObjectSettings_physics_type_set",
-                              nullptr);
+                              "rna_GameObjectSettings_physics_type_itemf");
   RNA_def_property_ui_text(prop, "Physics Type", "Select the type of physical representation");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "vehicle", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "GameVehicleSettings");
+  RNA_def_property_pointer_funcs(prop, "rna_GameObjectSettings_vehicle_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Vehicle", "Vehicle authoring settings");
 
   prop = RNA_def_property(srna, "use_record_animation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "gameflag", OB_RECORD_ANIMATION);
@@ -2948,6 +4195,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_actor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "gameflag", OB_ACTOR);
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Actor", "Object is detected by the Near and Radar sensor");
 
   prop = RNA_def_property(srna, "use_ghost", PROP_BOOLEAN, PROP_NONE);
@@ -2972,12 +4220,16 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "damping");
-  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_float_default_func(prop, "rna_GameObjectSettings_damping_default");
+  RNA_def_property_range(prop, 0.0, 5.0);
+  RNA_def_property_ui_range(prop, 0.0, 5.0, 1, 3);
   RNA_def_property_ui_text(prop, "Damping", "General movement damping");
 
   prop = RNA_def_property(srna, "rotation_damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "rdamping");
-  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_float_default_func(prop, "rna_GameObjectSettings_rotation_damping_default");
+  RNA_def_property_range(prop, 0.0, 5.0);
+  RNA_def_property_ui_range(prop, 0.0, 5.0, 1, 3);
   RNA_def_property_ui_text(prop, "Rotation Damping", "General rotation damping");
 
   prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_DISTANCE);
@@ -2993,8 +4245,9 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0, 1000.0);
   RNA_def_property_ui_text(prop,
                            "Velocity Max",
-                           "Clamp velocity to this maximum speed, "
-                           "in distance per second");
+                           "Clamp velocity to this maximum speed, in distance per second. "
+                           "In Bullet, 0 disables the cap. In Jolt, 0 uses Jolt's default max "
+                           "linear velocity (500.0)");
 
   prop = RNA_def_property(srna, "angular_velocity_min", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "min_angvel");
@@ -3010,8 +4263,9 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0, 1000.0);
   RNA_def_property_ui_text(prop,
                            "Angular Velocity Max",
-                           "Clamp angular velocity to this maximum speed, "
-                           "in angle per second");
+                           "Clamp angular velocity to this maximum speed, in angle per second. "
+                           "In Bullet, 0 disables the cap. In Jolt, 0 uses Jolt's default max "
+                           "angular velocity (47.12 radians per second)");
 
   /* Character physics */
   prop = RNA_def_property(srna, "step_height", PROP_FLOAT, PROP_NONE);
@@ -3135,7 +4389,10 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "collision_bounds_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "collision_boundtype");
   RNA_def_property_enum_items(prop, collision_bounds_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Object_collision_bounds_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_Object_collision_bounds_type_get",
+                              "rna_Object_collision_bounds_type_set",
+                              "rna_Object_collision_bounds_itemf");
   RNA_def_property_ui_text(
       prop, "Collision Shape", "Select the collision shape that better fits the object");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
@@ -3215,6 +4472,17 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Damping", "Damping of the spring force, when inside the physics distance area");
 
+  /* Per-body gravity multiplier (Jolt). */
+  prop = RNA_def_property(srna, "gravity_factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "gravity_factor");
+  RNA_def_property_range(prop, -10.0, 10.0);
+  RNA_def_property_ui_range(prop, 0.0, 2.0, 1, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Gravity Factor",
+      "Per-object gravity multiplier (0 = no gravity, 1 = normal, 2 = double gravity). "
+      "Jolt physics only");
+
   /* state */
 
   prop = RNA_def_property(srna, "states_visible", PROP_BOOLEAN, PROP_LAYER_MEMBER);
@@ -3254,6 +4522,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "ObjectActivityCulling");
   RNA_def_property_ui_text(prop, "Object Activity Culling", "");
 
+  rna_def_game_vehicle_settings(brna);
   rna_def_game_object_activity_culling(brna);
 
   /* rigid body ccd settings */

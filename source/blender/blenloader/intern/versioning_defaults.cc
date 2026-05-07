@@ -590,13 +590,18 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce.gm.freqplay = 60;
     sce.gm.depth = 32;
     sce.gm.gravity = 9.8f;
-    sce.gm.physicsEngine = WOPHY_BULLET;
+    sce.gm.physicsEngine = WOPHY_JOLT;
     sce.gm.mode = WO_ACTIVITY_CULLING;
     sce.gm.occlusionRes = 128;
     sce.gm.ticrate = 60;
     sce.gm.maxlogicstep = 5;
     sce.gm.physubstep = 1;
     sce.gm.maxphystep = 5;
+    sce.gm.use_fixed_physics_timestep = 1;
+    sce.gm.physics_tick_rate = 60;
+    sce.gm.use_fixed_physics_interpolation = 0;
+    sce.gm.use_fixed_fps_cap = 1;
+    sce.gm.fixed_render_cap_rate = 60;
     sce.gm.lineardeactthreshold = 0.8f;
     sce.gm.angulardeactthreshold = 1.0f;
     sce.gm.deactivationtime = 2.0f;
@@ -643,6 +648,13 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce.gm.cfm = 0.0f;
 
     sce.gm.logLevel = GAME_LOG_LEVEL_WARNING;
+
+    /* Jolt Physics defaults */
+    sce.gm.jolt_physics_threads = -1;
+    sce.gm.jolt_max_bodies = 65536;
+    sce.gm.jolt_max_body_pairs = 65536;
+    sce.gm.jolt_max_contact_constraints = 65536;
+    sce.gm.jolt_temp_allocator_mb = 32;
   }
   for (Object &ob : bmain->objects) {
     /* UPBGE defaults*/
@@ -657,6 +669,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob.gameflag2 = 0;
     ob.margin = 0.04f;
     ob.friction = 0.5f;
+    ob.gravity_factor = 1.0f;
     ob.init_state = 1;
     ob.state = 1;
     ob.obstacleRad = 1.0f;

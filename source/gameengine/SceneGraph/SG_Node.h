@@ -310,6 +310,11 @@ class SG_Node : public SG_QList {
   const MT_Vector3 &GetWorldPosition() const;
   const MT_Matrix3x3 &GetWorldOrientation() const;
   const MT_Vector3 &GetWorldScaling() const;
+  const MT_Vector3 &GetPrevWorldPosition() const { return m_prevWorldPosition; }
+  const MT_Matrix3x3 &GetPrevWorldOrientation() const { return m_prevWorldRotation; }
+  const MT_Vector3 &GetPrevWorldScaling() const { return m_prevWorldScaling; }
+  bool HasPreviousWorldTransform() const { return m_hasPreviousWorldTransform; }
+  void StorePreviousWorldTransform();
 
   void SetWorldFromLocalTransform();
   MT_Transform GetWorldTransform() const;
@@ -321,7 +326,7 @@ class SG_Node : public SG_QList {
   void SetFamilly(const std::shared_ptr<SG_Familly> &familly);
 
   bool IsModified();
-  bool IsDirty(DirtyFlag flag);
+  bool IsDirty(DirtyFlag flag) const;
 
  protected:
   friend class SG_Controller;
@@ -369,6 +374,11 @@ class SG_Node : public SG_QList {
   MT_Vector3 m_worldPosition;
   MT_Matrix3x3 m_worldRotation;
   MT_Vector3 m_worldScaling;
+
+  MT_Vector3 m_prevWorldPosition;
+  MT_Matrix3x3 m_prevWorldRotation;
+  MT_Vector3 m_prevWorldScaling;
+  bool m_hasPreviousWorldTransform;
 
   std::unique_ptr<SG_ParentRelation> m_parent_relation;
 

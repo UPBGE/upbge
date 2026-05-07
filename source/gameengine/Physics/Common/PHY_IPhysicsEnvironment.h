@@ -32,6 +32,7 @@
 #pragma once
 
 #include "MT_Matrix4x4.h"
+#include "MT_Matrix3x3.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
@@ -40,6 +41,8 @@
 #include "DNA_constraint_types.h"
 
 #include <array>
+#include <cstdint>
+#include <vector>
 
 class PHY_IConstraint;
 class PHY_IVehicle;
@@ -53,6 +56,10 @@ class KX_Scene;
 class BL_SceneConverter;
 
 class PHY_IMotionState;
+namespace blender {
+struct bRigidBodyJointConstraint;
+struct RigidBodyCon;
+}  // namespace blender
 
 /**
  * pass back information from rayTest
@@ -124,6 +131,10 @@ class PHY_IPhysicsEnvironment {
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval) = 0;
 
   virtual void UpdateSoftBodies() = 0;
+
+  /** Link pin-object controllers to soft bodies after all objects are converted.
+   *  Called once from BL_DataConversion after the physics creation loop. */
+  virtual void FinalizeSoftBodyPins() {}
 
   /// draw debug lines (make sure to call this during the render phase, otherwise lines are not
   /// drawn properly)
@@ -224,6 +235,7 @@ class PHY_IPhysicsEnvironment {
                                             bool replicate_dupli = false) = 0;
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) = 0;
   virtual void RemoveConstraintById(int constraintid, bool free) = 0;
+  virtual bool IsRigidBodyConstraintEnabled(int constraintid) = 0;
   virtual float GetAppliedImpulse(int constraintid)
   {
     return 0.0f;
@@ -231,6 +243,10 @@ class PHY_IPhysicsEnvironment {
 
   // complex constraint for vehicles
   virtual PHY_IVehicle *GetVehicleConstraint(int constraintId) = 0;
+  virtual PHY_IVehicle *GetVehicleConstraint(PHY_IPhysicsController * /*ctrl*/)
+  {
+    return nullptr;
+  }
   // Character physics wrapper
   virtual PHY_ICharacter *GetCharacterController(class KX_GameObject *ob) = 0;
 
@@ -270,6 +286,21 @@ class PHY_IPhysicsEnvironment {
 
   virtual void ExportFile(const std::string &filename){};
 
+  /** Save the entire physics simulation state into a binary buffer.
+   *  Returns true on success. The buffer can later be passed to
+   *  RestorePhysicsState() to rewind the simulation to this snapshot. */
+  virtual bool SavePhysicsState(std::vector<uint8_t> &outBuffer)
+  {
+    return false;
+  }
+
+  /** Restore a previously saved physics simulation state from a binary
+   *  buffer produced by SavePhysicsState(). Returns true on success. */
+  virtual bool RestorePhysicsState(const std::vector<uint8_t> &inBuffer)
+  {
+    return false;
+  }
+
   virtual void MergeEnvironment(PHY_IPhysicsEnvironment *other_env) = 0;
 
   virtual void ConvertObject(BL_SceneConverter *converter,
@@ -286,7 +317,12 @@ class PHY_IPhysicsEnvironment {
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
                                       KX_GameObject *obj_dest,
                                       blender::bRigidBodyJointConstraint *dat,
-                                      bool replicate_dupli)
-  {
-  }
+                                      bool replicate_dupli) = 0;
+  /// Returns constraint ID on success, -1 on failure
+  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
+                                        KX_GameObject *gameobj2,
+                                        const MT_Vector3 &pivotLocal,
+                                        const MT_Matrix3x3 &basisLocal,
+                                        blender::RigidBodyCon *rbc) = 0;
+  virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) = 0;
 };

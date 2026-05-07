@@ -45,6 +45,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
@@ -58,9 +59,13 @@
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_object.hh"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "BLO_readfile.hh"
 
@@ -71,6 +76,130 @@
 #include "MEM_guardedalloc.h"
 
 namespace blender {
+
+static void upbge_vehicle_normalize_or_default(float vector[3], const float default_value[3])
+{
+  if (normalize_v3(vector) == 0.0f) {
+    copy_v3_v3(vector, default_value);
+  }
+}
+
+static void upbge_vehicle_derive_wheel_frame(const Object *chassis_ob,
+                                             const Object *wheel_ob,
+                                             float r_connection_point[3],
+                                             float r_down_direction[3],
+                                             float r_axle_direction[3],
+                                             float r_down_world[3])
+{
+  const float default_down[3] = {0.0f, 0.0f, -1.0f};
+  const float default_axle[3] = {1.0f, 0.0f, 0.0f};
+  float chassis_mat[4][4];
+  float chassis_inv[4][4];
+  float wheel_mat[4][4];
+
+  BKE_object_to_mat4(chassis_ob, chassis_mat);
+  BKE_object_to_mat4(wheel_ob, wheel_mat);
+  invert_m4_m4(chassis_inv, chassis_mat);
+
+  copy_v3_v3(r_connection_point, wheel_mat[3]);
+  mul_m4_v3(chassis_inv, r_connection_point);
+
+  copy_v3_v3(r_down_world, default_down);
+  mul_mat3_m4_v3(wheel_mat, r_down_world);
+  upbge_vehicle_normalize_or_default(r_down_world, default_down);
+
+  copy_v3_v3(r_down_direction, r_down_world);
+  mul_mat3_m4_v3(chassis_inv, r_down_direction);
+  upbge_vehicle_normalize_or_default(r_down_direction, default_down);
+
+  copy_v3_v3(r_axle_direction, default_axle);
+  mul_mat3_m4_v3(wheel_mat, r_axle_direction);
+  upbge_vehicle_normalize_or_default(r_axle_direction, default_axle);
+  mul_mat3_m4_v3(chassis_inv, r_axle_direction);
+  upbge_vehicle_normalize_or_default(r_axle_direction, default_axle);
+}
+
+static float upbge_vehicle_resolve_wheel_radius(const Object *chassis_ob,
+                                                const Object *wheel_ob,
+                                                const float axle_direction[3],
+                                                const float down_direction[3],
+                                                float stored_radius)
+{
+  float radius = max_ff(stored_radius, 0.01f);
+  if (!chassis_ob || !wheel_ob) {
+    return radius;
+  }
+
+  std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(wheel_ob);
+  if (!bounds) {
+    return radius;
+  }
+
+  float chassis_mat[4][4];
+  float wheel_mat[4][4];
+  float axle_world[3];
+  float radial_axis_a[3];
+  float radial_axis_b[3];
+
+  BKE_object_to_mat4(chassis_ob, chassis_mat);
+  BKE_object_to_mat4(wheel_ob, wheel_mat);
+
+  copy_v3_v3(axle_world, axle_direction);
+  mul_mat3_m4_v3(chassis_mat, axle_world);
+  upbge_vehicle_normalize_or_default(axle_world, (const float[3]){1.0f, 0.0f, 0.0f});
+
+  copy_v3_v3(radial_axis_a, down_direction);
+  mul_mat3_m4_v3(chassis_mat, radial_axis_a);
+  madd_v3_v3fl(radial_axis_a, axle_world, -dot_v3v3(radial_axis_a, axle_world));
+  if (normalize_v3(radial_axis_a) == 0.0f) {
+    const float fallback_axis[3] = {fabsf(axle_world[0]) < 0.9f ? 1.0f : 0.0f,
+                                    fabsf(axle_world[0]) < 0.9f ? 0.0f : 1.0f,
+                                    0.0f};
+    cross_v3_v3v3(radial_axis_a, axle_world, fallback_axis);
+    upbge_vehicle_normalize_or_default(radial_axis_a, (const float[3]){0.0f, 0.0f, 1.0f});
+  }
+
+  cross_v3_v3v3(radial_axis_b, axle_world, radial_axis_a);
+  upbge_vehicle_normalize_or_default(radial_axis_b, (const float[3]){0.0f, 0.0f, 1.0f});
+
+  float wheel_origin[3];
+  copy_v3_v3(wheel_origin, wheel_mat[3]);
+
+  float max_radial_extent_a = 0.0f;
+  float max_radial_extent_b = 0.0f;
+  for (const float3 &corner : bounds::corners(*bounds)) {
+    float world_corner[3] = {corner[0], corner[1], corner[2]};
+    mul_m4_v3(wheel_mat, world_corner);
+    sub_v3_v3(world_corner, wheel_origin);
+
+    max_radial_extent_a = max_ff(max_radial_extent_a, fabsf(dot_v3v3(world_corner, radial_axis_a)));
+    max_radial_extent_b = max_ff(max_radial_extent_b, fabsf(dot_v3v3(world_corner, radial_axis_b)));
+  }
+
+  const float resolved_radius = max_ff(max_radial_extent_a, max_radial_extent_b);
+  return resolved_radius > 1.0e-6f ? resolved_radius : radius;
+}
+
+static void upbge_vehicle_offset_world_location(Object *ob, const float offset_world[3])
+{
+  float object_matrix[4][4];
+  BKE_object_to_mat4(ob, object_matrix);
+  add_v3_v3(object_matrix[3], offset_world);
+  BKE_object_apply_mat4(ob, object_matrix, false, true);
+}
+
+static void upbge_vehicle_store_manual_hardpoint(GameVehicleSettings *ws,
+                                                 const float wheel_center[3],
+                                                 const float down_direction[3],
+                                                 const float axle_direction[3],
+                                                 float wheel_radius)
+{
+  copy_v3_v3(ws->connection_point, wheel_center);
+  madd_v3_v3fl(ws->connection_point, down_direction, -wheel_radius);
+  copy_v3_v3(ws->down_direction, down_direction);
+  copy_v3_v3(ws->axle_direction, axle_direction);
+  ws->wheel_rest_length = wheel_radius;
+}
 
 void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
 {
@@ -87,16 +216,21 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       sce.gm.freqplay = 60;
       sce.gm.depth = 32;
       sce.gm.gravity = 9.8f;
-      sce.gm.physicsEngine = WOPHY_BULLET;
+      sce.gm.physicsEngine = WOPHY_JOLT;
       sce.gm.mode = WO_ACTIVITY_CULLING;
       sce.gm.occlusionRes = 128;
       sce.gm.ticrate = 60;
       sce.gm.maxlogicstep = 5;
       sce.gm.physubstep = 1;
       sce.gm.maxphystep = 5;
-      sce.gm.lineardeactthreshold = 0.8f;
-      sce.gm.angulardeactthreshold = 1.0f;
-      sce.gm.deactivationtime = 2.0f;
+      sce.gm.use_fixed_physics_timestep = 1;
+      sce.gm.physics_tick_rate = 60;
+      sce.gm.use_fixed_physics_interpolation = 0;
+      sce.gm.use_fixed_fps_cap = 1;
+      sce.gm.fixed_render_cap_rate = 60;
+      sce.gm.lineardeactthreshold = 0.03f;
+      sce.gm.angulardeactthreshold = 0.03f;
+      sce.gm.deactivationtime = 0.5f;
 
       sce.gm.obstacleSimulation = OBSTSIMULATION_NONE;
       sce.gm.levelHeight = 2.f;
@@ -155,6 +289,7 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       ob.gameflag2 = 0;
       ob.margin = 0.04f;
       ob.friction = 0.5f;
+      ob.gravity_factor = 1.0f;
       ob.init_state = 1;
       ob.state = 1;
       ob.obstacleRad = 1.0f;
@@ -181,6 +316,13 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Collection &collection : bmain->collections) {
       collection.flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
       collection.flag |= COLLECTION_IS_SPAWNED;
+    }
+  }
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "GameData", "char", "use_fixed_physics_interpolation"))
+  {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.use_fixed_physics_interpolation = scene.gm.physicsEngine == WOPHY_JOLT ? 0 : 1;
     }
   }
   if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm") &&
@@ -419,7 +561,7 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       /* Game overlay mouse control moved from flag to gameflag */
       if (cam.flag & (1 << 11)) {
         cam.gameflag |= GAME_CAM_OVERLAY_MOUSE_CONTROL;
-        cam.flag &= ~eCamera_Flag(1 << 11);
+        cam.flag = static_cast<eCamera_Flag>(cam.flag & ~(1 << 11));
       }
     }
   }
@@ -427,8 +569,8 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Object &ob : bmain->objects) {
       /* OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY moved from 1 << 14 to 1 << 31 */
       if (ob.transflag & (1 << 14)) {
-        ob.transflag |= eObject_TransFlag(1 << 31);
-        ob.transflag &= ~eObject_TransFlag(1 << 14);
+        ob.transflag = static_cast<eObject_TransFlag>(ob.transflag | (1 << 31));
+        ob.transflag = static_cast<eObject_TransFlag>(ob.transflag & ~(1 << 14));
       }
     }
   }
@@ -444,10 +586,234 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       BKE_mesh_legacy_recast_to_generic(&mesh);
     }
   }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 1)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 50, 5)) {
+    /* Migrate to mode-specific timing variables (Phase 2 refactoring) */
+    if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "fixed_render_cap_rate")) {
+      for (Scene &scene : bmain->scenes) {
+        /* Initialize fixed mode render cap rate from legacy ticrate
+         * This ensures old .blend files continue to work with same behavior.
+         * NOTE: fixed_logic_rate and fixed_max_logic_step removed - logic coupled to physics in fixed mode */
+        scene.gm.fixed_render_cap_rate = scene.gm.ticrate;
+      }
+    }
+  }
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "jolt_physics_threads")) {
     for (Scene &scene : bmain->scenes) {
-      scene.eevee.shadow_pcf_offset = 1.0f;
-      scene.eevee.shadow_pcf_grain = 1.0f;
+      scene.gm.jolt_physics_threads = -1;
+      scene.gm.jolt_max_bodies = 65536;
+      scene.gm.jolt_max_body_pairs = 65536;
+      scene.gm.jolt_max_contact_constraints = 65536;
+      scene.gm.jolt_temp_allocator_mb = 32;
+    }
+  }
+  if (!DNA_struct_member_exists(fd->filesdna, "Object", "GameVehicleSettings", "*vehicle")) {
+    for (Object &ob : bmain->objects) {
+      ob.vehicle = nullptr;
+      ob.gameflag2 &= ~OB_HAS_VEHICLE;
+    }
+  }
+
+  /* Initialize chassis_roll_influence for files saved before it existed.
+   * The default of 0.1 matches the old per-wheel wheel_roll_influence default,
+   * preserving existing behavior. */
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "GameVehicleSettings", "float", "chassis_roll_influence"))
+  {
+    for (Object &ob : bmain->objects) {
+      if (ob.vehicle && ob.vehicle->vehicle_type == OB_VEHICLE_TYPE_CHASSIS) {
+        ob.vehicle->chassis_roll_influence = 0.1f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 7)) {
+    for (Object &ob : bmain->objects) {
+      if (!ob.vehicle || ob.vehicle->vehicle_type != OB_VEHICLE_TYPE_CHASSIS) {
+        continue;
+      }
+
+      if (ob.vehicle->lsd_preset == OB_VEHICLE_LSD_RACE) {
+        /* The removed Race preset already wrote its resolved ratio into
+         * limited_slip_ratio, so preserve that value and fall back to Custom. */
+        ob.vehicle->lsd_preset = OB_VEHICLE_LSD_CUSTOM;
+      }
+    }
+  }
+}
+
+void do_versions_after_linking_upbge(FileData *fd, Main *bmain)
+{
+  /* Vehicle migration depends on Object ID pointers being remapped first.
+   * Running it in blo_do_versions_upbge() can dereference stale file addresses
+   * when loading older blend files. */
+  if (!DNA_struct_member_exists(fd->filesdna, "GameVehicleSettings", "int", "vehicle_type")) {
+    for (Object &ob : bmain->objects) {
+      if (!(ob.gameflag2 & OB_HAS_VEHICLE) || !ob.vehicle) {
+        continue;
+      }
+
+      GameVehicleSettings *vs = ob.vehicle;
+      vs->vehicle_type = OB_VEHICLE_TYPE_CHASSIS;
+
+      for (GameVehicleWheel *wheel =
+               static_cast<GameVehicleWheel *>(vs->legacy_wheels.first);
+           wheel;
+           wheel = wheel->next)
+      {
+        Object *wheel_obj = wheel->wheel_object;
+        if (!wheel_obj) {
+          continue;
+        }
+
+        if (!wheel_obj->vehicle) {
+          wheel_obj->vehicle = MEM_new<GameVehicleSettings>("GameVehicleSettings");
+        }
+        GameVehicleSettings *ws = wheel_obj->vehicle;
+        ws->vehicle_type = OB_VEHICLE_TYPE_WHEEL;
+        ws->flags = vs->flags;
+        ws->chassis_object = &ob;
+
+        copy_v3_v3(ws->connection_point, wheel->connection_point);
+        copy_v3_v3(ws->down_direction, wheel->down_direction);
+        copy_v3_v3(ws->axle_direction, wheel->axle_direction);
+
+        ws->wheel_engine_force = wheel->engine_force;
+        ws->wheel_brake = wheel->brake;
+        ws->wheel_steering = wheel->steering;
+
+        ws->wheel_radius = wheel->wheel_radius;
+        ws->wheel_width = wheel->wheel_width;
+        ws->wheel_rest_length = wheel->wheel_rest_length;
+        ws->wheel_friction_slip = wheel->wheel_friction_slip;
+        ws->wheel_longitudinal_friction = wheel->wheel_friction_slip;
+        ws->wheel_lateral_friction = wheel->wheel_friction_slip;
+        ws->wheel_roll_influence = wheel->wheel_roll_influence;
+
+        ws->suspension_stiffness = wheel->suspension_stiffness;
+        ws->suspension_travel = wheel->suspension_travel;
+        ws->damping_compression = wheel->damping_compression;
+        ws->damping_relaxation = wheel->damping_relaxation;
+
+        ws->wheel_flags = wheel->flags | OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES;
+        ws->collision_mode = wheel->collision_mode;
+
+        wheel_obj->gameflag2 |= OB_HAS_VEHICLE;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 8)) {
+    for (Object &ob : bmain->objects) {
+      if (!ob.vehicle || ob.vehicle->vehicle_type != OB_VEHICLE_TYPE_WHEEL) {
+        continue;
+      }
+
+      GameVehicleSettings *ws = ob.vehicle;
+      Object *chassis_ob = ws->chassis_object;
+      const bool use_transform = (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM) != 0;
+      const bool auto_ride_height = (ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_RIDE_HEIGHT) != 0;
+
+      float wheel_center[3];
+      float down_direction[3];
+      float axle_direction[3];
+      float down_world[3] = {0.0f, 0.0f, -1.0f};
+
+      if (use_transform && chassis_ob) {
+        upbge_vehicle_derive_wheel_frame(
+            chassis_ob, &ob, wheel_center, down_direction, axle_direction, down_world);
+
+        if (!auto_ride_height) {
+          float center_offset_world[3];
+          copy_v3_v3(center_offset_world, down_world);
+          mul_v3_fl(center_offset_world, ws->wheel_rest_length);
+          upbge_vehicle_offset_world_location(&ob, center_offset_world);
+          upbge_vehicle_derive_wheel_frame(
+              chassis_ob, &ob, wheel_center, down_direction, axle_direction, down_world);
+        }
+      }
+      else {
+        const float default_down[3] = {0.0f, 0.0f, -1.0f};
+        const float default_axle[3] = {1.0f, 0.0f, 0.0f};
+
+        copy_v3_v3(wheel_center, ws->connection_point);
+        copy_v3_v3(down_direction, ws->down_direction);
+        upbge_vehicle_normalize_or_default(down_direction, default_down);
+        copy_v3_v3(axle_direction, ws->axle_direction);
+        upbge_vehicle_normalize_or_default(axle_direction, default_axle);
+
+        if (!auto_ride_height) {
+          madd_v3_v3fl(wheel_center, down_direction, ws->wheel_rest_length);
+        }
+      }
+
+      float wheel_radius = ws->wheel_radius;
+      if ((ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_RADIUS) && chassis_ob) {
+        wheel_radius = upbge_vehicle_resolve_wheel_radius(
+            chassis_ob, &ob, axle_direction, down_direction, wheel_radius);
+      }
+      wheel_radius = max_ff(wheel_radius, 0.01f);
+
+      upbge_vehicle_store_manual_hardpoint(
+          ws, wheel_center, down_direction, axle_direction, wheel_radius);
+      ws->wheel_flags &= ~OB_VEHICLE_WHEEL_AUTO_RIDE_HEIGHT;
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 9)) {
+    for (Object &ob : bmain->objects) {
+      if (!ob.vehicle || ob.vehicle->vehicle_type != OB_VEHICLE_TYPE_WHEEL) {
+        continue;
+      }
+
+      GameVehicleSettings *ws = ob.vehicle;
+      ws->wheel_flags |= OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES;
+      ws->wheel_longitudinal_friction = ws->wheel_friction_slip;
+      ws->wheel_lateral_friction = ws->wheel_friction_slip;
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 10)) {
+    for (Object &ob : bmain->objects) {
+      if (!ob.vehicle || ob.vehicle->vehicle_type != OB_VEHICLE_TYPE_CHASSIS) {
+        continue;
+      }
+
+      ob.vehicle->flags |= OB_VEHICLE_SIMPLE_DRIVE;
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 11)) {
+    for (Object &ob : bmain->objects) {
+      if (!ob.vehicle || ob.vehicle->vehicle_type != OB_VEHICLE_TYPE_CHASSIS) {
+        continue;
+      }
+
+      ob.vehicle->solver_iterations = 0;
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 12)) {
+    for (Object &ob : bmain->objects) {
+      if (!ob.vehicle || ob.vehicle->vehicle_type != OB_VEHICLE_TYPE_CHASSIS) {
+        continue;
+      }
+
+      ob.vehicle->max_pitch_roll_angle = (float)M_PI;
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 13)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "BulletSoftBody", "float", "plasticThreshold")) {
+      for (Object &ob : bmain->objects) {
+        if (!ob.bsoft) {
+          continue;
+        }
+
+        ob.bsoft->plasticThreshold = 0.1f;
+        ob.bsoft->plasticStrength = 1.0f;
+        ob.bsoft->plasticMaxDeform = 1.0f;
+        ob.bsoft->plasticRepairRate = 0.0f;
+      }
     }
   }
 }

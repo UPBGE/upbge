@@ -54,6 +54,10 @@ if(WITH_BULLET)
   endif()
 endif()
 
+if(WITH_JOLT)
+  add_subdirectory(joltphysics)
+endif()
+
 if(WITH_DRACO)
   add_subdirectory(draco)
 endif()

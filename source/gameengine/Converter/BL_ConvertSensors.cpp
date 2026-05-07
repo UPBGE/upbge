@@ -68,6 +68,7 @@
 #include "SCA_PropertySensor.h"
 #include "SCA_RadarSensor.h"
 #include "SCA_RandomSensor.h"
+#include "SCA_RBConstraintSensor.h"
 #include "SCA_RaySensor.h"
 
 using namespace blender;
@@ -486,6 +487,15 @@ void BL_ConvertSensors(blender::Object *blenderobject,
           }
           break;
         }
+        case SENS_RBCONSTRAINT: {
+          SCA_EventManager *eventmgr = logicmgr->FindEventManager(
+              SCA_EventManager::BASIC_EVENTMGR);
+          if (eventmgr) {
+            /* RB Constraint sensor always monitors this object's own constraints. */
+            gamesensor = new SCA_RBConstraintSensor(eventmgr, gameobj);
+          }
+          break;
+        }
         case SENS_MOVEMENT: {
           bMovementSensor *blendermovsensor = (bMovementSensor *)sens->data;
           // some files didn't write movementsensor, avoid crash now for NULL ptr's
@@ -552,6 +562,9 @@ void BL_ConvertSensors(blender::Object *blenderobject,
                                                 axisf,
                                                 prec,
                                                 button,
+                                                (bjoy->flag & SENS_JOY_PROPORTIONAL) != 0,
+                                                bjoy->deadzone,
+                                                bjoy->strength_multiplier,
                                                 (bjoy->flag & SENS_JOY_ANY_EVENT));
           }
           else {

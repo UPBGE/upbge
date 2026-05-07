@@ -2,8 +2,8 @@
 Physics Constraints (bge.constraints)
 =====================================
 
-Bullet Physics provides collision detection
-and rigid body dynamics for the Blender Game Engine.
+The physics backend provides collision detection,
+rigid body dynamics, and vehicle constraints for the game engine.
 
 Features:
 
@@ -11,6 +11,13 @@ Features:
 - Rigid body constraints: hinge and point to point (ball socket).
 - Access to internal physics settings,
   like deactivation time, and debugging features
+
+Vehicles can be created in two ways:
+
+- Author them in Blender using ``Properties > Physics > Game Physics > Vehicle`` on the chassis object.
+- Create them at runtime with :func:`createVehicle` or :func:`createConstraint`.
+
+Both workflows use :class:`~bge.types.KX_VehicleWrapper` for per-wheel runtime control.
 
 .. module:: bge.constraints
 
@@ -84,6 +91,8 @@ Functions
 .. function:: createVehicle(physicsid)
 
    Creates a vehicle constraint.
+
+   This is the scripted equivalent of adding a ``Vehicle`` game physics object in Blender.
 
    :arg physicsid: The physics id of the chassis object in constraint.
    :type physicsid: int

@@ -220,12 +220,286 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         rd = context.scene.render
         return ob and ob.game and (rd.engine in cls.COMPAT_ENGINES)
 
+    def draw_vehicle_chassis(self, layout, game, vehicle, is_jolt):
+        """Draw chassis-specific settings."""
+        traction_managed_by_preset = vehicle.lsd_preset in {'FWD_ROAD', 'RWD_DRIFT', 'AWD_RALLY', 'OFFROAD'}
+
+        split = layout.split()
+        col = split.column()
+        col.label(text="Chassis:")
+        if is_jolt:
+            col.prop(vehicle, "solver_iterations")
+        col.prop(game, "mass")
+        if is_jolt:
+            col.prop(game, "elasticity", slider=True)
+            col.prop(game, "velocity_max", text="Linear Velocity Max")
+            col.prop(game, "angular_velocity_max", text="Angular Velocity Max")
+        if not is_jolt:
+            col.prop(vehicle, "engine_force")
+            col.prop(vehicle, "brake")
+
+        col = split.column()
+        col.label(text="Object:")
+        col.prop(game, "use_actor")
+        col.prop(game, "use_ghost")
+        col.prop(game, "use_sleep")
+        col.label(text="Damping:")
+        sub = col.column(align=True)
+        sub.prop(game, "damping", text="Translation", slider=True)
+        sub.prop(game, "rotation_damping", text="Rotation", slider=True)
+        col.label(text="Body Friction:")
+        col.prop(game, "friction")
+        if not is_jolt:
+            col.prop(game, "rolling_friction")
+            sub = col.column()
+            sub.prop(game, "use_anisotropic_friction")
+            subsub = sub.column()
+            subsub.active = game.use_anisotropic_friction
+            subsub.prop(game, "friction_coefficients", text="", slider=True)
+
+        layout.separator()
+
+        split = layout.split()
+        col = split.column()
+        col.prop(game, "gravity_factor")
+        col.prop(vehicle, "max_pitch_roll_angle")
+        col.prop(vehicle, "anti_roll_front")
+        col.prop(vehicle, "anti_roll_rear")
+        if is_jolt:
+            col.prop(vehicle, "chassis_roll_influence")
+            col.prop(vehicle, "center_of_mass_offset", slider=True)
+        if not is_jolt:
+            col.prop(vehicle, "handbrake_torque")
+
+        col = split.column()
+        col.prop(vehicle, "forward_axis")
+        col.prop(vehicle, "up_axis")
+        if is_jolt:
+            col.prop(vehicle, "engine_torque")
+            col.prop(vehicle, "lsd_preset")
+            if traction_managed_by_preset:
+                col.label(text="Preset controls linked wheel traction flags.", icon='INFO')
+            sub = col.column()
+            sub.prop(vehicle, "limited_slip_ratio")
+            sub.enabled = (vehicle.lsd_preset == 'CUSTOM')
+            if vehicle.lsd_preset != 'CUSTOM':
+                col.label(text="Layout: " + vehicle.detected_layout)
+            simple_drive_col = col.column(align=True)
+            simple_drive_col.prop(vehicle, "steering_speed")
+            simple_drive_col.prop(vehicle, "high_speed_steering_reduction")
+        if not is_jolt:
+            col.prop(vehicle, "wheel_inertia")
+            col.prop(vehicle, "wheel_angular_damping")
+
+        layout.separator()
+        col = layout.column()
+        col.label(text="Lock Translation:")
+        row = col.row()
+        row.prop(game, "lock_location_x", text="X")
+        row.prop(game, "lock_location_y", text="Y")
+        row.prop(game, "lock_location_z", text="Z")
+
+        col.label(text="Lock Rotation:")
+        row = col.row()
+        row.prop(game, "lock_rotation_x", text="X")
+        row.prop(game, "lock_rotation_y", text="Y")
+        row.prop(game, "lock_rotation_z", text="Z")
+
+    def draw_motorcycle_chassis(self, layout, game, vehicle, is_jolt):
+        """Draw motorcycle chassis settings (Jolt MotorcycleController)."""
+        if not is_jolt:
+            layout.label(text="Motorcycle requires the Jolt physics backend.",
+                         icon='ERROR')
+            return
+
+        split = layout.split()
+        col = split.column()
+        col.label(text="Chassis:")
+        col.prop(vehicle, "solver_iterations")
+        col.prop(game, "mass")
+        col.prop(game, "elasticity", slider=True)
+        col.prop(game, "velocity_max", text="Linear Velocity Max")
+        col.prop(game, "angular_velocity_max", text="Angular Velocity Max")
+
+        col = split.column()
+        col.label(text="Object:")
+        col.prop(game, "use_actor")
+        col.prop(game, "use_ghost")
+        col.prop(game, "use_sleep")
+        col.label(text="Damping:")
+        sub = col.column(align=True)
+        sub.prop(game, "damping", text="Translation", slider=True)
+        sub.prop(game, "rotation_damping", text="Rotation", slider=True)
+        col.label(text="Body Friction:")
+        col.prop(game, "friction")
+
+        layout.separator()
+
+        split = layout.split()
+        col = split.column()
+        col.prop(game, "gravity_factor")
+        col.prop(vehicle, "max_pitch_roll_angle")
+
+        col = split.column()
+        col.prop(vehicle, "forward_axis")
+        col.prop(vehicle, "up_axis")
+        col.prop(vehicle, "engine_torque")
+        # High-speed steering reduction is redundant on motorcycles: Jolt's
+        # MotorcycleController applies a physics-correct steering clamp
+        # (asin(wheelbase * tan(maxLean) * g / v^2)) whenever Lean Steering
+        # Limit is enabled, which always wins above low speeds. Only expose
+        # the input smoothing time.
+        col.prop(vehicle, "steering_speed")
+
+        layout.separator()
+        box = layout.box()
+        box.label(text="Lean Controller (auto-balance):")
+        row = box.row()
+        row.prop(vehicle, "mc_enable_lean_controller")
+        row.prop(vehicle, "mc_enable_lean_steering_limit")
+
+        split2 = box.split()
+        lcol = split2.column(align=True)
+        max_lean_col = lcol.column(align=True)
+        max_lean_col.active = (vehicle.mc_enable_lean_controller or
+                       vehicle.mc_enable_lean_steering_limit)
+        max_lean_col.prop(vehicle, "mc_max_lean_angle")
+        smoothing_col = lcol.column(align=True)
+        smoothing_col.active = vehicle.mc_enable_lean_controller
+        smoothing_col.prop(vehicle, "mc_lean_smoothing_factor", slider=True)
+
+        rcol = split2.column(align=True)
+        rcol.active = vehicle.mc_enable_lean_controller
+        rcol.prop(vehicle, "mc_lean_spring_constant")
+        rcol.prop(vehicle, "mc_lean_spring_damping")
+        rcol.prop(vehicle, "mc_lean_spring_integration_coefficient")
+        rcol.prop(vehicle, "mc_lean_spring_integration_decay")
+
+        force_box = layout.box()
+        force_box.label(text="Suspension Force Points:")
+        force_box.prop(vehicle, "mc_override_suspension_force_points")
+        force_box.label(text="Disable to use Jolt's contact-point behavior.")
+
+        layout.separator()
+        col = layout.column()
+        col.label(text="Lock Translation:")
+        row = col.row()
+        row.prop(game, "lock_location_x", text="X")
+        row.prop(game, "lock_location_y", text="Y")
+        row.prop(game, "lock_location_z", text="Z")
+
+        col.label(text="Lock Rotation:")
+        row = col.row()
+        row.prop(game, "lock_rotation_x", text="X")
+        row.prop(game, "lock_rotation_y", text="Y")
+        row.prop(game, "lock_rotation_z", text="Z")
+
+    def draw_vehicle_wheel(self, layout, vehicle, is_jolt):
+        """Draw wheel-specific settings."""
+        layout.prop(vehicle, "chassis_object")
+
+        chassis_vehicle = None
+        traction_managed_by_preset = False
+        if vehicle.chassis_object and vehicle.chassis_object.game and vehicle.chassis_object.game.vehicle:
+            chassis_vehicle = vehicle.chassis_object.game.vehicle
+            traction_managed_by_preset = chassis_vehicle.lsd_preset in {'FWD_ROAD', 'RWD_DRIFT', 'AWD_RALLY', 'OFFROAD'}
+
+        col = layout.column()
+        traction_col = col.column()
+        traction_col.enabled = not traction_managed_by_preset
+        traction_col.prop(vehicle, "use_as_traction")
+        if traction_managed_by_preset:
+            col.label(text="Traction is controlled by the chassis LSD preset.", icon='INFO')
+            col.label(text="Set chassis LSD Preset to Custom or Open to edit it.")
+        col.prop(vehicle, "use_as_steering")
+
+        if is_jolt:
+            steer_col = col.column()
+            steer_col.active = vehicle.use_as_steering
+            steer_col.prop(vehicle, "wheel_steering", text="Max Steer Angle")
+
+        col.prop(vehicle, "use_as_brake")
+
+        if is_jolt:
+            brake_col = col.column()
+            brake_col.active = vehicle.use_as_brake
+            brake_col.prop(vehicle, "wheel_brake")
+
+        # Motorcycles have no parking/handbrake lever in Jolt's MotorcycleController;
+        # only the normal brake channel is physically meaningful on a two-wheeler.
+        if vehicle.vehicle_type != 'MOTORCYCLE_WHEEL':
+            col.prop(vehicle, "use_handbrake")
+
+        if is_jolt:
+            col.prop(vehicle, "use_auto_inertia")
+            sub = col.column()
+            sub.active = not vehicle.use_auto_inertia
+            sub.prop(vehicle, "wheel_inertia")
+            col.prop(vehicle, "wheel_angular_damping")
+        else:
+            row = layout.row(align=True)
+            row.prop(vehicle, "use_steering_override", text="Steering Override")
+            sub = row.row(align=True)
+            sub.active = vehicle.use_steering_override
+            sub.prop(vehicle, "wheel_steering", text="")
+
+        split = layout.split()
+        col = split.column()
+        col.label(text="Wheel Setup:")
+        col.prop(vehicle, "collision_mode")
+        col.prop(vehicle, "wheel_ray_mask")
+        col.prop(vehicle, "use_auto_radius")
+        radius_col = col.column()
+        radius_col.active = not vehicle.use_auto_radius
+        radius_col.prop(vehicle, "wheel_radius")
+        col.prop(vehicle, "use_auto_width")
+        width_col = col.column()
+        width_col.active = not vehicle.use_auto_width
+        width_col.prop(vehicle, "wheel_width")
+        if is_jolt:
+            col.prop(vehicle, "use_combined_friction_axes")
+            if vehicle.use_combined_friction_axes:
+                col.prop(vehicle, "wheel_friction_slip")
+            else:
+                col.prop(vehicle, "wheel_longitudinal_friction")
+                col.prop(vehicle, "wheel_lateral_friction")
+        else:
+            col.prop(vehicle, "wheel_friction_slip")
+            col.prop(vehicle, "wheel_roll_influence")
+
+        col = split.column()
+        col.label(text="Suspension:")
+        col.prop(vehicle, "suspension_stiffness")
+        col.prop(vehicle, "suspension_travel")
+        if is_jolt:
+            col.prop(vehicle, "damping_compression", text="Damping")
+        else:
+            col.prop(vehicle, "damping_compression")
+            col.prop(vehicle, "damping_relaxation")
+
+        transform = layout.column()
+        transform.label(text="Transform:")
+        transform.prop(vehicle, "use_derive_from_transform")
+        manual = transform.column()
+        manual.active = not vehicle.use_derive_from_transform
+        manual.prop(vehicle, "connection_point")
+
+        row = manual.row()
+        row.label(text="Down Direction:")
+        row.prop(vehicle, "down_direction_axis", text="")
+
+        row = manual.row()
+        row.label(text="Axle Direction:")
+        row.prop(vehicle, "axle_direction_axis", text="")
+
     def draw(self, context):
         layout = self.layout
 
         ob = context.active_object
         game = ob.game
         soft = ob.game.soft_body
+        gs = context.scene.game_settings
+        is_jolt = (gs.physics_engine == 'JOLT')
 
         layout.prop(game, "physics_type")
         layout.separator()
@@ -268,7 +542,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Attributes:")
             col.prop(game, "mass")
-            col.prop(game, "radius")
+            if not is_jolt:
+                col.prop(game, "radius")
             col.prop(game, "form_factor", slider=True)
             col.prop(game, "elasticity", slider=True)
 
@@ -280,14 +555,17 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Friction:")
             col.prop(game, "friction")
-            col.prop(game, "rolling_friction")
-            col.separator()
+            if not is_jolt:
+                col.prop(game, "rolling_friction")
+                col.separator()
 
-            sub = col.column()
-            sub.prop(game, "use_anisotropic_friction")
-            subsub = sub.column()
-            subsub.active = game.use_anisotropic_friction
-            subsub.prop(game, "friction_coefficients", text="", slider=True)
+                sub = col.column()
+                sub.prop(game, "use_anisotropic_friction")
+                subsub = sub.column()
+                subsub.active = game.use_anisotropic_friction
+                subsub.prop(game, "friction_coefficients", text="", slider=True)
+            else:
+                col.separator()
 
             split = layout.split()
             col = split.column()
@@ -307,10 +585,16 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             col = split.column()
             col.prop(game, "use_ccd_rigid_body")
-            sub = col.column()
-            sub.active = game.use_ccd_rigid_body
-            sub.prop(game, "ccd_motion_threshold")
-            sub.prop(game, "ccd_swept_sphere_radius")
+            if not is_jolt:
+                sub = col.column()
+                sub.active = game.use_ccd_rigid_body
+                sub.prop(game, "ccd_motion_threshold")
+                sub.prop(game, "ccd_swept_sphere_radius")
+
+            if is_jolt:
+                col = split.column()
+                col.label(text="Jolt Physics:")
+                col.prop(game, "gravity_factor")
 
             layout.separator()
             col = layout.column()
@@ -320,6 +604,20 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             row.prop(game, "lock_location_x", text="X")
             row.prop(game, "lock_location_y", text="Y")
             row.prop(game, "lock_location_z", text="Z")
+
+        elif physics_type == 'VEHICLE':
+            vehicle = game.vehicle
+
+            layout.prop(vehicle, "vehicle_type")
+
+            if vehicle.vehicle_type == 'CHASSIS':
+                self.draw_vehicle_chassis(layout, game, vehicle, is_jolt)
+            elif vehicle.vehicle_type == 'WHEEL':
+                self.draw_vehicle_wheel(layout, vehicle, is_jolt)
+            elif vehicle.vehicle_type == 'MOTORCYCLE_CHASSIS':
+                self.draw_motorcycle_chassis(layout, game, vehicle, is_jolt)
+            elif vehicle.vehicle_type == 'MOTORCYCLE_WHEEL':
+                self.draw_vehicle_wheel(layout, vehicle, is_jolt)
 
         if physics_type == 'RIGID_BODY':
             col = layout.column()
@@ -343,62 +641,105 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="General Attributes:")
             col.prop(game, "mass")
-            # disabled in the code
-            # col.prop(soft, "weld_threshold")
             col.prop(soft, "linear_stiffness", slider=True)
+            col.prop(soft, "shear_stiffness", slider=True)
+            col.prop(soft, "angular_stiffness", slider=True)
+            col.prop(game, "elasticity", slider=True)
+            col.prop(game, "gravity_factor", slider=True)
             col.prop(soft, "dynamic_friction", slider=True)
             col.prop(soft, "kdp", text="Damping", slider=True)
             col.prop(soft, "collision_margin", slider=True)
-            col.prop(soft, "kvcf", text="Velocity Correction", slider=True)
+
+            if not is_jolt:
+                col.prop(soft, "kvcf", text="Velocity Correction")
+
             col.prop(soft, "use_bending_constraints", text="Bending Constraints")
 
-            sub = col.column()
-            sub.active = soft.use_bending_constraints
-            sub.prop(soft, "bending_distance")
+            if not is_jolt:
+                sub = col.column()
+                sub.active = soft.use_bending_constraints
+                sub.prop(soft, "bending_distance")
 
-            col.prop(soft, "use_shape_match")
+            if is_jolt:
+                col.prop(soft, "use_lra_constraints", text="Long Range Attachment")
+                sub = col.column()
+                sub.active = soft.use_lra_constraints
+                sub.prop(soft, "lra_type", text="LRA Type")
+                col.prop(soft, "use_faces_double_sided", text="Double-Sided Faces")
 
-            sub = col.column()
-            sub.active = soft.use_shape_match
-            sub.prop(soft, "shape_threshold", slider=True)
+                col.separator()
+                col.label(text="Plasticity (Jolt):")
+                col.prop(soft, "use_plasticity", text="Plasticity")
+                sub = col.column()
+                sub.active = soft.use_plasticity
+                sub.prop(soft, "plastic_threshold", text="Plastic Threshold")
+                sub.prop(soft, "plasticity_strength", text="Plasticity Strength")
+                sub.prop(soft, "plastic_max_deform", text="Max Permanent Deform")
+                sub.prop(soft, "plastic_repair_rate", text="Repair Rate")
+
+                col.separator()
+                col.label(text="Vertex Pinning (Jolt):")
+                col.prop_search(soft, "pin_vgroup", ob, "vertex_groups", text="Pin Group")
+                has_pin_group = bool(soft.pin_vgroup)
+                pin_col = col.column()
+                pin_col.active = has_pin_group
+                pin_col.prop(soft, "pin_weight_threshold", text="Vertex Weight Pin Threshold", slider=True)
+                pin_col.prop(soft, "pin_object", text="", icon='OBJECT_DATA')
+                has_pin_obj = bool(soft.pin_object)
+                no_pin_col = col.column()
+                no_pin_col.active = has_pin_obj
+                no_pin_col.prop(soft, "use_no_pin_collision", text="No Force on Pin Object")
+                no_pin_col.prop(soft, "use_pin_transform_follow", text="Follow Pin Transform")
+
+            if not is_jolt:
+                col.prop(soft, "use_shape_match")
+                sub = col.column()
+                sub.active = soft.use_shape_match
+                sub.prop(soft, "shape_threshold", slider=True)
 
             col.label(text="Solver Iterations:")
             col.prop(soft, "position_solver_iterations", text="Position Solver")
-            col.prop(soft, "velocity_solver_iterations", text="Velocity Solver")
-            col.prop(soft, "cluster_solver_iterations", text="Cluster Solver")
-            col.prop(soft, "drift_solver_iterations", text="Drift Solver")
+
+            if not is_jolt:
+                col.prop(soft, "velocity_solver_iterations", text="Velocity Solver")
+                col.prop(soft, "cluster_solver_iterations", text="Cluster Solver")
+                col.prop(soft, "drift_solver_iterations", text="Drift Solver")
 
             col = split.column()
-            col.label(text="Hardness:")
-            col.prop(soft, "kchr", text="Rigid Contacts", slider=True)
-            col.prop(soft, "kkhr", text="Kinetic Contacts", slider=True)
-            col.prop(soft, "kshr", text="Soft Contacts", slider=True)
-            col.prop(soft, "kahr", text="Anchors", slider=True)
 
-            col.label(text="Cluster Collision:")
-            col.prop(soft, "use_cluster_rigid_to_softbody")
-            col.prop(soft, "use_cluster_soft_to_softbody")
-            sub = col.column()
-            sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
-            sub.prop(soft, "cluster_iterations", text="Iterations")
-            sub.prop(soft, "ksrhr_cl", text="Rigid Hardness", slider=True)
-            sub.prop(soft, "kskhr_cl", text="Kinetic Hardness", slider=True)
-            sub.prop(soft, "ksshr_cl", text="Soft Hardness", slider=True)
-            sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split", slider=True)
-            sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split", slider=True)
-            sub.prop(soft, "kss_split_cl", text="Soft Impulse Split", slider=True)
+            if not is_jolt:
+                col.label(text="Hardness:")
+                col.prop(soft, "kchr", text="Rigid Contacts", slider=True)
+                col.prop(soft, "kkhr", text="Kinetic Contacts", slider=True)
+                col.prop(soft, "kshr", text="Soft Contacts", slider=True)
+                col.prop(soft, "kahr", text="Anchors", slider=True)
+
+                col.label(text="Cluster Collision:")
+                col.prop(soft, "use_cluster_rigid_to_softbody")
+                col.prop(soft, "use_cluster_soft_to_softbody")
+                sub = col.column()
+                sub.active = soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody
+                sub.prop(soft, "cluster_iterations", text="Iterations")
+                sub.prop(soft, "ksrhr_cl", text="Rigid Hardness", slider=True)
+                sub.prop(soft, "kskhr_cl", text="Kinetic Hardness", slider=True)
+                sub.prop(soft, "ksshr_cl", text="Soft Hardness", slider=True)
+                sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split", slider=True)
+                sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split", slider=True)
+                sub.prop(soft, "kss_split_cl", text="Soft Impulse Split", slider=True)
 
             split = layout.split()
 
             col = split.column()
             col.label(text="Volume:")
             col.prop(soft, "kpr", text="Pressure Coefficient")
-            col.prop(soft, "kvc", text="Volume Conservation")
+            if not is_jolt:
+                col.prop(soft, "kvc", text="Volume Conservation")
 
-            col = split.column()
-            col.label(text="Aerodynamics:")
-            col.prop(soft, "kdg", text="Drag Coefficient")
-            col.prop(soft, "klf", text="Lift Coefficient")
+            if not is_jolt:
+                col = split.column()
+                col.label(text="Aerodynamics:")
+                col.prop(soft, "kdg", text="Drag Coefficient")
+                col.prop(soft, "klf", text="Lift Coefficient")
 
         elif physics_type == 'STATIC':
             col = layout.column()
@@ -412,18 +753,20 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             col = split.column()
             col.label(text="Attributes:")
-            col.prop(game, "radius")
+            if not is_jolt:
+                col.prop(game, "radius")
             col.prop(game, "elasticity", slider=True)
             col.label(text="Friction:")
             col.prop(game, "friction")
-            col.prop(game, "rolling_friction")
+            if not is_jolt:
+                col.prop(game, "rolling_friction")
 
-            col = split.column()
-            sub = col.column()
-            sub.prop(game, "use_anisotropic_friction")
-            subsub = sub.column()
-            subsub.active = game.use_anisotropic_friction
-            subsub.prop(game, "friction_coefficients", text="", slider=True)
+                col = split.column()
+                sub = col.column()
+                sub.prop(game, "use_anisotropic_friction")
+                subsub = sub.column()
+                subsub.active = game.use_anisotropic_friction
+                subsub.prop(game, "friction_coefficients", text="", slider=True)
 
         elif physics_type == 'SENSOR':
             col = layout.column()
@@ -465,32 +808,79 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         game = context.object.game
-        return (context.scene.render.engine in cls.COMPAT_ENGINES) \
-                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY'})
+        gs = context.scene.game_settings
+        if not (context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        if game.physics_type not in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY', 'VEHICLE'}:
+            return False
+        if gs.physics_engine == 'JOLT' and game.physics_type == 'SOFT_BODY':
+            return False
+        if (game.physics_type == 'VEHICLE' and game.vehicle and
+                game.vehicle.vehicle_type in {'WHEEL', 'MOTORCYCLE_WHEEL'}):
+            return False
+        return True
 
     def draw_header(self, context):
-        game = context.active_object.game
-
-        self.layout.prop(game, "use_collision_bounds", text="")
+        gs = context.scene.game_settings
+        is_jolt = (gs.physics_engine == 'JOLT')
+        if not is_jolt:
+            game = context.active_object.game
+            self.layout.prop(game, "use_collision_bounds", text="")
 
     def draw(self, context):
         layout = self.layout
 
         game = context.active_object.game
+        gs = context.scene.game_settings
+        is_jolt = (gs.physics_engine == 'JOLT')
+
         split = layout.split()
-        split.active = game.use_collision_bounds
+        if not is_jolt:
+            split.active = game.use_collision_bounds
 
         col = split.column()
         col.prop(game, "collision_bounds_type", text="Bounds")
 
         row = col.row()
-        row.prop(game, "collision_margin", text="Margin", slider=True)
+
+        margin_row = row.row()
+        if is_jolt:
+            margin_row.active = game.collision_bounds_type in {
+                'BOX', 'CYLINDER', 'CONE', 'CONVEX_HULL'}
+        margin_text = "Rounded Corners" if is_jolt else "Margin"
+        margin_row.prop(game, "collision_margin", text=margin_text, slider=True)
 
         sub = row.row()
         sub.active = game.physics_type not in {'SOFT_BODY', 'CHARACTER'}
         sub.prop(game, "use_collision_compound", text="Compound")
 
         layout.separator()
+        split = layout.split()
+        col = split.column()
+        col.prop(game, "collision_group")
+        col = split.column()
+        col.prop(game, "collision_mask")
+
+
+class PHYSICS_PT_game_collision_filtering(PhysicsButtonsPanel, Panel):
+    bl_label = "Collision Filtering"
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        game = context.object.game
+        gs = context.scene.game_settings
+        if not (context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        return gs.physics_engine == 'JOLT' and game.physics_type == 'SOFT_BODY'
+
+    def draw(self, context):
+        layout = self.layout
+        game = context.active_object.game
+
         split = layout.split()
         col = split.column()
         col.prop(game, "collision_group")
@@ -508,8 +898,13 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         game = context.object.game
-        return (context.scene.render.engine in cls.COMPAT_ENGINES) \
-                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'})
+        if not (context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        if game.physics_type == 'VEHICLE':
+            return False
+        if game.physics_type not in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'}:
+            return False
+        return True
 
     def draw_header(self, context):
         game = context.active_object.game
@@ -563,43 +958,100 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
 
         layout.prop(gs, "physics_engine", text="Engine")
         if gs.physics_engine != 'NONE':
-            layout.prop(gs, "physics_solver")
+            if gs.physics_engine != 'JOLT':
+                layout.prop(gs, "physics_solver")
             layout.prop(gs, "physics_gravity", text="Gravity")
 
-            split = layout.split()
+            # Fixed Physics Timestep controls
+            layout.separator()
+            row = layout.row()
+            row.label(text="Physics Timestep Method:")
+            row.prop(gs, "physics_timestep_method", text="")
+            
+            if gs.physics_timestep_method == 'FIXED':
+                # For Fixed mode: put Logic+Physics Steps Per Second and Max Physics Steps side by side
+                split_rate = layout.split()
+                col_left = split_rate.column()
+                col_left.prop(gs, "physics_tick_rate", text="Logic+Physics Steps Per Second")
+                col_right = split_rate.column()
+                col_right.prop(gs, "physics_step_max", text="Max Logic+Physics Steps")
+                
+                # Continue with FPS Limit and Render Cap Rate in a new split
+                split = layout.split()
+                col = split.column()
+                col.prop(gs, "use_fixed_fps_cap", text="FPS Limit ( Fixed )")
+                # Grey out Render Frames Per Second if FPS Limit is disabled
+                row_render = col.row()
+                row_render.enabled = gs.use_fixed_fps_cap
+                row_render.prop(gs, "fixed_render_cap_rate", text="Render Frames Per Second")
+                col.prop(gs, "use_fixed_physics_interpolation", text="Physics Interpolation")
+            else:
+                # For Variable mode: keep original layout
+                split = layout.split()
+                col = split.column()
+                col.label(text="Physics Steps:")
+                sub = col.column(align=True)
+                sub.prop(gs, "physics_step_max", text="Max")
+                sub.prop(gs, "physics_step_sub", text="Substeps")
+                row_ufr = col.row()
+                row_ufr.prop(gs, "use_frame_rate", text="FPS Limit ( Variable )")
 
-            col = split.column()
-            col.label(text="Physics Steps:")
-            sub = col.column(align=True)
-            sub.prop(gs, "physics_step_max", text="Max")
-            sub.prop(gs, "physics_step_sub", text="Substeps")
-
-            col = split.column()
-            col.label(text="Logic Steps:")
-            col.prop(gs, "logic_step_max", text="Max")
+            # Show Logic Steps section only for variable physics mode
+            if gs.physics_timestep_method != 'FIXED':
+                col = split.column()
+                col.label(text="Logic Steps:")
+                col.prop(gs, "logic_step_max", text="Max")
+            else:
+                # Empty column for fixed mode to maintain layout
+                col = split.column()
 
             row = layout.row()
-            row.prop(gs, "fps", text="FPS")
-            row.prop(gs, "time_scale")
+            # Show different FPS control based on mode
+            if gs.physics_timestep_method == 'FIXED':
+                # No FPS label for fixed mode, just show Time Scale
+                row.prop(gs, "time_scale")
+            else:
+                row.prop(gs, "fps", text="FPS")
+                row.prop(gs, "time_scale")
 
             col = layout.column()
             col.label(text="Physics Deactivation:")
-            sub = col.row(align=True)
-            sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
-            sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
-            sub = col.row()
-            sub.prop(gs, "deactivation_time", text="Time")
+            if gs.physics_engine == 'JOLT':
+                sub = col.row()
+                sub.prop(gs, "deactivation_linear_threshold", text="Sleep Velocity Threshold")
+                sub = col.row()
+                sub.prop(gs, "deactivation_time", text="Time")
+                col.label(text="Jolt Position Correction:")
+                sub = col.column(align=True)
+                sub.prop(gs, "jolt_correction_strength", text="Correction Strength")
+            else:
+                sub = col.row(align=True)
+                sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
+                sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
+                sub = col.row()
+                sub.prop(gs, "deactivation_time", text="Time")
 
-            col = layout.column()
-            col.label(text="Physics Joint Error Reduction:")
-            sub = col.column(align=True)
-            sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
-            sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
-            sub.prop(gs, "cfm_parameter", text="CFM for Soft Constraints")
+            if gs.physics_engine != 'JOLT':
+                col = layout.column()
+                col.label(text="Physics Joint Error Reduction:")
+                sub = col.column(align=True)
+                sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
+                sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
+                sub.prop(gs, "cfm_parameter", text="CFM for Soft Constraints")
 
             row = layout.row()
             row.label(text="Object Activity:")
             row.prop(gs, "use_activity_culling")
+
+            # Jolt Physics engine settings
+            if gs.physics_engine == 'JOLT':
+                layout.separator()
+                col = layout.column()
+                col.label(text="Jolt Physics Settings:")
+                col.prop(gs, "jolt_physics_threads", text="Physics Threads (-1 = Auto)")
+                col.prop(gs, "jolt_max_bodies", text="Max Bodies")
+                col.prop(gs, "jolt_debug_errors", text="Debug Errors")
+                # Max Body Pairs, Contact Constraints, Temp Allocator are auto-calculated from Max Bodies
 
         else:
             split = layout.split()
@@ -898,6 +1350,7 @@ classes = (
     GAME_MT_component_context_menu,
     PHYSICS_PT_game_physics,
     PHYSICS_PT_game_collision_bounds,
+    PHYSICS_PT_game_collision_filtering,
     PHYSICS_PT_game_obstacles,
     SCENE_PT_game_physics,
     SCENE_PT_game_blender_physics,

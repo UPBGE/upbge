@@ -64,6 +64,8 @@
 #include "wm_event_system.hh"
 #include "xr/wm_xr.hh"
 
+#include <unordered_map>
+
 #include "BL_ArmatureObject.h"
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
@@ -83,6 +85,7 @@
 #include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PyMath.h"
+#include "KX_PhysicsEngineEnums.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_BucketManager.h"
@@ -133,6 +136,43 @@ static void bge_dupli_provider(DEGObjectIterData *data)
   }
 }
 
+void KX_Scene::StorePhysicsInterpolationState()
+{
+  for (KX_GameObject *gameobj : *GetObjectList()) {
+    gameobj->StorePhysicsInterpolationState();
+  }
+}
+
+void KX_Scene::ApplyPhysicsInterpolation(double alpha)
+{
+  const bool skipInvisible = m_skipInvisibleInterpolation;
+
+  for (KX_GameObject *gameobj : *GetObjectList()) {
+    /* Optional fast path: invisible objects keep physics pose until they become visible again. */
+    if (skipInvisible && !gameobj->GetVisible()) {
+      continue;
+    }
+    gameobj->ApplyPhysicsInterpolation(alpha);
+  }
+}
+
+void KX_Scene::ClearPhysicsInterpolationState()
+{
+  if (!m_interpolatedObjects.empty()) {
+    for (KX_GameObject *gameobj : m_interpolatedObjects) {
+      if (gameobj != nullptr) {
+        gameobj->ClearPhysicsInterpolationState();
+      }
+    }
+    m_interpolatedObjects.clear();
+  }
+  else {
+    for (KX_GameObject *gameobj : *GetObjectList()) {
+      gameobj->ClearPhysicsInterpolationState();
+    }
+  }
+}
+
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
   KX_GameObject *replica =
@@ -179,6 +219,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_sceneConverter(nullptr),              // eevee
       m_isPythonMainLoop(false),              // eevee
       m_collectionRemap(false),               // eevee (to uncheck viewport restrictflag)
+      m_relationsUpdatePending(false),
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -189,7 +230,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_blenderScene(scene),
       m_isActivedHysteresis(false),
       m_lodHysteresisValue(0),
-      m_isRuntime(true)  // eevee
+      m_isRuntime(true),  // eevee
+      /* Default to skipping culled objects to avoid unnecessary SG updates. */
+      m_skipInvisibleInterpolation(true)
 {
 
   m_dbvt_culling = false;
@@ -352,10 +395,16 @@ KX_Scene::~KX_Scene()
     TagForObjectsMatToWorldRestore();
   }
 
-  if (!KX_GetActiveEngine()->UseViewportRender()) {
+  /* The active camera never frees the current viewport itself (see #KX_Camera::RemoveGPUViewport),
+   * so scene teardown must always release it to avoid restart-time leaks. Keep the pointer value
+   * until objects are destroyed so camera destructors skip freeing it again. */
+  const bool had_current_gpu_viewport = (m_currentGPUViewport != nullptr);
+  if (had_current_gpu_viewport) {
+    GPU_viewport_free(m_currentGPUViewport);
   }
-  else {
-    // Free the allocated profile a last time
+
+  if (KX_GetActiveEngine()->UseViewportRender()) {
+    // Free the allocated profile a last time.
     DRW_game_viewport_render_loop_end();
   }
 
@@ -377,6 +426,10 @@ KX_Scene::~KX_Scene()
     KX_GameObject *parentobj = GetRootParentList()->GetValue(0);
     this->RemoveObject(parentobj);
     BKE_view_layer_synced_ensure(*bmain, scene, BKE_view_layer_default_view(scene));
+  }
+
+  if (had_current_gpu_viewport) {
+    m_currentGPUViewport = nullptr;
   }
 
   if (m_obstacleSimulation) {
@@ -419,8 +472,10 @@ KX_Scene::~KX_Scene()
   if (m_logicmgr)
     delete m_logicmgr;
 
-  if (m_physicsEnvironment)
+  if (m_physicsEnvironment) {
     delete m_physicsEnvironment;
+    m_physicsEnvironment = nullptr;
+  }
 
   if (m_networkMessageScene)
     delete m_networkMessageScene;
@@ -472,6 +527,56 @@ void KX_Scene::RemoveUpbgeDupliInstanceFromList(KX_GameObject *gameobj)
   if (it != m_upbgeDupliInstancesList.end()) {
     m_upbgeDupliInstancesList.erase(it);
   }
+}
+
+/**
+ * Registers an object for interpolation.
+ * 
+ * This is used for visibility gating, where objects are only rendered when they are visible.
+ * The object is added to the list of interpolated objects, which is cleared each frame in ClearPhysicsInterpolationState().
+ * 
+ * @param gameobj The object to register for interpolation.
+ */
+void KX_Scene::RegisterInterpolatedObject(KX_GameObject *gameobj)
+{
+  if (std::find(m_interpolatedObjects.begin(), m_interpolatedObjects.end(), gameobj) ==
+      m_interpolatedObjects.end()) {
+    /* Stored objects are cleared in ClearPhysicsInterpolationState() each frame. */
+    m_interpolatedObjects.push_back(gameobj);
+  }
+}
+
+/**
+ * Unregisters an object for interpolation.
+ * 
+ * This is used for visibility gating, where objects are only rendered when they are visible.
+ * The object is removed from the list of interpolated objects.
+ * 
+ * @param gameobj The object to unregister for interpolation.
+ */
+void KX_Scene::UnregisterInterpolatedObject(KX_GameObject *gameobj)
+{
+  m_interpolatedObjects.erase(
+      std::remove(m_interpolatedObjects.begin(), m_interpolatedObjects.end(), gameobj),
+      m_interpolatedObjects.end());
+}
+
+/**
+ * Sets whether to skip invisible interpolation.
+ * 
+ * This is used for visibility gating, where objects are only rendered when they are visible.
+ * If set to true, invisible objects will not be interpolated.
+ * 
+ * @param skip Whether to skip invisible interpolation.
+ */
+void KX_Scene::SetSkipInvisibleInterpolation(bool skip)
+{
+  m_skipInvisibleInterpolation = skip;
+}
+
+bool KX_Scene::GetSkipInvisibleInterpolation() const
+{
+  return m_skipInvisibleInterpolation;
 }
 
 void KX_Scene::ReinitBlenderContextVariables()
@@ -704,28 +809,26 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     m_collectionRemap = false;
   }
 
-  /* Notify the depsgraph if object transform changed in the scene
-   * for next drawing loop. */
+  if (m_relationsUpdatePending) {
+    DEG_relations_tag_update(bmain);
+    m_relationsUpdatePending = false;
+  }
+
   for (KX_GameObject *gameobj : GetObjectList()) {
-    /* Update compatibles blender physics simulations */
     blender::Object *ob = gameobj->GetBlenderObject();
     TagBlenderPhysicsObject(scene, ob);
     gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
   }
 
-  /* Notify depsgraph for other changes */
   TagForExtraIdsUpdate(bmain, cam);
 
   if (is_last_render_pass) {
     m_idsToUpdateInAllRenderPasses.clear();
   }
 
-  BKE_scene_view_layers_synced_ensure(*bmain, scene);
-  /* We need the changes to be flushed before each draw loop! */
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-  /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForTransformUpdateEvaluated();
   }
@@ -869,6 +972,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   short samples_per_frame = min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples);
   samples_per_frame = max_ii(samples_per_frame, 1);
 
+  if (KX_GetActiveEngine()->UseViewportRender() &&
+      KX_GetActiveEngine()->IsPhysicsInterpolationEnabled())
+  {
+    samples_per_frame = 1;
+  }
+
   for (short i = 0; i < samples_per_frame; i++) {
     if (background_fb) {
       GPU_framebuffer_bind(background_fb->GetFrameBuffer());
@@ -957,7 +1066,7 @@ BL_SceneConverter *KX_Scene::GetBlenderSceneConverter()
 void KX_Scene::ConvertBlenderObject(blender::Object *ob)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  e_PhysicsEngine physics_engine = UseBullet;
+  e_PhysicsEngine physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   blender::bContext *C = engine->GetContext();
@@ -979,7 +1088,7 @@ void KX_Scene::ConvertBlenderObject(blender::Object *ob)
 void KX_Scene::convert_blender_objects_list_synchronous(std::vector<blender::Object *> objectslist)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  e_PhysicsEngine physics_engine = UseBullet;
+  e_PhysicsEngine physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   blender::bContext *C = engine->GetContext();
@@ -1042,7 +1151,7 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<blender::Object *> objectsl
      * game engine can keep running at full speed. */
     ConvertBlenderObjectsListTaskData task;
     task.engine = KX_GetActiveEngine();
-    task.physics_engine = UseBullet;
+    task.physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
     task.kxscene = this;
     task.converter = m_sceneConverter;
     task.rasty = task.engine->GetRasterizer();
@@ -1081,7 +1190,7 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<blender::Object *> objectsl
 void KX_Scene::convert_blender_collection_synchronous(blender::Collection *co)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  e_PhysicsEngine physics_engine = UseBullet;
+  e_PhysicsEngine physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   blender::bContext *C = engine->GetContext();
@@ -1148,7 +1257,7 @@ void KX_Scene::ConvertBlenderCollection(blender::Collection *co, bool asynchrono
     ConvertBlenderCollectionTaskData task;
 
     task.engine = KX_GetActiveEngine();
-    task.physics_engine = UseBullet;
+    task.physics_engine = static_cast<e_PhysicsEngine>(GetBlenderScene()->gm.physicsEngine);
     task.co = co;
     task.kxscene = this;
     task.converter = m_sceneConverter;
@@ -1227,6 +1336,12 @@ void KX_Scene::RestoreVisibilityFlag()
 void KX_Scene::TagForCollectionRemap()
 {
   m_collectionRemap = true;
+  m_relationsUpdatePending = true;
+}
+
+void KX_Scene::TagForRelationsUpdate()
+{
+  m_relationsUpdatePending = true;
 }
 
 KX_GameObject *KX_Scene::GetGameObjectFromObject(blender::Object *ob)
@@ -1478,6 +1593,12 @@ KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
       }
 
       replica->GetSGNode()->UpdateWorldData(0);
+
+      // Sync physics body to the updated transform.
+      // This is needed for Jolt which creates bodies with fixed positions at creation time.
+      if (replica->GetPhysicsController()) {
+        replica->GetPhysicsController()->SetTransform();
+      }
 
       return replica;
     }
@@ -1921,6 +2042,12 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     // update scenegraph for entire tree of children
     replica->GetSGNode()->UpdateWorldData(0);
 
+    // Sync physics body to the updated transform.
+    // This is needed for Jolt which creates bodies with fixed positions at creation time.
+    if (replica->GetPhysicsController()) {
+      replica->GetPhysicsController()->SetTransform();
+    }
+
     remap_parents_recursive(replica);
 
     // done with replica
@@ -1946,6 +2073,13 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     ReplicateLogic(gameobj);
   }
 
+  // Build lookup map for fast name resolution during constraint replication.
+  std::unordered_map<std::string, KX_GameObject *> hierarchyLookup;
+  hierarchyLookup.reserve(m_logicHierarchicalGameObjects.size());
+  for (KX_GameObject *obj : m_logicHierarchicalGameObjects) {
+    hierarchyLookup.emplace(obj->GetName(), obj);
+  }
+
   // now look if object in the hierarchy have dupli group and recurse
   for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
     /* Replicate all constraints. */
@@ -1953,6 +2087,11 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       gameobj->GetPhysicsController()->ReplicateConstraints(gameobj,
                                                             m_logicHierarchicalGameObjects);
       gameobj->ClearConstraints();
+    }
+
+    if (gameobj->HasRigidBodyConstraints()) {
+      gameobj->ReplicateRigidBodyConstraints(hierarchyLookup);
+      // Don't clear - keep constraint IDs for cleanup when object is deleted
     }
 
     if (gameobj != groupobj && gameobj->IsDupliGroup())
@@ -2040,6 +2179,15 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
   }
 
   replica->GetSGNode()->UpdateWorldData(0);
+
+  // Sync physics bodies to the updated transforms.
+  // This is needed for Jolt which creates bodies with fixed positions at creation time,
+  // unlike Bullet which uses a motion state callback system.
+  for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+    if (gameobj->GetPhysicsController()) {
+      gameobj->GetPhysicsController()->SetTransform();
+    }
+  }
 
   // now replicate logic
   for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
@@ -2677,6 +2825,21 @@ bool KX_Scene::MergeScene(KX_Scene *other)
       // Replicate all constraints in the right physics environment.
       gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, physicsObjects);
       gameobj->ClearConstraints();
+    }
+
+    // Build lookup map for fast name resolution during rigid body constraint replication.
+    std::unordered_map<std::string, KX_GameObject *> objectLookup;
+    objectLookup.reserve(otherObjects->GetCount());
+    for (KX_GameObject *gameobj : *otherObjects) {
+      objectLookup.emplace(gameobj->GetName(), gameobj);
+    }
+
+    for (KX_GameObject *gameobj : *otherObjects) {
+      if (!gameobj->HasRigidBodyConstraints()) {
+        continue;
+      }
+      gameobj->ReplicateRigidBodyConstraints(objectLookup);
+      // Don't clear - keep constraint IDs for cleanup when object is deleted
     }
   }
 

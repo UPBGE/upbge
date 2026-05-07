@@ -51,6 +51,12 @@
 
 #include "BL_DataConversion.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <optional>
+#include <vector>
+
 #include <fmt/format.h>
 
 /* This little block needed for linking to Blender... */
@@ -62,18 +68,28 @@
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh" /* give_current_material */
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_tangent.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
+#include "BLI_math_matrix.h"
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_python_proxy_types.h"
+#include "DNA_rigidbody_types.h"
 #include "wm_event_types.hh"
 
 /* end of blender include block */
@@ -97,6 +113,10 @@
 #include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PythonComponent.h"
+#include "CM_Message.h"
+#include "MT_Transform.h"
+#include "PHY_IConstraint.h"
+#include "PHY_IVehicle.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
 #ifdef WITH_BULLET
@@ -352,14 +372,16 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                RAS_Rasterizer *rasty,
                                BL_SceneConverter *converter,
                                bool libloading,
-                               bool converting_during_runtime)
+                               bool converting_during_runtime,
+                               bool owns_mesh)
 {
   RAS_MeshObject *meshobj;
   int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) - 1;  // all layers if no object.
 
   // Without checking names, we get some reuse we don't want that can cause
   // problems with material LoDs.
-  if (blenderobj && ((meshobj = converter->FindGameMesh(mesh /*, ob->lay*/)) != nullptr)) {
+  if (!owns_mesh && blenderobj &&
+      ((meshobj = converter->FindGameMesh(mesh /*, ob->lay*/)) != nullptr)) {
     const std::string bge_name = meshobj->GetName();
     const std::string blender_name = ((blender::ID *)blenderobj->data)->name + 2;
     if (bge_name == blender_name) {
@@ -368,10 +390,19 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   }
 
   // Get blender::Mesh data
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
-  blender::Mesh *final_me = (blender::Mesh *)ob_eval->data;
+  blender::Object *ob_eval = nullptr;
+  blender::Mesh *final_me = mesh;
+  if (blenderobj && !owns_mesh) {
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
+    if (ob_eval && blenderobj->type == OB_MESH) {
+      final_me = (blender::Mesh *)ob_eval->data;
+    }
+  }
+  if (!final_me) {
+    return nullptr;
+  }
 
   const blender::Span<blender::float3> positions = final_me->vert_positions();
   const int totverts = final_me->verts_num;
@@ -427,7 +458,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                           {uv_map});
   }
 
-  meshobj = new RAS_MeshObject(mesh, final_me->verts_num, blenderobj, layersInfo);
+  meshobj = new RAS_MeshObject(mesh, final_me->verts_num, blenderobj, layersInfo, owns_mesh);
   meshobj->m_sharedvertex_map.resize(totverts);
 
   // Initialize vertex format with used uv and color layers.
@@ -450,7 +481,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // Convert all the materials contained in the mesh.
   for (unsigned short i = 0; i < totmat; ++i) {
     blender::Material *ma = nullptr;
-    if (blenderobj) {
+    if (blenderobj && ob_eval) {
       ma = BKE_object_material_get(ob_eval, i + 1);
     }
     else {
@@ -553,6 +584,126 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   return meshobj;
 }
 
+static blender::Mesh *BL_CreateCollisionMeshFromCurve(blender::Object *ob)
+{
+  if (ob->type != OB_CURVES_LEGACY || !(ob->gameflag & OB_COLLISION)) {
+    return nullptr;
+  }
+
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+  if (!ob_eval) {
+    return nullptr;
+  }
+
+  return BKE_mesh_new_from_object(depsgraph, ob_eval, false, false, true);
+}
+
+struct BL_SubsurfLevelOverride {
+  blender::SubsurfModifierData *modifier;
+  short levels;
+};
+
+static bool BL_ShouldUseSoftBodyRenderSubsurfVisuals(blender::Object *ob)
+{
+  if (!ob || ob->type != OB_MESH || !(ob->gameflag & OB_SOFT_BODY)) {
+    return false;
+  }
+
+  bool has_render_only_subsurf = false;
+  for (blender::ModifierData *md = (blender::ModifierData *)ob->modifiers.first; md;
+       md = md->next) {
+    if (!(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    if (md->type != eModifierType_Subsurf) {
+      const blender::ModifierTypeInfo *mti = BKE_modifier_get_info(
+          blender::ModifierType(md->type));
+      if (mti && mti->type != blender::ModifierTypeType::OnlyDeform &&
+          mti->type != blender::ModifierTypeType::NonGeometrical && !has_render_only_subsurf) {
+        return false;
+      }
+      continue;
+    }
+
+    blender::SubsurfModifierData *smd = (blender::SubsurfModifierData *)md;
+    if (smd->levels > 0) {
+      return false;
+    }
+    if (smd->renderLevels > smd->levels) {
+      has_render_only_subsurf = true;
+    }
+  }
+
+  return has_render_only_subsurf;
+}
+
+static void BL_ApplySoftBodyRenderSubsurfLevels(
+    blender::Object *ob, std::vector<BL_SubsurfLevelOverride> &overrides)
+{
+  overrides.clear();
+  if (!BL_ShouldUseSoftBodyRenderSubsurfVisuals(ob)) {
+    return;
+  }
+
+  for (blender::ModifierData *md = (blender::ModifierData *)ob->modifiers.first; md;
+       md = md->next) {
+    if (md->type != eModifierType_Subsurf || !(md->mode & eModifierMode_Realtime)) {
+      continue;
+    }
+
+    blender::SubsurfModifierData *smd = (blender::SubsurfModifierData *)md;
+    if (smd->renderLevels > smd->levels) {
+      overrides.push_back({smd, smd->levels});
+      smd->levels = smd->renderLevels;
+    }
+  }
+}
+
+static void BL_RestoreSoftBodyRenderSubsurfLevels(
+    blender::Object *ob, std::vector<BL_SubsurfLevelOverride> &overrides)
+{
+  if (overrides.empty()) {
+    return;
+  }
+
+  for (const BL_SubsurfLevelOverride &item : overrides) {
+    item.modifier->levels = item.levels;
+  }
+  overrides.clear();
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+}
+
+static blender::Mesh *BL_CreateSoftBodyRenderMesh(blender::Object *ob)
+{
+  std::vector<BL_SubsurfLevelOverride> overrides;
+  BL_ApplySoftBodyRenderSubsurfLevels(ob, overrides);
+  if (overrides.empty()) {
+    return nullptr;
+  }
+
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
+  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+  blender::Mesh *mesh = nullptr;
+  if (ob_eval) {
+    mesh = BKE_mesh_new_from_object(depsgraph, ob_eval, false, false, true);
+  }
+
+  BL_RestoreSoftBodyRenderSubsurfLevels(ob, overrides);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  return mesh;
+}
+
 //////////////////////////////////////////////////////
 static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                       blender::Object *blenderobject,
@@ -565,6 +716,15 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
 {
   // blender::Object has physics representation?
   if (!(blenderobject->gameflag & OB_COLLISION)) {
+    return;
+  }
+
+  /* Wheel-type vehicle objects are visual only; their transforms are driven by
+   * the vehicle constraint on the chassis. Do not create independent rigid bodies.
+   * Applies to both regular vehicle wheels and motorcycle wheels. */
+  if ((blenderobject->gameflag2 & OB_HAS_VEHICLE) && blenderobject->vehicle &&
+      (blenderobject->vehicle->vehicle_type == OB_VEHICLE_TYPE_WHEEL ||
+       blenderobject->vehicle->vehicle_type == OB_VEHICLE_TYPE_MOTORCYCLE_WHEEL)) {
     return;
   }
 
@@ -616,6 +776,400 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                                                KX_ClientObjectInfo::OBSENSOR) :
                                      (isActor)  ? KX_ClientObjectInfo::ACTOR :
                                                   KX_ClientObjectInfo::STATIC;
+}
+
+static int BL_vehicle_axis_to_index(short axis)
+{
+  return std::clamp<int>(axis, OB_POSX, OB_NEGZ);
+}
+
+static MT_Vector3 BL_vehicle_axis_vector(short axis)
+{
+  switch (BL_vehicle_axis_to_index(axis)) {
+    case OB_POSX:
+      return MT_Vector3(1.0f, 0.0f, 0.0f);
+    case OB_POSY:
+      return MT_Vector3(0.0f, 1.0f, 0.0f);
+    case OB_POSZ:
+      return MT_Vector3(0.0f, 0.0f, 1.0f);
+    case OB_NEGX:
+      return MT_Vector3(-1.0f, 0.0f, 0.0f);
+    case OB_NEGY:
+      return MT_Vector3(0.0f, -1.0f, 0.0f);
+    case OB_NEGZ:
+      return MT_Vector3(0.0f, 0.0f, -1.0f);
+    default:
+      return MT_Vector3(1.0f, 0.0f, 0.0f);
+  }
+}
+
+static int BL_vehicle_vector_to_axis(const MT_Vector3 &axis)
+{
+  const float ax = std::abs(axis.x());
+  const float ay = std::abs(axis.y());
+  const float az = std::abs(axis.z());
+
+  if (ax >= ay && ax >= az) {
+    return axis.x() >= 0.0f ? OB_POSX : OB_NEGX;
+  }
+  if (ay >= ax && ay >= az) {
+    return axis.y() >= 0.0f ? OB_POSY : OB_NEGY;
+  }
+  return axis.z() >= 0.0f ? OB_POSZ : OB_NEGZ;
+}
+
+static int BL_vehicle_right_axis(short up_axis, short forward_axis)
+{
+  const MT_Vector3 up = BL_vehicle_axis_vector(up_axis);
+  const MT_Vector3 forward = BL_vehicle_axis_vector(forward_axis);
+  const MT_Vector3 right = forward.cross(up);
+
+  if (right.length2() < 1.0e-6f) {
+    return OB_POSX;
+  }
+  return BL_vehicle_vector_to_axis(right);
+}
+
+static void BL_vehicle_derive_wheel_frame(KX_GameObject *chassis_obj,
+                                         KX_GameObject *wheel_obj,
+                                         MT_Vector3 &connection_point,
+                                         MT_Vector3 &down_direction,
+                                         MT_Vector3 &axle_direction)
+{
+  const MT_Vector3 chassis_pos = chassis_obj->NodeGetWorldPosition();
+  const MT_Matrix3x3 chassis_inv = chassis_obj->NodeGetWorldOrientation().inverse();
+  const MT_Matrix3x3 wheel_ori = wheel_obj->NodeGetWorldOrientation();
+
+  connection_point = chassis_inv * (wheel_obj->NodeGetWorldPosition() - chassis_pos);
+  down_direction = (chassis_inv * (wheel_ori * MT_Vector3(0.0f, 0.0f, -1.0f))).safe_normalized();
+  axle_direction = (chassis_inv * (wheel_ori * MT_Vector3(1.0f, 0.0f, 0.0f))).safe_normalized();
+}
+
+struct BL_AutoWheelDimensions {
+  float radius;
+  float width;
+  bool valid;
+};
+
+static BL_AutoWheelDimensions BL_vehicle_auto_wheel_dimensions(
+    KX_GameObject *chassis_obj,
+    KX_GameObject *wheel_obj,
+    blender::Object *wheel_blender_obj,
+    const MT_Vector3 &axle_direction,
+    const MT_Vector3 &down_direction)
+{
+  BL_AutoWheelDimensions dimensions = {0.0f, 0.0f, false};
+  if (!wheel_blender_obj) {
+    return dimensions;
+  }
+
+  std::optional<Bounds<float3>> bl_bounds = BKE_object_boundbox_eval_cached_get(wheel_blender_obj);
+  if (!bl_bounds) {
+    bl_bounds = BKE_object_boundbox_get(wheel_blender_obj);
+  }
+  if (!bl_bounds) {
+    return dimensions;
+  }
+
+  const std::array<float3, 8> corners = bounds::corners(*bl_bounds);
+  const MT_Vector3 axle_world =
+      (chassis_obj->NodeGetWorldOrientation() * axle_direction).safe_normalized();
+  MT_Vector3 radial_axis_a =
+      (chassis_obj->NodeGetWorldOrientation() * down_direction).safe_normalized();
+  if (axle_world.length2() < 1.0e-6f) {
+    return dimensions;
+  }
+  radial_axis_a = (radial_axis_a - axle_world * radial_axis_a.dot(axle_world)).safe_normalized();
+  if (radial_axis_a.length2() < 1.0e-6f) {
+    const MT_Vector3 fallback = std::abs(axle_world.x()) < 0.9f ? MT_Vector3(1.0f, 0.0f, 0.0f) :
+                                                                 MT_Vector3(0.0f, 1.0f, 0.0f);
+    radial_axis_a = axle_world.cross(fallback).safe_normalized();
+  }
+  const MT_Vector3 radial_axis_b = axle_world.cross(radial_axis_a).safe_normalized();
+
+  const MT_Matrix3x3 wheel_ori = wheel_obj->NodeGetWorldOrientation();
+  const MT_Vector3 wheel_scale = wheel_obj->NodeGetWorldScaling();
+  bool is_first = true;
+  float min_axle_projection = 0.0f;
+  float max_axle_projection = 0.0f;
+  float max_radial_extent_a = 0.0f;
+  float max_radial_extent_b = 0.0f;
+
+  for (const float3 &corner : corners) {
+    const MT_Vector3 scaled_corner(corner[0] * wheel_scale.x(),
+                                   corner[1] * wheel_scale.y(),
+                                   corner[2] * wheel_scale.z());
+    const MT_Vector3 offset = wheel_ori * scaled_corner;
+    const float axle_projection = offset.dot(axle_world);
+
+    if (is_first) {
+      min_axle_projection = axle_projection;
+      max_axle_projection = axle_projection;
+      is_first = false;
+    }
+    else {
+      min_axle_projection = std::min(min_axle_projection, axle_projection);
+      max_axle_projection = std::max(max_axle_projection, axle_projection);
+    }
+
+    max_radial_extent_a = std::max(max_radial_extent_a, std::abs(offset.dot(radial_axis_a)));
+    max_radial_extent_b = std::max(max_radial_extent_b, std::abs(offset.dot(radial_axis_b)));
+  }
+
+  dimensions.width = std::max(0.0f, max_axle_projection - min_axle_projection);
+  dimensions.radius = std::max(max_radial_extent_a, max_radial_extent_b);
+  dimensions.valid = dimensions.width > 1.0e-6f || dimensions.radius > 1.0e-6f;
+  return dimensions;
+}
+
+static float BL_vehicle_auto_wheel_radius_fallback(KX_GameObject *wheel_obj,
+                                                   const MT_Vector3 &axle_direction)
+{
+  const MT_Vector3 scale = wheel_obj->NodeGetWorldScaling();
+  const float axle_x = std::abs(axle_direction.x());
+  const float axle_y = std::abs(axle_direction.y());
+  const float axle_z = std::abs(axle_direction.z());
+
+  if (axle_x >= axle_y && axle_x >= axle_z) {
+    return 0.5f * std::max(std::abs(scale.y()), std::abs(scale.z()));
+  }
+  if (axle_y >= axle_x && axle_y >= axle_z) {
+    return 0.5f * std::max(std::abs(scale.x()), std::abs(scale.z()));
+  }
+  return 0.5f * std::max(std::abs(scale.x()), std::abs(scale.y()));
+}
+
+static float BL_vehicle_auto_wheel_width_fallback(KX_GameObject *wheel_obj,
+                                                  const MT_Vector3 &axle_direction)
+{
+  const MT_Vector3 scale = wheel_obj->NodeGetWorldScaling();
+  const float axle_x = std::abs(axle_direction.x());
+  const float axle_y = std::abs(axle_direction.y());
+  const float axle_z = std::abs(axle_direction.z());
+
+  if (axle_x >= axle_y && axle_x >= axle_z) {
+    return std::abs(scale.x());
+  }
+  if (axle_y >= axle_x && axle_y >= axle_z) {
+    return std::abs(scale.y());
+  }
+  return std::abs(scale.z());
+}
+
+static void BL_CreateVehicleAuthoringObjects(EXP_ListValue<KX_GameObject> *sumolist,
+                                             KX_Scene *kxscene,
+                                             BL_SceneConverter *converter,
+                                             blender::Object *single_object,
+                                             bool converting_instance_col_at_runtime)
+{
+  PHY_IPhysicsEnvironment *phys_env = kxscene->GetPhysicsEnvironment();
+
+  /* First pass: create vehicles for all chassis objects. */
+  for (KX_GameObject *gameobj : sumolist) {
+    blender::Object *blenderobject = gameobj->GetBlenderObject();
+    if (single_object && !converting_instance_col_at_runtime && blenderobject != single_object) {
+      continue;
+    }
+
+    if (!(blenderobject->gameflag2 & OB_HAS_VEHICLE) || !blenderobject->vehicle) {
+      continue;
+    }
+
+    GameVehicleSettings *vehicle_settings = blenderobject->vehicle;
+    if (vehicle_settings->vehicle_type != OB_VEHICLE_TYPE_CHASSIS &&
+        vehicle_settings->vehicle_type != OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS) {
+      continue;
+    }
+    const bool is_motorcycle =
+        (vehicle_settings->vehicle_type == OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS);
+
+    PHY_IPhysicsController *chassis_ctrl = gameobj->GetPhysicsController();
+    if (!chassis_ctrl || !gameobj->GetSGNode()) {
+      continue;
+    }
+
+    PHY_IVehicle *vehicle = phys_env->CreateVehicle(chassis_ctrl);
+    if (!vehicle) {
+      continue;
+    }
+
+    /* Must be set BEFORE wheels are added because the controller kind
+     * (WheeledVehicle vs Motorcycle) is baked into the VehicleConstraint at
+     * build time. */
+    vehicle->SetMotorcycleMode(is_motorcycle);
+    if (is_motorcycle) {
+      vehicle->SetMotorcycleLean(vehicle_settings->mc_max_lean_angle,
+                                 vehicle_settings->mc_lean_spring_constant,
+                                 vehicle_settings->mc_lean_spring_damping,
+                                 vehicle_settings->mc_lean_spring_integration_coef,
+                                 vehicle_settings->mc_lean_spring_integration_decay,
+                                 vehicle_settings->mc_lean_smoothing_factor);
+      vehicle->SetMotorcycleLeanFlags(
+          (vehicle_settings->flags & OB_VEHICLE_MC_LEAN_CONTROLLER) != 0,
+          (vehicle_settings->flags & OB_VEHICLE_MC_LEAN_STEERING_LIMIT) != 0);
+        vehicle->SetMotorcycleSuspensionForcePointOverride(
+          (vehicle_settings->flags & OB_VEHICLE_MC_FRONT_FORCE_POINT) != 0,
+          (vehicle_settings->flags & OB_VEHICLE_MC_REAR_FORCE_POINT) != 0);
+    }
+
+    /* Chassis-level ray_mask is not used by Jolt: each wheel has its own
+     * ray mask that drives the per-wheel collision tester.  Skip setting
+     * the chassis mask so it cannot silently affect behavior. */
+    vehicle->SetCoordinateSystem(BL_vehicle_right_axis(vehicle_settings->up_axis,
+                                                       vehicle_settings->forward_axis),
+                                 BL_vehicle_axis_to_index(vehicle_settings->up_axis),
+                                 BL_vehicle_axis_to_index(vehicle_settings->forward_axis));
+    vehicle->SetMaxPitchRollAngle(vehicle_settings->max_pitch_roll_angle);
+    vehicle->SetSolverIterations(vehicle_settings->solver_iterations);
+    vehicle->SetWheelDefaults(
+        0.0f, vehicle_settings->wheel_inertia, vehicle_settings->wheel_angular_damping);
+    vehicle->SetDrivetrain(vehicle_settings->handbrake_torque,
+                           vehicle_settings->engine_torque,
+                           vehicle_settings->differential_ratio,
+                           vehicle_settings->limited_slip_ratio);
+    vehicle->SetSimpleDriveMode(true);
+    /* For motorcycles the car-style linear high-speed steering reduction is
+     * redundant with (and weaker than) Jolt's physics-correct Lean Steering
+     * Limit. Force it to 0 so old blend files with non-zero values cannot
+     * silently double-dip when the lean limit is disabled. */
+    const float effective_high_speed_steering_reduction =
+        is_motorcycle ? 0.0f : vehicle_settings->high_speed_steering_reduction;
+    vehicle->SetSimpleDriveSteering(vehicle_settings->steering_speed,
+                    effective_high_speed_steering_reduction);
+    vehicle->SetAntiRoll(vehicle_settings->anti_roll_front, vehicle_settings->anti_roll_rear);
+    vehicle->SetMaxBrakeTorque(vehicle_settings->brake);
+    /* Roll influence offsets the per-wheel suspension force point along the
+     * suspension axis to create a suspension-geometry roll couple on 4+
+     * wheel cars. On a two-wheeler the two force points sit on the bike's
+     * forward axis, so any such offset produces only a pitch couple and
+     * fights the Jolt MotorcycleController lean spring. Force it off for
+     * motorcycle chassis on both new and legacy blend files. */
+    const float chassis_roll_influence = is_motorcycle ?
+                                             0.0f :
+                                             vehicle_settings->chassis_roll_influence;
+
+    /* Second pass: find all wheel objects that reference this chassis. */
+    for (KX_GameObject *wheel_gameobj : sumolist) {
+      blender::Object *wheel_blobj = wheel_gameobj->GetBlenderObject();
+      if (!(wheel_blobj->gameflag2 & OB_HAS_VEHICLE) || !wheel_blobj->vehicle) {
+        continue;
+      }
+
+      GameVehicleSettings *ws = wheel_blobj->vehicle;
+      /* A motorcycle chassis only accepts motorcycle wheels and a regular
+       * vehicle chassis only accepts regular wheels. This matches the split
+       * in the UI and prevents accidentally linking the wrong wheel type. */
+      const int expected_wheel_type = is_motorcycle ? OB_VEHICLE_TYPE_MOTORCYCLE_WHEEL :
+                                                      OB_VEHICLE_TYPE_WHEEL;
+      if (ws->vehicle_type != expected_wheel_type) {
+        continue;
+      }
+      if (ws->chassis_object != blenderobject) {
+        continue;
+      }
+      if (!wheel_gameobj->GetSGNode()) {
+        continue;
+      }
+
+      MT_Vector3 connection_point = MT_Vector3(ws->connection_point);
+      MT_Vector3 down_direction = MT_Vector3(ws->down_direction).safe_normalized();
+      MT_Vector3 axle_direction = MT_Vector3(ws->axle_direction).safe_normalized();
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM) {
+        BL_vehicle_derive_wheel_frame(
+            gameobj, wheel_gameobj, connection_point, down_direction, axle_direction);
+      }
+
+      const BL_AutoWheelDimensions auto_dimensions = BL_vehicle_auto_wheel_dimensions(
+          gameobj, wheel_gameobj, wheel_blobj, axle_direction, down_direction);
+
+      float wheel_radius = ws->wheel_radius;
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_RADIUS) {
+        wheel_radius = auto_dimensions.valid && auto_dimensions.radius > 1.0e-6f ?
+                           auto_dimensions.radius :
+                           BL_vehicle_auto_wheel_radius_fallback(wheel_gameobj, axle_direction);
+      }
+      wheel_radius = std::max(wheel_radius, 0.01f);
+
+      /* Jolt always treats the parked wheel center as one wheel radius below the
+       * suspension hardpoint. When the wheel frame is derived from the wheel
+       * object transform, that transform authors the parked wheel center, so
+       * move the hardpoint one radius upward. Manual connection points already
+       * author the hardpoint directly. */
+      const float wheel_rest_length = wheel_radius;
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_OBJECT_TRANSFORM) {
+        connection_point -= down_direction * wheel_radius;
+      }
+
+      /* Only honour the visible "Use As Steering" flag.  The legacy
+       * Bullet-only OVERRIDE_STEERING flag is hidden in the Jolt UI
+       * and must not leak into Jolt steering behaviour. */
+      const bool has_steering = (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_STEERING) != 0;
+      float suspension_travel = ws->suspension_travel;
+
+      vehicle->AddWheel(new KX_MotionState(wheel_gameobj->GetSGNode()),
+                        connection_point,
+                        down_direction,
+                        axle_direction,
+                        wheel_rest_length,
+                        wheel_radius,
+                        has_steering);
+
+      const int wheel_index = vehicle->GetNumWheels() - 1;
+      const bool use_traction = (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_TRACTION) != 0;
+      const bool use_brake = (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_BRAKE) != 0;
+      /* Do not use the hidden chassis engine_force (a Bullet-era value).
+       * Jolt derives drive force from the visible engine_torque and
+       * drivetrain settings instead. */
+      const float w_engine_force = 0.0f;
+      const float w_brake = use_brake ? ws->wheel_brake : 0.0f;
+      const float w_steering = has_steering ? ws->wheel_steering : 0.0f;
+      vehicle->SetWheelCollisionMode(ws->collision_mode, wheel_index);
+      vehicle->SetWheelRayCastMask(short(ws->wheel_ray_mask), wheel_index);
+      vehicle->SetWheelUseTraction(wheel_index, use_traction);
+      vehicle->SetWheelMaxEngineForce(w_engine_force, wheel_index);
+      vehicle->SetWheelMaxBrakeTorque(w_brake, wheel_index);
+      vehicle->SetWheelMaxSteerAngle(w_steering, wheel_index);
+      float wheel_width = std::max(0.0f, ws->wheel_width);
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_WIDTH) {
+        wheel_width = auto_dimensions.valid && auto_dimensions.width > 1.0e-6f ?
+                          auto_dimensions.width :
+                          BL_vehicle_auto_wheel_width_fallback(wheel_gameobj, axle_direction);
+      }
+      vehicle->SetWheelWidth(wheel_width, wheel_index);
+      vehicle->SetWheelFriction(ws->wheel_friction_slip, wheel_index);
+      if ((ws->wheel_flags & OB_VEHICLE_WHEEL_COMBINE_FRICTION_AXES) == 0) {
+        vehicle->SetWheelLongitudinalFriction(ws->wheel_longitudinal_friction, wheel_index);
+        vehicle->SetWheelLateralFriction(ws->wheel_lateral_friction, wheel_index);
+      }
+      vehicle->SetSuspensionStiffness(ws->suspension_stiffness, wheel_index);
+      vehicle->SetSuspensionDamping(ws->damping_relaxation, wheel_index);
+      vehicle->SetSuspensionCompression(ws->damping_compression, wheel_index);
+      vehicle->SetRollInfluence(chassis_roll_influence, wheel_index);
+      vehicle->SetSuspensionTravel(suspension_travel, wheel_index);
+      vehicle->SetWheelUseHandBrake(
+          wheel_index, (ws->wheel_flags & OB_VEHICLE_WHEEL_USE_HANDBRAKE) != 0);
+      if (ws->wheel_flags & OB_VEHICLE_WHEEL_AUTO_INERTIA) {
+        /* Approximate wheel mass as 3% of chassis mass (realistic for car
+         * tire + rim) and compute the rotational inertia of a solid cylinder:
+         *   I = 0.5 * M_wheel * R^2
+         * For a 700 kg chassis with 0.3 m radius this gives ~0.945 kg m^2,
+         * close to Jolt's 0.9 default. */
+        const float chassis_mass = std::max(1.0f, float(chassis_ctrl->GetMass()));
+        const float wheel_mass = chassis_mass * 0.03f;
+        const float auto_inertia = std::max(0.01f, 0.5f * wheel_mass * wheel_radius * wheel_radius);
+        vehicle->SetWheelInertia(auto_inertia, wheel_index);
+      }
+      else {
+        vehicle->SetWheelInertia(ws->wheel_inertia, wheel_index);
+      }
+      vehicle->SetWheelAngularDamping(ws->wheel_angular_damping, wheel_index);
+      vehicle->SetWheelHandBrakeTorque(vehicle_settings->handbrake_torque, wheel_index);
+    }
+
+    if (vehicle->GetNumWheels() == 0) {
+      phys_env->RemoveConstraintById(vehicle->GetUserConstraintId(), true);
+    }
+  }
 }
 
 static KX_LodManager *BL_lodmanager_from_blenderobject(blender::Object *ob,
@@ -741,6 +1295,68 @@ static KX_GameObject *BL_gameobject_from_customobject(blender::Object *ob,
 }
 #endif
 
+static KX_GameObject *BL_gameobject_from_mesh_object(blender::Object *ob,
+                                                     blender::Mesh *mesh,
+                                                     bool owns_mesh,
+                                                     KX_Scene *kxscene,
+                                                     RAS_Rasterizer *rasty,
+                                                     BL_SceneConverter *converter,
+                                                     bool libloading,
+                                                     bool converting_during_runtime)
+{
+  RAS_MeshObject *meshobj = BL_ConvertMesh(
+      mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime, owns_mesh);
+  if (!meshobj) {
+    if (owns_mesh) {
+      BKE_id_free(nullptr, mesh);
+    }
+    return nullptr;
+  }
+
+  kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
+
+  KX_GameObject *gameobj = nullptr;
+  if (ob->gameflag & OB_NAVMESH) {
+#ifdef WITH_PYTHON
+    gameobj = BL_gameobject_from_customobject(ob, &KX_NavMeshObject::Type, kxscene);
+#endif
+    if (!gameobj) {
+      gameobj = new KX_NavMeshObject();
+    }
+
+    gameobj->AddMesh(meshobj);
+    return gameobj;
+  }
+
+#ifdef WITH_PYTHON
+  gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
+#endif
+  if (!gameobj) {
+    gameobj = new KX_EmptyObject();
+  }
+
+  gameobj->AddMesh(meshobj);
+
+  KX_LodManager *lodManager = owns_mesh ? nullptr : BL_lodmanager_from_blenderobject(
+                                                  ob,
+                                                  kxscene,
+                                                  rasty,
+                                                  converter,
+                                                  libloading,
+                                                  converting_during_runtime);
+  gameobj->SetLodManager(lodManager);
+  if (lodManager) {
+    lodManager->Release();
+    kxscene->AddObjToLodObjList(gameobj);
+  }
+  else {
+    kxscene->RemoveObjFromLodObjList(gameobj);
+  }
+
+  gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+  return gameobj;
+}
+
 static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
@@ -794,50 +1410,13 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     }
 
     case OB_MESH: {
-      blender::Mesh *mesh = id_cast<blender::Mesh *>(ob->data);
-      RAS_MeshObject *meshobj = BL_ConvertMesh(
-          mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime);
-
-      // needed for python scripting
-      kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
-
-      if (ob->gameflag & OB_NAVMESH) {
-#ifdef WITH_PYTHON
-        gameobj = BL_gameobject_from_customobject(ob, &KX_NavMeshObject::Type, kxscene);
-#endif
-        if (!gameobj) {
-          gameobj = new KX_NavMeshObject();
-        }
-
-        gameobj->AddMesh(meshobj);
-        break;
+      blender::Mesh *mesh = BL_CreateSoftBodyRenderMesh(ob);
+      const bool owns_mesh = mesh != nullptr;
+      if (!mesh) {
+        mesh = id_cast<blender::Mesh *>(ob->data);
       }
-      else {
-#ifdef WITH_PYTHON
-        gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
-#endif
-        if (!gameobj) {
-          gameobj = new KX_EmptyObject();
-        }
-      }
-
-      // set transformation
-      gameobj->AddMesh(meshobj);
-
-      // gather levels of detail
-      KX_LodManager *lodManager = BL_lodmanager_from_blenderobject(
-          ob, kxscene, rasty, converter, libloading, converting_during_runtime);
-      gameobj->SetLodManager(lodManager);
-      if (lodManager) {
-        lodManager->Release();
-        kxscene->AddObjToLodObjList(gameobj);
-      }
-      else {
-        /* Just in case */
-        kxscene->RemoveObjFromLodObjList(gameobj);
-      }
-
-      gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+      gameobj = BL_gameobject_from_mesh_object(
+          ob, mesh, owns_mesh, kxscene, rasty, converter, libloading, converting_during_runtime);
       break;
     }
 
@@ -880,7 +1459,6 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     case OB_SURF:
     case OB_GREASE_PENCIL:
     case OB_GPENCIL_LEGACY:
-    case OB_CURVES_LEGACY:
     case OB_POINTCLOUD:
     case OB_LATTICE:
     case OB_VOLUME:
@@ -896,6 +1474,28 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
       // set transformation
       break;
     }
+
+#ifdef THREADED_DAG_WORKAROUND
+    case OB_CURVES_LEGACY: {
+      if (blender::Mesh *mesh = BL_CreateCollisionMeshFromCurve(ob)) {
+        gameobj = BL_gameobject_from_mesh_object(
+            ob, mesh, true, kxscene, rasty, converter, libloading, converting_during_runtime);
+        if (gameobj) {
+          break;
+        }
+      }
+
+#ifdef WITH_PYTHON
+      gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
+#endif
+
+      if (!gameobj) {
+        gameobj = new KX_EmptyObject();
+      }
+      // set transformation
+      break;
+    }
+#endif
     default:
       break;
   }
@@ -1053,10 +1653,46 @@ static bool is_lod_level(std::vector<blender::Object *> lod_objs, blender::Objec
   return std::find(lod_objs.begin(), lod_objs.end(), blenderobject) != lod_objs.end();
 }
 
+static void bl_parent_inverse_matrix_from_blender_object(blender::Depsgraph *depsgraph,
+                                                         blender::Scene *scene,
+                                                         blender::Object *blenderobject,
+                                                         float r_parentinv[4][4])
+{
+  copy_m4_m4(r_parentinv, blenderobject->parentinv);
+
+  blender::Object *parent = blenderobject->parent;
+  if (!depsgraph || !scene || !parent || parent->type != OB_CURVES_LEGACY ||
+      (blenderobject->partype & PARTYPE) != PAROBJECT) {
+    return;
+  }
+
+  blender::Curve *curve = id_cast<blender::Curve *>(parent->data);
+  if (!curve || !(curve->flag & CU_PATH)) {
+    return;
+  }
+
+  blender::Object *parent_eval = DEG_get_evaluated(depsgraph, parent);
+  if (!parent_eval) {
+    return;
+  }
+
+  float parent_world_inv[4][4];
+  if (!invert_m4_m4(parent_world_inv, parent_eval->object_to_world().ptr())) {
+    return;
+  }
+
+  const blender::float4x4 parent_matrix = BKE_object_calc_parent(depsgraph, scene, blenderobject);
+  float curve_parent_offset[4][4];
+  mul_m4_m4m4(curve_parent_offset, parent_world_inv, parent_matrix.ptr());
+  mul_m4_m4m4(r_parentinv, curve_parent_offset, blenderobject->parentinv);
+}
+
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
                                            blender::Object *blenderobject,
+                                           blender::Depsgraph *depsgraph,
+                                           blender::Scene *blenderscene,
                                            std::vector<BL_parentChildLink> &vec_parent_child,
                                            EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
                                            EXP_ListValue<KX_GameObject> *objectlist,
@@ -1109,8 +1745,10 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
     pclink.m_gamechildnode = parentinversenode;
     vec_parent_child.push_back(pclink);
 
-    float *fl = (float *)blenderobject->parentinv;
-    MT_Transform parinvtrans(fl);
+    float parentinv[4][4];
+    bl_parent_inverse_matrix_from_blender_object(depsgraph, blenderscene, blenderobject, parentinv);
+
+    MT_Transform parinvtrans(&parentinv[0][0]);
     parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
     // problem here: the parent inverse transform combines scaling and rotation
     // in the basis but the scenegraph needs separate rotation and scaling.
@@ -1183,6 +1821,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 #define BL_CONVERTBLENDEROBJECT_SINGLE \
   bl_ConvertBlenderObject_Single(converter, \
                                  blenderobject, \
+                                 depsgraph, \
+                                 blenderscene, \
                                  vec_parent_child, \
                                  logicbrick_conversionlist, \
                                  objectlist, \
@@ -1206,6 +1846,13 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   int aspect_height;
   std::set<blender::Collection *> grouplist;  // list of groups to be converted
   std::set<blender::Object *> groupobj;       // objects from groups (never in active layer)
+  std::set<blender::Object *> rigidBodyConstraintObjects;
+
+  auto register_rigidbody_constraint_object = [&](blender::Object *ob) {
+    if (ob && ob->rigidbody_constraint) {
+      rigidBodyConstraintObjects.insert(ob);
+    }
+  };
 
   /* We have to ensure that group definitions are only converted once
    * push all converted group members to this set.
@@ -1330,6 +1977,11 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
                              BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
+    register_rigidbody_constraint_object(blenderobject);
+    if (blenderobject->rigidbody_constraint) {
+      continue;
+    }
+
     kxscene->BackupVisibilityFlag(blenderobject, blenderobject->visibility_flag);
 
     /* Force OB_HIDE_VIEWPORT to avoid not needed depsgraph operations in some cases,
@@ -1387,6 +2039,12 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       for (git = tempglist.begin(); git != tempglist.end(); git++) {
         blender::Collection *group = *git;
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
+          register_rigidbody_constraint_object(blenderobject);
+          if (blenderobject->rigidbody_constraint) {
+            groupobj.insert(blenderobject);
+            continue;
+          }
+
           if (converter->FindGameObject(blenderobject) == nullptr) {
             groupobj.insert(blenderobject);
             KX_GameObject *gameobj = BL_gameobject_from_blenderobject(blenderobject,
@@ -1571,6 +2229,84 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
 
+  if (physics_engine == UseJolt) {
+    BL_CreateVehicleAuthoringObjects(
+        sumolist, kxscene, converter, single_object, converting_instance_col_at_runtime);
+  }
+
+  /* Convert rigid body constraints from Blender helper objects to object1-owned constraints. */
+  for (blender::Object *constraintObject : rigidBodyConstraintObjects) {
+    PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
+    RigidBodyCon *rbc = constraintObject->rigidbody_constraint;
+
+    if (!rbc || !(rbc->flag & RBC_FLAG_ENABLED)) {
+      continue;
+    }
+
+    Object *ob1 = rbc->ob1;
+    Object *ob2 = rbc->ob2;
+
+    if (!ob1 && !ob2) {
+      continue;
+    }
+
+    /* If ob1 is null (world), swap so ob1 is the dynamic body and ob2 is world (null). */
+    if (!ob1) {
+      std::swap(ob1, ob2);
+    }
+
+    KX_GameObject *gameobj1 = (KX_GameObject *)sumolist->FindValue(ob1->id.name + 2);
+    KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) : nullptr;
+
+    if (!gameobj1 || (ob2 && !gameobj2)) {
+      continue;
+    }
+
+    /* Use BKE_object_to_mat4() to get object matrices from local transform properties
+     * (loc, rot, scale) without depsgraph evaluation. This works for hidden objects. */
+    float constraintMatrix[4][4];
+    float object1Matrix[4][4];
+    BKE_object_to_mat4(constraintObject, constraintMatrix);
+    BKE_object_to_mat4(ob1, object1Matrix);
+
+    const MT_Transform constraintWorld(&constraintMatrix[0][0]);
+    const MT_Transform object1World(&object1Matrix[0][0]);
+    MT_Transform object1Inv;
+    object1Inv.invert(object1World);
+
+    const MT_Vector3 pivotLocal = object1Inv * constraintWorld.getOrigin();
+    const MT_Matrix3x3 basisLocal = object1Inv.getBasis() * constraintWorld.getBasis();
+
+    /* Store on object1 for replication (must happen before validation for spawned collections). */
+    gameobj1->AddRigidBodyConstraint(rbc, ob1, ob2, pivotLocal, basisLocal);
+
+    /* During libloading, only store constraint, don't create it now. */
+    if (libloading) {
+      continue;
+    }
+
+    /* Skip already converted constraints from linked group definitions. */
+    if (convertedlist->FindValue(gameobj1->GetName())) {
+      continue;
+    }
+
+    const int constraintLayerMask =
+        (groupobj.find(constraintObject) == groupobj.end()) ? activeLayerBitInfo : 0;
+    const bool validConstraint = (constraintObject->lay & constraintLayerMask) != 0;
+    const bool valid1 = (gameobj1->GetLayer() & activeLayerBitInfo) && gameobj1->GetSGNode() &&
+                        gameobj1->GetPhysicsController();
+    const bool valid2 = !ob2 || ((gameobj2->GetLayer() & activeLayerBitInfo) && gameobj2->GetSGNode() &&
+                                 gameobj2->GetPhysicsController());
+
+    if (validConstraint && valid1 && valid2) {
+      int constraintId = physEnv->CreateRigidBodyConstraint(gameobj1, gameobj2, pivotLocal, basisLocal, rbc);
+      /* Store any valid ID (only -1 means failure, other negative values are valid due to int overflow). */
+      if (constraintId != -1) {
+        gameobj1->SetRigidBodyConstraintId(rbc, constraintId);
+      }
+    }
+  }
+
   // create physics joints
   for (KX_GameObject *gameobj : sumolist) {
     PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
@@ -1619,6 +2355,14 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         physEnv->SetupObjectConstraints(gameobj, gotar, dat, false);
       }
     }
+  }
+
+  converter->FlushPendingSuspendDynamics();
+
+  /* Link pin-object controllers to any soft bodies that have a pin_object set.
+   * Must happen after all objects are converted so the target controller exists. */
+  if (!single_object) {
+    kxscene->GetPhysicsEnvironment()->FinalizeSoftBodyPins();
   }
 
   if (!single_object) {

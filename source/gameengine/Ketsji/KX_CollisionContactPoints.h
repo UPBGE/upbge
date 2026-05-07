@@ -76,6 +76,8 @@ class KX_CollisionContactPointList
   const PHY_ICollData *m_collData;
   /// The object is the first in the pair or the second ?
   bool m_firstObject;
+  /// If true, this object owns m_collData and will delete it in the destructor.
+  bool m_ownsCollData = false;
 
  public:
   KX_CollisionContactPointList(const PHY_ICollData *collData, bool firstObject);
@@ -87,4 +89,7 @@ class KX_CollisionContactPointList
   unsigned int GetNumCollisionContactPoint();
   const PHY_ICollData *GetCollData();
   bool GetFirstObject();
+
+  /** Transfer ownership of collData to this list; it will be deleted in the destructor. */
+  void SetOwnsCollData(bool owns) { m_ownsCollData = owns; }
 };

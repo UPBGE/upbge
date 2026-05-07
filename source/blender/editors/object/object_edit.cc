@@ -2580,6 +2580,41 @@ void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* Clear logic bricks on selected objects */
+
+static wmOperatorStatus logicbricks_clear_exec(bContext *C, wmOperator */*op*/)
+{
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+    BKE_sca_free_sensors(&ob_iter->sensors);
+    BKE_sca_unlink_controllers(&ob_iter->controllers);
+    BKE_sca_free_controllers(&ob_iter->controllers);
+    BKE_sca_unlink_actuators(&ob_iter->actuators);
+    BKE_sca_free_actuators(&ob_iter->actuators);
+  }
+  CTX_DATA_END;
+
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus logicbricks_clear_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+{
+  return WM_operator_confirm_message(C, op, "Clear all logic bricks from selected objects?");
+}
+
+void OBJECT_OT_logic_bricks_clear(wmOperatorType *ot)
+{
+  ot->name = "Clear Logic Bricks on Selected";
+  ot->description = "Remove all logic bricks from selected objects";
+  ot->idname = "OBJECT_OT_logic_bricks_clear";
+
+  ot->invoke = logicbricks_clear_invoke;
+  ot->exec = logicbricks_clear_exec;
+  ot->poll = ED_operator_object_active_editable;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 static wmOperatorStatus game_physics_copy_exec(bContext *C, wmOperator */*op*/)
 {
   Object *ob = blender::ed::object::context_active_object(C);
@@ -2609,6 +2644,8 @@ static wmOperatorStatus game_physics_copy_exec(bContext *C, wmOperator */*op*/)
       ob_iter->collision_boundtype = ob->collision_boundtype;
       ob_iter->margin = ob->margin;
       ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
+      BKE_object_vehicle_settings_free(ob_iter);
+      ob_iter->vehicle = BKE_object_vehicle_settings_copy(ob->vehicle);
       if (ob->visibility_flag & OB_HIDE_RENDER)
         ob_iter->visibility_flag |= OB_HIDE_RENDER;
       else

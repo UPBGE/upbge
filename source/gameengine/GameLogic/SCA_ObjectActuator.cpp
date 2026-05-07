@@ -32,14 +32,21 @@
  *  \ingroup ketsji
  */
 
+#include <algorithm>
+
 #include "SCA_ObjectActuator.h"
 
+#include "BLI_listbase_wrapper.hh"
 #include "CM_Message.h"
+#include "DNA_actuator_types.h"
+#include "DNA_object_types.h"
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"  // For PyVecTo - should this include be put in EXP_PyObjectPlus?
+#include "KX_Scene.h"
 #include "PHY_ICharacter.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
+#include "PHY_IVehicle.h"
 
 using namespace blender;
 
@@ -94,6 +101,17 @@ SCA_ObjectActuator::SCA_ObjectActuator(SCA_IObject *gameobj,
       m_bitLocalFlag.CharacterMotion = false;
     }
   }
+  if (m_bitLocalFlag.VehicleMotion) {
+    KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
+    Object *blenderobject = parent ? parent->GetBlenderObject() : nullptr;
+
+    if (!(blenderobject && (blenderobject->gameflag2 & OB_HAS_VEHICLE) && blenderobject->vehicle)) {
+      CM_LogicBrickWarning(
+          this,
+          "vehicle motion enabled on non-vehicle object, falling back to simple motion.");
+      m_bitLocalFlag.VehicleMotion = false;
+    }
+  }
   if (m_reference)
     m_reference->RegisterActuator(this);
   UpdateFuzzyFlags();
@@ -103,6 +121,93 @@ SCA_ObjectActuator::~SCA_ObjectActuator()
 {
   if (m_reference)
     m_reference->UnregisterActuator(this);
+}
+
+PHY_IVehicle *SCA_ObjectActuator::GetVehicle(KX_GameObject *parent) const
+{
+  if (!parent) {
+    return nullptr;
+  }
+
+  PHY_IPhysicsEnvironment *physics_environment = parent->GetScene()->GetPhysicsEnvironment();
+  PHY_IPhysicsController *physics_controller = parent->GetPhysicsController();
+  if (!physics_environment || !physics_controller) {
+    return nullptr;
+  }
+
+  return physics_environment->GetVehicleConstraint(physics_controller);
+}
+
+float SCA_ObjectActuator::GetVehicleInput() const
+{
+  return m_force[0];
+}
+
+bool SCA_ObjectActuator::ApplyVehicleMotion(KX_GameObject *parent, float value) const
+{
+  PHY_IVehicle *vehicle = GetVehicle(parent);
+  Object *blenderobject = parent ? parent->GetBlenderObject() : nullptr;
+  GameVehicleSettings *vehicle_settings = blenderobject ? blenderobject->vehicle : nullptr;
+  if (!vehicle || !vehicle_settings) {
+    return false;
+  }
+
+  const int num_wheels = vehicle->GetNumWheels();
+  if (num_wheels == 0) {
+    return false;
+  }
+
+  const float brake_factor = value > 0.0f ? value : 0.0f;
+  const float normalized_brake_input = std::clamp(brake_factor, 0.0f, 1.0f);
+  const bool is_jolt = parent->GetScene() &&
+                       parent->GetScene()->GetBlenderScene() &&
+                       static_cast<e_PhysicsEngine>(parent->GetScene()->GetBlenderScene()->gm.physicsEngine) ==
+                           UseJolt;
+
+  if (is_jolt) {
+    switch (m_bitLocalFlag.VehicleMotionMode) {
+      case ACT_OBJECT_VEHICLE_THROTTLE:
+        vehicle->SetForwardInput(value);
+        break;
+      case ACT_OBJECT_VEHICLE_BRAKE:
+        vehicle->SetBrakeInput(normalized_brake_input);
+        break;
+      case ACT_OBJECT_VEHICLE_STEERING:
+        vehicle->SetRightInput(value);
+        break;
+      case ACT_OBJECT_VEHICLE_HANDBRAKE:
+        vehicle->SetHandBrakeInput(normalized_brake_input);
+        break;
+      default:
+        return false;
+    }
+
+    return true;
+  }
+
+  /* Legacy Bullet path: apply forces per wheel using chassis defaults.
+   * Per-wheel overrides now live on separate wheel objects and are baked
+   * into the vehicle at creation time by BL_DataConversion. */
+  for (int wheel_index = 0; wheel_index < num_wheels; ++wheel_index) {
+    switch (m_bitLocalFlag.VehicleMotionMode) {
+      case ACT_OBJECT_VEHICLE_THROTTLE:
+        vehicle->ApplyEngineForce(value * vehicle_settings->engine_force, wheel_index);
+        break;
+      case ACT_OBJECT_VEHICLE_BRAKE:
+        vehicle->ApplyBraking(brake_factor * vehicle_settings->brake, wheel_index);
+        break;
+      case ACT_OBJECT_VEHICLE_STEERING:
+        vehicle->SetSteeringValue(value, wheel_index);
+        break;
+      case ACT_OBJECT_VEHICLE_HANDBRAKE:
+        vehicle->ApplyHandBraking(brake_factor * vehicle_settings->handbrake_torque, wheel_index);
+        break;
+      default:
+        return false;
+    }
+  }
+
+  return true;
 }
 
 bool SCA_ObjectActuator::Update()
@@ -120,6 +225,9 @@ bool SCA_ObjectActuator::Update()
     if (m_bitLocalFlag.CharacterMotion) {
       character->SetWalkDirection(MT_Vector3(0.0f, 0.0f, 0.0f));
     }
+    if (m_bitLocalFlag.VehicleMotion) {
+      ApplyVehicleMotion(parent, 0.0f);
+    }
 
     m_linear_damping_active = false;
     m_angular_damping_active = false;
@@ -129,6 +237,8 @@ bool SCA_ObjectActuator::Update()
     return false;
   }
   else if (parent) {
+    const float analog_factor = GetLinkedSensorAnalogStrength();
+
     if (m_bitLocalFlag.ServoControl) {
       // In this mode, we try to reach a target speed using force
       // As we don't know the friction, we must implement a generic
@@ -171,11 +281,13 @@ bool SCA_ObjectActuator::Update()
       }
 
       MT_Vector3 e;
+      const MT_Vector3 scaled_linear_velocity = analog_factor * m_linear_velocity;
+      const MT_Vector3 scaled_angular_velocity = analog_factor * m_angular_velocity;
       if (m_bitLocalFlag.ServoControlAngular) {
-        e = m_angular_velocity - v;
+        e = scaled_angular_velocity - v;
       }
       else {
-        e = m_linear_velocity - v;
+        e = scaled_linear_velocity - v;
       }
 
       MT_Vector3 dv = e - m_previous_error;
@@ -218,7 +330,7 @@ bool SCA_ObjectActuator::Update()
       }
     }
     else if (m_bitLocalFlag.CharacterMotion) {
-      MT_Vector3 dir = m_dloc;
+      MT_Vector3 dir = analog_factor * m_dloc;
 
       if (m_bitLocalFlag.DLoc) {
         MT_Matrix3x3 basis = parent->GetPhysicsController()->GetOrientation();
@@ -243,7 +355,7 @@ bool SCA_ObjectActuator::Update()
           dir / parent->GetScene()->GetPhysicsEnvironment()->GetNumTimeSubSteps());
 
       if (!m_bitLocalFlag.ZeroDRot) {
-        parent->ApplyRotation(m_drot, (m_bitLocalFlag.DRot) != 0);
+        parent->ApplyRotation(analog_factor * m_drot, (m_bitLocalFlag.DRot) != 0);
       }
 
       if (m_bitLocalFlag.CharacterJump) {
@@ -255,22 +367,35 @@ bool SCA_ObjectActuator::Update()
           m_jumping = false;
       }
     }
+    else if (m_bitLocalFlag.VehicleMotion) {
+      ApplyVehicleMotion(parent, GetVehicleInput() * analog_factor);
+    }
     else {
+      const MT_Vector3 scaled_force = analog_factor * m_force;
+      const MT_Vector3 scaled_torque = analog_factor * m_torque;
+      const MT_Vector3 scaled_dloc = analog_factor * m_dloc;
+      const MT_Vector3 scaled_drot = analog_factor * m_drot;
+      const MT_Vector3 scaled_linear_velocity = analog_factor * m_linear_velocity;
+      const MT_Vector3 scaled_angular_velocity = analog_factor * m_angular_velocity;
+      const MT_Scalar scaled_linear_length2 = scaled_linear_velocity.length2();
+      const MT_Scalar scaled_angular_length2 = scaled_angular_velocity.length2();
+
       if (!m_bitLocalFlag.ZeroForce) {
-        parent->ApplyForce(m_force, (m_bitLocalFlag.Force) != 0);
+        parent->ApplyForce(scaled_force, (m_bitLocalFlag.Force) != 0);
       }
       if (!m_bitLocalFlag.ZeroTorque) {
-        parent->ApplyTorque(m_torque, (m_bitLocalFlag.Torque) != 0);
+        parent->ApplyTorque(scaled_torque, (m_bitLocalFlag.Torque) != 0);
       }
       if (!m_bitLocalFlag.ZeroDLoc) {
-        parent->ApplyMovement(m_dloc, (m_bitLocalFlag.DLoc) != 0);
+        parent->ApplyMovement(scaled_dloc, (m_bitLocalFlag.DLoc) != 0);
       }
       if (!m_bitLocalFlag.ZeroDRot) {
-        parent->ApplyRotation(m_drot, (m_bitLocalFlag.DRot) != 0);
+        parent->ApplyRotation(scaled_drot, (m_bitLocalFlag.DRot) != 0);
       }
       if (!m_bitLocalFlag.ZeroLinearVelocity) {
         if (m_bitLocalFlag.AddOrSetLinV) {
-          parent->addLinearVelocity(m_linear_velocity, (m_bitLocalFlag.LinearVelocity) != 0);
+          parent->addLinearVelocity(scaled_linear_velocity,
+                                    (m_bitLocalFlag.LinearVelocity) != 0);
         }
         else {
           if (m_damping > 0) {
@@ -279,18 +404,22 @@ bool SCA_ObjectActuator::Update()
               // delta and the start speed (depends on the existing speed in that direction)
               linV = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
               // keep only the projection along the desired direction
-              m_current_linear_factor = linV.dot(m_linear_velocity) / m_linear_length2;
+              m_current_linear_factor =
+                  scaled_linear_length2 > 0.0f ? linV.dot(scaled_linear_velocity) /
+                                                    scaled_linear_length2 :
+                                                0.0f;
               m_linear_damping_active = true;
             }
             if (m_current_linear_factor < 1.0f)
               m_current_linear_factor += 1.0f / m_damping;
             if (m_current_linear_factor > 1.0f)
               m_current_linear_factor = 1.0f;
-            linV = m_current_linear_factor * m_linear_velocity;
+            linV = m_current_linear_factor * scaled_linear_velocity;
             parent->setLinearVelocity(linV, (m_bitLocalFlag.LinearVelocity) != 0);
           }
           else {
-            parent->setLinearVelocity(m_linear_velocity, (m_bitLocalFlag.LinearVelocity) != 0);
+            parent->setLinearVelocity(scaled_linear_velocity,
+                                      (m_bitLocalFlag.LinearVelocity) != 0);
           }
         }
       }
@@ -301,18 +430,22 @@ bool SCA_ObjectActuator::Update()
             // delta and the start speed (depends on the existing speed in that direction)
             angV = parent->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
             // keep only the projection along the desired direction
-            m_current_angular_factor = angV.dot(m_angular_velocity) / m_angular_length2;
+            m_current_angular_factor =
+                scaled_angular_length2 > 0.0f ? angV.dot(scaled_angular_velocity) /
+                                                    scaled_angular_length2 :
+                                                0.0f;
             m_angular_damping_active = true;
           }
           if (m_current_angular_factor < 1.0)
             m_current_angular_factor += 1.0 / m_damping;
           if (m_current_angular_factor > 1.0)
             m_current_angular_factor = 1.0;
-          angV = m_current_angular_factor * m_angular_velocity;
+          angV = m_current_angular_factor * scaled_angular_velocity;
           parent->setAngularVelocity(angV, (m_bitLocalFlag.AngularVelocity) != 0);
         }
         else {
-          parent->setAngularVelocity(m_angular_velocity, (m_bitLocalFlag.AngularVelocity) != 0);
+          parent->setAngularVelocity(scaled_angular_velocity,
+                                     (m_bitLocalFlag.AngularVelocity) != 0);
         }
       }
     }

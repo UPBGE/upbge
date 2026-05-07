@@ -114,8 +114,9 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
         return nullptr;
       }
 
-      // someone reverse some conventions inside Bullet (axle winding)
-      attachAxle = -attachAxle;
+      if (m_vehicle->NeedsWheelAxleFlip()) {
+        attachAxle = -attachAxle;
+      }
 
       if (wheelRadius <= 0) {
         PyErr_SetString(PyExc_AttributeError,

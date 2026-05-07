@@ -78,6 +78,7 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
   virtual void RemoveConstraintById(int constraintid, bool free);
+  virtual bool IsRigidBodyConstraintEnabled(int constraintid) override { return false; }
 
   // complex constraint for vehicles
   virtual PHY_IVehicle *GetVehicleConstraint(int constraintId)
@@ -156,5 +157,25 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   {
     // All we need to do is handle the motionstate (we're supposed to own it)
     delete motionstate;
+  }
+
+  virtual void SetupObjectConstraints(KX_GameObject *obj_src,
+                                      KX_GameObject *obj_dest,
+                                      blender::bRigidBodyJointConstraint *dat,
+                                      bool replicate_dupli) override
+  {
+  }
+
+  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
+                                        KX_GameObject *gameobj2,
+                                        const MT_Vector3 &pivotLocal,
+                                        const MT_Matrix3x3 &basisLocal,
+                                        blender::RigidBodyCon *rbc) override
+  {
+    return -1;
+  }
+
+  virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override
+  {
   }
 };

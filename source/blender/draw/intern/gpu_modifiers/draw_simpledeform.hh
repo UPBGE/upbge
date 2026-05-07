@@ -10,6 +10,7 @@
  * Simple Deform GPU compute (Twist, Bend, Taper, Stretch)
  */
 
+#include <cstdint>
 #include <memory>
 
 namespace blender {

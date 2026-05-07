@@ -34,6 +34,7 @@ set(INC
   ../Ketsji/KXNetworkMessage
   ../Launcher
   ../Physics/Bullet
+  ../Physics/Jolt
   ../Physics/Dummy
   ../Physics/Common
   ../Rasterizer
@@ -100,17 +101,36 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   ge_physics_dummy
-  ge_physics_bullet
   ge_ketsji
   ge_rasterizer
 
 )
 
 if(WITH_BULLET)
+  list(APPEND LIB ge_physics_bullet)
+endif()
+
+if(MSVC)
+  add_definitions(
+    /DNOMINMAX
+  )
+endif()
+
+if(WITH_BULLET)
   list(APPEND INC_SYS
     ${BULLET_INCLUDE_DIRS}
   )
   add_definitions(-DWITH_BULLET)
+endif()
+
+if(WITH_JOLT)
+  list(APPEND INC_SYS
+    ${JOLT_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ge_physics_jolt
+  )
+  add_definitions(-DWITH_JOLT)
 endif()
 
 if(WITH_AUDASPACE)

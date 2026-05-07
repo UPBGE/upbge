@@ -94,6 +94,7 @@ class RAS_MeshObject {
  protected:
   RAS_MeshMaterialList m_materials;
   blender::Mesh *m_mesh;
+  bool m_ownsMesh;
 
   int m_conversionTotverts;
 
@@ -105,7 +106,8 @@ class RAS_MeshObject {
   RAS_MeshObject(blender::Mesh *mesh,
                  int conversionTotverts,
                  blender::Object *originalOb,
-                 const LayersInfo &layersInfo);
+                 const LayersInfo &layersInfo,
+                 bool ownsMesh = false);
   virtual ~RAS_MeshObject();
 
   // materials

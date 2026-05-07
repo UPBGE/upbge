@@ -359,6 +359,7 @@ void do_versions_after_linking_440(FileData *fd, Main *bmain);
 void do_versions_after_linking_450(FileData *fd, Main *bmain);
 void do_versions_after_linking_500(FileData *fd, Main *bmain);
 void do_versions_after_linking_510(FileData *fd, Main *bmain);
+void do_versions_after_linking_upbge(FileData *fd, Main *bmain);
 void do_versions_after_linking_520(FileData *fd, Main *bmain);
 
 void do_versions_after_setup(Main *new_bmain,

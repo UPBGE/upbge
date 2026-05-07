@@ -102,6 +102,11 @@ class LOGIC_HT_header(Header):
 
         LOGIC_MT_editor_menus.draw_collapsible(context, layout)
 
+        # Quick access to copy logic bricks to selected objects.
+        layout.operator("object.logic_bricks_copy", text="", icon='DUPLICATE')
+        # Clear all logic bricks on selected objects (with confirmation).
+        layout.operator("object.logic_bricks_clear", text="", icon='TRASH')
+
 
 class LOGIC_MT_editor_menus(Menu):
     bl_idname = "LOGIC_MT_editor_menus"

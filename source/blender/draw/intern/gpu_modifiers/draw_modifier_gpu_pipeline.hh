@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "GPU_storage_buffer.hh"
 
 

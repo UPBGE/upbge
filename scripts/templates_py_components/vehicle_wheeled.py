@@ -19,11 +19,15 @@
 # #############################
 
 ##################################################################################################
-# This component requires a RigidBody with colision bounds set to either Convex Hull or Triangle Mesh
-# and four objects as wheels, not parented, and with physics set to No Collision
-# 
+# This component creates a vehicle at runtime from Python.
+# If you author a chassis as Game Physics "Vehicle" in Blender, use that workflow instead and skip
+# the manual createConstraint/createVehicle setup shown below.
+#
+# For the scripted path, use a RigidBody chassis with collision bounds set to either Convex Hull or
+# Triangle Mesh and four wheel objects that are not parented and use No Collision physics.
+#
 # To drive and steer the vehicle create "force" and "steer" properties on the owner of component.
-# You can read the Speed of the vehicle if you create a "speed" property
+# You can read the speed of the vehicle if you create a "speed" property.
 ##################################################################################################
 
 # import needed modules

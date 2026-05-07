@@ -40,6 +40,7 @@ void SCA_ObjectActuator_Mathutils_Callback_Init(void);
 #endif
 
 class KX_GameObject;
+class PHY_IVehicle;
 
 //
 // Stores the flags for each EXP_Value derived class
@@ -56,13 +57,16 @@ struct KX_LocalFlags {
         AddOrSetCharLoc(false),
         ServoControl(false),
         CharacterMotion(false),
+        VehicleMotion(false),
         CharacterJump(false),
         ZeroForce(false),
         ZeroTorque(false),
         ZeroDRot(false),
         ZeroDLoc(false),
         ZeroLinearVelocity(false),
-        ZeroAngularVelocity(false)
+        ZeroAngularVelocity(false),
+        ServoControlAngular(false),
+        VehicleMotionMode(0)
   {
   }
 
@@ -76,6 +80,7 @@ struct KX_LocalFlags {
   bool AddOrSetCharLoc;
   bool ServoControl;
   bool CharacterMotion;
+  bool VehicleMotion;
   bool CharacterJump;
   bool ZeroForce;
   bool ZeroTorque;
@@ -84,6 +89,7 @@ struct KX_LocalFlags {
   bool ZeroLinearVelocity;
   bool ZeroAngularVelocity;
   bool ServoControlAngular;
+  short VehicleMotionMode;
 };
 
 class SCA_ObjectActuator : public SCA_IActuator {
@@ -111,6 +117,10 @@ class SCA_ObjectActuator : public SCA_IActuator {
   bool m_linear_damping_active;
   bool m_angular_damping_active;
   bool m_jumping;
+
+  PHY_IVehicle *GetVehicle(KX_GameObject *parent) const;
+  float GetVehicleInput() const;
+  bool ApplyVehicleMotion(KX_GameObject *parent, float value) const;
 
  public:
   enum KX_OBJECT_ACT_VEC_TYPE {

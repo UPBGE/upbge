@@ -51,7 +51,8 @@ class RAS_MeshObject *BL_ConvertMesh(blender::Mesh *mesh,
                                      class RAS_Rasterizer *rasty,
                                      class BL_SceneConverter *converter,
                                      bool libloading,
-                                     bool converting_during_runtime);
+                                     bool converting_during_runtime,
+                                     bool owns_mesh = false);
 
 void BL_ConvertBlenderObjects(blender::Main *maggie,
                               blender::Depsgraph *depsgraph,

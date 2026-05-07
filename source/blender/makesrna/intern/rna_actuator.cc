@@ -37,6 +37,8 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_context.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -69,6 +71,20 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_STEERING, "STEERING", 0, "Steering", ""},
     {ACT_VIBRATION, "VIBRATION", 0, "Vibration", ""},
     {ACT_VISIBILITY, "VISIBILITY", 0, "Visibility", ""},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static const EnumPropertyItem object_actuator_mode_items[] = {
+    {ACT_OBJECT_NORMAL, "OBJECT_NORMAL", 0, "Simple Motion", ""},
+    {ACT_OBJECT_SERVO, "OBJECT_SERVO", 0, "Servo Control", ""},
+    {ACT_OBJECT_CHARACTER, "OBJECT_CHARACTER", 0, "Character Motion", ""},
+    {ACT_OBJECT_VEHICLE, "OBJECT_VEHICLE", 0, "Vehicle Motion", ""},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static const EnumPropertyItem object_vehicle_mode_items[] = {
+    {ACT_OBJECT_VEHICLE_THROTTLE, "VEHICLE_THROTTLE", 0, "Throttle", ""},
+    {ACT_OBJECT_VEHICLE_BRAKE, "VEHICLE_BRAKE", 0, "Brake", ""},
+    {ACT_OBJECT_VEHICLE_STEERING, "VEHICLE_STEERING", 0, "Steering", ""},
+    {ACT_OBJECT_VEHICLE_HANDBRAKE, "VEHICLE_HANDBRAKE", 0, "Handbrake", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
 }  // namespace blender
@@ -129,6 +145,20 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
   }
 }
 
+static int rna_ConstraintActuator_rb_action_get(struct PointerRNA *ptr)
+{
+  bActuator *act = (bActuator *)ptr->data;
+  bConstraintActuator *ca = (bConstraintActuator *)act->data;
+  return ca->mode;
+}
+
+static void rna_ConstraintActuator_rb_action_set(struct PointerRNA *ptr, int value)
+{
+  bActuator *act = (bActuator *)ptr->data;
+  bConstraintActuator *ca = (bConstraintActuator *)act->data;
+  ca->mode = value;
+}
+
 static void rna_Actuator_name_set(PointerRNA *ptr, const char *value)
 {
   Object *ob = (Object *)ptr->owner_id;
@@ -153,22 +183,24 @@ static void rna_ConstraintActuator_type_set(struct PointerRNA *ptr, int value)
   bActuator *act = (bActuator *)ptr->data;
   bConstraintActuator *ca = (bConstraintActuator *)act->data;
 
-  if (value != ca->type) {
-    ca->type = value;
-    switch (ca->type) {
+  if (ca->type != value) {
+    switch (value) {
       case ACT_CONST_TYPE_ORI:
         /* negative axis not supported in the orientation mode */
-        if (ELEM(ca->mode, ACT_CONST_DIRNX, ACT_CONST_DIRNY, ACT_CONST_DIRNZ))
+        if (ELEM(ca->mode, ACT_CONST_DIRNX, ACT_CONST_DIRNY, ACT_CONST_DIRNZ)) {
           ca->mode = ACT_CONST_NONE;
+        }
         break;
-
-      case ACT_CONST_TYPE_LOC:
-      case ACT_CONST_TYPE_DIST:
-      case ACT_CONST_TYPE_FH:
+      case ACT_CONST_TYPE_RB:
+        /* default to disabling constraints when switching to RB mode. */
+        ca->mode = ACT_CONST_RB_DISABLE;
+        break;
       default:
         break;
     }
   }
+
+  ca->type = value;
 }
 
 static float rna_ConstraintActuator_limitmin_get(struct PointerRNA *ptr)
@@ -456,6 +488,12 @@ static void rna_ObjectActuator_type_set(struct PointerRNA *ptr, int value)
         oa->flag = ACT_DLOC_LOCAL | ACT_DROT_LOCAL;
         oa->type = ACT_OBJECT_CHARACTER;
         break;
+
+      case ACT_OBJECT_VEHICLE:
+        *oa = {};
+        oa->type = ACT_OBJECT_VEHICLE;
+        oa->servotype = ACT_OBJECT_VEHICLE_THROTTLE;
+        break;
     }
   }
 }
@@ -603,6 +641,28 @@ static void rna_Actuator_editobject_mesh_set(PointerRNA *ptr,
 
     eoa->me = (Mesh *)value.data;
   }
+
+static const EnumPropertyItem *rna_ObjectActuator_type_itemf(bContext *C,
+                                                             PointerRNA * /*ptr*/,
+                                                             PropertyRNA * /*prop*/,
+                                                             bool *r_free)
+{
+  EnumPropertyItem *item = nullptr;
+  int totitem = 0;
+  const Scene *scene = C ? CTX_data_scene(C) : nullptr;
+  const bool use_jolt = scene && scene->gm.physicsEngine == WOPHY_JOLT;
+
+  RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_NORMAL);
+  RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_SERVO);
+  RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_CHARACTER);
+  if (use_jolt) {
+    RNA_enum_items_add_value(&item, &totitem, object_actuator_mode_items, ACT_OBJECT_VEHICLE);
+  }
+
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
+  return item;
+}
 
 }  // namespace blender
 
@@ -798,12 +858,6 @@ static void rna_def_object_actuator(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem prop_type_items[] = {
-      {ACT_OBJECT_NORMAL, "OBJECT_NORMAL", 0, "Simple Motion", ""},
-      {ACT_OBJECT_SERVO, "OBJECT_SERVO", 0, "Servo Control", ""},
-      {ACT_OBJECT_CHARACTER, "OBJECT_CHARACTER", 0, "Character Motion", ""},
-      {0, nullptr, 0, nullptr, nullptr}};
-
   static EnumPropertyItem prop_servo_type_items[] = {
       {ACT_SERVO_LINEAR, "SERVO_LINEAR", 0, "Linear", ""},
       {ACT_SERVO_ANGULAR, "SERVO_ANGULAR", 0, "Angular", ""},
@@ -815,8 +869,9 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "type");
-  RNA_def_property_enum_items(prop, prop_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, "rna_ObjectActuator_type_set", nullptr);
+  RNA_def_property_enum_items(prop, object_actuator_mode_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, "rna_ObjectActuator_type_set", "rna_ObjectActuator_type_itemf");
   RNA_def_property_ui_text(prop, "Motion Type", "Specify the motion system");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
@@ -824,6 +879,11 @@ static void rna_def_object_actuator(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "servotype");
   RNA_def_property_enum_items(prop, prop_servo_type_items);
   RNA_def_property_ui_text(prop, "Servo Type", "Specify the servo control system");
+
+  prop = RNA_def_property(srna, "vehicle_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "servotype");
+  RNA_def_property_enum_items(prop, object_vehicle_mode_items);
+  RNA_def_property_ui_text(prop, "Vehicle Type", "Specify the vehicle control system");
 
   prop = RNA_def_property(srna, "reference_object", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
@@ -863,6 +923,16 @@ static void rna_def_object_actuator(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, -100.0, 100.0, 10, 2);
   RNA_def_property_ui_text(
       prop, "Derivate Coefficient", "Not required, high values can cause instability");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "vehicle_value", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "forceloc[0]");
+  RNA_def_property_ui_range(prop, -1.0, 1.0, 0.1, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Normalized Value",
+      "Normalized Jolt vehicle input. Use -1..1 for throttle and steering, and 0..1 for "
+      "brake and handbrake");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Servo Limit */
@@ -1243,6 +1313,12 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
       {ACT_CONST_TYPE_DIST, "DIST", 0, "Distance Constraint", ""},
       {ACT_CONST_TYPE_ORI, "ORI", 0, "Orientation Constraint", ""},
       {ACT_CONST_TYPE_FH, "FH", 0, "Force Field Constraint", ""},
+      {ACT_CONST_TYPE_RB, "RB", 0, "RB Constraints", ""},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  static const EnumPropertyItem prop_rb_action_items[] = {
+      {ACT_CONST_RB_DISABLE, "DISABLE", 0, "Disable RB Constraint", ""},
+      {ACT_CONST_RB_ENABLE, "ENABLE", 0, "Enable RB Constraint", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   static const EnumPropertyItem prop_limit_items[] = {{ACT_CONST_NONE, "NONE", 0, "None", ""},
@@ -1262,10 +1338,10 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr}};
 
   static const EnumPropertyItem prop_direction_pos_items[] = {
-      {ACT_CONST_NONE, "NONE", 0, "None", ""},
-      {ACT_CONST_DIRPX, "DIRPX", 0, "X axis", ""},
-      {ACT_CONST_DIRPY, "DIRPY", 0, "Y axis", ""},
-      {ACT_CONST_DIRPZ, "DIRPZ", 0, "Z axis", ""},
+      {ACT_CONST_DIRPZ, "DIRPZ", 0, "Direction +Z Axis", ""},
+      {ACT_CONST_DIRNX, "DIRNX", 0, "Direction -X Axis", ""},
+      {ACT_CONST_DIRNY, "DIRNY", 0, "Direction -Y Axis", ""},
+      {ACT_CONST_DIRNZ, "DIRNZ", 0, "Direction -Z Axis", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   srna = RNA_def_struct(brna, "ConstraintActuator", "Actuator");
@@ -1296,6 +1372,13 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, prop_direction_items);
   RNA_def_property_ui_text(
       prop, "Direction", "Select the axis to be aligned along the reference direction");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "rb_action", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, prop_rb_action_items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_ConstraintActuator_rb_action_get", "rna_ConstraintActuator_rb_action_set", nullptr);
+  RNA_def_property_ui_text(prop, "RB Constraint Action", "Enable or disable rigid body constraints");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* ACT_CONST_TYPE_LOC */
@@ -1398,8 +1481,8 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "fh_height", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_funcs(
       prop, "rna_ConstraintActuator_fhheight_get", "rna_ConstraintActuator_fhheight_set", nullptr);
-  RNA_def_property_ui_range(prop, 0.01, 2000.0, 10, 2);
-  RNA_def_property_ui_text(prop, "Distance", "Height of the force field area");
+  RNA_def_property_ui_range(prop, 0.0f, 2000.0f, 1, 2);
+  RNA_def_property_ui_text(prop, "Height", "Height of the force field axis");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
@@ -1683,6 +1766,7 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
       {ACT_COLLECTION_RESUME, "RESUME", 0, "Resume Collection", ""},
       {ACT_COLLECTION_ADD_OVERLAY, "ADD_OVERLAY", 0, "Add Overlay Collection", ""},
       {ACT_COLLECTION_REMOVE_OVERLAY, "REMOVE_OVERLAY", 0, "Remove Overlay Collection", ""},
+      {ACT_COLLECTION_SPAWN, "SPAWN", 0, "Spawn Collection", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   srna = RNA_def_struct(brna, "CollectionActuator", "Actuator");
@@ -1721,6 +1805,36 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", ACT_COLLECTION_SUSPEND_VISIBILITY);
   RNA_def_property_ui_text(prop, "Visibility", "Suspend/Resume Visibility");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  /* Spawn mode properties */
+  prop = RNA_def_property(srna, "use_full_copy", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ACT_COLLECTION_FULL_COPY);
+  RNA_def_property_ui_text(prop, "Full Copy", "Spawn full copies instead of replicas");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "linear_velocity", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "linVelocity");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_range(prop, -100.0f, 100.0f, 10, 2);
+  RNA_def_property_ui_text(prop, "Linear Velocity", "Initial linear velocity of spawned objects");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_local_linear_velocity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "localflag", 1);
+  RNA_def_property_ui_text(prop, "L", "Apply linear velocity in local coordinates");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "angular_velocity", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "angVelocity");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_range(prop, -100.0f, 100.0f, 10, 2);
+  RNA_def_property_ui_text(prop, "Angular Velocity", "Initial angular velocity of spawned objects");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "use_local_angular_velocity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "localflag", ACT_CLN_LOCAL_ANGV);
+  RNA_def_property_ui_text(prop, "L", "Apply angular velocity in local coordinates");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 

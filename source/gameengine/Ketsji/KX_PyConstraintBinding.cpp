@@ -75,20 +75,24 @@ PyDoc_STRVAR(gPySetDeactivationTime__doc__,
              "This sets the time after which a resting rigidbody gets deactived");
 PyDoc_STRVAR(gPySetDeactivationLinearTreshold__doc__,
              "setDeactivationLinearTreshold(float linearTreshold)\n"
-             "");
+             "Set the linear sleep threshold. In Jolt this maps to the native point-velocity "
+             "sleep threshold.");
 PyDoc_STRVAR(gPySetDeactivationAngularTreshold__doc__,
              "setDeactivationAngularTreshold(float angularTreshold)\n"
-             "");
+             "Set the angular sleep threshold. Bullet uses this directly; Jolt has no "
+             "separate angular sleep threshold so the value is ignored there.");
 PyDoc_STRVAR(gPySetContactBreakingTreshold__doc__,
              "setContactBreakingTreshold(float breakingTreshold)\n"
              "Reasonable default is 0.02 (if units are meters)");
 
 PyDoc_STRVAR(gPySetERPNonContact__doc__,
              "setERPNonContact(float erp)\n"
-             "");
+             "Set non-contact ERP. In Jolt this maps to the single global "
+             "Baumgarte stabilization factor.");
 PyDoc_STRVAR(gPySetERPContact__doc__,
              "setERPContact(float erp2)\n"
-             "");
+             "Set contact ERP. Bullet uses this directly; Jolt has no separate "
+             "contact ERP so the value is ignored there.");
 PyDoc_STRVAR(gPySetCFM__doc__,
              "setCFM(float cfm)\n"
              "");
@@ -602,6 +606,52 @@ static PyObject *gPyExportBulletFile(PyObject *, PyObject *args)
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(gPySavePhysicsState__doc__,
+             "savePhysicsState()\n"
+             "Save the current physics simulation state and return it as a bytes object.\n"
+             "The returned bytes can later be passed to restorePhysicsState() to rewind\n"
+             "the simulation to this snapshot. Returns None on failure.");
+static PyObject *gPySavePhysicsState(PyObject *self)
+{
+  if (!KX_GetPhysicsEnvironment()) {
+    PyErr_SetString(PyExc_RuntimeError, "No physics environment available");
+    return nullptr;
+  }
+
+  std::vector<uint8_t> buffer;
+  if (!KX_GetPhysicsEnvironment()->SavePhysicsState(buffer)) {
+    Py_RETURN_NONE;
+  }
+
+  return PyBytes_FromStringAndSize(reinterpret_cast<const char *>(buffer.data()),
+                                   static_cast<Py_ssize_t>(buffer.size()));
+}
+
+PyDoc_STRVAR(gPyRestorePhysicsState__doc__,
+             "restorePhysicsState(state)\n"
+             "Restore a previously saved physics simulation state.\n"
+             "The state argument must be a bytes object returned by savePhysicsState().\n"
+             "Returns True on success, False on failure.");
+static PyObject *gPyRestorePhysicsState(PyObject *self, PyObject *args)
+{
+  const char *data;
+  Py_ssize_t size;
+
+  if (!PyArg_ParseTuple(args, "y#:restorePhysicsState", &data, &size)) {
+    return nullptr;
+  }
+
+  if (!KX_GetPhysicsEnvironment()) {
+    PyErr_SetString(PyExc_RuntimeError, "No physics environment available");
+    return nullptr;
+  }
+
+  std::vector<uint8_t> buffer(reinterpret_cast<const uint8_t *>(data),
+                               reinterpret_cast<const uint8_t *>(data) + size);
+  bool ok = KX_GetPhysicsEnvironment()->RestorePhysicsState(buffer);
+  return PyBool_FromLong(ok);
+}
+
 static struct PyMethodDef physicsconstraints_methods[] = {
     {"setGravity", (PyCFunction)gPySetGravity, METH_VARARGS, (const char *)gPySetGravity__doc__},
     {"setDebugMode",
@@ -695,6 +745,15 @@ static struct PyMethodDef physicsconstraints_methods[] = {
      (const char *)gPyGetAppliedImpulse__doc__},
 
     {"exportBulletFile", (PyCFunction)gPyExportBulletFile, METH_VARARGS, "export a .bullet file"},
+
+    {"savePhysicsState",
+     (PyCFunction)gPySavePhysicsState,
+     METH_NOARGS,
+     (const char *)gPySavePhysicsState__doc__},
+    {"restorePhysicsState",
+     (PyCFunction)gPyRestorePhysicsState,
+     METH_VARARGS,
+     (const char *)gPyRestorePhysicsState__doc__},
 
     // sentinel
     {nullptr, (PyCFunction) nullptr, 0, nullptr}};

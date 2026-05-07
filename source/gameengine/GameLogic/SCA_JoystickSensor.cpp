@@ -31,10 +31,82 @@
 
 #include "SCA_JoystickSensor.h"
 
+#include <algorithm>
+#include <cstdlib>
+
 #include "CM_Message.h"
 #include "SCA_JoystickManager.h"
 
 using namespace blender;
+
+namespace {
+
+constexpr int kJoystickSignedAxisMax = 32768;
+constexpr int kJoystickTriggerAxisMax = 32767;
+
+float normalize_positive_range(int value, int deadzone, int max_value)
+{
+  value = std::max(value, 0);
+  deadzone = std::clamp(deadzone, 0, max_value);
+
+  if (value <= deadzone) {
+    return 0.0f;
+  }
+
+  const int range = max_value - deadzone;
+  if (range <= 0) {
+    return value >= max_value ? 1.0f : 0.0f;
+  }
+
+  return std::clamp(float(value - deadzone) / float(range), 0.0f, 1.0f);
+}
+
+float axis_magnitude_strength(DEV_Joystick *joystick, int axis_index, int deadzone)
+{
+  return normalize_positive_range(
+      std::abs(joystick->GetAxisPosition(axis_index)), deadzone, kJoystickSignedAxisMax);
+}
+
+float axis_direction_strength(DEV_Joystick *joystick,
+                              int axis_pair_index,
+                              int direction,
+                              int deadzone)
+{
+  const bool use_vertical_axis = (direction == JOYAXIS_UP || direction == JOYAXIS_DOWN);
+  const int axis_index = axis_pair_index * 2 + (use_vertical_axis ? 1 : 0);
+  const int raw_value = joystick->GetAxisPosition(axis_index);
+  const int directed_value =
+      (direction == JOYAXIS_DOWN || direction == JOYAXIS_RIGHT) ? raw_value : -raw_value;
+
+  return normalize_positive_range(directed_value, deadzone, kJoystickSignedAxisMax);
+}
+
+float axis_pair_strength(DEV_Joystick *joystick, int axis_pair_index, int deadzone)
+{
+  const int axis_index = axis_pair_index * 2;
+  return std::max(axis_magnitude_strength(joystick, axis_index, deadzone),
+                  axis_magnitude_strength(joystick, axis_index + 1, deadzone));
+}
+
+float trigger_strength(DEV_Joystick *joystick, int axis_index, int deadzone)
+{
+  return normalize_positive_range(
+      joystick->GetAxisPosition(axis_index), deadzone, kJoystickTriggerAxisMax);
+}
+
+float apply_strength_multiplier(float strength, int strength_multiplier)
+{
+  const float multiplier = float(strength_multiplier > 0 ? strength_multiplier : 100) / 100.0f;
+  return strength * multiplier;
+}
+
+bool supports_analog_strength(short joymode)
+{
+  return joymode == SCA_JoystickSensor::KX_JOYSENSORMODE_AXIS ||
+         joymode == SCA_JoystickSensor::KX_JOYSENSORMODE_SHOULDER_TRIGGER;
+}
+
+}  // namespace
 
 
 SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
@@ -45,6 +117,9 @@ SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
                                        int axisf,
                                        int prec,
                                        int button,
+                                       bool useAnalogStrength,
+                                       int deadzone,
+                                       int strengthMultiplier,
                                        bool allevents)
     : SCA_ISensor(gameobj, eventmgr),
       m_axis(axis),
@@ -53,7 +128,11 @@ SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
       m_precision(prec),
       m_joymode(joymode),
       m_joyindex(joyindex),
-      m_bAllEvents(allevents)
+      m_bAllEvents(allevents),
+      m_useAnalogStrength(useAnalogStrength),
+      m_deadzone(deadzone),
+      m_strengthMultiplier(strengthMultiplier),
+      m_analogStrength(0.0f)
 {
   Init();
 }
@@ -62,6 +141,7 @@ void SCA_JoystickSensor::Init()
 {
   m_istrig = (m_invert) ? 1 : 0;
   m_istrig_prev = 0;
+  m_analogStrength = 0.0f;
   m_reset = true;
 }
 
@@ -87,18 +167,33 @@ bool SCA_JoystickSensor::IsPositiveTrigger()
   return result;
 }
 
+bool SCA_JoystickSensor::HasAnalogOutput() const
+{
+  return m_useAnalogStrength && supports_analog_strength(m_joymode);
+}
+
+float SCA_JoystickSensor::GetAnalogOutput() const
+{
+  return HasAnalogOutput() ? m_analogStrength : 0.0f;
+}
+
 bool SCA_JoystickSensor::Evaluate()
 {
   DEV_Joystick *js = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
   bool result = false;
   bool reset = m_reset && m_level;
   int axis_single_index = m_axis;
+  const bool analog_strength_enabled = HasAnalogOutput();
 
   if (js == nullptr) { /* no joystick - don't do anything */
     return false;
   }
 
   m_reset = false;
+
+  if (!analog_strength_enabled) {
+    m_analogStrength = 0.0f;
+  }
 
   switch (m_joymode) {
     case KX_JOYSENSORMODE_AXIS: {
@@ -116,6 +211,35 @@ bool SCA_JoystickSensor::Evaluate()
 
       if (!js->IsTrigAxis() && !reset) { /* No events from SDL? - don't bother */
         return false;
+      }
+
+      if (analog_strength_enabled) {
+        m_analogStrength = m_bAllEvents ? axis_pair_strength(js, m_axis - 1, m_deadzone) :
+                                          axis_direction_strength(js, m_axis - 1, m_axisf,
+                                                                  m_deadzone);
+        m_analogStrength = apply_strength_multiplier(m_analogStrength, m_strengthMultiplier);
+
+        if (m_bAllEvents) {
+          if (m_analogStrength > 0.0f) {
+            m_istrig = 1;
+            result = true;
+          }
+          else if (m_istrig) {
+            m_istrig = 0;
+            result = true;
+          }
+        }
+        else {
+          if (m_analogStrength > 0.0f) {
+            m_istrig = 1;
+            result = true;
+          }
+          else if (m_istrig) {
+            m_istrig = 0;
+            result = true;
+          }
+        }
+        break;
       }
 
       js->cSetPrecision(m_precision);
@@ -148,6 +272,25 @@ bool SCA_JoystickSensor::Evaluate()
     }
     case KX_JOYSENSORMODE_SHOULDER_TRIGGER: {
       axis_single_index = m_axis + 4;
+
+      if (!js->IsTrigAxis() && !reset) { /* No events from SDL? - don't bother */
+        return false;
+      }
+
+      if (analog_strength_enabled) {
+        m_analogStrength = trigger_strength(js, axis_single_index - 1, m_deadzone);
+        m_analogStrength = apply_strength_multiplier(m_analogStrength, m_strengthMultiplier);
+
+        if (m_analogStrength > 0.0f) {
+          m_istrig = 1;
+          result = true;
+        }
+        else if (m_istrig) {
+          m_istrig = 0;
+          result = true;
+        }
+        break;
+      }
     }
       ATTR_FALLTHROUGH;
     case KX_JOYSENSORMODE_AXIS_SINGLE: {

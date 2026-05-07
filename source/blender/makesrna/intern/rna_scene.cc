@@ -807,6 +807,134 @@ namespace blender {
 
 using nodes::FileOutputItemsAccessor;
 
+static constexpr float game_damping_bullet_linear_default = 0.04f;
+static constexpr float game_damping_bullet_angular_default = 0.1f;
+static constexpr float game_damping_jolt_linear_default = 0.05f;
+static constexpr float game_damping_jolt_angular_default = 0.05f;
+static constexpr bool game_fixed_timestep_bullet_default = false;
+static constexpr bool game_fixed_timestep_jolt_default = true;
+static constexpr bool game_fixed_fps_cap_default = true;
+static constexpr bool game_fixed_interpolation_bullet_default = true;
+static constexpr bool game_fixed_interpolation_jolt_default = false;
+
+static bool rna_GameSettings_default_scene_uses_jolt(PointerRNA *ptr)
+{
+  const GameData *gm = static_cast<GameData *>(ptr->data);
+  return !gm || gm->physicsEngine == WOPHY_JOLT;
+}
+
+static int rna_GameSettings_physics_engine_default(PointerRNA * /*ptr*/, PropertyRNA * /*prop*/)
+{
+  return WOPHY_JOLT;
+}
+
+static bool rna_GameSettings_use_fixed_physics_timestep_default(PointerRNA *ptr,
+                                                                PropertyRNA * /*prop*/)
+{
+  return rna_GameSettings_default_scene_uses_jolt(ptr) ?
+             game_fixed_timestep_jolt_default :
+             game_fixed_timestep_bullet_default;
+}
+
+static bool rna_GameSettings_use_fixed_fps_cap_default(PointerRNA * /*ptr*/,
+                                                       PropertyRNA * /*prop*/)
+{
+  return game_fixed_fps_cap_default;
+}
+
+static bool rna_GameSettings_use_fixed_physics_interpolation_default(PointerRNA *ptr,
+                                                                     PropertyRNA * /*prop*/)
+{
+  return rna_GameSettings_default_scene_uses_jolt(ptr) ?
+             game_fixed_interpolation_jolt_default :
+             game_fixed_interpolation_bullet_default;
+}
+
+static int rna_GameSettings_physics_timestep_method_default(PointerRNA *ptr,
+                                                            PropertyRNA * /*prop*/)
+{
+  return rna_GameSettings_use_fixed_physics_timestep_default(ptr, nullptr) ? 1 : 0;
+}
+
+static void rna_GameSettings_apply_physics_engine_damping_defaults(Scene *scene,
+                                                                   const int physics_engine)
+{
+  const bool use_bullet = physics_engine == WOPHY_BULLET;
+  const bool use_jolt = physics_engine == WOPHY_JOLT;
+
+  if (!use_bullet && !use_jolt) {
+    return;
+  }
+
+  BLI_Iterator iter;
+  BKE_scene_objects_iterator_begin(&iter, scene);
+  while (iter.valid) {
+    Object *ob = static_cast<Object *>(iter.current);
+
+    if (use_bullet && ob->damping == game_damping_jolt_linear_default &&
+        ob->rdamping == game_damping_jolt_angular_default)
+    {
+      ob->damping = game_damping_bullet_linear_default;
+      ob->rdamping = game_damping_bullet_angular_default;
+      WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
+    }
+    else if (use_jolt && ob->damping == game_damping_bullet_linear_default &&
+             ob->rdamping == game_damping_bullet_angular_default)
+    {
+      ob->damping = game_damping_jolt_linear_default;
+      ob->rdamping = game_damping_jolt_angular_default;
+      WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
+    }
+
+    BKE_scene_objects_iterator_next(&iter);
+  }
+  BKE_scene_objects_iterator_end(&iter);
+}
+
+static void rna_GameSettings_apply_physics_engine_timing_defaults(GameData *gm,
+                                                                  const int physics_engine)
+{
+  const bool use_bullet = physics_engine == WOPHY_BULLET;
+  const bool use_jolt = physics_engine == WOPHY_JOLT;
+
+  if (!use_bullet && !use_jolt) {
+    return;
+  }
+
+  if (use_bullet && gm->use_fixed_physics_timestep == game_fixed_timestep_jolt_default &&
+      gm->use_fixed_fps_cap == game_fixed_fps_cap_default &&
+      gm->use_fixed_physics_interpolation == game_fixed_interpolation_jolt_default)
+  {
+    gm->use_fixed_physics_timestep = game_fixed_timestep_bullet_default;
+    gm->use_fixed_physics_interpolation = game_fixed_interpolation_bullet_default;
+  }
+  else if (use_jolt && gm->use_fixed_physics_timestep == game_fixed_timestep_bullet_default &&
+           gm->use_fixed_fps_cap == game_fixed_fps_cap_default &&
+           gm->use_fixed_physics_interpolation == game_fixed_interpolation_bullet_default)
+  {
+    gm->use_fixed_physics_timestep = game_fixed_timestep_jolt_default;
+    gm->use_fixed_physics_interpolation = game_fixed_interpolation_jolt_default;
+  }
+}
+
+static void rna_GameSettings_physics_engine_set(PointerRNA *ptr, int value)
+{
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  GameData *gm = static_cast<GameData *>(ptr->data);
+
+  if (!gm) {
+    return;
+  }
+
+  const int previous_value = gm->physicsEngine;
+  gm->physicsEngine = value;
+
+  if (scene && previous_value != value) {
+    rna_GameSettings_apply_physics_engine_damping_defaults(scene, value);
+    rna_GameSettings_apply_physics_engine_timing_defaults(gm, value);
+  }
+}
+
 static int rna_ToolSettings_snap_mode_get(PointerRNA *ptr)
 {
   ToolSettings *ts = static_cast<ToolSettings *>(ptr->data);
@@ -6434,6 +6562,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   static const EnumPropertyItem physics_engine_items[] = {
       {WOPHY_NONE, "NONE", 0, "None", "Don't use a physics engine"},
       {WOPHY_BULLET, "BULLET", 0, "Bullet", "Use the Bullet physics engine"},
+      {WOPHY_JOLT, "JOLT", 0, "Jolt", "Use the Jolt Physics engine"},
       {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem obstacle_simulation_items[] = {
@@ -6581,6 +6710,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "physics_engine", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "physicsEngine");
   RNA_def_property_enum_items(prop, physics_engine_items);
+  RNA_def_property_enum_default_func(prop, "rna_GameSettings_physics_engine_default");
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_physics_engine_set", NULL);
   RNA_def_property_ui_text(
       prop, "Physics Engine", "Physics engine used for physics simulation in the game engine");
   RNA_def_property_update(prop, NC_SCENE, NULL);
@@ -6599,6 +6730,61 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "solverType");
   RNA_def_property_enum_items(prop, solver_items);
   RNA_def_property_ui_text(prop, "Physics Solver", "Physics constraint solver");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Jolt Physics settings */
+  prop = RNA_def_property(srna, "jolt_physics_threads", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_physics_threads");
+  RNA_def_property_range(prop, -1, 64);
+  RNA_def_property_ui_range(prop, -1, 16, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Physics Threads",
+                           "Number of threads for Jolt physics simulation "
+                           "(-1 = auto, uses max(1, CPU cores - 1))");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_debug_errors", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "jolt_debug_errors", 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Debug Errors",
+                           "Report Jolt physics errors (resource saturation, contacts ignored) to console");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_max_bodies", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_max_bodies");
+  RNA_def_property_range(prop, 1024, 262144);
+  RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Max Bodies",
+                           "Maximum number of physics bodies in the Jolt physics system");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_max_body_pairs", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_max_body_pairs");
+  RNA_def_property_range(prop, 1024, 262144);
+  RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Max Body Pairs",
+                           "Maximum number of body pairs for Jolt broadphase collision detection");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_max_contact_constraints", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_max_contact_constraints");
+  RNA_def_property_range(prop, 1024, 262144);
+  RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Max Contact Constraints",
+                           "Maximum number of contact constraints in the Jolt physics system");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_temp_allocator_mb", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_temp_allocator_mb");
+  RNA_def_property_range(prop, 8, 256);
+  RNA_def_property_ui_range(prop, 16, 128, 8, 1);
+  RNA_def_property_ui_text(prop,
+                           "Jolt Temp Allocator (MB)",
+                           "Size of Jolt's temporary allocator in megabytes "
+                           "(32 MB recommended for complex scenes with 5000+ bodies)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "occlusion_culling_resolution", PROP_INT, PROP_PIXEL);
@@ -6652,6 +6838,71 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "higher value give better physics precision");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
+  prop = RNA_def_property(srna, "use_fixed_physics_timestep", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_fixed_physics_timestep", 1);
+  RNA_def_property_boolean_default_func(prop, "rna_GameSettings_use_fixed_physics_timestep_default");
+  RNA_def_property_ui_text(prop,
+                           "Fixed Physics Timestep",
+                           "Use fixed physics timestep for consistent simulation, "
+                           "decoupling physics from render framerate");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "use_fixed_physics_interpolation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_fixed_physics_interpolation", 1);
+  RNA_def_property_boolean_default_func(prop,
+                                        "rna_GameSettings_use_fixed_physics_interpolation_default");
+  RNA_def_property_ui_text(prop,
+                           "Physics Interpolation",
+                           "Interpolate transforms between fixed physics steps to smooth "
+                           "rendered motion");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  static const EnumPropertyItem rna_enum_physics_timestep_method_items[] = {
+      {0, "VARIABLE", 0, "Variable", "Variable dt with Bullet substepping"},
+      {1, "FIXED", 0, "Fixed", "Fixed physics timestep"},
+      {0, NULL, 0, NULL, NULL},
+  };
+  prop = RNA_def_property(srna, "physics_timestep_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "use_fixed_physics_timestep");
+  RNA_def_property_enum_items(prop, rna_enum_physics_timestep_method_items);
+  RNA_def_property_enum_default_func(prop, "rna_GameSettings_physics_timestep_method_default");
+  RNA_def_property_ui_text(prop,
+                           "Physics Timestep Method",
+                           "Choose physics timestep method: Variable or Fixed");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "physics_tick_rate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "physics_tick_rate");
+  /* Allow up to 480 Hz hard limit; default remains 60 via DNA defaults */
+  RNA_def_property_range(prop, 10, 480);
+  /* Soft slider max 480 */
+  RNA_def_property_ui_range(prop, 30, 480, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Physics Steps",
+                           "Number of physics steps per second when using fixed timestep");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Fixed physics render cap */
+  prop = RNA_def_property(srna, "use_fixed_fps_cap", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_fixed_fps_cap", 1);
+  RNA_def_property_boolean_default_func(prop, "rna_GameSettings_use_fixed_fps_cap_default");
+  RNA_def_property_ui_text(prop,
+                           "Cap Render FPS (Fixed Physics)",
+                           "Limit render FPS when Fixed Physics Timestep is enabled");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Fixed physics mode specific rates 
+   * NOTE: fixed_logic_rate and fixed_max_logic_step removed - logic is coupled to physics in fixed mode */
+  
+  prop = RNA_def_property(srna, "fixed_render_cap_rate", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "fixed_render_cap_rate");
+  RNA_def_property_range(prop, 1, 480);
+  RNA_def_property_ui_range(prop, 30, 240, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Fixed Mode Render Cap Rate",
+                           "Render FPS cap rate (Hz) when using fixed physics timestep and FPS cap is enabled");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
   prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "timeScale");
   RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
@@ -6667,7 +6918,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Deactivation Linear Threshold",
-      "Linear velocity that an object must be below before the deactivation timer can start");
+      "Linear velocity that an object must be below before the deactivation timer can start. "
+      "In Jolt this is used as the single point-velocity sleep threshold");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "deactivation_angular_threshold", PROP_FLOAT, PROP_NONE);
@@ -6677,7 +6929,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Deactivation Angular Threshold",
-      "Angular velocity that an object must be below before the deactivation timer can start");
+      "Angular velocity that an object must be below before the deactivation timer can start "
+      "in Bullet. Jolt does not expose a separate angular sleep threshold");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "deactivation_time", PROP_FLOAT, PROP_NONE);
@@ -6688,7 +6941,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       prop,
       "Deactivation Time",
       "Amount of time (in seconds) after which objects with a velocity less than the given "
-      "threshold will deactivate (0.0 means no deactivation)");
+      "threshold will deactivate (0.0 means no deactivation). In Jolt, the single "
+      "point-velocity threshold controls both linear and angular sleeping");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "erp_parameter", PROP_FLOAT, PROP_NONE);
@@ -6721,6 +6975,18 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "However, setting ERP = 1 is not recommended, as the joint error will not be completely "
       "fixed due "
       "to various internal approximations. A value of ERP = 0.1 to 0.8 is recommended");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_correction_strength", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "erp");
+  RNA_def_property_ui_range(prop, 0.01f, 1.0f, 0.01f, 3);
+  RNA_def_property_range(prop, 0.01f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Correction Strength",
+      "Controls how strongly Jolt fixes overlap and joint drift each physics step. "
+      "Higher values make contacts and joints tighter. Lower values make them softer, "
+      "but allow more penetration and drift.");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "cfm_parameter", PROP_FLOAT, PROP_NONE);
@@ -6777,9 +7043,9 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_frame_rate", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_ENABLE_ALL_FRAMES);
   RNA_def_property_ui_text(prop,
-                           "Use Frame Rate",
+                           "FPS Limit",
                            "Respect the frame rate from the Physics panel in the world properties "
-                           "rather than rendering as many frames as possible");
+                           "rather than rendering as many frames as possible. (Only meaningful for Variable Physics Timestep Method)");
 
   prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_IGNORE_DEPRECATION_WARNINGS);

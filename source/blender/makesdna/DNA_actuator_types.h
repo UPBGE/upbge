@@ -117,7 +117,12 @@ typedef struct bSceneActuator {
 typedef struct bCollectionActuator {
   /* type = Suspend/Resume/overlayAdd/overlayRemove; flag = use logic/physics/visibility */
   short type = 0, flag = 0;
-  int _pad = 0;
+  int full_copy = 0;
+  float linVelocity[3] = {}; /* initial linear velocity */
+  float angVelocity[3] = {}; /* initial angular velocity */
+  short localflag = 0;       /* local lin/ang velocity */
+  short _pad = 0;
+  int _pad2 = 0;
   struct Collection *collection = nullptr;
   Object *camera = nullptr;
 } bCollectionActuator;
@@ -325,10 +330,15 @@ typedef struct bActuator {
 #define ACT_OBJECT_NORMAL 0
 #define ACT_OBJECT_SERVO 1
 #define ACT_OBJECT_CHARACTER 2
+#define ACT_OBJECT_VEHICLE 3
 
 /* objectactuator->servotype */
 #define ACT_SERVO_LINEAR 0
 #define ACT_SERVO_ANGULAR 1
+#define ACT_OBJECT_VEHICLE_THROTTLE 0
+#define ACT_OBJECT_VEHICLE_BRAKE 1
+#define ACT_OBJECT_VEHICLE_STEERING 2
+#define ACT_OBJECT_VEHICLE_HANDBRAKE 3
 
 /* actuator->type */
 #define ACT_OBJECT 0
@@ -447,6 +457,11 @@ typedef struct bActuator {
 #define ACT_CONST_TYPE_DIST 1
 #define ACT_CONST_TYPE_ORI 2
 #define ACT_CONST_TYPE_FH 3
+#define ACT_CONST_TYPE_RB 4
+
+/* RB constraint action mode */
+#define ACT_CONST_RB_DISABLE 0
+#define ACT_CONST_RB_ENABLE 1
 
 /* editObjectActuator->type */
 #define ACT_EDOB_ADD_OBJECT 0
@@ -509,11 +524,16 @@ typedef struct bActuator {
 #define ACT_COLLECTION_RESUME 1
 #define ACT_COLLECTION_ADD_OVERLAY 2
 #define ACT_COLLECTION_REMOVE_OVERLAY 3
+#define ACT_COLLECTION_SPAWN 4
 
 /* CollectionActuator->flag */
 #define ACT_COLLECTION_SUSPEND_LOGIC 2
 #define ACT_COLLECTION_SUSPEND_PHYSICS 4
 #define ACT_COLLECTION_SUSPEND_VISIBILITY 8
+#define ACT_COLLECTION_FULL_COPY 16
+
+/* collectionActuator->localflag */
+#define ACT_CLN_LOCAL_ANGV 4
 
 /* randomAct->distribution */
 #define ACT_RANDOM_BOOL_CONST 0

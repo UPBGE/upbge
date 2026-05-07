@@ -177,6 +177,12 @@ void BKE_sca_init_sensor(bSensor *sens)
       js->axis = SENS_JOY_LEFT_STICK;
       js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
       js->precision = 5000;
+      js->deadzone = 5000;
+      js->strength_multiplier = 100;
+      break;
+    case SENS_RBCONSTRAINT:
+      sens->data = MEM_new_zeroed(sizeof(bRBConstraintSensor), "rbconstraint_sens");
+      /* mode defaults to SENS_RBC_BROKEN (0) from MEM_new_zeroed */
       break;
     default:; /* this is very severe... I cannot make any memory for this        */
               /* logic brick...                                                    */

@@ -1884,6 +1884,16 @@ static void rna_def_game_softbody(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Linear Stiffness", "Linear stiffness of the soft body links");
 
+  prop = RNA_def_property(srna, "shear_stiffness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "shearStiff");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Shear Stiffness", "Shear stiffness of the soft body links");
+
+  prop = RNA_def_property(srna, "angular_stiffness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "angStiff");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Angular Stiffness", "Angular stiffness of the soft body links");
+
   prop = RNA_def_property(srna, "dynamic_friction", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "kDF");
   RNA_def_property_range(prop, 0.0f, 1.0f);
@@ -2031,6 +2041,136 @@ static void rna_def_game_softbody(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_bending_constraints", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_BENDING_CONSTRAINTS);
   RNA_def_property_ui_text(prop, "Bending Const", "Enable bending constraints");
+
+  prop = RNA_def_property(srna, "pin_vgroup", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "pin_vgroup");
+  RNA_def_property_string_maxlength(prop, 64);
+  RNA_def_property_ui_text(
+      prop,
+      "Pin Vertex Group",
+      "Jolt: Vertex group whose vertices are pinned (kinematic). "
+      "Vertices with weight >= threshold are fixed in space or follow the Pin Object");
+
+  prop = RNA_def_property(srna, "pin_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "pin_object");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Pin Object",
+      "Jolt: Pinned vertices follow this object's world transform. "
+      "Leave empty to pin vertices in world space");
+
+  prop = RNA_def_property(srna, "pin_weight_threshold", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "pin_weight_threshold");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Vertex Weight Pin Threshold",
+      "Jolt: Higher value = more vertices pinned. At 1.0 all weighted vertices are kinematic; at 0.0 none are pinned");
+
+  prop = RNA_def_property(srna, "use_lra_constraints", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_LRA_CONSTRAINTS);
+  RNA_def_property_ui_text(
+      prop,
+      "Long Range Attachment",
+      "Jolt: Prevent cloth from stretching beyond its rest length by attaching vertices to the "
+      "nearest pinned (zero-mass) vertex. Requires at least one pinned vertex to have effect");
+
+  prop = RNA_def_property(srna, "use_faces_double_sided", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_FACES_DOUBLE_SIDED);
+  RNA_def_property_ui_text(
+      prop,
+      "Double-Sided Faces",
+      "Jolt: Enable collision from both sides of each face. "
+      "Useful for thin cloth, flags and surfaces that can be hit from either side");
+
+  prop = RNA_def_property(srna, "use_no_pin_collision", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_NO_PIN_COLLISION);
+  RNA_def_property_ui_text(
+      prop,
+      "No Force on Pin Object",
+      "Jolt: Prevent this soft body from applying collision forces to the object it is pinned or "
+      "parented to. The soft body still deforms around the pin object but cannot push it");
+
+    prop = RNA_def_property(srna, "use_pin_transform_follow", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_PIN_TRANSFORM_FOLLOW);
+    RNA_def_property_ui_text(
+      prop,
+      "Follow Pin Transform",
+      "Jolt: Move the whole soft body with the pin object before simulation, preserving current "
+      "deformation while preventing pin motion from stretching or shaking unpinned vertices");
+    RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "use_plasticity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", OB_BSB_PLASTICITY);
+  RNA_def_property_ui_text(
+      prop,
+      "Plasticity",
+      "Jolt: Permanently deform the soft body by changing edge rest lengths");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plastic_threshold", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticThreshold");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Plastic Threshold",
+      "Jolt: Stretch or compression ratio needed before an edge keeps permanent deformation");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plasticity_strength", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticStrength");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Plasticity Strength",
+      "Jolt: How quickly edge rest lengths move toward their deformed length");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plastic_max_deform", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticMaxDeform");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Max Permanent Deform",
+      "Jolt: Maximum rest-length change from the original length; zero disables the clamp");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  prop = RNA_def_property(srna, "plastic_repair_rate", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "plasticRepairRate");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Repair Rate",
+      "Jolt: How quickly rest lengths recover toward their original values each second");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_softbody_update");
+
+  static const EnumPropertyItem lra_type_items[] = {
+      {0,
+       "EUCLIDEAN",
+       0,
+       "Euclidean",
+       "Maximum distance measured in a straight line from the nearest pinned vertex (faster)"},
+      {1,
+       "GEODESIC",
+       0,
+       "Geodesic",
+       "Maximum distance measured along mesh edges from the nearest pinned vertex (more accurate "
+       "for curved surfaces)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "lra_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "lraType");
+  RNA_def_property_enum_items(prop, lra_type_items);
+  RNA_def_property_ui_text(
+      prop,
+      "LRA Type",
+      "Jolt: Method used to measure the long range attachment distance from the nearest pinned vertex");
 
   prop = RNA_def_property(srna, "use_cluster_rigid_to_softbody", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "collisionflags", OB_BSB_COL_CL_RS);

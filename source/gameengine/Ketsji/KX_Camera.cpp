@@ -62,10 +62,7 @@ KX_Camera::KX_Camera()
 
 KX_Camera::~KX_Camera()
 {
-  if (m_gpuViewport) {
-    GPU_viewport_free(m_gpuViewport);
-    m_gpuViewport = nullptr;
-  }
+  RemoveGPUViewport();
   if (m_delete_node && m_pSGNode) {
     // for shadow camera, avoids memleak
     delete m_pSGNode;
@@ -110,6 +107,14 @@ blender::GPUViewport *KX_Camera::GetGPUViewport()
   return m_gpuViewport;
 }
 
+void KX_Camera::RemoveGPUViewport()
+{
+  if (m_gpuViewport && m_gpuViewport != GetScene()->GetCurrentGPUViewport()) {
+    GPU_viewport_free(m_gpuViewport);
+    m_gpuViewport = nullptr;
+  }
+}
+
 KX_PythonProxy *KX_Camera::NewInstance()
 {
   return new KX_Camera(*this);
@@ -118,6 +123,7 @@ KX_PythonProxy *KX_Camera::NewInstance()
 void KX_Camera::ProcessReplica()
 {
   KX_GameObject::ProcessReplica();
+  m_gpuViewport = nullptr;
   // replicated camera are always registered in the scene
   m_delete_node = false;
 }

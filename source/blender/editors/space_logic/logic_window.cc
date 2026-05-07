@@ -392,6 +392,8 @@ static const char *sensor_name(int type)
       return N_("Random");
     case SENS_RAY:
       return N_("Ray");
+    case SENS_RBCONSTRAINT:
+      return N_("RB Constraint");
     case SENS_MOVEMENT:
       return N_("Movement");
     case SENS_MESSAGE:
@@ -1132,6 +1134,10 @@ static void draw_sensor_header(blender::ui::Layout *layout, PointerRNA *ptr, Poi
   RNA_enum_set(&op_ptr, "direction", 2);
 
   sub = &row->row(false);
+  sub->active_set(RNA_boolean_get(ptr, "active"));
+  sub->op("LOGIC_OT_sensor_duplicate", "", ICON_DUPLICATE);
+
+  sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
 
   sub = &row->row(false);
@@ -1270,9 +1276,17 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
 
       col = &layout->column(false);
       col->prop(ptr, "axis_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
-      col->prop(ptr, "axis_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row = &col->row(false);
+      row->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
+      row->prop(ptr, "axis_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_analog_strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      if (RNA_boolean_get(ptr, "use_analog_strength")) {
+        col->prop(ptr, "axis_deadzone", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        col->prop(ptr, "strength_multiplier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
+      else {
+        col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
       break;
     case SENS_JOY_AXIS_SINGLE:
       col = &layout->column(false);
@@ -1282,7 +1296,14 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
     case SENS_JOY_SHOULDER_TRIGGER:
       col = &layout->column(false);
       col->prop(ptr, "axis_trigger_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_analog_strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      if (RNA_boolean_get(ptr, "use_analog_strength")) {
+        col->prop(ptr, "axis_deadzone", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        col->prop(ptr, "strength_multiplier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
+      else {
+        col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
       break;
   }
 }
@@ -1427,6 +1448,17 @@ static void draw_sensor_random(blender::ui::Layout *layout, PointerRNA *ptr)
   layout->prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
+static void draw_sensor_rbconstraint(blender::ui::Layout *layout, PointerRNA *ptr)
+{
+  /* Ensure sensor data exists, in case older/corrupted files have nullptr. */
+  bSensor *sens = (bSensor *)ptr->data;
+  if (sens != nullptr && sens->data == nullptr) {
+    sens->data = MEM_new_zeroed(sizeof(bRBConstraintSensor), "rbconstraint_sens_ui_fix");
+  }
+
+  layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
 static void draw_sensor_ray(blender::ui::Layout *layout, PointerRNA *ptr, bContext *C)
 {
   blender::ui::Layout *split, *row;
@@ -1513,6 +1545,9 @@ static void draw_brick_sensor(blender::ui::Layout *layout, PointerRNA *ptr, bCon
     case SENS_RANDOM:
       draw_sensor_random(box, ptr);
       break;
+    case SENS_RBCONSTRAINT:
+      draw_sensor_rbconstraint(box, ptr);
+      break;
     case SENS_MOVEMENT:
       draw_sensor_movement(box, ptr);
       break;
@@ -1572,6 +1607,10 @@ static void draw_controller_header(blender::ui::Layout *layout, PointerRNA *ptr,
   RNA_enum_set(&op_ptr, "direction", 1);
   op_ptr = sub->op("LOGIC_OT_controller_move", "", ICON_TRIA_DOWN);  // down
   RNA_enum_set(&op_ptr, "direction", 2);
+
+  sub = &row->row(false);
+  sub->active_set(RNA_boolean_get(ptr, "active"));
+  sub->op("LOGIC_OT_controller_duplicate", "", ICON_DUPLICATE);
 
   sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
@@ -1675,6 +1714,10 @@ static void draw_actuator_header(blender::ui::Layout *layout, PointerRNA *ptr, P
   RNA_enum_set(&op_ptr, "direction", 1);
   op_ptr = sub->op("LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN);  // down
   RNA_enum_set(&op_ptr, "direction", 2);
+
+  sub = &row->row(false);
+  sub->active_set(RNA_boolean_get(ptr, "active"));
+  sub->op("LOGIC_OT_actuator_duplicate", "", ICON_DUPLICATE);
 
   sub = &row->row(false);
   sub->prop(ptr, "active", UI_ITEM_NONE, "", ICON_NONE);
@@ -1902,8 +1945,9 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       split = &layout->split(0.75, false);
       row = &split->row(false);
       row->prop(ptr, "fh_damping", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-
-      row->prop(ptr, "fh_height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      split = &split->row(false);
+      split->prop(ptr, "fh_damping_rotation", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "fh_height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       split->prop(ptr, "use_fh_paralel_axis", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
       row = &layout->row(false);
@@ -1925,6 +1969,10 @@ static void draw_actuator_constraint(blender::ui::Layout *layout, PointerRNA *pt
       row = &split->row(false);
       row->prop(ptr, "time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row->prop(ptr, "damping_rotation", ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+      break;
+
+    case ACT_CONST_TYPE_RB:
+      layout->prop(ptr, "rb_action", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 }
@@ -2078,7 +2126,8 @@ static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
       row->prop(ptr, "offset_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       split->prop(ptr, "use_local_rotation", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
 
-      if (ELEM(physics_type, OB_BODY_TYPE_DYNAMIC, OB_BODY_TYPE_RIGID, OB_BODY_TYPE_SOFT)) {
+      if (ELEM(
+              physics_type, OB_BODY_TYPE_DYNAMIC, OB_BODY_TYPE_RIGID, OB_BODY_TYPE_SOFT, OB_BODY_TYPE_VEHICLE)) {
         layout->label(IFACE_("Dynamic Object Settings:"), ICON_NONE);
         split = &layout->split(0.9, false);
         row = &split->row(false);
@@ -2170,6 +2219,18 @@ static void draw_actuator_motion(blender::ui::Layout *layout, PointerRNA *ptr)
       split = &row->split(0.7, false);
       split->label("", ICON_NONE); /*Just use this for some spacing */
       split->prop(ptr, "use_character_jump", ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+      break;
+    case ACT_OBJECT_VEHICLE:
+      if (physics_type != OB_BODY_TYPE_VEHICLE) {
+        layout->label(IFACE_("Requires Vehicle physics type."), ICON_ERROR);
+      }
+      else {
+        layout->prop(ptr, "vehicle_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        const int vmode = RNA_enum_get(ptr, "vehicle_mode");
+        if (vmode != ACT_OBJECT_VEHICLE_BRAKE && vmode != ACT_OBJECT_VEHICLE_HANDBRAKE) {
+          layout->prop(ptr, "vehicle_value", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        }
+      }
       break;
   }
 }
@@ -2336,6 +2397,15 @@ static void draw_actuator_collection(blender::ui::Layout *layout, PointerRNA *pt
       row->prop(ptr, "camera", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case ACT_COLLECTION_REMOVE_OVERLAY:
+      break;
+    case ACT_COLLECTION_SPAWN:
+      row->prop(ptr, "use_full_copy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row = &layout->row(true);
+      row->prop(ptr, "linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_local_linear_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row = &layout->row(true);
+      row->prop(ptr, "angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "use_local_angular_velocity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     default:
       break;
@@ -2797,6 +2867,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
       /* draw the brick contents */
       draw_brick_controller(col, &ptr);
+      col->separator();
 
       /* put link button to the right */
       col = &subsplit->column(false);
@@ -2912,6 +2983,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
         /* draw the brick contents */
         draw_brick_sensor(col, &ptr, C);
+        col->separator();
 
         /* put link button to the right */
         col = &split->column(false);
@@ -3049,6 +3121,7 @@ void logic_buttons(bContext *C, ARegion *region)
 
         /* draw the brick contents */
         draw_brick_actuator(col, &ptr, C);
+        col->separator();
       }
     }
   }

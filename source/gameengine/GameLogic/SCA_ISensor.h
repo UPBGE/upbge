@@ -113,6 +113,14 @@ class SCA_ISensor : public SCA_ILogicBrick {
   virtual void Init();
 
   virtual EXP_Value *GetReplica() = 0;
+  virtual bool HasAnalogOutput() const
+  {
+    return false;
+  }
+  virtual float GetAnalogOutput() const
+  {
+    return 0.0f;
+  }
 
   /** Set parameters for the pulsing behavior.
    * \param posmode Trigger positive pulses?

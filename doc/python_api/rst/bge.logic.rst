@@ -328,6 +328,69 @@ General functions
    :arg maxphysics: The new maximum number of physics timestep per render frame. Valid values: 1..5.
    :type maxphysics: integer
 
+.. function:: getUseFixedPhysicsTimestep()
+
+   Gets whether fixed physics timestep mode is enabled.
+   
+   :return: True if using fixed physics timestep, False for variable timestep
+   :rtype: bool
+
+.. function:: setUseFixedPhysicsTimestep(useFixed)
+
+   Sets whether to use fixed physics timestep mode.
+   
+   In fixed mode, physics runs at a constant rate (physics tick rate) independent of framerate.
+   In variable mode (default), physics is coupled to the framerate.
+   
+   :arg useFixed: True to enable fixed physics mode, False for variable mode
+   :type useFixed: bool
+
+.. function:: getPhysicsTickRate()
+
+   Gets the physics simulation rate for fixed timestep mode.
+   
+   :return: The physics tick rate in Hz (only used in fixed physics mode)
+   :rtype: integer
+
+.. function:: setPhysicsTickRate(tickRate)
+
+   Sets the physics simulation rate for fixed timestep mode.
+   
+   This determines how many times per second physics is updated when using fixed physics mode.
+   
+   :arg tickRate: The new physics tick rate in Hz. Typical values: 30-240
+   :type tickRate: integer
+
+.. function:: getUseFixedFPSCap()
+
+   Gets whether render FPS capping is enabled in fixed physics mode.
+   
+   :return: True if FPS cap is enabled
+   :rtype: bool
+
+.. function:: setUseFixedFPSCap(useFixed)
+
+   Sets whether to cap rendering FPS in fixed physics mode.
+   
+   When enabled, limits the rendering rate to the fixed render cap rate.
+   
+   :arg useFixed: True to enable FPS cap, False to disable
+   :type useFixed: bool
+
+.. function:: getFixedRenderCapRate()
+
+   Gets the render FPS cap rate for fixed physics mode.
+   
+   :return: The render cap rate in Hz (only used when FPS cap is enabled)
+   :rtype: integer
+
+.. function:: setFixedRenderCapRate(rate)
+
+   Sets the render FPS cap rate for fixed physics mode.
+   
+   :arg rate: The new render cap rate in Hz
+   :type rate: integer
+
 .. function:: getLogicTicRate()
 
    Gets the logic update frequency.

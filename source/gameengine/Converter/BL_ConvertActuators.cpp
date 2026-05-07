@@ -151,10 +151,12 @@ void BL_ConvertActuators(const char *maggiename,
         bitLocalFlag.AngularVelocity = bool((obact->flag & ACT_ANG_VEL_LOCAL) != 0);
         bitLocalFlag.ServoControl = bool(obact->type == ACT_OBJECT_SERVO);
         bitLocalFlag.CharacterMotion = bool(obact->type == ACT_OBJECT_CHARACTER);
+        bitLocalFlag.VehicleMotion = bool(obact->type == ACT_OBJECT_VEHICLE);
         bitLocalFlag.CharacterJump = bool((obact->flag & ACT_CHAR_JUMP) != 0);
         bitLocalFlag.AddOrSetLinV = bool((obact->flag & ACT_ADD_LIN_VEL) != 0);
         bitLocalFlag.AddOrSetCharLoc = bool((obact->flag & ACT_ADD_CHAR_LOC) != 0);
         bitLocalFlag.ServoControlAngular = (obact->servotype == ACT_SERVO_ANGULAR);
+        bitLocalFlag.VehicleMotionMode = obact->servotype;
         if (obact->reference && bitLocalFlag.ServoControl) {
           obref = converter->FindGameObject(obact->reference);
         }
@@ -553,6 +555,14 @@ void BL_ConvertActuators(const char *maggiename,
           }
           prop = conact->matprop;
         }
+        else if (conact->type == ACT_CONST_TYPE_RB) {
+          if (conact->mode == ACT_CONST_RB_ENABLE) {
+            locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_RB_ENABLE;
+          }
+          else {
+            locrot = SCA_ConstraintActuator::KX_ACT_CONSTRAINT_RB_DISABLE;
+          }
+        }
         else {
           switch (conact->flag) {
             case ACT_CONST_LOCX:
@@ -654,13 +664,13 @@ void BL_ConvertActuators(const char *maggiename,
       case ACT_COLLECTION: {
         bCollectionActuator *colact = (bCollectionActuator *)bact->data;
         if (!colact->collection) {
-          std::cout << "No blender::Collection found, actuator won't be converted. " << std::endl;
+          std::cout << "No Collection found, actuator won't be converted. " << std::endl;
           break;
         }
         KX_Camera *cam = nullptr;
 
         SCA_CollectionActuator *tmpcolact;
-        int mode = SCA_CollectionActuator::KX_COLLECTION_NODEF;
+        int mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
         switch (colact->type) {
           case ACT_COLLECTION_RESUME:
             mode = SCA_CollectionActuator::KX_COLLECTION_RESUME;
@@ -679,6 +689,9 @@ void BL_ConvertActuators(const char *maggiename,
           case ACT_COLLECTION_REMOVE_OVERLAY:
             mode = SCA_CollectionActuator::KX_COLLECTION_REMOVE_OVERLAY;
             break;
+          case ACT_COLLECTION_SPAWN:
+            mode = SCA_CollectionActuator::KX_COLLECTION_SPAWN;
+            break;
           default:
             mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
             break;
@@ -686,8 +699,12 @@ void BL_ConvertActuators(const char *maggiename,
         bool use_logic = (colact->flag & ACT_COLLECTION_SUSPEND_LOGIC) == 0;
         bool use_physics = (colact->flag & ACT_COLLECTION_SUSPEND_PHYSICS) == 0;
         bool use_visibility = (colact->flag & ACT_COLLECTION_SUSPEND_VISIBILITY) == 0;
+        bool full_copy = (colact->flag & ACT_COLLECTION_FULL_COPY) != 0;
+        bool linv_local = (colact->localflag & 1) != 0;
+        bool angv_local = (colact->localflag & ACT_CLN_LOCAL_ANGV) != 0;
         tmpcolact = new SCA_CollectionActuator(
-            gameobj, scene, cam, colact->collection, mode, use_logic, use_physics, use_visibility);
+            gameobj, scene, cam, colact->collection, mode, use_logic, use_physics, use_visibility,
+            full_copy, colact->linVelocity, linv_local, colact->angVelocity, angv_local);
         baseact = tmpcolact;
         break;
       }
