@@ -3889,8 +3889,14 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   /* Friction, restitution, damping. */
   bodySettings.mFriction = blenderobject->friction;
   bodySettings.mRestitution = blenderobject->reflect;
-  bodySettings.mLinearDamping = blenderobject->damping;
-  bodySettings.mAngularDamping = blenderobject->rdamping;
+  if (blenderobject->damping == 0.04f && blenderobject->rdamping == 0.1f) {
+    bodySettings.mLinearDamping = 0.05f;
+    bodySettings.mAngularDamping = 0.05f;
+  }
+  else {
+    bodySettings.mLinearDamping = blenderobject->damping;
+    bodySettings.mAngularDamping = blenderobject->rdamping;
+  }
   bodySettings.mMaxLinearVelocity = JoltLinearVelocityMaxOrDefault(blenderobject->max_vel);
   bodySettings.mMaxAngularVelocity = JoltAngularVelocityMaxOrDefault(blenderobject->max_angvel);
 

@@ -1012,7 +1012,7 @@ struct Object {
    * and is not changed to avoid DNA surgery. It actually reflects the
    * Size value in the GameButtons (= radius) */
 
-  float mass = 1.0f, damping = 0.0f, inertia = 1.0f;
+  float mass = 1.0f, damping = 0.04f, inertia = 1.0f;
   /* The form factor k is introduced to give the user more control
    * and to fix incompatibility problems.
    * For rotational symmetric objects, the inertia value can be

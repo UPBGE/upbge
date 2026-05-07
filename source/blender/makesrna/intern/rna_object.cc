@@ -455,6 +455,45 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 
 namespace blender {
 
+static constexpr float game_damping_bullet_linear_default = 0.04f;
+static constexpr float game_damping_bullet_angular_default = 0.1f;
+static constexpr float game_damping_jolt_linear_default = 0.05f;
+static constexpr float game_damping_jolt_angular_default = 0.05f;
+
+static bool rna_GameObjectSettings_default_scene_uses_jolt(PointerRNA *ptr)
+{
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+
+  if (!ob || !G_MAIN) {
+    return false;
+  }
+
+  for (Scene *scene = static_cast<Scene *>(G_MAIN->scenes.first); scene;
+       scene = static_cast<Scene *>(scene->id.next))
+  {
+    if (scene->gm.physicsEngine == WOPHY_JOLT && BKE_scene_object_find(*G_MAIN, scene, ob)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static float rna_GameObjectSettings_damping_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  return rna_GameObjectSettings_default_scene_uses_jolt(ptr) ?
+             game_damping_jolt_linear_default :
+             game_damping_bullet_linear_default;
+}
+
+static float rna_GameObjectSettings_rotation_damping_default(PointerRNA *ptr,
+                                                            PropertyRNA * /*prop*/)
+{
+  return rna_GameObjectSettings_default_scene_uses_jolt(ptr) ?
+             game_damping_jolt_angular_default :
+             game_damping_bullet_angular_default;
+}
+
 static void rna_Object_internal_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_TRANSFORM);
@@ -4181,12 +4220,16 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "damping");
-  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_float_default_func(prop, "rna_GameObjectSettings_damping_default");
+  RNA_def_property_range(prop, 0.0, 5.0);
+  RNA_def_property_ui_range(prop, 0.0, 5.0, 1, 3);
   RNA_def_property_ui_text(prop, "Damping", "General movement damping");
 
   prop = RNA_def_property(srna, "rotation_damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "rdamping");
-  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_float_default_func(prop, "rna_GameObjectSettings_rotation_damping_default");
+  RNA_def_property_range(prop, 0.0, 5.0);
+  RNA_def_property_ui_range(prop, 0.0, 5.0, 1, 3);
   RNA_def_property_ui_text(prop, "Rotation Damping", "General rotation damping");
 
   prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_DISTANCE);

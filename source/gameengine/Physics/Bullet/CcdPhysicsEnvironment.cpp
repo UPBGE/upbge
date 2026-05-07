@@ -22,6 +22,7 @@
 #include "CcdPhysicsEnvironment.h"
 
 #include <algorithm>
+#include <new>
 
 #include "BKE_context.hh"
 #include "BKE_effect.h"
@@ -39,6 +40,7 @@
 #include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
+#include "LinearMath/btAlignedAllocator.h"
 
 #include "BL_SceneConverter.h"
 #include "CM_List.h"
@@ -375,7 +377,10 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 }
 
 CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling)
-    : m_cullingCache(nullptr),
+    : m_debugDrawer(nullptr),
+      m_collisionConfiguration(nullptr),
+      m_broadphase(nullptr),
+      m_cullingCache(nullptr),
       m_cullingTree(nullptr),
       //m_numIterations(10),
       m_numTimeSubSteps(1),
@@ -404,7 +409,8 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
   m_broadphase = new btDbvtBroadphase();
   // avoid any collision in the culling tree
   if (useDbvtCulling) {
-    m_cullingCache = new btNullPairCache();
+    void *pairCacheMem = btAlignedAlloc(sizeof(btNullPairCache), 16);
+    m_cullingCache = new (pairCacheMem) btNullPairCache();
     m_cullingTree = new btDbvtBroadphase(m_cullingCache);
   }
 
@@ -485,25 +491,32 @@ void CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController *ctrl)
 
 void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 {
-  CcdConstraint *userData = (CcdConstraint *)con->getUserConstraintPtr();
-  if (!userData->GetActive()) {
+  if (!con) {
     return;
   }
 
+  CcdConstraint *userData = (CcdConstraint *)con->getUserConstraintPtr();
+  const bool isActive = userData && userData->GetActive();
+
   btRigidBody &rbA = con->getRigidBodyA();
   btRigidBody &rbB = con->getRigidBodyB();
-  rbA.activate();
-  rbB.activate();
 
-  userData->SetActive(false);
+  if (isActive) {
+    rbA.activate();
+    rbB.activate();
+
+    userData->SetActive(false);
+
+    if (m_dynamicsWorld) {
+      m_dynamicsWorld->removeConstraint(con);
+    }
+  }
 
   /* Keep the lookup map in sync. */
   const int constraintId = con->getUserConstraintId();
   if (constraintId != 0) {
     m_constraintById.erase(constraintId);
   }
-
-  m_dynamicsWorld->removeConstraint(con);
 
   if (free) {
     if (rbA.getUserPointer()) {
@@ -516,6 +529,7 @@ void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 
     /* Since we remove the constraint in the onwer and the target, we can delete it,
      * KX_ConstraintWrapper keep the constraint id not the pointer, so no problems. */
+    con->setUserConstraintPtr(nullptr);
     delete userData;
     delete con;
   }
@@ -2170,7 +2184,33 @@ void CcdPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env)
 
 CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 {
-  m_wrapperVehicles.clear();
+  if (m_dynamicsWorld) {
+    m_dynamicsWorld->setInternalTickCallback(nullptr, nullptr);
+
+    while (!m_wrapperVehicles.empty()) {
+      RemoveVehicle(m_wrapperVehicles.back(), true);
+    }
+
+    while (m_dynamicsWorld->getNumConstraints() > 0) {
+      btTypedConstraint *constraint = m_dynamicsWorld->getConstraint(
+          m_dynamicsWorld->getNumConstraints() - 1);
+      RemoveConstraint(constraint, true);
+    }
+
+    std::vector<CcdPhysicsController *> remaining(m_controllers.begin(), m_controllers.end());
+    for (CcdPhysicsController *ctrl : remaining) {
+      RemoveCcdPhysicsController(ctrl, true);
+      ctrl->ClearPhysicsEnvironment();
+    }
+    m_controllers.clear();
+    m_constraintById.clear();
+
+    while (m_dynamicsWorld->getNumCollisionObjects() > 0) {
+      btCollisionObject *collisionObject = m_dynamicsWorld->getCollisionObjectArray()[
+          m_dynamicsWorld->getNumCollisionObjects() - 1];
+      m_dynamicsWorld->removeCollisionObject(collisionObject);
+    }
+  }
 
   // m_broadphase->DestroyScene();
   // delete broadphase ? release reference on broadphase ?
@@ -2201,11 +2241,15 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
   if (nullptr != m_broadphase)
     delete m_broadphase;
 
-  if (nullptr != m_cullingTree)
+  if (nullptr != m_cullingTree) {
+    if (nullptr != m_cullingCache) {
+      m_cullingCache->~btOverlappingPairCache();
+      btAlignedFree(m_cullingCache);
+    }
     delete m_cullingTree;
-
-  if (nullptr != m_cullingCache)
-    delete m_cullingCache;
+    m_cullingCache = nullptr;
+    m_cullingTree = nullptr;
+  }
 
   if (m_fallbackEffectorWeights) {
     MEM_delete_void(static_cast<void *>(m_fallbackEffectorWeights));
@@ -3448,8 +3492,14 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   ci.m_restitution = blenderobject->reflect;
   ci.m_physicsEnv = this;
   // drag / damping is inverted
-  ci.m_linearDamping = blenderobject->damping;
-  ci.m_angularDamping = blenderobject->rdamping;
+  if (blenderobject->damping == 0.05f && blenderobject->rdamping == 0.05f) {
+    ci.m_linearDamping = 0.04f;
+    ci.m_angularDamping = 0.1f;
+  }
+  else {
+    ci.m_linearDamping = blenderobject->damping;
+    ci.m_angularDamping = blenderobject->rdamping;
+  }
   // need a bit of damping, else system doesn't behave well
   ci.m_inertiaFactor = blenderobject->formfactor /
                        0.4f;  // defaults to 0.4, don't want to change behavior

@@ -216,15 +216,18 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       sce.gm.freqplay = 60;
       sce.gm.depth = 32;
       sce.gm.gravity = 9.8f;
-      sce.gm.physicsEngine = WOPHY_BULLET;
+      sce.gm.physicsEngine = WOPHY_JOLT;
       sce.gm.mode = WO_ACTIVITY_CULLING;
       sce.gm.occlusionRes = 128;
       sce.gm.ticrate = 60;
       sce.gm.maxlogicstep = 5;
       sce.gm.physubstep = 1;
       sce.gm.maxphystep = 5;
-      sce.gm.use_fixed_physics_timestep = 0;
+      sce.gm.use_fixed_physics_timestep = 1;
       sce.gm.physics_tick_rate = 60;
+      sce.gm.use_fixed_physics_interpolation = 0;
+      sce.gm.use_fixed_fps_cap = 1;
+      sce.gm.fixed_render_cap_rate = 60;
       sce.gm.lineardeactthreshold = 0.03f;
       sce.gm.angulardeactthreshold = 0.03f;
       sce.gm.deactivationtime = 0.5f;
@@ -286,6 +289,7 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       ob.gameflag2 = 0;
       ob.margin = 0.04f;
       ob.friction = 0.5f;
+      ob.gravity_factor = 1.0f;
       ob.init_state = 1;
       ob.state = 1;
       ob.obstacleRad = 1.0f;
@@ -318,7 +322,7 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
           fd->filesdna, "GameData", "char", "use_fixed_physics_interpolation"))
   {
     for (Scene &scene : bmain->scenes) {
-      scene.gm.use_fixed_physics_interpolation = 1;
+      scene.gm.use_fixed_physics_interpolation = scene.gm.physicsEngine == WOPHY_JOLT ? 0 : 1;
     }
   }
   if (DNA_struct_member_exists(fd->filesdna, "Scene", "GameData", "gm") &&

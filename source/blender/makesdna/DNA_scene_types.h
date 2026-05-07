@@ -781,7 +781,7 @@ typedef struct GameData {
   short mode = 8;
   short matmode = 0;
   short occlusionRes = 128; /* resolution of occlusion Z buffer in pixel */
-  short physicsEngine = 5;
+  short physicsEngine = 6;
   short solverType = 0, _pad[3] = {};
   short exitkey = 218;
   short pythonkeys[4] = {212, 217, 213, 116};
@@ -799,13 +799,13 @@ typedef struct GameData {
   int scehysteresis = 10;
 
   /* Fixed physics timestep settings (UPBGE) */
-  char use_fixed_physics_timestep = 0;
+  char use_fixed_physics_timestep = 1;
   char _pad_fixed[3] = {};
   short physics_tick_rate = 60;
   short _pad_physics = 0;
 
   /* Fixed physics interpolation (global) */
-  char use_fixed_physics_interpolation = 1;
+  char use_fixed_physics_interpolation = 0;
   char _pad_fixed_interpolation[7] = {};
 
   /* Fixed physics render FPS cap (only in fixed physics mode) */

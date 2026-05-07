@@ -874,14 +874,17 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
       /* Physic (previously stored in world) */
       sce->gm.gravity = 9.8f;
-      sce->gm.physicsEngine = WOPHY_BULLET; /* Bullet by default */
+      sce->gm.physicsEngine = WOPHY_JOLT; /* Jolt by default */
       sce->gm.occlusionRes = 128;
       sce->gm.ticrate = 60;
       sce->gm.maxlogicstep = 5;
       sce->gm.physubstep = 1;
       sce->gm.maxphystep = 5;
-      sce->gm.use_fixed_physics_timestep = 0;
+      sce->gm.use_fixed_physics_timestep = 1;
       sce->gm.physics_tick_rate = 60;
+      sce->gm.use_fixed_physics_interpolation = 0;
+      sce->gm.use_fixed_fps_cap = 1;
+      sce->gm.fixed_render_cap_rate = 60;
     }
   }
 

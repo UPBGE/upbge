@@ -884,6 +884,11 @@ class CcdPhysicsController : public PHY_IPhysicsController {
     return m_cci.m_physicsEnv;
   }
 
+  void ClearPhysicsEnvironment()
+  {
+    m_cci.m_physicsEnv = nullptr;
+  }
+
   void SetParentRoot(CcdPhysicsController *parentCtrl)
   {
     m_parentRoot = parentCtrl;
