@@ -44,7 +44,7 @@
 #    pragma warning(push)
 #    pragma warning(disable : 4005)
 #  endif
-#  include "SDL.h"
+#  include <SDL3/SDL.h>
 
 #  ifdef _MSC_VER
 #    pragma warning(pop)
@@ -67,7 +67,7 @@ class DEV_Joystick
 #ifdef WITH_SDL
   PrivateData *m_private;
 #endif
-  int m_joyindex;
+  int m_bge_joystick_slot;
 
   /**
    *support for JOYAXIS_MAX axes (in pairs)
@@ -97,6 +97,7 @@ class DEV_Joystick
   /**
    * event callbacks
    */
+  void SetInstanceId(SDL_JoystickID sdl_joystick_id);
   void OnAxisEvent(SDL_Event *sdl_event);
   void OnButtonEvent(SDL_Event *sdl_event);
   void OnNothing(SDL_Event *sdl_event);
@@ -122,14 +123,14 @@ class DEV_Joystick
    */
   int pGetAxis(int axisnum, int udlr);
 
-  DEV_Joystick(short index);
+  DEV_Joystick(short bge_joystick_slot);
 
   ~DEV_Joystick();
 
  public:
-  static DEV_Joystick *GetInstance(short joyindex);
+  static DEV_Joystick *GetInstance(short bge_joystick_slot);
   static bool HandleEvents(short (&addrem)[JOYINDEX_MAX]);
-  void ReleaseInstance(short joyindex);
+  void ReleaseInstance(short bge_joystick_slot);
   static void Init();
   static void Close();
 

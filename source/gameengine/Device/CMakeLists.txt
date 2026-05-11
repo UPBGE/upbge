@@ -52,6 +52,7 @@ set(SRC
 set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dependencies::optional::sdl
 )
 
 if(WITH_SDL)

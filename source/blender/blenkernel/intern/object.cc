@@ -1339,14 +1339,14 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_struct_list(reader, bProperty, &ob->prop);
   for (prop = (bProperty *)ob->prop.first; prop; prop = prop->next) {
-    BLO_read_data_address(reader, &prop->poin);
+    BLO_read_raw_address(reader, &prop->poin);
     if (prop->poin == nullptr)
       prop->poin = &prop->data;
   }
 
   BLO_read_struct_list(reader, bSensor, &ob->sensors);
   for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
-    BLO_read_data_address(reader, &sens->data);
+    BLO_read_raw_address(reader, &sens->data);
     BLO_read_pointer_array_and_validate_size(reader, &sens->links, &sens->totlinks);
   }
 
@@ -1364,7 +1364,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     ob->init_state = 1;
   }
   for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
-    BLO_read_data_address(reader, &cont->data);
+    BLO_read_raw_address(reader, &cont->data);
     BLO_read_pointer_array_and_validate_size(reader, &cont->links, &cont->totlinks);
     if (cont->state_mask == 0)
       cont->state_mask = 1;
@@ -1372,7 +1372,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_glob_list(reader, &ob->actuators);
   for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
-    BLO_read_data_address(reader, &act->data);
+    BLO_read_raw_address(reader, &act->data);
   }
 
   BLO_read_glob_list(reader, &ob->components);
@@ -1383,14 +1383,14 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     while (pprop) {
       BLO_read_struct_list(reader, LinkData, &pprop->enumval);
       for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
-        BLO_read_data_address(reader, &link->data);
+        BLO_read_raw_address(reader, &link->data);
       }
       pprop = pprop->next;
     }
     pp = pp->next;
   }
 
-  BLO_read_data_address(reader, &ob->custom_object);
+  BLO_read_raw_address(reader, &ob->custom_object);
   pp = ob->custom_object;
 
   if (pp) {
@@ -1399,7 +1399,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     while (pprop) {
       BLO_read_struct_list(reader, LinkData, &pprop->enumval);
       for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
-        BLO_read_data_address(reader, &link->data);
+        BLO_read_raw_address(reader, &link->data);
       }
       pprop = pprop->next;
     }

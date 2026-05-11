@@ -34,12 +34,22 @@
 #include "DEV_JoystickPrivate.h"
 
 #ifdef WITH_SDL
+
+static int find_free_bge_joystick_slot()
+{
+  for (int i = 0; i < JOYINDEX_MAX; i++) {
+    if (!DEV_Joystick::GetInstance(i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 void DEV_Joystick::OnAxisEvent(SDL_Event *sdl_event)
 {
-  if (sdl_event->caxis.axis >= JOYAXIS_MAX)
+  if (sdl_event->gaxis.axis >= JOYAXIS_MAX)
     return;
-
-  m_axis_array[sdl_event->caxis.axis] = sdl_event->caxis.value;
+  m_axis_array[sdl_event->gaxis.axis] = sdl_event->gaxis.value;
   m_istrig_axis = 1;
 }
 
@@ -82,31 +92,32 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
      * controller */
 
     switch (sdl_event.type) {
-      case SDL_JOYDEVICEADDED:
-        if (sdl_event.jdevice.which < JOYINDEX_MAX) {
-          if (!DEV_Joystick::m_instance[sdl_event.jdevice.which]) {
-            DEV_Joystick::m_instance[sdl_event.jdevice.which] = new DEV_Joystick(
-                sdl_event.jdevice.which);
-            DEV_Joystick::m_instance[sdl_event.jdevice.which]->CreateJoystickDevice();
-            addrem[sdl_event.jdevice.which] = 1;
-            remap = true;
-            break;
+      case SDL_EVENT_JOYSTICK_ADDED:
+        {
+          const int bge_joystick_slot = find_free_bge_joystick_slot();
+          if (bge_joystick_slot >= 0) {
+            DEV_Joystick::m_instance[bge_joystick_slot] = new DEV_Joystick(bge_joystick_slot);
+            DEV_Joystick::m_instance[bge_joystick_slot]->SetInstanceId(sdl_event.jdevice.which);
+            if (DEV_Joystick::m_instance[bge_joystick_slot]->CreateJoystickDevice()) {
+              addrem[bge_joystick_slot] = 1;
+              remap = true;
+              break;
+            }
+
+            DEV_Joystick::m_instance[bge_joystick_slot]->ReleaseInstance(bge_joystick_slot);
           }
           else {
-            CM_Warning("conflicts with Joysticks trying to use the same index."
-                       << " Please, reconnect Joysticks in different order than before");
+            CM_Warning(
+                "maximum quantity (8) of Game Controllers connected. It is not possible to set up "
+                "additional ones.");
           }
         }
-        else {
-          CM_Warning(
-              "maximum quantity (8) of Game Controllers connected. It is not possible to set up "
-              "additional ones.");
-        }
         break;
-      case SDL_CONTROLLERDEVICEREMOVED:
+      case SDL_EVENT_GAMEPAD_REMOVED:
         for (int i = 0; i < JOYINDEX_MAX; i++) {
           if (DEV_Joystick::m_instance[i]) {
-            if (sdl_event.cdevice.which == DEV_Joystick::m_instance[i]->m_private->m_instance_id) {
+            if (sdl_event.gdevice.which ==
+                DEV_Joystick::m_instance[i]->m_private->m_sdl_joystick_id) {
               DEV_Joystick::m_instance[i]->ReleaseInstance(i);
               addrem[i] = 2;
               remap = true;
@@ -115,21 +126,23 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
           }
         }
         break;
-      case SDL_CONTROLLERBUTTONDOWN:
-      case SDL_CONTROLLERBUTTONUP:
+      case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+      case SDL_EVENT_GAMEPAD_BUTTON_UP:
         for (int i = 0; i < JOYINDEX_MAX; i++) {
           if (DEV_Joystick::m_instance[i]) {
-            if (sdl_event.cdevice.which == DEV_Joystick::m_instance[i]->m_private->m_instance_id) {
+            if (sdl_event.gbutton.which ==
+                DEV_Joystick::m_instance[i]->m_private->m_sdl_joystick_id) {
               DEV_Joystick::m_instance[i]->OnButtonEvent(&sdl_event);
               break;
             }
           }
         }
         break;
-      case SDL_CONTROLLERAXISMOTION:
+      case SDL_EVENT_GAMEPAD_AXIS_MOTION:
         for (int i = 0; i < JOYINDEX_MAX; i++) {
           if (DEV_Joystick::m_instance[i]) {
-            if (sdl_event.cdevice.which == DEV_Joystick::m_instance[i]->m_private->m_instance_id) {
+            if (sdl_event.gaxis.which ==
+                DEV_Joystick::m_instance[i]->m_private->m_sdl_joystick_id) {
               DEV_Joystick::m_instance[i]->OnAxisEvent(&sdl_event);
               break;
             }

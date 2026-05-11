@@ -191,6 +191,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::sdl
   ge_expressions
 )
 
