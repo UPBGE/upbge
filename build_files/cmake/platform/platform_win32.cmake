@@ -419,6 +419,14 @@ if(WITH_LIBMV)
   find_package(Ceres REQUIRED CONFIG)
 endif()
 
+if(WITH_DRACO)
+  find_package(draco REQUIRED CONFIG)
+endif()
+
+if(WITH_MESHOPTIMIZER)
+  find_package(meshoptimizer REQUIRED CONFIG)
+endif()
+
 windows_find_package(ZLIB) # We want to find before finding things that depend on it like PNG.
 windows_find_package(PNG)
 if(NOT PNG_FOUND)
@@ -766,10 +774,7 @@ if(WITH_RUBBERBAND)
 endif()
 
 if(WITH_SDL)
-  set(SDL ${LIBDIR}/sdl)
-  set(SDL_INCLUDE_DIR ${SDL}/include)
-  set(SDL_LIBPATH ${SDL}/lib)
-  set(SDL_LIBRARY ${SDL_LIBPATH}/SDL2.lib)
+  find_package(SDL3 REQUIRED CONFIG)
 endif()
 
 # Audio IO

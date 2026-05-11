@@ -83,3 +83,7 @@ if(UNIX AND NOT APPLE)
     add_subdirectory(wayland_dynload)
   endif()
 endif()
+
+if(WITH_DRACO)
+  add_subdirectory(draco_bridge)
+endif()
