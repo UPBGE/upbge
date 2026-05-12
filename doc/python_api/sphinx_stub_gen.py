@@ -17,6 +17,8 @@ __all__ = (
 
 import argparse
 import ast
+import fnmatch
+import re
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -427,7 +429,7 @@ def extract_class(node: ApiNode, source_path: Path) -> ClassInfo:
         )
         State.structure_errors += 1
 
-    check_params_documented(name, init_args, fields, source_path)
+    check_params_consistent(name, init_args, fields, source_path)
 
     for child in node.children:
         if not isinstance(child, ApiNode):
@@ -451,19 +453,24 @@ def extract_class(node: ApiNode, source_path: Path) -> ClassInfo:
     return cls
 
 
-def check_params_documented(
+def check_params_consistent(
     qual_name: str,
     args: ast.arguments | None,
     fields: dict[str, str],
     source_path: Path,
 ) -> None:
-    """Warn for parameters lacking ``:param X:`` or ``:type X:`` documentation."""
+    """
+    Warn for parameters lacking ``:param X:`` / ``:type X:`` documentation,
+    and for ``:param X:`` / ``:type X:`` fields that do not match any argument.
+    """
     if args is None:
         return
     # `self`/`cls` are omitted from RST signatures, so no skip needed; `*args`/`**kwargs`
     # excluded as they're conventionally documented as a group.
+    arg_names: set[str] = set()
     for arg in args.posonlyargs + args.args + args.kwonlyargs:
         name = arg.arg
+        arg_names.add(name)
         has_param = ("param " + name) in fields
         has_type = ("type " + name) in fields
         issue: str | None = None
@@ -480,6 +487,23 @@ def check_params_documented(
                 file=sys.stderr,
             )
             State.undocumented_errors += 1
+
+    # Inverse: warn for `:param X:` / `:type X:` whose `X` is not an argument.
+    # Skip when the signature is variadic - `*args` / `**kwargs` can accept any caller-supplied name.
+    if args.vararg is None and args.kwarg is None:
+        for key in fields:
+            for prefix in ("param ", "type "):
+                if key.startswith(prefix):
+                    pname = key[len(prefix):]
+                    if pname not in arg_names:
+                        print(
+                            "Warning: {:s}: {:s}: orphan ':{:s}{:s}:' (no matching argument)".format(
+                                source_path.name, qual_name, prefix, pname,
+                            ),
+                            file=sys.stderr,
+                        )
+                        State.undocumented_errors += 1
+                    break
 
 
 def extract_callable(
@@ -506,7 +530,7 @@ def extract_callable(
         return_type = body_rtype
 
     qual_name = "{:s}.{:s}".format(class_name, name) if class_name else name
-    check_params_documented(qual_name, parsed_args, fields, source_path)
+    check_params_consistent(qual_name, parsed_args, fields, source_path)
 
     return name, params, return_type, body_param_types
 
@@ -550,6 +574,29 @@ def extract_data(node: ApiNode) -> DataInfo:
     fields = node_fields(node)
     type_str = fields.get("type")
     return DataInfo(name=name, type_str=type_str)
+
+
+def extract_default_root_names(params: str) -> set[str]:
+    """
+    Return root identifiers referenced in default values of *params*.
+
+    For ``(a, b=IntegrationType.MEAN, c=sys.float_info.max, d=print)`` this
+    returns ``{"IntegrationType", "sys", "print"}``. Used to promote cross-stub
+    imports needed at runtime (default evaluation) out of ``TYPE_CHECKING``.
+    """
+    # The signature has already been validated by `split_signature`.
+    tree = ast.parse("def _{:s}: pass".format(params))
+    func_def = tree.body[0]
+    assert isinstance(func_def, ast.FunctionDef)
+    args = func_def.args
+    names: set[str] = set()
+    for d in list(args.defaults) + list(args.kw_defaults):
+        if d is None:
+            continue
+        for sub in ast.walk(d):
+            if isinstance(sub, ast.Name):
+                names.add(sub.id)
+    return names
 
 
 def split_signature(sig_str: str) -> tuple[str, str | None, ast.arguments | None]:
@@ -1118,18 +1165,44 @@ def write_stub(
             imports.add(("typing", "Any"))
 
     # Cross-stub imports go under `if TYPE_CHECKING:` to break import cycles.
-    # With `from __future__ import annotations` the names only appear in
-    # annotation strings, never executed at runtime - so deferring is safe.
-    # (No cross-stub base classes exist; if they ever do, this needs revisiting.)
+    # With `from __future__ import annotations` the names only appear in annotation strings,
+    # never executed at runtime - so deferring is safe.
+    #
+    # Exception: names referenced in default values (e.g. `mode=Type.VALUE`) *are* evaluated at runtime,
+    # so those imports are promoted to the top-level group regardless of which stub they live in.
+    # If that introduces a real import cycle the default should be re-expressed as a literal.
     stub_module_names = set(all_modules) | {ENUM_ALIASES_MODULE}
+
+    runtime_default_names: set[str] = set()
+    for cls in module.classes:
+        if cls.init_params:
+            runtime_default_names |= extract_default_root_names(cls.init_params)
+        for method in cls.methods:
+            runtime_default_names |= extract_default_root_names(method.params)
+    for func in module.functions:
+        runtime_default_names |= extract_default_root_names(func.params)
+
+    # Register imports for cross-stub classes named in defaults:
+    # these are bare identifiers like `IntegrationType` in `=IntegrationType.MEAN`,
+    # which the type-scanning pass doesn't pick up since they aren't `:class:` references.
+    for name in runtime_default_names:
+        loc = class_locations.get(name)
+        if loc and loc != current_module:
+            imports.add((loc, name))
 
     bare_stdlib_imports = sorted(
         name for mod, name in imports
-        if mod == "__bare__" and name not in stub_module_names
+        if mod == "__bare__" and (
+            name not in stub_module_names or
+            name in runtime_default_names
+        )
     )
     bare_stub_imports = sorted(
         name for mod, name in imports
-        if mod == "__bare__" and name in stub_module_names
+        if mod == "__bare__" and (
+            name in stub_module_names and
+            name not in runtime_default_names
+        )
     )
 
     stdlib_groups: dict[str, set[str]] = {}
@@ -1139,7 +1212,8 @@ def write_stub(
             continue
         if name in local_classes:
             continue
-        target = stub_groups if mod in stub_module_names else stdlib_groups
+        is_stub = mod in stub_module_names and name not in runtime_default_names
+        target = stub_groups if is_stub else stdlib_groups
         target.setdefault(mod, set()).add(name)
 
     typing_names = sorted({name for mod, name in imports if mod == "typing"})
@@ -1445,7 +1519,10 @@ def write_attribute(
     else:
         imports.add(("typing", "Any"))
         type_ann = "Any"
-    fw("    {:s}: {:s}\n".format(name, type_ann))
+    # Initialize with `= ...` so the name is a real class attribute. Without it,
+    # `from __future__ import annotations` turns `name: type` into a string-only entry in `__annotations__`,
+    # so `Class.name` raises `AttributeError` at runtime - which breaks stubs that reference it as a default value.
+    fw("    {:s}: {:s} = ...\n".format(name, type_ann))
     return True
 
 
@@ -1515,6 +1592,25 @@ def get_submodules(module_name: str, all_modules: dict[str, ModuleInfo]) -> list
         if name.startswith(prefix) and "." not in name[len(prefix):]:
             subs.append(name[len(prefix):])
     return subs
+
+
+# ----------------------------------------------------------------------------
+# Module Exclusions
+
+# Module name patterns to skip during stub generation.
+# An exact name matches that module only; a pattern ending in `.*` matches
+# all submodules under that prefix (the prefix itself must be listed separately
+# to also exclude the parent).
+EXCLUDED_MODULES: tuple[str, ...] = (
+    "aud",
+    "aud.*",
+)
+EXCLUDED_MODULES_RE = re.compile("|".join(fnmatch.translate(p) for p in EXCLUDED_MODULES))
+
+
+def is_module_excluded(name: str) -> bool:
+    """Return True if *name* matches any pattern in ``EXCLUDED_MODULES``."""
+    return EXCLUDED_MODULES_RE.match(name) is not None
 
 
 # ----------------------------------------------------------------------------
@@ -1688,6 +1784,12 @@ def main() -> int:
     for rst_path in rst_files:
         if rst_path.name == "index.rst":
             continue
+        # Skip excluded modules before parsing so no warnings are emitted.
+        # Filename stems match `.. module::` names in this build tree.
+        if is_module_excluded(rst_path.stem):
+            if GLOBAL.verbose:
+                print("Skipped (excluded): {:s}".format(rst_path.stem))
+            continue
         module = parse_rst_file(rst_path)
         if not module.name:
             continue
@@ -1768,7 +1870,7 @@ def main() -> int:
 
     if State.undocumented_errors:
         print(
-            "\n{:d} undocumented parameter(s) encountered".format(State.undocumented_errors),
+            "\n{:d} parameter documentation issue(s) encountered".format(State.undocumented_errors),
             file=sys.stderr,
         )
         if args.strict_docs:

@@ -474,7 +474,13 @@ static void rna_userdef_asset_libraries_refresh(bContext *C, PointerRNA *ptr)
   rna_userdef_update(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
-static void rna_userdef_asset_library_remote_sync_update(bContext *C, PointerRNA *ptr)
+static void rna_userdef_asset_library_remote_url_set(PointerRNA *ptr, const char *value)
+{
+  bUserAssetLibrary *library = (bUserAssetLibrary *)ptr->data;
+  BKE_preferences_remote_asset_library_url_set(library, value);
+}
+
+static void rna_userdef_asset_library_remote_url_update(bContext *C, PointerRNA *ptr)
 {
   bUserAssetLibrary *library = (bUserAssetLibrary *)ptr->data;
   AssetLibraryReference library_ref = blender::ed::asset::user_library_to_library_ref(*library);
@@ -5360,12 +5366,10 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "manually if Auto-Save Preferences is disabled");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-  prop = RNA_def_property(srna, "show_online_assets", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_UIFLAG2_SHOW_ONLINE_ASSETS);
+  prop = RNA_def_property(srna, "asset_access", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_asset_access_items);
   RNA_def_property_ui_text(
-      prop,
-      "Show Online Assets",
-      "When internet access is enabled, load and display online assets in asset shelves");
+      prop, "Asset Access", "Choose the visibility of online and offline assets");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   static const EnumPropertyItem header_align_items[] = {
@@ -7025,9 +7029,11 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "remote_url", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "remote_url");
+  RNA_def_property_string_funcs(
+      prop, nullptr, nullptr, "rna_userdef_asset_library_remote_url_set");
   RNA_def_property_ui_text(prop, "URL", "Remote URL to the asset library");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_remote_sync_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_remote_url_update");
 
   prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_preferences_asset_import_method_items);

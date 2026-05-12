@@ -3898,7 +3898,7 @@ void button_range_set_soft(Button *but)
   }
 }
 
-/* ******************* Free ********************/
+/* ******************* Free ******************* */
 
 static void ui_free_link(uiLink *link)
 {

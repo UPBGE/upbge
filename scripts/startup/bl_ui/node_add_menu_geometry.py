@@ -12,16 +12,19 @@ from bpy.app.translations import (
 class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
     bl_label = "Attribute"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeAttributeStatistic")
         self.node_operator(layout, "GeometryNodeAttributeDomainSize")
+        self.node_operator(layout, "GeometryNodeGetAttributeNames")
         layout.separator()
         self.node_operator(layout, "GeometryNodeBlurAttribute")
         self.node_operator(layout, "GeometryNodeCaptureAttribute")
         self.node_operator(layout, "GeometryNodeRemoveAttribute")
         self.node_operator(layout, "GeometryNodeRenameAttribute")
         self.node_operator(layout, "GeometryNodeStoreNamedAttribute", search_weight=1.0)
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "GeometryNodeTransferAttributes")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -643,9 +646,12 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
 class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
     bl_label = "Simulation"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         self.simulation_zone(layout, label="Simulation")
+        layout.separator()
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "GeometryNodeXPBDSolver")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -660,6 +666,7 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeStringJoin")
         self.node_operator(layout, "FunctionNodeMatchString")
         self.node_operator(layout, "FunctionNodeReplaceString")
+        self.node_operator(layout, "FunctionNodeReverseString")
         self.node_operator(layout, "FunctionNodeSliceString")
         self.node_operator(layout, "FunctionNodeSplitString")
         self.node_operator(layout, "FunctionNodeTrimString")
@@ -671,6 +678,8 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeValueToString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeInputSpecialCharacters")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "GeometryNodeTagFilter")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
