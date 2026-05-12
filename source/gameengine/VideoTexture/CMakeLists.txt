@@ -25,10 +25,7 @@ set(INC
 
 set(INC_SYS
   ../../../intern/moto/include
-  ${Epoxy_INCLUDE_DIRS}
 )
-
-add_definitions(${GL_DEFINITIONS})
 
 set(SRC
   Exception.cpp
@@ -84,6 +81,13 @@ set(LIB
   PRIVATE bf::render
   ge_scenegraph
 )
+
+if(WITH_OPENGL_BACKEND)
+  list(APPEND LIB
+    PRIVATE bf::dependencies::epoxy
+  )
+  add_definitions(-DWITH_OPENGL_BACKEND)
+endif()
 
 if(WITH_GAMEENGINE_DECKLINK)
   add_definitions(-DWITH_GAMEENGINE_DECKLINK)

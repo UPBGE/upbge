@@ -40,7 +40,6 @@ set(INC
 
 set(INC_SYS
   ../../../../intern/moto/include
-  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -65,6 +64,11 @@ set(LIB
   PRIVATE bf::render
 )
 
-add_definitions(${GL_DEFINITIONS})
+if(WITH_OPENGL_BACKEND)
+  list(APPEND LIB
+    PRIVATE bf::dependencies::epoxy
+  )
+  add_definitions(-DWITH_OPENGL_BACKEND)
+endif()
 
 blender_add_lib(ge_rasterizer_opengl "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

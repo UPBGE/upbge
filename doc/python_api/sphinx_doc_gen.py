@@ -46,6 +46,7 @@ import inspect
 import shutil
 import logging
 import warnings
+import os
 
 from collections.abc import (
     Callable,
@@ -607,15 +608,15 @@ def global_create(argv: Sequence[str]) -> Global:
         # filter_bpy_types = ("bpy_struct", "Operator", "ID")  # allow
         exclude_info_docs = True
         exclude_modules = [
-			"bge",
-        	"bge.app"
-        	"bge.constraints",
-        	"bge.events",
-        	"bge.logic",
-        	"bge.render",
-        	"bge.texture",
-        	"bge.types",
-        	"bgui",
+            "bge",
+            "bge.app"
+            "bge.constraints",
+            "bge.events",
+            "bge.logic",
+            "bge.render",
+            "bge.texture",
+            "bge.types",
+            "bgui",
             "aud",
             "blf",
             "blf.types",
@@ -644,6 +645,7 @@ def global_create(argv: Sequence[str]) -> Global:
             "gpu",
             "gpu.types",
             "gpu.matrix",
+            "gpu.mesh",
             "gpu.select",
             "gpu.shader",
             "gpu.state",
@@ -2953,7 +2955,7 @@ def write_rst_index(basepath: Path) -> None:
     )
 
     for mod in game_engine_modules:
-        if mod not in EXCLUDE_MODULES:
+        if mod not in GLOBAL.exclude_modules:
             fw("   %s\n" % mod)
     fw("\n")
 
@@ -3315,6 +3317,7 @@ def write_rst_importable_modules(basepath: Path) -> None:
         "gpu": "GPU Module",
         "gpu.types": "GPU Types",
         "gpu.matrix": "GPU Matrix Utilities",
+        "gpu.mesh": "GPU Mesh Utilities",
         "gpu.select": "GPU Select Utilities",
         "gpu.shader": "GPU Shader Utilities",
         "gpu.state": "GPU State Utilities",
@@ -3406,7 +3409,7 @@ def copy_handwritten_rsts(basepath: Path) -> None:
             # Copy2 keeps time/date stamps.
             shutil.copy2(RST_DIR / "{:s}.rst".format(mod_name), basepath)
 
-    if "bge.types" not in EXCLUDE_MODULES:
+    if "bge.types" not in GLOBAL.exclude_modules:
         shutil.copy2(os.path.join(RST_DIR, "bge.types.rst"), basepath)
 
         bge_types_dir = os.path.join(RST_DIR, "bge_types")
@@ -3417,7 +3420,7 @@ def copy_handwritten_rsts(basepath: Path) -> None:
                 continue
             shutil.copy2(os.path.join(bge_types_dir, i), basepath)
 
-    if "bgui" not in EXCLUDE_MODULES:
+    if "bgui" not in GLOBAL.exclude_modules:
         shutil.copy2(os.path.join(RST_DIR, "bgui.rst"), basepath)
 
         bgui_dir = os.path.join(RST_DIR, "bgui")
