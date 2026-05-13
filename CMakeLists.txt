@@ -665,7 +665,7 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
 
   option(WITH_CYCLES_CUDA_BINARIES "Build Cycles NVIDIA CUDA binaries" OFF)
   set(CYCLES_CUDA_BINARIES_ARCH
-    sm_50 sm_52 sm_60 sm_61 sm_70 sm_75 sm_86 sm_89 sm_120 compute_75
+    sm_50 sm_52 sm_60 sm_70 sm_75 sm_86 sm_120 compute_75
     CACHE STRING "CUDA architectures to build binaries for"
   )
   option(WITH_CYCLES_CUDA_BUILD_SERIAL "\
@@ -1470,9 +1470,9 @@ set(WITH_BINRELOC OFF)
 # MACOSX only, set to avoid uninitialized
 set(EXETYPE "")
 
-# WITH_SDL is uncached, depends on either WITH_SDL_AUDIO or WITH_GHOST_SDL being set.
+# WITH_SDL is uncached, depends on either WITH_SDL_AUDIO, WITH_GHOST_SDL or WITH_CYCLES_STANDALONE_GUI being set.
 set(WITH_SDL OFF)
-if(WITH_SDL_AUDIO OR WITH_GHOST_SDL)
+if(WITH_SDL_AUDIO OR WITH_GHOST_SDL OR WITH_CYCLES_STANDALONE_GUI)
   set(WITH_SDL ON)
 endif()
 

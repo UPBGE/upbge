@@ -896,6 +896,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     light
     light_group
     light_linking
+    lightprobe
     mesh
     node_inlining
     pointcloud
@@ -1107,7 +1108,6 @@ if(TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
-    rotation
     group
 
     pixel_nodes
@@ -1146,7 +1146,6 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
-    rotation
     group
 
     pixel_nodes

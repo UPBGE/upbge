@@ -87,3 +87,7 @@ endif()
 if(WITH_DRACO)
   add_subdirectory(draco_bridge)
 endif()
+
+if (WITH_MESHOPTIMIZER)
+  add_subdirectory(meshoptimizer_bridge)
+endif()

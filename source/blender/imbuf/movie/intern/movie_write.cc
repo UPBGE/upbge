@@ -416,7 +416,7 @@ static ImBuf *alloc_imbuf_for_colorspace_transform(const ImBuf *input_ibuf)
   const size_t num_pixels = IMB_get_pixel_count(input_ibuf);
   float *buffer = MEM_new_array_uninitialized<float>(num_pixels * result_ibuf->channels,
                                                      "movie hdr image");
-  IMB_assign_float_buffer(result_ibuf, buffer, IB_TAKE_OWNERSHIP);
+  result_ibuf->assign_float_data(buffer);
 
   /* Transfer flags related to color space conversion from the original image buffer. */
   result_ibuf->flags |= (input_ibuf->flags & IB_alphamode_channel_packed);
@@ -811,7 +811,7 @@ static const AVCodec *get_prores_encoder(const ImageFormatData *imf, int rectx, 
   /* The prores_aw encoder currently (April 2025) has issues when encoding alpha with high
    * resolution but is faster in most cases for similar quality. Use it instead of prores_ks
    * if possible. (Upstream issue https://trac.ffmpeg.org/ticket/11536) */
-  if (imf->planes == ImColorMode::RGBA) {
+  if (imf->color_mode == ImColorMode::RGBA) {
     if ((size_t(rectx) * size_t(recty)) > (3840 * 2160)) {
       return avcodec_find_encoder_by_name("prores_ks");
     }
@@ -1095,7 +1095,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   /* Keep lossless encodes in the RGB domain. */
   if (codec_id == AV_CODEC_ID_HUFFYUV) {
-    if (imf->planes == ImColorMode::RGBA) {
+    if (imf->color_mode == ImColorMode::RGBA) {
       c->pix_fmt = AV_PIX_FMT_BGRA;
     }
     else {
@@ -1111,7 +1111,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (codec_id == AV_CODEC_ID_FFV1) {
-    if (imf->planes == ImColorMode::BW) {
+    if (imf->color_mode == ImColorMode::BW) {
       c->pix_fmt = AV_PIX_FMT_GRAY8;
       if (is_10_bpp) {
         c->pix_fmt = AV_PIX_FMT_GRAY10;
@@ -1123,7 +1123,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
         c->pix_fmt = AV_PIX_FMT_GRAY16;
       }
     }
-    else if (imf->planes == ImColorMode::RGBA) {
+    else if (imf->color_mode == ImColorMode::RGBA) {
       c->pix_fmt = AV_PIX_FMT_RGB32;
       if (is_10_bpp) {
         c->pix_fmt = AV_PIX_FMT_GBRAP10;
@@ -1150,10 +1150,10 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (codec_id == AV_CODEC_ID_QTRLE) {
-    if (imf->planes == ImColorMode::BW) {
+    if (imf->color_mode == ImColorMode::BW) {
       c->pix_fmt = AV_PIX_FMT_GRAY8;
     }
-    else if (imf->planes == ImColorMode::RGBA) {
+    else if (imf->color_mode == ImColorMode::RGBA) {
       c->pix_fmt = AV_PIX_FMT_ARGB;
     }
     else { /* RGB */
@@ -1161,7 +1161,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     }
   }
 
-  if (codec_id == AV_CODEC_ID_VP9 && imf->planes == ImColorMode::RGBA) {
+  if (codec_id == AV_CODEC_ID_VP9 && imf->color_mode == ImColorMode::RGBA) {
     c->pix_fmt = AV_PIX_FMT_YUVA420P;
   }
   else if (ELEM(codec_id, AV_CODEC_ID_H264, AV_CODEC_ID_H265, AV_CODEC_ID_VP9, AV_CODEC_ID_AV1) &&
@@ -1178,10 +1178,10 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (codec_id == AV_CODEC_ID_PNG) {
-    if (imf->planes == ImColorMode::BW) {
+    if (imf->color_mode == ImColorMode::BW) {
       c->pix_fmt = AV_PIX_FMT_GRAY8;
     }
-    else if (imf->planes == ImColorMode::RGBA) {
+    else if (imf->color_mode == ImColorMode::RGBA) {
       c->pix_fmt = AV_PIX_FMT_RGBA;
     }
     else { /* RGB */
@@ -1201,7 +1201,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       c->profile = context->ffmpeg_profile;
       c->pix_fmt = AV_PIX_FMT_YUV444P10LE;
 
-      if (imf->planes == ImColorMode::RGBA) {
+      if (imf->color_mode == ImColorMode::RGBA) {
         c->pix_fmt = AV_PIX_FMT_YUVA444P10LE;
       }
     }

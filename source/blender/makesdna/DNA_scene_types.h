@@ -477,7 +477,7 @@ struct ImageFormatData {
    * not a flag, only set 1 at a time. */
   eImageFormatDepth depth = R_IMF_CHAN_DEPTH_8;
 
-  ImColorMode planes = ImColorMode::RGBA;
+  ImColorMode color_mode = ImColorMode::RGBA;
   /** Generic options for all image types, alpha Z-buffer. */
   char flag = 0;
 
@@ -1060,7 +1060,7 @@ struct RenderData {
   DNA_DEPRECATED int tilex = 256;
   DNA_DEPRECATED int tiley = 256;
 
-  DNA_DEPRECATED short planes = 0;
+  DNA_DEPRECATED short color_mode = 0;
   DNA_DEPRECATED short imtype = 0;
   DNA_DEPRECATED short subimtype = 0;
   DNA_DEPRECATED short quality = 0;
@@ -3174,8 +3174,8 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 /* deprecate this! */
 #define OBEDIT_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_EDIT) ? ob : NULL) : NULL)
 #define OBPOSE_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_POSE) ? ob : NULL) : NULL)
-#define OBWEIGHTPAINT_FROM_OBACT(ob) \
-  ((ob) ? (((ob)->mode & OB_MODE_WEIGHT_PAINT) ? ob : NULL) : NULL)
+#define OBWEIGHTPAINT_ALL_FROM_OBACT(ob) \
+  ((ob) ? (((ob)->mode & OB_MODE_ALL_WEIGHT_PAINT) ? ob : NULL) : NULL)
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) \
