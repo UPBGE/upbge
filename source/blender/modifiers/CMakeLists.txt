@@ -141,6 +141,7 @@ set(LIB
   PUBLIC bf::dna
   PRIVATE bf::functions
   PRIVATE bf::geometry
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::xxhash
   PRIVATE bf::nodes

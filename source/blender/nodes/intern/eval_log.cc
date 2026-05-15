@@ -275,6 +275,25 @@ NodeWarning::NodeWarning(const Report &report)
   this->message = report.message;
 }
 
+ImageInfoLog::ImageInfoLog(const int2 data_size,
+                           const int2 display_size,
+                           const int2 data_offset,
+                           const float3x3 transformation,
+                           const StringRefNull interpolation,
+                           const StringRefNull extension_x,
+                           const StringRefNull extension_y,
+                           const StringRefNull precision)
+    : data_size(data_size),
+      display_size(display_size),
+      data_offset(data_offset),
+      transformation(transformation),
+      interpolation(interpolation),
+      extension_x(extension_x),
+      extension_y(extension_y),
+      precision(precision)
+{
+}
+
 /* Avoid generating these in every translation unit. */
 NodesEvalLog::NodesEvalLog() = default;
 NodesEvalLog::~NodesEvalLog() = default;
@@ -394,7 +413,13 @@ void NodeTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, con
     }
   }
   else {
-    log_generic_value(type, value.get());
+    if (type.is<std::string>()) {
+      const std::string &string = *value.get<std::string>();
+      store_logged_value(this->allocator->construct<StringLog>(string, *this->allocator));
+    }
+    else {
+      log_generic_value(type, value.get());
+    }
   }
 }
 

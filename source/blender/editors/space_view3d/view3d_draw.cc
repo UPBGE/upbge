@@ -2097,7 +2097,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
                                       ARegion *region,
                                       int sizex,
                                       int sizey,
-                                      eImBufFlags imbuf_flag,
+                                      ImBufFlags imbuf_flag,
                                       int alpha_mode,
                                       const char *viewname,
                                       const bool restore_rv3d_mats,
@@ -2115,7 +2115,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   float winmat[4][4];
 
   /* Guess format based on output buffer. */
-  gpu::TextureFormat desired_format = (imbuf_flag & IB_float_data) ?
+  gpu::TextureFormat desired_format = flag_is_set(imbuf_flag, ImBufFlags::FloatData) ?
                                           gpu::TextureFormat::SFLOAT_16_16_16_16 :
                                           gpu::TextureFormat::UNORM_8_8_8_8;
 
@@ -2263,7 +2263,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
                                              Object *camera,
                                              int width,
                                              int height,
-                                             eImBufFlags imbuf_flag,
+                                             ImBufFlags imbuf_flag,
                                              eV3DOffscreenDrawFlag draw_flags,
                                              int alpha_mode,
                                              const char *viewname,
