@@ -66,10 +66,10 @@ ShadowMapTracingState shadow_map_trace_init(int sample_count, float step_offset)
  * `pcf_step` is the world-space distance between PCF taps.
  * `softness` controls the smoothstep transition width.
  */
-float shadow_pcf_uniform(LightData light,
+float shadow_pcf_uniform([[resource_table]] ShadowRenderData &srd,
+                         LightData light,
                          const bool is_directional,
                          float3 L,
-                         float3 Ng,
                          float3 P_center,
                          float pcf_step,
                          float softness)
@@ -89,7 +89,8 @@ float shadow_pcf_uniform(LightData light,
       float3 offset = right * (float(xx) * pcf_step) + up * (float(yy) * pcf_step);
       float3 P_tap = P_center + offset;
       /* shadow_sample returns (receiver - occluder): positive = shadowed. */
-      float d = shadow_sample(is_directional, shadow_atlas_tx, shadow_tilemaps_tx, light, P_tap);
+      float d = srd.shadow_sample(
+          is_directional, light, P_tap);
       float vis;
       if (d > 1e9f) {
         /* No valid shadow data (missing tile). Treat as lit. */
@@ -562,7 +563,7 @@ float shadow_eval([[resource_table]] ShadowRenderData &srd,
     float3 P_center = P_biased + (texel_radius * grain_scale) *
                                   shadow_pcf_offset(L, Ng, pcf_rnd);
 
-    return shadow_pcf_uniform(light, is_directional, L, Ng, P_center, pcf_step, softness);
+    return shadow_pcf_uniform(srd, light, is_directional, L, P_center, pcf_step, softness);
   }
   /* End of UPBGE PCF path. */
 
