@@ -19,7 +19,9 @@ struct DynamicLibrary {
 };
 
 #ifdef WIN32
-#  define WIN32_LEAN_AND_MEAN
+#  ifdef WIN32_LEAN_AND_MEAN
+#    undef WIN32_LEAN_AND_MEAN
+#  endif
 #  include "utf_winfunc.hh"
 #  include "utfconv.hh"
 #  include <windows.h>
