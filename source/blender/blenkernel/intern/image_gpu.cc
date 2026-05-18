@@ -149,7 +149,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
   int arraywidth = 0, arrayheight = 0;
   ListBaseT<FixedSizeBoxPack> boxes = {nullptr};
 
-  int planes = 0;
+  bool all_grayscale = true;
 
   for (ImageTile &tile : ima->tiles) {
     ImageUser iuser;
@@ -177,7 +177,9 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
 
       BKE_image_release_ibuf(ima, ibuf, nullptr);
       BLI_addtail(&boxes, packtile);
-      planes = max_ii(planes, ibuf->planes);
+      if (ibuf->color_mode != ImColorMode::BW) {
+        all_grayscale = false;
+      }
     }
   }
 
@@ -210,7 +212,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
   }
 
   const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
-  const bool use_grayscale = planes <= 8;
+  const bool use_grayscale = all_grayscale;
   /* Create Texture without content. */
   gpu::Texture *tex = IMB_touch_gpu_texture(ima->id.name + 2,
                                             main_ibuf,
@@ -650,7 +652,7 @@ void BKE_image_free_old_gputextures(Main *bmain)
     if ((ima.flag & IMA_NOCOLLECT) == 0 && ctime - ima.runtime->lastused > U.textimeout) {
       /* If it's in GL memory, deallocate and set time tag to current time
        * This gives textures a "second chance" to be used before dying. */
-      if (BKE_image_has_opengl_texture(&ima)) {
+      if (BKE_image_has_gpu_texture(&ima)) {
         BKE_image_free_gputextures(&ima);
         ima.runtime->lastused = ctime;
       }
@@ -948,7 +950,7 @@ void BKE_image_update_gputexture_delayed(
 void BKE_image_paint_set_mipmap(Main *bmain, bool mipmap)
 {
   for (Image &ima : bmain->images) {
-    if (BKE_image_has_opengl_texture(&ima)) {
+    if (BKE_image_has_gpu_texture(&ima)) {
       if (ima.runtime->gpuflag & IMA_GPU_MIPMAP_COMPLETE) {
         for (int a = 0; a < TEXTARGET_COUNT; a++) {
           if (ELEM(a, TEXTARGET_2D, TEXTARGET_2D_ARRAY)) {

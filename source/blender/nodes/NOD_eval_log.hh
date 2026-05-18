@@ -49,8 +49,6 @@
 #include "NOD_geometry_nodes_list_fwd.hh"
 #include "NOD_geometry_nodes_warning.hh"
 
-#include "FN_field.hh"
-
 #include "DNA_node_types.h"
 
 namespace blender {
@@ -58,6 +56,11 @@ namespace blender {
 struct SpaceNode;
 struct NodesModifierData;
 struct Report;
+struct ImBuf;
+
+namespace fn {
+class GField;
+}
 
 namespace nodes::eval_log {
 
@@ -271,6 +274,33 @@ class ViewerNodeLog {
   const bke::GeometrySet *main_geometry() const;
 };
 
+/* Compositor image result. */
+class ImageInfoLog : public ValueLog {
+ public:
+  /* Stores compositor::Domain information. */
+  const int2 data_size;
+  const int2 display_size;
+  const int2 data_offset;
+  const float3x3 transformation;
+
+  /* Stores compositor::RealizationOptions information in a textual representation. */
+  const StringRefNull interpolation;
+  const StringRefNull extension_x;
+  const StringRefNull extension_y;
+
+  /* Stores compositor::Result.precision in a textual representation. */
+  const StringRefNull precision;
+
+  ImageInfoLog(int2 data_size,
+               int2 display_size,
+               int2 data_offset,
+               float3x3 transformation,
+               StringRefNull interpolation,
+               StringRefNull extension_x,
+               StringRefNull extension_y,
+               StringRefNull precision);
+};
+
 using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
 
@@ -323,11 +353,17 @@ class NodeTreeLogger {
   struct EvaluatedGizmoNode {
     int32_t node_id;
   };
+  struct NodeImagePreview {
+    int32_t node_id;
+    /** An image preview of the node. Owned by the logger and should be freed when destructed. */
+    ImBuf *image_preview = nullptr;
+  };
 
   linear_allocator::ChunkedList<WarningWithNode> node_warnings;
   linear_allocator::ChunkedList<SocketValueLog, 16> input_socket_values;
   linear_allocator::ChunkedList<SocketValueLog, 16> output_socket_values;
   linear_allocator::ChunkedList<NodeExecutionTime, 16> node_execution_times;
+  linear_allocator::ChunkedList<NodeImagePreview, 16> node_image_previews;
   linear_allocator::ChunkedList<ViewerNodeLogWithNode> viewer_node_logs;
   linear_allocator::ChunkedList<AttributeUsageWithNode> used_named_attributes;
   linear_allocator::ChunkedList<DebugMessage> debug_messages;
@@ -361,6 +397,8 @@ class NodeLog {
   Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
   /** Messages that are used for debugging purposes during development. */
   Vector<StringRefNull> debug_messages;
+  /** An image preview of the node. Owned by the log and should be freed when destructed. */
+  ImBuf *image_preview = nullptr;
 
   NodeLog();
   ~NodeLog();
@@ -389,6 +427,7 @@ class NodeTreeLog {
   bool reduced_debug_messages_ = false;
   bool reduced_evaluated_gizmo_nodes_ = false;
   bool reduced_layer_names_ = false;
+  bool reduced_node_image_previews_ = false;
 
  public:
   Map<int32_t, NodeLog> nodes;
@@ -420,6 +459,7 @@ class NodeTreeLog {
   void ensure_debug_messages();
   void ensure_evaluated_gizmo_nodes();
   void ensure_layer_names();
+  void ensure_node_image_previews();
 
   ValueLog *find_socket_value_log(const bNodeSocket &query_socket);
   [[nodiscard]] bool try_convert_primitive_socket_value(const GenericValueLog &value_log,

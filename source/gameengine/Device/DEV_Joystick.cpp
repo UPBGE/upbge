@@ -32,7 +32,7 @@
 #include "DEV_Joystick.h"
 
 #ifdef WITH_SDL
-#  include <SDL.h>
+#  include <SDL3/SDL.h>
 #endif
 
 #include "BKE_appdir.hh"
@@ -43,8 +43,8 @@
 
 using namespace blender;
 
-DEV_Joystick::DEV_Joystick(short index)
-    : m_joyindex(index),
+DEV_Joystick::DEV_Joystick(short bge_joystick_slot)
+    : m_bge_joystick_slot(bge_joystick_slot),
       m_prec(3200),
       m_axismax(-1),
       m_buttonmax(-1),
@@ -74,7 +74,7 @@ void DEV_Joystick::Init()
   SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "0");
 
   /* Initializing Game Controller related subsystems */
-  bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1);
+  bool success = SDL_InitSubSystem(SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC);
 
   if (success) {
     /* Game controller data base loading */
@@ -86,7 +86,7 @@ void DEV_Joystick::Init()
       char fullpath[FILE_MAX];
       blender::BLI_path_join(fullpath, sizeof(fullpath), path->c_str(), "gamecontrollerdb.txt");
 
-      if ((SDL_GameControllerAddMappingsFromFile(fullpath)) == -1) {
+      if ((SDL_AddGamepadMappingsFromFile(fullpath)) == -1) {
         CM_Warning(
             "gamecontrollerdb.txt file not loaded, we will load SDL gamecontroller internal "
             "database (more restricted)");
@@ -104,38 +104,47 @@ void DEV_Joystick::Close()
 #ifdef WITH_SDL
   /* Closing possible connected Joysticks */
   for (int i = 0; i < JOYINDEX_MAX; i++) {
-    m_instance[i]->ReleaseInstance(i);
+    if (m_instance[i]) {
+      m_instance[i]->ReleaseInstance(i);
+    }
   }
 
   /* Closing SDL Game controller system */
-  SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+  SDL_QuitSubSystem(SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC);
 #endif
 }
 
-DEV_Joystick *DEV_Joystick::GetInstance(short joyindex)
+DEV_Joystick *DEV_Joystick::GetInstance(short bge_joystick_slot)
 {
 #ifndef WITH_SDL
   return nullptr;
 #else  /* WITH_SDL */
 
-  if (joyindex < 0 || joyindex >= JOYINDEX_MAX) {
-    CM_Error("invalid joystick index: " << joyindex);
+  if (bge_joystick_slot < 0 || bge_joystick_slot >= JOYINDEX_MAX) {
+    CM_Error("invalid joystick index: " << bge_joystick_slot);
     return nullptr;
   }
 
-  return m_instance[joyindex];
+  return m_instance[bge_joystick_slot];
 #endif /* WITH_SDL */
 }
 
-void DEV_Joystick::ReleaseInstance(short joyindex)
+#ifdef WITH_SDL
+void DEV_Joystick::SetInstanceId(SDL_JoystickID sdl_joystick_id)
+{
+  m_private->m_sdl_joystick_id = sdl_joystick_id;
+}
+#endif
+
+void DEV_Joystick::ReleaseInstance(short bge_joystick_slot)
 {
 #ifdef WITH_SDL
-  if (m_instance[joyindex]) {
-    m_instance[joyindex]->DestroyJoystickDevice();
-    delete m_private;
-    delete m_instance[joyindex];
+  if (m_instance[bge_joystick_slot]) {
+    m_instance[bge_joystick_slot]->DestroyJoystickDevice();
+    delete m_instance[bge_joystick_slot]->m_private;
+    delete m_instance[bge_joystick_slot];
   }
-  m_instance[joyindex] = nullptr;
+  m_instance[bge_joystick_slot] = nullptr;
 #endif /* WITH_SDL */
 }
 
@@ -176,7 +185,7 @@ bool DEV_Joystick::aAnyButtonPressIsPositive(void)
   /* this is needed for the "all events" option
    * so we know if there are no buttons pressed */
   for (int i = 0; i < m_buttonmax; i++) {
-    if (SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)i)) {
+    if (SDL_GetGamepadButton(m_private->m_gamecontroller, (SDL_GamepadButton)i)) {
       return true;
     }
   }
@@ -187,7 +196,7 @@ bool DEV_Joystick::aAnyButtonPressIsPositive(void)
 bool DEV_Joystick::aButtonPressIsPositive(int button)
 {
 #ifdef WITH_SDL
-  if (SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)) {
+  if (SDL_GetGamepadButton(m_private->m_gamecontroller, (SDL_GamepadButton)button)) {
     return true;
   }
 #endif
@@ -197,8 +206,8 @@ bool DEV_Joystick::aButtonPressIsPositive(int button)
 bool DEV_Joystick::aButtonReleaseIsPositive(int button)
 {
 #ifdef WITH_SDL
-  if (!(SDL_GameControllerGetButton(m_private->m_gamecontroller,
-                                    (SDL_GameControllerButton)button))) {
+  if (!(SDL_GetGamepadButton(m_private->m_gamecontroller,
+                                    (SDL_GamepadButton)button))) {
     return true;
   }
 #endif
@@ -214,11 +223,11 @@ bool DEV_Joystick::CreateJoystickDevice(void)
   joy_error = true;
 #else  /* WITH_SDL */
   if (!m_isinit) {
-    if (!joy_error && !SDL_IsGameController(m_joyindex)) {
+    if (!joy_error && !SDL_IsGamepad(m_private->m_sdl_joystick_id)) {
       /* mapping instruccions if joystick is not a game controller */
       CM_Error(
           "Game Controller index "
-          << m_joyindex << ": Could not be initialized\n"
+          << m_bge_joystick_slot << ": Could not be initialized\n"
           << "Please, generate Xbox360 compatible mapping using Antimicro "
              "(https://github.com/AntiMicro/antimicro)\n"
           << "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode "
@@ -230,7 +239,7 @@ bool DEV_Joystick::CreateJoystickDevice(void)
     }
 
     if (!joy_error) {
-      m_private->m_gamecontroller = SDL_GameControllerOpen(m_joyindex);
+      m_private->m_gamecontroller = SDL_OpenGamepad(m_private->m_sdl_joystick_id);
       if (!m_private->m_gamecontroller) {
         joy_error = true;
       }
@@ -238,22 +247,22 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 
     SDL_Joystick *joy;
     if (!joy_error) {
-      joy = SDL_GameControllerGetJoystick(m_private->m_gamecontroller);
+      joy = SDL_GetGamepadJoystick(m_private->m_gamecontroller);
       if (!joy) {
         joy_error = true;
       }
     }
 
     if (!joy_error) {
-      m_private->m_instance_id = SDL_JoystickInstanceID(joy);
-      if (m_private->m_instance_id < 0) {
+      m_private->m_sdl_joystick_id = SDL_GetJoystickID(joy);
+      if (m_private->m_sdl_joystick_id < 0) {
         joy_error = true;
         CM_Error("joystick instanced failed: " << SDL_GetError());
       }
     }
 
     if (!joy_error) {
-      CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex
+      CM_Debug("Game Controller (" << GetName() << ") with index " << m_bge_joystick_slot
                                    << " initialized");
 
       /* A Game Controller has:
@@ -269,19 +278,27 @@ bool DEV_Joystick::CreateJoystickDevice(void)
        *						   BUTTON_DPAD_UP, BUTTON_DPAD_DOWN,
        *						   BUTTON_DPAD_LEFT and BUTTON_DPAD_RIGHT.
        */
-      m_axismax = SDL_CONTROLLER_AXIS_MAX;
-      m_buttonmax = SDL_CONTROLLER_BUTTON_MAX;
+      m_axismax = SDL_GAMEPAD_AXIS_COUNT;
+      m_buttonmax = SDL_GAMEPAD_BUTTON_COUNT;
     }
 
     /* Haptic configuration */
     if (!joy_error) {
-      /* Use SDL_HapticOpenFromJoystick to correctly associate haptic with the
+      bool has_gamepad_rumble = false;
+      const SDL_PropertiesID gamepad_properties = SDL_GetGamepadProperties(
+          m_private->m_gamecontroller);
+      if (gamepad_properties) {
+        has_gamepad_rumble = SDL_GetBooleanProperty(
+            gamepad_properties, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
+      }
+
+      /* Use SDL_OpenHapticFromJoystick to correctly associate haptic with the
        * game controller's underlying joystick. SDL_HapticOpen(index) takes a
        * haptic device index which does not match the joystick/controller index
        * and can fail silently with newer SDL versions. */
-      m_private->m_haptic = SDL_HapticOpenFromJoystick(joy);
-      if (!m_private->m_haptic) {
-        CM_Warning("Game Controller (" << GetName() << ") with index " << m_joyindex
+      m_private->m_haptic = SDL_OpenHapticFromJoystick(joy);
+      if (!m_private->m_haptic && !has_gamepad_rumble) {
+        CM_Warning("Game Controller (" << GetName() << ") with index " << m_bge_joystick_slot
                                        << " has not force feedback (vibration) available");
       }
     }
@@ -304,13 +321,14 @@ void DEV_Joystick::DestroyJoystickDevice(void)
   if (m_isinit) {
 
     if (m_private->m_haptic) {
-      SDL_HapticClose(m_private->m_haptic);
+      SDL_CloseHaptic(m_private->m_haptic);
       m_private->m_haptic = nullptr;
     }
 
     if (m_private->m_gamecontroller) {
-      CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
-      SDL_GameControllerClose(m_private->m_gamecontroller);
+      CM_Debug("Game Controller (" << GetName() << ") with index " << m_bge_joystick_slot
+                                    << " closed");
+      SDL_CloseGamepad(m_private->m_gamecontroller);
       m_private->m_gamecontroller = nullptr;
     }
 
@@ -322,7 +340,7 @@ void DEV_Joystick::DestroyJoystickDevice(void)
 int DEV_Joystick::Connected(void)
 {
 #ifdef WITH_SDL
-  if (m_isinit && SDL_GameControllerGetAttached(m_private->m_gamecontroller)) {
+  if (m_isinit && SDL_GamepadConnected(m_private->m_gamecontroller)) {
     return 1;
   }
 #endif
@@ -365,7 +383,7 @@ int DEV_Joystick::pAxisTest(int axisnum)
 const std::string DEV_Joystick::GetName()
 {
 #ifdef WITH_SDL
-  return SDL_GameControllerName(m_private->m_gamecontroller);
+  return SDL_GetGamepadName(m_private->m_gamecontroller);
 #else  /* WITH_SDL */
   return "";
 #endif /* WITH_SDL */

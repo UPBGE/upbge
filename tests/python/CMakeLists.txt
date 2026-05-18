@@ -402,6 +402,14 @@ add_blender_test(
   --use-vfont-render
 )
 
+
+# Build RST documentation & PYI stubs (without building the full HTML docs).
+# See the `bl_pyapi_doc_gen.py` doc-string for details.
+add_blender_test(
+  script_pyapi_doc_gen
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_doc_gen.py --
+)
+
 # ------------------------------------------------------------------------------
 # DATA MANAGEMENT TESTS
 # ------------------------------------------------------------------------------
@@ -888,6 +896,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     light
     light_group
     light_linking
+    lightprobe
     mesh
     node_inlining
     pointcloud
@@ -1099,7 +1108,6 @@ if(TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
-    rotation
     group
 
     pixel_nodes
@@ -1138,7 +1146,6 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
-    rotation
     group
 
     pixel_nodes

@@ -21,6 +21,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
@@ -34,6 +35,8 @@
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_render_context.hh"
 #include "COM_result.hh"
+
+#include "NOD_eval_log.hh"
 
 #include "RE_compositor.hh"
 #include "RE_pipeline.h"
@@ -64,7 +67,6 @@ class ContextInputData {
   const bNodeTree *node_tree;
   std::string view_name;
   compositor::RenderContext *render_context;
-  compositor::Profiler *profiler;
   compositor::NodeGroupOutputTypes needed_outputs;
 
   ContextInputData(const Render *render,
@@ -73,7 +75,6 @@ class ContextInputData {
                    const bNodeTree &node_tree,
                    const char *view_name,
                    compositor::RenderContext *render_context,
-                   compositor::Profiler *profiler,
                    compositor::NodeGroupOutputTypes needed_outputs)
       : render(render),
         scene(&scene),
@@ -81,7 +82,6 @@ class ContextInputData {
         node_tree(&node_tree),
         view_name(view_name),
         render_context(render_context),
-        profiler(profiler),
         needed_outputs(needed_outputs)
   {
   }
@@ -184,21 +184,29 @@ class Context : public compositor::Context {
       if (result.is_single_value()) {
         float *data = MEM_new_array_uninitialized<float>(
             4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
-        IMB_assign_float_buffer(image_buffer, data, IB_TAKE_OWNERSHIP);
+        image_buffer->assign_float_data(data);
         IMB_rectfill(image_buffer, result.get_single_value<compositor::Color>());
       }
       else if (this->use_gpu()) {
         GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
         float *output_buffer = static_cast<float *>(GPU_texture_read(result, GPU_DATA_FLOAT, 0));
-        IMB_assign_float_buffer(image_buffer, output_buffer, IB_TAKE_OWNERSHIP);
+        image_buffer->assign_float_data(output_buffer);
       }
       else {
-        float *data = MEM_new_array_uninitialized<float>(
-            4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
-        IMB_assign_float_buffer(image_buffer, data, IB_TAKE_OWNERSHIP);
-        std::memcpy(image_buffer->float_data_for_write(),
-                    result.cpu_data().data(),
-                    render_result->rectx * render_result->recty * 4 * sizeof(float));
+        if (result.sharing_info()) {
+          image_buffer->float_buffer = ImBufFloatBuffer{
+              .data = static_cast<const float *>(result.cpu_data().data()),
+              .sharing_info = result.sharing_info(),
+              .colorspace = nullptr};
+        }
+        else {
+          float *data = MEM_new_array_uninitialized<float>(
+              4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
+          std::memcpy(image_buffer->float_data_for_write(),
+                      result.cpu_data().data(),
+                      render_result->rectx * render_result->recty * 4 * sizeof(float));
+          image_buffer->assign_float_data(data);
+        }
       }
     }
     RE_ReleaseResult(render);
@@ -267,11 +275,6 @@ class Context : public compositor::Context {
     else {
       /* If not using GPU, free any potential previous GPU data. */
       IMB_free_gpu_textures(image_buffer);
-
-      /* Allocate float buffer if not using GPU and no float buffer exists. */
-      if (!image_buffer->float_data()) {
-        IMB_alloc_float_pixels(image_buffer, 4, false);
-      }
     }
 
     if (this->use_gpu()) {
@@ -287,9 +290,18 @@ class Context : public compositor::Context {
     }
     else {
       if (viewer_result.is_single_value()) {
+        IMB_alloc_float_pixels(image_buffer, 4, false);
         IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
       }
-      else {
+      else if (viewer_result.sharing_info()) {
+        image_buffer->channels = 4;
+        image_buffer->float_buffer = ImBufFloatBuffer{
+            .data = static_cast<const float *>(viewer_result.cpu_data().data()),
+            .sharing_info = viewer_result.sharing_info(),
+            .colorspace = nullptr};
+      }
+      else if (viewer_result.cpu_data().data() != image_buffer->float_data()) {
+        IMB_alloc_float_pixels(image_buffer, 4, false);
         std::memcpy(image_buffer->float_data_for_write(),
                     viewer_result.cpu_data().data(),
                     size.x * size.y * 4 * sizeof(float));
@@ -298,14 +310,14 @@ class Context : public compositor::Context {
     }
 
     if (!viewer_result.is_single_value()) {
-      image_buffer->flags |= IB_has_display_window;
+      image_buffer->flags |= ImBufFlags::HasDisplayWindow;
       const int2 display_offset = int2(viewer_result.domain().transformation.location());
       copy_v2_v2_int(image_buffer->display_size, viewer_result.domain().display_size);
       copy_v2_v2_int(image_buffer->display_offset, display_offset);
       copy_v2_v2_int(image_buffer->data_offset, viewer_result.domain().data_offset);
     }
     else {
-      image_buffer->flags &= ~IB_has_display_window;
+      image_buffer->flags &= ~ImBufFlags::HasDisplayWindow;
     }
 
     BKE_image_partial_update_mark_full_update(image);
@@ -455,8 +467,9 @@ class Context : public compositor::Context {
     else {
       /* Don't assume render will keep pass data stored, add our own reference. */
       IMB_refImBuf(render_pass->ibuf);
-      pass_data.share_data(render_pass->ibuf->float_data_for_write(),
-                           int2(render_pass->ibuf->x, render_pass->ibuf->y));
+      pass_data.share_data(render_pass->ibuf->float_buffer.data,
+                           int2(render_pass->ibuf->x, render_pass->ibuf->y),
+                           render_pass->ibuf->float_buffer.sharing_info);
       cached_cpu_passes_.append(render_pass->ibuf);
     }
 
@@ -545,9 +558,9 @@ class Context : public compositor::Context {
     return input_data_.render_context;
   }
 
-  compositor::Profiler *profiler() const override
+  nodes::eval_log::NodesEvalLog *nodes_evaluation_log() const override
   {
-    return input_data_.profiler;
+    return this->get_scene().runtime->compositor.nodes_evaluation_log.get();
   }
 
   void evaluate_operation_post() const override
@@ -572,19 +585,20 @@ class Context : public compositor::Context {
 
   void evaluate()
   {
+    /* Reset log before evaluation. */
+    this->get_scene().runtime->compositor.nodes_evaluation_log =
+        std::make_unique<nodes::eval_log::NodesEvalLog>();
+
     using namespace compositor;
     const NodeGroupOutputTypes needed_outputs = this->needed_outputs();
     const bNodeTree &node_group = *input_data_.node_tree;
-    Map<bNodeInstanceKey, bke::bNodePreview> *node_previews =
-        flag_is_set(needed_outputs, NodeGroupOutputTypes::NodePreviews) ?
-            &node_group.runtime->previews :
-            nullptr;
+    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             needed_outputs,
-                                            node_previews,
                                             node_group.active_viewer_key,
-                                            bke::NODE_INSTANCE_KEY_BASE);
+                                            bke::NODE_INSTANCE_KEY_BASE,
+                                            compute_context);
 
     /* Set the reference count for the outputs, only the first color output is actually needed,
      * while the rest are ignored. */
@@ -786,13 +800,12 @@ void Render::compositor_execute(const Scene &scene,
                                 const bNodeTree &node_tree,
                                 const char *view_name,
                                 compositor::RenderContext *render_context,
-                                compositor::Profiler *profiler,
                                 compositor::NodeGroupOutputTypes needed_outputs)
 {
   std::unique_lock lock(this->compositor_mutex);
 
   render::ContextInputData input_data(
-      this, scene, render_data, node_tree, view_name, render_context, profiler, needed_outputs);
+      this, scene, render_data, node_tree, view_name, render_context, needed_outputs);
 
   if (this->compositor && this->compositor->needs_to_be_recreated(input_data)) {
     /* Free it here and it will be recreated in the check below. */
@@ -823,11 +836,10 @@ void RE_compositor_execute(Render &render,
                            const bNodeTree &node_tree,
                            const char *view_name,
                            compositor::RenderContext *render_context,
-                           compositor::Profiler *profiler,
                            compositor::NodeGroupOutputTypes needed_outputs)
 {
   render.compositor_execute(
-      scene, render_data, node_tree, view_name, render_context, profiler, needed_outputs);
+      scene, render_data, node_tree, view_name, render_context, needed_outputs);
 }
 
 void RE_compositor_free(Render &render)

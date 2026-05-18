@@ -24,11 +24,19 @@ struct ReportList;
 
 namespace asset_system {
 
+constexpr StringRefNull REMOTE_LIBRARY_TOP_META_FILE_NAME = "_asset-library-meta.json";
+constexpr StringRefNull REMOTE_LIBRARY_TOP_META_FILE_NAME_LEADING_SLASH =
+    "/_asset-library-meta.json";
+
+bool remote_library_url_ends_with_top_meta_file_name(const StringRef url);
+
 /**
- * Iterates all libraries registers in the Preferences and calls the given function with the URL
+ * Iterates all libraries registered in the Preferences and calls the given function with the URL
  * of the library.
+ *
+ * \note Does not include the online essentials library.
  */
-void foreach_registered_remote_library(FunctionRef<void(bUserAssetLibrary &)> fn);
+void foreach_registered_user_remote_library(FunctionRef<void(bUserAssetLibrary &)> fn);
 
 /**
  * Combination of a URL of a remote resource, and its hash.
@@ -83,11 +91,26 @@ struct OnlineAssetInfo {
 
 class AssetRepresentation;
 
+/** Return true if there is any asset file (any file in an assets file set) being downloaded. */
+bool remote_library_has_unfinished_asset_downloads();
+
+struct RemoteLibraryDefinitionRef {
+  StringRefNull remote_url;
+  StringRefNull cache_dirpath;
+
+  RemoteLibraryDefinitionRef(const bUserAssetLibrary &library_definition);
+  RemoteLibraryDefinitionRef(StringRefNull remote_url, StringRefNull cache_dirpath)
+      : remote_url(remote_url), cache_dirpath(cache_dirpath)
+  {
+  }
+};
+
 /**
  * Ensures the remote library cache directory exists, and calls the Python downloader. Doesn't do
  * anything if a download with the library's URL is already ongoing.
  */
-void remote_library_request_download(const bUserAssetLibrary &library_definition);
+void remote_library_request_download(const RemoteLibraryDefinitionRef &library_definition);
+void remote_library_cancel_all_listing_downloads(const bContext &C);
 
 void remote_library_request_asset_download(const bContext &C,
                                            const AssetRepresentation &asset,
@@ -96,6 +119,33 @@ void remote_library_request_preview_download(const bContext &C,
                                              const AssetRepresentation &asset,
                                              const StringRef dst_filepath,
                                              ReportList *reports);
+
+void remote_library_cancel_all_asset_downloads(bContext &C);
+
+/**
+ * Get the absolute path to an online library's cache directory using \a library_dirname as library
+ * identifier.
+ *
+ * The path is the general cache directory (e.g. `$HOME/.cache/blender/remote-assets/) plus the \a
+ * library_dirname as subdirectory.
+ *
+ * The resulting path will be shortened to #FILE_MAXDIR if necessary.
+ */
+std::string remote_library_cache_directory_path(StringRefNull library_dirname);
+/**
+ * Determine the absolute path of the asset library's on-disk cache directory for downloaded files,
+ * based on the library's URL.
+ *
+ * The path is the general cache directory (e.g. `$HOME/.cache/blender/remote-assets/) plus a
+ * shortened MD5 hash of the remote URL to identify the library.
+ *
+ * This is based on the remote URL of the library, and not the library name, as the name can be
+ * user-chosen, so the URL is a more stable identifier. And if there happen to be multiple
+ * libraries in the preferences, with the same URL, they'll share the same cache.
+ *
+ * The resulting path will be shortened to #FILE_MAXDIR if necessary.
+ */
+std::string remote_library_cache_directory_path_from_url(StringRef remote_url);
 
 /**
  * Get the absolute file path the preview for \a asset is expected at once downloaded.
@@ -158,9 +208,12 @@ class RemoteLibraryLoadingStatus {
   static void ping_still_loading(StringRef url);
   static void ping_new_pages(StringRef url);
   static void ping_new_preview(const bContext &C, StringRef preview_full_filepath);
-  static void ping_new_assets(const bContext &C, StringRef url);
+  /** Should be called when an asset file (the main .blend file or one of its dependencies)
+   * download has ended, successfully or not. */
+  static void ping_asset_file_download_done(const bContext &C, StringRef library_url);
   static void ping_metafiles_in_place(StringRef url);
   static void set_finished(StringRef url);
+  static void set_cancelled(const StringRef url);
   static void set_failure(StringRef url, std::optional<StringRefNull> failure_message);
 
   static std::optional<StringRefNull> failure_message(StringRef url);

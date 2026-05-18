@@ -79,6 +79,7 @@
 #include "BKE_workspace.hh"
 #include "BLF_api.hh"
 #include "BLI_fileops.h"
+#include "BLI_fftw.hh"
 #include "BLI_listbase.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_mempool.h"
@@ -108,7 +109,11 @@
 #include "ED_util.hh"
 #include "GHOST_ISystem.hh"
 #include "GHOST_ISystemPaths.hh"
+#include "FN_init.hh"
 #include "GPU_context.hh"
+#ifdef WITH_CYCLES
+#  include "CCL_api.h"
+#endif
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
 #include "IMB_imbuf.hh"
@@ -842,6 +847,10 @@ int main(int argc,
 
   /* Initialize logging */
   CLG_init();
+  CLG_output_use_timestamp_set(true);
+  CLG_output_use_memory_set(false);
+  CLG_output_use_source_set(false);
+  CLG_output_use_basename_set(false);
   CLG_fatal_fn_set(callback_clg_fatal);
 
   blender::bContext *C = CTX_create();
@@ -860,6 +869,7 @@ int main(int argc,
   MEM_CacheLimiter_set_disabled(true);
 
   BKE_cpp_types_init();
+  fn::multi_function::register_common_functions();
   BKE_idtype_init();
   BKE_modifier_init();
   BKE_shaderfx_init();
@@ -876,7 +886,14 @@ int main(int argc,
   /* After parsing number of threads argument. */
   BLI_task_scheduler_init();
 
+  /* Initialize FFTW threading support. */
+  fftw::initialize_float();
+
   /* Initialize sub-systems that use `BKE_appdir.h`. */
+#ifdef WITH_CYCLES
+  CCL_log_init();
+  CCL_implicit_sharing_init();
+#endif
   IMB_init();
 
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
@@ -1950,9 +1967,7 @@ int main(int argc,
 
   BLF_exit();
 
-#ifdef WITH_INTERNATIONAL
   BLT_lang_free();
-#endif
 
   blender::animrig::keyingset_infos_exit();
 

@@ -135,7 +135,8 @@ void save_screenshot_thread_func(blender::TaskPool *__restrict (pool),
   ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);
 
   /* create and save imbuf */
-  ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, 24, 0);
+  ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, ImBufFlags::Zero);
+  ibuf->color_mode = ImColorMode::RGB;
   ibuf->byte_buffer.data = (uint8_t *)task->dumprect;
 
   BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);

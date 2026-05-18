@@ -346,6 +346,10 @@ void SourceProcessor::parse_defines(Parser &parser)
 {
   parser().foreach_match<true>("#A", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "define") {
+      if (tokens[1].next().str().starts_with("LIGHT_STACK_SIZE_")) {
+        /* WORKAROUND: Avoid warning caused by EEVEE macro setup. */
+        return;
+      }
       metadata_.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
     }
     if (tokens[1].str() == "undef") {
@@ -1656,9 +1660,9 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
       assignment.foreach_token(ParOpen, [&](const Token token) {
         string_view fn_name = token.prev().str();
         if ((fn_name != "specialization_constant_get") && (fn_name != "push_constant_get") &&
-            (fn_name != "interface_get") && (fn_name != "attribute_get") &&
-            (fn_name != "buffer_get") && (fn_name != "srt_access") && (fn_name != "sampler_get") &&
-            (fn_name != "image_get"))
+            (fn_name != "interface_get") && (fn_name != "resource_table_get") &&
+            (fn_name != "attribute_get") && (fn_name != "buffer_get") &&
+            (fn_name != "srt_access") && (fn_name != "sampler_get") && (fn_name != "image_get"))
         {
           report_error(token, "Reference definitions cannot contain function calls.");
         }

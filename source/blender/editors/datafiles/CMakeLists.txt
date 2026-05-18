@@ -428,6 +428,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       grid
       grip
       grip_v
+      grip_corner_bottom_right
       group
       group_bone
       group_uvs

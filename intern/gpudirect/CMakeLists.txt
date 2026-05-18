@@ -30,7 +30,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -40,5 +39,12 @@ set(SRC
 
 set(LIB
 )
+
+if(WITH_OPENGL_BACKEND)
+  list(APPEND LIB
+    PRIVATE bf::dependencies::epoxy
+  )
+  add_definitions(-DWITH_OPENGL_BACKEND)
+endif()
 
 blender_add_lib(bf_intern_gpudirect "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

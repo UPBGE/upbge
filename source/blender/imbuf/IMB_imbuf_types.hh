@@ -11,6 +11,10 @@
  * Image buffer types.
  */
 
+#include "BLI_assert.h"
+#include "BLI_implicit_sharing_ptr.hh"
+
+#include "DNA_image_enums.h"
 #include "IMB_imbuf_enums.h"
 
 #include <string>
@@ -89,67 +93,8 @@ struct ImbFormatOptions {
 };
 
 /* -------------------------------------------------------------------- */
-/** \name ImBuf Component flags
- * \brief These flags determine the components of an ImBuf struct.
- * \{ */
-
-enum eImBufFlags {
-  /** Image has byte data (unsigned 0..1 range in a byte, always 4 channels). */
-  IB_byte_data = 1 << 0,
-  IB_test = 1 << 1,
-  /** Image has float data (usually 1..4 channels, 32 bit float per channel). */
-  IB_float_data = 1 << 5,
-  IB_multilayer = 1 << 7,
-  IB_metadata = 1 << 8,
-  IB_animdeinterlace = 1 << 9,
-  /** Do not clear image pixel buffer to zero. Without this flag, allocating
-   * a new ImBuf does clear the pixel data to zero (transparent black). If
-   * whole pixel data is overwritten after allocation, then this flag can be
-   * faster since it avoids a memory clear. */
-  IB_uninitialized_pixels = 1 << 10,
-
-  /** Indicates whether image on disk have pre-multiplied alpha. */
-  IB_alphamode_premul = 1 << 12,
-  /** If this flag is set, alpha mode would be guessed from file. */
-  IB_alphamode_detect = 1 << 13,
-  /** Alpha channel is unrelated to RGB and should not affect it. */
-  IB_alphamode_channel_packed = 1 << 14,
-  /** Ignore alpha on load and substitute it with 1.0f. */
-  IB_alphamode_ignore = 1 << 15,
-  IB_thumbnail = 1 << 16,
-  /**
-   * The image contains display window information. See ImbBuf.display_size and other members for
-   * more information. */
-  IB_has_display_window = 1 << 17,
-
-  /** Perform no color space conversions when reading, leave the image in the file colorspace. */
-  IB_no_colorspace_convert = 1 << 18,
-};
-ENUM_OPERATORS(eImBufFlags);
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name ImBuf buffer storage
  * \{ */
-
-/**
- * Specialization of an ownership whenever a bare pointer is provided to the ImBuf buffers
- * assignment API.
- */
-enum ImBufOwnership {
-  /**
-   * The ImBuf simply shares pointer with data owned by someone else, and will not perform any
-   * memory management when the ImBuf frees the buffer.
-   */
-  IB_DO_NOT_TAKE_OWNERSHIP = 0,
-
-  /**
-   * The ImBuf takes ownership of the buffer data, and will use MEM_delete() to free this memory
-   * when the ImBuf needs to free the data.
-   */
-  IB_TAKE_OWNERSHIP = 1,
-};
 
 /* Different storage specialization.
  *
@@ -157,15 +102,15 @@ enum ImBufOwnership {
  */
 
 struct ImBufByteBuffer {
-  uint8_t *data = nullptr;
-  ImBufOwnership ownership = IB_DO_NOT_TAKE_OWNERSHIP;
+  const uint8_t *data = nullptr;
+  ImplicitSharingPtr<> sharing_info;
 
   const ColorSpace *colorspace = nullptr;
 };
 
 struct ImBufFloatBuffer {
-  float *data = nullptr;
-  ImBufOwnership ownership = IB_DO_NOT_TAKE_OWNERSHIP;
+  const float *data = nullptr;
+  ImplicitSharingPtr<> sharing_info;
 
   const ColorSpace *colorspace = nullptr;
 };
@@ -200,8 +145,8 @@ struct ImBuf {
 
   /**
    * Stores the Data and Display Window information. Those are only initialized if the image buffer
-   * has the IB_has_display_window flag active, otherwise, they should be ignored as the image has
-   * no display window.
+   * has the ImBufFlags::HasDisplayWindow flag active, otherwise, they should be ignored as the
+   * image has no display window.
    *
    * The data size is already stored in the x and y members. The data_offset member stores the
    * offset from the display window to the data window, if positive, then only part of the display
@@ -213,14 +158,21 @@ struct ImBuf {
   int data_offset[2];
   int display_offset[2];
 
-  /** Active amount of bits/bit-planes. */
-  unsigned char planes = 0;
-  /** Number of channels in `rect_float` (0 = 4 channel default) */
+  /**
+   * Number of channels in `float_buffer` (0 = 4 channel default).
+   * Note that `byte_buffer` always has 4 channels.
+   */
   int channels = 0;
 
-  /* flags */
-  /** Controls which components should exist. */
-  int flags = 0;
+  /**
+   * How to interpret pixel color values in the data that is present.
+   * For example, byte buffer always contains 4 channels, but if code
+   * knows that the alpha channel is fully opaque, it should set color mode
+   * to RGB.
+   */
+  ImColorMode color_mode = ImColorMode::RGBA;
+
+  ImBufFlags flags = ImBufFlags::Zero;
 
   /* pixels */
 
@@ -272,14 +224,42 @@ struct ImBuf {
   /** reference counter for multiple users */
   int32_t refcounter = 0;
 
-  /* color management */
-  int colormanage_flag = 0;
-
   const uint8_t *byte_data() const;
   uint8_t *byte_data_for_write();
 
   const float *float_data() const;
   float *float_data_for_write();
+
+  /** Take sole ownership of a buffer allocated with the guarded allocator. */
+  void assign_byte_data(uint8_t *data);
+  void assign_float_data(float *data);
+
+  /** Share ownership with the implicit sharing referenced by the pointer. */
+  void assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr);
+  void assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr);
+
+  [[nodiscard]] bool colorspace_is_data() const;
+
+  [[nodiscard]] bool can_contain_alpha() const
+  {
+    return color_mode == ImColorMode::RGBA || color_mode == ImColorMode::BW_A;
+  }
+
+  [[nodiscard]] int color_mode_channels_get() const
+  {
+    switch (this->color_mode) {
+      case ImColorMode::BW:
+        return 1;
+      case ImColorMode::BW_A:
+        return 2;
+      case ImColorMode::RGB:
+        return 3;
+      case ImColorMode::RGBA:
+        return 4;
+    }
+    BLI_assert_unreachable();
+    return 0;
+  }
 };
 
 /**
@@ -324,34 +304,12 @@ extern const char *imb_ext_image[];
 extern const char *imb_ext_movie[];
 extern const char *imb_ext_audio[];
 
-/* -------------------------------------------------------------------- */
-/** \name ImBuf Color Management Flag
- *
- * \brief Used with #ImBuf.colormanage_flag
- * \{ */
-
-enum {
-  IMB_COLORMANAGE_IS_DATA = (1 << 0),
-};
-
-/** \} */
-
 inline const uint8_t *ImBuf::byte_data() const
 {
   return this->byte_buffer.data;
 }
 
-inline uint8_t *ImBuf::byte_data_for_write()
-{
-  return this->byte_buffer.data;
-}
-
 inline const float *ImBuf::float_data() const
-{
-  return this->float_buffer.data;
-}
-
-inline float *ImBuf::float_data_for_write()
 {
   return this->float_buffer.data;
 }

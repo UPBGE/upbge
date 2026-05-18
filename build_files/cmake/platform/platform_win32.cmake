@@ -419,6 +419,14 @@ if(WITH_LIBMV)
   find_package(Ceres REQUIRED CONFIG)
 endif()
 
+if(WITH_DRACO)
+  find_package(draco REQUIRED CONFIG)
+endif()
+
+if(WITH_MESHOPTIMIZER)
+  find_package(meshoptimizer REQUIRED CONFIG)
+endif()
+
 windows_find_package(ZLIB) # We want to find before finding things that depend on it like PNG.
 windows_find_package(PNG)
 if(NOT PNG_FOUND)
@@ -441,8 +449,8 @@ endif()
 set(EPOXY_ROOT_DIR ${LIBDIR}/epoxy)
 windows_find_package(Epoxy REQUIRED)
 if(NOT EPOXY_FOUND)
-  set(Epoxy_INCLUDE_DIRS ${LIBDIR}/epoxy/include)
-  set(Epoxy_LIBRARIES ${LIBDIR}/epoxy/lib/epoxy.lib)
+  set(EPOXY_INCLUDE_DIRS ${LIBDIR}/epoxy/include)
+  set(EPOXY_LIBRARIES ${LIBDIR}/epoxy/lib/epoxy.lib)
 endif()
 
 set(PTHREADS_INCLUDE_DIRS ${LIBDIR}/pthreads/include)
@@ -540,14 +548,6 @@ set(IMATH_ROOT ${LIBDIR}/imath)
 find_package(IMATH REQUIRED CONFIG)
 set(OpenEXR_ROOT ${LIBDIR}/openexr)
 find_package(OpenEXR REQUIRED CONFIG)
-
-# Try to find tiff first then complain and set static and maybe wrong paths
-windows_find_package(TIFF)
-if(NOT TIFF_FOUND)
-  warn_hardcoded_paths(libtiff)
-  set(TIFF_LIBRARY ${LIBDIR}/tiff/lib/libtiff.lib)
-  set(TIFF_INCLUDE_DIR ${LIBDIR}/tiff/include)
-endif()
 
 if(WITH_JACK)
   set(JACK_INCLUDE_DIRS
@@ -766,10 +766,7 @@ if(WITH_RUBBERBAND)
 endif()
 
 if(WITH_SDL)
-  set(SDL ${LIBDIR}/sdl)
-  set(SDL_INCLUDE_DIR ${SDL}/include)
-  set(SDL_LIBPATH ${SDL}/lib)
-  set(SDL_LIBRARY ${SDL_LIBPATH}/SDL2.lib)
+  find_package(SDL3 REQUIRED CONFIG)
 endif()
 
 # Audio IO

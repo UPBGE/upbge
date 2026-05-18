@@ -1834,10 +1834,13 @@ static void update_lods(Depsgraph *depsgraph, Object *ob_eval, float camera_pos[
   BKE_object_lod_update(ob_orig, camera_pos);
 
   if (ob_orig->currentlod) {
+    Object *base_eval = DEG_get_evaluated(depsgraph, ob_orig);
     Object *lod_ob = BKE_object_lod_meshob_get(ob_orig);
-    Mesh *lod_mesh = (Mesh *)DEG_get_evaluated(depsgraph, lod_ob)->data;
-    BKE_object_free_derived_caches(ob_eval);
-    BKE_object_eval_assign_data(ob_eval, &lod_mesh->id, false);
+    Object *eval_lod_ob = DEG_get_evaluated(depsgraph, lod_ob);
+    if (base_eval->runtime->data_eval != eval_lod_ob->runtime->data_eval) {
+      BKE_object_free_derived_caches(ob_eval);
+      BKE_object_eval_assign_data(ob_eval, (ID *)eval_lod_ob->runtime->data_eval, false);
+    }
   }
 }
 /* End of UPBGE */

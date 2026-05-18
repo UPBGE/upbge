@@ -141,7 +141,7 @@ static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_
 }
 
 MovieReader *MOV_open_file(const char *filepath,
-                           const int ib_flags,
+                           const ImBufFlags ib_flags,
                            const int streamindex,
                            const bool keep_original_colorspace,
                            char colorspace[IM_MAX_SPACE])
@@ -492,7 +492,7 @@ static int startffmpeg(MovieReader *anim)
     return -1;
   }
 
-  if (anim->ib_flags & IB_animdeinterlace) {
+  if (flag_is_set(anim->ib_flags, ImBufFlags::Deinterlace)) {
     anim->pFrameDeinterlaced->format = anim->pCodecCtx->pix_fmt;
     anim->pFrameDeinterlaced->width = anim->pCodecCtx->width;
     anim->pFrameDeinterlaced->height = anim->pCodecCtx->height;
@@ -717,7 +717,7 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
          input->data[2],
          input->data[3]);
 
-  if (anim->ib_flags & IB_animdeinterlace) {
+  if (flag_is_set(anim->ib_flags, ImBufFlags::Deinterlace)) {
     if (ffmpeg_deinterlace(anim->pFrameDeinterlaced,
                            anim->pFrame,
                            anim->pCodecCtx->pix_fmt,
@@ -1283,12 +1283,13 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
 
   const AVPixFmtDescriptor *pix_fmt_descriptor = av_pix_fmt_desc_get(anim->pCodecCtx->pix_fmt);
 
-  int planes = R_IMF_PLANES_RGBA;
+  ImColorMode color_mode = ImColorMode::RGBA;
   if ((pix_fmt_descriptor->flags & AV_PIX_FMT_FLAG_ALPHA) == 0) {
-    planes = R_IMF_PLANES_RGB;
+    color_mode = ImColorMode::RGB;
   }
 
-  ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, planes, 0);
+  ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, ImBufFlags::Zero);
+  cur_frame_final->color_mode = color_mode;
 
   /* Allocate the storage explicitly to ensure the memory is aligned. */
   const size_t align = ffmpeg_get_buffer_alignment();
@@ -1296,10 +1297,10 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
   uint8_t *buffer_data = static_cast<uint8_t *>(
       MEM_new_uninitialized_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));
   if (anim->is_float) {
-    IMB_assign_float_buffer(cur_frame_final, (float *)buffer_data, IB_TAKE_OWNERSHIP);
+    cur_frame_final->assign_float_data((float *)buffer_data);
   }
   else {
-    IMB_assign_byte_buffer(cur_frame_final, buffer_data, IB_TAKE_OWNERSHIP);
+    cur_frame_final->assign_byte_data(buffer_data);
   }
 
   AVFrame *final_frame = ffmpeg_frame_by_pts_get(anim, pts_to_search);
@@ -1480,6 +1481,31 @@ ImBuf *MOV_decode_frame(MovieReader *anim,
     ibuf->fileframe = anim->cur_position + 1;
   }
   return ibuf;
+}
+
+int MOV_get_video_stream_count(MovieReader *anim)
+{
+#ifdef WITH_FFMPEG
+  if (anim == nullptr) {
+    return 0;
+  }
+  if (anim->state == MovieReader::State::Uninitialized && !anim_getnew(anim)) {
+    return 0;
+  }
+  if (anim->pFormatCtx == nullptr) {
+    return 0;
+  }
+  int count = 0;
+  for (int i = 0; i < anim->pFormatCtx->nb_streams; i++) {
+    if (anim->pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+      count++;
+    }
+  }
+  return count;
+#else
+  UNUSED_VARS(anim);
+  return 0;
+#endif
 }
 
 int MOV_get_duration_frames(MovieReader *anim, IMB_Timecode_Type tc)

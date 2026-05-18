@@ -26,6 +26,7 @@
 #include "DNA_curve_enums.h"
 #include "DNA_customdata_types.h" /* Scene's runtime custom-data masks. */
 #include "DNA_freestyle_types.h"
+#include "DNA_image_enums.h"
 #include "DNA_image_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
@@ -377,34 +378,21 @@ enum eMediaType_Flag : char {
 ENUM_OPERATORS(eMediaType_Flag)
 
 /**
- * #ImageFormatData::depth
- *
- * Return values from #BKE_imtype_valid_depths, note this is depths per channel.
+ * Bit depths of an image color channel.
  */
 enum eImageFormatDepth : char {
-  /** 1bits  (unused). */
-  R_IMF_CHAN_DEPTH_1 = (1 << 0),
   /** 8bits  (default). */
   R_IMF_CHAN_DEPTH_8 = (1 << 1),
-  /** 10bits (uncommon, Cineon/DPX support). */
+  /** 10bits (AVIF, Cineon/DPX, video). */
   R_IMF_CHAN_DEPTH_10 = (1 << 2),
-  /** 12bits (uncommon, jp2/DPX support). */
+  /** 12bits (AVIF, JP2, DPX, video). */
   R_IMF_CHAN_DEPTH_12 = (1 << 3),
-  /** 16bits (TIFF, half float EXR). */
+  /** 16bits (PNG, EXR, JP2, TIFF, DPX). */
   R_IMF_CHAN_DEPTH_16 = (1 << 4),
-  /** 24bits (unused). */
-  R_IMF_CHAN_DEPTH_24 = (1 << 5),
-  /** 32bits (full float EXR). */
+  /** 32bits (EXR, HDR). */
   R_IMF_CHAN_DEPTH_32 = (1 << 6),
 };
 ENUM_OPERATORS(eImageFormatDepth)
-
-/** #ImageFormatData::planes */
-enum eMediaType_Planes : char {
-  R_IMF_PLANES_RGB = 24,
-  R_IMF_PLANES_RGBA = 32,
-  R_IMF_PLANES_BW = 8,
-};
 
 /** #ImageFormatData::exr_codec */
 enum eMediaType_ExrCodec : char {
@@ -479,12 +467,11 @@ struct ImageFormatData {
    */
   char imtype = R_IMF_IMTYPE_PNG;
   /**
-   * bits per channel, R_IMF_CHAN_DEPTH_8 -> 32,
-   * not a flag, only set 1 at a time. */
+   * Bits per channel. Not a bitmask; set only one at a time.
+   */
   eImageFormatDepth depth = R_IMF_CHAN_DEPTH_8;
 
-  /** R_IMF_PLANES_BW, R_IMF_PLANES_RGB, R_IMF_PLANES_RGBA. */
-  char planes = R_IMF_PLANES_RGBA;
+  ImColorMode color_mode = ImColorMode::RGBA;
   /** Generic options for all image types, alpha Z-buffer. */
   char flag = 0;
 
@@ -615,7 +602,7 @@ enum eBakeSpace : char {
 #define R_BAKE_PASS_FILTER_ALL eBakePassFilter(~0)
 
 struct BakeData {
-  struct ImageFormatData im_format;
+  ImageFormatData im_format;
 
   char filepath[/*FILE_MAX*/ 1024] = "//";
 
@@ -1026,7 +1013,7 @@ enum eRender_LineThicknessMode : int {
 struct RenderData {
   DNA_DEFINE_CXX_METHODS(RenderData)
 
-  struct ImageFormatData im_format;
+  ImageFormatData im_format;
 
   struct FFMpegCodecData ffcodecdata;
 
@@ -1067,7 +1054,7 @@ struct RenderData {
   DNA_DEPRECATED int tilex = 256;
   DNA_DEPRECATED int tiley = 256;
 
-  DNA_DEPRECATED short planes = 0;
+  DNA_DEPRECATED short color_mode = 0;
   DNA_DEPRECATED short imtype = 0;
   DNA_DEPRECATED short subimtype = 0;
   DNA_DEPRECATED short quality = 0;
@@ -3181,8 +3168,8 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 /* deprecate this! */
 #define OBEDIT_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_EDIT) ? ob : NULL) : NULL)
 #define OBPOSE_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_POSE) ? ob : NULL) : NULL)
-#define OBWEIGHTPAINT_FROM_OBACT(ob) \
-  ((ob) ? (((ob)->mode & OB_MODE_WEIGHT_PAINT) ? ob : NULL) : NULL)
+#define OBWEIGHTPAINT_ALL_FROM_OBACT(ob) \
+  ((ob) ? (((ob)->mode & OB_MODE_ALL_WEIGHT_PAINT) ? ob : NULL) : NULL)
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) \

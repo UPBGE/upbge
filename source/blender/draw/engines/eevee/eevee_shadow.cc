@@ -573,6 +573,9 @@ void ShadowModule::init()
 
   global_lod_bias_ = (1.0f - scene.eevee.shadow_resolution_scale) * SHADOW_TILEMAP_LOD;
 
+  do_full_update_ |= assign_if_different(
+      data_.use_debug_cost, bool32_t(inst_.debug_mode == eDebugMode::DEBUG_SHADOW_ATOMIC_COST));
+
   bool update_lights = false;
   bool enable_shadow = (scene.eevee.flag & SCE_EEVEE_SHADOW_ENABLED) != 0;
   bool use_jitter = enable_shadow &&
@@ -611,12 +614,13 @@ void ShadowModule::init()
   /*********/
 
   /* Pool size is in MBytes. */
-  const size_t pool_byte_size = enabled_ ? scene.eevee.shadow_pool_size * square_i(1024) : 1;
+  const size_t pool_byte_size = enabled_ ? size_t(scene.eevee.shadow_pool_size) * square_i(1024) :
+                                           1;
   const size_t page_byte_size = square_i(shadow_page_size_) * sizeof(int);
   shadow_page_len_ = int(divide_ceil_ul(pool_byte_size, page_byte_size));
   shadow_page_len_ = min_ii(shadow_page_len_, SHADOW_MAX_PAGE);
 
-  const int2 atlas_extent = shadow_page_size_ * int2(SHADOW_PAGE_PER_ROW);
+  const int2 atlas_extent = shadow_page_size_ * int2(SHADOW_PAGE_PER_ROW, SHADOW_PAGE_PER_COL);
   const int atlas_layers = divide_ceil_u(shadow_page_len_, SHADOW_PAGE_PER_LAYER);
 
   eGPUTextureUsage tex_usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
@@ -902,6 +906,8 @@ void ShadowModule::end_sync()
         sub.bind_ssbo("tilemaps_clip_buf", tilemap_pool.tilemaps_clip);
         sub.bind_ssbo("casters_id_buf", curr_casters_);
         sub.bind_ssbo("bounds_buf", &manager.bounds_buf.current());
+        /* Bind again using a writable binding. */
+        sub.bind_ssbo("light_buf_write", inst_.lights.culling_light_buf_);
         sub.push_constant("resource_len", int(curr_casters_.size()));
         sub.bind_resources(inst_.lights);
         sub.dispatch(int3(
@@ -1099,6 +1105,8 @@ void ShadowModule::end_sync()
         sub.bind_image("tilemaps_img", tilemap_pool.tilemap_tx);
         sub.bind_ssbo("tilemaps_buf", tilemap_pool.tilemaps_data);
         sub.bind_resources(inst_.lights);
+        /* Bind again using a writable binding. */
+        sub.bind_ssbo("light_buf_write", inst_.lights.culling_light_buf_);
         sub.dispatch(int3(1));
         sub.barrier(GPU_BARRIER_TEXTURE_FETCH);
       }
@@ -1127,7 +1135,8 @@ void ShadowModule::debug_end_sync()
             eDebugMode::DEBUG_SHADOW_TILEMAPS,
             eDebugMode::DEBUG_SHADOW_VALUES,
             eDebugMode::DEBUG_SHADOW_TILE_RANDOM_COLOR,
-            eDebugMode::DEBUG_SHADOW_TILEMAP_RANDOM_COLOR))
+            eDebugMode::DEBUG_SHADOW_TILEMAP_RANDOM_COLOR,
+            eDebugMode::DEBUG_SHADOW_ATOMIC_COST))
   {
     return;
   }
@@ -1135,20 +1144,19 @@ void ShadowModule::debug_end_sync()
   /* Init but not filled if no active object. */
   debug_draw_ps_.init();
 
+  int tilemap_index = 0;
   Object *object_active = inst_.draw_ctx->obact;
-  if (object_active == nullptr) {
-    return;
+  if (object_active != nullptr) {
+    ObjectKey object_key(ObjectRef(DEG_get_original(object_active)));
+    if (inst_.lights.light_map_.contains(object_key)) {
+      Light &light = inst_.lights.light_map_.lookup(object_key);
+      if (light.tilemap_index < SHADOW_MAX_TILEMAP) {
+        tilemap_index = light.tilemap_index;
+      }
+    }
   }
 
-  ObjectKey object_key(ObjectRef(DEG_get_original(object_active)));
-
-  if (inst_.lights.light_map_.contains(object_key) == false) {
-    return;
-  }
-
-  Light &light = inst_.lights.light_map_.lookup(object_key);
-
-  if (light.tilemap_index >= SHADOW_MAX_TILEMAP) {
+  if (tilemap_index == 0 && inst_.debug_mode != eDebugMode::DEBUG_SHADOW_ATOMIC_COST) {
     return;
   }
 
@@ -1158,7 +1166,7 @@ void ShadowModule::debug_end_sync()
   debug_draw_ps_.state_set(state);
   debug_draw_ps_.shader_set(inst_.shaders.static_shader_get(SHADOW_DEBUG));
   debug_draw_ps_.push_constant("debug_mode", int(inst_.debug_mode));
-  debug_draw_ps_.push_constant("debug_tilemap_index", light.tilemap_index);
+  debug_draw_ps_.push_constant("debug_tilemap_index", tilemap_index);
   debug_draw_ps_.bind_ssbo("tilemaps_buf", &tilemap_pool.tilemaps_data);
   debug_draw_ps_.bind_ssbo("tiles_buf", &tilemap_pool.tiles_data);
   debug_draw_ps_.bind_resources(inst_.uniform_data);
@@ -1378,30 +1386,33 @@ void ShadowModule::render(View &view, int2 extent)
 
 void ShadowModule::debug_draw(View &view, gpu::FrameBuffer *view_fb)
 {
-  if (!ELEM(inst_.debug_mode,
-            eDebugMode::DEBUG_SHADOW_TILEMAPS,
-            eDebugMode::DEBUG_SHADOW_VALUES,
-            eDebugMode::DEBUG_SHADOW_TILE_RANDOM_COLOR,
-            eDebugMode::DEBUG_SHADOW_TILEMAP_RANDOM_COLOR))
-  {
-    return;
-  }
 
   switch (inst_.debug_mode) {
     case DEBUG_SHADOW_TILEMAPS:
-      inst_.info_append("Debug Mode: Shadow Tilemap");
+      inst_.info_append(
+          "Debug Mode: Shadow Tilemap (active light)\n"
+          " - Green: Used\n"
+          " - Yellow: Used & Updated\n"
+          " - Purple: Cached\n");
       break;
     case DEBUG_SHADOW_VALUES:
-      inst_.info_append("Debug Mode: Shadow Values");
+      inst_.info_append("Debug Mode: Shadow Values (active light)");
       break;
     case DEBUG_SHADOW_TILE_RANDOM_COLOR:
-      inst_.info_append("Debug Mode: Shadow Tile Random Color");
+      inst_.info_append("Debug Mode: Shadow Tile Random Color (active light)");
       break;
     case DEBUG_SHADOW_TILEMAP_RANDOM_COLOR:
-      inst_.info_append("Debug Mode: Shadow Tilemap Random Color");
+      inst_.info_append("Debug Mode: Shadow Tilemap Random Color (active light)");
+      break;
+    case DEBUG_SHADOW_ATOMIC_COST:
+      inst_.info_append(
+          "Debug Mode: Shadow Atomic Cost\n"
+          " - Blue: Low\n"
+          " - Red: Medium\n"
+          " - White: High");
       break;
     default:
-      break;
+      return;
   }
 
   inst_.hiz_buffer.update();

@@ -33,6 +33,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+#include "IMB_interp.hh"
 
 #include "RE_texture.h"
 
@@ -1245,29 +1246,30 @@ void BKE_ocean_cache_eval_uv(OceanCache *och, OceanResult *ocr, int f, float u, 
     v += 1.0f;
   }
 
+  const float texel_x = u * res_x - 0.5f;
+  const float texel_y = v * res_y - 0.5f;
   if (och->ibufs_disp[f]) {
-    ibuf_sample(och->ibufs_disp[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_disp[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->disp, result);
   }
 
   if (och->ibufs_foam[f]) {
-    ibuf_sample(och->ibufs_foam[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_foam[f], result, texel_x, texel_y);
     ocr->foam = result[0];
   }
 
   if (och->ibufs_spray[f]) {
-    ibuf_sample(och->ibufs_spray[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_spray[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->Eplus, result);
   }
 
   if (och->ibufs_spray_inverse[f]) {
-    ibuf_sample(
-        och->ibufs_spray_inverse[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_spray_inverse[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->Eminus, result);
   }
 
   if (och->ibufs_norm[f]) {
-    ibuf_sample(och->ibufs_norm[f], u, v, (1.0f / float(res_x)), (1.0f / float(res_y)), result);
+    imbuf::interpolate_bilinear_fl(och->ibufs_norm[f], result, texel_x, texel_y);
     copy_v3_v3(ocr->normal, result);
   }
 }
@@ -1364,19 +1366,19 @@ void BKE_ocean_simulate_cache(OceanCache *och, int frame)
    * files were saved with default settings too. */
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_DISPLACE);
-  och->ibufs_disp[f] = IMB_load_image_from_filepath(filepath, 0);
+  och->ibufs_disp[f] = IMB_load_image_from_filepath(filepath, ImBufFlags::Zero);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_FOAM);
-  och->ibufs_foam[f] = IMB_load_image_from_filepath(filepath, 0);
+  och->ibufs_foam[f] = IMB_load_image_from_filepath(filepath, ImBufFlags::Zero);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_SPRAY);
-  och->ibufs_spray[f] = IMB_load_image_from_filepath(filepath, 0);
+  och->ibufs_spray[f] = IMB_load_image_from_filepath(filepath, ImBufFlags::Zero);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_SPRAY_INVERSE);
-  och->ibufs_spray_inverse[f] = IMB_load_image_from_filepath(filepath, 0);
+  och->ibufs_spray_inverse[f] = IMB_load_image_from_filepath(filepath, ImBufFlags::Zero);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_NORMAL);
-  och->ibufs_norm[f] = IMB_load_image_from_filepath(filepath, 0);
+  och->ibufs_norm[f] = IMB_load_image_from_filepath(filepath, ImBufFlags::Zero);
 }
 
 void BKE_ocean_bake(Ocean *o,
@@ -1422,11 +1424,11 @@ void BKE_ocean_bake(Ocean *o,
   for (f = och->start, i = 0; f <= och->end; f++, i++) {
 
     /* create a new imbuf to store image for this frame */
-    ibuf_foam = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
-    ibuf_disp = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
-    ibuf_normal = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
-    ibuf_spray = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
-    ibuf_spray_inverse = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_foam = IMB_allocImBuf(res_x, res_y, ImBufFlags::FloatData);
+    ibuf_disp = IMB_allocImBuf(res_x, res_y, ImBufFlags::FloatData);
+    ibuf_normal = IMB_allocImBuf(res_x, res_y, ImBufFlags::FloatData);
+    ibuf_spray = IMB_allocImBuf(res_x, res_y, ImBufFlags::FloatData);
+    ibuf_spray_inverse = IMB_allocImBuf(res_x, res_y, ImBufFlags::FloatData);
 
     BKE_ocean_simulate(o, och->time[i], och->wave_scale, och->chop_amount);
 

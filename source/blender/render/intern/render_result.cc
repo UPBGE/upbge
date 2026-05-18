@@ -174,19 +174,19 @@ void render_result_views_shallowdelete(RenderResult *rr)
 /** \name New
  * \{ */
 
-static int get_num_planes_for_pass_ibuf(const RenderPass &render_pass)
+static ImColorMode get_color_mode_for_pass(const RenderPass &render_pass)
 {
   switch (render_pass.channels) {
     case 1:
-      return R_IMF_PLANES_BW;
+      return ImColorMode::BW;
     case 3:
-      return R_IMF_PLANES_RGB;
+      return ImColorMode::RGB;
     case 4:
-      return R_IMF_PLANES_RGBA;
+      return ImColorMode::RGBA;
   }
 
-  /* Fall back to a commonly used default value of planes for odd-ball number of channel. */
-  return R_IMF_PLANES_RGBA;
+  /* Fall back to a commonly used default value of color_mode for odd-ball number of channel. */
+  return ImColorMode::RGBA;
 }
 
 static void assign_render_pass_ibuf_colorspace(RenderPass &render_pass)
@@ -211,10 +211,11 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
   const size_t rectsize = size_t(rr->rectx) * rr->recty * rp->channels;
   float *buffer_data = MEM_new_array_zeroed<float>(rectsize, rp->name);
 
-  rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_num_planes_for_pass_ibuf(*rp), 0);
+  rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, ImBufFlags::Zero);
+  rp->ibuf->color_mode = get_color_mode_for_pass(*rp);
   rp->ibuf->channels = rp->channels;
   copy_v2_v2_db(rp->ibuf->ppm, rr->ppm);
-  IMB_assign_float_buffer(rp->ibuf, buffer_data, IB_TAKE_OWNERSHIP);
+  rp->ibuf->assign_float_data(buffer_data);
   assign_render_pass_ibuf_colorspace(*rp);
 
   if (STREQ(rp->name, RE_PASSNAME_VECTOR)) {
@@ -443,7 +444,7 @@ void RE_pass_set_buffer_data(RenderPass *pass, float *data)
 {
   ImBuf *ibuf = RE_RenderPassEnsureImBuf(pass);
 
-  IMB_assign_float_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
+  ibuf->assign_float_data(data);
 }
 
 gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
@@ -724,7 +725,7 @@ RenderResult *render_result_new_from_exr(
       rpass.recty = recty;
 
       copy_v2_v2_db(rpass.ibuf->ppm, rr->ppm);
-      rpass.ibuf->flags |= IB_has_display_window;
+      rpass.ibuf->flags |= ImBufFlags::HasDisplayWindow;
       copy_v2_v2_int(rpass.ibuf->display_size, display_size);
       copy_v2_v2_int(rpass.ibuf->display_offset, display_offset);
       copy_v2_v2_int(rpass.ibuf->data_offset, data_offset);
@@ -1088,13 +1089,14 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
                                      const float dither,
                                      const int view_id)
 {
-  ImBuf *ibuf = IMB_allocImBuf(rr->rectx, rr->recty, imf->planes, 0);
+  ImBuf *ibuf = IMB_allocImBuf(rr->rectx, rr->recty, ImBufFlags::Zero);
+  ibuf->color_mode = imf->color_mode;
   RenderView *rv = RE_RenderViewGetById(rr, view_id);
 
   /* if not exists, BKE_imbuf_write makes one */
   if (rv->ibuf) {
-    IMB_assign_byte_buffer(ibuf, rv->ibuf->byte_data_for_write(), IB_DO_NOT_TAKE_OWNERSHIP);
-    IMB_assign_float_buffer(ibuf, rv->ibuf->float_data_for_write(), IB_DO_NOT_TAKE_OWNERSHIP);
+    ibuf->byte_buffer = rv->ibuf->byte_buffer;
+    ibuf->float_buffer = rv->ibuf->float_buffer;
     ibuf->channels = rv->ibuf->channels;
   }
 
@@ -1111,25 +1113,23 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
    */
   if (ibuf->byte_data()) {
     if (BKE_imtype_valid_depths(imf->imtype) &
-        (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32))
+        (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32))
     {
       if (imf->depth == R_IMF_CHAN_DEPTH_8) {
-        /* Higher depth bits are supported but not needed for current file output. */
-        IMB_assign_float_buffer(ibuf, nullptr, IB_DO_NOT_TAKE_OWNERSHIP);
+        ibuf->float_buffer = {};
       }
       else {
         IMB_float_from_byte(ibuf);
       }
     }
     else {
-      /* ensure no float buffer remained from previous frame */
-      IMB_assign_float_buffer(ibuf, nullptr, IB_DO_NOT_TAKE_OWNERSHIP);
+      ibuf->float_buffer = {};
     }
   }
 
   /* Color -> gray-scale. */
   /* editing directly would alter the render view */
-  if (imf->planes == R_IMF_PLANES_BW && imf->imtype != R_IMF_IMTYPE_MULTILAYER &&
+  if (imf->color_mode == ImColorMode::BW && imf->imtype != R_IMF_IMTYPE_MULTILAYER &&
       !(ibuf->float_data() && !ibuf->byte_data() && ibuf->channels == 1))
   {
     ImBuf *ibuf_bw = IMB_dupImBuf(ibuf);
@@ -1150,15 +1150,7 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
   if (ibuf->float_data()) {
     rr->have_combined = true;
 
-    if (!rv_ibuf->float_data()) {
-      float *data = MEM_new_array_uninitialized<float>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                                       "render_seq float");
-      IMB_assign_float_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
-    }
-
-    memcpy(rv_ibuf->float_data_for_write(),
-           ibuf->float_data(),
-           sizeof(float[4]) * rr->rectx * rr->recty);
+    rv_ibuf->float_buffer = ibuf->float_buffer;
 
     /* TSK! Since sequence render doesn't free the *rr render result, the old rect32
      * can hang around when sequence render has rendered a 32 bits one before */
@@ -1167,13 +1159,7 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
   else if (ibuf->byte_data()) {
     rr->have_combined = true;
 
-    if (!rv_ibuf->byte_data()) {
-      uint8_t *data = MEM_new_array_uninitialized<uint8_t>(
-          4 * size_t(rr->rectx) * size_t(rr->recty), "render_seq byte");
-      IMB_assign_byte_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
-    }
-
-    memcpy(rv_ibuf->byte_data_for_write(), ibuf->byte_data(), sizeof(int) * rr->rectx * rr->recty);
+    rv_ibuf->byte_buffer = ibuf->byte_buffer;
 
     /* Same things as above, old rectf can hang around from previous render. */
     IMB_free_float_pixels(rv_ibuf);
@@ -1187,9 +1173,8 @@ void render_result_rect_fill_zero(RenderResult *rr, const int view_id)
   ImBuf *ibuf = RE_RenderViewEnsureImBuf(rr, rv);
 
   if (!ibuf->float_data() && !ibuf->byte_data()) {
-    uint8_t *data = MEM_new_array_zeroed<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                                  "render_seq rect");
-    IMB_assign_byte_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
+    ibuf->assign_byte_data(
+        MEM_new_array_zeroed<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty), __func__));
     return;
   }
 
@@ -1348,8 +1333,8 @@ RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
 ImBuf *RE_RenderPassEnsureImBuf(RenderPass *render_pass)
 {
   if (!render_pass->ibuf) {
-    render_pass->ibuf = IMB_allocImBuf(
-        render_pass->rectx, render_pass->recty, get_num_planes_for_pass_ibuf(*render_pass), 0);
+    render_pass->ibuf = IMB_allocImBuf(render_pass->rectx, render_pass->recty, ImBufFlags::Zero);
+    render_pass->ibuf->color_mode = get_color_mode_for_pass(*render_pass);
     render_pass->ibuf->channels = render_pass->channels;
     assign_render_pass_ibuf_colorspace(*render_pass);
   }
@@ -1360,7 +1345,8 @@ ImBuf *RE_RenderPassEnsureImBuf(RenderPass *render_pass)
 ImBuf *RE_RenderViewEnsureImBuf(const RenderResult *render_result, RenderView *render_view)
 {
   if (!render_view->ibuf) {
-    render_view->ibuf = IMB_allocImBuf(render_result->rectx, render_result->recty, 32, 0);
+    render_view->ibuf = IMB_allocImBuf(
+        render_result->rectx, render_result->recty, ImBufFlags::Zero);
   }
 
   return render_view->ibuf;

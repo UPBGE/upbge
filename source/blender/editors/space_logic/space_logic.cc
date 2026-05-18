@@ -312,7 +312,7 @@ static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
   /* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
   if (slogic->gpd) {
-    BLO_read_data_address(reader, &slogic->gpd);
+    BLO_read_raw_address(reader, &slogic->gpd);
     BKE_gpencil_blend_read_data(reader, slogic->gpd);
   }
 }

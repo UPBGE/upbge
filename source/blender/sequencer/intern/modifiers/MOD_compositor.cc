@@ -148,8 +148,7 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
         float3 value_euler;
         RNA_float_get_array(input_props_ptr, "value", value_euler);
         math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
-        result.set_single_value(
-            float4(value_rotation.x, value_rotation.y, value_rotation.z, value_rotation.w));
+        result.set_single_value(value_rotation);
       }
       break;
     }
@@ -259,13 +258,14 @@ class CompositorModifierContext : public CompositorContext {
     properties_ptr_ = RNA_pointer_get(&ptr, "properties");
   }
 
-  ~CompositorModifierContext()
+  void free_resources()
   {
-    if (this->mask_buffer_ != nullptr) {
-      IMB_freeImBuf(this->mask_buffer_);
-    }
+    IMB_freeImBuf(this->mask_buffer_);
+    this->mask_buffer_ = nullptr;
+
     if (this->owns_mask_) {
       this->mask_.release();
+      this->owns_mask_ = false;
     }
   }
 
@@ -312,12 +312,13 @@ class CompositorModifierContext : public CompositorContext {
 
     const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph,
                                                                 modifier_data_->node_group);
+    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
     NodeGroupOperation node_group_operation(*this,
                                             node_group,
                                             this->needed_outputs(),
-                                            nullptr,
                                             node_group.active_viewer_key,
-                                            bke::NODE_INSTANCE_KEY_BASE);
+                                            bke::NODE_INSTANCE_KEY_BASE,
+                                            compute_context);
     set_output_refcount(node_group, node_group_operation);
 
     node_group.ensure_topology_cache();
@@ -458,6 +459,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
       com_mod_context.use_gpu(), com_mod_context.get_precision(), context.render_data.gpu_context);
   com_mod_context.evaluate();
   com_mod_context.cache_manager().reset();
+  com_mod_context.free_resources();
   if (com_mod_context.use_gpu()) {
     render_end_gpu(context.render_data);
   }

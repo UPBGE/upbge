@@ -28,7 +28,7 @@ struct MovieProxyBuilder;
 
 /**
  * Opens a movie file for reading / playback.
- * ib_flags are `IB_` ImBuf bitmask (only IB_animdeinterlace is taken into account).
+ * From ib_flags only ImBufFlags::Deinterlace is taken into account.
  * streamindex is for multi-track movie files.
  *
  * Returned MovieReader object can be used in other playback related functions.
@@ -39,7 +39,7 @@ struct MovieProxyBuilder;
  * When done with playback, use #MOV_close to delete it.
  */
 MovieReader *MOV_open_file(const char *filepath,
-                           int ib_flags,
+                           ImBufFlags ib_flags,
                            int streamindex,
                            bool keep_original_colorspace,
                            char colorspace[IM_MAX_SPACE]);
@@ -80,6 +80,12 @@ ImBuf *MOV_decode_frame(MovieReader *anim,
  * returned image.
  */
 ImBuf *MOV_decode_preview_frame(MovieReader *anim);
+
+/**
+ * Returns the number of video streams in the movie file backing `anim`.
+ * Returns 0 if the file cannot be opened or contains no video streams.
+ */
+int MOV_get_video_stream_count(MovieReader *anim);
 
 /**
  * Return the length (in frames) of the movie.
@@ -133,15 +139,14 @@ void MOV_get_filename(const MovieReader *anim, char *filename, int filename_maxn
  */
 IDProperty *MOV_load_metadata(MovieReader *anim);
 
-/*-------------------------------------------------------------------- */
-/*
- * Movie proxy / timecode index related functionality.
- */
-
 /**
  * Sets multi-view suffix to be used when building proxies for this movie.
  */
 void MOV_set_multiview_suffix(MovieReader *anim, const char *suffix);
+
+/* -------------------------------------------------------------------- */
+/** \name Movie proxy / time-code index related functionality
+ * \{ */
 
 /**
  * Close any internally opened proxies of this movie.
@@ -199,5 +204,7 @@ void MOV_proxy_builder_process(MovieProxyBuilder *context,
  * Finish building proxies / time-codes indices, and delete the builder.
  */
 void MOV_proxy_builder_finish(MovieProxyBuilder *context, bool stop);
+
+/** \} */
 
 }  // namespace blender

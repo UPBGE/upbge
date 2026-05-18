@@ -783,7 +783,7 @@ bool BKE_image_scale(Image *image, int width, int height, ImageUser *iuser)
   return (ibuf != nullptr);
 }
 
-bool BKE_image_has_opengl_texture(Image *ima)
+bool BKE_image_has_gpu_texture(Image *ima)
 {
   for (int eye = 0; eye < 2; eye++) {
     for (int i = 0; i < TEXTARGET_COUNT; i++) {
@@ -974,16 +974,16 @@ static void image_init_color_management(Image *ima)
 
   /* Will set input color space to image format default's. */
   ibuf = IMB_load_image_from_filepath(
-      filepath, IB_test | IB_alphamode_detect, ima->colorspace_settings.name);
+      filepath, ImBufFlags::Test | ImBufFlags::AlphaDetect, ima->colorspace_settings.name);
 
   if (ibuf) {
-    if (ibuf->flags & IB_alphamode_premul) {
+    if (flag_is_set(ibuf->flags, ImBufFlags::AlphaPremul)) {
       ima->alpha_mode = IMA_ALPHA_PREMUL;
     }
-    else if (ibuf->flags & IB_alphamode_channel_packed) {
+    else if (flag_is_set(ibuf->flags, ImBufFlags::AlphaChannelPacked)) {
       ima->alpha_mode = IMA_ALPHA_CHANNEL_PACKED;
     }
-    else if (ibuf->flags & IB_alphamode_ignore) {
+    else if (flag_is_set(ibuf->flags, ImBufFlags::AlphaIgnore)) {
       ima->alpha_mode = IMA_ALPHA_IGNORE;
     }
     else {
@@ -1156,9 +1156,10 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
   float *rect_float = nullptr;
   float fill_color[4];
 
+  ImColorMode color_mode = ImColorMode(tile->gen_depth);
   const bool floatbuf = (tile->gen_flag & IMA_GEN_FLOAT) != 0;
   if (floatbuf) {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_float_data);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, ImBufFlags::FloatData);
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1168,6 +1169,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
 
     if (ibuf != nullptr) {
+      ibuf->color_mode = color_mode;
       rect_float = ibuf->float_data_for_write();
       IMB_colormanagement_assign_float_colorspace(ibuf, ima->colorspace_settings.name);
     }
@@ -1182,7 +1184,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
   }
   else {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_byte_data);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, ImBufFlags::ByteData);
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1192,6 +1194,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
 
     if (ibuf != nullptr) {
+      ibuf->color_mode = color_mode;
       rect = ibuf->byte_data_for_write();
       IMB_colormanagement_assign_byte_colorspace(ibuf, ima->colorspace_settings.name);
     }
@@ -1363,7 +1366,7 @@ static bool image_memorypack_imbuf(
 {
   ibuf->ftype = ibuf->float_data() ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
 
-  Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, IB_byte_data);
+  Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, ImBufFlags::ByteData);
   if (encoded.is_empty()) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
     image_free_packedfiles(ima);
@@ -2576,7 +2579,7 @@ bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *i
 
   BKE_image_format_to_imbuf(ibuf, imf);
 
-  const bool ok = IMB_save_image(ibuf, filepath, IB_byte_data);
+  const bool ok = IMB_save_image(ibuf, filepath, ImBufFlags::ByteData);
   if (!ok && errno != 0) {
     perror(filepath);
   }
@@ -2592,14 +2595,13 @@ bool BKE_imbuf_write_as(ImBuf *ibuf,
   ImBuf ibuf_back = *ibuf;
   bool ok;
 
-  /* All data is RGBA anyway, this just controls how to save for some formats. */
-  ibuf->planes = imf->planes;
+  ibuf->color_mode = imf->color_mode;
 
   ok = BKE_imbuf_write(ibuf, filepath, imf);
 
   if (save_copy) {
     /* note that we are not restoring _all_ settings */
-    ibuf->planes = ibuf_back.planes;
+    ibuf->color_mode = ibuf_back.color_mode;
     ibuf->ftype = ibuf_back.ftype;
     ibuf->foptions = ibuf_back.foptions;
   }
@@ -2621,7 +2623,7 @@ bool BKE_imbuf_write_stamp(const Scene *scene,
 }
 
 MovieReader *openanim_noload(const char *filepath,
-                             const int flags,
+                             const ImBufFlags flags,
                              const int streamindex,
                              const bool keep_original_colorspace,
                              char colorspace[IMA_MAX_SPACE])
@@ -2633,7 +2635,7 @@ MovieReader *openanim_noload(const char *filepath,
 }
 
 MovieReader *openanim(const char *filepath,
-                      const int ibuf_flags,
+                      const ImBufFlags ibuf_flags,
                       const int streamindex,
                       const bool keep_original_colorspace,
                       char colorspace[IMA_MAX_SPACE])
@@ -3987,20 +3989,20 @@ static void image_init_after_load(Image *ima, ImageUser *iuser, ImBuf * /*ibuf*/
   UNUSED_VARS_NDEBUG(tile);
 }
 
-static int imbuf_alpha_flags_for_image(Image *ima)
+static ImBufFlags imbuf_alpha_flags_for_image(Image *ima)
 {
   switch (ima->alpha_mode) {
     case IMA_ALPHA_STRAIGHT:
-      return 0;
+      return ImBufFlags::Zero;
     case IMA_ALPHA_PREMUL:
-      return IB_alphamode_premul;
+      return ImBufFlags::AlphaPremul;
     case IMA_ALPHA_CHANNEL_PACKED:
-      return IB_alphamode_channel_packed;
+      return ImBufFlags::AlphaChannelPacked;
     case IMA_ALPHA_IGNORE:
-      return IB_alphamode_ignore;
+      return ImBufFlags::AlphaIgnore;
   }
 
-  return 0;
+  return ImBufFlags::Zero;
 }
 
 /**
@@ -4074,12 +4076,8 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
 
   if (ia->anim == nullptr) {
     char filepath[FILE_MAX];
-    int flags = IB_byte_data;
+    ImBufFlags flags = (ima->flag & IMA_DEINTERLACE) ? ImBufFlags::Deinterlace : ImBufFlags::Zero;
     ImageUser iuser_t{};
-
-    if (ima->flag & IMA_DEINTERLACE) {
-      flags |= IB_animdeinterlace;
-    }
 
     if (iuser) {
       iuser_t = *iuser;
@@ -4174,7 +4172,8 @@ static ImBuf *load_image_single(Image *ima,
 {
   char filepath[FILE_MAX];
   ImBuf *ibuf = nullptr;
-  int flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
+  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::Metadata |
+                    imbuf_alpha_flags_for_image(ima);
 
   *r_cache_ibuf = true;
   const int tile_number = image_get_tile_number_from_iuser(ima, iuser);
@@ -4464,7 +4463,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
    * 2. Provides an image buffer which can be used to communicate the render resolution (with
    * possible border render applied to it) prior to the actual pixels storage is allocated. */
   if (ima->runtime->cache == nullptr) {
-    ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, 0, 0);
+    ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, ImBufFlags::Zero);
     image_assign_ibuf(ima, empty_ibuf, IMA_NO_INDEX, 0);
 
     /* The cache references the image buffer, and the freeing only happens if the buffer has 0
@@ -4732,7 +4731,7 @@ static ImBuf *image_acquire_ibuf(Image *ima,
           if (!ibuf) {
             /* Composite Viewer, all handled in compositor */
             /* fake ibuf, will be filled in compositor */
-            ibuf = IMB_allocImBuf(256, 256, 32, IB_byte_data | IB_float_data);
+            ibuf = IMB_allocImBuf(256, 256, ImBufFlags::ByteData | ImBufFlags::FloatData);
             image_assign_ibuf(ima, ibuf, index, entry);
           }
         }
@@ -5256,14 +5255,9 @@ bool BKE_image_has_alpha(Image *image)
 {
   void *lock;
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
-  const int planes = (ibuf ? ibuf->planes : 0);
+  bool result = ibuf ? ibuf->can_contain_alpha() : false;
   BKE_image_release_ibuf(image, ibuf, lock);
-
-  if (ELEM(planes, 32, 16)) {
-    return true;
-  }
-
-  return false;
+  return result;
 }
 
 void BKE_image_get_size(Image *image, ImageUser *iuser, int *r_width, int *r_height)

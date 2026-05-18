@@ -141,18 +141,18 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
                          (is_render ? IMA_CHAN_FLAG_BW : 0);
 
   /* ensure depth and color settings match */
-  if ((imf->planes == R_IMF_PLANES_BW) && !(chan_flag & IMA_CHAN_FLAG_BW)) {
-    imf->planes = R_IMF_PLANES_RGBA;
+  if ((imf->color_mode == ImColorMode::BW) && !(chan_flag & IMA_CHAN_FLAG_BW)) {
+    imf->color_mode = ImColorMode::RGBA;
   }
-  if ((imf->planes == R_IMF_PLANES_RGBA) && !(chan_flag & IMA_CHAN_FLAG_RGBA)) {
-    imf->planes = R_IMF_PLANES_RGB;
+  if ((imf->color_mode == ImColorMode::RGBA) && !(chan_flag & IMA_CHAN_FLAG_RGBA)) {
+    imf->color_mode = ImColorMode::RGB;
   }
 
   /* ensure usable depth */
   {
-    const int depth_ok = BKE_imtype_valid_depths(imf->imtype);
+    const eImageFormatDepth depth_ok = BKE_imtype_valid_depths(imf->imtype);
     if ((imf->depth & depth_ok) == 0) {
-      imf->depth = eImageFormatDepth(BKE_imtype_first_valid_depth(depth_ok));
+      imf->depth = BKE_imtype_first_valid_depth(depth_ok);
     }
   }
 
@@ -378,6 +378,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_TIFF:
     case R_IMF_IMTYPE_IRIS:
     case R_IMF_IMTYPE_OPENEXR:
+    case R_IMF_IMTYPE_JP2:
       chan_flag |= IMA_CHAN_FLAG_BW;
       break;
   }
@@ -429,17 +430,15 @@ eImageFormatDepth BKE_imtype_valid_depths_with_video(char imtype, const ID *owne
   return depths;
 }
 
-eImageFormatDepth BKE_imtype_first_valid_depth(const char valid_depths)
+eImageFormatDepth BKE_imtype_first_valid_depth(eImageFormatDepth valid_depths)
 {
   /* set first available depth */
   const eImageFormatDepth depth_ls[] = {
       R_IMF_CHAN_DEPTH_32,
-      R_IMF_CHAN_DEPTH_24,
       R_IMF_CHAN_DEPTH_16,
       R_IMF_CHAN_DEPTH_12,
       R_IMF_CHAN_DEPTH_10,
       R_IMF_CHAN_DEPTH_8,
-      R_IMF_CHAN_DEPTH_1,
       eImageFormatDepth(0),
   };
   for (int i = 0; depth_ls[i] != eImageFormatDepth(0); i++) {
@@ -912,14 +911,11 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
 
 static eImageFormatDepth imtype_best_depth(const ImBuf *ibuf, const char imtype)
 {
-  const char depth_ok = BKE_imtype_valid_depths(imtype);
+  const eImageFormatDepth depth_ok = BKE_imtype_valid_depths(imtype);
 
   if (ibuf->float_data()) {
     if (depth_ok & R_IMF_CHAN_DEPTH_32) {
       return R_IMF_CHAN_DEPTH_32;
-    }
-    if (depth_ok & R_IMF_CHAN_DEPTH_24) {
-      return R_IMF_CHAN_DEPTH_24;
     }
     if (depth_ok & R_IMF_CHAN_DEPTH_16) {
       return R_IMF_CHAN_DEPTH_16;
@@ -938,9 +934,6 @@ static eImageFormatDepth imtype_best_depth(const ImBuf *ibuf, const char imtype)
   }
   if (depth_ok & R_IMF_CHAN_DEPTH_16) {
     return R_IMF_CHAN_DEPTH_16;
-  }
-  if (depth_ok & R_IMF_CHAN_DEPTH_24) {
-    return R_IMF_CHAN_DEPTH_24;
   }
   if (depth_ok & R_IMF_CHAN_DEPTH_32) {
     return R_IMF_CHAN_DEPTH_32;
@@ -1104,8 +1097,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     im_format->depth = imtype_best_depth(imbuf, im_format->imtype);
   }
 
-  /* planes */
-  im_format->planes = imbuf->planes;
+  im_format->color_mode = imbuf->color_mode;
 }
 
 bool BKE_image_format_is_byte(const ImageFormatData *imf)

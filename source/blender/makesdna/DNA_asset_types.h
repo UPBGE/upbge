@@ -27,6 +27,9 @@ enum eAssetLibraryType : short {
   ASSET_LIBRARY_ALL = 2,
   /** Display assets bundled with Blender by default. */
   ASSET_LIBRARY_ESSENTIALS = 3,
+  /** Additions to the essentials library that are stored online - displayed in the UI as part of
+   * the normal essentials library. */
+  ASSET_LIBRARY_ONLINE_ESSENTIALS = 4,
 
   /** Display assets from custom asset libraries, as defined in the preferences
    * (#bUserAssetLibrary). The name will be taken from #FileSelectParams.asset_library_ref.idname
@@ -53,6 +56,12 @@ enum eAssetLibrary_Flag : int {
   ASSET_LIBRARY_RELATIVE_PATH = (1 << 0),
   ASSET_LIBRARY_DISABLED = (1 << 1),
   ASSET_LIBRARY_USE_REMOTE_URL = (1 << 2),
+};
+
+enum class AssetAccess : int8_t {
+  OnlineAndOffline = 0,
+  OnlyOnline = 1,
+  OnlyOffline = 2,
 };
 
 /**

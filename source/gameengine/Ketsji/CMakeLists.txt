@@ -183,6 +183,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::sdl
   ge_converter
   ge_logic_bricks
   ge_scenegraph

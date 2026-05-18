@@ -39,7 +39,7 @@ BL_Texture::BL_Texture(blender::Image *ima)
   m_gpuTex = nullptr;
   m_textarget = TEXTARGET_2D;
   /* only add support for existing gputextures */
-  if (BKE_image_has_opengl_texture(ima)) {
+  if (BKE_image_has_gpu_texture(ima)) {
     m_gpuTex = ima->runtime->gputexture[TEXTARGET_2D][0];
   }
 }

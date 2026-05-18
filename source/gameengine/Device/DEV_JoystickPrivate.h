@@ -34,13 +34,17 @@
 #include "DEV_JoystickDefines.h"
 
 #ifdef WITH_SDL
+#  include <SDL3/SDL.h>
+#endif
+
+#ifdef WITH_SDL
 class DEV_Joystick::PrivateData {
  public:
   /*
    * The Game controller
    */
-  SDL_GameController *m_gamecontroller;
-  SDL_JoystickID m_instance_id;
+  SDL_Gamepad *m_gamecontroller;
+  SDL_JoystickID m_sdl_joystick_id;
   SDL_Haptic *m_haptic;
   SDL_HapticEffect m_hapticeffect;
   int m_hapticEffectId;
@@ -49,6 +53,7 @@ class DEV_Joystick::PrivateData {
 
   PrivateData()
       : m_gamecontroller(nullptr),
+        m_sdl_joystick_id(0),
         m_haptic(nullptr),
         m_hapticEffectStatus(JOYHAPTIC_STOPPED),
         m_hapticEndTime(0.0)

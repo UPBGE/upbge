@@ -73,6 +73,7 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::draw
   PRIVATE bf::dna
+  PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
@@ -121,6 +122,13 @@ endif(WITH_INPUT_NDOF)
 
 if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
+endif()
+
+if(WITH_CYCLES)
+  add_definitions(-DWITH_CYCLES)
+  list(APPEND INC
+    ../../../intern/cycles/blender
+  )
 endif()
 
 if(WITH_INTERNATIONAL)

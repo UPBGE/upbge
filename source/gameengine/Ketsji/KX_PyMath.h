@@ -101,30 +101,46 @@ template<class T> bool PyMatTo(PyObject *pymat, T &mat)
 #  endif /* USE_MATHUTILS */
 
       if (PySequence_Check(pymat)) {
-    unsigned int rows = PySequence_Size(pymat);
-    if (rows != Size(mat))
+    /* Use PySequence_Fast for the outer sequence to avoid sq_item on buffer-view types
+     * (Python 3.13 may assert-crash when calling sq_item on a MatrixObject with active
+     * buffer view). */
+    PyObject *seq = PySequence_Fast(pymat, "could not be converted to a matrix");
+    if (!seq) {
       return false;
+    }
+    unsigned int rows = (unsigned int)PySequence_Fast_GET_SIZE(seq);
+    if (rows != Size(mat)) {
+      Py_DECREF(seq);
+      return false;
+    }
 
+    PyObject **row_items = PySequence_Fast_ITEMS(seq);
     for (unsigned int row = 0; noerror && row < rows; row++) {
-      PyObject *pyrow = PySequence_GetItem(pymat, row); /* new ref */
+      PyObject *pyrow = row_items[row]; /* borrowed */
       if (!PyErr_Occurred() && PySequence_Check(pyrow)) {
-        unsigned int cols = PySequence_Size(pyrow);
+        PyObject *rowseq = PySequence_Fast(pyrow, "row could not be converted");
+        if (!rowseq) {
+          noerror = false;
+          break;
+        }
+        unsigned int cols = (unsigned int)PySequence_Fast_GET_SIZE(rowseq);
         if (cols != Size(mat)) {
           noerror = false;
+          Py_DECREF(rowseq);
         }
         else {
+          PyObject **col_items = PySequence_Fast_ITEMS(rowseq);
           for (unsigned int col = 0; col < cols; col++) {
-            PyObject *item = PySequence_GetItem(pyrow, col); /* new ref */
-            mat[row][col] = PyFloat_AsDouble(item);
-            Py_DECREF(item);
+            mat[row][col] = PyFloat_AsDouble(col_items[col]);
           }
+          Py_DECREF(rowseq);
         }
       }
       else {
         noerror = false;
       }
-      Py_DECREF(pyrow);
     }
+    Py_DECREF(seq);
   }
   else
     noerror = false;
@@ -185,6 +201,15 @@ template<class T> bool PyVecTo(PyObject *pyval, T &vec)
     vec.setValue((float *)pyeul->eul);
     return true;
   }
+  else if (PyObject_TypeCheck(pyval, &blender::matrix_Type)) {
+    /* A matrix is a sequence of row-vectors, not a sequence of floats.
+     * Reject it explicitly so it doesn't fall through to the generic
+     * PySequence_Check branch below. In Python 3.13, PySequence_GetItem on a
+     * MatrixObject with an active buffer view triggers an internal assertion crash. */
+    PyErr_Format(PyExc_AttributeError,
+                 "error setting vector, a matrix is not a valid sequence of numbers");
+    return false;
+  }
   else
 #  endif
       if (PyTuple_Check(pyval)) {
@@ -222,20 +247,27 @@ template<class T> bool PyVecTo(PyObject *pyval, T &vec)
     return false;
   }
   else if (PySequence_Check(pyval)) {
-    unsigned int numitems = PySequence_Size(pyval);
+    /* Use PySequence_Fast to avoid calling sq_item on types like MatrixObject that may
+     * have an active buffer view — in Python 3.13 this triggers an internal assertion. */
+    PyObject *seq = PySequence_Fast(pyval, "error converting to vector");
+    if (!seq) {
+      return false;
+    }
+    unsigned int numitems = (unsigned int)PySequence_Fast_GET_SIZE(seq);
     if (numitems != Size(vec)) {
       PyErr_Format(PyExc_AttributeError,
                    "error setting vector, %d args, should be %d",
                    numitems,
                    Size(vec));
+      Py_DECREF(seq);
       return false;
     }
 
+    PyObject **items = PySequence_Fast_ITEMS(seq);
     for (unsigned int x = 0; x < numitems; x++) {
-      PyObject *item = PySequence_GetItem(pyval, x); /* new ref */
-      vec[x] = PyFloat_AsDouble(item);
-      Py_DECREF(item);
+      vec[x] = PyFloat_AsDouble(items[x]);
     }
+    Py_DECREF(seq);
 
     if (PyErr_Occurred()) {
       PyErr_SetString(PyExc_AttributeError,

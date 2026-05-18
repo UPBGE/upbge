@@ -32,6 +32,22 @@
 
 using namespace blender;
 
+#ifdef WITH_SDL
+static bool gamepad_has_rumble(SDL_Gamepad *gamepad)
+{
+  if (gamepad == nullptr) {
+    return false;
+  }
+
+  const SDL_PropertiesID gamepad_properties = SDL_GetGamepadProperties(gamepad);
+  if (!gamepad_properties) {
+    return false;
+  }
+
+  return SDL_GetBooleanProperty(gamepad_properties, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
+}
+#endif
+
 bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned int duration)
 {
 #ifdef WITH_SDL
@@ -39,10 +55,21 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
   bool run_by_effect = false;
   bool effects_issue = false;
 
+  if (gamepad_has_rumble(m_private->m_gamecontroller)) {
+    if (SDL_RumbleGamepad(m_private->m_gamecontroller,
+                          Uint16(strengthLeft * 0xFFFF),
+                          Uint16(strengthRight * 0xFFFF),
+                          duration)) {
+      m_private->m_hapticEndTime = blender::BLI_time_now_seconds() * 1000.0 + (double)duration;
+      return true;
+    }
+  }
+
   if (m_private->m_haptic == nullptr) {
     return false;
   }
 
+  // Code related to SDL_Haptic kept for reference but normally not executed (SDL_RumbleGamepad instead)
   // Managing vibration logic
   if (m_private->m_hapticEffectStatus == JOYHAPTIC_STOPPED) {
     memset(&m_private->m_hapticeffect, 0, sizeof(SDL_HapticEffect));  // 0 is safe default
@@ -55,7 +82,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
   }
 
   // Checking supported effects
-  effects = SDL_HapticQuery(m_private->m_haptic);
+  effects = SDL_GetHapticFeatures(m_private->m_haptic);
 
   // LeftRight is the most supported effect by XInput game controllers
   if ((effects & SDL_HAPTIC_LEFTRIGHT) &&
@@ -93,26 +120,26 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
     bool new_effect = true;
 
     if (m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_EFFECT) {
-      if (SDL_HapticUpdateEffect(
-              m_private->m_haptic, m_private->m_hapticEffectId, &m_private->m_hapticeffect) == 0) {
+      if (SDL_UpdateHapticEffect(
+              m_private->m_haptic, m_private->m_hapticEffectId, &m_private->m_hapticeffect)) {
         m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_EFFECT;
         new_effect = false;
       }
       else {
-        SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+        SDL_DestroyHapticEffect(m_private->m_haptic, m_private->m_hapticEffectId);
         m_private->m_hapticEffectId = -1;
       }
     }
 
     if (new_effect) {
       // Upload the effect
-      m_private->m_hapticEffectId = SDL_HapticNewEffect(m_private->m_haptic,
+      m_private->m_hapticEffectId = SDL_CreateHapticEffect(m_private->m_haptic,
                                                         &m_private->m_hapticeffect);
     }
 
     // Run the effect
     if (m_private->m_hapticEffectId >= 0 &&
-        SDL_HapticRunEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1) != -1) {
+        SDL_RunHapticEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1)) {
       m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_EFFECT;
     }
     else {
@@ -136,13 +163,13 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
     m_private->m_hapticeffect.periodic.fade_length = 0;
 
     if (m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
-      if (SDL_HapticUpdateEffect(
-              m_private->m_haptic, m_private->m_hapticEffectId, &m_private->m_hapticeffect) == 0) {
+      if (SDL_UpdateHapticEffect(
+              m_private->m_haptic, m_private->m_hapticEffectId, &m_private->m_hapticeffect)) {
         m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_RUMBLE_EFFECT;
         new_effect = false;
       }
       else {
-        SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+        SDL_DestroyHapticEffect(m_private->m_haptic, m_private->m_hapticEffectId);
         m_private->m_hapticEffectId = -1;
         CM_Error("Vibration can not be updated. Trying other approach.");
       }
@@ -150,17 +177,17 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 
     if (new_effect) {
       // Upload the effect
-      m_private->m_hapticEffectId = SDL_HapticNewEffect(m_private->m_haptic,
+      m_private->m_hapticEffectId = SDL_CreateHapticEffect(m_private->m_haptic,
                                                         &m_private->m_hapticeffect);
     }
 
     // Run the effect
     if (m_private->m_hapticEffectId >= 0 &&
-        SDL_HapticRunEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1) != -1) {
+        SDL_RunHapticEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1)) {
       m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_RUMBLE_EFFECT;
     }
     else {
-      SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+      SDL_DestroyHapticEffect(m_private->m_haptic, m_private->m_hapticEffectId);
       m_private->m_hapticEffectId = -1;
       m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
       CM_Error("Vibration not reproduced. Rumble can not initialized/played");
@@ -177,14 +204,21 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 bool DEV_Joystick::RumbleStop()
 {
 #ifdef WITH_SDL
+  bool stopped = false;
+
+  if (gamepad_has_rumble(m_private->m_gamecontroller)) {
+    stopped = SDL_RumbleGamepad(m_private->m_gamecontroller, 0, 0, 0);
+  }
+
   if (m_private->m_haptic == nullptr) {
-    return false;
+    m_private->m_hapticEndTime = 0.0;
+    return stopped;
   }
 
   if (m_private->m_hapticEffectStatus != JOYHAPTIC_STOPPED) {
     m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
   }
-  SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+  SDL_DestroyHapticEffect(m_private->m_haptic, m_private->m_hapticEffectId);
   m_private->m_hapticEndTime = 0.0;
   return true;
 #endif
@@ -202,7 +236,7 @@ bool DEV_Joystick::GetRumbleStatus()
 bool DEV_Joystick::GetRumbleSupport()
 {
 #ifdef WITH_SDL
-  return (m_private->m_haptic);
+  return gamepad_has_rumble(m_private->m_gamecontroller) || (m_private->m_haptic != nullptr);
 #endif
   return false;
 }
@@ -212,7 +246,7 @@ bool DEV_Joystick::GetRumbleSupport()
 void DEV_Joystick::ProcessRumbleStatus()
 {
 #ifdef WITH_SDL
-  if (m_private->m_haptic == nullptr) {
+  if (!gamepad_has_rumble(m_private->m_gamecontroller) && m_private->m_haptic == nullptr) {
     return;
   }
 

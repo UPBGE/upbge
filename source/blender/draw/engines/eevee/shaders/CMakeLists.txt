@@ -26,9 +26,6 @@ set(SRC_GLSL_VERT
   eevee_debug_irradiance_grid_vert.glsl
   eevee_debug_surfels_vert.glsl
   eevee_depth_of_field_scatter_vert.glsl
-  eevee_display_lightprobe_planar_vert.glsl
-  eevee_display_lightprobe_sphere_vert.glsl
-  eevee_display_lightprobe_volume_vert.glsl
   eevee_fullscreen_vert.glsl
   eevee_geom_curves_vert.glsl
   eevee_geom_mesh_vert.glsl
@@ -46,15 +43,11 @@ set(SRC_GLSL_FRAG
   eevee_deferred_combine_frag.glsl
   eevee_deferred_tile_classify_frag.glsl
   eevee_depth_of_field_scatter_frag.glsl
-  eevee_display_lightprobe_planar_frag.glsl
-  eevee_display_lightprobe_sphere_frag.glsl
-  eevee_display_lightprobe_volume_frag.glsl
   eevee_film_copy_frag.glsl
   eevee_film_frag.glsl
   eevee_hiz_debug_frag.glsl
   eevee_lookdev_display_frag.glsl
   eevee_occupancy_convert_frag.glsl
-  eevee_shadow_debug_frag.glsl
   eevee_surf_depth_frag.glsl
   eevee_surf_occupancy_frag.glsl
   eevee_surf_shadow_frag.glsl
@@ -90,22 +83,10 @@ set(SRC_GLSL_COMP
   eevee_lightprobe_volume_ray_comp.glsl
   eevee_lightprobe_volume_world_comp.glsl
   eevee_lookdev_copy_world_comp.glsl
-  eevee_motion_blur_dilate_comp.glsl
-  eevee_motion_blur_flatten_comp.glsl
-  eevee_motion_blur_gather_comp.glsl
   eevee_ray_generate_comp.glsl
   eevee_ray_tile_classify_comp.glsl
   eevee_ray_tile_compact_comp.glsl
-  eevee_ray_trace_fallback_comp.glsl
-  eevee_ray_trace_planar_comp.glsl
-  eevee_ray_trace_screen_comp.glsl
   eevee_surfel_cluster_build_comp.glsl
-  eevee_surfel_light_comp.glsl
-  eevee_surfel_list_build_comp.glsl
-  eevee_surfel_list_flatten_comp.glsl
-  eevee_surfel_list_prefix_comp.glsl
-  eevee_surfel_list_prepare_comp.glsl
-  eevee_surfel_list_sort_comp.glsl
   eevee_surfel_ray_comp.glsl
   eevee_vertex_copy_comp.glsl
 )
@@ -128,8 +109,6 @@ set(SRC_GLSL_LIB
   eevee_filter_lib.glsl
   # eevee_forward_lib.glsl
   eevee_gbuffer_lib.glsl
-  eevee_light_eval_lib.glsl
-  eevee_light_iter_lib.glsl
   eevee_light_lib.glsl
   eevee_lightprobe_eval_lib.glsl
   eevee_lightprobe_lib.glsl
@@ -137,17 +116,12 @@ set(SRC_GLSL_LIB
   eevee_lightprobe_sphere_lib.glsl
   eevee_lightprobe_sphere_mapping_lib.glsl
   eevee_lightprobe_volume_eval_lib.glsl
-  eevee_motion_blur_lib.glsl
   # eevee_nodetree_lib.glsl # Has dependency on draw_model_lib that is hard to resolve
   eevee_ray_generate_lib.glsl
-  eevee_ray_trace_screen_lib.glsl
   eevee_renderpass_lib.glsl
   eevee_sampling_lib.glsl
-  eevee_shadow_lib.glsl
-  eevee_shadow_tracing_lib.glsl
   eevee_subsurface_lib.glsl
   eevee_surf_lib.glsl
-  eevee_surfel_list_lib.glsl
   # eevee_transparency_lib.glsl # Require Fragment shader include
   # eevee_velocity_lib.glsl # Has dependency on draw_model_lib that is hard to resolve
 )
