@@ -765,6 +765,8 @@ void OBJECT_OT_add(wmOperatorType *ot)
   add_generic_props(ot, true);
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Add Lattice Deformation to Selected Operator
  * \{ */

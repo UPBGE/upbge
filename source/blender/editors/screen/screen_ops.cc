@@ -3677,6 +3677,8 @@ static void SCREEN_OT_quadview_size(wmOperatorType *ot)
   ot->flag = OPTYPE_BLOCKING | OPTYPE_INTERNAL;
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Frame Change Operator
  * \{ */

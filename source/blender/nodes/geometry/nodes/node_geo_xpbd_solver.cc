@@ -9,6 +9,7 @@
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_sample.hh"
 #include "BKE_pointcloud.hh"
 
@@ -1152,8 +1153,8 @@ class XpbdSolverStep {
             math::cross(edge_direction_mesh,
                         math::interpolate(vert_normals[edge[0]], vert_normals[edge[1]], 0.5f)),
             edge_direction_mesh));
-        const float3 edge_normal_local = math::transform_direction(mesh_to_local,
-                                                                   edge_normal_mesh);
+        const float3 edge_normal_local = math::normalize(
+            math::transform_direction(mesh_to_local, edge_normal_mesh));
 
         /* Use geometric average as edge friction coefficient. */
         const float static_friction = math::sqrt(
@@ -1345,8 +1346,8 @@ class XpbdSolverStep {
       BVHTreeRayHit hit{};
       hit.index = -1;
       hit.dist = FLT_MAX;
-      if (BLI_bvhtree_ray_cast(bvh.tree, pos, dir, 0.0f, &hit, bvh.raycast_callback, (void *)&bvh))
-      {
+      BLI_bvhtree_ray_cast(bvh.tree, pos, dir, 0.0f, &hit, bvh.raycast_callback, (void *)&bvh);
+      if (hit.index != -1) {
         const float3 dir = float3(hit.co) - pos;
         const bool is_inside = math::dot(dir, float3(hit.no)) > 0.0f;
         inside_count += is_inside ? 1 : -1;
@@ -1929,22 +1930,16 @@ class XpbdSolverStep {
     const Span<int> corner_verts = mesh.corner_verts();
     const OffsetIndices<int> faces = mesh.faces();
 
-    MultiValueMap<OrderedEdge, int> faces_by_edge;
-    for (const int face_i : faces.index_range()) {
-      const IndexRange corners = faces[face_i];
-      for (const int corner0_i : corners.index_range()) {
-        const int corner1_i = corner0_i == corners.size() - 1 ? 0 : corner0_i + 1;
-        const int v0 = corner_verts[corners[corner0_i]];
-        const int v1 = corner_verts[corners[corner1_i]];
-        faces_by_edge.add(OrderedEdge{v0, v1}, face_i);
-      }
-    }
+    Array<int> offsets;
+    Array<int> indices;
+    const GroupedSpan<int> edge_to_faces = bke::mesh::build_edge_to_face_map(
+        faces, mesh.corner_edges(), mesh.edges_num, offsets, indices);
 
     for (const int edge_i : edges.index_range()) {
       const int2 &edge = edges[edge_i];
       const int edge_v0 = edge[0];
       const int edge_v1 = edge[1];
-      const Span<int> incident_faces = faces_by_edge.lookup(OrderedEdge(edge));
+      const Span<int> incident_faces = edge_to_faces[edge_i];
       if (incident_faces.size() != 2) {
         continue;
       }
@@ -3216,7 +3211,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  ntype.default_width = bke::NodeWidth::_160;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
