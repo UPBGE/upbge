@@ -2685,6 +2685,13 @@ PySequenceMethods KX_GameObject::Sequence = {
 
 PyObject *KX_GameObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+  /* Legacy subclassing: CustomGameObject(cont.owner) passes the existing object as argument.
+   * In that case delegate directly to py_base_new which handles the mutation. */
+  if (PyTuple_GET_SIZE(args) > 0) {
+    return py_base_new(type, args, kwds);
+  }
+
+  /* New component-style system: no argument, create a fresh object. */
   KX_GameObject *obj = new KX_GameObject();
 
   PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
