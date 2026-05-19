@@ -1404,6 +1404,38 @@ void KX_Scene::TagBlenderPhysicsObject(blender::Scene *scene, blender::Object *o
   }
 }
 
+void KX_Scene::ApplyLifespan(KX_GameObject *replica, float lifespan)
+{
+  if (lifespan > 0.0f) {
+    // for now, convert between so called frames and realtime
+    m_tempObjectList.push_back(replica);
+    // this convert the life from frames to sort-of seconds, hard coded 0.016666667 that assumes we have
+    // 60 frames per second if you change this value, make sure you change it in
+    // KX_GameObject::pyattr_get_life property too
+    EXP_Value *fval = new EXP_FloatValue(lifespan * 0.016666667f);
+    replica->SetProperty("::timebomb", fval);
+    fval->Release();
+  }
+}
+
+void KX_Scene::ApplyReferenceTransform(KX_GameObject *replica, KX_GameObject *reference)
+{
+  if (!reference) {
+    return;
+  }
+
+  MT_Vector3 newpos = reference->NodeGetWorldPosition();
+  replica->NodeSetLocalPosition(newpos);
+
+  MT_Matrix3x3 newori = reference->NodeGetWorldOrientation();
+  replica->NodeSetLocalOrientation(newori);
+
+  // get the rootnode's scale
+  MT_Vector3 newscale = reference->GetSGNode()->GetRootSGParent()->GetLocalScale();
+  // set the replica's relative scale with the rootnode's scale
+  replica->NodeSetRelativeScale(newscale);
+}
+
 KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
                                            KX_GameObject *reference,
                                            float lifespan)
@@ -1437,45 +1469,34 @@ KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
       basen->object->visibility_flag &= ~OB_HIDE_VIEWPORT;
       BKE_main_collection_sync_remap(bmain);
 
+      /* Pre-position the duplicated Blender object at the reference transform before physics
+       * conversion, so that softbody and other physics objects are initialised at the correct
+       * location without requiring any post-conversion fixup. */
+      if (reference) {
+        MT_Vector3 newpos = reference->NodeGetWorldPosition();
+        basen->object->loc[0] = newpos[0];
+        basen->object->loc[1] = newpos[1];
+        basen->object->loc[2] = newpos[2];
+
+        float rotmat[3][3];
+        reference->NodeGetWorldOrientation().getValue3x3((float *)rotmat);
+        BKE_object_mat3_to_rot(basen->object, rotmat, false);
+
+        MT_Vector3 newscale = reference->GetSGNode()->GetRootSGParent()->GetLocalScale();
+        basen->object->scale[0] = newscale[0];
+        basen->object->scale[1] = newscale[1];
+        basen->object->scale[2] = newscale[2];
+      }
+
       DEG_relations_tag_update(bmain);
       // BKE_scene_graph_update_tagged(depsgraph, bmain);
       ConvertBlenderObject(basen->object);
 
       KX_GameObject *replica = m_sceneConverter->FindGameObject(basen->object);
 
-      // add a timebomb to this object
-      // lifespan of zero means 'this object lives forever'
-      if (lifespan > 0.0f) {
-        // for now, convert between so called frames and realtime
-        m_tempObjectList.push_back(replica);
-        // this convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we
-        // have 50 frames per second if you change this value, make sure you change it in
-        // KX_GameObject::pyattr_get_life property too
-        EXP_Value *fval = new EXP_FloatValue(lifespan * 0.02f);
-        replica->SetProperty("::timebomb", fval);
-        fval->Release();
-      }
+      ApplyLifespan(replica, lifespan);
 
-      if (reference) {
-        MT_Vector3 oldpos = replica->NodeGetWorldPosition();
-        MT_Vector3 newpos = reference->NodeGetWorldPosition();
-        replica->NodeSetLocalPosition(newpos);
-
-        MT_Matrix3x3 newori = reference->NodeGetWorldOrientation();
-        replica->NodeSetLocalOrientation(newori);
-
-        // get the rootnode's scale
-        MT_Vector3 newscale = reference->GetSGNode()->GetRootSGParent()->GetLocalScale();
-        // set the replica's relative scale with the rootnode's scale
-        replica->NodeSetRelativeScale(newscale);
-
-        PHY_IPhysicsController *ctrl = replica->GetPhysicsController();
-
-        /* Hack to fix softbody transform after conversion */
-        if (ctrl) {
-          ctrl->SetSoftBodyTransform(newpos - oldpos, newori);
-        }
-      }
+      ApplyReferenceTransform(replica, reference);
 
       replica->GetSGNode()->UpdateWorldData(0);
 
@@ -1999,18 +2020,9 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
 
   // add a timebomb to this object
   // lifespan of zero means 'this object lives forever'
-  if (lifespan > 0.0f) {
-    // for now, convert between so called frames and realtime
-    m_tempObjectList.push_back(replica);
-    // this convert the life from frames to sort-of seconds, hard coded 0.016666667 that assumes we have
-    // 60 frames per second if you change this value, make sure you change it in
-    // KX_GameObject::pyattr_get_life property too
-    EXP_Value *fval = new EXP_FloatValue(lifespan * 0.016666667f);
-    replica->SetProperty("::timebomb", fval);
-    fval->Release();
-  }
+  ApplyLifespan(replica, lifespan);
 
-  // add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame)
+  // add to 'rootparent' list
   m_parentlist->Add(CM_AddRef(replica));
 
   // recurse replication into children nodes
@@ -2027,16 +2039,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
   if (referenceobj) {
     // At this stage all the objects in the hierarchy have been duplicated,
     // we can update the scenegraph, we need it for the duplication of logic
-    MT_Vector3 newpos = referenceobj->NodeGetWorldPosition();
-    replica->NodeSetLocalPosition(newpos);
-
-    MT_Matrix3x3 newori = referenceobj->NodeGetWorldOrientation();
-    replica->NodeSetLocalOrientation(newori);
-
-    // get the rootnode's scale
-    MT_Vector3 newscale = referenceobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
-    // set the replica's relative scale with the rootnode's scale
-    replica->NodeSetRelativeScale(newscale);
+    ApplyReferenceTransform(replica, referenceobj);
   }
 
   replica->GetSGNode()->UpdateWorldData(0);
