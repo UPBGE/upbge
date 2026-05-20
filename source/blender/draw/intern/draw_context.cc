@@ -1544,6 +1544,8 @@ static bool gpencil_any_exists(Depsgraph *depsgraph)
           DEG_id_type_any_exists(depsgraph, ID_GP));
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 
 /** \name Callbacks

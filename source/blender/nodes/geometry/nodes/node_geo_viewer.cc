@@ -36,6 +36,8 @@
 
 #include "GEO_foreach_geometry.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender {
@@ -79,10 +81,16 @@ static void draw_string(ui::Layout &layout, const StringRef value)
   const int max_display_length = 200;
   layout.label(value.substr(0, max_display_length), ICON_NONE);
 }
+
+static void draw_empty_data_block(ui::Layout &layout)
+{
+  layout.label(IFACE_("(None)"), ICON_NONE);
+}
+
 static void draw_data_block(ui::Layout &layout, const ID *id)
 {
   if (!id) {
-    layout.label(IFACE_("(None)"), ICON_NONE);
+    draw_empty_data_block(layout);
     return;
   }
   const int icon = ED_outliner_icon_from_id(*id);
@@ -120,7 +128,21 @@ static bool draw_gpointer(CustomSocketDrawParams &params, const GPointer value)
     return true;
   }
   if (value.is_type<Collection *>()) {
-    draw_data_block(params.layout, id_cast<const ID *>(*value.get<Collection *>()));
+    const Collection *collection = *value.get<Collection *>();
+    /* Using original collection because changing the color tag does not cause the eval copy to
+     * be updated. */
+    const Collection *orig_collection = DEG_get_original(collection);
+    if (orig_collection) {
+      const StringRefNull name = BKE_id_name(orig_collection->id);
+      int icon = ED_outliner_icon_from_id(orig_collection->id);
+      if (orig_collection->color_tag != COLLECTION_COLOR_NONE) {
+        icon = int(ICON_COLLECTION_COLOR_01) + int(orig_collection->color_tag);
+      }
+      params.layout.label(name, icon);
+    }
+    else {
+      draw_empty_data_block(params.layout);
+    }
     return true;
   }
   if (value.is_type<Image *>()) {
@@ -339,8 +361,9 @@ static void log_viewer_attribute(const bNode &node, eval_log::ViewerNodeLog &r_l
     const bNodeSocket &bsocket = node.input_socket(i);
     const NodeGeometryViewerItem &item = storage.items[i];
     const bke::bNodeSocketType &type = *bsocket.typeinfo;
+    const bke::SocketValueVariant &value = r_log.items.lookup_key_as(item.identifier).value;
 
-    if (type.type == SOCK_GEOMETRY) {
+    if (type.type == SOCK_GEOMETRY && value.is_single()) {
       last_geometry_identifier = item.identifier;
       continue;
     }
@@ -355,7 +378,6 @@ static void log_viewer_attribute(const bNode &node, eval_log::ViewerNodeLog &r_l
                                        r_log.items.lookup_key_as(*last_geometry_identifier).value)
                                        .get_single_ptr();
     GeometrySet &geometry = *geometry_ptr.get<GeometrySet>();
-    const bke::SocketValueVariant &value = r_log.items.lookup_key_as(item.identifier).value;
     if (!(value.is_single() || value.is_field())) {
       continue;
     }

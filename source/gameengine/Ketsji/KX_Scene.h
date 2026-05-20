@@ -371,6 +371,9 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   }
   void AddUpbgeDupliInstanceToList(KX_GameObject *gameobj);
   void RemoveUpbgeDupliInstanceFromList(KX_GameObject *gameobj);
+
+  void ApplyLifespan(KX_GameObject *replica, float lifespan);
+  void ApplyReferenceTransform(KX_GameObject *replica, KX_GameObject *reference);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
@@ -397,6 +400,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                                   KX_GameObject *locationobj,
                                   float lifespan = 0.0f);
   KX_GameObject *AddNodeReplicaObject(SG_Node *node, KX_GameObject *gameobj);
+
   void RemoveNodeDestructObject(SG_Node *node, KX_GameObject *gameobj);
   void RemoveObject(KX_GameObject *gameobj);
   void RemoveDupliGroup(KX_GameObject *gameobj);

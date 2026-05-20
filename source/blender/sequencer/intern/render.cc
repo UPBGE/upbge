@@ -634,7 +634,11 @@ static ImBuf *input_preprocess(const RenderData *context,
                                                   context->recty,
                                                   image_scale_factor,
                                                   preview_scale_factor);
-    ModifierApplyContext mod_context(*context, *state, *strip, matrix, timeline_frame, ibuf);
+    float3x3 matrix_comp = calc_strip_transform_matrix(
+        scene, strip, 0, 0, 0, 0, image_scale_factor, preview_scale_factor);
+    matrix_comp = math::invert(matrix_comp);
+    ModifierApplyContext mod_context(
+        *context, *state, *strip, matrix, matrix_comp, timeline_frame, ibuf);
     modifier_apply_stack(mod_context);
     modifier_translation = mod_context.result_translation;
   }
@@ -816,16 +820,7 @@ void convert_multilayer_ibuf(ImBuf *ibuf)
   if (ibuf->float_data() != nullptr && ibuf->channels != 4) {
     float *dst = MEM_new_array_uninitialized<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
                                                     __func__);
-    IMB_buffer_float_from_float_threaded(dst,
-                                         ibuf->float_data(),
-                                         ibuf->channels,
-                                         IB_PROFILE_LINEAR_RGB,
-                                         IB_PROFILE_LINEAR_RGB,
-                                         false,
-                                         ibuf->x,
-                                         ibuf->y,
-                                         ibuf->x,
-                                         ibuf->x);
+    IMB_buffer_float_rgba_from_float(dst, ibuf->float_data(), ibuf->channels, ibuf->x, ibuf->y);
     ibuf->assign_float_data(dst);
     ibuf->channels = 4;
   }

@@ -394,6 +394,11 @@ PyAttributeDef KX_Camera::Attributes[] = {
 
 PyObject *KX_Camera::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+  /* Legacy subclassing: if an existing object is passed as argument, delegate to py_base_new. */
+  if (PyTuple_GET_SIZE(args) > 0) {
+    return py_base_new(type, args, kwds);
+  }
+
   KX_Camera *obj = new KX_Camera();
 
   PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);

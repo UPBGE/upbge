@@ -118,7 +118,8 @@ def run_entry(env: api.TestEnvironment,
               row: list,
               entry: api.TestEntry,
               update_only: bool,
-              count: int):
+              count: int,
+              update_submodules: bool = True):
     updated = False
     failed = False
 
@@ -167,7 +168,7 @@ def run_entry(env: api.TestEnvironment,
             install_dir = config.builds_dir / revision
         else:
             install_dir = env.install_dir
-        executable_ok = env.build(git_hash, install_dir)
+        executable_ok = env.build(git_hash, install_dir, update_submodules)
 
         if not executable_ok:
             entry.status = 'failed'
@@ -234,9 +235,10 @@ def cmd_init(env: api.TestEnvironment, argv: list):
     # Initialize benchmarks folder.
     parser = argparse.ArgumentParser()
     parser.add_argument('--build', default=False, action='store_true')
+    parser.add_argument('--blender')
     args = parser.parse_args(argv)
     env.set_log_file(env.base_dir / 'setup.log', clear=False)
-    env.init(args.build)
+    env.init(args.build, args.blender)
     env.unset_log_file()
 
 
@@ -315,6 +317,10 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
     parser.add_argument('config', nargs='?', default=None)
     parser.add_argument('test', nargs='?', default='*')
     parser.add_argument('--count', default=1, type=int, help="Number of runs to perform (default=1)")
+    parser.add_argument(
+        '--no-submodules',
+        action='store_true',
+        help="Skip updating submodules when checking out revisions. Useful when testing performance regressions for library changes.")
     args = parser.parse_args(argv)
 
     exit_code = 0
@@ -329,7 +335,8 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
             if match_entry(row[0], args):
                 for entry in row:
                     try:
-                        test_updated, test_failed = run_entry(env, config, table, row, entry, update_only, args.count)
+                        test_updated, test_failed = run_entry(
+                            env, config, table, row, entry, update_only, args.count, not args.no_submodules)
                         if test_updated:
                             updated = True
                             # Write queue every time in case running gets interrupted,

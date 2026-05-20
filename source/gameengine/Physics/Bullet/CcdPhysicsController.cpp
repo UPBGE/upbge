@@ -929,13 +929,6 @@ void CcdPhysicsController::UpdateSoftBody()
   }
 }
 
-void CcdPhysicsController::SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori)
-{
-  if (GetSoftBody()) {
-    GetSoftBody()->transform(btTransform(ToBullet(ori), ToBullet(pos)));
-  }
-}
-
 void CcdPhysicsController::RemoveSoftBodyModifier(blender::Object *ob)
 {
   if (GetSoftBody()) {
