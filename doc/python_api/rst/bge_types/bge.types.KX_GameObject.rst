@@ -1109,9 +1109,9 @@ base class --- :class:`~bge.types.SCA_IObject`
       :type gameObject: string, :class:`~bge.types.KX_GameObject` or None
       :arg meshObject: optional argument, set the physics shape from this mesh.
       :type meshObject: string, :class:`~bge.types.KX_MeshProxy` or None
-      :arg dupli: optional argument, duplicate the physics shape.
+      :arg dupli: optional argument, duplicate the physics shape, default to False.
       :type dupli: boolean
-      :arg evaluated: optional argument, use evaluated object physics shape (Object with modifiers applied).
+      :arg evaluated: optional argument, use evaluated object physics shape (Object with modifiers applied, default to True).
       :type evaluated: boolean
 
       :return: True if reinstance succeeded, False if it failed.
