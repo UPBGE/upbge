@@ -40,6 +40,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::intern::guardedalloc
 )
 
 blender_add_lib(ge_physics_dummy "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -816,7 +816,7 @@ struct Object {
   /** Contains data for levels of detail. */
   ListBaseT<LodLevel> lodlevels = {NULL, NULL};
   LodLevel *currentlod = NULL;
-  float lodfactor = 1.0f, _pad4[1] = {0.0f};
+  float lodfactor = 1.0f, _pad57[1] = {0.0f};
 
   /* settings for game engine bullet soft body */
   struct BulletSoftBody *bsoft = NULL;
