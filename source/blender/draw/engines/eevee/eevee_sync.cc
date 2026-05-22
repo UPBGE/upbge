@@ -162,6 +162,10 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
   bool is_alpha_blend = false;
   bool has_transparent_shadows = false;
   float inflate_bounds = 0.0f;
+  bool use_scene_time = false;
+
+  bool time_changed = inst_.materials.material_time_changed;
+
   for (const Material *material : materials) {
     has_volume |= material->has_volume;
     if (material->has_volume && !material->has_surface) {
@@ -170,6 +174,7 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
 
     is_alpha_blend |= material->is_alpha_blend_transparent;
     has_transparent_shadows |= material->has_transparent_shadows;
+    use_scene_time |= material->use_scene_time;
 
     GPUMaterial *gpu_material = material->shading.gpumat;
     blender::Material *bl_material = GPU_material_get_material(gpu_material);
@@ -183,7 +188,8 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
 
   inst_.cryptomatte.sync_object(ob_handle);
 
-  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows);
+  inst_.shadows.sync_object(
+      ob_handle, is_alpha_blend, has_transparent_shadows, use_scene_time && time_changed);
 
   if (has_volume) {
     inst_.volume.object_sync(ob_handle);
@@ -416,7 +422,7 @@ void SyncModule::sync_volume(const ObjectRef &ob_ref)
    * This mimic Cycles behavior (see #124061). */
   ListBaseT<GPUMaterialAttribute> attr_list = GPU_material_attributes(
       material.volume_material.gpumat);
-  if (BLI_listbase_is_empty(&attr_list)) {
+  if (attr_list.is_empty()) {
     return;
   }
 

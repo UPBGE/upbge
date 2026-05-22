@@ -541,6 +541,8 @@ class PrincipledBsdfNode : public BsdfBaseNode {
  public:
   SHADER_NODE_CLASS(PrincipledBsdfNode)
 
+  bool is_thin_wall();
+  bool subsurface_has_positive_weight();
   bool has_surface_bssrdf() override;
   bool has_bssrdf_bump() override;
   void simplify_settings(Scene *scene) override;
@@ -549,6 +551,7 @@ class PrincipledBsdfNode : public BsdfBaseNode {
   NODE_SOCKET_API(float, metallic)
   NODE_SOCKET_API(float, roughness)
   NODE_SOCKET_API(float, ior)
+  NODE_SOCKET_API(int, thin_wall)
   NODE_SOCKET_API(float3, normal)
   NODE_SOCKET_API(float, alpha)
   NODE_SOCKET_API(float, diffuse_roughness)
@@ -1889,6 +1892,14 @@ class RaycastNode : public ShaderNode {
 
   /* Types for the dynamically registered output sockets. */
   unique_ptr_vector<SocketType> socket_types_;
+};
+
+class SceneTimeNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(SceneTimeNode)
+
+  NODE_SOCKET_API(float, seconds)
+  NODE_SOCKET_API(float, frame)
 };
 
 CCL_NAMESPACE_END

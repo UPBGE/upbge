@@ -1040,7 +1040,7 @@ void WM_ndof_deadzone_set(float deadzone)
 void WM_reports_from_reports_move(wmWindowManager *wm, ReportList *reports)
 {
   /* If the caller owns them, handle this. */
-  if (!reports || BLI_listbase_is_empty(&reports->list) || (reports->flag & RPT_OP_HOLD) != 0) {
+  if (!reports || reports->list.is_empty() || (reports->flag & RPT_OP_HOLD) != 0) {
     return;
   }
 
@@ -1056,7 +1056,7 @@ void WM_reports_from_reports_move(wmWindowManager *wm, ReportList *reports)
 
 void WM_global_report(eReportType type, const char *message)
 {
-  /* WARNING: in most cases #BKE_report should be used instead, see doc-string for details. */
+  /* WARNING: in most cases #BKE_report should be used instead, see docstring for details. */
   ReportList reports;
   BKE_reports_init(&reports, RPT_STORE | RPT_PRINT);
   BKE_report_print_level_set(&reports, RPT_WARNING);
@@ -1069,7 +1069,7 @@ void WM_global_report(eReportType type, const char *message)
 
 void WM_global_reportf(eReportType type, const char *format, ...)
 {
-  /* WARNING: in most cases #BKE_reportf should be used instead, see doc-string for details. */
+  /* WARNING: in most cases #BKE_reportf should be used instead, see docstring for details. */
 
   va_list args;
 
@@ -1252,9 +1252,7 @@ static void wm_operator_reports(bContext *C,
                 pystring.c_str());
 
   /* Refresh Info Editor with reports immediately, even if op returned #OPERATOR_CANCELLED. */
-  if ((retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) &&
-      !BLI_listbase_is_empty(&op->reports->list))
-  {
+  if ((retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) && !op->reports->list.is_empty()) {
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
   }
   /* If the caller owns them, handle this. */
@@ -2026,7 +2024,7 @@ wmOperatorStatus WM_operator_call_py(bContext *C,
  *
  * Delay executing operators that depend on cursor location.
  *
- * See: #OPTYPE_DEPENDS_ON_CURSOR doc-string for more information.
+ * See: #OPTYPE_DEPENDS_ON_CURSOR docstring for more information.
  * \{ */
 
 struct OperatorWaitForInput {
@@ -2705,7 +2703,7 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
         }
         else {
           /* Not very common, but modal operators may report before finishing. */
-          if (!BLI_listbase_is_empty(&op->reports->list)) {
+          if (!op->reports->list.is_empty()) {
             WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
             WM_reports_from_reports_move(wm, op->reports);
           }
@@ -2927,7 +2925,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 
           ED_fileselect_params_to_userdef(static_cast<SpaceFile *>(file_area->spacedata.first));
 
-          if (BLI_listbase_is_single(&file_area->spacedata)) {
+          if (file_area->spacedata.is_single()) {
             BLI_assert(root_win != &win);
 
             wm_window_close_request(C, wm, &win);
@@ -3955,7 +3953,7 @@ static eHandlerActionFlag wm_event_drag_and_drop_test(wmWindowManager *wm,
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
-  if (BLI_listbase_is_empty(&wm->runtime->drags)) {
+  if (wm->runtime->drags.is_empty()) {
     return WM_HANDLER_CONTINUE;
   }
 
@@ -4166,7 +4164,7 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
   wm_region_mouse_co(C, event);
 
   const wmWindowManager *wm = CTX_wm_manager(C);
-  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
+  if (!wm->runtime->drags.is_empty()) {
     /* Does polls for drop regions and checks #uiButs. */
     /* Need to be here to make sure region context is true. */
     wm_drags_handle_events(C, event);
@@ -5105,7 +5103,7 @@ bool WM_event_handler_region_marker_poll(const wmWindow *win,
    * for now. */
   const ListBaseT<TimeMarker> *markers = ED_scene_markers_get_from_area(
       *G_MAIN, scene, WM_window_get_active_view_layer(win), area);
-  if (BLI_listbase_is_empty(markers)) {
+  if (markers->is_empty()) {
     return false;
   }
 
@@ -5129,7 +5127,7 @@ bool WM_event_handler_region_v2d_mask_no_marker_poll(const wmWindow *win,
    * for now. */
   const ListBaseT<TimeMarker> *markers = ED_scene_markers_get_from_area(
       *G_MAIN, WM_window_get_active_scene(win), WM_window_get_active_view_layer(win), area);
-  if (markers && !BLI_listbase_is_empty(markers)) {
+  if (markers && !markers->is_empty()) {
     return !WM_event_handler_region_marker_poll(win, area, region, event);
   }
   return true;
@@ -6006,7 +6004,7 @@ static bool wm_event_is_same_key_press(const wmEvent &event_a, const wmEvent &ev
  */
 static bool wm_event_is_ignorable_key_press(const wmWindow *win, const wmEvent &event)
 {
-  if (BLI_listbase_is_empty(&win->runtime->event_queue)) {
+  if (win->runtime->event_queue.is_empty()) {
     /* If the queue is empty never ignore the event.
      * Empty queue at this point means that the events are handled fast enough, and there is no
      * reason to ignore anything. */

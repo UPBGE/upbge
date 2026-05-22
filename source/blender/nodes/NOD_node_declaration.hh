@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <functional>
 #include <type_traits>
+#include <variant>
 
 #include "BLI_array.hh"
 #include "BLI_map.hh"
@@ -37,27 +38,6 @@ namespace nodes {
 class NodeDeclarationBuilder;
 class PanelDeclaration;
 
-enum class InputSocketFieldType : int8_t {
-  /** The input is required to be a single value. */
-  None,
-  /** The input can be a field. */
-  IsSupported,
-  /** The input can be a field and is a field implicitly if nothing is connected. */
-  Implicit,
-};
-
-enum class OutputSocketFieldType : int8_t {
-  /** The output is always a single value. */
-  None,
-  /** The output is always a field, independent of the inputs. */
-  FieldSource,
-  /** If any input is a field, this output will be a field as well. */
-  DependentField,
-  /** If any of a subset of inputs is a field, this out will be a field as well.
-   * The subset is defined by the vector of indices. */
-  PartiallyDependent,
-};
-
 /**
  * An enum that maps to the #compositor::InputRealizationMode.
  */
@@ -65,37 +45,6 @@ enum class CompositorInputRealizationMode : int8_t {
   None,
   Transforms,
   OperationDomain,
-};
-
-/**
- * Contains information about how a node output's field state depends on inputs of the same node.
- */
-class OutputFieldDependency {
- private:
-  OutputSocketFieldType type_ = OutputSocketFieldType::None;
-  Vector<int> linked_input_indices_;
-
- public:
-  static OutputFieldDependency ForFieldSource();
-  static OutputFieldDependency ForDataSource();
-  static OutputFieldDependency ForDependentField();
-  static OutputFieldDependency ForPartiallyDependentField(Vector<int> indices);
-
-  OutputSocketFieldType field_type() const;
-  Span<int> linked_input_indices() const;
-
-  friend bool operator==(const OutputFieldDependency &a, const OutputFieldDependency &b) = default;
-};
-
-/**
- * Information about how a node interacts with fields.
- */
-struct FieldInferencingInterface {
-  Array<InputSocketFieldType> inputs;
-  Array<OutputFieldDependency> outputs;
-
-  friend bool operator==(const FieldInferencingInterface &a,
-                         const FieldInferencingInterface &b) = default;
 };
 
 struct StructureTypeInterface {
@@ -113,52 +62,52 @@ struct StructureTypeInterface {
                          const StructureTypeInterface &b) = default;
 };
 
-namespace anonymous_attribute_lifetime {
+namespace reference_lifetimes {
 
 /**
  * Attributes can be propagated from an input geometry to an output geometry.
  */
-struct PropagateRelation {
-  int from_geometry_input;
-  int to_geometry_output;
+struct DataPropagation {
+  int from_input;
+  int to_output;
 
-  friend bool operator==(const PropagateRelation &a, const PropagateRelation &b) = default;
+  friend bool operator==(const DataPropagation &a, const DataPropagation &b) = default;
 };
 
 /**
  * References to attributes can be propagated from an input field to an output field.
  */
-struct ReferenceRelation {
-  int from_field_input;
-  int to_field_output;
+struct ReferencePropagation {
+  int from_input;
+  int to_output;
 
-  friend bool operator==(const ReferenceRelation &a, const ReferenceRelation &b) = default;
+  friend bool operator==(const ReferencePropagation &a, const ReferencePropagation &b) = default;
 };
 
 /**
  * An input field is evaluated on an input geometry.
  */
-struct EvalRelation {
-  int field_input;
-  int geometry_input;
+struct UseRelation {
+  int reference_input;
+  int data_input;
 
-  friend bool operator==(const EvalRelation &a, const EvalRelation &b) = default;
+  friend bool operator==(const UseRelation &a, const UseRelation &b) = default;
 };
 
 /**
  * An output field is available on an output geometry.
  */
 struct AvailableRelation {
-  int field_output;
-  int geometry_output;
+  int reference_output;
+  int data_output;
 
   friend bool operator==(const AvailableRelation &a, const AvailableRelation &b) = default;
 };
 
 struct RelationsInNode {
-  Vector<PropagateRelation> propagate_relations;
-  Vector<ReferenceRelation> reference_relations;
-  Vector<EvalRelation> eval_relations;
+  Vector<DataPropagation> data_propagations;
+  Vector<ReferencePropagation> reference_propagations;
+  Vector<UseRelation> use_relations;
   Vector<AvailableRelation> available_relations;
   Vector<int> available_on_none;
 
@@ -167,8 +116,10 @@ struct RelationsInNode {
 
 std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations);
 
-}  // namespace anonymous_attribute_lifetime
-namespace aal = anonymous_attribute_lifetime;
+}  // namespace reference_lifetimes
+
+/* Common alias for this namespace. */
+namespace rl = reference_lifetimes;
 
 /** Socket or panel declaration. */
 class ItemDeclaration {
@@ -204,6 +155,15 @@ using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
 using CustomSocketLabelFn = std::function<StringRefNull(bNode node)>;
 using SocketUsageInferenceFn =
     std::function<std::optional<bool>(const socket_usage_inference::SocketUsageParams &params)>;
+
+struct OutputStructureTypeDependency {
+  struct None {};
+  struct All {};
+  struct Partial {
+    Array<int, 2> linked_inputs;
+  };
+  std::variant<None, All, Partial> variant = None();
+};
 
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
@@ -242,8 +202,7 @@ class SocketDeclaration : public ItemDeclaration {
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
 
-  InputSocketFieldType input_field_type = InputSocketFieldType::None;
-  OutputFieldDependency output_field_dependency;
+  OutputStructureTypeDependency structure_type_output_dependency;
 
   StructureType structure_type = StructureType::Single;
 
@@ -319,11 +278,15 @@ class PanelDeclarationBuilder;
 
 class BaseSocketDeclarationBuilder {
  protected:
-  bool reference_pass_all_ = false;
-  bool field_on_all_ = false;
-  bool propagate_from_all_ = false;
   NodeDeclarationBuilder *node_decl_builder_ = nullptr;
   SocketDeclaration *decl_base_ = nullptr;
+
+  /* Variables which are used to add additional data to the declaration after all sockets have been
+   * added. */
+  bool propagate_all_input_references_ = false;
+  bool propagate_all_input_data_ = false;
+  bool input_reference_used_on_all_data_ = false;
+  bool output_reference_available_on_all_data_ = false;
 
   friend class NodeDeclarationBuilder;
   friend class DeclarationListBuilder;
@@ -393,7 +356,7 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &dependent_field();
 
   /** The output is a field if any of the inputs with indices in the given list is a field. */
-  BaseSocketDeclarationBuilder &dependent_field(Vector<int> input_dependencies);
+  BaseSocketDeclarationBuilder &dependent_field(Span<int> input_dependencies);
 
   /**
    * For outputs that combine all input fields into a new field. The output is a field even if none
@@ -655,7 +618,7 @@ class NodeDeclaration {
   Vector<SocketDeclaration *> inputs;
   Vector<SocketDeclaration *> outputs;
   Vector<PanelDeclaration *> panels;
-  std::unique_ptr<aal::RelationsInNode> anonymous_attribute_relations_;
+  std::unique_ptr<rl::RelationsInNode> reference_lifetime_relations_;
 
   /** Leave the sockets in place, even if they don't match the declaration. Used for dynamic
    * declarations when the information used to build the declaration is missing, but might become
@@ -683,9 +646,9 @@ class NodeDeclaration {
   bool matches(const bNode &node) const;
   Span<SocketDeclaration *> sockets(eNodeSocketInOut in_out) const;
 
-  const aal::RelationsInNode *anonymous_attribute_relations() const
+  const rl::RelationsInNode *reference_lifetime_relations() const
   {
-    return anonymous_attribute_relations_.get();
+    return reference_lifetime_relations_.get();
   }
 
   MEM_CXX_CLASS_ALLOC_FUNCS("NodeDeclaration")
@@ -737,12 +700,12 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   void use_custom_socket_order(bool enable = true);
   void allow_any_socket_order(bool enable = true);
 
-  aal::RelationsInNode &get_anonymous_attribute_relations()
+  rl::RelationsInNode &get_reference_lifetime_relations()
   {
-    if (!declaration_.anonymous_attribute_relations_) {
-      declaration_.anonymous_attribute_relations_ = std::make_unique<aal::RelationsInNode>();
+    if (!declaration_.reference_lifetime_relations_) {
+      declaration_.reference_lifetime_relations_ = std::make_unique<rl::RelationsInNode>();
     }
-    return *declaration_.anonymous_attribute_relations_;
+    return *declaration_.reference_lifetime_relations_;
   }
 
   NodeDeclaration &declaration()
@@ -758,6 +721,7 @@ using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value
 std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(NodeDefaultInputType type);
 bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_type,
                                              NodeDefaultInputType input_type);
+bool default_input_type_is_field(NodeDefaultInputType input_type);
 
 void build_node_declaration(const bke::bNodeType &typeinfo,
                             NodeDeclaration &r_declaration,

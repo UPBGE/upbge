@@ -253,7 +253,7 @@ static bUserAssetLibrary *lookup_remote_library(const FileListReadJob *job_param
 {
   bUserAssetLibrary *library = BKE_preferences_asset_library_find_index(
       &U, job_params->filelist->asset_library_ref->custom_library_index);
-  if (!library && !(library->flag & ASSET_LIBRARY_USE_REMOTE_URL)) {
+  if (!library || !(library->flag & ASSET_LIBRARY_USE_REMOTE_URL)) {
     return nullptr;
   }
 
@@ -274,7 +274,7 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
 {
   FileList *filelist = job_params->tmp_filelist; /* Use the thread-safe filelist queue. */
 
-  BLI_assert(BLI_listbase_is_empty(&filelist->filelist.entries) &&
+  BLI_assert(filelist->filelist.entries.is_empty() &&
              (filelist->filelist.entries_num == FILEDIR_NBR_ENTRIES_UNSET));
 
   /* A valid, but empty file-list from now. */

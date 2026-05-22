@@ -1074,6 +1074,14 @@ def km_user_interface(_params):
         ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'X', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("ui.view_item_navigate", {"type": 'UP_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'UP')]}),
+        ("ui.view_item_navigate", {"type": 'DOWN_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'DOWN')]}),
+        ("ui.view_item_navigate", {"type": 'LEFT_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'LEFT')]}),
+        ("ui.view_item_navigate", {"type": 'RIGHT_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'RIGHT')]}),
     ])
 
     return keymap
@@ -1969,6 +1977,8 @@ def km_graph_editor_generic(params):
         *_template_items_hide_reveal_actions("graph.hide", "graph.reveal"),
         ("screen.space_type_set_or_cycle", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
          {"properties": [("space_type", 'DOPESHEET_EDITOR')]}),
+        ("graph.local_view", {"type": 'SLASH', "value": 'PRESS'}, None),
+        ("graph.local_view", {"type": 'NUMPAD_SLASH', "value": 'PRESS'}, None),
     ])
 
     return keymap
@@ -4845,7 +4855,7 @@ def _template_view3d_select(*, type, value, legacy, select_passthrough, exclude_
     # NOTE: `exclude_mod` is needed since we don't want this tool to exclude Control-RMB actions when this is used
     # as a tool key-map with RMB-select and `use_fallback_tool` is enabled with RMB select. See #92467.
 
-    # See: `use_tweak_select_passthrough` doc-string.
+    # See: `use_tweak_select_passthrough` docstring.
     if select_passthrough and (value in {'CLICK', 'RELEASE'}):
         select_passthrough = False
 
@@ -4937,7 +4947,7 @@ def _template_node_select(*, type, value, select_passthrough):
 
 def _template_uv_select(*, type, value, select_passthrough, legacy):
 
-    # See: `use_tweak_select_passthrough` doc-string.
+    # See: `use_tweak_select_passthrough` docstring.
     if select_passthrough and (value in {'CLICK', 'RELEASE'}):
         select_passthrough = False
 
@@ -4965,7 +4975,7 @@ def _template_uv_select(*, type, value, select_passthrough, legacy):
 
 def _template_mask_select(*, type, value, select_passthrough, legacy):
 
-    # See: `use_tweak_select_passthrough` doc-string.
+    # See: `use_tweak_select_passthrough` docstring.
     if select_passthrough and (value in {'CLICK', 'RELEASE'}):
         select_passthrough = False
 

@@ -48,6 +48,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
+#include "BKE_node_socket_value_iter.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_scene.hh"
@@ -144,7 +145,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
         node, inputs_, outputs_, own_lf_graph_info.mapping.lf_index_by_bsocket);
 
     const NodeDeclaration &node_decl = *node.declaration();
-    const aal::RelationsInNode *relations = node_decl.anonymous_attribute_relations();
+    const rl::RelationsInNode *relations = node_decl.reference_lifetime_relations();
     if (relations == nullptr) {
       return;
     }
@@ -154,13 +155,13 @@ class LazyFunctionForGeometryNode : public LazyFunction {
       for (lf::Input &input : inputs_) {
         input.usage = lf::ValueUsage::Maybe;
       }
-      for (const aal::AvailableRelation &relation : relations->available_relations) {
-        is_attribute_output_bsocket_[relation.field_output] = true;
+      for (const rl::AvailableRelation &relation : relations->available_relations) {
+        is_attribute_output_bsocket_[relation.reference_output] = true;
       }
     }
     Vector<const bNodeSocket *> handled_field_outputs;
-    for (const aal::AvailableRelation &relation : relations->available_relations) {
-      const bNodeSocket &output_bsocket = node.output_socket(relation.field_output);
+    for (const rl::AvailableRelation &relation : relations->available_relations) {
+      const bNodeSocket &output_bsocket = node.output_socket(relation.reference_output);
       if (output_bsocket.is_available() && !handled_field_outputs.contains(&output_bsocket)) {
         handled_field_outputs.append(&output_bsocket);
         const int lf_index = inputs_.append_and_get_index_as("Output Used", CPPType::get<bool>());
@@ -171,8 +172,8 @@ class LazyFunctionForGeometryNode : public LazyFunction {
     }
 
     Vector<const bNodeSocket *> handled_geometry_outputs;
-    for (const aal::PropagateRelation &relation : relations->propagate_relations) {
-      const bNodeSocket &output_bsocket = node.output_socket(relation.to_geometry_output);
+    for (const rl::DataPropagation &relation : relations->data_propagations) {
+      const bNodeSocket &output_bsocket = node.output_socket(relation.to_output);
       if (output_bsocket.is_available() && !handled_geometry_outputs.contains(&output_bsocket)) {
         handled_geometry_outputs.append(&output_bsocket);
         const int lf_index = inputs_.append_and_get_index_as(
@@ -1407,49 +1408,23 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
       return;
     }
 
+    using namespace bke::socket_value_visitor;
     GeometryNodesReferenceSet references;
-    this->gather__socket_value(*value_variant, references);
+    auto scan_field = [&](const GField &field) {
+      this->gather_references_from_field(field, references);
+      return VisitParams::continue_check(true);
+    };
+    VisitParams visit_params;
+    visit_params.check_non_editable = true;
+    visit_params.ignore_non_geometry_instances = true;
+    visit_params.check_GField = scan_field;
+    check_recursive(*value_variant, visit_params);
+
     params.set_output(0, std::move(references));
   }
 
-  void gather__socket_value(const SocketValueVariant &value_variant,
-                            GeometryNodesReferenceSet &r_references) const
-  {
-    if (value_variant.is_context_dependent_field()) {
-      const GField &field = value_variant.get<GField>();
-      this->gather__field(field, r_references);
-    }
-    if (value_variant.is_single()) {
-      const GPointer value = value_variant.get_single_ptr();
-      if (value.is_type<BundlePtr>()) {
-        const BundlePtr &bundle = *value.get<BundlePtr>();
-        this->gather__bundle(bundle, r_references);
-      }
-      if (value.is_type<ClosurePtr>()) {
-        const ClosurePtr &closure = *value.get<ClosurePtr>();
-        this->gather__closure(closure, r_references);
-      }
-      if (value.is_type<GeometrySet>()) {
-        const GeometrySet &geometry = *value.get<GeometrySet>();
-        this->gather__geometry(geometry, r_references);
-      }
-    }
-  }
-
-  void gather__geometry(const GeometrySet &geometry, GeometryNodesReferenceSet &r_references) const
-  {
-    this->gather__bundle(geometry.bundle_ptr(), r_references);
-    if (geometry.has_instances()) {
-      const bke::Instances &instances = *geometry.get_instances();
-      for (const bke::InstanceReference &reference : instances.references()) {
-        GeometrySet instance_geometry;
-        reference.to_geometry_set(instance_geometry);
-        this->gather__geometry(instance_geometry, r_references);
-      }
-    }
-  }
-
-  void gather__field(const GField &field, GeometryNodesReferenceSet &r_references) const
+  void gather_references_from_field(const GField &field,
+                                    GeometryNodesReferenceSet &r_references) const
   {
     Stack<fn::GFieldRef> fields_to_check;
     fields_to_check.push(field);
@@ -1473,28 +1448,6 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
           }
         }
       }
-    }
-  }
-
-  void gather__bundle(const BundlePtr &bundle, GeometryNodesReferenceSet &r_references) const
-  {
-    if (!bundle) {
-      return;
-    }
-    for (const auto &[name, value] : bundle->items()) {
-      if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
-        this->gather__socket_value(socket_value->value, r_references);
-      }
-    }
-  }
-
-  void gather__closure(const ClosurePtr &closure, GeometryNodesReferenceSet &r_references) const
-  {
-    if (!closure) {
-      return;
-    }
-    for (const bke::SocketValueVariant *value : closure->captured_values()) {
-      this->gather__socket_value(*value, r_references);
     }
   }
 };
@@ -3992,7 +3945,7 @@ struct GeometryNodesLazyFunctionBuilder {
     if (socket_decl == nullptr) {
       return false;
     }
-    if (socket_decl->input_field_type != InputSocketFieldType::Implicit) {
+    if (socket_decl->default_input_type == NODE_DEFAULT_INPUT_VALUE) {
       return false;
     }
     lf::LazyFunction *lazy_function = nullptr;
@@ -4030,10 +3983,10 @@ struct GeometryNodesLazyFunctionBuilder {
    */
   void build_root_reference_set_inputs(lf::Graph &lf_graph)
   {
-    const aal::RelationsInNode &tree_relations = reference_lifetimes_.tree_relations;
+    const rl::RelationsInNode &tree_relations = reference_lifetimes_.tree_relations;
     Vector<int> output_indices;
-    for (const aal::PropagateRelation &relation : tree_relations.propagate_relations) {
-      output_indices.append_non_duplicates(relation.to_geometry_output);
+    for (const rl::DataPropagation &relation : tree_relations.data_propagations) {
+      output_indices.append_non_duplicates(relation.to_output);
     }
 
     for (const int i : output_indices.index_range()) {

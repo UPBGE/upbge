@@ -52,6 +52,13 @@ struct [[host_shared]] ShadowSceneData {
   float pcf_grain_scale;
 };
 
+struct [[host_shared]] SceneData {
+  float time;
+  float frame;
+  uint _pad0;
+  uint _pad1;
+};
+
 /* Light Clamping. */
 struct [[host_shared]] ClampData {
   float sun_threshold;
@@ -100,6 +107,7 @@ struct [[host_shared]] UniformData {
   struct RenderBuffersInfoData render_pass;
   struct ShadowSceneData shadow;
   struct VolumesInfoData volumes;
+  struct SceneData scene;
 };
 
 /**

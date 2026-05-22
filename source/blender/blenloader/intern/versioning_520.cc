@@ -429,6 +429,11 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
     version_scene_strip_view_layer_name(*bmain);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
+    /* Shift animation data to accommodate the new thin wall input. */
+    version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 5, 1, 31);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -724,6 +729,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 35)) {
+    for (Object &object : bmain->objects) {
+      object.parent_bone_head_tail_factor = 1.0;
+    }
   }
 
   /**
