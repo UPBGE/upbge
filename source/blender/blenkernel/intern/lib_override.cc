@@ -247,7 +247,7 @@ void BKE_lib_override_library_clear(IDOverrideLibrary *liboverride, const bool d
   for (IDOverrideLibraryProperty &op : liboverride->properties) {
     lib_override_library_property_clear(&op);
   }
-  BLI_freelistN(&liboverride->properties);
+  liboverride->properties.free_no_destruct();
 
   if (do_id_user) {
     id_us_min(liboverride->reference);
@@ -752,7 +752,7 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
     }
   }
 
-  BLI_freelistN(&todo_ids);
+  todo_ids.free_no_destruct();
 
   return success;
 }
@@ -2728,7 +2728,7 @@ static bool lib_override_library_resync(Main *bmain,
             BLI_freelinkN(&op.operations, &opop);
           }
         }
-        if (BLI_listbase_is_empty(&op.operations)) {
+        if (op.operations.is_empty()) {
           BKE_lib_override_library_property_delete(id_override_new->override_library, &op);
         }
         else if (do_clear_parenting_override) {
@@ -3251,7 +3251,7 @@ static bool lib_override_library_main_resync_id_skip_check(ID *id,
  * Clear 'unreachable' tag of existing liboverrides if they are using another reachable liboverride
  * (typical case: Mesh object which only relationship to the rest of the liboverride hierarchy is
  * through its 'parent' pointer (i.e. rest of the hierarchy has no actual relationship to this mesh
- * object).
+ * object)).
  *
  * Logic and rational of this function are very similar to these of
  * #lib_override_hierarchy_dependencies_recursive_tag_from, but withing specific resync context.
@@ -3378,7 +3378,7 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
    * The only exception being IDs only in relation with their root through a 'reversed' from
    * pointer (typical case: armature object is the hierarchy root, its child mesh object is only
    * related to it through its own 'parent' pointer, the armature one has no 'to' relationships to
-   * its deformed mesh object.
+   * its deformed mesh object).
    *
    * Remaining ones are in a limbo, typically they could have been removed or moved around in the
    * hierarchy (e.g. an object moved into another sub-collection). Tag them as needing resync,
@@ -3674,7 +3674,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
   for (ID &id_iter : no_main_ids_list.items_mutable()) {
     BKE_id_free(bmain, &id_iter);
   }
-  BLI_listbase_clear(&no_main_ids_list);
+  no_main_ids_list.clear_no_delete();
 
   /* Just in case, should not be needed in theory, since #lib_override_library_resync should have
    * already cleared them all. */
@@ -4193,7 +4193,7 @@ void lib_override_library_property_clear(IDOverrideLibraryProperty *op)
   for (IDOverrideLibraryPropertyOperation &opop : op->operations) {
     lib_override_library_property_operation_clear(&opop);
   }
-  BLI_freelistN(&op->operations);
+  op->operations.free_no_destruct();
 }
 
 bool BKE_lib_override_library_property_rna_path_change(IDOverrideLibrary *liboverride,
@@ -4820,7 +4820,7 @@ void BKE_lib_override_library_operations_restore(Main *bmain, ID *local, int *r_
           BKE_lib_override_library_property_operation_delete(&op, &opop);
         }
       }
-      if (BLI_listbase_is_empty(&local->override_library->properties)) {
+      if (local->override_library->properties.is_empty()) {
         BKE_lib_override_library_property_delete(local->override_library, &op);
       }
       else {
@@ -5220,7 +5220,7 @@ void BKE_lib_override_library_id_unused_cleanup(ID *local)
             BKE_lib_override_library_property_operation_delete(&op, &opop);
           }
         }
-        if (BLI_listbase_is_empty(&op.operations)) {
+        if (op.operations.is_empty()) {
           BKE_lib_override_library_property_delete(local->override_library, &op);
         }
       }

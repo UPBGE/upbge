@@ -172,7 +172,7 @@ def _docformatter(py_paths: list[Path]) -> None:
     """Run 'docformatter' on generated Python files.
 
     This is necessary because the generated docstrings are very long, and
-    'make format' doesn't automatically rewrap them.
+    'make format' doesn't automatically re-wrap them.
     """
     from docformatter import format
     from docformatter import configuration

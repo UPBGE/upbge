@@ -50,7 +50,7 @@ bool transform_is_locked(const ListBaseT<SeqTimelineChannel> *channels, const St
 {
   const SeqTimelineChannel *channel = channel_get_by_index(channels, strip->channel);
   return strip->flag & SEQ_LOCK ||
-         (channel_is_locked(channel) &&
+         (channel->is_locked() &&
           !flag_is_set(strip->runtime->flag, StripRuntimeFlag::IgnoreChannelLock));
 }
 
@@ -96,7 +96,7 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
   /* Meta strips requires their content is to be translated, and then frame range of the meta is
    * updated based on nested strips. This won't work for empty meta-strips,
    * so they can be treated as normal strip. */
-  if (strip->type == STRIP_TYPE_META && !BLI_listbase_is_empty(&strip->seqbase)) {
+  if (strip->type == STRIP_TYPE_META && !strip->seqbase.is_empty()) {
     for (Strip &strip_child : strip->seqbase) {
       transform_translate_strip(evil_scene, &strip_child, delta);
     }
@@ -133,8 +133,8 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
 
   bool use_fallback_translation = false;
 
-  while (transform_test_overlap(evil_scene, seqbasep, test) || channel_is_muted(channel) ||
-         channel_is_locked(channel))
+  while (transform_test_overlap(evil_scene, seqbasep, test) || channel->is_muted() ||
+         channel->is_locked())
   {
     if ((channel_delta > 0) ? (test->channel + channel_delta >= MAX_CHANNELS) :
                               (test->channel + channel_delta < 1))

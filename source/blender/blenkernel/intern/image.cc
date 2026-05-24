@@ -121,6 +121,7 @@ static CLG_LogRef LOG = {"image"};
 
 static void image_init(Image *ima, eImageSource source, eImageType type);
 static void image_free_packedfiles(Image *ima);
+static void image_free_autosave_packedfiles(Image *ima);
 static void copy_image_packedfiles(ListBaseT<ImagePackedFile> *lb_dst,
                                    const ListBaseT<ImagePackedFile> *lb_src);
 
@@ -160,6 +161,7 @@ static void image_copy_data(Main * /*bmain*/,
                                              &image_src->colorspace_settings);
 
   copy_image_packedfiles(&image_dst->packedfiles, &image_src->packedfiles);
+  copy_image_packedfiles(&image_dst->autosave_packedfiles, &image_src->autosave_packedfiles);
 
   image_dst->stereo3d_format = static_cast<Stereo3dFormat *>(
       MEM_dupalloc(image_src->stereo3d_format));
@@ -173,7 +175,7 @@ static void image_copy_data(Main * /*bmain*/,
     slot.render = nullptr;
   }
 
-  BLI_listbase_clear(&image_dst->anims);
+  image_dst->anims.clear_no_delete();
 
   BLI_duplicatelist(&image_dst->tiles, &image_src->tiles);
 
@@ -193,6 +195,7 @@ static void image_free_data(ID *id)
   BKE_image_free_buffers(image);
 
   image_free_packedfiles(image);
+  image_free_autosave_packedfiles(image);
 
   for (RenderSlot &slot : image->renderslots) {
     if (slot.render) {
@@ -200,7 +203,7 @@ static void image_free_data(ID *id)
       slot.render = nullptr;
     }
   }
-  BLI_freelistN(&image->renderslots);
+  image->renderslots.free_no_destruct();
 
   BKE_image_free_views(image);
   MEM_SAFE_DELETE(image->stereo3d_format);
@@ -208,7 +211,7 @@ static void image_free_data(ID *id)
   BKE_icon_id_delete(&image->id);
   BKE_previewimg_id_free(&image->id);
 
-  BLI_freelistN(&image->tiles);
+  image->tiles.free_no_destruct();
 
   image_runtime_free_data(image);
   MEM_delete(image->runtime);
@@ -331,7 +334,7 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
    */
   ima->runtime = nullptr;
 
-  BLI_listbase_clear(&ima->anims);
+  ima->anims.clear_no_delete();
 
   ImagePackedFile *imapf;
 
@@ -339,7 +342,8 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (!is_undo) {
     /* Do not store packed files in case this is a library override ID. */
     if (ID_IS_OVERRIDE_LIBRARY(ima)) {
-      BLI_listbase_clear(&ima->packedfiles);
+      ima->packedfiles.clear_no_delete();
+      ima->autosave_packedfiles.clear_no_delete();
     }
     else {
       /* Some trickery to keep forward compatibility of packed images. */
@@ -355,6 +359,10 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BKE_id_blend_write(writer, &ima->id);
 
   for (ImagePackedFile &imapf : ima->packedfiles) {
+    writer->write_struct(&imapf);
+    BKE_packedfile_blend_write(writer, imapf.packedfile);
+  }
+  for (ImagePackedFile &imapf : ima->autosave_packedfiles) {
     writer->write_struct(&imapf);
     BKE_packedfile_blend_write(writer, imapf.packedfile);
   }
@@ -401,7 +409,18 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_packedfile_blend_read(reader, &ima->packedfile, ima->filepath);
   }
 
-  BLI_listbase_clear(&ima->anims);
+  BLO_read_struct_list(reader, ImagePackedFile, &ima->autosave_packedfiles);
+  if (ima->autosave_packedfiles.first) {
+    for (ImagePackedFile &imapf : ima->autosave_packedfiles.items_mutable()) {
+      BKE_packedfile_blend_read(reader, &imapf.packedfile, imapf.filepath);
+      if (!imapf.packedfile) {
+        BLI_remlink(&ima->autosave_packedfiles, &imapf);
+        MEM_delete(&imapf);
+      }
+    }
+  }
+
+  ima->anims.clear_no_delete();
   BLO_read_struct(reader, PreviewImage, &ima->preview);
   BKE_previewimg_blend_read(reader, ima->preview);
   BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);
@@ -412,6 +431,12 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
 static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
 {
   Image *ima = reinterpret_cast<Image *>(id);
+
+  BKE_image_populate_cache_from_autosave(ima);
+  BLI_assert_msg(!(ima->flag & IMA_AUTOSAVE_TEMPPACK),
+                 "An image should never be marked as temporary packed after loading");
+  BLI_assert_msg(BLI_listbase_count(&ima->autosave_packedfiles) == 0,
+                 "An image should never have autosave data after loading");
 
   /* Images have some kind of 'main' cache, when null we should also clear all others. */
   /* Needs to be done *after* cache pointers are restored (call to
@@ -578,9 +603,27 @@ void BKE_image_free_packedfiles(Image *ima)
   image_free_packedfiles(ima);
 }
 
+static void image_free_autosave_packedfiles(Image *ima)
+{
+  while (ima->autosave_packedfiles.last) {
+    ImagePackedFile *imapf = static_cast<ImagePackedFile *>(ima->autosave_packedfiles.last);
+    if (imapf->packedfile) {
+      BKE_packedfile_free(imapf->packedfile);
+    }
+    BLI_remlink(&ima->autosave_packedfiles, imapf);
+    MEM_delete(imapf);
+  }
+}
+
+void BKE_image_clear_autosave(Image *ima)
+{
+  image_free_autosave_packedfiles(ima);
+  ima->flag &= ~IMA_AUTOSAVE_TEMPPACK;
+}
+
 void BKE_image_free_views(Image *image)
 {
-  BLI_freelistN(&image->views);
+  image->views.free_no_destruct();
 }
 
 static void image_free_anims(Image *ima)
@@ -721,7 +764,7 @@ static void copy_image_packedfiles(ListBaseT<ImagePackedFile> *lb_dst,
 {
   const ImagePackedFile *imapf_src;
 
-  BLI_listbase_clear(lb_dst);
+  lb_dst->clear_no_delete();
   for (imapf_src = static_cast<const ImagePackedFile *>(lb_src->first); imapf_src;
        imapf_src = imapf_src->next)
   {
@@ -1451,6 +1494,92 @@ bool BKE_image_memorypack(Image *ima)
     for (ImageTile &tile : ima->tiles) {
       tile.gen_flag &= ~IMA_GEN_TILE;
     }
+    BKE_image_clear_autosave(ima);
+  }
+
+  return ok;
+}
+
+/** Pack image buffer to memory as PNG or EXR. */
+static bool image_memorypack_imbuf_for_autosave(
+    Image *ima, ImBuf *ibuf, int view, int tile_number, const char *filepath)
+{
+  ibuf->ftype = ibuf->float_data() ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
+
+  Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, ImBufFlags::ByteData);
+  if (encoded.is_empty()) {
+    CLOG_STR_ERROR(&LOG, "memory save for pack error");
+    image_free_packedfiles(ima);
+    return false;
+  }
+
+  auto *shared_data = new ImplicitSharedValue<Vector<uint8_t>>(std::move(encoded));
+  PackedFile *pf = BKE_packedfile_new_from_memory(
+      shared_data->data.data(), int(shared_data->data.size()), shared_data);
+
+  ImagePackedFile *imapf = MEM_new<ImagePackedFile>("Image PackedFile");
+  STRNCPY(imapf->filepath, filepath);
+  imapf->packedfile = pf;
+  imapf->view = view;
+  imapf->tile_number = tile_number;
+  BLI_addtail(&ima->autosave_packedfiles, imapf);
+
+  /* We should not clear the dirty flag when autosaving */
+
+  return true;
+}
+
+bool BKE_image_autosave_memorypack(Image *ima)
+{
+  bool ok = true;
+
+  image_free_autosave_packedfiles(ima);
+
+  const int tot_viewfiles = image_num_viewfiles(ima);
+  const bool is_tiled = (ima->source == IMA_SRC_TILED);
+  const bool is_multiview = BKE_image_is_multiview(ima);
+
+  ImageUser iuser{};
+  BKE_imageuser_default(&iuser);
+  char tiled_filepath[FILE_MAX];
+
+  for (int view = 0; view < tot_viewfiles; view++) {
+    for (ImageTile &tile : ima->tiles) {
+      int index = (is_multiview || is_tiled) ? view : IMA_NO_INDEX;
+      int entry = is_tiled ? tile.tile_number : 0;
+      ImBuf *ibuf = image_get_cached_ibuf_for_index_entry(ima, index, entry, nullptr);
+      if (!ibuf) {
+        ok = false;
+        break;
+      }
+
+      const char *filepath = ibuf->filepath.c_str();
+      if (is_tiled) {
+        iuser.tile = tile.tile_number;
+        BKE_image_user_file_path(&iuser, ima, tiled_filepath);
+        filepath = tiled_filepath;
+      }
+      else if (is_multiview) {
+        ImageView *iv = static_cast<ImageView *>(BLI_findlink(&ima->views, view));
+        /* if the image was a R_IMF_VIEWS_STEREO_3D we force _L, _R suffices */
+        if (ima->views_format == R_IMF_VIEWS_STEREO_3D) {
+          const char *suffix[2] = {STEREO_LEFT_SUFFIX, STEREO_RIGHT_SUFFIX};
+          BLI_path_suffix(iv->filepath, FILE_MAX, suffix[view], "");
+        }
+        filepath = iv->filepath;
+      }
+
+      ok = ok && image_memorypack_imbuf_for_autosave(ima, ibuf, view, tile.tile_number, filepath);
+      IMB_freeImBuf(ibuf);
+    }
+  }
+
+  if (is_multiview) {
+    ima->views_format = R_IMF_VIEWS_INDIVIDUAL;
+  }
+
+  if (ok) {
+    ima->flag |= IMA_AUTOSAVE_TEMPPACK;
   }
 
   return ok;
@@ -1483,6 +1612,8 @@ void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath)
       }
     }
   }
+
+  BKE_image_clear_autosave(ima);
 }
 
 void BKE_image_packfiles_from_mem(ReportList *reports,
@@ -1509,6 +1640,8 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
     /* The image should not be marked as "generated" since image data was provided. */
     ImageTile *base_tile = BKE_image_get_tile(ima, 0);
     base_tile->gen_flag &= ~IMA_GEN_TILE;
+
+    BKE_image_clear_autosave(ima);
   }
 }
 
@@ -2497,7 +2630,7 @@ void BKE_stamp_data_free(StampData *stamp_data)
   for (StampDataCustomField &custom_field : stamp_data->custom_fields) {
     MEM_delete(custom_field.value);
   }
-  BLI_freelistN(&stamp_data->custom_fields);
+  stamp_data->custom_fields.free_no_destruct();
   MEM_delete(stamp_data);
 }
 
@@ -2739,7 +2872,7 @@ static bool image_views_match_render_views(const Image *image, const RenderData 
   /* The number of views in the image do not match the number of active views in the render
    * data. */
   const int number_of_active_views = BKE_scene_multiview_num_views_get(render_data);
-  if (BLI_listbase_count(&image->views) != number_of_active_views) {
+  if (image->views.count() != number_of_active_views) {
     return false;
   }
 
@@ -3074,7 +3207,7 @@ static void image_free_tile(Image *ima, ImageTile *tile)
   BKE_image_partial_update_mark_full_update(ima);
 
   if (BKE_image_is_multiview(ima)) {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     for (int i = 0; i < totviews; i++) {
       image_remove_ibuf(ima, i, tile->tile_number);
     }
@@ -3086,7 +3219,7 @@ static void image_free_tile(Image *ima, ImageTile *tile)
 
 static bool image_remove_tile(Image *ima, ImageTile *tile)
 {
-  if (BLI_listbase_is_single(&ima->tiles)) {
+  if (ima->tiles.is_single()) {
     /* Can't remove the last remaining tile. */
     return false;
   }
@@ -3204,7 +3337,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       /* try to repack file */
       if (BKE_image_has_packedfile(ima)) {
         const int tot_viewfiles = image_num_viewfiles(ima);
-        const int tot_files = tot_viewfiles * BLI_listbase_count(&ima->tiles);
+        const int tot_files = tot_viewfiles * ima->tiles.count();
 
         if (!BLI_listbase_count_is_equal_to(&ima->packedfiles, tot_files)) {
           /* in case there are new available files to be loaded */
@@ -3269,7 +3402,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
             BKE_image_remove_tile(ima, BKE_image_get_tile(ima, remaining_tile_number));
           }
         }
-        BLI_freelistN(&new_tiles);
+        new_tiles.free_no_destruct();
       }
       else if (ima->filepath[0] != '\0') {
         /* If the filepath is set at this point remove the generation flag. */
@@ -3497,7 +3630,7 @@ void BKE_image_reassign_tile(Image *ima, ImageTile *tile, int new_tile_number)
   tile->tile_number = new_tile_number;
 
   if (BKE_image_is_multiview(ima)) {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     for (int i = 0; i < totviews; i++) {
       ImBuf *ibuf = image_get_cached_ibuf_for_index_entry(ima, i, old_tile_number, nullptr);
       image_remove_ibuf(ima, i, old_tile_number);
@@ -3732,7 +3865,7 @@ RenderPass *BKE_image_multilayer_index(RenderResult *rr, ImageUser *iuser)
         break;
       }
 
-      index += BLI_listbase_count(&rl->passes);
+      index += rl->passes.count();
     }
   }
 
@@ -3796,7 +3929,7 @@ static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)
    * to avoid invalid memory access during render. ideally these should always
    * be acquired with a mutex along with the render result, but there are still
    * some places with just an image pointer that need to access views */
-  if (rr && BLI_listbase_count(&ima->views) == BLI_listbase_count(&rr->views)) {
+  if (rr && ima->views.count() == rr->views.count()) {
     ImageView *iv = static_cast<ImageView *>(ima->views.first);
     RenderView *rv = static_cast<RenderView *>(rr->views.first);
     bool modified = false;
@@ -3886,7 +4019,7 @@ void BKE_image_backup_render(Scene *scene, Image *ima, bool free_current_slot)
     ima->render_slot = 0;
     ima->last_render_slot = 0;
   }
-  else if (ima->render_slot >= BLI_listbase_count(&ima->renderslots)) {
+  else if (ima->render_slot >= ima->renderslots.count()) {
     ima->render_slot = 0;
     ima->last_render_slot = 0;
   }
@@ -4020,7 +4153,7 @@ static int image_num_viewfiles(Image *ima)
   }
   /* R_IMF_VIEWS_INDIVIDUAL */
 
-  return BLI_listbase_count(&ima->views);
+  return ima->views.count();
 }
 
 static ImBuf *image_load_sequence_multilayer(Image *ima, ImageUser *iuser, int entry, int frame)
@@ -4133,7 +4266,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
     image_assign_ibuf(ima, ibuf, 0, frame);
   }
   else {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     Array<ImBuf *> ibuf_arr(totviews);
 
     for (int i = 0; i < tot_viewfiles; i++) {
@@ -4249,6 +4382,8 @@ static ImBuf *load_image_single(Image *ima,
         imapf->tile_number = tile_number;
         imapf->packedfile = BKE_packedfile_new(
             nullptr, filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
+
+        BKE_image_clear_autosave(ima);
       }
     }
   }
@@ -4275,7 +4410,7 @@ static ImBuf *image_load_image_file(
 
   /* this should never happen, but just playing safe */
   if (!is_sequence && has_packed) {
-    const int totfiles = tot_viewfiles * BLI_listbase_count(&ima->tiles);
+    const int totfiles = tot_viewfiles * ima->tiles.count();
     if (!BLI_listbase_count_is_equal_to(&ima->packedfiles, totfiles)) {
       image_free_packedfiles(ima);
       has_packed = false;
@@ -4291,7 +4426,7 @@ static ImBuf *image_load_image_file(
     }
   }
   else {
-    const int totviews = BLI_listbase_count(&ima->views);
+    const int totviews = ima->views.count();
     BLI_assert(totviews > 0);
 
     Array<ImBuf *> ibuf_arr(totviews);
@@ -4328,6 +4463,62 @@ static ImBuf *image_load_image_file(
   }
 
   return ibuf;
+}
+
+static int image_get_multiview_index(Image *ima, ImageUser *iuser)
+{
+  const bool is_multilayer = BKE_image_is_multilayer(ima);
+  const bool is_backdrop = (ima->source == IMA_SRC_VIEWER) && (ima->type == IMA_TYPE_COMPOSITE) &&
+                           (iuser == nullptr);
+  int index = BKE_image_has_multiple_ibufs(ima) ? 0 : IMA_NO_INDEX;
+
+  if (is_multilayer) {
+    return iuser ? iuser->multi_index : index;
+  }
+  if (is_backdrop) {
+    if (BKE_image_is_stereo(ima)) {
+      /* Backdrop hack / workaround (since there is no `iuser`). */
+      return ima->eye;
+    }
+  }
+  else if (BKE_image_is_multiview(ima)) {
+    return iuser ? iuser->multi_index : index;
+  }
+
+  return index;
+}
+
+void BKE_image_populate_cache_from_autosave(Image *ima)
+{
+  if (!(ima->flag & IMA_AUTOSAVE_TEMPPACK)) {
+    return;
+  }
+
+  std::scoped_lock lock(ima->runtime->cache_mutex);
+
+  const bool tiled = ima->source == IMA_SRC_TILED;
+  const int index = image_get_multiview_index(ima, nullptr);
+
+  const ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::Metadata |
+                          imbuf_alpha_flags_for_image(ima);
+  for (ImagePackedFile &imapf : ima->autosave_packedfiles) {
+    if (imapf.packedfile) {
+      const int entry = tiled ? imapf.tile_number : 0;
+
+      ImBuf *ibuf = IMB_load_image_from_memory(
+          static_cast<uchar *>(const_cast<void *>(imapf.packedfile->data)),
+          imapf.packedfile->size,
+          flag,
+          "<packed data>",
+          nullptr,
+          ima->colorspace_settings.name);
+      ibuf->userflags |= IB_BITMAPDIRTY;
+      image_assign_ibuf(ima, ibuf, index, entry);
+      IMB_freeImBuf(ibuf);
+    }
+  }
+
+  BKE_image_clear_autosave(ima);
 }
 
 static ImBuf *image_get_ibuf_multilayer(Image *ima, ImageUser *iuser)
@@ -4492,29 +4683,6 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
   }
 
   return pass_ibuf;
-}
-
-static int image_get_multiview_index(Image *ima, ImageUser *iuser)
-{
-  const bool is_multilayer = BKE_image_is_multilayer(ima);
-  const bool is_backdrop = (ima->source == IMA_SRC_VIEWER) && (ima->type == IMA_TYPE_COMPOSITE) &&
-                           (iuser == nullptr);
-  int index = BKE_image_has_multiple_ibufs(ima) ? 0 : IMA_NO_INDEX;
-
-  if (is_multilayer) {
-    return iuser ? iuser->multi_index : index;
-  }
-  if (is_backdrop) {
-    if (BKE_image_is_stereo(ima)) {
-      /* Backdrop hack / workaround (since there is no `iuser`). */
-      return ima->eye;
-    }
-  }
-  else if (BKE_image_is_multiview(ima)) {
-    return iuser ? iuser->multi_index : index;
-  }
-
-  return index;
 }
 
 static void image_get_entry_and_index(Image *ima, ImageUser *iuser, int *r_entry, int *r_index)
@@ -5377,12 +5545,12 @@ int BKE_image_sequence_guess_offset(Image *image)
 
 bool BKE_image_has_anim(Image *ima)
 {
-  return (BLI_listbase_is_empty(&ima->anims) == false);
+  return (ima->anims.is_empty() == false);
 }
 
 bool BKE_image_has_packedfile(const Image *ima)
 {
-  return (BLI_listbase_is_empty(&ima->packedfiles) == false);
+  return (ima->packedfiles.is_empty() == false);
 }
 
 bool BKE_image_has_filepath(const Image *ima)
@@ -5619,7 +5787,7 @@ RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name)
     STRNCPY_UTF8(slot->name, name);
   }
   else {
-    int n = BLI_listbase_count(&ima->renderslots) + 1;
+    int n = ima->renderslots.count() + 1;
     SNPRINTF_UTF8(slot->name, DATA_("Slot %d"), n);
   }
   BLI_addtail(&ima->renderslots, slot);
@@ -5635,7 +5803,7 @@ bool BKE_image_remove_renderslot(Image *ima, ImageUser *iuser, int slot)
     }
   }
 
-  int num_slots = BLI_listbase_count(&ima->renderslots);
+  int num_slots = ima->renderslots.count();
   if (slot >= num_slots || num_slots == 1) {
     return false;
   }

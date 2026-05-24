@@ -231,7 +231,7 @@ static void object_copy_data(Main *bmain,
     ob_dst->iuser = MEM_dupalloc(ob_src->iuser);
   }
 
-  BLI_listbase_clear(&ob_dst->shader_fx);
+  ob_dst->shader_fx.clear_no_delete();
   for (ShaderFxData &fx : ob_src->shader_fx) {
     ShaderFxData *nfx = BKE_shaderfx_new(fx.type);
     STRNCPY(nfx->name, fx.name);
@@ -274,13 +274,13 @@ static void object_copy_data(Main *bmain,
   }
   BKE_rigidbody_object_copy(bmain, ob_dst, ob_src, flag_subdata);
 
-  BLI_listbase_clear(&ob_dst->modifiers);
-  BLI_listbase_clear(&ob_dst->greasepencil_modifiers);
+  ob_dst->modifiers.clear_no_delete();
+  ob_dst->greasepencil_modifiers.clear_no_delete();
   /* NOTE: Also takes care of soft-body and particle systems copying. */
   BKE_object_modifier_stack_copy(ob_dst, ob_src, true, flag_subdata);
   BLI_assert(BKE_modifiers_persistent_uids_are_valid(*ob_dst));
 
-  BLI_listbase_clear(&ob_dst->pc_ids);
+  ob_dst->pc_ids.clear_no_delete();
 
   ob_dst->avs = ob_src->avs;
   ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
@@ -360,7 +360,7 @@ static void object_free_data(ID *id)
 
   BKE_sculptsession_free(ob);
 
-  BLI_freelistN(&ob->pc_ids);
+  ob->pc_ids.free_no_destruct();
 
   /* Free runtime curves data. */
   if (ob->runtime->curve_cache) {
@@ -1644,8 +1644,8 @@ static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
       }
     }
   }
-  BLI_freelistN(&pidlist_dst);
-  BLI_freelistN(&pidlist_src);
+  pidlist_dst.free_no_destruct();
+  pidlist_src.free_no_destruct();
 }
 
 static IDProperty *object_asset_dimensions_property(Object *ob)
@@ -2061,9 +2061,7 @@ bool BKE_object_modifier_stack_copy(Object *ob_dst,
                                     const bool do_copy_all,
                                     const int flag_subdata)
 {
-  if (!BLI_listbase_is_empty(&ob_dst->modifiers) ||
-      !BLI_listbase_is_empty(&ob_dst->greasepencil_modifiers))
-  {
+  if (!ob_dst->modifiers.is_empty() || !ob_dst->greasepencil_modifiers.is_empty()) {
     BLI_assert_msg(
         false,
         "Trying to copy a modifier stack into an object having a non-empty modifier stack.");
@@ -2975,8 +2973,8 @@ ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int f
   psysn->bvhtree = nullptr;
   psysn->batch_cache = nullptr;
 
-  BLI_listbase_clear(&psysn->pathcachebufs);
-  BLI_listbase_clear(&psysn->childcachebufs);
+  psysn->pathcachebufs.clear_no_delete();
+  psysn->childcachebufs.clear_no_delete();
 
   if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
     /* XXX Disabled, fails when evaluating depsgraph after copying ID with no main for preview
@@ -3009,7 +3007,7 @@ void BKE_object_copy_particlesystems(Object *ob_dst, const Object *ob_src, const
     return;
   }
 
-  BLI_listbase_clear(&ob_dst->particlesystem);
+  ob_dst->particlesystem.clear_no_delete();
   for (ParticleSystem &psys : ob_src->particlesystem) {
     ParticleSystem *npsys = BKE_object_copy_particlesystem(&psys, flag);
 
@@ -3822,10 +3820,8 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
   }
   else {
     copy_m4_m4(r_mat, pchan->pose_mat);
-
-    /* but for backwards compatibility, the child has to move to the tail */
     copy_v3_v3(vec, r_mat[1]);
-    mul_v3_fl(vec, pchan_bone->length);
+    mul_v3_fl(vec, pchan_bone->length * ob->parent_bone_head_tail_factor);
     add_v3_v3(r_mat[3], vec);
   }
 }
@@ -5364,7 +5360,7 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   MEM_delete(kb);
 
   /* Unset active when all are freed. */
-  if (BLI_listbase_is_empty(&key->block)) {
+  if (key->block.is_empty()) {
     ob->shapenr = 0;
   }
   else if (ob->shapenr > 1) {
@@ -5460,7 +5456,7 @@ bool BKE_object_moves_in_time(const Object *object, bool recurse_parent)
   if (BKE_animdata_id_is_animated(&object->id)) {
     return true;
   }
-  if (!BLI_listbase_is_empty(&object->constraints)) {
+  if (!object->constraints.is_empty()) {
     return true;
   }
   if (recurse_parent && object->parent != nullptr) {
@@ -5479,7 +5475,7 @@ static bool object_deforms_in_time(Object *object)
   if (BKE_key_from_object(object) != nullptr) {
     return true;
   }
-  if (!BLI_listbase_is_empty(&object->modifiers)) {
+  if (!object->modifiers.is_empty()) {
     return true;
   }
   return object_moves_in_time(object);
@@ -6012,7 +6008,7 @@ static void object_cacheIgnoreClear(Object *ob, const bool state)
     }
   }
 
-  BLI_freelistN(&pidlist);
+  pidlist.free_no_destruct();
 }
 
 struct ObjectModifierUpdateContext {

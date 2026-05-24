@@ -2453,7 +2453,7 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
   RAS_MeshObject *mesh = nullptr;
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
   int dupli = 0;
-  int evaluated;
+  int evaluated = 1;
 
   PyObject *gameobj_py = nullptr;
   PyObject *mesh_py = nullptr;

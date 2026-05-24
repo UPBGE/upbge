@@ -2733,7 +2733,7 @@ static bool make_override_library_poll(bContext *C)
 {
   Base *base_act = CTX_data_active_base(C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
-   * misbehave if the active object is not also selected, see e.g. #120701. */
+   * misbehave if the active object is not also selected, see e.g. #120701). */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
     return false;
   }
@@ -2790,7 +2790,7 @@ static bool reset_clear_override_library_poll(bContext *C)
 {
   Base *base_act = CTX_data_active_base(C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
-   * misbehave if the active object is not also selected, see e.g. #120701. */
+   * misbehave if the active object is not also selected, see e.g. #120701). */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
     return false;
   }

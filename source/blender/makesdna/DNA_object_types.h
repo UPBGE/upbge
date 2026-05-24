@@ -612,6 +612,8 @@ struct Object {
   /** String describing sub-object info. */
   char parsubstr[/*MAX_NAME*/ 64] = "";
   struct Object *parent = nullptr, *track = nullptr;
+  float parent_bone_head_tail_factor = 1.0f;
+  char _pad4[4] = {};
   /* Proxy pointer are deprecated, only kept for conversion to liboverrides. */
   DNA_DEPRECATED struct Object *proxy = nullptr;
   DNA_DEPRECATED struct Object *proxy_group = nullptr;
@@ -814,7 +816,7 @@ struct Object {
   /** Contains data for levels of detail. */
   ListBaseT<LodLevel> lodlevels = {NULL, NULL};
   LodLevel *currentlod = NULL;
-  float lodfactor = 1.0f, _pad4[1] = {0.0f};
+  float lodfactor = 1.0f, _pad57[1] = {0.0f};
 
   /* settings for game engine bullet soft body */
   struct BulletSoftBody *bsoft = NULL;

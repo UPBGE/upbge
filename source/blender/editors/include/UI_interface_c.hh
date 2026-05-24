@@ -95,7 +95,7 @@ struct Block;
 /**
  * Character used for splitting labels (right align text after this character).
  * Users should never see this character.
- * Only applied when #BUT_HAS_SEP_CHAR flag is enabled, see it's doc-string for details.
+ * Only applied when #BUT_HAS_SEP_CHAR flag is enabled, see it's docstring for details.
  */
 #define UI_SEP_CHAR '|'
 #define UI_SEP_CHAR_S "|"
@@ -2579,7 +2579,7 @@ void template_color_picker(Layout *layout,
                            bool lock,
                            bool lock_luminosity,
                            bool cubic);
-void template_palette(Layout *layout, PointerRNA *ptr, StringRefNull propname, bool colors);
+void template_palette(Layout *layout, PointerRNA *ptr, StringRefNull propname);
 void template_crypto_picker(Layout *layout, PointerRNA *ptr, StringRefNull propname, int icon);
 /**
  * TODO: for now, grouping of layers is determined by dividing up the length of

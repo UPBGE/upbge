@@ -482,7 +482,7 @@ static bool image_save_single(ReportList *reports,
   /* individual multiview images */
   else if (imf->views_format == R_IMF_VIEWS_INDIVIDUAL) {
     ImColorMode color_mode = ibuf->color_mode;
-    const int totviews = (rr ? BLI_listbase_count(&rr->views) : BLI_listbase_count(&ima->views));
+    const int totviews = (rr ? rr->views.count() : ima->views.count());
 
     if (!is_exr_rr) {
       BKE_image_release_ibuf(ima, ibuf, lock);
@@ -696,6 +696,13 @@ bool BKE_image_save(
     MEM_delete(udim_pattern);
   }
 
+  if (ok) {
+    if (ima->flag & IMA_AUTOSAVE_TEMPPACK) {
+      BKE_image_free_packedfiles(ima);
+      ima->flag &= ~IMA_AUTOSAVE_TEMPPACK;
+    }
+  }
+
   if (colorspace_changed) {
     BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_COLORMANAGE);
     BKE_image_partial_update_mark_full_update(ima);
@@ -706,13 +713,13 @@ bool BKE_image_save(
 
 /* OpenEXR saving, single and multilayer. */
 
-static float *image_exr_from_scene_linear_to_output(float *rect,
-                                                    const int width,
-                                                    const int height,
-                                                    const int channels,
-                                                    const ImageFormatData *imf,
-                                                    Vector<float *> &tmp_output_rects,
-                                                    StringRefNull &r_colorspace)
+static const float *image_exr_from_scene_linear_to_output(const float *rect,
+                                                          const int width,
+                                                          const int height,
+                                                          const int channels,
+                                                          const ImageFormatData *imf,
+                                                          Vector<float *> &tmp_output_rects,
+                                                          StringRefNull &r_colorspace)
 {
   if (imf == nullptr) {
     return rect;
@@ -723,7 +730,9 @@ static float *image_exr_from_scene_linear_to_output(float *rect,
     return rect;
   }
 
-  float *output_rect = MEM_dupalloc(rect);
+  const size_t size = size_t(width) * size_t(height) * size_t(channels);
+  float *output_rect = MEM_new_array_uninitialized<float>(size, __func__);
+  std::copy_n(rect, size, output_rect);
   tmp_output_rects.append(output_rect);
 
   const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -736,8 +745,11 @@ static float *image_exr_from_scene_linear_to_output(float *rect,
   return output_rect;
 }
 
-static float *image_exr_from_rgb_to_bw(
-    float *input_buffer, int width, int height, int channels, Vector<float *> &temporary_buffers)
+static const float *image_exr_from_rgb_to_bw(const float *input_buffer,
+                                             int width,
+                                             int height,
+                                             int channels,
+                                             Vector<float *> &temporary_buffers)
 {
   float *gray_scale_output = MEM_new_array_uninitialized<float>(size_t(width) * size_t(height),
                                                                 "Gray Scale Buffer For EXR");
@@ -814,7 +826,7 @@ static void add_exr_compositing_result(ExrHandle *exr_handle,
 
     /* Compositing results is always a 4-channel RGBA. */
     const int channels_count_in_buffer = 4;
-    float *output_buffer = render_view.ibuf->float_data_for_write();
+    const float *output_buffer = render_view.ibuf->float_data();
     StringRefNull colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_SCENE_LINEAR);
 
@@ -850,11 +862,11 @@ static void add_exr_compositing_result(ExrHandle *exr_handle,
 
     const ImColorMode color_mode = imf ? imf->color_mode : ImColorMode::RGBA;
     if (color_mode == ImColorMode::BW) {
-      float *gray_scale_output = image_exr_from_rgb_to_bw(output_buffer,
-                                                          render_result->rectx,
-                                                          render_result->recty,
-                                                          channels_count_in_buffer,
-                                                          temporary_buffers);
+      const float *gray_scale_output = image_exr_from_rgb_to_bw(output_buffer,
+                                                                render_result->rectx,
+                                                                render_result->recty,
+                                                                channels_count_in_buffer,
+                                                                temporary_buffers);
       IMB_exr_add_channels(exr_handle,
                            "",
                            "V",
@@ -946,7 +958,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
       const bool pass_half_float = half_float && pass_RGBA;
 
       /* Color-space conversion only happens on RGBA passes. */
-      float *output_rect = render_pass.ibuf->float_data_for_write();
+      const float *output_rect = render_pass.ibuf->float_data();
       StringRefNull colorspace = IMB_colormanagement_role_colorspace_name_get(
           (pass_RGBA) ? COLOR_ROLE_SCENE_LINEAR : COLOR_ROLE_DATA);
 
@@ -1007,7 +1019,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
       else if (required_channels == 1) {
         /* In case of a single required channel, we need to do RGB[A] to BW conversion. We know
          * the input is RGB[A] and not single channel because it filed the condition above. */
-        float *gray_scale_output = image_exr_from_rgb_to_bw(
+        const float *gray_scale_output = image_exr_from_rgb_to_bw(
             output_rect, rr->rectx, rr->recty, render_pass.channels, tmp_output_rects);
         IMB_exr_add_channels(exrhandle,
                              "",

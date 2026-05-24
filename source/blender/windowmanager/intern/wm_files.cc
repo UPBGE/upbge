@@ -391,7 +391,7 @@ static void wm_file_read_setup_wm_use_new(bContext *C,
   wm->runtime->defaultconf = old_wm->runtime->defaultconf;
   wm->runtime->userconf = old_wm->runtime->userconf;
 
-  BLI_listbase_clear(&old_wm->runtime->keyconfigs);
+  old_wm->runtime->keyconfigs.clear_no_delete();
   old_wm->runtime->addonconf = nullptr;
   old_wm->runtime->defaultconf = nullptr;
   old_wm->runtime->userconf = nullptr;
@@ -2312,7 +2312,7 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
    * compared to when the #MemFile undo step was used for saving undo-steps. So for now just skip
    * auto-save when we are in a mode where auto-save wouldn't have worked previously anyway. This
    * check can be removed once the performance regressions have been solved. */
-  if (ED_undosys_stack_memfile_get_if_active(wm->runtime->undo_stack) != nullptr) {
+  if (ED_undosys_autosave_compatible(wm->runtime->undo_stack)) {
     const bool success = WM_autosave_write(wm, bmain, &wm->runtime->reports);
     if (!success) {
       WM_report_banner_show(wm, nullptr);
@@ -2338,6 +2338,7 @@ bool WM_autosave_is_scheduled(wmWindowManager *wm)
 bool WM_autosave_write(wmWindowManager *wm, Main *bmain, ReportList *reports)
 {
   ED_editors_flush_edits(bmain);
+  ED_image_internal_autosave_flush(bmain);
 
   char filepath[FILE_MAX];
   wm_autosave_location(filepath);

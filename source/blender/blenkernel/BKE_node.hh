@@ -237,7 +237,7 @@ struct NodeInsertLinkParams {
   bContext *C = nullptr;
 };
 
-/** Common node widths for easy searchability. */
+/** Common node widths for easy search-ability. */
 struct NodeWidth {
   /* Generally a multiple of 20 is used because it matches the grid width.
    * Also see #NODE_GRID_STEP_SIZE. */
@@ -889,7 +889,7 @@ void node_type_storage(bNodeType &ntype,
  *
  * FOREACH_NODETREE_BEGIN(bmain, nodetree, id) {
  *     if (nodetree->idname == "ShaderNodeTree")
- *         printf("This is a shader node tree);
+ *         printf("This is a shader node tree");
  *     if (GS(id) == ID_MA)
  *         printf(" and it's owned by a material");
  * } FOREACH_NODETREE_END;

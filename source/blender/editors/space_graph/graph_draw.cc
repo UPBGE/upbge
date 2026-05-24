@@ -312,7 +312,7 @@ static void draw_fcurve_selected_handle_vertices(
           (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ)))
       {
         if ((bezt->f1 & SELECT) == sel
-            /* && v2d->cur.xmin < bezt->vec[0][0] < v2d->cur.xmax) */)
+            /* && v2d->cur.xmin < bezt->vec[0][0] < v2d->cur.xmax */)
         {
           immVertex2fv(pos, bezt->vec[0]);
         }
@@ -320,7 +320,7 @@ static void draw_fcurve_selected_handle_vertices(
 
       if (bezt->ipo == BEZT_IPO_BEZ) {
         if ((bezt->f3 & SELECT) == sel
-            /* && v2d->cur.xmin < bezt->vec[2][0] < v2d->cur.xmax) */)
+            /* && v2d->cur.xmin < bezt->vec[2][0] < v2d->cur.xmax */)
         {
           immVertex2fv(pos, bezt->vec[2]);
         }
@@ -1331,7 +1331,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
   /* No curve to modify/visualize the result?
    * => We still want to show the 1-1 default...
    */
-  if ((fcu->totvert == 0) && BLI_listbase_is_empty(&fcu->modifiers)) {
+  if ((fcu->totvert == 0) && fcu->modifiers.is_empty()) {
     float t;
 
     /* draw with thin dotted lines in style of what curve would have been */

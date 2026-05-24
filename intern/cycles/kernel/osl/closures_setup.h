@@ -326,7 +326,7 @@ ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
   fresnel->transmission_tint = rgb_to_spectrum(closure->transmission_tint);
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
-  bsdf_microfacet_setup_fresnel_dielectric_tint(kg, bsdf, sd, fresnel, preserve_energy);
+  bsdf_microfacet_setup_fresnel_dielectric_tint(kg, bsdf, sd->wi, fresnel, preserve_energy);
 
   if (layer_albedo != nullptr) {
     if (has_reflection && !has_transmission) {
@@ -383,7 +383,7 @@ ccl_device void osl_closure_conductor_bsdf_setup(KernelGlobals kg,
   fresnel->thin_film.ior = closure->thinfilm_ior;
 
   fresnel->ior = {rgb_to_spectrum(closure->ior), rgb_to_spectrum(closure->extinction)};
-  bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd, fresnel, preserve_energy);
+  bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd->wi, fresnel, preserve_energy);
 }
 
 ccl_device void osl_closure_generalized_schlick_bsdf_setup(
@@ -479,7 +479,7 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
   fresnel->exponent = closure->exponent;
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
-  bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd, fresnel, preserve_energy);
+  bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd->wi, fresnel, preserve_energy);
 
   if (layer_albedo != nullptr) {
     if (has_reflection && !has_transmission) {
@@ -489,6 +489,79 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
       *layer_albedo = one_float3();
     }
   }
+}
+
+ccl_device void osl_closure_thin_glass_setup(KernelGlobals kg,
+                                             ccl_private ShaderData *sd,
+                                             const uint32_t path_flag,
+                                             const float3 weight,
+                                             const ccl_private ThinGlassClosure *closure,
+                                             float3 *layer_albedo)
+{
+  osl_zero_albedo(layer_albedo);
+
+  const bool has_reflection = !is_zero(closure->reflection_tint);
+  const bool has_transmission = !is_zero(closure->transmission_tint);
+
+  int label = roughness_is_almost_specular(closure->roughness, closure->roughness) ?
+                  LABEL_SINGULAR :
+                  LABEL_GLOSSY;
+  if (has_transmission) {
+    label |= LABEL_TRANSMIT;
+  }
+  if (has_reflection) {
+    label |= LABEL_REFLECT;
+  }
+
+  if (osl_closure_skip(kg, path_flag, label)) {
+    return;
+  }
+
+  const bool reflective_caustics = (kernel_data.integrator.caustics_reflective ||
+                                    (path_flag & PATH_RAY_DIFFUSE) == 0);
+  const bool refractive_caustics = (kernel_data.integrator.caustics_refractive ||
+                                    (path_flag & PATH_RAY_DIFFUSE) == 0);
+
+  const float3 valid_reflection_N = maybe_ensure_valid_specular_reflection(
+      sd, safe_normalize_fallback(closure->N, sd->N));
+  const FresnelThinFilm thinfilm = {closure->thinfilm_thickness, closure->thinfilm_ior};
+
+  Spectrum reflectance, transmittance;
+  bsdf_thin_glass_setup(kg,
+                        sd,
+                        reflective_caustics,
+                        refractive_caustics,
+                        closure->reflection_tint,
+                        closure->transmission_tint,
+                        rgb_to_spectrum(weight),
+                        valid_reflection_N,
+                        closure->roughness,
+                        closure->ior,
+                        thinfilm,
+                        &reflectance,
+                        &transmittance);
+
+  if (layer_albedo != nullptr) {
+    *layer_albedo = transmittance * !!has_transmission + reflectance * !!has_reflection;
+  }
+}
+
+ccl_device void osl_closure_thin_subsurface_setup(KernelGlobals kg,
+                                                  ccl_private ShaderData *sd,
+                                                  const uint32_t path_flag,
+                                                  const float3 weight,
+                                                  const ccl_private ThinSubsurfaceClosure *closure,
+                                                  float3 *layer_albedo)
+{
+  osl_zero_albedo(layer_albedo);
+
+  if (osl_closure_skip(kg, path_flag, LABEL_DIFFUSE)) {
+    return;
+  }
+
+  const float3 N = safe_normalize_fallback(closure->N, sd->N);
+  bsdf_thin_subsurface_setup(
+      sd, N, rgb_to_spectrum(weight), closure->anisotropy, closure->roughness, closure->color);
 }
 
 /* Standard microfacet closures */
@@ -549,7 +622,7 @@ ccl_device void osl_closure_microfacet_setup(KernelGlobals kg,
 
     if (closure->distribution == make_string("multi_ggx", 16842698693386468366ull)) {
       /* Since there's no dedicated color input, the weight is the best we got. */
-      bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd, rgb_to_spectrum(weight));
+      bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd->wi, rgb_to_spectrum(weight));
     }
   }
 
@@ -612,7 +685,7 @@ ccl_device void osl_closure_microfacet_f82_tint_setup(
   fresnel->thin_film.ior = closure->thinfilm_ior;
 
   bsdf_microfacet_setup_fresnel_f82_tint(
-      kg, bsdf, sd, fresnel, rgb_to_spectrum(closure->f82), preserve_energy);
+      kg, bsdf, sd->wi, fresnel, rgb_to_spectrum(closure->f82), preserve_energy);
 }
 
 ccl_device void osl_closure_microfacet_multi_ggx_glass_setup(
@@ -644,7 +717,7 @@ ccl_device void osl_closure_microfacet_multi_ggx_glass_setup(
   bsdf->T = zero_float3();
 
   sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
-  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd, rgb_to_spectrum(closure->color));
+  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd->wi, rgb_to_spectrum(closure->color));
 }
 
 ccl_device void osl_closure_microfacet_multi_ggx_aniso_setup(
@@ -675,7 +748,7 @@ ccl_device void osl_closure_microfacet_multi_ggx_aniso_setup(
   bsdf->T = closure->T;
 
   sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
-  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd, rgb_to_spectrum(closure->color));
+  bsdf_microfacet_setup_fresnel_constant(kg, bsdf, sd->wi, rgb_to_spectrum(closure->color));
 
   if (layer_albedo != nullptr) {
     *layer_albedo = bsdf_albedo(kg, sd, (ccl_private ShaderClosure *)bsdf, true, false);

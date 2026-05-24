@@ -594,7 +594,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
           ListBaseT<ARegion> *lb = (&sl == area.spacedata.first) ? &area.regionbase :
                                                                    &sl.regionbase;
           for (ARegion &region : *lb) {
-            BLI_listbase_clear(&region.ui_previews);
+            region.ui_previews.clear_no_delete();
           }
         }
       }
@@ -645,7 +645,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     {
       for (Scene &scene : bmain->scenes) {
-        int num_layers = BLI_listbase_count(&scene.r.layers);
+        int num_layers = scene.r.layers.count();
         scene.r.actlay = min_ff(scene.r.actlay, num_layers - 1);
       }
     }
@@ -1301,7 +1301,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
        * Loop all strokes and create the palette and all colors
        */
       for (bGPdata &gpd : bmain->gpencils) {
-        if (BLI_listbase_is_empty(&gpd.palettes)) {
+        if (gpd.palettes.is_empty()) {
           /* create palette */
           bGPDpalette *palette = BKE_gpencil_palette_addnew(&gpd, "GP_Palette");
           for (bGPDlayer &gpl : gpd.layers) {

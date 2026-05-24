@@ -561,8 +561,7 @@ void ShaderOperation::populate_operation_result(const bNodeSocket &output_socket
   std::string output_identifier = "output" + std::to_string(output_id);
 
   const ResultType result_type = get_node_socket_result_type(&output_socket);
-  const Result result = context().create_result(result_type);
-  populate_result(output_identifier, result);
+  populate_result(output_identifier, result_type);
 
   /* Map the output socket to the identifier of the newly populated result. */
   output_sockets_to_output_identifiers_map_.add_new(&output_socket, output_identifier);
@@ -1066,7 +1065,7 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
   /* The attributes of the GPU material represents the inputs of the operation. */
   ListBaseT<GPUMaterialAttribute> attributes = GPU_material_attributes(material);
 
-  if (BLI_listbase_is_empty(&attributes)) {
+  if (attributes.is_empty()) {
     return "";
   }
 
@@ -1076,7 +1075,7 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
    * counting the sampler slot location from the number of textures in the material, since some
    * sampler slots may be reserved for things like color band textures. */
   const ListBaseT<GPUMaterialTexture> textures = GPU_material_textures(material);
-  int input_slot_location = BLI_listbase_count(&textures);
+  int input_slot_location = textures.count();
   for (GPUMaterialAttribute &attribute : attributes) {
     const InputDescriptor &input_descriptor = get_input_descriptor(attribute.name);
     shader_create_info.sampler(input_slot_location,

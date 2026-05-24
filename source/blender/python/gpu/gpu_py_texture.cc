@@ -35,7 +35,7 @@
 #  include <vulkan/vulkan.h>
 #endif
 
-/* Doc-string Literal type for texture formats. */
+/* Docstring Literal type for texture formats. */
 
 #define PYDOC_TEX_FORMAT_LITERAL \
   "Literal[" \

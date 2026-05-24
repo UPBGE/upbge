@@ -348,7 +348,6 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_deferred_infos.hh
   engines/eevee/shaders/infos/eevee_depth_of_field_infos.hh
   engines/eevee/shaders/infos/eevee_film_infos.hh
-  engines/eevee/shaders/infos/eevee_forward_infos.hh
   engines/eevee/shaders/infos/eevee_fullscreen_infos.hh
   engines/eevee/shaders/infos/eevee_geom_infos.hh
   engines/eevee/shaders/infos/eevee_hiz_infos.hh
@@ -399,7 +398,6 @@ set(GLSL_SRC
   engines/workbench/shaders/infos/workbench_shadow_infos.hh
   engines/workbench/shaders/infos/workbench_transparent_resolve_infos.hh
 
-  engines/eevee/shaders/eevee_ambient_occlusion_lib.glsl
   engines/eevee/shaders/eevee_attributes_curves_lib.glsl
   engines/eevee/shaders/eevee_attributes_mesh_lib.glsl
   engines/eevee/shaders/eevee_attributes_pointcloud_lib.glsl
@@ -449,16 +447,17 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_film_pass_convert_comp.glsl
   engines/eevee/shaders/eevee_filter_lib.glsl
   engines/eevee/shaders/eevee_forward_lib.glsl
+  engines/eevee/shaders/eevee_forward_resolve.bsl.hh
   engines/eevee/shaders/eevee_fullscreen_vert.glsl
   engines/eevee/shaders/eevee_gbuffer_lib.glsl
   engines/eevee/shaders/eevee_gbuffer_read_lib.glsl
   engines/eevee/shaders/eevee_gbuffer_write_lib.glsl
-  engines/eevee/shaders/eevee_geom_curves_vert.glsl
-  engines/eevee/shaders/eevee_geom_mesh_vert.glsl
-  engines/eevee/shaders/eevee_geom_pointcloud_vert.glsl
+  engines/eevee/shaders/eevee_geom_curves.bsl.hh
+  engines/eevee/shaders/eevee_geom_mesh.bsl.hh
+  engines/eevee/shaders/eevee_geom_pointcloud.bsl.hh
   engines/eevee/shaders/eevee_geom_types_lib.glsl
-  engines/eevee/shaders/eevee_geom_volume_vert.glsl
-  engines/eevee/shaders/eevee_geom_world_vert.glsl
+  engines/eevee/shaders/eevee_geom_volume.bsl.hh
+  engines/eevee/shaders/eevee_geom_world.bsl.hh
   engines/eevee/shaders/eevee_hiz_debug_frag.glsl
   engines/eevee/shaders/eevee_hiz_update_comp.glsl
   engines/eevee/shaders/eevee_fast_gi.bsl.hh
@@ -483,6 +482,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_lookdev_display_vert.glsl
   engines/eevee/shaders/eevee_ltc_lib.bsl.hh
   engines/eevee/shaders/eevee_ltc_lut_lib.bsl.hh
+  engines/eevee/shaders/eevee_material_variants.bsl.hh
   engines/eevee/shaders/eevee_motion_blur.bsl.hh
   engines/eevee/shaders/eevee_nodetree_closures_lib.glsl
   engines/eevee/shaders/eevee_nodetree_frag_lib.glsl
@@ -530,7 +530,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_shadow_tilemap_lib.bsl.hh
   engines/eevee/shaders/eevee_shadow_visibility.bsl.hh
   engines/eevee/shaders/eevee_spherical_harmonics.bsl.hh
-  engines/eevee/shaders/eevee_subsurface_lib.glsl
+  engines/eevee/shaders/eevee_subsurface_lib.bsl.hh
   engines/eevee/shaders/eevee_subsurface.bsl.hh
   engines/eevee/shaders/eevee_surf_capture.bsl.hh
   engines/eevee/shaders/eevee_surf_deferred.bsl.hh
@@ -538,21 +538,18 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surf_forward.bsl.hh
   engines/eevee/shaders/eevee_surf_hybrid.bsl.hh
   engines/eevee/shaders/eevee_surf_common.bsl.hh
-  engines/eevee/shaders/eevee_surf_lib.glsl
   engines/eevee/shaders/eevee_surf_occupancy.bsl.hh
   engines/eevee/shaders/eevee_surf_shadow.bsl.hh
   engines/eevee/shaders/eevee_surf_volume.bsl.hh
   engines/eevee/shaders/eevee_surf_world.bsl.hh
-  engines/eevee/shaders/eevee_surfel_cluster_build_comp.glsl
+  engines/eevee/shaders/eevee_surfel_cluster.bsl.hh
   engines/eevee/shaders/eevee_surfel_light.bsl.hh
   engines/eevee/shaders/eevee_surfel_list.bsl.hh
-  engines/eevee/shaders/eevee_surfel_ray_comp.glsl
+  engines/eevee/shaders/eevee_surfel_ray.bsl.hh
   engines/eevee/shaders/eevee_thickness_lib.bsl.hh
-  engines/eevee/shaders/eevee_transparency_lib.glsl
-  engines/eevee/shaders/eevee_transparency_resolve_frag.glsl
-  engines/eevee/shaders/eevee_utility_tx_lib.glsl
-  engines/eevee/shaders/eevee_velocity_lib.glsl
-  engines/eevee/shaders/eevee_vertex_copy_comp.glsl
+  engines/eevee/shaders/eevee_transparency.bsl.hh
+  engines/eevee/shaders/eevee_utility_tx.bsl.hh
+  engines/eevee/shaders/eevee_velocity.bsl.hh
   engines/eevee/shaders/eevee_volume.bsl.hh
   engines/eevee/shaders/eevee_volume_lib.bsl.hh
 

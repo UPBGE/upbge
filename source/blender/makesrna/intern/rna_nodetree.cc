@@ -1928,8 +1928,7 @@ static void rna_Node_draw_buttons_ext(ui::Layout &layout, bContext *C, PointerRN
   ParameterList list;
   FunctionRNA *func;
 
-  func = rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr,
-                                                "draw_buttons_ext"); */
+  func = rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr, "draw_buttons_ext"); */
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
@@ -10548,12 +10547,14 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeFieldVariance");
   define("GeometryNode", "GeometryNodeFillCurve");
   define("GeometryNode", "GeometryNodeFilletCurve");
+  define("GeometryNode", "GeometryNodeFilterList");
   define("GeometryNode", "GeometryNodeFlipFaces");
   define("GeometryNode", "GeometryNodeForeachGeometryElementInput", def_geo_foreach_geometry_element_input);
   define("GeometryNode", "GeometryNodeForeachGeometryElementOutput", def_geo_foreach_geometry_element_output);
   define("GeometryNode", "GeometryNodeGeometryToInstance");
   define("GeometryNode", "GeometryNodeGetAttributeNames");
   define("GeometryNode", "GeometryNodeGetGeometryBundle");
+  define("GeometryNode", "GeometryNodeGetGeometryComponent");
   define("GeometryNode", "GeometryNodeGetNamedGrid");
   define("GeometryNode", "GeometryNodeGizmoDial");
   define("GeometryNode", "GeometryNodeGizmoLinear");

@@ -196,6 +196,7 @@ void ED_operatortypes_mesh()
 
   WM_operatortype_append(MESH_OT_circularize);
   WM_operatortype_append(MESH_OT_flatten);
+  WM_operatortype_append(MESH_OT_space_edge_loops_evenly);
 
 #ifdef WITH_GAMEENGINE
   WM_operatortype_append(MESH_OT_navmesh_make);

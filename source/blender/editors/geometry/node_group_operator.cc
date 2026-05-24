@@ -134,7 +134,7 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   };
   std::variant<AssetWeakReference, LocalRef> group_ref;
 
-  std::array<int64_t, 2> hash;
+  UniqueHash hash;
 
   static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
                                                     OperatorRegisterErrors &errors);
@@ -174,13 +174,15 @@ void OperatorTypeData::ensure_hash()
         else if constexpr (std::is_same_v<T, LocalRef>) {
           XXH3_128bits_update(hash_state, &value.session_uid, sizeof(value.session_uid));
         }
+        else {
+          BLI_assert_unreachable_static_t(T);
+        }
       },
       this->group_ref);
   bke::idprop::hash(*this->asset_meta_data_properties, hash_state);
   static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
   const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
-  this->hash[0] = xxh3_hash.low64;
-  this->hash[1] = xxh3_hash.high64;
+  this->hash = {xxh3_hash.low64, xxh3_hash.high64};
 }
 
 static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
@@ -350,7 +352,9 @@ static const bNodeTree *get_asset_or_local_node_group(const bContext &C,
           }
           return id_cast<const bNodeTree *>(asset::asset_local_id_ensure_imported(bmain, *asset));
         }
-        return nullptr;
+        else {
+          BLI_assert_unreachable_static_t(T);
+        }
       },
       type_data.group_ref);
 }
@@ -1892,9 +1896,9 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C, const Object &
  * builtin menus. The need to define the builtin menu labels here is non-ideal. We don't have
  * any UI introspection that can do this though.
  */
-static Set<std::string> get_builtin_menus(const ObjectType object_type, const eObjectMode mode)
+static Set<StringRef> get_builtin_menus(const ObjectType object_type, const eObjectMode mode)
 {
-  Set<std::string> menus;
+  Set<StringRef> menus;
   switch (object_type) {
     case OB_CURVES:
       menus.add_new("View");
@@ -2036,8 +2040,8 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
                                      UI_ITEM_NONE);
   }
 
-  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                           eObjectMode(active_object->mode));
+  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                         eObjectMode(active_object->mode));
 
   asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
       asset_system::all_library_reference());
@@ -2206,8 +2210,8 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
     *tree = build_catalog_tree(C, *active_object);
   }
 
-  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                           eObjectMode(active_object->mode));
+  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                         eObjectMode(active_object->mode));
 
   tree->catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
     if (!builtin_menus.contains_as(item.catalog_path().str())) {

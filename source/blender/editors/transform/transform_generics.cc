@@ -274,7 +274,9 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
       t->flag |= T_V3D_ALIGN;
     }
 
-    if ((object_mode & OB_MODE_ALL_PAINT) || (object_mode & OB_MODE_SCULPT_CURVES)) {
+    if ((object_mode & OB_MODE_ALL_PAINT) ||
+        (object_mode & (OB_MODE_SCULPT_CURVES | OB_MODE_SCULPT_GREASE_PENCIL)))
+    {
       Paint *paint = BKE_paint_get_active_from_context(C);
       Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
       if (brush && (brush->stroke_method == BRUSH_STROKE_CURVE)) {
@@ -807,7 +809,7 @@ void postTrans(bContext *C, TransInfo *t)
   MEM_SAFE_DELETE(t->data_container);
   t->data_container = nullptr;
 
-  BLI_freelistN(&t->tsnap.points);
+  t->tsnap.points.free_no_destruct();
 
   if (t->spacetype == SPACE_IMAGE) {
     if (t->options & (CTX_MASK | CTX_PAINT_CURVE)) {

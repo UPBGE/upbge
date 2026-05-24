@@ -1014,7 +1014,7 @@ static void rna_Object_active_vertex_group_index_range(
     return;
   }
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-  *max = max_ii(0, BLI_listbase_count(defbase) - 1);
+  *max = max_ii(0, defbase->count() - 1);
 }
 
 void rna_object_vgroup_name_index_get(PointerRNA *ptr, char *value, int index)
@@ -1199,7 +1199,7 @@ static void rna_Object_active_particle_system_index_range(
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&ob->particlesystem) - 1);
+  *max = max_ii(0, ob->particlesystem.count() - 1);
 }
 
 static int rna_Object_active_particle_system_index_get(PointerRNA *ptr)
@@ -1860,7 +1860,7 @@ static void rna_Object_active_shape_key_index_range(
 
   *min = 0;
   if (key) {
-    *max = BLI_listbase_count(&key->block) - 1;
+    *max = key->block.count() - 1;
     if (*max < 0) {
       *max = 0;
     }
@@ -3956,6 +3956,13 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Parent Bone", "Name of parent bone in case of a bone parenting relation");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
+
+  prop = RNA_def_property(srna, "parent_bone_head_tail_factor", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "parent_bone_head_tail_factor");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 2);
+  RNA_def_property_ui_text(prop, "Parent Bone Head/Tail", "Position along the length of bone");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 
   prop = RNA_def_property(srna, "use_parent_final_indices", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "transflag", OB_PARENT_USE_FINAL_INDICES);

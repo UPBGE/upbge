@@ -33,6 +33,7 @@
 #include "KX_RayCast.h"
 
 #include "CM_Message.h"
+#include "KX_Globals.h"
 
 using namespace blender;
 
@@ -73,6 +74,7 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment *physics_environment,
 
   PHY_IPhysicsController *hit_controller;
 
+  bool result = false;
   while ((hit_controller = physics_environment->RayTest(callback,
                                                         frompoint.x(),
                                                         frompoint.y(),
@@ -95,9 +97,11 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment *physics_environment,
     if (prevpoint.length2() < MT_EPSILON)
       break;
 
-    if (callback.RayHit(info))
+    if (callback.RayHit(info)) {
       // caller may decide to stop the loop and still cancel the hit
-      return callback.m_hitFound;
+      result = callback.m_hitFound;
+      break;
+    }
 
     // Skip past the object and keep tracing.
     // Note that retrieving in a single shot multiple hit points would be possible
@@ -117,5 +121,15 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment *physics_environment,
     if ((topoint - frompoint).dot(todir) < 0.f)
       break;
   }
-  return false;
+
+  /* Draw debug line if physics visualization is enabled */
+  if (physics_environment->GetDebugMode() > 0) {
+    MT_Vector3 endpoint = callback.m_hitFound ? callback.m_hitPoint : topoint;
+    MT_Vector4 color = callback.m_hitFound ?
+        MT_Vector4(0.7f, 1.0f, 0.7f, 1.0f) :
+        MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+    KX_RasterizerDrawDebugLine(_frompoint, endpoint, color);
+  }
+
+  return result;
 }

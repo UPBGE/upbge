@@ -707,7 +707,7 @@ static void rna_userdef_asset_library_remove(bContext *C, ReportList *reports, P
   ed::asset::list::clear_all_library(C);
 
   /* Update active library index to be in range. */
-  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
+  const int count_remaining = U.asset_libraries.count();
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
 
   /* Trigger refresh for the Asset Browser. */
@@ -2954,6 +2954,13 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   prop = RNA_def_property(srna, "grid_major", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Major Grid Lines", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "grid_axis_brightness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "grid_axis_brightness");
+  RNA_def_property_float_default(prop, 0.46);
+  RNA_def_property_ui_text(prop, "Grid Axis Brightness", "Brightness of the grid axis lines");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "clipping_border_3d", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -7710,6 +7717,7 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Support storing custom bundles in a geometry in Geometry Nodes");
 
   prop = RNA_def_property(srna, "use_remote_asset_libraries", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop, "Remote Asset Libraries", "Enable asset libraries served over HTTP/HTTPS");
 

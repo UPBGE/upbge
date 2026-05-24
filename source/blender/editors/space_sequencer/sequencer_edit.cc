@@ -594,43 +594,51 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* This lambda is used for snapping strips whose handles are not selected. NOTE that the behavior
-   * feels more natural when a cursor on the right side of the playhead means that the whole strip
-   * ends up on the right, and left side -> whole strip on the left. This code ensures that. */
-  auto delta_from_snap_side_get = [&](Strip *strip) {
+  /* Get distance from a strip to the snap frame. This is based on `snap_side`:
+   * behavior feels more natural when mouse cursor on the right side of the snap frame means that
+   * the whole strip ends up on the right, and left side -> whole strip on the left. */
+  auto strip_snap_delta_get = [&](Strip *strip) {
     return (snap_side == seq::SIDE_RIGHT) ? snap_frame - strip->left_handle() :
                                             snap_frame - strip->right_handle(scene);
   };
 
   std::optional<int> group_delta;
   if (keep_offset) {
-    /* If handles are selected, choose active strip handle as the anchor
-     * to calculate the offset for the entire strip group. */
-    Strip *strip = seq::select_active_get(scene);
-
-    /* Ensure active strip always participates in the operation to avoid inconsistent snapping. */
-    if (!(strip->flag & SEQ_SELECT)) {
-      strip->flag |= SEQ_SELECT;
-      selected.add(strip);
+    /* Try to use the active strip as the snap anchor. */
+    Strip *strip_anchor = seq::select_active_get(scene);
+    /* Fallback to the closest selected strip to the playhead. */
+    if (strip_anchor == nullptr) {
+      int best_dist = std::numeric_limits<int>::max();
+      for (Strip *strip : selected) {
+        const int dist = math::min(math::abs(snap_frame - strip->left_handle()),
+                                   math::abs(snap_frame - strip->right_handle(scene)));
+        if (dist < best_dist) {
+          best_dist = dist;
+          strip_anchor = strip;
+        }
+      }
+    }
+    else if (!(strip_anchor->flag & SEQ_SELECT)) {
+      strip_anchor->flag |= SEQ_SELECT;
+      selected.add(strip_anchor);
     }
 
-    const bool left_sel = strip->flag & SEQ_LEFTSEL;
-    const bool right_sel = strip->flag & SEQ_RIGHTSEL;
-
+    const bool left_sel = strip_anchor->flag & SEQ_LEFTSEL;
+    const bool right_sel = strip_anchor->flag & SEQ_RIGHTSEL;
     if (left_sel) {
-      group_delta = snap_frame - strip->left_handle();
+      group_delta = snap_frame - strip_anchor->left_handle();
     }
     if (right_sel) {
-      const int right_delta = snap_frame - strip->right_handle(scene);
+      const int right_delta = snap_frame - strip_anchor->right_handle(scene);
+      /* If both handles are selected, overwrite `group_delta` only if `right_delta` is smaller. */
       if (!group_delta.has_value() || math::abs(right_delta) < group_delta) {
         group_delta = right_delta;
       }
     }
 
-    /* No handles selected: choose either left or right of active
-     * strip based on mouse position relative to playhead. */
+    /* No handles selected. */
     if (!group_delta.has_value()) {
-      group_delta = delta_from_snap_side_get(strip);
+      group_delta = strip_snap_delta_get(strip_anchor);
     }
   }
 
@@ -652,7 +660,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
 
     if (!left_sel && !right_sel) {
       seq::transform_translate_strip(
-          scene, strip, group_delta ? *group_delta : delta_from_snap_side_get(strip));
+          scene, strip, group_delta ? *group_delta : strip_snap_delta_get(strip));
     }
     seq::relations_invalidate_cache(scene, strip);
   }
@@ -717,8 +725,8 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
   ot->name = "Snap Strips to the Current Frame";
   ot->idname = "SEQUENCER_OT_snap";
   ot->description =
-      "Snap strips to the current frame, using the active strip as the anchor, and the mouse "
-      "cursor relative to the playhead to determine the side of the playhead to snap to";
+      "Snap strips to the current frame, using the active (or closest) strip as the anchor, and "
+      "the mouse cursor relative to the playhead to determine the side of the playhead to snap to";
 
   /* API callbacks. */
   ot->invoke = sequencer_snap_invoke;
@@ -2418,7 +2426,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
    * This way, when pasted strips are renamed, curves are renamed with them. Finally, restore
    * original curves from backup.
    */
-  seq::AnimationBackup animation_backup = {{nullptr}};
+  seq::AnimationBackup animation_backup = {};
   seq::animation_backup_original(scene, &animation_backup);
 
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
@@ -2542,7 +2550,7 @@ static wmOperatorStatus sequencer_delete_invoke(bContext *C, wmOperator *op, con
   Scene *scene = CTX_data_sequencer_scene(C);
   ListBaseT<TimeMarker> *markers = &scene->markers;
 
-  if (!BLI_listbase_is_empty(markers)) {
+  if (!markers->is_empty()) {
     ARegion *region = CTX_wm_region(C);
     if (region && (region->regiontype == RGN_TYPE_WINDOW)) {
       /* Bounding box of 30 pixels is used for markers shortcuts,
@@ -2780,7 +2788,7 @@ static wmOperatorStatus sequencer_meta_toggle_exec(bContext *C, wmOperator * /*o
   }
   else {
     /* Exit meta-strip if possible. */
-    if (BLI_listbase_is_empty(&ed->metastack)) {
+    if (ed->metastack.is_empty()) {
       return OPERATOR_CANCELLED;
     }
 
@@ -2924,7 +2932,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   /* Remove all selected from meta, and put in main list.
    * Strip is moved within the same edit, no need to re-generate the UID. */
   BLI_movelisttolist(ed->current_strips(), &active_strip->seqbase);
-  BLI_listbase_clear(&active_strip->seqbase);
+  active_strip->seqbase.clear_no_delete();
 
   ListBaseT<Strip> *active_seqbase = seq::active_seqbase_get(ed);
   seq::edit_flag_for_removal(scene, active_seqbase, active_strip);
@@ -3799,7 +3807,7 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
     seq::foreach_strip(&ed->seqbase, strip_get_text_strip_cb, &cb_data);
   }
 
-  if (BLI_listbase_is_empty(&text_seq)) {
+  if (text_seq.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No subtitles (text strips) to export");
     return OPERATOR_CANCELLED;
   }
