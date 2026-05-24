@@ -286,6 +286,12 @@ EXP_Value *EXP_Value::FindIdentifier(const std::string &identifiername)
 {
   EXP_Value *result = nullptr;
 
+  // First, try the full name as-is (supports property names containing dots, e.g. "prop.001")
+  result = GetProperty(identifiername);
+  if (result) {
+    return result->AddRef();
+  }
+
   int pos = 0;
   // if a dot exists, explode the name into pieces to get the subcontext
   if ((pos = identifiername.find('.')) != std::string::npos) {
@@ -296,12 +302,7 @@ EXP_Value *EXP_Value::FindIdentifier(const std::string &identifiername)
       result = tempresult->FindIdentifier(rightstring);
     }
   }
-  else {
-    result = GetProperty(identifiername);
-    if (result) {
-      return result->AddRef();
-    }
-  }
+
   if (!result) {
     result = new EXP_ErrorValue(identifiername + " not found");
   }
