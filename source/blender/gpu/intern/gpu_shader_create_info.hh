@@ -27,12 +27,6 @@
 #  include <iostream>
 #endif
 
-#if defined(GPU_SHADER)
-#  include "gpu_shader_srd_cpp.hh"
-#else
-#  include "gpu_shader_srd_info.hh"
-#endif
-
 #if !defined(GPU_SHADER)
 namespace blender {
 #endif
@@ -616,6 +610,7 @@ enum class Qualifier {
   write = (1 << 2),
   /** Shorthand version of combined flags. */
   read_write = read | write,
+  read_no_restrict = read | no_restrict,
   QUALIFIER_MAX = (write << 1) - 1,
 };
 ENUM_OPERATORS(Qualifier);
@@ -1116,6 +1111,12 @@ struct ShaderCreateInfo {
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
+
+  /* WORKAROUND: Avoid unused expression warning. */
+  Self &noop()
+  {
+    return *this;
+  }
 
   /* -------------------------------------------------------------------- */
   /** \name Shaders in/outs (fixed function pipeline config)

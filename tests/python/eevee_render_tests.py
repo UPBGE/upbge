@@ -109,6 +109,8 @@ def setup():
         scene.render.engine = 'BLENDER_EEVEE'
 
         skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
+        skip_probes_setup = scene.get("EEVEE_skip_probes_setup", False)
+        skip_raytracing_setup = scene.get("EEVEE_skip_raytracing_setup", False)
         skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)
         skip_subsurface_setup = scene.get("EEVEE_skip_subsurface_setup", False)
 
@@ -147,31 +149,32 @@ def setup():
         if scene.render.use_motion_blur:
             eevee.motion_blur_steps = 10
 
-        # Ray-tracing
-        eevee.use_raytracing = True
-        eevee.ray_tracing_method = 'SCREEN'
-        ray_tracing = eevee.ray_tracing_options
-        ray_tracing.resolution_scale = "1"
-        ray_tracing.screen_trace_quality = 1.0
-        ray_tracing.screen_trace_thickness = 1.0
-
-        # Fast GI
-        eevee.fast_gi_quality = 0.8
+        if not skip_raytracing_setup:
+            # Ray-tracing
+            eevee.use_raytracing = True
+            eevee.ray_tracing_method = 'SCREEN'
+            ray_tracing = eevee.ray_tracing_options
+            ray_tracing.resolution_scale = "1"
+            ray_tracing.screen_trace_quality = 1.0
+            ray_tracing.screen_trace_thickness = 1.0
+            # Fast GI
+            eevee.fast_gi_quality = 0.8
 
         # Light-probes
-        eevee.gi_cubemap_resolution = '256'
+        if not skip_probes_setup:
+            eevee.gi_cubemap_resolution = '256'
 
         # Light-path intensity
         eevee.direct_light_intensity = 1.0
         eevee.indirect_light_intensity = 1.0
 
-        # Only include the plane in probes
         for ob in scene.objects:
             if ob.type == 'LIGHT' and not skip_shadow_setup:
                 # Set maximum resolution
                 ob.data.shadow_maximum_resolution = 0.0
 
-            if ob.name != 'Plane' and ob.type != 'LIGHT':
+            # Only include the plane in probes
+            if ob.name != 'Plane' and ob.type != 'LIGHT' and not skip_probes_setup:
                 ob.hide_probe_volume = True
                 ob.hide_probe_sphere = True
 
@@ -185,7 +188,7 @@ def setup():
             # Some file already have pre existing probe setup with baked data.
             pass
         # Does not work in edit mode
-        elif bpy.context.mode == 'OBJECT':
+        elif bpy.context.mode == 'OBJECT' and not skip_probes_setup:
             # Simple probe setup
             bpy.ops.object.lightprobe_add(type='SPHERE', location=(0.0, 0.1, 1.0))
             cubemap = bpy.context.selected_objects[0]
@@ -295,6 +298,16 @@ def main():
         # References are supposed to be generated on OpenGL Nvidia. Tighten the threshold for this platform.
         report.set_fail_percent(0.049)
         report.set_fail_threshold(2.0 / 255.0)
+        # Some different GPU arch have different texture sampling behavior.
+        if test_dir_name in {"image_mapping"}:
+            report.set_fail_percent(0.08)
+            report.set_fail_threshold(4.0 / 255.0)
+        elif test_dir_name in {"displacement"}:
+            report.set_fail_percent(0.11)
+            report.set_fail_threshold(5.0 / 255.0)
+        elif test_dir_name in {"texture"}:
+            report.set_fail_percent(0.14)
+            report.set_fail_threshold(6.0 / 255.0)
     elif test_dir_name.startswith('camera'):
         # camera_central_cylindrical and camera_stereo_panoramic have some platform specific small differences
         report.set_fail_percent(0.8)
