@@ -633,7 +633,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_sequencer_lib.glsl
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
-  shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_test_lib.bsl.hh
   shaders/common/gpu_shader_tiled_image_lookup_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
@@ -765,7 +765,7 @@ set(GLSL_SRC
 set(GLSL_TEST_SRC
   shaders/infos/gpu_shader_test_infos.hh
 
-  tests/shaders/gpu_math_test.glsl
+  tests/shaders/gpu_math_test.bsl.hh
   tests/shaders/gpu_buffer_texture_test.glsl
   tests/shaders/gpu_compute_1d_test.glsl
   tests/shaders/gpu_compute_2d_test.glsl

@@ -14,7 +14,6 @@ SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 namespace eevee::lightprobe::sphere {
 
 struct Cull {
-  [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
 
   [[storage(0, read_write)]] SphereProbeData (&lightprobe_sphere_buf)[SPHERE_PROBE_MAX];
@@ -29,9 +28,7 @@ struct Cull {
 [[compute, local_size(SPHERE_PROBE_SELECT_GROUP_SIZE)]]
 void cull([[resource_table]] Cull &srt,
           [[resource_table]] const LightprobeVolumeRenderData &volumes,
-          [[global_invocation_id]] const uint3 global_id,
-          [[local_invocation_id]] const uint3 local_id,
-          [[local_invocation_index]] const uint local_index)
+          [[global_invocation_id]] const uint3 global_id)
 {
   int idx = int(global_id.x);
   if (idx >= srt.lightprobe_sphere_count) {

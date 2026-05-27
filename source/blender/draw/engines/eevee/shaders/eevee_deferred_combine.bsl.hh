@@ -6,24 +6,21 @@
 
 #include "infos/eevee_common_infos.hh"
 
-FRAGMENT_SHADER_CREATE_INFO(eevee_gbuffer_data)
-FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
-FRAGMENT_SHADER_CREATE_INFO(eevee_hiz_data)
+FRAGMENT_SHADER_CREATE_INFO(eevee_global_ubo)
 FRAGMENT_SHADER_CREATE_INFO(draw_view)
 
 #include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.bsl.hh"
-#include "eevee_gbuffer_read_lib.glsl"
-#include "eevee_renderpass_lib.glsl"
+#include "eevee_gbuffer_read.bsl.hh"
+#include "eevee_hiz.bsl.hh"
+#include "eevee_renderpass.bsl.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
 #include "gpu_shader_shared_exponent_lib.glsl"
 
 namespace eevee::deferred {
 
 struct Combine {
-  [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
-  [[legacy_info]] ShaderCreateInfo eevee_render_pass_out;
-  [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
+  [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo draw_view;
 
   /* NOTE: Both light IDs have a valid specialized assignment of '-1' so only when default is
@@ -103,12 +100,15 @@ struct CombineFragOut {
 /* Early fragment test is needed to avoid processing fragments background fragments. */
 [[fragment, early_fragment_tests]]
 void combine_frag([[resource_table]] Combine &srt,
+                  [[resource_table]] RenderPassOutput &render_passes,
+                  [[resource_table]] const HiZ &hiz,
+                  [[resource_table]] const ::gbuffer::Reader &reader,
                   [[in]] const CombineVertOut &v_out,
                   [[out]] CombineFragOut &frag_out)
 {
   int2 texel = int2(gl_FragCoord.xy);
 
-  const gbuffer::Layers gbuf = gbuffer::read_layers(texel);
+  const gbuffer::Layers gbuf = reader.read_layers(texel);
   const uchar closure_count = gbuf.header.closure_len();
   const uint3 bin_indices = gbuf.header.bin_index_per_layer();
 
@@ -122,51 +122,54 @@ void combine_frag([[resource_table]] Combine &srt,
   float3 out_indirect = float3(0.0f);
   float3 average_normal = float3(0.0f);
 
-  for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < closure_count; i++) {
-    ClosureUndetermined cl = gbuf.layer_get(i);
-    if (cl.type == CLOSURE_NONE_ID) {
-      continue;
+  /* Unroll needed for gbuf.layer access. */
+  for (int i = 0; i < 3 /* GBUFFER_LAYER_MAX */; i++) [[unroll]] {
+    if (i < closure_count) {
+      ClosureUndetermined cl = gbuf.layer[i];
+      if (cl.type != CLOSURE_NONE_ID) {
+
+        uchar layer_index = bin_indices[i];
+        float3 closure_direct_light = srt.load_radiance_direct(texel, layer_index);
+        float3 closure_indirect_light = float3(0.0f);
+
+        if (srt.use_split_radiance) {
+          closure_indirect_light = srt.load_radiance_indirect(texel, layer_index);
+        }
+
+        average_normal += cl.N * reduce_add(cl.color);
+
+        switch (cl.type) {
+          case CLOSURE_BSDF_TRANSLUCENT_ID:
+          case CLOSURE_BSSRDF_BURLEY_ID:
+          case CLOSURE_BSDF_DIFFUSE_ID:
+            diffuse_color += cl.color;
+            diffuse_direct += closure_direct_light;
+            diffuse_indirect += closure_indirect_light;
+            break;
+          case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+          case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
+          case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
+            specular_color += cl.color;
+            specular_direct += closure_direct_light;
+            specular_indirect += closure_indirect_light;
+            break;
+          case CLOSURE_NONE_ID:
+            assert(false);
+            break;
+        }
+
+        if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
+             cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) &&
+            (reader.read_thickness(gbuf.header, texel).value() != 0.0f))
+        {
+          /* We model two transmission event, so the surface color need to be applied twice. */
+          cl.color *= cl.color;
+        }
+
+        out_direct += closure_direct_light * cl.color;
+        out_indirect += closure_indirect_light * cl.color;
+      }
     }
-    uchar layer_index = bin_indices[i];
-    float3 closure_direct_light = srt.load_radiance_direct(texel, layer_index);
-    float3 closure_indirect_light = float3(0.0f);
-
-    if (srt.use_split_radiance) {
-      closure_indirect_light = srt.load_radiance_indirect(texel, layer_index);
-    }
-
-    average_normal += cl.N * reduce_add(cl.color);
-
-    switch (cl.type) {
-      case CLOSURE_BSDF_TRANSLUCENT_ID:
-      case CLOSURE_BSSRDF_BURLEY_ID:
-      case CLOSURE_BSDF_DIFFUSE_ID:
-        diffuse_color += cl.color;
-        diffuse_direct += closure_direct_light;
-        diffuse_indirect += closure_indirect_light;
-        break;
-      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-      case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
-      case CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID:
-        specular_color += cl.color;
-        specular_direct += closure_direct_light;
-        specular_indirect += closure_indirect_light;
-        break;
-      case CLOSURE_NONE_ID:
-        assert(false);
-        break;
-    }
-
-    if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
-         cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) &&
-        (gbuffer::read_thickness(gbuf.header, texel).value() != 0.0f))
-    {
-      /* We model two transmission event, so the surface color need to be applied twice. */
-      cl.color *= cl.color;
-    }
-
-    out_direct += closure_direct_light * cl.color;
-    out_indirect += closure_indirect_light * cl.color;
   }
 
   if (srt.use_radiance_feedback) {
@@ -201,26 +204,29 @@ void combine_frag([[resource_table]] Combine &srt,
   /* Light passes. */
   if (srt.render_pass_diffuse_light_enabled) {
     float3 diffuse_light = diffuse_direct + diffuse_indirect;
-    output_renderpass_color(uniform_buf.render_pass.diffuse_color_id, float4(diffuse_color, 1.0f));
-    output_renderpass_color(uniform_buf.render_pass.diffuse_light_id, float4(diffuse_light, 1.0f));
+    render_passes.store_color(
+        texel, uniform_buf.render_pass.diffuse_color_id, float4(diffuse_color, 1.0f));
+    render_passes.store_color(
+        texel, uniform_buf.render_pass.diffuse_light_id, float4(diffuse_light, 1.0f));
   }
   if (srt.render_pass_specular_light_enabled) {
     float3 specular_light = specular_direct + specular_indirect;
-    output_renderpass_color(uniform_buf.render_pass.specular_color_id,
-                            float4(specular_color, 1.0f));
-    output_renderpass_color(uniform_buf.render_pass.specular_light_id,
-                            float4(specular_light, 1.0f));
+    render_passes.store_color(
+        texel, uniform_buf.render_pass.specular_color_id, float4(specular_color, 1.0f));
+    render_passes.store_color(
+        texel, uniform_buf.render_pass.specular_light_id, float4(specular_light, 1.0f));
   }
   if (srt.render_pass_normal_enabled) {
     float normal_len = length(average_normal);
     /* Normalize or fallback to default normal. */
     average_normal = (normal_len < 1e-5f) ? gbuf.surface_N() : (average_normal / normal_len);
-    output_renderpass_color(uniform_buf.render_pass.normal_id, float4(average_normal, 1.0f));
+    render_passes.store_color(
+        texel, uniform_buf.render_pass.normal_id, float4(average_normal, 1.0f));
   }
   if (srt.render_pass_position_enabled) {
-    float depth = texelFetch(hiz_tx, texel, 0).r;
+    float depth = texelFetch(hiz.hiz_tx, texel, 0).r;
     float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
-    output_renderpass_color(uniform_buf.render_pass.position_id, float4(P, 1.0f));
+    render_passes.store_color(texel, uniform_buf.render_pass.position_id, float4(P, 1.0f));
   }
 
   frag_out.combined = float4(out_direct + out_indirect, 0.0f);

@@ -97,6 +97,8 @@ static NestedBundleTypePtr make_world_type()
 
   /* Not actually used by the node but only registered here. */
   ForceBundle::get_bundle_type();
+  CustomGeometryEffector::get_bundle_type();
+  CustomWorldEffector::get_bundle_type();
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XPBDSolverWorld", std::move(types));
@@ -278,7 +280,6 @@ struct CrossEdgeLengthConstraintUsage {
   xpbd::ConstraintColoring coloring;
 };
 
-float error_threshold;
 struct StaticMeshInfo {
   const Mesh *mesh;
   bke::BVHTreeFromMesh corner_tris_bvh;
@@ -2145,10 +2146,16 @@ class XpbdSolverStep {
             this->prop_attr_name(constraint.path, "compliance"),
             geo_data.domain,
             0.0f);
-        const VArray<bool> prev_selection_attr = this->lookup_attribute_optional<bool>(
-            data_key_i, this->prev_prop_attr_name(constraint.path, "selection"), geo_data.domain);
-        const VArray<float3> prev_positions_attr = this->lookup_attribute_optional<float3>(
-            data_key_i, this->prev_prop_attr_name(constraint.path, "position"), geo_data.domain);
+        VArray<bool> prev_selection_attr;
+        VArray<float3> prev_positions_attr;
+        if (sub_delta_time_ > 0.0f) {
+          prev_selection_attr = this->lookup_attribute_optional<bool>(
+              data_key_i,
+              this->prev_prop_attr_name(constraint.path, "selection"),
+              geo_data.domain);
+          prev_positions_attr = this->lookup_attribute_optional<float3>(
+              data_key_i, this->prev_prop_attr_name(constraint.path, "position"), geo_data.domain);
+        }
 
         const int pin_num = pin_selection.size();
         MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
@@ -2305,13 +2312,16 @@ class XpbdSolverStep {
             this->prop_attr_name(constraint.path, "compliance"),
             geo_data.domain,
             0.0f);
-        const VArray<bool> prev_selection_attr = this->lookup_attribute_optional<bool>(
-            data_key_i, this->prev_prop_attr_name(constraint.path, "selection"), geo_data.domain);
-        const VArray<math::Quaternion> prev_rotations_attr =
-            this->lookup_attribute_optional<math::Quaternion>(
-                data_key_i,
-                this->prev_prop_attr_name(constraint.path, "rotation"),
-                geo_data.domain);
+        VArray<bool> prev_selection_attr;
+        VArray<math::Quaternion> prev_rotations_attr;
+        if (sub_delta_time_ > 0.0f) {
+          prev_selection_attr = this->lookup_attribute_optional<bool>(
+              data_key_i,
+              this->prev_prop_attr_name(constraint.path, "selection"),
+              geo_data.domain);
+          prev_rotations_attr = this->lookup_attribute_optional<math::Quaternion>(
+              data_key_i, this->prev_prop_attr_name(constraint.path, "rotation"), geo_data.domain);
+        }
 
         const int pin_num = pin_selection.size();
         MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
@@ -2957,7 +2967,7 @@ class XpbdSolverStep {
     return &**previous_bundle_ptr;
   }
 
-  bool effector_applies_to_geometry(const StringRef effector_path,
+  bool effector_applies_to_geometry([[maybe_unused]] const StringRef effector_path,
                                     const Bundle &effector,
                                     const int data_key_i) const
   {
@@ -2965,20 +2975,6 @@ class XpbdSolverStep {
     const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
     const StringRef geo_bundle_path = geo_set_data.path;
 
-    const bool filter_local =
-        effector.lookup<bool>(*BundleKey::from_str("filter_local")).value_or(false);
-    if (filter_local) {
-      const int pos = effector_path.rfind('/');
-      if (pos == StringRef::not_found) {
-        /* The effector is at the root level, so a local filter applies to everything. */
-        return true;
-      }
-      const StringRef effector_parent_path = effector_path.substr(0, pos + 1);
-      if (geo_bundle_path.startswith(effector_parent_path)) {
-        return true;
-      }
-      return false;
-    }
     const std::string filter =
         effector.lookup<std::string>(*BundleKey::from_str("filter")).value_or("");
     const bool match = tag_filter_matches(filter, geo_set_data.tags);

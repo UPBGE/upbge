@@ -13,23 +13,20 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
-#include "infos/eevee_sampling_infos.hh"
 
-SHADER_LIBRARY_CREATE_INFO(eevee_gbuffer_data)
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
-SHADER_LIBRARY_CREATE_INFO(eevee_sampling_data)
 SHADER_LIBRARY_CREATE_INFO(draw_view)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
 #include "draw_math_geom_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "eevee_closure_lib.glsl"
+#include "eevee_closure.bsl.hh"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_defines.hh"
-#include "eevee_filter_lib.glsl"
-#include "eevee_gbuffer_read_lib.glsl"
+#include "eevee_filter.bsl.hh"
+#include "eevee_gbuffer_read.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_sampling_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -58,9 +55,7 @@ struct TileBuffer {
 };
 
 struct DenoiseSpatial {
-  [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
 
@@ -92,7 +87,10 @@ struct DenoiseSpatial {
   }
 
   /* Used for bilateral sampling. */
-  float sample_weight_get(float3 center_N, float3 center_P, int2 sample_texel) const
+  float sample_weight_get([[resource_table]] const gbuffer::Reader &reader,
+                          float3 center_N,
+                          float3 center_P,
+                          int2 sample_texel) const
   {
     int2 sample_texel_fullres = sample_texel * raytrace_buf.trace_pixel_scale +
                                 raytrace_buf.trace_pixel_offset;
@@ -100,12 +98,12 @@ struct DenoiseSpatial {
     float sample_depth = texelFetch(depth_tx, sample_texel_fullres, 0).r;
 
     float2 sample_uv = float2(sample_texel_fullres) * raytrace_buf.full_resolution_inv;
-    float3 sample_N = gbuffer::read_bin(sample_texel_fullres, closure_index).N;
+    float3 sample_N = reader.read_bin(sample_texel_fullres, closure_index).N;
     float3 sample_P = drw_point_screen_to_world(float3(sample_uv, sample_depth));
 
     /* TODO(fclem): Scene parameter. 10000.0f is dependent on scene scale. */
-    float depth_weight = filter_planar_weight(center_N, center_P, sample_P, 10000.0f);
-    float normal_weight = filter_angle_weight(center_N, sample_N);
+    float depth_weight = filters::planar_weight(center_N, center_P, sample_P, 10000.0f);
+    float normal_weight = filters::angle_weight(center_N, sample_N);
     /* Some pixels might have no correct weight (depth & normal weights being very small).
      * To avoid them have invalid energy (because of float precision),
      * we weight all valid samples by a very small amount. */
@@ -144,6 +142,8 @@ void transmission_thickness_amend_closure(ClosureUndetermined &cl, float3 &V, Th
   /* Metal: Provide compiler with hint to tune per-thread resource allocation. */
   metal_max_total_threads_per_threadgroup(316)]]
 void spatial_main([[resource_table]] DenoiseSpatial &srt,
+                  [[resource_table]] const gbuffer::Reader &reader,
+                  [[resource_table]] const Sampling &sampling,
                   [[work_group_id]] const uint3 work_group,
                   [[local_invocation_id]] const uint3 local_id)
 {
@@ -169,16 +169,16 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     /* Simple bilateral upsampling without any denoising. */
     float center_depth = texelFetch(srt.depth_tx, texel_fullres, 0).r;
     float2 center_uv = float2(texel_fullres) * raytrace_buf.full_resolution_inv;
-    float3 center_N = gbuffer::read_bin(texel_fullres, srt.closure_index).N;
+    float3 center_N = reader.read_bin(texel_fullres, srt.closure_index).N;
     float3 center_P = drw_point_screen_to_world(float3(center_uv, center_depth));
 
     float4 bilinear_weights = bilinear_weights_from_subpixel_coord(bilinear_co);
 
     float4 bilateral_weights = float4(
-        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(0, 1)),
-        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(1, 1)),
-        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(1, 0)),
-        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(0, 0)));
+        srt.sample_weight_get(reader, center_N, center_P, texel_nearest + int2(0, 1)),
+        srt.sample_weight_get(reader, center_N, center_P, texel_nearest + int2(1, 1)),
+        srt.sample_weight_get(reader, center_N, center_P, texel_nearest + int2(1, 0)),
+        srt.sample_weight_get(reader, center_N, center_P, texel_nearest + int2(0, 0)));
 
     float4 ray_pdf_inv = float4(imageLoad(srt.ray_data_img, texel_nearest + int2(0, 1)).w,
                                 imageLoad(srt.ray_data_img, texel_nearest + int2(1, 1)).w,
@@ -225,16 +225,16 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
       if (tile_is_unused) {
         int2 texel_fullres_neighbor = texel_fullres + int2(x, y) * int(tile_size);
 
-        if (in_texture_range(texel_fullres, gbuf_header_tx)) {
+        if (in_texture_range(texel_fullres, reader.gbuf_header_tx)) {
           srt.invalid_pixel_write(texel_fullres_neighbor);
         }
       }
     }
   }
 
-  gbuffer::Header gbuf_header = gbuffer::read_header(texel_fullres);
+  gbuffer::Header gbuf_header = reader.read_header(texel_fullres);
 
-  ClosureUndetermined closure = gbuffer::read_bin(texel_fullres, srt.closure_index);
+  ClosureUndetermined closure = reader.read_bin(texel_fullres, srt.closure_index);
 
   if (closure.type == CLOSURE_NONE_ID) {
     srt.invalid_pixel_write(texel_fullres);
@@ -242,7 +242,7 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   }
 
   float2 noise = utility_tx_fetch(utility_tx, float2(texel_fullres), UTIL_BLUE_NOISE_LAYER).ba;
-  noise = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+  noise = fract(noise + sampling.rng_1D_get(SAMPLING_CLOSURE));
 
   int2 center_sample_texel = texel_nearest;
   if (srt.raytrace_resolution_scale != 1) {
@@ -263,7 +263,7 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   float3 P = drw_point_view_to_world(vs_P);
   float3 V = drw_world_incident_vector(P);
 
-  Thickness thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
+  Thickness thickness = reader.read_thickness(gbuf_header, texel_fullres);
   if (thickness.value() != 0.0f) {
     transmission_thickness_amend_closure(closure, V, thickness);
   }
@@ -656,9 +656,7 @@ void temporal_main([[resource_table]] DenoiseTemporal &srt,
 }
 
 struct DenoiseBilateral {
-  [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo draw_view;
 
   [[sampler(1)]] sampler2DDepth depth_tx;
@@ -685,6 +683,8 @@ struct DenoiseBilateral {
  */
 [[compute, local_size(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)]]
 void bilateral_main([[resource_table]] DenoiseBilateral &srt,
+                    [[resource_table]] const Sampling &sampling,
+                    [[resource_table]] const gbuffer::Reader &reader,
                     [[work_group_id]] const uint3 work_group,
                     [[local_invocation_id]] const uint3 local_id)
 {
@@ -698,7 +698,7 @@ void bilateral_main([[resource_table]] DenoiseBilateral &srt,
   float center_depth = reverse_z::read(texelFetch(srt.depth_tx, texel_fullres, 0).r);
   float3 center_P = drw_point_screen_to_world(float3(center_uv, center_depth));
 
-  ClosureUndetermined center_closure = gbuffer::read_bin(texel_fullres, srt.closure_index);
+  ClosureUndetermined center_closure = reader.read_bin(texel_fullres, srt.closure_index);
 
   if (center_closure.type == CLOSURE_NONE_ID) {
     /* Output nothing. This shouldn't even be loaded. */
@@ -726,7 +726,7 @@ void bilateral_main([[resource_table]] DenoiseBilateral &srt,
 
   float2 noise = interleaved_gradient_noise(
       float2(texel_fullres) + 0.5f, float2(3, 5), float2(0.0f));
-  noise += sampling_rng_2D_get(SAMPLING_RAYTRACE_W);
+  noise += sampling.rng_2D_get(SAMPLING_RAYTRACE_W);
 
   /* In order to remove more fireflies, "tone-map" the color samples during the accumulation. */
   float3 accum_radiance = colorspace::log_from_scene_linear(in_radiance);
@@ -761,18 +761,18 @@ void bilateral_main([[resource_table]] DenoiseBilateral &srt,
       continue;
     }
 
-    ClosureUndetermined sample_closure = gbuffer::read_bin(sample_texel, srt.closure_index);
+    ClosureUndetermined sample_closure = reader.read_bin(sample_texel, srt.closure_index);
 
     if (sample_closure.type == CLOSURE_NONE_ID) {
       continue;
     }
 
-    float gauss = filter_gaussian_factor(filter_size, 1.5f);
+    float gauss = filters::gaussian_factor(filter_size, 1.5f);
 
     /* TODO(fclem): Scene parameter. 10000.0f is dependent on scene scale. */
-    float depth_weight = filter_planar_weight(center_closure.N, center_P, sample_P, 10000.0f);
-    float spatial_weight = filter_gaussian_weight(gauss, length_squared(float2(offset)));
-    float normal_weight = filter_angle_weight(center_closure.N, sample_closure.N);
+    float depth_weight = filters::planar_weight(center_closure.N, center_P, sample_P, 10000.0f);
+    float spatial_weight = filters::gaussian_weight(gauss, length_squared(float2(offset)));
+    float normal_weight = filters::angle_weight(center_closure.N, sample_closure.N);
     float weight = depth_weight * spatial_weight * normal_weight;
 
     accum_radiance += colorspace::log_from_scene_linear(radiance) * weight;

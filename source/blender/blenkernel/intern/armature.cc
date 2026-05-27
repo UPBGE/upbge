@@ -2560,6 +2560,29 @@ void BKE_pchan_protected_location_set(bPoseChannel *pchan, const float location[
   }
 }
 
+void BKE_pchan_protected_rotation_set(bPoseChannel *pchan, const float mat[3][3])
+{
+  switch (pchan->rotmode) {
+    case ROT_MODE_QUAT: {
+      float quat[4];
+      mat3_to_quat(quat, mat);
+      BKE_pchan_protected_rotation_quaternion_set(pchan, quat);
+      break;
+    }
+    case ROT_MODE_AXISANGLE:
+      float angle, axis[3];
+      mat3_to_axis_angle(axis, &angle, mat);
+      BKE_pchan_protected_rotation_axisangle_set(pchan, axis, angle);
+      break;
+
+    default:
+      float euler[3];
+      mat3_to_compatible_eulO(euler, pchan->eul, pchan->rotmode, mat);
+      BKE_pchan_protected_rotation_euler_set(pchan, euler);
+      break;
+  }
+}
+
 void BKE_pchan_protected_scale_set(bPoseChannel *pchan, const float scale[3])
 {
   if ((pchan->protectflag & OB_LOCK_SCALEX) == 0) {
@@ -2928,7 +2951,11 @@ void BKE_pose_channels_clear_with_null_bone(Object *armature_ob, const bool do_i
   for (bPoseChannel &pchan : pose->chanbase.items_mutable()) {
     Bone *bone = pchan.bone_get(*armature_ob);
     if (bone == nullptr) {
-      BKE_animdata_drivers_remove_for_rna_struct(armature_ob->id, *RNA_PoseBone, &pchan);
+      /* If `do_id_user` is false, we are working with copy on write data in which case we should
+       * not be deleting any drivers of missing bones. See #158665.  */
+      if (do_id_user) {
+        BKE_animdata_drivers_remove_for_rna_struct(armature_ob->id, *RNA_PoseBone, &pchan);
+      }
       BKE_pose_channel_free_ex(&pchan, do_id_user);
       BKE_pose_channels_hash_free(pose);
       BLI_freelinkN(&pose->chanbase, &pchan);

@@ -8,17 +8,17 @@
 
 #pragma once
 
+#include "eevee_hiz.bsl.hh"
 #include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(draw_view)
-SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 
 #include "draw_view_lib.glsl"
-#include "eevee_gbuffer_lib.glsl"
+#include "eevee_gbuffer_types.bsl.hh"
 #include "eevee_light_data.bsl.hh"
 #include "eevee_light_iter.bsl.hh"
-#include "eevee_light_lib.glsl"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_light_lib.bsl.hh"
+#include "eevee_sampling_lib.bsl.hh"
 #include "eevee_shadow_tracing.bsl.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
 
@@ -96,8 +96,6 @@ namespace eevee {
 
 struct ThicknessAmend {
   [[legacy_info]] ShaderCreateInfo draw_view;
-  [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
-  [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
 
   [[sampler(0)]] usampler2DArray gbuf_header_tx;
   [[image(0, read_write, UNORM_16_16)]] image2DArray gbuf_normal_img;
@@ -120,6 +118,7 @@ void amend_vert([[vertex_id]] const int vert_id,
 void amend_frag([[resource_table]] ThicknessAmend &srt,
                 [[resource_table]] ShadowRenderData &srd,
                 [[resource_table]] const LightRenderData &lrd,
+                [[resource_table]] const HiZ &hiz,
                 [[in]] const VertOut &v_out,
                 [[frag_coord]] const float4 frag_co)
 {
@@ -128,7 +127,7 @@ void amend_frag([[resource_table]] ThicknessAmend &srt,
   /* Bias the shading point position because of depth buffer precision.
    * Constant is taken from https://www.terathon.com/gdc07_lengyel.pdf. */
   constexpr float bias = 2.4e-7f;
-  const float depth = texelFetch(hiz_tx, texel, 0).r - bias;
+  const float depth = texelFetch(hiz.hiz_tx, texel, 0).r - bias;
 
   const float3 P = drw_point_screen_to_world(float3(v_out.uv, depth));
   const float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
@@ -142,13 +141,15 @@ void amend_frag([[resource_table]] ThicknessAmend &srt,
     return;
   }
 
+  [[resource_table]] const Sampling &sampling = srd.sampling;
+
   thickness::FromShadowEvalCtx ctx = {
       .P = P,
       .Ng = Ng,
       .gbuffer_thickness = gbuffer_thickness,
       .thickness_accum = 0.0f,
       .weight_accum = 0.0f,
-      .pcf_random = pcg4d(float4(frag_co.xyz, sampling_rng_1D_get(SAMPLING_SHADOW_X))).xy,
+      .pcf_random = pcg4d(float4(frag_co.xyz, sampling.rng_1D_get(SAMPLING_SHADOW_X))).xy,
   };
 
   light::foreach_visible(lrd, frag_co.xy, vPz, ctx, srd);
@@ -168,6 +169,8 @@ void amend_frag([[resource_table]] ThicknessAmend &srt,
   }
 }
 
-PipelineGraphic deferred_thickness_amend(amend_vert, amend_frag);
+PipelineGraphic deferred_thickness_amend(amend_vert,
+                                         amend_frag,
+                                         eevee::ShadowRenderData{.shadow_random = true});
 
 }  // namespace eevee

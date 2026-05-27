@@ -14,14 +14,13 @@
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
-FRAGMENT_SHADER_CREATE_INFO(eevee_volume_lib)
 
 #include "draw_curves_lib.glsl" /* IWYU pragma: export. For nodetree functions. */
 #include "draw_view_lib.glsl"   /* IWYU pragma: export. For nodetree functions. */
-#include "eevee_forward_lib.glsl"
+#include "eevee_forward_lib.bsl.hh"
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
-#include "eevee_sampling_lib.glsl"
+#include "eevee_sampling_lib.bsl.hh"
 #include "eevee_surf_common.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
 
@@ -30,6 +29,8 @@ Thickness g_thickness_forward;
 
 float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 {
+  [[resource_table]] const eevee::Sampling &sampling = resource_table_get(eevee::Sampling);
+
   const float2 frag_co = gl_FragCoord.xy;
 
   float3 radiance, transmittance;
@@ -37,13 +38,15 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 
   /* Reset for the next closure tree. */
   float noise = utility_tx_fetch(utility_tx, frag_co, UTIL_BLUE_NOISE_LAYER).r;
-  float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+  float closure_rand = fract(noise + sampling.rng_1D_get(SAMPLING_CLOSURE));
   closure_weights_reset(closure_rand);
 
 #if defined(MAT_TRANSPARENT) && defined(MAT_SHADER_TO_RGBA)
   { /* Limit resource guard to this scope. */
-    [[resource_table]] eevee::LightprobeRenderData &lightprobes = resource_table_get(
-        eevee::LightprobeRenderData);
+    /* Multiline macro breaks error line counting. */
+    /* clang-format off */
+    [[resource_table]] eevee::LightprobeRenderData &lightprobes = resource_table_get(eevee::LightprobeRenderData);
+    /* clang-format on */
     [[resource_table]] eevee::LightprobeSphereRenderData &lp_spheres = lightprobes.spheres;
 
     float3 V = -drw_world_incident_vector(g_data.P);
@@ -53,12 +56,15 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 
 #  ifndef MAT_FIRST_LAYER
     { /* Limit resource guard to this scope. */
+      /* Multiline macro breaks error line counting. */
+      /* clang-format off */
+      [[resource_table]] const eevee::PreviousLayerHiZ &prev_hiz = resource_table_get(eevee::PreviousLayerHiZ);
+      [[resource_table]] const eevee::PreviousLayerRadiance &prev_radiance = resource_table_get(eevee::PreviousLayerRadiance);
+      /* clang-format on */
+
       int2 texel = int2(frag_co);
-      const auto &prev_hiz_tx = sampler_get(eevee_hiz_prev_data, hiz_prev_tx);
-      const auto &prev_radiance_tx = sampler_get(eevee_previous_layer_radiance,
-                                                 previous_layer_radiance_tx);
-      if (texelFetchExtend(prev_hiz_tx, texel, 0).x != 1.0f) {
-        radiance_behind = texelFetch(prev_radiance_tx, texel, 0).xyz;
+      if (texelFetchExtend(prev_hiz.hiz_prev_tx, texel, 0).x != 1.0f) {
+        radiance_behind = texelFetch(prev_radiance.previous_layer_radiance_tx, texel, 0).xyz;
       }
     }
 #  endif
@@ -75,9 +81,6 @@ namespace eevee {
 struct SurfaceForward {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
-  [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
-  [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
-  [[legacy_info]] ShaderCreateInfo eevee_volume_lib;
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
@@ -104,6 +107,8 @@ void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
                   [[resource_table]] LightEvalIterator & /*lights*/,
                   [[resource_table]] LightprobeRenderData & /*lightprobes*/,
                   [[resource_table]] LightprobePlaneRenderData & /*lightprobe_planes*/,
+                  [[resource_table]] const UnifiedVolumeData &volumes,
+                  [[resource_table]] const Sampling &sampling,
                   [[frag_coord]] const float4 frag_co,
                   [[out]] SurfaceForwardFragOut &frag_out,
                   [[front_facing]] const bool front_face)
@@ -111,7 +116,7 @@ void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
   init_globals(front_face);
 
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
-  float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+  float closure_rand = fract(noise + sampling.rng_1D_get(SAMPLING_CLOSURE));
 
   fragment_displacement();
 
@@ -124,8 +129,7 @@ void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
 
   /* Volumetric resolve and compositing. */
   float2 uvs = gl_FragCoord.xy * uniform_buf.volumes.main_view_extent_inv;
-  VolumeResolveSample vol = volume_resolve(
-      float3(uvs, reverse_z::read(frag_co.z)), volume_transmittance_tx, volume_scattering_tx);
+  VolumeResolveSample vol = volumes.resolve(float3(uvs, reverse_z::read(frag_co.z)));
   /* Removes the part of the volume scattering that has
    * already been added to the destination pixels by the opaque resolve.
    * Since we do that using the blending pipeline we need to account for material transmittance. */
