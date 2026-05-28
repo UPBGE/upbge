@@ -10,7 +10,9 @@
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_mutex.hh"
+#include "BLI_string_ref.hh"
 
 #include "IMB_imbuf_enums.h"
 
@@ -574,6 +576,15 @@ int BKE_image_find_nearest_tile_with_offset(const Image *image,
                                             float r_uv_offset[2]) ATTR_NONNULL(2, 3);
 int BKE_image_find_nearest_tile(const Image *image, const float co[2])
     ATTR_NONNULL(2) ATTR_WARN_UNUSED_RESULT;
+
+/**
+ * Iterate over Cycles texture cache associated with #source_filepath_abs, in
+ * texture cache directory #cache_dir.
+ */
+void BKE_image_texture_cache_filepaths_foreach(
+    const char *source_filepath_abs,
+    const char *cache_dir,
+    blender::FunctionRef<void(blender::StringRef cache_filepath)> callback);
 
 void BKE_image_get_size(Image *image, ImageUser *iuser, int *r_width, int *r_height);
 void BKE_image_get_size_fl(Image *image, ImageUser *iuser, float r_size[2]);

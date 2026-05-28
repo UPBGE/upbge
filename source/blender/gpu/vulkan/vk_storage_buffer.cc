@@ -103,10 +103,13 @@ void VKStorageBuffer::allocate()
                    VMA_ALLOCATION_CREATE_MAPPED_BIT;
   }
 
-  buffer_.create(size_in_bytes_, buffer_usage_flags, vma_usage, alloc_flags, 0.8f);
-  if (buffer_.is_allocated()) {
-    debug::object_label(buffer_.vk_handle(), name_);
-  }
+  buffer_.create(size_in_bytes_,
+                 buffer_usage_flags,
+                 vma_usage,
+                 alloc_flags,
+                 0.8f,
+                 false,
+                 name_);
 }
 
 void VKStorageBuffer::bind(int slot)

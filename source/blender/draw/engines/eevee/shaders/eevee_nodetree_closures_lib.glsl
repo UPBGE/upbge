@@ -5,10 +5,6 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
-#include "infos/eevee_uniform_infos.hh"
-
-SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
-SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_vector_reduce_lib.glsl"

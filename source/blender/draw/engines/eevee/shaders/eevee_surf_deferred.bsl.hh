@@ -27,13 +27,13 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 float4 closure_to_rgba(Closure /*cl*/)
 {
   [[resource_table]] const eevee::Sampling &sampling = resource_table_get(eevee::Sampling);
-
+  [[resource_table]] const UtilityTexture &util_tx = resource_table_get(UtilityTexture);
   float4 out_color;
   out_color.rgb = g_emission;
   out_color.a = saturate(1.0f - average(g_transmittance));
 
   /* Reset for the next closure tree. */
-  float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
+  float noise = util_tx.fetch(gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
   float closure_rand = fract(noise + sampling.rng_1D_get(SAMPLING_CLOSURE));
   closure_weights_reset(closure_rand);
 
@@ -43,8 +43,6 @@ float4 closure_to_rgba(Closure /*cl*/)
 namespace eevee {
 
 struct SurfaceDeferred {
-  [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
@@ -94,14 +92,16 @@ void surf_deferred([[resource_table]] PipelineConstants &pipe,
                    [[resource_table]] gbuffer::PackParameters &gbuf_params,
                    [[resource_table]] RenderPassOutput &render_passes,
                    [[resource_table]] CryptomatteOutput &cryptomatte,
+                   [[resource_table]] const Uniform &uni,
                    [[resource_table]] const Sampling &sampling,
+                   [[resource_table]] const UtilityTexture &util_tx,
                    [[frag_coord]] const float4 frag_co,
                    [[out]] DeferredFragOut &frag_out,
                    [[front_facing]] const bool front_face)
 {
-  init_globals(front_face);
+  init_globals(uni, front_face);
 
-  float noise = utility_tx_fetch(utility_tx, frag_co.xy, UTIL_BLUE_NOISE_LAYER).r;
+  float noise = util_tx.fetch(frag_co.xy, UTIL_BLUE_NOISE_LAYER).r;
   float closure_rand = fract(noise + sampling.rng_1D_get(SAMPLING_CLOSURE));
 
   fragment_displacement();
@@ -141,12 +141,16 @@ void surf_deferred([[resource_table]] PipelineConstants &pipe,
     const auto &nt = buffer_get(eevee_nodetree, node_tree);
     cryptomatte.store(out_texel, nt.crypto_hash, drw_resource_id());
     render_passes.store_color(
-        out_texel, uniform_buf.render_pass.emission_id, float4(g_emission, 1.0f));
+        out_texel, uni.uniform_buf.render_pass.emission_id, float4(g_emission, 1.0f));
   }
 
   /* ----- GBuffer output ----- */
 
   gbuffer::InputClosures gbuf_data;
+  /* Make sure we we do not read uninitialized data (see #159161). */
+  if (pipe.closure_bin_count == 0) [[static_branch]] {
+    gbuf_data.closure[0] = ClosureUndetermined{};
+  }
   for (int i = 0; i < 3; i++) [[unroll]] {
     if (pipe.closure_bin_count > i) [[static_branch]] {
       gbuf_data.closure[i] = g_closure_get_resolved(i, alpha_rcp);
@@ -208,7 +212,7 @@ void surf_deferred([[resource_table]] PipelineConstants &pipe,
     defined(GBUFFER_HAS_TRANSLUCENT)
   if (flag_test(gbuf.used_layers, ADDITIONAL_DATA)) {
     srt.write_normal_data(
-        out_texel, pipeline_buf.gbuffer_additional_data_layer_id, gbuf.additional_info);
+        out_texel, uni.pipeline_buf.gbuffer_additional_data_layer_id, gbuf.additional_info);
   }
 #endif
 

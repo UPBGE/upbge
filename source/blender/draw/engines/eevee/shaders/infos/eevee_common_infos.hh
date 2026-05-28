@@ -7,11 +7,9 @@
 #  include "gpu_shader_compat.hh"
 
 #  include "draw_view_infos.hh"
-#  include "eevee_uniform_infos.hh"
 #endif
 
 #ifdef GLSL_CPP_STUBS
-#  define MAT_CLIP_PLANE
 #  define MAT_TRANSPARENT
 #  define MAT_RAYCAST
 #endif
@@ -22,10 +20,6 @@
 /* -------------------------------------------------------------------- */
 /** \name Common
  * \{ */
-
-GPU_SHADER_CREATE_INFO(eevee_utility_texture)
-SAMPLER(RBUFS_UTILITY_TEX_SLOT, sampler2DArray, utility_tx)
-GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_raycast)
 DEFINE("MAT_RAYCAST")

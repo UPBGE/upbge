@@ -101,6 +101,7 @@ ccl_device
                           ccl_private float *ccl_restrict stack,
                           Spectrum closure_weight,
                           const ccl_global SVMNodeClosureBsdf &ccl_restrict node,
+                          const PathRayVisibility ray_visibility,
                           const uint32_t path_flag,
                           int offset)
 {
@@ -170,9 +171,9 @@ ccl_device
 
 #ifdef __CAUSTICS_TRICKS__
       const bool reflective_caustics = (kernel_data.integrator.caustics_reflective ||
-                                        (path_flag & PATH_RAY_DIFFUSE) == 0);
+                                        (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE) == 0);
       const bool refractive_caustics = (kernel_data.integrator.caustics_refractive ||
-                                        (path_flag & PATH_RAY_DIFFUSE) == 0);
+                                        (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE) == 0);
 #else
       const bool reflective_caustics = true;
       const bool refractive_caustics = true;
@@ -536,7 +537,9 @@ ccl_device
           kg, &offset);
 
 #ifdef __CAUSTICS_TRICKS__
-      if (!kernel_data.integrator.caustics_reflective && (path_flag & PATH_RAY_DIFFUSE)) {
+      if (!kernel_data.integrator.caustics_reflective &&
+          (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE))
+      {
         break;
       }
 #endif
@@ -638,7 +641,9 @@ ccl_device
           kg, &offset);
 
 #ifdef __CAUSTICS_TRICKS__
-      if (!kernel_data.integrator.caustics_reflective && (path_flag & PATH_RAY_DIFFUSE)) {
+      if (!kernel_data.integrator.caustics_reflective &&
+          (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE))
+      {
         break;
       }
 #endif
@@ -709,7 +714,9 @@ ccl_device
           svm_node_get<SVMNodeRefractionBsdfData>(kg, &offset);
 
 #ifdef __CAUSTICS_TRICKS__
-      if (!kernel_data.integrator.caustics_refractive && (path_flag & PATH_RAY_DIFFUSE)) {
+      if (!kernel_data.integrator.caustics_refractive &&
+          (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE))
+      {
         break;
       }
 #endif
@@ -751,9 +758,9 @@ ccl_device
 
 #ifdef __CAUSTICS_TRICKS__
       const bool reflective_caustics = (kernel_data.integrator.caustics_reflective ||
-                                        (path_flag & PATH_RAY_DIFFUSE) == 0);
+                                        (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE) == 0);
       const bool refractive_caustics = (kernel_data.integrator.caustics_refractive ||
-                                        (path_flag & PATH_RAY_DIFFUSE) == 0);
+                                        (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE) == 0);
       if (!(reflective_caustics || refractive_caustics)) {
         break;
       }
@@ -847,7 +854,7 @@ ccl_device
 
 #ifdef __CAUSTICS_TRICKS__
       if (type == CLOSURE_BSDF_GLOSSY_TOON_ID && !kernel_data.integrator.caustics_reflective &&
-          (path_flag & PATH_RAY_DIFFUSE))
+          (ray_visibility & PATH_RAY_VISIBILITY_DIFFUSE))
       {
         break;
       }
@@ -997,13 +1004,15 @@ ccl_device
 
           /* For camera ray, check if the hair covers more than one pixel, in which case a
            * nearfield model is needed to prevent ribbon-like appearance. */
-          if ((path_flag & PATH_RAY_CAMERA) && (sd->type & PRIMITIVE_CURVE)) {
+          if ((ray_visibility & PATH_RAY_VISIBILITY_CAMERA) && (sd->type & PRIMITIVE_CURVE)) {
             /* Interpolate radius between curve keys. */
             const KernelCurve kcurve = kernel_data_fetch(curves, sd->prim);
             const int k0 = kcurve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
             const int k1 = k0 + 1;
-            const float radius = mix(
-                kernel_data_fetch(curve_keys, k0).w, kernel_data_fetch(curve_keys, k1).w, sd->u);
+            const int position_offset = kernel_data_fetch(objects, sd->object).position_offset;
+            const float radius = mix(kernel_data_fetch(attributes_float4, position_offset + k0).w,
+                                     kernel_data_fetch(attributes_float4, position_offset + k1).w,
+                                     sd->u);
 
             bsdf->extra->pixel_coverage = 0.5f * sd->dP / radius;
           }
@@ -1222,7 +1231,7 @@ ccl_device_noinline void svm_node_volume_coefficients(
     ccl_private float *ccl_restrict stack,
     Spectrum scatter_coeffs,
     const ccl_global SVMNodeVolumeCoefficients &ccl_restrict node,
-    const uint32_t path_flag)
+    const PathRayVisibility path_visibility)
 {
 #ifdef __VOLUME__
   /* Only sum extinction for volumes, variable is shared with surface transparency. */
@@ -1249,7 +1258,7 @@ ccl_device_noinline void svm_node_volume_coefficients(
 
   const float3 emission_coeffs = stack_load(stack, node.emission_coeffs);
   /* Compute emission. */
-  if (path_flag & PATH_RAY_SHADOW) {
+  if (path_visibility & PATH_RAY_VISIBILITY_SHADOW) {
     /* Don't need emission for shadows. */
     return;
   }
@@ -1269,7 +1278,7 @@ ccl_device_noinline void svm_node_principled_volume(
     ccl_private float *ccl_restrict stack,
     const Spectrum closure_weight,
     const ccl_global SVMNodePrincipledVolume &ccl_restrict node,
-    const uint32_t path_flag)
+    const PathRayVisibility path_visibility)
 {
 #ifdef __VOLUME__
   /* Only sum extinction for volumes, variable is shared with surface transparency. */
@@ -1328,7 +1337,7 @@ ccl_device_noinline void svm_node_principled_volume(
   }
 
   /* Compute emission. */
-  if (path_flag & PATH_RAY_SHADOW) {
+  if (path_visibility & PATH_RAY_VISIBILITY_SHADOW) {
     /* Don't need emission for shadows. */
     return;
   }

@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_closure_signature.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
@@ -15,6 +16,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
+#include "BKE_node_tree_reference_lifetimes.hh"
 
 #include "RNA_access.hh"
 
@@ -39,19 +41,17 @@ void build_node_declaration(const bke::bNodeType &typeinfo,
 
 void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
 {
-  auto is_data_socket_decl = [](const SocketDeclaration *socket_decl) {
-    return ELEM(socket_decl->socket_type, SOCK_GEOMETRY, SOCK_BUNDLE, SOCK_CLOSURE);
-  };
+  using bke::node_tree_reference_lifetimes::can_contain_referenced_data;
 
   Vector<int> data_inputs;
   for (const int i : declaration_.inputs.index_range()) {
-    if (is_data_socket_decl(declaration_.inputs[i])) {
+    if (can_contain_referenced_data(declaration_.inputs[i]->socket_type)) {
       data_inputs.append(i);
     }
   }
   Vector<int> data_outputs;
   for (const int i : declaration_.outputs.index_range()) {
-    if (is_data_socket_decl(declaration_.outputs[i])) {
+    if (can_contain_referenced_data(declaration_.outputs[i]->socket_type)) {
       data_outputs.append(i);
     }
   }
@@ -79,7 +79,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       for (const int input_i : declaration_.inputs.index_range()) {
         SocketDeclaration &input_socket_decl = *declaration_.inputs[input_i];
         if (ELEM(input_socket_decl.structure_type, StructureType::Field, StructureType::Dynamic) ||
-            ELEM(input_socket_decl.socket_type, SOCK_BUNDLE, SOCK_CLOSURE))
+            ELEM(input_socket_decl.socket_type, SOCK_GEOMETRY, SOCK_BUNDLE, SOCK_CLOSURE))
         {
           relations.reference_propagations.append({input_i, reference_output});
         }
@@ -90,6 +90,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       const int data_output = socket_builder->decl_base_->index;
       for (const int data_input : data_inputs) {
         relations.data_propagations.append({data_input, data_output});
+        relations.reference_propagations.append({data_input, data_output});
       }
     }
     if (socket_builder->propagate_all_input_data_from_geometry_) {
@@ -98,6 +99,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
       for (const int i : declaration_.inputs.index_range()) {
         if (declaration_.inputs[i]->socket_type == SOCK_GEOMETRY) {
           relations.data_propagations.append({i, data_output});
+          relations.reference_propagations.append({i, data_output});
         }
       }
     }
@@ -728,8 +730,8 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::evaluated_geometry_f
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::anonymous_attribute_output()
 {
   BLI_assert(this->is_output());
-  /* The corresponding relations are build after all socket declarations are known. */
-  output_reference_available_on_all_data_ = true;
+  decl_base_->is_anonymous_attribute_output = true;
+  this->references_other_outputs();
   decl_base_->structure_type = StructureType::Field;
   return *this;
 }
@@ -738,14 +740,31 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::anonymous_attribute_
     const Span<int> geometry_output_indices)
 {
   BLI_assert(this->is_output());
+  decl_base_->is_anonymous_attribute_output = true;
+  this->references_other_outputs(geometry_output_indices);
+  decl_base_->structure_type = StructureType::Field;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::references_other_outputs()
+{
+  BLI_assert(this->is_output());
+  /* The corresponding relations are build after all socket declarations are known. */
+  output_reference_available_on_all_data_ = true;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::references_other_outputs(
+    const Span<int> output_indices)
+{
+  BLI_assert(this->is_output());
   rl::RelationsInNode &relations = node_decl_builder_->get_reference_lifetime_relations();
-  for (const int index : geometry_output_indices) {
+  for (const int index : output_indices) {
     rl::AvailableRelation relation;
     relation.data_output = index;
     relation.reference_output = decl_base_->index;
     relations.available_relations.append(relation);
   }
-  decl_base_->structure_type = StructureType::Field;
   return *this;
 }
 
@@ -1117,6 +1136,8 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaul
       return std::nullopt;
     case NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES:
       return std::nullopt;
+    case NODE_DEFAULT_INPUT_SELF_OBJECT:
+      return std::nullopt;
   }
   return std::nullopt;
 }
@@ -1142,6 +1163,8 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
       return stype == SOCK_MATRIX;
     case NODE_DEFAULT_INPUT_UNIFORM_IMAGE_COORDINATES:
       return stype == SOCK_VECTOR;
+    case NODE_DEFAULT_INPUT_SELF_OBJECT:
+      return stype == SOCK_OBJECT;
   }
   return false;
 }
@@ -1159,6 +1182,7 @@ bool node_tree_type_supports_default_input_type(eNodeTree_Type node_tree_type,
     case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
     case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
     case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
+    case NODE_DEFAULT_INPUT_SELF_OBJECT:
       return node_tree_type == NTREE_GEOMETRY;
     case NODE_DEFAULT_INPUT_SCENE_FRAME:
       return ELEM(node_tree_type, NTREE_COMPOSIT, NTREE_GEOMETRY);

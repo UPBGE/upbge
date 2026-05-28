@@ -300,8 +300,13 @@ void VKVertexBuffer::allocate()
     alloc_flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
   }
 
-  buffer_.create(size_alloc_get(), vk_buffer_usage, vma_usage, alloc_flags, 0.8f);
-  debug::object_label(buffer_.vk_handle(), "VertexBuffer");
+  buffer_.create(size_alloc_get(),
+                 vk_buffer_usage,
+                 vma_usage,
+                 alloc_flags,
+                 0.8f,
+                 false,
+                 "VertexBuffer");
 }
 
 }  // namespace gpu
