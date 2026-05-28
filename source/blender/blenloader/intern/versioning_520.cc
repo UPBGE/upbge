@@ -40,6 +40,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
 
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
@@ -218,7 +219,7 @@ static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree
   node_tree.ensure_interface_cache();
   Set<StringRef> all_identifiers;
   for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
-    if (item->item_type == NODE_INTERFACE_PANEL) {
+    if (item->item_type == NodeTreeInterfaceItemType::Panel) {
       continue;
     }
     auto &socket = *bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
@@ -291,6 +292,24 @@ static void version_text_strip_space_line(Main &bmain)
   }
 }
 
+static void version_compositor_effect_initialized(Main &bmain)
+{
+  /* A file with compositor effects that was saved, opened in
+   * previous version and saved there, would have lost the
+   * compositor effect data since ealier versions would not
+   * write it. Ensure the effect data is not null. */
+  for (Scene &scene : bmain.scenes) {
+    if (scene.ed) {
+      seq::foreach_strip(&scene.ed->seqbase, [&](Strip *strip) {
+        if (strip->type == STRIP_TYPE_COMPOSITOR) {
+          seq::effect_ensure_initialized(strip);
+        }
+        return true;
+      });
+    }
+  }
+}
+
 static void fix_single_point_curves_custom_knots(Main *bmain)
 {
   /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
@@ -356,7 +375,7 @@ static void enable_compositor_nodes_is_strip_modifier(Main &bmain)
     bool has_image_input = false;
     bool has_image_output = false;
     group.tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-      if (item.item_type != NODE_INTERFACE_SOCKET) {
+      if (item.item_type != NodeTreeInterfaceItemType::Socket) {
         /* Continue. */
         return true;
       }
@@ -688,6 +707,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
     version_text_strip_space_line(*bmain);
+    version_compositor_effect_initialized(*bmain);
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {

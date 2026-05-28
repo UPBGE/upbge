@@ -15,6 +15,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 #include "eevee_attributes_pointcloud_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
+#include "eevee_sampling_shared.hh" /* TODO(fclem): Remove. Needed becaused of fragment shader. */
 #include "eevee_surf_common.bsl.hh"
 #include "eevee_velocity.bsl.hh"
 
@@ -40,7 +41,7 @@ struct GeomPointCloud {
     [[resource_table, condition(is_shadow_pipe)]] GeomShadow &shadow,
     [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
     [[base_instance]] const int /*base_inst*/, /* Used by model_lib. */
-    [[vertex_id]] const int vert_id,
+    [[vertex_id]] const int /*vert_id*/,
     [[position]] float4 &out_position,
     /* Note: Removed manually if not needed. Otherwise, can generate geometry shader fallback. */
     [[viewport_index]] int &out_viewport)
@@ -49,8 +50,10 @@ struct GeomPointCloud {
 
   auto &interp = interface_get(eevee_geom_iface_info, interp);
   auto &pointcloud_interp = interface_get(eevee_geom_pointcloud_iface_info, pointcloud_interp);
-  auto &pointcloud_interp_flat = interface_get(eevee_geom_pointcloud_iface_info,
-                                               pointcloud_interp_flat);
+
+  /* clang-format off */ /* Multiline macro breaks error line counting. */
+  auto &pointcloud_interp_flat = interface_get(eevee_geom_pointcloud_iface_info, pointcloud_interp_flat);
+  /* clang-format on */
 
   if (pipe.is_shadow_pipe) [[static_branch]] {
     auto &shadow_iface = interface_get(eevee_shadow_iface_info, shadow_iface);
@@ -82,16 +85,19 @@ struct GeomPointCloud {
   }
 
   if (pipe.use_velocity) [[static_branch]] {
-    auto &motion = interface_get(eevee_velocity_geom, motion);
+    /* clang-format off */ /* Multiline define messes up line index. */
+    [[resource_table]] const GeometryVelocity &geo_vel = resource_table_get(eevee::GeometryVelocity);
+    /* clang-format on */
+    auto &motion = interface_get(eevee_velocity_iface_info, motion);
     float3 lP = drw_point_world_to_object(pointcloud_interp.position);
     float3 prv, nxt;
-    velocity::local_position_deltas(lP, pointcloud_interp_flat.id, prv, nxt, drw_resource_id());
+    geo_vel.local_position_deltas(lP, pointcloud_interp_flat.id, prv, nxt, drw_resource_id());
     /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
      * ignores motion from animated displacement. Supporting animated displacement motion vectors
      * would require evaluating the nodetree multiple time with different nodetree UBOs evaluated
      * at different times, but also with different attributes (maybe we could assume static
      * attribute at least). */
-    velocity::vertex_velocity(
+    geo_vel.vertex_velocity(
         prv, lP, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
   }
 

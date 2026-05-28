@@ -92,6 +92,9 @@
 #include "BLT_lang.hh"
 #include "BPY_extern_python.hh"
 #include "BPY_extern_run.hh"
+#ifdef WITH_CYCLES
+#  include "CCL_api.h"
+#endif
 #include "CLG_log.h"
 #include "DEG_depsgraph.hh"
 #include "DNA_genfile.h"
@@ -107,13 +110,10 @@
 #include "ED_space_api.hh"
 #include "ED_undo.hh"
 #include "ED_util.hh"
+#include "FN_init.hh"
 #include "GHOST_ISystem.hh"
 #include "GHOST_ISystemPaths.hh"
-#include "FN_init.hh"
 #include "GPU_context.hh"
-#ifdef WITH_CYCLES
-#  include "CCL_api.h"
-#endif
 #include "GPU_init_exit.hh"
 #include "GPU_material.hh"
 #include "IMB_imbuf.hh"
@@ -126,7 +126,6 @@
 #include "UI_interface.hh"
 #include "wm.hh"
 #include "wm_event_system.hh"
-
 #include "wm_message_bus.hh"
 #include "wm_surface.hh"
 #include "wm_window.hh"
