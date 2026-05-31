@@ -884,9 +884,9 @@ static void rna_Object_dup_collection_set(PointerRNA *ptr,
 
   /* Must not let this be set if the object belongs in this group already,
    * thus causing a cycle/infinite-recursion leading to crashes on load #25298. */
-  if (BKE_collection_has_object_recursive(grp, ob) == 0) {
+  if (BKE_collection_has_object_recursive_instanced(grp, ob) == 0) {
     if (ob->type == OB_EMPTY) {
-      id_us_min(&ob->instance_collection->id);
+      id_us_min(id_cast<ID *>(ob->instance_collection));
       ob->instance_collection = grp;
       id_us_plus(&ob->instance_collection->id);
     }
@@ -895,11 +895,10 @@ static void rna_Object_dup_collection_set(PointerRNA *ptr,
     }
   }
   else {
-    BKE_report(
-        nullptr,
-        RPT_ERROR,
-        "Cannot set instance-collection as object belongs in collection being instanced, thus "
-        "causing a cycle");
+    BKE_report(nullptr,
+               RPT_ERROR,
+               "Cannot set instance-collection as object belongs (directly or indirectly) in "
+               "collection being instanced, thus causing a dependency cycle");
   }
 }
 
@@ -2175,9 +2174,9 @@ bool rna_Object_modifiers_override_apply(Main *bmain,
      * modifier).
      *
      * Try to handle this by finding already existing one here. */
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(mod_src->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(mod_src->type);
     if (mti->flags & eModifierTypeFlag_Single) {
-      mod_dst = BKE_modifiers_findby_type(ob_dst, ModifierType(mod_src->type));
+      mod_dst = BKE_modifiers_findby_type(ob_dst, mod_src->type);
     }
 
     if (mod_dst == nullptr) {
