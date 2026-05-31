@@ -575,8 +575,19 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   }
 
   /* Set uniforms (push constants) */
-  GPU_shader_uniform_1f(shader, "u_startx", wmd->startx);
-  GPU_shader_uniform_1f(shader, "u_starty", wmd->starty);
+  float wmd_startx = wmd->startx;
+  float wmd_starty = wmd->starty;
+  if (wmd->objectcenter != nullptr) {
+    float mat[4][4];
+    /* get the control object's location in local coordinates */
+    invert_m4_m4(deformed_eval->runtime->world_to_object.ptr(), deformed_eval->object_to_world().ptr());
+    mul_m4_m4m4(mat, deformed_eval->runtime->world_to_object.ptr(), wmd->objectcenter->object_to_world().ptr());
+
+    wmd_startx = mat[3][0];
+    wmd_starty = mat[3][1];
+  }
+  GPU_shader_uniform_1f(shader, "u_startx", wmd_startx);
+  GPU_shader_uniform_1f(shader, "u_starty", wmd_starty);
   GPU_shader_uniform_1f(shader, "u_time", ctime);
   GPU_shader_uniform_1f(shader, "u_timeoffs", wmd->timeoffs);
   GPU_shader_uniform_1f(shader, "u_speed", wmd->speed);

@@ -276,7 +276,7 @@ ccl_device bool compute_emitter_centroid_and_dir(KernelGlobals kg,
     kernel_assert(is_triangle(kemitter));
     const int object = kemitter->object_id;
     float3 vertices[3];
-    triangle_vertices(kg, kemitter->triangle.id, vertices);
+    triangle_vertices(kg, object, kemitter->triangle.id, vertices);
     centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0f;
 
     const bool is_front_only = (kemitter->triangle.emission_sampling == EMISSION_SAMPLING_FRONT);
@@ -931,12 +931,13 @@ ccl_device float light_tree_pdf(KernelGlobals kg,
                                 float3 P,
                                 const float3 N,
                                 const float dt,
+                                const PathRayVisibility path_visibility,
                                 const uint32_t path_flag,
                                 const int emitter_object,
                                 const uint emitter_id,
                                 const int object_receiver)
 {
-  if (path_flag & PATH_RAY_VOLUME_SCATTER) {
+  if (path_visibility & PATH_RAY_VISIBILITY_VOLUME_SCATTER) {
     const float3 D_times_t = N;
     const float3 D = normalize(D_times_t);
     P = P - D_times_t;

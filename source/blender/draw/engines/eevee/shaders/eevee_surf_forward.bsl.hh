@@ -30,6 +30,7 @@ Thickness g_thickness_forward;
 float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 {
   [[resource_table]] const eevee::Sampling &sampling = resource_table_get(eevee::Sampling);
+  [[resource_table]] const UtilityTexture &util_tx = resource_table_get(UtilityTexture);
 
   const float2 frag_co = gl_FragCoord.xy;
 
@@ -37,7 +38,7 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
   eevee::forward_lighting_eval(g_thickness_forward, frag_co, radiance, transmittance);
 
   /* Reset for the next closure tree. */
-  float noise = utility_tx_fetch(utility_tx, frag_co, UTIL_BLUE_NOISE_LAYER).r;
+  float noise = util_tx.fetch(frag_co, UTIL_BLUE_NOISE_LAYER).r;
   float closure_rand = fract(noise + sampling.rng_1D_get(SAMPLING_CLOSURE));
   closure_weights_reset(closure_rand);
 
@@ -79,8 +80,6 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 namespace eevee {
 
 struct SurfaceForward {
-  [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
-  [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_geom_iface_info;
 
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
@@ -108,14 +107,16 @@ void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
                   [[resource_table]] LightprobeRenderData & /*lightprobes*/,
                   [[resource_table]] LightprobePlaneRenderData & /*lightprobe_planes*/,
                   [[resource_table]] const UnifiedVolumeData &volumes,
+                  [[resource_table]] const Uniform &uni,
                   [[resource_table]] const Sampling &sampling,
+                  [[resource_table]] const UtilityTexture &util_tx,
                   [[frag_coord]] const float4 frag_co,
                   [[out]] SurfaceForwardFragOut &frag_out,
                   [[front_facing]] const bool front_face)
 {
-  init_globals(front_face);
+  init_globals(uni, front_face);
 
-  float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
+  float noise = util_tx.fetch(gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
   float closure_rand = fract(noise + sampling.rng_1D_get(SAMPLING_CLOSURE));
 
   fragment_displacement();
@@ -128,7 +129,7 @@ void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
   eevee::forward_lighting_eval(g_thickness_forward, gl_FragCoord.xy, radiance, transmittance);
 
   /* Volumetric resolve and compositing. */
-  float2 uvs = gl_FragCoord.xy * uniform_buf.volumes.main_view_extent_inv;
+  float2 uvs = gl_FragCoord.xy * uni.uniform_buf.volumes.main_view_extent_inv;
   VolumeResolveSample vol = volumes.resolve(float3(uvs, reverse_z::read(frag_co.z)));
   /* Removes the part of the volume scattering that has
    * already been added to the destination pixels by the opaque resolve.
@@ -149,7 +150,7 @@ void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
   /* There can be 2 frame-buffer layout for forward transparency:
    * - Combined RGB radiance with Monochromatic transmittance.
    * - Channel split RGB radiance & RGB transmittance + Dedicated average alpha with holdout. */
-  if (pipeline_buf.use_monochromatic_transmittance) {
+  if (uni.pipeline_buf.use_monochromatic_transmittance) {
     frag_out.combined_r = float4(radiance.rgb, transmittance.r);
   }
   else {

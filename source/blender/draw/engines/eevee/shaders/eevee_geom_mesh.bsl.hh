@@ -14,7 +14,6 @@ VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 #include "eevee_attributes_mesh_lib.glsl"
 #include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.bsl.hh"
-#include "eevee_sampling_shared.hh" /* TODO(fclem): Remove. Needed becaused of fragment shader. */
 #include "eevee_surf_common.bsl.hh"
 #include "eevee_velocity.bsl.hh"
 
@@ -37,6 +36,7 @@ struct GeomMeshVertIn {
 [[vertex]] [[clip_control]] void geom_mesh(
     [[resource_table]] const PipelineConstants &pipe,
     [[resource_table]] const GeomMesh & /*srt*/,
+    [[resource_table]] const Uniform &uni,
     [[resource_table, condition(is_shadow_pipe)]] const GeomShadow &shadow,
     [[in]] const GeomMeshVertIn &vert_in,
     [[instance_id]] const int /*inst_id*/,     /* Used by model_lib. */
@@ -77,7 +77,7 @@ struct GeomMeshVertIn {
         prv, vert_in.pos, nxt, motion.prev, motion.next, drw_resource_id(), drw_modelmat());
   }
 
-  init_globals(true);
+  init_globals(uni, true);
   attrib_load(MeshVertex{vert_in.pos});
 
   interp.P += nodetree_displacement();

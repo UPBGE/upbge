@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_vector.hh"
+#include "BLI_profile.hh"
 #include "BLI_task.hh"
 
 #include "DNA_scene_types.h"
@@ -197,27 +198,28 @@ static void do_glow_effect_float(Strip *strip,
                    glow->dQuality);
 }
 
-static ImBuf *do_glow_effect(const RenderData *context,
-                             SeqRenderState * /*state*/,
-                             Strip *strip,
-                             float /*timeline_frame*/,
-                             float fac,
-                             ImBuf *ibuf1,
-                             ImBuf *ibuf2)
+static SeqResult do_glow_effect(const RenderData *context,
+                                SeqRenderState * /*state*/,
+                                Strip *strip,
+                                float /*timeline_frame*/,
+                                float fac,
+                                const SeqResult &ibuf1,
+                                const SeqResult & /*ibuf2*/)
 {
-  ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2);
+  BLI_profile_scope_with_name("SeqFxGlow", ProfileCategory::Draw);
+  SeqResult out = prepare_effect_imbufs(context, ibuf1, {});
 
   int render_size = 100 * context->rectx / context->scene->r.xsch;
 
-  if (out->float_data()) {
+  if (out.image->float_data()) {
     do_glow_effect_float(strip,
                          render_size,
                          fac,
                          context->rectx,
                          context->recty,
-                         ibuf1->float_data(),
+                         ibuf1.image->float_data(),
                          nullptr,
-                         out->float_data_for_write());
+                         out.image->float_data_for_write());
   }
   else {
     do_glow_effect_byte(strip,
@@ -225,9 +227,9 @@ static ImBuf *do_glow_effect(const RenderData *context,
                         fac,
                         context->rectx,
                         context->recty,
-                        ibuf1->byte_data(),
+                        ibuf1.image->byte_data(),
                         nullptr,
-                        out->byte_data_for_write());
+                        out.image->byte_data_for_write());
   }
 
   return out;

@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_profile.hh"
+
 #include "DNA_sequence_types.h"
 
 #include "IMB_imbuf.hh"
@@ -44,18 +46,21 @@ struct CrossEffectOp {
   float factor;
 };
 
-static ImBuf *do_cross_effect(const RenderData *context,
-                              SeqRenderState * /*state*/,
-                              Strip * /*strip*/,
-                              float /*timeline_frame*/,
-                              float fac,
-                              ImBuf *src1,
-                              ImBuf *src2)
+static SeqResult do_cross_effect(const RenderData *context,
+                                 SeqRenderState * /*state*/,
+                                 Strip * /*strip*/,
+                                 float /*timeline_frame*/,
+                                 float fac,
+                                 const SeqResult &src1,
+                                 const SeqResult &src2)
 {
-  ImBuf *dst = prepare_effect_imbufs(context, src1, src2);
+  BLI_profile_scope_with_name("SeqFxCross", ProfileCategory::Draw);
+  SeqResult dst = prepare_effect_imbufs(context, src1, src2);
   CrossEffectOp op;
   op.factor = fac;
-  apply_effect_op(op, src1, src2, dst);
+  apply_effect_op(op, src1.image, src2.image, dst.image);
+  dst.is_opaque_before_transform = !src1.image->can_contain_alpha() &&
+                                   !src2.image->can_contain_alpha();
   return dst;
 }
 
@@ -98,18 +103,21 @@ struct GammaCrossEffectOp {
   float factor;
 };
 
-static ImBuf *do_gammacross_effect(const RenderData *context,
-                                   SeqRenderState * /*state*/,
-                                   Strip * /*strip*/,
-                                   float /*timeline_frame*/,
-                                   float fac,
-                                   ImBuf *src1,
-                                   ImBuf *src2)
+static SeqResult do_gammacross_effect(const RenderData *context,
+                                      SeqRenderState * /*state*/,
+                                      Strip * /*strip*/,
+                                      float /*timeline_frame*/,
+                                      float fac,
+                                      const SeqResult &src1,
+                                      const SeqResult &src2)
 {
-  ImBuf *dst = prepare_effect_imbufs(context, src1, src2);
+  BLI_profile_scope_with_name("SeqFxGammaCross", ProfileCategory::Draw);
+  SeqResult dst = prepare_effect_imbufs(context, src1, src2);
   GammaCrossEffectOp op;
   op.factor = fac;
-  apply_effect_op(op, src1, src2, dst);
+  apply_effect_op(op, src1.image, src2.image, dst.image);
+  dst.is_opaque_before_transform = !src1.image->can_contain_alpha() &&
+                                   !src2.image->can_contain_alpha();
   return dst;
 }
 

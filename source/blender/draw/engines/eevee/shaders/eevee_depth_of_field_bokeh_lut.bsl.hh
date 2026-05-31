@@ -28,10 +28,7 @@ struct Resources {
 };
 
 [[compute, local_size(DOF_BOKEH_LUT_SIZE, DOF_BOKEH_LUT_SIZE)]]
-void comp_main([[resource_table]] Resources &srt,
-               [[global_invocation_id]] const uint3 global_id,
-               [[local_invocation_id]] const uint3 local_id,
-               [[local_invocation_index]] const uint local_index)
+void comp_main([[resource_table]] Resources &srt, [[global_invocation_id]] const uint3 global_id)
 {
   float2 gather_uv = ((float2(global_id.xy) + 0.5f) / float(DOF_BOKEH_LUT_SIZE));
   /* Center uv in range [-1..1]. */
@@ -58,7 +55,8 @@ void comp_main([[resource_table]] Resources &srt,
     {
       /* Slight focus distance */
       slight_focus_texel *= srt.dof_buf.bokeh_anisotropic_scale_inv;
-      float theta = atan(slight_focus_texel.y, -slight_focus_texel.x) + M_TAU;
+      /* Note that `atan(y,x)` is unsed for x = 0 or y = 0. */
+      float theta = atan(slight_focus_texel.y + 1e-8f, -slight_focus_texel.x + 1e-8f) + M_TAU;
       slight_focus_texel /= circle_to_polygon_radius(srt.dof_buf.bokeh_blades,
                                                      theta + srt.dof_buf.bokeh_rotation);
     }

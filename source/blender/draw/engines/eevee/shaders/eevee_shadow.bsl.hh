@@ -6,6 +6,8 @@
 
 #include "eevee_sampling_lib.bsl.hh"
 #include "eevee_shadow_tilemap_lib.bsl.hh"
+#include "eevee_uniform.bsl.hh"
+#include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_utildefines_lib.glsl"
 
 namespace eevee {
@@ -17,7 +19,9 @@ struct ShadowRenderData {
 
   [[compilation_constant]] bool shadow_random;
 
+  [[resource_table]] srt_t<Uniform> uniforms;
   [[resource_table, condition(shadow_random)]] srt_t<Sampling> sampling;
+  [[resource_table, condition(shadow_random)]] srt_t<UtilityTexture> util_tx;
 
   float read_depth(ShadowCoordinates coord) const
   {

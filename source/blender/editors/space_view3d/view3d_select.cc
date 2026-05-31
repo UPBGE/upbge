@@ -2270,37 +2270,6 @@ static int mixed_bones_object_selectbuffer_extended(const ViewContext *vc,
 }
 
 /**
- * Compare result of `GPU_select`: #GPUSelectResult,
- * Needed for stable sorting, so cycling through all items near the cursor behaves predictably.
- */
-static int gpu_select_buffer_depth_id_cmp(const void *sel_a_p, const void *sel_b_p)
-{
-  GPUSelectResult *a = static_cast<GPUSelectResult *>(const_cast<void *>(sel_a_p));
-  GPUSelectResult *b = static_cast<GPUSelectResult *>(const_cast<void *>(sel_b_p));
-
-  if (a->depth < b->depth) {
-    return -1;
-  }
-  if (a->depth > b->depth) {
-    return 1;
-  }
-
-  /* Depths match, sort by id. */
-  /* NOTE: this is endianness-sensitive.
-   * GPUSelectResult values are always expected to be little-endian. */
-  uint sel_a = a->id;
-  uint sel_b = b->id;
-
-  if (sel_a < sel_b) {
-    return -1;
-  }
-  if (sel_a > sel_b) {
-    return 1;
-  }
-  return 0;
-}
-
-/**
  * \param has_bones: When true, skip non-bone hits, also allow bases to be used
  * that are visible but not select-able,
  * since you may be in pose mode with an un-selectable object.
@@ -2738,8 +2707,7 @@ static bool ed_object_select_pick(bContext *C,
 
   /* The next object's base to make active. */
   Base *basact = nullptr;
-  const eObjectMode object_mode = oldbasact ? static_cast<eObjectMode>(oldbasact->object->mode) :
-                                              OB_MODE_OBJECT;
+  const eObjectMode object_mode = oldbasact ? oldbasact->object->mode : OB_MODE_OBJECT;
   /* For the most part this is equivalent to `(object_mode & OB_MODE_POSE) != 0`
    * however this logic should also run with weight-paint + pose selection.
    * Without this, selection in weight-paint mode can de-select armatures which isn't useful,

@@ -6,14 +6,13 @@
 
 #include "infos/eevee_common_infos.hh"
 
-SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(draw_view)
-SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
 #include "draw_view_lib.glsl"
 #include "eevee_bxdf.bsl.hh"
 #include "eevee_gbuffer_read.bsl.hh"
 #include "eevee_sampling_lib.bsl.hh"
+#include "eevee_uniform.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
 
@@ -101,9 +100,7 @@ namespace eevee::raytracing {
 
 struct RayGenerate {
   [[specialization_constant(0)]] int closure_index;
-  [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
   [[legacy_info]] ShaderCreateInfo draw_view;
-  [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[storage(4, read)]] const uint (&tiles_coord_buf)[];
   [[image(0, write, SFLOAT_16_16_16_16)]] image2D out_ray_data_img;
 };
@@ -114,7 +111,9 @@ struct RayGenerate {
  */
 [[compute, local_size(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)]]
 void generate_rays([[resource_table]] RayGenerate &srt,
+                   [[resource_table]] const Uniform &uni,
                    [[resource_table]] const Sampling &sampling,
+                   [[resource_table]] const UtilityTexture &util_tx,
                    [[resource_table]] const gbuffer::Reader &reader,
                    [[work_group_id]] const uint3 group_id,
                    [[local_invocation_id]] const uint3 local_id)
@@ -123,7 +122,8 @@ void generate_rays([[resource_table]] RayGenerate &srt,
   uint2 tile_coord = unpackUvec2x16(srt.tiles_coord_buf[group_id.x]);
   int2 texel = int2(local_id.xy + tile_coord * tile_size);
 
-  int2 texel_fullres = texel * raytrace_buf.trace_pixel_scale + raytrace_buf.trace_pixel_offset;
+  int2 texel_fullres = texel * uni.raytrace_buf.trace_pixel_scale +
+                       uni.raytrace_buf.trace_pixel_offset;
 
   gbuffer::Header gbuf_header = reader.read_header(texel_fullres);
   ClosureUndetermined closure = reader.read_bin(texel_fullres, srt.closure_index);
@@ -136,7 +136,7 @@ void generate_rays([[resource_table]] RayGenerate &srt,
   float2 uv = (float2(texel_fullres) + 0.5f) / float2(textureSize(reader.gbuf_header_tx, 0).xy);
   float3 P = drw_point_screen_to_world(float3(uv, 0.5f));
   float3 V = drw_world_incident_vector(P);
-  float2 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER).rg;
+  float2 noise = util_tx.fetch(float2(texel), UTIL_BLUE_NOISE_LAYER).rg;
   noise = fract(noise + sampling.rng_2D_get(SAMPLING_RAYTRACE_U));
 
   Thickness thickness = reader.read_thickness(gbuf_header, texel_fullres);
