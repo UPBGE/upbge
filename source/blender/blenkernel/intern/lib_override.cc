@@ -3950,9 +3950,9 @@ static int lib_override_libraries_index_define(Main *bmain)
               "\tDepth level {: >3}: {: >32} | {: <32}   --->   {: >32} | {}\n",
               index,
               id_owner->name,
-              BKE_id_name(id_owner->lib->id),
+              id_owner->lib ? BKE_id_name(id_owner->lib->id) : "<Local>",
               id->name,
-              BKE_id_name(id->lib->id));
+              id->lib ? BKE_id_name(id->lib->id) : "<Local>");
         }
         CLOG_ERROR(&LOG_RESYNC,
                    "Levels of indirect usages of library '%s' is way too high, there are most "
@@ -3985,7 +3985,7 @@ void BKE_lib_override_library_main_resync(
     if (new_scene) {
       view_layer = BKE_view_layer_find(new_scene, view_layer->name);
       if (!view_layer) {
-        view_layer = static_cast<ViewLayer *>(scene->view_layers.first);
+        view_layer = static_cast<ViewLayer *>(new_scene->view_layers.first);
       }
       if (view_layer) {
         CLOG_WARN(&LOG_RESYNC,
