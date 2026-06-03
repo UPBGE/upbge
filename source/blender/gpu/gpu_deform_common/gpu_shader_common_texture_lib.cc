@@ -1527,24 +1527,6 @@ vec3 hsl_to_rgb(vec3 hsl)
 
   return vec3(r, g, b);
 }
-
-float srgb_to_linearrgb(float c)
-{
-  if (c <= 0.04045) {
-    return c / 12.92;
-  }
-  return pow((c + 0.055) / 1.055, 2.4);
-}
-
-vec3 srgb_to_linearrgb_vec3(vec3 v)
-{
-  return vec3(srgb_to_linearrgb(v.r), srgb_to_linearrgb(v.g), srgb_to_linearrgb(v.b));
-}
-
-vec3 linearrgb_to_srgb_vec3(vec3 v)
-{
-  return vec3(linearrgb_to_srgb(v.r), linearrgb_to_srgb(v.g), linearrgb_to_srgb(v.b));
-}
 )GLSL";
 }
 
