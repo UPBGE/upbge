@@ -3445,7 +3445,9 @@ static const std::string get_common_texture_bke_get_value_glsl()
 float BKE_texture_get_value(inout TexResult_tex texres, vec3 texture_coords_v, vec4 input_pos_v, int idx)
 {
 #ifdef HAS_TEXTURE
-  /* mapping selection (macros from get_texture_params_glsl() map these to tex_params) */
+  /* mapping selection (macros from get_texture_params_glsl() map these to tex_params).
+   * MOD_DISP_MAP_UV: -> texture coordinates from ssbo created with MOD_get_texcoords()
+   * MOD_DISP_MAP_LOCAL, MOD_DISP_MAP_GLOBAL, MOD_DISP_MAP_OBJECT: -> texture coordinates from input positions */
   vec3 tex_coord = texture_coords_v;
 
   if (u_mapping_use_input_positions) {
