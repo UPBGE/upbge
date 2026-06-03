@@ -12,7 +12,7 @@
 namespace blender {
 namespace gpu {
 
-void displace_upload_ibuf_to_texture(gpu::Texture *tex, ImBuf *ibuf, const char * /*colorspace_name*/)
+void colormanaged_ibuf_to_gputexture(gpu::Texture *tex, ImBuf *ibuf)
 {
   if (!tex || !ibuf) {
     return;
