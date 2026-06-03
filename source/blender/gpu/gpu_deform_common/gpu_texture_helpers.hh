@@ -71,10 +71,6 @@ struct GPUTextureParams {
   float u_mapref_imat[16];
 };
 
-/* Check if we need manual colorspace handling for this image.
- * Returns true if the image uses a non-"Non-Color" colorspace. */
-bool displace_needs_manual_colorspace(Image *ima);
-
 /* Upload an already color-managed ImBuf to a GPU texture WITHOUT any further colorspace
  * conversion. The ibuf is expected to have been acquired via BKE_image_acquire_ibuf, which
  * returns data already in the correct colorspace. Float buffers are uploaded as-is; byte
