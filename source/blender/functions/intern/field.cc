@@ -108,7 +108,7 @@ uint64_t GField::hash() const
 
 UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
 {
-  if (const UniqueHash *cached = cache.lookup_ptr(field)) {
+  if (const UniqueHash *cached = this->cache.lookup_ptr(field)) {
     return *cached;
   }
 
@@ -122,7 +122,7 @@ UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
   stack.push(field);
   while (!stack.is_empty()) {
     GFieldRef current = stack.pop();
-    if (cache.contains(current)) {
+    if (this->cache.contains(current)) {
       continue;
     }
     if (visited.contains(current)) {
@@ -140,7 +140,7 @@ UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
               v.node->multi_function().hash_unique(hash_context);
               hash_context.add(v.output_i);
               for (const GField &input_field : v.node->inputs()) {
-                hash_context.add(cache.lookup(input_field));
+                hash_context.add(this->cache.lookup(input_field));
               }
             }
             else {
@@ -153,7 +153,7 @@ UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
       const XXH128_hash_t xxhash = XXH3_128bits(bytes.data(), bytes.size());
       static_assert(sizeof(UniqueHash) == sizeof(xxhash));
       memcpy(static_cast<void *>(&hash), &xxhash, sizeof(xxhash));
-      cache.add_new(current, hash);
+      this->cache.add_new(current, hash);
       continue;
     }
     visited.add(current);
@@ -165,13 +165,13 @@ UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
     }
   }
 
-  return cache.lookup(field);
+  return this->cache.lookup(field);
 }
 
 const FieldInputsPtr &FieldInput::field_inputs() const
 {
   field_inputs_mutex_.ensure([&]() {
-    FieldInputs *inputs = MEM_new<FieldInputs>(__func__);
+    FieldInputs *inputs = MEM_new<FieldInputs>("field_inputs");
     inputs->inputs.add(*this);
     field_inputs_ = FieldInputsPtr(inputs);
   });
@@ -320,7 +320,7 @@ GField::GField(const GField &other) : variant_(other.variant_)
       [&]<typename T>(T &v) {
         if constexpr (std::is_same_v<T, OwnedConstant>) {
           void *new_value = MEM_new_uninitialized_aligned(
-              v.type->size, v.type->alignment, __func__);
+              v.type->size, v.type->alignment, "GField::GField()");
           v.type->copy_construct(v.value, new_value);
           v.value = new_value;
         }
