@@ -218,6 +218,8 @@ enum {
    * - As tools in the toolbar.
    *
    * Even so, accessing from the menu should behave usefully.
+   * \note Operators which set this flag will be skipped by the repeat last
+   * action operator.
    */
   OPTYPE_DEPENDS_ON_CURSOR = (1 << 11),
 
@@ -590,6 +592,8 @@ struct wmNotifier {
 
 /* Changes in theme preferences that affects UI text drawing. */
 #define ND_UI_FONT (1 << 16)
+
+#define ND_UI_LANG (2 << 16)
 
 /* Subtype, 256 entries too. */
 #define NOTE_SUBTYPE 0x0000FF00

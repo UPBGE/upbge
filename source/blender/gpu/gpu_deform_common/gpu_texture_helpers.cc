@@ -12,7 +12,7 @@
 namespace blender {
 namespace gpu {
 
-void displace_upload_ibuf_to_texture(gpu::Texture *tex, ImBuf *ibuf, const char * /*colorspace_name*/)
+void colormanaged_ibuf_to_gputexture(gpu::Texture *tex, ImBuf *ibuf)
 {
   if (!tex || !ibuf) {
     return;
@@ -149,7 +149,8 @@ void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
    * 1) Our mesh->vertex_positions() are not up to date (no cpu update)
         (positions before animation playback)
    * 2) The ssbo_texcoords created from MOD_get_texcoords is created only 1 time
-   *    and not updated later */
+   *    and not updated later.
+   * BUT: We still need a ssbo created from MOD_get_texcoords for MOD_DISP_MAP_UV case (MOD_util.cc). */
   bool mapping_use_input_positions = true;
   gpu_tex_params.tex_mapping_info[0] = tex_mapping;
   gpu_tex_params.tex_mapping_info[1] = mapping_use_input_positions ? 1 : 0;

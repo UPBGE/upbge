@@ -3458,8 +3458,9 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
                   IDOverrideLibraryTag::TAG_RESYNC_ISOLATED_FROM_ROOT) == IDOverrideLibraryTag(0));
     }
 
-    LinkNodePair *id_resync_roots = id_roots.lookup_or_add_cb(
-        hierarchy_root, []() { return MEM_new_zeroed<LinkNodePair>(__func__); });
+    LinkNodePair *id_resync_roots = id_roots.lookup_or_add_cb(hierarchy_root, []() {
+      return MEM_new_zeroed<LinkNodePair>("lib_override_resync_tagging_finalize");
+    });
     BLI_linklist_append(id_resync_roots, id_iter);
   }
   FOREACH_MAIN_ID_END;
@@ -3939,7 +3940,7 @@ static int lib_override_libraries_index_define(Main *bmain)
       Vector<std::pair<ID *, ID *>> &lib_user_ids = sort_libs_data.dependency_trace_data.lookup(
           &library);
       if (lib_user_ids.size() >= LibOverrideSortLibrariesData::MAX_DEPENDENCY_DEPTH) {
-        std::string deps_chain = "";
+        std::string deps_chain;
         int index = -1;
         for (auto [id_owner, id] : lib_user_ids) {
           index++;
@@ -3950,9 +3951,9 @@ static int lib_override_libraries_index_define(Main *bmain)
               "\tDepth level {: >3}: {: >32} | {: <32}   --->   {: >32} | {}\n",
               index,
               id_owner->name,
-              BKE_id_name(id_owner->lib->id),
+              id_owner->lib ? BKE_id_name(id_owner->lib->id) : "<Local>",
               id->name,
-              BKE_id_name(id->lib->id));
+              id->lib ? BKE_id_name(id->lib->id) : "<Local>");
         }
         CLOG_ERROR(&LOG_RESYNC,
                    "Levels of indirect usages of library '%s' is way too high, there are most "
@@ -3985,7 +3986,7 @@ void BKE_lib_override_library_main_resync(
     if (new_scene) {
       view_layer = BKE_view_layer_find(new_scene, view_layer->name);
       if (!view_layer) {
-        view_layer = static_cast<ViewLayer *>(scene->view_layers.first);
+        view_layer = static_cast<ViewLayer *>(new_scene->view_layers.first);
       }
       if (view_layer) {
         CLOG_WARN(&LOG_RESYNC,
@@ -4563,6 +4564,12 @@ void lib_override_library_property_operation_copy(IDOverrideLibraryPropertyOpera
   if (opop_src->subitem_local_name) {
     opop_dst->subitem_local_name = BLI_strdup(opop_src->subitem_local_name);
   }
+  if (opop_src->label) {
+    opop_dst->label = BLI_strdup(opop_src->label);
+  }
+  if (opop_src->tooltip) {
+    opop_dst->tooltip = BLI_strdup(opop_src->tooltip);
+  }
 }
 
 void lib_override_library_property_operation_clear(IDOverrideLibraryPropertyOperation *opop)
@@ -4573,6 +4580,12 @@ void lib_override_library_property_operation_clear(IDOverrideLibraryPropertyOper
   if (opop->subitem_local_name) {
     MEM_delete(opop->subitem_local_name);
   }
+  if (opop->label) {
+    MEM_delete(opop->label);
+  }
+  if (opop->tooltip) {
+    MEM_delete(opop->tooltip);
+  }
 }
 
 void BKE_lib_override_library_property_operation_delete(
@@ -4581,6 +4594,34 @@ void BKE_lib_override_library_property_operation_delete(
 {
   lib_override_library_property_operation_clear(liboverride_property_operation);
   BLI_freelinkN(&liboverride_property->operations, liboverride_property_operation);
+}
+
+void BKE_lib_override_library_property_operation_ui_info_set(
+    IDOverrideLibraryPropertyOperation &liboverride_property_operation,
+    StringRefNull label,
+    StringRefNull tooltip)
+{
+  MEM_SAFE_DELETE(liboverride_property_operation.label);
+  liboverride_property_operation.label = BLI_strdup(label.c_str());
+  MEM_SAFE_DELETE(liboverride_property_operation.tooltip);
+  liboverride_property_operation.tooltip = BLI_strdup(tooltip.c_str());
+}
+
+bool IDOverrideLibraryPropertyOperation::operator==(
+    const IDOverrideLibraryPropertyOperation &b) const
+{
+  return (
+      (this->operation == b.operation) && (this->flag == b.flag) &&
+      (this->subitem_reference_id == b.subitem_reference_id) &&
+      (this->subitem_local_id == b.subitem_local_id) &&
+      (this->subitem_reference_index == b.subitem_reference_index) &&
+      (this->subitem_local_index == b.subitem_local_index) &&
+      ((!this->subitem_reference_name && !b.subitem_reference_name) ||
+       (this->subitem_reference_name && b.subitem_reference_name &&
+        StringRefNull(this->subitem_reference_name) == StringRefNull(b.subitem_reference_name))) &&
+      ((!this->subitem_local_name && !b.subitem_local_name) ||
+       (this->subitem_local_name && b.subitem_local_name &&
+        StringRefNull(this->subitem_local_name) == StringRefNull(b.subitem_local_name))));
 }
 
 bool BKE_lib_override_library_property_operation_operands_validate(
@@ -4594,6 +4635,10 @@ bool BKE_lib_override_library_property_operation_operands_validate(
 {
   switch (liboverride_property_operation->operation) {
     case LIBOVERRIDE_OP_NOOP:
+      return true;
+    case LIBOVERRIDE_OP_CUSTOM:
+      /* No way to validate these here, custom RNA liboverride callbacks have to take care of
+       * validation. */
       return true;
     case LIBOVERRIDE_OP_ADD:
       ATTR_FALLTHROUGH;
@@ -5547,6 +5592,8 @@ StringRefNull BKE_lib_override_operation_as_string(const eID_OverrideLib_Op oper
       return "Insert After";
     case LIBOVERRIDE_OP_INSERT_BEFORE:
       return "Insert Before";
+    case LIBOVERRIDE_OP_CUSTOM:
+      return "Custom";
   }
   BLI_assert_unreachable();
   return "Unknown";

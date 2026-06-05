@@ -125,8 +125,14 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
                                         std::to_string(iuser.framenr);
         gpu_texture = bke::BKE_mesh_gpu_internal_texture_get(mesh_owner, key_texture);
 
-        const bool is_animated = (ima && ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE));
-        if (!gpu_texture || (is_animated && !gpu_texture)) {
+        /* For colorspaces other than non-color, the GPU texture is not shared with the image system:
+         * BKE_image_acquire_ibuf returns an already color-managed ImBuf, from which we build and
+         * cache our own GPU texture.
+         * The cache key includes iuser.framenr:
+         * - For movies and image sequences, the ImBuf acquisition and GPU texture re-creation happen every frame (performance cost).
+         * - For a simple image, ImBuf acquisition and GPU texture creation happen only once.
+         */
+        if (!gpu_texture) {
           ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
           if (ibuf && (ibuf->float_buffer.data || ibuf->byte_buffer.data)) {
             gpu::TextureFormat format = ibuf->float_buffer.data ?
@@ -141,8 +147,8 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
                                                 GPU_TEXTURE_USAGE_SHADER_READ,
                                                 nullptr);
             if (gpu_texture) {
-              gpu::displace_upload_ibuf_to_texture(
-                  gpu_texture, ibuf, ima->colorspace_settings.name);
+              gpu::colormanaged_ibuf_to_gputexture(
+                  gpu_texture, ibuf);
               bke::BKE_mesh_gpu_internal_texture_ensure(
                   mesh_owner, deformed_eval, key_texture, gpu_texture);
 

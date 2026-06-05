@@ -354,7 +354,6 @@ set(SRC
   BLI_polyfill_2d_beautify.h
   BLI_pool.hh
   BLI_probing_strategies.hh
-  BLI_profile.hh
   BLI_quadric.h
   BLI_radial_tiling.hh
   BLI_rand.h
@@ -434,6 +433,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::wcwidth
   PRIVATE bf::intern::atomic
+  PUBLIC bf::intern::profile
   PUBLIC bf::dependencies::fmt
   PRIVATE bf::dependencies::eigen
   PUBLIC bf::dependencies::optional::tbb
@@ -442,7 +442,6 @@ set(LIB
   PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dependencies::optional::fftw3
   PUBLIC bf::dependencies::openimageio
-  PUBLIC bf::dependencies::optional::tracy_client
 )
 
 if(NOT WITH_PYTHON_MODULE)

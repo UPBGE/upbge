@@ -87,7 +87,15 @@ void EssentialsAssetLibrary::refresh_catalogs()
                        existing.path.c_str());
           }
           else {
-            CLOG_ERROR(&LOG,
+            /* This is to be expected at some point in the future. The Online Essentials library
+             * may change its catalog paths, while whatever version of Blender is running right now
+             * still has the same old bundled assets. This means the Bundled Essentials and Online
+             * Essentials diverge. There is no need to bother users with this, as it's bound to
+             * happen eventually.
+             *
+             * Note that this same check happens in the 'All' library as well, and that already
+             * logs this at INFO level, so there really is no need to be louder than DEBUG here. */
+            CLOG_DEBUG(&LOG,
                        "multiple definitions of catalog %s with differing paths (%s vs. %s), "
                        "ignoring second one",
                        existing.catalog_id.str().c_str(),
@@ -114,7 +122,7 @@ StringRefNull essentials_directory_path()
   return path;
 }
 
-bool skip_experimental_asset_catalog(const UUID &catalog_id)
+bool skip_experimental_asset_catalog(const UUID & /*catalog_id*/)
 {
   /* Return true when the catalog_id should be rejected based on experimental features:
    *
@@ -124,11 +132,6 @@ bool skip_experimental_asset_catalog(const UUID &catalog_id)
    * }
    */
 
-  /* Enable catalog for hair dynamics only if the feature is enabled. */
-  const UUID UUID_hair_dynamics("df62a3e8-fc21-457b-9415-89f89af431ac");
-  if (!U.experimental.use_geometry_nodes_hair_dynamics && catalog_id == UUID_hair_dynamics) {
-    return true;
-  }
   return false;
 }
 

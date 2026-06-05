@@ -1527,24 +1527,6 @@ vec3 hsl_to_rgb(vec3 hsl)
 
   return vec3(r, g, b);
 }
-
-float srgb_to_linearrgb(float c)
-{
-  if (c <= 0.04045) {
-    return c / 12.92;
-  }
-  return pow((c + 0.055) / 1.055, 2.4);
-}
-
-vec3 srgb_to_linearrgb_vec3(vec3 v)
-{
-  return vec3(srgb_to_linearrgb(v.r), srgb_to_linearrgb(v.g), srgb_to_linearrgb(v.b));
-}
-
-vec3 linearrgb_to_srgb_vec3(vec3 v)
-{
-  return vec3(linearrgb_to_srgb(v.r), linearrgb_to_srgb(v.g), linearrgb_to_srgb(v.b));
-}
 )GLSL";
 }
 
@@ -3463,7 +3445,9 @@ static const std::string get_common_texture_bke_get_value_glsl()
 float BKE_texture_get_value(inout TexResult_tex texres, vec3 texture_coords_v, vec4 input_pos_v, int idx)
 {
 #ifdef HAS_TEXTURE
-  /* mapping selection (macros from get_texture_params_glsl() map these to tex_params) */
+  /* mapping selection (macros from get_texture_params_glsl() map these to tex_params).
+   * MOD_DISP_MAP_UV: -> texture coordinates from ssbo created with MOD_get_texcoords()
+   * MOD_DISP_MAP_LOCAL, MOD_DISP_MAP_GLOBAL, MOD_DISP_MAP_OBJECT: -> texture coordinates from input positions */
   vec3 tex_coord = texture_coords_v;
 
   if (u_mapping_use_input_positions) {

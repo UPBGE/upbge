@@ -321,7 +321,7 @@ void BKE_cryptomatte_matte_id_to_entries(NodeCryptomatte *node_storage, const ch
     std::string token;
     getline(ss, token, ',');
     /* Ignore empty tokens. */
-    if (token.length() > 0) {
+    if (!token.empty()) {
       size_t first = token.find_first_not_of(' ');
       size_t last = token.find_last_not_of(' ');
       if (first == std::string::npos || last == std::string::npos) {
@@ -613,7 +613,7 @@ StringRef CryptomatteStampDataCallbackData::extract_layer_hash(StringRefNull key
 
 void CryptomatteStampDataCallbackData::extract_layer_names(void *_data,
                                                            const char *propname,
-                                                           char *propvalue,
+                                                           char *propvalue,  // NOLINT
                                                            int /*propvalue_maxncpy*/)
 {
   CryptomatteStampDataCallbackData *data = static_cast<CryptomatteStampDataCallbackData *>(_data);
@@ -631,7 +631,7 @@ void CryptomatteStampDataCallbackData::extract_layer_names(void *_data,
 
 void CryptomatteStampDataCallbackData::extract_layer_manifest(void *_data,
                                                               const char *propname,
-                                                              char *propvalue,
+                                                              char *propvalue,  // NOLINT
                                                               int /*propvalue_maxncpy*/)
 {
   CryptomatteStampDataCallbackData *data = static_cast<CryptomatteStampDataCallbackData *>(_data);

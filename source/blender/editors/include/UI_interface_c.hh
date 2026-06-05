@@ -756,7 +756,7 @@ float text_clip_middle_ex(const uiFontStyle *fstyle,
 Vector<StringRef> text_clip_multiline_middle(const uiFontStyle *fstyle,
                                              const char *str,
                                              char *clipped_str_buf,
-                                             const size_t max_len_clipped_str_buf,
+                                             const size_t clipped_str_buf_maxncpy,
                                              const float max_line_width,
                                              const int max_lines);
 
@@ -1579,6 +1579,7 @@ Button *uiDefIconTextButO_ptr(Block *block,
                               short height,
                               std::optional<StringRef> tip);
 
+void button_enum_prop_value_set(Button *but, int retval);
 void button_retval_set(Button *but, int retval);
 
 void button_operator_set(Button *but,

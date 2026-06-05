@@ -624,6 +624,9 @@ class SocketTooltipBuilder {
     if (base_type.is<float4x4>()) {
       return TIP_("Matrix Field");
     }
+    if (base_type.is<nodes::MenuValue>()) {
+      return TIP_("Menu Field");
+    }
     BLI_assert_unreachable();
     return TIP_("Field");
   }
@@ -863,10 +866,16 @@ class SocketTooltipBuilder {
     this->add_text_field_mono(TIP_("Sampling:"));
     this->add_text_field_mono(
         fmt::format("\u2022 {}: {}", TIP_("Interpolation"), TIP_(image_log.interpolation)));
-    this->add_text_field_mono(
-        fmt::format("\u2022 {}: {}", TIP_("Extension X"), TIP_(image_log.extension_x)));
-    this->add_text_field_mono(
-        fmt::format("\u2022 {}: {}", TIP_("Extension Y"), TIP_(image_log.extension_y)));
+    if (image_log.extension_x == image_log.extension_y) {
+      this->add_text_field_mono(
+          fmt::format("\u2022 {}: {}", TIP_("Extension"), TIP_(image_log.extension_x)));
+    }
+    else {
+      this->add_text_field_mono(
+          fmt::format("\u2022 {}: {}", TIP_("Extension X"), TIP_(image_log.extension_x)));
+      this->add_text_field_mono(
+          fmt::format("\u2022 {}: {}", TIP_("Extension Y"), TIP_(image_log.extension_y)));
+    }
 
     this->add_space();
 

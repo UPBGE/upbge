@@ -39,7 +39,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
-#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -58,6 +57,8 @@
 #include "BKE_screen.hh"
 #include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
+
+#include "PRF_profile.hh"
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
@@ -2199,7 +2200,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
 void wm_window_events_process(const bContext *C)
 {
-  BLI_profile_scope(ProfileCategory::Core);
+  PRF_scope(ProfileCategory::Core);
   BLI_assert(BLI_thread_is_main());
   GPU_render_begin();
 
@@ -2718,7 +2719,7 @@ static char *wm_clipboard_text_get_ex(bool selection,
   }
 
   /* Always convert from `\r\n` to `\n`. */
-  char *newbuf = MEM_new_array_uninitialized<char>(size_t(buf_len + 1), __func__);
+  char *newbuf = MEM_new_array_uninitialized<char>(size_t(buf_len) + 1, __func__);
   char *p2 = newbuf;
 
   if (firstline) {

@@ -2056,6 +2056,11 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \name Box Blade Operator
  * \{ */
 
+static bool sequencer_box_blade_poll(bContext *C)
+{
+  return sequencer_edit_poll(C) && sequencer_view_strips_poll(C);
+}
+
 static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -2273,7 +2278,7 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = sequencer_box_blade_exec;
   ot->modal = sequencer_box_blade_modal;
-  ot->poll = sequencer_edit_poll;
+  ot->poll = sequencer_box_blade_poll;
   ot->ui = sequencer_box_blade_ui;
 
   /* Flags. */
@@ -4114,19 +4119,23 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
 
   for (Strip &strip : *ed->current_strips()) {
     if (strip.flag & SEQ_SELECT && strip.type != STRIP_TYPE_SOUND) {
-      const int timeline_frame = scene->r.cfra;
-      StripElem *strip_elem = seq::render_give_stripelem(scene, &strip, timeline_frame);
-
-      if (strip_elem == nullptr) {
-        continue;
+      int src_w, src_h;
+      if (strip.type == STRIP_TYPE_COLOR) {
+        const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip.effectdata);
+        src_w = cv->width;
+        src_h = cv->height;
+      }
+      else {
+        const int timeline_frame = scene->r.cfra;
+        const StripElem *strip_elem = seq::render_give_stripelem(scene, &strip, timeline_frame);
+        if (strip_elem == nullptr) {
+          continue;
+        }
+        src_w = strip_elem->orig_width;
+        src_h = strip_elem->orig_height;
       }
 
-      seq::set_scale_to_fit(&strip,
-                            strip_elem->orig_width,
-                            strip_elem->orig_height,
-                            scene->r.xsch,
-                            scene->r.ysch,
-                            fit_method);
+      seq::set_scale_to_fit(&strip, src_w, src_h, scene->r.xsch, scene->r.ysch, fit_method);
       seq::relations_invalidate_cache(scene, &strip);
     }
   }

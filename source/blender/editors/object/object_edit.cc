@@ -1231,7 +1231,7 @@ void check_force_modifiers(Main *bmain, Scene *scene, Object *object)
 
 static wmOperatorStatus forcefield_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = ed::object::context_active_object(C);
 
   if (ob->pd == nullptr) {
     ob->pd = BKE_partdeflect_new(PFIELD_FORCE);
@@ -1286,10 +1286,10 @@ static bool has_pose_motion_paths(Object *ob)
   return ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
 }
 
-static void motion_paths_recalc(bContext *C,
-                                Scene *scene,
-                                const eAnimvizCalcRange range,
-                                const Span<Object *> objects)
+void motion_paths_recalc(bContext *C,
+                         Scene *scene,
+                         const eAnimvizCalcRange range,
+                         const Span<Object *> objects)
 {
   BLI_assert(C != nullptr);
   Main *bmain = CTX_data_main(C);
@@ -1353,11 +1353,7 @@ static wmOperatorStatus object_calculate_paths_invoke(bContext *C,
                                                       wmOperator *op,
                                                       const wmEvent * /*event*/)
 {
-  Object *ob = CTX_data_active_object(C);
-
-  if (ob == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
+  Object *ob = ed::object::context_active_object(C);
 
   /* set default settings from existing/stored settings */
   {
