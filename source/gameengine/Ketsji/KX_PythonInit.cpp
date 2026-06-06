@@ -136,6 +136,8 @@
 #include "SCA_SteeringActuator.h"
 #include "SCA_TrackToActuator.h"
 
+using namespace blender;
+
 // 'local' copy of canvas ptr, for window height/width python scripts
 
 #ifdef WITH_PYTHON
@@ -169,7 +171,6 @@ static void KX_MACRO_addTypesToDict_fn(PyObject *dict, const char *name, long va
 #  include "EXP_Python.h"
 #  include "SCA_PythonController.h"
 
-using namespace blender;
 // List of methods defined in the module
 
 static PyObject *ErrorObject;

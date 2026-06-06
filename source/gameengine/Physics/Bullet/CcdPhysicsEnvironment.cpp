@@ -44,6 +44,8 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 
+using namespace blender;
+
 #define CCD_CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
 
 static btRaycastVehicle::btVehicleTuning gTuning;
@@ -2799,7 +2801,6 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                                           bool isCompoundChild,
                                           bool hasCompoundChildren)
 {
-  using namespace blender;
   blender::Object *blenderobject = gameobj->GetBlenderObject();
 
   bool isbulletdyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
