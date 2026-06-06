@@ -1855,9 +1855,22 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider,
   const PHY_ICollData *collData = contactPointList.GetCollData();
   const bool isFirstObject = contactPointList.GetFirstObject();
 
+  // If there is no contact point, we can't safely get world point / normal.
+  // In that case we pass None to the Python callbacks so that user code can
+  // decide how to handle the situation.
+  PyObject *worldPoint = Py_None;
+  PyObject *normal = Py_None;
+  if (contactPointList.GetNumCollisionContactPoint() > 0) {
+    worldPoint = PyObjectFrom(collData->GetWorldPoint(0, isFirstObject));
+    normal = PyObjectFrom(collData->GetNormal(0, isFirstObject));
+    // Increment reference count for the objects we will store in the args array.
+    Py_INCREF(worldPoint);
+    Py_INCREF(normal);
+  }
+
   PyObject *args[] = {collider->GetProxy(),
-                      PyObjectFrom(collData->GetWorldPoint(0, isFirstObject)),
-                      PyObjectFrom(collData->GetNormal(0, isFirstObject)),
+                      worldPoint,
+                      normal,
                       contactPointList.GetProxy()};
   EXP_RunPythonCallBackList(m_collisionCallbacks, args, 1, ARRAY_SIZE(args));
 
