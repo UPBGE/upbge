@@ -43,7 +43,7 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
                                                const char * /* name */)
 {
   /* Determine actual mipmap depth. */
-  int mip_len_max = 1 + floorf(log2f(max_iii(extent.x, extent.y, extent.z)));
+  int mip_len_max = 1 + floorf(log2f(std::max({extent.x, extent.y, extent.z})));
   mip_len = min_ii(mip_len, mip_len_max);
 
   /* Search pool for compatible available texture first. */
@@ -56,8 +56,9 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
                                tex->width_get(),
                                tex->height_get(),
                                tex->depth_get(),
-                               tex->mip_count());
-    if (std::tie(format, type, UNPACK3(extent), mip_len) == tex_args) {
+                               tex->mip_count(),
+                               tex->usage_get());
+    if (std::tie(format, type, UNPACK3(extent), mip_len, usage) == tex_args) {
       match_index = i;
       break;
     }

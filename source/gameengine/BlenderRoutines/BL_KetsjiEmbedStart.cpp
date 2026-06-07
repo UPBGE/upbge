@@ -54,6 +54,8 @@
 #include "KX_Globals.h"
 #include "LA_BlenderLauncher.h"
 
+using namespace blender;
+
 extern "C" {
 
 void StartKetsjiShell(blender::bContext *C,
@@ -61,8 +63,6 @@ void StartKetsjiShell(blender::bContext *C,
                       blender::rcti *cam_frame,
                       int always_use_expand_framing);
 }
-
-using namespace blender;
 
 static BlendFileData *load_game_data(const char *filename)
 {

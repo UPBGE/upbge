@@ -197,12 +197,20 @@ bool sequencer_strip_poll(bContext *C)
 
 bool sequencer_strip_editable_poll(bContext *C)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene || !ID_IS_EDITABLE(&scene->id)) {
     return false;
   }
-  Editing *ed = seq::editing_get(scene);
-  return (ed && (ed->act_strip != nullptr));
+  const Editing *ed = seq::editing_get(scene);
+  if (!ed) {
+    return false;
+  }
+  const Strip *strip_active = ed->act_strip;
+  if (!strip_active) {
+    CTX_wm_operator_poll_msg_set(C, "No active strip");
+    return false;
+  }
+  return true;
 }
 
 bool sequencer_strip_has_path_poll(bContext *C)
@@ -2056,6 +2064,11 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \name Box Blade Operator
  * \{ */
 
+static bool sequencer_box_blade_poll(bContext *C)
+{
+  return sequencer_edit_poll(C) && sequencer_view_strips_poll(C);
+}
+
 static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -2273,7 +2286,7 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = sequencer_box_blade_exec;
   ot->modal = sequencer_box_blade_modal;
-  ot->poll = sequencer_edit_poll;
+  ot->poll = sequencer_box_blade_poll;
   ot->ui = sequencer_box_blade_ui;
 
   /* Flags. */
@@ -3952,6 +3965,7 @@ static wmOperatorStatus sequencer_set_range_to_strips_exec(bContext *C, wmOperat
     scene->r.efra = efra;
   }
 
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_FRAME_RANGE, scene);
 
   return OPERATOR_FINISHED;
@@ -4114,19 +4128,23 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
 
   for (Strip &strip : *ed->current_strips()) {
     if (strip.flag & SEQ_SELECT && strip.type != STRIP_TYPE_SOUND) {
-      const int timeline_frame = scene->r.cfra;
-      StripElem *strip_elem = seq::render_give_stripelem(scene, &strip, timeline_frame);
-
-      if (strip_elem == nullptr) {
-        continue;
+      int src_w, src_h;
+      if (strip.type == STRIP_TYPE_COLOR) {
+        const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip.effectdata);
+        src_w = cv->width;
+        src_h = cv->height;
+      }
+      else {
+        const int timeline_frame = scene->r.cfra;
+        const StripElem *strip_elem = seq::render_give_stripelem(scene, &strip, timeline_frame);
+        if (strip_elem == nullptr) {
+          continue;
+        }
+        src_w = strip_elem->orig_width;
+        src_h = strip_elem->orig_height;
       }
 
-      seq::set_scale_to_fit(&strip,
-                            strip_elem->orig_width,
-                            strip_elem->orig_height,
-                            scene->r.xsch,
-                            scene->r.ysch,
-                            fit_method);
+      seq::set_scale_to_fit(&strip, src_w, src_h, scene->r.xsch, scene->r.ysch, fit_method);
       seq::relations_invalidate_cache(scene, &strip);
     }
   }
@@ -4162,30 +4180,17 @@ static wmOperatorStatus sequencer_strip_color_tag_set_exec(bContext *C, wmOperat
   const Editing *ed = seq::editing_get(scene);
   const StripColorTag color_tag = StripColorTag(RNA_enum_get(op->ptr, "color"));
 
-  for (Strip &strip : *ed->current_strips()) {
-    if (strip.flag & SEQ_SELECT) {
-      strip.color_tag = color_tag;
-    }
+  VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
+  if (selected.is_empty()) {
+    BKE_report(op->reports, RPT_ERROR, "No strips selected");
+    return OPERATOR_CANCELLED;
+  }
+  for (Strip *strip : selected) {
+    strip->color_tag = color_tag;
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   return OPERATOR_FINISHED;
-}
-
-static bool sequencer_strip_color_tag_set_poll(bContext *C)
-{
-  Scene *scene = CTX_data_sequencer_scene(C);
-  if (scene == nullptr) {
-    return false;
-  }
-
-  Editing *ed = seq::editing_get(scene);
-  if (ed == nullptr) {
-    return false;
-  }
-
-  Strip *act_strip = ed->act_strip;
-  return act_strip != nullptr;
 }
 
 void SEQUENCER_OT_strip_color_tag_set(wmOperatorType *ot)
@@ -4197,7 +4202,7 @@ void SEQUENCER_OT_strip_color_tag_set(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_strip_color_tag_set_exec;
-  ot->poll = sequencer_strip_color_tag_set_poll;
+  ot->poll = sequencer_edit_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

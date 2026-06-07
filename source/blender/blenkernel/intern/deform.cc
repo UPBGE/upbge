@@ -30,6 +30,8 @@
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
+#include "PRF_profile.hh"
+
 #include "BLT_translation.hh"
 
 #include "BKE_customdata.hh"
@@ -840,7 +842,7 @@ MDeformWeight *BKE_defvert_ensure_index(MDeformVert *dvert, const int defgroup)
     return dw_new;
   }
 
-  dw_new = MEM_new_array_uninitialized<MDeformWeight>(size_t(dvert->totweight + 1), __func__);
+  dw_new = MEM_new_array_uninitialized<MDeformWeight>(size_t(dvert->totweight) + 1, __func__);
   if (dvert->dw) {
     memcpy(dw_new, dvert->dw, sizeof(MDeformWeight) * dvert->totweight);
     MEM_delete(dvert->dw);
@@ -868,7 +870,7 @@ void BKE_defvert_add_index_notest(MDeformVert *dvert, const int defgroup, const 
     return;
   }
 
-  dw_new = MEM_new_array_zeroed<MDeformWeight>(size_t(dvert->totweight + 1), __func__);
+  dw_new = MEM_new_array_zeroed<MDeformWeight>(size_t(dvert->totweight) + 1, __func__);
   if (dvert->dw) {
     memcpy(dw_new, dvert->dw, sizeof(MDeformWeight) * dvert->totweight);
     MEM_delete(dvert->dw);
@@ -1695,6 +1697,7 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
 
   void set_all(Span<float> src) override
   {
+    PRF_scope_with_name("VArrayImpl_For_VertexWeights::set_all", ProfileCategory::Default);
     threading::parallel_for(src.index_range(), 4096, [&](const IndexRange range) {
       for (const int64_t i : range) {
         this->set(i, src[i]);
@@ -1706,6 +1709,7 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
                    float *dst,
                    const bool /*dst_is_uninitialized*/) const override
   {
+    PRF_scope_with_name("VArrayImpl_For_VertexWeights::materialize", ProfileCategory::Default);
     if (dverts_ == nullptr) {
       index_mask::masked_fill(MutableSpan(dst, mask.min_array_size()), 0.0f, mask);
     }
@@ -1754,6 +1758,7 @@ VMutableArray<float> varray_for_mutable_deform_verts(MutableSpan<MDeformVert> dv
 
 void remove_defgroup_index(MutableSpan<MDeformVert> dverts, const int defgroup_index)
 {
+  PRF_scope(ProfileCategory::Default);
   threading::parallel_for(dverts.index_range(), 1024, [&](IndexRange range) {
     for (MDeformVert &dvert : dverts.slice(range)) {
       MDeformWeight *weight = BKE_defvert_find_index(&dvert, defgroup_index);
@@ -1771,6 +1776,7 @@ void gather_deform_verts(const Span<MDeformVert> src,
                          const Span<int> indices,
                          MutableSpan<MDeformVert> dst)
 {
+  PRF_scope(ProfileCategory::Default);
   threading::parallel_for(indices.index_range(), 512, [&](const IndexRange range) {
     for (const int dst_i : range) {
       const int src_i = indices[dst_i];
@@ -1784,6 +1790,7 @@ void gather_deform_verts(const Span<MDeformVert> src,
                          const IndexMask &indices,
                          MutableSpan<MDeformVert> dst)
 {
+  PRF_scope(ProfileCategory::Default);
   indices.foreach_index(
       [&](const int64_t src_i, const int64_t dst_i) {
         dst[dst_i].dw = MEM_dupalloc(src[src_i].dw);

@@ -330,6 +330,19 @@ bool ED_operator_animview_active(bContext *C)
   return false;
 }
 
+bool ED_operator_region_animview_active(bContext *C)
+{
+  if (!ED_operator_animview_active(C)) {
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected a timeline/animation region");
+    return false;
+  }
+  return true;
+}
+
 bool ED_operator_outliner_active(bContext *C)
 {
   return ed_spacetype_test(C, SPACE_OUTLINER);
@@ -367,6 +380,20 @@ bool ED_operator_file_active(bContext *C)
   return ed_spacetype_test(C, SPACE_FILE);
 }
 
+bool ED_operator_region_file_active(bContext *C)
+{
+  if (!ED_operator_file_active(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected an active File Browser");
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected a File Browser region");
+    return false;
+  }
+  return true;
+}
+
 bool ED_operator_file_browsing_active(bContext *C)
 {
   if (ed_spacetype_test(C, SPACE_FILE)) {
@@ -391,6 +418,20 @@ bool ED_operator_spreadsheet_active(bContext *C)
 bool ED_operator_action_active(bContext *C)
 {
   return ed_spacetype_test(C, SPACE_ACTION);
+}
+
+bool ED_operator_region_action_active(bContext *C)
+{
+  if (!ED_operator_action_active(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected an active Dope Sheet");
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected a Dope Sheet region");
+    return false;
+  }
+  return true;
 }
 
 bool ED_operator_buttons_active(bContext *C)
@@ -507,6 +548,27 @@ bool ED_operator_object_active_editable(bContext *C)
 {
   Object *ob = ed::object::context_active_object(C);
   return ED_operator_object_active_editable_ex(C, ob);
+}
+
+bool ED_operator_object_active_only_from_view_layer(bContext *C)
+{
+  Main &bmain = *CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
+  Object *obact = BKE_view_layer_active_object_get(view_layer);
+  return (obact != nullptr);
+}
+
+bool ED_operator_object_active_from_view_layer(bContext *C)
+{
+  Main &bmain = *CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
+  Object *obact = BKE_view_layer_active_object_get(view_layer);
+  return (obact != nullptr);
+  return ((obact != nullptr) && !ed_object_hidden(obact));
 }
 
 bool ED_operator_object_active_local_editable_ex(bContext *C, const Object *ob)
@@ -5472,7 +5534,8 @@ static wmOperatorStatus repeat_last_exec(bContext *C, wmOperator * /*op*/)
 
   /* Seek last registered operator */
   while (lastop) {
-    if (lastop->type->flag & OPTYPE_REGISTER) {
+    if ((lastop->type->flag & OPTYPE_REGISTER) && !(lastop->type->flag & OPTYPE_DEPENDS_ON_CURSOR))
+    {
       break;
     }
     lastop = lastop->prev;
@@ -6994,6 +7057,41 @@ static void SCREEN_OT_userpref_show(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Show Project Setup Operator
+ * \{ */
+
+static wmOperatorStatus project_setup_show_exec(bContext *C, wmOperator *op)
+{
+  /* changes context! */
+  if (ScrArea *area = ED_screen_temp_space_open(
+          C, nullptr, SPACE_PROJECT, USER_TEMP_SPACE_DISPLAY_WINDOW, false))
+  {
+    /* The header only contains the editor switcher and looks empty.
+     * So hiding in the temp window makes sense. */
+    ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+
+    region_header->flag |= RGN_FLAG_HIDDEN;
+    ED_region_visibility_change_update(C, area, region_header);
+
+    return OPERATOR_FINISHED;
+  }
+  BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
+  return OPERATOR_CANCELLED;
+}
+
+static void SCREEN_OT_project_setup_show(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Open Project Setup...";
+  ot->description = "Create and manage projects";
+  ot->idname = "SCREEN_OT_project_setup_show";
+
+  /* API callbacks. */
+  ot->exec = project_setup_show_exec;
+  ot->poll = ED_operator_screenactive_nobackground; /* Not in background as this opens a window. */
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -7559,6 +7657,7 @@ void ED_operatortypes_screen()
   WM_operatortype_append(SCREEN_OT_screenshot);
   WM_operatortype_append(SCREEN_OT_screenshot_area);
   WM_operatortype_append(SCREEN_OT_userpref_show);
+  WM_operatortype_append(SCREEN_OT_project_setup_show);
   WM_operatortype_append(SCREEN_OT_drivers_editor_show);
   WM_operatortype_append(SCREEN_OT_info_log_show);
   WM_operatortype_append(SCREEN_OT_region_blend);

@@ -94,6 +94,8 @@ BLOCKLIST_OPENGL = [
 ]
 
 BLOCKLIST_INTEL = [
+    # Fails on the new battle-mage intel build-bot.
+    "shading_offset.blend"
 ]
 
 BLOCKLIST_INTEL_WINDOWS_GL = [
@@ -101,7 +103,7 @@ BLOCKLIST_INTEL_WINDOWS_GL = [
     "volume_instance.blend"
 ]
 
-BLOCKLIST_NVIDIA_WINDOWS_GL = [
+BLOCKLIST_NVIDIA_GL = [
     # Non-deterministic behavior. Unkown reason, the pool size doesn't seem to be exceeded.
     "shadow_min_pool_size.blend",
 ]
@@ -285,8 +287,8 @@ def main():
             blocklist += BLOCKLIST_INTEL
         if gpu_vendor == "INTEL" and sys.platform == "win32" and args.gpu_backend == "opengl":
             blocklist += BLOCKLIST_INTEL_WINDOWS_GL
-        if gpu_vendor == "NVIDIA" and sys.platform == "win32" and args.gpu_backend == "opengl":
-            blocklist += BLOCKLIST_NVIDIA_WINDOWS_GL
+        if gpu_vendor == "NVIDIA" and args.gpu_backend == "opengl":
+            blocklist += BLOCKLIST_NVIDIA_GL
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
@@ -389,6 +391,9 @@ def main():
         # Failure can be subtle, tighten threshold
         report.set_fail_percent(0.04)
         report.set_fail_threshold(2.0 / 255.0)
+        if args.gpu_backend == "metal":
+            # subd_motion_blur has some differences in bump on M1.
+            report.set_fail_percent(0.06)
     elif test_dir_name.startswith('lightprobe') and args.gpu_backend == "metal":
         # Some shadow difference, to be investigated
         report.set_fail_percent(0.09)

@@ -569,12 +569,12 @@ static bool has_single_asset_drag(const wmWindowManager &wm)
 
 static bool drag_global_poll(const bContext *C,
                              const wmDrag *drag,
-                             std::string *r_status_info,
+                             std::string * /*r_status_info*/,
                              std::string *r_disabled_info)
 {
   if (wmDragAsset *asset_data = WM_drag_get_asset_data(drag, 0)) {
     if (asset_data->asset->is_online_only()) {
-      *r_status_info = RPT_("Downloading asset...");
+      *r_disabled_info = RPT_("Asset needs downloading first");
       return false;
     }
   }
@@ -1152,8 +1152,13 @@ static void wm_drop_redalert_draw(const StringRef redalert_str, int x, int y)
   const uiWidgetColors *wcol = &btheme->tui.wcol_tooltip;
 
   float col_fg[4], col_bg[4];
-  ui::theme::get_color_4fv(TH_REDALERT, col_fg);
   rgba_uchar_to_float(col_bg, wcol->inner);
+
+  ui::theme::get_color_4fv(TH_REDALERT, col_fg);
+  /* Lighten the alert color a bit for the text. */
+  col_fg[0] = std::min(col_fg[0] + 0.2f, 1.0f);
+  col_fg[1] = std::min(col_fg[1] + 0.2f, 1.0f);
+  col_fg[2] = std::min(col_fg[2] + 0.2f, 1.0f);
 
   ui::fontstyle_draw_simple_backdrop(fstyle, x, y, redalert_str, col_fg, col_bg);
 }

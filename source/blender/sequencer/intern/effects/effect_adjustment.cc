@@ -6,7 +6,7 @@
  * \ingroup sequencer
  */
 
-#include "BLI_profile.hh"
+#include "PRF_profile.hh"
 
 #include "DNA_sequence_types.h"
 
@@ -47,13 +47,15 @@ static SeqResult do_adjustment_impl(const RenderData *context,
         context, state, timeline_frame, strip->channel - 1, channels, seqbasep);
   }
 
-  /* Found nothing? so let's work the way up the meta-strip stack, so
-   * that it is possible to group a bunch of adjustment strips into
-   * a meta-strip and have that work on everything below the meta-strip. */
+  /* Found nothing? Then work our way up the meta-strip stack, as this adjustment strip might be
+   * inside a nested meta-strip and affect strips below that meta-strip.
+   *
+   * NOTE: we should NOT walk past the stack level that the user is currently tabbed into,
+   * otherwise the adjustment layer can leak content from outside the meta context. */
 
   if (!out.is_valid()) {
     Strip *meta = lookup_meta_by_strip(ed, strip);
-    if (meta) {
+    if (meta && meta != ed->current_meta_strip) {
       out = do_adjustment_impl(context, state, meta, timeline_frame);
     }
   }
@@ -69,7 +71,7 @@ static SeqResult do_adjustment(const RenderData *context,
                                const SeqResult & /*ibuf1*/,
                                const SeqResult & /*ibuf2*/)
 {
-  BLI_profile_scope_with_name("SeqFxAdjustment", ProfileCategory::Draw);
+  PRF_scope_with_name("SeqFxAdjustment", ProfileCategory::Draw);
   Editing *ed = context->scene->ed;
   if (!ed || state->strips_in_progress.contains(strip)) {
     return {};

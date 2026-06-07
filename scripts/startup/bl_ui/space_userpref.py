@@ -1556,7 +1556,7 @@ class ThemeGenericClassGenerator:
         from bpy.types import Theme
 
         for theme_area in Theme.bl_rna.properties["theme_area"].enum_items_static:
-            if theme_area.identifier in {'USER_INTERFACE', 'STYLE', 'BONE_COLOR_SETS'}:
+            if theme_area.identifier in {'USER_INTERFACE', 'STYLE', 'BONE_COLOR_SETS', 'PROJECT'}:
                 continue
 
             panel_id = "USERPREF_PT_theme_" + theme_area.identifier.lower()
@@ -2718,9 +2718,10 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
             # Either online access is allowed, or the warning has already been dismissed. No need to draw.
             return
 
-        has_online_library = any(
-            library.enabled and library.use_remote_url for library in prefs.filepaths.asset_libraries
-        )
+        has_online_essentials = prefs.asset_libraries.use_online_essentials
+        has_online_library = has_online_essentials or any(
+            library.enabled and library.use_remote_url for library in prefs.filepaths.asset_libraries)
+
         if not has_online_library:
             # No online libraries, so no need to draw.
             return
@@ -2763,92 +2764,6 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
         # The only reason to prefer this over `screen.userpref_show`
         # is it will be disabled when `--offline-mode` is forced with a useful error for why.
         row.operator("extensions.userpref_allow_online", text="Allow Online Access", icon='CHECKMARK')
-
-
-# The panel is not located in the file paths section anymore and should be renamed. The old name is only kept for
-# compatibility (add-ons extend it). Planned for removal in 6.0, see #153901.
-class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
-    bl_label = "Asset Libraries"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = False
-        layout.use_property_decorate = False
-
-        paths = context.preferences.filepaths
-        active_library_index = paths.active_asset_library
-
-        row = layout.row()
-
-        row.template_list(
-            "USERPREF_UL_asset_libraries", "user_asset_libraries",
-            paths, "asset_libraries",
-            paths, "active_asset_library",
-        )
-
-        col = row.column(align=True)
-        if context.preferences.experimental.use_remote_asset_libraries:
-            col.operator_menu_enum("preferences.asset_library_add", "type", text="", icon='ADD')
-        else:
-            col.operator("preferences.asset_library_add", text="", icon='ADD').type = 'LOCAL'
-        props = col.operator("preferences.asset_library_remove", text="", icon='REMOVE')
-        props.index = active_library_index
-
-        try:
-            active_library = None if active_library_index < 0 else paths.asset_libraries[active_library_index]
-        except IndexError:
-            active_library = None
-
-        if active_library is None:
-            return
-
-        layout.separator()
-
-        if active_library.use_remote_url:
-            use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
-            if use_remote_libraries:
-                row = layout.row()
-                row.alert = active_library.remote_url == ""
-                row.prop(active_library, "remote_url", text="", icon='INTERNET', placeholder="Repository URL")
-
-            layout.prop(active_library, "import_method", text="Import Method")
-        else:
-            layout.prop(active_library, "path")
-            layout.prop(active_library, "import_method", text="Import Method")
-            layout.prop(active_library, "use_relative_path")
-
-
-class USERPREF_UL_asset_libraries(UIList):
-    def draw_item(self, context, layout, _data, item, _icon, _active_data, _active_propname, _index):
-        del context
-        asset_library = item
-
-        icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'
-        row = layout.row(align=True)
-        row.prop(asset_library, "name", text="", icon=icon, emboss=False)
-
-        if asset_library.enabled:
-            if asset_library.use_remote_url and asset_library.remote_url == "":
-                row.label(text="", icon='ERROR')
-
-        row.prop(asset_library, "enabled", text="", emboss=False,
-                 icon='CHECKBOX_HLT' if asset_library.enabled else 'CHECKBOX_DEHLT')
-
-    def filter_items(self, context, data, property):
-        asset_libraries = getattr(data, property)
-
-        # Determine the bitflags for remote & non-remote asset libraries.
-        use_remote_libs = context.preferences.experimental.use_remote_asset_libraries
-        flag_remote = self.bitflag_filter_item if use_remote_libs else self.bitflag_item_never_show
-        flag_nonremote = self.bitflag_filter_item
-
-        # Construct arrays of flags & indices.
-        flags = [
-            flag_remote if asset_library.use_remote_url else flag_nonremote
-            for asset_library in asset_libraries]
-        indices = list(range(len(asset_libraries)))
-
-        return flags, indices
 
 
 # -----------------------------------------------------------------------------
@@ -3083,7 +2998,6 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
-                ({"property": "use_geometry_nodes_hair_dynamics"}, ("blender/blender/issues/141609", "#141609")),
             ),
         )
 
@@ -3219,7 +3133,6 @@ classes = (
     USERPREF_PT_addons,
 
     USERPREF_PT_assets,
-    USERPREF_PT_file_paths_asset_libraries,
 
     USERPREF_MT_extensions_active_repo,
     USERPREF_MT_extensions_active_repo_remove,
@@ -3241,7 +3154,6 @@ classes = (
     USERPREF_PT_developer_tools,
 
     # UI lists
-    USERPREF_UL_asset_libraries,
     USERPREF_UL_extension_repos,
 
     # Add dynamically generated editor theme panels last,

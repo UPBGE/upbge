@@ -93,7 +93,7 @@ bool Texture::init_3D(int w, int h, int d, int mip_len, TextureFormat format)
   w_ = w;
   h_ = h;
   d_ = d;
-  int mip_len_max = 1 + floorf(log2f(max_iii(w, h, d)));
+  int mip_len_max = 1 + floorf(log2f(std::max({w, h, d})));
   mipmaps_ = min_ii(mip_len, mip_len_max);
   format_ = format;
   format_flag_ = to_format_flag(format);
@@ -173,6 +173,7 @@ bool Texture::init_view(Texture *src,
     type_ = (type_ & ~GPU_TEXTURE_CUBE) | GPU_TEXTURE_2D_ARRAY;
   }
   sampler_state = src->sampler_state;
+  gpu_image_usage_flags_ = src->gpu_image_usage_flags_;
   return this->init_internal(src, mip_start, layer_start, use_stencil);
 }
 

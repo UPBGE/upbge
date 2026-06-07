@@ -96,13 +96,13 @@ void TreeViewItemContainer::sort_alpha()
   std::ranges::sort(children_,
                     [](const std::unique_ptr<AbstractTreeViewItem> &a,
                        const std::unique_ptr<AbstractTreeViewItem> &b) {
-                      StringRefNull a_name = a.get()->label();
-                      StringRefNull b_name = b.get()->label();
+                      StringRefNull a_name = a->label();
+                      StringRefNull b_name = b->label();
                       return BLI_strcasecmp_natural(a_name.c_str(), b_name.c_str()) < 0;
                     });
 
   for (std::unique_ptr<AbstractTreeViewItem> &item : children_) {
-    item.get()->sort_alpha();
+    item->sort_alpha();
   }
 }
 
@@ -491,7 +491,7 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
-void AbstractTreeView::scroll_active_into_view(bContext * /*C*/)
+void AbstractTreeView::scroll_active_into_view(bContext * /*C*/, bool scroll_active_to_center)
 {
   int index = 0;
   const std::optional<int> visible_row_count = tot_visible_row_count();
@@ -510,6 +510,11 @@ void AbstractTreeView::scroll_active_into_view(bContext * /*C*/)
   foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if (item.is_active_) {
+          if (scroll_active_to_center) {
+            *scroll_value_ = std::clamp(
+                index - (*visible_row_count - 1) / 2, 0, (last_tot_items_ - *visible_row_count));
+            return;
+          }
           if (index < *scroll_value_) {
             *scroll_value_ = index;
             return;

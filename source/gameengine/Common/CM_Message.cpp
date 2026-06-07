@@ -36,9 +36,9 @@
 #  include "EXP_Python.h"
 #  include "py_capi_utils.hh"  // for PyC_FileAndNum only
 
-using namespace blender;
-
 #endif  // WITH_PYTHON
+
+using namespace blender;
 
 std::ostream &_CM_PrefixWarning(std::ostream &stream)
 {

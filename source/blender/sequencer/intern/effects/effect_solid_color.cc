@@ -6,11 +6,13 @@
  * \ingroup sequencer
  */
 
-#include "BLI_profile.hh"
 #include "BLI_task.hh"
 
-#include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+
+#include "IMB_imbuf.hh"
+
+#include "PRF_profile.hh"
 
 #include "effects.hh"
 
@@ -21,6 +23,7 @@ static void init_solid_color(Strip *strip)
   SolidColorVars *data = MEM_new<SolidColorVars>("solidcolor");
   strip->effectdata = data;
   data->col[0] = data->col[1] = data->col[2] = 0.5;
+  data->width = data->height = 1;
 }
 
 static void free_solid_color(Strip *strip, const bool /*do_id_user*/)
@@ -37,7 +40,7 @@ static StripEarlyOut early_out_color(const Strip * /*strip*/, float /*fac*/)
   return StripEarlyOut::NoInput;
 }
 
-static SeqResult do_solid_color(const RenderData *context,
+static SeqResult do_solid_color(const RenderData * /*context*/,
                                 SeqRenderState * /*state*/,
                                 Strip *strip,
                                 float /*timeline_frame*/,
@@ -45,10 +48,11 @@ static SeqResult do_solid_color(const RenderData *context,
                                 const SeqResult & /*ibuf1*/,
                                 const SeqResult & /*ibuf2*/)
 {
-  BLI_profile_scope_with_name("SeqFxColor", ProfileCategory::Draw);
-  SeqResult out = prepare_effect_imbufs(context, {}, {});
+  PRF_scope_with_name("SeqFxColor", ProfileCategory::Draw);
+  SeqResult out;
 
-  SolidColorVars *cv = static_cast<SolidColorVars *>(strip->effectdata);
+  const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip->effectdata);
+  out.image = IMB_allocImBuf(cv->width, cv->height, ImBufFlags::ByteData);
 
   uchar color[4];
   rgb_float_to_uchar(color, cv->col);

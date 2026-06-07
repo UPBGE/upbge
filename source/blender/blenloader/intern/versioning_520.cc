@@ -20,6 +20,8 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_xr_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
@@ -481,6 +483,24 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
    */
 }
 
+static void version_solid_color_width_height_defaults(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_COLOR && strip->effectdata != nullptr) {
+        SolidColorVars *data = static_cast<SolidColorVars *>(strip->effectdata);
+        data->width = scene.r.xsch;
+        data->height = scene.r.ysch;
+      }
+      return true;
+    });
+  }
+}
+
 void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 1)) {
@@ -803,6 +823,23 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 40)) {
+    for (wmWindowManager &wm : bmain->wm) {
+      wm.xr.session_settings.viewfinder_enabled = false;
+      wm.xr.session_settings.viewfinder_crosshair_enabled = true;
+
+      wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_RIGHT;
+      wm.xr.session_settings.viewfinder_scale = 1.0f;
+
+      wm.xr.session_settings.viewfinder_passepartout_overscan = 0.5f;
+      wm.xr.session_settings.viewfinder_passepartout_opacity = 0.5f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 41)) {
+    version_solid_color_width_height_defaults(*bmain);
   }
 
   /**

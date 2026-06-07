@@ -71,14 +71,12 @@ struct GPUTextureParams {
   float u_mapref_imat[16];
 };
 
-/* Check if we need manual colorspace handling for this image.
- * Returns true if the image uses a non-"Non-Color" colorspace. */
-bool displace_needs_manual_colorspace(Image *ima);
-
-/* Upload ImBuf data to GPU texture WITHOUT colorspace conversion.
- * For displacement we want raw values (matching CPU behavior).
+/* Upload an already color-managed ImBuf to a GPU texture WITHOUT any further colorspace
+ * conversion. The ibuf is expected to have been acquired via BKE_image_acquire_ibuf, which
+ * returns data already in the correct colorspace. Float buffers are uploaded as-is; byte
+ * buffers are only normalized to [0, 1].
  */
-void displace_upload_ibuf_to_texture(gpu::Texture *tex, ImBuf *ibuf, const char *colorspace_name = nullptr);
+void colormanaged_ibuf_to_gputexture(gpu::Texture *tex, ImBuf *ibuf);
 
 void fill_texture_params_from_tex(GPUTextureParams &gpu_tex_params,
                                   Tex *tex,
