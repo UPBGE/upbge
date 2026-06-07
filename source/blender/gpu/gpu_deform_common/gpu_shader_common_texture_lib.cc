@@ -1037,9 +1037,11 @@ int voronoi_tex(vec3 texvec, inout TexResult_tex texres, float vn_w1, float vn_w
     else {
       c *= sc;
     }
+    c = apply_bricont_rgb(c);
     texres.trgba = vec4(c, 1.0);
     return (TEX_RGB);
   }
+  texres.tin = apply_bricont_fn(texres.tin);
   return TEX_INT;
 }
 
