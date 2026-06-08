@@ -78,11 +78,6 @@
 
 using namespace blender;
 
-static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);
-static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
-static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
-    1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-
 KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
     : m_flags(ACTIVITY_NONE), m_physicsRadius(0.0f), m_logicRadius(0.0f)
 {
