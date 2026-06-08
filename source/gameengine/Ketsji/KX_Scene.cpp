@@ -3022,10 +3022,10 @@ PyObject *KX_Scene::pyattr_get_active_camera(EXP_PyObjectPlus *self_v,
 {
   KX_Scene *self = static_cast<KX_Scene *>(self_v);
   KX_Camera *cam = self->GetActiveCamera();
-  if (cam)
+  if (cam) {
     return self->GetActiveCamera()->GetProxy();
-  else
-    Py_RETURN_NONE;
+  }
+  Py_RETURN_NONE;
 }
 
 int KX_Scene::pyattr_set_active_camera(EXP_PyObjectPlus *self_v,
