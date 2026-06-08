@@ -47,10 +47,9 @@ PyObject *Texture_close(Texture *self);
 Texture::Texture():
       m_orgTex(0),
       m_orgImg(nullptr),
-      m_orgSaved(false),
       m_imgBuf(nullptr),
       m_imgTexture(nullptr),
-      m_matTexture(nullptr),
+      m_rasTexture(nullptr),
       m_scene(nullptr),
       m_gameobj(nullptr),
       m_origGpuTex(nullptr),
@@ -106,8 +105,11 @@ void Texture::FreeAllTextures(KX_Scene *scene)
 
 void Texture::Close()
 {
-  if (m_orgSaved) {
-    m_orgSaved = false;
+  if (m_rasTexture) {
+    m_rasTexture = nullptr;
+  }
+  if (m_orgImg) {
+    m_orgImg = nullptr;
   }
   if (m_origGpuTex) {
     m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
@@ -187,7 +189,7 @@ void Texture::loadTexture(unsigned int *texture,
     // Upload the RGBA8 buffer to the GPU texture
     GPU_texture_update(m_modifiedGPUTexture, GPU_DATA_UBYTE, texture);
 
-    // Optionally update mipmaps
+    // Optionally update mipmaps - TODO: See if we keep that in 2.8+ versions (also see if we update ImageRender path with this option)
     if (mipmap) {
       GPU_texture_update_mipmap_chain(m_modifiedGPUTexture);
     }
@@ -313,29 +315,21 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
       tex->m_scene = gameObj->GetScene();
       // get pointer to texture image
       RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
-      KX_LightObject *lamp = nullptr;
-      if (gameObj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
-        lamp = (KX_LightObject *)gameObj;
-      }
 
       if (mat != nullptr) {
         // get blender material texture
-        tex->m_matTexture = mat->GetTexture(texID);
-        if (!tex->m_matTexture) {
+        tex->m_rasTexture = mat->GetTexture(texID);
+        if (!tex->m_rasTexture) {
           THRWEXCP(TextureNotAvail, S_OK);
         }
-        tex->m_imgTexture = tex->m_matTexture->GetImage();
-        tex->m_useMatTexture = true;
-      }
-      else if (lamp != nullptr) {
-        // tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
-        // tex->m_useMatTexture = false;
+        tex->m_imgTexture = tex->m_rasTexture->GetImage();
       }
 
       // check if texture is available, if not, initialization failed
-      if (tex->m_imgTexture == nullptr && tex->m_matTexture == nullptr)
+      if (tex->m_imgTexture == nullptr && tex->m_rasTexture == nullptr) {
         // throw exception if initialization failed
         THRWEXCP(MaterialNotAvail, S_OK);
+      }
 
       // if texture object is provided
       if (texObj != nullptr) {
@@ -386,13 +380,9 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
       // if source is available
       if (m_source != nullptr) {
         // check texture code
-        if (!m_orgSaved) {
-          m_orgSaved = true;
-          if (m_useMatTexture) {
-            m_orgImg = m_matTexture->GetImage();
-            if (m_imgTexture) {
-              m_orgImg = m_imgTexture;
-            }
+        if (!m_orgImg) {
+          if (m_rasTexture) {
+            m_orgImg = m_rasTexture->GetImage();
           }
           else {
             // Swapping will work only if the GPU has already loaded the image.
@@ -447,7 +437,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
        * "refresh" method), because the depsgraph has not been warned yet. */
       bool needs_notifier = m_source && (
 #ifdef WITH_FFMPEG
-                            PyObject_TypeCheck(&m_source->ob_base, &VideoFFmpegType) ||
+                                PyObject_TypeCheck(&m_source->ob_base, &VideoFFmpegType) ||
                                 PyObject_TypeCheck(&m_source->ob_base, &ImageFFmpegType) ||
 #endif  // WITH_FFMPEG
                                 PyObject_TypeCheck(&m_source->ob_base, &ImageMixType) ||
