@@ -2128,7 +2128,8 @@ void CcdPhysicsEnvironment::CallbackTriggers()
     }
 
     // Bullet does not refresh the manifold contact point for object without contact response
-    // may need to remove this when a newer Bullet version is integrated
+    // may need to remove this when a newer Bullet version is integrated (still needed apparently
+    // in 2026) See: 36ef95eff5ef188dcc9ece88996fb2e245730829
     if (!dispatcher->needsResponse(col0, col1)) {
       // Refresh algorithm fails sometimes when there is penetration
       // (usuall the case with ghost and sensor objects)

@@ -2594,12 +2594,6 @@ struct NodesModifierBake {
   int64_t bake_size = 0;
 };
 
-struct NodesModifierPanel {
-  /** ID of the corresponding panel from #bNodeTreeInterfacePanel::identifier. */
-  int id = 0;
-  NodesModifierPanelFlag flag = {};
-};
-
 struct NodesModifierData {
   ModifierData modifier;
   struct bNodeTree *node_group = nullptr;
@@ -2614,10 +2608,6 @@ struct NodesModifierData {
   char _pad[2] = {};
   int bakes_num = 0;
   NodesModifierBake *bakes = nullptr;
-
-  char _pad2[4] = {};
-  int panels_num = 0;
-  NodesModifierPanel *panels = nullptr;
 
   NodesModifierRuntime *runtime = nullptr;
 

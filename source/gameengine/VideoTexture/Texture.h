@@ -30,16 +30,11 @@ class Texture : public EXP_Value {
   Py_Header protected : virtual void DestructFromPython();
 
  public:
-  // texture is using blender material
-  bool m_useMatTexture;
-
   // video texture bind code
   // original texture bind code
   unsigned int m_orgTex;
   // original image bind code
   blender::Image *m_orgImg;
-  // original texture saved
-  bool m_orgSaved;
 
   // kernel image buffer, to make sure the image is loaded before we swap the bindcode
   blender::ImBuf *m_imgBuf;
@@ -47,7 +42,7 @@ class Texture : public EXP_Value {
   blender::Image *m_imgTexture;
 
   // texture for blender materials
-  RAS_Texture *m_matTexture;
+  RAS_Texture *m_rasTexture;
 
   KX_Scene *m_scene;
   KX_GameObject *m_gameobj;
