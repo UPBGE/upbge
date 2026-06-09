@@ -23,6 +23,7 @@
 
 #include "gpu_py_element.hh"
 #include "gpu_py_storagebuffer.hh"
+#include "gpu_py_texture.hh"
 #include "gpu_py_uniformbuffer.hh"
 #include "gpu_py_vertex_buffer.hh"
 
@@ -58,44 +59,6 @@ PyDoc_STRVAR(
     "   :arg transform: Optional :class:`gpu.types.GPUStorageBuf` containing a ``mat4``\n"
     "      (used as ``transform_mat[0]``). If omitted, an identity mat4 is used.\n"
     "   :type transform: :class:`gpu.types.GPUStorageBuf` | None\n"
-    "\n"
-    "   Accepted buffer types (bindings passed to the high-level API):\n"
-    "\n"
-    "   - :class:`gpu.types.GPUStorageBuf` (SSBO)\n"
-    "   - :class:`gpu.types.GPUVertBuf` (VBO wrapper)\n"
-    "   - :class:`gpu.types.GPUUniformBuf` (bound as SSBO via ``GPU_uniformbuf_bind_as_ssbo``)\n"
-    "   - :class:`gpu.types.GPUIndexBuf` (bound as SSBO via ``GPU_indexbuf_bind_as_ssbo``)\n"
-    "   - string tokens resolving mesh VBOs (for example ``'Position'``, ``'VBO::Position'``,\n"
-    "     ``'CornerNormal'``)\n"
-    "   - ``None``\n"
-    "\n"
-    "   GLSL helpers injected automatically (topology buffer bound as `int topo[]` at binding "
-    "15)::\n"
-    "\n"
-    "      int face_offsets(int i);\n"
-    "      int corner_to_face(int i);\n"
-    "      int corner_verts(int i);\n"
-    "      int corner_tri(int tri_idx, int vert_idx);\n"
-    "      int corner_tri_face(int i);\n"
-    "      int2 edges(int i);\n"
-    "      int corner_edges(int i);\n"
-    "      int vert_to_face_offsets(int i);\n"
-    "      int vert_to_face(int i);\n"
-    "\n"
-    "   Specialization constants added automatically:\n"
-    "\n"
-    "   - ``int normals_domain``: ``0`` = vertex normals, ``1`` = face normals\n"
-    "     (derived from mesh)\n"
-    "   - ``int normals_hq``: ``0``/``1`` high-quality normals flag\n"
-    "     (from scene perf_flag / workarounds)\n"
-    "\n"
-    "   Binding indices used by the builtin scatter shader (for reference):\n"
-    "\n"
-    "   - ``binding=0``: ``positions_out[]`` (write, ``VBO::Position``)\n"
-    "   - ``binding=1``: ``normals_out[]`` (write, ``VBO::CornerNormal``)\n"
-    "   - ``binding=2``: ``positions_in[]`` (read, ``vec4`` SSBO provided by caller)\n"
-    "   - ``binding=3``: ``transform_mat[]`` (read, ``mat4`` SSBO)\n"
-    "   - ``binding=15``: ``topo[]`` (read, int SSBO injected automatically)\n"
     "\n"
     "   :return: ``None``.\n"
     "   :rtype: None\n"
@@ -338,8 +301,9 @@ PyDoc_STRVAR(
     "\n"
     "   Binding tuples use the form:\n"
     "\n"
-    "   ``(binding_index:int, buffer:GPUStorageBuf|GPUVertBuf|GPUUniformBuf|GPUIndexBuf|str|None,``\n"
-    "   ``qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str)``\n"
+    "   ``(binding_index:int, buffer:GPUStorageBuf|GPUVertBuf|GPUUniformBuf|GPUIndexBuf|GPUTexture|str|None, \n"
+    "   qualifier:str('read'|'write'|'read_write') (ignored for GPUTexture), \n"
+    "   type_name:str('int'|'float'|'mat4'|'sampler2D'...), bind_name:str)``\n"
     "\n"
     "   Notes about ``buffer``:\n"
     "\n"
@@ -347,8 +311,9 @@ PyDoc_STRVAR(
     "   - Supported tokens include ``'Position'``, ``'VBO::Position'``, ``'CornerNormal'``\n"
     "     and ``'VBO::CornerNormal'``.\n"
     "   - Accepted Python buffer wrappers are :class:`gpu.types.GPUStorageBuf`,\n"
-    "     :class:`gpu.types.GPUVertBuf`, :class:`gpu.types.GPUUniformBuf`\n"
-    "     (bound as SSBO), :class:`gpu.types.GPUIndexBuf` (bound as SSBO), or ``None``.\n"
+    "     :class:`gpu.types.GPUVertBuf`, :class:`gpu.types.GPUUniformBuf`, :class:`gpu.types.GPUIndexBuf`\n"
+    "     (bound as SSBO), \n"
+    "     :class:`gpu.types.GPUTexture` (bound as GPUTexture via ``GPU_texture_bind``), or ``None``.\n"
     "\n"
     "   ``config`` callable behavior:\n"
     "\n"
@@ -452,7 +417,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
   /* Convert bindings sequence -> std::vector<GpuMeshComputeBinding>
    *
    * Expected Python binding tuple:
-   *   (binding_index:int, buffer:GPUStorageBuf|GPUVertBuf|str_token|None,
+   *   (binding_index:int, buffer:GPUStorageBuf|GPUVertBuf|GPUTexture|str_token|None,
    *    qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str)
    *
    * If buffer is a string token (e.g. "VBO:Position" or "Position") it will be resolved
@@ -522,6 +487,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
     blender::gpu::VertBuf *vb = nullptr;
     blender::gpu::UniformBuf *ub = nullptr;
     blender::gpu::IndexBuf *ib = nullptr;
+    blender::gpu::Texture *tex = nullptr;
     std::string token;
 
     if (py_buf == Py_None) {
@@ -529,6 +495,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
       vb = nullptr;
       ub = nullptr;
       ib = nullptr;
+      tex = nullptr;
     }
     else if (PyUnicode_Check(py_buf)) {
       const char *s = PyUnicode_AsUTF8(py_buf);
@@ -541,26 +508,40 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
       // defer resolution until we have the cache
     }
     else {
-      BPyGPUStorageBuf *py_sb = reinterpret_cast<BPyGPUStorageBuf *>(py_buf);
-      if (py_sb && py_sb->ssbo) {
-        sb = py_sb->ssbo;
+      if (PyObject_TypeCheck(py_buf, &BPyGPUStorageBuf_Type)) {
+        BPyGPUStorageBuf *py_sb = reinterpret_cast<BPyGPUStorageBuf *>(py_buf);
+        if (py_sb && py_sb->ssbo) {
+          sb = py_sb->ssbo;
+        }
       }
-      BPyGPUVertBuf *py_vb = reinterpret_cast<BPyGPUVertBuf *>(py_buf);
-      if (py_vb && py_vb->buf) {
-        vb = py_vb->buf;
+      if (PyObject_TypeCheck(py_buf, &BPyGPUVertBuf_Type)) {
+        BPyGPUVertBuf *py_vb = reinterpret_cast<BPyGPUVertBuf *>(py_buf);
+        if (py_vb && py_vb->buf) {
+          vb = py_vb->buf;
+        }
       }
-      BPyGPUUniformBuf *py_ubo = reinterpret_cast<BPyGPUUniformBuf *>(py_buf);
-      if (py_ubo && py_ubo->ubo) {
-        ub = py_ubo->ubo;
+      if (PyObject_TypeCheck(py_buf, &BPyGPUUniformBuf_Type)) {
+        BPyGPUUniformBuf *py_ubo = reinterpret_cast<BPyGPUUniformBuf *>(py_buf);
+        if (py_ubo && py_ubo->ubo) {
+          ub = py_ubo->ubo;
+        }
       }
-      BPyGPUIndexBuf *py_ibo = reinterpret_cast<BPyGPUIndexBuf *>(py_buf);
-      if (py_ibo && py_ibo->elem) {
-        ib = py_ibo->elem;
+      if (PyObject_TypeCheck(py_buf, &BPyGPUIndexBuf_Type)) {
+        BPyGPUIndexBuf *py_ibo = reinterpret_cast<BPyGPUIndexBuf *>(py_buf);
+        if (py_ibo && py_ibo->elem) {
+          ib = py_ibo->elem;
+        }
       }
-      if (!vb && !sb && !ub && !ib) {
+      if (PyObject_TypeCheck(py_buf, &BPyGPUTexture_Type)) {
+        BPyGPUTexture *py_tex = reinterpret_cast<BPyGPUTexture *>(py_buf);
+        if (py_tex && py_tex->tex) {
+          tex = py_tex->tex;
+        }
+      }
+      if (!vb && !sb && !ub && !ib && !tex) {
         PyErr_SetString(PyExc_TypeError,
                         "buffer must be a GPUStorageBuf, GPUVertBuf, GPUUniformBuf, "
-                        "GPUIndexBuf, a string token or None");
+                        "GPUIndexBuf, GPUTexture, a string token or None");
         Py_DECREF(py_item);
         return nullptr;
       }
@@ -579,6 +560,9 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
     }
     else if (ib) {
       b.buffer = ib;
+    }
+    else if (tex) {
+      b.buffer = tex;
     }
     b.qualifiers = qual;
     b.type_name = strdup(type_name);

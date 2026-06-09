@@ -734,7 +734,12 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
     /* User buffer bindings (use local_bindings which may contain injected defaults). */
     for (const auto &binding : local_bindings) {
-      info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
+      if (strcmp(binding.type_name, "sampler2D") == 0) {
+        info.sampler(binding.binding, ImageType::Float2D, binding.bind_name);
+      }
+      else {
+        info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
+      }
     }
 
     /* Topology buffer binding */
@@ -799,6 +804,11 @@ bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
           else if constexpr (std::is_same_v<T, gpu::IndexBuf *>) {
             if (arg) {
               GPU_indexbuf_bind_as_ssbo(arg, binding.binding);
+            }
+          }
+          else if constexpr (std::is_same_v<T, gpu::Texture *>) {
+            if (arg) {
+              GPU_texture_bind(arg, binding.binding);
             }
           }
         },
