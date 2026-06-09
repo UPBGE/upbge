@@ -137,15 +137,17 @@ void save_screenshot_thread_func(blender::TaskPool *__restrict (pool),
   /* create and save imbuf */
   ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, ImBufFlags::Zero);
   ibuf->color_mode = ImColorMode::RGB;
-  ibuf->byte_buffer.data = (uint8_t *)task->dumprect;
+  ibuf->assign_byte_data(
+      (uint8_t *)task
+          ->dumprect);  // takes ownership of the pixels buffer (task->dumprect), will be freed by IMB_freeImBuf.
+  if (ibuf->byte_buffer.sharing_info) {
+    ibuf->byte_buffer.sharing_info->tag_ensured_mutable();
+  }
 
   BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
 
   ibuf->byte_buffer.data = nullptr;
-  IMB_freeImBuf(ibuf);
-  // Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use
-  // free() then.
-  free(task->dumprect);
+  IMB_freeImBuf(ibuf); // frees allocated task->dumprect too.
   MEM_delete(task->im_format);
 }
 
