@@ -31,7 +31,7 @@ import platform as _platform
 bl_info = {
     "name": "Game Engine Publishing",
     "author": "Mitchell Stokes (Moguri), Oren Titane (Genome36)",
-    "version": (0, 1, 1),
+    "version": (0, 2, 0),
     "blender": (5, 0, 0),
     "location": "Render Properties > Publishing Info",
     "description": "Publish .blend file as game engine runtime, manage versions and platforms",
@@ -190,16 +190,17 @@ def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_l
         # Python libs for Windows
         if ext == ".exe":
             py_folder = os.path.join(ver, "python", "lib")
+            src = python_dir
         else:
             # Python libs for linux
             linux_py = os.path.join(blender_dir, ver, "python")
-        if os.path.exists(linux_py):
-            py_folder = os.path.join(ver, "python")
-            src = linux_py
-        else:
-            py_folder = os.path.join(ver, "python", "lib")
+            if os.path.exists(linux_py):
+                py_folder = os.path.join(ver, "python")
+                src = linux_py
+            else:
+                py_folder = os.path.join(ver, "python", "lib")
+                src = python_dir
         dst = os.path.join(output_dir, py_folder)
-        src = python_dir
 
         if not os.path.exists(src):
             print("skipped (Python folder not found)", flush=True)
@@ -253,6 +254,10 @@ def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_l
         dst = os.path.join(output_dir, "blender.shared")
         if os.path.exists(src) and not os.path.exists(dst):
             shutil.copytree(src, dst)
+        src = os.path.join(upbge_dir, "license")
+        dst = os.path.join(output_dir, "license")
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copytree(src, dst)
         ver = bpy.app.version_string.split()[0][:3]
         data_subdirs= [
             os.path.join(ver, "datafiles", "colormanagement"),
@@ -289,8 +294,8 @@ def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_l
         if os.path.exists(src) and not os.path.exists(dst):
             shutil.copytree(src, dst)
 
-        src = os.path.join(upbge_dir, "engine.license")
-        dst = os.path.join(output_dir, "engine.license")
+        src = os.path.join(upbge_dir, "license")
+        dst = os.path.join(output_dir, "license")
         if os.path.exists(src) and not os.path.exists(dst):
             shutil.copytree(src, dst)
 
@@ -442,7 +447,7 @@ class RENDER_PT_publish(bpy.types.Panel):
         layout.separator()
 
         # assets list
-        layout.label(text="Asset Paths")
+        layout.label(text="Asset Paths (Broken)")
 
         # UI_UL_list
         row = layout.row()
