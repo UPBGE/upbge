@@ -1155,7 +1155,7 @@ char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, i
 bool RNA_struct_available_or_report(ReportList *reports, const char *identifier)
 {
   const StructRNA *srna_exists = RNA_struct_find(identifier);
-  if (UNLIKELY(srna_exists != nullptr)) {
+  if (srna_exists != nullptr) [[unlikely]] {
     /* Use comprehensive string construction since this is such a rare occurrence
      * and information here may cut down time troubleshooting. */
     DynStr *dynstr = BLI_dynstr_new();
@@ -5310,8 +5310,15 @@ bool RNA_property_collection_type_get(PointerRNA *ptr, PropertyRNA *prop, Pointe
 {
   BLI_assert(RNA_property_type(prop) == PROP_COLLECTION);
 
-  *r_ptr = *ptr;
-  return ((r_ptr->type = rna_ensure_property(prop)->srna) ? 1 : 0);
+  StructRNA *type = rna_ensure_property(prop)->srna;
+  if (type) {
+    *r_ptr = RNA_pointer_create_with_parent(*ptr, type, ptr->data);
+    return true;
+  }
+  else {
+    *r_ptr = *ptr;
+    return false;
+  }
 }
 
 int RNA_property_collection_raw_array(
@@ -6452,7 +6459,7 @@ void rna_iterator_array_begin(CollectionPropertyIterator *iter,
     data = nullptr;
     itemsize = 0;
   }
-  else if (UNLIKELY(length < 0 || length > std::numeric_limits<uint64_t>::max() / itemsize)) {
+  else if (length < 0 || length > std::numeric_limits<uint64_t>::max() / itemsize) [[unlikely]] {
     /* This path is never expected to execute. Assert and trace if it ever does. */
     BLI_assert_unreachable();
     data = nullptr;
@@ -6518,7 +6525,7 @@ PointerRNA rna_array_lookup_int(
   if (index < 0 || index >= length) {
     return PointerRNA_NULL;
   }
-  if (UNLIKELY(index > std::numeric_limits<uint64_t>::max() / itemsize)) {
+  if (index > std::numeric_limits<uint64_t>::max() / itemsize) [[unlikely]] {
     /* This path is never expected to execute. Assert and trace if it ever does. */
     BLI_assert_unreachable();
     return PointerRNA_NULL;

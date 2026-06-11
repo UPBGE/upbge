@@ -2387,7 +2387,7 @@ bool text_check_whitespace(const char ch)
 
 int text_find_identifier_start(const char *str, int i)
 {
-  if (UNLIKELY(i <= 0)) {
+  if (i <= 0) [[unlikely]] {
     return 0;
   }
 
