@@ -78,7 +78,7 @@ void ImageMix::calcImage(unsigned int texId, double ts)
 // cast blender::Image pointer to ImageMix
 inline ImageMix *getImageMix(PyImage *self)
 {
-  return static_cast<ImageMix *>(self->m_image);
+  return static_cast<ImageMix *>(self->m_imageBase);
 }
 
 // python methods
@@ -92,7 +92,7 @@ static PyObject *getWeight(PyImage *self, PyObject *args)
   char *id;
   if (!PyArg_ParseTuple(args, "s:getWeight", &id))
     return nullptr;
-  if (self->m_image != nullptr)
+  if (self->m_imageBase != nullptr)
     // get weight
     weight = getImageMix(self)->getWeight(id);
   // return weight
@@ -107,7 +107,7 @@ static PyObject *setWeight(PyImage *self, PyObject *args)
   short weight = 0;
   if (!PyArg_ParseTuple(args, "sh:setWeight", &id, &weight))
     return nullptr;
-  if (self->m_image != nullptr)
+  if (self->m_imageBase != nullptr)
     // set weight
     if (!getImageMix(self)->setWeight(id, weight)) {
       // if not set, report error

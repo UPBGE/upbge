@@ -555,7 +555,7 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
     try {
       // check if optimization is possible
       if (self->m_leftEye != nullptr) {
-        ImageBase *leftImage = self->m_leftEye->m_image;
+        ImageBase *leftImage = self->m_leftEye->m_imageBase;
         short *srcSize = leftImage->getSize();
         self->mLeftFrame->GetBytes((void **)&leftEye);
         if (srcSize[0] == self->mSize[0] && srcSize[1] == self->mSize[1]) {
@@ -574,7 +574,7 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
       }
       if (leftEye) {
         if (self->mUse3D && self->m_rightEye != nullptr) {
-          ImageBase *rightImage = self->m_rightEye->m_image;
+          ImageBase *rightImage = self->m_rightEye->m_imageBase;
           short *srcSize = rightImage->getSize();
           self->mRightFrame->GetBytes((void **)&rightEye);
           if (srcSize[0] == self->mSize[0] && srcSize[1] == self->mSize[1]) {
@@ -600,9 +600,9 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
       // refresh texture source, if required
       if (refreshSource) {
         if (self->m_leftEye)
-          self->m_leftEye->m_image->refresh();
+          self->m_leftEye->m_imageBase->refresh();
         if (self->m_rightEye)
-          self->m_rightEye->m_image->refresh();
+          self->m_rightEye->m_imageBase->refresh();
       }
     }
     CATCH_EXCP;

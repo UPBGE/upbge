@@ -136,7 +136,7 @@ void Texture::SetSource(PyImage *source)
   Py_INCREF(source);
   m_source = source;
   // Cache whether source is ImageRender to avoid dynamic_cast in the hot path every frame.
-  m_isImageRender = (dynamic_cast<ImageRender *>(source->m_image) != nullptr);
+  m_isImageRender = (dynamic_cast<ImageRender *>(source->m_imageBase) != nullptr);
 }
 
 // load texture
@@ -146,7 +146,7 @@ void Texture::loadTexture(unsigned int *texture,
                           blender::gpu::TextureFormat format)
 {
   // Check if the source is an ImageRender (offscreen 3D render)
-  ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_image) : nullptr;
+  ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_imageBase) : nullptr;
 
   if (imr && !m_origGpuTex) {
     // For ImageRender, directly use the GPU texture from the active framebuffer
@@ -396,11 +396,11 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
         }
 
         // get texture
-        unsigned int *texture = m_source->m_image->getImage(0, ts);
+        unsigned int *texture = m_source->m_imageBase->getImage(0, ts);
         // if texture is available
         if (texture != nullptr) {
           // get texture size
-          short *orgSize = m_source->m_image->getSize();
+          short *orgSize = m_source->m_imageBase->getSize();
           // calc scaled sizes
           short size[2];
           if (0) {
@@ -423,11 +423,11 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           loadTexture(texture,
               size,
               m_mipmap,
-              m_source->m_image->GetInternalFormat());
+              m_source->m_imageBase->GetInternalFormat());
         }
         // refresh texture source, if required
         if (refreshSource) {
-          m_source->m_image->refresh();
+          m_source->m_imageBase->refresh();
         }
       }
 
@@ -522,7 +522,7 @@ int Texture::pyattr_set_source(EXP_PyObjectPlus *self_v,
   }
   PyImage *pyimg = reinterpret_cast<PyImage *>(value);
   self->SetSource(pyimg);
-  ImageRender *imgRender = dynamic_cast<ImageRender *>(pyimg->m_image);
+  ImageRender *imgRender = dynamic_cast<ImageRender *>(pyimg->m_imageBase);
   if (imgRender) {
     imgRender->SetTexture(self);
   }

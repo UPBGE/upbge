@@ -395,7 +395,7 @@ void ImageRender::RunPostDrawCallbacks()
 // cast blender::Image pointer to ImageRender
 inline ImageRender *getImageRender(PyImage *self)
 {
-  return static_cast<ImageRender *>(self->m_image);
+  return static_cast<ImageRender *>(self->m_imageBase);
 }
 
 // python methods
@@ -444,9 +444,9 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
     // get pointer to image structure
     PyImage *self = reinterpret_cast<PyImage *>(pySelf);
     // create source object
-    if (self->m_image != nullptr)
-      delete self->m_image;
-    self->m_image = new ImageRender(scenePtr, cameraPtr, width, height, samples);
+    if (self->m_imageBase != nullptr)
+      delete self->m_imageBase;
+    self->m_imageBase = new ImageRender(scenePtr, cameraPtr, width, height, samples);
   }
   catch (Exception &exp) {
     exp.report();
@@ -750,11 +750,11 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
     PyImage *self = reinterpret_cast<PyImage *>(pySelf);
 
     // create source object
-    if (self->m_image != nullptr) {
-      delete self->m_image;
-      self->m_image = nullptr;
+    if (self->m_imageBase != nullptr) {
+      delete self->m_imageBase;
+      self->m_imageBase = nullptr;
     }
-    self->m_image = new ImageRender(
+    self->m_imageBase = new ImageRender(
         scenePtr, observerPtr, mirrorPtr, material, width, height, samples);
   }
   catch (Exception &exp) {

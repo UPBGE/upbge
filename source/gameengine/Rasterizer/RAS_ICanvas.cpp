@@ -146,7 +146,6 @@ void save_screenshot_thread_func(blender::TaskPool *__restrict (pool),
 
   BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
 
-  ibuf->byte_buffer.data = nullptr;
   IMB_freeImBuf(ibuf); // frees allocated task->dumprect too.
   MEM_delete(task->im_format);
 }

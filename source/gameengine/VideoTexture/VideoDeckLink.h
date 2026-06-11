@@ -116,7 +116,7 @@ class VideoDeckLink : public VideoBase {
 
 inline VideoDeckLink *getDeckLink(PyImage *self)
 {
-  return static_cast<VideoDeckLink *>(self->m_image);
+  return static_cast<VideoDeckLink *>(self->m_imageBase);
 }
 
 ////////////////////////////////////////////
