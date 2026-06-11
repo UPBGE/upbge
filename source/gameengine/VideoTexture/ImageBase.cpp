@@ -183,16 +183,11 @@ void ImageBase::swapImageBR()
 // initialize image data
 void ImageBase::init(short width, short height)
 {
-  // if image has to be scaled
-  if (m_scale) {
-    // recalc sizes of image
-    width = calcSize(width);
-    height = calcSize(height);
-  }
   // if sizes differ
   if (width != m_size[0] || height != m_size[1]) {
-    if (m_exports > 0)
+    if (m_exports > 0) {
       THRWEXCP(ImageHasExports, S_OK);
+    }
 
     // new buffer size
     unsigned int newSize = width * height;
@@ -254,17 +249,6 @@ bool ImageBase::checkSourceSizes(void)
   }
   // all sizes match
   return true;
-}
-
-// compute nearest power of 2 value
-short ImageBase::calcSize(short size)
-{
-  // while there is more than 1 bit in size value
-  while ((size & (size - 1)) != 0)
-    // clear last bit
-    size = size & (size - 1);
-  // return result
-  return size;
 }
 
 // perform loop detection

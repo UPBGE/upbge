@@ -81,8 +81,7 @@ void ImageViewport::setWhole(bool whole)
   // otherwise place area in the middle of viewport
   for (int idx = 0; idx < 2; ++idx) {
     // capture size
-    m_capSize[idx] = whole ? short(getViewportSize()[idx]) :
-                             calcSize(short(getViewportSize()[idx]));
+    m_capSize[idx] = short(getViewportSize()[idx]);
     // position
     m_position[idx] = whole ? 0 : ((getViewportSize()[idx] - m_capSize[idx]) >> 1);
   }

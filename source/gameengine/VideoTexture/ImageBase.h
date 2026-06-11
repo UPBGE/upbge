@@ -114,9 +114,6 @@ class ImageBase {
   /// set pixel filter
   void setFilter(PyFilter *filt);
 
-  /// calculate size(nearest power of 2)
-  static short calcSize(short size);
-
   /// calculate image from sources and send it to a target buffer instead of a texture
   /// format is GL_RGBA or GL_BGRA
   virtual bool loadImage(unsigned int *buffer, unsigned int size, double ts);

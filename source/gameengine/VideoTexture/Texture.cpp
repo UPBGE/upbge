@@ -402,23 +402,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           // get texture size
           short *orgSize = m_source->m_imageBase->getSize();
           // calc scaled sizes
-          short size[2];
-          if (0) {
-            size[0] = orgSize[0];
-            size[1] = orgSize[1];
-          }
-          else {
-            size[0] = ImageBase::calcSize(orgSize[0]);
-            size[1] = ImageBase::calcSize(orgSize[1]);
-          }
-          // scale texture if needed
-          if (size[0] != orgSize[0] || size[1] != orgSize[1]) {
-            blender::IMB_freeImBuf(m_scaledImBuf);
-            m_scaledImBuf = blender::IMB_allocFromBuffer((uint8_t *)texture, nullptr, orgSize[0], orgSize[1], 4);
-            blender::IMB_scale(m_scaledImBuf, size[0], size[1], IMBScaleFilter::Box, false);
-            // use scaled image instead original
-            texture = (unsigned int *)m_scaledImBuf->byte_buffer.data;
-          }
+          short size[2] = {orgSize[0], orgSize[1]};
           // load texture for rendering
           loadTexture(texture,
               size,
