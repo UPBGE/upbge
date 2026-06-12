@@ -106,6 +106,7 @@ class KX_GameObject : public SCA_IObject {
   bool m_isReplica;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
+  bool m_isUpbgeDupliBase;
   bool m_isUpbgeDupliInstance;
   /* END OF EEVEE INTEGRATION */
 
@@ -152,8 +153,8 @@ class KX_GameObject : public SCA_IObject {
  public:
   /* EEVEE INTEGRATION */
 
-  void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
-  void TagForTransformUpdateEvaluated();
+  void TagForTransformUpdate(bool is_overlay_pass);
+  void TagForTransformUpdateEvaluated(bool is_last_render_pass);
   void ReplicateBlenderObject();
   void DiscardRenderedObject();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
@@ -165,6 +166,7 @@ class KX_GameObject : public SCA_IObject {
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
+  void SetIsUpbgeDupliBase();
   BL_ActionManager *GetActionManagerNoCreate();
   /**
    * Create a dupli based on the existing Blender object.

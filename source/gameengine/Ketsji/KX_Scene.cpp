@@ -710,7 +710,7 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     /* Update compatibles blender physics simulations */
     blender::Object *ob = gameobj->GetBlenderObject();
     TagBlenderPhysicsObject(scene, ob);
-    gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
+    gameobj->TagForTransformUpdate(is_overlay_pass);
   }
 
   /* Notify depsgraph for other changes */
@@ -727,7 +727,7 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
 
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForTransformUpdateEvaluated();
+    gameobj->TagForTransformUpdateEvaluated(is_last_render_pass);
   }
 }
 

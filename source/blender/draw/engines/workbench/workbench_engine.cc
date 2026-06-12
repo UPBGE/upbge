@@ -164,12 +164,15 @@ class Instance : public DrawEngine {
     if (!DRW_object_is_renderable(ob)) {
       return;
     }
-
+    Depsgraph *depsgraph = DRW_context_get()->depsgraph;
+    /* UPBGE shadows update for UPBGE dupli bases (Bases, not instances) workaround */
+    if (ob_ref.object->gameflag & OB_DUPLI_UPBGE && ob_ref.object->lay == 1) {
+      ob_ref.object->runtime->last_update_transform = DEG_get_update_count(depsgraph) + 1;
+    }
     /* UPBGE shadows artifacts GPU deform workaround for Workbench. */
     if (ob_ref.object->type == OB_MESH) {
       Mesh *me_eval = (Mesh *)ob_ref.object->data;
       if (me_eval->is_running_gpu_animation_playback) {
-        Depsgraph *depsgraph = DRW_context_get()->depsgraph;
         ob_ref.object->runtime->last_update_geometry = DEG_get_update_count(depsgraph) + 1;
       }
     }

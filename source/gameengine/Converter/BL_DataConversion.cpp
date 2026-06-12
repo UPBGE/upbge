@@ -1362,6 +1362,17 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         grouplist.insert(blenderobject->instance_collection);
       }
 
+      if (blenderobject->gameflag & OB_DUPLI_UPBGE && isInActiveLayer && !single_object) {
+        /* When the object is an upbge dupli base (not not an upbge dupli instance),
+         * as there is not behaviour defined when this base in an active layer (visibled
+         * at conversion time), we choose, for convenience, to make this kind of blenderobject
+         * unsynced with depsgraph (for transform updates - As bge SceneGraph is already abled
+         * to handle most transforms as well as Depsgraph).
+         * Here we just mark it as an upbge dupli base.
+         */
+        gameobj->SetIsUpbgeDupliBase();
+      }
+
       /* Note about memory leak issues:
        * When a EXP_Value derived class is created, m_refcount is initialized to 1
        * so the class must be released after being used to make sure that it won't
