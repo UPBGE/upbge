@@ -241,8 +241,9 @@ void KX_GameObject::ForceIgnoreParentTx()
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass)
 {
   /* Upbge dupli bases and upbge dupli instances are unsynced from depsgraph transform updates (don't tag).
-   * Transform will be handled in TagForTransformUpdateEvaluated which will apply
-   * BGE SceneGraph WorldTransform to the evaluated object.
+   * - For upbge dupli bases, transform will be handled in TagForTransformUpdateEvaluated (BGE SceneGraph WorldTransform).
+   * - For upbge dupli instances, transform updates are handled in static void
+   * bge_dupli_provider(DEGObjectIterData *data) (KX_Scene) (BGE SceneGraph WorldTransform).
    */
   if (m_isUpbgeDupliBase || m_isUpbgeDupliInstance) {
     if (m_isUpbgeDupliInstance) {
