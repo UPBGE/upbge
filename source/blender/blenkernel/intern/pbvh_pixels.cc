@@ -107,6 +107,7 @@ static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
 /** Update the geometry primitives of the pbvh. */
 static void update_geom_primitives(Tree &pbvh, const uv_islands::MeshData &mesh_data)
 {
+  PRF_scope(ProfileCategory::Editor);
   PixelData &pbvh_data = data_get(pbvh);
   pbvh_data.vert_tris.reinitialize(mesh_data.corner_tris.size());
   bke::mesh::vert_tris_from_corner_tris(
@@ -148,6 +149,7 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
                              MeshNode &node,
                              PixelNode &pixel_node)
 {
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(pixel_node.flags.rebuild ||
              (pixel_node.uv_primitives.tri_indices.is_empty() &&
               pixel_node.uv_primitives.delta_barycentric_coords.is_empty() &&
@@ -347,10 +349,12 @@ static bool update_pixels(const Depsgraph &depsgraph,
   MutableSpan<MeshNode> nodes = pbvh.nodes<MeshNode>();
   MutableSpan<PixelNode> pixel_nodes = pbvh.pixels_->nodes;
 
-  nodes_to_update.foreach_index([&](const int i) {
-    do_encode_pixels(
-        mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
-  });
+  nodes_to_update.foreach_index(
+      [&](const int i) {
+        do_encode_pixels(
+            mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
+      },
+      exec_mode::grain_size(1));
   if (USE_WATERTIGHT_CHECK) {
     apply_watertight_check(pbvh, image, image_user);
   }
@@ -359,7 +363,8 @@ static bool update_pixels(const Depsgraph &depsgraph,
   copy_update(pbvh, image, image_user, mesh_data);
 
   /* Rebuild the undo regions. */
-  nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].rebuild_undo_regions(); });
+  nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].rebuild_undo_regions(); },
+                                exec_mode::grain_size(1));
 
   /* Clear the UpdatePixels flag. */
   nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].flags.rebuild = false; });

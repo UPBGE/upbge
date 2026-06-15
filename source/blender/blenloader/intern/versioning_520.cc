@@ -36,6 +36,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_override.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
@@ -299,7 +300,7 @@ static void version_compositor_effect_initialized(Main &bmain)
 {
   /* A file with compositor effects that was saved, opened in
    * previous version and saved there, would have lost the
-   * compositor effect data since ealier versions would not
+   * compositor effect data since earlier versions would not
    * write it. Ensure the effect data is not null. */
   for (Scene &scene : bmain.scenes) {
     if (scene.ed) {
@@ -840,6 +841,16 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 41)) {
     version_solid_color_width_height_defaults(*bmain);
+  }
+
+  /* Fix the fact that previously, making a linked data local and/or clearing a liboverride would
+   * not properly flag some sub-data like modifiers or constraints as local. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 43)) {
+    for (ID &id : MainAllIDsIterator{*bmain}) {
+      if (!ID_IS_LINKED(&id) && !ID_IS_OVERRIDE_LIBRARY(&id)) {
+        BKE_lib_override_flag_subdata_local(id);
+      }
+    }
   }
 
   /**

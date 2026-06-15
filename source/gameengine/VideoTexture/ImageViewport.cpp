@@ -81,8 +81,7 @@ void ImageViewport::setWhole(bool whole)
   // otherwise place area in the middle of viewport
   for (int idx = 0; idx < 2; ++idx) {
     // capture size
-    m_capSize[idx] = whole ? short(getViewportSize()[idx]) :
-                             calcSize(short(getViewportSize()[idx]));
+    m_capSize[idx] = short(getViewportSize()[idx]);
     // position
     m_position[idx] = whole ? 0 : ((getViewportSize()[idx] - m_capSize[idx]) >> 1);
   }
@@ -137,7 +136,7 @@ void ImageViewport::calcViewport(unsigned int textid, double ts)
   // If the texture was not initialized, initialize it
   if (!m_texInit) {
     if (m_texture) {
-      m_texture->loadTexture(m_image, m_size, false, m_internalFormat);
+      m_texture->loadTexture(m_pixelsData, m_size, false, m_internalFormat);
       m_texInit = true;
     }
   }
@@ -162,11 +161,11 @@ bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, double ts
     return ImageBase::loadImage(buffer, size, ts);
   }
   else {
-    tmp_image = m_image;
-    m_image = buffer;
+    tmp_image = m_pixelsData;
+    m_pixelsData = buffer;
     calcViewport(0, ts);
     ret = m_avail;
-    m_image = tmp_image;
+    m_pixelsData = tmp_image;
     // since the image was not loaded to our buffer, it's not valid
     m_avail = false;
   }
@@ -176,7 +175,7 @@ bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, double ts
 // cast blender::Image pointer to ImageViewport
 inline ImageViewport *getImageViewport(PyImage *self)
 {
-  return static_cast<ImageViewport *>(self->m_image);
+  return static_cast<ImageViewport *>(self->m_imageBase);
 }
 
 // python methods
@@ -184,7 +183,7 @@ inline ImageViewport *getImageViewport(PyImage *self)
 // get whole
 PyObject *ImageViewport_getWhole(PyImage *self, void *closure)
 {
-  if (self->m_image != nullptr && getImageViewport(self)->getWhole())
+  if (self->m_imageBase != nullptr && getImageViewport(self)->getWhole())
     Py_RETURN_TRUE;
   else
     Py_RETURN_FALSE;
@@ -200,7 +199,7 @@ int ImageViewport_setWhole(PyImage *self, PyObject *value, void *closure)
   }
   try {
     // set whole, can throw in case of resize and buffer exports
-    if (self->m_image != nullptr)
+    if (self->m_imageBase != nullptr)
       getImageViewport(self)->setWhole(value == Py_True);
   }
   catch (Exception &exp) {
@@ -214,7 +213,7 @@ int ImageViewport_setWhole(PyImage *self, PyObject *value, void *closure)
 // get alpha
 PyObject *ImageViewport_getAlpha(PyImage *self, void *closure)
 {
-  if (self->m_image != nullptr && getImageViewport(self)->getAlpha())
+  if (self->m_imageBase != nullptr && getImageViewport(self)->getAlpha())
     Py_RETURN_TRUE;
   else
     Py_RETURN_FALSE;
@@ -229,7 +228,7 @@ int ImageViewport_setAlpha(PyImage *self, PyObject *value, void *closure)
     return -1;
   }
   // set alpha
-  if (self->m_image != nullptr)
+  if (self->m_imageBase != nullptr)
     getImageViewport(self)->setAlpha(value == Py_True);
   // success
   return 0;

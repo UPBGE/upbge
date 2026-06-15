@@ -413,7 +413,7 @@ void WM_init_splash(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   /* NOTE(@ideasman42): this should practically never happen. */
-  if (UNLIKELY(wm->windows.is_empty())) {
+  if (wm->windows.is_empty()) [[unlikely]] {
     return;
   }
 

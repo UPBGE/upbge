@@ -32,10 +32,10 @@ static int ImageBuff_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
   PyImage *self = reinterpret_cast<PyImage *>(pySelf);
   // create source object
-  if (self->m_image != nullptr)
-    delete self->m_image;
+  if (self->m_imageBase != nullptr)
+    delete self->m_imageBase;
   image = new ImageBuff();
-  self->m_image = image;
+  self->m_imageBase = image;
 
   if (PyArg_ParseTuple(
           args, "hh|bO!:ImageBuff", &width, &height, &color, &PyBool_Type, &py_scale)) {
@@ -57,8 +57,10 @@ static int ImageBuff_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 ImageBuff::~ImageBuff(void)
 {
-  if (m_imbuf)
+  if (m_imbuf) {
     IMB_freeImBuf(m_imbuf);
+    m_imbuf = nullptr;
+  }
 }
 
 // load image from buffer
@@ -99,9 +101,9 @@ void ImageBuff::clear(short width, short height, unsigned char color)
   // the width/height may be different due to scaling
   size = (m_size[0] * m_size[1]);
   // initialize memory with color for all channels
-  memset(m_image, color, size * 4);
+  memset(m_pixelsData, color, size * 4);
   // and change the alpha channel
-  p = &((unsigned char *)m_image)[3];
+  p = &((unsigned char *)m_pixelsData)[3];
   for (; size > 0; size--) {
     *p = 0xFF;
     p += 4;
@@ -126,8 +128,14 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
   tmpbuf = IMB_allocImBuf(width, height, ImBufFlags::Zero);
 
   // assign temporarily our buffer to the ImBuf buffer, we use the same format
-  tmpbuf->byte_buffer.data = (uint8_t *)img;
-  m_imbuf->byte_buffer.data = (uint8_t *)m_image;
+  tmpbuf->assign_byte_data((uint8_t *)img);
+  if (tmpbuf->byte_buffer.sharing_info) {
+    tmpbuf->byte_buffer.sharing_info->tag_ensured_mutable();
+  }
+  m_imbuf->assign_byte_data((uint8_t *)m_pixelsData);
+  if (m_imbuf->byte_buffer.sharing_info) {
+    m_imbuf->byte_buffer.sharing_info->tag_ensured_mutable();
+  }
   IMB_rectblend(m_imbuf,
                 m_imbuf,
                 tmpbuf,
@@ -145,9 +153,6 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
                 height,
                 (IMB_BlendMode)mode,
                 false);
-  // remove so that MB_freeImBuf will free our buffer
-  m_imbuf->byte_buffer.data = nullptr;
-  tmpbuf->byte_buffer.data = nullptr;
   IMB_freeImBuf(tmpbuf);
 }
 
@@ -165,8 +170,14 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
     img->m_imbuf = IMB_allocImBuf(img->m_size[0], img->m_size[1], ImBufFlags::Zero);
   }
   // assign temporarily our buffer to the ImBuf buffer, we use the same format
-  img->m_imbuf->byte_buffer.data = (uint8_t *)img->m_image;
-  m_imbuf->byte_buffer.data = (uint8_t *)m_image;
+  img->m_imbuf->assign_byte_data((uint8_t *)img->m_pixelsData);
+  if (img->m_imbuf->byte_buffer.sharing_info) {
+    img->m_imbuf->byte_buffer.sharing_info->tag_ensured_mutable();
+  }
+  m_imbuf->assign_byte_data((uint8_t *)m_pixelsData);
+  if (m_imbuf->byte_buffer.sharing_info) {
+    m_imbuf->byte_buffer.sharing_info->tag_ensured_mutable();
+  }
   IMB_rectblend(m_imbuf,
                 m_imbuf,
                 img->m_imbuf,
@@ -184,15 +195,12 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
                 img->m_imbuf->y,
                 (IMB_BlendMode)mode,
                 false);
-  // remove so that MB_freeImBuf will free our buffer
-  m_imbuf->byte_buffer.data = nullptr;
-  img->m_imbuf->byte_buffer.data = nullptr;
 }
 
 // cast blender::Image pointer to ImageBuff
 inline ImageBuff *getImageBuff(PyImage *self)
 {
-  return static_cast<ImageBuff *>(self->m_image);
+  return static_cast<ImageBuff *>(self->m_imageBase);
 }
 
 // python methods
@@ -235,8 +243,8 @@ static PyObject *load(PyImage *self, PyObject *args)
 
   // calc proper buffer size
   // use pixel size from filter
-  if (self->m_image->getFilter() != nullptr)
-    pixSize = self->m_image->getFilter()->m_filter->firstPixelSize();
+  if (self->m_imageBase->getFilter() != nullptr)
+    pixSize = self->m_imageBase->getFilter()->m_filter->firstPixelSize();
   else
     pixSize = defFilter.firstPixelSize();
 

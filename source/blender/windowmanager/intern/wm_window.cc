@@ -245,7 +245,7 @@ static void wm_window_check_size(rcti *rect)
 
 static void wm_ghostwindow_destroy(wmWindowManager *wm, wmWindow *win)
 {
-  if (UNLIKELY(!win->runtime->ghostwin)) {
+  if (!win->runtime->ghostwin) [[unlikely]] {
     return;
   }
 
@@ -1048,7 +1048,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       static_cast<GHOST_IWindow *>((win->parent) ? win->parent->runtime->ghostwin : nullptr));
 
   if (ghost_window) {
-    win->runtime->gpuctx = GPU_context_create(ghost_window, nullptr);
+    win->runtime->gpuctx = GPU_context_create(ghost_window, ghost_window->getDrawingContext());
     GPU_render_begin();
 
     /* Needed so we can detect the graphics card below. */
@@ -1208,7 +1208,7 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm)
    * when there is no startup.blend yet.
    */
   if (wm_init_state.size[0] == 0) {
-    if (UNLIKELY(!wm_get_screensize(wm_init_state.size))) {
+    if (!wm_get_screensize(wm_init_state.size)) [[unlikely]] {
       /* Use fallback values. */
       wm_init_state.size = int2(0);
     }
@@ -1598,7 +1598,7 @@ void wm_cursor_position_to_ghost_screen_coords(wmWindow *win, int *x, int *y)
 
 bool wm_cursor_position_get(wmWindow *win, int *r_x, int *r_y)
 {
-  if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
+  if (G.f & G_FLAG_EVENT_SIMULATE) [[unlikely]] {
     *r_x = win->runtime->eventstate->xy[0];
     *r_y = win->runtime->eventstate->xy[1];
     return true;
@@ -2290,7 +2290,7 @@ void wm_ghost_init(bContext *C)
   g_system = GHOST_ISystem::getSystem();
   GPU_backend_ghost_system_set(g_system);
 
-  if (UNLIKELY(g_system == nullptr)) {
+  if (g_system == nullptr) [[unlikely]] {
     /* GHOST will have reported the back-ends that failed to load. */
     CLOG_STR_ERROR(&LOG_GHOST_SYSTEM, "Unable to initialize GHOST, exiting!");
     /* This will leak memory, it's preferable to crashing. */
@@ -2656,7 +2656,7 @@ void wm_clipboard_free()
 
 static char *wm_clipboard_text_get_impl(bool selection)
 {
-  if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
+  if (G.f & G_FLAG_EVENT_SIMULATE) [[unlikely]] {
     if (g_wm_clipboard_text_simulate == nullptr) {
       return nullptr;
     }
@@ -2675,7 +2675,7 @@ static char *wm_clipboard_text_get_impl(bool selection)
 
 static void wm_clipboard_text_set_impl(const char *buf, bool selection)
 {
-  if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
+  if (G.f & G_FLAG_EVENT_SIMULATE) [[unlikely]] {
     if (g_wm_clipboard_text_simulate == nullptr) {
       g_wm_clipboard_text_simulate =
           MEM_new_zeroed<std::remove_pointer_t<decltype(g_wm_clipboard_text_simulate)>>(__func__);
@@ -3039,7 +3039,7 @@ void WM_init_native_pixels(bool do_it)
 
 void WM_init_input_devices()
 {
-  if (UNLIKELY(!g_system)) {
+  if (!g_system) [[unlikely]] {
     return;
   }
 
@@ -3565,7 +3565,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   wm_window_clear_drawable(wm);
 
   if (first_time_window) {
-    win->runtime->gpuctx = GPU_context_create(ghost_i_win, nullptr);
+    win->runtime->gpuctx = GPU_context_create(ghost_i_win, ghost_i_win->getDrawingContext());
     wm->runtime->message_bus = WM_msgbus_create();
     runtime_msgbus = wm->runtime->message_bus;
   }

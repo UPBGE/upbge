@@ -327,7 +327,7 @@ static void unlink_material_fn(bContext * /*C*/,
       BLI_assert_unreachable();
   }
 
-  if (LIKELY(matar != nullptr)) {
+  if (matar != nullptr) [[likely]] {
     for (a = 0; a < totcol; a++) {
       if (a == te->index && matar[a]) {
         id_us_min(&matar[a]->id);
@@ -516,6 +516,9 @@ static void unlink_object_fn(bContext *C,
     /* NOTE: Cannot risk tagging the object here, as it may have been deleted if its last usage
      * was removed by above code. */
     DEG_id_tag_update(tsep->id, ID_RECALC_HIERARCHY);
+    /* Clear selection flags. Tree store elements are reused by other matching tree elements, see:
+     * !159899 */
+    tselem->flag &= ~(TSE_ACTIVE | TSE_SELECTED);
     DEG_relations_tag_update(bmain);
   }
 }
@@ -2326,7 +2329,7 @@ static wmOperatorStatus outliner_liboverride_property_remove_exec(bContext *C, w
 void OUTLINER_OT_liboverride_property_remove(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Outliner Library Override Propery Remove";
+  ot->name = "Outliner Library Override Properly Remove";
   ot->idname = "OUTLINER_OT_liboverride_property_remove";
   ot->description =
       "Remove the selected library override properties, and reset the relevant data to the linked "

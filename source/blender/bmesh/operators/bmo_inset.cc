@@ -164,6 +164,11 @@ static void bm_loop_customdata_merge(BMesh *bm,
     e_b = l_b_inner->prev->e;
   }
 
+  /* The edges must be manifold for the "other" loop to make sense. */
+  if (!BM_edge_is_manifold(e_a) || !BM_edge_is_manifold(e_b)) {
+    return;
+  }
+
   l_a_inner_inset = BM_edge_other_loop(e_a, l_a_inner);
   l_b_inner_inset = BM_edge_other_loop(e_b, l_b_inner);
   BLI_assert(l_a_inner_inset->v == l_b_inner_inset->v);
@@ -482,7 +487,7 @@ struct SplitEdgeInfo {
  */
 static BMLoop *bm_edge_is_mixed_face_tag(BMLoop *l)
 {
-  if (LIKELY(l != nullptr)) {
+  if (l != nullptr) [[likely]] {
     int tot_tag = 0;
     int tot_untag = 0;
     BMLoop *l_iter;
@@ -570,7 +575,7 @@ static float bm_edge_info_average_length_fallback(BMVert *v_lookup,
   } *vert_lengths = static_cast<VertLengths *>(*vert_lengths_p);
 
   /* Only run this once, if needed. */
-  if (UNLIKELY(vert_lengths == nullptr)) {
+  if (vert_lengths == nullptr) [[unlikely]] {
     BMVert **vert_stack = MEM_new_array_uninitialized<BMVert *>(bm->totvert, __func__);
     STACK_DECLARE(vert_stack);
     STACK_INIT(vert_stack, bm->totvert);

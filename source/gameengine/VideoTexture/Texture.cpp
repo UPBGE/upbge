@@ -136,7 +136,7 @@ void Texture::SetSource(PyImage *source)
   Py_INCREF(source);
   m_source = source;
   // Cache whether source is ImageRender to avoid dynamic_cast in the hot path every frame.
-  m_isImageRender = (dynamic_cast<ImageRender *>(source->m_image) != nullptr);
+  m_isImageRender = (dynamic_cast<ImageRender *>(source->m_imageBase) != nullptr);
 }
 
 // load texture
@@ -146,7 +146,7 @@ void Texture::loadTexture(unsigned int *texture,
                           blender::gpu::TextureFormat format)
 {
   // Check if the source is an ImageRender (offscreen 3D render)
-  ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_image) : nullptr;
+  ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_imageBase) : nullptr;
 
   if (imr && !m_origGpuTex) {
     // For ImageRender, directly use the GPU texture from the active framebuffer
@@ -396,38 +396,22 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
         }
 
         // get texture
-        unsigned int *texture = m_source->m_image->getImage(0, ts);
+        unsigned int *texture = m_source->m_imageBase->getImage(0, ts);
         // if texture is available
         if (texture != nullptr) {
           // get texture size
-          short *orgSize = m_source->m_image->getSize();
+          short *orgSize = m_source->m_imageBase->getSize();
           // calc scaled sizes
-          short size[2];
-          if (0) {
-            size[0] = orgSize[0];
-            size[1] = orgSize[1];
-          }
-          else {
-            size[0] = ImageBase::calcSize(orgSize[0]);
-            size[1] = ImageBase::calcSize(orgSize[1]);
-          }
-          // scale texture if needed
-          if (size[0] != orgSize[0] || size[1] != orgSize[1]) {
-            blender::IMB_freeImBuf(m_scaledImBuf);
-            m_scaledImBuf = blender::IMB_allocFromBuffer((uint8_t *)texture, nullptr, orgSize[0], orgSize[1], 4);
-            blender::IMB_scale(m_scaledImBuf, size[0], size[1], IMBScaleFilter::Box, false);
-            // use scaled image instead original
-            texture = (unsigned int *)m_scaledImBuf->byte_buffer.data;
-          }
+          short size[2] = {orgSize[0], orgSize[1]};
           // load texture for rendering
           loadTexture(texture,
               size,
               m_mipmap,
-              m_source->m_image->GetInternalFormat());
+              m_source->m_imageBase->GetInternalFormat());
         }
         // refresh texture source, if required
         if (refreshSource) {
-          m_source->m_image->refresh();
+          m_source->m_imageBase->refresh();
         }
       }
 
@@ -522,7 +506,7 @@ int Texture::pyattr_set_source(EXP_PyObjectPlus *self_v,
   }
   PyImage *pyimg = reinterpret_cast<PyImage *>(value);
   self->SetSource(pyimg);
-  ImageRender *imgRender = dynamic_cast<ImageRender *>(pyimg->m_image);
+  ImageRender *imgRender = dynamic_cast<ImageRender *>(pyimg->m_imageBase);
   if (imgRender) {
     imgRender->SetTexture(self);
   }

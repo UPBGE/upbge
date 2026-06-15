@@ -344,12 +344,12 @@ void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena 
     int convex_len = BLI_convexhull_2d(triangle_vertices_, index_map);
     if (convex_len >= 3) {
       /* Write back. */
-      triangle_vertices_.clear();
       float2 *convex_verts = static_cast<float2 *>(
           BLI_memarena_alloc(arena, sizeof(*convex_verts) * convex_len));
       for (int i = 0; i < convex_len; i++) {
         convex_verts[i] = triangle_vertices_[index_map[i]];
       }
+      triangle_vertices_.clear();
       add_polygon(Span(convex_verts, convex_len), arena, heap);
     }
   }
@@ -1717,7 +1717,7 @@ static int64_t pack_island_xatlas(const Span<std::unique_ptr<UVAABBIsland>> isla
       }
 
       /* Enlarge search parameters. */
-      if (increase_scale_remaining-- == 0) {
+      if (--increase_scale_remaining < 0) {
         /* Unable to pack within a reasonable number of enlargements, give up and keep the layout
          * from the previous packers (left untouched in `r_phis`). */
         return 0;

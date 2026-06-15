@@ -1233,7 +1233,7 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
                                                 int &locy)
 {
   /* Space at the top. */
-  locy -= NODE_DYS / 2;
+  locy -= NODE_ITEM_SPACING_Y * 2;
 
   /* Output sockets. */
   bool add_output_space = false;
@@ -1242,43 +1242,40 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && add_output_space) {
+      locy -= NODE_ITEM_SPACING_Y;
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, nullptr, socket, block, locx, locy))
     {
-      if (socket->next && socket->next->is_available()) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
       add_output_space = true;
     }
-  }
-
-  if (add_output_space) {
-    locy -= NODE_DY / 4;
   }
 
   const bool add_button_space = node_update_basis_buttons(
       C, ntree, node, node.typeinfo->draw_buttons, block, locy);
 
   bool add_input_space = false;
+  const bool add_before_first_input = add_output_space && !add_button_space;
 
   /* Input sockets. */
   for (bNodeSocket *socket : node.input_sockets()) {
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && (add_input_space || add_before_first_input)) {
+      locy -= NODE_ITEM_SPACING_Y;
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, socket, nullptr, block, locx, locy))
     {
-      if (socket->next) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
       add_input_space = true;
     }
   }
 
   /* Little bit of padding at the bottom. */
-  if (add_input_space || add_button_space) {
-    locy -= NODE_DYS / 2;
+  if (add_output_space || add_input_space || add_button_space) {
+    locy -= NODE_ITEM_SPACING_Y * 2;
   }
 }
 
@@ -2186,7 +2183,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
 
     Span<nodes::eval_log::NodeWarning> warnings;
     if (geo_tree_log) {
-      nodes::eval_log::NodeLog *node_log = geo_tree_log->nodes.lookup_ptr(node.identifier);
+      nodes::eval_log::NodeLog *node_log = geo_tree_log->find_node_log(node.identifier);
       if (node_log != nullptr) {
         warnings = node_log->warnings;
       }
@@ -2276,8 +2273,7 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
         }
       }
       else {
-        if (const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr_as(
-                tnode->identifier))
+        if (const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(tnode->identifier))
         {
           found_node = true;
           run_time += node_log->execution_time;
@@ -2289,7 +2285,7 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
     }
     return std::nullopt;
   }
-  if (const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr(node.identifier)) {
+  if (const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(node.identifier)) {
     return node_log->execution_time;
   }
   return std::nullopt;
@@ -2426,7 +2422,7 @@ static std::optional<NodeExtraInfoRow> node_get_accessed_attributes_row(
     }
   }
   geo_tree_log->ensure_used_named_attributes();
-  nodes::eval_log::NodeLog *node_log = geo_tree_log->nodes.lookup_ptr(node.identifier);
+  nodes::eval_log::NodeLog *node_log = geo_tree_log->find_node_log(node.identifier);
   if (node_log == nullptr) {
     return std::nullopt;
   }
@@ -2530,7 +2526,7 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
 
   if (tree_log) {
     tree_log->ensure_debug_messages();
-    const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr(node.identifier);
+    const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(node.identifier);
     if (node_log != nullptr) {
       for (const StringRef message : node_log->debug_messages) {
         NodeExtraInfoRow row;
@@ -2902,9 +2898,7 @@ static void node_draw_basis(const bContext &C,
       if (const nodes::eval_log::NodeTreeLog *tree_log = tree_draw_ctx.tree_logs.get_main_tree_log(
               node))
       {
-        if (const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr_as(
-                node.identifier))
-        {
+        if (const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(node.identifier)) {
           if (node_log->image_preview) {
             node_draw_extra_info_panel(
                 C, tree_draw_ctx, snode, node, node_log->image_preview, block);

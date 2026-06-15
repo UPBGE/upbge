@@ -4863,6 +4863,9 @@ void ANIM_channel_debug_print_info(bAnimContext &ac, bAnimListElem *ale, short i
 
     short setting_type = 0;
     const void *setting_ptr = acf->setting_ptr(ale, setting, &setting_type);
+    if (setting_ptr == nullptr) {
+      continue;
+    }
 
     bool setting_value = false;
     switch (setting_type) {
@@ -5503,8 +5506,9 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
   }
 }
 
-/* Determine if element pointed by @iter belongs to the same 'isolate visibility path' wrt to
- * @target
+/**
+ * Determine if element pointed by `iter` belongs to the same "isolate visibility path" WRT to
+ * `target`.
  */
 static bool anim_list_el_is_visibility_related_or_self(const bAnimListElem *target,
                                                        const bAnimListElem *iter)

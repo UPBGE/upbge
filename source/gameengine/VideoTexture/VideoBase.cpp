@@ -38,7 +38,7 @@ void VideoBase::process(BYTE *sample)
     // reset image
     init(m_orgSize[0], m_orgSize[1]);
   // if image is allocated and is able to store new image
-  if (m_image != nullptr && !m_avail) {
+  if (m_pixelsData != nullptr && !m_avail) {
     // filters used
     // convert video format to image
     switch (m_format) {
@@ -153,7 +153,7 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
           else
             THRWEXCP(InvalidImageMode, S_OK);
 
-          if (!self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, ts)) {
+          if (!self->m_imageBase->loadImage((unsigned int *)buffer.buf, buffer.len, ts)) {
             PyErr_SetString(PyExc_TypeError,
                             "Could not load the buffer, perhaps size is not compatible");
           }

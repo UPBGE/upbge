@@ -692,7 +692,7 @@ static PyObject *py_blf_bounds_max(PyObject * /*self*/, PyObject *args)
 
 static PyObject *py_blf_bind_imbuf_enter(BPyBLFImBufContext *self)
 {
-  if (UNLIKELY(self->buffer_state)) {
+  if (self->buffer_state) [[unlikely]] {
     PyErr_SetString(PyExc_ValueError,
                     "BLFImBufContext.__enter__: unable to enter the same context more than once");
     return nullptr;

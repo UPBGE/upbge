@@ -2708,11 +2708,9 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   }
 }
 
-void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode, const int2 &cursor)
+void node_insert_on_frame_flag_set(SpaceNode &snode, ARegion &region, const int2 &cursor)
 {
   snode.runtime->frame_identifier_to_highlight.reset();
-
-  ARegion &region = *CTX_wm_region(&C);
 
   snode.edittree->ensure_topology_cache();
   const bNode *frame = node_find_frame_to_attach(region, *snode.edittree, cursor);
@@ -3108,7 +3106,7 @@ static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, co
   /* handle animation - do this before possibly aborting due to duration, since
    * main thread might be so busy that node hasn't reached final position yet */
   for (bNode *node : snode->edittree->all_nodes()) {
-    if (UNLIKELY(node->runtime->anim_ofsx)) {
+    if (node->runtime->anim_ofsx) [[unlikely]] {
       const float prev_duration = duration - float(iofsd->anim_timer->time_delta);
       /* Clamp duration to not overshoot. */
       const float clamped_duration = math::min(duration, NODE_INSOFS_ANIM_DURATION);

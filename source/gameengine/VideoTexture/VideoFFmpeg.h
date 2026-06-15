@@ -188,7 +188,7 @@ class VideoFFmpeg : public VideoBase {
 
 inline VideoFFmpeg *getFFmpeg(PyImage *self)
 {
-  return static_cast<VideoFFmpeg *>(self->m_image);
+  return static_cast<VideoFFmpeg *>(self->m_imageBase);
 }
 
 #endif /* WITH_FFMPEG */

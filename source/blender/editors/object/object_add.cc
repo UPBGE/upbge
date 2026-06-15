@@ -87,6 +87,7 @@
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
@@ -905,7 +906,7 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
         GreasePencilLatticeModifierData *lmd = reinterpret_cast<GreasePencilLatticeModifierData *>(
             modifier_add(
                 op->reports, bmain, scene, ob, nullptr, eModifierType_GreasePencilLattice));
-        if (UNLIKELY(lmd == nullptr)) {
+        if (lmd == nullptr) [[unlikely]] {
           continue;
         }
 
@@ -914,7 +915,7 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
       else {
         LatticeModifierData *lmd = reinterpret_cast<LatticeModifierData *>(
             modifier_add(op->reports, bmain, scene, ob, nullptr, eModifierType_Lattice));
-        if (UNLIKELY(lmd == nullptr)) {
+        if (lmd == nullptr) [[unlikely]] {
           continue;
         }
 
@@ -2088,15 +2089,16 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
 static wmOperatorStatus collection_drop_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  LayerCollection *active_collection = CTX_data_layer_collection(C);
+  Collection *active_collection = BKE_collection_parent_editable_find_recursive(
+      CTX_data_view_layer(C), CTX_data_collection(C));
   std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(C, op);
   if (!add_info) {
     return OPERATOR_CANCELLED;
   }
 
   if (RNA_boolean_get(op->ptr, "use_instance")) {
-    BKE_collection_child_remove(bmain, active_collection->collection, add_info->collection);
-    DEG_id_tag_update(&active_collection->collection->id, ID_RECALC_SYNC_TO_EVAL);
+    BKE_collection_child_remove(bmain, active_collection, add_info->collection);
+    DEG_id_tag_update(&active_collection->id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(bmain);
 
     Object *ob = add_type(C,
@@ -3619,6 +3621,11 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   Mesh *new_mesh = mesh_eval ? BKE_mesh_copy_for_eval(*mesh_eval) :
                                BKE_mesh_new_nomain(0, 0, 0, 0);
+  /* The evaluated mesh may not be a wrapper type (e.g. #ME_WRAPPER_TYPE_BMESH).
+   * Ensure mesh geometry otherwise the copy uses dummy sizes which don't
+   * represent the underlying mesh. */
+  BKE_mesh_wrapper_ensure_mdata(new_mesh);
+
   BKE_object_material_from_eval_data(info.bmain, newob, &new_mesh->id);
   /* Anonymous attributes shouldn't be available on the applied geometry. */
   new_mesh->attributes_for_write().remove_anonymous();
@@ -3771,7 +3778,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     array_utils::copy(faces_span, offsets);
     attributes.add<bool>("cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
-    VArray<int> mesh_materials = *mesh_eval.attributes().lookup_or_default(
+    const bke::AttributeAccessor mesh_attributes = mesh_eval.attributes();
+    VArray<int> mesh_materials = *mesh_attributes.lookup_or_default(
         "material_index", bke::AttrDomain::Face, 0);
     bke::SpanAttributeWriter<int> material_indices =
         attributes.lookup_or_add_for_write_only_span<int>("material_index",
@@ -3797,6 +3805,13 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
         "hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
     hide_stroke.finish();
+
+    bke::gather_attributes(mesh_attributes,
+                           bke::AttrDomain::Point,
+                           bke::AttrDomain::Point,
+                           bke::attribute_filter_from_skip_ref({"position"}),
+                           corner_verts,
+                           attributes);
   }
 
   Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
@@ -3856,7 +3871,8 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
   Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
-  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  BKE_mesh_wrapper_ensure_mdata(mesh_eval);
 
   VectorSet<FillColorRecord> fill_colors;
   Array<int> material_remap;
@@ -4446,18 +4462,21 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
 
   bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, current_frame);
 
-  bke::CurvesGeometry &curves = curves_nomain->geometry.wrap();
+  /* An empty curve (no splines) converts to a #Curves of nullptr, leave the drawing empty. */
+  if (curves_nomain) {
+    bke::CurvesGeometry &curves = curves_nomain->geometry.wrap();
 
-  drawing->strokes_for_write() = std::move(curves);
-  /* Default radius (1.0 unit) is too thick for converted strokes. */
-  bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
-  attributes.remove("radius");
-  attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
-  drawing->tag_positions_changed();
+    drawing->strokes_for_write() = std::move(curves);
+    /* Default radius (1.0 unit) is too thick for converted strokes. */
+    bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
+    attributes.remove("radius");
+    attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+    drawing->tag_positions_changed();
 
-  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
-  if (use_fill) {
-    create_grease_pencil_fills(*drawing);
+    const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
+    if (use_fill) {
+      create_grease_pencil_fills(*drawing);
+    }
   }
 
   newob->data = id_cast<ID *>(grease_pencil);
@@ -4474,7 +4493,9 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
    * specific conversion combination), not sure why. Ref: #138793 / #146252 */
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
 
-  BKE_id_free(nullptr, curves_nomain);
+  if (curves_nomain) {
+    BKE_id_free(nullptr, curves_nomain);
+  }
 
   return newob;
 }
