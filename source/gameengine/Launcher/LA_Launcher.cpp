@@ -136,6 +136,9 @@ const std::string &LA_Launcher::GetExitString()
 
 void LA_Launcher::InitEngine()
 {
+  // Attempt to fix mini window freezes with some drivers in some scenes on windows (intel iris xe)
+  DisableProcessWindowsGhosting();
+
   // Get and set the preferences.
   SYS_SystemHandle syshandle = SYS_GetSystem();
 
