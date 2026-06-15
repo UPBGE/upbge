@@ -3565,7 +3565,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   wm_window_clear_drawable(wm);
 
   if (first_time_window) {
-    win->runtime->gpuctx = GPU_context_create(ghost_i_win, nullptr);
+    win->runtime->gpuctx = GPU_context_create(ghost_i_win, ghost_i_win->getDrawingContext());
     wm->runtime->message_bus = WM_msgbus_create();
     runtime_msgbus = wm->runtime->message_bus;
   }
