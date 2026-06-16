@@ -13,8 +13,8 @@
 #include "BKE_scene.hh"
 #include "BKE_mesh_mapping.hh"
 
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
 #include "BLI_task.hh"
 
 #include "DNA_mesh_types.h"

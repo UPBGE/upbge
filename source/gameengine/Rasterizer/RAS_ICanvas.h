@@ -34,7 +34,7 @@
 #include "RAS_Rasterizer.h"
 
 #include "BLI_math_vector_types.hh"
-#include "BLI_task.h"
+#include "BLI_task_c.hh"
 
 #include "DNA_scene_types.h"
 

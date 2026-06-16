@@ -48,7 +48,5 @@ class RAS_Texture {
   virtual blender::gpu::Texture *GetGPUTexture() const = 0;
   std::string &GetName();
 
-  virtual unsigned int GetTextureType() = 0;
-
   enum { MaxUnits = 32 };
 };

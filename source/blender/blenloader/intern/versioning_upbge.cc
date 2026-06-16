@@ -25,8 +25,8 @@
  *  \ingroup blenloader
  */
 
-#include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
+#include "BLI_compiler_attrs.hh"
+#include "BLI_utildefines.hh"
 
 #include <cstdio>
 
@@ -59,8 +59,8 @@
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base.hh"
 
 #include "BLO_readfile.hh"
 

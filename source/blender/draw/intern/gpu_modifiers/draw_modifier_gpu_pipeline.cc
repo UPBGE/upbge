@@ -7,7 +7,7 @@
 #include "BKE_mesh_gpu.hh"
 #include "BKE_modifier.hh"
 
-#include "BLI_hash.h"
+#include "BLI_hash_c.hh"
 
 #include "DEG_depsgraph_query.hh"
 

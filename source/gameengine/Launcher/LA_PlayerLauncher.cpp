@@ -37,7 +37,7 @@
 #include "LA_PlayerLauncher.h"
 
 #include "BKE_sound.hh"
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 
 #include "CM_Message.h"
 #include "DEV_InputDevice.h"

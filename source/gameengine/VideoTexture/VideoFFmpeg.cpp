@@ -22,9 +22,9 @@
 #  include "MEM_guardedalloc.h"
 
 #  include "Exception.h"
-#  include "BLI_listbase.h"
-#  include "BLI_string.h"
-#  include "BLI_time.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_string.hh"
+#  include "BLI_time.hh"
 #  include "movie_util.hh"
 
 

@@ -26,7 +26,7 @@
 
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "DNA_material_types.h"
 
 #include "BL_Shader.h"

@@ -127,8 +127,8 @@
 #include "DRW_select_buffer.hh"
 
 #include "BKE_colortools.hh"
-#include "BLI_link_utils.h"
-#include "BLI_linklist.h"
+#include "BLI_link_utils.hh"
+#include "BLI_linklist.hh"
 #include "IMB_colormanagement.hh"
 
 namespace blender {

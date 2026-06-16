@@ -31,7 +31,7 @@
 
 #include "KX_FontObject.h"
 
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "DNA_curve_types.h"
 
 using namespace blender;

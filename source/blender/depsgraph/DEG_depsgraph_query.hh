@@ -25,7 +25,7 @@
 #include "BKE_duplilist.hh"
 /* UPBGE */
 #include "BKE_object.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_c.hh"
 #include "DNA_layer_types.h"
 /**************/
 #include "BKE_object_types.hh"

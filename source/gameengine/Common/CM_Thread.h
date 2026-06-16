@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 
 class CM_ThreadLock {
  public:

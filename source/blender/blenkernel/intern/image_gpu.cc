@@ -651,12 +651,13 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     return {};
   }
 
-  /* Short-circuit: if an external override texture has been set, return it directly.
-   * This bypasses all partial-update logic and pixel uploads entirely. */
-  if (ima->runtime->gpu_texture_override != nullptr) {
-    result.texture = &ima->runtime->gpu_texture_override;
+  if (ima && ima->runtime->gpu_texture_override) {
+    ImageGPUTextures result = {};
+    GPU_texture_ref(ima->runtime->gpu_texture_override);
+    result.texture = ima->runtime->gpu_texture_override;
     return result;
   }
+
   if (ima->runtime->partial_update_user == nullptr) {
     ima->runtime->partial_update_user = BKE_image_partial_update_create(ima);
   }
@@ -1123,6 +1124,12 @@ void BKE_image_set_gpu_texture_override(Image *image, gpu::Texture *tex)
 {
   if (image == nullptr || image->runtime == nullptr) {
     return;
+  }
+  if (tex == nullptr) {
+    if (image->runtime->gpu_texture_override) {
+      GPU_texture_free(image->runtime->gpu_texture_override);
+      image->runtime->gpu_texture_override = nullptr;
+    }
   }
   image->runtime->gpu_texture_override = tex;
 }

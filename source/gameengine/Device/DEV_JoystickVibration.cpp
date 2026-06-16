@@ -28,7 +28,7 @@
 #include "CM_Message.h"
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
-#include "BLI_time.h"  // Module to get real time in Game Engine
+#include "BLI_time.hh"  // Module to get real time in Game Engine
 
 using namespace blender;
 

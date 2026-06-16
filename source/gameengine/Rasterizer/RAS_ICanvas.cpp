@@ -26,7 +26,7 @@
 
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
-#include "BLI_task.h"
+#include "BLI_task.hh"
 #include "IMB_imbuf.hh"
 
 #include "CM_Message.h"

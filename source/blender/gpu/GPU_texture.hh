@@ -17,7 +17,7 @@
 #include "BLI_assert.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_index_range.hh"
-#include "BLI_sys_types.h"  // UPBGE
+#include "BLI_sys_types.hh"  // UPBGE
 
 #include "GPU_format.hh"
 

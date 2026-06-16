@@ -58,6 +58,7 @@
 #include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
 #include "BKE_mask.hh"
@@ -78,15 +79,15 @@
 #include "BKE_volume.hh"
 #include "BKE_workspace.hh"
 #include "BLF_api.hh"
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_fftw.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_memory_cache.hh"
-#include "BLI_mempool.h"
-#include "BLI_string.h"
-#include "BLI_system.h"
-#include "BLI_task.h"
-#include "BLI_timer.h"
+#include "BLI_mempool.hh"
+#include "BLI_string.hh"
+#include "BLI_system.hh"
+#include "BLI_task_c.hh"
+#include "BLI_timer.hh"
 #include "BLO_readfile.hh"
 #include "BLO_runtime.hh"
 #include "BLT_lang.hh"
@@ -1928,8 +1929,6 @@ int main(int argc,
   wm_clipboard_free();
 
   blender::bke::subdiv::exit();
-
-  BKE_image_free_unused_gpu_textures();
 
   /* Frees the entire library (#G_MAIN) and space-types. */
   BKE_blender_free();

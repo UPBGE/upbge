@@ -20,12 +20,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
 #include "DNA_python_proxy_types.h"

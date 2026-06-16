@@ -18,7 +18,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_rotation_c.hh"
-#include "BLI_math_vector.h"  /* UPBGE */
+#include "BLI_math_vector_c.hh"  /* UPBGE */
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh" /* UPBGE */

@@ -13,8 +13,8 @@
 
 #include "draw_warp.hh"
 
-#include "BLI_hash.h"
-#include "BLI_math_matrix.h"
+#include "BLI_hash_c.hh"
+#include "BLI_math_matrix_c.hh"
 
 #include "BKE_action.hh"
 #include "BKE_colortools.hh"

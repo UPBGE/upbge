@@ -17,7 +17,7 @@
 #  include <set>
 
 
-#  include "BLI_threads.h"
+#  include "BLI_threads.hh"
 #  include <pthread.h>
 
 #  include <epoxy/gl.h>

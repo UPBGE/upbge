@@ -6,9 +6,9 @@
 
 #include <map>
 
-#include "BLI_hash.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_hash_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"

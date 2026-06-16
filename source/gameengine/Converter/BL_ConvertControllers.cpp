@@ -33,7 +33,7 @@
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 #include "BKE_text.h"
