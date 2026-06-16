@@ -1978,6 +1978,7 @@ int main(int argc,
   DRW_gpu_context_enable_ex(false);
   blender::ui::exit();
   GPU_shader_cache_dir_clear_old();
+  BKE_image_free_gpu_fallback();
   GPU_exit();
   DRW_gpu_context_disable_ex(false);
   DRW_gpu_context_destroy();
