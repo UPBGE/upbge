@@ -41,7 +41,7 @@
 
 #include "MT_Config.h"
 
-#include <BLI_utildefines.h>
+#include <BLI_utildefines.hh>
 
 #include "MT_Vector4.h"
 #include "MT_Transform.h"
