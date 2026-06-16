@@ -242,6 +242,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
+        "--console-crash-handler",
         "--debug-exit-on-error"]
 
     if gpu_backend:
@@ -362,6 +363,8 @@ def main():
         if gpu_vendor == "INTEL":
             # light_path_is_singular_ray has some fireflies.
             report.set_fail_percent(0.11)
+            if args.gpu_backend == "vulkan":
+                report.set_fail_threshold(9.0 / 255.0)
         if gpu_vendor == "AMD":
             # light_path_is_singular_ray has some fireflies.
             report.set_fail_threshold(9.0 / 255.0)

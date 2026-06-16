@@ -14,8 +14,8 @@
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
-#include "BLI_rect.h"
-#include "BLI_time.h"
+#include "BLI_rect.hh"
+#include "BLI_time.hh"
 
 #include "BLT_translation.hh"
 
@@ -460,7 +460,11 @@ void Instance::end_sync()
     loaded_shaders |= shaders.static_shaders_wait_ready(request_bits);
   }
 
-  materials.end_sync();
+  /* Reset temporal accumulation if new textures will be loaded this frame to avoid ghosting. */
+  if (is_viewport() && manager->has_deferred_textures()) {
+    sampling.reset();
+  }
+
   velocity.end_sync();
   volume.end_sync();  /* Needs to be before shadows. */
   shadows.end_sync(); /* Needs to be before lights. */

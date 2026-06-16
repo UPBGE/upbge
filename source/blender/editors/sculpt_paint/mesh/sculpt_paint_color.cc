@@ -11,8 +11,8 @@
 
 #include "BLI_color.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_hash.h"
-#include "BLI_math_color_blend.h"
+#include "BLI_hash_c.hh"
+#include "BLI_math_color_blend.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
@@ -244,8 +244,6 @@ struct ColorPaintLocalData {
   Vector<float> factors;
   Vector<float> auto_mask;
   Vector<float3> positions;
-  Vector<float2> xy_positions;
-  Vector<float> z_positions;
   Vector<float> distances;
   Vector<float4> colors;
   Vector<float4> new_colors;
@@ -375,12 +373,9 @@ static void do_paint_brush_task(const Depsgraph &depsgraph,
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
   if (brush.tip_roundness < 1.0f) {
-    tls.xy_positions.resize(verts.size());
-    tls.z_positions.resize(verts.size());
-    MutableSpan<float2> xy_positions = tls.xy_positions;
-    MutableSpan<float> z_positions = tls.z_positions;
-    calc_local_positions(vert_positions, verts, mat, tls.xy_positions, tls.z_positions);
-    calc_brush_cube_distances<float2>(brush, tls.xy_positions, distances);
+    tls.positions.resize(verts.size());
+    calc_local_positions(vert_positions, verts, mat, tls.positions);
+    calc_brush_cube_distances<float3>(brush, tls.positions, distances);
     radius = 1.0f;
   }
   else {

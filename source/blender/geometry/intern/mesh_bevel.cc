@@ -13,12 +13,12 @@
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_map.hh"
-#include "BLI_math_base.h"
 #include "BLI_math_base.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
@@ -7503,7 +7503,9 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
     dst_face_offsets[n_surv_faces + nf] = n_surv_corners + new_face_offs[nf];
   }
   /* Sentinel at the end (Blender stores offsets as face_offsets[face_num] = corners_num). */
-  dst_face_offsets[n_surv_faces + n_new_faces] = n_surv_corners + new_face_offs[n_new_faces];
+  if (!dst_face_offsets.is_empty()) {
+    dst_face_offsets[n_surv_faces + n_new_faces] = n_surv_corners + new_face_offs[n_new_faces];
+  }
 
   const OffsetIndices<int> dst_faces(dst_face_offsets);
 
@@ -7753,6 +7755,9 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   const timeit::TimePoint start_time = timeit::Clock::now();
 #endif
   BevelState state(src_mesh, params, selection);
+  if (state.bevel_affected_vertices.size() == 0) {
+    return std::nullopt;
+  }
   state.initialize_profile_data();
   state.uv_init();
 

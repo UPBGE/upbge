@@ -19,7 +19,8 @@
 
 #include "../../blenfont/BLF_api.hh"
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
+
 #include "DNA_vec_types.h"
 
 #include "../../imbuf/IMB_colormanagement.hh"
