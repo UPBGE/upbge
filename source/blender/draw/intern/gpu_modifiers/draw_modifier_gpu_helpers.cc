@@ -85,7 +85,7 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
     Object *deformed_eval,
     Depsgraph *depsgraph,
     Tex *tex,
-    std::vector<float3> &tex_coords,
+    std::vector<float4> &tex_coords,
     bool &r_tex_is_byte,
     bool &r_tex_is_float,
     int &r_tex_channels,
@@ -202,13 +202,7 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
       const size_t size_texcoords = tex_coords.size() * sizeof(float4);
       ssbo_texcoords = bke::BKE_mesh_gpu_internal_ssbo_ensure(mesh_owner, deformed_eval, key_texcoords, size_texcoords);
       if (ssbo_texcoords) {
-        std::vector<float4> padded(tex_coords.size());
-
-        for (size_t i = 0; i < tex_coords.size(); ++i) {
-          padded[i] = float4(tex_coords[i].x, tex_coords[i].y, tex_coords[i].z, 1.0f);
-        }
-
-        GPU_storagebuf_update(ssbo_texcoords, padded.data());
+        GPU_storagebuf_update(ssbo_texcoords, tex_coords.data());
       }
     }
     *r_ssbo_texcoords = ssbo_texcoords;
