@@ -39,8 +39,8 @@
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_Polygon.h"
 
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"

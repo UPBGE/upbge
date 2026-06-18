@@ -35,7 +35,7 @@
 
 #include "SCA_CameraActuator.h"
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 
 #include "KX_GameObject.h"
 

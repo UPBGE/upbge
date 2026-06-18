@@ -27,7 +27,7 @@
 #pragma once
 
 #include "RAS_IVertex.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 
 template<class Vertex> class RAS_DisplayArray;
 

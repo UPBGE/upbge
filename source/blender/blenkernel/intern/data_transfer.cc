@@ -14,10 +14,10 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_base.h"
-#include "BLI_math_matrix.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_attribute.h"
 #include "BKE_attribute.hh"
@@ -720,6 +720,10 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(
                                                   nullptr,
                                                   nullptr);
         }
+        else {
+          /* Layout-only transfer, the writer isn't moved into the map so finish it. */
+          std::get<bke::GSpanAttributeWriter>(data_dst).finish();
+        }
       }
 
       /* NOTE:
@@ -889,6 +893,10 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
                                               nullptr,
                                               nullptr);
     }
+    else {
+      /* Layout-only transfer, the writer isn't moved into the map so finish it. */
+      std::get<bke::GSpanAttributeWriter>(data_dst).finish();
+    }
   }
   else if (fromlayers == DT_LAYERS_ALL_SRC) {
     int num_src = src_names.size();
@@ -965,6 +973,10 @@ static void data_transfer_layersmapping_add_item_attr(Vector<CustomDataTransferL
                                               std::move(data_dst),
                                               nullptr,
                                               nullptr);
+    }
+    else if (data_dst) {
+      /* The writer wasn't moved into the map (layout-only transfer or mismatched domain/type). */
+      data_dst.finish();
     }
   }
   else {

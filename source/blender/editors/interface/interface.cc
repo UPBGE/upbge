@@ -24,14 +24,14 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_vector.hh"
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
@@ -5349,7 +5349,6 @@ static Button *def_but_operator_ptr(Block *block,
   }
 
   Button *but = def_but(block, type, str, x, y, width, height, nullptr, 0, 0, tip);
-  button_retval_set(but, -1);
   button_operator_set(but, ot, opcontext);
 
   /* Enable quick tooltip label if this is a tool button without a label. */
@@ -6571,6 +6570,11 @@ void button_hint_drawstr_set(Button *but, const char *string)
   button_add_shortcut(but, string, false);
 }
 
+void button_icon_scale_set(Button *but, const float scale)
+{
+  but->icon_scale = scale;
+}
+
 void button_icon_indicator_number_set(Button *but, const int indicator_number)
 {
   icon_text_overlay_init_from_count(&but->icon_overlay_text, indicator_number);
@@ -6591,6 +6595,14 @@ void button_node_link_set(Button *but, bNodeSocket *socket, const float draw_col
   but->flag |= BUT_NODE_LINK;
   but->custom_data = socket;
   rgba_float_to_uchar(but->col, draw_color);
+}
+
+void button_pushbutton_draw_as_overlay_set(Button *but, const bool value)
+{
+  ButtonPush *but_push = static_cast<ButtonPush *>(but);
+  BLI_assert(but->type == ButtonType::But);
+
+  but_push->draw_as_overlay = value;
 }
 
 void button_number_step_size_set(Button *but, float step_size)

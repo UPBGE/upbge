@@ -12,7 +12,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase_iterator.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 #include "BKE_main.hh"
 #include "BKE_node.hh"
@@ -45,7 +45,7 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 1)) {
     for (Scene &scene : bmain->scenes) {
       VPaint *wpaint = scene.toolsettings->wpaint;
-      if (wpaint) {
+      if (wpaint && wpaint->paint.brush_asset_reference) {
         const StringRefNull old_asset_id =
             wpaint->paint.brush_asset_reference->relative_asset_identifier;
         if (wpaint->paint.brush == nullptr && old_asset_id.endswith("Paint")) {
@@ -79,6 +79,19 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_ACTION) {
+            SpaceAction *saction = reinterpret_cast<SpaceAction *>(&sl);
+            saction->cache_display |= TIME_CACHE_COMPOSITOR;
+          }
+        }
+      }
+    }
   }
 
   /**

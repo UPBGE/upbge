@@ -27,7 +27,7 @@
 #include "KX_PyMath.h"
 #include "PHY_ICharacter.h"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base.hh"
 
 using namespace blender;
 

@@ -28,7 +28,7 @@
 
 #include "LA_System.h"
 
-#include "BLI_time.h"
+#include "BLI_time.hh"
 
 using namespace blender;
 

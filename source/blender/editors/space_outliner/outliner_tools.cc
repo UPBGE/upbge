@@ -29,11 +29,11 @@
 #include "DNA_volume_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -2329,7 +2329,7 @@ static wmOperatorStatus outliner_liboverride_property_remove_exec(bContext *C, w
 void OUTLINER_OT_liboverride_property_remove(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Outliner Library Override Properly Remove";
+  ot->name = "Outliner Library Override Property Remove";
   ot->idname = "OUTLINER_OT_liboverride_property_remove";
   ot->description =
       "Remove the selected library override properties, and reset the relevant data to the linked "

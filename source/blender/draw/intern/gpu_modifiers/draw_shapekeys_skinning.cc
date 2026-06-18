@@ -7,7 +7,7 @@
 
 #include "draw_shapekeys_skinning.hh"
 
-#include "BLI_hash.h"
+#include "BLI_hash_c.hh"
 
 #include "BKE_key.hh"
 #include "BKE_mesh_gpu.hh"

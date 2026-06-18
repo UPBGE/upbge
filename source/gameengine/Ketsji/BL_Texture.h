@@ -39,7 +39,6 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
   Py_Header private : bool m_isCubeMap;
   blender::Image *m_ima;
   blender::gpu::Texture *m_gpuTex;
-  blender::eGPUTextureTarget m_textarget;
 
  public:
   BL_Texture(blender::Image *ima);
@@ -53,8 +52,6 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
 
   virtual blender::Image *GetImage() const;
   virtual blender::gpu::Texture *GetGPUTexture() const;
-
-  virtual unsigned int GetTextureType();
 
   enum { MaxUnits = 32 };
 

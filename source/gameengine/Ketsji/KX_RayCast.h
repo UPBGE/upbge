@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"

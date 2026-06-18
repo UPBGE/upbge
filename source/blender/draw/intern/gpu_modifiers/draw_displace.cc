@@ -9,7 +9,7 @@
 
 #include "draw_displace.hh"
 
-#include "BLI_hash.h"
+#include "BLI_hash_c.hh"
 
 #include "BKE_deform.hh"
 #include "BKE_image.hh"

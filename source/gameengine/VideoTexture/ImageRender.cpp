@@ -11,8 +11,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_geom.hh"
+#include "BLI_math_matrix.hh"
 #include "DEG_depsgraph_query.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"

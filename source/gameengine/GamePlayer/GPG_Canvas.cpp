@@ -82,7 +82,6 @@ void GPG_Canvas::BeginDraw()
     GPU_render_begin();
     GPU_render_step(true);
 
-    BKE_image_free_unused_gpu_textures();
     /* See wm_draw_update for "chronology" */
     GPU_context_begin_frame((GPUContext *)win->runtime->gpuctx);
   }

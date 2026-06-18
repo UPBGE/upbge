@@ -15,7 +15,7 @@
 
 #  include <pthread.h>
 
-#  include "BLI_threads.h"
+#  include "BLI_threads.hh"
 
 extern "C" {
 #  include "ffmpeg_compat.h"

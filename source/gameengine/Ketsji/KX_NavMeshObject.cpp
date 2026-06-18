@@ -30,7 +30,7 @@
 #include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
-#include "BLI_sort.h"
+#include "BLI_sort.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_meshdata_types.h"
 

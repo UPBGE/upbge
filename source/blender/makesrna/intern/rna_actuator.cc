@@ -31,9 +31,9 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h" /* for MAXFRAME */
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 

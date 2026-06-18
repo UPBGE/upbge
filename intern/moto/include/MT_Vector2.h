@@ -49,7 +49,7 @@
 
 #include "MT_Config.h"
 
-#include <BLI_utildefines.h>
+#include <BLI_utildefines.hh>
 #include "MT_Scalar.h"
 #include "MT_Stream.h"
 

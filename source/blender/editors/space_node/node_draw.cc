@@ -26,14 +26,14 @@
 #include "BLI_bounds.hh"
 #include "BLI_convexhull_2d.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_color.h"
+#include "BLI_math_color_c.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -427,13 +427,13 @@ const char *node_socket_get_description(const bNodeSocket *socket)
 {
   if (socket->runtime->declaration == nullptr) {
     if (socket->description[0]) {
-      return socket->description;
+      return TIP_(socket->description);
     }
     return nullptr;
   }
   const nodes::SocketDeclaration &socket_decl = *socket->runtime->declaration;
   if (!socket_decl.description.empty()) {
-    return socket_decl.description.c_str();
+    return TIP_(socket_decl.description.c_str());
   }
   return nullptr;
 }
@@ -2974,6 +2974,8 @@ static void node_draw_basis(const bContext &C,
                                    0,
                                    0,
                                    "");
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
@@ -3097,6 +3099,8 @@ static void node_draw_basis(const bContext &C,
                                    0.0f,
                                    "");
 
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
@@ -3293,6 +3297,8 @@ static void node_draw_collapsed(const bContext &C,
                                    0.0f,
                                    "");
 
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),

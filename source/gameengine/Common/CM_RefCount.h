@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 /** \brief Reference counter base class. This class manages the destruction of an object
  * based on a reference counter, when the counter is to zero the object is destructed.

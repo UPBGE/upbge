@@ -55,7 +55,7 @@
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 /* This list includes only data type definitions */
@@ -69,7 +69,7 @@
 #include "BKE_mesh_tangent.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
 #include "DNA_meshdata_types.h"

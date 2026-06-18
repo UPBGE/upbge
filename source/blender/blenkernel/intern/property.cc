@@ -43,8 +43,8 @@
 
 #include "BKE_property.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
 
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
