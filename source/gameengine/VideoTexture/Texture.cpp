@@ -199,17 +199,12 @@ void Texture::loadTexture(unsigned int *texture,
 
     // Upload the RGBA8 buffer to the GPU texture
     GPU_texture_update(m_modifiedGPUTexture, GPU_DATA_UBYTE, texture);
-
-    // Optionally update mipmaps - TODO: See if we keep that in 2.8+ versions (also see if we update ImageRender path with this option)
-    if (mipmap) {
-      GPU_texture_update_mipmap_chain(m_modifiedGPUTexture);
-    }
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-    if (!m_gpuTexInUse) {
-      // Do not acquire a new reference – the texture is already owned by
-      // this VideoTexture instance via m_modifiedGPUTexture.
-      m_gpuTexInUse = m_modifiedGPUTexture;
-    }
+
+    // Do not acquire a new reference – the texture is already owned by
+    // this VideoTexture instance via m_modifiedGPUTexture.
+    m_gpuTexInUse = m_modifiedGPUTexture;
+
     // Register the override on the Image. No additional refcount is taken.
     BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
     if (!m_py_color) {
