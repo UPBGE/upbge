@@ -333,7 +333,7 @@ void WaveManager::ensure_static_resources(const WaveModifierData *wmd, Object *d
   msd.tex_coords.clear();
   if (wmd->texture) {
     const int verts_num = orig_mesh->verts_num;
-    float(*tex_co)[3] = MEM_new_array_uninitialized<float[3]>(verts_num, "wave_tex_coords");
+    float(*tex_co)[3] = MEM_new_array_zeroed<float[3]>(verts_num, "wave_tex_coords");
 
     MOD_get_texture_coords(
         reinterpret_cast<MappingInfoModifierData *>(const_cast<WaveModifierData *>(wmd)),
@@ -409,7 +409,6 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
   gpu::Texture *gpu_texture = nullptr;
 
   /* Use shared helper to prepare texture and texcoords (handles image user frame, ImBuf upload and caching). */
-  const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
   gpu_texture = modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
       mesh_owner,
       deformed_eval,
@@ -421,8 +420,7 @@ gpu::StorageBuf *WaveManager::dispatch_deform(const WaveModifierData *wmd,
       msd.tex_channels,
       msd.tex_metadata_cached,
       key_prefix,
-      &ssbo_texcoords,
-      is_uv_mapping);
+      &ssbo_texcoords);
 
   /* Create output SSBO (use get -> ensure pattern to avoid unnecessary allocations). */
   const size_t size_out = msd.verts_num * sizeof(float) * 4;

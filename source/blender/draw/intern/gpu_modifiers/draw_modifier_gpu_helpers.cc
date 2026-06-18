@@ -91,8 +91,7 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
     int &r_tex_channels,
     bool &r_tex_metadata_cached,
     const std::string &key_prefix,
-    gpu::StorageBuf **r_ssbo_texcoords,
-    bool is_uv_mapping)
+    gpu::StorageBuf **r_ssbo_texcoords)
 {
 
   gpu::Texture *gpu_texture = nullptr;
@@ -206,17 +205,7 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
         std::vector<float4> padded(tex_coords.size());
 
         for (size_t i = 0; i < tex_coords.size(); ++i) {
-          /* NOTE: For UV mapping MOD_get_texture_coords() only fills
-           * the first two components (u,v) and does not initialize the z component
-           * (see MOD_util.cc -> UV lines 108/109). We are using MEM_new_array_uninitialized
-           * for texco allocation, then tex_coords[i].z can contain garbage and we need to set
-           * it to 0.0 to avoid uploading undefined values to the SSBO to avoid issues in the shader
-           * with TEX_CLIPCUBE or other things which can use .z component. (we could also use
-           * MEM_new_array_zeroed instead of MEM_new_array_uninitialized) - CPU modifier should maybe
-           * use MEM_new_array_zeroed instead of MEM_new_array_uninitialized too to avoid potential issues
-           * (MOD_wave/MOD_warp) */
-          float z = is_uv_mapping ? 0.0f : tex_coords[i].z;
-          padded[i] = float4(tex_coords[i].x, tex_coords[i].y, z, 1.0f);
+          padded[i] = float4(tex_coords[i].x, tex_coords[i].y, tex_coords[i].z, 1.0f);
         }
 
         GPU_storagebuf_update(ssbo_texcoords, padded.data());
