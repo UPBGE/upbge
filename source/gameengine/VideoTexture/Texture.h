@@ -53,8 +53,6 @@ class Texture : public EXP_Value {
   // use mipmapping
   bool m_mipmap;
 
-  // scaled image buffer
-  blender::ImBuf *m_scaledImBuf;
   // last refresh
   double m_lastClock;
 

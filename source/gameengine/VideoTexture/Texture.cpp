@@ -57,7 +57,6 @@ Texture::Texture():
       m_modifiedGPUTexture(nullptr),
       m_py_color(nullptr),
       m_mipmap(false),
-      m_scaledImBuf(nullptr),
       m_lastClock(0.0),
       m_source(nullptr),
       m_isImageRender(false)
@@ -71,8 +70,6 @@ Texture::~Texture()
   Py_XDECREF(m_source);
   // close texture
   Close();
-  // release scaled image buffer
-  blender::IMB_freeImBuf(m_scaledImBuf);
 }
 
 void Texture::DestructFromPython()
