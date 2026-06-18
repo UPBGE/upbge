@@ -46,7 +46,7 @@ class Texture : public EXP_Value {
 
   KX_Scene *m_scene;
   KX_GameObject *m_gameobj;
-  blender::gpu::Texture *m_origGpuTex;
+  blender::gpu::Texture *m_gpuTexInUse;
   blender::gpu::Texture *m_modifiedGPUTexture;
   void *m_py_color;
 

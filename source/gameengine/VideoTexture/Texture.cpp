@@ -53,7 +53,7 @@ Texture::Texture():
       m_rasTexture(nullptr),
       m_scene(nullptr),
       m_gameobj(nullptr),
-      m_origGpuTex(nullptr),
+      m_gpuTexInUse(nullptr),
       m_modifiedGPUTexture(nullptr),
       m_py_color(nullptr),
       m_mipmap(false),
@@ -112,21 +112,24 @@ void Texture::Close()
   if (m_orgImg) {
     m_orgImg = nullptr;
   }
-  if (m_origGpuTex) {
+  if (m_imgTexture) {
     BKE_image_set_gpu_texture_override(m_imgTexture, nullptr);
-    m_origGpuTex = nullptr;
+    m_imgTexture = nullptr;
+  }
+  if (m_gpuTexInUse) {
+    m_gpuTexInUse = nullptr;
   }
   if (m_imgBuf) {
     blender::IMB_freeImBuf(m_imgBuf);
     m_imgBuf = nullptr;
   }
-  if (m_modifiedGPUTexture) {
-    GPU_texture_free(m_modifiedGPUTexture);
-    m_modifiedGPUTexture = nullptr;
-  }
   if (m_py_color) {
     Py_XDECREF(m_py_color);
     m_py_color = nullptr;
+  }
+  if (m_modifiedGPUTexture) { // Videos
+    GPU_texture_free(m_modifiedGPUTexture);
+    m_modifiedGPUTexture = nullptr;
   }
 }
 
@@ -149,27 +152,33 @@ void Texture::loadTexture(unsigned int *texture,
   // Check if the source is an ImageRender (offscreen 3D render)
   ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_imageBase) : nullptr;
 
-  if (imr && !m_origGpuTex) {
+  if (imr && !m_gpuTexInUse) {
     // For ImageRender, directly use the GPU texture from the active framebuffer
     KX_Camera *cam = imr->GetCamera();
-    if (cam && m_imgTexture && BKE_image_acquire_gpu_texture(m_imgTexture, nullptr)) {
+    if (cam && m_imgTexture) {
       blender::GPUViewport *viewport = cam->GetGPUViewport();
-      // Get the color texture from the viewport's framebuffer
+      /* Get the color texture from the KX_Camera's GPUViewport.This texture is
+       * owned by the GPU viewport and must not be reference‑counted by the
+       * Image system: Don't call BKE_image_acquire_gpu_texture!! */
       blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
-      // Assign the GPU texture to the Blender image slot
-      m_origGpuTex = BKE_image_acquire_gpu_texture(m_imgTexture, nullptr);
+
+      // Register the override on the Image so that drawing code uses this GPU texture.
       BKE_image_set_gpu_texture_override(m_imgTexture, gpuTex);
-      m_py_color = BPyGPUTexture_CreatePyObject(
-          BKE_image_acquire_gpu_texture(m_imgTexture, nullptr),
-                                                false);
+
+      // Create a Python wrapper for the texture without increasing its refcount.
+      m_py_color = BPyGPUTexture_CreatePyObject(gpuTex, false);
       Py_INCREF(m_py_color);
+
+      /* Store the pointer in m_gpuTexInUse without acquiring a new
+       * reference. */
+      m_gpuTexInUse = gpuTex;
     }
     // No need to upload a CPU buffer, return early
     return;
   }
 
   // For video/image sources: upload the CPU buffer to a GPU texture
-  if (m_imgTexture && BKE_image_acquire_gpu_texture(m_imgTexture, nullptr)) {
+  if (m_imgTexture) {
     if (m_modifiedGPUTexture && (size[0] != GPU_texture_width(m_modifiedGPUTexture) ||
                                  size[1] != GPU_texture_height(m_modifiedGPUTexture)))
     {
@@ -196,15 +205,15 @@ void Texture::loadTexture(unsigned int *texture,
       GPU_texture_update_mipmap_chain(m_modifiedGPUTexture);
     }
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-    if (!m_origGpuTex) {
-      m_origGpuTex = BKE_image_acquire_gpu_texture(m_imgTexture, nullptr);
+    if (!m_gpuTexInUse) {
+      // Do not acquire a new reference – the texture is already owned by
+      // this VideoTexture instance via m_modifiedGPUTexture.
+      m_gpuTexInUse = m_modifiedGPUTexture;
     }
-    // Integrate the new GPU texture into the Blender pipeline
+    // Register the override on the Image. No additional refcount is taken.
     BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
     if (!m_py_color) {
-      m_py_color = BPyGPUTexture_CreatePyObject(
-          BKE_image_acquire_gpu_texture(m_imgTexture, nullptr),
-                                                false);
+      m_py_color = BPyGPUTexture_CreatePyObject(m_modifiedGPUTexture, false);
       Py_INCREF(m_py_color);
     }
   }
@@ -444,7 +453,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 PyObject *Texture::pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = static_cast<Texture *>(self_v);
-  blender::gpu::Texture *gputex = BKE_image_acquire_gpu_texture(self->m_imgTexture, nullptr);
+  blender::gpu::Texture *gputex = self->m_gpuTexInUse;
   if (gputex) {
     return BPyGPUTexture_CreatePyObject(gputex, true);
   }
