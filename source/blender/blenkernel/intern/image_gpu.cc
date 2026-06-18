@@ -652,7 +652,6 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
 
   if (ima && ima->runtime->gpu_texture_override) {
     ImageGPUTextures result = {};
-    GPU_texture_ref(ima->runtime->gpu_texture_override);
     result.texture = ima->runtime->gpu_texture_override;
     return result;
   }
@@ -1123,12 +1122,6 @@ void BKE_image_set_gpu_texture_override(Image *image, gpu::Texture *tex)
 {
   if (image == nullptr || image->runtime == nullptr) {
     return;
-  }
-  if (tex == nullptr) {
-    if (image->runtime->gpu_texture_override) {
-      GPU_texture_free(image->runtime->gpu_texture_override);
-      image->runtime->gpu_texture_override = nullptr;
-    }
   }
   image->runtime->gpu_texture_override = tex;
 }

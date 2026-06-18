@@ -621,13 +621,6 @@ ImBuf *BKE_image_get_ibuf_with_name(Image *image, const char *filepath);
  */
 ImBuf *BKE_image_get_first_ibuf(Image *image);
 
-/**
- * Set (or clear) an external GPU texture that overrides normal pixel upload.
- * Pass nullptr to restore normal Blender-managed texture behaviour.
- * Thread-safety: call only from the main thread with an active GPU context.
- */
-void BKE_image_set_gpu_texture_override(Image *image, gpu::Texture *tex);
-
 
 RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name);
 bool BKE_image_remove_renderslot(Image *ima, ImageUser *iuser, int slot);
@@ -656,5 +649,12 @@ void BKE_image_partial_update_mark_region(Image *image,
                                           const rcti *updated_region);
 /** \brief Mark the whole image to be updated. */
 void BKE_image_partial_update_mark_full_update(Image *image);
+
+/**
+ * Set (or clear) an external GPU texture that overrides normal pixel upload.
+ * Pass nullptr to restore normal Blender-managed texture behaviour.
+ * Thread-safety: call only from the main thread with an active GPU context.
+ */
+void BKE_image_set_gpu_texture_override(Image *image, gpu::Texture *tex);
 
 }  // namespace blender

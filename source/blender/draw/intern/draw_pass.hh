@@ -1176,13 +1176,25 @@ inline void PassBase<T>::material_set(Manager &manager,
       }
       else {
         /* Texture is loaded, bind by value. */
+        /* When an external GPU texture override is set on the Image (via
+         * BKE_image_set_gpu_texture_override()), the image does NOT own the
+         * texture and the draw manager must not keep a reference to
+         * it. */
+        bool is_override = false;
+        if (tex->ima && tex->ima->runtime) {
+          is_override = (tex->ima->runtime->gpu_texture_override == gputex.texture);
+        }
         if (gputex.texture) {
           bind_texture(tex->sampler_name, gputex.texture, sampler_state);
-          manager.hold_texture(gputex.texture);
+          if (!is_override) {
+            manager.hold_texture(gputex.texture);
+          }
         }
         if (gputex.tile_mapping) {
           bind_texture(tex->tiled_mapping_name, gputex.tile_mapping, sampler_state);
-          manager.hold_texture(gputex.tile_mapping);
+          if (!is_override) {
+            manager.hold_texture(gputex.tile_mapping);
+          }
         }
       }
     }

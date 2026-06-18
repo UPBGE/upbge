@@ -37,20 +37,10 @@ BL_Texture::BL_Texture(blender::Image *ima)
 {
   m_isCubeMap = false;
   m_name = m_ima->id.name + 2;
-  m_gpuTex = nullptr;
-  /* only add support for existing gputextures */
-  if (BKE_image_has_gpu_texture(ima)) {
-    m_gpuTex = BKE_image_acquire_gpu_texture(ima, nullptr);
-  }
 }
 
 BL_Texture::~BL_Texture()
 {
-}
-
-bool BL_Texture::Ok() const
-{
-  return (m_gpuTex != nullptr);
 }
 
 bool BL_Texture::IsCubeMap() const
@@ -61,11 +51,6 @@ bool BL_Texture::IsCubeMap() const
 blender::Image *BL_Texture::GetImage() const
 {
   return m_ima;
-}
-
-blender::gpu::Texture *BL_Texture::GetGPUTexture() const
-{
-  return m_gpuTex;
 }
 
 // stuff for cvalue related things
