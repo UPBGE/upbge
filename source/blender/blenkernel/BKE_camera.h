@@ -5,7 +5,7 @@
 #pragma once
 
 #include "DNA_vec_types.h"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 
 namespace blender {
 

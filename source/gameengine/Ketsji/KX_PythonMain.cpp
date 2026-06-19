@@ -29,7 +29,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_text.h"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "DNA_scene_types.h"
 
 using namespace blender;

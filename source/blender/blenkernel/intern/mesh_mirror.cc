@@ -7,9 +7,9 @@
  */
 
 #include "BLI_array.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -170,7 +170,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
       };
       /* Scale to avoid precision loss with extreme values. */
       const float ob_scale_max = std::max({UNPACK3(ob_scale)});
-      if (LIKELY(ob_scale_max != 0.0f)) {
+      if (ob_scale_max != 0.0f) [[likely]] {
         mul_v3_fl(ob_scale, 1.0f / ob_scale_max);
         mul_v3_v3(plane_no, ob_scale);
       }
@@ -248,8 +248,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
        * old, incorrect behavior of merging the source vertex into its copy.
        */
       if (use_correct_order_on_merge) {
-        if (UNLIKELY(len_squared_v3v3(positions[vert_index_prev], positions[vert_index]) <
-                     tolerance_sq))
+        if (len_squared_v3v3(positions[vert_index_prev], positions[vert_index]) < tolerance_sq)
+            [[unlikely]]
         {
           *vtmap_b = i;
           (*r_vert_merge_map_len)++;
@@ -266,8 +266,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
         *vtmap_a = -1;
       }
       else {
-        if (UNLIKELY(len_squared_v3v3(positions[vert_index_prev], positions[vert_index]) <
-                     tolerance_sq))
+        if (len_squared_v3v3(positions[vert_index_prev], positions[vert_index]) < tolerance_sq)
+            [[unlikely]]
         {
           *vtmap_a = src_verts_num + i;
           (*r_vert_merge_map_len)++;

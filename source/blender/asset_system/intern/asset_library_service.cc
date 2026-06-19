@@ -11,7 +11,7 @@
 #include "BKE_blender.hh"
 #include "BKE_preferences.h"
 
-#include "BLI_fileops.h"  // IWYU pragma: keep
+#include "BLI_fileops.hh"  // IWYU pragma: keep
 #include "BLI_path_utils.hh"
 #include "BLI_string_ref.hh"
 
@@ -154,7 +154,7 @@ AssetLibrary *AssetLibraryService::get_preferences_remote_asset_library(
   const StringRefNull remote_url = custom_library.remote_url;
 
   /* Lock for the entire "lookup and if not found -> create and insert" scope, so no two threads do
-   * this in parallel and interfer with each other. */
+   * this in parallel and interfere with each other. */
   std::scoped_lock lock{remote_libraries_mutex_};
 
   std::unique_ptr<PreferencesRemoteAssetLibrary> *lib_uptr_ptr = remote_libraries_.lookup_ptr(
@@ -186,7 +186,7 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(
   const std::string normalized_root_path = utils::normalize_directory_path(root_path);
 
   /* Lock for the entire "lookup and if not found -> create and insert" scope, so no two threads do
-   * this in parallel and interfer with each other. */
+   * this in parallel and interfere with each other. */
   std::scoped_lock lock{on_disk_libraries_mutex_};
 
   if (OnDiskAssetLibrary *lib = this->lookup_on_disk_library(library_type, normalized_root_path)) {

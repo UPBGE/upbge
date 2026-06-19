@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "KX_ClientObjectInfo.h"
 #include "MT_Scalar.h"

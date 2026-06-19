@@ -12,10 +12,10 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -1435,8 +1435,8 @@ static void draw_brackets(const SpaceText *st, const TextDrawContext *tdc, ARegi
       }
     }
     else {
-      BLI_assert(fc == 0);
-      fc = -1;
+      /* For balanced brackets: `fc == 0`. */
+      fc--;
     }
     while (linep) {
       while (fc >= 0) {
@@ -1466,8 +1466,8 @@ static void draw_brackets(const SpaceText *st, const TextDrawContext *tdc, ARegi
           }
         }
         else {
-          BLI_assert(fc == 0);
-          fc = -1;
+          /* For balanced brackets: `fc == 0`. */
+          fc--;
         }
       }
       if (endl) {
@@ -1482,7 +1482,7 @@ static void draw_brackets(const SpaceText *st, const TextDrawContext *tdc, ARegi
           fc = space_text_get_format_index(st, linep->line, c);
         }
         else {
-          BLI_assert(fc == 0);
+          /* Empty or unformatted line: nothing to scan, skip to the previous line. */
           fc = -1;
         }
       }

@@ -11,7 +11,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string_utf8_symbols.hh"
 
 #include "BLT_translation.hh"
 
@@ -32,10 +33,10 @@
 
 #  include "DNA_userdef_types.h"
 
-#  include "BLI_listbase.h"
-#  include "BLI_math_vector.h"
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_vector_c.hh"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 
 #  include "BKE_keyconfig.h"
 #  include "BKE_main.hh"
@@ -1626,7 +1627,7 @@ static wmOperatorStatus rna_operator_exec_cb(bContext *C, wmOperator *op)
 
   RNA_parameter_list_free(&list);
 
-  if (UNLIKELY(has_error)) {
+  if (has_error) [[unlikely]] {
     /* A modal handler may have been added, ensure this is removed, see: #113479. */
     WM_event_remove_modal_handler_all(op, false);
   }
@@ -1683,7 +1684,7 @@ static wmOperatorStatus rna_operator_invoke_cb(bContext *C, wmOperator *op, cons
 
   RNA_parameter_list_free(&list);
 
-  if (UNLIKELY(has_error)) {
+  if (has_error) [[unlikely]] {
     /* A modal handler may have been added, ensure this is removed, see: #113479. */
     WM_event_remove_modal_handler_all(op, false);
   }
@@ -2432,6 +2433,7 @@ static void rna_def_operator_filelist_element(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Operator File List Element", "");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_FILENAME);
+  RNA_def_property_string_maxlength(prop, FILE_MAX);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   RNA_def_property_ui_text(prop, "Name", "Name of a file or directory within a file list");
 }

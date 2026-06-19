@@ -55,7 +55,7 @@
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 /* This list includes only data type definitions */
@@ -69,7 +69,7 @@
 #include "BKE_mesh_tangent.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_actuator_types.h"
 #include "DNA_meshdata_types.h"
@@ -1360,6 +1360,17 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 
       if (gameobj->IsDupliGroup()) {  // Don't bother with groups during single object conversion
         grouplist.insert(blenderobject->instance_collection);
+      }
+
+      if (blenderobject->gameflag & OB_DUPLI_UPBGE && isInActiveLayer && !single_object) {
+        /* When the object is an upbge dupli base (not not an upbge dupli instance),
+         * as there is not behaviour defined when this base in an active layer (visibled
+         * at conversion time), we choose, for convenience, to make this kind of blenderobject
+         * unsynced with depsgraph (for transform updates - As bge SceneGraph is already abled
+         * to handle most transforms as well as Depsgraph).
+         * Here we just mark it as an upbge dupli base.
+         */
+        gameobj->SetIsUpbgeDupliBase();
       }
 
       /* Note about memory leak issues:

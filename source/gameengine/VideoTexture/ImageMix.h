@@ -31,7 +31,7 @@ class ImageSourceMix : public ImageSource {
   /// set offset
   void setOffset(unsigned int *firstImg)
   {
-    m_offset = m_image - firstImg;
+    m_offset = m_pixelsData - firstImg;
   }
 
   /// get weight

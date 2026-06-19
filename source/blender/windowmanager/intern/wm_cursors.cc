@@ -23,8 +23,8 @@
 #include "GHOST_IWindow.hh"
 #include "GHOST_Types.hh"
 
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
@@ -305,7 +305,7 @@ static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cur
     uint8_t *bitmap_rgba = cursor_bitmap_from_svg(
         cursor.svg_source, cursor_size, alloc_fn, bitmap_size);
 
-    if (UNLIKELY(bitmap_rgba == nullptr)) {
+    if (bitmap_rgba == nullptr) [[unlikely]] {
       return nullptr;
     }
 
@@ -350,7 +350,7 @@ static bool window_set_custom_cursor_pixmap(wmWindow *win, const BCursor &cursor
         return MEM_new_array_uninitialized<uint8_t>(size, "wm.cursor");
       },
       bitmap_size);
-  if (UNLIKELY(bitmap_rgba == nullptr)) {
+  if (bitmap_rgba == nullptr) [[unlikely]] {
     return false;
   }
 
@@ -838,7 +838,7 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
                                                    alloc_fn,
                                                    bitmap_size);
 
-    if (UNLIKELY(bitmap_rgba == nullptr)) {
+    if (bitmap_rgba == nullptr) [[unlikely]] {
       return nullptr;
     }
 

@@ -14,11 +14,11 @@
 #include <string>
 #include <type_traits>
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8_symbols.h"
-#include "BLI_sys_types.h" /* size_t */
+#include "BLI_string_utf8_symbols.hh"
+#include "BLI_sys_types.hh" /* size_t */
 
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
@@ -350,19 +350,19 @@ enum ButtonFlag {
   BUT_NODE_LINK = 1 << 10,
   BUT_NODE_ACTIVE = 1 << 11,
   BUT_DRAG_LOCK = 1 << 12,
-  BUT_DRAG_LOCK_X = BUT_DRAG_LOCK | 1 << 21,
+  BUT_DRAG_LOCK_X = BUT_DRAG_LOCK | 1 << 13,
 
   /** Grayed out and un-editable. */
-  BUT_DISABLED = 1 << 13,
+  BUT_DISABLED = 1 << 14,
 
-  BUT_ANIMATED = 1 << 14,
-  BUT_ANIMATED_KEY = 1 << 15,
-  BUT_DRIVEN = 1 << 16,
-  BUT_REDALERT = 1 << 17,
+  BUT_ANIMATED = 1 << 15,
+  BUT_ANIMATED_KEY = 1 << 16,
+  BUT_DRIVEN = 1 << 17,
+  BUT_REDALERT = 1 << 18,
   /** Grayed out but still editable. */
-  BUT_INACTIVE = 1 << 18,
-  BUT_LAST_ACTIVE = 1 << 19,
-  BUT_UNDO = 1 << 20,
+  BUT_INACTIVE = 1 << 19,
+  BUT_LAST_ACTIVE = 1 << 20,
+  BUT_UNDO = 1 << 21,
   BUT_NO_UTF8 = 1 << 22,
 
   /** For popups, pressing return activates this button, overriding the highlighted button.
@@ -629,7 +629,7 @@ inline char but_pointer_bit_max_index(ButPointerType pointer_type)
 /** Deduce the #ButPointerType matching \a T. */
 template<typename T> constexpr ButPointerType but_pointer_type_for()
 {
-  constexpr ButPointerType ptr_type = (std::is_floating_point_v<T>) ?
+  constexpr ButPointerType ptr_type = (std::is_same_v<T, float>) ?
                                           ButPointerType::Float :
                                       (std::is_integral_v<T> || std::is_enum_v<T>) ?
                                           (sizeof(T) == 1) ? ButPointerType::Char :
@@ -1922,11 +1922,21 @@ int search_items_find_index(const SearchItems *items, const char *name);
  * Adds a hint to the button which draws right aligned, grayed out and never clipped.
  */
 void button_hint_drawstr_set(Button *but, const char *string);
+void button_icon_scale_set(Button *but, float scale);
 void button_icon_indicator_number_set(Button *but, const int indicator_number);
 void button_icon_indicator_set(Button *but, const char *string);
 void button_icon_indicator_color_set(Button *but, const uchar color[4]);
 
 void button_node_link_set(Button *but, bNodeSocket *socket, const float draw_color[4]);
+
+/**
+ * Draw the button in a way that works as overlay, with a dark filled circle in the back and the
+ * icon in white on top. This ensures readable contrast even on varying backgrounds.
+ * Probably only works well for icon only buttons.
+ *
+ * Requires embossing to be enabled.
+ */
+void button_pushbutton_draw_as_overlay_set(Button *but, bool value);
 
 void button_number_step_size_set(Button *but, float step_size);
 void button_number_precision_set(Button *but, float precision);

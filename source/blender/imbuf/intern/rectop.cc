@@ -9,12 +9,12 @@
 #include <algorithm>
 #include <cstdlib>
 
-#include "BLI_math_base.h"
-#include "BLI_math_color_blend.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_color_blend.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -474,12 +474,17 @@ void IMB_crop(ImBuf *ibuf, const int2 &rect_pos, const int2 &rect_size)
     return;
   }
 
+  const ColorSpace *byte_colorspace = ibuf->byte_buffer.colorspace;
+  const ColorSpace *float_colorspace = ibuf->float_buffer.colorspace;
+
   if (const uchar *byte_data = ibuf->byte_data()) {
     ibuf->assign_byte_data(create_cropped_buffer(byte_data, src_size, rect_pos, rect_size));
+    ibuf->byte_buffer.colorspace = byte_colorspace;
   }
   if (const float *float_data = ibuf->float_data()) {
     ibuf->assign_float_data(
         create_cropped_buffer(float_data, src_size, ibuf->channels, rect_pos, rect_size));
+    ibuf->float_buffer.colorspace = float_colorspace;
   }
 
   ibuf->x = rect_size.x;

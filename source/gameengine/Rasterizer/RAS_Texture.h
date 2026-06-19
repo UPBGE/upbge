@@ -40,15 +40,10 @@ class RAS_Texture {
  public:
   RAS_Texture();
   virtual ~RAS_Texture();
-
-  virtual bool Ok() const = 0;
   virtual bool IsCubeMap() const = 0;
 
   virtual blender::Image *GetImage() const = 0;
-  virtual blender::gpu::Texture *GetGPUTexture() const = 0;
   std::string &GetName();
-
-  virtual unsigned int GetTextureType() = 0;
 
   enum { MaxUnits = 32 };
 };

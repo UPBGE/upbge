@@ -15,7 +15,7 @@
 
 #  include <pthread.h>
 
-#  include "BLI_threads.h"
+#  include "BLI_threads.hh"
 
 extern "C" {
 #  include "ffmpeg_compat.h"
@@ -188,7 +188,7 @@ class VideoFFmpeg : public VideoBase {
 
 inline VideoFFmpeg *getFFmpeg(PyImage *self)
 {
-  return static_cast<VideoFFmpeg *>(self->m_image);
+  return static_cast<VideoFFmpeg *>(self->m_imageBase);
 }
 
 #endif /* WITH_FFMPEG */

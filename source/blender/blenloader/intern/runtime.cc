@@ -39,14 +39,14 @@
 #include <cstring>
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #  include <io.h>      // read, open
 #else                  // ! WIN32
 #  include <unistd.h>  // read
 #endif
 
-#include "BLI_fileops.h"
-#include "BLI_utildefines.h"
+#include "BLI_fileops.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLO_readfile.hh"
 #include "BLO_runtime.hh"

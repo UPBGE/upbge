@@ -27,13 +27,13 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_array_utils.hh"
-#include "BLI_bitmap.h"
+#include "BLI_bitmap.hh"
 #include "BLI_implicit_sharing.hh"
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_animsys.h"
 #include "BKE_anonymous_attribute_id.hh"
@@ -2573,8 +2573,11 @@ static bool skin_poll(bContext *C)
 
 static bool skin_edit_poll(bContext *C)
 {
-  Object *ob = CTX_data_edit_object(C);
-  return (ob != nullptr &&
+  /* Resolve the object the same way the exec functions do (#edit_modifier_object_get),
+   * so the poll validates the object that will actually be edited. */
+  PointerRNA ptr = edit_modifier_ptr_get(C, RNA_SkinModifier);
+  Object *ob = edit_modifier_object_get(C, ptr);
+  return (ob != nullptr && BKE_object_is_in_editmode(ob) &&
           edit_modifier_poll_generic(C, RNA_SkinModifier, (1 << OB_MESH), true, false) &&
           !ID_IS_OVERRIDE_LIBRARY(ob) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
@@ -2600,7 +2603,8 @@ static void skin_root_clear(BMVert *bm_vert, Set<BMVert *> &visited, const int c
 
 static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_edit_object(C);
+  PointerRNA ptr = edit_modifier_ptr_get(C, RNA_SkinModifier);
+  Object *ob = edit_modifier_object_get(C, ptr);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
@@ -2651,7 +2655,8 @@ enum SkinLooseAction {
 
 static wmOperatorStatus skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_edit_object(C);
+  PointerRNA ptr = edit_modifier_ptr_get(C, RNA_SkinModifier);
+  Object *ob = edit_modifier_object_get(C, ptr);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
   SkinLooseAction action = static_cast<SkinLooseAction>(RNA_enum_get(op->ptr, "action"));
@@ -2707,7 +2712,8 @@ void OBJECT_OT_skin_loose_mark_clear(wmOperatorType *ot)
 
 static wmOperatorStatus skin_radii_equalize_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_edit_object(C);
+  PointerRNA ptr = edit_modifier_ptr_get(C, RNA_SkinModifier);
+  Object *ob = edit_modifier_object_get(C, ptr);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 

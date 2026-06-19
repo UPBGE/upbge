@@ -12,7 +12,7 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_iterator.h"
+#include "BLI_iterator.hh"
 #include "BLI_set.hh"
 
 #include "DEG_depsgraph.hh"
@@ -25,7 +25,7 @@
 #include "BKE_duplilist.hh"
 /* UPBGE */
 #include "BKE_object.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_c.hh"
 #include "DNA_layer_types.h"
 /**************/
 #include "BKE_object_types.hh"
@@ -70,6 +70,9 @@ float DEG_get_ctime(const Depsgraph *graph);
 /** Check if given ID type was tagged for update. */
 bool DEG_id_type_updated(const Depsgraph *depsgraph, short id_type);
 bool DEG_id_type_any_updated(const Depsgraph *depsgraph);
+
+/** Check if given ID was updated due to user input. */
+bool DEG_id_is_user_modified(const Depsgraph *graph, const ID *id);
 
 /** Check if given ID type is present in the depsgraph */
 bool DEG_id_type_any_exists(const Depsgraph *depsgraph, short id_type);

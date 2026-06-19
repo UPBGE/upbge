@@ -22,13 +22,13 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_utildefines.hh"
 
 // #define DEBUG_OVERRIDE_TIMEIT
 
 #ifdef DEBUG_OVERRIDE_TIMEIT
-#  include "BLI_time_utildefines.h"
+#  include "BLI_time_utildefines.hh"
 #  include <stdio.h>
 #endif
 
@@ -1062,7 +1062,7 @@ static bool rna_property_override_collection_subitem_name_id_match(
 
   is_match = ((item_name_len == namelen) && STREQ(item_name, name));
 
-  if (UNLIKELY(name != name_buf)) {
+  if (name != name_buf) [[unlikely]] {
     MEM_delete(name);
   }
 

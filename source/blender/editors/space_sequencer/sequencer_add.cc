@@ -16,12 +16,12 @@
 #include "DNA_sound_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -1278,6 +1278,22 @@ static void sequencer_add_movie_strips_single_file(bContext *C,
   Vector<StripEntry> entries;
   const int base_channel = std::max(1, load_data->channel);
 
+  /* Video streams. We must load these first since they can change scene FPS as a side effect. */
+  for (const int video_index : IndexRange(video_count)) {
+    load_data->stream_index = video_index;
+    load_data->channel = base_channel + sound_count + video_index;
+    Strip *strip = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
+    if (strip == nullptr) {
+      if (video_index == 0) {
+        BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
+      }
+      return;
+    }
+    /* To standardize behavior, only let the first video stream among all files change FPS. */
+    load_data->flags &= ~seq::SEQ_LOAD_MOVIE_SYNC_FPS;
+    entries.append({strip, load_data->video_stream_start});
+  }
+
   /* Audio streams. */
   for (const int sound_index : IndexRange(sound_count)) {
     load_data->stream_index = sound_index;
@@ -1294,28 +1310,12 @@ static void sequencer_add_movie_strips_single_file(bContext *C,
     entries.append({strip, stream_start});
   }
 
-  /* Video streams. */
-  for (const int video_index : IndexRange(video_count)) {
-    load_data->stream_index = video_index;
-    load_data->channel = base_channel + sound_count + video_index;
-    Strip *strip = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
-    if (strip == nullptr) {
-      if (video_index == 0) {
-        BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
-      }
-      return;
-    }
-    entries.append({strip, load_data->video_stream_start});
-  }
-
   if (entries.is_empty()) {
     return;
   }
 
-  /* Sync all strips' start times using a reference stream as an anchor (the first video
-   * stream, which appears after all sound streams in the list of entries). */
-  const int anchor_index = video_count > 0 ? sound_count : 0;
-  const StripEntry &anchor_entry = entries[anchor_index];
+  /* Sync all strip start times using a reference stream as an anchor (the first video stream). */
+  const StripEntry &anchor_entry = entries.first();
   for (const StripEntry &entry : entries) {
     if (entry.strip == anchor_entry.strip) {
       continue;

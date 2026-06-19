@@ -17,10 +17,10 @@
  * - Take face normals into account.
  */
 
-#include "BLI_heap.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
-#include "BLI_polyfill_2d_beautify.h"
+#include "BLI_heap.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_polyfill_2d_beautify.hh"
 #include "BLI_set.hh"
 
 #include "MEM_guardedalloc.h"
@@ -31,8 +31,8 @@
 // #define DEBUG_TIME
 
 #ifdef DEBUG_TIME
-#  include "BLI_time.h"
-#  include "BLI_time_utildefines.h"
+#  include "BLI_time.hh"
+#  include "BLI_time_utildefines.hh"
 #endif
 
 namespace blender {
@@ -184,7 +184,7 @@ float BM_verts_calc_rotate_beauty(const BMVert *v1,
       }
     }
 
-    if (UNLIKELY(v1 == v3)) {
+    if (v1 == v3) [[unlikely]] {
       // printf("This should never happen, but does sometimes!\n");
       break;
     }
@@ -347,7 +347,7 @@ void BM_mesh_beautify_fill(BMesh *bm,
 
     BLI_assert(e == nullptr || BM_edge_face_count_is_equal(e, 2));
 
-    if (LIKELY(e)) {
+    if (e) [[likely]] {
       Set<EdRotState> &e_state_set = edge_state_arr[i];
 
       /* add the new state into the set so we don't move into this state again

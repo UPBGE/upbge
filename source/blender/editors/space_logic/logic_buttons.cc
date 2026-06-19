@@ -28,8 +28,8 @@
 #include <cstdio>
 #include <cstring>
 
-#include "BLI_math_geom.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"

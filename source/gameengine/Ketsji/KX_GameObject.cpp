@@ -44,9 +44,9 @@
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_listbase.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_listbase.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
@@ -88,6 +88,7 @@ KX_GameObject::KX_GameObject()
       m_isReplica(false),            // eevee
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
+      m_isUpbgeDupliBase(false),      // eevee
       m_isUpbgeDupliInstance(false),    // eevee
       m_layer(0),
       m_lodManager(nullptr),
@@ -236,29 +237,35 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
+/* Before BKE_scene_graph_update_tagged */
+void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass)
 {
-  if (m_isUpbgeDupliInstance) {
-    if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
-      TagUpbgeDupliInstanceForTaaReset();
-      if (is_last_render_pass) {
-        GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+  /* Upbge dupli bases and upbge dupli instances are unsynced from depsgraph transform updates (don't tag).
+   * - For upbge dupli bases, transform will be handled in TagForTransformUpdateEvaluated (BGE SceneGraph WorldTransform).
+   * - For upbge dupli instances, transform updates are handled in static void
+   * bge_dupli_provider(DEGObjectIterData *data) (KX_Scene) (BGE SceneGraph WorldTransform).
+   */
+  if (m_isUpbgeDupliBase || m_isUpbgeDupliInstance) {
+    if (m_isUpbgeDupliInstance) {
+      /* SG_Node::DIRTY_RENDER is used to know if an object is static or not. */
+      /* GetSGNode()->ClearDirty will be called in TagForTransformUpdateEvaluated at last render pass */
+      if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+        TagUpbgeDupliInstanceForTaaReset();
       }
     }
     return;
   }
+  /* When gameobj are not upbge dupli bases or instances, transform updates are synced with depsgraph */
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
   bool staticObject = true;
+  /* SG_Node::DIRTY_RENDER is used to know if an object is static or not. */
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
-    /* Wait the end of all render passes (main + custom viewports)
-     * to clear dirty render because we want the objects to
-     * be tagged for transform update for each render pass.
-     */
-    if (is_last_render_pass) {
-      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-    }
+    /* Wait the end of all render passes (main + custom viewports + overlay)
+     * to call GetSGNode()->ClearDirty because we want the objects to
+     * be tagged for transform update at each render pass. It will
+     * be called in TagForTransformUpdateEvaluated at last render pass. */
   }
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
@@ -322,29 +329,47 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   m_forceIgnoreParentTx = false;
 }
 
-void KX_GameObject::TagForTransformUpdateEvaluated()
+/* After BKE_scene_graph_update_tagged and just before drawing loop */
+void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
 {
+  /* For upbge dupli instances, transform updates are handled in
+   * static void bge_dupli_provider(DEGObjectIterData *data) (KX_Scene) */
   if (m_isUpbgeDupliInstance) {
     return;
   }
+  /* 1. Apply BGE SceneGraph gameobj WorldTransform to the evaluated object. (Priority to
+   * SceneGraph transform by default). Exception: The transform is overridden by Depsgraph (override_game_priority).*/
+  /* 2. Bump update count for upbge dupli bases because they have not been tagged in
+   * TagForTransformUpdate It is needed in draw code to reset TAA samples (sampling.reset()). */
+  /* 3. Reset SceneGraph dirty render flag. */
+  /* 4. Drawing code will still need ob_eval->last_update_transform or ob_eval->last_update_geometry
+   * fields to be updated for objects not tagged with depsgraph (upbge dupli bases and gpu deformed
+   * objects). It will be done later in the pipeline (eevee_sync.cc, workbench_engine.cc) */
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-
   blender::Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
-
   if (skip_transform) {
     SyncTransformWithDepsgraph();
   }
-
-  if (ob_orig && !skip_transform) {
-    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
-    copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
-    BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
+  if (ob_orig) {
+    if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+      if (!skip_transform) {
+        blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+        copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
+        BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
+      }
+      if (m_isUpbgeDupliBase) {
+        DEG_bump_update_count(depsgraph);
+      }
+      if (is_last_render_pass) {
+        GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      }
+    }
   }
 }
 
@@ -657,6 +682,11 @@ bool KX_GameObject::IsReplica()
 void KX_GameObject::SetIsReplicaObject()
 {
   m_isReplica = true;
+}
+
+void KX_GameObject::SetIsUpbgeDupliBase()
+{
+  m_isUpbgeDupliBase = true;
 }
 
 /********************End of EEVEE INTEGRATION*********************/

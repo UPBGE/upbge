@@ -13,7 +13,7 @@
 #include <pxr/imaging/hd/xformSchema.h>
 
 #include "BLI_hash.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
@@ -48,7 +48,7 @@ uint64_t EmittedGeometryKey::hash() const
 
 static bool object_disables_geometry_sharing(Scene *scene, eEvaluationMode mode, Object *ob)
 {
-  /* Metaballs are merged together. */
+  /* Meta-balls are merged together. */
   if (ob->type == OB_MBALL) {
     return true;
   }

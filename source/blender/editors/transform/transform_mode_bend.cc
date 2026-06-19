@@ -10,11 +10,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
 
 #include "BKE_unit.hh"
@@ -74,7 +74,7 @@ static void transdata_elem_bend(const TransInfo *t,
 
                                 bool is_clamp)
 {
-  if (UNLIKELY(angle == 0.0f)) {
+  if (angle == 0.0f) [[unlikely]] {
     copy_v3_v3(td->loc, td->iloc);
     return;
   }

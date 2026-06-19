@@ -34,7 +34,7 @@
 #  include "KX_KetsjiEngine.h"
 #  include "KX_PythonInit.h"
 #  include "MEM_guardedalloc.h"
-#  include "BLI_time.h"
+#  include "BLI_time.hh"
 #  include "VideoDeckLink.h"
 
 using namespace blender;

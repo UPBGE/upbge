@@ -53,8 +53,8 @@
 #  include "BKE_library.hh"
 #  include "BKE_main.hh"
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
-#  include "BLI_utildefines.h"
+#  include "BLI_string.hh"
+#  include "BLI_utildefines.hh"
 #  include "CLG_log.h"
 #  include "DNA_ID.h"
 #  include "DNA_scene_types.h"
@@ -94,7 +94,7 @@
 #  include <dirent.h>
 #  include <stdlib.h>
 #else
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #  include <io.h>
 #endif
 

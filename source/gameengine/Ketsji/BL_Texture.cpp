@@ -23,6 +23,7 @@
  */
 
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 
 #include "BL_Texture.h"
 
@@ -36,21 +37,10 @@ BL_Texture::BL_Texture(blender::Image *ima)
 {
   m_isCubeMap = false;
   m_name = m_ima->id.name + 2;
-  m_gpuTex = nullptr;
-  m_textarget = TEXTARGET_2D;
-  /* only add support for existing gputextures */
-  if (BKE_image_has_gpu_texture(ima)) {
-    m_gpuTex = ima->runtime->gputexture[TEXTARGET_2D][0];
-  }
 }
 
 BL_Texture::~BL_Texture()
 {
-}
-
-bool BL_Texture::Ok() const
-{
-  return (m_gpuTex != nullptr);
 }
 
 bool BL_Texture::IsCubeMap() const
@@ -61,16 +51,6 @@ bool BL_Texture::IsCubeMap() const
 blender::Image *BL_Texture::GetImage() const
 {
   return m_ima;
-}
-
-blender::gpu::Texture *BL_Texture::GetGPUTexture() const
-{
-  return m_gpuTex;
-}
-
-unsigned int BL_Texture::GetTextureType()
-{
-  return m_textarget;
 }
 
 // stuff for cvalue related things

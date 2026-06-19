@@ -4,8 +4,8 @@
 
 #include "draw_lattice_deform.hh"
 
-#include "BLI_hash.h"
-#include "BLI_math_matrix.h"
+#include "BLI_hash_c.hh"
+#include "BLI_math_matrix_c.hh"
 
 #include "BKE_curve.hh"
 #include "BKE_deform.hh"  // For BKE_defvert_find_weight, BKE_id_defgroup_name_index

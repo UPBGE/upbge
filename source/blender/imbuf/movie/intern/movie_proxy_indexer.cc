@@ -11,15 +11,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_endian_switch.h"
-#include "BLI_fileops.h"
-#include "BLI_math_base.h"
+#include "BLI_endian_switch.hh"
+#include "BLI_fileops.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 
 #include "CLG_log.h"
 
@@ -190,7 +190,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
   /* Use same output timebase as input: we seek within the proxy file
    * using exact same frame numbers as if it was original file. So we want to
-   * match original framerate, plus any variable frames in the source file. */
+   * match original frame-rate, plus any variable frames in the source file. */
   rv->output_timebase = st->time_base;
   rv->c->time_base = st->time_base;
   rv->st->time_base = st->time_base;

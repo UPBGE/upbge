@@ -31,9 +31,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_rotation.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 
@@ -325,8 +325,8 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic version, allowing us to add some custom stuff later still. */
-  for (ObjectFrameRange &object_range : pso->ob_data_array) {
-    slide_subjects_refresh(C, &object_range.object->id);
+  for (SlideSubject &slide_subject : pso->slide_subjects) {
+    slide_subjects_refresh(C, slide_subject);
   }
 }
 
@@ -1720,7 +1720,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
   target_frames.free_no_destruct();
 
   for (SlideSubject &slide_subject : slide_subjects) {
-    slide_subjects_refresh(C, slide_subject.ptr.owner_id);
+    slide_subjects_refresh(C, slide_subject);
   }
 
   /* Free temp data. */

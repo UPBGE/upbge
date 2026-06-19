@@ -22,9 +22,9 @@
 
 #pragma once
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 namespace blender {
 
@@ -86,7 +86,7 @@ bool BPY_run_text(bContext *C, Text *text, ReportList *reports, bool do_jump) AT
  * \{ */
 
 /**
- * Compile the python expression and \return true if no errors occured during compilation,
+ * Compile the python expression and \return true if no errors occurred during compilation,
  * otherwise \return false.
  *
  * \param C: Optional context (may be null).

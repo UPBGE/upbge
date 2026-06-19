@@ -8,12 +8,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_bitmap.h"
+#include "BLI_bitmap.hh"
 #include "BLI_kdtree.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_set.hh"
 
 #include "BLT_translation.hh"
@@ -1040,7 +1040,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 
             for (int i = 0; i < dvert->totweight; i++, dw++) {
               if (dw->weight > 0.0f) {
-                if (LIKELY(dw->def_nr < defbase_len)) {
+                if (dw->def_nr < defbase_len) [[likely]] {
                   BLI_BITMAP_ENABLE(defbase_selected, dw->def_nr);
                 }
               }
@@ -1193,7 +1193,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 
             for (int i = 0; i < dvert->totweight; i++, dw++) {
               if (dw->weight > 0.0f) {
-                if (LIKELY(dw->def_nr < defbase_len)) {
+                if (dw->def_nr < defbase_len) [[likely]] {
                   if (BLI_BITMAP_TEST(defbase_selected, dw->def_nr)) {
                     select = true;
                     break;

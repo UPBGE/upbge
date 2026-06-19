@@ -13,18 +13,18 @@
 #include "AS_essentials_library.hh"
 #include "AS_remote_library.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_asset.hh"
 #include "BKE_preferences.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -223,7 +223,7 @@ static void url_ensure_trailing_slash(char *str, const size_t max_len)
 void BKE_preferences_remote_asset_library_url_set(bUserAssetLibrary *library,
                                                   const StringRef remote_url)
 {
-  /* Always trim whitespace off of URLs. */
+  /* Always trim white-space off of URLs. */
   remote_url.trim().copy_bytes_truncated(library->remote_url);
 
   const bool ends_in_top_meta_file = asset_system::remote_library_url_ends_with_top_meta_file_name(
@@ -609,7 +609,7 @@ void BKE_preferences_remote_to_name(const char *remote_url, char name[MAX_NAME])
       }
     }
   }
-  if (UNLIKELY(remote_url[0] == '\0')) {
+  if (remote_url[0] == '\0') [[unlikely]] {
     return;
   }
 

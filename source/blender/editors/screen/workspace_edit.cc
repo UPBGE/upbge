@@ -11,12 +11,12 @@
 
 #include <fmt/format.h>
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_blendfile.hh"
@@ -397,6 +397,11 @@ static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *
   }
   RNA_string_get(op->ptr, "idname", idname);
   RNA_string_get(op->ptr, "filepath", filepath);
+  /* Not expected, but a blank filename causes an assert
+   * (trips up the "importing from self" assert as both paths are blank). */
+  if (idname[0] == '\0' || filepath[0] == '\0') {
+    return OPERATOR_CANCELLED;
+  }
 
   WorkSpace *appended_workspace = nullptr;
   /* NOTE: Need to check `filepath`, in the rare case where the usual source of work-spaces

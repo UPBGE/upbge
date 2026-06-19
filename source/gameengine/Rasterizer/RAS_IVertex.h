@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 
 #include "MT_Matrix4x4.h"
 #include "MT_Vector2.h"

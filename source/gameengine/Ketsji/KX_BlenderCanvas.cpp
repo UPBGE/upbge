@@ -35,7 +35,7 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 #include "GHOST_IWindow.hh"
 #include "GPU_context.hh"
 #include "WM_api.hh"
@@ -126,7 +126,6 @@ void KX_BlenderCanvas::BeginDraw()
     GPU_render_begin();
     GPU_render_step(true);
 
-    BKE_image_free_unused_gpu_textures();
     /* See wm_draw_update for "chronology" */
     GPU_context_begin_frame((GPUContext *)m_win->runtime->gpuctx);
   }

@@ -6,6 +6,7 @@
  * \ingroup GHOST
  */
 
+#include <mutex>
 #include <optional>
 #include <sstream>
 
@@ -28,6 +29,12 @@ static const char *static_path = PREFIX "/share";
 static const char *static_path = nullptr;
 #endif
 
+#if defined(PREFIX) && defined(BLENDER_INSTALL_LIBDIR)
+static const char *static_libs_path = PREFIX "/" BLENDER_INSTALL_LIBDIR;
+#else
+static const char *static_libs_path = nullptr;
+#endif
+
 GHOST_SystemPathsUnix::GHOST_SystemPathsUnix() = default;
 
 GHOST_SystemPathsUnix::~GHOST_SystemPathsUnix() = default;
@@ -38,6 +45,16 @@ const char *GHOST_SystemPathsUnix::getSystemDir(int /*version*/, const char *ver
   if (static_path) {
     static string system_path = string(static_path) + "/upbge/" + versionstr;
     return system_path.c_str();
+  }
+
+  return nullptr;
+}
+
+const char *GHOST_SystemPathsUnix::getSystemLibsDir(int /*version*/, const char *versionstr) const
+{
+  if (static_libs_path) {
+    static string system_libs_path = string(static_libs_path) + "/blender/" + versionstr;
+    return system_libs_path.c_str();
   }
 
   return nullptr;
@@ -101,8 +118,7 @@ const char *GHOST_SystemPathsUnix::getUserDir(int version, const char *versionst
   return user_path.c_str();
 }
 
-std::optional<std::string> GHOST_SystemPathsUnix::getUserSpecialDir(
-    GHOST_TUserSpecialDirTypes type) const
+static std::optional<std::string> user_special_dir_query(GHOST_TUserSpecialDirTypes type)
 {
   const char *type_str;
 
@@ -168,6 +184,23 @@ std::optional<std::string> GHOST_SystemPathsUnix::getUserSpecialDir(
 
   std::string path = path_stream.str();
   return path[0] ? std::optional(path) : std::nullopt;
+}
+
+std::optional<std::string> GHOST_SystemPathsUnix::getUserSpecialDir(
+    GHOST_TUserSpecialDirTypes type) const
+{
+  /* Cached result to avoid launching a process on every call. */
+  GHOST_ASSERT(uint(type) < uint(GHOST_kUserSpecialDirType_Num), "Invalid type");
+  UserSpecialDirCache &cached = user_special_dir_cache_[type];
+  if (!cached.resolved) {
+    static std::mutex mutex;
+    std::lock_guard lock(mutex);
+    if (!cached.resolved) {
+      cached.path = user_special_dir_query(type);
+      cached.resolved = true;
+    }
+  }
+  return cached.path;
 }
 
 const char *GHOST_SystemPathsUnix::getBinaryDir() const

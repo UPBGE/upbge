@@ -39,15 +39,15 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BLI_math_base.h"
+#include "BLI_math_base.hh"
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_task.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_task.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
@@ -710,7 +710,7 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     /* Update compatibles blender physics simulations */
     blender::Object *ob = gameobj->GetBlenderObject();
     TagBlenderPhysicsObject(scene, ob);
-    gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
+    gameobj->TagForTransformUpdate(is_overlay_pass);
   }
 
   /* Notify depsgraph for other changes */
@@ -727,7 +727,7 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
 
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForTransformUpdateEvaluated();
+    gameobj->TagForTransformUpdateEvaluated(is_last_render_pass);
   }
 }
 

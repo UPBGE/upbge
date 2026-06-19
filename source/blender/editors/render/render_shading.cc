@@ -23,12 +23,12 @@
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -1034,8 +1034,10 @@ static wmOperatorStatus view_layer_add_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
 
   /* Only make the view layer active if the windows scene matches the context. */
-  if (scene != WM_window_get_active_scene(win)) {
-    win = nullptr;
+  if (win) {
+    if (scene != WM_window_get_active_scene(win)) {
+      win = nullptr;
+    }
   }
 
   ViewLayer *view_layer_current = win ? WM_window_get_active_view_layer(win) : nullptr;

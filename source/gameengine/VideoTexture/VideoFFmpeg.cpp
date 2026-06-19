@@ -22,9 +22,9 @@
 #  include "MEM_guardedalloc.h"
 
 #  include "Exception.h"
-#  include "BLI_listbase.h"
-#  include "BLI_string.h"
-#  include "BLI_time.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_string.hh"
+#  include "BLI_time.hh"
 #  include "movie_util.hh"
 
 
@@ -1086,7 +1086,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 // cast blender::Image pointer to VideoFFmpeg
 inline VideoFFmpeg *getVideoFFmpeg(PyImage *self)
 {
-  return static_cast<VideoFFmpeg *>(self->m_image);
+  return static_cast<VideoFFmpeg *>(self->m_imageBase);
 }
 
 // object initialization
@@ -1315,7 +1315,7 @@ static PyObject *Image_reload(PyImage *self, PyObject *args)
   char *newname = nullptr;
   if (!PyArg_ParseTuple(args, "|s:reload", &newname))
     return nullptr;
-  if (self->m_image != nullptr) {
+  if (self->m_imageBase != nullptr) {
     VideoFFmpeg *video = getFFmpeg(self);
     // check type of object
     if (!newname)

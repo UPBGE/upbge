@@ -13,7 +13,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 #include "BLI_vector.hh"
 
 struct ImBuf;
@@ -45,7 +45,7 @@ ExrWriteHandle *IMB_exr_write_begin(bool write_multipart = false);
 void IMB_exr_write_view(ExrWriteHandle *handle, const char *viewname);
 
 /**
- * Add pass containing multiple multiple channels to EXR file.
+ * Add pass containing multiple channels to EXR file.
  * The number of channels is determined by channelnames.size() with
  * each character a channel name.
  * Layer and pass name, view name and colorspace are all optional.

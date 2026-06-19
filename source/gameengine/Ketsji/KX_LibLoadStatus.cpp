@@ -26,7 +26,7 @@
 
 #include "KX_LibLoadStatus.h"
 
-#include "BLI_time.h"
+#include "BLI_time.hh"
 
 using namespace blender;
 

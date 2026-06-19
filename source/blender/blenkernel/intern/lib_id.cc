@@ -29,16 +29,16 @@
 #include "DNA_node_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_utildefines.hh"
 
-#include "BLI_ghash.h"
-#include "BLI_linklist.h"
-#include "BLI_memarena.h"
+#include "BLI_ghash.hh"
+#include "BLI_linklist.hh"
+#include "BLI_memarena.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -77,7 +77,7 @@
 // #define DEBUG_TIME
 
 #ifdef DEBUG_TIME
-#  include "BLI_time_utildefines.h"
+#  include "BLI_time_utildefines.hh"
 #endif
 
 namespace blender {
@@ -1496,7 +1496,7 @@ void BKE_lib_libblock_session_uid_ensure(ID *id)
     id->session_uid = atomic_add_and_fetch_uint32(&global_session_uid, 1);
     /* In case overflow happens, still assign a valid ID. This way opening files many times works
      * correctly. */
-    if (UNLIKELY(id->session_uid == MAIN_ID_SESSION_UID_UNSET)) {
+    if (id->session_uid == MAIN_ID_SESSION_UID_UNSET) [[unlikely]] {
       id->session_uid = atomic_add_and_fetch_uint32(&global_session_uid, 1);
     }
   }

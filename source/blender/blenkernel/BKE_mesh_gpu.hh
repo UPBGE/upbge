@@ -58,11 +58,12 @@ struct MeshGPUTopology {
 struct GpuMeshComputeBinding {
   /** The binding point index in the shader (layout(binding = ...)). */
   int binding;
-  /** The buffer to bind. Can be a StorageBuf* or a VertBuf* or a UniformBuf* or a IndexBuf*. */
+  /** The buffer to bind. Can be a StorageBuf*, VertBuf*, UniformBuf*, IndexBuf*, or Texture*. */
   std::variant<gpu::StorageBuf *,
                gpu::VertBuf *,
                gpu::UniformBuf *,
-               gpu::IndexBuf *>
+               gpu::IndexBuf *,
+               gpu::Texture *>
       buffer;
   /** Qualifiers (read, write, read_write). */
   gpu::shader::Qualifier qualifiers;

@@ -12,18 +12,18 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_math_base.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_string_utf8_symbols.h"
-#include "BLI_sys_types.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_string_utf8_symbols.hh"
+#include "BLI_sys_types.hh"
 
 #include "DNA_scene_types.h"
 
 #include "BKE_unit.hh" /* own include */
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 namespace blender {
@@ -1606,7 +1606,7 @@ static const bUnitDef *unit_best_fit(double value,
     }
 
     /* Scale down scalar so 1cm doesn't convert to 10mm because of float error. */
-    if (UNLIKELY(unit->flag & B_UNIT_DEF_TENTH)) {
+    if (unit->flag & B_UNIT_DEF_TENTH) [[unlikely]] {
       if (value_abs >= unit->scalar * (0.1 - EPS)) {
         return unit;
       }

@@ -19,7 +19,7 @@
 #include "DNA_property_types.h"
 #include "DNA_python_proxy_types.h"
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -310,8 +310,8 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include <fmt/format.h>
 
 #  include "BLI_bounds.hh"
-#  include "BLI_listbase.h"
-#  include "BLI_string.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_string.hh"
 
 #  include "DNA_ID.h"
 #  include "DNA_constraint_types.h"
@@ -322,8 +322,8 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "DNA_material_types.h"
 #  include "DNA_node_types.h"
 
-#  include "BLI_math_matrix.h"
-#  include "BLI_math_vector.h"
+#  include "BLI_math_matrix_c.hh"
+#  include "BLI_math_vector_c.hh"
 
 #  include "BKE_armature.hh"
 #  include "BKE_brush.hh"

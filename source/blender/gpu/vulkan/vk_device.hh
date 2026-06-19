@@ -10,8 +10,8 @@
 
 #include <atomic>
 
-#include "BLI_task.h"
-#include "BLI_threads.h"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
@@ -273,7 +273,7 @@ class VKDevice : public NonCopyable {
     PFN_vkCopyMemoryToImageEXT vkCopyMemoryToImage = nullptr;
     PFN_vkTransitionImageLayoutEXT vkTransitionImageLayout = nullptr;
 
-    /* Extension: VK_KHR_mainentance4 */
+    /* Extension: VK_KHR_maintenance4 */
     PFN_vkGetDeviceImageMemoryRequirements vkGetDeviceImageMemoryRequirements = nullptr;
     PFN_vkGetDeviceBufferMemoryRequirements vkGetDeviceBufferMemoryRequirements = nullptr;
 

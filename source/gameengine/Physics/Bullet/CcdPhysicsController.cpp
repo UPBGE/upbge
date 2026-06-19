@@ -30,8 +30,8 @@
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_meshdata_types.h"
 

@@ -506,6 +506,7 @@ class FILEBROWSER_MT_view(FileBrowserMenu, Menu):
 
         layout.prop(st, "show_region_toolbar", text="Source List")
         layout.prop(st, "show_region_ui", text="File Path")
+        layout.prop(params, "show_hidden")
         layout.operator("file.view_selected")
 
         layout.separator()
@@ -541,10 +542,10 @@ class FILEBROWSER_MT_context_menu(FileBrowserMenu, Menu):
         st = context.space_data
         params = st.params
 
-        layout.operator("file.previous", text="Back")
-        layout.operator("file.next", text="Forward")
-        layout.operator("file.parent", text="Go to Parent")
-        layout.operator("file.refresh", text="Refresh")
+        layout.operator("file.previous", text="Back", icon='BACK')
+        layout.operator("file.next", text="Forward", icon='FORWARD')
+        layout.operator("file.parent", text="Go to Parent", icon='FILE_PARENT')
+        layout.operator("file.refresh", text="Refresh", icon='FILE_REFRESH')
         layout.menu("FILEBROWSER_MT_operations_menu")
 
         layout.separator()
@@ -555,15 +556,12 @@ class FILEBROWSER_MT_context_menu(FileBrowserMenu, Menu):
         layout.separator()
 
         layout.operator("file.rename", text="Rename")
-        sub = layout.row()
-        sub.operator_context = 'EXEC_DEFAULT'
-        sub.operator("file.delete", text="Delete")
 
         layout.separator()
 
         sub = layout.row()
         sub.operator_context = 'EXEC_DEFAULT'
-        sub.operator("file.directory_new", text="New Folder").confirm = False
+        sub.operator("file.directory_new", text="New Folder", icon='NEWFOLDER').confirm = False
         layout.operator("file.bookmark_add", text="Add Bookmark")
 
         layout.separator()
@@ -573,6 +571,12 @@ class FILEBROWSER_MT_context_menu(FileBrowserMenu, Menu):
             layout.prop_menu_enum(params, "display_size_discrete")
         layout.prop_menu_enum(params, "recursion_level", text="Recursions")
         layout.prop_menu_enum(params, "sort_method")
+
+        layout.separator()
+
+        sub = layout.row()
+        sub.operator_context = 'EXEC_DEFAULT'
+        sub.operator("file.delete", text="Delete", icon='TRASH')
 
 
 class FILEBROWSER_MT_view_pie(Menu):
@@ -670,6 +674,7 @@ class ASSETBROWSER_MT_editor_menus(AssetBrowserMenu, Menu):
         layout.menu("ASSETBROWSER_MT_select")
         layout.menu("ASSETBROWSER_MT_library")
         layout.menu("ASSETBROWSER_MT_catalog")
+        layout.menu("ASSETBROWSER_MT_asset")
 
 
 class ASSETBROWSER_MT_view(AssetBrowserMenu, Menu):
@@ -730,6 +735,23 @@ class ASSETBROWSER_MT_catalog(AssetBrowserMenu, Menu):
         layout.separator()
         layout.operator("asset.catalogs_save", icon='FILE_TICK')
         layout.operator("asset.catalog_new").parent_path = ""
+
+
+class ASSETBROWSER_MT_asset(Menu):
+    bl_label = "Asset"
+
+    def draw(self, _context) -> None:
+        layout = self.layout
+
+        col = layout.column()
+        col.operator_context = 'EXEC_DEFAULT'
+        col.operator("asset.clear", text="Clear Asset").set_fake_user = False
+        col.operator("asset.clear", text="Clear Asset (Set Fake User)").set_fake_user = True
+
+        layout.separator()
+
+        layout.operator("asset.open_containing_blend_file", icon='FILE_BLEND')
+        layout.operator("asset.browse_containing_blend_file")
 
 
 class ASSETBROWSER_PT_import_settings(asset_utils.AssetBrowserPanel, Panel):
@@ -970,6 +992,7 @@ classes = (
     ASSETBROWSER_MT_select,
     ASSETBROWSER_MT_library,
     ASSETBROWSER_MT_catalog,
+    ASSETBROWSER_MT_asset,
     ASSETBROWSER_PT_import_settings,
     ASSETBROWSER_MT_metadata_preview_menu,
     ASSETBROWSER_PT_metadata,

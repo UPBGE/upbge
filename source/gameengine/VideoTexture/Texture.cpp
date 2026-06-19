@@ -10,6 +10,7 @@
 #include "Texture.h"
 
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "DEG_depsgraph_query.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -52,11 +53,10 @@ Texture::Texture():
       m_rasTexture(nullptr),
       m_scene(nullptr),
       m_gameobj(nullptr),
-      m_origGpuTex(nullptr),
+      m_gpuTexInUse(nullptr),
       m_modifiedGPUTexture(nullptr),
       m_py_color(nullptr),
       m_mipmap(false),
-      m_scaledImBuf(nullptr),
       m_lastClock(0.0),
       m_source(nullptr),
       m_isImageRender(false)
@@ -70,8 +70,6 @@ Texture::~Texture()
   Py_XDECREF(m_source);
   // close texture
   Close();
-  // release scaled image buffer
-  blender::IMB_freeImBuf(m_scaledImBuf);
 }
 
 void Texture::DestructFromPython()
@@ -111,21 +109,24 @@ void Texture::Close()
   if (m_orgImg) {
     m_orgImg = nullptr;
   }
-  if (m_origGpuTex) {
-    m_imgTexture->runtime->gputexture[TEXTARGET_2D][0] = m_origGpuTex;
-    m_origGpuTex = nullptr;
+  if (m_imgTexture) {
+    BKE_image_set_gpu_texture_override(m_imgTexture, nullptr);
+    m_imgTexture = nullptr;
+  }
+  if (m_gpuTexInUse) {
+    m_gpuTexInUse = nullptr;
   }
   if (m_imgBuf) {
     blender::IMB_freeImBuf(m_imgBuf);
     m_imgBuf = nullptr;
   }
-  if (m_modifiedGPUTexture) {
-    GPU_texture_free(m_modifiedGPUTexture);
-    m_modifiedGPUTexture = nullptr;
-  }
   if (m_py_color) {
     Py_XDECREF(m_py_color);
     m_py_color = nullptr;
+  }
+  if (m_modifiedGPUTexture) { // Videos
+    GPU_texture_free(m_modifiedGPUTexture);
+    m_modifiedGPUTexture = nullptr;
   }
 }
 
@@ -136,7 +137,7 @@ void Texture::SetSource(PyImage *source)
   Py_INCREF(source);
   m_source = source;
   // Cache whether source is ImageRender to avoid dynamic_cast in the hot path every frame.
-  m_isImageRender = (dynamic_cast<ImageRender *>(source->m_image) != nullptr);
+  m_isImageRender = (dynamic_cast<ImageRender *>(source->m_imageBase) != nullptr);
 }
 
 // load texture
@@ -146,28 +147,35 @@ void Texture::loadTexture(unsigned int *texture,
                           blender::gpu::TextureFormat format)
 {
   // Check if the source is an ImageRender (offscreen 3D render)
-  ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_image) : nullptr;
+  ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_imageBase) : nullptr;
 
-  if (imr && !m_origGpuTex) {
+  if (imr && !m_gpuTexInUse) {
     // For ImageRender, directly use the GPU texture from the active framebuffer
     KX_Camera *cam = imr->GetCamera();
-    if (cam && m_imgTexture && BKE_image_get_gpu_texture(m_imgTexture, nullptr)) {
+    if (cam && m_imgTexture) {
       blender::GPUViewport *viewport = cam->GetGPUViewport();
-      // Get the color texture from the viewport's framebuffer
+      /* Get the color texture from the KX_Camera's GPUViewport.This texture is
+       * owned by the GPU viewport and must not be reference‑counted by the
+       * Image system: Don't call BKE_image_acquire_gpu_texture!! */
       blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
-      // Assign the GPU texture to the Blender image slot
-      m_origGpuTex = BKE_image_get_gpu_texture(m_imgTexture, nullptr);
+
+      // Register the override on the Image so that drawing code uses this GPU texture.
       BKE_image_set_gpu_texture_override(m_imgTexture, gpuTex);
-      m_py_color = BPyGPUTexture_CreatePyObject(BKE_image_get_gpu_texture(m_imgTexture, nullptr),
-                                                false);
+
+      // Create a Python wrapper for the texture without increasing its refcount.
+      m_py_color = BPyGPUTexture_CreatePyObject(gpuTex, false);
       Py_INCREF(m_py_color);
+
+      /* Store the pointer in m_gpuTexInUse without acquiring a new
+       * reference. */
+      m_gpuTexInUse = gpuTex;
     }
     // No need to upload a CPU buffer, return early
     return;
   }
 
   // For video/image sources: upload the CPU buffer to a GPU texture
-  if (m_imgTexture && BKE_image_get_gpu_texture(m_imgTexture, nullptr)) {
+  if (m_imgTexture) {
     if (m_modifiedGPUTexture && (size[0] != GPU_texture_width(m_modifiedGPUTexture) ||
                                  size[1] != GPU_texture_height(m_modifiedGPUTexture)))
     {
@@ -188,20 +196,16 @@ void Texture::loadTexture(unsigned int *texture,
 
     // Upload the RGBA8 buffer to the GPU texture
     GPU_texture_update(m_modifiedGPUTexture, GPU_DATA_UBYTE, texture);
-
-    // Optionally update mipmaps - TODO: See if we keep that in 2.8+ versions (also see if we update ImageRender path with this option)
-    if (mipmap) {
-      GPU_texture_update_mipmap_chain(m_modifiedGPUTexture);
-    }
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-    if (!m_origGpuTex) {
-      m_origGpuTex = BKE_image_get_gpu_texture(m_imgTexture, nullptr);
-    }
-    // Integrate the new GPU texture into the Blender pipeline
+
+    // Do not acquire a new reference – the texture is already owned by
+    // this VideoTexture instance via m_modifiedGPUTexture.
+    m_gpuTexInUse = m_modifiedGPUTexture;
+
+    // Register the override on the Image. No additional refcount is taken.
     BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
     if (!m_py_color) {
-      m_py_color = BPyGPUTexture_CreatePyObject(BKE_image_get_gpu_texture(m_imgTexture, nullptr),
-                                                false);
+      m_py_color = BPyGPUTexture_CreatePyObject(m_modifiedGPUTexture, false);
       Py_INCREF(m_py_color);
     }
   }
@@ -396,38 +400,22 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
         }
 
         // get texture
-        unsigned int *texture = m_source->m_image->getImage(0, ts);
+        unsigned int *texture = m_source->m_imageBase->getImage(0, ts);
         // if texture is available
         if (texture != nullptr) {
           // get texture size
-          short *orgSize = m_source->m_image->getSize();
+          short *orgSize = m_source->m_imageBase->getSize();
           // calc scaled sizes
-          short size[2];
-          if (0) {
-            size[0] = orgSize[0];
-            size[1] = orgSize[1];
-          }
-          else {
-            size[0] = ImageBase::calcSize(orgSize[0]);
-            size[1] = ImageBase::calcSize(orgSize[1]);
-          }
-          // scale texture if needed
-          if (size[0] != orgSize[0] || size[1] != orgSize[1]) {
-            blender::IMB_freeImBuf(m_scaledImBuf);
-            m_scaledImBuf = blender::IMB_allocFromBuffer((uint8_t *)texture, nullptr, orgSize[0], orgSize[1], 4);
-            blender::IMB_scale(m_scaledImBuf, size[0], size[1], IMBScaleFilter::Box, false);
-            // use scaled image instead original
-            texture = (unsigned int *)m_scaledImBuf->byte_buffer.data;
-          }
+          short size[2] = {orgSize[0], orgSize[1]};
           // load texture for rendering
           loadTexture(texture,
               size,
               m_mipmap,
-              m_source->m_image->GetInternalFormat());
+              m_source->m_imageBase->GetInternalFormat());
         }
         // refresh texture source, if required
         if (refreshSource) {
-          m_source->m_image->refresh();
+          m_source->m_imageBase->refresh();
         }
       }
 
@@ -457,7 +445,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 PyObject *Texture::pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = static_cast<Texture *>(self_v);
-  blender::gpu::Texture *gputex = BKE_image_get_gpu_texture(self->m_imgTexture, nullptr);
+  blender::gpu::Texture *gputex = self->m_gpuTexInUse;
   if (gputex) {
     return BPyGPUTexture_CreatePyObject(gputex, true);
   }
@@ -522,7 +510,7 @@ int Texture::pyattr_set_source(EXP_PyObjectPlus *self_v,
   }
   PyImage *pyimg = reinterpret_cast<PyImage *>(value);
   self->SetSource(pyimg);
-  ImageRender *imgRender = dynamic_cast<ImageRender *>(pyimg->m_image);
+  ImageRender *imgRender = dynamic_cast<ImageRender *>(pyimg->m_imageBase);
   if (imgRender) {
     imgRender->SetTexture(self);
   }

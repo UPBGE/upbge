@@ -17,7 +17,7 @@
 #  include "BLI_enum_flags.hh"
 #  include "BLI_hash.hh"
 #  include "BLI_string_ref.hh"
-#  include "BLI_utildefines_variadic.h"
+#  include "BLI_utildefines_variadic.hh"
 #  include "BLI_vector.hh"
 #  include "GPU_common_types.hh"
 #  include "GPU_material.hh"
@@ -483,7 +483,7 @@ enum class BuiltinBits {
   /* On metal, tag the shader to use argument buffer to overcome the 16 sampler limit. */
   USE_SAMPLER_ARG_BUFFER = (1 << 20),
 
-  /* WORKAROUND: Used to disable viewport index programatically. */
+  /* WORKAROUND: Used to disable viewport index programmatically. */
   NO_VIEWPORT_INDEX = (1 << 16),
   /* Disable our own GPU shader preprocessor optimizer in case we can't ensure the
    * input is within spec. */

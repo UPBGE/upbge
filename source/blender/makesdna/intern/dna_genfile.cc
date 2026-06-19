@@ -23,12 +23,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
+#include "BLI_ghash.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_memarena.h"
+#include "BLI_memarena.hh"
 #include "BLI_set.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "DNA_genfile.h"
 #include "DNA_print.hh"
@@ -509,7 +509,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
     const int struct_index = DNA_struct_find_index_without_alias(sdna, "ListBase");
 
     /* Should never happen, only with corrupt file for example. */
-    if (UNLIKELY(struct_index == -1)) {
+    if (struct_index == -1) [[unlikely]] {
       *r_error_message = "ListBase struct error! Not found.";
       return false;
     }
@@ -519,7 +519,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
 
     /* Should never fail, double-check that #ListBase struct is still what is should be
      * (a couple of pointers and nothing else). */
-    if (UNLIKELY(struct_info->members_num != 2 || !ELEM(sdna->pointer_size, 4, 8))) {
+    if (struct_info->members_num != 2 || !ELEM(sdna->pointer_size, 4, 8)) [[unlikely]] {
       *r_error_message = "ListBase struct error: invalid computed pointer-size.";
       return false;
     }

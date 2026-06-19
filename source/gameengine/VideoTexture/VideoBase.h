@@ -153,7 +153,7 @@ class VideoBase : public ImageBase {
 // cast blender::Image pointer to Video
 inline VideoBase *getVideo(PyImage *self)
 {
-  return static_cast<VideoBase *>(self->m_image);
+  return static_cast<VideoBase *>(self->m_imageBase);
 }
 
 extern ExceptionID SourceVideoCreation;
@@ -162,10 +162,10 @@ extern ExceptionID SourceVideoCreation;
 template<class T> void Video_init(PyImage *self)
 {
   // create source video object
-  if (self->m_image != nullptr)
-    delete self->m_image;
+  if (self->m_imageBase != nullptr)
+    delete self->m_imageBase;
   HRESULT hRslt = S_OK;
-  self->m_image = new T(&hRslt);
+  self->m_imageBase = new T(&hRslt);
   CHCKHRSLT(hRslt, SourceVideoCreation);
 }
 

@@ -13,11 +13,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
@@ -100,7 +100,7 @@ static PyObject *python_compat_wrapper_PyRun_FileExFlags(FILE *fp,
     fclose(fp);
   }
 
-  if (UNLIKELY(buf == nullptr)) {
+  if (buf == nullptr) [[unlikely]] {
     PyErr_Format(PyExc_IOError, "Python file \"%s\" could not read buffer", filepath);
   }
   else {

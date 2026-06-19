@@ -54,7 +54,7 @@ const EnumPropertyItem rna_enum_region_panel_category_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_listbase.h"
+#  include "BLI_listbase.hh"
 
 #  include "RNA_access.hh"
 
@@ -240,7 +240,7 @@ static int rna_Area_ui_type_get(PointerRNA *ptr)
 {
   ScrArea *area = static_cast<ScrArea *>(ptr->data);
   /* This is for the Python API which may inspect empty areas. */
-  if (UNLIKELY(area->spacetype == SPACE_EMPTY)) {
+  if (area->spacetype == SPACE_EMPTY) [[unlikely]] {
     return SPACE_EMPTY;
   }
   const int area_type = rna_Area_type_get(ptr);

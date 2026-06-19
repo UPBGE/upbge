@@ -15,8 +15,8 @@
 #include "DNA_windowmanager_types.h"
 #include "RNA_types.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
@@ -387,7 +387,7 @@ static std::optional<wmOperatorStatus> bpy_op_fn_call_impl(const char *opname,
 static PyObject *bpy_op_fn_call(BPyOpFunction *self, PyObject *args, PyObject *kwargs)
 {
   bContext *C = BPY_context_get();
-  if (UNLIKELY(C == nullptr)) {
+  if (C == nullptr) [[unlikely]] {
     PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot call an operator");
     return nullptr;
   }

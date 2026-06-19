@@ -17,7 +17,7 @@
 #  include <set>
 
 
-#  include "BLI_threads.h"
+#  include "BLI_threads.hh"
 #  include <pthread.h>
 
 #  include <epoxy/gl.h>
@@ -116,7 +116,7 @@ class VideoDeckLink : public VideoBase {
 
 inline VideoDeckLink *getDeckLink(PyImage *self)
 {
-  return static_cast<VideoDeckLink *>(self->m_image);
+  return static_cast<VideoDeckLink *>(self->m_imageBase);
 }
 
 ////////////////////////////////////////////

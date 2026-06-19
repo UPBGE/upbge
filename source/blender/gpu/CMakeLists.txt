@@ -652,6 +652,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_bump.glsl
   shaders/material/gpu_shader_material_camera.glsl
   shaders/material/gpu_shader_material_clamp.glsl
+  shaders/material/gpu_shader_material_compare.glsl
   shaders/material/gpu_shader_material_combine_color.glsl
   shaders/material/gpu_shader_material_combine_xyz.glsl
   shaders/material/gpu_shader_material_diffuse.glsl
@@ -659,6 +660,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_eevee_specular.glsl
   shaders/material/gpu_shader_material_emission.glsl
   shaders/material/gpu_shader_material_euler_to_rotation.glsl
+  shaders/material/gpu_shader_material_float_to_int.glsl
   shaders/material/gpu_shader_material_fractal_noise.glsl
   shaders/material/gpu_shader_material_fractal_voronoi.glsl
   shaders/material/gpu_shader_material_fresnel.glsl
@@ -874,7 +876,7 @@ set(GLSL_SOURCE_CONTENT "")
 set(GLSL_METADATA_CONTENT "")
 set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
-  get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
+  cmake_path(GET GLSL_FILE FILENAME GLSL_FILE_NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
   string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")

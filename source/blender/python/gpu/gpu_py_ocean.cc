@@ -10,7 +10,7 @@
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 
-#include "BLI_task.h"
+#include "BLI_task_c.hh"
 
 #include "../python/intern/bpy_rna.hh"
 

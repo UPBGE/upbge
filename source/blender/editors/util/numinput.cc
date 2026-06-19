@@ -11,12 +11,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_string_cursor_utf8.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_cursor_utf8.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -666,7 +666,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
     }
 #endif
 
-    if (UNLIKELY(!isfinite(n->val[idx]))) {
+    if (!isfinite(n->val[idx])) [[unlikely]] {
       n->val[idx] = val_prev;
       n->val_flag[idx] |= NUM_INVALID;
     }

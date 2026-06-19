@@ -70,7 +70,7 @@
 #include <xxhash.h>
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #  include "winsock2.h"
 #  include <io.h>
 #else
@@ -79,7 +79,7 @@
 
 #include <fmt/format.h>
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "CLG_log.h"
 
@@ -95,18 +95,18 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_endian_defines.h"
+#include "BLI_endian_defines.hh"
 #include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_math_matrix.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_threads.h"
-#include "BLI_time.h"
+#include "BLI_string.hh"
+#include "BLI_threads.hh"
+#include "BLI_time.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -457,7 +457,7 @@ static void writedata_do_write(WriteData *wd, const void *mem, const size_t meml
     return;
   }
 
-  if (UNLIKELY(wd->validation_data.critical_error)) {
+  if (wd->validation_data.critical_error) [[unlikely]] {
     return;
   }
 
@@ -505,11 +505,11 @@ static void mywrite_flush(WriteData *wd)
  */
 static void mywrite(WriteData *wd, const void *adr, size_t len)
 {
-  if (UNLIKELY(wd->validation_data.critical_error)) {
+  if (wd->validation_data.critical_error) [[unlikely]] {
     return;
   }
 
-  if (UNLIKELY(adr == nullptr)) {
+  if (adr == nullptr) [[unlikely]] {
     BLI_assert(0);
     return;
   }
@@ -1985,7 +1985,7 @@ static bool BLO_write_file_impl(Main *mainvar,
       STRNCPY(mainvar->filepath, filepath);
 
       /* Check if we need to backup and restore paths. */
-      if (UNLIKELY(use_save_as_copy)) {
+      if (use_save_as_copy) [[unlikely]] {
         path_list_backup = BKE_bpath_list_backup(mainvar, path_list_flag);
       }
 
@@ -2031,7 +2031,7 @@ static bool BLO_write_file_impl(Main *mainvar,
 
   ww.close();
 
-  if (UNLIKELY(path_list_backup)) {
+  if (path_list_backup) [[unlikely]] {
     BKE_bpath_list_restore(mainvar, path_list_flag, path_list_backup);
     BKE_bpath_list_free(path_list_backup);
   }
@@ -2111,7 +2111,7 @@ void BlendWriter::write_struct_array_by_name(const char *struct_name,
                                              const void *data)
 {
   int struct_id = this->struct_id_by_name(struct_name);
-  if (UNLIKELY(struct_id == -1)) {
+  if (struct_id == -1) [[unlikely]] {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }
@@ -2161,7 +2161,7 @@ void BlendWriter::write_struct_list_by_id(const int struct_id, const ListBase *l
 void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *list)
 {
   int struct_id = this->struct_id_by_name(struct_name);
-  if (UNLIKELY(struct_id == -1)) {
+  if (struct_id == -1) [[unlikely]] {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }

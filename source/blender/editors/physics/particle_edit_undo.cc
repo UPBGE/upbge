@@ -16,8 +16,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
@@ -254,7 +254,7 @@ static void particle_undosys_step_decode(
 
   /* While this shouldn't happen, entering particle edit-mode uses a more complex
    * setup compared to most other modes which we can't ensure succeeds. */
-  if (UNLIKELY(edit == nullptr)) {
+  if (edit == nullptr) [[unlikely]] {
     BLI_assert(0);
     return;
   }

@@ -17,13 +17,13 @@
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -417,7 +417,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
     const char *name_esc_end = BLI_str_escape_find_quote(name_esc);
 
     /* While unlikely, an RNA path could be malformed. */
-    if (UNLIKELY(name_esc_end == nullptr)) {
+    if (name_esc_end == nullptr) [[unlikely]] {
       continue;
     }
 
@@ -427,7 +427,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
 
     /* While unlikely, data paths could be constructed that have longer names than
      * are currently supported. */
-    if (UNLIKELY(name_len >= sizeof(name))) {
+    if (name_len >= sizeof(name)) [[unlikely]] {
       continue;
     }
 

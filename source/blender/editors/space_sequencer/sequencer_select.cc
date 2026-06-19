@@ -12,17 +12,17 @@
 #include <cstring>
 
 #include "BLI_lasso_2d.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
@@ -83,10 +83,9 @@ bool deselect_all_strips(const Scene *scene)
     return changed;
   }
 
-  VectorSet<Strip *> strips = seq::query_all_strips(seq::active_seqbase_get(ed));
-  for (Strip *strip : strips) {
-    if (strip->flag & STRIP_ALLSEL) {
-      strip->flag &= ~STRIP_ALLSEL;
+  for (Strip &strip : *seq::active_seqbase_get(ed)) {
+    if (strip.flag & STRIP_ALLSEL) {
+      strip.flag &= ~STRIP_ALLSEL;
       changed = true;
     }
   }
@@ -2011,7 +2010,7 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
   std::fill_n(frame_ranges, ARRAY_SIZE(frame_ranges), frame_init);
 
   for (Strip &strip : *ed->current_strips()) {
-    if (UNLIKELY(strip.channel >= seq::MAX_CHANNELS)) {
+    if (strip.channel >= seq::MAX_CHANNELS) [[unlikely]] {
       continue;
     }
     int *frame_limit_p = &frame_ranges[strip.channel];

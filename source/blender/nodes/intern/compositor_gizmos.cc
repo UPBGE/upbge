@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase_iterator.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
 
 #include "BKE_context.hh"
 #include "BKE_image.hh"
@@ -383,7 +383,7 @@ void box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -647,7 +647,7 @@ void crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -829,7 +829,7 @@ void glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -978,7 +978,7 @@ void corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     for (int i = 0; i < 4; i++) {
       wmGizmo *gz = cpin_group->gizmos[i];
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -1197,7 +1197,7 @@ void split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -1375,7 +1375,7 @@ void transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(cage, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;

@@ -13,11 +13,11 @@
 #include "DNA_sequence_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_math_base.h"
-#include "BLI_math_rotation.h"
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string_utf8_symbols.hh"
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 #include "BLT_date_string.hh"
@@ -234,11 +234,11 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 
 #  include "AS_remote_library.hh"
 
-#  include "BLI_listbase.h"
-#  include "BLI_math_vector.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_vector_c.hh"
 #  include "BLI_memory_cache.hh"
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "DNA_object_types.h"
@@ -252,6 +252,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "BKE_global.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_image.hh"
+#  include "BKE_image_gpu.hh"
 #  include "BKE_main.hh"
 #  include "BKE_mesh_runtime.hh"
 #  include "BKE_object.hh"
@@ -612,6 +613,8 @@ static void rna_userdef_use_online_access_set(PointerRNA *ptr, bool value)
     }
   }
 
+  const eUserPref_Flag old_flag = userdef->flag;
+
   if (value) {
     userdef->flag |= USER_INTERNET_ALLOW;
     G.f |= G_FLAG_INTERNET_ALLOW;
@@ -619,6 +622,12 @@ static void rna_userdef_use_online_access_set(PointerRNA *ptr, bool value)
   else {
     userdef->flag &= ~USER_INTERNET_ALLOW;
     G.f &= ~G_FLAG_INTERNET_ALLOW;
+  }
+
+  if (old_flag != userdef->flag) {
+    /* Also clear the "User pressed 'Continue Offline' once"-flag when toggling internet access.
+     * Otherwise users are forever stuck with the 'Continue Offline' choice. */
+    userdef->extension_flag &= ~USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED;
   }
 
   /* Once the user edits this option (even to set it to the value it was)
@@ -1233,7 +1242,7 @@ static void rna_Addon_module_set(PointerRNA *ptr, const char *value)
    * In practice this is something only add-on developers should run into,
    * so it's more of a paper cut for developers. */
   const size_t submodule_len_limit = sizeof(bAddon::module) / 2;
-  if (UNLIKELY(module_len >= submodule_len_limit)) {
+  if (module_len >= submodule_len_limit) [[unlikely]] {
     char *submodule_end = addon->module + module_len;
     char *submodule_beg = addon->module;
     for (size_t i = module_len - 1; i > 0; i--) {
@@ -2959,7 +2968,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Major Grid Lines", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "grid_axis_brightness", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "grid_axis_brightness", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "grid_axis_brightness");
   RNA_def_property_float_default(prop, 0.46);
   RNA_def_property_ui_text(prop, "Grid Axis Brightness", "Brightness of the grid axis lines");

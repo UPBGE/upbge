@@ -17,12 +17,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -2543,7 +2543,7 @@ static int handle_panel_category_cycling(const wmEvent *event,
   }
   else {
     const char *category = panel_category_active_get(region, false);
-    if (LIKELY(category)) {
+    if (category) [[likely]] {
       PanelCategoryDyn *pc_dyn = panel_category_find(region, category);
       /* Cyclic behavior between categories
        * using Ctrl+Tab (+Shift for backwards) or Ctrl+Wheel Up/Down. */

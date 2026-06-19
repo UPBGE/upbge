@@ -17,7 +17,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -849,9 +849,9 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 #  include "DNA_object_force_types.h"
 #  include "DNA_particle_types.h"
 
-#  include "BLI_listbase.h"
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 
 #  include "BKE_bake_geometry_nodes_modifier.hh"
 #  include "BKE_cachefile.hh"
@@ -870,7 +870,7 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 #  include "BKE_ocean.h"
 #  include "BKE_particle.h"
 
-#  include "BLI_sort_utils.h"
+#  include "BLI_sort_utils.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "DEG_depsgraph.hh"
@@ -2168,8 +2168,8 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
     if (nmd_bake_a->id != nmd_bake_b->id) {
       /* Bakes for different nodes, cannot do anything else here, ignore. */
       /* NOTE: Not sure if this can actually happen? Maybe in case the user assigns a different
-       * nodetree in the overridden version of the modifier, which happens to have exactly the same
-       * amount of bake nodes? */
+       * node-tree in the overridden version of the modifier, which happens to have exactly the
+       * same amount of bake nodes? */
       BLI_assert_unreachable();
       continue;
     }
@@ -2288,7 +2288,7 @@ bool rna_NodesModifierBake_override_apply(Main *bmain,
 
   /* Ignore index-based default 'destination item' defined by the generic liboverride apply code
    * and stored in RNAPropertyOverrideApplyContext::ptr_item_dst, as changes in source linked
-   * nodetree may have re-ordered its bakes. Instead, lookup by bake id. */
+   * node-tree may have re-ordered its bakes. Instead, lookup by bake id. */
   NodesModifierData *nmd_dst = ptr_dst->data_as<NodesModifierData>();
   NodesModifierBake *nmd_bake_dst = nmd_dst->find_bake(nmd_bake_src->id);
   if (!nmd_bake_dst) {

@@ -14,10 +14,10 @@
 
 #include "DNA_screen_types.h"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -397,7 +397,7 @@ static bUserMenuItem *but_user_menu_find(bContext *C, Button *but, bUserMenu *um
     /* NOTE(@ideasman42): It's highly unlikely this ever occurs since the path must be resolved
      * for this to be added in the first place, there might be some cases where manually
      * constructed RNA paths don't resolve and in this case a crash should be avoided. */
-    if (UNLIKELY(!member_id_data_path.has_value())) {
+    if (!member_id_data_path.has_value()) [[unlikely]] {
       /* Assert because this should never happen for typical usage. */
       BLI_assert_unreachable();
       return nullptr;

@@ -13,8 +13,8 @@
 
 #include "draw_warp.hh"
 
-#include "BLI_hash.h"
-#include "BLI_math_matrix.h"
+#include "BLI_hash_c.hh"
+#include "BLI_math_matrix_c.hh"
 
 #include "BKE_action.hh"
 #include "BKE_colortools.hh"
@@ -391,7 +391,7 @@ void WarpManager::ensure_static_resources(const WarpModifierData *wmd,
   msd.tex_coords.clear();
   if (wmd->texture) {
     const int verts_num = orig_mesh->verts_num;
-    float(*tex_co)[3] = MEM_new_array_uninitialized<float[3]>(verts_num, "warp_tex_coords");
+    float(*tex_co)[3] = MEM_new_array_zeroed<float[3]>(verts_num, "warp_tex_coords");
 
     MOD_get_texture_coords(
         reinterpret_cast<MappingInfoModifierData *>(const_cast<WarpModifierData *>(wmd)),
@@ -477,7 +477,6 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
 
   /* Prepare GPU texture + texcoords using shared helper (handles ImageUser frame, ImBuf upload and caching). */
   gpu::Texture *gpu_texture = nullptr;
-  const bool is_uv_mapping = (wmd->texmapping == MOD_DISP_MAP_UV);
   gpu_texture = blender::draw::modifier_gpu_helpers::prepare_gpu_texture_and_texcoords(
       mesh_owner,
       deformed_eval,
@@ -489,8 +488,7 @@ gpu::StorageBuf *WarpManager::dispatch_deform(const WarpModifierData *wmd,
       msd.tex_channels,
       msd.tex_metadata_cached,
       key_prefix,
-      &ssbo_texcoords,
-      is_uv_mapping);
+      &ssbo_texcoords);
 
   /* Upload ColorBand UBO if texture has colorband enabled */
   const std::string key_colorband = key_prefix + "colorband";

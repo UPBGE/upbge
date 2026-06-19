@@ -21,12 +21,12 @@
 
 #include "DNA_mask_types.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_mutex.hh"
-#include "BLI_rect.h"
-#include "BLI_task.h"
-#include "BLI_utildefines.h"
+#include "BLI_rect.hh"
+#include "BLI_task_c.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -75,6 +75,14 @@ bool ED_space_clip_view_clip_poll(bContext *C)
   }
 
   return false;
+}
+bool ED_space_clip_view_clip_with_region_poll(bContext *C)
+{
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    return false;
+  }
+  return ED_space_clip_view_clip_poll(C);
 }
 
 bool ED_space_clip_tracking_poll(bContext *C)
@@ -722,7 +730,7 @@ static uchar *prefetch_read_file_to_memory(MovieClip *clip,
   }
 
   const size_t size = BLI_file_descriptor_size(file);
-  if (UNLIKELY(ELEM(size, 0, size_t(-1)))) {
+  if (ELEM(size, 0, size_t(-1))) [[unlikely]] {
     close(file);
     return nullptr;
   }

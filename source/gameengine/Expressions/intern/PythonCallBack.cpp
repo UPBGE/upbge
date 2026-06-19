@@ -27,7 +27,7 @@
 #include "EXP_PythonCallBack.h"
 
 
-#include "BLI_alloca.h"
+#include "BLI_alloca.hh"
 
 /** Check if a python value is a function and have the correct number of arguments.
  * \param value The python value to check.

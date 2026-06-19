@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 
 
 /* Forward declarations of Blender types used by the implementation. */

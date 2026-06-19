@@ -38,7 +38,7 @@
 
 #include <fmt/format.h>
 
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "DNA_scene_types.h"
 #include "../draw/intern/draw_command.hh"
 #include "GPU_immediate.hh"

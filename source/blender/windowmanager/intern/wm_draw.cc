@@ -23,12 +23,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
-#include "BLI_utildefines.h"
+#include "BLI_rect.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_image.hh"
@@ -198,7 +198,7 @@ struct GrabState {
 
 static bool wm_software_cursor_needed()
 {
-  if (UNLIKELY(g_software_cursor.enabled == -1)) {
+  if (g_software_cursor.enabled == -1) [[unlikely]] {
     g_software_cursor.enabled = !(WM_capabilities_flag() & WM_CAPABILITY_CURSOR_WARP);
   }
   return g_software_cursor.enabled;
@@ -1367,9 +1367,8 @@ uint8_t *WM_window_pixels_read_from_frontbuffer(const wmWindowManager *wm,
    * See it's comments for details on why it's needed, see also #98462. */
   bool setup_context = wm->runtime->windrawable != win;
 
-  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
   if (setup_context) {
-    ghost_window->activateDrawingContext();
+    static_cast<GHOST_IWindow *>(win->runtime->ghostwin)->activateDrawingContext();
     GPU_context_active_set(static_cast<GPUContext *>(win->runtime->gpuctx));
   }
 
@@ -1381,7 +1380,8 @@ uint8_t *WM_window_pixels_read_from_frontbuffer(const wmWindowManager *wm,
 
   if (setup_context) {
     if (wm->runtime->windrawable) {
-      ghost_window->activateDrawingContext();
+      static_cast<GHOST_IWindow *>(wm->runtime->windrawable->runtime->ghostwin)
+          ->activateDrawingContext();
       GPU_context_active_set(static_cast<GPUContext *>(wm->runtime->windrawable->runtime->gpuctx));
     }
   }
@@ -1406,9 +1406,8 @@ void WM_window_pixels_read_sample_from_frontbuffer(const wmWindowManager *wm,
   BLI_assert(WM_capabilities_flag() & WM_CAPABILITY_GPU_FRONT_BUFFER_READ);
   bool setup_context = wm->runtime->windrawable != win;
 
-  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
   if (setup_context) {
-    ghost_window->activateDrawingContext();
+    static_cast<GHOST_IWindow *>(win->runtime->ghostwin)->activateDrawingContext();
     GPU_context_active_set(static_cast<GPUContext *>(win->runtime->gpuctx));
   }
 
@@ -1424,7 +1423,8 @@ void WM_window_pixels_read_sample_from_frontbuffer(const wmWindowManager *wm,
 
   if (setup_context) {
     if (wm->runtime->windrawable) {
-      ghost_window->activateDrawingContext();
+      static_cast<GHOST_IWindow *>(wm->runtime->windrawable->runtime->ghostwin)
+          ->activateDrawingContext();
       GPU_context_active_set(static_cast<GPUContext *>(wm->runtime->windrawable->runtime->gpuctx));
     }
   }
@@ -1457,7 +1457,7 @@ uint8_t *WM_window_pixels_read_from_offscreen(bContext *C, wmWindow *win, int r_
                                                  GPU_TEXTURE_USAGE_SHADER_READ,
                                                  false,
                                                  nullptr);
-  if (UNLIKELY(!offscreen)) {
+  if (!offscreen) [[unlikely]] {
     return nullptr;
   }
 
@@ -1496,7 +1496,7 @@ bool WM_window_pixels_read_sample_from_offscreen(bContext *C,
                                                  GPU_TEXTURE_USAGE_SHADER_READ,
                                                  false,
                                                  nullptr);
-  if (UNLIKELY(!offscreen)) {
+  if (!offscreen) [[unlikely]] {
     return false;
   }
 
@@ -1655,8 +1655,6 @@ void wm_draw_update(bContext *C)
 
   GPU_render_begin();
   GPU_render_step();
-
-  BKE_image_free_unused_gpu_textures();
 
 #ifdef WITH_METAL_BACKEND
   /* Reset drawable to ensure GPU context activation happens at least once per frame if only a

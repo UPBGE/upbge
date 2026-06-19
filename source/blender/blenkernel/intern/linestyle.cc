@@ -21,12 +21,12 @@
 #include "DNA_sdna_type_ids.hh"
 #include "DNA_texture_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_rotation.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -832,7 +832,7 @@ LineStyleModifier *BKE_linestyle_color_modifier_add(FreestyleLineStyle *linestyl
   LineStyleModifier *m;
 
   m = alloc_color_modifier(name, type);
-  if (UNLIKELY(m == nullptr)) {
+  if (m == nullptr) [[unlikely]] {
     return nullptr;
   }
   m->blend = LS_VALUE_BLEND;
@@ -898,7 +898,7 @@ LineStyleModifier *BKE_linestyle_color_modifier_copy(FreestyleLineStyle *linesty
   LineStyleModifier *new_m;
 
   new_m = alloc_color_modifier(m->name, m->type);
-  if (UNLIKELY(new_m == nullptr)) {
+  if (new_m == nullptr) [[unlikely]] {
     return nullptr;
   }
   new_m->influence = m->influence;

@@ -12,14 +12,14 @@
 
 #include <fmt/format.h>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
@@ -1783,16 +1783,14 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->experimental.use_remote_asset_libraries = true;
   }
 
-  if (!USER_VERSION_ATLEAST(502, 42)) {
-    /* Instead of removing the flag entirely, it is forced to be on. Once it is 100% certain the
-     * Remote Asset Libraries feature will be shipped with 5.2 (which depends on other factors than
-     * just code), the flag can be removed. */
-    userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
-  }
-
   if (!USER_VERSION_ATLEAST(503, 1)) {
     userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
   }
+
+  if (!USER_VERSION_ATLEAST(503, 2)) {
+    userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

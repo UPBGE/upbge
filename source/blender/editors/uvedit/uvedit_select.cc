@@ -18,20 +18,20 @@
 #include "DNA_space_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_hash.h"
-#include "BLI_heap.h"
+#include "BLI_hash_c.hh"
+#include "BLI_heap.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.hh"
 #include "BLI_lasso_2d.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_memarena.h"
-#include "BLI_polyfill_2d.h"
-#include "BLI_polyfill_2d_beautify.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_memarena.hh"
+#include "BLI_polyfill_2d.hh"
+#include "BLI_polyfill_2d_beautify.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector_list.hh"
 
 #include "BLT_translation.hh"
@@ -2976,12 +2976,12 @@ struct UVSelectLinkedHelper : NonCopyable, NonMovable {
   bool face_add(BMFace *efa)
   {
     /* Lazily create the UV vertex map, stack, and face tracking. */
-    if (UNLIKELY(!has_data)) {
+    if (!has_data) [[unlikely]] {
       const ToolSettings *ts = scene->toolsettings;
       const bool uv_select_sync = (ts->uv_flag & UV_FLAG_SELECT_SYNC);
       BM_mesh_elem_table_ensure(bm, BM_FACE);
       vmap_ = BM_uv_vert_map_create(bm, !uv_select_sync, true);
-      if (UNLIKELY(vmap_ == nullptr)) {
+      if (vmap_ == nullptr) [[unlikely]] {
         /* This will keep attempting to allocate on every `face_add` call.
          * This is weak but such a corner case that it's not worth attempting to
          * gracefully handle the code path in the case there is no mapping data to use. */

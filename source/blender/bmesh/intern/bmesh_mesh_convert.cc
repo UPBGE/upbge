@@ -83,10 +83,10 @@
 
 #include "BLI_array.hh"
 #include "BLI_index_range.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_span.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
@@ -615,7 +615,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
       ftable[i] = f;
     }
 
-    if (UNLIKELY(f == nullptr)) {
+    if (f == nullptr) [[unlikely]] {
       printf(
           "%s: Warning! Bad face in mesh"
           " \"%s\" at index %d!, skipping\n",

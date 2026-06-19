@@ -18,14 +18,14 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_dynstr.h"
+#include "BLI_dynstr.hh"
 #include "BLI_enum_flags.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -2517,7 +2517,7 @@ void Layout::prop_enum(PointerRNA *ptr,
                        const std::optional<StringRefNull> name,
                        int icon)
 {
-  if (UNLIKELY(RNA_property_type(prop) != PROP_ENUM)) {
+  if (RNA_property_type(prop) != PROP_ENUM) [[unlikely]] {
     const StringRefNull propname = RNA_property_identifier(prop);
     item_disabled(this, propname.c_str());
     RNA_warning_bare("UILayout.prop_enum(): not an enum property: %s.%s",
@@ -2569,7 +2569,7 @@ void Layout::prop_enum(PointerRNA *ptr,
                        int icon)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  if (UNLIKELY(prop == nullptr)) {
+  if (prop == nullptr) [[unlikely]] {
     item_disabled(this, propname.c_str());
     RNA_warning_bare("UILayout.prop_enum(): enum property not found: %s.%s",
                      RNA_struct_identifier(ptr->type),

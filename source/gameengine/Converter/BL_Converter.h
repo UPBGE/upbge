@@ -40,7 +40,7 @@
 #include "KX_BlenderMaterial.h"
 #include "RAS_MeshObject.h"
 
-#include "BLI_task.h"
+#include "BLI_task_c.hh"
 
 class EXP_StringValue;
 class BL_SceneConverter;

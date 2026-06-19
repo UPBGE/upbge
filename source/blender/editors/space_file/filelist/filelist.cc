@@ -25,14 +25,14 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_fileops.hh"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_task.h"
-#include "BLI_threads.h"
+#include "BLI_string.hh"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
 
 #include "BKE_asset.hh"
 #include "BKE_blendfile.hh"
@@ -718,7 +718,15 @@ void filelist_online_asset_preview_request(const bContext *C, FileDirEntry *entr
   /* Request online preview if needed. */
   if (entry->asset->is_online_only()) {
     entry->asset->ensure_previewable(*C, CTX_wm_reports(C));
-    entry->preview_icon_id = entry->asset->get_preview()->runtime->icon_id;
+
+    const PreviewImage *preview = entry->asset->get_preview();
+
+    if (preview) {
+      entry->preview_icon_id = preview->runtime->icon_id;
+    }
+    else {
+      entry->flags |= FILE_ENTRY_INVALID_PREVIEW;
+    }
   }
 }
 

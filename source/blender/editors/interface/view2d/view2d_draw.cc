@@ -14,11 +14,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_math_base.h"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
-#include "BLI_timecode.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_timecode.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "GPU_immediate.hh"
@@ -203,7 +203,7 @@ static void draw_parallel_lines(const float line_distance,
     return;
   }
 
-  if (UNLIKELY(steps >= steps_max)) {
+  if (steps >= steps_max) [[unlikely]] {
     /* Note that we could draw a solid color,
      * however this flickers because of numeric instability when zoomed out. */
     return;
@@ -325,7 +325,7 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
                                 view2d_region_to_view_x(v2d, rect->xmax)};
     get_parallel_lines_draw_steps(distance, view_bounds, &start_value, &steps);
     const uint steps_max = BLI_rcti_size_x(&v2d->mask) + 1;
-    if (UNLIKELY(steps >= steps_max)) {
+    if (steps >= steps_max) [[unlikely]] {
       return;
     }
   }
@@ -372,7 +372,7 @@ static void draw_vertical_scale_indicators(const ARegion *region,
                                 view2d_region_to_view_y(v2d, rect->ymax)};
     get_parallel_lines_draw_steps(distance, view_bounds, &start, &steps);
     const uint steps_max = BLI_rcti_size_y(&v2d->mask) + 1;
-    if (UNLIKELY(steps >= steps_max)) {
+    if (steps >= steps_max) [[unlikely]] {
       return;
     }
   }

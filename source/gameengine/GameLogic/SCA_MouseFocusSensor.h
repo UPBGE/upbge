@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "KX_Scene.h"
 #include "SCA_MouseSensor.h"

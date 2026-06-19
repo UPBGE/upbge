@@ -15,10 +15,10 @@
 #include "BLI_array_utils.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_kdtree.hh"
-#include "BLI_linklist_stack.h"
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_linklist_stack.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -958,7 +958,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
   }
   if (t->spacetype == SPACE_CLIP) {
     if (t->options & CTX_MOVIECLIP) {
-      if (t->region->regiontype == RGN_TYPE_PREVIEW) {
+      if (t->region && (t->region->regiontype == RGN_TYPE_PREVIEW)) {
         return &TransConvertType_TrackingCurves;
       }
       return &TransConvertType_Tracking;

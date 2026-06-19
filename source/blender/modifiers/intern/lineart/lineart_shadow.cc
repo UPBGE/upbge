@@ -15,11 +15,11 @@
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_object.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_task.h"
-#include "BLI_time.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_task_c.hh"
+#include "BLI_time.hh"
 
 #include "DNA_light_types.h"
 #include "DNA_modifier_types.h"
@@ -529,10 +529,10 @@ static void lineart_shadow_edge_cut(LineartData *ld,
   if (LRT_DOUBLE_CLOSE_ENOUGH(start, 1) || LRT_DOUBLE_CLOSE_ENOUGH(end, 0)) {
     return;
   }
-  if (UNLIKELY(start != start)) {
+  if (start != start) [[unlikely]] {
     start = 0;
   }
-  if (UNLIKELY(end != end)) {
+  if (end != end) [[unlikely]] {
     end = 0;
   }
 

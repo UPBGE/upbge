@@ -14,12 +14,12 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_time.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_time.hh"
 
 #include "DNA_camera_types.h"
 
@@ -251,7 +251,7 @@ static bool wm_xr_viewfinder_get_capture_mat(const XrSessionSettings *settings,
   const float height_offset = (viewfinder_height / 2) * wmXrViewfinderState::xr_ui_unit_fac * -1;
   const float viewfinder_vertical_offset = base_controller_offset + height_offset;
 
-  /* Obtain viewfinder capture mat from the choosen controller grip mat. */
+  /* Obtain viewfinder capture mat from the chosen controller grip mat. */
   float viewfinder_mat[4][4];
   copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
   translate_m4(viewfinder_mat, 0.0f, 0.0f, viewfinder_vertical_offset);
@@ -395,7 +395,7 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
   float viewfinder_winmat[4][4];
   copy_m4_m4(viewfinder_winmat, cam_render_params.winmat);
 
-  /* Set viewfinder View3D draw flags, using base XR draw flags with some overriden exceptions. */
+  /* Set viewfinder View3D draw flags, using base XR draw flags with some overridden exceptions. */
   int viewfinder_draw_flags = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS | settings->draw_flags;
   viewfinder_draw_flags &= ~V3D_OFSDRAW_SHOW_SELECTION;      /* Always hide selection outlines. */
   viewfinder_draw_flags &= ~V3D_OFSDRAW_XR_SHOW_CONTROLLERS; /* Always hide other XR controller. */

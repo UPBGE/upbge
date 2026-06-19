@@ -14,15 +14,15 @@
 #include "BLI_array.hh"
 #include "BLI_bounds.hh"
 #include "BLI_convexhull_2d.hh"
-#include "BLI_ghash.h"
-#include "BLI_math_base_safe.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_polyfill_2d.h"
-#include "BLI_polyfill_2d_beautify.h"
-#include "BLI_rand.h"
+#include "BLI_ghash.hh"
+#include "BLI_math_base_safe.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_polyfill_2d.hh"
+#include "BLI_polyfill_2d_beautify.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_vector.hh"
 
 #ifdef WITH_UV_SLIM
@@ -752,7 +752,7 @@ static PVert *p_vert_add(
    * Note that values within the calculation may _become_ non-finite,
    * so the rest of the code still needs to take this possibility into account. */
   for (int i = 0; i < 3; i++) {
-    if (UNLIKELY(!isfinite(v->co[i]))) {
+    if (!isfinite(v->co[i])) [[unlikely]] {
       v->co[i] = 0.0f;
     }
   }
@@ -3917,7 +3917,7 @@ static void p_add_ngon(ParamHandle *handle,
     add_newell_cross_v3_v3v3(normal, co_prev, co_curr);
     co_prev = co_curr;
   }
-  if (UNLIKELY(normalize_v3(normal) == 0.0f)) {
+  if (normalize_v3(normal) == 0.0f) [[unlikely]] {
     normal[2] = 1.0f;
   }
 

@@ -10,13 +10,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_memarena.h"
-#include "BLI_mempool.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_memarena.hh"
+#include "BLI_mempool.hh"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
@@ -211,7 +211,7 @@ BMOpSlot *BMO_slot_get(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *identif
 {
   int slot_code = bmo_name_to_slotcode_check(slot_args, identifier);
 
-  if (UNLIKELY(slot_code < 0)) {
+  if (slot_code < 0) [[unlikely]] {
     // return &BMOpEmptySlot;
     BLI_assert(0);
     return nullptr; /* better crash */
@@ -606,8 +606,8 @@ void BMO_mesh_selected_remap(BMesh *bm,
 
       ese->ele = static_cast<BMElem *>(BMO_slot_map_elem_get(slot_elem_map, ese->ele));
 
-      if (UNLIKELY((ese->ele == nullptr) ||
-                   (check_select && (BM_elem_flag_test(ese->ele, BM_ELEM_SELECT) == false))))
+      if ((ese->ele == nullptr) ||
+          (check_select && (BM_elem_flag_test(ese->ele, BM_ELEM_SELECT) == false))) [[unlikely]]
       {
         BLI_remlink(&bm->selected, ese);
         MEM_delete(ese);
@@ -1791,7 +1791,7 @@ bool BMO_op_vinitf(BMesh *bm,
                 break;
               }
 
-              if (UNLIKELY(htype & htype_set)) {
+              if (htype & htype_set) [[unlikely]] {
                 GOTO_ERROR("htype duplicated");
               }
 

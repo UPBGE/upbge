@@ -14,19 +14,19 @@
 #include <limits>
 #include <optional>
 
-#include "BLI_alloca.h"
-#include "BLI_assert.h"
+#include "BLI_alloca.hh"
+#include "BLI_assert.hh"
 #include "BLI_bounds.hh"
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_span.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 #include "BLT_translation.hh"
 
 #include "DNA_action_types.h"
@@ -1569,7 +1569,7 @@ static void ease_handle_axis(const float deriv1[3], const float deriv2[3], float
   copy_v3_v3(r_axis, deriv1);
 
   const float len2 = len_squared_v3(deriv2);
-  if (UNLIKELY(len2 == 0.0f)) {
+  if (len2 == 0.0f) [[unlikely]] {
     return;
   }
   const float len1 = len_squared_v3(deriv1);

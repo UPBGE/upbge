@@ -7,9 +7,9 @@
  */
 
 #include "BLI_colorspace.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "CLG_log.h"
 
@@ -802,7 +802,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   ShaderCreateInfo specialized_info = orig_info;
 
-  /* WORKAROUND: For BSL shaders, allow to disable costly builtins programatically. */
+  /* WORKAROUND: For BSL shaders, allow to disable costly builtins programmatically. */
   if (bool(specialized_info.builtins_ & BuiltinBits::NO_VIEWPORT_INDEX)) {
     specialized_info.builtins_ &= ~BuiltinBits::VIEWPORT_INDEX;
   }

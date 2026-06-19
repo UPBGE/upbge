@@ -114,9 +114,6 @@ class ImageBase {
   /// set pixel filter
   void setFilter(PyFilter *filt);
 
-  /// calculate size(nearest power of 2)
-  static short calcSize(short size);
-
   /// calculate image from sources and send it to a target buffer instead of a texture
   /// format is GL_RGBA or GL_BGRA
   virtual bool loadImage(unsigned int *buffer, unsigned int size, double ts);
@@ -124,12 +121,12 @@ class ImageBase {
   /// swap the B and R channel in-place in the image buffer
   void swapImageBR();
 
-  /// number of buffer pointing to m_image, public because not handled by this class
+  /// number of buffer pointing to m_pixelsData, public because not handled by this class
   int m_exports;
 
  protected:
   /// image buffer
-  unsigned int *m_image;
+  unsigned int *m_pixelsData;
   /// image buffer size
   unsigned int m_imgSize;
   /// blender::Image internal format type.
@@ -185,7 +182,7 @@ class ImageBase {
   template<class FLT, class SRC> void convImage(FLT &filter, SRC srcBuff, short *srcSize)
   {
     // destination buffer
-    unsigned int *dstBuff = m_image;
+    unsigned int *dstBuff = m_pixelsData;
     // pixel size from filter
     unsigned int pixSize = filter.firstPixelSize();
     // if no scaling is needed
@@ -286,7 +283,7 @@ class ImageBase {
 struct PyImage {
   PyObject_HEAD
   // source object
-  ImageBase *m_image;
+  ImageBase *m_imageBase;
 };
 
 // size of id
@@ -321,7 +318,7 @@ class ImageSource {
   /// get buffered image
   unsigned int *getImageBuf(void)
   {
-    return m_image;
+    return m_pixelsData;
   }
   /// refresh source
   void refresh(void);
@@ -330,7 +327,7 @@ class ImageSource {
   short *getSize(void)
   {
     static short defSize[] = {0, 0};
-    return m_source != nullptr ? m_source->m_image->getSize() : defSize;
+    return m_source != nullptr ? m_source->m_imageBase->getSize() : defSize;
   }
 
  protected:
@@ -339,7 +336,7 @@ class ImageSource {
   /// pointer to source structure
   PyImage *m_source;
   /// buffered image from source
-  unsigned int *m_image;
+  unsigned int *m_pixelsData;
 
  private:
   /// default constructor is forbidden
@@ -358,9 +355,9 @@ template<class T> static int Image_init(PyObject *pySelf, PyObject *args, PyObje
 {
   PyImage *self = reinterpret_cast<PyImage *>(pySelf);
   // create source object
-  if (self->m_image != nullptr)
-    delete self->m_image;
-  self->m_image = new T();
+  if (self->m_imageBase != nullptr)
+    delete self->m_imageBase;
+  self->m_imageBase = new T();
   // initialization succeded
   return 0;
 }

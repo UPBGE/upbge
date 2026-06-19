@@ -20,17 +20,17 @@
 #include "BKE_global.hh"
 
 #include "BLI_array.hh"
-#include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_memarena.h"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_memarena.hh"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -503,7 +503,7 @@ void ED_uvedit_get_aspect_from_material(Object *ob,
                                         float *r_aspx,
                                         float *r_aspy)
 {
-  if (UNLIKELY(material_index < 0 || material_index >= ob->totcol)) {
+  if (material_index < 0 || material_index >= ob->totcol) [[unlikely]] {
     *r_aspx = 1.0f;
     *r_aspy = 1.0f;
     return;
@@ -2568,7 +2568,7 @@ static void correct_uv_aspect_per_face(Object *ob, BMEditMesh *em)
     }
 
     const int material_index = efa->mat_nr;
-    if (UNLIKELY(material_index < 0 || material_index >= materials_num)) {
+    if (material_index < 0 || material_index >= materials_num) [[unlikely]] {
       /* The index might be for a material slot which is not currently setup. */
       continue;
     }
@@ -3160,7 +3160,7 @@ static Vector<float3> smart_uv_project_calculate_project_normals(
     const float project_angle_limit_cos,
     const float area_weight)
 {
-  if (UNLIKELY(thick_faces_len == 0)) {
+  if (thick_faces_len == 0) [[unlikely]] {
     return {};
   }
 
@@ -4264,7 +4264,7 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
     zero_v3(loc);
   }
 
-  if (UNLIKELY(cube_size == 0.0f)) {
+  if (cube_size == 0.0f) [[unlikely]] {
     cube_size = 1.0f;
   }
 
@@ -4401,6 +4401,9 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   scene->toolsettings->uv_flag &= ~UV_FLAG_SELECT_SYNC;
 
   ED_mesh_uv_ensure(mesh, nullptr);
+
+  bm->uv_select_sync_valid = false;
+  uvedit_select_prepare_custom_data(scene, bm);
 
   BMeshFromMeshParams bm_from_me_params{};
   bm_from_me_params.calc_face_normal = true;

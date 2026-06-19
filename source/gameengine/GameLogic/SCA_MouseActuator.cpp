@@ -22,7 +22,7 @@
 
 #include "SCA_MouseActuator.h"
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
 
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"

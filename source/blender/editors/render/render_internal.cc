@@ -11,14 +11,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_time.h"
-#include "BLI_timecode.h"
-#include "BLI_utildefines.h"
+#include "BLI_time.hh"
+#include "BLI_timecode.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -27,12 +27,14 @@
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BKE_callbacks.hh"
 #include "BKE_colortools.hh"
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -527,6 +529,8 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   }
 
   RE_ReleaseResult(rj->re);
+
+  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 
   /* make jobs timer to send notifier */
   *(rj->do_update) = true;

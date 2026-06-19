@@ -20,11 +20,11 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
@@ -308,7 +308,7 @@ static ui::Block *wm_block_splash_create(bContext *C, ARegion *region, void * /*
    * first draw or if the image changed. */
   ImBuf *ibuf = wm_block_splash_image(splash_width, &splash_height);
   /* This should never happen, if it does - don't crash. */
-  if (LIKELY(ibuf)) {
+  if (ibuf) [[likely]] {
     ui::Button *but = uiDefButImage(
         block, ibuf, 0, 0.5f * U.widget_unit, splash_width, splash_height, nullptr);
 
