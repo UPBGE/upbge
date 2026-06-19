@@ -1031,10 +1031,12 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "GeometryNodeFieldToGrid")
         self.node_operator(layout, "GeometryNodeGridClip")
+        self.node_operator(layout, "GeometryNodeGridDeactivateVoxels")
         self.node_operator(layout, "GeometryNodeGridDilateAndErode")
         self.node_operator(layout, "GeometryNodeGridMean")
         self.node_operator(layout, "GeometryNodeGridMedian")
         self.node_operator(layout, "GeometryNodeGridPrune")
+        self.node_operator(layout, "GeometryNodeGridTopologyBoolean")
         self.node_operator(layout, "GeometryNodeGridVoxelize")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
