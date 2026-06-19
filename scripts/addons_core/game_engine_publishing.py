@@ -30,12 +30,12 @@ import platform as _platform
 
 bl_info = {
     "name": "Game Engine Publishing",
-    "author": "Mitchell Stokes (Moguri), Oren Titane (Genome36)",
+    "author": "Mitchell Stokes (Moguri), Oren Titane (Genome36), Ghost DEV",
     "version": (0, 2, 0),
     "blender": (5, 0, 0),
     "location": "Render Properties > Publishing Info",
     "description": "Publish .blend file as game engine runtime, manage versions and platforms",
-    "warning": "",
+    "warning": "The addon is still under development and you may encounter errors",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Game_Engine/Publishing",
     "category": "Game Engine",
 }
@@ -447,7 +447,7 @@ class RENDER_PT_publish(bpy.types.Panel):
         layout.separator()
 
         # assets list
-        layout.label(text="Asset Paths (Broken)")
+        layout.label(text="Asset Paths (Under development)")
 
         # UI_UL_list
         row = layout.row()
