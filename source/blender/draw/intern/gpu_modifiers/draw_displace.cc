@@ -57,7 +57,7 @@ struct MeshModifierKey {
 
   struct MeshStaticData {
     std::vector<float> vgroup_weights;       /* per-vertex weight (0.0-1.0) */
-    std::vector<float3> tex_coords; /* per-vertex texture coordinates */
+    std::vector<float4> tex_coords; /* per-vertex texture coordinates */
     int verts_num = 0;
 
     Object *deformed = nullptr;
@@ -219,7 +219,6 @@ delta = (tex_int - u_midlevel) * s;
 }
 
 /* Final assembly function - concatenates both parts */
-/* Final assembly function - concatenates both parts */
 static std::string get_displace_compute_src(bool image_only = false)
 {
   return get_displace_shader_part1(image_only) + get_displace_shader_part2();
@@ -376,7 +375,7 @@ void DisplaceManager::ensure_static_resources(const DisplaceModifierData *dmd,
     /* Copy to msd.tex_coords vector */
     msd.tex_coords.resize(verts_num);
     for (int v = 0; v < verts_num; ++v) {
-      msd.tex_coords[v] = float3(tex_co[v]);
+      msd.tex_coords[v] = float4(tex_co[v][0], tex_co[v][1], tex_co[v][2], 1.0f);
     }
 
     MEM_delete(tex_co);

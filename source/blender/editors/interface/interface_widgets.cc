@@ -128,7 +128,7 @@ enum class WidgetStyle {
  */
 struct WidgetStateInfo {
   /** Copy of #Button.flag (possibly with overrides for drawing). */
-  int but_flag;
+  int64_t but_flag;
   /** Copy of #Button.drawflag (possibly with overrides for drawing). */
   int but_drawflag;
   /** Copy of #Button.emboss. */
@@ -3149,20 +3149,13 @@ static void widget_state(WidgetType *wt, const WidgetStateInfo *state, EmbossTyp
 
   if (state->but_flag & BUT_REDALERT) {
     if (wt->draw && emboss != EmbossType::None) {
-      uchar red[4];
-      theme::get_color_3ubv(TH_REDALERT, red);
-
-      /* Outline uses a mix to emphasize it a bit. */
-      color_blend_v3_v3(wt->wcol.outline, red, 0.6f);
-      /* Darken the alert for the inner color. */
-      color_mul_hsl_v3(red, 1.0f, 1.0f, 0.6f);
-      copy_v3_v3_uchar(wt->wcol.inner, red);
+      theme::get_color_3ubv(TH_REDALERT, wt->wcol.inner);
     }
     else {
       uchar red[4];
       theme::get_color_3ubv(TH_REDALERT, red);
       color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
-      color_blend_v3_v3(wt->wcol.text, red, 0.6f);
+      color_blend_v3_v3(wt->wcol.text, red, 0.5f);
     }
   }
 
@@ -5096,7 +5089,7 @@ static void widget_state_label(WidgetType *wt, const WidgetStateInfo *state, Emb
     uchar red[4];
     theme::get_color_3ubv(TH_REDALERT, red);
     color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
-    color_blend_v3_v3(wt->wcol.text, red, 0.6f);
+    color_blend_v3_v3(wt->wcol.text, red, 0.5f);
   }
 }
 
@@ -6362,7 +6355,7 @@ void draw_menu_item(const uiFontStyle *fstyle,
                     const bool use_unpadded,
                     const char *name,
                     int iconid,
-                    int but_flag,
+                    int64_t but_flag,
                     MenuItemSeparatorType separator_type,
                     int *r_xmax)
 {
@@ -6549,7 +6542,7 @@ void draw_preview_item(const uiFontStyle *fstyle,
                        const float zoom,
                        const char *name,
                        int iconid,
-                       int but_flag,
+                       int64_t but_flag,
                        FontStyleAlign text_align)
 {
   WidgetType *wt = widget_type(WidgetStyle::MenuItemUnpadded);

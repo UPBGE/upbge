@@ -45,7 +45,7 @@ def export_clearcoat(bmat, export_settings):
             path_ = {}
             path_['length'] = 1
             path_['path'] = "/materials/XXX/extensions/KHR_materials_clearcoat/clearcoatFactor"
-            export_settings['current_paths'][path] = path_, {}
+            export_settings['current_paths'][path] = path_
 
     if clearcoat_roughness_socket.socket is not None and isinstance(
             clearcoat_roughness_socket.socket,
@@ -58,7 +58,7 @@ def export_clearcoat(bmat, export_settings):
         # Storing path for KHR_animation_pointer
         path_ = {}
         path_['length'] = 1
-        path_['path'] = "/materials/XXX/extensions/KHR_materials_clearcoat/clearcoatRoughnessFactor "
+        path_['path'] = "/materials/XXX/extensions/KHR_materials_clearcoat/clearcoatRoughnessFactor"
         export_settings['current_paths']["node_tree." +
                                          clearcoat_roughness_socket.socket.path_from_id() +
                                          ".default_value"] = path_
