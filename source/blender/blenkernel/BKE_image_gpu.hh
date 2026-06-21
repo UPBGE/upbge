@@ -31,15 +31,13 @@ gpu::Texture *BKE_image_acquire_gpu_texture(Image *image, ImageUser *iuser);
 
 /*
  * Like #BKE_image_acquire_gpu_texture, but can also get render or compositing result.
- */
-gpu::Texture *BKE_image_acquire_gpu_viewer_texture(Image *image, ImageUser *iuser);
-
-/*
- * Like #BKE_image_acquire_gpu_viewer_texture, but the image buffer is provided explicitly.
+ *
+ * If #only_full_resolution is true, null will be returned if no single gpu::Texture
+ * can be created at full resolution.
  */
 gpu::Texture *BKE_image_acquire_gpu_viewer_texture(Image *image,
                                                    ImageUser *iuser,
-                                                   ImBuf *image_buffer);
+                                                   bool only_full_resolution = false);
 
 /*
  * Like #BKE_image_acquire_gpu_texture, but can also return a GPU array texture and tile mapping
@@ -91,13 +89,18 @@ void BKE_image_free_gpu_fallback();
  */
 bool BKE_image_has_gpu_texture(Image *ima);
 
-void BKE_image_free_gputextures(Image *ima);
+/**
+ * Free GPU textures to recreate them from CPU buffers or reduce memory usage.
+ * Most code should use BKE_image_partial_update_mark instead when making changes
+ * to image CPU buffers.
+ */
+void BKE_image_free_gpu_texture_caches(Image *ima);
 void BKE_image_free_gpu_udim_textures(Image *ima);
-void BKE_image_free_all_gputextures(Main *bmain);
+void BKE_image_free_all_gpu_texture_caches(Main *bmain);
 /**
  * Same as #BKE_image_free_all_gputextures but only free animated images.
  */
-void BKE_image_free_anim_gputextures(Main *bmain);
+void BKE_image_free_anim_gpu_texture_caches(Main *bmain);
 
 /**
  * Partial update of texture for texture painting.

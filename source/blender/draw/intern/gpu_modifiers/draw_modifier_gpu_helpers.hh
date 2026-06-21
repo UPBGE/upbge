@@ -41,7 +41,7 @@ blender::gpu::Texture *prepare_gpu_texture_and_texcoords(
     Object *deformed_eval,
     Depsgraph *depsgraph,
     Tex *tex,
-    std::vector<float3> &tex_coords,
+    std::vector<float4> &tex_coords,
     bool &r_tex_is_byte,
     bool &r_tex_is_float,
     int &r_tex_channels,

@@ -108,13 +108,13 @@ enum ButtonFlagInternal {
 };
 
 /** These two enums can be combined. */
-inline int operator|(const ButtonFlag a, const ButtonFlagInternal b)
+inline int64_t operator|(const ButtonFlag a, const ButtonFlagInternal b)
 {
-  return int(a) | int(b);
+  return int64_t(a) | int64_t(b);
 }
-inline int operator|(const ButtonFlagInternal b, const ButtonFlag a)
+inline int64_t operator|(const ButtonFlagInternal b, const ButtonFlag a)
 {
-  return int(a) | int(b);
+  return int64_t(a) | int64_t(b);
 }
 
 /** #Button.pie_dir */
@@ -213,7 +213,7 @@ struct Button : NonMovable {
 
   /** Pointer back to the layout item holding this button. */
   Layout *layout = nullptr;
-  int flag = 0;
+  int64_t flag = 0;
   int drawflag = 0;
   char flag2 = 0;
 
@@ -960,7 +960,7 @@ const char *button_placeholder_get(Button *but);
  */
 std::optional<StringRef> button_edit_unit_hint_get(const Button &but);
 
-void def_but_icon(Button *but, int icon, int flag);
+void def_but_icon(Button *but, int icon, int64_t flag);
 /**
  * Avoid using this where possible since it's better not to ask for an icon in the first place.
  */
@@ -1500,7 +1500,7 @@ void draw_menu_item(const uiFontStyle *fstyle,
                     bool use_unpadded,
                     const char *name,
                     int iconid,
-                    int but_flag,
+                    int64_t but_flag,
                     MenuItemSeparatorType separator_type,
                     int *r_xmax);
 void draw_preview_item(const uiFontStyle *fstyle,
@@ -1508,7 +1508,7 @@ void draw_preview_item(const uiFontStyle *fstyle,
                        float zoom,
                        const char *name,
                        int iconid,
-                       int but_flag,
+                       int64_t but_flag,
                        FontStyleAlign text_align);
 /**
  * Version of #draw_preview_item() that does not draw the menu background and item text based on

@@ -46,9 +46,6 @@ static std::vector<Texture *> textures;
 PyObject *Texture_close(Texture *self);
 
 Texture::Texture():
-      m_orgTex(0),
-      m_orgImg(nullptr),
-      m_imgBuf(nullptr),
       m_imgTexture(nullptr),
       m_rasTexture(nullptr),
       m_scene(nullptr),
@@ -106,19 +103,12 @@ void Texture::Close()
   if (m_rasTexture) {
     m_rasTexture = nullptr;
   }
-  if (m_orgImg) {
-    m_orgImg = nullptr;
-  }
   if (m_imgTexture) {
     BKE_image_set_gpu_texture_override(m_imgTexture, nullptr);
     m_imgTexture = nullptr;
   }
   if (m_gpuTexInUse) {
     m_gpuTexInUse = nullptr;
-  }
-  if (m_imgBuf) {
-    blender::IMB_freeImBuf(m_imgBuf);
-    m_imgBuf = nullptr;
   }
   if (m_py_color) {
     Py_XDECREF(m_py_color);
@@ -379,26 +369,10 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
     m_lastClock = engine->GetClockTime();
     // set source refresh
     bool refreshSource = (param == Py_True);
-    // try to proces texture from source
+    // try to process texture from source
     try {
       // if source is available
       if (m_source != nullptr) {
-        // check texture code
-        if (!m_orgImg) {
-          if (m_rasTexture) {
-            m_orgImg = m_rasTexture->GetImage();
-          }
-          else {
-            // Swapping will work only if the GPU has already loaded the image.
-            // If not, it will delete and overwrite our texture on next render.
-            // To avoid that, we acquire the image buffer now.
-            // WARNING: GPU has a ImageUser to pass, we don't. Using nullptr
-            // works on image file, not necessarily on other type of image.
-            m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, nullptr, nullptr);
-            m_orgImg = m_imgTexture;
-          }
-        }
-
         // get texture
         unsigned int *texture = m_source->m_imageBase->getImage(0, ts);
         // if texture is available

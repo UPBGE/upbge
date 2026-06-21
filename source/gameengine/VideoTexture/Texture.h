@@ -30,14 +30,6 @@ class Texture : public EXP_Value {
   Py_Header protected : virtual void DestructFromPython();
 
  public:
-  // video texture bind code
-  // original texture bind code
-  unsigned int m_orgTex;
-  // original image bind code
-  blender::Image *m_orgImg;
-
-  // kernel image buffer, to make sure the image is loaded before we swap the bindcode
-  blender::ImBuf *m_imgBuf;
   // texture image for game materials
   blender::Image *m_imgTexture;
 

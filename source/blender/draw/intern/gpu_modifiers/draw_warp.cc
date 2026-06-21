@@ -55,7 +55,7 @@ struct WarpManager::Impl {
 
   struct MeshStaticData {
     std::vector<float> vgroup_weights;
-    std::vector<float3> tex_coords;
+    std::vector<float4> tex_coords;
     std::vector<float> falloff_curve_lut;
     int verts_num = 0;
 
@@ -403,7 +403,7 @@ void WarpManager::ensure_static_resources(const WarpModifierData *wmd,
 
     msd.tex_coords.resize(verts_num);
     for (int v = 0; v < verts_num; ++v) {
-      msd.tex_coords[v] = float3(tex_co[v]);
+      msd.tex_coords[v] = float4(tex_co[v][0], tex_co[v][1], tex_co[v][2], 1.0f);
     }
 
     MEM_delete(tex_co);

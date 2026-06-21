@@ -1059,7 +1059,7 @@ static void but_update_old_active_from_new(Button *oldbut, Button *but)
   BLI_assert(oldbut->active || oldbut->semi_modal_state);
 
   /* flags from the buttons we want to refresh, may want to add more here... */
-  const int flag_copy = BUT_REDALERT | BUT_DISABLED | UI_HAS_ICON | UI_SELECT_DRAW;
+  const int64_t flag_copy = BUT_REDALERT | BUT_DISABLED | UI_HAS_ICON | UI_SELECT_DRAW;
   const int drawflag_copy = BUT_HAS_QUICK_TOOLTIP | BUT_NO_TOOLTIP;
 
   /* still stuff needs to be copied */
@@ -1272,7 +1272,7 @@ static bool but_update_from_old_block(Block *block,
   }
   else {
     matched_old_buttons.add(oldbut);
-    int flag_copy = BUT_DRAG_MULTI;
+    int64_t flag_copy = BUT_DRAG_MULTI;
 
     /* Stupid special case: The active button may be inside (as in, overlapped on top) a row
      * button which we also want to keep highlighted then. */
@@ -2153,7 +2153,7 @@ bool button_context_poll_operator_ex(bContext *C,
                                      const wmOperatorCallParams *optype_params)
 {
   bool result;
-  int old_but_flag = 0;
+  int64_t old_but_flag = 0;
 
   const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
@@ -3307,6 +3307,28 @@ static std::string textbox_string_get(ButtonTextBox *textbox)
   return RNA_property_string_get(&textbox->rnapoin, textbox->rnaprop);
 }
 
+/**
+ * Returns true if the unit should be included in the number edit string.
+ */
+static bool button_edit_string_include_unit_suffix(const Button *button)
+{
+  const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(button));
+  if (BKE_unit_is_adaptive(*button->block->unit, unit_type)) {
+    /* Include the unit in the edit string when the unit is adaptive. */
+    return true;
+  }
+  PropertySubType subtype = PROP_NONE;
+  if (button->rnaprop) {
+    subtype = RNA_property_subtype(button->rnaprop);
+  }
+  if (subtype == PROP_TIME_ABSOLUTE) {
+    /* Include the unit in the edit string when the property uses absolute time (independent of the
+     * scene settings). */
+    return true;
+  }
+  return false;
+}
+
 void button_string_get_ex(Button *but,
                           char *str,
                           const size_t str_maxncpy,
@@ -3411,11 +3433,8 @@ void button_string_get_ex(Button *but,
       }
 
       if (button_is_unit(but)) {
-        /* In case where the unit is adaptive, include the unit in the edit string. Otherwise the
-         * unit is added as an edit hint. */
-        const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
-        const bool do_suffix = BKE_unit_is_adaptive(*but->block->unit, unit_type);
-        get_but_string_unit(but, str, str_maxncpy, value, false, prec, do_suffix);
+        const bool include_unit_suffix = button_edit_string_include_unit_suffix(but);
+        get_but_string_unit(but, str, str_maxncpy, value, false, prec, include_unit_suffix);
       }
       else if (subtype == PROP_FACTOR) {
         if (U.factor_display_type == USER_FACTOR_AS_FACTOR) {
@@ -4762,7 +4781,7 @@ static Button *def_but(Block *block,
   return but;
 }
 
-void def_but_icon(Button *but, const int icon, const int flag)
+void def_but_icon(Button *but, const int icon, const int64_t flag)
 {
   if (icon) {
     icon_ensure_deferred(
@@ -5450,7 +5469,7 @@ void autocomplete_update_name(AutoComplete *autocpl, const StringRef name)
   char *truncate = autocpl->truncate;
   const char *startname = autocpl->startname;
   int match_index = 0;
-  for (int a = 0; a < autocpl->maxncpy - 1; a++) {
+  for (int a = 0; a < std::min<size_t>(name.size(), autocpl->maxncpy) - 1; a++) {
     if (startname[a] == 0 || startname[a] != name[a]) {
       match_index = a;
       break;
@@ -5876,7 +5895,7 @@ void block_flag_disable(Block *block, int flag)
   block->flag &= ~flag;
 }
 
-void button_flag_enable(Button *but, int flag)
+void button_flag_enable(Button *but, int64_t flag)
 {
   but->flag |= flag;
 }
@@ -5886,12 +5905,12 @@ void button_flag2_enable(Button *but, int flag)
   but->flag2 |= flag;
 }
 
-void button_flag_disable(Button *but, int flag)
+void button_flag_disable(Button *but, int64_t flag)
 {
   but->flag &= ~flag;
 }
 
-bool button_flag_is_set(Button *but, int flag)
+bool button_flag_is_set(Button *but, int64_t flag)
 {
   return (but->flag & flag) != 0;
 }
