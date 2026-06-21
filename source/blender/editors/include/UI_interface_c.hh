@@ -341,7 +341,7 @@ enum {
 };
 
 /** #Button.flag general state flags. */
-enum ButtonFlag {
+enum ButtonFlag : int64_t {
   /* WARNING: the first 8 flags are internal (see #UI_SELECT definition). */
 
   BUT_ICON_SUBMENU = 1 << 8,
@@ -392,7 +392,7 @@ enum ButtonFlag {
   BUT_VALUE_CLEAR = 1 << 30,
 
   /** RNA property of the button is overridden from linked reference data. */
-  BUT_OVERRIDDEN = 1u << 31u,
+  BUT_OVERRIDDEN = int64_t(1) << 31,
 };
 
 enum {
@@ -456,6 +456,8 @@ enum {
 #define UI_PANEL_CATEGORY_MIN_WIDTH ((U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) ? 32.0f : 26.0f)
 /* Minimum width for a panel showing content and category tabs. */
 #define UI_PANEL_CATEGORY_MIN_SNAP_WIDTH 90.0f
+/* Minimum panel draw width. */
+static constexpr int PANEL_MIN_DRAW_WIDTH = 20;
 
 /* Both these margins should be ignored if the panel doesn't show a background (check
  * #panel_should_show_background()). */
@@ -1209,9 +1211,9 @@ Button *button_active_drop_name_button(const bContext *C);
 bool button_active_drop_name(const bContext *C);
 bool button_active_drop_color(bContext *C);
 
-void button_flag_enable(Button *but, int flag);
-void button_flag_disable(Button *but, int flag);
-bool button_flag_is_set(Button *but, int flag);
+void button_flag_enable(Button *but, int64_t flag);
+void button_flag_disable(Button *but, int64_t flag);
+bool button_flag_is_set(Button *but, int64_t flag);
 void button_flag2_enable(Button *but, int flag);
 
 void button_drawflag_enable(Button *but, int flag);

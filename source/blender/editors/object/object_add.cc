@@ -93,6 +93,7 @@
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
+#include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
@@ -4771,8 +4772,9 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
       }
     }
 
-    /* Ensure new object has consistent material data with its new obdata. */
     if (newob) {
+      BKE_sculptsession_free_pbvh(*newob);
+      /* Ensure new object has consistent material data with its new obdata. */
       BKE_object_materials_sync_length(bmain, newob, newob->data);
     }
 
