@@ -762,7 +762,7 @@ void ShadowModule::sync_object(const ObjectHandle &ob_handle,
                                bool has_time_dependent_shadows)
 {
   bool is_shadow_caster = !(ob_handle.object->visibility_flag & OB_HIDE_SHADOW);
-  if (!is_shadow_caster && !is_alpha_blend) {
+  if (!is_shadow_caster) {
     return;
   }
 

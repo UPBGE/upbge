@@ -215,7 +215,6 @@ struct Button : NonMovable {
   Layout *layout = nullptr;
   int64_t flag = 0;
   int drawflag = 0;
-  char flag2 = 0;
 
   int upbgeflag = 0;
 
@@ -1717,7 +1716,9 @@ Block *block_find_mouse_over_ex(const ARegion *region, const int xy[2], bool onl
     ATTR_NONNULL(1, 2);
 Block *block_find_mouse_over(const ARegion *region, const wmEvent *event, bool only_clip);
 
-Button *region_find_first_but_test_flag(ARegion *region, int flag_include, int flag_exclude);
+Button *region_find_first_but_test_flag(ARegion *region,
+                                        int64_t flag_include,
+                                        int64_t flag_exclude);
 Button *region_find_active_but(ARegion *region) ATTR_WARN_UNUSED_RESULT;
 bool region_contains_point_px(const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
