@@ -87,7 +87,9 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
         m_triangleIndexVertexArray(nullptr),
         m_forceReInstance(false),
         m_weldingThreshold1(0.0f),
-        m_shapeProxy(nullptr)
+        m_shapeProxy(nullptr),
+        m_decimatedMesh(nullptr),
+        m_lastCollapseFactor(1.0f)
   {
     m_childTrans.setIdentity();
   }
@@ -150,6 +152,10 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
 
   /* For gpu reinstance (no topology changes) */
   bool UpdateMeshGPU(class KX_GameObject *gameobj);
+  /* Update m_vertexArray from updated positions (GPU vbo or CPU mesh_eval->vertex_positions) */
+  void UpdateVertexArray(blender::Mesh *source_mesh, std::vector<float> *vbo_positions = nullptr);
+  /* Update other physics arrays (m_polygonIndexArray, m_triFaceArray, m_triFaceUVcoArray...) */
+  void UpdateOtherArrays(blender::Mesh *source_mesh);
 
   void updateIndexedMeshVertexBase();
   bool GetForceReInstance()
@@ -161,6 +167,9 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return m_triangleIndexVertexArray;
   }
   /**********************/
+
+  /* Generates a decimated Mesh * from non decimated Mesh * to update physics shape */
+  void DecimateMesh(blender::Mesh *mesh, float collapseFactor);
 
   bool UpdateMesh(class KX_GameObject *from_gameobj,
                   class RAS_MeshObject *from_meshobj,
@@ -222,6 +231,11 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   float m_weldingThreshold1;
   /// only used for PHY_SHAPE_PROXY, pointer to actual shape info
   CcdShapeConstructionInfo *m_shapeProxy;
+  /// Use a decimated Mesh * instead of the real rendered Mesh * to update physics shape (short
+  /// circuit ReinstancePhysicsMesh)
+  blender::Mesh *m_decimatedMesh = nullptr;
+  std::map<int, int> m_vertIndexMap = {};
+  float m_lastCollapseFactor = 1.0f;
 };
 
 struct CcdConstructionInfo {
@@ -908,7 +922,8 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                       RAS_MeshObject *from_meshobj,
                                       bool dupli = false,
-                                      bool evaluatedMesh = false);
+                                      bool evaluatedMesh = false,
+                                      float collapseFactor = 1.0f);
 
   virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
 

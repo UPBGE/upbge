@@ -58,6 +58,11 @@
 #include "../draw/intern/draw_cache_extract.hh"
 #include "../blenkernel/intern/mesh_gpu_cache.hh"
 
+/* includes for Mesh decimation to simplify physics shape */
+#include "BKE_lib_id.hh"
+#include "../bmesh/intern/bmesh_mesh_convert.hh"
+#include "../bmesh/tools/bmesh_decimate.hh"
+
 using namespace blender;
 
 
@@ -1880,7 +1885,7 @@ bool CcdPhysicsController::IsPhysicsSuspended()
 bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                                   RAS_MeshObject *from_meshobj,
                                                   bool dupli,
-                                                  bool evaluatedMesh)
+                                                  bool evaluatedMesh, float collapseFactor)
 {
   if (!(ELEM(m_shapeInfo->m_shapeType, PHY_SHAPE_MESH, PHY_SHAPE_POLYTOPE)))
     return false;
@@ -1896,6 +1901,28 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
 
   /* updates the arrays used for making the new bullet mesh */
   m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj, evaluatedMesh);
+
+  /* If collapseFactor < 1.0f we perform a BMesh based
+   * decimation on a temporary copy of the evaluated mesh before
+   * constructing the physics shape. The full implementation requires
+   * use of Blender's BMesh API (BM_mesh_bm_from_me, BM_mesh_decimate_collapse,
+   * BM_mesh_bm_to_me) and maintaining a mapping from decimated to
+   * original vertex indices. That logic is non-trivial and may affect
+   * ownership of Mesh objects; here we forward the collapseFactor down to
+   * UpdateMesh/UpdateMeshGPU which can optionally perform GPU/CPU based
+   * updates. */
+  bool can_be_decimated = false;
+  if (from_gameobj && evaluatedMesh) {
+    Object *blenderobj = from_gameobj->GetBlenderObject();
+    Mesh *mesh = (Mesh *)blenderobj->data;
+    can_be_decimated = true;
+    if (can_be_decimated) {
+      Object *ob_eval = DEG_get_evaluated(
+          CTX_data_depsgraph_on_load(KX_GetActiveEngine()->GetContext()), blenderobj);
+      Mesh *mesh_eval = (Mesh *)ob_eval->data;
+      m_shapeInfo->DecimateMesh(mesh_eval, collapseFactor);
+    }
+  }
 
   /* create the new bullet mesh */
   GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
@@ -2101,6 +2128,8 @@ void CcdShapeConstructionInfo::ProcessReplica()
   m_triFaceArray.clear();
   m_triFaceUVcoArray.clear();
   m_shapeArray.clear();
+  m_vertIndexMap.clear();
+  m_lastCollapseFactor = 1.0f;
 }
 
 bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
@@ -2139,108 +2168,13 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   if (polytope) {
     // --- POLYTOPE: Build a convex hull from all mesh vertices ---
-    const blender::Span<blender::float3> positions = me->vert_positions();
-
-    // Remap to ensure each vertex is added only once and to provide compact indices.
-    // Not really needed, but keep the logic similar
-    std::map<int, int> vert_remap;
-    int next_vert = 0;
-
-    // Tag and remap all vertices.
-    for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
-      vert_remap[vert_idx] = next_vert++;
-    }
-
-    // If no vertices were found, the mesh is empty.
-    if (next_vert == 0) {
-      m_shapeType = PHY_SHAPE_NONE;
-      m_meshObject = nullptr;
-      m_vertexArray.clear();
-      m_polygonIndexArray.clear();
-      m_triFaceArray.clear();
-      m_triFaceUVcoArray.clear();
-      return false;
-    }
-
-    // Fill the compacted vertex array using the remapped indices.
-    m_vertexArray.resize(next_vert * 3);
-    for (const auto &pair : vert_remap) {
-      const float *vtx = &positions[pair.first][0];
-      int idx = pair.second;
-      m_vertexArray[idx * 3 + 0] = vtx[0];
-      m_vertexArray[idx * 3 + 1] = vtx[1];
-      m_vertexArray[idx * 3 + 2] = vtx[2];
-    }
+    UpdateVertexArray(me, nullptr);
     // No triangle, UV, or polygon index arrays needed for polytope (convex hull).
   }
   else {
     // --- TRIANGLE MESH: Use modern triangulation and UVs ---
-    const blender::Span<blender::int3> tris = me->corner_tris();
-    const blender::Span<int> corner_verts = me->corner_verts();
-    const blender::Span<int> tri_faces = me->corner_tri_faces();
-
-    // UVs
-    blender::VArraySpan<blender::float2> uvs;
-    const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
-    if (uv_layer_count > 0) {
-      const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
-      if (uv_name) {
-        blender::bke::AttributeAccessor attributes = me->attributes();
-        if (auto uv_varray = attributes.lookup<blender::float2>(uv_name,
-                                                                blender::bke::AttrDomain::Corner))
-        {
-          uvs = *uv_varray;
-        }
-      }
-    }
-
-    std::map<int, int> vert_remap;
-    int next_vert = 0;
-
-    for (int t = 0; t < tris.size(); ++t) {
-      const blender::int3 &tri = tris[t];
-      int tri_indices[3];
-      UVco tri_uv[3];
-
-      for (int j = 0; j < 3; ++j) {
-        int loop_idx = tri[j];
-        int vert_idx = corner_verts[loop_idx];
-
-        // Remap or add the vertex
-        auto it = vert_remap.find(vert_idx);
-        if (it == vert_remap.end()) {
-          m_vertexArray.push_back(positions[vert_idx][0]);
-          m_vertexArray.push_back(positions[vert_idx][1]);
-          m_vertexArray.push_back(positions[vert_idx][2]);
-          tri_indices[j] = next_vert;
-          vert_remap[vert_idx] = next_vert++;
-        }
-        else {
-          tri_indices[j] = it->second;
-        }
-
-        // UVs
-        if (!uvs.is_empty()) {
-          tri_uv[j].uv[0] = uvs[loop_idx].x;
-          tri_uv[j].uv[1] = uvs[loop_idx].y;
-        }
-      }
-
-      // Triangle indices
-      m_triFaceArray.push_back(tri_indices[0]);
-      m_triFaceArray.push_back(tri_indices[1]);
-      m_triFaceArray.push_back(tri_indices[2]);
-
-      // Triangle UVs
-      if (!uvs.is_empty()) {
-        m_triFaceUVcoArray.push_back(tri_uv[0]);
-        m_triFaceUVcoArray.push_back(tri_uv[1]);
-        m_triFaceUVcoArray.push_back(tri_uv[2]);
-      }
-
-      // Polygon index (original polygon index for this triangle)
-      m_polygonIndexArray.push_back(tri_faces[t]);
-    }
+    UpdateVertexArray(me, nullptr);
+    UpdateOtherArrays(me);
   }
 
   if (!m_vertexArray.size() || (!polytope && m_triFaceArray.empty())) {
@@ -2261,6 +2195,89 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
   }
   return true;
+}
+
+void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseFactor)
+{
+  if (collapseFactor > 1.0f) {
+    collapseFactor = 1.0f;
+  }
+  if (collapseFactor < 0.0f) {
+    collapseFactor = 0.0f;
+  }
+  if (collapseFactor == m_lastCollapseFactor) {
+    return;
+  }
+  if (m_decimatedMesh) {
+    BKE_id_free(nullptr, &m_decimatedMesh->id);
+    m_decimatedMesh = nullptr;
+  }
+  m_vertIndexMap.clear();
+
+  m_lastCollapseFactor = collapseFactor;
+  /* Create a mesh to receive the decimated result. */
+  m_decimatedMesh = BKE_mesh_new_nomain_from_template(
+      mesh, mesh->verts_num, mesh->edges_num, mesh->faces_num, mesh->corners_num);
+
+  BMeshCreateParams create_params{};
+  create_params.use_toolflags = true;
+  bool add_key_index = true;
+
+  BMeshFromMeshParams bmesh_from_mesh_params{};
+  bmesh_from_mesh_params.calc_face_normal = true;
+  bmesh_from_mesh_params.calc_vert_normal = true;
+  bmesh_from_mesh_params.add_key_index = add_key_index;
+
+  BMesh *bm = BKE_mesh_to_bmesh_ex(mesh, &create_params, &bmesh_from_mesh_params);
+  BM_mesh_decimate_collapse(bm, collapseFactor, nullptr, 0.0f, false, -1, 0.0f);
+
+  /* Build mapping new_vertex_index -> original_vertex_index using
+   * the CD_SHAPE_KEYINDEX layer that was created by BKE_mesh_to_bmesh
+   * when add_key_index was true. Iterate BM verts in the same order
+   * as they will be written back to the Mesh so indices line up. */
+
+  int cd_off = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
+
+  {
+    BMIter iter;
+    BMVert *v;
+    int new_index = 0;
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      int orig_index = ORIGINDEX_NONE;
+      if (cd_off != -1) {
+        orig_index = BM_ELEM_CD_GET_INT(v, cd_off);
+      }
+      /* Store mapping original_index -> decimated_index so we can iterate
+       * over original vertices later when copying GPU results. */
+      if (orig_index != ORIGINDEX_NONE) {
+        m_vertIndexMap[orig_index] = new_index;
+      }
+      new_index++;
+    }
+  }
+
+  /* Convert the decimated BMesh back to Mesh and free temporary BMesh. */
+  BMeshToMeshParams to_me_params{};
+  to_me_params.calc_object_remap = false;
+  to_me_params.update_shapekey_indices = false;
+  to_me_params.active_shapekey_to_mvert = false;
+  BM_mesh_bm_to_me(nullptr, bm, m_decimatedMesh, &to_me_params);
+  BM_mesh_free(bm);
+  /* Rebuild internal arrays from the decimated mesh so we can re-instance
+   * the Bullet shape without waiting for the GPU update path. */
+  if (m_decimatedMesh) {
+    blender::Mesh *dm = m_decimatedMesh;
+    if (m_shapeType == PHY_SHAPE_POLYTOPE) {
+      const blender::Span<blender::float3> positions = dm->vert_positions();
+      UpdateVertexArray(mesh, nullptr);
+    }
+    else {
+      UpdateVertexArray(mesh, nullptr);
+      UpdateOtherArrays(dm);
+    }
+  }
+
+  m_forceReInstance = true;
 }
 
 /* Update the internal btIndexedMesh pointers to point to the current
@@ -2339,40 +2356,14 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
   /* Host_visible mapping (CPU friendly memory) */
   gpu::VertBuf *vbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
       me, ob_eval, key_out0, verts_num * sizeof(float) * 4, true);
-  gpu::VertBuf *vbo_out1 = bke::BKE_mesh_gpu_internal_vbo_ensure(
-      me, ob_eval, key_out1, verts_num * sizeof(float) * 4, true);
 
-  if (!vbo_out0 || !vbo_out1) {
+  if (!vbo_out0) {
     return false;
-  }
-
-  /* Per-mesh ping/pong state to avoid GPU<->CPU stalls (double buffering). */
-  static std::unordered_map<Mesh *, int> ssbo_toggle_map;
-  static std::unordered_map<Mesh *, std::array<bool, 2>> ssbo_init_map;
-  static std::mutex ssbo_map_mutex;
-
-  int toggle = 0;
-  bool read_ready = false;
-  {
-    std::lock_guard<std::mutex> lock(ssbo_map_mutex);
-    auto it = ssbo_toggle_map.find(me_original);
-    if (it == ssbo_toggle_map.end()) {
-      ssbo_toggle_map.emplace(me_original, 0);
-      ssbo_init_map.emplace(me_original, std::array<bool, 2>{false, false});
-      toggle = 0;
-    }
-    else {
-      toggle = it->second;
-    }
-    read_ready = ssbo_init_map[me_original][toggle ^ 1];
   }
 
   bke::MeshGpuData *mesh_gpu_data = bke::BKE_mesh_gpu_ensure_data(me_original, me_eval);
   std::string glsl_accessors = bke::BKE_mesh_gpu_topology_glsl_accessors_string(
       mesh_gpu_data->topology);
-
-  gpu::VertBuf *vbo_write = nullptr;
-  gpu::VertBuf *vbo_read = nullptr;
 
   /* Compute shader that averages corner positions per vertex. */
   static const char *cs_src = R"GLSL(
@@ -2406,9 +2397,7 @@ void main() {
   vbo_pos->bind_as_ssbo(0);
   /* Bind the write buffer for this frame (ping) and leave the other buffer
    * available for CPU read (previous frame). */
-  vbo_write = (toggle == 0) ? vbo_out0 : vbo_out1;
-  vbo_read = (toggle == 0) ? vbo_out1 : vbo_out0;
-  GPU_vertbuf_bind_as_ssbo(vbo_write, 1);
+  GPU_vertbuf_bind_as_ssbo(vbo_out0, 1);
   GPU_storagebuf_bind(mesh_gpu_data->topology.ssbo, 15);
 
   const int group_size = 256;
@@ -2417,89 +2406,130 @@ void main() {
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
-  /* Double-buffering: read from the previous buffer if available. If this is
-   * the first time, ssbo_read may not contain valid data yet -> skip read and
-   * mark the write buffer as initialized for next frame. */
-  if (!read_ready) {
-    std::lock_guard<std::mutex> lock(ssbo_map_mutex);
-    ssbo_init_map[me_original][toggle] = true; /* write buffer now initialized */
-    ssbo_toggle_map[me_original] = toggle ^ 1; /* next frame will write other buffer */
-    return false;
-  }
 
-  const size_t verts_floats = size_t(verts_num) * 4;
-#ifdef BT_USE_DOUBLE_PRECISION
   thread_local std::vector<float> tmp;
-  tmp.resize(size_t(verts_num) * 4);
-  bool ok_fast = GPU_vertbuf_read_if_ready(vbo_read, tmp.data());
+  tmp.resize(size_t(me_eval->verts_num) * 4);
+
+  bool ok_fast = GPU_vertbuf_read_if_ready(vbo_out0, tmp.data());
   if (!ok_fast) {
     return false;
   }
+  Mesh *source_mesh = m_decimatedMesh ? m_decimatedMesh : me_eval;
 
-  const size_t elems = size_t(verts_num) * 3;
-  m_vertexArray.resize(elems);
-  /* Parallel convert floats -> btScalar (double) */
-  {
-    struct ConvertCtx {
-      const float *src;
-      btScalar *dst;
-    } ctx{tmp.data(), &m_vertexArray[0]};
+  UpdateVertexArray(me_eval, &tmp);
+  UpdateOtherArrays(source_mesh);
 
-    /* Fallback single-threaded conversion to avoid dependency on task API here. */
-    for (int i = 0; i < verts_num; ++i) {
-      const size_t src = size_t(i) * 4;
-      const size_t dst = size_t(i) * 3;
-      ctx.dst[dst + 0] = static_cast<btScalar>(ctx.src[src + 0]);
-      ctx.dst[dst + 1] = static_cast<btScalar>(ctx.src[src + 1]);
-      ctx.dst[dst + 2] = static_cast<btScalar>(ctx.src[src + 2]);
+  return true;
+}
+
+void CcdShapeConstructionInfo::UpdateVertexArray(Mesh *full_evaluated_mesh, std::vector<float> *vbo_positions)
+{  /* Fill m_vertexArray from either the optional GPU positions (vbo_positions)
+   * or the CPU vertex positions from full_evaluated_mesh->vert_positions().
+   * If a decimated mesh is present use m_vertIndexMap to remap original
+   * vertex indices to the decimated vertex set. */
+  if (!full_evaluated_mesh) {
+    return;
+  }
+
+  const bool have_vbo = (vbo_positions != nullptr) &&
+                        (vbo_positions->size() >= size_t(full_evaluated_mesh->verts_num) * 4);
+
+  if (m_decimatedMesh && !m_vertIndexMap.empty()) {
+    /* Resize to decimated vertex count. */
+    size_t elems = size_t(m_decimatedMesh->verts_num) * 3;
+    m_vertexArray.resize(elems);
+
+    if (have_vbo) {
+      /* GPU-provided positions are stored as vec4 (x,y,z,w) per original vertex. */
+      for (int orig = 0; orig < full_evaluated_mesh->verts_num; ++orig) {
+        auto it = m_vertIndexMap.find(orig);
+        if (it == m_vertIndexMap.end()) {
+          continue;
+        }
+        int dec_idx = it->second;
+        if (dec_idx < 0 || dec_idx >= m_decimatedMesh->verts_num) {
+          continue;
+        }
+        const size_t s = size_t(orig) * 4;
+        const size_t dst = size_t(dec_idx) * 3;
+        m_vertexArray[dst + 0] = static_cast<btScalar>((*vbo_positions)[s + 0]);
+        m_vertexArray[dst + 1] = static_cast<btScalar>((*vbo_positions)[s + 1]);
+        m_vertexArray[dst + 2] = static_cast<btScalar>((*vbo_positions)[s + 2]);
+      }
+    }
+    else {
+      /* CPU positions: vert_positions() returns a span of float3. */
+      const blender::Span<blender::float3> positions = full_evaluated_mesh->vert_positions();
+      for (int orig = 0; orig < (int)positions.size(); ++orig) {
+        auto it = m_vertIndexMap.find(orig);
+        if (it == m_vertIndexMap.end()) {
+          continue;
+        }
+        int dec_idx = it->second;
+        if (dec_idx < 0 || dec_idx >= m_decimatedMesh->verts_num) {
+          continue;
+        }
+        const size_t dst = size_t(dec_idx) * 3;
+        m_vertexArray[dst + 0] = positions[orig][0];
+        m_vertexArray[dst + 1] = positions[orig][1];
+        m_vertexArray[dst + 2] = positions[orig][2];
+      }
     }
   }
-#else
-  m_vertexArray.resize(verts_floats);
-  bool ok_fast = GPU_vertbuf_read_if_ready(ssbo_read, &m_vertexArray[0]);
-  if (!ok_fast) {
-    GPU_vertbuf_read(ssbo_read, &m_vertexArray[0]);
-  }
+  else {
+    /* Not using a decimated mesh: one-to-one copy. */
+    size_t elems = size_t(full_evaluated_mesh->verts_num) * 3;
+    m_vertexArray.resize(elems);
 
-  /* Parallel compact: vec4 -> vec3 in-place */
-  const size_t elems = size_t(verts_num) * 3;
-  {
-    /* Compact using float temporary view since data currently contains floats.
-     * m_vertexArray is btScalar but in the float path it's safe to reinterpret. */
-    float *fdata = reinterpret_cast<float *>(&m_vertexArray[0]);
-    struct CompactCtx {
-      float *data;
-    } ctx{fdata};
-
-    /* Fallback single-threaded compact to avoid task API here. */
-    for (int i = 0; i < verts_num; ++i) {
-      const size_t src = size_t(i) * 4;
-      const size_t dst = size_t(i) * 3;
-      ctx.data[dst + 0] = ctx.data[src + 0];
-      ctx.data[dst + 1] = ctx.data[src + 1];
-      ctx.data[dst + 2] = ctx.data[src + 2];
+    if (have_vbo) {
+      for (int i = 0; i < full_evaluated_mesh->verts_num; ++i) {
+        const size_t src = size_t(i) * 4;
+        const size_t dst = size_t(i) * 3;
+        m_vertexArray[dst + 0] = static_cast<btScalar>((*vbo_positions)[src + 0]);
+        m_vertexArray[dst + 1] = static_cast<btScalar>((*vbo_positions)[src + 1]);
+        m_vertexArray[dst + 2] = static_cast<btScalar>((*vbo_positions)[src + 2]);
+      }
+    }
+    else {
+      const blender::Span<blender::float3> positions = full_evaluated_mesh->vert_positions();
+      for (int i = 0; i < (int)positions.size(); ++i) {
+        const size_t dst = size_t(i) * 3;
+        m_vertexArray[dst + 0] = positions[i][0];
+        m_vertexArray[dst + 1] = positions[i][1];
+        m_vertexArray[dst + 2] = positions[i][2];
+      }
     }
   }
-  m_vertexArray.resize(elems);
-#endif
+  // Just in case
+  m_triFaceArray.clear();
+  m_triFaceUVcoArray.clear();
+  m_polygonIndexArray.clear();
+}
 
+void CcdShapeConstructionInfo::UpdateOtherArrays(Mesh *source_mesh)
+{
+  if (!source_mesh) {
+    return;
+  }
   /* If we produced vertex positions from the GPU, reconstruct the triangle
    * topology arrays so that the triangle mesh debug lines keep the same
    * visual order as the CPU path. We compact vertices according to the
    * corner topology (verts referenced by tris) and rebuild
    * m_triFaceArray / m_triFaceUVcoArray / m_polygonIndexArray accordingly. */
   if (m_shapeType == PHY_SHAPE_MESH) {
-    const blender::Span<blender::int3> tris = me->corner_tris();
-    const blender::Span<int> corner_verts = me->corner_verts();
-    const blender::Span<int> tri_faces = me->corner_tri_faces();
+    const blender::Span<blender::int3> tris = source_mesh->corner_tris();
+    const blender::Span<int> corner_verts = source_mesh->corner_verts();
+    const blender::Span<int> tri_faces = source_mesh->corner_tri_faces();
 
     // UVs
     blender::VArraySpan<blender::float2> uvs;
-    const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
+    const int uv_layer_count = CustomData_number_of_layers(&source_mesh->corner_data,
+                                                           CD_PROP_FLOAT2);
     if (uv_layer_count > 0) {
-      const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
+      const char *uv_name = CustomData_get_active_layer_name(&source_mesh->corner_data,
+                                                             CD_PROP_FLOAT2);
       if (uv_name) {
-        blender::bke::AttributeAccessor attributes = me->attributes();
+        blender::bke::AttributeAccessor attributes = source_mesh->attributes();
         if (auto uv_varray = attributes.lookup<blender::float2>(uv_name,
                                                                 blender::bke::AttrDomain::Corner))
         {
@@ -2514,7 +2544,7 @@ void main() {
     m_triFaceUVcoArray.clear();
     m_polygonIndexArray.clear();
 
-    std::vector<int> vert_remap((size_t)me->verts_num, -1);
+    std::vector<int> vert_remap((size_t)source_mesh->verts_num, -1);
     int next_vert = 0;
 
     m_triFaceArray.resize(tris.size() * 3);
@@ -2524,7 +2554,7 @@ void main() {
     }
 
     // Temporary buffer for unique vertices (read from the GPU-filled array)
-    std::vector<std::array<float, 3>> temp_vertex_buffer((size_t)me->verts_num);
+    std::vector<std::array<float, 3>> temp_vertex_buffer((size_t)source_mesh->verts_num);
 
     for (int t = 0; t < tris.size(); ++t) {
       const blender::int3 &tri = tris[t];
@@ -2574,15 +2604,6 @@ void main() {
       m_vertexArray[i * 3 + 2] = temp_vertex_buffer[i][2];
     }
   }
-
-  /* Mark the write buffer as initialized (it now contains data) and flip toggle. */
-  {
-    std::lock_guard<std::mutex> lock(ssbo_map_mutex);
-    ssbo_init_map[me_original][toggle] = true;
-    ssbo_toggle_map[me_original] = toggle ^ 1;
-  }
-
-  return true;
 }
 
 /* Updates the arrays used by CreateBulletShape(),
@@ -2646,6 +2667,15 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   bool gpu_reinstance = !from_meshobj && evaluatedMesh && from_gameobj && me && me->is_running_gpu_animation_playback;
 
   if (me && meshobj) {
+    if (me->vert_positions().size() == 0) {
+      m_shapeType = PHY_SHAPE_NONE;
+      m_meshObject = nullptr;
+      m_vertexArray.clear();
+      m_polygonIndexArray.clear();
+      m_triFaceArray.clear();
+      m_triFaceUVcoArray.clear();
+      return false;
+    }
     if (m_shapeType == PHY_SHAPE_POLYTOPE) {
       /* GPU path when gpu animated meshes. Only updates m_vertexArray
        * from the GPU position VBO. The triangle/index/uv/polygon arrays
@@ -2655,22 +2685,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       }
       if (!gpu_reinstance) {
         // CPU.
-        if (me->vert_positions().size() == 0) {
-          m_shapeType = PHY_SHAPE_NONE;
-          m_meshObject = nullptr;
-          m_vertexArray.clear();
-          m_polygonIndexArray.clear();
-          m_triFaceArray.clear();
-          m_triFaceUVcoArray.clear();
-          return false;
-        }
-        const blender::Span<blender::float3> positions = me->vert_positions();
-        m_vertexArray.resize(me->vert_positions().size() * 3);
-        for (int vert_idx = 0; vert_idx < positions.size(); ++vert_idx) {
-          m_vertexArray[vert_idx * 3 + 0] = positions[vert_idx][0];
-          m_vertexArray[vert_idx * 3 + 1] = positions[vert_idx][1];
-          m_vertexArray[vert_idx * 3 + 2] = positions[vert_idx][2];
-        }
+        UpdateVertexArray(me, nullptr);
       }
       /* No triangle, UV, or polygon index arrays needed for polytope (convex
        * hull). */
@@ -2683,94 +2698,9 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
         UpdateMeshGPU(from_gameobj);
       }
       if (!gpu_reinstance) {
-        // --- TRIANGLE MESH: Optimization without TBB, using topology hash ---
-        const blender::Span<blender::float3> positions = me->vert_positions();
-        const blender::Span<blender::int3> tris = me->corner_tris();
-        const blender::Span<int> corner_verts = me->corner_verts();
-        const blender::Span<int> tri_faces = me->corner_tri_faces();
-
-        // UVs
-        blender::VArraySpan<blender::float2> uvs;
-        const int uv_layer_count = CustomData_number_of_layers(&me->corner_data, CD_PROP_FLOAT2);
-        if (uv_layer_count > 0) {
-          const char *uv_name = CustomData_get_active_layer_name(&me->corner_data, CD_PROP_FLOAT2);
-          if (uv_name) {
-            blender::bke::AttributeAccessor attributes = me->attributes();
-            if (auto uv_varray = attributes.lookup<blender::float2>(
-                    uv_name, blender::bke::AttrDomain::Corner))
-            {
-              uvs = *uv_varray;
-            }
-          }
-        }
-
-        m_vertexArray.clear();
-        m_triFaceArray.clear();
-        m_triFaceUVcoArray.clear();
-        m_polygonIndexArray.clear();
-
-        // Topology changed: full reconstruction
-        std::vector<int> vert_remap(positions.size(), -1);
-        int next_vert = 0;
-
-        m_triFaceArray.resize(tris.size() * 3);
-        m_polygonIndexArray.resize(tris.size());
-        if (!uvs.is_empty()) {
-          m_triFaceUVcoArray.resize(tris.size() * 3);
-        }
-
-        // Temporary buffer for unique vertices
-        std::vector<std::array<float, 3>> temp_vertex_buffer(positions.size());
-
-        for (int t = 0; t < tris.size(); ++t) {
-          const blender::int3 &tri = tris[t];
-          int tri_indices[3];
-          UVco tri_uv[3] = {};
-
-          for (int j = 0; j < 3; ++j) {
-            int loop_idx = tri[j];
-            int vert_idx = corner_verts[loop_idx];
-
-            int idx = vert_remap[vert_idx];
-            if (idx == -1) {
-              idx = next_vert++;
-              vert_remap[vert_idx] = idx;
-              temp_vertex_buffer[idx][0] = positions[vert_idx][0];
-              temp_vertex_buffer[idx][1] = positions[vert_idx][1];
-              temp_vertex_buffer[idx][2] = positions[vert_idx][2];
-            }
-            tri_indices[j] = idx;
-
-            // UVs
-            if (!uvs.is_empty()) {
-              tri_uv[j].uv[0] = uvs[loop_idx].x;
-              tri_uv[j].uv[1] = uvs[loop_idx].y;
-            }
-          }
-
-          // Triangle indices
-          m_triFaceArray[t * 3 + 0] = tri_indices[0];
-          m_triFaceArray[t * 3 + 1] = tri_indices[1];
-          m_triFaceArray[t * 3 + 2] = tri_indices[2];
-
-          // Triangle UVs
-          if (!uvs.is_empty()) {
-            m_triFaceUVcoArray[t * 3 + 0] = tri_uv[0];
-            m_triFaceUVcoArray[t * 3 + 1] = tri_uv[1];
-            m_triFaceUVcoArray[t * 3 + 2] = tri_uv[2];
-          }
-
-          // Polygon index (original polygon index for this triangle)
-          m_polygonIndexArray[t] = tri_faces[t];
-        }
-
-        // Copy unique vertices to m_vertexArray
-        m_vertexArray.resize(next_vert * 3);
-        for (int i = 0; i < next_vert; ++i) {
-          m_vertexArray[i * 3 + 0] = temp_vertex_buffer[i][0];
-          m_vertexArray[i * 3 + 1] = temp_vertex_buffer[i][1];
-          m_vertexArray[i * 3 + 2] = temp_vertex_buffer[i][2];
-        }
+        UpdateVertexArray(me, nullptr);
+        Mesh *source_mesh = m_decimatedMesh ? m_decimatedMesh : me;
+        UpdateOtherArrays(source_mesh);
       }
     }
   }
@@ -3069,6 +2999,13 @@ CcdShapeConstructionInfo::~CcdShapeConstructionInfo()
     shapeInfo->Release();
   }
   m_shapeArray.clear();
+
+  if (m_decimatedMesh) {
+    BKE_id_free(nullptr, &m_decimatedMesh->id);
+    m_decimatedMesh = nullptr;
+  }
+  m_vertIndexMap.clear();
+  m_lastCollapseFactor = 1.0f;
 
   if (m_triangleIndexVertexArray)
     delete m_triangleIndexVertexArray;

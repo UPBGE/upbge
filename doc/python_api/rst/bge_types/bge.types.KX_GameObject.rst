@@ -1099,7 +1099,7 @@ base class --- :class:`~bge.types.SCA_IObject`
       :arg to: The name of the object to send the message to (optional)
       :type to: string
 
-   .. method:: reinstancePhysicsMesh(gameObject, meshObject, dupli, evaluated)
+   .. method:: reinstancePhysicsMesh(gameObject, meshObject, dupli, evaluated, collapseFactor)
 
       Updates the physics system with the changed mesh.
 
@@ -1113,6 +1113,8 @@ base class --- :class:`~bge.types.SCA_IObject`
       :type dupli: boolean
       :arg evaluated: optional argument, use evaluated object physics shape (Object with modifiers applied, default to True).
       :type evaluated: boolean
+      :arg collapseFactor: optional argument, set the collapse factor for the decimated mesh, default to 1.0.
+      :type collapseFactor: float
 
       :return: True if reinstance succeeded, False if it failed.
       :rtype: boolean
