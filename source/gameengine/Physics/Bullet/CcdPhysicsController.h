@@ -415,6 +415,8 @@ struct CcdConstructionInfo {
   int m_soft_collisionflags;
   /// number of iterations to refine collision clusters
   int m_soft_numclusteriterations;
+  /// soft body indices mapping (mesh vertices -> softbody nodes)
+  std::vector<int> m_soft_indices;
 
   int m_collisionFlags;
   bool m_bDyna;

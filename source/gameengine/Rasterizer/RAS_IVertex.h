@@ -67,16 +67,6 @@ class RAS_VertexInfo {
     return m_origindex;
   }
 
-  inline short int getSoftBodyIndex() const
-  {
-    return m_softBodyIndex;
-  }
-
-  inline void setSoftBodyIndex(short int sbIndex)
-  {
-    m_softBodyIndex = sbIndex;
-  }
-
   inline const short getFlag() const
   {
     return m_flag;

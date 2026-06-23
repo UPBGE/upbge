@@ -526,29 +526,24 @@ bool CcdPhysicsController::CreateSoftbody()
     RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
 
     if (rasMesh && !m_softbodyMappingDone) {
-      RAS_MeshMaterial *mmat;
+      Object *ob_orig = rasMesh->GetOriginalObject();
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+      Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+      Mesh *mesh_eval = (Mesh *)ob_eval->data;
+      Span<float3> positions = mesh_eval->vert_positions();
 
-      // for each material
-      for (int m = 0; m < rasMesh->NumMaterials(); m++) {
-        mmat = rasMesh->GetMeshMaterial(m);
-
-        RAS_IDisplayArray *array = mmat->GetDisplayArray();
-
-        for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-          RAS_IVertex *vertex = array->GetVertex(i);
-          RAS_VertexInfo &vertexInfo = array->GetVertexInfo(i);
-          // search closest index, and store it in vertex
-          vertexInfo.setSoftBodyIndex(0);
-          btScalar maxDistSqr = 1e30;
-          btSoftBody::tNodeArray &nodes(psb->m_nodes);
-          btVector3 xyz = ToBullet(vertex->xyz());
-          for (int n = 0; n < nodes.size(); n++) {
-            btScalar distSqr = (nodes[n].m_x - xyz).length2();
-            if (distSqr < maxDistSqr) {
-              maxDistSqr = distSqr;
-
-              vertexInfo.setSoftBodyIndex(n);
-            }
+      m_cci.m_soft_indices.resize(mesh_eval->verts_num);
+      for (int v = 0; v < mesh_eval->verts_num; v++) {
+        m_cci.m_soft_indices[v] = 0;
+        btScalar maxDistSqr = 1e30;
+        btSoftBody::tNodeArray &nodes(psb->m_nodes);
+        btVector3 xyz = ToBullet(MT_Vector3(positions[v][0], positions[v][1], positions[v][2]));
+        for (int n = 0; n < nodes.size(); n++) {
+          btScalar distSqr = (nodes[n].m_x - xyz).length2();
+          if (distSqr < maxDistSqr) {
+            maxDistSqr = distSqr;
+            m_cci.m_soft_indices[v] = n;
           }
         }
       }
@@ -912,16 +907,10 @@ void CcdPhysicsController::UpdateSoftBody()
                                                   __func__);
           }
 
-          for (int m = 0; m < rasMesh->NumMaterials(); m++) {
-            RAS_MeshMaterial *mmat = rasMesh->GetMeshMaterial(m);
-            RAS_IDisplayArray *array = mmat->GetDisplayArray();
-            for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-              RAS_VertexInfo info = array->GetVertexInfo(i);
-              float *v1 = &m_sbCoords[info.getOrigIndex()][0];
-              int i1 = info.getSoftBodyIndex();
-              MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
-              copy_v3_v3(v1, p1.getValue());
-            }
+          for (int v = 0; v < me->vert_positions().size(); v++) {
+            int i1 = m_cci.m_soft_indices[v];
+            MT_Vector3 p1 = invtrans * ToMoto(nodes.at(i1).m_x);
+            copy_v3_v3(m_sbCoords[v], p1.getValue());
           }
 
           m_sbModifier->vertcoos = m_sbCoords;
