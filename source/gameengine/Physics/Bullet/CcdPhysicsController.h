@@ -141,6 +141,8 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return true;
   }
 
+  /* Initialize the physics shape with evaluated mesh (at conversion time, RAS_MeshObject snapshot
+   * matches the evaluated mesh). */
   bool SetMesh(class KX_Scene *kxscene,
                class RAS_MeshObject *mesh,
                bool polytope);
@@ -152,12 +154,15 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
 
   /* For gpu reinstance (no topology changes) */
   bool UpdateMeshGPU(class KX_GameObject *gameobj);
-  /* Update m_vertexArray from updated positions (GPU vbo or CPU mesh_eval->vertex_positions) */
+  /* Update m_vertexArray (physics positions) from updated positions (GPU vbo or CPU mesh_eval->vertex_positions)
+   * Use both for convex hull and triangle mesh */
   void UpdateVertexArray(blender::Mesh *source_mesh, std::vector<float> *vbo_positions = nullptr);
-  /* Update other physics arrays (m_polygonIndexArray, m_triFaceArray, m_triFaceUVcoArray...) */
+  /* Update other physics arrays (m_polygonIndexArray, m_triFaceArray, m_triFaceUVcoArray...).
+   * Used only for triangle mesh shapes. Can only be called after UpdateVertexArray. */
   void UpdateOtherArrays(blender::Mesh *source_mesh);
-
+  /* Don't recreate the full physics shape (no ReplaceControllerShape)*/
   void updateIndexedMeshVertexBase();
+
   bool GetForceReInstance()
   {
     return m_forceReInstance;
@@ -171,6 +176,7 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   /* Generates a decimated Mesh * from non decimated Mesh * to update physics shape */
   void DecimateMesh(blender::Mesh *mesh, float collapseFactor);
 
+  /* Used after first physics shape initialization to recreate or update the physics shape */
   bool UpdateMesh(class KX_GameObject *from_gameobj,
                   class RAS_MeshObject *from_meshobj,
                   bool evaluatedMesh = false);
@@ -226,6 +232,10 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   /// for compound shapes
   std::vector<CcdShapeConstructionInfo *> m_shapeArray;
   /// use gimpact for concave dynamic/moving collision detection
+  /// for btGImpactMeshShape, Always call updateBound() after setMargin().
+  /// When m_forceReInstance is true, the physics shape will be re-instanced from scratch
+  /// (ReplaceControllerShape) when the mesh is updated (topology change). If topology does'nt
+  /// change, it is possible to update without recreating everything (UpdateShapeFromShapeInfo)
   bool m_forceReInstance;
   /// welding closeby vertices together can improve softbody stability etc.
   float m_weldingThreshold1;
@@ -234,7 +244,10 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   /// Use a decimated Mesh * instead of the real rendered Mesh * to update physics shape (short
   /// circuit ReinstancePhysicsMesh)
   blender::Mesh *m_decimatedMesh = nullptr;
+  /// Map between evaluated_mesh vertex index and decimated mesh vertex index.
   std::map<int, int> m_vertIndexMap = {};
+  /// Between 0.0 and 1.0, the factor used to decimate the mesh for physics shape update (0.0 means
+  /// maximum decimation, 1.0 means no decimation).
   float m_lastCollapseFactor = 1.0f;
 };
 

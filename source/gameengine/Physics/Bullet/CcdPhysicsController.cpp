@@ -2236,8 +2236,9 @@ void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseF
       if (cd_off != -1) {
         orig_index = BM_ELEM_CD_GET_INT(v, cd_off);
       }
-      /* Store mapping original_index -> decimated_index so we can iterate
-       * over original vertices later when copying GPU results. */
+      /* Store mapping original_index (eval_mesh index) -> decimated_index so we can iterate
+       * over original vertices later when copying GPU positions from eval mesh positions vbo (if GPU deformed mesh),
+       * or from eval_mesh->vertex_positions (if CPU deformation). */
       if (orig_index != ORIGINDEX_NONE) {
         m_vertIndexMap[orig_index] = new_index;
       }
