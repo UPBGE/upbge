@@ -1103,17 +1103,18 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       Updates the physics system with the changed mesh.
 
-      If no arguments are given the physics mesh will be re-created from the first mesh assigned to the game object.
+      If no arguments are given the physics mesh will be re-created from the evaluated mesh.
+      If collapseFactor is < 1.0, a decimated mesh will be used as basis to reinstance the physics mesh (triangle mesh or convex hull only).
 
       :arg gameObject: optional argument, set the physics shape from this gameObjets mesh.
       :type gameObject: string, :class:`~bge.types.KX_GameObject` or None
-      :arg meshObject: optional argument, set the physics shape from this mesh.
+      :arg meshObject: optional argument, set the physics shape from this mesh (snapshot of conversion time physics shape).
       :type meshObject: string, :class:`~bge.types.KX_MeshProxy` or None
       :arg dupli: optional argument, duplicate the physics shape, default to False.
       :type dupli: boolean
       :arg evaluated: optional argument, use evaluated object physics shape (Object with modifiers applied, default to True).
       :type evaluated: boolean
-      :arg collapseFactor: optional argument, set the collapse factor for the decimated mesh, default to 1.0.
+      :arg collapseFactor: optional argument, set the collapse factor for the decimated mesh, default to 1.0, clamped between 0.0 and 1.0.
       :type collapseFactor: float
 
       :return: True if reinstance succeeded, False if it failed.
