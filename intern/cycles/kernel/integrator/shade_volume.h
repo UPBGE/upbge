@@ -89,10 +89,8 @@ ccl_device_inline Spectrum volume_shader_eval_extinction(KernelGlobals kg,
                                                          const PathRayVisibility path_visibility,
                                                          uint32_t path_flag)
 {
-  /* Use emission flag to avoid storing phase function. */
-  /* TODO(weizhen): we could add another flag to skip evaluating the emission, but we've run out of
-   * bits for the path flag.*/
-  path_flag |= PATH_RAY_EMISSION;
+  /* Use extinction flag to avoid storing phase function and evaluating emission. */
+  path_flag |= PATH_RAY_EXTINCTION;
 
   volume_shader_eval<shadow>(kg, state, sd, path_visibility, path_flag);
 
@@ -674,6 +672,15 @@ ccl_device void volume_shadow_null_scattering(KernelGlobals kg,
                                               ccl_private ShaderData *ccl_restrict sd,
                                               ccl_private Spectrum *ccl_restrict throughput)
 {
+  if (volume_is_homogeneous<true>(kg, state)) {
+    const Spectrum extinction = volume_shader_eval_extinction<true>(
+        kg, state, sd, PATH_RAY_VISIBILITY_SHADOW, PATH_RAY_FLAG_NONE);
+    if (!is_zero(extinction)) {
+      *throughput *= volume_color_transmittance(extinction, ray->tmax - ray->tmin);
+    }
+    return;
+  }
+
   /* Load random number state. */
   RNGState rng_state;
   shadow_path_state_rng_load(state, &rng_state);
