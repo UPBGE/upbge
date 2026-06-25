@@ -856,7 +856,7 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   return true;
 }
 
-void CcdPhysicsController::UpdateSoftBody()
+void CcdPhysicsController::UpdateSoftBodyRenderedMesh()
 {
   btSoftBody *sb = GetSoftBody();
   if (sb) {

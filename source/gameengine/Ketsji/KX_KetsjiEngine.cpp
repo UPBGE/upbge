@@ -554,7 +554,8 @@ bool KX_KetsjiEngine::NextFrame()
 
       /* No need to call sofbody update more than 1 time */
       if (i == times.frames - 1) {
-        scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+        /// Update SoftBodies rendered mesh from bullet softbody simulation.
+        scene->GetPhysicsEnvironment()->UpdateSoftBodiesRenderedMesh();
       }
 
       m_logger.StartLog(tc_scenegraph);

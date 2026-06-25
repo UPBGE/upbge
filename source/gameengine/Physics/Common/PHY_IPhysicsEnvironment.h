@@ -123,7 +123,8 @@ class PHY_IPhysicsEnvironment {
   /// Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval) = 0;
 
-  virtual void UpdateSoftBodies() = 0;
+  /// Update SoftBodies rendered mesh from bullet softbody simulation.
+  virtual void UpdateSoftBodiesRenderedMesh() = 0;
 
   /// draw debug lines (make sure to call this during the render phase, otherwise lines are not
   /// drawn properly)

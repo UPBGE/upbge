@@ -611,6 +611,10 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   btCollisionObject *m_object;
   CcdCharacter *m_characterController;
 
+  /// Note: In old bge, softbodies had "deformers" (RAS_Deformer, KX_SoftBodyDeformer...);
+  /// In 2.8+, we add a temporary (same lifecycle than physics controller) modifier
+  /// (MOD_deform_bge) to the KX_GameObject's Object to imitate Blender way of doing deformations;
+  /// (it ensures we have an unique rendered mesh for each replica).
   blender::SimpleDeformModifierDataBGE *m_sbModifier;
   float (*m_sbCoords)[3];
 
@@ -723,7 +727,8 @@ class CcdPhysicsController : public PHY_IPhysicsController {
    */
   virtual bool SynchronizeMotionStates(float time);
 
-  virtual void UpdateSoftBody();
+  /// Update SoftBody rendered mesh from bullet softbody simulation.
+  virtual void UpdateSoftBodyRenderedMesh();
   virtual void RemoveSoftBodyModifier(blender::Object *ob);
 
   /**

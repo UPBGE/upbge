@@ -60,7 +60,12 @@ class PHY_IPhysicsController : public PHY_IController {
    */
   virtual bool SynchronizeMotionStates(float time) = 0;
 
-  virtual void UpdateSoftBody() = 0;
+  /// Update SoftBody rendered mesh from bullet softbody simulation.
+  /// Note: In old bge, it was done with "deformers" (RAS_Deformer, KX_SoftBodyDeformer...);
+  /// In 2.8+, we add a temporary (same lifecycle than physics controller) modifier (MOD_deform_bge)
+  /// to the KX_GameObject's Object to imitate Blender way of doing deformations;
+  /// (it ensures we have an unique rendered mesh for each replica).
+  virtual void UpdateSoftBodyRenderedMesh() = 0;
   virtual void RemoveSoftBodyModifier(blender::Object *ob) = 0;
   /**
    * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late

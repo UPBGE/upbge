@@ -132,7 +132,8 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /// Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval);
 
-  virtual void UpdateSoftBodies();
+  /// Update SoftBodies rendered mesh from bullet softbody simulation.
+  virtual void UpdateSoftBodiesRenderedMesh();
 
   /**
    * Called by Bullet for every physical simulation (sub)tick.
