@@ -249,7 +249,10 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   /// Between 0.0 and 1.0, the factor used to decimate the mesh for physics shape update (0.0 means
   /// maximum decimation, 1.0 means no decimation).
   float m_lastCollapseFactor = 1.0f;
+  /// Sample-based topology signature (cheap/not 100% accurate)
+  unsigned int m_topologySignature = 0u;
 };
+
 
 struct CcdConstructionInfo {
 

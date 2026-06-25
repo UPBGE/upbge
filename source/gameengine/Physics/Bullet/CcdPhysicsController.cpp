@@ -60,10 +60,50 @@
 
 /* includes for Mesh decimation to simplify physics shape */
 #include "BKE_lib_id.hh"
+#include "BLI_hash_c.hh"
 #include "../bmesh/intern/bmesh_mesh_convert.hh"
 #include "../bmesh/tools/bmesh_decimate.hh"
 
 using namespace blender;
+
+static unsigned int hash_topology(const Mesh *mesh, int sample = 32)
+{
+  if (!mesh) return 0u;
+  const blender::Span<int> cv = mesh->corner_verts();
+  const auto edges = mesh->edges();
+
+  unsigned int h = 0u;
+  h = BLI_hash_int_2d(h, (unsigned int)mesh->verts_num);
+  h = BLI_hash_int_2d(h, (unsigned int)mesh->corner_tris().size());
+  h = BLI_hash_int_2d(h, (unsigned int)cv.size());
+
+  int ncv = (int)cv.size();
+  if (ncv > 0) {
+    int sampleCount = std::min(sample, ncv);
+    int stride = std::max(1, ncv / sampleCount);
+    for (int i = 0; i < sampleCount; ++i) {
+      int idx = (i * stride) % ncv;
+      h = BLI_hash_int_2d(h, cv[idx] + 1);
+    }
+  }
+
+  int ned = (int)edges.size();
+  h = BLI_hash_int_2d(h, ned);
+  if (ned > 0) {
+    int sampleCount = std::min(sample, ned);
+    int stride = std::max(1, ned / sampleCount);
+    for (int i = 0; i < sampleCount; ++i) {
+      int idx = (i * stride) % ned;
+      unsigned int a = (unsigned int)edges[idx].x;
+      unsigned int b = (unsigned int)edges[idx].y;
+      if (a > b) std::swap(a, b);
+      h = BLI_hash_int_2d(h, a + 1);
+      h = BLI_hash_int_2d(h, b + 1);
+    }
+  }
+
+  return h;
+}
 
 
 /// todo: fill all the empty CcdPhysicsController methods, hook them up to the btRigidBody class
@@ -2183,8 +2223,11 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     // triangle shape can be shared, store the mesh object in the map
     m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
   }
+  /* store initial topology signature for future comparisons */
+  m_topologySignature = hash_topology(me);
   return true;
 }
+
 
 void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseFactor)
 {
@@ -2800,9 +2843,23 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   /* force recreation of the m_triangleIndexVertexArray.
    * If this has multiple users we cant delete */
   if (m_triangleIndexVertexArray) {
-    /* Don't force reinstance for gpu animated meshes (no topology change) */
-    if (!gpu_reinstance) {
-      m_forceReInstance = true;
+    m_forceReInstance = true;
+    /* Don't force reinstance for gpu animated meshes (no topology change) or when topology hasn't changed */
+    if (me) {
+      /* Basic topology check (imprecise) */
+      /* Sample-based quick signature (cheap). If initial signature exists and matches, avoid reinstance. */
+      unsigned int sample_sig = hash_topology(me, 32);
+      if (m_topologySignature != 0u && sample_sig == m_topologySignature) {
+        m_forceReInstance = false;
+      }
+      else {
+        /* update stored signature for future comparisons */
+        m_topologySignature = sample_sig;
+        m_forceReInstance = true;
+      }
+    }
+    if (gpu_reinstance) {
+      m_forceReInstance = false;
     }
   }
 
