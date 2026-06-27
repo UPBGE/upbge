@@ -172,7 +172,7 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   /**********************/
 
   /* Generates a decimated Mesh * from non decimated Mesh * to update physics shape */
-  void DecimateMesh(blender::Mesh *mesh, float collapseFactor);
+  void DecimateMesh(blender::Mesh *mesh, float collapseFactor, bool force = false);
 
   /* Used after first physics shape initialization to recreate or update the physics shape */
   bool UpdateMesh(class KX_GameObject *from_gameobj,

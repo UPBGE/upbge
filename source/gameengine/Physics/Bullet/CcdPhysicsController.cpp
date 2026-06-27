@@ -2229,7 +2229,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 }
 
 
-void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseFactor)
+void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseFactor, bool force)
 {
   if (collapseFactor > 1.0f) {
     collapseFactor = 1.0f;
@@ -2237,7 +2237,7 @@ void CcdShapeConstructionInfo::DecimateMesh(blender::Mesh *mesh, float collapseF
   if (collapseFactor < 0.0f) {
     collapseFactor = 0.0f;
   }
-  if (collapseFactor == m_lastCollapseFactor) {
+  if (collapseFactor == m_lastCollapseFactor && !force) {
     return;
   }
   if (m_decimatedMesh) {
@@ -2857,6 +2857,11 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       else {
         /* update stored signature for future comparisons */
         m_topologySignature = sample_sig;
+        /* Even if lastCollapseFactor did not change, if there is a decimated mesh,
+         * we need to decimate again evaluated mesh to take into account topology changes */
+        if (m_decimatedMesh) {
+          DecimateMesh(me, m_lastCollapseFactor, true);
+        }
         m_forceReInstance = true;
       }
     }
