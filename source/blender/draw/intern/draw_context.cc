@@ -2837,9 +2837,9 @@ static void drw_debug_draw_boxes_bge(void)
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  const float *size = DRW_context_get()->viewport_size_get();
-  const unsigned int width = size[0];
-  const unsigned int height = size[1];
+  const float2 size = DRW_context_get()->viewport_size_get();
+  const unsigned int width = size.x;
+  const unsigned int height = size.y;
   GPU_matrix_reset();
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
@@ -2869,9 +2869,9 @@ static void drw_debug_draw_text_bge(Scene *scene)
 
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  const float *size = DRW_context_get()->viewport_size_get();
-  const unsigned int width = size[0];
-  const unsigned int height = size[1];
+  const float2 size = DRW_context_get()->viewport_size_get();
+  const unsigned int width = size.x;
+  const unsigned int height = size.y;
   GPU_matrix_reset();
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
