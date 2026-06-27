@@ -358,13 +358,13 @@ void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
   }
   if (ob_orig) {
     if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
-      if (!skip_transform) {
-        blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
-        copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
-        BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
-      }
+      blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
       if (m_isUpbgeDupliBase) {
         DEG_bump_update_count(depsgraph);
+      }
+      if (!skip_transform) {
+        copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
+        BKE_object_eval_transform_final(depsgraph, ob_eval);
       }
       if (is_last_render_pass) {
         GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
