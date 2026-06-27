@@ -152,8 +152,6 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return m_meshObject;
   }
 
-  /* For gpu reinstance (no topology changes) */
-  bool UpdateMeshGPU(class KX_GameObject *gameobj);
   /* Update m_vertexArray (physics positions) from updated positions (GPU vbo or CPU mesh_eval->vertex_positions)
    * Use both for convex hull and triangle mesh */
   void UpdateVertexArray(blender::Mesh *source_mesh, std::vector<float> *vbo_positions = nullptr);

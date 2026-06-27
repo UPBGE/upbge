@@ -2349,7 +2349,7 @@ void CcdShapeConstructionInfo::updateIndexedMeshVertexBase()
 /* Note: topology changes are currently forbidden during GPU deform/runback
  * playback.
  */
-bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
+static bool get_positions_from_render_cache(KX_GameObject *gameobj, std::vector<float> &positions_out)
 {
   if (!GPU_context_active_get()) {
     return false;
@@ -2382,9 +2382,8 @@ bool CcdShapeConstructionInfo::UpdateMeshGPU(KX_GameObject *gameobj)
     return false;
   }
 
-  const std::string key_prefix = std::string("ccd_") + std::to_string(uintptr_t(m_meshObject));
+  const std::string key_prefix = std::string("ccd_") + std::to_string(uintptr_t(gameobj));
   const std::string key_out0 = key_prefix + "_out_pos_0";
-  const std::string key_out1 = key_prefix + "_out_pos_1";
 
   /* Host_visible mapping (CPU friendly memory) */
   gpu::VertBuf *vbo_out0 = bke::BKE_mesh_gpu_internal_vbo_ensure(
@@ -2440,18 +2439,12 @@ void main() {
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
 
-  thread_local std::vector<float> tmp;
-  tmp.resize(size_t(me_eval->verts_num) * 4);
+  positions_out.resize(size_t(me_eval->verts_num) * 4);
 
-  bool ok_fast = GPU_vertbuf_read_if_ready(vbo_out0, tmp.data());
+  bool ok_fast = GPU_vertbuf_read_if_ready(vbo_out0, positions_out.data());
   if (!ok_fast) {
     return false;
   }
-  Mesh *source_mesh = m_decimatedMesh ? m_decimatedMesh : me_eval;
-
-  UpdateVertexArray(me_eval, &tmp);
-  UpdateOtherArrays(source_mesh);
-
   return true;
 }
 
@@ -2714,9 +2707,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
        * from the GPU position VBO. The triangle/index/uv/polygon arrays
        * are not updated (no topology change allowed anyway) */
       if (gpu_reinstance) {
-        UpdateMeshGPU(from_gameobj);
+        std::vector<float> positions_out;
+        if (get_positions_from_render_cache(from_gameobj, positions_out)) {
+          UpdateVertexArray(me, &positions_out);
+        }
       }
-      if (!gpu_reinstance) {
+      else {
         // CPU.
         UpdateVertexArray(me, nullptr);
       }
@@ -2728,9 +2724,15 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
        * from the GPU position VBO. The triangle/index/uv/polygon arrays
        * are not updated (no topology change allowed anyway) */
       if (gpu_reinstance) {
-        UpdateMeshGPU(from_gameobj);
+        std::vector<float> positions_out;
+        if (get_positions_from_render_cache(from_gameobj, positions_out)) {
+          UpdateVertexArray(me, &positions_out);
+          Mesh *source_mesh = m_decimatedMesh ? m_decimatedMesh : me;
+          UpdateOtherArrays(source_mesh);
+        }
       }
-      if (!gpu_reinstance) {
+      else {
+        // CPU
         UpdateVertexArray(me, nullptr);
         Mesh *source_mesh = m_decimatedMesh ? m_decimatedMesh : me;
         UpdateOtherArrays(source_mesh);
@@ -2738,7 +2740,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     }
   }
   else {
-    /* RAS blender::Mesh Update */
+    /* RAS_MeshObject Update */
 
     // Note!, gameobj can be nullptr here
 
