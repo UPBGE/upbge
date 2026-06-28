@@ -23,35 +23,38 @@ import shutil
 import tarfile
 import time
 import stat
-
+import struct
+import subprocess
+import ctypes
+import platform as _platform
 
 bl_info = {
     "name": "Game Engine Publishing",
-    "author": "Mitchell Stokes (Moguri), Oren Titane (Genome36)",
-    "version": (0, 1, 0),
-    "blender": (2, 75, 0),
+    "author": "Mitchell Stokes (Moguri), Oren Titane (Genome36), Ghost DEV",
+    "version": (0, 2, 0),
+    "blender": (5, 0, 0),
     "location": "Render Properties > Publishing Info",
     "description": "Publish .blend file as game engine runtime, manage versions and platforms",
-    "warning": "",
+    "warning": "The addon is still under development and you may encounter errors",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Game_Engine/Publishing",
     "category": "Game Engine",
 }
 
 
-def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_lib, copy_dlls, make_archive, report=print):
-    import struct
+def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_lib, copy_dlls, make_archive, icon_path="",company_name="", description="", game_version="", game_name="", report=print):
+
 
     player_path = bpy.path.abspath(player_path)
     ext = os.path.splitext(player_path)[-1].lower()
     output_path = bpy.path.abspath(output_path)
+    upbge_dir = os.path.dirname(bpy.app.binary_path)
+    version_string = bpy.app.version_string.split()[0][:3]
+    rcedit_path = os.path.join(upbge_dir, version_string, "rceditcustom", "rcedit-x64.exe")
     output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
-    python_dir = os.path.join(os.path.dirname(player_path),
-                              bpy.app.version_string.split()[0],
-                              "python",
-                              "lib")
+    
+    python_dir = os.path.dirname(_platform.__file__)
 
     # Check the paths
     if not os.path.isfile(player_path) and not(os.path.exists(player_path) and player_path.endswith('.app')):
@@ -83,6 +86,32 @@ def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_l
         with open(player_path, "rb") as file:
             player_d = file.read()
             offset = file.tell()
+    # Icon Path 
+        if ext == ".exe" and os.path.exists(rcedit_path):
+            tmp_player = os.path.join(tempfile.gettempdir(), "tmp_player.exe")
+            shutil.copy2(player_path, tmp_player)
+            if icon_path: 
+                icon_path = bpy.path.abspath(icon_path)
+                if os.path.exists(icon_path):
+                    if os.path.exists(rcedit_path):
+                        rcedit_folder = os.path.join(version_string, "rceditcustom")
+                        rcedit_path = os.path.join(upbge_dir, rcedit_folder, "rcedit-x64.exe")
+                        subprocess.check_call([rcedit_path, tmp_player, "--set-icon", icon_path])
+                        report({'INFO'}, "Icon applied successfully")
+                    else:
+                        report({'WARNING'}, "rcedit not found, icon not applied")
+        
+            if company_name:
+                subprocess.check_call([rcedit_path, tmp_player, "--set-version-string", "CompanyName", company_name])
+            if description:
+                subprocess.check_call([rcedit_path, tmp_player, "--set-version-string", "FileDescription", description])
+                subprocess.check_call([rcedit_path, tmp_player, "--set-version-string", "ProductName", description])
+            if game_version:
+                subprocess.check_call([rcedit_path, tmp_player, "--set-file-version", game_version])
+                subprocess.check_call([rcedit_path, tmp_player,"--set-product-version", game_version])
+            with open(tmp_player, "rb") as f:
+                player_d = f.read()
+                offset = len(player_d)
 
         # Create a tmp blend file (Blenderplayer doesn't like compressed blends)
         tempdir = tempfile.mkdtemp()
@@ -121,33 +150,172 @@ def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_l
 
     # Make sure the runtime is executable
     os.chmod(output_path, 0o755)
+    # Linux write .desktop
+
+    if ext not in ('.exe',) and not player_path.lower().endswith('.app'):
+        runtime_name = os.path.splitext(os.path.basename(output_path))[0]
+        output_dir = os.path.dirname(output_path)
+
+        if icon_path and os.path.exists(icon_path):
+            icon_dst = os.path.join(output_dir, runtime_name + '.png')
+            shutil.copy2(icon_path, icon_dst)
+            report({'INFO'}, "Linux icon copied")
+
+        desktop_content = "[Desktop Entry]\n"
+        desktop_content  += "Type=Application\n"
+        if bpy.context.scene.ge_publish_settings.game_name != "":
+            desktop_content  += f"Name={bpy.context.scene.ge_publish_settings.game_name}\n"
+        else:
+            desktop_content  += f"Name={runtime_name}\n"
+        if description:
+            desktop_content += f"Comment={description}\n"
+        if game_version:
+            desktop_content += f"Version={game_version}\n"
+        desktop_content += f"Exec=./{runtime_name}\n"
+        desktop_content += f"Icon={icon_path}\n"
+        desktop_content += "Categories=Game;\n"
+        desktop_content += "Terminal=false\n"
+
+        desktop_path = os.path.join(output_dir, runtime_name + '.desktop')
+        with open(desktop_path, 'w') as f:
+            f.write(desktop_content)
+        os.chmod(desktop_path, 0o755)
+        report({'INFO'}, "Linux .desktop file written")
 
     # Copy bundled Python
     blender_dir = os.path.dirname(player_path)
-
     if copy_python:
         print("Copying Python files...", end=" ", flush=True)
-        py_folder = os.path.join(bpy.app.version_string.split()[0], "python", "lib")
-        dst = os.path.join(output_dir, py_folder)
-        src = python_dir
-
-        if os.path.exists(dst) and overwrite_lib:
-            shutil.rmtree(dst)
-
-        if not os.path.exists(dst):
-            shutil.copytree(src, dst, ignore=lambda dir, contents: [i for i in contents if i == '__pycache__'])
-            print("done", flush=True)
+        ver = bpy.app.version_string.split()[0][:3]
+        # Python libs for Windows
+        if ext == ".exe":
+            py_folder = os.path.join(ver, "python", "lib")
+            src = python_dir
         else:
-            print("used existing Python folder", flush=True)
+            # Python libs for linux
+            linux_py = os.path.join(blender_dir, ver, "python")
+            if os.path.exists(linux_py):
+                py_folder = os.path.join(ver, "python")
+                src = linux_py
+            else:
+                py_folder = os.path.join(ver, "python", "lib")
+                src = python_dir
+        dst = os.path.join(output_dir, py_folder)
 
-    # And DLLs if we're doing a Windows runtime)
+        if not os.path.exists(src):
+            print("skipped (Python folder not found)", flush=True)
+        else:
+            if os.path.exists(dst) and overwrite_lib:
+                shutil.rmtree(dst)
+            if not os.path.exists(dst):
+                def _ignore_python(src_dir, names):
+                    ingnored = set()
+                    for name in names:
+                        if name =='__pycache__':
+                            ingnored.add(name)
+                        elif name == 'site-packages':
+                            ingnored.add(name)
+                    return ingnored
+                def _copy_site_packages(src_sp, dst_sp):
+                    keep = { 'numpy', 'numpy-2.3.4dist-info', 'uplogic', 'uplogic-0.15.dist-info'}
+                    os.makedirs(dst_sp, exist_ok=True)
+                    for item in os.listdir(src_sp):
+                        if item in keep:
+                            s = os.path.join(src_sp, item)
+                            d = os.path.join(dst_sp, item)
+                            if os.path.isdir(s):
+                                shutil.copytree(s, d, ignore=shutil.ignore_patterns('__pycache__'))
+                            else:
+                                shutil.copy2(s, d)
+                shutil.copytree(src, dst, ignore=_ignore_python)
+                src_sp = os.path.join(src, 'site-packages')
+                dst_sp = os.path.join(dst, 'site-packages')
+                if os.path.exists(src_sp):
+                    _copy_site_packages(src_sp, dst_sp)
+                print("done", flush=True)
+            else:
+                print("used existing Python folder", flush=True)
+
+    # And DLLs and files if we're doing a Windows runtime)
     if copy_dlls and ext == ".exe":
+        print(f"copy_dlls={copy_dlls}, ext={ext}, blender_dir={blender_dir}")
         print("Copying DLLs...", end=" ", flush=True)
+        upbge_dir = os.path.dirname(bpy.app.binary_path)
+        
         for file in [i for i in os.listdir(blender_dir) if i.lower().endswith('.dll')]:
             src = os.path.join(blender_dir, file)
             dst = os.path.join(output_dir, file)
             shutil.copy2(src, dst)
+        src = os.path.join(upbge_dir, "blender.crt")
+        dst = os.path.join(output_dir, "blender.crt")
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copytree(src, dst)
+        src = os.path.join(upbge_dir, "blender.shared")
+        dst = os.path.join(output_dir, "blender.shared")
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copytree(src, dst)
+        src = os.path.join(upbge_dir, "license")
+        dst = os.path.join(output_dir, "license")
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copytree(src, dst)
+        ver = bpy.app.version_string.split()[0][:3]
+        data_subdirs= [
+            os.path.join(ver, "datafiles", "colormanagement"),
+            os.path.join(ver, "datafiles", "fonts"),
+            os.path.join(ver, "datafiles", "gamecontroller"),
+        ]
+        scripts_subdirs= [
+            os.path.join(ver, "scripts", "bge"),
+            os.path.join(ver, "scripts", "modules"),
+        ]
+        python_subdirs= [
+            os.path.join(ver, "python", "bin"),
+            os.path.join(ver, "python", "DLLs")
+        ]
+        for subdir in data_subdirs + scripts_subdirs + python_subdirs:
+            src = os.path.join(upbge_dir, subdir)
+            dst = os.path.join(output_dir, subdir)
+            if os.path.exists(src) and not os.path.exists(dst):
+                shutil.copytree(src, dst, ignore=shutil.ignore_patterns('site-packages'))
+        
+        print("done", flush=True)
+    
+    # Copy libs and files for Linux
+    if ext not in ('.exe',) and not player_path.lower().endswith('.app'):
+        upbge_dir = os.path.dirname(player_path)
 
+        for file in [i for i in os.listdir(upbge_dir) if i.lower().endswith('.so') or '.so.' in i.lower()]:
+            src = os.path.join(upbge_dir, file)
+            dst = os.path.join(output_dir, file)
+            shutil.copy2(src, dst)
+
+        src = os.path.join(upbge_dir, "lib")
+        dst = os.path.join(output_dir, "lib")
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copytree(src, dst)
+
+        src = os.path.join(upbge_dir, "license")
+        dst = os.path.join(output_dir, "license")
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copytree(src, dst)
+
+        ver = bpy.app.version_string.split()[0][:3]
+        linux_subdirs = [
+            os.path.join(ver, "datafiles", "colormanagement"),
+            os.path.join(ver, "datafiles", "fonts"),
+            os.path.join(ver, "datafiles", "gamecontroller"),
+            os.path.join(ver, "scripts", "bge"),
+            os.path.join(ver, "scripts", "modules"),
+            os.path.join(ver, "python", "bin"),
+            os.path.join(ver, "python", "lib"),
+        ]
+
+        for subdir in linux_subdirs:
+            src = os.path.join(upbge_dir, subdir)
+            dst = os.path.join(output_dir, subdir)
+            if os.path.exists(src) and not os.path.exists(dst):
+                shutil.copytree(src, dst, ignore=shutil.ignore_patterns('site-packages'))
+                    
         print("done", flush=True)
 
     # Copy assets
@@ -203,6 +371,11 @@ def WriteRuntime(player_path, output_path, asset_paths, copy_python, overwrite_l
             report({'ERROR'}, "Unknown archive type %s for runtime %s\n" % (arctype, player_path))
 
         print("done", flush=True)
+    # Force Windows icon cache refresh
+    if _platform.system() == "Windows":
+        os.utime(output_path, None)
+        ctypes.windll.shell32.SHChangeNotify(0x00000008, 0x0000, None, None)
+        ctypes.windll.user32.UpdateWindow(ctypes.windll.user32.GetShellWindow())
 
 
 class PublishAllPlatforms(bpy.types.Operator):
@@ -211,23 +384,6 @@ class PublishAllPlatforms(bpy.types.Operator):
 
     def execute(self, context):
         ps = context.scene.ge_publish_settings
-
-        if ps.publish_default_platform:
-            print("Publishing default platform")
-            blender_bin_path = bpy.app.binary_path
-            blender_bin_dir = os.path.dirname(blender_bin_path)
-            ext = os.path.splitext(blender_bin_path)[-1].lower()
-            WriteRuntime(os.path.join(blender_bin_dir, 'blenderplayer' + ext),
-                         os.path.join(ps.output_path, 'default', ps.runtime_name),
-                         ps.asset_paths,
-                         True,
-                         True,
-                         True,
-                         ps.make_archive,
-                         self.report
-                         )
-        else:
-            print("Skipping default platform")
 
         for platform in ps.platforms:
             if platform.publish:
@@ -239,6 +395,10 @@ class PublishAllPlatforms(bpy.types.Operator):
                             True,
                             True,
                             ps.make_archive,
+                            platform.icon_path,
+                            ps.company_name,
+                            ps.description,
+                            ps.game_version,
                             self.report
                             )
             else:
@@ -259,12 +419,12 @@ class RENDER_UL_platforms(bpy.types.UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         row = layout.row()
-        row.label(item.name)
-        row.prop(item, "publish", text="")
+        row.label(text=item.name)
+        row.prop(item, "publish", text="  ")
 
 
 class RENDER_PT_publish(bpy.types.Panel):
-    bl_label = "Publishing Info"
+    bl_label = "Game Engine Publishing"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "render"
@@ -272,7 +432,7 @@ class RENDER_PT_publish(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         scene = context.scene
-        return scene and (scene.render.engine == "BLENDER_GAME")
+        return scene is not None
 
     def draw(self, context):
         ps = context.scene.ge_publish_settings
@@ -287,7 +447,7 @@ class RENDER_PT_publish(bpy.types.Panel):
         layout.separator()
 
         # assets list
-        layout.label("Asset Paths")
+        layout.label(text="Asset Paths (Under development)")
 
         # UI_UL_list
         row = layout.row()
@@ -295,8 +455,8 @@ class RENDER_PT_publish(bpy.types.Panel):
 
         # operators
         col = row.column(align=True)
-        col.operator(PublishAddAssetPath.bl_idname, icon='ZOOMIN', text="")
-        col.operator(PublishRemoveAssetPath.bl_idname, icon='ZOOMOUT', text="")
+        col.operator(PublishAddAssetPath.bl_idname, icon='ADD', text="")
+        col.operator(PublishRemoveAssetPath.bl_idname, icon='REMOVE', text="")
 
         # indexing
         if len(ps.asset_paths) > ps.asset_paths_active >= 0:
@@ -308,8 +468,7 @@ class RENDER_PT_publish(bpy.types.Panel):
 
         # publishing list
         row = layout.row(align=True)
-        row.label("Platforms")
-        row.prop(ps, 'publish_default_platform')
+        row.label(text="Platforms")
 
         # UI_UL_list
         row = layout.row()
@@ -317,8 +476,8 @@ class RENDER_PT_publish(bpy.types.Panel):
 
         # operators
         col = row.column(align=True)
-        col.operator(PublishAddPlatform.bl_idname, icon='ZOOMIN', text="")
-        col.operator(PublishRemovePlatform.bl_idname, icon='ZOOMOUT', text="")
+        col.operator(PublishAddPlatform.bl_idname, icon='ADD', text="")
+        col.operator(PublishRemovePlatform.bl_idname, icon='REMOVE', text="")
         col.menu("PUBLISH_MT_platform_specials", icon='DOWNARROW_HLT', text="")
 
         # indexing
@@ -326,8 +485,13 @@ class RENDER_PT_publish(bpy.types.Panel):
             platform = ps.platforms[ps.platforms_active]
             layout.prop(platform, 'name')
             layout.prop(platform, 'player_path')
+            layout.prop(ps, 'game_name')
+            layout.prop(ps, 'company_name')
+            layout.prop(ps, 'description')
+            layout.prop(ps, 'game_version')
+            layout.prop(platform, 'icon_path')
 
-        layout.operator(PublishAllPlatforms.bl_idname, 'Publish Platforms')
+        layout.operator(PublishAllPlatforms.bl_idname, text='Publish Platforms')
 
 
 class PublishAutoPlatforms(bpy.types.Operator):
@@ -480,7 +644,6 @@ class PUBLISH_MT_platform_specials(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator(PublishAutoPlatforms.bl_idname)
-        layout.operator(PublishDownloadPlatforms.bl_idname)
 
 
 class PlatformSettings(bpy.types.PropertyGroup):
@@ -490,14 +653,20 @@ class PlatformSettings(bpy.types.PropertyGroup):
             default = "Platform",
             )
 
-    player_path = bpy.props.StringProperty(
+    player_path: bpy.props.StringProperty(
             name = "Player Path",
             description = "The path to the Blenderplayer to use for this platform",
             default = "//lib/platform/blenderplayer",
             subtype = 'FILE_PATH',
             )
-
-    publish = bpy.props.BoolProperty(
+    
+    icon_path: bpy.props.StringProperty(
+            name = "Icon path",
+            description = "Path to the icon for this paltform",
+            default = "",
+            subtype = 'FILE_PATH',
+    )
+    publish: bpy.props.BoolProperty(
             name = "Publish",
             description = "Whether or not to publish to this platform",
             default = True,
@@ -513,7 +682,7 @@ class AssetPath(bpy.types.PropertyGroup):
             subtype = 'FILE_PATH',
             )
 
-    overwrite = bpy.props.BoolProperty(
+    overwrite: bpy.props.BoolProperty(
             name = "Overwrite Asset",
             description = "Overwrite the asset if it already exists in the destination folder",
             default = True,
@@ -521,54 +690,90 @@ class AssetPath(bpy.types.PropertyGroup):
 
 
 class PublishSettings(bpy.types.PropertyGroup):
-    output_path = bpy.props.StringProperty(
+    output_path: bpy.props.StringProperty(
             name = "Publish Output",
             description = "Where to publish the game",
             default = "//bin/",
             subtype = 'DIR_PATH',
             )
 
-    runtime_name = bpy.props.StringProperty(
+    runtime_name: bpy.props.StringProperty(
             name = "Runtime name",
             description = "The filename for the created runtime",
             default = "game",
             )
 
-    lib_path = bpy.props.StringProperty(
+    lib_path: bpy.props.StringProperty(
             name = "Library Path",
             description = "Directory to search for platforms",
             default = "//lib/",
             subtype = 'DIR_PATH',
             )
 
-    publish_default_platform = bpy.props.BoolProperty(
-            name = "Publish Default Platform",
-            description = "Whether or not to publish the default platform (the Blender install running this addon) when publishing platforms",
-            default = True,
-            )
 
+    platforms: bpy.props.CollectionProperty(type=PlatformSettings, name="Platforms")
+    platforms_active: bpy.props.IntProperty()
 
-    platforms = bpy.props.CollectionProperty(type=PlatformSettings, name="Platforms")
-    platforms_active = bpy.props.IntProperty()
+    asset_paths: bpy.props.CollectionProperty(type=AssetPath, name="Asset Paths")
+    asset_paths_active: bpy.props.IntProperty()
 
-    asset_paths = bpy.props.CollectionProperty(type=AssetPath, name="Asset Paths")
-    asset_paths_active = bpy.props.IntProperty()
-
-    make_archive = bpy.props.BoolProperty(
+    make_archive : bpy.props.BoolProperty(
             name = "Make Archive",
             description = "Create a zip archive of the published game",
-            default = True,
+            default = False,
             )
+    
+    game_name : bpy.props.StringProperty(
+        name  = "Game name",
+        description = "Display name of the game (used in Linux .desktop file)",
+        default = ""
+    )
+
+    company_name : bpy.props.StringProperty(
+        name = "Company name",
+        description = "Add Developer or company name",
+        default = "",
+    )
+    
+    description : bpy.props.StringProperty(
+        name = "Description",
+        description = "Game title shown in file properties",
+        default = "",
+    )
+
+    game_version : bpy.props.StringProperty(
+        name = "Version",
+        description = "Game version number",
+        default = "",
+    )
+
+classes = (
+    PlatformSettings,
+    AssetPath,
+    PublishSettings,
+    PublishAllPlatforms,
+    RENDER_UL_assets,
+    RENDER_UL_platforms,
+    RENDER_PT_publish,
+    PublishAutoPlatforms,
+    PublishAddPlatform,
+    PublishRemovePlatform,
+    PublishAddAssetPath,
+    PublishRemoveAssetPath,
+    PUBLISH_MT_platform_specials,
+)
 
 
 def register():
-    bpy.utils.register_module(__name__)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
     bpy.types.Scene.ge_publish_settings = bpy.props.PointerProperty(type=PublishSettings)
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
     del bpy.types.Scene.ge_publish_settings
 
 

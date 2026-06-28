@@ -6,7 +6,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 # General Public License (http://www.gnu.org/licenses/) for more details.
 #
-# ***** END GPL LICENSE BLOCK *****
+# ***** END GPL LICENSE BLOCK *****F
 
 # #########################################################################
 
@@ -14,9 +14,9 @@ bl_info = {
     "name": "Add character",
     "description": "Create basic bge character and fly camera",
     "author": "Moaaa",
-    "version": (0, 0, 4),
-    "blender": (2, 77, 0),
-    "location": "View3D > TOOLS",
+    "version": (0, 0, 5),
+    "blender": (5, 0, 0),
+    "location": "View3D > UI",
     "warning": "WIP - Frequent changes for known issues and enhancements",
     "support": "TESTING",
     "wiki_url": "https://github.com/UPBGE/blender-addons/wiki/Basic-Character-addon",
@@ -50,12 +50,11 @@ class simple_character(Operator):
         
 
 
-        bpy.context.scene.render.engine = 'BLENDER_GAME'
-        bpy.context.scene.objects.active = None
+        bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+        bpy.context.view_layer.objects.active = None
 
-        bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=bpy.context.scene.character_size, radius2=0.0, depth=bpy.context.scene.character_size, end_fill_type='TRIFAN', view_align=False,
-        enter_editmode=False, location=bpy.context.scene.cursor_location, rotation=(0.0, 0.0, 0.0),
-        layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+        bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=bpy.context.scene.character_size, radius2=0.0, depth=bpy.context.scene.character_size, end_fill_type='TRIFAN',
+        enter_editmode=False, location=bpy.context.scene.cursor.location, rotation=(0.0, 0.0, 0.0))
 
         # configure character
         obj = bpy.context.selected_objects[0]
@@ -157,10 +156,11 @@ class simple_character(Operator):
         #create camera and configure
         cam = bpy.data.cameras.new("CameraM")
         cam_ob = bpy.data.objects.new("CameraM", cam)
-        bpy.context.scene.objects.link(cam_ob)
+        cam.angle = 2
+        bpy.context.collection.objects.link(cam_ob)
         
-        cam_ob.location = (bpy.context.scene.cursor_location[0],
-        bpy.context.scene.cursor_location[1], bpy.context.scene.cursor_location[2]+(bpy.context.scene.character_size/2.2))
+        cam_ob.location = (bpy.context.scene.cursor.location[0],
+        bpy.context.scene.cursor.location[1], bpy.context.scene.cursor.location[2]+(bpy.context.scene.character_size/2.2))
         cam_ob.rotation_euler = (1.5708, 0, 0)
         cam_ob.name = "cam" + bpy.context.scene.character_name
 
@@ -185,17 +185,17 @@ class simple_character(Operator):
         sensor.link(controller)
         actuator.link(controller)
         
-        bpy.context.scene.objects.active = None
+        bpy.context.view_layer.objects.active = None
 
         obj.location = (obj.location[0], obj.location[1], obj.location[2]+(bpy.context.scene.character_size/2))
         cam_ob.location = (cam_ob.location[0], cam_ob.location[1], cam_ob.location[2]+(bpy.context.scene.character_size/2))
 		
-        obj.select = True
-        cam_ob.select = True
-        bpy.context.scene.objects.active = obj
+        obj.select_set(True)
+        cam_ob.select_set(True)
+        bpy.context.view_layer.objects.active = obj
         bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
         
-        bpy.context.scene.objects.active = cam_ob
+        bpy.context.view_layer.objects.active = cam_ob
         bpy.ops.view3d.object_as_camera()
 
         return {'FINISHED'}
@@ -208,19 +208,20 @@ class fly_camera(Operator):
 
     def execute(self, context):
         
-        bpy.context.scene.render.engine = 'BLENDER_GAME'
-        bpy.context.scene.objects.active = None
+        bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+        bpy.context.view_layer.objects.active = None
         
         #create camera and configure
         cam = bpy.data.cameras.new("CameraM")
         cam_object = bpy.data.objects.new("CameraM", cam)
-        bpy.context.scene.objects.link(cam_object)
+        cam.angle = 2
+        bpy.context.collection.objects.link(cam_object)
 
-        cam_object.location = (bpy.context.scene.cursor_location)
+        cam_object.location = (bpy.context.scene.cursor.location)
 
         cam_object.rotation_euler = (1.5708, 0, 0)
         cam_object.name = bpy.context.scene.character_name
-        bpy.context.scene.objects.active = cam_object
+        bpy.context.view_layer.objects.active = cam_object
 
         sensors = cam_object.game.sensors
         controllers = cam_object.game.controllers
@@ -292,7 +293,7 @@ class fly_camera(Operator):
         for act in actuators:
             act.show_expanded = False
 
-        bpy.context.scene.objects.active = cam_object
+        bpy.context.view_layer.objects.active = cam_object
         bpy.ops.view3d.object_as_camera()
 
         return {'FINISHED'}
@@ -303,7 +304,6 @@ class addcharacter(Panel):
     bl_region_type = 'TOOLS'
     bl_label = 'Simple Character'
     bl_context = 'objectmode'
-    bl_category = 'Add Character'
 
     def draw(self, context):
         layout = self.layout
@@ -324,15 +324,19 @@ class addcharacter(Panel):
         row = layout.row()
         row.operator(fly_camera.bl_idname, text='Add Fly Camera')
 
+classes = (
+    addcharacter,
+    fly_camera,
+    simple_character,
+)
+
 def register():
-    bpy.utils.register_class(addcharacter)
-    bpy.utils.register_class(fly_camera)
-    bpy.utils.register_class(simple_character)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(addcharacter)
-    bpy.utils.unregister_class(fly_camera)
-    bpy.utils.unregister_class(simple_character)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 
 if __name__ == '__main__':
     register()
