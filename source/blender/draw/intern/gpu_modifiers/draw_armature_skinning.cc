@@ -26,17 +26,6 @@
 namespace blender {
 namespace draw {
 
-/* Dual Quaternion structure matching Blender's CPU format */
-struct GPUDualQuat {
-  float quat[4];      /* Rotation quaternion [w,x,y,z] */
-  float trans[4];     /* Translation dual part [w,x,y,z] */
-  float scale[4][4];  /* Scale matrix */
-  float scale_weight; /* Weight for scale blending */
-  float _pad[3];
-};
-
-static_assert(sizeof(GPUDualQuat) % 16 == 0, "GPUDualQuat must be 16-byte aligned");
-
 struct blender::draw::ArmatureSkinningManager::Impl {
   int ref_count = 0;
 
@@ -95,7 +84,7 @@ static const char *skin_compute_lbs_src = R"GLSL(
  *
  * CPU reference (find_bbone_segment_index_straight):
  *   const Mat4 *mats = pchan->runtime.bbone_deform_mats;
- *   const float (*mat)[4] = mats[0].mat;   // padding matrix = base_idx + 0
+ *   const float (*mat)[4] = mats[0].mat;
  *   const float y = mat[0][1]*co[0] + mat[1][1]*co[1] + mat[2][1]*co[2] + mat[3][1];
  *   BKE_pchan_bbone_deform_clamp_segment_index(bone, y / bone->length, &index, &blend);
  *
@@ -104,51 +93,38 @@ static const char *skin_compute_lbs_src = R"GLSL(
  *   int index = clamp(int(floor(pre_blend)), 0, segments - 1);
  *   float blend = clamp(pre_blend - index, 0, 1);
  *
- * CPU reference (b_bone_deform → accumulate_bbone):
- *   pose_mats[index + 1]   // +1 skips the padding
+ * CPU reference (accumulate_bbone):
+ *   pose_mats[index + 1]  // +1 skips the padding
+ *
+ * bone_rest_length[bone_idx] = bone->length (rest length, constant, uploaded once)
  */
 mat4 get_bone_matrix(int bone_idx, vec3 co_armature_space) {
   int segments = bone_segments[bone_idx];
   int base_idx = bone_offsets[bone_idx];
 
-  /* Simple bone (1 segment) */
+  /* Simple bone: no padding, just chan_mat */
   if (segments == 1) {
-    return bone_pose_mat[base_idx];  /* no padding for simple bones */
+    return bone_pose_mat[base_idx];
   }
 
-  /* B-Bone straight mapping
-   *
-   * mats[0] (the pre-padding matrix) lives at base_idx + 0 in our flat array.
-   * CPU layout: [mats[0]=padding, mats[1]=seg0, ..., mats[N]=segN-1, mats[N+1]=padding]
-   * We mirror: bone_pose_mat[base_idx + 0] = padding/space matrix
-   *            bone_pose_mat[base_idx + 1] = first real segment
-   *            ...
-   *            bone_pose_mat[base_idx + index + 1] = segment at 'index'
-   */
-
-  /* Use mats[0] (= base_idx + 0) to transform co to bone space, exactly like CPU.
+  /* B-Bone straight mapping.
+   * bone_pose_mat[base_idx + 0] = mats[0] = the space/padding matrix.
    * CPU: y = mat[0][1]*co[0] + mat[1][1]*co[1] + mat[2][1]*co[2] + mat[3][1]
-   * In GLSL, bone_pose_mat is column-major:
-   *   mat[col][row], so column 0 = mat[0], column 1 = mat[1], etc.
-   * CPU mat[col][1] = row 1 of column col = GLSL mat[col][1]
-   * → dot of the Y row of the matrix with co, plus translation Y */
-  mat4 space_mat = bone_pose_mat[base_idx + 0];  /* mats[0] = padding matrix */
+   * GLSL mat4 is column-major: mat[col][row]
+   * → mat[0][1] = col0.row1, mat[1][1] = col1.row1, etc. */
+  mat4 space_mat = bone_pose_mat[base_idx]; /* mats[0] */
 
-  /* Extract Y component after affine transform (CPU: mat[0][1]*x + mat[1][1]*y + mat[2][1]*z + mat[3][1]) */
   float y = space_mat[0][1] * co_armature_space.x
           + space_mat[1][1] * co_armature_space.y
           + space_mat[2][1] * co_armature_space.z
           + space_mat[3][1];
 
-  /* bone->length needed for normalization.
-   * CPU: y / bone->length  → head_tail in [0, 1]
-   * We read it from bone_head_tail like before (length of rest bone). */
-  vec3 head = bone_head_tail[bone_idx * 2 + 0].xyz;
-  vec3 tail = bone_head_tail[bone_idx * 2 + 1].xyz;
-  float bone_length = length(tail - head);
+  /* CPU uses bone->length (rest length), NOT the posed length.
+   * bone_rest_length[] is uploaded once from bone->length. */
+  float bone_length = bone_rest_length[bone_idx];
 
   /* BKE_pchan_bbone_deform_clamp_segment_index */
-  float head_tail = (bone_length > 0.0001) ? (y / bone_length) : 0.0;
+  float head_tail = (bone_length > 1e-4) ? (y / bone_length) : 0.0;
   head_tail = clamp(head_tail, 0.0, 1.0);
 
   float pre_blend = head_tail * float(segments);
@@ -156,8 +132,7 @@ mat4 get_bone_matrix(int bone_idx, vec3 co_armature_space) {
   index = clamp(index, 0, segments - 1);
   float blend = clamp(pre_blend - float(index), 0.0, 1.0);
 
-  /* accumulate_bbone uses pose_mats[index + 1] and pose_mats[index + 2]
-   * → base_idx + index + 1  and  base_idx + index + 2 */
+  /* accumulate_bbone: pose_mats[index + 1] and [index + 2] (+1 skips padding) */
   mat4 mat_a = bone_pose_mat[base_idx + index + 1];
   mat4 mat_b = bone_pose_mat[base_idx + index + 2];
 
@@ -165,41 +140,45 @@ mat4 get_bone_matrix(int bone_idx, vec3 co_armature_space) {
 }
 
 vec4 skin_pos_object(int v_idx) {
-  /* Transform input position to armature space FIRST (matching CPU order).
-   * Use the "in" buffer so modifiers chain: callers must bind skinned_vert_positions_in[]. */
+  /* Transform to armature space first, matching CPU:
+   * co = math::transform_point(params.target_to_armature, co) */
   vec4 rest_pos_object = premat[0] * skinned_vert_positions_in[v_idx];
 
-  /* Get influence range for this vertex */
   int start_idx = in_offsets[v_idx];
-  int end_idx = in_offsets[v_idx + 1];
+  int end_idx   = in_offsets[v_idx + 1];
   int influence_count = end_idx - start_idx;
 
-  /* No influences = rest pose */
+  /* No influences → rest pose (identity deformation) */
   if (influence_count == 0) {
     return rest_pos_object;
   }
 
-  vec4 acc = vec4(0.0);
-  float tw = 0.0;
+  /* BoneDeformLinearMixer: accumulate deltas, then normalize by total.
+   * CPU: position_delta += weight * (transform_point(pose_mat, co) - co)
+   * CPU finalize: co += position_delta * (armature_weight / total) */
+  vec4 position_delta = vec4(0.0);
+  float total = 0.0;
 
-  /* Process all influences for this vertex (no limit!) */
   for (int i = 0; i < influence_count; ++i) {
     int idx = start_idx + i;
-    int b = in_idx[idx];
+    int b   = in_idx[idx];
     float w = in_wgt[idx];
 
     if (w > 0.0) {
-      /* Use B-Bone-aware matrix lookup
-       * Pass ARMATURE SPACE coordinates (rest_pos_object.xyz)
-       * CPU equivalent: pchan_bone_deform(*pchan, weight, co_armature_space, mixer)
-       */
       mat4 bone_mat = get_bone_matrix(b, rest_pos_object.xyz);
-      acc += (bone_mat * rest_pos_object) * w;
-      tw += w;
+      position_delta += w * (bone_mat * rest_pos_object - rest_pos_object);
+      total += w;
     }
   }
 
-  return (tw <= CONTRIB_THRESHOLD) ? rest_pos_object : (acc + rest_pos_object * (1.0 - tw));
+  /* CPU: contrib_threshold = 0.0001 */
+  if (total <= CONTRIB_THRESHOLD) {
+    return rest_pos_object;
+  }
+
+  /* Normalize by total, matching finalize(armature_weight=1, total).
+   * armature_weight (modifier mask) is applied in main() via mix(). */
+  return rest_pos_object + position_delta / total;
 }
 
 void main() {
@@ -208,22 +187,26 @@ void main() {
     return;
   }
 
-  /* Get modifier vertex group weight (filter - like Lattice) */
+  /* Modifier vertex group mask weight (armature_weight in CPU terms).
+   * CPU: armature_weight = invert ? 1-mask : mask
+   * Applied here as blend factor, equivalent to finalize(armature_weight/total). */
   float modifier_weight = 1.0;
   if (vgroup_weights.length() > 0 && v < vgroup_weights.length()) {
     modifier_weight = vgroup_weights[v];
   }
 
-  /* Early exit if weight is negligible */
   if (modifier_weight < 1e-6) {
+    /* armature_weight == 0: vertex stays at rest pose, transform through spaces */
     skinned_vert_positions_out[v] = postmat[0] * (premat[0] * skinned_vert_positions_in[v]);
     return;
   }
 
   vec4 skinned = skin_pos_object(int(v));
-  vec4 rest = premat[0] * skinned_vert_positions_in[v];
+  vec4 rest    = premat[0] * skinned_vert_positions_in[v];
 
-  /* Blend between rest and skinned based on modifier weight */
+  /* mix(rest, skinned, modifier_weight) == rest + (skinned - rest) * modifier_weight
+   * == co + delta/total * modifier_weight
+   * CPU equivalent: co += position_delta * (armature_weight / total) */
   skinned_vert_positions_out[v] = postmat[0] * mix(rest, skinned, modifier_weight);
 }
 )GLSL";
@@ -543,6 +526,40 @@ static void compute_bbone_segment_info(Object *arm_ob,
 
     bi++;
   }
+}
+
+/* Upload bone rest lengths for LBS (bone->length, constant) */
+static void upload_bone_rest_lengths(Object *arm_ob,
+                                     int bone_count,
+                                     Mesh *mesh_owner,
+                                     Object *deformed_eval,
+                                     const std::string &key_lengths)
+{
+  gpu::StorageBuf *ssbo = bke::BKE_mesh_gpu_internal_ssbo_get(mesh_owner, key_lengths);
+  if (ssbo) {
+    return; /* already uploaded, rest lengths never change */
+  }
+
+  ssbo = bke::BKE_mesh_gpu_internal_ssbo_ensure(
+      mesh_owner, deformed_eval, key_lengths, sizeof(float) * bone_count);
+  if (!ssbo) {
+    return;
+  }
+
+  std::vector<float> lengths(bone_count);
+  int bi = 0;
+  for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+       pchan = pchan->next)
+  {
+    bArmature *armature = id_cast<bArmature *>(arm_ob->data);
+    Bone *bone = pchan->bone_get(*armature);
+    if (bone->flag & BONE_NO_DEFORM) {
+      continue;
+    }
+    lengths[bi++] = bone->length; /* rest length, constant */
+  }
+
+  GPU_storagebuf_update(ssbo, lengths.data());
 }
 
 /* Upload bone head/tail positions (shared between LBS and DQS) */
@@ -981,13 +998,13 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
         return a.weight > b.weight;
       });
 
-      /* Normalize weights */
-      if (total_weight > kContribThreshold) {
-        const float inv_total = 1.0f / total_weight;
-        for (auto &inf : influences) {
-          inf.weight *= inv_total;
-        }
-      }
+      ///* Normalize weights */
+      //if (total_weight > kContribThreshold) {
+      //  const float inv_total = 1.0f / total_weight;
+      //  for (auto &inf : influences) {
+      //    inf.weight *= inv_total;
+      //  }
+      //}
 
       /* Store all influences (no 16-bone limit!) */
       for (const auto &inf : influences) {
@@ -1279,6 +1296,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
         const std::string key_bone_offsets_lbs = key_prefix + "bone_offsets_lbs";
         const std::string key_bone_head_tail = key_prefix + "bone_head_tail";
         const std::string key_bone_pose = key_prefix + "bone_pose_lbs";
+        const std::string key_bone_rest_lengths = key_prefix + "bone_rest_lengths";
 
         /* Compute B-Bone segment info (if not already done) */
         if (msd.bone_segment_counts.empty()) {
@@ -1319,6 +1337,9 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
         /* Upload bone_head_tail (shared, update every frame) */
         upload_bone_head_tail(
             eval_armature_ob, msd.bones, mesh_owner, deformed_eval, key_bone_head_tail);
+
+        upload_bone_rest_lengths(
+            eval_armature_ob, msd.bones, mesh_owner, deformed_eval, key_bone_rest_lengths);
 
         /* Upload bone matrices (LBS-specific, update every frame) */
         upload_bone_matrices_lbs(msd.arm,
@@ -1377,6 +1398,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
       info.storage_buf(9, Qualifier::read, "int", "bone_offsets[]");  // B-Bone matrix offsets
       info.storage_buf(
           10, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
+      info.storage_buf(11, Qualifier::read, "float", "bone_rest_length[]");
     }
     compute_sh = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
@@ -1461,6 +1483,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     const std::string key_bone_segments = key_prefix + "bone_segments";
     const std::string key_bone_offsets_lbs = key_prefix + "bone_offsets_lbs";
     const std::string key_bone_head_tail = key_prefix + "bone_head_tail";
+    const std::string key_bone_rest_lengths = key_prefix + "bone_rest_lengths";
 
     gpu::StorageBuf *ssbo_bone_segments = bke::BKE_mesh_gpu_internal_ssbo_get(
         mesh_owner, key_bone_segments);
@@ -1477,6 +1500,11 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     }
     if (ssbo_bone_head_tail) {
       GPU_storagebuf_bind(ssbo_bone_head_tail, 10);
+    }
+    gpu::StorageBuf *ssbo_bone_rest_lengths = bke::BKE_mesh_gpu_internal_ssbo_get(
+        mesh_owner, key_bone_rest_lengths);
+    if (ssbo_bone_rest_lengths) {
+      GPU_storagebuf_bind(ssbo_bone_rest_lengths, 11);
     }
   }
 
