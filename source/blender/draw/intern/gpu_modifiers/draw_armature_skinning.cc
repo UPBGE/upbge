@@ -89,76 +89,78 @@ static const char *skin_compute_lbs_src = R"GLSL(
 #endif
 
 /* Get bone matrix with B-Bone segment interpolation
- * Reproduces CPU logic from dist_bone_deform() and b_bone_deform()
- * 
+ * Reproduces CPU logic from b_bone_deform() → find_bbone_segment_index_straight()
+ *
  * IMPORTANT: co must be in ARMATURE SPACE (already transformed by premat)
- * 
- * CPU reference:
- *   co = math::transform_point(params.target_to_armature, co);
- *   BKE_pchan_bbone_deform_segment_index(&pchan, co, &index, &blend);
- *   mixer.accumulate_bbone(pchan, co, weight * (1.0f - blend), index);
- *   mixer.accumulate_bbone(pchan, co, weight * blend, index + 1);
+ *
+ * CPU reference (find_bbone_segment_index_straight):
+ *   const Mat4 *mats = pchan->runtime.bbone_deform_mats;
+ *   const float (*mat)[4] = mats[0].mat;   // padding matrix = base_idx + 0
+ *   const float y = mat[0][1]*co[0] + mat[1][1]*co[1] + mat[2][1]*co[2] + mat[3][1];
+ *   BKE_pchan_bbone_deform_clamp_segment_index(bone, y / bone->length, &index, &blend);
+ *
+ * CPU reference (BKE_pchan_bbone_deform_clamp_segment_index):
+ *   float pre_blend = head_tail * float(segments);
+ *   int index = clamp(int(floor(pre_blend)), 0, segments - 1);
+ *   float blend = clamp(pre_blend - index, 0, 1);
+ *
+ * CPU reference (b_bone_deform → accumulate_bbone):
+ *   pose_mats[index + 1]   // +1 skips the padding
  */
 mat4 get_bone_matrix(int bone_idx, vec3 co_armature_space) {
   int segments = bone_segments[bone_idx];
-  
+  int base_idx = bone_offsets[bone_idx];
+
   /* Simple bone (1 segment) */
   if (segments == 1) {
-    int mat_idx = bone_offsets[bone_idx];
-    return bone_pose_mat[mat_idx];
+    return bone_pose_mat[base_idx];  /* no padding for simple bones */
   }
-  
-  /* B-Bone: Use animated head/tail positions to calculate segment index
-   * 
-   * CRITICAL: bbone_deform_mats array has padding!
-   * CPU uses: Span<Mat4>(bbone_deform_mats, segments + 2)
-   * and indexes with: pose_mats[index + 1]
-   * 
-   * Layout: [padding_start, seg0, seg1, ..., segN-1, padding_end]
-   * Index 0 → padding (not used for deformation)
-   * Index 1 → first real segment
-   * Index N → last real segment
-   * Index N+1 → padding (not used for deformation)
+
+  /* B-Bone straight mapping
+   *
+   * mats[0] (the pre-padding matrix) lives at base_idx + 0 in our flat array.
+   * CPU layout: [mats[0]=padding, mats[1]=seg0, ..., mats[N]=segN-1, mats[N+1]=padding]
+   * We mirror: bone_pose_mat[base_idx + 0] = padding/space matrix
+   *            bone_pose_mat[base_idx + 1] = first real segment
+   *            ...
+   *            bone_pose_mat[base_idx + index + 1] = segment at 'index'
    */
-  
-  int base_idx = bone_offsets[bone_idx];
-  
-  /* Get animated bone positions (head/tail in armature space) */
+
+  /* Use mats[0] (= base_idx + 0) to transform co to bone space, exactly like CPU.
+   * CPU: y = mat[0][1]*co[0] + mat[1][1]*co[1] + mat[2][1]*co[2] + mat[3][1]
+   * In GLSL, bone_pose_mat is column-major:
+   *   mat[col][row], so column 0 = mat[0], column 1 = mat[1], etc.
+   * CPU mat[col][1] = row 1 of column col = GLSL mat[col][1]
+   * → dot of the Y row of the matrix with co, plus translation Y */
+  mat4 space_mat = bone_pose_mat[base_idx + 0];  /* mats[0] = padding matrix */
+
+  /* Extract Y component after affine transform (CPU: mat[0][1]*x + mat[1][1]*y + mat[2][1]*z + mat[3][1]) */
+  float y = space_mat[0][1] * co_armature_space.x
+          + space_mat[1][1] * co_armature_space.y
+          + space_mat[2][1] * co_armature_space.z
+          + space_mat[3][1];
+
+  /* bone->length needed for normalization.
+   * CPU: y / bone->length  → head_tail in [0, 1]
+   * We read it from bone_head_tail like before (length of rest bone). */
   vec3 head = bone_head_tail[bone_idx * 2 + 0].xyz;
   vec3 tail = bone_head_tail[bone_idx * 2 + 1].xyz;
-  
-  /* Calculate bone axis and length */
-  vec3 bone_vec = tail - head;
-  float bone_length = length(bone_vec);
-  
-  if (bone_length < 0.0001) {
-    /* Degenerate bone, use first real segment (index 1 in padded array) */
-    return bone_pose_mat[base_idx + 1];
-  }
-  
-  vec3 bone_axis = bone_vec / bone_length;
-  
-  /* Project vertex onto bone axis */
-  float height = dot(co_armature_space - head, bone_axis);
-  
-  /* Clamp and normalize to [0, 1] range */
-  height = clamp(height, 0.0, bone_length);
-  float t = height / bone_length;
-  
-  /* Calculate segment index (matching CPU logic)
-   * CPU does: pre_blend = head_tail * segments (NOT segments-1!)
-   * Then: index = floor(pre_blend), clamped to [0, segments-1] */
-  float seg_f = t * float(segments);
-  int index = int(floor(seg_f));
+  float bone_length = length(tail - head);
+
+  /* BKE_pchan_bbone_deform_clamp_segment_index */
+  float head_tail = (bone_length > 0.0001) ? (y / bone_length) : 0.0;
+  head_tail = clamp(head_tail, 0.0, 1.0);
+
+  float pre_blend = head_tail * float(segments);
+  int index = int(floor(pre_blend));
   index = clamp(index, 0, segments - 1);
-  float blend = fract(seg_f);
-  
-  /* CRITICAL: Apply +1 offset to match CPU indexing
-   * CPU does: pose_mats[index + 1]
-   * This skips the first padding segment */
+  float blend = clamp(pre_blend - float(index), 0.0, 1.0);
+
+  /* accumulate_bbone uses pose_mats[index + 1] and pose_mats[index + 2]
+   * → base_idx + index + 1  and  base_idx + index + 2 */
   mat4 mat_a = bone_pose_mat[base_idx + index + 1];
   mat4 mat_b = bone_pose_mat[base_idx + index + 2];
-  
+
   return mat_a * (1.0 - blend) + mat_b * blend;
 }
 
