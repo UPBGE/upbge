@@ -562,7 +562,7 @@ static void upload_bone_rest_lengths(Object *arm_ob,
   GPU_storagebuf_update(ssbo, lengths.data());
 }
 
-/* Upload bone head/tail positions (shared between LBS and DQS) */
+/* Upload bone head/tail positions (TODO - Replace with bone->length) */
 static void upload_bone_head_tail(Object *arm_ob,
                                   int bone_count,
                                   Mesh *mesh_owner,
@@ -1294,7 +1294,6 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
         /* Define SSBO keys (shared bone_segments, LBS-specific offsets) */
         const std::string key_bone_segments = key_prefix + "bone_segments";
         const std::string key_bone_offsets_lbs = key_prefix + "bone_offsets_lbs";
-        const std::string key_bone_head_tail = key_prefix + "bone_head_tail";
         const std::string key_bone_pose = key_prefix + "bone_pose_lbs";
         const std::string key_bone_rest_lengths = key_prefix + "bone_rest_lengths";
 
@@ -1333,10 +1332,6 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
         if (ssbo_bone_offsets) {
           GPU_storagebuf_update(ssbo_bone_offsets, msd.bone_segment_offsets_lbs.data());
         }
-
-        /* Upload bone_head_tail (shared, update every frame) */
-        upload_bone_head_tail(
-            eval_armature_ob, msd.bones, mesh_owner, deformed_eval, key_bone_head_tail);
 
         upload_bone_rest_lengths(
             eval_armature_ob, msd.bones, mesh_owner, deformed_eval, key_bone_rest_lengths);
@@ -1396,9 +1391,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
       info.storage_buf(7, Qualifier::read, "float", "vgroup_weights[]");  // Modifier filter
       info.storage_buf(8, Qualifier::read, "int", "bone_segments[]");  // B-Bone segments per bone
       info.storage_buf(9, Qualifier::read, "int", "bone_offsets[]");  // B-Bone matrix offsets
-      info.storage_buf(
-          10, Qualifier::read, "vec4", "bone_head_tail[]");  // Bone head/tail positions
-      info.storage_buf(11, Qualifier::read, "float", "bone_rest_length[]");
+      info.storage_buf(10, Qualifier::read, "float", "bone_rest_length[]");
     }
     compute_sh = bke::BKE_mesh_gpu_internal_shader_ensure(mesh_owner, deformed_eval, shader_key, info);
   }
@@ -1482,15 +1475,12 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     /* Bind B-Bone segment info (using new separate keys) */
     const std::string key_bone_segments = key_prefix + "bone_segments";
     const std::string key_bone_offsets_lbs = key_prefix + "bone_offsets_lbs";
-    const std::string key_bone_head_tail = key_prefix + "bone_head_tail";
     const std::string key_bone_rest_lengths = key_prefix + "bone_rest_lengths";
 
     gpu::StorageBuf *ssbo_bone_segments = bke::BKE_mesh_gpu_internal_ssbo_get(
         mesh_owner, key_bone_segments);
     gpu::StorageBuf *ssbo_bone_offsets_lbs = bke::BKE_mesh_gpu_internal_ssbo_get(
         mesh_owner, key_bone_offsets_lbs);
-    gpu::StorageBuf *ssbo_bone_head_tail = bke::BKE_mesh_gpu_internal_ssbo_get(
-        mesh_owner, key_bone_head_tail);
 
     if (ssbo_bone_segments) {
       GPU_storagebuf_bind(ssbo_bone_segments, 8);
@@ -1498,13 +1488,10 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     if (ssbo_bone_offsets_lbs) {
       GPU_storagebuf_bind(ssbo_bone_offsets_lbs, 9);
     }
-    if (ssbo_bone_head_tail) {
-      GPU_storagebuf_bind(ssbo_bone_head_tail, 10);
-    }
     gpu::StorageBuf *ssbo_bone_rest_lengths = bke::BKE_mesh_gpu_internal_ssbo_get(
         mesh_owner, key_bone_rest_lengths);
     if (ssbo_bone_rest_lengths) {
-      GPU_storagebuf_bind(ssbo_bone_rest_lengths, 11);
+      GPU_storagebuf_bind(ssbo_bone_rest_lengths, 10);
     }
   }
 
