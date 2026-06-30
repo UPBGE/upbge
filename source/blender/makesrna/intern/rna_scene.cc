@@ -745,7 +745,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 
 #  include "MOV_util.hh"
 
-#  include "BKE_animsys.h"
+#  include "BKE_animsys.hh"
 #  include "BKE_armature.hh"
 #  include "BKE_bake_geometry_nodes_modifier.hh"
 #  include "BKE_brush.hh"

@@ -12,12 +12,12 @@
 
 #ifdef _WIN32
 #  include "BLI_winstuff.hh"
+#  define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
-#include <vulkan/vulkan.h>
-#ifdef _WIN32
-#  include <vulkan/vulkan_win32.h>
-#endif
+#define VOLK_NAMESPACE
+#define VOLK_NO_DEVICE_PROTOTYPES
+#include "volk.h"
 
 #define VMA_VULKAN_VERSION 1002000  // Vulkan 1.2
 #if !defined(_WIN32) or defined(_M_ARM64)
@@ -61,6 +61,21 @@ struct VKSubImageRange {
   uint32_t mipmap_count = VK_REMAINING_MIP_LEVELS;
   uint32_t layer_base = 0;
   uint32_t layer_count = VK_REMAINING_ARRAY_LAYERS;
+};
+
+using ResourceHandle = uint64_t;
+template<typename HandleType> struct VKResourceWithHandle {
+  ResourceHandle resource_handle = 0;
+  HandleType vk_handle = VK_NULL_HANDLE;
+
+  operator ResourceHandle() const
+  {
+    return resource_handle;
+  }
+  operator HandleType() const
+  {
+    return vk_handle;
+  }
 };
 
 VkImageAspectFlags to_vk_image_aspect_flag_bits(const TextureFormat format);
