@@ -50,8 +50,8 @@ VKTexture::~VKTexture()
      * Unregister from the resource state tracker before destroying. */
     VKDevice &device = VKBackend::get().device;
     device.resources.remove_image(vk_image_);
-    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
-    vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
+    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    device.functions.vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
     vk_image_ = VK_NULL_HANDLE;
     imported_memory_ = VK_NULL_HANDLE;
     return;
@@ -651,7 +651,8 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
   image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-  VkResult result = vkCreateImage(device.vk_handle(), &image_info, nullptr, &vk_image_);
+  VkResult result = device.functions.vkCreateImage(
+      device.vk_handle(), &image_info, nullptr, &vk_image_);
   if (result != VK_SUCCESS) {
     vk_image_ = VK_NULL_HANDLE;
     return false;
@@ -663,7 +664,7 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
   VkMemoryRequirements2 mem_reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, &dedicated_reqs};
   VkImageMemoryRequirementsInfo2 img_req_info = {
       VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2, nullptr, vk_image_};
-  vkGetImageMemoryRequirements2(device.vk_handle(), &img_req_info, &mem_reqs2);
+  device.functions.vkGetImageMemoryRequirements2(device.vk_handle(), &img_req_info, &mem_reqs2);
   const VkMemoryRequirements &mem_reqs = mem_reqs2.memoryRequirements;
 
   /* Step 3: Find a device-local memory type compatible with the image requirements. */
@@ -680,7 +681,7 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
     }
   }
   if (memory_type_index == UINT32_MAX) {
-    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
     vk_image_ = VK_NULL_HANDLE;
     return false;
   }
@@ -719,9 +720,10 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
   return false;
 #endif
 
-  result = vkAllocateMemory(device.vk_handle(), &mem_alloc_info, nullptr, &imported_memory_);
+  result = device.functions.vkAllocateMemory(
+      device.vk_handle(), &mem_alloc_info, nullptr, &imported_memory_);
   if (result != VK_SUCCESS) {
-    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
     vk_image_ = VK_NULL_HANDLE;
     imported_memory_ = VK_NULL_HANDLE;
     return false;
@@ -730,10 +732,10 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
   /* Step 5: Bind the imported memory to the image. */
   VkBindImageMemoryInfo bind_info = {
       VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO, nullptr, vk_image_, imported_memory_, 0};
-  result = vkBindImageMemory2(device.vk_handle(), 1, &bind_info);
+  result = device.functions.vkBindImageMemory2(device.vk_handle(), 1, &bind_info);
   if (result != VK_SUCCESS) {
-    vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
-    vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    device.functions.vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
+    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
     vk_image_ = VK_NULL_HANDLE;
     imported_memory_ = VK_NULL_HANDLE;
     return false;

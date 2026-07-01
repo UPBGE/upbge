@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 
 #include "DNA_action_types.h"
 
