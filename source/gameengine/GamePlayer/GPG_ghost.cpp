@@ -1402,9 +1402,12 @@ int main(int argc,
   if (scr_saver_mode != SCREEN_SAVER_MODE_CONFIGURATION)
 #endif
   {
-    // Temp workaround to force the GPU backend to Vulkan (blenderplayer initialisation sequence
-    // order to be checked). The g_backend = MEM_new<VKBackend>(__func__); couldn't be at GPU_backend_type_selection_set
-    // (read user preferences (or WM_homefile_read) -> GPU_backend_type_selection_set(GPUBackendType(U.gpu_backend)) ?
+    // Needed if we want the vulkan backend to be set from user preferences.
+    GPU_backend_type_selection_set_override(GPUBackendType(U.gpu_backend));
+    // Needed to call VKBackend::is_supported() which is required for the vulkan backend
+    // to be initialized properly (in system->createWindow).
+    // Hard to understand because the vulkan backend is not initialized yet,
+    // but we need to call VKBackend::is_supported() (static, using temp vkInstances).
     GPU_backend_type_selection_detect();
 
     // Create the system

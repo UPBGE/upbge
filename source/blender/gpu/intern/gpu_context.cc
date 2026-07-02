@@ -482,16 +482,14 @@ bool GPU_backend_type_selection_detect()
   if (g_backend_type_override.has_value()) {
     backends_to_check.add(*g_backend_type_override);
   }
-
-// UPBGE: Temp workaround to force the GPU backend to Vulkan when vulkan + openGL compiled.
-// Vulkan backend first, else blenderplayer sequence order is messed.
-#if defined(WITH_VULKAN_BACKEND)
-  backends_to_check.add(GPU_BACKEND_VULKAN);
-#endif
 #if defined(WITH_OPENGL_BACKEND)
   backends_to_check.add(GPU_BACKEND_OPENGL);
 #elif defined(WITH_METAL_BACKEND)
   backends_to_check.add(GPU_BACKEND_METAL);
+#endif
+
+#if defined(WITH_VULKAN_BACKEND)
+  backends_to_check.add(GPU_BACKEND_VULKAN);
 #endif
 
   for (const GPUBackendType backend_type : backends_to_check) {
