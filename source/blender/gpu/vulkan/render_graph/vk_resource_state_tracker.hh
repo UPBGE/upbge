@@ -29,13 +29,6 @@
 
 #include "vk_common.hh"
 
-/**
- * Enable VK_RESOURCE_STATE_TRACKER_VALIDATION to perform a consistency check
- * on the state. The consistency check is time consuming and should only be
- * turned on when needed.
- */
-// #define VK_RESOURCE_STATE_TRACKER_VALIDATION
-
 namespace blender::gpu::render_graph {
 
 class VKCommandBuilder;
@@ -236,7 +229,11 @@ class VKResourceStateTracker {
    * This function is called when adding a node to the render graph, during building resource
    * dependencies. See `VKNodeInfo.build_links`
    */
-  ResourceWithStamp get_image_and_increase_stamp(VkImage vk_image);
+  inline ResourceWithStamp get_image_and_increase_stamp(VkImage vk_image)
+  {
+    ResourceHandle handle = image_resources_.lookup(vk_image);
+    return {.handle = handle, .stamp = resources_[handle].stamp++};
+  }
 
   /**
    * Return the current stamp of the resource, and increase the stamp.
@@ -248,7 +245,10 @@ class VKResourceStateTracker {
    * This function is called when adding a node to the render graph, during building resource
    * dependencies. See `VKNodeInfo.build_links`
    */
-  ResourceWithStamp get_buffer_and_increase_stamp(ResourceHandle buffer_handle);
+  inline ResourceWithStamp get_buffer_and_increase_stamp(ResourceHandle buffer_handle)
+  {
+    return {.handle = buffer_handle, .stamp = resources_[buffer_handle].stamp++};
+  }
 
   /**
    * Return the current stamp of the resource.
@@ -258,7 +258,10 @@ class VKResourceStateTracker {
    * This function is called when adding a node to the render graph, during building resource
    * dependencies. See `VKNodeInfo.build_links`
    */
-  ResourceWithStamp get_buffer(ResourceHandle buffer_handle) const;
+  inline ResourceWithStamp get_buffer(ResourceHandle buffer_handle) const
+  {
+    return ResourceWithStamp{.handle = buffer_handle, .stamp = resources_[buffer_handle].stamp};
+  }
 
   /**
    * Return the current stamp of the resource.
@@ -268,7 +271,11 @@ class VKResourceStateTracker {
    * This function is called when adding a node to the render graph, during building resource
    * dependencies. See `VKNodeInfo.build_links`
    */
-  ResourceWithStamp get_image(VkImage vk_image) const;
+  inline ResourceWithStamp get_image(VkImage vk_image) const
+  {
+    ResourceHandle handle = image_resources_.lookup(vk_image);
+    return {.handle = handle, .stamp = resources_[handle].stamp};
+  }
 
   bool use_dynamic_rendering_local_read = true;
 
@@ -279,16 +286,6 @@ class VKResourceStateTracker {
                  bool use_subresource_tracking,
                  VKResourceBarrierState barrier_state,
                  const char *name = nullptr);
-
-  /**
-   * Get the current stamp of the resource.
-   */
-  static ResourceWithStamp get_stamp(ResourceHandle handle, const Resource &resource);
-
-  /**
-   * Get the current stamp of the resource and increase the stamp.
-   */
-  static ResourceWithStamp get_and_increase_stamp(ResourceHandle handle, Resource &resource);
 
   ResourceHandle create_resource_slot();
 
@@ -322,10 +319,6 @@ class VKResourceStateTracker {
     BLI_assert(resources_[resource_handle].type == VKResourceType::BUFFER);
     return resources_[resource_handle];
   }
-
-#ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
-  void validate() const;
-#endif
 };
 
 }  // namespace blender::gpu::render_graph
