@@ -482,6 +482,28 @@ void BL_Action::HandleFrameWrapping(float curtime)
   BLI_assert(m_localframe >= minFrame && m_localframe <= maxFrame);
 }
 
+static bool armature_gpu_skinning(BL_ArmatureObject* bl_arm)
+{
+  bool is_running_gpu_skinning = false;
+  for (KX_GameObject *child : bl_arm->GetChildren()) {
+    blender::Object *child_ob = child->GetBlenderObject();
+    if (!child_ob) {
+      continue;
+    }
+    if (child_ob->type != OB_MESH) {
+      continue;
+    }
+    blender::Mesh *me = id_cast<blender::Mesh *>(child_ob->data);
+    if (me->is_running_gpu_animation_playback) {
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+      DEG_bump_update_count(depsgraph);
+      is_running_gpu_skinning = true;
+    }
+  }
+  return is_running_gpu_skinning;
+}
+
 void BL_Action::UpdateControllersAndAnimation(float curtime)
 {
   // Update spatial controllers
@@ -519,20 +541,21 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
   BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
   KX_Scene *scene = m_obj->GetScene();
 
+  bool gpu_skinning = armature_gpu_skinning(obj);
+
   obj->RemapParentChildren();
 
   if (m_layer_weight >= 0) {
     obj->GetPose(&m_blendpose);
   }
 
-  obj->ApplyAction(m_action, animEvalContext);
+  obj->ApplyAction(m_action, animEvalContext, gpu_skinning);
 
   ProcessArmatureBlending(obj, curtime);
 
   obj->ApplyPose();
 
-  /* GPU skinning handled on blender side now */
-  ProcessPipeline(obj, ob, scene, animEvalContext);
+  ProcessPipeline(obj, ob, scene, animEvalContext, gpu_skinning);
 
   obj->UpdateTimestep(curtime);
 }
@@ -540,27 +563,15 @@ void BL_Action::UpdateArmatureAnimation(float curtime,
 void BL_Action::ProcessPipeline(BL_ArmatureObject *obj,
                                    blender::Object *ob,
                                    KX_Scene *scene,
-                                   const blender::AnimationEvalContext &animEvalContext)
+                                   const blender::AnimationEvalContext &animEvalContext, bool gpu_skinning)
 {
   // === CPU/GPU PIPELINES ===
-  bool is_running_gpu_skinning = false;
-  for (KX_GameObject *child : m_obj->GetChildren()) {
-    blender::Object *child_ob = child->GetBlenderObject();
-    if (!child_ob) {
-      continue;
-    }
-    if (child_ob->type != OB_MESH) {
-      continue;
-    }
-    blender::Mesh *me = id_cast<blender::Mesh *>(child_ob->data);
-    if (me->is_running_gpu_animation_playback) {
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-      DEG_bump_update_count(depsgraph);
-      is_running_gpu_skinning = true;
-    }
-  }
-  if (!is_running_gpu_skinning) {
+  /* We intentionally choose to avoid depsgraph tagging in case of gpu skinning because
+   * gpu skinning CAN be totally standalone and we want to avoid superfluous dependancies recalculation.
+   * But in case of complex rigs, tagging depsgraph may be needed to have a proper cpu/gpu matching.
+   * In this case, the user will have to tag the armature with something like:
+   * kxarmature_obj.blenderObject.update_tag(). */
+  if (!gpu_skinning) {
     scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
   }
   m_obj->ForceIgnoreParentTx();

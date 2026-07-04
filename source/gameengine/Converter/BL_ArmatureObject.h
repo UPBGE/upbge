@@ -98,7 +98,7 @@ class BL_ArmatureObject : public KX_GameObject {
   void ApplyPose();
   void GameBlendPose(blender::bPose *dst, blender::bPose *src, float srcweight, short mode);
   void RemapParentChildren();
-  void ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx);
+  void ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx, bool gpu_skinning);
   void BlendInPose(blender::bPose *blend_pose, float weight, short mode);
 
   bool UpdateTimestep(double curtime);

@@ -110,7 +110,7 @@ class BL_Action {
   void ProcessPipeline(BL_ArmatureObject *armatureObj,
                        blender::Object *ob,
                        KX_Scene *scene,
-                       const blender::AnimationEvalContext &animEvalContext);
+                       const blender::AnimationEvalContext &animEvalContext, bool gpu_skinning);
   void ProcessArmatureBlending(BL_ArmatureObject *armatureObj, float curtime);
   void UpdateObjectAnimation(blender::Object *ob, const blender::AnimationEvalContext &animEvalContext);
   bool TryUpdateModifierActions(blender::Object *ob,

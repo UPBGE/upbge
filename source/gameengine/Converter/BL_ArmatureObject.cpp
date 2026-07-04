@@ -427,9 +427,7 @@ static void compute_bendy_bones_matrices(blender::Object *armOb)
   /* ============================================================
    * UPDATE BENDY BONES SEGMENTS CACHE FOR BGE
    * ============================================================
-   * When flush_to_original is false, BKE_pose_where_is() is not called,
-   * so bendy bones segments are not updated. We need to do it manually.
-   * in GPU skinning mode as depsgraph is not tagged.
+   * When depsgraph is not tagged, it's needed to do it manually.
    */
   if (armOb->pose) {
     for (blender::bPoseChannel &pchan : armOb->pose->chanbase) {
@@ -442,7 +440,7 @@ static void compute_bendy_bones_matrices(blender::Object *armOb)
   }
 }
 
-void BL_ArmatureObject::ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx)
+void BL_ArmatureObject::ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx, bool gpu_skinning)
 {
   if (!m_objArma || !action) {
     return;
@@ -450,7 +448,10 @@ void BL_ArmatureObject::ApplyAction(blender::bAction *action, const blender::Ani
   blender::PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
   const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
   animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
-  compute_bendy_bones_matrices(m_objArma);
+  if (gpu_skinning) {
+    // Partial support of bbones.
+    compute_bendy_bones_matrices(m_objArma);
+  }
 }
 
 void BL_ArmatureObject::BlendInPose(blender::bPose *blend_pose, float weight, short mode)
