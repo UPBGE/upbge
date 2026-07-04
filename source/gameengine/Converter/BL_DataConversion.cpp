@@ -1175,7 +1175,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
                               RAS_Rasterizer *rendertools,
                               RAS_ICanvas *canvas,
                               BL_SceneConverter *converter,
-                              blender::Object *single_object,
+                              blender::Object *runtime_converted_object, // With KX_Scene::ConvertBlenderObject() or similar 2.8+ APIs
                               bool alwaysUseExpandFraming,
                               bool libloading)
 {
@@ -1213,7 +1213,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
    * and both are on the active layer. */
   EXP_ListValue<KX_GameObject> *convertedlist = new EXP_ListValue<KX_GameObject>();
 
-  if (!single_object) {
+  if (!runtime_converted_object) {
 
     if (alwaysUseExpandFraming) {
       frame_type = RAS_FrameSettings::e_frame_extend;
@@ -1272,7 +1272,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 
   EXP_ListValue<KX_GameObject> *logicbrick_conversionlist = new EXP_ListValue<KX_GameObject>();
 
-  if (!single_object) {
+  if (!runtime_converted_object) {
     // Convert actions to actionmap
     blender::bAction *curAct;
     for (curAct = (blender::bAction *)maggie->actions.first; curAct; curAct = (blender::bAction *)curAct->id.next) {
@@ -1280,7 +1280,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
   else {
-    for (blender::bActuator *actu = (blender::bActuator *)single_object->actuators.first; actu; actu = actu->next) {
+    for (blender::bActuator *actu = (blender::bActuator *)runtime_converted_object->actuators.first; actu; actu = actu->next) {
       if (actu->type == ACT_ACTION) {
         bActionActuator *actionActu = (bActionActuator *)actu->data;
         if (actionActu->act != nullptr) {
@@ -1298,8 +1298,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   std::vector<blender::Object *> lod_objects = lod_level_object_list(
       BKE_view_layer_default_view(blenderscene));
 
-  bool converting_during_runtime = single_object != nullptr;
-  bool converting_instance_col_at_runtime = single_object && single_object->instance_collection && converter->FindGameObject(single_object) == nullptr;
+  bool converting_during_runtime = runtime_converted_object != nullptr;
+  bool converting_instance_col_at_runtime = runtime_converted_object && runtime_converted_object->instance_collection && converter->FindGameObject(runtime_converted_object) == nullptr;
 
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
@@ -1309,7 +1309,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     blender::Object *blenderobject = base->object;
 
     if (converter->FindGameObject(blenderobject) != nullptr) {
-      if (single_object && single_object == blenderobject) {
+      if (runtime_converted_object && runtime_converted_object == blenderobject) {
         CM_Warning("Attempt to convert the same blender::Object several times: " << blenderobject->id.name + 2);
       }
       continue;
@@ -1319,8 +1319,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       continue;
     }
 
-    if (single_object) {
-      if (blenderobject != single_object) {
+    if (runtime_converted_object) {
+      if (blenderobject != runtime_converted_object) {
         continue;
       }
     }
@@ -1362,7 +1362,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         grouplist.insert(blenderobject->instance_collection);
       }
 
-      if (blenderobject->gameflag & OB_DUPLI_UPBGE && isInActiveLayer && !single_object) {
+      if (blenderobject->gameflag & OB_DUPLI_UPBGE && isInActiveLayer) {
         /* When the object is an upbge dupli base (not not an upbge dupli instance),
          * as there is not behaviour defined when this base in an active layer (visibled
          * at conversion time), we choose, for convenience, to make this kind of blenderobject
@@ -1438,7 +1438,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       CTX_wm_region_view3d(KX_GetActiveEngine()->GetContext())->persp == RV3D_CAMOB) {
     KX_Camera *gamecamera = (KX_Camera *)converter->FindGameObject(blenderscene->camera);
 
-    if (gamecamera && !single_object)
+    if (gamecamera && !runtime_converted_object)
       kxscene->SetActiveCamera(gamecamera);
   }
 
@@ -1447,7 +1447,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 
   for (pcit = vec_parent_child.begin(); !(pcit == vec_parent_child.end()); ++pcit) {
 
-    if (single_object && !converting_instance_col_at_runtime) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
       /* Don't bother with object children during single object conversion */
       std::cout << "Warning: blender::Object's children are not converted during runtime" << std::endl;
       break;
@@ -1543,8 +1543,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 
   // find 'root' parents (object that has not parents in SceneGraph)
   for (KX_GameObject *gameobj : sumolist) {
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (gameobj->GetBlenderObject() != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (gameobj->GetBlenderObject() != runtime_converted_object) {
         continue;
       }
     }
@@ -1554,7 +1554,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
 
-  if (!single_object) {
+  if (!runtime_converted_object) {
     kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
   }
 
@@ -1564,8 +1564,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     for (KX_GameObject *gameobj : sumolist) {
       blender::Object *blenderobject = gameobj->GetBlenderObject();
 
-      if (single_object && !converting_instance_col_at_runtime) {
-        if (blenderobject != single_object) {
+      if (runtime_converted_object && !converting_instance_col_at_runtime) {
+        if (blenderobject != runtime_converted_object) {
           continue;
         }
       }
@@ -1586,8 +1586,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   for (KX_GameObject *gameobj : sumolist) {
     PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
     blender::Object *blenderobject = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobject != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobject != runtime_converted_object) {
         continue;
       }
     }
@@ -1632,7 +1632,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
 
-  if (!single_object) {
+  if (!runtime_converted_object) {
     KX_SetActiveScene(kxscene);
   }
 
@@ -1641,8 +1641,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   if (obssimulation) {
     for (KX_GameObject *gameobj : objectlist) {
       blender::Object *blenderobject = gameobj->GetBlenderObject();
-      if (single_object && !converting_instance_col_at_runtime) {
-        if (blenderobject != single_object) {
+      if (runtime_converted_object && !converting_instance_col_at_runtime) {
+        if (blenderobject != runtime_converted_object) {
           continue;
         }
       }
@@ -1655,8 +1655,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   // process navigation mesh objects
   for (KX_GameObject *gameobj : objectlist) {
     blender::Object *blenderobject = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobject != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobject != runtime_converted_object) {
         continue;
       }
     }
@@ -1670,8 +1670,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   }
   for (KX_GameObject *gameobj : inactivelist) {
     blender::Object *blenderobject = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobject != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobject != runtime_converted_object) {
         continue;
       }
     }
@@ -1684,8 +1684,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   // convert logic bricks, sensors, controllers and actuators
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     blender::Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobj != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobj != runtime_converted_object) {
         continue;
       }
     }
@@ -1703,8 +1703,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     blender::Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobj != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobj != runtime_converted_object) {
         continue;
       }
     }
@@ -1715,8 +1715,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     blender::Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobj != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobj != runtime_converted_object) {
         continue;
       }
     }
@@ -1737,8 +1737,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   // apply the initial state to controllers, only on the active objects as this registers the
   // sensors
   for (KX_GameObject *gameobj : objectlist) {
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (gameobj->GetBlenderObject() != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (gameobj->GetBlenderObject() != runtime_converted_object) {
         continue;
       }
     }
@@ -1748,8 +1748,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   // Convert the python components of each object.
   for (KX_GameObject *gameobj : sumolist) {
     blender::Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobj != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobj != runtime_converted_object) {
         continue;
       }
     }
@@ -1758,8 +1758,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 
   for (KX_GameObject *gameobj : objectlist) {
     blender::Object *blenderobj = gameobj->GetBlenderObject();
-    if (single_object && !converting_instance_col_at_runtime) {
-      if (blenderobj != single_object) {
+    if (runtime_converted_object && !converting_instance_col_at_runtime) {
+      if (blenderobj != runtime_converted_object) {
         continue;
       }
     }
@@ -1795,7 +1795,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         gameobj->SetVisible(false, false);
 
         /* Don't bother with groups during single object conversion */
-        if (!single_object) {
+        if (!runtime_converted_object) {
           kxscene->DupliGroupRecurse(gameobj, 0);
         }
       }
@@ -1803,11 +1803,11 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   }
   else {
     /* If we are converting instance collections during runtime only */
-    if (single_object) {
+    if (runtime_converted_object) {
       /* If we are converting an instance collection at runtime, don't loop through
        * all objects in active layer to avoid creating again previously created
        * dupligroups */
-      KX_GameObject *gameobj = converter->FindGameObject(single_object);
+      KX_GameObject *gameobj = converter->FindGameObject(runtime_converted_object);
       /* If instance collection is in an Active layer */
       if (gameobj->GetLayer() == 1) {
         gameobj->SetVisible(false, false);
