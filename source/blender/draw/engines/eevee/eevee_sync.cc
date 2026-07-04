@@ -38,11 +38,6 @@ ObjectHandle SyncModule::sync_object(const ObjectRef &ob_ref,
   /* UPBGE */
   /* The following code, specific to upbge, is needed for specific gameobject not tagged/integrated with
    * depsgraph code to prevent missing updates in drawing code. */
-
-  /* Shadows update for UPBGE dupli bases (Bases, not instances). */
-  if (ob_ref.object->gameflag & OB_DUPLI_UPBGE && ob_ref.object->lay == 1) {
-    ob_ref.object->runtime->last_update_transform = DEG_get_update_count(inst_.depsgraph) + 1;
-  }
   /* Shadows update for GPU deformed objects workaround. */
   if (ob_ref.object->type == OB_MESH) {
     Mesh *me_eval = (Mesh *)ob_ref.object->data;
