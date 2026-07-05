@@ -15,6 +15,7 @@
 #include "vk_context.hh"
 #include "vk_framebuffer.hh"
 #include "vk_immediate.hh"
+#include "vk_memory_layout.hh"
 #include "vk_state_manager.hh"
 
 #include "CLG_log.h"
@@ -29,12 +30,7 @@ uchar *VKImmediate::begin()
   const size_t bytes_needed = vertex_buffer_size(&vertex_format, vertex_len + add_vertex);
   size_t offset_alignment = GPU_storage_buffer_alignment();
   VKBuffer &buffer = ensure_space(bytes_needed, offset_alignment);
-
-  /* Apply alignment when allocating new sub buffer, to reduce signed/unsigned data conversion
-   * later on. */
-  buffer_offset_ += offset_alignment - 1;
-  buffer_offset_ &= ~(offset_alignment - 1);
-  BLI_assert((buffer_offset_ & (offset_alignment - 1)) == 0);
+  buffer_offset_ = ceil_to_multiple_ul(buffer_offset_, offset_alignment);
 
   current_subbuffer_len_ = bytes_needed;
   uchar *data = static_cast<uchar *>(buffer.mapped_memory_get());
@@ -82,7 +78,9 @@ void VKImmediate::end()
     GPU_matrix_bind(context.shader);
     render_graph::VKRenderGraph &graph = context.render_graph();
     render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
+    VKDevice &device = VKBackend::get().device;
     vertex_attributes_.update_bindings(*this);
+    vertex_attributes_.update_vertex_input_key(device.vertex_input_descriptions);
     VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
     framebuffer.rendering_ensure(context);
 
@@ -94,7 +92,8 @@ void VKImmediate::end()
     node.data.first_instance = 0;
 
     vertex_attributes_.bind(node.data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vertex_attributes_, node.data.graphics);
+    context.update_pipeline_data(
+        framebuffer, prim_type, vertex_attributes_.vertex_input_key, node.data.graphics);
 
     render_graph::VKDrawNode::CreateInfo draw(resource_access_info);
     node.finalize(graph, draw);
@@ -122,7 +121,7 @@ static VkDeviceSize new_buffer_size(VkDeviceSize sub_buffer_size)
 
 VKBuffer &VKImmediate::ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offset_alignment)
 {
-  VkDeviceSize bytes_required = bytes_needed + offset_alignment;
+  VkDeviceSize bytes_required = ceil_to_multiple_ul(bytes_needed, offset_alignment);
 
   /* Last used buffer still has space. */
   if (active_buffer_.has_value() && buffer_bytes_free() >= bytes_required) {

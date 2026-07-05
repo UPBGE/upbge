@@ -123,9 +123,14 @@ class VKBuffer : public NonCopyable {
   /** Invalidate a range of the mapped memory to make device writes visible to the host. */
   void invalidate_mapped_range(size_t offset, size_t size) const;
 
-  VkDeviceAddress device_address_get() const
+  inline VkDeviceAddress device_address_get() const
   {
     return vk_device_address;
+  }
+
+  inline bool has_device_address() const
+  {
+    return vk_device_address != 0;
   }
 
   /**

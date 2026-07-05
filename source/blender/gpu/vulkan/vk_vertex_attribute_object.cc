@@ -32,6 +32,12 @@ void VKVertexAttributeObject::clear()
   vertex_input.clear();
   vbos.clear();
   buffers.clear();
+  vertex_input_key = VKVertexInputDescriptionPool::invalid_key;
+}
+
+void VKVertexAttributeObject::update_vertex_input_key(VKVertexInputDescriptionPool &pool)
+{
+  vertex_input_key = pool.get_or_insert(vertex_input);
 }
 
 VKVertexAttributeObject &VKVertexAttributeObject::operator=(const VKVertexAttributeObject &other)
@@ -41,6 +47,7 @@ VKVertexAttributeObject &VKVertexAttributeObject::operator=(const VKVertexAttrib
   }
 
   vertex_input = other.vertex_input;
+  vertex_input_key = other.vertex_input_key;
 
   vbos.clear();
   vbos.extend(other.vbos);
