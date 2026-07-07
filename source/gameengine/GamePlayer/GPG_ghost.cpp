@@ -861,8 +861,6 @@ int main(int argc,
   BKE_tempdir_init(nullptr);
   BLI_threadapi_init();
 
-  DNA_sdna_current_init();
-
   BKE_blender_globals_init(); /* blender.c */
   G.is_blenderplayer = true;
 
@@ -2009,8 +2007,6 @@ int main(int argc,
   if (C) {
     CTX_free(C);
   }
-
-  DNA_sdna_current_free();
 
   BLI_threadapi_exit();
   BLI_task_scheduler_exit();
