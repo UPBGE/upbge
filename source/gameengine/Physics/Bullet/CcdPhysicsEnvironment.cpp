@@ -2352,8 +2352,12 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
   if (sb0) {
     // either cluster or node attach, let's find closest node first
     // the soft body doesn't have a 'real' world transform, so get its initial world transform for
-    // now
-    btVector3 pivotPointSoftWorld = sb0->getWorldTransform()(pivotInA);
+    // now (Actually we can rely on m_motionState (it has an initial transform on first frame, then it is updated in
+    // CcdPhysicsController::SynchronizeMotionStates))
+    btMatrix3x3 rot = ToBullet(c0->m_MotionState->GetWorldOrientation());
+    btVector3 pos = ToBullet(c0->m_MotionState->GetWorldPosition());
+    btTransform worldTrans(rot, pos);
+    btVector3 pivotPointSoftWorld = worldTrans(pivotInA);
     int node = findClosestNode(sb0, pivotPointSoftWorld);
     if (node >= 0) {
       if (rb1) {
