@@ -568,9 +568,9 @@ bool CcdPhysicsController::CreateSoftbody()
     if (rasMesh && !m_softbodyMappingDone) {
       Object *ob_orig = rasMesh->GetOriginalObject();
       bContext *C = KX_GetActiveEngine()->GetContext();
-      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
-      Mesh *mesh_eval = (Mesh *)ob_eval->data;
+      Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
       Span<float3> positions = mesh_eval->vert_positions();
 
       m_cci.m_soft_indices.resize(mesh_eval->verts_num);
@@ -913,7 +913,7 @@ void CcdPhysicsController::UpdateSoftBodyRenderedMesh()
         blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
         blender::Object *ob = gameobj->GetBlenderObject();
         blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-        blender::Mesh *me = (blender::Mesh *)ob_eval->data;
+        blender::Mesh *me = BKE_object_get_evaluated_mesh(ob_eval);
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
 
@@ -1947,8 +1947,8 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
     can_be_decimated = true;
     if (can_be_decimated) {
       Object *ob_eval = DEG_get_evaluated(
-          CTX_data_depsgraph_on_load(KX_GetActiveEngine()->GetContext()), blenderobj);
-      Mesh *mesh_eval = (Mesh *)ob_eval->data;
+          CTX_data_ensure_evaluated_depsgraph(KX_GetActiveEngine()->GetContext()), blenderobj);
+      Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
       m_shapeInfo->DecimateMesh(mesh_eval, collapseFactor);
     }
   }
@@ -2001,9 +2001,9 @@ void CcdPhysicsController::UpdateShapeFromShapeInfo(CcdShapeConstructionInfo *sh
     Object *blenderobj = gameobj->GetBlenderObject();
     Mesh *mesh = (Mesh *)blenderobj->data;
     bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
-    Mesh *mesh_eval = (Mesh *)ob_eval->data;
+    Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
     const std::optional<Bounds<float3>> bounds = mesh_eval->runtime->bounds_cache.data();
     btVector3 aabbMin(btVector3(bounds->min.x, bounds->min.y, bounds->min.z));
     btVector3 aabbMax(btVector3(bounds->max.x, bounds->max.y, bounds->max.z));
@@ -2181,10 +2181,10 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   }
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   blender::Object *ob_eval = DEG_get_evaluated(depsgraph, meshobj->GetOriginalObject());
-  blender::Mesh *me = (blender::Mesh *)ob_eval->data;
+  blender::Mesh *me = BKE_object_get_evaluated_mesh(ob_eval);
 
   const blender::Span<blender::float3> positions = me->vert_positions();
 
@@ -2356,10 +2356,10 @@ static bool get_positions_from_render_cache(KX_GameObject *gameobj, std::vector<
   }
   Object *ob_orig = gameobj->GetBlenderObject();
   bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
   Mesh *me_original = (Mesh *)ob_orig->data;
-  Mesh *me_eval = (Mesh *)ob_eval->data;
+  Mesh *me_eval = BKE_object_get_evaluated_mesh(ob_eval);
   blender::Mesh *me = me_eval;
   if (me == nullptr || !me->is_running_gpu_animation_playback) {
     return false;
@@ -2682,9 +2682,9 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
   }
   else if (evaluatedMesh) {
     blender::bContext *C = KX_GetActiveEngine()->GetContext();
-    blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     blender::Object *ob_eval = DEG_get_evaluated(depsgraph, from_gameobj->GetBlenderObject());
-    me = (blender::Mesh *)ob_eval->data;
+    me = BKE_object_get_evaluated_mesh(ob_eval);
   }
   else if (from_gameobj && !evaluatedMesh) {
     me = (blender::Mesh *)from_gameobj->GetBlenderObject()->data;

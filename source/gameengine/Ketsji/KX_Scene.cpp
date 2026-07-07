@@ -1489,7 +1489,8 @@ KX_GameObject *KX_Scene::AddFullCopyObject(KX_GameObject *gameobj,
       }
 
       DEG_relations_tag_update(bmain);
-      // BKE_scene_graph_update_tagged(depsgraph, bmain);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      BKE_scene_graph_update_tagged(depsgraph, bmain);
       ConvertBlenderObject(basen->object);
 
       KX_GameObject *replica = m_sceneConverter->FindGameObject(basen->object);

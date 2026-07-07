@@ -603,9 +603,9 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
 {
   /* TODO: This doesn't work currently because of eval_ctx. */
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   blender::Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
-  blender::Mesh *final_me = (blender::Mesh *)ob_eval->data;
+  blender::Mesh *final_me = BKE_object_get_evaluated_mesh(ob_eval);
   using namespace blender;
   using namespace blender::bke;
   const AttributeAccessor attributes = final_me->attributes();

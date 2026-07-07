@@ -369,9 +369,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   // Get blender::Mesh data
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   blender::Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
-  blender::Mesh *final_me = (blender::Mesh *)ob_eval->data;
+  blender::Mesh *final_me = BKE_object_get_evaluated_mesh(ob_eval);
 
   const blender::Span<blender::float3> positions = final_me->vert_positions();
   const int totverts = final_me->verts_num;
@@ -1319,6 +1319,13 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       continue;
     }
 
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobject);
+    if (!DEG_is_evaluated(&ob_eval->id)) {
+      continue;
+    }
+
     if (runtime_converted_object) {
       if (blenderobject != runtime_converted_object) {
         continue;
@@ -1331,21 +1338,6 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
     kxscene->BackupVisibilityFlag(blenderobject, blenderobject->visibility_flag);
-
-    /* Force OB_HIDE_VIEWPORT to avoid not needed depsgraph operations in some cases,
-     * unless blenderobject is a lodlevel because we want to be abled to get
-     * evaluated meshes from lodlevels and restrict viewport prevents meshes to be evaluated
-     */
-    bool hide = !isInActiveLayer;
-    hide = hide && !is_lod_level(lod_objects, blenderobject);
-    hide = hide && (blenderobject->gameflag & OB_DUPLI_UPBGE) == 0;
-    if (hide) {
-      blenderobject->visibility_flag |= OB_HIDE_VIEWPORT;
-      BKE_main_collection_sync_remap(maggie);
-      DEG_relations_tag_update(maggie);
-    }
-
-    BKE_view_layer_synced_ensure(*maggie, blenderscene, BKE_view_layer_default_view(blenderscene));
 
     KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
         blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
@@ -1813,6 +1805,23 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         gameobj->SetVisible(false, false);
         kxscene->DupliGroupRecurse(gameobj, 0);
       }
+    }
+  }
+  /* Force OB_HIDE_VIEWPORT to avoid not needed depsgraph operations in some cases,
+   * unless blenderobject is a lodlevel because we want to be abled to get
+   * evaluated meshes from lodlevels and restrict viewport prevents meshes to be evaluated
+   */
+  bool hide = true;
+  for (KX_GameObject *gameobj : inactivelist) {
+    Object *blenderobj = gameobj->GetBlenderObject();
+    hide = hide && !is_lod_level(lod_objects, blenderobj);
+    hide = hide && (blenderobj->gameflag & OB_DUPLI_UPBGE) == 0;
+    if (hide) {
+      blenderobj->visibility_flag |= OB_HIDE_VIEWPORT;
+      BKE_main_collection_sync_remap(maggie);
+      DEG_relations_tag_update(maggie);
+      BKE_view_layer_synced_ensure(
+          *maggie, blenderscene, BKE_view_layer_default_view(blenderscene));
     }
   }
 }
