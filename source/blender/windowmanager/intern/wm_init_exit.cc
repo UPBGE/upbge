@@ -805,8 +805,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   SYS_DeleteSystem(SYS_GetSystem());
 #endif
 
-  DNA_sdna_current_free();
-
   BLI_threadapi_exit();
   BLI_task_scheduler_exit();
 
