@@ -1834,8 +1834,16 @@ DRWTextStore *DRW_text_cache_ensure()
  * \{ */
 
 /* UPBGE */
-static void update_lods(Depsgraph *depsgraph, Object *ob_eval, float camera_pos[3])
+static void update_lods(Depsgraph *depsgraph, draw::ObjectRef &obref, float camera_pos[3])
 {
+  if (obref.is_dupli()) {
+    // temp fix to prevent crash with DupliObject as LodLevel.
+    // Later, LodLevels could potentially be "converted" as DupliObject both in viewport and bge.
+    // Currently only viewport is crashing with DupliOject as LodLevel (bge doesn't crash
+    // - timing for runtime->data_eval replacement is not the same than in viewport).
+    return;
+  }
+  Object *ob_eval = obref.object;
   Object *ob_orig = DEG_get_original(ob_eval);
   BKE_object_lod_update(ob_orig, camera_pos);
 
@@ -1881,7 +1889,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
     if (do_populate_loop) {
       foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         /* UPBGE */
-        update_lods(depsgraph, ob_ref.object, draw_ctx.rv3d->viewinv[3]);
+        update_lods(depsgraph, ob_ref, draw_ctx.rv3d->viewinv[3]);
         /* End of UPBGE */
         drw_engines_cache_populate(ob_ref, duplis, extraction);
       });
