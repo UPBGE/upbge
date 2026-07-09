@@ -221,6 +221,9 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     m_weldingThreshold1 = threshold * threshold;
   }
 
+  /// Sample-based topology signature (cheap/not 100% accurate)
+  unsigned int m_topologySignature = 0u;
+
  protected:
   static std::map<RAS_MeshObject *, CcdShapeConstructionInfo *> m_meshShapeMap;
   /// Keep a pointer to the original mesh
@@ -247,8 +250,6 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
   /// Between 0.0 and 1.0, the factor used to decimate the mesh for physics shape update (0.0 means
   /// maximum decimation, 1.0 means no decimation).
   float m_lastCollapseFactor = 1.0f;
-  /// Sample-based topology signature (cheap/not 100% accurate)
-  unsigned int m_topologySignature = 0u;
 };
 
 

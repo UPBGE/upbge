@@ -766,6 +766,24 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
     // remove the old softBody
     world->removeSoftBody(softBody);
 
+    KX_GameObject *gameobj = KX_GameObject::GetClientObject(
+        (KX_ClientObjectInfo *)GetNewClientInfo());
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    /* We need to ensure the depsgraph is up to date to have right mesh with modifiers polycount
+     * When we just added a KX_GameObject with a constructive modifier for example */
+    blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    blender::Object *ob = gameobj->GetBlenderObject();
+
+    if (m_sbCoords) {
+      MEM_delete(m_sbCoords);
+      m_sbCoords = nullptr;
+    }
+    if (m_sbModifier) {
+      BLI_remlink(&ob->modifiers, m_sbModifier);
+      BKE_modifier_free((ModifierData *)m_sbModifier);
+      m_sbModifier = nullptr;
+    }
+
     // soft body must be recreated
     delete m_object;
     m_object = nullptr;
@@ -924,14 +942,14 @@ void CcdPhysicsController::UpdateSoftBodyRenderedMesh()
          * we skip softbody deformation and raise a warning because softbody shape and mapping
          * are only done once and rely on RAS_MeshObject polycount */
         bool skip_deform = false;
-        if (me->verts_num != rasMesh->GetConversionTotVerts()) {
+        unsigned int sample_sig = hash_topology(me, 32);
+        if (m_shapeInfo->m_topologySignature != 0u &&
+            sample_sig != m_shapeInfo->m_topologySignature)
+        {
+          ReinstancePhysicsShape(gameobj, nullptr, false, true);
+          m_shapeInfo->m_topologySignature = sample_sig;
+          /* Wait for next frame */
           skip_deform = true;
-          CM_Debug("BGE SoftBody: Vertices count of object: " << ob->id.name + 2
-                    << " was modified during bge runtime.");
-          CM_Debug("It can happen when blender::Object modifiers are changing blender::Object geometry because "
-                       "of SoftBody Deformation or when a constructive modifier has not been evaluated yet.");
-          CM_Debug("me->totvert " << me->verts_num);
-          CM_Debug("rasMesh->GetConversionTotVerts() " << rasMesh->GetConversionTotVerts());
         }
 
         if (!skip_deform) {
