@@ -768,10 +768,6 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 
     KX_GameObject *gameobj = KX_GameObject::GetClientObject(
         (KX_ClientObjectInfo *)GetNewClientInfo());
-    blender::bContext *C = KX_GetActiveEngine()->GetContext();
-    /* We need to ensure the depsgraph is up to date to have right mesh with modifiers polycount
-     * When we just added a KX_GameObject with a constructive modifier for example */
-    blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     blender::Object *ob = gameobj->GetBlenderObject();
 
     if (m_sbCoords) {
