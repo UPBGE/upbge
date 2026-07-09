@@ -39,6 +39,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BLI_linklist.hh"
 #include "BLI_listbase.hh"
@@ -46,6 +47,7 @@
 #include "BLI_string.hh"
 #include "BLI_task_c.hh"
 #include "BLO_readfile.hh"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
@@ -481,8 +483,14 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
       if (options & LIB_LOAD_VERBOSE) {
         CM_Debug("mesh name: " << mesh->name + 2);
       }
+      /*bContext *C = KX_GetActiveEngine()->GetContext();
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+      Mesh *me_eval = BKE_object_get_evaluated_mesh(ob_eval);*/
       RAS_MeshObject *meshobj = BL_ConvertMesh(
-          (blender::Mesh *)mesh,
+          (Mesh *)mesh,
+          nullptr, // 2.8+ compilation fix tmp
+          nullptr, // 2.8+ compilation fix tmp
           nullptr,
           scene_merge,
           m_ketsjiEngine->GetRasterizer(),
@@ -863,8 +871,9 @@ RAS_MeshObject *BL_Converter::ConvertMeshSpecial(KX_Scene *kx_scene,
 
   BL_SceneConverter *sceneConverter = new BL_SceneConverter();
 
+  /* 2.8+ compilation fix tmp (mesh_eval data required) */
   RAS_MeshObject *meshobj = BL_ConvertMesh(
-      (blender::Mesh *)me, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), sceneConverter, false, true);
+      (blender::Mesh *)me, nullptr, nullptr, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), sceneConverter, false, true);
   kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
   m_sceneSlots[kx_scene].Merge(sceneConverter);

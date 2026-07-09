@@ -797,6 +797,7 @@ typedef struct RecastData {
 #define GAME_PYTHON_CONSOLE (1 << 22)
 #define GAME_USE_INTERACTIVE_DYNAPAINT (1 << 23)
 #define GAME_USE_INTERACTIVE_RIGIDBODY (1 << 24)
+#define GAME_SHOW_MESH_EVALUATION_STATE (1 << 25)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.playerflag */

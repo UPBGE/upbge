@@ -6773,6 +6773,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "Show Physics Visualization",
                            "Show a visualization of physics bounds and interactions");
 
+  prop = RNA_def_property(srna, "show_mesh_evaluation_state", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_MESH_EVALUATION_STATE);
+  RNA_def_property_ui_text(prop,
+                           "Show Mesh Evaluation State",
+                           "Show mesh evaluation state at conversion time for physics shape creation (triangle mesh/convex hull)");
+
   prop = RNA_def_property(srna, "show_mouse", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_MOUSE);
   RNA_def_property_ui_text(prop, "Show Mouse", "Start player with a visible mouse cursor");

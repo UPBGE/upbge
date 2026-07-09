@@ -120,6 +120,7 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         flow.prop(gs, "show_debug_properties", text="Debug Properties")
         flow.prop(gs, "show_framerate_profile", text="Framerate and Profile")
         flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
+        flow.prop(gs, "show_mesh_evaluation_state", text="Evaluation data at conversion")
         flow.prop(gs, "use_deprecation_warnings")
         flow.prop(gs, "show_mouse", text="Mouse Cursor")
         flow.prop(gs, "use_undo", text="Undo at exit")

@@ -347,7 +347,9 @@ static int GetPolygonMaterialIndex(const VArray<int> mat_indices, const blender:
 
 /* blenderobj can be nullptr, make sure its checked for */
 RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
-                               Object *blenderobj,
+                               Object *ob_orig,
+                               Object *ob_eval,
+                               Mesh *me_eval,
                                KX_Scene *scene,
                                RAS_Rasterizer *rasty,
                                BL_SceneConverter *converter,
@@ -355,23 +357,20 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                bool converting_during_runtime)
 {
   RAS_MeshObject *meshobj;
-  int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) - 1;  // all layers if no object.
+  int lightlayer = ob_orig ? ob_orig->lay : (1 << 20) - 1;  // all layers if no object.
 
   // Without checking names, we get some reuse we don't want that can cause
   // problems with material LoDs.
-  if (blenderobj && ((meshobj = converter->FindGameMesh(mesh /*, ob->lay*/)) != nullptr)) {
+  if (ob_orig && ((meshobj = converter->FindGameMesh(mesh /*, ob->lay*/)) != nullptr)) {
     const std::string bge_name = meshobj->GetName();
-    const std::string blender_name = ((blender::ID *)blenderobj->data)->name + 2;
+    const std::string blender_name = ((blender::ID *)ob_orig->data)->name + 2;
     if (bge_name == blender_name) {
       return meshobj;
     }
   }
 
-  // Get blender::Mesh data
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobj);
-  blender::Mesh *final_me = BKE_object_get_evaluated_mesh(ob_eval);
+  // Get Mesh evaluated data - it was derived mesh previously
+  blender::Mesh *final_me = me_eval;
 
   const blender::Span<blender::float3> positions = final_me->vert_positions();
   const int totverts = final_me->verts_num;
@@ -427,7 +426,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                           {uv_map});
   }
 
-  meshobj = new RAS_MeshObject(mesh, final_me->verts_num, blenderobj, layersInfo);
+  meshobj = new RAS_MeshObject(mesh, final_me->verts_num, ob_orig, layersInfo);
   meshobj->m_sharedvertex_map.resize(totverts);
 
   // Initialize vertex format with used uv and color layers.
@@ -450,7 +449,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   // Convert all the materials contained in the mesh.
   for (unsigned short i = 0; i < totmat; ++i) {
     blender::Material *ma = nullptr;
-    if (blenderobj) {
+    if (ob_orig) {
       ma = BKE_object_material_get(ob_eval, i + 1);
     }
     else {
@@ -741,7 +740,7 @@ static KX_GameObject *BL_gameobject_from_customobject(blender::Object *ob,
 }
 #endif
 
-static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
+static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob_orig,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
                                                        BL_SceneConverter *converter,
@@ -750,11 +749,12 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
 {
   KX_GameObject *gameobj = nullptr;
 
-  switch (ob->type) {
+  switch (ob_orig->type) {
     case OB_LAMP: {
       KX_LightObject *gamelight = nullptr;
 #ifdef WITH_PYTHON
-      KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_LightObject::Type, kxscene);
+      KX_GameObject *customobj = BL_gameobject_from_customobject(
+          ob_orig, &KX_LightObject::Type, kxscene);
 
       if (customobj) {
         gamelight = dynamic_cast<KX_LightObject *>(customobj);
@@ -774,7 +774,8 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     case OB_CAMERA: {
       KX_Camera *gamecamera = nullptr;
 #ifdef WITH_PYTHON
-      KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_Camera::Type, kxscene);
+      KX_GameObject *customobj = BL_gameobject_from_customobject(
+          ob_orig, &KX_Camera::Type, kxscene);
 
       if (customobj) {
         gamecamera = dynamic_cast<KX_Camera *>(customobj);
@@ -794,56 +795,82 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     }
 
     case OB_MESH: {
-      blender::Mesh *mesh = id_cast<blender::Mesh *>(ob->data);
-      RAS_MeshObject *meshobj = BL_ConvertMesh(
-          mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime);
+      Mesh *mesh = id_cast<blender::Mesh *>(ob_orig->data);
 
-      // needed for python scripting
-      kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+      Mesh *me_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
-      if (ob->gameflag & OB_NAVMESH) {
+      /* 1. No Evaluated Mesh available -> convert as Empty Object */
+      if (!me_eval) {
 #ifdef WITH_PYTHON
-        gameobj = BL_gameobject_from_customobject(ob, &KX_NavMeshObject::Type, kxscene);
+        gameobj = BL_gameobject_from_customobject(ob_orig, &KX_GameObject::Type, kxscene);
 #endif
-        if (!gameobj) {
-          gameobj = new KX_NavMeshObject();
-        }
 
-        gameobj->AddMesh(meshobj);
-        break;
-      }
-      else {
-#ifdef WITH_PYTHON
-        gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
-#endif
         if (!gameobj) {
           gameobj = new KX_EmptyObject();
         }
       }
-
-      // set transformation
-      gameobj->AddMesh(meshobj);
-
-      // gather levels of detail
-      KX_LodManager *lodManager = BL_lodmanager_from_blenderobject(
-          ob, kxscene, rasty, converter, libloading, converting_during_runtime);
-      gameobj->SetLodManager(lodManager);
-      if (lodManager) {
-        lodManager->Release();
-        kxscene->AddObjToLodObjList(gameobj);
-      }
+      /* 2. Evaluated Mesh available: We can create the physics shape properly */
       else {
-        /* Just in case */
-        kxscene->RemoveObjFromLodObjList(gameobj);
-      }
+        RAS_MeshObject *meshobj = BL_ConvertMesh(mesh,
+                                                 ob_orig,
+                                                 ob_eval,
+                                                 me_eval,
+                                                 kxscene,
+                                                 rasty,
+                                                 converter,
+                                                 libloading,
+                                                 converting_during_runtime);
 
-      gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+        // needed for python scripting
+        kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
+
+        if (ob_orig->gameflag & OB_NAVMESH) {
+#ifdef WITH_PYTHON
+          gameobj = BL_gameobject_from_customobject(ob_orig, &KX_NavMeshObject::Type, kxscene);
+#endif
+          if (!gameobj) {
+            gameobj = new KX_NavMeshObject();
+          }
+
+          gameobj->AddMesh(meshobj);
+
+          break;
+        }
+        else {
+#ifdef WITH_PYTHON
+          gameobj = BL_gameobject_from_customobject(ob_orig, &KX_GameObject::Type, kxscene);
+#endif
+          if (!gameobj) {
+            gameobj = new KX_EmptyObject();
+          }
+        }
+
+        // set transformation
+        gameobj->AddMesh(meshobj);
+
+        // gather levels of detail
+        KX_LodManager *lodManager = BL_lodmanager_from_blenderobject(
+            ob_orig, kxscene, rasty, converter, libloading, converting_during_runtime);
+        gameobj->SetLodManager(lodManager);
+        if (lodManager) {
+          lodManager->Release();
+          kxscene->AddObjToLodObjList(gameobj);
+        }
+        else {
+          /* Just in case */
+          kxscene->RemoveObjFromLodObjList(gameobj);
+        }
+        gameobj->SetOccluder((ob_orig->gameflag & OB_OCCLUDER) != 0, false);
+      }
       break;
     }
 
     case OB_ARMATURE: {
 #ifdef WITH_PYTHON
-      gameobj = BL_gameobject_from_customobject(ob, &BL_ArmatureObject::Type, kxscene);
+      gameobj = BL_gameobject_from_customobject(ob_orig, &BL_ArmatureObject::Type, kxscene);
 #endif
       if (!gameobj) {
         gameobj = new BL_ArmatureObject();
@@ -857,7 +884,8 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
       /* font objects have no bounding box */
       KX_FontObject *fontobj = nullptr;
 #ifdef WITH_PYTHON
-      KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_FontObject::Type, kxscene);
+      KX_GameObject *customobj = BL_gameobject_from_customobject(
+          ob_orig, &KX_FontObject::Type, kxscene);
 
       if (customobj) {
         fontobj = dynamic_cast<KX_FontObject *>(customobj);
@@ -887,7 +915,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     case OB_CURVES:
     case OB_SPEAKER: {
 #ifdef WITH_PYTHON
-      gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
+      gameobj = BL_gameobject_from_customobject(ob_orig, &KX_GameObject::Type, kxscene);
 #endif
 
       if (!gameobj) {
@@ -901,31 +929,31 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
   }
 
   if (gameobj) {
-    if (ob->type != OB_CAMERA) {
-      gameobj->SetActivityCullingInfo(activityCullingInfoFromBlenderObject(ob));
+    if (ob_orig->type != OB_CAMERA) {
+      gameobj->SetActivityCullingInfo(activityCullingInfoFromBlenderObject(ob_orig));
     }
 
-    gameobj->SetLayer(ob->lay);
+    gameobj->SetLayer(ob_orig->lay);
     gameobj->SetScene(kxscene);
-    gameobj->SetBlenderObject(ob);
+    gameobj->SetBlenderObject(ob_orig);
 
     /* Bakup Objects object_to_world to restore at scene exit */
     if (kxscene->GetBlenderScene()->gm.flag & GAME_USE_UNDO) {
       if (!converting_during_runtime) {
         BackupObj *backup = new BackupObj();  // Can't allocate on stack
-        backup->ob = ob;
-        backup->obtfm = BKE_object_tfm_backup(ob);
+        backup->ob = ob_orig;
+        backup->obtfm = BKE_object_tfm_backup(ob_orig);
         kxscene->BackupObjectsMatToWorld(backup);
       }
     }
 
-    gameobj->SetObjectColor(MT_Vector4(ob->color));
+    gameobj->SetObjectColor(MT_Vector4(ob_orig->color));
     /* set the visibility state based on the objects render option in the outliner */
     /* I think this flag was used as visibility option for physics shape in 2.7,
      * and it seems it can still be used for this purpose in checking it in outliner
-     * even if I removed the button from physics tab. (youle)
+     * even if I removed the button from physics tab. TODO : Remove that
      */
-    if (ob->visibility_flag & OB_HIDE_RENDER)
+    if (ob_orig->visibility_flag & OB_HIDE_RENDER)
       gameobj->SetVisible(0, 0);
   }
   return gameobj;
@@ -1322,8 +1350,25 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     blender::bContext *C = KX_GetActiveEngine()->GetContext();
     blender::Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     blender::Object *ob_eval = DEG_get_evaluated(depsgraph, blenderobject);
-    if (!DEG_is_evaluated(&ob_eval->id)) {
-      continue;
+    if (blenderscene->gm.flag & GAME_SHOW_MESH_EVALUATION_STATE) {
+      if (!DEG_is_evaluated(&ob_eval->id)) {
+        if (ELEM(blenderobject->collision_boundtype,
+                 OB_BOUND_CONVEX_HULL,
+                 OB_BOUND_TRIANGLE_MESH) &&
+            blenderobject->type == OB_MESH)
+        {
+          CM_Debug("Evaluation Data for OB_MESH " << blenderobject->id.name + 2
+                                                  << "not available at conversion time.");
+          CM_Debug("Physics shape creation can't be done properly for this object.");
+          CM_Debug(
+              "The object will be converted as KX_EmptyObject. If you want to have a triangle "
+              "mesh or convex hull shape for \n"
+              "this object, you will have to enable correct flags in outliner (all visibility "
+              "flags enabled (for kxscene.objects), \n"
+              "minus the eye if you want the object to be converted in inactive list "
+              "(kxscene.objectsInactive)). ");
+        }
+      }
     }
 
     if (runtime_converted_object) {
@@ -1563,7 +1608,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       }
 
       int nummeshes = gameobj->GetMeshCount();
-      RAS_MeshObject *meshobj = 0;
+      RAS_MeshObject *meshobj = nullptr;
+      /* No RAS_MeshObject if no Mesh evaluated data */
       if (nummeshes > 0) {
         meshobj = gameobj->GetMesh(0);
       }
@@ -1653,11 +1699,14 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       }
     }
     if (blenderobject->type == OB_MESH && (blenderobject->gameflag & OB_NAVMESH)) {
-      KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
-      navmesh->SetVisible(0, true);
-      navmesh->BuildNavMesh();
-      if (obssimulation)
-        obssimulation->AddObstaclesForNavMesh(navmesh);
+      /* Check if Mesh has been created (OB_MESH with no mesh_evaluated data at conversion time are converted as EmptyObjects) */
+      if (gameobj->GetMesh(0)) {
+        KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
+        navmesh->SetVisible(0, true);
+        navmesh->BuildNavMesh();
+        if (obssimulation)
+          obssimulation->AddObstaclesForNavMesh(navmesh);
+      }
     }
   }
   for (KX_GameObject *gameobj : inactivelist) {
@@ -1668,8 +1717,12 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       }
     }
     if (blenderobject->type == OB_MESH && (blenderobject->gameflag & OB_NAVMESH)) {
-      KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
-      navmesh->SetVisible(0, true);
+      /* Check if Mesh has been created (OB_MESH with no mesh_evaluated data at conversion time are
+       * converted as EmptyObjects) */
+      if (gameobj->GetMesh(0)) {
+        KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
+        navmesh->SetVisible(0, true);
+      }
     }
   }
 

@@ -26,12 +26,16 @@
 
 #include "KX_LodManager.h"
 
+#include "BKE_context.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_vector_c.hh"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_object_types.h"
 
 #include "BL_DataConversion.h"
 #include "EXP_ListWrapper.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 #include "KX_LodLevel.h"
 #include "KX_Scene.h"
 
@@ -105,8 +109,12 @@ KX_LodManager::KX_LodManager(blender::Object *ob,
     : m_refcount(1), m_distanceFactor(ob->lodfactor)
 {
   if (BLI_listbase_count_at_most(&ob->lodlevels, 2) > 1) {
-    blender::Mesh *lodmesh = (blender::Mesh *)ob->data;
-    blender::Object *lodmatob = ob;
+    Mesh *lodmesh = (blender::Mesh *)ob->data;
+    Object *lodmatob = ob;
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    blender::Object *lodobeval = DEG_get_evaluated(depsgraph, lodmatob);
+    Mesh *lodmesheval = BKE_object_get_evaluated_mesh(lodobeval);
     unsigned short level = 0;
 
     for (LodLevel *lod = (LodLevel *)ob->lodlevels.first; lod; lod = lod->next) {
@@ -132,7 +140,7 @@ KX_LodManager::KX_LodManager(blender::Object *ob,
           lod->obhysteresis,
           level++,
           BL_ConvertMesh(
-              lodmesh, lodmatob, scene, rasty, converter, libloading, converting_during_runtime),
+              lodmesh, lodmatob, lodobeval, lodmesheval, scene, rasty, converter, libloading, converting_during_runtime),
           lod->source,
           flag);
 

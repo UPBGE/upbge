@@ -37,6 +37,8 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
 
+using namespace blender;
+
 namespace blender {
 struct Mesh;
 struct Object;
@@ -45,8 +47,10 @@ struct Main;
 }  // namespace blender
 
 
-class RAS_MeshObject *BL_ConvertMesh(blender::Mesh *mesh,
-                                     blender::Object *lightobj,
+class RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
+                                     Object *ob_orig,
+                                     Object *ob_eval,
+                                     Mesh *me_eval,
                                      class KX_Scene *scene,
                                      class RAS_Rasterizer *rasty,
                                      class BL_SceneConverter *converter,
