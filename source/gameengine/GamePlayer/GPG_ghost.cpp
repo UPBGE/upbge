@@ -1406,7 +1406,7 @@ int main(int argc,
     // to be initialized properly (in system->createWindow).
     // Hard to understand because the vulkan backend is not initialized yet,
     // but we need to call VKBackend::is_supported() (static, using temp vkInstances).
-    GPU_backend_type_selection_detect();
+    WM_init_gpu_backend();
 
     // Create the system
     if (GHOST_ISystem::createSystem(true, false) == GHOST_kSuccess) {
@@ -1745,7 +1745,7 @@ int main(int argc,
               BPY_python_start(C, argc, (const char **)argv);
               CTX_py_init_set(C, true);
 #  endif /*WITH_PYTHON*/
-              WM_init_gpu();
+              WM_init_gpu_offscreen();
               blender::ui::theme::init_default();
               blender::ui::init();
               /* To have blf_monofont_render available for generated textures checkerboard */
