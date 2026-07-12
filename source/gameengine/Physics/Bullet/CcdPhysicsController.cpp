@@ -871,8 +871,10 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
       /*btVector3 aabbMin, aabbMax;
       sb->getAabb(aabbMin, aabbMax);
       btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;*/
-      m_MotionState->SetWorldPosition(ToMoto(sb->m_pose.m_com));
-      m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+      if (sb->getActivationState() != ISLAND_SLEEPING) {
+        m_MotionState->SetWorldPosition(ToMoto(sb->m_pose.m_com));
+        m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+      }
     }
     else {
       /*btVector3 aabbMin, aabbMax;
@@ -893,12 +895,14 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   btRigidBody *body = GetRigidBody();
 
   if (body && !body->isStaticObject()) {
-    const btTransform &xform = body->getCenterOfMassTransform();
-    const btMatrix3x3 &worldOri = xform.getBasis();
-    const btVector3 &worldPos = xform.getOrigin();
-    m_MotionState->SetWorldOrientation(ToMoto(worldOri));
-    m_MotionState->SetWorldPosition(ToMoto(worldPos));
-    m_MotionState->CalculateWorldTransformations();
+    if (body->getActivationState() != ISLAND_SLEEPING) {
+      const btTransform &xform = body->getCenterOfMassTransform();
+      const btMatrix3x3 &worldOri = xform.getBasis();
+      const btVector3 &worldPos = xform.getOrigin();
+      m_MotionState->SetWorldOrientation(ToMoto(worldOri));
+      m_MotionState->SetWorldPosition(ToMoto(worldPos));
+      m_MotionState->CalculateWorldTransformations();
+    }
   }
 
   const MT_Vector3 &scale = m_MotionState->GetWorldScaling();
