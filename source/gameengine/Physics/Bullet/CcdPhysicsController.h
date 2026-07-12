@@ -44,8 +44,6 @@ struct SimpleDeformModifierDataBGE;
 }  // namespace blender
 
 extern btScalar gDeactivationTime;
-extern float gLinearSleepingTreshold;
-extern float gAngularSleepingTreshold;
 extern bool gDisableDeactivation;
 class CcdPhysicsEnvironment;
 class CcdPhysicsController;

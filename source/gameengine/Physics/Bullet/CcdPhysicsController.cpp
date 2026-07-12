@@ -112,9 +112,6 @@ static unsigned int hash_topology(const Mesh *mesh, int sample = 32)
 extern btScalar gDeactivationTime;
 extern bool gDisableDeactivation;
 
-float gLinearSleepingTreshold;
-float gAngularSleepingTreshold;
-
 CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl,
                                                                    btMotionState *motionState,
                                                                    btPairCachingGhostObject *ghost,
@@ -686,7 +683,7 @@ void CcdPhysicsController::CreateRigidbody()
     // use bullet's default contact processing theshold, blender's old default of 1 is too small
     // here. if there's really a need to change this, it should be exposed in the ui first.
     //		body->setContactProcessingThreshold(m_cci.m_contactProcessingThreshold);
-    body->setSleepingThresholds(gLinearSleepingTreshold, gAngularSleepingTreshold);
+    //body->setSleepingThresholds(gLinearSleepingTreshold, gAngularSleepingTreshold);
   }
   if (m_object && m_cci.m_do_anisotropic) {
     m_object->setAnisotropicFriction(m_cci.m_anisotropicFriction);
