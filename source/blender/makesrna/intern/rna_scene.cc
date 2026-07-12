@@ -1967,10 +1967,10 @@ void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *
 void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
 
   if (scene->compositing_node_group) {
     bNodeTree *ntree = reinterpret_cast<bNodeTree *>(scene->compositing_node_group);
-    DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
     WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
     BKE_main_ensure_invariants(*bmain, ntree->id);
@@ -4367,7 +4367,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   /* UV */
   prop = RNA_def_property(srna, "uv_select_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "uv_selectmode");
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop,
+                        (PROP_DEG_SYNC_ONLY |
+                         /* Tracked by edit-mode undo. */
+                         PROP_FORCE_UNDO));
   RNA_def_property_enum_items(prop, rna_enum_mesh_select_mode_uv_items);
   RNA_def_property_ui_text(prop, "UV Selection Mode", "UV selection and display mode");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
@@ -4375,7 +4378,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "uv_sticky_select_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "uv_sticky");
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop,
+                        (PROP_DEG_SYNC_ONLY |
+                         /* Tracked by edit-mode undo. */
+                         PROP_FORCE_UNDO));
   RNA_def_property_enum_items(prop, uv_sticky_mode_items);
   RNA_def_property_ui_text(
       prop, "Sticky Selection Mode", "Method for extending UV vertex selection");
@@ -4385,7 +4391,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_uv_select_sync", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SELECT_SYNC);
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop,
+                        (PROP_DEG_SYNC_ONLY |
+                         /* Tracked by edit-mode undo. */
+                         PROP_FORCE_UNDO));
   RNA_def_property_ui_text(
       prop, "UV Sync Selection", "Keep UV and edit mode mesh selection in sync");
   RNA_def_property_ui_icon(prop, ICON_UV_SYNC_SELECT, 0);
@@ -4394,7 +4403,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_uv_select_island", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SELECT_ISLAND);
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop,
+                        (PROP_DEG_SYNC_ONLY |
+                         /* Tracked by edit-mode undo. */
+                         PROP_FORCE_UNDO));
   RNA_def_property_ui_text(prop, "UV Island Selection", "Island selection");
   RNA_def_property_ui_icon(prop, ICON_UV_ISLANDSEL, 0);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
@@ -4415,7 +4427,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   /* Mesh */
   prop = RNA_def_property(srna, "mesh_select_mode", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "selectmode", 1 << 0, 3);
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop,
+                        (PROP_DEG_SYNC_ONLY |
+                         /* Tracked by edit-mode undo. */
+                         PROP_FORCE_UNDO));
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_Scene_editmesh_select_mode_set");
   RNA_def_property_ui_text(prop, "Mesh Selection Mode", "Which mesh elements selection works on");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
