@@ -684,7 +684,7 @@ void SourceProcessor::lower_binary_literals(Parser &parser)
 
 string SourceProcessor::threadgroup_variables_parse_and_remove(const string &str)
 {
-  Parser parser(str, error_handler);
+  IntermediateForm<FullLexer, DummyParser> parser(str, error_handler);
 
   auto process_shared_var = [&](Token shared_tok, Token type, Token name, Token decl_end) {
     if (shared_tok.str() == "shared") {
@@ -694,19 +694,10 @@ string SourceProcessor::threadgroup_variables_parse_and_remove(const string &str
       parser.erase(shared_tok, decl_end);
     }
   };
-  parser().foreach_match("AAA;", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
+  parser().foreach_match("AAA", [&](const vector<Token> &tokens) {
+    Token end = tokens[2].find_next(lexit::SemiColon);
+    process_shared_var(tokens[0], tokens[1], tokens[2], end);
   });
-  parser().foreach_match("AAA[..];", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
-  });
-  parser().foreach_match("AAA[..][..];", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
-  });
-  parser().foreach_match("AAA[..][..][..];", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
-  });
-  /* If more array depth is needed, find a less dumb solution. */
 
   return parser.result_get();
 }

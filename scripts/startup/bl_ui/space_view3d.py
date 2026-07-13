@@ -625,6 +625,8 @@ class _draw_tool_settings_context_mode:
             layout.popover("VIEW3D_PT_curves_sculpt_add_shape", text="Curve Shape")
         elif curves_tool == 'SLIDE':
             layout.popover("VIEW3D_PT_tools_brush_falloff")
+        elif curves_tool == 'CUT':
+            layout.prop(brush, "falloff_shape", expand=True)
 
         return True
 
@@ -2932,6 +2934,7 @@ class VIEW3D_MT_object_animation(Menu):
         layout.operator("grease_pencil.bake_grease_pencil_animation", text="Bake Object Transform to Grease Pencil...")
         layout.operator("anim.replace_action")
         layout.operator("anim.replace_action_new")
+        layout.operator("anim.replace_action_duplicate")
 
 
 class VIEW3D_MT_object_rigid_body(Menu):
