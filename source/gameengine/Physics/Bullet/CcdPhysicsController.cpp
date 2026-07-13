@@ -2560,7 +2560,6 @@ void CcdShapeConstructionInfo::UpdateOtherArrays(Mesh *source_mesh)
   if (m_shapeType == PHY_SHAPE_MESH) {
     const blender::Span<blender::int3> tris = source_mesh->corner_tris();
     const blender::Span<int> corner_verts = source_mesh->corner_verts();
-    const blender::Span<int> tri_faces = source_mesh->corner_tri_faces();
 
     // UVs
     blender::VArraySpan<blender::float2> uvs;
@@ -2634,7 +2633,7 @@ void CcdShapeConstructionInfo::UpdateOtherArrays(Mesh *source_mesh)
         m_triFaceUVcoArray[t * 3 + 2] = tri_uv[2];
       }
 
-      m_polygonIndexArray[t] = tri_faces[t];
+      m_polygonIndexArray[t] = t;
     }
 
     // Copy unique vertices to m_vertexArray (compacted)
