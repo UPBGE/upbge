@@ -139,10 +139,10 @@ void Texture::loadTexture(unsigned int *texture,
   // Check if the source is an ImageRender (offscreen 3D render)
   ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_imageBase) : nullptr;
 
-  if (imr && !m_gpuTexInUse) {
+  if (imr) {
     // For ImageRender, directly use the GPU texture from the active framebuffer
     KX_Camera *cam = imr->GetCamera();
-    if (cam && m_imgTexture) {
+    if (cam && m_imgTexture && !m_gpuTexInUse) {
       blender::GPUViewport *viewport = cam->GetGPUViewport();
       /* Get the color texture from the KX_Camera's GPUViewport.This texture is
        * owned by the GPU viewport and must not be reference‑counted by the
