@@ -34,10 +34,10 @@ namespace blender::bke::pbvh::uv_islands {
 
 struct UVBorder;
 struct UVEdge;
-struct UVIslands;
 struct UVIslandsMask;
 struct UVPrimitive;
 struct MeshData;
+struct UVIsland;
 struct UVVertex;
 
 class TriangleToEdgeMap {
@@ -159,20 +159,20 @@ struct UVPrimitive {
 
 struct UVBorderEdge {
   UVEdge *edge;
-  bool tag = false;
-  UVPrimitive *uv_primitive;
+  /* Index into UVIsland::uv_primitives. */
+  int uv_primitive;
   /* Should the vertices of the edge be evaluated in reverse order. */
   bool reverse_order = false;
+  bool removed = false;
 
   /* Previous and next edge, forming a double linked list. */
   UVBorderEdge *prev = nullptr;
   UVBorderEdge *next = nullptr;
-  bool removed = false;
   int64_t border_index = -1;
   /* Stable ID for tie-break in the priority queue. */
   int64_t order = -1;
 
-  explicit UVBorderEdge(UVEdge *edge, UVPrimitive *uv_primitive);
+  explicit UVBorderEdge(UVEdge *edge, int uv_primitive);
 
   UVVertex *get_uv_vertex(int index);
   const UVVertex *get_uv_vertex(int index) const;
@@ -180,7 +180,7 @@ struct UVBorderEdge {
   /**
    * Get the uv vertex from the primitive that is not part of the edge.
    */
-  const UVVertex *get_other_uv_vertex() const;
+  const UVVertex *get_other_uv_vertex(const UVIsland &island) const;
 
   bool is_extendable() const;
 
@@ -221,7 +221,7 @@ struct UVBorder {
   /**
    * Check if the border is counter clock wise from its island.
    */
-  bool is_ccw() const;
+  bool is_ccw(const UVIsland &island) const;
 
   /**
    * Flip the order of the verts, changing the order between CW and CCW.
@@ -235,20 +235,18 @@ struct UVBorder {
 
   /** Setup prev and next pointers to turn edges into a linked list. */
   void setup_links(int64_t border_index);
-
-  static std::optional<UVBorder> extract_from_edges(Vector<UVBorderEdge> &edges);
 };
 
 struct UVIsland {
   /**
-   * Id (Index) of the UVIsland. Contains the index of this island in UVIslands.
+   * Id (Index) of the UVIsland. Contains the index of this island in the islands array.
    *
    * Useful during debugging to set a breaking condition on a specific island/vert.
    */
   int id;
   VectorList<UVVertex> uv_vertices;
   VectorList<UVEdge> uv_edges;
-  VectorList<UVPrimitive> uv_primitives;
+  Vector<UVPrimitive> uv_primitives;
   /**
    * List of borders of this island. There can be multiple borders per island as a border could
    * be completely encapsulated by another one.
@@ -275,15 +273,9 @@ struct UVIsland {
   void print_debug(const MeshData &mesh_data) const;
 };
 
-struct UVIslands {
-  Vector<UVIsland> islands;
-
-  explicit UVIslands(const MeshData &mesh_data);
-
-  void extract_borders();
-  void extend_borders(const MeshData &mesh_data, const UVIslandsMask &islands_mask);
-  void print_debug(const MeshData &mesh_data) const;
-};
+Array<UVIsland> build_uv_islands(const MeshData &mesh_data,
+                                 GroupedSpan<int> tris_by_island,
+                                 const UVIslandsMask &uv_masks);
 
 /** Mask to find the index of the UVIsland for a given UV coordinate. */
 struct UVIslandsMask {
@@ -326,10 +318,10 @@ struct UVIslandsMask {
   bool is_masked(uint16_t island_index, float2 uv) const;
 
   /**
-   * Add the given UVIslands to the mask. Tiles should be added beforehand using the 'add_tile'
+   * Add the given UV islands to the mask. Tiles should be added beforehand using the 'add_tile'
    * method.
    */
-  void add(const MeshData &mesh_data, const UVIslands &islands);
+  void add(const MeshData &mesh_data, GroupedSpan<int> tris_by_island);
 
   void dilate(int max_iterations);
 };

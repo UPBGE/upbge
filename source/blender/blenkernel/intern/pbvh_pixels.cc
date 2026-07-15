@@ -150,12 +150,13 @@ struct UVPrimitiveLookup {
 
   Vector<Vector<Entry>> lookup;
 
-  UVPrimitiveLookup(const uint64_t geom_primitive_len, uv_islands::UVIslands &uv_islands)
+  UVPrimitiveLookup(const uint64_t geom_primitive_len,
+                    MutableSpan<uv_islands::UVIsland> uv_islands)
   {
     lookup.append_n_times(Vector<Entry>(), geom_primitive_len);
 
     uint64_t uv_island_index = 0;
-    for (uv_islands::UVIsland &uv_island : uv_islands.islands) {
+    for (uv_islands::UVIsland &uv_island : uv_islands) {
       for (uv_islands::UVPrimitive &uv_primitive : uv_island.uv_primitives) {
         lookup[uv_primitive.primitive_i].append_as(Entry(&uv_primitive, uv_island_index));
       }
@@ -402,7 +403,15 @@ static bool update_pixels(const Depsgraph &depsgraph,
                                  mesh.corner_verts(),
                                  uv_map,
                                  bke::pbvh::vert_positions_eval(depsgraph, object));
-  uv_islands::UVIslands islands(mesh_data);
+
+  /* Group primitives by island. */
+  Array<int> island_tri_offset_data;
+  Array<int> island_tri_index_data;
+  const GroupedSpan<int> tris_by_island = offset_indices::build_groups_from_indices(
+      mesh_data.uv_island_ids,
+      mesh_data.uv_island_len,
+      island_tri_offset_data,
+      island_tri_index_data);
 
   uv_islands::UVIslandsMask uv_masks;
   ImageUser tile_user = image_user;
@@ -417,11 +426,12 @@ static bool update_pixels(const Depsgraph &depsgraph,
                       ushort2(tile_buffer->x, tile_buffer->y));
     BKE_image_release_ibuf(&image, tile_buffer, nullptr);
   }
-  uv_masks.add(mesh_data, islands);
+  uv_masks.add(mesh_data, tris_by_island);
   uv_masks.dilate(image.seam_margin);
 
-  islands.extract_borders();
-  islands.extend_borders(mesh_data, uv_masks);
+  Array<uv_islands::UVIsland> islands = uv_islands::build_uv_islands(
+      mesh_data, tris_by_island, uv_masks);
+
   update_geom_primitives(pbvh, mesh_data);
 
   UVPrimitiveLookup uv_primitive_lookup(mesh_data.corner_tris.size(), islands);
