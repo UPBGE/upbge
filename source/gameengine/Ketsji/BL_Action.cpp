@@ -634,13 +634,69 @@ void BL_Action::UpdateObjectAnimation(blender::Object *ob, const blender::Animat
   }
 }
 
+static bool TryModifierTextureActions(ModifierData *md,
+                                      bAction *actuator_action,
+                                      KX_Scene *scene,
+                                      Object *ob,
+                                      const blender::AnimationEvalContext &animEvalContext)
+{
+  bool check_modifier_texture = ELEM(
+      md->type, eModifierType_Displace, eModifierType_Warp, eModifierType_Wave);
+  if (!check_modifier_texture) {
+    return false;
+  }
+  Tex *texture = nullptr;
+  switch (md->type) {
+    case eModifierType_Displace: {
+      DisplaceModifierData *dmd = (DisplaceModifierData *)md;
+      if (dmd && dmd->texture) {
+        texture = dmd->texture;
+      }
+      break;
+    }
+    case eModifierType_Wave: {
+      WaveModifierData *wmd = (WaveModifierData *)md;
+      if (wmd && wmd->texture) {
+        texture = wmd->texture;
+      }
+      break;
+    }
+    case eModifierType_Warp: {
+      WarpModifierData *wmd = (WarpModifierData *)md;
+      if (wmd && wmd->texture) {
+        texture = wmd->texture;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  if (texture && texture->adt && texture->adt->action == actuator_action) {
+    scene->AppendToIdsToUpdate(
+        &texture->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
+    blender::PointerRNA ptrrna = RNA_id_pointer_create(&texture->id);
+    const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+        *actuator_action);
+    blender::animsys_evaluate_action(
+        &ptrrna, actuator_action, slot_handle, &animEvalContext, false);
+    /* Action found, return true */
+    return true;
+  }
+  return false;
+}
+
 bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
                                          KX_Scene *scene,
                                          const blender::AnimationEvalContext &animEvalContext)
 {
   for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+    /* Action actuator can have actions from modifiers textures; try it first */
+    if (TryModifierTextureActions(md, m_action, scene, ob, animEvalContext)) {
+      /* Action played, return true; else loop continues */
+      return true;
+    }
+    /* Action actuator can have actions from object modifiers (other than armature modifier, handled separately) */
     bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
-    // TODO: We need to find the good notifier per action
     if (isRightAction) {
       IDRecalcFlag flag = BKE_modifier_is_non_geometrical(md) ? ID_RECALC_TRANSFORM :
                                                                 ID_RECALC_GEOMETRY;
@@ -661,7 +717,7 @@ bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
-      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      blender::animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
       return true;
     }
   }
@@ -683,7 +739,7 @@ bool BL_Action::TryUpdateConstraintActions(blender::Object *ob,
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
-      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      blender::animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
 
       m_obj->ForceIgnoreParentTx();
       return true;
@@ -713,7 +769,7 @@ bool BL_Action::TryUpdateIDPropertyActions(blender::Object *ob,
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
-      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      blender::animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
       return true;
     }
   }
@@ -731,7 +787,7 @@ bool BL_Action::TryUpdateNodeTreeActions(KX_Scene *scene,
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&nodetree->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
-      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      blender::animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
       return true;
     }
   }
@@ -788,7 +844,7 @@ bool BL_Action::TryUpdateShapeKeyActions(blender::Object *ob,
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&key->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
-      animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+      blender::animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
 
       ProcessShapeKeyBlending(key);
       return true;
