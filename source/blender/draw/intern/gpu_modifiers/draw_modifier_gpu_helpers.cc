@@ -112,6 +112,12 @@ gpu::Texture *prepare_gpu_texture_and_texcoords(
     if (ima) {
       if (is_non_color) {
         gpu_texture = BKE_image_acquire_gpu_texture(ima, &iuser);
+        if (gpu_texture) {
+          if (!(ima->runtime && ima->runtime->gpu_texture_override == gpu_texture)) {
+            /* decref as BKE_image_acquire_gpu_texture normally increments refcount (would need another fix, maybe later) */
+            GPU_texture_free(gpu_texture);
+          }
+        }
         if (gpu_texture && !r_tex_metadata_cached) {
           r_tex_is_float = GPU_texture_has_float_format(gpu_texture);
           r_tex_is_byte = !r_tex_is_float;
