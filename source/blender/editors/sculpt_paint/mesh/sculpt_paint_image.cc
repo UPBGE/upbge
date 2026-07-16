@@ -20,9 +20,13 @@
 #include "BLI_math_color_blend.hh"
 #include "BLI_math_color_c.hh"
 #include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector.hh"
 #ifdef DEBUG_PIXEL_NODES
 #  include "BLI_hash_c.hh"
 #endif
+
+#include "DNA_mesh_types.h"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
@@ -146,22 +150,23 @@ static void fetch_image_buffers(ImageData &image_data,
   }
 }
 
-static void calc_pixel_row_positions(const PackedPixelRowPosition &row_data,
+static void calc_pixel_row_positions(const float3 P_start,
+                                     const float3 P_delta,
                                      const MutableSpan<float3> positions,
                                      IndexRange range)
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(range.size() == positions.size());
 
-  const float3 delta = row_data.delta;
-  const float3 start = row_data.start + delta * range.start();
+  const float3 start = P_start + P_delta * range.start();
   for (const int i : positions.index_range()) {
-    positions[i] = start + delta * i;
+    positions[i] = start + P_delta * i;
   }
 }
 
 static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
-                                                 const Span<int3> vert_tris,
+                                                 const Span<int> corner_verts,
+                                                 const Span<int3> corner_tris,
                                                  const Span<int> tri_indices,
                                                  const Span<float3> positions)
 {
@@ -172,11 +177,11 @@ static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
 
   BitVector<> brush_test(tri_indices.size());
   for (const int i : tri_indices.index_range()) {
-    const int3 verts = vert_tris[tri_indices[i]];
+    const int3 &tri = corner_tris[tri_indices[i]];
 
-    Bounds<float3> tri_bounds(positions[verts[0]]);
-    math::min_max(positions[verts[1]], tri_bounds.min, tri_bounds.max);
-    math::min_max(positions[verts[2]], tri_bounds.min, tri_bounds.max);
+    Bounds<float3> tri_bounds(positions[corner_verts[tri[0]]]);
+    math::min_max(positions[corner_verts[tri[1]]], tri_bounds.min, tri_bounds.max);
+    math::min_max(positions[corner_verts[tri[2]]], tri_bounds.min, tri_bounds.max);
 
     brush_test[i].set(
         isect_aabb_aabb_v3(brush_bounds.min, brush_bounds.max, tri_bounds.min, tri_bounds.max));
@@ -374,12 +379,13 @@ struct PaintLocalData {
   Vector<float> factors;
 
   Vector<float4> paint_blend_pixels;
-};
 
-static Bounds<int2> merge_bounds(const Bounds<int2> &a, const Bounds<int2> &b)
-{
-  return bounds::merge(a, b);
-}
+  /** Spans that were painted on by the thread. */
+  struct ModifiedSpan {
+    int x, y, size;
+  };
+  Vector<ModifiedSpan> modified_spans;
+};
 
 static Bounds<int2> negative_bounds()
 {
@@ -458,12 +464,13 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  PixelData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
   const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
 
+  const Mesh &mesh = *id_cast<const Mesh *>(object.data);
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<int3> corner_tris = mesh.corner_tris();
   BitVector<> brush_test = init_uv_primitives_brush_test(
-      ss, pbvh_data.vert_tris, pixel_node.uv_primitives.tri_indices, positions);
+      ss, corner_verts, corner_tris, pixel_node.uv_primitives.tri_indices, positions);
 
   const PaintBlendSettings blend_settings(paint, brush, ss.cache->toggle_settings.invert);
 
@@ -488,7 +495,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     if (image_buffer == nullptr) {
       continue;
     }
-    IndexMaskMemory memory;
 
     MutableSpan<float4> float_buffer;
     MutableSpan<uchar4> byte_buffer;
@@ -509,125 +515,166 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const MutableSpan<uint32_t> undo_tile_pushed = image_data.undo_tile_pushed.lookup(
         tile_data.tile_number);
 
-    const IndexMask valid_uv_rows = IndexMask::from_predicate(
-        tile_data.pixel_rows.index_range(), memory, [&](const int i) {
-          return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
-        });
-
-    const IndexMask valid_rows = IndexMask::from_predicate(
-        valid_uv_rows, memory, [&](const int i) {
-          const float3 end = tile_data.pixel_row_positions[i].start +
-                             tile_data.pixel_row_positions[i].delta *
-                                 tile_data.pixel_rows[i].num_pixels;
-          return brush_bounds.intersects_segment(tile_data.pixel_row_positions[i].start, end);
-        });
-
-    Array<bool> row_changed(valid_rows.min_array_size(), false);
     threading::EnumerableThreadSpecific<PaintLocalData> all_factor_tls;
-    valid_rows.foreach_index(
-        [&](const int row_i) {
-          const PackedPixelRow pixel_row = tile_data.pixel_rows[row_i];
-          const PackedPixelRowPosition &pixel_row_position = tile_data.pixel_row_positions[row_i];
-          const int row_size = pixel_row.num_pixels;
-          threading::parallel_for(IndexRange(row_size), 512, [&](const IndexRange range) {
-            PaintLocalData &tls = all_factor_tls.local();
-            tls.factors.resize(range.size());
-            tls.factors.fill(1.0f);
-            tls.pixel_positions.resize(range.size());
-            calc_pixel_row_positions(pixel_row_position, tls.pixel_positions, range);
 
-            MutableSpan<float> factors = tls.factors;
+    /* Parallelize over contiguous runs containing one or more per-triangle pixel rows. */
+    const int num_runs = tile_data.pixel_row_run_starts.size() - 1;
+    threading::parallel_for(IndexRange(num_runs), 32, [&](const IndexRange task_range) {
+      PaintLocalData &tls = all_factor_tls.local();
+      for (const int run_i : task_range) {
+        const int run_begin = tile_data.pixel_row_run_starts[run_i];
+        const int run_end = tile_data.pixel_row_run_starts[run_i + 1];
 
-            tls.distances.resize(range.size());
+        /* Compute run position and size. */
+        const int run_x = int(tile_data.pixel_row_run_start_coords[run_i].x);
+        const int run_y = int(tile_data.pixel_row_run_start_coords[run_i].y);
+        int run_size = 0;
+        for (int k = run_begin; k < run_end; k++) {
+          run_size += int(tile_data.pixel_rows[k].num_pixels);
+        }
+
+        /* Resize temporary data to match run size. */
+        tls.factors.resize(run_size);
+        tls.pixel_positions.resize(run_size);
+        tls.distances.resize(run_size);
+        const MutableSpan<float> factors = tls.factors;
+        const MutableSpan<float3> positions = tls.pixel_positions;
+        const MutableSpan<float> distances = tls.distances;
+
+        /* Tracking for active subset of run with nonzero factors. */
+        int run_active_begin = -1;
+        int run_active_end = -1;
+        int tri_skip_start = -1;
+        int tri_row_offset = 0;
+
+        /* For each triangle pixel row in the run. */
+        for (int k = run_begin; k < run_end; k++) {
+          const PackedPixelRow &tri_row = tile_data.pixel_rows[k];
+          const int tri_row_size = int(tri_row.num_pixels);
+
+          /* Use pixel to position mapping to compute 3D position. */
+          const int tri_row_x = run_x + tri_row_offset;
+          const int uv_prim = tri_row.uv_primitive_index;
+          const float3x3 &pixel_to_position = pixel_node.uv_primitives.pixel_to_position[uv_prim];
+          const float3 P_delta = pixel_to_position[0];
+          const float3 P_start = P_delta * tri_row_x + pixel_to_position[1] * run_y +
+                                 pixel_to_position[2];
+
+          /* Quick bounds check. */
+          if (brush_test[tri_row.uv_primitive_index] &&
+              brush_bounds.intersects_segment(P_start, P_start + P_delta * tri_row_size))
+          {
+            /* Compute brush factors per triangle. */
+            const MutableSpan<float> tri_factors = factors.slice(tri_row_offset, tri_row_size);
+            const MutableSpan<float3> tri_positions = positions.slice(tri_row_offset,
+                                                                      tri_row_size);
+            const MutableSpan<float> tri_distances = distances.slice(tri_row_offset, tri_row_size);
+
+            tri_factors.fill(1.0f);
+            calc_pixel_row_positions(P_start, P_delta, tri_positions, IndexRange(tri_row_size));
             calc_brush_distances(
-                ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
-            filter_distances_with_radius(cache.radius, tls.distances, factors);
-            apply_hardness_to_distances(cache, tls.distances);
-            calc_brush_strength_factors(cache, brush, tls.distances, factors);
-            calc_brush_texture_factors(ss, brush, tls.pixel_positions, factors);
-            scale_factors(factors, cache.bstrength);
+                ss, tri_positions, eBrushFalloffShape(brush.falloff_shape), tri_distances);
+            filter_distances_with_radius(cache.radius, tri_distances, tri_factors);
+            apply_hardness_to_distances(cache, tri_distances);
+            calc_brush_strength_factors(cache, brush, tri_distances, tri_factors);
+            calc_brush_texture_factors(ss, brush, tri_positions, tri_factors);
+            scale_factors(tri_factors, cache.bstrength);
 
-            if (std::ranges::all_of(factors, [](const float factor) { return factor == 0.0f; })) {
-              return;
+            /* Track which subset of the run has non-zero factors. */
+            int tri_active_begin = -1;
+            int tri_active_end = -1;
+            for (int i = 0; i < tri_row_size; i++) {
+              if (tri_factors[i] != 0.0f) {
+                if (tri_active_begin < 0) {
+                  tri_active_begin = i;
+                }
+                tri_active_end = i;
+              }
             }
-            row_changed[row_i] = true;
 
-            const int undo_img_x_start = int(pixel_row.start_image_coordinate.x) +
-                                         int(range.start());
-            const int undo_img_x_end = undo_img_x_start + int(range.size()) - 1;
-            const int undo_img_y = int(pixel_row.start_image_coordinate.y);
-            push_undo_tiles(image_data,
-                            tile_data.tile_number,
-                            *image_buffer,
-                            undo_tile_pushed,
-                            undo_img_x_start,
-                            undo_img_x_end,
-                            undo_img_y);
-
-            const int img_y = int(pixel_row.start_image_coordinate.y);
-            const int img_x = img_y * image_buffer->x + int(pixel_row.start_image_coordinate.x) +
-                              int(range.start());
-
-            /* Blend pixels with computed factors. */
-            if (!float_buffer.is_empty()) {
-              paint_blend_pixels<float4>(blend_settings,
-                                         factors,
-                                         0,
-                                         int(range.size()),
-                                         float_buffer,
-                                         img_x,
-                                         img_y,
-                                         *processors,
-                                         tls.paint_blend_pixels);
+            if (tri_active_begin >= 0) {
+              if (run_active_begin < 0) {
+                run_active_begin = tri_row_offset + tri_active_begin;
+              }
+              else if (tri_skip_start >= 0) {
+                factors.slice(tri_skip_start, tri_row_offset - tri_skip_start).fill(0.0f);
+                tri_skip_start = -1;
+              }
+              run_active_end = tri_row_offset + tri_active_end;
             }
-            else {
-              paint_blend_pixels<uchar4>(blend_settings,
-                                         factors,
-                                         0,
-                                         int(range.size()),
-                                         byte_buffer,
-                                         img_x,
-                                         img_y,
-                                         *processors,
-                                         tls.paint_blend_pixels);
+          }
+          else {
+            /* No intersection, skip this triangle row. */
+            if (run_active_begin >= 0 && tri_skip_start < 0) {
+              tri_skip_start = tri_row_offset;
             }
-          });
-        },
-        exec_mode::grain_size(2));
+          }
+          tri_row_offset += tri_row_size;
+        }
 
-    const IndexMask changed_rows = IndexMask::from_bools(valid_rows, row_changed, memory);
+        if (run_active_begin < 0) {
+          continue;
+        }
 
+        /* Record modified spans. */
+        const int run_active_size = run_active_end - run_active_begin + 1;
+        const int run_active_x = run_x + run_active_begin;
+        tls.modified_spans.append({.x = run_active_x, .y = run_y, .size = run_active_size});
+
+        /* Push undo tiles before we edit the pixels. */
+        push_undo_tiles(image_data,
+                        tile_data.tile_number,
+                        *image_buffer,
+                        undo_tile_pushed,
+                        run_active_x,
+                        run_active_x + run_active_size - 1,
+                        run_y);
+
+        /* Blend pixels with computed factors. */
+        if (!float_buffer.is_empty()) {
+          paint_blend_pixels<float4>(blend_settings,
+                                     factors,
+                                     run_active_begin,
+                                     run_active_size,
+                                     float_buffer,
+                                     run_y * image_buffer->x + run_active_x,
+                                     run_y,
+                                     *processors,
+                                     tls.paint_blend_pixels);
+        }
+        else {
+          paint_blend_pixels<uchar4>(blend_settings,
+                                     factors,
+                                     run_active_begin,
+                                     run_active_size,
+                                     byte_buffer,
+                                     run_y * image_buffer->x + run_active_x,
+                                     run_y,
+                                     *processors,
+                                     tls.paint_blend_pixels);
+        }
+      }
+    });
+
+    /* Mark the seam tiles modified and update dirty bounds. */
     const MutableSpan<uint8_t> seam_tile_modified = image_data.seam_tile_modified.lookup(
         tile_data.tile_number);
     const int seam_tiles_x = (image_buffer->x + SEAM_TILE_SIZE - 1) >> SEAM_TILE_BITS;
     const int seam_tiles_y = (image_buffer->y + SEAM_TILE_SIZE - 1) >> SEAM_TILE_BITS;
-
-    const Bounds<int2> dirty_bounds = threading::parallel_reduce(
-        changed_rows.index_range(),
-        512,
-        negative_bounds(),
-        [&](const IndexRange range, const Bounds<int2> &init) {
-          Bounds<int2> current = init;
-          changed_rows.slice(range).foreach_index([&](const int row_i) {
-            const PackedPixelRow pixel_row = tile_data.pixel_rows[row_i];
-
-            mark_seam_tiles_modified(seam_tile_modified,
-                                     seam_tiles_x,
-                                     seam_tiles_y,
-                                     int(pixel_row.start_image_coordinate.x),
-                                     int(pixel_row.start_image_coordinate.x) +
-                                         int(pixel_row.num_pixels) - 1,
-                                     int(pixel_row.start_image_coordinate.y));
-
-            const int2 start(pixel_row.start_image_coordinate.x,
-                             pixel_row.start_image_coordinate.y);
-            const int2 end = start + int2(pixel_row.num_pixels + 1, 0);
-
-            current = bounds::merge(current, Bounds<int2>(start, end));
-          });
-          return current;
-        },
-        merge_bounds);
+    Bounds<int2> dirty_bounds = negative_bounds();
+    for (PaintLocalData &tls : all_factor_tls) {
+      for (const PaintLocalData::ModifiedSpan span : tls.modified_spans) {
+        mark_seam_tiles_modified(seam_tile_modified,
+                                 seam_tiles_x,
+                                 seam_tiles_y,
+                                 span.x,
+                                 span.x + span.size - 1,
+                                 span.y);
+        const int2 start(span.x, span.y);
+        const int2 end = start + int2(span.size + 1, 0);
+        dirty_bounds = bounds::merge(dirty_bounds, Bounds<int2>(start, end));
+      }
+    }
     if (!dirty_bounds.is_empty()) {
       tile_data.mark_dirty(dirty_bounds);
     }

@@ -15,6 +15,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_c.hh"
 
 #include "BKE_image_wrappers.hh"
@@ -29,34 +30,48 @@
 #include "pbvh_pixels_rasterize.hh"
 #include "pbvh_uv_islands.hh"
 
+#include <algorithm>
+
 namespace blender {
 
 namespace bke::pbvh::pixels {
 
 /**
- * Calculate the delta of two neighbor UV coordinates in the given image buffer.
+ * Compute affine map from image pixel coordinate to object space position:
  */
-static float2 calc_barycentric_delta(const float2 uvs[3],
-                                     const float2 start_uv,
-                                     const float2 end_uv)
+static float3x3 calc_pixel_to_position_map(const uv_islands::MeshData &mesh_data,
+                                           const int tri,
+                                           const float2 uvs[3],
+                                           const float inv_w,
+                                           const float inv_h)
 {
+  const int3 &corner_tri = mesh_data.corner_tris[tri];
+  const float3 v0 = mesh_data.vert_positions[mesh_data.corner_verts[corner_tri[0]]];
+  const float3 v1 = mesh_data.vert_positions[mesh_data.corner_verts[corner_tri[1]]];
+  const float3 v2 = mesh_data.vert_positions[mesh_data.corner_verts[corner_tri[2]]];
 
-  float3 start_barycentric;
-  barycentric_weights_v2(uvs[0], uvs[1], uvs[2], start_uv, start_barycentric);
-  float3 end_barycentric;
-  barycentric_weights_v2(uvs[0], uvs[1], uvs[2], end_uv, end_barycentric);
-  float3 barycentric = end_barycentric - start_barycentric;
-  return float2(barycentric.x, barycentric.y);
-}
+  /* Solve for coefficient so that:
+   * P = pixel_to_position * (pixel_x, pixel_y, 1) */
+  const float3 e0 = v0 - v2;
+  const float3 e1 = v1 - v2;
+  const float2 a = uvs[0] - uvs[2];
+  const float2 b = uvs[1] - uvs[2];
+  const float det = a.x * b.y - a.y * b.x;
+  if (det == 0.0f) {
+    /* Degenerate UV triangle. */
+    return float3x3(float3(0.0f), float3(0.0f), v2);
+  }
 
-static float2 calc_barycentric_delta_x(const ImBuf *image_buffer,
-                                       const float2 uvs[3],
-                                       const int x,
-                                       const int y)
-{
-  const float2 start_uv(float(x) / image_buffer->x, float(y) / image_buffer->y);
-  const float2 end_uv(float(x + 1) / image_buffer->x, float(y) / image_buffer->y);
-  return calc_barycentric_delta(uvs, start_uv, end_uv);
+  const float3 dP_du = (b.y * e0 - a.y * e1) / det;
+  const float3 dP_dv = (a.x * e1 - b.x * e0) / det;
+
+  /* Per-pixel steps, and the position at pixel (0, 0), i.e. uv (0.5 / w, 0.5 / h). */
+  const float3 delta_x = dP_du * inv_w;
+  const float3 delta_y = dP_dv * inv_h;
+  const float3 start_position = dP_du * (0.5f * inv_w - uvs[2].x) +
+                                dP_dv * (0.5f * inv_h - uvs[2].y) + v2;
+
+  return float3x3(delta_x, delta_y, start_position);
 }
 
 /**
@@ -65,7 +80,14 @@ static float2 calc_barycentric_delta_x(const ImBuf *image_buffer,
  */
 constexpr bool USE_WATERTIGHT_CHECK = false;
 
-static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
+/** A pixel row with its image coordinate. Used while building before it is packed into runs. */
+struct BuildPixelRow {
+  ushort2 start_image_coordinate;
+  ushort num_pixels;
+  ushort uv_primitive_index;
+};
+
+static void extract_barycentric_pixels(Vector<BuildPixelRow> &build_rows,
                                        const ImBuf *image_buffer,
                                        const uv_islands::UVIslandsMask::Tile &mask_tile,
                                        const int uv_island_index,
@@ -90,7 +112,7 @@ static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
 
   for (int y = miny; y < maxy; y++) {
     bool start_detected = false;
-    PackedPixelRow pixel_row;
+    BuildPixelRow pixel_row;
     pixel_row.uv_primitive_index = uv_primitive_index;
     pixel_row.num_pixels = 0;
     int x;
@@ -109,10 +131,6 @@ static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
       if (!start_detected && is_inside && is_masked) {
         start_detected = true;
         pixel_row.start_image_coordinate = ushort2(x, y);
-        float3 barycentric_weights;
-        const float2 uv(fx * inv_w, fy * inv_h);
-        barycentric_weights_v2(uvs[0], uvs[1], uvs[2], uv, barycentric_weights);
-        pixel_row.start_barycentric_coord = float2(barycentric_weights.x, barycentric_weights.y);
       }
       else if (start_detected && (!is_inside || !is_masked)) {
         break;
@@ -123,18 +141,8 @@ static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
       continue;
     }
     pixel_row.num_pixels = x - pixel_row.start_image_coordinate.x;
-    tile_data.pixel_rows.append(pixel_row);
+    build_rows.append(pixel_row);
   }
-}
-
-/** Update the geometry primitives of the pbvh. */
-static void update_geom_primitives(Tree &pbvh, const uv_islands::MeshData &mesh_data)
-{
-  PRF_scope(ProfileCategory::Editor);
-  PixelData &pbvh_data = data_get(pbvh);
-  pbvh_data.vert_tris.reinitialize(mesh_data.corner_tris.size());
-  bke::mesh::vert_tris_from_corner_tris(
-      mesh_data.corner_verts, mesh_data.corner_tris, pbvh_data.vert_tris);
 }
 
 struct UVPrimitiveLookup {
@@ -165,7 +173,47 @@ struct UVPrimitiveLookup {
   }
 };
 
+static void build_pixel_row_runs(Vector<BuildPixelRow> &build_rows, UDIMTilePixels &tile_data)
+{
+  const int n = build_rows.size();
+
+  /* Sort pixel rows by (y, x), to group contiguous pixel rows runs from adjacent triangles.
+   * Stable sort for deterministic results with overlapping triangles. */
+  std::ranges::stable_sort(build_rows, [](const BuildPixelRow &a, const BuildPixelRow &b) {
+    if (a.start_image_coordinate.y != b.start_image_coordinate.y) {
+      return a.start_image_coordinate.y < b.start_image_coordinate.y;
+    }
+    return a.start_image_coordinate.x < b.start_image_coordinate.x;
+  });
+
+  /* Build runs of packed rows from build rows. */
+  tile_data.pixel_rows.reserve(n);
+  tile_data.pixel_row_run_starts.clear();
+  tile_data.pixel_row_run_start_coords.clear();
+  for (const int i : build_rows.index_range()) {
+    const BuildPixelRow &build_row = build_rows[i];
+    if (i == 0) {
+      tile_data.pixel_row_run_starts.append(0);
+      tile_data.pixel_row_run_start_coords.append(build_row.start_image_coordinate);
+    }
+    else {
+      const BuildPixelRow &prev = build_rows[i - 1];
+      const bool contiguous = build_row.start_image_coordinate.y ==
+                                  prev.start_image_coordinate.y &&
+                              build_row.start_image_coordinate.x ==
+                                  prev.start_image_coordinate.x + prev.num_pixels;
+      if (!contiguous) {
+        tile_data.pixel_row_run_starts.append(i);
+        tile_data.pixel_row_run_start_coords.append(build_row.start_image_coordinate);
+      }
+    }
+    tile_data.pixel_rows.append({build_row.num_pixels, build_row.uv_primitive_index});
+  }
+  tile_data.pixel_row_run_starts.append(n);
+}
+
 static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
+                             const Span<uv_islands::UVIsland> islands,
                              const uv_islands::UVIslandsMask &uv_masks,
                              const UVPrimitiveLookup &uv_prim_lookup,
                              Image &image,
@@ -174,80 +222,145 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
                              PixelNode &pixel_node)
 {
   PRF_scope(ProfileCategory::Editor);
-  BLI_assert(pixel_node.flags.rebuild ||
-             (pixel_node.uv_primitives.tri_indices.is_empty() &&
-              pixel_node.uv_primitives.delta_barycentric_coords.is_empty() &&
-              pixel_node.tiles.is_empty()));
-  /* Assuming a quad mesh, we'll have at least 2 * faces entries */
-  pixel_node.uv_primitives.tri_indices.reserve(node.faces().size() * 2);
-  pixel_node.uv_primitives.delta_barycentric_coords.reserve(node.faces().size() * 2);
+  BLI_assert(pixel_node.flags.rebuild || (pixel_node.uv_primitives.tri_indices.is_empty() &&
+                                          pixel_node.uv_primitives.pixel_to_position.is_empty() &&
+                                          pixel_node.tiles.is_empty()));
+
+  Vector<int> tri_indices;
+  Vector<float3x3> pixel_to_position;
+
+  /* Assuming a quad mesh, we'll have at least 2 * faces entries. */
+  tri_indices.reserve(node.faces().size() * 2);
+  pixel_to_position.reserve(node.faces().size() * 2);
 
   const Span<int3> corner_tris = mesh_data.corner_tris;
   const Span<float2> uv_map = mesh_data.uv_map;
+
+  /* For multiple UDIM tiles, compute which ones this node overlaps with. */
+  const bool multi_tile = BLI_listbase_count(&image.tiles) > 1;
+  Vector<int2, 8> node_tiles;
+  if (multi_tile) {
+    int2 tiles_min(INT_MAX);
+    int2 tiles_max(INT_MIN);
+    for (ImageTile &tile : image.tiles) {
+      math::min_max(image::ImageTileWrapper(&tile).get_tile_offset(), tiles_min, tiles_max);
+    }
+
+    for (const int face : node.faces()) {
+      for (const int tri : bke::mesh::face_triangles_range(mesh_data.faces, face)) {
+        if (uv_prim_lookup.lookup[tri].is_empty()) {
+          continue;
+        }
+        float2 uv_min(FLT_MAX);
+        float2 uv_max(-FLT_MAX);
+        for (int i = 0; i < 3; i++) {
+          const float2 uv = uv_map[corner_tris[tri][i]];
+          uv_min = math::min(uv_min, uv);
+          uv_max = math::max(uv_max, uv);
+        }
+        /* Bound by UDIM tiles to guard against very large UV coordinates. */
+        const int2 tile_min = math::clamp(int2(math::floor(uv_min)), tiles_min, tiles_max);
+        const int2 tile_max = math::clamp(int2(math::floor(uv_max)), tiles_min, tiles_max);
+        for (int ty = tile_min.y; ty <= tile_max.y; ty++) {
+          for (int tx = tile_min.x; tx <= tile_max.x; tx++) {
+            node_tiles.append_non_duplicates(int2(tx, ty));
+          }
+        }
+      }
+    }
+  }
+
   for (ImageTile &tile : image.tiles) {
     image::ImageTileWrapper image_tile(&tile);
+    const int2 tile_offset_i = image_tile.get_tile_offset();
+    const float2 tile_offset = float2(tile_offset_i);
+
+    /* Skip UDIM tiles none of the node's primitives cover. */
+    if (multi_tile && !node_tiles.contains(tile_offset_i)) {
+      continue;
+    }
+
+    /* Skip UDIM tiles that have no mask. */
+    const uv_islands::UVIslandsMask::Tile *mask_tile = uv_masks.find_tile(tile_offset +
+                                                                          float2(0.5f, 0.5f));
+    if (mask_tile == nullptr) {
+      continue;
+    }
+
     image_user.tile = image_tile.get_tile_number();
     ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &image_user, nullptr);
     if (image_buffer == nullptr) {
       continue;
     }
+    const float inv_w = 1.0f / image_buffer->x;
+    const float inv_h = 1.0f / image_buffer->y;
 
     UDIMTilePixels tile_data;
     tile_data.tile_number = image_tile.get_tile_number();
-    float2 tile_offset = float2(image_tile.get_tile_offset());
-
-    /* Lookup mask tile once per triangle, as each triangle belongs to one UDIM tile. */
-    const uv_islands::UVIslandsMask::Tile *mask_tile = uv_masks.find_tile(tile_offset +
-                                                                          float2(0.5f, 0.5f));
+    Vector<BuildPixelRow> build_rows;
 
     for (const int face : node.faces()) {
       for (const int tri : bke::mesh::face_triangles_range(mesh_data.faces, face)) {
-        const std::array<float2, 3> uvs{
-            uv_map[corner_tris[tri][0]] - tile_offset,
-            uv_map[corner_tris[tri][1]] - tile_offset,
-            uv_map[corner_tris[tri][2]] - tile_offset,
-        };
-        const float minv = clamp_f(std::min({uvs[0].y, uvs[1].y, uvs[2].y}), 0.0f, 1.0f);
-        const int miny = floor(minv * image_buffer->y);
-        const float maxv = clamp_f(std::max({uvs[0].y, uvs[1].y, uvs[2].y}), 0.0f, 1.0f);
-        const int maxy = min_ii(ceil(maxv * image_buffer->y), image_buffer->y);
-        const float minu = clamp_f(std::min({uvs[0].x, uvs[1].x, uvs[2].x}), 0.0f, 1.0f);
-        const int minx = floor(minu * image_buffer->x);
-        const float maxu = clamp_f(std::max({uvs[0].x, uvs[1].x, uvs[2].x}), 0.0f, 1.0f);
-        const int maxx = min_ii(ceil(maxu * image_buffer->x), image_buffer->x);
         for (const UVPrimitiveLookup::Entry &entry : uv_prim_lookup.lookup[tri]) {
-          const int uv_prim_index = pixel_node.uv_primitives.tri_indices.size();
-          pixel_node.uv_primitives.tri_indices.append(tri);
-          pixel_node.uv_primitives.delta_barycentric_coords.append(
-              calc_barycentric_delta_x(image_buffer, uvs.data(), minx, miny));
+          const uv_islands::UVIsland &island = islands[entry.uv_island_index];
+          const uv_islands::UVPrimitive &uv_primitive = *entry.uv_primitive;
+          const float2 uvs[3] = {
+              island.uv_verts[uv_primitive.get_uv_vert(island, mesh_data, 0)].uv - tile_offset,
+              island.uv_verts[uv_primitive.get_uv_vert(island, mesh_data, 1)].uv - tile_offset,
+              island.uv_verts[uv_primitive.get_uv_vert(island, mesh_data, 2)].uv - tile_offset,
+          };
+          const float minv = clamp_f(std::min({uvs[0].y, uvs[1].y, uvs[2].y}), 0.0f, 1.0f);
+          const int miny = floor(minv * image_buffer->y);
+          const float maxv = clamp_f(std::max({uvs[0].y, uvs[1].y, uvs[2].y}), 0.0f, 1.0f);
+          const int maxy = min_ii(ceil(maxv * image_buffer->y), image_buffer->y);
+          const float minu = clamp_f(std::min({uvs[0].x, uvs[1].x, uvs[2].x}), 0.0f, 1.0f);
+          const int minx = floor(minu * image_buffer->x);
+          const float maxu = clamp_f(std::max({uvs[0].x, uvs[1].x, uvs[2].x}), 0.0f, 1.0f);
+          const int maxx = min_ii(ceil(maxu * image_buffer->x), image_buffer->x);
 
-          /* Extract the pixels. */
-          if (mask_tile != nullptr) {
-            extract_barycentric_pixels(tile_data,
-                                       image_buffer,
-                                       *mask_tile,
-                                       entry.uv_island_index,
-                                       uv_prim_index,
-                                       uvs.data(),
-                                       minx,
-                                       miny,
-                                       maxx,
-                                       maxy);
+          /* Skip primitives that don't overlap this tile. */
+          if (minx >= maxx || miny >= maxy) {
+            continue;
           }
+
+          const int uv_prim_index = tri_indices.size();
+          const int64_t build_rows_num = build_rows.size();
+          extract_barycentric_pixels(build_rows,
+                                     image_buffer,
+                                     *mask_tile,
+                                     entry.uv_island_index,
+                                     uv_prim_index,
+                                     uvs,
+                                     minx,
+                                     miny,
+                                     maxx,
+                                     maxy);
+
+          /* Don't append primitive if no pixels where written to this tile. */
+          if (build_rows.size() == build_rows_num) {
+            continue;
+          }
+          tri_indices.append(tri);
+          pixel_to_position.append(calc_pixel_to_position_map(mesh_data, tri, uvs, inv_w, inv_h));
         }
       }
     }
     BKE_image_release_ibuf(&image, image_buffer, nullptr);
 
-    if (tile_data.pixel_rows.is_empty()) {
+    if (build_rows.is_empty()) {
       continue;
     }
 
-    BLI_assert(pixel_node.uv_primitives.delta_barycentric_coords.size() ==
-               pixel_node.uv_primitives.tri_indices.size());
+    build_pixel_row_runs(build_rows, tile_data);
+
+    BLI_assert(pixel_to_position.size() == tri_indices.size());
 
     pixel_node.tiles.append(tile_data);
   }
+
+  /* Assign to Array, to avoid wasting reserved space. */
+  pixel_node.uv_primitives.tri_indices = tri_indices.as_span();
+  pixel_node.uv_primitives.pixel_to_position = pixel_to_position.as_span();
 }
 
 /**
@@ -295,6 +408,10 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
     if (image_buffer == nullptr) {
       continue;
     }
+
+    float *data_float = image_buffer->float_data_for_write();
+    uint8_t *data_byte = image_buffer->byte_data_for_write();
+
     IndexMaskMemory memory;
     IndexMask leaf_nodes = all_leaf_nodes(pbvh, memory);
     PixelData &pixel_data = *pbvh.pixels_;
@@ -305,76 +422,32 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
         return;
       }
 
-      for (PackedPixelRow &pixel_row : tile_node_data->pixel_rows) {
-        int pixel_offset = pixel_row.start_image_coordinate.y * image_buffer->x +
-                           pixel_row.start_image_coordinate.x;
-        for (int x = 0; x < pixel_row.num_pixels; x++) {
-          if (float *data = image_buffer->float_data_for_write()) {
-            copy_v4_fl(&data[pixel_offset * 4], 1.0);
+      const int num_runs = tile_node_data->pixel_row_run_starts.size() - 1;
+      for (int run_i = 0; run_i < num_runs; run_i++) {
+        int run_x = tile_node_data->pixel_row_run_start_coords[run_i].x;
+        const int run_y = tile_node_data->pixel_row_run_start_coords[run_i].y;
+        const int run_begin = tile_node_data->pixel_row_run_starts[run_i];
+        const int run_end = tile_node_data->pixel_row_run_starts[run_i + 1];
+        for (int k = run_begin; k < run_end; k++) {
+          const PackedPixelRow &pixel_row = tile_node_data->pixel_rows[k];
+          int pixel_offset = run_y * image_buffer->x + run_x;
+          for (int x = 0; x < pixel_row.num_pixels; x++) {
+            if (data_float) {
+              copy_v4_fl(&data_float[pixel_offset * 4], 1.0);
+            }
+            if (data_byte) {
+              uint8_t *dest = &data_byte[pixel_offset * 4];
+              dest[0] = dest[1] = dest[2] = dest[3] = 255;
+            }
+            pixel_offset += 1;
           }
-          if (uint8_t *data = image_buffer->byte_data_for_write()) {
-            uint8_t *dest = &data[pixel_offset * 4];
-            dest[0] = dest[1] = dest[2] = dest[3] = 255;
-          }
-          pixel_offset += 1;
+          run_x += pixel_row.num_pixels;
         }
       }
     });
     IMB_partial_update_mark_full(image_buffer);
     IMB_mark_dirty(image_buffer);
     BKE_image_release_ibuf(&image, image_buffer, nullptr);
-  }
-}
-
-static float3 calc_pixel_position(const Span<float3> vert_positions,
-                                  const Span<int3> vert_tris,
-                                  const int tri_index,
-                                  const float2 &bary_weight)
-{
-  const int3 &verts = vert_tris[tri_index];
-  const float3 weights(bary_weight.x, bary_weight.y, 1.0f - bary_weight.x - bary_weight.y);
-  float3 result;
-  interp_v3_v3v3v3(result,
-                   vert_positions[verts[0]],
-                   vert_positions[verts[1]],
-                   vert_positions[verts[2]],
-                   weights);
-  return result;
-}
-
-static void calc_node_pixel_row_positions(const uv_islands::MeshData &mesh_data,
-                                          const PixelData &pixel_data,
-                                          PixelNode &pixel_node)
-{
-  for (UDIMTilePixels &tile_data : pixel_node.tiles) {
-    BLI_assert(tile_data.pixel_row_positions.is_empty() ||
-               tile_data.pixel_row_positions.size() == tile_data.pixel_rows.size());
-
-    if (tile_data.pixel_row_positions.size() == tile_data.pixel_rows.size()) {
-      continue;
-    }
-
-    tile_data.pixel_row_positions.resize(tile_data.pixel_rows.size());
-
-    for (const int i : tile_data.pixel_rows.index_range()) {
-      PackedPixelRow &pixel_row = tile_data.pixel_rows[i];
-
-      const float3 start = calc_pixel_position(
-          mesh_data.vert_positions,
-          pixel_data.vert_tris,
-          pixel_node.uv_primitives.tri_indices[pixel_row.uv_primitive_index],
-          pixel_row.start_barycentric_coord);
-      const float3 next = calc_pixel_position(
-          mesh_data.vert_positions,
-          pixel_data.vert_tris,
-          pixel_node.uv_primitives.tri_indices[pixel_row.uv_primitive_index],
-          pixel_row.start_barycentric_coord +
-              pixel_node.uv_primitives.delta_barycentric_coords[pixel_row.uv_primitive_index]);
-      const float3 delta = next - start;
-
-      tile_data.pixel_row_positions[i].start = start;
-      tile_data.pixel_row_positions[i].delta = delta;
-    }
   }
 }
 
@@ -433,8 +506,6 @@ static bool update_pixels(const Depsgraph &depsgraph,
   Array<uv_islands::UVIsland> islands = uv_islands::build_uv_islands(
       mesh_data, tris_by_island, uv_masks);
 
-  update_geom_primitives(pbvh, mesh_data);
-
   UVPrimitiveLookup uv_primitive_lookup(mesh_data.corner_tris.size(), islands);
 
   MutableSpan<MeshNode> nodes = pbvh.nodes<MeshNode>();
@@ -442,13 +513,15 @@ static bool update_pixels(const Depsgraph &depsgraph,
 
   nodes_to_update.foreach_index(
       [&](const int i) {
-        do_encode_pixels(
-            mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
+        do_encode_pixels(mesh_data,
+                         islands,
+                         uv_masks,
+                         uv_primitive_lookup,
+                         image,
+                         image_user,
+                         nodes[i],
+                         pixel_nodes[i]);
       },
-      exec_mode::grain_size(1));
-  const PixelData &pixel_data = data_get(pbvh);
-  nodes_to_update.foreach_index(
-      [&](const int i) { calc_node_pixel_row_positions(mesh_data, pixel_data, pixel_nodes[i]); },
       exec_mode::grain_size(1));
   if (USE_WATERTIGHT_CHECK) {
     apply_watertight_check(pbvh, image, image_user);
@@ -469,9 +542,9 @@ static bool update_pixels(const Depsgraph &depsgraph,
     int64_t rows_bytes = 0;
     int64_t num_pixels = 0;
     for (const PixelNode &pixel_node : pbvh.pixels_->nodes) {
+      rows_bytes += int64_t(pixel_node.uv_primitives.pixel_to_position.size()) * sizeof(float3x3);
       for (const UDIMTilePixels &tile : pixel_node.tiles) {
         rows_bytes += int64_t(tile.pixel_rows.size()) * sizeof(PackedPixelRow);
-        rows_bytes += int64_t(tile.pixel_row_positions.size()) * sizeof(PackedPixelRowPosition);
         for (const PackedPixelRow &row : tile.pixel_rows) {
           num_pixels += row.num_pixels;
         }
