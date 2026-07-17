@@ -6,7 +6,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # Necessary to publish on GitHub Releases
+  contents: read
+
+concurrency:
+  group: weekly-automatic-compilations-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   PYTHON_VERSION: "3.13"
@@ -17,6 +21,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: linux
@@ -40,44 +45,55 @@ jobs:
           #  runner: macos-14
 
     steps:
+      - name: Checkout this fork at the triggering commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        env:
+          GIT_LFS_SKIP_SMUDGE: 1
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: upbge
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+          persist-credentials: false
+
+      - name: Verify checked-out source
+        shell: bash
+        run: |
+          ACTUAL_SHA="$(git -C upbge rev-parse HEAD)"
+          echo "Repository: ${{ github.repository }}"
+          echo "Expected commit: ${{ github.sha }}"
+          echo "Checked-out commit: $ACTUAL_SHA"
+          test "$ACTUAL_SHA" = "${{ github.sha }}"
+
       - name: Setup APT
         if: matrix.os == 'linux'
         run: |
-          sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03noble.list \
-          -o /etc/apt/sources.list.d/03noble.list && \
-          sudo curl https://raw.githubusercontent.com/UPBGE/upbge/master/.github/workflows/03ubuntu \
-          -o /etc/apt/apt.conf.d/03ubuntu
-
-      - name: Checkout sources
-        run: |
-          git clone https://github.com/UPBGE/upbge.git
-        env:
-          GIT_LFS_SKIP_SMUDGE: 1
+          sudo cp upbge/.github/workflows/03noble.list /etc/apt/sources.list.d/03noble.list
+          sudo cp upbge/.github/workflows/03ubuntu /etc/apt/apt.conf.d/03ubuntu
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '${{env.PYTHON_VERSION}}'
 
       - name: Install Python Dependencies (Linux/macOS)
         if: matrix.os != 'windows'
         run: |
-          curl https://bootstrap.pypa.io/get-pip.py | python
           python -m pip install numpy requests cython idna charset-normalizer urllib3 certifi zstandard pybind11
 
       - name: Install Python Dependencies (Windows)
         if: matrix.os == 'windows'
         run: |
-          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "get-pip.py"
-          python get-pip.py
           python -m pip install numpy requests cython idna charset-normalizer urllib3 certifi zstandard pybind11
 
       - name: Install Dependencies (Linux)
         if: matrix.os == 'linux'
         run: |
-          sudo apt update && \
-          sudo apt dist-upgrade && \
-          sudo apt install -y build-essential git-lfs git subversion cmake ninja-build \
+          sudo apt-get update && \
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y && \
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git-lfs git subversion cmake ninja-build \
             cmake-curses-gui cmake-gui patch libx11-dev \
             libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev \
             libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev gcc-14 g++-14
@@ -85,12 +101,18 @@ jobs:
       - name: Install Dependencies (Windows)
         if: matrix.os == 'windows'
         run: |
-          choco install ninja cmake git
+          choco install ninja cmake git -y --no-progress
 
       - name: Install Dependencies (macOS)
         if: matrix.os == 'macos'
         run: |
           brew install ninja cmake
+
+      - name: Disable legacy bge_netlogic submodule
+        shell: bash
+        run: |
+          git -C upbge config --local \
+            submodule.scripts/addons_core/bge_netlogic.update none
 
       - name: Download Precompiled Libs (Linux)
         if: matrix.os == 'linux'
@@ -104,49 +126,80 @@ jobs:
         if: matrix.os == 'windows'
         run: cd upbge && echo y | ./make.bat update
 
-      - name: Update submodules manually
+      - name: Checkout pinned bundled add-ons (excluding bge_netlogic)
+        shell: bash
         env:
           GIT_LFS_SKIP_SMUDGE: 1
         run: |
-          cd upbge/scripts/addons_core
-          git submodule update --init --recursive --remote .
-          cd bge_netlogic
-          git checkout master
-          git pull --rebase origin master
+          git -C upbge submodule update --init --recursive -- \
+            scripts/addons_core/bge_bricknodes \
+            scripts/addons_core/bge_easyonline \
+            scripts/addons_core/bge_thelightmapper
 
-          cd ../bge_bricknodes
-          git checkout master
-          git pull --rebase origin master
-
-          cd ../bge_easyonline
-          git checkout master
-          git pull --rebase origin master
-
-          cd ../bge_thelightmapper
-          git checkout master
-          git pull --rebase origin master
+      - name: Verify source commit after dependency setup
+        shell: bash
+        run: |
+          ACTUAL_SHA="$(git -C upbge rev-parse HEAD)"
+          NETLOGIC_STATUS="$(git -C upbge submodule status -- scripts/addons_core/bge_netlogic)"
+          echo "Source commit after dependency setup: $ACTUAL_SHA"
+          echo "bge_netlogic submodule status: $NETLOGIC_STATUS"
+          test "$ACTUAL_SHA" = "${{ github.sha }}"
+          test "${NETLOGIC_STATUS#-}" != "$NETLOGIC_STATUS"
 
       - name: Configure CMake (Linux)
         if: matrix.os == 'linux'
         env:
           CC: gcc-14
           CXX: g++-14
-        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DWITH_INSTALL_PORTABLE=ON -DWITH_VULKAN_BACKEND=ON -DWITH_GHOST_WAYLAND=ON -DPYTHON_VERSION="3.13"
+        run: >
+          cmake -S upbge -B build
+          -C upbge/build_files/cmake/config/blender_release.cmake
+          -DCMAKE_BUILD_TYPE=Release
+          -DWITH_GAMEENGINE=ON
+          -DWITH_JOLT=ON
+          -DWITH_GAMEENGINE_LOGICNODES=ON
+          -DWITH_INSTALL_PORTABLE=ON
+          -DWITH_VULKAN_BACKEND=ON
+          -DWITH_GHOST_WAYLAND=ON
+          -DPYTHON_VERSION=${{ env.PYTHON_VERSION }}
 
       - name: Configure CMake (Windows)
         if: matrix.os == 'windows'
-        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DWITH_WINDOWS_RELEASE_PDB=OFF -DCMAKE_BUILD_TYPE=Release -DWITH_VULKAN_BACKEND=ON -DPYTHON_VERSION="3.13"
+        run: >
+          cmake -S upbge -B build
+          -C upbge/build_files/cmake/config/blender_release.cmake
+          -DCMAKE_BUILD_TYPE=Release
+          -DWITH_GAMEENGINE=ON
+          -DWITH_JOLT=ON
+          -DWITH_GAMEENGINE_LOGICNODES=ON
+          -DWITH_WINDOWS_RELEASE_PDB=OFF
+          -DWITH_VULKAN_BACKEND=ON
+          -DPYTHON_VERSION=${{ env.PYTHON_VERSION }}
 
       - name: Configure CMake (macOS)
         if: matrix.os == 'macos'
-        run: cmake -S upbge -B build -C upbge/build_files/cmake/config/blender_release.cmake -DCMAKE_BUILD_TYPE=Release -DPYTHON_VERSION="3.13"
+        run: >
+          cmake -S upbge -B build
+          -C upbge/build_files/cmake/config/blender_release.cmake
+          -DCMAKE_BUILD_TYPE=Release
+          -DWITH_GAMEENGINE=ON
+          -DWITH_JOLT=ON
+          -DWITH_GAMEENGINE_LOGICNODES=ON
+          -DPYTHON_VERSION=${{ env.PYTHON_VERSION }}
+
+      - name: Verify required CMake features
+        shell: bash
+        run: |
+          grep -F "WITH_GAMEENGINE:BOOL=ON" build/CMakeCache.txt
+          grep -F "WITH_JOLT:BOOL=ON" build/CMakeCache.txt
+          grep -F "WITH_GAMEENGINE_LOGICNODES:BOOL=ON" build/CMakeCache.txt
 
       - name: Build UPBGE (Linux)
         if: matrix.os == 'linux'
         run: make -C build -j `nproc`
 
       - name: Build UPBGE (macOS)
-        if: matrix.os == 'macOS'
+        if: matrix.os == 'macos'
         run: make -C build
 
       - name: Build UPBGE (Windows)
@@ -157,62 +210,79 @@ jobs:
         if: matrix.os != 'windows'
         run: make -C build install
 
-      - name: Install PyPI package into UPBGE's Python (Windows)
-        if: matrix.os == 'windows'
-        run: |
-          $pybin = Get-ChildItem -Recurse -Path "build/bin/Release" -Filter "python.exe" | Select-Object -First 1 | ForEach-Object { $_.FullName }
-          & $pybin -m ensurepip
-          & $pybin -m pip install uplogic
-
-      - name: Install PyPI package into UPBGE's Python (Linux/macOS)
+      - name: Write build information (Linux/macOS)
         if: matrix.os != 'windows'
         run: |
-          PY_BIN=$(find build/bin -path "*/python/bin/python3.*" | head -n 1)
-          "$PY_BIN" -m ensurepip
-          "$PY_BIN" -m pip install uplogic
+          printf 'Repository: %s\nCommit: %s\nJolt Physics: ON\nNative C++ Logic Nodes: ON\nLegacy bge_netlogic add-on: excluded\n' \
+            "${{ github.repository }}" "${{ github.sha }}" > build/bin/BUILD_INFO.txt
+
+      - name: Write build information (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          @(
+            "Repository: $env:GITHUB_REPOSITORY"
+            "Commit: $env:GITHUB_SHA"
+            "Jolt Physics: ON"
+            "Native C++ Logic Nodes: ON"
+            "Legacy bge_netlogic add-on: excluded"
+          ) | Set-Content -Encoding utf8 build\bin\BUILD_INFO.txt
 
       - name: Archive Build (Linux/macOS)
         if: matrix.os != 'windows'
         run: |
           DATE=$(date +"%Y-%m-%d")
-          tar zcvf upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}-$DATE.tar.gz build/bin
+          SHORT_SHA="${GITHUB_SHA:0:12}"
+          tar zcvf vuaieo-upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}-$DATE-$SHORT_SHA.tar.gz build/bin
 
       - name: Archive Build (Windows)
         if: matrix.os == 'windows'
         run: |
           $DATE = Get-Date -Format "yyyy-MM-dd"
-          Compress-Archive -Path build\bin -DestinationPath upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}-$DATE.zip
+          $SHORT_SHA = $env:GITHUB_SHA.Substring(0, 12)
+          Compress-Archive -Path build\bin -DestinationPath vuaieo-upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}-$DATE-$SHORT_SHA.zip
 
       - name: Upload Build as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}
-          path: upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}-*.*
+          name: vuaieo-upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}
+          path: vuaieo-upbge-0.52-alpha-${{ matrix.os }}-${{ matrix.arch }}-*.*
           retention-days: 7
 
   release:
     name: Publish Release
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: write
 
     steps:
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e # v3
         with:
-          tag_name: weekly-build-${{ github.run_number }}
-          name: Weekly UPBGE Build # Title in the Release webpage
+          tag_name: vuaieo-weekly-build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: Vuaieo UPBGE 0.52 Alpha Weekly Build ${{ github.run_number }}
           body: |
-            **Automated Weekly Build of UPBGE 0.52 Alpha**
+            **Automated weekly build of `vuaieo/upbge` at `${{ github.sha }}`**
+
+            Enabled fork features:
+            - Jolt Physics
+            - Native C++ Logic Nodes
+
+            The legacy `bge_netlogic` add-on is intentionally excluded.
+
+            Builds:
             - Linux (x86_64)
             - Windows (x86_64)
 
             Download the corresponding file for your OS below.
           draft: false
           prerelease: true
+          fail_on_unmatched_files: true
           files: artifacts/**/*
