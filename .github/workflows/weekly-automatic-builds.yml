@@ -74,7 +74,7 @@ jobs:
           sudo cp upbge/.github/workflows/03ubuntu /etc/apt/apt.conf.d/03ubuntu
 
       - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '${{env.PYTHON_VERSION}}'
 
@@ -113,6 +113,12 @@ jobs:
         run: |
           git -C upbge config --local \
             submodule.scripts/addons_core/bge_netlogic.update none
+
+      - name: Exclude non-build LFS assets unavailable from Blender
+        shell: bash
+        run: |
+          git -C upbge config --local lfs.fetchexclude \
+            "release/darwin/**,source/gameengine/LogicNodes/tests/fixtures/**"
 
       - name: Download Precompiled Libs (Linux)
         if: matrix.os == 'linux'
