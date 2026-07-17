@@ -180,7 +180,7 @@ jobs:
           -DWITH_GAMEENGINE_LOGICNODES=ON
           -DWITH_WINDOWS_RELEASE_PDB=OFF
           -DWITH_VULKAN_BACKEND=ON
-          -DPYTHON_VERSION=${{ env.PYTHON_VERSION }}
+          "-DPYTHON_VERSION:STRING=${{ env.PYTHON_VERSION }}"
 
       - name: Configure CMake (macOS)
         if: matrix.os == 'macos'
