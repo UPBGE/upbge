@@ -80,6 +80,14 @@ RAS_DebugDraw::SolidBox::SolidBox(const MT_Vector4 &insideColor,
 {
 }
 
+RAS_DebugDraw::Line2D::Line2D(const MT_Vector2 &from,
+                              const MT_Vector2 &to,
+                              const MT_Vector4 &color,
+                              const float width)
+    : Shape(color), m_from(from), m_to(to), m_width(width)
+{
+}
+
 RAS_DebugDraw::Text2D::Text2D(const std::string &text,
                               const MT_Vector2 &pos,
                               const MT_Vector4 &color)
@@ -89,6 +97,13 @@ RAS_DebugDraw::Text2D::Text2D(const std::string &text,
 
 RAS_DebugDraw::Box2D::Box2D(const MT_Vector2 &pos, const MT_Vector2 &size, const MT_Vector4 &color)
     : Shape(color), m_pos(pos), m_size(size)
+{
+}
+
+RAS_DebugDraw::Rect2D::Rect2D(const MT_Vector2 &pos,
+                const MT_Vector2 &size,
+                const MT_Vector4 &color)
+  : Shape(color), m_pos(pos), m_size(size)
 {
 }
 
@@ -146,6 +161,21 @@ void RAS_DebugDraw::RenderBox2D(const MT_Vector2 &pos,
   m_boxes2D.emplace_back(pos, size, color);
 }
 
+void RAS_DebugDraw::RenderRect2D(const MT_Vector2 &pos,
+                                 const MT_Vector2 &size,
+                                 const MT_Vector4 &color)
+{
+  m_rects2D.emplace_back(pos, size, color);
+}
+
+void RAS_DebugDraw::RenderLine2D(const MT_Vector2 &from,
+                                 const MT_Vector2 &to,
+                                 const MT_Vector4 &color,
+                                 const float width)
+{
+  m_lines2D.emplace_back(from, to, color, width);
+}
+
 void RAS_DebugDraw::RenderText2D(const std::string &text,
                                  const MT_Vector2 &size,
                                  const MT_Vector4 &color)
@@ -168,4 +198,6 @@ void RAS_DebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
   m_solidBoxes.clear();
   m_texts2D.clear();
   m_boxes2D.clear();
+  m_rects2D.clear();
+  m_lines2D.clear();
 }

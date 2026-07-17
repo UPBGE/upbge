@@ -69,6 +69,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcache_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcloud_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_logic_node_binding_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_property_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_python_proxy_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_rigidbody_types.h

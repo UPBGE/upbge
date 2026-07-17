@@ -257,12 +257,18 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
         bge_blendfiledata_free(bfd);
       }
 
-      char basedpath[FILE_MAX];
+      char basedpath[FILE_MAX] = "";
       // base the actuator filename with respect
       // to the original file working directory
 
       if (!exitstring.empty()) {
         BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
+      }
+
+      // If the path is empty (unsaved file restart), fall back to the
+      // original file path stored in pathname so the reload works.
+      if (basedpath[0] == '\0') {
+        BLI_strncpy(basedpath, pathname, sizeof(basedpath));
       }
 
       // load relative to the last loaded file, this used to be relative
@@ -333,6 +339,10 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
       // else forget it, we can't find it
       else {
         exitrequested = KX_ExitRequest::QUIT_GAME;
+        /* Cannot restart because the blend file could not be loaded.
+         * Break out of the restart loop to avoid creating a launcher
+         * with stale blenderdata, which would crash. */
+        break;
       }
     }
 

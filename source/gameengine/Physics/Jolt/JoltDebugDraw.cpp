@@ -26,6 +26,8 @@
 
 #include "JoltDebugDraw.h"
 
+#include "JoltPhysicsConfig.h"
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS

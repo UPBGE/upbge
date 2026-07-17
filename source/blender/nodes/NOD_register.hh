@@ -21,6 +21,10 @@ void register_geometry_nodes();
 void register_shader_nodes();
 void register_texture_nodes();
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+void register_logic_nodes();
+#endif
+
 /**
  * This macro has three purposes:
  * - It serves as marker in source code that `discover_nodes.py` can search for to find nodes that

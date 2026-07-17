@@ -7,6 +7,7 @@
  */
 
 #include <cstdlib>
+#include <cstring>
 
 #include "DNA_curve_types.h"
 #include "DNA_layer_types.h"
@@ -20,6 +21,7 @@
 #include "MOV_enums.hh"
 
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
@@ -933,6 +935,246 @@ static void rna_GameSettings_physics_engine_set(PointerRNA *ptr, int value)
     rna_GameSettings_apply_physics_engine_damping_defaults(scene, value);
     rna_GameSettings_apply_physics_engine_timing_defaults(gm, value);
   }
+}
+
+static void rna_GameSettings_show_framerate_profile_set(PointerRNA *ptr, bool value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+
+  if (value) {
+    gm->flag |= GAME_SHOW_FRAMERATE;
+  }
+  else {
+    gm->flag &= ~GAME_SHOW_FRAMERATE;
+    gm->flag &= ~GAME_RECORD_FRAME_TIME_GRAPH;
+    gm->frame_time_graph_record_slot = -1;
+  }
+}
+
+static int rna_GameSettings_frame_time_graph_record_slot_sanitize(const int value)
+{
+  return (value >= 0 && value < 4) ? value : -1;
+}
+
+static bool rna_GameSettings_record_frame_time_graph_get(PointerRNA *ptr)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  return (gm->flag & GAME_SHOW_FRAMERATE) &&
+         (gm->flag & GAME_RECORD_FRAME_TIME_GRAPH) &&
+         (rna_GameSettings_frame_time_graph_record_slot_sanitize(
+              gm->frame_time_graph_record_slot) >= 0);
+}
+
+static void rna_GameSettings_record_frame_time_graph_set(PointerRNA *ptr, bool value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+
+  if (value && (gm->flag & GAME_SHOW_FRAMERATE)) {
+    gm->flag |= GAME_RECORD_FRAME_TIME_GRAPH;
+    gm->frame_time_graph_record_slot =
+        rna_GameSettings_frame_time_graph_record_slot_sanitize(gm->frame_time_graph_record_slot);
+    if (gm->frame_time_graph_record_slot < 0) {
+      gm->frame_time_graph_record_slot = 0;
+    }
+  }
+  else {
+    gm->flag &= ~GAME_RECORD_FRAME_TIME_GRAPH;
+    gm->frame_time_graph_record_slot = -1;
+  }
+}
+
+static int rna_GameSettings_frame_time_graph_record_slot_get(PointerRNA *ptr)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  if (!(gm->flag & GAME_SHOW_FRAMERATE) || !(gm->flag & GAME_RECORD_FRAME_TIME_GRAPH)) {
+    return -1;
+  }
+  return rna_GameSettings_frame_time_graph_record_slot_sanitize(
+      gm->frame_time_graph_record_slot);
+}
+
+static void rna_GameSettings_frame_time_graph_record_slot_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  const int slot = rna_GameSettings_frame_time_graph_record_slot_sanitize(value);
+
+  if (slot >= 0 && (gm->flag & GAME_SHOW_FRAMERATE)) {
+    gm->flag |= GAME_RECORD_FRAME_TIME_GRAPH;
+    gm->frame_time_graph_record_slot = slot;
+  }
+  else {
+    gm->flag &= ~GAME_RECORD_FRAME_TIME_GRAPH;
+    gm->frame_time_graph_record_slot = -1;
+  }
+}
+
+static int rna_GameSettings_frame_time_graph_window_sanitize(const int value)
+{
+  switch (value) {
+    case 1:
+    case 2:
+    case 5:
+    case 10:
+      return value;
+    default:
+      return 2;
+  }
+}
+
+static int rna_GameSettings_frame_time_graph_window_get(PointerRNA *ptr)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  return rna_GameSettings_frame_time_graph_window_sanitize(gm->frame_time_graph_window);
+}
+
+static void rna_GameSettings_frame_time_graph_window_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  gm->frame_time_graph_window = rna_GameSettings_frame_time_graph_window_sanitize(value);
+}
+
+static int rna_GameSettings_frame_time_graph_max_samples_sanitize(const int value)
+{
+  if (value < 120) {
+    return 120;
+  }
+  if (value > 60000) {
+    return 60000;
+  }
+  return value;
+}
+
+static int rna_GameSettings_frame_time_graph_max_samples_get(PointerRNA *ptr)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  return rna_GameSettings_frame_time_graph_max_samples_sanitize(
+      gm->frame_time_graph_max_samples);
+}
+
+static void rna_GameSettings_frame_time_graph_max_samples_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  gm->frame_time_graph_max_samples = rna_GameSettings_frame_time_graph_max_samples_sanitize(
+      value);
+}
+
+static int rna_GameSettings_frame_time_graph_visible_domains_sanitize(const int value)
+{
+  return value & GAME_FRAME_TIME_GRAPH_DOMAIN_ALL;
+}
+
+static int rna_GameSettings_frame_time_graph_visible_domains_get(PointerRNA *ptr)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  return rna_GameSettings_frame_time_graph_visible_domains_sanitize(
+      gm->frame_time_graph_visible_domains);
+}
+
+static void rna_GameSettings_frame_time_graph_visible_domains_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  gm->frame_time_graph_visible_domains =
+      rna_GameSettings_frame_time_graph_visible_domains_sanitize(value);
+}
+
+static const char *rna_GameSettings_frame_time_graph_slot_default_name(const int index)
+{
+  static const char *default_names[] = {"Slot 1", "Slot 2", "Slot 3", "Slot 4"};
+  return default_names[index];
+}
+
+static const char *rna_GameSettings_frame_time_graph_slot_name(const GameData *gm,
+                                                               const int index)
+{
+  const char *name = gm->frame_time_graph_slot_names[index];
+  return name[0] != '\0' ? name :
+                           rna_GameSettings_frame_time_graph_slot_default_name(index);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_name_get_index(PointerRNA *ptr,
+                                                                  char *value,
+                                                                  const int index)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  const char *name = rna_GameSettings_frame_time_graph_slot_name(gm, index);
+  BLI_strncpy(value, name, std::strlen(name) + 1);
+}
+
+static int rna_GameSettings_frame_time_graph_slot_name_length_index(PointerRNA *ptr,
+                                                                    const int index)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  return int(std::strlen(rna_GameSettings_frame_time_graph_slot_name(gm, index)));
+}
+
+static void rna_GameSettings_frame_time_graph_slot_name_set_index(PointerRNA *ptr,
+                                                                  const char *value,
+                                                                  const int index)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  BLI_strncpy(gm->frame_time_graph_slot_names[index],
+              value,
+              sizeof(gm->frame_time_graph_slot_names[index]));
+}
+
+static void rna_GameSettings_frame_time_graph_slot_1_name_get(PointerRNA *ptr, char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_get_index(ptr, value, 0);
+}
+
+static int rna_GameSettings_frame_time_graph_slot_1_name_length(PointerRNA *ptr)
+{
+  return rna_GameSettings_frame_time_graph_slot_name_length_index(ptr, 0);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_1_name_set(PointerRNA *ptr, const char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_set_index(ptr, value, 0);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_2_name_get(PointerRNA *ptr, char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_get_index(ptr, value, 1);
+}
+
+static int rna_GameSettings_frame_time_graph_slot_2_name_length(PointerRNA *ptr)
+{
+  return rna_GameSettings_frame_time_graph_slot_name_length_index(ptr, 1);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_2_name_set(PointerRNA *ptr, const char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_set_index(ptr, value, 1);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_3_name_get(PointerRNA *ptr, char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_get_index(ptr, value, 2);
+}
+
+static int rna_GameSettings_frame_time_graph_slot_3_name_length(PointerRNA *ptr)
+{
+  return rna_GameSettings_frame_time_graph_slot_name_length_index(ptr, 2);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_3_name_set(PointerRNA *ptr, const char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_set_index(ptr, value, 2);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_4_name_get(PointerRNA *ptr, char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_get_index(ptr, value, 3);
+}
+
+static int rna_GameSettings_frame_time_graph_slot_4_name_length(PointerRNA *ptr)
+{
+  return rna_GameSettings_frame_time_graph_slot_name_length_index(ptr, 3);
+}
+
+static void rna_GameSettings_frame_time_graph_slot_4_name_set(PointerRNA *ptr, const char *value)
+{
+  rna_GameSettings_frame_time_graph_slot_name_set_index(ptr, value, 3);
 }
 
 static int rna_ToolSettings_snap_mode_get(PointerRNA *ptr)
@@ -6592,6 +6834,31 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       {GAME_PROFILE_SIZE_BIGGER, "BIGGER", 0, "Bigger Size", "Bigger Profile Size"},
       {0, NULL, 0, NULL, NULL}};
 
+    static const EnumPropertyItem frame_time_graph_window_items[] = {
+      {1, "SECONDS_1", 0, "1 s", "Show one second of frame-time history"},
+      {2, "SECONDS_2", 0, "2 s", "Show two seconds of frame-time history"},
+      {5, "SECONDS_5", 0, "5 s", "Show five seconds of frame-time history"},
+      {10, "SECONDS_10", 0, "10 s", "Show ten seconds of frame-time history"},
+      {0, NULL, 0, NULL, NULL}};
+
+    static const EnumPropertyItem frame_time_graph_axis_items[] = {
+      {GAME_FRAME_TIME_GRAPH_AXIS_FRAMES,
+       "FRAMES",
+       0,
+       "Frames",
+       "Space samples by rendered frame number"},
+      {GAME_FRAME_TIME_GRAPH_AXIS_SECONDS,
+       "SECONDS",
+       0,
+       "Seconds",
+       "Space samples by elapsed real time"},
+      {0, NULL, 0, NULL, NULL}};
+
+    static const EnumPropertyItem frame_time_graph_style_items[] = {
+      {GAME_FRAME_TIME_GRAPH_STYLE_LINE, "LINE", 0, "Line", "Draw samples as a line graph"},
+      {GAME_FRAME_TIME_GRAPH_STYLE_BARS, "BARS", 0, "Bars", "Draw samples as bars"},
+      {0, NULL, 0, NULL, NULL}};
+
   srna = RNA_def_struct(brna, "SceneGameData", NULL);
   RNA_def_struct_sdna(srna, "GameData");
   RNA_def_struct_nested(brna, srna, "Scene");
@@ -6741,6 +7008,28 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "Jolt Physics Threads",
                            "Number of threads for Jolt physics simulation "
                            "(-1 = auto, uses max(1, CPU cores - 1))");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_velocity_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_velocity_solver_iterations");
+  RNA_def_property_range(prop, 2, 255);
+  RNA_def_property_ui_range(prop, 2, 255, 1, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Velocity Solver Iterations",
+      "Default Jolt velocity solver iterations for contacts and constraints (2 to 255); "
+      "higher values improve impulse and friction convergence at additional CPU cost");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_position_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "jolt_position_solver_iterations");
+  RNA_def_property_range(prop, 1, 255);
+  RNA_def_property_ui_range(prop, 1, 255, 1, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Position Solver Iterations",
+      "Default Jolt position solver iterations for correcting contact and constraint error; "
+      "higher values improve positional convergence at additional CPU cost");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "jolt_debug_errors", PROP_BOOLEAN, PROP_NONE);
@@ -7014,6 +7303,24 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
   RNA_def_property_ui_text(prop, "Undo at Exit", "Undo bpy changes at game engine exit");
 
+  prop = RNA_def_property(srna, "use_logic_nodes_parallel", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_LOGIC_NODES_PARALLEL);
+  RNA_def_property_ui_text(
+      prop,
+      "Logic Nodes Parallel Trees",
+      "Evaluate independent native logic trees on worker threads during each logic tick "
+      "(requires fixed physics timestep, at least two eligible trees, and trees without "
+      "raycast/collision query nodes). Side effects still flush on the main thread. "
+      "Environment variable UPBGE_LOGIC_NODES_PARALLEL=1 also enables this when set");
+
+  prop = RNA_def_property(srna, "show_logic_nodes_profile", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_LOGIC_NODES_PROFILE);
+  RNA_def_property_ui_text(
+      prop,
+      "Logic Nodes Console Profiling",
+      "Print per-tick native Logic Nodes profiling metrics to the console while the game runs. "
+      "Environment variable UPBGE_LOGIC_NODES_PROFILE=1 also enables this when set");
+
   prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_ACTIVITY_CULLING);
   RNA_def_property_ui_text(
@@ -7026,9 +7333,204 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_framerate_profile", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_FRAMERATE);
+  RNA_def_property_boolean_funcs(prop, NULL, "rna_GameSettings_show_framerate_profile_set");
   RNA_def_property_ui_text(prop,
                            "Show Framerate and Profile",
                            "Show framerate and profiling information while the game runs");
+
+  prop = RNA_def_property(srna, "record_frame_time_graph", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_RECORD_FRAME_TIME_GRAPH);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GameSettings_record_frame_time_graph_get",
+                                 "rna_GameSettings_record_frame_time_graph_set");
+  RNA_def_property_ui_text(prop,
+                           "Record Frame-Time Graph",
+                           "Record one in-memory frame-time graph on the next game run");
+
+  prop = RNA_def_property(srna, "frame_time_graph_visible_slots", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "frame_time_graph_visible_slots");
+  RNA_def_property_range(prop, 0, 15);
+  RNA_def_property_ui_text(
+      prop, "Frame-Time Graph Visible Slots", "Visible recorded graph slot mask");
+
+  static const struct {
+    const char *identifier;
+    int bit;
+    const char *name;
+    const char *description;
+  } frame_time_graph_slot_visible_props[] = {
+      {"show_frame_time_graph_slot_1",
+       1 << 0,
+       "Show Frame-Time Graph Slot 1",
+       "Show recorded frame-time graph slot 1"},
+      {"show_frame_time_graph_slot_2",
+       1 << 1,
+       "Show Frame-Time Graph Slot 2",
+       "Show recorded frame-time graph slot 2"},
+      {"show_frame_time_graph_slot_3",
+       1 << 2,
+       "Show Frame-Time Graph Slot 3",
+       "Show recorded frame-time graph slot 3"},
+      {"show_frame_time_graph_slot_4",
+       1 << 3,
+       "Show Frame-Time Graph Slot 4",
+       "Show recorded frame-time graph slot 4"},
+  };
+  for (const auto &item : frame_time_graph_slot_visible_props) {
+    prop = RNA_def_property(srna, item.identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, NULL, "frame_time_graph_visible_slots", item.bit);
+    RNA_def_property_ui_text(prop, item.name, item.description);
+  }
+
+  prop = RNA_def_property(srna, "frame_time_graph_visible_domains", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "frame_time_graph_visible_domains");
+  RNA_def_property_int_funcs(prop,
+                             "rna_GameSettings_frame_time_graph_visible_domains_get",
+                             "rna_GameSettings_frame_time_graph_visible_domains_set",
+                             NULL);
+  RNA_def_property_range(prop,
+                         0,
+                         GAME_FRAME_TIME_GRAPH_DOMAIN_ALL);
+  RNA_def_property_ui_text(
+      prop, "Frame-Time Graph Visible Domains", "Visible frame-time graph domain mask");
+
+  static const struct {
+    const char *identifier;
+    int bit;
+    const char *name;
+    const char *description;
+  } frame_time_graph_domain_props[] = {
+      {"show_frame_time_graph_domain_frame",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME,
+       "Show Frame Domain",
+       "Show total frame time in the frame-time graph"},
+      {"show_frame_time_graph_domain_work",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_WORK,
+       "Show Work Domain",
+       "Show game work time in the frame-time graph"},
+      {"show_frame_time_graph_domain_physics",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_PHYSICS,
+       "Show Physics Domain",
+       "Show physics time in the frame-time graph"},
+      {"show_frame_time_graph_domain_logic",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_LOGIC,
+       "Show Logic Domain",
+       "Show logic time in the frame-time graph"},
+      {"show_frame_time_graph_domain_animations",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_ANIMATIONS,
+       "Show Animations Domain",
+       "Show animation time in the frame-time graph"},
+      {"show_frame_time_graph_domain_depsgraph",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_DEPSGRAPH,
+       "Show Depsgraph Domain",
+       "Show dependency graph time in the frame-time graph"},
+      {"show_frame_time_graph_domain_network",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_NETWORK,
+       "Show Network Domain",
+       "Show network time in the frame-time graph"},
+      {"show_frame_time_graph_domain_scenegraph",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_SCENEGRAPH,
+       "Show Scenegraph Domain",
+       "Show scenegraph time in the frame-time graph"},
+      {"show_frame_time_graph_domain_rasterizer",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_RASTERIZER,
+       "Show Rasterizer Domain",
+       "Show rasterizer time in the frame-time graph"},
+      {"show_frame_time_graph_domain_services",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_SERVICES,
+       "Show Services Domain",
+       "Show services time in the frame-time graph"},
+      {"show_frame_time_graph_domain_overhead",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_OVERHEAD,
+       "Show Overhead Domain",
+       "Show profiler overhead time in the frame-time graph"},
+      {"show_frame_time_graph_domain_outside",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_OUTSIDE,
+       "Show Outside Domain",
+       "Show outside time in the frame-time graph"},
+      {"show_frame_time_graph_domain_gpu_latency",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY,
+       "Show GPU Latency Domain",
+       "Show GPU latency in the frame-time graph"},
+  };
+  for (const auto &item : frame_time_graph_domain_props) {
+    prop = RNA_def_property(srna, item.identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, NULL, "frame_time_graph_visible_domains", item.bit);
+    RNA_def_property_ui_text(prop, item.name, item.description);
+  }
+
+  prop = RNA_def_property(srna, "frame_time_graph_record_slot", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "frame_time_graph_record_slot");
+  RNA_def_property_int_funcs(prop,
+                             "rna_GameSettings_frame_time_graph_record_slot_get",
+                             "rna_GameSettings_frame_time_graph_record_slot_set",
+                             NULL);
+  RNA_def_property_range(prop, -1, 3);
+  RNA_def_property_ui_text(
+      prop, "Frame-Time Graph Record Slot", "Slot armed for the next game run");
+
+  prop = RNA_def_property(srna, "frame_time_graph_slot_1_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_maxlength(prop, 64);
+  RNA_def_property_string_funcs(prop,
+                                "rna_GameSettings_frame_time_graph_slot_1_name_get",
+                                "rna_GameSettings_frame_time_graph_slot_1_name_length",
+                                "rna_GameSettings_frame_time_graph_slot_1_name_set");
+  RNA_def_property_ui_text(prop, "Frame-Time Graph Slot 1 Name", "Name of frame-time graph slot 1");
+
+  prop = RNA_def_property(srna, "frame_time_graph_slot_2_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_maxlength(prop, 64);
+  RNA_def_property_string_funcs(prop,
+                                "rna_GameSettings_frame_time_graph_slot_2_name_get",
+                                "rna_GameSettings_frame_time_graph_slot_2_name_length",
+                                "rna_GameSettings_frame_time_graph_slot_2_name_set");
+  RNA_def_property_ui_text(prop, "Frame-Time Graph Slot 2 Name", "Name of frame-time graph slot 2");
+
+  prop = RNA_def_property(srna, "frame_time_graph_slot_3_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_maxlength(prop, 64);
+  RNA_def_property_string_funcs(prop,
+                                "rna_GameSettings_frame_time_graph_slot_3_name_get",
+                                "rna_GameSettings_frame_time_graph_slot_3_name_length",
+                                "rna_GameSettings_frame_time_graph_slot_3_name_set");
+  RNA_def_property_ui_text(prop, "Frame-Time Graph Slot 3 Name", "Name of frame-time graph slot 3");
+
+  prop = RNA_def_property(srna, "frame_time_graph_slot_4_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_maxlength(prop, 64);
+  RNA_def_property_string_funcs(prop,
+                                "rna_GameSettings_frame_time_graph_slot_4_name_get",
+                                "rna_GameSettings_frame_time_graph_slot_4_name_length",
+                                "rna_GameSettings_frame_time_graph_slot_4_name_set");
+  RNA_def_property_ui_text(prop, "Frame-Time Graph Slot 4 Name", "Name of frame-time graph slot 4");
+
+  prop = RNA_def_property(srna, "frame_time_graph_window", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "frame_time_graph_window");
+  RNA_def_property_enum_items(prop, frame_time_graph_window_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_GameSettings_frame_time_graph_window_get",
+                              "rna_GameSettings_frame_time_graph_window_set",
+                              NULL);
+  RNA_def_property_ui_text(prop, "Frame-Time Graph Window", "Frame-time graph history window");
+
+  prop = RNA_def_property(srna, "frame_time_graph_axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "frame_time_graph_axis");
+  RNA_def_property_enum_items(prop, frame_time_graph_axis_items);
+  RNA_def_property_ui_text(prop, "Frame-Time Graph X Axis", "Frame-time graph horizontal axis");
+
+  prop = RNA_def_property(srna, "frame_time_graph_style", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "frame_time_graph_style");
+  RNA_def_property_enum_items(prop, frame_time_graph_style_items);
+  RNA_def_property_ui_text(prop, "Frame-Time Graph Style", "Frame-time graph drawing style");
+
+  prop = RNA_def_property(srna, "frame_time_graph_max_samples", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "frame_time_graph_max_samples");
+  RNA_def_property_int_funcs(prop,
+                             "rna_GameSettings_frame_time_graph_max_samples_get",
+                             "rna_GameSettings_frame_time_graph_max_samples_set",
+                             NULL);
+  RNA_def_property_range(prop, 120, 60000);
+  RNA_def_property_ui_range(prop, 120, 60000, 100, 0);
+  RNA_def_property_ui_text(prop,
+                           "Frame-Time Graph Max Samples",
+                           "Maximum samples kept per recorded frame-time graph slot");
 
   prop = RNA_def_property(srna, "show_physics_visualization", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_PHYSICS);

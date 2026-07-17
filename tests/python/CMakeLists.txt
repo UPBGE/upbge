@@ -1656,6 +1656,130 @@ endif()
 
 
 # ------------------------------------------------------------------------------
+# Game Engine Logic Nodes Tests
+# ------------------------------------------------------------------------------
+
+if(WITH_GAMEENGINE_LOGICNODES)
+  # Static audit: NOD_logic_descriptors.hh pin identifiers must match node_logic_*.cc sockets
+  # (compile-time "Required input socket is missing" validation uses the descriptor registry).
+  add_test(
+    NAME logic_nodes_descriptor_socket_audit
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/logic_nodes_descriptor_socket_audit.py
+  )
+  set_tests_properties(logic_nodes_descriptor_socket_audit PROPERTIES LABELS "logic_nodes")
+
+  # The legacy Python Logic Nodes add-ons are enabled by default in UPBGE and can abort under
+  # --debug-memory during shutdown. Keep Python exit-code checking, but avoid debug-memory here so
+  # this native editor serialization probe is judged by the script result.
+  add_blender_test_impl(
+    "logic_nodes_editor_tree_save_load"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/gameengine_logic_nodes_editor_tree.py"
+    --
+    --output-dir "${TEST_OUT_DIR}/logic_nodes"
+  )
+
+endif()
+
+if(WITH_GAMEENGINE_LOGICNODES AND WITH_UI_TESTS)
+  add_blender_test_ui(
+    logic_nodes_debug_runtime_restart
+    --python "${CMAKE_CURRENT_LIST_DIR}/gameengine_logic_nodes_smoke.py"
+    --
+    --output-dir "${TEST_OUT_DIR}/logic_nodes"
+  )
+
+  add_blender_test_ui(
+    logic_nodes_runtime_acceptance
+    --python "${CMAKE_CURRENT_LIST_DIR}/gameengine_logic_nodes_runtime_acceptance.py"
+    --
+    --output-dir "${TEST_OUT_DIR}/logic_nodes"
+  )
+endif()
+
+if(WITH_GAMEENGINE_LOGICNODES AND
+  NOT WITH_UI_TESTS AND
+  (DEFINED ENV{DISPLAY} OR DEFINED ENV{WAYLAND_DISPLAY}))
+  # Focused local runtime coverage for builds that can open a UI but do not enable Blender's
+  # full UI test wrapper. The acceptance harness intentionally uses the view3d runner because
+  # background logic-sensor setup and blenderplayer restarts are not stable enough in this tree.
+  add_blender_test_impl(
+    "logic_nodes_runtime_acceptance_focused"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/gameengine_logic_nodes_runtime_acceptance.py"
+    --
+    --output-dir "${TEST_OUT_DIR}/logic_nodes_focused"
+    --runner view3d
+    --only logic_gate
+    --only euler
+    --only object_actions
+    --only property_writes
+    --only property_advanced
+    --only tree_properties
+    --only input_nodes
+    --only values_math
+    --only c_tier_values
+    --only sound_state
+    --only sound_advanced
+    --only vehicle_control_compile
+    --only time_state
+    --only scene_state
+    --only camera_state
+    --only render_state
+    --only light_state
+    --only physics_state
+    --only object_lifecycle
+    --only phase6_events
+    --only phase6_move_toward
+    --only navigate_visualize
+    --only phase6_copy_property
+    --only phase6_get_object_attribute
+    --only phase6_rotate_to
+    --only phase6_collision
+    --only phase6_objects_colliding
+    --only phase6_animation_status
+    --only phase6_save_load
+    --only phase6_align_axis
+    --only phase6_slow_follow
+    --only phase6_replace_mesh
+    --only b_tier_core
+  )
+
+  # Phase 10 service-boundary gate. Keep this narrower than the general focused
+  # acceptance test so Step 10.7 can be verified without running unrelated probes.
+  add_blender_test_impl(
+    "logic_nodes_service_fixture_acceptance"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/gameengine_logic_nodes_runtime_acceptance.py"
+    --
+    --output-dir "${TEST_OUT_DIR}/logic_nodes_service_fixtures"
+    --runner view3d
+    --only phase10_service_blend_load
+    --only basic_restart
+    --only physics_state
+    --only character_state
+    --only sound_state
+    --only sound_advanced
+    --only material_shader_node_input
+    --only object_lifecycle
+  )
+endif()
+
+
+# ------------------------------------------------------------------------------
 # Headless GUI Tests
 # ------------------------------------------------------------------------------
 

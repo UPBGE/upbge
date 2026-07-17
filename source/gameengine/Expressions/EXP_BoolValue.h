@@ -36,6 +36,7 @@ class EXP_BoolValue : public EXP_PropValue {
   virtual double GetNumber();
   virtual int GetValueType();
   bool GetBool();
+  void SetBool(bool value);
   virtual void SetValue(EXP_Value *newval);
 
   virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);

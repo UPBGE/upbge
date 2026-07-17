@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include "JoltPhysicsConfig.h"
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS
@@ -160,7 +162,7 @@ class JoltVehicle : public PHY_IVehicle {
     float wheelRadius = 0.5f;
     float wheelWidth = 0.0f;
     int collisionMode = PHY_VEHICLE_WHEEL_COLLISION_CYLINDER;
-    short rayMask = 1; /* Bit 0 only: collide with group 0 by default. */
+    short rayMask = 1; /* Bit 0 only: collide with collision layer 1 by default. */
     bool hasSteering = false;
     bool useHandBrake = false;
     bool useTraction = false;

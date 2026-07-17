@@ -13,18 +13,22 @@
 
 #include "BLI_linear_allocator.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_node_types.h"
+#include "DNA_material_types.h"
 #include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_texture_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
@@ -610,6 +614,28 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #undef ITEM_COLOR
 #undef ITEM_BOOLEAN
 
+static constexpr int logic_native_set_object_attribute_use_x = 1 << 0;
+static constexpr int logic_native_set_object_attribute_use_y = 1 << 1;
+static constexpr int logic_native_set_object_attribute_use_z = 1 << 2;
+static constexpr int logic_native_set_object_attribute_mask_initialized = 1 << 3;
+static constexpr int logic_native_set_rigid_body_attribute_lock_translation_x = 1 << 0;
+static constexpr int logic_native_set_rigid_body_attribute_lock_translation_y = 1 << 1;
+static constexpr int logic_native_set_rigid_body_attribute_lock_translation_z = 1 << 2;
+static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_x = 1 << 3;
+static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_y = 1 << 4;
+static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_z = 1 << 5;
+static constexpr int logic_native_modify_property_clamp = 1 << 0;
+static constexpr int logic_native_modify_property_mode_attribute = 1 << 1;
+static constexpr int logic_set_socket_value_float = 0;
+static constexpr int logic_set_socket_value_int = 1;
+static constexpr int logic_set_socket_value_bool = 2;
+static constexpr int logic_set_socket_value_vector = 3;
+static constexpr int logic_set_socket_value_color = 4;
+static constexpr int logic_set_socket_value_string = 5;
+static constexpr int logic_set_socket_value_material = 6;
+static constexpr int logic_set_socket_value_generic = 7;
+static constexpr int logic_set_socket_target_per_object_only = 1 << 0;
+
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -677,7 +703,35 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 
 #  include "DEG_depsgraph_query.hh"
 
+#  include "MEM_guardedalloc.h"
+
 namespace blender {
+
+void rna_logic_formula_string_get(PointerRNA *ptr, char *value)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const char *formula = static_cast<const char *>(node->storage);
+  BLI_strncpy(value, formula ? formula : "a + b", RNA_DYN_DESCR_MAX);
+}
+
+int rna_logic_formula_string_length(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const char *formula = static_cast<const char *>(node->storage);
+  return formula ? strlen(formula) : strlen("a + b");
+}
+
+void rna_logic_formula_string_set(PointerRNA *ptr, const char *value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  if (node->storage != nullptr) {
+    MEM_delete_void(node->storage);
+    node->storage = nullptr;
+  }
+  if (value != nullptr && value[0] != '\0') {
+    node->storage = BLI_strdup(value);
+  }
+}
 
 using nodes::BakeItemsAccessor;
 using nodes::CaptureAttributeItemsAccessor;
@@ -3208,6 +3262,15 @@ static bool rna_NodeGroup_node_tree_poll(PointerRNA *ptr, const PointerRNA value
   return bke::node_group_poll(ntree, ngroup, &disabled_hint);
 }
 
+static bool rna_LogicNode_geometry_node_group_poll(PointerRNA * /*ptr*/,
+                                                   const PointerRNA value)
+{
+  const bNodeTree *tree = static_cast<const bNodeTree *>(value.data);
+  return tree != nullptr && tree->type == NTREE_GEOMETRY &&
+         tree->geometry_node_asset_traits != nullptr &&
+         (tree->geometry_node_asset_traits->flag & GEO_NODE_ASSET_MODIFIER) != 0;
+}
+
 static void rna_Node_scene_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
 {
   bNode *node = ptr->data_as<bNode>();
@@ -4018,6 +4081,739 @@ void rna_Node_socket_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   rna_Node_update(bmain, scene, ptr);
 }
 
+static int rna_LogicNativeModifyProperty_mode_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  return (node->custom2 & logic_native_modify_property_mode_attribute) ? 1 : 0;
+}
+
+static void rna_LogicNativeModifyProperty_mode_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  if (value == 1) {
+    node->custom2 |= logic_native_modify_property_mode_attribute;
+  }
+  else {
+    node->custom2 &= ~logic_native_modify_property_mode_attribute;
+  }
+}
+
+static void rna_LogicNativeMouseButton_sync_button_socket(bNode *node)
+{
+  if (node == nullptr || node->idname != "LogicNativeMouseButton"_ustr) {
+    return;
+  }
+  bNodeSocket *socket = node->input_by_identifier("Button"_ustr);
+  if (socket == nullptr || socket->default_value == nullptr) {
+    return;
+  }
+
+  const char *button_id = "LEFTMOUSE";
+  switch (node->custom2) {
+    case 1:
+      button_id = "MIDDLEMOUSE";
+      break;
+    case 2:
+      button_id = "RIGHTMOUSE";
+      break;
+    default:
+      break;
+  }
+
+  STRNCPY(static_cast<bNodeSocketValueString *>(socket->default_value)->value, button_id);
+}
+
+void rna_LogicNativeMouseButton_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_LogicNativeMouseButton_sync_button_socket(static_cast<bNode *>(ptr->data));
+  rna_Node_socket_update(bmain, scene, ptr);
+}
+
+static void rna_LogicNativeMouseLook_sync_invert_socket(bNode *node)
+{
+  if (node == nullptr || node->idname != "LogicNativeMouseLook"_ustr) {
+    return;
+  }
+  bNodeSocket *socket = node->input_by_identifier("Inverted"_ustr);
+  if (socket == nullptr || socket->default_value == nullptr) {
+    return;
+  }
+
+  bNodeSocketValueVector *value = static_cast<bNodeSocketValueVector *>(socket->default_value);
+  value->value[0] = (node->custom2 & 2) ? 1.0f : 0.0f;
+  value->value[1] = (node->custom2 & 4) ? 1.0f : 0.0f;
+  value->value[2] = 0.0f;
+}
+
+static void rna_LogicNativeSetObjectAttribute_sync_xyz_socket(bNode *node)
+{
+  if (node == nullptr || node->idname != "LogicNativeSetObjectAttribute"_ustr) {
+    return;
+  }
+
+  if ((node->custom2 & logic_native_set_object_attribute_mask_initialized) == 0) {
+    node->custom2 |= logic_native_set_object_attribute_mask_initialized |
+                     logic_native_set_object_attribute_use_x |
+                     logic_native_set_object_attribute_use_y |
+                     logic_native_set_object_attribute_use_z;
+  }
+
+  bNodeSocket *socket = node->input_by_identifier("XYZ"_ustr);
+  if (socket == nullptr || socket->default_value == nullptr) {
+    return;
+  }
+
+  bNodeSocketValueVector *value = static_cast<bNodeSocketValueVector *>(socket->default_value);
+  value->value[0] = (node->custom2 & logic_native_set_object_attribute_use_x) ? 1.0f : 0.0f;
+  value->value[1] = (node->custom2 & logic_native_set_object_attribute_use_y) ? 1.0f : 0.0f;
+  value->value[2] = (node->custom2 & logic_native_set_object_attribute_use_z) ? 1.0f : 0.0f;
+}
+
+static bool rna_LogicNativeSetMaterialNodeSocket_supported_input(const bNodeSocket &socket)
+{
+  return socket.default_value != nullptr && (socket.flag & SOCK_UNAVAIL) == 0 &&
+         ELEM(socket.type,
+              SOCK_BOOLEAN,
+              SOCK_INT,
+              SOCK_FLOAT,
+              SOCK_VECTOR,
+              SOCK_ROTATION,
+              SOCK_RGBA,
+              SOCK_STRING,
+              SOCK_MATERIAL);
+}
+
+static bool rna_LogicNativeSetMaterialNodeSocket_parameter_supported_input(
+    const bNodeSocket &socket)
+{
+  return socket.default_value != nullptr && (socket.flag & SOCK_UNAVAIL) == 0 &&
+         ELEM(socket.type, SOCK_BOOLEAN, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR, SOCK_ROTATION, SOCK_RGBA);
+}
+
+static bool rna_LogicNativeSetMaterialNodeSocket_is_parameter_node(const bNode *node)
+{
+  return node != nullptr &&
+         (STREQ(node->idname, "LogicNativeSetMaterialParameter") ||
+          STREQ(node->idname, "LogicNativeGetMaterialParameter"));
+}
+
+static bool rna_LogicNativeSetMaterialNodeSocket_supported_input(const bNode *logic_node,
+                                                                const bNodeSocket &socket)
+{
+  return rna_LogicNativeSetMaterialNodeSocket_is_parameter_node(logic_node) ?
+             rna_LogicNativeSetMaterialNodeSocket_parameter_supported_input(socket) :
+             rna_LogicNativeSetMaterialNodeSocket_supported_input(socket);
+}
+
+static const bNodeSocket *rna_LogicNativeSetMaterialNodeSocket_input(const bNode *node,
+                                                                    const char *identifier)
+{
+  if (node == nullptr) {
+    return nullptr;
+  }
+  for (const bNodeSocket &socket : node->inputs) {
+    if (STREQ(socket.identifier, identifier)) {
+      return &socket;
+    }
+  }
+  return nullptr;
+}
+
+static bNodeSocket *rna_LogicNativeSetMaterialNodeSocket_input(bNode *node,
+                                                              const char *identifier)
+{
+  return const_cast<bNodeSocket *>(
+      rna_LogicNativeSetMaterialNodeSocket_input(const_cast<const bNode *>(node), identifier));
+}
+
+static bool rna_LogicNativeSetMaterialNodeSocket_per_object_only(const bNode *node)
+{
+  return node != nullptr &&
+         (node->custom2 & logic_set_socket_target_per_object_only) != 0;
+}
+
+static bool rna_LogicNativeSetMaterialNodeSocket_per_object_target_is_dynamic(const bNode *node)
+{
+  const bNodeSocket *object_socket = rna_LogicNativeSetMaterialNodeSocket_input(node, "Object");
+  const bNodeSocket *slot_socket = rna_LogicNativeSetMaterialNodeSocket_input(node, "Slot");
+  return (object_socket != nullptr && object_socket->link != nullptr) ||
+         (slot_socket != nullptr && slot_socket->link != nullptr);
+}
+
+static const char *rna_LogicNativeSetMaterialNodeSocket_string_value(const bNode *node,
+                                                                    const char *identifier)
+{
+  const bNodeSocket *socket = rna_LogicNativeSetMaterialNodeSocket_input(node, identifier);
+  if (socket == nullptr || socket->default_value == nullptr || socket->type != SOCK_STRING) {
+    return "";
+  }
+  return static_cast<const bNodeSocketValueString *>(socket->default_value)->value;
+}
+
+static void rna_LogicNativeSetMaterialNodeSocket_set_string_value(bNode *node,
+                                                                 const char *identifier,
+                                                                 const char *value)
+{
+  bNodeSocket *socket = rna_LogicNativeSetMaterialNodeSocket_input(node, identifier);
+  if (socket == nullptr || socket->default_value == nullptr || socket->type != SOCK_STRING) {
+    return;
+  }
+  STRNCPY(static_cast<bNodeSocketValueString *>(socket->default_value)->value,
+          value ? value : "");
+}
+
+static Material *rna_LogicNativeSetMaterialNodeSocket_unlinked_material_input_value(
+    const bNode *node)
+{
+  const bNodeSocket *material_socket = rna_LogicNativeSetMaterialNodeSocket_input(node,
+                                                                                 "Material");
+  if (material_socket == nullptr || material_socket->link != nullptr ||
+      material_socket->default_value == nullptr || material_socket->type != SOCK_MATERIAL)
+  {
+    return nullptr;
+  }
+  return static_cast<bNodeSocketValueMaterial *>(material_socket->default_value)->value;
+}
+
+static Object *rna_LogicNativeSetMaterialNodeSocket_object(const bNode *node,
+                                                          const bContext *C)
+{
+  const bNodeSocket *object_socket = rna_LogicNativeSetMaterialNodeSocket_input(node, "Object");
+  if (object_socket == nullptr || object_socket->link != nullptr) {
+    return nullptr;
+  }
+
+  Object *object = nullptr;
+  if (object_socket->default_value != nullptr && object_socket->type == SOCK_OBJECT) {
+    object = static_cast<bNodeSocketValueObject *>(object_socket->default_value)->value;
+  }
+  if (object == nullptr && C != nullptr &&
+      rna_LogicNativeSetMaterialNodeSocket_per_object_only(node))
+  {
+    object = CTX_data_active_object(C);
+  }
+  return object;
+}
+
+static Material *rna_LogicNativeSetMaterialNodeSocket_material(const bNode *node,
+                                                              const bContext *C)
+{
+  if (!rna_LogicNativeSetMaterialNodeSocket_per_object_only(node)) {
+    return rna_LogicNativeSetMaterialNodeSocket_unlinked_material_input_value(node);
+  }
+
+  if (rna_LogicNativeSetMaterialNodeSocket_per_object_target_is_dynamic(node)) {
+    return nullptr;
+  }
+
+  Object *object = rna_LogicNativeSetMaterialNodeSocket_object(node, C);
+  int slot = 0;
+  const bNodeSocket *slot_socket = rna_LogicNativeSetMaterialNodeSocket_input(node, "Slot");
+  if (slot_socket != nullptr && slot_socket->link == nullptr &&
+      slot_socket->default_value != nullptr && slot_socket->type == SOCK_INT)
+  {
+    slot = static_cast<bNodeSocketValueInt *>(slot_socket->default_value)->value;
+  }
+  if (slot < 0) {
+    return nullptr;
+  }
+  if (object == nullptr) {
+    return C == nullptr ?
+               rna_LogicNativeSetMaterialNodeSocket_unlinked_material_input_value(node) :
+               nullptr;
+  }
+  if (slot >= object->totcol) {
+    return nullptr;
+  }
+
+  return BKE_object_material_get(object, short(slot + 1));
+}
+
+static Material *rna_LogicNativeSetMaterialNodeSocket_material(const bNode *node)
+{
+  return rna_LogicNativeSetMaterialNodeSocket_material(node, nullptr);
+}
+
+static bool rna_LogicNativeSetMaterialNodeSocket_node_has_supported_inputs(
+    const bNode *logic_node, const bNode &node)
+{
+  for (const bNodeSocket &socket : node.inputs) {
+    if (rna_LogicNativeSetMaterialNodeSocket_supported_input(logic_node, socket)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bNode *rna_LogicNativeSetMaterialNodeSocket_find_node_by_name(bNodeTree *ntree,
+                                                                    const char *name)
+{
+  if (ntree == nullptr || name == nullptr || name[0] == '\0') {
+    return nullptr;
+  }
+  if (bNode *node = bke::node_find_node_by_name(*ntree, name)) {
+    return node;
+  }
+  for (bNode *node = static_cast<bNode *>(ntree->nodes.first); node != nullptr;
+       node = node->next)
+  {
+    if (node->label[0] != '\0' && STREQ(node->label, name)) {
+      return node;
+    }
+  }
+  return nullptr;
+}
+
+static bNode *rna_LogicNativeSetMaterialNodeSocket_first_node(bNode *logic_node,
+                                                             Material *material)
+{
+  if (material == nullptr || material->nodetree == nullptr) {
+    return nullptr;
+  }
+  for (bNode *node = static_cast<bNode *>(material->nodetree->nodes.first); node != nullptr;
+       node = node->next)
+  {
+    if (rna_LogicNativeSetMaterialNodeSocket_node_has_supported_inputs(logic_node, *node)) {
+      return node;
+    }
+  }
+  return nullptr;
+}
+
+static bNode *rna_LogicNativeSetMaterialNodeSocket_node_from_index(bNode *logic_node,
+                                                                  Material *material,
+                                                                  const int index)
+{
+  if (material == nullptr || material->nodetree == nullptr || index < 0) {
+    return nullptr;
+  }
+  int current = 0;
+  for (bNode *node = static_cast<bNode *>(material->nodetree->nodes.first); node != nullptr;
+       node = node->next)
+  {
+    if (!rna_LogicNativeSetMaterialNodeSocket_node_has_supported_inputs(logic_node, *node)) {
+      continue;
+    }
+    if (current == index) {
+      return node;
+    }
+    current++;
+  }
+  return nullptr;
+}
+
+static bNode *rna_LogicNativeSetMaterialNodeSocket_current_node(bNode *logic_node,
+                                                               Material *material)
+{
+  bNode *node = rna_LogicNativeSetMaterialNodeSocket_find_node_by_name(
+      material ? material->nodetree : nullptr,
+      rna_LogicNativeSetMaterialNodeSocket_string_value(logic_node, "Node Name"));
+  if (node != nullptr &&
+      rna_LogicNativeSetMaterialNodeSocket_node_has_supported_inputs(logic_node, *node))
+  {
+    return node;
+  }
+  return rna_LogicNativeSetMaterialNodeSocket_first_node(logic_node, material);
+}
+
+static int rna_LogicNativeSetMaterialNodeSocket_node_index(Material *material,
+                                                          bNode *logic_node,
+                                                          const bNode *target_node)
+{
+  if (material == nullptr || material->nodetree == nullptr || target_node == nullptr) {
+    return -1;
+  }
+  int current = 0;
+  for (const bNode *node = static_cast<const bNode *>(material->nodetree->nodes.first);
+       node != nullptr;
+       node = node->next)
+  {
+    if (!rna_LogicNativeSetMaterialNodeSocket_node_has_supported_inputs(logic_node, *node)) {
+      continue;
+    }
+    if (node == target_node) {
+      return current;
+    }
+    current++;
+  }
+  return -1;
+}
+
+static const bNodeSocket *rna_LogicNativeSetMaterialNodeSocket_socket_by_name(
+    const bNode *logic_node, const bNode *material_node, const char *name)
+{
+  if (material_node == nullptr || name == nullptr || name[0] == '\0') {
+    return nullptr;
+  }
+  for (const bNodeSocket &socket : material_node->inputs) {
+    if (rna_LogicNativeSetMaterialNodeSocket_supported_input(logic_node, socket) &&
+        (STREQ(socket.identifier, name) || STREQ(socket.name, name)))
+    {
+      return &socket;
+    }
+  }
+  return nullptr;
+}
+
+static const bNodeSocket *rna_LogicNativeSetMaterialNodeSocket_first_socket(
+    const bNode *logic_node, const bNode *material_node)
+{
+  if (material_node == nullptr) {
+    return nullptr;
+  }
+  for (const bNodeSocket &socket : material_node->inputs) {
+    if (rna_LogicNativeSetMaterialNodeSocket_supported_input(logic_node, socket)) {
+      return &socket;
+    }
+  }
+  return nullptr;
+}
+
+static const bNodeSocket *rna_LogicNativeSetMaterialNodeSocket_socket_from_index(
+    const bNode *logic_node, const bNode *material_node, const int index)
+{
+  if (material_node == nullptr || index < 0) {
+    return nullptr;
+  }
+  int current = 0;
+  for (const bNodeSocket &socket : material_node->inputs) {
+    if (rna_LogicNativeSetMaterialNodeSocket_supported_input(logic_node, socket)) {
+      if (current == index) {
+        return &socket;
+      }
+      current++;
+    }
+  }
+  return nullptr;
+}
+
+static int rna_LogicNativeSetMaterialNodeSocket_socket_index(const bNode *material_node,
+                                                            const bNode *logic_node,
+                                                            const bNodeSocket *target_socket)
+{
+  if (material_node == nullptr || target_socket == nullptr) {
+    return -1;
+  }
+  int current = 0;
+  for (const bNodeSocket &socket : material_node->inputs) {
+    if (!rna_LogicNativeSetMaterialNodeSocket_supported_input(logic_node, socket)) {
+      continue;
+    }
+    if (&socket == target_socket) {
+      return current;
+    }
+    current++;
+  }
+  return -1;
+}
+
+static int rna_LogicNativeSetMaterialNodeSocket_value_type_for_socket(const bNodeSocket &socket)
+{
+  switch (socket.type) {
+    case SOCK_BOOLEAN:
+      return logic_set_socket_value_bool;
+    case SOCK_INT:
+      return logic_set_socket_value_int;
+    case SOCK_FLOAT:
+      return logic_set_socket_value_float;
+    case SOCK_VECTOR:
+    case SOCK_ROTATION:
+      return logic_set_socket_value_vector;
+    case SOCK_RGBA:
+      return logic_set_socket_value_color;
+    case SOCK_STRING:
+      return logic_set_socket_value_string;
+    case SOCK_MATERIAL:
+      return logic_set_socket_value_material;
+    default:
+      return logic_set_socket_value_generic;
+  }
+}
+
+static void rna_LogicNativeSetMaterialNodeSocket_copy_default_value(bNode *logic_node,
+                                                                   const bNodeSocket *from_socket)
+{
+  if (logic_node == nullptr || from_socket == nullptr || from_socket->default_value == nullptr) {
+    return;
+  }
+
+  switch (from_socket->type) {
+    case SOCK_BOOLEAN: {
+      bNodeSocket *to_socket = rna_LogicNativeSetMaterialNodeSocket_input(logic_node,
+                                                                         "Boolean Value");
+      if (to_socket && to_socket->default_value && to_socket->type == SOCK_BOOLEAN) {
+        static_cast<bNodeSocketValueBoolean *>(to_socket->default_value)->value =
+            static_cast<const bNodeSocketValueBoolean *>(from_socket->default_value)->value;
+      }
+      break;
+    }
+    case SOCK_INT: {
+      bNodeSocket *to_socket = rna_LogicNativeSetMaterialNodeSocket_input(logic_node,
+                                                                         "Integer Value");
+      if (to_socket && to_socket->default_value && to_socket->type == SOCK_INT) {
+        static_cast<bNodeSocketValueInt *>(to_socket->default_value)->value =
+            static_cast<const bNodeSocketValueInt *>(from_socket->default_value)->value;
+      }
+      break;
+    }
+    case SOCK_FLOAT: {
+      bNodeSocket *to_socket = rna_LogicNativeSetMaterialNodeSocket_input(logic_node,
+                                                                         "Float Value");
+      if (to_socket && to_socket->default_value && to_socket->type == SOCK_FLOAT) {
+        static_cast<bNodeSocketValueFloat *>(to_socket->default_value)->value =
+            static_cast<const bNodeSocketValueFloat *>(from_socket->default_value)->value;
+      }
+      break;
+    }
+    case SOCK_VECTOR: {
+      bNodeSocket *to_socket = rna_LogicNativeSetMaterialNodeSocket_input(logic_node,
+                                                                         "Vector Value");
+      if (to_socket && to_socket->default_value && to_socket->type == SOCK_VECTOR) {
+        copy_v3_v3(static_cast<bNodeSocketValueVector *>(to_socket->default_value)->value,
+                   static_cast<const bNodeSocketValueVector *>(from_socket->default_value)->value);
+      }
+      break;
+    }
+    case SOCK_ROTATION: {
+      bNodeSocket *to_socket = rna_LogicNativeSetMaterialNodeSocket_input(logic_node,
+                                                                         "Vector Value");
+      if (to_socket && to_socket->default_value && to_socket->type == SOCK_VECTOR) {
+        copy_v3_v3(static_cast<bNodeSocketValueVector *>(to_socket->default_value)->value,
+                   static_cast<const bNodeSocketValueRotation *>(from_socket->default_value)
+                       ->value_euler);
+      }
+      break;
+    }
+    case SOCK_RGBA: {
+      bNodeSocket *to_socket = rna_LogicNativeSetMaterialNodeSocket_input(logic_node,
+                                                                         "Color Value");
+      if (to_socket && to_socket->default_value && to_socket->type == SOCK_RGBA) {
+        copy_v4_v4(static_cast<bNodeSocketValueRGBA *>(to_socket->default_value)->value,
+                   static_cast<const bNodeSocketValueRGBA *>(from_socket->default_value)->value);
+      }
+      break;
+    }
+    case SOCK_STRING: {
+      bNodeSocket *to_socket = rna_LogicNativeSetMaterialNodeSocket_input(logic_node,
+                                                                         "String Value");
+      if (to_socket && to_socket->default_value && to_socket->type == SOCK_STRING) {
+        STRNCPY(static_cast<bNodeSocketValueString *>(to_socket->default_value)->value,
+                static_cast<const bNodeSocketValueString *>(from_socket->default_value)->value);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static void rna_LogicNativeSetMaterialNodeSocket_apply_socket(bNode *logic_node,
+                                                             const bNodeSocket *material_socket,
+                                                             const bool copy_default)
+{
+  if (logic_node == nullptr || material_socket == nullptr) {
+    return;
+  }
+  rna_LogicNativeSetMaterialNodeSocket_set_string_value(
+      logic_node, "Socket", material_socket->identifier);
+  logic_node->custom1 = rna_LogicNativeSetMaterialNodeSocket_value_type_for_socket(
+      *material_socket);
+  if (copy_default) {
+    rna_LogicNativeSetMaterialNodeSocket_copy_default_value(logic_node, material_socket);
+  }
+}
+
+static void rna_LogicNativeSetMaterialNodeSocket_sync_selection(bNode *logic_node,
+                                                               const bool copy_default)
+{
+  Material *material = rna_LogicNativeSetMaterialNodeSocket_material(logic_node);
+  if (material == nullptr || material->nodetree == nullptr) {
+    return;
+  }
+
+  bNode *material_node = rna_LogicNativeSetMaterialNodeSocket_current_node(logic_node, material);
+  if (material_node == nullptr) {
+    return;
+  }
+
+  rna_LogicNativeSetMaterialNodeSocket_set_string_value(logic_node, "Node Name", material_node->name);
+
+  const bNodeSocket *material_socket = rna_LogicNativeSetMaterialNodeSocket_socket_by_name(
+      logic_node,
+      material_node,
+      rna_LogicNativeSetMaterialNodeSocket_string_value(logic_node, "Socket"));
+  if (material_socket == nullptr) {
+    material_socket = rna_LogicNativeSetMaterialNodeSocket_first_socket(logic_node, material_node);
+  }
+  rna_LogicNativeSetMaterialNodeSocket_apply_socket(logic_node, material_socket, copy_default);
+}
+
+static int rna_LogicNativeSetMaterialNodeSocket_node_get(PointerRNA *ptr)
+{
+  bNode *logic_node = static_cast<bNode *>(ptr->data);
+  Material *material = rna_LogicNativeSetMaterialNodeSocket_material(logic_node);
+  bNode *material_node = rna_LogicNativeSetMaterialNodeSocket_current_node(logic_node, material);
+  return rna_LogicNativeSetMaterialNodeSocket_node_index(material, logic_node, material_node);
+}
+
+static void rna_LogicNativeSetMaterialNodeSocket_node_set(PointerRNA *ptr, const int value)
+{
+  bNode *logic_node = static_cast<bNode *>(ptr->data);
+  Material *material = rna_LogicNativeSetMaterialNodeSocket_material(logic_node);
+  bNode *material_node = rna_LogicNativeSetMaterialNodeSocket_node_from_index(logic_node,
+                                                                              material,
+                                                                              value);
+  if (material_node == nullptr) {
+    return;
+  }
+  rna_LogicNativeSetMaterialNodeSocket_set_string_value(logic_node, "Node Name", material_node->name);
+
+  const bNodeSocket *material_socket = rna_LogicNativeSetMaterialNodeSocket_socket_by_name(
+      logic_node,
+      material_node,
+      rna_LogicNativeSetMaterialNodeSocket_string_value(logic_node, "Socket"));
+  if (material_socket == nullptr) {
+    material_socket = rna_LogicNativeSetMaterialNodeSocket_first_socket(logic_node, material_node);
+  }
+  rna_LogicNativeSetMaterialNodeSocket_apply_socket(logic_node, material_socket, true);
+}
+
+static int rna_LogicNativeSetMaterialNodeSocket_socket_get(PointerRNA *ptr)
+{
+  bNode *logic_node = static_cast<bNode *>(ptr->data);
+  Material *material = rna_LogicNativeSetMaterialNodeSocket_material(logic_node);
+  bNode *material_node = rna_LogicNativeSetMaterialNodeSocket_current_node(logic_node, material);
+  const bNodeSocket *material_socket = rna_LogicNativeSetMaterialNodeSocket_socket_by_name(
+      logic_node,
+      material_node,
+      rna_LogicNativeSetMaterialNodeSocket_string_value(logic_node, "Socket"));
+  if (material_socket == nullptr) {
+    material_socket = rna_LogicNativeSetMaterialNodeSocket_first_socket(logic_node, material_node);
+  }
+  return rna_LogicNativeSetMaterialNodeSocket_socket_index(
+      material_node, logic_node, material_socket);
+}
+
+static void rna_LogicNativeSetMaterialNodeSocket_socket_set(PointerRNA *ptr, const int value)
+{
+  bNode *logic_node = static_cast<bNode *>(ptr->data);
+  Material *material = rna_LogicNativeSetMaterialNodeSocket_material(logic_node);
+  bNode *material_node = rna_LogicNativeSetMaterialNodeSocket_current_node(logic_node, material);
+  const bNodeSocket *material_socket = rna_LogicNativeSetMaterialNodeSocket_socket_from_index(
+      logic_node, material_node, value);
+  rna_LogicNativeSetMaterialNodeSocket_apply_socket(logic_node, material_socket, true);
+}
+
+static const EnumPropertyItem *rna_LogicNativeSetMaterialNodeSocket_node_itemf(
+    bContext *C, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+{
+  static const EnumPropertyItem no_nodes_items[] = {
+      {-1,
+       "NONE",
+       0,
+       "No Material Nodes",
+       "Choose an unlinked Material with editable input sockets"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  bNode *logic_node = static_cast<bNode *>(ptr->data);
+  Material *material = rna_LogicNativeSetMaterialNodeSocket_material(logic_node, C);
+  if (material == nullptr || material->nodetree == nullptr) {
+    *r_free = false;
+    return no_nodes_items;
+  }
+
+  EnumPropertyItem *items = nullptr;
+  int total = 0;
+  int index = 0;
+  for (const bNode *node = static_cast<const bNode *>(material->nodetree->nodes.first);
+       node != nullptr;
+       node = node->next)
+  {
+    if (!rna_LogicNativeSetMaterialNodeSocket_node_has_supported_inputs(logic_node, *node)) {
+      continue;
+    }
+    const char *name = node->label[0] != '\0' ? node->label : node->name;
+    const EnumPropertyItem item = {index, node->name, 0, name, node->idname};
+    RNA_enum_item_add(&items, &total, &item);
+    index++;
+  }
+
+  if (total == 0) {
+    *r_free = false;
+    return no_nodes_items;
+  }
+  RNA_enum_item_end(&items, &total);
+  *r_free = true;
+  return items;
+}
+
+static const EnumPropertyItem *rna_LogicNativeSetMaterialNodeSocket_socket_itemf(
+    bContext *C, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+{
+  static const EnumPropertyItem no_sockets_items[] = {
+      {-1, "NONE", 0, "No Sockets", "Choose a material node with editable input sockets"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  bNode *logic_node = static_cast<bNode *>(ptr->data);
+  Material *material = rna_LogicNativeSetMaterialNodeSocket_material(logic_node, C);
+  bNode *material_node = rna_LogicNativeSetMaterialNodeSocket_current_node(logic_node, material);
+  if (material_node == nullptr) {
+    *r_free = false;
+    return no_sockets_items;
+  }
+
+  EnumPropertyItem *items = nullptr;
+  int total = 0;
+  int index = 0;
+  for (const bNodeSocket &socket : material_node->inputs) {
+    if (!rna_LogicNativeSetMaterialNodeSocket_supported_input(logic_node, socket)) {
+      continue;
+    }
+    const char *name = socket.name[0] != '\0' ? socket.name : socket.identifier;
+    const EnumPropertyItem item = {index, socket.identifier, 0, name, socket.description};
+    RNA_enum_item_add(&items, &total, &item);
+    index++;
+  }
+
+  if (total == 0) {
+    *r_free = false;
+    return no_sockets_items;
+  }
+  RNA_enum_item_end(&items, &total);
+  *r_free = true;
+  return items;
+}
+
+void rna_LogicNativeMouseLook_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_LogicNativeMouseLook_sync_invert_socket(static_cast<bNode *>(ptr->data));
+  rna_Node_update(bmain, scene, ptr);
+}
+
+void rna_LogicNativeSetObjectAttribute_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_LogicNativeSetObjectAttribute_sync_xyz_socket(static_cast<bNode *>(ptr->data));
+  rna_Node_update(bmain, scene, ptr);
+}
+
+void rna_LogicNativeGetObjectAttribute_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_Node_update(bmain, scene, ptr);
+}
+
+void rna_LogicNativeSetMaterialNodeSocket_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_LogicNativeSetMaterialNodeSocket_sync_selection(static_cast<bNode *>(ptr->data), false);
+  rna_Node_update(bmain, scene, ptr);
+}
+
+void rna_LogicNativeGamepadButton_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_Node_update(bmain, scene, ptr);
+}
+
 static void rna_ShaderNode_is_active_output_set(PointerRNA *ptr, bool value)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
@@ -4293,6 +5089,81 @@ static const EnumPropertyItem *rna_NodeRaycastSampleAttributeItem_data_type_item
     return ELEM(item->value, CD_PROP_FLOAT, CD_PROP_FLOAT3, CD_PROP_COLOR);
   });
 }
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+static int rna_LogicNativeEditorNodeValue_editor_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  if (node == nullptr) {
+    return 1;
+  }
+  if (STREQ(node->idname, "LogicNativeSetEditorNodeValue")) {
+    const int editor = (node->custom2 >> 4) & 0x3;
+    return ELEM(editor, 1, 2, 3) ? editor : 1;
+  }
+  return ELEM(node->custom1, 1, 2, 3) ? node->custom1 : 1;
+}
+
+static void rna_LogicNativeEditorNodeValue_clear_target(bNode *node)
+{
+  if (node == nullptr) {
+    return;
+  }
+  const auto clear_socket = [&](const UString identifier) {
+    bNodeSocket *socket = node->input_by_identifier(identifier);
+    if (socket != nullptr && socket->type == SOCK_STRING && socket->default_value != nullptr) {
+      static_cast<bNodeSocketValueString *>(socket->default_value)->value[0] = '\0';
+    }
+  };
+  clear_socket("Node Name"_ustr);
+  clear_socket("Socket"_ustr);
+  if (node->id != nullptr) {
+    id_us_min(node->id);
+    node->id = nullptr;
+  }
+}
+
+static void rna_LogicNativeEditorNodeValue_editor_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  if (node == nullptr || !ELEM(value, 1, 2, 3)) {
+    return;
+  }
+  if (rna_LogicNativeEditorNodeValue_editor_get(ptr) == value) {
+    return;
+  }
+  rna_LogicNativeEditorNodeValue_clear_target(node);
+  if (STREQ(node->idname, "LogicNativeSetEditorNodeValue")) {
+    node->custom2 = int16_t((node->custom2 & ~(0x3 << 4)) | (value << 4));
+  }
+  else {
+    node->custom1 = int16_t(value);
+  }
+}
+
+static int rna_LogicNativeEditorNodeValue_target_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  return node != nullptr && (node->custom2 & 1) != 0 ? 0 : 1;
+}
+
+static void rna_LogicNativeEditorNodeValue_target_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  if (node == nullptr || !ELEM(value, 0, 1) ||
+      rna_LogicNativeEditorNodeValue_target_get(ptr) == value)
+  {
+    return;
+  }
+  rna_LogicNativeEditorNodeValue_clear_target(node);
+  if (value == 0) {
+    node->custom2 |= 1;
+  }
+  else {
+    node->custom2 &= ~1;
+  }
+}
+#endif
 
 }  // namespace blender
 
@@ -4687,7 +5558,7 @@ static void def_group_output(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop, "Active Output", "True if this node is used as the active group output");
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_GroupOutput_is_active_output_set");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
 static void def_group(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -4812,6 +5683,1856 @@ static void def_math(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Clamp", "Clamp result of the node to 0.0 to 1.0 range");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+static void def_logic_math(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_math_items[] = {
+      {NODE_MATH_ADD, "ADD", 0, "Add", "A + B"},
+      {NODE_MATH_SUBTRACT, "SUBTRACT", 0, "Subtract", "A - B"},
+      {NODE_MATH_MULTIPLY, "MULTIPLY", 0, "Multiply", "A * B"},
+      {NODE_MATH_DIVIDE, "DIVIDE", 0, "Divide", "A / B"},
+        {NODE_MATH_POWER, "POWER", 0, "Power", "A power B"},
+        {NODE_MATH_MINIMUM, "MINIMUM", 0, "Minimum", "The minimum from A and B"},
+        {NODE_MATH_MAXIMUM, "MAXIMUM", 0, "Maximum", "The maximum from A and B"},
+        {NODE_MATH_ABSOLUTE, "ABSOLUTE", 0, "Absolute", "Magnitude of A"},
+        {NODE_MATH_SIGN, "SIGN", 0, "Sign", "Returns the sign of A"},
+        {NODE_MATH_ROUND,
+         "ROUND",
+         0,
+         "Round",
+         "Round A to the nearest integer. Round upward if the fraction part is 0.5"},
+        {NODE_MATH_FLOOR, "FLOOR", 0, "Floor", "The largest integer smaller than or equal A"},
+        {NODE_MATH_CEIL, "CEIL", 0, "Ceil", "The smallest integer greater than or equal A"},
+        {NODE_MATH_TRUNC, "TRUNC", 0, "Truncate", "The integer part of A"},
+        {NODE_MATH_FRACTION, "FRACT", 0, "Fraction", "The fraction part of A"},
+        {NODE_MATH_MODULO, "MODULO", 0, "Modulo", "The remainder of A / B"},
+        {NODE_MATH_SINE, "SINE", 0, "Sine", "sin(A)"},
+        {NODE_MATH_COSINE, "COSINE", 0, "Cosine", "cos(A)"},
+        {NODE_MATH_RADIANS, "RADIANS", 0, "To Radians", "Convert from degrees to radians"},
+        {NODE_MATH_DEGREES, "DEGREES", 0, "To Degrees", "Convert from radians to degrees"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_math_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_modify_property(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_modify_property_mode_items[] = {
+      {0, "GAME_PROPERTY", 0, "Game Property", "Edit Game Property"},
+      {1, "ATTRIBUTE", 0, "Attribute", "Edit Internal Attribute"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem logic_modify_property_operation_items[] = {
+      {NODE_MATH_ADD, "ADD", 0, "Add", "A + B"},
+      {NODE_MATH_SUBTRACT, "SUB", 0, "Subtract", "A - B"},
+      {NODE_MATH_DIVIDE, "DIV", 0, "Divide", "A / B"},
+      {NODE_MATH_MULTIPLY, "MUL", 0, "Multiply", "A * B"},
+      {NODE_MATH_POWER, "POW", 0, "Power", "A power B"},
+      {NODE_MATH_MODULO, "MOD", 0, "Modulo", "The remainder of A / B"},
+      {NODE_MATH_FLOOR, "FDIV", 0, "Floor Divide", "floor(A / B)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, logic_modify_property_mode_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeModifyProperty_mode_get",
+                              "rna_LogicNativeModifyProperty_mode_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Mode", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_modify_property_operation_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "clamp", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", logic_native_modify_property_clamp);
+  RNA_def_property_ui_text(prop, "Clamp", "Clamp the modified value to the Min and Max inputs");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_vector_math(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_vector_math_items[] = {
+      {NODE_VECTOR_MATH_ADD, "ADD", 0, "Add", "A + B"},
+      {NODE_VECTOR_MATH_SUBTRACT, "SUBTRACT", 0, "Subtract", "A - B"},
+        {NODE_VECTOR_MATH_MULTIPLY, "MULTIPLY", 0, "Multiply", "Entry-wise multiply"},
+        {NODE_VECTOR_MATH_DIVIDE, "DIVIDE", 0, "Divide", "Entry-wise divide"},
+      {NODE_VECTOR_MATH_SCALE, "SCALE", 0, "Scale", "A multiplied by Scale"},
+        {NODE_VECTOR_MATH_NORMALIZE, "NORMALIZE", 0, "Normalize", "Normalize A"},
+        {NODE_VECTOR_MATH_ABSOLUTE, "ABSOLUTE", 0, "Absolute", "Entry-wise absolute"},
+        {NODE_VECTOR_MATH_MINIMUM, "MINIMUM", 0, "Minimum", "Entry-wise minimum"},
+        {NODE_VECTOR_MATH_MAXIMUM, "MAXIMUM", 0, "Maximum", "Entry-wise maximum"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_vector_math_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_string_operation(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_string_operation_items[] = {
+      {0, "JOIN", 0, "Join", "Add the second string to the first string"},
+      {2, "CONTAINS", 0, "Contains", "Check whether the substring appears in the string"},
+      {3, "COUNT", 0, "Count", "Count non-overlapping occurrences of the substring"},
+      {4, "REPLACE", 0, "Replace", "Replace all occurrences of the substring"},
+      {5, "STARTS_WITH", 0, "Starts With", "Check whether the string starts with the substring"},
+      {6, "ENDS_WITH", 0, "Ends With", "Check whether the string ends with the substring"},
+      {7, "UPPER", 0, "To Uppercase", "Convert the string to uppercase"},
+      {8, "LOWER", 0, "To Lowercase", "Convert the string to lowercase"},
+      {9, "ZFILL", 0, "Prepend Zeroes", "Pad the string with leading zeroes"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_string_operation_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_mouse_button(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_mouse_input_type_items[] = {
+      {0, "TAP", 0, "Tap", "True if the input is first activated"},
+      {1, "DOWN", 0, "Down", "True if the input is held down"},
+      {2, "UP", 0, "Up", "True if the input is released"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem logic_mouse_button_items[] = {
+      {0, "LEFTMOUSE", 0, "Left Button", "Left Mouse Button"},
+      {1, "MIDDLEMOUSE", 0, "Middle Button", "Middle Mouse Button"},
+      {2, "RIGHTMOUSE", 0, "Right Button", "Right Mouse Button"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_mouse_input_type_items);
+  RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "mouse_button", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_mouse_button_items);
+  RNA_def_property_ui_text(prop, "Button", "Mouse button to test");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeMouseButton_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_keyboard_key(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_input_type_items[] = {
+      {0, "TAP", 0, "Tap", "True if the input is first activated"},
+      {1, "DOWN", 0, "Down", "True if the input is held down"},
+      {2, "UP", 0, "Up", "True if the input is released"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_input_type_items);
+  RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_mouse_moved(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "pulse", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(
+      prop, "Each Frame", "True on every tick while the mouse is moving, not only on movement ticks");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_mouse_wheel(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_mouse_wheel_direction_items[] = {
+      {0, "SCROLL_UP", 0, "Scroll Up", "Mouse wheel scrolled up"},
+      {1, "SCROLL_DOWN", 0, "Scroll Down", "Mouse wheel scrolled down"},
+      {2, "SCROLL_UP_OR_DOWN", 0, "Scroll Up or Down", "Mouse wheel scrolled in either direction"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "wheel_direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_mouse_wheel_direction_items);
+  RNA_def_property_ui_text(prop, "Wheel Direction", "Which scroll directions activate the output");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_cursor_position(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "invert_y", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(prop, "Invert Y", "Invert the vertical cursor axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_mouse_look(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_look_axis_items[] = {
+      {0, "X_AXIS", 0, "X Axis", "The local X axis"},
+      {1, "Y_AXIS", 0, "Y Axis", "The local Y axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_look_axis_items);
+  RNA_def_property_ui_text(prop, "Axis", "Front axis used for vertical look rotation");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "center_mouse", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "Center Mouse", "Keep the cursor locked to screen center");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "invert_x", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 2);
+  RNA_def_property_ui_text(prop, "Invert X", "Invert horizontal mouse look");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeMouseLook_update");
+
+  prop = RNA_def_property(srna, "invert_y", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 4);
+  RNA_def_property_ui_text(prop, "Invert Y", "Invert vertical mouse look");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeMouseLook_update");
+}
+
+static void def_logic_gamepad_look(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_gamepad_stick_axis_items[] = {
+      {0, "LEFT_STICK", 0, "Left Stick", "Left stick values"},
+      {1, "RIGHT_STICK", 0, "Right Stick", "Right stick values"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_gamepad_stick_axis_items);
+  RNA_def_property_ui_text(prop, "Axis", "Gamepad stick used for look input");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_gamepad_button(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_input_type_items[] = {
+      {0, "TAP", 0, "Tap", "True if the input is first activated"},
+      {1, "DOWN", 0, "Down", "True if the input is held down"},
+      {2, "UP", 0, "Up", "True if the input is released"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem logic_gamepad_button_items[] = {
+      {0, "A_CROSS", 0, "A / Cross", "A / Cross Button"},
+      {1, "B_CIRCLE", 0, "B / Circle", "B / Circle Button"},
+      {2, "X_SQUARE", 0, "X / Square", "X / Square Button"},
+      {3, "Y_TRIANGLE", 0, "Y / Triangle", "Y / Triangle Button"},
+      {9, "LB_L1", 0, "LB / L1", "Left Bumper / L1 Button"},
+      {10, "RB_R1", 0, "RB / R1", "Right Bumper / R1 Button"},
+      {15, "LT_L2", 0, "LT / L2", "Left Trigger Button"},
+      {16, "RT_R2", 0, "RT / R2", "Right Trigger Button"},
+      {7, "L3", 0, "L3", "Left Stick Button"},
+      {8, "R3", 0, "R3", "Right Stick Button"},
+      {11, "DPAD_UP", 0, "D-Pad Up", "D-Pad Up Button"},
+      {12, "DPAD_DOWN", 0, "D-Pad Down", "D-Pad Down Button"},
+      {13, "DPAD_LEFT", 0, "D-Pad Left", "D-Pad Left Button"},
+      {14, "DPAD_RIGHT", 0, "D-Pad Right", "D-Pad Right Button"},
+      {4, "SELECT_SHARE", 0, "Select / Share", "Select / Share Button"},
+      {6, "START_OPTIONS", 0, "Start / Options", "Start / Options Button"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_input_type_items);
+  RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "gamepad_button", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_gamepad_button_items);
+  RNA_def_property_ui_text(prop, "Button", "Gamepad button to test");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeGamepadButton_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_gamepad_stick(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_gamepad_stick_axis_items[] = {
+      {0, "LEFT_STICK", 0, "Left Stick", "Left Stick Values"},
+      {1, "RIGHT_STICK", 0, "Right Stick", "Right Stick Values"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_gamepad_stick_axis_items);
+  RNA_def_property_ui_text(prop, "Axis", "Gamepad stick to read");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_compare(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_compare_items[] = {
+      {0, "EQUAL", 0, "Equal", "A equals B"},
+      {1, "NOT_EQUAL", 0, "Not Equal", "A does not equal B"},
+      {2, "GREATER_THAN", 0, "Greater Than", "A is greater than B"},
+      {3, "LESS_THAN", 0, "Less Than", "A is less than B"},
+      {4, "GREATER_EQUAL", 0, "Greater or Equal", "A is greater than or equal to B"},
+      {5, "LESS_EQUAL", 0, "Less or Equal", "A is less than or equal to B"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_compare_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_typecast(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_typecast_items[] = {
+      {0, "INT", 0, "To Integer", "Convert this value to an integer type"},
+      {1, "BOOL", 0, "To Boolean", "Convert this value to a boolean type"},
+      {2, "STRING", 0, "To String", "Convert this value to a string type"},
+      {3, "FLOAT", 0, "To Float", "Convert this value to a float type"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "to_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_typecast_items);
+  RNA_def_property_ui_text(prop, "To Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_evaluate_property(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_compare(brna, srna);
+
+  static const EnumPropertyItem logic_object_property_type_items[] = {
+      {0, "GAME_PROPERTY", 0, "Game Property", "Edit Game Property"},
+      {1, "ATTRIBUTE", 0, "Attribute", "Edit Internal Attribute"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_object_property_type_items);
+  RNA_def_property_ui_text(prop, "Mode", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_send_event(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "advanced", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(
+      prop, "Use Content", "Send additional information along with the event");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_target", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "Use Target", "Only send the event to a specific target");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_receive_event(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "use_target", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(
+      prop, "Use Target", "Check if the event is meant for a specified target");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_formula(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_formula_items[] = {
+      {0, "USER_DEFINED", 0, "User Defined", "Custom formula string"},
+      {1, "ADD", 0, "a + b", ""},
+      {2, "ABS", 0, "abs(a)", ""},
+      {3, "ACOS", 0, "acos(a)", ""},
+      {4, "ACOSH", 0, "acosh(a)", ""},
+      {5, "ASIN", 0, "asin(a)", ""},
+      {6, "ASINH", 0, "asinh(a)", ""},
+      {7, "ATAN", 0, "atan(a)", ""},
+      {8, "ATAN2", 0, "atan2(a,b)", ""},
+      {9, "ATANH", 0, "atanh(a)", ""},
+      {10, "CEIL", 0, "ceil(a)", ""},
+      {11, "COS", 0, "cos(a)", ""},
+      {12, "COSH", 0, "cosh(a)", ""},
+      {13, "CURT", 0, "curt(a)", ""},
+      {14, "DEGREES", 0, "degrees(a)", ""},
+      {15, "E", 0, "e", ""},
+      {16, "EXP", 0, "exp(a)", ""},
+      {17, "FLOOR", 0, "floor(a)", ""},
+      {18, "HYPOT", 0, "hypot(a,b)", ""},
+      {19, "LOG", 0, "log(a)", ""},
+      {20, "LOG10", 0, "log10(a)", ""},
+      {21, "MOD", 0, "mod(a,b)", ""},
+      {22, "PI", 0, "pi", ""},
+      {23, "POW", 0, "pow(a,b)", ""},
+      {24, "RADIANS", 0, "radians(a)", ""},
+      {25, "SIGN", 0, "sign(a)", ""},
+      {26, "SIN", 0, "sin(a)", ""},
+      {27, "SINH", 0, "sinh(a)", ""},
+      {28, "SQRT", 0, "sqrt(a)", ""},
+      {29, "TAN", 0, "tan(a)", ""},
+      {30, "TANH", 0, "tanh(a)", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "predefined_formulas", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_formula_items);
+  RNA_def_property_ui_text(prop, "Predefined Formulas", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "formula", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_logic_formula_string_get",
+                                "rna_logic_formula_string_length",
+                                "rna_logic_formula_string_set");
+  RNA_def_property_ui_text(prop, "Formula", "Custom formula expression");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_tween_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_tween_value_type_items[] = {
+      {0, "FLOAT", 0, "Float", "Tween a float value"},
+      {1, "VECTOR", 0, "Vector", "Tween a vector value"},
+      {2, "EULER_ROTATION", 0, "Euler Rotation", "Tween Euler rotation angles in radians"},
+      {3,
+       "QUATERNION_SLERP",
+       0,
+       "Quaternion Slerp",
+       "Tween between orientations using quaternion spherical interpolation"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "value_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_tween_value_type_items);
+  RNA_def_property_ui_text(prop, "Value Type", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "on_demand", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "On Demand", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "instant_reset", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 2);
+  RNA_def_property_ui_text(prop, "Instant Reset", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "mapping", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "storage");
+  RNA_def_property_struct_type(prop, "CurveMapping");
+  RNA_def_property_ui_text(prop, "Mapping", "Curve used to remap the tween factor");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_spawn_pool(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_spawn_type_items[] = {
+      {0, "SIMPLE", 0, "Simple", "Simple spawn pool"},
+      {1, "SIMPLE_BULLET", 0, "Simple Bullet", "Simple bullet pool"},
+      {2, "PHYSICS_BULLET", 0, "Physics Bullet", "Physics bullet pool"},
+      {3, "INSTANCE", 0, "Instance", "Spawned instance pool"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "spawn_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_spawn_type_items);
+  RNA_def_property_ui_text(prop, "Spawn Type", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "create_on_init", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "Create On Init", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_physics_constraint(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_constraint_type_items[] = {
+      {RBC_TYPE_FIXED, "FIXED", 0, "Fixed", "Glue rigid bodies together"},
+      {RBC_TYPE_POINT, "POINT", 0, "Point", "Constrain rigid bodies around a common pivot"},
+      {RBC_TYPE_HINGE, "HINGE", 0, "Hinge", "Restrict rigid body rotation to one axis"},
+      {RBC_TYPE_SLIDER, "SLIDER", 0, "Slider", "Restrict rigid body translation to one axis"},
+      {RBC_TYPE_PISTON,
+       "PISTON",
+       0,
+       "Piston",
+       "Restrict rigid body translation and rotation to one axis"},
+      {RBC_TYPE_6DOF,
+       "GENERIC",
+       0,
+       "Generic",
+       "Restrict translation and rotation to specified axes"},
+      {RBC_TYPE_6DOF_SPRING,
+       "GENERIC_SPRING",
+       0,
+       "Generic Spring",
+       "Restrict axes with spring settings"},
+      {RBC_TYPE_MOTOR, "MOTOR", 0, "Motor", "Drive rigid bodies around or along an axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "constraint_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_constraint_type_items);
+  RNA_def_property_ui_text(prop, "Constraint Type", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_shape_cast(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem shape_type_items[] = {
+      {0, "SPHERE", 0, "Sphere", "Sweep a sphere"},
+      {1, "BOX", 0, "Box", "Sweep an oriented box"},
+      {2, "CAPSULE", 0, "Capsule", "Sweep an oriented capsule along its local Z axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "shape_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, shape_type_items);
+  RNA_def_property_ui_text(prop, "Shape", "Convex shape used for the Jolt sweep query");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_raycast(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem input_mode_items[] = {
+      {0, "END_POINT", 0, "End Point", "Cast between origin and destination positions"},
+      {1,
+       "DIRECTION_DISTANCE",
+       0,
+       "Direction + Distance",
+       "Cast from origin along a normalized direction for a maximum distance"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "input_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, input_mode_items);
+  RNA_def_property_ui_text(prop, "Input Mode", "How the finite ray segment is specified");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_rigid_body_constraint_match_mode(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem match_mode_items[] = {
+      {0, "EXACT", 0, "Exact", "Match the complete case-sensitive constraint name"},
+      {1, "CONTAINS", 0, "Contains", "Match a case-sensitive substring of the constraint name"},
+      {2, "ALL", 0, "All", "Return every constraint owned by the first rigid body"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "match_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, match_mode_items);
+  RNA_def_property_ui_text(prop, "Match Mode", "How constraint names are selected");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_gate(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_gate_items[] = {
+      {0, "AND", 0, "And", "True if A and B are true"},
+      {1, "OR", 0, "Or", "True if A or B is true"},
+      {2, "XOR", 0, "Xor", "True if exactly one input is true"},
+      {3, "NOT", 0, "Not", "True if A is false"},
+      {4, "NAND", 0, "Nand", "False if A and B are true"},
+      {5, "NOR", 0, "Nor", "True if A and B are false"},
+      {6, "XNOR", 0, "Xnor", "True if both inputs have the same value"},
+      {7, "AND_NOT", 0, "And Not", "True if A is true and B is false"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_gate_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_threshold(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_threshold_items[] = {
+      {0, "GREATER", 0, "Greater", "Value greater than threshold"},
+      {1, "LESS", 0, "Less", "Value less than threshold"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_threshold_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_within_range(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_within_range_items[] = {
+      {0, "INSIDE", 0, "Within", "Value is within range"},
+      {1, "OUTSIDE", 0, "Outside", "Value is outside range"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_within_range_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_map_range(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "use_clamp", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(prop, "Clamp", "Clamp the mapped value to the target range");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_vsync_mode(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_vsync_mode_items[] = {
+      {VSYNC_OFF, "OFF", 0, "Off", "Disable VSync"},
+      {VSYNC_ON, "ON", 0, "On", "Enable VSync"},
+      {VSYNC_ADAPTIVE,
+       "ADAPTIVE",
+       0,
+       "Adaptive",
+       "Enable adaptive VSync when supported by the active canvas"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "vsync_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_vsync_mode_items);
+  RNA_def_property_ui_text(prop, "Mode", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_list_from_items(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_list_from_items_mode_items[] = {
+      {0, "GENERIC", 0, "Generic", ""},
+      {1, "FLOAT", 0, "Float", ""},
+      {2, "INTEGER", 0, "Integer", ""},
+      {3, "STRING", 0, "String", ""},
+      {4, "BOOLEAN", 0, "Boolean", ""},
+      {5, "VECTOR", 0, "Vector", ""},
+      {6, "COLOR", 0, "Color", ""},
+      {7, "LIST", 0, "List", ""},
+      {8, "DICTIONARY", 0, "Dictionary", ""},
+      {9, "DATABLOCK", 0, "Datablock", ""},
+      {10, "OBJECT", 0, "Object", ""},
+      {11, "COLLECTION", 0, "Collection", ""},
+      {12, "CONDITION", 0, "Condition", ""},
+      {13, "INSTANCE", 0, "Python Object Instance", ""},
+      {14, "WIDGET", 0, "UI Widget", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_list_from_items_mode_items);
+  RNA_def_property_ui_text(prop, "Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Values match `BL_Action::ActionMode` / `BL_Action::BlendMode` in the game engine. */
+static void def_logic_play_action(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_action_play_mode_items[] = {
+      {0, "PLAY", 0, "Play", "Play the action once"},
+      {1, "LOOP", 0, "Loop", "Loop the action"},
+      {2, "PING_PONG", 0, "Ping Pong", "Play forward then backward, repeating"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem logic_action_blend_mode_items[] = {
+      {0, "BLEND", 0, "Blend", "Blend with the current pose"},
+      {1, "ADD", 0, "Add", "Additive blend layer"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "play_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_action_play_mode_items);
+  RNA_def_property_ui_text(prop, "Play Mode", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "blend_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_action_blend_mode_items);
+  RNA_def_property_ui_text(prop, "Blend Mode", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "id");
+  RNA_def_property_struct_type(prop, "Action");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Action", "Action data-block to play on the target object");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_sound_datablock(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "sound", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "id");
+  RNA_def_property_struct_type(prop, "Sound");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Sound", "Sound data-block for native audio commands");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_material_datablock(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "material", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "id");
+  RNA_def_property_struct_type(prop, "Material");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Material", "Material data-block for native material commands");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_bone_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_bone_attribute_items[] = {
+      {0, "NAME", 0, "Name", "Bone name"},
+      {1, "LOCATION", 0, "Location", "Raw pose-channel location offset"},
+      {2, "INHERIT_SCALE", 0, "Inherit Scale", "Bone inherit-scale mode"},
+      {4, "HEAD", 0, "Head", "Bone head"},
+      {5, "HEAD_LOCAL", 0, "Local Head", "Local/rest bone head"},
+      {6, "HEAD_POSE", 0, "Pose Head", "Pose bone head"},
+      {7, "CENTER", 0, "Center", "Bone center"},
+      {8, "CENTER_LOCAL", 0, "Local Center", "Local/rest bone center"},
+      {9, "CENTER_POSE", 0, "Pose Center", "Pose bone center"},
+      {10, "TAIL", 0, "Tail", "Bone tail"},
+      {11, "TAIL_LOCAL", 0, "Local Tail", "Local/rest bone tail"},
+      {12, "TAIL_POSE", 0, "Pose Tail", "Pose bone tail"},
+      {13, "INHERIT_ROTATION", 0, "Inherit Rotation", "Bone inherits rotation"},
+      {14, "CONNECTED", 0, "Connected", "Bone connected flag"},
+      {15, "DEFORM", 0, "Deform", "Bone deform flag"},
+      {16, "USE_LOCAL_LOCATION", 0, "Local", "Use local location"},
+      {17, "USE_RELATIVE_PARENT", 0, "Relative Parent", "Use relative parent"},
+      {18, "USE_SCALE_EASING", 0, "Scale Easing", "Use scale easing"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "attribute", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_bone_attribute_items);
+  RNA_def_property_ui_text(prop, "Attribute", "Bone attribute to read");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "world_space", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "Use World Space", "Transform position attributes to world space");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_get_bone_pose_position(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_bone_pose_position_space_items[] = {
+      {0,
+       "WORLD",
+       0,
+       "World Space",
+       "Return the evaluated pose point in game world coordinates, including the armature "
+       "object location, rotation, and scale"},
+      {1,
+       "ARMATURE",
+       0,
+       "Armature Space",
+       "Return the evaluated pose point in armature object coordinates, ignoring the armature "
+       "object world transform"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_bone_pose_position_space_items);
+  RNA_def_property_ui_text(prop, "Space", "Coordinate space for the evaluated pose point");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_get_bone_pose_rotation(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_bone_pose_rotation_space_items[] = {
+      {0,
+       "POSE_CHANNEL",
+       0,
+       "Pose Channel",
+       "Return the raw pose bone rotation channel. This is the local channel value and does "
+       "not include parent pose, constraints, or the armature object transform"},
+      {1,
+       "ARMATURE",
+       0,
+       "Armature Space",
+       "Return the evaluated pose bone orientation in armature object coordinates, including "
+       "parent pose and constraints but ignoring the armature object's world transform"},
+      {2,
+       "WORLD",
+       0,
+       "World Space",
+       "Return the evaluated pose bone orientation in game world coordinates, including the "
+       "armature object's world rotation"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_bone_pose_rotation_space_items);
+  RNA_def_property_ui_text(prop, "Space", "Coordinate space for the returned pose rotation");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_get_bone_pose_transform(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_bone_pose_transform_space_items[] = {
+      {0,
+       "POSE_CHANNEL",
+       0,
+       "Pose Channel",
+       "Return raw pose bone channels. Location and scale are channel values; rotation is the "
+       "local pose channel rotation"},
+      {1,
+       "ARMATURE",
+       0,
+       "Armature Space",
+       "Return evaluated pose bone location and rotation in armature object coordinates, "
+       "including parent pose and constraints but ignoring the armature object's world transform"},
+      {2,
+       "WORLD",
+       0,
+       "World Space",
+       "Return evaluated pose bone location and rotation in game world coordinates, including "
+       "the armature object's world transform"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_bone_pose_transform_space_items);
+  RNA_def_property_ui_text(prop, "Space", "Coordinate space for the returned pose transform");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_bone_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_set_bone_attribute_items[] = {
+      {2, "INHERIT_SCALE", 0, "Inherit Scale", "Bone inherit-scale mode"},
+      {13, "INHERIT_ROTATION", 0, "Inherit Rotation", "Bone inherits rotation"},
+      {15, "DEFORM", 0, "Deform", "Bone deform flag"},
+      {16, "USE_LOCAL_LOCATION", 0, "Local", "Use local location"},
+      {17, "USE_RELATIVE_PARENT", 0, "Relative Parent", "Use relative parent"},
+      {18, "USE_SCALE_EASING", 0, "Scale Easing", "Use scale easing"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem logic_bone_scale_mode_items[] = {
+      {0, "NONE", 0, "None", "Completely ignore parent scaling"},
+      {1, "FULL", 0, "Full", "Inherit all effects of parent scaling"},
+      {2, "NONE_LEGACY", 0, "None (Legacy)", "Legacy no-scale inheritance"},
+      {3, "FIX_SHEAR", 0, "Fix Shear", "Remove inherited shear"},
+      {4, "ALIGNED", 0, "Aligned", "Align non-uniform parent scaling"},
+      {5, "AVERAGE", 0, "Average", "Inherit averaged scaling"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "attribute", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_set_bone_attribute_items);
+  RNA_def_property_ui_text(prop, "Attribute", "Bone attribute to set");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "scale_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_bone_scale_mode_items);
+  RNA_def_property_ui_text(prop, "Scale Mode", "Inherit-scale mode");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_bone_pose_location(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_bone_pose_location_space_items[] = {
+      {0,
+       "ARMATURE_OFFSET",
+       0,
+       "Armature Offset",
+       "Treat Location as an offset in armature object axes, then convert it to the pose bone "
+       "Location channel. Child bones move on normal armature/object axes instead of parent bone "
+       "axes"},
+      {1,
+       "BONE_LOCAL_OFFSET",
+       0,
+       "Bone Local Offset",
+       "Treat Location as an object-style local offset from the evaluated pose bone. This follows "
+       "the current pose orientation, including parent bone rotation, while remapping Blender's "
+       "bone rest axes to normal X, Y, and Z axes"},
+      {2,
+       "ARMATURE",
+       0,
+       "Armature Space",
+       "Treat Location as the target pose bone head position in armature object coordinates. "
+       "This ignores the armature object's world transform but accounts for the bone rest and "
+       "parent pose transforms"},
+      {3,
+       "WORLD",
+       0,
+       "World Space",
+       "Treat Location as the target pose bone head position in game world coordinates. This "
+       "compensates for the armature object's runtime location, rotation, and scale"},
+      {4,
+       "POSE_CHANNEL",
+       0,
+       "Pose Channel",
+       "Write the raw pose bone Location channel directly. This is Blender's low-level pose "
+       "channel value and follows Blender parent/rest channel behavior"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_bone_pose_location_space_items);
+  RNA_def_property_ui_text(prop,
+                           "Space",
+                           "How the Location vector is interpreted before writing the pose bone "
+                           "location channel");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "use_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop,
+                           "Use Center",
+                           "Use the pose bone center as the target point for absolute Armature "
+                           "Space and World Space modes. Offset modes move the head and center by "
+                           "the same offset");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_bone_pose_rotation(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_bone_pose_rotation_space_items[] = {
+      {0,
+       "POSE_CHANNEL",
+       0,
+       "Pose Channel",
+       "Write Rotation as the pose bone rotation channel, matching the original node behavior"},
+      {1,
+       "ARMATURE",
+       0,
+       "Armature Space",
+       "Treat Rotation as the target evaluated pose bone orientation in armature object "
+       "coordinates, accounting for parent pose and rest transforms"},
+      {2,
+       "WORLD",
+       0,
+       "World Space",
+       "Treat Rotation as the target evaluated pose bone orientation in game world coordinates, "
+       "compensating for the armature object's world rotation"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_bone_pose_rotation_space_items);
+  RNA_def_property_ui_text(prop,
+                           "Space",
+                           "How the Rotation input is interpreted before writing the pose bone "
+                           "rotation channel");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "use_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop,
+                           "Use Center",
+                           "Rotate around the current pose bone center by compensating the pose "
+                           "bone Location after applying Rotation. When off, the pose bone keeps "
+                           "its normal head pivot");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_bone_pose_transform(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_bone_pose_transform_space_items[] = {
+      {0,
+       "ARMATURE_OFFSET",
+       0,
+       "Armature Offset",
+       "Treat Location as an offset in armature object axes. Rotation is written as a pose "
+       "channel rotation"},
+      {1,
+       "BONE_LOCAL_OFFSET",
+       0,
+       "Bone Local Offset",
+       "Treat Location as an object-style local offset from the evaluated pose bone. Rotation is "
+       "written as a pose channel rotation"},
+      {2,
+       "ARMATURE",
+       0,
+       "Armature Space",
+       "Treat Location as the target pose bone head position in armature object coordinates. "
+       "Treat Rotation as the target evaluated pose bone orientation in armature object "
+       "coordinates"},
+      {3,
+       "WORLD",
+       0,
+       "World Space",
+       "Treat Location as the target pose bone head position in game world coordinates. Rotation "
+       "is the target evaluated pose bone orientation in game world coordinates"},
+      {4,
+       "POSE_CHANNEL",
+       0,
+       "Pose Channel",
+       "Write Location as the raw pose bone Location channel. Rotation uses the pose-channel "
+       "rotation behavior"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_bone_pose_transform_space_items);
+  RNA_def_property_ui_text(prop,
+                           "Space",
+                           "How the Location and Rotation inputs are interpreted before writing "
+                           "the pose bone channels");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "use_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop,
+                           "Use Center",
+                           "Use the pose bone center as the target point for absolute Armature "
+                           "Space and World Space modes, and preserve that center while applying "
+                           "Rotation");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_axis_selector(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_axis_items[] = {
+      {0, "LOCAL_X", 0, "X Axis", "Local X axis"},
+      {1, "LOCAL_Y", 0, "Y Axis", "Local Y axis"},
+      {2, "LOCAL_Z", 0, "Z Axis", "Local Z axis"},
+      {3, "LOCAL_NEGATIVE_X", 0, "-X Axis", "Negative local X axis"},
+      {4, "LOCAL_NEGATIVE_Y", 0, "-Y Axis", "Negative local Y axis"},
+      {5, "LOCAL_NEGATIVE_Z", 0, "-Z Axis", "Negative local Z axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_axis_items);
+  RNA_def_property_ui_text(prop, "Axis", "Local axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_vector_to_rotation(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_axis_selector(brna, srna);
+
+  PropertyRNA *prop = RNA_def_property(srna, "use_up_reference", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "Use Up Reference", "Use a custom reference vector to control roll");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_resize_vector(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_vector_size_items[] = {
+      {0, "VECTOR_2D", 0, "2D Vector", "Resize to two dimensions"},
+      {1, "VECTOR_3D", 0, "3D Vector", "Resize to three dimensions"},
+      {2, "VECTOR_4D", 0, "4D Vector", "Resize to four dimensions"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "to_size", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_vector_size_items);
+  RNA_def_property_ui_text(prop, "Resize To", "Target vector size");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_matrix_to_xyz(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_xyz_output_items[] = {
+      {0, "VECTOR", 0, "Vector", "Output vector components"},
+      {1, "EULER", 0, "Euler", "Output Euler rotation"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem logic_euler_order_items[] = {
+      {0, "XYZ", 0, "XYZ", "XYZ order"},
+      {1, "XZY", 0, "XZY", "XZY order"},
+      {2, "YXZ", 0, "YXZ", "YXZ order"},
+      {3, "YZX", 0, "YZX", "YZX order"},
+      {4, "ZXY", 0, "ZXY", "ZXY order"},
+      {5, "ZYX", 0, "ZYX", "ZYX order"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "output", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_xyz_output_items);
+  RNA_def_property_ui_text(prop, "XYZ Type", "Output type");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "euler_order", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_euler_order_items);
+  RNA_def_property_ui_text(prop, "Euler Order", "Euler order");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_vector_rotate(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_rotate_mode_items[] = {
+      {0, "TWO_D", 0, "2D", "2D rotation"},
+      {1, "THREE_D", 0, "3D", "3D axis rotation"},
+      {2, "ARBITRARY_AXIS", 0, "Arbitrary Axis", "Rotate around arbitrary axis"},
+      {3, "EULER", 0, "Euler", "Rotate by Euler angles"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem logic_rotate_axis_items[] = {
+      {0, "X", 0, "X Axis", "Global X axis"},
+      {1, "Y", 0, "Y Axis", "Global Y axis"},
+      {2, "Z", 0, "Z Axis", "Global Z axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_rotate_mode_items);
+  RNA_def_property_ui_text(prop, "Mode", "Vector rotation mode");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_rotate_axis_items);
+  RNA_def_property_ui_text(prop, "Axis", "Global axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_draw_mode(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_draw_mode_items[] = {
+      {0, "LINE", 0, "Line", "Line"},
+      {1, "ARROW", 0, "Arrow", "Arrow"},
+      {2, "PATH", 0, "Path", "Path"},
+      {3, "CUBE", 0, "Cube", "Cube"},
+      {4, "BOX", 0, "Box", "Box"},
+      {5, "MESH", 0, "Mesh", "Mesh"},
+      {6, "AXIS", 0, "Axis", "Axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_draw_mode_items);
+  RNA_def_property_ui_text(prop, "Shape", "Debug draw shape");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "use_volume_origin", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "Use Volume Origin", "Offset origin by half dimensions");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_volume_origin(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "use_volume_origin", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(prop, "Use Volume Origin", "Offset origin by half dimensions");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_local_space(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "use_local_space", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(prop, "Local", "Interpret or expose vectors in local space");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_store_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "initialize", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Initialize", "Store the input value on the first evaluation before the condition is true");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_vehicle_axis(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_vehicle_axis_items[] = {
+      {0, "REAR", 0, "Rear", "Apply to wheels without steering"},
+      {1, "FRONT", 0, "Front", "Apply to wheels with steering"},
+      {2, "ALL", 0, "All", "Apply to all wheels"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "vehicle_axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_vehicle_axis_items);
+  RNA_def_property_ui_text(prop, "Axis", "Select which authored wheel group receives the command");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_dynamics(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_set_dynamics_mode_items[] = {
+      {0, "DYNAMIC", 0, "Dynamic", "Restore normal dynamic physics simulation"},
+      {1, "STATIC_COLLIDER", 0, "Static Collider", "Stop dynamic motion but keep solid collision"},
+      {2, "GHOST", 0, "Ghost", "Enable or disable overlap detection without physical collision response"},
+      {3, "NO_COLLISION", 0, "No Collision", "Disable physical collision and overlap detection"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "dynamics_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_set_dynamics_mode_items);
+  RNA_def_property_ui_text(prop, "Mode", "Runtime dynamics state to apply");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_object_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_set_object_attribute_items[] = {
+      {0, "WORLD_POSITION", 0, "World Position", "Set the object's world position"},
+      {1, "WORLD_ORIENTATION", 0, "World Rotation", "Set the object's world rotation"},
+      {2, "WORLD_LINEAR_VELOCITY", 0, "World Linear Velocity", "Set world linear velocity"},
+      {3, "WORLD_ANGULAR_VELOCITY", 0, "World Angular Velocity", "Set world angular velocity"},
+      {4, "WORLD_TRANSFORM", 0, "World Transform", "Set world position, rotation, and scale"},
+      {5, "WORLD_SCALE", 0, "World Scale", "Set the object's world scale"},
+      {6, "LOCAL_POSITION", 0, "Local Position", "Set the object's local position"},
+      {7, "LOCAL_ORIENTATION", 0, "Local Rotation", "Set the object's local rotation"},
+      {8, "LOCAL_LINEAR_VELOCITY", 0, "Local Linear Velocity", "Set local linear velocity"},
+      {9, "LOCAL_ANGULAR_VELOCITY", 0, "Local Angular Velocity", "Set local angular velocity"},
+      {10, "LOCAL_TRANSFORM", 0, "Local Transform", "Set local position, rotation, and scale"},
+      {11, "COLOR", 0, "Color", "Set the object's color"},
+      {12, "VISIBLE", 0, "Visible", "Set the object's visibility"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "attribute_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_set_object_attribute_items);
+  RNA_def_property_ui_text(prop, "Attribute", "Writable object attribute to set");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetObjectAttribute_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "use_x", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", logic_native_set_object_attribute_use_x);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "X", "Write the X component; disabled keeps the current X value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetObjectAttribute_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "use_y", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", logic_native_set_object_attribute_use_y);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Y", "Write the Y component; disabled keeps the current Y value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetObjectAttribute_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "use_z", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", logic_native_set_object_attribute_use_z);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Z", "Write the Z component; disabled keeps the current Z value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetObjectAttribute_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_rigid_body_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_set_rigid_body_attribute_items[] = {
+      {0, "MASS", 0, "Mass", "Set rigid body mass"},
+      {1, "FRICTION", 0, "Friction", "Set contact friction"},
+      {2, "ELASTICITY", 0, "Elasticity", "Set contact restitution"},
+      {3, "DAMPING", 0, "Damping", "Set linear and angular damping"},
+      {4, "MIN_LINEAR_VELOCITY", 0, "Minimum Linear Velocity", "Set minimum linear velocity"},
+      {5, "MAX_LINEAR_VELOCITY", 0, "Maximum Linear Velocity", "Set maximum linear velocity"},
+      {6, "MIN_ANGULAR_VELOCITY", 0, "Minimum Angular Velocity", "Set minimum angular velocity"},
+      {7, "MAX_ANGULAR_VELOCITY", 0, "Maximum Angular Velocity", "Set maximum angular velocity"},
+      {8, "GRAVITY_FACTOR", 0, "Gravity Factor", "Set per-body gravity multiplier"},
+      {9, "CCD", 0, "Continuous Collision Detection", "Enable continuous collision detection"},
+      {10, "SLEEPING", 0, "Sleeping", "Set sleep permission and optionally wake the body"},
+      {11, "AXIS_LOCKS", 0, "Axis Locks", "Set locked translation and rotation axes"},
+      {12,
+       "ALLOW_PHYSICS_ROTATION",
+       0,
+       "Allow Physics Rotation",
+       "Allow physics simulation to rotate the dynamic body"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "attribute_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_set_rigid_body_attribute_items);
+  RNA_def_property_ui_text(prop, "Attribute", "Writable rigid body attribute to set");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "lock_translation_x", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "custom2", logic_native_set_rigid_body_attribute_lock_translation_x);
+  RNA_def_property_ui_text(prop, "X", "Lock translation on the X axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "lock_translation_y", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "custom2", logic_native_set_rigid_body_attribute_lock_translation_y);
+  RNA_def_property_ui_text(prop, "Y", "Lock translation on the Y axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "lock_translation_z", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "custom2", logic_native_set_rigid_body_attribute_lock_translation_z);
+  RNA_def_property_ui_text(prop, "Z", "Lock translation on the Z axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "lock_rotation_x", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "custom2", logic_native_set_rigid_body_attribute_lock_rotation_x);
+  RNA_def_property_ui_text(prop, "X", "Lock rotation on the X axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "lock_rotation_y", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "custom2", logic_native_set_rigid_body_attribute_lock_rotation_y);
+  RNA_def_property_ui_text(prop, "Y", "Lock rotation on the Y axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "lock_rotation_z", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "custom2", logic_native_set_rigid_body_attribute_lock_rotation_z);
+  RNA_def_property_ui_text(prop, "Z", "Lock rotation on the Z axis");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_get_rigid_body_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_get_rigid_body_attribute_items[] = {
+      {0, "MASS", 0, "Mass", "Get rigid body mass"},
+      {1, "FRICTION", 0, "Friction", "Get contact friction"},
+      {2, "ELASTICITY", 0, "Elasticity", "Get contact restitution"},
+      {3, "DAMPING", 0, "Damping", "Get linear and angular damping"},
+      {4, "MIN_LINEAR_VELOCITY", 0, "Minimum Linear Velocity", "Get minimum linear velocity"},
+      {5, "MAX_LINEAR_VELOCITY", 0, "Maximum Linear Velocity", "Get maximum linear velocity"},
+      {6, "MIN_ANGULAR_VELOCITY", 0, "Minimum Angular Velocity", "Get minimum angular velocity"},
+      {7, "MAX_ANGULAR_VELOCITY", 0, "Maximum Angular Velocity", "Get maximum angular velocity"},
+      {8, "GRAVITY_FACTOR", 0, "Gravity Factor", "Get per-body gravity multiplier"},
+      {9, "CCD", 0, "Continuous Collision Detection", "Get continuous collision detection state"},
+      {10, "SLEEPING", 0, "Sleeping", "Get sleep permission"},
+      {11, "AXIS_LOCKS", 0, "Axis Locks", "Get locked translation and rotation axes"},
+      {12,
+       "ALLOW_PHYSICS_ROTATION",
+       0,
+       "Allow Physics Rotation",
+       "Get whether physics simulation can rotate the dynamic body"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "attribute_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_get_rigid_body_attribute_items);
+  RNA_def_property_ui_text(prop, "Attribute", "Readable rigid body attribute to get");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_geometry_node_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_set_geometry_value_type_items[] = {
+      {0, "FLOAT", 0, "Float", "Use a float value field"},
+      {1, "INTEGER", 0, "Integer", "Use an integer value field"},
+      {2, "BOOLEAN", 0, "Boolean", "Use a boolean value field"},
+      {3, "VECTOR", 0, "Vector", "Use a vector or rotation value field"},
+      {4, "COLOR", 0, "Color", "Use a color value field"},
+      {5, "STRING", 0, "String", "Use a string value field"},
+      {6, "MATERIAL", 0, "Material", "Use a Material value field"},
+      {7, "GENERIC", 0, "Generic Link", "Use the generic linked Value socket"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "value_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_set_geometry_value_type_items);
+  RNA_def_property_ui_text(prop, "Value Type", "Type of value assigned by the node");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_node_mute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem editor_type_items[] = {
+      {1,
+       "SHADER",
+       0,
+       "Shader",
+       "Choose from Material and shader-group node trees"},
+      {2,
+       "GEOMETRY",
+       0,
+       "Geometry Nodes",
+       "Choose from Geometry Nodes node groups"},
+      {3,
+       "COMPOSITOR",
+       0,
+       "Compositor",
+       "Choose from scene compositor and compositor-group node trees"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "node_editor_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, editor_type_items);
+  RNA_def_property_ui_text(prop, "Node Editor", "Editor domain containing the target node tree");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_editor_node_target(StructRNA *srna, const bool target_scope)
+{
+  static const EnumPropertyItem editor_type_items[] = {
+      {1, "SHADER", 0, "Material / Shader", "Use a Material shader node tree"},
+      {2, "GEOMETRY", 0, "Geometry Nodes", "Use a Geometry Nodes modifier node tree"},
+      {3, "COMPOSITOR", 0, "Compositor", "Use a scene or compositor node tree"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem target_scope_items[] = {
+      {0, "OWNER", 0, "Object Slot", "Resolve the Material from an object material slot"},
+      {1, "SHARED", 0, "Shared Material", "Edit the selected shared Material node tree"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "node_editor_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, editor_type_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeEditorNodeValue_editor_get",
+                              "rna_LogicNativeEditorNodeValue_editor_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Node Editor", "Editor domain containing the target node tree");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  if (target_scope) {
+    prop = RNA_def_property(srna, "target_scope", PROP_ENUM, PROP_NONE);
+    RNA_def_property_enum_items(prop, target_scope_items);
+    RNA_def_property_enum_funcs(prop,
+                                "rna_LogicNativeEditorNodeValue_target_get",
+                                "rna_LogicNativeEditorNodeValue_target_set",
+                                nullptr);
+    RNA_def_property_ui_text(prop, "Target", "Choose an object slot or a shared Material");
+    RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+    RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  }
+}
+
+static void def_logic_get_editor_node_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  def_logic_editor_node_target(srna, true);
+}
+
+static void def_logic_set_editor_node_value(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_set_geometry_node_value(brna, srna);
+  def_logic_editor_node_target(srna, true);
+}
+
+static void def_logic_make_node_tree_unique(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  def_logic_editor_node_target(srna, false);
+}
+
+static void def_logic_enable_disable_modifier(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem target_mode_items[] = {
+      {0, "NAME", 0, "Name", "Select a modifier by its object-local name"},
+      {1,
+       "STACK_POSITION",
+       0,
+       "Stack Position",
+       "Select a modifier by its current position in the object's modifier stack"},
+      {2,
+       "PERSISTENT_ID",
+       0,
+       "Modifier ID",
+       "Select a modifier by the stable ID returned by Assign Geometry Nodes Modifier"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem stack_position_items[] = {
+      {0, "FIRST", 0, "First", "Select the first modifier in the stack"},
+      {1, "LAST", 0, "Last", "Select the last modifier in the stack"},
+      {2, "INDEX", 0, "Index", "Select a zero-based modifier stack position"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "target_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, target_mode_items);
+  RNA_def_property_ui_text(prop, "Target", "How the target modifier is selected");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "stack_position", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, stack_position_items);
+  RNA_def_property_ui_text(prop, "Position", "Position in the current modifier stack");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_assign_geometry_nodes_modifier(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem operation_items[] = {
+      {0, "APPEND", 0, "Append", "Add the modifier at Blender's last legal stack position"},
+      {1, "INSERT", 0, "Insert", "Insert at the exact zero-based stack position"},
+      {2, "REPLACE", 0, "Replace", "Replace the node group of an existing Geometry Nodes modifier"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem replace_target_items[] = {
+      {0, "NAME", 0, "Name", "Select an existing modifier by its object-local name"},
+      {1, "FIRST", 0, "First", "Select the first modifier in the stack"},
+      {2, "LAST", 0, "Last", "Select the last modifier in the stack"},
+      {3, "INDEX", 0, "Index", "Select an exact zero-based modifier stack position"},
+      {4,
+       "PERSISTENT_ID",
+       0,
+       "Modifier ID",
+       "Select by the stable ID returned by this node"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, operation_items);
+  RNA_def_property_ui_text(prop, "Operation", "How the Geometry Nodes modifier is assigned");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "replace_target", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, replace_target_items);
+  RNA_def_property_ui_text(prop, "Target", "How an existing modifier is selected for replacement");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "geometry_node_group", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "id");
+  RNA_def_property_struct_type(prop, "NodeTree");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_LogicNode_geometry_node_group_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(
+      prop, "Node Group", "Modifier-compatible Geometry Nodes node group to assign");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_set_material_parameter(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_set_material_parameter_value_type_items[] = {
+      {0, "FLOAT", 0, "Float", "Use a float value field"},
+      {1, "INTEGER", 0, "Integer", "Use an integer value field"},
+      {2, "BOOLEAN", 0, "Boolean", "Use a boolean value field"},
+      {3, "VECTOR", 0, "Vector", "Use a vector value field"},
+      {4, "COLOR", 0, "Color", "Use a color value field"},
+      {7, "GENERIC", 0, "Generic Link", "Use the generic linked Value socket"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem logic_set_socket_picker_items[] = {
+      {-1, "NONE", 0, "None", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "material_node", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, logic_set_socket_picker_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeSetMaterialNodeSocket_node_get",
+                              "rna_LogicNativeSetMaterialNodeSocket_node_set",
+                              "rna_LogicNativeSetMaterialNodeSocket_node_itemf");
+  RNA_def_property_ui_text(prop, "Node", "Material node whose input parameter will be changed");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetMaterialNodeSocket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "material_socket", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, logic_set_socket_picker_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeSetMaterialNodeSocket_socket_get",
+                              "rna_LogicNativeSetMaterialNodeSocket_socket_set",
+                              "rna_LogicNativeSetMaterialNodeSocket_socket_itemf");
+  RNA_def_property_ui_text(prop, "Socket", "Numeric, vector, or color input parameter to change");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetMaterialNodeSocket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "value_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_set_material_parameter_value_type_items);
+  RNA_def_property_ui_text(
+      prop, "Value Type", "Type of value to assign to the material parameter");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "per_object_only", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "custom2", logic_set_socket_target_per_object_only);
+  RNA_def_property_ui_text(prop,
+                           "Per Object Only",
+                           "Use a per-object material parameter override; disable only when "
+                           "intentionally editing a shared material value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetMaterialNodeSocket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_get_material_parameter(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_get_parameter_picker_items[] = {
+      {-1, "NONE", 0, "None", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "material_node", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, logic_get_parameter_picker_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeSetMaterialNodeSocket_node_get",
+                              "rna_LogicNativeSetMaterialNodeSocket_node_set",
+                              "rna_LogicNativeSetMaterialNodeSocket_node_itemf");
+  RNA_def_property_ui_text(prop, "Node", "Material node whose input parameter will be read");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetMaterialNodeSocket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "material_socket", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, logic_get_parameter_picker_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeSetMaterialNodeSocket_socket_get",
+                              "rna_LogicNativeSetMaterialNodeSocket_socket_set",
+                              "rna_LogicNativeSetMaterialNodeSocket_socket_itemf");
+  RNA_def_property_ui_text(prop, "Socket", "Numeric, vector, or color input parameter to read");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeSetMaterialNodeSocket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_get_object_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_get_object_attribute_items[] = {
+      {0, "WORLD_POSITION", 0, "World Position", "Get the object's world position"},
+      {1, "LOCAL_POSITION", 0, "Local Position", "Get the object's local position"},
+      {2, "VISIBLE", 0, "Visible", "Get the object's visibility"},
+      {3, "NAME", 0, "Name", "Get the object's name"},
+      {4, "LOCAL_SCALE", 0, "Local Scale", "Get the object's local scale"},
+      {5, "WORLD_SCALE", 0, "World Scale", "Get the object's world scale"},
+      {6, "COLOR", 0, "Color", "Get the object's color"},
+      {7, "LOCAL_ORIENTATION", 0, "Local Rotation", "Get the object's local rotation"},
+      {8, "WORLD_ORIENTATION", 0, "World Rotation", "Get the object's world rotation"},
+      {9, "WORLD_LINEAR_VELOCITY", 0, "World Linear Velocity", "Get the object's world linear velocity"},
+      {10, "LOCAL_LINEAR_VELOCITY", 0, "Local Linear Velocity", "Get the object's local linear velocity"},
+      {11, "WORLD_ANGULAR_VELOCITY", 0, "World Angular Velocity", "Get the object's world angular velocity"},
+      {12, "LOCAL_ANGULAR_VELOCITY", 0, "Local Angular Velocity", "Get the object's local angular velocity"},
+      {13, "WORLD_TRANSFORM", 0, "World Transform", "Get the object's world position, rotation, and scale"},
+      {14, "LOCAL_TRANSFORM", 0, "Local Transform", "Get the object's local position, rotation, and scale"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "attribute_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_get_object_attribute_items);
+  RNA_def_property_ui_text(prop, "Attribute", "Readable object attribute to get");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeGetObjectAttribute_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+#endif
 
 static void def_sh_mix(BlenderRNA * /*brna*/, StructRNA *srna)
 {
@@ -8935,6 +11656,17 @@ static void rna_def_function_node(BlenderRNA *brna)
   RNA_def_struct_register_funcs(srna, "rna_FunctionNode_register", "rna_Node_unregister", nullptr);
 }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+static void rna_def_logic_node(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "LogicNode", "NodeInternal");
+  RNA_def_struct_ui_text(srna, "Logic Node", "Game logic node");
+  RNA_def_struct_sdna(srna, "bNode");
+}
+#endif
+
 /* -------------------------------------------------------------------------- */
 
 static void def_reroute(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -9736,6 +12468,9 @@ static void rna_def_nodetree(BlenderRNA *brna)
       {NTREE_TEXTURE, "TEXTURE", ICON_TEXTURE, "Texture", "Texture nodes"},
       {NTREE_COMPOSIT, "COMPOSITING", ICON_RENDERLAYERS, "Compositing", "Compositing nodes"},
       {NTREE_GEOMETRY, "GEOMETRY", ICON_GEOMETRY_NODES, "Geometry", "Geometry nodes"},
+    #ifdef WITH_GAMEENGINE_LOGICNODES
+      {NTREE_LOGIC, "LOGIC", ICON_NODETREE, "Logic", "Game logic nodes"},
+    #endif
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -10090,6 +12825,19 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
 }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+static void rna_def_logic_nodetree(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "LogicNodeTree", "NodeTree");
+  RNA_def_struct_ui_text(
+      srna, "Logic Node Tree", "Node tree consisting of linked nodes used for game logic");
+  RNA_def_struct_sdna(srna, "bNodeTree");
+  RNA_def_struct_ui_icon(srna, ICON_NODETREE);
+}
+#endif
+
 static StructRNA *define_specific_node(BlenderRNA *brna,
                                        const char *struct_name,
                                        const char *base_name)
@@ -10183,6 +12931,315 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeJoinBundle");
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
   define("NodeInternal", "NodeStoreBundleItem");
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  define("LogicNode", "LogicNativeApplyForce");
+  define("LogicNode", "LogicNativeApplyForceToTarget");
+  define("LogicNode", "LogicNativeBarrier");
+  define("LogicNode", "LogicNativeBooleanEdge");
+  define("LogicNode", "LogicNativeBranch");
+  define("LogicNode", "LogicNativeClearVariables");
+  define("LogicNode", "LogicNativeClampValue");
+  define("LogicNode", "LogicNativeColorRGB");
+  define("LogicNode", "LogicNativeColorRGBA");
+  define("LogicNode", "LogicNativeCombineXY");
+  define("LogicNode", "LogicNativeCombineXYZ");
+  define("LogicNode", "LogicNativeCombineXYZW");
+  define("LogicNode", "LogicNativeCompare", def_logic_compare);
+  define("LogicNode", "LogicNativeCooldown");
+  define("LogicNode", "LogicNativeDelay");
+  define("LogicNode", "LogicNativeEuler");
+  define("LogicNode", "LogicNativeVectorToRotation", def_logic_vector_to_rotation);
+  define("LogicNode", "LogicNativeEvaluateProperty", def_logic_evaluate_property);
+  define("LogicNode", "LogicNativeGate", def_logic_gate);
+  define("LogicNode", "LogicNativeGateList", def_logic_gate);
+  define("LogicNode", "LogicNativeApplyMovement");
+  define("LogicNode", "LogicNativeApplyRotation");
+  define("LogicNode", "LogicNativeApplyTorque");
+  define("LogicNode", "LogicNativeGetGamePropertyBool");
+  define("LogicNode", "LogicNativeGetGamePropertyFloat");
+  define("LogicNode", "LogicNativeGetGamePropertyInt");
+  define("LogicNode", "LogicNativeGetGamePropertyString");
+  define("LogicNode", "LogicNativeAddObject");
+  define("LogicNode", "LogicNativeAddPhysicsConstraint", def_logic_physics_constraint);
+  define("LogicNode", "LogicNativeFormula", def_logic_formula);
+  define("LogicNode", "LogicNativeFormattedString");
+  define("LogicNode", "LogicNativeGetChild");
+  define("LogicNode", "LogicNativeGetChildByName");
+  define("LogicNode", "LogicNativeGetOwner");
+  define("LogicNode", "LogicNativeGetParent");
+  define("LogicNode", "LogicNativeFindObject");
+  define("LogicNode", "LogicNativeGetObjectAttribute", def_logic_get_object_attribute);
+  define("LogicNode", "LogicNativeGetDistance");
+  define("LogicNode", "LogicNativeGetGroupCenterPosition");
+  define("LogicNode", "LogicNativeGetObjectID");
+  define("LogicNode", "LogicNativeGetAxisVector", def_logic_axis_selector);
+  define("LogicNode", "LogicNativeGetCollisionGroup");
+  define("LogicNode", "LogicNativeHasProperty");
+  define("LogicNode", "LogicNativeNone");
+  define("LogicNode", "LogicNativeNotNone");
+  define("LogicNode", "LogicNativeGetTreeProperty");
+  define("LogicNode", "LogicNativeSetTreeProperty");
+  define("LogicNode", "LogicNativeGetGlobalProperty");
+  define("LogicNode", "LogicNativeSetGlobalProperty");
+  define("LogicNode", "LogicNativeListGlobalProperties");
+  define("LogicNode", "LogicNativeLoadVariable");
+  define("LogicNode", "LogicNativeSaveVariable");
+  define("LogicNode", "LogicNativeLoadVariableDict");
+  define("LogicNode", "LogicNativeSaveVariableDict");
+  define("LogicNode", "LogicNativeKeyboardActive");
+  define("LogicNode", "LogicNativeKeyboardKey", def_logic_keyboard_key);
+  define("LogicNode", "LogicNativeKeyCode");
+  define("LogicNode", "LogicNativeKeyLogger");
+  define("LogicNode", "LogicNativeLimitRange");
+  define("LogicNode", "LogicNativeListGetItem");
+  define("LogicNode", "LogicNativeListRandomItem");
+  define("LogicNode", "LogicNativeListSavedVariables");
+  define("LogicNode", "LogicNativeListLength");
+  define("LogicNode", "LogicNativeLoop");
+  define("LogicNode", "LogicNativeLoopFromList");
+  define("LogicNode", "LogicNativeMath", def_logic_math);
+  define("LogicNode", "LogicNativeModifyProperty", def_logic_modify_property);
+  define("LogicNode", "LogicNativeModifyPropertyClamped");
+  define("LogicNode", "LogicNativeMoveToward");
+  define("LogicNode", "LogicNativeNavigate");
+  define("LogicNode", "LogicNativeFollowPath");
+  define("LogicNode", "LogicNativeTranslate");
+  define("LogicNode", "LogicNativeMouseMoved", def_logic_mouse_moved);
+  define("LogicNode", "LogicNativeMouseOver");
+  define("LogicNode", "LogicNativeMouseButton", def_logic_mouse_button);
+  define("LogicNode", "LogicNativeMouseLook", def_logic_mouse_look);
+  define("LogicNode", "LogicNativeMouseWheel", def_logic_mouse_wheel);
+  define("LogicNode", "LogicNativeMouseRay");
+  define("LogicNode", "LogicNativeCursorPosition", def_logic_cursor_position);
+  define("LogicNode", "LogicNativeCursorMovement");
+  define("LogicNode", "LogicNativeSetCursorVisibility");
+  define("LogicNode", "LogicNativeSetCursorPosition");
+  define("LogicNode", "LogicNativeGamepadActive");
+  define("LogicNode", "LogicNativeGamepadButton", def_logic_gamepad_button);
+  define("LogicNode", "LogicNativeGamepadStick", def_logic_gamepad_stick);
+  define("LogicNode", "LogicNativeGamepadVibration");
+  define("LogicNode", "LogicNativeGamepadLook", def_logic_gamepad_look);
+  define("LogicNode", "LogicNativeOnInit");
+  define("LogicNode", "LogicNativeOnFixedUpdate");
+  define("LogicNode", "LogicNativeOnNextFrame");
+  define("LogicNode", "LogicNativeOnUpdate");
+  define("LogicNode", "LogicNativeObjectByName");
+  define("LogicNode", "LogicNativeOnce");
+  define("LogicNode", "LogicNativeCameraRay");
+  define("LogicNode", "LogicNativeGetGravity");
+  define("LogicNode", "LogicNativeGetCharacterInfo", def_logic_local_space);
+  define("LogicNode", "LogicNativeGetLightColor");
+  define("LogicNode", "LogicNativeGetLightPower");
+  define("LogicNode", "LogicNativeGetTimescale");
+  define("LogicNode", "LogicNativeTime");
+  define("LogicNode", "LogicNativeDeltaFactor");
+  define("LogicNode", "LogicNativeQuitGame");
+  define("LogicNode", "LogicNativeRestartGame");
+  define("LogicNode", "LogicNativePlayAction", def_logic_play_action);
+  define("LogicNode", "LogicNativePlaySound", def_logic_sound_datablock);
+  define("LogicNode", "LogicNativePlaySound3D", def_logic_sound_datablock);
+  define("LogicNode", "LogicNativeStartSpeaker");
+  define("LogicNode", "LogicNativePauseSound", def_logic_sound_datablock);
+  define("LogicNode", "LogicNativeResumeSound", def_logic_sound_datablock);
+  define("LogicNode", "LogicNativeStopAction");
+  define("LogicNode", "LogicNativeSetActionFrame");
+  define("LogicNode", "LogicNativeActionDone");
+  define("LogicNode", "LogicNativeAlignAxisToVector");
+  define("LogicNode", "LogicNativeRotateToward");
+  define("LogicNode", "LogicNativeSetObjectAttribute", def_logic_set_object_attribute);
+  define("LogicNode", "LogicNativeGetRigidBodyAttribute", def_logic_get_rigid_body_attribute);
+  define("LogicNode",
+         "LogicNativeGetRigidBodyConstraints",
+         def_logic_rigid_body_constraint_match_mode);
+  define("LogicNode", "LogicNativeSetRigidBodyAttribute", def_logic_set_rigid_body_attribute);
+  define("LogicNode", "LogicNativeAnimationStatus");
+  define("LogicNode", "LogicNativeCollision");
+  define("LogicNode", "LogicNativeOnCollision");
+  define("LogicNode", "LogicNativeCopyProperty");
+  define("LogicNode", "LogicNativeObjectsColliding");
+  define("LogicNode", "LogicNativeStopAllSounds");
+  define("LogicNode", "LogicNativeStopSound", def_logic_sound_datablock);
+  define("LogicNode", "LogicNativeSetMaterialSlot", def_logic_material_datablock);
+  define("LogicNode", "LogicNativeSetMaterialParameter", def_logic_set_material_parameter);
+  define("LogicNode", "LogicNativeGetMaterialFromSlot");
+  define("LogicNode", "LogicNativeGetMaterialSlotCount");
+  define("LogicNode", "LogicNativeGetMaterialName");
+  define("LogicNode", "LogicNativeGetMaterialParameter", def_logic_get_material_parameter);
+  define("LogicNode", "LogicNativeSetGeometryNodesInput", def_logic_set_geometry_node_value);
+  define("LogicNode", "LogicNativeGetEditorNodeValue", def_logic_get_editor_node_value);
+  define("LogicNode", "LogicNativeSetEditorNodeValue", def_logic_set_editor_node_value);
+  define("LogicNode", "LogicNativeMakeNodeTreeUnique", def_logic_make_node_tree_unique);
+  define("LogicNode", "LogicNativeSetNodeMute", def_logic_set_node_mute);
+  define("LogicNode", "LogicNativeEnableDisableModifier", def_logic_enable_disable_modifier);
+  define("LogicNode",
+         "LogicNativeAssignGeometryNodesModifier",
+         def_logic_assign_geometry_nodes_modifier);
+  define("LogicNode", "LogicNativeGetNodeGroupSocketValue");
+  define("LogicNode", "LogicNativeSetNodeGroupSocketValue");
+  define("LogicNode", "LogicNativePlayMaterialSequence");
+  define("LogicNode", "LogicNativeLoadBlendFile");
+  define("LogicNode", "LogicNativeLoadGame");
+  define("LogicNode", "LogicNativeLoadScene");
+  define("LogicNode", "LogicNativeStartLogicTree");
+  define("LogicNode", "LogicNativeStopLogicTree");
+  define("LogicNode", "LogicNativeRunLogicTree");
+  define("LogicNode", "LogicNativeInstallLogicTree");
+  define("LogicNode", "LogicNativeLogicTreeStatus");
+  define("LogicNode", "LogicNativeMakeList");
+  define("LogicNode", "LogicNativeListExtend");
+  define("LogicNode", "LogicNativeDictGetKey");
+  define("LogicNode", "LogicNativeMakeDict");
+  define("LogicNode", "LogicNativeDictLength");
+  define("LogicNode", "LogicNativeDictGetKeys");
+  define("LogicNode", "LogicNativeGetBoneTailWorld");
+  define("LogicNode", "LogicNativeGetBoneLength");
+  define("LogicNode", "LogicNativeGetBoneCenterWorld");
+  define("LogicNode", "LogicNativeGetBoneHeadPoseWorld", def_logic_get_bone_pose_position);
+  define("LogicNode", "LogicNativeGetBoneTailPoseWorld", def_logic_get_bone_pose_position);
+  define("LogicNode", "LogicNativeGetBoneCenterPoseWorld", def_logic_get_bone_pose_position);
+  define("LogicNode", "LogicNativeGetBonePoseRotation", def_logic_get_bone_pose_rotation);
+  define("LogicNode", "LogicNativeGetBonePoseScale");
+  define("LogicNode", "LogicNativeGetBonePoseTransform", def_logic_get_bone_pose_transform);
+  define("LogicNode", "LogicNativeGetBoneAttribute", def_logic_bone_attribute);
+  define("LogicNode", "LogicNativeSetBonePoseLocation", def_logic_set_bone_pose_location);
+  define("LogicNode", "LogicNativeSetBonePoseRotation", def_logic_set_bone_pose_rotation);
+  define("LogicNode", "LogicNativeSetBonePoseScale");
+  define("LogicNode", "LogicNativeSetBonePoseTransform", def_logic_set_bone_pose_transform);
+  define("LogicNode", "LogicNativeSetBoneAttribute", def_logic_set_bone_attribute);
+  define("LogicNode", "LogicNativeSetBoneConstraintInfluence");
+  define("LogicNode", "LogicNativeSetBoneConstraintTarget");
+  define("LogicNode", "LogicNativeSetBoneConstraintAttribute");
+  define("LogicNode", "LogicNativeEvaluateCurve");
+  define("LogicNode", "LogicNativeListContains");
+  define("LogicNode", "LogicNativeEmptyList");
+  define("LogicNode", "LogicNativeEmptyDict");
+  define("LogicNode", "LogicNativeDictHasKey");
+  define("LogicNode", "LogicNativeListDuplicate");
+  define("LogicNode", "LogicNativeDictMerge");
+  define("LogicNode", "LogicNativeListAppend");
+  define("LogicNode", "LogicNativeListRemoveIndex");
+  define("LogicNode", "LogicNativeListRemoveValue");
+  define("LogicNode", "LogicNativeListSetIndex");
+  define("LogicNode", "LogicNativeDictSetKey");
+  define("LogicNode", "LogicNativeDictRemoveKey");
+  define("LogicNode", "LogicNativeListFromItems", def_logic_list_from_items);
+  define("LogicNode", "LogicNativeGetActiveCamera");
+  define("LogicNode", "LogicNativeSetCamera");
+  define("LogicNode", "LogicNativeSetCameraFov");
+  define("LogicNode", "LogicNativeSetCameraOrthoScale");
+  define("LogicNode", "LogicNativeWorldToScreen");
+  define("LogicNode", "LogicNativeScreenToWorld");
+  define("LogicNode", "LogicNativeGetFullscreen");
+  define("LogicNode", "LogicNativeSetFullscreen");
+  define("LogicNode", "LogicNativeGetResolution");
+  define("LogicNode", "LogicNativeSetResolution");
+  define("LogicNode", "LogicNativeGetVSync");
+  define("LogicNode", "LogicNativeSetVSync", def_logic_vsync_mode);
+  define("LogicNode", "LogicNativeShowFramerate");
+  define("LogicNode", "LogicNativeShowProfile");
+  define("LogicNode", "LogicNativePulsify");
+  define("LogicNode", "LogicNativeRandomValue");
+  define("LogicNode", "LogicNativeRandomFloat");
+  define("LogicNode", "LogicNativeRandomInt");
+  define("LogicNode", "LogicNativeRandomVector");
+  define("LogicNode", "LogicNativeRaycast", def_logic_raycast);
+  define("LogicNode", "LogicNativeRaycastAll", def_logic_raycast);
+  define("LogicNode", "LogicNativeShapeCast", def_logic_shape_cast);
+  define("LogicNode", "LogicNativeShapeCastAll", def_logic_shape_cast);
+  define("LogicNode", "LogicNativeRemoveObject");
+  define("LogicNode", "LogicNativeRemoveOverlayCollection");
+  define("LogicNode", "LogicNativeRemoveParent");
+  define("LogicNode", "LogicNativeRemoveVariable");
+  define("LogicNode", "LogicNativeRemovePhysicsConstraint");
+  define("LogicNode", "LogicNativeResizeVector", def_logic_resize_vector);
+  define("LogicNode", "LogicNativeRangedThreshold", def_logic_within_range);
+  define("LogicNode", "LogicNativeSeparateXY");
+  define("LogicNode", "LogicNativeSeparateEuler");
+  define("LogicNode", "LogicNativeSeparateXYZ");
+  define("LogicNode", "LogicNativeSetGamePropertyBool");
+  define("LogicNode", "LogicNativeSetGamePropertyFloat");
+  define("LogicNode", "LogicNativeSetGamePropertyInt");
+  define("LogicNode", "LogicNativeSetGamePropertyString");
+  define("LogicNode", "LogicNativeSetCollisionGroup");
+  define("LogicNode", "LogicNativeCharacterJump");
+  define("LogicNode", "LogicNativeSetCharacterGravity");
+  define("LogicNode", "LogicNativeSetCharacterJumpSpeed");
+  define("LogicNode", "LogicNativeSetCharacterMaxJumps");
+  define("LogicNode", "LogicNativeSetCharacterWalkDirection", def_logic_local_space);
+  define("LogicNode", "LogicNativeSetCharacterVelocity", def_logic_local_space);
+  define("LogicNode", "LogicNativeSetDynamics", def_logic_set_dynamics);
+  define("LogicNode", "LogicNativeSetGravity");
+  define("LogicNode", "LogicNativeMakeLightUnique");
+  define("LogicNode", "LogicNativeSetLightColor");
+  define("LogicNode", "LogicNativeSetLightPower");
+  define("LogicNode", "LogicNativeSetLightShadow");
+  define("LogicNode", "LogicNativeSetParent");
+  define("LogicNode", "LogicNativeSetPhysics");
+  define("LogicNode", "LogicNativeRebuildCollisionShape");
+  define("LogicNode", "LogicNativeSetTimescale");
+  define("LogicNode", "LogicNativeStringOperation", def_logic_string_operation);
+  define("LogicNode", "LogicNativeVectorRotate", def_logic_vector_rotate);
+  define("LogicNode", "LogicNativeXYZToMatrix");
+  define("LogicNode", "LogicNativeMatrixToXYZ", def_logic_matrix_to_xyz);
+  define("LogicNode", "LogicNativeFilePath");
+  define("LogicNode", "LogicNativeGetSound");
+  define("LogicNode", "LogicNativeGetImage");
+  define("LogicNode", "LogicNativeGetFont");
+  define("LogicNode", "LogicNativeDrawLine");
+  define("LogicNode", "LogicNativeDrawCube", def_logic_volume_origin);
+  define("LogicNode", "LogicNativeDrawBox", def_logic_volume_origin);
+  define("LogicNode", "LogicNativeDraw", def_logic_draw_mode);
+  define("LogicNode", "LogicNativeJoinPath");
+  define("LogicNode", "LogicNativeGetMasterFolder");
+  define("LogicNode", "LogicNativeLoadFileContent");
+  define("LogicNode", "LogicNativeSetCustomCursor");
+  define("LogicNode", "LogicNativeToggleProperty");
+  define("LogicNode", "LogicNativeToggleTreeProperty");
+  define("LogicNode", "LogicNativeTypecast", def_logic_typecast);
+  define("LogicNode", "LogicNativeValueBool");
+  define("LogicNode", "LogicNativeValueChanged");
+  define("LogicNode", "LogicNativeValueChangedTo");
+  define("LogicNode", "LogicNativeValueColor");
+  define("LogicNode", "LogicNativeValueFloat");
+  define("LogicNode", "LogicNativeValueInt");
+  define("LogicNode", "LogicNativeValueString");
+  define("LogicNode", "LogicNativeStoreValue", def_logic_store_value);
+  define("LogicNode", "LogicNativeValueSwitch");
+  define("LogicNode", "LogicNativeValueSwitchList");
+  define("LogicNode", "LogicNativeValueSwitchListCompare", def_logic_compare);
+  define("LogicNode", "LogicNativeValueValid");
+  define("LogicNode", "LogicNativeValueVector");
+  define("LogicNode", "LogicNativeVehicleControl");
+  define("LogicNode", "LogicNativeVehicleAccelerate", def_logic_vehicle_axis);
+  define("LogicNode", "LogicNativeVehicleBrake", def_logic_vehicle_axis);
+  define("LogicNode", "LogicNativeVehicleSteer", def_logic_vehicle_axis);
+  define("LogicNode", "LogicNativeVehicleSetAttributes", def_logic_vehicle_axis);
+  define("LogicNode", "LogicNativeInvertValue");
+  define("LogicNode", "LogicNativeMapRange", def_logic_map_range);
+  define("LogicNode", "LogicNativeThreshold", def_logic_threshold);
+  define("LogicNode", "LogicNativeTimer");
+  define("LogicNode", "LogicNativeTweenValue", def_logic_tween_value);
+  define("LogicNode", "LogicNativeSpawnPool", def_logic_spawn_pool);
+  define("LogicNode", "LogicNativeProjectileRay");
+  define("LogicNode", "LogicNativeApplyImpulse");
+  define("LogicNode", "LogicNativeGetBoneHeadWorld");
+  define("LogicNode", "LogicNativeVectorMath", def_logic_vector_math);
+  define("LogicNode", "LogicNativeWithinRange", def_logic_within_range);
+  define("LogicNode", "LogicNativePrint");
+  define("LogicNode", "LogicNativeReceiveEvent", def_logic_receive_event);
+  define("LogicNode", "LogicNativeReplaceMesh");
+  define("LogicNode", "LogicNativeSaveGame");
+  define("LogicNode", "LogicNativeSendEvent", def_logic_send_event);
+  define("LogicNode", "LogicNativeSetScene");
+  define("LogicNode", "LogicNativeGetScene");
+  define("LogicNode", "LogicNativeGetCollection");
+  define("LogicNode", "LogicNativeGetCollectionObjects");
+  define("LogicNode", "LogicNativeGetCollectionObjectNames");
+  define("LogicNode", "LogicNativeSetCollectionVisibility");
+  define("LogicNode", "LogicNativeSetOverlayCollection");
+  define("LogicNode", "LogicNativeSlowFollow");
+#endif
 
   define("ShaderNode", "ShaderNodeAddShader");
   define("ShaderNode", "ShaderNodeAmbientOcclusion", def_sh_ambient_occlusion);
@@ -10737,6 +13794,9 @@ void RNA_def_nodetree(BlenderRNA *brna)
   rna_def_texture_node(brna);
   rna_def_geometry_node(brna);
   rna_def_function_node(brna);
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  rna_def_logic_node(brna);
+#endif
 
   rna_def_nodetree(brna);
 
@@ -10744,6 +13804,9 @@ void RNA_def_nodetree(BlenderRNA *brna)
   rna_def_shader_nodetree(brna);
   rna_def_texture_nodetree(brna);
   rna_def_geometry_nodetree(brna);
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  rna_def_logic_nodetree(brna);
+#endif
 
   rna_def_nodes(brna);
 

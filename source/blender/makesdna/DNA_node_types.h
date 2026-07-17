@@ -280,6 +280,7 @@ enum eNodeTree_Type : int {
   NTREE_COMPOSIT = 1,
   NTREE_TEXTURE = 2,
   NTREE_GEOMETRY = 3,
+  NTREE_LOGIC = 4,
 };
 
 /** #NodeTree.flag */

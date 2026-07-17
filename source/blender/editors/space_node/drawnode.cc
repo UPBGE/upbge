@@ -1477,6 +1477,63 @@ static void std_node_socket_draw(
   }
 }
 
+static void logic_collision_layers_socket_draw(bContext * /*C*/,
+                                               ui::Layout *layout,
+                                               PointerRNA *ptr,
+                                               PointerRNA * /*node_ptr*/,
+                                               StringRef label)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+
+  if (sock->is_inactive()) {
+    layout->active_set(false);
+  }
+
+  if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_HIDE_VALUE) || sock->is_logically_linked())
+  {
+    draw_node_socket_without_value(layout, sock, label);
+    return;
+  }
+
+  const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
+  const bool optional_label = (socket_decl && socket_decl->optional_label) || label.is_empty();
+  const StringRef label_or_empty = optional_label ? "" : label;
+
+  static constexpr const char *layer_props[10] = {
+      "collision_layer_1",
+      "collision_layer_2",
+      "collision_layer_3",
+      "collision_layer_4",
+      "collision_layer_5",
+      "collision_layer_6",
+      "collision_layer_7",
+      "collision_layer_8",
+      "collision_layer_9",
+      "collision_layer_10",
+  };
+
+  ui::Layout *layers_layout = layout;
+  if (!optional_label) {
+    ui::Layout *split = &layout->split(0.4f, false);
+    ui::Layout *label_layout = &split->column(true);
+    draw_node_socket_name_editable(label_layout, sock, label_or_empty);
+    layers_layout = &split->column(true);
+  }
+
+  ui::Layout *column = &layers_layout->column(true);
+  for (int row_index = 0; row_index < 2; row_index++) {
+    ui::Layout *row = &column->row(true);
+    row->alignment_set(ui::LayoutAlign::Expand);
+    for (int bit_index = 0; bit_index < 5; bit_index++) {
+      row->prop(ptr,
+                layer_props[row_index * 5 + bit_index],
+                ui::ITEM_R_TOGGLE | ui::ITEM_R_ICON_ONLY,
+                "",
+                ICON_BLANK1);
+    }
+  }
+}
+
 static void std_node_socket_interface_draw(ID *id,
                                            bNodeTreeInterfaceSocket *interface_socket,
                                            bContext * /*C*/,
@@ -1620,6 +1677,9 @@ void ED_init_standard_node_socket_type(bke::bNodeSocketType *stype)
 {
   using namespace blender::ed::space_node;
   stype->draw = std_node_socket_draw;
+  if (STREQ(stype->idname.c_str(), "NodeSocketLogicCollisionLayers")) {
+    stype->draw = logic_collision_layers_socket_draw;
+  }
   stype->draw_color = std_node_socket_color_funcs[stype->type];
   stype->draw_color_simple = std_node_socket_color_simple_fn;
   stype->interface_draw = std_node_socket_interface_draw;

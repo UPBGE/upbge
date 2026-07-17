@@ -778,6 +778,16 @@ typedef struct GameData {
    * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
    */
   int flag = (1 << 19);
+  int frame_time_graph_max_samples = 10000;
+  int frame_time_graph_visible_domains = 1;
+  short frame_time_graph_visible_slots = 0;
+  short frame_time_graph_record_slot = -1;
+  short frame_time_graph_window = 2;
+  short frame_time_graph_axis = 0;
+  short frame_time_graph_style = 0;
+  short _pad_frame_time_graph = 0;
+  char frame_time_graph_slot_names[4][64] = {"Slot 1", "Slot 2", "Slot 3", "Slot 4"};
+  int _pad_frame_time_graph_names = 0;
   short mode = 8;
   short matmode = 0;
   short occlusionRes = 128; /* resolution of occlusion Z buffer in pixel */
@@ -825,7 +835,9 @@ typedef struct GameData {
   /* Jolt Physics configuration (only used when physicsEngine == WOPHY_JOLT) */
   short jolt_physics_threads = -1; /* -1 = auto (max(1, cores-1)), 1..N = explicit thread count */
   char jolt_debug_errors = 0;      /* Enable Jolt physics error reporting */
-  char _pad_jolt[5] = {0};
+  char _pad_jolt[1] = {0};
+  short jolt_velocity_solver_iterations = 10;
+  short jolt_position_solver_iterations = 2;
   int jolt_max_bodies = 10240;         /* Maximum number of bodies in the physics system */
   int jolt_max_body_pairs = 10240;     /* Maximum number of body pairs for broadphase */
   int jolt_max_contact_constraints = 10240; /* Maximum contact constraints */
@@ -889,7 +901,34 @@ typedef struct GameData {
 #define GAME_PYTHON_CONSOLE (1 << 22)
 #define GAME_USE_INTERACTIVE_DYNAPAINT (1 << 23)
 #define GAME_USE_INTERACTIVE_RIGIDBODY (1 << 24)
+#define GAME_USE_LOGIC_NODES_PARALLEL (1 << 25)
+#define GAME_SHOW_LOGIC_NODES_PROFILE (1 << 26)
+#define GAME_RECORD_FRAME_TIME_GRAPH (1 << 27)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
+
+/* GameData.frame_time_graph_axis */
+#define GAME_FRAME_TIME_GRAPH_AXIS_FRAMES 0
+#define GAME_FRAME_TIME_GRAPH_AXIS_SECONDS 1
+
+/* GameData.frame_time_graph_style */
+#define GAME_FRAME_TIME_GRAPH_STYLE_LINE 0
+#define GAME_FRAME_TIME_GRAPH_STYLE_BARS 1
+
+/* GameData.frame_time_graph_visible_domains */
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME (1 << 0)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_WORK (1 << 1)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_PHYSICS (1 << 2)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_LOGIC (1 << 3)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_ANIMATIONS (1 << 4)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_DEPSGRAPH (1 << 5)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_NETWORK (1 << 6)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_SCENEGRAPH (1 << 7)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_RASTERIZER (1 << 8)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_SERVICES (1 << 9)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_OVERHEAD (1 << 10)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_OUTSIDE (1 << 11)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY (1 << 12)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_ALL ((1 << 13) - 1)
 
 /* GameData.playerflag */
 #define GAME_PLAYER_FULLSCREEN (1 << 0)

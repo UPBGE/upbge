@@ -99,6 +99,11 @@ double KX_TimeCategoryLogger::GetAverage(TimeCategory tc)
   return m_loggers[tc].GetAverage();
 }
 
+double KX_TimeCategoryLogger::GetPrevious(TimeCategory tc)
+{
+  return m_loggers[tc].GetPrevious();
+}
+
 double KX_TimeCategoryLogger::GetAverage()
 {
   double time = 0.0;

@@ -63,6 +63,7 @@ set(SRC
   JoltPhysicsController.h
   JoltPhysicsEnvironment.h
   JoltShapeBuilder.h
+  JoltShapeQueryData.h
   JoltSoftBody.h
   JoltVehicle.h
 )
@@ -86,3 +87,20 @@ add_definitions(-DJPH_OBJECT_LAYER_BITS=32)
 add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(ge_physics_jolt "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/JoltConstraint_test.cpp
+  )
+  set(TEST_LIB
+    ${LIB}
+    ge_physics_jolt
+  )
+  blender_add_test_suite_lib(
+    gameengine_physics_jolt
+    "${TEST_SRC}"
+    "${INC}"
+    "${INC_SYS}"
+    "${TEST_LIB}"
+  )
+endif()

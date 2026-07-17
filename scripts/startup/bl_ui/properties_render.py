@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from bpy.types import Panel
+from bpy.props import IntProperty
+from bpy.types import Operator, Panel
 from bpy.app.translations import contexts as i18n_contexts
 from bl_ui.properties_grease_pencil_common import GreasePencilSimplifyPanel
 from bl_ui.space_view3d import (
@@ -92,6 +93,132 @@ class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
         row.active = not gs.use_viewport_render
         row.prop(gs, "samp_per_frame", text="Samples Per Frame")
 
+
+_FRAME_TIME_GRAPH_MAX_SLOTS = 4
+_FRAME_TIME_GRAPH_SLOT_NAME_PROPS = (
+    "frame_time_graph_slot_1_name",
+    "frame_time_graph_slot_2_name",
+    "frame_time_graph_slot_3_name",
+    "frame_time_graph_slot_4_name",
+)
+_FRAME_TIME_GRAPH_SLOT_VISIBLE_PROPS = (
+    "show_frame_time_graph_slot_1",
+    "show_frame_time_graph_slot_2",
+    "show_frame_time_graph_slot_3",
+    "show_frame_time_graph_slot_4",
+)
+_FRAME_TIME_GRAPH_DOMAINS = (
+    ("show_frame_time_graph_domain_frame", "Frame"),
+    ("show_frame_time_graph_domain_work", "Work"),
+    ("show_frame_time_graph_domain_physics", "Physics"),
+    ("show_frame_time_graph_domain_logic", "Logic"),
+    ("show_frame_time_graph_domain_animations", "Animations"),
+    ("show_frame_time_graph_domain_depsgraph", "Depsgraph"),
+    ("show_frame_time_graph_domain_network", "Network"),
+    ("show_frame_time_graph_domain_scenegraph", "Scenegraph"),
+    ("show_frame_time_graph_domain_rasterizer", "Rasterizer"),
+    ("show_frame_time_graph_domain_services", "Services"),
+    ("show_frame_time_graph_domain_overhead", "Overhead"),
+    ("show_frame_time_graph_domain_outside", "Outside"),
+    ("show_frame_time_graph_domain_gpu_latency", "GPU Latency"),
+)
+
+
+def _frame_time_graph_slot_mask(index):
+    return 1 << index
+
+
+def _frame_time_graph_slot_name(gs, index):
+    if index < len(_FRAME_TIME_GRAPH_SLOT_NAME_PROPS):
+        return getattr(gs, _FRAME_TIME_GRAPH_SLOT_NAME_PROPS[index], "") or f"Slot {index + 1}"
+    return f"Slot {index + 1}"
+
+
+def _draw_frame_time_graph_settings(layout, gs):
+    if not hasattr(gs, "frame_time_graph_window"):
+        return
+
+    col = layout.column(align=True)
+    col.prop(gs, "frame_time_graph_window", text="Window")
+    col.prop(gs, "frame_time_graph_axis", text="X Axis")
+    col.prop(gs, "frame_time_graph_style", text="Style")
+    col.prop(gs, "frame_time_graph_max_samples", text="Max Samples", slider=True)
+
+
+def _draw_frame_time_graph_domains(layout, gs):
+    if not hasattr(gs, "frame_time_graph_visible_domains"):
+        return
+
+    layout.label(text="Domains")
+    grid = layout.grid_flow(row_major=True, columns=3, even_columns=True, align=True)
+    for prop_id, label in _FRAME_TIME_GRAPH_DOMAINS:
+        if hasattr(gs, prop_id):
+            grid.prop(gs, prop_id, text=label, toggle=True)
+
+
+class RENDER_OT_frame_time_graph_slot_toggle_record(Operator):
+    bl_idname = "render.frame_time_graph_slot_toggle_record"
+    bl_label = "Toggle Frame-Time Graph Slot Recording"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: IntProperty(default=0, min=0, max=_FRAME_TIME_GRAPH_MAX_SLOTS - 1)
+
+    def execute(self, context):
+        gs = context.scene.game_settings
+        if not gs.show_framerate_profile:
+            gs.record_frame_time_graph = False
+            gs.frame_time_graph_record_slot = -1
+            return {'CANCELLED'}
+
+        if gs.frame_time_graph_record_slot == self.index:
+            gs.record_frame_time_graph = False
+        else:
+            gs.frame_time_graph_record_slot = self.index
+            gs.record_frame_time_graph = True
+            gs.frame_time_graph_visible_slots &= ~_frame_time_graph_slot_mask(self.index)
+        return {'FINISHED'}
+
+
+def _draw_frame_time_graph_slots(layout, gs):
+    if not hasattr(gs, "frame_time_graph_visible_slots"):
+        return
+
+    layout.label(text="Slots")
+    slot_col = layout.column(align=True)
+    slot_col.use_property_split = False
+
+    for index in range(_FRAME_TIME_GRAPH_MAX_SLOTS):
+        visible = bool(gs.frame_time_graph_visible_slots & _frame_time_graph_slot_mask(index))
+        recording = gs.frame_time_graph_record_slot == index
+
+        row = slot_col.row(align=True)
+        row.alert = recording
+        name_prop = _FRAME_TIME_GRAPH_SLOT_NAME_PROPS[index]
+        if hasattr(gs, name_prop):
+            row.prop(gs, name_prop, text="")
+        else:
+            row.label(text=_frame_time_graph_slot_name(gs, index))
+        show_row = row.row(align=True)
+        show_row.enabled = not recording
+        show_prop = _FRAME_TIME_GRAPH_SLOT_VISIBLE_PROPS[index]
+        if hasattr(gs, show_prop):
+            show_row.prop(
+                gs,
+                show_prop,
+                text="",
+                icon='HIDE_OFF' if visible else 'HIDE_ON',
+                toggle=True,
+            )
+        record_row = row.row(align=True)
+        record_row.enabled = gs.show_framerate_profile
+        record = record_row.operator(
+            "render.frame_time_graph_slot_toggle_record",
+            text="REC",
+            depress=recording,
+        )
+        record.index = index
+
+
 class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
     bl_label = "Game Debug"
     COMPAT_ENGINES = {
@@ -122,10 +249,30 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         flow.prop(gs, "use_undo", text="Undo at exit")
 
         row = layout.row()
-        row.prop(gs, "profile_size", text="Profile Size")
-
-        row = layout.row()
         row.prop(gs, "log_level", text="Log Level")
+
+
+class RENDER_PT_game_debug_frame_time_graph(RenderButtonsPanel, Panel):
+    bl_label = "Frame-Time Graph"
+    bl_parent_id = "RENDER_PT_game_debug"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        gs = context.scene.game_settings
+
+        layout.prop(gs, "profile_size", text="Profiler Size")
+
+        _draw_frame_time_graph_settings(layout, gs)
+        _draw_frame_time_graph_domains(layout, gs)
+        _draw_frame_time_graph_slots(layout, gs)
+
 
 class RENDER_PT_color_management(RenderButtonsPanel, Panel):
     bl_label = "Color Management"
@@ -1256,9 +1403,11 @@ class RENDER_PT_hydra_debug(RenderButtonsPanel, Panel):
 
 
 classes = (
+    RENDER_OT_frame_time_graph_slot_toggle_record,
     RENDER_PT_context,
     RENDER_PT_game_resolution, # UPBGE
     RENDER_PT_game_debug, # UPBGE
+    RENDER_PT_game_debug_frame_time_graph, # UPBGE
     RENDER_PT_eevee_sampling,
     RENDER_PT_eevee_sampling_viewport,
     RENDER_PT_eevee_sampling_render,

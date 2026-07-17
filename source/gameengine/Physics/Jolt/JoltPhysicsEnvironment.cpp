@@ -39,8 +39,13 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Body/BodyLockMulti.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/ShapeCast.h>
 #include <Jolt/Physics/Collision/EstimateCollisionResponse.h>
+#include <Jolt/Physics/Collision/Shape/DecoratedShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/CollideShape.h>
@@ -111,8 +116,10 @@ JPH_SUPPRESS_WARNINGS
 #include <cfloat>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <cstdlib>
 #include <cstdarg>
+#include <iterator>
 #include <unordered_set>
 
 static int g_joltConstraintUid = 1;
@@ -251,7 +258,8 @@ static void JoltAddExistingShapeToCompoundSettings(JPH::StaticCompoundShapeSetti
     const JPH::CompoundShape::SubShape &subShape = compound->GetSubShape(i);
     settings.AddShape(JoltCompoundSubShapeLocalPosition(*compound, subShape),
                       subShape.GetRotation(),
-                      subShape.mShape);
+                      subShape.mShape,
+                      subShape.mUserData);
   }
 }
 
@@ -267,6 +275,30 @@ static KX_ClientObjectInfo *JoltGetClientInfo(const JPH::Body &body)
   return static_cast<KX_ClientObjectInfo *>(userData);
 }
 
+static bool JoltObjectsSharePhysicsHierarchy(const KX_GameObject *object1,
+                                             const KX_GameObject *object2)
+{
+  const SG_Node *node1 = object1 ? object1->GetSGNode() : nullptr;
+  const SG_Node *node2 = object2 ? object2->GetSGNode() : nullptr;
+  return node1 && node2 && node1->GetRootSGParent() == node2->GetRootSGParent();
+}
+
+static JPH::RMat44 JoltLogicQueryTransform(const JoltPhysicsController &controller,
+                                           const JPH::Shape &shape,
+                                           JPH::RMat44Arg fallback)
+{
+  const PHY_IMotionState *motionState = controller.GetMotionState();
+  if (!motionState) {
+    return fallback;
+  }
+
+  const JPH::Quat rotation =
+      JoltMath::ToJolt(motionState->GetWorldOrientation().getRotation()).Normalized();
+  const JPH::RVec3 origin = JoltMath::ToJoltR(motionState->GetWorldPosition());
+  const JPH::RVec3 centerOfMass = origin + rotation * shape.GetCenterOfMass();
+  return JPH::RMat44::sRotationTranslation(rotation, centerOfMass);
+}
+
 static PHY_IPhysicsController *JoltGetPhysicsController(KX_ClientObjectInfo *clientInfo)
 {
   if (!clientInfo || !clientInfo->m_gameobject) {
@@ -275,21 +307,126 @@ static PHY_IPhysicsController *JoltGetPhysicsController(KX_ClientObjectInfo *cli
   return static_cast<PHY_IPhysicsController *>(clientInfo->m_gameobject->GetPhysicsController());
 }
 
+static bool JoltIsObjectSensor(const KX_ClientObjectInfo *clientInfo)
+{
+  return clientInfo && (clientInfo->m_type == KX_ClientObjectInfo::OBSENSOR ||
+                        clientInfo->m_type == KX_ClientObjectInfo::OBACTORSENSOR);
+}
+
+static bool JoltIsObjectSensor(JoltPhysicsController *controller)
+{
+  return controller && JoltIsObjectSensor(
+                           static_cast<KX_ClientObjectInfo *>(controller->GetNewClientInfo()));
+}
+
+static MT_Vector3 JoltLogicContactNormal(const JPH::Vec3 &penetrationAxis)
+{
+  return penetrationAxis.LengthSq() > FLT_EPSILON ?
+             JoltMath::ToMT(penetrationAxis.Normalized()) :
+             MT_Vector3(0.0f, 0.0f, 0.0f);
+}
+
+/** Select Jolt broadphase trees for C++ Logic Nodes Sensor queries. Dynamic is always
+ * searched (including sleeping bodies); static and Sensor trees are entered only when
+ * the Sensor object's explicit opt-in is enabled. */
+class JoltLogicObjectSensorBroadPhaseLayerFilter final : public JPH::BroadPhaseLayerFilter {
+ public:
+  explicit JoltLogicObjectSensorBroadPhaseLayerFilter(const bool includeStatic)
+      : m_includeStatic(includeStatic)
+  {
+  }
+
+  bool ShouldCollide(const JPH::BroadPhaseLayer layer) const override
+  {
+    const JPH::BroadPhaseLayer::Type category = (JPH::BroadPhaseLayer::Type)layer;
+    return category == JOLT_BP_DYNAMIC ||
+           (m_includeStatic &&
+            (category == JOLT_BP_STATIC || category == JOLT_BP_SENSOR));
+  }
+
+ private:
+  bool m_includeStatic;
+};
+
+/** Apply the non-layer rules used by UPBGE Sensor physics objects. Layer filtering is
+ * handled by the query's object-layer filter before this callback is reached. */
+class JoltLogicObjectSensorBodyFilter final : public JPH::BodyFilter {
+ public:
+  JoltLogicObjectSensorBodyFilter(
+      const JPH::BodyID sensorBodyID,
+      const JPH::CollisionGroup &sensorCollisionGroup,
+      const KX_ClientObjectInfo &sensorInfo,
+      const bool includeStatic,
+      const std::set<JoltPhysicsController *> &controllers)
+      : m_sensorBodyID(sensorBodyID),
+        m_sensorCollisionGroup(sensorCollisionGroup),
+        m_sensorInfo(sensorInfo),
+        m_includeStatic(includeStatic),
+        m_controllers(controllers)
+  {
+  }
+
+  bool ShouldCollide(const JPH::BodyID &bodyID) const override
+  {
+    return bodyID != m_sensorBodyID;
+  }
+
+  bool ShouldCollideLocked(const JPH::Body &body) const override
+  {
+    /* Keep this body-level check as a correctness backstop for direct target queries and
+     * for bodies whose broadphase category is being changed by deferred operations. */
+    if (!m_includeStatic && body.GetMotionType() == JPH::EMotionType::Static) {
+      return false;
+    }
+
+    KX_ClientObjectInfo *otherInfo = JoltGetClientInfo(body);
+    /* Jolt uses Body::IsSensor() for both UPBGE Sensor objects and ordinary Ghost bodies.
+     * Only the former are Sensor-vs-Sensor pairs; Ghost objects remain detectable. */
+    if (!otherInfo || otherInfo->isSensor() || !otherInfo->m_gameobject) {
+      return false;
+    }
+
+    KX_GameObject *sensorObject = m_sensorInfo.m_gameobject;
+    KX_GameObject *otherObject = otherInfo->m_gameobject;
+    if (!sensorObject || JoltObjectsSharePhysicsHierarchy(sensorObject, otherObject) ||
+        (m_sensorInfo.m_type == KX_ClientObjectInfo::OBACTORSENSOR &&
+         otherInfo->m_type != KX_ClientObjectInfo::ACTOR))
+    {
+      return false;
+    }
+
+    JoltPhysicsController *otherController = static_cast<JoltPhysicsController *>(
+        JoltGetPhysicsController(otherInfo));
+    return otherController && m_controllers.find(otherController) != m_controllers.end() &&
+           otherController->GetBodyID() == body.GetID() &&
+           !otherController->IsPhysicsSuspended() &&
+           m_sensorCollisionGroup.CanCollide(body.GetCollisionGroup());
+  }
+
+ private:
+  JPH::BodyID m_sensorBodyID;
+  JPH::CollisionGroup m_sensorCollisionGroup;
+  const KX_ClientObjectInfo &m_sensorInfo;
+  bool m_includeStatic;
+  const std::set<JoltPhysicsController *> &m_controllers;
+};
+
 class JoltRayCastBodyFilter : public JPH::BodyFilter {
  public:
-  explicit JoltRayCastBodyFilter(PHY_IRayCastFilterCallback &filterCallback)
-      : m_filterCallback(filterCallback)
+  explicit JoltRayCastBodyFilter(PHY_IRayCastFilterCallback &filterCallback,
+                                 const bool includeSensors = false)
+      : m_filterCallback(filterCallback), m_includeSensors(includeSensors)
   {
   }
 
   virtual bool ShouldCollideLocked(const JPH::Body &body) const override
   {
-    if (body.IsSensor()) {
+    if (!m_includeSensors && body.IsSensor()) {
       return false;
     }
 
     KX_ClientObjectInfo *clientInfo = JoltGetClientInfo(body);
-    if (!clientInfo || clientInfo->isSensor()) {
+    if (!clientInfo || (!m_includeSensors && clientInfo->isSensor())) {
       return false;
     }
 
@@ -303,6 +440,403 @@ class JoltRayCastBodyFilter : public JPH::BodyFilter {
 
  private:
   PHY_IRayCastFilterCallback &m_filterCallback;
+  bool m_includeSensors;
+};
+
+class JoltBoundedRayCastCollector final : public JPH::CastRayCollector {
+ public:
+  explicit JoltBoundedRayCastCollector(const uint32_t maxHits) : m_maxHits(maxHits)
+  {
+    m_hits.reserve(maxHits);
+  }
+
+  void OnBody(const JPH::Body & /*body*/) override
+  {
+    m_previousEarlyOutFraction = GetEarlyOutFraction();
+    m_currentHadHit = false;
+  }
+
+  void AddHit(const JPH::RayCastResult &result) override
+  {
+    if (!m_currentHadHit || result.mFraction < m_currentHit.mFraction) {
+      m_currentHit = result;
+      m_currentHadHit = true;
+      UpdateEarlyOutFraction(result.mFraction);
+    }
+  }
+
+  void OnBodyEnd() override
+  {
+    ResetEarlyOutFraction(m_previousEarlyOutFraction);
+    if (!m_currentHadHit || m_maxHits == 0) {
+      return;
+    }
+
+    if (m_hits.size() < m_maxHits) {
+      m_hits.push_back(m_currentHit);
+      std::push_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
+    }
+    else if (HitIsCloser(m_currentHit, m_hits.front())) {
+      std::pop_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
+      m_hits.back() = m_currentHit;
+      std::push_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
+    }
+
+    if (m_hits.size() == m_maxHits) {
+      UpdateEarlyOutFraction(m_hits.front().mFraction);
+    }
+  }
+
+  void Sort()
+  {
+    std::sort(m_hits.begin(), m_hits.end(), HitIsCloser);
+  }
+
+  JPH::Array<JPH::RayCastResult> m_hits;
+
+ private:
+  static bool HitIsCloser(const JPH::RayCastResult &a, const JPH::RayCastResult &b)
+  {
+    if (a.mFraction != b.mFraction) {
+      return a.mFraction < b.mFraction;
+    }
+    return a.mBodyID.GetIndexAndSequenceNumber() < b.mBodyID.GetIndexAndSequenceNumber();
+  }
+
+  uint32_t m_maxHits;
+  float m_previousEarlyOutFraction = 1.0f;
+  JPH::RayCastResult m_currentHit;
+  bool m_currentHadHit = false;
+};
+
+class JoltShapeCastBodyFilter : public JPH::BodyFilter {
+ public:
+  JoltShapeCastBodyFilter(PHY_IShapeCastFilterCallback &filterCallback,
+                          const bool includeSensors)
+      : m_filterCallback(filterCallback), m_includeSensors(includeSensors)
+  {
+  }
+
+  bool ShouldCollideLocked(const JPH::Body &body) const override
+  {
+    KX_ClientObjectInfo *clientInfo = JoltGetClientInfo(body);
+    if (!clientInfo || !clientInfo->m_gameobject) {
+      return false;
+    }
+    if (!m_includeSensors && (body.IsSensor() || clientInfo->isSensor())) {
+      return false;
+    }
+
+    PHY_IPhysicsController *controller = JoltGetPhysicsController(clientInfo);
+    if (!controller || controller == m_filterCallback.m_ignoreController ||
+        controller == m_filterCallback.m_extraIgnoreController)
+    {
+      return false;
+    }
+    return m_filterCallback.needBroadphaseShapeCast(controller);
+  }
+
+ private:
+  PHY_IShapeCastFilterCallback &m_filterCallback;
+  bool m_includeSensors;
+};
+
+class JoltBoundedShapeCastCollector final : public JPH::CastShapeCollector {
+ public:
+  explicit JoltBoundedShapeCastCollector(const uint32_t maxHits) : m_maxHits(maxHits)
+  {
+    m_hits.reserve(maxHits);
+  }
+
+  void OnBody(const JPH::Body & /*body*/) override
+  {
+    m_previousEarlyOutFraction = GetEarlyOutFraction();
+    m_currentHadHit = false;
+  }
+
+  void AddHit(const JPH::ShapeCastResult &result) override
+  {
+    if (!m_currentHadHit ||
+        result.GetEarlyOutFraction() < m_currentHit.GetEarlyOutFraction())
+    {
+      m_currentHit = result;
+      m_currentHadHit = true;
+      UpdateEarlyOutFraction(result.GetEarlyOutFraction());
+    }
+  }
+
+  void OnBodyEnd() override
+  {
+    ResetEarlyOutFraction(m_previousEarlyOutFraction);
+    if (!m_currentHadHit || m_maxHits == 0) {
+      return;
+    }
+
+    if (m_hits.size() < m_maxHits) {
+      m_hits.push_back(m_currentHit);
+      std::push_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
+    }
+    else if (HitIsCloser(m_currentHit, m_hits.front())) {
+      std::pop_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
+      m_hits.back() = m_currentHit;
+      std::push_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
+    }
+
+    if (m_hits.size() == m_maxHits) {
+      UpdateEarlyOutFraction(m_hits.front().GetEarlyOutFraction());
+    }
+  }
+
+  void Sort()
+  {
+    std::sort(m_hits.begin(),
+              m_hits.end(),
+              HitIsCloser);
+  }
+
+  JPH::Array<JPH::ShapeCastResult> m_hits;
+
+ private:
+  static bool HitIsCloser(const JPH::ShapeCastResult &a, const JPH::ShapeCastResult &b)
+  {
+    const float aFraction = a.GetEarlyOutFraction();
+    const float bFraction = b.GetEarlyOutFraction();
+    if (aFraction != bFraction) {
+      return aFraction < bFraction;
+    }
+    return a.mBodyID2.GetIndexAndSequenceNumber() < b.mBodyID2.GetIndexAndSequenceNumber();
+  }
+
+  uint32_t m_maxHits;
+  float m_previousEarlyOutFraction = 1.0f;
+  JPH::ShapeCastResult m_currentHit;
+  bool m_currentHadHit = false;
+};
+
+static void JoltPopulateMeshQueryDetails(const JPH::Body &body,
+                                         JoltPhysicsController &controller,
+                                         const JPH::SubShapeID &subShapeID,
+                                         const JPH::RVec3 &hitPoint,
+                                         const JPH::Vec3 &supportDirection,
+                                         const unsigned char detailFlags,
+                                         int32_t &r_polygonIndex,
+                                         bool &r_hasUV,
+                                         MT_Vector2 &r_hitUV)
+{
+  if ((detailFlags & (PHY_RAY_QUERY_DETAIL_FACE_INDEX | PHY_RAY_QUERY_DETAIL_UV)) == 0) {
+    return;
+  }
+
+  const JoltShapeQueryDataPtr &shapeQueryData = controller.GetShapeQueryData();
+  JPH::SubShapeID triangleSubShape;
+  const JPH::Shape *leafShape = shapeQueryData ?
+                                          body.GetShape()->GetLeafShape(subShapeID,
+                                                                        triangleSubShape) :
+                                          nullptr;
+  if (!leafShape || leafShape->GetType() != JPH::EShapeType::Mesh) {
+    return;
+  }
+
+  const JoltMeshQueryData *meshData = shapeQueryData->FindMeshData(leafShape);
+  if (!meshData) {
+    return;
+  }
+  const JPH::uint32 triangleIndex =
+      static_cast<const JPH::MeshShape *>(leafShape)->GetTriangleUserData(triangleSubShape);
+  if (triangleIndex < meshData->polygonIndices.size()) {
+    r_polygonIndex = meshData->polygonIndices[triangleIndex];
+  }
+  if ((detailFlags & PHY_RAY_QUERY_DETAIL_UV) == 0 ||
+      triangleIndex >= meshData->triangleUVs.size())
+  {
+    return;
+  }
+
+  JPH::TransformedShape transformedLeaf = body.GetTransformedShape();
+  JPH::SubShapeID remainingSubShape = subShapeID;
+  for (int depth = 0;
+       depth < 64 && transformedLeaf.mShape.GetPtr() != leafShape;
+       ++depth)
+  {
+    JPH::SubShapeID nextSubShape;
+    transformedLeaf = transformedLeaf.GetSubShapeTransformedShape(remainingSubShape,
+                                                                   nextSubShape);
+    remainingSubShape = nextSubShape;
+    if (!transformedLeaf.mShape) {
+      return;
+    }
+  }
+  if (transformedLeaf.mShape.GetPtr() != leafShape) {
+    return;
+  }
+
+  JPH::Shape::SupportingFace vertices;
+  transformedLeaf.GetSupportingFace(
+      triangleSubShape, supportDirection, hitPoint, vertices);
+  if (vertices.size() != 3) {
+    return;
+  }
+
+  const JPH::Vec3 edge0 = vertices[1] - vertices[0];
+  const JPH::Vec3 edge1 = vertices[2] - vertices[0];
+  const JPH::Vec3 point = -vertices[0];
+  const float dot00 = edge0.Dot(edge0);
+  const float dot01 = edge0.Dot(edge1);
+  const float dot11 = edge1.Dot(edge1);
+  const float dot20 = point.Dot(edge0);
+  const float dot21 = point.Dot(edge1);
+  const float denominator = dot00 * dot11 - dot01 * dot01;
+  const float denominatorScale = std::max(dot00 * dot11, 1.0f);
+  if (!std::isfinite(denominator) ||
+      std::abs(denominator) <= 1.0e-12f * denominatorScale)
+  {
+    return;
+  }
+
+  float weight1 = (dot11 * dot20 - dot01 * dot21) / denominator;
+  float weight2 = (dot00 * dot21 - dot01 * dot20) / denominator;
+  float weight0 = 1.0f - weight1 - weight2;
+  constexpr float barycentricTolerance = 1.0e-3f;
+  if (!std::isfinite(weight0) || !std::isfinite(weight1) || !std::isfinite(weight2) ||
+      weight0 < -barycentricTolerance || weight1 < -barycentricTolerance ||
+      weight2 < -barycentricTolerance || weight0 > 1.0f + barycentricTolerance ||
+      weight1 > 1.0f + barycentricTolerance || weight2 > 1.0f + barycentricTolerance)
+  {
+    return;
+  }
+
+  weight0 = std::clamp(weight0, 0.0f, 1.0f);
+  weight1 = std::clamp(weight1, 0.0f, 1.0f);
+  weight2 = std::clamp(weight2, 0.0f, 1.0f);
+  const float weightSum = weight0 + weight1 + weight2;
+  if (weightSum <= MT_EPSILON) {
+    return;
+  }
+
+  const JoltTriangleUV &triangleUV = meshData->triangleUVs[triangleIndex];
+  const JPH::Vec3 leafScale = transformedLeaf.GetShapeScale();
+  const bool insideOut = leafScale.GetX() * leafScale.GetY() * leafScale.GetZ() < 0.0f;
+  const int corner1 = insideOut ? 2 : 1;
+  const int corner2 = insideOut ? 1 : 2;
+  const MT_Vector2 uv = (triangleUV.corners[0] * weight0 +
+                         triangleUV.corners[corner1] * weight1 +
+                         triangleUV.corners[corner2] * weight2) /
+                        weightSum;
+  if (std::isfinite(uv[0]) && std::isfinite(uv[1])) {
+    r_hitUV = uv;
+    r_hasUV = true;
+  }
+}
+
+class JoltFhBodyFilter : public JPH::BodyFilter {
+ public:
+  explicit JoltFhBodyFilter(const JPH::BodyID &ignoredBodyID) : m_ignoredBodyID(ignoredBodyID)
+  {
+  }
+
+  virtual bool ShouldCollideLocked(const JPH::Body &body) const override
+  {
+    if (body.GetID() == m_ignoredBodyID || body.IsSensor()) {
+      return false;
+    }
+
+    KX_ClientObjectInfo *clientInfo = JoltGetClientInfo(body);
+    return clientInfo && !clientInfo->isSensor() && JoltGetPhysicsController(clientInfo);
+  }
+
+ private:
+  JPH::BodyID m_ignoredBodyID;
+};
+
+class JoltBuoyancyBroadPhaseLayerFilter : public JPH::BroadPhaseLayerFilter {
+ public:
+  bool ShouldCollide(JPH::BroadPhaseLayer layer) const override
+  {
+    return (JPH::BroadPhaseLayer::Type)layer == JOLT_BP_DYNAMIC;
+  }
+};
+
+class JoltBuoyancyObjectLayerFilter : public JPH::ObjectLayerFilter {
+ public:
+  JoltBuoyancyObjectLayerFilter(JPH::ObjectLayer volumeLayer,
+                                const JoltObjectLayerPairFilter &layerPairFilter)
+      : m_volumeLayer(volumeLayer), m_layerPairFilter(layerPairFilter)
+  {
+  }
+
+  bool ShouldCollide(JPH::ObjectLayer layer) const override
+  {
+    return JoltGetCategory(layer) == JOLT_BP_DYNAMIC &&
+           m_layerPairFilter.ShouldCollide(m_volumeLayer, layer);
+  }
+
+ private:
+  JPH::ObjectLayer m_volumeLayer;
+  const JoltObjectLayerPairFilter &m_layerPairFilter;
+};
+
+static bool JoltShapeSupportsBuoyancyImpulse(const JPH::Shape *shape)
+{
+  if (!shape) {
+    return false;
+  }
+
+  switch (shape->GetType()) {
+    case JPH::EShapeType::Convex:
+    case JPH::EShapeType::Empty:
+      return true;
+    case JPH::EShapeType::Decorated:
+      return JoltShapeSupportsBuoyancyImpulse(
+          static_cast<const JPH::DecoratedShape *>(shape)->GetInnerShape());
+    case JPH::EShapeType::Compound: {
+      const JPH::CompoundShape *compound = static_cast<const JPH::CompoundShape *>(shape);
+      for (const JPH::CompoundShape::SubShape &subShape : compound->GetSubShapes()) {
+        if (!JoltShapeSupportsBuoyancyImpulse(subShape.mShape.GetPtr())) {
+          return false;
+        }
+      }
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+class JoltBuoyancyBodyFilter : public JPH::BodyFilter {
+ public:
+  explicit JoltBuoyancyBodyFilter(const JPH::BodyID &volumeBodyID)
+      : m_volumeBodyID(volumeBodyID)
+  {
+  }
+
+  bool ShouldCollide(const JPH::BodyID &bodyID) const override
+  {
+    return bodyID != m_volumeBodyID;
+  }
+
+  bool ShouldCollideLocked(const JPH::Body &body) const override
+  {
+    if (body.GetID() == m_volumeBodyID || !body.IsRigidBody() ||
+        body.GetMotionType() != JPH::EMotionType::Dynamic) {
+      return false;
+    }
+
+    KX_ClientObjectInfo *clientInfo = JoltGetClientInfo(body);
+    /* Body::IsSensor() also represents the Ghost option. Dynamic Ghost rigid bodies are
+     * valid fluid targets; only actual UPBGE Sensor physics objects are excluded. */
+    if (!clientInfo || clientInfo->isSensor()) {
+      return false;
+    }
+    JoltPhysicsController *ctrl =
+        static_cast<JoltPhysicsController *>(JoltGetPhysicsController(clientInfo));
+    return ctrl && ctrl->GetBodyID() == body.GetID() && ctrl->IsDynamic() &&
+           !ctrl->IsPhysicsSuspended() &&
+           !ctrl->IsDynamicsSuspended() && !ctrl->GetSoftBody() &&
+           JoltShapeSupportsBuoyancyImpulse(body.GetShape());
+  }
+
+ private:
+  JPH::BodyID m_volumeBodyID;
 };
 
 static constexpr float JOLT_DEFAULT_MAX_LINEAR_VELOCITY = 500.0f;
@@ -381,7 +915,7 @@ JPH::ValidateResult JoltContactListener::OnContactValidate(
   /* NOTE: This is called from physics threads during PhysicsSystem::Update().
    * Only reading from bodies is safe here.
    *
-   * Collision group/mask filtering is handled at stage 2 (JoltObjectLayerPairFilter)
+   * Collision collection filtering is handled at stage 2 (JoltObjectLayerPairFilter)
    * so no additional filtering is needed here. */
 
   return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
@@ -405,9 +939,7 @@ void JoltContactListener::OnContactPersisted(const JPH::Body &inBody1,
 
 void JoltContactListener::OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair)
 {
-  /* Contact removal events are handled implicitly: if a pair that was colliding
-   * last frame no longer appears in the current frame's contact list, the
-   * collision event manager detects the end of collision. */
+  StoreContactRemoval(inSubShapePair);
 }
 
 void JoltContactListener::StoreContact(const JPH::Body &inBody1,
@@ -417,14 +949,44 @@ void JoltContactListener::StoreContact(const JPH::Body &inBody1,
                                         bool isNew)
 {
   /* Called from physics threads — must be thread-safe.
-   * Skip contact capture entirely when no controller requested callbacks. */
-  if (!m_env || !m_env->m_collectContactsForCallbacks.load(std::memory_order_relaxed)) {
+   * Skip contact capture entirely when no game-logic path needs it. */
+  if (!m_env) {
+    return;
+  }
+  const bool collectForCallbacks = m_env->m_collectContactsForCallbacks.load(
+      std::memory_order_relaxed);
+  const bool collectForLogicNodes = m_env->m_collectContactsForLogicNodes.load(
+      std::memory_order_relaxed);
+  const bool collectDetailsForLogicNodes =
+      collectForLogicNodes &&
+      m_env->m_collectContactDetailsForLogicNodes.load(std::memory_order_relaxed);
+  if (!collectForCallbacks && !collectForLogicNodes) {
+    return;
+  }
+
+  KX_ClientObjectInfo *info1 = JoltGetClientInfo(inBody1);
+  KX_ClientObjectInfo *info2 = JoltGetClientInfo(inBody2);
+  if (!info1 || !info2 || !info1->m_gameobject || !info2->m_gameobject) {
+    return;
+  }
+
+  JoltPhysicsController *ctrl1 = static_cast<JoltPhysicsController *>(
+      JoltGetPhysicsController(info1));
+  JoltPhysicsController *ctrl2 = static_cast<JoltPhysicsController *>(
+      JoltGetPhysicsController(info2));
+  if (!ctrl1 || !ctrl2) {
     return;
   }
 
   JoltContactPair pair;
+  pair.subShapePair = JPH::SubShapeIDPair(
+      inBody1.GetID(), inManifold.mSubShapeID1, inBody2.GetID(), inManifold.mSubShapeID2);
   pair.bodyID1 = inBody1.GetID();
   pair.bodyID2 = inBody2.GetID();
+  pair.ctrl1 = ctrl1;
+  pair.ctrl2 = ctrl2;
+  pair.object1 = info1->m_gameobject;
+  pair.object2 = info2->m_gameobject;
   pair.contactNormal = inManifold.mWorldSpaceNormal;
   pair.penetrationDepth = inManifold.mPenetrationDepth;
   pair.combinedFriction = ioSettings.mCombinedFriction;
@@ -432,38 +994,136 @@ void JoltContactListener::StoreContact(const JPH::Body &inBody1,
   pair.appliedImpulse = 0.0f;
   pair.isNew = isNew;
 
-  JPH::CollisionEstimationResult collisionEstimate;
-  const JPH::PhysicsSettings &physicsSettings = m_env->m_physicsSystem->GetPhysicsSettings();
-  JPH::EstimateCollisionResponse(inBody1,
-                                 inBody2,
-                                 inManifold,
-                                 collisionEstimate,
-                                 ioSettings.mCombinedFriction,
-                                 ioSettings.mCombinedRestitution,
-                                 physicsSettings.mMinVelocityForRestitution,
-                                 std::max<JPH::uint>(1, physicsSettings.mNumVelocitySteps));
-  if (collisionEstimate.mImpulses.size() > 0) {
-    pair.appliedImpulse = collisionEstimate.mImpulses[0].mContactImpulse;
+  if (collectForCallbacks) {
+    JPH::CollisionEstimationResult collisionEstimate;
+    const JPH::PhysicsSettings &physicsSettings = m_env->m_physicsSystem->GetPhysicsSettings();
+    JPH::EstimateCollisionResponse(inBody1,
+                                   inBody2,
+                                   inManifold,
+                                   collisionEstimate,
+                                   ioSettings.mCombinedFriction,
+                                   ioSettings.mCombinedRestitution,
+                                   physicsSettings.mMinVelocityForRestitution,
+                                   std::max<JPH::uint>(1, physicsSettings.mNumVelocitySteps));
+    if (collisionEstimate.mContactImpulse.size() > 0) {
+      pair.appliedImpulse = collisionEstimate.mContactImpulse[0];
+    }
   }
 
-  /* Use first contact point position if available. */
-  if (inManifold.mRelativeContactPointsOn1.size() > 0) {
-    pair.contactPosition = inManifold.mBaseOffset +
-                           inManifold.mRelativeContactPointsOn1[0];
+  pair.contactCount = uint16_t(std::min<size_t>(inManifold.mRelativeContactPointsOn1.size(),
+                                                UINT16_MAX));
+  if (collectDetailsForLogicNodes) {
+    pair.storedContactCount = uint8_t(std::min<size_t>(
+        inManifold.mRelativeContactPointsOn1.size(), JOLT_MAX_CACHED_CONTACT_POINTS));
+    for (uint8_t i = 0; i < pair.storedContactCount; i++) {
+      pair.contactPositions[i] = inManifold.mBaseOffset + inManifold.mRelativeContactPointsOn1[i];
+    }
+  }
+
+  if (collectDetailsForLogicNodes && pair.storedContactCount > 0) {
+    pair.contactPosition = pair.contactPositions[0];
+  }
+  else if (!inManifold.mRelativeContactPointsOn1.empty()) {
+    pair.contactPosition = inManifold.mBaseOffset + inManifold.mRelativeContactPointsOn1[0];
   }
   else {
+    pair.contactCount = 1;
     pair.contactPosition = inManifold.mBaseOffset;
   }
 
-  std::lock_guard<std::mutex> lock(m_mutex);
-  m_contacts.push_back(pair);
+  const size_t shard = (size_t(pair.bodyID1.GetIndexAndSequenceNumber()) ^
+                        (size_t(pair.bodyID2.GetIndexAndSequenceNumber()) * 0x9E3779B1u)) &
+                       (JOLT_CONTACT_BUFFER_SHARDS - 1);
+  JoltContactBuffer &buffer = m_contactBuffers[shard];
+  std::lock_guard<std::mutex> lock(buffer.mutex);
+  JPH_ASSERT(buffer.contacts.size() <= UINT32_MAX);
+  const uint32_t contactIndex = uint32_t(buffer.contacts.size());
+  buffer.contacts.push_back(pair);
+  if (collectForLogicNodes) {
+    buffer.events.push_back({contactIndex, JoltContactEventType::Contact});
+  }
+}
+
+void JoltContactListener::StoreContactRemoval(const JPH::SubShapeIDPair &inSubShapePair)
+{
+  /* Called from physics threads. Do not touch bodies here: Jolt explicitly
+   * disallows body access from OnContactRemoved because a body may already be
+   * removed or being modified. */
+  if (!m_env ||
+      !m_env->m_collectContactsForLogicNodes.load(std::memory_order_relaxed))
+  {
+    return;
+  }
+
+  JoltRemovedContactPair removal;
+  removal.subShapePair = inSubShapePair;
+  removal.bodyID1 = inSubShapePair.GetBody1ID();
+  removal.bodyID2 = inSubShapePair.GetBody2ID();
+
+  const size_t shard = (size_t(removal.bodyID1.GetIndexAndSequenceNumber()) ^
+                        (size_t(removal.bodyID2.GetIndexAndSequenceNumber()) * 0x9E3779B1u)) &
+                       (JOLT_CONTACT_BUFFER_SHARDS - 1);
+  JoltContactBuffer &buffer = m_contactBuffers[shard];
+  std::lock_guard<std::mutex> lock(buffer.mutex);
+  JPH_ASSERT(buffer.removals.size() <= UINT32_MAX);
+  const uint32_t removalIndex = uint32_t(buffer.removals.size());
+  buffer.removals.push_back(removal);
+  buffer.events.push_back({removalIndex, JoltContactEventType::Removal});
 }
 
 void JoltContactListener::SwapContacts(std::vector<JoltContactPair> &outContacts)
 {
-  std::lock_guard<std::mutex> lock(m_mutex);
-  outContacts.swap(m_contacts);
-  m_contacts.clear();
+  std::vector<JoltRemovedContactPair> ignoredRemovals;
+  std::vector<JoltContactEvent> ignoredEvents;
+  SwapContactEvents(outContacts, ignoredRemovals, ignoredEvents);
+}
+
+void JoltContactListener::SwapContactEvents(std::vector<JoltContactPair> &outContacts,
+                                            std::vector<JoltRemovedContactPair> &outRemovals,
+                                            std::vector<JoltContactEvent> &outEvents)
+{
+  outContacts.clear();
+  outRemovals.clear();
+  outEvents.clear();
+  size_t contactCount = 0;
+  size_t removalCount = 0;
+  size_t eventCount = 0;
+  for (JoltContactBuffer &buffer : m_contactBuffers) {
+    std::lock_guard<std::mutex> lock(buffer.mutex);
+    contactCount += buffer.contacts.size();
+    removalCount += buffer.removals.size();
+    eventCount += buffer.events.size();
+  }
+  JPH_ASSERT(contactCount <= UINT32_MAX);
+  JPH_ASSERT(removalCount <= UINT32_MAX);
+  outContacts.reserve(contactCount);
+  outRemovals.reserve(removalCount);
+  outEvents.reserve(eventCount);
+
+  for (JoltContactBuffer &buffer : m_contactBuffers) {
+    std::lock_guard<std::mutex> lock(buffer.mutex);
+    JPH_ASSERT(outContacts.size() <= UINT32_MAX);
+    JPH_ASSERT(outRemovals.size() <= UINT32_MAX);
+    const uint32_t contactBase = uint32_t(outContacts.size());
+    const uint32_t removalBase = uint32_t(outRemovals.size());
+    if (!buffer.contacts.empty()) {
+      outContacts.insert(outContacts.end(),
+                         std::make_move_iterator(buffer.contacts.begin()),
+                         std::make_move_iterator(buffer.contacts.end()));
+      buffer.contacts.clear();
+    }
+    if (!buffer.removals.empty()) {
+      outRemovals.insert(outRemovals.end(),
+                         std::make_move_iterator(buffer.removals.begin()),
+                         std::make_move_iterator(buffer.removals.end()));
+      buffer.removals.clear();
+    }
+    for (JoltContactEvent event : buffer.events) {
+      event.index += event.type == JoltContactEventType::Contact ? contactBase : removalBase;
+      outEvents.push_back(event);
+    }
+    buffer.events.clear();
+  }
 }
 
 /** \} */
@@ -653,7 +1313,7 @@ JoltPhysicsEnvironment::JoltPhysicsEnvironment(blender::Scene *blenderscene,
 
   /* Create the physics system with 3 broadphase layers (static/dynamic/sensor).
    * Custom filter classes handle Stage 1 broadphase rejection and Stage 2
-   * pair filtering using UPBGE's col_group/col_mask bitmasks. */
+   * pair filtering using UPBGE collision layers. */
   m_physicsSystem = std::make_unique<JPH::PhysicsSystem>();
   m_physicsSystem->Init(
       (JPH::uint)maxBodies,
@@ -768,6 +1428,9 @@ JoltPhysicsEnvironment::~JoltPhysicsEnvironment()
       }
     }
 
+    for (const JPH::BodyID bodyID : destroyBodyIDs) {
+      RemoveLogicActiveContactsForBody(bodyID);
+    }
     if (!addedBodyIDs.empty()) {
       bodyInterface.RemoveBodies(addedBodyIDs.data(), (int)addedBodyIDs.size());
     }
@@ -784,7 +1447,13 @@ JoltPhysicsEnvironment::~JoltPhysicsEnvironment()
     m_pendingCompoundSubShapesByController.clear();
     m_controllers.clear();
     m_controllersIterationCache.clear();
+    m_fhControllersIterationCache.clear();
+    m_buoyancyVolumesIterationCache.clear();
+    m_buoyancyTargetBodyIDsScratch.clear();
+    m_buoyancyTargetBodyKeysScratch.clear();
     m_controllersIterationCacheDirty = true;
+    m_fhControllersIterationCacheDirty = true;
+    m_buoyancyVolumesIterationCacheDirty = true;
   }
 
   /* Graphic controllers are owned by KX_GameObject, but clear stale pointers. */
@@ -845,6 +1514,12 @@ JoltPhysicsEnvironment *JoltPhysicsEnvironment::Create(blender::Scene *blendersc
                                                            visualizePhysics);
 
   /* Apply scene-level physics settings. */
+  JPH::PhysicsSettings physicsSettings = env->m_physicsSystem->GetPhysicsSettings();
+  physicsSettings.mNumVelocitySteps = (JPH::uint)std::clamp(
+      int(blenderscene->gm.jolt_velocity_solver_iterations), 2, 255);
+  physicsSettings.mNumPositionSteps = (JPH::uint)std::clamp(
+      int(blenderscene->gm.jolt_position_solver_iterations), 1, 255);
+  env->m_physicsSystem->SetPhysicsSettings(physicsSettings);
   env->SetGravity(0.0f, 0.0f, -(blenderscene->gm.gravity));
   env->SetDeactivationTime(blenderscene->gm.deactivationtime);
   env->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
@@ -901,6 +1576,7 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
   /* Full simulation step sequence:
    *   1. Sync motion states BEFORE physics (kinematic bodies read from game objects)
    *   1.75 Apply Blender effectors (force fields)
+   *   1.8 Apply Jolt buoyancy volumes
    *   1.9 Vehicle pre-step + UPBGE minimum velocity clamps
    *   2. PhysicsSystem::Update()
    *   3. Process FH springs
@@ -925,6 +1601,7 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
   FlushPendingRigidBodyBodyAdds();
   FlushPendingSoftBodyBodyRemoves();
   FlushPendingSoftBodyBodyAdds();
+  ProcessPendingConstraintTopologyChanges();
 
   if (perfProbeEnabled) {
     perfPrepUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
@@ -1141,6 +1818,9 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
 
   /* Step 1.75: Apply Blender effectors (force fields) to dynamic rigid bodies. */
   ApplyEffectorForces();
+
+  /* Step 1.8: Apply Jolt sensor buoyancy volumes to dynamic rigid bodies. */
+  ProcessBuoyancy(timeStep);
 
   for (JoltVehicle *veh : m_vehicles) {
     veh->PreStep(timeStep);
@@ -1805,9 +2485,11 @@ void JoltPhysicsEnvironment::RemovePendingRigidBodyBodyAdd(JPH::BodyID bodyID)
 }
 
 void JoltPhysicsEnvironment::QueuePendingCompoundChildShape(JoltPhysicsController *parentCtrl,
+                                                            KX_GameObject *childObject,
                                                             const JPH::Vec3 &relativePos,
                                                             const JPH::Quat &relativeRot,
-                                                            JPH::RefConst<JPH::Shape> childShape)
+                                                            JPH::RefConst<JPH::Shape> childShape,
+                                                            JoltShapeQueryDataPtr childQueryData)
 {
   if (!parentCtrl || !childShape) {
     return;
@@ -1832,6 +2514,7 @@ void JoltPhysicsEnvironment::QueuePendingCompoundChildShape(JoltPhysicsControlle
         entry.position = JoltCompoundSubShapeLocalPosition(*existingCompound, sub);
         entry.rotation = sub.GetRotation();
         entry.shape = sub.mShape;
+        entry.userData = sub.mUserData;
         pendingSubShapes.push_back(entry);
       }
     }
@@ -1848,6 +2531,9 @@ void JoltPhysicsEnvironment::QueuePendingCompoundChildShape(JoltPhysicsControlle
   childEntry.position = relativePos;
   childEntry.rotation = relativeRot;
   childEntry.shape = childShape;
+  childEntry.queryData = std::move(childQueryData);
+  childEntry.userData = parentCtrl->RegisterCompoundChildBinding(
+      childObject, relativePos, relativeRot);
   pendingSubShapes.push_back(childEntry);
 }
 
@@ -1884,11 +2570,13 @@ void JoltPhysicsEnvironment::FinalizePendingCompoundShapeBuilds()
     }
 
     JPH::StaticCompoundShapeSettings compoundSettings;
+    JoltShapeQueryDataPtr combinedQueryData = parentCtrl->GetShapeQueryData();
     for (const PendingCompoundSubShapeEntry &entry : subShapes) {
       if (!entry.shape) {
         continue;
       }
-      compoundSettings.AddShape(entry.position, entry.rotation, entry.shape);
+      compoundSettings.AddShape(entry.position, entry.rotation, entry.shape, entry.userData);
+      combinedQueryData = JoltMergeShapeQueryData(combinedQueryData, entry.queryData);
     }
 
     JPH::Shape::ShapeResult result = compoundSettings.Create();
@@ -1896,6 +2584,7 @@ void JoltPhysicsEnvironment::FinalizePendingCompoundShapeBuilds()
       /* Fallback: preserve previous behavior by trying incremental child appends,
        * so an invalid late child does not discard all previously valid children. */
       JPH::RefConst<JPH::Shape> fallbackShape = parentShapeAtFinalize;
+      JoltShapeQueryDataPtr fallbackQueryData = parentCtrl->GetShapeQueryData();
       for (size_t childIndex = baseShapeCount; childIndex < subShapes.size(); ++childIndex) {
         const PendingCompoundSubShapeEntry &childEntry = subShapes[childIndex];
         if (!childEntry.shape) {
@@ -1905,20 +2594,27 @@ void JoltPhysicsEnvironment::FinalizePendingCompoundShapeBuilds()
         JPH::StaticCompoundShapeSettings incrementalSettings;
         JoltAddExistingShapeToCompoundSettings(incrementalSettings, fallbackShape.GetPtr());
 
-        incrementalSettings.AddShape(childEntry.position, childEntry.rotation, childEntry.shape);
+        incrementalSettings.AddShape(childEntry.position,
+                                     childEntry.rotation,
+                                     childEntry.shape,
+                                     childEntry.userData);
         JPH::Shape::ShapeResult incrementalResult = incrementalSettings.Create();
         if (incrementalResult.HasError()) {
           continue;
         }
 
         fallbackShape = incrementalResult.Get();
-        parentCtrl->SetShapePreservingMassPropertiesAndCenterOfMass(fallbackShape);
+        fallbackQueryData = JoltMergeShapeQueryData(fallbackQueryData,
+                                                     childEntry.queryData);
+        parentCtrl->SetShapePreservingMassPropertiesAndCenterOfMass(fallbackShape,
+                                                                    fallbackQueryData);
       }
       continue;
     }
 
     JPH::RefConst<JPH::Shape> newCompound = result.Get();
-    parentCtrl->SetShapePreservingMassPropertiesAndCenterOfMass(newCompound);
+    parentCtrl->SetShapePreservingMassPropertiesAndCenterOfMass(newCompound,
+                                                                combinedQueryData);
   }
 
   m_pendingCompoundSubShapesByController.clear();
@@ -2023,6 +2719,223 @@ void JoltPhysicsEnvironment::NotifyConstraintBreakingThresholdChanged()
   m_breakableConstraintsCacheDirty = true;
 }
 
+void JoltPhysicsEnvironment::NotifyConstraintTopologyChanged(JPH::BodyID bodyID1,
+                                                             JPH::BodyID bodyID2)
+{
+  if (!bodyID1.IsInvalid()) {
+    m_constraintTopologyDirtyBodies.push_back(bodyID1);
+  }
+  if (!bodyID2.IsInvalid()) {
+    m_constraintTopologyDirtyBodies.push_back(bodyID2);
+  }
+}
+
+void JoltPhysicsEnvironment::NotifyConstraintBodyMotionTypeChanged(JPH::BodyID bodyID)
+{
+  if (bodyID.IsInvalid()) {
+    return;
+  }
+
+  for (const auto &pair : m_constraintById) {
+    JoltConstraint *wrapper = pair.second;
+    JPH::Constraint *constraint = wrapper ? wrapper->GetConstraint() : nullptr;
+    if (!constraint || constraint->GetType() != JPH::EConstraintType::TwoBodyConstraint) {
+      continue;
+    }
+
+    JPH::TwoBodyConstraint *twoBody = static_cast<JPH::TwoBodyConstraint *>(constraint);
+    const JPH::BodyID bodyID1 = twoBody->GetBody1()->GetID();
+    const JPH::BodyID bodyID2 = twoBody->GetBody2()->GetID();
+    if (bodyID1 == bodyID || bodyID2 == bodyID) {
+      NotifyConstraintTopologyChanged(bodyID1, bodyID2);
+    }
+  }
+}
+
+void JoltPhysicsEnvironment::ProcessPendingConstraintTopologyChanges()
+{
+  if (m_constraintTopologyDirtyBodies.empty()) {
+    return;
+  }
+
+  m_constraintAdjacencyScratch.clear();
+  m_constraintAdjacencyScratch.reserve(2 * m_constraintById.size());
+
+  for (const auto &pair : m_constraintById) {
+    JoltConstraint *wrapper = pair.second;
+    JPH::Constraint *constraint = wrapper ? wrapper->GetConstraint() : nullptr;
+    if (!constraint) {
+      continue;
+    }
+
+    if (!constraint->GetEnabled() ||
+        constraint->GetType() != JPH::EConstraintType::TwoBodyConstraint)
+    {
+      constraint->SetConstraintPriority(0);
+      continue;
+    }
+
+    JPH::TwoBodyConstraint *twoBody = static_cast<JPH::TwoBodyConstraint *>(constraint);
+    JPH::Body *body1 = twoBody->GetBody1();
+    JPH::Body *body2 = twoBody->GetBody2();
+    if (body1 && !body1->IsStatic()) {
+      m_constraintAdjacencyScratch.emplace(body1->GetID().GetIndexAndSequenceNumber(), wrapper);
+    }
+    if (body2 && !body2->IsStatic()) {
+      m_constraintAdjacencyScratch.emplace(body2->GetID().GetIndexAndSequenceNumber(), wrapper);
+    }
+  }
+
+  m_constraintProcessedBodyKeysScratch.clear();
+  m_constraintProcessedBodyKeysScratch.reserve(m_constraintTopologyDirtyBodies.size());
+
+  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+  for (const JPH::BodyID bodyID : m_constraintTopologyDirtyBodies) {
+    {
+      JPH::BodyLockRead lock(lockInterface, bodyID);
+      if (!lock.Succeeded() || lock.GetBody().IsStatic()) {
+        continue;
+      }
+    }
+
+    const JPH::uint32 seedKey = bodyID.GetIndexAndSequenceNumber();
+    if (m_constraintProcessedBodyKeysScratch.find(seedKey) !=
+        m_constraintProcessedBodyKeysScratch.end())
+    {
+      continue;
+    }
+
+    m_constraintComponentBodiesScratch.clear();
+    m_constraintComponentBodyKeysScratch.clear();
+    m_constraintComponentConstraintsScratch.clear();
+    m_constraintComponentBodyKeysScratch.reserve(16);
+    m_constraintComponentConstraintsScratch.reserve(16);
+    m_constraintComponentBodiesScratch.push_back(bodyID);
+    m_constraintComponentBodyKeysScratch.insert(seedKey);
+
+    auto enqueue_body = [&](const JPH::Body *body) {
+      if (!body || body->IsStatic()) {
+        return;
+      }
+      const JPH::BodyID adjacentBodyID = body->GetID();
+      const JPH::uint32 bodyKey = adjacentBodyID.GetIndexAndSequenceNumber();
+      if (m_constraintComponentBodyKeysScratch.insert(bodyKey).second) {
+        m_constraintComponentBodiesScratch.push_back(adjacentBodyID);
+      }
+    };
+
+    for (size_t bodyIndex = 0; bodyIndex < m_constraintComponentBodiesScratch.size(); ++bodyIndex)
+    {
+      const JPH::uint32 bodyKey =
+          m_constraintComponentBodiesScratch[bodyIndex].GetIndexAndSequenceNumber();
+      const auto adjacent = m_constraintAdjacencyScratch.equal_range(bodyKey);
+      for (auto it = adjacent.first; it != adjacent.second; ++it) {
+        JoltConstraint *wrapper = it->second;
+        if (!m_constraintComponentConstraintsScratch.insert(wrapper).second) {
+          continue;
+        }
+
+        JPH::Constraint *constraint = wrapper->GetConstraint();
+        constraint->ResetWarmStart();
+        JPH::TwoBodyConstraint *twoBody = static_cast<JPH::TwoBodyConstraint *>(constraint);
+        enqueue_body(twoBody->GetBody1());
+        enqueue_body(twoBody->GetBody2());
+      }
+    }
+
+    m_constraintPriorityAdjacencyScratch.clear();
+    m_constraintPriorityBodiesScratch.clear();
+    m_constraintPriorityParentsScratch.clear();
+    m_constraintPriorityParentConstraintsScratch.clear();
+    m_constraintPriorityHeightsScratch.clear();
+    m_constraintPriorityTraversalScratch.clear();
+    m_constraintPriorityAdjacencyScratch.reserve(2 *
+                                                 m_constraintComponentConstraintsScratch.size());
+    m_constraintPriorityBodiesScratch.reserve(m_constraintComponentBodiesScratch.size() + 1);
+    m_constraintPriorityParentsScratch.reserve(m_constraintComponentBodiesScratch.size() + 1);
+    m_constraintPriorityParentConstraintsScratch.reserve(
+        m_constraintComponentBodiesScratch.size());
+    m_constraintPriorityHeightsScratch.reserve(m_constraintComponentBodiesScratch.size() + 1);
+    m_constraintPriorityTraversalScratch.reserve(m_constraintComponentBodiesScratch.size() + 1);
+
+    /* Jolt solves lower priorities first. A unique static or kinematic root lets a tree be
+     * solved from its leaves toward that root; all ambiguous topologies stay neutral. */
+    const JPH::Body *anchor = nullptr;
+    bool ambiguousAnchor = false;
+    for (JoltConstraint *wrapper : m_constraintComponentConstraintsScratch) {
+      JPH::TwoBodyConstraint *constraint = static_cast<JPH::TwoBodyConstraint *>(
+          wrapper->GetConstraint());
+      constraint->SetConstraintPriority(0);
+      const JPH::Body *bodies[2] = {constraint->GetBody1(), constraint->GetBody2()};
+      for (const JPH::Body *body : bodies) {
+        m_constraintPriorityBodiesScratch.insert(body);
+        m_constraintPriorityAdjacencyScratch.emplace(body, wrapper);
+        if (!body->IsDynamic()) {
+          if (!anchor) {
+            anchor = body;
+          }
+          else if (anchor != body) {
+            ambiguousAnchor = true;
+          }
+        }
+      }
+    }
+
+    const bool isTree = m_constraintComponentConstraintsScratch.size() + 1 ==
+                        m_constraintPriorityBodiesScratch.size();
+    if (anchor && !ambiguousAnchor && isTree) {
+      m_constraintPriorityParentsScratch.emplace(anchor, nullptr);
+      m_constraintPriorityTraversalScratch.push_back(anchor);
+
+      for (size_t bodyIndex = 0; bodyIndex < m_constraintPriorityTraversalScratch.size();
+           ++bodyIndex)
+      {
+        const JPH::Body *body = m_constraintPriorityTraversalScratch[bodyIndex];
+        const auto adjacent = m_constraintPriorityAdjacencyScratch.equal_range(body);
+        for (auto it = adjacent.first; it != adjacent.second; ++it) {
+          JoltConstraint *wrapper = it->second;
+          JPH::TwoBodyConstraint *constraint = static_cast<JPH::TwoBodyConstraint *>(
+              wrapper->GetConstraint());
+          const JPH::Body *other = constraint->GetBody1() == body ? constraint->GetBody2() :
+                                                                    constraint->GetBody1();
+          if (m_constraintPriorityParentsScratch.emplace(other, body).second) {
+            m_constraintPriorityParentConstraintsScratch.emplace(other, wrapper);
+            m_constraintPriorityTraversalScratch.push_back(other);
+          }
+        }
+      }
+
+      if (m_constraintPriorityTraversalScratch.size() == m_constraintPriorityBodiesScratch.size())
+      {
+        for (auto it = m_constraintPriorityTraversalScratch.rbegin();
+             it != m_constraintPriorityTraversalScratch.rend();
+             ++it)
+        {
+          const JPH::Body *body = *it;
+          const auto parentConstraint = m_constraintPriorityParentConstraintsScratch.find(body);
+          if (parentConstraint == m_constraintPriorityParentConstraintsScratch.end()) {
+            continue;
+          }
+
+          const JPH::uint32 priority = m_constraintPriorityHeightsScratch[body] + 1;
+          parentConstraint->second->GetConstraint()->SetConstraintPriority(priority);
+          const JPH::Body *parent = m_constraintPriorityParentsScratch[body];
+          JPH::uint32 &parentHeight = m_constraintPriorityHeightsScratch[parent];
+          parentHeight = std::max(parentHeight, priority);
+        }
+      }
+    }
+
+    JPH::BodyInterface &bodyInterface = GetBodyInterface();
+    for (const JPH::BodyID componentBodyID : m_constraintComponentBodiesScratch) {
+      m_constraintProcessedBodyKeysScratch.insert(componentBodyID.GetIndexAndSequenceNumber());
+      bodyInterface.ActivateBody(componentBodyID);
+    }
+  }
+
+  m_constraintTopologyDirtyBodies.clear();
+}
+
 void JoltPhysicsEnvironment::RebuildBreakableConstraintCache()
 {
   m_breakableConstraintsCache.clear();
@@ -2088,6 +3001,9 @@ void JoltPhysicsEnvironment::FlushPendingSoftBodyBodyRemoves()
     }
   }
 
+  for (const JPH::BodyID bodyID : destroyBodyIDs) {
+    RemoveLogicActiveContactsForBody(bodyID);
+  }
   if (!addedBodyIDs.empty()) {
     bi.RemoveBodies(addedBodyIDs.data(), (int)addedBodyIDs.size());
   }
@@ -2148,6 +3064,7 @@ void JoltPhysicsEnvironment::RemoveSoftBody(JoltSoftBody *sb)
     if (!m_isPhysicsUpdating) {
       JPH::BodyInterface &bi = m_physicsSystem->GetBodyInterfaceNoLock();
       if (bi.IsAdded(sbBodyID)) {
+        RemoveLogicActiveContactsForBody(sbBodyID);
         bi.RemoveBody(sbBodyID);
       }
     }
@@ -2397,8 +3314,8 @@ void JoltPhysicsEnvironment::SetNumIterations(int numIter)
   /* Map iterative solver quality to Jolt's solver steps.
    * Keep Bullet-like behavior where one value controls iteration strength,
    * with position steps following Jolt's default 10:2 velocity/position ratio. */
-  const int velocitySteps = std::max(1, numIter);
-  const int positionSteps = std::max(1, (velocitySteps + 4) / 5);
+  const int velocitySteps = std::clamp(numIter, 2, 255);
+  const int positionSteps = std::clamp((velocitySteps + 4) / 5, 1, 255);
 
   JPH::PhysicsSettings settings = m_physicsSystem->GetPhysicsSettings();
   settings.mNumVelocitySteps = (JPH::uint)velocitySteps;
@@ -2549,11 +3466,30 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
   else {
     axisIn = axisIn.Normalized();
   }
+  JPH::Vec3 axis1In = JoltMath::ToJolt(axis1X, axis1Y, axis1Z);
+  if (axis1In.LengthSq() >= 1.0e-6f) {
+    axis1In -= axisIn * axis1In.Dot(axisIn);
+  }
+  if (axis1In.LengthSq() < 1.0e-6f) {
+    const JPH::Vec3 axis2Fallback = JoltMath::ToJolt(axis2X, axis2Y, axis2Z);
+    if (axis2Fallback.LengthSq() >= 1.0e-6f) {
+      axis1In = axis2Fallback.Cross(axisIn);
+    }
+  }
+  if (axis1In.LengthSq() < 1.0e-6f) {
+    axis1In = axisIn.GetNormalizedPerpendicular();
+  }
+  else {
+    axis1In = axis1In.Normalized();
+  }
 
-  /* Compute pivot in world space from body0's transform. */
+  /* The public UPBGE pivot is local to the object origin, while Jolt local
+   * constraint points are relative to the center of mass. */
+  JPH::RVec3 origin0 = bi.GetPosition(bodyID0);
   JPH::RVec3 pos0 = bi.GetCenterOfMassPosition(bodyID0);
   JPH::Quat rot0 = bi.GetRotation(bodyID0);
-  JPH::RVec3 pivotWorld = pos0 + rot0 * pivotLocal;
+  JPH::RVec3 pivotWorld = origin0 + rot0 * pivotLocal;
+  JPH::Vec3 pivotLocal0 = JPH::Vec3(rot0.Conjugated() * (pivotWorld - pos0));
 
   /* Compute pivot in body1's local space. */
   JPH::Vec3 pivotLocal1;
@@ -2580,7 +3516,7 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
         JPH::PointConstraintSettings settings;
         if (!bodyID1.IsInvalid()) {
           settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-          settings.mPoint1 = pivotLocal;
+          settings.mPoint1 = pivotLocal0;
           settings.mPoint2 = pivotLocal1;
         }
         else {
@@ -2597,21 +3533,23 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
         JPH::HingeConstraintSettings settings;
         if (!bodyID1.IsInvalid()) {
           settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-          settings.mPoint1 = pivotLocal;
+          settings.mPoint1 = pivotLocal0;
           settings.mHingeAxis1 = axisIn;
-          settings.mNormalAxis1 = axisIn.GetNormalizedPerpendicular();
+          settings.mNormalAxis1 = axis1In;
           JPH::Quat rot1 = bi.GetRotation(bodyID1);
           JPH::Vec3 worldAxis = rot0 * axisIn;
+          JPH::Vec3 worldNormal = rot0 * axis1In;
           settings.mPoint2 = pivotLocal1;
           settings.mHingeAxis2 = rot1.Conjugated() * worldAxis;
-          settings.mNormalAxis2 = settings.mHingeAxis2.GetNormalizedPerpendicular();
+          settings.mNormalAxis2 = rot1.Conjugated() * worldNormal;
         }
         else {
           settings.mSpace = JPH::EConstraintSpace::WorldSpace;
           JPH::Vec3 worldAxis = rot0 * axisIn;
+          JPH::Vec3 worldNormal = rot0 * axis1In;
           settings.mPoint1 = JPH::Vec3(pivotWorld);
           settings.mHingeAxis1 = worldAxis;
-          settings.mNormalAxis1 = worldAxis.GetNormalizedPerpendicular();
+          settings.mNormalAxis1 = worldNormal;
           settings.mPoint2 = settings.mPoint1;
           settings.mHingeAxis2 = settings.mHingeAxis1;
           settings.mNormalAxis2 = settings.mNormalAxis1;
@@ -2625,7 +3563,7 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
         settings.mHalfConeAngle = JPH::JPH_PI * 0.25f;
         if (!bodyID1.IsInvalid()) {
           settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-          settings.mPoint1 = pivotLocal;
+          settings.mPoint1 = pivotLocal0;
           settings.mTwistAxis1 = axisIn;
           JPH::Quat rot1 = bi.GetRotation(bodyID1);
           JPH::Vec3 worldAxis = rot0 * axisIn;
@@ -2644,36 +3582,90 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
         return true;
       }
 
+      case PHY_FIXED_CONSTRAINT: {
+        JPH::FixedConstraintSettings settings;
+        const JPH::Vec3 worldAxisX = rot0 * axisIn;
+        const JPH::Vec3 worldAxisY = rot0 * axis1In;
+        if (!bodyID1.IsInvalid()) {
+          const JPH::Quat rot1 = bi.GetRotation(bodyID1);
+          settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+          settings.mPoint1 = pivotLocal0;
+          settings.mAxisX1 = axisIn;
+          settings.mAxisY1 = axis1In;
+          settings.mPoint2 = pivotLocal1;
+          settings.mAxisX2 = rot1.Conjugated() * worldAxisX;
+          settings.mAxisY2 = rot1.Conjugated() * worldAxisY;
+        }
+        else {
+          settings.mSpace = JPH::EConstraintSpace::WorldSpace;
+          settings.mPoint1 = pivotWorld;
+          settings.mAxisX1 = worldAxisX;
+          settings.mAxisY1 = worldAxisY;
+          settings.mPoint2 = pivotWorld;
+          settings.mAxisX2 = worldAxisX;
+          settings.mAxisY2 = worldAxisY;
+        }
+        joltConstraint = settings.Create(body0, body1);
+        return true;
+      }
+
+      case PHY_SLIDER_CONSTRAINT: {
+        JPH::SliderConstraintSettings settings;
+        const JPH::Vec3 worldAxis = rot0 * axisIn;
+        const JPH::Vec3 worldNormal = rot0 * axis1In;
+        const bool swapBodies = body0.IsDynamic() &&
+                                (!body1.IsDynamic() ||
+                                 body1.GetMotionPropertiesUnchecked()->GetInverseMassUnchecked() <
+                                     body0.GetMotionPropertiesUnchecked()->GetInverseMassUnchecked());
+
+        if (!bodyID1.IsInvalid()) {
+          const JPH::Quat rot1 = bi.GetRotation(bodyID1);
+          settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
+          if (!swapBodies) {
+            settings.mPoint1 = pivotLocal0;
+            settings.mSliderAxis1 = axisIn;
+            settings.mNormalAxis1 = axis1In;
+            settings.mPoint2 = pivotLocal1;
+            settings.mSliderAxis2 = rot1.Conjugated() * worldAxis;
+            settings.mNormalAxis2 = rot1.Conjugated() * worldNormal;
+          }
+          else {
+            settings.mPoint1 = pivotLocal1;
+            settings.mSliderAxis1 = rot1.Conjugated() * -worldAxis;
+            settings.mNormalAxis1 = rot1.Conjugated() * worldNormal;
+            settings.mPoint2 = pivotLocal0;
+            settings.mSliderAxis2 = -axisIn;
+            settings.mNormalAxis2 = axis1In;
+          }
+        }
+        else {
+          settings.mSpace = JPH::EConstraintSpace::WorldSpace;
+          settings.mPoint1 = pivotWorld;
+          settings.mSliderAxis1 = swapBodies ? -worldAxis : worldAxis;
+          settings.mNormalAxis1 = worldNormal;
+          settings.mPoint2 = pivotWorld;
+          settings.mSliderAxis2 = settings.mSliderAxis1;
+          settings.mNormalAxis2 = worldNormal;
+        }
+
+        joltConstraint = swapBodies ? settings.Create(body1, body0) : settings.Create(body0, body1);
+        return true;
+      }
+
       case PHY_GENERIC_6DOF_CONSTRAINT:
       case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
         JPH::SixDOFConstraintSettings settings;
         settings.mSwingType = JPH::ESwingType::Pyramid;
 
-        JPH::Vec3 ax1 = JoltMath::ToJolt(axis1X, axis1Y, axis1Z);
-        JPH::Vec3 ax2 = JoltMath::ToJolt(axis2X, axis2Y, axis2Z);
-        if (ax1.LengthSq() < 1e-6f) {
-          ax1 = axisIn.GetNormalizedPerpendicular();
-          ax2 = axisIn.Cross(ax1).Normalized();
-        }
-        else {
-          ax1 = ax1.Normalized();
-          if (ax2.LengthSq() < 1e-6f) {
-            ax2 = axisIn.Cross(ax1).Normalized();
-          }
-          else {
-            ax2 = ax2.Normalized();
-          }
-        }
-
         if (!bodyID1.IsInvalid()) {
           settings.mSpace = JPH::EConstraintSpace::LocalToBodyCOM;
-          settings.mPosition1 = pivotLocal;
+          settings.mPosition1 = pivotLocal0;
           settings.mPosition2 = pivotLocal1;
           settings.mAxisX1 = axisIn;
-          settings.mAxisY1 = ax1;
+          settings.mAxisY1 = axis1In;
           JPH::Quat rot1 = bi.GetRotation(bodyID1);
           JPH::Vec3 worldAxisX = rot0 * axisIn;
-          JPH::Vec3 worldAxisY = rot0 * ax1;
+          JPH::Vec3 worldAxisY = rot0 * axis1In;
           settings.mAxisX2 = rot1.Conjugated() * worldAxisX;
           settings.mAxisY2 = rot1.Conjugated() * worldAxisY;
         }
@@ -2682,7 +3674,7 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
           settings.mPosition1 = JPH::Vec3(pivotWorld);
           settings.mPosition2 = settings.mPosition1;
           JPH::Vec3 worldAxisX = rot0 * axisIn;
-          JPH::Vec3 worldAxisY = rot0 * ax1;
+          JPH::Vec3 worldAxisY = rot0 * axis1In;
           settings.mAxisX1 = worldAxisX;
           settings.mAxisY1 = worldAxisY;
           settings.mAxisX2 = settings.mAxisX1;
@@ -2747,6 +3739,7 @@ PHY_IConstraint *JoltPhysicsEnvironment::CreateConstraint(PHY_IPhysicsController
   /* Track constraint for O(1) lookup by ID. */
   m_constraintById[uid] = wrapper;
   m_breakableConstraintsCacheDirty = true;
+  NotifyConstraintTopologyChanged(bodyID0, bodyID1);
 
   return wrapper;
 }
@@ -2764,20 +3757,53 @@ PHY_IVehicle *JoltPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl
   return vehicle;
 }
 
-void JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
+void JoltPhysicsEnvironment::RemoveConstraintsForBody(JPH::BodyID bodyID)
+{
+  if (bodyID.IsInvalid() || m_constraintById.empty()) {
+    return;
+  }
+
+  std::vector<int> constraintIDs;
+  constraintIDs.reserve(m_constraintById.size());
+  for (const auto &item : m_constraintById) {
+    JoltConstraint *wrapper = item.second;
+    JPH::Constraint *constraint = wrapper ? wrapper->GetConstraint() : nullptr;
+    if (!constraint || constraint->GetType() != JPH::EConstraintType::TwoBodyConstraint) {
+      continue;
+    }
+
+    const JPH::TwoBodyConstraint *twoBody =
+        static_cast<const JPH::TwoBodyConstraint *>(constraint);
+    if (twoBody->GetBody1()->GetID() == bodyID || twoBody->GetBody2()->GetID() == bodyID) {
+      constraintIDs.push_back(item.first);
+    }
+  }
+
+  for (const int constraintID : constraintIDs) {
+    RemoveConstraintById(constraintID, true);
+  }
+}
+
+bool JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
 {
   auto it = m_constraintById.find(constraintid);
   if (it != m_constraintById.end()) {
     JoltConstraint *wrapper = it->second;
     JPH::Constraint *joltCon = wrapper->GetConstraint();
+    KX_GameObject *owner = wrapper->GetRigidBodyConstraintOwner();
+    JPH::BodyID bodyID1;
+    JPH::BodyID bodyID2;
 
     /* Remove no-collide pair from group filter before removing the constraint,
      * while the body references are still valid. */
-    if (wrapper->GetDisableCollision() && joltCon) {
+    if (joltCon) {
       JPH::TwoBodyConstraint *tbc = static_cast<JPH::TwoBodyConstraint *>(joltCon);
-      m_constraintGroupFilter->EnableCollision(
-          tbc->GetBody1()->GetID().GetIndexAndSequenceNumber(),
-          tbc->GetBody2()->GetID().GetIndexAndSequenceNumber());
+      bodyID1 = tbc->GetBody1()->GetID();
+      bodyID2 = tbc->GetBody2()->GetID();
+      if (wrapper->GetDisableCollision()) {
+        m_constraintGroupFilter->EnableCollision(bodyID1.GetIndexAndSequenceNumber(),
+                                                 bodyID2.GetIndexAndSequenceNumber());
+      }
     }
 
     if (joltCon) {
@@ -2790,7 +3816,22 @@ void JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
 
     m_constraintById.erase(it);
     m_breakableConstraintsCacheDirty = true;
-    return;
+    NotifyConstraintTopologyChanged(bodyID1, bodyID2);
+
+    /* Constraint graph changes must wake both bodies so the next physics step
+     * rebuilds and solves the affected islands immediately. */
+    JPH::BodyInterface &bodyInterface = GetBodyInterface();
+    if (!bodyID1.IsInvalid()) {
+      bodyInterface.ActivateBody(bodyID1);
+    }
+    if (!bodyID2.IsInvalid()) {
+      bodyInterface.ActivateBody(bodyID2);
+    }
+
+    if (owner) {
+      owner->RemoveRigidBodyConstraintId(constraintid);
+    }
+    return true;
   }
 
   for (auto it_vehicle = m_vehicles.begin(); it_vehicle != m_vehicles.end(); ++it_vehicle) {
@@ -2803,8 +3844,9 @@ void JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
       delete vehicle;
     }
     m_vehicles.erase(it_vehicle);
-    return;
+    return true;
   }
+  return false;
 }
 
 bool JoltPhysicsEnvironment::IsRigidBodyConstraintEnabled(int constraintid)
@@ -2915,6 +3957,183 @@ PHY_IPhysicsController *JoltPhysicsEnvironment::RayTest(
   return ctrl;
 }
 
+bool JoltPhysicsEnvironment::RayCast(const PHY_RayQuerySettings &settings,
+                                     PHY_IRayCastFilterCallback &filterCallback,
+                                     std::vector<PHY_RayCastResult> &results)
+{
+  results.clear();
+  const MT_Vector3 displacement = settings.destination - settings.origin;
+  if (displacement.length2() <= MT_EPSILON * MT_EPSILON) {
+    return true;
+  }
+
+  const uint32_t maxResults = std::clamp(settings.max_results, 1u, 257u);
+  const JPH::RVec3 origin = JoltMath::ToJoltR(settings.origin);
+  const JPH::RRayCast ray(origin, JoltMath::ToJolt(displacement));
+  JPH::RayCastSettings raySettings;
+  raySettings.mBackFaceModeConvex = JPH::EBackFaceMode::CollideWithBackFaces;
+  if (settings.hit_back_faces) {
+    raySettings.mBackFaceModeTriangles = JPH::EBackFaceMode::CollideWithBackFaces;
+  }
+  raySettings.mTreatConvexAsSolid = true;
+
+  JoltRayCastBodyFilter bodyFilter(filterCallback, settings.include_sensors);
+  JoltBoundedRayCastCollector collector(maxResults);
+  m_physicsSystem->GetNarrowPhaseQuery().CastRay(ray, raySettings, collector, {}, {}, bodyFilter);
+  collector.Sort();
+
+  results.reserve(collector.m_hits.size());
+  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+  for (const JPH::RayCastResult &hit : collector.m_hits) {
+    JPH::BodyLockRead lock(lockInterface, hit.mBodyID);
+    if (!lock.Succeeded()) {
+      continue;
+    }
+    const JPH::Body &body = lock.GetBody();
+    PHY_IPhysicsController *controller = JoltGetPhysicsController(JoltGetClientInfo(body));
+    if (!controller) {
+      continue;
+    }
+
+    const float fraction = std::clamp(hit.mFraction, 0.0f, 1.0f);
+    const JPH::RVec3 hitPoint = ray.GetPointOnRay(fraction);
+    PHY_RayCastResult result;
+    result.m_controller = controller;
+    result.m_hitPoint = settings.origin + JoltMath::ToMT(hitPoint - origin);
+    result.m_hitNormal = JoltMath::ToMT(
+        body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint));
+    result.m_fraction = fraction;
+
+    bool hasUV = false;
+    JoltPopulateMeshQueryDetails(body,
+                                 *static_cast<JoltPhysicsController *>(controller),
+                                 hit.mSubShapeID2,
+                                 hitPoint,
+                                 -ray.mDirection,
+                                 settings.detail_flags,
+                                 result.m_polygon,
+                                 hasUV,
+                                 result.m_hitUV);
+    result.m_hitUVOK = hasUV ? 1 : 0;
+    results.push_back(result);
+  }
+  return true;
+}
+
+void JoltPhysicsEnvironment::AddRayQueryDetailRequirements(const unsigned char detailFlags)
+{
+  unsigned char normalizedFlags = detailFlags &
+                                  (PHY_RAY_QUERY_DETAIL_FACE_INDEX |
+                                   PHY_RAY_QUERY_DETAIL_UV);
+  if ((normalizedFlags & PHY_RAY_QUERY_DETAIL_UV) != 0) {
+    normalizedFlags |= PHY_RAY_QUERY_DETAIL_FACE_INDEX;
+  }
+  m_rayQueryDetailRequirements |= normalizedFlags;
+}
+
+bool JoltPhysicsEnvironment::ShapeCast(const PHY_ShapeCastSettings &settings,
+                                       PHY_IShapeCastFilterCallback &filterCallback,
+                                       std::vector<PHY_ShapeCastResult> &results)
+{
+  results.clear();
+  const uint32_t maxResults = std::clamp(settings.max_results, 1u, 257u);
+  const MT_Vector3 displacement = settings.destination - settings.origin;
+  const JPH::RVec3 baseOffset = JoltMath::ToJoltR(settings.origin);
+  const JPH::RMat44 transform = JPH::RMat44::sRotationTranslation(
+      JoltMath::ToJolt(settings.orientation.getRotation()), baseOffset);
+  const JPH::Vec3 direction = JoltMath::ToJolt(displacement);
+
+  JPH::ShapeCastSettings castSettings;
+  castSettings.mExtraConvexRadius = settings.extra_radius;
+  castSettings.mReturnDeepestPoint = true;
+  castSettings.mBackFaceModeConvex = JPH::EBackFaceMode::CollideWithBackFaces;
+  if (settings.hit_back_faces) {
+    castSettings.mBackFaceModeTriangles = JPH::EBackFaceMode::CollideWithBackFaces;
+  }
+
+  JoltShapeCastBodyFilter bodyFilter(filterCallback, settings.include_sensors);
+  JoltBoundedShapeCastCollector collector(maxResults);
+  const JPH::NarrowPhaseQuery &query = m_physicsSystem->GetNarrowPhaseQuery();
+
+  auto castShape = [&](const JPH::Shape &shape) {
+    const JPH::RShapeCast shapeCast = JPH::RShapeCast::sFromWorldTransform(
+        &shape, JPH::Vec3::sOne(), transform, direction);
+    query.CastShape(shapeCast, castSettings, baseOffset, collector, {}, {}, bodyFilter);
+  };
+
+  switch (settings.type) {
+    case PHY_ShapeCastType::Sphere: {
+      const JPH::SphereShape shape(settings.radius);
+      castShape(shape);
+      break;
+    }
+    case PHY_ShapeCastType::Box: {
+      const JPH::Vec3 halfExtents(settings.half_extents.x(),
+                                  settings.half_extents.z(),
+                                  settings.half_extents.y());
+      const JPH::BoxShape shape(halfExtents, 0.0f);
+      castShape(shape);
+      break;
+    }
+    case PHY_ShapeCastType::Capsule: {
+      const float cylinderHalfHeight = settings.height * 0.5f - settings.radius;
+      if (cylinderHalfHeight <= MT_EPSILON) {
+        const JPH::SphereShape shape(settings.radius);
+        castShape(shape);
+      }
+      else {
+        const JPH::CapsuleShape shape(cylinderHalfHeight, settings.radius);
+        castShape(shape);
+      }
+      break;
+    }
+  }
+
+  collector.Sort();
+  results.reserve(collector.m_hits.size());
+  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+  for (const JPH::ShapeCastResult &hit : collector.m_hits) {
+    JPH::BodyLockRead lock(lockInterface, hit.mBodyID2);
+    if (!lock.Succeeded()) {
+      continue;
+    }
+    const JPH::Body &body = lock.GetBody();
+    PHY_IPhysicsController *controller = JoltGetPhysicsController(JoltGetClientInfo(body));
+    if (!controller) {
+      continue;
+    }
+
+    PHY_ShapeCastResult result;
+    result.controller = controller;
+    const JPH::RVec3 hitPoint = baseOffset + JPH::RVec3(hit.mContactPointOn2);
+    result.point = settings.origin + JoltMath::ToMT(hit.mContactPointOn2);
+    result.fraction = std::clamp(hit.mFraction, 0.0f, 1.0f);
+    result.cast_position = settings.origin + displacement * result.fraction;
+    result.penetration_depth = std::max(hit.mPenetrationDepth, 0.0f);
+    result.started_overlapping = hit.mFraction <= 0.0f && hit.mPenetrationDepth > 0.0f;
+
+    JPH::Vec3 normal = -hit.mPenetrationAxis;
+    if (normal.LengthSq() <= FLT_EPSILON) {
+      normal = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+    }
+    else {
+      normal = normal.Normalized();
+    }
+    result.normal = JoltMath::ToMT(normal);
+    JoltPopulateMeshQueryDetails(body,
+                                 *static_cast<JoltPhysicsController *>(controller),
+                                 hit.mSubShapeID2,
+                                 hitPoint,
+                                 normal,
+                                 settings.detail_flags,
+                                 result.polygon_index,
+                                 result.has_uv,
+                                 result.hit_uv);
+    results.push_back(result);
+  }
+  return true;
+}
+
 bool JoltPhysicsEnvironment::CullingTest(PHY_CullingCallback callback,
                                           void *userData,
                                           const std::array<MT_Vector4, 6> &planes,
@@ -2967,6 +4186,7 @@ void JoltPhysicsEnvironment::RemoveSensor(PHY_IPhysicsController *ctrl)
       QueueDeferredOperation(op);
     }
     else {
+      RemoveLogicActiveContactsForBody(joltCtrl->GetBodyID());
       GetBodyInterface().RemoveBody(joltCtrl->GetBodyID());
     }
   }
@@ -3005,18 +4225,166 @@ bool JoltPhysicsEnvironment::RemoveCollisionCallback(PHY_IPhysicsController *ctr
   const bool collectContacts = !m_collisionCallbackControllers.empty();
   m_collectContactsForCallbacks.store(collectContacts, std::memory_order_relaxed);
 
-  if (!collectContacts) {
+  if (!collectContacts &&
+      !m_collectContactsForLogicNodes.load(std::memory_order_relaxed))
+  {
     /* Drop any pending pairs from the previous frame(s) now that nobody listens. */
     m_contactPairsScratch.clear();
-    m_contactListener.SwapContacts(m_contactPairsScratch);
+    m_removedContactPairsScratch.clear();
+    m_contactEventsScratch.clear();
+    m_contactListener.SwapContactEvents(
+        m_contactPairsScratch, m_removedContactPairsScratch, m_contactEventsScratch);
     m_contactPairsScratch.clear();
+    m_removedContactPairsScratch.clear();
+    m_contactEventsScratch.clear();
   }
 
   return true;
 }
 
+void JoltPhysicsEnvironment::SetLogicCollisionContactCacheEnabled(const bool enabled)
+{
+  SetLogicCollisionContactCacheEnabled(enabled, false);
+}
+
+void JoltPhysicsEnvironment::SetLogicCollisionContactCacheEnabled(const bool enabled,
+                                                                  const bool collectContactDetails)
+{
+  m_collectContactsForLogicNodes.store(enabled, std::memory_order_relaxed);
+  m_collectContactDetailsForLogicNodes.store(enabled && collectContactDetails,
+                                             std::memory_order_relaxed);
+  if (!collectContactDetails) {
+    m_logicCollisionContactDetailsValid = false;
+  }
+  if (!enabled) {
+    m_logicCollisionContactCacheValid = false;
+    m_logicCollisionContacts.clear();
+    m_logicObjectSensorOverlapsByController.clear();
+    m_logicCollisionContactsByController.clear();
+    m_logicCollisionContactsByObject.clear();
+    m_logicActiveContactPairs.clear();
+    m_removedContactPairsScratch.clear();
+    m_contactEventsScratch.clear();
+    if (!m_collectContactsForCallbacks.load(std::memory_order_relaxed)) {
+      m_contactPairsScratch.clear();
+      m_contactListener.SwapContactEvents(
+          m_contactPairsScratch, m_removedContactPairsScratch, m_contactEventsScratch);
+      m_contactPairsScratch.clear();
+      m_removedContactPairsScratch.clear();
+      m_contactEventsScratch.clear();
+    }
+  }
+}
+
+bool JoltPhysicsEnvironment::GetCachedCollisionContacts(
+    PHY_IPhysicsController *ctrl,
+    std::vector<PHY_CachedCollisionContact> &r_contacts,
+    const bool include_contacts)
+{
+  const std::vector<const PHY_CachedCollisionContact *> *contactRefs = nullptr;
+  if (!GetCachedCollisionContactRefs(ctrl, contactRefs, include_contacts)) {
+    return false;
+  }
+
+  for (const PHY_CachedCollisionContact *contact : *contactRefs) {
+    if (include_contacts) {
+      r_contacts.push_back(*contact);
+    }
+    else {
+      PHY_CachedCollisionContact summary;
+      summary.ctrl0 = contact->ctrl0;
+      summary.ctrl1 = contact->ctrl1;
+      summary.object0 = contact->object0;
+      summary.object1 = contact->object1;
+      summary.contact_count = contact->contact_count;
+      r_contacts.push_back(summary);
+    }
+  }
+  return true;
+}
+
+bool JoltPhysicsEnvironment::GetCachedCollisionContactRefs(
+    PHY_IPhysicsController *ctrl,
+    const std::vector<const PHY_CachedCollisionContact *> *&r_contacts,
+    const bool include_contacts)
+{
+  r_contacts = nullptr;
+  if (ctrl == nullptr || !m_collectContactsForLogicNodes.load(std::memory_order_relaxed) ||
+      !m_logicCollisionContactCacheValid)
+  {
+    return false;
+  }
+  if (include_contacts && !m_logicCollisionContactDetailsValid) {
+    return false;
+  }
+
+  /* Sensor and parented child shapes are queried on demand. This avoids one narrow-phase
+   * query per object per tick when collision nodes target only a subset (or none). */
+  JoltPhysicsController *joltCtrl = static_cast<JoltPhysicsController *>(ctrl);
+  if (!m_isPhysicsUpdating && m_controllers.find(joltCtrl) != m_controllers.end() &&
+      joltCtrl->IsLogicCollisionQueryActive())
+  {
+    CollectLogicObjectQueryOverlaps(joltCtrl, m_logicCollisionContactDetailsValid);
+  }
+  else if (m_isPhysicsUpdating) {
+    return false;
+  }
+
+  const auto it = m_logicCollisionContactsByController.find(ctrl);
+  r_contacts = (it != m_logicCollisionContactsByController.end()) ?
+                   &it->second :
+                   &m_emptyLogicCollisionContactRefs;
+  return true;
+}
+
+bool JoltPhysicsEnvironment::GetCachedCollisionContactRefsForObject(
+    KX_GameObject *object,
+    const std::vector<const PHY_CachedCollisionContact *> *&r_contacts,
+    const bool include_contacts)
+{
+  r_contacts = nullptr;
+  if (!object || !m_collectContactsForLogicNodes.load(std::memory_order_relaxed) ||
+      !m_logicCollisionContactCacheValid ||
+      (include_contacts && !m_logicCollisionContactDetailsValid))
+  {
+    return false;
+  }
+
+  const auto it = m_logicCollisionContactsByObject.find(object);
+  if (it != m_logicCollisionContactsByObject.end()) {
+    r_contacts = &it->second;
+    return true;
+  }
+
+  /* A known compound child needs a valid empty result too, so C++ Logic Nodes can
+   * turn last tick's overlap into On Exit. Resolve membership only on demand; do
+   * not walk every scene hierarchy during the physics callback. */
+  const SG_Node *node = object->GetSGNode();
+  for (node = node ? node->GetSGParent() : nullptr; node; node = node->GetSGParent()) {
+    KX_GameObject *ancestor = static_cast<KX_GameObject *>(node->GetSGClientObject());
+    JoltPhysicsController *ancestorController = ancestor ?
+        static_cast<JoltPhysicsController *>(ancestor->GetPhysicsController()) :
+        nullptr;
+    if (ancestorController &&
+        m_controllers.find(ancestorController) != m_controllers.end() &&
+        ancestorController->OwnsCompoundChildObject(object))
+    {
+      r_contacts = &m_emptyLogicCollisionContactRefs;
+      return true;
+    }
+  }
+  return false;
+}
+
 PHY_CollisionTestResult JoltPhysicsEnvironment::CheckCollision(PHY_IPhysicsController *ctrl0,
-                                                                PHY_IPhysicsController *ctrl1)
+                                                               PHY_IPhysicsController *ctrl1)
+{
+  return CheckCollision(ctrl0, ctrl1, true);
+}
+
+PHY_CollisionTestResult JoltPhysicsEnvironment::CheckCollision(PHY_IPhysicsController *ctrl0,
+                                                               PHY_IPhysicsController *ctrl1,
+                                                               bool collectContacts)
 {
   PHY_CollisionTestResult result{false, false, nullptr};
 
@@ -3026,51 +4394,205 @@ PHY_CollisionTestResult JoltPhysicsEnvironment::CheckCollision(PHY_IPhysicsContr
     return result;
   }
 
-  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
-  JPH::BodyID ids[2] = {jc0->GetBodyID(), jc1->GetBodyID()};
-  JPH::BodyLockMultiRead multiLock(lockInterface, ids, 2);
-  const JPH::Body *body0 = multiLock.GetBody(0);
-  const JPH::Body *body1 = multiLock.GetBody(1);
-  if (!body0 || !body1) {
+  JPH::BodyInterface &bodyInterface = GetBodyInterface();
+  KX_ClientObjectInfo *info0 = static_cast<KX_ClientObjectInfo *>(jc0->GetNewClientInfo());
+  const bool objectSensor0 = JoltIsObjectSensor(info0);
+  const bool logicQuery0 = jc0->IsLogicCollisionQueryActive();
+  const bool includeStatic0 = objectSensor0 ? jc0->GetLogicObjectSensorIncludeStatic() : true;
+  const bool body0Added = bodyInterface.IsAdded(jc0->GetBodyID());
+  const bool body1Added = bodyInterface.IsAdded(jc1->GetBodyID());
+  /* The first body may be an intentionally unregistered Sensor query shape. The target must
+   * remain in Jolt's broadphase; keeping this exception one-sided prevents solid objects from
+   * reporting trigger-only Sensor bodies as ordinary collisions. */
+  if (!body1Added || (!body0Added && !logicQuery0) || (objectSensor0 && !logicQuery0))
+  {
     return result;
   }
 
-  /* Use CollideShape to check if the two shapes overlap. */
-  JPH::CollideShapeSettings collideSettings;
-  collideSettings.mMaxSeparationDistance = 0.0f;
+  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+  JPH::BodyID ids[2] = {jc0->GetBodyID(), jc1->GetBodyID()};
+  JPH::RefConst<JPH::Shape> shape0;
+  JPH::RMat44 transform0;
+  JPH::ObjectLayer layer0 = JPH::ObjectLayer(0);
+  JPH::ObjectLayer layer1 = JPH::ObjectLayer(0);
+  JPH::CollisionGroup collisionGroup0;
+  JPH::CollisionGroup collisionGroup1;
+  bool body0IsSensor = false;
+  bool body1IsSensor = false;
+  {
+    JPH::BodyLockMultiRead multiLock(lockInterface, ids, 2);
+    const JPH::Body *body0 = multiLock.GetBody(0);
+    const JPH::Body *body1 = multiLock.GetBody(1);
+    if (!body0 || !body1) {
+      return result;
+    }
 
-  JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
+    layer0 = body0->GetObjectLayer();
+    layer1 = body1->GetObjectLayer();
+    collisionGroup0 = body0->GetCollisionGroup();
+    collisionGroup1 = body1->GetCollisionGroup();
+    body0IsSensor = body0->IsSensor();
+    body1IsSensor = body1->IsSensor();
+    shape0 = body0->GetShape();
+    transform0 = logicQuery0 ?
+                     JoltLogicQueryTransform(*jc0, *shape0, body0->GetCenterOfMassTransform()) :
+                     body0->GetCenterOfMassTransform();
+
+    if (logicQuery0) {
+      if (!info0 || !info0->m_gameobject || JoltGetPhysicsController(info0) != jc0) {
+        return result;
+      }
+      const JoltLogicObjectSensorBodyFilter sensorFilter(
+          jc0->GetBodyID(),
+          collisionGroup0,
+          *info0,
+          includeStatic0,
+          m_controllers);
+      if (!sensorFilter.ShouldCollideLocked(*body1)) {
+        return result;
+      }
+    }
+  }
+  if (!shape0) {
+    return result;
+  }
+
+  if (!m_objectLayerPairFilter.ShouldCollide(layer0, layer1)) {
+    return result;
+  }
+
+  /* An explicit UPBGE Sensor query must also accept JOLT_BP_SENSOR targets because
+   * dynamics suspension can place an ordinary Ghost there. The locked client-info filter
+   * above still rejects actual Sensor objects. */
+  if (!logicQuery0) {
+    const JPH::BroadPhaseLayer bp0 = m_broadPhaseLayerInterface.GetBroadPhaseLayer(layer0);
+    const JPH::BroadPhaseLayer bp1 = m_broadPhaseLayerInterface.GetBroadPhaseLayer(layer1);
+    if (!m_objectVsBroadPhaseLayerFilter.ShouldCollide(layer0, bp1) ||
+        !m_objectVsBroadPhaseLayerFilter.ShouldCollide(layer1, bp0))
+    {
+      return result;
+    }
+  }
+
+  if (!collisionGroup0.CanCollide(collisionGroup1)) {
+    return result;
+  }
+
+  JPH::CollideShapeSettings collideSettings;
+  /* Match Jolt's own body-vs-body contact generation rule. Non-sensor bodies can have
+   * speculative contacts slightly before/after strict overlap; sensors stay exact. */
+  collideSettings.mMaxSeparationDistance = (!body0IsSensor && !body1IsSensor) ?
+                                               m_physicsSystem->GetPhysicsSettings()
+                                                   .mSpeculativeContactDistance :
+                                               0.0f;
 
   const JPH::NarrowPhaseQuery &npq = m_physicsSystem->GetNarrowPhaseQuery();
-  const JPH::Shape *shape0 = body0->GetShape();
+  const JPH::BodyID targetBodyID = jc1->GetBodyID();
+  const JoltLogicObjectSensorBroadPhaseLayerFilter sensorBroadPhaseFilter(
+      logicQuery0 && includeStatic0);
 
+  class TargetBodyFilter : public JPH::BodyFilter {
+   public:
+    explicit TargetBodyFilter(const JPH::BodyID &bodyID) : m_bodyID(bodyID)
+    {
+    }
+
+    bool ShouldCollide(const JPH::BodyID &bodyID) const override
+    {
+      return bodyID == m_bodyID;
+    }
+
+   private:
+    JPH::BodyID m_bodyID;
+  } targetBodyFilter(targetBodyID);
+
+  if (!collectContacts) {
+    JPH::ClosestHitCollisionCollector<JPH::CollideShapeCollector> collector;
+    if (logicQuery0) {
+      npq.CollideShape(shape0.GetPtr(),
+                       JPH::Vec3::sReplicate(1.0f),
+                       transform0,
+                       collideSettings,
+                       JPH::RVec3::sZero(),
+                       collector,
+                       sensorBroadPhaseFilter,
+                       {},
+                       targetBodyFilter,
+                       {});
+    }
+    else {
+      npq.CollideShape(shape0.GetPtr(),
+                       JPH::Vec3::sReplicate(1.0f),
+                       transform0,
+                       collideSettings,
+                       JPH::RVec3::sZero(),
+                       collector,
+                       {},
+                       {},
+                       targetBodyFilter,
+                       {});
+    }
+    result.collide = collector.HadHit();
+    result.isFirst = result.collide;
+    return result;
+  }
+
+  if (logicQuery0) {
+    JPH::ClosestHitCollisionCollector<JPH::CollideShapeCollector> collector;
+    npq.CollideShape(shape0.GetPtr(),
+                     JPH::Vec3::sReplicate(1.0f),
+                     transform0,
+                     collideSettings,
+                     JPH::RVec3::sZero(),
+                     collector,
+                     sensorBroadPhaseFilter,
+                     {},
+                     targetBodyFilter,
+                     {});
+    if (collector.HadHit() && collector.mHit.mBodyID2 == targetBodyID) {
+      result.collide = true;
+      result.isFirst = true;
+      JoltCollData *collData = new JoltCollData();
+      const MT_Vector3 contactPoint = JoltMath::ToMT(collector.mHit.mContactPointOn2);
+      collData->AddContactPoint(contactPoint,
+                                contactPoint,
+                                contactPoint,
+                                JoltLogicContactNormal(collector.mHit.mPenetrationAxis),
+                                0.5f,
+                                0.0f);
+      result.collData = collData;
+    }
+    return result;
+  }
+
+  JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
   npq.CollideShape(
-      shape0,
+      shape0.GetPtr(),
       JPH::Vec3::sReplicate(1.0f),
-      body0->GetCenterOfMassTransform(),
+      transform0,
       collideSettings,
       JPH::RVec3::sZero(),
       collector,
       {},  /* broadphase layer filter */
       {},  /* object layer filter */
-      {},  /* body filter */
+      targetBodyFilter,
       {}   /* shape filter */
   );
 
-  /* Check if body1 is among the hits. */
+  JoltCollData *collData = nullptr;
   for (const JPH::CollideShapeResult &hit : collector.mHits) {
-    if (hit.mBodyID2 == body1->GetID()) {
+    if (hit.mBodyID2 == targetBodyID) {
       result.collide = true;
       result.isFirst = true;
-
-      JoltCollData *collData = new JoltCollData();
+      if (collData == nullptr) {
+        collData = new JoltCollData();
+      }
       MT_Vector3 contactPt = JoltMath::ToMT(JPH::Vec3(hit.mContactPointOn2));
-      MT_Vector3 normal = JoltMath::ToMT(hit.mPenetrationAxis.Normalized());
+      MT_Vector3 normal = JoltLogicContactNormal(hit.mPenetrationAxis);
       collData->AddContactPoint(contactPt, contactPt, contactPt, normal, 0.5f, 0.0f);
-      result.collData = collData;
-      break;
     }
   }
+  result.collData = collData;
 
   return result;
 }
@@ -3109,7 +4631,7 @@ PHY_IPhysicsController *JoltPhysicsEnvironment::CreateSphereController(
   ctrl->SetSensorFlag(true);
   ctrl->SetOriginalMotionType(JPH::EMotionType::Kinematic);
   ctrl->SetBroadPhaseCategory(JOLT_BP_SENSOR);
-  ctrl->SetShape(result.Get());
+  ctrl->SetShape(result.Get(), nullptr);
 
   AddController(ctrl);
   /* Don't add body yet — it gets added when AddSensor() is called. */
@@ -3154,7 +4676,7 @@ PHY_IPhysicsController *JoltPhysicsEnvironment::CreateConeController(float coner
   ctrl->SetSensorFlag(true);
   ctrl->SetOriginalMotionType(JPH::EMotionType::Kinematic);
   ctrl->SetBroadPhaseCategory(JOLT_BP_SENSOR);
-  ctrl->SetShape(shape);
+  ctrl->SetShape(shape, builder.GetShapeQueryData());
 
   AddController(ctrl);
 
@@ -3167,6 +4689,8 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
   if (!other) {
     return;
   }
+
+  m_rayQueryDetailRequirements |= other->m_rayQueryDetailRequirements;
 
   FinalizePendingCompoundShapeBuilds();
   other->FinalizePendingCompoundShapeBuilds();
@@ -3226,11 +4750,14 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
 
     /* Remove from source. */
     if (wasAdded) {
+      other->RemoveLogicActiveContactsForBody(oldID);
       srcBI.RemoveBody(oldID);
     }
     srcBI.DestroyBody(oldID);
     other->m_controllers.erase(ctrl);
     other->m_controllersIterationCacheDirty = true;
+    other->m_fhControllersIterationCacheDirty = true;
+    other->m_buoyancyVolumesIterationCacheDirty = true;
 
     newBody->SetUserData(userData);
     bodyIDMap[oldID.GetIndexAndSequenceNumber()] = newBody->GetID();
@@ -3325,9 +4852,11 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
     JoltConstraint *newJoltCon = new JoltConstraint(
         newCon, srcCon->GetType(), srcCon->GetIdentifier(),
         srcCon->GetDisableCollision(), this);
+    newJoltCon->SetRigidBodyConstraintOwner(srcCon->GetRigidBodyConstraintOwner());
     newJoltCon->SetBreakingThreshold(srcCon->GetBreakingThreshold());
     newJoltCon->SetEnabled(srcCon->GetEnabled());
     m_constraintById[srcCon->GetIdentifier()] = newJoltCon;
+    NotifyConstraintTopologyChanged(it1->second, it2->second);
 
     delete srcCon;
   }
@@ -3458,6 +4987,8 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       boundsType = OB_BOUND_TRIANGLE_MESH;
     else if (blenderobject->gameflag & OB_CHARACTER)
       boundsType = OB_BOUND_SPHERE;
+    else if (isRigidBody && !(blenderobject->gameflag2 & OB_HAS_VEHICLE))
+      boundsType = OB_BOUND_BOX;
     else if (isDyna)
       boundsType = OB_BOUND_SPHERE;
     else
@@ -3487,6 +5018,9 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   JoltShapeBuilder shapeBuilder;
   float margin = isSoftBody ? 0.1f : blenderobject->margin;
   shapeBuilder.SetMargin(margin);
+  if (!isSoftBody) {
+    shapeBuilder.SetRayQueryDetailRequirements(m_rayQueryDetailRequirements);
+  }
 
   /* For soft bodies, strip any stale joltSbModifier that survived from a
    * previous game run BEFORE SetMesh() reads vertex positions.  Without
@@ -3559,7 +5093,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   if (isSoftBody && !shapeBuilder.GetVertexArray().empty() &&
       !shapeBuilder.GetTriangleArray().empty())
   {
-    unsigned short collGroup = blenderobject->col_group;
+    unsigned short collGroup = blenderobject->col_group & JOLT_COLLISION_LAYER_MASK;
     unsigned short collMask = blenderobject->col_mask;
 
     JoltPhysicsController *ctrl = new JoltPhysicsController();
@@ -3714,6 +5248,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                        (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                         BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
     if (!sbVisCheck) {
+      RemoveLogicActiveContactsForBody(sb->GetBodyID());
       m_physicsSystem->GetBodyInterfaceNoLock().RemoveBody(sb->GetBodyID());
       sb->SetActive(false);
     }
@@ -3825,7 +5360,12 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       /* Startup conversion path: queue parent shape rebuild for one-pass
        * assembly once conversion-time compound children are known. */
       QueuePendingCompoundChildShape(
-          parentCtrl, JoltMath::ToJolt(relativePos), JoltMath::ToJolt(relQuat), shape);
+          parentCtrl,
+          gameobj,
+          JoltMath::ToJolt(relativePos),
+          JoltMath::ToJolt(relQuat),
+          shape,
+          shapeBuilder.GetShapeQueryData());
 
       delete motionstate;
       return;
@@ -3838,16 +5378,25 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
     JoltAddExistingShapeToCompoundSettings(compoundSettings, parentShape.GetPtr());
 
-    compoundSettings.AddShape(JoltMath::ToJolt(relativePos), JoltMath::ToJolt(relQuat), shape);
+    const JPH::uint32 childUserData = parentCtrl->RegisterCompoundChildBinding(
+        gameobj, JoltMath::ToJolt(relativePos), JoltMath::ToJolt(relQuat));
+    compoundSettings.AddShape(JoltMath::ToJolt(relativePos),
+                              JoltMath::ToJolt(relQuat),
+                              shape,
+                              childUserData);
 
     JPH::Shape::ShapeResult result = compoundSettings.Create();
     if (result.HasError()) {
+      parentCtrl->RemoveCompoundChildBinding(childUserData);
       delete motionstate;
       return;
     }
 
     JPH::RefConst<JPH::Shape> newCompound = result.Get();
-    parentCtrl->SetShapePreservingMassPropertiesAndCenterOfMass(newCompound);
+    parentCtrl->SetShapePreservingMassPropertiesAndCenterOfMass(
+        newCompound,
+        JoltMergeShapeQueryData(parentCtrl->GetShapeQueryData(),
+                                shapeBuilder.GetShapeQueryData()));
 
     delete motionstate;
     return;
@@ -3869,7 +5418,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     bpCategory = JOLT_BP_STATIC;
   }
 
-  unsigned short col_group = blenderobject->col_group;
+  unsigned short col_group = blenderobject->col_group & JOLT_COLLISION_LAYER_MASK;
   unsigned short col_mask = blenderobject->col_mask;
   JPH::ObjectLayer objectLayer = JoltMakeObjectLayer(col_group, col_mask, bpCategory);
 
@@ -3902,6 +5451,12 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   /* Per-body gravity multiplier. */
   bodySettings.mGravityFactor = blenderobject->gravity_factor;
+  if (isDyna && (blenderobject->gameflag2 & OB_JOLT_OVERRIDE_SOLVER_ITERATIONS)) {
+    bodySettings.mNumVelocityStepsOverride = (JPH::uint)std::clamp(
+        int(blenderobject->jolt_velocity_solver_iterations), 1, 255);
+    bodySettings.mNumPositionStepsOverride = (JPH::uint)std::clamp(
+        int(blenderobject->jolt_position_solver_iterations), 1, 255);
+  }
 
   /* Inertia multiplier from form factor (Bullet used formfactor / 0.4). */
   if (mass > 0.0f) {
@@ -3977,19 +5532,39 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   ctrl->SetEnvironment(this);
   ctrl->SetDynamic(isDyna);
   ctrl->SetRigidBodyFlag(isDyna && isRigidBody);
-  ctrl->SetSensorFlag(isSensor);
+  ctrl->SetSensorFlag(bodySettings.mIsSensor);
   ctrl->SetCompoundFlag(hasCompoundChildren);
   ctrl->SetOriginalMotionType(motionType);
   ctrl->SetBroadPhaseCategory(bpCategory);
-  ctrl->SetShape(shape);
+  ctrl->SetShape(shape, shapeBuilder.GetShapeQueryData());
+  if (isDyna) {
+    ctrl->SetMassPropertiesTemplate(bodySettings.GetMassProperties());
+  }
   ctrl->SetMargin(margin);
   ctrl->SetRadius(blenderobject->inertia);
+  ctrl->SetRigidBodyAxisLockState(
+      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS) != 0,
+      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_AXIS) != 0,
+      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_AXIS) != 0,
+      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_ROT_AXIS) != 0,
+      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS) != 0,
+      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS) != 0);
   ctrl->SetFhEnabled((blenderobject->gameflag & OB_DO_FH) != 0);
   ctrl->SetFhRotEnabled((blenderobject->gameflag & OB_ROT_FH) != 0);
   ctrl->SetFhSpring(blenderobject->fh);
   ctrl->SetFhDamping(blenderobject->xyfrict);
   ctrl->SetFhDistance(blenderobject->fhdist);
   ctrl->SetFhNormal((blenderobject->dynamode & OB_FH_NOR) != 0);
+  ctrl->SetBuoyancyVolumeEnabled(
+      isSensor && (blenderobject->gameflag2 & OB_JOLT_BUOYANCY_VOLUME) != 0);
+  ctrl->SetLogicObjectSensorIncludeStatic(
+      isSensor && (blenderobject->gameflag2 & OB_JOLT_SENSOR_INCLUDE_STATIC) != 0);
+  ctrl->SetBuoyancy(blenderobject->jolt_buoyancy);
+  ctrl->SetBuoyancyLinearDrag(blenderobject->jolt_buoyancy_linear_drag);
+  ctrl->SetBuoyancyAngularDrag(blenderobject->jolt_buoyancy_angular_drag);
+  ctrl->SetBuoyancyFluidVelocity(JoltMath::ToJolt(blenderobject->jolt_buoyancy_velocity[0],
+                                                   blenderobject->jolt_buoyancy_velocity[1],
+                                                   blenderobject->jolt_buoyancy_velocity[2]));
   ctrl->SetLinVelocityMin(blenderobject->min_vel);
   ctrl->SetLinVelocityMax(blenderobject->max_vel);
   ctrl->SetAngularVelocityMin(blenderobject->min_angvel);
@@ -3997,7 +5572,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   /* Set the shared constraint group filter and store the body's unique ID
    * in SubGroupID for constraint "Disable Collisions" filtering.
-   * Primary group/mask filtering is done by JoltObjectLayerPairFilter
+   * Primary collection filtering is done by JoltObjectLayerPairFilter
    * via the ObjectLayer set above. */
   body->SetCollisionGroup(JPH::CollisionGroup(m_constraintGroupFilter,
                                                (JPH::CollisionGroup::GroupID)col_group,
@@ -4033,6 +5608,8 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   bool visCheck = (blenderobject->base_flag &
                             (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                              BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
+  ctrl->SetLogicObjectSensorActive(isSensor && layCheck && visCheck);
+  ctrl->SetLogicCollisionQueryActive(layCheck && visCheck);
   if (!isSensor && layCheck && visCheck)
   {
     if (!m_hasSteppedSimulation) {
@@ -4049,7 +5626,8 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     AddController(ctrl);
   }
   else {
-    /* Sensor: controller tracked but body not added until AddSensor(). */
+    /* Sensor: the body is a query shape for C++ Logic Nodes and buoyancy. It enters Jolt's
+     * broadphase only if a legacy collision sensor/callback registers it through AddSensor(). */
     AddController(ctrl);
   }
 
@@ -4144,26 +5722,25 @@ void JoltPhysicsEnvironment::SetupObjectConstraints(
   }
 }
 
-int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
-                                                       KX_GameObject *gameobj2,
-                                                       const MT_Vector3 &pivotLocal,
-                                                       const MT_Matrix3x3 &basisLocal,
-                                                       blender::RigidBodyCon *rbc)
+int JoltPhysicsEnvironment::CreateRigidBodyConstraint(
+    KX_GameObject *gameobj1,
+    KX_GameObject *gameobj2,
+    const MT_Vector3 &pivotLocal,
+    const MT_Matrix3x3 &basisLocal,
+    const PHY_RigidBodyConstraintSettings &settings)
 {
-  using namespace blender;
-
-  if (!gameobj1 || !rbc) {
+  if (!gameobj1 || !gameobj2 || gameobj1 == gameobj2) {
     return -1;
   }
 
-  if (!gameobj1->GetSGNode()) {
+  if (!gameobj1->GetSGNode() || !gameobj2->GetSGNode()) {
     return -1;
   }
 
   PHY_IPhysicsController *ctrl1 = gameobj1->GetPhysicsController();
   PHY_IPhysicsController *ctrl2 = gameobj2 ? gameobj2->GetPhysicsController() : nullptr;
 
-  if (!ctrl1) {
+  if (!ctrl1 || !ctrl2 || ctrl1 == ctrl2) {
     return -1;
   }
 
@@ -4192,41 +5769,51 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
 
   PHY_ConstraintType type = PHY_GENERIC_6DOF_CONSTRAINT;
   bool use_springs = false;
-  bool is_fixed = false;
   bool is_slider = false;
   bool is_piston = false;
   bool is_motor = false;
 
-  switch (rbc->type) {
-    case RBC_TYPE_POINT:
+  switch (settings.type) {
+    case PHY_RigidBodyConstraintType::Point:
       type = PHY_POINT2POINT_CONSTRAINT;
       break;
-    case RBC_TYPE_HINGE:
+    case PHY_RigidBodyConstraintType::Hinge:
       type = PHY_LINEHINGE_CONSTRAINT;
       std::swap(axis0, axis2);
       std::swap(axis1, axis2);
       break;
-    case RBC_TYPE_SLIDER:
-      type = PHY_GENERIC_6DOF_CONSTRAINT;
-      is_slider = true;
+    case PHY_RigidBodyConstraintType::Slider:
+      if ((settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X) == 0 ||
+          !std::isfinite(settings.limit_lin_x_lower) ||
+          !std::isfinite(settings.limit_lin_x_upper) ||
+          settings.limit_lin_x_lower > settings.limit_lin_x_upper ||
+          (settings.limit_lin_x_lower < settings.limit_lin_x_upper &&
+           settings.limit_lin_x_lower <= 0.0f && settings.limit_lin_x_upper >= 0.0f))
+      {
+        type = PHY_SLIDER_CONSTRAINT;
+      }
+      else {
+        /* Jolt's native slider requires limits to span zero. SixDOF preserves valid
+         * offset and zero-width Blender slider ranges without approximation. */
+        type = PHY_GENERIC_6DOF_CONSTRAINT;
+        is_slider = true;
+      }
       break;
-    case RBC_TYPE_6DOF:
+    case PHY_RigidBodyConstraintType::Generic:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       break;
-    case RBC_TYPE_6DOF_SPRING:
-      type = (rbc->spring_type == RBC_SPRING_TYPE2) ? PHY_GENERIC_6DOF_SPRING2_CONSTRAINT :
-                                                      PHY_GENERIC_6DOF_CONSTRAINT;
+    case PHY_RigidBodyConstraintType::GenericSpring:
+      type = PHY_GENERIC_6DOF_SPRING2_CONSTRAINT;
       use_springs = true;
       break;
-    case RBC_TYPE_FIXED:
-      type = PHY_GENERIC_6DOF_CONSTRAINT;
-      is_fixed = true;
+    case PHY_RigidBodyConstraintType::Fixed:
+      type = PHY_FIXED_CONSTRAINT;
       break;
-    case RBC_TYPE_PISTON:
+    case PHY_RigidBodyConstraintType::Piston:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       is_piston = true;
       break;
-    case RBC_TYPE_MOTOR:
+    case PHY_RigidBodyConstraintType::Motor:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       is_motor = true;
       break;
@@ -4235,7 +5822,7 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
   }
 
   int flag = 0;
-  if (rbc->flag & RBC_FLAG_DISABLE_COLLISIONS) {
+  if (settings.flags & PHY_RB_CONSTRAINT_DISABLE_COLLISIONS) {
     flag |= CCD_CONSTRAINT_DISABLE_LINKED_COLLISION;
   }
 
@@ -4260,26 +5847,28 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
     return -1;
   }
 
-  if (rbc->flag & RBC_FLAG_USE_BREAKING) {
-    constraint->SetBreakingThreshold(rbc->breaking_threshold);
+  static_cast<JoltConstraint *>(constraint)->SetRigidBodyConstraintOwner(gameobj1);
+
+  if (settings.flags & PHY_RB_CONSTRAINT_USE_BREAKING) {
+    constraint->SetBreakingThreshold(settings.breaking_threshold);
   }
 
-  if (rbc->flag & RBC_FLAG_OVERRIDE_SOLVER_ITERATIONS) {
-    constraint->SetSolverIterations(rbc->num_solver_iterations);
+  if (settings.flags & PHY_RB_CONSTRAINT_JOLT_OVERRIDE_SOLVER_ITERATIONS) {
+    static_cast<JoltConstraint *>(constraint)->SetSolverIterations(
+        settings.jolt_velocity_solver_iterations, settings.jolt_position_solver_iterations);
   }
 
   auto set_limit = [&](int axis, bool use_flag, float lower, float upper) {
-    constraint->SetParam(axis, use_flag ? lower : 1.0f, use_flag ? upper : -1.0f);
+    const bool valid = use_flag && std::isfinite(lower) && std::isfinite(upper) && lower <= upper;
+    constraint->SetParam(axis, valid ? lower : 1.0f, valid ? upper : -1.0f);
   };
 
   if (type == PHY_GENERIC_6DOF_CONSTRAINT || type == PHY_GENERIC_6DOF_SPRING2_CONSTRAINT) {
-    if (is_fixed) {
-      for (int i = 0; i < 6; ++i) {
-        constraint->SetParam(i, 0.0f, 0.0f);
-      }
-    }
-    else if (is_slider) {
-      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
+    if (is_slider) {
+      set_limit(0,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+                settings.limit_lin_x_lower,
+                settings.limit_lin_x_upper);
       constraint->SetParam(1, 0.0f, 0.0f);
       constraint->SetParam(2, 0.0f, 0.0f);
       constraint->SetParam(3, 0.0f, 0.0f);
@@ -4287,10 +5876,16 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
       constraint->SetParam(5, 0.0f, 0.0f);
     }
     else if (is_piston) {
-      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
+      set_limit(0,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+                settings.limit_lin_x_lower,
+                settings.limit_lin_x_upper);
       constraint->SetParam(1, 0.0f, 0.0f);
       constraint->SetParam(2, 0.0f, 0.0f);
-      set_limit(3, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X), rbc->limit_ang_x_lower, rbc->limit_ang_x_upper);
+      set_limit(3,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X),
+                settings.limit_ang_x_lower,
+                settings.limit_ang_x_upper);
       constraint->SetParam(4, 0.0f, 0.0f);
       constraint->SetParam(5, 0.0f, 0.0f);
     }
@@ -4298,45 +5893,83 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
       for (int i = 0; i < 6; ++i) {
         constraint->SetParam(i, 1.0f, -1.0f);
       }
-      if (rbc->flag & RBC_FLAG_USE_MOTOR_LIN) {
-        constraint->SetParam(6, rbc->motor_lin_target_velocity, rbc->motor_lin_max_impulse);
+      if (settings.flags & PHY_RB_CONSTRAINT_USE_MOTOR_LIN) {
+        constraint->SetParam(
+            6, settings.motor_lin_target_velocity, settings.motor_lin_max_impulse);
       }
-      if (rbc->flag & RBC_FLAG_USE_MOTOR_ANG) {
-        constraint->SetParam(9, rbc->motor_ang_target_velocity, rbc->motor_ang_max_impulse);
+      if (settings.flags & PHY_RB_CONSTRAINT_USE_MOTOR_ANG) {
+        constraint->SetParam(
+            9, settings.motor_ang_target_velocity, settings.motor_ang_max_impulse);
       }
     }
     else {
-      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
-      set_limit(1, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Y), rbc->limit_lin_y_lower, rbc->limit_lin_y_upper);
-      set_limit(2, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Z), rbc->limit_lin_z_lower, rbc->limit_lin_z_upper);
-      set_limit(3, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X), rbc->limit_ang_x_lower, rbc->limit_ang_x_upper);
-      set_limit(4, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Y), rbc->limit_ang_y_lower, rbc->limit_ang_y_upper);
-      set_limit(5, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z), rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
+      set_limit(0,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+                settings.limit_lin_x_lower,
+                settings.limit_lin_x_upper);
+      set_limit(1,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Y),
+                settings.limit_lin_y_lower,
+                settings.limit_lin_y_upper);
+      set_limit(2,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Z),
+                settings.limit_lin_z_lower,
+                settings.limit_lin_z_upper);
+      set_limit(3,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X),
+                settings.limit_ang_x_lower,
+                settings.limit_ang_x_upper);
+      set_limit(4,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Y),
+                settings.limit_ang_y_lower,
+                settings.limit_ang_y_upper);
+      set_limit(5,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z),
+                settings.limit_ang_z_lower,
+                settings.limit_ang_z_upper);
 
       if (use_springs) {
-        if (rbc->flag & RBC_FLAG_USE_SPRING_X) {
-          constraint->SetParam(12, rbc->spring_stiffness_x, rbc->spring_damping_x);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_X) {
+          constraint->SetParam(12, settings.spring_stiffness_x, settings.spring_damping_x);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_Y) {
-          constraint->SetParam(13, rbc->spring_stiffness_y, rbc->spring_damping_y);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_Y) {
+          constraint->SetParam(13, settings.spring_stiffness_y, settings.spring_damping_y);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_Z) {
-          constraint->SetParam(14, rbc->spring_stiffness_z, rbc->spring_damping_z);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_Z) {
+          constraint->SetParam(14, settings.spring_stiffness_z, settings.spring_damping_z);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_X) {
-          constraint->SetParam(15, rbc->spring_stiffness_ang_x, rbc->spring_damping_ang_x);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_ANG_X) {
+          constraint->SetParam(
+              15, settings.spring_stiffness_ang_x, settings.spring_damping_ang_x);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Y) {
-          constraint->SetParam(16, rbc->spring_stiffness_ang_y, rbc->spring_damping_ang_y);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_ANG_Y) {
+          constraint->SetParam(
+              16, settings.spring_stiffness_ang_y, settings.spring_damping_ang_y);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Z) {
-          constraint->SetParam(17, rbc->spring_stiffness_ang_z, rbc->spring_damping_ang_z);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_ANG_Z) {
+          constraint->SetParam(
+              17, settings.spring_stiffness_ang_z, settings.spring_damping_ang_z);
         }
       }
     }
   }
-  else if (type == PHY_LINEHINGE_CONSTRAINT && (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z)) {
-    constraint->SetParam(3, rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
+  else if (type == PHY_SLIDER_CONSTRAINT &&
+           (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X) &&
+           std::isfinite(settings.limit_lin_x_lower) &&
+           std::isfinite(settings.limit_lin_x_upper) &&
+           settings.limit_lin_x_lower < settings.limit_lin_x_upper)
+  {
+    constraint->SetParam(
+        0, settings.limit_lin_x_lower, settings.limit_lin_x_upper);
+  }
+  else if (type == PHY_LINEHINGE_CONSTRAINT &&
+           (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z))
+  {
+    constraint->SetParam(3, settings.limit_ang_z_lower, settings.limit_ang_z_upper);
+  }
+
+  if ((settings.flags & PHY_RB_CONSTRAINT_ENABLED) == 0) {
+    constraint->SetEnabled(false);
   }
 
   return constraint->GetIdentifier();
@@ -4358,12 +5991,55 @@ void JoltPhysicsEnvironment::ExportFile(const std::string &filename)
 
 bool JoltPhysicsEnvironment::SavePhysicsState(std::vector<uint8_t> &outBuffer)
 {
+  outBuffer.clear();
   for (JoltVehicle *veh : m_vehicles) {
     veh->Build();
   }
 
   JPH::StateRecorderImpl recorder;
+  constexpr uint64_t logicContactStateMagic = 0x554C4E434F4E5441ull; /* "ULNCONTA" */
+  constexpr uint32_t logicContactStateVersion = 1;
+  recorder.Write(logicContactStateMagic);
+  recorder.Write(logicContactStateVersion);
+
+  if (m_logicActiveContactPairs.size() > UINT32_MAX) {
+    return false;
+  }
+  const uint32_t logicContactCount = uint32_t(m_logicActiveContactPairs.size());
+  recorder.Write(logicContactCount);
+
+  std::vector<const JoltContactPair *> sortedLogicContacts;
+  sortedLogicContacts.reserve(logicContactCount);
+  for (const auto &item : m_logicActiveContactPairs) {
+    sortedLogicContacts.push_back(&item.second);
+  }
+  std::sort(sortedLogicContacts.begin(),
+            sortedLogicContacts.end(),
+            [](const JoltContactPair *a, const JoltContactPair *b) {
+              return a->subShapePair < b->subShapePair;
+            });
+
+  for (const JoltContactPair *pair : sortedLogicContacts) {
+    recorder.Write(pair->subShapePair);
+    recorder.Write(pair->contactNormal);
+    recorder.Write(pair->contactPosition);
+    for (const JPH::RVec3 &position : pair->contactPositions) {
+      recorder.Write(position);
+    }
+    recorder.Write(pair->penetrationDepth);
+    recorder.Write(pair->combinedFriction);
+    recorder.Write(pair->combinedRestitution);
+    recorder.Write(pair->appliedImpulse);
+    recorder.Write(pair->contactCount);
+    recorder.Write(pair->storedContactCount);
+    const uint8_t flags = uint8_t(pair->isNew) | (uint8_t(pair->retainedWhileDormant) << 1);
+    recorder.Write(flags);
+  }
+
   m_physicsSystem->SaveState(recorder);
+  if (recorder.IsFailed()) {
+    return false;
+  }
 
   std::string data = recorder.GetData();
   outBuffer.assign(data.begin(), data.end());
@@ -4376,13 +6052,129 @@ bool JoltPhysicsEnvironment::RestorePhysicsState(const std::vector<uint8_t> &inB
     return false;
   }
 
+  constexpr uint64_t logicContactStateMagic = 0x554C4E434F4E5441ull; /* "ULNCONTA" */
+  constexpr uint32_t logicContactStateVersion = 1;
+  uint64_t bufferMagic = 0;
+  if (inBuffer.size() >= sizeof(bufferMagic)) {
+    std::memcpy(&bufferMagic, inBuffer.data(), sizeof(bufferMagic));
+  }
+
   JPH::StateRecorderImpl recorder;
   /* Write the saved data into the recorder's stream, then rewind for reading. */
   recorder.WriteBytes(inBuffer.data(), inBuffer.size());
   recorder.Rewind();
 
+  std::vector<JoltContactPair> restoredLogicContacts;
+  if (bufferMagic == logicContactStateMagic) {
+    constexpr size_t headerSize = sizeof(uint64_t) + 2 * sizeof(uint32_t);
+    constexpr size_t contactRecordSize =
+        sizeof(JPH::SubShapeIDPair) + 3 * sizeof(float) +
+        (JOLT_MAX_CACHED_CONTACT_POINTS + 1) * 3 * sizeof(JPH::Real) +
+        4 * sizeof(float) + sizeof(uint16_t) + 2 * sizeof(uint8_t);
+    uint64_t magic = 0;
+    uint32_t version = 0;
+    uint32_t contactCount = 0;
+    recorder.Read(magic);
+    recorder.Read(version);
+    recorder.Read(contactCount);
+    if (recorder.IsFailed() || magic != logicContactStateMagic ||
+        version != logicContactStateVersion || inBuffer.size() < headerSize ||
+        contactCount > (inBuffer.size() - headerSize) / contactRecordSize)
+    {
+      return false;
+    }
+
+    restoredLogicContacts.reserve(contactCount);
+    for (uint32_t contactIndex = 0; contactIndex < contactCount; contactIndex++) {
+      JoltContactPair pair{};
+      recorder.Read(pair.subShapePair);
+      recorder.Read(pair.contactNormal);
+      recorder.Read(pair.contactPosition);
+      for (JPH::RVec3 &position : pair.contactPositions) {
+        recorder.Read(position);
+      }
+      recorder.Read(pair.penetrationDepth);
+      recorder.Read(pair.combinedFriction);
+      recorder.Read(pair.combinedRestitution);
+      recorder.Read(pair.appliedImpulse);
+      recorder.Read(pair.contactCount);
+      recorder.Read(pair.storedContactCount);
+      uint8_t flags = 0;
+      recorder.Read(flags);
+      if (recorder.IsFailed() || pair.storedContactCount > JOLT_MAX_CACHED_CONTACT_POINTS ||
+          (flags & ~uint8_t(3)) != 0)
+      {
+        return false;
+      }
+      pair.bodyID1 = pair.subShapePair.GetBody1ID();
+      pair.bodyID2 = pair.subShapePair.GetBody2ID();
+      pair.isNew = (flags & 1) != 0;
+      pair.retainedWhileDormant = (flags & 2) != 0;
+      restoredLogicContacts.push_back(pair);
+    }
+  }
+
   if (!m_physicsSystem->RestoreState(recorder)) {
     return false;
+  }
+
+  /* Jolt restores its own contact manager, but queued listener events describe
+   * the post-snapshot timeline. Drop those events before installing the saved,
+   * pointer-free Logic Nodes contact state. */
+  m_contactPairsScratch.clear();
+  m_removedContactPairsScratch.clear();
+  m_contactEventsScratch.clear();
+  m_contactListener.SwapContactEvents(
+      m_contactPairsScratch, m_removedContactPairsScratch, m_contactEventsScratch);
+  m_contactPairsScratch.clear();
+  m_removedContactPairsScratch.clear();
+  m_contactEventsScratch.clear();
+  m_logicCollisionContactCacheValid = false;
+  m_logicCollisionContactDetailsValid = false;
+  m_logicActiveContactPairs.clear();
+  m_logicCollisionContacts.clear();
+  m_logicObjectSensorOverlapsByController.clear();
+  m_logicCollisionContactsByController.clear();
+  m_logicCollisionContactsByObject.clear();
+
+  if (m_collectContactsForLogicNodes.load(std::memory_order_relaxed)) {
+    const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+    for (JoltContactPair &pair : restoredLogicContacts) {
+      if (pair.bodyID1.IsInvalid() || pair.bodyID2.IsInvalid()) {
+        continue;
+      }
+
+      {
+        const JPH::BodyID bodyIDs[2] = {pair.bodyID1, pair.bodyID2};
+        JPH::BodyLockMultiRead lock(lockInterface, bodyIDs, 2);
+        const JPH::Body *body1 = lock.GetBody(0);
+        const JPH::Body *body2 = lock.GetBody(1);
+        if (!body1 || !body2) {
+          continue;
+        }
+
+        KX_ClientObjectInfo *info1 = JoltGetClientInfo(*body1);
+        KX_ClientObjectInfo *info2 = JoltGetClientInfo(*body2);
+        pair.ctrl1 = info1 ? static_cast<JoltPhysicsController *>(
+                                 JoltGetPhysicsController(info1)) :
+                             nullptr;
+        pair.ctrl2 = info2 ? static_cast<JoltPhysicsController *>(
+                                 JoltGetPhysicsController(info2)) :
+                             nullptr;
+        pair.object1 = info1 ? info1->m_gameobject : nullptr;
+        pair.object2 = info2 ? info2->m_gameobject : nullptr;
+      }
+
+      if (!pair.ctrl1 || !pair.ctrl2 || !pair.object1 || !pair.object2 ||
+          m_controllers.find(pair.ctrl1) == m_controllers.end() ||
+          m_controllers.find(pair.ctrl2) == m_controllers.end() ||
+          pair.ctrl1->GetBodyID() != pair.bodyID1 || pair.ctrl2->GetBodyID() != pair.bodyID2 ||
+          !CheckCollision(pair.ctrl1, pair.ctrl2, false).collide)
+      {
+        continue;
+      }
+      m_logicActiveContactPairs[pair.subShapePair] = pair;
+    }
   }
 
   for (JoltVehicle *veh : m_vehicles) {
@@ -4418,6 +6210,8 @@ void JoltPhysicsEnvironment::AddController(JoltPhysicsController *ctrl)
       m_controllers.insert(ctrl);
   if (insertResult.second) {
     m_controllersIterationCacheDirty = true;
+    m_fhControllersIterationCacheDirty = true;
+    m_buoyancyVolumesIterationCacheDirty = true;
   }
 }
 
@@ -4433,7 +6227,10 @@ bool JoltPhysicsEnvironment::RemoveController(JoltPhysicsController *ctrl)
   }
 
   m_controllersIterationCacheDirty = true;
+  m_fhControllersIterationCacheDirty = true;
+  m_buoyancyVolumesIterationCacheDirty = true;
   m_pendingCompoundSubShapesByController.erase(ctrl);
+  RemoveLogicActiveContactsForController(ctrl);
 
   m_collisionCallbackControllers.erase(ctrl);
   m_collectContactsForCallbacks.store(!m_collisionCallbackControllers.empty(),
@@ -4497,6 +6294,11 @@ bool JoltPhysicsEnvironment::RemoveController(JoltPhysicsController *ctrl)
   return true;
 }
 
+void JoltPhysicsEnvironment::InvalidateFhControllersCache()
+{
+  m_fhControllersIterationCacheDirty = true;
+}
+
 const std::vector<JoltPhysicsController *> &JoltPhysicsEnvironment::GetControllersForIteration()
 {
   if (!m_controllersIterationCacheDirty) {
@@ -4513,6 +6315,48 @@ const std::vector<JoltPhysicsController *> &JoltPhysicsEnvironment::GetControlle
   return m_controllersIterationCache;
 }
 
+const std::vector<JoltPhysicsController *> &JoltPhysicsEnvironment::GetFhControllersForIteration()
+{
+  if (!m_fhControllersIterationCacheDirty) {
+    return m_fhControllersIterationCache;
+  }
+
+  m_fhControllersIterationCache.clear();
+  m_fhControllersIterationCache.reserve(m_controllers.size());
+  for (JoltPhysicsController *ctrl : m_controllers) {
+    if (ctrl && ctrl->UsesFhSpring()) {
+      m_fhControllersIterationCache.push_back(ctrl);
+    }
+  }
+  m_fhControllersIterationCacheDirty = false;
+
+  return m_fhControllersIterationCache;
+}
+
+void JoltPhysicsEnvironment::InvalidateBuoyancyVolumesCache()
+{
+  m_buoyancyVolumesIterationCacheDirty = true;
+}
+
+const std::vector<JoltPhysicsController *> &
+JoltPhysicsEnvironment::GetBuoyancyVolumesForIteration()
+{
+  if (!m_buoyancyVolumesIterationCacheDirty) {
+    return m_buoyancyVolumesIterationCache;
+  }
+
+  m_buoyancyVolumesIterationCache.clear();
+  m_buoyancyVolumesIterationCache.reserve(m_controllers.size());
+  for (JoltPhysicsController *ctrl : m_controllers) {
+    if (ctrl && ctrl->UsesBuoyancyVolume()) {
+      m_buoyancyVolumesIterationCache.push_back(ctrl);
+    }
+  }
+  m_buoyancyVolumesIterationCacheDirty = false;
+
+  return m_buoyancyVolumesIterationCache;
+}
+
 void JoltPhysicsEnvironment::AddGraphicController(JoltGraphicController *ctrl)
 {
   m_graphicControllers.insert(ctrl);
@@ -4523,57 +6367,456 @@ void JoltPhysicsEnvironment::RemoveGraphicController(JoltGraphicController *ctrl
   m_graphicControllers.erase(ctrl);
 }
 
-void JoltPhysicsEnvironment::CallbackTriggers()
+void JoltPhysicsEnvironment::RemoveLogicActiveContactsForBody(const JPH::BodyID bodyID)
 {
-  if (!m_triggerCallbacks[PHY_OBJECT_RESPONSE]) {
+  if (bodyID.IsInvalid()) {
     return;
   }
 
-  if (!m_collectContactsForCallbacks.load(std::memory_order_relaxed)) {
-    /* If callback requests were removed during/after Update(), flush leftovers. */
+  bool removed = false;
+  for (const auto &sensorItem : m_logicObjectSensorOverlapsByController) {
+    if ((sensorItem.first && sensorItem.first->GetBodyID() == bodyID) ||
+        std::any_of(sensorItem.second.begin(),
+                    sensorItem.second.end(),
+                    [&](const PHY_CachedCollisionContact &contact) {
+                      const JoltPhysicsController *ctrl0 =
+                          static_cast<const JoltPhysicsController *>(contact.ctrl0);
+                      const JoltPhysicsController *ctrl1 =
+                          static_cast<const JoltPhysicsController *>(contact.ctrl1);
+                      return (ctrl0 && ctrl0->GetBodyID() == bodyID) ||
+                             (ctrl1 && ctrl1->GetBodyID() == bodyID);
+                    }))
+    {
+      removed = true;
+      break;
+    }
+  }
+  for (auto it = m_logicActiveContactPairs.begin(); it != m_logicActiveContactPairs.end();) {
+    const JoltContactPair &pair = it->second;
+    if (pair.bodyID1 == bodyID || pair.bodyID2 == bodyID) {
+      removed = true;
+      it = m_logicActiveContactPairs.erase(it);
+    }
+    else {
+      ++it;
+    }
+  }
+
+  if (removed) {
+    m_logicCollisionContactCacheValid = false;
+    m_logicCollisionContactDetailsValid = false;
+    m_logicCollisionContacts.clear();
+    m_logicObjectSensorOverlapsByController.clear();
+    m_logicCollisionContactsByController.clear();
+    m_logicCollisionContactsByObject.clear();
+  }
+}
+
+void JoltPhysicsEnvironment::RemoveLogicActiveContactsForController(JoltPhysicsController *ctrl)
+{
+  if (!ctrl) {
+    return;
+  }
+
+  bool removed = m_logicObjectSensorOverlapsByController.find(ctrl) !=
+                 m_logicObjectSensorOverlapsByController.end();
+  if (!removed) {
+    for (const auto &sensorItem : m_logicObjectSensorOverlapsByController) {
+      if (std::any_of(sensorItem.second.begin(),
+                      sensorItem.second.end(),
+                      [&](const PHY_CachedCollisionContact &contact) {
+                        return contact.ctrl0 == ctrl || contact.ctrl1 == ctrl;
+                      }))
+      {
+        removed = true;
+        break;
+      }
+    }
+  }
+  for (auto it = m_logicActiveContactPairs.begin(); it != m_logicActiveContactPairs.end();) {
+    const JoltContactPair &pair = it->second;
+    if (pair.ctrl1 == ctrl || pair.ctrl2 == ctrl) {
+      removed = true;
+      it = m_logicActiveContactPairs.erase(it);
+    }
+    else {
+      ++it;
+    }
+  }
+
+  if (removed) {
+    m_logicCollisionContactCacheValid = false;
+    m_logicCollisionContactDetailsValid = false;
+    m_logicCollisionContacts.clear();
+    m_logicObjectSensorOverlapsByController.clear();
+    m_logicCollisionContactsByController.clear();
+    m_logicCollisionContactsByObject.clear();
+  }
+}
+
+void JoltPhysicsEnvironment::CollectLogicObjectQueryOverlaps(
+    JoltPhysicsController *queryController, const bool collectContactDetails)
+{
+  /* Presence in this map, including an empty vector, memoizes this query for the current
+   * cache generation. unordered_map rehashing preserves references to value storage. */
+  auto [overlapIt, inserted] = m_logicObjectSensorOverlapsByController.try_emplace(
+      queryController);
+  if (!inserted) {
+    return;
+  }
+  std::vector<PHY_CachedCollisionContact> &sensorOverlaps = overlapIt->second;
+
+  if (!queryController || !queryController->IsLogicCollisionQueryActive() ||
+      queryController->GetBodyID().IsInvalid())
+  {
+    return;
+  }
+
+  KX_ClientObjectInfo *sensorInfo = static_cast<KX_ClientObjectInfo *>(
+      queryController->GetNewClientInfo());
+  if (!sensorInfo || !sensorInfo->m_gameobject ||
+      JoltGetPhysicsController(sensorInfo) != queryController)
+  {
+    return;
+  }
+
+  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+  const JPH::NarrowPhaseQuery &query = m_physicsSystem->GetNarrowPhaseQuery();
+  JPH::CollideShapeSettings settings;
+  /* Sensor events represent actual overlap, never speculative solid contacts. */
+  settings.mMaxSeparationDistance = 0.0f;
+  JPH::ClosestHitPerBodyCollisionCollector<JPH::CollideShapeCollector> collector;
+
+  JPH::RefConst<JPH::Shape> sensorShape;
+  JPH::RMat44 sensorTransform;
+  JPH::ObjectLayer sensorBodyLayer = JPH::ObjectLayer(0);
+  JPH::CollisionGroup sensorCollisionGroup;
+  {
+    JPH::BodyLockRead lock(lockInterface, queryController->GetBodyID());
+    if (!lock.Succeeded()) {
+      return;
+    }
+    const JPH::Body &sensorBody = lock.GetBody();
+    sensorShape = sensorBody.GetShape();
+    sensorTransform = JoltLogicQueryTransform(
+        *queryController, *sensorShape, sensorBody.GetCenterOfMassTransform());
+    sensorBodyLayer = sensorBody.GetObjectLayer();
+    sensorCollisionGroup = sensorBody.GetCollisionGroup();
+  }
+  if (!sensorShape) {
+    return;
+  }
+
+  const bool includeStatic = queryController->IsSensor() ?
+                                 queryController->GetLogicObjectSensorIncludeStatic() :
+                                 true;
+  const JoltLogicObjectSensorBroadPhaseLayerFilter broadPhaseFilter(includeStatic);
+  const JPH::ObjectLayer sensorQueryLayer = JoltMakeObjectLayer(
+      JoltGetCollisionLayers(sensorBodyLayer), 0, JOLT_BP_SENSOR);
+  const JPH::DefaultObjectLayerFilter objectLayerFilter(
+      m_objectLayerPairFilter, sensorQueryLayer);
+  const JoltLogicObjectSensorBodyFilter bodyFilter(queryController->GetBodyID(),
+                                                    sensorCollisionGroup,
+                                                    *sensorInfo,
+                                                    includeStatic,
+                                                    m_controllers);
+
+  /* One deepest result per body prevents mesh/compound sub-shapes from multiplying the same
+   * logical overlap and bounds both memory traffic and Logic Nodes output size. */
+  query.CollideShape(sensorShape.GetPtr(),
+                     JPH::Vec3::sReplicate(1.0f),
+                     sensorTransform,
+                     settings,
+                     JPH::RVec3::sZero(),
+                     collector,
+                     broadPhaseFilter,
+                     objectLayerFilter,
+                     bodyFilter,
+                     {});
+
+  std::sort(collector.mHits.begin(),
+            collector.mHits.end(),
+            [](const JPH::CollideShapeResult &a, const JPH::CollideShapeResult &b) {
+              return a.mBodyID2.GetIndexAndSequenceNumber() <
+                     b.mBodyID2.GetIndexAndSequenceNumber();
+            });
+  sensorOverlaps.reserve(collector.mHits.size());
+
+  for (const JPH::CollideShapeResult &hit : collector.mHits) {
+    JPH::BodyLockRead lock(lockInterface, hit.mBodyID2);
+    if (!lock.Succeeded()) {
+      continue;
+    }
+    const JPH::Body &otherBody = lock.GetBody();
+    if (!bodyFilter.ShouldCollideLocked(otherBody)) {
+      continue;
+    }
+    KX_ClientObjectInfo *otherInfo = JoltGetClientInfo(otherBody);
+    JoltPhysicsController *otherController = otherInfo ?
+        static_cast<JoltPhysicsController *>(JoltGetPhysicsController(otherInfo)) :
+        nullptr;
+    if (!otherController || !otherInfo->m_gameobject) {
+      continue;
+    }
+
+    PHY_CachedCollisionContact contact;
+    contact.ctrl0 = queryController;
+    contact.ctrl1 = otherController;
+    contact.object0 = sensorInfo->m_gameobject;
+    contact.object1 = otherInfo->m_gameobject;
+    contact.contact_count = 1;
+    if (collectContactDetails) {
+      contact.points.push_back(JoltMath::ToMT(hit.mContactPointOn2));
+      contact.normals.push_back(JoltLogicContactNormal(hit.mPenetrationAxis));
+    }
+    sensorOverlaps.push_back(std::move(contact));
+  }
+
+  /* Sensor overlaps are deliberately one-sided: solid targets do not receive trigger-only
+   * collision events. Publish pointers only after vector growth is complete. */
+  if (!sensorOverlaps.empty()) {
+    std::vector<const PHY_CachedCollisionContact *> &contactRefs =
+        m_logicCollisionContactsByController[queryController];
+    contactRefs.reserve(contactRefs.size() + sensorOverlaps.size());
+    for (const PHY_CachedCollisionContact &contact : sensorOverlaps) {
+      contactRefs.push_back(&contact);
+    }
+  }
+}
+
+void JoltPhysicsEnvironment::CallbackTriggers()
+{
+  const bool collectForCallbacks =
+      m_collectContactsForCallbacks.load(std::memory_order_relaxed) &&
+      m_triggerCallbacks[PHY_OBJECT_RESPONSE] != nullptr;
+  const bool collectForLogicNodes = m_collectContactsForLogicNodes.load(std::memory_order_relaxed);
+  const bool collectDetailsForLogicNodes =
+      collectForLogicNodes &&
+      m_collectContactDetailsForLogicNodes.load(std::memory_order_relaxed);
+
+  if (!collectForCallbacks && !collectForLogicNodes) {
     m_contactPairsScratch.clear();
-    m_contactListener.SwapContacts(m_contactPairsScratch);
+    m_removedContactPairsScratch.clear();
+    m_contactEventsScratch.clear();
+    m_contactListener.SwapContactEvents(
+        m_contactPairsScratch, m_removedContactPairsScratch, m_contactEventsScratch);
     m_contactPairsScratch.clear();
+    m_removedContactPairsScratch.clear();
+    m_contactEventsScratch.clear();
+    m_logicCollisionContactCacheValid = false;
+    m_logicCollisionContactDetailsValid = false;
+    m_logicActiveContactPairs.clear();
+    m_logicCollisionContacts.clear();
+    m_logicObjectSensorOverlapsByController.clear();
+    m_logicCollisionContactsByController.clear();
+    m_logicCollisionContactsByObject.clear();
     return;
   }
 
   /* Swap contact pairs from the listener (accumulated during Update()). */
   m_contactPairsScratch.clear();
-  m_contactListener.SwapContacts(m_contactPairsScratch);
+  m_removedContactPairsScratch.clear();
+  m_contactEventsScratch.clear();
+  m_contactListener.SwapContactEvents(
+      m_contactPairsScratch, m_removedContactPairsScratch, m_contactEventsScratch);
+  m_logicCollisionContactCacheValid = collectForLogicNodes;
+  m_logicCollisionContactDetailsValid = collectDetailsForLogicNodes;
 
-  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+  if (collectForLogicNodes) {
+    JPH::BodyInterface &bodyInterface = GetBodyInterface();
+    auto logicPairIsValid = [&](const JoltContactPair &pair) {
+      return pair.ctrl1 && pair.ctrl2 && pair.object1 && pair.object2 &&
+             !JoltIsObjectSensor(pair.ctrl1) && !JoltIsObjectSensor(pair.ctrl2) &&
+             !pair.bodyID1.IsInvalid() && !pair.bodyID2.IsInvalid() &&
+             m_controllers.find(pair.ctrl1) != m_controllers.end() &&
+             m_controllers.find(pair.ctrl2) != m_controllers.end() &&
+             pair.ctrl1->GetBodyID() == pair.bodyID1 && pair.ctrl2->GetBodyID() == pair.bodyID2 &&
+             bodyInterface.IsAdded(pair.bodyID1) && bodyInterface.IsAdded(pair.bodyID2);
+    };
+    auto logicPairLayersCanCollide = [&](const JoltContactPair &pair) {
+      const JPH::ObjectLayer layer1 = bodyInterface.GetObjectLayer(pair.bodyID1);
+      const JPH::ObjectLayer layer2 = bodyInterface.GetObjectLayer(pair.bodyID2);
+      if (!m_objectLayerPairFilter.ShouldCollide(layer1, layer2)) {
+        return false;
+      }
+      const JPH::BroadPhaseLayer bp1 = m_broadPhaseLayerInterface.GetBroadPhaseLayer(layer1);
+      const JPH::BroadPhaseLayer bp2 = m_broadPhaseLayerInterface.GetBroadPhaseLayer(layer2);
+      return m_objectVsBroadPhaseLayerFilter.ShouldCollide(layer1, bp2) &&
+             m_objectVsBroadPhaseLayerFilter.ShouldCollide(layer2, bp1);
+    };
+    auto logicPairIsDormant = [&](const JoltContactPair &pair) {
+      const JPH::EMotionType motionType1 = bodyInterface.GetMotionType(pair.bodyID1);
+      const JPH::EMotionType motionType2 = bodyInterface.GetMotionType(pair.bodyID2);
+      const bool hasMovableBody = motionType1 != JPH::EMotionType::Static ||
+                                  motionType2 != JPH::EMotionType::Static;
+      const bool body1Dormant = motionType1 == JPH::EMotionType::Static ||
+                                !bodyInterface.IsActive(pair.bodyID1);
+      const bool body2Dormant = motionType2 == JPH::EMotionType::Static ||
+                                !bodyInterface.IsActive(pair.bodyID2);
+      return hasMovableBody && body1Dormant && body2Dormant;
+    };
+
+    auto processContact = [&](const JoltContactPair &pair) {
+      if (!pair.ctrl1 || !pair.ctrl2 || !pair.object1 || !pair.object2 ||
+          pair.bodyID1.IsInvalid() || pair.bodyID2.IsInvalid())
+      {
+        return;
+      }
+      m_logicActiveContactPairs[pair.subShapePair] = pair;
+    };
+    auto processRemoval = [&](const JoltRemovedContactPair &removal) {
+      auto it = m_logicActiveContactPairs.find(removal.subShapePair);
+      if (it == m_logicActiveContactPairs.end()) {
+        return;
+      }
+
+      const JoltContactPair &pair = it->second;
+      if (!logicPairIsValid(pair)) {
+        m_logicActiveContactPairs.erase(it);
+        return;
+      }
+
+      /* If another sub-shape contact between the same bodies still exists,
+       * erase this exact contact and let the remaining contacts keep the
+       * high-level body collision alive. */
+      if (m_physicsSystem->WereBodiesInContact(removal.bodyID1, removal.bodyID2)) {
+        m_logicActiveContactPairs.erase(it);
+        return;
+      }
+
+      /* Jolt removes all contacts once no movable body in the pair is active.
+       * Preserve that logical collision only while the pair is genuinely dormant
+       * and a fresh narrow-phase query confirms it is still touching. Active
+       * manifold removals must never be retained: box/mesh contacts can change
+       * sub-shape IDs while their speculative bounds still overlap. */
+      if (!logicPairLayersCanCollide(pair) || !logicPairIsDormant(pair)) {
+        m_logicActiveContactPairs.erase(it);
+        return;
+      }
+
+      const PHY_CollisionTestResult stillTouching = CheckCollision(pair.ctrl1, pair.ctrl2, false);
+      if (stillTouching.collide) {
+        it->second.retainedWhileDormant = true;
+      }
+      else {
+        m_logicActiveContactPairs.erase(it);
+      }
+    };
+
+    /* Jolt serializes callbacks for each body pair, and every event for a body pair
+     * hashes to the same shard. Replay each shard's compact event sequence so that
+     * multiple collision substeps and CCD cannot collapse Added/Removed ordering. */
+    for (const JoltContactEvent &event : m_contactEventsScratch) {
+      if (event.type == JoltContactEventType::Contact) {
+        if (event.index < m_contactPairsScratch.size()) {
+          processContact(m_contactPairsScratch[event.index]);
+        }
+        continue;
+      }
+      if (event.index < m_removedContactPairsScratch.size()) {
+        processRemoval(m_removedContactPairsScratch[event.index]);
+      }
+    }
+
+    for (auto it = m_logicActiveContactPairs.begin(); it != m_logicActiveContactPairs.end();) {
+      const JoltContactPair &pair = it->second;
+      if (!logicPairIsValid(pair) ||
+          (pair.retainedWhileDormant &&
+           (!logicPairLayersCanCollide(pair) || !logicPairIsDormant(pair))))
+      {
+        it = m_logicActiveContactPairs.erase(it);
+      }
+      else {
+        ++it;
+      }
+    }
+
+    m_logicCollisionContacts.clear();
+    m_logicObjectSensorOverlapsByController.clear();
+    /* At most one root contact and one compound-child contact are emitted per
+     * active Jolt sub-shape pair. Reserve first so every published pointer stays stable. */
+    m_logicCollisionContacts.reserve(m_logicActiveContactPairs.size() * 2);
+    m_logicCollisionContactsByController.clear();
+    m_logicCollisionContactsByController.reserve(m_logicActiveContactPairs.size() * 2);
+    m_logicCollisionContactsByObject.clear();
+    m_logicCollisionContactsByObject.reserve(m_logicActiveContactPairs.size());
+
+    auto appendCachedContact = [&](const JoltContactPair &pair,
+                                   KX_GameObject *object0,
+                                   KX_GameObject *object1) {
+      PHY_CachedCollisionContact cachedContact;
+      cachedContact.ctrl0 = pair.ctrl1;
+      cachedContact.ctrl1 = pair.ctrl2;
+      cachedContact.object0 = object0;
+      cachedContact.object1 = object1;
+      cachedContact.contact_count = std::max<int>(1, int(pair.contactCount));
+      if (collectDetailsForLogicNodes) {
+        cachedContact.points.reserve(pair.storedContactCount > 0 ? pair.storedContactCount : 1);
+        cachedContact.normals.reserve(pair.storedContactCount > 0 ? pair.storedContactCount : 1);
+        if (pair.storedContactCount > 0) {
+          for (uint8_t i = 0; i < pair.storedContactCount; i++) {
+            cachedContact.points.push_back(JoltMath::ToMT(JPH::Vec3(pair.contactPositions[i])));
+            cachedContact.normals.push_back(JoltMath::ToMT(pair.contactNormal));
+          }
+        }
+        else {
+          cachedContact.points.push_back(JoltMath::ToMT(JPH::Vec3(pair.contactPosition)));
+          cachedContact.normals.push_back(JoltMath::ToMT(pair.contactNormal));
+        }
+      }
+      m_logicCollisionContacts.push_back(std::move(cachedContact));
+      return &m_logicCollisionContacts.back();
+    };
+
+    for (const auto &activePairItem : m_logicActiveContactPairs) {
+      const JoltContactPair &pair = activePairItem.second;
+      const PHY_CachedCollisionContact *rootContact = appendCachedContact(
+          pair, pair.object1, pair.object2);
+      m_logicCollisionContactsByController[pair.ctrl1].push_back(rootContact);
+      m_logicCollisionContactsByController[pair.ctrl2].push_back(rootContact);
+
+      KX_GameObject *child1 = pair.ctrl1->ResolveCompoundChildObject(
+          pair.subShapePair.GetSubShapeID1());
+      KX_GameObject *child2 = pair.ctrl2->ResolveCompoundChildObject(
+          pair.subShapePair.GetSubShapeID2());
+      if (child1 || child2) {
+        const PHY_CachedCollisionContact *childContact = appendCachedContact(
+            pair, child1 ? child1 : pair.object1, child2 ? child2 : pair.object2);
+        if (child1) {
+          m_logicCollisionContactsByObject[child1].push_back(childContact);
+        }
+        if (child2) {
+          m_logicCollisionContactsByObject[child2].push_back(childContact);
+        }
+      }
+    }
+
+    /* Query overlap vectors remain empty until C++ Logic Nodes requests a specific controller. */
+  }
+  else {
+    m_logicActiveContactPairs.clear();
+    m_logicCollisionContacts.clear();
+    m_logicObjectSensorOverlapsByController.clear();
+    m_logicCollisionContactsByController.clear();
+    m_logicCollisionContactsByObject.clear();
+  }
 
   for (const JoltContactPair &pair : m_contactPairsScratch) {
-    /* Lock both bodies atomically to read their user data.
-     * BodyLockMultiRead computes a combined mutex mask so each unique
-     * internal Jolt mutex is locked exactly once, avoiding the undefined
-     * behaviour (and potential std::system_error / deadlock) that occurs
-     * when two separate BodyLockRead calls happen to map to the same
-     * mutex slot in Jolt's MutexArray. */
-    JPH::BodyID ids[2] = { pair.bodyID1, pair.bodyID2 };
-    JPH::BodyLockMultiRead multiLock(lockInterface, ids, 2);
-    const JPH::Body *body1 = multiLock.GetBody(0);
-    const JPH::Body *body2 = multiLock.GetBody(1);
-    if (!body1 || !body2) {
+    JoltPhysicsController *jctrl1 = pair.ctrl1;
+    JoltPhysicsController *jctrl2 = pair.ctrl2;
+    KX_GameObject *object1 = pair.object1;
+    KX_GameObject *object2 = pair.object2;
+    if (!jctrl1 || !jctrl2 || !object1 || !object2) {
       continue;
     }
 
-    KX_ClientObjectInfo *info1 = reinterpret_cast<KX_ClientObjectInfo *>(body1->GetUserData());
-    KX_ClientObjectInfo *info2 = reinterpret_cast<KX_ClientObjectInfo *>(body2->GetUserData());
-    if (!info1 || !info2 || !info1->m_gameobject || !info2->m_gameobject) {
+    PHY_IPhysicsController *ctrl1 = jctrl1;
+    PHY_IPhysicsController *ctrl2 = jctrl2;
+
+    if (!collectForCallbacks) {
       continue;
     }
 
-    PHY_IPhysicsController *ctrl1 = info1->m_gameobject->GetPhysicsController();
-    PHY_IPhysicsController *ctrl2 = info2->m_gameobject->GetPhysicsController();
-    if (!ctrl1 || !ctrl2) {
-      continue;
-    }
-
-    JoltPhysicsController *jctrl1 = static_cast<JoltPhysicsController *>(ctrl1);
-    JoltPhysicsController *jctrl2 = static_cast<JoltPhysicsController *>(ctrl2);
-
-    /* Check if at least one controller is registered for collision callbacks. */
     bool first;
     if (m_collisionCallbackControllers.count(jctrl1)) {
       first = true;
@@ -4585,7 +6828,6 @@ void JoltPhysicsEnvironment::CallbackTriggers()
       continue;
     }
 
-    /* Build collision data from the contact pair. */
     JoltCollData *collData = new JoltCollData();
     MT_Vector3 worldPoint = JoltMath::ToMT(JPH::Vec3(pair.contactPosition));
     MT_Vector3 normal = JoltMath::ToMT(pair.contactNormal);
@@ -4605,20 +6847,148 @@ void JoltPhysicsEnvironment::CallbackTriggers()
   }
 }
 
-void JoltPhysicsEnvironment::ProcessFhSprings(float timeStep)
+void JoltPhysicsEnvironment::ProcessBuoyancy(float timeStep)
 {
-  /* FH (Floating Height) springs: cast a ray downward from each dynamic body
-   * that has FH enabled, and apply a spring force to maintain hover height.
-   *
-   * This replicates CcdPhysicsEnvironment::ProcessFhSprings() using Jolt ray casts.
-   * Per-object parameters: fhSpring (force), fhDamping, fhDistance, fhNormal, fhRot. */
   if (timeStep <= 0.0f) {
+    return;
+  }
+
+  const std::vector<JoltPhysicsController *> &volumes = GetBuoyancyVolumesForIteration();
+  if (volumes.empty()) {
     return;
   }
 
   JPH::BodyInterface &bi = GetBodyInterface();
   const JPH::NarrowPhaseQuery &npq = m_physicsSystem->GetNarrowPhaseQuery();
-  const std::vector<JoltPhysicsController *> &controllers = GetControllersForIteration();
+  const JPH::Vec3 gravity = m_physicsSystem->GetGravity();
+  const JoltBuoyancyBroadPhaseLayerFilter broadPhaseFilter;
+
+  JPH::CollideShapeSettings collideSettings;
+  collideSettings.mMaxSeparationDistance = 0.0f;
+
+  for (JoltPhysicsController *volumeCtrl : volumes) {
+    if (!volumeCtrl || !volumeCtrl->UsesBuoyancyVolume()) {
+      continue;
+    }
+
+    const float buoyancy = std::max(0.0f, volumeCtrl->GetBuoyancy());
+    const float linearDrag = std::max(0.0f, volumeCtrl->GetBuoyancyLinearDrag());
+    const float angularDrag = std::max(0.0f, volumeCtrl->GetBuoyancyAngularDrag());
+    if (buoyancy <= 0.0f && linearDrag <= 0.0f && angularDrag <= 0.0f) {
+      continue;
+    }
+
+    const JPH::BodyID volumeID = volumeCtrl->GetBodyID();
+    if (volumeID.IsInvalid()) {
+      continue;
+    }
+
+    JPH::RefConst<JPH::Shape> volumeShape;
+    JPH::RMat44 volumeTransform;
+    JPH::ObjectLayer volumeLayer = JPH::cObjectLayerInvalid;
+    JPH::RVec3 surfacePosition;
+    JPH::Vec3 surfaceNormal;
+    {
+      JPH::BodyLockRead lock(m_physicsSystem->GetBodyLockInterface(), volumeID);
+      if (!lock.Succeeded()) {
+        continue;
+      }
+
+      const JPH::Body &volumeBody = lock.GetBody();
+      if (!volumeBody.IsRigidBody() || !volumeBody.IsSensor()) {
+        continue;
+      }
+
+      volumeShape = volumeBody.GetShape();
+      if (!volumeShape) {
+        continue;
+      }
+
+      const JPH::AABox localBounds = volumeShape->GetLocalBounds();
+      if (!localBounds.IsValid()) {
+        continue;
+      }
+
+      volumeTransform = volumeBody.GetCenterOfMassTransform();
+      surfacePosition = volumeTransform * JPH::Vec3(0.0f, localBounds.mMax.GetY(), 0.0f);
+      surfaceNormal = volumeTransform.GetAxisY();
+      volumeLayer = volumeBody.GetObjectLayer();
+    }
+
+    if (surfaceNormal.LengthSq() <= 1.0e-12f ||
+        volumeLayer == JPH::cObjectLayerInvalid) {
+      continue;
+    }
+    surfaceNormal = surfaceNormal.Normalized();
+
+    JoltBuoyancyObjectLayerFilter objectLayerFilter(volumeLayer, m_objectLayerPairFilter);
+    JoltBuoyancyBodyFilter bodyFilter(volumeID);
+    JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
+    npq.CollideShape(volumeShape.GetPtr(),
+                     JPH::Vec3::sReplicate(1.0f),
+                     volumeTransform,
+                     collideSettings,
+                     JPH::RVec3::sZero(),
+                     collector,
+                     broadPhaseFilter,
+                     objectLayerFilter,
+                     bodyFilter,
+                     {});
+
+    if (collector.mHits.empty()) {
+      continue;
+    }
+
+    m_buoyancyTargetBodyIDsScratch.clear();
+    m_buoyancyTargetBodyKeysScratch.clear();
+    m_buoyancyTargetBodyIDsScratch.reserve(collector.mHits.size());
+    m_buoyancyTargetBodyKeysScratch.reserve(collector.mHits.size());
+
+    for (const JPH::CollideShapeResult &hit : collector.mHits) {
+      const JPH::BodyID targetID = hit.mBodyID2;
+      if (targetID.IsInvalid()) {
+        continue;
+      }
+
+      if (m_buoyancyTargetBodyKeysScratch.insert(targetID.GetIndexAndSequenceNumber()).second) {
+        m_buoyancyTargetBodyIDsScratch.push_back(targetID);
+      }
+    }
+
+    for (const JPH::BodyID targetID : m_buoyancyTargetBodyIDsScratch) {
+      bi.ApplyBuoyancyImpulse(targetID,
+                              surfacePosition,
+                              surfaceNormal,
+                              buoyancy,
+                              linearDrag,
+                              angularDrag,
+                              volumeCtrl->GetBuoyancyFluidVelocity(),
+                              gravity,
+                              timeStep);
+    }
+  }
+}
+
+void JoltPhysicsEnvironment::ProcessFhSprings(float timeStep)
+{
+  /* FH (Floating Height) springs: cast a ray downward from each dynamic body
+   * that has FH enabled, and update its velocity to maintain hover height.
+   *
+   * Jolt keeps the feature self-contained: the moving object owns the spring,
+   * damping, distance, and normal-alignment settings. The hit object only
+   * contributes surface normal, velocity, and friction. */
+  if (timeStep <= 0.0f) {
+    return;
+  }
+
+  const std::vector<JoltPhysicsController *> &controllers = GetFhControllersForIteration();
+  if (controllers.empty()) {
+    return;
+  }
+
+  JPH::BodyInterface &bi = GetBodyInterface();
+  const JPH::NarrowPhaseQuery &npq = m_physicsSystem->GetNarrowPhaseQuery();
+  const float step = timeStep * KX_GetActiveEngine()->GetTicRate();
 
   for (JoltPhysicsController *ctrl : controllers) {
     if (!ctrl->IsDynamic() || ctrl->IsPhysicsSuspended()) {
@@ -4628,9 +6998,11 @@ void JoltPhysicsEnvironment::ProcessFhSprings(float timeStep)
     if (!ctrl->GetFhEnabled()) {
       continue;
     }
+    const bool doRotFh = ctrl->GetFhRotEnabled();
 
-    float fhDist = ctrl->GetFhDistance();
-    float fhSpring = ctrl->GetFhSpring();
+    const float fhDist = ctrl->GetFhDistance();
+    const float fhSpring = ctrl->GetFhSpring();
+    const float fhDamping = ctrl->GetFhDamping();
     if (fhDist <= 0.0f || fhSpring <= 0.0f) {
       continue;
     }
@@ -4640,87 +7012,102 @@ void JoltPhysicsEnvironment::ProcessFhSprings(float timeStep)
       continue;
     }
 
-    /* Cast ray downward in Jolt Y-up space (Blender -Z). */
     JPH::RVec3 bodyPos = bi.GetCenterOfMassPosition(bodyID);
-    JPH::Vec3 rayDir(0.0f, -1.0f, 0.0f);
+    JPH::Vec3 bodyLinVel = bi.GetLinearVelocity(bodyID);
+    float bodyInvMass = 0.0f;
+    {
+      JPH::BodyLockRead bodyLock(m_physicsSystem->GetBodyLockInterface(), bodyID);
+      if (!bodyLock.Succeeded()) {
+        continue;
+      }
 
-    JPH::RRayCast ray(bodyPos, rayDir * fhDist);
+      const JPH::Body &body = bodyLock.GetBody();
+      if (!body.GetMotionProperties()) {
+        continue;
+      }
+      bodyInvMass = body.GetMotionProperties()->GetInverseMass();
+      if (bodyInvMass <= 0.0f) {
+        continue;
+      }
+    }
+
+    const float radius = std::max(0.0f, ctrl->GetRadius());
+    const float rayLength = std::max(1.0e-4f, fhDist + radius);
+    const JPH::Vec3 rayDir(0.0f, -1.0f, 0.0f); /* Blender -Z. */
+    JPH::RRayCast ray(bodyPos, rayDir * rayLength);
     JPH::RayCastSettings raySettings;
     JPH::ClosestHitCollisionCollector<JPH::CastRayCollector> collector;
-    JPH::IgnoreSingleBodyFilter bodyFilter(bodyID);
+    JoltFhBodyFilter bodyFilter(bodyID);
 
     npq.CastRay(ray, raySettings, collector, {}, {}, bodyFilter);
     if (!collector.HadHit()) {
       continue;
     }
+
     const JPH::RayCastResult &hit = collector.mHit;
-
-    if (hit.mBodyID == bodyID) {
-      continue;
-    }
-
-    float hitFraction = hit.mFraction;
-    float hitDist = hitFraction * fhDist;
-
-    if (hitDist >= fhDist) {
-      continue;
-    }
-
-    /* Spring force proportional to how far inside the FH distance we are.
-     * Matches Bullet: F = fhSpring * (1 - hitDist/fhDist) - fhDamping * vel_along_normal. */
-    float penetrationRatio = 1.0f - (hitDist / fhDist);
-
-    /* Get body mass via body lock. */
-    float bodyMass = 1.0f;
-    {
-      JPH::BodyLockRead bodyLock(m_physicsSystem->GetBodyLockInterface(), bodyID);
-      if (bodyLock.Succeeded()) {
-        const JPH::Body &body = bodyLock.GetBody();
-        if (body.GetMotionProperties()) {
-          float invMass = body.GetMotionProperties()->GetInverseMass();
-          if (invMass > 0.0f) {
-            bodyMass = 1.0f / invMass;
-          }
-        }
-      }
-    }
-
-    /* Get surface normal at hit point (default to up if unavailable). */
     JPH::Vec3 hitNormal(0.0f, 1.0f, 0.0f);
-    if (ctrl->GetFhNormal()) {
+    JPH::Vec3 hitPointVelocity = JPH::Vec3::sZero();
+    float hitFriction = 0.0f;
+    {
       JPH::BodyLockRead hitLock(m_physicsSystem->GetBodyLockInterface(), hit.mBodyID);
-      if (hitLock.Succeeded()) {
-        const JPH::Body &hitBody = hitLock.GetBody();
-        JPH::RVec3 hitPoint = ray.GetPointOnRay(hitFraction);
-        JPH::Vec3 localHitPoint = JPH::Vec3(hitPoint - hitBody.GetCenterOfMassPosition());
-        hitNormal = hitBody.GetShape()->GetSurfaceNormal(
-            hit.mSubShapeID2, localHitPoint);
+      if (!hitLock.Succeeded()) {
+        continue;
       }
+
+      const JPH::Body &hitBody = hitLock.GetBody();
+      if (!JoltGetPhysicsController(JoltGetClientInfo(hitBody))) {
+        continue;
+      }
+
+      const JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
+      hitNormal = hitBody.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+      if (hitNormal.LengthSq() > 1.0e-12f) {
+        hitNormal = hitNormal.Normalized();
+      }
+      else {
+        hitNormal = -rayDir;
+      }
+      hitPointVelocity = hitBody.GetPointVelocity(hitPoint);
+      hitFriction = hitBody.GetFriction();
     }
 
-    JPH::Vec3 linVel = bi.GetLinearVelocity(bodyID);
-    float velAlongNormal = linVel.Dot(hitNormal);
-    float fhDamping = ctrl->GetFhDamping();
-
-    float forceMag = fhSpring * penetrationRatio - fhDamping * velAlongNormal;
-    if (forceMag < 0.0f) {
-      forceMag = 0.0f;
+    const float distance = hit.mFraction * rayLength - radius;
+    if (distance >= fhDist) {
+      continue;
     }
 
-    /* Apply force along the surface normal (or straight up). */
-    JPH::Vec3 forceVec = hitNormal * (forceMag * bodyMass);
-    bi.AddForce(bodyID, forceVec);
+    const float springExtent = 1.0f - distance / fhDist;
+    const float iSpring = springExtent * fhSpring;
+    const JPH::Vec3 relativeVelocity = bodyLinVel - hitPointVelocity;
+    const float relVelRay = rayDir.Dot(relativeVelocity);
 
-    /* Rotate-from-normal: apply torque to align body up-axis with surface normal. */
-    if (ctrl->GetFhRotEnabled()) {
+    const JPH::Vec3 forceDir = ctrl->GetFhNormal() ? hitNormal : -rayDir;
+
+    const float iDamp = relVelRay * fhDamping;
+    bodyLinVel += (iSpring + iDamp) * forceDir * step;
+
+    const bool contactBetweenSurfaces = distance < ctrl->GetMargin();
+    JPH::Vec3 lateral = relativeVelocity - relVelRay * (-forceDir);
+    const float relVelLateral = lateral.Length();
+    if (contactBetweenSurfaces && relVelLateral > 1.0e-6f) {
+      const float maxFriction = hitFriction * std::max(0.0f, iSpring);
+      const float relMomLateral = relVelLateral / bodyInvMass;
+      const JPH::Vec3 friction = (relMomLateral > maxFriction) ?
+                                     -lateral * (maxFriction / relVelLateral) :
+                                     -lateral;
+      bodyLinVel += friction * bodyInvMass * step;
+    }
+
+    bi.SetLinearVelocity(bodyID, bodyLinVel);
+
+    if (doRotFh) {
+      JPH::Vec3 bodyAngVel = bi.GetAngularVelocity(bodyID);
       JPH::Vec3 bodyUp = bi.GetRotation(bodyID) * JPH::Vec3(0.0f, 1.0f, 0.0f);
-      JPH::Vec3 torqueAxis = bodyUp.Cross(hitNormal);
-      float sinAngle = torqueAxis.Length();
-      if (sinAngle > 1e-4f) {
-        torqueAxis = torqueAxis / sinAngle;
-        float torqueMag = sinAngle * fhSpring * 0.5f * bodyMass;
-        bi.AddTorque(bodyID, torqueAxis * torqueMag);
-      }
+      JPH::Vec3 tiltSpring = bodyUp.Cross(hitNormal) * fhSpring;
+      JPH::Vec3 tiltAngVel = bodyAngVel - bodyAngVel.Dot(hitNormal) * hitNormal;
+      JPH::Vec3 tiltDamping = tiltAngVel * fhDamping;
+      bodyAngVel += (tiltSpring - tiltDamping) * step;
+      bi.SetAngularVelocity(bodyID, bodyAngVel);
     }
   }
 }
@@ -4776,6 +7163,9 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
 
   auto removeBodiesBatch = [&](const std::vector<JPH::BodyID> &bodyIDs) {
     if (!bodyIDs.empty()) {
+      for (const JPH::BodyID bodyID : bodyIDs) {
+        RemoveLogicActiveContactsForBody(bodyID);
+      }
       std::vector<JPH::BodyID> mutableBodyIDs = bodyIDs;
       bi.RemoveBodies(mutableBodyIDs.data(), (int)mutableBodyIDs.size());
     }
@@ -4809,6 +7199,11 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
   auto destroyBodiesBatch = [&](const std::vector<JPH::BodyID> &bodyIDs) {
     if (bodyIDs.empty()) {
       return;
+    }
+
+    for (const JPH::BodyID bodyID : bodyIDs) {
+      RemoveConstraintsForBody(bodyID);
+      RemoveLogicActiveContactsForBody(bodyID);
     }
 
     std::vector<JPH::BodyID> addedBodyIDs;
@@ -4885,28 +7280,36 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
           break;
         }
 
-        if (op.ghost) {
-          /* Ghost mode: make body a static sensor. */
-          bi.SetMotionType(op.bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
-          if (bi.IsAdded(op.bodyID)) {
-            {
-              JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
-              if (lock.Succeeded()) {
-                lock.GetBody().SetIsSensor(true);
-              }
-            }
-            bi.SetObjectLayer(op.bodyID,
-                              JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, JOLT_BP_SENSOR));
-          }
-        }
-        else {
-          /* Non-ghost: remove body from world entirely (no collision). */
+        RemoveLogicActiveContactsForBody(op.bodyID);
+        if (op.dynamicsMode == PHY_DynamicsMode::NoCollision) {
           std::vector<JPH::BodyID> bodyIDs = {op.bodyID};
           removePendingRigidAdds(bodyIDs);
           if (bi.IsAdded(op.bodyID)) {
             bi.RemoveBody(op.bodyID);
           }
+          break;
         }
+
+        if (!bi.IsAdded(op.bodyID)) {
+          std::vector<JPH::BodyID> addBodyIDs = {op.bodyID};
+          addBodiesBatch(addBodyIDs, JPH::EActivation::DontActivate);
+        }
+
+        const bool sensor = op.dynamicsMode != PHY_DynamicsMode::StaticCollider;
+        const JoltBroadPhaseLayer category = op.dynamicsMode == PHY_DynamicsMode::StaticCollider ?
+                                                 JOLT_BP_STATIC :
+                                                 JOLT_BP_SENSOR;
+
+        bi.SetMotionType(op.bodyID, JPH::EMotionType::Static, JPH::EActivation::DontActivate);
+        NotifyConstraintBodyMotionTypeChanged(op.bodyID);
+        {
+          JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
+          if (lock.Succeeded()) {
+            lock.GetBody().SetIsSensor(sensor);
+          }
+        }
+        bi.SetObjectLayer(op.bodyID,
+                          JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, category));
         break;
       }
 
@@ -4916,6 +7319,8 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
           break;
         }
 
+        RemoveLogicActiveContactsForBody(op.bodyID);
+
         /* If body is not in the world (removed on suspend), add it back. */
         if (!bi.IsAdded(op.bodyID)) {
           std::vector<JPH::BodyID> addBodyIDs = {op.bodyID};
@@ -4924,6 +7329,7 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
 
         /* Restore motion type. */
         bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
+        NotifyConstraintBodyMotionTypeChanged(op.bodyID);
 
         /* Restore sensor flag. */
         {
@@ -4935,8 +7341,8 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
 
         /* Restore layer. */
         if (bi.IsAdded(op.bodyID)) {
-          bi.SetObjectLayer(op.bodyID,
-                            JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, op.bpCategory));
+          bi.SetObjectLayer(
+              op.bodyID, JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, op.bpCategory));
         }
         break;
       }
@@ -4944,6 +7350,7 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
       case JoltDeferredOpType::SetObjectLayer: {
         ++i;
         if (!op.bodyID.IsInvalid() && bi.IsAdded(op.bodyID)) {
+          RemoveLogicActiveContactsForBody(op.bodyID);
           bi.SetObjectLayer(op.bodyID, op.objectLayer);
         }
         break;
@@ -4952,7 +7359,34 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
       case JoltDeferredOpType::SetMotionType: {
         ++i;
         if (!op.bodyID.IsInvalid()) {
+          RemoveLogicActiveContactsForBody(op.bodyID);
           bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
+          NotifyConstraintBodyMotionTypeChanged(op.bodyID);
+        }
+        break;
+      }
+
+      case JoltDeferredOpType::SetSensorFlag: {
+        ++i;
+        if (op.bodyID.IsInvalid()) {
+          break;
+        }
+
+        bool changed = false;
+        {
+          JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
+          if (lock.Succeeded()) {
+            JPH::Body &body = lock.GetBody();
+            changed = body.IsSensor() != op.ghost;
+            body.SetIsSensor(op.ghost);
+          }
+        }
+
+        if (changed) {
+          RemoveLogicActiveContactsForBody(op.bodyID);
+        }
+        if (op.ghost && bi.IsAdded(op.bodyID)) {
+          bi.ActivateBody(op.bodyID);
         }
         break;
       }

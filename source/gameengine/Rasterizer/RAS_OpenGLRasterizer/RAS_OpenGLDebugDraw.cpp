@@ -112,6 +112,25 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
         DRW_debug_box_2D_bge(left + b.m_pos[0], top - b.m_pos[1], b.m_size[0], b.m_size[1]);
       }
     }
+    if (!debugDraw->m_rects2D.empty()) {
+      for (const RAS_DebugDraw::Rect2D &r : debugDraw->m_rects2D) {
+        DRW_debug_rect_2D_bge(left + r.m_pos[0],
+                              top - r.m_pos[1] - r.m_size[1],
+                              r.m_size[0],
+                              r.m_size[1],
+                              r.m_color.getValue());
+      }
+    }
+    if (!debugDraw->m_lines2D.empty()) {
+      for (const RAS_DebugDraw::Line2D &l : debugDraw->m_lines2D) {
+        DRW_debug_line_2D_bge(left + l.m_from[0],
+                              top - l.m_from[1],
+                              left + l.m_to[0],
+                              top - l.m_to[1],
+                              l.m_color.getValue(),
+                              l.m_width);
+      }
+    }
     if (!debugDraw->m_texts2D.empty()) {
       for (const RAS_DebugDraw::Text2D &t : debugDraw->m_texts2D) {
         DRW_debug_text_2D_bge(left + t.m_pos[0], top - t.m_pos[1], t.m_text.c_str());
@@ -168,6 +187,47 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
         immUniformColor4fv(box2d.m_color.getValue());
         immRectf(pos, xco + 1 + xsize, yco + ysize, xco, yco);
       }
+      immUnbindProgram();
+    }
+
+    if (!debugDraw->m_rects2D.empty()) {
+      GPUVertFormat *format = immVertexFormat();
+      uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+      for (const RAS_DebugDraw::Rect2D &rect2d : debugDraw->m_rects2D) {
+        const float xco = rect2d.m_pos.x();
+        const float yco = height - rect2d.m_pos.y() - rect2d.m_size.y();
+        const float xsize = rect2d.m_size.x();
+        const float ysize = rect2d.m_size.y();
+
+        immUniformColor4fv(rect2d.m_color.getValue());
+        immRectf(pos, xco, yco, xco + xsize, yco + ysize);
+      }
+      immUnbindProgram();
+    }
+
+    if (!debugDraw->m_lines2D.empty()) {
+      GPUVertFormat *format = immVertexFormat();
+      uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+      uint color = GPU_vertformat_attr_add(
+          format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+
+      immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+      GPU_line_smooth(false);
+      for (const RAS_DebugDraw::Line2D &line2d : debugDraw->m_lines2D) {
+        float color_value[4];
+        line2d.m_color.getValue(color_value);
+        GPU_line_width(line2d.m_width > 1.0f ? line2d.m_width : 1.0f);
+        immBegin(GPU_PRIM_LINES, 2);
+        immAttr4fv(color, color_value);
+        immVertex3f(pos, line2d.m_from.x(), height - line2d.m_from.y(), 0.0f);
+        immAttr4fv(color, color_value);
+        immVertex3f(pos, line2d.m_to.x(), height - line2d.m_to.y(), 0.0f);
+        immEnd();
+      }
+      GPU_line_smooth(false);
+      GPU_line_width(1.0f);
       immUnbindProgram();
     }
 

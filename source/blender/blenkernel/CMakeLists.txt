@@ -267,6 +267,7 @@ set(SRC
   intern/preview_image.cc
   intern/property.cc
   intern/python_proxy.cc
+  intern/logic_node_binding.cc
   intern/report.cc
   intern/rigidbody.cc
   intern/sca.cc
@@ -510,6 +511,7 @@ set(SRC
   BKE_preview_image.hh
   BKE_property.hh
   BKE_python_proxy.hh
+  BKE_logic_node_binding.hh
   BKE_report.hh
   BKE_rigidbody.h
   BKE_sca.hh
@@ -709,6 +711,10 @@ endif()
 
 if(WITH_GAMEENGINE)
   add_definitions(-DWITH_GAMEENGINE)
+endif()
+
+if(WITH_GAMEENGINE_LOGICNODES)
+  add_definitions(-DWITH_GAMEENGINE_LOGICNODES)
 endif()
 
 if(WITH_LIBMV)

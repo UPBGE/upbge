@@ -87,6 +87,11 @@ class KX_TimeLogger {
    */
   double GetAverage() const;
 
+  /**
+   * Returns the last complete measurement.
+   */
+  double GetPrevious() const;
+
  protected:
   /// Storage for the measurements.
   std::deque<double> m_measurements;

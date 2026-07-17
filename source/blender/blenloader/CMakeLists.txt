@@ -109,6 +109,10 @@ if(WITH_GAMEENGINE_BPPLAYER)
   add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
+if(WITH_GAMEENGINE_LOGICNODES)
+  add_definitions(-DWITH_GAMEENGINE_LOGICNODES)
+endif()
+
 blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::blenloader ALIAS bf_blenloader)
 

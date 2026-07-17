@@ -2302,10 +2302,53 @@ class WM_OT_blenderplayer_start(Operator):
         # start the command line call with the player path
         args = [player_path]
 
+        def enum_value(value, mapping, default):
+            if isinstance(value, str):
+                return mapping.get(value, default)
+            return int(value)
+
+        frame_time_graph_window = enum_value(
+            getattr(gs, "frame_time_graph_window", 2),
+            {"SECONDS_1": 1, "SECONDS_2": 2, "SECONDS_5": 5, "SECONDS_10": 10},
+            2,
+        )
+        frame_time_graph_axis = enum_value(
+            getattr(gs, "frame_time_graph_axis", 0), {"FRAMES": 0, "SECONDS": 1}, 0)
+        frame_time_graph_style = enum_value(
+            getattr(gs, "frame_time_graph_style", 0), {"LINE": 0, "BARS": 1}, 0)
+        record_frame_time_graph = (
+            getattr(gs, "record_frame_time_graph", False)
+            if gs.show_framerate_profile else False
+        )
+        frame_time_graph_record_slot = (
+            getattr(gs, "frame_time_graph_record_slot", -1)
+            if record_frame_time_graph else -1
+        )
+        frame_time_graph_visible_slots = (
+            getattr(gs, "frame_time_graph_visible_slots", 0)
+            if gs.show_framerate_profile else 0
+        )
+
         # handle some UI options as command line arguments
         args.extend([
             "-g", "show_framerate", "=", "%d" % gs.show_framerate_profile,
             "-g", "show_profile", "=", "%d" % gs.show_framerate_profile,
+            "-g", "record_frame_time_graph", "=",
+            "%d" % record_frame_time_graph,
+            "-g", "frame_time_graph_visible_slots", "=",
+            "%d" % frame_time_graph_visible_slots,
+            "-g", "frame_time_graph_record_slot", "=",
+            "%d" % frame_time_graph_record_slot,
+            "-g", "frame_time_graph_window", "=",
+            "%d" % frame_time_graph_window,
+            "-g", "frame_time_graph_axis", "=",
+            "%d" % frame_time_graph_axis,
+            "-g", "frame_time_graph_style", "=",
+            "%d" % frame_time_graph_style,
+            "-g", "frame_time_graph_max_samples", "=",
+            "%d" % getattr(gs, "frame_time_graph_max_samples", 10000),
+            "-g", "frame_time_graph_visible_domains", "=",
+            "%d" % getattr(gs, "frame_time_graph_visible_domains", 1),
             "-g", "show_properties", "=", "%d" % gs.show_debug_properties,
             "-g", "ignore_deprecation_warnings", "=", "%d" % (not gs.use_deprecation_warnings),
         ])

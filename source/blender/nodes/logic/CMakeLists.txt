@@ -1,0 +1,315 @@
+# SPDX-FileCopyrightText: 2026 UPBGE Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+set(INC
+  .
+  ..
+  ../intern
+  ../../editors/include
+  ../../windowmanager
+  ../../makesrna
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
+)
+
+set(INC_SYS
+)
+
+set(SRC
+  nodes/node_logic_character_jump.cc
+  nodes/node_logic_get_bone_head_world.cc
+  nodes/node_logic_get_character_info.cc
+  nodes/node_logic_combine_xy.cc
+  nodes/node_logic_combine_xyz.cc
+  nodes/node_logic_color_rgb.cc
+  nodes/node_logic_color_rgba.cc
+  nodes/node_logic_collision.cc
+  nodes/node_logic_compare.cc
+  nodes/node_logic_cooldown.cc
+  nodes/node_logic_copy_property.cc
+  nodes/node_logic_clear_variables.cc
+  nodes/node_logic_euler.cc
+  nodes/node_logic_evaluate_property.cc
+  nodes/node_logic_formatted_string.cc
+  nodes/node_logic_formula.cc
+  nodes/node_logic_gate.cc
+  nodes/node_logic_apply_impulse.cc
+  nodes/node_logic_apply_force.cc
+  nodes/node_logic_apply_force_to_target.cc
+  nodes/node_logic_apply_movement.cc
+  nodes/node_logic_apply_rotation.cc
+  nodes/node_logic_apply_torque.cc
+  nodes/node_logic_action_done.cc
+  nodes/node_logic_add_object.cc
+  nodes/node_logic_align_axis_to_vector.cc
+  nodes/node_logic_animation_status.cc
+  nodes/node_logic_barrier.cc
+  nodes/node_logic_boolean_edge.cc
+  nodes/node_logic_branch.cc
+  nodes/node_logic_camera_ray.cc
+  nodes/node_logic_c_tier.cc
+  nodes/node_logic_find_object.cc
+  nodes/node_logic_follow_path.cc
+  nodes/node_logic_add_physics_constraint.cc
+  nodes/node_logic_get_game_property_bool.cc
+  nodes/node_logic_get_game_property_float.cc
+  nodes/node_logic_get_game_property_int.cc
+  nodes/node_logic_get_game_property_string.cc
+  nodes/node_logic_get_collision_group.cc
+  nodes/node_logic_get_gravity.cc
+  nodes/node_logic_get_active_camera.cc
+  nodes/node_logic_get_fullscreen.cc
+  nodes/node_logic_get_vsync.cc
+  nodes/node_logic_get_child.cc
+  nodes/node_logic_get_child_by_name.cc
+  nodes/node_logic_get_collection.cc
+  nodes/node_logic_get_collection_object_names.cc
+  nodes/node_logic_get_collection_objects.cc
+  nodes/node_logic_get_rigid_body_constraints.cc
+  nodes/node_logic_get_distance.cc
+  nodes/node_logic_get_group_center_position.cc
+  nodes/node_logic_get_light_color.cc
+  nodes/node_logic_get_light_power.cc
+  nodes/node_logic_get_parent.cc
+  nodes/node_logic_get_owner.cc
+  nodes/node_logic_get_global_property.cc
+  nodes/node_logic_get_resolution.cc
+  nodes/node_logic_get_scene.cc
+  nodes/node_logic_get_object_attribute.cc
+  nodes/node_logic_get_rigid_body_attribute.cc
+  nodes/node_logic_get_tree_property.cc
+  nodes/node_logic_get_timescale.cc
+  nodes/node_logic_has_property.cc
+  nodes/node_logic_keyboard_active.cc
+  nodes/node_logic_keyboard_key.cc
+  nodes/node_logic_key_code.cc
+  nodes/node_logic_key_logger.cc
+  nodes/node_logic_quit_game.cc
+  nodes/node_logic_delay.cc
+  nodes/node_logic_load_blend_file.cc
+  nodes/node_logic_loop.cc
+  nodes/node_logic_loop_from_list.cc
+  nodes/node_logic_list_length.cc
+  nodes/node_logic_list_get_item.cc
+  nodes/node_logic_list_random_item.cc
+  nodes/node_logic_make_list.cc
+  nodes/node_logic_list_extend.cc
+  nodes/node_logic_dict_get_key.cc
+  nodes/node_logic_make_dict.cc
+  nodes/node_logic_dict_length.cc
+  nodes/node_logic_dict_get_keys.cc
+  nodes/node_logic_get_bone_tail_world.cc
+  nodes/node_logic_get_bone_length.cc
+  nodes/node_logic_get_bone_center_world.cc
+  nodes/node_logic_get_bone_head_pose_world.cc
+  nodes/node_logic_get_bone_tail_pose_world.cc
+  nodes/node_logic_get_bone_center_pose_world.cc
+  nodes/node_logic_get_bone_pose_rotation.cc
+  nodes/node_logic_get_bone_pose_scale.cc
+  nodes/node_logic_get_bone_pose_transform.cc
+  nodes/node_logic_set_bone_pose_location.cc
+  nodes/node_logic_set_bone_pose_rotation.cc
+  nodes/node_logic_set_bone_pose_scale.cc
+  nodes/node_logic_set_bone_pose_transform.cc
+  nodes/node_logic_set_bone_constraint_influence.cc
+  nodes/node_logic_list_contains.cc
+  nodes/node_logic_empty_list.cc
+  nodes/node_logic_empty_dict.cc
+  nodes/node_logic_dict_has_key.cc
+  nodes/node_logic_list_duplicate.cc
+  nodes/node_logic_dict_merge.cc
+  nodes/node_logic_list_global_properties.cc
+  nodes/node_logic_list_saved_variables.cc
+  nodes/node_logic_list_append.cc
+  nodes/node_logic_list_remove_index.cc
+  nodes/node_logic_list_remove_value.cc
+  nodes/node_logic_list_set_index.cc
+  nodes/node_logic_dict_set_key.cc
+  nodes/node_logic_dict_remove_key.cc
+  nodes/node_logic_list_from_items.cc
+  nodes/node_logic_load_game.cc
+  nodes/node_logic_load_variable.cc
+  nodes/node_logic_load_variable_dict.cc
+  nodes/node_logic_load_scene.cc
+  nodes/node_logic_install_logic_tree.cc
+  nodes/node_logic_logic_tree_status.cc
+  nodes/node_logic_run_logic_tree.cc
+  nodes/node_logic_start_logic_tree.cc
+  nodes/node_logic_stop_action.cc
+  nodes/node_logic_stop_all_sounds.cc
+  nodes/node_logic_stop_sound.cc
+  nodes/node_logic_stop_logic_tree.cc
+  nodes/node_logic_delta_factor.cc
+  nodes/node_logic_limit_range.cc
+  nodes/node_logic_map_range.cc
+  nodes/node_logic_math.cc
+  nodes/node_logic_modify_property.cc
+  nodes/node_logic_modify_property_clamped.cc
+  nodes/node_logic_move_toward.cc
+  nodes/node_logic_mouse_button.cc
+  nodes/node_logic_mouse_moved.cc
+  nodes/node_logic_mouse_over.cc
+  nodes/node_logic_mouse_wheel.cc
+  nodes/node_logic_mouse_look.cc
+  nodes/node_logic_mouse_ray.cc
+  nodes/node_logic_navigate.cc
+  nodes/node_logic_on_fixed_update.cc
+  nodes/node_logic_on_init.cc
+  nodes/node_logic_on_next_frame.cc
+  nodes/node_logic_on_update.cc
+  nodes/node_logic_object_by_name.cc
+  nodes/node_logic_objects_colliding.cc
+  nodes/node_logic_once.cc
+  nodes/node_logic_play_action.cc
+  nodes/node_logic_play_sound.cc
+  nodes/node_logic_play_sound_3d.cc
+  nodes/node_logic_pause_sound.cc
+  nodes/node_logic_resume_sound.cc
+  nodes/node_logic_evaluate_curve.cc
+  nodes/node_logic_set_material_slot.cc
+  nodes/node_logic_print.cc
+  nodes/node_logic_pulsify.cc
+  nodes/node_logic_random_value.cc
+  nodes/node_logic_random_float.cc
+  nodes/node_logic_random_int.cc
+  nodes/node_logic_random_vector.cc
+  nodes/node_logic_remove_object.cc
+  nodes/node_logic_remove_overlay_collection.cc
+  nodes/node_logic_remove_physics_constraint.cc
+  nodes/node_logic_remove_parent.cc
+  nodes/node_logic_remove_variable.cc
+  nodes/node_logic_raycast.cc
+  nodes/node_logic_raycast_all.cc
+  nodes/node_logic_shape_cast.cc
+  nodes/node_logic_shape_cast_all.cc
+  nodes/node_logic_projectile_ray.cc
+  nodes/node_logic_rebuild_collision_shape.cc
+  nodes/node_logic_receive_event.cc
+  nodes/node_logic_replace_mesh.cc
+  nodes/node_logic_rotate_toward.cc
+  nodes/node_logic_ranged_threshold.cc
+  nodes/node_logic_restart_game.cc
+  nodes/node_logic_save_game.cc
+  nodes/node_logic_save_variable.cc
+  nodes/node_logic_save_variable_dict.cc
+  nodes/node_logic_send_event.cc
+  nodes/node_logic_set_collection_visibility.cc
+  nodes/node_logic_set_overlay_collection.cc
+  nodes/node_logic_set_scene.cc
+  nodes/node_logic_separate_euler.cc
+  nodes/node_logic_separate_xy.cc
+  nodes/node_logic_slow_follow.cc
+  nodes/node_logic_spawn_pool.cc
+  nodes/node_logic_separate_xyz.cc
+  nodes/node_logic_set_game_property_bool.cc
+  nodes/node_logic_set_game_property_float.cc
+  nodes/node_logic_set_game_property_int.cc
+  nodes/node_logic_set_game_property_string.cc
+  nodes/node_logic_set_global_property.cc
+  nodes/node_logic_set_collision_group.cc
+  nodes/node_logic_set_cursor_position.cc
+  nodes/node_logic_set_cursor_visibility.cc
+  nodes/node_logic_set_dynamics.cc
+  nodes/node_logic_set_gravity.cc
+  nodes/node_logic_make_light_unique.cc
+  nodes/node_logic_set_light_color.cc
+  nodes/node_logic_set_light_power.cc
+  nodes/node_logic_set_light_shadow.cc
+  nodes/node_logic_set_object_attribute.cc
+  nodes/node_logic_set_parent.cc
+  nodes/node_logic_set_physics.cc
+  nodes/node_logic_set_rigid_body_attribute.cc
+  nodes/node_logic_set_action_frame.cc
+  nodes/node_logic_set_camera.cc
+  nodes/node_logic_set_camera_fov.cc
+  nodes/node_logic_set_camera_ortho_scale.cc
+  nodes/node_logic_set_character_gravity.cc
+  nodes/node_logic_set_character_jump_speed.cc
+  nodes/node_logic_set_character_max_jumps.cc
+  nodes/node_logic_set_character_velocity.cc
+  nodes/node_logic_set_character_walk_direction.cc
+  nodes/node_logic_set_fullscreen.cc
+  nodes/node_logic_set_resolution.cc
+  nodes/node_logic_set_tree_property.cc
+  nodes/node_logic_set_vsync.cc
+  nodes/node_logic_show_framerate.cc
+  nodes/node_logic_show_profile.cc
+  nodes/node_logic_screen_to_world.cc
+  nodes/node_logic_set_timescale.cc
+  nodes/node_logic_string_operation.cc
+  nodes/node_logic_threshold.cc
+  nodes/node_logic_time.cc
+  nodes/node_logic_translate.cc
+  nodes/node_logic_typecast.cc
+  nodes/node_logic_toggle_property.cc
+  nodes/node_logic_toggle_tree_property.cc
+  nodes/node_logic_tween_value.cc
+  nodes/node_logic_value_clamp.cc
+  nodes/node_logic_value_invert.cc
+  nodes/node_logic_value_bool.cc
+  nodes/node_logic_value_changed.cc
+  nodes/node_logic_value_changed_to.cc
+  nodes/node_logic_value_color.cc
+  nodes/node_logic_value_float.cc
+  nodes/node_logic_value_int.cc
+  nodes/node_logic_value_string.cc
+  nodes/node_logic_store_value.cc
+  nodes/node_logic_value_switch.cc
+  nodes/node_logic_value_switch_list.cc
+  nodes/node_logic_value_switch_list_compare.cc
+  nodes/node_logic_value_valid.cc
+  nodes/node_logic_value_vector.cc
+  nodes/node_logic_vector_math.cc
+  nodes/node_logic_vehicle_control.cc
+  nodes/node_logic_vehicle_accelerate.cc
+  nodes/node_logic_vehicle_brake.cc
+  nodes/node_logic_vehicle_set_attributes.cc
+  nodes/node_logic_vehicle_steer.cc
+  nodes/node_logic_cursor_movement.cc
+  nodes/node_logic_cursor_position.cc
+  nodes/node_logic_gamepad_active.cc
+  nodes/node_logic_gamepad_button.cc
+  nodes/node_logic_gamepad_look.cc
+  nodes/node_logic_gamepad_stick.cc
+  nodes/node_logic_gamepad_vibration.cc
+  nodes/node_logic_none.cc
+  nodes/node_logic_not_none.cc
+  nodes/node_logic_timer.cc
+  nodes/node_logic_within_range.cc
+  nodes/node_logic_world_to_screen.cc
+
+  node_logic_socket_declarations.cc
+  node_logic_tree.cc
+  node_logic_util.cc
+
+  node_logic_socket_declarations.hh
+  node_logic_util.hh
+    nodes/node_logic_gate_list.cc
+)
+
+set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::dna
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
+)
+
+add_node_discovery(
+  bf_nodes_logic_generated
+  "${SRC}"
+  ${CMAKE_CURRENT_BINARY_DIR}/register_logic_nodes.cc
+  register_logic_nodes
+)
+
+list(APPEND LIB
+  bf_nodes_logic_generated
+)
+
+blender_add_lib(bf_nodes_logic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+target_link_libraries(bf_nodes_logic_generated bf_nodes_logic)
+
+# RNA_prototypes.hh
+add_dependencies(bf_nodes_logic bf_rna)

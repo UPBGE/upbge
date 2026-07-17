@@ -32,7 +32,9 @@
 
 #pragma once
 
+#include <array>
 #include <chrono>
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -96,6 +98,9 @@ class KX_KetsjiEngine {
     CAMERA_OVERRIDE = (1 << 7)
   };
 
+  static constexpr int FRAME_TIME_GRAPH_SLOT_COUNT = 4;
+  static constexpr int FRAME_TIME_GRAPH_CATEGORY_COUNT = 11;
+
  private:
   struct CameraRenderData {
     CameraRenderData(KX_Camera *rendercam,
@@ -147,6 +152,15 @@ class KX_KetsjiEngine {
   PyObject *m_pyprofiledict;
 #endif
   SCA_IInputDevice *m_inputDevice;
+
+  struct FrameTimeGraphSample {
+    float timeline_seconds = 0.0f;
+    float raw_delta_seconds = 0.0f;
+    float raw_frame_ms = 0.0f;
+    float engine_delta_seconds = 0.0f;
+    float engine_frame_ms = 0.0f;
+    std::array<float, FRAME_TIME_GRAPH_CATEGORY_COUNT> category_ms = {};
+  };
 
   struct FrameTimes {
     // ===== Logic Frame Timing (BOTH MODES) =====
@@ -204,6 +218,26 @@ class KX_KetsjiEngine {
   double m_previous_deltaTime;
   /// Used to control strange behavior in clockTime physics when starting the game
   bool m_firstEngineFrame;
+
+  int m_recordFrameTimeGraphSlot;
+  int m_showRecordedFrameTimeGraphSlots;
+  int m_frameTimeGraphWindowSeconds;
+  int m_frameTimeGraphAxis;
+  int m_frameTimeGraphStyle;
+  int m_frameTimeGraphVisibleDomains;
+  int m_frameTimeGraphMaxSamples;
+  int m_frameTimeGraphTimelineFrame;
+  double m_frameTimeGraphTimelineSeconds;
+  bool m_frameTimeGraphSamplePending;
+  bool m_frameTimeGraphWorkTimerRunning;
+  double m_frameTimeGraphPendingRawDelta;
+  double m_frameTimeGraphPendingWorkSeconds;
+  double m_frameTimeGraphWorkStartTime;
+  std::deque<FrameTimeGraphSample> m_liveFrameTimeGraph;
+  std::array<std::deque<FrameTimeGraphSample>, FRAME_TIME_GRAPH_SLOT_COUNT>
+      m_recordedFrameTimeGraphs;
+  static std::array<std::deque<FrameTimeGraphSample>, FRAME_TIME_GRAPH_SLOT_COUNT>
+      m_sharedFrameTimeGraphSlots;
 
   double m_previousFrameTime;
   double m_currentanimsync;
@@ -286,12 +320,6 @@ class KX_KetsjiEngine {
   /// Settings that doesn't go away with Game Actuator
   GlobalSettings m_globalsettings;
 
-  /// Update and return the projection matrix of a camera depending on the viewport.
-  MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene,
-                                         KX_Camera *cam,
-                                         RAS_Rasterizer::StereoEye eye,
-                                         const RAS_Rect &viewport,
-                                         const RAS_Rect &area) const;
   CameraRenderData GetCameraRenderData(KX_Scene *scene,
                                        KX_Camera *camera,
                                        KX_Camera *overrideCullingCam,
@@ -300,6 +328,24 @@ class KX_KetsjiEngine {
                                        bool usestereo);
   /// Compute frame render data per eyes (in case of stereo), scenes and camera.
   bool GetFrameRenderData(std::vector<FrameRenderData> &frameDataList);
+  int GetFrameTimeGraphTargetFPS() const;
+  int GetFrameTimeGraphSampleFPS() const;
+  int GetFrameTimeGraphWindowSeconds() const;
+  int GetFrameTimeGraphFrameWindow() const;
+  int GetFrameTimeGraphVisibleDomains() const;
+  int GetFrameTimeGraphMaxSamples() const;
+  float GetFrameTimeGraphDomainValue(const FrameTimeGraphSample &sample, int domain) const;
+  bool IsFrameTimeGraphSamplingEnabled() const;
+  void BeginFrameTimeGraphSample(double raw_delta_seconds);
+  void PauseFrameTimeGraphWorkTimer();
+  void ResumeFrameTimeGraphWorkTimer();
+  void FinishFrameTimeGraphSample();
+  void StoreFrameTimeGraphSample(double raw_delta_seconds, double engine_delta_seconds);
+  void RenderFrameTimeGraph(RAS_DebugDraw &debugDraw,
+                            int xcoord,
+                            int ycoord,
+                            int profile_indent,
+                            short profile_size) const;
 
   /// EEVEE scene rendering
   void RenderCamera(KX_Scene *scene, class RAS_FrameBuffer *background_fb, const CameraRenderData &cameraFrameData, unsigned short pass);
@@ -461,6 +507,12 @@ public:
                         const RAS_Rect &displayArea,
                         RAS_Rect &area,
                         RAS_Rect &viewport);
+  /// Update and return the projection matrix of a camera depending on the viewport.
+  MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene,
+                                         KX_Camera *cam,
+                                         RAS_Rasterizer::StereoEye eye,
+                                         const RAS_Rect &viewport,
+                                         const RAS_Rect &area) const;
 
   /// Sets zoom for camera objects, useful only with extend and scale framing mode.
   void SetCameraZoom(float camzoom);
@@ -480,6 +532,12 @@ public:
   bool GetFlag(FlagType flag) const;
   /// Enable or disable a set of flags.
   void SetFlag(FlagType flag, bool enable);
+  void SetFrameTimeGraphSettings(int window_seconds,
+                                 int axis,
+                                 int style,
+                                 int max_samples,
+                                 int visible_domains);
+  void SetFrameTimeGraphSlots(int record_slot, int visible_slots);
 
   double GetClockTime(void) const;
   void SetClockTime(double externalClockTime);

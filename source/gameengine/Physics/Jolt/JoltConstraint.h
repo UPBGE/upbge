@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include "JoltPhysicsConfig.h"
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS
@@ -36,6 +38,7 @@ JPH_SUPPRESS_WARNINGS
 #include "PHY_IConstraint.h"
 
 class JoltPhysicsEnvironment;
+class KX_GameObject;
 
 /**
  * JoltConstraint wraps a Jolt Constraint and implements the UPBGE PHY_IConstraint interface.
@@ -47,6 +50,8 @@ class JoltPhysicsEnvironment;
  *   - PHY_CONE_TWIST_CONSTRAINT   → ConeConstraint / SwingTwistConstraint
  *   - PHY_GENERIC_6DOF_CONSTRAINT → SixDOFConstraint
  *   - PHY_GENERIC_6DOF_SPRING2_CONSTRAINT → SixDOFConstraint with motors/springs
+ *   - PHY_FIXED_CONSTRAINT → FixedConstraint
+ *   - PHY_SLIDER_CONSTRAINT → SliderConstraint
  */
 class JoltConstraint : public PHY_IConstraint {
  public:
@@ -69,6 +74,7 @@ class JoltConstraint : public PHY_IConstraint {
   virtual void SetBreakingThreshold(float threshold) override;
 
   virtual void SetSolverIterations(int iterations) override;
+  void SetSolverIterations(int velocityIterations, int positionIterations);
 
   virtual int GetIdentifier() const override;
   virtual PHY_ConstraintType GetType() const override;
@@ -79,6 +85,8 @@ class JoltConstraint : public PHY_IConstraint {
   const JPH::Constraint *GetConstraint() const { return m_constraint; }
 
   bool GetDisableCollision() const { return m_disableCollision; }
+  KX_GameObject *GetRigidBodyConstraintOwner() const { return m_rigidBodyConstraintOwner; }
+  void SetRigidBodyConstraintOwner(KX_GameObject *owner) { m_rigidBodyConstraintOwner = owner; }
   bool GetActive() const { return m_active; }
   void SetActive(bool active) { m_active = active; }
 
@@ -91,6 +99,7 @@ class JoltConstraint : public PHY_IConstraint {
  private:
   JPH::Constraint *m_constraint;
   JoltPhysicsEnvironment *m_env;
+  KX_GameObject *m_rigidBodyConstraintOwner = nullptr;
   PHY_ConstraintType m_type;
   int m_id;
   bool m_disableCollision;

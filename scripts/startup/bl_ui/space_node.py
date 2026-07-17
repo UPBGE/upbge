@@ -14,6 +14,7 @@ from bpy.app.translations import (
     pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
+from bl_operators.logic_nodes_bindings import node_editor_active_tree_bl_idname
 from bl_ui import anim, node_add_menu
 from bl_ui.utils import PresetPanel
 from bl_ui.properties_grease_pencil_common import (
@@ -315,13 +316,26 @@ class NODE_MT_add(node_add_menu.AddNodeMenu):
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         snode = context.space_data
-        if snode.tree_type == 'GeometryNodeTree':
+        tree_bl_idname = node_editor_active_tree_bl_idname(snode)
+        if tree_bl_idname == 'GeometryNodeTree':
             layout.menu_contents("NODE_MT_geometry_node_add_all")
-        elif snode.tree_type == 'CompositorNodeTree':
+        elif tree_bl_idname == 'CompositorNodeTree':
             layout.menu_contents("NODE_MT_compositor_node_add_all")
-        elif snode.tree_type == 'ShaderNodeTree':
+        elif tree_bl_idname == 'LogicNodeTree':
+            layout.menu_contents("NODE_MT_logic_node_add_all")
+        elif tree_bl_idname == 'ShaderNodeTree':
             layout.menu_contents("NODE_MT_shader_node_add_all")
-        elif snode.tree_type == 'TextureNodeTree':
+        elif tree_bl_idname == 'TextureNodeTree':
+            layout.menu_contents("NODE_MT_texture_node_add_all")
+        elif tree_bl_idname is None and snode.tree_type == 'GeometryNodeTree':
+            layout.menu_contents("NODE_MT_geometry_node_add_all")
+        elif tree_bl_idname is None and snode.tree_type == 'CompositorNodeTree':
+            layout.menu_contents("NODE_MT_compositor_node_add_all")
+        elif tree_bl_idname is None and snode.tree_type == 'LogicNodeTree':
+            layout.menu_contents("NODE_MT_logic_node_add_all")
+        elif tree_bl_idname is None and snode.tree_type == 'ShaderNodeTree':
+            layout.menu_contents("NODE_MT_shader_node_add_all")
+        elif tree_bl_idname is None and snode.tree_type == 'TextureNodeTree':
             layout.menu_contents("NODE_MT_texture_node_add_all")
         elif nodeitems_utils.has_node_categories(context):
             # Actual node sub-menus are defined by draw functions from node categories.
@@ -345,13 +359,26 @@ class NODE_MT_swap(node_add_menu.SwapNodeMenu):
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         snode = context.space_data
-        if snode.tree_type == 'GeometryNodeTree':
+        tree_bl_idname = node_editor_active_tree_bl_idname(snode)
+        if tree_bl_idname == 'GeometryNodeTree':
             layout.menu_contents("NODE_MT_geometry_node_swap_all")
-        elif snode.tree_type == 'CompositorNodeTree':
+        elif tree_bl_idname == 'CompositorNodeTree':
             layout.menu_contents("NODE_MT_compositor_node_swap_all")
-        elif snode.tree_type == 'ShaderNodeTree':
+        elif tree_bl_idname == 'LogicNodeTree':
+            layout.menu_contents("NODE_MT_logic_node_swap_all")
+        elif tree_bl_idname == 'ShaderNodeTree':
             layout.menu_contents("NODE_MT_shader_node_swap_all")
-        elif snode.tree_type == 'TextureNodeTree':
+        elif tree_bl_idname == 'TextureNodeTree':
+            layout.menu_contents("NODE_MT_texture_node_swap_all")
+        elif tree_bl_idname is None and snode.tree_type == 'GeometryNodeTree':
+            layout.menu_contents("NODE_MT_geometry_node_swap_all")
+        elif tree_bl_idname is None and snode.tree_type == 'CompositorNodeTree':
+            layout.menu_contents("NODE_MT_compositor_node_swap_all")
+        elif tree_bl_idname is None and snode.tree_type == 'LogicNodeTree':
+            layout.menu_contents("NODE_MT_logic_node_swap_all")
+        elif tree_bl_idname is None and snode.tree_type == 'ShaderNodeTree':
+            layout.menu_contents("NODE_MT_shader_node_swap_all")
+        elif tree_bl_idname is None and snode.tree_type == 'TextureNodeTree':
             layout.menu_contents("NODE_MT_texture_node_swap_all")
 
 

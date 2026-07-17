@@ -103,3 +103,8 @@ double KX_TimeLogger::GetAverage() const
 
   return avg;
 }
+
+double KX_TimeLogger::GetPrevious() const
+{
+  return (m_measurements.size() > 1) ? m_measurements[1] : 0.0;
+}

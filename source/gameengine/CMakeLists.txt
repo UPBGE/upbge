@@ -31,12 +31,21 @@ if(WITH_PYTHON)
   add_definitions(-DWITH_PYTHON)
 endif()
 
+if(WITH_GAMEENGINE_LOGICNODES)
+  add_definitions(-DWITH_GAMEENGINE_LOGICNODES)
+endif()
+
 add_subdirectory(BlenderRoutines)
 add_subdirectory(Common)
 add_subdirectory(Converter)
 add_subdirectory(Device)
 add_subdirectory(Expressions)
 add_subdirectory(GameLogic)
+
+if(WITH_GAMEENGINE_LOGICNODES)
+  add_subdirectory(LogicNodes)
+endif()
+
 add_subdirectory(Ketsji)
 add_subdirectory(Ketsji/KXNetworkMessage)
 add_subdirectory(Launcher)

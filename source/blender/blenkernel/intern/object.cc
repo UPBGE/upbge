@@ -129,6 +129,7 @@
 #include "BKE_preview_image.hh"
 #include "BKE_property.hh"
 #include "BKE_python_proxy.hh"
+#include "BKE_logic_node_binding.hh"
 #include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_sca.hh"
@@ -258,7 +259,10 @@ static void object_copy_data(Main *bmain,
   BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
   BKE_sca_copy_logicbricks(ob_dst, ob_src, flag_subdata);
+  BLI_listbase_clear(&ob_dst->components);
   BKE_python_proxy_copy_list(&ob_dst->components, &ob_src->components);
+  BLI_listbase_clear(&ob_dst->logic_node_bindings);
+  BKE_logic_node_binding_copy_list(&ob_dst->logic_node_bindings, &ob_src->logic_node_bindings);
   if (ob_src->bsoft) {
     ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, 0);
   }
@@ -357,6 +361,7 @@ static void object_free_data(ID *id)
   BKE_sca_free_controllers(&ob->controllers);
   BKE_sca_free_actuators(&ob->actuators);
   BKE_python_proxy_free_list(&ob->components);
+  BKE_logic_node_binding_free_list(&ob->logic_node_bindings);
   BKE_object_free_bulletsoftbody(ob);
   BKE_object_vehicle_settings_free(ob);
   BLI_freelistN(&ob->lodlevels);
@@ -976,6 +981,11 @@ static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
   }
 }
 
+static void write_logic_node_bindings(BlendWriter *writer, ListBaseT<LogicNodeBinding> *lb)
+{
+  writer->write_struct_list(lb);
+}
+
 static void write_proxy(BlendWriter *writer, PythonProxy *pp)
 {
   writer->write_struct(pp);
@@ -1162,6 +1172,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   write_controllers(writer, &ob->controllers);
   write_actuators(writer, &ob->actuators);
   write_proxies(writer, &ob->components);
+  write_logic_node_bindings(writer, &ob->logic_node_bindings);
 
   if (ob->custom_object) {
     write_proxy(writer, ob->custom_object);
@@ -1426,6 +1437,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     }
     pp = pp->next;
   }
+
+  BLO_read_struct_list(reader, LogicNodeBinding, &ob->logic_node_bindings);
 
   BLO_read_data_address(reader, &ob->custom_object);
   pp = ob->custom_object;

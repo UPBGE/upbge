@@ -31,6 +31,7 @@
 
 #include "BL_SceneConverter.h"
 
+#include "KX_BlenderMaterial.h"
 #include "KX_GameObject.h"
 #include "PHY_IPhysicsController.h"
 
@@ -51,6 +52,7 @@ BL_SceneConverter::BL_SceneConverter()
 BL_SceneConverter::~BL_SceneConverter()
 {
   m_materials.clear();
+  m_owned_runtime_materials.clear();
   m_meshobjects.clear();
   m_map_blender_to_gameobject.clear();
   m_map_mesh_to_gamemesh.clear();
@@ -118,6 +120,15 @@ void BL_SceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, blender::Mat
     m_map_mesh_to_polyaterial[mat] = blmat;
   }
   m_materials.push_back(blmat);
+}
+
+KX_BlenderMaterial *BL_SceneConverter::OwnRuntimeMaterial(
+    std::unique_ptr<KX_BlenderMaterial> blmat, blender::Material *mat)
+{
+  KX_BlenderMaterial *runtime_material = blmat.get();
+  m_owned_runtime_materials.push_back(std::move(blmat));
+  RegisterMaterial(runtime_material, mat);
+  return runtime_material;
 }
 
 KX_BlenderMaterial *BL_SceneConverter::FindMaterial(blender::Material *mat)

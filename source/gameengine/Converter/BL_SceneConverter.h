@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <memory>
 #include <map>
 #include <vector>
 
@@ -54,6 +55,7 @@ class BL_SceneConverter {
 
  private:
   std::vector<KX_BlenderMaterial *> m_materials;
+  std::vector<std::unique_ptr<KX_BlenderMaterial>> m_owned_runtime_materials;
   std::vector<RAS_MeshObject *> m_meshobjects;
 
   std::map<blender::Object *, KX_GameObject *> m_map_blender_to_gameobject;
@@ -78,6 +80,8 @@ class BL_SceneConverter {
   RAS_MeshObject *FindGameMesh(blender::Mesh *for_blendermesh);
 
   void RegisterMaterial(KX_BlenderMaterial *blmat, blender::Material *mat);
+  KX_BlenderMaterial *OwnRuntimeMaterial(std::unique_ptr<KX_BlenderMaterial> blmat,
+                                         blender::Material *mat);
   KX_BlenderMaterial *FindMaterial(blender::Material *mat);
 
   void RegisterGameActuator(SCA_IActuator *act, blender::bActuator *for_actuator);

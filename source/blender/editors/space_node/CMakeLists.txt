@@ -13,6 +13,7 @@ set(INC
   ../../makesrna
   ../../nodes/geometry/include
   ../../sequencer
+    ../../../gameengine/LogicNodes
   ../asset
 
   # RNA_prototypes.hh
@@ -20,6 +21,7 @@ set(INC
 )
 
 set(INC_SYS
+  ../../../../intern/moto/include
 )
 
 set(SRC
@@ -39,6 +41,7 @@ set(SRC
   node_geometry_volume_grid_search.cc
   node_gizmo.cc
   node_group.cc
+  node_logic_validate.cc
   node_ops.cc
   node_relationships.cc
   node_select.cc
@@ -70,6 +73,7 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+    ge_logic_nodes
   bf_compositor
   PRIVATE bf::nodes
   PRIVATE bf::render

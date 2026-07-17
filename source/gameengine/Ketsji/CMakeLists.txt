@@ -245,6 +245,15 @@ if(WITH_GAMEENGINE)
   add_definitions(-DWITH_GAMEENGINE)
 endif()
 
+if(WITH_GAMEENGINE_LOGICNODES)
+  list(APPEND INC
+    ../LogicNodes
+  )
+  list(APPEND LIB
+    ge_logic_nodes
+  )
+endif()
+
 if(WITH_CYCLES)
   add_definitions(-DWITH_CYCLES)
 endif()

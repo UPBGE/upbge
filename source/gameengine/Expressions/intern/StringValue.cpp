@@ -95,6 +95,11 @@ void EXP_StringValue::SetValue(EXP_Value *newval)
   m_strString = newval->GetText();
 }
 
+void EXP_StringValue::SetText(const std::string &value)
+{
+  m_strString = value;
+}
+
 double EXP_StringValue::GetNumber()
 {
   return -1;

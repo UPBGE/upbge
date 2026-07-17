@@ -330,6 +330,9 @@ class CopyRigidBodyConstraintSettings(Operator):
         "breaking_threshold",
         "use_override_solver_iterations",
         "solver_iterations",
+        "use_jolt_solver_iterations_override",
+        "jolt_velocity_solver_iterations",
+        "jolt_position_solver_iterations",
         # Linear limits.
         "use_limit_lin_x",
         "use_limit_lin_y",

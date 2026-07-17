@@ -260,6 +260,11 @@ cInt EXP_IntValue::GetInt()
   return m_int;
 }
 
+void EXP_IntValue::SetInt(cInt value)
+{
+  m_int = value;
+}
+
 double EXP_IntValue::GetNumber()
 {
   return (double)m_int;

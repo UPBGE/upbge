@@ -27,6 +27,9 @@
 
 #pragma once
 
+#include "JoltPhysicsConfig.h"
+#include "JoltShapeQueryData.h"
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS
@@ -65,6 +68,10 @@ class JoltShapeBuilder {
   void SetHeight(float height);
   void SetHalfExtents(float hx, float hy, float hz);
   void SetMargin(float margin);
+  void SetRayQueryDetailRequirements(unsigned char detailFlags)
+  {
+    m_rayQueryDetailRequirements = detailFlags;
+  }
 
   /** Load vertex/triangle data from a Blender mesh.
    *  \param polytope If true, build convex hull from vertices; otherwise triangle mesh. */
@@ -76,6 +83,7 @@ class JoltShapeBuilder {
   const std::vector<int> &GetTriangleArray() const { return m_triFaceArray; }
   /** Access vertex remap: Blender original vert index → soft body particle index. */
   const std::unordered_map<int, int> &GetVertexRemap() const { return m_vertRemap; }
+  JoltShapeQueryDataPtr GetShapeQueryData() const { return m_shapeQueryData; }
 
   /** Build the Jolt shape from the configured parameters.
    *  Returns nullptr if the configuration is invalid.
@@ -116,4 +124,7 @@ class JoltShapeBuilder {
   std::vector<int> m_triFaceArray;
   /** Maps Blender original vertex index to Jolt soft body particle index. */
   std::unordered_map<int, int> m_vertRemap;
+  std::shared_ptr<JoltMeshQueryData> m_meshQueryData;
+  mutable JoltShapeQueryDataPtr m_shapeQueryData;
+  unsigned char m_rayQueryDetailRequirements = PHY_RAY_QUERY_DETAIL_NONE;
 };

@@ -45,6 +45,11 @@ add_subdirectory(geometry)
 add_subdirectory(shader)
 add_subdirectory(texture)
 
+if(WITH_GAMEENGINE_LOGICNODES)
+  add_definitions(-DWITH_GAMEENGINE_LOGICNODES)
+  add_subdirectory(logic)
+endif()
+
 set(INC
   PUBLIC .
   composite
@@ -65,6 +70,12 @@ set(INC
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
+
+if(WITH_GAMEENGINE_LOGICNODES)
+  list(APPEND INC
+    logic
+  )
+endif()
 
 set(INC_SYS
 )
@@ -145,6 +156,8 @@ set(SRC
   NOD_inverse_eval_params.hh
   NOD_inverse_eval_path.hh
   NOD_inverse_eval_run.hh
+  NOD_logic_descriptors.hh
+  NOD_logic.hh
   NOD_math_functions.hh
   NOD_menu_value.hh
   NOD_multi_function.hh
@@ -207,6 +220,12 @@ set(LIB
   PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dependencies::optional::bullet
 )
+
+if(WITH_GAMEENGINE_LOGICNODES)
+  list(APPEND LIB
+    bf_nodes_logic
+  )
+endif()
 
 if(WITH_FREESTYLE)
   add_definitions(-DWITH_FREESTYLE)

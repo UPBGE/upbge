@@ -31,6 +31,7 @@ class EXP_StringValue : public EXP_PropValue {
   /// EXP_Value implementation
   virtual bool IsEqual(const std::string &other);
   virtual std::string GetText();
+  void SetText(const std::string &value);
   virtual double GetNumber();
   virtual int GetValueType();
 

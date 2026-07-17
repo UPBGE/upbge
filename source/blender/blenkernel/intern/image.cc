@@ -2843,6 +2843,7 @@ static void image_walk_ntree_all_users(
       }
       break;
     case NTREE_GEOMETRY:
+    case NTREE_LOGIC:
     case NTREE_CUSTOM:
     case NTREE_UNDEFINED:
       break;

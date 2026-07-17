@@ -8,7 +8,7 @@
 include(FetchContent)
 
 # Pin to a specific stable release for reproducible builds.
-set(JOLT_PHYSICS_VERSION "v5.5.0" CACHE STRING "Jolt Physics version tag to fetch")
+set(JOLT_PHYSICS_VERSION "v5.6.0")
 
 FetchContent_Declare(
   JoltPhysics
@@ -37,6 +37,13 @@ set(CPP_RTTI_ENABLED ON CACHE BOOL "Enable C++ RTTI in Jolt" FORCE)
 
 # Disable Jolt's own install targets — UPBGE handles installation.
 set(ENABLE_INSTALL OFF CACHE BOOL "Disable Jolt install targets" FORCE)
+
+# UPBGE links Jolt statically and does not use its compute or hair simulation backends.
+set(JPH_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Jolt as a static library" FORCE)
+set(JPH_USE_DX12 OFF CACHE BOOL "Disable Jolt DirectX 12 compute" FORCE)
+set(JPH_USE_VK OFF CACHE BOOL "Disable Jolt Vulkan compute" FORCE)
+set(JPH_USE_MTL OFF CACHE BOOL "Disable Jolt Metal compute" FORCE)
+set(JPH_USE_CPU_COMPUTE OFF CACHE BOOL "Disable Jolt CPU compute" FORCE)
 
 # Disable Jolt samples/tests/tools — only build the library.
 set(TARGET_UNIT_TESTS OFF CACHE BOOL "" FORCE)

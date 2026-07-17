@@ -566,6 +566,14 @@ static void usage(const std::string &program, bool isBlenderPlayer)
   CM_Message("       show_framerate                 0         Show the frame rate");
   CM_Message("       show_properties                0         Show debug properties");
   CM_Message("       show_profile                   0         Show profiling information");
+  CM_Message("       record_frame_time_graph        0         Record graph for this run");
+  CM_Message("       frame_time_graph_record_slot  -1        Slot to record (-1 disables)");
+  CM_Message("       frame_time_graph_visible_slots 0        Bitmask of recorded slots to show");
+  CM_Message("       frame_time_graph_window        2         Graph window seconds: 1, 2, 5, 10");
+  CM_Message("       frame_time_graph_axis          0         X axis: 0 frames, 1 seconds");
+  CM_Message("       frame_time_graph_style         0         Style: 0 line, 1 bars");
+  CM_Message("       frame_time_graph_max_samples  10000     Max recorded samples per slot");
+  CM_Message("       frame_time_graph_visible_domains 1      Bitmask of graph domains to draw");
   CM_Message("       show_bounding_box              0         Show debug bounding box volume");
   CM_Message("       show_armatures                 0         Show debug armatures");
   CM_Message("       show_camera_frustum            0         Show debug camera frustum volume");

@@ -196,7 +196,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                             bool replicate_dupli = false);
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
-  virtual void RemoveConstraintById(int constraintid, bool free);
+  virtual bool RemoveConstraintById(int constraintid, bool free);
   virtual bool IsRigidBodyConstraintEnabled(int constraintid);
 
   virtual float getAppliedImpulse(int constraintid);
@@ -315,11 +315,12 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                       KX_GameObject *obj_dest,
                                       blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli);
-  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
-                                        KX_GameObject *gameobj2,
-                                        const MT_Vector3 &pivotLocal,
-                                        const MT_Matrix3x3 &basisLocal,
-                                        blender::RigidBodyCon *rbc) override;
+  virtual int CreateRigidBodyConstraint(
+      KX_GameObject *gameobj1,
+      KX_GameObject *gameobj2,
+      const MT_Vector3 &pivotLocal,
+      const MT_Matrix3x3 &basisLocal,
+      const PHY_RigidBodyConstraintSettings &settings) override;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
 
  protected:

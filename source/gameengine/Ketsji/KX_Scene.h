@@ -32,6 +32,7 @@
 #pragma once
 
 #include <list>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -88,6 +89,7 @@ class KX_2DFilterManager;
 class BL_SceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
+class LN_Manager;
 // struct TaskPool; removed to avoid ambiguity
 
 typedef struct BackupObj {
@@ -181,6 +183,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   SCA_TimeEventManager *m_timemgr;
 
   KX_PythonProxyManager m_proxyManager;
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  std::shared_ptr<LN_Manager> m_logicNodeManager;
+#endif
 
   /**
    * physics engine abstraction
@@ -302,6 +308,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void convert_blender_objects_list_synchronous(std::vector<blender::Object *> objectslist);
   void convert_blender_collection_synchronous(blender::Collection *co);
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  void ReplicateLogicNodeRuntimeTreesForReplicaMap();
+#endif
+
  public:
   KX_Scene(SCA_IInputDevice *inputDevice,
            const std::string &scenename,
@@ -310,6 +320,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
            KX_NetworkMessageManager *messageManager);
 
   virtual ~KX_Scene();
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  virtual void ProcessReplica() override;
+#endif
 
   /******************EEVEE INTEGRATION************************/
   void ConvertBlenderObject(blender::Object *ob);
@@ -418,7 +432,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
    * Initiate an update of the logic system.
    */
   void LogicBeginFrame(double curtime, double framestep);
-  void LogicUpdateFrame(double curtime);
+  void LogicUpdateFrame(double curtime, bool useFixedPhysicsTimestep, double fixedDt);
   void UpdateAnimations(double curtime);
 
   void LogicEndFrame();
@@ -445,6 +459,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   SCA_TimeEventManager *GetTimeEventManager() const;
 
   KX_PythonProxyManager &GetPythonProxyManager();
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  LN_Manager *GetLogicNodeManager() const;
+#endif
 
   EXP_ListValue<KX_Camera> *GetCameraList() const;
   void SetCameraList(EXP_ListValue<KX_Camera> *camList);

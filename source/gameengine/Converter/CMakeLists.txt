@@ -33,6 +33,7 @@ set(INC
   ../Ketsji
   ../Ketsji/KXNetworkMessage
   ../Launcher
+  ../LogicNodes
   ../Physics/Bullet
   ../Physics/Jolt
   ../Physics/Dummy
@@ -131,6 +132,12 @@ if(WITH_JOLT)
     ge_physics_jolt
   )
   add_definitions(-DWITH_JOLT)
+endif()
+
+if(WITH_GAMEENGINE_LOGICNODES)
+  list(APPEND LIB
+    ge_logic_nodes
+  )
 endif()
 
 if(WITH_AUDASPACE)

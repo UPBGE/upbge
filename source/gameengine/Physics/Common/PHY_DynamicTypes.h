@@ -79,6 +79,8 @@ typedef enum PHY_ConstraintType {
   PHY_VEHICLE_CONSTRAINT = 11,       // complex 'constraint' that turns a rigidbody into a vehicle
   PHY_GENERIC_6DOF_CONSTRAINT = 12,  // can leave any of the 6 degree of freedom 'free' or 'locked'
   PHY_GENERIC_6DOF_SPRING2_CONSTRAINT = 13,  // 6DOF with Spring2 (Blender 2.8 style, more stable)
+  PHY_FIXED_CONSTRAINT = 14,
+  PHY_SLIDER_CONSTRAINT = 15,
 
 } PHY_ConstraintType;
 
@@ -101,3 +103,9 @@ typedef enum PHY_SolverType {
   PHY_SOLVER_SEQUENTIAL,
   PHY_SOLVER_NNCG,
 } PHY_SolverType;
+
+enum PHY_RayQueryDetail : unsigned char {
+  PHY_RAY_QUERY_DETAIL_NONE = 0,
+  PHY_RAY_QUERY_DETAIL_FACE_INDEX = 1 << 0,
+  PHY_RAY_QUERY_DETAIL_UV = 1 << 1,
+};

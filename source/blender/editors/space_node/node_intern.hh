@@ -493,6 +493,11 @@ void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
+/* `node_logic_validate.cc` */
+
+void NODE_OT_validate_logic_tree(wmOperatorType *ot);
+void NODE_OT_logic_keyboard_key_selector(wmOperatorType *ot);
+
 /* `node_group.cc` */
 
 UString node_group_idname(const bContext *C);

@@ -1549,9 +1549,28 @@ static void game_set_commmandline_options(GameData *gm)
     /* File specific settings: */
     /* Only test the first one. These two are switched
      * simultaneously. */
-    test = (gm->flag & GAME_SHOW_FRAMERATE);
-    SYS_WriteCommandLineInt(syshandle, "show_framerate", test);
-    SYS_WriteCommandLineInt(syshandle, "show_profile", test);
+    const bool show_framerate_profile = (gm->flag & GAME_SHOW_FRAMERATE);
+    SYS_WriteCommandLineInt(syshandle, "show_framerate", show_framerate_profile);
+    SYS_WriteCommandLineInt(syshandle, "show_profile", show_framerate_profile);
+
+    test = show_framerate_profile && (gm->flag & GAME_RECORD_FRAME_TIME_GRAPH);
+    SYS_WriteCommandLineInt(syshandle, "record_frame_time_graph", test);
+
+    SYS_WriteCommandLineInt(
+      syshandle,
+      "frame_time_graph_visible_slots",
+      show_framerate_profile ? gm->frame_time_graph_visible_slots : 0);
+    SYS_WriteCommandLineInt(
+      syshandle,
+      "frame_time_graph_record_slot",
+      test ? gm->frame_time_graph_record_slot : -1);
+    SYS_WriteCommandLineInt(syshandle, "frame_time_graph_window", gm->frame_time_graph_window);
+    SYS_WriteCommandLineInt(syshandle, "frame_time_graph_axis", gm->frame_time_graph_axis);
+    SYS_WriteCommandLineInt(syshandle, "frame_time_graph_style", gm->frame_time_graph_style);
+    SYS_WriteCommandLineInt(
+        syshandle, "frame_time_graph_max_samples", gm->frame_time_graph_max_samples);
+    SYS_WriteCommandLineInt(
+        syshandle, "frame_time_graph_visible_domains", gm->frame_time_graph_visible_domains);
 
     test = (gm->flag & GAME_SHOW_DEBUG_PROPS);
     SYS_WriteCommandLineInt(syshandle, "show_properties", test);

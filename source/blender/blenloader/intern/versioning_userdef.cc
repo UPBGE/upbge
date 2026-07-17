@@ -1686,10 +1686,19 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_UPBGE_VERSION_ATLEAST(50, 3)) {
+#ifndef WITH_GAMEENGINE_LOGICNODES
+    /* Legacy Python logic nodes (separate editor: BGELogicTree). Not used with native LogicNodeTree. */
     BKE_addon_ensure(&userdef->addons, "bge_netlogic");
     BKE_addon_ensure(&userdef->addons, "bge_bricknodes");
+#endif
     BKE_addon_ensure(&userdef->addons, "game_engine_save_as_runtime_eevee");
   }
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  /* Native C++ logic nodes replace the Python addon in the default configuration. */
+  BKE_addon_remove_safe(&userdef->addons, "bge_netlogic");
+  BKE_addon_remove_safe(&userdef->addons, "bge_bricknodes");
+#endif
 
   if (!USER_VERSION_ATLEAST(500, 76)) {
     if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {

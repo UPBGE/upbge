@@ -649,6 +649,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
     /* Jolt Physics defaults */
     sce.gm.jolt_physics_threads = -1;
+    sce.gm.jolt_velocity_solver_iterations = 10;
+    sce.gm.jolt_position_solver_iterations = 2;
     sce.gm.jolt_max_bodies = 65536;
     sce.gm.jolt_max_body_pairs = 65536;
     sce.gm.jolt_max_contact_constraints = 65536;
@@ -668,6 +670,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob.margin = 0.04f;
     ob.friction = 0.5f;
     ob.gravity_factor = 1.0f;
+    ob.jolt_velocity_solver_iterations = 10;
+    ob.jolt_position_solver_iterations = 2;
     ob.init_state = 1;
     ob.state = 1;
     ob.obstacleRad = 1.0f;

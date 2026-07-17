@@ -106,10 +106,9 @@ PHY_IVehicle *DummyPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctr
   return nullptr;
 }
 
-void DummyPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
+bool DummyPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
 {
-  if (constraintid) {
-  }
+  return false;
 }
 
 PHY_IPhysicsController *DummyPhysicsEnvironment::RayTest(

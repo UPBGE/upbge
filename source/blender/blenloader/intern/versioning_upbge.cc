@@ -26,6 +26,7 @@
  */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include <cstdio>
@@ -45,6 +46,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_node_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
@@ -59,7 +62,10 @@
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
+
+#include "versioning_common.hh"
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
@@ -606,6 +612,77 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       scene.gm.jolt_temp_allocator_mb = 32;
     }
   }
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "GameData", "short", "jolt_velocity_solver_iterations"))
+  {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.jolt_velocity_solver_iterations = 10;
+      scene.gm.jolt_position_solver_iterations = 2;
+    }
+  }
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "Object", "short", "jolt_velocity_solver_iterations"))
+  {
+    for (Object &ob : bmain->objects) {
+      ob.gameflag2 &= ~OB_JOLT_OVERRIDE_SOLVER_ITERATIONS;
+      ob.jolt_velocity_solver_iterations = 10;
+      ob.jolt_position_solver_iterations = 2;
+    }
+  }
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "short", "frame_time_graph_record_slot"))
+  {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.frame_time_graph_visible_slots = 0;
+      scene.gm.frame_time_graph_record_slot = -1;
+      scene.gm.frame_time_graph_window = 2;
+      scene.gm.frame_time_graph_axis = GAME_FRAME_TIME_GRAPH_AXIS_FRAMES;
+      scene.gm.frame_time_graph_style = GAME_FRAME_TIME_GRAPH_STYLE_LINE;
+      scene.gm.frame_time_graph_visible_domains = GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME;
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[0],
+                  "Slot 1",
+                  sizeof(scene.gm.frame_time_graph_slot_names[0]));
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[1],
+                  "Slot 2",
+                  sizeof(scene.gm.frame_time_graph_slot_names[1]));
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[2],
+                  "Slot 3",
+                  sizeof(scene.gm.frame_time_graph_slot_names[2]));
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[3],
+                  "Slot 4",
+                  sizeof(scene.gm.frame_time_graph_slot_names[3]));
+    }
+  }
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "int", "frame_time_graph_max_samples"))
+  {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.frame_time_graph_max_samples = 10000;
+    }
+  }
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "GameData", "int", "frame_time_graph_visible_domains"))
+  {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.frame_time_graph_visible_domains = GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME;
+    }
+  }
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "GameData", "char", "frame_time_graph_slot_names[4][64]"))
+  {
+    for (Scene &scene : bmain->scenes) {
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[0],
+                  "Slot 1",
+                  sizeof(scene.gm.frame_time_graph_slot_names[0]));
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[1],
+                  "Slot 2",
+                  sizeof(scene.gm.frame_time_graph_slot_names[1]));
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[2],
+                  "Slot 3",
+                  sizeof(scene.gm.frame_time_graph_slot_names[2]));
+      BLI_strncpy(scene.gm.frame_time_graph_slot_names[3],
+                  "Slot 4",
+                  sizeof(scene.gm.frame_time_graph_slot_names[3]));
+    }
+  }
   if (!DNA_struct_member_exists(fd->filesdna, "Object", "GameVehicleSettings", "*vehicle")) {
     for (Object &ob : bmain->objects) {
       ob.vehicle = nullptr;
@@ -813,6 +890,63 @@ void do_versions_after_linking_upbge(FileData *fd, Main *bmain)
         ob.bsoft->plasticStrength = 1.0f;
         ob.bsoft->plasticMaxDeform = 1.0f;
         ob.bsoft->plasticRepairRate = 0.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 16)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_LOGIC) {
+        continue;
+      }
+      for (bNode &node : node_tree->nodes.items_reversed_mutable()) {
+        if (STREQ(node.idname, "LogicNativeSendMessage") ||
+            node.type_legacy == LN_NODE_SEND_MESSAGE)
+        {
+          version_node_remove(*node_tree, node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 17)) {
+    if (!DNA_struct_member_exists(
+            fd->filesdna, "RigidBodyCon", "short", "jolt_velocity_solver_iterations"))
+    {
+      for (Object &ob : bmain->objects) {
+        if (ob.rigidbody_constraint) {
+          ob.rigidbody_constraint->jolt_velocity_solver_iterations = 10;
+          ob.rigidbody_constraint->jolt_position_solver_iterations = 2;
+        }
+      }
+    }
+
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_LOGIC) {
+        continue;
+      }
+      for (bNode &node : node_tree->nodes) {
+        if (!STREQ(node.idname, "LogicNativeAddPhysicsConstraint")) {
+          continue;
+        }
+        for (bNodeSocket &socket : node.inputs) {
+          if (STREQ(socket.name, "Solver Iterations")) {
+            STRNCPY(socket.name, "Velocity Solver Iterations");
+          }
+          if (STREQ(socket.identifier, "Solver Iterations")) {
+            version_node_socket_identifier_set(socket, "Velocity Solver Iterations");
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 15)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Object", "ListBase", "logic_node_bindings")) {
+      for (Object &ob : bmain->objects) {
+        ob.logic_node_bindings = {nullptr, nullptr};
       }
     }
   }

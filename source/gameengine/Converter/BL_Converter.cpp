@@ -486,6 +486,14 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
 
   status = new KX_LibLoadStatus(this, m_ketsjiEngine, scene_merge, path);
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (idcode == ID_SCE && (options & LIB_LOAD_ASYNC)) {
+    CM_Warning("Logic Nodes require main-thread scene libload conversion; forcing synchronous "
+               "libload.");
+    options &= ~LIB_LOAD_ASYNC;
+  }
+#endif
+
   if (idcode == ID_ME) {
     // Convert all new meshes into BGE meshes
     blender::ID *mesh;

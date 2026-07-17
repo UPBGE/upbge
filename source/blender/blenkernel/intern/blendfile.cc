@@ -1530,8 +1530,10 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         "cycles",
         "pose_library",
         "bl_pkg",
+    #ifndef WITH_GAMEENGINE_LOGICNODES
         "bge_netlogic",
         "bge_bricknodes",
+    #endif
         "game_engine_save_as_runtime_eevee",
     };
     for (int i = 0; i < ARRAY_SIZE(addons); i++) {

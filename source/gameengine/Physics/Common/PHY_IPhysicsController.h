@@ -45,6 +45,13 @@ class MT_Matrix3x3;
 class KX_GameObject;
 class RAS_MeshObject;
 
+enum class PHY_DynamicsMode {
+  Dynamic = 0,
+  StaticCollider = 1,
+  Ghost = 2,
+  NoCollision = 3,
+};
+
 /**
  * PHY_IPhysicsController is the abstract simplified Interface to a physical object.
  * It contains the IMotionState and IDeformableMesh Interfaces.
@@ -92,6 +99,58 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual MT_Scalar GetFriction() = 0;
   virtual void SetFriction(MT_Scalar newfriction) = 0;
 
+  virtual MT_Scalar GetRestitution()
+  {
+    return 0.0f;
+  }
+  virtual void SetRestitution(MT_Scalar /*restitution*/)
+  {
+  }
+  virtual float GetGravityFactor() const
+  {
+    return 1.0f;
+  }
+  virtual void SetGravityFactor(float /*factor*/)
+  {
+  }
+  virtual bool GetAllowSleeping() const
+  {
+    return true;
+  }
+  virtual void SetAllowSleeping(bool /*allow*/)
+  {
+  }
+  virtual void SetRigidBodyAxisLocks(bool /*lockTranslationX*/,
+                                     bool /*lockTranslationY*/,
+                                     bool /*lockTranslationZ*/,
+                                     bool /*lockRotationX*/,
+                                     bool /*lockRotationY*/,
+                                     bool /*lockRotationZ*/)
+  {
+  }
+  virtual void GetRigidBodyAxisLocks(bool &lockTranslationX,
+                                     bool &lockTranslationY,
+                                     bool &lockTranslationZ,
+                                     bool &lockRotationX,
+                                     bool &lockRotationY,
+                                     bool &lockRotationZ) const
+  {
+    lockTranslationX = false;
+    lockTranslationY = false;
+    lockTranslationZ = false;
+    lockRotationX = false;
+    lockRotationY = false;
+    lockRotationZ = false;
+  }
+  virtual bool GetRigidBodyRotationEnabled() const
+  {
+    return false;
+  }
+  virtual bool GetCcdEnabled() const
+  {
+    return false;
+  }
+
   // physics methods
   virtual void ApplyImpulse(const MT_Vector3 &attach, const MT_Vector3 &impulse, bool local) = 0;
   virtual void ApplyTorque(const MT_Vector3 &torque, bool local) = 0;
@@ -111,6 +170,34 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual void RestorePhysics() = 0;
   virtual void SuspendDynamics(bool ghost = false) = 0;
   virtual void RestoreDynamics() = 0;
+  virtual void SetDynamicsMode(PHY_DynamicsMode mode, bool enabled = true)
+  {
+    switch (mode) {
+      case PHY_DynamicsMode::Dynamic:
+        if (enabled) {
+          RestorePhysics();
+          RestoreDynamics();
+        }
+        else {
+          SuspendDynamics(false);
+        }
+        break;
+      case PHY_DynamicsMode::StaticCollider:
+        SuspendDynamics(false);
+        break;
+      case PHY_DynamicsMode::Ghost:
+        if (enabled) {
+          SuspendDynamics(true);
+        }
+        else {
+          RestoreDynamics();
+        }
+        break;
+      case PHY_DynamicsMode::NoCollision:
+        SuspendDynamics(false);
+        break;
+    }
+  }
 
   virtual void SetActive(bool active) = 0;
 

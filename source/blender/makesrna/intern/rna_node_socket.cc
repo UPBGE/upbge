@@ -703,6 +703,29 @@ static void rna_NodeSocketStandard_value_update(bContext *C, PointerRNA *ptr)
   rna_NodeSocket_update(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
+static void rna_NodeSocketLogicBool_value_update(bContext *C, PointerRNA *ptr)
+{
+  rna_NodeSocketStandard_value_update(C, ptr);
+
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  if (sock->in_out != SOCK_IN) {
+    return;
+  }
+  if (sock->runtime == nullptr || sock->runtime->owner_node == nullptr) {
+    return;
+  }
+
+  bNode &node = sock->owner_node();
+  if (node.typeinfo == nullptr || node.typeinfo->updatefunc == nullptr) {
+    return;
+  }
+
+  Main *bmain = CTX_data_main(C);
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  BKE_ntree_update_tag_node_property(ntree, &node);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
+}
+
 static void rna_NodeSocketStandard_value_and_relation_update(bContext *C, PointerRNA *ptr)
 {
   rna_NodeSocketStandard_value_update(C, ptr);
@@ -1249,6 +1272,55 @@ static void rna_def_node_socket_int(BlenderRNA *brna,
   RNA_def_struct_sdna_from(srna, "bNodeSocket", nullptr);
 }
 
+static void rna_def_node_socket_logic_collision_layer_bit(StructRNA *srna,
+                                                         const char *identifier,
+                                                         const int bit,
+                                                         const char *ui_name)
+{
+  PropertyRNA *prop = RNA_def_property(srna, identifier, PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "value", 1 << bit);
+  RNA_def_property_ui_text(prop, ui_name, "Jolt collision layer bit");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+}
+
+static void rna_def_node_socket_logic_collision_layers(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "NodeSocketLogicCollisionLayers", "NodeSocketStandard");
+  RNA_def_struct_ui_text(srna, "Collision Layers Node Socket", "Jolt collision layer mask socket");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_INT);
+  RNA_def_struct_sdna(srna, "bNodeSocket");
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocketValueInt", "default_value");
+
+  prop = RNA_def_property(srna, "default_value", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "value");
+  RNA_def_property_int_default(prop, 1023);
+  RNA_def_property_int_funcs(prop, nullptr, nullptr, "rna_NodeSocketStandard_int_range");
+  RNA_def_property_int_default_func(prop, "rna_NodeSocketStandard_int_default");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
+  RNA_def_property_ui_description_func(prop, "rna_NodeSocketStandard_description_func");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_1", 0, "Collision Layer 1");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_2", 1, "Collision Layer 2");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_3", 2, "Collision Layer 3");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_4", 3, "Collision Layer 4");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_5", 4, "Collision Layer 5");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_6", 5, "Collision Layer 6");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_7", 6, "Collision Layer 7");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_8", 7, "Collision Layer 8");
+  rna_def_node_socket_logic_collision_layer_bit(srna, "collision_layer_9", 8, "Collision Layer 9");
+  rna_def_node_socket_logic_collision_layer_bit(
+      srna, "collision_layer_10", 9, "Collision Layer 10");
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocket", nullptr);
+}
+
 static void rna_def_node_socket_interface_int(BlenderRNA *brna,
                                               const char *identifier,
                                               PropertySubType subtype)
@@ -1320,6 +1392,29 @@ static void rna_def_node_socket_bool(BlenderRNA *brna, const char *identifier)
   RNA_def_struct_sdna_from(srna, "bNodeSocket", nullptr);
 }
 
+static void rna_def_node_socket_logic_bool(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
+  RNA_def_struct_ui_text(srna, "Logic Boolean Node Socket", "Boolean value socket of a logic node");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_BOOLEAN);
+  RNA_def_struct_sdna(srna, "bNodeSocket");
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocketValueBoolean", "default_value");
+
+  prop = RNA_def_property(srna, "default_value", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "value", 1);
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
+  RNA_def_property_ui_description_func(prop, "rna_NodeSocketStandard_description_func");
+  RNA_def_property_boolean_default_func(prop, "rna_NodeSocketStandard_boolean_default");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketLogicBool_value_update");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocket", nullptr);
+}
+
 static void rna_def_node_socket_interface_bool(BlenderRNA *brna, const char *identifier)
 {
   StructRNA *srna;
@@ -1342,7 +1437,9 @@ static void rna_def_node_socket_interface_bool(BlenderRNA *brna, const char *ide
   rna_def_node_tree_interface_socket_builtin(srna);
 }
 
-static void rna_def_node_socket_rotation(BlenderRNA *brna, const char *identifier)
+static void rna_def_node_socket_rotation(BlenderRNA *brna,
+                                         const char *identifier,
+                                         const bool use_transform_ui_precision = false)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -1356,6 +1453,9 @@ static void rna_def_node_socket_rotation(BlenderRNA *brna, const char *identifie
 
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, PROP_EULER);
   RNA_def_property_float_sdna(prop, nullptr, "value_euler");
+  if (use_transform_ui_precision) {
+    RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
+  }
   // RNA_def_property_array(prop, 3);
   RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_ui_description_func(prop, "rna_NodeSocketStandard_description_func");
@@ -1365,7 +1465,9 @@ static void rna_def_node_socket_rotation(BlenderRNA *brna, const char *identifie
   RNA_def_struct_sdna_from(srna, "bNodeSocket", nullptr);
 }
 
-static void rna_def_node_socket_interface_rotation(BlenderRNA *brna, const char *identifier)
+static void rna_def_node_socket_interface_rotation(BlenderRNA *brna,
+                                                  const char *identifier,
+                                                  const bool use_transform_ui_precision = false)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -1379,6 +1481,9 @@ static void rna_def_node_socket_interface_rotation(BlenderRNA *brna, const char 
 
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, PROP_EULER);
   RNA_def_property_float_sdna(prop, nullptr, "value_euler");
+  if (use_transform_ui_precision) {
+    RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
+  }
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
@@ -1416,7 +1521,8 @@ static void rna_def_node_socket_interface_matrix(BlenderRNA *brna, const char *i
 static void rna_def_node_socket_vector(BlenderRNA *brna,
                                        const char *identifier,
                                        PropertySubType subtype,
-                                       int dimensions)
+                                       int dimensions,
+                                       const bool use_transform_ui_precision = false)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -1431,6 +1537,9 @@ static void rna_def_node_socket_vector(BlenderRNA *brna,
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "value");
   RNA_def_property_array(prop, dimensions);
+  if (use_transform_ui_precision) {
+    RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
+  }
   RNA_def_property_float_default_func(prop, "rna_NodeSocketStandard_vector_default");
   RNA_def_property_float_funcs(prop, nullptr, nullptr, "rna_NodeSocketStandard_vector_range");
   RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
@@ -1444,7 +1553,8 @@ static void rna_def_node_socket_vector(BlenderRNA *brna,
 static void rna_def_node_socket_interface_vector(BlenderRNA *brna,
                                                  const char *identifier,
                                                  PropertySubType subtype,
-                                                 int dimensions)
+                                                 int dimensions,
+                                                 const bool use_transform_ui_precision = false)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -1475,6 +1585,9 @@ static void rna_def_node_socket_interface_vector(BlenderRNA *brna,
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "value");
   RNA_def_property_array(prop, dimensions);
+  if (use_transform_ui_precision) {
+    RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
+  }
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_float_funcs(
       prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketVector_default_value_range");
@@ -2284,6 +2397,84 @@ static void rna_def_node_socket_virtual(BlenderRNA *brna, const char *identifier
   RNA_def_struct_sdna(srna, "bNodeSocket");
 }
 
+static void rna_def_node_socket_logic_custom(BlenderRNA *brna,
+                                             const char *identifier,
+                                             const char *ui_name,
+                                             const char *ui_description)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
+  RNA_def_struct_ui_text(srna, ui_name, ui_description);
+  RNA_def_struct_sdna(srna, "bNodeSocket");
+}
+
+static void rna_def_node_socket_logic_subtypes(BlenderRNA *brna)
+{
+  rna_def_node_socket_logic_custom(
+      brna, "NodeSocketLogicExecution", "Logic Execution Node Socket", "Execution flow socket");
+  rna_def_node_socket_bool(brna, "NodeSocketLogicCondition");
+  rna_def_node_socket_logic_custom(
+      brna, "NodeSocketLogicGeneric", "Logic Generic Node Socket", "Generic logic value socket");
+  rna_def_node_socket_logic_custom(
+      brna, "NodeSocketLogicList", "Logic List Node Socket", "Logic list value socket");
+  rna_def_node_socket_logic_custom(brna,
+                                   "NodeSocketLogicDictionary",
+                                   "Logic Dictionary Node Socket",
+                                   "Logic dictionary value socket");
+  rna_def_node_socket_logic_custom(
+      brna, "NodeSocketLogicMesh", "Logic Mesh Node Socket", "Logic mesh reference socket");
+  rna_def_node_socket_logic_custom(brna,
+                                   "NodeSocketLogicGeometryTree",
+                                   "Logic Geometry Tree Node Socket",
+                                   "Logic geometry node-tree reference socket");
+  rna_def_node_socket_logic_custom(brna,
+                                   "NodeSocketLogicDatablock",
+                                   "Logic Datablock Node Socket",
+                                   "Logic datablock reference socket");
+  rna_def_node_socket_logic_custom(
+      brna, "NodeSocketLogicUI", "Logic UI Node Socket", "Logic UI reference socket");
+  rna_def_node_socket_logic_bool(brna, "NodeSocketLogicBool");
+  rna_def_node_socket_int(brna, "NodeSocketLogicInt", PROP_NONE);
+  rna_def_node_socket_logic_collision_layers(brna);
+  rna_def_node_socket_float(brna, "NodeSocketLogicFloat", PROP_NONE);
+  rna_def_node_socket_string(brna, "NodeSocketLogicString", PROP_NONE);
+  rna_def_node_socket_vector(brna, "NodeSocketLogicVector", PROP_XYZ, 3);
+  rna_def_node_socket_vector(brna, "NodeSocketLogicVectorXYAngle", PROP_EULER, 2, true);
+  rna_def_node_socket_rotation(brna, "NodeSocketLogicRotation", true);
+  rna_def_node_socket_color(brna, "NodeSocketLogicColor");
+  rna_def_node_socket_object(brna, "NodeSocketLogicObject");
+  rna_def_node_socket_scene(brna, "NodeSocketLogicScene");
+  rna_def_node_socket_collection(brna, "NodeSocketLogicCollection");
+  rna_def_node_socket_material(brna, "NodeSocketLogicMaterial");
+  rna_def_node_socket_image(brna, "NodeSocketLogicImage");
+  rna_def_node_socket_sound(brna, "NodeSocketLogicSound");
+  rna_def_node_socket_font(brna, "NodeSocketLogicFont");
+  rna_def_node_socket_text(brna, "NodeSocketLogicText");
+}
+
+static void rna_def_node_socket_interface_logic_subtypes(BlenderRNA *brna)
+{
+  rna_def_node_socket_interface_bool(brna, "NodeTreeInterfaceSocketLogicCondition");
+  rna_def_node_socket_interface_bool(brna, "NodeTreeInterfaceSocketLogicBool");
+  rna_def_node_socket_interface_int(brna, "NodeTreeInterfaceSocketLogicInt", PROP_NONE);
+  rna_def_node_socket_interface_float(brna, "NodeTreeInterfaceSocketLogicFloat", PROP_NONE);
+  rna_def_node_socket_interface_string(brna, "NodeTreeInterfaceSocketLogicString", PROP_NONE);
+  rna_def_node_socket_interface_vector(brna, "NodeTreeInterfaceSocketLogicVector", PROP_XYZ, 3);
+  rna_def_node_socket_interface_vector(
+      brna, "NodeTreeInterfaceSocketLogicVectorXYAngle", PROP_EULER, 2, true);
+  rna_def_node_socket_interface_rotation(brna, "NodeTreeInterfaceSocketLogicRotation", true);
+  rna_def_node_socket_interface_color(brna, "NodeTreeInterfaceSocketLogicColor");
+  rna_def_node_socket_interface_object(brna, "NodeTreeInterfaceSocketLogicObject");
+  rna_def_node_socket_interface_scene(brna, "NodeTreeInterfaceSocketLogicScene");
+  rna_def_node_socket_interface_collection(brna, "NodeTreeInterfaceSocketLogicCollection");
+  rna_def_node_socket_interface_material(brna, "NodeTreeInterfaceSocketLogicMaterial");
+  rna_def_node_socket_interface_image(brna, "NodeTreeInterfaceSocketLogicImage");
+  rna_def_node_socket_interface_sound(brna, "NodeTreeInterfaceSocketLogicSound");
+  rna_def_node_socket_interface_font(brna, "NodeTreeInterfaceSocketLogicFont");
+  rna_def_node_socket_interface_text(brna, "NodeTreeInterfaceSocketLogicText");
+}
+
 /* Info for generating static subtypes. */
 struct bNodeSocketStaticTypeInfo {
   const char *socket_identifier;
@@ -2580,6 +2771,7 @@ static void rna_def_node_socket_subtypes(BlenderRNA *brna)
   }
 
   rna_def_node_socket_virtual(brna, "NodeSocketVirtual");
+  rna_def_node_socket_logic_subtypes(brna);
 }
 
 void rna_def_node_socket_interface_subtypes(BlenderRNA *brna)
@@ -2682,6 +2874,8 @@ void rna_def_node_socket_interface_subtypes(BlenderRNA *brna)
         break;
     }
   }
+
+  rna_def_node_socket_interface_logic_subtypes(brna);
 }
 
 void RNA_def_node_socket_subtypes(BlenderRNA *brna)

@@ -990,6 +990,7 @@ static void standard_node_socket_interface_from_socket(ID * /*id*/,
 }
 
 void ED_init_standard_node_socket_type(bke::bNodeSocketType *);
+void ED_init_custom_node_socket_type(bke::bNodeSocketType *);
 
 static bke::bNodeSocketType *make_standard_socket_type(
     const eNodeSocketDatatype type, int subtype, std::optional<int> dimensions = std::nullopt)
@@ -1030,6 +1031,201 @@ static bke::bNodeSocketType *make_standard_socket_type(
 
   stype->interface_init_socket = standard_node_socket_interface_init_socket;
   stype->interface_from_socket = standard_node_socket_interface_from_socket;
+
+  stype->use_link_limits_of_type = true;
+  stype->input_link_limit = 1;
+  stype->output_link_limit = 0xFFF;
+
+  return stype;
+}
+
+struct LogicSocketTypeInfo {
+  const char *socket_idname;
+  const char *interface_idname;
+  const char *label;
+  eNodeSocketDatatype type;
+  const float color[4];
+};
+
+static constexpr LogicSocketTypeInfo logic_socket_types[] = {
+  {"NodeSocketLogicExecution",
+   nullptr,
+   "Execution",
+   SOCK_BOOLEAN,
+   {0.9f, 0.3f, 0.3f, 1.0f}},
+    {"NodeSocketLogicCondition",
+     "NodeTreeInterfaceSocketLogicCondition",
+     "Condition",
+     SOCK_BOOLEAN,
+     {0.8f, 0.651f, 0.839f, 1.0f}},
+    {"NodeSocketLogicGeneric", nullptr, "Generic", SOCK_CUSTOM, {0.631f, 0.631f, 0.631f, 1.0f}},
+    {"NodeSocketLogicList", nullptr, "List", SOCK_CUSTOM, {0.341f, 0.714f, 0.620f, 1.0f}},
+    {"NodeSocketLogicDictionary",
+     nullptr,
+     "Dictionary",
+     SOCK_CUSTOM,
+     {0.957f, 0.667f, 0.282f, 1.0f}},
+    {"NodeSocketLogicBool",
+     "NodeTreeInterfaceSocketLogicBool",
+     "Boolean",
+     SOCK_BOOLEAN,
+     {0.8f, 0.651f, 0.839f, 1.0f}},
+    {"NodeSocketLogicInt",
+     "NodeTreeInterfaceSocketLogicInt",
+     "Integer",
+     SOCK_INT,
+     {0.349f, 0.549f, 0.361f, 1.0f}},
+    {"NodeSocketLogicCollisionLayers",
+     nullptr,
+     "Collision Layers",
+     SOCK_INT,
+     {0.349f, 0.549f, 0.361f, 1.0f}},
+    {"NodeSocketLogicFloat",
+     "NodeTreeInterfaceSocketLogicFloat",
+     "Float",
+     SOCK_FLOAT,
+     {0.631f, 0.631f, 0.631f, 1.0f}},
+    {"NodeSocketLogicString",
+     "NodeTreeInterfaceSocketLogicString",
+     "String",
+     SOCK_STRING,
+     {0.439f, 0.698f, 1.0f, 1.0f}},
+    {"NodeSocketLogicVector",
+     "NodeTreeInterfaceSocketLogicVector",
+     "Vector",
+     SOCK_VECTOR,
+     {0.388f, 0.388f, 0.78f, 1.0f}},
+    {"NodeSocketLogicVectorXYAngle",
+     "NodeTreeInterfaceSocketLogicVectorXYAngle",
+     "Vector XY Angle",
+     SOCK_VECTOR,
+     {0.388f, 0.388f, 0.78f, 1.0f}},
+    {"NodeSocketLogicRotation",
+     "NodeTreeInterfaceSocketLogicRotation",
+     "Rotation",
+     SOCK_ROTATION,
+     {0.651f, 0.388f, 0.78f, 1.0f}},
+    {"NodeSocketLogicColor",
+     "NodeTreeInterfaceSocketLogicColor",
+     "Color",
+     SOCK_RGBA,
+     {0.78f, 0.78f, 0.161f, 1.0f}},
+    {"NodeSocketLogicObject",
+     "NodeTreeInterfaceSocketLogicObject",
+     "Object",
+     SOCK_OBJECT,
+     {0.929f, 0.620f, 0.361f, 1.0f}},
+    {"NodeSocketLogicScene",
+     "NodeTreeInterfaceSocketLogicScene",
+     "Scene",
+     SOCK_SCENE,
+     {0.349f, 0.769f, 0.894f, 1.0f}},
+    {"NodeSocketLogicCollection",
+     "NodeTreeInterfaceSocketLogicCollection",
+     "Collection",
+     SOCK_COLLECTION,
+     {0.443f, 0.733f, 0.361f, 1.0f}},
+    {"NodeSocketLogicMaterial",
+     "NodeTreeInterfaceSocketLogicMaterial",
+     "Material",
+     SOCK_MATERIAL,
+     {0.827f, 0.518f, 0.337f, 1.0f}},
+    {"NodeSocketLogicImage",
+     "NodeTreeInterfaceSocketLogicImage",
+     "Image",
+     SOCK_IMAGE,
+     {0.341f, 0.545f, 0.882f, 1.0f}},
+    {"NodeSocketLogicSound",
+     "NodeTreeInterfaceSocketLogicSound",
+     "Sound",
+     SOCK_SOUND,
+     {0.859f, 0.612f, 0.220f, 1.0f}},
+    {"NodeSocketLogicFont",
+     "NodeTreeInterfaceSocketLogicFont",
+     "Font",
+     SOCK_FONT,
+     {0.718f, 0.455f, 0.804f, 1.0f}},
+    {"NodeSocketLogicGeometryTree",
+     nullptr,
+     "Geometry Tree",
+     SOCK_CUSTOM,
+     {0.396f, 0.659f, 0.529f, 1.0f}},
+    {"NodeSocketLogicText",
+     "NodeTreeInterfaceSocketLogicText",
+     "Text",
+     SOCK_TEXT_ID,
+     {0.478f, 0.678f, 0.737f, 1.0f}},
+    {"NodeSocketLogicMesh", nullptr, "Mesh", SOCK_CUSTOM, {0.565f, 0.686f, 0.459f, 1.0f}},
+    {"NodeSocketLogicDatablock",
+     nullptr,
+     "Datablock",
+     SOCK_CUSTOM,
+     {0.620f, 0.569f, 0.498f, 1.0f}},
+    {"NodeSocketLogicUI", nullptr, "UI", SOCK_CUSTOM, {0.471f, 0.596f, 0.784f, 1.0f}},
+};
+
+static const LogicSocketTypeInfo *logic_socket_type_info_for_idname(const StringRef idname)
+{
+  for (const LogicSocketTypeInfo &info : logic_socket_types) {
+    if (idname == info.socket_idname) {
+      return &info;
+    }
+  }
+  return nullptr;
+}
+
+static void logic_node_socket_color(bContext * /*C*/,
+                                    PointerRNA *ptr,
+                                    PointerRNA * /*node_ptr*/,
+                                    float *r_color)
+{
+  const bNodeSocket *socket = static_cast<const bNodeSocket *>(ptr->data);
+  const LogicSocketTypeInfo *info = logic_socket_type_info_for_idname(socket->idname);
+  BLI_assert(info != nullptr);
+  copy_v4_v4(r_color, info->color);
+}
+
+static void logic_node_socket_color_simple(const bke::bNodeSocketType *type, float *r_color)
+{
+  const LogicSocketTypeInfo *info = logic_socket_type_info_for_idname(type->idname.ref());
+  BLI_assert(info != nullptr);
+  copy_v4_v4(r_color, info->color);
+}
+
+static bke::bNodeSocketType *make_logic_socket_type(const LogicSocketTypeInfo &info)
+{
+  bke::bNodeSocketType *stype = MEM_new<bke::bNodeSocketType>(__func__);
+  stype->free_self = [](bke::bNodeSocketType *type) { MEM_delete(type); };
+  stype->idname = UString(info.socket_idname);
+  stype->label = info.label;
+  stype->subtype_label = "";
+
+  StructRNA *srna = stype->ext_socket.srna = RNA_struct_find(info.socket_idname);
+  BLI_assert(srna != nullptr);
+  RNA_struct_blender_type_set(srna, stype);
+
+  if (info.interface_idname) {
+    srna = stype->ext_interface.srna = RNA_struct_find(info.interface_idname);
+    BLI_assert(srna != nullptr);
+    RNA_struct_blender_type_set(srna, stype);
+  }
+
+  stype->type = info.type;
+  stype->subtype = PROP_NONE;
+
+  if (info.type == SOCK_CUSTOM) {
+    ED_init_custom_node_socket_type(stype);
+  }
+  else {
+    ED_init_standard_node_socket_type(stype);
+    if (STREQ(info.socket_idname, "NodeSocketLogicExecution")) {
+      ED_init_custom_node_socket_type(stype);
+    }
+    stype->interface_init_socket = standard_node_socket_interface_init_socket;
+    stype->interface_from_socket = standard_node_socket_interface_from_socket;
+  }
+  stype->draw_color = logic_node_socket_color;
+  stype->draw_color_simple = logic_node_socket_color_simple;
 
   stype->use_link_limits_of_type = true;
   stype->input_link_limit = 1;
@@ -2259,6 +2455,10 @@ void register_standard_node_socket_types()
 
   bke::node_register_socket_type(*make_socket_type_bundle());
   bke::node_register_socket_type(*make_socket_type_closure());
+
+  for (const LogicSocketTypeInfo &info : logic_socket_types) {
+    bke::node_register_socket_type(*make_logic_socket_type(info));
+  }
 
   bke::node_register_socket_type(*make_socket_type_virtual());
 }

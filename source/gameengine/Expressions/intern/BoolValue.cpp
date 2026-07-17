@@ -126,6 +126,11 @@ bool EXP_BoolValue::GetBool()
   return m_bool;
 }
 
+void EXP_BoolValue::SetBool(bool value)
+{
+  m_bool = value;
+}
+
 double EXP_BoolValue::GetNumber()
 {
   return (double)m_bool;

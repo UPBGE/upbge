@@ -4,6 +4,9 @@
 
 #include "NOD_composite.hh"
 #include "NOD_geometry.hh"
+#ifdef WITH_GAMEENGINE_LOGICNODES
+#  include "NOD_logic.hh"
+#endif
 #include "NOD_register.hh"
 #include "NOD_socket.hh"
 
@@ -144,6 +147,9 @@ void register_nodes()
 
   register_node_tree_type_geo();
   register_node_tree_type_cmp();
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  register_node_tree_type_logic();
+#endif
 
   register_node_type_frame();
   register_node_type_reroute();
@@ -156,6 +162,9 @@ void register_nodes()
   register_texture_nodes();
   register_geometry_nodes();
   register_function_nodes();
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  register_logic_nodes();
+#endif
 }
 
 }  // namespace blender

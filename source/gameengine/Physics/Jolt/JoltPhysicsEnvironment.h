@@ -27,6 +27,9 @@
 
 #pragma once
 
+#include "JoltPhysicsConfig.h"
+#include "JoltShapeQueryData.h"
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS
@@ -40,10 +43,12 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Collision/CollisionGroup.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
-#include "PHY_IPhysicsEnvironment.h"
 #include "MT_Matrix3x3.h"
 #include "MT_Vector3.h"
+#include "PHY_IPhysicsController.h"
+#include "PHY_IPhysicsEnvironment.h"
 
+#include <array>
 #include <atomic>
 #include <mutex>
 #include <shared_mutex>
@@ -71,17 +76,23 @@ struct Scene;
 /** \name Broadphase Layers & Object Layer Encoding
  *
  * ObjectLayer (32 bits) encoding:
- *   bits  0-13 : user col_group (14 bits, from Blender's 16-bit col_group)
+ *   bits  0-9  : Jolt collision layers (10 bits, from Blender's col_group)
+ *   bits 10-13 : reserved
  *   bits 14-15 : motion category (0=static, 1=dynamic, 2=sensor)
- *   bits 16-31 : user col_mask  (16 bits, full)
+ *   bits 16-31 : unused
  *
  * Three broadphase layers allow Stage 1 rejection:
  *   - Static  vs Static  = skip (static objects never move into each other)
  *   - Sensor  vs Sensor  = skip (sensors only detect non-sensors)
  *   - All other combinations are checked.
  *
- * Stage 2 pair filtering uses only the user group/mask bits (motion bits stripped).
+ * Stage 2 pair filtering uses UPBGE collision layers: objects collide when they share at
+ * least one of the 10 layer bits.
  * \{ */
+
+static constexpr unsigned short JOLT_COLLISION_LAYER_MASK = 0x03FF;
+static_assert(sizeof(JPH::ObjectLayer) * 8 >= 32,
+              "UPBGE Jolt is configured for 32-bit JPH::ObjectLayer values");
 
 enum JoltBroadPhaseLayer : JPH::BroadPhaseLayer::Type {
   JOLT_BP_STATIC  = 0,
@@ -95,22 +106,16 @@ inline JPH::ObjectLayer JoltMakeObjectLayer(unsigned short col_group,
                                             unsigned short col_mask,
                                             JoltBroadPhaseLayer category = JOLT_BP_STATIC)
 {
-  JPH::uint32 layer = ((JPH::uint32)(col_group & 0x3FFF))
-                     | ((JPH::uint32)(category & 0x3) << 14)
-                     | ((JPH::uint32)col_mask << 16);
+  (void)col_mask;  /* Legacy collision mask; not used by Jolt body-body filtering. */
+  JPH::uint32 layer = ((JPH::uint32)(col_group & JOLT_COLLISION_LAYER_MASK))
+                     | ((JPH::uint32)(category & 0x3) << 14);
   return (JPH::ObjectLayer)layer;
 }
 
-/** Extract the user col_group (14-bit) from an ObjectLayer. */
-inline unsigned short JoltGetGroup(JPH::ObjectLayer layer)
+/** Extract the Jolt collision layers from an ObjectLayer. */
+inline unsigned short JoltGetCollisionLayers(JPH::ObjectLayer layer)
 {
-  return (unsigned short)(layer & 0x3FFF);
-}
-
-/** Extract the user col_mask (16-bit) from an ObjectLayer. */
-inline unsigned short JoltGetMask(JPH::ObjectLayer layer)
-{
-  return (unsigned short)((layer >> 16) & 0xFFFF);
+  return (unsigned short)(layer & JOLT_COLLISION_LAYER_MASK);
 }
 
 /** Extract the motion category from an ObjectLayer. */
@@ -135,30 +140,31 @@ enum class JoltDeferredOpType {
   AddBody,
   DestroyBody,
   SetObjectLayer,
-  SetMotionType
+  SetMotionType,
+  SetSensorFlag
 };
 
-/** Data for a deferred operation. Union stores operation-specific parameters. */
+/** Data for a deferred operation. */
 struct JoltDeferredOp {
   JoltDeferredOpType type;
   JPH::BodyID bodyID;
 
-  /** Parameters for different operation types. */
-  union {
-    /** SuspendDynamics / RestoreDynamics: ghost mode flag. */
-    bool ghost;
+  /** RestoreDynamics/SetSensorFlag: sensor flag. */
+  bool ghost = false;
 
-    /** SetObjectLayer: new layer value. */
-    JPH::ObjectLayer objectLayer;
+  /** SuspendDynamics: target mode. */
+  PHY_DynamicsMode dynamicsMode = PHY_DynamicsMode::Dynamic;
 
-    /** SetMotionType: new motion type. */
-    JPH::EMotionType motionType;
-  };
+  /** SetObjectLayer: new layer value. */
+  JPH::ObjectLayer objectLayer = JPH::ObjectLayer(0);
+
+  /** SetMotionType/RestoreDynamics: new or saved motion type. */
+  JPH::EMotionType motionType = JPH::EMotionType::Static;
 
   /** Controller that requested this operation (for tracking). */
   JoltPhysicsController *controller = nullptr;
 
-  /** Collision group/mask for layer operations. */
+  /** Collision collections plus legacy mask for layer operations. */
   unsigned short collisionGroup = 0;
   unsigned short collisionMask = 0;
 
@@ -226,8 +232,8 @@ class JoltObjectVsBroadPhaseLayerFilter final : public JPH::ObjectVsBroadPhaseLa
 /* -------------------------------------------------------------------- */
 /** \name Custom Object Layer Pair Filter
  *
- * Stage 2 pair filtering using user col_group/col_mask.
- * Motion category bits are stripped before comparison.
+ * Stage 2 pair filtering using UPBGE collision layers.
+ * Objects collide when they share at least one layer.
  * \{ */
 
 class JoltObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter {
@@ -235,11 +241,9 @@ class JoltObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter {
   bool ShouldCollide(JPH::ObjectLayer inLayer1,
                      JPH::ObjectLayer inLayer2) const override
   {
-    unsigned short group1 = JoltGetGroup(inLayer1);
-    unsigned short mask1  = JoltGetMask(inLayer1);
-    unsigned short group2 = JoltGetGroup(inLayer2);
-    unsigned short mask2  = JoltGetMask(inLayer2);
-    return (group1 & mask2) != 0 && (group2 & mask1) != 0;
+    unsigned short collisionLayers1 = JoltGetCollisionLayers(inLayer1);
+    unsigned short collisionLayers2 = JoltGetCollisionLayers(inLayer2);
+    return (collisionLayers1 & collisionLayers2) != 0;
   }
 };
 
@@ -301,17 +305,56 @@ class JoltConstraintGroupFilter : public JPH::GroupFilter {
 
 class JoltPhysicsEnvironment;  /* Forward declaration for back-pointer. */
 
-/** Contact pair data stored during physics step for processing in CallbackTriggers(). */
+static constexpr int JOLT_MAX_CACHED_CONTACT_POINTS = 8;
+static constexpr size_t JOLT_CONTACT_BUFFER_SHARDS = 32;
+static_assert((JOLT_CONTACT_BUFFER_SHARDS & (JOLT_CONTACT_BUFFER_SHARDS - 1)) == 0,
+              "Jolt contact buffer shard count must be a power of two");
+
+/** Contact pair data stored during physics step for game-logic processing. */
 struct JoltContactPair {
+  JPH::SubShapeIDPair subShapePair;
   JPH::BodyID bodyID1;
   JPH::BodyID bodyID2;
+  JoltPhysicsController *ctrl1 = nullptr;
+  JoltPhysicsController *ctrl2 = nullptr;
+  KX_GameObject *object1 = nullptr;
+  KX_GameObject *object2 = nullptr;
   JPH::RVec3 contactPosition;
+  std::array<JPH::RVec3, JOLT_MAX_CACHED_CONTACT_POINTS> contactPositions;
   JPH::Vec3 contactNormal;
+  uint16_t contactCount = 0;
+  uint8_t storedContactCount = 0;
   float penetrationDepth;
   float combinedFriction;
   float combinedRestitution;
   float appliedImpulse;
   bool isNew;  /**< true = OnContactAdded, false = OnContactPersisted */
+  bool retainedWhileDormant = false;  /**< Preserve a verified sleeping contact until wake. */
+};
+
+struct JoltRemovedContactPair {
+  JPH::SubShapeIDPair subShapePair;
+  JPH::BodyID bodyID1;
+  JPH::BodyID bodyID2;
+};
+
+enum class JoltContactEventType : uint8_t {
+  Contact,
+  Removal,
+};
+
+/** Compact ordering token into a JoltContactBuffer payload array. */
+struct JoltContactEvent {
+  uint32_t index = 0;
+  JoltContactEventType type = JoltContactEventType::Contact;
+};
+static_assert(sizeof(JoltContactEvent) <= 8, "Contact ordering tokens must stay compact");
+
+struct JoltContactBuffer {
+  std::mutex mutex;
+  std::vector<JoltContactPair> contacts;
+  std::vector<JoltRemovedContactPair> removals;
+  std::vector<JoltContactEvent> events;
 };
 
 class JoltContactListener : public JPH::ContactListener {
@@ -337,6 +380,9 @@ class JoltContactListener : public JPH::ContactListener {
   /** Swap the accumulated contacts to the provided vector and clear internal storage.
    *  Called from the main thread between Update() and CallbackTriggers(). */
   void SwapContacts(std::vector<JoltContactPair> &outContacts);
+  void SwapContactEvents(std::vector<JoltContactPair> &outContacts,
+                         std::vector<JoltRemovedContactPair> &outRemovals,
+                         std::vector<JoltContactEvent> &outEvents);
 
   /** Set back-pointer to the physics environment (needed for broadphase callback). */
   void SetEnvironment(JoltPhysicsEnvironment *env) { m_env = env; }
@@ -347,9 +393,9 @@ class JoltContactListener : public JPH::ContactListener {
                     const JPH::ContactManifold &inManifold,
                     const JPH::ContactSettings &ioSettings,
                     bool isNew);
+  void StoreContactRemoval(const JPH::SubShapeIDPair &inSubShapePair);
 
-  std::mutex m_mutex;
-  std::vector<JoltContactPair> m_contacts;
+  std::array<JoltContactBuffer, JOLT_CONTACT_BUFFER_SHARDS> m_contactBuffers;
   JoltPhysicsEnvironment *m_env = nullptr;
 };
 
@@ -489,7 +535,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                             bool replicate_dupli = false) override;
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) override;
 
-  virtual void RemoveConstraintById(int constraintid, bool free) override;
+  virtual bool RemoveConstraintById(int constraintid, bool free) override;
   virtual bool IsRigidBodyConstraintEnabled(int constraintid) override;
   virtual float GetAppliedImpulse(int constraintid) override;
 
@@ -504,6 +550,17 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                           float toX,
                                           float toY,
                                           float toZ) override;
+  virtual bool RayCast(const PHY_RayQuerySettings &settings,
+                       PHY_IRayCastFilterCallback &filterCallback,
+                       std::vector<PHY_RayCastResult> &results) override;
+  virtual void AddRayQueryDetailRequirements(unsigned char detailFlags) override;
+  unsigned char GetRayQueryDetailRequirements() const
+  {
+    return m_rayQueryDetailRequirements;
+  }
+  virtual bool ShapeCast(const PHY_ShapeCastSettings &settings,
+                         PHY_IShapeCastFilterCallback &filterCallback,
+                         std::vector<PHY_ShapeCastResult> &results) override;
 
   virtual bool CullingTest(PHY_CullingCallback callback,
                            void *userData,
@@ -521,6 +578,23 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl) override;
   virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0,
                                                  PHY_IPhysicsController *ctrl1) override;
+  virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0,
+                                                 PHY_IPhysicsController *ctrl1,
+                                                 bool collectContacts) override;
+  virtual void SetLogicCollisionContactCacheEnabled(bool enabled) override;
+  virtual void SetLogicCollisionContactCacheEnabled(bool enabled,
+                                                   bool collectContactDetails) override;
+  virtual bool GetCachedCollisionContacts(PHY_IPhysicsController *ctrl,
+                                          std::vector<PHY_CachedCollisionContact> &r_contacts,
+                                          bool include_contacts) override;
+  virtual bool GetCachedCollisionContactRefs(
+      PHY_IPhysicsController *ctrl,
+      const std::vector<const PHY_CachedCollisionContact *> *&r_contacts,
+      bool include_contacts) override;
+  virtual bool GetCachedCollisionContactRefsForObject(
+      KX_GameObject *object,
+      const std::vector<const PHY_CachedCollisionContact *> *&r_contacts,
+      bool include_contacts) override;
 
   virtual PHY_IPhysicsController *CreateSphereController(float radius,
                                                          const MT_Vector3 &position) override;
@@ -543,11 +617,12 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                       blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli) override;
 
-  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
-                                        KX_GameObject *gameobj2,
-                                        const MT_Vector3 &pivotLocal,
-                                        const MT_Matrix3x3 &basisLocal,
-                                        blender::RigidBodyCon *rbc) override;
+  virtual int CreateRigidBodyConstraint(
+      KX_GameObject *gameobj1,
+      KX_GameObject *gameobj2,
+      const MT_Vector3 &pivotLocal,
+      const MT_Matrix3x3 &basisLocal,
+      const PHY_RigidBodyConstraintSettings &settings) override;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
 
   virtual void ExportFile(const std::string &filename) override;
@@ -568,6 +643,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   void AddController(JoltPhysicsController *ctrl);
   bool RemoveController(JoltPhysicsController *ctrl);
+  void RemoveConstraintsForBody(JPH::BodyID bodyID);
 
   /** Register a blender Object → controller mapping (used for soft body pin lookup). */
   void RegisterControllerForObject(blender::Object *obj, JoltPhysicsController *ctrl);
@@ -611,6 +687,12 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /** Mark the breakable-constraint cache dirty after threshold changes. */
   void NotifyConstraintBreakingThresholdChanged();
 
+  /** Queue connected constraints for a topology refresh before the next physics step. */
+  void NotifyConstraintTopologyChanged(JPH::BodyID bodyID1, JPH::BodyID bodyID2);
+
+  /** Queue constraints attached to a body whose motion type changed. */
+  void NotifyConstraintBodyMotionTypeChanged(JPH::BodyID bodyID);
+
   /** Remove a soft body from update/contact bookkeeping and delete it.
    *  Called on runtime object destroy and environment teardown. */
   void RemoveSoftBody(JoltSoftBody *sb);
@@ -622,10 +704,14 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void ApplyEffectorForces();
   blender::EffectorWeights *GetEffectorWeights();
   blender::Depsgraph *GetDepsgraph();
+  void ProcessBuoyancy(float timeStep);
   void ProcessFhSprings(float timeStep);
 
   /** Check if physics update is currently in progress. */
-  bool IsPhysicsUpdating() const { return m_isPhysicsUpdating; }
+  bool IsPhysicsUpdating() const
+  {
+    return m_isPhysicsUpdating;
+  }
 
   /** Queue a deferred operation to be processed after physics update completes.
    * Returns true if queued (physics updating), false if should execute immediately. */
@@ -633,6 +719,10 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   /** Process all queued deferred operations. Called after physics update completes. */
   void ProcessDeferredOperations();
+  void RemoveLogicActiveContactsForBody(JPH::BodyID bodyID);
+  void RemoveLogicActiveContactsForController(JoltPhysicsController *ctrl);
+  void CollectLogicObjectQueryOverlaps(JoltPhysicsController *queryController,
+                                       bool collectContactDetails);
 
   /** Finalize queued rigid-body body insertions through Jolt's batched add API.
    *  Called from ProceedDeltaTime() before simulation. */
@@ -648,12 +738,18 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   /** Rebuild and return dense controller iteration storage preserving set order. */
   const std::vector<JoltPhysicsController *> &GetControllersForIteration();
+  void InvalidateFhControllersCache();
+  const std::vector<JoltPhysicsController *> &GetFhControllersForIteration();
+  void InvalidateBuoyancyVolumesCache();
+  const std::vector<JoltPhysicsController *> &GetBuoyancyVolumesForIteration();
 
   /** Queue one compound child sub-shape to be assembled into the parent in one pass. */
   void QueuePendingCompoundChildShape(JoltPhysicsController *parentCtrl,
+                                      KX_GameObject *childObject,
                                       const JPH::Vec3 &relativePos,
                                       const JPH::Quat &relativeRot,
-                                      JPH::RefConst<JPH::Shape> childShape);
+                                      JPH::RefConst<JPH::Shape> childShape,
+                                      JoltShapeQueryDataPtr childQueryData);
 
   /** Finalize queued parent compound-shape rebuilds. */
   void FinalizePendingCompoundShapeBuilds();
@@ -665,6 +761,9 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   friend class JoltPhysicsController;
 
  protected:
+  /** Refresh solver ordering and stale impulses after coalesced topology mutations. */
+  void ProcessPendingConstraintTopologyChanges();
+
   std::unique_ptr<JPH::TempAllocatorImpl> m_tempAllocator;
   std::unique_ptr<JPH::JobSystemThreadPool> m_jobSystem;
 
@@ -685,9 +784,25 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::set<JoltPhysicsController *> m_controllers;
   std::set<JoltPhysicsController *> m_collisionCallbackControllers;
   std::atomic<bool> m_collectContactsForCallbacks{false};
+  std::atomic<bool> m_collectContactsForLogicNodes{false};
+  std::atomic<bool> m_collectContactDetailsForLogicNodes{false};
   std::unordered_map<int, JoltConstraint *> m_constraintById;
   std::vector<JoltConstraint *> m_breakableConstraintsCache;
   std::vector<int> m_brokenConstraintIDsScratch;
+  std::vector<JPH::BodyID> m_constraintTopologyDirtyBodies;
+  std::unordered_multimap<JPH::uint32, JoltConstraint *> m_constraintAdjacencyScratch;
+  std::vector<JPH::BodyID> m_constraintComponentBodiesScratch;
+  std::unordered_set<JPH::uint32> m_constraintComponentBodyKeysScratch;
+  std::unordered_set<JPH::uint32> m_constraintProcessedBodyKeysScratch;
+  std::unordered_set<JoltConstraint *> m_constraintComponentConstraintsScratch;
+  std::unordered_multimap<const JPH::Body *, JoltConstraint *>
+      m_constraintPriorityAdjacencyScratch;
+  std::unordered_set<const JPH::Body *> m_constraintPriorityBodiesScratch;
+  std::unordered_map<const JPH::Body *, const JPH::Body *> m_constraintPriorityParentsScratch;
+  std::unordered_map<const JPH::Body *, JoltConstraint *>
+      m_constraintPriorityParentConstraintsScratch;
+  std::unordered_map<const JPH::Body *, JPH::uint32> m_constraintPriorityHeightsScratch;
+  std::vector<const JPH::Body *> m_constraintPriorityTraversalScratch;
   std::unordered_map<KX_GameObject *, JoltCharacter *> m_characterByObject;
   std::vector<JoltVehicle *> m_vehicles;
   std::set<JoltGraphicController *> m_graphicControllers;
@@ -711,6 +826,8 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     JPH::Vec3 position;
     JPH::Quat rotation;
     JPH::RefConst<JPH::Shape> shape;
+    JoltShapeQueryDataPtr queryData;
+    JPH::uint32 userData = 0;
   };
 
   /** Runtime-created rigid-body bodies waiting for batched AddBodiesFinalize. */
@@ -737,10 +854,35 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::vector<JoltSoftBody *> m_softBodiesToMeshUpdateScratch;
   std::vector<JPH::BodyID> m_softBodyMeshUpdateIDsScratch;
   std::vector<JoltContactPair> m_contactPairsScratch;
+  std::vector<JoltRemovedContactPair> m_removedContactPairsScratch;
+  std::vector<JoltContactEvent> m_contactEventsScratch;
+  std::unordered_map<JPH::SubShapeIDPair, JoltContactPair> m_logicActiveContactPairs;
+  std::vector<PHY_CachedCollisionContact> m_logicCollisionContacts;
+  /** Query-generated overlaps, allocated only for Sensor/parented controllers actually
+   *  requested by C++ Logic Nodes this tick. Values own stable pointer storage. */
+  std::unordered_map<JoltPhysicsController *, std::vector<PHY_CachedCollisionContact>>
+      m_logicObjectSensorOverlapsByController;
+  std::unordered_map<PHY_IPhysicsController *, std::vector<const PHY_CachedCollisionContact *>>
+      m_logicCollisionContactsByController;
+  std::unordered_map<KX_GameObject *, std::vector<const PHY_CachedCollisionContact *>>
+      m_logicCollisionContactsByObject;
+  std::vector<const PHY_CachedCollisionContact *> m_emptyLogicCollisionContactRefs;
   std::vector<JoltPhysicsController *> m_controllersIterationCache;
+  std::vector<JoltPhysicsController *> m_fhControllersIterationCache;
+  std::vector<JoltPhysicsController *> m_buoyancyVolumesIterationCache;
+  std::vector<JPH::BodyID> m_buoyancyTargetBodyIDsScratch;
+  std::unordered_set<JPH::uint32> m_buoyancyTargetBodyKeysScratch;
+  bool m_logicCollisionContactCacheValid = false;
+  bool m_logicCollisionContactDetailsValid = false;
 
   /** True when m_controllersIterationCache must be rebuilt from m_controllers. */
   bool m_controllersIterationCacheDirty = true;
+
+  /** True when m_fhControllersIterationCache must be rebuilt from m_controllers. */
+  bool m_fhControllersIterationCacheDirty = true;
+
+  /** True when m_buoyancyVolumesIterationCache must be rebuilt from m_controllers. */
+  bool m_buoyancyVolumesIterationCacheDirty = true;
 
   /** Number of soft bodies added one-by-one since the last broadphase optimize. */
   int m_pendingSoftBodyAddsForOptimize = 0;
@@ -845,6 +987,9 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   /** Set after the first successful physics step. Used to detect startup conversion. */
   bool m_hasSteppedSimulation = false;
+
+  /** Mesh surface metadata required by compiled runtime ray queries. */
+  unsigned char m_rayQueryDetailRequirements = PHY_RAY_QUERY_DETAIL_NONE;
 };
 
 /** \} */

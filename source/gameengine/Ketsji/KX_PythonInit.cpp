@@ -1381,7 +1381,7 @@ PyDoc_STRVAR(GameLogic_module_documentation,
              "This is the Python API for the game engine of bge.logic");
 
 static struct PyModuleDef GameLogic_module_def = {
-    {},                             /* m_base */
+    PyModuleDef_HEAD_INIT,          /* m_base */
     "GameLogic",                    /* m_name */
     GameLogic_module_documentation, /* m_doc */
     0,                              /* m_size */
@@ -1417,15 +1417,20 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   // Add keyboard, mouse and joysticks attributes to this module
   BLI_assert(!gp_PythonKeyboard);
   gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetInputDevice());
-  PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->GetProxy());
+  PyObject *keyboard_proxy = gp_PythonKeyboard->GetProxy();
+  PyDict_SetItemString(d, "keyboard", keyboard_proxy);
+  Py_DECREF(keyboard_proxy);
 
   BLI_assert(!gp_PythonMouse);
   gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetInputDevice(),
                                        KX_GetActiveEngine()->GetCanvas());
-  PyDict_SetItemString(d, "mouse", gp_PythonMouse->GetProxy());
+  PyObject *mouse_proxy = gp_PythonMouse->GetProxy();
+  PyDict_SetItemString(d, "mouse", mouse_proxy);
+  Py_DECREF(mouse_proxy);
 
   PyObject *joylist = PyList_New(JOYINDEX_MAX);
   for (unsigned short i = 0; i < JOYINDEX_MAX; ++i) {
+    Py_INCREF(Py_None);
     PyList_SET_ITEM(joylist, i, Py_None);
   }
   PyDict_SetItemString(d, "joysticks", joylist);
@@ -2110,7 +2115,8 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine,
   PyObject *logger = PyImport_ImportModule("bge_extras.logger");
 
   if (logger) {
-    PyObject_CallMethod(logger, "setup", "n", startscene->gm.logLevel);
+    PyObject *setup_result = PyObject_CallMethod(logger, "setup", "i", startscene->gm.logLevel);
+    Py_XDECREF(setup_result);
   }
 
   if (PyErr_Occurred()) {
@@ -2160,6 +2166,9 @@ void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX])
       }
     }
 
+    if (item == Py_None) {
+      Py_INCREF(item);
+    }
     PyList_SetItem(pythonJoyList, i, item);
   }
 

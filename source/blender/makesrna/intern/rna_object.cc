@@ -921,6 +921,9 @@ static int rna_Object_collision_bounds_type_get(PointerRNA *ptr)
    * effective value (particularly important for Jolt which has no checkbox). */
   if (ob->gameflag & OB_SOFT_BODY) return OB_BOUND_TRIANGLE_MESH;
   if (ob->gameflag & OB_CHARACTER) return OB_BOUND_SPHERE;
+  if ((ob->gameflag & OB_RIGID_BODY) && !(ob->gameflag2 & OB_HAS_VEHICLE)) {
+    return OB_BOUND_BOX;
+  }
   if (ob->gameflag & OB_DYNAMIC) return OB_BOUND_SPHERE;
   return OB_BOUND_TRIANGLE_MESH; /* static / sensor */
 }
@@ -1886,7 +1889,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY | OB_ACTOR;
       ob->gameflag &= ~(OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
       if (!(ob->gameflag & OB_BOUNDS)) {
-        ob->collision_boundtype = OB_BOUND_SPHERE;
+        ob->collision_boundtype = OB_BOUND_BOX;
       }
       break;
     case OB_BODY_TYPE_VEHICLE:
@@ -2458,6 +2461,29 @@ static void rna_GameObjectSettings_col_group_set(PointerRNA *ptr, const bool *va
       ob->col_group |= (1 << i);
     else
       ob->col_group &= ~(1 << i);
+  }
+}
+
+static void rna_GameObjectSettings_jolt_collision_layers_get(PointerRNA *ptr, bool *values)
+{
+  Object *ob = (Object *)ptr->data;
+  int i;
+
+  for (i = 0; i < 10; i++) {
+    values[i] = (ob->col_group & (1 << i)) != 0;
+  }
+}
+
+static void rna_GameObjectSettings_jolt_collision_layers_set(PointerRNA *ptr, const bool *values)
+{
+  Object *ob = (Object *)ptr->data;
+  int i;
+
+  ob->col_group &= ~((1 << 10) - 1);
+  for (i = 0; i < 10; i++) {
+    if (values[i]) {
+      ob->col_group |= (1 << i);
+    }
   }
 }
 
@@ -4156,6 +4182,8 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_override_funcs(
       prop, nullptr, nullptr, "rna_GameObjectSettings_components_override_apply");
 
+  RNA_def_logic_node_binding_collection(brna, srna);
+
   prop = RNA_def_property(srna, "show_sensors", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "scaflag", OB_SHOWSENS);
   RNA_def_property_ui_text(
@@ -4307,6 +4335,16 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Collision Group", "The collision group of the object");
   RNA_def_property_boolean_funcs(
       prop, "rna_GameObjectSettings_col_group_get", "rna_GameObjectSettings_col_group_set");
+
+  prop = RNA_def_property(srna, "collision_layers", PROP_BOOLEAN, PROP_LAYER_MEMBER);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "col_group", 1 << 0, 10);
+  RNA_def_property_ui_text(
+      prop,
+      "Collision Layers",
+      "Jolt collision layers this object belongs to; objects collide when they share a layer");
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GameObjectSettings_jolt_collision_layers_get",
+                                 "rna_GameObjectSettings_jolt_collision_layers_set");
 
   prop = RNA_def_property(srna, "collision_mask", PROP_BOOLEAN, PROP_LAYER_MEMBER);
   RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "col_mask", 1 << 0, OB_MAX_COL_MASKS);
@@ -4482,6 +4520,88 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
       "Gravity Factor",
       "Per-object gravity multiplier (0 = no gravity, 1 = normal, 2 = double gravity). "
       "Jolt physics only");
+
+  prop = RNA_def_property(
+      srna, "use_jolt_solver_iterations_override", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "gameflag2", OB_JOLT_OVERRIDE_SOLVER_ITERATIONS);
+  RNA_def_property_ui_text(
+      prop,
+      "Override Solver Iterations",
+      "Override Jolt solver iterations for active contact islands containing this rigid body");
+
+  prop = RNA_def_property(srna, "jolt_velocity_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "jolt_velocity_solver_iterations");
+  RNA_def_property_range(prop, 1, 255);
+  RNA_def_property_ui_range(prop, 1, 255, 1, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Velocity Solver Iterations",
+      "Jolt velocity iterations requested by this rigid body; the highest override in an "
+      "active contact island is used");
+
+  prop = RNA_def_property(srna, "jolt_position_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "jolt_position_solver_iterations");
+  RNA_def_property_range(prop, 1, 255);
+  RNA_def_property_ui_range(prop, 1, 255, 1, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Position Solver Iterations",
+      "Jolt position iterations requested by this rigid body; the highest override in an "
+      "active contact island is used");
+
+  prop = RNA_def_property(
+      srna, "use_jolt_sensor_static_detection", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "gameflag2", OB_JOLT_SENSOR_INCLUDE_STATIC);
+  RNA_def_property_ui_text(
+      prop,
+      "Include Static Objects",
+      "Include static objects in Jolt C++ Logic Nodes collision results for this Sensor; "
+      "disabled searches only the dynamic broadphase for best performance");
+
+  /* Jolt buoyancy volume settings. */
+  prop = RNA_def_property(srna, "use_jolt_buoyancy", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gameflag2", OB_JOLT_BUOYANCY_VOLUME);
+  RNA_def_property_ui_text(prop,
+                           "Use as Fluid Volume",
+                           "Use this Jolt sensor as a bounded fluid volume that applies "
+                           "buoyancy and drag");
+
+  prop = RNA_def_property(srna, "jolt_buoyancy", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "jolt_buoyancy");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 4.0, 1, 3);
+  RNA_def_property_float_default(prop, 2.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Float Strength",
+      "Jolt buoyancy factor (1 = neutral, below 1 sinks, above 1 floats)");
+
+  prop = RNA_def_property(srna, "jolt_buoyancy_linear_drag", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "jolt_buoyancy_linear_drag");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 2.0, 1, 3);
+  RNA_def_property_float_default(prop, 0.5f);
+  RNA_def_property_ui_text(prop,
+                           "Linear Drag",
+                           "Jolt linear drag applied while a body is in the buoyancy volume");
+
+  prop = RNA_def_property(srna, "jolt_buoyancy_angular_drag", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "jolt_buoyancy_angular_drag");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 3);
+  RNA_def_property_float_default(prop, 0.01f);
+  RNA_def_property_ui_text(prop,
+                           "Angular Drag",
+                           "Jolt angular drag applied while a body is in the buoyancy volume");
+
+  prop = RNA_def_property(srna, "jolt_buoyancy_velocity", PROP_FLOAT, PROP_VELOCITY);
+  RNA_def_property_float_sdna(prop, nullptr, "jolt_buoyancy_velocity");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop,
+                           "Fluid Velocity",
+                           "Average velocity of the Jolt buoyancy volume fluid");
 
   /* state */
 

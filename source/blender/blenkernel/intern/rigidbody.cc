@@ -1298,6 +1298,8 @@ RigidBodyCon *BKE_rigidbody_create_constraint(Scene *scene, Object *ob, eRigidBo
 
   rbc->breaking_threshold = 10.0f; /* no good default here, just use 10 for now */
   rbc->num_solver_iterations = 10; /* 10 is Bullet default */
+  rbc->jolt_velocity_solver_iterations = 10;
+  rbc->jolt_position_solver_iterations = 2;
 
   rbc->limit_lin_x_lower = -1.0f;
   rbc->limit_lin_x_upper = 1.0f;

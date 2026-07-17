@@ -60,7 +60,9 @@ JoltCharacter::JoltCharacter(JoltPhysicsController *ctrl,
       m_stepHeight(stepHeight),
       m_maxJumps(1),
       m_jumpCount(0),
-      m_wantJump(false)
+      m_wantJump(false),
+      m_velocityTimeInterval(0.0f),
+      m_velocityTimeIntervalVelocity(JPH::Vec3::sZero())
 {
   JPH::PhysicsSystem *physSystem = env->GetPhysicsSystem();
   if (!physSystem) {
@@ -84,7 +86,7 @@ JoltCharacter::JoltCharacter(JoltPhysicsController *ctrl,
   JPH::CharacterVirtualSettings settings;
   settings.mShape = capsuleShape;
   settings.mInnerBodyShape = innerShape;
-  /* Use the controller's collision group/mask for the inner body layer. */
+  /* Use the controller's collision layers for the inner body layer. */
   settings.mInnerBodyLayer = JoltMakeObjectLayer(
       m_ctrl->GetCollisionGroup(), m_ctrl->GetCollisionMask(), JOLT_BP_DYNAMIC);
   settings.mMaxSlopeAngle = m_maxSlope;
@@ -172,6 +174,7 @@ unsigned char JoltCharacter::GetJumpCount()
 
 void JoltCharacter::SetWalkDirection(const MT_Vector3 &dir)
 {
+  m_velocityTimeInterval = 0.0f;
   m_walkDirection = dir;
 }
 
@@ -239,6 +242,12 @@ void JoltCharacter::SetVelocity(const MT_Vector3 &vel, float time, bool local)
     joltVel = charRot * joltVel;
   }
 
+  m_velocityTimeInterval = time;
+  if (m_velocityTimeInterval > 0.0f) {
+    m_velocityTimeIntervalVelocity = joltVel;
+    m_walkDirection = MT_Vector3(0, 0, 0);
+  }
+
   m_character->SetLinearVelocity(joltVel);
 }
 
@@ -247,6 +256,8 @@ void JoltCharacter::Reset()
   m_jumpCount = 0;
   m_wantJump = false;
   m_walkDirection = MT_Vector3(0, 0, 0);
+  m_velocityTimeInterval = 0.0f;
+  m_velocityTimeIntervalVelocity = JPH::Vec3::sZero();
 
   if (m_character) {
     m_character->SetLinearVelocity(JPH::Vec3::sZero());
@@ -298,10 +309,20 @@ void JoltCharacter::Update(float deltaTime)
     m_wantJump = false;
   }
 
-  /* Apply walk direction (convert from Blender Z-up to Jolt Y-up). */
-  JPH::Vec3 walkJolt = JoltMath::ToJolt(m_walkDirection);
-  newVel.SetX(walkJolt.GetX());
-  newVel.SetZ(walkJolt.GetZ());
+  if (m_velocityTimeInterval > 0.0f) {
+    newVel.SetX(m_velocityTimeIntervalVelocity.GetX());
+    newVel.SetZ(m_velocityTimeIntervalVelocity.GetZ());
+    m_velocityTimeInterval -= deltaTime;
+    if (m_velocityTimeInterval < 0.0f) {
+      m_velocityTimeInterval = 0.0f;
+    }
+  }
+  else {
+    /* Apply walk direction (convert from Blender Z-up to Jolt Y-up). */
+    JPH::Vec3 walkJolt = JoltMath::ToJolt(m_walkDirection);
+    newVel.SetX(walkJolt.GetX());
+    newVel.SetZ(walkJolt.GetZ());
+  }
 
   m_character->SetLinearVelocity(newVel);
 

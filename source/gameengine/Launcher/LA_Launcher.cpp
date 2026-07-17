@@ -142,6 +142,35 @@ void LA_Launcher::InitEngine()
   const GameData &gm = m_startScene->gm;
   bool properties = (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
   bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
+  bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
+  bool recordFrameTimeGraph = (SYS_GetCommandLineInt(
+                                   syshandle, "record_frame_time_graph",
+                                   gm.flag & GAME_RECORD_FRAME_TIME_GRAPH) != 0);
+  int frameTimeGraphVisibleSlots = SYS_GetCommandLineInt(
+      syshandle, "frame_time_graph_visible_slots", gm.frame_time_graph_visible_slots);
+  int frameTimeGraphRecordSlot = SYS_GetCommandLineInt(
+      syshandle, "frame_time_graph_record_slot", gm.frame_time_graph_record_slot);
+  int frameTimeGraphWindow = SYS_GetCommandLineInt(
+      syshandle, "frame_time_graph_window", gm.frame_time_graph_window);
+  int frameTimeGraphAxis = SYS_GetCommandLineInt(
+      syshandle, "frame_time_graph_axis", gm.frame_time_graph_axis);
+  int frameTimeGraphStyle = SYS_GetCommandLineInt(
+      syshandle, "frame_time_graph_style", gm.frame_time_graph_style);
+  int frameTimeGraphMaxSamples = SYS_GetCommandLineInt(
+      syshandle, "frame_time_graph_max_samples", gm.frame_time_graph_max_samples);
+  int frameTimeGraphVisibleDomains = SYS_GetCommandLineInt(
+      syshandle, "frame_time_graph_visible_domains", gm.frame_time_graph_visible_domains);
+  if (!frameRate && !profile) {
+    recordFrameTimeGraph = false;
+    frameTimeGraphRecordSlot = -1;
+    frameTimeGraphVisibleSlots = 0;
+  }
+  else if (!recordFrameTimeGraph) {
+    frameTimeGraphRecordSlot = -1;
+  }
+  else if (recordFrameTimeGraph && frameTimeGraphRecordSlot < 0) {
+    frameTimeGraphRecordSlot = 0;
+  }
 
   bool showPhysics = (gm.flag & GAME_SHOW_PHYSICS);
   SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
@@ -149,7 +178,6 @@ void LA_Launcher::InitEngine()
   // WARNING: Fixed time is the opposite of fixed framerate.
   bool fixed_framerate = (SYS_GetCommandLineInt(
                               syshandle, "fixedtime", (gm.flag & GAME_ENABLE_ALL_FRAMES)) == 0);
-  bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
   bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
   bool restrictAnimFPS = (gm.flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
@@ -206,15 +234,18 @@ void LA_Launcher::InitEngine()
   else {
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
   }
-  m_canvas->SetMousePosition(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2);
+  // Create the inputdevices.
+  m_inputDevice = new DEV_InputDevice();
+  m_eventConsumer = new DEV_EventConsumer(m_system, m_inputDevice, m_canvas);
+  const int startx = m_canvas->GetWidth() / 2;
+  const int starty = m_canvas->GetHeight() / 2;
+  m_canvas->SetMousePosition(startx, starty);
+  m_inputDevice->ConvertMoveEvent(startx, starty);
 
   if (is_wayland) {
     WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_NONE, nullptr, !show_mouse);
   }
 
-  // Create the inputdevices.
-  m_inputDevice = new DEV_InputDevice();
-  m_eventConsumer = new DEV_EventConsumer(m_system, m_inputDevice, m_canvas);
   m_system->addEventConsumer(m_eventConsumer);
 
   // Create a ketsjisystem (only needed for timing and stuff).
@@ -243,6 +274,12 @@ void LA_Launcher::InitEngine()
 #endif
 
   m_ketsjiEngine->SetFlag(flags, true);
+  m_ketsjiEngine->SetFrameTimeGraphSettings(frameTimeGraphWindow,
+                                            frameTimeGraphAxis,
+                                            frameTimeGraphStyle,
+                                            frameTimeGraphMaxSamples,
+                                            frameTimeGraphVisibleDomains);
+  m_ketsjiEngine->SetFrameTimeGraphSlots(frameTimeGraphRecordSlot, frameTimeGraphVisibleSlots);
   m_ketsjiEngine->SetRender(true);
 
   /* Initialize physics timestep settings from Scene. */
@@ -319,8 +356,7 @@ void LA_Launcher::InitEngine()
    * framerate below should patch with FPS macro defined in blendef.h
    * Could be in StartEngine set the framerate, we need the scene to do this.
    */
-  blender::Scene *scene = m_kxStartScene->GetBlenderScene();  // needed for macro
-  m_ketsjiEngine->SetAnimFrameRate(scene->frames_per_second());
+  m_ketsjiEngine->SetAnimFrameRate(m_startScene->frames_per_second());
 }
 
 void LA_Launcher::ExitEngine()
@@ -331,6 +367,7 @@ void LA_Launcher::ExitEngine()
 
   DEV_Joystick::Close();
   m_ketsjiEngine->StopEngine();
+  KX_SetActiveScene(nullptr);
 
 #ifdef WITH_PYTHON
 
@@ -362,6 +399,11 @@ void LA_Launcher::ExitEngine()
   // Set vsync mode back to original value.
   m_canvas->SetSwapInterval(m_savedData.vsync);
 
+  /* Game Python cleanup can run module/proxy finalizers. Keep the engine, converter, input, and
+   * canvas valid until those references are gone, but clear the active scene because StopEngine()
+   * already released it. */
+  ExitPython();
+
   if (m_converter) {
     delete m_converter;
     m_converter = nullptr;
@@ -370,6 +412,7 @@ void LA_Launcher::ExitEngine()
     delete m_ketsjiEngine;
     m_ketsjiEngine = nullptr;
   }
+  KX_SetActiveEngine(nullptr);
   if (m_kxsystem) {
     delete m_kxsystem;
     m_kxsystem = nullptr;
@@ -394,9 +437,6 @@ void LA_Launcher::ExitEngine()
     delete m_networkMessageManager;
     m_networkMessageManager = nullptr;
   }
-
-  // Call this after we're sure nothing needs Python anymore (e.g., destructors).
-  ExitPython();
 
 #ifdef WITH_AUDASPACE
   //if (m_audioDeviceIsInitialized) {

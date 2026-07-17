@@ -2711,7 +2711,7 @@ typedef struct DRWDebugLine {
 
 typedef struct DRWDebugText2D {
   struct DRWDebugText2D *next; /* linked list */
-  char text[64];
+  char text[256];
   float xco;
   float yco;
 } DRWDebugText2D;
@@ -2724,9 +2724,27 @@ typedef struct DRWDebugBox2D {
   float ysize;
 } DRWDebugBox2D;
 
+typedef struct DRWDebugRect2D {
+  struct DRWDebugRect2D *next; /* linked list */
+  float xco;
+  float yco;
+  float xsize;
+  float ysize;
+  float color[4];
+} DRWDebugRect2D;
+
+typedef struct DRWDebugLine2D {
+  struct DRWDebugLine2D *next; /* linked list */
+  float pos[2][2];
+  float color[4];
+  float width;
+} DRWDebugLine2D;
+
 typedef struct DRWDebugBge {
   DRWDebugLine *lines;
+  DRWDebugLine2D *lines_2d;
   DRWDebugBox2D *boxes;
+  DRWDebugRect2D *rects;
   DRWDebugText2D *texts;
 } DRWDebugBge;
 
@@ -2756,6 +2774,20 @@ void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[
   BLI_LINKS_PREPEND(debug_bge->lines, line);
 }
 
+void DRW_debug_line_2D_bge(
+    float x1, float y1, float x2, float y2, const float color[4], const float width)
+{
+  DRWDebugLine2D *line = (DRWDebugLine2D *)MEM_new_uninitialized(sizeof(DRWDebugLine2D),
+                                                                 "DRWDebugLine2D");
+  line->pos[0][0] = x1;
+  line->pos[0][1] = y1;
+  line->pos[1][0] = x2;
+  line->pos[1][1] = y2;
+  copy_v4_v4(line->color, color);
+  line->width = width;
+  BLI_LINKS_PREPEND(debug_bge->lines_2d, line);
+}
+
 void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize)
 {
   DRWDebugBox2D *box = (DRWDebugBox2D *)MEM_new_uninitialized(sizeof(DRWDebugBox2D), "DRWDebugBox");
@@ -2764,6 +2796,19 @@ void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, c
   box->xsize = xsize;
   box->ysize = ysize;
   BLI_LINKS_PREPEND(debug_bge->boxes, box);
+}
+
+void DRW_debug_rect_2D_bge(
+    const float xco, const float yco, const float xsize, const float ysize, const float color[4])
+{
+  DRWDebugRect2D *rect = (DRWDebugRect2D *)MEM_new_uninitialized(sizeof(DRWDebugRect2D),
+                                                                 "DRWDebugRect2D");
+  rect->xco = xco;
+  rect->yco = yco;
+  rect->xsize = xsize;
+  rect->ysize = ysize;
+  copy_v4_v4(rect->color, color);
+  BLI_LINKS_PREPEND(debug_bge->rects, rect);
 }
 
 void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
@@ -2832,7 +2877,7 @@ static void drw_debug_draw_boxes_bge(void)
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  const float *size = DRW_context_get()->viewport_size_get();
+  const float2 size = DRW_context_get()->viewport_size_get();
   const unsigned int width = size[0];
   const unsigned int height = size[1];
   GPU_matrix_reset();
@@ -2851,6 +2896,86 @@ static void drw_debug_draw_boxes_bge(void)
   immUnbindProgram();
 }
 
+static void drw_debug_draw_lines_2d_bge(void)
+{
+  if (!debug_bge) {
+    return;
+  }
+  int count = BLI_linklist_count((LinkNode *)debug_bge->lines_2d);
+
+  if (count == 0) {
+    return;
+  }
+
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  uint col = GPU_vertformat_attr_add(
+      vert_format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
+
+  const float2 size = DRW_context_get()->viewport_size_get();
+  const unsigned int width = size[0];
+  const unsigned int height = size[1];
+  GPU_matrix_reset();
+  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+  GPU_line_smooth(false);
+
+  while (debug_bge->lines_2d) {
+    void *next = debug_bge->lines_2d->next;
+    GPU_line_width(debug_bge->lines_2d->width > 1.0f ? debug_bge->lines_2d->width : 1.0f);
+
+    immBegin(GPU_PRIM_LINES, 2);
+
+    immAttr4fv(col, debug_bge->lines_2d->color);
+    immVertex3f(pos, debug_bge->lines_2d->pos[0][0], debug_bge->lines_2d->pos[0][1], 0.0f);
+
+    immAttr4fv(col, debug_bge->lines_2d->color);
+    immVertex3f(pos, debug_bge->lines_2d->pos[1][0], debug_bge->lines_2d->pos[1][1], 0.0f);
+
+    immEnd();
+
+    MEM_delete(debug_bge->lines_2d);
+    debug_bge->lines_2d = (DRWDebugLine2D *)next;
+  }
+  GPU_line_smooth(false);
+  GPU_line_width(1.0f);
+  immUnbindProgram();
+}
+
+static void drw_debug_draw_rects_2d_bge(void)
+{
+  if (!debug_bge) {
+    return;
+  }
+  int count = BLI_linklist_count((LinkNode *)debug_bge->rects);
+
+  if (count == 0) {
+    return;
+  }
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+
+  const float2 size = DRW_context_get()->viewport_size_get();
+  const unsigned int width = size[0];
+  const unsigned int height = size[1];
+  GPU_matrix_reset();
+  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  while (debug_bge->rects) {
+    void *next = debug_bge->rects->next;
+    DRWDebugRect2D *r = debug_bge->rects;
+    immUniformColor4fv(r->color);
+    immRectf(pos, r->xco, r->yco, r->xco + r->xsize, r->yco + r->ysize);
+    MEM_delete(debug_bge->rects);
+    debug_bge->rects = (DRWDebugRect2D *)next;
+  }
+  immUnbindProgram();
+}
+
 static void drw_debug_draw_text_bge(Scene *scene)
 {
   if (!debug_bge) {
@@ -2864,7 +2989,7 @@ static void drw_debug_draw_text_bge(Scene *scene)
 
   static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  const float *size = DRW_context_get()->viewport_size_get();
+  const float2 size = DRW_context_get()->viewport_size_get();
   const unsigned int width = size[0];
   const unsigned int height = size[1];
   GPU_matrix_reset();
@@ -2916,6 +3041,8 @@ void drw_debug_draw_bge(Scene *scene)
 
   drw_debug_draw_lines_bge();
   drw_debug_draw_boxes_bge();
+  drw_debug_draw_rects_2d_bge();
+  drw_debug_draw_lines_2d_bge();
   drw_debug_draw_text_bge(scene);
 
   DRW_end_debug_bge_viewport();
@@ -3013,10 +3140,20 @@ void DRW_game_viewport_render_loop_end()
     MEM_delete(debug_bge->lines);
     debug_bge->lines = (DRWDebugLine *)next;
   }
+  while (debug_bge->lines_2d) {
+    void *next = debug_bge->lines_2d->next;
+    MEM_delete(debug_bge->lines_2d);
+    debug_bge->lines_2d = (DRWDebugLine2D *)next;
+  }
   while (debug_bge->boxes){
     void *next = debug_bge->boxes->next;
     MEM_delete(debug_bge->boxes);
     debug_bge->boxes = (DRWDebugBox2D *)next;
+  }
+  while (debug_bge->rects) {
+    void *next = debug_bge->rects->next;
+    MEM_delete(debug_bge->rects);
+    debug_bge->rects = (DRWDebugRect2D *)next;
   }
   while (debug_bge->texts) {
     void *next = debug_bge->texts->next;

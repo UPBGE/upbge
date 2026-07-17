@@ -1572,6 +1572,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
           return node;
         }
         case NTREE_TEXTURE:
+        case NTREE_LOGIC:
         case NTREE_UNDEFINED:
         case NTREE_CUSTOM:
           break;

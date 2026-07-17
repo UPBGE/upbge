@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include "JoltPhysicsConfig.h"
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS
@@ -121,4 +123,6 @@ class JoltCharacter : public PHY_ICharacter {
   unsigned char m_maxJumps;
   unsigned char m_jumpCount;
   bool m_wantJump;
+  float m_velocityTimeInterval;
+  JPH::Vec3 m_velocityTimeIntervalVelocity;
 };

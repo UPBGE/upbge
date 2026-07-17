@@ -16,6 +16,17 @@ from bpy.app.translations import (
     contexts as i18n_contexts,
 )
 
+from bl_operators.logic_nodes_bindings import (
+    logic_nodes_apply_tree_to_objects,
+    logic_nodes_available,
+    logic_nodes_clear_bindings,
+    logic_nodes_get_context_tree,
+    logic_nodes_remove_tree_from_object,
+    logic_nodes_refresh_objects,
+    logic_nodes_selected_objects,
+    logic_nodes_set_node_editor_tree,
+)
+
 
 class SelectPattern(Operator):
     """Select objects matching a naming pattern"""
@@ -1173,6 +1184,163 @@ class OBJECT_OT_assign_property_defaults(Operator):
 
         return {'FINISHED'}
 
+
+class OBJECT_OT_logic_nodes_binding_add(Operator):
+    """Add a native Logic Nodes tree binding to the active object"""
+    bl_idname = "object.logic_nodes_binding_add"
+    bl_label = "Add Logic Nodes Binding"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game and logic_nodes_available()
+
+    def execute(self, context):
+        ob = context.active_object
+        ob.game.logic_node_binding_new()
+        logic_nodes_refresh_objects([ob])
+        return {'FINISHED'}
+
+
+class OBJECT_OT_logic_nodes_binding_remove(Operator):
+    """Remove a native Logic Nodes tree binding from the active object"""
+    bl_idname = "object.logic_nodes_binding_remove"
+    bl_label = "Remove Logic Nodes Binding"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: IntProperty(name="Index", default=0, min=0)
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game and len(ob.game.logic_node_bindings) > 0
+
+    def execute(self, context):
+        ob = context.active_object
+        if self.index < 0 or self.index >= len(ob.game.logic_node_bindings):
+            return {'CANCELLED'}
+        ob.game.logic_node_binding_remove(self.index)
+        logic_nodes_refresh_objects([ob])
+        return {'FINISHED'}
+
+
+class OBJECT_OT_logic_nodes_binding_clear(Operator):
+    """Remove all native Logic Nodes bindings from the active object"""
+    bl_idname = "object.logic_nodes_binding_clear"
+    bl_label = "Clear Logic Nodes Bindings"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game and len(ob.game.logic_node_bindings) > 0
+
+    def execute(self, context):
+        logic_nodes_clear_bindings(context.active_object)
+        return {'FINISHED'}
+
+
+class OBJECT_OT_logic_nodes_apply_tree(Operator):
+    """Apply the active LogicNodeTree to selected objects"""
+    bl_idname = "object.logic_nodes_apply_tree"
+    bl_label = "Apply Logic Tree To Selected"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not logic_nodes_available():
+            return False
+        if logic_nodes_get_context_tree(context) is None:
+            return False
+        return len(logic_nodes_selected_objects(context)) > 0 or context.active_object is not None
+
+    def execute(self, context):
+        tree = logic_nodes_get_context_tree(context)
+
+        if tree is None:
+            self.report({'WARNING'}, "No LogicNodeTree to apply")
+            return {'CANCELLED'}
+
+        selected = logic_nodes_selected_objects(context)
+        if not selected:
+            self.report({'WARNING'}, "No selected objects")
+            return {'CANCELLED'}
+
+        logic_nodes_apply_tree_to_objects(tree, selected, initial_enabled=True)
+        return {'FINISHED'}
+
+
+class OBJECT_OT_logic_nodes_unapply_tree(Operator):
+    """Remove a LogicNodeTree binding from selected or specified objects"""
+    bl_idname = "object.logic_nodes_unapply_tree"
+    bl_label = "Unapply Logic Tree"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    tree_name: StringProperty(name="Tree Name", default="")
+    from_object: StringProperty(name="From Object", default="")
+
+    @classmethod
+    def poll(cls, context):
+        return logic_nodes_available() and context.mode == 'OBJECT'
+
+    def execute(self, context):
+        if not self.tree_name:
+            return {'CANCELLED'}
+
+        if self.from_object:
+            ob = bpy.data.objects.get(self.from_object)
+            targets = [ob] if ob is not None else []
+        else:
+            targets = logic_nodes_selected_objects(context)
+
+        removed = False
+        for ob in targets:
+            if ob is None:
+                continue
+            removed = logic_nodes_remove_tree_from_object(ob, self.tree_name) or removed
+
+        if not removed:
+            self.report({'WARNING'}, "Tree binding not found")
+            return {'CANCELLED'}
+        return {'FINISHED'}
+
+
+class OBJECT_OT_logic_nodes_find_tree(Operator):
+    """Open a LogicNodeTree in the node editor"""
+    bl_idname = "object.logic_nodes_find_tree"
+    bl_label = "Find Logic Tree"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    tree_name: StringProperty(name="Tree Name", default="")
+
+    def execute(self, context):
+        if not self.tree_name:
+            return {'CANCELLED'}
+        if not logic_nodes_set_node_editor_tree(context, self.tree_name):
+            self.report({'WARNING'}, "Logic Node Editor not found")
+            return {'CANCELLED'}
+        return {'FINISHED'}
+
+
+class OBJECT_OT_logic_nodes_select_owner(Operator):
+    """Select the object that owns a logic tree binding"""
+    bl_idname = "object.logic_nodes_select_owner"
+    bl_label = "Select Logic Tree Owner"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    applied_object: StringProperty(name="Applied Object", default="")
+
+    def execute(self, context):
+        ob = bpy.data.objects.get(self.applied_object)
+        if ob is None:
+            return {'CANCELLED'}
+        bpy.ops.object.select_all(action='DESELECT')
+        ob.select_set(True)
+        context.view_layer.objects.active = ob
+        return {'FINISHED'}
+
+
 class LodByName(Operator):
     """Add levels of detail to this object based on object names"""
     bl_idname = "object.lod_by_name"
@@ -1262,4 +1430,11 @@ classes = (
     TransformsToDeltas,
     TransformsToDeltasAnim,
     OBJECT_OT_assign_property_defaults,
+    OBJECT_OT_logic_nodes_binding_add,
+    OBJECT_OT_logic_nodes_binding_remove,
+    OBJECT_OT_logic_nodes_binding_clear,
+    OBJECT_OT_logic_nodes_apply_tree,
+    OBJECT_OT_logic_nodes_unapply_tree,
+    OBJECT_OT_logic_nodes_find_tree,
+    OBJECT_OT_logic_nodes_select_owner,
 )

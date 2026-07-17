@@ -64,7 +64,10 @@
 #include "wm_event_system.hh"
 #include "xr/wm_xr.hh"
 
+#include <array>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "BL_ArmatureObject.h"
 #include "BL_Converter.h"
@@ -99,6 +102,10 @@
 #include "SCA_TimeEventManager.h"
 #include "SG_Controller.h"
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+#  include "LN_Manager.h"
+#endif
+
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #  include "bpy_rna.hh"
@@ -109,21 +116,41 @@ using namespace blender;
 static void bge_dupli_provider(DEGObjectIterData *data)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  if (!engine || !engine->CurrentScenes()) {
+  if (engine == nullptr) {
     return;
   }
 
-  KX_Scene *kx_scene = engine->CurrentScenes()->GetFront();
+  auto *scenes = engine->CurrentScenes();
+  if (scenes == nullptr || scenes->GetCount() == 0) {
+    return;
+  }
+
+  KX_Scene *kx_scene = scenes->GetFront();
+  if (kx_scene == nullptr) {
+    return;
+  }
+
   const std::vector<KX_GameObject *> &dupli_list = kx_scene->GetDupliListVector();
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::bContext *C = engine->GetContext();
+  if (C == nullptr) {
+    return;
+  }
+
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  if (depsgraph == nullptr) {
+    return;
+  }
 
   for (KX_GameObject *game_obj : dupli_list) {
     if (game_obj && game_obj->IsUpbgeDupliInstance()) {
       if (!game_obj->GetVisible()) {
         continue;
       }
-      blender::Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
+      blender::Object *ob_src = game_obj->GetBlenderObject();
+      if (ob_src == nullptr) {
+        continue;
+      }
+      blender::Object *blender_obj = DEG_get_evaluated(depsgraph, ob_src);
       float mat[4][4];
       game_obj->NodeGetWorldTransform().getValue(&mat[0][0]);
 
@@ -220,6 +247,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_isPythonMainLoop(false),              // eevee
       m_collectionRemap(false),               // eevee (to uncheck viewport restrictflag)
       m_relationsUpdatePending(false),
+      /* Default to skipping culled objects to avoid unnecessary SG updates. */
+      m_skipInvisibleInterpolation(true),
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -230,11 +259,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_blenderScene(scene),
       m_isActivedHysteresis(false),
       m_lodHysteresisValue(0),
-      m_isRuntime(true),  // eevee
-      /* Default to skipping culled objects to avoid unnecessary SG updates. */
-      m_skipInvisibleInterpolation(true)
+      m_isRuntime(true)  // eevee
 {
-
   m_dbvt_culling = false;
   m_dbvt_occlusion_res = 0;
   m_activityCulling = false;
@@ -248,6 +274,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_filterManager = new KX_2DFilterManager();
   m_logicmgr = new SCA_LogicManager();
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  m_logicNodeManager = std::make_shared<LN_Manager>(*this);
+#endif
 
   m_timemgr = new SCA_TimeEventManager(m_logicmgr);
   m_keyboardmgr = new SCA_KeyboardManager(m_logicmgr, inputDevice);
@@ -421,6 +451,13 @@ KX_Scene::~KX_Scene()
   // It's still there but we remove all properties here otherwise some
   // reference might be hanging and causing late release of objects
   RemoveAllDebugProperties();
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (m_logicNodeManager) {
+    m_logicNodeManager->BeginShutdown();
+    m_logicNodeManager.reset();
+  }
+#endif
 
   while (GetRootParentList()->GetCount() > 0) {
     KX_GameObject *parentobj = GetRootParentList()->GetValue(0);
@@ -943,6 +980,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
    * blender window */
   ReinitBlenderContextVariables();
 
+  if (engine->UseViewportRender()) {
+    /* Blender viewport overlays are drawn inside wm_draw_update. Flush BGE debug geometry before
+     * that call so current-frame logic debug lines do not appear one viewport draw late. */
+    rasty->FlushDebugDraw(canvas);
+  }
+
   /* Here we'll render directly the scene with viewport code. */
   if (ViewportRender(cam, viewport, window, canvas, scene, C)) {
     return;
@@ -1146,6 +1189,13 @@ static void convert_blender_objects_list_thread_func(blender::TaskPool *__restri
 
 void KX_Scene::ConvertBlenderObjectsList(std::vector<blender::Object *> objectslist, bool asynchronous)
 {
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (asynchronous) {
+    CM_Warning("Logic Nodes require main-thread object conversion; running synchronously.");
+    asynchronous = false;
+  }
+#endif
+
   if (asynchronous) {
     /* Convert the Blender Objects list in a different thread, so that the
      * game engine can keep running at full speed. */
@@ -1250,6 +1300,13 @@ static void convert_blender_collection_thread_func(blender::TaskPool *__restrict
 
 void KX_Scene::ConvertBlenderCollection(blender::Collection *co, bool asynchronous)
 {
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (asynchronous) {
+    CM_Warning("Logic Nodes require main-thread collection conversion; running synchronously.");
+    asynchronous = false;
+  }
+#endif
+
   if (asynchronous) {
 
     /* Convert the Blender collection in a different thread, so that the
@@ -2073,6 +2130,10 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     ReplicateLogic(gameobj);
   }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  ReplicateLogicNodeRuntimeTreesForReplicaMap();
+#endif
+
   // Build lookup map for fast name resolution during constraint replication.
   std::unordered_map<std::string, KX_GameObject *> hierarchyLookup;
   hierarchyLookup.reserve(m_logicHierarchicalGameObjects.size());
@@ -2213,6 +2274,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
     ReplicateLogic(gameobj);
   }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  ReplicateLogicNodeRuntimeTreesForReplicaMap();
+#endif
+
   // check if there are objects with dupligroup in the hierarchy
   std::vector<KX_GameObject *> duplilist;
   for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
@@ -2257,6 +2322,12 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 {
   RemoveDupliGroup(gameobj);
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (m_logicNodeManager) {
+    m_logicNodeManager->NotifyGameObjectQueuedForRemoval(gameobj);
+  }
+#endif
+
   CM_ListAddIfNotFound(m_euthanasyobjects, gameobj);
 
   /* Unregister asap (don't wait next frame) to avoid issue
@@ -2268,6 +2339,12 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 {
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (m_logicNodeManager) {
+    m_logicNodeManager->UnregisterGameObject(gameobj);
+  }
+#endif
+
   gameobj->Dispose();
 
   /* remove property from debug list */
@@ -2411,7 +2488,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
 
   if (use_phys) { /* update the new assigned mesh with the physics mesh */
     if (gameobj->GetPhysicsController())
-      gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, mesh);
+      gameobj->GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh);
   }
 }
 
@@ -2543,16 +2620,109 @@ void KX_Scene::UpdateAnimations(double curtime)
   }
 }
 
-void KX_Scene::LogicUpdateFrame(double curtime)
+void KX_Scene::LogicUpdateFrame(double curtime, bool useFixedPhysicsTimestep, double fixedDt)
 {
   m_proxyManager.Update();
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (m_logicNodeManager) {
+    m_logicNodeManager->Tick(curtime, fixedDt, useFixedPhysicsTimestep);
+  }
+#else
+  (void)useFixedPhysicsTimestep;
+  (void)fixedDt;
+#endif
 
   m_logicmgr->UpdateFrame(curtime);
 }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+LN_Manager *KX_Scene::GetLogicNodeManager() const
+{
+  return m_logicNodeManager.get();
+}
+
+void KX_Scene::ReplicateLogicNodeRuntimeTreesForReplicaMap()
+{
+  if (!m_logicNodeManager) {
+    return;
+  }
+
+  const int object_count = m_objectlist ? m_objectlist->GetCount() : 0;
+  const int appended_count = int(m_logicHierarchicalGameObjects.size());
+  const int appended_begin = object_count >= appended_count ? object_count - appended_count : -1;
+
+  static constexpr size_t inline_appended_scene_index_count = 8;
+  std::array<std::pair<KX_GameObject *, uint32_t>, inline_appended_scene_index_count>
+      inline_appended_scene_indices{};
+  size_t inline_appended_scene_indices_count = 0;
+  std::vector<std::pair<KX_GameObject *, uint32_t>> overflow_appended_scene_indices;
+  if (appended_begin >= 0 && m_objectlist != nullptr) {
+    for (int index = 0; index < appended_count; index++) {
+      KX_GameObject *gameobj = m_logicHierarchicalGameObjects[size_t(index)];
+      const int candidate = appended_begin + index;
+      if (gameobj != nullptr && candidate < object_count &&
+          m_objectlist->GetValue(candidate) == gameobj)
+      {
+        const std::pair<KX_GameObject *, uint32_t> entry{gameobj, uint32_t(candidate)};
+        if (inline_appended_scene_indices_count < inline_appended_scene_indices.size()) {
+          inline_appended_scene_indices[inline_appended_scene_indices_count++] = entry;
+        }
+        else {
+          overflow_appended_scene_indices.push_back(entry);
+        }
+      }
+    }
+  }
+
+  auto find_appended_scene_index = [&](KX_GameObject *gameobj) -> int {
+    for (size_t index = 0; index < inline_appended_scene_indices_count; index++) {
+      if (inline_appended_scene_indices[index].first == gameobj) {
+        return int(inline_appended_scene_indices[index].second);
+      }
+    }
+    for (const std::pair<KX_GameObject *, uint32_t> &entry : overflow_appended_scene_indices) {
+      if (entry.first == gameobj) {
+        return int(entry.second);
+      }
+    }
+    return -1;
+  };
+
+  for (const std::pair<SCA_IObject *const, SCA_IObject *> &replica_pair :
+      m_map_gameobject_to_replica) {
+    KX_GameObject *source_gameobj = static_cast<KX_GameObject *>(replica_pair.first);
+    KX_GameObject *replica_gameobj = static_cast<KX_GameObject *>(replica_pair.second);
+
+    int scene_object_index = -1;
+    scene_object_index = find_appended_scene_index(replica_gameobj);
+    if (scene_object_index < 0 && m_objectlist != nullptr) {
+      for (int i = 0; i < object_count; i++) {
+        if (m_objectlist->GetValue(i) == replica_gameobj) {
+          scene_object_index = i;
+          break;
+        }
+      }
+    }
+
+    if (scene_object_index >= 0) {
+      m_logicNodeManager->ReplicateRuntimeTrees(source_gameobj,
+                                                replica_gameobj,
+                                                static_cast<uint32_t>(scene_object_index));
+    }
+  }
+}
+#endif
+
 void KX_Scene::LogicEndFrame()
 {
   m_logicmgr->EndFrame();
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (m_logicNodeManager && !m_euthanasyobjects.empty()) {
+    m_logicNodeManager->NotifyGameObjectsQueuedForBulkRemoval(m_euthanasyobjects);
+  }
+#endif
 
   /* Don't remove the objects from the euthanasy list here as the child objects of a deleted
    * parent object are destructed directly from the sgnode in the same time the parent
@@ -2861,6 +3031,12 @@ bool KX_Scene::MergeScene(KX_Scene *other)
   GetFontList()->MergeList(other->GetFontList());
   other->GetFontList()->ReleaseAndRemoveAll();
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (m_logicNodeManager && other->GetLogicNodeManager()) {
+    m_logicNodeManager->AbsorbRuntimeTreesFrom(*other->GetLogicNodeManager());
+  }
+#endif
+
   /* move materials across, assume they both use the same scene-converters
    * Do this after lights are merged so materials can use the lights in shaders
    */
@@ -2942,9 +3118,28 @@ void KX_Scene::RunOnRemoveCallbacks()
 }
 #endif
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+void KX_Scene::ProcessReplica()
+{
+  KX_PythonProxy::ProcessReplica();
+  /* Scene replicas are created with the default copy constructor before ProcessReplica() runs.
+   * Do not call BeginShutdown() on the copied shared pointer here: it can still be the source
+   * scene's manager. Resetting only detaches this replica; a uniquely owned stale manager will
+   * still shut down through LN_Manager::~LN_Manager(). */
+  m_logicNodeManager.reset();
+  m_logicNodeManager = std::make_shared<LN_Manager>(*this);
+}
+#endif
+
 KX_Scene *KX_Scene::NewInstance()
 {
-  return new KX_Scene(*this);
+  KX_Scene *replica = new KX_Scene(*this);
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  /* The implicit scene copy constructor copies shared pointers. Drop the copied manager before
+   * the replica can be observed; ProcessReplica() installs the replica-owned manager. */
+  replica->m_logicNodeManager.reset();
+#endif
+  return replica;
 }
 
 #ifdef WITH_PYTHON

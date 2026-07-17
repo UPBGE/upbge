@@ -105,6 +105,19 @@ class RAS_DebugDraw {
     MT_Vector2 m_size;
   };
 
+  struct Rect2D : Shape {
+    Rect2D(const MT_Vector2 &pos, const MT_Vector2 &size, const MT_Vector4 &color);
+    MT_Vector2 m_pos;
+    MT_Vector2 m_size;
+  };
+
+  struct Line2D : Shape {
+    Line2D(const MT_Vector2 &from, const MT_Vector2 &to, const MT_Vector4 &color, float width);
+    MT_Vector2 m_from;
+    MT_Vector2 m_to;
+    float m_width;
+  };
+
   std::vector<Line> m_lines;
   std::vector<Circle> m_circles;
   std::vector<Aabb> m_aabbs;
@@ -112,6 +125,8 @@ class RAS_DebugDraw {
   std::vector<SolidBox> m_solidBoxes;
   std::vector<Text2D> m_texts2D;
   std::vector<Box2D> m_boxes2D;
+  std::vector<Rect2D> m_rects2D;
+  std::vector<Line2D> m_lines2D;
 
   RAS_OpenGLDebugDraw *m_impl;
 
@@ -148,6 +163,13 @@ class RAS_DebugDraw {
   void DrawCameraFrustum(const MT_Matrix4x4 &persmat);
 
   void RenderBox2D(const MT_Vector2 &pos, const MT_Vector2 &size, const MT_Vector4 &color);
+
+  void RenderRect2D(const MT_Vector2 &pos, const MT_Vector2 &size, const MT_Vector4 &color);
+
+  void RenderLine2D(const MT_Vector2 &from,
+                    const MT_Vector2 &to,
+                    const MT_Vector4 &color,
+                    float width = 1.0f);
 
   void RenderText2D(const std::string &text, const MT_Vector2 &pos, const MT_Vector4 &color);
 

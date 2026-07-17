@@ -109,6 +109,11 @@ class KX_TimeCategoryLogger {
   double GetAverage(TimeCategory tc);
 
   /**
+   * Returns the last complete measurement for a category.
+   */
+  double GetPrevious(TimeCategory tc);
+
+  /**
    * Returns average for grand total.
    */
   double GetAverage();

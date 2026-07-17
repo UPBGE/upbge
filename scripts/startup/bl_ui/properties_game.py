@@ -17,14 +17,23 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # <pep8 compliant>
+import bpy
 from bpy.types import Panel, Menu
 
 import re
 
+from bl_operators.logic_nodes_bindings import (
+    logic_nodes_available,
+    logic_nodes_binding_status,
+    logic_nodes_clear_bindings,
+    logic_nodes_get_context_tree,
+    logic_nodes_has_bindings,
+)
+
 
 PascalCasePattern = r"((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))"
-
 ReplacementPattern = r" \1"
+
 
 def split_pascal_case(text):
     return re.sub(PascalCasePattern, ReplacementPattern, text)
@@ -114,6 +123,65 @@ class GAME_PT_game_components(GameButtonsPanel, Panel):
                     row.label(text=split_pascal_case(prop.name))
                     col = row.column()
                     col.prop(prop, "value", text="")
+
+
+class GAME_PT_logic_nodes(GameButtonsPanel, Panel):
+    bl_label = "Logic Nodes"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game and (logic_nodes_available() or logic_nodes_has_bindings(ob))
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.active_object
+
+        if not logic_nodes_available():
+            layout.label(text="Native Logic Nodes unavailable", icon='ERROR')
+            return
+
+        apply_box = layout.box()
+        apply_col = apply_box.column()
+        apply_col.scale_y = 1.2
+        context_tree = logic_nodes_get_context_tree(context)
+        if context_tree is not None:
+            apply_col.label(text=f"Active tree: {context_tree.name}", icon='NODETREE')
+        else:
+            apply_col.label(text="Open a Logic Node Tree in the editor", icon='INFO')
+        apply_col.operator("object.logic_nodes_apply_tree", icon="PREFERENCES", text="Apply To Selected")
+
+        bindings = ob.game.logic_node_bindings
+        if len(bindings) == 0:
+            layout.label(text="No logic trees applied", icon='INFO')
+            return
+
+        layout.label(text="Applied Logic Trees:")
+        for index, binding in enumerate(bindings):
+            tree_name = (binding.tree_name or "").strip()
+            if not tree_name:
+                continue
+
+            box = layout.box()
+            header = box.row(align=True)
+            header.prop(binding, "enabled", text="")
+            header.label(text=tree_name, icon='NODETREE')
+            op = header.operator("object.logic_nodes_binding_remove", text="", icon='X')
+            op.index = index
+
+            body = box.row(align=True)
+            body.prop(binding, "tree", text="")
+            body.operator(
+                "object.logic_nodes_find_tree",
+                text="Edit",
+                icon='NODETREE',
+            ).tree_name = tree_name
+
+            status_text, status_icon = logic_nodes_binding_status(context, binding)
+            if status_text:
+                box.label(text=status_text, icon=status_icon)
+
+        layout.operator("object.logic_nodes_binding_clear", icon="TRASH", text="Clear All Trees")
 
 
 class GAME_MT_component_context_menu(Menu):
@@ -240,7 +308,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
         col = split.column()
         col.label(text="Object:")
-        col.prop(game, "use_actor")
+        if not is_jolt:
+            col.prop(game, "use_actor")
         col.prop(game, "use_ghost")
         col.prop(game, "use_sleep")
         col.label(text="Damping:")
@@ -323,7 +392,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
         col = split.column()
         col.label(text="Object:")
-        col.prop(game, "use_actor")
+        if not is_jolt:
+            col.prop(game, "use_actor")
         col.prop(game, "use_ghost")
         col.prop(game, "use_sleep")
         col.label(text="Damping:")
@@ -507,8 +577,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         physics_type = game.physics_type
 
         if physics_type == 'CHARACTER':
-            layout.prop(game, "use_actor")
-            layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
+            if not is_jolt:
+                layout.prop(game, "use_actor")
+                layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
 
             layout.separator()
 
@@ -526,13 +597,16 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.prop(game, "use_actor")
+            if not is_jolt:
+                col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
-            col.prop(ob, "hide_render", text="Invisible")  # out of place but useful
+            if not is_jolt:
+                col.prop(ob, "hide_render", text="Invisible")  # out of place but useful
 
             col = split.column()
-            col.prop(game, "use_physics_fh")
-            col.prop(game, "use_rotate_from_normal")
+            if not is_jolt:
+                col.prop(game, "use_physics_fh")
+                col.prop(game, "use_rotate_from_normal")
             col.prop(game, "use_sleep")
 
             layout.separator()
@@ -595,6 +669,11 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
                 col = split.column()
                 col.label(text="Jolt Physics:")
                 col.prop(game, "gravity_factor")
+                col.prop(game, "use_jolt_solver_iterations_override", text="Override Solver Iterations")
+                sub = col.column(align=True)
+                sub.active = game.use_jolt_solver_iterations_override
+                sub.prop(game, "jolt_velocity_solver_iterations", text="Velocity Iterations")
+                sub.prop(game, "jolt_position_solver_iterations", text="Position Iterations")
 
             layout.separator()
             col = layout.column()
@@ -630,9 +709,10 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
         elif physics_type == 'SOFT_BODY':
             col = layout.column()
-            col.prop(game, "use_actor")
-            #col.prop(game, "use_ghost") Seems not supported in bullet for SoftBodies
-            col.prop(ob, "hide_render", text="Invisible")
+            if not is_jolt:
+                col.prop(game, "use_actor")
+                #col.prop(game, "use_ghost") Seems not supported in bullet for SoftBodies
+                col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
 
@@ -743,9 +823,11 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
         elif physics_type == 'STATIC':
             col = layout.column()
-            col.prop(game, "use_actor")
+            if not is_jolt:
+                col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
-            col.prop(ob, "hide_render", text="Invisible")
+            if not is_jolt:
+                col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
 
@@ -770,11 +852,15 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
         elif physics_type == 'SENSOR':
             col = layout.column()
-            col.prop(game, "use_actor", text="Detect Actors")
-            col.prop(ob, "hide_render", text="Invisible")
+            if is_jolt:
+                col.prop(game, "use_jolt_sensor_static_detection", text="Include Static Objects")
+            else:
+                col.prop(game, "use_actor", text="Detect Actors")
+                col.prop(ob, "hide_render", text="Invisible")
 
         elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDER'}:
-            layout.prop(ob, "hide_render", text="Invisible")
+            if not is_jolt:
+                layout.prop(ob, "hide_render", text="Invisible")
 
         elif physics_type == 'NAVMESH':
             layout.operator("mesh.navmesh_face_copy")
@@ -785,7 +871,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             layout.operator("mesh.navmesh_reset")
             layout.operator("mesh.navmesh_clear")
 
-        if physics_type in {"STATIC", "DYNAMIC", "RIGID_BODY"}:
+        if not is_jolt and physics_type in {"STATIC", "DYNAMIC", "RIGID_BODY"}:
             row = layout.row()
             row.label(text="Force Field:")
 
@@ -796,6 +882,81 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             row = layout.row()
             row.prop(game, "fh_distance")
             row.prop(game, "use_fh_normal")
+
+
+class PHYSICS_PT_game_force_field(PhysicsButtonsPanel, Panel):
+    bl_label = "Hover Spring"
+    bl_parent_id = "PHYSICS_PT_game_physics"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        if not (ob and ob.game and context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        if context.scene.game_settings.physics_engine != 'JOLT':
+            return False
+        return ob.game.physics_type in {'DYNAMIC', 'RIGID_BODY'}
+
+    def draw(self, context):
+        layout = self.layout
+        game = context.active_object.game
+
+        layout.prop(game, "use_physics_fh", text="Use Hover Spring")
+
+        settings = layout.column()
+        settings.active = game.use_physics_fh
+
+        split = settings.split()
+        col = split.column()
+        col.prop(game, "use_rotate_from_normal")
+        col.prop(game, "fh_force", text="Spring Strength")
+        col.prop(game, "fh_distance", text="Hover Distance")
+
+        col = split.column()
+        col.prop(game, "fh_damping", slider=True)
+        col.prop(game, "use_fh_normal", text="Align to Normal")
+
+
+class PHYSICS_PT_game_buoyancy(PhysicsButtonsPanel, Panel):
+    bl_label = "Fluid Volume"
+    bl_parent_id = "PHYSICS_PT_game_physics"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        if not (ob and ob.game and context.scene.render.engine in cls.COMPAT_ENGINES):
+            return False
+        if context.scene.game_settings.physics_engine != 'JOLT':
+            return False
+        return ob.game.physics_type == 'SENSOR'
+
+    def draw(self, context):
+        layout = self.layout
+        game = context.active_object.game
+
+        layout.prop(game, "use_jolt_buoyancy", text="Use as Fluid Volume")
+
+        settings = layout.column()
+        settings.active = game.use_jolt_buoyancy
+
+        split = settings.split()
+        col = split.column()
+        col.prop(game, "jolt_buoyancy", text="Float Strength")
+        col.prop(game, "jolt_buoyancy_linear_drag", text="Linear Drag")
+
+        col = split.column()
+        col.prop(game, "jolt_buoyancy_angular_drag", text="Angular Drag")
+        col.prop(game, "jolt_buoyancy_velocity", text="Fluid Velocity")
 
 
 class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
@@ -855,11 +1016,14 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
         sub.prop(game, "use_collision_compound", text="Compound")
 
         layout.separator()
-        split = layout.split()
-        col = split.column()
-        col.prop(game, "collision_group")
-        col = split.column()
-        col.prop(game, "collision_mask")
+        if is_jolt:
+            layout.prop(game, "collision_layers")
+        else:
+            split = layout.split()
+            col = split.column()
+            col.prop(game, "collision_group")
+            col = split.column()
+            col.prop(game, "collision_mask")
 
 
 class PHYSICS_PT_game_collision_filtering(PhysicsButtonsPanel, Panel):
@@ -881,11 +1045,7 @@ class PHYSICS_PT_game_collision_filtering(PhysicsButtonsPanel, Panel):
         layout = self.layout
         game = context.active_object.game
 
-        split = layout.split()
-        col = split.column()
-        col.prop(game, "collision_group")
-        col = split.column()
-        col.prop(game, "collision_mask")
+        layout.prop(game, "collision_layers")
 
 
 class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
@@ -985,6 +1145,22 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 row_render.enabled = gs.use_fixed_fps_cap
                 row_render.prop(gs, "fixed_render_cap_rate", text="Render Frames Per Second")
                 col.prop(gs, "use_fixed_physics_interpolation", text="Physics Interpolation")
+
+                if hasattr(bpy.types, "LogicNodeTree") and hasattr(gs, "use_logic_nodes_parallel"):
+                    layout.separator()
+                    box = layout.box()
+                    box.label(text="Logic Nodes", icon='NODETREE')
+                    box.prop(
+                        gs,
+                        "use_logic_nodes_parallel",
+                        text="Parallel Tree Execution",
+                    )
+                    if hasattr(gs, "show_logic_nodes_profile"):
+                        box.prop(
+                            gs,
+                            "show_logic_nodes_profile",
+                            text="Console Tick Profiling",
+                        )
             else:
                 # For Variable mode: keep original layout
                 split = layout.split()
@@ -1048,6 +1224,8 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 layout.separator()
                 col = layout.column()
                 col.label(text="Jolt Physics Settings:")
+                col.prop(gs, "jolt_velocity_solver_iterations", text="Velocity Solver Iterations")
+                col.prop(gs, "jolt_position_solver_iterations", text="Position Solver Iterations")
                 col.prop(gs, "jolt_physics_threads", text="Physics Threads (-1 = Auto)")
                 col.prop(gs, "jolt_max_bodies", text="Max Bodies")
                 col.prop(gs, "jolt_debug_errors", text="Debug Errors")
@@ -1346,9 +1524,12 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
 classes = (
     GAME_PT_game_object,
     GAME_PT_game_components,
+    GAME_PT_logic_nodes,
     GAME_PT_game_properties,
     GAME_MT_component_context_menu,
     PHYSICS_PT_game_physics,
+    PHYSICS_PT_game_force_field,
+    PHYSICS_PT_game_buoyancy,
     PHYSICS_PT_game_collision_bounds,
     PHYSICS_PT_game_collision_filtering,
     PHYSICS_PT_game_obstacles,

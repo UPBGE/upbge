@@ -52,6 +52,7 @@
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_Scene.h"
 #include "MT_Transform.h"
+#include "../Physics/Common/PHY_RigidBodyConstraintSettings.h"
 #include "SCA_IObject.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 #include "SG_Node.h"
@@ -165,7 +166,9 @@ class KX_GameObject : public SCA_IObject {
 
  public:
   struct RigidBodyConstraintData {
-    blender::RigidBodyCon *m_constraint;
+    const void *m_constraintKey;
+    PHY_RigidBodyConstraintSettings m_settings;
+    std::string m_name;
     std::string m_object1Name;
     std::string m_object2Name;
     bool m_hasObject2;
@@ -270,12 +273,23 @@ class KX_GameObject : public SCA_IObject {
   void AddConstraint(blender::bRigidBodyJointConstraint *cons);
   std::vector < blender::bRigidBodyJointConstraint * > GetConstraints();
   void ClearConstraints();
-  void AddRigidBodyConstraint(blender::RigidBodyCon *cons,
-                              blender::Object *ob1,
-                              blender::Object *ob2,
-                              const MT_Vector3 &pivotLocal,
-                              const MT_Matrix3x3 &basisLocal);
+  RigidBodyConstraintData *AddRigidBodyConstraint(blender::RigidBodyCon *cons,
+                                                  const std::string &name,
+                                                  blender::Object *ob1,
+                                                  blender::Object *ob2,
+                                                  const MT_Vector3 &pivotLocal,
+                                                  const MT_Matrix3x3 &basisLocal);
+  void AddRuntimeRigidBodyConstraint(const std::string &name,
+                                     KX_GameObject *object1,
+                                     KX_GameObject *object2,
+                                     const PHY_RigidBodyConstraintSettings &settings,
+                                     const MT_Vector3 &pivotLocal,
+                                     const MT_Matrix3x3 &basisLocal,
+                                     int constraintId);
   void SetRigidBodyConstraintId(blender::RigidBodyCon *cons, int constraintId);
+  const RigidBodyConstraintData *FindRigidBodyConstraint(const std::string &name) const;
+  bool RemoveRigidBodyConstraint(const std::string &name);
+  void RemoveRigidBodyConstraintId(int constraintId);
   bool SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName = "");
   const std::vector<RigidBodyConstraintData> &GetRigidBodyConstraints() const;
   void ClearRigidBodyConstraints();

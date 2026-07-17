@@ -1218,11 +1218,11 @@ void CcdPhysicsEnvironment::SetGravity(float x, float y, float z)
 
 static int gConstraintUid = 1;
 
-void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
+bool CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
 {
   // For soft body constraints
   if (constraintId == 0)
-    return;
+    return false;
 
   btTypedConstraint *constraint = nullptr;
 
@@ -1244,12 +1244,15 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
 
   if (constraint) {
     RemoveConstraint(constraint, free);
+    return true;
   }
 
   WrapperVehicle *vehicle = static_cast<WrapperVehicle *>(GetVehicleConstraint(constraintId));
   if (vehicle) {
     RemoveVehicle(vehicle, free);
+    return true;
   }
+  return false;
 }
 
 bool CcdPhysicsEnvironment::IsRigidBodyConstraintEnabled(int constraintId)
@@ -3273,7 +3276,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   btCollisionShape *bm = nullptr;
 
-  char bounds = isbulletdyna ? OB_BOUND_SPHERE : OB_BOUND_TRIANGLE_MESH;
+  const bool isbulletvehicle = (blenderobject->gameflag2 & OB_HAS_VEHICLE) != 0;
+  char bounds = (isbulletrigidbody && !isbulletvehicle) ? OB_BOUND_BOX :
+                 isbulletdyna ? OB_BOUND_SPHERE : OB_BOUND_TRIANGLE_MESH;
   if (!(blenderobject->gameflag & OB_BOUNDS)) {
     if (blenderobject->gameflag & OB_SOFT_BODY)
       bounds = OB_BOUND_TRIANGLE_MESH;
@@ -3674,13 +3679,14 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src,
   }
 }
 
-int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
-                                                     KX_GameObject *gameobj2,
-                                                     const MT_Vector3 &pivotLocal,
-                                                     const MT_Matrix3x3 &basisLocal,
-                                                     blender::RigidBodyCon *rbc)
+int CcdPhysicsEnvironment::CreateRigidBodyConstraint(
+    KX_GameObject *gameobj1,
+    KX_GameObject *gameobj2,
+    const MT_Vector3 &pivotLocal,
+    const MT_Matrix3x3 &basisLocal,
+    const PHY_RigidBodyConstraintSettings &settings)
 {
-  if (!gameobj1 || !rbc) {
+  if (!gameobj1) {
     return -1;
   }
 
@@ -3709,11 +3715,11 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
   bool is_piston = false;
   bool is_motor = false;
 
-  switch (rbc->type) {
-    case RBC_TYPE_POINT:
+  switch (settings.type) {
+    case PHY_RigidBodyConstraintType::Point:
       type = PHY_POINT2POINT_CONSTRAINT;
       break;
-    case RBC_TYPE_HINGE:
+    case PHY_RigidBodyConstraintType::Hinge:
       type = PHY_LINEHINGE_CONSTRAINT;
       // btHingeConstraint uses the first axis parameter as hinge axis.
       // Blender's Hinge constraint uses local Z axis as hinge axis.
@@ -3721,27 +3727,28 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
       std::swap(axis0, axis2);  // axis0=Z, axis2=X
       std::swap(axis1, axis2);  // axis1=X, axis2=Y
       break;
-    case RBC_TYPE_SLIDER:
+    case PHY_RigidBodyConstraintType::Slider:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       is_slider = true;
       break;
-    case RBC_TYPE_6DOF:
+    case PHY_RigidBodyConstraintType::Generic:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       break;
-    case RBC_TYPE_6DOF_SPRING:
-      type = (rbc->spring_type == RBC_SPRING_TYPE2) ? PHY_GENERIC_6DOF_SPRING2_CONSTRAINT :
-                                                      PHY_GENERIC_6DOF_CONSTRAINT;
+    case PHY_RigidBodyConstraintType::GenericSpring:
+      type = (settings.spring_type == PHY_RigidBodyConstraintSpringType::Spring2) ?
+                 PHY_GENERIC_6DOF_SPRING2_CONSTRAINT :
+                 PHY_GENERIC_6DOF_CONSTRAINT;
       use_springs = true;
       break;
-    case RBC_TYPE_FIXED:
+    case PHY_RigidBodyConstraintType::Fixed:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       is_fixed = true;
       break;
-    case RBC_TYPE_PISTON:
+    case PHY_RigidBodyConstraintType::Piston:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       is_piston = true;
       break;
-    case RBC_TYPE_MOTOR:
+    case PHY_RigidBodyConstraintType::Motor:
       type = PHY_GENERIC_6DOF_CONSTRAINT;
       is_motor = true;
       break;
@@ -3750,7 +3757,7 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
   }
 
   int flag = 0;
-  if (rbc->flag & RBC_FLAG_DISABLE_COLLISIONS) {
+  if (settings.flags & PHY_RB_CONSTRAINT_DISABLE_COLLISIONS) {
     flag |= CCD_CONSTRAINT_DISABLE_LINKED_COLLISION;
   }
 
@@ -3775,12 +3782,12 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
     return -1;
   }
 
-  if (rbc->flag & RBC_FLAG_USE_BREAKING) {
-    constraint->SetBreakingThreshold(rbc->breaking_threshold);
+  if (settings.flags & PHY_RB_CONSTRAINT_USE_BREAKING) {
+    constraint->SetBreakingThreshold(settings.breaking_threshold);
   }
 
-  if (rbc->flag & RBC_FLAG_OVERRIDE_SOLVER_ITERATIONS) {
-    constraint->SetSolverIterations(rbc->num_solver_iterations);
+  if (settings.flags & PHY_RB_CONSTRAINT_OVERRIDE_SOLVER_ITERATIONS) {
+    constraint->SetSolverIterations(settings.num_solver_iterations);
   }
 
   auto set_limit = [&](int axis, bool use_flag, float lower, float upper) {
@@ -3794,7 +3801,10 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
       }
     }
     else if (is_slider) {
-      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
+      set_limit(0,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+                settings.limit_lin_x_lower,
+                settings.limit_lin_x_upper);
       constraint->SetParam(1, 0.0f, 0.0f);
       constraint->SetParam(2, 0.0f, 0.0f);
       constraint->SetParam(3, 0.0f, 0.0f);
@@ -3802,10 +3812,16 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
       constraint->SetParam(5, 0.0f, 0.0f);
     }
     else if (is_piston) {
-      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
+      set_limit(0,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+                settings.limit_lin_x_lower,
+                settings.limit_lin_x_upper);
       constraint->SetParam(1, 0.0f, 0.0f);
       constraint->SetParam(2, 0.0f, 0.0f);
-      set_limit(3, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X), rbc->limit_ang_x_lower, rbc->limit_ang_x_upper);
+      set_limit(3,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X),
+                settings.limit_ang_x_lower,
+                settings.limit_ang_x_upper);
       constraint->SetParam(4, 0.0f, 0.0f);
       constraint->SetParam(5, 0.0f, 0.0f);
     }
@@ -3813,45 +3829,74 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(KX_GameObject *gameobj1,
       for (int i = 0; i < 6; ++i) {
         constraint->SetParam(i, 1.0f, -1.0f);
       }
-      if (rbc->flag & RBC_FLAG_USE_MOTOR_LIN) {
-        constraint->SetParam(6, rbc->motor_lin_target_velocity, rbc->motor_lin_max_impulse);
+      if (settings.flags & PHY_RB_CONSTRAINT_USE_MOTOR_LIN) {
+        constraint->SetParam(
+            6, settings.motor_lin_target_velocity, settings.motor_lin_max_impulse);
       }
-      if (rbc->flag & RBC_FLAG_USE_MOTOR_ANG) {
-        constraint->SetParam(9, rbc->motor_ang_target_velocity, rbc->motor_ang_max_impulse);
+      if (settings.flags & PHY_RB_CONSTRAINT_USE_MOTOR_ANG) {
+        constraint->SetParam(
+            9, settings.motor_ang_target_velocity, settings.motor_ang_max_impulse);
       }
     }
     else {
-      set_limit(0, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X), rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
-      set_limit(1, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Y), rbc->limit_lin_y_lower, rbc->limit_lin_y_upper);
-      set_limit(2, (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Z), rbc->limit_lin_z_lower, rbc->limit_lin_z_upper);
-      set_limit(3, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X), rbc->limit_ang_x_lower, rbc->limit_ang_x_upper);
-      set_limit(4, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Y), rbc->limit_ang_y_lower, rbc->limit_ang_y_upper);
-      set_limit(5, (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z), rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
+      set_limit(0,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+                settings.limit_lin_x_lower,
+                settings.limit_lin_x_upper);
+      set_limit(1,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Y),
+                settings.limit_lin_y_lower,
+                settings.limit_lin_y_upper);
+      set_limit(2,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Z),
+                settings.limit_lin_z_lower,
+                settings.limit_lin_z_upper);
+      set_limit(3,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X),
+                settings.limit_ang_x_lower,
+                settings.limit_ang_x_upper);
+      set_limit(4,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Y),
+                settings.limit_ang_y_lower,
+                settings.limit_ang_y_upper);
+      set_limit(5,
+                (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z),
+                settings.limit_ang_z_lower,
+                settings.limit_ang_z_upper);
 
       if (use_springs) {
-        if (rbc->flag & RBC_FLAG_USE_SPRING_X) {
-          constraint->SetParam(12, rbc->spring_stiffness_x, rbc->spring_damping_x);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_X) {
+          constraint->SetParam(12, settings.spring_stiffness_x, settings.spring_damping_x);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_Y) {
-          constraint->SetParam(13, rbc->spring_stiffness_y, rbc->spring_damping_y);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_Y) {
+          constraint->SetParam(13, settings.spring_stiffness_y, settings.spring_damping_y);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_Z) {
-          constraint->SetParam(14, rbc->spring_stiffness_z, rbc->spring_damping_z);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_Z) {
+          constraint->SetParam(14, settings.spring_stiffness_z, settings.spring_damping_z);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_X) {
-          constraint->SetParam(15, rbc->spring_stiffness_ang_x, rbc->spring_damping_ang_x);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_ANG_X) {
+          constraint->SetParam(
+              15, settings.spring_stiffness_ang_x, settings.spring_damping_ang_x);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Y) {
-          constraint->SetParam(16, rbc->spring_stiffness_ang_y, rbc->spring_damping_ang_y);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_ANG_Y) {
+          constraint->SetParam(
+              16, settings.spring_stiffness_ang_y, settings.spring_damping_ang_y);
         }
-        if (rbc->flag & RBC_FLAG_USE_SPRING_ANG_Z) {
-          constraint->SetParam(17, rbc->spring_stiffness_ang_z, rbc->spring_damping_ang_z);
+        if (settings.flags & PHY_RB_CONSTRAINT_USE_SPRING_ANG_Z) {
+          constraint->SetParam(
+              17, settings.spring_stiffness_ang_z, settings.spring_damping_ang_z);
         }
       }
     }
   }
-  else if (type == PHY_LINEHINGE_CONSTRAINT && (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z)) {
-    constraint->SetParam(3, rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
+  else if (type == PHY_LINEHINGE_CONSTRAINT &&
+           (settings.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z))
+  {
+    constraint->SetParam(3, settings.limit_ang_z_lower, settings.limit_ang_z_upper);
+  }
+
+  if ((settings.flags & PHY_RB_CONSTRAINT_ENABLED) == 0) {
+    constraint->SetEnabled(false);
   }
 
   return constraint->GetIdentifier();

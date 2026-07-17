@@ -40,6 +40,7 @@
 #include "BL_ArmatureObject.h"
 #include "BL_IpoConvert.h"
 #include "CM_Message.h"
+#include "KX_KetsjiEngine.h"
 
 using namespace blender;
 
@@ -217,7 +218,12 @@ bool BL_Action::Play(const std::string &name,
   }
 
   // Now that we have an action, we have something we can play
-  m_starttime = KX_GetActiveEngine()->GetFrameTime();
+  if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
+    m_starttime = engine->GetCurrentAnimationTime();
+  }
+  else {
+    m_starttime = 0.0;
+  }
   m_startframe = m_localframe = start;
   m_endframe = end;
   m_blendin = blendin;
@@ -809,7 +815,9 @@ void BL_Action::ProcessShapeKeyBlending(blender::Key *key)
    * Skip the refkey so we keep alignment with m_blendinshape which stores only
    * non-ref keyblocks. */
   if (m_blendin && m_blendframe < m_blendin && !m_blendinshape.empty()) {
-    IncrementBlending(KX_GetActiveEngine()->GetFrameTime());
+    if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
+      IncrementBlending(engine->GetCurrentAnimationTime());
+    }
     float weight = 1.0f - (m_blendframe / m_blendin);
 
     for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {

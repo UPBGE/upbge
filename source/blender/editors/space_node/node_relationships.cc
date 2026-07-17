@@ -2600,10 +2600,140 @@ static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
   return selected_node;
 }
 
+static bool logic_socket_is_flow(const bNodeSocket &socket)
+{
+  if (socket.type != SOCK_BOOLEAN) {
+    return false;
+  }
+  return STREQ(socket.idname, "NodeSocketLogicExecution");
+}
+
+static bool logic_flow_boolean_sockets_compatible(const bNodeSocket &a, const bNodeSocket &b)
+{
+  if (a.type != SOCK_BOOLEAN || b.type != SOCK_BOOLEAN) {
+    return false;
+  }
+  return logic_socket_is_flow(a) && logic_socket_is_flow(b);
+}
+
+static bool node_socket_compatible_for_link_insert(const bNodeTree &tree,
+                                                 const bNodeSocket &from,
+                                                 const bNodeSocket &to)
+{
+  if (from.typeinfo == to.typeinfo) {
+    return true;
+  }
+  if (tree.type == NTREE_LOGIC) {
+    return logic_flow_boolean_sockets_compatible(from, to);
+  }
+  return false;
+}
+
+static rctf node_bounds_for_link_insert(const bNode &node)
+{
+  rctf bounds;
+  node_to_updated_rect(node, bounds);
+
+  if (BLI_rctf_size_x(&bounds) < 1.0f) {
+    bounds.xmax = bounds.xmin + 140.0f * UI_SCALE_FAC;
+  }
+  if (BLI_rctf_size_y(&bounds) < 1.0f) {
+    const int socket_rows = max_ii(node.input_sockets().size() + node.output_sockets().size(),
+                                 2);
+    bounds.ymin = bounds.ymax - socket_rows * NODE_DY * UI_SCALE_FAC;
+  }
+
+  return bounds;
+}
+
+static bNodeSocket *logic_find_flow_input_for_link(bNodeTree &tree,
+                                                 bNode &node,
+                                                 const bNodeSocket &from_socket)
+{
+  bNodeSocket *fallback = nullptr;
+  for (bNodeSocket *socket : node.input_sockets()) {
+    if (!socket->is_visible() || !logic_socket_is_flow(*socket)) {
+      continue;
+    }
+    if (fallback == nullptr) {
+      fallback = socket;
+    }
+    if (tree.typeinfo->validate_link != nullptr &&
+        !tree.typeinfo->validate_link(eNodeSocketDatatype(from_socket.type),
+                                      eNodeSocketDatatype(socket->type)))
+    {
+      continue;
+    }
+    if (!node_socket_compatible_for_link_insert(tree, from_socket, *socket)) {
+      continue;
+    }
+    return socket;
+  }
+  return fallback;
+}
+
+static bNodeSocket *logic_find_flow_output_for_link(bNodeTree &tree,
+                                                  bNode &node,
+                                                  const bNodeSocket &to_socket)
+{
+  bNodeSocket *fallback = nullptr;
+  for (bNodeSocket *socket : node.output_sockets()) {
+    if (!socket->is_visible() || !logic_socket_is_flow(*socket)) {
+      continue;
+    }
+    if (fallback == nullptr) {
+      fallback = socket;
+    }
+    if (tree.typeinfo->validate_link != nullptr &&
+        !tree.typeinfo->validate_link(eNodeSocketDatatype(socket->type),
+                                      eNodeSocketDatatype(to_socket.type)))
+    {
+      continue;
+    }
+    if (!node_socket_compatible_for_link_insert(tree, *socket, to_socket)) {
+      continue;
+    }
+    return socket;
+  }
+  return fallback;
+}
+
+static bNodeSocket *logic_find_insert_input(bNodeTree &tree,
+                                          bNode &node,
+                                          const bNodeSocket *from_socket)
+{
+  if (from_socket != nullptr) {
+    if (bNodeSocket *flow_input = logic_find_flow_input_for_link(tree, node, *from_socket)) {
+      return flow_input;
+    }
+  }
+  return get_main_socket(tree, node, SOCK_IN);
+}
+
+static bNodeSocket *logic_find_insert_output(bNodeTree &tree,
+                                           bNode &node,
+                                           const bNodeSocket *to_socket)
+{
+  if (to_socket != nullptr) {
+    if (bNodeSocket *flow_output = logic_find_flow_output_for_link(tree, node, *to_socket)) {
+      return flow_output;
+    }
+  }
+  return get_main_socket(tree, node, SOCK_OUT);
+}
+
 static bool node_can_be_inserted_on_link(bNodeTree &tree, bNode &node, const bNodeLink &link)
 {
-  const bNodeSocket *main_input = get_main_socket(tree, node, SOCK_IN);
-  const bNodeSocket *main_output = get_main_socket(tree, node, SOCK_IN);
+  const bNodeSocket *main_input = nullptr;
+  const bNodeSocket *main_output = nullptr;
+  if (tree.type == NTREE_LOGIC) {
+    main_input = logic_find_insert_input(tree, node, link.fromsock);
+    main_output = logic_find_insert_output(tree, node, link.tosock);
+  }
+  else {
+    main_input = get_main_socket(tree, node, SOCK_IN);
+    main_output = get_main_socket(tree, node, SOCK_OUT);
+  }
   if (ELEM(nullptr, main_input, main_output)) {
     return false;
   }
@@ -2621,6 +2751,12 @@ static bool node_can_be_inserted_on_link(bNodeTree &tree, bNode &node, const bNo
   if (!tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
                                     eNodeSocketDatatype(link.tosock->type)))
   {
+    return false;
+  }
+  if (!node_socket_compatible_for_link_insert(tree, *link.fromsock, *main_input)) {
+    return false;
+  }
+  if (!node_socket_compatible_for_link_insert(tree, *main_output, *link.tosock)) {
     return false;
   }
   return true;
@@ -2647,9 +2783,11 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   for (bNodeSocket *socket : node_to_insert->output_sockets()) {
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
-  if (!is_new_node && !already_linked_sockets.is_empty()) {
+  if (!is_new_node && !already_linked_sockets.is_empty() && node_tree.type != NTREE_LOGIC) {
     return;
   }
+
+  const rctf insert_bounds = node_bounds_for_link_insert(*node_to_insert);
 
   /* Find link to select/highlight. */
   bNodeLink *selink = nullptr;
@@ -2677,6 +2815,19 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
       }
     }
 
+    if (node_tree.type == NTREE_LOGIC) {
+      const bNodeSocket *flow_input = logic_find_insert_input(node_tree, *node_to_insert, link.fromsock);
+      const bNodeSocket *flow_output = logic_find_insert_output(node_tree, *node_to_insert, link.tosock);
+      if (flow_input == nullptr || flow_output == nullptr) {
+        continue;
+      }
+      if (!node_socket_compatible_for_link_insert(node_tree, *link.fromsock, *flow_input) ||
+          !node_socket_compatible_for_link_insert(node_tree, *flow_output, *link.tosock))
+      {
+        continue;
+      }
+    }
+
     std::array<float2, NODE_LINK_RESOL + 1> coords;
     node_link_bezier_points_evaluated(link, coords);
     float dist = FLT_MAX;
@@ -2685,11 +2836,10 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
      * segment. */
     for (int i = 0; i < NODE_LINK_RESOL; i++) {
       /* Check if the node rectangle intersects the line from this point to next one. */
-      if (BLI_rctf_isect_segment(&node_to_insert->runtime->draw_bounds, coords[i], coords[i + 1]))
+      if (BLI_rctf_isect_segment(&insert_bounds, coords[i], coords[i + 1]))
       {
         /* Store the shortest distance to the upper left edge of all intersections found so far. */
-        const float node_xy[] = {node_to_insert->runtime->draw_bounds.xmin,
-                                 node_to_insert->runtime->draw_bounds.ymax};
+        const float node_xy[] = {insert_bounds.xmin, insert_bounds.ymax};
 
         /* To be precise coords should be clipped by `select->draw_bounds`, but not done since
          * there's no real noticeable difference. */
@@ -2783,7 +2933,12 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     }
   }
   if (!best_input) {
-    best_input = get_main_socket(ntree, *node_to_insert, SOCK_IN);
+    if (ntree.type == NTREE_LOGIC && old_link != nullptr) {
+      best_input = logic_find_insert_input(ntree, *node_to_insert, old_link->fromsock);
+    }
+    if (!best_input) {
+      best_input = get_main_socket(ntree, *node_to_insert, SOCK_IN);
+    }
   }
   bNodeSocket *best_output = nullptr;
   if (is_new_node) {
@@ -2795,7 +2950,12 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     }
   }
   if (!best_output) {
-    best_output = get_main_socket(ntree, *node_to_insert, SOCK_OUT);
+    if (ntree.type == NTREE_LOGIC && old_link != nullptr) {
+      best_output = logic_find_insert_output(ntree, *node_to_insert, old_link->tosock);
+    }
+    if (!best_output) {
+      best_output = get_main_socket(ntree, *node_to_insert, SOCK_OUT);
+    }
   }
 
   if (!node_to_insert->is_reroute()) {
@@ -2806,11 +2966,60 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     {
       best_input = nullptr;
     }
+    if (best_input != nullptr &&
+        !node_socket_compatible_for_link_insert(ntree, *old_link->fromsock, *best_input))
+    {
+      best_input = nullptr;
+    }
     if (best_output != nullptr && ntree.typeinfo->validate_link != nullptr &&
         !ntree.typeinfo->validate_link(eNodeSocketDatatype(best_output->type),
                                        eNodeSocketDatatype(old_link->tosock->type)))
     {
       best_output = nullptr;
+    }
+    if (best_output != nullptr &&
+        !node_socket_compatible_for_link_insert(ntree, *best_output, *old_link->tosock))
+    {
+      best_output = nullptr;
+    }
+  }
+
+  if (ntree.type == NTREE_LOGIC) {
+    if (best_input == nullptr) {
+      for (bNodeSocket *socket : node_to_insert->input_sockets()) {
+        if (!socket->is_visible()) {
+          continue;
+        }
+        if (ntree.typeinfo->validate_link != nullptr &&
+            !ntree.typeinfo->validate_link(eNodeSocketDatatype(old_link->fromsock->type),
+                                           eNodeSocketDatatype(socket->type)))
+        {
+          continue;
+        }
+        if (!node_socket_compatible_for_link_insert(ntree, *old_link->fromsock, *socket)) {
+          continue;
+        }
+        best_input = socket;
+        break;
+      }
+    }
+    if (best_output == nullptr) {
+      for (bNodeSocket *socket : node_to_insert->output_sockets()) {
+        if (!socket->is_visible()) {
+          continue;
+        }
+        if (ntree.typeinfo->validate_link != nullptr &&
+            !ntree.typeinfo->validate_link(eNodeSocketDatatype(socket->type),
+                                           eNodeSocketDatatype(old_link->tosock->type)))
+        {
+          continue;
+        }
+        if (!node_socket_compatible_for_link_insert(ntree, *socket, *old_link->tosock)) {
+          continue;
+        }
+        best_output = socket;
+        break;
+      }
     }
   }
 

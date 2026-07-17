@@ -77,7 +77,7 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                             bool replicate_dupli = false);
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
-  virtual void RemoveConstraintById(int constraintid, bool free);
+  virtual bool RemoveConstraintById(int constraintid, bool free);
   virtual bool IsRigidBodyConstraintEnabled(int constraintid) override { return false; }
 
   // complex constraint for vehicles
@@ -166,11 +166,12 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   {
   }
 
-  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
-                                        KX_GameObject *gameobj2,
-                                        const MT_Vector3 &pivotLocal,
-                                        const MT_Matrix3x3 &basisLocal,
-                                        blender::RigidBodyCon *rbc) override
+  virtual int CreateRigidBodyConstraint(
+      KX_GameObject *gameobj1,
+      KX_GameObject *gameobj2,
+      const MT_Vector3 &pivotLocal,
+      const MT_Matrix3x3 &basisLocal,
+      const PHY_RigidBodyConstraintSettings &settings) override
   {
     return -1;
   }

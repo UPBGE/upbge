@@ -157,6 +157,8 @@ enum eRigidBodyCon_Flag : int {
   RBC_FLAG_USE_SPRING_ANG_X = (1 << 16),
   RBC_FLAG_USE_SPRING_ANG_Y = (1 << 17),
   RBC_FLAG_USE_SPRING_ANG_Z = (1 << 18),
+  /* game-engine Jolt solver override, independent from Blender's Bullet solver */
+  RBC_FLAG_JOLT_OVERRIDE_SOLVER_ITERATIONS = (1 << 19),
 };
 ENUM_OPERATORS(eRigidBodyCon_Flag)
 
@@ -303,6 +305,10 @@ struct RigidBodyCon {
   eRigidBodyCon_Type type = RBC_TYPE_POINT;
   /** Number of constraint solver iterations made per simulation step. */
   short num_solver_iterations = 0;
+  /** Jolt-specific velocity and position solver iteration overrides. */
+  short jolt_velocity_solver_iterations = 10;
+  short jolt_position_solver_iterations = 2;
+  int _pad_solver_iterations = 0;
 
   eRigidBodyCon_Flag flag = {};
 

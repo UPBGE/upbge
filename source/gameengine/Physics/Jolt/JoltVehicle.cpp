@@ -744,7 +744,7 @@ bool JoltVehicle::Build()
 
     vehicleSettings.mWheels[i] = ws;
     const JPH::ObjectLayer wheel_layer = JoltMakeObjectLayer(
-        m_chassisCtrl->GetCollisionGroup(), winfo.rayMask, JOLT_BP_DYNAMIC);
+        winfo.rayMask, 0xFFFF, JOLT_BP_DYNAMIC);
     collision_tester_configs.push_back(
         {winfo.collisionMode, std::max(0.01f, winfo.wheelRadius), wheel_layer});
   }

@@ -51,7 +51,6 @@ JPH_SUPPRESS_WARNINGS
 #include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 
 #include "KX_Globals.h"
@@ -64,6 +63,7 @@ JPH_SUPPRESS_WARNINGS
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 
 JoltShapeBuilder::JoltShapeBuilder()
@@ -106,6 +106,8 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
   m_vertexArray.clear();
   m_triFaceArray.clear();
   m_vertRemap.clear();
+  m_meshQueryData.reset();
+  m_shapeQueryData.reset();
 
   if (!meshobj || !meshobj->HasColliderPolygon()) {
     return false;
@@ -157,6 +159,32 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
 
     const blender::Span<blender::int3> tris = me->corner_tris();
     const blender::Span<int> corner_verts = me->corner_verts();
+    if (tris.size() > std::numeric_limits<JPH::uint32>::max()) {
+      return false;
+    }
+
+    const bool needFaceIndex =
+        (m_rayQueryDetailRequirements & PHY_RAY_QUERY_DETAIL_FACE_INDEX) != 0;
+    const bool needUV = (m_rayQueryDetailRequirements & PHY_RAY_QUERY_DETAIL_UV) != 0;
+    blender::Span<int> triFaces;
+    blender::VArraySpan<blender::float2> uvs;
+    if (needFaceIndex || needUV) {
+      triFaces = me->corner_tri_faces();
+      m_meshQueryData = std::make_shared<JoltMeshQueryData>();
+      m_meshQueryData->polygonIndices.reserve(tris.size());
+    }
+    if (needUV) {
+      const blender::StringRefNull uvName = me->active_uv_map_name();
+      if (!uvName.is_empty()) {
+        const blender::bke::AttributeAccessor attributes = me->attributes();
+        if (const auto uvAttribute = attributes.lookup<blender::float2>(
+                uvName, blender::bke::AttrDomain::Corner))
+        {
+          uvs = *uvAttribute;
+          m_meshQueryData->triangleUVs.reserve(tris.size());
+        }
+      }
+    }
 
     std::map<int, int> vert_remap;
     int next_vert = 0;
@@ -187,6 +215,18 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
       m_triFaceArray.push_back(tri_indices[0]);
       m_triFaceArray.push_back(tri_indices[1]);
       m_triFaceArray.push_back(tri_indices[2]);
+
+      if (m_meshQueryData) {
+        m_meshQueryData->polygonIndices.push_back(triFaces[t]);
+        if (!uvs.is_empty()) {
+          JoltTriangleUV triangleUV;
+          for (int j = 0; j < 3; ++j) {
+            const blender::float2 &uv = uvs[tri[j]];
+            triangleUV.corners[j] = MT_Vector2(uv.x, uv.y);
+          }
+          m_meshQueryData->triangleUVs.push_back(triangleUV);
+        }
+      }
     }
 
     if (m_vertexArray.empty() || m_triFaceArray.empty()) {
@@ -200,6 +240,7 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
 JPH::RefConst<JPH::Shape> JoltShapeBuilder::Build(bool useGimpact,
                                                     const MT_Vector3 &scale) const
 {
+  m_shapeQueryData.reset();
   JPH::RefConst<JPH::Shape> shape;
 
   switch (m_shapeType) {
@@ -418,15 +459,22 @@ JPH::RefConst<JPH::Shape> JoltShapeBuilder::BuildMesh() const
     int i0 = m_triFaceArray[i * 3 + 0];
     int i1 = m_triFaceArray[i * 3 + 1];
     int i2 = m_triFaceArray[i * 3 + 2];
-    triangles.push_back(JPH::IndexedTriangle(i0, i1, i2));
+    triangles.push_back(JPH::IndexedTriangle(i0, i1, i2, 0, JPH::uint32(i)));
   }
 
   JPH::MeshShapeSettings settings(std::move(vertices), std::move(triangles));
+  settings.mPerTriangleUserData = bool(m_meshQueryData);
   JPH::Shape::ShapeResult result = settings.Create();
   if (result.HasError()) {
     return nullptr;
   }
-  return result.Get();
+  JPH::RefConst<JPH::Shape> shape = result.Get();
+  if (m_meshQueryData) {
+    std::shared_ptr<JoltShapeQueryData> queryData = std::make_shared<JoltShapeQueryData>();
+    queryData->Add(shape.GetPtr(), m_meshQueryData);
+    m_shapeQueryData = queryData;
+  }
+  return shape;
 }
 
 JPH::RefConst<JPH::Shape> JoltShapeBuilder::BuildEmpty() const

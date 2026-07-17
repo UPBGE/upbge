@@ -4040,6 +4040,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_shader_fx.cc", nullptr, RNA_def_shader_fx},
     {"rna_nla.cc", nullptr, RNA_def_nla},
     {"rna_nodetree.cc", nullptr, RNA_def_nodetree},
+    {"rna_logic_node_binding.cc", nullptr, RNA_def_logic_node_binding},
     {"rna_node_socket.cc", nullptr, RNA_def_node_socket_subtypes},
     {"rna_node_tree_interface.cc", nullptr, RNA_def_node_tree_interface},
     {"rna_object.cc", "rna_object_api.cc", RNA_def_object},

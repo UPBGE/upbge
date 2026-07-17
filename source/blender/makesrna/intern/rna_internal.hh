@@ -232,6 +232,8 @@ void RNA_def_actuator(BlenderRNA *brna);
 void RNA_def_controller(BlenderRNA *brna);
 void RNA_def_gameproperty(BlenderRNA *brna);
 void RNA_def_py_proxy(BlenderRNA *brna);
+void RNA_def_logic_node_binding(BlenderRNA *brna);
+void RNA_def_logic_node_binding_collection(BlenderRNA *brna, StructRNA *game_settings_srna);
 void RNA_def_sensor(BlenderRNA *brna);
 
 void RNA_api_actuator(StructRNA *srna);
@@ -696,6 +698,12 @@ BlenderRNA rna_blender_rna_create();
 #  ifdef __GNUC__
 #    pragma GCC diagnostic ignored "-Wredundant-decls"
 #  endif
+
+struct LogicNodeBinding;
+struct Object;
+LogicNodeBinding *rna_GameObjectSettings_logic_node_binding_new(Object *object);
+void rna_GameObjectSettings_logic_node_binding_remove(Object *object, int index);
+void rna_GameObjectSettings_logic_node_binding_clear(Object *object);
 #endif
 
 /* C11 for compile time range checks */

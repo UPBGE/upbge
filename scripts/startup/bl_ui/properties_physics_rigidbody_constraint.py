@@ -128,6 +128,38 @@ class PHYSICS_PT_rigid_body_constraint_override_iterations(PHYSICS_PT_rigidbody_
         layout.prop(rbc, "solver_iterations", text="Iterations")
 
 
+class PHYSICS_PT_rigid_body_constraint_jolt_override_iterations(PHYSICS_PT_rigidbody_constraint_panel, Panel):
+    bl_label = "Jolt Game Solver Iterations"
+    bl_parent_id = "PHYSICS_PT_rigid_body_constraint"
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (
+            ob and ob.rigid_body_constraint and
+            context.engine in cls.COMPAT_ENGINES and
+            context.scene.game_settings.physics_engine == 'JOLT'
+        )
+
+    def draw_header(self, context):
+        rbc = context.object.rigid_body_constraint
+        self.layout.row().prop(rbc, "use_jolt_solver_iterations_override", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        rbc = context.object.rigid_body_constraint
+        layout.active = rbc.use_jolt_solver_iterations_override
+        layout.prop(rbc, "jolt_velocity_solver_iterations", text="Velocity Iterations")
+        layout.prop(rbc, "jolt_position_solver_iterations", text="Position Iterations")
+
+
 class PHYSICS_PT_rigid_body_constraint_limits(PHYSICS_PT_rigidbody_constraint_panel, Panel):
     bl_label = "Limits"
     bl_parent_id = "PHYSICS_PT_rigid_body_constraint"
@@ -544,6 +576,7 @@ classes = (
     PHYSICS_PT_rigid_body_constraint_motor_linear,
     PHYSICS_PT_rigid_body_constraint_objects,
     PHYSICS_PT_rigid_body_constraint_override_iterations,
+    PHYSICS_PT_rigid_body_constraint_jolt_override_iterations,
     PHYSICS_PT_rigid_body_constraint_springs,
     PHYSICS_PT_rigid_body_constraint_springs_angular,
     PHYSICS_PT_rigid_body_constraint_springs_linear,

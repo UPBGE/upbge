@@ -20,6 +20,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_logic_node_binding_types.h"
 #include "DNA_vec_defaults.h"
 
 namespace blender {
@@ -303,6 +304,9 @@ enum {
   OB_LOCK_RIGID_BODY_Z_ROT_AXIS = 1 << 7,
   OB_CCD_RIGID_BODY = 1 << 8,
   OB_HAS_VEHICLE = 1 << 10,
+  OB_JOLT_BUOYANCY_VOLUME = 1 << 11,
+  OB_JOLT_OVERRIDE_SOLVER_ITERATIONS = 1 << 12,
+  OB_JOLT_SENSOR_INCLUDE_STATIC = 1 << 13,
 
   /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
 };
@@ -1054,6 +1058,7 @@ struct Object {
   ListBase controllers = {NULL, NULL}; /* game logic controllers */
   ListBase actuators = {NULL, NULL};   /* game logic actuators */
   ListBase components = {NULL, NULL};  /* python components */
+  ListBaseT<LogicNodeBinding> logic_node_bindings = {nullptr, nullptr}; /* native logic node trees */
 
   struct ObjectActivityCulling activityCulling = {0};
 
@@ -1077,7 +1082,12 @@ struct Object {
 
   /* per-body gravity multiplier (Jolt mGravityFactor). 1.0 = normal gravity. */
   float gravity_factor = 1.0f;
-  int _pad57 = 0;
+  float jolt_buoyancy = 2.0f;
+  float jolt_buoyancy_linear_drag = 0.5f;
+  float jolt_buoyancy_angular_drag = 0.01f;
+  float jolt_buoyancy_velocity[3] = {0.0f, 0.0f, 0.0f};
+  short jolt_velocity_solver_iterations = 10;
+  short jolt_position_solver_iterations = 2;
 
   void *_pad54 = nullptr;
 

@@ -140,6 +140,11 @@ class SCA_IObject : public KX_PythonProxy {
   /// Resume progress.
   void ResumeLogic(void);
 
+  bool IsLogicSuspended() const
+  {
+    return m_logicSuspended;
+  }
+
   /// Set init state.
   void SetInitState(unsigned int initState);
 

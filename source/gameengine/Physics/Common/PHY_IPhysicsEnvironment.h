@@ -37,6 +37,7 @@
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 #include "PHY_DynamicTypes.h"
+#include "PHY_RigidBodyConstraintSettings.h"
 
 #include "DNA_constraint_types.h"
 
@@ -61,6 +62,16 @@ struct bRigidBodyJointConstraint;
 struct RigidBodyCon;
 }  // namespace blender
 
+struct PHY_CachedCollisionContact {
+  PHY_IPhysicsController *ctrl0 = nullptr;
+  PHY_IPhysicsController *ctrl1 = nullptr;
+  KX_GameObject *object0 = nullptr;
+  KX_GameObject *object1 = nullptr;
+  int contact_count = 0;
+  std::vector<MT_Vector3> points;
+  std::vector<MT_Vector3> normals;
+};
+
 /**
  * pass back information from rayTest
  */
@@ -68,10 +79,11 @@ struct PHY_RayCastResult {
   PHY_IPhysicsController *m_controller;
   MT_Vector3 m_hitPoint;
   MT_Vector3 m_hitNormal;
-  RAS_MeshObject *m_meshObject;  // !=nullptr for mesh object (only for Bullet controllers)
-  int m_polygon;       // index of the polygon hit by the ray, only if m_meshObject != nullptr
+  RAS_MeshObject *m_meshObject;  // Optional backend mesh object.
+  int m_polygon;       // Evaluated mesh polygon index, or -1 when unavailable.
   int m_hitUVOK;       // !=0 if UV coordinate in m_hitUV is valid
   MT_Vector2 m_hitUV;  // UV coordinates of hit point
+  float m_fraction;
 
   PHY_RayCastResult()
       :m_controller(nullptr),
@@ -80,7 +92,70 @@ struct PHY_RayCastResult {
         m_meshObject(nullptr),
         m_polygon(-1),
         m_hitUVOK(0),
-        m_hitUV(0.0f, 0.0f)
+        m_hitUV(0.0f, 0.0f),
+        m_fraction(0.0f)
+  {
+  }
+};
+
+struct PHY_RayQuerySettings {
+  MT_Vector3 origin = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 destination = MT_Vector3(0.0f, 0.0f, 0.0f);
+  uint32_t max_results = 1;
+  unsigned char detail_flags = PHY_RAY_QUERY_DETAIL_NONE;
+  bool include_sensors = false;
+  bool hit_back_faces = false;
+};
+
+enum class PHY_ShapeCastType : uint8_t {
+  Sphere = 0,
+  Box,
+  Capsule,
+};
+
+struct PHY_ShapeCastSettings {
+  PHY_ShapeCastType type = PHY_ShapeCastType::Sphere;
+  MT_Vector3 origin = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 destination = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Matrix3x3 orientation = MT_Matrix3x3::Identity();
+  MT_Vector3 half_extents = MT_Vector3(0.5f, 0.5f, 0.5f);
+  float radius = 0.5f;
+  float height = 2.0f;
+  float extra_radius = 0.0f;
+  uint32_t max_results = 1;
+  unsigned char detail_flags = PHY_RAY_QUERY_DETAIL_NONE;
+  bool include_sensors = false;
+  bool hit_back_faces = false;
+};
+
+struct PHY_ShapeCastResult {
+  PHY_IPhysicsController *controller = nullptr;
+  MT_Vector3 point = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 normal = MT_Vector3(0.0f, 0.0f, 1.0f);
+  MT_Vector3 cast_position = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector2 hit_uv = MT_Vector2(0.0f, 0.0f);
+  float fraction = 0.0f;
+  float penetration_depth = 0.0f;
+  int32_t polygon_index = -1;
+  bool has_uv = false;
+  bool started_overlapping = false;
+};
+
+class PHY_IShapeCastFilterCallback {
+ public:
+  PHY_IPhysicsController *m_ignoreController;
+  PHY_IPhysicsController *m_extraIgnoreController;
+
+  virtual ~PHY_IShapeCastFilterCallback() = default;
+
+  virtual bool needBroadphaseShapeCast(PHY_IPhysicsController *controller)
+  {
+    return true;
+  }
+
+  PHY_IShapeCastFilterCallback(PHY_IPhysicsController *ignoreController,
+                               PHY_IPhysicsController *extraIgnoreController = nullptr)
+      : m_ignoreController(ignoreController), m_extraIgnoreController(extraIgnoreController)
   {
   }
 };
@@ -234,7 +309,7 @@ class PHY_IPhysicsEnvironment {
                                             int flag = 0,
                                             bool replicate_dupli = false) = 0;
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) = 0;
-  virtual void RemoveConstraintById(int constraintid, bool free) = 0;
+  virtual bool RemoveConstraintById(int constraintid, bool free) = 0;
   virtual bool IsRigidBodyConstraintEnabled(int constraintid) = 0;
   virtual float GetAppliedImpulse(int constraintid)
   {
@@ -258,6 +333,25 @@ class PHY_IPhysicsEnvironment {
                                           float toY,
                                           float toZ) = 0;
 
+  /** Bounded ray query. Jolt implements this; other backends report unsupported. */
+  virtual bool RayCast(const PHY_RayQuerySettings &settings,
+                       PHY_IRayCastFilterCallback &filterCallback,
+                       std::vector<PHY_RayCastResult> &results)
+  {
+    return false;
+  }
+
+  /** Declare mesh data that must be retained for detailed ray-query results. */
+  virtual void AddRayQueryDetailRequirements(unsigned char) {}
+
+  /** Convex sweep query. Jolt implements this; other backends report unsupported. */
+  virtual bool ShapeCast(const PHY_ShapeCastSettings &settings,
+                         PHY_IShapeCastFilterCallback &filterCallback,
+                         std::vector<PHY_ShapeCastResult> &results)
+  {
+    return false;
+  }
+
   // culling based on physical broad phase
   // the plane number must be set as follow: near, far, left, right, top, bottom
   // the near plane must be the first one and must always be present, it is used to get the
@@ -277,7 +371,42 @@ class PHY_IPhysicsEnvironment {
                                     void *user) = 0;
   virtual bool RequestCollisionCallback(PHY_IPhysicsController *ctrl) = 0;
   virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl) = 0;
-  virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1) = 0;
+  virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0,
+                                                 PHY_IPhysicsController *ctrl1) = 0;
+  virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0,
+                                                 PHY_IPhysicsController *ctrl1,
+                                                 bool collectContacts)
+  {
+    return CheckCollision(ctrl0, ctrl1);
+  }
+  virtual void SetLogicCollisionContactCacheEnabled(bool) {}
+  virtual void SetLogicCollisionContactCacheEnabled(bool enabled, bool)
+  {
+    SetLogicCollisionContactCacheEnabled(enabled);
+  }
+  virtual bool GetCachedCollisionContacts(
+      PHY_IPhysicsController *,
+      std::vector<PHY_CachedCollisionContact> &,
+      bool)
+  {
+    return false;
+  }
+  virtual bool GetCachedCollisionContactRefs(
+      PHY_IPhysicsController *,
+      const std::vector<const PHY_CachedCollisionContact *> *&,
+      bool)
+  {
+    return false;
+  }
+  /** Return cached contacts for a logical game object that does not own a physics
+   *  controller, such as a child represented by a compound-body sub-shape. */
+  virtual bool GetCachedCollisionContactRefsForObject(
+      KX_GameObject *,
+      const std::vector<const PHY_CachedCollisionContact *> *&,
+      bool)
+  {
+    return false;
+  }
   // These two methods are *solely* used to create controllers for sensor! Don't use for anything
   // else
   virtual PHY_IPhysicsController *CreateSphereController(float radius,
@@ -319,10 +448,11 @@ class PHY_IPhysicsEnvironment {
                                       blender::bRigidBodyJointConstraint *dat,
                                       bool replicate_dupli) = 0;
   /// Returns constraint ID on success, -1 on failure
-  virtual int CreateRigidBodyConstraint(KX_GameObject *gameobj1,
-                                        KX_GameObject *gameobj2,
-                                        const MT_Vector3 &pivotLocal,
-                                        const MT_Matrix3x3 &basisLocal,
-                                        blender::RigidBodyCon *rbc) = 0;
+  virtual int CreateRigidBodyConstraint(
+      KX_GameObject *gameobj1,
+      KX_GameObject *gameobj2,
+      const MT_Vector3 &pivotLocal,
+      const MT_Matrix3x3 &basisLocal,
+      const PHY_RigidBodyConstraintSettings &settings) = 0;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) = 0;
 };

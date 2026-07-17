@@ -54,7 +54,15 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
+#include <map>
+#include <memory>
 #include <optional>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <fmt/format.h>
@@ -87,6 +95,9 @@
 #include "DNA_curve_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
+#ifdef WITH_GAMEENGINE_LOGICNODES
+#  include "DNA_node_types.h"
+#endif
 #include "DNA_object_types.h"
 #include "DNA_python_proxy_types.h"
 #include "DNA_rigidbody_types.h"
@@ -121,6 +132,12 @@
 #include "RAS_Vertex.h"
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
+#endif
+#ifdef WITH_GAMEENGINE_LOGICNODES
+#  include "LN_BindingSource.h"
+#  include "LN_Manager.h"
+#  include "LN_Program.h"
+#  include "LN_TreeCompiler.h"
 #endif
 
 using namespace blender;
@@ -1804,6 +1821,221 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
   }
 }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+static const char *bl_logic_node_severity_name(LN_CompileSeverity severity)
+{
+  switch (severity) {
+    case LN_CompileSeverity::Info:
+      return "info";
+    case LN_CompileSeverity::Warning:
+      return "warning";
+    case LN_CompileSeverity::Error:
+      return "error";
+  }
+  return "unknown";
+}
+
+static bNodeTree *bl_find_logic_node_tree(blender::Main *bmain, const std::string &tree_name)
+{
+  if (bmain == nullptr || tree_name.empty()) {
+    return nullptr;
+  }
+
+  auto is_logic_node_tree = [](const blender::bNodeTree &tree) {
+    return tree.type == NTREE_LOGIC || std::strcmp(tree.idname, "LogicNodeTree") == 0;
+  };
+
+  for (blender::bNodeTree &tree : bmain->nodetrees) {
+    if (!is_logic_node_tree(tree)) {
+      continue;
+    }
+
+    if (tree_name == tree.id.name + 2) {
+      return &tree;
+    }
+  }
+  return nullptr;
+}
+
+static void bl_log_logic_node_compile_report(const LN_Program &program)
+{
+  const LN_CompileReport &report = program.GetCompileReport();
+  const std::string &tree_name = program.GetSourceTreeName();
+
+  if (!report.GetDisabledReason().empty()) {
+    CM_Warning("Logic Nodes tree '" << tree_name << "' disabled: "
+                                    << report.GetDisabledReason());
+  }
+
+  const std::vector<LN_SourceRef> &source_refs = program.GetSourceRefs();
+  for (const LN_CompileIssue &issue : report.GetIssues()) {
+    const LN_SourceRef *source_ref = nullptr;
+    if (issue.source_ref_index < source_refs.size()) {
+      source_ref = &source_refs[issue.source_ref_index];
+    }
+
+    CM_Warning("Logic Nodes " << bl_logic_node_severity_name(issue.severity) << " in tree '"
+                              << tree_name << "'"
+                              << (source_ref ? ", node '" : "")
+                              << (source_ref ? source_ref->node_name : "")
+                              << (source_ref ? "'" : "") << ": " << issue.message);
+  }
+}
+
+static int bl_find_logic_node_scene_object_index(EXP_ListValue<KX_GameObject> *objectlist,
+                                                 EXP_ListValue<KX_GameObject> *inactivelist,
+                                                 KX_GameObject *gameobj,
+                                                 bool &r_runtime_active)
+{
+  r_runtime_active = false;
+
+  if (gameobj == nullptr) {
+    return -1;
+  }
+
+  if (objectlist != nullptr) {
+    for (int i = 0; i < objectlist->GetCount(); i++) {
+      if (objectlist->GetValue(i) == gameobj) {
+        r_runtime_active = true;
+        return i;
+      }
+    }
+  }
+
+  if (inactivelist != nullptr) {
+    const int active_count = objectlist ? objectlist->GetCount() : 0;
+    for (int i = 0; i < inactivelist->GetCount(); i++) {
+      if (inactivelist->GetValue(i) == gameobj) {
+        return active_count + i;
+      }
+    }
+  }
+  return -1;
+}
+
+struct BL_PreparedLogicNodeBindings {
+  std::vector<LN_AppliedTreeDesc> applied_trees;
+  std::map<std::string, std::shared_ptr<LN_Program>> compiled_trees;
+  unsigned char ray_query_detail_requirements = 0;
+};
+
+static std::unique_ptr<BL_PreparedLogicNodeBindings> bl_prepare_logic_node_bindings(
+    blender::Main *bmain,
+    KX_Scene *kxscene,
+    EXP_ListValue<KX_GameObject> *objectlist,
+    EXP_ListValue<KX_GameObject> *converted_objects)
+{
+  if (bmain == nullptr || kxscene == nullptr || converted_objects == nullptr) {
+    return nullptr;
+  }
+
+  std::vector<LN_GameObjectBindingCandidate> candidates;
+  candidates.reserve(converted_objects->GetCount());
+  EXP_ListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
+  for (int i = 0; i < converted_objects->GetCount(); i++) {
+    KX_GameObject *gameobj = converted_objects->GetValue(i);
+    if (gameobj == nullptr) {
+      continue;
+    }
+
+    bool runtime_active = false;
+    const int scene_object_index = bl_find_logic_node_scene_object_index(objectlist,
+                                                                        inactivelist,
+                                                                        gameobj,
+                                                                        runtime_active);
+    if (scene_object_index < 0) {
+      continue;
+    }
+
+    LN_GameObjectBindingCandidate candidate;
+    candidate.blender_object = gameobj->GetBlenderObject();
+    candidate.game_object = gameobj;
+    candidate.scene_object_index = static_cast<uint32_t>(scene_object_index);
+    candidate.runtime_active = runtime_active;
+    candidates.push_back(candidate);
+  }
+
+  std::unique_ptr<BL_PreparedLogicNodeBindings> prepared =
+      std::make_unique<BL_PreparedLogicNodeBindings>();
+  LN_GamePropertyBindingSource binding_source(std::move(candidates));
+  binding_source.CollectAppliedTrees(prepared->applied_trees);
+  if (prepared->applied_trees.empty()) {
+    return nullptr;
+  }
+
+  LN_TreeCompiler compiler;
+  std::set<std::string> reported_missing_trees;
+  std::set<std::string> reported_compile_reports;
+
+  for (const LN_AppliedTreeDesc &applied_tree : prepared->applied_trees) {
+    bNodeTree *tree = bl_find_logic_node_tree(bmain, applied_tree.tree_name);
+    if (tree == nullptr) {
+      if (reported_missing_trees.insert(applied_tree.tree_name).second) {
+        CM_Warning("Logic Nodes binding skipped: missing LogicNodeTree '"
+                   << applied_tree.tree_name << "'");
+      }
+      continue;
+    }
+
+    std::shared_ptr<LN_Program> program;
+    auto program_iter = prepared->compiled_trees.find(applied_tree.tree_name);
+    if (program_iter == prepared->compiled_trees.end()) {
+      program = compiler.Compile(*tree);
+      prepared->compiled_trees.emplace(applied_tree.tree_name, program);
+    }
+    else {
+      program = program_iter->second;
+    }
+
+    if (program == nullptr) {
+      continue;
+    }
+
+    const LN_CompileReport &report = program->GetCompileReport();
+    if (!report.IsEmpty() && reported_compile_reports.insert(applied_tree.tree_name).second) {
+      bl_log_logic_node_compile_report(*program);
+    }
+
+    if (report.HasErrors()) {
+      continue;
+    }
+
+    prepared->ray_query_detail_requirements |=
+        program->GetDependencySummary().ray_query_detail_requirements;
+  }
+
+  return prepared;
+}
+
+static void bl_register_logic_node_bindings(
+    KX_Scene *kxscene, const BL_PreparedLogicNodeBindings *prepared)
+{
+  if (kxscene == nullptr || prepared == nullptr) {
+    return;
+  }
+  LN_Manager *logic_node_manager = kxscene->GetLogicNodeManager();
+  if (logic_node_manager == nullptr) {
+    return;
+  }
+
+  for (const LN_AppliedTreeDesc &applied_tree : prepared->applied_trees) {
+    const auto program_iter = prepared->compiled_trees.find(applied_tree.tree_name);
+    if (program_iter == prepared->compiled_trees.end() || program_iter->second == nullptr ||
+        program_iter->second->GetCompileReport().HasErrors())
+    {
+      continue;
+    }
+
+    logic_node_manager->RegisterCompiledProgram(applied_tree.game_object,
+                                                program_iter->second,
+                                                applied_tree.scene_object_index,
+                                                applied_tree.applied_tree_index,
+                                                applied_tree.enabled,
+                                                applied_tree.runtime_active);
+  }
+}
+#endif
+
 // convert blender objects into ketsji gameobjects
 void BL_ConvertBlenderObjects(blender::Main *maggie,
                               blender::Depsgraph *depsgraph,
@@ -1846,12 +2078,20 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   int aspect_height;
   std::set<blender::Collection *> grouplist;  // list of groups to be converted
   std::set<blender::Object *> groupobj;       // objects from groups (never in active layer)
-  std::set<blender::Object *> rigidBodyConstraintObjects;
+  std::vector<blender::Object *> rigidBodyConstraintObjects;
+  std::unordered_set<blender::Object *> registeredRigidBodyConstraintObjects;
 
   auto register_rigidbody_constraint_object = [&](blender::Object *ob) {
-    if (ob && ob->rigidbody_constraint) {
-      rigidBodyConstraintObjects.insert(ob);
+    if (ob && ob->rigidbody_constraint &&
+        registeredRigidBodyConstraintObjects.insert(ob).second)
+    {
+      rigidBodyConstraintObjects.push_back(ob);
     }
+  };
+
+  auto is_rigidbody_constraint_helper = [&](const blender::Object *ob) {
+    return ob && ob->rigidbody_constraint &&
+           (physics_engine != UseJolt || !(ob->gameflag & OB_COLLISION));
   };
 
   /* We have to ensure that group definitions are only converted once
@@ -1978,7 +2218,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
     register_rigidbody_constraint_object(blenderobject);
-    if (blenderobject->rigidbody_constraint) {
+    if (is_rigidbody_constraint_helper(blenderobject)) {
       continue;
     }
 
@@ -2040,7 +2280,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         blender::Collection *group = *git;
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
           register_rigidbody_constraint_object(blenderobject);
-          if (blenderobject->rigidbody_constraint) {
+          if (is_rigidbody_constraint_helper(blenderobject)) {
             groupobj.insert(blenderobject);
             continue;
           }
@@ -2201,6 +2441,25 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  std::unique_ptr<BL_PreparedLogicNodeBindings> prepared_logic_node_bindings =
+      bl_prepare_logic_node_bindings(maggie, kxscene, objectlist, sumolist);
+  if (prepared_logic_node_bindings && kxscene->GetPhysicsEnvironment()) {
+    unsigned char physics_query_details = PHY_RAY_QUERY_DETAIL_NONE;
+    if ((prepared_logic_node_bindings->ray_query_detail_requirements &
+         LN_RAY_QUERY_DETAIL_FACE_INDEX) != 0)
+    {
+      physics_query_details |= PHY_RAY_QUERY_DETAIL_FACE_INDEX;
+    }
+    if ((prepared_logic_node_bindings->ray_query_detail_requirements &
+         LN_RAY_QUERY_DETAIL_UV) != 0)
+    {
+      physics_query_details |= PHY_RAY_QUERY_DETAIL_UV;
+    }
+    kxscene->GetPhysicsEnvironment()->AddRayQueryDetailRequirements(physics_query_details);
+  }
+#endif
+
   if (!single_object) {
     kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
   }
@@ -2234,75 +2493,108 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         sumolist, kxscene, converter, single_object, converting_instance_col_at_runtime);
   }
 
-  /* Convert rigid body constraints from Blender helper objects to object1-owned constraints. */
-  for (blender::Object *constraintObject : rigidBodyConstraintObjects) {
+  if (physics_engine == UseJolt) {
+    /* Convert rigid body constraints from Blender helper objects to object1-owned constraints. */
     PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
-    RigidBodyCon *rbc = constraintObject->rigidbody_constraint;
-
-    if (!rbc || !(rbc->flag & RBC_FLAG_ENABLED)) {
-      continue;
+    std::unordered_map<blender::Object *, KX_GameObject *> gameObjectByBlenderObject;
+    gameObjectByBlenderObject.reserve(sumolist->GetCount());
+    for (KX_GameObject *gameobj : sumolist) {
+      if (blender::Object *blenderobject = gameobj->GetBlenderObject()) {
+        gameObjectByBlenderObject.emplace(blenderobject, gameobj);
+      }
     }
 
-    Object *ob1 = rbc->ob1;
-    Object *ob2 = rbc->ob2;
+    for (blender::Object *constraintObject : rigidBodyConstraintObjects) {
+      RigidBodyCon *rbc = constraintObject->rigidbody_constraint;
 
-    if (!ob1 && !ob2) {
-      continue;
-    }
+      if (!rbc) {
+        continue;
+      }
 
-    /* If ob1 is null (world), swap so ob1 is the dynamic body and ob2 is world (null). */
-    if (!ob1) {
-      std::swap(ob1, ob2);
-    }
+      Object *ob1 = rbc->ob1;
+      Object *ob2 = rbc->ob2;
 
-    KX_GameObject *gameobj1 = (KX_GameObject *)sumolist->FindValue(ob1->id.name + 2);
-    KX_GameObject *gameobj2 = ob2 ? (KX_GameObject *)sumolist->FindValue(ob2->id.name + 2) : nullptr;
+      if (!ob1 || !ob2 || ob1 == ob2) {
+        continue;
+      }
 
-    if (!gameobj1 || (ob2 && !gameobj2)) {
-      continue;
-    }
+      const auto gameobj1It = gameObjectByBlenderObject.find(ob1);
+      const auto gameobj2It = gameObjectByBlenderObject.find(ob2);
 
-    /* Use BKE_object_to_mat4() to get object matrices from local transform properties
-     * (loc, rot, scale) without depsgraph evaluation. This works for hidden objects. */
-    float constraintMatrix[4][4];
-    float object1Matrix[4][4];
-    BKE_object_to_mat4(constraintObject, constraintMatrix);
-    BKE_object_to_mat4(ob1, object1Matrix);
+      if (gameobj1It == gameObjectByBlenderObject.end() ||
+          gameobj2It == gameObjectByBlenderObject.end())
+      {
+        continue;
+      }
+      KX_GameObject *gameobj1 = gameobj1It->second;
+      KX_GameObject *gameobj2 = gameobj2It->second;
 
-    const MT_Transform constraintWorld(&constraintMatrix[0][0]);
-    const MT_Transform object1World(&object1Matrix[0][0]);
-    MT_Transform object1Inv;
-    object1Inv.invert(object1World);
+      MT_Vector3 constraintWorldPosition;
+      MT_Matrix3x3 constraintWorldOrientation;
+      const auto constraintGameobjIt = gameObjectByBlenderObject.find(constraintObject);
+      if (constraintGameobjIt != gameObjectByBlenderObject.end()) {
+        KX_GameObject *constraintGameobj = constraintGameobjIt->second;
+        constraintWorldPosition = constraintGameobj->NodeGetWorldPosition();
+        constraintWorldOrientation = constraintGameobj->NodeGetWorldOrientation();
+      }
+      else {
+        float constraintMatrix[4][4];
+        if (const blender::Object *constraintObjectEval =
+                DEG_get_evaluated(depsgraph, constraintObject))
+        {
+          copy_m4_m4(constraintMatrix, constraintObjectEval->object_to_world().ptr());
+        }
+        else {
+          BKE_object_where_is_calc_mat4(constraintObject, constraintMatrix);
+        }
+        float location[3];
+        float rotation[3][3];
+        float scale[3];
+        mat4_to_loc_rot_size(location, rotation, scale, constraintMatrix);
+        constraintWorldPosition = MT_Vector3(location);
+        constraintWorldOrientation.setValue3x3(*rotation);
+      }
 
-    const MT_Vector3 pivotLocal = object1Inv * constraintWorld.getOrigin();
-    const MT_Matrix3x3 basisLocal = object1Inv.getBasis() * constraintWorld.getBasis();
+      const MT_Matrix3x3 object1WorldInverse =
+          gameobj1->NodeGetWorldOrientation().inverse();
+      const MT_Vector3 pivotLocal = object1WorldInverse *
+                                    (constraintWorldPosition - gameobj1->NodeGetWorldPosition());
+      const MT_Matrix3x3 basisLocal = object1WorldInverse * constraintWorldOrientation;
 
-    /* Store on object1 for replication (must happen before validation for spawned collections). */
-    gameobj1->AddRigidBodyConstraint(rbc, ob1, ob2, pivotLocal, basisLocal);
+      /* Store on object1 for replication (must happen before validation for spawned collections). */
+      const KX_GameObject::RigidBodyConstraintData *constraintData =
+          gameobj1->AddRigidBodyConstraint(
+              rbc, constraintObject->id.name + 2, ob1, ob2, pivotLocal, basisLocal);
 
-    /* During libloading, only store constraint, don't create it now. */
-    if (libloading) {
-      continue;
-    }
+      /* During libloading, only store constraint, don't create it now. */
+      if (libloading) {
+        continue;
+      }
 
-    /* Skip already converted constraints from linked group definitions. */
-    if (convertedlist->FindValue(gameobj1->GetName())) {
-      continue;
-    }
+      /* Skip already converted constraints from linked group definitions. */
+      if (convertedlist->FindValue(gameobj1->GetName())) {
+        continue;
+      }
 
-    const int constraintLayerMask =
-        (groupobj.find(constraintObject) == groupobj.end()) ? activeLayerBitInfo : 0;
-    const bool validConstraint = (constraintObject->lay & constraintLayerMask) != 0;
-    const bool valid1 = (gameobj1->GetLayer() & activeLayerBitInfo) && gameobj1->GetSGNode() &&
-                        gameobj1->GetPhysicsController();
-    const bool valid2 = !ob2 || ((gameobj2->GetLayer() & activeLayerBitInfo) && gameobj2->GetSGNode() &&
-                                 gameobj2->GetPhysicsController());
+      const int constraintLayerMask =
+          (groupobj.find(constraintObject) == groupobj.end()) ? activeLayerBitInfo : 0;
+      const bool validConstraint = (constraintObject->lay & constraintLayerMask) != 0;
+      const bool valid1 = (gameobj1->GetLayer() & activeLayerBitInfo) && gameobj1->GetSGNode() &&
+                          gameobj1->GetPhysicsController();
+      const bool valid2 = (gameobj2->GetLayer() & activeLayerBitInfo) && gameobj2->GetSGNode() &&
+                          gameobj2->GetPhysicsController();
 
-    if (validConstraint && valid1 && valid2) {
-      int constraintId = physEnv->CreateRigidBodyConstraint(gameobj1, gameobj2, pivotLocal, basisLocal, rbc);
-      /* Store any valid ID (only -1 means failure, other negative values are valid due to int overflow). */
-      if (constraintId != -1) {
-        gameobj1->SetRigidBodyConstraintId(rbc, constraintId);
+      if (validConstraint && valid1 && valid2) {
+        int constraintId = constraintData ? physEnv->CreateRigidBodyConstraint(gameobj1,
+                                                                               gameobj2,
+                                                                               pivotLocal,
+                                                                               basisLocal,
+                                                                               constraintData->m_settings) :
+                                            -1;
+        /* Store any valid ID (only -1 means failure, other negative values are valid due to int overflow). */
+        if (constraintId != -1) {
+          gameobj1->SetRigidBodyConstraintId(rbc, constraintId);
+        }
       }
     }
   }
@@ -2477,6 +2769,10 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
     gameobj->ResetState();
   }
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  bl_register_logic_node_bindings(kxscene, prepared_logic_node_bindings.get());
+#endif
 
   // Convert the python components of each object.
   for (KX_GameObject *gameobj : sumolist) {

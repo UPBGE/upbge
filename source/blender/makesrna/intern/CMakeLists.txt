@@ -69,6 +69,7 @@ set(DEFSRC
   rna_node_socket.cc
   rna_node_tree_interface.cc
   rna_nodetree.cc
+  rna_logic_node_binding.cc
   rna_object.cc
   rna_object_force.cc
   rna_packedfile.cc
@@ -299,6 +300,10 @@ if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
+if(WITH_GAMEENGINE_LOGICNODES)
+  add_definitions(-DWITH_GAMEENGINE_LOGICNODES)
+endif()
+
 
 if(WITH_IMAGE_OPENJPEG)
   add_definitions(-DWITH_IMAGE_OPENJPEG)
@@ -443,6 +448,7 @@ set(SRC
   rna_access_compare_override.cc
   rna_define.cc
   rna_path.cc
+  rna_logic_node_binding.cc
   ${GENSRC}
 
   ${SRC_RNA_INC}

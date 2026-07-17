@@ -36,7 +36,11 @@
 
 #include "KX_KetsjiEngine.h"
 
+#include <algorithm>
+#include <array>
 #include <chrono>
+#include <cstring>
+#include <cmath>
 #include <thread>
 
 #include <fmt/format.h>
@@ -121,6 +125,57 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
     "GPU Latency:"  // tc_latency
 };
 
+std::array<std::deque<KX_KetsjiEngine::FrameTimeGraphSample>,
+           KX_KetsjiEngine::FRAME_TIME_GRAPH_SLOT_COUNT>
+    KX_KetsjiEngine::m_sharedFrameTimeGraphSlots = {};
+
+namespace {
+constexpr int frame_time_graph_default_target_fps = 60;
+constexpr int frame_time_graph_default_window_seconds = 2;
+constexpr int frame_time_graph_min_window_seconds = 1;
+constexpr int frame_time_graph_max_window_seconds = 10;
+constexpr int frame_time_graph_default_max_samples = 10000;
+constexpr int frame_time_graph_min_max_samples = 120;
+constexpr int frame_time_graph_max_max_samples = 60000;
+
+int sanitize_frame_time_graph_window_seconds(const int window_seconds)
+{
+  switch (window_seconds) {
+    case 1:
+    case 2:
+    case 5:
+    case 10:
+      return window_seconds;
+    default:
+      return frame_time_graph_default_window_seconds;
+  }
+}
+
+int sanitize_frame_time_graph_axis(const int axis)
+{
+  return (axis == GAME_FRAME_TIME_GRAPH_AXIS_SECONDS) ? GAME_FRAME_TIME_GRAPH_AXIS_SECONDS :
+                                                        GAME_FRAME_TIME_GRAPH_AXIS_FRAMES;
+}
+
+int sanitize_frame_time_graph_style(const int style)
+{
+  return (style == GAME_FRAME_TIME_GRAPH_STYLE_BARS) ? GAME_FRAME_TIME_GRAPH_STYLE_BARS :
+                                                       GAME_FRAME_TIME_GRAPH_STYLE_LINE;
+}
+
+int sanitize_frame_time_graph_visible_domains(const int domains)
+{
+  return domains & GAME_FRAME_TIME_GRAPH_DOMAIN_ALL;
+}
+
+int sanitize_frame_time_graph_max_samples(const int max_samples)
+{
+  return std::clamp(max_samples, frame_time_graph_min_max_samples,
+                    frame_time_graph_max_max_samples);
+}
+
+}  // namespace
+
 /**
  * Constructor of the Ketsji Engine
  */
@@ -142,9 +197,26 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_clockTime(0.0f),
       m_previousAnimTime(0.0f),
       m_timescale(1.0f),
+      m_average_framerate(0.0),
+      m_forceInterpolationRender(false),
+      m_cameraOverrideActive(false),
       m_previousRealTime(0.0f),
       m_previous_deltaTime(0.0f),
       m_firstEngineFrame(true),
+      m_recordFrameTimeGraphSlot(-1),
+      m_showRecordedFrameTimeGraphSlots(0),
+      m_frameTimeGraphWindowSeconds(frame_time_graph_default_window_seconds),
+      m_frameTimeGraphAxis(GAME_FRAME_TIME_GRAPH_AXIS_FRAMES),
+      m_frameTimeGraphStyle(GAME_FRAME_TIME_GRAPH_STYLE_LINE),
+      m_frameTimeGraphVisibleDomains(GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME),
+      m_frameTimeGraphMaxSamples(frame_time_graph_default_max_samples),
+      m_frameTimeGraphTimelineFrame(0),
+      m_frameTimeGraphTimelineSeconds(0.0),
+      m_frameTimeGraphSamplePending(false),
+      m_frameTimeGraphWorkTimerRunning(false),
+      m_frameTimeGraphPendingRawDelta(0.0),
+      m_frameTimeGraphPendingWorkSeconds(0.0),
+      m_frameTimeGraphWorkStartTime(0.0),
       m_anim_framerate(25.0),
       m_useFixedPhysicsTimestep(false),
       m_enablePhysicsInterpolation(false),
@@ -167,9 +239,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_cameraZoom(1.0f),
       m_overrideCamZoom(1.0f),
       m_logger(KX_TimeCategoryLogger(m_clock, 25)),
-      m_average_framerate(0.0),
-      m_forceInterpolationRender(false),
-      m_cameraOverrideActive(false),
       m_showBoundingBox(KX_DebugOption::DISABLE),
       m_showArmature(KX_DebugOption::DISABLE),
       m_showCameraFrustum(KX_DebugOption::DISABLE),
@@ -325,14 +394,29 @@ void KX_KetsjiEngine::EndFrame()
   m_rasterizer->EndFrame();
 
   m_logger.StartLog(tc_logic);
+  if (m_frameTimeGraphSamplePending) {
+    PauseFrameTimeGraphWorkTimer();
+  }
   m_canvas->FlushScreenshots();
+  if (m_frameTimeGraphSamplePending) {
+    ResumeFrameTimeGraphWorkTimer();
+  }
 
   // swap backbuffer (drawing into this buffer) <-> front/visible buffer
   m_logger.StartLog(tc_latency);
+  if (m_frameTimeGraphSamplePending) {
+    PauseFrameTimeGraphWorkTimer();
+  }
   m_canvas->SwapBuffers();
+  if (m_frameTimeGraphSamplePending) {
+    ResumeFrameTimeGraphWorkTimer();
+  }
   m_logger.StartLog(tc_rasterizer);
 
   m_canvas->EndDraw();
+  if (m_frameTimeGraphSamplePending) {
+    FinishFrameTimeGraphSample();
+  }
 }
 
 void KX_KetsjiEngine::EndFrameViewportRender()
@@ -343,7 +427,8 @@ void KX_KetsjiEngine::EndFrameViewportRender()
     RenderDebugProperties();
   }
 
-  m_rasterizer->FlushDebugDraw(m_canvas);
+  /* Viewport render draws BGE debug geometry during wm_draw_update. Keep end-frame debug text in
+   * RAS_DebugDraw; it is flushed before the next viewport draw. */
 
   double tottime = m_logger.GetAverage();
   if (tottime < 1e-6)
@@ -370,7 +455,13 @@ void KX_KetsjiEngine::EndFrameViewportRender()
   // m_rasterizer->EndFrame();
 
   m_logger.StartLog(tc_logic);
+  if (m_frameTimeGraphSamplePending) {
+    PauseFrameTimeGraphWorkTimer();
+  }
   m_canvas->FlushScreenshots();
+  if (m_frameTimeGraphSamplePending) {
+    ResumeFrameTimeGraphWorkTimer();
+  }
 
   // swap backbuffer (drawing into this buffer) <-> front/visible buffer
   m_logger.StartLog(tc_latency);
@@ -378,6 +469,9 @@ void KX_KetsjiEngine::EndFrameViewportRender()
   m_logger.StartLog(tc_rasterizer);
 
   m_canvas->EndDraw();
+  if (m_frameTimeGraphSamplePending) {
+    FinishFrameTimeGraphSample();
+  }
 }
 
 /******************************************************************************
@@ -443,6 +537,7 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 
   // Get elapsed time.
   double dt = m_clockTime - m_previousRealTime;
+  const double raw_dt = dt;
 
   // Only clamp dt for variable physics mode
   // Fixed physics mode handles large dt correctly via accumulator + maxPhysicsSteps
@@ -472,6 +567,11 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   }
   else {
     times = GetFrameTimesVariable(dt);
+  }
+
+  if (!m_useFixedPhysicsTimestep && IsFrameTimeGraphSamplingEnabled() &&
+      (times.frames > 0 || times.physicsFrames > 0)) {
+    BeginFrameTimeGraphSample(raw_dt);
   }
 
   // Update previous time tracking based on mode:
@@ -523,6 +623,10 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimesFixed(double dt)
     // Always update previousClockTime to consume the elapsed time
     // This prevents time double-counting when physicsFrames == 0
     m_previousClockTime = m_clockTime;
+  }
+
+  if (IsFrameTimeGraphSamplingEnabled()) {
+    BeginFrameTimeGraphSample(actualDt);
   }
 
   // Apply timescale to real elapsed time to get game time delta
@@ -694,7 +798,7 @@ void KX_KetsjiEngine::ProcessSceneLogic(KX_Scene *scene, const FrameTimes &times
 
   // Do some cleanup work for this logic frame
   m_logger.StartLog(tc_logic);
-  scene->LogicUpdateFrame(m_frameTime);
+  scene->LogicUpdateFrame(m_frameTime, times.useFixedPhysicsTimestep, times.physicsTimestep);
 
   scene->LogicEndFrame();
 
@@ -875,6 +979,10 @@ bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
   // If a heavy frame made us miss multiple deadlines, drop accumulated debt
   // to avoid a long uncapped catch-up phase after load recovers.
   if (m_useFixedFPSCap) {
+    if (m_frameTimeGraphSamplePending) {
+      PauseFrameTimeGraphWorkTimer();
+    }
+
     using clock = std::chrono::steady_clock;
     // Use renderCapRate to control rendering rate
     const auto period = std::chrono::duration_cast<clock::duration>(
@@ -901,6 +1009,10 @@ bool KX_KetsjiEngine::NextFrameFixed(const FrameTimes &times)
     }
     // Advance the next deadline by exactly one period
     m_nextFrameDeadline += period;
+
+    if (m_frameTimeGraphSamplePending) {
+      ResumeFrameTimeGraphWorkTimer();
+    }
   }
 
   return m_doRender;
@@ -1492,9 +1604,13 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   bool is_last_render_pass = rendercam == m_renderingCameras.back();
 
+  if (UseViewportRender() && scene->GetPhysicsEnvironment()) {
+    scene->GetPhysicsEnvironment()->DebugDrawWorld();
+  }
+
   scene->RenderAfterCameraSetup(rendercam, background_fb, viewport, is_overlay_pass, is_last_render_pass);
 
-  if (scene->GetPhysicsEnvironment()) {
+  if (!UseViewportRender() && scene->GetPhysicsEnvironment()) {
     scene->GetPhysicsEnvironment()->DebugDrawWorld();
   }
 }
@@ -1649,15 +1765,24 @@ void KX_KetsjiEngine::RenderDebugProperties()
       break;
   }
 
-  float tottime = m_logger.GetAverage();
-  if (tottime < 1e-6f) {
-    tottime = 1e-6f;
+  float avg_frame_seconds = m_logger.GetAverage();
+  if (avg_frame_seconds < 1e-6f) {
+    avg_frame_seconds = 1e-6f;
   }
+
+  const float raw_frame_ms = !m_liveFrameTimeGraph.empty() ?
+                                 std::max(m_liveFrameTimeGraph.back().raw_frame_ms, 0.001f) :
+                                 (avg_frame_seconds * 1000.0f);
+  const float raw_frame_seconds = std::max(raw_frame_ms * 0.001f, 1e-6f);
 
   static const MT_Vector4 white(1.0f, 1.0f, 1.0f, 1.0f);
 
   // Use nullptrfor no scene.
   RAS_DebugDraw &debugDraw = m_rasterizer->GetDebugDraw();
+
+  if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
+    RenderFrameTimeGraph(debugDraw, xcoord, ycoord, profile_indent, profile_size);
+  }
 
   if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
     // Title for profiling("Profile")
@@ -1675,7 +1800,17 @@ void KX_KetsjiEngine::RenderDebugProperties()
   if (m_flags & SHOW_FRAMERATE) {
     debugDraw.RenderText2D("Frametime:", MT_Vector2(xcoord + const_xindent, ycoord), white);
 
-    debugtxt = fmt::format("{:>5.2f}ms ({:.1f}fps)", (tottime * 1000.0f), (1.0f / tottime));
+    debugtxt = fmt::format("{:>5.2f}ms ({:.1f}fps)", raw_frame_ms, (1.0f / raw_frame_seconds));
+    debugDraw.RenderText2D(
+        debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
+    // Increase the indent by default increase
+    ycoord += const_ysize;
+
+    debugDraw.RenderText2D("Avg frame:", MT_Vector2(xcoord + const_xindent, ycoord), white);
+
+    debugtxt = fmt::format("{:>5.2f}ms ({:.1f}fps)",
+                           (avg_frame_seconds * 1000.0f),
+                           (1.0f / avg_frame_seconds));
     debugDraw.RenderText2D(
         debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
     // Increase the indent by default increase
@@ -1690,11 +1825,13 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
       double time = m_logger.GetAverage((KX_TimeCategory)j);
 
-      debugtxt = fmt::format("{:>5.2f}ms | {}%", (time * 1000.f), (int)(time / tottime * 100.f));
+      debugtxt = fmt::format("{:>5.2f}ms | {}%",
+                             (time * 1000.f),
+                             (int)(time / avg_frame_seconds * 100.f));
       debugDraw.RenderText2D(
           debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
 
-      const MT_Vector2 boxSize(50 * (time / tottime), 10);
+      const MT_Vector2 boxSize(50 * (time / avg_frame_seconds), 10);
       debugDraw.RenderBox2D(
           MT_Vector2(xcoord + (int)(2.2 * profile_indent), ycoord), boxSize, white);
       ycoord += const_ysize;
@@ -1721,6 +1858,685 @@ void KX_KetsjiEngine::RenderDebugProperties()
     for (KX_Scene *scene : m_scenes) {
       scene->RenderDebugProperties(
           debugDraw, const_xindent, const_ysize, xcoord, ycoord, propsMax);
+    }
+  }
+}
+
+int KX_KetsjiEngine::GetFrameTimeGraphTargetFPS() const
+{
+  if (m_useFixedPhysicsTimestep && m_useFixedFPSCap && m_fixedRenderCapRate > 0) {
+    return std::clamp(m_fixedRenderCapRate, 1, 480);
+  }
+  if (!m_useFixedPhysicsTimestep && m_ticrate > 0.0) {
+    return std::clamp(int(std::lround(m_ticrate)), 1, 10000);
+  }
+  return frame_time_graph_default_target_fps;
+}
+
+int KX_KetsjiEngine::GetFrameTimeGraphSampleFPS() const
+{
+  int sample_fps = GetFrameTimeGraphTargetFPS();
+
+  if (m_liveFrameTimeGraph.size() >= 2) {
+    const double seconds = double(m_liveFrameTimeGraph.back().timeline_seconds -
+                                  m_liveFrameTimeGraph.front().timeline_seconds);
+    if (seconds > 0.0) {
+      const double observed_fps = double(m_liveFrameTimeGraph.size() - 1) / seconds;
+      sample_fps = std::max(sample_fps, int(std::ceil(observed_fps)));
+    }
+  }
+
+  return std::clamp(sample_fps, 1, frame_time_graph_max_max_samples);
+}
+
+int KX_KetsjiEngine::GetFrameTimeGraphWindowSeconds() const
+{
+  return sanitize_frame_time_graph_window_seconds(m_frameTimeGraphWindowSeconds);
+}
+
+int KX_KetsjiEngine::GetFrameTimeGraphFrameWindow() const
+{
+  return std::clamp(GetFrameTimeGraphSampleFPS() * GetFrameTimeGraphWindowSeconds(),
+                    2,
+                    frame_time_graph_max_max_samples);
+}
+
+int KX_KetsjiEngine::GetFrameTimeGraphMaxSamples() const
+{
+  return sanitize_frame_time_graph_max_samples(m_frameTimeGraphMaxSamples);
+}
+
+int KX_KetsjiEngine::GetFrameTimeGraphVisibleDomains() const
+{
+  return sanitize_frame_time_graph_visible_domains(m_frameTimeGraphVisibleDomains);
+}
+
+float KX_KetsjiEngine::GetFrameTimeGraphDomainValue(const FrameTimeGraphSample &sample,
+                                                    const int domain) const
+{
+  switch (domain) {
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME:
+      return sample.raw_frame_ms;
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_WORK:
+      return sample.engine_frame_ms;
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_PHYSICS:
+      return sample.category_ms[tc_physics];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_LOGIC:
+      return sample.category_ms[tc_logic];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_ANIMATIONS:
+      return sample.category_ms[tc_animations];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_DEPSGRAPH:
+      return sample.category_ms[tc_depsgraph];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_NETWORK:
+      return sample.category_ms[tc_network];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_SCENEGRAPH:
+      return sample.category_ms[tc_scenegraph];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_RASTERIZER:
+      return sample.category_ms[tc_rasterizer];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_SERVICES:
+      return sample.category_ms[tc_services];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_OVERHEAD:
+      return sample.category_ms[tc_overhead];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_OUTSIDE:
+      return sample.category_ms[tc_outside];
+    case GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY:
+      return sample.category_ms[tc_latency];
+    default:
+      return sample.raw_frame_ms;
+  }
+}
+
+bool KX_KetsjiEngine::IsFrameTimeGraphSamplingEnabled() const
+{
+  return (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) != 0;
+}
+
+void KX_KetsjiEngine::BeginFrameTimeGraphSample(const double raw_delta_seconds)
+{
+  m_frameTimeGraphSamplePending = false;
+  m_frameTimeGraphWorkTimerRunning = false;
+  m_frameTimeGraphPendingRawDelta = 0.0;
+  m_frameTimeGraphPendingWorkSeconds = 0.0;
+  m_frameTimeGraphWorkStartTime = 0.0;
+
+  if (!IsFrameTimeGraphSamplingEnabled() || raw_delta_seconds <= 0.0) {
+    return;
+  }
+
+  m_frameTimeGraphSamplePending = true;
+  m_frameTimeGraphWorkTimerRunning = true;
+  m_frameTimeGraphPendingRawDelta = raw_delta_seconds;
+  m_frameTimeGraphWorkStartTime = m_clock.GetTimeSecond();
+}
+
+void KX_KetsjiEngine::PauseFrameTimeGraphWorkTimer()
+{
+  if (!m_frameTimeGraphSamplePending || !m_frameTimeGraphWorkTimerRunning) {
+    return;
+  }
+
+  const double now = m_clock.GetTimeSecond();
+  m_frameTimeGraphPendingWorkSeconds += std::max(0.0, now - m_frameTimeGraphWorkStartTime);
+  m_frameTimeGraphWorkTimerRunning = false;
+}
+
+void KX_KetsjiEngine::ResumeFrameTimeGraphWorkTimer()
+{
+  if (!m_frameTimeGraphSamplePending || m_frameTimeGraphWorkTimerRunning) {
+    return;
+  }
+
+  m_frameTimeGraphWorkStartTime = m_clock.GetTimeSecond();
+  m_frameTimeGraphWorkTimerRunning = true;
+}
+
+void KX_KetsjiEngine::FinishFrameTimeGraphSample()
+{
+  if (!m_frameTimeGraphSamplePending) {
+    return;
+  }
+
+  PauseFrameTimeGraphWorkTimer();
+  StoreFrameTimeGraphSample(m_frameTimeGraphPendingRawDelta, m_frameTimeGraphPendingWorkSeconds);
+
+  m_frameTimeGraphSamplePending = false;
+  m_frameTimeGraphPendingRawDelta = 0.0;
+  m_frameTimeGraphPendingWorkSeconds = 0.0;
+  m_frameTimeGraphWorkStartTime = 0.0;
+}
+
+void KX_KetsjiEngine::StoreFrameTimeGraphSample(const double raw_delta_seconds,
+                                                const double engine_delta_seconds)
+{
+  const int graph_frame_window = GetFrameTimeGraphFrameWindow();
+
+  const float raw_seconds = std::max(0.0f, float(raw_delta_seconds));
+  if (raw_seconds <= 0.0f) {
+    return;
+  }
+  const float engine_seconds = std::max(0.0f, float(engine_delta_seconds));
+
+  m_frameTimeGraphTimelineSeconds += raw_seconds;
+
+  FrameTimeGraphSample sample;
+  sample.timeline_seconds = float(m_frameTimeGraphTimelineSeconds);
+  sample.raw_delta_seconds = raw_seconds;
+  sample.raw_frame_ms = raw_seconds * 1000.0f;
+  sample.engine_delta_seconds = engine_seconds;
+  sample.engine_frame_ms = engine_seconds * 1000.0f;
+  for (int category = tc_first; category < tc_numCategories; ++category) {
+    sample.category_ms[category] = float(m_logger.GetPrevious(KX_TimeCategory(category)) *
+                                         1000.0);
+  }
+
+  ++m_frameTimeGraphTimelineFrame;
+
+  m_liveFrameTimeGraph.push_back(sample);
+  while (m_liveFrameTimeGraph.size() > graph_frame_window && !m_liveFrameTimeGraph.empty()) {
+    m_liveFrameTimeGraph.pop_front();
+  }
+
+  const int record_slot = m_recordFrameTimeGraphSlot;
+  if (record_slot < 0 || record_slot >= FRAME_TIME_GRAPH_SLOT_COUNT) {
+    return;
+  }
+
+  m_recordedFrameTimeGraphs[record_slot].push_back(sample);
+  m_sharedFrameTimeGraphSlots[record_slot].push_back(sample);
+
+  const size_t max_samples = size_t(GetFrameTimeGraphMaxSamples());
+  if (m_recordedFrameTimeGraphs[record_slot].size() > max_samples) {
+    while (m_recordedFrameTimeGraphs[record_slot].size() > max_samples) {
+      m_recordedFrameTimeGraphs[record_slot].pop_front();
+    }
+  }
+  if (m_sharedFrameTimeGraphSlots[record_slot].size() > max_samples) {
+    while (m_sharedFrameTimeGraphSlots[record_slot].size() > max_samples) {
+      m_sharedFrameTimeGraphSlots[record_slot].pop_front();
+    }
+  }
+}
+
+void KX_KetsjiEngine::RenderFrameTimeGraph(RAS_DebugDraw &debugDraw,
+                                           const int xcoord,
+                                           const int ycoord,
+                                           const int profile_indent,
+                                           const short profile_size) const
+{
+  const int graph_target_fps = GetFrameTimeGraphTargetFPS();
+  const int graph_window_seconds = GetFrameTimeGraphWindowSeconds();
+  const int graph_frame_window = GetFrameTimeGraphFrameWindow();
+  const float graph_window_seconds_f = float(graph_window_seconds);
+  const float graph_budget_ms = 1000.0f / float(graph_target_fps);
+  const float graph_max_ms = graph_budget_ms * 2.0f;
+  const int graph_axis = sanitize_frame_time_graph_axis(m_frameTimeGraphAxis);
+  const int graph_style = sanitize_frame_time_graph_style(m_frameTimeGraphStyle);
+  const int visible_domains = GetFrameTimeGraphVisibleDomains();
+  const bool use_seconds_axis = graph_axis == GAME_FRAME_TIME_GRAPH_AXIS_SECONDS;
+  const bool use_bars = graph_style == GAME_FRAME_TIME_GRAPH_STYLE_BARS;
+
+  if (m_canvas == nullptr || m_liveFrameTimeGraph.empty()) {
+    return;
+  }
+
+  const std::array<int, 13> graph_domains = {
+      GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_WORK,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_PHYSICS,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_LOGIC,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_ANIMATIONS,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_DEPSGRAPH,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_NETWORK,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_SCENEGRAPH,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_RASTERIZER,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_SERVICES,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_OVERHEAD,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_OUTSIDE,
+      GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY,
+  };
+  std::vector<int> selected_domains;
+  selected_domains.reserve(graph_domains.size());
+  for (const int domain : graph_domains) {
+    if (visible_domains & domain) {
+      selected_domains.push_back(domain);
+    }
+  }
+  const int selected_domain_count = int(selected_domains.size());
+
+  auto domain_label = [](const int domain) {
+    switch (domain) {
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME:
+        return "Frame";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_WORK:
+        return "Work";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_PHYSICS:
+        return "Physics";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_LOGIC:
+        return "Logic";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_ANIMATIONS:
+        return "Animations";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_DEPSGRAPH:
+        return "Depsgraph";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_NETWORK:
+        return "Network";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_SCENEGRAPH:
+        return "Scenegraph";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_RASTERIZER:
+        return "Rasterizer";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_SERVICES:
+        return "Services";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_OVERHEAD:
+        return "Overhead";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_OUTSIDE:
+        return "Outside";
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY:
+        return "GPU Latency";
+      default:
+        return "Unknown";
+    }
+  };
+
+  auto pixel_center = [](const float value) { return std::floor(value) + 0.5f; };
+  auto pixel_edge = [](const float value) { return std::floor(value); };
+
+  const float graph_left = pixel_center(xcoord + (2.2f * profile_indent) +
+                                        ((profile_size == 2) ? 150.0f :
+                                         ((profile_size == 1) ? 110.0f : 105.0f)));
+  const float graph_right = pixel_center(float(m_canvas->GetWidth()) -
+                                         ((profile_size == 2) ? 24.0f : 18.0f));
+  const float graph_width = graph_right - graph_left;
+  if (graph_width < 96.0f) {
+    return;
+  }
+
+  const float graph_top = pixel_center(std::max(
+      6.0f,
+      float(ycoord) - ((profile_size == 2) ? 22.0f : ((profile_size == 1) ? 17.0f : 11.0f))));
+  const float canvas_height = float(m_canvas->GetHeight());
+  const float profile_target_height = (profile_size == 2) ?
+                                          430.0f :
+                                          ((profile_size == 1) ? 380.0f : 330.0f);
+  const float footer_first_row_offset = (profile_size == 2) ?
+                                            50.0f :
+                                            ((profile_size == 1) ? 38.0f : 28.0f);
+  const float footer_row_gap = (profile_size == 2) ? 32.0f :
+                                                    ((profile_size == 1) ? 24.0f : 18.0f);
+  const float legend_row_gap = (profile_size == 2) ? 30.0f :
+                                                    ((profile_size == 1) ? 23.0f : 18.0f);
+  const float legend_box_size = (profile_size == 2) ? 12.0f :
+                                                     ((profile_size == 1) ? 10.0f : 8.0f);
+  const float legend_text_gap = (profile_size == 2) ? 8.0f :
+                                                     ((profile_size == 1) ? 6.0f : 5.0f);
+  const float legend_item_gap = (profile_size == 2) ? 28.0f :
+                                                     ((profile_size == 1) ? 22.0f : 16.0f);
+  const float legend_char_width = (profile_size == 2) ? 10.0f :
+                                                       ((profile_size == 1) ? 8.0f : 7.0f);
+
+  int legend_rows = 1;
+  float legend_row_width = 0.0f;
+  for (const int domain : selected_domains) {
+    const char *label = domain_label(domain);
+    const float item_width = legend_box_size + legend_text_gap +
+                             (std::strlen(label) * legend_char_width) + legend_item_gap;
+    if (legend_row_width > 0.0f && legend_row_width + item_width > graph_width) {
+      ++legend_rows;
+      legend_row_width = 0.0f;
+    }
+    legend_row_width += std::min(item_width, graph_width);
+  }
+
+  const float footer_height = footer_first_row_offset + (footer_row_gap * 3.0f) +
+                              (legend_row_gap * float(legend_rows + 1)) + 8.0f;
+  const float target_height = std::max(profile_target_height, canvas_height * 0.36f);
+  const float graph_bottom = pixel_center(
+      graph_top + std::min(target_height, canvas_height - graph_top - footer_height));
+  const float graph_height = graph_bottom - graph_top;
+  if (graph_height < 56.0f) {
+    return;
+  }
+
+  const float label_offset = (profile_size == 2) ? 94.0f : ((profile_size == 1) ? 74.0f : 64.0f);
+  const float label_baseline_offset = (profile_size == 2) ? 8.0f :
+                                                            ((profile_size == 1) ? 6.0f : 4.0f);
+
+  static constexpr float live_line_width = 1.0f;
+  const float recorded_marker_size = (profile_size == 2) ?
+                                         5.0f :
+                                         ((profile_size == 1) ? 4.0f : 3.0f);
+
+  const MT_Vector4 grid_color(1.0f, 1.0f, 1.0f, 0.72f);
+  const MT_Vector4 label_color(1.0f, 1.0f, 1.0f, 1.0f);
+  const MT_Vector4 recorded_marker_color(0.82f, 0.82f, 0.82f, 0.9f);
+
+  auto domain_color = [](const int domain, const bool recorded) {
+    const float alpha = recorded ? 0.9f : 0.95f;
+    switch (domain) {
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_FRAME:
+        return MT_Vector4(0.0f, 1.0f, 0.0f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_WORK:
+        return MT_Vector4(0.15f, 0.85f, 1.0f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_PHYSICS:
+        return MT_Vector4(1.0f, 0.58f, 0.12f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_LOGIC:
+        return MT_Vector4(1.0f, 0.25f, 0.75f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_ANIMATIONS:
+        return MT_Vector4(0.68f, 0.45f, 1.0f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_DEPSGRAPH:
+        return MT_Vector4(1.0f, 0.88f, 0.18f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_NETWORK:
+        return MT_Vector4(0.25f, 0.55f, 1.0f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_SCENEGRAPH:
+        return MT_Vector4(0.35f, 1.0f, 0.55f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_RASTERIZER:
+        return MT_Vector4(1.0f, 0.18f, 0.12f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_SERVICES:
+        return MT_Vector4(0.72f, 0.72f, 0.72f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_OVERHEAD:
+        return MT_Vector4(1.0f, 1.0f, 1.0f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_OUTSIDE:
+        return MT_Vector4(0.55f, 0.7f, 0.85f, alpha);
+      case GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY:
+        return MT_Vector4(1.0f, 0.4f, 0.45f, alpha);
+      default:
+        return MT_Vector4(0.0f, 1.0f, 0.0f, alpha);
+    }
+  };
+
+  auto draw_pixel_rect = [&](const float x, const float y, const float width, const float height) {
+    debugDraw.RenderRect2D(MT_Vector2(pixel_edge(x), pixel_edge(y)),
+                           MT_Vector2(std::max(1.0f, width), std::max(1.0f, height)),
+                           grid_color);
+  };
+
+  draw_pixel_rect(graph_left, graph_top, graph_width + 1.0f, 1.0f);
+  draw_pixel_rect(graph_left, graph_bottom, graph_width + 1.0f, 1.0f);
+  draw_pixel_rect(graph_left, graph_top, 1.0f, graph_height + 1.0f);
+  draw_pixel_rect(graph_right, graph_top, 1.0f, graph_height + 1.0f);
+
+  for (const float guide_ms : {graph_budget_ms, graph_max_ms}) {
+    const float y = pixel_center(graph_bottom -
+                                 std::clamp(guide_ms / graph_max_ms, 0.0f, 1.0f) *
+                                     graph_height);
+    if (guide_ms < graph_max_ms) {
+      draw_pixel_rect(graph_left, y, graph_width + 1.0f, 1.0f);
+    }
+    debugDraw.RenderText2D(fmt::format("{:>4.1f} ms", guide_ms),
+                           MT_Vector2(graph_left - label_offset, y + label_baseline_offset),
+                           label_color);
+  }
+  debugDraw.RenderText2D(fmt::format("{:>4.1f} ms", 0.0f),
+                         MT_Vector2(graph_left - label_offset,
+                                    graph_bottom + label_baseline_offset),
+                         label_color);
+
+  for (int divider = 1; divider < graph_window_seconds; ++divider) {
+    const float x = pixel_center(graph_left + (divider / graph_window_seconds_f) * graph_width);
+    draw_pixel_rect(x, graph_top, 1.0f, graph_height + 1.0f);
+  }
+
+  const int window_end_frame = m_frameTimeGraphTimelineFrame - 1;
+  const int window_start_frame = std::max(0, window_end_frame - (graph_frame_window - 1));
+  const float window_end_seconds = std::max(0.0f, m_liveFrameTimeGraph.back().timeline_seconds);
+  const float window_start_seconds = std::max(0.0f, window_end_seconds - graph_window_seconds_f);
+
+  auto sample_axis_unit = [&](const int sample_frame, const float sample_seconds) {
+    if (use_seconds_axis) {
+      return (sample_seconds - window_start_seconds) / graph_window_seconds_f;
+    }
+    return (sample_frame - window_start_frame) / float(graph_frame_window - 1);
+  };
+
+  float min_selected_ms = 0.0f;
+  float max_selected_ms = 0.0f;
+  bool has_visible_stats = false;
+  const int first_live_sample_frame = m_frameTimeGraphTimelineFrame -
+                                      int(m_liveFrameTimeGraph.size());
+  for (int index = 0; index < int(m_liveFrameTimeGraph.size()); ++index) {
+    const FrameTimeGraphSample &sample = m_liveFrameTimeGraph[index];
+    const float axis_unit = sample_axis_unit(first_live_sample_frame + index,
+                                            sample.timeline_seconds);
+    if (axis_unit < 0.0f || axis_unit > 1.0f) {
+      continue;
+    }
+
+    for (const int domain : selected_domains) {
+      const float sample_ms = GetFrameTimeGraphDomainValue(sample, domain);
+      if (!has_visible_stats) {
+        min_selected_ms = max_selected_ms = sample_ms;
+        has_visible_stats = true;
+      }
+      else {
+        min_selected_ms = std::min(min_selected_ms, sample_ms);
+        max_selected_ms = std::max(max_selected_ms, sample_ms);
+      }
+    }
+  }
+  if (!has_visible_stats) {
+    min_selected_ms = max_selected_ms = 0.0f;
+  }
+
+  const float footer_first_row = graph_bottom + footer_first_row_offset;
+  debugDraw.RenderText2D(
+      fmt::format("Selected min/max: {:.2f}/{:.2f} ms", min_selected_ms, max_selected_ms),
+      MT_Vector2(graph_left, footer_first_row),
+      label_color);
+  debugDraw.RenderText2D(
+      fmt::format("Real time: {:.2f} s", m_clockTime),
+      MT_Vector2(graph_left, footer_first_row + footer_row_gap),
+      label_color);
+  debugDraw.RenderText2D(
+      fmt::format("Game time: {:.2f} s", m_frameTime),
+      MT_Vector2(graph_left, footer_first_row + (footer_row_gap * 2.0f)),
+      label_color);
+
+  const float legend_title_y = footer_first_row + (footer_row_gap * 3.0f);
+  debugDraw.RenderText2D("Domains:", MT_Vector2(graph_left, legend_title_y), label_color);
+
+  float legend_x = graph_left;
+  float legend_y = legend_title_y + legend_row_gap;
+  if (selected_domains.empty()) {
+    debugDraw.RenderText2D("None", MT_Vector2(legend_x, legend_y), label_color);
+  }
+  else {
+    for (const int domain : selected_domains) {
+      const char *label = domain_label(domain);
+      const float item_width = legend_box_size + legend_text_gap +
+                               (std::strlen(label) * legend_char_width) + legend_item_gap;
+      if (legend_x > graph_left && legend_x + item_width > graph_right) {
+        legend_x = graph_left;
+        legend_y += legend_row_gap;
+      }
+
+      debugDraw.RenderRect2D(
+          MT_Vector2(pixel_edge(legend_x),
+                     pixel_edge(legend_y - legend_box_size + label_baseline_offset)),
+          MT_Vector2(legend_box_size, legend_box_size),
+          domain_color(domain, false));
+      debugDraw.RenderText2D(
+          label, MT_Vector2(legend_x + legend_box_size + legend_text_gap, legend_y), label_color);
+      legend_x += std::min(item_width, graph_width);
+    }
+  }
+
+  auto graph_point = [&](const float axis_unit, const float frame_ms) {
+    const float x = pixel_center(graph_left + std::clamp(axis_unit, 0.0f, 1.0f) * graph_width);
+    const float y = pixel_center(graph_bottom -
+                                 std::clamp(frame_ms / graph_max_ms, 0.0f, 1.0f) *
+                                     graph_height);
+    return MT_Vector2(x, y);
+  };
+
+  auto draw_clipped_line = [&](const float from_axis,
+                               const float from_ms,
+                               const float to_axis,
+                               const float to_ms,
+                               const MT_Vector4 &color,
+                               const float width) {
+    if (from_axis == to_axis || to_axis < 0.0f || from_axis > 1.0f) {
+      return;
+    }
+
+    float axis0 = from_axis;
+    float axis1 = to_axis;
+    float ms0 = from_ms;
+    float ms1 = to_ms;
+    if (axis0 > axis1) {
+      std::swap(axis0, axis1);
+      std::swap(ms0, ms1);
+    }
+    if (axis1 < 0.0f || axis0 > 1.0f || axis0 == axis1) {
+      return;
+    }
+
+    const float original_axis0 = axis0;
+    const float original_axis1 = axis1;
+    const float original_ms0 = ms0;
+    const float original_ms1 = ms1;
+
+    if (axis0 < 0.0f) {
+      const float factor = (0.0f - original_axis0) / (original_axis1 - original_axis0);
+      axis0 = 0.0f;
+      ms0 = original_ms0 + factor * (original_ms1 - original_ms0);
+    }
+    if (axis1 > 1.0f) {
+      const float factor = (1.0f - original_axis0) / (original_axis1 - original_axis0);
+      axis1 = 1.0f;
+      ms1 = original_ms0 + factor * (original_ms1 - original_ms0);
+    }
+
+    debugDraw.RenderLine2D(graph_point(axis0, ms0), graph_point(axis1, ms1), color, width);
+  };
+
+  auto draw_bar = [&](const float axis_unit,
+                      const float frame_ms,
+                      const MT_Vector4 &color,
+                      const int domain_index) {
+    if (axis_unit < 0.0f || axis_unit > 1.0f) {
+      return;
+    }
+
+    const float sample_width = std::max(1.0f,
+                                        std::floor(graph_width / float(graph_frame_window)));
+    const float bar_width = std::max(1.0f, (sample_width * 0.9f) /
+                                               float(selected_domain_count));
+    const float bar_offset = (float(domain_index) -
+                              ((float(selected_domain_count) - 1.0f) * 0.5f)) *
+                             bar_width;
+    const MT_Vector2 point = graph_point(axis_unit, frame_ms);
+    debugDraw.RenderRect2D(MT_Vector2(pixel_edge(point.x() + bar_offset - (bar_width * 0.5f)),
+                                      pixel_edge(point.y())),
+                           MT_Vector2(bar_width, std::max(1.0f, graph_bottom - point.y())),
+                           color);
+  };
+
+  auto draw_marker = [&](const float axis_unit, const float frame_ms) {
+    if (axis_unit < 0.0f || axis_unit > 1.0f) {
+      return;
+    }
+
+    const MT_Vector2 point = graph_point(axis_unit, frame_ms);
+    const float half_size = recorded_marker_size * 0.5f;
+    debugDraw.RenderRect2D(MT_Vector2(pixel_edge(point.x() - half_size),
+                                      pixel_edge(point.y() - half_size)),
+                           MT_Vector2(recorded_marker_size, recorded_marker_size),
+                           recorded_marker_color);
+  };
+
+  auto draw_series = [&](const std::deque<FrameTimeGraphSample> &samples,
+                         const bool recorded,
+                         const int domain,
+                         const int domain_index,
+                         const MT_Vector4 &constant_color) {
+    if (samples.empty() || m_frameTimeGraphTimelineFrame <= 0) {
+      return;
+    }
+
+    const bool draw_bars = use_bars && !recorded;
+    bool has_previous = false;
+    float previous_axis = 0.0f;
+    float previous_ms = 0.0f;
+    const int sample_count = int(samples.size());
+    const int first_sample_frame = recorded ? 0 : m_frameTimeGraphTimelineFrame - sample_count;
+    int start_index = 0;
+    int end_index = sample_count;
+
+    if (use_seconds_axis) {
+      const auto lower = std::lower_bound(
+          samples.begin(),
+          samples.end(),
+          window_start_seconds,
+          [](const FrameTimeGraphSample &sample, const float seconds) {
+            return sample.timeline_seconds < seconds;
+          });
+      const auto upper = std::upper_bound(
+          samples.begin(),
+          samples.end(),
+          window_end_seconds,
+          [](const float seconds, const FrameTimeGraphSample &sample) {
+            return seconds < sample.timeline_seconds;
+          });
+      start_index = int(lower - samples.begin());
+      end_index = int(upper - samples.begin());
+      if (!recorded && start_index > 0) {
+        --start_index;
+      }
+    }
+    else {
+      start_index = std::clamp(window_start_frame - first_sample_frame, 0, sample_count);
+      end_index = std::clamp(window_end_frame - first_sample_frame + 1, 0, sample_count);
+      if (!recorded && start_index > 0) {
+        --start_index;
+      }
+    }
+
+    if (start_index >= end_index) {
+      return;
+    }
+
+    for (int index = start_index; index < end_index; ++index) {
+      const FrameTimeGraphSample &sample = samples[index];
+      const int sample_frame = first_sample_frame + index;
+      const float axis_unit = sample_axis_unit(sample_frame, sample.timeline_seconds);
+      const float sample_ms = GetFrameTimeGraphDomainValue(sample, domain);
+
+      if (recorded) {
+        draw_marker(axis_unit, sample_ms);
+      }
+      else if (draw_bars) {
+        draw_bar(axis_unit, sample_ms, constant_color, domain_index);
+      }
+      else if (has_previous) {
+        draw_clipped_line(previous_axis,
+                          previous_ms,
+                          axis_unit,
+                          sample_ms,
+                          constant_color,
+                          live_line_width);
+      }
+
+      previous_axis = axis_unit;
+      previous_ms = sample_ms;
+      has_previous = true;
+    }
+  };
+
+  for (int domain_index = 0; domain_index < selected_domain_count; ++domain_index) {
+    const int domain = selected_domains[domain_index];
+    draw_series(m_liveFrameTimeGraph, false, domain, domain_index, domain_color(domain, false));
+  }
+
+  for (int slot = 0; slot < FRAME_TIME_GRAPH_SLOT_COUNT; ++slot) {
+    if ((m_showRecordedFrameTimeGraphSlots & (1 << slot)) == 0) {
+      continue;
+    }
+    if (slot == m_recordFrameTimeGraphSlot) {
+      continue;
+    }
+
+    const std::deque<FrameTimeGraphSample> &samples = m_recordedFrameTimeGraphs[slot];
+    for (int domain_index = 0; domain_index < selected_domain_count; ++domain_index) {
+      const int domain = selected_domains[domain_index];
+      draw_series(samples, true, domain, domain_index, domain_color(domain, true));
     }
   }
 }
@@ -2019,6 +2835,57 @@ void KX_KetsjiEngine::SetFlag(FlagType flag, bool enable)
       m_cameraOverrideActive = false;
     }
   }
+
+  if ((flag & (SHOW_PROFILE | SHOW_FRAMERATE)) && !IsFrameTimeGraphSamplingEnabled()) {
+    m_recordFrameTimeGraphSlot = -1;
+    m_frameTimeGraphSamplePending = false;
+    m_frameTimeGraphWorkTimerRunning = false;
+    m_frameTimeGraphPendingRawDelta = 0.0;
+    m_frameTimeGraphPendingWorkSeconds = 0.0;
+    m_frameTimeGraphWorkStartTime = 0.0;
+    m_liveFrameTimeGraph.clear();
+  }
+}
+
+void KX_KetsjiEngine::SetFrameTimeGraphSettings(const int window_seconds,
+                                                const int axis,
+                                                const int style,
+                                                const int max_samples,
+                                                const int visible_domains)
+{
+  m_frameTimeGraphWindowSeconds = sanitize_frame_time_graph_window_seconds(window_seconds);
+  m_frameTimeGraphAxis = sanitize_frame_time_graph_axis(axis);
+  m_frameTimeGraphStyle = sanitize_frame_time_graph_style(style);
+  m_frameTimeGraphMaxSamples = sanitize_frame_time_graph_max_samples(max_samples);
+  m_frameTimeGraphVisibleDomains = sanitize_frame_time_graph_visible_domains(visible_domains);
+}
+
+void KX_KetsjiEngine::SetFrameTimeGraphSlots(const int record_slot, const int visible_slots)
+{
+  m_showRecordedFrameTimeGraphSlots = visible_slots & ((1 << FRAME_TIME_GRAPH_SLOT_COUNT) - 1);
+  m_recordFrameTimeGraphSlot = (record_slot >= 0 && record_slot < FRAME_TIME_GRAPH_SLOT_COUNT) ?
+                                   record_slot :
+                                   -1;
+
+  for (int slot = 0; slot < FRAME_TIME_GRAPH_SLOT_COUNT; ++slot) {
+    const size_t max_samples = size_t(GetFrameTimeGraphMaxSamples());
+    while (m_sharedFrameTimeGraphSlots[slot].size() > max_samples) {
+      m_sharedFrameTimeGraphSlots[slot].pop_front();
+    }
+
+    const bool show_slot = (m_showRecordedFrameTimeGraphSlots & (1 << slot)) != 0;
+    if (!show_slot || slot == m_recordFrameTimeGraphSlot) {
+      m_recordedFrameTimeGraphs[slot].clear();
+      continue;
+    }
+
+    m_recordedFrameTimeGraphs[slot] = m_sharedFrameTimeGraphSlots[slot];
+  }
+
+  if (m_recordFrameTimeGraphSlot >= 0) {
+    m_recordedFrameTimeGraphs[m_recordFrameTimeGraphSlot].clear();
+    m_sharedFrameTimeGraphSlots[m_recordFrameTimeGraphSlot].clear();
+  }
 }
 
 void KX_KetsjiEngine::ForceInterpolationRender()
@@ -2065,6 +2932,13 @@ double KX_KetsjiEngine::GetAverageFrameRate()
 double KX_KetsjiEngine::GetFrameTime(void) const
 {
   return m_clockTime;
+}
+
+double KX_KetsjiEngine::GetCurrentAnimationTime() const
+{
+  /* Logic, physics, and `BL_Action::Update` advance this timeline; it must match `m_starttime` in
+   * `BL_Action::Play` so frame ranges are not skipped in a single tick. */
+  return m_frameTime;
 }
 
 double KX_KetsjiEngine::GetRealTime(void) const

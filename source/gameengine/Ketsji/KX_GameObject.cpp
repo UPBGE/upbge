@@ -56,6 +56,7 @@
 #include <cfloat>
 #include <cmath>
 #include <string>
+#include <utility>
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
@@ -85,6 +86,106 @@
 using namespace blender;
 
 static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);
+static PHY_RigidBodyConstraintSettings RigidBodyConstraintSettingsFromBlender(
+    const blender::RigidBodyCon &rbc)
+{
+  PHY_RigidBodyConstraintSettings settings;
+  settings.type = static_cast<PHY_RigidBodyConstraintType>(rbc.type);
+  settings.spring_type = static_cast<PHY_RigidBodyConstraintSpringType>(rbc.spring_type);
+  settings.flags = 0;
+  if (rbc.flag & RBC_FLAG_ENABLED) {
+    settings.flags |= PHY_RB_CONSTRAINT_ENABLED;
+  }
+  if (rbc.flag & RBC_FLAG_DISABLE_COLLISIONS) {
+    settings.flags |= PHY_RB_CONSTRAINT_DISABLE_COLLISIONS;
+  }
+  if (rbc.flag & RBC_FLAG_USE_BREAKING) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_BREAKING;
+  }
+  if (rbc.flag & RBC_FLAG_OVERRIDE_SOLVER_ITERATIONS) {
+    settings.flags |= PHY_RB_CONSTRAINT_OVERRIDE_SOLVER_ITERATIONS;
+  }
+  if (rbc.flag & RBC_FLAG_JOLT_OVERRIDE_SOLVER_ITERATIONS) {
+    settings.flags |= PHY_RB_CONSTRAINT_JOLT_OVERRIDE_SOLVER_ITERATIONS;
+  }
+  if (rbc.flag & RBC_FLAG_USE_LIMIT_LIN_X) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X;
+  }
+  if (rbc.flag & RBC_FLAG_USE_LIMIT_LIN_Y) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Y;
+  }
+  if (rbc.flag & RBC_FLAG_USE_LIMIT_LIN_Z) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Z;
+  }
+  if (rbc.flag & RBC_FLAG_USE_LIMIT_ANG_X) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X;
+  }
+  if (rbc.flag & RBC_FLAG_USE_LIMIT_ANG_Y) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Y;
+  }
+  if (rbc.flag & RBC_FLAG_USE_LIMIT_ANG_Z) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z;
+  }
+  if (rbc.flag & RBC_FLAG_USE_SPRING_X) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_SPRING_X;
+  }
+  if (rbc.flag & RBC_FLAG_USE_SPRING_Y) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_SPRING_Y;
+  }
+  if (rbc.flag & RBC_FLAG_USE_SPRING_Z) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_SPRING_Z;
+  }
+  if (rbc.flag & RBC_FLAG_USE_SPRING_ANG_X) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_SPRING_ANG_X;
+  }
+  if (rbc.flag & RBC_FLAG_USE_SPRING_ANG_Y) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_SPRING_ANG_Y;
+  }
+  if (rbc.flag & RBC_FLAG_USE_SPRING_ANG_Z) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_SPRING_ANG_Z;
+  }
+  if (rbc.flag & RBC_FLAG_USE_MOTOR_LIN) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_MOTOR_LIN;
+  }
+  if (rbc.flag & RBC_FLAG_USE_MOTOR_ANG) {
+    settings.flags |= PHY_RB_CONSTRAINT_USE_MOTOR_ANG;
+  }
+
+  settings.num_solver_iterations = rbc.num_solver_iterations;
+  settings.jolt_velocity_solver_iterations = rbc.jolt_velocity_solver_iterations;
+  settings.jolt_position_solver_iterations = rbc.jolt_position_solver_iterations;
+  settings.breaking_threshold = rbc.breaking_threshold;
+  settings.limit_lin_x_lower = rbc.limit_lin_x_lower;
+  settings.limit_lin_x_upper = rbc.limit_lin_x_upper;
+  settings.limit_lin_y_lower = rbc.limit_lin_y_lower;
+  settings.limit_lin_y_upper = rbc.limit_lin_y_upper;
+  settings.limit_lin_z_lower = rbc.limit_lin_z_lower;
+  settings.limit_lin_z_upper = rbc.limit_lin_z_upper;
+  settings.limit_ang_x_lower = rbc.limit_ang_x_lower;
+  settings.limit_ang_x_upper = rbc.limit_ang_x_upper;
+  settings.limit_ang_y_lower = rbc.limit_ang_y_lower;
+  settings.limit_ang_y_upper = rbc.limit_ang_y_upper;
+  settings.limit_ang_z_lower = rbc.limit_ang_z_lower;
+  settings.limit_ang_z_upper = rbc.limit_ang_z_upper;
+  settings.spring_stiffness_x = rbc.spring_stiffness_x;
+  settings.spring_stiffness_y = rbc.spring_stiffness_y;
+  settings.spring_stiffness_z = rbc.spring_stiffness_z;
+  settings.spring_stiffness_ang_x = rbc.spring_stiffness_ang_x;
+  settings.spring_stiffness_ang_y = rbc.spring_stiffness_ang_y;
+  settings.spring_stiffness_ang_z = rbc.spring_stiffness_ang_z;
+  settings.spring_damping_x = rbc.spring_damping_x;
+  settings.spring_damping_y = rbc.spring_damping_y;
+  settings.spring_damping_z = rbc.spring_damping_z;
+  settings.spring_damping_ang_x = rbc.spring_damping_ang_x;
+  settings.spring_damping_ang_y = rbc.spring_damping_ang_y;
+  settings.spring_damping_ang_z = rbc.spring_damping_ang_z;
+  settings.motor_lin_target_velocity = rbc.motor_lin_target_velocity;
+  settings.motor_ang_target_velocity = rbc.motor_ang_target_velocity;
+  settings.motor_lin_max_impulse = rbc.motor_lin_max_impulse;
+  settings.motor_ang_max_impulse = rbc.motor_ang_max_impulse;
+  return settings;
+}
+
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
 static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
     1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -775,24 +876,34 @@ void KX_GameObject::ClearConstraints()
   m_constraints.clear();
 }
 
-void KX_GameObject::AddRigidBodyConstraint(blender::RigidBodyCon *cons,
-                                           blender::Object *ob1,
-                                           blender::Object *ob2,
-                                           const MT_Vector3 &pivotLocal,
-                                           const MT_Matrix3x3 &basisLocal)
+KX_GameObject::RigidBodyConstraintData *KX_GameObject::AddRigidBodyConstraint(
+    blender::RigidBodyCon *cons,
+    const std::string &name,
+    blender::Object *ob1,
+    blender::Object *ob2,
+    const MT_Vector3 &pivotLocal,
+    const MT_Matrix3x3 &basisLocal)
 {
+  if (!cons) {
+    return nullptr;
+  }
+
   for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
-    if (data.m_constraint == cons) {
+    if (data.m_constraintKey == cons) {
+      data.m_settings = RigidBodyConstraintSettingsFromBlender(*cons);
+      data.m_name = name;
       data.m_object1Name = ob1 ? ob1->id.name + 2 : "";
       data.m_object2Name = ob2 ? ob2->id.name + 2 : "";
       data.m_hasObject2 = (ob2 != nullptr);
       data.m_pivotLocal = pivotLocal;
       data.m_basisLocal = basisLocal;
-      return;
+      return &data;
     }
   }
   RigidBodyConstraintData data;
-  data.m_constraint = cons;
+  data.m_constraintKey = cons;
+  data.m_settings = RigidBodyConstraintSettingsFromBlender(*cons);
+  data.m_name = name;
   data.m_object1Name = ob1 ? ob1->id.name + 2 : "";
   data.m_object2Name = ob2 ? ob2->id.name + 2 : "";
   data.m_hasObject2 = (ob2 != nullptr);
@@ -800,16 +911,116 @@ void KX_GameObject::AddRigidBodyConstraint(blender::RigidBodyCon *cons,
   data.m_basisLocal = basisLocal;
   data.m_constraintId = -1;  // Will be set after constraint is created
   m_rigidbodyConstraints.push_back(data);
+  return &m_rigidbodyConstraints.back();
+}
+
+void KX_GameObject::AddRuntimeRigidBodyConstraint(
+    const std::string &name,
+    KX_GameObject *object1,
+    KX_GameObject *object2,
+    const PHY_RigidBodyConstraintSettings &settings,
+    const MT_Vector3 &pivotLocal,
+    const MT_Matrix3x3 &basisLocal,
+    int constraintId)
+{
+  KX_Scene *scene = GetScene();
+  PHY_IPhysicsEnvironment *physEnv = scene ? scene->GetPhysicsEnvironment() : nullptr;
+
+  RigidBodyConstraintData data;
+  data.m_constraintKey = nullptr;
+  data.m_settings = settings;
+  data.m_name = name;
+  data.m_object1Name = object1 ? object1->GetName() : "";
+  data.m_object2Name = object2 ? object2->GetName() : "";
+  data.m_hasObject2 = (object2 != nullptr);
+  data.m_pivotLocal = pivotLocal;
+  data.m_basisLocal = basisLocal;
+  data.m_constraintId = constraintId;
+
+  const auto existing = std::find_if(
+      m_rigidbodyConstraints.begin(),
+      m_rigidbodyConstraints.end(),
+      [&](const RigidBodyConstraintData &item) { return item.m_name == name; });
+  if (existing == m_rigidbodyConstraints.end()) {
+    m_rigidbodyConstraints.push_back(std::move(data));
+    return;
+  }
+
+  const int existingConstraintId = existing->m_constraintId;
+  if (physEnv && existingConstraintId != -1) {
+    if (!physEnv->RemoveConstraintById(existingConstraintId, true)) {
+      if (constraintId != -1) {
+        physEnv->RemoveConstraintById(constraintId, true);
+      }
+      return;
+    }
+    /* Jolt synchronizes the registry during physical removal. Other backends
+     * are handled by the explicit removal below. */
+    RemoveRigidBodyConstraintId(existingConstraintId);
+  }
+  else {
+    m_rigidbodyConstraints.erase(existing);
+  }
+  m_rigidbodyConstraints.push_back(std::move(data));
 }
 
 void KX_GameObject::SetRigidBodyConstraintId(blender::RigidBodyCon *cons, int constraintId)
 {
   for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
-    if (data.m_constraint == cons) {
+    if (data.m_constraintKey == cons) {
       data.m_constraintId = constraintId;
       return;
     }
   }
+}
+
+const KX_GameObject::RigidBodyConstraintData *KX_GameObject::FindRigidBodyConstraint(
+    const std::string &name) const
+{
+  const auto constraint = std::find_if(
+      m_rigidbodyConstraints.begin(),
+      m_rigidbodyConstraints.end(),
+      [&](const RigidBodyConstraintData &data) { return data.m_name == name; });
+  return constraint != m_rigidbodyConstraints.end() ? &*constraint : nullptr;
+}
+
+bool KX_GameObject::RemoveRigidBodyConstraint(const std::string &name)
+{
+  const auto constraint = std::find_if(
+      m_rigidbodyConstraints.begin(),
+      m_rigidbodyConstraints.end(),
+      [&](const RigidBodyConstraintData &data) { return data.m_name == name; });
+  if (constraint == m_rigidbodyConstraints.end()) {
+    return false;
+  }
+
+  KX_Scene *scene = GetScene();
+  PHY_IPhysicsEnvironment *physEnv = scene ? scene->GetPhysicsEnvironment() : nullptr;
+  const int constraintId = constraint->m_constraintId;
+  if (physEnv && constraintId != -1) {
+    if (!physEnv->RemoveConstraintById(constraintId, true)) {
+      return false;
+    }
+    RemoveRigidBodyConstraintId(constraintId);
+    return true;
+  }
+  m_rigidbodyConstraints.erase(constraint);
+  return true;
+}
+
+void KX_GameObject::RemoveRigidBodyConstraintId(int constraintId)
+{
+  if (constraintId == -1) {
+    return;
+  }
+
+  m_rigidbodyConstraints.erase(
+      std::remove_if(m_rigidbodyConstraints.begin(),
+                     m_rigidbodyConstraints.end(),
+                     [constraintId](const RigidBodyConstraintData &data) {
+                       return data.m_constraintId == constraintId;
+                     }),
+      m_rigidbodyConstraints.end());
 }
 
 const std::vector<KX_GameObject::RigidBodyConstraintData> &
@@ -830,22 +1041,32 @@ void KX_GameObject::RemoveRigidBodyConstraints()
   }
 
   KX_Scene *scene = GetScene();
-  if (!scene) {
-    return;
-  }
-
-  PHY_IPhysicsEnvironment *physEnv = scene->GetPhysicsEnvironment();
+  PHY_IPhysicsEnvironment *physEnv = scene ? scene->GetPhysicsEnvironment() : nullptr;
   if (!physEnv) {
+    m_rigidbodyConstraints.clear();
     return;
   }
 
+  std::vector<int> constraintIds;
+  constraintIds.reserve(m_rigidbodyConstraints.size());
   for (const RigidBodyConstraintData &data : m_rigidbodyConstraints) {
-    // Only skip -1 (our sentinel for "no constraint"), other values including negative are valid IDs
     if (data.m_constraintId != -1) {
-      physEnv->RemoveConstraintById(data.m_constraintId, true);
+      constraintIds.push_back(data.m_constraintId);
     }
   }
-  m_rigidbodyConstraints.clear();
+  for (const int constraintId : constraintIds) {
+    if (physEnv->RemoveConstraintById(constraintId, true)) {
+      RemoveRigidBodyConstraintId(constraintId);
+    }
+  }
+
+  m_rigidbodyConstraints.erase(
+      std::remove_if(m_rigidbodyConstraints.begin(),
+                     m_rigidbodyConstraints.end(),
+                     [](const RigidBodyConstraintData &data) {
+                       return data.m_constraintId == -1;
+                     }),
+      m_rigidbodyConstraints.end());
 }
 
 bool KX_GameObject::HasRigidBodyConstraints() const
@@ -903,7 +1124,7 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
   }
 
   for (RigidBodyConstraintData &data : m_rigidbodyConstraints) {
-    if (!data.m_constraint || data.m_object1Name.empty()) {
+    if (data.m_object1Name.empty()) {
       continue;
     }
 
@@ -915,19 +1136,22 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
     }
     KX_GameObject *target1 = it1->second;
 
+    if (!data.m_hasObject2 || data.m_object2Name.empty()) {
+      continue;
+    }
+
     KX_GameObject *target2 = nullptr;
-    if (data.m_hasObject2) {
-      auto it2 = objectLookup.find(data.m_object2Name);
-      if (it2 != objectLookup.end()) {
-        target2 = it2->second;
-      }
-      else {
-        CM_Debug("ReplicateRigidBodyConstraints: target2 '" << data.m_object2Name << "' not found for " << GetName());
-      }
+    auto it2 = objectLookup.find(data.m_object2Name);
+    if (it2 != objectLookup.end()) {
+      target2 = it2->second;
+    }
+    else {
+      CM_Debug("ReplicateRigidBodyConstraints: target2 '" << data.m_object2Name << "' not found for " << GetName());
+      continue;
     }
 
     int constraintId = physEnv->CreateRigidBodyConstraint(
-        target1, target2, data.m_pivotLocal, data.m_basisLocal, data.m_constraint);
+        target1, target2, data.m_pivotLocal, data.m_basisLocal, data.m_settings);
     // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
     if (constraintId != -1) {
       data.m_constraintId = constraintId;
@@ -1656,6 +1880,10 @@ void KX_GameObject::setAngularVelocity(const MT_Vector3 &ang_vel, bool local)
 
 void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
+  if (MT_fuzzyEqual(m_objectColor, rgbavec)) {
+    return;
+  }
+
   m_objectColor = rgbavec;
   if (m_isUpbgeDupliInstance) {
     return;

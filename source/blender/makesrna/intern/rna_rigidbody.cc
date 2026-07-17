@@ -1318,6 +1318,35 @@ static void rna_def_rigidbody_constraint(BlenderRNA *brna)
       "accurate but slower)");
   RNA_def_property_update(prop, NC_OBJECT, "rna_RigidBodyOb_reset");
 
+  prop = RNA_def_property(
+      srna, "use_jolt_solver_iterations_override", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flag", RBC_FLAG_JOLT_OVERRIDE_SOLVER_ITERATIONS);
+  RNA_def_property_ui_text(
+      prop,
+      "Override Jolt Solver Iterations",
+      "Override solver iterations for this constraint in the Jolt game physics engine");
+
+  prop = RNA_def_property(srna, "jolt_velocity_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "jolt_velocity_solver_iterations");
+  RNA_def_property_range(prop, 1, 255);
+  RNA_def_property_ui_range(prop, 1, 255, 1, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Velocity Solver Iterations",
+      "Jolt velocity iterations requested by this constraint; the highest override in its "
+      "active island is used");
+
+  prop = RNA_def_property(srna, "jolt_position_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "jolt_position_solver_iterations");
+  RNA_def_property_range(prop, 1, 255);
+  RNA_def_property_ui_range(prop, 1, 255, 1, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Position Solver Iterations",
+      "Jolt position iterations requested by this constraint; the highest override in its "
+      "active island is used");
+
   /* Limits */
   prop = RNA_def_property(srna, "use_limit_lin_x", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", RBC_FLAG_USE_LIMIT_LIN_X);

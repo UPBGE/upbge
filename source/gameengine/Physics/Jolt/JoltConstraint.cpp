@@ -26,6 +26,8 @@
 
 #include "JoltConstraint.h"
 
+#include <algorithm>
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS
@@ -84,17 +86,25 @@ bool JoltConstraint::GetEnabled() const
 
 void JoltConstraint::SetEnabled(bool enabled)
 {
-  if (!m_constraint) {
+  if (!m_constraint || m_constraint->GetEnabled() == enabled) {
     return;
   }
   m_constraint->SetEnabled(enabled);
 
-  /* Activate connected bodies so the constraint change takes effect. */
-  if (enabled && m_env) {
+  if (m_env) {
+    /* Enabling or disabling changes the island topology and invalidates cached
+     * impulses in the surviving connected constraints. */
     JPH::BodyInterface &bi = m_env->GetBodyInterface();
     JPH::TwoBodyConstraint *tbc = static_cast<JPH::TwoBodyConstraint *>(m_constraint);
-    bi.ActivateBody(tbc->GetBody1()->GetID());
-    bi.ActivateBody(tbc->GetBody2()->GetID());
+    const JPH::BodyID bodyID1 = tbc->GetBody1()->GetID();
+    const JPH::BodyID bodyID2 = tbc->GetBody2()->GetID();
+    m_env->NotifyConstraintTopologyChanged(bodyID1, bodyID2);
+    if (!bodyID1.IsInvalid()) {
+      bi.ActivateBody(bodyID1);
+    }
+    if (!bodyID2.IsInvalid()) {
+      bi.ActivateBody(bodyID2);
+    }
   }
 }
 
@@ -116,9 +126,8 @@ void JoltConstraint::SetParam(int param, float value0, float value1)
     return;
   }
 
-  switch (m_type) {
-    case PHY_GENERIC_6DOF_CONSTRAINT:
-    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+  switch (m_constraint->GetSubType()) {
+    case JPH::EConstraintSubType::SixDOF: {
       JPH::SixDOFConstraint *sixdof = static_cast<JPH::SixDOFConstraint *>(m_constraint);
       if (param >= 0 && param <= 2) {
         /* param 0-2: translation limits X,Y,Z.
@@ -126,7 +135,7 @@ void JoltConstraint::SetParam(int param, float value0, float value1)
          * Bullet convention: min > max means "free" (unconstrained).
          * Jolt convention: min = -FLT_MAX, max = FLT_MAX for free. */
         float lo = value0, hi = value1;
-        if (lo > hi) {
+        if (!std::isfinite(lo) || !std::isfinite(hi) || lo > hi) {
           lo = -FLT_MAX;
           hi = FLT_MAX;
         }
@@ -142,9 +151,13 @@ void JoltConstraint::SetParam(int param, float value0, float value1)
          * Bullet convention: min > max means "free" (unconstrained).
          * Jolt convention: min = -FLT_MAX, max = FLT_MAX for free. */
         float lo = value0, hi = value1;
-        if (lo > hi) {
+        if (!std::isfinite(lo) || !std::isfinite(hi) || lo > hi) {
           lo = -FLT_MAX;
           hi = FLT_MAX;
+        }
+        else {
+          lo = std::clamp(lo, -JPH::JPH_PI, JPH::JPH_PI);
+          hi = std::clamp(hi, -JPH::JPH_PI, JPH::JPH_PI);
         }
         JPH::Vec3 limMin = sixdof->GetRotationLimitsMin();
         JPH::Vec3 limMax = sixdof->GetRotationLimitsMax();
@@ -190,10 +203,13 @@ void JoltConstraint::SetParam(int param, float value0, float value1)
       else if (param >= 12 && param <= 17) {
         /* param 12-17: motorized springs (stiffness=value0, damping=value1). */
         JPH::SixDOFConstraint::EAxis axis = static_cast<JPH::SixDOFConstraint::EAxis>(param - 12);
-        if (value0 != 0.0f) {
+        const float stiffness = std::isfinite(value0) ? std::max(value0, 0.0f) : 0.0f;
+        if (stiffness > 0.0f) {
           JPH::MotorSettings &motor = sixdof->GetMotorSettings(axis);
-          motor.mSpringSettings.mFrequency = value0;
-          motor.mSpringSettings.mDamping = value1;
+          motor.mSpringSettings = JPH::SpringSettings(
+              JPH::ESpringMode::StiffnessAndDamping,
+              stiffness,
+              std::isfinite(value1) ? std::max(value1, 0.0f) : 0.0f);
           sixdof->SetMotorState(axis, JPH::EMotorState::Position);
         }
         else {
@@ -202,7 +218,19 @@ void JoltConstraint::SetParam(int param, float value0, float value1)
       }
       break;
     }
-    case PHY_CONE_TWIST_CONSTRAINT: {
+    case JPH::EConstraintSubType::Slider: {
+      if (param == 0) {
+        JPH::SliderConstraint *slider = static_cast<JPH::SliderConstraint *>(m_constraint);
+        if (!std::isfinite(value0) || !std::isfinite(value1) || value0 > value1) {
+          slider->SetLimits(-FLT_MAX, FLT_MAX);
+        }
+        else if (value0 < value1 && value0 <= 0.0f && value1 >= 0.0f) {
+          slider->SetLimits(value0, value1);
+        }
+      }
+      break;
+    }
+    case JPH::EConstraintSubType::Cone: {
       if (param >= 3 && param <= 5) {
         /* Cone twist limits: param 3=swing span1, 4=swing span2, 5=twist span. */
         JPH::ConeConstraint *cone = static_cast<JPH::ConeConstraint *>(m_constraint);
@@ -214,8 +242,7 @@ void JoltConstraint::SetParam(int param, float value0, float value1)
       }
       break;
     }
-    case PHY_ANGULAR_CONSTRAINT:
-    case PHY_LINEHINGE_CONSTRAINT: {
+    case JPH::EConstraintSubType::Hinge: {
       if (param == 3) {
         /* Hinge limits: value0 = low limit, value1 = high limit.
          * Bullet convention: min > max means "free" (unconstrained).
@@ -242,9 +269,8 @@ float JoltConstraint::GetParam(int param)
     return 0.0f;
   }
 
-  switch (m_type) {
-    case PHY_GENERIC_6DOF_CONSTRAINT:
-    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+  switch (m_constraint->GetSubType()) {
+    case JPH::EConstraintSubType::SixDOF: {
       JPH::SixDOFConstraint *sixdof = static_cast<JPH::SixDOFConstraint *>(m_constraint);
       if (param >= 0 && param <= 2) {
         /* param 0-2: current translation limit values (return min). */
@@ -255,6 +281,12 @@ float JoltConstraint::GetParam(int param)
         /* param 3-5: current rotation limit values (return min). */
         return sixdof->GetLimitsMin(
             static_cast<JPH::SixDOFConstraint::EAxis>(param));
+      }
+      break;
+    }
+    case JPH::EConstraintSubType::Slider: {
+      if (param == 0) {
+        return static_cast<JPH::SliderConstraint *>(m_constraint)->GetLimitsMin();
       }
       break;
     }
@@ -299,31 +331,41 @@ float JoltConstraint::GetAppliedImpulse() const
     return 0.0f;
   }
 
-  switch (m_type) {
-    case PHY_POINT2POINT_CONSTRAINT: {
+  switch (m_constraint->GetSubType()) {
+    case JPH::EConstraintSubType::Point: {
       JPH::PointConstraint *pc = static_cast<JPH::PointConstraint *>(m_constraint);
       return pc->GetTotalLambdaPosition().Length();
     }
-    case PHY_LINEHINGE_CONSTRAINT:
-    case PHY_ANGULAR_CONSTRAINT: {
+    case JPH::EConstraintSubType::Hinge: {
       JPH::HingeConstraint *hc = static_cast<JPH::HingeConstraint *>(m_constraint);
       return hc->GetTotalLambdaPosition().Length() +
              hc->GetTotalLambdaRotation().Length() +
              std::abs(hc->GetTotalLambdaRotationLimits()) +
              std::abs(hc->GetTotalLambdaMotor());
     }
-    case PHY_CONE_TWIST_CONSTRAINT: {
+    case JPH::EConstraintSubType::Cone: {
       JPH::ConeConstraint *cone = static_cast<JPH::ConeConstraint *>(m_constraint);
       return cone->GetTotalLambdaPosition().Length() +
              std::abs(cone->GetTotalLambdaRotation());
     }
-    case PHY_GENERIC_6DOF_CONSTRAINT:
-    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT: {
+    case JPH::EConstraintSubType::SixDOF: {
       JPH::SixDOFConstraint *sixdof = static_cast<JPH::SixDOFConstraint *>(m_constraint);
       return sixdof->GetTotalLambdaPosition().Length() +
              sixdof->GetTotalLambdaRotation().Length() +
              sixdof->GetTotalLambdaMotorTranslation().Length() +
              sixdof->GetTotalLambdaMotorRotation().Length();
+    }
+    case JPH::EConstraintSubType::Fixed: {
+      JPH::FixedConstraint *fixed = static_cast<JPH::FixedConstraint *>(m_constraint);
+      return fixed->GetTotalLambdaPosition().Length() +
+             fixed->GetTotalLambdaRotation().Length();
+    }
+    case JPH::EConstraintSubType::Slider: {
+      JPH::SliderConstraint *slider = static_cast<JPH::SliderConstraint *>(m_constraint);
+      return slider->GetTotalLambdaPosition().Length() +
+             std::abs(slider->GetTotalLambdaPositionLimits()) +
+             slider->GetTotalLambdaRotation().Length() +
+             std::abs(slider->GetTotalLambdaMotor());
     }
     default: {
       return 0.0f;
@@ -339,11 +381,17 @@ float JoltConstraint::GetAppliedImpulse() const
 
 void JoltConstraint::SetSolverIterations(int iterations)
 {
-  if (!m_constraint) {
-    return;
+  SetSolverIterations(iterations, iterations);
+}
+
+void JoltConstraint::SetSolverIterations(int velocityIterations, int positionIterations)
+{
+  if (m_constraint) {
+    m_constraint->SetNumVelocityStepsOverride(
+        (unsigned int)std::clamp(velocityIterations, 0, 255));
+    m_constraint->SetNumPositionStepsOverride(
+        (unsigned int)std::clamp(positionIterations, 0, 255));
   }
-  m_constraint->SetNumPositionStepsOverride((unsigned int)iterations);
-  m_constraint->SetNumVelocityStepsOverride((unsigned int)iterations);
 }
 
 int JoltConstraint::GetIdentifier() const
