@@ -146,13 +146,15 @@ static float upbge_vehicle_resolve_wheel_radius(const Object *chassis_ob,
   float axle_world[3];
   float radial_axis_a[3];
   float radial_axis_b[3];
+  const float default_axle[3] = {1.0f, 0.0f, 0.0f};
+  const float default_radial_axis[3] = {0.0f, 0.0f, 1.0f};
 
   BKE_object_to_mat4(chassis_ob, chassis_mat);
   BKE_object_to_mat4(wheel_ob, wheel_mat);
 
   copy_v3_v3(axle_world, axle_direction);
   mul_mat3_m4_v3(chassis_mat, axle_world);
-  upbge_vehicle_normalize_or_default(axle_world, (const float[3]){1.0f, 0.0f, 0.0f});
+  upbge_vehicle_normalize_or_default(axle_world, default_axle);
 
   copy_v3_v3(radial_axis_a, down_direction);
   mul_mat3_m4_v3(chassis_mat, radial_axis_a);
@@ -162,11 +164,11 @@ static float upbge_vehicle_resolve_wheel_radius(const Object *chassis_ob,
                                     fabsf(axle_world[0]) < 0.9f ? 0.0f : 1.0f,
                                     0.0f};
     cross_v3_v3v3(radial_axis_a, axle_world, fallback_axis);
-    upbge_vehicle_normalize_or_default(radial_axis_a, (const float[3]){0.0f, 0.0f, 1.0f});
+    upbge_vehicle_normalize_or_default(radial_axis_a, default_radial_axis);
   }
 
   cross_v3_v3v3(radial_axis_b, axle_world, radial_axis_a);
-  upbge_vehicle_normalize_or_default(radial_axis_b, (const float[3]){0.0f, 0.0f, 1.0f});
+  upbge_vehicle_normalize_or_default(radial_axis_b, default_radial_axis);
 
   float wheel_origin[3];
   copy_v3_v3(wheel_origin, wheel_mat[3]);

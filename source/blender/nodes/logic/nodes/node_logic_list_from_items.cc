@@ -88,7 +88,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
   const int mode = std::clamp<int>(node->custom1, 0, int(std::size(socket_names)) - 1);
   for (int index = 0; index < int(std::size(socket_names)); index++) {
     const bool available = index == mode;
-    const UString identifier(StringRef(socket_names[index]));
+    const UString identifier{StringRef(socket_names[index])};
     if (bNodeSocket *input_socket = node->input_by_identifier(identifier)) {
       bke::node_set_socket_availability(*ntree, *input_socket, available);
     }
