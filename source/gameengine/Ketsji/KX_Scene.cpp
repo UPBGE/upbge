@@ -39,6 +39,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BLI_math_base.hh"
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
@@ -1210,15 +1211,30 @@ void KX_Scene::BackupVisibilityFlag(blender::Object *ob, short visibilityFlag)
 
 void KX_Scene::RestoreVisibilityFlag()
 {
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  blender::Main *bmain = CTX_data_main(C);
+
   for (std::map<blender::Object *, short>::iterator it = m_obVisibilityFlag.begin();
        it != m_obVisibilityFlag.end();
        it++) {
     blender::Object *ob = it->first;
+    /* Attached/linked objects may have already been removed from bmain (e.g. library
+     * reload, LibLoad free, or scene destruction order) by the time we reach shutdown.
+     * Restoring visibility_flag on a dangling pointer causes a crash on game end, so
+     * only touch objects that are still valid in bmain. */
+    bool obStillExists = false;
+    for (blender::Object &bmainOb : bmain->objects) {
+      if (&bmainOb == ob) {
+        obStillExists = true;
+        break;
+      }
+    }
+    if (!obStillExists) {
+      continue;
+    }
     ob->visibility_flag = eObject_VisibilityFlag(it->second);
-    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_SYNC_TO_EVAL);
   }
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Main *bmain = CTX_data_main(C);
   DEG_relations_tag_update(bmain);
   BKE_main_collection_sync_remap(bmain);
   m_obVisibilityFlag.clear();
@@ -1335,6 +1351,15 @@ void KX_Scene::TagForObjectsMatToWorldRestore()
 void KX_Scene::AppendToIdsToUpdate(blender::ID *id, IDRecalcFlag flag, bool in_overlay_collection_only)
 {
   std::pair<blender::ID *, IDRecalcFlag> it = {id, flag};
+  /* Only tag local data-blocks (never linked/library ones) and do it immediately as soon
+   * as the ID is enqueued, instead of waiting for the deferred flush in
+   * TagForExtraIdsUpdate(). This keeps the depsgraph in sync right away while preserving
+   * the existing overlay/non-overlay pass tracking logic below. */
+  if (id && id->lib == nullptr) {
+    blender::bContext *C = KX_GetActiveEngine()->GetContext();
+    blender::Main *bmain = CTX_data_main(C);
+    DEG_id_tag_update_ex(bmain, id, flag);
+  }
   if (in_overlay_collection_only) {
     if (std::find(m_idsToUpdateInOverlayPass.begin(), m_idsToUpdateInOverlayPass.end(), it) ==
         m_idsToUpdateInOverlayPass.end())
