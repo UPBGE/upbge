@@ -2263,10 +2263,6 @@ static LN_BonePosePositionSpace NormalizeBonePosePositionSpace(const uint32_t va
     case uint32_t(LN_BonePosePositionSpace::World):
     case LN_INVALID_INDEX:
       return LN_BonePosePositionSpace::World;
-    case 2:
-      /* Legacy "Pose Channel Location" value. A point getter must return an evaluated pose point,
-       * so keep old files meaningful by interpreting it as armature-space pose data. */
-      return LN_BonePosePositionSpace::Armature;
     default:
       return LN_BonePosePositionSpace::World;
   }
@@ -14068,28 +14064,38 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
       for (int step = 0; step < 2048 && total_distance < distance; step++) {
         const MT_Vector3 target = ProjectilePoint(aim, origin, gravity, time_index);
         const MT_Vector3 start = points.back();
-        const float segment_distance = (target - start).length();
+        const MT_Vector3 segment = target - start;
+        const float segment_distance = segment.length();
         if (segment_distance <= 1.0e-6f) {
           break;
         }
-        hit_result = Raycast(start, target, caster_ref, collision_mask, property_name, xray);
-        total_distance += segment_distance;
-        const MT_Vector3 end = hit_result.hit ? hit_result.hit_position : target;
+
+        /* Distance limits the arc length, not merely which sample starts the
+         * final ray. Clip the last segment so a coarse resolution cannot hit
+         * an object beyond the requested range. */
+        const float remaining_distance = distance - total_distance;
+        const float ray_distance = std::min(segment_distance, remaining_distance);
+        const MT_Vector3 segment_end = ray_distance < segment_distance ?
+                                           start + segment * (ray_distance / segment_distance) :
+                                           target;
+        hit_result = Raycast(start, segment_end, caster_ref, collision_mask, property_name, xray);
+        total_distance += ray_distance;
+        const MT_Vector3 end = hit_result.hit ? hit_result.hit_position : segment_end;
         if (visualize) {
           DrawDebugRaycast(start,
                            end,
                            hit_result.hit,
                            hit_result.hit ? &hit_result.hit_normal : nullptr,
-                           segment_distance);
+                           ray_distance);
         }
         if (!hit_result.hit) {
-          points.push_back(target);
+          points.push_back(segment_end);
         }
         else {
           points.push_back(hit_result.hit_position);
           break;
         }
-        time_index += resolution;
+        time_index += time_step;
       }
 
       hit_result.parabola_points = points;

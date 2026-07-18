@@ -1198,7 +1198,12 @@ blender::bNodeSocket *FindInputSocketByIdentifierOrName(blender::bNode &node,
   }
   blender::bNodeSocket *name_match = nullptr;
   for (blender::bNodeSocket &socket : node.inputs) {
-    if (name == socket.name) {
+    /* Dynamic nodes can retain multiple sockets with the same display name
+     * while all but the active data type are unavailable (for example the
+     * Mix node's Factor inputs). Display-name lookup must model what the user
+     * can currently see, while the exact identifier path above remains able
+     * to address a specific socket. */
+    if ((socket.flag & blender::SOCK_UNAVAIL) == 0 && name == socket.name) {
       if (name_match != nullptr) {
         return nullptr;
       }
@@ -9296,11 +9301,24 @@ void LN_CommandBuffer::Flush()
 
     MaterialSocketLookup lookup = lookup_material_socket(
         material, command.secondary_property_name, command.tertiary_property_name);
+    if (lookup.socket == nullptr || (lookup.socket->flag & blender::SOCK_UNAVAIL) != 0) {
+      warn_command_failure_once(command,
+                                "material node input socket was not found or unavailable");
+      return;
+    }
+    lookup.ntree->ensure_topology_cache();
+    if (lookup.socket->is_directly_linked()) {
+      warn_command_failure_once(command,
+                                "material node input socket is linked; its default is inactive");
+      return;
+    }
+
     bool socket_needs_update = false;
-    if (lookup.socket == nullptr ||
-        !SocketDefaultNeedsLogicValueUpdate(
+    if (!SocketDefaultNeedsLogicValueUpdate(
             command.runtime_tree, *lookup.socket, command.property_value, socket_needs_update))
     {
+      warn_command_failure_once(command,
+                                "material node input socket cannot accept this value type");
       return;
     }
     if (!socket_needs_update) {
@@ -9314,13 +9332,24 @@ void LN_CommandBuffer::Flush()
       }
       lookup = lookup_material_socket(
           material, command.secondary_property_name, command.tertiary_property_name);
+      if (lookup.socket == nullptr || (lookup.socket->flag & blender::SOCK_UNAVAIL) != 0) {
+        warn_command_failure_once(
+            command, "copied material node input socket was not found or unavailable");
+        return;
+      }
+      lookup.ntree->ensure_topology_cache();
+      if (lookup.socket->is_directly_linked()) {
+        warn_command_failure_once(
+            command, "copied material node input socket is linked; its default is inactive");
+        return;
+      }
     }
 
     bool socket_changed = false;
-    if (lookup.socket == nullptr ||
-        !SetSocketDefaultFromLogicValue(
+    if (!SetSocketDefaultFromLogicValue(
             command.runtime_tree, *lookup.socket, command.property_value, &socket_changed))
     {
+      warn_command_failure_once(command, "material node input socket value conversion failed");
       return;
     }
     if (!socket_changed) {

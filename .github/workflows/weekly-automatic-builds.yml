@@ -180,6 +180,7 @@ jobs:
           -DWITH_GAMEENGINE_LOGICNODES=ON
           -DWITH_WINDOWS_RELEASE_PDB=OFF
           -DWITH_VULKAN_BACKEND=ON
+          -DUSE_STATIC_MSVC_RUNTIME_LIBRARY:BOOL=OFF
           "-DPYTHON_VERSION:STRING=${{ env.PYTHON_VERSION }}"
 
       - name: Configure CMake (macOS)
@@ -199,6 +200,11 @@ jobs:
           grep -F "WITH_GAMEENGINE:BOOL=ON" build/CMakeCache.txt
           grep -F "WITH_JOLT:BOOL=ON" build/CMakeCache.txt
           grep -F "WITH_GAMEENGINE_LOGICNODES:BOOL=ON" build/CMakeCache.txt
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            grep -F "USE_STATIC_MSVC_RUNTIME_LIBRARY:BOOL=OFF" build/CMakeCache.txt
+            grep -F "<RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>" \
+              build/_deps/joltphysics-build/Jolt.vcxproj
+          fi
 
       - name: Build UPBGE (Linux)
         if: matrix.os == 'linux'

@@ -289,7 +289,7 @@ TEST(LN_NodeRegistry, MetadataContractValidationRejectsSchedulerPolicyDrift)
   std::vector<LN_NodeMetadataContract> contracts = LN_GetNodeMetadataContracts();
   bool mutated = false;
   for (LN_NodeMetadataContract &contract : contracts) {
-    if (contract.idname == "LogicNativeSetWorldPosition") {
+    if (contract.idname == "LogicNativeSetObjectAttribute") {
       contract.scheduler_policy = LN_NodeSchedulerPolicy::SnapshotReadOnly;
       mutated = true;
       break;
@@ -308,7 +308,7 @@ TEST(LN_NodeRegistry, MetadataContractValidationRejectsCompilerHandlerInfoDrift)
   std::vector<LN_NodeMetadataContract> contracts = LN_GetNodeMetadataContracts();
   bool mutated = false;
   for (LN_NodeMetadataContract &contract : contracts) {
-    if (contract.idname == "LogicNativeSetWorldPosition") {
+    if (contract.idname == "LogicNativeSetObjectAttribute") {
       contract.compile_handler_info.emits_commands = false;
       mutated = true;
       break;
@@ -327,7 +327,7 @@ TEST(LN_NodeRegistry, MetadataContractValidationRejectsVisibilityDrift)
   std::vector<LN_NodeMetadataContract> contracts = LN_GetNodeMetadataContracts();
   bool mutated = false;
   for (LN_NodeMetadataContract &contract : contracts) {
-    if (contract.idname == "LogicNativeSetWorldPosition") {
+    if (contract.idname == "LogicNativeSetObjectAttribute") {
       contract.visibility = LN_NodeVisibility::Hidden;
       mutated = true;
       break;
@@ -371,11 +371,11 @@ TEST(LN_NodeRegistry, MetadataContractHidesUnsupportedRuntimeHandlers)
         << idname;
   }
 
-  const LN_NodeMetadataContract *set_position = LN_FindNodeMetadataContract(
-      "LogicNativeSetWorldPosition");
-  ASSERT_NE(set_position, nullptr);
-  EXPECT_TRUE(set_position->compile_handler_info.has_runtime_implementation);
-  EXPECT_EQ(set_position->visibility, LN_NodeVisibility::Release);
+  const LN_NodeMetadataContract *set_attribute = LN_FindNodeMetadataContract(
+      "LogicNativeSetObjectAttribute");
+  ASSERT_NE(set_attribute, nullptr);
+  EXPECT_TRUE(set_attribute->compile_handler_info.has_runtime_implementation);
+  EXPECT_EQ(set_attribute->visibility, LN_NodeVisibility::Release);
 }
 
 TEST(LN_NodeRegistry, ClassifiesCurrentNodesForCommandBufferExecution)
@@ -393,15 +393,17 @@ TEST(LN_NodeRegistry, ClassifiesCurrentNodesForCommandBufferExecution)
     }
   }
 
-  const LN_NodeDefinition *get_position = registry.FindNodeDefinition("LogicNativeGetWorldPosition");
-  ASSERT_NE(get_position, nullptr);
-  EXPECT_FALSE(get_position->has_side_effects);
-  EXPECT_TRUE(get_position->future_pure_batchable);
+  const LN_NodeDefinition *get_attribute = registry.FindNodeDefinition(
+      "LogicNativeGetObjectAttribute");
+  ASSERT_NE(get_attribute, nullptr);
+  EXPECT_FALSE(get_attribute->has_side_effects);
+  EXPECT_EQ(get_attribute->execution_class, LN_ExecutionClass::MainThreadOnly);
 
-  const LN_NodeDefinition *set_position = registry.FindNodeDefinition("LogicNativeSetWorldPosition");
-  ASSERT_NE(set_position, nullptr);
-  EXPECT_TRUE(set_position->has_side_effects);
-  EXPECT_EQ(set_position->execution_class, LN_ExecutionClass::CommandEmitting);
+  const LN_NodeDefinition *set_attribute = registry.FindNodeDefinition(
+      "LogicNativeSetObjectAttribute");
+  ASSERT_NE(set_attribute, nullptr);
+  EXPECT_TRUE(set_attribute->has_side_effects);
+  EXPECT_EQ(set_attribute->execution_class, LN_ExecutionClass::CommandEmitting);
 }
 
 TEST(LN_NodeRegistry, AllRegisteredNodesHaveCompilerHandlerClassifications)
@@ -429,9 +431,10 @@ TEST(LN_NodeRegistry, AllRegisteredNodesHaveCompilerHandlerClassifications)
   EXPECT_EQ(LN_TreeCompiler::GetCompileHandlerInfo(event->kind).kind,
             LN_TreeCompiler::CompileHandlerKind::EventSource);
 
-  const LN_NodeDefinition *set_position = registry.FindNodeDefinition("LogicNativeSetWorldPosition");
-  ASSERT_NE(set_position, nullptr);
-  EXPECT_EQ(LN_TreeCompiler::GetCompileHandlerInfo(set_position->kind).kind,
+  const LN_NodeDefinition *set_attribute = registry.FindNodeDefinition(
+      "LogicNativeSetObjectAttribute");
+  ASSERT_NE(set_attribute, nullptr);
+  EXPECT_EQ(LN_TreeCompiler::GetCompileHandlerInfo(set_attribute->kind).kind,
             LN_TreeCompiler::CompileHandlerKind::Command);
 }
 
@@ -570,9 +573,10 @@ TEST(LN_NodeRegistry, GetCompileDispatchClassifiesHandlerTable)
   EXPECT_EQ(LN_TreeCompiler::GetCompileDispatch(value_bool->kind),
             LN_TreeCompiler::CompileDispatch::ConstantOutput);
 
-  const LN_NodeDefinition *set_position = registry.FindNodeDefinition("LogicNativeSetWorldPosition");
-  ASSERT_NE(set_position, nullptr);
-  EXPECT_EQ(LN_TreeCompiler::GetCompileDispatch(set_position->kind),
+  const LN_NodeDefinition *set_attribute = registry.FindNodeDefinition(
+      "LogicNativeSetObjectAttribute");
+  ASSERT_NE(set_attribute, nullptr);
+  EXPECT_EQ(LN_TreeCompiler::GetCompileDispatch(set_attribute->kind),
             LN_TreeCompiler::CompileDispatch::CustomCompile);
 
   const LN_NodeDefinition *branch = registry.FindNodeDefinition("LogicNativeBranch");
@@ -610,24 +614,16 @@ TEST(LN_NodeRegistry, DataContainerNodesUseCustomCompileDispatch)
   }
 }
 
-TEST(LN_NodeRegistry, SnapshotTransformNodesUseCustomCompileDispatch)
+TEST(LN_NodeRegistry, ObjectAttributeAndGravityNodesUseCustomCompileDispatch)
 {
   const LN_NodeRegistry &registry = LN_NodeRegistry::GetBuiltin();
-  static const char *snapshot_transform_idnames[] = {
-      "LogicNativeGetWorldPosition",
-      "LogicNativeGetLocalPosition",
-      "LogicNativeGetWorldOrientation",
-      "LogicNativeGetLocalOrientation",
-      "LogicNativeGetWorldScale",
-      "LogicNativeGetLocalScale",
-      "LogicNativeGetLinearVelocity",
-      "LogicNativeGetLocalLinearVelocity",
-      "LogicNativeGetAngularVelocity",
-      "LogicNativeGetLocalAngularVelocity",
+  static const char *object_attribute_idnames[] = {
+      "LogicNativeGetObjectAttribute",
+      "LogicNativeSetObjectAttribute",
       "LogicNativeGetGravity",
   };
 
-  for (const char *idname : snapshot_transform_idnames) {
+  for (const char *idname : object_attribute_idnames) {
     const LN_NodeDefinition *definition = registry.FindNodeDefinition(idname);
     ASSERT_NE(definition, nullptr) << idname;
     EXPECT_EQ(LN_TreeCompiler::GetCompileDispatch(definition->kind),

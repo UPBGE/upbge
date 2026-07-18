@@ -46,7 +46,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
-#include "DNA_node_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -61,11 +60,7 @@
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
-#include "BKE_node.hh"
-#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
-
-#include "versioning_common.hh"
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
@@ -896,22 +891,6 @@ void do_versions_after_linking_upbge(FileData *fd, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 16)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type != NTREE_LOGIC) {
-        continue;
-      }
-      for (bNode &node : node_tree->nodes.items_reversed_mutable()) {
-        if (STREQ(node.idname, "LogicNativeSendMessage") ||
-            node.type_legacy == LN_NODE_SEND_MESSAGE)
-        {
-          version_node_remove(*node_tree, node);
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 17)) {
     if (!DNA_struct_member_exists(
             fd->filesdna, "RigidBodyCon", "short", "jolt_velocity_solver_iterations"))
@@ -924,25 +903,6 @@ void do_versions_after_linking_upbge(FileData *fd, Main *bmain)
       }
     }
 
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type != NTREE_LOGIC) {
-        continue;
-      }
-      for (bNode &node : node_tree->nodes) {
-        if (!STREQ(node.idname, "LogicNativeAddPhysicsConstraint")) {
-          continue;
-        }
-        for (bNodeSocket &socket : node.inputs) {
-          if (STREQ(socket.name, "Solver Iterations")) {
-            STRNCPY(socket.name, "Velocity Solver Iterations");
-          }
-          if (STREQ(socket.identifier, "Solver Iterations")) {
-            version_node_socket_identifier_set(socket, "Velocity Solver Iterations");
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 15)) {

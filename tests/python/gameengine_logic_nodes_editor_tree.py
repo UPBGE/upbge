@@ -17,6 +17,8 @@ LOGIC_NODES_ENABLED_PROPERTY = "__ln_logic_enabled"
 LOGIC_NODES_STATUS_PROPERTY = "__ln_logic_status"
 LOGIC_NODES_BINDING_OBJECT = "LN Binding Probe"
 LOGIC_NODES_CLEAR_OBJECT = "LN Binding Clear Probe"
+EXPECTED_LINKED_NODE_COUNT = None
+EXPECTED_LINKED_LINK_COUNT = None
 
 VALUE_OUTPUT_KEYS = ("Bool", "Int", "Float", "String", "Vector", "Value")
 
@@ -35,10 +37,22 @@ def vector_input(node, *names):
     raise KeyError(f"{node.bl_idname} missing vector input {names}")
 
 
+def new_get_object_attribute(tree, attribute_type):
+    node = tree.nodes.new("LogicNativeGetObjectAttribute")
+    node.attribute_type = attribute_type
+    return node
+
+
+def new_set_object_attribute(tree, attribute_type):
+    node = tree.nodes.new("LogicNativeSetObjectAttribute")
+    node.attribute_type = attribute_type
+    return node
+
+
 def flow_input(node):
     if "Flow" in node.inputs:
         return node.inputs["Flow"]
-    return flow_input(node)
+    raise KeyError(f"{node.bl_idname} has no Flow input socket")
 
 
 LOGIC_SOCKET_COLORS = {
@@ -403,18 +417,18 @@ EXPECTED_SOCKET_IDNAMES = {
         },
         "outputs": {"Result": "NodeSocketLogicVector"},
     },
-    "LogicNativeGetWorldPosition": {"outputs": {"Position": "NodeSocketLogicVector"}},
-    "LogicNativeGetLocalPosition": {"outputs": {"Position": "NodeSocketLogicVector"}},
-    "LogicNativeGetWorldOrientation": {"outputs": {"Rotation": "NodeSocketLogicRotation"}},
-    "LogicNativeGetLocalOrientation": {"outputs": {"Rotation": "NodeSocketLogicRotation"}},
-    "LogicNativeGetWorldScale": {"outputs": {"Scale": "NodeSocketLogicVector"}},
-    "LogicNativeGetLocalScale": {"outputs": {"Scale": "NodeSocketLogicVector"}},
-    "LogicNativeGetLinearVelocity": {"outputs": {"Velocity": "NodeSocketLogicVector"}},
-    "LogicNativeGetLocalLinearVelocity": {"outputs": {"Velocity": "NodeSocketLogicVector"}},
-    "LogicNativeGetAngularVelocity": {"outputs": {"Velocity": "NodeSocketLogicVector"}},
-    "LogicNativeGetLocalAngularVelocity": {"outputs": {"Velocity": "NodeSocketLogicVector"}},
-    "LogicNativeGetVisibility": {"outputs": {"Visible": "NodeSocketLogicBool"}},
-    "LogicNativeGetObjectColor": {"outputs": {"Color": "NodeSocketLogicColor"}},
+    "LogicNativeGetObjectAttribute": {
+        "inputs": {"Object": "NodeSocketLogicObject"},
+        "outputs": {
+            "Name": "NodeSocketLogicString",
+            "Vector": "NodeSocketLogicVector",
+            "Visible": "NodeSocketLogicBool",
+            "Position": "NodeSocketLogicVector",
+            "Orientation": "NodeSocketLogicRotation",
+            "Scale": "NodeSocketLogicVector",
+            "Color": "NodeSocketLogicColor",
+        },
+    },
     "LogicNativeGetLightColor": {
         "inputs": {"Object": "NodeSocketLogicObject"},
         "outputs": {"Color": "NodeSocketLogicColor"},
@@ -520,75 +534,20 @@ EXPECTED_SOCKET_IDNAMES = {
         "inputs": {"Object": "NodeSocketLogicObject"},
         "outputs": {"Layers": "NodeSocketLogicInt"},
     },
-    "LogicNativeSetWorldPosition": {
+    "LogicNativeSetObjectAttribute": {
         "inputs": {
             "Flow": "NodeSocketLogicExecution",
+            "XYZ": "NodeSocketLogicVector",
             "Object": "NodeSocketLogicObject",
+            "Value": "NodeSocketLogicVector",
             "Position": "NodeSocketLogicVector",
-        },
-    },
-    "LogicNativeSetLocalPosition": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Position": "NodeSocketLogicVector",
-        },
-    },
-    "LogicNativeSetWorldOrientation": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
             "Rotation": "NodeSocketLogicRotation",
-        },
-    },
-    "LogicNativeSetLocalOrientation": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Rotation": "NodeSocketLogicRotation",
-        },
-    },
-    "LogicNativeSetWorldScale": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
             "Scale": "NodeSocketLogicVector",
+            "Color": "NodeSocketLogicColor",
+            "Visible": "NodeSocketLogicBool",
+            "Include Children": "NodeSocketLogicBool",
         },
-    },
-    "LogicNativeSetLocalScale": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Scale": "NodeSocketLogicVector",
-        },
-    },
-    "LogicNativeSetLinearVelocity": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Velocity": "NodeSocketLogicVector",
-        },
-    },
-    "LogicNativeSetLocalLinearVelocity": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Velocity": "NodeSocketLogicVector",
-        },
-    },
-    "LogicNativeSetAngularVelocity": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Velocity": "NodeSocketLogicVector",
-        },
-    },
-    "LogicNativeSetLocalAngularVelocity": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Velocity": "NodeSocketLogicVector",
-        },
+        "outputs": {"Done": "NodeSocketLogicExecution"},
     },
     "LogicNativeApplyImpulse": {
         "inputs": {
@@ -596,21 +555,6 @@ EXPECTED_SOCKET_IDNAMES = {
             "Object": "NodeSocketLogicObject",
             "Attach": "NodeSocketLogicVector",
             "Impulse": "NodeSocketLogicVector",
-        },
-    },
-    "LogicNativeSetVisibility": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Visible": "NodeSocketLogicBool",
-            "Include Children": "NodeSocketLogicBool",
-        },
-    },
-    "LogicNativeSetObjectColor": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Color": "NodeSocketLogicColor",
         },
     },
     "LogicNativeSetLightColor": {
@@ -1595,23 +1539,35 @@ def validate_editor_menus():
             ],
             "separators": 1,
         },
-        "Animation/Get Bone Data": {
+        "Animation/Get Rest Bone Data": {
             "nodes": [
                 "LogicNativeGetBoneHeadWorld",
                 "LogicNativeGetBoneTailWorld",
                 "LogicNativeGetBoneLength",
                 "LogicNativeGetBoneCenterWorld",
+            ],
+        },
+        "Animation/Get Pose Bone Data": {
+            "nodes": [
                 "LogicNativeGetBoneHeadPoseWorld",
                 "LogicNativeGetBoneTailPoseWorld",
                 "LogicNativeGetBoneCenterPoseWorld",
-                "LogicNativeGetBoneAttribute",
+                "LogicNativeGetBonePoseRotation",
+                "LogicNativeGetBonePoseScale",
+                "LogicNativeGetBonePoseTransform",
             ],
-            "separators": 2,
         },
-        "Animation/Set Bone Data": {
+        "Animation/Set Pose Bone Data": {
             "nodes": [
                 "LogicNativeSetBonePoseLocation",
                 "LogicNativeSetBonePoseRotation",
+                "LogicNativeSetBonePoseScale",
+                "LogicNativeSetBonePoseTransform",
+            ],
+        },
+        "Animation/Advanced Bone Data": {
+            "nodes": [
+                "LogicNativeGetBoneAttribute",
                 "LogicNativeSetBoneAttribute",
             ],
         },
@@ -1635,6 +1591,13 @@ def validate_editor_menus():
         },
         "Nodes": {
             "paths": list(logic_menu_module.LOGIC_IMPORTANT_SUBMENU_PATHS["Nodes"]),
+            "nodes": [
+                "LogicNativeGetEditorNodeValue",
+                "LogicNativeSetEditorNodeValue",
+                "LogicNativeMakeNodeTreeUnique",
+                "LogicNativeSetNodeMute",
+            ],
+            "separators": 1,
         },
         "Nodes/Materials": {
             "nodes": [
@@ -1648,15 +1611,14 @@ def validate_editor_menus():
             "separators": 1,
         },
         "Nodes/Geometry": {
-            "nodes": [],
+            "nodes": [
+                "LogicNativeSetGeometryNodesInput",
+                "LogicNativeEnableDisableModifier",
+                "LogicNativeAssignGeometryNodesModifier",
+            ],
         },
         "Nodes/Groups": {
-            "nodes": [
-                "LogicNativeRunLogicTree",
-                "LogicNativeInstallLogicTree",
-                "LogicNativeStartLogicTree",
-                "LogicNativeStopLogicTree",
-            ],
+            "nodes": [],
         },
         "Objects": {
             "paths": list(logic_menu_module.LOGIC_IMPORTANT_SUBMENU_PATHS["Objects"]),
@@ -1664,18 +1626,6 @@ def validate_editor_menus():
         },
         "Objects/Get Attribute": {
             "nodes": [
-                "LogicNativeGetWorldPosition",
-                "LogicNativeGetWorldOrientation",
-                "LogicNativeGetLocalPosition",
-                "LogicNativeGetLocalOrientation",
-                "LogicNativeGetWorldScale",
-                "LogicNativeGetLocalScale",
-                "LogicNativeGetVisibility",
-                "LogicNativeGetObjectColor",
-                "LogicNativeGetLinearVelocity",
-                "LogicNativeGetLocalLinearVelocity",
-                "LogicNativeGetAngularVelocity",
-                "LogicNativeGetLocalAngularVelocity",
                 "LogicNativeGetObjectAttribute",
                 "LogicNativeGetObjectID",
                 "LogicNativeGetAxisVector",
@@ -1685,26 +1635,14 @@ def validate_editor_menus():
         "Objects/Set Attribute": {
             "nodes": [
                 "LogicNativeSetObjectAttribute",
-                "LogicNativeSetWorldPosition",
-                "LogicNativeSetWorldOrientation",
-                "LogicNativeSetLocalPosition",
-                "LogicNativeSetLocalOrientation",
-                "LogicNativeSetWorldScale",
-                "LogicNativeSetLocalScale",
-                "LogicNativeSetVisibility",
-                "LogicNativeSetObjectColor",
-                "LogicNativeSetLinearVelocity",
-                "LogicNativeSetLocalLinearVelocity",
-                "LogicNativeSetAngularVelocity",
-                "LogicNativeSetLocalAngularVelocity",
             ],
-            "separators": 1,
         },
         "Objects/Transformation": {
             "nodes": [
                 "LogicNativeApplyMovement",
                 "LogicNativeApplyRotation",
                 "LogicNativeApplyForce",
+                "LogicNativeApplyForceToTarget",
                 "LogicNativeApplyTorque",
                 "LogicNativeApplyImpulse",
                 "LogicNativeMoveToward",
@@ -1722,6 +1660,8 @@ def validate_editor_menus():
                 "LogicNativeFindObject",
                 "LogicNativeObjectByName",
                 "LogicNativeGetOwner",
+                "LogicNativeGetDistance",
+                "LogicNativeGetGroupCenterPosition",
                 "LogicNativeAddObject",
                 "LogicNativeSetParent",
                 "LogicNativeGetParent",
@@ -1733,6 +1673,9 @@ def validate_editor_menus():
                 "LogicNativeReplaceMesh",
             ],
             "separators": 1,
+        },
+        "Objects/Curves": {
+            "nodes": ["LogicNativeEvaluateCurve"],
         },
         "Scene": {
             "paths": list(logic_menu_module.LOGIC_IMPORTANT_SUBMENU_PATHS["Scene"]),
@@ -1842,8 +1785,11 @@ def validate_editor_menus():
                 "LogicNativeSetGravity",
                 "LogicNativeRaycast",
                 "LogicNativeRaycastAll",
+                "LogicNativeShapeCast",
+                "LogicNativeShapeCastAll",
                 "LogicNativeProjectileRay",
                 "LogicNativeAddPhysicsConstraint",
+                "LogicNativeGetRigidBodyConstraints",
                 "LogicNativeRemovePhysicsConstraint",
                 "LogicNativeObjectsColliding",
                 "LogicNativeSetPhysics",
@@ -2257,6 +2203,8 @@ def disable_legacy_logic_addons():
 
 
 def build_probe_trees():
+    global EXPECTED_LINKED_NODE_COUNT, EXPECTED_LINKED_LINK_COUNT
+
     require(hasattr(bpy.types, "LogicNodeTree"), "LogicNodeTree RNA type is not registered")
 
     empty_tree = new_logic_tree("LN Empty Tree")
@@ -2294,41 +2242,46 @@ def build_probe_trees():
     within_range = linked_tree.nodes.new("LogicNativeWithinRange")
     math = linked_tree.nodes.new("LogicNativeMath")
     target_position = linked_tree.nodes.new("LogicNativeValueVector")
-    get_position = linked_tree.nodes.new("LogicNativeGetWorldPosition")
-    get_local_position = linked_tree.nodes.new("LogicNativeGetLocalPosition")
-    get_world_orientation = linked_tree.nodes.new("LogicNativeGetWorldOrientation")
-    get_local_orientation = linked_tree.nodes.new("LogicNativeGetLocalOrientation")
-    get_world_scale = linked_tree.nodes.new("LogicNativeGetWorldScale")
-    get_local_scale = linked_tree.nodes.new("LogicNativeGetLocalScale")
-    get_visibility = linked_tree.nodes.new("LogicNativeGetVisibility")
-    get_object_color = linked_tree.nodes.new("LogicNativeGetObjectColor")
+    get_position = new_get_object_attribute(linked_tree, "WORLD_POSITION")
+    get_local_position = new_get_object_attribute(linked_tree, "LOCAL_POSITION")
+    get_world_orientation = new_get_object_attribute(linked_tree, "WORLD_ORIENTATION")
+    get_local_orientation = new_get_object_attribute(linked_tree, "LOCAL_ORIENTATION")
+    get_world_scale = new_get_object_attribute(linked_tree, "WORLD_SCALE")
+    get_local_scale = new_get_object_attribute(linked_tree, "LOCAL_SCALE")
+    get_visibility = new_get_object_attribute(linked_tree, "VISIBLE")
+    get_object_color = new_get_object_attribute(linked_tree, "COLOR")
     get_light_color = linked_tree.nodes.new("LogicNativeGetLightColor")
     get_light_power = linked_tree.nodes.new("LogicNativeGetLightPower")
-    get_velocity = linked_tree.nodes.new("LogicNativeGetLinearVelocity")
-    get_local_velocity = linked_tree.nodes.new("LogicNativeGetLocalLinearVelocity")
-    get_angular_velocity = linked_tree.nodes.new("LogicNativeGetAngularVelocity")
-    get_local_angular_velocity = linked_tree.nodes.new("LogicNativeGetLocalAngularVelocity")
+    get_velocity = new_get_object_attribute(linked_tree, "WORLD_LINEAR_VELOCITY")
+    get_local_velocity = new_get_object_attribute(linked_tree, "LOCAL_LINEAR_VELOCITY")
+    get_angular_velocity = new_get_object_attribute(linked_tree, "WORLD_ANGULAR_VELOCITY")
+    get_local_angular_velocity = new_get_object_attribute(linked_tree, "LOCAL_ANGULAR_VELOCITY")
+    get_name = new_get_object_attribute(linked_tree, "NAME")
+    get_world_transform = new_get_object_attribute(linked_tree, "WORLD_TRANSFORM")
+    get_local_transform = new_get_object_attribute(linked_tree, "LOCAL_TRANSFORM")
     get_prop_float = linked_tree.nodes.new("LogicNativeGetGamePropertyFloat")
     get_prop_bool = linked_tree.nodes.new("LogicNativeGetGamePropertyBool")
     get_prop_int = linked_tree.nodes.new("LogicNativeGetGamePropertyInt")
     get_prop_string = linked_tree.nodes.new("LogicNativeGetGamePropertyString")
     vector_math = linked_tree.nodes.new("LogicNativeVectorMath")
-    set_position = linked_tree.nodes.new("LogicNativeSetWorldPosition")
-    set_local_position = linked_tree.nodes.new("LogicNativeSetLocalPosition")
-    set_world_orientation = linked_tree.nodes.new("LogicNativeSetWorldOrientation")
-    set_local_orientation = linked_tree.nodes.new("LogicNativeSetLocalOrientation")
-    set_world_scale = linked_tree.nodes.new("LogicNativeSetWorldScale")
-    set_local_scale = linked_tree.nodes.new("LogicNativeSetLocalScale")
-    set_visibility = linked_tree.nodes.new("LogicNativeSetVisibility")
-    set_object_color = linked_tree.nodes.new("LogicNativeSetObjectColor")
+    set_position = new_set_object_attribute(linked_tree, "WORLD_POSITION")
+    set_local_position = new_set_object_attribute(linked_tree, "LOCAL_POSITION")
+    set_world_orientation = new_set_object_attribute(linked_tree, "WORLD_ORIENTATION")
+    set_local_orientation = new_set_object_attribute(linked_tree, "LOCAL_ORIENTATION")
+    set_world_scale = new_set_object_attribute(linked_tree, "WORLD_SCALE")
+    set_local_scale = new_set_object_attribute(linked_tree, "LOCAL_SCALE")
+    set_visibility = new_set_object_attribute(linked_tree, "VISIBLE")
+    set_object_color = new_set_object_attribute(linked_tree, "COLOR")
     set_light_color = linked_tree.nodes.new("LogicNativeSetLightColor")
     set_light_power = linked_tree.nodes.new("LogicNativeSetLightPower")
     set_light_shadow = linked_tree.nodes.new("LogicNativeSetLightShadow")
     make_light_unique = linked_tree.nodes.new("LogicNativeMakeLightUnique")
-    set_velocity = linked_tree.nodes.new("LogicNativeSetLinearVelocity")
-    set_local_velocity = linked_tree.nodes.new("LogicNativeSetLocalLinearVelocity")
-    set_angular_velocity = linked_tree.nodes.new("LogicNativeSetAngularVelocity")
-    set_local_angular_velocity = linked_tree.nodes.new("LogicNativeSetLocalAngularVelocity")
+    set_velocity = new_set_object_attribute(linked_tree, "WORLD_LINEAR_VELOCITY")
+    set_local_velocity = new_set_object_attribute(linked_tree, "LOCAL_LINEAR_VELOCITY")
+    set_angular_velocity = new_set_object_attribute(linked_tree, "WORLD_ANGULAR_VELOCITY")
+    set_local_angular_velocity = new_set_object_attribute(linked_tree, "LOCAL_ANGULAR_VELOCITY")
+    set_world_transform = new_set_object_attribute(linked_tree, "WORLD_TRANSFORM")
+    set_local_transform = new_set_object_attribute(linked_tree, "LOCAL_TRANSFORM")
     apply_movement = linked_tree.nodes.new("LogicNativeApplyMovement")
     apply_rotation = linked_tree.nodes.new("LogicNativeApplyRotation")
     apply_force = linked_tree.nodes.new("LogicNativeApplyForce")
@@ -2429,6 +2382,9 @@ def build_probe_trees():
     get_local_velocity.location = (40.0, -400.0)
     get_angular_velocity.location = (40.0, -560.0)
     get_local_angular_velocity.location = (40.0, -720.0)
+    get_name.location = (40.0, -880.0)
+    get_world_transform.location = (40.0, -1040.0)
+    get_local_transform.location = (40.0, -1200.0)
     get_prop_float.location = (40.0, -460.0)
     get_prop_bool.location = (40.0, -620.0)
     get_prop_int.location = (40.0, -780.0)
@@ -2446,6 +2402,8 @@ def build_probe_trees():
     set_local_velocity.location = (300.0, -400.0)
     set_angular_velocity.location = (300.0, -560.0)
     set_local_angular_velocity.location = (300.0, -720.0)
+    set_world_transform.location = (300.0, -800.0)
+    set_local_transform.location = (300.0, -960.0)
     apply_movement.location = (300.0, -880.0)
     apply_rotation.location = (300.0, -1040.0)
     apply_force.location = (300.0, -1200.0)
@@ -2646,37 +2604,41 @@ def build_probe_trees():
     linked_tree.links.new(branch.outputs["True"], flow_input(set_local_velocity))
     linked_tree.links.new(branch.outputs["True"], flow_input(set_angular_velocity))
     linked_tree.links.new(branch.outputs["True"], flow_input(set_local_angular_velocity))
+    linked_tree.links.new(branch.outputs["True"], flow_input(set_world_transform))
+    linked_tree.links.new(branch.outputs["True"], flow_input(set_local_transform))
     linked_tree.links.new(branch.outputs["True"], flow_input(apply_movement))
     linked_tree.links.new(branch.outputs["True"], flow_input(apply_rotation))
     linked_tree.links.new(branch.outputs["True"], flow_input(apply_force))
     linked_tree.links.new(branch.outputs["True"], flow_input(apply_torque))
     linked_tree.links.new(branch.outputs["True"], flow_input(apply_impulse))
     linked_tree.links.new(branch.outputs["True"], flow_input(set_prop_int))
-    linked_tree.links.new(get_position.outputs["Position"], vector_math.inputs["A"])
+    linked_tree.links.new(get_position.outputs["Vector"], vector_math.inputs["A"])
     linked_tree.links.new(value_output(target_position), vector_math.inputs["B"])
-    linked_tree.links.new(value_output(target_position), set_local_position.inputs["Position"])
+    linked_tree.links.new(value_output(target_position), set_local_position.inputs["Value"])
     linked_tree.links.new(euler.outputs["Rotation"], set_world_orientation.inputs["Rotation"])
     linked_tree.links.new(
-        get_local_orientation.outputs["Rotation"], set_local_orientation.inputs["Rotation"]
+        get_local_orientation.outputs["Orientation"], set_local_orientation.inputs["Rotation"]
     )
-    linked_tree.links.new(get_world_scale.outputs["Scale"], set_world_scale.inputs["Scale"])
-    linked_tree.links.new(get_local_scale.outputs["Scale"], set_local_scale.inputs["Scale"])
+    linked_tree.links.new(get_world_scale.outputs["Vector"], set_world_scale.inputs["Value"])
+    linked_tree.links.new(get_local_scale.outputs["Vector"], set_local_scale.inputs["Value"])
     linked_tree.links.new(get_visibility.outputs["Visible"], set_visibility.inputs["Visible"])
     linked_tree.links.new(color_rgba.outputs["Color"], set_object_color.inputs["Color"])
     linked_tree.links.new(get_light_color.outputs["Color"], set_light_color.inputs["Color"])
     linked_tree.links.new(get_light_power.outputs["Power"], set_light_power.inputs["Power"])
     linked_tree.links.new(combine_xy.outputs["Vector"], separate_xy.inputs["Vector"])
     linked_tree.links.new(combine_xyz.outputs["Vector"], separate_xyz.inputs["Vector"])
-    linked_tree.links.new(vector_math.outputs["Result"], set_position.inputs["Position"])
-    linked_tree.links.new(get_velocity.outputs["Velocity"], set_velocity.inputs["Velocity"])
-    linked_tree.links.new(get_local_velocity.outputs["Velocity"], set_local_velocity.inputs["Velocity"])
-    linked_tree.links.new(get_angular_velocity.outputs["Velocity"], set_angular_velocity.inputs["Velocity"])
+    linked_tree.links.new(vector_math.outputs["Result"], set_position.inputs["Value"])
+    linked_tree.links.new(get_velocity.outputs["Vector"], set_velocity.inputs["Value"])
+    linked_tree.links.new(get_local_velocity.outputs["Vector"], set_local_velocity.inputs["Value"])
+    linked_tree.links.new(get_angular_velocity.outputs["Vector"], set_angular_velocity.inputs["Value"])
     linked_tree.links.new(
-        get_local_angular_velocity.outputs["Velocity"],
-        set_local_angular_velocity.inputs["Velocity"],
+        get_local_angular_velocity.outputs["Vector"],
+        set_local_angular_velocity.inputs["Value"],
     )
     linked_tree.links.new(value_output(target_position), vector_input(apply_movement, "Vector", "Movement"))
-    linked_tree.links.new(get_world_orientation.outputs["Rotation"], apply_rotation.inputs["Rotation"])
+    linked_tree.links.new(
+        get_world_orientation.outputs["Orientation"], apply_rotation.inputs["Rotation"]
+    )
     linked_tree.links.new(value_output(target_position), apply_force.inputs["Force"])
     linked_tree.links.new(value_output(target_position), apply_torque.inputs["Torque"])
     linked_tree.links.new(value_output(target_position), apply_impulse.inputs["Attach"])
@@ -2693,6 +2655,8 @@ def build_probe_trees():
     linked_tree.links.new(get_resolution.outputs["Height"], set_resolution.inputs["Y"])
 
     build_binding_probe(linked_tree)
+    EXPECTED_LINKED_NODE_COUNT = len(linked_tree.nodes)
+    EXPECTED_LINKED_LINK_COUNT = len(linked_tree.links)
 
 
 def find_node(tree, bl_idname):
@@ -2700,6 +2664,10 @@ def find_node(tree, bl_idname):
         if node.bl_idname == bl_idname:
             return node
     return None
+
+
+def find_nodes(tree, bl_idname):
+    return [node for node in tree.nodes if node.bl_idname == bl_idname]
 
 
 def validate_probe_trees():
@@ -2719,8 +2687,16 @@ def validate_probe_trees():
     require(len(empty_tree.nodes) == 0, "Empty tree should not gain nodes")
     require(len(single_node_tree.nodes) == 1, "Single-node tree should keep exactly one node")
     require(single_node_tree.nodes[0].bl_idname == "LogicNativeOnInit", "Wrong single node type")
-    require(len(linked_tree.nodes) == 120, "Linked tree should keep all probe nodes")
-    require(len(linked_tree.links) == 62, "Linked tree should keep all probe links")
+    require(EXPECTED_LINKED_NODE_COUNT is not None, "Linked-tree node baseline was not recorded")
+    require(EXPECTED_LINKED_LINK_COUNT is not None, "Linked-tree link baseline was not recorded")
+    require(
+        len(linked_tree.nodes) == EXPECTED_LINKED_NODE_COUNT,
+        "Linked tree did not preserve every probe node across save/load",
+    )
+    require(
+        len(linked_tree.links) == EXPECTED_LINKED_LINK_COUNT,
+        "Linked tree did not preserve every probe link across save/load",
+    )
 
     validate_probe_tree_socket_idnames(single_node_tree)
     validate_probe_tree_socket_idnames(linked_tree)
@@ -2765,45 +2741,30 @@ def validate_probe_trees():
         find_node(linked_tree, "LogicNativeGetGamePropertyString") is not None,
         "Get Game Property String node did not survive save/load",
     )
+    get_attribute_modes = {
+        node.attribute_type
+        for node in find_nodes(linked_tree, "LogicNativeGetObjectAttribute")
+    }
+    expected_get_attribute_modes = {
+        "WORLD_POSITION",
+        "LOCAL_POSITION",
+        "VISIBLE",
+        "NAME",
+        "LOCAL_SCALE",
+        "WORLD_SCALE",
+        "COLOR",
+        "LOCAL_ORIENTATION",
+        "WORLD_ORIENTATION",
+        "WORLD_LINEAR_VELOCITY",
+        "LOCAL_LINEAR_VELOCITY",
+        "WORLD_ANGULAR_VELOCITY",
+        "LOCAL_ANGULAR_VELOCITY",
+        "WORLD_TRANSFORM",
+        "LOCAL_TRANSFORM",
+    }
     require(
-        find_node(linked_tree, "LogicNativeGetLocalPosition") is not None,
-        "Get Local Position node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetWorldOrientation") is not None,
-        "Get World Orientation node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetLocalOrientation") is not None,
-        "Get Local Orientation node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetWorldScale") is not None,
-        "Get World Scale node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetLocalScale") is not None,
-        "Get Local Scale node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetAngularVelocity") is not None,
-        "Get Angular Velocity node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetLocalLinearVelocity") is not None,
-        "Get Local Linear Velocity node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetLocalAngularVelocity") is not None,
-        "Get Local Angular Velocity node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetVisibility") is not None,
-        "Get Visibility node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeGetObjectColor") is not None,
-        "Get Color node did not survive save/load",
+        get_attribute_modes == expected_get_attribute_modes,
+        f"Get Object Attribute modes did not survive save/load: {get_attribute_modes}",
     )
     require(
         find_node(linked_tree, "LogicNativeGetLightColor") is not None,
@@ -2817,45 +2778,29 @@ def validate_probe_trees():
         find_node(linked_tree, "LogicNativeSetGamePropertyFloat") is not None,
         "Set Game Property Float node did not survive save/load",
     )
+    set_attribute_modes = {
+        node.attribute_type
+        for node in find_nodes(linked_tree, "LogicNativeSetObjectAttribute")
+    }
+    expected_set_attribute_modes = {
+        "WORLD_POSITION",
+        "WORLD_ORIENTATION",
+        "WORLD_LINEAR_VELOCITY",
+        "WORLD_ANGULAR_VELOCITY",
+        "WORLD_TRANSFORM",
+        "WORLD_SCALE",
+        "LOCAL_POSITION",
+        "LOCAL_ORIENTATION",
+        "LOCAL_LINEAR_VELOCITY",
+        "LOCAL_ANGULAR_VELOCITY",
+        "LOCAL_TRANSFORM",
+        "COLOR",
+        "VISIBLE",
+        "LOCAL_SCALE",
+    }
     require(
-        find_node(linked_tree, "LogicNativeSetLocalPosition") is not None,
-        "Set Local Position node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetWorldOrientation") is not None,
-        "Set World Orientation node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetLocalOrientation") is not None,
-        "Set Local Orientation node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetWorldScale") is not None,
-        "Set World Scale node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetLocalScale") is not None,
-        "Set Local Scale node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetAngularVelocity") is not None,
-        "Set Angular Velocity node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetLocalLinearVelocity") is not None,
-        "Set Local Linear Velocity node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetLocalAngularVelocity") is not None,
-        "Set Local Angular Velocity node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetVisibility") is not None,
-        "Set Visibility node did not survive save/load",
-    )
-    require(
-        find_node(linked_tree, "LogicNativeSetObjectColor") is not None,
-        "Set Color node did not survive save/load",
+        set_attribute_modes == expected_set_attribute_modes,
+        f"Set Object Attribute modes did not survive save/load: {set_attribute_modes}",
     )
     require(
         find_node(linked_tree, "LogicNativeSetLightColor") is not None,
@@ -3041,14 +2986,115 @@ def validate_probe_trees():
 
 def validate_probe_tree_socket_idnames(tree):
     for node in tree.nodes:
-        expected = EXPECTED_SOCKET_IDNAMES.get(node.bl_idname)
+        if node.bl_idname == "LogicNativeGetObjectAttribute":
+            output_contracts = {
+                "WORLD_POSITION": {"Vector": "NodeSocketLogicVector"},
+                "LOCAL_POSITION": {"Vector": "NodeSocketLogicVector"},
+                "VISIBLE": {"Visible": "NodeSocketLogicBool"},
+                "NAME": {"Name": "NodeSocketLogicString"},
+                "LOCAL_SCALE": {"Vector": "NodeSocketLogicVector"},
+                "WORLD_SCALE": {"Vector": "NodeSocketLogicVector"},
+                "COLOR": {"Color": "NodeSocketLogicColor"},
+                "LOCAL_ORIENTATION": {"Orientation": "NodeSocketLogicRotation"},
+                "WORLD_ORIENTATION": {"Orientation": "NodeSocketLogicRotation"},
+                "WORLD_LINEAR_VELOCITY": {"Vector": "NodeSocketLogicVector"},
+                "LOCAL_LINEAR_VELOCITY": {"Vector": "NodeSocketLogicVector"},
+                "WORLD_ANGULAR_VELOCITY": {"Vector": "NodeSocketLogicVector"},
+                "LOCAL_ANGULAR_VELOCITY": {"Vector": "NodeSocketLogicVector"},
+                "WORLD_TRANSFORM": {
+                    "Position": "NodeSocketLogicVector",
+                    "Orientation": "NodeSocketLogicRotation",
+                    "Scale": "NodeSocketLogicVector",
+                },
+                "LOCAL_TRANSFORM": {
+                    "Position": "NodeSocketLogicVector",
+                    "Orientation": "NodeSocketLogicRotation",
+                    "Scale": "NodeSocketLogicVector",
+                },
+            }
+            expected = {
+                "inputs": {"Object": "NodeSocketLogicObject"},
+                "outputs": output_contracts[node.attribute_type],
+            }
+        elif node.bl_idname == "LogicNativeSetObjectAttribute":
+            common_inputs = {
+                "Flow": "NodeSocketLogicExecution",
+                "Object": "NodeSocketLogicObject",
+            }
+            vector_inputs = {
+                **common_inputs,
+                "XYZ": "NodeSocketLogicVector",
+                "Value": "NodeSocketLogicVector",
+            }
+            rotation_inputs = {
+                **common_inputs,
+                "XYZ": "NodeSocketLogicVector",
+                "Rotation": "NodeSocketLogicRotation",
+            }
+            transform_inputs = {
+                **common_inputs,
+                "Position": "NodeSocketLogicVector",
+                "Rotation": "NodeSocketLogicRotation",
+                "Scale": "NodeSocketLogicVector",
+            }
+            input_contracts = {
+                "WORLD_POSITION": vector_inputs,
+                "WORLD_ORIENTATION": rotation_inputs,
+                "WORLD_LINEAR_VELOCITY": vector_inputs,
+                "WORLD_ANGULAR_VELOCITY": vector_inputs,
+                "WORLD_TRANSFORM": transform_inputs,
+                "WORLD_SCALE": vector_inputs,
+                "LOCAL_POSITION": vector_inputs,
+                "LOCAL_ORIENTATION": rotation_inputs,
+                "LOCAL_LINEAR_VELOCITY": vector_inputs,
+                "LOCAL_ANGULAR_VELOCITY": vector_inputs,
+                "LOCAL_TRANSFORM": transform_inputs,
+                "COLOR": {
+                    **common_inputs,
+                    "XYZ": "NodeSocketLogicVector",
+                    "Color": "NodeSocketLogicColor",
+                },
+                "VISIBLE": {
+                    **common_inputs,
+                    "Visible": "NodeSocketLogicBool",
+                    "Include Children": "NodeSocketLogicBool",
+                },
+                "LOCAL_SCALE": vector_inputs,
+            }
+            expected = {
+                "inputs": input_contracts[node.attribute_type],
+                "outputs": {"Done": "NodeSocketLogicExecution"},
+            }
+        else:
+            expected = EXPECTED_SOCKET_IDNAMES.get(node.bl_idname)
         if expected is None:
             continue
         for collection_name in ("inputs", "outputs"):
             expected_sockets = expected.get(collection_name, {})
             sockets = getattr(node, collection_name)
+            if node.bl_idname in {
+                "LogicNativeGetObjectAttribute",
+                "LogicNativeSetObjectAttribute",
+            }:
+                actual_socket_names = {
+                    socket.identifier for socket in sockets if not socket.is_unavailable
+                }
+                require(
+                    actual_socket_names == set(expected_sockets),
+                    f"{node.bl_idname} {node.attribute_type} has wrong active "
+                    f"{collection_name}: {sorted(actual_socket_names)}",
+                )
             for socket_name, expected_idname in expected_sockets.items():
-                socket = sockets.get(socket_name)
+                if node.bl_idname in {
+                    "LogicNativeGetObjectAttribute",
+                    "LogicNativeSetObjectAttribute",
+                }:
+                    socket = next(
+                        (socket for socket in sockets if socket.identifier == socket_name),
+                        None,
+                    )
+                else:
+                    socket = sockets.get(socket_name)
                 require(
                     socket is not None,
                     f"{node.bl_idname} is missing {collection_name[:-1]} socket {socket_name}",
@@ -3120,7 +3166,7 @@ def validate_a_tier_editor_hardening():
     tree = new_logic_tree("LN A Tier Hardening Tree")
     try:
         navigate = tree.nodes.new("LogicNativeNavigate")
-        set_position = tree.nodes.new("LogicNativeSetWorldPosition")
+        set_position = new_set_object_attribute(tree, "WORLD_POSITION")
         next_point = navigate.outputs["Next Point"]
         require(
             next_point.bl_idname == "NodeSocketLogicList",
@@ -3131,10 +3177,10 @@ def validate_a_tier_editor_hardening():
             LOGIC_SOCKET_COLORS["NodeSocketLogicList"],
             "LogicNativeNavigate.Next Point",
         )
-        link = tree.links.new(next_point, set_position.inputs["Position"])
+        link = tree.links.new(next_point, set_position.inputs["Value"])
         bpy.context.view_layer.update()
         require(
-            link.from_socket == next_point and link.to_socket == set_position.inputs["Position"],
+            link.from_socket == next_point and link.to_socket == set_position.inputs["Value"],
             "Navigate Next Point should link to vector inputs",
         )
         require(getattr(link, "is_valid", True), "Navigate Next Point vector link is invalid")

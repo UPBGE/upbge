@@ -984,7 +984,7 @@ void JoltPhysicsController::ApplyAllowedDOFs()
     motion->SetAngularVelocityClamped(motion->GetAngularVelocity());
   }
 
-  m_physicsEnv->GetBodyInterface().ActivateBody(m_bodyID);
+  ActivateBodyIfAdded();
 }
 
 /** \} */
@@ -1646,10 +1646,23 @@ void JoltPhysicsController::SetAngularDamping(float damping)
 
 void JoltPhysicsController::RefreshCollisions()
 {
+  ActivateBodyIfAdded();
+}
+
+void JoltPhysicsController::ActivateBodyIfAdded()
+{
   if (!m_physicsEnv || m_bodyID.IsInvalid()) {
     return;
   }
-  m_physicsEnv->GetBodyInterface().ActivateBody(m_bodyID);
+
+  /* Jolt's BodyInterface::ActivateBody only validates that the BodyID exists.
+   * In release builds it can therefore put a body removed from the broadphase
+   * back into the active-body list. The next simulation step would then try to
+   * update bounds through an invalid broadphase location. */
+  JPH::BodyInterface &bodyInterface = m_physicsEnv->GetBodyInterface();
+  if (bodyInterface.IsAdded(m_bodyID)) {
+    bodyInterface.ActivateBody(m_bodyID);
+  }
 }
 
 void JoltPhysicsController::SuspendPhysics(bool freeConstraints)
@@ -1915,7 +1928,7 @@ void JoltPhysicsController::SetActive(bool active)
   }
 
   if (active) {
-    m_physicsEnv->GetBodyInterface().ActivateBody(m_bodyID);
+    ActivateBodyIfAdded();
   }
   else {
     m_physicsEnv->GetBodyInterface().DeactivateBody(m_bodyID);

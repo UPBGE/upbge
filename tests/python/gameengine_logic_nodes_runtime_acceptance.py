@@ -79,10 +79,22 @@ def value_output(node):
     raise KeyError(f"{node.bl_idname} has no value output socket")
 
 
+def new_get_object_attribute(tree, attribute_type):
+    node = tree.nodes.new("LogicNativeGetObjectAttribute")
+    node.attribute_type = attribute_type
+    return node
+
+
+def new_set_object_attribute(tree, attribute_type):
+    node = tree.nodes.new("LogicNativeSetObjectAttribute")
+    node.attribute_type = attribute_type
+    return node
+
+
 def flow_input(node):
     if "Flow" in node.inputs:
         return node.inputs["Flow"]
-    return flow_input(node)
+    raise KeyError(f"{node.bl_idname} has no Flow input socket")
 
 
 GAME_CONTROLLER_SCRIPT = r'''
@@ -2567,10 +2579,10 @@ def bind_tree(obj, tree_name, enabled=True):
 def build_move_tree(name, position, event="INIT", target_obj=None):
     tree = new_logic_tree(name)
     event_node = tree.nodes.new("LogicNativeOnInit" if event == "INIT" else "LogicNativeOnUpdate")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     if target_obj is not None:
         set_position.inputs["Object"].default_value = target_obj
-    set_position.inputs["Position"].default_value = position
+    set_position.inputs["Value"].default_value = position
     tree.links.new(event_node.outputs["Out"], flow_input(set_position))
     return tree
 
@@ -2582,12 +2594,12 @@ def build_logic_gate_tree(name, position):
     condition_b = tree.nodes.new("LogicNativeValueBool")
     gate = tree.nodes.new("LogicNativeGate")
     branch = tree.nodes.new("LogicNativeBranch")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
 
     value_output(condition_a).default_value = True
     value_output(condition_b).default_value = False
     gate.operation = "OR"
-    set_position.inputs["Position"].default_value = position
+    set_position.inputs["Value"].default_value = position
 
     tree.links.new(on_update.outputs["Out"], branch.inputs["Flow"])
     tree.links.new(value_output(condition_a), gate.inputs["Condition A"])
@@ -2601,7 +2613,7 @@ def build_euler_orientation_tree(name, rotation, target_obj=None):
     tree = new_logic_tree(name)
     on_init = tree.nodes.new("LogicNativeOnInit")
     euler = tree.nodes.new("LogicNativeEuler")
-    set_orientation = tree.nodes.new("LogicNativeSetWorldOrientation")
+    set_orientation = new_set_object_attribute(tree, "WORLD_ORIENTATION")
 
     euler.inputs["X"].default_value = rotation[0]
     euler.inputs["Y"].default_value = rotation[1]
@@ -2617,25 +2629,29 @@ def build_euler_orientation_tree(name, rotation, target_obj=None):
 def build_orientation_tree(name):
     tree = new_logic_tree(name)
     on_update = tree.nodes.new("LogicNativeOnUpdate")
-    get_world_orientation = tree.nodes.new("LogicNativeGetWorldOrientation")
-    get_local_orientation = tree.nodes.new("LogicNativeGetLocalOrientation")
-    set_world_orientation = tree.nodes.new("LogicNativeSetWorldOrientation")
-    set_local_orientation = tree.nodes.new("LogicNativeSetLocalOrientation")
+    get_world_orientation = new_get_object_attribute(tree, "WORLD_ORIENTATION")
+    get_local_orientation = new_get_object_attribute(tree, "LOCAL_ORIENTATION")
+    set_world_orientation = new_set_object_attribute(tree, "WORLD_ORIENTATION")
+    set_local_orientation = new_set_object_attribute(tree, "LOCAL_ORIENTATION")
 
     tree.links.new(on_update.outputs["Out"], flow_input(set_world_orientation))
     tree.links.new(on_update.outputs["Out"], flow_input(set_local_orientation))
-    tree.links.new(get_local_orientation.outputs["Rotation"], set_world_orientation.inputs["Rotation"])
-    tree.links.new(get_world_orientation.outputs["Rotation"], set_local_orientation.inputs["Rotation"])
+    tree.links.new(
+        get_local_orientation.outputs["Orientation"], set_world_orientation.inputs["Rotation"]
+    )
+    tree.links.new(
+        get_world_orientation.outputs["Orientation"], set_local_orientation.inputs["Rotation"]
+    )
     return tree
 
 
 def build_velocity_tree(name, velocity, target_obj=None):
     tree = new_logic_tree(name)
     on_update = tree.nodes.new("LogicNativeOnUpdate")
-    set_velocity = tree.nodes.new("LogicNativeSetLinearVelocity")
+    set_velocity = new_set_object_attribute(tree, "WORLD_LINEAR_VELOCITY")
     if target_obj is not None:
         set_velocity.inputs["Object"].default_value = target_obj
-    set_velocity.inputs["Velocity"].default_value = velocity
+    set_velocity.inputs["Value"].default_value = velocity
     tree.links.new(on_update.outputs["Out"], flow_input(set_velocity))
     return tree
 
@@ -2655,11 +2671,11 @@ def build_impulse_tree(name, impulse, target_obj=None):
 def build_object_actions_tree(name, movement, rotation, force, torque, color, visible, target_obj=None):
     tree = new_logic_tree(name)
     on_init = tree.nodes.new("LogicNativeOnInit")
-    set_visibility = tree.nodes.new("LogicNativeSetVisibility")
+    set_visibility = new_set_object_attribute(tree, "VISIBLE")
     color_rgba = tree.nodes.new("LogicNativeColorRGBA")
-    set_color = tree.nodes.new("LogicNativeSetObjectColor")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
-    set_orientation = tree.nodes.new("LogicNativeSetWorldOrientation")
+    set_color = new_set_object_attribute(tree, "COLOR")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
+    set_orientation = new_set_object_attribute(tree, "WORLD_ORIENTATION")
     apply_force = tree.nodes.new("LogicNativeApplyForce")
     apply_torque = tree.nodes.new("LogicNativeApplyTorque")
 
@@ -2681,7 +2697,7 @@ def build_object_actions_tree(name, movement, rotation, force, torque, color, vi
     color_rgba.inputs["G"].default_value = color[1]
     color_rgba.inputs["B"].default_value = color[2]
     color_rgba.inputs["A"].default_value = color[3]
-    set_position.inputs["Position"].default_value = movement
+    set_position.inputs["Value"].default_value = movement
     set_orientation.inputs["Rotation"].default_value = rotation
     apply_force.inputs["Force"].default_value = force
     apply_force.inputs["Local"].default_value = False
@@ -2703,11 +2719,11 @@ def build_property_branch_tree(name, position):
     on_update = tree.nodes.new("LogicNativeOnUpdate")
     get_enabled = tree.nodes.new("LogicNativeGetGamePropertyBool")
     branch = tree.nodes.new("LogicNativeBranch")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     set_moved = tree.nodes.new("LogicNativeSetGamePropertyBool")
 
     get_enabled.inputs["Property"].default_value = "enabled"
-    set_position.inputs["Position"].default_value = position
+    set_position.inputs["Value"].default_value = position
     set_moved.inputs["Property"].default_value = "moved"
     set_moved.inputs["Value"].default_value = True
 
@@ -3547,12 +3563,12 @@ def build_add_object_result_move_tree(name, template_obj, transform_obj, final_p
     tree = new_logic_tree(name)
     on_init = tree.nodes.new("LogicNativeOnInit")
     add_object = tree.nodes.new("LogicNativeAddObject")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     add_object.inputs["Object to Add"].default_value = template_obj
     add_object.inputs["Copy Transform"].default_value = transform_obj
     add_object.inputs["Life"].default_value = 0.0
     add_object.inputs["Full Copy"].default_value = False
-    set_position.inputs["Position"].default_value = final_position
+    set_position.inputs["Value"].default_value = final_position
     tree.links.new(on_init.outputs["Out"], add_object.inputs["Flow"])
     tree.links.new(add_object.outputs["Done"], flow_input(set_position))
     tree.links.new(add_object.outputs["Added Object"], set_position.inputs["Object"])
@@ -3594,10 +3610,10 @@ def build_add_object_get_id_tree(name, template_obj, transform_obj):
 def build_add_object_after_move_tree(name, template_obj, transform_obj, final_position):
     tree = new_logic_tree(name)
     on_init = tree.nodes.new("LogicNativeOnInit")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     add_object = tree.nodes.new("LogicNativeAddObject")
     set_position.inputs["Object"].default_value = transform_obj
-    set_position.inputs["Position"].default_value = final_position
+    set_position.inputs["Value"].default_value = final_position
     add_object.inputs["Object to Add"].default_value = template_obj
     add_object.inputs["Copy Transform"].default_value = transform_obj
     add_object.inputs["Life"].default_value = 0.0
@@ -3884,7 +3900,7 @@ def build_navigate_visualize_tree(name, target_position, target_obj=None):
     tree = new_logic_tree(name)
     on_update = tree.nodes.new("LogicNativeOnUpdate")
     navigate = tree.nodes.new("LogicNativeNavigate")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
 
     navigate.inputs["Destination"].default_value = target_position
     navigate.inputs["Move as Dynamic"].default_value = False
@@ -3898,7 +3914,7 @@ def build_navigate_visualize_tree(name, target_position, target_obj=None):
 
     tree.links.new(on_update.outputs["Out"], flow_input(navigate))
     tree.links.new(navigate.outputs["Done"], flow_input(set_position))
-    tree.links.new(navigate.outputs["Next Point"], set_position.inputs["Position"])
+    tree.links.new(navigate.outputs["Next Point"], set_position.inputs["Value"])
     return tree
 
 
@@ -3924,14 +3940,14 @@ def build_get_object_attribute_tree(name, expected_position):
     tree = new_logic_tree(name)
     on_init = tree.nodes.new("LogicNativeOnInit")
     on_update = tree.nodes.new("LogicNativeOnUpdate")
-    set_position = tree.nodes.new("LogicNativeSetWorldPosition")
-    get_attribute = tree.nodes.new("LogicNativeGetObjectAttribute")
+    set_position = new_set_object_attribute(tree, "WORLD_POSITION")
+    get_attribute = new_get_object_attribute(tree, "WORLD_POSITION")
     separate = tree.nodes.new("LogicNativeSeparateXYZ")
     set_x = tree.nodes.new("LogicNativeSetGamePropertyFloat")
     set_y = tree.nodes.new("LogicNativeSetGamePropertyFloat")
     set_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
 
-    set_position.inputs["Position"].default_value = expected_position
+    set_position.inputs["Value"].default_value = expected_position
     set_x.inputs["Property"].default_value = "read_x"
     set_y.inputs["Property"].default_value = "read_y"
     set_z.inputs["Property"].default_value = "read_z"
@@ -5230,6 +5246,9 @@ def build_input_nodes_tree(name):
     set_keyboard = tree.nodes.new("LogicNativeSetGamePropertyBool")
     set_mouse = tree.nodes.new("LogicNativeSetGamePropertyBool")
     set_gamepad = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_keyboard_active = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_mouse_active = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_gamepad_active = tree.nodes.new("LogicNativeSetGamePropertyBool")
 
     keyboard.inputs["Key"].default_value = "SPACE"
     mouse.inputs["Button"].default_value = "LEFTMOUSE"
@@ -5238,6 +5257,9 @@ def build_input_nodes_tree(name):
         (set_keyboard, "keyboard_checked"),
         (set_mouse, "mouse_checked"),
         (set_gamepad, "gamepad_checked"),
+        (set_keyboard_active, "keyboard_checked"),
+        (set_mouse_active, "mouse_checked"),
+        (set_gamepad_active, "gamepad_checked"),
     ):
         node.inputs["Property"].default_value = property_name
         node.inputs["Value"].default_value = True
@@ -5248,6 +5270,9 @@ def build_input_nodes_tree(name):
     tree.links.new(keyboard.outputs["Active"], branch_keyboard.inputs["Condition"])
     tree.links.new(mouse.outputs["Active"], branch_mouse.inputs["Condition"])
     tree.links.new(gamepad.outputs["Active"], branch_gamepad.inputs["Condition"])
+    tree.links.new(branch_keyboard.outputs["True"], flow_input(set_keyboard_active))
+    tree.links.new(branch_mouse.outputs["True"], flow_input(set_mouse_active))
+    tree.links.new(branch_gamepad.outputs["True"], flow_input(set_gamepad_active))
     tree.links.new(branch_keyboard.outputs["False"], flow_input(set_keyboard))
     tree.links.new(branch_mouse.outputs["False"], flow_input(set_mouse))
     tree.links.new(branch_gamepad.outputs["False"], flow_input(set_gamepad))
@@ -5362,7 +5387,7 @@ def build_b_tier_core_tree(name, target_obj):
     projectile.inputs["Power"].default_value = 10.0
     projectile.inputs["Distance"].default_value = 10.0
     projectile.inputs["Resolution"].default_value = 0.9
-    projectile.inputs["Mask"].default_value = 65535
+    projectile.inputs["Mask"].default_value = 1023
     set_projectile_hit = tree.nodes.new("LogicNativeSetGamePropertyBool")
     set_projectile_hit.inputs["Property"].default_value = "projectile_hit"
 

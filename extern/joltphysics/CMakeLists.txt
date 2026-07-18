@@ -40,6 +40,15 @@ set(ENABLE_INSTALL OFF CACHE BOOL "Disable Jolt install targets" FORCE)
 
 # UPBGE links Jolt statically and does not use its compute or hair simulation backends.
 set(JPH_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Jolt as a static library" FORCE)
+
+# UPBGE uses the dynamic MSVC runtime (/MD for Release and /MDd for Debug).
+# Jolt defaults to the static runtime, which makes its objects incompatible
+# with UPBGE at link time. Keep Jolt itself as a static library, but make its
+# runtime-library choice match the rest of UPBGE.
+if(MSVC)
+  set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "Use Jolt's dynamic MSVC runtime" FORCE)
+endif()
+
 set(JPH_USE_DX12 OFF CACHE BOOL "Disable Jolt DirectX 12 compute" FORCE)
 set(JPH_USE_VK OFF CACHE BOOL "Disable Jolt Vulkan compute" FORCE)
 set(JPH_USE_MTL OFF CACHE BOOL "Disable Jolt Metal compute" FORCE)
@@ -78,6 +87,15 @@ FetchContent_MakeAvailable(JoltPhysics)
 # The Jolt library target is named "Jolt" after FetchContent.
 # Create an alias that UPBGE's build system can reference consistently.
 if(TARGET Jolt)
+  if(MSVC)
+    # Be explicit on the target as well as the upstream cache option. This
+    # prevents a future Jolt CMake default from reintroducing /MT.
+    set_property(
+      TARGET Jolt
+      PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
+  endif()
+
   # Expose include directory for consumers.
   # Jolt's headers are under the source root in the "Jolt/" subdirectory.
   # FetchContent places the source at ${joltphysics_SOURCE_DIR}.

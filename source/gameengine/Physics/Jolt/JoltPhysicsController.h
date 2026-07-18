@@ -355,6 +355,7 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   JPH::MassProperties MassPropertiesForMass(float mass) const;
   JPH::EAllowedDOFs BuildAllowedDOFs() const;
   void ApplyAllowedDOFs();
+  void ActivateBodyIfAdded();
   void NotifyFhSettingsChanged();
   void NotifyBuoyancySettingsChanged();
   void SetGhostFlag(bool enabled);

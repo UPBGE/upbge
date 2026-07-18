@@ -175,6 +175,105 @@ void AppendMaterialParameterValueSockets(blender::bNode &node,
   Append(node.inputs, sockets.color_value);
 }
 
+struct SetObjectAttributeAuxSockets {
+  blender::bNodeSocket xyz = {};
+  blender::bNodeSocket object = {};
+  blender::bNodeSocket position = {};
+  blender::bNodeSocket rotation = {};
+  blender::bNodeSocket scale = {};
+  blender::bNodeSocket color = {};
+  blender::bNodeSocket visible = {};
+  blender::bNodeSocket include_children = {};
+  blender::bNodeSocket done = {};
+  blender::bNodeSocketValueVector xyz_default = {};
+};
+
+void InitSetObjectAttributeVectorNode(blender::bNode &node,
+                                      SetObjectAttributeAuxSockets &aux,
+                                      blender::bNodeSocket &flow,
+                                      blender::bNodeSocket &value,
+                                      const char *name,
+                                      const int32_t identifier,
+                                      const int attribute_type,
+                                      void *value_default,
+                                      const char *flow_identifier = "Flow",
+                                      const char *flow_socket_idname = nullptr)
+{
+  InitNode(node, "LogicNativeSetObjectAttribute", name, identifier);
+  node.custom1 = attribute_type;
+  /* The editor initializes all three component-mask bits plus the initialized bit. */
+  node.custom2 = 15;
+  aux.xyz_default.value[0] = 1.0f;
+  aux.xyz_default.value[1] = 1.0f;
+  aux.xyz_default.value[2] = 1.0f;
+
+  InitSocket(flow,
+             flow_identifier,
+             blender::SOCK_BOOLEAN,
+             nullptr,
+             flow_socket_idname);
+  InitSocket(aux.xyz, "XYZ", blender::SOCK_VECTOR, &aux.xyz_default);
+  InitSocket(aux.object, "Object", blender::SOCK_OBJECT, nullptr);
+  InitSocket(value, "Value", blender::SOCK_VECTOR, value_default);
+  InitSocket(aux.position, "Position", blender::SOCK_VECTOR, nullptr);
+  InitSocket(aux.rotation, "Rotation", blender::SOCK_ROTATION, nullptr);
+  InitSocket(aux.scale, "Scale", blender::SOCK_VECTOR, nullptr);
+  InitSocket(aux.color, "Color", blender::SOCK_RGBA, nullptr);
+  InitSocket(aux.visible, "Visible", blender::SOCK_BOOLEAN, nullptr);
+  InitSocket(aux.include_children, "Include Children", blender::SOCK_BOOLEAN, nullptr);
+  InitSocket(aux.done, "Done", blender::SOCK_BOOLEAN, nullptr);
+
+  Append(node.inputs, flow);
+  Append(node.inputs, aux.xyz);
+  Append(node.inputs, aux.object);
+  Append(node.inputs, value);
+  Append(node.inputs, aux.position);
+  Append(node.inputs, aux.rotation);
+  Append(node.inputs, aux.scale);
+  Append(node.inputs, aux.color);
+  Append(node.inputs, aux.visible);
+  Append(node.inputs, aux.include_children);
+  Append(node.outputs, aux.done);
+}
+
+struct GetObjectAttributeAuxSockets {
+  blender::bNodeSocket object = {};
+  blender::bNodeSocket name = {};
+  blender::bNodeSocket visible = {};
+  blender::bNodeSocket position = {};
+  blender::bNodeSocket orientation = {};
+  blender::bNodeSocket scale = {};
+  blender::bNodeSocket color = {};
+};
+
+void InitGetObjectAttributeVectorNode(blender::bNode &node,
+                                      GetObjectAttributeAuxSockets &aux,
+                                      blender::bNodeSocket &vector,
+                                      const char *name,
+                                      const int32_t identifier,
+                                      const int attribute_type)
+{
+  InitNode(node, "LogicNativeGetObjectAttribute", name, identifier);
+  node.custom1 = attribute_type;
+  InitSocket(aux.object, "Object", blender::SOCK_OBJECT, nullptr);
+  InitSocket(aux.name, "Name", blender::SOCK_STRING, nullptr);
+  InitSocket(vector, "Vector", blender::SOCK_VECTOR, nullptr);
+  InitSocket(aux.visible, "Visible", blender::SOCK_BOOLEAN, nullptr);
+  InitSocket(aux.position, "Position", blender::SOCK_VECTOR, nullptr);
+  InitSocket(aux.orientation, "Orientation", blender::SOCK_ROTATION, nullptr);
+  InitSocket(aux.scale, "Scale", blender::SOCK_VECTOR, nullptr);
+  InitSocket(aux.color, "Color", blender::SOCK_RGBA, nullptr);
+
+  Append(node.inputs, aux.object);
+  Append(node.outputs, aux.name);
+  Append(node.outputs, vector);
+  Append(node.outputs, aux.visible);
+  Append(node.outputs, aux.position);
+  Append(node.outputs, aux.orientation);
+  Append(node.outputs, aux.scale);
+  Append(node.outputs, aux.color);
+}
+
 bool HasFloatConstant(const LN_Program &program, float expected)
 {
   for (const LN_Constant &constant : program.GetConstants()) {
@@ -336,6 +435,24 @@ const LN_Instruction *FindBranchRouteWithConditionKind(
   return nullptr;
 }
 
+void ExpectInstructionGuardedByRouteCondition(const LN_Program &program,
+                                              const LN_Event event,
+                                              const LN_Instruction &instruction,
+                                              const LN_BoolExpressionKind condition_kind)
+{
+  const std::vector<LN_Instruction> &instructions = program.GetInstructions(event);
+  const LN_Instruction *route = FindBranchRouteWithConditionKind(
+      program, instructions, condition_kind);
+  ASSERT_NE(route, nullptr);
+  const uint32_t route_index = uint32_t(route - instructions.data());
+
+  const LN_BoolExpression *guard = BoolExpressionAt(program,
+                                                    instruction.bool_guard_expr_index);
+  ASSERT_NE(guard, nullptr);
+  EXPECT_EQ(guard->kind, LN_BoolExpressionKind::InstructionExecuted);
+  EXPECT_EQ(guard->input0, route_index);
+}
+
 int FindInstructionIndex(const std::vector<LN_Instruction> &instructions, LN_OpCode opcode)
 {
   for (size_t index = 0; index < instructions.size(); index++) {
@@ -376,6 +493,21 @@ const LN_StringExpression *StringExpressionAt(const LN_Program &program, const u
     return nullptr;
   }
   return &expressions[index];
+}
+
+void ExpectObjectAttributeVectorExpression(const LN_Program &program,
+                                           const LN_VectorExpression &expression,
+                                           const char *attribute_name)
+{
+  EXPECT_EQ(expression.kind, LN_VectorExpressionKind::FromGenericValue);
+  const LN_ValueExpression *value_expression = ValueExpressionAt(program, expression.input0);
+  ASSERT_NE(value_expression, nullptr);
+  EXPECT_EQ(value_expression->kind, LN_ValueExpressionKind::ObjectAttribute);
+  const LN_StringExpression *attribute_expression = StringExpressionAt(
+      program, value_expression->input1);
+  ASSERT_NE(attribute_expression, nullptr);
+  EXPECT_EQ(attribute_expression->kind, LN_StringExpressionKind::Constant);
+  EXPECT_EQ(attribute_expression->string_value, attribute_name);
 }
 
 TEST(LN_TreeCompiler, EmitsEventInstructionsAndTopologicalConstants)
@@ -496,11 +628,9 @@ TEST(LN_TreeCompiler, RejectsCycles)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 4);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 4, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink first_to_second = {};
@@ -601,11 +731,9 @@ TEST(LN_TreeCompiler, RejectsMissingInputSocket)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink math_to_position = {};
@@ -709,7 +837,7 @@ std::string FormatCompileReport(const LN_CompileReport &report)
   return result;
 }
 
-TEST(LN_TreeCompiler, RejectsStaleConditionExecutionSocket)
+TEST(LN_TreeCompiler, WarnsForStaleConditionExecutionSocketOnUnreachableCommand)
 {
   blender::bNodeTree tree = {};
   InitTree(tree);
@@ -725,11 +853,16 @@ TEST(LN_TreeCompiler, RejectsStaleConditionExecutionSocket)
   blender::bNode set_position = {};
   blender::bNodeSocket stale_flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 2);
-  InitSocket(stale_flow, "Condition", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, stale_flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(set_position,
+                                   set_attribute_aux,
+                                   stale_flow,
+                                   position,
+                                   "Set Position",
+                                   2,
+                                   0,
+                                   &position_default,
+                                   "Condition");
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_set_position = {};
@@ -739,12 +872,12 @@ TEST(LN_TreeCompiler, RejectsStaleConditionExecutionSocket)
   const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
   const LN_CompileReport &report = program->GetCompileReport();
 
-  EXPECT_TRUE(report.HasErrors()) << FormatCompileReport(report);
-  EXPECT_TRUE(HasErrorContaining(report, "not part of the native node definition"))
+  EXPECT_FALSE(report.HasErrors()) << FormatCompileReport(report);
+  EXPECT_TRUE(HasWarningContaining(report, "not part of the native node definition"))
       << FormatCompileReport(report);
 }
 
-TEST(LN_TreeCompiler, RejectsFlowSocketWithConditionSocketIdname)
+TEST(LN_TreeCompiler, WarnsForConditionSocketIdnameOnUnreachableCommandFlow)
 {
   blender::bNodeTree tree = {};
   InitTree(tree);
@@ -760,11 +893,17 @@ TEST(LN_TreeCompiler, RejectsFlowSocketWithConditionSocketIdname)
   blender::bNode set_position = {};
   blender::bNodeSocket stale_flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 2);
-  InitSocket(stale_flow, "Flow", blender::SOCK_BOOLEAN, nullptr, "NodeSocketLogicCondition");
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, stale_flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(set_position,
+                                   set_attribute_aux,
+                                   stale_flow,
+                                   position,
+                                   "Set Position",
+                                   2,
+                                   0,
+                                   &position_default,
+                                   "Flow",
+                                   "NodeSocketLogicCondition");
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_set_position = {};
@@ -774,8 +913,8 @@ TEST(LN_TreeCompiler, RejectsFlowSocketWithConditionSocketIdname)
   const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
   const LN_CompileReport &report = program->GetCompileReport();
 
-  EXPECT_TRUE(report.HasErrors()) << FormatCompileReport(report);
-  EXPECT_TRUE(HasErrorContaining(report, "not part of the native node definition"))
+  EXPECT_FALSE(report.HasErrors()) << FormatCompileReport(report);
+  EXPECT_TRUE(HasWarningContaining(report, "not part of the native node definition"))
       << FormatCompileReport(report);
   EXPECT_EQ(FindInstruction(program->GetInstructions(LN_Event::OnFixedUpdate),
                             LN_OpCode::SetWorldPosition),
@@ -902,11 +1041,9 @@ TEST(LN_TreeCompiler, EmitsSetWorldPositionFromOnInit)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink flow_link = {};
@@ -963,11 +1100,9 @@ TEST(LN_TreeCompiler, EmitsCommandsChainedFromPrintDoneOutput)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_print = {};
@@ -1198,10 +1333,10 @@ TEST(LN_TreeCompiler, ReceiveEventOutDrivesFixedUpdateCommandFlow)
   ASSERT_NE(print_instruction, nullptr);
   ASSERT_NE(print_instruction->bool_guard_expr_index, LN_INVALID_INDEX);
 
-  const LN_BoolExpression *guard = BoolExpressionAt(*program,
-                                                    print_instruction->bool_guard_expr_index);
-  ASSERT_NE(guard, nullptr);
-  EXPECT_EQ(guard->kind, LN_BoolExpressionKind::EventReceived);
+  ExpectInstructionGuardedByRouteCondition(*program,
+                                           LN_Event::OnFixedUpdate,
+                                           *print_instruction,
+                                           LN_BoolExpressionKind::EventReceived);
 }
 
 TEST(LN_TreeCompiler, SendEventEmptyConstantSubjectWarnsWithoutDisablingTree)
@@ -1372,10 +1507,10 @@ TEST(LN_TreeCompiler, ReceiveEventEmptyConstantSubjectWarnsWithoutDisablingTree)
   ASSERT_NE(print_instruction, nullptr);
   ASSERT_NE(print_instruction->bool_guard_expr_index, LN_INVALID_INDEX);
 
-  const LN_BoolExpression *guard = BoolExpressionAt(*program,
-                                                    print_instruction->bool_guard_expr_index);
-  ASSERT_NE(guard, nullptr);
-  EXPECT_EQ(guard->kind, LN_BoolExpressionKind::EventReceived);
+  ExpectInstructionGuardedByRouteCondition(*program,
+                                           LN_Event::OnFixedUpdate,
+                                           *print_instruction,
+                                           LN_BoolExpressionKind::EventReceived);
 }
 
 TEST(LN_TreeCompiler, UnusedReceiveEventWithInvalidDefaultsDoesNotDisableActiveFlow)
@@ -1530,11 +1665,10 @@ TEST(LN_TreeCompiler, ReceiveEventUseTargetWithoutTargetWarnsWithoutDisablingTre
   ASSERT_NE(print_instruction, nullptr);
   ASSERT_NE(print_instruction->bool_guard_expr_index, LN_INVALID_INDEX);
 
-  const LN_BoolExpression *guard = BoolExpressionAt(*program,
-                                                    print_instruction->bool_guard_expr_index);
-  ASSERT_NE(guard, nullptr);
-  EXPECT_EQ(guard->kind, LN_BoolExpressionKind::EventReceived);
-  EXPECT_TRUE(guard->bool_value);
+  ExpectInstructionGuardedByRouteCondition(*program,
+                                           LN_Event::OnFixedUpdate,
+                                           *print_instruction,
+                                           LN_BoolExpressionKind::EventReceived);
 }
 
 TEST(LN_TreeCompiler, SendEventAdvancedOffIgnoresHiddenMessengerSocket)
@@ -1660,10 +1794,10 @@ TEST(LN_TreeCompiler, ValueChangedToDirectlyDrivesPrintFlow)
   ASSERT_NE(print_instruction, nullptr);
   ASSERT_NE(print_instruction->bool_guard_expr_index, LN_INVALID_INDEX);
 
-  const LN_BoolExpression *guard = BoolExpressionAt(*program,
-                                                    print_instruction->bool_guard_expr_index);
-  ASSERT_NE(guard, nullptr);
-  EXPECT_EQ(guard->kind, LN_BoolExpressionKind::ValueChangedTo);
+  ExpectInstructionGuardedByRouteCondition(*program,
+                                           LN_Event::OnFixedUpdate,
+                                           *print_instruction,
+                                           LN_BoolExpressionKind::ValueChangedTo);
 }
 
 TEST(LN_TreeCompiler, ValueChangedDirectlyDrivesPrintFlow)
@@ -1718,10 +1852,10 @@ TEST(LN_TreeCompiler, ValueChangedDirectlyDrivesPrintFlow)
   ASSERT_NE(print_instruction, nullptr);
   ASSERT_NE(print_instruction->bool_guard_expr_index, LN_INVALID_INDEX);
 
-  const LN_BoolExpression *guard = BoolExpressionAt(*program,
-                                                    print_instruction->bool_guard_expr_index);
-  ASSERT_NE(guard, nullptr);
-  EXPECT_EQ(guard->kind, LN_BoolExpressionKind::ValueChanged);
+  ExpectInstructionGuardedByRouteCondition(*program,
+                                           LN_Event::OnFixedUpdate,
+                                           *print_instruction,
+                                           LN_BoolExpressionKind::ValueChanged);
 }
 
 TEST(LN_TreeCompiler, GenericBoolInputDoesNotUseStaleNullExpressionCache)
@@ -2979,8 +3113,10 @@ TEST(LN_TreeCompiler, BarrierUsesPrintDoneFlowAndBooleanCondition)
   const LN_Instruction *remove_instruction = FindInstruction(
       program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::RemoveObject);
   ASSERT_NE(remove_instruction, nullptr);
-  EXPECT_TRUE(BoolExpressionTreeContainsKind(
-      *program, remove_instruction->bool_guard_expr_index, LN_BoolExpressionKind::BarrierPassed));
+  ExpectInstructionGuardedByRouteCondition(*program,
+                                           LN_Event::OnFixedUpdate,
+                                           *remove_instruction,
+                                           LN_BoolExpressionKind::BarrierPassed);
 }
 
 TEST(LN_TreeCompiler, DelayAndPulsifyCompileAsTimeFlowContinuations)
@@ -3506,11 +3642,9 @@ TEST(LN_TreeCompiler, EmitsCommandsChainedFromStopActionDoneOutput)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_stop = {};
@@ -3749,24 +3883,27 @@ TEST(LN_TreeCompiler, OrdersAddObjectResultConsumersAfterEachAddObject)
       opcode_sequence += program->GetSourceRefs()[instruction.source_ref_index].node_name;
     }
   }
-  ASSERT_EQ(instructions.size(), 5u) << opcode_sequence;
+  ASSERT_EQ(instructions.size(), 8u) << opcode_sequence;
   EXPECT_EQ(instructions[0].opcode, LN_OpCode::Nop);
   EXPECT_EQ(instructions[1].opcode, LN_OpCode::AddObject);
-  EXPECT_EQ(instructions[2].opcode, LN_OpCode::SetGameProperty);
-  EXPECT_EQ(instructions[3].opcode, LN_OpCode::AddObject);
-  EXPECT_EQ(instructions[4].opcode, LN_OpCode::SetGameProperty);
+  EXPECT_EQ(instructions[2].opcode, LN_OpCode::BranchRoute);
+  EXPECT_EQ(instructions[3].opcode, LN_OpCode::SetGameProperty);
+  EXPECT_EQ(instructions[4].opcode, LN_OpCode::BranchRoute);
+  EXPECT_EQ(instructions[5].opcode, LN_OpCode::AddObject);
+  EXPECT_EQ(instructions[6].opcode, LN_OpCode::BranchRoute);
+  EXPECT_EQ(instructions[7].opcode, LN_OpCode::SetGameProperty);
   EXPECT_NE(instructions[1].property_ref_index, LN_INVALID_INDEX);
-  EXPECT_NE(instructions[3].property_ref_index, LN_INVALID_INDEX);
+  EXPECT_NE(instructions[5].property_ref_index, LN_INVALID_INDEX);
 
   const std::vector<LN_SourceRef> &source_refs = program->GetSourceRefs();
   ASSERT_LT(instructions[1].source_ref_index, source_refs.size());
-  ASSERT_LT(instructions[2].source_ref_index, source_refs.size());
   ASSERT_LT(instructions[3].source_ref_index, source_refs.size());
-  ASSERT_LT(instructions[4].source_ref_index, source_refs.size());
+  ASSERT_LT(instructions[5].source_ref_index, source_refs.size());
+  ASSERT_LT(instructions[7].source_ref_index, source_refs.size());
   EXPECT_EQ(source_refs[instructions[1].source_ref_index].node_name, "Add Object A");
-  EXPECT_EQ(source_refs[instructions[2].source_ref_index].node_name, "Set ID A");
-  EXPECT_EQ(source_refs[instructions[3].source_ref_index].node_name, "Add Object B");
-  EXPECT_EQ(source_refs[instructions[4].source_ref_index].node_name, "Set ID B");
+  EXPECT_EQ(source_refs[instructions[3].source_ref_index].node_name, "Set ID A");
+  EXPECT_EQ(source_refs[instructions[5].source_ref_index].node_name, "Add Object B");
+  EXPECT_EQ(source_refs[instructions[7].source_ref_index].node_name, "Set ID B");
 }
 
 TEST(LN_TreeCompiler, AddObjectDoesNotStoreUnusedAddedObjectOutput)
@@ -3868,11 +4005,9 @@ TEST(LN_TreeCompiler, EmitsCommandsChainedFromStopAllSoundsDoneUsesConditionDriv
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_stop = {};
@@ -3929,11 +4064,9 @@ TEST(LN_TreeCompiler, EmitsSetWorldPositionThroughConstantBranch)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_branch = {};
@@ -4025,11 +4158,15 @@ TEST(LN_TreeCompiler, ObjectsCollidingBlankObjectAUsesOwnerFallbackInBranchCondi
   blender::bNode set_position = {};
   blender::bNodeSocket set_flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 4);
-  InitSocket(set_flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, set_flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(set_position,
+                                   set_attribute_aux,
+                                   set_flow,
+                                   position,
+                                   "Set Position",
+                                   4,
+                                   0,
+                                   &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_branch = {};
@@ -5288,11 +5425,9 @@ TEST(LN_TreeCompiler, EmitsSetLinearVelocityFromOnUpdate)
   blender::bNode set_velocity = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket velocity = {};
-  InitNode(set_velocity, "LogicNativeSetLinearVelocity", "Set Velocity", 2);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(velocity, "Velocity", blender::SOCK_VECTOR, &velocity_default);
-  Append(set_velocity.inputs, flow);
-  Append(set_velocity.inputs, velocity);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_velocity, set_attribute_aux, flow, velocity, "Set Velocity", 2, 2, &velocity_default);
   Append(tree.nodes, set_velocity);
 
   blender::bNodeLink flow_link = {};
@@ -5304,6 +5439,153 @@ TEST(LN_TreeCompiler, EmitsSetLinearVelocityFromOnUpdate)
   EXPECT_TRUE(HasVectorInstruction(program->GetInstructions(LN_Event::OnFixedUpdate),
                                    LN_OpCode::SetVelocityVector,
                                    MT_Vector3(0.0f, 6.0f, 1.5f)));
+}
+
+TEST(LN_TreeCompiler, EmitsSetLocalScaleFromSetObjectAttribute)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+
+  blender::bNode on_update = {};
+  blender::bNodeSocket on_update_pulse = {};
+  InitNode(on_update, "LogicNativeOnUpdate", "On Update", 1);
+  InitSocket(on_update_pulse, "Out", blender::SOCK_BOOLEAN, nullptr);
+  Append(on_update.outputs, on_update_pulse);
+  Append(tree.nodes, on_update);
+
+  blender::bNodeSocketValueVector scale_default = {};
+  scale_default.value[0] = 1.5f;
+  scale_default.value[1] = 2.0f;
+  scale_default.value[2] = 0.5f;
+  blender::bNode set_scale = {};
+  blender::bNodeSocket flow = {};
+  blender::bNodeSocket scale = {};
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_scale, set_attribute_aux, flow, scale, "Set Local Scale", 2, 13, &scale_default);
+  Append(tree.nodes, set_scale);
+
+  blender::bNodeLink flow_link = {};
+  InitLink(flow_link, on_update, on_update_pulse, set_scale, flow);
+  Append(tree.links, flow_link);
+
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  EXPECT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  const LN_Instruction *instruction = FindInstruction(
+      program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::SetTransformVector);
+  ASSERT_NE(instruction, nullptr);
+  EXPECT_EQ(instruction->vector_operation_mode, uint8_t(LN_VectorOperationMode::Local));
+  EXPECT_EQ(instruction->vector_operation_channel, uint8_t(LN_VectorOperationChannel::Scale));
+  EXPECT_LT((instruction->vector_value - MT_Vector3(1.5f, 2.0f, 0.5f)).length(), 0.0001f);
+}
+
+TEST(LN_TreeCompiler, SetObjectAttributeColorWritesFullRgbaWithoutSnapshotRead)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+
+  blender::bNode on_update = {};
+  blender::bNodeSocket on_update_pulse = {};
+  InitNode(on_update, "LogicNativeOnUpdate", "On Update", 1);
+  InitSocket(on_update_pulse, "Out", blender::SOCK_BOOLEAN, nullptr);
+  Append(on_update.outputs, on_update_pulse);
+  Append(tree.nodes, on_update);
+
+  blender::bNodeSocketValueVector unused_value_default = {};
+  blender::bNodeSocketValueRGBA color_default = {};
+  color_default.value[0] = 0.2f;
+  color_default.value[1] = 0.4f;
+  color_default.value[2] = 0.6f;
+  color_default.value[3] = 0.8f;
+  blender::bNode set_color = {};
+  blender::bNodeSocket flow = {};
+  blender::bNodeSocket value = {};
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(set_color,
+                                   set_attribute_aux,
+                                   flow,
+                                   value,
+                                   "Set Color",
+                                   2,
+                                   11,
+                                   &unused_value_default);
+  set_attribute_aux.color.default_value = &color_default;
+  Append(tree.nodes, set_color);
+
+  blender::bNodeLink flow_link = {};
+  InitLink(flow_link, on_update, on_update_pulse, set_color, flow);
+  Append(tree.links, flow_link);
+
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  EXPECT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  const LN_Instruction *instruction = FindInstruction(
+      program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::SetObjectColor);
+  ASSERT_NE(instruction, nullptr);
+  const LN_ColorExpression *expression = ColorExpressionAt(*program,
+                                                           instruction->color_expr_index);
+  ASSERT_NE(expression, nullptr);
+  EXPECT_EQ(expression->kind, LN_ColorExpressionKind::Constant);
+  EXPECT_LT((expression->color_value - MT_Vector4(0.2f, 0.4f, 0.6f, 0.8f)).length(), 0.0001f);
+  EXPECT_LT((instruction->color_value - MT_Vector4(0.2f, 0.4f, 0.6f, 0.8f)).length(), 0.0001f);
+}
+
+TEST(LN_TreeCompiler, SetObjectAttributeColorPartialRgbMaskStillWritesInputAlpha)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+
+  blender::bNode on_update = {};
+  blender::bNodeSocket on_update_pulse = {};
+  InitNode(on_update, "LogicNativeOnUpdate", "On Update", 1);
+  InitSocket(on_update_pulse, "Out", blender::SOCK_BOOLEAN, nullptr);
+  Append(on_update.outputs, on_update_pulse);
+  Append(tree.nodes, on_update);
+
+  blender::bNodeSocketValueVector unused_value_default = {};
+  blender::bNodeSocketValueRGBA color_default = {};
+  color_default.value[0] = 0.2f;
+  color_default.value[1] = 0.4f;
+  color_default.value[2] = 0.6f;
+  color_default.value[3] = 0.8f;
+  blender::bNode set_color = {};
+  blender::bNodeSocket flow = {};
+  blender::bNodeSocket value = {};
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(set_color,
+                                   set_attribute_aux,
+                                   flow,
+                                   value,
+                                   "Set Masked Color",
+                                   2,
+                                   11,
+                                   &unused_value_default);
+  set_color.custom2 = 9; /* Initialized mask with only the first RGB component enabled. */
+  set_attribute_aux.xyz_default.value[0] = 1.0f;
+  set_attribute_aux.xyz_default.value[1] = 0.0f;
+  set_attribute_aux.xyz_default.value[2] = 0.0f;
+  set_attribute_aux.color.default_value = &color_default;
+  Append(tree.nodes, set_color);
+
+  blender::bNodeLink flow_link = {};
+  InitLink(flow_link, on_update, on_update_pulse, set_color, flow);
+  Append(tree.links, flow_link);
+
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  EXPECT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  const LN_Instruction *instruction = FindInstruction(
+      program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::SetObjectColor);
+  ASSERT_NE(instruction, nullptr);
+  const LN_ColorExpression *expression = ColorExpressionAt(*program,
+                                                           instruction->color_expr_index);
+  ASSERT_NE(expression, nullptr);
+  EXPECT_EQ(expression->kind, LN_ColorExpressionKind::Combine);
+  const LN_FloatExpression *alpha = FloatExpressionAt(*program, expression->input3);
+  ASSERT_NE(alpha, nullptr);
+  EXPECT_EQ(alpha->kind, LN_FloatExpressionKind::Constant);
+  EXPECT_NEAR(alpha->float_value, 0.8f, 0.0001f);
 }
 
 TEST(LN_TreeCompiler, AddRigidBodyConstraintsCompilesFrameAndBodyObjects)
@@ -5687,7 +5969,7 @@ TEST(LN_TreeCompiler, RigidBodyConstraintAllModeCompilesOnlyConnectedOutput)
             0);
 }
 
-TEST(LN_TreeCompiler, RejectsSetLinearVelocityFromValueBoolFlow)
+TEST(LN_TreeCompiler, WarnsAndSkipsSetLinearVelocityFromValueBoolFlow)
 {
   blender::bNodeTree tree = {};
   InitTree(tree);
@@ -5706,11 +5988,9 @@ TEST(LN_TreeCompiler, RejectsSetLinearVelocityFromValueBoolFlow)
   blender::bNode set_velocity = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket velocity = {};
-  InitNode(set_velocity, "LogicNativeSetLinearVelocity", "Set Velocity", 2);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(velocity, "Velocity", blender::SOCK_VECTOR, &velocity_default);
-  Append(set_velocity.inputs, flow);
-  Append(set_velocity.inputs, velocity);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_velocity, set_attribute_aux, flow, velocity, "Set Velocity", 2, 2, &velocity_default);
   Append(tree.nodes, set_velocity);
 
   blender::bNodeLink value_to_flow = {};
@@ -5718,8 +5998,8 @@ TEST(LN_TreeCompiler, RejectsSetLinearVelocityFromValueBoolFlow)
   Append(tree.links, value_to_flow);
 
   const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
-  EXPECT_TRUE(program->GetCompileReport().HasErrors());
-  EXPECT_TRUE(HasErrorContaining(program->GetCompileReport(), "requires an execution output"))
+  EXPECT_FALSE(program->GetCompileReport().HasErrors());
+  EXPECT_TRUE(HasWarningContaining(program->GetCompileReport(), "requires an execution output"))
       << FormatCompileReport(program->GetCompileReport());
   const LN_Instruction *instruction = FindInstruction(
       program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::SetVelocityVector);
@@ -5740,20 +6020,18 @@ TEST(LN_TreeCompiler, EmitsSetWorldPositionFromSnapshotWorldPosition)
 
   blender::bNode get_position = {};
   blender::bNodeSocket get_position_output = {};
-  InitNode(get_position, "LogicNativeGetWorldPosition", "Get Position", 2);
-  InitSocket(get_position_output, "Position", blender::SOCK_VECTOR, nullptr);
-  Append(get_position.outputs, get_position_output);
+  GetObjectAttributeAuxSockets get_attribute_aux = {};
+  InitGetObjectAttributeVectorNode(
+      get_position, get_attribute_aux, get_position_output, "Get Position", 2, 0);
   Append(tree.nodes, get_position);
 
   blender::bNodeSocketValueVector position_default = {};
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink flow_link = {};
@@ -5770,7 +6048,7 @@ TEST(LN_TreeCompiler, EmitsSetWorldPositionFromSnapshotWorldPosition)
   ASSERT_NE(instruction, nullptr);
   const LN_VectorExpression *expression = InstructionVectorExpression(*program, *instruction);
   ASSERT_NE(expression, nullptr);
-  EXPECT_EQ(expression->kind, LN_VectorExpressionKind::SnapshotWorldPosition);
+  ExpectObjectAttributeVectorExpression(*program, *expression, "worldPosition");
 }
 
 TEST(LN_TreeCompiler, EmitsSetLinearVelocityFromSnapshotLinearVelocity)
@@ -5787,20 +6065,18 @@ TEST(LN_TreeCompiler, EmitsSetLinearVelocityFromSnapshotLinearVelocity)
 
   blender::bNode get_velocity = {};
   blender::bNodeSocket get_velocity_output = {};
-  InitNode(get_velocity, "LogicNativeGetLinearVelocity", "Get Velocity", 2);
-  InitSocket(get_velocity_output, "Velocity", blender::SOCK_VECTOR, nullptr);
-  Append(get_velocity.outputs, get_velocity_output);
+  GetObjectAttributeAuxSockets get_attribute_aux = {};
+  InitGetObjectAttributeVectorNode(
+      get_velocity, get_attribute_aux, get_velocity_output, "Get Velocity", 2, 9);
   Append(tree.nodes, get_velocity);
 
   blender::bNodeSocketValueVector velocity_default = {};
   blender::bNode set_velocity = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket velocity = {};
-  InitNode(set_velocity, "LogicNativeSetLinearVelocity", "Set Velocity", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(velocity, "Velocity", blender::SOCK_VECTOR, &velocity_default);
-  Append(set_velocity.inputs, flow);
-  Append(set_velocity.inputs, velocity);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_velocity, set_attribute_aux, flow, velocity, "Set Velocity", 3, 2, &velocity_default);
   Append(tree.nodes, set_velocity);
 
   blender::bNodeLink flow_link = {};
@@ -5817,7 +6093,7 @@ TEST(LN_TreeCompiler, EmitsSetLinearVelocityFromSnapshotLinearVelocity)
   ASSERT_NE(instruction, nullptr);
   const LN_VectorExpression *expression = InstructionVectorExpression(*program, *instruction);
   ASSERT_NE(expression, nullptr);
-  EXPECT_EQ(expression->kind, LN_VectorExpressionKind::SnapshotLinearVelocity);
+  ExpectObjectAttributeVectorExpression(*program, *expression, "worldLinearVelocity");
 }
 
 TEST(LN_TreeCompiler, EmitsVectorMathExpressionForSetWorldPosition)
@@ -5834,9 +6110,9 @@ TEST(LN_TreeCompiler, EmitsVectorMathExpressionForSetWorldPosition)
 
   blender::bNode get_position = {};
   blender::bNodeSocket get_position_output = {};
-  InitNode(get_position, "LogicNativeGetWorldPosition", "Get Position", 2);
-  InitSocket(get_position_output, "Position", blender::SOCK_VECTOR, nullptr);
-  Append(get_position.outputs, get_position_output);
+  GetObjectAttributeAuxSockets get_attribute_aux = {};
+  InitGetObjectAttributeVectorNode(
+      get_position, get_attribute_aux, get_position_output, "Get Position", 2, 0);
   Append(tree.nodes, get_position);
 
   blender::bNodeSocketValueVector offset_default = {};
@@ -5875,11 +6151,9 @@ TEST(LN_TreeCompiler, EmitsVectorMathExpressionForSetWorldPosition)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 5);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 5, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink flow_link = {};
@@ -5908,7 +6182,7 @@ TEST(LN_TreeCompiler, EmitsVectorMathExpressionForSetWorldPosition)
   const LN_VectorExpression *right = VectorExpressionAt(*program, expression->input1);
   ASSERT_NE(left, nullptr);
   ASSERT_NE(right, nullptr);
-  EXPECT_EQ(left->kind, LN_VectorExpressionKind::SnapshotWorldPosition);
+  ExpectObjectAttributeVectorExpression(*program, *left, "worldPosition");
   EXPECT_EQ(right->kind, LN_VectorExpressionKind::Constant);
   EXPECT_LT((right->vector_value - MT_Vector3(1.0f, 0.0f, 0.0f)).length(), 0.0001f);
 }
@@ -5949,11 +6223,9 @@ TEST(LN_TreeCompiler, RejectsUnsupportedVectorMathOperation)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink math_to_position = {};
@@ -5999,11 +6271,9 @@ TEST(LN_TreeCompiler, RejectsUnsupportedMathOperation)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink math_to_position = {};
@@ -6064,11 +6334,9 @@ TEST(LN_TreeCompiler, AcceptsReroutedFlowAndValueLinks)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 5);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 5, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_reroute = {};
@@ -6118,11 +6386,9 @@ TEST(LN_TreeCompiler, IgnoresFrameNodes)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 2);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 2, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink flow_link = {};
@@ -6180,7 +6446,7 @@ TEST(LN_TreeCompiler, EmitsApplyImpulseFromOnUpdate)
                                          MT_Vector3(0.0f, 9.0f, 0.0f)));
 }
 
-TEST(LN_TreeCompiler, RejectsApplyImpulseFromValueBoolFlow)
+TEST(LN_TreeCompiler, WarnsAndSkipsApplyImpulseFromValueBoolFlow)
 {
   blender::bNodeTree tree = {};
   InitTree(tree);
@@ -6215,15 +6481,15 @@ TEST(LN_TreeCompiler, RejectsApplyImpulseFromValueBoolFlow)
   Append(tree.links, value_to_flow);
 
   const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
-  EXPECT_TRUE(program->GetCompileReport().HasErrors());
-  EXPECT_TRUE(HasErrorContaining(program->GetCompileReport(), "requires an execution output"))
+  EXPECT_FALSE(program->GetCompileReport().HasErrors());
+  EXPECT_TRUE(HasWarningContaining(program->GetCompileReport(), "requires an execution output"))
       << FormatCompileReport(program->GetCompileReport());
   const LN_Instruction *instruction = FindInstruction(
       program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::ApplyImpulse);
   EXPECT_EQ(instruction, nullptr);
 }
 
-TEST(LN_TreeCompiler, RejectsSetWorldPositionFromValueBoolFlow)
+TEST(LN_TreeCompiler, WarnsAndSkipsSetWorldPositionFromValueBoolFlow)
 {
   blender::bNodeTree tree = {};
   InitTree(tree);
@@ -6242,11 +6508,9 @@ TEST(LN_TreeCompiler, RejectsSetWorldPositionFromValueBoolFlow)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 2);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 2, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink value_to_flow = {};
@@ -6254,8 +6518,8 @@ TEST(LN_TreeCompiler, RejectsSetWorldPositionFromValueBoolFlow)
   Append(tree.links, value_to_flow);
 
   const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
-  EXPECT_TRUE(program->GetCompileReport().HasErrors());
-  EXPECT_TRUE(HasErrorContaining(program->GetCompileReport(), "requires an execution output"))
+  EXPECT_FALSE(program->GetCompileReport().HasErrors());
+  EXPECT_TRUE(HasWarningContaining(program->GetCompileReport(), "requires an execution output"))
       << FormatCompileReport(program->GetCompileReport());
   const LN_Instruction *instruction = FindInstruction(
       program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::SetTransformVector);
@@ -6305,12 +6569,19 @@ TEST(LN_TreeCompiler, KeyboardKeyCompilesInputStatusCodeAndStatus)
   ASSERT_NE(instruction, nullptr);
   ASSERT_NE(instruction->bool_guard_expr_index, LN_INVALID_INDEX);
 
-  const LN_BoolExpression *guard = BoolExpressionAt(*program, instruction->bool_guard_expr_index);
-  ASSERT_NE(guard, nullptr);
-  EXPECT_EQ(guard->kind, LN_BoolExpressionKind::InputStatus);
-  EXPECT_EQ(guard->int_value, int32_t(SCA_IInputDevice::SPACEKEY));
-  EXPECT_EQ(guard->secondary_int_value, int32_t(SCA_InputEvent::JUSTACTIVATED));
-  EXPECT_EQ(guard->string_value, "SPACE");
+  const std::vector<LN_Instruction> &instructions = program->GetInstructions(
+      LN_Event::OnFixedUpdate);
+  const LN_Instruction *route = FindBranchRouteWithConditionKind(
+      *program, instructions, LN_BoolExpressionKind::InputStatus);
+  ASSERT_NE(route, nullptr);
+  const LN_BoolExpression *condition = BoolExpressionAt(*program, route->bool_expr_index);
+  ASSERT_NE(condition, nullptr);
+  EXPECT_EQ(condition->kind, LN_BoolExpressionKind::InputStatus);
+  EXPECT_EQ(condition->int_value, int32_t(SCA_IInputDevice::SPACEKEY));
+  EXPECT_EQ(condition->secondary_int_value, int32_t(SCA_InputEvent::JUSTACTIVATED));
+  EXPECT_EQ(condition->string_value, "SPACE");
+  ExpectInstructionGuardedByRouteCondition(
+      *program, LN_Event::OnFixedUpdate, *instruction, LN_BoolExpressionKind::InputStatus);
 }
 
 TEST(LN_TreeCompiler, KeyboardKeyAcceptsBlenderEventIdentifiers)
@@ -6374,11 +6645,17 @@ TEST(LN_TreeCompiler, KeyboardKeyAcceptsBlenderEventIdentifiers)
     ASSERT_NE(instruction, nullptr);
     ASSERT_NE(instruction->bool_guard_expr_index, LN_INVALID_INDEX);
 
-    const LN_BoolExpression *guard = BoolExpressionAt(*program,
-                                                      instruction->bool_guard_expr_index);
-    ASSERT_NE(guard, nullptr);
-    EXPECT_EQ(guard->kind, LN_BoolExpressionKind::InputStatus);
-    EXPECT_EQ(guard->int_value, int32_t(test_case.expected_code));
+    const std::vector<LN_Instruction> &instructions = program->GetInstructions(
+        LN_Event::OnFixedUpdate);
+    const LN_Instruction *route = FindBranchRouteWithConditionKind(
+        *program, instructions, LN_BoolExpressionKind::InputStatus);
+    ASSERT_NE(route, nullptr);
+    const LN_BoolExpression *condition = BoolExpressionAt(*program, route->bool_expr_index);
+    ASSERT_NE(condition, nullptr);
+    EXPECT_EQ(condition->kind, LN_BoolExpressionKind::InputStatus);
+    EXPECT_EQ(condition->int_value, int32_t(test_case.expected_code));
+    ExpectInstructionGuardedByRouteCondition(
+        *program, LN_Event::OnFixedUpdate, *instruction, LN_BoolExpressionKind::InputStatus);
   }
 }
 
@@ -6710,11 +6987,9 @@ TEST(LN_TreeCompiler, EmitsRuntimeBranchGuardFromGamePropertyBool)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 4);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 4, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_branch = {};
@@ -6832,11 +7107,9 @@ TEST(LN_TreeCompiler, GateResultFeedsExplicitBranchRouteCondition)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 6);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 6, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink event_to_branch = {};
@@ -7195,11 +7468,9 @@ TEST(LN_TreeCompiler, EmitsVectorScaleFromGamePropertyFloat)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 5);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 5, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink flow_link = {};
@@ -7462,11 +7733,15 @@ TEST(LN_TreeCompiler, EmitsPlaySoundWithSoundNameConstant)
   blender::bNode set_position = {};
   blender::bNodeSocket set_flow = {};
   blender::bNodeSocket set_position_socket = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(set_flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(set_position_socket, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, set_flow);
-  Append(set_position.inputs, set_position_socket);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(set_position,
+                                   set_attribute_aux,
+                                   set_flow,
+                                   set_position_socket,
+                                   "Set Position",
+                                   3,
+                                   0,
+                                   &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink to_play = {};
@@ -7521,11 +7796,15 @@ TEST(LN_TreeCompiler, EmitsStopSoundOpcode)
   blender::bNode set_position = {};
   blender::bNodeSocket set_flow = {};
   blender::bNodeSocket set_position_socket = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(set_flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(set_position_socket, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, set_flow);
-  Append(set_position.inputs, set_position_socket);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(set_position,
+                                   set_attribute_aux,
+                                   set_flow,
+                                   set_position_socket,
+                                   "Set Position",
+                                   3,
+                                   0,
+                                   &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink to_stop = {};
@@ -7767,11 +8046,9 @@ TEST(LN_TreeCompiler, EmitsSetWorldPositionFromBoneHeadWorld)
   blender::bNode set_position = {};
   blender::bNodeSocket flow = {};
   blender::bNodeSocket position = {};
-  InitNode(set_position, "LogicNativeSetWorldPosition", "Set Position", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(position, "Position", blender::SOCK_VECTOR, &position_default);
-  Append(set_position.inputs, flow);
-  Append(set_position.inputs, position);
+  SetObjectAttributeAuxSockets set_attribute_aux = {};
+  InitSetObjectAttributeVectorNode(
+      set_position, set_attribute_aux, flow, position, "Set Position", 3, 0, &position_default);
   Append(tree.nodes, set_position);
 
   blender::bNodeLink flow_link = {};
@@ -7790,74 +8067,6 @@ TEST(LN_TreeCompiler, EmitsSetWorldPositionFromBoneHeadWorld)
   ASSERT_NE(expression, nullptr);
   EXPECT_EQ(expression->kind, LN_VectorExpressionKind::BoneHeadWorld);
   /* Unlinked Object socket: compile uses tree owner at runtime (input0 invalid). */
-  EXPECT_EQ(expression->input0, LN_INVALID_INDEX);
-  EXPECT_NE(expression->input1, LN_INVALID_INDEX);
-}
-
-TEST(LN_TreeCompiler, LegacyBoneCenterPoseChannelCompilesAsArmatureSpace)
-{
-  blender::bNodeTree tree = {};
-  InitTree(tree);
-
-  blender::bNode on_update = {};
-  blender::bNodeSocket on_update_pulse = {};
-  InitNode(on_update, "LogicNativeOnUpdate", "On Update", 1);
-  InitSocket(on_update_pulse, "Out", blender::SOCK_BOOLEAN, nullptr);
-  Append(on_update.outputs, on_update_pulse);
-  Append(tree.nodes, on_update);
-
-  blender::bNodeSocketValueString bone_name_default = {};
-  SetCString(bone_name_default.value, "Root");
-  blender::bNode get_bone = {};
-  blender::bNodeSocket bone_object = {};
-  blender::bNodeSocket bone_name = {};
-  blender::bNodeSocket bone_position = {};
-  InitNode(get_bone, "LogicNativeGetBoneCenterPoseWorld", "Bone Center Pose", 2);
-  get_bone.custom1 = 2;
-  InitSocket(bone_object, "Object", blender::SOCK_OBJECT, nullptr);
-  InitSocket(bone_name, "Bone Name", blender::SOCK_STRING, &bone_name_default);
-  InitSocket(bone_position, "Position", blender::SOCK_VECTOR, nullptr);
-  Append(get_bone.inputs, bone_object);
-  Append(get_bone.inputs, bone_name);
-  Append(get_bone.outputs, bone_position);
-  Append(tree.nodes, get_bone);
-
-  blender::bNodeSocketValueString target_bone_name_default = {};
-  SetCString(target_bone_name_default.value, "Target");
-  blender::bNodeSocketValueVector location_default = {};
-  blender::bNode set_bone = {};
-  blender::bNodeSocket flow = {};
-  blender::bNodeSocket target_object = {};
-  blender::bNodeSocket target_bone_name = {};
-  blender::bNodeSocket location = {};
-  InitNode(set_bone, "LogicNativeSetBonePoseLocation", "Set Bone Pose Location", 3);
-  InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(target_object, "Object", blender::SOCK_OBJECT, nullptr);
-  InitSocket(target_bone_name, "Bone Name", blender::SOCK_STRING, &target_bone_name_default);
-  InitSocket(location, "Location", blender::SOCK_VECTOR, &location_default);
-  Append(set_bone.inputs, flow);
-  Append(set_bone.inputs, target_object);
-  Append(set_bone.inputs, target_bone_name);
-  Append(set_bone.inputs, location);
-  Append(tree.nodes, set_bone);
-
-  blender::bNodeLink flow_link = {};
-  blender::bNodeLink location_link = {};
-  InitLink(flow_link, on_update, on_update_pulse, set_bone, flow);
-  InitLink(location_link, get_bone, bone_position, set_bone, location);
-  Append(tree.links, flow_link);
-  Append(tree.links, location_link);
-
-  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
-  EXPECT_FALSE(program->GetCompileReport().HasErrors())
-      << FormatCompileReport(program->GetCompileReport());
-  const LN_Instruction *instruction = FindInstruction(
-      program->GetInstructions(LN_Event::OnFixedUpdate), LN_OpCode::SetBonePoseLocation);
-  ASSERT_NE(instruction, nullptr);
-  const LN_VectorExpression *expression = InstructionVectorExpression(*program, *instruction);
-  ASSERT_NE(expression, nullptr);
-  EXPECT_EQ(expression->kind, LN_VectorExpressionKind::BoneCenterPoseWorld);
-  EXPECT_EQ(expression->property_ref_index, uint32_t(LN_BonePosePositionSpace::Armature));
   EXPECT_EQ(expression->input0, LN_INVALID_INDEX);
   EXPECT_NE(expression->input1, LN_INVALID_INDEX);
 }

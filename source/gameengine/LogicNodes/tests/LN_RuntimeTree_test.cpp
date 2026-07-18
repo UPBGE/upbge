@@ -2394,7 +2394,7 @@ std::shared_ptr<LN_Program> CreateRegisterDivideSoACommandProgram()
 }
 
 std::shared_ptr<LN_Program> CreateSnapshotQueryGuardProgram(
-    const LN_QueryExpressionKind query_kind = LN_QueryExpressionKind::MouseOver)
+    const LN_QueryExpressionKind query_kind = LN_QueryExpressionKind::ProjectileRay)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
 

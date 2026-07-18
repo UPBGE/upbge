@@ -721,6 +721,25 @@ TEST(JoltPhysicsEnvironment, ParentedRigidChildQueriesCurrentTransformAndRejects
   EXPECT_EQ(environment.LogicObjectSensorQueryCount(), 1u);
 }
 
+TEST(JoltPhysicsEnvironment, RefreshCollisionDoesNotReactivateNoCollisionBody)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  LogicContactTarget target(environment, JPH::EMotionType::Dynamic, JPH::RVec3::sZero());
+
+  /* Match the runtime command sequence across two frames: the first layer
+   * write refreshes an added body, then No Collision removes it. Repeating
+   * the same layer write must not reactivate the removed body. */
+  target.object.SetCollisionGroup(5);
+  target.controller.SuspendDynamics(false);
+  ASSERT_FALSE(environment.GetBodyInterface().IsAdded(target.body_id));
+  ASSERT_FALSE(environment.GetBodyInterface().IsActive(target.body_id));
+
+  target.object.SetCollisionGroup(5);
+  EXPECT_FALSE(environment.GetBodyInterface().IsAdded(target.body_id));
+  EXPECT_FALSE(environment.GetBodyInterface().IsActive(target.body_id));
+}
+
 TEST(JoltPhysicsEnvironment, ParentedSensorRemainsAnActiveQueryAtCurrentTransform)
 {
   blender::Scene scene{};

@@ -1545,6 +1545,8 @@ static const char *SetObjectAttributeName(const int attribute_type)
       return "localLinearVelocity";
     case 9:
       return "localAngularVelocity";
+    case 13:
+      return "localScale";
     default:
       return nullptr;
   }
@@ -1592,6 +1594,8 @@ static std::optional<LN_OpCode> SetObjectAttributeOpcode(const int attribute_typ
       return LN_OpCode::SetObjectColor;
     case 12:
       return LN_OpCode::SetVisibility;
+    case 13:
+      return LN_OpCode::SetLocalScale;
     default:
       return std::nullopt;
   }
@@ -1792,6 +1796,12 @@ static std::optional<uint32_t> BuildMaskedSetObjectAttributeColorExpression(
     return std::nullopt;
   }
 
+  /* Alpha has no component-mask toggle and is always written. Avoid reading the current object
+   * color entirely when the default RGB mask writes every component. */
+  if (SetObjectAttributeUsesFullDefaultMask(context)) {
+    return color_expr;
+  }
+
   const std::optional<uint32_t> mask_expr = context.BuildVector("XYZ");
   if (!mask_expr) {
     context.AddError("XYZ", "Set Attribute requires an XYZ mask input");
@@ -1808,10 +1818,10 @@ static std::optional<uint32_t> BuildMaskedSetObjectAttributeColorExpression(
   const uint32_t current_r = AddColorComponentFloatExpression(context.program, current_color_expr, 0);
   const uint32_t current_g = AddColorComponentFloatExpression(context.program, current_color_expr, 1);
   const uint32_t current_b = AddColorComponentFloatExpression(context.program, current_color_expr, 2);
-  const uint32_t current_a = AddColorComponentFloatExpression(context.program, current_color_expr, 3);
   const uint32_t input_r = AddColorComponentFloatExpression(context.program, *color_expr, 0);
   const uint32_t input_g = AddColorComponentFloatExpression(context.program, *color_expr, 1);
   const uint32_t input_b = AddColorComponentFloatExpression(context.program, *color_expr, 2);
+  const uint32_t input_a = AddColorComponentFloatExpression(context.program, *color_expr, 3);
   const uint32_t mask_x = AddVectorComponentFloatExpression(context.program, *mask_expr, 0);
   const uint32_t mask_y = AddVectorComponentFloatExpression(context.program, *mask_expr, 1);
   const uint32_t mask_z = AddVectorComponentFloatExpression(context.program, *mask_expr, 2);
@@ -1821,7 +1831,7 @@ static std::optional<uint32_t> BuildMaskedSetObjectAttributeColorExpression(
   merged_color_expression.input0 = AddMaskedFloatExpression(context.program, current_r, input_r, mask_x);
   merged_color_expression.input1 = AddMaskedFloatExpression(context.program, current_g, input_g, mask_y);
   merged_color_expression.input2 = AddMaskedFloatExpression(context.program, current_b, input_b, mask_z);
-  merged_color_expression.input3 = current_a;
+  merged_color_expression.input3 = input_a;
   return context.program.AddColorExpression(merged_color_expression);
 }
 

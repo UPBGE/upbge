@@ -7069,6 +7069,7 @@ static void def_logic_set_object_attribute(BlenderRNA * /*brna*/, StructRNA *srn
       {10, "LOCAL_TRANSFORM", 0, "Local Transform", "Set local position, rotation, and scale"},
       {11, "COLOR", 0, "Color", "Set the object's color"},
       {12, "VISIBLE", 0, "Visible", "Set the object's visibility"},
+      {13, "LOCAL_SCALE", 0, "Local Scale", "Set the object's local scale"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
