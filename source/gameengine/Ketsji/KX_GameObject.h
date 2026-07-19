@@ -108,6 +108,9 @@ class KX_GameObject : public SCA_IObject {
   short m_previousLodLevel;
   bool m_isUpbgeDupliBase;
   bool m_isUpbgeDupliInstance;
+  // Milestone 4: true when this object's transform needs depsgraph evaluation
+  // (e.g. modifiers, geometry nodes, constraints, shape keys, drivers).
+  bool m_requiresDepsgraphUpdate;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -167,6 +170,14 @@ class KX_GameObject : public SCA_IObject {
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
   void SetIsUpbgeDupliBase();
+  // Milestone 4: lazy depsgraph flag helpers.
+  void SetRequiresDepsgraphUpdate(bool requiresUpdate);
+  bool RequiresDepsgraphUpdate() const;
+  /**
+   * Recompute m_requiresDepsgraphUpdate based on the linked Blender object's
+   * data (modifiers, constraints, shape keys, animation, type, etc.).
+   */
+  void UpdateDepsgraphRequirement();
   BL_ActionManager *GetActionManagerNoCreate();
   /**
    * Create a dupli based on the existing Blender object.

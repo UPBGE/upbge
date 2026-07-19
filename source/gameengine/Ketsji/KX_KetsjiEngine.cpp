@@ -146,6 +146,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_previous_deltaTime(0.0f),
       m_firstEngineFrame(true),
       m_physicsAccumulator(0.0),
+      m_depsgraphDirty(true),  // Milestone 4: force initial depsgraph evaluation.
       m_maxLogicFrame(5),
       m_maxPhysicsFrame(5),
       m_ticrate(DEFAULT_LOGIC_TIC_RATE),
@@ -222,6 +223,21 @@ std::vector<KX_Camera *> KX_KetsjiEngine::GetRenderingCameras()
 }
 
 /* End of EEVEE integration */
+
+void KX_KetsjiEngine::MarkDepsgraphDirty()
+{
+  m_depsgraphDirty = true;
+}
+
+bool KX_KetsjiEngine::IsDepsgraphDirty() const
+{
+  return m_depsgraphDirty;
+}
+
+void KX_KetsjiEngine::ClearDepsgraphDirty()
+{
+  m_depsgraphDirty = false;
+}
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
 {

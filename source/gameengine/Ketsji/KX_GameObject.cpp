@@ -90,6 +90,7 @@ KX_GameObject::KX_GameObject()
       m_previousLodLevel(-1),        // eevee
       m_isUpbgeDupliBase(false),      // eevee
       m_isUpbgeDupliInstance(false),    // eevee
+      m_requiresDepsgraphUpdate(true), // Milestone 4: default to safe, will be refined after conversion.
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -214,6 +215,66 @@ KX_GameObject::~KX_GameObject()
 void KX_GameObject::SetBlenderObject(blender::Object *obj)
 {
   m_pBlenderObject = obj;
+  UpdateDepsgraphRequirement();
+}
+
+void KX_GameObject::UpdateDepsgraphRequirement()
+{
+  blender::Object *ob = GetBlenderObject();
+  if (!ob) {
+    m_requiresDepsgraphUpdate = true;
+    return;
+  }
+
+  // Any object type whose evaluated geometry or pose depends on depsgraph evaluation.
+  if (ELEM(ob->type,
+           OB_ARMATURE,
+           OB_MBALL,
+           OB_CURVES,
+           OB_SURF,
+           OB_FONT,
+           OB_LATTICE,
+           OB_POINTCLOUD,
+           OB_VOLUME,
+           OB_GREASE_PENCIL,
+           OB_GPENCIL_LEGACY,
+           OB_CURVES_LEGACY)) {
+    m_requiresDepsgraphUpdate = true;
+    return;
+  }
+
+  // Animation data (drivers, actions, NLA).
+  if (ob->adt) {
+    m_requiresDepsgraphUpdate = true;
+    return;
+  }
+
+  // Constraints.
+  if (!BLI_listbase_is_empty(&ob->constraints)) {
+    m_requiresDepsgraphUpdate = true;
+    return;
+  }
+
+  // Modifiers (subsurf, armature deform, geometry nodes, etc.).
+  if (!BLI_listbase_is_empty(&ob->modifiers)) {
+    m_requiresDepsgraphUpdate = true;
+    return;
+  }
+
+  // Particle systems.
+  if (!BLI_listbase_is_empty(&ob->particlesystem)) {
+    m_requiresDepsgraphUpdate = true;
+    return;
+  }
+
+  // Shape keys on mesh objects.
+  if (ob->type == OB_MESH && ob->data && ((Mesh *)ob->data)->key) {
+    m_requiresDepsgraphUpdate = true;
+    return;
+  }
+
+  // Default: pure transform object (most rigid bodies, empties, cameras, lights).
+  m_requiresDepsgraphUpdate = false;
 }
 
 void KX_GameObject::SyncTransformWithDepsgraph()
@@ -235,6 +296,16 @@ void KX_GameObject::SyncTransformWithDepsgraph()
 void KX_GameObject::ForceIgnoreParentTx()
 {
   m_forceIgnoreParentTx = true;
+}
+
+void KX_GameObject::SetRequiresDepsgraphUpdate(bool requiresUpdate)
+{
+  m_requiresDepsgraphUpdate = requiresUpdate;
+}
+
+bool KX_GameObject::RequiresDepsgraphUpdate() const
+{
+  return m_requiresDepsgraphUpdate;
 }
 
 /* Before BKE_scene_graph_update_tagged */
@@ -309,19 +380,34 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass)
     }
 
     if (applyTransformToOrig) {
+      // Milestone 4: avoid tagging the depsgraph for pure physics transform changes.
+      // Objects that only move due to rigid body / SceneGraph physics never need
+      // depsgraph evaluation for geometry/modifier updates. Tag only when the object
+      // has data that depends on depsgraph (modifiers, geometry nodes, constraints,
+      // shape keys, drivers, armatures, etc.).
+      const bool needsTransformTag = m_requiresDepsgraphUpdate && !m_isUpbgeDupliBase && !m_isUpbgeDupliInstance;
       /* NORMAL CASE */
-      if (!staticObject && ob_orig->type != OB_MBALL) {
+      if (needsTransformTag && !staticObject && ob_orig->type != OB_MBALL) {
         DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+        KX_GetActiveEngine()->MarkDepsgraphDirty();
       }
       /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at
        * ge exit) */
-      else if (!staticObject && ob_orig->type == OB_MBALL) {
+      else if (needsTransformTag && !staticObject && ob_orig->type == OB_MBALL) {
         if (!BKE_mball_is_basis(ob_orig)) {
           DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
         }
         else {
           DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
         }
+        KX_GetActiveEngine()->MarkDepsgraphDirty();
+      }
+      else if (!needsTransformTag && !staticObject && ob_orig->type != OB_MBALL) {
+        // Even when we skip depsgraph tagging, we still need the renderer to know
+        // the evaluated object transform. This is handled by
+        // TagForTransformUpdateEvaluated which copies the world matrix directly to
+        // ob_eval. No depsgraph evaluation needed for pure transform-only objects.
+        // Mark the depsgraph dirty only if structural geometry changes occur elsewhere.
       }
     }
   }

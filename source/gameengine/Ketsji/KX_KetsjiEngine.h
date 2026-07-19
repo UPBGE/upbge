@@ -192,6 +192,10 @@ class KX_KetsjiEngine {
   /// Maximum physics sub-steps per frame to avoid death spiral.
   static constexpr int MAX_PHYSICS_SUBSTEPS = 5;
 
+  // Milestone 4: lazy depsgraph update.
+  /// True when the depsgraph needs to be evaluated before the next render.
+  bool m_depsgraphDirty;
+
   /// maximum number of consecutive logic frame
   int m_maxLogicFrame;
   /// maximum number of consecutive physics frame
@@ -351,6 +355,14 @@ class KX_KetsjiEngine {
   {
     return m_networkMessageManager;
   }
+
+  // Milestone 4: lazy depsgraph control.
+  /// Mark the depsgraph as needing an update before the next render.
+  void MarkDepsgraphDirty();
+  /// Returns true if the depsgraph needs to be evaluated before the next render.
+  bool IsDepsgraphDirty() const;
+  /// Clear the depsgraph dirty flag after it has been evaluated.
+  void ClearDepsgraphDirty();
 
   /// returns true if an update happened to indicate -> Render
   bool NextFrame();
