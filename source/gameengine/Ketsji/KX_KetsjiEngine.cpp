@@ -38,6 +38,9 @@
 
 #include <fmt/format.h>
 
+#include <chrono>
+#include <iostream>
+
 #include "BLI_rect.hh"
 #include "DNA_scene_types.h"
 #include "../draw/intern/draw_command.hh"
@@ -363,6 +366,11 @@ void KX_KetsjiEngine::EndFrameViewportRender()
 
 KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 {
+  // Milestone 1 instrumentation: perf logging every 60 frames to avoid console spam.
+  static int perfFrameCounter = 0;
+  ++perfFrameCounter;
+  const auto perfT0 = std::chrono::steady_clock::now();
+
   /*
    * Clock advancement. There is basically two case:
    *   - USE_EXTERNAL_CLOCK is true, the user is responsible to advance the time
@@ -465,11 +473,25 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   times.timestep = timestep;
   times.framestep = framestep;
 
+  const auto perfT1 = std::chrono::steady_clock::now();
+  if (perfFrameCounter % 60 == 0) {
+    const double perfMs = std::chrono::duration<double, std::milli>(perfT1 - perfT0).count();
+    std::cerr << "[BGE_PERF] GetFrameTimes frame=" << perfFrameCounter
+              << " dt=" << dt << " timestep=" << timestep
+              << " frames=" << frames << " framestep=" << framestep
+              << " time_ms=" << perfMs << "\n";
+  }
+
   return times;
 }
 
 bool KX_KetsjiEngine::NextFrame()
 {
+  // Milestone 1 instrumentation: perf logging every 60 frames to avoid console spam.
+  static int perfFrameCounter = 0;
+  ++perfFrameCounter;
+  const auto perfFrameT0 = std::chrono::steady_clock::now();
+
   m_logger.StartLog(tc_services);
 
   const FrameTimes times = GetFrameTimes();
@@ -577,6 +599,13 @@ bool KX_KetsjiEngine::NextFrame()
 
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
+
+  if (perfFrameCounter % 60 == 0) {
+    const auto perfFrameT1 = std::chrono::steady_clock::now();
+    const double perfFrameMs = std::chrono::duration<double, std::milli>(perfFrameT1 - perfFrameT0).count();
+    std::cerr << "[BGE_PERF] NextFrame frame=" << perfFrameCounter
+              << " total_ms=" << perfFrameMs << " doRender=" << m_doRender << "\n";
+  }
 
   return m_doRender;
 }

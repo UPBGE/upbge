@@ -36,6 +36,9 @@
 
 #include "KX_Scene.h"
 
+#include <chrono>
+#include <iostream>
+
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -812,9 +815,20 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   PrepareGPUViewport(cam);
 
+  const auto depsT0 = std::chrono::steady_clock::now();
   engine->CountDepsgraphTime();
   UpdateDepsgraph(bmain, scene, is_overlay_pass, is_last_render_pass, cam);
   engine->EndCountDepsgraphTime();
+  const auto depsT1 = std::chrono::steady_clock::now();
+  // Milestone 1 instrumentation: log depsgraph time every 60 frames to avoid console spam.
+  static int perfDepsCounter = 0;
+  ++perfDepsCounter;
+  if (perfDepsCounter % 60 == 0) {
+    const double depsMs = std::chrono::duration<double, std::milli>(depsT1 - depsT0).count();
+    std::cerr << "[BGE_PERF] UpdateDepsgraph time_ms=" << depsMs
+              << " scene=" << GetName()
+              << " objects=" << GetObjectList()->GetCount() << "\n";
+  }
 
   blender::rcti window;
   int v[4];
