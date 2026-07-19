@@ -184,6 +184,14 @@ class KX_KetsjiEngine {
   /// used to control strange behavior in clockTime physics when starting the game.
   bool m_firstEngineFrame;
 
+  // Milestone 2: physics accumulator pattern.
+  /// Accumulated real time for fixed physics sub-steps.
+  double m_physicsAccumulator;
+  /// Fixed physics time step (120 Hz).
+  static constexpr double PHYSICS_TIMESTEP = 1.0 / 120.0;
+  /// Maximum physics sub-steps per frame to avoid death spiral.
+  static constexpr int MAX_PHYSICS_SUBSTEPS = 5;
+
   /// maximum number of consecutive logic frame
   int m_maxLogicFrame;
   /// maximum number of consecutive physics frame

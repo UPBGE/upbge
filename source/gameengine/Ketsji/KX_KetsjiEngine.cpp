@@ -145,6 +145,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_previousRealTime(0.0f),
       m_previous_deltaTime(0.0f),
       m_firstEngineFrame(true),
+      m_physicsAccumulator(0.0),
       m_maxLogicFrame(5),
       m_maxPhysicsFrame(5),
       m_ticrate(DEFAULT_LOGIC_TIC_RATE),
@@ -504,81 +505,69 @@ bool KX_KetsjiEngine::NextFrame()
     return false;
   }
 
-  for (unsigned short i = 0; i < times.frames; ++i) {
-    m_frameTime += times.framestep;
+  // Milestone 2: accumulate real scaled time for fixed physics sub-steps.
+  double scaledDt = times.timestep * m_timescale;
+  if (scaledDt > 0.25) {
+    scaledDt = 0.25;  // clamp after pause/freeze to avoid explosion
+  }
+  m_physicsAccumulator += scaledDt;
 
-    m_converter->MergeAsyncLoads();
+  // Milestone 1 instrumentation: log accumulator state.
+  if (perfFrameCounter % 60 == 0) {
+    std::cerr << "[BGE_PERF] Accumulator frame=" << perfFrameCounter
+              << " accumulator=" << m_physicsAccumulator
+              << " timestep=" << times.timestep
+              << " timescale=" << m_timescale << "\n";
+  }
 
-    m_inputDevice->ReleaseMoveEvent();
+  int substeps = 0;
+  while (m_physicsAccumulator >= PHYSICS_TIMESTEP && substeps < MAX_PHYSICS_SUBSTEPS) {
+    // Process one fixed physics sub-step per scene.
+    for (KX_Scene *scene : m_scenes) {
+      m_converter->MergeAsyncLoads();
+
+      m_inputDevice->ReleaseMoveEvent();
 
 #ifdef WITH_SDL
-    // Handle all SDL Joystick events here to share them for all scenes properly.
-    short addrem[JOYINDEX_MAX] = {0};
-    if (DEV_Joystick::HandleEvents(addrem)) {
+      // Handle all SDL Joystick events here to share them for all scenes properly.
+      short addrem[JOYINDEX_MAX] = {0};
+      if (DEV_Joystick::HandleEvents(addrem)) {
 #  ifdef WITH_PYTHON
-      updatePythonJoysticks(addrem);
+        updatePythonJoysticks(addrem);
 #  endif  // WITH_PYTHON
-    }
-
-    // Process Joystick force feedback duration
-    for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
-      DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
-      if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
-        joy->ProcessRumbleStatus();
       }
-    }
+
+      // Process Joystick force feedback duration
+      for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
+        DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
+        if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
+          joy->ProcessRumbleStatus();
+        }
+      }
 #endif  // WITH_SDL
-
-    // for each scene, call the proceed functions
-    for (KX_Scene *scene : m_scenes) {
-      /* Suspension holds the physics and logic processing for an
-       * entire scene. Objects can be suspended individually, and
-       * the settings for that precede the logic and physics
-       * update. */
-      m_logger.StartLog(tc_logic);
-
-      if (i == 0) {  // No need to UpdateObjectActivity several times
-        scene->UpdateObjectActivity();
-      }
-
-      m_logger.StartLog(tc_physics);
 
       // set Python hooks for each scene
       KX_SetActiveScene(scene);
 
-      // Process sensors, and controllers
-      m_logger.StartLog(tc_logic);
-      scene->LogicBeginFrame(m_frameTime, times.framestep);
+      // Logic + physics for this fixed sub-step.
+      scene->UpdateObjectActivity();
 
-      // Scenegraph needs to be updated again, because Logic Controllers
-      // can affect the local matrices.
+      m_logger.StartLog(tc_logic);
+      scene->LogicBeginFrame(m_frameTime, PHYSICS_TIMESTEP * m_timescale);
+
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
 
-      // Process actuators
-
-      // Do some cleanup work for this logic frame
       m_logger.StartLog(tc_logic);
       scene->LogicUpdateFrame(m_frameTime);
-
       scene->LogicEndFrame();
 
-      // Actuators can affect the scenegraph
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
 
       m_logger.StartLog(tc_physics);
-
-      // Perform physics calculations on the scene. This can involve
-      // many iterations of the physics solver.
       scene->GetPhysicsEnvironment()->ProceedDeltaTime(
-          m_frameTime, times.timestep, times.framestep);  // m_deltatimerealDeltaTime);
-
-      /* No need to call sofbody update more than 1 time */
-      if (i == times.frames - 1) {
-        /// Update SoftBodies rendered mesh from bullet softbody simulation.
-        scene->GetPhysicsEnvironment()->UpdateSoftBodiesRenderedMesh();
-      }
+          m_frameTime, PHYSICS_TIMESTEP, PHYSICS_TIMESTEP);
 
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
@@ -589,12 +578,19 @@ bool KX_KetsjiEngine::NextFrame()
     m_logger.StartLog(tc_network);
     m_networkMessageManager->ClearMessages();
 
-    // update system devices
     m_logger.StartLog(tc_logic);
     m_inputDevice->ClearInputs();
 
-    // scene management
     ProcessScheduledScenes();
+
+    m_frameTime += PHYSICS_TIMESTEP * m_timescale;
+    m_physicsAccumulator -= PHYSICS_TIMESTEP;
+    ++substeps;
+  }
+
+  // Update soft bodies once per rendered frame (same as original behavior).
+  for (KX_Scene *scene : m_scenes) {
+    scene->GetPhysicsEnvironment()->UpdateSoftBodiesRenderedMesh();
   }
 
   // Start logging time spent outside main loop
@@ -604,7 +600,10 @@ bool KX_KetsjiEngine::NextFrame()
     const auto perfFrameT1 = std::chrono::steady_clock::now();
     const double perfFrameMs = std::chrono::duration<double, std::milli>(perfFrameT1 - perfFrameT0).count();
     std::cerr << "[BGE_PERF] NextFrame frame=" << perfFrameCounter
-              << " total_ms=" << perfFrameMs << " doRender=" << m_doRender << "\n";
+              << " total_ms=" << perfFrameMs
+              << " substeps=" << substeps
+              << " accumulator=" << m_physicsAccumulator
+              << " doRender=" << m_doRender << "\n";
   }
 
   return m_doRender;

@@ -742,8 +742,11 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
   }
 
   float subStep = timeStep / float(m_numTimeSubSteps);
+  // Milestone 2: when timeStep == interval (fixed physics sub-step), ask Bullet for exactly one
+  // sub-step to avoid internal accumulation fighting with our external accumulator
+  const int maxSubSteps = (timeStep == interval) ? 1 : 25;
   i = m_dynamicsWorld->stepSimulation(
-      interval, 25, subStep);  // perform always a full simulation step
+      interval, maxSubSteps, subStep);  // perform always a full simulation step
   // uncomment next line to see where Bullet spend its time (printf in console)
   // CProfileManager::dumpAll();
 
