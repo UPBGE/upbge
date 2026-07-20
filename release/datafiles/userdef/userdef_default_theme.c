@@ -685,7 +685,6 @@ const bTheme U_theme_default = {
   },
     .tlogic = {
     .back = RGBA(0x1d1d1d00),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x1d1d1db3),
