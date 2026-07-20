@@ -64,7 +64,17 @@ static PyObject *py_blf_position(PyObject * /*self*/, PyObject *args)
   int fontid;
   float x, y, z;
 
-  if (!PyArg_ParseTuple(args, "ifff:blf.position", &fontid, &x, &y, &z)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "f" /* `x` */
+                        "f" /* `y` */
+                        "f" /* `z` */
+                        ":blf.position",
+                        &fontid,
+                        &x,
+                        &y,
+                        &z))
+  {
     return nullptr;
   }
 
@@ -90,7 +100,13 @@ static PyObject *py_blf_size(PyObject * /*self*/, PyObject *args)
   int fontid;
   float size;
 
-  if (!PyArg_ParseTuple(args, "if:blf.size", &fontid, &size)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "f" /* `size` */
+                        ":blf.size",
+                        &fontid,
+                        &size))
+  {
     return nullptr;
   }
 
@@ -116,7 +132,13 @@ static PyObject *py_blf_aspect(PyObject * /*self*/, PyObject *args)
   float aspect;
   int fontid;
 
-  if (!PyArg_ParseTuple(args, "if:blf.aspect", &fontid, &aspect)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "f" /* `aspect` */
+                        ":blf.aspect",
+                        &fontid,
+                        &aspect))
+  {
     return nullptr;
   }
 
@@ -148,7 +170,18 @@ static PyObject *py_blf_color(PyObject * /*self*/, PyObject *args)
   int fontid;
   float rgba[4];
 
-  if (!PyArg_ParseTuple(args, "iffff:blf.color", &fontid, &rgba[0], &rgba[1], &rgba[2], &rgba[3]))
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "f" /* `r` */
+                        "f" /* `g` */
+                        "f" /* `b` */
+                        "f" /* `a` */
+                        ":blf.color",
+                        &fontid,
+                        &rgba[0],
+                        &rgba[1],
+                        &rgba[2],
+                        &rgba[3]))
   {
     return nullptr;
   }
@@ -180,7 +213,14 @@ static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
   Py_ssize_t text_length;
   int fontid;
 
-  if (!PyArg_ParseTuple(args, "is#:blf.draw", &fontid, &text, &text_length)) {
+  if (!PyArg_ParseTuple(args,
+                        "i"  /* `fontid` */
+                        "s#" /* `text` */
+                        ":blf.draw",
+                        &fontid,
+                        &text,
+                        &text_length))
+  {
     return nullptr;
   }
 
@@ -207,7 +247,14 @@ static PyObject *py_blf_draw_buffer(PyObject * /*self*/, PyObject *args)
   Py_ssize_t text_length;
   int fontid;
 
-  if (!PyArg_ParseTuple(args, "is#:blf.draw_buffer", &fontid, &text, &text_length)) {
+  if (!PyArg_ParseTuple(args,
+                        "i"  /* `fontid` */
+                        "s#" /* `text` */
+                        ":blf.draw_buffer",
+                        &fontid,
+                        &text,
+                        &text_length))
+  {
     return nullptr;
   }
 
@@ -237,7 +284,13 @@ static PyObject *py_blf_dimensions(PyObject * /*self*/, PyObject *args)
   PyObject *ret;
   int fontid;
 
-  if (!PyArg_ParseTuple(args, "is:blf.dimensions", &fontid, &text)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "s" /* `text` */
+                        ":blf.dimensions",
+                        &fontid,
+                        &text))
+  {
     return nullptr;
   }
 
@@ -271,7 +324,19 @@ static PyObject *py_blf_clipping(PyObject * /*self*/, PyObject *args)
   float xmin, ymin, xmax, ymax;
   int fontid;
 
-  if (!PyArg_ParseTuple(args, "iffff:blf.clipping", &fontid, &xmin, &ymin, &xmax, &ymax)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "f" /* `xmin` */
+                        "f" /* `ymin` */
+                        "f" /* `xmax` */
+                        "f" /* `ymax` */
+                        ":blf.clipping",
+                        &fontid,
+                        &xmin,
+                        &ymin,
+                        &xmax,
+                        &ymax))
+  {
     return nullptr;
   }
 
@@ -297,7 +362,13 @@ static PyObject *py_blf_word_wrap(PyObject * /*self*/, PyObject *args)
   int wrap_width;
   int fontid;
 
-  if (!PyArg_ParseTuple(args, "ii:blf.word_wrap", &fontid, &wrap_width)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "i" /* `wrap_width` */
+                        ":blf.word_wrap",
+                        &fontid,
+                        &wrap_width))
+  {
     return nullptr;
   }
 
@@ -323,7 +394,13 @@ static PyObject *py_blf_disable(PyObject * /*self*/, PyObject *args)
 {
   int option, fontid;
 
-  if (!PyArg_ParseTuple(args, "ii:blf.disable", &fontid, &option)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "i" /* `option` */
+                        ":blf.disable",
+                        &fontid,
+                        &option))
+  {
     return nullptr;
   }
 
@@ -349,7 +426,13 @@ static PyObject *py_blf_enable(PyObject * /*self*/, PyObject *args)
 {
   int option, fontid;
 
-  if (!PyArg_ParseTuple(args, "ii:blf.enable", &fontid, &option)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "i" /* `option` */
+                        ":blf.enable",
+                        &fontid,
+                        &option))
+  {
     return nullptr;
   }
 
@@ -375,7 +458,13 @@ static PyObject *py_blf_rotation(PyObject * /*self*/, PyObject *args)
   float angle;
   int fontid;
 
-  if (!PyArg_ParseTuple(args, "if:blf.rotation", &fontid, &angle)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "f" /* `angle` */
+                        ":blf.rotation",
+                        &fontid,
+                        &angle))
+  {
     return nullptr;
   }
 
@@ -410,8 +499,20 @@ static PyObject *py_blf_shadow(PyObject * /*self*/, PyObject *args)
   int level, fontid;
   float rgba[4];
 
-  if (!PyArg_ParseTuple(
-          args, "iiffff:blf.shadow", &fontid, &level, &rgba[0], &rgba[1], &rgba[2], &rgba[3]))
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "i" /* `level` */
+                        "f" /* `r` */
+                        "f" /* `g` */
+                        "f" /* `b` */
+                        "f" /* `a` */
+                        ":blf.shadow",
+                        &fontid,
+                        &level,
+                        &rgba[0],
+                        &rgba[1],
+                        &rgba[2],
+                        &rgba[3]))
   {
     return nullptr;
   }
@@ -444,7 +545,15 @@ static PyObject *py_blf_shadow_offset(PyObject * /*self*/, PyObject *args)
 {
   int x, y, fontid;
 
-  if (!PyArg_ParseTuple(args, "iii:blf.shadow_offset", &fontid, &x, &y)) {
+  if (!PyArg_ParseTuple(args,
+                        "i" /* `fontid` */
+                        "i" /* `x` */
+                        "i" /* `y` */
+                        ":blf.shadow_offset",
+                        &fontid,
+                        &x,
+                        &y))
+  {
     return nullptr;
   }
 
@@ -1000,11 +1109,11 @@ static PyModuleDef BLF_types_module_def = {
 
 static PyObject *BPyInit_blf_types()
 {
-  PyObject *submodule = PyModule_Create(&BLF_types_module_def);
-
   if (PyType_Ready(&BPyBLFImBufContext_Type) < 0) {
     return nullptr;
   }
+
+  PyObject *submodule = PyModule_Create(&BLF_types_module_def);
 
   PyModule_AddType(submodule, &BPyBLFImBufContext_Type);
 

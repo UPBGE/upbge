@@ -114,11 +114,13 @@ set(SRC
   gpu_deform_common/gpu_shader_common_texture_lib.cc
   gpu_deform_common/gpu_texture_helpers.cc
 
+  shader_tool/ast.cc
   shader_tool/attribute.cc
   shader_tool/enum.cc
   shader_tool/flow_control.cc
   shader_tool/function.cc
   shader_tool/grammar.cc
+  shader_tool/grammar_bsl.cc
   shader_tool/intermediate.cc
   shader_tool/metadata.cc
   shader_tool/namespace.cc
@@ -989,7 +991,6 @@ if(WITH_GTESTS)
       tests/push_constants_test.cc
       tests/ray_tracing_test.cc
       tests/shader_create_info_test.cc
-      tests/shader_preprocess_test.cc
       tests/shader_test.cc
       tests/specialization_constants_test.cc
       tests/state_blend_test.cc
