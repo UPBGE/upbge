@@ -1658,7 +1658,7 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 
   game_set_commmandline_options(&startscene->gm);
 
-  if ((rv3d->persp == RV3D_CAMOB) && (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS)) {
+  if (rv3d->persp == RV3D_CAMOB) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     /* Letterbox */
     rctf cam_framef;
