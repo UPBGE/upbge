@@ -681,10 +681,13 @@ class USERPREF_PT_animation_timeline_advanced(AnimationPanel, CenterAlignMixIn, 
         edit = prefs.edit
 
         layout.prop(edit, "use_negative_frames")
-        row = layout.row(align=False)
-        row.active = edit.use_negative_frames
-        row.alignment = 'RIGHT'
-        row.label(icon='STATUS_WARNING', text="Negative frames can cause issues with audio playback and exporters.")
+        split = layout.split(factor=0.4)
+        split.active = edit.use_negative_frames
+        split.separator()
+        split.label_multiline(
+            icon='STATUS_WARNING_FILLED',
+            text="Negative frames can cause issues with audio playback and exporters.",
+            alignment='LEFT')
 
 
 # -----------------------------------------------------------------------------
@@ -956,6 +959,12 @@ class USERPREF_PT_viewport_quality(ViewportPanel, CenterAlignMixIn, Panel):
         col = layout.column(heading="Smooth Wires")
         col.prop(system, "use_overlay_smooth_wire", text="Overlay")
         col.prop(system, "use_edit_mode_smooth_wire", text="Edit Mode")
+
+        import gpu
+
+        col = layout.column(heading="Shadows")
+        col.active = gpu.capabilities.ray_query_support_get()
+        col.prop(system, "use_rt_shadows", text="Hardware Raytracing")
 
 
 class USERPREF_PT_viewport_textures(ViewportPanel, CenterAlignMixIn, Panel):
@@ -3012,6 +3021,7 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
             (
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
+                ({"property": "use_workbench_raytraced_shadows"}, ("blender/blender/pulls/146142", "!146142")),
             ),
         )
 
