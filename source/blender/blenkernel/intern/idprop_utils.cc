@@ -209,7 +209,7 @@ static void idp_repr_fn_recursive(ReprState *state, const IDProperty *prop)
       const ID *id = static_cast<const ID *>(prop->data.pointer);
       if (id != nullptr) {
         STR_APPEND_STR("bpy.data.");
-        STR_APPEND_STR(BKE_idtype_idcode_to_name_plural(GS(id->name)));
+        STR_APPEND_STR(BKE_idtype_idcode_to_name_plural(short(GS(id->name))));
         STR_APPEND_STR("[");
         STR_APPEND_STR_QUOTE(id->name + 2);
         STR_APPEND_STR("]");
