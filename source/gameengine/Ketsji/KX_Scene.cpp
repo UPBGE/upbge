@@ -850,15 +850,14 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              CTX_data_expect_evaluated_depsgraph(C),
-                              CTX_data_scene(C),
-                              CTX_wm_region(C),
-                              CTX_wm_view3d(C),
-                              NULL,
-                              winmat,
-                              NULL);
+    ED_view3d_update_viewmat(CTX_data_expect_evaluated_depsgraph(C),
+                             CTX_data_scene(C),
+                             CTX_wm_view3d(C),
+                             CTX_wm_region(C),
+                             nullptr,
+                             winmat,
+                             &window,
+                             true);  // Offscreen = True
 
     UpdateObjectLods(cam);
   }
@@ -931,15 +930,14 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-  ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                            CTX_wm_window(C),
-                            CTX_data_expect_evaluated_depsgraph(C),
-                            CTX_data_scene(C),
-                            CTX_wm_region(C),
-                            CTX_wm_view3d(C),
-                            NULL,
-                            winmat,
-                            NULL);
+  ED_view3d_update_viewmat(CTX_data_expect_evaluated_depsgraph(C),
+                           CTX_data_scene(C),
+                           CTX_wm_view3d(C),
+                           CTX_wm_region(C),
+                           nullptr,
+                           winmat,
+                           window,
+                           true); // Offscreen = True
 
   DRW_game_render_loop(C, cam->GetGPUViewport(), depsgraph, window, false);
 }
