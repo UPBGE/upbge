@@ -52,7 +52,6 @@ Texture::Texture():
       m_gameobj(nullptr),
       m_gpuTexInUse(nullptr),
       m_modifiedGPUTexture(nullptr),
-      m_py_color(nullptr),
       m_mipmap(false),
       m_lastClock(0.0),
       m_source(nullptr),
@@ -110,10 +109,6 @@ void Texture::Close()
   if (m_gpuTexInUse) {
     m_gpuTexInUse = nullptr;
   }
-  if (m_py_color) {
-    Py_XDECREF(m_py_color);
-    m_py_color = nullptr;
-  }
   if (m_modifiedGPUTexture) { // Videos
     GPU_texture_free(m_modifiedGPUTexture);
     m_modifiedGPUTexture = nullptr;
@@ -151,10 +146,6 @@ void Texture::loadTexture(unsigned int *texture,
 
       // Register the override on the Image so that drawing code uses this GPU texture.
       BKE_image_set_gpu_texture_override(m_imgTexture, gpuTex);
-
-      // Create a Python wrapper for the texture without increasing its refcount.
-      m_py_color = BPyGPUTexture_CreatePyObject(gpuTex, false);
-      Py_INCREF(m_py_color);
 
       /* Store the pointer in m_gpuTexInUse without acquiring a new
        * reference. */
@@ -194,10 +185,6 @@ void Texture::loadTexture(unsigned int *texture,
 
     // Register the override on the Image. No additional refcount is taken.
     BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
-    if (!m_py_color) {
-      m_py_color = BPyGPUTexture_CreatePyObject(m_modifiedGPUTexture, false);
-      Py_INCREF(m_py_color);
-    }
   }
 }
 
