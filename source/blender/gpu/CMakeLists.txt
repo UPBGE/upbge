@@ -339,8 +339,8 @@ set(VULKAN_SRC
   vulkan/vk_ray_tracing.hh
   vulkan/render_graph/nodes/vk_begin_query_node.hh
   vulkan/render_graph/nodes/vk_begin_rendering_node.hh
-  vulkan/render_graph/nodes/vk_build_acceleration_structure_node.hh
   vulkan/render_graph/nodes/vk_blit_image_node.hh
+  vulkan/render_graph/nodes/vk_build_acceleration_structure_node.hh
   vulkan/render_graph/nodes/vk_clear_attachments_node.hh
   vulkan/render_graph/nodes/vk_clear_color_image_node.hh
   vulkan/render_graph/nodes/vk_clear_depth_stencil_image_node.hh
@@ -675,6 +675,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_clamp.glsl
   shaders/material/gpu_shader_material_compare.glsl
   shaders/material/gpu_shader_material_combine_color.glsl
+  shaders/material/gpu_shader_material_combine_transform.glsl
   shaders/material/gpu_shader_material_combine_xyz.glsl
   shaders/material/gpu_shader_material_diffuse.glsl
   shaders/material/gpu_shader_material_displacement.glsl
@@ -730,6 +731,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_rotation_to_quaternion.glsl
   shaders/material/gpu_shader_material_scene_time.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
+  shaders/material/gpu_shader_material_separate_transform.glsl
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
   shaders/material/gpu_shader_material_shader_to_rgba.glsl

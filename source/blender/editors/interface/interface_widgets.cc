@@ -265,7 +265,7 @@ struct WidgetType {
 
   /* pointer to theme color definition */
   const uiWidgetColors *wcol_theme;
-  uiWidgetStateColors *wcol_state;
+  const uiWidgetStateColors *wcol_state;
 
   /* converted colors for state */
   uiWidgetColors wcol;
@@ -3179,11 +3179,11 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
 /* copy colors from theme, and set changes in it based on state */
 static void widget_state(WidgetType *wt, const WidgetStateInfo *state, EmbossType emboss)
 {
-  uiWidgetStateColors *wcol_state = wt->wcol_state;
+  const uiWidgetStateColors *wcol_state = wt->wcol_state;
 
   if (state->but_flag & BUT_LIST_ITEM) {
     /* Override default widget's colors. */
-    bTheme *btheme = theme::theme_get();
+    const bTheme *btheme = theme::theme_get();
     wt->wcol_theme = &btheme->tui.wcol_list_item;
 
     if (state->but_flag & (BUT_DISABLED | BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
@@ -3310,7 +3310,7 @@ static bool draw_emboss(const Button *but)
 /* sliders use special hack which sets 'item' as inner when drawing filling */
 static void widget_state_numslider(WidgetType *wt, const WidgetStateInfo *state, EmbossType emboss)
 {
-  uiWidgetStateColors *wcol_state = wt->wcol_state;
+  const uiWidgetStateColors *wcol_state = wt->wcol_state;
 
   /* call this for option button */
   widget_state(wt, state, emboss);
@@ -5150,7 +5150,7 @@ static void widget_state_label(WidgetType *wt, const WidgetStateInfo *state, Emb
 {
   if (state->but_flag & BUT_LIST_ITEM) {
     /* Override default label theme's colors. */
-    bTheme *btheme = theme::theme_get();
+    const bTheme *btheme = theme::theme_get();
     wt->wcol_theme = &btheme->tui.wcol_list_item;
     /* call this for option button */
     widget_state(wt, state, emboss);
@@ -5352,8 +5352,8 @@ static void widget_tab(Button *but,
 
 static void widget_draw_extra_mask(const bContext *C, Button *but, WidgetType *wt, rcti *rect)
 {
-  bTheme *btheme = theme::theme_get();
-  uiWidgetColors *wcol = &btheme->tui.wcol_radio;
+  const bTheme *btheme = theme::theme_get();
+  const uiWidgetColors *wcol = &btheme->tui.wcol_radio;
   const float rad = wcol->roundness * U.widget_unit;
 
   /* state copy! */
@@ -5390,7 +5390,7 @@ static void widget_draw_extra_mask(const bContext *C, Button *but, WidgetType *w
 
 static WidgetType *widget_type(WidgetStyle type)
 {
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
 
   /* defaults */
   static WidgetType wt;
@@ -5671,7 +5671,7 @@ static WidgetType *popover_widget_type(Button *but, rcti *rect)
 
 void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but, rcti *rect)
 {
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
   const ThemeUI *tui = &btheme->tui;
   const uiFontStyle *fstyle = &style->widget;
   WidgetType *wt = nullptr;
@@ -6093,7 +6093,7 @@ static void draw_dialog_alert(Block *block, const rcti *rect)
       theme::get_color_4fv(TH_INFO, color);
   }
 
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
   const float bg_radius = btheme->tui.wcol_menu_back.roundness * U.widget_unit;
   const float line_width = 3.0f * UI_SCALE_FAC;
   const float radius = (bg_radius > (line_width * 2.0f)) ? 0.0f : bg_radius;
@@ -6274,7 +6274,7 @@ static void draw_disk_shaded(float start,
 
 void draw_pie_center(Block *block)
 {
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
   const float cx = block->pie_data->pie_center_spawned[0];
   const float cy = block->pie_data->pie_center_spawned[1];
 
