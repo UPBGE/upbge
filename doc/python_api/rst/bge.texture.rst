@@ -8,6 +8,9 @@ Video Texture (bge.texture)
 Introduction
 ************
 
+(Doc not fully updated)
+
+
 The ``bge.texture`` module allows you to manipulate textures during the game.
 Several sources for texture are possible: video files, image files, video capture,
 memory buffer, camera render or a mix of that.
@@ -34,6 +37,10 @@ How it works
 The principle is simple: first you identify a texture on an existing object using the
 :func:`~bge.texture.materialID` function, then you create a new texture with dynamic content
 and swap the two textures in the GPU.
+
+The texture list is created from ImageTexture nodes found in object Shader Editor.
+ImageTexture nodes used can be linked directly or indirectly to Material Output node,
+but ImageTexture not linked can also be used as render target if needed.
 
 The game engine is not aware of the substitution and continues to display the object as always,
 except that you are now in control of the texture.
@@ -470,6 +477,8 @@ Image classes
 
    .. attribute:: colorBindCode
 
+         .. deprecated:: 0.5.0 (replaced with bge.texture.gpuTexture(See :class:`Texture` and :class:`gpu.types.GPUTexture`))
+
       Off-screen color texture bind code.
 
       :type: integer
@@ -728,6 +737,8 @@ Image classes
 
    .. attribute:: colorBindCode
 
+      .. deprecated:: 0.5.0 (replaced with bge.texture.gpuTexture(See :class:`Texture` and :class:`gpu.types.GPUTexture`))
+
       Off-screen color texture bind code.
 
       :type: integer
@@ -853,7 +864,8 @@ Image classes
 
           # send uniforms to 2D filter to do the compositing between main render and overlay
           if filter is not None:
-              filter.setTexture(0, bge.overlayTex.bindId, "overlayTex")
+            if bge.overlayTex.gpuTexture is not None:
+              filter.setTexture("overlayTex", bge.overlayTex.gpuTexture)
 
    .. attribute:: post_draw
 
@@ -1203,7 +1215,7 @@ Texture classes
 
    .. attribute:: gpuTexture
 
-      GPUTexture. (readonly)
+      GPUTexture (Color Texture). (readonly)
 
       :type: :class:`~bpy.types.GPUTexture`
 
