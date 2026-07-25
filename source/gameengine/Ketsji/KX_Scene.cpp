@@ -925,7 +925,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_blend(GPU_BLEND_NONE);
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::rcti *window)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUViewport *targetViewport, const blender::rcti *window)
 {
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -952,7 +952,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
-  DRW_game_render_loop(C, cam->GetGPUViewport(), depsgraph, window, false);
+  DRW_game_render_loop(C, targetViewport, depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_SceneConverter *sc_converter)

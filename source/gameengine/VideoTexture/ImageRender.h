@@ -18,6 +18,7 @@
 
 namespace blender::gpu {
 class FrameBuffer;
+class GPUViewport;
 } // namespace blender::gpu
 
 class Texture;
@@ -58,8 +59,6 @@ class ImageRender : public ImageViewport {
     return m_done;
   }
 
-  KX_Camera *GetCamera();
-
   /// render frame (public so that it is accessible from python)
   bool Render();
   /// in case fbo is used, method to unbind
@@ -69,6 +68,8 @@ class ImageRender : public ImageViewport {
   void RunPostDrawCallbacks();
 
   void SetTexture(Texture *tex);
+
+  blender::GPUViewport *GetGPUViewport();
 
 #ifdef WITH_PYTHON
   PyObject *m_preDrawCallbacks;
@@ -84,6 +85,8 @@ class ImageRender : public ImageViewport {
   KX_Scene *m_scene;
   /// camera for render
   KX_Camera *m_camera;
+  /// target GPUViewport for rendering
+  blender::GPUViewport *m_gpuViewport;
   /// number of render passes
   unsigned short m_samples;
   /// do we own the camera?
