@@ -321,7 +321,7 @@ bool ImageRender::Render()
     return false;
   }
 
-  m_scene->SetCurrentGPUViewport(m_camera->GetGPUViewport());
+  m_scene->SetCurrentGPUViewport(m_gpuViewport);
 
   /* Add a depsgraph notifier to trigger
    * update on next draw loop. */
