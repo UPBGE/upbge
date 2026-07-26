@@ -39,6 +39,7 @@
 #include <fmt/format.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 
 #include "BLI_rect.hh"
@@ -147,6 +148,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
       m_firstEngineFrame(true),
       m_physicsAccumulator(0.0),
       m_depsgraphDirty(true),  // Milestone 4: force initial depsgraph evaluation.
+      m_physicsInterpolationAlpha(0.0),  // Milestone 3: start with current physics transform.
       m_maxLogicFrame(5),
       m_maxPhysicsFrame(5),
       m_ticrate(DEFAULT_LOGIC_TIC_RATE),
@@ -504,6 +506,17 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
 
 bool KX_KetsjiEngine::NextFrame()
 {
+  // Milestone 4 benchmark baseline: allow forcing depsgraph evaluation every frame
+  // via an environment variable so we can compare the lazy implementation against
+  // the old "always evaluate" behavior without reverting code.
+  static const bool forceDepsgraph = []() {
+    const char *env = getenv("BGE_FORCE_DEPSGRAPH");
+    return env && (env[0] == '1' || env[0] == 't' || env[0] == 'T' || env[0] == 'y' || env[0] == 'Y');
+  }();
+  if (forceDepsgraph) {
+    MarkDepsgraphDirty();
+  }
+
   // Milestone 1 instrumentation: perf logging every 60 frames to avoid console spam.
   static int perfFrameCounter = 0;
   ++perfFrameCounter;
@@ -537,6 +550,18 @@ bool KX_KetsjiEngine::NextFrame()
   }
 
   int substeps = 0;
+
+  // Milestone 3: enable transform interpolation for physics objects. The previous
+  // transform is saved before each physics step so that after the loop we can
+  // extrapolate from the last completed physics step to the current render time.
+  for (KX_Scene *scene : m_scenes) {
+    for (KX_GameObject *gameobj : scene->GetObjectList()) {
+      if (gameobj && gameobj->GetPhysicsController()) {
+        gameobj->SetTransformInterpolationEnabled(true);
+      }
+    }
+  }
+
   while (m_physicsAccumulator >= PHYSICS_TIMESTEP && substeps < MAX_PHYSICS_SUBSTEPS) {
     // Process one fixed physics sub-step per scene.
     for (KX_Scene *scene : m_scenes) {
@@ -581,12 +606,28 @@ bool KX_KetsjiEngine::NextFrame()
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
 
+      // Milestone 3: snapshot the state before this physics step. After the step we will
+      // store the new state; together they form the velocity used for extrapolation.
+      for (KX_GameObject *gameobj : scene->GetObjectList()) {
+        if (gameobj && gameobj->GetPhysicsController()) {
+          gameobj->SavePreviousPhysicsTransform();
+        }
+      }
+
       m_logger.StartLog(tc_physics);
       scene->GetPhysicsEnvironment()->ProceedDeltaTime(
           m_frameTime, PHYSICS_TIMESTEP, PHYSICS_TIMESTEP);
 
       m_logger.StartLog(tc_scenegraph);
       scene->UpdateParents(m_frameTime);
+
+      // Milestone 3: store the current physics transform after this sub-step so we can
+      // extrapolate from the previous pose to the current render time.
+      for (KX_GameObject *gameobj : scene->GetObjectList()) {
+        if (gameobj && gameobj->GetPhysicsController()) {
+          gameobj->SetPhysicsTransform(MT_Matrix4x4(gameobj->NodeGetWorldTransform()));
+        }
+      }
 
       m_logger.StartLog(tc_services);
     }
@@ -602,6 +643,20 @@ bool KX_KetsjiEngine::NextFrame()
     m_frameTime += PHYSICS_TIMESTEP * m_timescale;
     m_physicsAccumulator -= PHYSICS_TIMESTEP;
     ++substeps;
+  }
+
+  // Milestone 3: compute interpolation alpha and generate extrapolated render transforms.
+  // alpha = 0 means render exactly at the last physics step; alpha > 0 extrapolates
+  // forward by that fraction of a physics step (e.g. alpha = 0.5 means half a step ahead).
+  m_physicsInterpolationAlpha = (PHYSICS_TIMESTEP > 0.0)
+                                    ? (m_physicsAccumulator / PHYSICS_TIMESTEP)
+                                    : 0.0;
+  for (KX_Scene *scene : m_scenes) {
+    for (KX_GameObject *gameobj : scene->GetObjectList()) {
+      if (gameobj && gameobj->GetTransformInterpolationEnabled()) {
+        gameobj->InterpolateRenderTransform(static_cast<float>(m_physicsInterpolationAlpha));
+      }
+    }
   }
 
   // Update soft bodies once per rendered frame (same as original behavior).
@@ -1612,6 +1667,12 @@ void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
 double KX_KetsjiEngine::GetAverageFrameRate()
 {
   return m_average_framerate;
+}
+
+// Milestone 3: expose the physics/render interpolation alpha for debugging and gameplay.
+double KX_KetsjiEngine::GetPhysicsInterpolationAlpha() const
+{
+  return m_physicsInterpolationAlpha;
 }
 
 void KX_KetsjiEngine::SetExitKey(short key)

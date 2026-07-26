@@ -432,6 +432,12 @@ static PyObject *gPyGetAverageFrameRate(PyObject *)
   return PyFloat_FromDouble(KX_GetActiveEngine()->GetAverageFrameRate());
 }
 
+// Milestone 3: expose physics/render interpolation alpha to Python for debugging.
+static PyObject *gPyGetPhysicsInterpolationAlpha(PyObject *)
+{
+  return PyFloat_FromDouble(KX_GetActiveEngine()->GetPhysicsInterpolationAlpha());
+}
+
 static PyObject *gPyGetUseExternalClock(PyObject *)
 {
   return PyBool_FromLong(KX_GetActiveEngine()->GetFlag(KX_KetsjiEngine::USE_EXTERNAL_CLOCK));
@@ -890,6 +896,12 @@ static struct PyMethodDef game_methods[] = {
      (PyCFunction)gPyGetAverageFrameRate,
      METH_NOARGS,
      (const char *)"Gets the estimated average frame rate"},
+    // Milestone 3: physics/render interpolation alpha.
+    {"getPhysicsInterpolationAlpha",
+     (PyCFunction)gPyGetPhysicsInterpolationAlpha,
+     METH_NOARGS,
+     (const char *)"Gets the physics/render interpolation alpha (0.0 = previous physics, "
+                   "1.0 = current physics). Useful for debugging jitter."},
     {"getTimeScale",
      (PyCFunction)gPyGetTimeScale,
      METH_NOARGS,

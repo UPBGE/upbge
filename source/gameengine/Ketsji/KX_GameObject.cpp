@@ -102,6 +102,11 @@ KX_GameObject::KX_GameObject()
       m_bOccluder(false),
       m_pPhysicsController(nullptr),
       m_pSGNode(nullptr),
+      m_previousPhysicsTransform(MT_Matrix4x4::Identity()),
+      m_currentPhysicsTransform(MT_Matrix4x4::Identity()),
+      m_renderTransform(MT_Matrix4x4::Identity()),
+      m_transformInterpolationEnabled(false),
+      m_hasPreviousPhysicsTransform(false),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
       m_actionManager(nullptr)
@@ -328,7 +333,17 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass)
   }
   /* When gameobj are not upbge dupli bases or instances, transform updates are synced with depsgraph */
   float object_to_world[4][4];
-  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  // Milestone 3: keep the original object in sync with the interpolated render
+  // transform. This guarantees that if the depsgraph is re-evaluated (first
+  // frame, structural changes, etc.) the evaluated object receives the same
+  // smoothed transform that is used for rendering, instead of jumping back to
+  // the raw physics state.
+  if (m_transformInterpolationEnabled && m_pPhysicsController) {
+    GetRenderTransform().getValue(&object_to_world[0][0]);
+  }
+  else {
+    NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  }
   bool staticObject = true;
   /* SG_Node::DIRTY_RENDER is used to know if an object is static or not. */
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
@@ -432,7 +447,16 @@ void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
    * fields to be updated for objects not tagged with depsgraph (upbge dupli bases and gpu deformed
    * objects). It will be done later in the pipeline (eevee_sync.cc, workbench_engine.cc) */
   float object_to_world[4][4];
-  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  // Milestone 3: use the interpolated render transform when interpolation is enabled
+  // and the object is driven by physics. This avoids visual jitter when the render rate
+  // differs from the physics rate. The SG_Node still holds the current physics transform
+  // for logic and physics in the next frame.
+  if (m_transformInterpolationEnabled && m_pPhysicsController) {
+    GetRenderTransform().getValue(&object_to_world[0][0]);
+  }
+  else {
+    NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  }
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -1912,6 +1936,113 @@ MT_Transform KX_GameObject::NodeGetWorldTransform() const
 MT_Transform KX_GameObject::NodeGetLocalTransform() const
 {
   return m_pSGNode->GetLocalTransform();
+}
+
+// Milestone 3: physics/render transform interpolation implementation.
+void KX_GameObject::SetPhysicsTransform(const MT_Matrix4x4 &t)
+{
+  m_currentPhysicsTransform = t;
+}
+
+const MT_Matrix4x4 &KX_GameObject::GetPhysicsTransform() const
+{
+  return m_currentPhysicsTransform;
+}
+
+void KX_GameObject::SavePreviousPhysicsTransform()
+{
+  // On the very first call, previous == current to avoid a jump from identity.
+  if (!m_hasPreviousPhysicsTransform) {
+    m_previousPhysicsTransform = m_currentPhysicsTransform;
+    m_hasPreviousPhysicsTransform = true;
+  }
+  else {
+    m_previousPhysicsTransform = m_currentPhysicsTransform;
+  }
+}
+
+void KX_GameObject::SetRenderTransform(const MT_Matrix4x4 &t)
+{
+  m_renderTransform = t;
+}
+
+const MT_Matrix4x4 &KX_GameObject::GetRenderTransform() const
+{
+  return m_renderTransform;
+}
+
+void KX_GameObject::SetTransformInterpolationEnabled(bool enabled)
+{
+  m_transformInterpolationEnabled = enabled;
+}
+
+bool KX_GameObject::GetTransformInterpolationEnabled() const
+{
+  return m_transformInterpolationEnabled;
+}
+
+void KX_GameObject::InterpolateRenderTransform(float alpha)
+{
+  if (!m_transformInterpolationEnabled) {
+    m_renderTransform = m_currentPhysicsTransform;
+    return;
+  }
+
+  // If we don't have a valid previous state, just render at the current physics state.
+  if (!m_hasPreviousPhysicsTransform) {
+    m_renderTransform = m_currentPhysicsTransform;
+    return;
+  }
+
+  // Clamp alpha to a safe range. Values slightly above 1.0 can happen due to
+  // rounding and are acceptable for extrapolation; we clamp to avoid explosion.
+  if (alpha < 0.0f) {
+    alpha = 0.0f;
+  }
+  else if (alpha > 1.25f) {
+    alpha = 1.25f;
+  }
+
+  const MT_Transform prevTf = m_previousPhysicsTransform.toTransform();
+  const MT_Transform currTf = m_currentPhysicsTransform.toTransform();
+
+  const MT_Vector3 prevPos = prevTf.getOrigin();
+  const MT_Vector3 currPos = currTf.getOrigin();
+
+  const MT_Matrix3x3 prevBasis = prevTf.getBasis();
+  const MT_Matrix3x3 currBasis = currTf.getBasis();
+  const MT_Quaternion prevQuat = prevBasis.getRotation();
+  const MT_Quaternion currQuat = currBasis.getRotation();
+  // delta = prev^-1 * curr  is the rotation that takes the previous orientation
+  // to the current one. To extrapolate we want curr * delta^alpha.
+  const MT_Quaternion deltaQuat = prevQuat.inverse() * currQuat;
+  const MT_Quaternion extrapQuat = currQuat * MT_Quaternion(0, 0, 0, 1).slerp(deltaQuat, alpha);
+  const MT_Matrix3x3 renderBasis(extrapQuat);
+
+  // Linear velocity over the last physics step: extrapolate position.
+  const MT_Vector3 renderPos = currPos + (currPos - prevPos) * alpha;
+
+  // Extract scale from the basis columns (length of each column).
+  MT_Vector3 prevScale(
+      sqrtf(prevBasis[0][0] * prevBasis[0][0] + prevBasis[1][0] * prevBasis[1][0] +
+            prevBasis[2][0] * prevBasis[2][0]),
+      sqrtf(prevBasis[0][1] * prevBasis[0][1] + prevBasis[1][1] * prevBasis[1][1] +
+            prevBasis[2][1] * prevBasis[2][1]),
+      sqrtf(prevBasis[0][2] * prevBasis[0][2] + prevBasis[1][2] * prevBasis[1][2] +
+            prevBasis[2][2] * prevBasis[2][2]));
+  MT_Vector3 currScale(
+      sqrtf(currBasis[0][0] * currBasis[0][0] + currBasis[1][0] * currBasis[1][0] +
+            currBasis[2][0] * currBasis[2][0]),
+      sqrtf(currBasis[0][1] * currBasis[0][1] + currBasis[1][1] * currBasis[1][1] +
+            currBasis[2][1] * currBasis[2][1]),
+      sqrtf(currBasis[0][2] * currBasis[0][2] + currBasis[1][2] * currBasis[1][2] +
+            currBasis[2][2] * currBasis[2][2]));
+  MT_Vector3 renderScale = currScale + (currScale - prevScale) * alpha;
+
+  MT_Transform renderTf(renderPos, renderBasis);
+  renderTf.scale(renderScale[0], renderScale[1], renderScale[2]);
+
+  m_renderTransform = MT_Matrix4x4(renderTf);
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()

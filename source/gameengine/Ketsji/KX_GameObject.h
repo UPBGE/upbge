@@ -44,6 +44,7 @@
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_Scene.h"
 #include "MT_Transform.h"
+#include "MT_Matrix4x4.h"
 #include "SCA_IObject.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 #include "SG_Node.h"
@@ -135,6 +136,16 @@ class KX_GameObject : public SCA_IObject {
 
   PHY_IPhysicsController *m_pPhysicsController;
   SG_Node *m_pSGNode;
+
+  // Milestone 3: render interpolation transforms.
+  // We keep the previous and current physics transforms so that the rasterizer
+  // can render an interpolated pose between them, eliminating visual jitter
+  // when the render rate differs from the physics rate.
+  MT_Matrix4x4 m_previousPhysicsTransform;
+  MT_Matrix4x4 m_currentPhysicsTransform;
+  MT_Matrix4x4 m_renderTransform;
+  bool m_transformInterpolationEnabled;
+  bool m_hasPreviousPhysicsTransform;
 
   /* Warning: This is different from upbge dupli instances
    * -> it is related to Groups (in old Blender version)
@@ -505,6 +516,17 @@ class KX_GameObject : public SCA_IObject {
   const MT_Vector3 &NodeGetWorldScaling() const;
   const MT_Vector3 &NodeGetWorldPosition() const;
   MT_Transform NodeGetWorldTransform() const;
+
+  // Milestone 3: physics/render transform interpolation API.
+  void SetPhysicsTransform(const MT_Matrix4x4 &t);
+  const MT_Matrix4x4 &GetPhysicsTransform() const;
+  void SavePreviousPhysicsTransform();
+  void SetRenderTransform(const MT_Matrix4x4 &t);
+  const MT_Matrix4x4 &GetRenderTransform() const;
+  void SetTransformInterpolationEnabled(bool enabled);
+  bool GetTransformInterpolationEnabled() const;
+  /** Compute the interpolated render transform from previous/current physics transforms. */
+  void InterpolateRenderTransform(float alpha);
 
   const MT_Matrix3x3 &NodeGetLocalOrientation() const;
   const MT_Vector3 &NodeGetLocalScaling() const;

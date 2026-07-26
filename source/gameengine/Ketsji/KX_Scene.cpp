@@ -718,14 +718,11 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     m_collectionRemap = false;
   }
 
-  /* Notify the depsgraph if object transform changed in the scene
-   * for next drawing loop. */
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    /* Update compatibles blender physics simulations */
-    blender::Object *ob = gameobj->GetBlenderObject();
-    TagBlenderPhysicsObject(scene, ob);
-    gameobj->TagForTransformUpdate(is_overlay_pass);
-  }
+  /* Per-object transform tagging (TagForTransformUpdate) and the copy of the
+   * SceneGraph transforms to the evaluated objects (TagForTransformUpdateEvaluated)
+   * are done by the caller (RenderAfterCameraSetup) around this function, so that
+   * pure physics transform changes still reach the renderer when the depsgraph
+   * evaluation itself is skipped. */
 
   /* Notify depsgraph for other changes */
   TagForExtraIdsUpdate(bmain, cam);
@@ -738,11 +735,6 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
   /* We need the changes to be flushed before each draw loop! */
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
   BKE_scene_graph_update_tagged(depsgraph, bmain);
-
-  /* Update evaluated object object_to_world according to SceneGraph. */
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForTransformUpdateEvaluated(is_last_render_pass);
-  }
 }
 
 bool KX_Scene::ViewportRender(KX_Camera *cam,
@@ -825,6 +817,17 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   PrepareGPUViewport(cam);
 
+  /* Always sync game object transforms: TagForTransformUpdate keeps the original
+   * blender objects in sync and tags the depsgraph only for objects that really
+   * need evaluation (modifiers, constraints, shape keys, drivers...), marking the
+   * depsgraph dirty in that case. This must run before the dirty check below. */
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    /* Update compatibles blender physics simulations */
+    blender::Object *ob = gameobj->GetBlenderObject();
+    TagBlenderPhysicsObject(scene, ob);
+    gameobj->TagForTransformUpdate(is_overlay_pass);
+  }
+
   // Milestone 4: only evaluate the depsgraph when something structural changed.
   // The first frame always evaluates the depsgraph to ensure a valid evaluated state.
   if (engine->IsDepsgraphDirty()) {
@@ -833,16 +836,28 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     UpdateDepsgraph(bmain, scene, is_overlay_pass, is_last_render_pass, cam);
     engine->EndCountDepsgraphTime();
     const auto depsT1 = std::chrono::steady_clock::now();
-    // Milestone 1 instrumentation: log depsgraph time every 60 frames to avoid console spam.
-    static int perfDepsCounter = 0;
-    ++perfDepsCounter;
-    if (perfDepsCounter % 60 == 0) {
-      const double depsMs = std::chrono::duration<double, std::milli>(depsT1 - depsT0).count();
-      std::cerr << "[BGE_PERF] UpdateDepsgraph time_ms=" << depsMs
-                << " scene=" << GetName()
-                << " objects=" << GetObjectList()->GetCount() << "\n";
-    }
+    // Milestone 1 instrumentation: log depsgraph time every time it is evaluated
+    // so that the benchmark can capture it reliably.
+    const double depsMs = std::chrono::duration<double, std::milli>(depsT1 - depsT0).count();
+    std::cerr << "[BGE_PERF] UpdateDepsgraph time_ms=" << depsMs
+              << " scene=" << GetName()
+              << " objects=" << GetObjectList()->GetCount() << "\n";
     engine->ClearDepsgraphDirty();
+  }
+  else {
+    // Milestone 4: explicit "no-op" log so the benchmark can confirm the depsgraph was skipped.
+    static int perfDepsSkipCounter = 0;
+    if (++perfDepsSkipCounter % 60 == 1) {
+      std::cerr << "[BGE_PERF] UpdateDepsgraph time_ms=0.0 scene=" << GetName()
+                << " objects=" << GetObjectList()->GetCount() << " skipped=true\n";
+    }
+  }
+
+  /* Always copy the (possibly interpolated) SceneGraph transforms to the evaluated
+   * objects, even when the depsgraph evaluation was skipped above. Without this,
+   * pure physics objects would stay frozen at their first evaluated transform. */
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    gameobj->TagForTransformUpdateEvaluated(is_last_render_pass);
   }
 
   blender::rcti window;

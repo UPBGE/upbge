@@ -196,6 +196,9 @@ class KX_KetsjiEngine {
   /// True when the depsgraph needs to be evaluated before the next render.
   bool m_depsgraphDirty;
 
+  // Milestone 3: render interpolation alpha (0 = previous physics, 1 = current physics).
+  double m_physicsInterpolationAlpha;
+
   /// maximum number of consecutive logic frame
   int m_maxLogicFrame;
   /// maximum number of consecutive physics frame
@@ -467,6 +470,13 @@ class KX_KetsjiEngine {
    * Gets the last estimated average framerate
    */
   double GetAverageFrameRate();
+
+  /**
+   * Milestone 3: gets the current physics/render interpolation alpha.
+   * 0.0 means the render is using the previous physics transform,
+   * 1.0 means it is using the current physics transform.
+   */
+  double GetPhysicsInterpolationAlpha() const;
 
   /**
    * Gets the time scale multiplier
