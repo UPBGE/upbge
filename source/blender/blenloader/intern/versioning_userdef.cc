@@ -1686,7 +1686,8 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(500, 11)) {
-    userdef->gpu_flag &= ~USER_GPU_FLAG_UNUSED_0;
+    /* This used to be USER_GPU_FLAG_UNUSED_0. */
+    userdef->gpu_flag &= ~USER_GPU_FLAG_WORKBENCH_RT_SHADOWS;
   }
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
@@ -1773,7 +1774,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(502, 13)) {
-    userdef->geometry_nodes_stack_limit = 100;
+    userdef->nodes_stack_limit = 100;
   }
 
   if (!USER_VERSION_ATLEAST(502, 35)) {

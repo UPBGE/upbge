@@ -688,6 +688,12 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    physics_particle_legacy_texture_uv
+    ${TEST_SRC_DIR}/physics/particle_legacy_texture_uv.blend
+    --python ${TEST_PYTHON_DIR}/physics_particle_legacy_texture_uv.py
+  )
+
+  add_blender_test(
     physics_particle_instance
     ${TEST_SRC_DIR}/physics/physics_particle_instance.blend
     --python ${TEST_PYTHON_DIR}/physics_particle_instance.py
@@ -776,6 +782,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/animation"
     --output-dir "${TEST_OUT_DIR}/bl_animation_action"
+  )
+
+  add_blender_test(
+    bl_animation_convert
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_convert.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
   )
 
   add_blender_test(
@@ -1261,6 +1274,7 @@ if(TEST_SRC_DIR_EXISTS)
     mesh/split_edges
     mesh/triangulate
     points
+    simulation
     texture
     utilities
     vector
@@ -1290,15 +1304,6 @@ if(TEST_SRC_DIR_EXISTS)
     endforeach()
   endforeach()
 
-  file(GLOB files "${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/*.blend")
-  foreach(file ${files})
-    get_filename_component(filename ${file} NAME_WE)
-    add_blender_test(
-      geo_node_simulation_test_${filename}
-      ${file}
-      --python ${TEST_PYTHON_DIR}/geo_node_sim_test.py
-    )
-  endforeach()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1716,10 +1721,12 @@ if(WITH_UI_TESTS)
     test_undo.view3d_mesh_particle_edit_mode_simple
     test_undo.view3d_multi_mode_multi_window
     test_undo.view3d_multi_mode_select
+    test_undo.view3d_particle_edit_undo_from_texture_paint
     test_undo.view3d_sculpt_dyntopo_and_edit
     test_undo.view3d_sculpt_dyntopo_simple
     test_undo.view3d_sculpt_dyntopo_stroke_toggle
     test_undo.view3d_sculpt_with_memfile_step
+    test_undo.view3d_sculpt_with_empty_memfile_step
     test_undo.view3d_sculpt_trim
     test_undo.view3d_simple
     test_undo.view3d_texture_paint_complex

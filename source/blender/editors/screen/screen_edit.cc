@@ -1168,6 +1168,12 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
       }
     }
   }
+
+#ifdef WITH_INPUT_IME
+  if (region_prev != screen->active_region) {
+    WM_window_IME_region_refresh(win, area, screen->active_region);
+  }
+#endif
 }
 
 int ED_screen_area_active(const bContext *C)
@@ -1942,7 +1948,9 @@ void ED_screen_animation_stop(Main *bmain,
 
 void ED_screen_animation_timer_remove(wmWindowManager *wm, wmWindow *win)
 {
-  bScreen *stopscreen = ED_screen_animation_playing(wm);
+  /* `ED_screen_animation_playing` isn't used, as it also checks for screens with
+   *  scrubbing enabled*/
+  bScreen *stopscreen = ED_screen_animation_no_scrub(wm);
   if (!stopscreen) {
     return;
   }

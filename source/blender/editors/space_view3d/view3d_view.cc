@@ -85,7 +85,8 @@ static wmOperatorStatus view3d_camera_to_view_exec(bContext *C, wmOperator * /*o
 
   BKE_object_tfm_protected_backup(v3d->camera, &obtfm);
 
-  ED_view3d_to_object(depsgraph, v3d->camera, rv3d->ofs, rv3d->viewquat, rv3d->dist);
+  ED_view3d_to_object(depsgraph, v3d->camera, rv3d->ofs, rv3d->viewquat, rv3d->dist, 0.0f);
+  rv3d->camroll = 0.0f;
 
   BKE_object_tfm_protected_restore(v3d->camera, &obtfm, v3d->camera->protectflag);
 
@@ -392,6 +393,10 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
   rv3d->view = RV3D_VIEW_USER; /* don't show the grid */
 
   normalize_m4_m4(bmat, ob->object_to_world().ptr());
+  /* Apply roll. */
+  if (rv3d->camroll != 0.0f) {
+    rotate_m4(bmat, 'Z', -rv3d->camroll);
+  }
   invert_m4_m4(rv3d->viewmat, bmat);
 
   /* view quat calculation, needed for add object */
@@ -1658,12 +1663,12 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 
   game_set_commmandline_options(&startscene->gm);
 
-  if ((rv3d->persp == RV3D_CAMOB) && (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS)) {
+  if (rv3d->persp == RV3D_CAMOB) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     /* Letterbox */
     rctf cam_framef;
     ED_view3d_calc_camera_border(
-        startscene, depsgraph, ar, CTX_wm_view3d(C), rv3d, false, &cam_framef);
+        startscene, depsgraph, ar, CTX_wm_view3d(C), rv3d, false, false, &cam_framef);
     cam_frame.xmin = cam_framef.xmin + ar->winrct.xmin;
     cam_frame.xmax = cam_framef.xmax + ar->winrct.xmin;
     cam_frame.ymin = cam_framef.ymin + ar->winrct.ymin;

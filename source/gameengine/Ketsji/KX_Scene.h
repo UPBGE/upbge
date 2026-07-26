@@ -328,7 +328,9 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                       blender::Scene *scene,
                       blender::bContext *C);
 
-  void RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::rcti *window);
+  void RenderAfterCameraSetupImageRender(KX_Camera *cam,
+                                         blender::GPUViewport *targetViewport,
+                                         const blender::rcti *window);
   blender::Object *GetGameDefaultCamera();
   void ReinitBlenderContextVariables();
   void AddOverlayCollection(KX_Camera *overlay_cam, blender::Collection *collection);

@@ -68,6 +68,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh" /* #BKE_ST_MAXNAME. */
+#include "BKE_wm_runtime.hh"
 
 #include "BKE_idtype.hh"
 
@@ -1920,6 +1921,45 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name IME Operator Helpers
+ * \{ */
+
+#ifdef WITH_INPUT_IME
+std::optional<wmOperatorStatus> WM_operator_IME_insert_maybe(bContext *C,
+                                                             wmOperator *op,
+                                                             const wmEvent *event,
+                                                             const char *prop_id)
+{
+  const wmWindow *win = CTX_wm_window(C);
+  if (win == nullptr) {
+    return std::nullopt;
+  }
+  if (event->type == WM_IME_COMPOSITE_EVENT) {
+    const wmIMEData *ime_data = win->runtime->ime_data;
+    if (ime_data && !ime_data->result.empty()) {
+      RNA_string_set(op->ptr, prop_id, ime_data->result.c_str());
+      return op->type->exec(C, op);
+    }
+  }
+  if (win->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+  return std::nullopt;
+}
+
+std::optional<wmOperatorStatus> WM_operator_IME_edit_maybe(const bContext *C)
+{
+  const wmWindow *win = CTX_wm_window(C);
+  if (win && win->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+  return std::nullopt;
+}
+#endif /* WITH_INPUT_IME */
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Debug Menu Operator
  *
  * Set internal debug value, mainly for developers.
@@ -2479,7 +2519,7 @@ static void WM_OT_console_toggle(wmOperatorType *ot)
 
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
-                                        bool (*poll)(bContext *C),
+                                        wmPaintCursorPoll poll,
                                         wmPaintCursorDraw draw,
                                         void *customdata)
 {
@@ -2512,7 +2552,9 @@ bool WM_paint_cursor_end(wmPaintCursor *handle)
   return false;
 }
 
-void WM_paint_cursor_remove_by_type(wmWindowManager *wm, void *draw_fn, void (*free)(void *))
+void WM_paint_cursor_remove_by_type(wmWindowManager *wm,
+                                    wmPaintCursorDraw draw_fn,
+                                    void (*free)(void *))
 {
   for (wmPaintCursor &pc : wm->runtime->paintcursors.items_mutable()) {
     if (pc.draw == draw_fn) {

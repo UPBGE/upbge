@@ -572,7 +572,6 @@ void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
 void BKE_sculptsession_free_pbvh(Object &object);
 void BKE_sculptsession_bm_to_me(Object *ob);
-void BKE_sculptsession_bm_to_me_for_render(Object *object);
 
 /**
  * Create new color layer on object if it doesn't have one and if experimental feature set has
@@ -649,5 +648,6 @@ std::optional<StringRef> BKE_paint_canvas_uvmap_name_get(const PaintModeSettings
                                                          Object *ob);
 CurveMapping *BKE_sculpt_default_cavity_curve();
 CurveMapping *BKE_paint_default_curve();
+CurveMapping *BKE_paint_default_curve_inverted();
 
 }  // namespace blender

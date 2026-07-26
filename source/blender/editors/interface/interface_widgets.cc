@@ -40,6 +40,7 @@
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
+#include "buttons/interface_label.hh"
 #include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
@@ -264,7 +265,7 @@ struct WidgetType {
 
   /* pointer to theme color definition */
   const uiWidgetColors *wcol_theme;
-  uiWidgetStateColors *wcol_state;
+  const uiWidgetStateColors *wcol_state;
 
   /* converted colors for state */
   uiWidgetColors wcol;
@@ -2752,6 +2753,83 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
 }
 
+static void widget_draw_multiline_text(const uiFontStyle *fstyle,
+                                       const uiWidgetColors *wcol,
+                                       Button *but,
+                                       rcti *rect)
+{
+  /* Draw multiline text. */
+  ButtonLabel *multiline_label = static_cast<ButtonLabel *>(but);
+  const int total_lines = multiline_label->wrap_cache->wrapped_lines.size();
+  const int lines = multiline_label->max_lines > 0 ?
+                        std::min(multiline_label->max_lines, total_lines) :
+                        total_lines;
+
+  const float line_height = ui::fontstyle_height_max(UI_FSTYLE_WIDGET) / but->block->aspect;
+  const float padding = (std::max(UI_UNIT_Y - line_height, 0.0f) / 2.0f) / but->block->aspect;
+
+  FontStyleDrawParams params{};
+  params.align = multiline_label->text_align;
+  params.word_clip = false;
+
+  float ymax = rect->ymax - padding;
+  rcti line_rect = *rect;
+  int sccissors[4];
+  GPU_scissor_get(sccissors);
+  int sccisors_ymin = sccissors[1];
+  int sccisors_ymax = sccisors_ymin + sccissors[3];
+
+  for (const int i : multiline_label->wrap_cache->wrapped_lines.index_range().take_front(lines)) {
+    StringRef line = multiline_label->wrap_cache->wrapped_lines[i];
+    line_rect.ymax = ymax;
+    ymax -= line_height;
+    line_rect.ymin = ymax;
+    /* Break when there is not more space to draw. */
+    if (line_rect.ymax < sccisors_ymin) {
+      break;
+    }
+    /* Skip the line if the line is not in visible bounds. */
+    if (line_rect.ymin > sccisors_ymax) {
+      continue;
+    }
+    if (i < (lines - 1) || total_lines == lines) {
+      fontstyle_draw_ex(fstyle,
+                        &line_rect,
+                        line.begin(),
+                        line.size(),
+                        wcol->text,
+                        &params,
+                        nullptr,
+                        nullptr,
+                        nullptr);
+      continue;
+    }
+    /* Add ellipsis when not all lines are drawn.  */
+    float strwidth = BLF_width(fstyle->uifont_id, line.begin(), line.size(), nullptr);
+
+    const int border = UI_TEXT_CLIP_MARGIN + 1;
+    const int okwidth = max_ii(BLI_rcti_size_x(&line_rect) - border, 0);
+    std::string str = line;
+    if (strwidth > okwidth) {
+      int drawstr_len = BLF_width_to_strlen(
+          fstyle->uifont_id, line.begin(), line.size(), okwidth, &strwidth);
+      str = str.substr(0, drawstr_len);
+    }
+    StringRef ellipsis = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
+    str += ellipsis;
+    fontstyle_draw_ex(fstyle,
+                      &line_rect,
+                      str.data(),
+                      str.size(),
+                      wcol->text,
+                      &params,
+                      nullptr,
+                      nullptr,
+                      nullptr);
+    break;
+  }
+}
+
 static void widget_draw_extra_icons(const uiWidgetColors *wcol,
                                     Button *but,
                                     rcti *rect,
@@ -3015,11 +3093,14 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   if (ELEM(but->text_direction, TextDirection::Down, TextDirection::Up)) {
     widget_draw_vertical_text(fstyle, wcol, but, rect);
   }
-  else if (but->type != ButtonType::TextBox) {
-    widget_draw_text(fstyle, wcol, but, rect);
+  else if (button_label_is_multiline(but)) {
+    widget_draw_multiline_text(fstyle, wcol, but, rect);
+  }
+  else if (but->type == ButtonType::TextBox) {
+    widget_draw_textbox(fstyle, wcol, but, rect);
   }
   else {
-    widget_draw_textbox(fstyle, wcol, but, rect);
+    widget_draw_text(fstyle, wcol, but, rect);
   }
 
   button_text_password_hide(password_str, but, true);
@@ -3098,11 +3179,11 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
 /* copy colors from theme, and set changes in it based on state */
 static void widget_state(WidgetType *wt, const WidgetStateInfo *state, EmbossType emboss)
 {
-  uiWidgetStateColors *wcol_state = wt->wcol_state;
+  const uiWidgetStateColors *wcol_state = wt->wcol_state;
 
   if (state->but_flag & BUT_LIST_ITEM) {
     /* Override default widget's colors. */
-    bTheme *btheme = theme::theme_get();
+    const bTheme *btheme = theme::theme_get();
     wt->wcol_theme = &btheme->tui.wcol_list_item;
 
     if (state->but_flag & (BUT_DISABLED | BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
@@ -3229,7 +3310,7 @@ static bool draw_emboss(const Button *but)
 /* sliders use special hack which sets 'item' as inner when drawing filling */
 static void widget_state_numslider(WidgetType *wt, const WidgetStateInfo *state, EmbossType emboss)
 {
-  uiWidgetStateColors *wcol_state = wt->wcol_state;
+  const uiWidgetStateColors *wcol_state = wt->wcol_state;
 
   /* call this for option button */
   widget_state(wt, state, emboss);
@@ -5069,7 +5150,7 @@ static void widget_state_label(WidgetType *wt, const WidgetStateInfo *state, Emb
 {
   if (state->but_flag & BUT_LIST_ITEM) {
     /* Override default label theme's colors. */
-    bTheme *btheme = theme::theme_get();
+    const bTheme *btheme = theme::theme_get();
     wt->wcol_theme = &btheme->tui.wcol_list_item;
     /* call this for option button */
     widget_state(wt, state, emboss);
@@ -5271,8 +5352,8 @@ static void widget_tab(Button *but,
 
 static void widget_draw_extra_mask(const bContext *C, Button *but, WidgetType *wt, rcti *rect)
 {
-  bTheme *btheme = theme::theme_get();
-  uiWidgetColors *wcol = &btheme->tui.wcol_radio;
+  const bTheme *btheme = theme::theme_get();
+  const uiWidgetColors *wcol = &btheme->tui.wcol_radio;
   const float rad = wcol->roundness * U.widget_unit;
 
   /* state copy! */
@@ -5309,7 +5390,7 @@ static void widget_draw_extra_mask(const bContext *C, Button *but, WidgetType *w
 
 static WidgetType *widget_type(WidgetStyle type)
 {
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
 
   /* defaults */
   static WidgetType wt;
@@ -5590,7 +5671,7 @@ static WidgetType *popover_widget_type(Button *but, rcti *rect)
 
 void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but, rcti *rect)
 {
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
   const ThemeUI *tui = &btheme->tui;
   const uiFontStyle *fstyle = &style->widget;
   WidgetType *wt = nullptr;
@@ -6012,7 +6093,7 @@ static void draw_dialog_alert(Block *block, const rcti *rect)
       theme::get_color_4fv(TH_INFO, color);
   }
 
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
   const float bg_radius = btheme->tui.wcol_menu_back.roundness * U.widget_unit;
   const float line_width = 3.0f * UI_SCALE_FAC;
   const float radius = (bg_radius > (line_width * 2.0f)) ? 0.0f : bg_radius;
@@ -6193,7 +6274,7 @@ static void draw_disk_shaded(float start,
 
 void draw_pie_center(Block *block)
 {
-  bTheme *btheme = theme::theme_get();
+  const bTheme *btheme = theme::theme_get();
   const float cx = block->pie_data->pie_center_spawned[0];
   const float cy = block->pie_data->pie_center_spawned[1];
 

@@ -52,7 +52,6 @@ Texture::Texture():
       m_gameobj(nullptr),
       m_gpuTexInUse(nullptr),
       m_modifiedGPUTexture(nullptr),
-      m_py_color(nullptr),
       m_mipmap(false),
       m_lastClock(0.0),
       m_source(nullptr),
@@ -110,10 +109,6 @@ void Texture::Close()
   if (m_gpuTexInUse) {
     m_gpuTexInUse = nullptr;
   }
-  if (m_py_color) {
-    Py_XDECREF(m_py_color);
-    m_py_color = nullptr;
-  }
   if (m_modifiedGPUTexture) { // Videos
     GPU_texture_free(m_modifiedGPUTexture);
     m_modifiedGPUTexture = nullptr;
@@ -140,21 +135,16 @@ void Texture::loadTexture(unsigned int *texture,
   ImageRender *imr = m_isImageRender ? static_cast<ImageRender *>(m_source->m_imageBase) : nullptr;
 
   if (imr) {
-    // For ImageRender, directly use the GPU texture from the active framebuffer
-    KX_Camera *cam = imr->GetCamera();
-    if (cam && m_imgTexture && !m_gpuTexInUse) {
-      blender::GPUViewport *viewport = cam->GetGPUViewport();
-      /* Get the color texture from the KX_Camera's GPUViewport.This texture is
+    // For ImageRender, directly use the GPU texture from the ImageRender GPUViewport
+    blender::GPUViewport *viewport = imr->GetGPUViewport();
+    if (viewport && m_imgTexture && !m_gpuTexInUse) {
+      /* Get the color texture from the ImageRender GPUViewport.This texture is
        * owned by the GPU viewport and must not be reference‑counted by the
        * Image system: Don't call BKE_image_acquire_gpu_texture!! */
       blender::gpu::Texture *gpuTex = GPU_viewport_color_texture(viewport, 0);
 
       // Register the override on the Image so that drawing code uses this GPU texture.
       BKE_image_set_gpu_texture_override(m_imgTexture, gpuTex);
-
-      // Create a Python wrapper for the texture without increasing its refcount.
-      m_py_color = BPyGPUTexture_CreatePyObject(gpuTex, false);
-      Py_INCREF(m_py_color);
 
       /* Store the pointer in m_gpuTexInUse without acquiring a new
        * reference. */
@@ -194,10 +184,6 @@ void Texture::loadTexture(unsigned int *texture,
 
     // Register the override on the Image. No additional refcount is taken.
     BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
-    if (!m_py_color) {
-      m_py_color = BPyGPUTexture_CreatePyObject(m_modifiedGPUTexture, false);
-      Py_INCREF(m_py_color);
-    }
   }
 }
 

@@ -431,7 +431,9 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
 
   RE_ReleaseResult(rj->re);
 
-  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
+  if (rs->infostr != nullptr) {
+    BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
+  }
 
   /* make jobs timer to send notifier */
   *(rj->do_update) = true;
@@ -880,7 +882,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   WM_cursor_wait(true);
 
   /* flush sculpt and editmode changes */
-  ED_editors_flush_edits_ex(bmain, true, false);
+  ED_editors_flush_edits(bmain);
 
   /* store spare
    * get view3d layer, local layer, make this nice API call to render

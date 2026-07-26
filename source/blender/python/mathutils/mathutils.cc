@@ -268,6 +268,8 @@ int mathutils_array_parse_alloc_v(float **array,
   const int array_dim_flag = array_dim;
   int i, num;
 
+  *array = nullptr;
+
   /* non list/tuple cases */
   if (!(value_fast = PySequence_Fast(value, error_prefix))) {
     /* PySequence_Fast sets the error */
@@ -343,6 +345,8 @@ int mathutils_array_parse_alloc_vi(int **array,
   PyObject *value_fast;
   int i, size;
 
+  *array = nullptr;
+
   if (!(value_fast = PySequence_Fast(value, error_prefix))) {
     /* PySequence_Fast sets the error */
     return -1;
@@ -405,7 +409,7 @@ bool mathutils_array_parse_alloc_viseq(PyObject *value,
 
     r_data.reinitialize(offsets.total_size());
 
-    for (const int64_t i : r_data.index_range()) {
+    for (const int64_t i : offsets.index_range()) {
       PyObject *subseq = value_fast_items[i];
       MutableSpan<int> group = r_data.as_mutable_span().slice(offsets[i]);
       if (mathutils_int_array_parse(group.data(), group.size(), subseq, error_prefix) == -1) {

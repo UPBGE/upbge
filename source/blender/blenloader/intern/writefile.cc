@@ -178,13 +178,6 @@ static CLG_LogRef LOG_UNDO = {"undo"};
 /** \name Internal Write Wrapper's (Abstracts Compression)
  * \{ */
 
-struct ZstdFrame {
-  ZstdFrame *next, *prev;
-
-  uint32_t compressed_size;
-  uint32_t uncompressed_size;
-};
-
 class WriteWrap {
  public:
   virtual bool open(const char *filepath) = 0;
@@ -228,20 +221,53 @@ bool RawWriteWrap::write(const void *buf, size_t buf_len)
 }
 
 class ZstdWriteWrap : public WriteWrap {
-  struct ZstdWriteBlockTask;
+  struct ZstdFrame {
+    const void *uncompressed_data = nullptr;
+    uint32_t uncompressed_size = 0;
+
+    uint32_t compressed_size = 0;
+    const void *compressed_data = nullptr;
+
+    /**
+     * Marker that the related compression task is done.
+     *
+     * Regardless of the status of `write_error`, it implies that:
+     *   - `uncompressed_data` has been freed.
+     *   - `compressed_data` has been set, and needs to be written (if no write error) and freed.
+     */
+    std::atomic<bool> compressed_done = false;
+  };
 
   WriteWrap &base_wrap;
 
+  /** Workers pool for compression tasks. */
   TaskPool *pool = nullptr;
 
-  std::mutex mutex;
-  std::condition_variable condition;
+  /**
+   * ZSTD frames to compress and write, in order, while the write is in progress. See
+   * #write_compressed_frames.
+   *
+   * Used as a queue for compression tasks, and as an ordered array for writing the seek table of
+   * all frames at the end.
+   *
+   * `next_frame` is the queue head, frames before it have all been compressed and written.
+   *
+   * \note On average frames hold around #ZSTD_CHUNK_SIZE of uncompressed data:
+   * Large writes are split into chunk-sized pieces, the trailing piece of each being smaller.
+   * So the array stays small, in practice ~220 frames per 200MB written,
+   * and a multi-GB file still only holds a few thousand frames.
+   *
+   * \note Only manipulated from the main thread, tasks access their own frame only.
+   */
+  Vector<std::unique_ptr<ZstdFrame>> frames = {};
   int next_frame = 0;
-  int num_frames = 0;
 
-  ListBaseT<ZstdFrame> frames = {};
-
-  bool write_error = false;
+  /**
+   * Set in case of compression error.
+   *
+   * Will prevent any further data to be written in blendfile, and starting new compression tasks.
+   */
+  std::atomic<bool> write_error = false;
 
  public:
   ZstdWriteWrap(WriteWrap &base_wrap) : base_wrap(base_wrap) {}
@@ -251,47 +277,80 @@ class ZstdWriteWrap : public WriteWrap {
   bool write(const void *buf, size_t buf_len) override;
 
  private:
+  /** Multiple async tasks, compress each frame's data. */
   static void compress_task_run(TaskPool *pool, void *taskdata);
+  /**
+   * Write the compressed data of available frames into the blendfile.
+   *
+   * Running both as part of every #write call, to limit the amount of pending compressed frames
+   * to write (and free memory faster), and in the #close function after waiting for all
+   * compression tasks to be done, to ensure that all frames have been compressed and written.
+   */
+  void write_compressed_frames();
+  /** Utils to write uint32_t little endian values.  */
   void write_u32_le(uint32_t val);
+  /**
+   * In order to implement efficient seeking when reading the .blend, a skippable frame that
+   * encodes information about the other frames present in the file is added at the end.
+   *
+   * The format here follows the upstream spec for seekable files:
+   * https://github.com/facebook/zstd/blob/master/contrib/seekable_format/zstd_seekable_compression_format.md
+   *
+   * If this information is not present in a file (e.g. if it was compressed with external tools),
+   * it can still be opened in Blender, but seeking will not be supported, so more memory might be
+   * needed to read it.
+   */
   void write_seekable_frames();
 };
 
-struct ZstdWriteWrap::ZstdWriteBlockTask {
-  ZstdWriteWrap *ww;
-  void *data;
-  size_t size;
-  int frame_number;
-};
-
-void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
+void ZstdWriteWrap::compress_task_run(TaskPool *pool, void *taskdata)
 {
-  ZstdWriteBlockTask *task = static_cast<ZstdWriteBlockTask *>(taskdata);
-  ZstdWriteWrap *ww = task->ww;
+  auto *frame = static_cast<ZstdFrame *>(taskdata);
+  auto *ww = static_cast<ZstdWriteWrap *>(BLI_task_pool_user_data(pool));
 
-  size_t out_buf_len = ZSTD_compressBound(task->size);
+  size_t out_buf_len = ZSTD_compressBound(frame->uncompressed_size);
   void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
-  size_t out_size = ZSTD_compress(
-      out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
-  MEM_delete_void(task->data);
+  const size_t out_size = ZSTD_compress(out_buf,
+                                        out_buf_len,
+                                        frame->uncompressed_data,
+                                        frame->uncompressed_size,
+                                        ZSTD_COMPRESSION_LEVEL);
+  MEM_delete_void(frame->uncompressed_data);
+  frame->uncompressed_data = nullptr;
 
-  std::unique_lock lock{ww->mutex};
-  ww->condition.wait(lock, [&] { return ww->next_frame == task->frame_number; });
-  if (ZSTD_isError(out_size)) {
+  frame->compressed_data = out_buf;
+  /* Do not store 'error code' size, as its value will be out of uint32_t range. The size value
+   * is not used in case an error has occurred anyway (compressed frames are not written, and
+   * neither is the final seek table). */
+  if (ZSTD_isError(out_size)) [[unlikely]] {
     ww->write_error = true;
-  }
-  else if (ww->base_wrap.write(out_buf, out_size)) {
-    ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
-    frameinfo->uncompressed_size = task->size;
-    frameinfo->compressed_size = out_size;
-    BLI_addtail(&ww->frames, frameinfo);
   }
   else {
-    ww->write_error = true;
+    frame->compressed_size = uint32_t(out_size);
   }
-  ww->next_frame++;
-  MEM_delete(task);
-  MEM_delete_void(out_buf);
-  ww->condition.notify_all();
+  frame->compressed_done = true;
+}
+
+void ZstdWriteWrap::write_compressed_frames()
+{
+  /* Loop over all pending frames in the correct ascendant order, and write them on disk until we
+   * reach one which has not yet available compressed data. */
+  for (const std::unique_ptr<ZstdFrame> &frame : frames.as_span().drop_front(next_frame)) {
+    if (!frame->compressed_done) {
+      /* This frame has not yet been compressed, cannot write further data. */
+      break;
+    }
+    if (!write_error) [[likely]] {
+      BLI_assert(frame->compressed_size > 0);
+      const bool has_error = !base_wrap.write(frame->compressed_data, frame->compressed_size);
+      if (has_error) [[unlikely]] {
+        write_error = true;
+      }
+    }
+    next_frame++;
+    BLI_assert(frame->uncompressed_data == nullptr);
+    MEM_SAFE_DELETE_VOID(frame->compressed_data);
+  }
 }
 
 bool ZstdWriteWrap::open(const char *filepath)
@@ -300,7 +359,7 @@ bool ZstdWriteWrap::open(const char *filepath)
     return false;
   }
 
-  pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_HIGH);
+  pool = BLI_task_pool_create_background(this, TASK_PRIORITY_HIGH);
 
   return true;
 }
@@ -313,30 +372,26 @@ void ZstdWriteWrap::write_u32_le(uint32_t val)
   base_wrap.write(&val, sizeof(uint32_t));
 }
 
-/* In order to implement efficient seeking when reading the .blend, we append
- * a skippable frame that encodes information about the other frames present
- * in the file.
- * The format here follows the upstream spec for seekable files:
- * https://github.com/facebook/zstd/blob/master/contrib/seekable_format/zstd_seekable_compression_format.md
- * If this information is not present in a file (e.g. if it was compressed
- * with external tools), it can still be opened in Blender, but seeking will
- * not be supported, so more memory might be needed. */
 void ZstdWriteWrap::write_seekable_frames()
 {
+  if (write_error) [[unlikely]] {
+    /* Do not write a seek table if the data itself could not be fully written. */
+    return;
+  }
+
   /* Write seek table header (magic number and frame size). */
   write_u32_le(0x184D2A5E);
 
-  /* The actual frame number might not match num_frames if there was a write error. */
-  const uint32_t num_frames = frames.count();
+  const uint32_t num_frames = uint32_t(frames.size());
   /* Each frame consists of two u32, so 8 bytes each.
    * After the frames, a footer containing two u32 and one byte (9 bytes total) is written. */
   const uint32_t frame_size = num_frames * 8 + 9;
   write_u32_le(frame_size);
 
   /* Write seek table entries. */
-  for (ZstdFrame &frame : frames) {
-    write_u32_le(frame.compressed_size);
-    write_u32_le(frame.uncompressed_size);
+  for (const std::unique_ptr<ZstdFrame> &frame : frames) {
+    write_u32_le(frame->compressed_size);
+    write_u32_le(frame->uncompressed_size);
   }
 
   /* Write seek table footer (number of frames, option flags and second magic number). */
@@ -352,26 +407,33 @@ bool ZstdWriteWrap::close()
   BLI_task_pool_free(pool);
   pool = nullptr;
 
+  write_compressed_frames();
+  BLI_assert(next_frame == frames.size());
+
   write_seekable_frames();
-  frames.free_no_destruct();
+  frames.clear();
 
   return base_wrap.close() && !write_error;
 }
 
 bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 {
-  if (write_error) {
+  if (write_error) [[unlikely]] {
     return false;
   }
 
-  ZstdWriteBlockTask *task = MEM_new_uninitialized<ZstdWriteBlockTask>(__func__);
-  task->ww = this;
-  task->data = MEM_new_uninitialized(buf_len, __func__);
-  memcpy(task->data, buf, buf_len);
-  task->size = buf_len;
-  task->frame_number = num_frames++;
+  void *uncompressed_data = MEM_new_uninitialized(buf_len, __func__);
+  memcpy(uncompressed_data, buf, buf_len);
 
-  BLI_task_pool_push(pool, compress_task_run, task, false, nullptr);
+  auto task = std::make_unique<ZstdFrame>();
+  task->uncompressed_data = uncompressed_data;
+  task->uncompressed_size = uint32_t(buf_len);
+  ZstdFrame *frame_p = task.get();
+
+  frames.append(std::move(task));
+  BLI_task_pool_push(pool, compress_task_run, frame_p, false, nullptr);
+
+  write_compressed_frames();
   return true;
 }
 
@@ -1303,16 +1365,12 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
   /* Gather IDs coming from each library. */
   MultiValueMap<Library *, ID *> linked_ids_by_library;
-  {
-    ID *id;
-    FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      if (!ID_IS_LINKED(id)) {
-        continue;
-      }
-      BLI_assert(id->lib);
-      linked_ids_by_library.add(id->lib, id);
+  for (ID &id : MainAllIDsIterator(*bmain)) {
+    if (!ID_IS_LINKED(&id)) {
+      continue;
     }
-    FOREACH_MAIN_ID_END;
+    BLI_assert(id.lib);
+    linked_ids_by_library.add(id.lib, &id);
   }
 
   Set<Library *> written_libraries;
@@ -1630,27 +1688,26 @@ static void write_blend_file_header(WriteData *wd)
 static Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool is_undo)
 {
   Vector<ID *> local_ids_to_write;
-  ID *id;
-  FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    if (GS(id->name) == ID_LI) {
+  for (ID &id : MainAllIDsIterator(*bmain)) {
+    if (GS(id.name) == ID_LI) {
       /* Libraries are handled separately below. */
       continue;
     }
-    if (ID_IS_LINKED(id)) {
+    if (ID_IS_LINKED(&id)) {
       /* Linked data-blocks are handled separately below. */
       continue;
     }
-    const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
+    const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(&id);
     UNUSED_VARS_NDEBUG(id_type);
     /* We should never attempt to write non-regular IDs
      * (i.e. all kind of temp/runtime ones). */
-    BLI_assert((id->tag & (ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT | ID_TAG_NOT_ALLOCATED)) == 0);
+    BLI_assert((id.tag & (ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT | ID_TAG_NOT_ALLOCATED)) == 0);
     /* We only write unused IDs in undo case. */
     if (!is_undo) {
       /* NOTE: All 'never unused' local IDs (Scenes, WindowManagers, ...) should always be
        * written to disk, so their user-count should never be zero currently. Note that
        * libraries have already been skipped above, as they need a specific handling. */
-      if (id->us == 0) {
+      if (id.us == 0) {
         /* FIXME: #124857: Some old files seem to cause incorrect handling of their temp
          * screens.
          *
@@ -1669,26 +1726,25 @@ static Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool is_undo)
        * NOTE: Since ShapeKeys are conceptually embedded IDs (like root node trees e.g.), this
        * behavior actually makes sense anyway. This remains more of a temp hack until topic of
        * how to handle unused data on save is properly tackled. */
-      if (GS(id->name) == ID_KE) {
-        Key *shape_key = reinterpret_cast<Key *>(id);
+      if (GS(id.name) == ID_KE) {
+        Key &shape_key = id_cast<Key &>(id);
         /* NOTE: Here we are accessing the real owner ID data, not it's 'proxy' shallow copy
          * generated for its file-writing. This is not expected to be an issue, but is worth
          * noting. */
-        if (shape_key->from == nullptr || shape_key->from->us == 0) {
+        if (shape_key.from == nullptr || shape_key.from->us == 0) {
           continue;
         }
       }
     }
 
-    if ((id->tag & ID_TAG_RUNTIME) != 0 && !is_undo) {
+    if ((id.tag & ID_TAG_RUNTIME) != 0 && !is_undo) {
       /* Runtime IDs are never written to .blend files, and they should not influence
        * (in)direct status of linked IDs they may use. */
       continue;
     }
 
-    local_ids_to_write.append(id);
+    local_ids_to_write.append(&id);
   }
-  FOREACH_MAIN_ID_END;
   return local_ids_to_write;
 }
 
@@ -1698,10 +1754,9 @@ static Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool is_undo)
  */
 static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
 {
-  ID *id;
-  FOREACH_MAIN_ID_BEGIN (&bmain, id) {
+  for (ID &id : MainAllIDsIterator(bmain)) {
     /* Ensure no other stable pointer has been created before. */
-    BLI_assert(!wd.stable_address_ids.pointer_map.contains(id));
+    BLI_assert(!wd.stable_address_ids.pointer_map.contains(&id));
 
     /* IDs themselves never need to get stable addresses in undo case. */
     if (wd.use_memfile) {
@@ -1710,14 +1765,13 @@ static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
 
     /* Derive the stable pointer from the id/library name which is independent of the write-order
      * of data-blocks. */
-    uint64_t hint = get_stable_pointer_hint_for_id(*id, wd.use_memfile);
+    uint64_t hint = get_stable_pointer_hint_for_id(id, wd.use_memfile);
     const uint64_t address_id = get_next_stable_address_id(wd, hint);
 
     /* Store the computed stable pointer so that it is used whenever the data-block is written or
      * referenced. */
-    wd.stable_address_ids.pointer_map.add(id, address_id);
+    wd.stable_address_ids.pointer_map.add(&id, address_id);
   }
-  FOREACH_MAIN_ID_END;
 }
 
 /**
@@ -2051,15 +2105,21 @@ static bool BLO_write_file_impl(Main *mainvar,
   const bool err = write_file_handle(
       mainvar, &ww, nullptr, nullptr, write_flags, use_userdef, thumb, debug_dst);
 
-  ww.close();
+  const bool close_error = !ww.close();
 
   if (path_list_backup) [[unlikely]] {
     BKE_bpath_list_restore(mainvar, path_list_flag, path_list_backup);
     BKE_bpath_list_free(path_list_backup);
   }
 
-  if (err) {
-    BKE_report(reports, RPT_ERROR, strerror(errno));
+  if (err || close_error) {
+    if (err) {
+      /* Note: `errno` will often be meaningless in case of a zstd compression error. */
+      BKE_reportf(reports, RPT_ERROR, "Failed to write blendfile: %s", strerror(errno));
+    }
+    else {
+      BKE_report(reports, RPT_ERROR, "Failed to write blendfile");
+    }
     remove(tempname);
 
     return false;

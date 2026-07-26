@@ -62,6 +62,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 #include "GPU_context.hh"
+#include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 #include "wm_draw.hh"
@@ -895,15 +896,20 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              CTX_data_expect_evaluated_depsgraph(C),
-                              CTX_data_scene(C),
-                              CTX_wm_region(C),
-                              CTX_wm_view3d(C),
-                              NULL,
-                              winmat,
-                              NULL);
+    ARegion *region = CTX_wm_region(C);
+    ED_view3d_update_viewmat(CTX_data_expect_evaluated_depsgraph(C),
+                             CTX_data_scene(C),
+                             CTX_wm_view3d(C),
+                             region,
+                             nullptr,
+                             winmat,
+                             &window,
+                             true);  // Offscreen = True
+
+    /* Set for GPU drawing. */
+    RegionView3D *rv3d = (RegionView3D *)region->regiondata;
+    GPU_matrix_projection_set(rv3d->winmat);
+    GPU_matrix_set(rv3d->viewmat);
 
     UpdateObjectLods(cam);
   }
@@ -964,7 +970,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_blend(GPU_BLEND_NONE);
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::rcti *window)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUViewport *targetViewport, const blender::rcti *window)
 {
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -976,17 +982,22 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-  ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                            CTX_wm_window(C),
-                            CTX_data_expect_evaluated_depsgraph(C),
-                            CTX_data_scene(C),
-                            CTX_wm_region(C),
-                            CTX_wm_view3d(C),
-                            NULL,
-                            winmat,
-                            NULL);
+  ARegion *region = CTX_wm_region(C);
+  ED_view3d_update_viewmat(CTX_data_expect_evaluated_depsgraph(C),
+                           CTX_data_scene(C),
+                           CTX_wm_view3d(C),
+                           region,
+                           nullptr,
+                           winmat,
+                           window,
+                           true); // Offscreen = True
 
-  DRW_game_render_loop(C, cam->GetGPUViewport(), depsgraph, window, false);
+  /* Set for GPU drawing. */
+  RegionView3D *rv3d = (RegionView3D *)region->regiondata;
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_set(rv3d->viewmat);
+
+  DRW_game_render_loop(C, targetViewport, depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_SceneConverter *sc_converter)

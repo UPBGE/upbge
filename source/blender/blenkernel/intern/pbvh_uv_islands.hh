@@ -27,7 +27,6 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_ordered_edge.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_list.hh"
 
@@ -41,26 +40,6 @@ struct MeshData;
 struct UVIsland;
 struct UVVert;
 
-class TriangleToEdgeMap {
-  Array<std::array<int, 3>> edges_of_triangle_;
-
- public:
-  TriangleToEdgeMap() = delete;
-  TriangleToEdgeMap(const int edges_num)
-  {
-    edges_of_triangle_.reinitialize(edges_num);
-  }
-
-  void add(const Span<int> edges, const int tri_i)
-  {
-    std::copy(edges.begin(), edges.end(), edges_of_triangle_[tri_i].begin());
-  }
-  Span<int> operator[](const int tri_i) const
-  {
-    return edges_of_triangle_[tri_i];
-  }
-};
-
 /**
  * MeshData contains input geometry data converted in a list of primitives, edges and vertices for
  * quick access for both local space and uv space.
@@ -70,37 +49,36 @@ struct MeshData {
   OffsetIndices<int> faces;
   Span<int3> corner_tris;
   Span<int> corner_verts;
+  Span<int> corner_edges;
+  Span<int2> mesh_edges;
   Span<float2> uv_map;
   Span<float3> vert_positions;
 
-  Array<int> vert_to_edge_offsets;
-  Array<int> vert_to_edge_indices;
-  GroupedSpan<int> vert_to_edge_map;
+  GroupedSpan<int> vert_to_face_map;
 
-  Vector<OrderedEdge> edges;
-  Array<int> edge_to_primitive_offsets;
-  Array<int> edge_to_primitive_indices;
-  GroupedSpan<int> edge_to_primitive_map;
+  Array<int> edge_to_face_offsets;
+  Array<int> edge_to_face_indices;
+  GroupedSpan<int> edge_to_face_map;
 
-  TriangleToEdgeMap primitive_to_edge_map;
-
-  /**
-   * UV island each primitive belongs to. This is used to speed up the initial uv island
-   * extraction and should not be used afterwards.
-   */
+  /** UV island each primitive belongs to. */
   Array<int> uv_island_ids;
   /** Total number of found uv islands. */
   int64_t uv_island_len;
+  /** True if a mesh edge is a UV island border. */
+  Array<bool> uv_edge_is_border;
 
   explicit MeshData(OffsetIndices<int> faces,
                     Span<int3> corner_tris,
                     Span<int> corner_verts,
+                    Span<int> corner_edges,
+                    Span<int2> mesh_edges,
+                    GroupedSpan<int> vert_to_face_map,
                     Span<float2> uv_map,
                     Span<float3> vert_positions);
 
   bool is_edge_manifold(const int edge_id) const
   {
-    return edge_to_primitive_map[edge_id].size() == 2;
+    return edge_to_face_map[edge_id].size() == 2;
   }
 };
 
@@ -124,10 +102,10 @@ struct UVVert {
 struct UVEdge {
   std::array<int, 2> verts;
   Vector<int, 2> uv_primitive_indices;
+  bool is_border = false;
 
   int get_other_uv_vert(const UVIsland &island, int vert);
   bool has_same_verts(const UVIsland &island, const int2 &edge) const;
-  bool is_border_edge() const;
 
  private:
   bool has_same_verts(const UVIsland &island, int vert1, int vert2) const;
@@ -249,6 +227,8 @@ struct UVIsland {
   Vector<UVVert> uv_verts;
   Vector<UVEdge> uv_edges;
   Vector<UVPrimitive> uv_primitives;
+  /** Number of primitive, before border extension. */
+  int64_t num_original_primitives = 0;
   /**
    * List of borders of this island. There can be multiple borders per island as a border could
    * be completely encapsulated by another one.
@@ -320,8 +300,8 @@ struct UVIslandsMask {
   bool is_masked(uint16_t island_index, float2 uv) const;
 
   /**
-   * Add the given UV islands to the mask. Tiles should be added beforehand using the 'add_tile'
-   * method.
+   * Rasterize the UV islands into the mask, using the per-island triangle grouping.
+   * Tiles should be added beforehand using the 'add_tile' method.
    */
   void add(const MeshData &mesh_data, GroupedSpan<int> tris_by_island);
 

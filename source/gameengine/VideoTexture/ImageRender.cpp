@@ -55,6 +55,7 @@ ImageRender::ImageRender(KX_Scene *scene,
       m_done(false),
       m_scene(scene),
       m_camera(camera),
+      m_gpuViewport(nullptr),
       m_samples(samples),
       m_owncamera(false),
       m_observer(nullptr),
@@ -70,6 +71,8 @@ ImageRender::ImageRender(KX_Scene *scene,
 
   m_internalFormat = blender::gpu::TextureFormat::UNORM_8_8_8_8;
 
+  m_gpuViewport = GPU_viewport_create();
+
   m_scene->AddImageRenderCamera(m_camera);
 }
 
@@ -83,6 +86,12 @@ ImageRender::~ImageRender(void)
   Py_CLEAR(m_postDrawCallbacks);
   m_postDrawCallbacks = nullptr;
 #endif
+
+  if (m_gpuViewport) {
+    GPU_viewport_free(m_gpuViewport);
+    m_gpuViewport = nullptr;
+  }
+
   m_scene->RemoveImageRenderCamera(m_camera);
 
   if (m_owncamera) {
@@ -90,14 +99,14 @@ ImageRender::~ImageRender(void)
   }
 }
 
-KX_Camera* ImageRender::GetCamera()
-{
-  return m_camera;
-}
-
 void ImageRender::SetTexture(Texture* tex)
 {
   m_texture = tex;
+}
+
+GPUViewport* ImageRender::GetGPUViewport()
+{
+  return m_gpuViewport;
 }
 
 // capture image from viewport
@@ -312,7 +321,7 @@ bool ImageRender::Render()
     return false;
   }
 
-  m_scene->SetCurrentGPUViewport(m_camera->GetGPUViewport());
+  m_scene->SetCurrentGPUViewport(m_gpuViewport);
 
   /* Add a depsgraph notifier to trigger
    * update on next draw loop. */
@@ -338,7 +347,7 @@ bool ImageRender::Render()
     GPU_framebuffer_clear_depth(GPU_framebuffer_active_get(), 1.0f);
     /* viewport and window share the same values here */
     const blender::rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
-    m_scene->RenderAfterCameraSetupImageRender(m_camera, &window);
+    m_scene->RenderAfterCameraSetupImageRender(m_camera, m_gpuViewport, &window);
   }
 
 #ifdef WITH_PYTHON
@@ -861,6 +870,8 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_engine = KX_GetActiveEngine();
   m_rasterizer = m_engine->GetRasterizer();
   m_canvas = m_engine->GetCanvas();
+
+  m_gpuViewport = GPU_viewport_create();
 
   m_internalFormat = blender::gpu::TextureFormat::UNORM_8_8_8_8;
 
