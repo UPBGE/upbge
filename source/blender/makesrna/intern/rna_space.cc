@@ -1436,7 +1436,7 @@ static void rna_RegionView3D_view_matrix_set(PointerRNA *ptr, const float *value
   RegionView3D *rv3d = static_cast<RegionView3D *>(ptr->data);
   float mat[4][4];
   invert_m4_m4(mat, reinterpret_cast<float (*)[4]>(const_cast<float *>(values)));
-  ED_view3d_from_m4(mat, rv3d->ofs, rv3d->viewquat, &rv3d->dist);
+  ED_view3d_from_m4(mat, rv3d->ofs, rv3d->viewquat, &rv3d->dist, 0.0f);
   rna_RegionView3D_view_rotation_set_validate_view_axis(rv3d);
 }
 
@@ -6185,6 +6185,12 @@ static void rna_def_space_view3d(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "camdx");
   RNA_def_property_array(prop, 2);
   RNA_def_property_ui_text(prop, "Camera Offset", "View shift in camera view");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  prop = RNA_def_property(srna, "view_camera_roll", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "camroll");
+  RNA_def_property_ui_text(prop, "Camera Roll", "Roll angle in camera view");
+  RNA_def_property_range(prop, -M_PI, M_PI);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   RNA_api_region_view3d(srna);
