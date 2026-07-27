@@ -327,9 +327,11 @@ bool ImageRender::Render()
    * update on next draw loop. */
   DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
 
-  m_scene->TagForExtraIdsUpdate(bmain, m_camera);
-  /* We need the changes to be flushed before each draw loop! */
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
+  m_scene->UpdateDepsgraph(bmain,
+                           m_scene->GetBlenderScene(),
+                           false,
+                           false,
+                           m_camera);
 
 #ifdef WITH_PYTHON
   RunPreDrawCallbacks();
