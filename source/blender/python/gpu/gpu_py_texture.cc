@@ -979,7 +979,7 @@ static PyObject *pygpu_texture_from_image(PyObject * /*self*/, PyObject *arg)
   gpu::Texture *tex = BKE_image_acquire_gpu_texture(ima, &iuser);
 
   PyObject *result = BPyGPUTexture_CreatePyObject(tex, true);
-  if (tex) {
+  if (tex && ima->runtime && ima->runtime->gpu_texture_override != tex) {
     GPU_texture_free(tex);
   }
   return result;
