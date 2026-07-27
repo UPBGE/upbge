@@ -459,7 +459,11 @@ void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
   }
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  // Milestone 4: use the same depsgraph that the render loop will use. In
+  // embedded player mode CTX_data_depsgraph_on_load() may return a different
+  // (non-active) depsgraph than the one passed to DRW_game_render_loop, so
+  // the evaluated object we update here would not be the one actually drawn.
+  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   blender::Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
@@ -471,6 +475,15 @@ void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
       blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
       if (m_isUpbgeDupliBase) {
         DEG_bump_update_count(depsgraph);
+      }
+      // Milestone 4: objects that are updated outside of the depsgraph (pure physics
+      // transforms) need to mark the evaluated transform as newer than the last
+      // depsgraph update, otherwise the draw manager caches the previous pose and
+      // the mesh appears to lag behind the physics. We only touch the transform
+      // timestamp, not geometry, and avoid bumping the global update count so
+      // TAA and other per-depsgraph caches are not reset every frame.
+      if (!m_isUpbgeDupliBase && !m_isUpbgeDupliInstance && m_pPhysicsController) {
+        ob_eval->runtime->last_update_transform = DEG_get_update_count(depsgraph) + 1;
       }
       if (!skip_transform) {
         copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
