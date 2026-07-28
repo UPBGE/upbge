@@ -47,7 +47,7 @@ PyObject *Texture_close(Texture *self);
 
 Texture::Texture():
       m_imgTexture(nullptr),
-      m_rasTexture(nullptr),
+      m_blTexture(nullptr),
       m_scene(nullptr),
       m_gameobj(nullptr),
       m_gpuTexInUse(nullptr),
@@ -99,8 +99,8 @@ void Texture::FreeAllTextures(KX_Scene *scene)
 
 void Texture::Close()
 {
-  if (m_rasTexture) {
-    m_rasTexture = nullptr;
+  if (m_blTexture) {
+    m_blTexture = nullptr;
   }
   if (m_imgTexture) {
     BKE_image_set_gpu_texture_override(m_imgTexture, nullptr);
@@ -220,17 +220,9 @@ short getMaterialID(PyObject *obj, const char *name)
     // if material is not available, report that no material was found
     if (mat == nullptr)
       break;
-    // name is a material name if it starts with MA and a UV texture name if it starts with IM
-    if (name[0] == 'I' && name[1] == 'M') {
-      // if texture name matches
-      if (mat->GetTextureName() == name)
-        return matID;
-    }
-    else {
-      // if material name matches
-      if (mat->GetName() == name)
-        return matID;
-    }
+    // if material name matches
+    if (mat->GetName() == name)
+      return matID;
   }
   // material was not found
   return -1;
@@ -298,15 +290,15 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 
       if (mat != nullptr) {
         // get blender material texture
-        tex->m_rasTexture = mat->GetTexture(texID);
-        if (!tex->m_rasTexture) {
+        tex->m_blTexture = mat->GetTexture(texID);
+        if (!tex->m_blTexture) {
           THRWEXCP(TextureNotAvail, S_OK);
         }
-        tex->m_imgTexture = tex->m_rasTexture->GetImage();
+        tex->m_imgTexture = tex->m_blTexture->GetImage();
       }
 
       // check if texture is available, if not, initialization failed
-      if (tex->m_imgTexture == nullptr && tex->m_rasTexture == nullptr) {
+      if (tex->m_imgTexture == nullptr && tex->m_blTexture == nullptr) {
         // throw exception if initialization failed
         THRWEXCP(MaterialNotAvail, S_OK);
       }

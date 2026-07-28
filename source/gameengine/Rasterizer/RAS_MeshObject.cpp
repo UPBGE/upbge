@@ -113,16 +113,6 @@ std::string &RAS_MeshObject::GetName()
   return m_name;
 }
 
-const std::string RAS_MeshObject::GetTextureName(unsigned int matid)
-{
-  RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
-
-  if (mmat)
-    return mmat->GetBucket()->GetPolyMaterial()->GetTextureName();
-
-  return "";
-}
-
 RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket,
                                               unsigned int index,
                                               const RAS_VertexFormat &format)
@@ -148,10 +138,7 @@ void RAS_MeshObject::AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigne
 
 RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat,
                                         int numverts,
-                                        unsigned int indices[3],
-                                        bool visible,
-                                        bool collider,
-                                        bool twoside)
+                                        unsigned int indices[3])
 {
   // add it to the bucket, this also adds new display arrays
   RAS_MaterialBucket *bucket = meshmat->GetBucket();
@@ -160,20 +147,14 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat,
   RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
   RAS_Polygon poly(bucket, darray, numverts);
 
-  poly.SetVisible(visible);
-  poly.SetCollider(collider);
-  poly.SetTwoside(twoside);
-
   for (unsigned short i = 0; i < numverts; ++i) {
     poly.SetVertexOffset(i, indices[i]);
   }
 
-  if (visible && !bucket->IsWire()) {
-    // Add the first triangle.
-    darray->AddIndex(indices[0]);
-    darray->AddIndex(indices[1]);
-    darray->AddIndex(indices[2]);
-  }
+  // Add the first triangle.
+  darray->AddIndex(indices[0]);
+  darray->AddIndex(indices[1]);
+  darray->AddIndex(indices[2]);
 
   m_polygons.push_back(poly);
   return &m_polygons.back();
@@ -291,17 +272,6 @@ void RAS_MeshObject::EndConversion()
 const RAS_MeshObject::LayersInfo &RAS_MeshObject::GetLayersInfo() const
 {
   return m_layersInfo;
-}
-
-bool RAS_MeshObject::HasColliderPolygon()
-{
-  for (const RAS_Polygon &poly : m_polygons) {
-    if (poly.IsCollider()) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 /* In 2.8 code, ReinstancePhysicsShape2 needs an blender::Object to recalculate the physics shape */

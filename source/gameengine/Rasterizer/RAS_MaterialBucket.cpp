@@ -44,7 +44,7 @@
 using namespace blender;
 #endif  // WIN32
 
-RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat) : m_material(mat), m_shader(nullptr)
+RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat) : m_material(mat)
 {
 }
 
@@ -55,36 +55,6 @@ RAS_MaterialBucket::~RAS_MaterialBucket()
 RAS_IPolyMaterial *RAS_MaterialBucket::GetPolyMaterial() const
 {
   return m_material;
-}
-
-RAS_MaterialShader *RAS_MaterialBucket::GetShader() const
-{
-  return m_shader;
-}
-
-bool RAS_MaterialBucket::IsAlpha() const
-{
-  return (m_material->IsAlpha());
-}
-
-bool RAS_MaterialBucket::IsZSort() const
-{
-  return (m_material->IsZSort());
-}
-
-bool RAS_MaterialBucket::IsWire() const
-{
-  return (m_material->IsWire());
-}
-
-bool RAS_MaterialBucket::UseInstancing() const
-{
-  return false;  //(m_material->UseInstancing());
-}
-
-void RAS_MaterialBucket::UpdateShader()
-{
-  m_shader = m_material->GetShader();
 }
 
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)

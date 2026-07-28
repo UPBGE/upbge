@@ -72,51 +72,6 @@ unsigned int RAS_Polygon::GetVertexOffset(unsigned int i) const
   return m_offset[i];
 }
 
-bool RAS_Polygon::IsVisible() const
-{
-  return (m_polyflags & VISIBLE) != 0;
-}
-
-void RAS_Polygon::SetVisible(bool visible)
-{
-  if (visible) {
-    m_polyflags |= VISIBLE;
-  }
-  else {
-    m_polyflags &= ~VISIBLE;
-  }
-}
-
-bool RAS_Polygon::IsCollider() const
-{
-  return (m_polyflags & COLLIDER) != 0;
-}
-
-void RAS_Polygon::SetCollider(bool visible)
-{
-  if (visible) {
-    m_polyflags |= COLLIDER;
-  }
-  else {
-    m_polyflags &= ~COLLIDER;
-  }
-}
-
-bool RAS_Polygon::IsTwoside() const
-{
-  return (m_polyflags & TWOSIDE) != 0;
-}
-
-void RAS_Polygon::SetTwoside(bool twoside)
-{
-  if (twoside) {
-    m_polyflags |= TWOSIDE;
-  }
-  else {
-    m_polyflags &= ~TWOSIDE;
-  }
-}
-
 RAS_MaterialBucket *RAS_Polygon::GetMaterial() const
 {
   return m_bucket;

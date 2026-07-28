@@ -69,23 +69,8 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
   return bucket;
 }
 
-void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
-{
-  for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
-    if (bucket->GetPolyMaterial() != mat && mat) {
-      continue;
-    }
-    bucket->UpdateShader();
-  }
-}
-
 void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial *mat)
 {
-  for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
-    if (mat == nullptr || (mat == bucket->GetPolyMaterial())) {
-      bucket->GetPolyMaterial()->ReleaseMaterial();
-    }
-  }
 }
 
 /* frees the bucket, only used when freeing scenes */

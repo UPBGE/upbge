@@ -46,7 +46,6 @@ class btOverlappingPairCache;
 class btIDebugDraw;
 class btDynamicsWorld;
 class PHY_IVehicle;
-class CcdGraphicController;
 class CcdOverlapFilterCallBack;
 class CcdShapeConstructionInfo;
 
@@ -74,10 +73,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   class btDefaultCollisionConfiguration *m_collisionConfiguration;
   /// broadphase for dynamic world
   class btBroadphaseInterface *m_broadphase;
-  /// for culling only
-  btOverlappingPairCache *m_cullingCache;
-  /// broadphase for culling
-  struct btDbvtBroadphase *m_cullingTree;
 
   /// solver iterations
   //int m_numIterations;
@@ -95,7 +90,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void ProcessFhSprings(double curTime, float timeStep);
 
  public:
-  CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling);
+  CcdPhysicsEnvironment(PHY_SolverType solverType);
 
   virtual ~CcdPhysicsEnvironment();
 
@@ -201,12 +196,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                           float toX,
                                           float toY,
                                           float toZ);
-  virtual bool CullingTest(PHY_CullingCallback callback,
-                           void *userData,
-                           const std::array<MT_Vector4, 6> &planes,
-                           int occlusionRes,
-                           const int *viewport,
-                           const MT_Matrix4x4 &matrix);
 
   // Methods for gamelogic collision/physics callbacks
   virtual void AddSensor(PHY_IPhysicsController *ctrl);
@@ -249,10 +238,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   bool IsActiveCcdPhysicsController(CcdPhysicsController *ctrl);
 
-  void AddCcdGraphicController(CcdGraphicController *ctrl);
-
-  void RemoveCcdGraphicController(CcdGraphicController *ctrl);
-
   /**
    * Update all physics controllers shape which use the same shape construction info.
    * Call RecreateControllerShape on controllers which use the same shape
@@ -262,10 +247,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void UpdateCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo);
 
   btBroadphaseInterface *GetBroadphase();
-  btDbvtBroadphase *GetCullingTree()
-  {
-    return m_cullingTree;
-  }
 
   btDispatcher *GetDispatcher();
 

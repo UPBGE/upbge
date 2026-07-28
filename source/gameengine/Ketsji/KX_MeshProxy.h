@@ -66,7 +66,6 @@ class KX_MeshProxy : public EXP_Value {
 
   EXP_PYMETHOD(KX_MeshProxy, GetNumMaterials);  // Deprecated
   EXP_PYMETHOD(KX_MeshProxy, GetMaterialName);
-  EXP_PYMETHOD(KX_MeshProxy, GetTextureName);
   EXP_PYMETHOD_NOARGS(KX_MeshProxy, GetNumPolygons);  // Deprecated
 
   // both take materialid (int)

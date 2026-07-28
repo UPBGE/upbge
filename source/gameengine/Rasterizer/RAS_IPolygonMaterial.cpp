@@ -36,81 +36,20 @@
 using namespace blender;
 
 RAS_IPolyMaterial::RAS_IPolyMaterial(const std::string &name)
-    : m_name(name), m_alphablend(0), m_zoffset(0.0f), m_rasMode(0), m_flag(0)
+    : m_name(name)
 {
-  if (0) {
-    m_drawingmode = ConvertFaceMode();
-  }
-
-  for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+  for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
     m_textures[i] = nullptr;
   }
 }
 
 RAS_IPolyMaterial::~RAS_IPolyMaterial()
 {
-  for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+  for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
     if (m_textures[i]) {
       delete m_textures[i];
     }
   }
-}
-
-int RAS_IPolyMaterial::ConvertFaceMode() const
-{
-  int modefinal = 0;
-
-  return modefinal;
-}
-
-bool RAS_IPolyMaterial::IsAlphaShadow() const
-{
-  return (m_rasMode & RAS_ALPHA_SHADOW);
-}
-
-bool RAS_IPolyMaterial::IsWire() const
-{
-  return (m_rasMode & RAS_WIRE);
-}
-
-bool RAS_IPolyMaterial::IsText() const
-{
-  return (m_rasMode & RAS_TEXT);
-}
-
-bool RAS_IPolyMaterial::IsCullFace() const
-{
-  return !(m_rasMode & (RAS_TWOSIDED | RAS_WIRE));
-}
-
-bool RAS_IPolyMaterial::IsAlpha() const
-{
-  return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));
-}
-
-bool RAS_IPolyMaterial::IsAlphaDepth() const
-{
-  return (m_rasMode & RAS_DEPTH_ALPHA);
-}
-
-bool RAS_IPolyMaterial::IsZSort() const
-{
-  return (m_rasMode & RAS_ZSORT);
-}
-
-int RAS_IPolyMaterial::GetDrawingMode() const
-{
-  return m_drawingmode;
-}
-
-int RAS_IPolyMaterial::GetAlphaBlend() const
-{
-  return m_alphablend;
-}
-
-float RAS_IPolyMaterial::GetZOffset() const
-{
-  return m_zoffset;
 }
 
 std::string RAS_IPolyMaterial::GetName()
@@ -118,28 +57,7 @@ std::string RAS_IPolyMaterial::GetName()
   return m_name;
 }
 
-unsigned int RAS_IPolyMaterial::GetFlag() const
-{
-  return m_flag;
-}
-
-bool RAS_IPolyMaterial::UsesLighting() const
-{
-  // Return false only if material is shadeless.
-  return (m_flag & RAS_MULTILIGHT);
-}
-
-bool RAS_IPolyMaterial::CastsShadows() const
-{
-  return (m_flag & RAS_CASTSHADOW) != 0;
-}
-
-bool RAS_IPolyMaterial::OnlyShadow() const
-{
-  return (m_flag & RAS_ONLYSHADOW) != 0;
-}
-
-RAS_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
+BL_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
 {
   return m_textures[index];
 }

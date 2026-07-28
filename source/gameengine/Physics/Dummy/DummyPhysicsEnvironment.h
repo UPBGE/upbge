@@ -98,15 +98,6 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                           float toX,
                                           float toY,
                                           float toZ);
-  virtual bool CullingTest(PHY_CullingCallback callback,
-                           void *userData,
-                           const std::array<MT_Vector4, 6> &planes,
-                           int occlusionRes,
-                           const int *viewport,
-                           const MT_Matrix4x4 &matrix)
-  {
-    return false;
-  }
 
   // gamelogic callbacks
   virtual void AddSensor(PHY_IPhysicsController *ctrl)

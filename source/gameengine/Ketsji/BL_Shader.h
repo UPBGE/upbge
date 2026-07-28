@@ -7,7 +7,6 @@
 
 #include "EXP_Value.h"
 #include "RAS_Shader.h"
-#include "RAS_Texture.h"  // For RAS_Texture::MaxUnits.
 
 class KX_GameObject;
 

@@ -57,8 +57,6 @@ class KX_PolyProxy : public EXP_Value {
   // stuff for python integration
   static PyObject *pyattr_get_material_name(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_texture_name(EXP_PyObjectPlus *self_v,
-                                           const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_material(EXP_PyObjectPlus *self_v,
                                        const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_material_id(EXP_PyObjectPlus *self_v,
@@ -67,19 +65,12 @@ class KX_PolyProxy : public EXP_Value {
   static PyObject *pyattr_get_v2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_v3(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_v4(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_visible(EXP_PyObjectPlus *self_v,
-                                      const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_collide(EXP_PyObjectPlus *self_v,
-                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_vertices(EXP_PyObjectPlus *self_v,
                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 
   EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialIndex)
   EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getNumVertex)
-  EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, isVisible)
-  EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, isCollider)
   EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialName)
-  EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getTextureName)
   EXP_PYMETHOD_DOC(KX_PolyProxy, getVertexIndex)
   EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMesh)
   EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterial)

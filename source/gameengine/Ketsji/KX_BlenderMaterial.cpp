@@ -33,7 +33,6 @@
 #include "BL_Texture.h"
 #include "EXP_ListWrapper.h"
 #include "KX_KetsjiEngine.h"
-#include "KX_MaterialShader.h"
 #include "RAS_BucketManager.h"
 
 #ifdef WITH_PYTHON
@@ -45,42 +44,19 @@ using namespace blender;
 KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                        KX_Scene *scene,
                                        blender::Material *mat,
-                                       const std::string &name,
-                                       int lightlayer,
-                                       bool converting_during_runtime)
+                                       const std::string &name)
     : RAS_IPolyMaterial(name),
       m_material(mat),
-      m_shader(nullptr),
       m_rasterizer(rasty),
       m_scene(scene),
-      m_userDefBlend(false),
-      m_constructed(false),
-      m_lightLayer(lightlayer)
+      m_constructed(false)
 {
   m_nodetree = nullptr;
-  m_alphablend = mat->blend_method;
   m_nodetree = m_material->nodetree;
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
 {
-  // cleanup work
-  if (m_constructed) {
-    // clean only if material was actually used
-    OnExit();
-  }
-}
-
-RAS_MaterialShader *KX_BlenderMaterial::GetShader() const
-{
-  if (m_shader && m_shader->IsValid()) {
-    return m_shader.get();
-  }
-
-  // Should never happen.
-  BLI_assert(false);
-
-  return nullptr;
 }
 
 const std::string KX_BlenderMaterial::GetTextureName() const
@@ -103,10 +79,6 @@ SCA_IScene *KX_BlenderMaterial::GetScene() const
   return m_scene;
 }
 
-void KX_BlenderMaterial::ReleaseMaterial()
-{
-}
-
 void KX_BlenderMaterial::InitTextures()
 {
   if (!m_nodetree) {
@@ -119,7 +91,7 @@ void KX_BlenderMaterial::InitTextures()
         (node.typeinfo && node.typeinfo->idname == "ShaderNodeTexImage")) {
       blender::Image *ima = (blender::Image *)node.id;
       if (ima) {
-        if (i < RAS_Texture::MaxUnits) {
+        if (i < BL_Texture::MaxUnits) {
           BL_Texture *texture = new BL_Texture(ima);
           m_textures[i] = texture;
           i++;
@@ -137,83 +109,11 @@ void KX_BlenderMaterial::OnConstruction()
   }
 
   InitTextures();
-
-  m_blendFunc[0] = 0;
-  m_blendFunc[1] = 0;
   m_constructed = true;
 }
 
 void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 {
-}
-
-void KX_BlenderMaterial::OnExit()
-{
-  if (m_shader) {
-    m_shader.reset(nullptr);
-  }
-}
-
-void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
-{
-#if 0
-	BLI_assert(m_shader);
-
-	int i;
-
-	m_shader->SetProg(true);
-
-	m_shader->ApplyShader();
-
-	/** We make sure that all gpu textures are the same in material textures here
-	 * than in gpu material. This is dones in a separated loop because the texture
-	 * regeneration can overide bind settings of the previous texture.
-	 */
-	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
-		if (m_textures[i] && m_textures[i]->Ok()) {
-			m_textures[i]->CheckValidTexture();
-		}
-	}
-
-	// for each enabled unit
-	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
-		if (m_textures[i] && m_textures[i]->Ok()) {
-			m_textures[i]->ActivateTexture(i);
-		}
-	}
-
-	if (!m_userDefBlend) {
-		ras->SetAlphaBlend(m_alphablend);
-	}
-	else {
-		ras->SetAlphaBlend(GPU_BLEND_SOLID);
-		ras->SetAlphaBlend(-1); // indicates custom mode
-
-		// tested to be valid enums
-		ras->Enable(RAS_Rasterizer::RAS_BLEND);
-		ras->SetBlendFunc((RAS_Rasterizer::BlendFunc)m_blendFunc[0], (RAS_Rasterizer::BlendFunc)m_blendFunc[1]);
-	}
-
-	// Disable :
-	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
-		if (m_textures[i] && m_textures[i]->Ok()) {
-			m_textures[i]->DisableTexture();
-		}
-	}
-#endif
-}
-
-bool KX_BlenderMaterial::UsesLighting() const
-{
-  if (!RAS_IPolyMaterial::UsesLighting())
-    return false;
-
-  if (m_shader && m_shader->IsValid()) {
-    return true;
-  }
-  else {
-    return true;
-  }
 }
 
 void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
@@ -231,7 +131,6 @@ std::string KX_BlenderMaterial::GetName()
 #ifdef WITH_PYTHON
 
 PyMethodDef KX_BlenderMaterial::Methods[] = {
-    EXP_PYMETHODTABLE(KX_BlenderMaterial, getShader),
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -280,7 +179,7 @@ PyTypeObject KX_BlenderMaterial::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_B
 
 static int kx_blender_material_get_textures_size_cb(void *self_v)
 {
-  return RAS_Texture::MaxUnits;
+  return BL_Texture::MaxUnits;
 }
 
 static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int index)
@@ -314,18 +213,6 @@ PyObject *KX_BlenderMaterial::pyattr_get_textures(EXP_PyObjectPlus *self_v,
                               kx_blender_material_get_textures_item_name_cb,
                               nullptr))
       ->NewProxy(true);
-}
-
-EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
-{
-  /* EEVEE: Any way to restore Custom shaders without bge rendering pipeline */
-  if (!m_shader) {
-    m_shader.reset(new KX_MaterialShader());
-    // Set the material to use custom shader.
-    m_scene->GetBucketManager()->UpdateShaders(this);
-  }
-
-  return m_shader->GetShader()->GetProxy();
 }
 
 bool ConvertPythonToMaterial(PyObject *value,

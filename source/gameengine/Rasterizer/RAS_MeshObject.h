@@ -44,7 +44,6 @@
 #include "MT_Vector2.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
-#include "RAS_Texture.h"
 
 namespace blender {
 struct MLoopCol;
@@ -111,7 +110,6 @@ class RAS_MeshObject {
   // materials
   int NumMaterials();
   const std::string GetMaterialName(unsigned int matid);
-  const std::string GetTextureName(unsigned int matid);
 
   RAS_MeshMaterial *GetMeshMaterial(unsigned int matid) const;
   RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index);
@@ -132,10 +130,7 @@ class RAS_MeshObject {
   void AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2);
   virtual RAS_Polygon *AddPolygon(RAS_MeshMaterial *meshmat,
                                   int numverts,
-                                  unsigned int indices[3],
-                                  bool visible,
-                                  bool collider,
-                                  bool twoside);
+                                  unsigned int indices[3]);
   virtual unsigned int AddVertex(RAS_MeshMaterial *meshmat,
                                  const MT_Vector3 &xyz,
                                  const MT_Vector2 *const uvs,
@@ -157,8 +152,6 @@ class RAS_MeshObject {
 
   /// Return the list of blender's layers.
   const LayersInfo &GetLayersInfo() const;
-
-  bool HasColliderPolygon();
 
   blender::Object *GetOriginalObject();
 

@@ -247,7 +247,7 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 
 static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
                          unsigned int loop,
-                         MT_Vector2 uvs[RAS_Texture::MaxUnits],
+                         MT_Vector2 uvs[BL_Texture::MaxUnits],
                          unsigned int rgba[RAS_IVertex::MAX_UNIT],
                          unsigned short uvLayers,
                          unsigned short colorLayers)
@@ -303,9 +303,7 @@ static KX_BlenderMaterial *BL_ConvertMaterial(blender::Material *mat,
   KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(rasty,
                                                         scene,
                                                         mat,
-                                                        name,
-                                                        lightlayer,
-                                                        converting_during_runtime);
+                                                        name);
 
   return kx_blmat;
 }
@@ -438,10 +436,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   struct ConvertedMaterial {
     blender::Material *ma;
     RAS_MeshMaterial *meshmat;
-    bool visible;
-    bool twoside;
-    bool collider;
-    bool wire;
   };
 
   const unsigned short totmat = max_ii(final_me->totcol, 1);
@@ -466,11 +460,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
 
     convertedMats[i] = {ma,
-                        meshmat,
-                        ((ma->game.flag & GEMAT_INVISIBLE) == 0),
-                        ((ma->game.flag & GEMAT_BACKCULL) == 0),
-                        ((ma->game.flag & GEMAT_NOPHYSICS) == 0),
-                        bucket->IsWire()};
+                        meshmat};
   }
 
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
@@ -520,8 +510,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           const float4 &t = tangent[tangent_layer][vert_i];
           tan = MT_Vector4(t.x, t.y, t.z, t.w);
         }
-        MT_Vector2 uvs[RAS_Texture::MaxUnits];
-        unsigned int rgba[RAS_Texture::MaxUnits];
+        MT_Vector2 uvs[BL_Texture::MaxUnits];
+        unsigned int rgba[BL_Texture::MaxUnits];
 
         BL_GetUvRgba(layersInfo.layers, vert_i, uvs, rgba, uvLayers, colorLayers);
 
@@ -531,7 +521,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     }
 
     // Add the triangle
-    meshobj->AddPolygon(meshmat, 3, tri_indices, mat.visible, mat.collider, mat.twoside);
+    meshobj->AddPolygon(meshmat, 3, tri_indices);
   }
 
   // keep meshobj->m_sharedvertex_map for reinstance phys mesh.

@@ -45,8 +45,6 @@ class RAS_Polygon {
   unsigned short m_polyflags;
 
  public:
-  enum { VISIBLE = 1, COLLIDER = 2, TWOSIDE = 4 };
-
   RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, int numvert);
   virtual ~RAS_Polygon()
   {
@@ -58,15 +56,6 @@ class RAS_Polygon {
 
   void SetVertexOffset(int i, unsigned int offset);
   unsigned int GetVertexOffset(unsigned int i) const;
-
-  bool IsVisible() const;
-  void SetVisible(bool visible);
-
-  bool IsCollider() const;
-  void SetCollider(bool collider);
-
-  bool IsTwoside() const;
-  void SetTwoside(bool twoside);
 
   RAS_MaterialBucket *GetMaterial() const;
   RAS_IDisplayArray *GetDisplayArray() const;

@@ -88,7 +88,6 @@ PyTypeObject KX_MeshProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_MeshPro
 
 PyMethodDef KX_MeshProxy::Methods[] = {
     {"getMaterialName", (PyCFunction)KX_MeshProxy::sPyGetMaterialName, METH_VARARGS},
-    {"getTextureName", (PyCFunction)KX_MeshProxy::sPyGetTextureName, METH_VARARGS},
     {"getVertexArrayLength", (PyCFunction)KX_MeshProxy::sPyGetVertexArrayLength, METH_VARARGS},
     {"getVertex", (PyCFunction)KX_MeshProxy::sPyGetVertex, METH_VARARGS},
     {"getPolygon", (PyCFunction)KX_MeshProxy::sPyGetPolygon, METH_VARARGS},
@@ -125,21 +124,6 @@ PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)
 
   if (PyArg_ParseTuple(args, "i:getMaterialName", &matid)) {
     matname = m_meshobj->GetMaterialName(matid);
-  }
-  else {
-    return nullptr;
-  }
-
-  return PyUnicode_FromStdString(matname);
-}
-
-PyObject *KX_MeshProxy::PyGetTextureName(PyObject *args, PyObject *kwds)
-{
-  int matid = 1;
-  std::string matname;
-
-  if (PyArg_ParseTuple(args, "i:getTextureName", &matid)) {
-    matname = m_meshobj->GetTextureName(matid);
   }
   else {
     return nullptr;

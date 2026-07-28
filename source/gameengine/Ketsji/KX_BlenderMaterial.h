@@ -14,7 +14,7 @@
 class SCA_IScene;
 class KX_Scene;
 class RAS_Rasterizer;
-class KX_MaterialShader;
+
 namespace blender { struct Material; }
 struct GPUMaterial;
 
@@ -24,24 +24,14 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
       public : KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                   KX_Scene *scene,
                                   blender::Material *mat,
-                                  const std::string &name,
-                                  int lightlayer,
-                                  bool converting_during_runtime);
+                                  const std::string &name);
 
   virtual ~KX_BlenderMaterial();
 
-  virtual RAS_MaterialShader *GetShader() const;
   virtual const std::string GetTextureName() const;
   virtual blender::Material *GetBlenderMaterial() const;
-  virtual bool UsesLighting() const;
   virtual blender::Scene *GetBlenderScene() const;
   virtual SCA_IScene *GetScene() const;
-  virtual void ReleaseMaterial();
-
-  unsigned int *GetBlendFunc()
-  {
-    return m_blendFunc;
-  }
 
   void ReplaceScene(KX_Scene *scene);
 
@@ -55,8 +45,6 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   static PyObject *pyattr_get_textures(EXP_PyObjectPlus *self_v,
                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 
-  EXP_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
-
 #endif  // WITH_PYTHON
 
   virtual void OnConstruction();
@@ -67,20 +55,11 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   blender::bNodeTree *m_nodetree;
 
   blender::Material *m_material;
-  std::unique_ptr<KX_MaterialShader> m_shader;
   RAS_Rasterizer *m_rasterizer;
   KX_Scene *m_scene;
-  bool m_userDefBlend;
-  unsigned int m_blendFunc[2];
   bool m_constructed;  // if false, don't clean on exit
-  int m_lightLayer;
 
   void InitTextures();
-
-  void SetShaderData(RAS_Rasterizer *ras);
-
-  // cleanup stuff
-  void OnExit();
 };
 
 #ifdef WITH_PYTHON

@@ -166,7 +166,6 @@ RAS_Rasterizer::RAS_Rasterizer()
       m_noOfScanlines(32),
       m_clientobject(nullptr),
       m_auxilaryClientInfo(nullptr),
-      m_shadowMode(RAS_SHADOW_NONE),
       m_invertFrontFace(false),
       m_last_frontface(true)
 {
@@ -280,16 +279,6 @@ void RAS_Rasterizer::EndFrame()
 {
   GPU_color_mask(true, true, true, true);
   GPU_apply_state();
-}
-
-void RAS_Rasterizer::SetShadowMode(RAS_Rasterizer::ShadowType shadowmode)
-{
-  m_shadowMode = shadowmode;
-}
-
-RAS_Rasterizer::ShadowType RAS_Rasterizer::GetShadowMode()
-{
-  return m_shadowMode;
 }
 
 unsigned int *RAS_Rasterizer::MakeScreenshot(int x, int y, int width, int height)
@@ -731,167 +720,6 @@ bool RAS_Rasterizer::GetCameraOrtho()
 double RAS_Rasterizer::GetTime()
 {
   return m_time;
-}
-
-bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client,
-                            KX_RayCast *result,
-                            RayCastTranform *raytransform)
-{
-  if (result->m_hitMesh) {
-    RAS_Polygon *poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
-    if (!poly->IsVisible()) {
-      return false;
-    }
-
-    float *origmat = raytransform->origmat;
-    float *mat = raytransform->mat;
-    const MT_Vector3 &scale = raytransform->scale;
-    const MT_Vector3 &point = result->m_hitPoint;
-    MT_Vector3 resultnormal(result->m_hitNormal);
-    MT_Vector3 left(&origmat[0]);
-    MT_Vector3 dir = -(left.cross(resultnormal)).safe_normalized();
-    left = (dir.cross(resultnormal)).safe_normalized();
-    // for the up vector, we take the 'resultnormal' returned by the physics
-
-    // we found the "ground", but the cast matrix doesn't take
-    // scaling in consideration, so we must apply the object scale
-    left *= scale[0];
-    dir *= scale[1];
-    resultnormal *= scale[2];
-
-    float tmpmat[16] = {
-        left[0],
-        left[1],
-        left[2],
-        0.0f,
-        dir[0],
-        dir[1],
-        dir[2],
-        0.0f,
-        resultnormal[0],
-        resultnormal[1],
-        resultnormal[2],
-        0.0f,
-        point[0],
-        point[1],
-        point[2],
-        1.0f,
-    };
-    memcpy(mat, tmpmat, sizeof(float) * 16);
-
-    return true;
-  }
-  else {
-    return false;
-  }
-}
-
-bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo */*info*/, void */*data*/)
-{
-  return true;
-}
-
-void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[16])
-{
-  if (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED ||
-      objectdrawmode & RAS_IPolyMaterial::BILLBOARD_AXISALIGNED) {
-    // rotate the billboard/halo
-    // page 360/361 3D Game Engine Design, David Eberly for a discussion
-    // on screen aligned and axis aligned billboards
-    // assumed is that the preprocessor transformed all billboard polygons
-    // so that their normal points into the positive x direction (1.0f, 0.0f, 0.0f)
-    // when new parenting for objects is done, this rotation
-    // will be moved into the object
-
-    MT_Vector3 left;
-    if (m_camortho) {
-      left = m_matrices.view[2].to3d().safe_normalized();
-    }
-    else {
-      const MT_Vector3 objpos(&origmat[12]);
-      const MT_Vector3 &campos = GetCameraPosition();
-      left = (campos - objpos).safe_normalized();
-    }
-
-    MT_Vector3 up = MT_Vector3(&origmat[8]).safe_normalized();
-
-    // get scaling of halo object
-    const MT_Vector3 &scale = MT_Vector3(
-        len_v3(&origmat[0]), len_v3(&origmat[4]), len_v3(&origmat[8]));
-
-    if (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED) {
-      up = (up - up.dot(left) * left).safe_normalized();
-    }
-    else {
-      left = (left - up.dot(left) * up).safe_normalized();
-    }
-
-    MT_Vector3 dir = (up.cross(left)).normalized();
-
-    // we have calculated the row vectors, now we keep
-    // local scaling into account:
-
-    left *= scale[0];
-    dir *= scale[1];
-    up *= scale[2];
-
-    const float tmpmat[16] = {
-        left[0],
-        left[1],
-        left[2],
-        0.0f,
-        dir[0],
-        dir[1],
-        dir[2],
-        0.0f,
-        up[0],
-        up[1],
-        up[2],
-        0.0f,
-        origmat[12],
-        origmat[13],
-        origmat[14],
-        1.0f,
-    };
-    memcpy(mat, tmpmat, sizeof(float) * 16);
-  }
-  else if (objectdrawmode & RAS_IPolyMaterial::SHADOW) {
-    // shadow must be cast to the ground, physics system needed here!
-    const MT_Vector3 frompoint(&origmat[12]);
-    KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
-    MT_Vector3 direction = MT_Vector3(0.0f, 0.0f, -1.0f);
-
-    direction.normalize();
-    direction *= 100000.0f;
-
-    const MT_Vector3 topoint = frompoint + direction;
-
-    KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
-    PHY_IPhysicsEnvironment *physics_environment = kxscene->GetPhysicsEnvironment();
-    PHY_IPhysicsController *physics_controller = gameobj->GetPhysicsController();
-
-    KX_GameObject *parent = gameobj->GetParent();
-    if (!physics_controller && parent) {
-      physics_controller = parent->GetPhysicsController();
-    }
-
-    RayCastTranform raytransform;
-    raytransform.origmat = origmat;
-    // On success mat is written in the ray test.
-    raytransform.mat = mat;
-    raytransform.scale = gameobj->NodeGetWorldScaling();
-
-    KX_RayCast::Callback<RAS_Rasterizer, RayCastTranform> callback(
-        this, physics_controller, &raytransform);
-    if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback)) {
-      // couldn't find something to cast the shadow on...
-      memcpy(mat, origmat, sizeof(float) * 16);
-    }
-  }
-  else {
-    // 'normal' object
-    memcpy(mat, origmat, sizeof(float) * 16);
-  }
 }
 
 void RAS_Rasterizer::SetClientObject(void *obj)

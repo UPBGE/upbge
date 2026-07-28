@@ -19,8 +19,7 @@ namespace blender::gpu {
 class Texture;
 }  // namespace blender::gpu
 
-struct ImBuf;
-class RAS_Texture;
+class BL_Texture;
 class RAS_IPolyMaterial;
 class KX_Scene;
 class KX_GameObject;
@@ -34,7 +33,7 @@ class Texture : public EXP_Value {
   blender::Image *m_imgTexture;
 
   // texture for blender materials
-  RAS_Texture *m_rasTexture;
+  BL_Texture *m_blTexture;
 
   KX_Scene *m_scene;
   KX_GameObject *m_gameobj;

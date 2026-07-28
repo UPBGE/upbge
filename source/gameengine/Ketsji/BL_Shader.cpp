@@ -27,6 +27,7 @@
 #include <fmt/format.h>
 
 #include "CM_Message.h"
+#include "BL_Texture.h"
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
 
@@ -372,7 +373,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
     int loc = GetUniformLocation(uniform);
 
     if (loc != -1) {
-      if (index >= RAS_Texture::MaxUnits || index < 0) {
+      if (index >= BL_Texture::MaxUnits || index < 0) {
         CM_Warning("invalid texture sample index: " << index);
       }
 #  ifdef SORT_UNIFORMS

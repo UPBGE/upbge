@@ -22,21 +22,16 @@
  *  \ingroup ketsji
  */
 
-#include "BKE_image.hh"
-#include "BKE_image_gpu.hh"
-
 #include "BL_Texture.h"
 
-#include "GPU_texture.hh"
+#include "BKE_image.hh"
 
 using namespace blender;
 
 BL_Texture::BL_Texture(blender::Image *ima)
-    : EXP_Value(),
-      m_isCubeMap(false), m_ima(ima)
+    : EXP_Value(), m_isCubeMap(false), m_ima(ima), m_name(m_ima->id.name + 2)
 {
   m_isCubeMap = false;
-  m_name = m_ima->id.name + 2;
 }
 
 BL_Texture::~BL_Texture()
@@ -56,7 +51,7 @@ blender::Image *BL_Texture::GetImage() const
 // stuff for cvalue related things
 std::string BL_Texture::GetName()
 {
-  return RAS_Texture::GetName();
+  return m_name;
 }
 
 #ifdef WITH_PYTHON

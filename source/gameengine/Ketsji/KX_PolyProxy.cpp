@@ -95,10 +95,7 @@ PyTypeObject KX_PolyProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_PolyPro
 PyMethodDef KX_PolyProxy::Methods[] = {
     EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, getMaterialIndex),
     EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, getNumVertex),
-    EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, isVisible),
-    EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, isCollider),
     EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, getMaterialName),
-    EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, getTextureName),
     EXP_PYMETHODTABLE(KX_PolyProxy, getVertexIndex),
     EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, getMesh),
     EXP_PYMETHODTABLE_NOARGS(KX_PolyProxy, getMaterial),
@@ -107,15 +104,12 @@ PyMethodDef KX_PolyProxy::Methods[] = {
 
 PyAttributeDef KX_PolyProxy::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("material_name", KX_PolyProxy, pyattr_get_material_name),
-    EXP_PYATTRIBUTE_RO_FUNCTION("texture_name", KX_PolyProxy, pyattr_get_texture_name),
     EXP_PYATTRIBUTE_RO_FUNCTION("material", KX_PolyProxy, pyattr_get_material),
     EXP_PYATTRIBUTE_RO_FUNCTION("material_id", KX_PolyProxy, pyattr_get_material_id),
     EXP_PYATTRIBUTE_RO_FUNCTION("v1", KX_PolyProxy, pyattr_get_v1),
     EXP_PYATTRIBUTE_RO_FUNCTION("v2", KX_PolyProxy, pyattr_get_v2),
     EXP_PYATTRIBUTE_RO_FUNCTION("v3", KX_PolyProxy, pyattr_get_v3),
     EXP_PYATTRIBUTE_RO_FUNCTION("v4", KX_PolyProxy, pyattr_get_v4),
-    EXP_PYATTRIBUTE_RO_FUNCTION("visible", KX_PolyProxy, pyattr_get_visible),
-    EXP_PYATTRIBUTE_RO_FUNCTION("collide", KX_PolyProxy, pyattr_get_collide),
     EXP_PYATTRIBUTE_RO_FUNCTION("vertices", KX_PolyProxy, pyattr_get_vertices),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
@@ -144,13 +138,6 @@ PyObject *KX_PolyProxy::pyattr_get_material_name(EXP_PyObjectPlus *self_v,
 {
   KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
   return self->PygetMaterialName();
-}
-
-PyObject *KX_PolyProxy::pyattr_get_texture_name(EXP_PyObjectPlus *self_v,
-                                                const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-  return self->PygetTextureName();
 }
 
 PyObject *KX_PolyProxy::pyattr_get_material(EXP_PyObjectPlus *self_v,
@@ -196,20 +183,6 @@ PyObject *KX_PolyProxy::pyattr_get_v4(EXP_PyObjectPlus *self_v, const EXP_PYATTR
     return PyLong_FromLong(self->m_polygon->GetVertexOffset(3));
   }
   return PyLong_FromLong(0);
-}
-
-PyObject *KX_PolyProxy::pyattr_get_visible(EXP_PyObjectPlus *self_v,
-                                           const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-  return self->PyisVisible();
-}
-
-PyObject *KX_PolyProxy::pyattr_get_collide(EXP_PyObjectPlus *self_v,
-                                           const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-  return self->PyisCollider();
 }
 
 static int kx_poly_proxy_get_vertices_size_cb(void *self_v)
@@ -265,35 +238,12 @@ EXP_PYMETHODDEF_DOC_NOARGS(
   return PyLong_FromLong(m_polygon->VertexCount());
 }
 
-EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy,
-                           isVisible,
-                           "isVisible() : returns whether the polygon is visible or not\n")
-{
-  return PyLong_FromLong(m_polygon->IsVisible());
-}
-
-EXP_PYMETHODDEF_DOC_NOARGS(
-    KX_PolyProxy,
-    isCollider,
-    "isCollider() : returns whether the polygon is receives collision or not\n")
-{
-  return PyLong_FromLong(m_polygon->IsCollider());
-}
-
 EXP_PYMETHODDEF_DOC_NOARGS(
     KX_PolyProxy,
     getMaterialName,
     "getMaterialName() : returns the polygon material name, \"NoMaterial\" if no material\n")
 {
   return PyUnicode_FromStdString(m_polygon->GetMaterial()->GetPolyMaterial()->GetName());
-}
-
-EXP_PYMETHODDEF_DOC_NOARGS(
-    KX_PolyProxy,
-    getTextureName,
-    "getTexturelName() : returns the polygon texture name, \"nullptr\" if no texture\n")
-{
-  return PyUnicode_FromStdString(m_polygon->GetMaterial()->GetPolyMaterial()->GetTextureName());
 }
 
 EXP_PYMETHODDEF_DOC(KX_PolyProxy,

@@ -122,14 +122,6 @@ class RAS_Rasterizer {
     RAS_STEREO_RIGHTEYE,
   };
 
-  enum ShadowType {
-    RAS_SHADOW_NONE,
-    RAS_SHADOW_SIMPLE,
-    RAS_SHADOW_VARIANCE,
-  };
-
-  enum MatrixMode { RAS_PROJECTION = 0, RAS_MODELVIEW, RAS_TEXTURE, RAS_MATRIX_MODE_MAX };
-
   /** Return the output frame buffer normally used for the input frame buffer
    * index in case of filters render.
    * \param index The input frame buffer, can be a non-filter frame buffer.
@@ -213,7 +205,6 @@ class RAS_Rasterizer {
 
   /// Class used to manage off screens used by the rasterizer.
   FrameBuffers m_frameBuffers;
-  ShadowType m_shadowMode;
 
   bool m_invertFrontFace;
   bool m_last_frontface;
@@ -334,12 +325,6 @@ class RAS_Rasterizer {
   const MT_Vector3 &GetCameraPosition();
   bool GetCameraOrtho();
 
-  /// \param shadowmode = RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
-  void SetShadowMode(ShadowType shadowmode);
-
-  /// \return the current drawing mode: RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
-  ShadowType GetShadowMode();
-
   /**
    */
   double GetTime();
@@ -389,15 +374,9 @@ class RAS_Rasterizer {
   const MT_Matrix4x4 &GetPersMatrix() const;
   const MT_Matrix4x4 &GetPersInvMatrix() const;
 
-  /// \see KX_RayCast
-  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);
-  /// \see KX_RayCast
-  bool NeedRayCast(KX_ClientObjectInfo *info, void *data);
-
   /**
    * Render Tools
    */
-  void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
 
   void SetClientObject(void *obj);
 

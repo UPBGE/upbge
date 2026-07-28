@@ -68,7 +68,6 @@ set(SRC
   RAS_MeshObject.cpp
   RAS_Polygon.cpp
   RAS_Shader.cpp
-  RAS_Texture.cpp
 
   RAS_2DFilterData.h
   RAS_2DFilter.h
@@ -93,7 +92,6 @@ set(SRC
   RAS_Polygon.h
   RAS_Rect.h
   RAS_Shader.h
-  RAS_Texture.h
   RAS_Vertex.h
 )
 

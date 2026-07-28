@@ -2187,7 +2187,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
   m_meshObject = nullptr;
 
   // No mesh object or mesh has no polys
-  if (!meshobj || !meshobj->HasColliderPolygon()) {
+  if (!meshobj) {
     m_vertexArray.clear();
     m_polygonIndexArray.clear();
     m_triFaceArray.clear();
@@ -2772,7 +2772,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
 
     for (int p = 0; p < numpolys; p++) {
       RAS_Polygon *poly = meshobj->GetPolygon(p);
-      if (poly->IsCollider()) {
+      if (1) {
         for (i = 0; i < poly->VertexCount(); i++) {
           v_orig = poly->GetVertexInfo(i).getOrigIndex();
           if (!vert_tag_array[v_orig]) {
@@ -2804,7 +2804,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
     while (t < tot_bt_tris) {
       RAS_Polygon *poly = meshobj->GetPolygon(p);
 
-      if (poly->IsCollider()) {
+      if (1) {
         /* quad or tri loop */
         fv_pt = (poly->VertexCount() == 3 ? tri_verts : quad_verts);
 

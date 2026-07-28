@@ -13,7 +13,6 @@
 
 #include "MT_Matrix4x4.h"
 #include "RAS_Rasterizer.h"  // For RAS_Rasterizer::TexCoGenList.
-#include "RAS_Texture.h"     // For RAS_Texture::MaxUnits.
 
 #define SORT_UNIFORMS 1
 

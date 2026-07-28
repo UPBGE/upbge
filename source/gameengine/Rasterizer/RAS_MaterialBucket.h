@@ -48,14 +48,6 @@ class RAS_MaterialBucket {
 
   // blender::Material Properties
   RAS_IPolyMaterial *GetPolyMaterial() const;
-  RAS_MaterialShader *GetShader() const;
-  bool IsAlpha() const;
-  bool IsZSort() const;
-  bool IsWire() const;
-  bool UseInstancing() const;
-
-  /// Set the shader after its conversion or when changing to custom shader.
-  void UpdateShader();
 
   void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
   void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
@@ -64,6 +56,5 @@ class RAS_MaterialBucket {
 
  private:
   RAS_IPolyMaterial *m_material;
-  RAS_MaterialShader *m_shader;
   RAS_DisplayArrayBucketList m_displayArrayBucketList;
 };
