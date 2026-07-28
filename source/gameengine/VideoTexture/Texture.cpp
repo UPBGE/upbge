@@ -255,23 +255,23 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 
   // parameters - game object with video texture
   PyObject *obj = nullptr;
-  // material blender::ID
+  // material index
   short matID = 0;
-  // texture blender::ID
-  short texID = 0;
+  // Image Texture node name
+  char *imageTextureName = nullptr;
   // texture object with shared texture blender::ID
   Texture *texObj = nullptr;
 
-  static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", nullptr};
+  static const char *kwlist[] = {"gameObj", "materialID", "ImageTextureNodeName", "textureObj", nullptr};
 
   // get parameters
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "O|hhO!",
+                                   "Ohs|O!",
                                    const_cast<char **>(kwlist),
                                    &obj,
                                    &matID,
-                                   &texID,
+                                   &imageTextureName,
                                    &Texture::Type,
                                    &texObj))
   {
@@ -288,9 +288,9 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
       // get pointer to texture image
       RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
 
-      if (mat != nullptr) {
+      if (mat != nullptr && imageTextureName != nullptr) {
         // get blender material texture
-        tex->m_blTexture = mat->GetTexture(texID);
+        tex->m_blTexture = mat->GetTextureByNodeName(imageTextureName);
         if (!tex->m_blTexture) {
           THRWEXCP(TextureNotAvail, S_OK);
         }

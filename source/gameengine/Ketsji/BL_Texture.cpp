@@ -25,11 +25,12 @@
 #include "BL_Texture.h"
 
 #include "BKE_image.hh"
+#include "BKE_node.hh"
 
 using namespace blender;
 
-BL_Texture::BL_Texture(blender::Image *ima)
-    : EXP_Value(), m_isCubeMap(false), m_ima(ima), m_name(m_ima->id.name + 2)
+BL_Texture::BL_Texture(blender::Image *ima, bNode *node)
+    : EXP_Value(), m_isCubeMap(false), m_ima(ima), m_node(node), m_name(node->id->name + 2)
 {
   m_isCubeMap = false;
 }

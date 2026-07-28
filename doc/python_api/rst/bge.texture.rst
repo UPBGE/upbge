@@ -8,9 +8,16 @@ Video Texture (bge.texture)
 Introduction
 ************
 
+(Doc not fully updated)
+
 The ``bge.texture`` module allows you to manipulate textures during the game.
 Several sources for texture are possible: video files, image files, video capture,
 memory buffer, camera render or a mix of that.
+
+The texture list is created from ImageTexture nodes found in object Shader Editor.
+ImageTexture nodes used can be linked directly or indirectly to Material Output node,
+but ImageTexture not linked can also be used as render target if needed.
+
 The video and image files can be loaded from the Internet using a URL instead of a file name.
 In addition, you can apply filters on the images before sending them to the GPU,
 allowing video effect: blue screen, color band, gray, normal map.
@@ -32,8 +39,8 @@ How it works
 ------------
 
 The principle is simple: first you identify a texture on an existing object using the
-:func:`~bge.texture.materialID` function, then you create a new texture with dynamic content
-and swap the two textures in the GPU.
+:func:`~bge.texture.materialID` function AND an ImageTexture node name then you create
+a new texture with dynamic content and swap the two textures in the GPU.
 
 The game engine is not aware of the substitution and continues to display the object as always,
 except that you are now in control of the texture.
@@ -470,6 +477,8 @@ Image classes
 
    .. attribute:: colorBindCode
 
+      .. deprecated:: 0.5.0 (replaced with bge.texture.gpuTexture(See :class:`Texture` and :class:`gpu.types.GPUTexture`))
+
       Off-screen color texture bind code.
 
       :type: integer
@@ -728,6 +737,8 @@ Image classes
 
    .. attribute:: colorBindCode
 
+      .. deprecated:: 0.5.0 (replaced with bge.texture.gpuTexture(See :class:`Texture` and :class:`gpu.types.GPUTexture`))
+
       Off-screen color texture bind code.
 
       :type: integer
@@ -853,7 +864,7 @@ Image classes
 
           # send uniforms to 2D filter to do the compositing between main render and overlay
           if filter is not None:
-              filter.setTexture(0, bge.overlayTex.bindId, "overlayTex")
+              filter.setTexture("overlayTex", bge.overlayTex.gpuTexture)
 
    .. attribute:: post_draw
 
@@ -1183,17 +1194,16 @@ Image classes
 Texture classes
 ***************
 
-.. class:: Texture(gameObj, materialID=0, textureID=0, textureObj=None)
+.. class:: Texture(gameObj, materialID, ImageTextureNodeName, textureObj=None)
 
    Class that creates the ``Texture`` object that loads the dynamic texture on the GPU.
 
    :arg gameObj: Game object to be created a video texture on.
    :type gameObj: :class:`~bge.types.KX_GameObject`
-   :arg materialID: Material ID default, 0 is the first material. (optional)
+   :arg materialID: Material ID default, 0 is the first material.
    :type materialID: int
-   :arg textureID: Texture index in case of multi-texture channel, 0 = first channel by default.
-      In case of UV texture, this parameter should always be 0. (optional)
-   :type textureID: int
+   :arg ImageTextureNodeName: Image Texture node name in the shader editor (matches the texture name normally).
+   :type ImageTextureNodeName: str
    :arg textureObj: Reference to another ``Texture`` object with shared bindId
       which he user might want to reuse the texture.
       If this argument is used, you should not create any source on this texture
@@ -1203,7 +1213,7 @@ Texture classes
 
    .. attribute:: gpuTexture
 
-      GPUTexture. (readonly)
+      GPUTexture (Color Texture) (readonly)
 
       :type: :class:`~bpy.types.GPUTexture`
 

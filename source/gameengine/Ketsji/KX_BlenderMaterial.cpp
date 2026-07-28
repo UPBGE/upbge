@@ -92,7 +92,7 @@ void KX_BlenderMaterial::InitTextures()
       blender::Image *ima = (blender::Image *)node.id;
       if (ima) {
         if (i < BL_Texture::MaxUnits) {
-          BL_Texture *texture = new BL_Texture(ima);
+          BL_Texture *texture = new BL_Texture(ima, &node);
           m_textures[i] = texture;
           i++;
         }

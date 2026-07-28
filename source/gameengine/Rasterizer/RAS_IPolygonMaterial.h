@@ -61,6 +61,7 @@ class RAS_IPolyMaterial {
 
   virtual std::string GetName();
   BL_Texture *GetTexture(unsigned int index);
+  BL_Texture *GetTextureByNodeName(char *name);
 
   virtual blender::Material *GetBlenderMaterial() const = 0;
   virtual blender::Scene *GetBlenderScene() const = 0;

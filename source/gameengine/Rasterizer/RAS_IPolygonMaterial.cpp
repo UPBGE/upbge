@@ -61,3 +61,13 @@ BL_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
 {
   return m_textures[index];
 }
+
+BL_Texture *RAS_IPolyMaterial::GetTextureByNodeName(char *name)
+{
+  for (BL_Texture *tex : m_textures) {
+    if (tex && STREQ(tex->GetName().c_str(), name)) {
+      return tex;
+    }
+  }
+  return nullptr;
+}
