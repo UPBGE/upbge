@@ -1213,7 +1213,13 @@ Texture classes
 
    .. attribute:: gpuTexture
 
-      GPUTexture (Color Texture) (readonly)
+      GPUTexture, Color Texture from ImageRender or other VideoTexture sources (readonly)
+
+      :type: :class:`~bpy.types.GPUTexture`
+
+   .. attribute:: gpuDepthTexture
+
+      GPUTexture, Depth Texture from ImageRender only (readonly)
 
       :type: :class:`~bpy.types.GPUTexture`
 

@@ -50,8 +50,9 @@ Texture::Texture():
       m_blTexture(nullptr),
       m_scene(nullptr),
       m_gameobj(nullptr),
-      m_gpuTexInUse(nullptr),
+      m_gpuColorTexInUse(nullptr),
       m_modifiedGPUTexture(nullptr),
+      m_gpuDepthTexture(nullptr),
       m_mipmap(false),
       m_lastClock(0.0),
       m_source(nullptr),
@@ -106,8 +107,11 @@ void Texture::Close()
     BKE_image_set_gpu_texture_override(m_imgTexture, nullptr);
     m_imgTexture = nullptr;
   }
-  if (m_gpuTexInUse) {
-    m_gpuTexInUse = nullptr;
+  if (m_gpuColorTexInUse) {
+    m_gpuColorTexInUse = nullptr;
+  }
+  if (m_gpuDepthTexture) {
+    m_gpuDepthTexture = nullptr; // ImageRender GPUViewport depth
   }
   if (m_modifiedGPUTexture) { // Videos
     GPU_texture_free(m_modifiedGPUTexture);
@@ -137,7 +141,7 @@ void Texture::loadTexture(unsigned int *texture,
   if (imr) {
     // For ImageRender, directly use the GPU texture from the ImageRender GPUViewport
     blender::GPUViewport *viewport = imr->GetGPUViewport();
-    if (viewport && m_imgTexture && !m_gpuTexInUse) {
+    if (viewport && m_imgTexture && !m_gpuColorTexInUse) {
       /* Get the color texture from the ImageRender GPUViewport.This texture is
        * owned by the GPU viewport and must not be reference‑counted by the
        * Image system: Don't call BKE_image_acquire_gpu_texture!! */
@@ -148,7 +152,9 @@ void Texture::loadTexture(unsigned int *texture,
 
       /* Store the pointer in m_gpuTexInUse without acquiring a new
        * reference. */
-      m_gpuTexInUse = gpuTex;
+      m_gpuColorTexInUse = gpuTex;
+
+      m_gpuDepthTexture = GPU_viewport_depth_texture(viewport);
     }
     // No need to upload a CPU buffer, return early
     return;
@@ -180,7 +186,7 @@ void Texture::loadTexture(unsigned int *texture,
 
     // Do not acquire a new reference – the texture is already owned by
     // this VideoTexture instance via m_modifiedGPUTexture.
-    m_gpuTexInUse = m_modifiedGPUTexture;
+    m_gpuColorTexInUse = m_modifiedGPUTexture;
 
     // Register the override on the Image. No additional refcount is taken.
     BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
@@ -397,7 +403,18 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 PyObject *Texture::pyattr_get_gputexture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = static_cast<Texture *>(self_v);
-  blender::gpu::Texture *gputex = self->m_gpuTexInUse;
+  blender::gpu::Texture *gputex = self->m_gpuColorTexInUse;
+  if (gputex) {
+    return BPyGPUTexture_CreatePyObject(gputex, true);
+  }
+  Py_RETURN_NONE;
+}
+
+// get depth gputexture
+PyObject *Texture::pyattr_get_gpu_depth_texture(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  Texture *self = static_cast<Texture *>(self_v);
+  blender::gpu::Texture *gputex = self->m_gpuDepthTexture;
   if (gputex) {
     return BPyGPUTexture_CreatePyObject(gputex, true);
   }
@@ -481,7 +498,8 @@ PyMethodDef Texture::Methods[] = {
 PyAttributeDef Texture::Attributes[] = {
     EXP_PYATTRIBUTE_RW_FUNCTION("mipmap", Texture, pyattr_get_mipmap, pyattr_set_mipmap),
     EXP_PYATTRIBUTE_RW_FUNCTION("source", Texture, pyattr_get_source, pyattr_set_source),
-    EXP_PYATTRIBUTE_RO_FUNCTION("gpuTexture", Texture, pyattr_get_gputexture),
+    EXP_PYATTRIBUTE_RO_FUNCTION("gpuTexture", Texture, pyattr_get_gputexture), // ImageRender AND other sources
+    EXP_PYATTRIBUTE_RO_FUNCTION("gpuDepthTexture", Texture, pyattr_get_gpu_depth_texture), // ImageRender only
     EXP_PYATTRIBUTE_NULL};
 
 // class Texture declaration
