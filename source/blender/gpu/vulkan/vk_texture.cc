@@ -740,7 +740,6 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
   device.resources.add_image(vk_image_, false, name_.c_str());
   has_data_ = true;
   allow_host_image_copy_ = false;
-  this->mip_range_set(0, 0);
   return true;
 }
 
