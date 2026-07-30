@@ -95,6 +95,7 @@ class ImageRender : public ImageViewport {
   /// for mirror operation
   KX_GameObject *m_observer;
   KX_GameObject *m_mirror;
+  blender::Object *m_mirrorCameraOb;
   float m_clip;              // clipping distance
   float m_mirrorHalfWidth;   // mirror width in mirror space
   float m_mirrorHalfHeight;  // mirror height in mirror space

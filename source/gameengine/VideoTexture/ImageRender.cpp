@@ -9,7 +9,11 @@
 
 #include "ImageRender.h"
 
+#include "BKE_collection.hh"
 #include "BKE_context.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_material.hh"
 #include "BKE_scene.hh"
 #include "BLI_math_geom.hh"
 #include "BLI_math_matrix.hh"
@@ -21,6 +25,7 @@
 #include "EXP_PythonCallBack.h"
 #include "KX_Globals.h"
 #include "RAS_IVertex.h"
+#include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "Texture.h"
@@ -60,6 +65,7 @@ ImageRender::ImageRender(KX_Scene *scene,
       m_owncamera(false),
       m_observer(nullptr),
       m_mirror(nullptr),
+      m_mirrorCameraOb(nullptr),
       m_clip(100.f),
       m_mirrorHalfWidth(0.f),
       m_mirrorHalfHeight(0.f)
@@ -95,6 +101,13 @@ ImageRender::~ImageRender(void)
   m_scene->RemoveImageRenderCamera(m_camera);
 
   if (m_owncamera) {
+    if (m_mirrorCameraOb) {
+      //m_camera->SetBlenderObject(nullptr);
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Main *bmain = CTX_data_main(C);
+      BKE_id_delete(bmain, m_mirrorCameraOb);
+      m_mirrorCameraOb = nullptr;
+    }
     m_camera->Release();
   }
 }
@@ -326,7 +339,10 @@ bool ImageRender::Render()
   /* Add a depsgraph notifier to trigger
    * update on next draw loop. */
   DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-
+  float t[4][4];
+  m_camera->NodeGetWorldTransform().getValue(&t[0][0]);
+  BKE_object_apply_mat4(m_camera->GetBlenderObject(), t, false, false);
+  invert_m4_m4(m_camera->GetBlenderObject()->runtime->world_to_object.ptr(), t);
   m_scene->UpdateDepsgraph(bmain,
                            m_scene->GetBlenderScene(),
                            false,
@@ -861,6 +877,10 @@ ImageRender::ImageRender(KX_Scene *scene,
                          unsigned int height,
                          unsigned short samples)
     : ImageViewport(width, height),
+#ifdef WITH_PYTHON
+      m_preDrawCallbacks(nullptr),
+      m_postDrawCallbacks(nullptr),
+#endif
       m_render(false),
       m_done(false),
       m_scene(scene),
@@ -873,8 +893,6 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_rasterizer = m_engine->GetRasterizer();
   m_canvas = m_engine->GetCanvas();
 
-  m_gpuViewport = GPU_viewport_create();
-
   m_internalFormat = blender::gpu::TextureFormat::UNORM_8_8_8_8;
 
   // this constructor is used for automatic planar mirror
@@ -883,7 +901,6 @@ ImageRender::ImageRender(KX_Scene *scene,
   RAS_CameraData camdata;
   std::vector<RAS_IVertex *> mirrorVerts;
   std::vector<RAS_IVertex *>::iterator it;
-  float mirrorArea = 0.f;
   float mirrorNormal[3] = {0.f, 0.f, 0.f};
   float mirrorUp[3];
   float dist, vec[3], axis[3];
@@ -898,55 +915,132 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_camera->SetName("__mirror__cam__");
   m_camera->MarkForDeletion();
 
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Scene *bl_scene = scene->GetBlenderScene();
+  ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
+  m_mirrorCameraOb = BKE_object_add_only_object(bmain, OB_CAMERA, "mirror_default_cam");
+  m_mirrorCameraOb->data = (blender::ID *)BKE_object_obdata_add_from_type(
+      bmain, OB_CAMERA, nullptr);
+  BKE_collection_object_add(bmain, bl_scene->master_collection, m_mirrorCameraOb);
+  /* Fix crash at start with some files: See 68589a31ebfb79165f99a979357d237e5413e904 */
+  BKE_view_layer_synced_ensure(*bmain, bl_scene, view_layer);
+  //Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_mirrorCameraOb);
+  //defaultCamBase->flag |= BASE_HIDDEN;
+  DEG_relations_tag_update(bmain);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  m_camera->SetBlenderObject(m_mirrorCameraOb);
+
+  m_scene->AddImageRenderCamera(m_camera);
+  m_gpuViewport = GPU_viewport_create();
+
   // don't add the camera to the scene object list, it doesn't need to be accessible
   m_owncamera = true;
-  // locate the vertex assigned to mat and do following calculation in mesh coordinates
-  for (int meshIndex = 0; meshIndex < mirror->GetMeshCount(); meshIndex++) {
-    RAS_MeshObject *mesh = mirror->GetMesh(meshIndex);
-    int numPolygons = mesh->NumPolygons();
-    for (int polygonIndex = 0; polygonIndex < numPolygons; polygonIndex++) {
-      RAS_Polygon *polygon = mesh->GetPolygon(polygonIndex);
-      if (polygon->GetMaterial()->GetPolyMaterial() == mat) {
-        RAS_IVertex *v1, *v2, *v3, *v4;
-        float normal[3];
-        float area;
-        // this polygon is part of the mirror
-        v1 = polygon->GetVertex(0);
-        v2 = polygon->GetVertex(1);
-        v3 = polygon->GetVertex(2);
-        mirrorVerts.push_back(v1);
-        mirrorVerts.push_back(v2);
-        mirrorVerts.push_back(v3);
-        if (polygon->VertexCount() == 4) {
-          v4 = polygon->GetVertex(3);
-          mirrorVerts.push_back(v4);
-          area = normal_quad_v3(normal,
-                                (float *)v1->getXYZ(),
-                                (float *)v2->getXYZ(),
-                                (float *)v3->getXYZ(),
-                                (float *)v4->getXYZ());
-        }
-        else {
-          area = normal_tri_v3(
-              normal, (float *)v1->getXYZ(), (float *)v2->getXYZ(), (float *)v3->getXYZ());
-        }
-        area = fabs(area);
-        mirrorArea += area;
-        mul_v3_fl(normal, area);
-        add_v3_v3v3(mirrorNormal, mirrorNormal, normal);
+  Object *mirror_orig = mirror->GetBlenderObject();
+  Object *mirror_eval_ob = DEG_get_evaluated(depsgraph, mirror_orig);
+  Mesh *mesh_eval = (Mesh *)mirror_eval_ob->data;
+
+  const blender::Span<blender::float3> positions = mesh_eval->vert_positions();
+  const blender::Span<blender::float3> face_normals = mesh_eval->face_normals();
+  const blender::OffsetIndices<int> faces = mesh_eval->faces();
+  const blender::Span<int> corner_verts = mesh_eval->corner_verts();
+
+  blender::bke::AttributeAccessor attributes = mesh_eval->attributes();
+  const blender::VArray<int> material_indices = *attributes.lookup_or_default<int>(
+      "material_index", blender::bke::AttrDomain::Face, 0);
+
+  int target_slot = -1;
+  if (mat) {
+    Material *bl_mat = mat->GetBlenderMaterial();
+    for (int si = 0; si < mirror_eval_ob->totcol; si++) {
+      if (BKE_object_material_get(mirror_eval_ob, si + 1) == bl_mat) {
+        target_slot = si;
+        break;
       }
     }
   }
-  if (mirrorVerts.empty() || mirrorArea < FLT_EPSILON) {
-    // no vertex or zero size mirror
+
+  float accNormal[3] = {0.f, 0.f, 0.f};
+  float accArea = 0.f;
+
+  // collect vertices positions for frustum computation
+  std::vector<std::array<float, 3>> blMirrorVerts;
+
+  for (int fi = 0; fi < (int)faces.size(); fi++) {
+    if (target_slot >= 0 && material_indices[fi] != target_slot)
+      continue;
+
+    const blender::IndexRange face_range = faces[fi];
+    const blender::float3 &fn = face_normals[fi];
+
+    for (int ci = 0; ci < (int)face_range.size(); ci++) {
+      const blender::float3 &vp = positions[corner_verts[face_range[ci]]];
+      blMirrorVerts.push_back({vp.x, vp.y, vp.z});
+    }
+
+    // fan-triangulation area computation
+    const blender::float3 &v0 = positions[corner_verts[face_range[0]]];
+    float area = 0.f;
+    for (int ci = 1; ci + 1 < (int)face_range.size(); ci++) {
+      const blender::float3 &va = positions[corner_verts[face_range[ci]]];
+      const blender::float3 &vb = positions[corner_verts[face_range[ci + 1]]];
+      float edge1[3] = {va.x - v0.x, va.y - v0.y, va.z - v0.z};
+      float edge2[3] = {vb.x - v0.x, vb.y - v0.y, vb.z - v0.z};
+      float cross_vec[3];
+      cross_v3_v3v3(cross_vec, edge1, edge2);
+      area += len_v3(cross_vec) * 0.5f;
+    }
+
+    accNormal[0] += fn.x * area;
+    accNormal[1] += fn.y * area;
+    accNormal[2] += fn.z * area;
+    accArea += area;
+  }
+
+  if (blMirrorVerts.empty() || accArea < FLT_EPSILON) {
     THRWEXCP(MirrorSizeInvalid, S_OK);
   }
-  // compute average normal of mirror faces
-  mul_v3_fl(mirrorNormal, 1.0f / mirrorArea);
-  if (normalize_v3(mirrorNormal) == 0.f) {
-    // no normal
+
+  mul_v3_fl(accNormal, 1.0f / accArea);
+  if (normalize_v3(accNormal) == 0.f) {
     THRWEXCP(MirrorNormalInvalid, S_OK);
   }
+
+  copy_v3_v3(mirrorNormal, accNormal);
+
+  // world->local
+  float imat[4][4];
+  copy_m4_m4(imat, mirror_eval_ob->object_to_world().ptr());
+  invert_m4(imat);
+
+  // observer position
+  const MT_Vector3 &obsPos = observer->NodeGetWorldPosition();
+  float obs_world[3] = {(float)obsPos[0], (float)obsPos[1], (float)obsPos[2]};
+
+  // observer position in mirror pos
+  float obs_local[3];
+  mul_v3_m4v3(obs_local, imat, obs_world);
+
+  // random point on mirror in local pos
+  float mirror_center[3] = {
+      (blMirrorVerts[0][0] + blMirrorVerts[blMirrorVerts.size() / 2][0]) * 0.5f,
+      (blMirrorVerts[0][1] + blMirrorVerts[blMirrorVerts.size() / 2][1]) * 0.5f,
+      (blMirrorVerts[0][2] + blMirrorVerts[blMirrorVerts.size() / 2][2]) * 0.5f,
+  };
+
+  // center to observer
+  float toObs[3];
+  sub_v3_v3v3(toObs, obs_local, mirror_center);
+
+  // assume that observer is in front of the mirror, negate normal if computation from local geometry tells the inverse
+  bool normalFlipped = false;
+  if (dot_v3v3(mirrorNormal, toObs) < 0.f) {
+    negate_v3(mirrorNormal);
+    normalFlipped = true;
+  }
+
   // the mirror plane has an equation of the type ax+by+cz = d where (a,b,c) is the normal vector
   // if the mirror is more vertical then horizontal, the Z axis is the up direction.
   // otherwise the Y axis is the up direction.
@@ -983,16 +1077,19 @@ ImageRender::ImageRender(KX_Scene *scene,
   copy_v3_v3(mirrorMat[1], mirrorUp);
   cross_v3_v3v3(mirrorMat[0], mirrorMat[1], mirrorMat[2]);
   // transpose to make it a orientation matrix from local space to mirror space
-  transpose_m3(mirrorMat);
+  blender::transpose_m3(mirrorMat);
   // transform all vertex to plane coordinates and determine mirror position
   left = FLT_MAX;
   right = -FLT_MAX;
   bottom = FLT_MAX;
   top = -FLT_MAX;
-  back = -FLT_MAX;  // most backward vertex (=highest Z coord in mirror space)
-  for (it = mirrorVerts.begin(); it != mirrorVerts.end(); it++) {
-    copy_v3_v3(vec, (float *)(*it)->getXYZ());
-    mul_m3_v3(mirrorMat, vec);
+  back = -FLT_MAX;
+
+  for (const auto &vp : blMirrorVerts) {
+    vec[0] = vp[0];
+    vec[1] = vp[1];
+    vec[2] = vp[2];
+    blender::mul_m3_v3(mirrorMat, vec);
     if (vec[0] < left)
       left = vec[0];
     if (vec[0] > right)
@@ -1024,6 +1121,11 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_mirrorZ.setValue(-mirrorNormal[0], -mirrorNormal[1], -mirrorNormal[2]);
   m_mirrorY.setValue(mirrorUp[0], mirrorUp[1], mirrorUp[2]);
   m_mirrorX = m_mirrorY.cross(m_mirrorZ);
+
+  // if we flipped normal for obs position, fix X
+  if (normalFlipped) {
+    m_mirrorX = -m_mirrorX;
+  }
   m_render = true;
 }
 
