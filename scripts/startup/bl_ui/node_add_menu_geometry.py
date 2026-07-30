@@ -458,6 +458,8 @@ class NODE_MT_gn_material_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeGeometryMaterials")
+        layout.separator()
         self.node_operator(layout, "GeometryNodeReplaceMaterial")
         layout.separator()
         self.node_operator(layout, "GeometryNodeInputMaterialIndex")
@@ -646,6 +648,8 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodePointsToSDFGrid")
         self.node_operator(layout, "GeometryNodePointsToVertices")
         self.node_operator(layout, "GeometryNodePointsToVolume")
+        self.node_operator(layout, "GeometryNodeRasterizePoints")
+
         layout.separator()
         self.node_operator(layout, "GeometryNodeSetPointRadius")
 
