@@ -339,10 +339,19 @@ bool ImageRender::Render()
   /* Add a depsgraph notifier to trigger
    * update on next draw loop. */
   DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-  float t[4][4];
-  m_camera->NodeGetWorldTransform().getValue(&t[0][0]);
-  BKE_object_apply_mat4(m_camera->GetBlenderObject(), t, false, false);
-  invert_m4_m4(m_camera->GetBlenderObject()->runtime->world_to_object.ptr(), t);
+
+  /* For ImageMirror, m_camera is not in scene.objects. Apply matrix here,
+     as it won't be done in m_scene->UpdateDepsgraph */
+  if (m_mirror) {
+    float object_to_world[4][4];
+    m_camera->NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+    Object *obCam = m_camera->GetBlenderObject();
+    copy_m4_m4(obCam->runtime->object_to_world.ptr(), object_to_world);
+    BKE_object_apply_mat4(
+        obCam, obCam->object_to_world().ptr(), false, obCam->parent && obCam->partype != PARVERT1);
+    invert_m4_m4(m_camera->GetBlenderObject()->runtime->world_to_object.ptr(), object_to_world);
+  }
+
   m_scene->UpdateDepsgraph(bmain,
                            m_scene->GetBlenderScene(),
                            false,
