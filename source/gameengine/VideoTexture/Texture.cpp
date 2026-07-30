@@ -53,6 +53,8 @@ Texture::Texture():
       m_gpuColorTexInUse(nullptr),
       m_modifiedGPUTexture(nullptr),
       m_gpuDepthTexture(nullptr),
+      m_py_color_ref(nullptr),
+      m_py_depth_ref(nullptr),
       m_mipmap(false),
       m_lastClock(0.0),
       m_source(nullptr),
@@ -107,6 +109,12 @@ void Texture::Close()
     BKE_image_set_gpu_texture_override(m_imgTexture, nullptr);
     m_imgTexture = nullptr;
   }
+  if (m_py_color_ref) {
+    Py_XDECREF(m_py_color_ref);
+  }
+  if (m_py_depth_ref) {
+    Py_XDECREF(m_py_depth_ref);
+  }
   if (m_gpuColorTexInUse) {
     m_gpuColorTexInUse = nullptr;
   }
@@ -155,6 +163,17 @@ void Texture::loadTexture(unsigned int *texture,
       m_gpuColorTexInUse = gpuTex;
 
       m_gpuDepthTexture = GPU_viewport_depth_texture(viewport);
+
+      bool refed_color = GPU_texture_py_reference_get(m_gpuColorTexInUse) != nullptr;
+      bool refed_depth = GPU_texture_py_reference_get(m_gpuDepthTexture) != nullptr;
+      if (!refed_color) {
+        m_py_color_ref = BPyGPUTexture_CreatePyObject(m_gpuColorTexInUse, false);
+        Py_INCREF(m_py_color_ref);
+      }
+      if (!refed_depth) {
+        m_py_depth_ref = BPyGPUTexture_CreatePyObject(m_gpuDepthTexture, false);
+        Py_INCREF(m_py_depth_ref);
+      }
     }
     // No need to upload a CPU buffer, return early
     return;

@@ -42,6 +42,9 @@ class Texture : public EXP_Value {
 
   blender::gpu::Texture *m_gpuDepthTexture; // For ImageRender only (GPUViewport depth texture)
 
+  void *m_py_color_ref;
+  void *m_py_depth_ref;
+
   // use mipmapping
   bool m_mipmap;
 
