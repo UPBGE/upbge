@@ -3016,7 +3016,9 @@ void DRW_game_render_loop(bContext *C,
   GPU_framebuffer_bind(draw_ctx.default_framebuffer());
   GPU_framebuffer_clear_depth_stencil(draw_ctx.default_framebuffer(), 1.0f, 0xFF);
 
+  drw_callbacks_pre_scene(draw_ctx);
   draw_ctx.engines_draw_scene();
+  drw_callbacks_post_scene(draw_ctx);
 
   draw_ctx.release_data();
 
