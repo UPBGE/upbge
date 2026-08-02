@@ -1761,6 +1761,10 @@ static SeqResult do_render_strip_uncached(const RenderData *context,
           local_context.skip_cache = true;
 
           out = do_render_strip_seqbase(&local_context, state, strip, frame_index);
+
+          /* We have just rendered timeline of another scene; make sure movie decoding
+           * contexts no longer needed by the current frame are freed. */
+          relations_free_all_anim_ibufs(local_context.scene, frame_index);
         }
       }
       else {
@@ -2165,21 +2169,20 @@ float get_render_scale_factor(const RenderData &context)
 
 bool render_begin_gpu(const RenderData &rd)
 {
+  /* Use GPU context from VSE render data (e.g. prefetch render). */
   if (rd.gpu_context.ghost_context != nullptr) {
-    /* Use GPU context from VSE render data. */
     gpu::GPU_activate_secondary_context(rd.gpu_context);
     GPU_render_begin();
     return true;
   }
 
-  if (BLI_thread_is_main()) {
-    /* Use main GPU context. */
+  /* Use main GPU context (regular preview area drawing, or "render sequence preview" operator). */
+  if (BLI_thread_is_main() || rd.render == nullptr) {
     DRW_gpu_context_enable();
     return DRW_gpu_context_is_enabled();
   }
 
   /* Use GPU context from Render. */
-  BLI_assert(rd.render != nullptr);
   GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
   if (!render_ghost_context) {
     return false;
@@ -2194,24 +2197,25 @@ bool render_begin_gpu(const RenderData &rd)
 
 void render_end_gpu(const RenderData &rd)
 {
+  /* Use GPU context from VSE render data (e.g. prefetch render). */
   if (rd.gpu_context.ghost_context != nullptr) {
-    /* Use GPU context from VSE render data. */
     GPU_render_end();
     gpu::GPU_deactivate_secondary_context(rd.gpu_context);
+    return;
   }
-  else if (BLI_thread_is_main()) {
-    /* Use main GPU context. */
+
+  /* Use main GPU context (regular preview area drawing, or "render sequence preview" operator). */
+  if (BLI_thread_is_main() || rd.render == nullptr) {
     DRW_gpu_context_disable();
+    return;
   }
-  else {
-    /* Use GPU context from Render. */
-    BLI_assert(rd.render != nullptr);
-    GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
-    BLI_assert(render_ghost_context != nullptr);
-    GPU_context_active_set(nullptr);
-    GPU_render_end();
-    WM_system_gpu_context_release(render_ghost_context);
-  }
+
+  /* Use GPU context from Render. */
+  GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
+  BLI_assert(render_ghost_context != nullptr);
+  GPU_context_active_set(nullptr);
+  GPU_render_end();
+  WM_system_gpu_context_release(render_ghost_context);
 }
 
 }  // namespace blender::seq
