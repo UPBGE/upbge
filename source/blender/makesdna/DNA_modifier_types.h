@@ -1095,6 +1095,12 @@ enum MeshDeformModifierFlag : short {
 };
 ENUM_OPERATORS(MeshDeformModifierFlag);
 
+/** MeshDeformModifierData.deform_method */
+typedef enum {
+  MESHDEFORM_DEFORM_METHOD_CPU = 0,
+  MESHDEFORM_DEFORM_METHOD_GPU = 1,
+} MeshDeformDeformMethod;
+
 struct MeshDeformModifierData {
   ModifierData modifier;
 
@@ -1105,7 +1111,8 @@ struct MeshDeformModifierData {
 
   short gridsize = 5;
   MeshDeformModifierFlag flag = {};
-  char _pad[4] = {};
+  short deform_method = 0;
+  char _pad[2] = {};
 
   /* result of static binding */
   /** Influences. */

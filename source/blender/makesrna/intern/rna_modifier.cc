@@ -4772,6 +4772,14 @@ static void rna_def_modifier_meshdeform(BlenderRNA *brna)
                            "(slower and more memory consuming)");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "deform_method", MESHDEFORM_DEFORM_METHOD_CPU);
+  RNA_def_property_ui_text(prop,
+                           "GPU Deform",
+                           "Deform mesh vertices using the GPU instead of the CPU "
+                           "(requires binding and supports static bind only)");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 #  if 0
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_mode_items);

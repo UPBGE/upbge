@@ -520,6 +520,11 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   col->prop(ptr, "precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "use_dynamic_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
+  Object *ob = id_cast<Object *>(ob_ptr.owner_id);
+  if (ob && ob->type == OB_MESH) {
+    layout.prop(ptr, "use_gpu_deform", UI_ITEM_NONE, IFACE_("GPU Deform"), ICON_NONE);
+  }
+
   layout.op("OBJECT_OT_meshdeform_bind", is_bound ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);

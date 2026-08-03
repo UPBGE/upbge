@@ -43,6 +43,7 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -448,6 +449,16 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Scene &scene : bmain->scenes) {
       scene.eevee.shadow_pcf_offset = 1.0f;
       scene.eevee.shadow_pcf_grain = 1.0f;
+    }
+  }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 53, 1)) {
+    for (Object &ob : bmain->objects) {
+      for (ModifierData *md = static_cast<ModifierData *>(ob.modifiers.first); md; md = md->next) {
+        if (md->type == eModifierType_MeshDeform) {
+          MeshDeformModifierData *mmd = reinterpret_cast<MeshDeformModifierData *>(md);
+          mmd->deform_method = 0;
+        }
+      }
     }
   }
 }

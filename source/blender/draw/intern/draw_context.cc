@@ -88,6 +88,7 @@
 #include "../draw/intern/gpu_modifiers/draw_displace.hh"              // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_hook.hh"                  // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_lattice_deform.hh"        // UPBGE
+#include "../draw/intern/gpu_modifiers/draw_meshdeform.hh"                  // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh" // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_simpledeform.hh"          // UPBGE
 #include "../draw/intern/gpu_modifiers/draw_shapekeys_skinning.hh"    // UPBGE
@@ -1274,6 +1275,8 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     return;
   }
 
+  MeshDeformSkinningManager::instance().set_debug_enabled(true);
+
   for (auto &it : map) {
     Mesh *mesh_owner = it.first;
     auto &entry = it.second;
@@ -1329,8 +1332,14 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
       }
       continue;
     }
-    if (entry.last_depsgraph_update_ == eval_obj->runtime->last_update_geometry) {
-      /* Already up to date */
+    const bool has_meshdeform = (entry.gpu_pipeline &&
+                                 entry.gpu_pipeline->has_stage_type(
+                                     blender::draw::ModifierGPUStageType::MESHDEFORM));
+
+    if (!has_meshdeform &&
+        entry.last_depsgraph_update_ == eval_obj->runtime->last_update_geometry) {
+      /* Already up to date. MeshDeform depends on an external cage object, so we can't
+       * rely only on the deformed object's geometry update count. */
       continue;
     }
 
@@ -1387,8 +1396,23 @@ static void do_gpu_skinning(DRWContext &draw_ctx)
     auto post_bind_fn = [](gpu::Shader * /*sh*/) {};
     auto config_fn = [](gpu::shader::ShaderCreateInfo & /* info */) {};
 
-    BKE_mesh_gpu_scatter_to_corners(
+    if (G.debug & G_DEBUG) {
+      const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
+      printf("GPU_SKINNING: mesh='%s' vbo_pos_stride=%d corners=%d vbo_nor=%p\n",
+             (eval_obj->id.name + 2),
+             format ? format->stride : -1,
+             mesh_eval->corners_num,
+             vbo_nor);
+    }
+
+    bke::GpuComputeStatus scatter_status = BKE_mesh_gpu_scatter_to_corners(
         depsgraph, eval_obj, caller_bindings, config_fn, post_bind_fn, mesh_eval->corners_num);
+
+    if (G.debug & G_DEBUG) {
+      printf("GPU_SKINNING: scatter_status=%d for mesh='%s'\n",
+             int(scatter_status),
+             (eval_obj->id.name + 2));
+    }
 
     entry.last_depsgraph_update_ = eval_obj->runtime->last_update_geometry;
   }

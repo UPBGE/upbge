@@ -93,6 +93,7 @@ set(SRC
   intern/gpu_modifiers/draw_displace.cc
   intern/gpu_modifiers/draw_hook.cc
   intern/gpu_modifiers/draw_lattice_deform.cc
+  intern/gpu_modifiers/draw_meshdeform.cc
   intern/gpu_modifiers/draw_modifier_gpu_helpers.cc
   intern/gpu_modifiers/draw_modifier_gpu_pipeline.cc
   intern/gpu_modifiers/draw_shapekeys_skinning.cc
@@ -203,6 +204,7 @@ set(SRC
   intern/gpu_modifiers/draw_displace.hh
   intern/gpu_modifiers/draw_hook.hh
   intern/gpu_modifiers/draw_lattice_deform.hh
+  intern/gpu_modifiers/draw_meshdeform.hh
   intern/gpu_modifiers/draw_modifier_gpu_helpers.hh
   intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh
   intern/gpu_modifiers/draw_shapekeys_skinning.hh

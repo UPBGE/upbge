@@ -6,6 +6,7 @@
 
 #include "GPU_storage_buffer.hh"
 
+#include "BLI_vector.hh"
 
 namespace blender {
 struct Mesh;
@@ -37,6 +38,7 @@ enum class ModifierGPUStageType : uint8_t {
   WARP = 6,
   HOOK = 7,
   DISPLACE = 8,
+  MESHDEFORM = 9,
   /* Add new deform modifiers here */
   CUSTOM = 255
 };
@@ -60,7 +62,7 @@ typedef struct ModifierGPUStage {
 
 class GPUModifierPipeline {
  private:
-  Vector<ModifierGPUStage> stages_;
+  blender::Vector<ModifierGPUStage> stages_;
 
   /* Working buffer for pipeline (pre-filled with rest positions) */
   gpu::StorageBuf *input_pipeline_buffer_ = nullptr;
@@ -116,6 +118,11 @@ class GPUModifierPipeline {
   {
     return pipeline_hash_;
   }
+
+  /**
+   * Returns true if the pipeline contains a stage of the given type.
+   */
+  bool has_stage_type(blender::draw::ModifierGPUStageType type) const;
 
  private:
   void sort_stages();

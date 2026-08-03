@@ -41,6 +41,8 @@
 #include "BL_IpoConvert.h"
 #include "CM_Message.h"
 
+#include "BKE_object_gpu_deform.hh"
+
 using namespace blender;
 
 using namespace blender::animrig;
@@ -632,6 +634,9 @@ void BL_Action::UpdateObjectAnimation(blender::Object *ob, const blender::Animat
     // TEST Shapekeys action
     TryUpdateShapeKeyActions(ob, scene, animEvalContext);
   }
+
+  BKE_object_gpu_deform_bump_update_if_needed(ob,
+                                                KX_GetActiveEngine()->GetContext());
 }
 
 static bool TryModifierTextureActions(ModifierData *md,

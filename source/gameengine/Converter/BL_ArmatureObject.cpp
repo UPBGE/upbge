@@ -46,6 +46,8 @@
 #include "DEG_depsgraph_query.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "RNA_access.hh"
 
@@ -213,6 +215,21 @@ void BL_ArmatureObject::RemapParentChildren()
               DEG_relations_tag_update(bmain);
 
               m_replicaMeshes[child_ob] = replica;
+            }
+          }
+        }
+        else if (md->type == eModifierType_MeshDeform) {
+          MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
+          if (mmd && mmd->object) {
+            BL_SceneConverter *converter = child->GetScene()->GetBlenderSceneConverter();
+            KX_GameObject *cage_gameobj = converter ? converter->FindGameObject(mmd->object) :
+                                                        nullptr;
+            if (cage_gameobj && cage_gameobj->IsReplica()) {
+              blender::Object *replica_cage = cage_gameobj->GetBlenderObject();
+              if (replica_cage) {
+                mmd->object = replica_cage;
+                DEG_id_tag_update(&child_ob->id, ID_RECALC_GEOMETRY);
+              }
             }
           }
         }

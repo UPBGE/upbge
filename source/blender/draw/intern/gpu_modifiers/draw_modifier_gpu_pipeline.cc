@@ -8,6 +8,10 @@
 #include "BKE_modifier.hh"
 
 #include "BLI_hash_c.hh"
+#include "BLI_memory_utils.hh"
+#include "BLI_vector.hh"
+
+#include "BLI_array.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -20,6 +24,7 @@
 #include "draw_displace.hh"
 #include "draw_hook.hh"
 #include "draw_lattice_deform.hh"
+#include "draw_meshdeform.hh"
 #include "draw_shapekeys_skinning.hh"
 #include "draw_simpledeform.hh"
 #include "draw_wave.hh"
@@ -51,10 +56,9 @@ void GPUModifierPipeline::add_stage(ModifierGPUStageType type,
 
 void GPUModifierPipeline::sort_stages()
 {
-  std::sort(
-      stages_.begin(), stages_.end(), [](const ModifierGPUStage &a, const ModifierGPUStage &b) {
-        return a.execution_order < b.execution_order;
-      });
+  std::sort(stages_.begin(), stages_.end(), [](const ModifierGPUStage &a, const ModifierGPUStage &b) {
+    return a.execution_order < b.execution_order;
+  });
 }
 
 void GPUModifierPipeline::allocate_buffers(
@@ -79,14 +83,16 @@ void GPUModifierPipeline::allocate_buffers(
      * reads valid input data instead of
      * garbage. */
     if (input_pipeline_buffer_) {
-      blender::Span<blender::float3> rest_positions = mesh_owner->vert_positions();
-      std::vector<float> rest_data(vertex_count * 4);
+      const blender::Span<blender::float3> rest_positions = mesh_owner->vert_positions();
+      const int64_t rest_count = int64_t(vertex_count) * 4;
+      blender::Array<float> rest_data(rest_count);
 
-      for (int v = 0; v < vertex_count; v++) {
-        rest_data[v * 4 + 0] = rest_positions[v].x;
-        rest_data[v * 4 + 1] = rest_positions[v].y;
-        rest_data[v * 4 + 2] = rest_positions[v].z;
-        rest_data[v * 4 + 3] = 1.0f; /* Homogeneous coordinate */
+      for (int64_t i = 0; i < rest_count; i += 4) {
+        const int64_t v = i / 4;
+        rest_data[i + 0] = rest_positions[v].x;
+        rest_data[i + 1] = rest_positions[v].y;
+        rest_data[i + 2] = rest_positions[v].z;
+        rest_data[i + 3] = 1.0f; /* Homogeneous coordinate */
       }
 
       GPU_storagebuf_update(input_pipeline_buffer_, rest_data.data());
@@ -208,6 +214,20 @@ uint32_t GPUModifierPipeline::compute_fast_hash() const
         }
         break;
       }
+      case ModifierGPUStageType::MESHDEFORM: {
+        /* Mesh Deform: Delegate to MeshDeformSkinningManager for complete hash */
+        if (mesh_orig_) {
+          MeshDeformModifierData *mmd = static_cast<MeshDeformModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(
+              hash, MeshDeformSkinningManager::compute_meshdeform_hash(mesh_orig_, mmd));
+        }
+        else {
+          BLI_assert_unreachable();
+          ModifierData *md = static_cast<ModifierData *>(stage.modifier_data);
+          hash = BLI_hash_int_2d(hash, uint32_t(md->persistent_uid));
+        }
+        break;
+      }
       case ModifierGPUStageType::WAVE: {
         /* Hook: Delegate to HookManager for complete hash */
         if (mesh_orig_) {
@@ -264,6 +284,9 @@ void GPUModifierPipeline::invalidate_stage(ModifierGPUStageType type, Mesh *mesh
       break;
     case ModifierGPUStageType::DISPLACE:
       DisplaceManager::instance().invalidate_all(mesh_owner);
+      break;
+    case ModifierGPUStageType::MESHDEFORM:
+      MeshDeformSkinningManager::instance().invalidate_all(mesh_owner);
       break;
     case ModifierGPUStageType::WAVE:
       WaveManager::instance().invalidate_all(mesh_owner);
@@ -337,6 +360,16 @@ void GPUModifierPipeline::clear_stages()
   /* Clear only the stages list, preserve pipeline_hash_ for change detection */
   stages_.clear();
   /* Don't touch input_pipeline_buffer_, pipeline_hash_ */
+}
+
+bool GPUModifierPipeline::has_stage_type(blender::draw::ModifierGPUStageType type) const
+{
+  for (const ModifierGPUStage &stage : stages_) {
+    if (stage.type == type) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /* -------------------------------------------------------------------- */
@@ -519,6 +552,37 @@ static gpu::StorageBuf *dispatch_displace_stage(Mesh *mesh_orig,
       dmd, DRW_context_get()->depsgraph, ob_eval, cache, input);
 }
 
+static gpu::StorageBuf *dispatch_meshdeform_stage(Mesh *mesh_orig,
+                                                  Object *ob_eval,
+                                                  void *modifier_data,
+                                                  gpu::StorageBuf *input,
+                                                  uint32_t pipeline_hash)
+{
+  MeshDeformModifierData *mmd = static_cast<MeshDeformModifierData *>(modifier_data);
+  if (!mmd || !mmd->object) {
+    return nullptr;
+  }
+
+  Mesh *mesh_eval = id_cast<Mesh *>(ob_eval->data);
+  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  if (!cache) {
+    return nullptr;
+  }
+
+  MeshDeformSkinningManager &mdef_mgr = MeshDeformSkinningManager::instance();
+
+  /* mmd comes from ORIGINAL object, so mmd->object is the ORIGINAL cage object.
+   * We need to get the evaluated version. */
+  Object *orig_cage = mmd->object;
+  Object *eval_cage = static_cast<Object *>(
+      DEG_get_evaluated(DRW_context_get()->depsgraph, orig_cage));
+
+  mdef_mgr.ensure_static_resources(mmd, orig_cage, ob_eval, mesh_orig, pipeline_hash);
+
+  return mdef_mgr.dispatch_deform(
+      mmd, DRW_context_get()->depsgraph, eval_cage, ob_eval, cache, input);
+}
+
 static gpu::StorageBuf *dispatch_wave_stage(Mesh *mesh_orig,
                                                Object *ob_eval,
                                                void *modifier_data,
@@ -641,9 +705,15 @@ bool build_gpu_modifier_pipeline(
         pipeline.add_stage(ModifierGPUStageType::WARP, md, execution_order++, dispatch_warp_stage);
         break;
       }
-
-        /* Add more modifier types here as they are implemented */
-
+      /* Add more modifier types here as they are implemented */
+      case eModifierType_MeshDeform: {
+        MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
+        if (mmd && (mmd->deform_method & MESHDEFORM_DEFORM_METHOD_GPU)) {
+          pipeline.add_stage(
+              ModifierGPUStageType::MESHDEFORM, md, execution_order++, dispatch_meshdeform_stage);
+        }
+        break;
+      }
       default:
         /* Unsupported modifier type, skip */
         break;

@@ -992,7 +992,8 @@ bool BKE_modifier_deform_verts(ModifierData *md,
                          eModifierType_Displace,
                          eModifierType_SimpleDeform,
                          eModifierType_Warp,
-                         eModifierType_Wave)) {
+                         eModifierType_Wave,
+                         eModifierType_MeshDeform)) {
         return true;
       }
     }
