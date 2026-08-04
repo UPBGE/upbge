@@ -80,6 +80,8 @@ ImageRender::ImageRender(KX_Scene *scene,
   m_gpuViewport = GPU_viewport_create();
 
   m_scene->AddImageRenderCamera(m_camera);
+
+  m_camera->InvalidateProjectionMatrix();
 }
 
 // destructor
