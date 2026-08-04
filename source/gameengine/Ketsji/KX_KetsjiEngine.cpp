@@ -1181,6 +1181,9 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 
     scene->GetBlenderSceneConverter()->RegisterGameObject(activecam,
                                                           activecam->GetBlenderObject());
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    rv3d->persp = RV3D_CAMOB;
 
     // set transformation
     if (override_camera) {
@@ -1193,8 +1196,6 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
       activecam->NodeUpdateGS(0.0f);
     }
     else {
-      blender::bContext *C = KX_GetActiveEngine()->GetContext();
-      blender::RegionView3D *rv3d = CTX_wm_region_view3d(C);
       MT_Vector3 pos = MT_Vector3(rv3d->viewinv[3]);
       activecam->NodeSetLocalPosition(pos);
       activecam->NodeSetLocalOrientation(MT_Matrix3x3(&rv3d->viewinv[0][0]));

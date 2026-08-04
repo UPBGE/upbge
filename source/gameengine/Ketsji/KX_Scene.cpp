@@ -300,6 +300,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   defaultCamBase->flag |= BASE_HIDDEN;
   DEG_relations_tag_update(bmain);
 
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  m_rv3d_prevpersp = rv3d->persp;
+
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
   m_idsToUpdateInAllRenderPasses = {};
@@ -393,6 +396,8 @@ KX_Scene::~KX_Scene()
     m_gameDefaultCamera = nullptr;
     DEG_relations_tag_update(bmain);
   }
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  rv3d->persp = m_rv3d_prevpersp;
 
   if (m_parentlist)
     m_parentlist->Release();
