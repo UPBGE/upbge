@@ -4515,10 +4515,18 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
     fd->reports->duration.libraries = BLI_time_now_seconds();
     read_libraries(fd);
+    if (bfd->main->is_read_invalid) {
+      return bfd;
+    }
+
     BLI_assert((*bfd->main->split_mains)[0] == bfd->main);
     blo_join_main(bfd->main);
 
     lib_link_all(fd, bfd->main);
+    if (bfd->main->is_read_invalid) {
+      return bfd;
+    }
+
     after_liblink_merged_bmain_process(bfd->main, fd->reports);
 
     if (is_undo) {
@@ -5678,7 +5686,7 @@ static void read_library_linked_id(
 {
   BHead *bhead = nullptr;
   const bool is_valid = BKE_idtype_idcode_is_linkable(GS(id->name)) ||
-                        ((id->tag & ID_TAG_EXTERN) == 0);
+                        ((id->tag & ID_TAG_EXTERN) == 0) || ID_IS_PACKED(id);
 
   if (fd) {
     /* About future longer ID names: This is one of the main places that prevent linking IDs with

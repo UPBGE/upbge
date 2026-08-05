@@ -105,6 +105,7 @@
 
 #include "editors/sculpt_paint/mesh/brushes/brushes.hh"
 #include "mesh_brush_common.hh"
+#include "mesh_stroke_common.hh"
 
 namespace blender {
 
@@ -1349,67 +1350,6 @@ const float *brush_frontface_normal_from_falloff_shape(const SculptSession &ss, 
 /* ===== Sculpting =====
  */
 
-static float calc_overlap(const StrokeCache &cache,
-                          const ePaintSymmetryFlags symm,
-                          const char axis,
-                          const float angle)
-{
-  float3 mirror = symmetry_flip(cache.location, symm);
-
-  if (axis != 0) {
-    float mat[3][3];
-    axis_angle_to_mat3_single(mat, axis, angle);
-    mul_m3_v3(mat, mirror);
-  }
-
-  const float distsq = len_squared_v3v3(mirror, cache.location);
-
-  if (distsq <= 4.0f * (cache.radius_squared)) {
-    return (2.0f * (cache.radius) - sqrtf(distsq)) / (2.0f * (cache.radius));
-  }
-  return 0.0f;
-}
-
-static float calc_radial_symmetry_feather(const Mesh &mesh,
-                                          const StrokeCache &cache,
-                                          const ePaintSymmetryFlags symm,
-                                          const char axis)
-{
-  float overlap = 0.0f;
-
-  for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
-    const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];
-    overlap += calc_overlap(cache, symm, axis, angle);
-  }
-
-  return overlap;
-}
-
-static float calc_symmetry_feather(const Sculpt &sd,
-                                   const ePaintSymmetryFlags symm,
-                                   const Mesh &mesh,
-                                   const StrokeCache &cache)
-{
-  if (!(sd.paint.symmetry_flags & PAINT_SYMMETRY_FEATHER)) {
-    return 1.0f;
-  }
-  float overlap;
-
-  overlap = 0.0f;
-  for (int i = 0; i <= symm; i++) {
-    if (!is_symmetry_iteration_valid(i, symm)) {
-      continue;
-    }
-
-    overlap += calc_overlap(cache, ePaintSymmetryFlags(i), 0, 0);
-
-    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'X');
-    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Y');
-    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Z');
-  }
-  return 1.0f / overlap;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2326,10 +2266,7 @@ static float brush_flip(const Brush &brush, const StrokeCache &cache)
  * values pull vertices, negative values push. Uses tablet pressure and a
  * special multiplier found experimentally to scale the strength factor.
  */
-static float brush_strength(const Sculpt &sd,
-                            const StrokeCache &cache,
-                            const float feather,
-                            const PaintModeSettings & /*paint_mode_settings*/)
+static float brush_strength(const Sculpt &sd, const StrokeCache &cache)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   const bke::PaintRuntime &paint_runtime = *sd.paint.runtime;
@@ -2340,6 +2277,7 @@ static float brush_strength(const Sculpt &sd,
   const float pressure = BKE_brush_use_alpha_pressure(&brush) ?
                              BKE_curvemapping_evaluateF(brush.curve_strength, 0, cache.pressure) :
                              1.0f;
+  /* TODO: Rip out overlap factor and extract to more generic processing */
   float overlap = paint_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
    * normalized diameter. */
@@ -2353,124 +2291,124 @@ static float brush_strength(const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_CLAY:
       final_pressure = pow4f(pressure);
       overlap = (1.0f + overlap) / 2.0f;
-      return 0.25f * alpha * flip * final_pressure * overlap * feather;
+      return 0.25f * alpha * flip * final_pressure * overlap;
     case SCULPT_BRUSH_TYPE_DRAW:
     case SCULPT_BRUSH_TYPE_DRAW_SHARP:
     case SCULPT_BRUSH_TYPE_LAYER:
-      return alpha * flip * pressure * overlap * feather;
+      return alpha * flip * pressure * overlap;
     case SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER:
-      return alpha * pressure * overlap * feather;
+      return alpha * pressure * overlap;
     case SCULPT_BRUSH_TYPE_CLOTH:
       if (brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) {
         /* Grab deform uses the same falloff as a regular grab brush. */
-        return root_alpha * feather;
+        return root_alpha;
       }
       else if (brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_SNAKE_HOOK) {
-        return root_alpha * feather * pressure * overlap;
+        return root_alpha * pressure * overlap;
       }
       else if (brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_EXPAND) {
         /* Expand is more sensible to strength as it keeps expanding the cloth when sculpting over
          * the same vertices. */
-        return 0.1f * alpha * flip * pressure * overlap * feather;
+        return 0.1f * alpha * flip * pressure * overlap;
       }
       else {
         /* Multiply by 10 by default to get a larger range of strength depending on the size of the
          * brush and object. */
-        return 10.0f * alpha * flip * pressure * overlap * feather;
+        return 10.0f * alpha * flip * pressure * overlap;
       }
     case SCULPT_BRUSH_TYPE_DRAW_FACE_SETS:
-      return alpha * pressure * overlap * feather;
+      return alpha * pressure * overlap;
     case SCULPT_BRUSH_TYPE_SLIDE_RELAX:
-      return alpha * pressure * overlap * feather * 2.0f;
+      return alpha * pressure * overlap * 2.0f;
     case SCULPT_BRUSH_TYPE_PAINT:
       final_pressure = pressure * pressure;
-      return final_pressure * overlap * feather;
+      return final_pressure * overlap;
     case SCULPT_BRUSH_TYPE_SMEAR:
     case SCULPT_BRUSH_TYPE_BLUR:
     case SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR:
-      return alpha * pressure * overlap * feather;
+      return alpha * pressure * overlap;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
       /* Clay Strips needs less strength to compensate the curve. */
       final_pressure = powf(pressure, 1.5f);
-      return alpha * flip * final_pressure * overlap * feather * 0.3f;
+      return alpha * flip * final_pressure * overlap * 0.3f;
     case SCULPT_BRUSH_TYPE_CLAY_THUMB:
       final_pressure = pressure * pressure;
-      return alpha * flip * final_pressure * overlap * feather * 1.3f;
+      return alpha * flip * final_pressure * overlap * 1.3f;
 
     case SCULPT_BRUSH_TYPE_MASK:
       overlap = (1.0f + overlap) / 2.0f;
       switch (BrushMaskTool(brush.mask_tool)) {
         case BRUSH_MASK_DRAW:
-          return alpha * flip * pressure * overlap * feather;
+          return alpha * flip * pressure * overlap;
         case BRUSH_MASK_SMOOTH:
-          return alpha * pressure * feather;
+          return alpha * pressure;
       }
       break;
     case SCULPT_BRUSH_TYPE_CREASE:
     case SCULPT_BRUSH_TYPE_BLOB:
-      return alpha * flip * pressure * overlap * feather;
+      return alpha * flip * pressure * overlap;
 
     case SCULPT_BRUSH_TYPE_INFLATE:
       if (flip > 0.0f) {
-        return 0.250f * alpha * flip * pressure * overlap * feather;
+        return 0.250f * alpha * flip * pressure * overlap;
       }
       else {
-        return 0.125f * alpha * flip * pressure * overlap * feather;
+        return 0.125f * alpha * flip * pressure * overlap;
       }
 
     case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
       overlap = (1.0f + overlap) / 2.0f;
-      return alpha * flip * pressure * overlap * feather;
+      return alpha * flip * pressure * overlap;
 
     case SCULPT_BRUSH_TYPE_PLANE:
       if (flip > 0.0f || brush.plane_inversion_mode == BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH) {
         overlap = (1.0f + overlap) / 2.0f;
-        return alpha * pressure * overlap * feather;
+        return alpha * pressure * overlap;
       }
       /* When the brush is inverted with the Invert Displacement mode (i.e. when the brush adds
        * contrast), use a different formula that results in a lower strength. This is done because,
        * from an artistic point of view, the contrast would otherwise generally be too strong. Note
        * that this behavior is coherent with the way Fill, Scrape and Flatten work. See #136211. */
       else {
-        return 0.5f * alpha * pressure * overlap * feather;
+        return 0.5f * alpha * pressure * overlap;
       }
     case SCULPT_BRUSH_TYPE_SMOOTH:
-      return flip * alpha * pressure * feather;
+      return flip * alpha * pressure;
 
     case SCULPT_BRUSH_TYPE_PINCH:
       if (flip > 0.0f) {
-        return alpha * flip * pressure * overlap * feather;
+        return alpha * flip * pressure * overlap;
       }
       else {
-        return 0.25f * alpha * flip * pressure * overlap * feather;
+        return 0.25f * alpha * flip * pressure * overlap;
       }
 
     case SCULPT_BRUSH_TYPE_NUDGE:
       overlap = (1.0f + overlap) / 2.0f;
-      return alpha * pressure * overlap * feather;
+      return alpha * pressure * overlap;
 
     case SCULPT_BRUSH_TYPE_THUMB:
-      return alpha * pressure * feather;
+      return alpha * pressure;
 
     case SCULPT_BRUSH_TYPE_SNAKE_HOOK:
-      return root_alpha * feather;
+      return root_alpha;
 
     case SCULPT_BRUSH_TYPE_GRAB:
-      return root_alpha * feather;
+      return root_alpha;
 
     case SCULPT_BRUSH_TYPE_ROTATE:
-      return alpha * pressure * feather;
+      return alpha * pressure;
 
     case SCULPT_BRUSH_TYPE_ELASTIC_DEFORM:
     case SCULPT_BRUSH_TYPE_POSE:
     case SCULPT_BRUSH_TYPE_BOUNDARY:
-      return root_alpha * feather;
+      return root_alpha;
     case SCULPT_BRUSH_TYPE_SIMPLIFY:
       /* The Dyntopo Density brush does not use a normal brush workflow to calculate the effect,
        * and this strength value is unused. */
       return 0.0f;
     case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
-      return flip * alpha * pressure * overlap * feather;
+      return flip * alpha * pressure * overlap;
   }
   BLI_assert_unreachable();
   return 0.0f;
@@ -3240,12 +3178,12 @@ float brush_plane_offset_get(const Brush &brush, const SculptSession &ss)
  * \{ */
 
 static void dynamic_topology_update(const Depsgraph &depsgraph,
-                                    const Scene & /*scene*/,
-                                    Sculpt &sd,
-                                    Object &ob,
+                                    const Scene &scene,
                                     const Brush &brush,
-                                    PaintModeSettings & /*paint_mode_settings*/)
+                                    Object &ob,
+                                    PaintModeData * /*paint_mode_data*/)
 {
+  Sculpt &sd = *scene.toolsettings->sculpt;
   SculptSession &ss = *ob.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
@@ -3534,15 +3472,16 @@ static const char *sculpt_brush_type_name(const Brush &brush)
 }
 
 static void do_brush_action(const Depsgraph &depsgraph,
-                            const Scene & /*scene*/,
-                            Sculpt &sd,
-                            Object &ob,
+                            const Scene &scene,
                             const Brush &brush,
-                            PaintModeSettings &paint_mode_settings)
+                            Object &ob,
+                            PaintModeData * /*paint_mode_data*/)
 {
   PRF_scope(ProfileCategory::Editor);
   PRF_scope_set_dynamic_name("%s", sculpt_brush_type_name(brush));
+  Sculpt &sd = *scene.toolsettings->sculpt;
   SculptSession &ss = *ob.runtime->sculpt_session;
+  PaintModeSettings &paint_mode_settings = scene.toolsettings->paint_mode;
   IndexMaskMemory memory;
   IndexMask texnode_mask;
 
@@ -3870,101 +3809,6 @@ void cache_calc_brushdata_symm(StrokeCache &cache,
   }
 }
 
-using BrushActionFunc = void (*)(const Depsgraph &depsgraph,
-                                 const Scene &scene,
-                                 Sculpt &sd,
-                                 Object &ob,
-                                 const Brush &brush,
-                                 PaintModeSettings &paint_mode_settings);
-
-static void do_tiled(const Depsgraph &depsgraph,
-                     const Scene &scene,
-                     Sculpt &sd,
-                     Object &ob,
-                     const Brush &brush,
-                     PaintModeSettings &paint_mode_settings,
-                     const BrushActionFunc action)
-{
-  SculptSession &ss = *ob.runtime->sculpt_session;
-  StrokeCache *cache = ss.cache;
-  const float radius = cache->radius;
-  const Bounds<float3> bb = *BKE_object_boundbox_get(&ob);
-  const float *bbMin = bb.min;
-  const float *bbMax = bb.max;
-  const float *step = sd.paint.tile_offset;
-
-  /* These are integer locations, for real location: multiply with step and add orgLoc.
-   * So 0,0,0 is at orgLoc. */
-  int start[3];
-  int end[3];
-  int cur[3];
-
-  /* Position of the "prototype" stroke for tiling. */
-  float orgLoc[3];
-  float original_initial_location[3];
-  copy_v3_v3(orgLoc, cache->location_symm);
-  copy_v3_v3(original_initial_location, cache->initial_location_symm);
-
-  for (int dim = 0; dim < 3; dim++) {
-    if ((sd.paint.symmetry_flags & (PAINT_TILE_X << dim)) && step[dim] > 0) {
-      start[dim] = (bbMin[dim] - orgLoc[dim] - radius) / step[dim];
-      end[dim] = (bbMax[dim] - orgLoc[dim] + radius) / step[dim];
-    }
-    else {
-      start[dim] = end[dim] = 0;
-    }
-  }
-
-  /* First do the "un-tiled" position to initialize the stroke for this location. */
-  cache->tile_pass = 0;
-  action(depsgraph, scene, sd, ob, brush, paint_mode_settings);
-
-  /* Now do it for all the tiles. */
-  copy_v3_v3_int(cur, start);
-  for (cur[0] = start[0]; cur[0] <= end[0]; cur[0]++) {
-    for (cur[1] = start[1]; cur[1] <= end[1]; cur[1]++) {
-      for (cur[2] = start[2]; cur[2] <= end[2]; cur[2]++) {
-        if (!cur[0] && !cur[1] && !cur[2]) {
-          /* Skip tile at orgLoc, this was already handled before all others. */
-          continue;
-        }
-
-        ++cache->tile_pass;
-
-        for (int dim = 0; dim < 3; dim++) {
-          cache->location_symm[dim] = cur[dim] * step[dim] + orgLoc[dim];
-          cache->plane_offset[dim] = cur[dim] * step[dim];
-          cache->initial_location_symm[dim] = cur[dim] * step[dim] +
-                                              original_initial_location[dim];
-        }
-        action(depsgraph, scene, sd, ob, brush, paint_mode_settings);
-      }
-    }
-  }
-}
-
-static void do_radial_symmetry(const Depsgraph &depsgraph,
-                               const Scene &scene,
-                               Sculpt &sd,
-                               Object &ob,
-                               const Brush &brush,
-                               PaintModeSettings &paint_mode_settings,
-                               const BrushActionFunc action,
-                               const ePaintSymmetryFlags symm,
-                               const int axis,
-                               const float /*feather*/)
-{
-  SculptSession &ss = *ob.runtime->sculpt_session;
-  const Mesh &mesh = *id_cast<Mesh *>(ob.data);
-
-  for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
-    const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];
-    ss.cache->radial_symmetry_pass = i;
-    cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
-    do_tiled(depsgraph, scene, sd, ob, brush, paint_mode_settings, action);
-  }
-}
-
 /**
  * Noise texture gives different values for the same input coord; this
  * can tear a multi-resolution mesh during sculpting so do a stitch in this case.
@@ -3977,45 +3821,6 @@ static void sculpt_fix_noise_tear(const Sculpt &sd, Object &ob)
 
   if (ss.multires_modifier && mtex->tex && mtex->tex->type == TEX_NOISE) {
     multires_stitch_grids(&ob);
-  }
-}
-
-static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
-                                         const Scene &scene,
-                                         Sculpt &sd,
-                                         Object &ob,
-                                         const BrushActionFunc action,
-                                         PaintModeSettings &paint_mode_settings)
-{
-  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const Mesh &mesh = *id_cast<Mesh *>(ob.data);
-  SculptSession &ss = *ob.runtime->sculpt_session;
-  StrokeCache &cache = *ss.cache;
-  const ePaintSymmetryFlags symm = mesh_symmetry_xyz_get(ob);
-
-  float feather = calc_symmetry_feather(sd, symm, mesh, *ss.cache);
-
-  cache.bstrength = brush_strength(sd, cache, feather, paint_mode_settings);
-
-  /* `symm` is a bit combination of XYZ -
-   * 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
-  for (int i = 0; i <= symm; i++) {
-    if (!is_symmetry_iteration_valid(i, symm)) {
-      continue;
-    }
-    const ePaintSymmetryFlags symm = ePaintSymmetryFlags(i);
-    cache.mirror_symmetry_pass = symm;
-    cache.radial_symmetry_pass = 0;
-
-    cache_calc_brushdata_symm(cache, symm, 0, 0);
-    do_tiled(depsgraph, scene, sd, ob, brush, paint_mode_settings, action);
-
-    do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'X', feather);
-    do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'Y', feather);
-    do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'Z', feather);
   }
 }
 
@@ -4587,7 +4392,7 @@ void stroke_modifiers_check(
       (!BKE_sculptsession_use_pbvh_draw(&ob, rv3d) && need_pmap))
   {
     BLI_assert(ss.pbvh->type() == bke::pbvh::Type::Mesh);
-    BKE_sculpt_update_object_for_edit(
+    BKE_sculptsession_update_for_edit(
         &depsgraph, &ob, brush_type_is_paint(brush->sculpt_brush_type));
   }
 }
@@ -5297,7 +5102,7 @@ static void brush_stroke_init(bContext *C, const wmOperator *op)
   /* CTX_data_ensure_evaluated_depsgraph should be used at the end to include the updates of
    * earlier steps modifying the data. */
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  BKE_sculpt_update_object_for_edit(depsgraph, &ob, brush_type_is_paint(brush->sculpt_brush_type));
+  BKE_sculptsession_update_for_edit(depsgraph, &ob, brush_type_is_paint(brush->sculpt_brush_type));
 
   ED_paint_brush_type_update_sticky_shading_color(C, &ob);
 }
@@ -6092,12 +5897,14 @@ void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
 
   if (dyntopo::stroke_is_dyntopo(ob, brush)) {
-    do_symmetrical_brush_actions(
-        depsgraph, scene, sd, ob, dynamic_topology_update, *this->paint_mode_settings_);
+    cache->base_brush_strength = brush_strength(sd, *cache);
+    do_symmetrical_brush_actions_with_tiling_and_feathering(
+        depsgraph, scene, sd.paint, ob, dynamic_topology_update, nullptr);
   }
 
-  do_symmetrical_brush_actions(
-      depsgraph, scene, sd, ob, do_brush_action, *this->paint_mode_settings_);
+  cache->base_brush_strength = brush_strength(sd, *cache);
+  do_symmetrical_brush_actions_with_tiling_and_feathering(
+      depsgraph, scene, sd.paint, ob, do_brush_action, nullptr);
 
   /* Hack to fix noise texture tearing mesh. */
   sculpt_fix_noise_tear(sd, ob);

@@ -5591,13 +5591,13 @@ static bool modifiers_has_animation_check(const Object *ob)
     AnimData *adt = ob->adt;
     if (adt->action != nullptr) {
       for (FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
-        if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
+        if (strstr(fcu->rna_path().c_str(), "modifiers[")) {
           return true;
         }
       }
     }
     for (FCurve &fcu : adt->drivers) {
-      if (fcu.rna_path && strstr(fcu.rna_path, "modifiers[")) {
+      if (strstr(fcu.rna_path().c_str(), "modifiers[")) {
         return true;
       }
     }

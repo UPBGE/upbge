@@ -181,14 +181,14 @@ static void do_version_glare_node_star_45_option_to_input_animation(bNodeTree *n
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old property to the new input. */
-    if (BLI_str_endswith(fcurve->rna_path, "use_rotate_45")) {
-      MEM_delete(fcurve->rna_path);
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_rotate_45")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value"));
     }
   });
 }
@@ -252,32 +252,31 @@ static void do_version_bokeh_image_node_options_to_inputs_animation(bNodeTree *n
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "flaps")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "flaps")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "angle")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "angle")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "rounding")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "rounding")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "catadioptric")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "catadioptric")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "shift")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "shift")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
   });
 }
@@ -310,23 +309,19 @@ static void do_version_time_curve_node_options_to_inputs_animation(bNodeTree *no
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "frame_start")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "frame_start")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "frame_end")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "frame_end")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
   });
 }
@@ -392,35 +387,35 @@ static void do_version_mask_node_options_to_inputs_animation(bNodeTree *node_tre
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "size_x")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "size_x")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "size_y")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "size_y")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_feather")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_feather")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_motion_blur")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_motion_blur")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "motion_blur_samples")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "motion_blur_samples")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "motion_blur_shutter")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "motion_blur_shutter")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
   });
 }
@@ -446,27 +441,24 @@ static void do_version_switch_node_options_to_inputs_animation(bNodeTree *node_t
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "check")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "check")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "inputs[0].default_value")) {
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "inputs[0].default_value")) {
       /* The new input was added at the start, so offset the animation indices by 1. */
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "inputs[1].default_value")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "inputs[1].default_value")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
   });
 }
@@ -492,29 +484,26 @@ static void do_version_split_node_options_to_inputs_animation(bNodeTree *node_tr
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "factor")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "factor")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value"));
       adjust_fcurve_key_frame_values(
           fcurve, PROP_FLOAT, [&](const float value) { return value / 100.0f; });
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "inputs[0].default_value")) {
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "inputs[0].default_value")) {
       /* The new input was added at the start, so offset the animation indices by 1. */
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "inputs[1].default_value")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "inputs[1].default_value")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
   });
 }
@@ -548,23 +537,19 @@ static void do_version_invert_node_options_to_inputs_animation(bNodeTree *node_t
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "invert_rgb")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "invert_rgb")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "invert_alpha")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "invert_alpha")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -597,23 +582,19 @@ static void do_version_z_combine_node_options_to_inputs_animation(bNodeTree *nod
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "use_alpha")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_alpha")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_antialias_z")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_antialias_z")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
   });
 }
@@ -690,38 +671,39 @@ static void do_version_tone_map_node_options_to_inputs_animation(bNodeTree *node
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "key")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "key")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "offset")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "offset")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "gamma")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "gamma")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "intensity")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "intensity")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "contrast")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "contrast")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "adaptation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "adaptation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "correction")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "correction")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value"));
     }
   });
 }
@@ -753,23 +735,19 @@ static void do_version_dilate_node_options_to_inputs_animation(bNodeTree *node_t
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "distance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "distance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "edge")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "edge")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
   });
 }
@@ -795,20 +773,15 @@ static void do_version_inpaint_node_options_to_inputs_animation(bNodeTree *node_
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "distance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "distance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
   });
 }
@@ -834,20 +807,15 @@ static void do_version_pixelate_node_options_to_inputs_animation(bNodeTree *node
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "pixel_size")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "pixel_size")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
   });
 }
@@ -896,29 +864,27 @@ static void do_version_kuwahara_node_options_to_inputs_animation(bNodeTree *node
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "uniformity")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "uniformity")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "sharpness")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "sharpness")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "eccentricity")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "eccentricity")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "high_precision")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "high_precision")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
   });
 }
@@ -956,23 +922,19 @@ static void do_version_despeckle_node_options_to_inputs_animation(bNodeTree *nod
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "threshold")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "threshold")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "threshold_neighbor")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "threshold_neighbor")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -1003,20 +965,15 @@ static void do_version_denoise_node_options_to_inputs_animation(bNodeTree *node_
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "use_hdr")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_hdr")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -1064,29 +1021,26 @@ static void do_version_anti_alias_node_options_to_inputs_animation(bNodeTree *no
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "threshold")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "threshold")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "contrast_limit")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "contrast_limit")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
       /* Contrast limit was previously divided by 10. */
       adjust_fcurve_key_frame_values(
           fcurve, PROP_FLOAT, [&](const float value) { return value * 10.0f; });
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "corner_rounding")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "corner_rounding")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -1128,26 +1082,22 @@ static void do_version_vector_blur_node_options_to_inputs_animation(bNodeTree *n
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "samples")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "samples")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "factor")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "factor")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
       /* Shutter was previously divided by 2. */
       adjust_fcurve_key_frame_values(
           fcurve, PROP_FLOAT, [&](const float value) { return value * 2.0f; });
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
     }
   });
 }
@@ -1185,23 +1135,19 @@ static void do_version_channel_matte_node_options_to_inputs_animation(bNodeTree 
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "limit_min")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "limit_min")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "limit_max")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "limit_max")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
   });
 }
@@ -1248,26 +1194,23 @@ static void do_version_chroma_matte_node_options_to_inputs_animation(bNodeTree *
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "threshold")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "threshold")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "tolerance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "tolerance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "gain")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "gain")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
   });
 }
@@ -1314,26 +1257,23 @@ static void do_version_color_matte_node_options_to_inputs_animation(bNodeTree *n
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "color_hue")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "color_hue")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "color_saturation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "color_saturation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "color_value")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "color_value")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
   });
 }
@@ -1374,23 +1314,19 @@ static void do_version_difference_matte_node_options_to_inputs_animation(bNodeTr
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "tolerance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "tolerance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "falloff")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "falloff")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -1428,23 +1364,19 @@ static void do_version_distance_matte_node_options_to_inputs_animation(bNodeTree
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "tolerance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "tolerance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "falloff")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "falloff")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -1485,23 +1417,19 @@ static void do_version_luminance_matte_node_options_to_inputs_animation(bNodeTre
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "limit_min")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "limit_min")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "limit_max")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "limit_max")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
   });
 }
@@ -1552,35 +1480,34 @@ static void do_version_color_spill_node_options_to_inputs_animation(bNodeTree *n
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "ratio")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "ratio")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_unspill")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_unspill")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "unspill_red")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "unspill_red")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
       fcurve->array_index = 0;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "unspill_green")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "unspill_green")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
       fcurve->array_index = 1;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "unspill_blue")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "unspill_blue")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
       fcurve->array_index = 2;
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
     }
   });
 }
@@ -1612,20 +1539,15 @@ static void do_version_keying_screen_node_options_to_inputs_animation(bNodeTree 
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "smoothness")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "smoothness")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[0].default_value"));
     }
   });
 }
@@ -1741,50 +1663,55 @@ static void do_version_keying_node_options_to_inputs_animation(bNodeTree *node_t
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "blur_pre")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "blur_pre")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "screen_balance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "screen_balance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "clip_black")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "clip_black")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "clip_white")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "clip_white")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "edge_kernel_radius")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "edge_kernel_radius")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "edge_kernel_tolerance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "edge_kernel_tolerance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "blur_post")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[10].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "blur_post")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[10].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "dilate_distance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "dilate_distance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "feather_distance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[12].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "feather_distance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[12].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "despill_factor")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "despill_factor")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "despill_balance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "despill_balance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value"));
     }
   });
 }
@@ -1816,23 +1743,19 @@ static void do_version_id_mask_node_options_to_inputs_animation(bNodeTree *node_
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "index")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "index")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_antialiasing")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_antialiasing")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
   });
 }
@@ -1859,20 +1782,15 @@ static void do_version_stabilize_node_options_to_inputs_animation(bNodeTree *nod
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "invert")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "invert")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
   });
 }
@@ -1916,26 +1834,23 @@ static void do_version_plane_track_deform_node_options_to_inputs_animation(bNode
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "use_motion_blur")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_motion_blur")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "motion_blur_samples")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "motion_blur_samples")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "motion_blur_shutter")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "motion_blur_shutter")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -2154,95 +2069,115 @@ static void do_version_color_correction_node_options_to_inputs_animation(bNodeTr
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "use_motion_blur")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_motion_blur")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "master_saturation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "master_saturation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "master_contrast")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "master_contrast")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "master_gamma")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "master_gamma")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "master_gain")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "master_gain")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "master_lift")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "master_lift")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "highlights_saturation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "highlights_saturation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "highlights_contrast")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[8].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "highlights_contrast")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[8].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "highlights_gamma")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[9].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "highlights_gamma")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[9].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "highlights_gain")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[10].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "highlights_gain")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[10].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "highlights_lift")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "highlights_lift")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "midtones_saturation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[12].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "midtones_saturation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[12].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "midtones_contrast")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "midtones_contrast")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "midtones_gamma")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "midtones_gamma")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "midtones_gain")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[15].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "midtones_gain")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[15].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "midtones_lift")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[16].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "midtones_lift")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[16].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "shadows_saturation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[17].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "shadows_saturation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[17].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "shadows_contrast")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[18].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "shadows_contrast")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[18].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "shadows_gamma")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[19].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "shadows_gamma")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[19].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "shadows_gain")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[20].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "shadows_gain")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[20].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "shadows_lift")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[21].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "shadows_lift")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[21].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "midtones_start")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[22].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "midtones_start")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[22].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "midtones_end")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[23].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "midtones_end")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[23].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "red")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[24].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "red")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[24].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "green")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[25].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "green")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[25].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "blue")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[26].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "blue")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[26].default_value"));
     }
   });
 }
@@ -2284,26 +2219,22 @@ static void do_version_lens_distortion_node_options_to_inputs_animation(bNodeTre
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "use_jitter")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_jitter")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_fit")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_fit")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_projector")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "distortion_type");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_projector")) {
+      fcurve->rna_path_set_move(BLI_sprintfN("%s.%s", node_rna_path.c_str(), "distortion_type"));
     }
   });
 }
@@ -2351,36 +2282,35 @@ static void do_version_box_mask_node_options_to_inputs_animation(bNodeTree *node
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "x")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "x")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
       fcurve->array_index = 0;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "y")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "y")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
       fcurve->array_index = 1;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "mask_width")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "mask_width")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
       fcurve->array_index = 0;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "mask_height")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "mask_height")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
       fcurve->array_index = 1;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "rotation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "rotation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
   });
 }
@@ -2429,36 +2359,35 @@ static void do_version_ellipse_mask_node_options_to_inputs_animation(bNodeTree *
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "x")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "x")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
       fcurve->array_index = 0;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "y")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "y")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
       fcurve->array_index = 1;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "mask_width")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "mask_width")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
       fcurve->array_index = 0;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "mask_height")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "mask_height")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
       fcurve->array_index = 1;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "rotation")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "rotation")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
   });
 }
@@ -2500,23 +2429,19 @@ static void do_version_sun_beams_node_options_to_inputs_animation(bNodeTree *nod
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "source")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "source")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "ray_length")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "ray_length")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
   });
 }
@@ -2583,43 +2508,44 @@ static void do_version_directional_blur_node_options_to_inputs_animation(bNodeTr
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "iterations")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "iterations")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "center_x")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "center_x")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
       fcurve->array_index = 0;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "center_y")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "center_y")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
       fcurve->array_index = 1;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "spin")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "spin")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "zoom")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "zoom")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
       /* Scale was previously minus 1. */
       adjust_fcurve_key_frame_values(
           fcurve, PROP_FLOAT, [&](const float value) { return value + 1.0f; });
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "distance")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "distance")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "angle")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "angle")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value"));
     }
   });
 }
@@ -2662,23 +2588,19 @@ static void do_version_bilateral_blur_node_options_to_inputs_animation(bNodeTree
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "iterations")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "iterations")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "sigma_color")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "sigma_color")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -2985,20 +2907,15 @@ static void do_version_alpha_over_node_options_to_inputs_animation(bNodeTree *no
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "use_premultiply")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_premultiply")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
   });
 }
@@ -3025,20 +2942,15 @@ static void do_version_bokeh_blur_node_options_to_inputs_animation(bNodeTree *no
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "use_extended_bounds")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_extended_bounds")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
   });
 }
@@ -3538,34 +3450,33 @@ static void do_version_crop_node_options_to_inputs_animation(bNodeTree *node_tre
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "min_x")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "min_x")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "max_y")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "max_y")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "max_x")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "max_x")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "min_y")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "min_y")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_crop_size")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_crop_size")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
       adjust_fcurve_key_frame_values(
           fcurve, PROP_BOOLEAN, [&](const float value) { return 1.0f - value; });
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
     }
   });
 }
@@ -3670,50 +3581,55 @@ static void do_version_color_balance_node_options_to_inputs_animation(bNodeTree 
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "lift")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "lift")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "gamma")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "gamma")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "gain")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "gain")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "offset_basis")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[8].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "offset_basis")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[8].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "offset")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[9].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "offset")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[9].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "power")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "power")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "slope")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "slope")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "input_temperature")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "input_temperature")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "input_tint")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[15].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "input_tint")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[15].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "output_temperature")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[16].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "output_temperature")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[16].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "output_tint")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[17].default_value");
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "output_tint")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[17].default_value"));
     }
   });
 }
@@ -3973,33 +3889,31 @@ static void do_version_blur_node_options_to_inputs_animation(bNodeTree *node_tre
   BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
     /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
      * path. */
-    if (!StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+    if (!fcurve->rna_path().startswith(node_rna_path)) {
       return;
     }
 
     /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
      * values of the FCurves frames when needed. */
-    char *old_rna_path = fcurve->rna_path;
-    if (BLI_str_endswith(fcurve->rna_path, "size_x")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    if (BLI_str_endswith(fcurve->rna_path().c_str(), "size_x")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
       fcurve->array_index = 0;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "size_y")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "size_y")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[1].default_value"));
       fcurve->array_index = 1;
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_extended_bounds")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_extended_bounds")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value"));
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "use_bokeh")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    else if (BLI_str_endswith(fcurve->rna_path().c_str(), "use_bokeh")) {
+      fcurve->rna_path_set_move(
+          BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value"));
       adjust_fcurve_key_frame_values(
           fcurve, PROP_BOOLEAN, [&](const float value) { return 1.0f - value; });
-    }
-
-    /* The RNA path was changed, free the old path. */
-    if (fcurve->rna_path != old_rna_path) {
-      MEM_delete(old_rna_path);
     }
   });
 }
@@ -4156,7 +4070,8 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
             PointerRNA slot_user_ptr = RNA_id_pointer_create(slot_user);
             PointerRNA ptr;
             PropertyRNA *prop;
-            if (!RNA_path_resolve_property(&slot_user_ptr, fcurve.rna_path, &ptr, &prop)) {
+            if (!RNA_path_resolve_property(&slot_user_ptr, fcurve.rna_path().c_str(), &ptr, &prop))
+            {
               continue;
             }
 

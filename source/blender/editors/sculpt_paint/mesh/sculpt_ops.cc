@@ -98,7 +98,7 @@ static wmOperatorStatus set_persistent_base_exec(bContext *C, wmOperator * /*op*
     return OPERATOR_CANCELLED;
   }
 
-  BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
+  BKE_sculptsession_update_for_edit(depsgraph, &ob, false);
 
   switch (bke::object::pbvh_get(ob)->type()) {
     case bke::pbvh::Type::Mesh: {
@@ -321,8 +321,7 @@ static void SCULPT_OT_symmetrize(wmOperatorType *ot)
 
 static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob)
 {
-  /* Create persistent sculpt mode data. */
-  BKE_sculpt_toolsettings_data_ensure(&bmain, &scene);
+  BKE_paint_init(&bmain, &scene, PaintMode::Sculpt, true);
 
   /* Create sculpt mode session data. */
   if (ob.runtime->sculpt_session != nullptr) {
@@ -340,7 +339,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
   BKE_scene_graph_evaluated_ensure(&depsgraph, &bmain);
 
   /* This function expects a fully evaluated depsgraph. */
-  BKE_sculpt_update_object_for_edit(&depsgraph, &ob, false);
+  BKE_sculptsession_update_for_edit(&depsgraph, &ob, false);
 
   Mesh &mesh = *id_cast<Mesh *>(ob.data);
   if (mesh.attributes().contains(".sculpt_face_set")) {
@@ -771,7 +770,7 @@ static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 
     return OPERATOR_CANCELLED;
   }
 
-  BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
+  BKE_sculptsession_update_for_edit(depsgraph, &ob, false);
 
   /* Tools that are not brushes do not have the brush gizmo to update the vertex as the mouse move,
    * so it needs to be updated here. */
@@ -1117,7 +1116,7 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
 
   ed::sculpt_paint::mask_overlay_check(*C, *op);
 
-  BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
+  BKE_sculptsession_update_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);
 
   const ApplyMaskMode mode = ApplyMaskMode(RNA_enum_get(op->ptr, "mix_mode"));
@@ -1334,7 +1333,7 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
 
   ed::sculpt_paint::mask_overlay_check(*C, *op);
 
-  BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
+  BKE_sculptsession_update_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);
 
   const ApplyMaskMode mode = ApplyMaskMode(RNA_enum_get(op->ptr, "mix_mode"));

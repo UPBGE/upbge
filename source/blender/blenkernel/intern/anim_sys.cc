@@ -357,7 +357,7 @@ static bool is_fcurve_evaluatable(const FCurve *fcu)
 }
 
 bool BKE_animsys_rna_path_resolve(
-    PointerRNA *ptr, /* typically 'fcu->rna_path', 'fcu->array_index' */
+    PointerRNA *ptr, /* typically 'fcu->rna_path()', 'fcu->array_index' */
     const char *rna_path,
     const int array_index,
     PathResolvedRNA *r_result)
@@ -591,12 +591,14 @@ static void animsys_evaluate_fcurves_sequential(PointerRNA *ptr,
       continue;
     }
 
+    const StringRefNull rna_path = fcu->rna_path();
+
     PathResolvedRNA anim_rna;
-    if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+    if (BKE_animsys_rna_path_resolve(ptr, rna_path.c_str(), fcu->array_index, &anim_rna)) {
       const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
       BKE_animsys_write_to_rna_path(&anim_rna, curval);
       if (flush_to_original) {
-        animsys_write_orig_anim_rna(ptr, fcu->rna_path, fcu->array_index, curval);
+        animsys_write_orig_anim_rna(ptr, rna_path.c_str(), fcu->array_index, curval);
       }
     }
   }
@@ -867,7 +869,7 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
    * current rotation mode of the `ptr`. Also quaternions need to be handled together. */
   Map<StringRefNull, Vector<FCurve *>> rotation_fcurve_map;
   for (FCurve *fcurve : fcurves) {
-    StringRefNull rna_path(fcurve->rna_path);
+    StringRefNull rna_path = fcurve->rna_path();
 
     if (!is_fcurve_evaluatable(fcurve)) {
       continue;
@@ -932,12 +934,13 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
       continue;
     }
 
-    if (rotation_fcurve_map.contains(StringRefNull(fcu->rna_path))) {
+    const StringRefNull rna_path = fcu->rna_path();
+    if (rotation_fcurve_map.contains(rna_path)) {
       continue;
     }
 
     PathResolvedRNA anim_rna;
-    if (!BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+    if (!BKE_animsys_rna_path_resolve(ptr, rna_path.c_str(), fcu->array_index, &anim_rna)) {
       continue;
     }
 
@@ -985,7 +988,8 @@ static void animsys_evaluate_drivers(PointerRNA *ptr,
          * NOTE: for 'layering' option later on, we should check if we should remove old value
          * before adding new to only be done when drivers only changed. */
         PathResolvedRNA anim_rna;
-        if (BKE_animsys_rna_path_resolve(ptr, fcu.rna_path, fcu.array_index, &anim_rna)) {
+        if (BKE_animsys_rna_path_resolve(ptr, fcu.rna_path().c_str(), fcu.array_index, &anim_rna))
+        {
           const float curval = calculate_fcurve(&anim_rna, &fcu, anim_eval_context);
           ok = BKE_animsys_write_to_rna_path(&anim_rna, curval);
         }
@@ -1021,7 +1025,8 @@ void animsys_evaluate_action_group(PointerRNA *ptr,
     /* check if this curve should be skipped */
     if ((fcu->flag & FCURVE_MUTED) == 0 && !BKE_fcurve_is_empty(fcu)) {
       PathResolvedRNA anim_rna;
-      if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+      if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path().c_str(), fcu->array_index, &anim_rna))
+      {
         const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
         BKE_animsys_write_to_rna_path(&anim_rna, curval);
       }
@@ -2779,7 +2784,7 @@ static void nlasnapshot_from_action(PointerRNA *ptr,
       continue;
     }
 
-    NlaEvalChannel *nec = nlaevalchan_verify(ptr, channels, fcu->rna_path);
+    NlaEvalChannel *nec = nlaevalchan_verify(ptr, channels, fcu->rna_path().c_str());
 
     /* Invalid path or property cannot be animated. */
     if (nec == nullptr) {
@@ -3272,7 +3277,7 @@ static void nla_eval_domain_action(PointerRNA *ptr,
       continue;
     }
 
-    NlaEvalChannel *nec = nlaevalchan_verify(ptr, channels, fcu->rna_path);
+    NlaEvalChannel *nec = nlaevalchan_verify(ptr, channels, fcu->rna_path().c_str());
 
     if (nec != nullptr) {
       /* For quaternion properties, enable all sub-channels. */
@@ -4172,7 +4177,8 @@ void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id_eval)
   for (FCurve &fcu : adt->drivers) {
     /* Resolve the driver RNA path. */
     PathResolvedRNA anim_rna;
-    if (!BKE_animsys_rna_path_resolve(&id_ptr, fcu.rna_path, fcu.array_index, &anim_rna)) {
+    const StringRefNull rna_path = fcu.rna_path();
+    if (!BKE_animsys_rna_path_resolve(&id_ptr, rna_path.c_str(), fcu.array_index, &anim_rna)) {
       continue;
     }
 
@@ -4187,7 +4193,7 @@ void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id_eval)
 
     if (is_active_depsgraph) {
       /* Also un-share the original data, as the driver evaluation will write here too. */
-      animsys_write_orig_anim_rna(&id_ptr, fcu.rna_path, fcu.array_index, curval);
+      animsys_write_orig_anim_rna(&id_ptr, rna_path.c_str(), fcu.array_index, curval);
     }
   }
 }
@@ -4218,7 +4224,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
   }
 
   DEG_debug_print_eval_subdata_index(
-      depsgraph, __func__, id->name, id, "fcu", fcu->rna_path, fcu, fcu->array_index);
+      depsgraph, __func__, id->name, id, "fcu", fcu->rna_path().c_str(), fcu, fcu->array_index);
 
   PointerRNA id_ptr = RNA_id_pointer_create(id);
 
@@ -4234,7 +4240,8 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
       // printf("\told val = %f\n", fcu->curval);
 
       PathResolvedRNA anim_rna;
-      if (BKE_animsys_rna_path_resolve(&id_ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+      const StringRefNull rna_path = fcu->rna_path();
+      if (BKE_animsys_rna_path_resolve(&id_ptr, rna_path.c_str(), fcu->array_index, &anim_rna)) {
         /* Evaluate driver, and write results to copy-on-eval-domain destination */
         const float ctime = DEG_get_ctime(depsgraph);
         const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
@@ -4244,7 +4251,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 
         /* Flush results & status codes to original data for UI (#59984) */
         if (ok && DEG_is_active(depsgraph)) {
-          animsys_write_orig_anim_rna(&id_ptr, fcu->rna_path, fcu->array_index, curval);
+          animsys_write_orig_anim_rna(&id_ptr, rna_path.c_str(), fcu->array_index, curval);
 
           /* curval is displayed in the UI, and flag contains error-status codes */
           fcu_orig->runtime->curval = fcu->runtime->curval;
@@ -4272,7 +4279,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
                   "Invalid driver on %s '%s' - %s[%d]",
                   BKE_idtype_idcode_to_name(GS(id->name)),
                   id->name + 2,
-                  fcu->rna_path,
+                  rna_path.c_str(),
                   fcu->array_index);
         driver_orig->flag |= DRIVER_FLAG_INVALID;
       }

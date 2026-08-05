@@ -1756,6 +1756,7 @@ if(WITH_UI_TESTS)
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
     test_bpy_types.unregister_referenced_type
+    test_sequencer.compositor_modifier_mask_with_single_input
     test_pie_menus.test_object_mode_pie_edit
     test_pie_menus.test_snap_pie_cursor_to_world_origin
     test_pie_menus.test_pivot_pie_cursor
@@ -1783,6 +1784,10 @@ if(WITH_UI_TESTS)
     test_pie_menus.test_anim_keyframe_insert_pie_location
     test_pie_menus.test_weight_paint_vgroup_lock_pie
     test_button_input.test_string_buttons_interactions
+    test_tool_activation.view3d
+    test_tool_activation.image_editor
+    test_tool_activation.node_editor
+    test_tool_activation.sequencer
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
