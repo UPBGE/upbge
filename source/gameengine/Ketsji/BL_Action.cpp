@@ -364,7 +364,7 @@ static bool ActionMatchesName(blender::bAction *action, char *name, eActionType 
       }
       for (Channelbag *bag : strip->data<StripKeyframeData>(new_action).channelbags()) {
         for (FCurve *fcu : bag->fcurves()) {
-          if (fcu->rna_path) {
+          if (fcu->rna_path_ptr) {
             char pattern[256];
             char md_name_esc[sizeof(name) * 2];
             switch (type) {
@@ -388,7 +388,7 @@ static bool ActionMatchesName(blender::bAction *action, char *name, eActionType 
             // std::cout << "data name: " << pattern << std::endl;
             /* Find a correspondance between ob->modifier/ob->constraint... and actuator action
              * (m_action) */
-            if (strstr(fcu->rna_path, pattern)) {
+            if (strstr(fcu->rna_path_ptr, pattern)) {
               // std::cout << "fcu and name match" << std::endl;
               return true;
             }

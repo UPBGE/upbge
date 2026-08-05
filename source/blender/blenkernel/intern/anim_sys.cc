@@ -632,15 +632,15 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
     if (!is_fcurve_evaluatable(fcu)) {
       continue;
     }
-    if (!fcu->rna_path) {
+    if (!fcu->rna_path_ptr) {
       continue;
     }
 
-    auto it = groups_index.find(fcu->rna_path);
+    auto it = groups_index.find(fcu->rna_path_ptr);
     if (it == groups_index.end()) {
       const int new_idx = int(groups.size());
       groups.emplace_back();
-      groups_index.emplace(fcu->rna_path, new_idx);
+      groups_index.emplace(fcu->rna_path_ptr, new_idx);
       groups[new_idx].append(fcu);
     }
     else {
@@ -656,11 +656,11 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
       /* Inside same group, sequential (same property) */
       for (FCurve *fcu : group_fcurves) {
         PathResolvedRNA anim_rna;
-        if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+        if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path_ptr, fcu->array_index, &anim_rna)) {
           const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
           BKE_animsys_write_to_rna_path(&anim_rna, curval);
           if (flush_to_original) {
-            animsys_write_orig_anim_rna(ptr, fcu->rna_path, fcu->array_index, curval);
+            animsys_write_orig_anim_rna(ptr, fcu->rna_path_ptr, fcu->array_index, curval);
           }
         }
       }

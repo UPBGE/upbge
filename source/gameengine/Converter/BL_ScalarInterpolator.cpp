@@ -95,7 +95,7 @@ BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const std::str
 {
   for (BL_ScalarInterpolator &interp : m_interpolators) {
     FCurve *fcu = interp.GetFCurve();
-    if (array_index == fcu->array_index && rna_path == fcu->rna_path) {
+    if (array_index == fcu->array_index && rna_path == fcu->rna_path_ptr) {
       return &interp;
     }
   }
