@@ -779,7 +779,7 @@ static bool rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
     is_userdef = true;
   }
   else if (ptr->owner_id) {
-    switch (GS(ptr->owner_id->name)) {
+    switch (ptr->owner_id->id_type()) {
       case ID_WM: {
         for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
           if (RNA_struct_is_a(ancestor.type, RNA_KeyConfigPreferences)) {
@@ -2181,6 +2181,12 @@ static void selectcontext_apply(bContext *C,
 
 static bool but_drag_init(bContext *C, Button *but, HandleButtonData *data, const wmEvent *event)
 {
+  /* Prevent #TIMER events from initializing drag events which can overlap with #KM_PRESS_DRAG
+   * events, see #161044.  */
+  if (ISTIMER(event->type)) {
+    return false;
+  }
+
   /* prevent other WM gestures to start while we try to drag */
   WM_gestures_remove(CTX_wm_window(C));
 
