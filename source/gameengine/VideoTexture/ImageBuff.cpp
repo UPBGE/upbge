@@ -137,6 +137,8 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
     m_imbuf->byte_buffer.sharing_info->tag_ensured_mutable();
   }
   IMB_rectblend(m_imbuf,
+                m_imbuf->byte_data_for_write(),
+                nullptr,
                 m_imbuf,
                 tmpbuf,
                 nullptr,
@@ -179,6 +181,8 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
     m_imbuf->byte_buffer.sharing_info->tag_ensured_mutable();
   }
   IMB_rectblend(m_imbuf,
+                m_imbuf->byte_data_for_write(),
+                nullptr,
                 m_imbuf,
                 img->m_imbuf,
                 nullptr,

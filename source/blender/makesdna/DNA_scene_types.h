@@ -2922,7 +2922,7 @@ struct SceneEEVEE {
   float light_threshold = 0.01f;
 
   float time_limit = 0.0f;
-  char _pad2[12] = {};
+  char _pad50[12] = {};
 };
 
 struct SceneGpencil {
