@@ -268,13 +268,6 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
 
 void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 {
-  if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-    SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 8);
-  }
-  if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-    SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 9);
-  }
-
   for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
     const std::string &prop = m_properties[i];
     unsigned int uniformLoc = m_propertiesLoc[i];
