@@ -461,6 +461,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       image_zdepth
       imgdisplay
       import
+      import_export
       indirect_only_off
       indirect_only_on
       info
