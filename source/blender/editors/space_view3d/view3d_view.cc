@@ -55,6 +55,7 @@
 
 #ifdef WITH_GAMEENGINE
 #  include "BKE_callbacks.hh"
+#  include "BKE_camera.h"
 #  include "BKE_image.hh"
 #  include "BKE_image_gpu.hh"
 
@@ -1665,10 +1666,8 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 
   if (rv3d->persp == RV3D_CAMOB) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    /* Letterbox */
-    rctf cam_framef;
-    ED_view3d_calc_camera_border(
-        startscene, depsgraph, ar, CTX_wm_view3d(C), rv3d, false, false, &cam_framef);
+    const rctf cam_framef = BKE_camera_view_border(
+        startscene, depsgraph, CTX_wm_view3d(C), rv3d, ar->winx, ar->winy, false, false, true);
     cam_frame.xmin = cam_framef.xmin + ar->winrct.xmin;
     cam_frame.xmax = cam_framef.xmax + ar->winrct.xmin;
     cam_frame.ymin = cam_framef.ymin + ar->winrct.ymin;
