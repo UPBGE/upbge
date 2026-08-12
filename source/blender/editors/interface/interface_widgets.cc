@@ -2420,7 +2420,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 #ifdef WITH_INPUT_IME
     /* IME cursor following. */
     if (ime_reposition_window) {
-      button_ime_reposition(but, ime_win_x, ime_win_y, false);
+      button_ime_reposition(but, ime_win_x, ime_win_y);
     }
 #endif
   }
@@ -2707,7 +2707,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 #ifdef WITH_INPUT_IME
     /* IME cursor following. */
     if (ime_reposition_window) {
-      button_ime_reposition(but, ime_win_x, ime_win_y, false);
+      button_ime_reposition(but, ime_win_x, ime_win_y);
     }
     if (ime_data && !ime_data->composite.empty()) {
       /* Composite underline. */

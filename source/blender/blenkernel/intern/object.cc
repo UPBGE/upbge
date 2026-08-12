@@ -1575,10 +1575,16 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
   /* When loading undo steps, for objects in modes that use `sculpt_session`, recreate the mode
    * runtime data. For regular non-undo reading, this is currently handled by mode switching after
    * the initial file read. */
-  if (BLO_read_lib_is_undo(reader) && ob->mode & OB_MODE_ALL_SCULPT &&
-      ob->runtime->sculpt_session == nullptr)
-  {
-    BKE_object_sculpt_data_create(ob);
+  if (BLO_read_lib_is_undo(reader) && ob->mode & OB_MODE_ALL_SCULPT) {
+    /* The runtime may have been created in a non-matching mode and should be deleted here. */
+    if (ob->runtime->sculpt_session != nullptr &&
+        ob->runtime->sculpt_session->mode_type != ob->mode)
+    {
+      BKE_sculptsession_free(ob);
+    }
+    if (ob->runtime->sculpt_session == nullptr) {
+      BKE_object_sculpt_data_create(ob);
+    }
   }
 }
 
@@ -2144,16 +2150,21 @@ static void object_update_from_subsurf_ccg(Object *object)
   if (object->type != OB_MESH) {
     return;
   }
-  /* If object does not own evaluated mesh we can not access it since it might be freed already
-   * (happens on dependency graph free where order of evaluated IDs free is undefined).
-   *
-   * Good news is: such mesh does not have modifiers applied, so no need to worry about CCG. */
-  if (!object->runtime->is_data_eval_owned) {
+  const bke::GeometrySet *geometry_set_eval = object->runtime->geometry_set_eval;
+  if (geometry_set_eval == nullptr) {
+    /* Object was never evaluated, so can not have CCG subdivision surface. */
     return;
   }
-  /* Object was never evaluated, so can not have CCG subdivision surface. If it were evaluated, do
-   * not try to compute OpenSubDiv on the CPU as it is not needed here. */
-  Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(object);
+  /* Check for owns_direct_data() which may reference the original mesh from before modifier
+   * evaluation. In that case the mesh can't be read, because it's a separately owned ID that most
+   * likely comes from the object's copy-on-eval modifier input mesh which the depsgraph free
+   * destroys in an undefined order. For non read-only ownership types, the GeometrySet will have a
+   * user for the mesh, so it can be safely read here. */
+  const auto *mesh_component = geometry_set_eval->get_component<bke::MeshComponent>();
+  if (mesh_component == nullptr || !mesh_component->owns_direct_data()) {
+    return;
+  }
+  const Mesh *mesh_eval = mesh_component->get();
   if (mesh_eval == nullptr) {
     return;
   }
