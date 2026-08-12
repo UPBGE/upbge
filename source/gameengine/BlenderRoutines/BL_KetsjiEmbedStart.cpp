@@ -215,10 +215,11 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
   gs.glslflag = startscene->gm.flag;
 
   if (startscene->gm.flag & GAME_USE_UNDO) {
-    BKE_undosys_step_push(CTX_wm_manager(C)->runtime->undo_stack, C, "bge_start");
+    BKE_undosys_step_push(
+        CTX_wm_manager(C)->runtime->undo_stack, C, "bge_start", UndoEncodeHints::None);
     /* Temp hack to fix issue with undo https://github.com/UPBGE/upbge/issues/1516 */
     /* https://github.com/UPBGE/upbge/commit/1b4d5c7a35597a70411515f721a405416244b540 */
-    BKE_undosys_step_push(CTX_wm_manager(C)->runtime->undo_stack, C, "pre");
+    BKE_undosys_step_push(CTX_wm_manager(C)->runtime->undo_stack, C, "pre", UndoEncodeHints::None);
   }
 
   /* Make sure we'll use old undo at bge exit to properly restore scene
