@@ -6825,8 +6825,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_frame_rate", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_ENABLE_ALL_FRAMES);
   RNA_def_property_ui_text(prop,
-                           "Use Frame Rate",
-                           "Respect the frame rate from the Physics panel in the world properties "
+                           "Limit to Game Physics FPS",
+                           "Respect the frame rate set in the Scene tab from the Game Physics panel "
                            "rather than rendering as many frames as possible");
 
   prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
