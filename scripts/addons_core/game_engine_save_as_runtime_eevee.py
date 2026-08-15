@@ -273,10 +273,14 @@ def WriteRuntime(player_path, output_path, new_icon_path, copy_python, overwrite
     src = os.path.join(blender_dir, "license")
     dst = os.path.join(runtime_dir, "engine.license")
     shutil.copytree(src, dst)
-    license_folder = os.path.join(runtime_dir, "engine.license")
-    src = os.path.join(blender_dir, "copyright.txt")
-    dst = os.path.join(license_folder, "copyright.txt")
-    shutil.copy2(src, dst)
+    # I comment the following part of the script as copyright.txt
+    # (source/release/text/copyright.txt) file
+    # sounds not bundled in compiled release. License folder has already many
+    # files, including upbge related things (youle).
+    #license_folder = os.path.join(runtime_dir, "engine.license")
+    #src = os.path.join(blender_dir, "copyright.txt")
+    #dst = os.path.join(license_folder, "copyright.txt")
+    #shutil.copy2(src, dst)
     print("done")
 
 from bpy.props import *
