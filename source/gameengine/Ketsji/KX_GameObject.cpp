@@ -335,6 +335,9 @@ void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
   /* For upbge dupli instances, transform updates are handled in
    * static void bge_dupli_provider(DEGObjectIterData *data) (KX_Scene) */
   if (m_isUpbgeDupliInstance) {
+    if (is_last_render_pass) {
+      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+    }
     return;
   }
   /* 1. Apply BGE SceneGraph gameobj WorldTransform to the evaluated object. (Priority to
