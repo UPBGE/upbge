@@ -692,7 +692,7 @@ void KX_Scene::PrepareGPUViewport(KX_Camera *cam)
 {
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
   if (!useViewportRender) {  // Custom bge render loop only
-    SetCurrentGPUViewport(cam->GetGPUViewport());
+    SetCurrentGPUViewport(cam->GetOrCreateGPUViewport());
   }
 }
 

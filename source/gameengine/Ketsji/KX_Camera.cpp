@@ -102,7 +102,7 @@ void KX_Camera::SetCameraData(const RAS_CameraData &camdata)
   m_camdata = camdata;
 }
 
-blender::GPUViewport *KX_Camera::GetGPUViewport()
+blender::GPUViewport *KX_Camera::GetOrCreateGPUViewport()
 {
   if (!m_gpuViewport) {
     m_gpuViewport = GPU_viewport_create();

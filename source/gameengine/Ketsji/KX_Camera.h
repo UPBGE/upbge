@@ -128,7 +128,7 @@ class KX_Camera : public KX_GameObject {
   KX_Camera();
   virtual ~KX_Camera();
 
-  blender::GPUViewport *GetGPUViewport();
+  blender::GPUViewport *GetOrCreateGPUViewport();
 
   virtual KX_PythonProxy *NewInstance();
   virtual void ProcessReplica();
