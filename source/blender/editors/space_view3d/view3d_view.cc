@@ -1520,7 +1520,7 @@ static void game_engine_save_state(bContext *C, wmWindow *win)
               GPU_BLEND_BIT);*/
 
   if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
-    BKE_image_paint_set_mipmap(bmain, 1);
+    //BKE_image_paint_set_mipmap(bmain, 1);
   }
 
   events_queue_back = win->runtime->event_queue;
@@ -1534,7 +1534,7 @@ static void game_engine_restore_state(bContext *C, wmWindow *win)
   Main *bmain = CTX_data_main(C);
 
   if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
-    BKE_image_paint_set_mipmap(bmain, 0);
+    //BKE_image_paint_set_mipmap(bmain, 0);
   }
   /* check because closing win can set to NULL */
   if (win) {

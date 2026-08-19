@@ -648,11 +648,12 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
       /* Inside same group, sequential (same property) */
       for (FCurve *fcu : group_fcurves) {
         PathResolvedRNA anim_rna;
-        if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path_ptr, fcu->array_index, &anim_rna)) {
+        const ParsedRNAPathRef rna_path = fcu->rna_path_parsed();
+        if (BKE_animsys_rna_path_resolve(ptr, rna_path, fcu->array_index, &anim_rna)) {
           const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
           BKE_animsys_write_to_rna_path(&anim_rna, curval);
           if (flush_to_original) {
-            animsys_write_orig_anim_rna(ptr, fcu->rna_path_ptr, fcu->array_index, curval);
+            animsys_write_orig_anim_rna(ptr, rna_path, fcu->array_index, curval);
           }
         }
       }

@@ -3088,7 +3088,7 @@ void DRW_game_render_loop(bContext *C,
   if (gpencil_engine_needed) {
     view_data.grease_pencil.set_used(true);
   }
-  view_data.compositor.set_used(draw_ctx.is_viewport_compositor_enabled());
+  view_data.compositor.set_used(draw_ctx.is_viewport_compositor_used());
 
   auto should_draw_object = [&](Object &ob, bool /*has_duplis*/) -> DrawFilter {
     return BKE_object_is_visible_in_viewport(v3d, &ob) ? DrawFilter::Draw : DrawFilter::Skip;
