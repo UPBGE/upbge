@@ -48,6 +48,7 @@
 #include "BKE_mball_tessellate.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
+#include "BKE_recents.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -247,6 +248,10 @@ void WM_init(bContext *C, int argc, const char **argv)
   ED_node_init_butfuncs();
 
   BLF_init(); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
+
+  if (!G.background) {
+    recents::init_async();
+  }
 
   BLT_lang_init();
   /* Must call first before doing any `.blend` file reading,
@@ -759,6 +764,10 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   WM_uilisttype_free();
 
   BLF_exit();
+
+  if (!G.background && do_user_exit_actions) {
+    recents::save();
+  }
 
   BLT_lang_free();
 
