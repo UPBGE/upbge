@@ -9,7 +9,6 @@
 
 #include "ImageRender.h"
 
-#include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -24,10 +23,7 @@
 #include "CM_Message.h"
 #include "EXP_PythonCallBack.h"
 #include "KX_Globals.h"
-#include "RAS_IVertex.h"
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
 #include "Texture.h"
 
 using namespace blender;
@@ -910,8 +906,6 @@ ImageRender::ImageRender(KX_Scene *scene,
   // create a camera, take all data by default, in any case we will recompute the frustum on each
   // frame
   RAS_CameraData camdata;
-  std::vector<RAS_IVertex *> mirrorVerts;
-  std::vector<RAS_IVertex *>::iterator it;
   float mirrorNormal[3] = {0.f, 0.f, 0.f};
   float mirrorUp[3];
   float dist, vec[3], axis[3];
