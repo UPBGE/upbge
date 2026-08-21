@@ -630,7 +630,7 @@ void BL_Action::UpdateObjectAnimation(blender::Object *ob, const blender::Animat
 
   if (!actionIsUpdated) {
     // TEST Shapekeys action
-    TryUpdateShapeKeyActions(ob, scene, animEvalContext);
+    TryUpdateShapeKeyActions(ob, scene, animEvalContext, gpu_deformed_mesh);
   }
 }
 
@@ -704,18 +704,12 @@ bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
     if (isRightAction) {
       IDRecalcFlag flag = BKE_modifier_is_non_geometrical(md) ? ID_RECALC_TRANSFORM :
                                                                 ID_RECALC_GEOMETRY;
-      bool skip_depsgraph = false;
-      if (ob->type == OB_MESH) {
-        blender::Mesh *me = id_cast<blender::Mesh *>(ob->data);
-        skip_depsgraph = (me && me->is_running_gpu_animation_playback);
-      }
-      if (!skip_depsgraph) {
+      if (!gpu_deformed_mesh) {
         scene->AppendToIdsToUpdate(&ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
       else {
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-        DEG_bump_update_count(depsgraph);
+        scene->AppendToIdsToUpdate(
+            &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
 
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
@@ -819,7 +813,8 @@ bool BL_Action::IsNodeTreeActionMatch(blender::bNodeTree *nodetree)
 
 bool BL_Action::TryUpdateShapeKeyActions(blender::Object *ob,
                                          KX_Scene *scene,
-                                         const blender::AnimationEvalContext &animEvalContext)
+                                         const blender::AnimationEvalContext &animEvalContext,
+                                         const bool gpu_deformed_mesh)
 {
   blender::Mesh *me = (blender::Mesh *)ob->data;
   if (ob->type == OB_MESH && me) {
@@ -839,9 +834,13 @@ bool BL_Action::TryUpdateShapeKeyActions(blender::Object *ob,
     }
 
     if (play_normal_key_action || play_nla_key_action) {
-      bool gpu_deformation = me->is_running_gpu_animation_playback;
-      if (!gpu_deformation) {
-        scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
+      if (!gpu_deformed_mesh) {
+        scene->AppendToIdsToUpdate(
+            &ob->id, ID_RECALC_GEOMETRY, ob->gameflag & OB_OVERLAY_COLLECTION);
+      }
+      else {
+        scene->AppendToIdsToUpdate(
+            &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
       blender::Key *key = me->key;
 
