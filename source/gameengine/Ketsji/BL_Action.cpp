@@ -602,15 +602,15 @@ void BL_Action::UpdateObjectAnimation(blender::Object *ob, const blender::Animat
   /* To skip some code if not needed */
   bool actionIsUpdated = false;
 
-  /* WARNING: The check to be sure the right action is played (to know if the action
-   * which is in the actuator will be the one which will be played)
-   * might be wrong (if (ob->adt && ob->adt->action == m_action) playaction;)
-   * because WE MIGHT NEED TO CHANGE OB->ADT->ACTION DURING RUNTIME
-   * then another check should be found to ensure to play the right action.
-   */
-  // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
+  bool gpu_deformed_mesh = false;
+  if (ob->type == OB_MESH) {
+    Mesh *me = id_cast<Mesh *>(ob->data);
+    gpu_deformed_mesh = (me && me->is_running_gpu_animation_playback);
+  }
+
+  // TEST KEYFRAMED MODIFIERS
   if (!actionIsUpdated) {
-    actionIsUpdated = TryUpdateModifierActions(ob, scene, animEvalContext);
+    actionIsUpdated = TryUpdateModifierActions(ob, scene, animEvalContext, gpu_deformed_mesh);
   }
 
   if (!actionIsUpdated) {
@@ -638,7 +638,7 @@ static bool TryModifierTextureActions(ModifierData *md,
                                       bAction *actuator_action,
                                       KX_Scene *scene,
                                       Object *ob,
-                                      const blender::AnimationEvalContext &animEvalContext)
+                                      const blender::AnimationEvalContext &animEvalContext, const bool gpu_deformed_mesh)
 {
   bool check_modifier_texture = ELEM(
       md->type, eModifierType_Displace, eModifierType_Warp, eModifierType_Wave);
@@ -679,6 +679,9 @@ static bool TryModifierTextureActions(ModifierData *md,
         *actuator_action);
     blender::animsys_evaluate_action(
         &ptrrna, actuator_action, slot_handle, &animEvalContext, false);
+    if (!gpu_deformed_mesh) {
+      scene->AppendToIdsToUpdate(&ob->id, ID_RECALC_GEOMETRY, ob->gameflag & OB_OVERLAY_COLLECTION);
+    }
     /* Action found, return true */
     return true;
   }
@@ -687,11 +690,12 @@ static bool TryModifierTextureActions(ModifierData *md,
 
 bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
                                          KX_Scene *scene,
-                                         const blender::AnimationEvalContext &animEvalContext)
+                                         const blender::AnimationEvalContext &animEvalContext,
+                                         const bool gpu_deformed_mesh)
 {
   for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
     /* Action actuator can have actions from modifiers textures; try it first */
-    if (TryModifierTextureActions(md, m_action, scene, ob, animEvalContext)) {
+    if (TryModifierTextureActions(md, m_action, scene, ob, animEvalContext, gpu_deformed_mesh)) {
       /* Action played, return true; else loop continues */
       return true;
     }
