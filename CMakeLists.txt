@@ -34,9 +34,7 @@ else()
   set(FIRST_RUN FALSE)
 endif()
 
-# this starts out unset
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build_files/cmake/Modules")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build_files/cmake/platform")
 
 # Avoid having an empty `CMAKE_BUILD_TYPE`.
 if(NOT DEFINED CMAKE_BUILD_TYPE_INIT)
@@ -1294,7 +1292,7 @@ endif ()
 
 # Apple
 if(APPLE)
-  include(platform_apple_xcode)
+  include(build_files/cmake/platform/platform_apple_xcode.cmake)
 
   option(WITH_LEGACY_MACOS_X64_LINKER "\
 Use legacy macOS linker on x64 platform. Minutes slower, but emits fewer warnings."
@@ -1582,11 +1580,11 @@ endif()
 # - APPLE
 
 if(UNIX AND NOT APPLE)
-  include(platform_unix)
+  include(build_files/cmake/platform/platform_unix.cmake)
 elseif(WIN32)
-  include(platform_win32)
+  include(build_files/cmake/platform/platform_win32.cmake)
 elseif(APPLE)
-  include(platform_apple)
+  include(build_files/cmake/platform/platform_apple.cmake)
 endif()
 
 
@@ -1610,14 +1608,11 @@ if(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
 endif()
 
 # Test endianness and set the endian define.
-include(TestBigEndian)
-test_big_endian(_SYSTEM_BIG_ENDIAN)
-if(_SYSTEM_BIG_ENDIAN)
+if(CMAKE_CXX_BYTE_ORDER STREQUAL "BIG_ENDIAN")
   message(FATAL_ERROR "Blender does not support building on Big Endian systems" )
 else()
   add_definitions(-D__LITTLE_ENDIAN__)
 endif()
-unset(_SYSTEM_BIG_ENDIAN)
 
 if(WITH_IMAGE_OPENJPEG)
   # Special handling of Windows platform where openjpeg is always static.
@@ -1721,7 +1716,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Common dependency targets
 
-include(dependency_targets)
+include(build_files/cmake/platform/dependency_targets.cmake)
 
 # -----------------------------------------------------------------------------
 # Ninja Job Limiting
