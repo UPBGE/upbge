@@ -50,6 +50,7 @@
 #include "KX_PythonMain.h"
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
+#include "MEM_guardedalloc.h"
 
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
@@ -557,6 +558,8 @@ void LA_Launcher::EngineMainLoop()
     CM_Debug("Yielding control to Python script '" << pythonFileName << "'...");
     RunPythonMainLoop(pythonCode);
     CM_Debug("Exit Python script '" << pythonFileName << "'");
+
+    MEM_delete(pythonCode.data()); // Previously allocated with MEM_new_array_uninitialized
   }
   else {
     pynextframestate.state = nullptr;
