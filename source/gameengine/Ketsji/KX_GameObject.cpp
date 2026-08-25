@@ -141,29 +141,18 @@ KX_GameObject::~KX_GameObject()
 #endif  // WITH_PYTHON
 
   /* EEVEE INTEGRATION */
-
   blender::Object *ob = GetBlenderObject();
-
   if (ob) {
     /* Potential issue here with duplis instances pointing to the same blender::Object */
     ob->gameflag &= ~OB_OVERLAY_COLLECTION;
   }
-
   if (m_pSGNode) {
     /* Discard rendered blender::Object */
     DiscardRenderedObject();
-
     /* At KX_Scene exit */
     KX_Scene *scene = GetScene();
-    if (!scene->m_isRuntime) {
-      if (ob && ob->type == OB_MBALL) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      }
-    }
-
     scene->GetBlenderSceneConverter()->UnregisterGameObject(this);
   }
-
   /* END OF EEVEE INTEGRATION */
 
   RemoveMeshes();

@@ -188,8 +188,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_ueberExecutionPriority(0),
       m_blenderScene(scene),
       m_isActivedHysteresis(false),
-      m_lodHysteresisValue(0),
-      m_isRuntime(true)  // eevee
+      m_lodHysteresisValue(0)
 {
 
   m_dbvt_culling = false;
@@ -339,9 +338,6 @@ KX_Scene::~KX_Scene()
 #endif  // WITH_PYTHON
 
   /* EEVEE INTEGRATION */
-
-  m_isRuntime = false;  // eevee
-
   ReinitBlenderContextVariables();
 
   blender::Scene *scene = GetBlenderScene();

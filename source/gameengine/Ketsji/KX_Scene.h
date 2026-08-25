@@ -312,8 +312,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void ConvertBlenderCollection(blender::Collection *co, bool asynchronous);
   void ConvertBlenderAction(blender::bAction *act);
 
-  bool m_isRuntime;  // Too lazy to put that in protected
-
   void RenderAfterCameraSetup(KX_Camera *cam,
                               class RAS_FrameBuffer *background_fb,
                               const RAS_Rect &viewport,
