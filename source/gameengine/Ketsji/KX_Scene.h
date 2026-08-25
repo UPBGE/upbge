@@ -120,7 +120,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
   BL_SceneConverter *m_sceneConverter;
-  bool m_isPythonMainLoop;
   std::vector<KX_GameObject *> m_kxobWithLod;
   std::map<blender::Object *, short> m_obVisibilityFlag;
   bool m_collectionRemap;
@@ -343,7 +342,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void AddImageRenderCamera(KX_Camera *cam);
   void RemoveImageRenderCamera(KX_Camera *cam);
   bool CameraIsInactive(KX_Camera *cam);
-  void SetIsPythonMainLoop(bool isPython);
   void AddObjToLodObjList(KX_GameObject *gameobj);
   void RemoveObjFromLodObjList(KX_GameObject *gameobj);
   void BackupVisibilityFlag(blender::Object *ob, short visibilityFlag);

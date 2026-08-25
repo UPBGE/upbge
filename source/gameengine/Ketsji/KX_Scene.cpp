@@ -178,7 +178,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_currentGPUViewport(nullptr),          // eevee
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
       m_sceneConverter(nullptr),              // eevee
-      m_isPythonMainLoop(false),              // eevee
       m_collectionRemap(false),               // eevee (to uncheck viewport restrictflag)
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
@@ -1194,11 +1193,6 @@ void KX_Scene::ConvertBlenderAction(blender::bAction *action)
       logicMgr->RegisterActionName(action->id.name + 2, (void *)action);
     }
   }
-}
-
-void KX_Scene::SetIsPythonMainLoop(bool isPythonMainLoop)
-{
-  m_isPythonMainLoop = isPythonMainLoop;
 }
 
 void KX_Scene::AddObjToLodObjList(KX_GameObject *gameobj)
