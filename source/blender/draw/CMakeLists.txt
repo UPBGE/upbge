@@ -228,6 +228,7 @@ set(SRC
   engines/eevee/eevee_lookdev.hh
   engines/eevee/eevee_lut.hh
   engines/eevee/eevee_material.hh
+  engines/eevee/eevee_material_shared.hh
   engines/eevee/eevee_motion_blur.hh
   engines/eevee/eevee_pipeline.hh
   engines/eevee/eevee_precompute.hh
@@ -389,6 +390,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_bxdf_lut.bsl.hh
   engines/eevee/shaders/eevee_bxdf_lut_lib.bsl.hh
   engines/eevee/shaders/eevee_bxdf_microfacet.bsl.hh
+  engines/eevee/shaders/eevee_bxdf_oren_nayar.bsl.hh
   engines/eevee/shaders/eevee_bxdf_types.bsl.hh
   engines/eevee/shaders/eevee_camera_lib.bsl.hh
   engines/eevee/shaders/eevee_closure.bsl.hh
@@ -778,7 +780,7 @@ set(GLSL_SRC
 )
 
 # These tests depend on gpu_shader_test, so they're only included when WITH_GPU_BACKEND_TESTS is enabled.
-set(GLSL_SRC_TEST
+set(GLSL_TEST_SRC
   engines/eevee/shaders/eevee_test_fast_gi.bsl.hh
   engines/eevee/shaders/eevee_test_gbuffer_closure.bsl.hh
   engines/eevee/shaders/eevee_test_gbuffer_normal.bsl.hh
@@ -788,7 +790,7 @@ set(GLSL_SRC_TEST
 
 if(WITH_GTESTS)
   if(WITH_GPU_BACKEND_TESTS)
-    list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
+    list(APPEND GLSL_SRC ${GLSL_TEST_SRC})
   endif()
 endif()
 

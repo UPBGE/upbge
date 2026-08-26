@@ -259,8 +259,6 @@ void update_cache_invariants(VPaint &vp, SculptSession &ss, wmOperator *op, cons
   bke::PaintRuntime &paint_runtime = *vp.paint.runtime;
   ViewContext *vc = &stroke->vc;
   Object &ob = *stroke->object;
-  float mat[3][3];
-  float view_dir[3] = {0.0f, 0.0f, 1.0f};
 
   /* Initial mouse location */
   if (mval) {
@@ -290,12 +288,10 @@ void update_cache_invariants(VPaint &vp, SculptSession &ss, wmOperator *op, cons
   /* cache projection matrix */
   cache->projection_mat = ED_view3d_ob_project_mat_get(cache->vc->rv3d, &ob);
 
-  invert_m4_m4(ob.runtime->world_to_object.ptr(), ob.object_to_world().ptr());
-  copy_m3_m4(mat, cache->vc->rv3d->viewinv);
-  mul_m3_v3(mat, view_dir);
-  copy_m3_m4(mat, ob.world_to_object().ptr());
-  mul_m3_v3(mat, view_dir);
-  normalize_v3_v3(cache->view_normal, view_dir);
+  const float3 z_axis(0.0f, 0.0f, 1.0f);
+  ob.runtime->world_to_object = math::invert(ob.object_to_world());
+  cache->view_normal = math::normalize(math::transform_direction(
+      ob.world_to_object() * float4x4(cache->vc->rv3d->viewinv), z_axis));
 
   cache->view_normal_symm = cache->view_normal;
 
@@ -385,14 +381,6 @@ void get_brush_alpha_data(const SculptSession &ss,
                                 1.0f;
 }
 
-void last_stroke_update(const float location[3], Paint &paint)
-{
-  bke::PaintRuntime &paint_runtime = *paint.runtime;
-  paint_runtime.average_stroke_counter++;
-  add_v3_v3(paint_runtime.average_stroke_accum, location);
-  paint_runtime.last_stroke_valid = true;
-}
-
 /* -------------------------------------------------------------------- */
 
 void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeToggleSettings &toggle_settings)
@@ -474,7 +462,7 @@ static ColorPaint4f vpaint_get_current_col(VPaint &vp, bool secondary)
   return ColorPaint4f(brush_color.x, brush_color.y, brush_color.z, 1.0f);
 }
 
-/* wpaint has 'wpaint_blend' */
+/* Weight-paint has `wpaint_blend`. */
 template<typename Color, typename Traits>
 static Color vpaint_blend(const VPaint &vp,
                           Color color_curr,
@@ -1870,7 +1858,7 @@ void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
    * also needed for "Frame Selected" on last stroke. */
   float loc_world[3];
   mul_v3_m4v3(loc_world, ob.object_to_world().ptr(), ss.cache->location);
-  vwpaint::last_stroke_update(loc_world, *this->paint);
+  bke::paint::stroke_track_location(*this->paint, loc_world);
 
   ED_region_tag_redraw(vc.region);
 

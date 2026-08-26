@@ -387,8 +387,8 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
       .imageType = to_vk_image_type(type),
       .format = to_vk_format(format),
       .extent = texture->vk_extent_3d(0),
-      .mipLevels = static_cast<uint32_t>(max_ii(texture->mip_count(), 1)),
-      .arrayLayers = static_cast<uint32_t>(texture->layer_count()),
+      .mipLevels = uint32_t(max_ii(texture->mip_count(), 1)),
+      .arrayLayers = uint32_t(texture->layer_count()),
       .samples = VK_SAMPLE_COUNT_1_BIT,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
       .usage = to_vk_image_usage(usage, to_format_flag(format), false),
@@ -443,6 +443,7 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
   else {
     texture->vk_image_ = create_and_bind_vk_image(image_info, name_str);
   }
+  texture->vk_image_usage_ = create_info.usage;
   debug::object_label(texture->vk_image_, name_str);
 
   if (G.debug & G_DEBUG_GPU) {

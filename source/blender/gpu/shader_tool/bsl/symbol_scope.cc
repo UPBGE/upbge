@@ -447,6 +447,14 @@ vector<SymbolVariable *> SymbolScope::non_static_variables_in_declaration_order(
   return members;
 }
 
+SymbolScope *SymbolScope::child_scope(int n)
+{
+  if (auto it = scopes.find(to_string(n)); it != scopes.end()) {
+    return it->second;
+  }
+  return nullptr;
+}
+
 void SymbolScope::print() const
 {
   enum class SymbolType { Variable, FunctionTemplate, ClassTemplate, Function, Class, Scope };
@@ -464,7 +472,7 @@ void SymbolScope::print() const
     }
 
     /* Create indentation based on tree depth. */
-    int padding_size = max(0, 55 - static_cast<int>(loc.size()));
+    int padding_size = max(0, 55 - int(loc.size()));
     string padding(padding_size, ' ');
 
     cout << loc << padding;
