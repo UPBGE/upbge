@@ -666,8 +666,13 @@ static std::string wm_window_title_text(
     }
   }
 
-  win_title.append(fmt::format(" - UPBGE {}", BKE_upbge_version_string_compact()));
-  win_title.append(fmt::format(" based on Blender {}", BKE_blender_version_string_compact()));
+  /* If a project is active, display its name. */
+  bke::BlenderProject *project = BKE_blender_project_get(G_MAIN);
+  if (project) {
+    win_title.append(fmt::format(" - {}", project->get_name()));
+  }
+
+  win_title.append(fmt::format(" — UPBGE {}", BKE_upbge_version_string_compact()));
 
   return win_title;
 }
