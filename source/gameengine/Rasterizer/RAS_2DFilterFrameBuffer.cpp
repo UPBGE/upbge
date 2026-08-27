@@ -100,8 +100,8 @@ void RAS_2DFilterFrameBuffer::MipmapTexture()
 bool RAS_2DFilterFrameBuffer::Update(RAS_ICanvas *canvas)
 {
   if (m_flag & RAS_VIEWPORT_SIZE) {
-    const unsigned int width = canvas->GetWidth() + 1;
-    const unsigned int height = canvas->GetHeight() + 1;
+    const unsigned int width = canvas->GetWidth();
+    const unsigned int height = canvas->GetHeight();
     if (m_width != width || m_height != height) {
       m_width = width;
       m_height = height;

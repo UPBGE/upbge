@@ -769,7 +769,7 @@ void KX_KetsjiEngine::Render()
       RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_RIGHT0);
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
-  background_fb->UpdateSize(width + 1, height + 1);
+  background_fb->UpdateSize(width, height);
 
   std::vector<FrameRenderData> frameDataList;
   /* Ensure animations (including camera IPOs that modify lens/clip)
@@ -831,15 +831,15 @@ void KX_KetsjiEngine::Render()
     immRectf(pos,
              region->winrct.xmin,
              region->winrct.ymin,
-             region->winrct.xmin + BLI_rcti_size_x(&region->winrct),
-             region->winrct.ymin + BLI_rcti_size_y(&region->winrct));
+             region->winrct.xmax,
+             region->winrct.ymax);
     immUnbindProgram();
 
     /* Draw to the result of render loop on window backbuffer */
     int v[4] = {m_canvas->GetViewportArea().GetLeft(),
                 m_canvas->GetViewportArea().GetBottom(),
-                m_canvas->GetWidth() + 1,
-                m_canvas->GetHeight() + 1};
+                m_canvas->GetWidth(),
+                m_canvas->GetHeight()};
 
     /* blender::rcti xmin, xmax, ymin, ymax */
     const blender::rcti rect = {v[0], v[2] + v[0] - 1, v[1], v[3] + v[1] - 1};
@@ -850,9 +850,9 @@ void KX_KetsjiEngine::Render()
     GPU_viewport_draw_to_screen_ex(gpu_viewport, 0, &rect, true, false);
     GPU_viewport_switch_color_tex(gpu_viewport, backup);
 
-    GPU_viewport(v[0], v[1], v[2], v[3]);
+    GPU_viewport(v[0], v[1], v[2] + 1, v[3] + 1);
     GPU_scissor_test(true);
-    GPU_scissor(v[0], v[1], v[2], v[3]);
+    GPU_scissor(v[0], v[1], v[2] + 1, v[3] + 1);
 
     GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
     GPU_matrix_identity_set();

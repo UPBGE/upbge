@@ -363,9 +363,9 @@ bool ImageRender::Render()
   int num_passes = max_ii(1, m_samples);
   num_passes = min_ii(num_passes, m_scene->GetBlenderScene()->eevee.taa_samples);
 
-  GPU_viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+  GPU_viewport(viewport[0], viewport[1], viewport[2] + 1, viewport[3] + 1);
   GPU_scissor_test(true);
-  GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
+  GPU_scissor(viewport[0], viewport[1], viewport[2] + 1, viewport[3] + 1);
   GPU_apply_state();
 
   for (int i = 0; i < num_passes; i++) {

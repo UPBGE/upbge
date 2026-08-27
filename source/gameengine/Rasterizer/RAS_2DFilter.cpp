@@ -99,8 +99,8 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
     ComputeTextureOffsets(canvas);
     /* Set All ubo variables to 0 including padding variables */
     m_uboData = {};
-    m_uboData.width = float(canvas->GetWidth() + 1);
-    m_uboData.height = float(canvas->GetHeight() + 1);
+    m_uboData.width = float(canvas->GetWidth());
+    m_uboData.height = float(canvas->GetHeight());
     /* Same order than when texture offset are computed */
     for (int i = 0; i < 9; ++i) {
       m_uboData.coo_offset[i][0] = m_textureOffsets[i * 2];
@@ -224,8 +224,8 @@ void RAS_2DFilter::ParseShaderProgram()
 of nearby fragments. Or vertices or whatever.*/
 void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 {
-  const float texturewidth = (float)canvas->GetWidth() + 1;
-  const float textureheight = (float)canvas->GetHeight() + 1;
+  const float texturewidth = (float)canvas->GetWidth();
+  const float textureheight = (float)canvas->GetHeight();
   const float xInc = 1.0f / texturewidth;
   const float yInc = 1.0f / textureheight;
 

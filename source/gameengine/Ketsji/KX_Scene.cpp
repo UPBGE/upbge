@@ -822,16 +822,16 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   if (cam && cam->GetViewport() && cam != GetOverlayCamera()) {
     v[0] = viewport.GetLeft();
     v[1] = viewport.GetBottom();
-    v[2] = viewport.GetWidth() + 1;
-    v[3] = viewport.GetHeight() + 1;
+    v[2] = viewport.GetWidth();
+    v[3] = viewport.GetHeight();
     window = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
   }
   /* blender::Main cam (when it has no custom viewport), overlay cam */
   else {
     v[0] = 0;
     v[1] = 0;
-    v[2] = canvas->GetWidth() + 1;
-    v[3] = canvas->GetHeight() + 1;
+    v[2] = canvas->GetWidth();
+    v[3] = canvas->GetHeight();
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
@@ -914,9 +914,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   if (background_fb) {
     /* Draw this camera render into background framebuffer */
     GPU_framebuffer_bind(background_fb->GetFrameBuffer());
-    GPU_viewport(v[0], v[1], v[2], v[3]);
+    GPU_viewport(v[0], v[1], v[2] + 1, v[3] + 1);
     GPU_scissor_test(true);
-    GPU_scissor(v[0], v[1], v[2], v[3]);
+    GPU_scissor(v[0], v[1], v[2] + 1, v[3] + 1);
     rasty->DrawFrameBuffer(f, background_fb);
   }
 
