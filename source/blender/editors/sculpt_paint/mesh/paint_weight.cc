@@ -901,18 +901,18 @@ struct WeightPaintStroke final : public PaintStroke {
     base_ = CTX_data_active_base(C);
   }
 
-  bool get_location(float out[3], const float mouse[2], bool force_original) override;
-  bool test_start(wmOperator *op, const float mouse[2]) override;
+  std::optional<float3> get_location(float2 mouse, bool force_original) override;
+  bool test_start(wmOperator *op, float2 mouse) override;
   void redraw(bool final) override;
   bool test_cancel() override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
   void done(bool is_cancel, bool stroke_started) override;
 };
 
-bool WeightPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
+std::optional<float3> WeightPaintStroke::get_location(const float2 mouse, bool force_original)
 {
   return stroke_get_location_bvh(
-      *this->depsgraph, this->vc, *this->paint, this->brush, out, mouse, force_original);
+      *this->depsgraph, this->vc, *this->paint, this->brush, mouse, force_original);
 }
 
 static void init_session_data(const VPaint &wpaint, Object &ob, WPaintData &wpd)
@@ -932,7 +932,7 @@ static void init_session_data(const VPaint &wpaint, Object &ob, WPaintData &wpd)
   }
 }
 
-bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
+bool WeightPaintStroke::test_start(wmOperator *op, const float2 mouse)
 {
   Scene &scene = *this->scene;
   ToolSettings &ts = *scene.toolsettings;
@@ -1276,9 +1276,6 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
   MutableSpan<bke::pbvh::MeshNode> nodes = bke::object::pbvh_get(ob)->nodes<bke::pbvh::MeshNode>();
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
   const StrokeCache &cache = *ss.cache;
-  if (!cache.is_last_valid) {
-    return;
-  }
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
@@ -1805,8 +1802,6 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 
   vwpaint::update_cache_variants(*this->depsgraph, *vc, wp, *ob, *this->base_, itemptr);
 
-  float mat[4][4];
-
   const float brush_alpha_value = BKE_brush_alpha_get(&wp.paint, &brush);
 
   if (wpd == nullptr) {
@@ -1817,10 +1812,6 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   }
 
   ob = vc->obact;
-
-  ED_view3d_init_mats_rv3d(ob, vc->rv3d);
-
-  mul_m4_m4m4(mat, vc->rv3d->persmat, ob->object_to_world().ptr());
 
   Mesh &mesh = *id_cast<Mesh *>(ob->data);
 
@@ -1865,10 +1856,8 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
         *this->depsgraph, *this->scene, wp.paint, *ob, wpaint_do_paint, wpd);
   }
 
+  ss.cache->first_time = false;
   copy_v3_v3(cache.last_location, cache.location);
-  cache.is_last_valid = true;
-
-  swap_m4m4(vc->rv3d->persmat, mat);
 
   /* Calculate pivot for rotation around selection if needed.
    * also needed for "Frame Selected" on last stroke. */
@@ -1880,7 +1869,6 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 
   DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, ob);
-  swap_m4m4(wpd->vc.rv3d->persmat, mat);
 
   ED_region_tag_redraw(vc->region);
 }

@@ -542,36 +542,25 @@ set(GLSL_SRC
   shaders/infos/gpu_clip_planes_infos.hh
   shaders/infos/gpu_index_load_infos.hh
   shaders/infos/gpu_interface_infos.hh
-  shaders/infos/gpu_shader_2D_area_borders_infos.hh
   shaders/infos/gpu_shader_2D_image_overlays_merge_infos.hh
-  shaders/infos/gpu_shader_2D_node_socket_infos.hh
-  shaders/infos/gpu_shader_2D_rounded_corner_mask_infos.hh
-  shaders/infos/gpu_shader_2D_widget_infos.hh
+
   shaders/infos/gpu_shader_3D_polyline_infos.hh
   shaders/infos/gpu_shader_fullscreen_infos.hh
   shaders/infos/gpu_shader_gpencil_stroke_infos.hh
-  shaders/infos/gpu_shader_icon_infos.hh
-  shaders/infos/gpu_shader_index_infos.hh
   shaders/infos/gpu_shader_keyframe_shape_infos.hh
   shaders/infos/gpu_shader_print_infos.hh
   shaders/infos/gpu_shader_sequencer_infos.hh
   shaders/infos/gpu_shader_text_infos.hh
   shaders/infos/gpu_srgb_to_framebuffer_space_infos.hh
 
-  shaders/gpu_shader_2D_area_borders_vert.glsl
-  shaders/gpu_shader_2D_area_borders_frag.glsl
-  shaders/gpu_shader_2D_rounded_corner_mask_vert.glsl
-  shaders/gpu_shader_2D_rounded_corner_mask_frag.glsl
+  shaders/gpu_shader_area_borders.bsl.hh
+
   shaders/gpu_shader_2D_widget_base.bsl.hh
-  shaders/gpu_shader_2D_widget_shadow_vert.glsl
-  shaders/gpu_shader_2D_widget_shadow_frag.glsl
-  shaders/gpu_shader_2D_node_socket_frag.glsl
-  shaders/gpu_shader_2D_node_socket_vert.glsl
+  shaders/gpu_shader_2D_widget_shadow.bsl.hh
+  shaders/gpu_shader_2D_node_socket.bsl.hh
   shaders/gpu_shader_2D_nodelink.bsl.hh
   shaders/gpu_shader_2D_image_vert.glsl
-  shaders/gpu_shader_icon_multi_vert.glsl
-  shaders/gpu_shader_icon_frag.glsl
-  shaders/gpu_shader_icon_vert.glsl
+  shaders/gpu_shader_icon.bsl.hh
   shaders/gpu_shader_3D_polyline_frag.glsl
   shaders/gpu_shader_3D_polyline_vert.glsl
   shaders/gpu_shader_2D_update_mipmaps.bsl.hh
@@ -774,9 +763,7 @@ set(GLSL_SRC
   shaders/gpu_shader_cfg_world_clip_lib.glsl
   shaders/gpu_shader_colorspace_lib.glsl
 
-  shaders/gpu_shader_index_2d_array_points.glsl
-  shaders/gpu_shader_index_2d_array_lines.glsl
-  shaders/gpu_shader_index_2d_array_tris.glsl
+  shaders/gpu_shader_index_gen.bsl.hh
 
   shaders/gpu_shader_compat_glsl.glsl
 
