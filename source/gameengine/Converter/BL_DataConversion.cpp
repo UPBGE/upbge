@@ -857,8 +857,6 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
         fontobj = new KX_FontObject();
       }
 
-      fontobj->SetRasterizer(rasty);
-
       gameobj = fontobj;
 
       kxscene->GetFontList()->Add(CM_AddRef(fontobj));

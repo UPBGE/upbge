@@ -36,26 +36,7 @@
 
 using namespace blender;
 
-static std::vector<std::string> split_string(std::string str)
-{
-  std::vector<std::string> text = std::vector<std::string>();
-
-  // Split the string upon new lines
-  int begin = 0, end = 0;
-  while (end < str.size()) {
-    if (str[end] == '\n') {
-      text.push_back(str.substr(begin, end - begin));
-      begin = end + 1;
-    }
-    end++;
-  }
-  // Now grab the last line
-  text.push_back(str.substr(begin, end - begin));
-
-  return text;
-}
-
-KX_FontObject::KX_FontObject() : KX_GameObject(), m_object(nullptr), m_rasterizer(nullptr)
+KX_FontObject::KX_FontObject() : KX_GameObject()
 {
 }
 
@@ -79,7 +60,6 @@ void KX_FontObject::ProcessReplica()
 void KX_FontObject::SetText(const std::string &text)
 {
   m_text = text;
-  m_texts = split_string(text);
 }
 
 void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
@@ -112,11 +92,6 @@ void KX_FontObject::UpdateTextFromProperty()
     SetText(prop->GetText());
     UpdateCurveText(m_text);  // eevee
   }
-}
-
-void KX_FontObject::SetRasterizer(RAS_Rasterizer *rasterizer)
-{
-  m_rasterizer = rasterizer;
 }
 
 void KX_FontObject::SetBlenderObject(blender::Object *obj)

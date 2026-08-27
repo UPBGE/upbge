@@ -53,8 +53,6 @@ class KX_FontObject : public KX_GameObject {
   /// Update text from property.
   void UpdateTextFromProperty();
 
-  void SetRasterizer(RAS_Rasterizer *rasterizer);
-
   virtual void SetBlenderObject(blender::Object *obj);
 
 #ifdef WITH_PYTHON
@@ -67,10 +65,6 @@ class KX_FontObject : public KX_GameObject {
 
  protected:
   std::string m_text;
-  std::vector<std::string> m_texts;
-  blender::Object *m_object;
 
   std::string m_backupText;  // eevee
-  /// needed for drawing routine
-  class RAS_Rasterizer *m_rasterizer;
 };
