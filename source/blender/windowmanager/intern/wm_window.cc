@@ -3751,7 +3751,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
-  wm_window_set_drawable(wm, win, false);
+  wm_window_set_drawable(wm, win, true);
   ghost_i_win->setUserData(win); /* pointer back */
 
   /* store actual window size in blender window */
