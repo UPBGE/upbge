@@ -40,18 +40,6 @@
 
 using namespace blender;
 
-RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
-{
-}
-
-RAS_OpenGLRasterizer::ScreenPlane::~ScreenPlane()
-{
-}
-
-inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
-{
-}
-
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer) : m_rasterizer(rasterizer)
 {
 }
@@ -83,11 +71,6 @@ unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int 
   }
 
   return pixeldata;
-}
-
-void RAS_OpenGLRasterizer::DrawOverlayPlane()
-{
-  m_screenPlane.Render();
 }
 
 const unsigned char *RAS_OpenGLRasterizer::GetGraphicsCardVendor()

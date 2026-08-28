@@ -240,11 +240,6 @@ float KX_Camera::GetCameraFar() const
   return m_camdata.m_clipend;
 }
 
-float KX_Camera::GetFocalLength() const
-{
-  return m_camdata.m_focallength;
-}
-
 RAS_CameraData *KX_Camera::GetCameraData()
 {
   return &m_camdata;

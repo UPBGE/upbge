@@ -783,9 +783,7 @@ int main(int argc,
   bool useLocalPath = false;
   std::string hexKey;
 #endif  // WITH_GAMEENGINE_BPPLAYER
-  RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
   bool stereoWindow = false;
-  bool stereoParFound = false;
   int windowLeft = 100;
   int windowTop = 100;
   int windowWidth = 640;
@@ -1310,59 +1308,6 @@ int main(int argc,
 #endif
           break;
         }
-        case 's':  // stereo mode
-        {
-          i++;
-          if ((i + 1) <= validArguments) {
-            stereoParFound = true;
-
-            if (!strcmp(argv[i],
-                        "nostereo"))  // may not be redundant if the file has different setting
-            {
-              stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
-            }
-
-            // only the hardware pageflip method needs a stereo window
-            else if (!strcmp(argv[i], "hwpageflip")) {
-              stereomode = RAS_Rasterizer::RAS_STEREO_QUADBUFFERED;
-              stereoWindow = true;
-            }
-            else if (!strcmp(argv[i], "syncdoubling"))
-              stereomode = RAS_Rasterizer::RAS_STEREO_ABOVEBELOW;
-
-            else if (!strcmp(argv[i], "3dtvtopbottom"))
-              stereomode = RAS_Rasterizer::RAS_STEREO_3DTVTOPBOTTOM;
-
-            else if (!strcmp(argv[i], "anaglyph"))
-              stereomode = RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
-
-            else if (!strcmp(argv[i], "sidebyside"))
-              stereomode = RAS_Rasterizer::RAS_STEREO_SIDEBYSIDE;
-
-            else if (!strcmp(argv[i], "interlace"))
-              stereomode = RAS_Rasterizer::RAS_STEREO_INTERLACED;
-
-            else if (!strcmp(argv[i], "vinterlace"))
-              stereomode = RAS_Rasterizer::RAS_STEREO_VINTERLACE;
-
-#if 0
-//					// future stuff
-//					else if (!strcmp(argv[i], "stencil")
-//						stereomode = RAS_STEREO_STENCIL;
-#endif
-            else {
-              error = true;
-              CM_Error("stereomode '" << argv[i] << "' unrecognized.");
-            }
-
-            i++;
-          }
-          else {
-            error = true;
-            CM_Error("too few options for stereo argument.");
-          }
-          break;
-        }
         case 'a':  // allow window to blend with display background
         {
           i++;
@@ -1592,48 +1537,6 @@ int main(int argc,
               }
             }
 
-            // Check whether the game should be displayed in stereo
-            if (!stereoParFound) {
-              // Only use file settings when command line did not override
-              if (scene->gm.stereoflag == STEREO_ENABLED) {
-                switch (scene->gm.stereomode) {
-                  case STEREO_QUADBUFFERED: {
-                    stereomode = RAS_Rasterizer::RAS_STEREO_QUADBUFFERED;
-                    break;
-                  }
-                  case STEREO_ABOVEBELOW: {
-                    stereomode = RAS_Rasterizer::RAS_STEREO_ABOVEBELOW;
-                    break;
-                  }
-                  case STEREO_INTERLACED: {
-                    stereomode = RAS_Rasterizer::RAS_STEREO_INTERLACED;
-                    break;
-                  }
-                  case STEREO_ANAGLYPH: {
-                    stereomode = RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
-                    break;
-                  }
-                  case STEREO_SIDEBYSIDE: {
-                    stereomode = RAS_Rasterizer::RAS_STEREO_SIDEBYSIDE;
-                    break;
-                  }
-                  case STEREO_VINTERLACE: {
-                    stereomode = RAS_Rasterizer::RAS_STEREO_VINTERLACE;
-                    break;
-                  }
-                  case STEREO_3DTVTOPBOTTOM: {
-                    stereomode = RAS_Rasterizer::RAS_STEREO_3DTVTOPBOTTOM;
-                    break;
-                  }
-                }
-                if (stereomode == RAS_Rasterizer::RAS_STEREO_QUADBUFFERED)
-                  stereoWindow = true;
-              }
-            }
-            else {
-              scene->gm.stereoflag = STEREO_ENABLED;
-            }
-
             if (!samplesParFound)
               aasamples = scene->gm.aasamples;
 
@@ -1796,7 +1699,6 @@ int main(int argc,
                                        maggie,
                                        scene,
                                        &gs,
-                                       stereomode,
                                        aasamples,
                                        argc,
                                        argv,

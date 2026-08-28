@@ -47,7 +47,6 @@ struct RAS_CameraData {
   int m_viewportbottom;
   int m_viewportright;
   int m_viewporttop;
-  float m_focallength;
 
   RAS_CameraData(float lens = 35.0f,
                  float scale = 6.0f,
@@ -79,8 +78,7 @@ struct RAS_CameraData {
         m_viewportleft(viewportleft),
         m_viewportbottom(viewportbottom),
         m_viewportright(viewportright),
-        m_viewporttop(viewporttop),
-        m_focallength(focallength)
+        m_viewporttop(viewporttop)
   {
   }
 };

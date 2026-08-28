@@ -681,7 +681,7 @@ bool KX_Scene::CameraIsInactive(KX_Camera *cam)
 }
 
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
-static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
+static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_RENDER0;
 
 void KX_Scene::PrepareGPUViewport(KX_Camera *cam)
 {

@@ -299,7 +299,7 @@ bool SCA_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
   short m_y_inv = canvas->GetHeight() - m_y;
 
   const RAS_Rect displayArea = m_kxengine->GetRasterizer()->GetRenderArea(
-      canvas, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+      canvas);
   m_kxengine->GetSceneViewport(m_kxscene, cam, displayArea, area, viewport);
 
   /* Check if the mouse is in the viewport */

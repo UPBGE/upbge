@@ -72,7 +72,6 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system,
                          blender::Main *maggie,
                          blender::Scene *scene,
                          GlobalSettings *gs,
-                         RAS_Rasterizer::StereoMode stereoMode,
                          int samples,
                          int argc,
                          char **argv,
@@ -101,7 +100,6 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system,
       m_gameLogic(nullptr),
 #endif  // WITH_PYTHON
       m_samples(samples),
-      m_stereoMode(stereoMode),
       m_argc(argc),
       m_argv(argv),
       m_audioDeviceIsInitialized(false)
@@ -175,10 +173,6 @@ void LA_Launcher::InitEngine()
                                   (profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));
 
   m_rasterizer = new RAS_Rasterizer();
-
-  // Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
-  m_rasterizer->SetStereoMode(m_stereoMode);
-  m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
 
   // Create the canvas, rasterizer and rendertools.
   m_canvas = CreateCanvas();

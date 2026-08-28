@@ -230,8 +230,6 @@ bool ImageRender::Render()
     frustum.camnear = -mirrorOffset[2];
     frustum.camfar = -mirrorOffset[2] + m_clip;
   }
-  // Store settings to be restored later
-  const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
 
   m_rasterizer->BeginFrame(m_engine->GetFrameTime());
 
@@ -239,9 +237,6 @@ bool ImageRender::Render()
       m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]};
 
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
-
-  // matrix calculation, don't apply any of the stereo mode
-  m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 
   /* Ensure animations are up-to-date before computing projection/modelview matrices.
    * Animations may modify camera parameters (lens, shift, orthographic) or transform.
@@ -251,8 +246,7 @@ bool ImageRender::Render()
   if (m_mirror) {
     // frustum was computed above
     // get frustum matrix and set projection matrix
-    MT_Matrix4x4 projmat = m_rasterizer->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE,
-                                                          frustum.x1,
+    MT_Matrix4x4 projmat = m_rasterizer->GetFrustumMatrix(frustum.x1,
                                                           frustum.x2,
                                                           frustum.y1,
                                                           frustum.y2,
@@ -306,8 +300,7 @@ bool ImageRender::Render()
                                                 aspect_ratio,
                                                 frustum);
 
-      projmat = m_rasterizer->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE,
-                                               frustum.x1,
+      projmat = m_rasterizer->GetFrustumMatrix(frustum.x1,
                                                frustum.x2,
                                                frustum.y1,
                                                frustum.y2,
@@ -320,9 +313,6 @@ bool ImageRender::Render()
   MT_Transform camtrans(m_camera->GetWorldToCamera());
   MT_Matrix4x4 viewmat(camtrans);
   m_camera->SetModelviewMatrix(viewmat);
-
-  // restore the stereo mode now that the matrix is computed
-  m_rasterizer->SetStereoMode(stereomode);
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Main *bmain = CTX_data_main(C);

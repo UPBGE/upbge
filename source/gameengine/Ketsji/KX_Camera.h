@@ -178,8 +178,6 @@ class KX_Camera : public KX_GameObject {
   float GetCameraNear() const;
   /** Gets the far clip distance. */
   float GetCameraFar() const;
-  /** Gets the focal length (only used for stereo rendering) */
-  float GetFocalLength() const;
   /** Gets all camera data. */
   RAS_CameraData *GetCameraData();
 

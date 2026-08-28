@@ -724,10 +724,6 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
         SetUniform(uni->m_loc, (float)rasty->GetTime());
         break;
       }
-      case EYE: {
-        SetUniform(uni->m_loc,
-                   (rasty->GetEye() == RAS_Rasterizer::RAS_STEREO_LEFTEYE) ? 0.0f : 0.5f);
-      }
       default:
         break;
     }

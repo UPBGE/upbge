@@ -87,9 +87,6 @@ class LA_Launcher {
   /// The number of render samples.
   int m_samples;
 
-  /// The render stereo mode passed in constructor.
-  RAS_Rasterizer::StereoMode m_stereoMode;
-
   /// argc and argv need to be passed on to python
   int m_argc;
   char **m_argv;
@@ -135,7 +132,6 @@ class LA_Launcher {
               blender::Main *maggie,
               blender::Scene *scene,
               GlobalSettings *gs,
-              RAS_Rasterizer::StereoMode stereoMode,
               int samples,
               int argc,
               char **argv,

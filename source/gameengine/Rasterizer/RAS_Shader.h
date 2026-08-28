@@ -100,8 +100,7 @@ class RAS_Shader {
     VIEWMATRIX_INVERSE,
     VIEWMATRIX_INVERSETRANSPOSE,
     CAM_POS,
-    CONSTANT_TIMER,
-    EYE
+    CONSTANT_TIMER
   };
 
  protected:

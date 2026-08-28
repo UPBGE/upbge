@@ -63,7 +63,6 @@ class LA_PlayerLauncher : public LA_Launcher {
                     blender::Main *maggie,
                     blender::Scene *scene,
                     GlobalSettings *gs,
-                    RAS_Rasterizer::StereoMode stereoMode,
                     int samples,
                     int argc,
                     char **argv,

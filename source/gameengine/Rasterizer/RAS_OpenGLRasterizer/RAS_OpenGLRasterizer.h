@@ -42,21 +42,6 @@
  */
 class RAS_OpenGLRasterizer {
  private:
-  class ScreenPlane {
-   private:
-    unsigned int m_vbo;
-    unsigned int m_ibo;
-    unsigned int m_vao;
-
-   public:
-    ScreenPlane();
-    ~ScreenPlane();
-
-    void Render();
-  };
-
-  /// Class used to render a screen plane.
-  ScreenPlane m_screenPlane;
 
   RAS_Rasterizer *m_rasterizer;
 
@@ -66,7 +51,6 @@ class RAS_OpenGLRasterizer {
 
   unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
-  void DrawOverlayPlane();
   void BeginFrame();
 
   /**

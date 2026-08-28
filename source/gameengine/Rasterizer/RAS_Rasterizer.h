@@ -54,7 +54,6 @@ class RAS_FrameBuffer;
 class RAS_ICanvas;
 struct KX_ClientObjectInfo;
 class KX_RayCast;
-struct DRWShadingGroup;
 
 typedef struct ViewPortMatrices {
   MT_Matrix4x4 view;
@@ -73,53 +72,11 @@ class RAS_Rasterizer {
   enum FrameBufferType {
     RAS_FRAMEBUFFER_FILTER0 = 0,
     RAS_FRAMEBUFFER_FILTER1,
-    RAS_FRAMEBUFFER_EYE_LEFT0,
-    RAS_FRAMEBUFFER_EYE_RIGHT0,
-    RAS_FRAMEBUFFER_EYE_LEFT1,
-    RAS_FRAMEBUFFER_EYE_RIGHT1,
-    RAS_FRAMEBUFFER_BLIT_DEPTH,
+    RAS_FRAMEBUFFER_RENDER0,
+    RAS_FRAMEBUFFER_RENDER1,
     RAS_FRAMEBUFFER_MAX,
 
     RAS_FRAMEBUFFER_CUSTOM,
-  };
-
-  /**
-   * Valid SetDepthMask parameters
-   */
-  enum DepthMask {
-    RAS_DEPTHMASK_ENABLED = 1,
-    RAS_DEPTHMASK_DISABLED,
-  };
-
-  /**
-   */
-  enum {
-    RAS_BACKCULL = 16,  // GEMAT_BACKCULL
-  };
-
-  /**
-   * Stereo mode types
-   */
-  enum StereoMode {
-    RAS_STEREO_NOSTEREO = 1,
-    // WARNING: Not yet supported.
-    RAS_STEREO_QUADBUFFERED,
-    RAS_STEREO_ABOVEBELOW,
-    RAS_STEREO_INTERLACED,
-    RAS_STEREO_ANAGLYPH,
-    RAS_STEREO_SIDEBYSIDE,
-    RAS_STEREO_VINTERLACE,
-    RAS_STEREO_3DTVTOPBOTTOM,
-
-    RAS_STEREO_MAXSTEREO
-  };
-
-  /**
-   * Render pass identifiers for stereo.
-   */
-  enum StereoEye {
-    RAS_STEREO_LEFTEYE = 0,
-    RAS_STEREO_RIGHTEYE,
   };
 
   /** Return the output frame buffer normally used for the input frame buffer
@@ -156,63 +113,27 @@ class RAS_Rasterizer {
     RAS_FrameBuffer *GetFrameBuffer(FrameBufferType type);
   };
 
-  // All info used to compute the ray cast transform matrix.
-  struct RayCastTranform {
-    /// The object scale.
-    MT_Vector3 scale;
-    /// The original object matrix.
-    float *origmat;
-    /// The output matrix.
-    float *mat;
-  };
-
-  struct ScreenShaders {
-    DRWShadingGroup *normal;
-    DRWShadingGroup *anaglyph;
-    DRWShadingGroup *interlace;
-    DRWShadingGroup *vinterlace;
-  } m_screenShaders;
-
   ViewPortMatrices m_matrices;
 
   // We store each debug shape by scene.
   RAS_DebugDraw m_debugDraw;
 
-  /* fogging vars */
-  bool m_fogenabled;
-
   double m_time;
-  MT_Vector3 m_ambient;
   MT_Matrix4x4 m_viewmatrix;
   MT_Matrix4x4 m_viewinvmatrix;
   MT_Vector3 m_campos;
   bool m_camortho;
   bool m_camnegscale;
 
-  StereoMode m_stereomode;
-  StereoEye m_curreye;
-  float m_eyeseparation;
-  float m_focallength;
-  bool m_setfocallength;
-  int m_noOfScanlines;
-
   /* Render tools */
   void *m_clientobject;
   void *m_auxilaryClientInfo;
-  int m_lastlightlayer;
-  bool m_lastlighting;
   void *m_lastauxinfo;
 
   /// Class used to manage off screens used by the rasterizer.
   FrameBuffers m_frameBuffers;
 
-  bool m_invertFrontFace;
-  bool m_last_frontface;
-
   std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
-
-  void InitScreenShaders();
-  void ExitScreenShaders();
 
  public:
   RAS_Rasterizer();
@@ -264,53 +185,13 @@ class RAS_Rasterizer {
    */
   void DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer);
 
-  /** Draw each stereo off screen to screen.
-   * \param canvas The canvas containing the screen viewport.
-   * \param lefteyeindex The left off screen index.
-   * \param righteyeindex The right off screen index.
-   */
-  void DrawStereoFrameBuffer(RAS_ICanvas *canvas,
-                             RAS_FrameBuffer *leftFb,
-                             RAS_FrameBuffer *rightFb);
-
   /**
    * GetRenderArea computes the render area from the 2d canvas.
    */
-  RAS_Rect GetRenderArea(RAS_ICanvas *canvas, StereoEye eye);
-
-  // Stereo Functions
-  /**
-   * SetStereoMode will set the stereo mode
-   */
-  void SetStereoMode(const StereoMode stereomode);
-
-  /**
-   * Stereo can be used to query if the rasterizer is in stereo mode.
-   * \return true if stereo mode is enabled.
-   */
-  bool Stereo();
-  StereoMode GetStereoMode();
-
-  /**
-   * Sets which eye buffer subsequent primitives will be rendered to.
-   */
-  void SetEye(const StereoEye eye);
-  StereoEye GetEye();
-
-  /**
-   * Sets the distance between eyes for stereo mode.
-   */
-  void SetEyeSeparation(const float eyeseparation);
-  float GetEyeSeparation();
-
-  /**
-   * Sets the focal length for stereo mode.
-   */
-  void SetFocalLength(const float focallength);
-  float GetFocalLength();
+  RAS_Rect GetRenderArea(RAS_ICanvas *canvas);
 
   /// Get the modelview matrix according to the stereo settings.
-  MT_Matrix4x4 GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective);
+  MT_Matrix4x4 GetViewMatrix(const MT_Transform &camtrans, bool perspective);
   /**
    * Sets the modelview matrix.
    */
@@ -339,8 +220,7 @@ class RAS_Rasterizer {
    * \param frustfar the far clipping plane
    * \return a 4x4 matrix representing the projection transform.
    */
-  MT_Matrix4x4 GetFrustumMatrix(StereoEye eye,
-                                float left,
+  MT_Matrix4x4 GetFrustumMatrix(float left,
                                 float right,
                                 float bottom,
                                 float top,
@@ -361,8 +241,6 @@ class RAS_Rasterizer {
    */
   MT_Matrix4x4 GetOrthoMatrix(
       float left, float right, float bottom, float top, float frustnear, float frustfar);
-
-  void SetAmbientColor(const MT_Vector3 &color);
 
   RAS_DebugDraw &GetDebugDraw();
   void FlushDebugDraw(RAS_ICanvas *canvas);

@@ -117,7 +117,6 @@ PyMethodDef BL_Shader::Methods[] = {
     EXP_PYMETHODTABLE(BL_Shader, validate),
     // access functions
     EXP_PYMETHODTABLE(BL_Shader, isValid),
-    EXP_PYMETHODTABLE(BL_Shader, setUniformEyef),
     EXP_PYMETHODTABLE(BL_Shader, setUniform1f),
     EXP_PYMETHODTABLE(BL_Shader, setUniform2f),
     EXP_PYMETHODTABLE(BL_Shader, setUniform3f),
@@ -479,38 +478,6 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) "
 #  else
       SetUniform(loc, array, 4);
 #  endif
-    }
-    Py_RETURN_NONE;
-  }
-  return nullptr;
-}
-
-EXP_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
-{
-  if (!m_shader) {
-    Py_RETURN_NONE;
-  }
-  const char *uniform;
-  if (PyArg_ParseTuple(args, "s:setUniformEyef", &uniform)) {
-    int loc = GetUniformLocation(uniform);
-    if (loc != -1) {
-      bool defined = false;
-      for (RAS_DefUniform *defuni : m_preDef) {
-        if (defuni->m_loc == loc) {
-          defined = true;
-          break;
-        }
-      }
-
-      if (defined) {
-        Py_RETURN_NONE;
-      }
-
-      RAS_DefUniform *uni = new RAS_DefUniform();
-      uni->m_loc = loc;
-      uni->m_type = EYE;
-      uni->m_flag = 0;
-      m_preDef.push_back(uni);
     }
     Py_RETURN_NONE;
   }
