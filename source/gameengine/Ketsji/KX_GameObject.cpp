@@ -373,7 +373,7 @@ static bool is_realtime_compositor_enabled(blender::bContext *C)
   blender::Scene *scene = CTX_data_scene(C);
   if (v3d && scene) {
     if (v3d->shading.use_compositor != V3D_SHADING_USE_COMPOSITOR_DISABLED &&
-        v3d->shading.type >= OB_MATERIAL && scene->compositing_node_group && rv3d &&
+        v3d->shading.type >= OB_MATERIAL && rv3d &&
         !(v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
           rv3d->persp != RV3D_CAMOB))
     {
