@@ -420,7 +420,7 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
    *   (binding_index:int, buffer:GPUStorageBuf|GPUVertBuf|GPUTexture|str_token|None,
    *    qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str)
    *
-   * If buffer is a string token (e.g. "VBO:Position" or "Position") it will be resolved
+   * If buffer is a string token (e.g. "VBO::Position" or "Position") it will be resolved
    * to the cache's VBO after the MeshBatchCache is obtained.
    */
   std::vector<GpuMeshComputeBinding> local_bindings;
