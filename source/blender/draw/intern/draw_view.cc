@@ -6,6 +6,8 @@
  * \ingroup draw
  */
 
+#include <cstdio>
+
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_c.hh"
@@ -296,9 +298,32 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
     GPU_storagebuf_bind(visibility_buf_, GPU_shader_get_ssbo_binding(shader, "visibility_buf"));
     GPU_uniformbuf_bind(frozen_ ? data_freeze_ : data_, DRW_VIEW_UBO_SLOT);
     GPU_uniformbuf_bind(frozen_ ? culling_freeze_ : culling_, DRW_VIEW_CULLING_UBO_SLOT);
+
+    /* Hi-Z Occlusion Culling Integration */
+    gpu::Texture *hiz_tx = get_hiz_texture();
+    if (hiz_tx != nullptr) {
+      int hiz_sampler_binding = GPU_shader_get_sampler_binding(shader, "hiz_tex");
+      if (hiz_sampler_binding != -1) {
+        GPU_texture_bind(hiz_tx, DRW_HIZ_TEXTURE_SLOT);
+        GPU_shader_uniform_2f(shader, "hiz_uv_scale", hiz_uv_scale_.x, hiz_uv_scale_.y);
+        GPU_shader_uniform_1i(shader, "use_hiz_culling", DRW_context_get()->is_select() ? 0 : 1);
+      }
+      else {
+        GPU_shader_uniform_1i(shader, "use_hiz_culling", 0);
+      }
+    }
+    else {
+      GPU_shader_uniform_1i(shader, "use_hiz_culling", 0);
+    }
+
     GPU_compute_dispatch(shader, divide_ceil_u(resource_len, DRW_VISIBILITY_GROUP_SIZE), 1, 1);
+    GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH);
     GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
+    GPU_memory_barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
+
   }
+
+  set_hiz_texture(nullptr);
 
   if (frozen_) {
     /* Bind back the non frozen data. */
@@ -362,3 +387,4 @@ float View::screen_pixel_radius(const float4x4 &wininv, bool is_perspective, con
 }
 
 }  // namespace blender::draw
+

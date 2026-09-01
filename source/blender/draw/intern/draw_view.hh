@@ -175,9 +175,20 @@ class View {
     return screen_pixel_radius(wininv(view_id), is_persp(view_id), extent);
   }
 
-  int visibility_word_per_draw() const
+    int visibility_word_per_draw() const
   {
     return (view_len_ == 1) ? 0 : divide_ceil_u(view_len_, 32);
+  }
+
+  /** Returns the Hi-Z texture if available (used for occlusion culling). */
+  /* Not virtual: the view used by Eevee is the base `View` class. */
+  gpu::Texture *get_hiz_texture() const { return hiz_tx_; }
+
+  /** Sets the Hi-Z texture for this view. */
+  void set_hiz_texture(gpu::Texture *hiz_tx, float2 hiz_uv_scale = float2(1.0f))
+  {
+    hiz_tx_ = hiz_tx;
+    hiz_uv_scale_ = hiz_uv_scale;
   }
 
   UniformArrayBuffer<ViewMatrices, DRW_VIEW_MAX> &matrices_ubo_get()
@@ -235,11 +246,14 @@ class View {
 
   /* Returns frustum planes equations. Available only after sync. */
   std::array<float4, 6> frustum_planes_get(int view_id = 0) const;
-  /* Returns frustum corners positions in world space. Available only after sync.
+    /* Returns frustum corners positions in world space. Available only after sync.
    * Follow bounding box corner order. */
   std::array<float3, 8> frustum_corners_get(int view_id = 0) const;
 
- protected:
+  protected:
+  mutable gpu::Texture *hiz_tx_ = nullptr;
+  float2 hiz_uv_scale_ = float2(1.0f);
+
   /** Called from draw manager. */
   void bind();
   virtual void compute_visibility(ObjectBoundsBuf &bounds,

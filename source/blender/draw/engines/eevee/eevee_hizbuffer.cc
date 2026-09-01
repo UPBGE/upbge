@@ -93,8 +93,14 @@ void HiZBuffer::update()
     return;
   }
 
-  /* After this, the front buffer become valid. */
+    /* After this, the front buffer become valid. */
   front.ref_tx_ = hiz_tx_.current();
+
+  if (inst_.drw_view) {
+    // Cast away constness safely : the view is mutable.
+    const_cast<blender::draw::View *>(inst_.drw_view)
+      ->set_hiz_texture(front.ref_tx_, data_.uv_scale);
+  }
 
   src_tx_ = *src_tx_ptr_;
   for (const int i : IndexRange(HIZ_MIP_COUNT)) {

@@ -27,6 +27,7 @@
 #define DRW_OBJ_MAT_SLOT 10
 #define DRW_OBJ_INFOS_SLOT 9
 #define DRW_OBJ_ATTR_SLOT 8
+#define DRW_HIZ_TEXTURE_SLOT 12
 /* Slots 0-7 are reserved for engine use. */
 /* Debug SSBOs are not counted in the limit [12 - 15+]. */
 #define DRW_DEBUG_DRAW_SLOT 14
