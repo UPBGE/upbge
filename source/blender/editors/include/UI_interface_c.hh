@@ -1669,7 +1669,7 @@ enum {
   TEMPLATE_ID_FILTER_AVAILABLE = 1,
 };
 
-/***************************** ID Utilities *******************************/
+/* ID utilities. */
 
 int icon_from_id(const ID *id);
 /** See: #BKE_report_type_str */

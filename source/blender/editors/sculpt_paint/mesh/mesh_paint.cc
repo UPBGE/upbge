@@ -80,26 +80,23 @@ void mode_enter_generic(
   if (mode_flag == OB_MODE_VERTEX_PAINT) {
     const PaintMode paint_mode = PaintMode::Vertex;
 
-    BKE_paint_ensure(scene.toolsettings, reinterpret_cast<Paint **>(&scene.toolsettings->vpaint));
+    BKE_paint_init(&bmain, &scene, paint_mode);
     paint = BKE_paint_get_active_from_paintmode(&scene, paint_mode);
     ED_paint_cursor_start(paint, vertex_paint_poll);
-    BKE_paint_init(&bmain, &scene, paint_mode);
   }
   else if (mode_flag == OB_MODE_WEIGHT_PAINT) {
     const PaintMode paint_mode = PaintMode::Weight;
 
-    BKE_paint_ensure(scene.toolsettings, reinterpret_cast<Paint **>(&scene.toolsettings->wpaint));
+    BKE_paint_init(&bmain, &scene, paint_mode);
     paint = BKE_paint_get_active_from_paintmode(&scene, paint_mode);
     ED_paint_cursor_start(paint, weight_paint_poll);
-    BKE_paint_init(&bmain, &scene, paint_mode);
   }
   else if (mode_flag == OB_MODE_SCULPT) {
     const PaintMode paint_mode = PaintMode::Sculpt;
 
-    BKE_paint_ensure(scene.toolsettings, reinterpret_cast<Paint **>(&scene.toolsettings->sculpt));
+    BKE_paint_init(&bmain, &scene, paint_mode);
     paint = BKE_paint_get_active_from_paintmode(&scene, paint_mode);
     ED_paint_cursor_start(paint, brush_cursor_poll);
-    BKE_paint_init(&bmain, &scene, paint_mode);
   }
   else {
     BLI_assert(0);
@@ -311,7 +308,7 @@ static void do_tiled(const Depsgraph &depsgraph,
 
   /* First do the "un-tiled" position to initialize the stroke for this location. */
   cache->tile_pass = 0;
-  action_fn(depsgraph, scene, brush, object, nullptr);
+  action_fn(depsgraph, scene, brush, object, paint_mode_data);
 
   /* Now do it for all the tiles. */
   copy_v3_v3_int(cur, start);
