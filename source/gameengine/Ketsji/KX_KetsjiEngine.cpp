@@ -786,7 +786,7 @@ void KX_KetsjiEngine::Render()
     blender::gpu::Texture *backup = GPU_viewport_color_texture(gpu_viewport, 0);
     GPU_viewport_switch_color_tex(gpu_viewport,
                                   GPU_framebuffer_color_texture(background_fb->GetFrameBuffer()));
-    GPU_viewport_draw_to_screen_ex(gpu_viewport, 0, &rect, true, true);
+    GPU_viewport_draw_to_screen_ex(gpu_viewport, 0, &rect, true, false);
     GPU_viewport_switch_color_tex(gpu_viewport, backup);
 
     GPU_viewport(v[0], v[1], v[2] + 1, v[3] + 1);
