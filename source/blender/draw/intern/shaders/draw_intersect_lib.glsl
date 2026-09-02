@@ -323,62 +323,15 @@ bool intersect_hiz(IsectBox box, uint view_id, sampler2D hiz_tex, float2 hiz_uv_
    * world-to-clip transform, not the projection matrix alone. */
   float4x4 view_proj = view_buf[view_id].winmat * view_buf[view_id].viewmat;
 
-  float2 uv_min = float2(1.0f);
-  float2 uv_max = float2(-1.0f);
-  /* Keep the nearest screen-space depth of the projected box. See eevee_reverse_z_lib: HiZ stores
-   * reverse-Z values, so the relevant comparison needs to be done in screen-space depth and then
-   * converted back to reverse-Z before comparing to the HiZ sample. */
-  float min_screen_z = 1.0f;
-
-  /* Project all 8 corners to NDC and keep the min/max screen coverage.
-   * We conservatively ignore invalid/wrongly projected points. */
+  bool occluded = true;
   for (int i = 0; i < 8; ++i) {
     float4 clip_pos = view_proj * float4(box.corners[i], 1.0f);
-    if (clip_pos.w <= 0.0f) {
-      continue;
-    }
-
     float3 ndc_pos = clip_pos.xyz / clip_pos.w;
     float2 uv = ndc_pos.xy * 0.5f + 0.5f;
-    uv_min = min(uv_min, uv);
-    uv_max = max(uv_max, uv);
-    /* NDC depth is in [-1..1], but the HiZ depth is in [0..1] screen depth (reversed zoom).
-     * Keep the closest point along the depth axis in screen-depth space. */
-    min_screen_z = min(min_screen_z, ndc_pos.z * 0.5f + 0.5f);
-  }
-
-  /* If the box is fully outside the screen, it cannot occlude anything. */
-  if (uv_max.x < 0.0f || uv_min.x > 1.0f || uv_max.y < 0.0f || uv_min.y > 1.0f) {
-    return false;
-  }
-
-  /* Clamp the projected region to the screen and avoid degenerate cases. */
-  uv_min = clamp(uv_min, float2(0.0f), float2(1.0f));
-  uv_max = clamp(uv_max, float2(0.0f), float2(1.0f));
-
-  /* Use mip 0 and several points over the projected bounds. A single coarse sample is not
-   * conservative: it can miss a visible part of the object and break selection/outline passes. */
-  float2 uv_center = (uv_min + uv_max) * 0.5f;
-  float2 uv_extent = max(uv_max - uv_min, float2(0.0f));
-  float2 uv_inner_min = uv_min + uv_extent * 0.25f;
-  float2 uv_inner_max = uv_max - uv_extent * 0.25f;
-  float2 uv_points[5] = {uv_inner_min,
-                         float2(uv_inner_max.x, uv_inner_min.y),
-                         float2(uv_inner_min.x, uv_inner_max.y),
-                         uv_inner_max,
-                         uv_center};
-  /* HiZ is already converted with reverse_z::read() while the pyramid is built. Its values are
-   * therefore standard screen depth here, not raw Vulkan reverse-Z depth. */
-  float box_depth = min_screen_z;
-
-  /* All tested points must be behind visible geometry before rejecting the box. */
-  const float epsilon = 0.00001f;
-  bool occluded = true;
-  for (int i = 0; i < 5; ++i) {
-    float sampled_depth = textureLod(hiz_tex, uv_points[i] * hiz_uv_scale, 0.0f).r;
-    if (box_depth <= sampled_depth) {
+    float corner_depth = (ndc_pos.z * 0.5f + 0.5f);
+    float sampled_depth = textureLod(hiz_tex, uv * hiz_uv_scale, 0.0f).r;
+    if (corner_depth <= sampled_depth) {
       occluded = false;
-      break;
     }
   }
   return occluded;
