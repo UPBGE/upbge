@@ -100,6 +100,8 @@ void HiZBuffer::update()
     // Cast away constness safely : the view is mutable.
     const_cast<blender::draw::View *>(inst_.drw_view)
       ->set_hiz_texture(front.ref_tx_, data_.uv_scale);
+    const_cast<blender::draw::View *>(inst_.drw_view)
+      ->set_hiz_debug_mode(true);
   }
 
   src_tx_ = *src_tx_ptr_;

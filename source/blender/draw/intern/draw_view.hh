@@ -191,6 +191,21 @@ class View {
     hiz_uv_scale_ = hiz_uv_scale;
   }
 
+  void set_hiz_debug_mode(bool enable)
+  {
+    hiz_debug_mode_ = enable;
+    if (!enable) {
+      hiz_debug_total_ = 0;
+      hiz_debug_visible_ = 0;
+      hiz_debug_culled_ = 0;
+    }
+  }
+
+  bool get_hiz_debug_mode() const
+  {
+    return hiz_debug_mode_;
+  }
+
   UniformArrayBuffer<ViewMatrices, DRW_VIEW_MAX> &matrices_ubo_get()
   {
     return data_;
@@ -253,6 +268,10 @@ class View {
   protected:
   mutable gpu::Texture *hiz_tx_ = nullptr;
   float2 hiz_uv_scale_ = float2(1.0f);
+  bool hiz_debug_mode_ = true;
+  uint32_t hiz_debug_total_ = 0;
+  uint32_t hiz_debug_visible_ = 0;
+  uint32_t hiz_debug_culled_ = 0;
 
   /** Called from draw manager. */
   void bind();

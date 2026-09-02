@@ -69,6 +69,10 @@ enum [[host_shared]] eDebugMode : uint32_t {
    * Color different buffers of the depth of field.
    */
   DEBUG_DOF_PLANES = 16u,
+  /**
+   * Show Hi-Z occlusion culling bounds and counts for debugging.
+   */
+  DEBUG_HIZ_CULLING = 18u,
 };
 
 #ifndef GPU_SHADER

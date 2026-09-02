@@ -3086,6 +3086,7 @@ void DRW_game_render_loop(bContext *C,
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
   view_data.eevee.set_used(true);
+  view_data.overlay.set_used(true);
 
   if (gpencil_engine_needed) {
     view_data.grease_pencil.set_used(true);

@@ -376,7 +376,7 @@ bool intersect_hiz(IsectBox box, uint view_id, sampler2D hiz_tex, float2 hiz_uv_
   bool occluded = true;
   for (int i = 0; i < 5; ++i) {
     float sampled_depth = textureLod(hiz_tex, uv_points[i] * hiz_uv_scale, 0.0f).r;
-    if (box_depth <= sampled_depth + epsilon) {
+    if (box_depth <= sampled_depth) {
       occluded = false;
       break;
     }

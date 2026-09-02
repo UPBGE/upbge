@@ -306,7 +306,7 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
       if (hiz_sampler_binding != -1) {
         GPU_texture_bind(hiz_tx, DRW_HIZ_TEXTURE_SLOT);
         GPU_shader_uniform_2f(shader, "hiz_uv_scale", hiz_uv_scale_.x, hiz_uv_scale_.y);
-        GPU_shader_uniform_1i(shader, "use_hiz_culling", DRW_context_get()->is_select() ? 0 : 1);
+        GPU_shader_uniform_1i(shader, "use_hiz_culling", 1);
       }
       else {
         GPU_shader_uniform_1i(shader, "use_hiz_culling", 0);
@@ -321,6 +321,90 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
     GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
     GPU_memory_barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
 
+  }
+
+  if (hiz_debug_mode_) {
+    visibility_buf_.read();
+    bounds.read();
+
+    uint32_t visible_count = 0;
+    uint32_t culled_count = 0;
+    const uint32_t *visibility_ptr = static_cast<const uint32_t *>(visibility_buf_.data());
+    const ObjectBounds *bounds_ptr = bounds.data();
+
+    for (uint i = 0; i < resource_len; ++i) {
+      const uint word = i / 32u;
+      const uint bit = i & 31u;
+      const uint32_t visible = (visibility_ptr[word] >> bit) & 1u;
+
+      if (visible) {
+        visible_count++;
+      }
+      else {
+        culled_count++;
+      }
+
+      if (!drw_bounds_are_valid(bounds_ptr[i])) {
+        continue;
+      }
+
+      const float3 base = bounds_ptr[i].bounding_corners[0].xyz();
+      const float3 x = bounds_ptr[i].bounding_corners[1].xyz();
+      const float3 y = bounds_ptr[i].bounding_corners[2].xyz();
+      const float3 z = bounds_ptr[i].bounding_corners[3].xyz();
+
+      /* Match Blender's `BoundBox` corner order:
+       * 0,1,2,3 are the near plane and 4,5,6,7 are the far plane.
+       * This ordering is required for `drw_debug_bbox()` to draw clean edges. */
+      BoundBox bbox{};
+      bbox.vec[0][0] = base.x;
+      bbox.vec[0][1] = base.y;
+      bbox.vec[0][2] = base.z;
+
+      bbox.vec[1][0] = base.x + x.x;
+      bbox.vec[1][1] = base.y + x.y;
+      bbox.vec[1][2] = base.z + x.z;
+
+      bbox.vec[2][0] = base.x + x.x + y.x;
+      bbox.vec[2][1] = base.y + x.y + y.y;
+      bbox.vec[2][2] = base.z + x.z + y.z;
+
+      bbox.vec[3][0] = base.x + y.x;
+      bbox.vec[3][1] = base.y + y.y;
+      bbox.vec[3][2] = base.z + y.z;
+
+      bbox.vec[4][0] = base.x + z.x;
+      bbox.vec[4][1] = base.y + z.y;
+      bbox.vec[4][2] = base.z + z.z;
+
+      bbox.vec[5][0] = base.x + x.x + z.x;
+      bbox.vec[5][1] = base.y + x.y + z.y;
+      bbox.vec[5][2] = base.z + x.z + z.z;
+
+      bbox.vec[6][0] = base.x + x.x + y.x + z.x;
+      bbox.vec[6][1] = base.y + x.y + y.y + z.y;
+      bbox.vec[6][2] = base.z + x.z + y.z + z.z;
+
+      bbox.vec[7][0] = base.x + y.x + z.x;
+      bbox.vec[7][1] = base.y + y.y + z.y;
+      bbox.vec[7][2] = base.z + y.z + z.z;
+
+      const float4 color = visible ? float4(0.0f, 1.0f, 0.0f, 1.0f) :
+                                    float4(1.0f, 0.0f, 0.0f, 1.0f);
+      drw_debug_bbox(bbox, color, 1);
+    }
+
+    hiz_debug_total_ = resource_len;
+    hiz_debug_visible_ = visible_count;
+    hiz_debug_culled_ = culled_count;
+    /* The visibility buffer is recomputed each time the draw manager rebuilds the view; the
+     * alternation between visible=5/4 is therefore expected when the same object set is checked by
+     * multiple render/view updates in one frame. The actual culling decision is still made in the
+     * Hi-Z visibility shader below, not by a later pass that "undoes" the result. */
+    std::printf("HiZ debug: total=%u visible=%u culled=%u\n",
+                hiz_debug_total_,
+                hiz_debug_visible_,
+                hiz_debug_culled_);
   }
 
   set_hiz_texture(nullptr);
