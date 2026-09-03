@@ -46,18 +46,7 @@ void main()
         /* View disabled. */
         mask_visibility_bit(view_id);
       }
-      else if (intersect_view(inscribed_sphere, view_id) == true) {
-        /* Visible. */
-      }
-      else if (intersect_view(bounding_sphere, view_id) == false) {
-        /* Not visible. */
-        mask_visibility_bit(view_id);
-      }
-      else if (intersect_view(box, view_id) == false) {
-        /* Not visible. */
-        mask_visibility_bit(view_id);
-      }
-      else if (use_hiz_culling == 1 && intersect_hiz(box, view_id, hiz_tex, hiz_uv_scale)) {
+      if (use_hiz_culling == 1 && intersect_hiz(box, view_id, hiz_tex, hiz_uv_scale)) {
           mask_visibility_bit(view_id);
       }
     }

@@ -235,7 +235,7 @@ void DebugDraw::display_lines(View &view)
     return;
   }
 
-  command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
+  command::StateSet::set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
 
   float viewport_size[4];
   GPU_viewport_size_get_f(viewport_size);

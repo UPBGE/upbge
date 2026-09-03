@@ -268,7 +268,7 @@ class View {
   protected:
   mutable gpu::Texture *hiz_tx_ = nullptr;
   float2 hiz_uv_scale_ = float2(1.0f);
-  bool hiz_debug_mode_ = false;
+  bool hiz_debug_mode_ = true;
   uint32_t hiz_debug_total_ = 0;
   uint32_t hiz_debug_visible_ = 0;
   uint32_t hiz_debug_culled_ = 0;
