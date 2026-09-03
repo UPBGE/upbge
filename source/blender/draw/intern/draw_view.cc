@@ -329,10 +329,16 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
 
     uint32_t visible_count = 0;
     uint32_t culled_count = 0;
+    uint32_t valid_bounds_count = 0;
     const uint32_t *visibility_ptr = static_cast<const uint32_t *>(visibility_buf_.data());
     const ObjectBounds *bounds_ptr = bounds.data();
 
     for (uint i = 0; i < resource_len; ++i) {
+      if (!drw_bounds_are_valid(bounds_ptr[i])) {
+        continue;
+      }
+      valid_bounds_count++;
+
       const uint word = i / 32u;
       const uint bit = i & 31u;
       const uint32_t visible = (visibility_ptr[word] >> bit) & 1u;
@@ -344,14 +350,11 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
         culled_count++;
       }
 
-      if (!drw_bounds_are_valid(bounds_ptr[i])) {
-        continue;
-      }
-
       const float3 base = bounds_ptr[i].bounding_corners[0].xyz();
       const float3 x = bounds_ptr[i].bounding_corners[1].xyz();
       const float3 y = bounds_ptr[i].bounding_corners[2].xyz();
       const float3 z = bounds_ptr[i].bounding_corners[3].xyz();
+
 
       /* Match Blender's `BoundBox` corner order:
        * 0,1,2,3 are the near plane and 4,5,6,7 are the far plane.
@@ -397,15 +400,38 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
     hiz_debug_total_ = resource_len;
     hiz_debug_visible_ = visible_count;
     hiz_debug_culled_ = culled_count;
-    /* The visibility buffer is recomputed each time the draw manager rebuilds the view; the
-     * alternation between visible=5/4 is therefore expected when the same object set is checked by
-     * multiple render/view updates in one frame. The actual culling decision is still made in the
-     * Hi-Z visibility shader below, not by a later pass that "undoes" the result. */
-    std::printf("HiZ debug: total=%u visible=%u culled=%u\n",
+
+    const DRWContext *ctx = DRW_context_get();
+    const char *mode_str = "unknown";
+    if (ctx) {
+      switch (ctx->mode) {
+        case DRWContext::VIEWPORT: mode_str = "VIEWPORT"; break;
+        case DRWContext::VIEWPORT_XR: mode_str = "VIEWPORT_XR"; break;
+        case DRWContext::VIEWPORT_OFFSCREEN: mode_str = "VIEWPORT_OFFSCREEN"; break;
+        case DRWContext::VIEWPORT_RENDER: mode_str = "VIEWPORT_RENDER"; break;
+        case DRWContext::SELECT_OBJECT: mode_str = "SELECT_OBJECT"; break;
+        case DRWContext::SELECT_OBJECT_MATERIAL: mode_str = "SELECT_OBJECT_MATERIAL"; break;
+        case DRWContext::SELECT_EDIT_MESH: mode_str = "SELECT_EDIT_MESH"; break;
+        case DRWContext::DEPTH: mode_str = "DEPTH"; break;
+        case DRWContext::DEPTH_ACTIVE_OBJECT: mode_str = "DEPTH_ACTIVE_OBJECT"; break;
+        case DRWContext::RENDER: mode_str = "RENDER"; break;
+        case DRWContext::CUSTOM: mode_str = "CUSTOM"; break;
+        default: mode_str = "OTHER"; break;
+      }
+    }
+
+    const char *hiz_status = (get_hiz_texture() != nullptr) ? "available" : "not available";
+
+    std::printf("HiZ debug [%s] (Mode: %s, HiZ: %s): total=%u, valid=%u, visible=%u, culled=%u\n",
+                debug_name_,
+                mode_str,
+                hiz_status,
                 hiz_debug_total_,
+                valid_bounds_count,
                 hiz_debug_visible_,
                 hiz_debug_culled_);
   }
+
 
   set_hiz_texture(nullptr);
 
