@@ -570,6 +570,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       mesh_monkey
       mesh_plane
       mesh_torus
+      mesh_quadsphere
       mesh_uvsphere
       meta_ball
       meta_capsule

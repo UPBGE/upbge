@@ -401,22 +401,12 @@ void do_symmetrical_brush_actions_with_tiling_and_feathering(const Depsgraph &de
 void stroke_cache_common_init(
     ViewContext &vc, const Paint &paint, const Brush &brush, Object &object, const float2 mval)
 {
-  bke::PaintRuntime *paint_runtime = paint.runtime;
   SculptSession &ss = *object.runtime->sculpt_session;
   StrokeCache *cache = ss.cache;
 
   cache->initial_mouse = mval;
   cache->mouse = cache->initial_mouse;
   cache->mouse_event = cache->initial_mouse;
-
-  /* Not very nice, but with current events system implementation
-   * we can't handle brush appearance inversion hotkey separately (sergey). */
-  if (cache->toggle_settings.invert) {
-    paint_runtime->draw_inverted = true;
-  }
-  else {
-    paint_runtime->draw_inverted = false;
-  }
 
   /* Truly temporary data that isn't stored in properties. */
   cache->vc = &vc;

@@ -1466,6 +1466,7 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
                                                   SampleLocalData &tls,
                                                   AreaNormalCenterData &anctd)
 {
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
   const float3 &location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
   const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm : ss.cursor_view_normal;
@@ -1554,6 +1555,7 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
                                                    SampleLocalData &tls,
                                                    AreaNormalCenterData &anctd)
 {
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
   const float3 &location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
   const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm : ss.cursor_view_normal;
@@ -1664,6 +1666,7 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
                                                    SampleLocalData &tls,
                                                    AreaNormalCenterData &anctd)
 {
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
   const float3 &location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
   const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm : ss.cursor_view_normal;
@@ -1828,6 +1831,7 @@ void calc_area_center(const Depsgraph &depsgraph,
                       const IndexMask &node_mask,
                       float r_area_co[3])
 {
+  PRF_scope(ProfileCategory::Editor);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const SculptSession &ss = *ob.runtime->sculpt_session;
   int n;
@@ -1929,6 +1933,7 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
                                        const Object &ob,
                                        const IndexMask &node_mask)
 {
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *ob.runtime->sculpt_session;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
@@ -5029,7 +5034,7 @@ struct SculptPaintStroke final : public PaintStroke {
   bool test_start(wmOperator *op, float2 mouse) override;
   void redraw(bool final) override;
   bool test_cancel() override;
-  void update_step(wmOperator *op, PointerRNA *itemptr) override;
+  void update_step(wmOperator *op, const StrokeStep &stroke_step) override;
   void done(bool is_cancel, bool stroke_started) override;
 };
 
@@ -5747,7 +5752,7 @@ static void stroke_cache_update(ViewContext &vc,
                                 Paint &paint,
                                 Brush &brush,
                                 Object &object,
-                                PointerRNA *ptr)
+                                const PaintStroke::StrokeStep &stroke_step)
 {
   PRF_scope(ProfileCategory::Editor);
   bke::PaintRuntime &paint_runtime = *paint.runtime;
@@ -5760,11 +5765,11 @@ static void stroke_cache_update(ViewContext &vc,
         (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) ||
         cloth::is_cloth_deform_brush(brush)))
   {
-    RNA_float_get_array(ptr, "location", cache.location);
+    cache.location = stroke_step.location;
   }
 
-  RNA_float_get_array(ptr, "mouse", cache.mouse);
-  RNA_float_get_array(ptr, "mouse_event", cache.mouse_event);
+  cache.mouse = stroke_step.mouse;
+  cache.mouse_event = stroke_step.mouse_event;
 
   /* We don't do a raycast here for sculpt mode unlike vertex and weight paint */
 
@@ -5773,10 +5778,10 @@ static void stroke_cache_update(ViewContext &vc,
    * It's more an events design issue, which doesn't split coordinate/pressure/angle changing
    * events. We should avoid this after events system re-design. */
   if (paint_supports_dynamic_size(brush, PaintMode::Sculpt) || cache.first_time) {
-    cache.pressure = RNA_float_get(ptr, "pressure");
+    cache.pressure = stroke_step.pressure;
   }
 
-  cache.tilt = {RNA_float_get(ptr, "x_tilt"), RNA_float_get(ptr, "y_tilt")};
+  cache.tilt = stroke_step.tilt;
 
   /* Truly temporary data that isn't stored in properties. */
   if (stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
@@ -5829,7 +5834,7 @@ static void stroke_cache_update(ViewContext &vc,
   if (brush.stroke_method == BRUSH_STROKE_ANCHORED) {
     /* True location has been calculated as part of the stroke system already here. */
     if (brush.flag & BRUSH_EDGE_TO_EDGE) {
-      RNA_float_get_array(ptr, "location", cache.location);
+      cache.location = stroke_step.location;
     }
 
     cache.radius = paint_calc_object_space_radius(
@@ -5852,7 +5857,7 @@ static void stroke_cache_update(ViewContext &vc,
   cache.iteration_count++;
 }
 
-void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
+void SculptPaintStroke::update_step(wmOperator * /*op*/, const StrokeStep &stroke_step)
 {
   const Scene &scene = *this->scene;
   Depsgraph &depsgraph = *this->depsgraph;
@@ -5864,7 +5869,7 @@ void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   cache->stroke_distance = this->stroke_distance();
 
   stroke_modifiers_check(depsgraph, this->vc.rv3d, sd, ob, &brush);
-  stroke_cache_update(this->vc, depsgraph, sd.paint, brush, ob, itemptr);
+  stroke_cache_update(this->vc, depsgraph, sd.paint, brush, ob, stroke_step);
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
 
   if (dyntopo::stroke_is_dyntopo(ob, brush)) {
@@ -5921,9 +5926,7 @@ void SculptPaintStroke::done(bool is_cancel, bool stroke_started)
     brush_exit_tex(sd);
     return;
   }
-  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
   Brush *brush = BKE_paint_brush(&sd.paint);
-  paint_runtime->draw_inverted = false;
 
   stroke_modifiers_check(*this->depsgraph, this->vc.rv3d, sd, ob, brush);
 
