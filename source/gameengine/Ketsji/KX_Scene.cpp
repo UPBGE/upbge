@@ -772,6 +772,7 @@ bool KX_Scene::ViewportRender(KX_Camera *cam,
           wm_xr_events_handle(CTX_wm_manager(C));
           // wm_event_do_handlers(C);   // TODO: Find more specific XR code
           wm_event_do_notifiers(C);  // TODO: Find more specific XR code
+          ReinitBlenderContextVariables();
         }
       }
 #endif
