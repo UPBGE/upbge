@@ -300,20 +300,20 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
     GPU_uniformbuf_bind(frozen_ ? culling_freeze_ : culling_, DRW_VIEW_CULLING_UBO_SLOT);
 
     /* Hi-Z Occlusion Culling Integration */
-    gpu::Texture *hiz_tx = get_hiz_texture();
-    if (hiz_tx != nullptr) {
-      int hiz_sampler_binding = GPU_shader_get_sampler_binding(shader, "hiz_tex");
-      if (hiz_sampler_binding != -1) {
-        GPU_texture_bind(hiz_tx, DRW_HIZ_TEXTURE_SLOT);
-        GPU_shader_uniform_2f(shader, "hiz_uv_scale", hiz_uv_scale_.x, hiz_uv_scale_.y);
-        GPU_shader_uniform_1i(shader, "use_hiz_culling", 1);
+    gpu::Texture *depth_culling_tx = get_depth_culling_texture();
+    if (depth_culling_tx != nullptr) {
+      int depth_culling_sampler_binding = GPU_shader_get_sampler_binding(shader, "depth_culling_tex");
+      if (depth_culling_sampler_binding != -1) {
+        GPU_texture_bind(depth_culling_tx, DRW_HIZ_TEXTURE_SLOT);
+        GPU_shader_uniform_1i(shader, "use_depth_culling", 1);
+        GPU_shader_uniform_1i(shader, "reverse_z", reverse_z_ ? 1 : 0);
       }
       else {
-        GPU_shader_uniform_1i(shader, "use_hiz_culling", 0);
+        GPU_shader_uniform_1i(shader, "use_depth_culling", 0);
       }
     }
     else {
-      GPU_shader_uniform_1i(shader, "use_hiz_culling", 0);
+      GPU_shader_uniform_1i(shader, "use_depth_culling", 0);
     }
 
     GPU_compute_dispatch(shader, divide_ceil_u(resource_len, DRW_VISIBILITY_GROUP_SIZE), 1, 1);
@@ -323,7 +323,7 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
 
   }
 
-  if (hiz_debug_mode_) {
+  if (depth_culling_debug_mode_) {
     visibility_buf_.read();
     bounds.read();
 
@@ -397,9 +397,9 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
       drw_debug_bbox(bbox, color, 1);
     }
 
-    hiz_debug_total_ = resource_len;
-    hiz_debug_visible_ = visible_count;
-    hiz_debug_culled_ = culled_count;
+    depth_culling_debug_total_ = resource_len;
+    depth_culling_debug_visible_ = visible_count;
+    depth_culling_debug_culled_ = culled_count;
 
     const DRWContext *ctx = DRW_context_get();
     const char *mode_str = "unknown";
@@ -420,20 +420,20 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
       }
     }
 
-    const char *hiz_status = (get_hiz_texture() != nullptr) ? "available" : "not available";
+    const char *depth_culling_status = (get_depth_culling_texture() != nullptr) ? "available" : "not available";
 
     std::printf("HiZ debug [%s] (Mode: %s, HiZ: %s): total=%u, valid=%u, visible=%u, culled=%u\n",
                 debug_name_,
                 mode_str,
-                hiz_status,
-                hiz_debug_total_,
+                depth_culling_status,
+                depth_culling_debug_total_,
                 valid_bounds_count,
-                hiz_debug_visible_,
-                hiz_debug_culled_);
+                depth_culling_debug_visible_,
+                depth_culling_debug_culled_);
   }
 
 
-  set_hiz_texture(nullptr);
+  set_depth_culling_texture(nullptr, reverse_z_);
 
   if (frozen_) {
     /* Bind back the non frozen data. */

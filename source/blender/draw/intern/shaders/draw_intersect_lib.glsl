@@ -317,7 +317,7 @@ bool intersect_view(Sphere sphere, uint view_id = drw_view_id)
 /** \name Hi-Z Occlusion Intersection functions.
  * \{ */
 
-bool intersect_hiz(IsectBox box, uint view_id, sampler2D hiz_tex, float2 hiz_uv_scale)
+bool intersect_depth(IsectBox box, uint view_id, sampler2D depth_culling_tex, int reverse_z)
 {
   /* ObjectBounds are in world space after draw resource finalization. Project them with the full
    * world-to-clip transform, not the projection matrix alone. */
@@ -329,7 +329,10 @@ bool intersect_hiz(IsectBox box, uint view_id, sampler2D hiz_tex, float2 hiz_uv_
     float3 ndc_pos = clip_pos.xyz / clip_pos.w;
     float2 uv = ndc_pos.xy * 0.5f + 0.5f;
     float corner_depth = (ndc_pos.z * 0.5f + 0.5f);
-    float sampled_depth = textureLod(hiz_tex, uv * hiz_uv_scale, 0.0f).r;
+    float sampled_depth = textureLod(depth_culling_tex, uv, 0.0f).r;
+    if (reverse_z == 1) {
+      sampled_depth = 1.0 - sampled_depth;
+    }
     if (corner_depth <= sampled_depth) {
       occluded = false;
     }

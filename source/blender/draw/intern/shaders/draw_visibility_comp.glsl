@@ -46,7 +46,7 @@ void main()
         /* View disabled. */
         mask_visibility_bit(view_id);
       }
-      if (use_hiz_culling == 1 && intersect_hiz(box, view_id, hiz_tex, hiz_uv_scale)) {
+      if (use_depth_culling == 1 && intersect_depth(box, view_id, depth_culling_tex, reverse_z)) {
           mask_visibility_bit(view_id);
       }
     }

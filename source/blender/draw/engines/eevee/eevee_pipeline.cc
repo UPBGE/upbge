@@ -12,6 +12,7 @@
 
 #include "BLI_bounds.hh"
 #include "GPU_capabilities.hh"
+#include "GPU_viewport.hh"
 
 #include "eevee_instance.hh"
 #include "eevee_pipeline.hh"
@@ -642,6 +643,10 @@ void ForwardPipeline::render(View &view,
 
   GPU_debug_group_begin("Forward.Opaque");
 
+  if (inst_.drw_view) {
+    const_cast<draw::View *>(inst_.drw_view)->set_depth_culling_texture(GPU_viewport_depth_texture(inst_.draw_ctx->viewport), false);
+  }
+
   prepass_fb.bind();
   prepass_.render(view, nullptr, true);
 
@@ -682,6 +687,8 @@ void ForwardPipeline::render(View &view,
   else {
     transparent_fb.clear_color(float4(0.0f, 0.0f, 0.0f, 1.0f));
   }
+  //view.invalidate_visibility_cache();
+  //view.set_depth_culling_texture(depth_tx, true);
 
   if (has_opaque_) {
     inst_.manager->submit(opaque_ps_, view);
@@ -1105,6 +1112,9 @@ gpu::Texture *DeferredLayer::render(View &render_view,
   if (!clear_aovs_ps_.is_empty()) {
     inst_.manager->submit(clear_aovs_ps_);
   }
+
+  render_view.invalidate_visibility_cache();
+  render_view.set_depth_culling_texture(rb.depth_tx, true);
 
   inst_.hiz_buffer.swap_layer();
   /* Update for lighting pass or AO node. */

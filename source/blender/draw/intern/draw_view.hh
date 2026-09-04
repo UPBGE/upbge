@@ -182,28 +182,33 @@ class View {
 
   /** Returns the Hi-Z texture if available (used for occlusion culling). */
   /* Not virtual: the view used by Eevee is the base `View` class. */
-  gpu::Texture *get_hiz_texture() const { return hiz_tx_; }
+  gpu::Texture *get_depth_culling_texture() const { return depth_culling_tx_; }
 
   /** Sets the Hi-Z texture for this view. */
-  void set_hiz_texture(gpu::Texture *hiz_tx, float2 hiz_uv_scale = float2(1.0f))
+  void set_depth_culling_texture(gpu::Texture *depth_cul_tx, bool reverse_z)
   {
-    hiz_tx_ = hiz_tx;
-    hiz_uv_scale_ = hiz_uv_scale;
+    depth_culling_tx_ = depth_cul_tx;
+    reverse_z_ = reverse_z;
+  }
+
+  void invalidate_visibility_cache()
+  {
+    manager_fingerprint_ = 0;
   }
 
   void set_hiz_debug_mode(bool enable)
   {
-    hiz_debug_mode_ = enable;
+    depth_culling_debug_mode_ = enable;
     if (!enable) {
-      hiz_debug_total_ = 0;
-      hiz_debug_visible_ = 0;
-      hiz_debug_culled_ = 0;
+      depth_culling_debug_total_ = 0;
+      depth_culling_debug_visible_ = 0;
+      depth_culling_debug_culled_ = 0;
     }
   }
 
   bool get_hiz_debug_mode() const
   {
-    return hiz_debug_mode_;
+    return depth_culling_debug_mode_;
   }
 
   UniformArrayBuffer<ViewMatrices, DRW_VIEW_MAX> &matrices_ubo_get()
@@ -266,12 +271,12 @@ class View {
   std::array<float3, 8> frustum_corners_get(int view_id = 0) const;
 
   protected:
-  mutable gpu::Texture *hiz_tx_ = nullptr;
-  float2 hiz_uv_scale_ = float2(1.0f);
-  bool hiz_debug_mode_ = true;
-  uint32_t hiz_debug_total_ = 0;
-  uint32_t hiz_debug_visible_ = 0;
-  uint32_t hiz_debug_culled_ = 0;
+  mutable gpu::Texture *depth_culling_tx_ = nullptr;
+  bool reverse_z_ = false;
+  bool depth_culling_debug_mode_ = true;
+  uint32_t depth_culling_debug_total_ = 0;
+  uint32_t depth_culling_debug_visible_ = 0;
+  uint32_t depth_culling_debug_culled_ = 0;
 
   /** Called from draw manager. */
   void bind();

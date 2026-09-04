@@ -18,6 +18,7 @@
 #include "DRW_render.hh"
 
 #include "GPU_debug.hh"
+#include "GPU_viewport.hh"
 
 #include "eevee_instance.hh"
 
