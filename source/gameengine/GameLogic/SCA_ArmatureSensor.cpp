@@ -72,12 +72,12 @@ void SCA_ArmatureSensor::FindConstraint()
     blender::bPoseChannel *pchan;
     blender::bConstraint *pcon;
     // and locate the constraint
-    for (pchan = (blender::bPoseChannel *)pose->chanbase.first; pchan;
+    for (pchan = pose->chanbase.first(); pchan;
          pchan = (blender::bPoseChannel *)pchan->next)
     {
       if (pchan->name == m_posechannel) {
         // now locate the constraint
-        for (pcon = (blender::bConstraint *)pchan->constraints.first; pcon;
+        for (pcon = pchan->constraints.first(); pcon;
              pcon = (blender::bConstraint *)pcon->next)
         {
           if (pcon->name == m_constraintname) {

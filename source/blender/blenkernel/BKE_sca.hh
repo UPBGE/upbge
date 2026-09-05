@@ -51,22 +51,22 @@ void BKE_sca_copy_logicbricks(struct Object *ob_new, const struct Object *ob, co
 
 /* Controllers */
 void BKE_sca_unlink_controller(struct bController *cont);
-void BKE_sca_unlink_controllers(struct ListBase *lb);
+void BKE_sca_unlink_controllers(struct ListBaseT<struct bController> *lb);
 void BKE_sca_free_controller(struct bController *cont);
-void BKE_sca_free_controllers(struct ListBase *lb);
+void BKE_sca_free_controllers(struct ListBaseT<struct bController> *lb);
 struct bController *BKE_sca_copy_controller(struct bController *cont, const int flag);
-void BKE_sca_copy_controllers(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
+void BKE_sca_copy_controllers(struct ListBaseT<struct bController> *lbn, const struct ListBaseT<struct bController> *lbo, const int flag);
 void BKE_sca_init_controller(struct bController *cont);
 struct bController *BKE_sca_new_controller(int type);
 void BKE_sca_move_controller(struct bController *cont_to_move, struct Object *ob, int move_up);
 
 /* Actuators */
 void BKE_sca_unlink_actuator(struct bActuator *act);
-void BKE_sca_unlink_actuators(struct ListBase *lb);
+void BKE_sca_unlink_actuators(struct ListBaseT<struct bActuator> *lb);
 void BKE_sca_free_actuator(struct bActuator *act);
-void BKE_sca_free_actuators(struct ListBase *lb);
+void BKE_sca_free_actuators(struct ListBaseT<struct bActuator> *lb);
 struct bActuator *BKE_sca_copy_actuator(struct bActuator *act);
-void BKE_sca_copy_actuators(struct ListBase *lbn, const struct ListBase *lbo);
+void BKE_sca_copy_actuators(struct ListBaseT<struct bActuator> *lbn, const struct ListBaseT<struct bActuator> *lbo);
 void BKE_sca_init_actuator(struct bActuator *act);
 struct bActuator *BKE_sca_new_actuator(int type);
 void BKE_sca_move_actuator(struct bActuator *act_to_move, struct Object *ob, int move_up);
@@ -75,7 +75,7 @@ void BKE_sca_move_actuator(struct bActuator *act_to_move, struct Object *ob, int
 void BKE_sca_free_sensor(struct bSensor *sens);
 void BKE_sca_free_sensors(struct ListBase *lb);
 struct bSensor *BKE_sca_copy_sensor(struct bSensor *sens, const int flag);
-void BKE_sca_copy_sensors(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
+void BKE_sca_copy_sensors(struct ListBaseT<struct bSensor> *lbn, const struct ListBaseT<struct bSensor> *lbo, const int flag);
 void BKE_sca_init_sensor(struct bSensor *sens);
 struct bSensor *BKE_sca_new_sensor(int type);
 void BKE_sca_move_sensor(struct bSensor *sens_to_move, struct Object *ob, int move_up);
@@ -103,10 +103,10 @@ typedef void (*SCAActuatorIDFunc)(struct bActuator *actuator,
                                   void *userdata,
                                   LibraryForeachIDCallbackFlag cb_flag);
 
-void BKE_sca_sensors_id_loop(struct ListBase *senslist, SCASensorIDFunc func, void *userdata);
-void BKE_sca_controllers_id_loop(struct ListBase *contlist,
+void BKE_sca_sensors_id_loop(struct ListBaseT<struct bSensor> *senslist, SCASensorIDFunc func, void *userdata);
+void BKE_sca_controllers_id_loop(struct ListBaseT<struct bController> *contlist,
                                  SCAControllerIDFunc func,
                                  void *userdata);
-void BKE_sca_actuators_id_loop(struct ListBase *atclist, SCAActuatorIDFunc func, void *userdata);
+void BKE_sca_actuators_id_loop(struct ListBaseT<struct bActuator> *atclist, SCAActuatorIDFunc func, void *userdata);
 
 }  // namespace blender

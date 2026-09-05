@@ -450,10 +450,10 @@ bool WM_init_game(bContext *C)
   if (!scene) {
     /* XXX, this should not be needed. */
     Main *bmain = CTX_data_main(C);
-    scene = (Scene *)bmain->scenes.first;
+    scene = bmain->scenes.first();
   }
 
-  win = (wmWindow *)wm->windows.first;
+  win = wm->windows.first();
 
   /* first to get a valid window */
   if (win)
@@ -475,7 +475,7 @@ bool WM_init_game(bContext *C)
           C, "SCREEN_OT_region_quadview", blender::wm::OpCallContext::ExecDefault, NULL, NULL);
 
     /* toolbox, properties panel and header are hidden */
-    for (arhide = (ARegion *)sa->regionbase.first; arhide; arhide = arhide->next) {
+    for (arhide = sa->regionbase.first(); arhide; arhide = arhide->next) {
       if (arhide->regiontype != RGN_TYPE_WINDOW) {
         if (!(arhide->flag & RGN_FLAG_HIDDEN)) {
           ED_region_toggle_hidden(C, arhide);

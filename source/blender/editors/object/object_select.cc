@@ -968,7 +968,7 @@ static bool objects_share_gameprop(Object *a, Object *b)
   bool changed = false;
   bProperty *prop;
 
-  for (prop = (bProperty *)a->prop.first; prop; prop = prop->next) {
+  for (prop = a->prop.first(); prop; prop = prop->next) {
     if (BKE_bproperty_object_get(b, prop->name)) {
       changed = true;
     }

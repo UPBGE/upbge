@@ -153,7 +153,7 @@ EXP_ListValue<EXP_StringValue> *BL_Converter::GetInactiveSceneNames()
 {
   EXP_ListValue<EXP_StringValue> *list = new EXP_ListValue<EXP_StringValue>();
 
-  for (blender::Scene *sce = (blender::Scene *)m_maggie->scenes.first; sce; sce = (blender::Scene *)sce->id.next) {
+  for (blender::Scene *sce = m_maggie->scenes.first(); sce; sce = (blender::Scene *)sce->id.next) {
     const char *name = sce->id.name + 2;
     if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
       continue;
@@ -477,7 +477,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
     blender::ID *mesh;
 
     BL_SceneConverter *sceneConverter = new BL_SceneConverter();
-    for (mesh = (blender::ID *)main_newlib->meshes.first; mesh; mesh = (blender::ID *)mesh->next) {
+    for (mesh = (blender::ID *)main_newlib->meshes.first(); mesh; mesh = (blender::ID *)mesh->next) {
       if (options & LIB_LOAD_VERBOSE) {
         CM_Debug("mesh name: " << mesh->name + 2);
       }
@@ -499,7 +499,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
     // Convert all actions
     blender::ID *action;
 
-    for (action = (blender::ID *)main_newlib->actions.first; action; action = (blender::ID *)action->next) {
+    for (action = (blender::ID *)main_newlib->actions.first(); action; action = (blender::ID *)action->next) {
       if (options & LIB_LOAD_VERBOSE) {
         CM_Debug("action name: " << action->name + 2);
       }
@@ -513,7 +513,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
     std::vector<blender::Scene *> *scenes = (options & LIB_LOAD_ASYNC) ? new std::vector<blender::Scene *>() :
                                                                 nullptr;
 
-    for (scene = (blender::ID *)main_newlib->scenes.first; scene; scene = (blender::ID *)scene->next) {
+    for (scene = (blender::ID *)main_newlib->scenes.first(); scene; scene = (blender::ID *)scene->next) {
       if (options & LIB_LOAD_VERBOSE) {
         CM_Debug("scene name: " << scene->name + 2);
       }
@@ -549,7 +549,7 @@ KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
     if (options & LIB_LOAD_LOAD_ACTIONS) {
       blender::ID *action;
 
-      for (action = (blender::ID *)main_newlib->actions.first; action; action = (blender::ID *)action->next) {
+      for (action = (blender::ID *)main_newlib->actions.first(); action; action = (blender::ID *)action->next) {
         if (options & LIB_LOAD_VERBOSE) {
           CM_Debug("action name: " << action->name + 2);
         }

@@ -55,13 +55,14 @@ void BKE_python_component_reload(struct PythonProxy *pp,
 
 struct PythonProxy *BKE_python_proxy_copy(PythonProxy *pp);
 
-void BKE_python_proxy_copy_list(struct ListBase *lbn, const struct ListBase *lbo);
+void BKE_python_proxy_copy_list(struct ListBaseT<struct PythonProxy> *lbn,
+                                const struct ListBaseT<PythonProxy> *lbo);
 void BKE_python_proxy_free(struct PythonProxy *pp);
-void BKE_python_proxy_free_list(struct ListBase *base);
+void BKE_python_proxy_free_list(struct ListBaseT<struct PythonProxy> *base);
 
 void BKE_python_proxy_id_loop(struct PythonProxy *pp, BKEPyProxyIDFunc func, void *userdata);
 
-void BKE_python_proxies_id_loop(struct ListBase *complist, BKEPyProxyIDFunc func, void *userdata);
+void BKE_python_proxies_id_loop(struct ListBaseT<struct PythonProxy> *complist, BKEPyProxyIDFunc func, void *userdata);
 
 void *BKE_python_proxy_argument_dict_new(struct PythonProxy *pp);
 

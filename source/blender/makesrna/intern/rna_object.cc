@@ -1753,7 +1753,7 @@ static void rna_GameObjectSettings_used_state_get(PointerRNA *ptr, bool *values)
   bController *cont;
 
   memset(values, 0, sizeof(bool) * OB_MAX_STATES);
-  for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
+  for (cont = ob->controllers.first(); cont; cont = cont->next) {
     int i;
 
     for (i = 0; i < OB_MAX_STATES; i++) {
@@ -1857,7 +1857,7 @@ static bool rna_GameObjectSettings_components_override_apply(
   if (proxy_src == nullptr && opop->subitem_local_index >= 0) {
     proxy_src = (PythonProxy *)BLI_findlink(&ob_src->components, opop->subitem_local_index);
   }
-  proxy_src = proxy_src ? (PythonProxy *)proxy_src->next : (PythonProxy *)ob_src->components.first;
+  proxy_src = proxy_src ? (PythonProxy *)proxy_src->next : ob_src->components.first();
 
   BLI_assert(proxy_src != nullptr);
 

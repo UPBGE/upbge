@@ -214,7 +214,7 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       bRaySensor *raySensor;
 
       for (Object &ob : bmain->objects) {
-        for (bSensor *sensor = (bSensor *)ob.sensors.first; sensor; sensor = sensor->next) {
+        for (bSensor *sensor = ob.sensors.first(); sensor; sensor = sensor->next) {
           if (sensor->type == SENS_RAY) {
             raySensor = (bRaySensor *)sensor->data;
             /* All one, because this was the previous behavior */
@@ -293,7 +293,7 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
 #endif
     if (!DNA_struct_member_exists(fd->filesdna, "bMouseSensor", "int", "mask")) {
       for (Object &ob : bmain->objects) {
-        for (bSensor *sensor = (bSensor *)ob.sensors.first; sensor; sensor = sensor->next) {
+        for (bSensor *sensor = ob.sensors.first(); sensor; sensor = sensor->next) {
           if (sensor->type == SENS_MOUSE) {
             bMouseSensor *mouseSensor = (bMouseSensor *)sensor->data;
             /* All one, because this was the previous behavior */

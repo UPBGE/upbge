@@ -924,7 +924,7 @@ struct BL_parentChildLink {
   SG_Node *m_gamechildnode;
 };
 
-static blender::ListBase *BL_GetActiveConstraint(blender::Object *ob)
+static blender::ListBaseT<blender::bConstraint> *BL_GetActiveConstraint(blender::Object *ob)
 {
   if (!ob)
     return nullptr;
@@ -935,8 +935,8 @@ static blender::ListBase *BL_GetActiveConstraint(blender::Object *ob)
 static void BL_ConvertComponentsObject(KX_GameObject *gameobj, blender::Object *blenderobj)
 {
 #ifdef WITH_PYTHON
-  blender::PythonProxy *pp = (blender::PythonProxy *)blenderobj->components.first;
-  PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
+  blender::PythonProxy *pp = blenderobj->components.first();
+  PyObject *arg_dict = nullptr, *args = nullptr, *mod = nullptr, *cls = nullptr, *pycomp = nullptr, *ret = nullptr;
 
   if (!pp) {
     return;
@@ -1019,13 +1019,13 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, blender::Object *
 
 static std::vector<blender::Object *> lod_level_object_list(ViewLayer *view_layer)
 {
-  Base *base = (Base *)view_layer->object_bases.first;
+  Base *base = view_layer->object_bases.first();
   std::vector<blender::Object *> lod_objs = {};
 
   while (base) {
     blender::Object *ob = base->object;
     if (ob) {
-      for (LodLevel *level = (LodLevel *)ob->lodlevels.first; level; level = level->next) {
+      for (LodLevel *level = ob->lodlevels.first(); level; level = level->next) {
         if (level->source) {
           lod_objs.push_back(level->source);
         }
@@ -1263,12 +1263,12 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   if (!runtime_converted_object) {
     // Convert actions to actionmap
     blender::bAction *curAct;
-    for (curAct = (blender::bAction *)maggie->actions.first; curAct; curAct = (blender::bAction *)curAct->id.next) {
+    for (curAct = maggie->actions.first(); curAct; curAct = (blender::bAction *)curAct->id.next) {
       logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
     }
   }
   else {
-    for (blender::bActuator *actu = (blender::bActuator *)runtime_converted_object->actuators.first; actu; actu = actu->next) {
+    for (blender::bActuator *actu = runtime_converted_object->actuators.first(); actu; actu = actu->next) {
       if (actu->type == ACT_ACTION) {
         bActionActuator *actionActu = (bActionActuator *)actu->data;
         if (actionActu->act != nullptr) {
@@ -1579,13 +1579,13 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         continue;
       }
     }
-    blender::ListBase *conlist = BL_GetActiveConstraint(blenderobject);
+    blender::ListBaseT<blender::bConstraint> *conlist = BL_GetActiveConstraint(blenderobject);
     blender::bConstraint *curcon;
 
     if (!conlist)
       continue;
 
-    for (curcon = (blender::bConstraint *)conlist->first; curcon; curcon = (blender::bConstraint *)curcon->next) {
+    for (curcon = conlist->first(); curcon; curcon = (blender::bConstraint *)curcon->next) {
       if (curcon->type != CONSTRAINT_TYPE_RIGIDBODYJOINT)
         continue;
 

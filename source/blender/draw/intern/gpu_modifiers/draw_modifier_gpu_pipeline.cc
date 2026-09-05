@@ -598,7 +598,7 @@ bool build_gpu_modifier_pipeline(
    * The evaluated object is passed separately to dispatch functions for runtime
    * data. */
   Object *orig_ob = DEG_get_original(&ob_eval);
-  for (ModifierData *md = static_cast<ModifierData *>(orig_ob->modifiers.first); md; md = md->next)
+  for (ModifierData *md = orig_ob->modifiers.first(); md; md = md->next)
   {
     /* Basic validity checks */
     if (!md || !(md->mode & eModifierMode_Realtime)) {

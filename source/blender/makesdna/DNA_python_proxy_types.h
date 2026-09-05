@@ -81,7 +81,7 @@ typedef struct PythonProxyProperty {
 
 typedef struct PythonProxy {
   struct PythonProxy *next = nullptr, *prev = nullptr;
-  ListBase properties = {nullptr, nullptr};
+  ListBaseT<PythonProxyProperty> properties = {nullptr, nullptr};
   char name[1024] = "";   /* 1024 = FILE_MAX */
   char module[1024] = ""; /* 1024 = FILE_MAX */
   int flag = 0;

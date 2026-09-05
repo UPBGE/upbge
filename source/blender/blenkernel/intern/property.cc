@@ -58,7 +58,7 @@ void BKE_bproperty_free(bProperty *prop)
   MEM_delete(prop);
 }
 
-void BKE_bproperty_free_list(ListBase *lb)
+void BKE_bproperty_free_list(ListBaseT<bProperty> *lb)
 {
   bProperty *prop;
 
@@ -82,11 +82,11 @@ bProperty *BKE_bproperty_copy(const bProperty *prop)
   return propn;
 }
 
-void BKE_bproperty_copy_list(ListBase *lbn, const ListBase *lbo)
+void BKE_bproperty_copy_list(ListBaseT<bProperty> *lbn, const ListBaseT<bProperty> *lbo)
 {
   bProperty *prop, *propn;
   BKE_bproperty_free_list(lbn); /* in case we are copying to an object with props */
-  prop = (bProperty *)lbo->first;
+  prop = lbo->first();
   while (prop) {
     propn = BKE_bproperty_copy(prop);
     BLI_addtail(lbn, propn);

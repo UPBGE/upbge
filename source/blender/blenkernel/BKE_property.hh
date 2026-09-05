@@ -31,6 +31,7 @@
  */
 
 #include "DNA_property_types.h"
+#include "DNA_listBase.h"
 
 namespace blender {
 
@@ -38,9 +39,9 @@ struct bProperty;
 struct Object;
 
 void BKE_bproperty_free(struct bProperty *prop);
-void BKE_bproperty_free_list(struct ListBase *lb);
+void BKE_bproperty_free_list(struct ListBaseT<struct bProperty> *lb);
 struct bProperty *BKE_bproperty_copy(const struct bProperty *prop);
-void BKE_bproperty_copy_list(struct ListBase *lbn, const struct ListBase *lbo);
+void BKE_bproperty_copy_list(struct ListBaseT<struct bProperty> *lbn, const struct ListBaseT<struct bProperty> *lbo);
 void BKE_bproperty_init(struct bProperty *prop);
 struct bProperty *BKE_bproperty_new(int type);
 void BKE_bproperty_unique(struct bProperty *first, struct bProperty *prop, int force);

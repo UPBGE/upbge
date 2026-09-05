@@ -814,7 +814,7 @@ static void ui_draw_links(blender::ui::Block *block)
 
   for (const std::unique_ptr<Button> &but : block->buttons_ptrs) {
     if (but->type == ButtonType::Link && but->link) {
-      for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
+      for (line = but->link->lines.first(); line; line = line->next) {
         if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (line->deactive)
             ui_draw_linkline(line, 0, true);
@@ -831,7 +831,7 @@ static void ui_draw_links(blender::ui::Block *block)
   /* Draw the inactive lines (lines with neither button being hovered over) */
   for (const std::unique_ptr<Button> &but : block->buttons_ptrs) {
     if (but->type == ButtonType::Link && but->link) {
-      for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
+      for (line = but->link->lines.first(); line; line = line->next) {
         if (!(line->from->flag & UI_HOVER) && !(line->to->flag & UI_HOVER)) {
           if (!line->deactive)
             ui_draw_linkline(line, 0, false);
@@ -845,7 +845,7 @@ static void ui_draw_links(blender::ui::Block *block)
   if (found_activeline) {
     for (const std::unique_ptr<Button> &but : block->buttons_ptrs) {
       if (but->type == ButtonType::Link && but->link) {
-        for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
+        for (line = but->link->lines.first(); line; line = line->next) {
           if ((line->from->flag & UI_HOVER) || (line->to->flag & UI_HOVER))
             ui_draw_linkline(line, !found_selectline, false);
         }
@@ -1010,7 +1010,7 @@ static void ui_but_update_linklines(blender::ui::Block *block, Button *oldbut, B
 
     SWAP(uiLink *, oldbut->link, newbut->link);
 
-    for (line = static_cast <uiLinkLine *>(oldbut->link->lines.first); line; line = line->next) {
+    for (line = oldbut->link->lines.first(); line; line = line->next) {
       if (line->to == newbut)
         line->to = oldbut;
       if (line->from == newbut)
@@ -1021,7 +1021,7 @@ static void ui_but_update_linklines(blender::ui::Block *block, Button *oldbut, B
   /* check all other button links */
   for (const std::unique_ptr<Button> &but : block->buttons_ptrs) {
     if (but.get() != newbut && but->type == ButtonType::Link && but->link) {
-      for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
+      for (line = but->link->lines.first(); line; line = line->next) {
         if (line->to == newbut)
           line->to = oldbut;
         if (line->from == newbut)

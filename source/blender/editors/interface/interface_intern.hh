@@ -200,7 +200,7 @@ struct uiLink {
   short maxlink, pad;
   short fromcode, tocode;
 
-  ListBase lines;
+  ListBaseT<uiLinkLine> lines;
 };
 
 enum class TextDirection : int8_t {

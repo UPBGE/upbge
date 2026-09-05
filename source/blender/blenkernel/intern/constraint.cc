@@ -3872,7 +3872,7 @@ static void rbj_flush_tars(bConstraint *con, ListBaseT<bConstraintTarget> *list,
 {
   if (con && list) {
     bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;
-    bConstraintTarget *ct = (bConstraintTarget *)list->first;
+    bConstraintTarget *ct = list->first();
 
     /* the following macro is used for all standard single-target constraints */
     SINGLETARGETNS_FLUSH_TARS(con, data->tar, ct, list, no_copy);

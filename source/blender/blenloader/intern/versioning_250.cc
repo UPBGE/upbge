@@ -689,7 +689,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     for (Object &ob : bmain->objects) {
-      for (bActuator *act = (bActuator *)ob.actuators.first; act; act = act->next) {
+      for (bActuator *act = ob.actuators.first(); act; act = act->next) {
         if (act->type == ACT_SOUND) {
           bSoundActuator *sAct = (bSoundActuator *)act->data;
           if (sAct->sound) {
@@ -866,7 +866,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         ob.mode |= OB_MODE_POSE;
       }
     }
-    for (Scene *sce = (Scene *)bmain->scenes.first; sce; sce = (Scene *)sce->id.next) {
+    for (Scene *sce = bmain->scenes.first(); sce; sce = (Scene *)sce->id.next) {
 
       /* Framing */
       // sce->gm.framing = sce->framing;

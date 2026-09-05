@@ -88,7 +88,7 @@ static BlendFileData *load_game_data(const char *filename)
 
 static void InitBlenderContextVariables(blender::bContext *C, blender::wmWindowManager *wm, blender::Scene *scene)
 {
-  blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+  blender::wmWindow *win = wm->windows.first();
   blender::bScreen *screen = WM_window_get_active_screen(win);
 
   for (blender::ScrArea &sa : screen->areabase) {
@@ -147,7 +147,7 @@ static void RefreshContextAndScreen(blender::bContext *C, blender::wmWindowManag
 static void bge_blendfiledata_free(BlendFileData *bfd)
 {
   if (bfd->main) {
-    blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
+    blender::wmWindowManager *wm = bfd->main->wm.first();
     if (wm) {
       /* Null out borrowed runtime pointers so they are not freed
        * when the loaded WM is destroyed. */
@@ -291,8 +291,8 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
         /* If we don't change G_MAIN, bpy won't work in loaded .blends */
         BKE_blender_globals_main_swap(bfd->main);
         CTX_data_main_set(C, bfd->main);
-        blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
-        blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+        blender::wmWindowManager *wm = bfd->main->wm.first();
+        blender::wmWindow *win = wm->windows.first();
         CTX_wm_manager_set(C, wm);
         CTX_wm_window_set(C, win);
         win->runtime->ghostwin = ghostwin_backup;

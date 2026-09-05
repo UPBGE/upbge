@@ -106,12 +106,12 @@ void BL_ConvertActuators(const char *maggiename,
   int uniqueint = 0;
   int actcount = 0;
   int executePriority = 0;
-  blender::bActuator *bact = (blender::bActuator *)blenderobject->actuators.first;
+  blender::bActuator *bact = blenderobject->actuators.first();
   while (bact) {
     actcount++;
     bact = bact->next;
   }
-  bact = (blender::bActuator *)blenderobject->actuators.first;
+  bact = blenderobject->actuators.first();
   while (bact) {
     std::string uniquename = bact->name;
     std::string objectname = gameobj->GetName();

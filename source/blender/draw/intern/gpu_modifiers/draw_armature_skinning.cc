@@ -618,7 +618,7 @@ static uint32_t compute_bbone_config_hash(Object *arm_ob)
   }
 
   uint32_t hash = 0;
-  for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+  for (bPoseChannel *pchan = arm_ob->pose->chanbase.first(); pchan;
        pchan = pchan->next)
   {
     bArmature *armature = id_cast<bArmature *>(arm_ob->data);
@@ -647,7 +647,7 @@ static void compute_bbone_segment_info(Object *arm_ob,
   out_total_dqs = 0;
 
   int bi = 0;
-  for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+  for (bPoseChannel *pchan = arm_ob->pose->chanbase.first(); pchan;
        pchan = pchan->next)
   {
     bArmature *armature = id_cast<bArmature *>(arm_ob->data);
@@ -692,7 +692,7 @@ static void upload_bone_rest_lengths(Object *arm_ob,
 
   std::vector<float> lengths(bone_count);
   int bi = 0;
-  for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+  for (bPoseChannel *pchan = arm_ob->pose->chanbase.first(); pchan;
        pchan = pchan->next)
   {
     bArmature *armature = id_cast<bArmature *>(arm_ob->data);
@@ -725,7 +725,7 @@ static void upload_bone_matrices_lbs(Object *arm_ob,
 
     int bi = 0;
     int mat_idx = 0;
-    for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+    for (bPoseChannel *pchan = arm_ob->pose->chanbase.first(); pchan;
          pchan = pchan->next)
     {
       bArmature *armature = id_cast<bArmature *>(arm_ob->data);
@@ -786,7 +786,7 @@ static void upload_bbone_space_matrices_dqs(Object *arm_ob,
   std::vector<float> space_mats(bone_count * 16, 0.0f);
 
   int bi = 0;
-  for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+  for (bPoseChannel *pchan = arm_ob->pose->chanbase.first(); pchan;
        pchan = pchan->next)
   {
     bArmature *armature = id_cast<bArmature *>(arm_ob->data);
@@ -861,7 +861,7 @@ static void upload_bone_dual_quats_dqs(Object *arm_ob,
 
     int bi = 0;
     int dq_idx = 0;
-    for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+    for (bPoseChannel *pchan = arm_ob->pose->chanbase.first(); pchan;
          pchan = pchan->next)
     {
       bArmature *armature = id_cast<bArmature *>(arm_ob->data);
@@ -1043,7 +1043,7 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
   Map<std::string, int> bone_name_to_index;
   if (arm_ob && arm_ob->pose) {
     int idx = 0;
-    for (bPoseChannel *pchan = (bPoseChannel *)arm_ob->pose->chanbase.first; pchan;
+    for (bPoseChannel *pchan = arm_ob->pose->chanbase.first(); pchan;
          pchan = pchan->next)
     {
       bArmature *armature = id_cast<bArmature *>(arm_ob->data);
@@ -1057,9 +1057,9 @@ void ArmatureSkinningManager::ensure_static_resources(const ArmatureModifierData
 
   /* Vertex group names/order from original mesh */
   std::vector<std::string> group_names;
-  const ListBase *defbase = BKE_id_defgroup_list_get(&orig_mesh->id);
+  const ListBaseT<bDeformGroup> *defbase = BKE_id_defgroup_list_get(&orig_mesh->id);
   if (defbase) {
-    for (const bDeformGroup *dg = (const bDeformGroup *)defbase->first; dg; dg = dg->next) {
+    for (const bDeformGroup *dg = defbase->first(); dg; dg = dg->next) {
       group_names.push_back(dg->name);
     }
   }
@@ -1319,7 +1319,7 @@ gpu::StorageBuf *ArmatureSkinningManager::dispatch_skinning(
     /* Count deformable bones if not already cached */
     if (msd.bones == 0) {
       int bc = 0;
-      for (bPoseChannel *pchan = (bPoseChannel *)msd.arm->pose->chanbase.first; pchan;
+      for (bPoseChannel *pchan = msd.arm->pose->chanbase.first(); pchan;
            pchan = pchan->next)
       {
         bArmature *armature = id_cast<bArmature *>(eval_armature_ob->data);

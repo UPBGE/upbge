@@ -2402,7 +2402,7 @@ static const EnumPropertyItem *gameprops_itemf(bContext *C,
   if (!ob)
     return rna_enum_dummy_NULL_items;
 
-  for (a = 1, prop = (bProperty *)ob->prop.first; prop; prop = prop->next, a++) {
+  for (a = 1, prop = ob->prop.first(); prop; prop = prop->next, a++) {
     tmp.value = a;
     tmp.identifier = prop->name;
     tmp.name = prop->name;
@@ -2442,7 +2442,7 @@ static wmOperatorStatus game_property_copy_exec(bContext *C, wmOperator *op)
         }
         else {
           /* merge - the default when calling with no argument */
-          for (prop = (bProperty *)ob->prop.first; prop; prop = prop->next) {
+          for (prop = ob->prop.first(); prop; prop = prop->next) {
             BKE_bproperty_object_set(ob_iter, prop);
           }
         }

@@ -248,7 +248,7 @@ static PythonProxyProperty *copy_property(PythonProxyProperty *pprop)
   ppropn = (PythonProxyProperty *)MEM_dupalloc(pprop);
 
   BLI_duplicatelist(&ppropn->enumval, &pprop->enumval);
-  for (LinkData *link = (LinkData *)ppropn->enumval.first; link; link = link->next) {
+  for (LinkData *link = ppropn->enumval.first(); link; link = link->next) {
     link->data = MEM_dupalloc_void(link->data);
   }
 
@@ -257,18 +257,18 @@ static PythonProxyProperty *copy_property(PythonProxyProperty *pprop)
 
 static void free_property(PythonProxyProperty *pprop)
 {
-  for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
+  for (LinkData *link = pprop->enumval.first(); link; link = link->next) {
     MEM_delete_void(link->data);
   }
   BLI_freelistN(&pprop->enumval);
   MEM_delete(pprop);
 }
 
-static void free_properties(ListBase *lb)
+static void free_properties(ListBaseT<PythonProxyProperty> *lb)
 {
   PythonProxyProperty *pprop;
 
-  while ((pprop = (PythonProxyProperty *)lb->first)) {
+  while ((pprop = lb->first())) {
     BLI_remlink(lb, pprop);
     free_property(pprop);
   }
@@ -278,8 +278,8 @@ static void free_properties(ListBase *lb)
 static void create_properties(PythonProxy *pp, PyObject *cls)
 {
   PyObject *args_dict, *pyitems;
-  ListBase properties;
-  memset(&properties, 0, sizeof(ListBase));
+  ListBaseT<PythonProxyProperty> properties;
+  memset(&properties, 0, sizeof(ListBaseT<PythonProxyProperty>));
 
   args_dict = PyObject_GetAttrString(cls, "args");
 
@@ -421,7 +421,7 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
     }
 
     bool found = false;
-    for (PythonProxyProperty *propit = (PythonProxyProperty *)pp->properties.first; propit; propit = propit->next) {
+    for (PythonProxyProperty *propit = pp->properties.first(); propit; propit = propit->next) {
       if ((strcmp(propit->name, pprop->name) == 0) && propit->type == pprop->type) {
         /* We never reuse a enum property because we don't know if one of the
          * enum value was modified and it easier to just copy the current item
@@ -434,7 +434,7 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
            */
           char *str = (char *)((LinkData *)BLI_findlink(&propit->enumval, propit->itemval))->data;
           int j = 0;
-          for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
+          for (LinkData *link = pprop->enumval.first(); link; link = link->next) {
             if (strcmp((const char *)link->data, str) == 0) {
               pprop->itemval = j;
             }
@@ -463,7 +463,7 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
   }
 
   // Free properties no used in the new component.
-  for (PythonProxyProperty *propit = (PythonProxyProperty *)pp->properties.first; propit;) {
+  for (PythonProxyProperty *propit = pp->properties.first(); propit;) {
     PythonProxyProperty *prop = propit;
     propit = propit->next;
     free_property(prop);
@@ -504,7 +504,7 @@ static bool load_class(PythonProxy *pp,
       PySequence_DelItem(sys_path, index); \
     } \
     Py_DECREF(pypath); \
-    for (Library *lib = (Library *)maggie->libraries.first; lib; lib = (Library *)lib->id.next) { \
+    for (Library *lib = maggie->libraries.first(); lib; lib = (Library *)lib->id.next) { \
       BLI_path_split_dir_part(lib->filepath, path, sizeof(path)); \
       pypath = PyC_UnicodeFromBytes(path); \
       index = PySequence_Index(sys_path, pypath); \
@@ -531,7 +531,7 @@ static bool load_class(PythonProxy *pp,
   sys_path = PySys_GetObject("path");
   /* Add to sys.path the path to all the used library to follow game engine sys.path management.
    * These path are remove later in FINISH. */
-  for (Library *lib = (Library *)maggie->libraries.first; lib; lib = (Library *)lib->id.next) {
+  for (Library *lib = maggie->libraries.first(); lib; lib = (Library *)lib->id.next) {
     BLI_path_split_dir_part(lib->filepath, path, sizeof(path));
     pypath = PyC_UnicodeFromBytes(path);
     PyList_Insert(sys_path, 0, pypath);
@@ -823,7 +823,7 @@ PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
   proxyn = (PythonProxy *)MEM_dupalloc(pp);
 
   BLI_listbase_clear(&proxyn->properties);
-  pprop = (PythonProxyProperty *)pp->properties.first;
+  pprop = pp->properties.first();
   while (pprop) {
     ppropn = copy_property(pprop);
     BLI_addtail(&proxyn->properties, ppropn);
@@ -838,13 +838,13 @@ PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
 #endif /* WITH_PYTHON */
 }
 
-void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
+void BKE_python_proxy_copy_list(ListBaseT<PythonProxy> *lbn, const ListBaseT<PythonProxy> *lbo)
 {
 #ifdef WITH_PYTHON
   PythonProxy *proxy, *proxyn;
 
-  lbn->first = lbn->last = nullptr;
-  proxy = (PythonProxy *)lbo->first;
+  lbn->first_ = lbn->last_ = nullptr;
+  proxy = lbo->first();
   while (proxy) {
     proxyn = BKE_python_proxy_copy(proxy);
     BLI_addtail(lbn, proxyn);
@@ -867,12 +867,12 @@ void BKE_python_proxy_free(PythonProxy *pp)
 #endif /* WITH_PYTHON */
 }
 
-void BKE_python_proxy_free_list(ListBase *lb)
+void BKE_python_proxy_free_list(ListBaseT<PythonProxy> *lb)
 {
 #ifdef WITH_PYTHON
   PythonProxy *pp;
 
-  while ((pp = (PythonProxy *)lb->first)) {
+  while ((pp = lb->first())) {
     BLI_remlink(lb, pp);
     BKE_python_proxy_free(pp);
   }
@@ -884,7 +884,7 @@ void BKE_python_proxy_free_list(ListBase *lb)
 void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
 {
 #ifdef WITH_PYTHON
-  PythonProxyProperty *pprop = (PythonProxyProperty *)pp->properties.first;
+  PythonProxyProperty *pprop = pp->properties.first();
   PyObject *args = PyDict_New();
 
   while (pprop) {
@@ -965,10 +965,10 @@ void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
 void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *userdata)
 {
 #ifdef WITH_PYTHON
-  ListBase *properties = &pp->properties;
+  ListBaseT<PythonProxyProperty> *properties = &pp->properties;
   PythonProxyProperty *prop;
 
-  for (prop = (PythonProxyProperty *)properties->first; prop; prop = prop->next) {
+  for (prop = properties->first(); prop; prop = prop->next) {
 #define PT_DEF(name, lower, upper) func(pp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
     POINTER_TYPES
 #undef PT_DEF
@@ -981,12 +981,12 @@ void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *user
 #endif /* WITH_PYTHON */
 }
 
-void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *userdata)
+void BKE_python_proxies_id_loop(ListBaseT<PythonProxy> *list, BKEPyProxyIDFunc func, void *userdata)
 {
 #ifdef WITH_PYTHON
   PythonProxy *pp;
 
-  for (pp = (PythonProxy *)list->first; pp; pp = pp->next) {
+  for (pp = list->first(); pp; pp = pp->next) {
     BKE_python_proxy_id_loop(pp, func, userdata);
   }
 #else

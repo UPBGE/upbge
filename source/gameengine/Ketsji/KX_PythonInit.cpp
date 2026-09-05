@@ -1748,7 +1748,7 @@ static void initPySysObjects(blender::Main *maggie)
     PyList_SetSlice(sys_meta_path, 0, INT_MAX, gp_sys_backup.meta_path);
   }
 
-  blender::Library *lib = (blender::Library *)maggie->libraries.first;
+  blender::Library *lib = maggie->libraries.first();
 
   while (lib) {
     /* lib->name wont work in some cases (on win32),

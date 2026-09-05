@@ -1180,7 +1180,7 @@ static bool modifier_stack_has_topology_changer(Object *ob, PlayBackRefuseInfo &
   }
   info.refusal_modifier = nullptr;
 
-  for (ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
+  for (ModifierData *md = ob->modifiers.first(); md; md = md->next) {
     /* Detect modifiers that implement modify_mesh or modify_geometry_set
      * (constructive/destructive). */
     const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
@@ -1240,7 +1240,7 @@ static PlayBackRefuseInfo compute_gpu_playback_decision(Object &ob, Mesh &mesh)
   int total_deform_modifiers = 0;
   int gpu_deform_modifiers = 0;
 
-  for (ModifierData *md = static_cast<ModifierData *>(ob_orig->modifiers.first); md; md = md->next)
+  for (ModifierData *md = ob_orig->modifiers.first(); md; md = md->next)
   {
     if (!(md->mode & eModifierMode_Realtime)) {
       continue; /* Skip disabled modifiers */

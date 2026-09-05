@@ -2314,7 +2314,7 @@ static void ui_linkline_remove_active(Block *block)
 
   for (const std::unique_ptr<Button> &but : block->buttons_ptrs) {
     if (but->type == ButtonType::Link && but->link) {
-      for (line = static_cast<uiLinkLine *>(but->link->lines.first); line; line = nline) {
+      for (line = but->link->lines.first(); line; line = nline) {
         nline = line->next;
 
         if (line->flag & UI_SELECT) {
@@ -2360,7 +2360,7 @@ static uiLinkLine *ui_but_find_link(Button *from, Button *to)
 
   link = from->link;
   if (link) {
-    for (line = static_cast<uiLinkLine *>(link->lines.first); line; line = line->next) {
+    for (line = link->lines.first(); line; line = line->next) {
       if (line->from == from && line->to == to) {
         return line;
       }
@@ -2392,7 +2392,7 @@ static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
 
   /* (1) get the object */
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
-    for (sens_iter = static_cast<bSensor *>(ob_iter->sensors.first); sens_iter; sens_iter = sens_iter->next) {
+    for (sens_iter = ob_iter->sensors.first(); sens_iter; sens_iter = sens_iter->next) {
       if (&(sens_iter->links) == sens_from_links) {
         ob = ob_iter;
         break;
@@ -2407,7 +2407,7 @@ static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
     return;
 
   /* (2) check if the sensor and the actuator are from the same object */
-  for (act_iter = static_cast<bActuator *>(ob->actuators.first); act_iter; act_iter = (bActuator *)act_iter->next) {
+  for (act_iter = ob->actuators.first(); act_iter; act_iter = (bActuator *)act_iter->next) {
     if (act_iter == act_to)
       break;
   }
@@ -2426,7 +2426,7 @@ static void ui_but_smart_controller_add(bContext *C, Button *from, Button *to)
   if (WM_operator_name_call(
           C, "LOGIC_OT_controller_add", blender::wm::OpCallContext::ExecDefault, &props_ptr, NULL) &
       OPERATOR_FINISHED) {
-    cont = (bController *)ob->controllers.last;
+    cont = ob->controllers.last();
     /* Quick fix to make sure we always have an AND controller.
      * It might be nicer to make sure the operator gives us the right one though... */
     cont->type = CONT_LOGIC_AND;

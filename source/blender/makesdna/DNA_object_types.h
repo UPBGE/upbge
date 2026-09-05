@@ -813,12 +813,12 @@ struct Object {
   /************UPBGE**************/
 
   /** Contains data for levels of detail. */
-  ListBaseT<LodLevel> lodlevels = {NULL, NULL};
-  LodLevel *currentlod = NULL;
+  ListBaseT<LodLevel> lodlevels = {nullptr, nullptr};
+  LodLevel *currentlod = nullptr;
   float lodfactor = 1.0f, _pad57[1] = {0.0f};
 
   /* settings for game engine bullet soft body */
-  struct BulletSoftBody *bsoft = NULL;
+  struct BulletSoftBody *bsoft = nullptr;
 
   short scaflag = 0;    /* ui state for game logic */
   short scavisflag = 0; /* more display settings for game logic */
@@ -863,13 +863,13 @@ struct Object {
   /** bit masks of initial state as recorded by the users */
   unsigned int init_state = 1;
 
-  struct PythonProxy *custom_object = NULL;
+  struct PythonProxy *custom_object = nullptr;
 
-  ListBase prop = {NULL, NULL};        /* game logic property list (not to be confused with IDProperties) */
-  ListBase sensors = {NULL, NULL};     /* game logic sensors */
-  ListBase controllers = {NULL, NULL}; /* game logic controllers */
-  ListBase actuators = {NULL, NULL};   /* game logic actuators */
-  ListBase components = {NULL, NULL};  /* python components */
+  ListBaseT<struct bProperty> prop = {nullptr, nullptr};        /* game logic property list (not to be confused with IDProperties) */
+  ListBaseT<struct bSensor> sensors = {nullptr, nullptr};     /* game logic sensors */
+  ListBaseT<struct bController> controllers = {nullptr, nullptr}; /* game logic controllers */
+  ListBaseT<struct bActuator> actuators = {nullptr, nullptr};   /* game logic actuators */
+  ListBaseT<struct PythonProxy> components = {nullptr, nullptr};  /* python components */
 
   struct ObjectActivityCulling activityCulling = {0};
 

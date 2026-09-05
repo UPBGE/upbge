@@ -59,7 +59,7 @@ void BL_ConvertProperties(blender::Object *object,
                           bool isInActiveLayer)
 {
 
-  bProperty *prop = (bProperty *)object->prop.first;
+  bProperty *prop = object->prop.first();
   EXP_Value *propval;
   bool show_debug_info;
 

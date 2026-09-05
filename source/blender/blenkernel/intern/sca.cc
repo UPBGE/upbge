@@ -89,12 +89,12 @@ bSensor *BKE_sca_copy_sensor(bSensor *sens, const int /*flag*/)
   return sensn;
 }
 
-void BKE_sca_copy_sensors(ListBase *lbn, const ListBase *lbo, const int flag)
+void BKE_sca_copy_sensors(ListBaseT<bSensor> *lbn, const ListBaseT<bSensor> *lbo, const int flag)
 {
   bSensor *sens, *sensn;
 
-  lbn->first = lbn->last = nullptr;
-  sens = (bSensor *)lbo->first;
+  lbn->first_ = lbn->last_ = nullptr;
+  sens = lbo->first();
   while (sens) {
     sensn = BKE_sca_copy_sensor(sens, flag);
     BLI_addtail(lbn, sensn);
@@ -207,9 +207,9 @@ void BKE_sca_unlink_controller(bController *cont)
   Object *ob;
 
   /* check for controller pointers in sensors */
-  ob = (Object *)G.main->objects.first;
+  ob = G.main->objects.first();
   while (ob) {
-    sens = (bSensor *)ob->sensors.first;
+    sens = ob->sensors.first();
     while (sens) {
       BKE_sca_unlink_logicbricks((void **)&cont, (void ***)&(sens->links), &sens->totlinks);
       sens = sens->next;
@@ -218,11 +218,11 @@ void BKE_sca_unlink_controller(bController *cont)
   }
 }
 
-void BKE_sca_unlink_controllers(ListBase *lb)
+void BKE_sca_unlink_controllers(ListBaseT<bController> *lb)
 {
   bController *cont;
 
-  for (cont = (bController *)lb->first; cont; cont = cont->next)
+  for (cont = lb->first(); cont; cont = cont->next)
     BKE_sca_unlink_controller(cont);
 }
 
@@ -238,7 +238,7 @@ void BKE_sca_free_controller(bController *cont)
   MEM_delete(cont);
 }
 
-void BKE_sca_free_controllers(ListBase *lb)
+void BKE_sca_free_controllers(ListBaseT<bController> *lb)
 {
   bController *cont;
 
@@ -267,12 +267,12 @@ bController *BKE_sca_copy_controller(bController *cont, const int /*flag*/)
   return contn;
 }
 
-void BKE_sca_copy_controllers(ListBase *lbn, const ListBase *lbo, const int flag)
+void BKE_sca_copy_controllers(ListBaseT<bController> *lbn, const ListBaseT<bController> *lbo, const int flag)
 {
   bController *cont, *contn;
 
-  lbn->first = lbn->last = nullptr;
-  cont = (bController *)lbo->first;
+  lbn->first_ = lbn->last_ = nullptr;
+  cont = lbo->first();
   while (cont) {
     contn = BKE_sca_copy_controller(cont, flag);
     BLI_addtail(lbn, contn);
@@ -322,9 +322,9 @@ void BKE_sca_unlink_actuator(bActuator *act)
   Object *ob;
 
   /* check for actuator pointers in controllers */
-  ob = (Object *)G.main->objects.first;
+  ob = G.main->objects.first();
   while (ob) {
-    cont = (bController *)ob->controllers.first;
+    cont = ob->controllers.first();
     while (cont) {
       BKE_sca_unlink_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks);
       cont = cont->next;
@@ -333,11 +333,11 @@ void BKE_sca_unlink_actuator(bActuator *act)
   }
 }
 
-void BKE_sca_unlink_actuators(ListBase *lb)
+void BKE_sca_unlink_actuators(ListBaseT<bActuator> *lb)
 {
   bActuator *act;
 
-  for (act = (bActuator *)lb->first; act; act = act->next)
+  for (act = lb->first(); act; act = act->next)
     BKE_sca_unlink_actuator(act);
 }
 
@@ -365,7 +365,7 @@ void BKE_sca_free_actuator(bActuator *act)
   MEM_delete(act);
 }
 
-void BKE_sca_free_actuators(ListBase *lb)
+void BKE_sca_free_actuators(ListBaseT<struct bActuator> *lb)
 {
   bActuator *act;
 
@@ -404,12 +404,12 @@ bActuator *BKE_sca_copy_actuator(bActuator *act)
   return actn;
 }
 
-void BKE_sca_copy_actuators(ListBase *lbn, const ListBase *lbo)
+void BKE_sca_copy_actuators(ListBaseT<bActuator> *lbn, const ListBaseT<bActuator> *lbo)
 {
   bActuator *act, *actn;
 
-  lbn->first = lbn->last = nullptr;
-  act = (bActuator *)lbo->first;
+  lbn->first_ = lbn->last_ = nullptr;
+  act = lbo->first();
   while (act) {
     actn = BKE_sca_copy_actuator(act);
     BLI_addtail(lbn, actn);
@@ -565,18 +565,18 @@ void BKE_sca_clear_new_points_ob(Object *ob)
   bController *cont;
   bActuator *act;
 
-  sens = (bSensor *)ob->sensors.first;
+  sens = ob->sensors.first();
   while (sens) {
     sens->flag &= ~SENS_NEW;
     sens = sens->next;
   }
-  cont = (bController *)ob->controllers.first;
+  cont = ob->controllers.first();
   while (cont) {
     cont->mynew = nullptr;
     cont->flag &= ~CONT_NEW;
     cont = cont->next;
   }
-  act = (bActuator *)ob->actuators.first;
+  act = ob->actuators.first();
   while (act) {
     act->mynew = nullptr;
     act->flag &= ~ACT_NEW;
@@ -588,7 +588,7 @@ void BKE_sca_clear_new_points(void)
 {
   Object *ob;
 
-  ob = (Object *)G.main->objects.first;
+  ob = G.main->objects.first();
   while (ob) {
     BKE_sca_clear_new_points_ob(ob);
     ob = (Object *)ob->id.next;
@@ -603,7 +603,7 @@ void BKE_sca_set_new_points_ob(Object *ob)
 
   int a;
 
-  sens = (bSensor *)ob->sensors.first;
+  sens = ob->sensors.first();
   while (sens) {
     if (sens->flag & SENS_NEW) {
       for (a = 0; a < sens->totlinks; a++) {
@@ -614,7 +614,7 @@ void BKE_sca_set_new_points_ob(Object *ob)
     sens = sens->next;
   }
 
-  cont = (bController *)ob->controllers.first;
+  cont = ob->controllers.first();
   while (cont) {
     if (cont->flag & CONT_NEW) {
       for (a = 0; a < cont->totlinks; a++) {
@@ -625,7 +625,7 @@ void BKE_sca_set_new_points_ob(Object *ob)
     cont = cont->next;
   }
 
-  act = (bActuator *)ob->actuators.first;
+  act = ob->actuators.first();
   while (act) {
     if (act->flag & ACT_NEW) {
       if (act->type == ACT_EDIT_OBJECT) {
@@ -680,7 +680,7 @@ void BKE_sca_set_new_points(void)
 {
   Object *ob;
 
-  ob = (Object *)G.main->objects.first;
+  ob = G.main->objects.first();
   while (ob) {
     BKE_sca_set_new_points_ob(ob);
     ob = (Object *)ob->id.next;
@@ -698,23 +698,23 @@ void BKE_sca_set_new_points(void)
  * working. */
 void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object *ob_old, Object *ob_new)
 {
-  if (ob_new == nullptr || (ob_old->controllers.first == nullptr && ob_old->actuators.first == nullptr)) {
+  if (ob_new == nullptr || (ob_old->controllers.first() == nullptr && ob_old->actuators.first() == nullptr)) {
     /* Nothing to do here... */
     return;
   }
 
-  GHash *controllers_map = ob_old->controllers.first ?
+  GHash *controllers_map = ob_old->controllers.first() ?
                                BLI_ghash_ptr_new_ex(__func__,
                                                     BLI_listbase_count(&ob_old->controllers)) :
                                nullptr;
-  GHash *actuators_map = ob_old->actuators.first ?
+  GHash *actuators_map = ob_old->actuators.first() ?
                              BLI_ghash_ptr_new_ex(__func__,
                                                   BLI_listbase_count(&ob_old->actuators)) :
                              nullptr;
 
   /* We try to remap old controllers/actuators to new ones - in a very basic way. */
-  for (bController *cont_old = (bController *)ob_old->controllers.first,
-                   *cont_new = (bController *)ob_new->controllers.first;
+  for (bController *cont_old = (bController *)ob_old->controllers.first(),
+                   *cont_new = (bController *)ob_new->controllers.first();
        cont_old;
        cont_old = cont_old->next) {
     bController *cont_new2 = cont_new;
@@ -736,8 +736,8 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
     }
   }
 
-  for (bActuator *act_old = (bActuator *)ob_old->actuators.first,
-                 *act_new = (bActuator *)ob_new->actuators.first;
+  for (bActuator *act_old = ob_old->actuators.first(),
+                 *act_new = ob_new->actuators.first();
        act_old;
        act_old = act_old->next) {
     bActuator *act_new2 = act_new;
@@ -759,9 +759,9 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
     }
   }
 
-  for (Object *ob = (Object *)bmain->objects.first; ob; ob = (Object *)ob->id.next) {
+  for (Object *ob = bmain->objects.first(); ob; ob = (Object *)ob->id.next) {
     if (controllers_map != nullptr) {
-      for (bSensor *sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
+      for (bSensor *sens = ob->sensors.first(); sens; sens = sens->next) {
         for (int a = 0; a < sens->totlinks; a++) {
           if (sens->links[a]) {
             bController *old_link = sens->links[a];
@@ -786,7 +786,7 @@ void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object
     }
 
     if (actuators_map != nullptr) {
-      for (bController *cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
+      for (bController *cont = ob->controllers.first(); cont; cont = cont->next) {
         for (int a = 0; a < cont->totlinks; a++) {
           if (cont->links[a]) {
             bActuator *old_link = cont->links[a];
@@ -828,7 +828,7 @@ void BKE_sca_copy_logicbricks(Object *ob_new, const Object *ob, const int flag)
   BKE_sca_copy_controllers(&ob_new->controllers, &ob->controllers, flag);
   BKE_sca_copy_actuators(&ob_new->actuators, &ob->actuators);
 
-  for (bSensor *sens = (bSensor *)ob_new->sensors.first; sens; sens = sens->next) {
+  for (bSensor *sens = ob_new->sensors.first(); sens; sens = sens->next) {
     if (sens->flag & SENS_NEW) {
       for (int a = 0; a < sens->totlinks; a++) {
         if (sens->links[a] && sens->links[a]->mynew) {
@@ -838,7 +838,7 @@ void BKE_sca_copy_logicbricks(Object *ob_new, const Object *ob, const int flag)
     }
   }
 
-  for (bController *cont = (bController *)ob_new->controllers.first; cont; cont = cont->next) {
+  for (bController *cont = ob_new->controllers.first(); cont; cont = cont->next) {
     if (cont->flag & CONT_NEW) {
       for (int a = 0; a < cont->totlinks; a++) {
         if (cont->links[a] && cont->links[a]->mynew) {
@@ -858,7 +858,7 @@ void BKE_sca_move_sensor(bSensor *sens_to_move, Object *ob, int move_up)
   val = move_up ? 1 : 2;
 
   /* make sure this sensor belongs to this object */
-  sens = (bSensor *)ob->sensors.first;
+  sens = ob->sensors.first();
   while (sens) {
     if (sens == sens_to_move)
       break;
@@ -899,7 +899,7 @@ void BKE_sca_move_controller(bController *cont_to_move, Object *ob, int move_up)
   val = move_up ? 1 : 2;
 
   /* make sure this controller belongs to this object */
-  cont = (bController *)ob->controllers.first;
+  cont = ob->controllers.first();
   while (cont) {
     if (cont == cont_to_move)
       break;
@@ -944,7 +944,7 @@ void BKE_sca_move_actuator(bActuator *act_to_move, Object *ob, int move_up)
   val = move_up ? 1 : 2;
 
   /* make sure this actuator belongs to this object */
-  act = (bActuator *)ob->actuators.first;
+  act = ob->actuators.first();
   while (act) {
     if (act == act_to_move)
       break;
@@ -1035,11 +1035,11 @@ void BKE_sca_unlink_logicbricks(void **poin, void ***ppoin, short *tot)
   }
 }
 
-void BKE_sca_sensors_id_loop(ListBase *senslist, SCASensorIDFunc func, void *userdata)
+void BKE_sca_sensors_id_loop(ListBaseT<bSensor> *senslist, SCASensorIDFunc func, void *userdata)
 {
   bSensor *sensor;
 
-  for (sensor = (bSensor *)senslist->first; sensor; sensor = sensor->next) {
+  for (sensor = senslist->first(); sensor; sensor = sensor->next) {
     func(sensor, (ID **)&sensor->ob, userdata, IDWALK_CB_NOP);
 
     switch (sensor->type) {
@@ -1074,11 +1074,11 @@ void BKE_sca_sensors_id_loop(ListBase *senslist, SCASensorIDFunc func, void *use
   }
 }
 
-void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, void *userdata)
+void BKE_sca_controllers_id_loop(ListBaseT<bController> *contlist, SCAControllerIDFunc func, void *userdata)
 {
   bController *controller;
 
-  for (controller = (bController *)contlist->first; controller; controller = controller->next) {
+  for (controller = contlist->first(); controller; controller = controller->next) {
     switch (controller->type) {
       case CONT_PYTHON: {
         bPythonCont *pc = (bPythonCont *)controller->data;
@@ -1129,11 +1129,11 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
   }
 }
 
-void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *userdata)
+void BKE_sca_actuators_id_loop(ListBaseT<bActuator> *actlist, SCAActuatorIDFunc func, void *userdata)
 {
   bActuator *actuator;
 
-  for (actuator = (bActuator *)actlist->first; actuator; actuator = actuator->next) {
+  for (actuator = actlist->first(); actuator; actuator = actuator->next) {
     func(actuator, (ID **)&actuator->ob, userdata, IDWALK_CB_NOP);
 
     /*
@@ -1245,7 +1245,7 @@ const char *BKE_sca_get_name_state(Object *ob, short bit)
   unsigned int mask;
 
   mask = (1 << bit);
-  cont = (bController *)ob->controllers.first;
+  cont = ob->controllers.first();
   while (cont) {
     if (cont->state_mask & mask) {
       return cont->name;

@@ -1106,7 +1106,7 @@ struct SpaceLogic *CTX_wm_space_logic(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_LOGIC) {
-    return static_cast<SpaceLogic *>(area->spacedata.first);
+    return area->spacedata.first_as<SpaceLogic>();
   }
   return nullptr;
 }

@@ -86,7 +86,7 @@ void BL_ConvertSensors(blender::Object *blenderobject,
   int executePriority = 0;
   int uniqueint = 0;
   int count = 0;
-  blender::bSensor *sens = (blender::bSensor *)blenderobject->sensors.first;
+  blender::bSensor *sens = blenderobject->sensors.first();
   bool pos_pulsemode = false;
   bool neg_pulsemode = false;
   int skipped_ticks = 0;
@@ -98,7 +98,7 @@ void BL_ConvertSensors(blender::Object *blenderobject,
     sens = sens->next;
     count++;
   }
-  sens = (blender::bSensor *)blenderobject->sensors.first;
+  sens = blenderobject->sensors.first();
 
   while (sens) {
     if (!(sens->flag & SENS_DEACTIVATE)) {

@@ -479,15 +479,15 @@ void KX_Scene::ReinitBlenderContextVariables()
 {
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::wmWindowManager *wm = CTX_wm_manager(C);
-  blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+  blender::wmWindow *win = wm->windows.first();
   blender::bScreen *screen = WM_window_get_active_screen(win);
 
-  for (blender::ScrArea *sa = (blender::ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+  for (blender::ScrArea *sa = screen->areabase.first(); sa; sa = sa->next) {
     /* We choose the biggest blender::ScrArea to match the behaviour in WM_init_game */
     if (sa->spacetype == SPACE_VIEW3D &&
         sa == BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0)) {
-      blender::ListBase *regionbase = &sa->regionbase;
-      for (blender::ARegion *region = (blender::ARegion *)regionbase->first; region; region = region->next) {
+      blender::ListBaseT<blender::ARegion> *regionbase = &sa->regionbase;
+      for (blender::ARegion *region = regionbase->first(); region; region = region->next) {
         if (region->regiontype == RGN_TYPE_WINDOW) {
           if (region->regiondata) {
             CTX_wm_window_set(C, win);
@@ -1609,7 +1609,7 @@ void KX_Scene::AddObjectDebugProperties(class KX_GameObject *gameobj)
     return;
   }
 
-  bProperty *prop = (bProperty *)blenderobject->prop.first;
+  bProperty *prop = blenderobject->prop.first();
 
   while (prop) {
     if (prop->flag & PROP_DEBUG)

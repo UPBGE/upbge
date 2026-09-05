@@ -155,8 +155,8 @@ void BL_ArmatureConstraint::CopyBlenderTargets()
   if (cti && cti->get_constraint_targets) {
     ListBaseT<bConstraintTarget> listb = {nullptr, nullptr};
     cti->get_constraint_targets(m_constraint, &listb);
-    if (listb.first) {
-      bConstraintTarget *target = (bConstraintTarget *)listb.first;
+    if (listb.first()) {
+      bConstraintTarget *target = listb.first();
       if (m_blendtarget) {
         target->tar = m_blendtarget;
       }

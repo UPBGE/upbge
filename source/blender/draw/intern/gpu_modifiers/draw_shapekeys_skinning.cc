@@ -79,7 +79,7 @@ uint32_t ShapeKeySkinningManager::compute_shapekey_hash(const Mesh *mesh)
 
   /* Hash number of keyblocks */
   int kb_count = 0;
-  for (const KeyBlock *kb = static_cast<const KeyBlock *>(key->block.first); kb; kb = kb->next) {
+  for (const KeyBlock *kb = key->block.first(); kb; kb = kb->next) {
     kb_count++;
   }
   hash = BLI_hash_int_2d(hash, kb_count);
@@ -88,7 +88,7 @@ uint32_t ShapeKeySkinningManager::compute_shapekey_hash(const Mesh *mesh)
   hash = BLI_hash_int_2d(hash, uint32_t(reinterpret_cast<uintptr_t>(key->refkey)));
 
   /* Hash each KeyBlock state */
-  for (const KeyBlock *kb = static_cast<const KeyBlock *>(key->block.first); kb; kb = kb->next) {
+  for (const KeyBlock *kb = key->block.first(); kb; kb = kb->next) {
     /* Hash relative target (detects "Relative To" changes) */
     hash = BLI_hash_int_2d(hash, uint32_t(kb->relative));
 
@@ -185,7 +185,7 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
 
   /* Count non-ref keyblocks */
   int kcount = 0;
-  for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
+  for (KeyBlock *kb = key->block.first(); kb; kb = kb->next) {
     if (kb != key->refkey) {
       kcount++;
     }
@@ -198,7 +198,7 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
   msd.deltas.resize(size_t(kcount) * size_t(verts) * 4);
 
   int kidx = 0;
-  for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
+  for (KeyBlock *kb = key->block.first(); kb; kb = kb->next) {
     if (kb == key->refkey) {
       continue;
     }
@@ -213,7 +213,7 @@ void ShapeKeySkinningManager::ensure_static_resources(Mesh *orig_mesh, uint32_t 
     else {
       /* Relative to another key at index kb->relative */
       int ref_idx = 0;
-      for (KeyBlock *kb_search = static_cast<KeyBlock *>(key->block.first); kb_search;
+      for (KeyBlock *kb_search = key->block.first(); kb_search;
            kb_search = kb_search->next, ref_idx++)
       {
         if (ref_idx == kb->relative) {
@@ -336,14 +336,14 @@ gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cac
     if (deformed_eval && (Mesh *)deformed_eval->data == mesh_owner && deformed_eval->shapenr > 0) {
       int active_index = deformed_eval->shapenr - 1;  // shapenr is 1-indexed (0 = no shape)
       int idx = 0;
-      for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next, idx++) {
+      for (KeyBlock *kb = key->block.first(); kb; kb = kb->next, idx++) {
         if (idx == active_index) {
           active_kb = kb;
           break;
         }
       }
     }
-    for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next) {
+    for (KeyBlock *kb = key->block.first(); kb; kb = kb->next) {
       if (kb == key->refkey)
         continue;
 
@@ -372,7 +372,7 @@ gpu::StorageBuf *ShapeKeySkinningManager::dispatch_shapekeys(MeshBatchCache *cac
     // build keyframes list in frames
     std::vector<float> kpos;
     std::vector<KeyBlock *> kblocks;
-    for (KeyBlock *kb = (KeyBlock *)key->block.first; kb; kb = kb->next) {
+    for (KeyBlock *kb = key->block.first(); kb; kb = kb->next) {
       if (kb == key->refkey)
         continue;
       kpos.push_back(kb->pos * 100.0f);  // kb->pos -> frame

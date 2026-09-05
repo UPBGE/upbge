@@ -109,7 +109,7 @@ KX_LodManager::KX_LodManager(blender::Object *ob,
     blender::Object *lodmatob = ob;
     unsigned short level = 0;
 
-    for (LodLevel *lod = (LodLevel *)ob->lodlevels.first; lod; lod = lod->next) {
+    for (LodLevel *lod = ob->lodlevels.first(); lod; lod = lod->next) {
       if (!lod->source || lod->source->type != OB_MESH) {
         continue;
       }

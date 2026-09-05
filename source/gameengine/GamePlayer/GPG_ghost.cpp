@@ -726,13 +726,13 @@ static void InitBlenderContextVariables(blender::bContext *C)
 {
   blender::wmWindowManager *wm = CTX_wm_manager(C);
   blender::Scene *scene = CTX_data_scene(C);
-  blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+  blender::wmWindow *win = wm->windows.first();
   blender::bScreen *screen = WM_window_get_active_screen(win);
 
-  for (blender::ScrArea *sa = (blender::ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+  for (blender::ScrArea *sa = screen->areabase.first(); sa; sa = sa->next) {
     if (sa->spacetype == SPACE_VIEW3D) {
-      blender::ListBase *regionbase = &sa->regionbase;
-      for (blender::ARegion *region = (blender::ARegion *)regionbase->first; region;
+      blender::ListBaseT<blender::ARegion> *regionbase = &sa->regionbase;
+      for (blender::ARegion *region = regionbase->first(); region;
            region = region->next) {
         if (region->regiontype == RGN_TYPE_WINDOW) {
           if (region->regiondata) {
@@ -1625,8 +1625,8 @@ int main(int argc,
               }
             }
 
-            blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
-            blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
+            blender::wmWindowManager *wm = bfd->main->wm.first();
+            blender::wmWindow *win = wm->windows.first();
             CTX_wm_manager_set(C, wm);
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C);
@@ -1635,7 +1635,7 @@ int main(int argc,
             InitBlenderContextVariables(C);
 
             /* Get rid of windows which are not the 3D view windows */
-            for (blender::wmWindow *win_in_list = (blender::wmWindow *)wm->windows.first; win_in_list; win_in_list = win_in_list->next) {
+            for (blender::wmWindow *win_in_list = wm->windows.first(); win_in_list; win_in_list = win_in_list->next) {
               if (win_in_list == win) {
                 continue;
               }
@@ -1666,7 +1666,7 @@ int main(int argc,
             // wm_init_scripts_extensions_once(C);
 
             WM_keyconfig_update_postpone_end();
-            WM_keyconfig_update(static_cast<blender::wmWindowManager *>(G_MAIN->wm.first));
+            WM_keyconfig_update(G_MAIN->wm.first());
 
             blender::bScreen *screen = WM_window_get_active_screen(win);
             screen->state = SCREENFULL;
@@ -1681,7 +1681,7 @@ int main(int argc,
               area_iter->full = screen;
               /* tag all areas for full redraw at least 1 time to prevent bugs during wm_draw_update */
               ED_area_tag_redraw(area_iter);
-              for (blender::ARegion *region = (blender::ARegion *)area_iter->regionbase.first; region; region = region->next) {
+              for (blender::ARegion *region = area_iter->regionbase.first(); region; region = region->next) {
                 region->runtime->visible = 0;
               }
             }
@@ -1735,7 +1735,7 @@ int main(int argc,
           blender::wmWindowManager *wm = CTX_wm_manager(C);
           WM_jobs_kill_all(wm);
 
-          for (blender::wmWindow *win = (blender::wmWindow *)wm->windows.first; win; win = win->next) {
+          for (blender::wmWindow *win = wm->windows.first(); win; win = win->next) {
             CTX_wm_window_set(C, win); /* needed by operator close callbacks */
             WM_event_remove_handlers(C, &win->runtime->handlers);
             WM_event_remove_handlers(C, &win->runtime->modalhandlers);

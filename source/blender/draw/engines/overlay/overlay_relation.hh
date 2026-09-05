@@ -122,7 +122,7 @@ class Relations : Overlay {
     /* UPBGE: rigid body joint constraint pivot */
     const select::ID select_id = res.select_id(ob_ref);
     const float4 color = res.object_wire_color(ob_ref, state);
-    for (bConstraint *con = static_cast<bConstraint *>(ob->constraints.first); con;
+    for (bConstraint *con = ob->constraints.first(); con;
          con = con->next) {
       bRigidBodyJointConstraint *rcon = static_cast<bRigidBodyJointConstraint *>(con->data);
       if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {

@@ -203,7 +203,7 @@ bool BL_Action::Play(const std::string &name,
           int expected = std::max(0, tot - has_ref);
           m_blendinshape.resize(expected);
           int i = 0;
-          for (KeyBlock *kb = static_cast<KeyBlock *>(me->key->block.first); kb; kb = kb->next) {
+          for (KeyBlock *kb = me->key->block.first(); kb; kb = kb->next) {
             if (kb == me->key->refkey) {
               continue;
             }
@@ -332,7 +332,7 @@ void BL_Action::BlendShape(blender::Key *key, float srcweight, std::vector<float
 
   const float dstweight = 1.0f - srcweight;
   size_t i = 0;
-  KeyBlock *kb = static_cast<KeyBlock *>(key->block.first);
+  KeyBlock *kb = key->block.first();
 
   /* Advance through blocks, but only consume `blendshape` entries for non-refkey
    * entries so indexes stay aligned with the snapshot created in Play(). */
@@ -693,7 +693,7 @@ bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
                                          const blender::AnimationEvalContext &animEvalContext,
                                          const bool gpu_deformed_mesh)
 {
-  for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+  for (ModifierData *md = ob->modifiers.first(); md; md = md->next) {
     /* Action actuator can have actions from modifiers textures; try it first */
     if (TryModifierTextureActions(md, m_action, scene, ob, animEvalContext, gpu_deformed_mesh)) {
       /* Action played, return true; else loop continues */
@@ -726,7 +726,7 @@ bool BL_Action::TryUpdateConstraintActions(blender::Object *ob,
                                            KX_Scene *scene,
                                            const blender::AnimationEvalContext &animEvalContext)
 {
-  for (blender::bConstraint *con = (blender::bConstraint *)ob->constraints.first; con; con = con->next) {
+  for (blender::bConstraint *con = ob->constraints.first(); con; con = con->next) {
     if (ActionMatchesName(m_action, con->name, ACT_TYPE_CONSTRAINT)) {
       if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
         return false;
@@ -756,7 +756,7 @@ bool BL_Action::TryUpdateIDPropertyActions(blender::Object *ob,
     return false;
   }
 
-  for (blender::IDProperty *prop = (blender::IDProperty *)ob->id.properties->data.group.first; prop; prop = prop->next) {
+  for (blender::IDProperty *prop = ob->id.properties->data.group.first(); prop; prop = prop->next) {
     if (prop->type == IDP_GROUP) {
       continue;
     }
@@ -798,7 +798,7 @@ bool BL_Action::IsNodeTreeActionMatch(blender::bNodeTree *nodetree)
 {
   bool isRightAction = false;
   isRightAction = (nodetree->adt && nodetree->adt->action == m_action);
-  if (!isRightAction && nodetree->adt && nodetree->adt->nla_tracks.first) {
+  if (!isRightAction && nodetree->adt && nodetree->adt->nla_tracks.first()) {
     for (NlaTrack &track : nodetree->adt->nla_tracks) {
       for (NlaStrip &strip : track.strips) {
         if (strip.act == m_action) {
@@ -882,7 +882,7 @@ void BL_Action::ProcessShapeKeyBlending(blender::Key *key)
     IncrementBlending(KX_GetActiveEngine()->GetFrameTime());
     float weight = 1.0f - (m_blendframe / m_blendin);
 
-    for (KeyBlock *kb = static_cast<KeyBlock *>(key->block.first); kb; kb = kb->next) {
+    for (KeyBlock *kb = key->block.first(); kb; kb = kb->next) {
       if (kb == key->refkey) {
         continue;
       }

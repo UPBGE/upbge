@@ -175,11 +175,11 @@ class VideoFFmpeg : public VideoBase {
 
   bool m_stopThread;
   bool m_cacheStarted;
-  blender::ListBase m_thread;
-  blender::ListBase m_frameCacheBase;  // list of frames that are ready
-  blender::ListBase m_frameCacheFree;  // list of frames that are unused
-  blender::ListBase m_packetCacheBase;  // list of packets that are ready for decoding
-  blender::ListBase m_packetCacheFree;  // list of packets that are unused
+  blender::ListBaseT<blender::ThreadSlot> m_thread;
+  blender::ListBaseT<CacheFrame> m_frameCacheBase;  // list of frames that are ready
+  blender::ListBaseT<CacheFrame> m_frameCacheFree;  // list of frames that are unused
+  blender::ListBaseT<CachePacket> m_packetCacheBase;  // list of packets that are ready for decoding
+  blender::ListBaseT<CachePacket> m_packetCacheFree;  // list of packets that are unused
   pthread_mutex_t m_cacheMutex;
 
   AVFrame *allocFrameRGB();

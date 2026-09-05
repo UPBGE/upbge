@@ -512,12 +512,12 @@ PyObject *BL_ArmatureBone::py_bone_get_children(EXP_PyObjectPlus *self,
   blender::Bone *bone = reinterpret_cast<blender::Bone *>(self);
   blender::Bone *child;
   int count = 0;
-  for (child = (blender::Bone *)bone->childbase.first; child; child = child->next)
+  for (child = bone->childbase.first(); child; child = child->next)
     count++;
 
   PyObject *childrenlist = PyList_New(count);
 
-  for (count = 0, child = (blender::Bone *)bone->childbase.first; child;
+  for (count = 0, child = bone->childbase.first(); child;
        child = child->next, ++count)
     PyList_SET_ITEM(childrenlist, count, NewProxyPlus_Ext(nullptr, &Type, child, false));
 

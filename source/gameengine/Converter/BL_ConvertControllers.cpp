@@ -82,12 +82,12 @@ void BL_ConvertControllers(blender::Object *blenderobject,
   int uniqueint = 0;
   int count = 0;
   int executePriority = 0;
-  blender::bController *bcontr = (blender::bController *)blenderobject->controllers.first;
+  blender::bController *bcontr = blenderobject->controllers.first();
   while (bcontr) {
     bcontr = bcontr->next;
     count++;
   }
-  bcontr = (blender::bController *)blenderobject->controllers.first;
+  bcontr = blenderobject->controllers.first();
   while (bcontr) {
     SCA_IController *gamecontroller = nullptr;
     switch (bcontr->type) {

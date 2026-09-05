@@ -70,9 +70,9 @@ void BL_ArmatureObject::GameBlendPose(blender::bPose *dst, blender::bPose *src, 
     dstweight = 1.0f;
   }
 
-  blender::bPoseChannel *schan = (blender::bPoseChannel *)src->chanbase.first;
-  for (blender::bPoseChannel *dchan = (blender::bPoseChannel *)dst->chanbase.first; dchan;
-       dchan = (blender::bPoseChannel *)dchan->next, schan = (blender::bPoseChannel *)schan->next)
+  blender::bPoseChannel *schan = src->chanbase.first();
+  for (blender::bPoseChannel *dchan = dst->chanbase.first(); dchan;
+       dchan = dchan->next, schan = schan->next)
   {
     // always blend on all channels since we don't know which one has been set
     /* quat interpolation done separate */
@@ -108,8 +108,8 @@ void BL_ArmatureObject::GameBlendPose(blender::bPose *dst, blender::bPose *src, 
         dchan->eul[i] = (dchan->eul[i] * dstweight) + (schan->eul[i] * srcweight);
       }
     }
-    for (blender::bConstraint *dcon = (blender::bConstraint *)dchan->constraints.first,
-                     *scon = (blender::bConstraint *)schan->constraints.first;
+    for (blender::bConstraint *dcon = dchan->constraints.first(),
+                     *scon = schan->constraints.first();
          dcon && scon;
          dcon = dcon->next, scon = scon->next)
     {
@@ -187,7 +187,7 @@ void BL_ArmatureObject::RemapParentChildren()
     if (!child_ob) {
       continue;
     }
-    for (ModifierData *md = (ModifierData *)child_ob->modifiers.first; md; md = md->next) {
+    for (ModifierData *md = child_ob->modifiers.first(); md; md = md->next) {
       if (md->type == eModifierType_Armature) {
         ArmatureModifierData *amd = (ArmatureModifierData *)md;
         if (amd && amd->object == m_previousArmature) {
@@ -230,9 +230,9 @@ void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
   // get the persistent pose structure
 
   // and locate the constraint
-  for (blender::bPoseChannel *pchan = (blender::bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+  for (blender::bPoseChannel *pchan = m_objArma->pose->chanbase.first(); pchan;
        pchan = pchan->next) {
-    for (blender::bConstraint *pcon = (blender::bConstraint *)pchan->constraints.first; pcon; pcon = pcon->next) {
+    for (blender::bConstraint *pcon = pchan->constraints.first(); pcon; pcon = pcon->next) {
       if (pcon->flag & CONSTRAINT_DISABLE) {
         continue;
       }
@@ -257,8 +257,8 @@ void BL_ArmatureObject::LoadConstraints(BL_SceneConverter *converter)
           if (cti && cti->get_constraint_targets) {
             ListBaseT <bConstraintTarget> listb = {nullptr, nullptr};
             cti->get_constraint_targets(pcon, &listb);
-            if (listb.first) {
-              bConstraintTarget *target = (bConstraintTarget *)listb.first;
+            if (listb.first()) {
+              bConstraintTarget *target = listb.first();
               if (target->tar && target->tar != m_objArma) {
                 // only remember external objects, self target is handled automatically
                 gametarget = converter->FindGameObject(target->tar);
@@ -322,8 +322,8 @@ BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(int index)
 void BL_ArmatureObject::LoadChannels()
 {
   m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
-  for (blender::bPoseChannel *pchan = (blender::bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
-       pchan = (blender::bPoseChannel *)pchan->next) {
+  for (blender::bPoseChannel *pchan = m_objArma->pose->chanbase.first(); pchan;
+       pchan = pchan->next) {
     BL_ArmatureChannel *channel = new BL_ArmatureChannel(this, pchan);
     m_poseChannels->Add(channel);
   }
@@ -536,7 +536,7 @@ void BL_ArmatureObject::DrawDebug(RAS_DebugDraw &debugDraw)
   const MT_Matrix3x3 &rot = NodeGetWorldOrientation();
   const MT_Vector3 &pos = NodeGetWorldPosition();
 
-  for (blender::bPoseChannel *pchan = (blender::bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+  for (blender::bPoseChannel *pchan = m_objArma->pose->chanbase.first(); pchan;
        pchan = pchan->next)
   {
     MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;

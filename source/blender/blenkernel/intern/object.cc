@@ -558,8 +558,8 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_python_proxy_id_loop(object->custom_object, library_foreach_proxiesObjectLooper, data);
   }
 
-  if (object->lodlevels.first) {
-    LodLevel *level = (LodLevel *)object->lodlevels.first;
+  if (object->lodlevels.first()) {
+    LodLevel *level = object->lodlevels.first();
     while (level) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, level->source, IDWALK_CB_NEVER_SELF);
       level = level->next;
@@ -744,11 +744,11 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   object_foreach_path_particles(ob, bpath_data);
 }
 
-static void write_properties(BlendWriter *writer, ListBase *lb)
+static void write_properties(BlendWriter *writer, ListBaseT<bProperty> *lb)
 {
   bProperty *prop;
 
-  prop = (bProperty *)lb->first;
+  prop = lb->first();
   while (prop) {
     writer->write_struct(prop);
 
@@ -760,11 +760,11 @@ static void write_properties(BlendWriter *writer, ListBase *lb)
   }
 }
 
-static void write_sensors(BlendWriter *writer, ListBase *lb)
+static void write_sensors(BlendWriter *writer, ListBaseT<bSensor> *lb)
 {
   bSensor *sens;
 
-  sens = (bSensor *)lb->first;
+  sens = lb->first();
   while (sens) {
     writer->write_struct(sens);
 
@@ -820,11 +820,11 @@ static void write_sensors(BlendWriter *writer, ListBase *lb)
   }
 }
 
-static void write_controllers(BlendWriter *writer, ListBase *lb)
+static void write_controllers(BlendWriter *writer, ListBaseT<bController> *lb)
 {
   bController *cont;
 
-  cont = (bController *)lb->first;
+  cont = lb->first();
   while (cont) {
     writer->write_struct(cont);
 
@@ -844,11 +844,11 @@ static void write_controllers(BlendWriter *writer, ListBase *lb)
   }
 }
 
-static void write_actuators(BlendWriter *writer, ListBase *lb)
+static void write_actuators(BlendWriter *writer, ListBaseT<bActuator> *lb)
 {
   bActuator *act;
 
-  act = (bActuator *)lb->first;
+  act = lb->first();
   while (act) {
     writer->write_struct(act);
 
@@ -923,17 +923,17 @@ static void write_actuators(BlendWriter *writer, ListBase *lb)
   }
 }
 
-static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
+static void write_proxy_properties(BlendWriter *writer, ListBaseT<PythonProxyProperty> *lb)
 {
   PythonProxyProperty *pprop;
 
-  pprop = (PythonProxyProperty *)lb->first;
+  pprop = lb->first();
 
   while (pprop) {
     LinkData *link;
     writer->write_struct(pprop);
     writer->write_struct_list(&pprop->enumval);
-    for (link = (LinkData *)pprop->enumval.first; link; link = link->next) {
+    for (link = pprop->enumval.first(); link; link = link->next) {
       writer->write_string((const char *)link->data);
     }
     pprop = pprop->next;
@@ -946,11 +946,11 @@ static void write_proxy(BlendWriter *writer, PythonProxy *pp)
   write_proxy_properties(writer, &pp->properties);
 }
 
-static void write_proxies(BlendWriter *writer, ListBase *lb)
+static void write_proxies(BlendWriter *writer, ListBaseT<PythonProxy> *lb)
 {
   PythonProxy *pp;
 
-  pp = (PythonProxy *)lb->first;
+  pp = lb->first();
 
   while (pp) {
     write_proxy(writer, pp);
@@ -1351,14 +1351,14 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   PythonProxyProperty *pprop;
 
   BLO_read_struct_list(reader, bProperty, &ob->prop);
-  for (prop = (bProperty *)ob->prop.first; prop; prop = prop->next) {
+  for (prop = ob->prop.first(); prop; prop = prop->next) {
     BLO_read_raw_address(reader, &prop->poin);
     if (prop->poin == nullptr)
       prop->poin = &prop->data;
   }
 
   BLO_read_struct_list(reader, bSensor, &ob->sensors);
-  for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
+  for (sens = ob->sensors.first(); sens; sens = sens->next) {
     BLO_read_raw_address(reader, &sens->data);
     BLO_read_pointer_array_and_validate_size(reader, &sens->links, &sens->totlinks);
   }
@@ -1376,7 +1376,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   else if (!ob->init_state) {
     ob->init_state = 1;
   }
-  for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
+  for (cont = ob->controllers.first(); cont; cont = cont->next) {
     BLO_read_raw_address(reader, &cont->data);
     BLO_read_pointer_array_and_validate_size(reader, &cont->links, &cont->totlinks);
     if (cont->state_mask == 0)
@@ -1384,18 +1384,18 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   BLO_read_glob_list(reader, &ob->actuators);
-  for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
+  for (act = ob->actuators.first(); act; act = act->next) {
     BLO_read_raw_address(reader, &act->data);
   }
 
   BLO_read_glob_list(reader, &ob->components);
-  pp = (PythonProxy *)ob->components.first;
+  pp = ob->components.first();
   while (pp) {
     BLO_read_glob_list(reader, &pp->properties);
-    pprop = (PythonProxyProperty *)pp->properties.first;
+    pprop = pp->properties.first();
     while (pprop) {
       BLO_read_struct_list(reader, LinkData, &pprop->enumval);
-      for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
+      for (LinkData *link = pprop->enumval.first(); link; link = link->next) {
         BLO_read_raw_address(reader, &link->data);
       }
       pprop = pprop->next;
@@ -1408,10 +1408,10 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   if (pp) {
     BLO_read_glob_list(reader, &pp->properties);
-    pprop = (PythonProxyProperty *)pp->properties.first;
+    pprop = pp->properties.first();
     while (pprop) {
       BLO_read_struct_list(reader, LinkData, &pprop->enumval);
-      for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
+      for (LinkData *link = pprop->enumval.first(); link; link = link->next) {
         BLO_read_raw_address(reader, &link->data);
       }
       pprop = pprop->next;
@@ -1421,7 +1421,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, BulletSoftBody, &ob->bsoft);
 
   BLO_read_struct_list(reader, LodLevel, &ob->lodlevels);
-  ob->currentlod = (LodLevel *)ob->lodlevels.first;
+  ob->currentlod = ob->lodlevels.first();
   /* End of UPBGE */
 
   BLO_read_struct(reader, RigidBodyOb, &ob->rigidbody_object);
@@ -1556,13 +1556,13 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
   BKE_particle_system_blend_read_after_liblink(reader, ob, &ob->id, &ob->particlesystem);
 
   /* UPBGE */
-  for (bSensor *sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
+  for (bSensor *sens = ob->sensors.first(); sens; sens = sens->next) {
     for (int a = 0; a < sens->totlinks; a++) {
       sens->links[a] = (bController *)BLO_read_get_new_globaldata_address(reader, sens->links[a]);
     }
   }
 
-  for (bController *cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
+  for (bController *cont = ob->controllers.first(); cont; cont = cont->next) {
     for (int a = 0; a < cont->totlinks; a++) {
       cont->links[a] = (bActuator *)BLO_read_get_new_globaldata_address(reader, cont->links[a]);
     }
@@ -2817,7 +2817,7 @@ void BKE_object_copy_softbody(Object *ob_dst, const Object *ob_src, const int fl
 void BKE_object_lod_add(Object *ob)
 {
   LodLevel *lod = (LodLevel *)MEM_new_zeroed(sizeof(LodLevel), "LoD Level");
-  LodLevel *last = (LodLevel *)ob->lodlevels.last;
+  LodLevel *last = ob->lodlevels.last();
 
   /* If the lod list is empty, initialize it with the base lod level */
   if (!last) {
@@ -2869,7 +2869,7 @@ bool BKE_object_lod_remove(Object *ob, int level)
 
   /* If there are no user defined lods, remove the base lod as well */
   if (BLI_listbase_is_single(&ob->lodlevels)) {
-    LodLevel *base = (LodLevel *)ob->lodlevels.first;
+    LodLevel *base = ob->lodlevels.first();
     BLI_remlink(&ob->lodlevels, base);
     MEM_delete(base);
     ob->currentlod = NULL;
@@ -3086,7 +3086,7 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
 static void copy_object_lod(Object *obn, const Object *ob, const int /*flag*/)
 {
   BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
-  obn->currentlod = (LodLevel *)obn->lodlevels.first;
+  obn->currentlod = obn->lodlevels.first();
 }
 
 bool BKE_object_pose_context_check(const Object *ob)

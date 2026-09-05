@@ -371,7 +371,7 @@ void *VideoFFmpeg::cacheThread(void *data)
     // allow a bit of cycling to get rid quickly of those frames
     frameFinished = 0;
     while (!endOfFile &&
-           (cachePacket = (CachePacket *)video->m_packetCacheFree.first) != nullptr &&
+           (cachePacket = video->m_packetCacheFree.first()) != nullptr &&
            frameFinished < 25) {
       // free packet => packet cache is not full yet, just read more
       if (av_read_frame(video->m_formatCtx, &cachePacket->packet) >= 0) {
@@ -399,7 +399,7 @@ void *VideoFFmpeg::cacheThread(void *data)
     if (currentFrame == nullptr) {
       // no current frame being decoded, take free one
       pthread_mutex_lock(&video->m_cacheMutex);
-      if ((currentFrame = (CacheFrame *)video->m_frameCacheFree.first) != nullptr)
+      if ((currentFrame = video->m_frameCacheFree.first()) != nullptr)
         BLI_remlink(&video->m_frameCacheFree, currentFrame);
       pthread_mutex_unlock(&video->m_cacheMutex);
     }
@@ -407,7 +407,7 @@ void *VideoFFmpeg::cacheThread(void *data)
       // this frame is out of free and busy queue, we can manipulate it without locking
       frameFinished = 0;
       while (!frameFinished &&
-             (cachePacket = (CachePacket *)video->m_packetCacheBase.first) != nullptr) {
+             (cachePacket = video->m_packetCacheBase.first()) != nullptr) {
         BLI_remlink(&video->m_packetCacheBase, cachePacket);
         // use m_frame because when caching, it is not used in main thread
         // we can't use currentFrame directly because we need to convert to RGB first
@@ -506,24 +506,24 @@ void VideoFFmpeg::stopCache()
     // now delete the cache
     CacheFrame *frame;
     CachePacket *packet;
-    while ((frame = (CacheFrame *)m_frameCacheBase.first) != nullptr) {
+    while ((frame = m_frameCacheBase.first()) != nullptr) {
       BLI_remlink(&m_frameCacheBase, frame);
       MEM_delete(frame->frame->data[0]);
       av_frame_free(&frame->frame);
       delete frame;
     }
-    while ((frame = (CacheFrame *)m_frameCacheFree.first) != nullptr) {
+    while ((frame = m_frameCacheFree.first()) != nullptr) {
       BLI_remlink(&m_frameCacheFree, frame);
       MEM_delete(frame->frame->data[0]);
       av_frame_free(&frame->frame);
       delete frame;
     }
-    while ((packet = (CachePacket *)m_packetCacheBase.first) != nullptr) {
+    while ((packet = m_packetCacheBase.first()) != nullptr) {
       BLI_remlink(&m_packetCacheBase, packet);
       av_packet_unref(&packet->packet);
       delete packet;
     }
-    while ((packet = (CachePacket *)m_packetCacheFree.first) != nullptr) {
+    while ((packet = m_packetCacheFree.first()) != nullptr) {
       BLI_remlink(&m_packetCacheFree, packet);
       delete packet;
     }
@@ -539,7 +539,7 @@ void VideoFFmpeg::releaseFrame(AVFrame *frame)
   }
   // this frame MUST be the first one of the queue
   pthread_mutex_lock(&m_cacheMutex);
-  CacheFrame *cacheFrame = (CacheFrame *)m_frameCacheBase.first;
+  CacheFrame *cacheFrame = m_frameCacheBase.first();
   assert(cacheFrame != nullptr && cacheFrame->frame == frame);
   BLI_remlink(&m_frameCacheBase, cacheFrame);
   BLI_addtail(&m_frameCacheFree, cacheFrame);
@@ -884,7 +884,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
     // when cache is active, we must not read the file directly
     do {
       pthread_mutex_lock(&m_cacheMutex);
-      frame = (CacheFrame *)m_frameCacheBase.first;
+      frame = m_frameCacheBase.first();
       pthread_mutex_unlock(&m_cacheMutex);
       // no need to remove the frame from the queue: the cache thread does not touch the head, only
       // the tail

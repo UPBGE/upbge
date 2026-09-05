@@ -1619,7 +1619,7 @@ static wmOperatorStatus game_engine_exec(bContext *C, wmOperator *op)
 
   /* Don't allow to start from other window than main blender window -
    * Blenderplayer will also only use main blender window */
-  if (CTX_wm_window(C) != (wmWindow *)wm->windows.first) {
+  if (CTX_wm_window(C) != wm->windows.first()) {
     BKE_report(op->reports, RPT_ERROR, "Game engine must be started from main blender/upbge window");
     return OPERATOR_CANCELLED;
   }

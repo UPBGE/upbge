@@ -1477,8 +1477,8 @@ static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan
   copy_v3_v3(pchan->scale_in, chan->scale_in);
   copy_v3_v3(pchan->scale_out, chan->scale_out);
 
-  con = (bConstraint *)chan->constraints.first;
-  for (pcon = (bConstraint *)pchan->constraints.first; pcon && con;
+  con = chan->constraints.first();
+  for (pcon = pchan->constraints.first(); pcon && con;
        pcon = pcon->next, con = con->next)
   {
     pcon->enforce = con->enforce;
@@ -1720,14 +1720,14 @@ void BKE_pose_remove_group_index(bPose *pose, const int index)
 void extract_pose_from_pose(bPose *pose, const bPose *src)
 {
   const bPoseChannel *schan;
-  bPoseChannel *pchan = (bPoseChannel *)pose->chanbase.first;
+  bPoseChannel *pchan = pose->chanbase.first();
 
   if (pose == src) {
     printf("extract_pose_from_pose source and target are the same\n");
     return;
   }
 
-  for (schan = (bPoseChannel *)src->chanbase.first; (schan && pchan);
+  for (schan = src->chanbase.first(); (schan && pchan);
        schan = schan->next, pchan = pchan->next)
   {
     copy_pose_channel_data(pchan, schan);

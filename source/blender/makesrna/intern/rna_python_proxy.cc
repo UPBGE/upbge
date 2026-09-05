@@ -91,7 +91,7 @@ static const EnumPropertyItem *rna_ProxySetProperty_itemf(bContext * /*C*/,
   int totitem = 0;
   int j = 0;
 
-  for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next, ++j) {
+  for (LinkData *link = pprop->enumval.first(); link; link = link->next, ++j) {
     EnumPropertyItem item = {0, "", 0, "", ""};
     item.value = j;
     item.identifier = (const char *)link->data;
