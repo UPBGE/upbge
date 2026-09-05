@@ -129,6 +129,7 @@ ShaderGroups ShaderModule::static_shaders_load(const ShaderGroups request_bits,
     const eShaderType shader_list[] = {RENDERPASS_CLEAR,
                                        FILM_COPY,
                                        FILM_COMP,
+                                       FILM_COMP_PANORAMIC,
                                        FILM_CRYPTOMATTE_POST,
                                        FILM_FRAG,
                                        FILM_PASS_CONVERT_COMBINED,
@@ -336,6 +337,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_film_copy_frag";
     case FILM_COMP:
       return "eevee_film_comp";
+    case FILM_COMP_PANORAMIC:
+      return "eevee_film_comp_panoramic";
     case FILM_CRYPTOMATTE_POST:
       return "eevee_film_cryptomatte_post";
     case FILM_FRAG:
@@ -642,7 +645,7 @@ class SlotAllocator {
   void reserve_slots(gpu::shader::ShaderCreateInfo &info)
   {
     reserve_slots_recursive(info);
-    total_requested_samplers_ = count_bits_uint64(uint64_t(~available_samplers_));
+    total_requested_samplers_ = count_bits_i(~available_samplers_);
 
     for (auto &resource : info.batch_resources_) {
       if (resource.bind_type == gpu::shader::ShaderCreateInfo::Resource::BindType::SAMPLER) {

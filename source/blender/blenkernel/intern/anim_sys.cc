@@ -280,7 +280,7 @@ void BKE_keyingset_free_paths(KeyingSet *ks)
   }
 
   /* free each path as we go to avoid looping twice */
-  for (ksp = static_cast<KS_Path *>(ks->paths.first); ksp; ksp = kspn) {
+  for (ksp = ks->paths.first(); ksp; ksp = kspn) {
     kspn = ksp->next;
     BKE_keyingset_free_path(ks, ksp);
   }
@@ -298,7 +298,7 @@ void BKE_keyingsets_free(ListBaseT<KeyingSet> *list)
   /* loop over KeyingSets freeing them
    * - BKE_keyingset_free_paths() doesn't free the set itself, but it frees its sub-data
    */
-  for (ks = static_cast<KeyingSet *>(list->first); ks; ks = ksn) {
+  for (ks = list->first(); ks; ks = ksn) {
     ksn = ks->next;
     BKE_keyingset_free_paths(ks);
     BLI_freelinkN(list, ks);
@@ -800,7 +800,7 @@ static void nlastrip_evaluate_controls(NlaStrip *strip,
                                        const bool flush_to_original)
 {
   /* now strip's evaluate F-Curves for these settings (if applicable) */
-  if (strip->fcurves.first) {
+  if (strip->fcurves.first()) {
 
     /* create RNA-pointer needed to set values */
     PointerRNA strip_ptr = RNA_pointer_create_discrete(nullptr, RNA_NlaStrip, strip);
@@ -880,7 +880,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
 
     /* if time occurred before current strip... */
     if (ctime < strip.start) {
-      if (&strip == strips->first) {
+      if (&strip == strips->first()) {
         /* before first strip - only try to use it if it extends backwards in time too */
         if (strip.extendmode == NLASTRIP_EXTEND_HOLD) {
           estrip = &strip;
@@ -906,7 +906,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
     /* if time occurred after current strip... */
     if (ctime > strip.end) {
       /* only if this is the last strip should we do anything, and only if that is being held */
-      if (&strip == strips->last) {
+      if (&strip == strips->last()) {
         if (strip.extendmode != NLASTRIP_EXTEND_NOTHING) {
           estrip = &strip;
         }
@@ -1000,7 +1000,7 @@ static NlaEvalStrip *nlastrips_ctime_get_strip_single(
     const bool flush_to_original)
 {
   ListBaseT<NlaStrip> single_tracks_list;
-  single_tracks_list.first = single_tracks_list.last = single_strip;
+  single_tracks_list.first_ = single_tracks_list.last_ = single_strip;
 
   return nlastrips_ctime_get_strip(
       dst_list, &single_tracks_list, -1, anim_eval_context, flush_to_original);
@@ -2408,27 +2408,27 @@ static void nlaeval_fmodifiers_join_stacks(ListBaseT<FModifier> *result,
   FModifier *fcm1, *fcm2;
 
   /* if list1 is invalid... */
-  if (ELEM(nullptr, list1, list1->first)) {
-    if (list2 && list2->first) {
-      result->first = list2->first;
-      result->last = list2->last;
+  if (ELEM(nullptr, list1, list1->first())) {
+    if (list2 && list2->first()) {
+      result->first_ = list2->first();
+      result->last_ = list2->last();
     }
   }
   /* if list 2 is invalid... */
-  else if (ELEM(nullptr, list2, list2->first)) {
-    result->first = list1->first;
-    result->last = list1->last;
+  else if (ELEM(nullptr, list2, list2->first())) {
+    result->first_ = list1->first();
+    result->last_ = list1->last();
   }
   else {
     /* list1 should be added first, and list2 second,
      * with the endpoints of these being the endpoints for result
      * - the original lists must be left unchanged though, as we need that fact for restoring.
      */
-    result->first = list1->first;
-    result->last = list2->last;
+    result->first_ = list1->first();
+    result->last_ = list2->last();
 
-    fcm1 = static_cast<FModifier *>(list1->last);
-    fcm2 = static_cast<FModifier *>(list2->first);
+    fcm1 = list1->last();
+    fcm2 = list2->first();
 
     fcm1->next = fcm2;
     fcm2->prev = fcm1;
@@ -2445,13 +2445,13 @@ static void nlaeval_fmodifiers_split_stacks(ListBaseT<FModifier> *list1,
   if (ELEM(nullptr, list1, list2)) {
     return;
   }
-  if (ELEM(nullptr, list1->first, list2->first)) {
+  if (ELEM(nullptr, list1->first(), list2->first())) {
     return;
   }
 
   /* get endpoints */
-  fcm1 = static_cast<FModifier *>(list1->last);
-  fcm2 = static_cast<FModifier *>(list2->first);
+  fcm1 = list1->last();
+  fcm2 = list2->first();
 
   /* clear their links */
   fcm1->next = nullptr;
@@ -3216,13 +3216,13 @@ static bool animsys_evaluate_nla_for_flush(NlaEvalData *echannels,
   NlaTrack *tweaked_track = nlatrack_find_tweaked(adt);
 
   /* Get the stack of strips to evaluate at current time (influence calculated here). */
-  for (nlt = static_cast<NlaTrack *>(adt->nla_tracks.first); nlt; nlt = nlt->next, track_index++) {
+  for (nlt = adt->nla_tracks.first(); nlt; nlt = nlt->next, track_index++) {
 
     if (!is_nlatrack_evaluatable(adt, nlt)) {
       continue;
     }
 
-    if (nlt->strips.first) {
+    if (nlt->strips.first()) {
       has_strips = true;
     }
 
@@ -3297,7 +3297,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
   NlaTrack *tweaked_track = nlatrack_find_tweaked(adt);
 
   /* Get the lower stack of strips to evaluate at current time (influence calculated here). */
-  for (nlt = static_cast<NlaTrack *>(adt->nla_tracks.first); nlt; nlt = nlt->next, track_index++) {
+  for (nlt = adt->nla_tracks.first(); nlt; nlt = nlt->next, track_index++) {
 
     if (!is_nlatrack_evaluatable(adt, nlt)) {
       continue;
@@ -3308,7 +3308,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
       break;
     }
 
-    if (nlt->strips.first) {
+    if (nlt->strips.first()) {
       has_strips = true;
     }
 
@@ -3334,7 +3334,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
         continue;
       }
 
-      if (nlt->strips.first) {
+      if (nlt->strips.first()) {
         has_strips = true;
       }
 
@@ -3550,7 +3550,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
   BLI_assert(RNA_struct_is_ID(ptr->type));
 
   /* No remapping needed if NLA is off or no action. */
-  if ((adt == nullptr) || (adt->action == nullptr) || (adt->nla_tracks.first == nullptr) ||
+  if ((adt == nullptr) || (adt->action == nullptr) || (adt->nla_tracks.first() == nullptr) ||
       (adt->flag & ADT_NLA_EVAL_OFF))
   {
     return nullptr;
@@ -3799,7 +3799,7 @@ void BKE_animsys_evaluate_animdata(ID *id,
   if (recalc & ADT_RECALC_ANIM) {
     /* evaluate NLA data */
     bool did_nla_evaluate_anything = false;
-    if ((adt->nla_tracks.first) && !(adt->flag & ADT_NLA_EVAL_OFF)) {
+    if ((adt->nla_tracks.first()) && !(adt->flag & ADT_NLA_EVAL_OFF)) {
       /* evaluate NLA-stack
        * - active action is evaluated as part of the NLA stack as the last item
        */
@@ -3858,7 +3858,7 @@ void BKE_animsys_update_driver_array(ID *id)
   /* Runtime driver map to avoid O(n^2) lookups in BKE_animsys_eval_driver.
    * Ideally the depsgraph could pass a pointer to the evaluated driver directly,
    * but this is difficult in the current design. */
-  if (adt && adt->drivers.first) {
+  if (adt && adt->drivers.first()) {
     BLI_assert(!adt->driver_array);
 
     int num_drivers = adt->drivers.count();
@@ -3964,8 +3964,8 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
           driver_orig->curval = fcu->driver->curval;
           driver_orig->flag = fcu->driver->flag;
 
-          DriverVar *dvar_orig = static_cast<DriverVar *>(driver_orig->variables.first);
-          DriverVar *dvar = static_cast<DriverVar *>(fcu->driver->variables.first);
+          DriverVar *dvar_orig = driver_orig->variables.first();
+          DriverVar *dvar = fcu->driver->variables.first();
           for (; dvar_orig && dvar; dvar_orig = dvar_orig->next, dvar = dvar->next) {
             DriverTarget *dtar_orig = &dvar_orig->targets[0];
             DriverTarget *dtar = &dvar->targets[0];

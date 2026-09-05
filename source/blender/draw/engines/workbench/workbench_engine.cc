@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup draw_engine
+ */
+
 #include "BLI_rect.hh"
 #include "BLI_string.hh"
 
@@ -225,7 +229,7 @@ class Instance : public DrawEngine {
       }
     }
 
-    if (ob->type == OB_MESH && ob->modifiers.first != nullptr) {
+    if (ob->type == OB_MESH && ob->modifiers.first() != nullptr) {
       for (ModifierData &md : ob->modifiers) {
         if (md.type != eModifierType_ParticleSystem) {
           continue;

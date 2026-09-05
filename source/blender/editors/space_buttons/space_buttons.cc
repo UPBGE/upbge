@@ -656,7 +656,7 @@ static void buttons_header_region_message_subscribe(const wmRegionMessageSubscri
   wmMsgBus *mbus = params->message_bus;
   ScrArea *area = params->area;
   ARegion *region = params->region;
-  SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
+  SpaceProperties *sbuts = area->spacedata.first_as<SpaceProperties>();
 
   wmMsgSubscribeValue msg_sub_value_region_tag_redraw{};
   msg_sub_value_region_tag_redraw.owner = region;
@@ -727,7 +727,7 @@ static void buttons_navigation_bar_region_message_subscribe(
  * showing that button set, to reduce unnecessary drawing. */
 static void buttons_area_redraw(ScrArea *area, short buttons)
 {
-  SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
+  SpaceProperties *sbuts = area->spacedata.first_as<SpaceProperties>();
 
   /* if the area's current button set is equal to the one to redraw */
   if (sbuts->mainb == buttons) {
@@ -746,7 +746,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
 {
   ScrArea *area = params->area;
   const wmNotifier *wmn = params->notifier;
-  SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
+  SpaceProperties *sbuts = area->spacedata.first_as<SpaceProperties>();
 
   /* context changes */
   switch (wmn->category) {
