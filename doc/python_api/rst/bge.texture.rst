@@ -1606,25 +1606,16 @@ Functions
 
    Returns a numeric value that can be used in :class:`~bge.texture.Texture` to create a dynamic texture.
 
-   The value corresponds to an internal material number that uses the texture identified
-   by name. name is a string representing a texture name with ``IM`` prefix if you want to
-   identify the texture directly. This method works for basic tex face and for material,
-   provided the material has a texture channel using that particular texture in first
-   position of the texture stack. name can also have ``MA`` prefix if you want to identify
-   the texture by material. In that case the material must have a texture channel in first
-   position.
+   The value corresponds to the internal material index. name has ``MA`` prefix.
 
-   If the object has no material that matches name, it generates a runtime error.
-   Use try/except to catch the exception.
-
-   Ex: ``bge.texture.materialID(obj, 'IMvideo.png')``
+   Ex: ``bge.texture.materialID(obj, 'MAoriginal_material')``
 
    :arg object: The game object that uses the texture you want to make dynamic.
    :type object: :class:`~bge.types.KX_GameObject`
-   :arg name: Name of the texture/material you want to make dynamic.
+   :arg name: Name of the material owning the texture you want to make dynamic.
    :type name: str
 
-   :return: The internal material number.
+   :return: The internal material index.
    :rtype: int
 
 .. function:: setLogFile(filename)

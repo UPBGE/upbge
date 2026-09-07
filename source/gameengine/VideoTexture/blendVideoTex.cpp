@@ -35,7 +35,7 @@ static PyObject *getMaterialID(PyObject *self, PyObject *args)
         "VideoTexture.materialID(ob, string): blender::Object doesn't have material with given name");
     return nullptr;
   }
-  // return material blender::ID
+  // return material index
   return Py_BuildValue("h", matID);
 }
 
@@ -75,7 +75,7 @@ static PyObject *imageToArray(PyObject *self, PyObject *args)
 
 // metody modulu
 static PyMethodDef moduleMethods[] = {
-    {"materialID", getMaterialID, METH_VARARGS, "Gets object's Blender blender::Material blender::ID"},
+    {"materialID", getMaterialID, METH_VARARGS, "Gets object's Blender Material index"},
     {"getLastError", getLastError, METH_NOARGS, "Gets last error description"},
     {"setLogFile", setLogFile, METH_VARARGS, "Sets log file name"},
     {"imageToArray",

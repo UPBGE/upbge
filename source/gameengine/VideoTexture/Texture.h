@@ -92,7 +92,7 @@ class Texture : public EXP_Value {
 // get material
 RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID);
 
-// get material blender::ID
+// get material index
 short getMaterialID(PyObject *obj, const char *name);
 
 // Exceptions

@@ -14,11 +14,11 @@ def createTexture(cont):
     """Create a new Dynamic Texture"""
     obj = cont.owner
 
-    # get the reference pointer (ID) of the internal texture
-    ID = texture.materialID(obj, 'IMoriginal.png')
+    # get the material index
+    ID = texture.materialID(obj, 'MAoriginal_material')
 
     # create a texture object
-    object_texture = texture.Texture(obj, ID)
+    object_texture = texture.Texture(obj, ID, 'original_texture.png')
 
     # create a new source with an external image
     url = logic.expandPath("//newtexture.jpg")

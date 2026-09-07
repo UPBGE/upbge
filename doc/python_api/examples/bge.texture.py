@@ -18,11 +18,11 @@ obj = cont.owner
 # texture object in an attribute of bge.logic module makes it persistent
 if not hasattr(logic, 'video'):
 
-    # identify a static texture by name
-    matID = texture.materialID(obj, 'IMvideo.png')
+    # get material index of the material we want to replace
+    matID = texture.materialID(obj, 'MAvideo_original_material')
 
     # create a dynamic texture that will replace the static texture
-    logic.video = texture.Texture(obj, matID)
+    logic.video = texture.Texture(obj, matID, 'video_original_texture.png')
 
     # define a source of image for the texture, here a movie
     movie = logic.expandPath('//trailer_400p.ogg')
