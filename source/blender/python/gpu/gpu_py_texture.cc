@@ -1029,9 +1029,31 @@ static PyObject *pygpu_texture_set_image(PyObject * /*self*/, PyObject *args)
     }
     tex = reinterpret_cast<BPyGPUTexture *>(py_tex)->tex;
   }
-
   BKE_image_set_gpu_texture_override(ima, tex);
   Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_texture_is_image_overridden_doc,
+    ".. function:: is_image_overridden(image)\n"
+    "\n"
+    "   Check if an image has an overridden GPU texture.\n"
+    "\n"
+    "   :param image: The Image data-block.\n"
+    "   :type image: :class:`bpy.types.Image`\n"
+    "   :return: True if the image has an overridden GPU texture, False otherwise.\n"
+    "   :rtype: bool\n");
+static PyObject *pygpu_texture_is_image_overridden(PyObject * /*self*/, PyObject *arg)
+{
+  Image *ima = static_cast<Image *>(PyC_RNA_AsPointer(arg, "Image"));
+  if (ima == nullptr) {
+    return nullptr;
+  }
+  if (ima->runtime && ima->runtime->gpu_texture_override != nullptr) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
 }
 
 #ifdef __linux__
@@ -1214,6 +1236,10 @@ static PyMethodDef pygpu_texture__m_methods[] = {
      reinterpret_cast<PyCFunction>(pygpu_texture_set_image),
      METH_VARARGS,
      pygpu_texture_set_image_doc},
+    {"is_image_overridden",
+     reinterpret_cast<PyCFunction>(pygpu_texture_is_image_overridden),
+     METH_O,
+     pygpu_texture_is_image_overridden_doc},
 #ifdef __linux__
 #ifdef WITH_OPENGL_BACKEND
     {"from_dmabuf",
