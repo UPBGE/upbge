@@ -1015,6 +1015,4 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
   return image_view_get(image_view_info);
 }
 
-/** \} */
-
 }  // namespace blender::gpu
