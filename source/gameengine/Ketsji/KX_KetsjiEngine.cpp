@@ -1115,7 +1115,9 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
                                                           activecam->GetBlenderObject());
     bContext *C = KX_GetActiveEngine()->GetContext();
     RegionView3D *rv3d = CTX_wm_region_view3d(C);
-    rv3d->persp = RV3D_CAMOB;
+    if (!KX_GetActiveEngine()->UseViewportRender()) {
+      rv3d->persp = RV3D_CAMOB;
+    }
 
     // set transformation
     if (override_camera) {
