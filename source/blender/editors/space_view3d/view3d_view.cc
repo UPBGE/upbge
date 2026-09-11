@@ -88,6 +88,7 @@ static wmOperatorStatus view3d_camera_to_view_exec(bContext *C, wmOperator * /*o
 
   ED_view3d_to_object(depsgraph, v3d->camera, rv3d->ofs, rv3d->viewquat, rv3d->dist, 0.0f);
   rv3d->camroll = 0.0f;
+  rv3d->rflag &= ~RV3D_FLIP_X;
 
   BKE_object_tfm_protected_restore(v3d->camera, &obtfm, v3d->camera->protectflag);
 
@@ -401,10 +402,13 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
   invert_m4_m4(rv3d->viewmat, bmat);
 
   /* view quat calculation, needed for add object */
-  // mat4_normalized_to_quat(rv3d->viewquat, rv3d->viewmat);
+  mat4_normalized_to_quat(rv3d->viewquat, rv3d->viewmat);
 
-  /* UPBGE (to avoid an annoying assert -> will normalize anyway) */
-  mat4_to_quat(rv3d->viewquat, rv3d->viewmat);
+  if (rv3d->rflag & RV3D_FLIP_X) {
+    transpose_m4(rv3d->viewmat);
+    negate_v4(rv3d->viewmat[0]);
+    transpose_m4(rv3d->viewmat);
+  }
 }
 
 void view3d_viewmatrix_set(const Depsgraph *depsgraph,
