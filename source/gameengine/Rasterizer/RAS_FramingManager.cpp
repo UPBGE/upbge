@@ -260,11 +260,11 @@ void RAS_FramingManager::ComputeFrustum(const RAS_FrameSettings &settings,
       switch (sensor_fit) {
         case RAS_SENSORFIT_HOR: {
           x_scale = 1.0f;
-          y_scale = float(viewport.GetHeight()) / float(viewport.GetWidth());
+          y_scale = 1.0f; /* float(viewport.GetHeight()) / float(viewport.GetWidth()); */
           break;
         }
         case RAS_SENSORFIT_VERT: {
-          x_scale = float(viewport.GetWidth()) / float(viewport.GetHeight());
+          x_scale = 1.0f; /* float(viewport.GetWidth()) / float(viewport.GetHeight()); */
           y_scale = 1.0f;
           break;
         }
@@ -333,11 +333,11 @@ void RAS_FramingManager::ComputeOrtho(const RAS_FrameSettings &settings,
       switch (sensor_fit) {
         case RAS_SENSORFIT_HOR: {
           x_scale = 1.0f;
-          y_scale = float(viewport.GetHeight()) / float(viewport.GetWidth());
+          y_scale = 1.0f; /* float(viewport.GetHeight()) / float(viewport.GetWidth()); */
           break;
         }
         case RAS_SENSORFIT_VERT: {
-          x_scale = float(viewport.GetWidth()) / float(viewport.GetHeight());
+          x_scale = 1.0f; /* float(viewport.GetWidth()) / float(viewport.GetHeight()); */
           y_scale = 1.0f;
           break;
         }
