@@ -22,6 +22,38 @@
     </screenshot>
   </screenshots>
   <releases>
+      <release version="0.50" date="2026-01-04" type="stable" urgency="low">
+      <url>https://github.com/UPBGE/upbge/wiki/Release-notes-version-0.50</url>
+      <description>
+        <p>New features:</p>
+        <ul>
+        <li>There is a new experimental implementation of GPU skinning.</li>
+        <li>The new 'DupliBase' feature introduces impostor objects, providing reduced dependency calculation.</li>
+        <li>The internal texture filtering has been re-factored to work on both the OpenGL and Vulkan backends.</li>
+        <li>The video texture module has been re-factored to work on both the OpenGL and Vulkan backends.</li>
+        <li>An assortment of different physics improvements.</li>
+        <li>Steering pathfinding interpolation.</li>
+        <li>Sound buffering for the Sound Actuator in the Logic Bricks.</li>
+        <li>Improvements to the Logic Nodes and 'uplogic' Python module.</li>
+        </ul>
+      </description>
+      <artifacts>
+        <artifact type="binary" platform="x86_64-linux-gnu">
+          <location>https://github.com/UPBGE/upbge/releases/download/v0.50/upbge-0.50-linux-x64.tar.xz</location>
+          <checksum type="sha1">0183d506d35cbd249d4cc2ebc4a677b9a903b7ed</checksum>
+          <checksum type="sha256">21d535641cbab1751766737cd9958bae120cd161cf7f0c86f5d5df6dca868314</checksum>
+          <size type="download">408374596</size>
+          <filename>upbge-0.50-linux-x64.tar.xz</filename>
+        </artifact>
+        <artifact type="source">
+          <location>https://github.com/UPBGE/upbge/archive/refs/tags/v0.50.tar.gz</location>
+          <checksum type="sha1">924982fe114d88629066597579c9a5bcc07d8fd4</checksum>
+          <checksum type="sha256">e5f9f104de701ae913eac70a2535eea95f63fa17496cf1669ae57b17c649aef1</checksum>
+          <size type="download">79671983</size>
+          <filename>v0.50.tar.gz</filename>
+        </artifact>
+      </artifacts>
+    </release>
     <release version="0.44" date="2025-04-07" type="stable" urgency="low">
       <url>https://github.com/UPBGE/upbge/wiki/Release-notes-version-0.44</url>
       <description>
