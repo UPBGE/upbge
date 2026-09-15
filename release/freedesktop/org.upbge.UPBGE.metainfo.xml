@@ -28,8 +28,8 @@
         <p>New features:</p>
         <ul>
         <li>There is a new experimental implementation of GPU skinning.</li>
-        <li>The new 'DupliBase' feature introduces impostor objects, providing reduced dependency calculation.</li>
-        <li>The internal texture filtering has been re-factored to work on both the OpenGL and Vulkan backends.</li>
+        <li>The new 'UPBGE DupliBase' feature introduces lightweight gameobject instances.</li>
+        <li>2D filters has been adapted to work on both the OpenGL and Vulkan backends.</li>
         <li>The video texture module has been re-factored to work on both the OpenGL and Vulkan backends.</li>
         <li>An assortment of different physics improvements.</li>
         <li>Steering pathfinding interpolation.</li>
