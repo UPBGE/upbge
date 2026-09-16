@@ -40,7 +40,7 @@
 #include "DNA_gpencil_legacy_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_gpencil_legacy.h"
+#include "BKE_annotations.h"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_screen.hh"
@@ -313,7 +313,7 @@ static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   /* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
   if (slogic->gpd) {
     BLO_read_raw_address(reader, &slogic->gpd);
-    BKE_gpencil_blend_read_data(reader, slogic->gpd);
+    BKE_annotations_blend_read_data(reader, slogic->gpd);
   }
 }
 
