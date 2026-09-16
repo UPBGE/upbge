@@ -600,7 +600,7 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
   GetSceneViewport(scene, rendercam, displayArea, area, viewport);
 
   // Compute the camera matrices: modelview and projection.
-  const MT_Matrix4x4 viewmat = m_rasterizer->GetViewMatrix(rendercam->GetWorldToCamera(), rendercam->GetCameraData()->m_perspective);
+  const MT_Matrix4x4 viewmat = rendercam->GetWorldToCamera().toMatrix();
   const MT_Matrix4x4 projmat = GetCameraProjectionMatrix(scene, rendercam, viewport, area);
   rendercam->SetModelviewMatrix(viewmat);
   rendercam->SetProjectionMatrix(projmat);
@@ -653,9 +653,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData> &frameData
                        area,
                        viewport);
       // Compute the camera matrices: modelview and projection.
-      const MT_Matrix4x4 viewmat = m_rasterizer->GetViewMatrix(
-          overrideCullingCam->GetWorldToCamera(),
-          overrideCullingCam->GetCameraData()->m_perspective);
+      const MT_Matrix4x4 viewmat = overrideCullingCam->GetWorldToCamera().toMatrix();
       const MT_Matrix4x4 projmat = GetCameraProjectionMatrix(
           scene, overrideCullingCam, viewport, area);
       overrideCullingCam->SetModelviewMatrix(viewmat);
@@ -743,8 +741,6 @@ void KX_KetsjiEngine::Render()
     for (unsigned short i = 0, size = frameData.m_sceneDataList.size(); i < size; ++i) {
       const SceneRenderData &sceneFrameData = frameData.m_sceneDataList[i];
       KX_Scene *scene = sceneFrameData.m_scene;
-
-      m_rasterizer->SetAuxilaryClientInfo(scene);
 
       // Draw the scene once for each camera with an enabled viewport or an active camera.
       for (const CameraRenderData &cameraFrameData : sceneFrameData.m_cameraDataList) {
@@ -1276,7 +1272,7 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene,
   for (KX_Camera *cam : scene->GetCameraList()) {
     if (cam != cameraFrameData.m_renderCamera &&
         (m_showCameraFrustum == KX_DebugOption::FORCE || cam->GetShowCameraFrustum())) {
-      const MT_Matrix4x4 viewmat = m_rasterizer->GetViewMatrix(cam->GetWorldToCamera(), cam->GetCameraData()->m_perspective);
+      const MT_Matrix4x4 viewmat = cam->GetWorldToCamera().toMatrix();
       const MT_Matrix4x4 projmat = GetCameraProjectionMatrix(
           scene, cam, cameraFrameData.m_viewport, cameraFrameData.m_area);
       debugDraw.DrawCameraFrustum(projmat * viewmat);

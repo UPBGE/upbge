@@ -35,25 +35,13 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include <map>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 #include "MT_Matrix4x4.h"
 #include "RAS_DebugDraw.h"
 #include "RAS_Rect.h"
 
-namespace blender::gpu {
-class Texture;
-}
-
 class RAS_OpenGLRasterizer;
 class RAS_FrameBuffer;
 class RAS_ICanvas;
-struct KX_ClientObjectInfo;
-class KX_RayCast;
 
 typedef struct ViewPortMatrices {
   MT_Matrix4x4 view;
@@ -98,11 +86,9 @@ class RAS_Rasterizer {
    private:
     RAS_FrameBuffer *m_frameBuffers[RAS_FRAMEBUFFER_MAX];
 
-    /* We need to free all textures at ge exit so we do member variables */
-    blender::gpu::Texture *m_colorTextureList[RAS_FRAMEBUFFER_MAX];
-    blender::gpu::Texture *m_depthTextureList[RAS_FRAMEBUFFER_MAX];
     unsigned int m_width;
     unsigned int m_height;
+    // kept is someone wants to restore MSAA.
     int m_samples;
 
    public:
@@ -119,16 +105,12 @@ class RAS_Rasterizer {
   RAS_DebugDraw m_debugDraw;
 
   double m_time;
+  // kept if someone wants to restore some predefined RAS_Shader uniforms.
   MT_Matrix4x4 m_viewmatrix;
   MT_Matrix4x4 m_viewinvmatrix;
   MT_Vector3 m_campos;
   bool m_camortho;
   bool m_camnegscale;
-
-  /* Render tools */
-  void *m_clientobject;
-  void *m_auxilaryClientInfo;
-  void *m_lastauxinfo;
 
   /// Class used to manage off screens used by the rasterizer.
   FrameBuffers m_frameBuffers;
@@ -190,16 +172,14 @@ class RAS_Rasterizer {
    */
   RAS_Rect GetRenderArea(RAS_ICanvas *canvas);
 
-  /// Get the modelview matrix according to the stereo settings.
-  MT_Matrix4x4 GetViewMatrix(const MT_Transform &camtrans, bool perspective);
   /**
    * Sets the modelview matrix.
    */
+  // kept if someone wants to restore predefined RAS_Shader uniforms.
   void SetMatrix(const MT_Matrix4x4 &viewmat,
                  const MT_Matrix4x4 &projmat,
                  const MT_Vector3 &pos,
                  const MT_Vector3 &scale);
-  ViewPortMatrices GetAllMatrices();
 
   /**
    */
@@ -251,14 +231,6 @@ class RAS_Rasterizer {
   const MT_Matrix4x4 &GetProjInvMatrix() const;
   const MT_Matrix4x4 &GetPersMatrix() const;
   const MT_Matrix4x4 &GetPersInvMatrix() const;
-
-  /**
-   * Render Tools
-   */
-
-  void SetClientObject(void *obj);
-
-  void SetAuxilaryClientInfo(void *inf);
 
   /**
    * Prints information about what the hardware supports.

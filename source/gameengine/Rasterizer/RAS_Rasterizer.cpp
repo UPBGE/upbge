@@ -145,9 +145,7 @@ RAS_Rasterizer::RAS_Rasterizer()
     : m_time(0.0f),
       m_campos(0.0f, 0.0f, 0.0f),
       m_camortho(false),
-      m_camnegscale(false),
-      m_clientobject(nullptr),
-      m_auxilaryClientInfo(nullptr)
+      m_camnegscale(false)
 {
   m_impl.reset(new RAS_OpenGLRasterizer(this));
 }
@@ -171,30 +169,16 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 
 void RAS_Rasterizer::Exit()
 {
-  // SetClearDepth(1.0f);
-  // SetColorMask(true, true, true, true);
   GPU_color_mask(true, true, true, true);
   GPU_apply_state();
-
-  // SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-  // Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
   GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), {0.0, 0.0, 0.0, 0.0}, 1.0f);
 }
 
 void RAS_Rasterizer::BeginFrame(double time)
 {
   m_time = time;
-
   GPU_matrix_reset();
-
-  // SetFrontFace(true);
-
   m_impl->BeginFrame();
-
-  // Render Tools
-  m_clientobject = nullptr;
-  m_lastauxinfo = nullptr;
 }
 
 void RAS_Rasterizer::EndFrame()
@@ -340,13 +324,6 @@ MT_Matrix4x4 RAS_Rasterizer::GetOrthoMatrix(
   return MT_Matrix4x4(&mat[0][0]);
 }
 
-// next arguments probably contain redundant info, for later...
-MT_Matrix4x4 RAS_Rasterizer::GetViewMatrix(const MT_Transform &camtrans,
-                                           bool perspective)
-{
-  return camtrans.toMatrix();
-}
-
 void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4 &viewmat,
                                const MT_Matrix4x4 &projmat,
                                const MT_Vector3 &pos,
@@ -377,11 +354,6 @@ void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4 &viewmat,
   m_camortho = (m_matrices.pers[3][3] != 0.0f);
 }
 
-ViewPortMatrices RAS_Rasterizer::GetAllMatrices()
-{
-  return m_matrices;
-}
-
 const MT_Vector3 &RAS_Rasterizer::GetCameraPosition()
 {
   return m_campos;
@@ -395,16 +367,6 @@ bool RAS_Rasterizer::GetCameraOrtho()
 double RAS_Rasterizer::GetTime()
 {
   return m_time;
-}
-
-void RAS_Rasterizer::SetClientObject(void *obj)
-{
-  m_clientobject = obj;
-}
-
-void RAS_Rasterizer::SetAuxilaryClientInfo(void *inf)
-{
-  m_auxilaryClientInfo = inf;
 }
 
 void RAS_Rasterizer::PrintHardwareInfo()

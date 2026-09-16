@@ -236,8 +236,6 @@ bool ImageRender::Render()
   int viewport[4] = {
       m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]};
 
-  m_rasterizer->SetAuxilaryClientInfo(m_scene);
-
   /* Ensure animations are up-to-date before computing projection/modelview matrices.
    * Animations may modify camera parameters (lens, shift, orthographic) or transform.
    */
