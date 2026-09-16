@@ -31,11 +31,11 @@
 #include "BLT_translation.hh"
 
 #include "BKE_action.hh"
+#include "BKE_annotations.h"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_deform.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
@@ -923,7 +923,7 @@ static void namebutton_fn(bContext *C, TreeStoreElem *tselem, const char *oldnam
           bGPDlayer *gpl = static_cast<bGPDlayer *>(te->directdata);
 
           /* always make layer active */
-          BKE_gpencil_layer_active_set(gpd, gpl);
+          BKE_annotations_layer_active_set(gpd, gpl);
 
           /* XXX: name needs translation stuff. */
           BLI_uniquename(
