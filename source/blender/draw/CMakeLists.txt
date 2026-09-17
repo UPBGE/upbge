@@ -63,6 +63,7 @@ set(SRC
   intern/draw_cache_impl_curve.cc
   intern/draw_cache_impl_curves.cc
   intern/draw_cache_impl_grease_pencil.cc
+  intern/draw_cache_impl_gsplat.cc
   intern/draw_cache_impl_lattice.cc
   intern/draw_cache_impl_mesh.cc
   intern/draw_cache_impl_particles.cc
@@ -76,6 +77,7 @@ set(SRC
   intern/draw_debug.cc
   intern/draw_fluid.cc
   intern/draw_gpu_context.cc
+  intern/draw_gsplat.cc
   intern/draw_hair.cc
   intern/draw_manager.cc
   intern/draw_manager_text.cc
@@ -181,6 +183,7 @@ set(SRC
   intern/draw_context_private.hh
   intern/draw_curves_private.hh
   intern/draw_debug.hh
+  intern/draw_gsplat_private.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
   intern/draw_manager.hh
@@ -282,6 +285,7 @@ set(SRC
   engines/overlay/overlay_force_field.hh
   engines/overlay/overlay_grease_pencil.hh
   engines/overlay/overlay_grid.hh
+  engines/overlay/overlay_gsplat.hh
   engines/overlay/overlay_image.hh
   engines/overlay/overlay_instance.hh
   engines/overlay/overlay_lattice.hh
@@ -419,6 +423,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_gbuffer_types.bsl.hh
   engines/eevee/shaders/eevee_gbuffer_write.bsl.hh
   engines/eevee/shaders/eevee_geom_curves.bsl.hh
+  engines/eevee/shaders/eevee_geom_gsplat.bsl.hh
   engines/eevee/shaders/eevee_geom_mesh.bsl.hh
   engines/eevee/shaders/eevee_geom_pointcloud.bsl.hh
   engines/eevee/shaders/eevee_geom_types_lib.bsl.hh
@@ -484,7 +489,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_shadow_tilemap_lib.bsl.hh
   engines/eevee/shaders/eevee_shadow_tracing.bsl.hh
   engines/eevee/shaders/eevee_shadow_visibility.bsl.hh
-  engines/eevee/shaders/eevee_spherical_harmonics.bsl.hh
   engines/eevee/shaders/eevee_subsurface.bsl.hh
   engines/eevee/shaders/eevee_subsurface_lib.bsl.hh
   engines/eevee/shaders/eevee_surf_capture.bsl.hh
@@ -595,6 +599,8 @@ set(GLSL_SRC
   intern/shaders/draw_debug_draw_display_frag.glsl
   intern/shaders/draw_debug_draw_display_vert.glsl
   intern/shaders/draw_grease_pencil_lib.glsl
+  intern/shaders/draw_gsplat.bsl.hh
+  intern/shaders/draw_gsplat_lib.bsl.hh
   intern/shaders/draw_intersect_lib.glsl
   intern/shaders/draw_math_geom_lib.glsl
   intern/shaders/draw_model_lib.glsl
@@ -637,6 +643,7 @@ set(GLSL_SRC
   engines/select/shaders/select_id_vert.glsl
   engines/select/shaders/select_id_frag.glsl
   engines/select/shaders/select_lib.glsl
+  engines/select/shaders/select_lib.bsl.hh
   engines/select/shaders/select_debug_frag.glsl
 
   engines/select/select_defines.hh
@@ -717,6 +724,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_grid_frag.glsl
   engines/overlay/shaders/overlay_grid_vert.glsl
   engines/overlay/shaders/overlay_grid_common_lib.glsl
+  engines/overlay/shaders/overlay_gsplat.bsl.hh
   engines/overlay/shaders/overlay_image_frag.glsl
   engines/overlay/shaders/overlay_image_vert.glsl
   engines/overlay/shaders/overlay_motion_path_line_frag.glsl

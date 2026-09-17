@@ -661,27 +661,30 @@ static PyObject *pygpu_shader_uniform_block(BPyGPUShader *self, PyObject *args)
 
 PyDoc_STRVAR(
     /* Wrap. */
-    pygpu_shader_ssbo_doc,
-    ".. method:: ssbo(name, ssbo)\n"
+    pygpu_shader_storage_block_doc,
+    ".. method:: storage_block(name, ssbo)\n"
     "\n"
-    "   Specify the value of a shader storage buffer (SSBO) variable for the current GPUShader.\n"
+    "   Specify the value of a storage buffer object variable for the current GPUShader.\n"
     "\n"
-    "   :arg name: name of the SSBO variable in the shader.\n"
+    "   :param name: Name of the storage block variable whose SSBO is to be specified.\n"
     "   :type name: str\n"
-    "   :arg ssbo: Storage Buffer to attach.\n"
+    "   :param ssbo: Storage Buffer to attach.\n"
     "   :type ssbo: :class:`gpu.types.GPUStorageBuf`\n");
-static PyObject *pygpu_shader_ssbo(BPyGPUShader *self, PyObject *args)
+static PyObject *pygpu_shader_storage_block(BPyGPUShader *self, PyObject *args)
 {
   const char *name;
   BPyGPUStorageBuf *py_ssbo;
-  if (!PyArg_ParseTuple(args, "sO!:GPUShader.ssbo", &name, &BPyGPUStorageBuf_Type, &py_ssbo)) {
+  if (!PyArg_ParseTuple(
+          args, "sO!:GPUShader.storage_block", &name, &BPyGPUStorageBuf_Type, &py_ssbo))
+  {
     return nullptr;
   }
 
   int binding = GPU_shader_get_ssbo_binding(self->shader, name);
   if (binding == -1) {
-    PyErr_SetString(PyExc_BufferError,
-                    "GPUShader.ssbo: ssbo binding not found, make sure the name is correct");
+    PyErr_SetString(
+        PyExc_BufferError,
+        "GPUShader.storage_block: storage block not found, make sure the name is correct");
     return nullptr;
   }
 
@@ -760,7 +763,7 @@ PyDoc_STRVAR(
     "   :rtype: tuple[tuple[str, str | None], ...]\n");
 static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*arg*/)
 {
-  using namespace gpu::shader;
+  using namespace blender::gpu::shader;
   PyObject *ret;
   int type;
   int location_test = 0, attrs_added = 0;
@@ -875,13 +878,14 @@ static PyMethodDef pygpu_shader__tp_methods[] = {
      reinterpret_cast<PyCFunction>(pygpu_shader_image),
      METH_VARARGS,
      pygpu_shader_image_doc},
-    {"ssbo",
-     (PyCFunction)pygpu_shader_ssbo,
-     METH_VARARGS, pygpu_shader_ssbo_doc},
     {"uniform_block",
      reinterpret_cast<PyCFunction>(pygpu_shader_uniform_block),
      METH_VARARGS,
      pygpu_shader_uniform_block_doc},
+    {"storage_block",
+     reinterpret_cast<PyCFunction>(pygpu_shader_storage_block),
+     METH_VARARGS,
+     pygpu_shader_storage_block_doc},
     {"attr_from_name",
      reinterpret_cast<PyCFunction>(pygpu_shader_attr_from_name),
      METH_O,
@@ -1016,7 +1020,7 @@ PyDoc_STRVAR(
     ".. function:: unbind()\n"
     "\n"
     "   Unbind the bound shader object.\n");
-static PyObject *pygpu_shader_unbind(BPyGPUShader * /*self*/)
+static PyObject *pygpu_shader_unbind(PyObject * /*self*/)
 {
   GPU_shader_unbind();
   Py_RETURN_NONE;
