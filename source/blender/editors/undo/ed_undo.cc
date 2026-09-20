@@ -1188,7 +1188,12 @@ size_t ED_undosys_total_memory_calc(UndoStack *ustack)
 void ED_undo_push_old(bContext *C, const char *str)
 {
   ED_undo_push(C, str);
-  UndoStep *last_step = CTX_wm_manager(C)->runtime->undo_stack->steps.last();
+  wmWindowManager *wm = CTX_wm_manager(C);
+  // Prevent crash when running some operators in --background mode
+  if (wm->runtime->undo_stack == nullptr) {
+    return;
+  }
+  UndoStep *last_step = wm->runtime->undo_stack->steps.last();
   last_step->use_old_bmain_data = false;
 }
 /*********/
