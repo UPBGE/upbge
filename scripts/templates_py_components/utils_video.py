@@ -26,7 +26,10 @@ class Play(bge.types.KX_PythonComponent):
         self.flip = args["Flip"]
 
         path = bge.logic.expandPath(self.file)
-        self.tex = bge.texture.Texture(self.object, 0, 0)
+        matId = 0
+        texId = 0
+        ImageTextureNodeName = self.object.meshes[0].materials[matId].textures[texId].name
+        self.tex = bge.texture.Texture(self.object, matId, ImageTextureNodeName)
         self.tex.source = bge.texture.VideoFFmpeg(path)
         self.tex.source.repeat = self.repeat
         self.tex.source.scale = True
@@ -55,7 +58,10 @@ class Capture(bge.types.KX_PythonComponent):
         self.height = args["Height"]
         self.flip = args["Flip"]
 
-        self.tex = bge.texture.Texture(self.object, 0, 0)
+        matId = 0
+        texId = 0
+        ImageTextureNodeName = self.object.meshes[0].materials[matId].textures[texId].name
+        self.tex = bge.texture.Texture(self.object, matId, ImageTextureNodeName)
         self.tex.source = bge.texture.VideoFFmpeg(self.camera_name, 0, self.framerate, self.width, self.height)
         self.tex.source.repeat = -1
         self.tex.source.scale = True
