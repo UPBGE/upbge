@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "BLI_function_ref.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -69,6 +70,23 @@ class Config {
    */
   static std::unique_ptr<Config> create_fallback();
 
+  /**
+   * Switch this configuration in-place to the configuration from the environment variable,
+   * for runtime configuration switching.
+   *
+   * Returns false if the configuration could not be created or #validate returned false.
+   * This configuration is then left unchanged.
+   */
+  virtual bool switch_to_from_environment(FunctionRef<bool(const Config &)> validate) = 0;
+
+  /**
+   * Switch this configuration in-place to #new_config, and take over its color spaces
+   * and other data.
+   *
+   * Returns false if #validate returned false. This configuration is then left unchanged.
+   */
+  virtual bool switch_to(Config &new_config, FunctionRef<bool(const Config &)> validate) = 0;
+
   /** \} */
 
   /* -------------------------------------------------------------------- */
@@ -106,9 +124,15 @@ class Config {
   virtual const ColorSpace *get_color_space(StringRefNull name) const = 0;
 
   /**
-   * Get the number of color spaces in this configuration.
+   * Get the number of active color spaces in this configuration.
    */
-  virtual int get_num_color_spaces() const = 0;
+  virtual int get_num_active_color_spaces() const = 0;
+
+  /**
+   * Get the number of all color spaces, including the inactive color spaces
+   * after the active ones.
+   */
+  virtual int get_num_all_color_spaces() const = 0;
 
   /**
    * Get color space with the given index within the configuration.
