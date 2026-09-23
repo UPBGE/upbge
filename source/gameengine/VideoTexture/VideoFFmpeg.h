@@ -13,19 +13,12 @@
 #    include <inttypes.h>
 #  endif
 
-#  include <pthread.h>
-
-#  include "BLI_threads.hh"
-
 extern "C" {
 #  include "ffmpeg_compat.h"
 #  include <libavcodec/avcodec.h>
 }
 
 #  include "VideoBase.h"
-
-#  define CACHE_FRAME_SIZE 10
-#  define CACHE_PACKET_SIZE 30
 
 // type VideoFFmpeg declaration
 class VideoFFmpeg : public VideoBase {
@@ -127,9 +120,6 @@ class VideoFFmpeg : public VideoBase {
   /// is file an image?
   bool m_isImage;
 
-  /// is image loading done in a separate thread?
-  bool m_isThreaded;
-
   /// is streaming or camera?
   bool m_isStreaming;
 
@@ -155,35 +145,8 @@ class VideoFFmpeg : public VideoBase {
   /// retrieved
   AVFrame *grabFrame(long frame);
 
-  /// in case of caching, put the frame back in free queue
-  void releaseFrame(AVFrame *frame);
-
-  /// start thread to load the video file/capture/stream
-  bool startCache();
-  void stopCache();
-
  private:
-  typedef struct {
-    blender::Link link;
-    long framePosition;
-    AVFrame *frame;
-  } CacheFrame;
-  typedef struct {
-    blender::Link link;
-    AVPacket packet;
-  } CachePacket;
-
-  bool m_stopThread;
-  bool m_cacheStarted;
-  blender::ListBaseT<blender::ThreadSlot> m_thread;
-  blender::ListBaseT<CacheFrame> m_frameCacheBase;  // list of frames that are ready
-  blender::ListBaseT<CacheFrame> m_frameCacheFree;  // list of frames that are unused
-  blender::ListBaseT<CachePacket> m_packetCacheBase;  // list of packets that are ready for decoding
-  blender::ListBaseT<CachePacket> m_packetCacheFree;  // list of packets that are unused
-  pthread_mutex_t m_cacheMutex;
-
   AVFrame *allocFrameRGB();
-  static void *cacheThread(void *);
 };
 
 inline VideoFFmpeg *getFFmpeg(PyImage *self)

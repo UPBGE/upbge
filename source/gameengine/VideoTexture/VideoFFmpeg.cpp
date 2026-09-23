@@ -25,6 +25,7 @@
 #  include "BLI_listbase.hh"
 #  include "BLI_string.hh"
 #  include "BLI_time.hh"
+#  include "BLI_threads.hh"  // for BLI_system_thread_count
 #  include "movie_util.hh"
 
 
@@ -37,6 +38,22 @@ using namespace blender;
 
 // default framerate
 const double defFrameRate = 25.0;
+
+// Profiling: enabled via env var BGE_VIDEO_PROFILE=1
+static bool g_videoProfileEnabled = false;
+static int g_videoProfileFrameCount = 0;
+static double g_videoProfileDecodeTotal = 0.0;
+static double g_videoProfileConvertTotal = 0.0;
+static double g_videoProfileSeekTotal = 0.0;
+
+static void video_profile_init()
+{
+  const char *env = getenv("BGE_VIDEO_PROFILE");
+  if (env && env[0] == '1') {
+    g_videoProfileEnabled = true;
+    printf("[VideoFFmpeg] Profiling ENABLED\n");
+  }
+}
 
 // macro for exception handling and logging
 #  define CATCH_EXCP \
@@ -70,10 +87,7 @@ VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
       m_captHeight(0),
       m_captRate(0.f),
       m_isImage(false),
-      m_isThreaded(false),
-      m_isStreaming(false),
-      m_stopThread(false),
-      m_cacheStarted(false)
+      m_isStreaming(false)
 {
   // set video format
   m_format = RGB24;
@@ -81,12 +95,6 @@ VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
   setFlip(true);
   // construction is OK
   *hRslt = S_OK;
-  BLI_listbase_clear(&m_thread);
-  pthread_mutex_init(&m_cacheMutex, nullptr);
-  BLI_listbase_clear(&m_frameCacheFree);
-  BLI_listbase_clear(&m_frameCacheBase);
-  BLI_listbase_clear(&m_packetCacheFree);
-  BLI_listbase_clear(&m_packetCacheBase);
 }
 
 // destructor
@@ -106,8 +114,6 @@ void VideoFFmpeg::refresh(void)
 bool VideoFFmpeg::release()
 {
   // release
-  stopCache();
-
   if (m_codecCtx) {
     avcodec_free_context(&m_codecCtx);
     m_codecCtx = nullptr;
@@ -339,213 +345,6 @@ int VideoFFmpeg::openStream(const char *filename,
   return 0;
 }
 
-/*
- * This thread is used to load video frame asynchronously.
- * It provides a frame caching service.
- * The main thread is responsible for positioning the frame pointer in the
- * file correctly before calling startCache() which starts this thread.
- * The cache is organized in two layers: 1) a cache of 20-30 undecoded packets to keep
- * memory and CPU low 2) a cache of 5 decoded frames.
- * If the main thread does not find the frame in the cache (because the video has restarted
- * or because the GE is lagging), it stops the cache with StopCache() (this is a synchronous
- * function: it sends a signal to stop the cache thread and wait for confirmation), then
- * change the position in the stream and restarts the cache thread.
- */
-void *VideoFFmpeg::cacheThread(void *data)
-{
-  VideoFFmpeg *video = (VideoFFmpeg *)data;
-  // holds the frame that is being decoded
-  CacheFrame *currentFrame = nullptr;
-  CachePacket *cachePacket;
-  bool endOfFile = false;
-  int frameFinished = 0;
-  double timeBase = av_q2d(video->m_formatCtx->streams[video->m_videoStream]->time_base);
-  int64_t startTs = video->m_formatCtx->streams[video->m_videoStream]->start_time;
-
-  if (startTs == AV_NOPTS_VALUE)
-    startTs = 0;
-
-  while (!video->m_stopThread) {
-    // packet cache is used solely by this thread, no need to lock
-    // In case the stream/file contains other stream than the one we are looking for,
-    // allow a bit of cycling to get rid quickly of those frames
-    frameFinished = 0;
-    while (!endOfFile &&
-           (cachePacket = video->m_packetCacheFree.first()) != nullptr &&
-           frameFinished < 25) {
-      // free packet => packet cache is not full yet, just read more
-      if (av_read_frame(video->m_formatCtx, &cachePacket->packet) >= 0) {
-        if (cachePacket->packet.stream_index == video->m_videoStream) {
-          BLI_remlink(&video->m_packetCacheFree, cachePacket);
-          BLI_addtail(&video->m_packetCacheBase, cachePacket);
-          break;
-        }
-        else {
-          // this is not a good packet for us, just leave it on free queue
-          // Note: here we could handle sound packet
-          av_packet_unref(&cachePacket->packet);
-          frameFinished++;
-        }
-      }
-      else {
-        if (video->m_isFile)
-          // this mark the end of the file
-          endOfFile = true;
-        // if we cannot read a packet, no need to continue
-        break;
-      }
-    }
-    // frame cache is also used by main thread, lock
-    if (currentFrame == nullptr) {
-      // no current frame being decoded, take free one
-      pthread_mutex_lock(&video->m_cacheMutex);
-      if ((currentFrame = video->m_frameCacheFree.first()) != nullptr)
-        BLI_remlink(&video->m_frameCacheFree, currentFrame);
-      pthread_mutex_unlock(&video->m_cacheMutex);
-    }
-    if (currentFrame != nullptr) {
-      // this frame is out of free and busy queue, we can manipulate it without locking
-      frameFinished = 0;
-      while (!frameFinished &&
-             (cachePacket = video->m_packetCacheBase.first()) != nullptr) {
-        BLI_remlink(&video->m_packetCacheBase, cachePacket);
-        // use m_frame because when caching, it is not used in main thread
-        // we can't use currentFrame directly because we need to convert to RGB first
-        avcodec_send_packet(video->m_codecCtx, &cachePacket->packet);
-        frameFinished = avcodec_receive_frame(video->m_codecCtx, video->m_frame) == 0;
-
-        if (frameFinished) {
-          AVFrame *input = video->m_frame;
-
-          /* This means the data wasnt read properly, this check stops crashing */
-          if (input->data[0] != 0 || input->data[1] != 0 || input->data[2] != 0 ||
-              input->data[3] != 0) {
-            if (video->m_deinterlace) {
-              if (ffmpeg_deinterlace((AVFrame *)video->m_frameDeinterlaced,
-                                       (const AVFrame *)video->m_frame,
-                                       video->m_codecCtx->pix_fmt,
-                                       video->m_codecCtx->width,
-                                       video->m_codecCtx->height) >= 0) {
-                input = video->m_frameDeinterlaced;
-              }
-            }
-            // convert to RGB24
-            sws_scale(video->m_imgConvertCtx,
-                      input->data,
-                      input->linesize,
-                      0,
-                      video->m_codecCtx->height,
-                      currentFrame->frame->data,
-                      currentFrame->frame->linesize);
-            // move frame to queue, this frame is necessarily the next one
-            video->m_curPosition = (long)((cachePacket->packet.dts - startTs) *
-                                              (video->m_baseFrameRate * timeBase) +
-                                          0.5);
-            currentFrame->framePosition = video->m_curPosition;
-            pthread_mutex_lock(&video->m_cacheMutex);
-            BLI_addtail(&video->m_frameCacheBase, currentFrame);
-            pthread_mutex_unlock(&video->m_cacheMutex);
-            currentFrame = nullptr;
-          }
-          av_frame_unref(video->m_frame);
-        }
-        av_packet_unref(&cachePacket->packet);
-        BLI_addtail(&video->m_packetCacheFree, cachePacket);
-      }
-      if (currentFrame && endOfFile) {
-        // no more packet and end of file => put a special frame that indicates that
-        currentFrame->framePosition = -1;
-        pthread_mutex_lock(&video->m_cacheMutex);
-        BLI_addtail(&video->m_frameCacheBase, currentFrame);
-        pthread_mutex_unlock(&video->m_cacheMutex);
-        currentFrame = nullptr;
-        // no need to stay any longer in this thread
-        break;
-      }
-    }
-    // small sleep to avoid unnecessary looping
-    BLI_time_sleep_ms(10);
-  }
-  // before quitting, put back the current frame to queue to allow freeing
-  if (currentFrame) {
-    pthread_mutex_lock(&video->m_cacheMutex);
-    BLI_addtail(&video->m_frameCacheFree, currentFrame);
-    pthread_mutex_unlock(&video->m_cacheMutex);
-  }
-  return 0;
-}
-
-// start thread to cache video frame from file/capture/stream
-// this function should be called only when the position in the stream is set for the
-// first frame to cache
-bool VideoFFmpeg::startCache()
-{
-  if (!m_cacheStarted && m_isThreaded) {
-    m_stopThread = false;
-    for (int i = 0; i < CACHE_FRAME_SIZE; i++) {
-      CacheFrame *frame = new CacheFrame();
-      frame->frame = allocFrameRGB();
-      BLI_addtail(&m_frameCacheFree, frame);
-    }
-    for (int i = 0; i < CACHE_PACKET_SIZE; i++) {
-      CachePacket *packet = new CachePacket();
-      BLI_addtail(&m_packetCacheFree, packet);
-    }
-    BLI_threadpool_init(reinterpret_cast<ListBaseT<ThreadSlot> *>(&m_thread), cacheThread, 1);
-    BLI_threadpool_insert(reinterpret_cast<ListBaseT<ThreadSlot> *>(&m_thread), this);
-    m_cacheStarted = true;
-  }
-  return m_cacheStarted;
-}
-
-void VideoFFmpeg::stopCache()
-{
-  if (m_cacheStarted) {
-    m_stopThread = true;
-    BLI_threadpool_end(reinterpret_cast<ListBaseT<ThreadSlot> *>(&m_thread));
-    // now delete the cache
-    CacheFrame *frame;
-    CachePacket *packet;
-    while ((frame = m_frameCacheBase.first()) != nullptr) {
-      BLI_remlink(&m_frameCacheBase, frame);
-      MEM_delete(frame->frame->data[0]);
-      av_frame_free(&frame->frame);
-      delete frame;
-    }
-    while ((frame = m_frameCacheFree.first()) != nullptr) {
-      BLI_remlink(&m_frameCacheFree, frame);
-      MEM_delete(frame->frame->data[0]);
-      av_frame_free(&frame->frame);
-      delete frame;
-    }
-    while ((packet = m_packetCacheBase.first()) != nullptr) {
-      BLI_remlink(&m_packetCacheBase, packet);
-      av_packet_unref(&packet->packet);
-      delete packet;
-    }
-    while ((packet = m_packetCacheFree.first()) != nullptr) {
-      BLI_remlink(&m_packetCacheFree, packet);
-      delete packet;
-    }
-    m_cacheStarted = false;
-  }
-}
-
-void VideoFFmpeg::releaseFrame(AVFrame *frame)
-{
-  if (frame == m_frameRGB) {
-    // this is not a frame from the cache, ignore
-    return;
-  }
-  // this frame MUST be the first one of the queue
-  pthread_mutex_lock(&m_cacheMutex);
-  CacheFrame *cacheFrame = m_frameCacheBase.first();
-  assert(cacheFrame != nullptr && cacheFrame->frame == frame);
-  BLI_remlink(&m_frameCacheBase, cacheFrame);
-  BLI_addtail(&m_frameCacheFree, cacheFrame);
-  pthread_mutex_unlock(&m_cacheMutex);
-}
-
 // open video file
 void VideoFFmpeg::openFile(char *filename)
 {
@@ -590,12 +389,6 @@ void VideoFFmpeg::openFile(char *filename)
     m_preseek = 0;
     m_avail = false;
     play();
-  }
-  // check if we should do multi-threading?
-  if (!m_isImage && BLI_system_thread_count() > 1) {
-    // never thread image: there are no frame to read ahead
-    // no need to thread if the system has a single core
-    m_isThreaded = true;
   }
 }
 
@@ -692,11 +485,6 @@ void VideoFFmpeg::openCam(char *file, short camIdx)
   m_formatCtx->flags |= AVFMT_FLAG_NONBLOCK;
   // open base class
   VideoBase::openCam(file, camIdx);
-  // check if we should do multi-threading?
-  if (BLI_system_thread_count() > 1) {
-    // no need to thread if the system has a single core
-    m_isThreaded = true;
-  }
 
   av_dict_free(&formatParams);
 }
@@ -774,6 +562,11 @@ void VideoFFmpeg::setFrameRate(float rate)
 // load frame from video
 void VideoFFmpeg::calcImage(unsigned int texId, double ts)
 {
+  // Init profiling on first call
+  if (!g_videoProfileEnabled && g_videoProfileFrameCount == 0) {
+    video_profile_init();
+  }
+  
   if (m_status == SourcePlaying) {
     // get actual time
     double startTime = BLI_time_now_seconds();
@@ -782,11 +575,6 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
     if (m_isFile && ts >= -0.5) {
       // allow setting timestamp only when not streaming
       actTime = ts;
-      if (actTime * actFrameRate() < m_lastFrame) {
-        // user is asking to rewind, force a cache clear to make sure we will do a seek
-        // note that this does not decrement m_repeat if ts didn't reach m_range[1]
-        stopCache();
-      }
     }
     else {
       if (m_lastFrame == -1 && !m_isFile)
@@ -795,8 +583,6 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
     }
     // if video has ended
     if (m_isFile && actTime * m_frameRate >= m_range[1]) {
-      // in any case, this resets the cache
-      stopCache();
       // if repeats are set, decrease them
       if (m_repeat > 0)
         --m_repeat;
@@ -817,10 +603,14 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
     // if actual frame differs from last frame
     if (actFrame != m_lastFrame) {
       AVFrame *frame;
+      double t_decode_start = g_videoProfileEnabled ? BLI_time_now_seconds() : 0.0;
       // get image
       if ((frame = grabFrame(actFrame)) != nullptr) {
-        if (!m_isFile && !m_cacheStarted) {
-          // streaming without cache: detect synchronization problem
+        double t_decode_end = g_videoProfileEnabled ? BLI_time_now_seconds() : 0.0;
+        double t_convert_start = t_decode_end;
+        
+        if (!m_isFile) {
+          // streaming: detect synchronization problem
           double execTime = BLI_time_now_seconds() - startTime;
           if (execTime > 0.005) {
             // exec time is too long, it means that the function was blocking
@@ -834,8 +624,24 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
         init(short(m_codecCtx->width), short(m_codecCtx->height));
         // process image
         process((BYTE *)(frame->data[0]));
-        // finished with the frame, release it so that cache can reuse it
-        releaseFrame(frame);
+        double t_convert_end = g_videoProfileEnabled ? BLI_time_now_seconds() : 0.0;
+        
+        // Profiling output
+        if (g_videoProfileEnabled) {
+          double decode_ms = (t_decode_end - t_decode_start) * 1000.0;
+          double convert_ms = (t_convert_end - t_convert_start) * 1000.0;
+          g_videoProfileDecodeTotal += decode_ms;
+          g_videoProfileConvertTotal += convert_ms;
+          g_videoProfileFrameCount++;
+          
+          // Print every 60 frames or on first frame
+          if (g_videoProfileFrameCount == 1 || g_videoProfileFrameCount % 60 == 0) {
+            double avg_decode = g_videoProfileDecodeTotal / g_videoProfileFrameCount;
+            double avg_convert = g_videoProfileConvertTotal / g_videoProfileFrameCount;
+            printf("[VideoFFmpeg] Frame %d: decode=%.2fms convert=%.2fms | avg decode=%.2fms convert=%.2fms total_frames=%d\n",
+                   g_videoProfileFrameCount, decode_ms, convert_ms, avg_decode, avg_convert, g_videoProfileFrameCount);
+          }
+        }
         // in case it is an image, automatically stop reading it
         if (m_isImage) {
           m_status = SourceStopped;
@@ -864,8 +670,6 @@ void VideoFFmpeg::setPositions(void)
     m_startTime -= double(m_lastFrame) / actFrameRate();
   else {
     m_startTime -= m_range[0];
-    // start from beginning, stop cache just in case
-    stopCache();
   }
 }
 
@@ -877,62 +681,30 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
   int posFound = 1;
   bool frameLoaded = false;
   int64_t targetTs = 0;
-  CacheFrame *frame;
   int64_t dts = 0;
 
-  if (m_cacheStarted) {
-    // when cache is active, we must not read the file directly
-    do {
-      pthread_mutex_lock(&m_cacheMutex);
-      frame = m_frameCacheBase.first();
-      pthread_mutex_unlock(&m_cacheMutex);
-      // no need to remove the frame from the queue: the cache thread does not touch the head, only
-      // the tail
-      if (frame == nullptr) {
-        // no frame in cache, in case of file it is an abnormal situation
-        if (m_isFile) {
-          // go back to no threaded reading
-          stopCache();
-          break;
-        }
-        return nullptr;
-      }
-      if (frame->framePosition == -1) {
-        // this frame mark the end of the file (only used for file)
-        // leave in cache to make sure we don't miss it
-        m_eof = true;
-        return nullptr;
-      }
-      // for streaming, always return the next frame,
-      // that's what grabFrame does in non cache mode anyway.
-      if (m_isStreaming || frame->framePosition == position) {
-        return frame->frame;
-      }
-      // for cam, skip old frames to keep image realtime.
-      // There should be no risk of clock drift since it all happens on the same CPU
-      if (frame->framePosition > position) {
-        // this can happen after rewind if the seek didn't find the first frame
-        // the frame in the buffer is ahead of time, just leave it there
-        return nullptr;
-      }
-      // this frame is not useful, release it
-      pthread_mutex_lock(&m_cacheMutex);
-      BLI_remlink(&m_frameCacheBase, frame);
-      BLI_addtail(&m_frameCacheFree, frame);
-      pthread_mutex_unlock(&m_cacheMutex);
-    } while (true);
-  }
   double timeBase = av_q2d(m_formatCtx->streams[m_videoStream]->time_base);
   int64_t startTs = m_formatCtx->streams[m_videoStream]->start_time;
   if (startTs == AV_NOPTS_VALUE)
     startTs = 0;
 
-  // come here when there is no cache or cache has been stopped
   // locate the frame, by seeking if necessary (seeking is only possible for files)
   if (m_isFile) {
+    // Profiling: log seek behavior
+    if (g_videoProfileEnabled && g_videoProfileFrameCount < 10) {
+      printf("[VideoFFmpeg] grabFrame: position=%ld m_curPosition=%ld m_preseek=%d\n",
+             position, m_curPosition, m_preseek);
+    }
+    
+    // Tolerance: if the requested position is close to current position,
+    // read sequentially instead of seeking. This avoids expensive seek+flush
+    // when the frame rate doesn't match exactly (e.g., 24fps video played at 25fps).
+    // Use a larger tolerance to handle significant frame rate mismatches.
+    const long SEEK_TOLERANCE = 30;
+    
     // first check if the position that we are looking for is in the preseek range
-    // if so, just read the frame until we get there
-    if (position > m_curPosition + 1 && m_preseek && position - (m_curPosition + 1) < m_preseek) {
+    // or within tolerance, if so, just read the frame until we get there
+    if (position > m_curPosition && position <= m_curPosition + SEEK_TOLERANCE) {
       while (av_read_frame(m_formatCtx, &packet) >= 0) {
         if (packet.stream_index == m_videoStream) {
           avcodec_send_packet(m_codecCtx, &packet);
@@ -944,12 +716,12 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
           }
         }
         av_packet_unref(&packet);
-        if (position == m_curPosition + 1)
+        if (position <= m_curPosition)
           break;
       }
     }
     // if the position is not in preseek, do a direct jump
-    if (position != m_curPosition + 1) {
+    else if (position != m_curPosition + 1) {
       int64_t pos = (int64_t)((position - m_preseek) / (m_baseFrameRate * timeBase));
 
       if (pos < 0)
@@ -958,30 +730,11 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
       pos += startTs;
 
       if (position <= m_curPosition || !m_eof) {
-#  if 0
-				// Tried to make this work but couldn't: seeking on byte is ignored by the
-				// format plugin and it will generally continue to read from last timestamp.
-				// Too bad because frame seek is not always able to get the first frame
-				// of the file.
-				if (position <= m_preseek)
-				{
-					// we can safely go the beginning of the file
-					if (av_seek_frame(m_formatCtx, m_videoStream, 0, AVSEEK_FLAG_BYTE) >= 0)
-					{
-						// binary seek does not reset the timestamp, must do it now
-						av_update_cur_dts(m_formatCtx, m_formatCtx->streams[m_videoStream], startTs);
-						m_curPosition = 0;
-					}
-				}
-				else
-#  endif
-        {
+        // current position is now lost, guess a value.
+        if (av_seek_frame(m_formatCtx, m_videoStream, pos, AVSEEK_FLAG_BACKWARD) >= 0) {
           // current position is now lost, guess a value.
-          if (av_seek_frame(m_formatCtx, m_videoStream, pos, AVSEEK_FLAG_BACKWARD) >= 0) {
-            // current position is now lost, guess a value.
-            // It's not important because it will be set at this end of this function
-            m_curPosition = position - m_preseek - 1;
-          }
+          // It's not important because it will be set at this end of this function
+          m_curPosition = position - m_preseek - 1;
         }
       }
       // this is the timestamp of the frame we're looking for
@@ -990,14 +743,6 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
       posFound = 0;
       avcodec_flush_buffers(m_codecCtx);
     }
-  }
-  else if (m_isThreaded) {
-    // cache is not started but threading is possible
-    // better not read the stream => make take some time, better start caching
-    if (startCache())
-      return nullptr;
-    // Abnormal!!! could not start cache, fall back on direct read
-    m_isThreaded = false;
   }
 
   // find the correct frame, in case of streaming and no cache, it means just
@@ -1069,13 +814,6 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
   m_eof = m_isFile && !frameLoaded;
   if (frameLoaded) {
     m_curPosition = (long)((dts - startTs) * (m_baseFrameRate * timeBase) + 0.5);
-    if (m_isThreaded) {
-      // normal case for file: first locate, then start cache
-      if (!startCache()) {
-        // Abnormal!! could not start cache, return to non-cache mode
-        m_isThreaded = false;
-      }
-    }
     return m_frameRGB;
   }
   return nullptr;

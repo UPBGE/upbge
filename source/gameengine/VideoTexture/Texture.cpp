@@ -24,7 +24,23 @@
 #include "KX_Globals.h"
 #include "RAS_IPolygonMaterial.h"
 
+#include "BLI_time.hh"
+
 using namespace blender;
+
+// GPU upload profiling: enabled via env var BGE_VIDEO_PROFILE=1
+static bool g_gpuProfileEnabled = false;
+static int g_gpuProfileFrameCount = 0;
+static double g_gpuProfileUploadTotal = 0.0;
+
+static void gpu_profile_init()
+{
+  const char *env = getenv("BGE_VIDEO_PROFILE");
+  if (env && env[0] == '1') {
+    g_gpuProfileEnabled = true;
+    printf("[Texture] GPU upload profiling ENABLED\n");
+  }
+}
 
 #ifdef WITH_FFMPEG
 extern PyTypeObject VideoFFmpegType;
@@ -181,6 +197,8 @@ void Texture::loadTexture(unsigned int *texture,
 
   // For video/image sources: upload the CPU buffer to a GPU texture
   if (m_imgTexture) {
+    double t_upload_start = g_gpuProfileEnabled ? BLI_time_now_seconds() : 0.0;
+
     if (m_modifiedGPUTexture && (size[0] != GPU_texture_width(m_modifiedGPUTexture) ||
                                  size[1] != GPU_texture_height(m_modifiedGPUTexture)))
     {
@@ -203,12 +221,26 @@ void Texture::loadTexture(unsigned int *texture,
     GPU_texture_update(m_modifiedGPUTexture, GPU_DATA_UBYTE, texture);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
+    double t_upload_end = g_gpuProfileEnabled ? BLI_time_now_seconds() : 0.0;
+
     // Do not acquire a new reference – the texture is already owned by
     // this VideoTexture instance via m_modifiedGPUTexture.
     m_gpuColorTexInUse = m_modifiedGPUTexture;
 
     // Register the override on the Image. No additional refcount is taken.
     BKE_image_set_gpu_texture_override(m_imgTexture, m_modifiedGPUTexture);
+
+    // GPU upload profiling
+    if (g_gpuProfileEnabled) {
+      double upload_ms = (t_upload_end - t_upload_start) * 1000.0;
+      g_gpuProfileUploadTotal += upload_ms;
+      g_gpuProfileFrameCount++;
+      if (g_gpuProfileFrameCount == 1 || g_gpuProfileFrameCount % 60 == 0) {
+        double avg_upload = g_gpuProfileUploadTotal / g_gpuProfileFrameCount;
+        printf("[Texture] GPU upload frame %d: %.2fms | avg=%.2fms total_frames=%d\n",
+               g_gpuProfileFrameCount, upload_ms, avg_upload, g_gpuProfileFrameCount);
+      }
+    }
   }
 }
 
@@ -369,6 +401,11 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
   // We find this out by looking at the engine current clock time
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   if (engine->GetClockTime() != m_lastClock) {
+    // Init GPU profiling on first call
+    if (!g_gpuProfileEnabled && g_gpuProfileFrameCount == 0) {
+      gpu_profile_init();
+    }
+    
     m_lastClock = engine->GetClockTime();
     // set source refresh
     bool refreshSource = (param == Py_True);
