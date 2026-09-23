@@ -18,6 +18,7 @@
 
 #  include <stdint.h>
 #  include <string>
+#  include <algorithm>
 
 #  include "MEM_guardedalloc.h"
 
@@ -250,7 +251,8 @@ int VideoFFmpeg::openStream(const char *filename,
     pCodecCtx->thread_count = 0;
   }
   else {
-    pCodecCtx->thread_count = BLI_system_thread_count();
+    // FFmpeg does not recommend thread counts above 16 (see MOV_thread_count in Blender).
+    pCodecCtx->thread_count = std::min(BLI_system_thread_count(), 16);
   }
 
   if (pCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
@@ -293,38 +295,25 @@ int VideoFFmpeg::openStream(const char *filename,
       m_codecCtx->height,
       1);
 
-  // check if the pixel format supports Alpha
-  if (m_codecCtx->pix_fmt == AV_PIX_FMT_RGB32 || m_codecCtx->pix_fmt == AV_PIX_FMT_BGR32 ||
-      m_codecCtx->pix_fmt == AV_PIX_FMT_RGB32_1 || m_codecCtx->pix_fmt == AV_PIX_FMT_BGR32_1) {
-    // allocate buffer to store final decoded frame
-    m_format = RGBA32;
-    // allocate sws context
-    m_imgConvertCtx = sws_getContext(m_codecCtx->width,
-                                     m_codecCtx->height,
-                                     m_codecCtx->pix_fmt,
-                                     m_codecCtx->width,
-                                     m_codecCtx->height,
-                                     AV_PIX_FMT_RGBA,
-                                     SWS_FAST_BILINEAR,
-                                     nullptr,
-                                     nullptr,
-                                     nullptr);
-  }
-  else {
-    // allocate buffer to store final decoded frame
-    m_format = RGB24;
-    // allocate sws context
-    m_imgConvertCtx = sws_getContext(m_codecCtx->width,
-                                     m_codecCtx->height,
-                                     m_codecCtx->pix_fmt,
-                                     m_codecCtx->width,
-                                     m_codecCtx->height,
-                                     AV_PIX_FMT_RGB24,
-                                     SWS_FAST_BILINEAR,
-                                     nullptr,
-                                     nullptr,
-                                     nullptr);
-  }
+  // Always convert to RGBA32 (4 bytes/pixel, SIMD friendly) instead of RGB24.
+  // This removes the costly RGB24->RGBA conversion that ImageBase::convImage used to do
+  // pixel-by-pixel in non-vectorized C++. swscale's YUV->RGBA is heavily optimized and
+  // produces a buffer that can be uploaded directly to the GPU (alpha channel is filled
+  // with 0xFF for opaque sources).
+  m_format = RGBA32;
+  // Use the same flags as Blender: SWS_POINT | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND.
+  // These give an accurate YUV->RGB conversion without the banding/color shifts that
+  // SWS_FAST_BILINEAR can introduce in dark regions (see Blender issue #111703).
+  m_imgConvertCtx = sws_getContext(m_codecCtx->width,
+                                   m_codecCtx->height,
+                                   m_codecCtx->pix_fmt,
+                                   m_codecCtx->width,
+                                   m_codecCtx->height,
+                                   AV_PIX_FMT_RGBA,
+                                   SWS_POINT | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
+                                   nullptr,
+                                   nullptr,
+                                   nullptr);
   m_frameRGB = allocFrameRGB();
 
   if (!m_imgConvertCtx) {
@@ -792,7 +781,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
             input = m_frameDeinterlaced;
           }
         }
-        // convert to RGB24
+        // convert to RGBA32
         sws_scale(m_imgConvertCtx,
                   input->data,
                   input->linesize,
@@ -811,6 +800,35 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
     }
     av_packet_unref(&packet);
   }
+
+  // EOF: flush any frames still buffered in the decoder (as Blender does with
+  // avcodec_send_packet(nullptr)). This recovers the last few frames that FFmpeg
+  // holds back internally before it reports end of stream.
+  if (!frameLoaded && m_isFile) {
+    while (avcodec_receive_frame(m_codecCtx, m_frame) == 0) {
+      AVFrame *input = m_frame;
+      if (m_deinterlace) {
+        if (ffmpeg_deinterlace((AVFrame *)m_frameDeinterlaced,
+                                 (const AVFrame *)m_frame,
+                                 m_codecCtx->pix_fmt,
+                                 m_codecCtx->width,
+                                 m_codecCtx->height) >= 0) {
+          input = m_frameDeinterlaced;
+        }
+      }
+      sws_scale(m_imgConvertCtx,
+                input->data,
+                input->linesize,
+                0,
+                m_codecCtx->height,
+                m_frameRGB->data,
+                m_frameRGB->linesize);
+      av_frame_unref(m_frame);
+      frameLoaded = true;
+      break;
+    }
+  }
+
   m_eof = m_isFile && !frameLoaded;
   if (frameLoaded) {
     m_curPosition = (long)((dts - startTs) * (m_baseFrameRate * timeBase) + 0.5);
