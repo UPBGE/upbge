@@ -11,6 +11,15 @@ from .theme import Theme
 import weakref
 
 
+def _get_viewport_size():
+  """Get the viewport/window size as [width, height].
+  Use bge.render.getWindowWidth()/Height(). Never rely on gpu.state.viewport_get()
+  """
+  from bge import render
+  w = render.getWindowWidth()
+  h = render.getWindowHeight()
+  return [w, h]
+
 class System(Widget):
   """The main gui system. Add widgets to this and then call the render() method
   draw the gui.
@@ -26,17 +35,17 @@ class System(Widget):
     """
 
     # Size and positions for children to use.
-    # The size will the the view port size and
+    # The size will be the viewport size and
     # the position will be the top left of the screen
 
-    # Get some viewport info
-    view = gpu.state.viewport_get()
+    # Get viewport info (bge.render preferred over gpu.state for BGE player)
+    w, h = _get_viewport_size()
 
     # Theming
     self._system = weakref.ref(self)
     self.theme = Theme(theme)
 
-    Widget.__init__(self, self, "<System>", size=[view[2], view[3]],
+    Widget.__init__(self, self, "<System>", size=[w, h],
           pos=[0, 0], options=BGUI_NO_NORMALIZE|BGUI_NO_THEME)
 
     self._focused_widget = weakref.ref(self)
@@ -86,12 +95,12 @@ class System(Widget):
     :rtype: None
     """
 
-    # Get some viewport info
-    view = gpu.state.viewport_get()
+    # Get viewport info (bge.render preferred over gpu.state for BGE player)
+    w, h = _get_viewport_size()
 
     # Update the size if the viewport has changed
-    if self.size != [view[2], view[3]]:
-      self.size = [view[2], view[3]]
+    if self.size != [w, h]:
+      self.size = [w, h]
 
     # Update any animations
     Widget._update_anims(self)
