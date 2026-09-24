@@ -136,6 +136,9 @@ class VideoFFmpeg : public VideoBase {
   /// common function to video file and capture
   int openStream(const char *filename, const AVInputFormat *inputFormat, AVDictionary **formatParams);
 
+  /// decode the next frame from a live capture device into the texture buffer.
+  bool grabDeviceFrame(void);
+
  private:
 };
 

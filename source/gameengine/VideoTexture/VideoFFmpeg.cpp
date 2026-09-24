@@ -168,11 +168,39 @@ int VideoFFmpeg::openStream(const char *filename,
     return 0;
   }
 
-  // For camera capture (inputFormat != nullptr), we still need direct FFmpeg access
-  // because MovieReader doesn't support device parameters. This path is kept
-  // minimal and will be revisited later.
-  printf("VideoFFmpeg: camera capture via direct FFmpeg not supported with MovieReader backend.\n");
-  return -1;
+  // For camera capture (inputFormat != nullptr), use the imbuf MovieReader in
+  // device mode. The reader decodes frames sequentially (no seek, no duration),
+  // which is what a live capture stream provides.
+  {
+    const char *format_name = (inputFormat != nullptr) ? inputFormat->name : nullptr;
+    double framerate = (m_captRate > 0.f) ? (double)m_captRate : 0.0;
+
+    ImBufFlags flags = m_deinterlace ? ImBufFlags::Deinterlace : ImBufFlags::Zero;
+    m_movieReader = MOV_open_device(filename,
+                                    format_name,
+                                    m_captWidth,
+                                    m_captHeight,
+                                    framerate,
+                                    flags);
+    if (m_movieReader == nullptr) {
+      printf("VideoFFmpeg: failed to open capture device '%s'\n", filename);
+      return -1;
+    }
+
+    m_captWidth = (short)MOV_get_image_width(m_movieReader);
+    m_captHeight = (short)MOV_get_image_height(m_movieReader);
+    float fps = MOV_get_fps(m_movieReader);
+    m_baseFrameRate = (fps > 0.0f) ? (double)fps : defFrameRate;
+
+    /* Live stream: no known duration, the range is left at 0 and never checked
+     * in calcImage() because m_isFile is false for capture devices. */
+    m_range[0] = 0.0;
+    m_range[1] = 0.0;
+
+    /* Always use RGBA32 format for the texture buffer. */
+    m_format = RGBA32;
+    return 0;
+  }
 }
 
 // open video file
@@ -212,11 +240,32 @@ void VideoFFmpeg::openFile(char *filename)
 // open video capture device
 void VideoFFmpeg::openCam(char *file, short camIdx)
 {
-  // Camera capture is not yet supported with the MovieReader backend.
-  // MovieReader (MOV_open_file) does not accept device parameters (framerate,
-  // video_size, standard...). This will be revisited in a future iteration.
-  printf("VideoFFmpeg: camera capture is not supported with the MovieReader backend.\n");
-  return;
+  // Open the capture source through the imbuf MovieReader (device mode).
+  // The demuxer is selected per platform, exactly like before:
+  // - Windows: dshow, device name "video=<camIdx>"
+  // - Linux:   v4l2, device name "/dev/video<camIdx>"
+  const char *format_name;
+  char filename[64];
+
+#  ifdef WIN32
+  format_name = "dshow";
+  BLI_snprintf(filename, sizeof(filename), "video=%s", (file != nullptr) ? file : "0");
+#  else
+  format_name = "v4l2";
+  /* A full device path can be given explicitly: use it as-is. */
+  if (file != nullptr && strncmp(file, "/dev", 4) == 0) {
+    BLI_strncpy(filename, file, sizeof(filename));
+  }
+  else {
+    BLI_snprintf(filename, sizeof(filename), "/dev/video%d", camIdx);
+  }
+#  endif
+
+  if (openStream(filename, av_find_input_format(format_name), nullptr) != 0)
+    return;
+
+  // open base class
+  VideoBase::openCam(file, camIdx);
 }
 
 // play video
@@ -341,11 +390,17 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
 
       bool decoded = false;
       if (m_pixelsData != nullptr && !m_avail) {
-        // Decode directly into our texture buffer (RGBA, vertical-flipped).
-        // This avoids an intermediate buffer + copy through the filter pipeline.
-        decoded = MOV_decode_frame_to_buffer(
-            m_movieReader, frame_to_decode,
-            (uint8_t *)m_pixelsData, m_captWidth, m_captHeight);
+        if (!m_isFile) {
+          // Live capture device: decode the next frame in order, no seeking.
+          decoded = grabDeviceFrame();
+        }
+        else {
+          // Decode directly into our texture buffer (RGBA, vertical-flipped).
+          // This avoids an intermediate buffer + copy through the filter pipeline.
+          decoded = MOV_decode_frame_to_buffer(
+              m_movieReader, frame_to_decode,
+              (uint8_t *)m_pixelsData, m_captWidth, m_captHeight);
+        }
 
         if (decoded) {
           m_avail = true;
@@ -397,6 +452,30 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
       }
     }
   }
+}
+
+// decode the next frame from a live capture device into the texture buffer
+bool VideoFFmpeg::grabDeviceFrame(void)
+{
+  // Ensure the image buffer is allocated at the correct size.
+  init(m_captWidth, m_captHeight);
+  if (m_pixelsData == nullptr) {
+    return false;
+  }
+
+  // Decode directly into our texture buffer (RGBA, vertical-flipped).
+  bool decoded = MOV_decode_next_frame_to_buffer(
+      m_movieReader, (uint8_t *)m_pixelsData, m_captWidth, m_captHeight);
+
+  if (!decoded) {
+    // No frame right now: a capture device with no signal can return errors.
+    // Keep the last good frame displayed (m_avail stays false so the previous
+    // texture content is reused by the rasterizer).
+    return false;
+  }
+
+  m_lastFrame++;
+  return true;
 }
 
 // set actual position

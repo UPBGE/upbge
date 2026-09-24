@@ -61,6 +61,7 @@ static CLG_LogRef LOG = {"video.read"};
 
 #ifdef WITH_FFMPEG
 static void free_anim_ffmpeg(MovieReader *anim);
+static int startffmpeg(MovieReader *anim, const AVInputFormat *iformat, AVDictionary **options);
 #endif
 
 static bool anim_getnew(MovieReader *anim);
@@ -174,6 +175,62 @@ MovieReader *MOV_open_file(const char *filepath,
       }
     }
   }
+  return anim;
+}
+
+/**
+ * Opens a live video capture device (dshow / v4l2 / ...) for sequential reading.
+ * See MOV_read.hh for the full documentation. */
+MovieReader *MOV_open_device(const char *filepath,
+                             const char *format_name,
+                             int width,
+                             int height,
+                             double framerate,
+                             ImBufFlags ib_flags)
+{
+  MovieReader *anim = MEM_new<MovieReader>("anim struct");
+  if (anim == nullptr) {
+    return nullptr;
+  }
+
+  STRNCPY(anim->filepath, filepath);
+  anim->ib_flags = ib_flags;
+  anim->is_device = true;
+
+#ifdef WITH_FFMPEG
+  /* Build the FFmpeg input options for the capture device. */
+  AVDictionary *options = nullptr;
+
+  if (framerate > 0.0) {
+    char rate_str[32];
+    BLI_snprintf(rate_str, sizeof(rate_str), "%g", framerate);
+    av_dict_set(&options, "framerate", rate_str, 0);
+  }
+  if (width > 0 && height > 0) {
+    char size_str[32];
+    BLI_snprintf(size_str, sizeof(size_str), "%dx%d", width, height);
+    av_dict_set(&options, "video_size", size_str, 0);
+  }
+
+  const AVInputFormat *iformat = nullptr;
+  if (format_name != nullptr) {
+    iformat = av_find_input_format(format_name);
+  }
+
+  /* Open the device immediately so that failures are reported by this function.
+   * startffmpeg() is shared with file opening: it honors `anim->is_device` and
+   * leaves duration_in_frames at 0. */
+  if (startffmpeg(anim, iformat, &options) != 0) {
+    av_dict_free(&options);
+    MOV_close(anim);
+    return nullptr;
+  }
+
+  anim->state = MovieReader::State::Valid;
+#else
+  UNUSED_VARS(filepath, format_name, width, height, framerate, ib_flags);
+#endif
+
   return anim;
 }
 
@@ -383,6 +440,12 @@ static int startffmpeg(MovieReader *anim, const AVInputFormat *iformat, AVDictio
   if (anim == nullptr) {
     return -1;
   }
+
+  /* Register all FFmpeg input/output devices (dshow / v4l2 / ...) so that capture
+   * demuxers are available when opening a live device. This is normally done once by
+   * MOV_init() in the Blender UI, but standalone players (blenderplayer) do not call it.
+   * It is safe to call repeatedly: avdevice_register_all() is idempotent. */
+  avdevice_register_all();
 
   int video_stream_index;
   const AVCodec *pCodec = nullptr;
@@ -1463,6 +1526,131 @@ bool MOV_decode_frame_to_buffer(MovieReader *anim,
   return true;
 #else
   UNUSED_VARS(anim, position, dst_buf, dst_w, dst_h);
+  return false;
+#endif
+}
+
+/* Decode the next frame from a live capture device into an external RGBA buffer.
+ * Only valid for readers created with MOV_open_device(); returns false otherwise.
+ *
+ * `dst_buf` must be able to hold dst_w * dst_h RGBA pixels (4 bytes per pixel).
+ * The image is written with a vertical flip already applied, so it can be uploaded
+ * directly to a GPU texture in top-left origin order. */
+bool MOV_decode_next_frame_to_buffer(MovieReader *anim,
+                                     uint8_t *dst_buf,
+                                     int dst_w,
+                                     int dst_h)
+{
+  if (anim == nullptr || dst_buf == nullptr) {
+    return false;
+  }
+
+#ifdef WITH_FFMPEG
+  if (!anim->is_device) {
+    /* Sequential decode is only valid for live capture devices. */
+    return false;
+  }
+
+  if (anim->state == MovieReader::State::Uninitialized) {
+    if (!anim_getnew(anim)) {
+      return false;
+    }
+  }
+  if (anim->state != MovieReader::State::Valid) {
+    return false;
+  }
+
+  /* Decode the next frame from the device. Unlike file decoding there is no PTS to
+   * match: frames are simply consumed in order. The EOF flush inside
+   * ffmpeg_decode_video_frame() is a no-op for live devices (av_read_frame keeps
+   * returning new frames). */
+  if (ffmpeg_decode_video_frame(anim) < 1 || !anim->pFrame_complete) {
+    return false;
+  }
+
+  /* Update resolution as it can change per-frame. */
+  anim->x = anim->pCodecCtx->width;
+  anim->y = anim->pCodecCtx->height;
+
+  AVFrame *final_frame = anim->pFrame;
+
+  /* This means the data wasn't read properly, this check stops crashing. */
+  if (final_frame->data[0] == nullptr && final_frame->data[1] == nullptr &&
+      final_frame->data[2] == nullptr && final_frame->data[3] == nullptr)
+  {
+    return false;
+  }
+
+  /* Post-process: swscale directly into dst_buf, no ImBuf involved.
+   * Mirrors the byte path of ffmpeg_postprocess. */
+  int filter_y = 0;
+  AVFrame *input = final_frame;
+
+  if (flag_is_set(anim->ib_flags, ImBufFlags::Deinterlace)) {
+    if (ffmpeg_deinterlace(anim->pFrameDeinterlaced,
+                           anim->pFrame,
+                           anim->pCodecCtx->pix_fmt,
+                           anim->pCodecCtx->width,
+                           anim->pCodecCtx->height) < 0)
+    {
+      filter_y = true;
+    }
+    else {
+      input = anim->pFrameDeinterlaced;
+    }
+  }
+
+  /* Byte path only (BGE does not handle >8bit float movies for now). */
+  const int dst_linesize = dst_w * 4;
+  const int rgb_linesize = anim->pFrameRGB->linesize[0];
+  uint8_t *rgb_data = anim->pFrameRGB->data[0];
+
+  if (rgb_linesize == dst_linesize) {
+    /* Direct write with vertical flip via negative linesize. */
+    anim->pFrameRGB->linesize[0] = -dst_linesize;
+    anim->pFrameRGB->data[0] = dst_buf + (dst_h - 1) * dst_linesize;
+
+    ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
+
+    anim->pFrameRGB->linesize[0] = rgb_linesize;
+    anim->pFrameRGB->data[0] = rgb_data;
+  }
+  else {
+    /* Decode then flip. */
+    ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
+
+    const int src_ls[4] = {-rgb_linesize, 0, 0, 0};
+    const uint8_t *const src[4] = {
+        rgb_data + (anim->y - 1) * rgb_linesize, nullptr, nullptr, nullptr};
+    int dst_size = av_image_get_buffer_size(AVPixelFormat(anim->pFrameRGB->format),
+                                            anim->pFrameRGB->width,
+                                            anim->pFrameRGB->height,
+                                            1);
+    av_image_copy_to_buffer(dst_buf,
+                            dst_size,
+                            src,
+                            src_ls,
+                            AVPixelFormat(anim->pFrameRGB->format),
+                            anim->x,
+                            anim->y,
+                            1);
+  }
+
+  if (filter_y) {
+    /* Deinterlace failed: apply a simple vertical filter on the destination buffer. */
+    const int x = std::min(anim->x, dst_w);
+    const int y = std::min(anim->y, dst_h);
+    for (int yy = 1; yy < y - 1; ++yy) {
+      uint8_t *row = dst_buf + yy * dst_linesize;
+      for (int xx = 0; xx < x * 4; ++xx) {
+        row[xx] = (uint8_t)((row[xx] + row[xx + dst_linesize]) >> 1);
+      }
+    }
+  }
+
+  return true;
+#else
+  UNUSED_VARS(anim, dst_buf, dst_w, dst_h);
   return false;
 #endif
 }
