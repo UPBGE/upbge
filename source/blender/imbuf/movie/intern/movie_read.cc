@@ -42,6 +42,7 @@
 
 extern "C" {
 #  include <libavcodec/avcodec.h>
+#  include <libavdevice/avdevice.h>
 #  include <libavformat/avformat.h>
 #  include <libavutil/imgutils.h>
 #  include <libavutil/rational.h>
@@ -287,7 +288,9 @@ static int calc_pix_fmt_max_component_bits(AVPixelFormat fmt)
 static AVFormatContext *init_format_context(const char *filepath,
                                             int video_stream_index,
                                             int &r_stream_index,
-                                            const AVCodec *forced_video_decoder)
+                                            const AVCodec *forced_video_decoder,
+                                            const AVInputFormat *iformat,
+                                            AVDictionary **options)
 {
   AVFormatContext *format_ctx = nullptr;
   if (forced_video_decoder != nullptr) {
@@ -296,7 +299,7 @@ static AVFormatContext *init_format_context(const char *filepath,
     format_ctx->video_codec = forced_video_decoder;
   }
 
-  if (avformat_open_input(&format_ctx, filepath, nullptr, nullptr) != 0) {
+  if (avformat_open_input(&format_ctx, filepath, iformat, options) != 0) {
     return nullptr;
   }
 
@@ -331,10 +334,12 @@ static AVFormatContext *init_format_context(const char *filepath,
 static AVFormatContext *init_format_context_vpx_workarounds(const char *filepath,
                                                             int video_stream_index,
                                                             int &r_stream_index,
-                                                            const AVCodec *&r_codec)
+                                                            const AVCodec *&r_codec,
+                                                            const AVInputFormat *iformat,
+                                                            AVDictionary **options)
 {
   AVFormatContext *format_ctx = init_format_context(
-      filepath, video_stream_index, r_stream_index, nullptr);
+      filepath, video_stream_index, r_stream_index, nullptr, iformat, options);
   if (format_ctx == nullptr) {
     return nullptr;
   }
@@ -356,7 +361,8 @@ static AVFormatContext *init_format_context_vpx_workarounds(const char *filepath
       if (r_codec != nullptr) {
         avformat_close_input(&format_ctx);
         format_ctx = avformat_alloc_context();
-        format_ctx = init_format_context(filepath, video_stream_index, r_stream_index, r_codec);
+        format_ctx = init_format_context(
+            filepath, video_stream_index, r_stream_index, r_codec, iformat, options);
         if (format_ctx == nullptr) {
           return nullptr;
         }
@@ -372,7 +378,7 @@ static AVFormatContext *init_format_context_vpx_workarounds(const char *filepath
   return format_ctx;
 }
 
-static int startffmpeg(MovieReader *anim)
+static int startffmpeg(MovieReader *anim, const AVInputFormat *iformat, AVDictionary **options)
 {
   if (anim == nullptr) {
     return -1;
@@ -381,7 +387,7 @@ static int startffmpeg(MovieReader *anim)
   int video_stream_index;
   const AVCodec *pCodec = nullptr;
   AVFormatContext *pFormatCtx = init_format_context_vpx_workarounds(
-      anim->filepath, anim->streamindex, video_stream_index, pCodec);
+      anim->filepath, anim->streamindex, video_stream_index, pCodec, iformat, options);
   if (pFormatCtx == nullptr || pCodec == nullptr) {
     avformat_close_input(&pFormatCtx);
     return -1;
@@ -443,8 +449,15 @@ static int startffmpeg(MovieReader *anim)
   /* Save the relative start time for the video. IE the start time in relation to where playback
    * starts. */
   anim->start_offset = ffmpeg_stream_start_time_get(video_stream);
-  anim->duration_in_frames = ffmpeg_frame_count_get(
-      pFormatCtx, video_stream, av_q2d(anim->frame_rate));
+  if (anim->is_device) {
+    /* Live capture device: no known duration, frames are decoded sequentially.
+     * The caller uses MOV_decode_next_frame_to_buffer() which never seeks. */
+    anim->duration_in_frames = 0;
+  }
+  else {
+    anim->duration_in_frames = ffmpeg_frame_count_get(
+        pFormatCtx, video_stream, av_q2d(anim->frame_rate));
+  }
 
   anim->x = pCodecCtx->width;
   anim->y = pCodecCtx->height;
@@ -1494,7 +1507,7 @@ static bool anim_getnew(MovieReader *anim)
 
 #ifdef WITH_FFMPEG
   free_anim_ffmpeg(anim);
-  if (startffmpeg(anim)) {
+  if (startffmpeg(anim, nullptr, nullptr)) {
     anim->state = MovieReader::State::Failed;
     return false;
   }

@@ -87,6 +87,45 @@ bool MOV_decode_frame_to_buffer(MovieReader *anim,
                                 int dst_h);
 
 /**
+ * Opens a live video capture device (dshow / v4l2 / ...) for sequential reading.
+ * Unlike #MOV_open_file, the stream has no known duration and cannot be seeked:
+ * frames are always decoded in order. Use #MOV_decode_next_frame_to_buffer to
+ * fetch frames and #MOV_close to release the device when done.
+ *
+ * \param filepath   Device name as understood by the demuxer, e.g. "video=0"
+ *                   (dshow) or "/dev/video0" (v4l2). May also be nullptr if a
+ *                   default device is acceptable for the given format.
+ * \param format_name Demuxer short name: "dshow" on Windows, "v4l2" on Linux,
+ *                   nullptr to let FFmpeg guess.
+ * \param width      Requested capture width in pixels, 0 for device default.
+ * \param height     Requested capture height in pixels, 0 for device default.
+ * \param framerate  Requested capture frame rate, 0.0 for device default.
+ * \param ib_flags   Only ImBufFlags::Deinterlace is taken into account.
+ *
+ * Returns nullptr if the device cannot be opened or no video stream is found.
+ */
+MovieReader *MOV_open_device(const char *filepath,
+                             const char *format_name,
+                             int width,
+                             int height,
+                             double framerate,
+                             ImBufFlags ib_flags);
+
+/**
+ * Decode the next frame from a live capture device into an external RGBA buffer.
+ * Only valid for readers created with #MOV_open_device; returns false otherwise.
+ *
+ * `dst_buf` must be able to hold dst_w * dst_h RGBA pixels (4 bytes per pixel).
+ * The image is written with a vertical flip already applied, so it can be
+ * uploaded directly to a GPU texture in top-left origin order. Returns true on
+ * success, false on failure (invalid reader, decode error...).
+ */
+bool MOV_decode_next_frame_to_buffer(MovieReader *anim,
+                                     uint8_t *dst_buf,
+                                     int dst_w,
+                                     int dst_h);
+
+/**
  * Fetches a frame from a movie used for preview/thumbnails.
  * The frame will be halfway into the file duration.
  * Thumbnail related metadata ("Thumb::Video::*") will be set on the

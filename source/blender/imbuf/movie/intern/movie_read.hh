@@ -81,6 +81,12 @@ struct MovieReader {
    * ffmpeg crashes/aborts when trying to seek within them
    * (https://trac.ffmpeg.org/ticket/10755). */
   bool never_seek_decode_one_frame = false;
+
+  /* When set, the reader is attached to a live capture device (dshow / v4l2 / ...).
+   * The stream has no known duration and cannot be seeked: frames are always
+   * decoded sequentially. `duration_in_frames` stays 0 and the caller must use
+   * MOV_decode_next_frame_to_buffer() instead of MOV_decode_frame_to_buffer(). */
+  bool is_device = false;
 #endif
 
   char proxy_dir[768] = {};
