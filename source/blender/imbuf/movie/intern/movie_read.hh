@@ -87,6 +87,12 @@ struct MovieReader {
    * decoded sequentially. `duration_in_frames` stays 0 and the caller must use
    * MOV_decode_next_frame_to_buffer() instead of MOV_decode_frame_to_buffer(). */
   bool is_device = false;
+
+  /* When set, the reader is attached to a non-seekable network stream (http / rtsp).
+   * Like devices, such streams cannot be seeked: frames must be consumed in order with
+   * MOV_decode_next_frame_to_buffer() instead of MOV_decode_frame_to_buffer().
+   * Set by callers that know the source is not seekable (e.g. the game engine). */
+  bool is_streaming = false;
 #endif
 
   char proxy_dir[768] = {};

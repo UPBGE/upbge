@@ -170,8 +170,10 @@ Video classes
 
    .. attribute:: flip
 
-      If True the imaged will be flipped vertically.
-      FFmpeg always delivers the image upside down, so this attribute is set to True by default.
+      If True the image will be flipped vertically.
+      Note: since the MovieReader refactor, the vertical flip is applied during
+      decoding (integrated in the swscale step), so this attribute has no practical
+      effect on video sources. It is kept for API compatibility with image sources.
 
       :type: bool
 
@@ -192,7 +194,13 @@ Video classes
 
    .. attribute:: preseek
 
-      Number of frames of preseek.
+      .. deprecated::
+         This attribute has no effect since the MovieReader refactor.
+         The seek/decode logic is now handled internally by Blender's movie reader
+         (smart keyframe seeking with a 3-frame offset + VFR double-buffer fallback).
+         It is kept for API compatibility only.
+
+      Number of frames of preseek. (no effect)
 
       :type: int
 

@@ -112,8 +112,10 @@ MovieReader *MOV_open_device(const char *filepath,
                              ImBufFlags ib_flags);
 
 /**
- * Decode the next frame from a live capture device into an external RGBA buffer.
- * Only valid for readers created with #MOV_open_device; returns false otherwise.
+ * Decode the next frame from a live capture device or a non-seekable network stream
+ * (http / rtsp) into an external RGBA buffer.
+ * Only valid for readers created with #MOV_open_device, or for file readers whose
+ * `is_streaming` flag has been set to true; returns false otherwise.
  *
  * `dst_buf` must be able to hold dst_w * dst_h RGBA pixels (4 bytes per pixel).
  * The image is written with a vertical flip already applied, so it can be

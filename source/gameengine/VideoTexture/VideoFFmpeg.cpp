@@ -9,35 +9,22 @@
 
 #  include "VideoFFmpeg.h"
 
-// INT64_C fix for some linux machines (C99ism)
-#  ifndef __STDC_CONSTANT_MACROS
-#    define __STDC_CONSTANT_MACROS
-#    ifdef __STDC_CONSTANT_MACROS /* quiet warning */
-#    endif
-#  endif
-
-#  include <stdint.h>
 #  include <string>
-#  include <algorithm>
 
 #  include "MEM_guardedalloc.h"
 
 #  include "Exception.h"
-#  include "BLI_listbase.hh"
 #  include "BLI_string.hh"
 #  include "BLI_time.hh"
-#  include "BLI_threads.hh"  // for BLI_system_thread_count
-#  include "movie_util.hh"
 
-// MovieReader API (Blender imbuf movie module)
+// MovieReader API (Blender imbuf movie module).
+// MOV_read.hh only forward-declares MovieReader; the full definition lives in
+// the internal header, which we include here because VideoFFmpeg needs to set
+// members on it (is_streaming for non-seekable network streams).
 #  include "MOV_read.hh"
-
-extern "C" {
-#  include <libavutil/imgutils.h>
-#  include <libavcodec/avcodec.h>
+#  include "movie_read.hh"
 
 using namespace blender;
-}
 
 // default framerate
 const double defFrameRate = 25.0;
@@ -76,7 +63,6 @@ VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
       m_lastFrame(-1),
       m_eof(false),
       m_externTime(false),
-      m_curPosition(-1),
       m_startTime(0),
       m_captWidth(0),
       m_captHeight(0),
@@ -84,8 +70,9 @@ VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
       m_isImage(false),
       m_isStreaming(false)
 {
-  // set video format
-  m_format = RGB24;
+  // set video format (always RGBA32: MovieReader decodes directly into the
+  // texture buffer in RGBA8, no intermediate conversion needed)
+  m_format = RGBA32;
   // construction is OK
   *hRslt = S_OK;
 }
@@ -151,6 +138,15 @@ int VideoFFmpeg::openStream(const char *filename,
       MOV_close(m_movieReader);
       m_movieReader = nullptr;
       return -1;
+    }
+
+    /* Non-seekable network streams (http / rtsp) must be decoded sequentially:
+     * mark the reader so that calcImage() uses MOV_decode_next_frame_to_buffer()
+     * instead of seeking with MOV_decode_frame_to_buffer().
+     * The base class sets m_isFile = false for these URLs after openStream() returns,
+     * which is what calcImage() keys on. */
+    if (!strncmp(filename, "http://", 7) || !strncmp(filename, "rtsp://", 7)) {
+      m_movieReader->is_streaming = true;
     }
 
     m_captWidth = (short)MOV_get_image_width(m_movieReader);
@@ -454,11 +450,10 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
   }
 }
 
-// decode the next frame from a live capture device into the texture buffer
+// decode the next frame from a live capture device or non-seekable stream
+// into the texture buffer.
 bool VideoFFmpeg::grabDeviceFrame(void)
 {
-  // Ensure the image buffer is allocated at the correct size.
-  init(m_captWidth, m_captHeight);
   if (m_pixelsData == nullptr) {
     return false;
   }

@@ -8,14 +8,9 @@
 #pragma once
 
 #ifdef WITH_FFMPEG
-/* this needs to be parsed with __cplusplus defined before included through ffmpeg_compat.h */
-#  if defined(__FreeBSD__)
-#    include <inttypes.h>
-#  endif
-
+// AVInputFormat / AVDictionary are used in the openStream() signature.
 extern "C" {
-#  include "ffmpeg_compat.h"
-#  include <libavcodec/avcodec.h>
+#  include <libavformat/avformat.h>
 }
 
 // MovieReader is defined in the imbuf movie module (used for video decoding).
@@ -96,9 +91,6 @@ class VideoFFmpeg : public VideoBase {
 
   /// flag to indicate that time is coming from application
   bool m_externTime;
-
-  /// current file pointer position in file expressed in frame number
-  long m_curPosition;
 
   /// time of video play start
   double m_startTime;

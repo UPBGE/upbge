@@ -1530,8 +1530,10 @@ bool MOV_decode_frame_to_buffer(MovieReader *anim,
 #endif
 }
 
-/* Decode the next frame from a live capture device into an external RGBA buffer.
- * Only valid for readers created with MOV_open_device(); returns false otherwise.
+/* Decode the next frame from a live capture device or a non-seekable network stream
+ * (http / rtsp) into an external RGBA buffer.
+ * Only valid for readers created with MOV_open_device() or with `is_streaming` set on a
+ * file reader; returns false otherwise.
  *
  * `dst_buf` must be able to hold dst_w * dst_h RGBA pixels (4 bytes per pixel).
  * The image is written with a vertical flip already applied, so it can be uploaded
@@ -1546,11 +1548,10 @@ bool MOV_decode_next_frame_to_buffer(MovieReader *anim,
   }
 
 #ifdef WITH_FFMPEG
-  if (!anim->is_device) {
-    /* Sequential decode is only valid for live capture devices. */
+  if (!anim->is_device && !anim->is_streaming) {
+    /* Sequential decode is only valid for live capture devices and non-seekable streams. */
     return false;
   }
-
   if (anim->state == MovieReader::State::Uninitialized) {
     if (!anim_getnew(anim)) {
       return false;
@@ -1560,10 +1561,10 @@ bool MOV_decode_next_frame_to_buffer(MovieReader *anim,
     return false;
   }
 
-  /* Decode the next frame from the device. Unlike file decoding there is no PTS to
-   * match: frames are simply consumed in order. The EOF flush inside
-   * ffmpeg_decode_video_frame() is a no-op for live devices (av_read_frame keeps
-   * returning new frames). */
+  /* Decode the next frame from a live capture device or a non-seekable network stream.
+   * Unlike file decoding there is no PTS to match: frames are simply consumed in order.
+   * The EOF flush inside ffmpeg_decode_video_frame() is a no-op for live devices
+   * (av_read_frame keeps returning new frames). */
   if (ffmpeg_decode_video_frame(anim) < 1 || !anim->pFrame_complete) {
     return false;
   }
