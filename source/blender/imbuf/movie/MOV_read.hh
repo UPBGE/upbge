@@ -72,6 +72,21 @@ ImBuf *MOV_decode_frame(MovieReader *anim,
                         IMB_Proxy_Size preview_size /* = 0 = IMB_PROXY_NONE */);
 
 /**
+ * Decode a video frame directly into an external RGBA buffer, without any ImBuf
+ * allocation. Used by the game engine (BGE) which manages its own texture buffers.
+ *
+ * `dst_buf` must be able to hold dst_w * dst_h RGBA pixels (4 bytes per pixel).
+ * The image is written with a vertical flip already applied, so it can be uploaded
+ * directly to a GPU texture in top-left origin order. Returns true on success,
+ * false on failure (invalid movie, out-of-range position, decode error...).
+ */
+bool MOV_decode_frame_to_buffer(MovieReader *anim,
+                                int position,
+                                uint8_t *dst_buf,
+                                int dst_w,
+                                int dst_h);
+
+/**
  * Fetches a frame from a movie used for preview/thumbnails.
  * The frame will be halfway into the file duration.
  * Thumbnail related metadata ("Thumb::Video::*") will be set on the

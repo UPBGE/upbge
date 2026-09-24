@@ -18,6 +18,11 @@ extern "C" {
 #  include <libavcodec/avcodec.h>
 }
 
+// MovieReader is defined in the imbuf movie module (used for video decoding).
+namespace blender {
+struct MovieReader;
+}
+
 #  include "VideoBase.h"
 
 // type VideoFFmpeg declaration
@@ -73,22 +78,12 @@ class VideoFFmpeg : public VideoBase {
   }
 
  protected:
-  AVFormatContext *m_formatCtx;
-  AVCodecContext *m_codecCtx;
-  // raw frame extracted from video file
-  AVFrame *m_frame;
-  // deinterlaced frame if codec requires it
-  AVFrame *m_frameDeinterlaced;
-  // decoded RGB24 frame if codec requires it
-  AVFrame *m_frameRGB;
-  // conversion from raw to RGB is done with sws_scale
-  struct SwsContext *m_imgConvertCtx;
+  // Video decoding is now handled by the imbuf MovieReader (Blender's movie_read.cc).
+  blender::MovieReader *m_movieReader;
   // should the codec be deinterlaced?
   bool m_deinterlace;
   // number of frame of preseek
   int m_preseek;
-  // order number of stream holding the video in format context
-  int m_videoStream;
 
   // the actual frame rate
   double m_baseFrameRate;
@@ -141,12 +136,7 @@ class VideoFFmpeg : public VideoBase {
   /// common function to video file and capture
   int openStream(const char *filename, const AVInputFormat *inputFormat, AVDictionary **formatParams);
 
-  /// check if a frame is available and load it in pFrame, return true if a frame could be
-  /// retrieved
-  AVFrame *grabFrame(long frame);
-
  private:
-  AVFrame *allocFrameRGB();
 };
 
 inline VideoFFmpeg *getFFmpeg(PyImage *self)

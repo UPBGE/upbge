@@ -14,6 +14,7 @@ set(INC
   ../SceneGraph
   ../../blender/editors/include
   ../../blender/gpu/intern
+  ../../blender/imbuf/movie
   ../../blender/imbuf/movie/intern
   ../../blender/makesrna
   ../../blender/python
@@ -107,6 +108,9 @@ if(WITH_CODEC_FFMPEG)
   list(APPEND INC_SYS
     ${FFMPEG_INCLUDE_DIRS}
     ${PTHREADS_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    PRIVATE bf::imbuf::movie
   )
   add_definitions(-DWITH_FFMPEG)
 endif()

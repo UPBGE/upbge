@@ -29,6 +29,8 @@
 #  include "BLI_threads.hh"  // for BLI_system_thread_count
 #  include "movie_util.hh"
 
+// MovieReader API (Blender imbuf movie module)
+#  include "MOV_read.hh"
 
 extern "C" {
 #  include <libavutil/imgutils.h>
@@ -44,8 +46,6 @@ const double defFrameRate = 25.0;
 static bool g_videoProfileEnabled = false;
 static int g_videoProfileFrameCount = 0;
 static double g_videoProfileDecodeTotal = 0.0;
-static double g_videoProfileConvertTotal = 0.0;
-static double g_videoProfileSeekTotal = 0.0;
 
 static void video_profile_init()
 {
@@ -69,15 +69,9 @@ static void video_profile_init()
 // constructor
 VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
     : VideoBase(),
-      m_formatCtx(nullptr),
-      m_codecCtx(nullptr),
-      m_frame(nullptr),
-      m_frameDeinterlaced(nullptr),
-      m_frameRGB(nullptr),
-      m_imgConvertCtx(nullptr),
+      m_movieReader(nullptr),
       m_deinterlace(false),
       m_preseek(0),
-      m_videoStream(-1),
       m_baseFrameRate(25.0),
       m_lastFrame(-1),
       m_eof(false),
@@ -92,8 +86,6 @@ VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
 {
   // set video format
   m_format = RGB24;
-  // force flip because ffmpeg always return the image in the wrong orientation for texture
-  setFlip(true);
   // construction is OK
   *hRslt = S_OK;
 }
@@ -114,67 +106,13 @@ void VideoFFmpeg::refresh(void)
 // release components
 bool VideoFFmpeg::release()
 {
-  // release
-  if (m_codecCtx) {
-    avcodec_free_context(&m_codecCtx);
-    m_codecCtx = nullptr;
-  }
-  if (m_formatCtx) {
-    avformat_close_input(&m_formatCtx);
-    m_formatCtx = nullptr;
-  }
-  if (m_frame) {
-    av_frame_free(&m_frame);
-    m_frame = nullptr;
-  }
-  if (m_frameDeinterlaced) {
-    MEM_delete(m_frameDeinterlaced->data[0]);
-    av_frame_free(&m_frameDeinterlaced);
-    m_frameDeinterlaced = nullptr;
-  }
-  if (m_frameRGB) {
-    MEM_delete(m_frameRGB->data[0]);
-    av_frame_free(&m_frameRGB);
-    m_frameRGB = nullptr;
-  }
-  if (m_imgConvertCtx) {
-    sws_freeContext(m_imgConvertCtx);
-    m_imgConvertCtx = nullptr;
+  if (m_movieReader) {
+    MOV_close(m_movieReader);
+    m_movieReader = nullptr;
   }
   m_status = SourceStopped;
   m_lastFrame = -1;
   return true;
-}
-
-AVFrame *VideoFFmpeg::allocFrameRGB()
-{
-  AVFrame *frame;
-  frame = av_frame_alloc();
-  if (m_format == RGBA32) {
-    av_image_fill_arrays(
-        frame->data,
-        frame->linesize,
-        (uint8_t *)MEM_new_zeroed(
-            av_image_get_buffer_size(AV_PIX_FMT_RGBA, m_codecCtx->width, m_codecCtx->height, 1),
-            "ffmpeg rgba"),
-        AV_PIX_FMT_RGBA,
-        m_codecCtx->width,
-        m_codecCtx->height,
-        1);
-  }
-  else {
-    av_image_fill_arrays(
-        frame->data,
-        frame->linesize,
-        (uint8_t *)MEM_new_zeroed(
-            av_image_get_buffer_size(AV_PIX_FMT_RGB24, m_codecCtx->width, m_codecCtx->height, 1),
-            "ffmpeg rgb"),
-        AV_PIX_FMT_RGB24,
-        m_codecCtx->width,
-        m_codecCtx->height,
-        1);
-  }
-  return frame;
 }
 
 // set initial parameters
@@ -190,148 +128,51 @@ int VideoFFmpeg::openStream(const char *filename,
                             const AVInputFormat *inputFormat,
                             AVDictionary **formatParams)
 {
-  int i, video_stream_index;
-
-  const AVCodec *pCodec;
-  AVFormatContext *pFormatCtx = nullptr;
-  AVCodecContext *pCodecCtx;
-  AVStream *video_stream;
-
-# ifdef FF_API_AVIOFORMAT  // To be removed after ffmpeg5 library update
-  if (avformat_open_input(&pFormatCtx, filename, (AVInputFormat *)inputFormat, formatParams) != 0) {
-    if (avformat_open_input(&pFormatCtx, filename, (AVInputFormat *)inputFormat, nullptr) != 0) {
-# else
-  if (avformat_open_input(&pFormatCtx, filename, inputFormat, formatParams) != 0) {
-    if (avformat_open_input(&pFormatCtx, filename, inputFormat, nullptr) != 0) {
-# endif
+  // For file-based video, use the imbuf MovieReader (Blender's movie_read.cc).
+  // This gives us all the benefits of Blender's seek/decode logic:
+  // - Smart keyframe seeking with 3-frame offset
+  // - VFR double-buffer fallback
+  // - VP8/VP9 alpha workaround
+  // - MPEGTS generic seek workaround
+  // - EOF flush (buffered frames)
+  // - WebM variable resolution
+  // - OGG album art workaround
+  if (inputFormat == nullptr) {
+    ImBufFlags flags = m_deinterlace ? ImBufFlags::Deinterlace : ImBufFlags::Zero;
+    m_movieReader = MOV_open_file(filename, flags, 0, true, nullptr);
+    if (m_movieReader == nullptr) {
       return -1;
     }
-    else {
-      std::cout << "blender::Camera capture: Format not compatible. Capture in default camera format"
-                << std::endl;
+
+    // MOV_open_file triggers probe_video_colorspace which calls anim_getnew,
+    // so the reader should be initialized at this point. Verify.
+    if (!MOV_is_initialized_and_valid(m_movieReader)) {
+      printf("VideoFFmpeg: failed to initialize movie reader for '%s'\n", filename);
+      MOV_close(m_movieReader);
+      m_movieReader = nullptr;
+      return -1;
     }
+
+    m_captWidth = (short)MOV_get_image_width(m_movieReader);
+    m_captHeight = (short)MOV_get_image_height(m_movieReader);
+    float fps = MOV_get_fps(m_movieReader);
+    m_baseFrameRate = (fps > 0.0f) ? (double)fps : defFrameRate;
+
+    // Duration in seconds
+    int duration_frames = MOV_get_duration_frames(m_movieReader);
+    m_range[0] = 0.0;
+    m_range[1] = (m_baseFrameRate > 0.0) ? (double)duration_frames / m_baseFrameRate : 0.0;
+
+    // Always use RGBA32 format for the texture buffer.
+    m_format = RGBA32;
+    return 0;
   }
 
-  if (avformat_find_stream_info(pFormatCtx, nullptr) < 0) {
-    avformat_close_input(&pFormatCtx);
-    return -1;
-  }
-
-  av_dump_format(pFormatCtx, 0, filename, 0);
-
-  /* Find the video stream */
-  video_stream_index = -1;
-
-  for (i = 0; i < pFormatCtx->nb_streams; i++) {
-    if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-      video_stream_index = i;
-      break;
-    }
-  }
-
-  if (video_stream_index == -1) {
-    avformat_close_input(&pFormatCtx);
-    return -1;
-  }
-
-  video_stream = pFormatCtx->streams[video_stream_index];
-
-  /* Find the decoder for the video stream */
-  pCodec = avcodec_find_decoder(video_stream->codecpar->codec_id);
-  if (pCodec == nullptr) {
-    avformat_close_input(&pFormatCtx);
-    return -1;
-  }
-
-  pCodecCtx = avcodec_alloc_context3(nullptr);
-  avcodec_parameters_to_context(pCodecCtx, video_stream->codecpar);
-  pCodecCtx->workaround_bugs = FF_BUG_AUTODETECT;
-
-  if (pCodec->capabilities & AV_CODEC_CAP_OTHER_THREADS) {
-    pCodecCtx->thread_count = 0;
-  }
-  else {
-    // FFmpeg does not recommend thread counts above 16 (see MOV_thread_count in Blender).
-    pCodecCtx->thread_count = std::min(BLI_system_thread_count(), 16);
-  }
-
-  if (pCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
-    pCodecCtx->thread_type = FF_THREAD_FRAME;
-  }
-  else if (pCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
-    pCodecCtx->thread_type = FF_THREAD_SLICE;
-  }
-
-  if (avcodec_open2(pCodecCtx, pCodec, nullptr) < 0) {
-    avformat_close_input(&pFormatCtx);
-    return -1;
-  }
-  if (pCodecCtx->pix_fmt == AV_PIX_FMT_NONE) {
-    avcodec_free_context(&pCodecCtx);
-    avformat_close_input(&pFormatCtx);
-    return -1;
-  }
-  m_baseFrameRate = av_q2d(av_guess_frame_rate(pFormatCtx, video_stream, nullptr));
-
-  if (m_baseFrameRate <= 0.0) {
-    m_baseFrameRate = defFrameRate;
-  }
-
-  m_codecCtx = pCodecCtx;
-  m_formatCtx = pFormatCtx;
-  m_videoStream = video_stream_index;
-  m_frame = av_frame_alloc();
-  m_frameDeinterlaced = av_frame_alloc();
-
-  // allocate buffer if deinterlacing is required
-  av_image_fill_arrays(
-      m_frameDeinterlaced->data,
-      m_frameDeinterlaced->linesize,
-      (uint8_t *)MEM_new_zeroed(
-          av_image_get_buffer_size(m_codecCtx->pix_fmt, m_codecCtx->width, m_codecCtx->height, 1),
-          "ffmpeg deinterlace"),
-      m_codecCtx->pix_fmt,
-      m_codecCtx->width,
-      m_codecCtx->height,
-      1);
-
-  // Always convert to RGBA32 (4 bytes/pixel, SIMD friendly) instead of RGB24.
-  // This removes the costly RGB24->RGBA conversion that ImageBase::convImage used to do
-  // pixel-by-pixel in non-vectorized C++. swscale's YUV->RGBA is heavily optimized and
-  // produces a buffer that can be uploaded directly to the GPU (alpha channel is filled
-  // with 0xFF for opaque sources).
-  m_format = RGBA32;
-  // Use the same flags as Blender: SWS_POINT | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND.
-  // These give an accurate YUV->RGB conversion without the banding/color shifts that
-  // SWS_FAST_BILINEAR can introduce in dark regions (see Blender issue #111703).
-  m_imgConvertCtx = sws_getContext(m_codecCtx->width,
-                                   m_codecCtx->height,
-                                   m_codecCtx->pix_fmt,
-                                   m_codecCtx->width,
-                                   m_codecCtx->height,
-                                   AV_PIX_FMT_RGBA,
-                                   SWS_POINT | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
-                                   nullptr,
-                                   nullptr,
-                                   nullptr);
-  m_frameRGB = allocFrameRGB();
-
-  if (!m_imgConvertCtx) {
-    avcodec_free_context(&m_codecCtx);
-    m_codecCtx = nullptr;
-    avformat_close_input(&m_formatCtx);
-    m_formatCtx = nullptr;
-    av_frame_free(&m_frame);
-    m_frame = nullptr;
-    MEM_delete(m_frameDeinterlaced->data[0]);
-    av_frame_free(&m_frameDeinterlaced);
-    m_frameDeinterlaced = nullptr;
-    MEM_delete(m_frameRGB->data[0]);
-    av_frame_free(&m_frameRGB);
-    m_frameRGB = nullptr;
-    return -1;
-  }
-  return 0;
+  // For camera capture (inputFormat != nullptr), we still need direct FFmpeg access
+  // because MovieReader doesn't support device parameters. This path is kept
+  // minimal and will be revisited later.
+  printf("VideoFFmpeg: camera capture via direct FFmpeg not supported with MovieReader backend.\n");
+  return -1;
 }
 
 // open video file
@@ -340,16 +181,9 @@ void VideoFFmpeg::openFile(char *filename)
   if (openStream(filename, nullptr, nullptr) != 0)
     return;
 
-  if (m_codecCtx->gop_size)
-    m_preseek = (m_codecCtx->gop_size < 25) ? m_codecCtx->gop_size + 1 : 25;
-  else if (m_codecCtx->has_b_frames)
-    m_preseek = 25;  // should determine gopsize
-  else
-    m_preseek = 0;
-
-  // get video time range
-  m_range[0] = 0.0;
-  m_range[1] = (double)m_formatCtx->duration / AV_TIME_BASE;
+  // MovieReader handles seeking internally with smart keyframe logic.
+  // No need for preseek calculation.
+  m_preseek = 0;
 
   // open base class
   VideoBase::openFile(filename);
@@ -357,16 +191,10 @@ void VideoFFmpeg::openFile(char *filename)
   if (
       // ffmpeg reports that http source are actually non stream
       // but it is really not desirable to seek on http file, so force streaming.
-      // It would be good to find this information from the context but there are no simple
-      // indication
-      !strncmp(filename, "http://", 7) || !strncmp(filename, "rtsp://", 7) ||
-      (m_formatCtx->pb && !m_formatCtx->pb->seekable)) {
+      !strncmp(filename, "http://", 7) || !strncmp(filename, "rtsp://", 7)) {
     // the file is in fact a streaming source, treat as cam to prevent seeking
     m_isFile = false;
-    // but it's not handled exactly like a camera.
     m_isStreaming = true;
-    // for streaming it is important to do non blocking read
-    m_formatCtx->flags |= AVFMT_FLAG_NONBLOCK;
   }
 
   if (m_isImage) {
@@ -384,98 +212,11 @@ void VideoFFmpeg::openFile(char *filename)
 // open video capture device
 void VideoFFmpeg::openCam(char *file, short camIdx)
 {
-  // open camera source
-  const AVInputFormat *inputFormat;
-  AVDictionary *formatParams = nullptr;
-  char filename[28], rateStr[20];
-
-#  ifdef WIN32
-  inputFormat = av_find_input_format("dshow");
-  if (!inputFormat)
-    // dshow not supported??
-    return;
-  sprintf(filename, "video=%s", file);
-#  else
-  // In Linux we support two types of devices: VideoForLinux and DV1394.
-  // the user specify it with the filename:
-  // [<device_type>][:<standard>]
-  // <device_type> : 'v4l' for VideoForLinux, 'dv1394' for DV1394. By default 'v4l'
-  // <standard>    : 'pal', 'secam' or 'ntsc'. By default 'ntsc'
-  // The driver name is constructed automatically from the device type:
-  // v4l   : /dev/video<camIdx>
-  // dv1394: /dev/dv1394/<camIdx>
-  // If you have different driver name, you can specify the driver name explicitly
-  // instead of device type. Examples of valid filename:
-  //    /dev/v4l/video0:pal
-  //    /dev/ieee1394/1:ntsc
-  //    dv1394:secam
-  //    v4l:pal
-  char *p;
-
-  if (file && strstr(file, "1394") != nullptr) {
-    // the user specifies a driver, check if it is v4l or d41394
-    inputFormat = av_find_input_format("dv1394");
-    sprintf(filename, "/dev/dv1394/%d", camIdx);
-  }
-  else {
-    const char *formats[] = {"video4linux2,v4l2", "video4linux2", "video4linux"};
-    int i, formatsCount = sizeof(formats) / sizeof(char *);
-    for (i = 0; i < formatsCount; i++) {
-      inputFormat = av_find_input_format(formats[i]);
-      if (inputFormat)
-        break;
-    }
-    sprintf(filename, "/dev/video%d", camIdx);
-  }
-  if (!inputFormat)
-    // these format should be supported, check ffmpeg compilation
-    return;
-  if (file && strncmp(file, "/dev", 4) == 0) {
-    // user does not specify a driver
-    strncpy(filename, file, sizeof(filename));
-    filename[sizeof(filename) - 1] = 0;
-    if ((p = strchr(filename, ':')) != 0)
-      *p = 0;
-  }
-  if (file && (p = strchr(file, ':')) != nullptr) {
-    av_dict_set(&formatParams, "standard", p + 1, 0);
-  }
-#  endif
-  // frame rate
-  if (m_captRate <= 0.f)
-    m_captRate = defFrameRate;
-  sprintf(rateStr, "%f", m_captRate);
-
-  av_dict_set(&formatParams, "framerate", rateStr, 0);
-
-  if (m_captWidth > 0 && m_captHeight > 0) {
-    char video_size[64];
-    BLI_snprintf(video_size, sizeof(video_size), "%dx%d", m_captWidth, m_captHeight);
-    av_dict_set(&formatParams, "video_size", video_size, 0);
-  }
-
-  if (openStream(filename, inputFormat, &formatParams) != 0)
-    return;
-
-  // Verify the driver returned a valid resolution.
-  // Some devices report 0x0 if no signal is present or parameters were not accepted.
-  if (m_codecCtx->width <= 0 || m_codecCtx->height <= 0) {
-    printf("VideoFFmpeg: capture device returned invalid resolution %dx%d, aborting.\n",
-           m_codecCtx->width,
-           m_codecCtx->height);
-    avcodec_free_context(&m_codecCtx);
-    m_codecCtx = nullptr;
-    avformat_close_input(&m_formatCtx);
-    m_formatCtx = nullptr;
-    return;
-  }
-
-  // for video capture it is important to do non blocking read
-  m_formatCtx->flags |= AVFMT_FLAG_NONBLOCK;
-  // open base class
-  VideoBase::openCam(file, camIdx);
-
-  av_dict_free(&formatParams);
+  // Camera capture is not yet supported with the MovieReader backend.
+  // MovieReader (MOV_open_file) does not accept device parameters (framerate,
+  // video_size, standard...). This will be revisited in a future iteration.
+  printf("VideoFFmpeg: camera capture is not supported with the MovieReader backend.\n");
+  return;
 }
 
 // play video
@@ -486,11 +227,6 @@ bool VideoFFmpeg::play(void)
     if (VideoBase::play()) {
       // set video position
       setPositions();
-
-      if (m_isStreaming) {
-        av_read_play(m_formatCtx);
-      }
-
       // return success
       return true;
     }
@@ -504,9 +240,6 @@ bool VideoFFmpeg::pause(void)
 {
   try {
     if (VideoBase::pause()) {
-      if (m_isStreaming) {
-        av_read_pause(m_formatCtx);
-      }
       return true;
     }
   }
@@ -555,7 +288,7 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
   if (!g_videoProfileEnabled && g_videoProfileFrameCount == 0) {
     video_profile_init();
   }
-  
+
   if (m_status == SourcePlaying) {
     // get actual time
     double startTime = BLI_time_now_seconds();
@@ -591,46 +324,64 @@ void VideoFFmpeg::calcImage(unsigned int texId, double ts)
     long actFrame = (m_isImage) ? m_lastFrame + 1 : long(actTime * actFrameRate());
     // if actual frame differs from last frame
     if (actFrame != m_lastFrame) {
-      AVFrame *frame;
       double t_decode_start = g_videoProfileEnabled ? BLI_time_now_seconds() : 0.0;
-      // get image
-      if ((frame = grabFrame(actFrame)) != nullptr) {
-        double t_decode_end = g_videoProfileEnabled ? BLI_time_now_seconds() : 0.0;
-        double t_convert_start = t_decode_end;
-        
-        if (!m_isFile) {
-          // streaming: detect synchronization problem
-          double execTime = BLI_time_now_seconds() - startTime;
-          if (execTime > 0.005) {
-            // exec time is too long, it means that the function was blocking
-            // resynchronize the stream from this time
-            m_startTime += execTime;
-          }
+
+      // Clamp the frame to valid range.
+      int duration_frames = MOV_get_duration_frames(m_movieReader);
+      int frame_to_decode = (int)actFrame;
+      if (frame_to_decode >= duration_frames) {
+        frame_to_decode = duration_frames - 1;
+      }
+      if (frame_to_decode < 0) {
+        frame_to_decode = 0;
+      }
+
+      // Ensure the image buffer is allocated at the correct size.
+      init(m_captWidth, m_captHeight);
+
+      bool decoded = false;
+      if (m_pixelsData != nullptr && !m_avail) {
+        // Decode directly into our texture buffer (RGBA, vertical-flipped).
+        // This avoids an intermediate buffer + copy through the filter pipeline.
+        decoded = MOV_decode_frame_to_buffer(
+            m_movieReader, frame_to_decode,
+            (uint8_t *)m_pixelsData, m_captWidth, m_captHeight);
+
+        if (decoded) {
+          m_avail = true;
         }
+      }
+
+      double t_decode_end = g_videoProfileEnabled ? BLI_time_now_seconds() : 0.0;
+
+      if (!m_isFile) {
+        // streaming: detect synchronization problem
+        double execTime = BLI_time_now_seconds() - startTime;
+        if (execTime > 0.005) {
+          // exec time is too long, it means that the function was blocking
+          // resynchronize the stream from this time
+          m_startTime += execTime;
+        }
+      }
+
+      if (decoded) {
         // save actual frame
         m_lastFrame = actFrame;
-        // init image, if needed
-        init(short(m_codecCtx->width), short(m_codecCtx->height));
-        // process image
-        process((BYTE *)(frame->data[0]));
-        double t_convert_end = g_videoProfileEnabled ? BLI_time_now_seconds() : 0.0;
-        
+
         // Profiling output
         if (g_videoProfileEnabled) {
           double decode_ms = (t_decode_end - t_decode_start) * 1000.0;
-          double convert_ms = (t_convert_end - t_convert_start) * 1000.0;
           g_videoProfileDecodeTotal += decode_ms;
-          g_videoProfileConvertTotal += convert_ms;
           g_videoProfileFrameCount++;
-          
+
           // Print every 60 frames or on first frame
           if (g_videoProfileFrameCount == 1 || g_videoProfileFrameCount % 60 == 0) {
             double avg_decode = g_videoProfileDecodeTotal / g_videoProfileFrameCount;
-            double avg_convert = g_videoProfileConvertTotal / g_videoProfileFrameCount;
-            printf("[VideoFFmpeg] Frame %d: decode=%.2fms convert=%.2fms | avg decode=%.2fms convert=%.2fms total_frames=%d\n",
-                   g_videoProfileFrameCount, decode_ms, convert_ms, avg_decode, avg_convert, g_videoProfileFrameCount);
+            printf("[VideoFFmpeg] Frame %d: decode=%.2fms | avg decode=%.2fms total_frames=%d\n",
+                   g_videoProfileFrameCount, decode_ms, avg_decode, g_videoProfileFrameCount);
           }
         }
+
         // in case it is an image, automatically stop reading it
         if (m_isImage) {
           m_status = SourceStopped;
@@ -660,181 +411,6 @@ void VideoFFmpeg::setPositions(void)
   else {
     m_startTime -= m_range[0];
   }
-}
-
-// position pointer in file, position in second
-AVFrame *VideoFFmpeg::grabFrame(long position)
-{
-  AVPacket packet;
-  int frameFinished;
-  int posFound = 1;
-  bool frameLoaded = false;
-  int64_t targetTs = 0;
-  int64_t dts = 0;
-
-  double timeBase = av_q2d(m_formatCtx->streams[m_videoStream]->time_base);
-  int64_t startTs = m_formatCtx->streams[m_videoStream]->start_time;
-  if (startTs == AV_NOPTS_VALUE)
-    startTs = 0;
-
-  // locate the frame, by seeking if necessary (seeking is only possible for files)
-  if (m_isFile) {
-    // Profiling: log seek behavior
-    if (g_videoProfileEnabled && g_videoProfileFrameCount < 10) {
-      printf("[VideoFFmpeg] grabFrame: position=%ld m_curPosition=%ld m_preseek=%d\n",
-             position, m_curPosition, m_preseek);
-    }
-    
-    // Tolerance: if the requested position is close to current position,
-    // read sequentially instead of seeking. This avoids expensive seek+flush
-    // when the frame rate doesn't match exactly (e.g., 24fps video played at 25fps).
-    // Use a larger tolerance to handle significant frame rate mismatches.
-    const long SEEK_TOLERANCE = 30;
-    
-    // first check if the position that we are looking for is in the preseek range
-    // or within tolerance, if so, just read the frame until we get there
-    if (position > m_curPosition && position <= m_curPosition + SEEK_TOLERANCE) {
-      while (av_read_frame(m_formatCtx, &packet) >= 0) {
-        if (packet.stream_index == m_videoStream) {
-          avcodec_send_packet(m_codecCtx, &packet);
-          frameFinished = avcodec_receive_frame(m_codecCtx, m_frame) == 0;
-
-          if (frameFinished) {
-            m_curPosition = (long)((packet.dts - startTs) * (m_baseFrameRate * timeBase) + 0.5);
-            av_frame_unref(m_frame);
-          }
-        }
-        av_packet_unref(&packet);
-        if (position <= m_curPosition)
-          break;
-      }
-    }
-    // if the position is not in preseek, do a direct jump
-    else if (position != m_curPosition + 1) {
-      int64_t pos = (int64_t)((position - m_preseek) / (m_baseFrameRate * timeBase));
-
-      if (pos < 0)
-        pos = 0;
-
-      pos += startTs;
-
-      if (position <= m_curPosition || !m_eof) {
-        // current position is now lost, guess a value.
-        if (av_seek_frame(m_formatCtx, m_videoStream, pos, AVSEEK_FLAG_BACKWARD) >= 0) {
-          // current position is now lost, guess a value.
-          // It's not important because it will be set at this end of this function
-          m_curPosition = position - m_preseek - 1;
-        }
-      }
-      // this is the timestamp of the frame we're looking for
-      targetTs = (int64_t)(position / (m_baseFrameRate * timeBase)) + startTs;
-
-      posFound = 0;
-      avcodec_flush_buffers(m_codecCtx);
-    }
-  }
-
-  // find the correct frame, in case of streaming and no cache, it means just
-  // return the next frame. This is not quite correct, may need more work
-  while (av_read_frame(m_formatCtx, &packet) >= 0) {
-    if (packet.stream_index == m_videoStream) {
-      AVFrame *input = m_frame;
-      short counter = 0;
-
-      /* If m_isImage, while the data is not read properly (png, tiffs, etc formats may need
-       * several pass), else don't need while loop*/
-      do {
-        avcodec_send_packet(m_codecCtx, &packet);
-        frameFinished = avcodec_receive_frame(m_codecCtx, m_frame) == 0;
-
-        counter++;
-      } while ((input->data[0] == 0 && input->data[1] == 0 && input->data[2] == 0 &&
-                input->data[3] == 0) &&
-               counter < 10 && m_isImage);
-
-      // remember dts to compute exact frame number
-      dts = packet.dts;
-      if (frameFinished && !posFound) {
-        if (dts >= targetTs) {
-          posFound = 1;
-        }
-      }
-
-      if (frameFinished && posFound == 1) {
-        AVFrame *input = m_frame;
-
-        /* This means the data wasnt read properly,
-         * this check stops crashing */
-        if (input->data[0] == 0 && input->data[1] == 0 && input->data[2] == 0 &&
-            input->data[3] == 0) {
-          av_packet_unref(&packet);
-          av_frame_unref(m_frame);
-          break;
-        }
-
-        if (m_deinterlace) {
-          if (ffmpeg_deinterlace((AVFrame *)m_frameDeinterlaced,
-                                   (const AVFrame *)m_frame,
-                                   m_codecCtx->pix_fmt,
-                                   m_codecCtx->width,
-                                   m_codecCtx->height) >= 0) {
-            input = m_frameDeinterlaced;
-          }
-        }
-        // convert to RGBA32
-        sws_scale(m_imgConvertCtx,
-                  input->data,
-                  input->linesize,
-                  0,
-                  m_codecCtx->height,
-                  m_frameRGB->data,
-                  m_frameRGB->linesize);
-        av_packet_unref(&packet);
-        av_frame_unref(m_frame);
-        frameLoaded = true;
-        break;
-      }
-      else if (frameFinished) {
-        av_frame_unref(m_frame);
-      }
-    }
-    av_packet_unref(&packet);
-  }
-
-  // EOF: flush any frames still buffered in the decoder (as Blender does with
-  // avcodec_send_packet(nullptr)). This recovers the last few frames that FFmpeg
-  // holds back internally before it reports end of stream.
-  if (!frameLoaded && m_isFile) {
-    while (avcodec_receive_frame(m_codecCtx, m_frame) == 0) {
-      AVFrame *input = m_frame;
-      if (m_deinterlace) {
-        if (ffmpeg_deinterlace((AVFrame *)m_frameDeinterlaced,
-                                 (const AVFrame *)m_frame,
-                                 m_codecCtx->pix_fmt,
-                                 m_codecCtx->width,
-                                 m_codecCtx->height) >= 0) {
-          input = m_frameDeinterlaced;
-        }
-      }
-      sws_scale(m_imgConvertCtx,
-                input->data,
-                input->linesize,
-                0,
-                m_codecCtx->height,
-                m_frameRGB->data,
-                m_frameRGB->linesize);
-      av_frame_unref(m_frame);
-      frameLoaded = true;
-      break;
-    }
-  }
-
-  m_eof = m_isFile && !frameLoaded;
-  if (frameLoaded) {
-    m_curPosition = (long)((dts - startTs) * (m_baseFrameRate * timeBase) + 0.5);
-    return m_frameRGB;
-  }
-  return nullptr;
 }
 
 // python methods

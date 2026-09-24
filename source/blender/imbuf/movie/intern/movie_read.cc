@@ -1309,6 +1309,151 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position)
   return cur_frame_final;
 }
 
+/* Decode a video frame directly into an external RGBA buffer, without any ImBuf
+ * allocation. Used by the game engine (BGE) which manages its own texture buffers.
+ *
+ * `dst_buf` must be able to hold dst_w * dst_h RGBA pixels (4 bytes per pixel).
+ * The image is written with a vertical flip already applied, so it can be uploaded
+ * directly to a GPU texture in top-left origin order. Returns true on success. */
+bool MOV_decode_frame_to_buffer(MovieReader *anim,
+                                int position,
+                                uint8_t *dst_buf,
+                                int dst_w,
+                                int dst_h)
+{
+  if (anim == nullptr || dst_buf == nullptr) {
+    return false;
+  }
+
+#ifdef WITH_FFMPEG
+  if (anim->state == MovieReader::State::Uninitialized) {
+    if (!anim_getnew(anim)) {
+      return false;
+    }
+  }
+  if (anim->state != MovieReader::State::Valid) {
+    return false;
+  }
+
+  if (position < 0 || position >= anim->duration_in_frames) {
+    return false;
+  }
+
+  /* Same seek/decode logic as ffmpeg_fetchibuf. */
+  int64_t pts_to_search = ffmpeg_get_pts_to_search(anim, position);
+
+  if (anim->never_seek_decode_one_frame) {
+    if (!anim->pFrame_complete) {
+      ffmpeg_decode_video_frame(anim);
+    }
+  }
+  else {
+    if (ffmpeg_must_decode(anim, position)) {
+      if (ffmpeg_must_seek(anim, position)) {
+        ffmpeg_seek_to_key_frame(anim, position, pts_to_search);
+      }
+      ffmpeg_decode_video_frame_scan(anim, pts_to_search);
+    }
+  }
+
+  /* Update resolution as it can change per-frame with WebM. See #100741 & #100081. */
+  anim->x = anim->pCodecCtx->width;
+  anim->y = anim->pCodecCtx->height;
+
+  AVFrame *final_frame = ffmpeg_frame_by_pts_get(anim, pts_to_search);
+  if (final_frame == nullptr) {
+    /* No valid frame was decoded for requested PTS, fall back on most recent decoded frame. */
+    final_frame = ffmpeg_double_buffer_frame_fallback_get(anim);
+  }
+  if (final_frame == nullptr) {
+    return false;
+  }
+
+  /* This means the data wasn't read properly, this check stops crashing. */
+  if (final_frame->data[0] == nullptr && final_frame->data[1] == nullptr &&
+      final_frame->data[2] == nullptr && final_frame->data[3] == nullptr)
+  {
+    return false;
+  }
+
+  /* Post-process: swscale directly into dst_buf, no ImBuf involved.
+   * Mirrors the byte path of ffmpeg_postprocess. */
+  int filter_y = 0;
+  AVFrame *input = final_frame;
+
+  if (flag_is_set(anim->ib_flags, ImBufFlags::Deinterlace)) {
+    if (ffmpeg_deinterlace(anim->pFrameDeinterlaced,
+                           anim->pFrame,
+                           anim->pCodecCtx->pix_fmt,
+                           anim->pCodecCtx->width,
+                           anim->pCodecCtx->height) < 0)
+    {
+      filter_y = true;
+    }
+    else {
+      input = anim->pFrameDeinterlaced;
+    }
+  }
+
+  /* Byte path only (BGE does not handle >8bit float movies for now). */
+  const int dst_linesize = dst_w * 4;
+  const int rgb_linesize = anim->pFrameRGB->linesize[0];
+  uint8_t *rgb_data = anim->pFrameRGB->data[0];
+
+  if (rgb_linesize == dst_linesize) {
+    /* Direct write with vertical flip via negative linesize. */
+    anim->pFrameRGB->linesize[0] = -dst_linesize;
+    anim->pFrameRGB->data[0] = dst_buf + (dst_h - 1) * dst_linesize;
+
+    ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
+
+    anim->pFrameRGB->linesize[0] = rgb_linesize;
+    anim->pFrameRGB->data[0] = rgb_data;
+  }
+  else {
+    /* Decode then flip. */
+    ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
+
+    const int src_ls[4] = {-rgb_linesize, 0, 0, 0};
+    const uint8_t *const src[4] = {
+        rgb_data + (anim->y - 1) * rgb_linesize, nullptr, nullptr, nullptr};
+    int dst_size = av_image_get_buffer_size(AVPixelFormat(anim->pFrameRGB->format),
+                                            anim->pFrameRGB->width,
+                                            anim->pFrameRGB->height,
+                                            1);
+    av_image_copy_to_buffer(dst_buf,
+                            dst_size,
+                            src,
+                            src_ls,
+                            AVPixelFormat(anim->pFrameRGB->format),
+                            anim->x,
+                            anim->y,
+                            1);
+  }
+
+  if (filter_y) {
+    /* Deinterlace failed: apply a simple vertical filter on the destination buffer. */
+    const int x = std::min(anim->x, dst_w);
+    const int y = std::min(anim->y, dst_h);
+    for (int yy = 1; yy < y - 1; ++yy) {
+      uint8_t *row = dst_buf + yy * dst_linesize;
+      for (int xx = 0; xx < x * 4; ++xx) {
+        row[xx] = (uint8_t)((row[xx] + row[xx + dst_linesize]) >> 1);
+      }
+    }
+  }
+
+  /* Rotation is ignored here: it is rare in games and would require an extra pass.
+   * If needed, apply IMB_rotate_orthogonal on the destination buffer. */
+
+  anim->cur_position = position;
+  return true;
+#else
+  UNUSED_VARS(anim, position, dst_buf, dst_w, dst_h);
+  return false;
+#endif
+}
+
 static void free_anim_ffmpeg(MovieReader *anim)
 {
   if (anim == nullptr) {
