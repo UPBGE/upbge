@@ -58,6 +58,7 @@
 #  include "BKE_camera.h"
 #  include "BKE_image.hh"
 #  include "BKE_image_gpu.hh"
+#  include "wm_event_system.hh"
 
 #  include "LA_SystemCommandLine.h"
 #endif
@@ -1542,6 +1543,7 @@ static void game_engine_restore_state(bContext *C, wmWindow *win)
   }
   /* check because closing win can set to NULL */
   if (win) {
+    wm_event_free_all(win);
     win->runtime->event_queue = events_queue_back;
   }
 
