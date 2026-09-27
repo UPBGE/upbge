@@ -561,10 +561,10 @@ float shadow_eval(ShadowRenderData &srd,
    *   - grain_scale modulates the amplitude of the center offset.
    *   - offset_scale modulates the random input to vary the pattern. */
   bool use_jitter = (light.flags & LIGHT_USE_SHADOW_JITTER) != 0 &&
-                    uni.uniform_buf.shadow.use_jitter;
-  if (bool(uni.uniform_buf.shadow.use_pcf) && !use_jitter) {
-    float offset_scale = uni.uniform_buf.shadow.pcf_offset_scale;
-    float grain_scale = uni.uniform_buf.shadow.pcf_grain_scale;
+                    srd.uniforms.uniform_buf.shadow.use_jitter;
+  if (bool(srd.uniforms.uniform_buf.shadow.use_pcf) && !use_jitter) {
+    float offset_scale = srd.uniforms.uniform_buf.shadow.pcf_offset_scale;
+    float grain_scale = srd.uniforms.uniform_buf.shadow.pcf_grain_scale;
 
     float softness = texel_radius * 0.5f;
     float pcf_step = texel_radius;
