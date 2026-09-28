@@ -410,6 +410,15 @@ bool CcdPhysicsController::CreateSoftbody()
     if (m_cci.m_collisionShape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE) {
       btScaledBvhTriangleMeshShape *scaledtrimeshshape = (btScaledBvhTriangleMeshShape *)
                                                              m_cci.m_collisionShape;
+
+      // Check for non-uniform scale and print in console
+      btVector3 localScaling = scaledtrimeshshape->getLocalScaling();
+      if (!btFuzzyZero(localScaling.getX() - 1.0f) ||
+          !btFuzzyZero(localScaling.getY() - 1.0f) ||
+          !btFuzzyZero(localScaling.getZ() - 1.0f)) {
+        CM_Warning("Non uniform-scale SoftBody. Please apply object scale before running the game.");
+      }
+
       btBvhTriangleMeshShape *trimeshshape = scaledtrimeshshape->getChildShape();
 
       /// only deal with meshes that have 1 sub part/component, for now
