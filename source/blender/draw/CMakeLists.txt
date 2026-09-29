@@ -352,7 +352,6 @@ set(GLSL_SRC
   engines/image/shaders/infos/engine_image_infos.hh
 
   engines/gpencil/shaders/infos/gpencil_infos.hh
-  engines/gpencil/shaders/infos/gpencil_vfx_infos.hh
 
   engines/overlay/shaders/infos/overlay_armature_infos.hh
   engines/overlay/shaders/infos/overlay_background_infos.hh
@@ -570,11 +569,11 @@ set(GLSL_SRC
   intern/shaders/draw_debug_draw_lib.glsl
   intern/shaders/draw_debug_shape_lib.glsl
   intern/shaders/draw_fxaa_lib.glsl
-  intern/shaders/draw_curves_interpolation_comp.glsl
-  intern/shaders/draw_curves_length_intercept_comp.glsl
+  intern/shaders/draw_curves_interpolation.bsl.hh
+  intern/shaders/draw_curves_length_intercept.bsl.hh
   intern/shaders/draw_curves.bsl.hh
   intern/shaders/draw_curves_lib.glsl
-  intern/shaders/draw_curves_topology_comp.glsl
+  intern/shaders/draw_curves_topology.bsl.hh
   intern/shaders/draw_shape_lib.glsl
   intern/shaders/draw_command_generate.bsl.hh
   intern/shaders/draw_debug_draw_display_frag.glsl
@@ -620,7 +619,7 @@ set(GLSL_SRC
   engines/gpencil/shaders/gpencil_depth_merge_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_vert.glsl
   engines/gpencil/shaders/gpencil_depth_pass_merge_frag.glsl
-  engines/gpencil/shaders/gpencil_vfx_frag.glsl
+  engines/gpencil/shaders/gpencil_vfx.bsl.hh
 
   engines/gpencil/gpencil_defines.hh
   engines/gpencil/gpencil_shader_shared.hh
@@ -768,7 +767,7 @@ set(GLSL_SRC
   engines/image/image_shader_shared.hh
 
   # This test doesn't depend on gpu_shader_test, so it's always included.
-  intern/shaders/draw_curves_test.glsl
+  intern/shaders/draw_curves_test.bsl.hh
 )
 
 # These tests depend on gpu_shader_test, so they're only included when
