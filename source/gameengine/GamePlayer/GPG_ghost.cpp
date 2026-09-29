@@ -1497,6 +1497,8 @@ int main(int argc,
 #  endif  // !defined(DEBUG)
 #endif    // WIN32
 
+            IMB_colormanagement_file_read_post(bfd->main, nullptr, false, false);
+
             /* We load our own G_MAIN in blenderplayer,
              * so free the one that BKE_blender_globals_init() gives us.
              */
@@ -1510,7 +1512,6 @@ int main(int argc,
             CTX_data_scene_set(C, scene);
             G.main = maggie;
             G_MAIN = G.main;
-            IMB_colormanagement_working_space_check(bfd->main, false, false);
 
 
             if (firstTimeRunning) {
