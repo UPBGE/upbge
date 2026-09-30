@@ -711,6 +711,7 @@ class KX_GameObject : public SCA_IObject {
 
   /**
    * Is this object an occluder?
+   * @deprecated Legacy BGE occlusion culling is no longer used with EEVEE rendering.
    */
   inline bool GetOccluder(void)
   {
@@ -719,6 +720,7 @@ class KX_GameObject : public SCA_IObject {
 
   /**
    * Set occluder flag of this object
+   * @deprecated Legacy BGE occlusion culling is no longer used with EEVEE rendering.
    */
   void SetOccluder(bool v, bool recursive);
 
@@ -790,15 +792,15 @@ class KX_GameObject : public SCA_IObject {
   static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
   EXP_PYMETHOD_O(KX_GameObject, SetWorldPosition);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, ApplyForce);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, ApplyTorque);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, ApplyRotation);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, ApplyMovement);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, GetLinearVelocity);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, SetLinearVelocity);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, GetAngularVelocity);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, SetAngularVelocity);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, GetVelocity);
+  EXP_PYMETHOD(KX_GameObject, ApplyForce);
+  EXP_PYMETHOD(KX_GameObject, ApplyTorque);
+  EXP_PYMETHOD(KX_GameObject, ApplyRotation);
+  EXP_PYMETHOD(KX_GameObject, ApplyMovement);
+  EXP_PYMETHOD(KX_GameObject, GetLinearVelocity);
+  EXP_PYMETHOD(KX_GameObject, SetLinearVelocity);
+  EXP_PYMETHOD(KX_GameObject, GetAngularVelocity);
+  EXP_PYMETHOD(KX_GameObject, SetAngularVelocity);
+  EXP_PYMETHOD(KX_GameObject, GetVelocity);
   EXP_PYMETHOD_VARARGS(KX_GameObject, SetDamping);
 
   EXP_PYMETHOD_VARARGS(KX_GameObject, SetCcdMotionThreshold);
@@ -807,19 +809,19 @@ class KX_GameObject : public SCA_IObject {
   EXP_PYMETHOD_NOARGS(KX_GameObject, GetReactionForce);
 
   EXP_PYMETHOD_NOARGS(KX_GameObject, GetVisible);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, SetVisible);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, SetOcclusion);
+  EXP_PYMETHOD(KX_GameObject, SetVisible);
+  EXP_PYMETHOD(KX_GameObject, SetOcclusion);
   EXP_PYMETHOD_NOARGS(KX_GameObject, GetState);
   EXP_PYMETHOD_O(KX_GameObject, SetState);
   EXP_PYMETHOD(KX_GameObject, AlignAxisToVect);
   EXP_PYMETHOD_O(KX_GameObject, GetAxisVect);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, SuspendPhysics);
+  EXP_PYMETHOD(KX_GameObject, SuspendPhysics);
   EXP_PYMETHOD_NOARGS(KX_GameObject, RestorePhysics);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, SuspendDynamics);
+  EXP_PYMETHOD(KX_GameObject, SuspendDynamics);
   EXP_PYMETHOD_NOARGS(KX_GameObject, RestoreDynamics);
   EXP_PYMETHOD_NOARGS(KX_GameObject, EnableRigidBody);
   EXP_PYMETHOD_NOARGS(KX_GameObject, DisableRigidBody);
-  EXP_PYMETHOD_VARARGS(KX_GameObject, ApplyImpulse);
+  EXP_PYMETHOD(KX_GameObject, ApplyImpulse);
   EXP_PYMETHOD_O(KX_GameObject, SetCollisionMargin);
   EXP_PYMETHOD_O(KX_GameObject, Collide);
   EXP_PYMETHOD_NOARGS(KX_GameObject, GetParent);
