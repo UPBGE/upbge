@@ -1713,6 +1713,11 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    bl_texture_paint_undo
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/texture_paint_undo_test.py
+  )
+
+  add_blender_test(
     bl_grease_pencil_paint_tests
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/grease_pencil_paint_tests.py
     --
@@ -1781,6 +1786,7 @@ if(WITH_UI_TESTS)
     test_undo.view3d_mesh_edit_shape_key
     test_undo.view3d_mesh_edit_separate
     test_undo.view3d_mesh_particle_edit_mode_simple
+    test_undo.view3d_multi_mode_undo_history
     test_undo.view3d_multi_mode_multi_window
     test_undo.view3d_multi_mode_select
     test_undo.view3d_particle_edit_undo_from_texture_paint
@@ -1791,7 +1797,6 @@ if(WITH_UI_TESTS)
     test_undo.view3d_sculpt_with_empty_memfile_step
     test_undo.view3d_sculpt_trim
     test_undo.view3d_simple
-    test_undo.view3d_texture_paint_complex
     test_undo.view3d_texture_paint_simple
     test_workspace.sanity_check_general
     test_workspace.sanity_check_2d_animation

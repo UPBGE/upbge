@@ -1342,16 +1342,18 @@ bool IMB_colormanagement_space_name_is_srgb(const char *name)
 
 const char *IMB_colormanagement_srgb_colorspace_name_get()
 {
-  /* Make a best effort to find by common names. First two are from the ColorInterop forum. */
-  const char *names[] = {"sRGB Encoded Rec.709 (sRGB)",
-                         "srgb_rec709_scene",
-                         "Utility - sRGB - Texture",
-                         "sRGB - Texture",
-                         "sRGB",
-                         nullptr};
-  for (int i = 0; names[i]; i++) {
-    const ColorSpace *colorspace = g_config()->get_color_space(names[i]);
-    if (colorspace) {
+  /* Try interop ID. */
+  for (const char *interop_id : {"srgb_rec709_scene", "srgb_rec709_display"}) {
+    if (const ColorSpace *colorspace = g_config()->get_color_space_by_interop_id(interop_id)) {
+      return colorspace->name().c_str();
+    }
+  }
+
+  /* Common names in configs without interop IDs. */
+  for (const char *name :
+       {"sRGB Encoded Rec.709 (sRGB)", "Utility - sRGB - Texture", "sRGB - Texture", "sRGB"})
+  {
+    if (const ColorSpace *colorspace = g_config()->get_color_space(name)) {
       return colorspace->name().c_str();
     }
   }
@@ -3637,10 +3639,15 @@ void IMB_colormanagement_file_read_post(Main *bmain,
   imb_colormanagement_working_space_set_from_file(bmain, report_missing);
 
   /* Inform user when project config failed to load. */
-  const Span<ColorManagedConfigPath> requested = g_config_requested();
-  if (!requested.is_empty() && requested.first() != g_config_active()) {
-    bmain->colorspace.is_failed_opencolorio_config = true;
-    bmain->colorspace.is_missing_opencolorio_config = true;
+  for (const ColorManagedConfigPath &candidate : g_config_requested()) {
+    if (candidate == g_config_active()) {
+      break;
+    }
+    if (candidate.source == ColorManagedConfigSource::Project) {
+      bmain->colorspace.is_failed_opencolorio_config = true;
+      bmain->colorspace.is_missing_opencolorio_config = true;
+      break;
+    }
   }
 
   /* Convert editable assets in the previous file, before they are moved to the new file. */
