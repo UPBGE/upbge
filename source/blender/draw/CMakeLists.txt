@@ -184,6 +184,7 @@ set(SRC
   intern/draw_context_private.hh
   intern/draw_curves_private.hh
   intern/draw_debug.hh
+  intern/draw_debug_shared.hh
   intern/draw_gsplat_private.hh
   intern/draw_hair_private.hh
   intern/draw_handle.hh
@@ -344,7 +345,6 @@ set(LIB
 
 set(GLSL_SRC
   intern/shaders/draw_curves_infos.hh
-  intern/shaders/draw_debug_infos.hh
   intern/shaders/draw_object_infos_infos.hh
   intern/shaders/draw_view_infos.hh
 
@@ -556,38 +556,35 @@ set(GLSL_SRC
   intern/shaders/subdiv_common.bsl.hh
   intern/shaders/subdiv_ibo_generate.bsl.hh
   intern/shaders/subdiv_vbo_generate.bsl.hh
-  intern/shaders/draw_aabb_lib.glsl
-  intern/shaders/draw_colormanagement_lib.glsl
-  intern/shaders/draw_debug_draw_lib.glsl
-  intern/shaders/draw_debug_shape_lib.glsl
+  intern/shaders/draw_aabb.bsl.hh
+  intern/shaders/draw_colormanagement.bsl.hh
+  intern/shaders/draw_debug_draw.bsl.hh
+  intern/shaders/draw_debug_shape.bsl.hh
   intern/shaders/draw_fxaa_lib.glsl
   intern/shaders/draw_curves_interpolation.bsl.hh
   intern/shaders/draw_curves_length_intercept.bsl.hh
   intern/shaders/draw_curves.bsl.hh
   intern/shaders/draw_curves_lib.glsl
   intern/shaders/draw_curves_topology.bsl.hh
-  intern/shaders/draw_shape_lib.glsl
+  intern/shaders/draw_shape.bsl.hh
   intern/shaders/draw_command_generate.bsl.hh
-  intern/shaders/draw_debug_draw_display_frag.glsl
-  intern/shaders/draw_debug_draw_display_vert.glsl
+  intern/shaders/draw_debug_draw_display.bsl.hh
   intern/shaders/draw_grease_pencil_lib.glsl
   intern/shaders/draw_gsplat.bsl.hh
   intern/shaders/draw_gsplat_lib.bsl.hh
-  intern/shaders/draw_intersect_lib.glsl
   intern/shaders/draw_intersect.bsl.hh
-  intern/shaders/draw_math_geom_lib.glsl
+  intern/shaders/draw_math_geom.bsl.hh
   intern/shaders/draw_mesh_to_corner.bsl.hh
   intern/shaders/draw_model_lib.glsl
   intern/shaders/draw_model.bsl.hh
   intern/shaders/draw_object_infos_lib.glsl
   intern/shaders/draw_pointcloud_lib.glsl
   intern/shaders/draw_pointcloud.bsl.hh
-  intern/shaders/draw_resource_finalize_comp.glsl
+  intern/shaders/draw_resource_finalize.bsl.hh
   intern/shaders/draw_view_clipping_lib.glsl
-  intern/shaders/draw_view_finalize_comp.glsl
+  intern/shaders/draw_view_finalize.bsl.hh
   intern/shaders/draw_view_lib.glsl
   intern/shaders/draw_view.bsl.hh
-  intern/shaders/draw_view_reconstruction_lib.glsl
   intern/shaders/draw_viewlayer.bsl.hh
   intern/shaders/draw_visibility.bsl.hh
   intern/shaders/draw_volume.bsl.hh
@@ -595,6 +592,7 @@ set(GLSL_SRC
   intern/draw_attribute_shader_shared.hh
   intern/draw_command_shared.hh
   intern/draw_curves_defines.hh
+  intern/draw_debug_shared.hh
   intern/draw_defines.hh
   intern/draw_shader_shared.hh
   intern/draw_subdiv_defines.hh

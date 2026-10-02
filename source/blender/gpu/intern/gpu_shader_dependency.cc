@@ -365,7 +365,7 @@ struct GPUSource {
       dependencies.append_non_duplicates(dict.lookup("gpu_shader_print_lib.glsl"));
     }
     if (flag_is_set(builtins, BuiltinBits::USE_DEBUG_DRAW)) {
-      dependencies.append_non_duplicates(dict.lookup("draw_debug_draw_lib.glsl"));
+      dependencies.append_non_duplicates(dict.lookup("draw_debug_draw.bsl.hh"));
     }
 
     for (auto dependency_name : dependencies_names) {
@@ -397,7 +397,8 @@ struct GPUSource {
   {
 #define CLOG_FILE_INCLUDE(_from, _include) \
   if (CLOG_CHECK(&LOG, CLG_LEVEL_TRACE) && \
-      (from).filename.c_str() != (_include).filename.c_str()) { \
+      (from).filename.c_str() != (_include).filename.c_str()) \
+  { \
     const char *from_filename = (_from).filename.c_str(); \
     const char *include_filename = (_include).filename.c_str(); \
     const int from_size = int((_from).source.size()); \
