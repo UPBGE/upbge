@@ -1492,23 +1492,25 @@ elseif(WIN32)
         PATTERN "*.pyc" EXCLUDE                 # * any cache *
         PATTERN "*.pyo" EXCLUDE                 # * any cache *
       )
-      install(
-        DIRECTORY ${USD_LIBRARY_DIR}/site-packages/
-        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
-        CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-        PATTERN "__pycache__" EXCLUDE           # * any cache *
-        PATTERN "*.pyc" EXCLUDE                 # * any cache *
-        PATTERN "*.pyo" EXCLUDE                 # * any cache *
-      )
+      if(WITH_USD AND USD_LIBRARY_DIR)
+        install(
+          DIRECTORY ${USD_LIBRARY_DIR}/site-packages/
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
+          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+          PATTERN "__pycache__" EXCLUDE           # * any cache *
+          PATTERN "*.pyc" EXCLUDE                 # * any cache *
+          PATTERN "*.pyo" EXCLUDE                 # * any cache *
+        )
       
-      install(
-        DIRECTORY ${USD_LIBRARY_DIR}/debug/site-packages/
-        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
-        CONFIGURATIONS Debug
-        PATTERN "__pycache__" EXCLUDE           # * any cache *
-        PATTERN "*.pyc" EXCLUDE                 # * any cache *
-        PATTERN "*.pyo" EXCLUDE                 # * any cache *
-      )
+        install(
+          DIRECTORY ${USD_LIBRARY_DIR}/debug/site-packages/
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
+          CONFIGURATIONS Debug
+          PATTERN "__pycache__" EXCLUDE           # * any cache *
+          PATTERN "*.pyc" EXCLUDE                 # * any cache *
+          PATTERN "*.pyo" EXCLUDE                 # * any cache *
+        )
+      endif()
 
       # This will not exist for 3.4 and earlier `./lib` directories
       # to ease the transition, support both 3.4 and 3.5 `./lib` directories.
