@@ -35,7 +35,7 @@ namespace blender::compositor {
  * in one of its descendants with the given viewer compute context. */
 static bool has_viewer_node(const bNodeTree &node_group,
                             const ComputeContext &compute_context,
-                            const ComputeContextHash &viewer_compute_context_hash,
+                            const ComputeContext &viewer_compute_context,
                             bke::ComputeContextCache &compute_context_cache)
 {
   node_group.ensure_topology_cache();
@@ -49,7 +49,7 @@ static bool has_viewer_node(const bNodeTree &node_group,
     const ComputeContext &zone_viewer_compute_context =
         bke::compositor::get_zone_viewer_compute_context(
             *node, nullptr, compute_context, compute_context_cache);
-    if (viewer_compute_context_hash == zone_viewer_compute_context.hash()) {
+    if (&viewer_compute_context == &zone_viewer_compute_context) {
       return true;
     }
   }
@@ -68,10 +68,8 @@ static bool has_viewer_node(const bNodeTree &node_group,
     const bke::GroupNodeComputeContext &node_compute_context =
         compute_context_cache.for_group_node(
             &zone_viewer_compute_context, group_node->identifier, &group_node->owner_tree());
-    if (has_viewer_node(child_node_group,
-                        node_compute_context,
-                        viewer_compute_context_hash,
-                        compute_context_cache))
+    if (has_viewer_node(
+            child_node_group, node_compute_context, viewer_compute_context, compute_context_cache))
     {
       return true;
     }
@@ -270,7 +268,6 @@ static Stack<const bNode *> get_output_nodes(const Context &context,
                                              SocketResultFn socket_result_fn)
 {
   node_group.ensure_topology_cache();
-  bke::ComputeContextCache compute_context_cache;
   const bke::bNodeTreeZones &zones = *node_group.zones();
   const SideEffectOutputTypes needed_side_effect_output_types =
       context.needed_side_effect_output_types();
@@ -302,20 +299,19 @@ static Stack<const bNode *> get_output_nodes(const Context &context,
 
     const ComputeContext &zone_viewer_compute_context =
         bke::compositor::get_zone_viewer_compute_context(
-            *group_node, zone, compute_context, compute_context_cache);
+            *group_node, zone, compute_context, context.compute_context_cache());
 
     const bNodeTree &child_tree = *reinterpret_cast<const bNodeTree *>(group_node->id);
     const bke::GroupNodeComputeContext &node_compute_context =
-        compute_context_cache.for_group_node(
+        context.compute_context_cache().for_group_node(
             &zone_viewer_compute_context, group_node->identifier, &group_node->owner_tree());
-    const std::optional<ComputeContextHash> viewer_compute_context_hash =
-        context.get_viewer_compute_context_hash();
+    const ComputeContext *viewer_compute_context = context.viewer_compute_context();
     if (flag_is_set(needed_side_effect_output_types, SideEffectOutputTypes::ViewerNode) &&
-        viewer_compute_context_hash.has_value() &&
+        viewer_compute_context &&
         has_viewer_node(child_tree,
                         node_compute_context,
-                        viewer_compute_context_hash.value(),
-                        compute_context_cache))
+                        *viewer_compute_context,
+                        context.compute_context_cache()))
     {
       push_node_to_stack(*group_node);
       continue;
@@ -360,10 +356,9 @@ static Stack<const bNode *> get_output_nodes(const Context &context,
   }
 
   /* Add Viewer node. */
-  std::optional<ComputeContextHash> viewer_compute_context_hash =
-      context.get_viewer_compute_context_hash();
+  const ComputeContext *viewer_compute_context = context.viewer_compute_context();
   if (flag_is_set(needed_side_effect_output_types, SideEffectOutputTypes::ViewerNode) &&
-      viewer_compute_context_hash.has_value())
+      viewer_compute_context)
   {
     for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer"_ustr)) {
       if (!(node->flag & NODE_DO_OUTPUT) || node->is_muted()) {
@@ -378,8 +373,8 @@ static Stack<const bNode *> get_output_nodes(const Context &context,
       /* Only consider nodes in the viewer compute context. */
       const ComputeContext &zone_viewer_compute_context =
           bke::compositor::get_zone_viewer_compute_context(
-              *node, zone, compute_context, compute_context_cache);
-      if (viewer_compute_context_hash.value() != zone_viewer_compute_context.hash()) {
+              *node, zone, compute_context, context.compute_context_cache());
+      if (viewer_compute_context != &zone_viewer_compute_context) {
         continue;
       }
 
