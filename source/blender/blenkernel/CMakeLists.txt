@@ -272,6 +272,7 @@ set(SRC
   intern/rigidbody.cc
   intern/sca.cc
   intern/scene.cc
+  intern/scene_context.cc
   intern/screen.cc
   intern/shader_fx.cc
   intern/shrinkwrap.cc
@@ -521,6 +522,7 @@ set(SRC
   BKE_rigidbody.h
   BKE_sca.hh
   BKE_scene.hh
+  BKE_scene_context.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
   BKE_shader_fx.hh

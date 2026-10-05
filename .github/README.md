@@ -10,7 +10,7 @@ See 'release/text/readme.html' for the end user read-me.
 UPBGE
 =======
 
-UPBGE is the free and open source 3D creation suite. It's a fork of Blender. Development is focused on old Blender Game Engine.
+UPBGE is a free and open source 3D creation suite, fork of Blender. Development is focused on old Blender Game Engine.
 
 Project Pages
 -------------

@@ -1047,14 +1047,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
                                    GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSLUCENT);
 
   if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
-      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
-      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
-  {
-    info.additional_info("eevee_PreviousLayerHiZ");
-    info.additional_info("eevee_PreviousLayerRadiance");
-  }
-
-  if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
       !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME))
   {
     /* While only needed for the AO node, we always bind the hiz globally for these pipelines.
