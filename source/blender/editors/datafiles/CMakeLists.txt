@@ -345,6 +345,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
       error
       experimental
       export
+      extension
       external_drive
       external_drive_large
       eyedropper

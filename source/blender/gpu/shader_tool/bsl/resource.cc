@@ -64,11 +64,13 @@ Result<ParsedAttribute> resource_type_from_attributes(AttrList list)
         {"uniform",                                 {ResourceTableType::RESOURCE_TABLE, ResourceType::UNIFORM_BUF,             1}},
         {"storage",                                 {ResourceTableType::RESOURCE_TABLE, ResourceType::STORAGE_BUF,             2}},
         {"image",                                   {ResourceTableType::RESOURCE_TABLE, ResourceType::IMAGE,                   3}},
+        {"acceleration_structure",                  {ResourceTableType::RESOURCE_TABLE, ResourceType::ACCELERATION_STRUCTURE,  1}},
         /* Entry point argument. */
         {"base_instance",                           {ResourceTableType::ENTRY_POINT,    ResourceType::BASE_INSTANCE,           0}},
         {"clip_control",                            {ResourceTableType::ENTRY_POINT,    ResourceType::CLIP_CONTROL,            0}},
         {"clip_distance",                           {ResourceTableType::ENTRY_POINT,    ResourceType::CLIP_DISTANCES,          0}},
         {"front_facing",                            {ResourceTableType::ENTRY_POINT,    ResourceType::FRONT_FACING,            0}},
+        {"bary_coord",                              {ResourceTableType::ENTRY_POINT,    ResourceType::BARY_COORD,              0}},
         {"global_invocation_id",                    {ResourceTableType::ENTRY_POINT,    ResourceType::GLOBAL_INVOCATION_ID,    0}},
         {"in",                                      {ResourceTableType::ENTRY_POINT,    ResourceType::IN,                      0}},
         {"instance_id",                             {ResourceTableType::ENTRY_POINT,    ResourceType::INSTANCE_ID,             0}},
