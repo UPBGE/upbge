@@ -11,12 +11,16 @@
 
 #include <Python.h>
 
+#include "GPU_texture.hh"
 #include "GPU_vertex_buffer.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "gpu_py.hh"
+#include "gpu_py_buffer.hh"
 #include "gpu_py_vertex_buffer.hh" /* own include */
 #include "gpu_py_vertex_format.hh"
 
@@ -316,6 +320,36 @@ static PyObject *pygpu_vertbuf_attr_fill(BPyGPUVertBuf *self, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_vertbuf_read_if_ready_doc,
+    ".. method:: read_if_ready()\n"
+    "\n"
+    "   Non-blocking read back of the vertex buffer contents.\n"
+    "   Returns the data only if the previous asynchronous readback has already completed,\n"
+    "   otherwise it schedules a new one and reports that the data is not ready yet.\n"
+    "\n"
+    "   :return: The Buffer with the read data if ready, otherwise ``None``.\n"
+    "   :rtype: :class:`gpu.types.Buffer` or None\n");
+static PyObject *pygpu_vertbuf_read_if_ready(BPyGPUVertBuf *self)
+{
+  if (self->buf == nullptr) [[unlikely]] {
+    PyErr_SetString(PyExc_ReferenceError, "GPU vertex buffer: internal error");
+    return nullptr;
+  }
+
+  const size_t size = self->buf->size_used_get();
+  void *buf = MEM_new_uninitialized(size, "python_vertexbuffer_read_if_ready");
+  if (!GPU_vertbuf_read_if_ready(self->buf, buf)) {
+    MEM_delete_void(buf);
+    Py_RETURN_NONE;
+  }
+
+  const Py_ssize_t shape = Py_ssize_t(size);
+  return reinterpret_cast<PyObject *>(
+      BPyGPU_Buffer_CreatePyObject(GPU_DATA_UBYTE, &shape, 1, buf));
+}
+
 #ifdef __GNUC__
 #  ifdef __clang__
 #    pragma clang diagnostic push
@@ -331,6 +365,10 @@ static PyMethodDef pygpu_vertbuf__tp_methods[] = {
      reinterpret_cast<PyCFunction>(pygpu_vertbuf_attr_fill),
      METH_VARARGS | METH_KEYWORDS,
      pygpu_vertbuf_attr_fill_doc},
+    {"read_if_ready",
+     reinterpret_cast<PyCFunction>(pygpu_vertbuf_read_if_ready),
+     METH_NOARGS,
+     pygpu_vertbuf_read_if_ready_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 

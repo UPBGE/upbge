@@ -180,6 +180,33 @@ static PyObject *pygpu_storagebuffer_read(BPyGPUStorageBuf *self)
       BPyGPU_Buffer_CreatePyObject(GPU_DATA_UBYTE, &shape, 1, buf));
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_storagebuffer_read_if_ready_doc,
+    ".. method:: read_if_ready()\n"
+    "\n"
+    "   Non-blocking read back of the storage buffer contents.\n"
+    "   Unlike :meth:`read`, this does NOT wait for GPU work to finish: it returns the data\n"
+    "   only if the previous asynchronous readback has already completed, otherwise it\n"
+    "   schedules a new one and reports that the data is not ready yet.\n"
+    "\n"
+    "   :return: The Buffer with the read data if ready, otherwise ``None``.\n"
+    "   :rtype: :class:`gpu.types.Buffer` or None\n");
+static PyObject *pygpu_storagebuffer_read_if_ready(BPyGPUStorageBuf *self)
+{
+  BPYGPU_STORAGEBUF_CHECK_OBJ(self);
+
+  void *buf = MEM_new_uninitialized(self->size, "python_storagebuffer_read_if_ready");
+  if (!GPU_storagebuf_read_if_ready(self->ssbo, buf)) {
+    MEM_delete_void(buf);
+    Py_RETURN_NONE;
+  }
+
+  const Py_ssize_t shape = Py_ssize_t(self->size);
+  return reinterpret_cast<PyObject *>(
+      BPyGPU_Buffer_CreatePyObject(GPU_DATA_UBYTE, &shape, 1, buf));
+}
+
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
 PyDoc_STRVAR(
     /* Wrap. */
@@ -223,6 +250,10 @@ static PyMethodDef pygpu_storagebuffer__tp_methods[] = {
      reinterpret_cast<PyCFunction>(pygpu_storagebuffer_read),
      METH_NOARGS,
      pygpu_storagebuffer_read_doc},
+    {"read_if_ready",
+     reinterpret_cast<PyCFunction>(pygpu_storagebuffer_read_if_ready),
+     METH_NOARGS,
+     pygpu_storagebuffer_read_if_ready_doc},
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
     {"free", (PyCFunction)pygpu_storagebuffer_free, METH_NOARGS, pygpu_storagebuffer_free_doc},
 #endif
