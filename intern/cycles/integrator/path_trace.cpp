@@ -951,9 +951,10 @@ void PathTrace::cancel()
 {
   thread_scoped_lock lock(render_cancel_.mutex);
 
-  /* Only cancel in the middle of rendering when there is at least one sample in the output.
-   * Otherwise interactivity becomes bad. */
-  if (get_num_samples_in_buffer() > 1) {
+  /* With interactive denoisers like DLSS always render 1 complete sample,
+   * otherwise interactivity becomes bad. Otherwise cancel immediately so
+   * the main thread isn't blocked. */
+  if (!render_scheduler_.is_denoiser_interactive() || get_num_samples_in_buffer() > 1) {
     render_cancel_.is_requested = true;
   }
 
@@ -1061,9 +1062,7 @@ void PathTrace::progress_update_if_needed(const RenderWork &render_work)
     const int2 tile_size = get_render_tile_size();
     const uint64_t num_samples_added = uint64_t(tile_size.x) * tile_size.y *
                                        render_work.path_trace.num_samples;
-    const int current_sample = render_work.path_trace.start_sample +
-                               render_work.path_trace.num_samples -
-                               render_work.path_trace.sample_offset;
+    const int current_sample = render_scheduler_.get_total_rendered_samples();
     progress_->add_samples(num_samples_added, current_sample);
   }
 

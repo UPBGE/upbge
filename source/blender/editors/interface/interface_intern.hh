@@ -283,7 +283,7 @@ struct Button : NonMovable {
 
   /** Run an action when holding the button down. */
   ButtonHandleHoldFunc hold_func = nullptr;
-  void *hold_argN = nullptr;
+  std::string *hold_arg = nullptr;
 
   uiLink *link = nullptr;
   int linkto[2]; /* region relative coords */
@@ -456,7 +456,7 @@ struct ButtonNumberSlider : public Button {
 
 /** Derived struct for #ButtonType::Color */
 struct ButtonColor : public Button {
-  bool is_pallete_color = false;
+  bool is_palette_color = false;
   int palette_color_index = -1;
 };
 

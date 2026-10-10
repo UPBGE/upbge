@@ -228,7 +228,7 @@ DenoiserGPU::DenoiseContext::DenoiseContext(Device *device,
         guiding_params.pass_normal = guiding_params.pass_stride;
         guiding_params.pass_stride += 3;
       }
-      if (params.passes & DENOISER_PASS_MOTION) {
+      if (pass_motion != PASS_UNUSED) {
         guiding_params.pass_flow = guiding_params.pass_stride;
         guiding_params.pass_stride += 2;
       }
@@ -256,10 +256,6 @@ bool DenoiserGPU::denoise_filter_color_postprocess(const DenoiseContext &context
                                    &buffer_params.height,
                                    &buffer_params.offset,
                                    &buffer_params.stride,
-                                   &context.buffer_params.full_x,
-                                   &context.buffer_params.full_y,
-                                   &context.buffer_params.offset,
-                                   &context.buffer_params.stride,
                                    &buffer_params.pass_stride,
                                    &context.num_samples,
                                    &pass.noisy_offset,

@@ -1973,11 +1973,6 @@ static void outliner_draw_userbuts(ui::Block *block,
     char overlay[5];
     BLI_str_format_integer_unit(overlay, id->us);
 
-    UserTooltip_Store *tip_arg = MEM_new_uninitialized<UserTooltip_Store>(__func__);
-    tip_arg->has_fake_user = has_fake_user;
-    tip_arg->is_linked = is_linked;
-    tip_arg->real_users = real_users;
-
     if (is_object) {
       bt = uiDefBut(block,
                     ui::ButtonType::But,
@@ -2007,7 +2002,11 @@ static void outliner_draw_userbuts(ui::Block *block,
                          0,
                          nullptr);
 
-      button_func_tooltip_set(bt, user_tooltip_func, tip_arg, MEM_delete_void);
+      UserTooltip_Store *tip_arg = MEM_new_uninitialized<UserTooltip_Store>(__func__);
+      tip_arg->has_fake_user = has_fake_user;
+      tip_arg->is_linked = is_linked;
+      tip_arg->real_users = real_users;
+      button_func_tooltip_set(bt, user_tooltip_func, tip_arg);
 
       if (is_linked) {
         blender::ui::button_disable(bt,

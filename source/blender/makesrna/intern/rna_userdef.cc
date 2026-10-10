@@ -55,6 +55,11 @@ const EnumPropertyItem rna_enum_preference_section_items[] = {
      "Browse, install and manage extensions from remote and local repositories"},
     RNA_ENUM_ITEM_SEPR,
     {USER_SECTION_ADDONS, "ADDONS", 0, "Add-ons", "Manage add-ons installed via Extensions"},
+    {USER_SECTION_ASSETS,
+     "ASSETS",
+     0,
+     "Asset Libraries",
+     "Manage remote, local, and extension asset libraries"},
     {USER_SECTION_THEME, "THEMES", 0, "Themes", "Edit and save themes installed via Extensions"},
 #if 0 /* def WITH_USERDEF_WORKSPACES */
     RNA_ENUM_ITEM_SEPR,
@@ -62,8 +67,6 @@ const EnumPropertyItem rna_enum_preference_section_items[] = {
     {USER_SECTION_WORKSPACE_ADDONS, "WORKSPACE_ADDONS", 0, "Add-on Overrides", ""},
     {USER_SECTION_WORKSPACE_KEYMAPS, "WORKSPACE_KEYMAPS", 0, "Keymap Overrides", ""},
 #endif
-    RNA_ENUM_ITEM_SEPR,
-    {USER_SECTION_ASSETS, "ASSETS", 0, "Asset Libraries", ""},
     RNA_ENUM_ITEM_SEPR,
     {USER_SECTION_INPUT, "INPUT", 0, "Input", ""},
     {USER_SECTION_NAVIGATION, "NAVIGATION", 0, "Navigation", ""},
@@ -8113,11 +8116,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Remote Asset Libraries", "Enable asset libraries served over HTTP/HTTPS");
 
-  prop = RNA_def_property(srna, "use_collection_importer", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "Collection Import", "Enables a file importer to be configured on a Collection");
-  RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
-
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,
@@ -8215,6 +8213,7 @@ void RNA_def_userdef(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Preferences", "Global preferences");
 
   prop = RNA_def_property(srna, "active_section", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
   RNA_def_property_enum_sdna(prop, nullptr, "space_data.section_active");
   RNA_def_property_enum_items(prop, rna_enum_preference_section_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_UseDef_active_section_itemf");

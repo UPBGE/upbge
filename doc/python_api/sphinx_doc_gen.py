@@ -3404,6 +3404,7 @@ def copy_handwritten_rsts(basepath: Path) -> None:
 
         # Includes.
         "include__bmesh",
+        "include__bpy_app_handlers",
     ]
 
     for mod_name in handwritten_modules:
