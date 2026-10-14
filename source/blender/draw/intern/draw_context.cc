@@ -1286,7 +1286,7 @@ static void drw_engines_cache_populate(draw::ObjectRef &ref,
       blender::draw::MeshBatchCache *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
       if (cache) {
         Object *ob_orig = DEG_get_original(ref.object);
-        if (ob_orig) {
+        if (ob_orig && ob_orig->type == OB_MESH) {
           cache->mesh_owner = id_cast<Mesh *>(ob_orig->data);
         }
       }
