@@ -580,6 +580,7 @@ MODULE_GROUPING: dict[str, tuple[str | tuple[str, str], ...]] = {
         "BMLayerItem",
         ("Custom-Data Layer Types", "-"),
         "BMLoopUV",
+        "BMVertSkin",
         "BMDeformVert",
     )
 }
@@ -2288,7 +2289,7 @@ def pyrna2sphinx(basepath: Path) -> None:
                 ):
                     if identifier is not None:
                         if identifier in structs_exclude:
-                            RNA_EXCLUDE.setdefault(v.identifier, set()).add(identifier)
+                            RNA_EXCLUDE.setdefault(v.identifier, set()).add(p.identifier)
         del structs_exclude
 
         structs = {
