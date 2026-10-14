@@ -174,9 +174,24 @@ bool WM_init_game(struct bContext *C);
  */
 void WM_init_splash_on_startup(bContext *C);
 /**
+ * Open the project that was open on exit, if preference is enabled.
+ */
+void WM_init_project_on_startup(bContext *C);
+/**
  * Show the splash screen.
  */
 void WM_init_splash(bContext *C);
+/**
+ * Absolute file path of the active project splash image, or empty if there is none.
+ */
+std::string WM_project_splash_image_filepath(const Main *bmain);
+/**
+ * Load the splash image from the given filepath, scaled to the specified width
+ * and with the Blender logo optionally composited in.
+ */
+ImBuf *WM_project_splash_image_load(StringRefNull filepath,
+                                    int width = 1000,
+                                    bool add_logo = false);
 
 /**
  * Initialization for GPU backend,

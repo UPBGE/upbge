@@ -192,7 +192,7 @@ Span<float3> vert_positions_for_grab_active_get(const Depsgraph &depsgraph, cons
 ePaintSymmetryFlags mesh_symmetry_xyz_get(const Object &object)
 {
   const Mesh *mesh = id_cast<const Mesh *>(object.data);
-  return ePaintSymmetryFlags(mesh->symmetry);
+  return ePaintSymmetryFlags(mesh->symmetry & ME_SYMMETRY_XYZ);
 }
 
 /* Sculpt Face Sets and Visibility. */
@@ -2763,8 +2763,8 @@ static void update_sculpt_normal(const Depsgraph &depsgraph,
   /* Grab brush does not update the sculpt normal during a stroke. */
   const bool update_normal = !(brush.flag & BRUSH_ORIGINAL_NORMAL) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_GRAB) &&
-                             !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_THUMB) &&
-                             !(brush.stroke_method == BRUSH_STROKE_ANCHORED) &&
+                             !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_THUMB &&
+                               !(brush.stroke_method == BRUSH_STROKE_ANCHORED)) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SNAKE_HOOK &&
                                bke::brush::normal_weight_get(brush, cache.toggle_settings.invert) >
@@ -5362,12 +5362,13 @@ void store_mesh_from_eval(const wmOperator &op,
          * would be called by the attribute API). */
         position.sharing_info->add_user();
 
-        bke::Attribute::ArrayData data{};
-        data.data = const_cast<float3 *>(position.varray.get_internal_span().data());
-        data.size = position.varray.size();
+        bke::GList::ArrayData data{};
+        data.data = position.varray.get_internal_span().data();
         data.sharing_info = ImplicitSharingPtr<>(position.sharing_info);
         mesh.attribute_storage.wrap().add(
-            "position", bke::AttrDomain::Point, bke::AttrType::Float3, std::move(data));
+            "position",
+            bke::AttrDomain::Point,
+            bke::GList(CPPType::get<float3>(), std::move(data), position.varray.size()));
       }
       else {
         mesh.vert_positions_for_write().copy_from(VArraySpan(*position));

@@ -30,7 +30,7 @@
 
 namespace blender {
 
-static CLG_LogRef LOG = {"project.config"};
+static CLG_LogRef LOG = {"project"};
 
 namespace bke {
 constexpr toml::spec toml_version = toml::spec::v(1, 0, 0);
@@ -333,6 +333,12 @@ static void create_blender_project_from_toml(Main *bmain,
       project_asset_library_add(project_asset_library);
     }
   }
+
+  if (config_values.contains("splash_image")) {
+    auto splash_image_path = config_values.at("splash_image").as_string();
+    project->set_splash_image_path(splash_image_path);
+  }
+
   // TODO: check if we didn't access any of the parsed toml variables
   // We need to build the toml lib with "TOML11_ENABLE_ACCESS_CHECK" to do this though.
 
@@ -438,6 +444,11 @@ static toml::ordered_table create_toml_from_blender_project(BlenderProject *proj
     toml_table["asset_libraries"] = asset_libraries;
   }
 
+  StringRefNull splash_image_path = project->get_splash_image_path();
+  if (!splash_image_path.is_empty()) {
+    toml_table["splash_image"] = std::string(splash_image_path);
+  }
+
   return toml_table;
 }
 
@@ -502,7 +513,7 @@ bool BKE_blender_project_init_from_root_path(Main *bmain, std::string project_ro
     BKE_blender_project_clear();
     return false;
   }
-  CLOG_INFO_NOCHECK(&LOG, "Opened project with root path: %s", project_root_path.c_str());
+  CLOG_INFO_NOCHECK(&LOG, "Open project: \"%s\"", project_root_path.c_str());
   return true;
 }
 
