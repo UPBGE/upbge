@@ -46,6 +46,8 @@ add_subdirectory(Rasterizer/RAS_OpenGLRasterizer)
 add_subdirectory(SceneGraph)
 
 if(WITH_BULLET)
+  # UPBGE - Added to fix #2048 (bug mentionned not reproductible with my environment, but can't hurt - youle)
+  add_definitions(-DBT_USE_DOUBLE_PRECISION)
   add_subdirectory(Physics/Bullet)
 endif()
 
