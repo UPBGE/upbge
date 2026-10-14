@@ -996,6 +996,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. method:: rayCast(objto, objfrom=None, dist=0, prop="", face=False, xray=False, poly=0, mask=0xFFFF)
 
+      Warning: Arguments order (objto, objfrom) is very counter-intuitive.
       Look from a point/object to another point/object and find first object hit within dist that matches prop.
       if poly is 0, returns a 3-tuple with object reference, hit point and hit normal or (None, None, None) if no hit.
       if poly is 1, returns a 4-tuple with in addition a :class:`~bge.types.KX_PolyProxy` as 4th element.
