@@ -444,7 +444,7 @@ void KX_GameObject::DiscardRenderedObject()
     /* 1. Rendered blender::Object is a dupli instance, just erase it from duplis list */
     if (m_isUpbgeDupliInstance) {
       if (GetScene()) {
-        TagUpbgeDupliInstanceForTaaReset();
+        GetScene()->RequestTaaReset();
         GetScene()->RemoveUpbgeDupliInstanceFromList(this);
       }
       m_isUpbgeDupliInstance = false;

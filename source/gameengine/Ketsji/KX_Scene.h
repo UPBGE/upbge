@@ -161,6 +161,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   /// The set of fonts for this scene
   EXP_ListValue<KX_FontObject> *m_fontlist;
   std::vector<KX_GameObject *> m_upbgeDupliInstancesList;
+  bool m_taaResetRequested = false;
 
   SG_QList m_sghead;  // list of nodes that needs scenegraph update
                       // the Dlist is not object that must be updated
@@ -370,6 +371,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   }
   void AddUpbgeDupliInstanceToList(KX_GameObject *gameobj);
   void RemoveUpbgeDupliInstanceFromList(KX_GameObject *gameobj);
+  void RequestTaaReset();
 
   void ApplyLifespan(KX_GameObject *replica, float lifespan);
   void ApplyReferenceTransform(KX_GameObject *replica, KX_GameObject *reference);

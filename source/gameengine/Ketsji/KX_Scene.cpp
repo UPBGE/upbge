@@ -475,6 +475,11 @@ void KX_Scene::RemoveUpbgeDupliInstanceFromList(KX_GameObject *gameobj)
   }
 }
 
+void KX_Scene::RequestTaaReset()
+{
+  m_taaResetRequested = true;
+}
+
 void KX_Scene::ReinitBlenderContextVariables()
 {
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
@@ -816,6 +821,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   engine->CountDepsgraphTime();
   UpdateDepsgraph(bmain, scene, is_overlay_pass, is_last_render_pass, cam);
   engine->EndCountDepsgraphTime();
+
+  if (m_taaResetRequested) {
+    DEG_bump_update_count(depsgraph);
+    m_taaResetRequested = false;
+  }
 
   blender::rcti window;
   int v[4];
