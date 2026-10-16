@@ -47,10 +47,11 @@ VKTexture::~VKTexture()
     /* External-import path: image + memory are not VMA-managed.
      * Unregister from the resource state tracker before destroying. */
     VKDevice &device = VKBackend::get().device;
-    device.resources.remove_image(vk_image_);
-    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
+    device.resources.remove_image(resource_.resource_handle);
+    device.functions.vkDestroyImage(device.vk_handle(), resource_.vk_handle, nullptr);
     device.functions.vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
-    vk_image_ = VK_NULL_HANDLE;
+    resource_.vk_handle = VK_NULL_HANDLE;
+    resource_.resource_handle = 0;
     imported_memory_ = VK_NULL_HANDLE;
     return;
   }
@@ -621,10 +622,11 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
 
   /* Free the VMA-managed image created by allocate() — we replace it with an imported one.
    * Must unregister from the resource state tracker first (allocate() registers it). */
-  if (vk_image_ != VK_NULL_HANDLE && allocation_ != VK_NULL_HANDLE) {
-    device.resources.remove_image(vk_image_);
-    vmaDestroyImage(device.mem_allocator_get(), vk_image_, allocation_);
-    vk_image_ = VK_NULL_HANDLE;
+  if (resource_.vk_handle != VK_NULL_HANDLE && allocation_ != VK_NULL_HANDLE) {
+    device.resources.remove_image(resource_.resource_handle);
+    vmaDestroyImage(device.mem_allocator_get(), resource_.vk_handle, allocation_);
+    resource_.vk_handle = VK_NULL_HANDLE;
+    resource_.resource_handle = 0;
     allocation_ = VK_NULL_HANDLE;
   }
 
@@ -656,18 +658,18 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
   image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
   VkResult result = device.functions.vkCreateImage(
-      device.vk_handle(), &image_info, nullptr, &vk_image_);
+      device.vk_handle(), &image_info, nullptr, &resource_.vk_handle);
   if (result != VK_SUCCESS) {
-    vk_image_ = VK_NULL_HANDLE;
+    resource_.vk_handle = VK_NULL_HANDLE;
     return false;
   }
-  debug::object_label(vk_image_, name_.c_str());
+  debug::object_label(resource_.vk_handle, name_.c_str());
 
   /* Step 2: Query memory requirements; check if dedicated allocation is required. */
   VkMemoryDedicatedRequirements dedicated_reqs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
   VkMemoryRequirements2 mem_reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, &dedicated_reqs};
   VkImageMemoryRequirementsInfo2 img_req_info = {
-      VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2, nullptr, vk_image_};
+      VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2, nullptr, resource_.vk_handle};
   device.functions.vkGetImageMemoryRequirements2(device.vk_handle(), &img_req_info, &mem_reqs2);
   const VkMemoryRequirements &mem_reqs = mem_reqs2.memoryRequirements;
 
@@ -685,14 +687,14 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
     }
   }
   if (memory_type_index == UINT32_MAX) {
-    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
-    vk_image_ = VK_NULL_HANDLE;
+    device.functions.vkDestroyImage(device.vk_handle(), resource_.vk_handle, nullptr);
+    resource_.vk_handle = VK_NULL_HANDLE;
     return false;
   }
 
   /* Step 4: Allocate memory importing the external handle. */
   VkMemoryDedicatedAllocateInfo dedicated_alloc_info = {
-      VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, nullptr, vk_image_, VK_NULL_HANDLE};
+      VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, nullptr, resource_.vk_handle, VK_NULL_HANDLE};
 
   VkMemoryAllocateInfo mem_alloc_info = {};
   mem_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -719,33 +721,34 @@ bool VKTexture::init_internal_external_memory(VkExternalMemoryHandleTypeFlagBits
   mem_alloc_info.pNext = &import_win32_info;
 #else
   /* macOS: no external memory import supported. */
-  vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
-  vk_image_ = VK_NULL_HANDLE;
+  vkDestroyImage(device.vk_handle(), resource_.vk_handle, nullptr);
+  resource_.vk_handle = VK_NULL_HANDLE;
   return false;
 #endif
 
   result = device.functions.vkAllocateMemory(
       device.vk_handle(), &mem_alloc_info, nullptr, &imported_memory_);
   if (result != VK_SUCCESS) {
-    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
-    vk_image_ = VK_NULL_HANDLE;
+    device.functions.vkDestroyImage(device.vk_handle(), resource_.vk_handle, nullptr);
+    resource_.vk_handle = VK_NULL_HANDLE;
     imported_memory_ = VK_NULL_HANDLE;
     return false;
   }
 
   /* Step 5: Bind the imported memory to the image. */
   VkBindImageMemoryInfo bind_info = {
-      VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO, nullptr, vk_image_, imported_memory_, 0};
+      VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO, nullptr, resource_.vk_handle, imported_memory_, 0};
   result = device.functions.vkBindImageMemory2(device.vk_handle(), 1, &bind_info);
   if (result != VK_SUCCESS) {
     device.functions.vkFreeMemory(device.vk_handle(), imported_memory_, nullptr);
-    device.functions.vkDestroyImage(device.vk_handle(), vk_image_, nullptr);
-    vk_image_ = VK_NULL_HANDLE;
+    device.functions.vkDestroyImage(device.vk_handle(), resource_.vk_handle, nullptr);
+    resource_.vk_handle = VK_NULL_HANDLE;
     imported_memory_ = VK_NULL_HANDLE;
     return false;
   }
 
-  device.resources.add_image(vk_image_, false, name_.c_str());
+  resource_.resource_handle = device.resources.add_image(
+      resource_.vk_handle, false, VK_NULL_HANDLE, name_.c_str());
   has_data_ = true;
   allow_host_image_copy_ = false;
   return true;
