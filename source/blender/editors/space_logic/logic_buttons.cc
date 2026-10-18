@@ -125,9 +125,9 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
     Button *but = nullptr;
     for (block = region->runtime->uiblocks.first(); block; block = block->next)
     {
-      int i = 0;
-      while (i < block->buttons_ptrs.size()) {
-        but = block->buttons_ptrs[i].get();
+      int btn_idx = 0;
+      while (btn_idx < block->buttons_ptrs.size()) {
+        but = block->buttons_ptrs[btn_idx].get();
         if (but->type == ButtonType::Link && but->link) {
           for (line = but->link->lines.first(); line; line = nline) {
             nline = line->next;
@@ -137,7 +137,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
             }
           }
         }
-        i++;
+        btn_idx++;
       }
     }
 
