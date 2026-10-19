@@ -1531,7 +1531,7 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, nullptr, "ob");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop, "Object", "Add this Object and all its children (can't be on a visible layer)");
+      prop, "Object", "Add this Object and all its children (Object has to be hidden)");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   prop = RNA_def_property(srna, "track_object", PROP_POINTER, PROP_NONE);
