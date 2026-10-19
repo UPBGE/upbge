@@ -12,9 +12,10 @@
 #include <cmath>
 #include <cstdio>
 
+#include "BLI_array.hh"
 #include "BLI_assert.hh"
 #include "BLI_fileops.hh"
-#include "BLI_kdtree.hh"
+#include "BLI_kdtree_new.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_color_c.hh"
 #include "BLI_math_geom_c.hh"
@@ -4370,7 +4371,7 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
   const float timescale = data->timescale;
   const int c_index = data->c_index;
 
-  KDTree<float3> *tree = static_cast<KDTree<float3> *>(data->treeData);
+  const KDTreeNew<float3> &tree = *static_cast<const KDTreeNew<float3> *>(data->treeData);
 
   const float solidradius = data->solidradius;
   const float smooth = brush->particle_smooth * surface->radius_scale;
@@ -4388,36 +4389,38 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
    * It's enough to just find the nearest one.
    */
   {
-    KDTreeNearest<float3> nearest;
     float smooth_range, part_solidradius;
 
     /* Find nearest particle and get distance to it */
-    kdtree_find_nearest<float3>(tree, bData->realCoord[bData->s_pos[index]].v, &nearest);
+    float nearest_dist_sq;
+    const int nearest_index = tree.find_nearest(bData->realCoord[bData->s_pos[index]].v,
+                                                &nearest_dist_sq);
+    const float nearest_dist = std::sqrt(nearest_dist_sq);
     /* if outside maximum range, no other particle can influence either */
-    if (nearest.dist > range) {
+    if (nearest_dist > range) {
       return;
     }
 
     if (brush->flags & MOD_DPAINT_PART_RAD) {
       /* use particles individual size */
-      ParticleData *pa = psys->particles + nearest.index;
+      ParticleData *pa = psys->particles + nearest_index;
       part_solidradius = pa->size;
     }
     else {
       part_solidradius = solidradius;
     }
     radius = part_solidradius + smooth;
-    if (nearest.dist < radius) {
+    if (nearest_dist < radius) {
       /* distances inside solid radius has maximum influence -> dist = 0 */
-      smooth_range = max_ff(0.0f, (nearest.dist - part_solidradius));
+      smooth_range = max_ff(0.0f, (nearest_dist - part_solidradius));
       /* do smoothness if enabled */
       if (smooth) {
         smooth_range /= smooth;
       }
 
       strength = 1.0f - smooth_range;
-      disp_intersect = radius - nearest.dist;
-      part_index = nearest.index;
+      disp_intersect = radius - nearest_dist;
+      part_index = nearest_index;
     }
   }
   /* If using random per particle radius and closest particle didn't give max influence */
@@ -4426,7 +4429,7 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
      * If we use per particle radius, we have to sample all particles
      * within max radius range
      */
-    KDTreeNearest<float3> *nearest;
+    Vector<KDTreeNew<float3>::Nearest> nearest;
 
     float smooth_range = smooth * (1.0f - strength), dist;
     /* calculate max range that can have particles with higher influence than the nearest one */
@@ -4434,20 +4437,20 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
     /* Make gcc happy! */
     dist = max_range;
 
-    const int particles = kdtree_range_search<float3>(
-        tree, bData->realCoord[bData->s_pos[index]].v, &nearest, max_range);
+    tree.find_in_radius(bData->realCoord[bData->s_pos[index]].v, max_range, nearest);
 
     /* Find particle that produces highest influence */
-    for (int n = 0; n < particles; n++) {
-      ParticleData *pa = &psys->particles[nearest[n].index];
+    for (const KDTreeNew<float3>::Nearest &item : nearest) {
+      ParticleData *pa = &psys->particles[item.index];
+      const float item_dist = std::sqrt(item.distance_sq);
 
       /* skip if out of range */
-      if (nearest[n].dist > (pa->size + smooth)) {
+      if (item_dist > (pa->size + smooth)) {
         continue;
       }
 
       /* update hit data */
-      const float s_range = nearest[n].dist - pa->size;
+      const float s_range = item_dist - pa->size;
       /* skip if higher influence is already found */
       if (smooth_range < s_range) {
         continue;
@@ -4455,8 +4458,8 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
 
       /* update hit data */
       smooth_range = s_range;
-      dist = nearest[n].dist;
-      part_index = nearest[n].index;
+      dist = item_dist;
+      part_index = item.index;
 
       /* If inside solid range and no disp depth required, no need to seek further */
       if ((s_range < 0.0f) &&
@@ -4464,10 +4467,6 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
       {
         break;
       }
-    }
-
-    if (nearest) {
-      MEM_delete(nearest);
     }
 
     /* now calculate influence for this particle */
@@ -4538,7 +4537,6 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
   PaintBakeData *bData = sData->bData;
   DynamicPaintVolumeGrid *grid = bData->grid;
 
-  KDTree<float3> *tree;
   int particlesAdded = 0;
   int invalidParticles = 0;
   int p = 0;
@@ -4556,10 +4554,9 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
     return true;
   }
 
-  /*
-   * Build a KD-tree to optimize distance search
-   */
-  tree = kdtree_new<float3>(psys->totpart);
+  /* The coordinates of the valid particles, indexed by particle. */
+  Array<float3> positions(psys->totpart);
+  Vector<int> particle_indices;
 
   /* loop through particles and insert valid ones to the tree */
   p = 0;
@@ -4583,7 +4580,8 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
       continue;
     }
 
-    kdtree_insert<float3>(tree, p, pa->state.co);
+    positions[p] = pa->state.co;
+    particle_indices.append(p);
 
     /* calc particle system bounds */
     boundInsert(&part_bb, pa->state.co);
@@ -4596,7 +4594,6 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
 
   /* If no suitable particles were found, exit */
   if (particlesAdded < 1) {
-    kdtree_free<float3>(tree);
     return true;
   }
 
@@ -4605,8 +4602,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
     int c_index;
     int total_cells = grid->dim[0] * grid->dim[1] * grid->dim[2];
 
-    /* balance tree */
-    kdtree_balance<float3>(tree);
+    KDTreeNew<float3> tree(positions, particle_indices);
 
     /* loop through space partitioning grid */
     for (c_index = 0; c_index < total_cells; c_index++) {
@@ -4623,7 +4619,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
       data.solidradius = solidradius;
       data.timescale = timescale;
       data.c_index = c_index;
-      data.treeData = tree;
+      data.treeData = &tree;
 
       TaskParallelSettings settings;
       BLI_parallel_range_settings_defaults(&settings);
@@ -4635,7 +4631,6 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
                               &settings);
     }
   }
-  kdtree_free<float3>(tree);
 
   return true;
 }
