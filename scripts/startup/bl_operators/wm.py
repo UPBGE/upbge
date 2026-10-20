@@ -3591,6 +3591,7 @@ class WM_MT_splash_quick_setup(Menu):
 
 class WM_MT_splash_project(Menu):
     bl_label = "Project"
+    bl_translation_context = i18n_contexts.editor_preferences
 
     def draw(self, context):
         layout = self.layout

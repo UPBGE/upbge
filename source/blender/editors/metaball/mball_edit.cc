@@ -274,8 +274,8 @@ static void mball_select_similar_type_get(Object *obedit,
 static bool mball_select_similar_type(Object *obedit,
                                       MetaBall *mb,
                                       int type,
-                                      const KDTreeNew<float> *tree_1d,
-                                      const KDTreeNew<float3> *tree_3d,
+                                      const KDTree<float> *tree_1d,
+                                      const KDTree<float3> *tree_3d,
                                       const float thresh)
 {
   bool changed = false;
@@ -377,9 +377,9 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
   }
 
   Vector<float> values_1d;
-  std::optional<KDTreeNew<float>> tree_1d;
+  std::optional<KDTree<float>> tree_1d;
   Vector<float3> dirs;
-  std::optional<KDTreeNew<float3>> tree_3d;
+  std::optional<KDTree<float3>> tree_3d;
 
   switch (type) {
     case SIMMBALL_RADIUS:
@@ -453,6 +453,7 @@ void MBALL_OT_select_similar(wmOperatorType *ot)
 
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", prop_similar_types, 0, "Type", "");
+  RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_METABALL);
 
   RNA_def_float(ot->srna, "threshold", 0.1, 0.0, FLT_MAX, "Threshold", "", 0.01, 1.0);
 }

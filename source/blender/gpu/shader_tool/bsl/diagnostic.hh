@@ -95,6 +95,7 @@ template<typename... Args> std::string format(const std::string &fmt, Args &&...
 
 enum class Diag {
   CompilerErrorADLOnTypesNotAllowed,
+  CompilerErrorInvalidFunctionLookup,
   CompilerErrorMemberFuncNoClass,
   CompilerErrorChildScopeNotFound,
 
@@ -175,6 +176,7 @@ enum class Diag {
   FieldDesignatorOutOfOrder,
 
   FunctionCallNotAllowedInReferenceDefinition,
+  FunctionOutOfClassDefinition,
 
   ImplicitPadding12BytesArrayElement,
   ImplicitPaddingArrayElementStd140,
@@ -334,6 +336,8 @@ static inline std::string_view diagnostic_message_get(Diag diag)
       return "Runtime capacity requires the array to be sized to its maximum size";
     case Diag::CompilerErrorADLOnTypesNotAllowed:
       return "Cannot use ADL on types";
+    case Diag::CompilerErrorInvalidFunctionLookup:
+      return "Compiler error: invalid function lookup";
     case Diag::CompilerErrorMemberFuncNoClass:
       return "Compiler error: member function has no class";
     case Diag::CompilerErrorChildScopeNotFound:
@@ -406,6 +410,8 @@ static inline std::string_view diagnostic_message_get(Diag diag)
       return "Field designator '{}' needs to be specified in declaration order";
     case Diag::FunctionCallNotAllowedInReferenceDefinition:
       return "Function calls are not allowed in reference definition";
+    case Diag::FunctionOutOfClassDefinition:
+      return "Out-of-line definition of '{}' does not match any declaration in '{}'";
     case Diag::ImplicitPadding12BytesArrayElement:
       return "Implicit padding of 4 bytes per array element, do not use 12 bytes types in arrays";
     case Diag::ImplicitPaddingArrayElementStd140:
