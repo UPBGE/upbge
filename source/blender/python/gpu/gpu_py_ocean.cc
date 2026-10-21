@@ -20,7 +20,6 @@
 
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
-#include "../../gpu/intern/gpu_storage_buffer_private.hh"
 
 #include "../blenkernel/intern/ocean_intern.h"
 
@@ -342,7 +341,7 @@ static SSBOCacheEntry *pygpu_ocean_get_or_create_cached_ssbo_entry(Ocean *o,
     return nullptr;
   }
 
-  PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo), bytes);
+  PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo));
   if (!py_ssbo) {
     GPU_storagebuf_free(ssbo);
     return nullptr;
@@ -382,7 +381,7 @@ static SSBOCacheEntry *pygpu_ocean_get_or_create_base_ssbo_entry(Ocean *o,
     return nullptr;
   }
 
-  PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo), bytes);
+  PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo));
   if (!py_ssbo) {
     GPU_storagebuf_free(ssbo);
     return nullptr;
@@ -421,7 +420,7 @@ static SSBOCacheEntry *pygpu_ocean_get_or_create_out_ssbo_entry(Ocean *o,
     return nullptr;
   }
 
-  PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo), bytes);
+  PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo));
   if (!py_ssbo) {
     GPU_storagebuf_free(ssbo);
     return nullptr;
@@ -1019,7 +1018,7 @@ static PyObject *pygpu_ocean_export_htilda_ssbo(PyObject * /*self*/, PyObject *a
       PyErr_SetString(PyExc_RuntimeError, "GPU_storagebuf_create_ex failed");
       return nullptr;
     }
-    PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo), byte_len);
+    PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo));
     if (!py_ssbo) {
       GPU_storagebuf_free(ssbo);
       PyErr_SetString(PyExc_RuntimeError, "Failed to wrap GPU storage buffer");
@@ -1115,7 +1114,7 @@ static PyObject *pygpu_ocean_export_disp_xyz_ssbo(PyObject * /*self*/, PyObject 
       PyErr_SetString(PyExc_RuntimeError, "GPU_storagebuf_create_ex failed");
       return nullptr;
     }
-    PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo), padded_bytes);
+    PyObject *py_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(ssbo));
     if (!py_ssbo) {
       GPU_storagebuf_free(ssbo);
       PyErr_SetString(PyExc_RuntimeError, "Failed to wrap GPU storage buffer");
@@ -1528,7 +1527,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       return nullptr;
     }
     PyObject *py_new_disp = BPyGPUStorageBuf_CreatePyObject(
-        reinterpret_cast<StorageBuf *>(new_disp), disp_padded_bytes);
+        reinterpret_cast<StorageBuf *>(new_disp));
     if (!py_new_disp) {
       GPU_storagebuf_free(new_disp);
       BKE_ocean_free_export(disp_buf);
@@ -1606,7 +1605,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       return nullptr;
     }
     PyObject *py_new_base = BPyGPUStorageBuf_CreatePyObject(
-        reinterpret_cast<StorageBuf *>(new_base), base_bytes);
+        reinterpret_cast<StorageBuf *>(new_base));
     if (!py_new_base) {
       GPU_storagebuf_free(new_base);
       if (created_disp_transient && disp_ssbo) {
@@ -1695,7 +1694,7 @@ static PyObject *pygpu_ocean_test_eval_shader(PyObject * /*self*/, PyObject *arg
       return nullptr;
     }
     PyObject *py_new_out = BPyGPUStorageBuf_CreatePyObject(
-        reinterpret_cast<StorageBuf *>(new_out), out_bytes);
+        reinterpret_cast<StorageBuf *>(new_out));
     if (!py_new_out) {
       GPU_storagebuf_free(new_out);
       if (created_disp_transient && disp_ssbo) {
@@ -4070,7 +4069,7 @@ static PyObject *pygpu_ocean_gpu_fft_rows(PyObject * /*self*/, PyObject *args)
 
   if (!py_sb) {
     PyObject *created = BPyGPUStorageBuf_CreatePyObject(
-        reinterpret_cast<StorageBuf *>(dst_internal), full_bytes2);
+        reinterpret_cast<StorageBuf *>(dst_internal));
     if (!created) {
       PyErr_SetString(PyExc_RuntimeError, "Failed to wrap dst SSBO");
       return nullptr;
@@ -5029,7 +5028,7 @@ static PyObject *pygpu_ocean_simulate_and_export_disp_ssbo(PyObject * /*self*/,
 
     if (!py_return_ssbo) {
       MeshGPUCacheManager::get().ocean_internal_ssbo_detach(o, std::string("dst"));
-      py_return_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(out_ssbo), out_ssbo->usage_size_get());
+      py_return_ssbo = BPyGPUStorageBuf_CreatePyObject(reinterpret_cast<StorageBuf *>(out_ssbo));
       if (!py_return_ssbo) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to create GPUStorageBuf Python wrapper");
         return nullptr;

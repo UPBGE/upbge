@@ -226,13 +226,14 @@ static PyObject *pygpu_storagebuffer_read_if_ready(BPyGPUStorageBuf *self)
 {
   BPYGPU_STORAGEBUF_CHECK_OBJ(self);
 
-  void *buf = MEM_new_uninitialized(self->size, "python_storagebuffer_read_if_ready");
+  void *buf = MEM_new_uninitialized(GPU_storagebuf_usage_size_get(self->ssbo),
+                                    "python_storagebuffer_read_if_ready");
   if (!GPU_storagebuf_read_if_ready(self->ssbo, buf)) {
     MEM_delete_void(buf);
     Py_RETURN_NONE;
   }
 
-  const Py_ssize_t shape = Py_ssize_t(self->size);
+  const Py_ssize_t shape = Py_ssize_t(GPU_storagebuf_usage_size_get(self->ssbo));
   return reinterpret_cast<PyObject *>(
       BPyGPU_Buffer_CreatePyObject(GPU_DATA_UBYTE, &shape, 1, buf));
 }
