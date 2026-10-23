@@ -45,6 +45,8 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_screen.hh"
 
+#include "BLI_string_utf8.hh"
+
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
@@ -335,7 +337,8 @@ void ED_spacetype_logic()
   ARegionType *art;
 
   st->spaceid = SPACE_LOGIC;
-  strncpy(st->name, "Logic", BKE_ST_MAXNAME);
+  STRNCPY_UTF8(st->name, "Logic");
+  st->struct_size = sizeof(SpaceLogic);
 
   st->create = logic_new;
   st->free = logic_free;
