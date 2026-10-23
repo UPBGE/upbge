@@ -82,7 +82,7 @@ static VFont *vfont_from_charinfo(const Curve &cu, const CharInfo *info)
   }
 }
 
-static VFontData *vfont_data_ensure_with_lock(VFont *vfont)
+static VFontData *vfont_data_ensure(VFont *vfont)
 {
   if (vfont == nullptr) {
     return nullptr;
@@ -109,7 +109,13 @@ static VFontData *vfont_data_ensure_with_lock(VFont *vfont)
   return vfont->data;
 }
 
-static bool vfont_char_find(const VFontData *vfd, char32_t charcode, VChar **r_che)
+/**
+ * The caller is responsible for locking.
+ *
+ * \note Even when characters are known to exist, locking is needed
+ * as the hash-table may be added to (and resized) by another thread.
+ */
+static bool vfont_char_find_no_lock(const VFontData *vfd, char32_t charcode, VChar **r_che)
 {
   if (VChar **che_p = vfd->characters->lookup_ptr(charcode)) {
     *r_che = *che_p;
@@ -119,20 +125,26 @@ static bool vfont_char_find(const VFontData *vfd, char32_t charcode, VChar **r_c
   return false;
 }
 
+static bool vfont_char_find(const VFontData *vfd, char32_t charcode, VChar **r_che)
+{
+  BLI_rw_mutex_lock(&vfont_rwlock, THREAD_LOCK_READ);
+  bool che_found = vfont_char_find_no_lock(vfd, charcode, r_che);
+  BLI_rw_mutex_unlock(&vfont_rwlock);
+  return che_found;
+}
+
 /**
  * Find the character or lazily initialize it.
  *
  * The intended use-case for this function is that characters are initialized once.
  * Any future access can then use #vfont_char_find or #vfont_char_find_or_placeholder.
  */
-static VChar *vfont_char_ensure_with_lock(VFont *vfont, char32_t charcode)
+static VChar *vfont_char_ensure(VFont *vfont, char32_t charcode)
 {
   VChar *che;
   if (vfont && vfont->data) {
     VFontData *vfd = vfont->data;
-    BLI_rw_mutex_lock(&vfont_rwlock, THREAD_LOCK_READ);
     bool che_found = vfont_char_find(vfd, charcode, &che);
-    BLI_rw_mutex_unlock(&vfont_rwlock);
 
     /* The character wasn't in the current curve base so load it. */
     if (che_found == false) {
@@ -142,7 +154,7 @@ static VChar *vfont_char_ensure_with_lock(VFont *vfont, char32_t charcode)
        *
        * Such a check should not be a bottleneck since it wouldn't
        * happen often once all the chars are load. */
-      che_found = vfont_char_find(vfd, charcode, &che);
+      che_found = vfont_char_find_no_lock(vfd, charcode, &che);
       if (che_found == false) {
         che = BKE_vfontdata_char_from_freetypefont(vfont, charcode);
       }
@@ -270,6 +282,8 @@ static VChar *vfont_placeholder_ensure(VCharPlaceHolder &che_placeholder, char32
 
 /**
  * A version of #vfont_char_find that returns a place-holder if the glyph cannot be found.
+ *
+ * This relies on a previous lookup having ensured the character has been loaded.
  */
 static VChar *vfont_char_find_or_placeholder(const VFontData *vfd,
                                              char32_t charcode,
@@ -277,6 +291,8 @@ static VChar *vfont_char_find_or_placeholder(const VFontData *vfd,
 {
   VChar *che = nullptr;
   if (vfd) {
+    /* While the characters are known to exist, locking is needed
+     * as the hash-table may be added to (and resized) by another thread. */
     vfont_char_find(vfd, charcode, &che);
   }
   if (che == nullptr) [[unlikely]] {
@@ -497,7 +513,7 @@ void BKE_vfont_char_build(const Curve &cu,
                           int charidx,
                           const float fsize)
 {
-  VFontData *vfd = vfont_data_ensure_with_lock(vfont_from_charinfo(cu, info));
+  VFontData *vfd = vfont_data_ensure(vfont_from_charinfo(cu, info));
   if (!vfd) {
     return;
   }
@@ -552,6 +568,58 @@ static void textbox_scale(TextBox *tb_dst, const TextBox *tb_src, float scale)
   tb_dst->y = tb_src->y * scale;
   tb_dst->w = tb_src->w * scale;
   tb_dst->h = tb_src->h * scale;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name VFont to Curve: Input Text
+ * \{ */
+
+struct VFontInputTextInfo {
+  const char32_t *str = nullptr;
+  int len = 0;
+  const CharInfo *strinfo = nullptr;
+  /** When true, `str` is owned & must be freed. */
+  bool str_free = false;
+};
+
+static bool vfont_input_text_info_init(VFontInputTextInfo &text_info, const Curve &cu)
+{
+  if (const EditFont *ef = cu.editfont) {
+    text_info.str = ef->textbuf;
+    text_info.len = ef->len;
+    text_info.strinfo = ef->textbufinfo;
+    text_info.str_free = false;
+    return true;
+  }
+
+  if (cu.str == nullptr) [[unlikely]] {
+    BLI_assert(0);
+    return false;
+  }
+
+  const int len = cu.len_char32;
+  /* Create unicode string. */
+  char32_t *str = MEM_new_array_uninitialized<char32_t>(size_t(len) + 1, "convertedmem");
+  if (!str) {
+    return false;
+  }
+  BLI_str_utf8_as_utf32(str, cu.str, len + 1);
+
+  text_info.str = str;
+  text_info.len = len;
+  text_info.strinfo = cu.strinfo;
+  text_info.str_free = true;
+  return true;
+}
+
+static void vfont_input_text_info_free(VFontInputTextInfo &text_info)
+{
+  if (text_info.str_free) {
+    MEM_delete(text_info.str);
+  }
+  text_info = {};
 }
 
 /** \} */
@@ -632,7 +700,7 @@ static void vfont_info_context_init(VFontInfoContext *vfinfo_ctx, const Curve &c
   BLI_assert(!vfinfo_ctx->vfd);
 
   vfinfo_ctx->vfont = cu.vfont;
-  vfinfo_ctx->vfd = vfont_data_ensure_with_lock(vfinfo_ctx->vfont);
+  vfinfo_ctx->vfd = vfont_data_ensure(vfinfo_ctx->vfont);
 }
 
 static void vfont_info_context_update(VFontInfoContext *vfinfo_ctx,
@@ -642,7 +710,7 @@ static void vfont_info_context_update(VFontInfoContext *vfinfo_ctx,
   VFont *vfont = vfont_from_charinfo(cu, info);
   if (vfinfo_ctx->vfont != vfont) {
     vfinfo_ctx->vfont = vfont;
-    vfinfo_ctx->vfd = vfont_data_ensure_with_lock(vfont);
+    vfinfo_ctx->vfd = vfont_data_ensure(vfont);
   }
 }
 
@@ -688,6 +756,7 @@ struct TempLineInfo {
  */
 static bool vfont_to_curve(Object *ob,
                            const Curve &cu,
+                           const VFontInputTextInfo &text_info,
                            const eEditFontMode mode,
                            VFontToCurveIter &iter_data,
                            VFontCursor_Params *cursor_params,
@@ -700,20 +769,18 @@ static bool vfont_to_curve(Object *ob,
 {
   EditFont *ef = cu.editfont;
   EditFontSelBox *selboxes = nullptr;
-  const CharInfo *info = nullptr, *custrinfo;
+  const CharInfo *info = nullptr;
   TextBox tb_scale;
   VChar *che;
   CharTrans *chartransdata = nullptr, *ct;
   TempLineInfo *lineinfo;
   float linedist;
   float twidth = 0;
-  int i, slen, j;
+  int i, j;
   int curbox;
   /* These values are only set to the selection range when `selboxes` is non-null. */
   int selstart = 0, selend = 0;
   int cnr = 0, lnr = 0, wsnr = 0, wnr = 0;
-  const char32_t *mem = nullptr;
-  bool mem_alloc = false;
   const float font_size = cu.fsize * iter_data.scale_to_fit;
   /* Shift down vertically to be 25% below & 75% above baseline (before font scale is applied). */
   const float font_select_y_offset = 0.25;
@@ -766,27 +833,9 @@ static bool vfont_to_curve(Object *ob,
       /*metrics*/ metrics,
   };
 
-  if (ef) {
-    slen = ef->len;
-    mem = ef->textbuf;
-    custrinfo = ef->textbufinfo;
-  }
-  else {
-    char32_t *mem_tmp;
-    slen = cu.len_char32;
-
-    /* Create unicode string. */
-    mem_tmp = MEM_new_array_uninitialized<char32_t>(size_t(slen) + 1, "convertedmem");
-    if (!mem_tmp) {
-      return false;
-    }
-
-    BLI_str_utf8_as_utf32(mem_tmp, cu.str, slen + 1);
-
-    mem = mem_tmp;
-    mem_alloc = true;
-    custrinfo = cu.strinfo;
-  }
+  const int slen = text_info.len;
+  const char32_t *mem = text_info.str;
+  const CharInfo *custrinfo = text_info.strinfo;
 
   /* Only manipulate the edit-font if this object is in edit-mode, otherwise it's unnecessary
    * as well as crashing since manipulating the #EditFont here isn't thread-safe, see: #144970.
@@ -918,7 +967,7 @@ static bool vfont_to_curve(Object *ob,
     vfont_info_context_update(&vfinfo_ctx, cu, info);
 
     if (!ELEM(charcode, '\n', '\0')) {
-      che = vfont_char_ensure_with_lock(vfinfo_ctx.vfont, charcode);
+      che = vfont_char_ensure(vfinfo_ctx.vfont, charcode);
       if (che == nullptr) {
         che = vfont_placeholder_ensure(che_placeholder, charcode);
       }
@@ -1212,15 +1261,7 @@ static bool vfont_to_curve(Object *ob,
         }
       }
       for (i = 0; i <= slen; i++) {
-        for (j = i; !ELEM(mem[j], '\0', '\n') && (chartransdata[j].do_break == 0) && (j < slen);
-             j++)
-        {
-          /* Pass. */
-        }
-
-        // if ((mem[j] != '\n') && (mem[j])) {
         ct->offset.x += ct->charnr * lineinfo[ct->linenr].x_min;
-        // }
         ct++;
       }
     }
@@ -1889,12 +1930,13 @@ static bool vfont_to_curve(Object *ob,
        * (using the character midpoint on the x-axis as a reference). */
       for (; i <= char_end && chartransdata[i].linenr == char_line; i++) {
         info = &custrinfo[i];
-        const char32_t charcode = vfont_char_apply_smallcaps(mem[i], info);
+        const bool is_smallcaps = chartransdata[i].is_smallcaps;
+        const char32_t charcode = vfont_char_apply_smallcaps(mem[i], is_smallcaps);
 
         vfont_info_context_update(&vfinfo_ctx, cu, info);
         che = vfont_char_find_or_placeholder(vfinfo_ctx.vfd, charcode, che_placeholder);
 
-        const float charwidth = vfont_char_width(cu, che, info);
+        const float charwidth = vfont_char_width(cu, che, is_smallcaps);
         if (vfont_char_is_combining(charcode, charwidth)) [[unlikely]] {
           /* Combining character, skip so the cursor won't be between combining characters. */
           continue;
@@ -1927,22 +1969,13 @@ static bool vfont_to_curve(Object *ob,
     if (chartransdata != nullptr) {
       MEM_delete(chartransdata);
     }
-
-    if (mem_alloc) {
-      MEM_delete(mem);
-    }
     return true;
   }
 
   if (r_text) {
     *r_text = mem;
     *r_text_len = slen;
-    *r_text_free = mem_alloc;
-  }
-  else {
-    if (mem_alloc) {
-      MEM_delete(mem);
-    }
+    *r_text_free = text_info.str_free;
   }
 
   if (chartransdata) {
@@ -1993,9 +2026,15 @@ bool BKE_vfont_to_curve_ex(Object *ob,
   data.ok = true;
   data.status = VFONT_TO_CURVE_INIT;
 
+  VFontInputTextInfo text_info;
+  if (!vfont_input_text_info_init(text_info, cu)) {
+    return false;
+  }
+
   do {
     data.ok &= vfont_to_curve(ob,
                               cu,
+                              text_info,
                               mode,
                               data,
                               nullptr,
@@ -2006,6 +2045,12 @@ bool BKE_vfont_to_curve_ex(Object *ob,
                               r_chartransdata,
                               r_font_size_eval);
   } while (data.ok && ELEM(data.status, VFONT_TO_CURVE_SCALE_ONCE, VFONT_TO_CURVE_BISECT));
+
+  if (r_text && data.ok) {
+    /* Ownership is passed to the caller. */
+    text_info.str_free = false;
+  }
+  vfont_input_text_info_free(text_info);
 
   return data.ok;
 }
@@ -2027,9 +2072,15 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const float2 &cursor_location)
   cursor_params.cursor_location = cursor_location;
   cursor_params.r_string_offset = -1;
 
+  VFontInputTextInfo text_info;
+  if (!vfont_input_text_info_init(text_info, cu)) {
+    return cursor_params.r_string_offset;
+  }
+
   do {
     data.ok &= vfont_to_curve(ob,
                               cu,
+                              text_info,
                               FO_CURS,
                               data,
                               &cursor_params,
@@ -2040,6 +2091,8 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const float2 &cursor_location)
                               nullptr,
                               nullptr);
   } while (data.ok && ELEM(data.status, VFONT_TO_CURVE_SCALE_ONCE, VFONT_TO_CURVE_BISECT));
+
+  vfont_input_text_info_free(text_info);
 
   return cursor_params.r_string_offset;
 }
