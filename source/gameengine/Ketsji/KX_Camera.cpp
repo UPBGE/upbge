@@ -1045,7 +1045,7 @@ EXP_PYMETHODDEF_DOC(KX_Camera, getScreenRay,
 {
   MT_Vector3 vect;
   float x, y, dist = FLT_MAX;
-  const char *propName = nullptr;
+  char *propName = nullptr;
 
   static const char *kwlist[] = {"x", "y", "dist", "prop", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args, kwds, "ff|fs:getScreenRay",
