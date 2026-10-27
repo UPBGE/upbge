@@ -24,6 +24,7 @@
 @class BlenderWindow;
 @class NSCursor;
 @class NSScreen;
+@class GHOST_GestureHandlerCocoa;
 
 class GHOST_SystemCocoa;
 
@@ -318,6 +319,9 @@ class GHOST_WindowCocoa : public GHOST_Window {
 
   /** The mother SystemCocoa class to send events */
   GHOST_SystemCocoa *system_cocoa_;
+
+  /** Gesture recognizers handler for Sidecar touch support. */
+  GHOST_GestureHandlerCocoa *gesture_handler_;
 
   NSCursor *custom_cursor_;
 

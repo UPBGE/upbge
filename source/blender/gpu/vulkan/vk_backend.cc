@@ -169,6 +169,12 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (!extensions.contains(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
   }
+  if (!extensions.contains(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME)) {
+    missing_capabilities.append(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME);
+  }
+  if (!extensions.contains(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME)) {
+    missing_capabilities.append(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+  }
   if (!extensions.contains(VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME);
   }
@@ -484,7 +490,7 @@ void VKBackend::platform_init(const VKDevice &device)
   GPG.device_uuid = Array<uint8_t, 16>(Span<uint8_t>(id_properties.deviceUUID, VK_UUID_SIZE));
 
   if (id_properties.deviceLUIDValid) {
-    GPG.device_luid = Array<uint8_t, 8>(Span<uint8_t>(id_properties.deviceUUID, VK_LUID_SIZE));
+    GPG.device_luid = Array<uint8_t, 8>(Span<uint8_t>(id_properties.deviceLUID, VK_LUID_SIZE));
     GPG.device_luid_node_mask = id_properties.deviceNodeMask;
   }
   else {
@@ -905,7 +911,8 @@ void VKBackend::capabilities_init(VKDevice &device)
   }
   GCaps.max_uniforms_vert = GCaps.max_uniforms_frag = min_uu(
       limits.maxPerStageDescriptorUniformBuffers, INT_MAX);
-  GCaps.max_batch_indices = min_uu(limits.maxDrawIndirectCount, INT_MAX);
+  /* Vulkan has no limit on the number of indices in a single draw call. */
+  GCaps.max_batch_indices = INT_MAX;
   GCaps.max_batch_vertices = min_uu(limits.maxDrawIndexedIndexValue, INT_MAX);
   GCaps.max_vertex_attribs = min_uu(limits.maxVertexInputAttributes, INT_MAX);
   GCaps.max_varying_floats = min_uu(limits.maxVertexOutputComponents, INT_MAX);

@@ -223,9 +223,15 @@ void VKTexture::read_sub(
   TransferRegion full_transfer_region({offset, extent, layers});
   const VkDeviceSize sample_bytesize = to_bytesize(device_format_);
   const VkDeviceSize host_sample_bytesize = to_bytesize(format_, format);
-  /* For a texture view the raw bytes are reinterpretable with the base format but must be read
-   * back as the view (#format_) for them to be numerically correct. */
-  const TextureFormat data_storage_format = is_texture_view() ? format_ : device_format_;
+  /* A texture view that reinterprets the source format stores its raw bytes in the base format,
+   * so they must be read back as the view (#format_) to be numerically correct. A view that keeps
+   * the source format uses #device_format_, which differs from #format_ for emulated formats
+   * (RGB16F and RGB32F are stored as RGBA). Matches the format selection in #image_view_get. */
+  const bool reinterprets_format = is_texture_view() &&
+                                   (source_texture_->usage_get() &
+                                    GPU_TEXTURE_USAGE_FORMAT_VIEW) &&
+                                   format_ != static_cast<VKTexture *>(source_texture_)->format_;
+  const TextureFormat data_storage_format = reinterprets_format ? format_ : device_format_;
   const uint64_t x_bytesize = sample_bytesize * extent.x;
   const uint64_t xy_bytesize = x_bytesize * extent.y;
   const uint64_t xyz_bytesize = xy_bytesize * extent.z;
@@ -451,7 +457,7 @@ void VKTexture::update_sub(int mip,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         {vk_image_aspects, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS},
     };
-    device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_transition);
+    device.functions.vkTransitionImageLayoutEXT(device.vk_handle(), 1, &image_layout_transition);
     device.resources.update_image_layout(resource_.resource_handle,
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     /* TODO: Add support for VK_HOST_IMAGE_COPY_MEMCPY_EXT flag. It would theoretically allow
@@ -474,7 +480,7 @@ void VKTexture::update_sub(int mip,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         1,
         &vk_memory_to_image_copy};
-    device.functions.vkCopyMemoryToImage(device.vk_handle(), &vk_copy_memory_to_image);
+    device.functions.vkCopyMemoryToImageEXT(device.vk_handle(), &vk_copy_memory_to_image);
 
     has_data_ = true;
     return;
@@ -859,7 +865,7 @@ bool VKTexture::allocate()
   VkExtent3D vk_extent = vk_extent_3d(0);
   const uint32_t limit = (type_ == GPU_TEXTURE_3D) ? GPU_max_texture_3d_size() :
                                                      GPU_max_texture_size();
-  if (vk_extent.depth > limit || vk_extent.height > limit || vk_extent.depth > limit) {
+  if (vk_extent.width > limit || vk_extent.height > limit || vk_extent.depth > limit) {
     return false;
   }
 

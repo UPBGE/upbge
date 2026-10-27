@@ -17,8 +17,18 @@ namespace blender::draw {
 #define NOR_AND_FLAG_ACTIVE -1
 #define NOR_AND_FLAG_HIDDEN -2
 
+const GPUVertFormat &get_fdots_nor_format(bool use_hq)
+{
+  static const GPUVertFormat format = GPU_vertformat_from_attribute(
+      "norAndFlag", gpu::VertAttrType::SNORM_10_10_10_2);
+  static const GPUVertFormat format_hq = GPU_vertformat_from_attribute(
+      "norAndFlag", gpu::VertAttrType::SNORM_16_16_16_16);
+  return use_hq ? format_hq : format;
+}
+
 template<typename GPUType>
-static void extract_face_dot_normals_mesh(const MeshRenderData &mr, MutableSpan<GPUType> normals)
+static void extract_face_dot_normals_mapped_bmesh(const MeshRenderData &mr,
+                                                  MutableSpan<GPUType> normals)
 {
   const Span<float3> face_normals = mr.face_normals;
   const GPUType invalid_normal = gpu::convert_normal<GPUType>(float3(0));
@@ -42,7 +52,7 @@ static void extract_face_dot_normals_mesh(const MeshRenderData &mr, MutableSpan<
 }
 
 template<typename GPUType>
-void extract_face_dot_normals_bm(const MeshRenderData &mr, MutableSpan<GPUType> normals)
+void extract_face_dot_normals_bmesh(const MeshRenderData &mr, MutableSpan<GPUType> normals)
 {
   const GPUType invalid_normal = gpu::convert_normal<GPUType>(float3(0));
   threading::parallel_for(IndexRange(mr.faces_num), 4096, [&](const IndexRange range) {
@@ -66,32 +76,26 @@ void extract_face_dot_normals_bm(const MeshRenderData &mr, MutableSpan<GPUType> 
 
 gpu::VertBufPtr extract_face_dot_normals(const MeshRenderData &mr, const bool use_hq)
 {
-  if (use_hq) {
-    static const GPUVertFormat format = GPU_vertformat_from_attribute(
-        "norAndFlag", gpu::VertAttrType::SNORM_16_16_16_16);
-    gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
-    GPU_vertbuf_data_alloc(*vbo, mr.faces_num);
-    MutableSpan vbo_data = vbo->data<short4>();
-
-    if (mr.extract_type == MeshExtractType::Mesh) {
-      extract_face_dot_normals_mesh(mr, vbo_data);
-    }
-    else {
-      extract_face_dot_normals_bm(mr, vbo_data);
-    }
-    return vbo;
-  }
-  static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "norAndFlag", gpu::VertAttrType::SNORM_10_10_10_2);
+  const GPUVertFormat &format = get_fdots_nor_format(use_hq);
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
   GPU_vertbuf_data_alloc(*vbo, mr.faces_num);
-  MutableSpan vbo_data = vbo->data<int1010102_norm>();
-
-  if (mr.extract_type == MeshExtractType::Mesh) {
-    extract_face_dot_normals_mesh(mr, vbo_data);
+  if (use_hq) {
+    MutableSpan vbo_data = vbo->data<short4>();
+    if (mr.extract_type == MeshExtractType::Mesh) {
+      extract_face_dot_normals_mapped_bmesh(mr, vbo_data);
+    }
+    else {
+      extract_face_dot_normals_bmesh(mr, vbo_data);
+    }
   }
   else {
-    extract_face_dot_normals_bm(mr, vbo_data);
+    MutableSpan vbo_data = vbo->data<int1010102_norm>();
+    if (mr.extract_type == MeshExtractType::Mesh) {
+      extract_face_dot_normals_mapped_bmesh(mr, vbo_data);
+    }
+    else {
+      extract_face_dot_normals_bmesh(mr, vbo_data);
+    }
   }
   return vbo;
 }

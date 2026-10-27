@@ -26,7 +26,7 @@ static void extract_vert_normals_mesh(const MeshRenderData &mr, MutableSpan<GPUT
 }
 
 template<typename GPUType>
-static void extract_vert_normals_bm(const MeshRenderData &mr, MutableSpan<GPUType> vert_data)
+static void extract_vert_normals_bmesh(const MeshRenderData &mr, MutableSpan<GPUType> vert_data)
 {
   const BMesh &bm = *mr.bm;
   threading::parallel_for(IndexRange(bm.totvert), 4096, [&](const IndexRange range) {
@@ -44,7 +44,7 @@ static void extract_face_normals_mesh(const MeshRenderData &mr, MutableSpan<GPUT
 }
 
 template<typename GPUType>
-static void extract_face_normals_bm(const MeshRenderData &mr, MutableSpan<GPUType> face_data)
+static void extract_face_normals_bmesh(const MeshRenderData &mr, MutableSpan<GPUType> face_data)
 {
   const BMesh &bm = *mr.bm;
   threading::parallel_for(IndexRange(bm.totface), 4096, [&](const IndexRange range) {
@@ -84,7 +84,7 @@ static void extract_corner_normals_mesh(const MeshRenderData &mr, MutableSpan<GP
 }
 
 template<typename GPUType>
-static void extract_corner_normals_bm(const MeshRenderData &mr, MutableSpan<GPUType> normals)
+static void extract_corner_normals_bmesh(const MeshRenderData &mr, MutableSpan<GPUType> normals)
 {
   const BMesh &bm = *mr.bm;
   if (mr.bm_free_normal_offset_corner != -1) {
@@ -141,7 +141,7 @@ static gpu::VertBufPtr extract_normals(const MeshRenderData &mr,
         extract_vert_normals_mesh(mr, vert_vbo->data<GPUType>());
       }
       else {
-        extract_vert_normals_bm(mr, vert_vbo->data<GPUType>());
+        extract_vert_normals_bmesh(mr, vert_vbo->data<GPUType>());
       }
       gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format, size));
       gather_vert_to_corner_gpu(mr, cache, *vert_vbo, *vbo);
@@ -155,7 +155,7 @@ static gpu::VertBufPtr extract_normals(const MeshRenderData &mr,
         extract_face_normals_mesh(mr, face_vbo->data<GPUType>());
       }
       else {
-        extract_face_normals_bm(mr, face_vbo->data<GPUType>());
+        extract_face_normals_bmesh(mr, face_vbo->data<GPUType>());
       }
       gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format, size));
       scatter_face_to_corner_gpu(mr, cache, *face_vbo, *vbo);
@@ -170,7 +170,7 @@ static gpu::VertBufPtr extract_normals(const MeshRenderData &mr,
         extract_corner_normals_mesh(mr, vbo_data.take_front(mr.corners_num));
       }
       else {
-        extract_corner_normals_bm(mr, vbo_data.take_front(mr.corners_num));
+        extract_corner_normals_bmesh(mr, vbo_data.take_front(mr.corners_num));
       }
       vbo_data.take_back(mr.loose_indices_num).copy_from(loose_data);
       return vbo;
@@ -180,45 +180,33 @@ static gpu::VertBufPtr extract_normals(const MeshRenderData &mr,
   return {};
 }
 
+static const GPUVertFormat &get_normals_format(bool use_hq)
+{
+  auto init_format = [](gpu::VertAttrType attr) {
+    GPUVertFormat format{};
+    GPU_vertformat_attr_add(&format, "nor", attr);
+    GPU_vertformat_alias_add(&format, "lnor");
+    GPU_vertformat_alias_add(&format, "vnor");
+    return format;
+  };
+  static const GPUVertFormat format_hq = init_format(gpu::VertAttrType::SNORM_16_16_16_16);
+  static const GPUVertFormat format_lq = init_format(gpu::VertAttrType::SNORM_10_10_10_2);
+  return use_hq ? format_hq : format_lq;
+}
+
 gpu::VertBufPtr extract_normals(const MeshRenderData &mr,
                                 MeshBufferCache &cache,
                                 const bool use_hq)
 {
   if (use_hq) {
-    static const GPUVertFormat format = []() {
-      GPUVertFormat format{};
-      GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SNORM_16_16_16_16);
-      GPU_vertformat_alias_add(&format, "lnor");
-      GPU_vertformat_alias_add(&format, "vnor");
-      return format;
-    }();
-    return extract_normals<short4>(mr, cache, format);
+    return extract_normals<short4>(mr, cache, get_normals_format(true));
   }
-  static const GPUVertFormat format = []() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SNORM_10_10_10_2);
-    GPU_vertformat_alias_add(&format, "lnor");
-    GPU_vertformat_alias_add(&format, "vnor");
-    return format;
-  }();
-  return extract_normals<int1010102_norm>(mr, cache, format);
+  return extract_normals<int1010102_norm>(mr, cache, get_normals_format(false));
 }
 
-static const GPUVertFormat &get_normals_format()
-{
-  static const GPUVertFormat format = []() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32);
-    GPU_vertformat_alias_add(&format, "lnor");
-    GPU_vertformat_alias_add(&format, "vnor");
-    return format;
-  }();
-  return format;
-}
-
-static void update_loose_normals(const MeshRenderData &mr,
-                                 const DRWSubdivCache &subdiv_cache,
-                                 gpu::VertBuf &lnor)
+void update_loose_normals(const MeshRenderData &mr,
+                          const DRWSubdivCache &subdiv_cache,
+                          gpu::VertBuf &lnor)
 {
   const int vbo_size = subdiv_full_vbo_size(mr, subdiv_cache);
   const int loose_geom_start = subdiv_cache.num_subdiv_loops;
@@ -228,22 +216,23 @@ static void update_loose_normals(const MeshRenderData &mr,
 
   /* Default to zeroed attribute. The overlay shader should expect this and render engines should
    * never draw loose geometry. */
-  const float3 default_normal(0.0f, 0.0f, 0.0f);
+  const uint2 default_normal(0);
   for (const int i : IndexRange::from_begin_end(loose_geom_start, vbo_size)) {
     /* TODO(fclem): This has HORRENDOUS performance. Prefer clearing the buffer on device with
      * something like glClearBufferSubData. */
-    GPU_vertbuf_update_sub(&lnor, i * sizeof(float3), sizeof(float3), &default_normal);
+    GPU_vertbuf_update_sub(&lnor, i * lnor.format.stride, lnor.format.stride, &default_normal);
   }
 }
 
 gpu::VertBufPtr extract_normals_subdiv(const MeshRenderData &mr,
                                        const DRWSubdivCache &subdiv_cache,
-                                       gpu::VertBuf &pos)
+                                       gpu::VertBuf &pos,
+                                       bool use_hq)
 {
   const int vbo_size = subdiv_full_vbo_size(mr, subdiv_cache);
 
   gpu::VertBufPtr lnor = gpu::VertBufPtr(
-      GPU_vertbuf_create_on_device(get_normals_format(), vbo_size));
+      GPU_vertbuf_create_on_device(get_normals_format(use_hq), vbo_size));
   if (subdiv_cache.num_subdiv_loops == 0) {
     update_loose_normals(mr, subdiv_cache, *lnor);
     return lnor;
@@ -251,12 +240,13 @@ gpu::VertBufPtr extract_normals_subdiv(const MeshRenderData &mr,
 
   if (subdiv_cache.use_custom_loop_normals) {
     const Mesh *coarse_mesh = subdiv_cache.mesh;
-    static GPUVertFormat src_normals_format = GPU_vertformat_from_attribute(
-        "vnor", gpu::VertAttrType::SFLOAT_32_32_32);
-    gpu::VertBufPtr src = gpu::VertBufPtr(GPU_vertbuf_create_with_format(src_normals_format));
-    GPU_vertbuf_data_alloc(*src, coarse_mesh->corners_num);
-    src->data<float3>().copy_from(coarse_mesh->corner_normals());
-    draw_subdiv_interp_corner_normals(subdiv_cache, *src, *lnor);
+    const uint corner_count = coarse_mesh->corner_normals().size();
+    gpu::VertBufPtr src = gpu::VertBuf::from_span(coarse_mesh->corner_normals());
+    gpu::VertBufPtr src_compressed = use_hq ?
+                                         gpu::VertBuf::device_only<short4_norm>(corner_count) :
+                                         gpu::VertBuf::device_only<int1010102_norm>(corner_count);
+    mesh_compress_normals(*src, *src_compressed);
+    draw_subdiv_interp_corner_normals(subdiv_cache, *src_compressed, *lnor);
 
     update_loose_normals(mr, subdiv_cache, *lnor);
     return lnor;
@@ -267,10 +257,8 @@ gpu::VertBufPtr extract_normals_subdiv(const MeshRenderData &mr,
 
   /* Calculate vertex normals (stored here per subdivided vertex rather than per subdivided face
    * corner). The values are used for smooth shaded faces later. */
-  static GPUVertFormat vert_normals_format = GPU_vertformat_from_attribute(
-      "vnor", gpu::VertAttrType::SFLOAT_32_32_32);
   gpu::VertBufPtr vert_normals = gpu::VertBufPtr(
-      GPU_vertbuf_create_on_device(vert_normals_format, subdiv_cache.num_subdiv_verts));
+      GPU_vertbuf_create_on_device(get_normals_format(use_hq), subdiv_cache.num_subdiv_verts));
   draw_subdiv_accumulate_normals(subdiv_cache,
                                  &pos,
                                  subdiv_cache.subdiv_vert_face_adjacency_offsets,

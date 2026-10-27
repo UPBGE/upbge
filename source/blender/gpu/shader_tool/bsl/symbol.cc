@@ -369,6 +369,7 @@ struct SymbolParser : NodeErrorHandler {
           SymbolVariable *var = table.var_arena.alloc(
               &scope, fn->parent_class(), arg_list.front(), "this");
           var->is_ptr = true;
+          var->is_this = true;
           scope.variable_emplace(var);
           /* Mangle the emitted token to avoid conflict with MSL. */
           var->identifier = "this_";
@@ -759,18 +760,20 @@ struct SymbolParser : NodeErrorHandler {
     SymbolFunction *fn = nullptr;
 
     IdQualified id = func.identifier();
-    SymbolClass *cls = nullptr;
+    SymbolScope *ns = nullptr;
     if (id.has_namespace()) {
-      /* Definition of a member function. Find the class. */
-      Id start = id.namespace_start();
-      Id last = id.child_last(NodeType::Id).prev(NodeType::Id);
-      cls = def_scope.lookup_class(table, start, last).unwrap(this);
-      if (cls->is_error) {
-        error(last, Diag::UnknownTypeName);
+      /* Definition of a member function or function from a different namespace.
+       * Try to query the function to find its namespace. */
+      SymbolFunction *fn_prototype = def_scope.lookup_function(table, id).unwrap(this);
+      if (!fn_prototype->is_error) {
+        ns = fn_prototype->parent;
+      }
+      else {
+        error(id, Diag::UnknownFunction, id.str());
       }
     }
 
-    SymbolScope &scope = cls ? *cls : def_scope;
+    SymbolScope &scope = ns ? *ns : def_scope;
     if (auto [fdecl, fn_ptr] = scope.lookup_function_forward_decl(func); fdecl.is_valid()) {
       fn = fn_ptr;
       /* Modify symbol location if it is forward declared. */
@@ -786,8 +789,8 @@ struct SymbolParser : NodeErrorHandler {
       fn->arg_types.clear();
       fn->arg_defaults.clear();
     }
-    else if (cls) {
-      error(id.name(), Diag::FunctionOutOfClassDefinition, id.name().str(), cls->original);
+    else if (ns) {
+      error(id.name(), Diag::FunctionOutOfClassDefinition, id.name().str(), ns->original);
       /* Still return a valid function to avoid crash. */
       fn = table.fun_arena.alloc(&scope, table.err_cls, func, suffix);
       return fn;
@@ -811,13 +814,16 @@ struct SymbolParser : NodeErrorHandler {
       fn->poi = scope.poi;
     }
 
-    parse_scope(*fn, func.body(), prefix + fn->identifier + ns_sep, temp_params);
+    /* Out-of-class definitions use the prefix of their class, e.g. `A_s` for `int A::s()`. */
+    std::string fn_prefix = ns ? scope.identifier + ns_sep : prefix;
+
+    parse_scope(*fn, func.body(), fn_prefix + fn->identifier + ns_sep, temp_params);
 
     /* Set resolved identifier. */
     switch (fn->fn_type) {
       case SymbolFunction::GLOBAL:
       case SymbolFunction::STATIC:
-        fn->identifier = prefix + fn->identifier;
+        fn->identifier = fn_prefix + fn->identifier;
         break;
       case SymbolFunction::MEMBER:
         /* Member function use overload resolution. */
@@ -1115,6 +1121,10 @@ struct SymbolParser : NodeErrorHandler {
       type->ensure_size_and_align(this, true);
     }
 
+    if (first_decl.is_pointer() && first_decl.pointer().str().size() != 1) {
+      error(first_decl.pointer(), Diag::PointerMultiIndirection);
+    }
+
     if (cls) {
       if (cls->srt_type == ResourceTableType::NONE && attr.srt_type != ResourceTableType::NONE) {
         if (cls->is_anonymous) {
@@ -1163,8 +1173,15 @@ struct SymbolParser : NodeErrorHandler {
       named_parent = prefix.non_anonymous_parent;
     }
 
+    const bool is_ptr = var.is_pointer();
     const bool is_ref = var.is_reference();
     for (Declarator decl : var.children_of_type<Declarator>()) {
+      /* Since we bake the pointer in the type we require that all declarators must be pointers or
+       * none of them. */
+      if (is_ptr != decl.is_pointer()) {
+        error(decl, Diag::PointerMixedVarDecl);
+        continue;
+      }
       if (is_ref != decl.is_reference()) {
         error(decl, Diag::ReferenceMixedVarDecl);
         continue;
@@ -1186,6 +1203,21 @@ struct SymbolParser : NodeErrorHandler {
                Diag::NotePreviousDefinition,
                sym->identifier);
           error(sym->loc.tok, Diag::Redefinition, sym->identifier);
+        }
+      }
+
+      if (sym->is_ptr) {
+        /* We only support single indirection pointers. */
+        if (decl.pointer().str().size() != 1) {
+          error(decl.pointer(), Diag::PointerMultiIndirection);
+        }
+        /* When declared inside a class, pointers are only allowed to be declared in resource
+         * declarations. */
+        if (cls && (attr.res_type != ResourceType::PUSH_CONST &&
+                    attr.res_type != ResourceType::UNIFORM_BUF &&
+                    attr.res_type != ResourceType::STORAGE_BUF))
+        {
+          error(decl.pointer(), Diag::PointerNotResource);
         }
       }
 

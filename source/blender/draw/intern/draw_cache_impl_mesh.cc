@@ -2045,6 +2045,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   if (do_subdivision) {
     DRW_create_subdivision(ob,
                            mesh,
+                           scene,
                            cache,
                            cache.final,
                            ibo_requests[int(BufferList::Final)],

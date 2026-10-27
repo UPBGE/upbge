@@ -73,6 +73,10 @@ exclude_patterns = [
     "include__bpy_app_handlers.rst",
 ]
 
+# Show only object names in the table of contents (e.g. ``method()`` instead of ``Class.method()``).
+# Hiding parent names reduces visual clutter.
+toc_object_entries_show_parents = 'hide'
+
 html_title = "UPBGE/Blender Python API"
 
 # -- Options for UPBGE HTML output -------------------------------------------------
