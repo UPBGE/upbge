@@ -347,7 +347,7 @@ PyMethodDef KX_Camera::Methods[] = {
     EXP_PYMETHODTABLE_NOARGS(KX_Camera, setOnTop),
     EXP_PYMETHODTABLE_O(KX_Camera, getScreenPosition),
     EXP_PYMETHODTABLE(KX_Camera, getScreenVect),
-    EXP_PYMETHODTABLE(KX_Camera, getScreenRay),
+    EXP_PYMETHODTABLE_KEYWORDS(KX_Camera, getScreenRay),
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -1034,13 +1034,22 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect, "getScreenVect()\n")
   return PyObjectFrom(vect);
 }
 
-EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay, "getScreenRay()\n")
+EXP_PYMETHODDEF_DOC(KX_Camera, getScreenRay,
+                    "getScreenRay(x, y, dist=inf, prop=None)\n"
+                    "Look towards a screen coordinate (x, y) and find first object hit within dist that matches prop.\n"
+                    "The ray is similar to KX_GameObject->rayCastTo.\n\n"
+                    "x = X Axis (0.0-1.0)\n"
+                    "y = Y Axis (0.0-1.0)\n"
+                    "dist = max distance to look (can be negative => look behind); 0 or omitted => detect up to other\n"
+                    "prop = property name that object must have; can be omitted => detect any object")
 {
   MT_Vector3 vect;
-  float x, y, dist;
-  char *propName = nullptr;
+  float x, y, dist = FLT_MAX;
+  const char *propName = nullptr;
 
-  if (!PyArg_ParseTuple(args, "fff|s:getScreenRay", &x, &y, &dist, &propName))
+  static const char *kwlist[] = {"x", "y", "dist", "prop", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "ff|fs:getScreenRay",
+                                   const_cast<char **>(kwlist), &x, &y, &dist, &propName))
     return nullptr;
 
   y = 1.0 - y;  // to follow Blender window coordinate system (Top-Down)

@@ -256,7 +256,7 @@ class KX_Camera : public KX_GameObject {
 
   EXP_PYMETHOD_DOC_O(KX_Camera, getScreenPosition);
   EXP_PYMETHOD_DOC_VARARGS(KX_Camera, getScreenVect);
-  EXP_PYMETHOD_DOC_VARARGS(KX_Camera, getScreenRay);
+  EXP_PYMETHOD_DOC(KX_Camera, getScreenRay);
 
   static PyObject *pyattr_get_perspective(EXP_PyObjectPlus *self_v,
                                           const EXP_PYATTRIBUTE_DEF *attrdef);
