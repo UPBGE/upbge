@@ -267,7 +267,7 @@ General functions
    :arg overlay: Overlay or underlay (optional)
    :type overlay: integer
 
-.. function:: sendMessage(subject, body="", to="", message_from="")
+.. function:: sendMessage(subject, body="", to="", message_from=None)
 
    Sends a message to sensors in any active scene.
    
@@ -277,8 +277,8 @@ General functions
    :type body: string
    :arg to: The name of the object to send the message to (optional)
    :type to: string
-   :arg message_from: The name of the object that the message is coming from (optional)
-   :type message_from: string
+   :arg message_from: The object that the message is coming from (optional)
+   :type message_from: :class:`~bge.types.KX_GameObject` or string or None
 
 .. function:: setGravity(gravity)
 

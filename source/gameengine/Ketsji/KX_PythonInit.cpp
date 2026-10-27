@@ -285,13 +285,13 @@ static PyObject *gPyGetProfileInfo(PyObject *)
 }
 
 PyDoc_STRVAR(gPySendMessage_doc,
-             "sendMessage(subject, [body, to, from])\n"
+             "sendMessage(subject, body='', to='', from=None)\n"
              "sends a message in same manner as a message actuator"
              " subject = Subject of the message"
              " body = Message body"
              " to = Name of object to send the message to"
              " from = Name of object to send the string from");
-static PyObject *gPySendMessage(PyObject *, PyObject *args)
+static PyObject *gPySendMessage(PyObject *, PyObject *args, PyObject *kwds)
 {
   char *subject = (char *)"";
   char *body = (char *)"";
@@ -300,7 +300,9 @@ static PyObject *gPySendMessage(PyObject *, PyObject *args)
   KX_GameObject *from = nullptr;
   KX_Scene *scene = KX_GetActiveScene();
 
-  if (!PyArg_ParseTuple(args, "s|ssO:sendMessage", &subject, &body, &to, &pyfrom))
+  static const char *kwlist[] = {"subject", "body", "to", "from", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|ssO:sendMessage",
+                                   const_cast<char **>(kwlist), &subject, &body, &to, &pyfrom))
     return nullptr;
 
   if (!ConvertPythonToGameObject(scene->GetLogicManager(),
@@ -677,6 +679,8 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 
 static PyObject *gLibNew(PyObject *, PyObject *args)
 {
+  EXP_ShowDeprecationWarning("bge.logic.LibNew(path, group, names)", "nothing");
+
   KX_Scene *kx_scene = KX_GetActiveScene();
   char *path = (char *)"";
   char *group;
@@ -734,6 +738,8 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 
 static PyObject *gLibFree(PyObject *, PyObject *args)
 {
+  EXP_ShowDeprecationWarning("bge.logic.LibFree(path)", "nothing");
+
   char *path = (char *)"";
 
   if (!PyArg_ParseTuple(args, "s:LibFree", &path))
@@ -749,6 +755,8 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 
 static PyObject *gLibList(PyObject *, PyObject *args)
 {
+  EXP_ShowDeprecationWarning("bge.logic.LibList()", "nothing");
+
   const std::vector<blender::Main *> &dynMaggie = KX_GetActiveEngine()->GetConverter()->GetMainDynamic();
   PyObject *list = PyList_New(dynMaggie.size());
 
@@ -790,7 +798,7 @@ static struct PyMethodDef game_methods[] = {
      (PyCFunction)gPyLoadGlobalDict,
      METH_NOARGS,
      (const char *)gPyLoadGlobalDict_doc},
-    {"sendMessage", (PyCFunction)gPySendMessage, METH_VARARGS, (const char *)gPySendMessage_doc},
+    {"sendMessage", (PyCFunction)gPySendMessage, METH_VARARGS | METH_KEYWORDS, (const char *)gPySendMessage_doc},
     {"getCurrentController",
      (PyCFunction)SCA_PythonController::sPyGetCurrentController,
      METH_NOARGS,
@@ -927,13 +935,13 @@ static struct PyMethodDef game_methods[] = {
 
     {nullptr, (PyCFunction) nullptr, 0, nullptr}};
 
-static PyObject *gPyGetWindowHeight(PyObject *, PyObject *args)
+static PyObject *gPyGetWindowHeight(PyObject *)
 {
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   return PyLong_FromLong((canvas ? canvas->GetHeight() : 0));
 }
 
-static PyObject *gPyGetWindowWidth(PyObject *, PyObject *args)
+static PyObject *gPyGetWindowWidth(PyObject *)
 {
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   return PyLong_FromLong((canvas ? canvas->GetWidth() : 0));
@@ -1182,8 +1190,8 @@ PyDoc_STRVAR(Rasterizer_module_documentation,
              "This is the Python API for the game engine of Rasterizer");
 
 static struct PyMethodDef rasterizer_methods[] = {
-    {"getWindowWidth", (PyCFunction)gPyGetWindowWidth, METH_VARARGS, "getWindowWidth doc"},
-    {"getWindowHeight", (PyCFunction)gPyGetWindowHeight, METH_VARARGS, "getWindowHeight doc"},
+    {"getWindowWidth", (PyCFunction)gPyGetWindowWidth, METH_NOARGS, "getWindowWidth doc"},
+    {"getWindowHeight", (PyCFunction)gPyGetWindowHeight, METH_NOARGS, "getWindowHeight doc"},
     {"makeScreenshot", (PyCFunction)gPyMakeScreenshot, METH_VARARGS, "make Screenshot doc"},
     {"enableVisibility", (PyCFunction)gPyEnableVisibility, METH_VARARGS, "enableVisibility doc"},
     {"showMouse", (PyCFunction)gPyShowMouse, METH_VARARGS, "showMouse(bool visible)"},

@@ -4993,10 +4993,10 @@ EXP_PYMETHODDEF_DOC(
 
 EXP_PYMETHODDEF_DOC(KX_GameObject,
                     sendMessage,
-                    "sendMessage(subject, [body, to])\n"
-                    "sends a message in same manner as a message actuator"
-                    "subject = Subject of the message (string)"
-                    "body = Message body (string)"
+                    "sendMessage(subject, body='', to='')\n"
+                    "sends a message in same manner as a message actuator.\n"
+                    "subject = Subject of the message (string)\n"
+                    "body = Message body (string)\n"
                     "to = Name of object to send the message to")
 {
   char *subject;
