@@ -2570,18 +2570,13 @@ void CcdShapeConstructionInfo::UpdateOtherArrays(Mesh *source_mesh)
     const blender::Span<blender::int3> tris = source_mesh->corner_tris();
     const blender::Span<int> corner_verts = source_mesh->corner_verts();
 
-    // UVs
+    // UVs - Use active UV map from the mesh
     blender::VArraySpan<blender::float2> uvs;
-    const int uv_layer_count = CustomData_number_of_layers(&source_mesh->corner_data,
-                                                           CD_PROP_FLOAT2);
-    if (uv_layer_count > 0) {
-      const char *uv_name = CustomData_get_active_layer_name(&source_mesh->corner_data,
-                                                             CD_PROP_FLOAT2);
-      if (uv_name) {
-        blender::bke::AttributeAccessor attributes = source_mesh->attributes();
-        if (auto uv_varray = attributes.lookup<blender::float2>(uv_name,
-                                                                blender::bke::AttrDomain::Corner))
-        {
+    {
+      blender::bke::AttributeAccessor attributes = source_mesh->attributes();
+      const StringRefNull uv_name = source_mesh->active_uv_map_name();
+      if (uv_name != nullptr) {
+        if (auto uv_varray = attributes.lookup<blender::float2>(uv_name, blender::bke::AttrDomain::Corner)) {
           uvs = *uv_varray;
         }
       }

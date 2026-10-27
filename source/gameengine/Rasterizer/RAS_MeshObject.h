@@ -40,13 +40,16 @@
 #include <string>
 #include <vector>
 
+#include "BLI_color_types.hh"
+#include "BLI_math_vector.hh"
+#include "BLI_virtual_array.hh"
+
 #include "MT_Transform.h"
 #include "MT_Vector2.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
 
 namespace blender {
-struct MLoopCol;
 struct Mesh;
 struct Object;
 }  // namespace blender
@@ -65,8 +68,8 @@ class RAS_MeshObject {
    * attribute's names in shader and names of the mesh layers here.
    */
   struct Layer {
-    const float (*luvs)[2];
-    blender::MLoopCol *color;
+    blender::VArray<blender::float2> luvs;
+    blender::VArray<blender::ColorGeometry4b> color;
     /// The index of the color or uv layer in the vertices.
     unsigned short index;
     /// The name of the color or uv layer used to find corresponding material attributes.

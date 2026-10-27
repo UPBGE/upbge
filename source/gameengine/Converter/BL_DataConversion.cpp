@@ -60,6 +60,7 @@
 
 /* This list includes only data type definitions */
 #include "BKE_armature.hh"
+#include "BKE_attribute.h" /* BKE_id_attributes_active_color_name */
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
@@ -256,22 +257,14 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
 
   for (const RAS_MeshObject::Layer &layer : layers) {
     const unsigned short index = layer.index;
-    if (layer.color) {
-      const MLoopCol &col = layer.color[loop];
-
-      union Convert {
-        // Color isn't swapped in MLoopCol.
-        MLoopCol col;
-        unsigned int val;
-      };
-      Convert con;
-      con.col = col;
-
-      rgba[index] = con.val;
+    if (!layer.color.is_empty()) {
+      const blender::ColorGeometry4b &col = layer.color[loop];
+      rgba[index] = unsigned int(col.r) | (unsigned int(col.g) << 8) |
+                    (unsigned int(col.b) << 16) | (unsigned int(col.a) << 24);
     }
-    else if (layer.luvs) {
-      const float *uv = &layer.luvs[loop][0];
-      uvs[index].setValue(uv);
+    else if (!layer.luvs.is_empty()) {
+      const blender::float2 uv = layer.luvs[loop];
+      uvs[index].setValue(uv.x, uv.y);
     }
   }
 
@@ -376,41 +369,56 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   /* Extract available layers.
    * Get the active color and uv layer. */
-  const short activeUv = CustomData_get_active_layer(&final_me->corner_data, CD_PROP_FLOAT2);
-  const short activeColor = CustomData_get_active_layer(&final_me->corner_data,
-                                                        CD_PROP_BYTE_COLOR);
+  const bke::AttributeAccessor attributes = final_me->attributes();
+
+  // UV maps: iterate all via modern API
+  const VectorSet<StringRefNull> uv_names = final_me->uv_map_names();
+  const unsigned short uvLayers = (unsigned short)uv_names.size();
+
+  // Active UV index for tangent calculation
+  StringRefNull active_uv_name = final_me->active_uv_map_name();
+  unsigned short activeUv = 0;
+  if (uvLayers > 0) {
+    const int active_uv_index = uv_names.index_of(active_uv_name);
+    activeUv = active_uv_index >= 0 ? unsigned short(active_uv_index) : 0;
+  }
+
+  // Color attribute: only take the active one (no color_names() API)
+  std::optional<StringRef> active_color_opt = BKE_id_attributes_active_color_name((blender::ID *)final_me);
+  unsigned short colorLayers = active_color_opt.has_value() ? 1 : 0;
 
   RAS_MeshObject::LayersInfo layersInfo;
-  layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
-  layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
+  layersInfo.activeUv = activeUv;
+  layersInfo.activeColor = 0;
 
-  const unsigned short uvLayers = CustomData_number_of_layers(&final_me->corner_data,
-                                                              CD_PROP_FLOAT2);
-  const unsigned short colorLayers = CustomData_number_of_layers(&final_me->corner_data,
-                                                                 CD_PROP_BYTE_COLOR);
-
-  // Extract UV loops.
-  for (unsigned short i = 0; i < uvLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&final_me->corner_data, CD_PROP_FLOAT2, i);
-    const float(*uv)[2] = (const float(*)[2])CustomData_get_layer_n(
-        &final_me->corner_data, CD_PROP_FLOAT2, i);
-    layersInfo.layers.push_back({uv, nullptr, i, name});
-  }
-  // Extract color loops.
-  for (unsigned short i = 0; i < colorLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(
-        &final_me->corner_data, CD_PROP_BYTE_COLOR, i);
-    blender::MLoopCol *col = (blender::MLoopCol *)CustomData_get_layer_n(
-        &final_me->corner_data, CD_PROP_BYTE_COLOR, i);
-    layersInfo.layers.push_back({nullptr, col, i, name});
+  // Extract UV loops using modern attribute API.
+  unsigned short uv_index = 0;
+  for (StringRefNull name : uv_names) {
+    if (auto uv_attr = attributes.lookup<float2>(name, bke::AttrDomain::Corner)) {
+      RAS_MeshObject::Layer layer{};
+      layer.luvs = uv_attr.varray;
+      layer.index = uv_index;
+      layer.name = std::string(name);
+      layersInfo.layers.push_back(std::move(layer));
+    }
+    ++uv_index;
   }
 
-  const bke::AttributeAccessor attributes = final_me->attributes();
+  // Extract color loop (active only).
+  if (colorLayers > 0) {
+    StringRef color_name = *active_color_opt;
+    if (auto col_attr = attributes.lookup<ColorGeometry4b>(color_name, bke::AttrDomain::Corner)) {
+      RAS_MeshObject::Layer layer{};
+      layer.color = col_attr.varray;
+      layer.index = 0;
+      layer.name = std::string(color_name);
+      layersInfo.layers.push_back(std::move(layer));
+    }
+  }
 
   Array<Array<float4>> tangent = {};
   if (uvLayers > 0) {
-    const StringRef active_uv_map = CustomData_get_active_layer_name(&final_me->corner_data, CD_PROP_FLOAT2);
-    const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_map, bke::AttrDomain::Corner);
+    const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_name, bke::AttrDomain::Corner);
     const VArray<bool> sharp_faces =
         attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false).varray;
     tangent = bke::mesh::calc_uv_tangents(positions,
@@ -512,8 +520,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
         }
         MT_Vector2 uvs[BL_Texture::MaxUnits];
         unsigned int rgba[BL_Texture::MaxUnits];
-
-        BL_GetUvRgba(layersInfo.layers, vert_i, uvs, rgba, uvLayers, colorLayers);
+        BL_GetUvRgba(layersInfo.layers, corner, uvs, rgba, uvLayers, colorLayers);
 
         vertices[vert_i] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vert_i);
       }
