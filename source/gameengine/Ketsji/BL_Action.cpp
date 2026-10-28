@@ -369,19 +369,19 @@ static bool ActionMatchesName(blender::bAction *action, char *name, eActionType 
             char md_name_esc[sizeof(name) * 2];
             switch (type) {
               case ACT_TYPE_MODIFIER:
-                BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+                BLI_str_escape(md_name_esc, name);
                 BLI_snprintf(pattern, sizeof(pattern), "modifiers[\"%s\"]", md_name_esc);
                 break;
               case ACT_TYPE_CONSTRAINT:
-                BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+                BLI_str_escape(md_name_esc, name);
                 BLI_snprintf(pattern, sizeof(pattern), "constraints[\"%s\"]", md_name_esc);
                 break;
               case ACT_TYPE_IDPROP:
-                BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+                BLI_str_escape(md_name_esc, name);
                 BLI_snprintf(pattern, sizeof(pattern), "[\"%s\"]", md_name_esc);
                 break;
               default:
-                BLI_str_escape(pattern, "", sizeof(pattern));
+                BLI_str_escape(pattern, "");
                 break;
             }
             // std::cout << "fcu name: " << fcu->rna_path << std::endl;

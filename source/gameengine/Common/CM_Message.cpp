@@ -70,7 +70,7 @@ std::ostream &_CM_PythonPrefix(std::ostream &stream)
     return stream;
   }
 
-  blender::BLI_path_split_file_part(path, file, sizeof(file));
+  blender::BLI_path_split_file_part(path, file);
 
   stream << termcolor::bold << file << termcolor::reset << "(" << termcolor::bold << line
          << termcolor::reset << "), ";

@@ -84,7 +84,7 @@ void DEV_Joystick::Init()
 
     if (path.has_value()) {
       char fullpath[FILE_MAX];
-      blender::BLI_path_join(fullpath, sizeof(fullpath), path->c_str(), "gamecontrollerdb.txt");
+      blender::BLI_path_join(fullpath, path->c_str(), "gamecontrollerdb.txt");
 
       if ((SDL_AddGamepadMappingsFromFile(fullpath)) == -1) {
         CM_Warning(

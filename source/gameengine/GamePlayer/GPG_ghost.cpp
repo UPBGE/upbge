@@ -1085,7 +1085,7 @@ int main(int argc,
   const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
   if (cfgdir.has_value()) {
     BLI_path_join(
-        filepath_userdef, sizeof(filepath_userdef), cfgdir->c_str(), BLENDER_USERPREF_FILE);
+        filepath_userdef, cfgdir->c_str(), BLENDER_USERPREF_FILE);
 
     /* load preferences */
     if (BLI_exists(filepath_userdef)) {
@@ -1380,7 +1380,7 @@ int main(int argc,
 
         get_filename(argc_py_clamped, argv, filename);
         if (filename[0])
-          BLI_path_abs_from_cwd(filename, sizeof(filename));
+          BLI_path_abs_from_cwd(filename);
 
         // fill the GlobalSettings with the first scene files
         // those may change during the game and persist after using Game Actuator
@@ -1471,7 +1471,7 @@ int main(int argc,
                  * else this is causing issues with globalDict. (youle)
                  */
                 char *blend_name = bfd->main->filepath;
-                BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
+                BLI_path_extension_ensure(MutableCStr(blend_name, FILE_MAX), ".blend");
 
                 KX_SetOrigPath(blend_name);
               }

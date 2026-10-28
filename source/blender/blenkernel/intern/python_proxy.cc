@@ -496,7 +496,7 @@ static bool load_class(PythonProxy *pp,
     Py_XDECREF(item); \
     PyDict_DelItemString(sys_modules, "bge"); \
     PyDict_DelItemString(sys_modules, "bge.types"); \
-    BLI_path_split_dir_part(maggie->filepath, path, sizeof(path)); \
+    BLI_path_split_dir_part(maggie->filepath, path); \
     pypath = PyC_UnicodeFromBytes(path); \
     index = PySequence_Index(sys_path, pypath); \
     /* Safely remove the value by finding their index. */ \
@@ -505,7 +505,7 @@ static bool load_class(PythonProxy *pp,
     } \
     Py_DECREF(pypath); \
     for (Library *lib = maggie->libraries.first(); lib; lib = (Library *)lib->id.next) { \
-      BLI_path_split_dir_part(lib->filepath, path, sizeof(path)); \
+      BLI_path_split_dir_part(lib->filepath, path); \
       pypath = PyC_UnicodeFromBytes(path); \
       index = PySequence_Index(sys_path, pypath); \
       /* Safely remove the value by finding their index. */ \
@@ -532,13 +532,13 @@ static bool load_class(PythonProxy *pp,
   /* Add to sys.path the path to all the used library to follow game engine sys.path management.
    * These path are remove later in FINISH. */
   for (Library *lib = maggie->libraries.first(); lib; lib = (Library *)lib->id.next) {
-    BLI_path_split_dir_part(lib->filepath, path, sizeof(path));
+    BLI_path_split_dir_part(lib->filepath, path);
     pypath = PyC_UnicodeFromBytes(path);
     PyList_Insert(sys_path, 0, pypath);
     Py_DECREF(pypath);
   }
   /* Add default path */
-  BLI_path_split_dir_part(maggie->filepath, path, sizeof(path));
+  BLI_path_split_dir_part(maggie->filepath, path);
   pypath = PyC_UnicodeFromBytes(path);
   PyList_Insert(sys_path, 0, pypath);
   Py_DECREF(pypath);
@@ -713,7 +713,7 @@ static PythonProxy *BKE_python_class_create_file(char *import,
   }
 
   strcpy(filename, modulename);
-  BLI_path_extension_ensure(filename, FILE_MAX, ".py");
+  BLI_path_extension_ensure(MutableCStr(filename, FILE_MAX), ".py");
 
   if (BLI_findstring(&maggie->texts, filename, offsetof(ID, name) + 2)) {
     BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "File %s already exists.", filename);
@@ -725,7 +725,7 @@ static PythonProxy *BKE_python_class_create_file(char *import,
   const std::optional<std::string> template_path = BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS,
                                                                         template_dir);
   BLI_strncpy(respath, template_path->c_str(), sizeof(respath));
-  BLI_path_append(respath, sizeof(respath), template_name);
+  BLI_path_append(respath, template_name);
 
   orgfilecontent = (unsigned char *)BLI_file_read_text_as_mem(respath, 0, &filesize);
   orgfilecontent[filesize] = '\0';

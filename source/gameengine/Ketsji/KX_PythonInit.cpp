@@ -512,7 +512,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
   }
   else {
     /* Get the dir only */
-    BLI_path_split_dir_part(KX_GetMainPath().c_str(), cpath, sizeof(cpath));
+    BLI_path_split_dir_part(KX_GetMainPath().c_str(), cpath);
   }
 
   if ((dp = opendir(cpath)) == nullptr) {
@@ -1727,7 +1727,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
   char expanded[FILE_MAX];
 
   BLI_path_split_dir_part(
-      filename, expanded, sizeof(expanded)); /* get the dir part of filename only */
+      filename, expanded); /* get the dir part of filename only */
   BLI_path_abs(expanded,
                KX_GetMainPath().c_str()); /* filename from lib->filename is (always?) absolute, so
                                              this may not be needed but it wont hurt */
@@ -1986,7 +1986,7 @@ void createPythonConsole()
   const std::optional<std::string> bge_folder_path = BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS,
                                                                           "bge");
   BLI_strncpy(filepath, bge_folder_path->c_str(), sizeof(filepath));
-  BLI_path_append(filepath, sizeof(filepath), "interpreter.py");
+  BLI_path_append(filepath, "interpreter.py");
 
   FILE *fp = fopen(filepath, "r+");
   // Execute the file in python.

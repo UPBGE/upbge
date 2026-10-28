@@ -197,7 +197,7 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
    * else this is causing issues with globalDict. (youle)
    */
   char *blend_name = blenderdata->filepath;
-  BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
+  BLI_path_extension_ensure(MutableCStr(blend_name, FILE_MAX), ".blend");
 
   KX_SetOrigPath(std::string(blend_name));
 
