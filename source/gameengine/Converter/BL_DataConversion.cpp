@@ -474,8 +474,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Face, 0);
 
-  const bool *sharp_faces = static_cast<const bool *>(
-      CustomData_get_layer_named(&final_me->face_data, CD_PROP_BOOL, "sharp_face"));
+  const VArray<bool> sharp_faces =
+      attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false).varray;
 
   const Span<float3> vertex_normals = final_me->vert_normals();
   const Span<float3> face_normals = final_me->face_normals();
@@ -506,7 +506,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
         const MT_Vector3 pt(vp);
 
         // Normal: flat or smooth
-        const bool flat = (sharp_faces && sharp_faces[face_i]);
+        const bool flat = !sharp_faces.is_empty() && sharp_faces[face_i];
         const float3 normal = flat ? face_normals[face_i] : vertex_normals[vert_i];
         const MT_Vector3 no(normal.x, normal.y, normal.z);
 
