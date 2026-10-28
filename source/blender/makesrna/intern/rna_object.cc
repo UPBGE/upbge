@@ -1066,10 +1066,7 @@ void rna_object_vgroup_name_index_set(PointerRNA *ptr, const char *value, short 
   *index = BKE_object_defgroup_name_index(ob, value) + 1;
 }
 
-void rna_object_vgroup_name_set(PointerRNA *ptr,
-                                const char *value,
-                                char *result,
-                                int result_maxncpy)
+void rna_object_vgroup_name_set(PointerRNA *ptr, const char *value, MutableCStr result)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (!BKE_object_supports_vertex_groups(ob)) {
@@ -1080,17 +1077,14 @@ void rna_object_vgroup_name_set(PointerRNA *ptr,
   bDeformGroup *dg = BKE_object_defgroup_find_name(ob, value);
   if (dg) {
     /* No need for BLI_strncpy_utf8, since this matches an existing group. */
-    BLI_strncpy(result, value, result_maxncpy);
+    STRNCPY(result, value);
     return;
   }
 
   result[0] = '\0';
 }
 
-void rna_object_uvlayer_name_set(PointerRNA *ptr,
-                                 const char *value,
-                                 char *result,
-                                 int result_maxncpy)
+void rna_object_uvlayer_name_set(PointerRNA *ptr, const char *value, MutableCStr result)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   Mesh *mesh;
@@ -1099,7 +1093,7 @@ void rna_object_uvlayer_name_set(PointerRNA *ptr,
     mesh = id_cast<Mesh *>(ob->data);
 
     if (mesh->uv_map_names().contains(value)) {
-      BLI_strncpy(result, value, result_maxncpy);
+      STRNCPY(result, value);
       return;
     }
   }
@@ -1107,10 +1101,7 @@ void rna_object_uvlayer_name_set(PointerRNA *ptr,
   result[0] = '\0';
 }
 
-void rna_object_vcollayer_name_set(PointerRNA *ptr,
-                                   const char *value,
-                                   char *result,
-                                   int result_maxncpy)
+void rna_object_vcollayer_name_set(PointerRNA *ptr, const char *value, MutableCStr result)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   Mesh *mesh;
@@ -1124,7 +1115,7 @@ void rna_object_vcollayer_name_set(PointerRNA *ptr,
       layer = &mesh->fdata_legacy.layers[a];
 
       if (layer->type == CD_MCOL && STREQ(layer->name, value)) {
-        BLI_strncpy(result, value, result_maxncpy);
+        STRNCPY(result, value);
         return;
       }
     }

@@ -4917,10 +4917,6 @@ void static area_docking_apply(bContext *C, wmOperator *op)
         jd->win1->global_areas.areabase.is_empty())
     {
       jd->close_win = true;
-      /* Clear the active region in each screen, otherwise they are pointing
-       * at incorrect regions and will cause errors in uiTemplateInputStatus. */
-      WM_window_get_active_screen(jd->win1)->active_region = nullptr;
-      WM_window_get_active_screen(jd->win2)->active_region = nullptr;
     }
     else {
       float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f};
@@ -5926,7 +5922,6 @@ static wmOperatorStatus region_quadview_exec(bContext *C, wmOperator *op)
   }
   else if (region->alignment == RGN_ALIGN_QSPLIT) {
     /* Exit quad-view */
-    bScreen *screen = CTX_wm_screen(C);
     ScrArea *area = CTX_wm_area(C);
 
     /* keep current region */
@@ -5967,9 +5962,6 @@ static wmOperatorStatus region_quadview_exec(bContext *C, wmOperator *op)
     for (ARegion &region_iter : area->regionbase.items_mutable()) {
       if (region_iter.alignment == RGN_ALIGN_QSPLIT) {
         ED_region_remove(C, area, &region_iter);
-        if (&region_iter == screen->active_region) {
-          screen->active_region = nullptr;
-        }
       }
     }
     ED_area_tag_redraw(area);

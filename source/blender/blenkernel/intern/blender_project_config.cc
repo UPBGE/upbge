@@ -18,6 +18,7 @@
 #include "BLI_uuid.hh"
 
 #include "BKE_blender_project.hh"
+#include "BKE_global.hh"
 #include "BKE_preferences.h"
 
 #include "DNA_asset_types.h"
@@ -506,13 +507,13 @@ bool BKE_blender_project_config_file_write(Main *bmain)
     return false;
   }
   /* Create the directory for new projects. */
-  const std::string config_dir = project->get_root_path() + SEP_STR + ".blender_project";
+  const std::string config_dir = project->get_root_path() + SEP_STR + BLENDER_PROJECT_CONFIG_DIR;
   if (!BLI_dir_create_recursive(config_dir.c_str())) {
     CLOG_ERROR(&LOG, "Failed to create project config directory '%s'", config_dir.c_str());
     return false;
   }
 
-  std::string toml_path = config_dir + SEP_STR + "project.toml";
+  std::string toml_path = config_dir + SEP_STR + BLENDER_PROJECT_CONFIG_FILE;
 
   toml::ordered_table toml_config = create_toml_from_blender_project(project);
 
@@ -532,6 +533,13 @@ bool BKE_blender_project_config_file_write(Main *bmain)
   }
 
   project->is_dirty = false;
+
+  if (!G.background) {
+    /* Update the recent projects in case the project name changed (or if this is a new project).
+     */
+    BKE_blender_project_recent_update(bmain);
+  }
+
   return true;
 }
 
@@ -541,8 +549,8 @@ bool BKE_blender_project_init_from_root_path(Main *bmain, std::string project_ro
     CLOG_ERROR(&LOG, "Project root path '%s', is not a directory", project_root_path.c_str());
     return false;
   }
-  std::string toml_path = project_root_path + SEP_STR + ".blender_project" + SEP_STR +
-                          "project.toml";
+  std::string toml_path = project_root_path + SEP_STR + BLENDER_PROJECT_CONFIG_DIR + SEP_STR +
+                          BLENDER_PROJECT_CONFIG_FILE;
   if (!BLI_is_file(toml_path.c_str())) {
     CLOG_ERROR(&LOG, "Project has no project.toml file");
     return false;

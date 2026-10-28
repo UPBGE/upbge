@@ -24,6 +24,7 @@
 
 #include "CLG_log.h"
 
+#include "DNA_color_types.h"
 #include "DNA_listBase.h"
 
 #include "IMB_colormanagement.hh"
@@ -289,7 +290,9 @@ static void direction_to_equirect(float r[2], const float dir[3])
  * Read a named pass from a multi-layer EXR and return a 4-channel float ImBuf.
  * Returns null if the pass is not in the file.
  */
-static ImBuf *studiolight_read_matcap_pass(ExrReadHandle *handle, const char *pass_name)
+static ImBuf *studiolight_read_matcap_pass(ExrReadHandle *handle,
+                                           const char *pass_name,
+                                           const char *file_colorspace)
 {
   Vector<ExrPassInfo> passes = IMB_exr_get_passes(handle);
   for (ExrPassInfo &info : passes) {
@@ -297,7 +300,7 @@ static ImBuf *studiolight_read_matcap_pass(ExrReadHandle *handle, const char *pa
       continue;
     }
     MutableSpan<ExrPassInfo> single(&info, 1);
-    IMB_exr_read_passes(handle, single, nullptr, false);
+    IMB_exr_read_passes(handle, single, file_colorspace, false);
     ImBuf *pass_ibuf = info.ibuf;
     if (pass_ibuf == nullptr || pass_ibuf->channels == 4) {
       return pass_ibuf;
@@ -320,8 +323,9 @@ static ImBuf *studiolight_read_matcap_pass(ExrReadHandle *handle, const char *pa
 static void studiolight_load_equirect_image(StudioLight *sl)
 {
   if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
-    ImBuf *ibuf = IMB_load_image_from_filepath(sl->filepath,
-                                               ImBufFlags::MultiLayer | ImBufFlags::AlphaIgnore);
+    ColorManagedColorspaceSettings colorspace_settings{};
+    ImBuf *ibuf = IMB_load_image_from_filepath(
+        sl->filepath, ImBufFlags::MultiLayer | ImBufFlags::AlphaIgnore, &colorspace_settings);
     ImBuf *specular_ibuf = nullptr;
     ImBuf *diffuse_ibuf = nullptr;
     const bool failed = (ibuf == nullptr);
@@ -336,8 +340,11 @@ static void studiolight_load_equirect_image(StudioLight *sl)
          * supported for MATCAPS where the first found 'diffuse' pass will be used
          * for diffuse lighting and the first found 'specular' pass will be used
          * for specular lighting. */
-        diffuse_ibuf = studiolight_read_matcap_pass(exr_handle, STUDIOLIGHT_PASSNAME_DIFFUSE);
-        specular_ibuf = studiolight_read_matcap_pass(exr_handle, STUDIOLIGHT_PASSNAME_SPECULAR);
+        const char *file_colorspace = colorspace_settings.name;
+        diffuse_ibuf = studiolight_read_matcap_pass(
+            exr_handle, STUDIOLIGHT_PASSNAME_DIFFUSE, file_colorspace);
+        specular_ibuf = studiolight_read_matcap_pass(
+            exr_handle, STUDIOLIGHT_PASSNAME_SPECULAR, file_colorspace);
 
         IMB_exr_close(exr_handle);
         IMB_freeImBuf(ibuf);
@@ -552,7 +559,7 @@ static void studiolight_lights_eval(StudioLight *sl, const float normal[3], floa
 static StudioLight *studiolight_add_file(const char *filepath, int flag)
 {
   char filename[FILE_MAXFILE];
-  BLI_path_split_file_part(filepath, filename, FILE_MAXFILE);
+  BLI_path_split_file_part(filepath, filename);
 
   if ((((flag & STUDIOLIGHT_TYPE_STUDIO) != 0) && BLI_path_extension_check(filename, ".sl")) ||
       BLI_path_extension_check_array(filename, imb_ext_image))
@@ -705,10 +712,10 @@ static void studiolight_matcap_preview(uint *icon_buffer, StudioLight *sl, bool 
 
     uint alphamask = alpha_circle_mask(dx, dy, 0.5f - texel_size[0], 0.5f);
 
-    *pixel = rgb_to_cpack(linearrgb_to_srgb(color[0]),
-                          linearrgb_to_srgb(color[1]),
-                          linearrgb_to_srgb(color[2])) |
-             alphamask;
+    /* Buffers are in the working space. */
+    float srgb[3];
+    IMB_colormanagement_scene_linear_to_srgb_v3(srgb, color);
+    *pixel = rgb_to_cpack(srgb[0], srgb[1], srgb[2]) | alphamask;
   }
   ITER_PIXELS_END;
 }
@@ -972,7 +979,7 @@ StudioLight *BKE_studiolight_create(const char *filepath,
                                        STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS);
 
   char filename[FILE_MAXFILE];
-  BLI_path_split_file_part(filepath, filename, FILE_MAXFILE);
+  BLI_path_split_file_part(filepath, filename);
   STRNCPY(sl->filepath, filepath);
   const size_t name_len = STRNCPY_RLEN(sl->name, filename);
   BLI_str_utf8_invalid_strip(sl->name, name_len);

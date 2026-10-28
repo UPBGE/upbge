@@ -17,6 +17,7 @@
 #include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_report.hh"
 
 #include "BLO_readfile.hh"
@@ -44,9 +45,9 @@ namespace blender {
 /** \name Local Utilities
  * \{ */
 
-static void view3d_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepath_maxncpy)
+static void view3d_copybuffer_filepath_get(MutableCStr filepath)
 {
-  BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer.blend");
+  BLI_path_join(filepath, BKE_tempdir_base(), "copybuffer.blend");
 }
 
 /** \} */
@@ -67,6 +68,26 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
 
   /* context, selection, could be generalized */
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    if (ID_IS_LINKED(&ob->id)) {
+      /* Direct link/append of linked IDs is not supported currently, so neither is their
+       * copy/pasting. */
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "Cannot copy the linked object '%s' to the internal clipboard",
+                  BKE_id_name(ob->id));
+      continue;
+    }
+    if (ID_IS_PACKED(&ob->id)) {
+      /* Direct link/append of packed IDs is not supported currently, so neither is their
+       * copy/pasting. */
+      /* NOTE: In practice, always shadowed currently by the more general check on linked status
+       * above. */
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "Cannot copy the linked packed object '%s' to the internal clipboard",
+                  BKE_id_name(ob->id));
+      continue;
+    }
     ID *ob_id_copy = copybuffer.id_add(
         &ob->id,
         PartialWriteContext::IDAddOptions{
@@ -93,7 +114,7 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
   }
 
   if (num_copied == 0) {
-    BKE_report(op->reports, RPT_INFO, "No objects selected to copy");
+    BKE_report(op->reports, RPT_INFO, "No valid selected objects to copy");
     return OPERATOR_CANCELLED;
   }
 
@@ -102,7 +123,7 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
   }
 
   char filepath[FILE_MAX];
-  view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
+  view3d_copybuffer_filepath_get(filepath);
   copybuffer.write_as_copypaste_buffer(filepath, *op->reports);
 
   BKE_reportf(op->reports, RPT_INFO, "Copied %d selected object(s)", num_copied);
@@ -140,7 +161,7 @@ static wmOperatorStatus view3d_pastebuffer_exec(bContext *C, wmOperator *op)
     flag |= FILE_ACTIVE_COLLECTION;
   }
 
-  view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
+  view3d_copybuffer_filepath_get(filepath);
 
   const int num_pasted = BKE_copybuffer_paste(C, filepath, flag, op->reports, FILTER_ID_OB);
   if (num_pasted == 0) {

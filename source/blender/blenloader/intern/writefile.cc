@@ -1416,6 +1416,9 @@ static bool write_library_if_needed(WriteData *wd,
         ids_used_from_library.append(id);
         continue;
       }
+      /* NOTE: If we ever want to support writing (and then linking) directly linked data for
+       * copy-paste, we need to also consider linked IDs flagged with `ID_FLAG_CLIPBOARD_MARK` as
+       * used here. */
       if ((id->tag & ID_TAG_INDIRECT) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
         ids_used_from_library.append(id);
         continue;
@@ -2068,13 +2071,13 @@ static bool BLO_write_file_impl(Main *mainvar,
 
     /* Normalize the paths in case there is some subtle difference (so they can be compared). */
     if (relbase_valid) {
-      BLI_path_split_dir_part(mainvar->filepath, dir_src, sizeof(dir_src));
+      BLI_path_split_dir_part(mainvar->filepath, dir_src);
       BLI_path_normalize(dir_src);
     }
     else {
       dir_src[0] = '\0';
     }
-    BLI_path_split_dir_part(filepath, dir_dst, sizeof(dir_dst));
+    BLI_path_split_dir_part(filepath, dir_dst);
     BLI_path_normalize(dir_dst);
 
     /* Only for relative, not relative-all, as this means making existing paths relative. */

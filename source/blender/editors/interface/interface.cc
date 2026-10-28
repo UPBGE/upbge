@@ -3316,7 +3316,7 @@ static double get_but_scale_unit(Button *but, double value)
   return BKE_unit_value_scale(*unit, RNA_SUBTYPE_UNIT_VALUE(unit_type), value);
 }
 
-void button_convert_to_unit_alt_name(Button *but, char *str, size_t str_maxncpy)
+void button_convert_to_unit_alt_name(Button *but, MutableCStr str)
 {
   if (!button_is_unit(but)) {
     return;
@@ -3326,10 +3326,9 @@ void button_convert_to_unit_alt_name(Button *but, char *str, size_t str_maxncpy)
   const int unit_type = button_unit_type_get(but);
   char *orig_str;
 
-  orig_str = BLI_strdup(str);
+  orig_str = BLI_strdup(str.data());
 
-  BKE_unit_name_to_alt(
-      str, str_maxncpy, orig_str, unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
+  BKE_unit_name_to_alt(str, orig_str, unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
 
   MEM_delete(orig_str);
 }
@@ -3337,13 +3336,8 @@ void button_convert_to_unit_alt_name(Button *but, char *str, size_t str_maxncpy)
 /**
  * \param float_precision: Override the button precision.
  */
-static void get_but_string_unit(Button *but,
-                                char *str,
-                                int str_maxncpy,
-                                double value,
-                                bool pad,
-                                int float_precision,
-                                bool do_suffix)
+static void get_but_string_unit(
+    Button *but, MutableCStr str, double value, bool pad, int float_precision, bool do_suffix)
 {
   const UnitSettings *unit = but->block->unit;
   const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
@@ -3366,14 +3360,8 @@ static void get_but_string_unit(Button *but,
     precision = float_precision;
   }
 
-  BKE_unit_value_as_string(str,
-                           str_maxncpy,
-                           get_but_scale_unit(but, value),
-                           precision,
-                           unit_type,
-                           *unit,
-                           pad,
-                           do_suffix);
+  BKE_unit_value_as_string(
+      str, get_but_scale_unit(but, value), precision, unit_type, *unit, pad, do_suffix);
 }
 
 static float get_but_step_unit(Button *but, float step_default)
@@ -3442,8 +3430,7 @@ static bool button_edit_string_include_unit_suffix(const Button *button)
 }
 
 void button_string_get_ex(Button *but,
-                          char *str,
-                          const size_t str_maxncpy,
+                          MutableCStr str,
                           const int float_precision,
                           const bool use_exp_float,
                           bool *r_use_exp_float)
@@ -3464,11 +3451,11 @@ void button_string_get_ex(Button *but,
        * Button.rnapoin/prop store an active value (e.g. active workspace). */
       PointerRNA ptr = RNA_pointer_create_discrete(
           but->rnapoin.owner_id, ptr_type, but->custom_data);
-      buf = RNA_struct_name_get_alloc(&ptr, str, str_maxncpy, &buf_len);
+      buf = RNA_struct_name_get_alloc(&ptr, str, &buf_len);
     }
     else if (type == PROP_STRING) {
       /* RNA string */
-      buf = RNA_property_string_get_alloc(&but->rnapoin, but->rnaprop, str, str_maxncpy, &buf_len);
+      buf = RNA_property_string_get_alloc(&but->rnapoin, but->rnaprop, str, &buf_len);
     }
     else if (type == PROP_ENUM) {
       /* RNA enum */
@@ -3479,14 +3466,14 @@ void button_string_get_ex(Button *but,
                                  value,
                                  &buf))
       {
-        BLI_strncpy(str, buf, str_maxncpy);
-        buf = str;
+        STRNCPY(str, buf);
+        buf = str.data();
       }
     }
     else if (type == PROP_POINTER) {
       /* RNA pointer */
       PointerRNA ptr = RNA_property_pointer_get(&but->rnapoin, but->rnaprop);
-      buf = RNA_struct_name_get_alloc(&ptr, str, str_maxncpy, &buf_len);
+      buf = RNA_struct_name_get_alloc(&ptr, str, &buf_len);
     }
     else {
       BLI_assert(0);
@@ -3495,14 +3482,14 @@ void button_string_get_ex(Button *but,
     if (buf == nullptr) {
       str[0] = '\0';
     }
-    else if (buf != str) {
-      BLI_assert(str_maxncpy <= buf_len + 1);
+    else if (buf != str.data()) {
+      BLI_assert(str.size() <= buf_len + 1);
       /* string was too long, we have to truncate */
       if (but_is_utf8(but)) {
-        BLI_strncpy_utf8(str, buf, str_maxncpy);
+        STRNCPY_UTF8(str, buf);
       }
       else {
-        BLI_strncpy(str, buf, str_maxncpy);
+        STRNCPY(str, buf);
       }
       MEM_delete(buf);
     }
@@ -3510,19 +3497,19 @@ void button_string_get_ex(Button *but,
   else if (but->rnaprop && but->type == ButtonType::TextBox) {
     BLI_assert(RNA_property_type(but->rnaprop) == PROP_STRING);
     std::string buf = RNA_property_string_get(&but->rnapoin, but->rnaprop);
-    BLI_strncpy_utf8(str, buf.data(), str_maxncpy);
+    STRNCPY_UTF8(str, buf.data());
   }
   else if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
     /* string */
     if (but_is_utf8(but)) {
-      BLI_strncpy_utf8(str, but->poin, str_maxncpy);
+      STRNCPY_UTF8(str, but->poin);
     }
     else {
-      BLI_strncpy(str, but->poin, str_maxncpy);
+      STRNCPY(str, but->poin);
     }
     return;
   }
-  else if (button_anim_expression_get(but, str, str_maxncpy)) {
+  else if (button_anim_expression_get(but, str)) {
     /* driver expression */
   }
   else {
@@ -3546,21 +3533,21 @@ void button_string_get_ex(Button *but,
 
       if (button_is_unit(but)) {
         const bool include_unit_suffix = button_edit_string_include_unit_suffix(but);
-        get_but_string_unit(but, str, str_maxncpy, value, false, prec, include_unit_suffix);
+        get_but_string_unit(but, str, value, false, prec, include_unit_suffix);
       }
       else if (subtype == PROP_FACTOR) {
         if (U.factor_display_type == USER_FACTOR_AS_FACTOR) {
-          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
+          SNPRINTF_UTF8(str, "%.*f", prec, value);
         }
         else {
-          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", std::max(0, prec - 2), value * 100);
+          SNPRINTF_UTF8(str, "%.*f", std::max(0, prec - 2), value * 100);
         }
       }
       else {
         const int int_digits_num = integer_digits_f(value);
         if (use_exp_float) {
           if (int_digits_num < -6 || int_digits_num > 12) {
-            BLI_snprintf_utf8(str, str_maxncpy, "%.*g", prec, value);
+            SNPRINTF_UTF8(str, "%.*g", prec, value);
             if (r_use_exp_float) {
               *r_use_exp_float = true;
             }
@@ -3568,24 +3555,24 @@ void button_string_get_ex(Button *but,
           else {
             prec -= int_digits_num;
             CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-            BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
+            SNPRINTF_UTF8(str, "%.*f", prec, value);
           }
         }
         else {
           prec -= int_digits_num;
           CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
+          SNPRINTF_UTF8(str, "%.*f", prec, value);
         }
       }
     }
     else {
-      BLI_snprintf_utf8(str, str_maxncpy, "%d", int(value));
+      SNPRINTF_UTF8(str, "%d", int(value));
     }
   }
 }
-void button_string_get(Button *but, char *str, const size_t str_maxncpy)
+void button_string_get(Button *but, MutableCStr str)
 {
-  button_string_get_ex(but, str, str_maxncpy, -1, false, nullptr);
+  button_string_get_ex(but, str, -1, false, nullptr);
 }
 
 char *button_string_get_dynamic(Button *but, int *r_str_size)
@@ -3598,7 +3585,7 @@ char *button_string_get_dynamic(Button *but, int *r_str_size)
 
     if (type == PROP_STRING) {
       /* RNA string */
-      str = RNA_property_string_get_alloc(&but->rnapoin, but->rnaprop, nullptr, 0, r_str_size);
+      str = RNA_property_string_get_alloc(&but->rnapoin, but->rnaprop, std::nullopt, r_str_size);
       (*r_str_size) += 1;
     }
     else if (type == PROP_ENUM) {
@@ -3620,7 +3607,7 @@ char *button_string_get_dynamic(Button *but, int *r_str_size)
     else if (type == PROP_POINTER) {
       /* RNA pointer */
       PointerRNA ptr = RNA_property_pointer_get(&but->rnapoin, but->rnaprop);
-      str = RNA_struct_name_get_alloc(&ptr, nullptr, 0, r_str_size);
+      str = RNA_struct_name_get_alloc(&ptr, std::nullopt, r_str_size);
       (*r_str_size) += 1;
     }
     else {
@@ -3629,7 +3616,7 @@ char *button_string_get_dynamic(Button *but, int *r_str_size)
   }
   else if (but->rnaprop && but->type == ButtonType::TextBox) {
     BLI_assert(RNA_property_type(but->rnaprop) == PROP_STRING);
-    str = RNA_property_string_get_alloc(&but->rnapoin, but->rnaprop, nullptr, 0, r_str_size);
+    str = RNA_property_string_get_alloc(&but->rnapoin, but->rnaprop, std::nullopt, r_str_size);
     *r_str_size += 1;
   }
   else {
@@ -4436,7 +4423,7 @@ static void but_build_drawstr_float(Button *but, double value)
   }
   else if (button_is_unit(but)) {
     char new_str[UI_MAX_DRAW_STR];
-    get_but_string_unit(but, new_str, sizeof(new_str), value, true, -1, true);
+    get_but_string_unit(but, new_str, value, true, -1, true);
     but->drawstr = but->str + new_str;
   }
   else {
@@ -4577,7 +4564,7 @@ static void but_update_ex(Button *but, const bool validate)
     case ButtonType::SearchMenu:
       if (!but->editstr) {
         char str[UI_MAX_DRAW_STR];
-        button_string_get(but, str, UI_MAX_DRAW_STR);
+        button_string_get(but, str);
         but->drawstr = fmt::format("{}{}", but->str, str);
       }
       break;
@@ -5628,7 +5615,7 @@ void autocomplete_update_name(AutoComplete *autocpl, const StringRef name)
     autocpl->matches++;
     /* first match */
     if (truncate[0] == 0) {
-      name.copy_utf8_truncated(truncate, autocpl->maxncpy);
+      name.copy_utf8_truncated(MutableCStr(truncate, autocpl->maxncpy));
     }
     else {
       /* remove from truncate what is not in bone->name */

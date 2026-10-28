@@ -233,6 +233,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_CLIPBOARD_PRIMARY = (1 << 2),
   /**
    * Reading from the back-buffer is supported.
+   *
+   * \note The GPU may not support this, also check #GPU_frontbuffer_read_workaround.
    */
   WM_CAPABILITY_GPU_FRONT_BUFFER_READ = (1 << 3),
   /** Ability to copy/paste system clipboard images. */
@@ -406,15 +408,13 @@ void WM_window_IME_end(wmWindow *win);
  * \param keep_composing: Reposition instead of restarting the session, as restarting cancels
  * the composition. Only true for the draw-time refresh of the region which owns it,
  * elsewhere canceling is intended, e.g. when the active region changes.
- * \param r_cursor: Optionally receives the cursor evaluated here, so a caller which needs it too
- * doesn't run `cursor_ime` twice.
- * \return true when `r_cursor` was assigned, false when no position was reported.
+ * \return The cursor evaluated here when a position was reported,
+ * so a caller which needs it too doesn't run `cursor_ime` twice.
  */
-bool WM_window_IME_region_refresh(wmWindow *win,
-                                  const ScrArea *area,
-                                  const ARegion *region,
-                                  bool keep_composing = false,
-                                  ARegionIMECursor *r_cursor = nullptr);
+std::optional<ARegionIMECursor> WM_window_IME_region_refresh(wmWindow *win,
+                                                             const ScrArea *area,
+                                                             const ARegion *region,
+                                                             bool keep_composing = false);
 
 /**
  * Return the IME data `region` should preview, null when there is nothing to draw:

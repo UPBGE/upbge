@@ -1405,7 +1405,7 @@ static std::optional<std::string> rna_ImageFormatSettings_path(
               node->storage);
           if (match(&storage.format)) {
             char node_name_esc[sizeof(node->name) * 2];
-            BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
+            BLI_str_escape(node_name_esc, node->name);
             return fmt::format("nodes[\"{}\"].format", node_name_esc);
           }
           else {
@@ -1413,7 +1413,7 @@ static std::optional<std::string> rna_ImageFormatSettings_path(
               NodeCompositorFileOutputItem &item = storage.items[i];
               if (match(&item.format)) {
                 char node_name_esc[sizeof(node->name) * 2];
-                BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
+                BLI_str_escape(node_name_esc, node->name);
 
                 const std::string identifier = FileOutputItemsAccessor::socket_identifier_for_item(
                     item);
@@ -1490,7 +1490,7 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
 
       if (strip) {
         char name_esc[(sizeof(strip->name) - 2) * 2];
-        BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
+        BLI_str_escape(name_esc, strip->name + 2);
         return fmt::format("sequence_editor.strips_all[\"{}\"].colorspace_settings", name_esc);
       }
     }
@@ -2093,8 +2093,7 @@ static std::optional<std::string> rna_ViewLayerEEVEE_path(const PointerRNA *ptr)
       offsetof(ViewLayer, eevee));
   char rna_path[sizeof(view_layer->name) * 3];
 
-  const size_t view_layer_path_len = rna_ViewLayer_path_buffer_get(
-      view_layer, rna_path, sizeof(rna_path));
+  const size_t view_layer_path_len = rna_ViewLayer_path_buffer_get(view_layer, rna_path);
 
   BLI_strncpy(rna_path + view_layer_path_len, ".eevee", sizeof(rna_path) - view_layer_path_len);
 
@@ -2150,7 +2149,7 @@ static std::optional<std::string> rna_SceneRenderView_path(const PointerRNA *ptr
 {
   const SceneRenderView *srv = static_cast<SceneRenderView *>(ptr->data);
   char srv_name_esc[sizeof(srv->name) * 2];
-  BLI_str_escape(srv_name_esc, srv->name, sizeof(srv_name_esc));
+  BLI_str_escape(srv_name_esc, srv->name);
   return fmt::format("render.views[\"{}\"]", srv_name_esc);
 }
 
@@ -8644,6 +8643,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "simplify_child_particles_render", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "simplify_particles_render");
+  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(
       prop, "Simplify Child Particles", "Global child particles percentage during rendering");
   RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
