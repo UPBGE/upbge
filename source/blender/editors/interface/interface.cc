@@ -5579,9 +5579,8 @@ void button_retval_set(Button *but, int retval)
  * \{ */
 
 struct AutoComplete {
-  size_t maxncpy;
   int matches;
-  char *truncate;
+  MutableCStr truncate;
   const char *startname;
 };
 
@@ -5589,10 +5588,9 @@ AutoComplete *autocomplete_begin(const char *startname, size_t maxncpy)
 {
   AutoComplete *autocpl;
 
-  autocpl = MEM_new_zeroed<AutoComplete>(__func__);
-  autocpl->maxncpy = maxncpy;
+  autocpl = MEM_new<AutoComplete>(__func__);
   autocpl->matches = 0;
-  autocpl->truncate = MEM_new_array_zeroed<char>(maxncpy, __func__);
+  autocpl->truncate = MutableCStr(MEM_new_array_zeroed<char>(maxncpy, __func__), maxncpy);
   autocpl->startname = startname;
 
   return autocpl;
@@ -5600,11 +5598,14 @@ AutoComplete *autocomplete_begin(const char *startname, size_t maxncpy)
 
 void autocomplete_update_name(AutoComplete *autocpl, const StringRef name)
 {
-  char *truncate = autocpl->truncate;
+  char *truncate = autocpl->truncate.data();
   const char *startname = autocpl->startname;
+  const int len_max = int(autocpl->truncate.size()) - 1;
   int match_index = 0;
-  for (int a = 0; a < std::min<size_t>(name.size(), autocpl->maxncpy) - 1; a++) {
-    if (startname[a] == 0 || startname[a] != name[a]) {
+  for (int a = 0; a < len_max; a++) {
+    /* Past the end of `name`, compare with its null terminator. */
+    const char c = (a < name.size()) ? name[a] : '\0';
+    if (startname[a] == 0 || startname[a] != c) {
       match_index = a;
       break;
     }
@@ -5615,12 +5616,12 @@ void autocomplete_update_name(AutoComplete *autocpl, const StringRef name)
     autocpl->matches++;
     /* first match */
     if (truncate[0] == 0) {
-      name.copy_utf8_truncated(MutableCStr(truncate, autocpl->maxncpy));
+      name.copy_utf8_truncated(autocpl->truncate);
     }
     else {
       /* remove from truncate what is not in bone->name */
-      for (int a = 0; a < std::min<size_t>(name.size(), autocpl->maxncpy) - 1; a++) {
-        if (name[a] == 0) {
+      for (int a = 0; a < len_max; a++) {
+        if (a == name.size()) {
           truncate[a] = 0;
           break;
         }
@@ -5642,15 +5643,15 @@ int autocomplete_end(AutoComplete *autocpl, char *autoname)
     else {
       match = AUTOCOMPLETE_PARTIAL_MATCH;
     }
-    BLI_strncpy(autoname, autocpl->truncate, autocpl->maxncpy);
+    BLI_strncpy(autoname, autocpl->truncate.data(), autocpl->truncate.size());
   }
   else {
     if (autoname != autocpl->startname) { /* don't copy a string over itself */
-      BLI_strncpy(autoname, autocpl->startname, autocpl->maxncpy);
+      BLI_strncpy(autoname, autocpl->startname, autocpl->truncate.size());
     }
   }
 
-  MEM_delete(autocpl->truncate);
+  MEM_delete(autocpl->truncate.data());
   MEM_delete(autocpl);
   return match;
 }
@@ -6521,9 +6522,8 @@ Button *uiDefIconBlockBut(Block *block,
  * \{ */
 
 Button *uiDefSearchBut(Block *block,
-                       void *arg,
+                       MutableCStr arg,
                        int icon,
-                       int maxncpy,
                        int x,
                        int y,
                        short width,
@@ -6531,7 +6531,7 @@ Button *uiDefSearchBut(Block *block,
                        const std::optional<StringRef> tip)
 {
   Button *but = def_but(
-      block, ButtonType::SearchMenu, "", x, y, width, height, arg, 0.0, maxncpy, tip);
+      block, ButtonType::SearchMenu, "", x, y, width, height, arg.data(), 0.0, arg.size(), tip);
 
   def_but_icon(but, icon, UI_HAS_ICON);
 
@@ -6717,16 +6717,15 @@ static void operator_enum_search_exec_fn(bContext * /*C*/, void *but, void *arg2
 Button *uiDefSearchButO_ptr(Block *block,
                             wmOperatorType *ot,
                             IDProperty *properties,
-                            void *arg,
+                            MutableCStr arg,
                             int icon,
-                            int maxncpy,
                             int x,
                             int y,
                             short width,
                             short height,
                             const std::optional<StringRef> tip)
 {
-  Button *but = uiDefSearchBut(block, arg, icon, maxncpy, x, y, width, height, tip);
+  Button *but = uiDefSearchBut(block, arg, icon, x, y, width, height, tip);
   button_func_search_set(but,
                          searchbox_create_generic,
                          operator_enum_search_update_fn,

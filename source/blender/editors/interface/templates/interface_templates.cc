@@ -182,7 +182,7 @@ Block *template_common_search_menu(const bContext *C,
 
     /* fake button, it holds space for search items */
     uiDefBut(block, ButtonType::Label, "", 0, UI_UNIT_Y, w, h, nullptr, 0, 0, std::nullopt);
-    but = uiDefSearchBut(block, search, ICON_VIEWZOOM, sizeof(search), 0, 0, w, UI_UNIT_Y, "");
+    but = uiDefSearchBut(block, search, ICON_VIEWZOOM, 0, 0, w, UI_UNIT_Y, "");
     button_search_preview_grid_size_set(but, preview_rows, preview_cols);
   }
   /* list view */
@@ -207,7 +207,6 @@ Block *template_common_search_menu(const bContext *C,
                          search,
 
                          ICON_VIEWZOOM,
-                         sizeof(search),
                          0,
                          0,
                          searchbox_width,

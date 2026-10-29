@@ -973,12 +973,12 @@ static bool path_frame_chars_find_range(const char *path, int *r_char_start, int
  *
  * \return false when there isn't room to append the digits.
  */
-static bool ensure_digits(char *path, const size_t path_maxncpy, int digits)
+static bool ensure_digits(MutableCStr path, int digits)
 {
-  char *file = const_cast<char *>(BLI_path_basename(path));
+  char *file = const_cast<char *>(BLI_path_basename(path.data()));
   if (strrchr(file, '#') == nullptr) {
     int len = strlen(file);
-    if (size_t(file - path) + size_t(len + digits) >= path_maxncpy) {
+    if ((file - path.data()) + len + digits >= path.size()) {
       return false;
     }
 
@@ -996,7 +996,7 @@ bool BLI_path_frame(MutableCStr path, int frame, int digits)
 
   int ch_sta, ch_end;
 
-  if (digits && !ensure_digits(path.data(), size_t(path.size()), digits)) {
+  if (digits && !ensure_digits(path, digits)) {
     return false;
   }
 
@@ -1016,7 +1016,7 @@ bool BLI_path_frame_range(MutableCStr path, int sta, int end, int digits)
 
   int ch_sta, ch_end;
 
-  if (digits && !ensure_digits(path.data(), size_t(path.size()), digits)) {
+  if (digits && !ensure_digits(path, digits)) {
     return false;
   }
 
@@ -1181,7 +1181,7 @@ bool BLI_path_abs(char path[FILE_MAX], const char *basepath)
 
     /* Step over the slashes at the beginning of the path. */
     p = (char *)BLI_path_slash_skip(p);
-    BLI_strncpy(tmp + root_dir_len, p, sizeof(tmp) - root_dir_len);
+    STRNCPY(MutableCStr(tmp).drop_front(root_dir_len), p);
   }
   else {
     STRNCPY(tmp, path);
@@ -1232,9 +1232,9 @@ bool BLI_path_abs(char path[FILE_MAX], const char *basepath)
       /* Use path for temp storage here, we copy back over it right away. */
       BLI_strncpy(path, tmp + 2, FILE_MAX); /* Strip `//` prefix. */
 
-      memcpy(tmp, base, baselen); /* Prefix with base up to last `/`. */
-      BLI_strncpy(tmp + baselen, path, sizeof(tmp) - baselen); /* Append path after `//`. */
-      BLI_strncpy(path, tmp, FILE_MAX);                        /* Return as result. */
+      memcpy(tmp, base, baselen);                          /* Prefix with base up to last `/`. */
+      STRNCPY(MutableCStr(tmp).drop_front(baselen), path); /* Append path after `//`. */
+      BLI_strncpy(path, tmp, FILE_MAX);                    /* Return as result. */
     }
     else {
       /* Base doesn't seem to be a directory, ignore it and just strip `//` prefix on path.
@@ -1521,7 +1521,7 @@ bool BLI_path_extension_check_glob(const char *path, const char *ext_fnmatch)
 
     if ((ext_next = strchr(ext_step, ';'))) {
       len_ext = ext_next - ext_step + 1;
-      BLI_strncpy(pattern, ext_step, (len_ext > sizeof(pattern)) ? sizeof(pattern) : len_ext);
+      STRNCPY(MutableCStr(pattern).take_front(len_ext), ext_step);
     }
     else {
       len_ext = STRNCPY_RLEN(pattern, ext_step);
