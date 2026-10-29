@@ -259,8 +259,8 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
     const unsigned short index = layer.index;
     if (!layer.color.is_empty()) {
       const blender::ColorGeometry4b &col = layer.color[loop];
-      rgba[index] = unsigned int(col.r) | (unsigned int(col.g) << 8) |
-                    (unsigned int(col.b) << 16) | (unsigned int(col.a) << 24);
+      rgba[index] = static_cast<unsigned int>(col.r) | (static_cast<unsigned int>(col.g) << 8) |
+                    (static_cast<unsigned int>(col.b) << 16) | (static_cast<unsigned int>(col.a) << 24);
     }
     else if (!layer.luvs.is_empty()) {
       const blender::float2 uv = layer.luvs[loop];
@@ -380,7 +380,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   unsigned short activeUv = 0;
   if (uvLayers > 0) {
     const int active_uv_index = uv_names.index_of(active_uv_name);
-    activeUv = active_uv_index >= 0 ? unsigned short(active_uv_index) : 0;
+    activeUv = static_cast<unsigned short>(active_uv_index >= 0 ? active_uv_index : 0);
   }
 
   // Color attribute: only take the active one (no color_names() API)
