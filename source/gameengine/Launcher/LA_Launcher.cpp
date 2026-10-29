@@ -30,10 +30,12 @@
 
 #include "LA_Launcher.h"
 
+#include "BKE_context.hh"
 #include "BKE_main.hh"
 #include "BKE_sound.h"
 #include "DNA_scene_types.h"
 #include "wm_event_types.hh"
+#include "WM_api.hh"
 
 #include "BL_Converter.h"
 #include "BL_DataConversion.h"
@@ -186,6 +188,12 @@ void LA_Launcher::InitEngine()
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
   }
 
+  const char *backend = GHOST_ISystem::getSystemBackend();
+  const bool is_wayland = backend && (strcmp(backend, "WAYLAND") == 0);
+  if (is_wayland) {
+    WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, nullptr, false);
+  }
+
   // Create the inputdevices.
   m_inputDevice = new DEV_InputDevice();
   m_eventConsumer = new DEV_EventConsumer(m_system, m_inputDevice, m_canvas);
@@ -310,6 +318,12 @@ void LA_Launcher::ExitEngine()
     // Then set the cursor back to normal here to avoid set the cursor visible between two game
     // load.
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+  }
+
+  const char *backend = GHOST_ISystem::getSystemBackend();
+  const bool is_wayland = backend && (strcmp(backend, "WAYLAND") == 0);
+  if (is_wayland) {
+    WM_cursor_grab_disable(CTX_wm_window(m_context), nullptr);
   }
 
   // Set vsync mode back to original value.
