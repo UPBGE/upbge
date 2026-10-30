@@ -374,7 +374,16 @@ void BKE_time_markers_blend_write(BlendWriter *writer, ListBaseT<TimeMarker> &ma
 void BKE_time_markers_blend_read(BlendDataReader *reader, ListBaseT<TimeMarker> &markers);
 
 /**
- * Copy a list of time markers.
+ * Copy a time marker and its ID properties.
+ *
+ * Note: this is meant to be called in the context of duplicating an ID.
+ *
+ * \param flag: ID copy flags. Corresponds to the `flag` parameter of `BKE_id_copy_ex()`.
+ */
+TimeMarker *BKE_copy_time_marker(const TimeMarker &marker_src, int flag);
+
+/**
+ * Copy a list of time markers and their ID properties.
  *
  * Note: this is meant to be called in the context of duplicating an ID.
  *
@@ -384,6 +393,7 @@ void BKE_copy_time_markers(ListBaseT<TimeMarker> &markers_dst,
                            const ListBaseT<TimeMarker> &markers_src,
                            int flag);
 
-void BKE_free_time_markers(ListBaseT<blender::TimeMarker> &markers, bool do_id_user);
+void BKE_free_time_marker(TimeMarker &marker, bool do_id_user);
+void BKE_free_time_markers(ListBaseT<TimeMarker> &markers, bool do_id_user);
 
 }  // namespace blender
