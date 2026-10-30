@@ -83,6 +83,7 @@
 #include <unistd.h>
 
 #include <cstdlib> /* For `exit`. */
+#include <cstdio>
 #include <cstring>
 #include <mutex>
 
@@ -3948,7 +3949,18 @@ static void pointer_handle_motion(void *data,
                                   const wl_fixed_t surface_y)
 {
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  const uint64_t event_ms = seat->system->ms_from_input_time(time);
+  uint64_t event_ms = seat->system->ms_from_input_time(time);
+  if (time == 0 || event_ms == 0) {
+    const uint64_t fallback_event_ms = seat->system->getMilliSeconds();
+    std::fprintf(stderr,
+                 "[GHOST Wayland] pointer motion timestamp fallback: wl_time=%u, "
+                 "event_ms=%llu, fallback_event_ms=%llu\n",
+                 time,
+                 static_cast<unsigned long long>(event_ms),
+                 static_cast<unsigned long long>(fallback_event_ms));
+    std::fflush(stderr);
+    event_ms = fallback_event_ms ? fallback_event_ms : 1;
+  }
 
   seat->pointer.xy[0] = surface_x;
   seat->pointer.xy[1] = surface_y;
